@@ -31,6 +31,7 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/display/visualizer/visualizer_bar_spectrum.h"
+#include "hid/display/visualizer/visualizer_common.h"
 #include "hid/display/visualizer/visualizer_cube.h"
 #include "hid/display/visualizer/visualizer_line_spectrum.h"
 #include "hid/display/visualizer/visualizer_midi_piano_roll.h"
@@ -161,10 +162,7 @@ void Visualizer::renderVisualizerPulseGrid(oled_canvas::Canvas& canvas) {
 
 /// Check if visualizer should be rendered and render it if conditions are met
 bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas) {
-	int32_t mod_knob_mode = 0;
-	if (view.activeModControllableModelStack.modControllable != nullptr) {
-		mod_knob_mode = *view.activeModControllableModelStack.modControllable->getModKnobMode();
-	}
+	int32_t mod_knob_mode = deluge::hid::display::extractModKnobMode(view);
 
 	return potentiallyRenderVisualizer(canvas, view.displayVUMeter, isEnabled(),
 	                                   view.activeModControllableModelStack.modControllable, mod_knob_mode);
@@ -172,10 +170,7 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas) {
 
 /// Check if visualizer should be rendered and render it if conditions are met
 bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, View& view) {
-	int32_t mod_knob_mode = 0;
-	if (view.activeModControllableModelStack.modControllable != nullptr) {
-		mod_knob_mode = *view.activeModControllableModelStack.modControllable->getModKnobMode();
-	}
+	int32_t mod_knob_mode = deluge::hid::display::extractModKnobMode(view);
 
 	return potentiallyRenderVisualizer(canvas, view.displayVUMeter, isEnabled(),
 	                                   view.activeModControllableModelStack.modControllable, mod_knob_mode);
@@ -184,13 +179,8 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, View& 
 /// Check if visualizer should be rendered and render it if conditions are met
 bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool displayVUMeter, bool visualizer_enabled,
                                              ModControllable* modControllable, int32_t mod_knob_mode) {
-	// Don't show visualizer in automation view (including overview and editor modes)
-	if (getRootUI() == &automationView) {
-		return false;
-	}
-
-	// Don't show visualizer in performance mode
-	if (getRootUI() == &performanceView) {
+	// Don't show visualizer in automation/performance views
+	if (shouldDisableVisualizerForCurrentUI()) {
 		return false;
 	}
 
@@ -231,28 +221,8 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		}
 
 		// Check silence timeout (1 second at 44.1kHz)
-		bool isSilent = false;
-
-		// Check if we're in MIDI Piano Roll mode
 		uint32_t visualizer_mode = getMode();
-		if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll) {
-			// For MIDI Piano Roll, check if there have been no MIDI notes for 1 second
-			uint32_t samplesSinceMidiNote = AudioEngine::audioSampleTimer - midi_piano_roll_last_note_time;
-			isSilent = (samplesSinceMidiNote > kSilenceTimeoutSamples);
-		}
-		else if (isClipMode()) {
-			// For clip visualizer, check if this specific clip has been silent for 1 second
-			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - clip_visualizer_last_audio_time;
-			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
-		}
-		else {
-			// For global visualizer, check if the mix has been silent for 1 second
-			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - global_visualizer_last_audio_time;
-			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
-		}
-
-		// Don't show visualizer if it's been silent for too long
-		if (isSilent) {
+		if (shouldSilenceVisualizer(visualizer_mode, isClipMode())) {
 			shouldEnable = false;
 		}
 
@@ -308,8 +278,8 @@ void Visualizer::requestVisualizerUpdateIfNeeded(View& view) {
 }
 
 void Visualizer::requestVisualizerUpdateIfNeeded(bool displayVUMeter, bool visualizer_enabled) {
-	// Don't update visualizer in automation view (including overview and editor modes)
-	if (getRootUI() == &automationView) {
+	// Don't update visualizer in automation/performance views
+	if (shouldDisableVisualizerForCurrentUI()) {
 		return;
 	}
 
@@ -324,28 +294,8 @@ void Visualizer::requestVisualizerUpdateIfNeeded(bool displayVUMeter, bool visua
 
 	if (shouldBeActive) {
 		// Check silence timeout (1 second at 44.1kHz) - don't refresh OLED if silent
-		bool isSilent = false;
-
-		// Check if we're in MIDI Piano Roll mode
 		uint32_t visualizer_mode = getMode();
-		if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll) {
-			// For MIDI Piano Roll, check if there have been no MIDI notes for 1 second
-			uint32_t samplesSinceMidiNote = AudioEngine::audioSampleTimer - midi_piano_roll_last_note_time;
-			isSilent = (samplesSinceMidiNote > kSilenceTimeoutSamples);
-		}
-		else if (isClipMode()) {
-			// For clip visualizer, check if this specific clip has been silent for 1 second
-			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - clip_visualizer_last_audio_time;
-			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
-		}
-		else {
-			// For global visualizer, check if the mix has been silent for 1 second
-			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - global_visualizer_last_audio_time;
-			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
-		}
-
-		// Don't refresh OLED if visualizer is silent
-		if (isSilent) {
+		if (shouldSilenceVisualizer(visualizer_mode, isClipMode())) {
 			return;
 		}
 
@@ -491,7 +441,8 @@ void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderin
 	// Only sample if visualizer feature is enabled and not in clip mode
 	if (isEnabled() && current_clip_for_visualizer.load(std::memory_order_acquire) == nullptr) {
 		// Sample every N-th sample from the audio block for efficiency
-		updateSilenceTimer(renderingBuffer, numSamples, global_visualizer_last_audio_time);
+		uint32_t& silenceTimer = getAppropriateSilenceTimer(getMode(), false); // false for global mode
+		updateSilenceTimer(renderingBuffer, numSamples, silenceTimer);
 
 		sampleIntoBuffers(renderingBuffer, numSamples);
 	}
@@ -503,14 +454,10 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 	// Only samples when visualizer is enabled, toggle is enabled, and this clip is the current clip being visualized
 	if (isEnabled() && visualizer_toggle_enabled && clip == getCurrentClipForVisualizer()) {
 		// Check if we're in clip context and have valid clip type
-		bool isSynthKitOrAudioClip =
-		    ((clip->type == ClipType::INSTRUMENT
-		      && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT))
-		     || clip->type == ClipType::AUDIO);
-		bool isNotInAutomationView = !(getRootUI() == &automationView);
-
-		if (isInClipContext() && isSynthKitOrAudioClip && isNotInAutomationView) {
-			updateSilenceTimer(renderingBuffer, numSamples, clip_visualizer_last_audio_time);
+		if (validateClipContextForVisualizer(isInClipContext(), visualizer_toggle_enabled, clip)
+		    && !shouldDisableVisualizerForCurrentUI()) {
+			uint32_t& silenceTimer = getAppropriateSilenceTimer(getMode(), true); // true for clip mode
+			updateSilenceTimer(renderingBuffer, numSamples, silenceTimer);
 
 			sampleIntoBuffers(renderingBuffer, numSamples);
 		}
@@ -564,8 +511,8 @@ bool Visualizer::isClipMode() {
 		return false;
 	}
 
-	// Don't show visualizer in automation view (including overview and editor modes)
-	if (getRootUI() == &automationView) {
+	// Don't show visualizer in automation/performance views
+	if (shouldDisableVisualizerForCurrentUI()) {
 		return false;
 	}
 
@@ -623,18 +570,13 @@ Clip* Visualizer::getCurrentClipForVisualizer() {
 
 /// Clear visualizer buffer (called when switching clips or entering clip view)
 void Visualizer::clearVisualizerBuffer() {
-	// Clear all sample buffers
-	visualizer_sample_buffer_left.fill(0);
-	visualizer_sample_buffer_right.fill(0);
-	visualizer_sample_buffer.fill(0);
-
-	// Reset buffer positions and counts
-	visualizer_write_pos.store(0, std::memory_order_release);
-	visualizer_sample_count.store(0, std::memory_order_release);
+	// Clear all sample buffers and reset state
+	clearAllVisualizerBuffers();
 
 	// Reset silence timers when clearing buffer (typically when switching clips)
 	global_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
 	clip_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+	midi_piano_roll_last_note_time = AudioEngine::audioSampleTimer;
 }
 
 /// Check if clip visualizer should be activated for a given clip

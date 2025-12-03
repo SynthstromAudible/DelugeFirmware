@@ -47,6 +47,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/display/visualizer.h"
+#include "hid/display/visualizer/visualizer_common.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -1930,51 +1931,23 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 			if (session.launchEventAtSwungTickCount) {
 				intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
 
-				// Check if visualizer is enabled AND actively running
-				bool visualizer_active = deluge::hid::display::Visualizer::isActive(view.displayVUMeter);
-
-				if (visualizer_active) {
-					// Use popup for active visualizer users
-					display->popupText(loopsRemainingText, PopupType::GENERAL);
-				}
-				else {
-					// Direct rendering for non-active visualizer users (original behavior)
-					// Cancel any existing popup first
-					display->cancelPopup();
-					deluge::hid::display::OLED::clearMainImage();
-					deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
-				}
+				// Display popup using conditional logic based on visualizer state
+				deluge::hid::display::displayConditionalPopup(loopsRemainingText, view);
 			}
 			else {
-				// Check if visualizer is active - if so, cancel any lingering popup when launch event ends
-				if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
-					// Cancel any lingering popup when the launch event countdown reaches zero
-					display->cancelPopup();
-				}
+				// Cancel any lingering popup when the launch event countdown reaches zero
+				deluge::hid::display::cancelPopupIfVisualizerActive(view);
 			}
 		}
 
 		else { // Arrangement playback
 			if (playbackHandler.stopOutputRecordingAtLoopEnd) {
-				// Check if visualizer is enabled AND actively running
-				if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
-					// Use popup for active visualizer users
-					display->popupText("Resampling will end...", PopupType::GENERAL);
-				}
-				else {
-					// Direct rendering for non-active visualizer users (original behavior)
-					// Cancel any existing popup first
-					display->cancelPopup();
-					deluge::hid::display::OLED::clearMainImage();
-					deluge::hid::display::OLED::drawPermanentPopupLookingText("Resampling will end...");
-				}
+				// Display popup using conditional logic based on visualizer state
+				deluge::hid::display::displayConditionalPopup("Resampling will end...", view);
 			}
 			else {
-				// Check if visualizer is active - if so, cancel any lingering popup when resampling ends
-				if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
-					// Cancel any lingering popup when the resampling notification ends
-					display->cancelPopup();
-				}
+				// Cancel any lingering popup when resampling ends
+				deluge::hid::display::cancelPopupIfVisualizerActive(view);
 			}
 		}
 	}
@@ -2446,32 +2419,18 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 				popupMsg.appendInt(quarterNotesRemaining);
 			}
 			if (display->haveOLED() && !ephemeral) {
-				// Check if visualizer is enabled AND actively running
-				if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
-					// Use popup for active visualizer users
-					display->popupText(popupMsg.c_str(), PopupType::GENERAL);
-				}
-				else {
-					// Direct rendering for non-active visualizer users (original behavior)
-					// Cancel any existing popup first
-					display->cancelPopup();
-					deluge::hid::display::OLED::clearMainImage();
-					deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
-					deluge::hid::display::OLED::sendMainImage();
-				}
+				// Display popup using conditional logic based on visualizer state
+				deluge::hid::display::displayConditionalPopup(popupMsg.c_str(), view);
 			}
 			else {
 				display->displayPopup(popupMsg.c_str(), 1, true);
 			}
 		}
 		else {
-			// If no popup was shown (sixteenthNotesRemaining <= 0), but visualizer is active,
-			// cancel any lingering popup from previous calls
+			// If no popup was shown (sixteenthNotesRemaining <= 0), cancel any lingering popup
+			// when visualizer is active
 			if (display->haveOLED() && !ephemeral) {
-				if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
-					// Cancel any lingering popup when the countdown reaches zero
-					display->cancelPopup();
-				}
+				deluge::hid::display::cancelPopupIfVisualizerActive(view);
 			}
 		}
 	}
