@@ -187,24 +187,25 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 	// Check if visualizer feature is enabled in Waveform, Spectrum, or Equalizer mode in runtime settings
 	if (visualizer_enabled) {
 		// Visualizer engages automatically with VU meter (session/arranger only) or when toggle is enabled (all views)
-		bool shouldEnable =
+		bool should_enable =
 		    (displayVUMeter && modControllable != nullptr && mod_knob_mode == 0) || visualizer_toggle_enabled;
 
 		// Check if we're in a clip context (clip view or holding clip)
-		bool inClipView = (getCurrentUI() == &instrumentClipView) || (getCurrentUI() == &audioClipView);
-		bool inKeyboardScreen = (getRootUI() == &keyboardScreen);
-		bool holdingClipInSessionView =
+		bool in_clip_view = (getCurrentUI() == &instrumentClipView) || (getCurrentUI() == &audioClipView);
+		bool in_keyboard_screen = (getRootUI() == &keyboardScreen);
+		bool holding_clip_in_session_view =
 		    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
-		bool holdingClipInArrangerView = (getCurrentUI() == &arrangerView)
-		                                 && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
-		                                     || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
+		bool holding_clip_in_arranger_view = (getCurrentUI() == &arrangerView)
+		                                     && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+		                                         || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
 
-		bool inClipContext = inClipView || inKeyboardScreen || holdingClipInSessionView || holdingClipInArrangerView;
+		bool inClipContext =
+		    in_clip_view || in_keyboard_screen || holding_clip_in_session_view || holding_clip_in_arranger_view;
 
 		// If we're in clip context and toggle is NOT enabled, disable visualizer entirely
 		// (clip visualizer should only show when toggle is enabled)
 		if (inClipContext && !visualizer_toggle_enabled) {
-			shouldEnable = false;
+			should_enable = false;
 		}
 		// Otherwise, if we're in clip context and toggle IS enabled, check if it's a valid clip type
 		else if (inClipContext && visualizer_toggle_enabled) {
@@ -215,7 +216,7 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 				       && (currentClip->output->type == OutputType::SYNTH
 				           || currentClip->output->type == OutputType::KIT))
 				      || currentClip->type == ClipType::AUDIO)) {
-					shouldEnable = false;
+					should_enable = false;
 				}
 			}
 		}
@@ -223,10 +224,10 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		// Check silence timeout (1 second at 44.1kHz)
 		uint32_t visualizer_mode = getMode();
 		if (shouldSilenceVisualizer(visualizer_mode, isClipMode())) {
-			shouldEnable = false;
+			should_enable = false;
 		}
 
-		if (shouldEnable) {
+		if (should_enable) {
 			if (!display_visualizer) {
 				display_visualizer = true;
 			}
@@ -490,17 +491,17 @@ void Visualizer::updateSilenceTimer(deluge::dsp::StereoBuffer<q31_t> renderingBu
 /// Check if we're currently in a clip context (clip view, keyboard screen, or holding clip)
 /// @return true if in clip context
 bool Visualizer::isInClipContext() {
-	bool inClipView = (getCurrentUI() == &instrumentClipView) || (getCurrentUI() == &audioClipView);
-	bool inKeyboardScreen = (getRootUI() == &keyboardScreen);
+	bool in_clip_view = (getCurrentUI() == &instrumentClipView) || (getCurrentUI() == &audioClipView);
+	bool in_keyboard_screen = (getRootUI() == &keyboardScreen);
 
 	// Check if we're holding a clip in Session or Arranger view
-	bool holdingClipInSessionView =
+	bool holding_clip_in_session_view =
 	    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
-	bool holdingClipInArrangerView = (getCurrentUI() == &arrangerView)
-	                                 && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
-	                                     || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
+	bool holding_clip_in_arranger_view = (getCurrentUI() == &arrangerView)
+	                                     && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+	                                         || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
 
-	return inClipView || inKeyboardScreen || holdingClipInSessionView || holdingClipInArrangerView;
+	return in_clip_view || in_keyboard_screen || holding_clip_in_session_view || holding_clip_in_arranger_view;
 }
 
 /// Check if visualizer should display clip-specific audio vs. full mix

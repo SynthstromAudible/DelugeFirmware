@@ -81,9 +81,9 @@ struct Star {
 	float z; // depth
 };
 
-static Star g_stars[kNumStars];
-static float g_smoothedAmplitude = 0.0f;
-static uint32_t g_lastAudioTime = 0; // Last time we had audio (for persistence)
+std::array<Star, kNumStars> g_stars{};
+float g_smoothed_amplitude = 0.0f;
+uint32_t g_last_audio_time = 0; // Last time we had audio (for persistence)
 
 // ------------------------------------------------------------
 // Helpers
@@ -297,7 +297,7 @@ void renderVisualizerStarfield(oled_canvas::Canvas& canvas) {
 		}
 		if (is_silent) {
 			// Check if we should still show persistence
-			uint32_t time_since_last_audio = current_time - g_lastAudioTime;
+			uint32_t time_since_last_audio = current_time - g_last_audio_time;
 			if (time_since_last_audio > kBasePersistenceDurationFrames) {
 				// Persistence expired, don't update display to avoid flicker from brief gaps
 				// Previous starfield frame remains visible
@@ -306,13 +306,13 @@ void renderVisualizerStarfield(oled_canvas::Canvas& canvas) {
 			// Continue with persistence - don't return
 		}
 		else {
-			// Audio detected, update g_lastAudioTime
-			g_lastAudioTime = current_time;
+			// Audio detected, update g_last_audio_time
+			g_last_audio_time = current_time;
 		}
 	}
 	else {
-		// Audio detected, update g_lastAudioTime
-		g_lastAudioTime = current_time;
+		// Audio detected, update g_last_audio_time
+		g_last_audio_time = current_time;
 	}
 
 	// --------------------------------------------------------
@@ -333,10 +333,10 @@ void renderVisualizerStarfield(oled_canvas::Canvas& canvas) {
 		current_amp = std::min(peak / kReferenceAmplitude, 1.0f);
 	}
 
-	g_smoothedAmplitude = g_smoothedAmplitude * kSmoothingAlpha + current_amp * kSmoothingBeta;
+	g_smoothed_amplitude = g_smoothed_amplitude * kSmoothingAlpha + current_amp * kSmoothingBeta;
 
 	// Optional (safe on monochrome): use amplitude to slightly increase speed
-	float audio_speed_boost = g_smoothedAmplitude * 0.01f;
+	float audio_speed_boost = g_smoothed_amplitude * 0.01f;
 
 	// BPM-controlled speed
 	float bpm = playbackHandler.calculateBPMForDisplay();

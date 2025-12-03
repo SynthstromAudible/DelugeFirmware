@@ -28,8 +28,8 @@ void renderVisualizerBarSpectrum(oled_canvas::Canvas& canvas);
 void calculateFrequencyBandRange(int32_t bar, float& lower_freq, float& upper_freq);
 
 // Update peak tracking and draw peak indicator for equalizer bar
-void updateAndDrawPeak(oled_canvas::Canvas& canvas, int32_t bar, float normalizedHeight, int32_t barLeftX,
-                       int32_t barRightX, int32_t kGraphMinY, int32_t kGraphMaxY, int32_t kGraphHeight,
+void updateAndDrawPeak(oled_canvas::Canvas& canvas, int32_t bar, float normalized_height, int32_t bar_left_x,
+                       int32_t bar_right_x, int32_t k_graph_min_y, int32_t k_graph_max_y, int32_t k_graph_height,
                        uint32_t visualizer_mode);
 
 } // namespace deluge::hid::display

@@ -65,7 +65,7 @@ constexpr float kWaveformIndexScale = 20.0f; // Waveform index scaling factor
 constexpr float kPerspectiveScale = 120.0f;  // Perspective scaling factor
 
 // Ring data - static to maintain state between frames
-Ring rings[kTunnelRings];
+std::array<Ring, kTunnelRings> rings{};
 
 // Static state for amplitude smoothing
 float last_amplitude = 0.0f;
@@ -76,8 +76,8 @@ float smoothed_amplitude_value = 0.0f;
 int32_t prev_left = -1, prev_top = -1, prev_right = -1, prev_bottom = -1;
 
 // Chained illumination timing
-static uint32_t ring_illumination_start[kTunnelRings] = {0}; // When each ring started illuminating
-static uint32_t last_audio_time = 0;                         // Last time we had audio
+uint32_t ring_illumination_start[kTunnelRings] = {0}; // When each ring started illuminating
+uint32_t last_audio_time = 0;                         // Last time we had audio
 
 // Display constants
 constexpr int32_t kLineWidth = 1;

@@ -111,8 +111,8 @@ void renderVisualizerStereoLineSpectrum(oled_canvas::Canvas& canvas) {
 	const int32_t max_half_width = (k_graph_max_x - k_graph_min_x) / 2;
 
 	// Helper function to calculate magnitude for a channel
-	auto calculateChannelMagnitude = [&](const ne10_fft_cpx_int32_t* channel_output, int32_t bin_index_low,
-	                                     int32_t bin_index_high, float fraction) -> float {
+	auto calculate_channel_magnitude = [&](const ne10_fft_cpx_int32_t* channel_output, int32_t bin_index_low,
+	                                       int32_t bin_index_high, float fraction) -> float {
 		// Get magnitudes for both bins
 		// Reduce DC bin (bin 0) influence to prevent low frequency artifacts
 		int32_t magnitude_low = fastPythag(channel_output[bin_index_low].r, channel_output[bin_index_low].i);
@@ -140,7 +140,7 @@ void renderVisualizerStereoLineSpectrum(oled_canvas::Canvas& canvas) {
 		float bin_float = frequency * static_cast<float>(k_spectrum_fft_size) / static_cast<float>(::kSampleRate);
 
 		// Use linear interpolation between adjacent bins to avoid stepping artifacts
-		int32_t bin_index_low = static_cast<int32_t>(std::floor(bin_float));
+		auto bin_index_low = static_cast<int32_t>(std::floor(bin_float));
 		int32_t bin_index_high = bin_index_low + 1;
 		float fraction = bin_float - static_cast<float>(bin_index_low);
 
@@ -150,9 +150,9 @@ void renderVisualizerStereoLineSpectrum(oled_canvas::Canvas& canvas) {
 
 		// Calculate magnitudes for left and right channels
 		float left_magnitude =
-		    calculateChannelMagnitude(fft_result.output_left, bin_index_low, bin_index_high, fraction);
+		    calculate_channel_magnitude(fft_result.output_left, bin_index_low, bin_index_high, fraction);
 		float right_magnitude =
-		    calculateChannelMagnitude(fft_result.output_right, bin_index_low, bin_index_high, fraction);
+		    calculate_channel_magnitude(fft_result.output_right, bin_index_low, bin_index_high, fraction);
 
 		// Apply music sweet-spot visual compression for both channels
 		// Normalize amplitude to 0-1 range

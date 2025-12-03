@@ -33,8 +33,7 @@
 #include <algorithm>
 #include <cmath>
 
-// Forward declarations for UI globals
-extern uint32_t currentUIMode;
+// currentUIMode is declared in gui/ui/ui.h
 
 namespace deluge::hid::display {
 
@@ -87,7 +86,7 @@ float computeCurrentAmplitude() {
 	for (uint32_t i = 0; i < kAmplitudeSampleCount && i < sample_count; i++) {
 		uint32_t buffer_index = (read_start_pos + i) % Visualizer::kVisualizerBufferSize;
 		int32_t sample = Visualizer::visualizer_sample_buffer[buffer_index];
-		float abs_sample = static_cast<float>(std::abs(sample));
+		auto abs_sample = static_cast<float>(std::abs(sample));
 		peak_amplitude = std::max(peak_amplitude, abs_sample);
 	}
 
@@ -100,7 +99,7 @@ float computeCurrentAmplitude() {
 // Audio Sampling and Silence Detection Helpers
 
 bool isValidClipForAudioSampling(Clip* clip) {
-	if (!clip) {
+	if (clip == nullptr) {
 		return false;
 	}
 
@@ -116,13 +115,11 @@ uint32_t& getAppropriateSilenceTimer(uint32_t visualizer_mode, bool is_clip_mode
 		return Visualizer::midi_piano_roll_last_note_time;
 	}
 	// For clip mode, use clip visualizer timer
-	else if (is_clip_mode) {
+	if (is_clip_mode) {
 		return Visualizer::clip_visualizer_last_audio_time;
 	}
 	// For global visualizer, use global timer
-	else {
-		return Visualizer::global_visualizer_last_audio_time;
-	}
+	return Visualizer::global_visualizer_last_audio_time;
 }
 
 bool shouldSilenceVisualizer(uint32_t visualizer_mode, bool is_clip_mode) {
@@ -219,7 +216,7 @@ ActionResult handleVisualizerModeButton(deluge::hid::Button button, View& view) 
 
 		if (is_viewing_special) {
 			// Already viewing a special visualizer, cycle to next one
-			uint32_t next_mode;
+			uint32_t next_mode = RuntimeFeatureStateVisualizer::VisualizerOff;
 			switch (current_session_mode) {
 			case RuntimeFeatureStateVisualizer::VisualizerBarSpectrum:
 				next_mode = RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum;
@@ -269,8 +266,8 @@ ActionResult handleVisualizerModeButton(deluge::hid::Button button, View& view) 
 
 bool shouldHandleVisualizerModeButtons(View& view) {
 	// Handle visualizer mode switching when visualizer is active in Arranger or Song view
-	UI* currentUI = getCurrentUI();
-	return (currentUI == &sessionView || currentUI == &arrangerView)
+	UI* current_ui = getCurrentUI();
+	return (current_ui == &sessionView || current_ui == &arrangerView)
 	       && deluge::hid::display::Visualizer::isActive(view.displayVUMeter)
 	       && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 	       && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
@@ -314,9 +311,9 @@ void cancelPopupIfVisualizerActive(View& view) {
 
 int32_t extractModKnobMode(View& view) {
 	if (view.activeModControllableModelStack.modControllable != nullptr) {
-		uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-		if (modKnobModePointer != nullptr) {
-			return *modKnobModePointer;
+		uint8_t* mod_knob_mode_pointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+		if (mod_knob_mode_pointer != nullptr) {
+			return *mod_knob_mode_pointer;
 		}
 	}
 	return 0; // Default to 0 when no mod controllable or no mode pointer
@@ -324,9 +321,9 @@ int32_t extractModKnobMode(View& view) {
 
 int32_t extractModKnobMode(ModControllable* modControllable) {
 	if (modControllable != nullptr) {
-		uint8_t* modKnobModePointer = modControllable->getModKnobMode();
-		if (modKnobModePointer != nullptr) {
-			return *modKnobModePointer;
+		uint8_t* mod_knob_mode_pointer = modControllable->getModKnobMode();
+		if (mod_knob_mode_pointer != nullptr) {
+			return *mod_knob_mode_pointer;
 		}
 	}
 	return 0; // Default to 0 when no mod controllable or no mode pointer

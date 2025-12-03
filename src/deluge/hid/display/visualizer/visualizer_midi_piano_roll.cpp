@@ -67,7 +67,7 @@ struct MidiPianoRollState {
 };
 
 // State instance
-static MidiPianoRollState state;
+MidiPianoRollState state;
 } // namespace
 
 // -----------------------------------------------------
@@ -100,29 +100,29 @@ void cleanupOldNotes() {
 	// A note is off-screen if its end position (bottom of the note) has scrolled past the screen height
 
 	// Compact the array by moving valid notes to the front
-	size_t writeIndex = 0;
-	for (size_t readIndex = 0; readIndex < state.activeNotesCount; ++readIndex) {
-		const ActiveNote& note = state.activeNotes[readIndex];
-		bool keepNote = true;
+	size_t write_index = 0;
+	for (size_t read_index = 0; read_index < state.activeNotesCount; ++read_index) {
+		const ActiveNote& note = state.activeNotes[read_index];
+		bool keep_note = true;
 
 		// Calculate where this note would end on screen
-		uint32_t endTime = note.endTime > 0 ? note.endTime : state.frameCounter;
-		int32_t endY = static_cast<int32_t>(state.frameCounter - endTime);
+		uint32_t end_time = note.endTime > 0 ? note.endTime : state.frameCounter;
+		int32_t endY = static_cast<int32_t>(state.frameCounter - end_time);
 
 		// Remove note if it has completely scrolled off screen (endY > screen height)
 		if (endY > kOLEDHeightMinus1) {
-			keepNote = false;
+			keep_note = false;
 		}
 
-		if (keepNote) {
+		if (keep_note) {
 			// Keep this note
-			if (writeIndex != readIndex) {
-				state.activeNotes[writeIndex] = note;
+			if (write_index != read_index) {
+				state.activeNotes[write_index] = note;
 			}
-			writeIndex++;
+			write_index++;
 		}
 	}
-	state.activeNotesCount = writeIndex;
+	state.activeNotesCount = write_index;
 }
 
 // -----------------------------------------------------
