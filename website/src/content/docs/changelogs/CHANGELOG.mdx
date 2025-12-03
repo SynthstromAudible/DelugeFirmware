@@ -25,12 +25,12 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 #### <ins>Audio Visualizer</ins>
 
 - Added real-time audio visualizer feature that displays audio signal visualizations on the OLED screen
-- Main visualization modes that can be selected as defaults: Waveform, Spectrum, Equalizer, Tunnel, Starfield, Skyline, Pulse Grid
-- Additional special visualizers available via hot keys: Cube, Stereo Spectrum, Stereo Equalizer
+- Main visualization modes: Waveform, Line Spectrum, Bar Spectrum, Cube, Stereo Line Spectrum, Starfield, Skyline, MIDI Piano Roll
+- Additional special visualizers accessible via CV hotkey: Stereo Bar Spectrum, Tunnel, Pulse Grid
 - Works by default with the VU meter or can be toggled independently
 - Can be toggled independently using :key[Shift] + `LEVEL/PAN` mod button for quick access
 - Hot keys allow switching between modes: :key[SYNTH] for Waveform, :key[KIT] for Spectrum, :key[MIDI] for MIDI Piano Roll, :key[CV] for special visualizers
-- **Clip-specific visualization**: Visualizer can now display waveforms for individual instrument clips (Synth/Kit) when in clip view, keyboard screen, or holding clips in Session/Arranger views
+- **Clip-specific visualization**: Visualizer displays waveforms for individual instrument clips (Synth/Kit/Audio) when in clip view, keyboard screen, or holding clips in Session/Arranger views
 - **Auto-hide on silence**: Visualizer automatically hides after 1 second of audio silence to prevent displaying noise or empty waveforms
 - **Program name display**: Shows instrument/program name popup when entering clip-specific visualizer mode
 
