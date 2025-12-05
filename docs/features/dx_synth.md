@@ -18,6 +18,24 @@ It is possible to use the filters on a DX7 patch (though this increase CPU usage
 
 Optional: place DX7 compatible patch banks in .syx format in a "DX7/" folder in the sdcard.
 
+### Converting DX7 Patch Banks <ins>**[1.4]**</ins>
+
+If you have DX7 patch banks in .syx format that you want to convert to individual preset files, you can use the DX7 Convert feature:
+
+1. Navigate to the Sound Editor menu
+2. Find the "CONVERT DX7 .SYX FILE" option
+3. Select this option to open a file browser showing available .syx files
+4. Select a .syx file to convert it
+5. The converter will create a new folder in `SYNTHS/DX7/` with the same name as the .syx file
+6. Individual patches from the bank will be saved as .XML files in this folder
+7. You can then load these individual presets using the regular DX7 loading workflow
+
+The conversion process:
+- Presets with empty names are skipped
+- Existing converted presets are not overwritten (they will be skipped)
+- Invalid filename characters in preset names are replaced with underscores
+- A progress indicator shows how many presets were converted and how many were skipped
+
 ### Community Feature Setting
 
 Enable the "DX7 ENGINE" community setting for full access to the relevant UI behaviors.
