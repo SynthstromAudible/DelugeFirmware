@@ -29,5 +29,5 @@ public:
 	MenuItem* selectButtonPress() override;
 };
 
-extern DxConvert dxConvert;
+extern DxConvert dx_convert;
 } // namespace deluge::gui::menu_item

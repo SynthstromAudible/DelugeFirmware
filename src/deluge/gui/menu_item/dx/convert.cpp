@@ -23,7 +23,7 @@
 
 namespace deluge::gui::menu_item {
 
-DxConvert dxConvert{l10n::String::STRING_FOR_DX_CONVERT};
+DxConvert dx_convert{l10n::String::STRING_FOR_DX_CONVERT};
 
 void DxConvert::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;

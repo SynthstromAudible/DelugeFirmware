@@ -44,7 +44,7 @@ private:
 	 * @param syxFilename The name of the sysex file (without extension)
 	 * @return true if directory exists, false otherwise
 	 */
-	bool destinationExists(const char* syxFilename);
+	static bool destinationExists(const char* syxFilename);
 
 	/**
 	 * Create the destination directory structure: SYNTHS/DX7/{syxFilename}/
@@ -52,7 +52,7 @@ private:
 	 * @param syxFilename The name of the sysex file (without extension)
 	 * @return Error::NONE on success, or appropriate error code
 	 */
-	Error createDestinationDirectory(const char* syxFilename);
+	static Error createDestinationDirectory(const char* syxFilename);
 
 	/**
 	 * Convert a single preset to XML and save to disk
@@ -71,7 +71,7 @@ private:
 	 * @param buffer Buffer to store sanitized name
 	 * @param bufferSize Size of buffer
 	 */
-	void generateSanitizedFilename(const char* presetName, char* buffer, size_t bufferSize);
+	static void generateSanitizedFilename(const char* presetName, char* buffer, size_t bufferSize);
 
 	/**
 	 * Build the full path for a preset XML file
@@ -81,7 +81,7 @@ private:
 	 * @param path Output buffer for the full path
 	 * @param pathSize Size of path buffer
 	 */
-	void buildPresetPath(const char* syxFilename, const char* presetFilename, char* path, size_t pathSize);
+	static void buildPresetPath(const char* syxFilename, const char* presetFilename, char* path, size_t pathSize);
 };
 
 } // namespace deluge::dx7

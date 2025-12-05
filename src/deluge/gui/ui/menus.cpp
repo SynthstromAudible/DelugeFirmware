@@ -1334,7 +1334,7 @@ std::array<MenuItem*, 4> dxMenuItems = {
     &dxBrowseMenu,
     &dxGlobalParams,
     &dxEngineSelect,
-    &dxConvert,
+    &dx_convert,
 };
 menu_item::Submenu dxMenu{STRING_FOR_DX_1, dxMenuItems};
 

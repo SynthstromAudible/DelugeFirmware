@@ -32,6 +32,7 @@
 #include "util/functions.h"
 #include "util/try.h"
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
@@ -43,51 +44,51 @@ namespace deluge::dx7 {
 
 Error DX7Converter::convertSysexToXML(std::string_view syxPath) {
 	// Extract filename without extension from path
-	const char* pathStr = syxPath.data();
-	size_t pathLen = syxPath.length();
+	const char* path_str = syxPath.data();
+	size_t path_len = syxPath.length();
 
 	// Find the last slash to get just the filename
-	const char* filenameStart = pathStr;
-	for (size_t i = 0; i < pathLen; ++i) {
-		if (pathStr[i] == '/') {
-			filenameStart = pathStr + i + 1;
+	const char* filename_start = path_str;
+	for (size_t i = 0; i < path_len; ++i) {
+		if (path_str[i] == '/') {
+			filename_start = path_str + i + 1;
 		}
 	}
 
 	// Find the last dot in the filename to strip extension
-	const char* extensionStart = nullptr;
-	for (const char* p = filenameStart; p < pathStr + pathLen; ++p) {
+	const char* extension_start = nullptr;
+	for (const char* p = filename_start; p < path_str + path_len; ++p) {
 		if (*p == '.') {
-			extensionStart = p;
+			extension_start = p;
 		}
 	}
 
 	// Copy filename without extension to buffer
-	char syxFilename[256];
-	size_t filenameLen;
-	if (extensionStart) {
-		filenameLen = extensionStart - filenameStart;
+	std::array<char, 256> syx_filename{};
+	size_t filename_len = 0;
+	if (extension_start != nullptr) {
+		filename_len = extension_start - filename_start;
 	}
 	else {
-		filenameLen = (pathStr + pathLen) - filenameStart;
+		filename_len = (path_str + path_len) - filename_start;
 	}
 
-	if (filenameLen >= sizeof(syxFilename)) {
-		filenameLen = sizeof(syxFilename) - 1;
+	if (filename_len >= syx_filename.size()) {
+		filename_len = syx_filename.size() - 1;
 	}
 
-	strncpy(syxFilename, filenameStart, filenameLen);
-	syxFilename[filenameLen] = '\0';
+	strncpy(syx_filename.data(), filename_start, filename_len);
+	syx_filename[filename_len] = '\0';
 
 	// Check if destination directory already exists
-	if (destinationExists(syxFilename)) {
+	if (destinationExists(syx_filename.data())) {
 		display->displayPopup("ALREADY CONVERTED");
 		return Error::NONE; // Return NONE since we've handled it with the popup
 	}
 
 	// Load the sysex file using the same method as DX7Cartridge loading
 	DX7Cartridge cartridge;
-	constexpr size_t minSize = kSmallSysexSize;
+	constexpr size_t min_size = kSmallSysexSize;
 
 	FatFS::FileInfo fno = D_TRY_CATCH(FatFS::stat(syxPath), error, {
 		display->displayError(Error::FILE_NOT_FOUND);
@@ -95,7 +96,7 @@ Error DX7Converter::convertSysexToXML(std::string_view syxPath) {
 	});
 
 	FSIZE_t filesize = fno.fsize;
-	if (filesize < minSize) {
+	if (filesize < min_size) {
 		display->displayError(Error::FILE_UNREADABLE);
 		return Error::FILE_UNREADABLE;
 	}
@@ -118,26 +119,26 @@ Error DX7Converter::convertSysexToXML(std::string_view syxPath) {
 		return Error::FILE_UNREADABLE;
 	});
 
-	if (readbuffer.size() < minSize) {
+	if (readbuffer.size() < min_size) {
 		display->displayError(Error::FILE_UNREADABLE);
 		return Error::FILE_UNREADABLE;
 	}
 
 	// Load cartridge from buffer
-	auto loadError = cartridge.load(readbuffer);
-	if (loadError != deluge::l10n::String::EMPTY_STRING) {
+	auto load_error = cartridge.load(readbuffer);
+	if (load_error != deluge::l10n::String::EMPTY_STRING) {
 		display->displayError(Error::FILE_CORRUPTED);
 		return Error::FILE_CORRUPTED;
 	}
 
 	// Create destination directory
-	Error err = createDestinationDirectory(syxFilename);
+	Error err = createDestinationDirectory(syx_filename.data());
 	if (err != Error::NONE) {
 		return err;
 	}
 
 	// Convert each preset
-	int numPresets = cartridge.numPatches();
+	int num_presets = cartridge.numPatches();
 
 	// Remove any existing working animation before showing popup
 	display->removeWorkingAnimation();
@@ -145,57 +146,57 @@ Error DX7Converter::convertSysexToXML(std::string_view syxPath) {
 	// Show "Converting..." popup to indicate activity (0 flashes = persistent)
 	display->displayPopup("Converting...", 0, false, 255, 1, PopupType::LOADING);
 
-	int convertedCount = 0;
-	int skippedCount = 0;
+	int converted_count = 0;
+	int skipped_count = 0;
 
-	for (int i = 0; i < numPresets; i++) {
-		err = convertPresetToXML(cartridge, i, syxFilename);
+	for (int i = 0; i < num_presets; i++) {
+		err = convertPresetToXML(cartridge, i, syx_filename.data());
 		if (err == Error::FILE_ALREADY_EXISTS) {
 			// Skip individual presets that already exist
-			skippedCount++;
+			skipped_count++;
 			continue;
 		}
-		else if (err != Error::NONE) {
+
+		if (err != Error::NONE) {
 			// Stop on other failures - cancel popup before showing error
 			display->cancelPopup();
 			display->displayError(err);
 			return err;
 		}
-		else {
-			convertedCount++;
-		}
+
+		converted_count++;
 	}
 
 	// Cancel "Converting..." popup before showing completion message
 	display->cancelPopup();
 
 	// Show completion message with counts
-	char completionMsg[64];
-	if (skippedCount > 0) {
-		snprintf(completionMsg, sizeof(completionMsg), "%d done, %d skipped", convertedCount, skippedCount);
+	std::array<char, 64> completion_msg{};
+	if (skipped_count > 0) {
+		snprintf(completion_msg.data(), completion_msg.size(), "%d done, %d skipped", converted_count, skipped_count);
 	}
 	else {
-		snprintf(completionMsg, sizeof(completionMsg), "%d converted", convertedCount);
+		snprintf(completion_msg.data(), completion_msg.size(), "%d converted", converted_count);
 	}
-	display->displayPopup(completionMsg);
+	display->displayPopup(completion_msg.data());
 
 	return Error::NONE;
 }
 
 bool DX7Converter::destinationExists(const char* syxFilename) {
-	char path[256];
-	snprintf(path, sizeof(path), "SYNTHS/DX7/%s", syxFilename);
+	std::array<char, 256> path{};
+	snprintf(path.data(), path.size(), "SYNTHS/DX7/%s", syxFilename);
 
 	FILINFO fno;
-	return (f_stat(path, &fno) == FR_OK && (fno.fattrib & AM_DIR));
+	return (f_stat(path.data(), &fno) == FR_OK && (fno.fattrib & AM_DIR) != 0);
 }
 
 Error DX7Converter::createDestinationDirectory(const char* syxFilename) {
-	char path[256];
-	snprintf(path, sizeof(path), "SYNTHS/DX7/%s", syxFilename);
+	std::array<char, 256> path{};
+	snprintf(path.data(), path.size(), "SYNTHS/DX7/%s", syxFilename);
 
 	// Use StorageManager's buildPathToFile to create the directory structure
-	if (!StorageManager::buildPathToFile(path)) {
+	if (!StorageManager::buildPathToFile(path.data())) {
 		return Error::WRITE_FAIL;
 	}
 
@@ -204,74 +205,75 @@ Error DX7Converter::createDestinationDirectory(const char* syxFilename) {
 
 Error DX7Converter::convertPresetToXML(DX7Cartridge& cartridge, int presetIndex, const char* syxFilename) {
 	// Get preset name
-	char presetName[11];
-	cartridge.getProgramName(presetIndex, presetName);
+	std::array<char, 11> preset_name{};
+	cartridge.getProgramName(presetIndex, preset_name.data());
 
 	// Skip presets with empty names
-	if (presetName[0] == '\0' || (presetName[0] == ' ' && presetName[1] == '\0')) {
+	if (preset_name[0] == '\0' || (preset_name[0] == ' ' && preset_name[1] == '\0')) {
 		return Error::NONE; // Skip silently
 	}
 
 	// Sanitize filename
-	char sanitizedFilename[256];
-	generateSanitizedFilename(presetName, sanitizedFilename, sizeof(sanitizedFilename));
+	std::array<char, 256> sanitized_filename{};
+	generateSanitizedFilename(preset_name.data(), sanitized_filename.data(), sanitized_filename.size());
 
 	// Check if XML file already exists
-	char xmlPath[1024];
-	buildPresetPath(syxFilename, sanitizedFilename, xmlPath, sizeof(xmlPath));
+	std::array<char, 1024> xml_path{};
+	buildPresetPath(syxFilename, sanitized_filename.data(), xml_path.data(), xml_path.size());
 
-	if (StorageManager::fileExists(xmlPath)) {
+	if (StorageManager::fileExists(xml_path.data())) {
 		// Skip this preset if file already exists
 		return Error::FILE_ALREADY_EXISTS;
 	}
 
 	// Use the existing sound editor's current sound
-	Sound* currentSoundBase = soundEditor.currentSound;
-	if (!currentSoundBase) {
+	Sound* current_sound_base = soundEditor.currentSound;
+	if (current_sound_base == nullptr) {
 		return Error::UNSPECIFIED;
 	}
-	SoundInstrument* currentSound = static_cast<SoundInstrument*>(currentSoundBase);
+	SoundInstrument* current_sound = nullptr;
+	current_sound = static_cast<SoundInstrument*>(current_sound_base);
 
 	// Find the clip that contains this sound for proper saving context
-	Clip* clipForSaving = nullptr;
+	Clip* clip_for_saving = nullptr;
 	for (int32_t i = 0; i < currentSong->sessionClips.getNumElements(); i++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(i);
-		if (clip && clip->output == currentSound) {
-			clipForSaving = clip;
+		if (clip && clip->output == current_sound) {
+			clip_for_saving = clip;
 			break;
 		}
 	}
 
 	// Ensure the current source has a DX7 patch
 	Source* source = soundEditor.currentSource;
-	if (!source) {
+	if (source == nullptr) {
 		return Error::UNSPECIFIED;
 	}
 
 	DxPatch* patch = source->ensureDxPatch();
-	if (!patch) {
+	if (patch == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	// Apply the preset to the current sound (same as UI does)
 	cartridge.unpackProgram(std::span<uint8_t>(patch->params, 156), presetIndex);
-	currentSound->killAllVoices();
+	current_sound->killAllVoices();
 
 	// Set the instrument name
-	if (presetName[0] != 0) {
-		currentSound->name.set(presetName);
+	if (preset_name[0] != 0) {
+		current_sound->name.set(preset_name.data());
 	}
 
 	// Save the current sound to XML using existing save logic
-	Error error = StorageManager::createXMLFile(xmlPath, smSerializer, true, false);
+	Error error = StorageManager::createXMLFile(xml_path.data(), smSerializer, true, false);
 	if (error != Error::NONE) {
 		return error;
 	}
 
 	// Write the instrument using the standard save method
-	static_cast<Output*>(currentSound)->writeToFile(clipForSaving, currentSong);
-	error =
-	    GetSerializer().closeFileAfterWriting(xmlPath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n</sound>\n");
+	static_cast<Output*>(current_sound)->writeToFile(clip_for_saving, currentSong);
+	error = GetSerializer().closeFileAfterWriting(xml_path.data(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+	                                              "\n</sound>\n");
 
 	return error;
 }
@@ -280,33 +282,17 @@ void DX7Converter::generateSanitizedFilename(const char* presetName, char* buffe
 	size_t i = 0;
 	size_t j = 0;
 
-	while (presetName[i] && j < bufferSize - 1) {
+	while (presetName[i] != '\0' && j < bufferSize - 1) {
 		char c = presetName[i];
 
 		// Convert to uppercase
-		c = std::toupper(c);
+		c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
 
 		// Replace invalid filename characters
-		if (c == '<')
-			c = '_';
-		else if (c == '>')
-			c = '_';
-		else if (c == ':')
-			c = '_';
-		else if (c == '"')
-			c = '_';
-		else if (c == '|')
-			c = '_';
-		else if (c == '?')
-			c = '_';
-		else if (c == '*')
-			c = '_';
-		else if (c == '/')
-			c = '_';
-		else if (c == '\\')
-			c = '_';
-		else if (c < 32 || c > 126)
-			c = '_'; // Non-printable characters
+		if (c == '<' || c == '>' || c == ':' || c == '"' || c == '|' || c == '?' || c == '*' || c == '/' || c == '\\'
+		    || c < 32 || c > 126) {
+			c = '_'; // Invalid filename characters or non-printable
+		}
 
 		buffer[j++] = c;
 		i++;
