@@ -172,10 +172,10 @@ Error DX7Converter::convertSysexToXML(std::string_view syxPath) {
 	// Show completion message with counts
 	char completionMsg[64];
 	if (skippedCount > 0) {
-		snprintf(completionMsg, sizeof(completionMsg), "DX7: %d done, %d skipped", convertedCount, skippedCount);
+		snprintf(completionMsg, sizeof(completionMsg), "%d done, %d skipped", convertedCount, skippedCount);
 	}
 	else {
-		snprintf(completionMsg, sizeof(completionMsg), "DX7: %d converted", convertedCount);
+		snprintf(completionMsg, sizeof(completionMsg), "%d converted", convertedCount);
 	}
 	display->displayPopup(completionMsg);
 
