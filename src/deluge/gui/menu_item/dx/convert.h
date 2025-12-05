@@ -17,24 +17,17 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "gui/ui/browser/browser.h"
-#include "hid/button.h"
+#include "gui/menu_item/menu_item.h"
 
-class DxSyxBrowser final : public Browser {
+namespace deluge::gui::menu_item {
+
+class DxConvert final : public MenuItem {
 public:
-	DxSyxBrowser();
-	bool opened() override;
-	void enterKeyPress() override;
-	Error getCurrentFilePath(String* path) override;
-	// ui
-	UIType getUIType() override { return UIType::DX_BROWSER; }
-
-	// Set conversion mode - when true, selecting a file will convert it instead of loading it
-	void setConversionMode(bool conversion) { conversionMode_ = conversion; }
-
-private:
-	bool conversionMode_ = false;
+	using MenuItem::MenuItem;
+	DxConvert(l10n::String newName) : MenuItem(newName) {}
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	MenuItem* selectButtonPress() override;
 };
 
-extern DxSyxBrowser dxBrowser;
+extern DxConvert dxConvert;
+} // namespace deluge::gui::menu_item

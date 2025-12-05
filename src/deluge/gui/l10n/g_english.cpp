@@ -468,6 +468,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FM_MODULATOR_2, "FM mod 2"},
         {STRING_FOR_DX_1, "DX7 source"},
         {STRING_FOR_DX_BROWSER, "load DX7 .syx file"},
+        {STRING_FOR_DX_CONVERT, "CONVERT DX7 .SYX FILE"},
         {STRING_FOR_DX_CARTRIDGE, "DX7 presets"},
         {STRING_FOR_DX_PARAM, "DX7 param"},
         {STRING_FOR_DX_GLOBAL_PARAMS, "DX7 parameters"},

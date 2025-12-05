@@ -15,26 +15,29 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "convert.h"
+#include "gui/ui/browser/dx_browser.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui_timer_manager.h"
+#include "util/dx7_converter.h"
 
-#include "definitions_cxx.hpp"
-#include "gui/ui/browser/browser.h"
-#include "hid/button.h"
+namespace deluge::gui::menu_item {
 
-class DxSyxBrowser final : public Browser {
-public:
-	DxSyxBrowser();
-	bool opened() override;
-	void enterKeyPress() override;
-	Error getCurrentFilePath(String* path) override;
-	// ui
-	UIType getUIType() override { return UIType::DX_BROWSER; }
+DxConvert dxConvert{l10n::String::STRING_FOR_DX_CONVERT};
 
-	// Set conversion mode - when true, selecting a file will convert it instead of loading it
-	void setConversionMode(bool conversion) { conversionMode_ = conversion; }
+void DxConvert::beginSession(MenuItem* navigatedBackwardFrom) {
+	soundEditor.shouldGoUpOneLevelOnBegin = true;
+	display->setNextTransitionDirection(1);
+	dxBrowser.setConversionMode(true);
+	bool success = openUI(&dxBrowser);
+	if (!success) {
+		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
+	}
+}
 
-private:
-	bool conversionMode_ = false;
-};
+MenuItem* DxConvert::selectButtonPress() {
+	// This should never be called since we push the browser UI
+	return nullptr;
+}
 
-extern DxSyxBrowser dxBrowser;
+} // namespace deluge::gui::menu_item
