@@ -285,9 +285,6 @@ void DX7Converter::generateSanitizedFilename(const char* presetName, char* buffe
 	while (presetName[i] != '\0' && j < bufferSize - 1) {
 		char c = presetName[i];
 
-		// Convert to uppercase
-		c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-
 		// Replace invalid filename characters
 		if (c == '<' || c == '>' || c == ':' || c == '"' || c == '|' || c == '?' || c == '*' || c == '/' || c == '\\'
 		    || c < 32 || c > 126) {
