@@ -229,8 +229,7 @@ void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	char const* tagName = getXMLTag();
 	writer.writeOpeningTagBeginning(tagName, true);
 
-	if (clipForSavingOutputOnly || type == OutputType::SYNTH || type == OutputType::KIT
-	    || type == OutputType::MIDI_OUT) {
+	if (clipForSavingOutputOnly) {
 		writer.writeFirmwareVersion();
 		writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 	}
