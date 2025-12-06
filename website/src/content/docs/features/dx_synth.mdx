@@ -53,10 +53,13 @@ If you have DX7 patch banks in .syx format that you want to convert to individua
 7. You can then load these individual presets using the regular DX7 loading workflow
 
 The conversion process:
+- If a folder already exists for the .syx then the message ALREADY CONVERTED will show.
 - Presets with empty names and duplicate names are skipped
 - Existing converted presets are not overwritten (they will be skipped)
 - Invalid filename characters in preset names are replaced with underscores
-- A progress indicator shows how many presets were converted and how many were skipped
+- A progress indicator shows while presets are being converted and a completion message shows how many presets were converted and how many were skipped
+
+Note: When converting a .syx file, the final preset that was converted will remain loaded in a temporary slot. However, once you power the unit off and back on, that temporary preset is cleared just like any other unsaved instrument.
 
 ### Community Feature Setting
 
