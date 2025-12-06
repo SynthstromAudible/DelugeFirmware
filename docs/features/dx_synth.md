@@ -31,7 +31,7 @@ If you have DX7 patch banks in .syx format that you want to convert to individua
 7. You can then load these individual presets using the regular DX7 loading workflow
 
 The conversion process:
-- Presets with empty names are skipped
+- Presets with empty names and duplicate names are skipped
 - Existing converted presets are not overwritten (they will be skipped)
 - Invalid filename characters in preset names are replaced with underscores
 - A progress indicator shows how many presets were converted and how many were skipped
