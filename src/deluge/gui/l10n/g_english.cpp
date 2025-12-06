@@ -475,6 +475,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DX_GLOBAL_PARAMS, "DX7 parameters"},
         {STRING_FOR_DX_OPERATOR_PARAMS, "DX7 operator *"},
         {STRING_FOR_DX_ENGINE_SELECT, "engine version"},
+        {STRING_FOR_DX_CONVERT, "CONVERT DX7 .SYX FILE"},
         {STRING_FOR_NOISE_LEVEL, "Noise level"},
         {STRING_FOR_MASTER_TRANSPOSE, "Master transpose"},
         {STRING_FOR_SYNTH_MODE, "Synth mode"},
