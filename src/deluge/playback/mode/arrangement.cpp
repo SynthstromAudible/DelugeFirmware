@@ -27,6 +27,7 @@
 #include "hid/led/pad_leds.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
+#include "model/clip/sequencer/sequencer_mode.h"
 #include "model/instrument/instrument.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -310,6 +311,27 @@ justDoArp:
 
 			int32_t ticksTilNextArpEvent = output->doTickForwardForArp(modelStack, posForArp);
 			nearestArpTickTime = std::min(ticksTilNextArpEvent, nearestArpTickTime);
+
+			// Do sequencer modes too - similar to arpeggiator handling
+			if (output->getActiveClip() && output->getActiveClip()->activeIfNoSolo) {
+				Clip* activeClip = output->getActiveClip();
+				if (activeClip->type == ClipType::INSTRUMENT) {
+					InstrumentClip* instrumentClip = static_cast<InstrumentClip*>(activeClip);
+					if (instrumentClip->hasSequencerMode()) {
+						ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+						    modelStack->addTimelineCounter(instrumentClip);
+						auto* sequencerMode = instrumentClip->getSequencerMode();
+						if (sequencerMode) {
+							int32_t ticksTilNextSequencerEvent = sequencerMode->processPlayback(
+							    modelStackWithTimelineCounter, playbackHandler.lastSwungTickActioned);
+							if (ticksTilNextSequencerEvent > 0) {
+								playbackHandler.swungTicksTilNextEvent =
+								    std::min(ticksTilNextSequencerEvent, playbackHandler.swungTicksTilNextEvent);
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
