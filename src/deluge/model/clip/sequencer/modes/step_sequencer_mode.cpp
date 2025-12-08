@@ -80,12 +80,18 @@ void StepSequencerMode::cleanup() {
 		stopNote(modelStackWithTimelineCounter, activeNoteCode_);
 	}
 
+	// Reset all state to prevent leaks
 	initialized_ = false;
 	currentStep_ = 0;
 	activeNoteCode_ = -1;
 	numScaleNotes_ = 0;
+	noteScrollOffset_ = 0;
 	lastAbsolutePlaybackPos_ = 0;
 	ticksPerSixteenthNote_ = 0;
+	pingPongDirection_ = 1;
+
+	// Clear scale notes array (defensive cleanup)
+	memset(scaleNotes_, 0, sizeof(scaleNotes_));
 }
 
 void StepSequencerMode::updateScaleNotes(void* modelStackPtr) {

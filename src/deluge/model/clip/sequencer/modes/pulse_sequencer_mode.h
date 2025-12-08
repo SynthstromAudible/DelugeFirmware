@@ -130,6 +130,7 @@ private:
 		bool gatePadFlashing = false;
 		uint32_t flashStartTime = 0;
 		uint32_t flashDuration = kFlashDurationTicks;
+		uint32_t lastRefreshTick = 0; // For UI refresh throttling
 
 		// Per-note tracking for proper note-off handling
 		std::array<int16_t, kMaxNoteSlots> noteCodeActive;
