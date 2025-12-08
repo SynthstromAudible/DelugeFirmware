@@ -17,6 +17,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
+#include "hid/led/pad_leds.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/sequencer/sequencer_mode_manager.h"
 #include "model/instrument/melodic_instrument.h"
@@ -37,6 +38,14 @@ namespace deluge::model::clip::sequencer::modes {
 void PulseSequencerMode::initialize() {
 	initialized_ = true;
 	ticksPerSixteenthNote_ = 0;
+
+	// Clear the white progress column from normal clip mode
+	// (set all tick squares to 255 = not displayed)
+	uint8_t tickSquares[kDisplayHeight];
+	uint8_t colours[kDisplayHeight];
+	memset(tickSquares, 255, kDisplayHeight); // 255 = not displayed
+	memset(colours, 0, kDisplayHeight);
+	PadLEDs::setTickSquares(tickSquares, colours);
 
 	// Initialize scale notes first so we know how many notes are in the scale
 	updateScaleNotes();
