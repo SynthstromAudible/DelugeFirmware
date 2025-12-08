@@ -16,6 +16,7 @@
 #include "model/clip/sequencer/modes/pulse_sequencer_mode.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/instrument_clip.h"
@@ -977,6 +978,12 @@ bool PulseSequencerMode::handlePadPress(int32_t x, int32_t y, int32_t velocity) 
 	// Control columns (x16-x17) - delegate to base class (handles both presses and releases)
 	if (x >= kDisplayWidth) {
 		return SequencerMode::handlePadPress(x, y, velocity);
+	}
+
+	// If Shift is pressed, don't handle pad presses - let instrument clip view handle it
+	// (for editing synth parameters, etc.)
+	if (Buttons::isShiftButtonPressed()) {
+		return false;
 	}
 
 	// Only handle presses (not releases) for mode-specific controls
