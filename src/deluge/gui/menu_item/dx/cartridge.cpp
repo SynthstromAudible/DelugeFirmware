@@ -71,8 +71,11 @@ static bool openFile(std::string_view path, DX7Cartridge* data) {
 
 	error = data->load(readbuffer);
 	if (error != EMPTY_STRING) {
-		display->displayPopup(l10n::get(error), 3);
-		return false;
+		// Allow loading to continue for checksum errors, but fail for other errors
+		if (error != deluge::l10n::String::STRING_FOR_DX_ERROR_CHECKSUM_FAIL) {
+			display->displayPopup(l10n::get(error), 3);
+			return false;
+		}
 	}
 
 	return true;
