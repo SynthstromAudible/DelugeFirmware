@@ -25,7 +25,7 @@ namespace deluge::gui::menu_item {
 
 DxConvert dx_convert{l10n::String::STRING_FOR_DX_CONVERT};
 
-void DxConvert::beginSession(MenuItem* navigatedBackwardFrom) {
+void DxConvert::beginSession([[maybe_unused]] MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
 	display->setNextTransitionDirection(1);
 	dxBrowser.setConversionMode(true);
