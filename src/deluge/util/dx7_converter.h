@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <string_view>
-
 // Forward declarations
 class DX7Cartridge;
 class SoundInstrument;
@@ -35,7 +33,7 @@ public:
 	 * @param syxPath Path to the .syx file to convert
 	 * @return Error::NONE on success, or appropriate error code
 	 */
-	Error convertSysexToXML(std::string_view syxPath);
+	static Error convertSysexToXML(const char* syxPath);
 
 private:
 	/**
@@ -62,7 +60,7 @@ private:
 	 * @param syxFilename The name of the sysex file (without extension)
 	 * @return Error::NONE on success, or appropriate error code
 	 */
-	Error convertPresetToXML(DX7Cartridge& cartridge, int presetIndex, const char* syxFilename);
+	static Error convertPresetToXML(DX7Cartridge& cartridge, int presetIndex, const char* syxFilename);
 
 	/**
 	 * Generate sanitized filename from preset name
@@ -71,7 +69,7 @@ private:
 	 * @param buffer Buffer to store sanitized name
 	 * @param bufferSize Size of buffer
 	 */
-	static void generateSanitizedFilename(const char* presetName, char* buffer, size_t bufferSize);
+	static void generateSanitizedFilename(const char* presetName, char* buffer, unsigned int bufferSize);
 
 	/**
 	 * Build the full path for a preset XML file
@@ -81,7 +79,7 @@ private:
 	 * @param path Output buffer for the full path
 	 * @param pathSize Size of path buffer
 	 */
-	static void buildPresetPath(const char* syxFilename, const char* presetFilename, char* path, size_t pathSize);
+	static void buildPresetPath(const char* syxFilename, const char* presetFilename, char* path, unsigned int pathSize);
 };
 
 } // namespace deluge::dx7

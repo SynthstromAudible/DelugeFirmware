@@ -25,7 +25,7 @@ class DxConvert final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 	DxConvert(l10n::String newName) : MenuItem(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	void beginSession([[maybe_unused]] MenuItem* navigatedBackwardFrom) override;
 	MenuItem* selectButtonPress() override;
 };
 

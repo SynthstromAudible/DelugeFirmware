@@ -38,14 +38,13 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
-#include <string_view>
 
 namespace deluge::dx7 {
 
-Error DX7Converter::convertSysexToXML(std::string_view syxPath) {
+Error DX7Converter::convertSysexToXML(const char* syxPath) {
 	// Extract filename without extension from path
-	const char* path_str = syxPath.data();
-	size_t path_len = syxPath.length();
+	const char* path_str = syxPath;
+	size_t path_len = strlen(syxPath);
 
 	// Find the last slash to get just the filename
 	const char* filename_start = path_str;
@@ -114,7 +113,7 @@ Error DX7Converter::convertSysexToXML(std::string_view syxPath) {
 		return Error::INSUFFICIENT_RAM;
 	});
 
-	std::span<std::byte> readbuffer = D_TRY_CATCH(file.read({buffer.get(), filesize}), error, {
+	std::span<std::byte> readbuffer = D_TRY_CATCH(file.read({buffer.get(), static_cast<size_t>(readsize)}), error, {
 		display->displayError(Error::FILE_UNREADABLE);
 		return Error::FILE_UNREADABLE;
 	});
@@ -150,7 +149,7 @@ Error DX7Converter::convertSysexToXML(std::string_view syxPath) {
 	int skipped_count = 0;
 
 	for (int i = 0; i < num_presets; i++) {
-		err = convertPresetToXML(cartridge, i, syx_filename.data());
+		err = DX7Converter::convertPresetToXML(cartridge, i, syx_filename.data());
 		if (err == Error::FILE_ALREADY_EXISTS) {
 			// Skip individual presets that already exist
 			skipped_count++;
@@ -278,7 +277,7 @@ Error DX7Converter::convertPresetToXML(DX7Cartridge& cartridge, int presetIndex,
 	return error;
 }
 
-void DX7Converter::generateSanitizedFilename(const char* presetName, char* buffer, size_t bufferSize) {
+void DX7Converter::generateSanitizedFilename(const char* presetName, char* buffer, unsigned int bufferSize) {
 	size_t i = 0;
 	size_t j = 0;
 
@@ -303,7 +302,8 @@ void DX7Converter::generateSanitizedFilename(const char* presetName, char* buffe
 	}
 }
 
-void DX7Converter::buildPresetPath(const char* syxFilename, const char* presetFilename, char* path, size_t pathSize) {
+void DX7Converter::buildPresetPath(const char* syxFilename, const char* presetFilename, char* path,
+                                   unsigned int pathSize) {
 	snprintf(path, pathSize, "SYNTHS/DX7/%s/%s.XML", syxFilename, presetFilename);
 }
 
