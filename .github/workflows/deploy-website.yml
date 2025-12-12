@@ -32,7 +32,7 @@ jobs:
       run:
         working-directory: website
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
@@ -55,7 +55,7 @@ jobs:
           SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: website-artifact
           path: website/dist
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Install CMake
         uses: lukka/get-cmake@latest
       - name: Install doxygen
@@ -80,7 +80,7 @@ jobs:
         run: ./dbt docs
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: doxygen-artifact
           path: "./build/html"
@@ -95,12 +95,12 @@ jobs:
       - build-doxygen
     steps:
       - name: Download website artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: website-artifact
           path: website/dist
       - name: Download doxygen artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: doxygen-artifact
           path: website/dist/doxygen
