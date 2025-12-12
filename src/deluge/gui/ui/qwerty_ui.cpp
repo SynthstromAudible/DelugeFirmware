@@ -133,9 +133,7 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	char const* displayName = enteredText.get();
 	int32_t displayStringLength = enteredText.getLength();
 
-	bool atVeryEnd = (enteredTextEditPos == displayStringLength);
-
-	int32_t xScrollHere = 0;
+	bool atVeryEnd = enteredTextEditPos == displayStringLength;
 
 	// Prevent being scrolled too far left.
 	int32_t minXScroll = std::min(enteredTextEditPos + 3 - maxNumChars, displayStringLength - maxNumChars + atVeryEnd);
@@ -159,7 +157,16 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 		}
 	}
 	else {
-		canvas.invertLeftEdgeForMenuHighlighting(0, xPixelMax, yPixel, yPixel + kTextSpacingY - 1);
+		int32_t highlightStartX;
+		int32_t scrollAmount = enteredTextEditPos - scrollPosHorizontal;
+		if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION && !scrollAmount) {
+			highlightStartX = 0;
+		}
+		else {
+			highlightStartX = xPixel + kTextSpacingX * scrollAmount - 2;
+		}
+		canvas.invertLeftEdgeForMenuHighlighting(highlightStartX, xPixelMax - highlightStartX, yPixel,
+		                                         yPixel + kTextSpacingY - 1);
 	}
 }
 
