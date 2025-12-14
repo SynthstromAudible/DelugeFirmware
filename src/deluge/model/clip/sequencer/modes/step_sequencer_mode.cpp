@@ -538,9 +538,10 @@ int32_t StepSequencerMode::processPlayback(void* modelStackPtr, int32_t absolute
 		return ticksUntilNextDivision(absolutePlaybackPos, adjustedTicksPerStep);
 	}
 
-	// Advance to next step at the START of this boundary (except on first call at position 0)
-	// This ensures currentStep_ points to the step we're about to process
-	if (absolutePlaybackPos != 0 && lastAbsolutePlaybackPos_ != 0) {
+	// Advance to next step at the START of this boundary (except on first boundary at position 0)
+	// This ensures currentStep_ points to the step we want to process for this boundary
+	// The step stays current for its full duration until the next boundary
+	if (absolutePlaybackPos > lastAbsolutePlaybackPos_) {
 		advanceStep(effects.direction);
 	}
 
@@ -550,7 +551,7 @@ int32_t StepSequencerMode::processPlayback(void* modelStackPtr, int32_t absolute
 		activeNoteCode_ = -1;
 	}
 
-	// Refresh UI with current step BEFORE processing
+	// Refresh UI with current step (before processing, so async render sees correct step)
 	uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 
 	// Process steps - handle SKIP steps immediately, ON/OFF steps get their full duration
@@ -562,7 +563,7 @@ int32_t StepSequencerMode::processPlayback(void* modelStackPtr, int32_t absolute
 			// SKIP: advance immediately and process next step at same boundary
 			advanceStep(effects.direction);
 			stepsChecked++;
-			// Refresh UI after advancing past skip
+			// Refresh UI after advancing past skip (so next step is highlighted)
 			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 			// Continue loop to process the next step immediately
 		}
