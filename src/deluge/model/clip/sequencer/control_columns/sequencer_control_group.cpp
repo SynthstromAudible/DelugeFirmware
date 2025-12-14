@@ -42,7 +42,7 @@ constexpr int32_t kTransposeValues[] = {-12, -11, -10, -9, -8, -7, -6, -5, -4, -
 
 constexpr int32_t kSceneValues[] = {0, 1, 2, 3, 4, 5, 6, 7};
 
-constexpr int32_t kDirectionValues[] = {0, 1, 2, 3}; // Forward, Backward, Ping Pong, Random
+constexpr int32_t kDirectionValues[] = {0, 1, 2, 3, 4, 5, 6, 7}; // Forward, Backward, Ping Pong, Random, Pedal, Skip 2, Pendulum, Spiral
 
 // Mutation intensity values (0-100%)
 constexpr int32_t kMutationValues[] = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
@@ -58,7 +58,7 @@ void formatSignedInt(char* buffer, int32_t value) {
 }
 
 // Direction mode names lookup table
-constexpr const char* kDirectionNames[] = {"FWD", "BACK", "PING", "RAND"};
+constexpr const char* kDirectionNames[] = {"FWD", "BACK", "PING", "RAND", "PEDAL", "SKIP2", "PEND", "SPIR"};
 } // namespace
 
 // ========== HELPER FUNCTIONS FOR INDIVIDUAL PAD CONTROL ==========
@@ -193,7 +193,7 @@ const char* formatValue(ControlType type, int32_t value) {
 		return buffer;
 
 	case ControlType::DIRECTION:
-		if (value >= 0 && value < 4) {
+		if (value >= 0 && value < 8) {
 			return kDirectionNames[value];
 		}
 		return "?";

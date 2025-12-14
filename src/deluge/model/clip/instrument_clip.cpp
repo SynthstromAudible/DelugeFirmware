@@ -4830,6 +4830,12 @@ void InstrumentClip::setSequencerMode(const std::string& modeName) {
 	if (modeName.empty()) {
 		// Cache current sequencer mode if we have one
 		if (sequencerMode_ && !sequencerModeName_.empty()) {
+			// Stop any playing notes before caching (to prevent stuck notes)
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(this);
+			sequencerMode_->stopAllNotes(modelStackWithTimelineCounter);
+
 			cachedSequencerModes_[sequencerModeName_] = std::move(sequencerMode_);
 		}
 
@@ -4846,6 +4852,12 @@ void InstrumentClip::setSequencerMode(const std::string& modeName) {
 
 	// Cache current mode if switching to a different mode
 	if (sequencerMode_ && !sequencerModeName_.empty() && sequencerModeName_ != modeName) {
+		// Stop any playing notes before caching (to prevent stuck notes)
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(this);
+		sequencerMode_->stopAllNotes(modelStackWithTimelineCounter);
+
 		cachedSequencerModes_[sequencerModeName_] = std::move(sequencerMode_);
 	}
 

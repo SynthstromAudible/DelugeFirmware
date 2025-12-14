@@ -101,28 +101,45 @@ private:
 
 	// Per-step data
 	struct Step {
-		GateType gateType{GateType::ON};
-		int32_t octave{0};    // -3 to +3
-		int32_t noteIndex{0}; // Index into scale notes array
+		GateType gateType{GateType::OFF};
+		int8_t octave{0};     // -3 to +3 (optimized from int32_t)
+		uint8_t noteIndex{0}; // Index into scale notes array (0-31, optimized from int32_t)
 	};
 
 	// State
 	bool initialized_ = false;
 	std::array<Step, kNumSteps> steps_;
 
-	// Scale notes cache
-	int32_t scaleNotes_[kMaxScaleNotes];
-	int32_t numScaleNotes_ = 0;
-	int32_t noteScrollOffset_ = 0; // Scroll offset for note pads (y3-y7)
 
 	// Timing
 	int32_t ticksPerSixteenthNote_ = 0;
-	int32_t currentStep_ = 0; // 0-15, which step we're on
+	uint8_t currentStep_ = 0;         // 0-15, which step we're on (optimized from int32_t)
 	int32_t lastAbsolutePlaybackPos_ = 0;
-	int32_t pingPongDirection_ = 1; // 1=forward, -1=backward (for ping pong mode)
+	int8_t pingPongDirection_ = 1;    // 1=forward, -1=backward (optimized from int32_t)
+
+	// State for additional play order modes
+	uint8_t pedalNextStep_ = 1;       // For PEDAL mode: next step to visit after returning to 0 (optimized from int32_t)
+	bool skip2OddPhase_ = true;       // For SKIP_2 mode: phase tracking
+	bool pendulumGoingUp_ = true;    // For PENDULUM mode: direction
+	uint8_t pendulumLow_ = 0;         // For PENDULUM mode: low bound (optimized from int32_t)
+	uint8_t pendulumHigh_ = 1;        // For PENDULUM mode: high bound (optimized from int32_t)
+	bool spiralFromLow_ = true;      // For SPIRAL mode: direction
+	uint8_t spiralLow_ = 0;           // For SPIRAL mode: low bound (optimized from int32_t)
+	uint8_t spiralHigh_ = 15;         // For SPIRAL mode: high bound (optimized from int32_t)
 
 	// Currently playing note (for note-off)
-	int32_t activeNoteCode_ = -1;
+	int16_t activeNoteCode_ = -1;     // -1 to 127 (optimized from int32_t)
+
+	// Active step count (1-16) - steps beyond this are dimmed and not played
+	uint8_t numActiveSteps_ = 16;     // Optimized from int32_t
+
+	// Scale notes cache
+	int32_t scaleNotes_[kMaxScaleNotes];
+	uint8_t numScaleNotes_ = 0;       // 0-32 (optimized from int32_t)
+	uint8_t noteScrollOffset_ = 0;    // Scroll offset for note pads (optimized from int32_t)
+
+	// Override horizontal encoder to handle Shift + encoder for step count adjustment
+	bool handleHorizontalEncoder(int32_t offset, bool encoderPressed) override;
 
 	// Helpers
 	void updateScaleNotes(void* modelStackPtr);
@@ -133,6 +150,12 @@ private:
 	RGB getNoteGradientColor(int32_t yPos) const; // y3=blue, y7=magenta
 	void displayOctaveValue(int32_t octave);
 	void advanceStep(int32_t direction); // Advance step based on direction mode
+
+	// Helper: Dim color to 20% brightness with minimum of 2 to prevent flickering
+	static void dimColor(RGB& color);
+
+	// Helper: Clamp all state variables to active step range
+	void clampStateToActiveRange();
 
 	// Default pattern management
 	bool isDefaultPattern() const;

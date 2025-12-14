@@ -6393,6 +6393,11 @@ ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			return ActionResult::DEALT_WITH;
 		}
+
+		// Sequencer mode is active but didn't handle the encoder
+		// Block horizontal scrolling/navigation (sequencer modes don't use clip scrolling)
+		// Silently consume the action, don't let it fall through to ClipView
+		return ActionResult::DEALT_WITH;
 	}
 
 	// If holding down notes
