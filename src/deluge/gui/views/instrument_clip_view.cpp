@@ -61,6 +61,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/clip/sequencer/sequencer_mode.h"
 #include "model/clip/sequencer/modes/step_sequencer_mode.h"
+#include "model/clip/sequencer/modes/pulse_sequencer_mode.h"
 #include "model/consequence/consequence_instrument_clip_multiply.h"
 #include "model/consequence/consequence_note_array_change.h"
 #include "model/consequence/consequence_note_row_horizontal_shift.h"
@@ -1879,6 +1880,41 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
+	// FIRST: Check if in sequencer mode - if so, ONLY use sequencer mode handler
+	// This prevents blank pads and invalid pads from triggering clip view's probability/iterance editing
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (clip && clip->hasSequencerMode()) {
+		auto* sequencerMode = clip->getSequencerMode();
+		if (sequencerMode) {
+			// Check for step sequencer
+			if (clip->getSequencerModeName() == "step_sequencer") {
+				auto* stepMode = static_cast<deluge::model::clip::sequencer::modes::StepSequencerMode*>(sequencerMode);
+				if (stepMode->handleSelectEncoder(offset)) {
+					return;
+				}
+				// Sequencer mode didn't handle it (no valid pad held) - only allow preset changing if NOT in UI_MODE_NOTES_PRESSED
+				// This prevents blank/invalid pads from triggering iterance/prob
+				if (currentUIMode != UI_MODE_NOTES_PRESSED) {
+					InstrumentClipMinder::selectEncoderAction(offset);
+				}
+				return;
+			}
+			// Check for pulse sequencer
+			else if (clip->getSequencerModeName() == "pulse_seq") {
+				auto* pulseMode = static_cast<deluge::model::clip::sequencer::modes::PulseSequencerMode*>(sequencerMode);
+				if (pulseMode->handleSelectEncoder(offset)) {
+					return;
+				}
+				// Sequencer mode didn't handle it (no valid pad held) - only allow preset changing if NOT in UI_MODE_NOTES_PRESSED
+				// This prevents blank/invalid pads (x8-x15) from triggering iterance/prob
+				if (currentUIMode != UI_MODE_NOTES_PRESSED) {
+					InstrumentClipMinder::selectEncoderAction(offset);
+				}
+				return;
+			}
+		}
+	}
+
 	// User may be trying to edit noteCode...
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		if (Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
@@ -1906,28 +1942,12 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 	}
 
 	// Or, if user holding a note(s) down, we'll adjust probability / iterance instead
+	// (Only when NOT in sequencer mode - sequencer modes handle this above)
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 		handleProbabilityOrIteranceEditing(offset, false);
 	}
-	// Or, if in sequencer mode with note pad held, adjust step probability
+	// Or, normal option - trying to change Instrument presets
 	else {
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		auto* sequencerMode = clip->getSequencerMode();
-		if (sequencerMode) {
-			// Check if it's StepSequencerMode and has a note pad held
-			// Use dynamic_cast or check mode name, but simpler: check if it responds to isNotePadHeld
-			// Actually, we'll need to cast to StepSequencerMode specifically
-			// Let's use the mode name to check if it's step sequencer
-			if (clip->getSequencerModeName() == "step_sequencer") {
-				// Cast to StepSequencerMode to access handleSelectEncoder
-				auto* stepMode = static_cast<deluge::model::clip::sequencer::modes::StepSequencerMode*>(sequencerMode);
-				if (stepMode->handleSelectEncoder(offset)) {
-					// Sequencer mode handled it - don't change instrument presets
-					return;
-				}
-			}
-		}
-		// Or, normal option - trying to change Instrument presets
 		InstrumentClipMinder::selectEncoderAction(offset);
 		if (clip->output->type == OutputType::MIDI_OUT
 		    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
@@ -6269,6 +6289,8 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	}
 
 	// Check if the current clip has an active sequencer mode that wants to handle the vertical encoder
+	// This must happen BEFORE checking for encoder button press, so sequencer modes can handle
+	// note pad + encoder interactions (e.g., gate length adjustment)
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if (clip && clip->hasSequencerMode()) {
 		auto* sequencerMode = clip->getSequencerMode();
@@ -6284,7 +6306,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	// If encoder button pressed
+	// If encoder button pressed (but sequencer mode didn't handle it above)
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		// User may be trying to move a noteCode...
 		if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {

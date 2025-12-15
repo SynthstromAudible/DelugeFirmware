@@ -155,10 +155,9 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	if (otherInstrumentClip->sequencerMode_) {
 		auto& manager = deluge::model::clip::sequencer::SequencerModeManager::instance();
 		sequencerMode_ = manager.createMode(sequencerModeName_);
-		if (sequencerMode_) {
-			// TODO: We should implement a proper clone method for sequencer modes
-			// For now, the new clip will get default sequencer mode data
-			sequencerMode_->initialize();
+		if (sequencerMode_ && otherInstrumentClip->sequencerMode_) {
+			// Copy data from the source sequencer mode (types should match since mode names match)
+			sequencerMode_->copyFrom(otherInstrumentClip->sequencerMode_.get());
 		}
 	}
 
@@ -167,10 +166,9 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 		if (mode) {
 			auto& manager = deluge::model::clip::sequencer::SequencerModeManager::instance();
 			auto clonedMode = manager.createMode(modeName);
-			if (clonedMode) {
-				// TODO: We should implement a proper clone method for sequencer modes
-				// For now, the cached modes will have default data
-				clonedMode->initialize();
+			if (clonedMode && mode) {
+				// Copy data from the source cached sequencer mode (types should match since mode names match)
+				clonedMode->copyFrom(mode.get());
 				cachedSequencerModes_[modeName] = std::move(clonedMode);
 			}
 		}

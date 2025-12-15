@@ -21,6 +21,7 @@
 #include "gui/l10n/l10n.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/sequencer/control_columns/sequencer_control_state.h"
+#include "model/iterance/iterance.h"
 
 class Serializer;
 class Deserializer;
@@ -123,6 +124,10 @@ public:
 	// Read sequencer mode data from file (for pattern loading)
 	virtual Error readFromFile(Deserializer& reader) { return Error::NONE; }
 
+	// Clone data from another sequencer mode of the same type
+	// Returns true if copy was successful, false if types don't match or copy failed
+	virtual bool copyFrom(SequencerMode* other) { return false; }
+
 	// Check if this mode can be saved as a standalone pattern
 	virtual bool canSaveAsPattern() const { return true; }
 
@@ -209,6 +214,22 @@ protected:
 	static void renderPlaybackPosition(RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                                   int32_t imageWidth, int32_t absolutePlaybackPos, int32_t totalLength,
 	                                   RGB color = RGB{255, 255, 255}, bool enabled = true);
+
+	// ========== DISPLAY HELPERS ==========
+	// Shared display functions for velocity, gate length, probability, and iterance
+	// These are used by both Step and Pulse sequencers
+	static void displayVelocity(uint8_t velocity);
+	static void displayGateLength(uint8_t gateLength);
+	static void displayProbability(uint8_t probability); // probability is 0-20 (representing 0-100% in 5% increments)
+	static void displayIterance(Iterance iterance);
+
+	// ========== UTILITY HELPERS ==========
+	// Clamp a value between min and max
+	[[gnu::always_inline]] static inline int32_t clampValue(int32_t value, int32_t min, int32_t max) {
+		if (value < min) return min;
+		if (value > max) return max;
+		return value;
+	}
 
 public:
 	// ========== CONTROL COLUMNS ==========

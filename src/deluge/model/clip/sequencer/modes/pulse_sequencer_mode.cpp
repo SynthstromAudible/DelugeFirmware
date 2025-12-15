@@ -27,9 +27,11 @@
 #include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 #include <algorithm>
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 
 // Forward declaration for note name conversion
 extern void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot, bool appendOctaveNo);
@@ -143,7 +145,9 @@ void PulseSequencerMode::updateScaleNotes() {
 // ================================================================================================
 
 bool PulseSequencerMode::isStageActive(int32_t stage) const {
-	return isStageValid(stage) && stage < performanceControls_.numStages && performanceControls_.stageEnabled[stage];
+	// Stage is active if it's valid, within numStages, enabled, and not SKIP type
+	return isStageValid(stage) && stage < performanceControls_.numStages
+	       && stages_[stage].gateType != GateType::SKIP;
 }
 
 void PulseSequencerMode::showStagePopup(int32_t stage, const char* format, ...) {
@@ -156,7 +160,12 @@ void PulseSequencerMode::showStagePopup(int32_t stage, const char* format, ...) 
 }
 
 RGB PulseSequencerMode::dimColorIfDisabled(RGB color, int32_t stage) const {
-	if (!isStageActive(stage)) {
+	// Stages beyond numStages: completely off (0 brightness) - like step sequencer
+	if (stage >= performanceControls_.numStages) {
+		return RGB{0, 0, 0};
+	}
+	// SKIP stages: dimmed (keep dimmed state)
+	if (stages_[stage].gateType == GateType::SKIP) {
 		color.r /= 8;
 		color.g /= 8;
 		color.b /= 8;
@@ -320,6 +329,9 @@ bool PulseSequencerMode::renderPads(uint32_t whichRows, RGB* image,
 				case GateType::HELD:
 					color = RGB{255, 0, 255};
 					break;
+				case GateType::SKIP:
+					color = RGB{50, 50, 50}; // Dim gray for SKIP
+					break;
 				}
 			}
 
@@ -396,29 +408,9 @@ bool PulseSequencerMode::renderPads(uint32_t whichRows, RGB* image,
 	// FIXED RIGHT SIDE CONTROLS (x8-15) - These don't scroll
 	// ===============================================================================
 
-	// y4: Stage count control (1-8 stages)
-	if (whichRows & (1 << 4)) {
-		for (int32_t x = 8; x < kDisplayWidth; x++) {
-			int32_t stageNum = x - 7;
-			RGB color = (stageNum <= performanceControls_.numStages) ? RGB{255, 255, 0} : RGB{0, 0, 0};
-			image[4 * imageWidth + x] = color;
-			if (occupancyMask && stageNum <= performanceControls_.numStages) {
-				occupancyMask[4][x] = 64;
-			}
-		}
-	}
+	// y4: No longer used (stage count now controlled via Shift + horizontal encoder)
 
-	// y3: Stage enable/disable toggle (x8-15)
-	if (whichRows & (1 << 3)) {
-		for (int32_t x = 8; x < kDisplayWidth; x++) {
-			int32_t stageIndex = x - 8;
-			RGB color = performanceControls_.stageEnabled[stageIndex] ? RGB{255, 128, 0} : RGB{0, 0, 0};
-			image[3 * imageWidth + x] = color;
-			if (occupancyMask && performanceControls_.stageEnabled[stageIndex]) {
-				occupancyMask[3][x] = 48;
-			}
-		}
-	}
+	// y3: No longer used for stage enable/disable (replaced by SKIP gate type)
 
 	// After rendering all pads, brighten the playback position
 	// Show on both gate line AND the selected note pad for the current stage
@@ -466,6 +458,11 @@ int32_t PulseSequencerMode::processPlayback(void* modelStackPtr, int32_t absolut
 	if (clip->output->type != OutputType::SYNTH && clip->output->type != OutputType::MIDI_OUT
 	    && clip->output->type != OutputType::CV) {
 		return 2147483647;
+	}
+
+	// Reset repeat count when playback starts (only at position 0)
+	if (absolutePlaybackPos == 0) {
+		sequencerState_.repeatCount_ = 0;
 	}
 
 	// Calculate base tick rate (16th notes from song)
@@ -561,7 +558,7 @@ void PulseSequencerMode::stopAllNotes(void* modelStackPtr) {
 void PulseSequencerMode::generateNotes(void* modelStackPtr) {
 	int32_t stage = performanceControls_.currentStage;
 
-	if (stage >= 0 && stage < performanceControls_.numStages && performanceControls_.stageEnabled[stage]) {
+	if (isStageActive(stage)) {
 		int32_t pulseInStage = sequencerState_.currentPulse;
 
 		if (evaluateRhythmPattern(stage, pulseInStage)) {
@@ -582,8 +579,17 @@ void PulseSequencerMode::generateNotes(void* modelStackPtr) {
 void PulseSequencerMode::playNoteForStage(void* modelStackPtr, int32_t stage) {
 	StageData& stageData = stages_[stage];
 
-	if (stageData.gateType == GateType::OFF) {
-		return;
+	if (stageData.gateType == GateType::OFF || stageData.gateType == GateType::SKIP) {
+		return; // Don't play OFF or SKIP stages
+	}
+
+	// Check iterance first (if set) - same as step sequencer
+	bool shouldPlay = true;
+	if (stageData.iterance != kDefaultIteranceValue) {
+		shouldPlay = stageData.iterance.passesCheck(sequencerState_.repeatCount_);
+	}
+	if (!shouldPlay) {
+		return; // Iterance check failed - don't play this cycle
 	}
 
 	// Get all scale notes starting from C3 (MIDI 60) for better range
@@ -665,13 +671,13 @@ void PulseSequencerMode::playNoteForStage(void* modelStackPtr, int32_t stage) {
 	}
 
 	// Apply probability check
-	if (!shouldPlayBasedOnProbability(stageData.probability)) {
+	// Convert probability from 0-20 (5% increments) to 0-100 for shouldPlayBasedOnProbability
+	if (!shouldPlayBasedOnProbability(stageData.probability * 5)) {
 		return; // Don't play this note
 	}
 
-	// Apply velocity spread
-	uint8_t baseVelocity = 100;
-	uint8_t velocity = applyVelocitySpread(baseVelocity, stageData.velocitySpread);
+	// Apply velocity with spread randomization
+	uint8_t velocity = applyVelocitySpread(stageData.velocity, stageData.velocitySpread);
 
 	// Apply gate length to note duration
 	noteLength = (noteLength * stageData.gateLength) / 100;
@@ -710,7 +716,7 @@ void PulseSequencerMode::advanceRandom() {
 	int32_t enabledStages[kMaxStages];
 	int32_t enabledCount = 0;
 	for (int32_t i = 0; i < performanceControls_.numStages; i++) {
-		if (performanceControls_.stageEnabled[i]) {
+		if (isStageActive(i)) {
 			enabledStages[enabledCount++] = i;
 		}
 	}
@@ -820,22 +826,45 @@ void PulseSequencerMode::advanceToNextEnabledStage() {
 	CombinedEffects effects = getCombinedEffects();
 	int32_t playOrder = effects.direction;
 
+	// Track old stage for repeat count before advancing
+	int32_t oldStage = performanceControls_.currentStage;
+
 	// Special play orders that don't use the standard find-next-enabled loop
 	switch (playOrder) {
 	case 3: // RANDOM
 		advanceRandom();
+		// For random, track cycles when returning to stage 0 (simplification)
+		if (oldStage == performanceControls_.numStages - 1 && performanceControls_.currentStage == 0) {
+			sequencerState_.repeatCount_++;
+		}
 		return;
 	case 4: // PEDAL
 		advancePedal();
+		// For pedal, track cycles when returning to stage 0
+		if (oldStage != 0 && performanceControls_.currentStage == 0) {
+			sequencerState_.repeatCount_++;
+		}
 		return;
 	case 5: // SKIP_2
 		advanceSkip2();
+		// For skip2, track cycles when returning to stage 0
+		if (oldStage == performanceControls_.numStages - 1 && performanceControls_.currentStage == 0) {
+			sequencerState_.repeatCount_++;
+		}
 		return;
 	case 6: // PENDULUM
 		advancePendulum();
+		// For pendulum, track cycles when returning to stage 0
+		if (oldStage == performanceControls_.numStages - 1 && performanceControls_.currentStage == 0) {
+			sequencerState_.repeatCount_++;
+		}
 		return;
 	case 7: // SPIRAL
 		advanceSpiral();
+		// For spiral, track cycles when returning to stage 0
+		if (oldStage == performanceControls_.numStages - 1 && performanceControls_.currentStage == 0) {
+			sequencerState_.repeatCount_++;
+		}
 		return;
 	default:
 		break; // Fall through to standard advancement
@@ -867,9 +896,24 @@ void PulseSequencerMode::advanceToNextEnabledStage() {
 			return; // Safety: avoid infinite loop
 		}
 
-	} while (!performanceControls_.stageEnabled[nextStage]);
+	} while (!isStageActive(nextStage));
 
+	// Track repeat count for iterance: increment when we complete a full cycle (loop back to stage 0)
 	performanceControls_.currentStage = nextStage;
+
+	// Check if we've completed a full cycle (went from last stage back to 0)
+	// For forward direction, we complete a cycle when going from last stage to 0
+	if (playOrder == 0 && oldStage == performanceControls_.numStages - 1 && nextStage == 0) {
+		sequencerState_.repeatCount_++;
+	}
+	// For backward direction, we complete a cycle when going from 0 to last stage
+	else if (playOrder == 1 && oldStage == 0 && nextStage == performanceControls_.numStages - 1) {
+		sequencerState_.repeatCount_++;
+	}
+	// For other modes, increment on forward cycles (simplification)
+	else if (playOrder != 0 && playOrder != 1 && oldStage == performanceControls_.numStages - 1 && nextStage == 0) {
+		sequencerState_.repeatCount_++;
+	}
 }
 
 bool PulseSequencerMode::evaluateRhythmPattern(int32_t stage, int32_t pulsePosition) {
@@ -882,6 +926,7 @@ bool PulseSequencerMode::evaluateRhythmPattern(int32_t stage, int32_t pulsePosit
 		return (pulsePosition < stageData.pulseCount);
 	case GateType::HELD:
 		return (pulsePosition == 0);
+	case GateType::SKIP:
 	case GateType::OFF:
 		return false;
 	}
@@ -899,6 +944,15 @@ bool PulseSequencerMode::handlePadPress(int32_t x, int32_t y, int32_t velocity) 
 		return SequencerMode::handlePadPress(x, y, velocity);
 	}
 
+	// Handle pad releases first - clear held pad tracking if it matches
+	if (velocity == 0) {
+		if (heldPadX_ == x && heldPadY_ == y) {
+			heldPadX_ = -1;
+			heldPadY_ = -1;
+		}
+		return false; // Let instrument clip view handle releases
+	}
+
 	// If Shift is pressed, don't handle pad presses - let instrument clip view handle it
 	// (for editing synth parameters, etc.)
 	if (Buttons::isShiftButtonPressed()) {
@@ -906,8 +960,16 @@ bool PulseSequencerMode::handlePadPress(int32_t x, int32_t y, int32_t velocity) 
 	}
 
 	// Only handle presses (not releases) for mode-specific controls
-	if (velocity == 0) {
-		return false; // Let releases pass through
+	if (x < 0) {
+		return false;
+	}
+
+	// Ignore pads at x8-x15 completely - return true to prevent clip view from handling them
+	// This prevents them from entering UI_MODE_NOTES_PRESSED and triggering iterance/prob
+	if (x >= kMaxStages) {
+		heldPadX_ = -1;
+		heldPadY_ = -1;
+		return true; // Consume the pad press - don't let clip view handle it
 	}
 
 	// LEFT SIDE SCROLLABLE CONTROLS (x0-7) - all relative to gate line
@@ -940,7 +1002,12 @@ bool PulseSequencerMode::handlePadPress(int32_t x, int32_t y, int32_t velocity) 
 		// Note pads (gate + 3 and above)
 		else if (y >= gateLineY + 3) {
 			int32_t noteIdx = y - (gateLineY + 3);
+			// Only track and handle if noteIdx is valid (within scale notes range)
 			if (noteIdx >= 0 && noteIdx < displayState_.numScaleNotes) {
+				// Track held pad for encoder adjustments (only for valid notes)
+				heldPadX_ = static_cast<int8_t>(x);
+				heldPadY_ = static_cast<int8_t>(y);
+
 				// Select this note for this stage
 				int32_t stage = x;
 				stages_[stage].noteIndex = noteIdx;
@@ -955,26 +1022,74 @@ bool PulseSequencerMode::handlePadPress(int32_t x, int32_t y, int32_t velocity) 
 				showStagePopup(stage, "Stage %d: %s", stage + 1, noteNameBuffer);
 				return true;
 			}
+			// Invalid note pad (blank pad) - don't track, let clip view handle it
+			return false;
 		}
 	}
 
 	// RIGHT SIDE FIXED CONTROLS (x8-15)
-	// y4: Stage count control
-	if (y == 4 && x >= 8 && x < kDisplayWidth) {
-		handleStageCountChange(x - 7); // 1-8
-		return true;
-	}
-	// y3: Stage enable/disable toggle
-	else if (y == 3 && x >= 8 && x < kDisplayWidth) {
-		handleStageToggle(x - 8); // 0-7
-		return true;
-	}
+	// y4: No longer used (stage count now controlled via Shift + horizontal encoder)
+	// y3: No longer used (was stage enable/disable, now replaced by SKIP gate type)
+	// (Already handled above - pads at x >= 8 are cleared and return false)
 
 	return false; // Didn't handle this pad
 }
 
 bool PulseSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
-	// Scroll the entire left side (gate line + pulse counts + octave controls + notes)
+	// If encoder button is pressed
+	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+		// If a note pad is held, adjust gate length
+		if (isNotePadHeld()) {
+			int32_t stage = heldPadX_;
+			if (isStageValid(stage)) {
+				int32_t newGateLength = static_cast<int32_t>(stages_[stage].gateLength) + offset;
+				stages_[stage].gateLength = static_cast<int32_t>(SequencerMode::clampValue(newGateLength, static_cast<int32_t>(1), static_cast<int32_t>(100)));
+
+				// Show gate length in display
+				SequencerMode::displayGateLength(static_cast<uint8_t>(stages_[stage].gateLength));
+
+				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				return true;
+			}
+		}
+		// Otherwise, encoder button pressed but no note pad - shift all stages' octaves
+		for (int32_t i = 0; i < kMaxStages; i++) {
+			int32_t newOctave = stages_[i].octave + offset;
+			stages_[i].octave = static_cast<int32_t>(SequencerMode::clampValue(newOctave, static_cast<int32_t>(-2), static_cast<int32_t>(3)));
+		}
+		// Show popup with actual octave value (use first stage as reference)
+		extern deluge::hid::Display* display;
+		if (::display) {
+			char buffer[20];
+			int32_t octaveValue = stages_[0].octave;
+			if (::display->haveOLED()) {
+				snprintf(buffer, sizeof(buffer), "Octave: %+d", octaveValue);
+			}
+			else {
+				snprintf(buffer, sizeof(buffer), "%+d", octaveValue);
+			}
+			::display->displayPopup(buffer);
+		}
+		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		return true;
+	}
+
+	// If a note pad is held (without encoder button), adjust gate length instead of scrolling
+	if (isNotePadHeld()) {
+		int32_t stage = heldPadX_;
+		if (isStageValid(stage)) {
+			int32_t newGateLength = static_cast<int32_t>(stages_[stage].gateLength) + offset;
+			stages_[stage].gateLength = static_cast<int32_t>(SequencerMode::clampValue(newGateLength, static_cast<int32_t>(1), static_cast<int32_t>(100)));
+
+			// Show gate length in display
+			SequencerMode::displayGateLength(static_cast<uint8_t>(stages_[stage].gateLength));
+
+			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+			return true;
+		}
+	}
+
+	// Otherwise, scroll the entire left side (gate line + pulse counts + octave controls + notes)
 	displayState_.gateLineOffset += offset;
 
 	// Clamp to valid range
@@ -1001,6 +1116,123 @@ bool PulseSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 	return true; // We handled it
 }
 
+bool PulseSequencerMode::handleHorizontalEncoder(int32_t offset, bool encoderPressed) {
+	// Handle Shift + encoder for stage count adjustment (1-8)
+	if (Buttons::isShiftButtonPressed() && heldControlColumnX_ < 0) {
+		int32_t newCount = performanceControls_.numStages + offset;
+		if (newCount < 1)
+			newCount = 1;
+		if (newCount > kMaxStages)
+			newCount = kMaxStages;
+
+		if (newCount != performanceControls_.numStages) {
+			performanceControls_.numStages = newCount;
+			sequencerState_.totalPatternLength = calculateTotalPatternLength();
+
+			// Clamp current stage to valid range
+			if (performanceControls_.currentStage >= performanceControls_.numStages) {
+				performanceControls_.currentStage = performanceControls_.numStages - 1;
+			}
+
+			// Refresh UI to show dimmed columns
+			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+			// Show popup with new count
+			extern deluge::hid::Display* display;
+			if (::display) {
+				char buffer[4]; // Max 1 digit for 1-8
+				intToString(newCount, buffer, 1);
+				::display->displayPopup(buffer);
+			}
+			return true;
+		}
+		return true; // Consume the action even if no change
+	}
+
+	// ONLY handle if a note pad is held (and Shift not pressed) - adjust velocity
+	// Otherwise, allow normal horizontal scrolling and patch changes
+	if (!Buttons::isShiftButtonPressed() && isNotePadHeld()) {
+		int32_t stage = heldPadX_;
+		if (isStageValid(stage)) {
+			int32_t newVelocity = static_cast<int32_t>(stages_[stage].velocity) + offset;
+			stages_[stage].velocity = static_cast<int32_t>(SequencerMode::clampValue(newVelocity, static_cast<int32_t>(1), static_cast<int32_t>(127)));
+
+			// Show velocity in display
+			SequencerMode::displayVelocity(static_cast<uint8_t>(stages_[stage].velocity));
+
+			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+			return true;
+		}
+	}
+
+	// Otherwise, use base class implementation (for control columns)
+	return SequencerMode::handleHorizontalEncoder(offset, encoderPressed);
+}
+
+bool PulseSequencerMode::handleSelectEncoder(int32_t offset) {
+	// Use EXACT same check as velocity/gate encoders - they work!
+	// Check pad directly like velocity/gate do - don't use isNotePadHeld() wrapper
+	if (heldPadX_ < 0 || heldPadX_ >= kMaxStages || heldPadY_ < 3) {
+		return false;
+	}
+
+	// Access display (global variable) - same as step sequencer
+	extern deluge::hid::Display* display;
+	if (!::display) {
+		return false;
+	}
+
+	// Check if there's already a popup showing to continue editing that parameter
+	bool hasProbabilityPopup = ::display->hasPopupOfType(PopupType::PROBABILITY);
+	bool hasIterancePopup = ::display->hasPopupOfType(PopupType::ITERANCE);
+	bool hasPopup = hasProbabilityPopup || hasIterancePopup;
+
+	// if there's no probability or iterance pop-up yet and we're turning encoder left, edit probability
+	// if there's a probability pop-up, continue editing probability
+	bool shouldEditProbability = (!hasPopup && (offset < 0)) || hasProbabilityPopup;
+
+	// if there's no probability or iterance pop-up yet and we're turning encoder right, edit iterance
+	// if there's an iterance pop-up, continue editing iterance
+	bool shouldEditIterance = (!hasPopup && (offset > 0)) || hasIterancePopup;
+
+	if (shouldEditProbability) {
+		// Adjust probability in 5% increments (0-20, representing 0-100%)
+		int32_t newProbability = static_cast<int32_t>(stages_[heldPadX_].probability) + offset;
+		stages_[heldPadX_].probability = static_cast<int32_t>(SequencerMode::clampValue(newProbability, static_cast<int32_t>(0), static_cast<int32_t>(kNumProbabilityValues)));
+
+		// Show probability in display
+		SequencerMode::displayProbability(static_cast<uint8_t>(stages_[heldPadX_].probability));
+
+		// Request UI refresh to update pad display
+		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		return true;
+	}
+	else if (shouldEditIterance) {
+		// Get current iterance preset index
+		int32_t currentPreset = stages_[heldPadX_].iterance.toPresetIndex();
+		int32_t newPreset = currentPreset + offset;
+
+		// Clamp to valid range (0 = OFF, 1-35 = presets, 36 = CUSTOM)
+		if (newPreset < 0)
+			newPreset = 0;
+		if (newPreset > kCustomIterancePreset)
+			newPreset = kCustomIterancePreset;
+
+		// Convert preset index to iterance value
+		stages_[heldPadX_].iterance = Iterance::fromPresetIndex(newPreset);
+
+		// Show iterance in display
+		SequencerMode::displayIterance(stages_[heldPadX_].iterance);
+
+		// Request UI refresh to update pad display
+		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		return true;
+	}
+
+	return false;
+}
+
+// ================================================================================================
+// DISPLAY FUNCTIONS - Now use base class implementations
 // ================================================================================================
 // PAD INPUT HANDLERS
 // ================================================================================================
@@ -1009,13 +1241,13 @@ void PulseSequencerMode::handleGateType(int32_t stage) {
 	if (!isStageValid(stage))
 		return;
 
-	// Cycle through gate types: OFF -> SINGLE -> MULTIPLE -> HELD -> OFF
+	// Cycle through gate types: OFF -> SINGLE -> MULTIPLE -> HELD -> SKIP -> OFF
 	int32_t currentType = static_cast<int32_t>(stages_[stage].gateType);
-	int32_t nextType = (currentType + 1) % 4;
+	int32_t nextType = (currentType + 1) % 5;
 	stages_[stage].gateType = static_cast<GateType>(nextType);
 
 	// Show popup
-	const char* gateNames[] = {"OFF", "SINGLE", "MULTIPLE", "HELD"};
+	const char* gateNames[] = {"OFF", "SINGLE", "MULTIPLE", "HELD", "SKIP"};
 	char buffer[kPopupBufferSize];
 	snprintf(buffer, sizeof(buffer), "Stage %d: %s", stage + 1, gateNames[nextType]);
 	display->displayPopup(buffer);
@@ -1056,33 +1288,8 @@ void PulseSequencerMode::handlePulseCount(int32_t stage, int32_t position) {
 	}
 }
 
-void PulseSequencerMode::handleStageCountChange(int32_t numStages) {
-	if (numStages < 1)
-		numStages = 1;
-	if (numStages > 8)
-		numStages = 8;
-
-	if (performanceControls_.numStages != numStages) {
-		performanceControls_.numStages = numStages;
-		sequencerState_.totalPatternLength = calculateTotalPatternLength();
-
-		char buffer[30];
-		snprintf(buffer, sizeof(buffer), "Stages: %d", numStages);
-		display->displayPopup(buffer);
-	}
-}
 
 
-void PulseSequencerMode::handleStageToggle(int32_t stage) {
-	if (!isStageValid(stage))
-		return;
-	performanceControls_.stageEnabled[stage] = !performanceControls_.stageEnabled[stage];
-
-	const char* status = performanceControls_.stageEnabled[stage] ? "ON" : "OFF";
-	char buffer[30];
-	snprintf(buffer, sizeof(buffer), "Stage %d: %s", stage + 1, status);
-	display->displayPopup(buffer);
-}
 
 
 void PulseSequencerMode::resetToDefaults() {
@@ -1091,13 +1298,14 @@ void PulseSequencerMode::resetToDefaults() {
 	performanceControls_.currentStage = 0;
 
 	for (int32_t i = 0; i < kMaxStages; i++) {
-		performanceControls_.stageEnabled[i] = true;
 		stages_[i].gateType = GateType::OFF;
 		stages_[i].noteIndex = 0;
 		stages_[i].octave = 0;
 		stages_[i].pulseCount = 1;
+		stages_[i].velocity = 100;
 		stages_[i].velocitySpread = 0;
-		stages_[i].probability = 100;
+		stages_[i].probability = kNumProbabilityValues; // 20 = 100%
+		stages_[i].iterance = kDefaultIteranceValue;
 		stages_[i].gateLength = 50;
 	}
 
@@ -1141,6 +1349,9 @@ void PulseSequencerMode::randomizeSequence() {
 		else {
 			stages_[i].pulseCount = (getRandom255() % 3) + 5;
 		}
+
+		// Randomize velocity (1-127, bias toward middle-high values)
+		stages_[i].velocity = (getRandom255() % 100) + 28; // 28-127 range
 	}
 
 	sequencerState_.totalPatternLength = calculateTotalPatternLength();
@@ -1341,11 +1552,19 @@ void PulseSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 	writer.writeAttribute("gateLineOffset", displayState_.gateLineOffset);
 	writer.writeAttribute("currentStage", performanceControls_.currentStage);
 	writer.writeAttribute("pingPongDirection", performanceControls_.pingPongDirection);
+	writer.writeAttribute("pedalNextStage", performanceControls_.pedalNextStage);
+	writer.writeAttribute("skip2OddPhase", performanceControls_.skip2OddPhase ? 1 : 0);
+	writer.writeAttribute("pendulumGoingUp", performanceControls_.pendulumGoingUp ? 1 : 0);
+	writer.writeAttribute("pendulumLow", performanceControls_.pendulumLow);
+	writer.writeAttribute("pendulumHigh", performanceControls_.pendulumHigh);
+	writer.writeAttribute("spiralFromLow", performanceControls_.spiralFromLow ? 1 : 0);
+	writer.writeAttribute("spiralLow", performanceControls_.spiralLow);
+	writer.writeAttribute("spiralHigh", performanceControls_.spiralHigh);
 
-	// Prepare stage data as byte array for writeAttributeHexBytes (7 bytes per stage)
-	uint8_t stageData[kMaxStages * 7];
+	// Prepare stage data as byte array for writeAttributeHexBytes (10 bytes per stage)
+	uint8_t stageData[kMaxStages * 10];
 	for (int32_t i = 0; i < kMaxStages; ++i) {
-		int32_t offset = i * 7;
+		int32_t offset = i * 10;
 		// Byte 0: gate type (0-3)
 		stageData[offset] = static_cast<uint8_t>(stages_[i].gateType);
 		// Byte 1: noteIndex (0-31)
@@ -1354,25 +1573,24 @@ void PulseSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 		stageData[offset + 2] = static_cast<uint8_t>(stages_[i].octave + 3);
 		// Byte 3: pulse count (1-8)
 		stageData[offset + 3] = static_cast<uint8_t>(stages_[i].pulseCount);
-		// Byte 4: velocity spread (0-127)
-		stageData[offset + 4] = static_cast<uint8_t>(stages_[i].velocitySpread);
-		// Byte 5: probability (0-100)
-		stageData[offset + 5] = static_cast<uint8_t>(stages_[i].probability);
-		// Byte 6: gate length (0-100)
-		stageData[offset + 6] = static_cast<uint8_t>(stages_[i].gateLength);
+		// Byte 4: velocity (1-127)
+		stageData[offset + 4] = static_cast<uint8_t>(stages_[i].velocity);
+		// Byte 5: velocity spread (0-127)
+		stageData[offset + 5] = static_cast<uint8_t>(stages_[i].velocitySpread);
+		// Byte 6: probability (0-20, representing 0-100% in 5% increments)
+		stageData[offset + 6] = static_cast<uint8_t>(stages_[i].probability);
+		// Byte 7: gate length (0-100)
+		stageData[offset + 7] = static_cast<uint8_t>(stages_[i].gateLength);
+		// Bytes 8-9: iterance (2 bytes, uint16_t)
+		uint16_t iteranceInt = stages_[i].iterance.toInt();
+		stageData[offset + 8] = static_cast<uint8_t>(iteranceInt & 0xFF);
+		stageData[offset + 9] = static_cast<uint8_t>((iteranceInt >> 8) & 0xFF);
 	}
 
 	// Always write stageData (fixed size array)
-	writer.writeAttributeHexBytes("stageData", stageData, kMaxStages * 7);
+	writer.writeAttributeHexBytes("stageData", stageData, kMaxStages * 10);
 
-	// Write stage enabled flags as hex byte
-	uint8_t enabledBits = 0;
-	for (int32_t i = 0; i < kMaxStages; ++i) {
-		if (performanceControls_.stageEnabled[i]) {
-			enabledBits |= (1 << i);
-		}
-	}
-	writer.writeAttributeHexBytes("stageEnabled", &enabledBits, 1);
+	// stageEnabled removed - now using SKIP gate type instead
 	writer.closeTag(); // Self-closing tag since no child content
 
 	// Write control columns and scenes
@@ -1407,8 +1625,33 @@ Error PulseSequencerMode::readFromFile(Deserializer& reader) {
 		else if (!strcmp(tagName, "pingPongDirection")) {
 			performanceControls_.pingPongDirection = reader.readTagOrAttributeValueInt();
 		}
+		else if (!strcmp(tagName, "pedalNextStage")) {
+			performanceControls_.pedalNextStage = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "skip2OddPhase")) {
+			performanceControls_.skip2OddPhase = (reader.readTagOrAttributeValueInt() != 0);
+		}
+		else if (!strcmp(tagName, "pendulumGoingUp")) {
+			performanceControls_.pendulumGoingUp = (reader.readTagOrAttributeValueInt() != 0);
+		}
+		else if (!strcmp(tagName, "pendulumLow")) {
+			performanceControls_.pendulumLow = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "pendulumHigh")) {
+			performanceControls_.pendulumHigh = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "spiralFromLow")) {
+			performanceControls_.spiralFromLow = (reader.readTagOrAttributeValueInt() != 0);
+		}
+		else if (!strcmp(tagName, "spiralLow")) {
+			performanceControls_.spiralLow = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "spiralHigh")) {
+			performanceControls_.spiralHigh = reader.readTagOrAttributeValueInt();
+		}
 		else if (!strcmp(tagName, "stageData")) {
-			// Parse hex string: 7 bytes per stage
+			// Parse hex string: 10 bytes per stage (new format with iterance)
+			// Backwards compatible with old 8-byte format
 			char const* hexData = reader.readTagOrAttributeValue();
 
 			// Skip "0x" prefix if present
@@ -1416,9 +1659,13 @@ Error PulseSequencerMode::readFromFile(Deserializer& reader) {
 				hexData += 2;
 			}
 
+			// Determine format: old format = 8 bytes (16 hex chars) per stage, new = 10 bytes (20 hex chars) per stage
+			size_t hexLen = strlen(hexData);
+			int32_t bytesPerStage = (hexLen >= 160) ? 10 : 8; // New format has 160+ chars (8 stages * 20 hex chars)
+
 			// Parse 8 stages
 			for (int32_t i = 0; i < kMaxStages; ++i) {
-				int32_t offset = i * 14; // 7 bytes = 14 hex chars
+				int32_t offset = i * (bytesPerStage * 2); // 2 hex chars per byte
 
 				// Byte 0: gate type
 				stages_[i].gateType = static_cast<GateType>(hexToIntFixedLength(&hexData[offset], 2));
@@ -1432,18 +1679,42 @@ Error PulseSequencerMode::readFromFile(Deserializer& reader) {
 				// Byte 3: pulse count
 				stages_[i].pulseCount = hexToIntFixedLength(&hexData[offset + 6], 2);
 
-				// Byte 4: velocity spread
-				stages_[i].velocitySpread = hexToIntFixedLength(&hexData[offset + 8], 2);
+				// Byte 4: velocity (1-127)
+				stages_[i].velocity = hexToIntFixedLength(&hexData[offset + 8], 2);
+				if (stages_[i].velocity < 1)
+					stages_[i].velocity = 1;
+				if (stages_[i].velocity > 127)
+					stages_[i].velocity = 127;
 
-				// Byte 5: probability
-				stages_[i].probability = hexToIntFixedLength(&hexData[offset + 10], 2);
+				// Byte 5: velocity spread
+				stages_[i].velocitySpread = hexToIntFixedLength(&hexData[offset + 10], 2);
 
-				// Byte 6: gate length
-				stages_[i].gateLength = hexToIntFixedLength(&hexData[offset + 12], 2);
+				if (bytesPerStage >= 10) {
+					// New format (10 bytes): read probability, gateLength, and iterance
+					stages_[i].probability = hexToIntFixedLength(&hexData[offset + 12], 2);
+					if (stages_[i].probability > kNumProbabilityValues) {
+						stages_[i].probability = kNumProbabilityValues; // Default if invalid (20 = 100%)
+					}
+					stages_[i].gateLength = hexToIntFixedLength(&hexData[offset + 14], 2);
+					// Bytes 8-9: iterance (2 bytes, uint16_t)
+					uint16_t iteranceInt = (static_cast<uint16_t>(hexToIntFixedLength(&hexData[offset + 16], 2)) << 8)
+					                       | static_cast<uint16_t>(hexToIntFixedLength(&hexData[offset + 18], 2));
+					stages_[i].iterance = Iterance::fromInt(iteranceInt);
+				}
+				else {
+					// Old format (8 bytes): read probability and gateLength, convert probability, default iterance
+					// Convert old probability (0-100) to new format (0-20)
+					uint8_t oldProb = hexToIntFixedLength(&hexData[offset + 12], 2);
+					if (oldProb > 100)
+						oldProb = 100;
+					stages_[i].probability = oldProb / 5; // Convert 0-100 to 0-20
+					stages_[i].gateLength = hexToIntFixedLength(&hexData[offset + 14], 2);
+					stages_[i].iterance = kDefaultIteranceValue; // Default iterance
+				}
 			}
 		}
 		else if (!strcmp(tagName, "stageEnabled")) {
-			// Parse hex byte with 8 bits
+			// Legacy field - convert to SKIP gate type for backward compatibility
 			char const* hexData = reader.readTagOrAttributeValue();
 
 			if (hexData[0] == '0' && hexData[1] == 'x') {
@@ -1452,7 +1723,10 @@ Error PulseSequencerMode::readFromFile(Deserializer& reader) {
 
 			uint8_t enabledBits = hexToIntFixedLength(hexData, 2);
 			for (int32_t i = 0; i < kMaxStages; ++i) {
-				performanceControls_.stageEnabled[i] = (enabledBits & (1 << i)) != 0;
+				// If stage was disabled, set gate type to SKIP
+				if ((enabledBits & (1 << i)) == 0) {
+					stages_[i].gateType = GateType::SKIP;
+				}
 			}
 		}
 		else {
@@ -1477,12 +1751,14 @@ bool PulseSequencerMode::isDefaultPattern() const {
 		int32_t expectedNoteIndex = 0; // First note in scale
 		int32_t expectedOctave = 0;
 		int32_t expectedPulseCount = 1;
+		int32_t expectedVelocity = 100;
 		int32_t expectedVelocitySpread = 0;
 		int32_t expectedProbability = 100;
 		int32_t expectedGateLength = 50;
 
 		if (stages_[i].gateType != expectedGate || stages_[i].noteIndex != expectedNoteIndex
-		    || stages_[i].octave != expectedOctave || stages_[i].pulseCount != expectedPulseCount) {
+		    || stages_[i].octave != expectedOctave || stages_[i].pulseCount != expectedPulseCount
+		    || stages_[i].velocity != expectedVelocity) {
 			return false; // Found non-default data
 		}
 	}
@@ -1496,10 +1772,39 @@ void PulseSequencerMode::setDefaultPattern() {
 		stages_[i].noteIndex = 0;            // First note in scale
 		stages_[i].octave = 0;
 		stages_[i].pulseCount = 1; // Pulse count 1
+		stages_[i].velocity = 100;
 		stages_[i].velocitySpread = 0;
-		stages_[i].probability = 100;
+		stages_[i].probability = kNumProbabilityValues; // 20 = 100%
+		stages_[i].iterance = kDefaultIteranceValue;
 		stages_[i].gateLength = 50;
 	}
+}
+
+bool PulseSequencerMode::copyFrom(SequencerMode* other) {
+	// Use static_cast since RTTI is disabled - caller must ensure types match
+	PulseSequencerMode* otherPulse = static_cast<PulseSequencerMode*>(other);
+
+	// Copy all stage data
+	stages_ = otherPulse->stages_;
+
+	// Copy sequencer state
+	sequencerState_ = otherPulse->sequencerState_;
+
+	// Copy performance controls
+	performanceControls_ = otherPulse->performanceControls_;
+
+	// Copy display state
+	displayState_ = otherPulse->displayState_;
+
+	// Copy playback state (critical for playback to work)
+	initialized_ = otherPulse->initialized_;
+	ticksPerSixteenthNote_ = otherPulse->ticksPerSixteenthNote_;
+	lastAbsolutePlaybackPos_ = otherPulse->lastAbsolutePlaybackPos_;
+
+	// Copy control columns
+	controlColumnState_ = otherPulse->controlColumnState_;
+
+	return true;
 }
 
 } // namespace deluge::model::clip::sequencer::modes

@@ -17,11 +17,19 @@
 
 #include "model/clip/sequencer/sequencer_mode.h"
 #include "hid/buttons.h"
+#include "hid/display/display.h"
+#include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
+#include "util/cfunctions.h"
+#include "definitions_cxx.hpp"
+#include <cstring>
+
+using deluge::hid::Display;
 
 namespace deluge::model::clip::sequencer {
 
@@ -223,6 +231,96 @@ void SequencerMode::stopNote(void* modelStackPtr, int32_t noteCode) {
 	instrument->sendNote(modelStackWithThreeMainThings, false, noteCode, nullptr, MIDI_CHANNEL_NONE, 64, 0, 0);
 }
 
+// ========== DISPLAY HELPERS ==========
+
+void SequencerMode::displayVelocity(uint8_t velocity) {
+	extern deluge::hid::Display* display;
+	if (::display) {
+		char buffer[16]; // "Velocity: 127" = 13 chars
+		memcpy(buffer, "Velocity: ", 10);
+		intToString(velocity, &buffer[10], 1);
+		::display->displayPopup(buffer);
+	}
+}
+
+void SequencerMode::displayGateLength(uint8_t gateLength) {
+	extern deluge::hid::Display* display;
+	if (::display) {
+		char buffer[16]; // "Gate length: 100" = 16 chars
+		memcpy(buffer, "Gate length: ", 13);
+		intToString(gateLength, &buffer[13], 1);
+		::display->displayPopup(buffer);
+	}
+}
+
+void SequencerMode::displayProbability(uint8_t probability) {
+	extern deluge::hid::Display* display;
+	if (::display) {
+		// probability is 0-20 (representing 0-100% in 5% increments)
+		uint8_t probabilityPercent = probability * 5;
+		if (::display->haveOLED()) {
+			char buffer[29];
+			sprintf(buffer, "Probability %d%%", probabilityPercent);
+			::display->popupText(buffer, PopupType::PROBABILITY);
+		}
+		else {
+			char buffer[5];
+			intToString(probabilityPercent, buffer);
+			::display->displayPopup(buffer, 0, true, 255, 1, PopupType::PROBABILITY);
+		}
+	}
+}
+
+void SequencerMode::displayIterance(Iterance iterance) {
+	extern deluge::hid::Display* display;
+	if (::display) {
+		int32_t iterancePreset = iterance.toPresetIndex();
+
+		if (::display->haveOLED()) {
+			char buffer[29];
+			if (iterancePreset == kDefaultIterancePreset) {
+				strcpy(buffer, "Iterance: OFF");
+			}
+			else if (iterancePreset == kCustomIterancePreset) {
+				strcpy(buffer, "Iterance: CUSTOM");
+			}
+			else {
+				Iterance iteranceValue = iterancePresets[iterancePreset - 1];
+				int32_t i = iteranceValue.divisor;
+				for (; i >= 0; i--) {
+					// try to find which iteration step index is active
+					if (iteranceValue.iteranceStep[i]) {
+						break;
+					}
+				}
+				sprintf(buffer, "Iterance: %d of %d", i + 1, iteranceValue.divisor);
+			}
+			::display->popupText(buffer, PopupType::ITERANCE);
+		}
+		else {
+			char buffer[7]; // "CUSTOM" + null terminator
+			if (iterancePreset == kDefaultIterancePreset) {
+				strcpy(buffer, "OFF");
+			}
+			else if (iterancePreset == kCustomIterancePreset) {
+				strcpy(buffer, "CUSTOM");
+			}
+			else {
+				Iterance iteranceValue = iterancePresets[iterancePreset - 1];
+				int32_t i = iteranceValue.divisor;
+				for (; i >= 0; i--) {
+					// try to find which iteration step index is active
+					if (iteranceValue.iteranceStep[i]) {
+						break;
+					}
+				}
+				sprintf(buffer, "%dof%d", i + 1, iteranceValue.divisor);
+			}
+			::display->displayPopup(buffer, 0, true, 255, 1, PopupType::ITERANCE);
+		}
+	}
+}
+
 void SequencerMode::renderPlaybackPosition(RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                            int32_t imageWidth, int32_t absolutePlaybackPos, int32_t totalLength,
                                            RGB color, bool enabled) {
@@ -247,5 +345,6 @@ void SequencerMode::renderPlaybackPosition(RGB* image, uint8_t occupancyMask[][k
 		occupancyMask[y][padX] = 64;
 	}
 }
+
 
 } // namespace deluge::model::clip::sequencer

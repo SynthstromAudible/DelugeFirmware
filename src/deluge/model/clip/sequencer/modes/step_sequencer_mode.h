@@ -19,9 +19,11 @@
 
 #include "gui/l10n/l10n.h"
 #include "model/clip/sequencer/sequencer_mode.h"
+#include "model/iterance/iterance.h"
 #include <array>
 
 namespace deluge::model::clip::sequencer::modes {
+
 
 /**
  * Step Sequencer Mode - Analog-style 16-step sequencer
@@ -87,12 +89,14 @@ public:
 	// Pattern persistence
 	void writeToFile(Serializer& writer, bool includeScenes = true) override;
 	Error readFromFile(Deserializer& reader) override;
+	bool copyFrom(SequencerMode* other) override;
 
 	// Handle select encoder for probability adjustment (when note pad is held)
 	// Public so InstrumentClipView can call it
 	bool handleSelectEncoder(int32_t offset);
 
-private:
+protected:
+	// Made protected for accessor functions (used by shared encoder helpers)
 	static constexpr int32_t kNumSteps = 16; // x0-x15
 	static constexpr int32_t kMaxScaleNotes = 32;
 
@@ -110,7 +114,8 @@ private:
 		uint8_t noteIndex{0};   // Index into scale notes array (0-31, optimized from int32_t)
 		uint8_t velocity{100};  // Note velocity 1-127 (default 100)
 		uint8_t gateLength{75}; // Gate length as percentage 1-100 (default 75%)
-		uint8_t probability{100}; // Probability to play 0-100% (default 100%)
+		uint8_t probability{20}; // Probability to play 0-20 (0-100% in 5% increments, default 20 = 100%)
+		Iterance iterance{kDefaultIteranceValue}; // Iterance (default OFF)
 	};
 
 	// State
@@ -139,6 +144,9 @@ private:
 
 	// Active step count (1-16) - steps beyond this are dimmed and not played
 	uint8_t numActiveSteps_ = 16;     // Optimized from int32_t
+
+	// Iterance tracking - repeat count for iterance evaluation
+	int32_t repeatCount_ = 0;        // How many times we've looped through the pattern
 
 	// Pad hold tracking (for velocity/gate length adjustment)
 	int8_t heldPadX_ = -1;            // X coordinate of held note pad, or -1 if none (optimized from int32_t)
@@ -173,21 +181,7 @@ private:
 		return heldPadX_ >= 0 && static_cast<int32_t>(heldPadX_) < kNumSteps && heldPadY_ >= 3 && heldPadY_ <= 7;
 	}
 
-	// Helper: Clamp a value between min and max (explicitly use int32_t to avoid type deduction issues)
-	[[gnu::always_inline]] static inline int32_t clampValue(int32_t value, int32_t min, int32_t max) {
-		if (value < min) return min;
-		if (value > max) return max;
-		return value;
-	}
-
-	// Helper: Display velocity value (optimized to avoid snprintf)
-	void displayVelocity(uint8_t velocity);
-
-	// Helper: Display gate length value (optimized to avoid snprintf)
-	void displayGateLength(uint8_t gateLength);
-
-	// Helper: Display probability value (optimized to avoid snprintf)
-	void displayProbability(uint8_t probability);
+	// Display and utility helpers now use base class implementations
 
 	// Default pattern management
 	bool isDefaultPattern() const;

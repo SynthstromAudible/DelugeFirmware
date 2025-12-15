@@ -30,6 +30,7 @@
 #include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h" // Includes cfunctions.h, which provides intToString()
+#include "util/lookuptables/lookuptables.h"
 #include <cstring>
 
 namespace deluge::model::clip::sequencer::modes {
@@ -248,35 +249,111 @@ void StepSequencerMode::displayOctaveValue(int32_t octave) {
 	display->displayPopup(buffer);
 }
 
-// Optimized display functions using intToString instead of snprintf (saves code size)
-void StepSequencerMode::displayVelocity(uint8_t velocity) {
-	if (display) {
-		char buffer[16]; // "Velocity: 127" = 13 chars
-		memcpy(buffer, "Velocity: ", 10);
-		intToString(velocity, &buffer[10], 1);
-		display->displayPopup(buffer);
+// Display functions now use base class implementations
+
+bool StepSequencerMode::handleSelectEncoder(int32_t offset) {
+	// Only handle if a note pad is held
+	if (!isNotePadHeld()) {
+		return false;
 	}
+
+	// Access display (global variable)
+	extern deluge::hid::Display* display;
+	if (!::display) {
+		return false;
+	}
+
+	// Check if there's already a popup showing to continue editing that parameter
+	bool hasProbabilityPopup = ::display->hasPopupOfType(PopupType::PROBABILITY);
+	bool hasIterancePopup = ::display->hasPopupOfType(PopupType::ITERANCE);
+	bool hasPopup = hasProbabilityPopup || hasIterancePopup;
+
+	// if there's no probability or iterance pop-up yet and we're turning encoder left, edit probability
+	// if there's a probability pop-up, continue editing probability
+	bool shouldEditProbability = (!hasPopup && (offset < 0)) || hasProbabilityPopup;
+
+	// if there's no probability or iterance pop-up yet and we're turning encoder right, edit iterance
+	// if there's an iterance pop-up, continue editing iterance
+	bool shouldEditIterance = (!hasPopup && (offset > 0)) || hasIterancePopup;
+
+	if (shouldEditProbability) {
+		// Adjust probability in 5% increments (0-20, representing 0-100%)
+		int32_t newProbability = static_cast<int32_t>(steps_[heldPadX_].probability) + offset;
+		steps_[heldPadX_].probability = static_cast<uint8_t>(SequencerMode::clampValue(newProbability, static_cast<int32_t>(0), static_cast<int32_t>(kNumProbabilityValues)));
+
+		// Show probability in display
+		SequencerMode::displayProbability(steps_[heldPadX_].probability);
+
+		// Request UI refresh to update pad display
+		uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
+		return true;
+	}
+	else if (shouldEditIterance) {
+		// Get current iterance preset index
+		int32_t currentPreset = steps_[heldPadX_].iterance.toPresetIndex();
+		int32_t newPreset = currentPreset + offset;
+
+		// Clamp to valid range (0 = OFF, 1-35 = presets, 36 = CUSTOM)
+		if (newPreset < 0)
+			newPreset = 0;
+		if (newPreset > kCustomIterancePreset)
+			newPreset = kCustomIterancePreset;
+
+		// Convert preset index to iterance value
+		steps_[heldPadX_].iterance = Iterance::fromPresetIndex(newPreset);
+
+		// Show iterance in display
+		SequencerMode::displayIterance(steps_[heldPadX_].iterance);
+
+		// Request UI refresh to update pad display
+		uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
+		return true;
+	}
+
+	return false;
 }
 
-void StepSequencerMode::displayGateLength(uint8_t gateLength) {
-	if (display) {
-		char buffer[16]; // "Gate length: 100" = 16 chars
-		memcpy(buffer, "Gate length: ", 13);
-		intToString(gateLength, &buffer[13], 1);
-		display->displayPopup(buffer);
-	}
-}
+bool StepSequencerMode::handleHorizontalEncoder(int32_t offset, bool encoderPressed) {
+	// ONLY handle if a note pad is held (and Shift not pressed) - adjust velocity
+	// Otherwise, allow normal horizontal scrolling and patch changes
+	if (!Buttons::isShiftButtonPressed() && isNotePadHeld()) {
+		int32_t newVelocity = static_cast<int32_t>(steps_[heldPadX_].velocity) + offset;
+		steps_[heldPadX_].velocity = static_cast<uint8_t>(SequencerMode::clampValue(newVelocity, static_cast<int32_t>(1), static_cast<int32_t>(127)));
 
-void StepSequencerMode::displayProbability(uint8_t probability) {
-	if (display) {
-		char buffer[18]; // "Probability: 100%" = 18 chars
-		memcpy(buffer, "Probability: ", 13);
-		intToString(probability, &buffer[13], 1);
-		size_t numLen = strlen(&buffer[13]);
-		buffer[13 + numLen] = '%';
-		buffer[13 + numLen + 1] = '\0';
-		display->displayPopup(buffer);
+		// Show velocity in display
+		SequencerMode::displayVelocity(steps_[heldPadX_].velocity);
+
+		uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
+		return true;
 	}
+
+	// Handle Shift + encoder for sequencer length adjustment
+	if (Buttons::isShiftButtonPressed() && heldControlColumnX_ < 0) {
+		int32_t newCount = static_cast<int32_t>(numActiveSteps_) + offset;
+		if (newCount < 1)
+			newCount = 1;
+		if (newCount > kNumSteps)
+			newCount = kNumSteps;
+
+		if (static_cast<int32_t>(newCount) != static_cast<int32_t>(numActiveSteps_)) {
+			numActiveSteps_ = static_cast<uint8_t>(newCount);
+			clampStateToActiveRange();
+			// Refresh UI to show dimmed columns
+			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+			// Show popup with new count
+			extern deluge::hid::Display* display;
+			if (::display) {
+				char buffer[4]; // Max 2 digits for 1-16
+				intToString(numActiveSteps_, buffer, 1);
+				::display->displayPopup(buffer);
+			}
+			return true;
+		}
+		return true; // Consume the action even if no change
+	}
+
+	// Otherwise, use base class implementation (for control columns)
+	return SequencerMode::handleHorizontalEncoder(offset, encoderPressed);
 }
 
 bool StepSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
@@ -284,13 +361,48 @@ bool StepSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 		return false;
 	}
 
-	// If a note pad is held, adjust velocity instead of scrolling notes
-	if (isNotePadHeld()) {
-		int32_t newVelocity = static_cast<int32_t>(steps_[heldPadX_].velocity) + offset;
-		steps_[heldPadX_].velocity = static_cast<uint8_t>(clampValue(newVelocity, static_cast<int32_t>(1), static_cast<int32_t>(127)));
+	// If encoder button is pressed
+	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+		// If a note pad is held, adjust gate length
+		if (isNotePadHeld()) {
+			int32_t newGateLength = static_cast<int32_t>(steps_[heldPadX_].gateLength) + offset;
+			steps_[heldPadX_].gateLength = static_cast<uint8_t>(SequencerMode::clampValue(newGateLength, static_cast<int32_t>(1), static_cast<int32_t>(100)));
 
-		// Show velocity in display
-		displayVelocity(steps_[heldPadX_].velocity);
+			// Show gate length in display
+			SequencerMode::displayGateLength(steps_[heldPadX_].gateLength);
+
+			uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
+			return true;
+		}
+		// Otherwise, encoder button pressed but no note pad - shift all steps' octaves
+		for (int32_t i = 0; i < kNumSteps; i++) {
+			int32_t newOctave = static_cast<int32_t>(steps_[i].octave) + offset;
+			steps_[i].octave = static_cast<int8_t>(SequencerMode::clampValue(newOctave, static_cast<int32_t>(-3), static_cast<int32_t>(3)));
+		}
+		// Show popup with actual octave value (use first step as reference)
+		extern deluge::hid::Display* display;
+		if (::display) {
+			char buffer[20];
+			int32_t octaveValue = static_cast<int32_t>(steps_[0].octave);
+			if (::display->haveOLED()) {
+				snprintf(buffer, sizeof(buffer), "Octave: %+d", octaveValue);
+			}
+			else {
+				snprintf(buffer, sizeof(buffer), "%+d", octaveValue);
+			}
+			::display->displayPopup(buffer);
+		}
+		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		return true;
+	}
+
+	// If a note pad is held (without encoder button), adjust gate length instead of scrolling notes
+	if (isNotePadHeld()) {
+		int32_t newGateLength = static_cast<int32_t>(steps_[heldPadX_].gateLength) + offset;
+		steps_[heldPadX_].gateLength = static_cast<uint8_t>(SequencerMode::clampValue(newGateLength, static_cast<int32_t>(1), static_cast<int32_t>(100)));
+
+		// Show gate length in display
+		SequencerMode::displayGateLength(steps_[heldPadX_].gateLength);
 
 		uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
 		return true;
@@ -529,65 +641,6 @@ bool StepSequencerMode::handlePadPress(int32_t x, int32_t y, int32_t velocity) {
 	return false;
 }
 
-bool StepSequencerMode::handleSelectEncoder(int32_t offset) {
-	// Only handle if a note pad is held
-	if (!isNotePadHeld()) {
-		return false;
-	}
-
-	// Adjust probability (0-100%)
-	int32_t newProbability = static_cast<int32_t>(steps_[heldPadX_].probability) + offset;
-	steps_[heldPadX_].probability = static_cast<uint8_t>(clampValue(newProbability, static_cast<int32_t>(0), static_cast<int32_t>(100)));
-
-	// Show probability in display
-	displayProbability(steps_[heldPadX_].probability);
-
-	// Request UI refresh to update pad display
-	uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
-	return true;
-}
-
-bool StepSequencerMode::handleHorizontalEncoder(int32_t offset, bool encoderPressed) {
-	// ONLY handle if a note pad is held (and Shift not pressed) - adjust gate length
-	// Otherwise, allow normal horizontal scrolling and patch changes
-	if (!Buttons::isShiftButtonPressed() && isNotePadHeld()) {
-		int32_t newGateLength = static_cast<int32_t>(steps_[heldPadX_].gateLength) + offset;
-		steps_[heldPadX_].gateLength = static_cast<uint8_t>(clampValue(newGateLength, static_cast<int32_t>(1), static_cast<int32_t>(100)));
-
-		// Show gate length in display
-		displayGateLength(steps_[heldPadX_].gateLength);
-
-		uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
-		return true;
-	}
-
-	// Handle Shift + encoder for sequencer length adjustment
-	if (Buttons::isShiftButtonPressed() && heldControlColumnX_ < 0) {
-		int32_t newCount = static_cast<int32_t>(numActiveSteps_) + offset;
-		if (newCount < 1)
-			newCount = 1;
-		if (newCount > kNumSteps)
-			newCount = kNumSteps;
-
-		if (static_cast<int32_t>(newCount) != static_cast<int32_t>(numActiveSteps_)) {
-			numActiveSteps_ = static_cast<uint8_t>(newCount);
-			clampStateToActiveRange();
-			// Refresh UI to show dimmed columns
-			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
-			// Show popup with new count
-			if (display) {
-				char buffer[4]; // Max 2 digits for 1-16
-				intToString(numActiveSteps_, buffer, 1);
-				display->displayPopup(buffer);
-			}
-			return true;
-		}
-		return true; // Consume the action even if no change
-	}
-
-	// Otherwise, use base class implementation (for control columns)
-	return SequencerMode::handleHorizontalEncoder(offset, encoderPressed);
-}
 
 int32_t StepSequencerMode::processPlayback(void* modelStackPtr, int32_t absolutePlaybackPos) {
 	if (!initialized_) {
@@ -607,6 +660,7 @@ int32_t StepSequencerMode::processPlayback(void* modelStackPtr, int32_t absolute
 	// Reset to first step when playback starts (only at position 0)
 	if (absolutePlaybackPos == 0) {
 		currentStep_ = 0;
+		repeatCount_ = 0; // Reset repeat count for iterance
 		pingPongDirection_ = 1; // Reset ping pong direction
 		// Reset state for additional play order modes
 		pedalNextStep_ = 1;
@@ -641,7 +695,22 @@ int32_t StepSequencerMode::processPlayback(void* modelStackPtr, int32_t absolute
 	// This ensures currentStep_ points to the step we want to process for this boundary
 	// The step stays current for its full duration until the next boundary
 	if (absolutePlaybackPos > lastAbsolutePlaybackPos_) {
+		uint8_t oldStep = currentStep_;
 		advanceStep(effects.direction);
+		// Track repeat count for iterance: increment when we complete a full cycle
+		// For forward: when we go from last step (numActiveSteps_-1) to 0
+		// For backward: when we go from 0 to last step (numActiveSteps_-1)
+		if (effects.direction == 0 && oldStep == numActiveSteps_ - 1 && currentStep_ == 0) {
+			repeatCount_++;
+		}
+		else if (effects.direction == 1 && oldStep == 0 && currentStep_ == numActiveSteps_ - 1) {
+			repeatCount_++;
+		}
+		// For other modes (ping pong, random, etc.), we'll increment on forward cycles
+		// This is a simplification but should work for most cases
+		else if (effects.direction != 0 && effects.direction != 1 && oldStep == numActiveSteps_ - 1 && currentStep_ == 0) {
+			repeatCount_++;
+		}
 	}
 
 	// Stop previous note if still playing
@@ -669,20 +738,29 @@ int32_t StepSequencerMode::processPlayback(void* modelStackPtr, int32_t absolute
 		else {
 			// ON or OFF: process this step and wait for next boundary
 			if (step.gateType == GateType::ON) {
-				// Check probability before playing
-				if (shouldPlayBasedOnProbability(static_cast<int32_t>(step.probability))) {
-					// Play this step with control column effects applied
-					int32_t noteCode = calculateNoteCode(step, effects);
+				// Check iterance first (if set)
+				bool shouldPlay = true;
+				if (step.iterance != kDefaultIteranceValue) {
+					shouldPlay = step.iterance.passesCheck(repeatCount_);
+				}
 
-					if (noteCode >= 0 && noteCode <= 127) {
-						// Use step's gate length (percentage of step duration)
-						int32_t noteLength = (adjustedTicksPerStep * static_cast<int32_t>(step.gateLength)) / 100;
-						// Use step's velocity (1-127)
-						playNote(modelStackPtr, noteCode, step.velocity, noteLength);
-						activeNoteCode_ = noteCode;
+				// If iterance check passes, check probability
+				if (shouldPlay) {
+					// Convert probability from 0-20 (5% increments) to 0-100 for shouldPlayBasedOnProbability
+					if (shouldPlayBasedOnProbability(static_cast<int32_t>(step.probability) * 5)) {
+						// Play this step with control column effects applied
+						int32_t noteCode = calculateNoteCode(step, effects);
+
+						if (noteCode >= 0 && noteCode <= 127) {
+							// Use step's gate length (percentage of step duration)
+							int32_t noteLength = (adjustedTicksPerStep * static_cast<int32_t>(step.gateLength)) / 100;
+							// Use step's velocity (1-127)
+							playNote(modelStackPtr, noteCode, step.velocity, noteLength);
+							activeNoteCode_ = noteCode;
+						}
 					}
 				}
-				// If probability check fails, step doesn't play (but still counts for timing)
+				// If iterance or probability check fails, step doesn't play (but still counts for timing)
 			}
 			// OFF: silent step - just count duration
 			break; // Exit loop - this step gets its full duration
@@ -808,12 +886,21 @@ void StepSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 	writer.writeAttribute("currentStep", currentStep_);
 	writer.writeAttribute("noteScrollOffset", noteScrollOffset_);
 	writer.writeAttribute("numActiveSteps", numActiveSteps_);
+	writer.writeAttribute("pingPongDirection", pingPongDirection_);
+	writer.writeAttribute("pedalNextStep", pedalNextStep_);
+	writer.writeAttribute("skip2OddPhase", skip2OddPhase_ ? 1 : 0);
+	writer.writeAttribute("pendulumGoingUp", pendulumGoingUp_ ? 1 : 0);
+	writer.writeAttribute("pendulumLow", pendulumLow_);
+	writer.writeAttribute("pendulumHigh", pendulumHigh_);
+	writer.writeAttribute("spiralFromLow", spiralFromLow_ ? 1 : 0);
+	writer.writeAttribute("spiralLow", spiralLow_);
+	writer.writeAttribute("spiralHigh", spiralHigh_);
 
 	// Prepare step data as byte array for writeAttributeHexBytes
-	// Format: 6 bytes per step (noteIndex, octave+3, gateType, velocity, gateLength, probability)
-	uint8_t stepData[kNumSteps * 6];
+	// Format: 8 bytes per step (noteIndex, octave+3, gateType, velocity, gateLength, probability, iterance)
+	uint8_t stepData[kNumSteps * 8];
 	for (int32_t i = 0; i < kNumSteps; ++i) {
-		int32_t offset = i * 6;
+		int32_t offset = i * 8;
 		// Byte 0: noteIndex (0-31)
 		stepData[offset] = static_cast<uint8_t>(steps_[i].noteIndex);
 		// Byte 1: octave + 3 (to make it unsigned 0-6 for -3 to +3)
@@ -824,12 +911,16 @@ void StepSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 		stepData[offset + 3] = static_cast<uint8_t>(steps_[i].velocity);
 		// Byte 4: gate length (1-100)
 		stepData[offset + 4] = static_cast<uint8_t>(steps_[i].gateLength);
-		// Byte 5: probability (0-100)
+		// Byte 5: probability (0-20, representing 0-100% in 5% increments)
 		stepData[offset + 5] = static_cast<uint8_t>(steps_[i].probability);
+		// Bytes 6-7: iterance (2 bytes, uint16_t)
+		uint16_t iteranceInt = steps_[i].iterance.toInt();
+		stepData[offset + 6] = static_cast<uint8_t>(iteranceInt & 0xFF);
+		stepData[offset + 7] = static_cast<uint8_t>((iteranceInt >> 8) & 0xFF);
 	}
 
 	// Always write stepData (fixed size array)
-	writer.writeAttributeHexBytes("stepData", stepData, kNumSteps * 6);
+	writer.writeAttributeHexBytes("stepData", stepData, kNumSteps * 8);
 	writer.closeTag(); // Self-closing tag since no child content
 
 	// Write control columns and scenes
@@ -861,9 +952,36 @@ Error StepSequencerMode::readFromFile(Deserializer& reader) {
 			}
 			numActiveSteps_ = static_cast<uint8_t>(value);
 		}
+		else if (!strcmp(tagName, "pingPongDirection")) {
+			pingPongDirection_ = static_cast<int8_t>(reader.readTagOrAttributeValueInt());
+		}
+		else if (!strcmp(tagName, "pedalNextStep")) {
+			pedalNextStep_ = static_cast<uint8_t>(reader.readTagOrAttributeValueInt());
+		}
+		else if (!strcmp(tagName, "skip2OddPhase")) {
+			skip2OddPhase_ = (reader.readTagOrAttributeValueInt() != 0);
+		}
+		else if (!strcmp(tagName, "pendulumGoingUp")) {
+			pendulumGoingUp_ = (reader.readTagOrAttributeValueInt() != 0);
+		}
+		else if (!strcmp(tagName, "pendulumLow")) {
+			pendulumLow_ = static_cast<uint8_t>(reader.readTagOrAttributeValueInt());
+		}
+		else if (!strcmp(tagName, "pendulumHigh")) {
+			pendulumHigh_ = static_cast<uint8_t>(reader.readTagOrAttributeValueInt());
+		}
+		else if (!strcmp(tagName, "spiralFromLow")) {
+			spiralFromLow_ = (reader.readTagOrAttributeValueInt() != 0);
+		}
+		else if (!strcmp(tagName, "spiralLow")) {
+			spiralLow_ = static_cast<uint8_t>(reader.readTagOrAttributeValueInt());
+		}
+		else if (!strcmp(tagName, "spiralHigh")) {
+			spiralHigh_ = static_cast<uint8_t>(reader.readTagOrAttributeValueInt());
+		}
 		else if (!strcmp(tagName, "stepData")) {
-			// Parse hex string: 6 bytes per step (noteIndex, octave+3, gate, velocity, gateLength, probability)
-			// Backwards compatible with old 3-byte and 5-byte formats
+			// Parse hex string: 8 bytes per step (new format with iterance)
+			// Backwards compatible with old 3-byte, 5-byte, and 6-byte formats
 			char const* hexData = reader.readTagOrAttributeValue();
 
 			// Skip "0x" prefix if present
@@ -888,9 +1006,8 @@ Error StepSequencerMode::readFromFile(Deserializer& reader) {
 				// Byte 2: gate type
 				steps_[i].gateType = static_cast<GateType>(hexToIntFixedLength(&hexData[offset + 4], 2));
 
-				// Bytes 3-5: velocity, gateLength, and probability (new format, defaults for old formats)
-				if (bytesPerStep >= 6) {
-					// New format (6 bytes): read velocity, gateLength, and probability
+				if (bytesPerStep >= 8) {
+					// New format (8 bytes): read velocity, gateLength, probability, and iterance
 					steps_[i].velocity = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 6], 2));
 					if (steps_[i].velocity < 1 || steps_[i].velocity > 127) {
 						steps_[i].velocity = 100; // Default if invalid
@@ -900,12 +1017,16 @@ Error StepSequencerMode::readFromFile(Deserializer& reader) {
 						steps_[i].gateLength = 75; // Default if invalid
 					}
 					steps_[i].probability = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 10], 2));
-					if (steps_[i].probability > 100) {
-						steps_[i].probability = 100; // Default if invalid
+					if (steps_[i].probability > kNumProbabilityValues) {
+						steps_[i].probability = kNumProbabilityValues; // Default if invalid (20 = 100%)
 					}
+					// Bytes 6-7: iterance (2 bytes, uint16_t)
+					uint16_t iteranceInt = (static_cast<uint16_t>(hexToIntFixedLength(&hexData[offset + 12], 2)) << 8)
+					                       | static_cast<uint16_t>(hexToIntFixedLength(&hexData[offset + 14], 2));
+					steps_[i].iterance = Iterance::fromInt(iteranceInt);
 				}
-				else if (bytesPerStep >= 5) {
-					// Old format (5 bytes): read velocity and gateLength, default probability
+				else if (bytesPerStep >= 6) {
+					// Old format (6 bytes): read velocity, gateLength, and probability, default iterance
 					steps_[i].velocity = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 6], 2));
 					if (steps_[i].velocity < 1 || steps_[i].velocity > 127) {
 						steps_[i].velocity = 100; // Default if invalid
@@ -914,13 +1035,32 @@ Error StepSequencerMode::readFromFile(Deserializer& reader) {
 					if (steps_[i].gateLength < 1 || steps_[i].gateLength > 100) {
 						steps_[i].gateLength = 75; // Default if invalid
 					}
-					steps_[i].probability = 100; // Default probability
+					// Convert old probability (0-100) to new format (0-20)
+					uint8_t oldProb = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 10], 2));
+					if (oldProb > 100)
+						oldProb = 100;
+					steps_[i].probability = oldProb / 5; // Convert 0-100 to 0-20
+					steps_[i].iterance = kDefaultIteranceValue; // Default iterance
+				}
+				else if (bytesPerStep >= 5) {
+					// Old format (5 bytes): read velocity and gateLength, default probability and iterance
+					steps_[i].velocity = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 6], 2));
+					if (steps_[i].velocity < 1 || steps_[i].velocity > 127) {
+						steps_[i].velocity = 100; // Default if invalid
+					}
+					steps_[i].gateLength = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 8], 2));
+					if (steps_[i].gateLength < 1 || steps_[i].gateLength > 100) {
+						steps_[i].gateLength = 75; // Default if invalid
+					}
+					steps_[i].probability = kNumProbabilityValues; // Default probability (20 = 100%)
+					steps_[i].iterance = kDefaultIteranceValue; // Default iterance
 				}
 				else {
-					// Old format (3 bytes): use defaults for velocity, gateLength, and probability
+					// Old format (3 bytes): use defaults for velocity, gateLength, probability, and iterance
 					steps_[i].velocity = 100;
 					steps_[i].gateLength = 75;
-					steps_[i].probability = 100;
+					steps_[i].probability = kNumProbabilityValues; // 20 = 100%
+					steps_[i].iterance = kDefaultIteranceValue;
 				}
 			}
 		}
@@ -1059,7 +1199,8 @@ void StepSequencerMode::resetToInit() {
 		steps_[i].octave = 0;
 		steps_[i].velocity = 100;    // Default velocity
 		steps_[i].gateLength = 75;   // Default gate length (75%)
-		steps_[i].probability = 100; // Default probability (100%)
+		steps_[i].probability = kNumProbabilityValues; // Default probability (20 = 100%)
+		steps_[i].iterance = kDefaultIteranceValue; // Default iterance (OFF)
 	}
 
 	// Reset scroll to default
@@ -1182,6 +1323,46 @@ void StepSequencerMode::setDefaultPattern() {
 }
 
 // ========== HELPER FUNCTIONS ==========
+
+bool StepSequencerMode::copyFrom(SequencerMode* other) {
+	// Use static_cast since RTTI is disabled - caller must ensure types match
+	StepSequencerMode* otherStep = static_cast<StepSequencerMode*>(other);
+
+	// Copy all step data
+	steps_ = otherStep->steps_;
+
+	// Copy state
+	currentStep_ = otherStep->currentStep_;
+	noteScrollOffset_ = otherStep->noteScrollOffset_;
+	numActiveSteps_ = otherStep->numActiveSteps_;
+	pingPongDirection_ = otherStep->pingPongDirection_;
+
+	// Copy play order state
+	pedalNextStep_ = otherStep->pedalNextStep_;
+	skip2OddPhase_ = otherStep->skip2OddPhase_;
+	pendulumGoingUp_ = otherStep->pendulumGoingUp_;
+	pendulumLow_ = otherStep->pendulumLow_;
+	pendulumHigh_ = otherStep->pendulumHigh_;
+	spiralFromLow_ = otherStep->spiralFromLow_;
+	spiralLow_ = otherStep->spiralLow_;
+	spiralHigh_ = otherStep->spiralHigh_;
+
+	// Copy playback state
+	initialized_ = otherStep->initialized_;
+	repeatCount_ = otherStep->repeatCount_;
+	activeNoteCode_ = otherStep->activeNoteCode_;
+	ticksPerSixteenthNote_ = otherStep->ticksPerSixteenthNote_;
+	lastAbsolutePlaybackPos_ = otherStep->lastAbsolutePlaybackPos_;
+
+	// Copy scale notes cache
+	numScaleNotes_ = otherStep->numScaleNotes_;
+	memcpy(scaleNotes_, otherStep->scaleNotes_, sizeof(scaleNotes_));
+
+	// Copy control columns
+	controlColumnState_ = otherStep->controlColumnState_;
+
+	return true;
+}
 
 void StepSequencerMode::dimColor(RGB& color) {
 	// Dim to 20% brightness with minimum of 2 to prevent flickering at low brightness levels
