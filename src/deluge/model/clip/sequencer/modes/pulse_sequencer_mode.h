@@ -46,8 +46,8 @@ public:
 	bool supportsCV() override { return true; }
 	bool supportsAudio() override { return false; }
 
-	// Pulse Sequencer doesn't support DIRECTION (no step-based playback)
-	bool supportsControlType(ControlType type) override { return type != ControlType::DIRECTION; }
+	// Pulse Sequencer supports all control types (direction, clock divider, transpose, octave)
+	bool supportsControlType(ControlType type) override { return true; }
 
 	void initialize() override;
 	void cleanup() override;
@@ -90,18 +90,6 @@ public:
 	// Gate types enum
 	enum class GateType : int32_t { OFF = 0, SINGLE = 1, MULTIPLE = 2, HELD = 3 };
 
-	// Play order presets enum
-	enum class PlayOrder : int32_t {
-		FORWARDS = 0,
-		BACKWARDS = 1,
-		PING_PONG = 2,
-		RANDOM = 3,
-		PEDAL = 4,
-		SKIP_2 = 5,
-		PENDULUM = 6,
-		SPIRAL = 7
-	};
-
 private:
 	bool initialized_ = false;
 	int32_t ticksPerSixteenthNote_ = 0;
@@ -138,13 +126,9 @@ private:
 		std::array<bool, kMaxNoteSlots> noteActive;
 	} sequencerState_;
 
-	// Performance controls
+	// Performance controls (only stage-specific controls, others use control columns)
 	struct {
-		int32_t transpose = 0;
-		int32_t octave = 0;
-		int32_t clockDivider = 2;
 		int32_t numStages = 8;
-		PlayOrder playOrder = PlayOrder::FORWARDS;
 		int32_t pingPongDirection = 1;
 		int32_t currentStage = 0;
 		std::array<bool, kMaxStages> stageEnabled = {true, true, true, true, true, true, true, true};
@@ -185,7 +169,7 @@ private:
 	void showStagePopup(int32_t stage, const char* format, ...);
 	RGB dimColorIfDisabled(RGB color, int32_t stage) const;
 	RGB getOctaveColor(int32_t octave) const;
-	int32_t cycleValue(int32_t current, const int32_t* values, int32_t count) const;
+	int32_t calculateNoteCode(int32_t stage, int32_t noteIndexInScale, const CombinedEffects& effects) const;
 
 	// Rendering sub-methods
 	void renderPulseCounts(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
@@ -196,10 +180,6 @@ private:
 	                      int32_t imageWidth, int32_t gateLineY);
 	void renderNotePads(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                    int32_t imageWidth, int32_t gateLineY);
-	void renderRightSideControls(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                             int32_t imageWidth);
-	void renderPlaybackIndicator(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                             int32_t imageWidth, int32_t gateLineY);
 
 	// Play order advancement methods
 	void advanceForwards(int32_t& nextStage);
@@ -213,20 +193,11 @@ private:
 
 	// Pad input handlers
 	void handleGateType(int32_t stage);
-	void handleNoteSelection(int32_t stage);
 	void handleOctaveAdjustment(int32_t stage, int32_t direction);
 	void handlePulseCount(int32_t stage, int32_t position);
-	void handleVelocitySpread(int32_t stage);
-	void handleProbability(int32_t stage);
-	void handleGateLength(int32_t stage);
 	void handleStageCountChange(int32_t numStages);
-	void handlePlayOrderChange(int32_t playOrderIndex);
-	void handleClockDividerChange(int32_t dividerMode);
-	void handleTransposeChange(int32_t direction);
-	void handleOctaveChange(int32_t direction);
 	void handleStageToggle(int32_t stage);
 	void resetToDefaults();
-	void resetPerformanceControls();
 	void randomizeSequence();
 	void evolveSequence();
 
