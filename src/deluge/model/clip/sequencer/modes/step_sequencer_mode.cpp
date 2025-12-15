@@ -29,7 +29,8 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
+#include "util/functions.h" // Includes cfunctions.h, which provides intToString()
+#include <cstring>
 
 namespace deluge::model::clip::sequencer::modes {
 
@@ -247,14 +248,33 @@ void StepSequencerMode::displayOctaveValue(int32_t octave) {
 	display->displayPopup(buffer);
 }
 
-bool StepSequencerMode::isNotePadHeld() const {
-	return heldPadX_ >= 0 && static_cast<int32_t>(heldPadX_) < kNumSteps && heldPadY_ >= 3 && heldPadY_ <= 7;
+// Optimized display functions using intToString instead of snprintf (saves code size)
+void StepSequencerMode::displayVelocity(uint8_t velocity) {
+	if (display) {
+		char buffer[16]; // "Velocity: 127" = 13 chars
+		memcpy(buffer, "Velocity: ", 10);
+		intToString(velocity, &buffer[10], 1);
+		display->displayPopup(buffer);
+	}
 }
 
-void StepSequencerMode::displayValue(const char* format, int32_t value) {
+void StepSequencerMode::displayGateLength(uint8_t gateLength) {
 	if (display) {
-		char buffer[24]; // Large enough for "Probability: 100%" (18 chars)
-		snprintf(buffer, sizeof(buffer), format, value);
+		char buffer[16]; // "Gate length: 100" = 16 chars
+		memcpy(buffer, "Gate length: ", 13);
+		intToString(gateLength, &buffer[13], 1);
+		display->displayPopup(buffer);
+	}
+}
+
+void StepSequencerMode::displayProbability(uint8_t probability) {
+	if (display) {
+		char buffer[18]; // "Probability: 100%" = 18 chars
+		memcpy(buffer, "Probability: ", 13);
+		intToString(probability, &buffer[13], 1);
+		size_t numLen = strlen(&buffer[13]);
+		buffer[13 + numLen] = '%';
+		buffer[13 + numLen + 1] = '\0';
 		display->displayPopup(buffer);
 	}
 }
@@ -270,7 +290,7 @@ bool StepSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 		steps_[heldPadX_].velocity = static_cast<uint8_t>(clampValue(newVelocity, static_cast<int32_t>(1), static_cast<int32_t>(127)));
 
 		// Show velocity in display
-		displayValue("Velocity: %d", steps_[heldPadX_].velocity);
+		displayVelocity(steps_[heldPadX_].velocity);
 
 		uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
 		return true;
@@ -520,7 +540,7 @@ bool StepSequencerMode::handleSelectEncoder(int32_t offset) {
 	steps_[heldPadX_].probability = static_cast<uint8_t>(clampValue(newProbability, static_cast<int32_t>(0), static_cast<int32_t>(100)));
 
 	// Show probability in display
-	displayValue("Probability: %d%%", steps_[heldPadX_].probability);
+	displayProbability(steps_[heldPadX_].probability);
 
 	// Request UI refresh to update pad display
 	uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
@@ -535,7 +555,7 @@ bool StepSequencerMode::handleHorizontalEncoder(int32_t offset, bool encoderPres
 		steps_[heldPadX_].gateLength = static_cast<uint8_t>(clampValue(newGateLength, static_cast<int32_t>(1), static_cast<int32_t>(100)));
 
 		// Show gate length in display
-		displayValue("Gate length: %d", steps_[heldPadX_].gateLength);
+		displayGateLength(steps_[heldPadX_].gateLength);
 
 		uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
 		return true;
@@ -556,8 +576,8 @@ bool StepSequencerMode::handleHorizontalEncoder(int32_t offset, bool encoderPres
 			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 			// Show popup with new count
 			if (display) {
-				char buffer[8];
-				snprintf(buffer, sizeof(buffer), "%d", numActiveSteps_);
+				char buffer[4]; // Max 2 digits for 1-16
+				intToString(numActiveSteps_, buffer, 1);
 				display->displayPopup(buffer);
 			}
 			return true;

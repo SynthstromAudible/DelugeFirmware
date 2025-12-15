@@ -168,18 +168,26 @@ private:
 	// Helper: Clamp all state variables to active step range
 	void clampStateToActiveRange();
 
-	// Helper: Check if a valid note pad is currently held
-	bool isNotePadHeld() const;
+	// Helper: Check if a valid note pad is currently held (inline for performance)
+	[[gnu::always_inline]] inline bool isNotePadHeld() const {
+		return heldPadX_ >= 0 && static_cast<int32_t>(heldPadX_) < kNumSteps && heldPadY_ >= 3 && heldPadY_ <= 7;
+	}
 
 	// Helper: Clamp a value between min and max (explicitly use int32_t to avoid type deduction issues)
-	static int32_t clampValue(int32_t value, int32_t min, int32_t max) {
+	[[gnu::always_inline]] static inline int32_t clampValue(int32_t value, int32_t min, int32_t max) {
 		if (value < min) return min;
 		if (value > max) return max;
 		return value;
 	}
 
-	// Helper: Display a value on OLED/7seg with format string
-	void displayValue(const char* format, int32_t value);
+	// Helper: Display velocity value (optimized to avoid snprintf)
+	void displayVelocity(uint8_t velocity);
+
+	// Helper: Display gate length value (optimized to avoid snprintf)
+	void displayGateLength(uint8_t gateLength);
+
+	// Helper: Display probability value (optimized to avoid snprintf)
+	void displayProbability(uint8_t probability);
 
 	// Default pattern management
 	bool isDefaultPattern() const;
