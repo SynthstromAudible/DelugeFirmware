@@ -264,8 +264,7 @@ bool StepSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 		return false;
 	}
 
-	// ONLY handle if a note pad is held - adjust velocity
-	// Otherwise, return false to allow normal view scrolling and patch changes
+	// If a note pad is held, adjust velocity instead of scrolling notes
 	if (isNotePadHeld()) {
 		int32_t newVelocity = static_cast<int32_t>(steps_[heldPadX_].velocity) + offset;
 		steps_[heldPadX_].velocity = static_cast<uint8_t>(clampValue(newVelocity, static_cast<int32_t>(1), static_cast<int32_t>(127)));
@@ -277,8 +276,20 @@ bool StepSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 		return true;
 	}
 
-	// Not handling - allow normal behavior (view scrolling, patch changes, etc.)
-	return false;
+	// Otherwise, scroll note selection up/down within the sequencer
+	int32_t newScroll = static_cast<int32_t>(noteScrollOffset_) + offset;
+
+	// Clamp to valid range (show 5 notes at a time, or all notes if less than 5)
+	int32_t maxScroll = (static_cast<int32_t>(numScaleNotes_) > 5) ? (static_cast<int32_t>(numScaleNotes_) - 5) : 0;
+	if (newScroll < 0)
+		newScroll = 0;
+	if (newScroll > maxScroll)
+		newScroll = maxScroll;
+	noteScrollOffset_ = static_cast<uint8_t>(newScroll);
+
+	// Refresh only note pads (y3-y7)
+	uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
+	return true;
 }
 
 bool StepSequencerMode::renderPads(uint32_t whichRows, RGB* image,
