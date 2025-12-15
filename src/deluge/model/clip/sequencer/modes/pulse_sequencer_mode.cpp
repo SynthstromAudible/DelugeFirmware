@@ -1043,7 +1043,7 @@ bool PulseSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 			int32_t stage = heldPadX_;
 			if (isStageValid(stage)) {
 				int32_t newGateLength = static_cast<int32_t>(stages_[stage].gateLength) + offset;
-				stages_[stage].gateLength = static_cast<int32_t>(SequencerMode::clampValue(newGateLength, static_cast<int32_t>(1), static_cast<int32_t>(100)));
+				stages_[stage].gateLength = static_cast<uint8_t>(SequencerMode::clampValue(newGateLength, static_cast<int32_t>(1), static_cast<int32_t>(100)));
 
 				// Show gate length in display
 				SequencerMode::displayGateLength(static_cast<uint8_t>(stages_[stage].gateLength));
@@ -1054,19 +1054,20 @@ bool PulseSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 		}
 		// Otherwise, encoder button pressed but no note pad - shift all stages' octaves
 		for (int32_t i = 0; i < kMaxStages; i++) {
-			int32_t newOctave = stages_[i].octave + offset;
-			stages_[i].octave = static_cast<int32_t>(SequencerMode::clampValue(newOctave, static_cast<int32_t>(-2), static_cast<int32_t>(3)));
+			int32_t newOctave = static_cast<int32_t>(stages_[i].octave) + offset;
+			stages_[i].octave = static_cast<int8_t>(SequencerMode::clampValue(newOctave, static_cast<int32_t>(-2), static_cast<int32_t>(3)));
 		}
 		// Show popup with actual octave value (use first stage as reference)
 		extern deluge::hid::Display* display;
 		if (::display) {
 			char buffer[20];
-			int32_t octaveValue = stages_[0].octave;
+			int32_t octaveValue = static_cast<int32_t>(stages_[0].octave);
 			if (::display->haveOLED()) {
-				snprintf(buffer, sizeof(buffer), "Octave: %+d", octaveValue);
+				memcpy(buffer, "Octave: ", 8);
+				intToString(octaveValue, &buffer[8], 1);
 			}
 			else {
-				snprintf(buffer, sizeof(buffer), "%+d", octaveValue);
+				intToString(octaveValue, buffer, 1);
 			}
 			::display->displayPopup(buffer);
 		}
@@ -1079,7 +1080,7 @@ bool PulseSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 		int32_t stage = heldPadX_;
 		if (isStageValid(stage)) {
 			int32_t newGateLength = static_cast<int32_t>(stages_[stage].gateLength) + offset;
-			stages_[stage].gateLength = static_cast<int32_t>(SequencerMode::clampValue(newGateLength, static_cast<int32_t>(1), static_cast<int32_t>(100)));
+			stages_[stage].gateLength = static_cast<uint8_t>(SequencerMode::clampValue(newGateLength, static_cast<int32_t>(1), static_cast<int32_t>(100)));
 
 			// Show gate length in display
 			SequencerMode::displayGateLength(static_cast<uint8_t>(stages_[stage].gateLength));
@@ -1110,7 +1111,8 @@ bool PulseSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 
 	// Show popup indicating scroll position
 	char buffer[20];
-	snprintf(buffer, sizeof(buffer), "Scroll: %d", displayState_.gateLineOffset);
+	memcpy(buffer, "Scroll: ", 8);
+	intToString(displayState_.gateLineOffset, &buffer[8], 1);
 	display->displayPopup(buffer);
 
 	return true; // We handled it
@@ -1154,7 +1156,7 @@ bool PulseSequencerMode::handleHorizontalEncoder(int32_t offset, bool encoderPre
 		int32_t stage = heldPadX_;
 		if (isStageValid(stage)) {
 			int32_t newVelocity = static_cast<int32_t>(stages_[stage].velocity) + offset;
-			stages_[stage].velocity = static_cast<int32_t>(SequencerMode::clampValue(newVelocity, static_cast<int32_t>(1), static_cast<int32_t>(127)));
+			stages_[stage].velocity = static_cast<uint8_t>(SequencerMode::clampValue(newVelocity, static_cast<int32_t>(1), static_cast<int32_t>(127)));
 
 			// Show velocity in display
 			SequencerMode::displayVelocity(static_cast<uint8_t>(stages_[stage].velocity));
@@ -1197,7 +1199,7 @@ bool PulseSequencerMode::handleSelectEncoder(int32_t offset) {
 	if (shouldEditProbability) {
 		// Adjust probability in 5% increments (0-20, representing 0-100%)
 		int32_t newProbability = static_cast<int32_t>(stages_[heldPadX_].probability) + offset;
-		stages_[heldPadX_].probability = static_cast<int32_t>(SequencerMode::clampValue(newProbability, static_cast<int32_t>(0), static_cast<int32_t>(kNumProbabilityValues)));
+		stages_[heldPadX_].probability = static_cast<uint8_t>(SequencerMode::clampValue(newProbability, static_cast<int32_t>(0), static_cast<int32_t>(kNumProbabilityValues)));
 
 		// Show probability in display
 		SequencerMode::displayProbability(static_cast<uint8_t>(stages_[heldPadX_].probability));
@@ -1249,7 +1251,13 @@ void PulseSequencerMode::handleGateType(int32_t stage) {
 	// Show popup
 	const char* gateNames[] = {"OFF", "SINGLE", "MULTIPLE", "HELD", "SKIP"};
 	char buffer[kPopupBufferSize];
-	snprintf(buffer, sizeof(buffer), "Stage %d: %s", stage + 1, gateNames[nextType]);
+	memcpy(buffer, "Stage ", 6);
+	intToString(stage + 1, &buffer[6], 1);
+	int32_t numLen = strlen(&buffer[6]);
+	buffer[6 + numLen] = ':';
+	buffer[6 + numLen + 1] = ' ';
+	memcpy(&buffer[6 + numLen + 2], gateNames[nextType], strlen(gateNames[nextType]));
+	buffer[6 + numLen + 2 + strlen(gateNames[nextType])] = 0;
 	display->displayPopup(buffer);
 }
 
@@ -1258,17 +1266,21 @@ void PulseSequencerMode::handleOctaveAdjustment(int32_t stage, int32_t direction
 	if (!isStageValid(stage))
 		return;
 
-	int32_t newOctave = stages_[stage].octave + direction;
+	int32_t newOctave = static_cast<int32_t>(stages_[stage].octave) + direction;
 	if (newOctave < -2)
 		newOctave = -2;
 	if (newOctave > 3)
 		newOctave = 3;
 
-	stages_[stage].octave = newOctave;
+	stages_[stage].octave = static_cast<int8_t>(newOctave);
 
 	// Show popup with octave value
 	char buffer[kPopupBufferSize];
-	snprintf(buffer, sizeof(buffer), "Stage %d Oct: %+d", stage + 1, stages_[stage].octave);
+	memcpy(buffer, "Stage ", 6);
+	intToString(stage + 1, &buffer[6], 1);
+	int32_t numLen = strlen(&buffer[6]);
+	memcpy(&buffer[6 + numLen], " Oct: ", 6);
+	intToString(static_cast<int32_t>(stages_[stage].octave), &buffer[6 + numLen + 6], 1);
 	display->displayPopup(buffer);
 }
 
@@ -1278,8 +1290,8 @@ void PulseSequencerMode::handlePulseCount(int32_t stage, int32_t position) {
 	}
 
 	int32_t newPulseCount = position + 1;
-	if (newPulseCount != stages_[stage].pulseCount) {
-		stages_[stage].pulseCount = newPulseCount;
+	if (newPulseCount != static_cast<int32_t>(stages_[stage].pulseCount)) {
+		stages_[stage].pulseCount = static_cast<uint8_t>(newPulseCount);
 		sequencerState_.totalPatternLength = calculateTotalPatternLength();
 
 		if (sequencerState_.currentPulse >= sequencerState_.totalPatternLength) {
@@ -1347,7 +1359,7 @@ void PulseSequencerMode::randomizeSequence() {
 			stages_[i].pulseCount = 4;
 		}
 		else {
-			stages_[i].pulseCount = (getRandom255() % 3) + 5;
+			stages_[i].pulseCount = static_cast<uint8_t>((getRandom255() % 3) + 5);
 		}
 
 		// Randomize velocity (1-127, bias toward middle-high values)
@@ -1382,7 +1394,7 @@ void PulseSequencerMode::evolveSequence() {
 			stages_[stageToChange].noteIndex = newNote;
 		}
 		else { // 30% chance - change octave
-			int32_t currentOctave = stages_[stageToChange].octave;
+			int32_t currentOctave = static_cast<int32_t>(stages_[stageToChange].octave);
 			int32_t octaveChange = (getRandom255() < 128) ? -1 : 1;
 			int32_t newOctave = currentOctave + octaveChange;
 
@@ -1391,7 +1403,7 @@ void PulseSequencerMode::evolveSequence() {
 			if (newOctave > 3)
 				newOctave = 3;
 
-			stages_[stageToChange].octave = newOctave;
+			stages_[stageToChange].octave = static_cast<int8_t>(newOctave);
 		}
 	}
 	display->displayPopup("EVOLVE");
@@ -1671,31 +1683,32 @@ Error PulseSequencerMode::readFromFile(Deserializer& reader) {
 				stages_[i].gateType = static_cast<GateType>(hexToIntFixedLength(&hexData[offset], 2));
 
 				// Byte 1: noteIndex
-				stages_[i].noteIndex = hexToIntFixedLength(&hexData[offset + 2], 2);
+				stages_[i].noteIndex = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 2], 2));
 
 				// Byte 2: octave (stored as +3)
-				stages_[i].octave = hexToIntFixedLength(&hexData[offset + 4], 2) - 3;
+				stages_[i].octave = static_cast<int8_t>(hexToIntFixedLength(&hexData[offset + 4], 2) - 3);
 
 				// Byte 3: pulse count
-				stages_[i].pulseCount = hexToIntFixedLength(&hexData[offset + 6], 2);
+				stages_[i].pulseCount = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 6], 2));
 
 				// Byte 4: velocity (1-127)
-				stages_[i].velocity = hexToIntFixedLength(&hexData[offset + 8], 2);
-				if (stages_[i].velocity < 1)
-					stages_[i].velocity = 1;
-				if (stages_[i].velocity > 127)
-					stages_[i].velocity = 127;
+				uint8_t velocity = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 8], 2));
+				if (velocity < 1)
+					velocity = 1;
+				if (velocity > 127)
+					velocity = 127;
+				stages_[i].velocity = velocity;
 
 				// Byte 5: velocity spread
-				stages_[i].velocitySpread = hexToIntFixedLength(&hexData[offset + 10], 2);
+				stages_[i].velocitySpread = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 10], 2));
 
 				if (bytesPerStage >= 10) {
 					// New format (10 bytes): read probability, gateLength, and iterance
-					stages_[i].probability = hexToIntFixedLength(&hexData[offset + 12], 2);
+					stages_[i].probability = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 12], 2));
 					if (stages_[i].probability > kNumProbabilityValues) {
 						stages_[i].probability = kNumProbabilityValues; // Default if invalid (20 = 100%)
 					}
-					stages_[i].gateLength = hexToIntFixedLength(&hexData[offset + 14], 2);
+					stages_[i].gateLength = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 14], 2));
 					// Bytes 8-9: iterance (2 bytes, uint16_t)
 					uint16_t iteranceInt = (static_cast<uint16_t>(hexToIntFixedLength(&hexData[offset + 16], 2)) << 8)
 					                       | static_cast<uint16_t>(hexToIntFixedLength(&hexData[offset + 18], 2));
@@ -1707,8 +1720,8 @@ Error PulseSequencerMode::readFromFile(Deserializer& reader) {
 					uint8_t oldProb = hexToIntFixedLength(&hexData[offset + 12], 2);
 					if (oldProb > 100)
 						oldProb = 100;
-					stages_[i].probability = oldProb / 5; // Convert 0-100 to 0-20
-					stages_[i].gateLength = hexToIntFixedLength(&hexData[offset + 14], 2);
+					stages_[i].probability = static_cast<uint8_t>(oldProb / 5); // Convert 0-100 to 0-20
+					stages_[i].gateLength = static_cast<uint8_t>(hexToIntFixedLength(&hexData[offset + 14], 2));
 					stages_[i].iterance = kDefaultIteranceValue; // Default iterance
 				}
 			}

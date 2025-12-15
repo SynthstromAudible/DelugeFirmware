@@ -385,10 +385,11 @@ bool StepSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 			char buffer[20];
 			int32_t octaveValue = static_cast<int32_t>(steps_[0].octave);
 			if (::display->haveOLED()) {
-				snprintf(buffer, sizeof(buffer), "Octave: %+d", octaveValue);
+				memcpy(buffer, "Octave: ", 8);
+				intToString(octaveValue, &buffer[8], 1);
 			}
 			else {
-				snprintf(buffer, sizeof(buffer), "%+d", octaveValue);
+				intToString(octaveValue, buffer, 1);
 			}
 			::display->displayPopup(buffer);
 		}

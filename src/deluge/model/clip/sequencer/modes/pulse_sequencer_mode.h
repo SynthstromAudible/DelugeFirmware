@@ -106,15 +106,16 @@ protected:
 	int32_t lastAbsolutePlaybackPos_ = 0; // Track for position indicator
 
 	// Stage data (8 stages, one per column)
+	// Optimized types to match StepSequencerMode memory efficiency
 	struct StageData {
 		GateType gateType = GateType::OFF;
-		int32_t noteIndex = 0;      // Index in current scale
-		int32_t octave = 0;         // Octave offset from base
-		int32_t pulseCount = 1;     // 1-8, default is 1
-		int32_t velocity = 100;     // Note velocity 1-127 (default 100)
-		int32_t velocitySpread = 0; // 0-127, randomization amount
-		int32_t probability = 20;   // 0-20 (0-100% in 5% increments, default 20 = 100%)
-		int32_t gateLength = 50;    // 0-100%, note length as % of period
+		uint8_t noteIndex = 0;      // Index in current scale (0-31, optimized from int32_t)
+		int8_t octave = 0;          // Octave offset from base (-3 to +3, optimized from int32_t)
+		uint8_t pulseCount = 1;     // 1-8, default is 1 (optimized from int32_t)
+		uint8_t velocity = 100;     // Note velocity 1-127 (default 100, optimized from int32_t)
+		uint8_t velocitySpread = 0; // 0-127, randomization amount (optimized from int32_t)
+		uint8_t probability = 20;   // 0-20 (0-100% in 5% increments, default 20 = 100%, optimized from int32_t)
+		uint8_t gateLength = 50;    // 0-100%, note length as % of period (optimized from int32_t)
 		Iterance iterance{kDefaultIteranceValue}; // Iterance (default OFF)
 	};
 

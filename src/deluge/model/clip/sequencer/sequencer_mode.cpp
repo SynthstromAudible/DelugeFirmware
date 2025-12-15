@@ -260,7 +260,12 @@ void SequencerMode::displayProbability(uint8_t probability) {
 		uint8_t probabilityPercent = probability * 5;
 		if (::display->haveOLED()) {
 			char buffer[29];
-			sprintf(buffer, "Probability %d%%", probabilityPercent);
+			memcpy(buffer, "Probability ", 12);
+			intToString(probabilityPercent, &buffer[12], 1);
+			int32_t numLen = strlen(&buffer[12]);
+			buffer[12 + numLen] = '%';
+			buffer[12 + numLen + 1] = '%';
+			buffer[12 + numLen + 2] = 0;
 			::display->popupText(buffer, PopupType::PROBABILITY);
 		}
 		else {
@@ -293,7 +298,11 @@ void SequencerMode::displayIterance(Iterance iterance) {
 						break;
 					}
 				}
-				sprintf(buffer, "Iterance: %d of %d", i + 1, iteranceValue.divisor);
+				memcpy(buffer, "Iterance: ", 10);
+				intToString(i + 1, &buffer[10], 1);
+				int32_t numLen1 = strlen(&buffer[10]);
+				memcpy(&buffer[10 + numLen1], " of ", 4);
+				intToString(iteranceValue.divisor, &buffer[10 + numLen1 + 4], 1);
 			}
 			::display->popupText(buffer, PopupType::ITERANCE);
 		}
@@ -314,7 +323,10 @@ void SequencerMode::displayIterance(Iterance iterance) {
 						break;
 					}
 				}
-				sprintf(buffer, "%dof%d", i + 1, iteranceValue.divisor);
+				intToString(i + 1, buffer, 1);
+				int32_t numLen1 = strlen(buffer);
+				memcpy(&buffer[numLen1], "of", 2);
+				intToString(iteranceValue.divisor, &buffer[numLen1 + 2], 1);
 			}
 			::display->displayPopup(buffer, 0, true, 255, 1, PopupType::ITERANCE);
 		}
