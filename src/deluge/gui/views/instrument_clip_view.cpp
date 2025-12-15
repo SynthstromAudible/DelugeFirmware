@@ -60,6 +60,7 @@
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/sequencer/sequencer_mode.h"
+#include "model/clip/sequencer/modes/step_sequencer_mode.h"
 #include "model/consequence/consequence_instrument_clip_multiply.h"
 #include "model/consequence/consequence_note_array_change.h"
 #include "model/consequence/consequence_note_row_horizontal_shift.h"
@@ -1908,11 +1909,26 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 		handleProbabilityOrIteranceEditing(offset, false);
 	}
-	// Or, normal option - trying to change Instrument presets
+	// Or, if in sequencer mode with note pad held, adjust step probability
 	else {
-		InstrumentClipMinder::selectEncoderAction(offset);
-
 		InstrumentClip* clip = getCurrentInstrumentClip();
+		auto* sequencerMode = clip->getSequencerMode();
+		if (sequencerMode) {
+			// Check if it's StepSequencerMode and has a note pad held
+			// Use dynamic_cast or check mode name, but simpler: check if it responds to isNotePadHeld
+			// Actually, we'll need to cast to StepSequencerMode specifically
+			// Let's use the mode name to check if it's step sequencer
+			if (clip->getSequencerModeName() == "step_sequencer") {
+				// Cast to StepSequencerMode to access handleSelectEncoder
+				auto* stepMode = static_cast<deluge::model::clip::sequencer::modes::StepSequencerMode*>(sequencerMode);
+				if (stepMode->handleSelectEncoder(offset)) {
+					// Sequencer mode handled it - don't change instrument presets
+					return;
+				}
+			}
+		}
+		// Or, normal option - trying to change Instrument presets
+		InstrumentClipMinder::selectEncoderAction(offset);
 		if (clip->output->type == OutputType::MIDI_OUT
 		    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
 		    && ((NonAudioInstrument*)clip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {

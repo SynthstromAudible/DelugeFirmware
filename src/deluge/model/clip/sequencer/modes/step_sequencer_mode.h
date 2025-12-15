@@ -88,6 +88,10 @@ public:
 	void writeToFile(Serializer& writer, bool includeScenes = true) override;
 	Error readFromFile(Deserializer& reader) override;
 
+	// Handle select encoder for probability adjustment (when note pad is held)
+	// Public so InstrumentClipView can call it
+	bool handleSelectEncoder(int32_t offset);
+
 private:
 	static constexpr int32_t kNumSteps = 16; // x0-x15
 	static constexpr int32_t kMaxScaleNotes = 32;
@@ -102,8 +106,11 @@ private:
 	// Per-step data
 	struct Step {
 		GateType gateType{GateType::OFF};
-		int8_t octave{0};     // -3 to +3 (optimized from int32_t)
-		uint8_t noteIndex{0}; // Index into scale notes array (0-31, optimized from int32_t)
+		int8_t octave{0};       // -3 to +3 (optimized from int32_t)
+		uint8_t noteIndex{0};   // Index into scale notes array (0-31, optimized from int32_t)
+		uint8_t velocity{100};  // Note velocity 1-127 (default 100)
+		uint8_t gateLength{75}; // Gate length as percentage 1-100 (default 75%)
+		uint8_t probability{100}; // Probability to play 0-100% (default 100%)
 	};
 
 	// State
@@ -133,6 +140,10 @@ private:
 	// Active step count (1-16) - steps beyond this are dimmed and not played
 	uint8_t numActiveSteps_ = 16;     // Optimized from int32_t
 
+	// Pad hold tracking (for velocity/gate length adjustment)
+	int8_t heldPadX_ = -1;            // X coordinate of held note pad, or -1 if none (optimized from int32_t)
+	int8_t heldPadY_ = -1;            // Y coordinate of held note pad, or -1 if none (optimized from int32_t)
+
 	// Scale notes cache
 	int32_t scaleNotes_[kMaxScaleNotes];
 	uint8_t numScaleNotes_ = 0;       // 0-32 (optimized from int32_t)
@@ -156,6 +167,19 @@ private:
 
 	// Helper: Clamp all state variables to active step range
 	void clampStateToActiveRange();
+
+	// Helper: Check if a valid note pad is currently held
+	bool isNotePadHeld() const;
+
+	// Helper: Clamp a value between min and max (explicitly use int32_t to avoid type deduction issues)
+	static int32_t clampValue(int32_t value, int32_t min, int32_t max) {
+		if (value < min) return min;
+		if (value > max) return max;
+		return value;
+	}
+
+	// Helper: Display a value on OLED/7seg with format string
+	void displayValue(const char* format, int32_t value);
 
 	// Default pattern management
 	bool isDefaultPattern() const;
