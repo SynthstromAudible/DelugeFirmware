@@ -19,7 +19,7 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'cherry-pick') && github.event.pull_request.merged == true }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Cherry pick into release/1.3
