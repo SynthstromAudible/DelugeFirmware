@@ -41,7 +41,7 @@ public:
 		// Constants
 		constexpr int32_t padding_x = 4;
 		constexpr int32_t start_x = padding_x;
-		constexpr uint8_t start_y = OLED_MAIN_TOPMOST_PIXEL + kTextTitleSizeY + 6;
+		constexpr uint8_t start_y = OLED_MAIN_TOPMOST_PIXEL + kTextTitleSizeY + 7;
 		constexpr uint8_t end_y = OLED_MAIN_HEIGHT_PIXELS - 6;
 		constexpr int32_t draw_width = OLED_MAIN_WIDTH_PIXELS - 2 * padding_x;
 		constexpr uint8_t draw_height = end_y - start_y;
@@ -73,7 +73,7 @@ public:
 		image.drawLine(release_x, base_y, start_x + draw_width, base_y);
 
 		// Draw stage transition point dotted lines
-		for (int32_t y = OLED_MAIN_VISIBLE_HEIGHT; y >= start_y - 2; y -= 4) {
+		for (int32_t y = OLED_MAIN_VISIBLE_HEIGHT + 1; y >= start_y - 2; y -= 4) {
 			// reduce a messy look when lines are close to each other by omitting the line
 			if (attack_x > start_x + 3) {
 				image.drawPixel(attack_x, y);

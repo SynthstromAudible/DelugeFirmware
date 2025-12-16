@@ -60,7 +60,7 @@ void Rate::drawPixelsForOled() {
 	                                                   kTextHugeSizeY);
 }
 
-void Rate::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void Rate::renderInHorizontalMenu(const SlotPosition& slot) {
 	if (!isStutterQuantized()) {
 		return UnpatchedParam::renderInHorizontalMenu(slot);
 	}

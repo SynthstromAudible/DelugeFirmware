@@ -67,8 +67,8 @@ public:
 		return {l10n::getView(l10n::String::STRING_FOR_LINKED), l10n::getView(l10n::String::STRING_FOR_INDEPENDENT)};
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
-		const Icon& icon = getValue() ? OLED::pitchSpeedIndependentIcon : OLED::pitchSpeedLinkedIcon;
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		const Icon& icon = getValue() ? OLED::crossedOutKeyboardIcon : OLED::keyboardIcon;
 		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 
@@ -76,6 +76,8 @@ public:
 		const auto option = getOptions(OptType::SHORT)[getValue()].data();
 		label.append(option);
 	}
+
+	[[nodiscard]] bool isToggle() override { return true; }
 
 private:
 	uint8_t source_id_;

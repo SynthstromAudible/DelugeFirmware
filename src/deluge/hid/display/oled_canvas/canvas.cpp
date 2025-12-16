@@ -318,7 +318,7 @@ void Canvas::drawStringCentred(char const* string, int32_t pixelY, int32_t textW
 
 void Canvas::drawStringCentered(char const* string, int32_t pixelX, int32_t pixelY, int32_t textSpacingX,
                                 int32_t textSpacingY, int32_t totalWidth) {
-	DEF_STACK_STRING_BUF(stringBuf, 12);
+	DEF_STACK_STRING_BUF(stringBuf, 24);
 	stringBuf.append(string);
 	drawStringCentered(stringBuf, pixelX, pixelY, textSpacingX, textSpacingY, totalWidth);
 }
@@ -665,8 +665,9 @@ void Canvas::drawScreenTitle(std::string_view title, bool drawSeparator) {
 	constexpr int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
 
 	drawString(title, 0, startY, kTextTitleSpacingX, kTextTitleSizeY);
+
 	if (drawSeparator) {
-		drawHorizontalLine(extraY + 11 + OLED_MAIN_TOPMOST_PIXEL, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+		drawHorizontalLine(kScreenTitleSeparatorY, 0, OLED_MAIN_WIDTH_PIXELS - 1);
 	}
 }
 
@@ -737,26 +738,10 @@ void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int3
 
 /// inverts just the left edge
 void Canvas::invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
-	if (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION) {
-		return invertAreaRounded(xMin, width, startY, endY);
+	if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION) {
+		drawVerticalLine(xMin, startY, endY);
 	}
-
-	int32_t firstRowY = startY >> 3;
-	int32_t lastRowY = endY >> 3;
-
-	uint8_t currentRowMask = (255 << (startY & 7));
-	uint8_t lastRowMask = (255 >> (7 - (endY & 7)));
-
-	// For each row
-	for (int32_t rowY = firstRowY; rowY <= lastRowY; rowY++) {
-
-		if (rowY == lastRowY) {
-			currentRowMask &= lastRowMask;
-		}
-
-		uint8_t* __restrict__ leftEdgePos = &image_[rowY][xMin];
-		*leftEdgePos ^= currentRowMask;
-
-		currentRowMask = 0xFF;
+	else {
+		invertAreaRounded(xMin, width, startY, endY);
 	}
 }

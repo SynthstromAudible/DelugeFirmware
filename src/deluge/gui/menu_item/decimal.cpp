@@ -219,7 +219,7 @@ int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
 	return remainingBuf.size() - 2;
 }
 
-void Decimal::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void Decimal::renderInHorizontalMenu(const SlotPosition& slot) {
 	if (getRenderingStyle() != NUMBER) {
 		return Number::renderInHorizontalMenu(slot);
 	}

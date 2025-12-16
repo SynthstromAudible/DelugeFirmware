@@ -60,7 +60,7 @@ void SyncLevel::getColumnLabel(StringBuf& label) {
 	syncValueToStringForHorzMenuLabel(syncValueToSyncType(value), level, label, currentSong->getInputTickMagnitude());
 }
 
-void SyncLevel::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void SyncLevel::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace deluge::hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 
