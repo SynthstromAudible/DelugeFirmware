@@ -65,6 +65,8 @@ MIDIRootComplexUSBPeripheral::MIDIRootComplexUSBPeripheral() : cables_{0, 1, 2} 
 		port.mpeLowerZoneLastMemberChannel = 7;
 		port.mpeUpperZoneLastMemberChannel = 8;
 	}
+
+	cable_two->receiveClock = false;
 }
 
 MIDIRootComplexUSBPeripheral::~MIDIRootComplexUSBPeripheral() {
