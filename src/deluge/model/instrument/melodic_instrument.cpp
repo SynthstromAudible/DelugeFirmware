@@ -531,6 +531,11 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 	if (!activeClip) {
 		return;
 	}
+	if (isNoteAuditioning(note)) {
+		//@todo this could definitely be handled better. Ideally we track both notes.
+		// if we don't do this then duplicate mpe notes get stuck
+		endAuditioningForNote(modelStack, note, 64);
+	}
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
