@@ -21,7 +21,14 @@
 
 class MIDICableUSBUpstream final : public MIDICableUSB {
 public:
-	MIDICableUSBUpstream(uint8_t portNum = 0) : MIDICableUSB(portNum) {}
+	MIDICableUSBUpstream(uint8_t portNum, bool mpe) : MIDICableUSB(portNum) {
+		if (mpe) {
+			for (auto& port : ports) {
+				port.mpeLowerZoneLastMemberChannel = 7;
+				port.mpeUpperZoneLastMemberChannel = 8;
+			}
+		}
+	}
 	void writeReferenceAttributesToFile(Serializer& writer) override;
 	void writeToFlash(uint8_t* memory) override;
 	char const* getDisplayName() override;

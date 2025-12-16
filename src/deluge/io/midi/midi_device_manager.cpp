@@ -61,9 +61,9 @@ std::array<USBDev, USB_NUM_USBIP> usbDeviceCurrentlyBeingSetUp{};
 
 // This class represents a thing you can send midi too,
 // the virtual cable is an implementation detail
-PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable1{0};
-PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable2{1};
-PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable3{2};
+PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable1{0, false};
+PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable2{1, true};
+PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable3{2, false};
 PLACE_SDRAM_BSS MIDICableDINPorts dinMIDIPorts{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
