@@ -30,7 +30,7 @@ enum class MenuPermission {
 	MUST_SELECT_RANGE,
 };
 
-struct HorizontalMenuSlotParams {
+struct SlotPosition {
 	uint8_t start_x{0};
 	uint8_t start_y{0};
 	uint8_t width{0};
@@ -297,10 +297,10 @@ public:
 	/// true by default, but can be overridden
 	[[nodiscard]] virtual bool showColumnLabel() const { return true; }
 
-	/// @brief Get the number of occupied virtual columns in Horizontal menu.
+	/// @brief Get the number of occupied slots in Horizontal menu.
 	///
 	/// 1 by default, but can be overridden
-	[[nodiscard]] virtual int32_t getColumnSpan() const { return 1; };
+	[[nodiscard]] virtual int32_t getOccupiedSlots() const { return 1; };
 
 	/// @brief Show a popup with the full name and value of the editing parameter at the top of Horizontal menu
 	///
@@ -317,7 +317,7 @@ public:
 	/// Needs to be overridden
 	virtual void getNotificationValue(StringBuf& valueBuf) {}
 
-	virtual void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {};
+	virtual void renderInHorizontalMenu(const SlotPosition& slot) {};
 
 	deluge::gui::menu_item::HorizontalMenu* parent{nullptr};
 

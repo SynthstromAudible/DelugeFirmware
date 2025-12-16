@@ -64,7 +64,7 @@ public:
 		}
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const bool reversed = getValue();
 		OLED::main.drawIconCentered(OLED::directionIcon, slot.start_x, slot.width,
 		                            slot.start_y + kHorizontalMenuSlotYOffset, reversed);

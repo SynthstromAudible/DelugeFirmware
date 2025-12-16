@@ -52,7 +52,7 @@ public:
 		}
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& canvas = OLED::main;
 		if (getValue() < 0) {
 			const char* string_for_auto = l10n::get(l10n::String::STRING_FOR_AUTO);

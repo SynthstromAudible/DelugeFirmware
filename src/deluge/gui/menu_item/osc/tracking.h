@@ -48,9 +48,9 @@ public:
 		Toggle::selectEncoderAction(offset);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
-		const auto& icon = getValue() ? OLED::oscTrackingEnabledIcon : OLED::oscTrackingDisabledIcon;
+		const auto& icon = getValue() ? OLED::keyboardIcon : OLED::crossedOutKeyboardIcon;
 		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 

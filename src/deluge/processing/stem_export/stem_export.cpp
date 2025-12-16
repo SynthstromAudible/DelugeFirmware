@@ -29,6 +29,7 @@
 #include "hid/led/indicator_leds.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
@@ -295,9 +296,12 @@ int32_t StemExport::disarmAllInstrumentsForStemExport(StemExportType stemExportT
 				}
 				// if we're not exporting the mixdown,
 				// then we want to mute all the tracks as we'll be exporting them individually
+				// except for the MIDI transpose track, which must remain enabled for proper transposition
 				if (stemExportType != StemExportType::MIXDOWN) {
 					output->mutedInArrangementModeBeforeStemExport = output->mutedInArrangementMode;
-					output->mutedInArrangementMode = true;
+					output->mutedInArrangementMode =
+					    (output->type != OutputType::MIDI_OUT
+					     || ((NonAudioInstrument*)output)->getChannel() != MIDI_CHANNEL_TRANSPOSE);
 				}
 				output->recordingInArrangement = false;
 				output->armedForRecording = false;
