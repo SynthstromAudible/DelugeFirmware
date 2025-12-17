@@ -51,7 +51,7 @@ class CompressorValue : public DecimalWithoutScrolling {
 	[[nodiscard]] int32_t getMaxValue() const final { return kMaxKnobPos; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 	const char* getUnit() override { return "MS"; }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return KNOB; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return KNOB; }
 };
 
 class Attack final : public CompressorValue {
@@ -62,7 +62,7 @@ public:
 	}
 	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override { compressor->setAttack(value); }
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
-
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return ATTACK; }
 	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_ATTACK_SHORT)); }
 };
 class Release final : public CompressorValue {
@@ -73,7 +73,8 @@ public:
 	}
 	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) final { compressor->setRelease(value); }
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
-	[[nodiscard]] int32_t getNumDecimalPlaces() const { return 1; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 1; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RELEASE; }
 
 	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT)); }
 };
@@ -98,6 +99,7 @@ public:
 	}
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getSidechainForDisplay(); }
 	const char* getUnit() override { return "HZ"; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return HPF; }
 };
 class Blend final : public CompressorValue {
 public:
@@ -119,6 +121,6 @@ public:
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
 	const char* getUnit() override { return " %"; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
-	[[nodiscard]] int32_t getColumnSpan() const override { return 1; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 1; }
 };
 } // namespace deluge::gui::menu_item::audio_compressor

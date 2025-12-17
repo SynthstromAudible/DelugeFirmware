@@ -83,12 +83,12 @@ Added main grid pad shortcuts for the following parameters:
   - `Turn select encoder` to change the value of the selected menu item
   - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
     - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
-  - Additionally, you can change the selected menu item by `Press + Turn select encoder`
   - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages and adjacent menus
     - Use `CROSS-SCREEN` button to switch to the next page
     - Use `SCALE` button to switch to the previous page
     - Use `SHIFT + CROSS-SCREEN` button combo to switch to the next adjacent Horizontal menu
     - Use `SHIFT + SCALE` button combo to switch to the previous adjacent Horizontal menu
+  - You can fine-tune values (e.g., oscillator transpose) in a menu by either `Press + Turn select encoder` or `Shift + Turn select encoder`
 
 #### <ins>Clip Name Display & Copying</ins>
 - If a clip has no named "SECTION N" is displayed in place of the clip name, indicating which section the clip is in.

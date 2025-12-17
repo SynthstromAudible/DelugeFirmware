@@ -19,6 +19,7 @@
 
 #ifdef __cplusplus
 
+#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
 #include "playback/playback_handler.h"
@@ -108,6 +109,7 @@ public:
 	bool midiFollowFeedbackFilter;
 	MIDITakeoverMode midiTakeover;
 	bool midiSelectKitRow;
+	TaskID routine_task_id;
 
 	// shared buffer for formatting sysex messages.
 	// Not safe for use in interrupts.

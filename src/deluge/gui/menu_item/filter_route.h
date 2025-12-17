@@ -21,7 +21,6 @@
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
-#include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item {
@@ -56,21 +55,17 @@ public:
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
-		(void)optType;
-		return {"HPF2LPF", "LPF2HPF", l10n::getView(l10n::String::STRING_FOR_PARALLEL)};
+		return {l10n::getView(l10n::String::STRING_FOR_HPF_TO_LPF), l10n::getView(l10n::String::STRING_FOR_LPF_TO_HPF),
+		        l10n::getView(l10n::String::STRING_FOR_PARALLEL)};
 	}
 
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 4; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 	[[nodiscard]] bool showNotification() const override { return false; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		oled_canvas::Canvas& image = OLED::main;
-
-		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
-		getShortOption(shortOpt);
-
-		image.drawStringCentered(shortOpt, startX, startY + 8, kTextSpacingX, kTextSpacingY, width);
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		OLED::main.drawHorizontalLine(kScreenTitleSeparatorY, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+		drawPixelsForOled();
 	}
 };
 } // namespace deluge::gui::menu_item

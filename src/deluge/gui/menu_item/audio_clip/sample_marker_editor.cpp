@@ -50,21 +50,16 @@ void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-bool SampleMarkerEditor::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
-	return getCurrentAudioClip()->sampleHolder.audioFile != nullptr;
-}
-
-void SampleMarkerEditor::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+void SampleMarkerEditor::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 
-	const int32_t lineX = startX + width - 6;
-	for (int32_t y = startY + 2; y <= startY + height - 4; y += 2) {
-		image.drawPixel(lineX, y);
+	const int32_t line_x = slot.start_x + slot.width - 6;
+	for (int32_t y = slot.start_y + 1; y <= slot.start_y + slot.height - 5; y += 2) {
+		image.drawPixel(line_x, y);
 	}
 
-	const Icon& icon = OLED::loopPointIcon;
-	image.drawIcon(icon, startX + 5, startY + 3, true);
+	image.drawIcon(OLED::loopPointIcon, slot.start_x + 5, slot.start_y + kHorizontalMenuSlotYOffset, true);
 }
 
 void SampleMarkerEditor::getColumnLabel(StringBuf& label) {

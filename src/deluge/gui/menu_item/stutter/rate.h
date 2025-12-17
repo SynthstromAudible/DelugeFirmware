@@ -26,10 +26,10 @@ public:
 	Rate(l10n::String newName, l10n::String title)
 	    : UnpatchedParam(newName, title, deluge::modulation::params::UNPATCHED_STUTTER_RATE) {}
 
-	void selectEncoderAction(int32_t offset);
+	void selectEncoderAction(int32_t offset) override;
 	void drawValue() override;
 	void drawPixelsForOled() override;
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void getNotificationValue(StringBuf& valueBuf) override;
 
 	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::get(l10n::String::STRING_FOR_RATE)); }

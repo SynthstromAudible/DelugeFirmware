@@ -70,9 +70,10 @@ public:
 		OLED::main.drawStringCentred(value.data(), 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const std::string value = getIteranceDisplayValue("%d:%d");
-		OLED::main.drawStringCentered(value.data(), startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+		OLED::main.drawStringCentered(value.data(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+		                              kTextSpacingX, kTextSpacingY, slot.width);
 	}
 
 	void drawValue() override {

@@ -48,14 +48,15 @@ void Enumeration::getShortOption(StringBuf& opt) {
 	opt.appendInt(getValue());
 }
 
-void Enumeration::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+void Enumeration::renderInHorizontalMenu(const SlotPosition& slot) {
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	// Render current value
 	DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 	getShortOption(shortOpt);
 
-	image.drawStringCentered(shortOpt, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+	image.drawStringCentered(shortOpt, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+	                         kTextSpacingY, slot.width);
 }
 
 } // namespace deluge::gui::menu_item

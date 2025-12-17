@@ -120,22 +120,22 @@ public:
 		return MenuPermission::YES;
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 
 		const auto current_value = this->getValue<SequenceDirection>();
 		if (current_value == SequenceDirection::OBEY_PARENT) {
-			return Selection::renderInHorizontalMenu(startX, width, startY, height);
+			return Selection::renderInHorizontalMenu(slot);
 		}
 
-		const uint8_t icon_y = startY + 3;
+		const uint8_t icon_y = slot.start_y + kHorizontalMenuSlotYOffset;
 		if (current_value == SequenceDirection::PINGPONG) {
-			image.drawIconCentered(OLED::directionIcon, startX + 2, width, icon_y);
-			image.drawIconCentered(OLED::directionIcon, startX - 2, width, icon_y, true);
+			image.drawIconCentered(OLED::directionIcon, slot.start_x + 2, slot.width, icon_y);
+			image.drawIconCentered(OLED::directionIcon, slot.start_x - 2, slot.width, icon_y, true);
 		}
 		else {
-			image.drawIconCentered(OLED::directionIcon, startX, width, icon_y,
+			image.drawIconCentered(OLED::directionIcon, slot.start_x, slot.width, icon_y,
 			                       current_value == SequenceDirection::REVERSE);
 		}
 	}

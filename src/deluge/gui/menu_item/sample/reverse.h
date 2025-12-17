@@ -66,10 +66,11 @@ public:
 		}
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const bool reversed = getValue();
 		const Icon& icon = OLED::directionIcon;
-		OLED::main.drawIconCentered(icon, startX, width, startY + 3, reversed);
+		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset,
+		                            reversed);
 	}
 
 	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }

@@ -15,15 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "eq_unpatched_param.h"
-#include "gui/menu_item/unpatched_param.h"
+#include "gui/menu_item/toggle.h"
+#include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
 
-namespace deluge::gui::menu_item::eq {
-
-class EqFrequency final : public EqUnpatchedParam {
+namespace deluge::gui::menu_item::midi {
+class ReceiveClock final : public Toggle {
 public:
-	using EqUnpatchedParam::EqUnpatchedParam;
-
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return SLIDER; }
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->receiveClock); }
+	void writeCurrentValue() override {
+		soundEditor.currentMIDICable->receiveClock = this->getValue();
+		MIDIDeviceManager::anyChangesToSave = true;
+	}
 };
-} // namespace deluge::gui::menu_item::eq
+} // namespace deluge::gui::menu_item::midi

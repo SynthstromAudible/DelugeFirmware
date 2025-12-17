@@ -52,28 +52,28 @@ public:
 		       && oscType != OscType::INPUT_STEREO;
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
-		const float valueNormalized = getValue() / 50.0f;
+		const float norm = getValue() / 50.0f;
 
-		constexpr int32_t xPadding = 4;
-		width -= xPadding * 2 + 1;
+		constexpr int32_t x_padding = 4;
+		const uint8_t width = slot.width - x_padding * 2;
 
-		int32_t xStart = startX + xPadding;
-		int32_t xEnd = xStart + width;
-		int32_t yStart = startY + 2;
-		int32_t yEnd = startY + height - 5;
+		int32_t start_x = slot.start_x + x_padding;
+		int32_t end_x = start_x + width - 1;
+		int32_t start_y = slot.start_y + kHorizontalMenuSlotYOffset;
+		int32_t end_y = slot.start_y + slot.height - 6;
 
-		int32_t pwMinX = xStart + 2;
-		int32_t pwMaxX = xStart + width / 2;
-		int32_t pwWidth = pwMaxX - pwMinX;
-		int32_t pwX = pwMaxX - pwWidth * valueNormalized;
+		int32_t pw_min_x = start_x + 2;
+		int32_t pw_max_x = start_x + width / 2;
+		int32_t pw_width = pw_max_x - pw_min_x;
+		int32_t pw_x = pw_max_x - pw_width * norm;
 
-		image.drawVerticalLine(xStart, yStart, yEnd);
-		image.drawHorizontalLine(yStart, xStart, pwX);
-		image.drawVerticalLine(pwX, yStart, yEnd);
-		image.drawHorizontalLine(yEnd, pwX, xEnd);
+		image.drawVerticalLine(start_x, start_y, end_y);
+		image.drawHorizontalLine(start_y, start_x, pw_x);
+		image.drawVerticalLine(pw_x, start_y, end_y);
+		image.drawHorizontalLine(end_y, pw_x, end_x);
 	}
 };
 

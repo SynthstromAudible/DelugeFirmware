@@ -994,7 +994,7 @@ doLoadAsSample:
 				drum->name.clear();
 
 				String newName;
-				if (!numCharsInPrefix) {
+				if (!numCharsInPrefix || display->haveOLED()) {
 					newName.set(&enteredText);
 				}
 				else {
@@ -1074,6 +1074,10 @@ doLoadAsSample:
 		exitAndNeverDeleteDrum();
 
 		if (menuItemHeadingTo != nullptr && parentMenuHeadingTo != nullptr) {
+			if (isUIOpen(&soundEditor)) {
+				closeUI(&soundEditor);
+			}
+
 			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
 			soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo;
 			soundEditor.navigationDepth = 0;

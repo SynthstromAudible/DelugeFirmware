@@ -66,10 +66,10 @@ public:
 	// don't enter menu on select button press
 	bool shouldEnterSubmenu() override { return false; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
-		const Icon& icon = getValue() ? OLED::switcherIconOn : OLED::switcherIconOff;
-		OLED::main.drawIconCentered(icon, startX, width, startY);
+		const Icon& icon = getValue() ? OLED::lockedIconBig : OLED::unlockedIconBig;
+		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 };
 } // namespace deluge::gui::menu_item::randomizer

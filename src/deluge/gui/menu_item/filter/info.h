@@ -83,13 +83,9 @@ public:
 		}
 		return alt;
 	}
-
-	[[nodiscard]] NumberStyle getNumberStyle() const {
+	[[nodiscard]] bool isMorphable() const {
 		auto filter = dsp::filter::SpecificFilter(getMode());
-		if (filter.getFamily() == dsp::filter::FilterFamily::SVF) {
-			return SLIDER;
-		}
-		return BAR;
+		return filter.getFamily() == dsp::filter::FilterFamily::SVF;
 	}
 
 	bool isOn() const { return getMode() != ::FilterMode::OFF; }

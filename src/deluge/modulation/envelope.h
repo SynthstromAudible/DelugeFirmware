@@ -41,7 +41,7 @@ public:
 	int32_t render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release,
 	               const uint16_t* releaseTable);
 	void unconditionalRelease(EnvelopeStage typeOfRelease = EnvelopeStage::RELEASE,
-	                          uint32_t newFastReleaseIncrement = 4096);
+	                          uint32_t newFastReleaseIncrement = SOFT_CULL_INCREMENT);
 	void unconditionalOff();
 	void resumeAttack(int32_t oldLastValue);
 	void resetTimeEntered();

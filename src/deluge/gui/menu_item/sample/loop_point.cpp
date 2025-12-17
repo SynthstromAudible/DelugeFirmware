@@ -72,21 +72,21 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
-void LoopPoint::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+void LoopPoint::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 
-	const bool isStartMarker = markerType == MarkerType::START;
-	const int32_t lineX = isStartMarker ? startX + 8 : startX + width - 12;
+	const bool is_start_marker = markerType == MarkerType::START;
+	const int32_t line_x = is_start_marker ? slot.start_x + 8 : slot.start_x + slot.width - 12;
 
-	for (int32_t y = startY + 2; y <= startY + height - 4; y += 2) {
-		image.drawPixel(lineX, y);
+	for (int32_t y = slot.start_y + kHorizontalMenuSlotYOffset - 1; y <= slot.start_y + slot.height - 5; y += 2) {
+		image.drawPixel(line_x, y);
 	}
 
 	const Icon& icon = OLED::loopPointIcon;
-	const int32_t iconX = isStartMarker ? lineX + 4 : startX - 2;
-	const int32_t iconY = startY + 3;
-	image.drawIcon(icon, iconX, iconY, !isStartMarker);
+	const int32_t icon_x = is_start_marker ? line_x + 4 : slot.start_x - 2;
+	const int32_t icon_y = slot.start_y + kHorizontalMenuSlotYOffset;
+	image.drawIcon(icon, icon_x, icon_y, !is_start_marker);
 }
 
 void LoopPoint::getColumnLabel(StringBuf& label) {

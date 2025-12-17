@@ -23,7 +23,7 @@ class Amount_Unpatched final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return BAR; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 
 	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_AMOUNT_SHORT)); }
 };

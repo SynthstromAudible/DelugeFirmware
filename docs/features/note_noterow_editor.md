@@ -79,7 +79,8 @@ By physically holding an audition pad you can:
 
 ### Editing Notes
 
-While holding shift or sticky shift, you can:
+You can also perform note editing actions:
+
 - add / remove notes on the grid
 - press and hold one or more notes to edit the same parameter selected for the row but for only for the notes you selected
 - with a note selected you can edit its velocity by turning the horizontal encoder <>
@@ -88,6 +89,4 @@ While holding shift or sticky shift, you can:
 
 ### Exit Note Row Editor Menu
 
-You can exit the menu by pressing BACK to back out or you can press the greyed out Main Grid Pads
-
-Note: if you have shift enabled, pressing Main Grid Pads will not exit the menu as it allows you to edit notes on the grid, you need to turn shift off first.
+You can exit the menu by pressing BACK to back out

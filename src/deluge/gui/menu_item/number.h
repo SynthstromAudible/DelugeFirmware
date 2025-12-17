@@ -22,7 +22,20 @@
 
 namespace deluge::gui::menu_item {
 
-enum NumberStyle { NUMBER, KNOB, BAR, PERCENT, SLIDER, LENGTH_SLIDER, PAN };
+enum RenderingStyle {
+	NUMBER,
+	KNOB,
+	BAR,
+	PERCENT,
+	SLIDER,
+	LENGTH_SLIDER,
+	PAN,
+	LPF,
+	HPF,
+	ATTACK,
+	RELEASE,
+	SIDECHAIN_DUCKING
+};
 
 class Number : public Value<int32_t> {
 public:
@@ -32,17 +45,22 @@ public:
 protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
 	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
-	[[nodiscard]] virtual NumberStyle getNumberStyle() const { return KNOB; }
-	virtual float getNormalizedValue();
+	[[nodiscard]] virtual RenderingStyle getRenderingStyle() const { return KNOB; }
+	virtual float normalize(int32_t value);
 
-	void renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t start_y, int32_t height) override;
-	void drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t height);
-	void drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
-	void drawPercent(int32_t start_x, int32_t start_y, int32_t width, int32_t height);
-	void drawSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
-	void drawLengthSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height,
-	                      bool min_slider_pos = 3);
-	void drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
+	// Horizontal menus ------
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
+	void drawKnob(const SlotPosition& slot);
+	void drawBar(const SlotPosition& slot);
+	void drawPercent(const SlotPosition& slot);
+	void drawSlider(const SlotPosition& slot, std::optional<int32_t> value = std::nullopt);
+	void drawLengthSlider(const SlotPosition& slot, bool min_slider_pos = 3);
+	void drawPan(const SlotPosition& slot);
+	void drawLpf(const SlotPosition& slot);
+	void drawHpf(const SlotPosition& slot);
+	void drawAttack(const SlotPosition& slot);
+	void drawRelease(const SlotPosition& slot);
+	void drawSidechainDucking(const SlotPosition& slot);
 	void getNotificationValue(StringBuf& value) override;
 };
 

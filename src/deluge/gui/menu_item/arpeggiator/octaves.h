@@ -59,6 +59,6 @@ public:
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator

@@ -42,21 +42,23 @@ public:
 		OLED::main.drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		const auto value = this->getValue();
 		const auto pattern = std::string_view(arpRhythmPatternNames[value]);
 		if (value == 0) {
-			return image.drawStringCentered(pattern.data(), startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+			return image.drawStringCentered(pattern.data(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+			                                kTextSpacingX, kTextSpacingY, slot.width);
 		}
 
 		constexpr int32_t paddingBetween = 2;
 		const int32_t rhythmWidth = pattern.size() * kTextSpacingX + pattern.size() * paddingBetween;
 
-		int32_t x = startX + (width - rhythmWidth) / 2 + 2;
+		int32_t x = slot.start_x + (slot.width - rhythmWidth) / 2 + 2;
 		for (const char character : pattern) {
-			image.drawChar(character == '0' ? 'X' : character, x, startY + 3, kTextSpacingX, kTextSpacingY);
+			image.drawChar(character == '0' ? 'X' : character, x, slot.start_y + kHorizontalMenuSlotYOffset,
+			               kTextSpacingX, kTextSpacingY);
 			x += kTextSpacingX + paddingBetween;
 		}
 	}
@@ -66,7 +68,7 @@ public:
 	}
 
 protected:
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; }
 };
 
 } // namespace deluge::gui::menu_item::arpeggiator

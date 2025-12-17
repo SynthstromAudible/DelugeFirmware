@@ -14,6 +14,7 @@
 #include "gui/menu_item/note_row/iterance_preset.h"
 #include "gui/menu_item/note_row/iterance_step_toggle.h"
 #include "gui/menu_item/note_row/probability.h"
+#include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
 #include "gui/menu_item/patch_cables.h"
@@ -27,7 +28,7 @@
 #include "gui/menu_item/source/patched_param/modulator_level.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
-#include <array>
+#include "gui/menu_item/submenu/mod_fx.h"
 
 namespace deluge::gui::menu_item {
 class HorizontalMenu;
@@ -44,6 +45,8 @@ extern gui::menu_item::sample::Start sample0StartMenu;
 extern gui::menu_item::sample::Start sample1StartMenu;
 extern gui::menu_item::sample::End sample0EndMenu;
 extern gui::menu_item::sample::End sample1EndMenu;
+extern gui::menu_item::osc::AudioRecorder sample0RecorderMenu;
+extern gui::menu_item::osc::AudioRecorder sample1RecorderMenu;
 extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
 extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
 extern gui::menu_item::EditName nameEditMenu;
@@ -62,13 +65,15 @@ extern gui::menu_item::Submenu soundEditorRootMenuSongView;
 extern gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
 extern gui::menu_item::Submenu soundEditorRootMenu;
 extern gui::menu_item::Submenu settingsRootMenu;
+extern gui::menu_item::submenu::ModFxHorizontalMenu globalModFXMenu;
+extern gui::menu_item::submenu::ModFxHorizontalMenu modFXMenu;
 
 extern gui::menu_item::randomizer::RandomizerLock randomizerLockMenu;
 extern gui::menu_item::randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV;
 extern gui::menu_item::randomizer::midi_cv::NoteProbability randomizerNoteProbabilityMenuMIDIOrCV;
 
 // note editor menu's
-extern gui::menu_item::Submenu noteEditorRootMenu;
+extern gui::menu_item::HorizontalMenu noteEditorRootMenu;
 extern gui::menu_item::note::Probability noteProbabilityMenu;
 extern gui::menu_item::note::IterancePreset noteIteranceMenu;
 extern gui::menu_item::note::IteranceDivisor noteCustomIteranceDivisor;
