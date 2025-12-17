@@ -65,7 +65,6 @@
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/envelope/segment.h"
-#include "gui/menu_item/eq/eq_frequency.h"
 #include "gui/menu_item/eq/eq_menu.h"
 #include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/file_selector.h"
@@ -263,7 +262,7 @@ arpeggiator::ChordType arpChordSimulatorMenuKit{STRING_FOR_CHORD_SIMULATOR, STRI
 arpeggiator::StepRepeat arpStepRepeatMenu{STRING_FOR_STEP_REPEAT, STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE};
 // Note and rhythm settings
 arpeggiator::ArpUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE, params::UNPATCHED_ARP_GATE,
-                                           NumberStyle::LENGTH_SLIDER};
+                                           RenderingStyle::LENGTH_SLIDER};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
 arpeggiator::Rhythm arpRhythmMenu{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE, params::UNPATCHED_ARP_RHYTHM};
 arpeggiator::midi_cv::Rhythm arpRhythmMenuMIDIOrCV{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE};
@@ -278,18 +277,18 @@ arpeggiator::IncludeInKitArp arpIncludeInKitArpMenu{STRING_FOR_INCLUDE_IN_KIT_AR
 // Randomizer ---------------------------------
 randomizer::RandomizerLock randomizerLockMenu{STRING_FOR_RANDOMIZER_LOCK, STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE};
 randomizer::RandomizerUnpatchedParam spreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
-                                                    params::UNPATCHED_ARP_SPREAD_GATE};
+                                                    params::UNPATCHED_ARP_SPREAD_GATE, BAR};
 randomizer::midi_cv::SpreadGate spreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
 randomizer::RandomizerSoundOnlyUnpatchedParam spreadOctaveMenu{
-    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE};
+    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE, BAR};
 randomizer::midi_cv::SpreadOctave spreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
                                                            STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 randomizer::RandomizerUnpatchedParam spreadVelocityMenu{
-    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_SPREAD_VELOCITY};
+    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_SPREAD_VELOCITY, BAR};
 randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
                                                                STRING_FOR_SPREAD_VELOCITY_MENU_TITLE};
 randomizer::RandomizerUnpatchedParam ratchetAmountMenu{
-    STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE, params::UNPATCHED_ARP_RATCHET_AMOUNT};
+    STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE, params::UNPATCHED_ARP_RATCHET_AMOUNT, BAR};
 randomizer::midi_cv::RatchetAmount ratchetAmountMenuMIDIOrCV{STRING_FOR_NUMBER_OF_RATCHETS,
                                                              STRING_FOR_ARP_RATCHETS_MENU_TITLE};
 randomizer::RandomizerUnpatchedParam ratchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
@@ -298,7 +297,7 @@ randomizer::RandomizerUnpatchedParam ratchetProbabilityMenu{STRING_FOR_RATCHET_P
 randomizer::midi_cv::RatchetProbability ratchetProbabilityMenuMIDIOrCV{STRING_FOR_RATCHET_PROBABILITY,
                                                                        STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 randomizer::RandomizerNonKitSoundUnpatchedParam chordPolyphonyMenu{
-    STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_POLYPHONY};
+    STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_POLYPHONY, BAR};
 randomizer::midi_cv::ChordPolyphony chordPolyphonyMenuMIDIOrCV{STRING_FOR_CHORD_POLYPHONY,
                                                                STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE};
 randomizer::RandomizerNonKitSoundUnpatchedParam chordProbabilityMenu{STRING_FOR_CHORD_PROBABILITY,
@@ -471,9 +470,10 @@ submenu::ModFxHorizontalMenu modFXMenu{
 // EQ -------------------------------------------------------------------------------------
 eq::EqUnpatchedParam bassMenu{STRING_FOR_BASS, params::UNPATCHED_BASS};
 eq::EqUnpatchedParam trebleMenu{STRING_FOR_TREBLE, params::UNPATCHED_TREBLE};
-eq::EqFrequency bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT, params::UNPATCHED_BASS_FREQ};
-eq::EqFrequency trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT,
-                               params::UNPATCHED_TREBLE_FREQ};
+eq::EqUnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT,
+                                  params::UNPATCHED_BASS_FREQ};
+eq::EqUnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT,
+                                    params::UNPATCHED_TREBLE_FREQ};
 
 eq::EqMenu eqMenu{
     STRING_FOR_EQ,
@@ -603,9 +603,9 @@ HorizontalMenuGroup filtersMenuGroup{{&lpfMenu, &hpfMenu, &routingHorizontal}};
 
 // FX ----------------------------------------------------------------------------------------
 fx::Clipping clippingMenu{STRING_FOR_SATURATION};
-UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION, NumberStyle::BAR};
-UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING, NumberStyle::BAR};
-patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD, NumberStyle::BAR};
+UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION, RenderingStyle::BAR};
+UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING, RenderingStyle::BAR};
+patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD, RenderingStyle::BAR};
 
 HorizontalMenu soundDistortionMenu{
     STRING_FOR_DISTORTION,
@@ -1352,7 +1352,7 @@ patched_param::Pan panMenu{STRING_FOR_PAN, params::LOCAL_PAN};
 
 PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
 
-Submenu soundMasterMenu{
+HorizontalMenu soundMasterMenu{
     STRING_FOR_MASTER,
     {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu, &vibratoMenu},
 };
@@ -1801,7 +1801,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
 };
 
 deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {
-	&soundMasterMenuWithoutVibrato, &recorderMenu,
+	&recorderMenu, &soundMasterMenuWithoutVibrato,
 	&sourceMenuGroup, &voiceMenuGroup, &envMenuGroup, &lfoMenuGroup,
 	&filtersMenuGroup, &eqMenu, &modFXMenu,
 	&reverbMenuGroup, &delayMenu, &soundDistortionMenu,

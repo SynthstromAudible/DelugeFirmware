@@ -113,7 +113,7 @@ public:
 		};
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const auto& source = soundEditor.currentSound->sources[source_id_];
 		const Icon& icon = [&] {
 			switch (source.repeatMode) {
@@ -128,7 +128,7 @@ public:
 			}
 			return OLED::sampleModeCutIcon;
 		}();
-		OLED::main.drawIcon(icon, startX + 4, startY - 1);
+		OLED::main.drawIcon(icon, slot.start_x + 4, slot.start_y + kHorizontalMenuSlotYOffset - 4);
 	}
 
 	void getColumnLabel(StringBuf& label) override { label.append(getOptions(OptType::SHORT)[getValue()]); }

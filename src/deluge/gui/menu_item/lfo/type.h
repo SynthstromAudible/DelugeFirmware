@@ -77,7 +77,8 @@ public:
 	}
 
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		const Icon& icon = [&] {
@@ -100,7 +101,7 @@ public:
 			return OLED::sineIcon;
 		}();
 
-		image.drawIconCentered(icon, startX, width, startY + 4);
+		image.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset + 2);
 	}
 
 private:

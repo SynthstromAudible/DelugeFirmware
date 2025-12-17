@@ -834,6 +834,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FM, "FM"},
         {STRING_FOR_RINGMOD, "Ringmod"},
         {STRING_FOR_NOTE_RANGE, "Note range"},
+        {STRING_FOR_HPF_TO_LPF, "HPF > LPF"},
+        {STRING_FOR_LPF_TO_HPF, "LPF > HPF"},
         {STRING_FOR_PARALLEL, "PARALLEL"},
         {STRING_FOR_RED, "RED"},
         {STRING_FOR_GREEN, "GREEN"},

@@ -172,6 +172,16 @@ void TaskManager::removeTask(TaskID id) {
 	createSortedList();
 	return;
 }
+
+void TaskManager::boostTask(TaskID id) {
+	auto* task = &list[id];
+	if (!task->boosted) {
+		task->boosted = true;
+		task->schedule.backOffPeriod *= 0.1;
+		task->schedule.targetInterval *= 0.1;
+	}
+}
+
 void TaskManager::ignoreForStats() {
 	countThisTask = false;
 }
@@ -395,6 +405,9 @@ Time getTimerValueSeconds(int timerNo) {
 }
 /// return a monotonic timer value in seconds from when the task manager started
 Time TaskManager::getSecondsFromStart() {
+	if (!running) [[unlikely]] {
+		startClock();
+	}
 	auto timeNow = getTimerValueSeconds(0);
 	if (timeNow < lastTime) {
 		runningTime += rollTime;

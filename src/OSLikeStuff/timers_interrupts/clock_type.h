@@ -46,6 +46,10 @@ public:
 		time = time + r.time;
 		return *this;
 	}
+	constexpr Time& operator*=(double r) {
+		time = time * r;
+		return *this;
+	}
 };
 
 #endif

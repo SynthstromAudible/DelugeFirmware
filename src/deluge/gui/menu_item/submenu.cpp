@@ -52,13 +52,13 @@ void Submenu::updateDisplay() {
 	}
 }
 
-void Submenu::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+void Submenu::renderInHorizontalMenu(const SlotPosition& slot) {
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	// Draw arrow icon centered indicating that there is another layer
-	const int32_t arrowY = startY + 3;
-	const int32_t arrowX = startX + (width - kSubmenuIconSpacingX) / 2 - 1;
-	image.drawGraphicMultiLine(hid::display::OLED::submenuArrowIconBold, arrowX, arrowY, kSubmenuIconSpacingX);
+	const int32_t arrow_y = slot.start_y + kHorizontalMenuSlotYOffset;
+	const int32_t arrow_x = slot.start_x + (slot.width - kSubmenuIconSpacingX) / 2 - 1;
+	image.drawGraphicMultiLine(hid::display::OLED::submenuArrowIconBold, arrow_x, arrow_y, kSubmenuIconSpacingX);
 }
 
 void Submenu::drawPixelsForOled() {
@@ -182,8 +182,6 @@ void Submenu::selectEncoderAction(int32_t offset) {
 		} while (offset < 0);
 	}
 	updateDisplay();
-	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
 }
 
 bool Submenu::shouldForwardButtons() {

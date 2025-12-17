@@ -173,13 +173,4 @@ void Automation::selectAutomationViewParameter(bool clipMinder) {
 	}
 }
 
-void Automation::handleAutomationViewParameterUpdate() {
-	UI* root = getRootUI();
-	if (root == &automationView) {
-		bool clipMinder = automationView.previousUI->toClipMinder() != nullptr;
-		Automation::selectAutomationViewParameter(clipMinder);
-		uiNeedsRendering(root);
-	}
-}
-
 } // namespace deluge::gui::menu_item

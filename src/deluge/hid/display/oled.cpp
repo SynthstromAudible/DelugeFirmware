@@ -718,45 +718,57 @@ void OLED::removeWorkingAnimation() {
 	}
 }
 
-void OLED::displayNotification(std::string_view paramTitle, std::optional<std::string_view> paramValue) {
+void OLED::displayNotification(std::string_view param_title, std::optional<std::string_view> param_value) {
 	DEF_STACK_STRING_BUF(titleBuf, 25);
-	titleBuf.append(paramTitle);
+	titleBuf.append(param_title);
 
-	// Calculate the width of the strings
-	int32_t titleWidth = popup.getStringWidthInPixels(paramTitle.data(), kTextSpacingY);
-	const int32_t valueWidth =
-	    paramValue.has_value() ? popup.getStringWidthInPixels(paramValue.value().data(), kTextSpacingY) : 0;
+	constexpr uint8_t start_x = 0;
+	constexpr uint8_t end_x = OLED_MAIN_WIDTH_PIXELS - 1;
+	constexpr uint8_t start_y = OLED_MAIN_TOPMOST_PIXEL;
+	constexpr uint8_t end_y = OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1;
+	constexpr uint8_t width = end_x - start_x + 1;
+	constexpr uint8_t height = end_y - start_y;
+	constexpr int32_t padding_left = 4;
 
-	constexpr int32_t paddingLeft = 4;
+	int32_t title_width = popup.getStringWidthInPixels(param_title.data(), kTextSpacingY);
+	const int32_t value_width =
+	    param_value.has_value() ? popup.getStringWidthInPixels(param_value.value().data(), kTextSpacingY) : 0;
 
-	if (valueWidth > 0) {
+	if (value_width > 0) {
 		// Truncate the title string until we have space to display the value
-		while (titleWidth + paddingLeft + valueWidth > OLED_MAIN_WIDTH_PIXELS - 7) {
+		while (title_width + padding_left + value_width > OLED_MAIN_WIDTH_PIXELS - 7) {
 			titleBuf.truncate(titleBuf.size() - 1);
-			titleWidth = popup.getStringWidthInPixels(titleBuf.data(), kTextSpacingY);
+			title_width = popup.getStringWidthInPixels(titleBuf.data(), kTextSpacingY);
 		}
 	}
 
-	setupPopup(PopupType::NOTIFICATION, OLED_MAIN_WIDTH_PIXELS - 1, kTextSpacingY + 2, 0, OLED_MAIN_TOPMOST_PIXEL);
+	setupPopup(PopupType::NOTIFICATION, width - 1, height, start_x, start_y);
 
 	// Draw the title and value
-	popup.drawString(titleBuf.data(), paddingLeft, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
-	if (valueWidth > 0) {
-		popup.drawChar(':', paddingLeft + titleWidth, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
-		popup.drawString(paramValue.value().data(), paddingLeft + titleWidth + 8, OLED_MAIN_TOPMOST_PIXEL + 1,
-		                 kTextSpacingX, kTextSpacingY);
+	const bool no_inversion = FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION;
+	constexpr uint8_t title_start_x = padding_left;
+	const uint8_t title_start_y = no_inversion ? start_y : start_y + 1;
+	popup.drawString(titleBuf.data(), title_start_x, title_start_y, kTextSpacingX, kTextSpacingY);
+
+	if (value_width > 0) {
+		popup.drawChar(':', title_start_x + title_width, title_start_y, kTextSpacingX, kTextSpacingY);
+		popup.drawString(param_value.value().data(), title_start_x + title_width + 8, title_start_y, kTextSpacingX,
+		                 kTextSpacingY);
 	}
 
-	if (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION) {
-		// Make the notification inverted
-		popup.invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL,
-		                        OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1);
-		popup.drawPixel(0, OLED_MAIN_TOPMOST_PIXEL);
-		popup.drawPixel(OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_TOPMOST_PIXEL);
+	if (no_inversion) {
+		for (uint8_t x = start_x + 1; x < end_x; x += 2) {
+			popup.drawPixel(x, end_y);
+		}
+	}
+	else {
+		popup.invertAreaRounded(start_x, width, start_y, end_y);
+		popup.drawPixel(start_x, start_y);
+		popup.drawPixel(end_x, start_y);
 	}
 
 	markChanged();
-	uiTimerManager.setTimer(TimerName::DISPLAY, 1200);
+	uiTimerManager.setTimer(TimerName::DISPLAY, 2000);
 }
 
 void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {

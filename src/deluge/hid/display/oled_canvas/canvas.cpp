@@ -195,6 +195,53 @@ void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int3
 	}
 }
 
+void Canvas::drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool fill) {
+	int32_t x = 0;
+	int32_t y = radius;
+	// Add a small bias for small radii — helps round out edges
+	int32_t d = 1 - radius + (radius <= 6 ? 1 : 0);
+
+	auto plot_circle_points = [&](int32_t cx, int32_t cy, int32_t x, int32_t y) {
+		if (fill) {
+			// Fill horizontally between symmetric points
+			drawHorizontalLine(cy + y, cx - x, cx + x);
+			drawHorizontalLine(cy - y, cx - x, cx + x);
+			drawHorizontalLine(cy + x, cx - y, cx + y);
+			drawHorizontalLine(cy - x, cx - y, cx + y);
+		}
+		else {
+			// Just outline
+			drawPixel(cx + x, cy + y);
+			drawPixel(cx - x, cy + y);
+			drawPixel(cx + x, cy - y);
+			drawPixel(cx - x, cy - y);
+			drawPixel(cx + y, cy + x);
+			drawPixel(cx - y, cy + x);
+			drawPixel(cx + y, cy - x);
+			drawPixel(cx - y, cy - x);
+		}
+	};
+
+	while (x <= y) {
+		plot_circle_points(centerX, centerY, x, y);
+
+		// normal midpoint update
+		if (d < 0) {
+			d += 2 * x + 3;
+		}
+		else {
+			d += 2 * (x - y) + 5;
+			y--;
+		}
+		x++;
+
+		// Small tweak: for very small circles, gradually adjust d to round diagonals
+		if (radius <= 5) {
+			d += x % 2 == 0 ? 1 : 0;
+		}
+	}
+}
+
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                         int32_t scrollPos, int32_t endX, bool useTextWidth) {
 	int32_t lastIndex = string.length() - 1;
@@ -271,7 +318,7 @@ void Canvas::drawStringCentred(char const* string, int32_t pixelY, int32_t textW
 
 void Canvas::drawStringCentered(char const* string, int32_t pixelX, int32_t pixelY, int32_t textSpacingX,
                                 int32_t textSpacingY, int32_t totalWidth) {
-	DEF_STACK_STRING_BUF(stringBuf, 12);
+	DEF_STACK_STRING_BUF(stringBuf, 24);
 	stringBuf.append(string);
 	drawStringCentered(stringBuf, pixelX, pixelY, textSpacingX, textSpacingY, totalWidth);
 }
@@ -618,8 +665,9 @@ void Canvas::drawScreenTitle(std::string_view title, bool drawSeparator) {
 	constexpr int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
 
 	drawString(title, 0, startY, kTextTitleSpacingX, kTextTitleSizeY);
+
 	if (drawSeparator) {
-		drawHorizontalLine(extraY + 11 + OLED_MAIN_TOPMOST_PIXEL, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+		drawHorizontalLine(kScreenTitleSeparatorY, 0, OLED_MAIN_WIDTH_PIXELS - 1);
 	}
 }
 
@@ -690,26 +738,10 @@ void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int3
 
 /// inverts just the left edge
 void Canvas::invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
-	if (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION) {
-		return invertAreaRounded(xMin, width, startY, endY);
+	if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION) {
+		drawVerticalLine(xMin, startY, endY);
 	}
-
-	int32_t firstRowY = startY >> 3;
-	int32_t lastRowY = endY >> 3;
-
-	uint8_t currentRowMask = (255 << (startY & 7));
-	uint8_t lastRowMask = (255 >> (7 - (endY & 7)));
-
-	// For each row
-	for (int32_t rowY = firstRowY; rowY <= lastRowY; rowY++) {
-
-		if (rowY == lastRowY) {
-			currentRowMask &= lastRowMask;
-		}
-
-		uint8_t* __restrict__ leftEdgePos = &image_[rowY][xMin];
-		*leftEdgePos ^= currentRowMask;
-
-		currentRowMask = 0xFF;
+	else {
+		invertAreaRounded(xMin, width, startY, endY);
 	}
 }

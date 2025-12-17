@@ -101,7 +101,7 @@ public:
 	/// @param endY Y coordinate of the line, inclusive
 	void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY);
 
-	/// Draw a line using Bresenham's algorithm
+	/// Draw a line using Bresenham algorithm
 	/// @param x0 Start X coordinate of the line
 	/// @param y0 Start Y coordinate of the line
 	/// @param x1 End X coordinate of the line
@@ -124,6 +124,13 @@ public:
 	/// @param maxX Maximum X coordinate, inclusive
 	/// @param maxY Maximum Y coordinate, inclusive
 	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius = SMALL);
+
+	/// Draw a circle using Bresenham algorithm
+	///
+	/// @param centerX Center X coordinate
+	/// @param centerY Center Y coordinate
+	/// @param radius Circle radius
+	void drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool fill = false);
 
 	/// Draw a string
 	///

@@ -121,29 +121,28 @@ private:
 		valueBuf.append(getOptions(OptType::SHORT)[value]);
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 
 		const auto value = getValue();
 
 		if (value == USE_SONG_STUTTER) {
-			// Draw a song icon centered
-			const uint8_t* icon = OLED::songIcon;
-			constexpr int32_t songIconWidth = 9;
-			const int32_t x = startX + (width - songIconWidth) / 2;
-			return image.drawGraphicMultiLine(icon, x, startY + 3, songIconWidth);
+			image.drawStringCentered("song", slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+			                         kTextSpacingY, slot.width);
+			return;
 		}
 
 		// Draw the direction icon centered
 		const bool reversed = value == REVERSED || value == REVERSED_PING_PONG;
-		image.drawIconCentered(OLED::directionIcon, startX, width, startY + 3, reversed);
+		image.drawIconCentered(OLED::directionIcon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset,
+		                       reversed);
 
 		if (value == FORWARD_PING_PONG || value == REVERSED_PING_PONG) {
 			// Draw ping-pong dots
-			const int32_t centerX = startX + width / 2;
-			image.drawPixel(centerX, startY + 3);
-			image.drawPixel(centerX, startY + 10);
+			const int32_t center_x = slot.start_x + slot.width / 2;
+			image.drawPixel(center_x, slot.start_y + kHorizontalMenuSlotYOffset);
+			image.drawPixel(center_x, slot.start_y + kHorizontalMenuSlotYOffset + 7);
 		}
 	}
 };

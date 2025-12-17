@@ -17,6 +17,7 @@
 #pragma once
 
 #include "gui/menu_item/filter/info.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/menu_item/value_scaling.h"
@@ -41,10 +42,33 @@ public:
 	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return info.isOn();
 	}
+	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
 
 	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return info.getNumberStyle(); }
-	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		if (info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()) {
+			int32_t value = getValue();
+			if (info.getSlot() == FilterSlot::HPF) {
+				// Treat HPF as fully morphed LPF visually
+				value = 50 - value;
+			}
+			drawSlider(slot, value);
+		}
+		else {
+			drawBar(slot);
+		}
+	}
+
+	void selectEncoderAction(int32_t offset) override {
+		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL
+		    && info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()
+		    && info.getSlot() == FilterSlot::HPF) {
+			// Treat HPF as fully morphed LPF visually, reverse direction
+			offset *= -1;
+		}
+		Integer::selectEncoderAction(offset);
+	}
 
 private:
 	FilterInfo info;
@@ -55,14 +79,37 @@ public:
 	UnpatchedFilterParam(l10n::String newName, l10n::String title, int32_t newP, FilterSlot slot_,
 	                     FilterParamType type_)
 	    : UnpatchedParam{newName, title, newP}, info{slot_, type_} {}
+
 	[[nodiscard]] std::string_view getName() const override { return info.getMorphNameOr(UnpatchedParam::getName()); }
 	[[nodiscard]] std::string_view getTitle() const override { return info.getMorphNameOr(UnpatchedParam::getTitle()); }
 	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return info.isOn();
 	}
 	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return info.getNumberStyle(); }
 	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		if (info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()) {
+			int32_t value = getValue();
+			if (info.getSlot() == FilterSlot::HPF) {
+				// Treat HPF as fully morphed LPF visually
+				value = 50 - value;
+			}
+			drawSlider(slot, value);
+		}
+		else {
+			drawBar(slot);
+		}
+	}
+	void selectEncoderAction(int32_t offset) override {
+		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL
+		    && info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()
+		    && info.getSlot() == FilterSlot::HPF) {
+			// Treat HPF as fully morphed LPF visually, reverse direction
+			offset *= -1;
+		}
+		Integer::selectEncoderAction(offset);
+	}
 
 private:
 	FilterInfo info;

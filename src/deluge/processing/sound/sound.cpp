@@ -1608,7 +1608,8 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				                           return isSourceActiveCurrently(s, paramManager)
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
-			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE && !voice->doFastRelease());
+			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE
+			        && !voice->doFastRelease(SOFT_CULL_INCREMENT));
 
 			if (needs_unassign) {
 				if (voiceToReuse != nullptr) {
@@ -2494,7 +2495,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    thisHasFilters
 		    && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
 		        || (hpfFreq != std::numeric_limits<q31_t>::min()) || (hpfMorph > std::numeric_limits<q31_t>::min()));
-
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
@@ -2504,12 +2504,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
-				it = voices_.erase(it);
 			}
-			else {
-				it++;
-			}
+			++it;
 		}
+		std::erase_if(voices_, [](const ActiveVoice& voice) { return voice->shouldBeDeleted(); });
 
 		// We know that nothing's patched to pan, so can read it in this very basic way.
 		int32_t pan = paramManager->getPatchedParamSet()->getValue(params::LOCAL_PAN) >> 1;
@@ -4669,7 +4667,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
 	for (auto it = voices_.begin(); it != voices_.end();) {
 		const ActiveVoice& voice = *it;
-		bool stillGoing = voice->doFastRelease();
+		bool stillGoing = voice->doFastRelease(SOFT_CULL_INCREMENT);
 
 		if (!stillGoing) {
 			this->checkVoiceExists(voice, "E212");

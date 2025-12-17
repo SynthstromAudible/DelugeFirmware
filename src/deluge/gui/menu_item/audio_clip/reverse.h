@@ -64,9 +64,10 @@ public:
 		}
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const bool reversed = getValue();
-		OLED::main.drawIconCentered(OLED::directionIcon, startX, width, startY + 3, reversed);
+		OLED::main.drawIconCentered(OLED::directionIcon, slot.start_x, slot.width,
+		                            slot.start_y + kHorizontalMenuSlotYOffset, reversed);
 	}
 
 	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }
@@ -81,10 +82,6 @@ public:
 			offset *= -1;
 		}
 		Toggle::selectEncoderAction(offset);
-	}
-
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return getCurrentAudioClip()->sampleHolder.audioFile != nullptr;
 	}
 };
 } // namespace deluge::gui::menu_item::audio_clip

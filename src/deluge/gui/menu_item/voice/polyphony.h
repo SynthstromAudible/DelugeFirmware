@@ -65,7 +65,7 @@ public:
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
@@ -85,12 +85,12 @@ public:
 		}
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		if (getValue() == 0) {
-			const int32_t y = startY + (height - 8) / 2;
-			return OLED::main.drawIconCentered(OLED::infinityIcon, startX, width, y);
+			return OLED::main.drawIconCentered(OLED::infinityIcon, slot.start_x, slot.width,
+			                                   slot.start_y + kHorizontalMenuSlotYOffset + 1);
 		}
-		IntegerWithOff::renderInHorizontalMenu(startX, width, startY, height);
+		IntegerWithOff::renderInHorizontalMenu(slot);
 	}
 };
 

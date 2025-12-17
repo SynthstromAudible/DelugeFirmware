@@ -219,9 +219,9 @@ int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
 	return remainingBuf.size() - 2;
 }
 
-void Decimal::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	if (getNumberStyle() != NUMBER) {
-		return Number::renderInHorizontalMenu(startX, width, startY, height);
+void Decimal::renderInHorizontalMenu(const SlotPosition& slot) {
+	if (getRenderingStyle() != NUMBER) {
+		return Number::renderInHorizontalMenu(slot);
 	}
 
 	DEF_STACK_STRING_BUF(valueBuf, 10);
@@ -231,8 +231,9 @@ void Decimal::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t star
 		valueBuf.truncate(3);
 	}
 
-	return hid::display::OLED::main.drawStringCentered(valueBuf.data(), startX, startY + 3, kTextSpacingX,
-	                                                   kTextSpacingY, width);
+	return hid::display::OLED::main.drawStringCentered(valueBuf.data(), slot.start_x,
+	                                                   slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+	                                                   kTextSpacingY, slot.width);
 }
 
 void DecimalWithoutScrolling::selectEncoderAction(int32_t offset) {

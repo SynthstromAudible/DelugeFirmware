@@ -72,14 +72,15 @@ public:
 		OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		char buffer[20];
 		bool latching = false;
 
 		intToString(getProbabilityValue(latching), buffer);
 		strcat(buffer, latching ? "L" : "%");
 
-		OLED::main.drawStringCentered(buffer, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+		OLED::main.drawStringCentered(buffer, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+		                              kTextSpacingY, slot.width);
 	}
 
 	void drawValue() override {

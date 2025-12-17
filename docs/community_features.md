@@ -58,12 +58,12 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - `Turn select encoder` to change the value of the selected menu item
   - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
     - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
-  - Additionally, you can change the selected menu item by `Press + Turn select encoder`
   - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages and adjacent menus
     - Use `CROSS-SCREEN` button to switch to the next page
     - Use `SCALE` button to switch to the previous page
     - Use `SHIFT + CROSS-SCREEN` button combo to switch to the next adjacent Horizontal menu
     - Use `SHIFT + SCALE` button combo to switch to the previous adjacent Horizontal menu
+  - You can fine-tune values (e.g., oscillator transpose) in a menu by either `Press + Turn select encoder` or `Shift + Turn select encoder`
 
 #### 2.3 Layered Shortcuts
 - Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.

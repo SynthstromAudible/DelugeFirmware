@@ -61,17 +61,18 @@ public:
 		                             kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		const uint8_t value = getValue();
 		const std::string str = value == OFF ? "OFF" : "FILL";
-		image.drawStringCentered(str.data(), startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+		image.drawStringCentered(str.data(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+		                         kTextSpacingY, slot.width);
 
 		if (value == NOT_FILL) {
-			const uint8_t center_y = startY + 7;
-			const uint8_t line_start_x = startX + 2;
-			const uint8_t line_end_x = startX + width - 4;
+			const uint8_t center_y = slot.start_y + kHorizontalMenuSlotYOffset + 4;
+			const uint8_t line_start_x = slot.start_x + 2;
+			const uint8_t line_end_x = slot.start_x + slot.width - 4;
 			for (uint8_t x = line_start_x; x <= line_end_x; x++) {
 				image.clearPixel(x, center_y - 1);
 				image.clearPixel(x, center_y + 1);
