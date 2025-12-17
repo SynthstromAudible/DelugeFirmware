@@ -82,7 +82,7 @@ extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep7;
 extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep8;
 extern gui::menu_item::note::Fill noteFillMenu;
 // note row editor menu's
-extern gui::menu_item::Submenu noteRowEditorRootMenu;
+extern gui::menu_item::HorizontalMenu noteRowEditorRootMenu;
 extern gui::menu_item::note_row::Probability noteRowProbabilityMenu;
 extern gui::menu_item::note_row::IterancePreset noteRowIteranceMenu;
 extern gui::menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor;
