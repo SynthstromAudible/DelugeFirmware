@@ -77,7 +77,7 @@ jobs:
           git diff --exit-code
 
       - name: Publish built firmware (release-bin)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.build-tag }}_${{ inputs.build-type }}_build_bundle
           path: build/${{ inputs.build-type }}/*
