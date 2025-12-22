@@ -102,6 +102,86 @@ static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, deluge::
 	};
 }
 
+static void SetupRetroSourceSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                                    std::string_view xmlName, RuntimeFeatureStateRetroSource def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options = {
+	    {
+	        .displayName = display->haveOLED() ? "Input" : "INPT",
+	        .value = RuntimeFeatureStateRetroSource::Input,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "Master" : "MAST",
+	        .value = RuntimeFeatureStateRetroSource::MasterOutput,
+	    },
+	};
+}
+
+static void SetupRetroDurationSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                                      std::string_view xmlName, RuntimeFeatureStateRetroDuration def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options = {
+	    {
+	        .displayName = display->haveOLED() ? "5 seconds" : "5S",
+	        .value = RuntimeFeatureStateRetroDuration::Seconds5,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "15 seconds" : "15S",
+	        .value = RuntimeFeatureStateRetroDuration::Seconds15,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "30 seconds" : "30S",
+	        .value = RuntimeFeatureStateRetroDuration::Seconds30,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "60 seconds" : "60S",
+	        .value = RuntimeFeatureStateRetroDuration::Seconds60,
+	    },
+	};
+}
+
+static void SetupRetroBitDepthSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                                      std::string_view xmlName, RuntimeFeatureStateRetroBitDepth def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options = {
+	    {
+	        .displayName = display->haveOLED() ? "16-bit" : "16B",
+	        .value = RuntimeFeatureStateRetroBitDepth::Bits16,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "24-bit" : "24B",
+	        .value = RuntimeFeatureStateRetroBitDepth::Bits24,
+	    },
+	};
+}
+
+static void SetupRetroChannelsSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                                      std::string_view xmlName, RuntimeFeatureStateRetroChannels def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options = {
+	    {
+	        .displayName = display->haveOLED() ? "Mono" : "MONO",
+	        .value = RuntimeFeatureStateRetroChannels::Mono,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "Stereo" : "STER",
+	        .value = RuntimeFeatureStateRetroChannels::Stereo,
+	    },
+	};
+}
+
 void RuntimeFeatureSettings::init() {
 	using enum deluge::l10n::String;
 	// Drum randomizer
@@ -200,6 +280,38 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Retrospective Sampler - Enable/Disable
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RetrospectiveSampler],
+	                  STRING_FOR_COMMUNITY_FEATURE_RETRO_SAMPLER, "retroSampler", RuntimeFeatureStateToggle::Off);
+
+	// Retrospective Sampler - Source
+	SetupRetroSourceSetting(settings[RuntimeFeatureSettingType::RetrospectiveSamplerSource],
+	                        STRING_FOR_COMMUNITY_FEATURE_RETRO_SOURCE, "retroSource",
+	                        RuntimeFeatureStateRetroSource::Input);
+
+	// Retrospective Sampler - Duration
+	SetupRetroDurationSetting(settings[RuntimeFeatureSettingType::RetrospectiveSamplerDuration],
+	                          STRING_FOR_COMMUNITY_FEATURE_RETRO_DURATION, "retroDuration",
+	                          RuntimeFeatureStateRetroDuration::Seconds5);
+
+	// Retrospective Sampler - Bit Depth
+	SetupRetroBitDepthSetting(settings[RuntimeFeatureSettingType::RetrospectiveSamplerBitDepth],
+	                          STRING_FOR_COMMUNITY_FEATURE_RETRO_BITDEPTH, "retroBitDepth",
+	                          RuntimeFeatureStateRetroBitDepth::Bits16);
+
+	// Retrospective Sampler - Channels
+	SetupRetroChannelsSetting(settings[RuntimeFeatureSettingType::RetrospectiveSamplerChannels],
+	                          STRING_FOR_COMMUNITY_FEATURE_RETRO_CHANNELS, "retroChannels",
+	                          RuntimeFeatureStateRetroChannels::Mono);
+
+	// Retrospective Sampler - Monitor (pass-through input to output)
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RetrospectiveSamplerMonitor],
+	                  STRING_FOR_COMMUNITY_FEATURE_RETRO_MONITOR, "retroMonitor", RuntimeFeatureStateToggle::Off);
+
+	// Retrospective Sampler - Normalize (normalize audio when saving)
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RetrospectiveSamplerNormalize],
+	                  STRING_FOR_COMMUNITY_FEATURE_RETRO_NORMALIZE, "retroNormalize", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

@@ -18,6 +18,7 @@
 #include "settings.h"
 #include "devSysexSetting.h"
 #include "emulated_display.h"
+#include "retrospective_sampler.h"
 #include "setting.h"
 #include "shift_is_sticky.h"
 #include <array>
@@ -51,30 +52,35 @@ SettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
 
-std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
-    &menuDrumRandomizer,
-    &menuFineTempo,
-    &menuQuantize,
-    &menuCatchNotes,
-    &menuDeleteUnusedKitRows,
-    &menuAltGoldenKnobDelayParams,
-    &menuDevSysexAllowed,
-    &menuSyncScalingAction,
-    &menuHighlightIncomingNotes,
-    &menuDisplayNornsLayout,
-    &menuShiftIsSticky,
-    &menuLightShiftLed,
-    &menuEnableDX7Engine,
-    &menuEmulatedDisplay,
-    &menuEnableKeyboardViewSidebarMenuExit,
-    &menuEnableLaunchEventPlayhead,
-    &menuDisplayChordLayout,
-    &menuAlternativePlaybackStartBehaviour,
-    &menuEnableGridViewLoopPads,
-    &menuAlternativeTapTempoBehaviour,
-    &menuHorizontalMenus,
-    &menuTrimFromStartOfAudioClip,
-    &menuShowBatteryLevel};
+// Number of entries in the subMenuEntries array (total settings minus non-top-level minus retro settings in submenu)
+// Note: The 7 retro settings are grouped into menuRetrospectiveSamplerSubmenu, so we subtract 6 (7 settings - 1 submenu
+// entry)
+constexpr size_t kNumTopLevelEntries = RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings - 6;
+
+std::array<MenuItem*, kNumTopLevelEntries> subMenuEntries{&menuDrumRandomizer,
+                                                          &menuFineTempo,
+                                                          &menuQuantize,
+                                                          &menuCatchNotes,
+                                                          &menuDeleteUnusedKitRows,
+                                                          &menuAltGoldenKnobDelayParams,
+                                                          &menuDevSysexAllowed,
+                                                          &menuSyncScalingAction,
+                                                          &menuHighlightIncomingNotes,
+                                                          &menuDisplayNornsLayout,
+                                                          &menuShiftIsSticky,
+                                                          &menuLightShiftLed,
+                                                          &menuEnableDX7Engine,
+                                                          &menuEmulatedDisplay,
+                                                          &menuEnableKeyboardViewSidebarMenuExit,
+                                                          &menuEnableLaunchEventPlayhead,
+                                                          &menuDisplayChordLayout,
+                                                          &menuAlternativePlaybackStartBehaviour,
+                                                          &menuEnableGridViewLoopPads,
+                                                          &menuAlternativeTapTempoBehaviour,
+                                                          &menuHorizontalMenus,
+                                                          &menuTrimFromStartOfAudioClip,
+                                                          &menuShowBatteryLevel,
+                                                          &menuRetrospectiveSamplerSubmenu};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }
