@@ -149,8 +149,10 @@ Song::~Song() {
 
 	// Delete existing Clips, if any
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		if (!(c & 31)) {                              // Exact number here not fine-tuned
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		if (!(c & 31)) { // Exact number here not fine-tuned
+			// Sean: can't use YieldToAudio here because it messes up song loading
+			AudioEngine::routineWithClusterLoading(false, false);
+			; // -----------------------------------
 		}
 
 		Clip* clip = sessionClips.getClipAtIndex(c);
@@ -158,8 +160,10 @@ Song::~Song() {
 	}
 
 	for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
-		if (!(c & 31)) {                              // Exact number here not fine-tuned
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		if (!(c & 31)) { // Exact number here not fine-tuned
+			// Sean: can't use YieldToAudio here because it messes up song loading
+			AudioEngine::routineWithClusterLoading(false, false);
+			; // -----------------------------------
 		}
 
 		Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
@@ -167,7 +171,9 @@ Song::~Song() {
 	}
 
 	AudioEngine::logAction("s4");
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: can't use YieldToAudio here because it messes up song loading
+	AudioEngine::routineWithClusterLoading(false, false);
+	; // -----------------------------------
 
 	// Free all ParamManagers which are backed up. The actual vector memory containing all the BackedUpParamManager
 	// objects will be freed by the Vector destructor
@@ -233,7 +239,9 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 	while (*prevPointer) {
 		AudioEngine::logAction("s6");
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: can't use YieldToAudio here because it messes up song loading
+		AudioEngine::routineWithClusterLoading(false, false);
+		; // -----------------------------------
 		Output* toDelete = *prevPointer;
 		*prevPointer = toDelete->next;
 
@@ -245,7 +253,9 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 void Song::deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector) {
 	for (int32_t i = 0; i < backedUpParamManagers.getNumElements(); i++) {
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: can't use YieldToAudio here because it messes up song loading
+		AudioEngine::routineWithClusterLoading(false, false);
+		; // -----------------------------------
 		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 
 		backedUp->~BackedUpParamManager();
@@ -294,7 +304,9 @@ keepSearchingForward:
 		for (int32_t j = i; j < endIThisModControllable; j++) {
 			BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(j);
 
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: can't use YieldToAudio here because it messes up song loading
+			AudioEngine::routineWithClusterLoading(false, false);
+			; // -----------------------------------
 
 			backedUp->~BackedUpParamManager();
 		}
@@ -2005,7 +2017,9 @@ loadOutput:
 			Clip* thisClip = clipArray->getClipAtIndex(c); // TODO: deal with other Clips too!
 
 			if (!(count & 31)) {
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				// Sean: can't use YieldToAudio here because it messes up song loading
+				AudioEngine::routineWithClusterLoading(false, false);
+				; // -----------------------------------
 				AudioEngine::logAction("aaa0");
 			}
 			count++;
@@ -2033,7 +2047,9 @@ loadOutput:
 
 	AudioEngine::logAction("matched up");
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: can't use YieldToAudio here because it messes up song loading
+	AudioEngine::routineWithClusterLoading(false, false);
+	; // -----------------------------------
 
 	anyOutputsSoloingInArrangement = false;
 
@@ -2172,7 +2188,9 @@ skipInstance:
 	D_PRINTLN("aaa3");
 	AudioEngine::logAction("aaa3.1");
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: can't use YieldToAudio here because it messes up song loading
+	AudioEngine::routineWithClusterLoading(false, false);
+	; // -----------------------------------
 
 	reassessWhetherAnyClipsSoloing();
 
@@ -2181,7 +2199,9 @@ skipInstance:
 	setupPatchingForAllParamManagers();
 	AudioEngine::logAction("aaa4.3");
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: can't use YieldToAudio here because it messes up song loading
+	AudioEngine::routineWithClusterLoading(false, false);
+	; // -----------------------------------
 
 	int32_t playbackWillStartInArrangerAtPos = playbackHandler.playbackState ? lastClipInstanceEnteredStartPos : -1;
 
@@ -2189,7 +2209,9 @@ skipInstance:
 	sortOutWhichClipsAreActiveWithoutSendingPGMs(modelStack, playbackWillStartInArrangerAtPos);
 	AudioEngine::logAction("aaa5.2");
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: can't use YieldToAudio here because it messes up song loading
+	AudioEngine::routineWithClusterLoading(false, false);
+	; // -----------------------------------
 
 	return Error::NONE;
 }
@@ -2266,7 +2288,9 @@ void Song::loadAllSamples(bool mayActuallyReadFiles) {
 		// (which would call the audio routine), so we'd better call the audio routine here.
 		if (!mayActuallyReadFiles && !(c++ & 7)) { // 31 bad. 15 seems to pass. 7 to be safe
 			AudioEngine::logAction("Song::loadAllSamples");
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: can't use YieldToAudio here because it messes up song loading
+			AudioEngine::routineWithClusterLoading(false, false);
+			; // -----------------------------------
 		}
 		if (clip->type == ClipType::AUDIO) {
 			((AudioClip*)clip)->loadSample(mayActuallyReadFiles);
@@ -2299,7 +2323,9 @@ void Song::deleteSoundsWhichWontSound() {
 	for (ClipIterator it = allClips.begin(); it != allClips.end();) {
 		Clip* clip = *it;
 
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: can't use YieldToAudio here because it messes up song loading
+		AudioEngine::routineWithClusterLoading(false, false);
+		; // -----------------------------------
 		if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 			it.deleteClip(InstrumentRemoval::NONE);
 		}
@@ -2315,7 +2341,9 @@ void Song::deleteSoundsWhichWontSound() {
 	for (ClipIterator it = allClips.begin(); it != allClips.end();) {
 		Clip* clip = *it;
 
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: can't use YieldToAudio here because it messes up song loading
+		AudioEngine::routineWithClusterLoading(false, false);
+		; // -----------------------------------
 		if (clip->deleteSoundsWhichWontSound(this)) {
 			it.deleteClip(InstrumentRemoval::DELETE);
 		}
@@ -3607,7 +3635,9 @@ void Song::setupPatchingForAllParamManagers() {
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
 
 		// TODO: we probably don't need to call this so often anymore?
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: can't use YieldToAudio here because it messes up song loading
+		AudioEngine::routineWithClusterLoading(false, false);
+		; // -----------------------------------
 		AudioEngine::logAction("aaa4.26");
 		((Instrument*)instrumentClip->output)->setupPatching(modelStackWithTimelineCounter);
 		AudioEngine::logAction("aaa4.27");
@@ -3758,7 +3788,9 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 		if (backedUp->clip == clip) {
 
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: can't use YieldToAudio here because it messes up song loading
+			AudioEngine::routineWithClusterLoading(false, false);
+			; // -----------------------------------
 
 			// We ideally want to just set the Clip to NULL. We can just do this if the previous element didn't have
 			// the same ModControllable
@@ -3824,7 +3856,9 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 	// Test that everything's still in order
 
 #if ALPHA_OR_BETA_VERSION
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: can't use YieldToAudio here because it messes up song loading
+	AudioEngine::routineWithClusterLoading(false, false);
+	; // -----------------------------------
 
 	Clip* lastClip;
 	ModControllableAudio* lastModControllable;
@@ -4074,7 +4108,9 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			Clip* clip = sessionClips.getClipAtIndex(c);
 
 			if (!(count & 3)) {
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				// Sean: can't use YieldToAudio here because it messes up song loading
+				AudioEngine::routineWithClusterLoading(false, false);
+				; // -----------------------------------
 				AudioEngine::logAction("aaa5.114");
 			}
 			count++;
@@ -4118,7 +4154,9 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 		if (!(count & 7)) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: can't use YieldToAudio here because it messes up song loading
+			AudioEngine::routineWithClusterLoading(false, false);
+			; // -----------------------------------
 			AudioEngine::logAction("aaa5.125");
 		}
 		count++;
@@ -4330,8 +4368,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 			continue;
 		}
 
-		// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-		yield([]() { return true; });
+		// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
+		AudioEngine::routineWithClusterLoading(false, false);
 
 		// If has Clip, that's fine
 		if (getClipWithOutput(thisOutput)) {}
@@ -4351,8 +4389,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 			continue;
 		}
 
-		// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-		yield([]() { return true; });
+		// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
+		AudioEngine::routineWithClusterLoading(false, false);
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {

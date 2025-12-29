@@ -155,8 +155,8 @@ void InstrumentClipView::openedInBackground() {
 
 	recalculateColours();
 
-	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-	yield([]() { return true; });
+	AudioEngine::routineWithClusterLoading();
+
 	AudioEngine::logAction("InstrumentClipView::beginSession 2");
 
 	if (renderingToStore) {

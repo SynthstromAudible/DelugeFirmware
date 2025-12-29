@@ -1051,7 +1051,29 @@ extern "C" void routineForSD(void) {
 	}
 
 	sdRoutineLock = true;
-	AudioEngine::yieldToAudio();
+	ignoreForStats();
+	static UIStage step = UIStage::oled;
+	AudioEngine::logAction("from routineForSD()");
+	// Sean: don't use YieldToAudio here to be safe
+	AudioEngine::routine();
+	switch (step) {
+	case UIStage::oled:
+		if (display->haveOLED()) {
+			oledRoutine();
+		}
+		PIC::flush();
+		step = UIStage::readEnc;
+		break;
+	case UIStage::readEnc:
+		encoders::readEncoders();
+		encoders::interpretEncoders(true);
+		step = UIStage::readButtons;
+		break;
+	case UIStage::readButtons:
+		readButtonsAndPads();
+		step = UIStage::oled;
+		break;
+	}
 	sdRoutineLock = false;
 }
 
@@ -1075,7 +1097,8 @@ extern "C" void setNumericNumber(int32_t number) {
 }
 
 extern "C" void routineWithClusterLoading() {
-	AudioEngine::routineWithClusterLoading(false);
+	// Sean: don't use YieldToAudio here to be safe
+	AudioEngine::routineWithClusterLoading(false, false);
 }
 
 void deleteOldSongBeforeLoadingNew() {

@@ -363,15 +363,35 @@ int32_t getNumVoices() {
 	                             [](auto sound) { return sound->voices().size(); });
 }
 void yieldToAudio() {
-	if (!AudioEngine::audioRoutineLocked) {
-		// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
-		AudioEngine::routineBeenCalled = false;
+	// if we're not locked in audio routine, yield until audio routine is called or scheduler is idle
+	if (!audioRoutineLocked) {
 		yieldToIdle([]() { return (AudioEngine::routineBeenCalled); });
+	}
+	// if we're locked in audio routine, yield until it finishes
+	else {
+		yield([]() { return (AudioEngine::routineBeenCalled); });
 	}
 }
 
-void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
-	yieldToAudio();
+void routineWithClusterLoading(bool mayProcessUserActionsBetween, bool useYield) {
+	logAction("AudioDriver::routineWithClusterLoading");
+
+	routineBeenCalled = false;
+
+	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
+
+	if (!routineBeenCalled) {
+		bypassCulling = true; // yolo?
+
+		if (useYield) {
+			logAction("RWCL: yieldToAudio()");
+			yieldToAudio();
+		}
+		else {
+			logAction("RWCL: routine()");
+			routine();
+		}
+	}
 }
 
 #define TICK_TYPE_SWUNG 1

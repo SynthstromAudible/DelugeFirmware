@@ -2567,8 +2567,9 @@ getOut:
 
 		RootUI* rootUI = getRootUI();
 		if (rootUI == &instrumentClipView || rootUI == &automationView) {
-			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-			yield([]() { return true; });
+			// can't use YieldToAudio here because it causes crash
+			AudioEngine::routineWithClusterLoading(false, false);
+
 			instrumentClipView.recalculateColours();
 
 			uiNeedsRendering(rootUI);
