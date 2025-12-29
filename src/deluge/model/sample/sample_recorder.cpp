@@ -1262,7 +1262,8 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 	while (true) {
 
 		if (!(count & 0b11111111)) { // 10x 1's seems to work ok. So we go down to 8 to be sure
-			AudioEngine::routineWithClusterLoading();
+			// Sean: can't use YieldToAudio here because it sample recording to fail with "SD Card Error"
+			AudioEngine::routineWithClusterLoading(false, false);
 
 			uiTimerManager.routine();
 

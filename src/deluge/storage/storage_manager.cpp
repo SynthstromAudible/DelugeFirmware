@@ -907,10 +907,13 @@ bool FileReader::readChar(char* thisChar) {
 void FileReader::readDone() {
 	readCount++; // Increment first, cos we don't want to call SD routine immediately when it's 0
 
-	if (!callRoutines)
+	if (!callRoutines) {
 		return;
+	}
+
 	if (!(readCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
-		AudioEngine::routineWithClusterLoading();
+		// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
+		AudioEngine::routineWithClusterLoading(false, false);
 
 		uiTimerManager.routine();
 

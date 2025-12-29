@@ -2609,9 +2609,11 @@ getOut:
 			((Kit*)newInstrument)->selectedDrum = nullptr;
 		}
 
-		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
-			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-			yield([]() { return true; });
+		RootUI* rootUI = getRootUI();
+		if (rootUI == &instrumentClipView || rootUI == &automationView) {
+			// can't use YieldToAudio here because it causes crash
+			AudioEngine::routineWithClusterLoading(false, false);
+
 			instrumentClipView.recalculateColours();
 		}
 
