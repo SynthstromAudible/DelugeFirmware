@@ -55,7 +55,8 @@ Source::~Source() {
 void Source::destructAllMultiRanges() {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("destructAllMultiRanges()");
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
+		AudioEngine::routineWithClusterLoading(false, false);
 		ranges.getElement(e)->~MultiRange();
 	}
 }
@@ -95,9 +96,9 @@ bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 
 void Source::detachAllAudioFiles() {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
-		if (!(e & 7)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------- // 7 works, 15
-			                                          // occasionally drops voices - for multisampled synths
+		if (!(e & 7)) { // 7 works, 15 occasionally drops voices - for multisampled synths
+			// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
+			AudioEngine::routineWithClusterLoading(false, false);
 		}
 		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(nullptr);
 	}
@@ -106,9 +107,9 @@ void Source::detachAllAudioFiles() {
 Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
-		if (!(e & 3)) {
-			AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 3 works, 7
-			                                          // occasionally drops voices - for multisampled synths
+		if (!(e & 3)) { // 3 works, 7 occasionally drops voices - for multisampled synths
+			// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
+			AudioEngine::routineWithClusterLoading(false, false);
 		}
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
 			return Error::ABORTED_BY_USER;

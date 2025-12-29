@@ -135,8 +135,7 @@ void Browser::emptyFileItems() {
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
 			AudioEngine::logAction("emptyFileItems in loop");
-			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-			yield([]() { return true; });
+			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
@@ -156,8 +155,7 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
-			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-			yield([]() { return true; });
+			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
