@@ -205,13 +205,4 @@ bool HorizontalMenuGroup::hasItem(const MenuItem* item) {
 	return std::ranges::any_of(menus_, [&](auto menu) { return menu->hasItem(item); });
 }
 
-void HorizontalMenuGroup::setCurrentItem(const MenuItem* item) {
-	for (auto* menu : menus_) {
-		current_item_ = std::ranges::find(menu->items, item);
-		if (current_item_ != menu->items.end()) {
-			return;
-		}
-	}
-}
-
 } // namespace deluge::gui::menu_item
