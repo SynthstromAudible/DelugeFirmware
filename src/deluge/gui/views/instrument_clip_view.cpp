@@ -3734,13 +3734,15 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
 
 ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	bool isHoldingVerticalEncoder = Buttons::isButtonPressed(deluge::hid::button::Y_ENC);
+	bool isInHorizontalMenu = runtimeFeatureSettings.get(HorizontalMenus) == On;
 
 	// if you haven't selected a row and you are holding down vertical encoder
 	// ignore this action because it makes it too easy to transpose by mistake
 	if (!isUIModeActive(UI_MODE_AUDITIONING) && isHoldingVerticalEncoder) {
 		return ActionResult::DEALT_WITH;
 	}
-	else if (!isHoldingVerticalEncoder) {
+
+	if (!isHoldingVerticalEncoder) {
 		shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
 		actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
 		actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
@@ -3749,10 +3751,10 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 	ActionResult result = verticalEncoderAction(offset, inCardRoutine);
 
 	// if you're not pressing vertical encoder, then you did some vertical scrolling
-	// if you're in a parameter menu, update value displayed
+	// if you're in a parameter menu or in the horizontal note row editor menu, update value displayed
 	if (!isHoldingVerticalEncoder) {
 		MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
-		if (currentMenuItem != &noteRowEditorRootMenu) {
+		if (isInHorizontalMenu || currentMenuItem != &noteRowEditorRootMenu) {
 			currentMenuItem->readValueAgain();
 		}
 	}
