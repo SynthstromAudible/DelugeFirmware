@@ -564,6 +564,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		HorizontalMenu* asHorizontal = nullptr;
 		MenuItem* selectedItem = nullptr;
 
+		// get currently selected horizontal menu item
 		if (currentMenuItem->isSubmenu()
 		    && static_cast<Submenu*>(currentMenuItem)->renderingStyle() == Submenu::HORIZONTAL) {
 			asHorizontal = static_cast<HorizontalMenu*>(currentMenuItem);
@@ -572,10 +573,23 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 		ActionResult result = currentMenuItem->buttonAction(b, on, inCardRoutine);
 
-		// potentially swap out automation view UI / handle parameter change in horizontal menu
-		if (on && asHorizontal != nullptr) {
-			handlePotentialParamMenuChange(SELECT_ENC, inCardRoutine, selectedItem, asHorizontal->getCurrentItem(),
-			                               true);
+		// were we in a horizontal menu previously? if so, let's check if menu selection changed
+		if (asHorizontal != nullptr) {
+			// re-get currentMenuItem just in case it changed again (e.g. in case of switching horizontal menu's)
+			currentMenuItem = getCurrentMenuItem();
+			asHorizontal = nullptr;
+
+			// make sure that the current menu is still horizontal
+			if (currentMenuItem->isSubmenu()
+			    && static_cast<Submenu*>(currentMenuItem)->renderingStyle() == Submenu::HORIZONTAL) {
+				asHorizontal = static_cast<HorizontalMenu*>(currentMenuItem);
+			}
+
+			// potentially swap out automation view UI / handle parameter change in horizontal menu
+			if (on && asHorizontal != nullptr) {
+				handlePotentialParamMenuChange(SELECT_ENC, inCardRoutine, selectedItem, asHorizontal->getCurrentItem(),
+				                               true);
+			}
 		}
 
 		return result;
