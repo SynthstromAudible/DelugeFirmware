@@ -45,6 +45,16 @@ void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
+bool HorizontalMenu::focusChild(const MenuItem* child) {
+	const bool result = Submenu::focusChild(child);
+
+	if (result) {
+		initializeItem(*current_item_);
+	}
+
+	return result;
+}
+
 ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
@@ -328,6 +338,7 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 	// Select an item on the next / previous page, keeping the previous position if possible
 	selectMenuItem(target_page_number, paging.selectedItemPositionOnPage);
 
+	initializeItem(*current_item_);
 	renderUIsForOled();
 	updatePadLights();
 
@@ -357,6 +368,7 @@ void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<Horizonta
 	// For Mod FX menu we want to switch straight to the selected FX's controls that are on the second page
 	auto desired_page = util::one_of<Submenu*>(target_menu, {&modFXMenu, &globalModFXMenu}) ? 1 : 0;
 	target_menu->selectMenuItem(desired_page, 0);
+	initializeItem(*current_item_);
 
 	soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = target_menu;
 	renderUIsForOled();
@@ -391,6 +403,7 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_pa
 			}
 
 			// Update the currently selected item
+			initializeItem(*current_item_);
 			updateDisplay();
 			updatePadLights();
 			return displayNotification(*current_item_);
@@ -641,9 +654,10 @@ bool HorizontalMenu::hasItem(const MenuItem* item) {
 	return std::ranges::contains(items, item);
 }
 
-void HorizontalMenu::setCurrentItem(const MenuItem* item) {
-	current_item_ = std::ranges::find(items, item);
-	lastSelectedItemPosition = kNoSelection;
+void HorizontalMenu::initializeItem(MenuItem* menuItem) {
+	// if case the item is of type PatchCableStrength, we need to call this to properly set up a patch cable
+	menuItem->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
+	                                        &soundEditor.currentMultiRange);
 }
 
 } // namespace deluge::gui::menu_item
