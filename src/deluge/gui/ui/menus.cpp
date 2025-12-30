@@ -1503,10 +1503,10 @@ note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
 // Root menu for Note Row Editor
 HorizontalMenu noteRowEditorRootMenu{STRING_FOR_NOTE_ROW_EDITOR,
                                      {
+                                         &sequenceDirectionMenu,
                                          &noteRowProbabilityMenu,
                                          &noteRowIteranceMenu,
                                          &noteRowFillMenu,
-                                         &sequenceDirectionMenu,
                                      }};
 
 menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
