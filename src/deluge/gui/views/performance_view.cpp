@@ -71,10 +71,10 @@ using namespace gui;
 using namespace deluge::modulation::params;
 
 // Performance View constants
-constexpr int32_t kNumParamsForPerformance = 20;
+PLACE_SDRAM_RODATA constexpr int32_t kNumParamsForPerformance = 20;
 
 // list of parameters available for assignment to FX columns in performance view
-constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsForPerformance = {{
+PLACE_SDRAM_RODATA constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsForPerformance = {{
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, colours::red, colours::red.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, colours::red, colours::red.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_MORPH, 8, 4, colours::red, colours::red.forTail()},
@@ -99,7 +99,7 @@ constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsF
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_STUTTER_RATE, 5, 7, colours::blue, colours::blue.forTail()},
 }};
 
-constexpr std::array<ParamsForPerformance, kDisplayWidth> defaultLayoutForPerformance = {{
+PLACE_SDRAM_RODATA constexpr std::array<ParamsForPerformance, kDisplayWidth> defaultLayoutForPerformance = {{
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, colours::red, colours::red.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, colours::red, colours::red.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, colours::pastel::orange, colours::pastel::orangeTail},
@@ -120,7 +120,7 @@ constexpr std::array<ParamsForPerformance, kDisplayWidth> defaultLayoutForPerfor
 }};
 
 // mapping shortcuts to paramKind
-constexpr Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
+PLACE_SDRAM_RODATA constexpr Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
@@ -147,7 +147,7 @@ constexpr Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeigh
 };
 
 // mapping shortcuts to paramID
-constexpr uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
+PLACE_SDRAM_RODATA constexpr uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
@@ -172,9 +172,9 @@ constexpr uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHei
 };
 
 // lookup tables for the values that are set when you press the pads in each row of the grid
-const int32_t nonDelayPadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
-const int32_t delayPadPressValues[kDisplayHeight] = {0, 9, 18, 27, 36, 45, 54, 63};
-const int32_t quantizedStutterPressValues[kDisplayHeight] = {-52, -37, -22, -7, 8, 23, 38, 53};
+PLACE_SDRAM_RODATA const int32_t nonDelayPadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
+PLACE_SDRAM_RODATA const int32_t delayPadPressValues[kDisplayHeight] = {0, 9, 18, 27, 36, 45, 54, 63};
+PLACE_SDRAM_RODATA const int32_t quantizedStutterPressValues[kDisplayHeight] = {-52, -37, -22, -7, 8, 23, 38, 53};
 
 PLACE_SDRAM_BSS PerformanceView performanceView{};
 

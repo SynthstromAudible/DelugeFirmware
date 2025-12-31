@@ -295,12 +295,12 @@ char const* paramNameForFile(Kind kind, ParamType param);
 ParamType fileStringToParam(Kind kind, char const* name, bool allowPatched);
 
 /// Magic number which represents an invalid or missing param type
-constexpr uint32_t kNoParamID = 0xFFFFFFFF;
+PLACE_SDRAM_RODATA constexpr uint32_t kNoParamID = 0xFFFFFFFF;
 
 /// Grid sized array (patched param version) to assign automatable parameters to the grid
 /// used in automation view and in midi follow
 // clang-format off
-const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+PLACE_SDRAM_RODATA const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
     {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
     {LOCAL_OSC_A_VOLUME      , LOCAL_OSC_A_PITCH_ADJUST      , kNoParamID                    , LOCAL_OSC_A_PHASE_WIDTH, kNoParamID     , LOCAL_CARRIER_0_FEEDBACK  , LOCAL_OSC_A_WAVE_INDEX, LOCAL_NOISE_VOLUME},
@@ -319,7 +319,7 @@ const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID}
 };
 
-const uint32_t patchedParamShortcutsSecondLayer[kDisplayWidth][kDisplayHeight] = {
+PLACE_SDRAM_RODATA const uint32_t patchedParamShortcutsSecondLayer[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
     {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
     {kNoParamID      		 , kNoParamID      				 , kNoParamID                    , kNoParamID			  , kNoParamID     , kNoParamID  			   , kNoParamID				, kNoParamID},
@@ -342,7 +342,7 @@ const uint32_t patchedParamShortcutsSecondLayer[kDisplayWidth][kDisplayHeight] =
 /// Grid sized array (unpatched, non-global) to assign automatable parameters to the grid
 /// used in automation view and in midi follow
 // clang-format off
-const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+PLACE_SDRAM_RODATA const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
@@ -365,7 +365,7 @@ const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] =
 /// Grid sized array (unpatched, global) to assign automatable parameters to the grid
 /// used in automation view and in midi follow
 // clang-format off
-const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+PLACE_SDRAM_RODATA const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},

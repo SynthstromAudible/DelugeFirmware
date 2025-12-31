@@ -126,186 +126,186 @@ int8_t ChordList::validateChordNo(int8_t chordNo) {
 	return chordNo;
 }
 // ChordList
-PLACE_SDRAM_DATA const Chord kEmptyChord = {"", NoteSet({ROOT}), {{0, NONE, NONE, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMajor = {"M",
-                                       NoteSet({ROOT, MAJ3, P5}),
-                                       {{ROOT, MAJ3, P5, NONE, NONE, NONE, NONE},
-                                        {ROOT, OCT + MAJ3, P5, NONE, NONE, NONE, NONE},
-                                        {ROOT, OCT + MAJ3, P5, -OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor = {"-",
-                                       NoteSet({ROOT, MIN3, P5}),
-                                       {{ROOT, MIN3, P5, NONE, NONE, NONE, NONE},
-                                        {ROOT, OCT + MIN3, P5, NONE, NONE, NONE, NONE},
-                                        {ROOT, OCT + MIN3, P5, -OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kDim = {"DIM",
-                                     NoteSet({ROOT, MIN3, DIM5}),
-                                     {{ROOT, MIN3, DIM5, NONE, NONE, NONE, NONE},
-                                      {ROOT, OCT + MIN3, DIM5, NONE, NONE, NONE, NONE},
-                                      {ROOT, OCT + MIN3, DIM5, -OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kFullDim = {
+PLACE_SDRAM_RODATA const Chord kEmptyChord = {"", NoteSet({ROOT}), {{0, NONE, NONE, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMajor = {"M",
+                                         NoteSet({ROOT, MAJ3, P5}),
+                                         {{ROOT, MAJ3, P5, NONE, NONE, NONE, NONE},
+                                          {ROOT, OCT + MAJ3, P5, NONE, NONE, NONE, NONE},
+                                          {ROOT, OCT + MAJ3, P5, -OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMinor = {"-",
+                                         NoteSet({ROOT, MIN3, P5}),
+                                         {{ROOT, MIN3, P5, NONE, NONE, NONE, NONE},
+                                          {ROOT, OCT + MIN3, P5, NONE, NONE, NONE, NONE},
+                                          {ROOT, OCT + MIN3, P5, -OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kDim = {"DIM",
+                                       NoteSet({ROOT, MIN3, DIM5}),
+                                       {{ROOT, MIN3, DIM5, NONE, NONE, NONE, NONE},
+                                        {ROOT, OCT + MIN3, DIM5, NONE, NONE, NONE, NONE},
+                                        {ROOT, OCT + MIN3, DIM5, -OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kFullDim = {
     "FULLDIM", NoteSet({ROOT, MIN3, DIM5, DIM7}), {{ROOT, MIN3, DIM5, DIM7, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kAug = {"AUG",
-                                     NoteSet({ROOT, MIN3, AUG5}),
-                                     {{ROOT, MIN3, AUG5, NONE, NONE, NONE, NONE},
-                                      {ROOT, OCT + MIN3, AUG5, NONE, NONE, NONE, NONE},
-                                      {ROOT, OCT + MIN3, AUG5, -OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kSus2 = {"SUS2",
-                                      NoteSet({ROOT, MAJ2, P5}),
-                                      {{ROOT, MAJ2, P5, NONE, NONE, NONE, NONE},
-                                       {ROOT, MAJ2 + OCT, P5, NONE, NONE, NONE, NONE},
-                                       {ROOT, MAJ2 + OCT, P5, -OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kSus4 = {"SUS4",
-                                      NoteSet({ROOT, P4, P5}),
-                                      {{ROOT, P4, P5, NONE, NONE, NONE, NONE},
-                                       {ROOT, P4 + OCT, P5, NONE, NONE, NONE, NONE},
-                                       {ROOT, P4 + OCT, P5, -OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord k7 = {"7",
-                                   NoteSet({ROOT, MAJ3, P5, MIN7}),
-                                   {{ROOT, MAJ3, P5, MIN7, NONE, NONE, NONE},
-                                    {ROOT, MAJ3 + OCT, P5, MIN7, NONE, NONE, NONE},
-                                    {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord k7Sus4 = {"7SUS4",
-                                       NoteSet({ROOT, P4, P5, MIN7}),
-                                       {{ROOT, P4, P5, MIN7, NONE, NONE, NONE},
-                                        {ROOT, P4 + OCT, P5, MIN7, NONE, NONE, NONE},
-                                        {ROOT, P4 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord k7Sus2 = {"7SUS2",
-                                       NoteSet({ROOT, MAJ2, P5, MIN7}),
-                                       {{ROOT, MAJ2, P5, MIN7, NONE, NONE, NONE},
-                                        {ROOT, MAJ2 + OCT, P5, MIN7, NONE, NONE, NONE},
-                                        {ROOT, MAJ2 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kM7 = {"M7",
-                                    NoteSet({ROOT, MAJ3, P5, MAJ7}),
-                                    {{ROOT, MAJ3, P5, MAJ7, NONE, NONE, NONE},
-                                     {ROOT, MAJ3 + OCT, P5, MAJ7, NONE, NONE, NONE},
-                                     {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor7 = {"-7",
-                                        NoteSet({ROOT, MIN3, P5, MIN7}),
-                                        {{ROOT, MIN3, P5, MIN7, NONE, NONE, NONE},
-                                         {ROOT, MIN3 + OCT, P5, MIN7, NONE, NONE, NONE},
-                                         {ROOT, MIN3 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor2 = {"-2",
-                                        NoteSet({ROOT, MIN3, P5, MAJ2}),
-                                        {{ROOT, MIN3, P5, MAJ2, NONE, NONE, NONE},
-                                         {ROOT, MIN3 + OCT, P5, MAJ2, NONE, NONE, NONE},
-                                         {ROOT, MIN3 + OCT, P5 + OCT, MAJ2, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor4 = {"-4",
-                                        NoteSet({ROOT, MIN3, P5, P4}),
-                                        {{ROOT, MIN3, P5, P4, NONE, NONE, NONE},
-                                         {ROOT, MIN3 + OCT, P5, P4, NONE, NONE, NONE},
-                                         {ROOT, MIN3 + OCT, P5 + OCT, P4, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinorMaj7 = {"-M7",
-                                           NoteSet({ROOT, MIN3, P5, MAJ7}),
-                                           {{ROOT, MIN3, P5, MAJ7, NONE, NONE, NONE},
-                                            {ROOT, MIN3 + OCT, P5, MAJ7, NONE, NONE, NONE},
-                                            {ROOT, MIN3 + OCT, P5, MAJ7 + OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor7b5 = {"-7" FLAT_CHAR_STR "5",
-                                          NoteSet({ROOT, MIN3, DIM5, MIN7}),
-                                          {{ROOT, MIN3, DIM5, MIN7, NONE, NONE, NONE},
-                                           {ROOT, MIN3 + OCT, DIM5, MIN7, NONE, NONE, NONE},
-                                           {ROOT, MIN3 + OCT, DIM5, MIN7 + OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor9b5 = {
+PLACE_SDRAM_RODATA const Chord kAug = {"AUG",
+                                       NoteSet({ROOT, MIN3, AUG5}),
+                                       {{ROOT, MIN3, AUG5, NONE, NONE, NONE, NONE},
+                                        {ROOT, OCT + MIN3, AUG5, NONE, NONE, NONE, NONE},
+                                        {ROOT, OCT + MIN3, AUG5, -OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kSus2 = {"SUS2",
+                                        NoteSet({ROOT, MAJ2, P5}),
+                                        {{ROOT, MAJ2, P5, NONE, NONE, NONE, NONE},
+                                         {ROOT, MAJ2 + OCT, P5, NONE, NONE, NONE, NONE},
+                                         {ROOT, MAJ2 + OCT, P5, -OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kSus4 = {"SUS4",
+                                        NoteSet({ROOT, P4, P5}),
+                                        {{ROOT, P4, P5, NONE, NONE, NONE, NONE},
+                                         {ROOT, P4 + OCT, P5, NONE, NONE, NONE, NONE},
+                                         {ROOT, P4 + OCT, P5, -OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord k7 = {"7",
+                                     NoteSet({ROOT, MAJ3, P5, MIN7}),
+                                     {{ROOT, MAJ3, P5, MIN7, NONE, NONE, NONE},
+                                      {ROOT, MAJ3 + OCT, P5, MIN7, NONE, NONE, NONE},
+                                      {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord k7Sus4 = {"7SUS4",
+                                         NoteSet({ROOT, P4, P5, MIN7}),
+                                         {{ROOT, P4, P5, MIN7, NONE, NONE, NONE},
+                                          {ROOT, P4 + OCT, P5, MIN7, NONE, NONE, NONE},
+                                          {ROOT, P4 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord k7Sus2 = {"7SUS2",
+                                         NoteSet({ROOT, MAJ2, P5, MIN7}),
+                                         {{ROOT, MAJ2, P5, MIN7, NONE, NONE, NONE},
+                                          {ROOT, MAJ2 + OCT, P5, MIN7, NONE, NONE, NONE},
+                                          {ROOT, MAJ2 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kM7 = {"M7",
+                                      NoteSet({ROOT, MAJ3, P5, MAJ7}),
+                                      {{ROOT, MAJ3, P5, MAJ7, NONE, NONE, NONE},
+                                       {ROOT, MAJ3 + OCT, P5, MAJ7, NONE, NONE, NONE},
+                                       {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMinor7 = {"-7",
+                                          NoteSet({ROOT, MIN3, P5, MIN7}),
+                                          {{ROOT, MIN3, P5, MIN7, NONE, NONE, NONE},
+                                           {ROOT, MIN3 + OCT, P5, MIN7, NONE, NONE, NONE},
+                                           {ROOT, MIN3 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMinor2 = {"-2",
+                                          NoteSet({ROOT, MIN3, P5, MAJ2}),
+                                          {{ROOT, MIN3, P5, MAJ2, NONE, NONE, NONE},
+                                           {ROOT, MIN3 + OCT, P5, MAJ2, NONE, NONE, NONE},
+                                           {ROOT, MIN3 + OCT, P5 + OCT, MAJ2, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMinor4 = {"-4",
+                                          NoteSet({ROOT, MIN3, P5, P4}),
+                                          {{ROOT, MIN3, P5, P4, NONE, NONE, NONE},
+                                           {ROOT, MIN3 + OCT, P5, P4, NONE, NONE, NONE},
+                                           {ROOT, MIN3 + OCT, P5 + OCT, P4, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMinorMaj7 = {"-M7",
+                                             NoteSet({ROOT, MIN3, P5, MAJ7}),
+                                             {{ROOT, MIN3, P5, MAJ7, NONE, NONE, NONE},
+                                              {ROOT, MIN3 + OCT, P5, MAJ7, NONE, NONE, NONE},
+                                              {ROOT, MIN3 + OCT, P5, MAJ7 + OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMinor7b5 = {"-7" FLAT_CHAR_STR "5",
+                                            NoteSet({ROOT, MIN3, DIM5, MIN7}),
+                                            {{ROOT, MIN3, DIM5, MIN7, NONE, NONE, NONE},
+                                             {ROOT, MIN3 + OCT, DIM5, MIN7, NONE, NONE, NONE},
+                                             {ROOT, MIN3 + OCT, DIM5, MIN7 + OCT, NONE, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMinor9b5 = {
     "-9" FLAT_CHAR_STR "5", NoteSet({ROOT, MIN3, DIM5, MIN7, MAJ2}), {{ROOT, MIN3, DIM5, MIN7, MAJ9, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor7b5b9 = {"-7" FLAT_CHAR_STR "5" FLAT_CHAR_STR "9",
-                                            NoteSet({ROOT, MIN3, DIM5, MIN7, MIN2}),
-                                            {{ROOT, MIN3, DIM5, MIN7, MIN9, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord k9 = {"9",
-                                   NoteSet({ROOT, MAJ3, P5, MIN7, MAJ2}),
-                                   {{ROOT, MAJ3, P5, MIN7, MAJ9, NONE, NONE},
-                                    {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, NONE, NONE},
-                                    {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kM9 = {"M9",
-                                    NoteSet({ROOT, MAJ3, P5, MAJ7, MAJ2}),
-                                    {{ROOT, MAJ3, P5, MAJ7, MAJ9, NONE, NONE},
-                                     {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, NONE, NONE},
-                                     {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor9 = {"-9",
-                                        NoteSet({ROOT, MIN3, P5, MIN7, MAJ2}),
-                                        {{ROOT, MIN3, P5, MIN7, MAJ9, NONE, NONE},
-                                         {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, NONE, NONE},
-                                         {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord k11 = {"11",
-                                    NoteSet({ROOT, MAJ3, P5, MIN7, MAJ2, P4}),
-                                    {{ROOT, MAJ3, P5, MIN7, MAJ9, P11, NONE},
-                                     {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, P11, NONE},
-                                     {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, P11, NONE}}};
-PLACE_SDRAM_DATA const Chord kM11 = {"M11",
-                                     NoteSet({ROOT, MAJ3, P5, MAJ7, MAJ2, P4}),
-                                     {{ROOT, MAJ3, P5, MAJ7, MAJ9, P11, NONE},
-                                      {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, P11, NONE},
-                                      {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, P11, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor11 = {"-11",
-                                         NoteSet({ROOT, MIN3, P5, MIN7, MAJ2, P4}),
-                                         {{ROOT, MIN3, P5, MIN7, MAJ9, P11, NONE},
-                                          {{ROOT, P4, MIN7, MIN3 + OCT, P5 + OCT, NONE, NONE}, "SO WHAT"},
-                                          {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, NONE},
-                                          {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMinor7b5b9 = {"-7" FLAT_CHAR_STR "5" FLAT_CHAR_STR "9",
+                                              NoteSet({ROOT, MIN3, DIM5, MIN7, MIN2}),
+                                              {{ROOT, MIN3, DIM5, MIN7, MIN9, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord k9 = {"9",
+                                     NoteSet({ROOT, MAJ3, P5, MIN7, MAJ2}),
+                                     {{ROOT, MAJ3, P5, MIN7, MAJ9, NONE, NONE},
+                                      {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, NONE, NONE},
+                                      {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kM9 = {"M9",
+                                      NoteSet({ROOT, MAJ3, P5, MAJ7, MAJ2}),
+                                      {{ROOT, MAJ3, P5, MAJ7, MAJ9, NONE, NONE},
+                                       {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, NONE, NONE},
+                                       {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMinor9 = {"-9",
+                                          NoteSet({ROOT, MIN3, P5, MIN7, MAJ2}),
+                                          {{ROOT, MIN3, P5, MIN7, MAJ9, NONE, NONE},
+                                           {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, NONE, NONE},
+                                           {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, NONE, NONE}}};
+PLACE_SDRAM_RODATA const Chord k11 = {"11",
+                                      NoteSet({ROOT, MAJ3, P5, MIN7, MAJ2, P4}),
+                                      {{ROOT, MAJ3, P5, MIN7, MAJ9, P11, NONE},
+                                       {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, P11, NONE},
+                                       {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, P11, NONE}}};
+PLACE_SDRAM_RODATA const Chord kM11 = {"M11",
+                                       NoteSet({ROOT, MAJ3, P5, MAJ7, MAJ2, P4}),
+                                       {{ROOT, MAJ3, P5, MAJ7, MAJ9, P11, NONE},
+                                        {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, P11, NONE},
+                                        {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, P11, NONE}}};
+PLACE_SDRAM_RODATA const Chord kMinor11 = {"-11",
+                                           NoteSet({ROOT, MIN3, P5, MIN7, MAJ2, P4}),
+                                           {{ROOT, MIN3, P5, MIN7, MAJ9, P11, NONE},
+                                            {{ROOT, P4, MIN7, MIN3 + OCT, P5 + OCT, NONE, NONE}, "SO WHAT"},
+                                            {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, NONE},
+                                            {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, NONE}}};
 // 11th are often omitted in 13th and M13th chords because they clash with the major 3rd
 // if anything, the 11th is often played as a #11
-PLACE_SDRAM_DATA const Chord k13 = {"13",
-                                    NoteSet({ROOT, MAJ3, P5, MIN7, MAJ2, MAJ6}),
-                                    {{ROOT, MAJ3, P5, MIN7, MAJ9, MAJ13, NONE},
-                                     {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, MAJ13, NONE},
-                                     {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, MAJ13, NONE}}};
-PLACE_SDRAM_DATA const Chord kM13 = {"M13",
-                                     NoteSet({ROOT, MAJ3, P5, MAJ7, MAJ2, MAJ6}),
-                                     {{ROOT, MAJ3, P5, MAJ7, MAJ9, MAJ13, NONE},
-                                      {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, MAJ13, NONE},
-                                      {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, MAJ13, NONE}}};
-PLACE_SDRAM_DATA const Chord kM13Sharp11 = {"M13#11",
-                                            NoteSet({ROOT, MAJ3, P5, MAJ7, MAJ2, MAJ6, AUG4}),
-                                            {{ROOT, MAJ3, P5, MAJ7, MAJ9, MAJ13, AUG11},
-                                             {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, MAJ13, AUG11},
-                                             {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, MAJ13, AUG11}}};
-PLACE_SDRAM_DATA const Chord kMinor13 = {"-13",
-                                         NoteSet({ROOT, MIN3, P5, MIN7, MAJ2, P4, MAJ6}),
-                                         {{ROOT, MIN3, P5, MIN7, MAJ9, P11, MAJ13},
-                                          {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, MAJ13},
-                                          {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, MAJ13}}};
-PLACE_SDRAM_DATA const Chord k6 = {"6",
-                                   NoteSet({ROOT, MAJ3, P5, MAJ6}),
-                                   {
-                                       {ROOT, MAJ3, P5, MAJ6, NONE, NONE, NONE},
-                                   }};
-PLACE_SDRAM_DATA const Chord k2 = {"2",
-                                   NoteSet({ROOT, MAJ3, P5, MAJ2}),
-                                   {
-                                       {{ROOT, MAJ3 - OCT, P5, MAJ2, NONE, NONE, NONE}, "Open Mu"},
-                                       {{ROOT, MAJ3, P5, MAJ2, NONE, NONE, NONE}, "Mu"},
-                                   }};
-PLACE_SDRAM_DATA const Chord k69 = {"69",
-                                    NoteSet({ROOT, MAJ3, P5, MAJ6, MAJ2}),
-                                    {
-                                        {ROOT, MAJ3, P5, MAJ6, MAJ9, NONE, NONE},
-                                    }};
-PLACE_SDRAM_DATA const Chord kMinor6 = {"-6",
-                                        NoteSet({ROOT, MIN3, P5, MAJ6}),
-                                        {
-                                            {ROOT, MIN3, P5, MAJ6, NONE, NONE, NONE},
-                                        }};
+PLACE_SDRAM_RODATA const Chord k13 = {"13",
+                                      NoteSet({ROOT, MAJ3, P5, MIN7, MAJ2, MAJ6}),
+                                      {{ROOT, MAJ3, P5, MIN7, MAJ9, MAJ13, NONE},
+                                       {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, MAJ13, NONE},
+                                       {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, MAJ13, NONE}}};
+PLACE_SDRAM_RODATA const Chord kM13 = {"M13",
+                                       NoteSet({ROOT, MAJ3, P5, MAJ7, MAJ2, MAJ6}),
+                                       {{ROOT, MAJ3, P5, MAJ7, MAJ9, MAJ13, NONE},
+                                        {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, MAJ13, NONE},
+                                        {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, MAJ13, NONE}}};
+PLACE_SDRAM_RODATA const Chord kM13Sharp11 = {"M13#11",
+                                              NoteSet({ROOT, MAJ3, P5, MAJ7, MAJ2, MAJ6, AUG4}),
+                                              {{ROOT, MAJ3, P5, MAJ7, MAJ9, MAJ13, AUG11},
+                                               {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, MAJ13, AUG11},
+                                               {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, MAJ13, AUG11}}};
+PLACE_SDRAM_RODATA const Chord kMinor13 = {"-13",
+                                           NoteSet({ROOT, MIN3, P5, MIN7, MAJ2, P4, MAJ6}),
+                                           {{ROOT, MIN3, P5, MIN7, MAJ9, P11, MAJ13},
+                                            {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, MAJ13},
+                                            {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, MAJ13}}};
+PLACE_SDRAM_RODATA const Chord k6 = {"6",
+                                     NoteSet({ROOT, MAJ3, P5, MAJ6}),
+                                     {
+                                         {ROOT, MAJ3, P5, MAJ6, NONE, NONE, NONE},
+                                     }};
+PLACE_SDRAM_RODATA const Chord k2 = {"2",
+                                     NoteSet({ROOT, MAJ3, P5, MAJ2}),
+                                     {
+                                         {{ROOT, MAJ3 - OCT, P5, MAJ2, NONE, NONE, NONE}, "Open Mu"},
+                                         {{ROOT, MAJ3, P5, MAJ2, NONE, NONE, NONE}, "Mu"},
+                                     }};
+PLACE_SDRAM_RODATA const Chord k69 = {"69",
+                                      NoteSet({ROOT, MAJ3, P5, MAJ6, MAJ2}),
+                                      {
+                                          {ROOT, MAJ3, P5, MAJ6, MAJ9, NONE, NONE},
+                                      }};
+PLACE_SDRAM_RODATA const Chord kMinor6 = {"-6",
+                                          NoteSet({ROOT, MIN3, P5, MAJ6}),
+                                          {
+                                              {ROOT, MIN3, P5, MAJ6, NONE, NONE, NONE},
+                                          }};
 
-PLACE_SDRAM_DATA const std::array<const Chord, 10> majorChords = {kMajor, kM7,  k6,    k2,    k69,
-                                                                  kM9,    kM13, kSus4, kSus2, kM13Sharp11};
+PLACE_SDRAM_RODATA const std::array<const Chord, 10> majorChords = {kMajor, kM7,  k6,    k2,    k69,
+                                                                    kM9,    kM13, kSus4, kSus2, kM13Sharp11};
 
-PLACE_SDRAM_DATA const std::array<const Chord, 10> minorChords = {
+PLACE_SDRAM_RODATA const std::array<const Chord, 10> minorChords = {
     kMinor, kMinor7, kMinor4, kMinor11, kMinor6, kMinor2, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
 };
 
-PLACE_SDRAM_DATA const std::array<const Chord, 10> dominantChords = {
+PLACE_SDRAM_RODATA const std::array<const Chord, 10> dominantChords = {
     kMajor, k7, k69, k9, k7Sus4, k7Sus2, k11, k13, kEmptyChord, kEmptyChord,
 };
 
-PLACE_SDRAM_DATA const std::array<const Chord, 10> diminishedChords = {
+PLACE_SDRAM_RODATA const std::array<const Chord, 10> diminishedChords = {
     kDim,        kMinor7b5,   kMinor7b5b9, kEmptyChord, kEmptyChord,
     kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
 };
 
-PLACE_SDRAM_DATA const std::array<const Chord, 10> augmentedChords = {
+PLACE_SDRAM_RODATA const std::array<const Chord, 10> augmentedChords = {
     kAug,        kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
     kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
 };
 
-PLACE_SDRAM_DATA const std::array<const Chord, 10> otherChords = {
+PLACE_SDRAM_RODATA const std::array<const Chord, 10> otherChords = {
     kSus2,       kSus4,       kEmptyChord, kEmptyChord, kEmptyChord,
     kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
 };

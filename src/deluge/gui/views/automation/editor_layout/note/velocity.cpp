@@ -27,23 +27,23 @@ using namespace deluge::gui;
 
 // colours for the velocity editor
 
-const RGB velocityRowColour[kDisplayHeight] = {{0, 0, 255},   {36, 0, 219}, {73, 0, 182}, {109, 0, 146},
-                                               {146, 0, 109}, {182, 0, 73}, {219, 0, 36}, {255, 0, 0}};
+PLACE_SDRAM_RODATA const RGB velocityRowColour[kDisplayHeight] = {
+    {0, 0, 255}, {36, 0, 219}, {73, 0, 182}, {109, 0, 146}, {146, 0, 109}, {182, 0, 73}, {219, 0, 36}, {255, 0, 0}};
 
-const RGB velocityRowTailColour[kDisplayHeight] = {{2, 2, 53},  {9, 2, 46},  {17, 2, 38}, {24, 2, 31},
-                                                   {31, 2, 24}, {38, 2, 17}, {46, 2, 9},  {53, 2, 2}};
+PLACE_SDRAM_RODATA const RGB velocityRowTailColour[kDisplayHeight] = {
+    {2, 2, 53}, {9, 2, 46}, {17, 2, 38}, {24, 2, 31}, {31, 2, 24}, {38, 2, 17}, {46, 2, 9}, {53, 2, 2}};
 
-const RGB velocityRowBlurColour[kDisplayHeight] = {{71, 71, 111}, {72, 66, 101}, {73, 62, 90}, {74, 57, 80},
-                                                   {76, 53, 70},  {77, 48, 60},  {78, 44, 49}, {79, 39, 39}};
+PLACE_SDRAM_RODATA const RGB velocityRowBlurColour[kDisplayHeight] = {
+    {71, 71, 111}, {72, 66, 101}, {73, 62, 90}, {74, 57, 80}, {76, 53, 70}, {77, 48, 60}, {78, 44, 49}, {79, 39, 39}};
 
 // lookup tables for the values that are set when you press the pads in each row of the grid
-const int32_t padPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
+PLACE_SDRAM_RODATA const int32_t padPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
 
 // lookup tables for the min value of each pad's value range used to display automation on each row of the grid
-const int32_t minPadDisplayValues[kDisplayHeight] = {0, 17, 33, 49, 65, 81, 97, 113};
+PLACE_SDRAM_RODATA const int32_t minPadDisplayValues[kDisplayHeight] = {0, 17, 33, 49, 65, 81, 97, 113};
 
 // lookup tables for the max value of each pad's value range used to display automation on each row of the grid
-const int32_t maxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112, 128};
+PLACE_SDRAM_RODATA const int32_t maxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112, 128};
 
 // summary of pad ranges and press values (format: MIN < PRESS < MAX)
 // y = 7 :: 113 < 128 < 128

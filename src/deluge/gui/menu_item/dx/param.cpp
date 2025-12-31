@@ -252,26 +252,27 @@ bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	return true;
 }
 
-const char* desc_op_long[] = {"env rate1",   "env rate2",  "env rate3",  "env rate4",     "env level1",  "env level2",
-                              "env level3",  "env level4", "breakpoint", "left depth",    "right depth", "left curve",
-                              "right curve", "rate scale", "ampmod",     "velocity sens", "level",       "mode",
-                              "coarse",      "fine",       "detune"};
-const char* desc_op_short[] = {"rat1",   "rat2",      "rat3",     "rat4",     "lvl1",     "lvl2",     "lvl3",
-                               "lvl4",   "brkp",      "le depth", "ri depth", "le curve", "ri curve", "rate scale",
-                               "ampmod", "velo sens", "levl",     "mode",     "coar",     "fine",     "detune"};
+PLACE_SDRAM_RODATA const char* desc_op_long[] = {
+    "env rate1",  "env rate2",     "env rate3",  "env rate4",   "env level1", "env level2",  "env level3",
+    "env level4", "breakpoint",    "left depth", "right depth", "left curve", "right curve", "rate scale",
+    "ampmod",     "velocity sens", "level",      "mode",        "coarse",     "fine",        "detune"};
 
-const char* desc_global_long[]{"DX7 pitch R1", "DX7 pitch R2",     "DX7 pitch R3",  "DX7 pitch R4",  "DX7 pitch l1",
-                               "DX7 pitch l2", "DX7 pitch l3",     "DX7 pitch l4",  "DX7 algorithm", "DX7 feedback",
-                               "DX7 osc Sync", "DX7 LFO rate",     "DX7 LFO delay", "DX7 LFO pitch", "DX7 LFO amp",
-                               "DX7 LFO sync", "DX7 LFO waveform", "DX7 pitch sens"};
+PLACE_SDRAM_RODATA const char* desc_op_short[] = {
+    "rat1",     "rat2",     "rat3",       "rat4",   "lvl1",      "lvl2", "lvl3", "lvl4", "brkp", "le depth", "ri depth",
+    "le curve", "ri curve", "rate scale", "ampmod", "velo sens", "levl", "mode", "coar", "fine", "detune"};
 
-const char* desc_global_short[]{"piR1",       "piR2",      "piR3",    "piR4",     "pil1",     "pil2",
-                                "pil3",       "pil4",      "algo",    "fdbk",     "oscSync",  "LFO rate",
-                                " LFO delay", "LFO pitch", "LFO amp", "LFO sync", "LFO wave", "pitch sens"};
+PLACE_SDRAM_RODATA const char* desc_global_long[] = {
+    "DX7 pitch R1",  "DX7 pitch R2",  "DX7 pitch R3",  "DX7 pitch R4", "DX7 pitch l1",     "DX7 pitch l2",
+    "DX7 pitch l3",  "DX7 pitch l4",  "DX7 algorithm", "DX7 feedback", "DX7 osc Sync",     "DX7 LFO rate",
+    "DX7 LFO delay", "DX7 LFO pitch", "DX7 LFO amp",   "DX7 LFO sync", "DX7 LFO waveform", "DX7 pitch sens"};
 
-const char* curves[]{"lin-", "exp-", "exp+", "lin+", "????"};
-const char* shapes_long[]{"tri", "saw down", "saw up", "square", "sin", "s-hold"};
-const char* shapes_short[]{"tri", "sawd", "sawu", "sqre", "sin", "shld"};
+PLACE_SDRAM_RODATA const char* desc_global_short[] = {
+    "piR1", "piR2",    "piR3",     "piR4",       "pil1",      "pil2",    "pil3",     "pil4",     "algo",
+    "fdbk", "oscSync", "LFO rate", " LFO delay", "LFO pitch", "LFO amp", "LFO sync", "LFO wave", "pitch sens"};
+
+PLACE_SDRAM_RODATA const char* curves[] = {"lin-", "exp-", "exp+", "lin+", "????"};
+PLACE_SDRAM_RODATA const char* shapes_long[] = {"tri", "saw down", "saw up", "square", "sin", "s-hold"};
+PLACE_SDRAM_RODATA const char* shapes_short[] = {"tri", "sawd", "sawu", "sqre", "sin", "shld"};
 
 [[nodiscard]] std::string_view DxParam::getTitle() const {
 	static char buffer[25];

@@ -20,10 +20,9 @@
 #include "RZA1/system/iodefines/ssif_iodefine.h"
 #include "definitions.h"
 
+// note: don't put these buffers in external ram as they are used for rendering audio
 int32_t ssiTxBuffer[SSI_TX_BUFFER_NUM_SAMPLES * NUM_MONO_OUTPUT_CHANNELS] __attribute__((aligned(CACHE_LINE_SIZE)));
-
-PLACE_SDRAM_DATA int32_t ssiRxBuffer[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS]
-    __attribute__((aligned(CACHE_LINE_SIZE)));
+int32_t ssiRxBuffer[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 const uint32_t ssiDmaTxLinkDescriptor[] __attribute__((aligned(CACHE_LINE_SIZE))) = {
     0b1101,                                                                          // Header

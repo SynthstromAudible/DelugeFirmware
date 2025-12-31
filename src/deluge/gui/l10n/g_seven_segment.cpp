@@ -12,7 +12,7 @@
 // clang-format off
 namespace deluge::l10n::built_in {
 using enum String;
-PLACE_SDRAM_DATA Language seven_segment{
+PLACE_SDRAM_RODATA Language seven_segment{
     "Seven Segment",
     {
         {STRING_FOR_ERROR_INSUFFICIENT_RAM, "RAM"},
