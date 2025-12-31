@@ -57,14 +57,14 @@ PLACE_SDRAM_BSS deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
 
 namespace deluge::gui::ui::keyboard {
 
-PLACE_SDRAM_DATA layout::KeyboardLayoutIsomorphic keyboard_layout_isomorphic{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutVelocityDrums keyboard_layout_velocity_drums{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutInKey keyboard_layout_in_key{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutPiano keyboard_layout_piano{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutChord keyboard_layout_chord{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
-PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
+PLACE_SDRAM_BSS layout::KeyboardLayoutIsomorphic keyboard_layout_isomorphic{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutVelocityDrums keyboard_layout_velocity_drums{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutInKey keyboard_layout_in_key{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutPiano keyboard_layout_piano{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutChord keyboard_layout_chord{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutNorns keyboard_layout_norns{};
+PLACE_SDRAM_BSS std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
 
 KeyboardScreen::KeyboardScreen() {
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = &keyboard_layout_isomorphic;

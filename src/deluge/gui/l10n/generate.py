@@ -23,7 +23,7 @@ using enum String;\n"""
 
     type_name = input["type_name"]
     language_name = input["language_name"]
-    output.write(f"PLACE_SDRAM_DATA Language {type_name}{{\n")
+    output.write(f"PLACE_SDRAM_RODATA Language {type_name}{{\n")
     output.write(f'    "{language_name}",\n')
     output.write("    {\n")
 

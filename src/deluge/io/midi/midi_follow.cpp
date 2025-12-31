@@ -605,7 +605,7 @@ bool MidiFollow::isGlobalEffectableContext() {
 }
 
 /// used to store the clip's for each note received so that note off's can be sent to the right clip
-PLACE_SDRAM_DATA Clip* clipForLastNoteReceived[kMaxMIDIValue + 1] = {0};
+PLACE_SDRAM_BSS Clip* clipForLastNoteReceived[kMaxMIDIValue + 1] = {0};
 
 /// initializes the clipForLastNoteReceived array
 /// called when swapping songs to make sure that you aren't using clips from the old song

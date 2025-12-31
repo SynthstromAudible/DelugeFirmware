@@ -92,7 +92,7 @@ namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
 
-View view{};
+PLACE_SDRAM_BSS View view{};
 
 extern GlobalMIDICommand pendingGlobalMIDICommand;
 
@@ -1829,7 +1829,7 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 }
 
 // lookup table for the min value of each pad's value range used to display vu meter on the grid
-const float dBFSForYDisplay[kDisplayHeight] = {-30.8, -26.4, -22.0, -17.6, -13.2, -8.8, -4.4, -0.2};
+PLACE_SDRAM_RODATA const float dBFSForYDisplay[kDisplayHeight] = {-30.8, -26.4, -22.0, -17.6, -13.2, -8.8, -4.4, -0.2};
 
 int32_t View::getMaxYDisplayForVUMeter(float level) {
 	// dBFS (dB below clipping) calculation
