@@ -299,26 +299,7 @@ void PerformanceView::focusRegained() {
 }
 
 void PerformanceView::graphicsRoutine() {
-	static int counter = 0;
-	if (currentUIMode == UI_MODE_NONE) {
-		int32_t modKnobMode = -1;
-		bool editingComp = false;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) {
-				modKnobMode = *modKnobModePointer;
-				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
-			}
-		}
-		if (modKnobMode == 4 && editingComp) { // upper
-			counter = (counter + 1) % 5;
-			if (counter == 0) {
-				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
-
-				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
-			}
-		}
-	}
+	sessionView.potentiallyUpdateCompressorLEDs();
 
 	// if we're not currently selecting a clip
 	if (!((currentSong->lastClipInstanceEnteredStartPos != -1) && arrangerView.getClipForSelection())) {
