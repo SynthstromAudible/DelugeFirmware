@@ -2183,26 +2183,7 @@ ramError:
 }
 
 void SessionView::graphicsRoutine() {
-	static int counter = 0;
-	if (currentUIMode == UI_MODE_NONE) {
-		int32_t modKnobMode = -1;
-		bool editingComp = false;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) {
-				modKnobMode = *modKnobModePointer;
-				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
-			}
-		}
-		if (modKnobMode == 4 && editingComp) { // upper
-			counter = (counter + 1) % 5;
-			if (counter == 0) {
-				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
-
-				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
-			}
-		}
-	}
+	potentiallyUpdateCompressorLEDs();
 
 	if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 		PadLEDs::sendOutSidebarColours();
@@ -2354,6 +2335,29 @@ void SessionView::graphicsRoutine() {
 	}
 
 	PadLEDs::setTickSquares(tickSquares, colours);
+}
+
+void SessionView::potentiallyUpdateCompressorLEDs() {
+	static int counter = 0;
+	if (currentUIMode == UI_MODE_NONE) {
+		int32_t modKnobMode = -1;
+		bool editingComp = false;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer) {
+				modKnobMode = *modKnobModePointer;
+				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
+			}
+		}
+		if (modKnobMode == 4 && editingComp) { // upper
+			counter = (counter + 1) % 5;
+			if (counter == 0) {
+				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
+
+				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
+			}
+		}
+	}
 }
 
 // checks if tempo has changed since it was last rendered on the display and updates it if required
