@@ -1049,11 +1049,17 @@ extern "C" void routineForSD(void) {
 	}
 
 	sdRoutineLock = true;
-	ignoreForStats();
 	static UIStage step = UIStage::oled;
 	AudioEngine::logAction("from routineForSD()");
 	// Sean: don't use YieldToAudio here to be safe
-	AudioEngine::routine();
+	// Sean: replace AudioEngine::routine() call with call to run AudioEngine::routine() task
+	if (AudioEngine::routine_task_id != -1) {
+		runTask(AudioEngine::routine_task_id);
+	}
+	else {
+		ignoreForStats();
+		AudioEngine::routine();
+	}
 	switch (step) {
 	case UIStage::oled:
 		if (display->haveOLED()) {

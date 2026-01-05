@@ -72,9 +72,15 @@ bool yieldToIdle(RunCondition until) {
 void removeTask(TaskID id) {
 	taskManager.removeTask(id);
 }
+
 void boostTask(TaskID id) {
 	taskManager.boostTask(id);
 }
+
+void runTask(TaskID id) {
+	taskManager.runTask(id);
+}
+
 double getSystemTime() {
 	return taskManager.getSecondsFromStart();
 }
