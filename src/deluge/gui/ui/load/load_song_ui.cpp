@@ -70,6 +70,7 @@ LoadSongUI::LoadSongUI() {
 bool LoadSongUI::opened() {
 
 	qwertyAlwaysVisible = false;
+	qwertyCurrentlyDrawnOnscreen = false;
 
 	favouritesManager.setCategory("SONG");
 	favouritesChanged();
