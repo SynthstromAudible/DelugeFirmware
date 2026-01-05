@@ -69,6 +69,8 @@ LoadSongUI::LoadSongUI() {
 
 bool LoadSongUI::opened() {
 
+	qwertyAlwaysVisible = false;
+
 	favouritesManager.setCategory("SONG");
 	favouritesChanged();
 	outputTypeToLoad = OutputType::NONE;
@@ -978,6 +980,11 @@ ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 			qwertyVisible = true;
 			favouritesVisible = true;
 			displayText(false); // This will also draw the QWERTY keys
+
+			// Process first press only if its not a favourite row press to prevent blind keypresses
+			if (y < favouriteRow) {
+				return LoadUI::padAction(x, y, on);
+			}
 		}
 	}
 
