@@ -87,6 +87,7 @@ SampleBrowser::SampleBrowser() {
 	shouldWrapFolderContents = false;
 	qwertyAlwaysVisible = false;
 	shouldInterpretNoteNamesForThisBrowser = true;
+	qwertyCurrentlyDrawnOnscreen = false;
 }
 
 bool SampleBrowser::opened() {
@@ -96,6 +97,8 @@ bool SampleBrowser::opened() {
 		return false;
 	}
 
+	qwertyAlwaysVisible = false;
+
 	favouritesManager.setCategory("SAMPLES");
 	favouritesChanged();
 	actionLogger.deleteAllLogs();
@@ -103,7 +106,7 @@ bool SampleBrowser::opened() {
 	allowedFileExtensions = allowedFileExtensionsAudio;
 	allowFoldersSharingNameWithFile = true;
 	outputTypeToLoad = OutputType::NONE;
-	qwertyVisible = false;
+
 	qwertyCurrentlyDrawnOnscreen = false;
 
 	currentlyShowingSamplePreview = false;
@@ -722,6 +725,11 @@ possiblyExit:
 
 				enteredTextEditPos = 0;
 				displayText(false);
+
+				// Process first press only if its not a favourite row press to prevent blind keypresses
+				if (y < favouriteRow) {
+					return Browser::padAction(x, y, on);
+				}
 			}
 		}
 		// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
