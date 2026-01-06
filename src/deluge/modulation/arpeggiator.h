@@ -17,12 +17,14 @@
 
 #pragma once
 
+#include "algorithm"
 #include "definitions_cxx.hpp"
 #include "model/sync.h"
 #include "storage/storage_manager.h"
 #include "util/container/array/ordered_resizeable_array.h"
 #include "util/container/array/resizeable_array.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -35,7 +37,7 @@ constexpr uint32_t RANDOMIZER_LOCK_MAX_SAVED_VALUES = 16;
 constexpr uint32_t ARP_MAX_INSTRUCTION_NOTES = 4;
 constexpr uint32_t PATTERN_MAX_BUFFER_SIZE = 16;
 
-constexpr uint32_t ARP_NOTE_NONE = 32767;
+constexpr int16_t ARP_NOTE_NONE = 32767;
 
 enum class ArpType : uint8_t {
 	SYNTH,
@@ -144,21 +146,36 @@ public:
 	uint32_t spreadGate{0};
 	uint32_t spreadOctave{0};
 };
+enum class ArpNoteStatus : uint8_t {
+	OFF,
+	PENDING,
+	PLAYING,
+};
 
 struct ArpNote {
 	ArpNote() {
 		outputMemberChannel.fill(MIDI_CHANNEL_NONE);
 		noteCodeOnPostArp.fill(ARP_NOTE_NONE);
+		noteStatus.fill(ArpNoteStatus::OFF);
 	}
-	int16_t inputCharacteristics[2]; // Before arpeggiation. And applying to MIDI input if that's happening. Or, channel
-	                                 // might be MIDI_CHANNEL_NONE.
-	int16_t mpeValues[kNumExpressionDimensions];
-	uint8_t velocity;
-	uint8_t baseVelocity;
+	bool isPending() {
+		return std::ranges::any_of(noteStatus, [](ArpNoteStatus status) { return status == ArpNoteStatus::PENDING; });
+	}
+	void resetPostArpArrays() {
+		outputMemberChannel.fill(MIDI_CHANNEL_NONE);
+		noteCodeOnPostArp.fill(ARP_NOTE_NONE);
+		noteStatus.fill(ArpNoteStatus::OFF);
+	}
+	int16_t inputCharacteristics[2]{}; // Before arpeggiation. And applying to MIDI input if that's happening. Or,
+	                                   // channel might be MIDI_CHANNEL_NONE.
+	int16_t mpeValues[kNumExpressionDimensions]{};
+	uint8_t velocity{0};
+	uint8_t baseVelocity{0};
 
 	// For note-ons
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMemberChannel;
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOnPostArp;
+	std::array<ArpNoteStatus, ARP_MAX_INSTRUCTION_NOTES> noteStatus{};
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMemberChannel{};
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOnPostArp{};
 };
 
 struct ArpJustNoteCode {
@@ -197,15 +214,18 @@ public:
 
 class ArpeggiatorBase {
 public:
+	virtual ~ArpeggiatorBase() = default;
 	ArpeggiatorBase() {
-		noteCodeCurrentlyOnPostArp.fill(ARP_NOTE_NONE);
 		glideNoteCodeCurrentlyOnPostArp.fill(ARP_NOTE_NONE);
-		outputMIDIChannelForNoteCurrentlyOnPostArp.fill(0);
 		outputMIDIChannelForGlideNoteCurrentlyOnPostArp.fill(0);
 	}
+
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	virtual void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) = 0;
+	/// Looks for pending notes and sets arp return to the pending note if found
+	/// Returns true if it sets the arp return note
+	virtual bool handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction);
 	void render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
 	            uint32_t gateThreshold, uint32_t phaseIncrement);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
@@ -214,16 +234,42 @@ public:
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
 	virtual ArpType getArpType() = 0;
+	ArpNote active_note; // For the currently active note.
+
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForGlideNoteCurrentlyOnPostArp;
+	uint32_t gatePos = 0;
+	uint8_t lastVelocity = 0;
+
+protected:
+	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
+	void setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
+	void resetBase();
+	void resetRatchet();
+	void executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
+	                    uint32_t maxSequenceLength, uint32_t rhythm, bool* shouldCarryOnRhythmNote,
+	                    bool* shouldPlayNote, bool* shouldPlayBassNote, bool* shouldPlayRandomStep,
+	                    bool* shouldPlayReverseNote, bool* shouldPlayChordNote);
+	void increasePatternIndexes(uint8_t numStepRepeats);
+	void increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm);
+	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
+	bool evaluateRhythm(uint32_t rhythm, bool isRatchet);
+	bool evaluateNoteProbability(bool isRatchet);
+	bool evaluateBassProbability(bool isRatchet);
+	bool evaluateSwapProbability(bool isRatchet);
+	bool evaluateReverseProbability(bool isRatchet);
+	bool evaluateChordProbability(bool isRatchet);
+	uint32_t calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep);
+	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
+	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
+	void switchAnyNoteOff(ArpReturnInstruction* instruction);
+	bool getRandomProbabilityResult(uint32_t value);
+	int8_t getRandomBipolarProbabilityAmount(uint32_t value);
+	int8_t getRandomWeighted2BitsAmount(uint32_t value);
 
 	bool gateCurrentlyActive = false;
-	uint32_t gatePos = 0;
 
 	bool playedFirstArpeggiatedNoteYet = false;
-	uint8_t lastVelocity = 0;
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeCurrentlyOnPostArp;
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp;
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForNoteCurrentlyOnPostArp;
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForGlideNoteCurrentlyOnPostArp;
 
 	// Playing state
 	uint32_t notesPlayedFromSequence = 0;
@@ -281,46 +327,20 @@ public:
 	int32_t spreadGateForCurrentStep = 0;
 	int32_t spreadOctaveForCurrentStep = 0;
 	bool resetLockedRandomizerValuesNextTime = false;
-
-protected:
-	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
-	void setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
-	void resetBase();
-	void resetRatchet();
-	void executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
-	                    uint32_t maxSequenceLength, uint32_t rhythm, bool* shouldCarryOnRhythmNote,
-	                    bool* shouldPlayNote, bool* shouldPlayBassNote, bool* shouldPlayRandomStep,
-	                    bool* shouldPlayReverseNote, bool* shouldPlayChordNote);
-	void increasePatternIndexes(uint8_t numStepRepeats);
-	void increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm);
-	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
-	bool evaluateRhythm(uint32_t rhythm, bool isRatchet);
-	bool evaluateNoteProbability(bool isRatchet);
-	bool evaluateBassProbability(bool isRatchet);
-	bool evaluateSwapProbability(bool isRatchet);
-	bool evaluateReverseProbability(bool isRatchet);
-	bool evaluateChordProbability(bool isRatchet);
-	uint32_t calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep);
-	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
-	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
-	void switchAnyNoteOff(ArpReturnInstruction* instruction);
-	bool getRandomProbabilityResult(uint32_t value);
-	int8_t getRandomBipolarProbabilityAmount(uint32_t value);
-	int8_t getRandomWeighted2BitsAmount(uint32_t value);
 };
 
 class ArpeggiatorForDrum : public ArpeggiatorBase {
 public:
+	~ArpeggiatorForDrum() override = default;
 	ArpeggiatorForDrum();
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
 	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
 	void reset() override;
 	ArpType getArpType() override { return ArpType::DRUM; }
-	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
-	int16_t noteForDrum;
+	int16_t noteForDrum{0};
 
-	bool invertReversedFromKitArp;
+	bool invertReversedFromKitArp{false};
 
 protected:
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
@@ -329,6 +349,7 @@ protected:
 
 class Arpeggiator : public ArpeggiatorBase {
 public:
+	virtual ~Arpeggiator() = default;
 	Arpeggiator();
 
 	void reset() override;
@@ -337,8 +358,8 @@ public:
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
 	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
+	bool handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) override;
 	bool hasAnyInputNotesActive() override;
-
 	// This array tracks the notes ordered by noteCode
 	OrderedResizeableArray notes;
 	// This array tracks the notes as they were played by the user
@@ -349,11 +370,12 @@ public:
 protected:
 	void rearrangePatterntArpNotes(ArpeggiatorSettings* settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
+	bool anyPending{false};
 };
 
 class ArpeggiatorForKit : public Arpeggiator {
 public:
-	ArpeggiatorForKit();
+	ArpeggiatorForKit() = default;
 	ArpType getArpType() override { return ArpType::KIT; }
 	void removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_t drumIndex);
 };

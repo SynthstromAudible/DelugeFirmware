@@ -165,7 +165,7 @@ void MIDIDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 		int32_t value7 = newValue >> 24;
 		// Note: use the note code currently on post-arp, because this drum supports "Chord Simulator" and "Octaves" and
 		// the note code could be different
-		midiEngine.sendPolyphonicAftertouch(this, channel, value7, arpeggiator.arpNote.noteCodeOnPostArp[0],
+		midiEngine.sendPolyphonicAftertouch(this, channel, value7, arpeggiator.active_note.noteCodeOnPostArp[0],
 		                                    kMIDIOutputFilterNoMPE);
 	}
 }
