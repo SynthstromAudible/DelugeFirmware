@@ -905,7 +905,6 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 
 		// Ok. We have our new member channel.
 		arpNote->outputMemberChannel[noteIndex] = outputMemberChannel;
-		arpeggiator.outputMIDIChannelForNoteCurrentlyOnPostArp[noteIndex] = outputMemberChannel; // Needed if arp on
 
 		int16_t mpeValuesAverage[kNumExpressionDimensions]; // We may fill this up and point to it, or not
 		int16_t const* mpeValuesToUse = arpNote->mpeValues;

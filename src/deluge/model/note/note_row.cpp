@@ -2368,13 +2368,8 @@ gotValidNoteIndex:
 				// If we've arrived at a Note right now...
 				if (newTicksTil <= 0) {
 					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
-						if (AudioEngine::allowedToStartVoice()) {
-							playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
-							ignoredNoteOn = false;
-						}
-						else {
-							ignoredNoteOn = true;
-						}
+						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+						ignoredNoteOn = false;
 					}
 
 					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're
@@ -3133,10 +3128,8 @@ void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effe
 
 	if (noteEnd > effectiveActualCurrentPos) {
 		// if we're not allowed we'll just come back here later (next tick)
-		if (AudioEngine::allowedToStartVoice()) {
-			attemptLateStartOfNextNoteToPlay(modelStack, note);
-			ignoredNoteOn = false;
-		}
+		attemptLateStartOfNextNoteToPlay(modelStack, note);
+		ignoredNoteOn = false;
 	}
 	else {
 		ignoredNoteOn = false;
