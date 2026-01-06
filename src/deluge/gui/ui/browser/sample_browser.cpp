@@ -87,6 +87,7 @@ SampleBrowser::SampleBrowser() {
 	shouldWrapFolderContents = false;
 	qwertyAlwaysVisible = false;
 	shouldInterpretNoteNamesForThisBrowser = true;
+	qwertyCurrentlyDrawnOnscreen = false;
 }
 
 bool SampleBrowser::opened() {
@@ -95,6 +96,8 @@ bool SampleBrowser::opened() {
 	if (!success) {
 		return false;
 	}
+
+	qwertyAlwaysVisible = false;
 
 	favouritesManager.setCategory("SAMPLES");
 	favouritesChanged();
@@ -722,6 +725,11 @@ possiblyExit:
 
 				enteredTextEditPos = 0;
 				displayText(false);
+
+				// Process first press only if its not a favourite row press to prevent blind keypresses
+				if (y < favouriteRow) {
+					return Browser::padAction(x, y, on);
+				}
 			}
 		}
 		// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
