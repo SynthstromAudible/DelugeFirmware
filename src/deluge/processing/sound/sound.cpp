@@ -2360,9 +2360,10 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 			instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
 	}
 }
-void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::StereoBuffer<q31_t> output,
-                   int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust,
-                   bool shouldLimitDelayFeedback, int32_t pitchAdjust, SampleRecorder* recorder) {
+
+void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+                   int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
+                   int32_t pitchAdjust, SampleRecorder* recorder) {
 
 	if (skippingRendering) {
 		compressor.gainReduction = 0;
