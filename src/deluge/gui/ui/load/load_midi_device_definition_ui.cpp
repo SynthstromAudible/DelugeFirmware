@@ -47,7 +47,13 @@ bool LoadMidiDeviceDefinitionUI::opened() {
 		return false;
 	}
 
-	Error error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	Error error = createFoldersRecursiveIfNotExists(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
+	}
+
+	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
