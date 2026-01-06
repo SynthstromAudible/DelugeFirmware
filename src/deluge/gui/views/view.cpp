@@ -1107,7 +1107,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 			parameter_name.append(modulation::params::getPatchedParamShortName(paramID));
 		}
-		else if (getCurrentOutputType() == OutputType::MIDI_OUT) {
+		else if (isClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT) {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 			if (kind == params::Kind::EXPRESSION) {
 				if (paramID == X_PITCH_BEND) {
