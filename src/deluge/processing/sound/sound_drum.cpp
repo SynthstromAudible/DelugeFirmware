@@ -90,7 +90,7 @@ void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either
 	// case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE
 	// values.
-	arpeggiator.arpNote.mpeValues[expressionDimension] = newValue >> 16;
+	arpeggiator.active_note.mpeValues[expressionDimension] = newValue >> 16;
 }
 
 void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,

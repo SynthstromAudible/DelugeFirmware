@@ -36,10 +36,20 @@ using namespace deluge;
 
 SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI{};
 
+SaveMidiDeviceDefinitionUI::SaveMidiDeviceDefinitionUI() {
+	filePrefix = "MidiDevice";
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstack-usage="
 bool SaveMidiDeviceDefinitionUI::opened() {
 	if (!getRootUI()->toClipMinder() || getCurrentOutputType() != OutputType::MIDI_OUT) {
+		return false;
+	}
+
+	Error error = createFoldersRecursiveIfNotExists(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
 		return false;
 	}
 
@@ -65,18 +75,38 @@ doReturnFalse:
 		char const* fullPath = enteredText.get();
 
 		// locate last occurence of "/" in string
-		char* filename = strrchr((char*)fullPath, '/');
+		char const* slash = strrchr(fullPath, '/');
 
-		// lengths of full path
-		auto fullPathLength = strlen(fullPath);
+		if (!slash) {
+			// No directory in stored string -> use default folder, and keep the text as-is
+			currentDir.set(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+		}
+		else {
+			// Directory = everything before last slash
+			size_t dirLen = (size_t)(slash - fullPath);
 
-		// directory
-		char dir[sizeof(char) * fullPathLength + 1];
+			// Build dir safely
+			char dir[dirLen + 1];
+			memcpy(dir, fullPath, dirLen);
+			dir[dirLen] = 0;
 
-		memset(dir, 0, sizeof(char) * fullPathLength + 1);
-		strncpy(dir, fullPath, fullPathLength - strlen(filename));
+			currentDir.set(dir);
 
-		currentDir.set(dir);
+			// Filename = everything after last slash
+			enteredText.set(slash + 1);
+		}
+
+		// Strip ".xml" from enteredText if SaveUI appends it
+		char const* name = enteredText.get();
+		size_t nameLen = strlen(name);
+		if (nameLen > 4 && !strcmp(name + nameLen - 4, ".XML")) {
+			char base[nameLen - 4 + 1];
+			memcpy(base, name, nameLen - 4);
+			base[nameLen - 4] = 0;
+			enteredText.set(base);
+		}
+
+		enteredTextEditPos = enteredText.getLength();
 	}
 
 	title = "Save midi device";
@@ -84,7 +114,7 @@ doReturnFalse:
 	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 	fileIconPt2Width = 1;
 
-	Error error = arrivedInNewFolder(0, enteredText.get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+	error = arrivedInNewFolder(0, enteredText.get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -155,4 +185,25 @@ fail:
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_SAVED));
 	close();
 	return true;
+}
+
+ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
+
+	// Load button
+	if (b == LOAD) {
+		return mainButtonAction(on);
+	}
+
+	else {
+		if (on && b == BACK) {
+			// don't allow navigation backwards if we're in the default folder
+			if (!strcmp(currentDir.get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER)) {
+				close();
+				return ActionResult::DEALT_WITH;
+			}
+		}
+
+		return SaveUI::buttonAction(b, on, inCardRoutine);
+	}
 }
