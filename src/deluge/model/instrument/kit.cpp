@@ -63,8 +63,7 @@ Kit::~Kit() {
 	// Delete all Drums
 	while (firstDrum) {
 		AudioEngine::logAction("~Kit");
-		// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-		AudioEngine::routineWithClusterLoading(false, false);
+		AudioEngine::routineWithClusterLoading();
 		Drum* toDelete = firstDrum;
 		firstDrum = firstDrum->next;
 
@@ -119,8 +118,9 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
 
-	writer.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
-	                             // Attributes end
+	writer.writeOpeningTagEnd();
+	// Attributes end
+
 	// saving song
 	if (!clipForSavingOutputOnly) {
 		if (midiInput.containsSomething()) {
@@ -949,8 +949,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 		if (thisDrum->type == DrumType::SOUND) {
 
 			if (!(count & 7)) {
-				// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-				AudioEngine::routineWithClusterLoading(false, false);
+				AudioEngine::routineWithClusterLoading();
 			}
 			count++;
 
@@ -982,8 +981,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
-					// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-					AudioEngine::routineWithClusterLoading(false, false);
+					AudioEngine::routineWithClusterLoading();
 				}
 				count++;
 
@@ -1008,8 +1006,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisDrum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
-					// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-					AudioEngine::routineWithClusterLoading(false, false);
+					AudioEngine::routineWithClusterLoading();
 				}
 				count++;
 
@@ -1058,8 +1055,7 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 
 						if (!(count & 7)) {
 							// Rohan: I guess very often this wouldn't work cos the audio routine would be locked
-							// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-							AudioEngine::routineWithClusterLoading(false, false);
+							AudioEngine::routineWithClusterLoading();
 						}
 						count++;
 
@@ -1118,8 +1114,7 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
-			// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-			AudioEngine::routineWithClusterLoading(false, false);
+			AudioEngine::routineWithClusterLoading();
 			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 		}
 	}

@@ -668,12 +668,12 @@ void mainLoop() {
 		}
 		PIC::flush();
 
-		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+		AudioEngine::routineWithClusterLoading(true);
 
 		int32_t count = 0;
 		while (readButtonsAndPads() && count < 16) {
 			if (!(count & 3)) {
-				AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+				AudioEngine::routineWithClusterLoading(true);
 			}
 			count++;
 		}
@@ -681,12 +681,12 @@ void mainLoop() {
 		encoders::readEncoders();
 		bool anything = encoders::interpretEncoders();
 		if (anything) {
-			AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+			AudioEngine::routineWithClusterLoading(true);
 		}
 
 		doAnyPendingUIRendering();
 
-		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+		AudioEngine::routineWithClusterLoading(true);
 
 		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets
 		// called in card routine
@@ -1053,15 +1053,7 @@ extern "C" void routineForSD(void) {
 	sdRoutineLock = true;
 	static UIStage step = UIStage::oled;
 	AudioEngine::logAction("from routineForSD()");
-	// Sean: don't use YieldToAudio here to be safe
-	// Sean: replace AudioEngine::routine() call with call to run AudioEngine::routine() task
-	if (AudioEngine::routine_task_id != -1) {
-		runTask(AudioEngine::routine_task_id);
-	}
-	else {
-		ignoreForStats();
-		AudioEngine::routine();
-	}
+	AudioEngine::runRoutine();
 	switch (step) {
 	case UIStage::oled:
 		if (display->haveOLED()) {
@@ -1104,7 +1096,7 @@ extern "C" void setNumericNumber(int32_t number) {
 
 extern "C" void routineWithClusterLoading() {
 	// Sean: don't use YieldToAudio here to be safe
-	AudioEngine::routineWithClusterLoading(false, false);
+	AudioEngine::routineWithClusterLoading();
 }
 
 void deleteOldSongBeforeLoadingNew() {

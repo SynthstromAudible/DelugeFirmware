@@ -138,7 +138,8 @@ using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
 void routine();
 void routine_task();
-void routineWithClusterLoading(bool mayProcessUserActionsBetween = false, bool useYield = true);
+void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
+void runRoutine();
 
 void init();
 void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
@@ -180,7 +181,6 @@ void printLog();
 #endif
 int32_t getNumAudio();
 int32_t getNumVoices();
-void yieldToAudio();
 bool doSomeOutputting();
 void updateReverbParams();
 
