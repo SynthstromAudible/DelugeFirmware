@@ -380,7 +380,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 
 void runRoutine() {
 	// check if we've setup the audio routine task
-	if (routine_task_id != -1) {
+	if (routine_task_id != -1) [[likely]] {
 		// run AudioEngine::routine() task so that scheduler is aware
 		runTask(AudioEngine::routine_task_id);
 	}
