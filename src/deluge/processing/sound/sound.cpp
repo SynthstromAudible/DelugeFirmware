@@ -4122,7 +4122,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	}
 	writer.writeAttribute("maxVoices", maxVoiceCount);
 
-	writer.writeOpeningTagEnd(); // -------------------------------------------------------------------------
+	writer.writeOpeningTagEnd();
 
 	writeSourceToFile(writer, 0, "osc1");
 	writeSourceToFile(writer, 1, "osc2");

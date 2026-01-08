@@ -912,8 +912,7 @@ void FileReader::readDone() {
 	}
 
 	if (!(readCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
-		// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-		AudioEngine::routineWithClusterLoading(false, false);
+		AudioEngine::routineWithClusterLoading();
 
 		uiTimerManager.routine();
 

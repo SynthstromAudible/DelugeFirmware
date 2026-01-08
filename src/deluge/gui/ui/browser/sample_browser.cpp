@@ -1148,7 +1148,7 @@ void sortSamples(bool (*sortFunction)(Sample*, Sample*), int32_t numSamples, Sam
 	// Go through various iterations of numComparing
 	while (numComparing < numSamples) {
 
-		AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+		AudioEngine::routineWithClusterLoading();
 
 		// And now, for this selected comparison size, do a number of comparisions
 		for (int32_t whichComparison = 0; whichComparison * numComparing * 2 < numSamples; whichComparison++) {
@@ -1253,7 +1253,7 @@ removeReasonsFromSamplesAndGetOut:
 		return false;
 	}
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	int32_t numCharsInPrefixForFolderLoad = 65535;
 
@@ -1648,7 +1648,7 @@ doReturnFalse:
 
 	D_PRINTLN("loaded and sorted samples");
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	// Delete all but first pre-existing range
 	int32_t oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
@@ -1753,7 +1753,7 @@ skipOctaveCorrection:
 	for (int32_t s = 0; s < numSamples; s++) {
 
 		if (!(s & 31)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		Sample* thisSample = sortArea[s];

@@ -362,18 +362,8 @@ int32_t getNumVoices() {
 	return std::transform_reduce(sounds.cbegin(), sounds.cend(), 0, std::plus{},
 	                             [](auto sound) { return sound->voices().size(); });
 }
-void yieldToAudio() {
-	// if we're not locked in audio routine, yield until audio routine is called or scheduler is idle
-	if (!audioRoutineLocked) {
-		yieldToIdle([]() { return (AudioEngine::routineBeenCalled); });
-	}
-	// if we're locked in audio routine, yield until it finishes
-	else {
-		yield([]() { return (AudioEngine::routineBeenCalled); });
-	}
-}
 
-void routineWithClusterLoading(bool mayProcessUserActionsBetween, bool useYield) {
+void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	logAction("AudioDriver::routineWithClusterLoading");
 
 	routineBeenCalled = false;
@@ -381,34 +371,23 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween, bool useYield)
 	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
 
 	if (!routineBeenCalled) {
-		// bypassCulling = true; // yolo?
+		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
 
-		/*	if (useYield) {
-		        logAction("RWCL: yieldToAudio()");
-		        yieldToAudio();
-		    }
-		    else if (!audioRoutineLocked) {
-		        logAction("RWCL: routine_task()");
-		        // Sean: replace AudioEngine::routine() call with call to run AudioEngine::routine() task
-		        if (AudioEngine::routine_task_id != -1) {
-		            runTask(AudioEngine::routine_task_id);
-		        }
-		        else {
-		            AudioEngine::routine();
-		        }
-		    }
-		*/
-		//	if (!audioRoutineLocked) {
-		if (AudioEngine::routine_task_id != -1) {
-			runTask(AudioEngine::routine_task_id);
-		}
-		else {
-			AudioEngine::routine();
-		}
-		//	}
-		//	else {
-		//		yield([]() { return (AudioEngine::routineBeenCalled); });
-		//	}
+		logAction("call runRoutine() from routineWithClusterLoading()");
+		runRoutine();
+	}
+}
+
+void runRoutine() {
+	// check if we've setup the audio routine task
+	if (routine_task_id != -1) {
+		// run AudioEngine::routine() task so that scheduler is aware
+		runTask(AudioEngine::routine_task_id);
+	}
+	// otherwise call audio routine directly (necessary otherwise Deluge freezes on boot)
+	else {
+		ignoreForStats();
+		routine();
 	}
 }
 
