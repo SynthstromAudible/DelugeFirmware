@@ -211,7 +211,7 @@ int32_t cableToLinearParamShortcut(int32_t sourceValue);
 int32_t cableToExpParamShortcut(int32_t sourceValue);
 
 class Sound;
-class StereoSample;
+struct StereoSample;
 int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue);
