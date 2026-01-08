@@ -64,6 +64,7 @@ struct StereoSample {
 		r += (multiply_32x32_rshift32(sampleValueR, amplitudeR) << 2);
 	}
 
-	q31_t l = 0;
-	q31_t r = 0;
+	// Sean: don't initialize l and r to 0 as this introduces performance issues
+	q31_t l;
+	q31_t r;
 };
