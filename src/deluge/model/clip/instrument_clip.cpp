@@ -1445,7 +1445,9 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	for (int32_t i = noteRowIndexStart; i < noteRowIndexEnd; i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
-		AudioEngine::routineWithClusterLoading();
+		if (!(i & 15)) {
+			AudioEngine::routineWithClusterLoading();
+		}
 
 		int32_t yNote;
 
@@ -1684,8 +1686,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	Instrument* oldInstrument = (Instrument*)output;
 	int32_t oldYScroll = yScroll;
 
-	// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-	AudioEngine::routineWithClusterLoading(false, false);
+	AudioEngine::routineWithClusterLoading();
 
 	AudioEngine::audioRoutineLocked = true;
 
@@ -1746,8 +1747,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	AudioEngine::audioRoutineLocked = false;
 	AudioEngine::bypassCulling = true;
 	AudioEngine::logAction("bypassing culling in change instrument");
-	// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-	AudioEngine::routineWithClusterLoading(false, false);
+	AudioEngine::routineWithClusterLoading();
 
 	// If now a Kit, match NoteRows back up to Drums
 	if (newInstrument->type == OutputType::KIT) {
@@ -1782,8 +1782,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 			}
 
 			// TODO: we surely don't need to call this every time through
-			// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-			AudioEngine::routineWithClusterLoading(false, false);
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t numNoteRowsDeletedFromBottom = (oldInstrument->type == OutputType::KIT) ? oldYScroll - yScroll : 0;
@@ -2113,8 +2112,7 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 				thisNoteRow->rememberDrumName();
 			}
 			AudioEngine::logAction("InstrumentClip::unassignAllNoteRowsFromDrums");
-			// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-			AudioEngine::routineWithClusterLoading(false, false);
+			AudioEngine::routineWithClusterLoading();
 
 			// If we're retaining links to Sounds, like if we're undo-ably "deleting" a Clip, just backup (and remove
 			// link to) the paramManager
@@ -3233,8 +3231,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 				noteRows.deleteNoteRowAtIndex(i);
 
-				// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-				AudioEngine::routineWithClusterLoading(false, false);
+				AudioEngine::routineWithClusterLoading();
 			}
 			else {
 				i++;
@@ -3898,8 +3895,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
 
 			if (!(noteRowCount & 15)) {
-				// Sean: can't use YieldToAudio here because it causes crash when browsing files crash
-				AudioEngine::routineWithClusterLoading(false, false);
+				AudioEngine::routineWithClusterLoading();
 				AudioEngine::logAction("nlkr");
 			}
 

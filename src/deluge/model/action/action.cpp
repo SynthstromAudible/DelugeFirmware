@@ -66,7 +66,7 @@ void Action::prepareForDestruction(int32_t whichQueueActionIn, Song* song) {
 void Action::deleteAllConsequences(int32_t whichQueueActionIn, Song* song, bool destructing) {
 	Consequence* currentConsequence = firstConsequence;
 	while (currentConsequence) {
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		AudioEngine::routineWithClusterLoading();
 		Consequence* toDelete = currentConsequence;
 		currentConsequence = currentConsequence->next;
 		toDelete->prepareForDestruction(whichQueueActionIn, song);

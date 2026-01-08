@@ -122,9 +122,7 @@ void Cluster::convertDataIfNecessary() {
 				}
 
 				AudioEngine::logAction("from convert-data");
-				// Sean: keeping AudioEngine::routine() call here instead of YieldToAudio to be safe.
-				// Sean: replace AudioEngine::routine() call with call to run AudioEngine::routine() task
-				runTask(AudioEngine::routine_task_id);
+				AudioEngine::runRoutine();
 			}
 		}
 
@@ -152,9 +150,7 @@ void Cluster::convertDataIfNecessary() {
 			for (; pos < endPos; pos++) {
 
 				if (!((uint32_t)pos & 0b1111111100)) {
-					// Sean: keeping AudioEngine::routine() call here instead of YieldToAudio to be safe.
-					// Sean: replace AudioEngine::routine() call with call to run AudioEngine::routine() task
-					runTask(AudioEngine::routine_task_id);
+					AudioEngine::runRoutine();
 				}
 
 				*pos = sample->convertToNative(*pos);
