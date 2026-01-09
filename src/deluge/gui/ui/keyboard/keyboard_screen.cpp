@@ -17,7 +17,9 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -44,6 +46,7 @@
 #include <cstring>
 
 #include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/arp_control.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/chord_library.h"
 #include "gui/ui/keyboard/layout/column_control_state.h"
@@ -63,6 +66,7 @@ PLACE_SDRAM_DATA layout::KeyboardLayoutInKey keyboard_layout_in_key{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutPiano keyboard_layout_piano{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutChord keyboard_layout_chord{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
+PLACE_SDRAM_DATA layout::KeyboardLayoutArpControl keyboard_layout_arp_control{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
 
@@ -73,6 +77,7 @@ KeyboardScreen::KeyboardScreen() {
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeChord] = &keyboard_layout_chord;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = &keyboard_layout_chord_library;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeDrums] = &keyboard_layout_velocity_drums;
+	layout_list[KeyboardLayoutType::KeyboardLayoutTypeArpControl] = &keyboard_layout_arp_control;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeNorns] = &keyboard_layout_norns;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));
@@ -565,6 +570,18 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		xEncoderActive = on;
 	}
 
+	// Handle Y encoder button press for rhythm toggle
+	else if (b == Y_ENC && on) {
+		// Pass Y encoder press to current layout if it supports it
+		KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
+		if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeArpControl) {
+			// Toggle logic: apply current pattern or turn OFF
+			layout::KeyboardLayoutArpControl* arpLayout =
+			    (layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType];
+			arpLayout->handleRhythmToggle();
+		}
+	}
+
 	// Load / kit button if auditioning
 	else if (currentUIMode == UI_MODE_AUDITIONING && ((b == LOAD) || (b == KIT))
 	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
@@ -939,6 +956,12 @@ void KeyboardScreen::graphicsRoutine() {
 	keyboardTickSquares[kDisplayHeight - 1] = newTickSquare;
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
+
+	// Update current layout animation if it's the arp control layout
+	KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
+	if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeArpControl) {
+		((layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType])->updateAnimation();
+	}
 }
 
 } // namespace deluge::gui::ui::keyboard
