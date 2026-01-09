@@ -42,6 +42,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/visualizer.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -129,6 +130,8 @@ void View::focusRegained() {
 	renderedVUMeter = false;
 	cachedMaxYDisplayForVUMeterL = 255;
 	cachedMaxYDisplayForVUMeterR = 255;
+	// Also disable visualizer when switching views
+	deluge::hid::display::Visualizer::reset();
 }
 
 extern GlobalMIDICommand pendingGlobalMIDICommandNumClustersWritten;
@@ -1480,23 +1483,27 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	pretendModKnobsUntouchedForAWhile();
 
+	// Check for SHIFT+LEVEL mod button to toggle independent visualizer
+	if (on && whichButton == 0) {
+		if (deluge::hid::display::Visualizer::handleModButtonToggle(*this)) {
+			return;
+		}
+	}
+
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
+
 			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performanceView)) {
-				// only displaying VU meter in session view, arranger view, performance view and arranger automation
-				// view
-				if (!rootUIIsClipMinderScreen()) {
-					// are we pressing the same button that is currently selected
-					if (*activeModControllableModelStack.modControllable->getModKnobMode() == whichButton) {
-						// you just pressed the volume mod button and it was already selected previously
-						// toggle displaying VU Meter on / off
-						if (whichButton == 0) {
-							displayVUMeter = !displayVUMeter;
+				// are we pressing the same button that is currently selected
+				if (*activeModControllableModelStack.modControllable->getModKnobMode() == whichButton) {
+					// you just pressed the volume mod button and it was already selected previously
+					// Check if visualizer should handle VU meter toggle
+					if (deluge::hid::display::Visualizer::handleVUMeterToggle(*this, whichButton, renderedVUMeter)) {
+						// refresh sidebar if VU meter previously rendered is still showing
+						if (renderedVUMeter) {
+							uiNeedsRendering(rootUI, 0); // only render sidebar
 						}
-					}
-					// refresh sidebar if VU meter previously rendered is still showing
-					if (renderedVUMeter) {
-						uiNeedsRendering(rootUI, 0); // only render sidebar
+						return;
 					}
 				}
 
@@ -1779,6 +1786,8 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 
 	// if we made it here then we haven't rendered a VU meter in the sidebar
 	renderedVUMeter = false;
+	// Also disable visualizer when VU meter is not being rendered
+	deluge::hid::display::Visualizer::syncWithVUState(*this, displayVUMeter);
 
 	// return false so that the usual sidebar rendering can be drawn
 	return false;

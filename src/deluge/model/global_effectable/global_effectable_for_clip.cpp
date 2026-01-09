@@ -21,6 +21,7 @@
 #include "dsp_ng/core/types.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
+#include "hid/display/visualizer.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "processing/engines/audio_engine.h"
@@ -133,6 +134,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
 	                             renderedLastTime, reverbSendAmount);
 	processStutter(global_effectable_audio, paramManagerForClip);
+
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
@@ -147,6 +149,14 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	}
 	else {
 		compressor.reset();
+	}
+
+	// Sample audio for clip-specific visualizer after all effects processing including master volume
+	// This ensures the visualizer reflects the actual audible output level
+	if (modelStack && modelStack->getTimelineCounter() && deluge::hid::display::Visualizer::isToggleEnabled()) {
+		// TimelineCounter is guaranteed to be a Clip in this context (GlobalEffectableForClip)
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+		deluge::hid::display::Visualizer::sampleAudioForClipDisplay(global_effectable_audio, output.size(), clip);
 	}
 
 	// Add the global effectable data to the output

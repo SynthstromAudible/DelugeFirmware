@@ -31,6 +31,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/visualizer.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -84,6 +85,9 @@ void AudioClipView::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
 
+	// Set current clip for visualizer when entering clip view
+	deluge::hid::display::Visualizer::trySetClipForVisualizer(getCurrentClip());
+
 	if (display->have7SEG()) {
 		view.displayOutputName(getCurrentOutput(), false);
 	}
@@ -93,6 +97,11 @@ void AudioClipView::focusRegained() {
 }
 
 void AudioClipView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	// Check if visualizer should be displayed in clip view
+	if (deluge::hid::display::Visualizer::potentiallyRenderVisualizer(canvas)) {
+		return;
+	}
+
 	view.displayOutputName(getCurrentOutput(), false, getCurrentClip());
 }
 
@@ -307,6 +316,9 @@ void AudioClipView::graphicsRoutine() {
 		lastTickSquare = newTickSquare;
 		mustRedrawTickSquares = false;
 	}
+
+	// Request OLED refresh for visualizer if active (ensures continuous updates)
+	deluge::hid::display::Visualizer::requestVisualizerUpdateIfNeeded();
 }
 
 void AudioClipView::needsRenderingDependingOnSubMode() {

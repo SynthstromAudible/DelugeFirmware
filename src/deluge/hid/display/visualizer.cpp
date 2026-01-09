@@ -1,0 +1,747 @@
+/*
+ * Copyright (c) 2025 Bruce Zawadzki (Tone Coder)
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "hid/display/visualizer.h"
+#include "deluge/model/clip/clip.h"
+#include "deluge/model/clip/instrument_clip.h"
+#include "deluge/model/settings/runtime_feature_settings.h"
+#include "extern.h"
+#include "gui/l10n/l10n.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_view.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_view.h"
+#include "gui/views/session_view.h"
+#include "gui/views/view.h"
+#include "hid/button.h"
+#include "hid/display/display.h"
+#include "hid/display/visualizer/visualizer_bar_spectrum.h"
+#include "hid/display/visualizer/visualizer_common.h"
+#include "hid/display/visualizer/visualizer_cube.h"
+#include "hid/display/visualizer/visualizer_line_spectrum.h"
+#include "hid/display/visualizer/visualizer_midi_piano_roll.h"
+#include "hid/display/visualizer/visualizer_pulsegrid.h"
+#include "hid/display/visualizer/visualizer_skyline.h"
+#include "hid/display/visualizer/visualizer_starfield.h"
+#include "hid/display/visualizer/visualizer_stereo_bar_spectrum.h"
+#include "hid/display/visualizer/visualizer_stereo_line_spectrum.h"
+#include "hid/display/visualizer/visualizer_tunnel.h"
+#include "hid/display/visualizer/visualizer_waveform.h"
+#include "modulation/params/param.h"
+#include <atomic>
+
+namespace deluge::hid::display {
+
+/// Render visualizer waveform or spectrum on OLED display
+void Visualizer::renderVisualizerDefault(oled_canvas::Canvas& canvas) {
+	// Check visualizer mode
+	uint32_t visualizer_mode = getMode();
+
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerLineSpectrum) {
+		// Render spectrum using FFT
+		::deluge::hid::display::renderVisualizerLineSpectrum(canvas);
+		return;
+	}
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerBarSpectrum) {
+		// Render equalizer using FFT
+		::deluge::hid::display::renderVisualizerBarSpectrum(canvas);
+		return;
+	}
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerCube) {
+		// Render 3D cube using FFT
+		::deluge::hid::display::renderVisualizerCube(canvas);
+		return;
+	}
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum) {
+		// Render stereo spectrum using FFT
+		::deluge::hid::display::renderVisualizerStereoLineSpectrum(canvas);
+		return;
+	}
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum) {
+		// Render stereo 8-band equalizer using FFT
+		::deluge::hid::display::renderVisualizerStereoBarSpectrum(canvas);
+		return;
+	}
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerTunnel) {
+		// Render tunnel visualization
+		::deluge::hid::display::renderVisualizerTunnel(canvas);
+		return;
+	}
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerStarfield) {
+		// Render starfield visualization
+		::deluge::hid::display::renderVisualizerStarfield(canvas);
+		return;
+	}
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerSkyline) {
+		// Render skyline visualization
+		::deluge::hid::display::renderVisualizerSkyline(canvas);
+		return;
+	}
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerPulseGrid) {
+		// Render pulse grid visualization
+		::deluge::hid::display::renderVisualizerPulseGrid(canvas);
+		return;
+	}
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll) {
+		// Render MIDI piano roll visualization
+		::deluge::hid::display::renderVisualizerMidiPianoRoll(canvas);
+		return;
+	}
+	// Default to waveform rendering (for VisualizerWaveform)
+	::deluge::hid::display::renderVisualizerWaveform(canvas);
+}
+
+/// Render waveform visualization
+/// @param canvas The OLED canvas to render to
+void Visualizer::renderVisualizerWaveform(oled_canvas::Canvas& canvas) {
+	::deluge::hid::display::renderVisualizerWaveform(canvas);
+}
+
+/// Render spectrum visualization using FFT
+/// @param canvas The OLED canvas to render to
+void Visualizer::renderVisualizerLineSpectrum(oled_canvas::Canvas& canvas) {
+	::deluge::hid::display::renderVisualizerLineSpectrum(canvas);
+}
+
+/// Render equalizer visualization with 16 frequency bands
+/// @param canvas The OLED canvas to render to
+void Visualizer::renderVisualizerBarSpectrum(oled_canvas::Canvas& canvas) {
+	::deluge::hid::display::renderVisualizerBarSpectrum(canvas);
+}
+
+/// Render stereo spectrum visualization
+/// @param canvas The OLED canvas to render to
+void Visualizer::renderVisualizerStereoLineSpectrum(oled_canvas::Canvas& canvas) {
+	::deluge::hid::display::renderVisualizerStereoLineSpectrum(canvas);
+}
+
+/// Render stereo 8-band equalizer visualization
+/// @param canvas The OLED canvas to render to
+void Visualizer::renderVisualizerStereoBarSpectrum(oled_canvas::Canvas& canvas) {
+	::deluge::hid::display::renderVisualizerStereoBarSpectrum(canvas);
+}
+
+/// Render tunnel visualization
+/// @param canvas The OLED canvas to render to
+void Visualizer::renderVisualizerTunnel(oled_canvas::Canvas& canvas) {
+	::deluge::hid::display::renderVisualizerTunnel(canvas);
+}
+
+/// Render starfield visualization
+/// @param canvas The OLED canvas to render to
+void Visualizer::renderVisualizerStarfield(oled_canvas::Canvas& canvas) {
+	::deluge::hid::display::renderVisualizerStarfield(canvas);
+}
+
+/// Render skyline visualization
+/// @param canvas The OLED canvas to render to
+void Visualizer::renderVisualizerSkyline(oled_canvas::Canvas& canvas) {
+	::deluge::hid::display::renderVisualizerSkyline(canvas);
+}
+
+/// Render pulse grid visualization
+/// @param canvas The OLED canvas to render to
+void Visualizer::renderVisualizerPulseGrid(oled_canvas::Canvas& canvas) {
+	::deluge::hid::display::renderVisualizerPulseGrid(canvas);
+}
+
+/// Check if visualizer should be rendered and render it if conditions are met
+bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas) {
+	int32_t mod_knob_mode = deluge::hid::display::extractModKnobMode(view);
+
+	return potentiallyRenderVisualizer(canvas, view.displayVUMeter, isEnabled(),
+	                                   view.activeModControllableModelStack.modControllable, mod_knob_mode);
+}
+
+/// Check if visualizer should be rendered and render it if conditions are met
+bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, View& view) {
+	int32_t mod_knob_mode = deluge::hid::display::extractModKnobMode(view);
+
+	return potentiallyRenderVisualizer(canvas, view.displayVUMeter, isEnabled(),
+	                                   view.activeModControllableModelStack.modControllable, mod_knob_mode);
+}
+
+/// Check if visualizer should be rendered and render it if conditions are met
+bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool displayVUMeter, bool visualizer_enabled,
+                                             ModControllable* modControllable, int32_t mod_knob_mode) {
+	// Don't show visualizer in automation/performance views
+	if (shouldDisableVisualizerForCurrentUI()) {
+		return false;
+	}
+
+	// Check if visualizer feature is enabled in Waveform, Spectrum, or Equalizer mode in runtime settings
+	if (visualizer_enabled) {
+		// Visualizer engages automatically with VU meter (session/arranger only) or when toggle is enabled (all views)
+		bool should_enable =
+		    (displayVUMeter && modControllable != nullptr && mod_knob_mode == 0) || visualizer_toggle_enabled;
+
+		// Check if we're in a clip context (clip view or holding clip)
+		bool in_clip_view = (getCurrentUI() == &instrumentClipView) || (getCurrentUI() == &audioClipView);
+		bool in_keyboard_screen = (getRootUI() == &keyboardScreen);
+		bool holding_clip_in_session_view =
+		    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
+		bool holding_clip_in_arranger_view = (getCurrentUI() == &arrangerView)
+		                                     && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+		                                         || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
+
+		bool inClipContext =
+		    in_clip_view || in_keyboard_screen || holding_clip_in_session_view || holding_clip_in_arranger_view;
+
+		// If we're in clip context and toggle is NOT enabled, disable visualizer entirely
+		// (clip visualizer should only show when toggle is enabled)
+		if (inClipContext && !visualizer_toggle_enabled) {
+			should_enable = false;
+		}
+		// Otherwise, if we're in clip context and toggle IS enabled, check if it's a valid clip type
+		else if (inClipContext && visualizer_toggle_enabled) {
+			Clip* currentClip = getCurrentClipForVisualizer();
+			if (currentClip) {
+				// Don't show visualizer for MIDI/CV clips in clip contexts
+				if (!((currentClip->type == ClipType::INSTRUMENT
+				       && (currentClip->output->type == OutputType::SYNTH
+				           || currentClip->output->type == OutputType::KIT))
+				      || currentClip->type == ClipType::AUDIO)) {
+					should_enable = false;
+				}
+			}
+		}
+
+		// Check silence timeout (1 second at 44.1kHz)
+		uint32_t visualizer_mode = getMode();
+		if (shouldSilenceVisualizer(visualizer_mode, isClipMode())) {
+			should_enable = false;
+		}
+
+		if (should_enable) {
+			if (!display_visualizer) {
+				display_visualizer = true;
+			}
+			renderVisualizer(canvas);
+			return true;
+		}
+	}
+
+	// If visualizer should be displayed but conditions aren't met, disable it
+	bool shouldDisable = !visualizer_enabled || (!displayVUMeter && !visualizer_toggle_enabled);
+
+	if (display_visualizer && shouldDisable) {
+		display_visualizer = false;
+		// Reset popup flag when visualizer is disabled
+		clip_program_popup_shown = false;
+	}
+	return false;
+}
+
+/// Render visualizer waveform or spectrum on OLED display
+/// Handles both global mix and clip-specific visualization modes
+void Visualizer::renderVisualizer(oled_canvas::Canvas& canvas) {
+	// Check if we're in clip context with a Synth/Kit/Audio clip - if so, force Waveform mode
+	// BUT only if the toggle is enabled (clip visualizer should only show when toggle is on)
+	if (isInClipContext() && visualizer_toggle_enabled) {
+		Clip* currentClip = getCurrentClipForVisualizer();
+		if (currentClip
+		    && ((currentClip->type == ClipType::INSTRUMENT
+		         && (currentClip->output->type == OutputType::SYNTH || currentClip->output->type == OutputType::KIT))
+		        || currentClip->type == ClipType::AUDIO)) {
+			// Always use Waveform mode in clip view for Synth/Kit/Audio clips
+			::deluge::hid::display::renderVisualizerWaveform(canvas);
+			return;
+		}
+	}
+
+	// Normal mode selection for session/arranger views - delegate to default implementation
+	renderVisualizerDefault(canvas);
+}
+
+/// Request OLED refresh for visualizer if active
+void Visualizer::requestVisualizerUpdateIfNeeded() {
+	requestVisualizerUpdateIfNeeded(view.displayVUMeter, isEnabled());
+}
+
+/// Request OLED refresh for visualizer if active
+void Visualizer::requestVisualizerUpdateIfNeeded(View& view) {
+	requestVisualizerUpdateIfNeeded(view.displayVUMeter, isEnabled());
+}
+
+void Visualizer::requestVisualizerUpdateIfNeeded(bool displayVUMeter, bool visualizer_enabled) {
+	// Don't update visualizer in automation/performance views
+	if (shouldDisableVisualizerForCurrentUI()) {
+		return;
+	}
+
+	// Check if visualizer should be active (VU meter conditions OR toggle conditions)
+	bool shouldBeActive = visualizer_enabled && (displayVUMeter || visualizer_toggle_enabled);
+
+	// If we're in clip context and toggle is NOT enabled, disable visualizer entirely
+	// (clip visualizer should only show when toggle is enabled)
+	if (shouldBeActive && isInClipContext() && !visualizer_toggle_enabled) {
+		shouldBeActive = false;
+	}
+
+	if (shouldBeActive) {
+		// Check silence timeout (1 second at 44.1kHz) - don't refresh OLED if silent
+		uint32_t visualizer_mode = getMode();
+		if (shouldSilenceVisualizer(visualizer_mode, isClipMode())) {
+			return;
+		}
+
+		// Enable visualizer if conditions are met
+		if (!display_visualizer) {
+			display_visualizer = true;
+		}
+
+		// All visualizers use 30fps
+
+		// Request OLED update at 30fps
+		visualizer_frame_counter++;
+		if (visualizer_frame_counter >= kFrameSkip) {
+			visualizer_frame_counter = 0;
+			renderUIsForOled();
+		}
+		return;
+	}
+	// Disable visualizer if conditions aren't met
+	if (display_visualizer) {
+		display_visualizer = false;
+	}
+}
+
+void Visualizer::reset() {
+	display_visualizer = false;
+	// Don't reset session_visualizer_mode here - it should persist within the same song
+	// and only reset when loading a new song
+	visualizer_frame_counter = 0;
+	clip_program_popup_shown = false;
+
+	// Initialize silence timers to current time to prevent immediate timeout
+	global_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+	clip_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+	midi_piano_roll_last_note_time = AudioEngine::audioSampleTimer;
+
+	// Clear clip visualizer state when switching views
+	// (this will be called when exiting clip view or switching to other views)
+	setCurrentClipForVisualizer(nullptr);
+}
+
+void Visualizer::setEnabled(bool enabled) {
+	display_visualizer = enabled;
+}
+
+bool Visualizer::isDisplaying() {
+	return display_visualizer;
+}
+
+bool Visualizer::isEnabled() {
+	uint32_t visualizer_mode = runtimeFeatureSettings.get(RuntimeFeatureSettingType::Visualizer);
+	return (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerWaveform)
+	       || (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerLineSpectrum)
+	       || (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerBarSpectrum)
+	       || (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerCube)
+	       || (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum)
+	       || (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum)
+	       || (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerTunnel)
+	       || (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerStarfield)
+	       || (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerSkyline)
+	       || (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerPulseGrid)
+	       || (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll);
+}
+
+/// Check if visualizer is actively running
+bool Visualizer::isActive(View& view) {
+	return isActive(view.displayVUMeter);
+}
+
+bool Visualizer::isActive(bool displayVUMeter) {
+	return isEnabled() && (displayVUMeter || visualizer_toggle_enabled);
+}
+
+uint32_t Visualizer::getMode() {
+	// Return session mode if set, otherwise return community setting
+	if (session_visualizer_mode != RuntimeFeatureStateVisualizer::VisualizerOff) {
+		return session_visualizer_mode;
+	}
+	return runtimeFeatureSettings.get(RuntimeFeatureSettingType::Visualizer);
+}
+
+void Visualizer::setSessionMode(uint32_t mode) {
+	session_visualizer_mode = mode;
+}
+
+void Visualizer::clearSessionMode() {
+	session_visualizer_mode = RuntimeFeatureStateVisualizer::VisualizerOff;
+}
+
+/// Reset session visualizer mode when loading a new song
+void Visualizer::resetSessionMode() {
+	session_visualizer_mode = RuntimeFeatureStateVisualizer::VisualizerOff;
+	cv_visualizer_mode =
+	    RuntimeFeatureStateVisualizer::VisualizerBarSpectrum; // Reset to Bar Spectrum (default special visualizer)
+	visualizer_toggle_enabled = false;
+}
+
+uint32_t Visualizer::getCVVisualizerMode() {
+	return cv_visualizer_mode;
+}
+
+void Visualizer::setCVVisualizerMode(uint32_t mode) {
+	cv_visualizer_mode = mode;
+}
+
+/// Set whether visualizer toggle is enabled (independent of VU meter)
+/// @param enabled Whether visualizer toggle should be enabled
+void Visualizer::setToggleEnabled(bool enabled) {
+	visualizer_toggle_enabled = enabled;
+}
+
+/// Get whether visualizer toggle is currently enabled
+/// @return true if visualizer toggle is enabled
+bool Visualizer::isToggleEnabled() {
+	return visualizer_toggle_enabled;
+}
+
+/// Helper function to sample audio into the circular buffers
+/// @param renderingBuffer The audio buffer to sample from
+/// @param numSamples Number of samples in the buffer
+void Visualizer::sampleIntoBuffers(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples) {
+	for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
+		// Convert stereo channels to Q15
+		int32_t sample_l = renderingBuffer[i].l >> kQ31ToQ15Shift;
+		int32_t sample_r = renderingBuffer[i].r >> kQ31ToQ15Shift;
+		int32_t combined = (sample_l + sample_r) >> 1;
+
+		// Write into the circular buffers
+		uint32_t write_pos = visualizer_write_pos.load(std::memory_order_acquire);
+		visualizer_sample_buffer_left[write_pos] = sample_l;
+		visualizer_sample_buffer_right[write_pos] = sample_r;
+		// Keep mono buffer for backward compatibility with existing visualizers
+		visualizer_sample_buffer[write_pos] = combined;
+		visualizer_write_pos.store((write_pos + 1) % kVisualizerBufferSize, std::memory_order_release);
+		if (visualizer_sample_count.load(std::memory_order_acquire) < kVisualizerBufferSize) {
+			visualizer_sample_count.fetch_add(1, std::memory_order_release);
+		}
+	}
+}
+
+void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples) {
+	// Sample audio for visualizer visualization (downsample for efficiency)
+	// Only sample if visualizer feature is enabled and not in clip mode
+	if (isEnabled() && current_clip_for_visualizer.load(std::memory_order_acquire) == nullptr) {
+		// Sample every N-th sample from the audio block for efficiency
+		uint32_t& silenceTimer = getAppropriateSilenceTimer(getMode(), false); // false for global mode
+		updateSilenceTimer(renderingBuffer, numSamples, silenceTimer);
+
+		sampleIntoBuffers(renderingBuffer, numSamples);
+	}
+}
+
+void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
+                                           Clip* clip) {
+	// Sample clip-specific audio for visualizer display (downsamples and stores in circular buffer)
+	// Only samples when visualizer is enabled, toggle is enabled, and this clip is the current clip being visualized
+	if (isEnabled() && visualizer_toggle_enabled && clip == getCurrentClipForVisualizer()) {
+		// Check if we're in clip context and have valid clip type
+		if (validateClipContextForVisualizer(isInClipContext(), visualizer_toggle_enabled, clip)
+		    && !shouldDisableVisualizerForCurrentUI()) {
+			uint32_t& silenceTimer = getAppropriateSilenceTimer(getMode(), true); // true for clip mode
+			updateSilenceTimer(renderingBuffer, numSamples, silenceTimer);
+
+			sampleIntoBuffers(renderingBuffer, numSamples);
+		}
+	}
+}
+
+/// Check buffer for audio activity and update silence timer
+/// @param renderingBuffer The audio buffer to check
+/// @param numSamples Number of samples in the buffer
+/// @param lastAudioTime Reference to the timer to update if audio is detected
+void Visualizer::updateSilenceTimer(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
+                                    uint32_t& lastAudioTime) {
+	// Check for silence detection - look for any non-zero samples in this buffer
+	bool hasAudio = false;
+
+	for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
+		// Check if either channel has significant audio
+		if (std::abs(renderingBuffer[i].l) > kSilenceThreshold || std::abs(renderingBuffer[i].r) > kSilenceThreshold) {
+			hasAudio = true;
+			break;
+		}
+	}
+
+	// Update silence timer if audio detected
+	if (hasAudio) {
+		lastAudioTime = AudioEngine::audioSampleTimer;
+	}
+}
+
+/// Check if we're currently in a clip context (clip view, keyboard screen, or holding clip)
+/// @return true if in clip context
+bool Visualizer::isInClipContext() {
+	bool in_clip_view = (getCurrentUI() == &instrumentClipView) || (getCurrentUI() == &audioClipView);
+	bool in_keyboard_screen = (getRootUI() == &keyboardScreen);
+
+	// Check if we're holding a clip in Session or Arranger view
+	bool holding_clip_in_session_view =
+	    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
+	bool holding_clip_in_arranger_view = (getCurrentUI() == &arrangerView)
+	                                     && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+	                                         || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
+
+	return in_clip_view || in_keyboard_screen || holding_clip_in_session_view || holding_clip_in_arranger_view;
+}
+
+/// Check if visualizer should display clip-specific audio vs. full mix
+/// @return true if in clip mode (instrument clip view or keyboard screen with Synth/Kit clip, or holding clip in
+/// Song/Arranger view). MIDI clips are excluded.
+bool Visualizer::isClipMode() {
+	if (!isInClipContext()) {
+		return false;
+	}
+
+	// Don't show visualizer in automation/performance views
+	if (shouldDisableVisualizerForCurrentUI()) {
+		return false;
+	}
+
+	Clip* currentClip = getCurrentClipForVisualizer();
+	if (!currentClip) {
+		return false;
+	}
+
+	// Enable for Instrument clips with Synth/Kit outputs OR Audio clips
+	return ((currentClip->type == ClipType::INSTRUMENT
+	         && (currentClip->output->type == OutputType::SYNTH || currentClip->output->type == OutputType::KIT))
+	        || currentClip->type == ClipType::AUDIO);
+}
+
+/// Check if clip visualizer is actively running
+/// @param displayVUMeter Whether VU meter is enabled
+/// @return true if clip visualizer is active
+bool Visualizer::isClipVisualizerActive(bool displayVUMeter) {
+	return isClipMode() && isEnabled() && (displayVUMeter || visualizer_toggle_enabled);
+}
+
+/// Display program name popup when entering clip visualizer mode
+void Visualizer::displayClipProgramNamePopup() {
+	Clip* currentClip = getCurrentClipForVisualizer();
+	if (currentClip && currentClip->output) {
+		// Get the program name from the output
+		std::string_view programName = currentClip->output->name.get();
+		if (!programName.empty()) {
+			::display->displayPopup(programName.data());
+		}
+	}
+	clip_program_popup_shown = true;
+}
+
+/// Set the current clip for visualizer (called by UI thread)
+/// @param clip Pointer to the current clip, or nullptr to clear
+void Visualizer::setCurrentClipForVisualizer(Clip* clip) {
+	Clip* previousClip = current_clip_for_visualizer.load(std::memory_order_acquire);
+
+	// Store new clip value
+	current_clip_for_visualizer.store(clip, std::memory_order_release);
+
+	// Clear buffer and reset popup flag when switching clips
+	if (clip != previousClip) {
+		clearVisualizerBuffer();
+		clip_program_popup_shown = false;
+	}
+}
+
+/// Get the current clip for visualizer (thread-safe)
+/// @return Pointer to the current clip, or nullptr
+Clip* Visualizer::getCurrentClipForVisualizer() {
+	return current_clip_for_visualizer.load(std::memory_order_acquire);
+}
+
+/// Clear visualizer buffer (called when switching clips or entering clip view)
+void Visualizer::clearVisualizerBuffer() {
+	// Clear all sample buffers and reset state
+	clearAllVisualizerBuffers();
+
+	// Reset silence timers when clearing buffer (typically when switching clips)
+	global_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+	clip_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+	midi_piano_roll_last_note_time = AudioEngine::audioSampleTimer;
+}
+
+/// Check if clip visualizer should be activated for a given clip
+/// @param clip Pointer to the clip to check
+/// @return true if clip visualizer should be activated
+bool Visualizer::shouldActivateClipVisualizer(Clip* clip) {
+	return clip && isEnabled() && isToggleEnabled();
+}
+
+/// Try to set the current clip for visualizer if conditions are met
+/// @param clip Pointer to the clip to set, or nullptr to clear
+void Visualizer::trySetClipForVisualizer(Clip* clip) {
+	if (shouldActivateClipVisualizer(clip)) {
+		setCurrentClipForVisualizer(clip);
+		displayClipProgramNamePopup();
+	}
+}
+
+/// Clear the current clip for visualizer (safe cleanup function)
+void Visualizer::clearClipForVisualizer() {
+	setCurrentClipForVisualizer(nullptr);
+}
+
+/// Get display name for a visualizer mode
+/// @param mode The visualizer mode
+/// @return String containing the display name
+std::string_view Visualizer::getModeDisplayName(uint32_t mode) {
+	switch (mode) {
+	case RuntimeFeatureStateVisualizer::VisualizerWaveform:
+		return "WAVEFORM";
+	case RuntimeFeatureStateVisualizer::VisualizerLineSpectrum:
+		return "LINE SPECTRUM";
+	case RuntimeFeatureStateVisualizer::VisualizerBarSpectrum:
+		return "BAR SPECTRUM";
+	case RuntimeFeatureStateVisualizer::VisualizerCube:
+		return "CUBE";
+	case RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum:
+		return "STEREO LINE SPECTRUM";
+	case RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum:
+		return "STEREO BAR SPECTRUM";
+	case RuntimeFeatureStateVisualizer::VisualizerTunnel:
+		return "TUNNEL";
+	case RuntimeFeatureStateVisualizer::VisualizerStarfield:
+		return "STARFIELD";
+	case RuntimeFeatureStateVisualizer::VisualizerSkyline:
+		return "SKYLINE";
+	case RuntimeFeatureStateVisualizer::VisualizerPulseGrid:
+		return "PULSE GRID";
+	case RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll:
+		return "MIDI PIANO ROLL";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+/// Handle SHIFT+LEVEL mod button press for visualizer toggle
+/// @param view Reference to current view for context and OLED refresh
+/// @return true if button press was handled by visualizer
+bool Visualizer::handleModButtonToggle(View& view) {
+	// Check for SHIFT+LEVEL mod button to toggle independent visualizer
+	// This works in all views including Clip Minder screens, regardless of Affect Entire
+	if (Buttons::isShiftButtonPressed()) {
+		// Only allow toggle if visualizer feature is enabled in community features
+		if (isEnabled()) {
+			bool new_state = !isToggleEnabled();
+			setToggleEnabled(new_state);
+
+			// If enabling toggle and in clip context, try to set the current clip for visualizer
+			if (new_state && isInClipContext()) {
+				Clip* clip_to_set = nullptr;
+				if (getCurrentUI() == &instrumentClipView) {
+					clip_to_set = getCurrentClip();
+				}
+				else if (getRootUI() == &keyboardScreen) {
+					clip_to_set = getCurrentInstrumentClip();
+				}
+				else if (getCurrentUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+					clip_to_set = sessionView.getClipForLayout();
+				}
+				else if (getCurrentUI() == &arrangerView
+				         && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+				             || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+					// For arranger view, get the clip from the held output
+					Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
+					if (output != nullptr) {
+						clip_to_set = currentSong->getClipWithOutput(output);
+					}
+				}
+
+				if (clip_to_set) {
+					trySetClipForVisualizer(clip_to_set);
+				}
+			}
+
+			// Show popup feedback
+			::display->displayPopup(new_state ? "VISUALIZER: ON" : "VISUALIZER: OFF");
+
+			renderUIsForOled();
+
+			return true; // Button press was handled by visualizer
+		}
+	}
+	return false; // Button press was not handled by visualizer
+}
+
+/// Handle LEVEL button press for VU meter toggle (affects visualizer)
+/// @param view Reference to current view (modifies displayVUMeter)
+/// @param whichButton The mod button that was pressed
+/// @param renderedVUMeter Whether VU meter was previously rendered
+/// @return true if button press was handled
+bool Visualizer::handleVUMeterToggle(View& view, uint8_t whichButton, bool renderedVUMeter) {
+	// Only handle LEVEL button (whichButton == 0)
+	if (whichButton != 0) {
+		return false;
+	}
+
+	// Store previous state to determine if we need to refresh OLED when disabling
+	bool visualizer_enabled = isEnabled();
+	bool visualizer_was_displayed = isDisplaying() && visualizer_enabled;
+
+	// VU meter toggle only works in session/arranger views where VU meters can be displayed
+	if (getCurrentUI() == &instrumentClipView) {
+		// VU meters cannot be displayed in clip view - do nothing
+		return false;
+	}
+	else {
+		// In session/arranger views, toggle VU meter which controls visualizer
+		view.displayVUMeter = !view.displayVUMeter;
+		// Visualizer follows VU meter toggle only if visualizer feature is enabled
+		setEnabled(view.displayVUMeter && visualizer_enabled);
+	}
+
+	// Refresh OLED if visualizer was previously displayed (need to show normal view when
+	// disabling)
+	if (visualizer_was_displayed) {
+		renderUIsForOled();
+	}
+	// refresh sidebar if VU meter previously rendered is still showing
+	if (renderedVUMeter) {
+		uiNeedsRendering(getRootUI(), 0); // only render sidebar
+	}
+	// refresh OLED if visualizer is now displayed (when enabling)
+	if (isDisplaying()) {
+		renderUIsForOled();
+	}
+
+	return true; // Button press was handled
+}
+
+/// Sync visualizer state with VU meter state
+/// @param view Reference to current view for OLED refresh
+/// @param displayVUMeter Current VU meter state
+void Visualizer::syncWithVUState(View& view, bool displayVUMeter) {
+	// Also disable visualizer when VU meter is not being rendered
+	if (!displayVUMeter && isDisplaying()) {
+		setEnabled(false);
+		// Trigger OLED refresh to clear visualizer and show normal view
+		RootUI* root_ui = getRootUI();
+		if (root_ui != nullptr && !rootUIIsClipMinderScreen()) {
+			renderUIsForOled();
+		}
+	}
+}
+
+} // namespace deluge::hid::display

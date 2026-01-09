@@ -102,6 +102,52 @@ static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, deluge::
 	};
 }
 
+static void SetupVisualizerSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                                   std::string_view xmlName, RuntimeFeatureStateVisualizer def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options = {
+	    {
+	        .displayName = "OFF",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerOff,
+	    },
+	    {
+	        .displayName = "WAVEFORM",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerWaveform,
+	    },
+	    {
+	        .displayName = "LINE SPECTRUM",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerLineSpectrum,
+	    },
+	    {
+	        .displayName = "BAR SPECTRUM",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerBarSpectrum,
+	    },
+	    {
+	        .displayName = "CUBE",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerCube,
+	    },
+	    {
+	        .displayName = "STEREO LINE SPECTRUM",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum,
+	    },
+	    {
+	        .displayName = "STARFIELD",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerStarfield,
+	    },
+	    {
+	        .displayName = "SKYLINE",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerSkyline,
+	    },
+	    {
+	        .displayName = "MIDI PIANO ROLL",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll,
+	    },
+	};
+}
+
 void RuntimeFeatureSettings::init() {
 	using enum deluge::l10n::String;
 	// Drum randomizer
@@ -200,6 +246,10 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Visualizer
+	SetupVisualizerSetting(settings[RuntimeFeatureSettingType::Visualizer], STRING_FOR_COMMUNITY_FEATURE_VISUALIZER,
+	                       "visualizer", RuntimeFeatureStateVisualizer::VisualizerOff);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

@@ -38,6 +38,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/visualizer.h"
 #include "hid/encoder.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
@@ -100,8 +101,15 @@ void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas)
 		else {
 			stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
 		}
+		return;
 	}
-	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
+
+	// Check if visualizer should be displayed
+	if (deluge::hid::display::Visualizer::potentiallyRenderVisualizer(canvas)) {
+		return;
+	}
+
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 		Output* output = outputsOnScreen[yPressedEffective];
 		view.displayOutputName(output);
 	}
@@ -1201,6 +1209,10 @@ void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, Cl
 	// the interaction with clip instance is remembered in order to ensure that
 	// if midi follow feedback is enabled, it sends feedback for the right clip instance
 	view.setActiveModControllableTimelineCounter(clip);
+
+	// Set current clip for visualizer when holding clip in arranger view
+	// This allows visualizer to show clip-specific waveform when clip is held
+	deluge::hid::display::Visualizer::trySetClipForVisualizer(clip);
 }
 
 void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance) {
@@ -1710,6 +1722,9 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 	// --------------
 
 	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+		// Clear clip visualizer when clip audition ends (return to global visualizer)
+		deluge::hid::display::Visualizer::clearClipForVisualizer();
+
 		Output* output = outputsOnScreen[yPressedEffective];
 		if (output) {
 			endAudition(output);
@@ -1719,6 +1734,9 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 	}
 
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
+		// Clear clip visualizer when clip press ends (return to global visualizer)
+		deluge::hid::display::Visualizer::clearClipForVisualizer();
+
 		// needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
 		// the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 		setNoSubMode();
@@ -3069,6 +3087,9 @@ void ArrangerView::graphicsRoutine() {
 	if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 		PadLEDs::sendOutSidebarColours();
 	}
+
+	// Request OLED refresh for visualizer if active (ensures continuous updates)
+	deluge::hid::display::Visualizer::requestVisualizerUpdateIfNeeded();
 
 	if (display->haveOLED()) {
 		sessionView.displayPotentialTempoChange(this);
