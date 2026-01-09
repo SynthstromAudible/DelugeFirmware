@@ -21,10 +21,11 @@
 #include "storage/wave_table/wave_table.h"
 
 bool WaveTableBandData::mayBeStolen(void* thingNotToStealFrom) {
-	// Because stealing us would mean the WaveTable being deleted too, we
-	// have to abide by this rule as found in WaveTable::mayBeStolen().
-	return waveTable != nullptr && (waveTable->numReasonsToBeLoaded > 0)
-	       && thingNotToStealFrom != &audioFileManager.wavetableFiles;
+	return (
+	    waveTable && !waveTable->numReasonsToBeLoaded
+	    && thingNotToStealFrom
+	           != &audioFileManager.audioFiles); // Because stealing us would mean the WaveTable being deleted too, we
+	                                             // have to abide by this rule as found in WaveTable::mayBeStolen().
 }
 
 void WaveTableBandData::steal(char const* errorCode) {
@@ -38,7 +39,7 @@ void WaveTableBandData::steal(char const* errorCode) {
 	waveTable->bandDataBeingStolen(this);
 
 	// Delete the WaveTable from memory - deallocating all other BandDatas and everything.
-	audioFileManager.releaseFile(*waveTable);
+	audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(*waveTable);
 }
 
 StealableQueue WaveTableBandData::getAppropriateQueue() {

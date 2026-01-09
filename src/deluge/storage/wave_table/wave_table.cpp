@@ -1214,26 +1214,3 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 
     }
  */
-
-bool WaveTable::mayBeStolen(void* thingNotToStealFrom) {
-	if (numReasonsToBeLoaded > 0) {
-		return false;
-	}
-
-	// If we were stolen, sampleManager's wavetableFiles/sampleFiles would get an entry deleted from it, and that's not
-	// allowed while it's being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
-	return (thingNotToStealFrom != &audioFileManager.wavetableFiles);
-
-	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as
-	// we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
-}
-
-void WaveTable::steal(char const* errorCode) {
-	// The destructor is about to be called too, so we don't have to do too much.
-#if ALPHA_OR_BETA_VERSION
-	if (!audioFileManager.wavetableFiles.contains(&this->filePath)) {
-		display->displayPopup(errorCode); // Jensg still getting.
-	}
-#endif
-	audioFileManager.wavetableFiles.erase(&this->filePath);
-}
