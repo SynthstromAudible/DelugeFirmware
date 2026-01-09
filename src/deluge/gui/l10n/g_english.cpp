@@ -12,7 +12,7 @@
 // clang-format off
 namespace deluge::l10n::built_in {
 using enum String;
-PLACE_SDRAM_DATA Language english{
+PLACE_SDRAM_RODATA Language english{
     "English",
     {
         {EMPTY_STRING, ""},
