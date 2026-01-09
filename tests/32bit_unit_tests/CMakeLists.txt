@@ -37,6 +37,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/lib/printf.c
 )
 
+# Exclude DX7 converter which brings in argon dependencies not needed for memory tests
+list(FILTER deluge_SOURCES EXCLUDE REGEX ".*dx7_converter.*")
+
 file(GLOB_RECURSE mock_SOURCES
         # Mock implementations
         mocks/*

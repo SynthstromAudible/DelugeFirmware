@@ -61,6 +61,7 @@
 #include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
 #include "gui/menu_item/dx/browse.h"
+#include "gui/menu_item/dx/convert.h"
 #include "gui/menu_item/dx/engine_select.h"
 #include "gui/menu_item/dx/global_params.h"
 #include "gui/menu_item/edit_name.h"
@@ -1336,10 +1337,11 @@ Submenu defaultsSubmenu{
 // Sound editor menu -----------------------------------------------------------------------------
 
 // FM only
-std::array<MenuItem*, 3> dxMenuItems = {
+std::array<MenuItem*, 4> dxMenuItems = {
     &dxBrowseMenu,
     &dxGlobalParams,
     &dxEngineSelect,
+    &dx_convert,
 };
 menu_item::Submenu dxMenu{STRING_FOR_DX_1, dxMenuItems};
 
