@@ -56,6 +56,10 @@ public:
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) override;
 	void receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, MIDIMatchType match,
 	                uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
+	void offerReceivedPC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
+	                     uint8_t channel, uint8_t program, bool* doingMidiThru);
+	void receivedPC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, MIDIMatchType match,
+	                uint8_t channel, uint8_t program, bool* doingMidiThru);
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) override;
 	void receivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,

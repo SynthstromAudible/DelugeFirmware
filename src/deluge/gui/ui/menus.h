@@ -4,6 +4,9 @@
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/filter/param.h"
 #include "gui/menu_item/firmware/version.h"
+#include "gui/menu_item/midi/bank.h"
+#include "gui/menu_item/midi/pgm.h"
+#include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/note/fill.h"
 #include "gui/menu_item/note/iterance_divisor.h"
 #include "gui/menu_item/note/iterance_preset.h"
@@ -104,6 +107,10 @@ extern gui::menu_item::note_row::Fill noteRowFillMenu;
 extern gui::menu_item::PatchCables patchCablesMenu;
 extern gui::menu_item::source::patched_param::ModulatorLevel modulator0Volume;
 extern gui::menu_item::source::patched_param::ModulatorLevel modulator1Volume;
+
+extern deluge::gui::menu_item::midi::PGM midiPGMMenu;
+extern deluge::gui::menu_item::midi::Bank midiBankMenu;
+extern deluge::gui::menu_item::midi::Sub midiSubMenu;
 
 extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
 extern MenuItem* gateDrumParamShortcuts[kDisplayHeight];

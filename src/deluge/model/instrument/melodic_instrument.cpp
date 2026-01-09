@@ -384,6 +384,24 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			if (doingMidiThru && ((MIDIInstrument*)this)->getChannel() == channel) {
 				*doingMidiThru = false;
 			}
+			// If Record is illuminated ...
+			if (playbackHandler.recording != RecordingMode::OFF) {
+				// ... and Bank MSB/LSB, store the values in the active clip and update the display if needed.
+				bool needUpdate = true;
+				if (ccNumber == 0) {
+					((InstrumentClip*)activeClip)->midiBank = value;
+				}
+				else if (ccNumber == 32) {
+					((InstrumentClip*)activeClip)->midiSub = value;
+				}
+				else {
+					needUpdate = false;
+				}
+
+				if (needUpdate && getCurrentUI() == &soundEditor) {
+					soundEditor.midiCCReceived(cable, channel, ccNumber, value);
+				}
+			}
 		}
 		if (ccNumber == CC_EXTERNAL_MOD_WHEEL) {
 			// this is the same range as mpe Y axis but unipolar
@@ -399,6 +417,37 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
 
 		possiblyRefreshAutomationEditorGrid(ccNumber);
+	}
+}
+
+void MelodicInstrument::offerReceivedPC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
+                                        uint8_t channel, uint8_t program, bool* doingMidiThru) {
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedPC(modelStackWithTimelineCounter, cable, match, channel, program, doingMidiThru);
+	}
+}
+
+void MelodicInstrument::receivedPC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
+                                   MIDIMatchType match, uint8_t channel, uint8_t program, bool* doingMidiThru) {
+	switch (match) {
+
+	case MIDIMatchType::NO_MATCH:
+		return;
+	case MIDIMatchType::MPE_MEMBER:
+		[[fallthrough]];
+	case MIDIMatchType::MPE_MASTER:
+		[[fallthrough]];
+	case MIDIMatchType::CHANNEL:
+		// If it's a MIDI Clip...
+		if (type == OutputType::MIDI_OUT) {
+			if (playbackHandler.recording != RecordingMode::OFF) {
+				((InstrumentClip*)activeClip)->midiPGM = program;
+				if (getCurrentUI() == &soundEditor) {
+					soundEditor.midiPCReceived(cable, channel, program);
+				}
+			}
+		}
 	}
 }
 
