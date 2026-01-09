@@ -72,7 +72,7 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
-void LoopPoint::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void LoopPoint::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 

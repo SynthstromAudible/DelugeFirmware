@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Leonid Burygin
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,24 +14,20 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
+#include "gui/menu_item/toggle.h"
+#include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
 
-namespace deluge::gui::menu_item {
-
-// A base class for rendering multiple menu items as a single "container" within a horizontal menu
-class HorizontalMenuContainer {
+namespace deluge::gui::menu_item::midi {
+class ReceiveClock final : public Toggle {
 public:
-	virtual ~HorizontalMenuContainer() = default;
-	HorizontalMenuContainer(std::initializer_list<MenuItem*> items) : items_{items} {}
-
-	[[nodiscard]] int32_t getOccupiedSlotsCount() const { return items_.size(); }
-	std::span<MenuItem* const> getItems() const { return items_; }
-
-	virtual void render(const SlotPosition& slots, const MenuItem* selected_item, HorizontalMenu* parent) {}
-
-protected:
-	deluge::vector<MenuItem*> items_;
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->receiveClock); }
+	void writeCurrentValue() override {
+		soundEditor.currentMIDICable->receiveClock = this->getValue();
+		MIDIDeviceManager::anyChangesToSave = true;
+	}
 };
-
-} // namespace deluge::gui::menu_item
+} // namespace deluge::gui::menu_item::midi

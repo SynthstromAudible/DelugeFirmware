@@ -17,7 +17,6 @@
 #include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
-#include "gui/menu_item/osc/tracking.h"
 #include "gui/menu_item/patch_cables.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/randomizer/midi_cv/note_probability.h"
@@ -29,7 +28,7 @@
 #include "gui/menu_item/source/patched_param/modulator_level.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
-#include <array>
+#include "gui/menu_item/submenu/mod_fx.h"
 
 namespace deluge::gui::menu_item {
 class HorizontalMenu;
@@ -66,6 +65,8 @@ extern gui::menu_item::Submenu soundEditorRootMenuSongView;
 extern gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
 extern gui::menu_item::Submenu soundEditorRootMenu;
 extern gui::menu_item::Submenu settingsRootMenu;
+extern gui::menu_item::submenu::ModFxHorizontalMenu globalModFXMenu;
+extern gui::menu_item::submenu::ModFxHorizontalMenu modFXMenu;
 
 extern gui::menu_item::randomizer::RandomizerLock randomizerLockMenu;
 extern gui::menu_item::randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV;

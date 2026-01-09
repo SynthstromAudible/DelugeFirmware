@@ -59,6 +59,14 @@ void usbSendCompleteAsPeripheral(int32_t ip) {
 }
 
 MIDIRootComplexUSBPeripheral::MIDIRootComplexUSBPeripheral() : cables_{0, 1, 2} {
+
+	auto* cable_two = &cables_.at(1);
+	for (auto& port : (cable_two->ports)) {
+		port.mpeLowerZoneLastMemberChannel = 7;
+		port.mpeUpperZoneLastMemberChannel = 8;
+	}
+
+	cable_two->receiveClock = false;
 }
 
 MIDIRootComplexUSBPeripheral::~MIDIRootComplexUSBPeripheral() {

@@ -11,7 +11,7 @@ jobs:
     outputs:
       new-commits: ${{ steps.count-commits.outputs.count }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           ref: "community"
           fetch-depth: 0 # Required to count the commits
@@ -41,7 +41,7 @@ jobs:
     outputs:
       new-commits: ${{ steps.count-commits.outputs.count }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Get new commits if branch exists

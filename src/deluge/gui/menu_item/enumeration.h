@@ -14,7 +14,7 @@ public:
 	virtual size_t size() = 0;
 	/// @brief  Should this menu wrap around?
 	virtual bool wrapAround();
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 
 protected:
 	void drawPixelsForOled() override = 0;

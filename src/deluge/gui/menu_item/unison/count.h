@@ -65,7 +65,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxNumVoicesUnison; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		DEF_STACK_STRING_BUF(paramValue, 2);
 		paramValue.appendInt(getValue());
 		OLED::main.drawStringCentered(paramValue, slot.start_x + 1, slot.start_y + kHorizontalMenuSlotYOffset + 3,

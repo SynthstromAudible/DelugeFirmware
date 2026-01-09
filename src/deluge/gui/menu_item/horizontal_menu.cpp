@@ -37,22 +37,22 @@ namespace deluge::gui::menu_item {
 
 using namespace hid::display;
 
-MenuPermission HorizontalMenu::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-                                                             ::MultiRange** currentRange) {
+void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
+	Submenu::beginSession(navigatedBackwardFrom);
+
 	for (const auto it : items) {
 		it->parent = this;
-		// Important initialization stuff may happen in this check
-		// E.g. the patch cable strength menu sets the current source there
-		it->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
-		                                  &soundEditor.currentMultiRange);
+	}
+}
+
+bool HorizontalMenu::focusChild(const MenuItem* child) {
+	const bool result = Submenu::focusChild(child);
+
+	if (result) {
+		initializeItem(*current_item_);
 	}
 
-	// Workaround: calling checkPermissionToBeginSession on a specific menu item could cause unnecessary popups
-	if (display->hasPopupOfType(PopupType::GENERAL)) {
-		display->cancelPopup();
-	}
-
-	return Submenu::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
+	return result;
 }
 
 ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
@@ -115,11 +115,52 @@ void HorizontalMenu::renderOLED() {
 		currentKnobSpeed = 0.0f;
 	}
 
-	OLED::main.drawScreenTitle(getTitle(), false);
+	renderTitle(paging);
 	renderPageCounters(paging);
 	renderMenuItems(paging.visiblePageItems, *current_item_);
 
 	OLED::markChanged();
+}
+
+void HorizontalMenu::renderTitle(const Paging& paging) const {
+	std::string_view title = getTitle();
+
+	// Check if we need to shorten the title
+	if (paging.totalPages > 1) {
+		const uint8_t title_width = OLED::main.getStringWidthInPixels(title.data(), kTextTitleSizeY);
+		constexpr uint8_t paging_width = kTextSpacingX * 2 + 10;
+
+		if (title_width > OLED_MAIN_WIDTH_PIXELS - paging_width) {
+			std::string title_copy(title);
+
+			// Split into words
+			std::vector<std::string> words;
+			int32_t start = 0;
+			while (start < title_copy.size()) {
+				// skip leading spaces
+				while (start < title_copy.size() && title_copy[start] == ' ') {
+					start++;
+				}
+				if (start >= title_copy.size())
+					break;
+
+				int32_t end = start;
+				while (end < title_copy.size() && title_copy[end] != ' ') {
+					end++;
+				}
+
+				words.emplace_back(title_copy.substr(start, end - start));
+				start = end;
+			}
+
+			// Shorten the first word
+			if (words.size() == 2) {
+				title = std::string(1, words[0][0]) + ". " + words[1];
+			}
+		}
+	}
+
+	OLED::main.drawScreenTitle(title, false);
 }
 
 void HorizontalMenu::renderPageCounters(const Paging& paging) {
@@ -141,7 +182,7 @@ void HorizontalMenu::renderPageCounters(const Paging& paging) {
 	image.drawLine(x, y + kTextSpacingY - 2, x + 2, y + 1);
 	x -= 6;
 
-	// Draw the current one
+	// Draw the current page
 	currentPageNum.clear();
 	currentPageNum.appendInt(paging.visiblePageNumber + 1);
 	image.drawString(currentPageNum.c_str(), x, y, kTextSpacingX, kTextSpacingY);
@@ -169,7 +210,7 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		const bool is_selected = item == currentItem;
 		const bool is_relevant = isItemRelevant(item);
 
-		const uint8_t box_width = column_width * item->getColumnSpan();
+		const uint8_t box_width = column_width * item->getOccupiedSlots();
 		constexpr uint8_t box_height = 25;
 		constexpr uint8_t label_height = kTextSpacingY;
 		constexpr uint8_t label_y = base_y + box_height - label_height;
@@ -178,17 +219,16 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		if (containers_map.contains(item) && is_relevant) {
 			// If item belongs to a container, delegate rendering to that container
 			const auto container = containers_map[item];
-			const auto column_span = container->getColumnSpan();
+			const auto slots_count = container->getOccupiedSlotsCount();
 
-			bool halt_remaining_rendering = false;
-			container->render(current_x, box_width * column_span, base_y, content_height, currentItem, this,
-			                  &halt_remaining_rendering);
-			if (halt_remaining_rendering) {
-				return;
-			}
+			container->render({.start_x = current_x,
+			                   .start_y = base_y,
+			                   .width = static_cast<uint8_t>(box_width * slots_count),
+			                   .height = content_height},
+			                  currentItem, this);
 
-			current_x += box_width * column_span;
-			it += column_span;
+			current_x += box_width * slots_count;
+			it += slots_count;
 			continue;
 		}
 
@@ -212,7 +252,7 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		}
 
 		// Highlight the selected item if it doesn't occupy the whole page
-		if (is_selected && (items.size() > 1 || items[0]->getColumnSpan() < 4)) {
+		if (is_selected && (items.size() > 1 || items[0]->getOccupiedSlots() < 4)) {
 			switch (FlashStorage::accessibilityMenuHighlighting) {
 			case MenuHighlighting::FULL_INVERSION: {
 				// Highlight by inversion of the label or whole slot
@@ -298,6 +338,7 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 	// Select an item on the next / previous page, keeping the previous position if possible
 	selectMenuItem(target_page_number, paging.selectedItemPositionOnPage);
 
+	initializeItem(*current_item_);
 	renderUIsForOled();
 	updatePadLights();
 
@@ -322,10 +363,12 @@ void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<Horizonta
 		return switchHorizontalMenu(direction >= 0 ? ++direction : --direction, chain);
 	}
 
-	target_menu->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
-	                                           &soundEditor.currentMultiRange);
 	target_menu->beginSession(nullptr);
-	target_menu->selectMenuItem(0, 0);
+
+	// For Mod FX menu we want to switch straight to the selected FX's controls that are on the second page
+	auto desired_page = util::one_of<Submenu*>(target_menu, {&modFXMenu, &globalModFXMenu}) ? 1 : 0;
+	target_menu->selectMenuItem(desired_page, 0);
+	initializeItem(*current_item_);
 
 	soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = target_menu;
 	renderUIsForOled();
@@ -346,7 +389,7 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_pa
 
 		// Is this item covering the selected column?
 		if (pressed_button_position >= current_column
-		    && pressed_button_position < current_column + item->getColumnSpan()) {
+		    && pressed_button_position < current_column + item->getOccupiedSlots()) {
 			if (layout == FIXED && !isItemRelevant(item)) {
 				// Item is disabled, do nothing
 				return;
@@ -360,30 +403,31 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_pa
 			}
 
 			// Update the currently selected item
+			initializeItem(*current_item_);
 			updateDisplay();
 			updatePadLights();
 			return displayNotification(*current_item_);
 		}
 
-		current_column += item->getColumnSpan();
+		current_column += item->getOccupiedSlots();
 	}
 }
 
 void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 	lastSelectedItemPosition = kNoSelection;
 
-	int32_t current_page_span = 0;
+	int32_t current_page_acquired_slots = 0;
 	int32_t current_page_number = 0;
 	int32_t position_on_page = 0;
 
 	// Find the target item on the next / previous page
 	for (const auto it : std::views::filter(items, [&](auto i) { return layout == FIXED || isItemRelevant(i); })) {
-		const auto itemSpan = it->getColumnSpan();
+		const auto slots_count = it->getOccupiedSlots();
 
 		// Check if we need to move to the next page
-		if (current_page_span + itemSpan > 4) {
+		if (current_page_acquired_slots + slots_count > 4) {
 			current_page_number++;
-			current_page_span = 0;
+			current_page_acquired_slots = 0;
 			position_on_page = 0;
 		}
 
@@ -397,7 +441,7 @@ void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 				break;
 			}
 		}
-		current_page_span += itemSpan;
+		current_page_acquired_slots += slots_count;
 		position_on_page++;
 	}
 }
@@ -408,7 +452,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 	visible_page_items.reserve(4);
 
 	uint8_t visible_page_number = 0;
-	uint8_t current_page_span = 0;
+	uint8_t current_page_acquired_slots = 0;
 	uint8_t total_pages = 1;
 	uint8_t selected_item_position_on_page = 0;
 	bool current_item_in_this_page = false;
@@ -428,8 +472,8 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 		}
 
 		// If the item doesn't fit, start a new page
-		const int32_t item_span = item->getColumnSpan();
-		if (current_page_span + item_span > 4 && is_relevant) {
+		const int32_t slots_count = item->getOccupiedSlots();
+		if (current_page_acquired_slots + slots_count > 4 && is_relevant) {
 			if (current_item_in_this_page) {
 				// Finalize visible page
 				visible_page_completed = true;
@@ -442,7 +486,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 			}
 
 			++total_pages;
-			current_page_span = 0;
+			current_page_acquired_slots = 0;
 		}
 
 		if (!visible_page_completed) {
@@ -454,7 +498,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 			current_item_in_this_page = true;
 		}
 
-		current_page_span += item_span;
+		current_page_acquired_slots += slots_count;
 	}
 
 	// Handle the last page
@@ -462,7 +506,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 		visible_page_number = total_pages - 1;
 	}
 	// Check if the page is single and has no items to render
-	if (total_pages == 1 && current_page_span == 0) {
+	if (total_pages == 1 && current_page_acquired_slots == 0) {
 		total_pages = 0;
 	}
 
@@ -479,15 +523,15 @@ void HorizontalMenu::updateSelectedMenuItemLED(int32_t itemNumber) const {
 	int32_t end_column = 0;
 	for (const auto* item : page_items) {
 		if (item == selected_item) {
-			end_column = start_column + item->getColumnSpan();
+			end_column = start_column + item->getOccupiedSlots();
 			break;
 		}
-		start_column += item->getColumnSpan();
+		start_column += item->getOccupiedSlots();
 	}
 
 	// Light up all buttons whose columns are covered by the selected item
-	std::vector led_states{false, false, false, false};
-	if (page_items.size() > 1 || page_items[0]->isSubmenu() || page_items[0]->getColumnSpan() < 4) {
+	std::array led_states{false, false, false, false};
+	if (page_items.size() > 1 || page_items[0]->isSubmenu() || page_items[0]->getOccupiedSlots() < 4) {
 		for (int32_t i = 0; i < led_states.size(); ++i) {
 			led_states[i] = i >= start_column && i < end_column;
 		}
@@ -514,6 +558,10 @@ void HorizontalMenu::endSession() {
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
+	}
+
+	for (const auto it : items) {
+		it->parent = nullptr;
 	}
 }
 
@@ -543,7 +591,7 @@ void HorizontalMenu::renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32
 	const int32_t label_start_x = slotStartX + (slotWidth - label_width) / 2;
 	image.drawString(label.c_str(), label_start_x, labelY, kTextSpacingX, kTextSpacingY);
 
-	if (menuItem->getColumnSpan() > 1 && !menuItem->isSubmenu() && !isSelected) {
+	if (menuItem->getOccupiedSlots() > 1 && !menuItem->isSubmenu() && !isSelected) {
 		// Draw small lines on the left and right side if the slot is too wide
 		const int32_t y = labelY + 4;
 		image.drawHorizontalLine(y, slotStartX + 4, label_start_x - 4);
@@ -606,9 +654,10 @@ bool HorizontalMenu::hasItem(const MenuItem* item) {
 	return std::ranges::contains(items, item);
 }
 
-void HorizontalMenu::setCurrentItem(const MenuItem* item) {
-	current_item_ = std::ranges::find(items, item);
-	lastSelectedItemPosition = kNoSelection;
+void HorizontalMenu::initializeItem(MenuItem* menuItem) {
+	// if case the item is of type PatchCableStrength, we need to call this to properly set up a patch cable
+	menuItem->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
+	                                        &soundEditor.currentMultiRange);
 }
 
 } // namespace deluge::gui::menu_item

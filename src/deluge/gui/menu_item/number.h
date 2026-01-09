@@ -49,18 +49,18 @@ protected:
 	virtual float normalize(int32_t value);
 
 	// Horizontal menus ------
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
-	void drawKnob(const HorizontalMenuSlotParams& slot);
-	void drawBar(const HorizontalMenuSlotParams& slot);
-	void drawPercent(const HorizontalMenuSlotParams& slot);
-	void drawSlider(const HorizontalMenuSlotParams& slot, std::optional<int32_t> value = std::nullopt);
-	void drawLengthSlider(const HorizontalMenuSlotParams& slot, bool min_slider_pos = 3);
-	void drawPan(const HorizontalMenuSlotParams& slot);
-	void drawLpf(const HorizontalMenuSlotParams& slot);
-	void drawHpf(const HorizontalMenuSlotParams& slot);
-	void drawAttack(const HorizontalMenuSlotParams& slot);
-	void drawRelease(const HorizontalMenuSlotParams& slot);
-	void drawSidechainDucking(const HorizontalMenuSlotParams& slot);
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
+	void drawKnob(const SlotPosition& slot);
+	void drawBar(const SlotPosition& slot);
+	void drawPercent(const SlotPosition& slot);
+	void drawSlider(const SlotPosition& slot, std::optional<int32_t> value = std::nullopt);
+	void drawLengthSlider(const SlotPosition& slot, bool min_slider_pos = 3);
+	void drawPan(const SlotPosition& slot);
+	void drawLpf(const SlotPosition& slot);
+	void drawHpf(const SlotPosition& slot);
+	void drawAttack(const SlotPosition& slot);
+	void drawRelease(const SlotPosition& slot);
+	void drawSidechainDucking(const SlotPosition& slot);
 	void getNotificationValue(StringBuf& value) override;
 };
 

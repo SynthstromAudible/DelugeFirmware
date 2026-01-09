@@ -7,7 +7,7 @@ jobs:
     if: startsWith(github.event_name, 'pull_request') # Posting a review only makes sense on PRs
     steps:
       # Repo config for pull_request_target
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}

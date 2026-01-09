@@ -52,12 +52,11 @@ public:
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
-	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             ::MultiRange** currentRange) override;
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void endSession() override;
+	bool focusChild(const MenuItem* child) override;
 
 	virtual bool hasItem(const MenuItem* item);
-	virtual void setCurrentItem(const MenuItem* item);
 	decltype(items)& getItems() { return items; }
 	MenuItem* getCurrentItem() const { return *current_item_; }
 
@@ -78,9 +77,11 @@ private:
 	void updateSelectedMenuItemLED(int32_t itemNumber) const;
 	static void handleItemAction(MenuItem* menuItem);
 	static void displayNotification(MenuItem* menuItem);
+	void renderTitle(const Paging& paging) const;
 	static void renderPageCounters(const Paging& paging);
 	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
 	                              bool isSelected);
+	static void initializeItem(MenuItem* menuItem);
 
 	double currentKnobSpeed{0.0};
 	double calcNextKnobSpeed(int8_t offset);
