@@ -29,10 +29,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "storage/wave_table/wave_table.h"
 #include "util/functions.h"
-#include "util/try.h"
-#include <cstring>
+#include <string.h>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -167,12 +165,11 @@ gotError:
 		goto gotError;
 	}
 
-	D_TRY_CATCH(
-	    audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(), filenameWithoutExtension),
-	    local_error, {
-		    error = local_error;
-		    goto gotError;
-	    });
+	error =
+	    audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(), filenameWithoutExtension);
+	if (error != Error::NONE) {
+		goto gotError;
+	}
 	error = newSongAlternatePath.concatenate("/");
 	if (error != Error::NONE) {
 		goto gotError;
@@ -182,25 +179,27 @@ gotError:
 	bool anyErrorMovingTempFiles = false;
 
 	// Go through each AudioFile we have a record of in RAM.
-	auto saveAudioFile = [&](AudioFile* audioFile) {
+	for (int32_t i = 0; i < audioFileManager.audioFiles.getNumElements(); i++) {
+		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(i);
+
 		// If this AudioFile is used in this Song...
 		if (audioFile->numReasonsToBeLoaded) {
 
 			if (audioFile->type == AudioFileType::SAMPLE) {
-				Sample& sample = *static_cast<Sample*>(audioFile);
 				// If this is a recording which still exists at its temporary location, move the file
-				if (!sample.tempFilePathForRecording.isEmpty()) {
+				if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
 					StorageManager::buildPathToFile(audioFile->filePath.get());
-					FRESULT result = f_rename(sample.tempFilePathForRecording.get(), audioFile->filePath.get());
+					FRESULT result =
+					    f_rename(((Sample*)audioFile)->tempFilePathForRecording.get(), audioFile->filePath.get());
 					if (result == FR_OK) {
-						sample.tempFilePathForRecording.clear();
+						((Sample*)audioFile)->tempFilePathForRecording.clear();
 					}
 					else {
 						// We at least need to warn the user that although the main file save was (hopefully soon to be)
 						// successful, something's gone wrong
 						anyErrorMovingTempFiles = true;
-						D_PRINTLN("rename failed.  %d %s %s", result, sample.tempFilePathForRecording.get(),
-						          audioFile->filePath.get());
+						D_PRINTLN("rename failed.  %d %s %s", result,
+						          ((Sample*)audioFile)->tempFilePathForRecording.get(), audioFile->filePath.get());
 					}
 				}
 			}
@@ -215,7 +214,7 @@ gotError:
 				if (collectingSamples && !audioFile->loadedFromAlternatePath.isEmpty()) {
 					if (currentDir.equalsCaseIrrespective(&currentSong->dirPath)) {
 						if (enteredText.equalsCaseIrrespective(&currentSong->name)) {
-							return true;
+							continue;
 						}
 					}
 				}
@@ -250,9 +249,7 @@ gotError:
 				if (result != FR_OK) {
 					D_PRINTLN("open fail %s", sourceFilePath);
 					error = Error::UNSPECIFIED;
-					display->removeLoadingAnimation();
-					display->displayError(error);
-					return false;
+					goto gotError;
 				}
 
 				char const* destFilePath;
@@ -315,15 +312,13 @@ gotError:
 					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was
 					// designed for...
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
-						D_TRY_CATCH(audioFileManager.setupAlternateAudioFilePath(newSongAlternatePath, dirPathLengthNew,
-						                                                         audioFile->filePath),
-						            local_error, {
-							            error = local_error;
-							            activeDeserializer->closeWriter();
-							            display->removeLoadingAnimation();
-							            display->displayError(error);
-							            return false;
-						            });
+						error = audioFileManager.setupAlternateAudioFilePath(newSongAlternatePath, dirPathLengthNew,
+						                                                     audioFile->filePath);
+						if (error != Error::NONE) {
+failAfterOpeningSourceFile:
+							activeDeserializer->closeWriter();
+							goto gotError;
+						}
 					}
 
 					// Or, if it wasn't in the SAMPLES folder, e.g. if it was in a dedicated SYNTH folder, then we have
@@ -332,10 +327,7 @@ gotError:
 						char const* fileName = getFileNameFromEndOfPath(audioFile->filePath.get());
 						error = newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew);
 						if (error != Error::NONE) {
-							activeDeserializer->closeWriter();
-							display->removeLoadingAnimation();
-							display->displayError(error);
-							return false;
+							goto failAfterOpeningSourceFile;
 						}
 					}
 
@@ -358,10 +350,7 @@ gotError:
 					}
 					else {
 						error = created.error();
-						activeDeserializer->closeWriter();
-						display->removeLoadingAnimation();
-						display->displayError(error);
-						return false;
+						goto failAfterOpeningSourceFile;
 					}
 				}
 
@@ -375,11 +364,9 @@ gotError:
 						                Cluster::size, &bytesRead);
 						if (result) {
 							D_PRINTLN("read fail");
+fail3:
 							error = Error::UNSPECIFIED;
-							activeDeserializer->closeWriter();
-							display->removeLoadingAnimation();
-							display->displayError(error);
-							return false;
+							goto failAfterOpeningSourceFile;
 						}
 						if (!bytesRead) {
 							break; // Stop, on rare case where file ended right at end of last cluster
@@ -389,11 +376,7 @@ gotError:
 						    created.value().write({(std::byte*)activeDeserializer->fileClusterBuffer, bytesRead});
 						if (!written || written.value() != bytesRead) {
 							D_PRINTLN("write fail %d", result);
-							error = Error::UNSPECIFIED;
-							activeDeserializer->closeWriter();
-							display->removeLoadingAnimation();
-							display->displayError(error);
-							return false;
+							goto fail3;
 						}
 
 						if (bytesRead < Cluster::size) {
@@ -411,19 +394,6 @@ gotError:
 					audioFile->loadedFromAlternatePath.clear();
 				}
 			}
-		}
-		return true;
-	};
-
-	for (Sample* sample : audioFileManager.sampleFiles | std::views::values) {
-		if (!saveAudioFile(sample)) {
-			return false;
-		}
-	}
-
-	for (WaveTable* wavetable : audioFileManager.wavetableFiles | std::views::values) {
-		if (!saveAudioFile(wavetable)) {
-			return false;
 		}
 	}
 
