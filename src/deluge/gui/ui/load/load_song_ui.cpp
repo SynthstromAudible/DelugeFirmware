@@ -45,6 +45,7 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/try.h"
 #include <string.h>
 
 LoadSongUI loadSongUI{};
@@ -416,11 +417,12 @@ fail:
 			goto gotErrorAfterCreatingSong;
 		}
 
-		error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
-		                                                    currentDir.get(), currentFilenameWithoutExtension);
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
+		D_TRY_CATCH(audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
+		                                                        currentDir.get(), currentFilenameWithoutExtension),
+		            local_error, {
+			            error = local_error;
+			            goto gotErrorAfterCreatingSong;
+		            });
 		audioFileManager.thingBeginningLoading(ThingType::SONG);
 
 		// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
@@ -479,11 +481,13 @@ gotErrorAfterCreatingSong:
 		goto gotErrorAfterCreatingSong;
 	}
 
-	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
-	                                                    currentFilenameWithoutExtension);
-	if (error != Error::NONE) {
-		goto gotErrorAfterCreatingSong;
-	}
+	D_TRY_CATCH(audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
+	                                                        currentDir.get(), currentFilenameWithoutExtension),
+	            local_error, {
+		            error = local_error;
+		            goto gotErrorAfterCreatingSong;
+	            });
+
 	audioFileManager.thingBeginningLoading(ThingType::SONG);
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
