@@ -27,6 +27,8 @@
 #include "util/misc.h"
 #include <cstring>
 
+#include <algorithm>
+
 #define MAX_NUM_MARKERS 8
 
 Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
@@ -504,34 +506,6 @@ void AudioFile::removeReason(char const* errorCode) {
 		FREEZE_WITH_ERROR("E004"); // Luc got this! And Paolo. (Must have been years ago :D)
 #endif
 		numReasonsToBeLoaded = 0; // Save it from crashing
-	}
-}
-
-bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
-
-	if (numReasonsToBeLoaded) {
-		return false;
-	}
-
-	// If we were stolen, sampleManager.audioFiles would get an entry deleted from it, and that's not allowed while it's
-	// being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
-	return (thingNotToStealFrom != &audioFileManager.audioFiles);
-
-	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as
-	// we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
-}
-
-void AudioFile::steal(char const* errorCode) {
-	// The destructor is about to be called too, so we don't have to do too much.
-
-	int32_t i = audioFileManager.audioFiles.searchForExactObject(this);
-	if (i < 0) {
-#if ALPHA_OR_BETA_VERSION
-		display->displayPopup(errorCode); // Jensg still getting.
-#endif
-	}
-	else {
-		audioFileManager.audioFiles.removeElement(i);
 	}
 }
 

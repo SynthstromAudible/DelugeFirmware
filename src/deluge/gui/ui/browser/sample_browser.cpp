@@ -430,7 +430,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 						return ActionResult::DEALT_WITH;
 					}
 
-					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
+					bool allFine = audioFileManager.releaseSampleAtFilePath(filePath);
 
 					if (!allFine) {
 						display->displayPopup(
@@ -1243,22 +1243,17 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
+		for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
 
-			if (audioFile->type == AudioFileType::SAMPLE) {
-				Sample* thisSample = (Sample*)audioFile;
-
-				// If this sample is one of the ones we loaded a moment ago...
-				if (thisSample->partOfFolderBeingLoaded) {
-					thisSample->partOfFolderBeingLoaded = false;
+			// If this sample is one of the ones we loaded a moment ago...
+			if (thisSample->partOfFolderBeingLoaded) {
+				thisSample->partOfFolderBeingLoaded = false;
 #if ALPHA_OR_BETA_VERSION
-					if (thisSample->numReasonsToBeLoaded <= 0) {
-						FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
-					}
-#endif
-					thisSample->removeReason("E392"); // Remove that temporary reason we added
+				if (thisSample->numReasonsToBeLoaded <= 0) {
+					FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
 				}
+#endif
+				thisSample->removeReason("E392"); // Remove that temporary reason we added
 			}
 		}
 
@@ -1318,12 +1313,16 @@ removeReasonsFromSamplesAndGetOut:
 		filePath.concatenateAtPos(staticFNO.fname, dirWithSlashLength);
 
 		// We really want to be able to pass a file pointer in here
-		auto* newSample = static_cast<Sample*>(
-		    audioFileManager.getAudioFileFromFilename(filePath, true, &error, &thisFilePointer, AudioFileType::SAMPLE));
-		if (error != Error::NONE || !newSample) {
+		auto maybeNewSample =
+		    audioFileManager.getAudioFileFromFilename(filePath, true, &thisFilePointer, AudioFileType::SAMPLE);
+
+		if (!maybeNewSample.has_value() || maybeNewSample.value() == nullptr) {
+			error = maybeNewSample.error_or(Error::NONE);
 			staticDIR.close();
 			goto removeReasonsFromSamplesAndGetOut;
 		}
+
+		auto* newSample = static_cast<Sample*>(maybeNewSample.value());
 
 		newSample->addReason();
 		newSample->partOfFolderBeingLoaded = true;
@@ -1370,31 +1369,25 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int32_t sampleI = 0;
-	for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
+	for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
+		// If this sample is one of the ones we loaded a moment ago...
+		if (thisSample->partOfFolderBeingLoaded) {
+			thisSample->partOfFolderBeingLoaded = false;
 
-		if (audioFile->type == AudioFileType::SAMPLE) {
+			if (discardingMIDINoteFromFile) {
+				thisSample->midiNoteFromFile = -1;
+			}
 
-			Sample* thisSample = (Sample*)audioFile;
-			// If this sample is one of the ones we loaded a moment ago...
-			if (thisSample->partOfFolderBeingLoaded) {
-				thisSample->partOfFolderBeingLoaded = false;
+			if (detectPitch) {
+				thisSample->workOutMIDINote(doingSingleCycle);
+			}
 
-				if (discardingMIDINoteFromFile) {
-					thisSample->midiNoteFromFile = -1;
-				}
+			*thisSamplePointer = thisSample;
+			sampleI++;
+			thisSamplePointer++;
 
-				if (detectPitch) {
-					thisSample->workOutMIDINote(doingSingleCycle);
-				}
-
-				*thisSamplePointer = thisSample;
-				sampleI++;
-				thisSamplePointer++;
-
-				if (sampleI == numSamples) {
-					break; // Just for safety
-				}
+			if (sampleI == numSamples) {
+				break; // Just for safety
 			}
 		}
 	}

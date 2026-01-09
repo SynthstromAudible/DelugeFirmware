@@ -16,6 +16,7 @@
  */
 
 #include "model/sample/sample_recorder.h"
+#include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -111,9 +112,6 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
                             bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
                             Output* outputRecordingFrom_) {
 
-	if (!audioFileManager.ensureEnoughMemoryForOneMoreAudioFile()) {
-		return Error::INSUFFICIENT_RAM;
-	}
 	outputRecordingFrom = outputRecordingFrom_;
 	keepingReasonsForFirstClusters = newKeepingReasons;
 	recordingExtraMargins = shouldRecordExtraMargins;
@@ -366,7 +364,7 @@ aborted:
 #endif
 
 			if (haveAddedSampleToArray) { // We only add it to the array when the file is created.
-				audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(*sample);
+				audioFileManager.releaseFile(*sample);
 			}
 
 			sample = nullptr; // So we don't try to detach it again when we're destructed
@@ -487,9 +485,14 @@ aborted:
 			sample->filePath.set(&filePath);                                 // Can't fail!
 			sample->tempFilePathForRecording.set(&tempFilePathForRecording); // Can't fail!
 
-			error = audioFileManager.audioFiles.insertElement(sample);
-			if (error != Error::NONE) {
-				goto gotError;
+			try {
+				audioFileManager.sampleFiles[&sample->filePath] = sample;
+			} catch (deluge::exception e) {
+				if (e == deluge::exception::BAD_ALLOC) {
+					error = Error::INSUFFICIENT_RAM;
+					goto gotError;
+				}
+				freezeWithError("EXSR");
 			}
 
 			haveAddedSampleToArray = true;
