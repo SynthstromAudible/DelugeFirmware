@@ -442,6 +442,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_RECORD, "Record"},
         {STRING_FOR_COMMANDS, "Commands"},
         {STRING_FOR_OUTPUT, "Output"},
+        {STRING_FOR_OUTPUT_DEVICE, "Output Device"},
         {STRING_FOR_DEFAULT_UI, "UI"},
         {STRING_FOR_DEFAULT_UI_FAVOURITES, "Favourites"},
         {STRING_FOR_DEFAULT_UI_GRID, "Grid"},

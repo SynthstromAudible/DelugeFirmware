@@ -104,9 +104,11 @@
 #include "gui/menu_item/midi/follow/follow_feedback_channel_type.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
+#include "gui/menu_item/midi/output_device_selection.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/program.h"
 #include "gui/menu_item/midi/sound/channel.h"
+#include "gui/menu_item/midi/sound/kit_output_device_selection.h"
 #include "gui/menu_item/midi/sound/note_for_drum.h"
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
@@ -622,7 +624,9 @@ HorizontalMenu soundDistortionMenu{
 // Output MIDI for sound drums --------------------------------------------------------------
 midi::sound::OutputMidiChannel outputMidiChannelMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL};
 midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu{STRING_FOR_NOTE, STRING_FOR_NOTE};
-Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu}};
+midi::sound::KitOutputDeviceSelection kitOutputDeviceSelectionMenu{STRING_FOR_OUTPUT_DEVICE, STRING_FOR_OUTPUT_DEVICE};
+Submenu outputMidiSubmenu{STRING_FOR_MIDI,
+                          {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu, &kitOutputDeviceSelectionMenu}};
 
 // MIDIInstrument menu ----------------------------------------------------------------------
 midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
@@ -634,6 +638,9 @@ midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu{
         &midiDeviceLinkedMenu,
     },
 };
+
+// MIDI output device selection menu item
+midi::OutputDeviceSelection midiOutputDeviceSelectionMenu{STRING_FOR_OUTPUT_DEVICE, STRING_FOR_OUTPUT_DEVICE};
 
 midi::Bank midiBankMenu{STRING_FOR_BANK, STRING_FOR_MIDI_BANK};
 midi::Sub midiSubMenu{STRING_FOR_SUB_BANK_SHORT, STRING_FOR_MIDI_SUB_BANK};
@@ -1528,6 +1535,7 @@ menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TIT
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
+        &midiOutputDeviceSelectionMenu,
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
         &arpMenuMIDIOrCV,
@@ -1544,6 +1552,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
 menu_item::Submenu soundEditorRootMenuMidiDrum{
     STRING_FOR_MIDI,
     {
+        &kitOutputDeviceSelectionMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
     },

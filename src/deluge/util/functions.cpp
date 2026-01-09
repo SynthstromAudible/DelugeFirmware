@@ -25,6 +25,10 @@
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
+#include "io/midi/midi_device_helper.h"
+#include "io/midi/midi_device_manager.h"
+#include "model/instrument/midi_instrument.h"
+#include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
@@ -598,7 +602,7 @@ char const* getThingName(OutputType outputType) {
 	}
 }
 
-char const* getOutputTypeName(OutputType outputType, int32_t channel) {
+char const* getOutputTypeName(OutputType outputType, int32_t channel, Output* output) {
 	switch (outputType) {
 	case OutputType::SYNTH:
 		return "Synth";
@@ -606,7 +610,30 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel) {
 		return "Kit";
 	case OutputType::MIDI_OUT:
 		if (channel < 16) {
-			return "MIDI";
+			// For MIDI tracks, show the selected output device instead of "MIDI"
+		// Use the provided output if available, otherwise fall back to getCurrentOutput()
+		Output* currentOutput = output;
+		if (currentOutput == nullptr) {
+			currentOutput = getCurrentOutput();
+		}
+
+		if (currentOutput != nullptr && currentOutput->type == OutputType::MIDI_OUT) {
+			MIDIInstrument* midiInstrument = static_cast<MIDIInstrument*>(currentOutput);
+			uint8_t outputDevice = midiInstrument->outputDevice;
+
+			if (outputDevice != 0) { // Not "ALL devices"
+				// Get device name - prefer stored name, fall back to live lookup
+				if (!midiInstrument->outputDeviceName.isEmpty()) {
+					return midiInstrument->outputDeviceName.get();
+				}
+					// Fallback: get name from device index using helper function
+					auto deviceName = deluge::io::midi::getDeviceNameForIndex(outputDevice);
+					if (!deviceName.empty()) {
+						return deviceName.data();
+					}
+				}
+			}
+			return "MIDI"; // Fallback to "MIDI" if no specific device selected
 		}
 		else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 			return "MPE";

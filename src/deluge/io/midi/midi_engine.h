@@ -66,9 +66,16 @@ public:
 	MidiEngine();
 
 	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
+	/// Send a MIDI note to specific output device(s)
+	/// @param deviceFilter Device selection: 0=ALL devices, 1=DIN only, 2+=USB device (index = deviceFilter-2)
+	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter,
+	              uint8_t deviceFilter);
 	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter);
 
 	void sendMidi(MIDISource source, MIDIMessage message, int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
+	/// Send a MIDI message to specific output device(s)
+	/// @param deviceFilter Device selection: 0=ALL devices, 1=DIN only, 2+=USB device (index = deviceFilter-2)
+	void sendMidi(MIDISource source, MIDIMessage message, int32_t filter, bool sendUSB, uint8_t deviceFilter);
 	void sendClock(MIDISource source, bool sendUSB = true, int32_t howMany = 1);
 	void sendStart(MIDISource source);
 	void sendStop(MIDISource source);
@@ -78,6 +85,9 @@ public:
 	void checkIncomingMidi();
 	void flushMIDI();
 	void sendUsbMidi(MIDIMessage message, int32_t filter);
+	/// Send USB MIDI message to specific device(s)
+	/// @param deviceFilter Device selection: 0=ALL devices, 1=DIN only (no USB), 2+=USB device (index = deviceFilter-2)
+	void sendUsbMidi(MIDIMessage message, int32_t filter, uint8_t deviceFilter);
 
 	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter);
 	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter);

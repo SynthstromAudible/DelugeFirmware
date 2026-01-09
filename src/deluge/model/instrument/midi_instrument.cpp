@@ -21,6 +21,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
+#include "io/midi/midi_device_helper.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "model/action/action_logger.h"
@@ -330,16 +331,30 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
 
+		// Save MIDI output device selection (index + name for reliable matching)
+		if (outputDevice != 0) {
+			writer.writeOpeningTagBeginning("outputDevice");
+			deluge::io::midi::writeDeviceToFile(writer, outputDevice, outputDeviceName, "device");
+			writer.closeTag();
+		}
+
 		writeDeviceDefinitionFile(writer, true);
 	}
 	else {
-		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
-			// If we don't need to write a "device" tag, opt not to end the opening tag, unless we're saving the output
-			// since then it's the whole tag
+		// Check if we have anything to write (midiInput or outputDevice)
+		if (!clipForSavingOutputOnly && !midiInput.containsSomething() && outputDevice == 0) {
+			// If we don't need to write a "device" tag or midi input, opt not to end the opening tag
 			return false;
 		}
 
 		writer.writeOpeningTagEnd();
+
+		// Save MIDI output device selection even if not editedByUser (important for songs)
+		if (outputDevice != 0) {
+			writer.writeOpeningTagBeginning("outputDevice");
+			deluge::io::midi::writeDeviceToFile(writer, outputDevice, outputDeviceName, "device");
+			writer.closeTag();
+		}
 	}
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
@@ -436,6 +451,10 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 	}
 	else if (!strcmp(tagName, subSlotXMLTag)) {
 		channelSuffix = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "outputDevice")) {
+		// Read device selection (handles both index and name matching)
+		deluge::io::midi::readDeviceFromAttributes(reader, outputDevice, outputDeviceName, "device", "deviceName");
 	}
 	else if (!strcmp(tagName, "midiDevice")) {
 		readDeviceDefinitionFile(reader, true);
@@ -835,7 +854,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 
 		int32_t lowestMemberChannel = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE)
 		                                  ? 1
-		                                  : MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
+		                                  : MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
 		int32_t highestMemberChannel = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE)
 		                                   ? MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput
 		                                   : 14;
@@ -951,7 +970,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 		sendNoteToInternal(true, noteCodePostArp, arpNote->velocity, outputMemberChannel);
 	}
 	else {
-		midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
+		midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel, outputDevice);
 	}
 }
 
@@ -987,7 +1006,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 	}
 	// If no MPE, nice and simple
 	else if (!sendsToMPE()) {
-		midiEngine.sendNote(this, false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
+		midiEngine.sendNote(this, false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE, outputDevice);
 
 		if (collapseAftertouch) {
 
@@ -1008,7 +1027,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		mpeOutputMemberChannels[oldOutputMemberChannel].lastNoteCode = noteCodePostArp;
 		mpeOutputMemberChannels[oldOutputMemberChannel].noteOffOrder = lastNoteOffOrder++;
 
-		midiEngine.sendNote(this, false, noteCodePostArp, velocity, oldOutputMemberChannel, channel);
+		midiEngine.sendNote(this, false, noteCodePostArp, velocity, oldOutputMemberChannel, channel, outputDevice);
 
 		// And now, if this note was sharing a member channel with any others, we want to send MPE values for those new
 		// averages

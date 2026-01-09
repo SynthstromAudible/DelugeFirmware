@@ -45,4 +45,14 @@ public:
 
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;
+
+	/// MIDI output device selection for this drum
+	/// - 0: ALL devices (send to all connected MIDI outputs - default behavior)
+	/// - 1: DIN MIDI port only
+	/// - 2+: Specific USB MIDI device (2 = first USB device, 3 = second USB device, etc.)
+	uint8_t outputDevice{0};
+
+	/// Store the device name for reliable matching when devices are reconnected
+	/// This ensures the correct device is selected even if USB devices are plugged in a different order
+	String outputDeviceName;
 };
