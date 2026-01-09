@@ -501,7 +501,7 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 
 	//  Get the File Index
 	fileIndexSelected = fileItems.search(fileName);
-	if (fileIndexSelected > fileItems.getNumElements()) {
+	if (fileIndexSelected >= fileItems.getNumElements()) {
 		return Error::FILE_NOT_FOUND;
 	}
 
@@ -1413,7 +1413,8 @@ doSearch:
 	int32_t i = fileItems.search(searchString.get());
 
 	// If that search takes us off the right-hand end of the list...
-	if (i >= fileItems.getNumElements()) {
+	// Note: i == numElements is valid when the last item matches our search prefix
+	if (i > fileItems.getNumElements()) {
 
 		// If we haven't yet done a whole new read from the SD card etc, from within this function, do that now.
 		if (!doneNewRead) {
