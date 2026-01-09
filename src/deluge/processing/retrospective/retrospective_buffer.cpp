@@ -19,12 +19,8 @@
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
-#include "model/sample/sample.h"
-#include "model/sample/sample_holder.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/cluster/cluster.h"
-#include "storage/storage_manager.h"
+#include "model/song/song.h"
 #include "util/cfunctions.h"
 #include <cstring>
 
@@ -34,6 +30,42 @@ extern "C" {
 
 // Global instance
 RetrospectiveBuffer retrospectiveBuffer;
+
+// Session number for this power cycle (0 = not yet determined)
+static int32_t currentSessionNumber = 0;
+
+/// Scan a folder for the highest SESSION### subfolder number
+/// @param basePath The folder to scan (e.g., "SAMPLES/RETRO" or "SAMPLES/RETRO/SongName")
+/// @return The highest session number found, or 0 if none exist
+static int32_t findHighestSessionNumber(const char* basePath) {
+	DIR dir;
+	FILINFO fno;
+	int32_t highest = 0;
+
+	FRESULT res = f_opendir(&dir, basePath);
+	if (res != FR_OK) {
+		return 0;
+	}
+
+	while (true) {
+		res = f_readdir(&dir, &fno);
+		if (res != FR_OK || fno.fname[0] == 0) {
+			break;
+		}
+
+		// Check if it's a directory starting with "SESSION"
+		if ((fno.fattrib & AM_DIR) && std::strncmp(fno.fname, "SESSION", 7) == 0) {
+			// Parse the number after "SESSION"
+			int32_t num = std::atoi(fno.fname + 7);
+			if (num > highest) {
+				highest = num;
+			}
+		}
+	}
+
+	f_closedir(&dir);
+	return highest;
+}
 
 RetrospectiveBuffer::~RetrospectiveBuffer() {
 	deinit();
@@ -99,8 +131,11 @@ Error RetrospectiveBuffer::init() {
 	// Clear the buffer
 	std::memset(buffer_, 0, bufferSizeBytes_);
 
-	writePos_ = 0;
-	samplesWritten_ = 0;
+	writePos_.store(0, std::memory_order_relaxed);
+	samplesWritten_.store(0, std::memory_order_relaxed);
+	runningPeak_.store(0, std::memory_order_relaxed);
+	peakPosition_.store(0, std::memory_order_relaxed);
+	peakValid_.store(false, std::memory_order_relaxed);
 	enabled_ = true;
 
 	return Error::NONE;
@@ -113,8 +148,11 @@ void RetrospectiveBuffer::deinit() {
 	}
 	bufferSizeBytes_ = 0;
 	bufferSizeSamples_ = 0;
-	writePos_ = 0;
-	samplesWritten_ = 0;
+	writePos_.store(0, std::memory_order_relaxed);
+	samplesWritten_.store(0, std::memory_order_relaxed);
+	runningPeak_.store(0, std::memory_order_relaxed);
+	peakPosition_.store(0, std::memory_order_relaxed);
+	peakValid_.store(false, std::memory_order_relaxed);
 	enabled_ = false;
 }
 
@@ -143,8 +181,11 @@ void RetrospectiveBuffer::clear() {
 	if (buffer_ != nullptr) {
 		std::memset(buffer_, 0, bufferSizeBytes_);
 	}
-	writePos_ = 0;
-	samplesWritten_ = 0;
+	writePos_.store(0, std::memory_order_relaxed);
+	samplesWritten_.store(0, std::memory_order_relaxed);
+	runningPeak_.store(0, std::memory_order_relaxed);
+	peakPosition_.store(0, std::memory_order_relaxed);
+	peakValid_.store(false, std::memory_order_relaxed);
 }
 
 void RetrospectiveBuffer::setEnabled(bool enabled) {
@@ -152,10 +193,11 @@ void RetrospectiveBuffer::setEnabled(bool enabled) {
 }
 
 size_t RetrospectiveBuffer::getSamplesInBuffer() const {
-	if (samplesWritten_ >= bufferSizeSamples_) {
+	size_t written = samplesWritten_.load(std::memory_order_relaxed);
+	if (written >= bufferSizeSamples_) {
 		return bufferSizeSamples_; // Buffer is full
 	}
-	return samplesWritten_;
+	return written;
 }
 
 AudioInputChannel RetrospectiveBuffer::getSource() const {
@@ -188,10 +230,23 @@ void RetrospectiveBuffer::feedAudio(const deluge::dsp::StereoSample<q31_t>* samp
 	}
 
 	const size_t bytesPerFrame = numChannels_ * bytesPerSample_;
+	size_t pos = writePos_.load(std::memory_order_relaxed);
+	size_t written = samplesWritten_.load(std::memory_order_relaxed);
+
+	// Cache peak tracking state for this batch
+	int32_t peak = runningPeak_.load(std::memory_order_relaxed);
+	size_t peakPos = peakPosition_.load(std::memory_order_relaxed);
+	bool peakIsValid = peakValid_.load(std::memory_order_relaxed);
 
 	for (size_t i = 0; i < numSamples; i++) {
-		size_t byteOffset = writePos_ * bytesPerFrame;
+		// Check if we're about to overwrite the peak position
+		if (peakIsValid && pos == peakPos) {
+			peakIsValid = false;
+		}
+
+		size_t byteOffset = pos * bytesPerFrame;
 		uint8_t* dest = buffer_ + byteOffset;
+		int32_t samplePeak = 0; // Track peak of this sample (at stored bit depth)
 
 		if (bytesPerSample_ == 2) {
 			// 16-bit: take the upper 16 bits of the 32-bit sample
@@ -204,12 +259,14 @@ void RetrospectiveBuffer::feedAudio(const deluge::dsp::StereoSample<q31_t>* samp
 				dest[1] = (left >> 8) & 0xFF;
 				dest[2] = right & 0xFF;
 				dest[3] = (right >> 8) & 0xFF;
+				samplePeak = std::max(std::abs(static_cast<int32_t>(left)), std::abs(static_cast<int32_t>(right)));
 			}
 			else {
 				// Mono: average L and R
 				int16_t mono = static_cast<int16_t>((static_cast<int32_t>(left) + static_cast<int32_t>(right)) >> 1);
 				dest[0] = mono & 0xFF;
 				dest[1] = (mono >> 8) & 0xFF;
+				samplePeak = std::abs(static_cast<int32_t>(mono));
 			}
 		}
 		else {
@@ -225,6 +282,14 @@ void RetrospectiveBuffer::feedAudio(const deluge::dsp::StereoSample<q31_t>* samp
 				dest[3] = right & 0xFF;
 				dest[4] = (right >> 8) & 0xFF;
 				dest[5] = (right >> 16) & 0xFF;
+				// Sign-extend for abs (24-bit in 32-bit container)
+				if (left & 0x800000) {
+					left |= 0xFF000000;
+				}
+				if (right & 0x800000) {
+					right |= 0xFF000000;
+				}
+				samplePeak = std::max(std::abs(left), std::abs(right));
 			}
 			else {
 				// Mono: average L and R
@@ -232,16 +297,33 @@ void RetrospectiveBuffer::feedAudio(const deluge::dsp::StereoSample<q31_t>* samp
 				dest[0] = mono & 0xFF;
 				dest[1] = (mono >> 8) & 0xFF;
 				dest[2] = (mono >> 16) & 0xFF;
+				if (mono & 0x800000) {
+					mono |= 0xFF000000;
+				}
+				samplePeak = std::abs(mono);
 			}
 		}
 
-		// Advance write position (circular)
-		writePos_++;
-		if (writePos_ >= bufferSizeSamples_) {
-			writePos_ = 0;
+		// Update peak if this sample is louder
+		if (samplePeak >= peak) {
+			peak = samplePeak;
+			peakPos = pos;
+			peakIsValid = true;
 		}
-		samplesWritten_++;
+
+		// Advance write position (circular)
+		pos++;
+		if (pos >= bufferSizeSamples_) {
+			pos = 0;
+		}
+		written++;
 	}
+
+	writePos_.store(pos, std::memory_order_relaxed);
+	samplesWritten_.store(written, std::memory_order_relaxed);
+	runningPeak_.store(peak, std::memory_order_relaxed);
+	peakPosition_.store(peakPos, std::memory_order_relaxed);
+	peakValid_.store(peakIsValid, std::memory_order_relaxed);
 }
 
 void RetrospectiveBuffer::feedAudioMono(const int32_t* samples, size_t numSamples) {
@@ -250,14 +332,28 @@ void RetrospectiveBuffer::feedAudioMono(const int32_t* samples, size_t numSample
 	}
 
 	const size_t bytesPerFrame = numChannels_ * bytesPerSample_;
+	size_t pos = writePos_.load(std::memory_order_relaxed);
+	size_t written = samplesWritten_.load(std::memory_order_relaxed);
+
+	// Cache peak tracking state for this batch
+	int32_t peak = runningPeak_.load(std::memory_order_relaxed);
+	size_t peakPos = peakPosition_.load(std::memory_order_relaxed);
+	bool peakIsValid = peakValid_.load(std::memory_order_relaxed);
 
 	for (size_t i = 0; i < numSamples; i++) {
-		size_t byteOffset = writePos_ * bytesPerFrame;
+		// Check if we're about to overwrite the peak position
+		if (peakIsValid && pos == peakPos) {
+			peakIsValid = false;
+		}
+
+		size_t byteOffset = pos * bytesPerFrame;
 		uint8_t* dest = buffer_ + byteOffset;
+		int32_t samplePeak = 0;
 
 		if (bytesPerSample_ == 2) {
 			// 16-bit: take the upper 16 bits
 			int16_t sample = static_cast<int16_t>(samples[i] >> 16);
+			samplePeak = std::abs(static_cast<int32_t>(sample));
 
 			if (numChannels_ == 2) {
 				// Duplicate to stereo
@@ -274,6 +370,12 @@ void RetrospectiveBuffer::feedAudioMono(const int32_t* samples, size_t numSample
 		else {
 			// 24-bit
 			int32_t sample = samples[i] >> 8;
+			// Sign-extend for abs
+			int32_t sampleSigned = sample;
+			if (sampleSigned & 0x800000) {
+				sampleSigned |= 0xFF000000;
+			}
+			samplePeak = std::abs(sampleSigned);
 
 			if (numChannels_ == 2) {
 				// Duplicate to stereo
@@ -291,59 +393,30 @@ void RetrospectiveBuffer::feedAudioMono(const int32_t* samples, size_t numSample
 			}
 		}
 
-		// Advance write position (circular)
-		writePos_++;
-		if (writePos_ >= bufferSizeSamples_) {
-			writePos_ = 0;
+		// Update peak if this sample is louder
+		if (samplePeak >= peak) {
+			peak = samplePeak;
+			peakPos = pos;
+			peakIsValid = true;
 		}
-		samplesWritten_++;
-	}
-}
 
-Sample* RetrospectiveBuffer::createSampleFromBuffer(SampleHolder* holder) {
-	if (buffer_ == nullptr || samplesWritten_ == 0) {
-		return nullptr;
-	}
-
-	// Calculate the actual number of samples to copy
-	size_t numSamples = getSamplesInBuffer();
-	size_t bytesPerFrame = numChannels_ * bytesPerSample_;
-	size_t audioDataSize = numSamples * bytesPerFrame;
-
-	// Create a new Sample
-	void* sampleMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Sample));
-	if (sampleMemory == nullptr) {
-		return nullptr;
+		// Advance write position (circular)
+		pos++;
+		if (pos >= bufferSizeSamples_) {
+			pos = 0;
+		}
+		written++;
 	}
 
-	Sample* sample = new (sampleMemory) Sample();
-
-	// Set sample properties
-	sample->numChannels = numChannels_;
-	sample->byteDepth = bytesPerSample_;
-	sample->sampleRate = kSampleRate;
-	sample->lengthInSamples = numSamples;
-	sample->audioDataLengthBytes = audioDataSize;
-
-	// Allocate clusters for the audio data
-	// For now, we'll allocate the minimum needed and copy the data
-	// The sample will need proper cluster management when saved to disk
-
-	// TODO: Properly implement cluster allocation and data copying
-	// For the initial implementation, we'll just set up the sample metadata
-	// The actual audio data will be copied when saving to disk
-
-	// Configure the holder if provided
-	if (holder != nullptr) {
-		holder->startPos = 0;
-		holder->endPos = numSamples;
-	}
-
-	return sample;
+	writePos_.store(pos, std::memory_order_relaxed);
+	samplesWritten_.store(written, std::memory_order_relaxed);
+	runningPeak_.store(peak, std::memory_order_relaxed);
+	peakPosition_.store(peakPos, std::memory_order_relaxed);
+	peakValid_.store(peakIsValid, std::memory_order_relaxed);
 }
 
 /// Helper to find peak level in buffer for normalization
-/// Finds the true peak of raw samples (skipping fade-in region)
+/// Uses incrementally tracked peak when valid, falls back to scan if peak was overwritten.
 /// @param savedWritePos Captured write position to use (for consistency with save)
 /// @param savedSamplesWritten Captured samples written count
 /// @return Peak absolute value (0-32767 for 16-bit, 0-8388607 for 24-bit)
@@ -352,13 +425,14 @@ int32_t RetrospectiveBuffer::findPeakLevel(size_t savedWritePos, size_t savedSam
 		return 0;
 	}
 
-	size_t bytesPerFrame = numChannels_ * bytesPerSample_;
+	// Fast path: use cached peak if still valid
+	if (peakValid_.load(std::memory_order_relaxed)) {
+		return runningPeak_.load(std::memory_order_relaxed);
+	}
 
+	// Slow path: peak position was overwritten, need to rescan
 	bool bufferFull = savedSamplesWritten >= bufferSizeSamples_;
-	size_t startPos = bufferFull ? savedWritePos : 0;
-	size_t samplesToScanFirst = bufferFull ? (bufferSizeSamples_ - savedWritePos) : savedWritePos;
-	size_t samplesToScanSecond = bufferFull ? savedWritePos : 0;
-	size_t totalSamples = samplesToScanFirst + samplesToScanSecond;
+	size_t totalSamples = bufferFull ? bufferSizeSamples_ : savedSamplesWritten;
 
 	if (totalSamples == 0) {
 		return 0;
@@ -366,59 +440,73 @@ int32_t RetrospectiveBuffer::findPeakLevel(size_t savedWritePos, size_t savedSam
 
 	// Skip fade-in region (44 samples) when finding peak, as those will be attenuated
 	constexpr size_t kFadeInSamples = 44;
-	size_t samplesToSkip = std::min(kFadeInSamples, samplesToScanFirst);
+
+	// Subsample every 8th sample for ~8x speedup. Audio is band-limited so peaks are preserved.
+	constexpr size_t kStride = 8;
 
 	int32_t peak = 0;
+	size_t peakPos = 0;
 
-	// Scan first portion (after skipping fade-in)
-	for (size_t i = samplesToSkip; i < samplesToScanFirst; i++) {
-		size_t offset = (startPos + i) * bytesPerFrame;
-		for (size_t ch = 0; ch < numChannels_; ch++) {
-			int32_t sample;
-			if (bytesPerSample_ == 2) {
-				sample = static_cast<int16_t>(buffer_[offset] | (buffer_[offset + 1] << 8));
+	// Determine circular buffer start position
+	size_t startPos = bufferFull ? savedWritePos : 0;
+	size_t startSample = kFadeInSamples; // Skip fade-in region
+
+	// 16-bit optimized path - direct int16_t access
+	if (bytesPerSample_ == 2) {
+		const int16_t* buf16 = reinterpret_cast<const int16_t*>(buffer_);
+		size_t samplesPerFrame = numChannels_;
+
+		for (size_t i = startSample; i < totalSamples; i += kStride) {
+			// Handle circular wrap
+			size_t bufIdx = (startPos + i) % bufferSizeSamples_;
+			size_t offset = bufIdx * samplesPerFrame;
+
+			// Check all channels at this sample position
+			for (size_t ch = 0; ch < numChannels_; ch++) {
+				int32_t sample = buf16[offset + ch];
+				int32_t absSample = (sample < 0) ? -sample : sample;
+				if (absSample > peak) {
+					peak = absSample;
+					peakPos = bufIdx;
+				}
 			}
-			else {
-				sample = buffer_[offset] | (buffer_[offset + 1] << 8) | (buffer_[offset + 2] << 16);
+		}
+	}
+	// 24-bit path - must reconstruct from bytes
+	else {
+		size_t bytesPerFrame = numChannels_ * 3;
+
+		for (size_t i = startSample; i < totalSamples; i += kStride) {
+			// Handle circular wrap
+			size_t bufIdx = (startPos + i) % bufferSizeSamples_;
+			size_t offset = bufIdx * bytesPerFrame;
+
+			for (size_t ch = 0; ch < numChannels_; ch++) {
+				int32_t sample = buffer_[offset] | (buffer_[offset + 1] << 8) | (buffer_[offset + 2] << 16);
+				// Sign extend from 24-bit
 				if (sample & 0x800000) {
 					sample |= 0xFF000000;
 				}
+				int32_t absSample = (sample < 0) ? -sample : sample;
+				if (absSample > peak) {
+					peak = absSample;
+					peakPos = bufIdx;
+				}
+				offset += 3;
 			}
-			int32_t absSample = (sample < 0) ? -sample : sample;
-			if (absSample > peak) {
-				peak = absSample;
-			}
-			offset += bytesPerSample_;
 		}
 	}
 
-	// Scan second portion
-	for (size_t i = 0; i < samplesToScanSecond; i++) {
-		size_t offset = i * bytesPerFrame;
-		for (size_t ch = 0; ch < numChannels_; ch++) {
-			int32_t sample;
-			if (bytesPerSample_ == 2) {
-				sample = static_cast<int16_t>(buffer_[offset] | (buffer_[offset + 1] << 8));
-			}
-			else {
-				sample = buffer_[offset] | (buffer_[offset + 1] << 8) | (buffer_[offset + 2] << 16);
-				if (sample & 0x800000) {
-					sample |= 0xFF000000;
-				}
-			}
-			int32_t absSample = (sample < 0) ? -sample : sample;
-			if (absSample > peak) {
-				peak = absSample;
-			}
-			offset += bytesPerSample_;
-		}
-	}
+	// Update cached peak for future calls
+	runningPeak_.store(peak, std::memory_order_relaxed);
+	peakPosition_.store(peakPos, std::memory_order_relaxed);
+	peakValid_.store(true, std::memory_order_relaxed);
 
 	return peak;
 }
 
 Error RetrospectiveBuffer::saveToFile(String* filePath) {
-	if (buffer_ == nullptr || samplesWritten_ == 0) {
+	if (buffer_ == nullptr || samplesWritten_.load(std::memory_order_relaxed) == 0) {
 		return Error::UNSPECIFIED;
 	}
 
@@ -426,11 +514,11 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 	bool wasEnabled = enabled_;
 	enabled_ = false;
 
-	// Capture current buffer state atomically
-	// Capture samplesWritten first, then writePos - this ensures we never read unwritten data
-	// (if interrupted, we might miss a sample but won't read garbage)
-	size_t savedSamplesWritten = samplesWritten_;
-	size_t savedWritePos = writePos_;
+	// Capture current buffer state with acquire semantics to ensure we see all prior writes
+	// from the audio thread. Capture samplesWritten first, then writePos - this ensures we
+	// never read unwritten data (if interrupted, we might miss a sample but won't read garbage)
+	size_t savedSamplesWritten = samplesWritten_.load(std::memory_order_acquire);
+	size_t savedWritePos = writePos_.load(std::memory_order_acquire);
 
 	// Validate the captured state - ensure consistency
 	bool bufferWasFull = savedSamplesWritten >= bufferSizeSamples_;
@@ -472,19 +560,46 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 		}
 	}
 
-	// Create SAMPLES/RETRO folder if it doesn't exist
-	FRESULT fres = f_mkdir("SAMPLES");
-	fres = f_mkdir("SAMPLES/RETRO");
+	// Build folder path: SAMPLES/RETRO/{SongName?}/SESSION###/
+	char folderPath[128];
+	char filename[160];
+	FRESULT fres;
 
-	// Find an unused filename
-	char filename[32];
+	// Create base folders
+	f_mkdir("SAMPLES");
+	f_mkdir("SAMPLES/RETRO");
+
+	// Start building path
+	std::strcpy(folderPath, "SAMPLES/RETRO");
+
+	// Add song name subfolder if song exists and has a name
+	if (currentSong != nullptr && !currentSong->name.isEmpty()) {
+		std::strcat(folderPath, "/");
+		std::strncat(folderPath, currentSong->name.get(), 40); // Limit song name length
+		f_mkdir(folderPath);
+	}
+
+	// Determine session number on first save this power cycle
+	if (currentSessionNumber == 0) {
+		currentSessionNumber = findHighestSessionNumber(folderPath) + 1;
+	}
+
+	// Add session subfolder
+	char sessionFolder[20];
+	std::strcpy(sessionFolder, "/SESSION");
+	intToString(currentSessionNumber, sessionFolder + 8, 3);
+	std::strcat(folderPath, sessionFolder);
+	f_mkdir(folderPath);
+
+	// Find an unused filename within this session folder
 	int32_t fileNum = 0;
 	FIL file;
 
 	while (true) {
-		// Build filename: "SAMPLES/RETRO/RETRXXXX.WAV"
-		std::strcpy(filename, "SAMPLES/RETRO/RETR");
-		intToString(fileNum, filename + 18, 4); // 4-digit number at position 18
+		// Build filename: "{folderPath}/RETRXXXX.WAV"
+		std::strcpy(filename, folderPath);
+		std::strcat(filename, "/RETR");
+		intToString(fileNum, filename + std::strlen(filename), 4);
 		std::strcat(filename, ".WAV");
 
 		fres = f_open(&file, filename, FA_READ);
@@ -496,6 +611,7 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 		}
 		fileNum++;
 		if (fileNum > 9999) {
+			enabled_ = wasEnabled;
 			return Error::UNSPECIFIED; // Too many files
 		}
 	}
@@ -559,9 +675,8 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 	// Fade-in duration: ~1ms at 44.1kHz = 44 samples
 	constexpr size_t kFadeInSamples = 44;
 
-	// Track samples for popup refresh (refresh every ~0.8 seconds to stay ahead of 1s timeout)
-	size_t samplesSincePopupRefresh = 0;
-	constexpr size_t kPopupRefreshSamples = 35000; // ~0.8 seconds at 44.1kHz
+	// Pre-compute gain factor in Q16 format (1.0 = 65536) - hoisted out of loop
+	int32_t gainFactorFixed = static_cast<int32_t>(gainFactor * 65536.0);
 
 	// Lambda to write samples with optional normalization and fade-in
 	auto writeSamples = [&](size_t startSample, size_t numSamplesToWrite) -> bool {
@@ -573,31 +688,25 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 		bool needsFadeIn = totalSamplesWrittenToFile < kFadeInSamples;
 		bool needsProcessing = normalize || needsFadeIn;
 
-		// If no processing needed, write in chunks to allow popup refresh
+		// If no processing needed, write directly
 		if (!needsProcessing) {
-			constexpr size_t kDirectChunkSamples = 32768; // ~0.74 seconds at 44.1kHz
-			size_t remaining = numSamplesToWrite;
-			size_t pos = 0;
-			while (remaining > 0) {
-				size_t chunk = std::min(kDirectChunkSamples, remaining);
-				size_t bytes = chunk * bytesPerFrame;
-				size_t offset = (startSample + pos) * bytesPerFrame;
-				fres = f_write(&file, buffer_ + offset, bytes, &bytesWritten);
-				if (fres != FR_OK || bytesWritten != bytes) {
-					return false;
-				}
-				pos += chunk;
-				remaining -= chunk;
-				totalSamplesWrittenToFile += chunk;
-				// Refresh popup to prevent timeout
-				display->displayPopup(deluge::l10n::getView(deluge::l10n::String::STRING_FOR_RETRO_SAVING));
+			size_t bytes = numSamplesToWrite * bytesPerFrame;
+			size_t offset = startSample * bytesPerFrame;
+			fres = f_write(&file, buffer_ + offset, bytes, &bytesWritten);
+			if (fres != FR_OK || bytesWritten != bytes) {
+				return false;
 			}
+			totalSamplesWrittenToFile += numSamplesToWrite;
 			return true;
 		}
 
-		// Process in chunks
-		constexpr size_t kChunkSamples = 256;
-		uint8_t tempBuffer[kChunkSamples * 6]; // Max: stereo 24-bit = 6 bytes/sample
+		// Process in chunks - larger chunks reduce SD card write overhead
+		constexpr size_t kChunkSamples = 2048;
+		uint8_t tempBuffer[kChunkSamples * 6]; // Max: stereo 24-bit = 6 bytes/sample (12KB)
+
+		// For 16-bit, use direct pointer access for reading
+		const int16_t* buf16 = (bytesPerSample_ == 2) ? reinterpret_cast<const int16_t*>(buffer_) : nullptr;
+		int16_t* tmpBuf16 = (bytesPerSample_ == 2) ? reinterpret_cast<int16_t*>(tempBuffer) : nullptr;
 
 		for (size_t written = 0; written < numSamplesToWrite;) {
 			size_t chunkSamples = std::min(kChunkSamples, numSamplesToWrite - written);
@@ -606,77 +715,118 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 			// Check if this chunk still needs processing
 			needsFadeIn = totalSamplesWrittenToFile < kFadeInSamples;
 			if (!normalize && !needsFadeIn) {
-				// No more processing needed, write rest in chunks for popup refresh
-				constexpr size_t kDirectChunkSamples = 32768;
+				// No more processing needed, write rest directly
 				size_t remaining = numSamplesToWrite - written;
-				size_t pos = written;
-				while (remaining > 0) {
-					size_t chunk = std::min(kDirectChunkSamples, remaining);
-					size_t bytes = chunk * bytesPerFrame;
-					size_t offset = (startSample + pos) * bytesPerFrame;
-					fres = f_write(&file, buffer_ + offset, bytes, &bytesWritten);
-					if (fres != FR_OK || bytesWritten != bytes) {
-						return false;
-					}
-					pos += chunk;
-					remaining -= chunk;
-					totalSamplesWrittenToFile += chunk;
-					// Refresh popup to prevent timeout
-					display->displayPopup(deluge::l10n::getView(deluge::l10n::String::STRING_FOR_RETRO_SAVING));
+				size_t bytes = remaining * bytesPerFrame;
+				size_t offset = (startSample + written) * bytesPerFrame;
+				fres = f_write(&file, buffer_ + offset, bytes, &bytesWritten);
+				if (fres != FR_OK || bytesWritten != bytes) {
+					return false;
 				}
+				totalSamplesWrittenToFile += remaining;
 				return true;
 			}
 
-			// Process each sample in the chunk
-			for (size_t s = 0; s < chunkSamples; s++) {
-				size_t srcOffset = (startSample + written + s) * bytesPerFrame;
-				size_t dstOffset = s * bytesPerFrame;
+			// Process samples using fixed-point math
+			// Split into fade-in region (first 44 samples) and bulk region
+			size_t fadeRemaining =
+			    (totalSamplesWrittenToFile < kFadeInSamples) ? (kFadeInSamples - totalSamplesWrittenToFile) : 0;
+			size_t fadeSamples = std::min(fadeRemaining, chunkSamples);
+			size_t bulkSamples = chunkSamples - fadeSamples;
 
-				// Calculate fade-in multiplier (0.0 to 1.0)
-				double fadeMultiplier = 1.0;
-				if (totalSamplesWrittenToFile + s < kFadeInSamples) {
-					fadeMultiplier =
-					    static_cast<double>(totalSamplesWrittenToFile + s) / static_cast<double>(kFadeInSamples);
+			if (bytesPerSample_ == 2) {
+				// 16-bit path: optimized with direct int16_t access
+				size_t srcIdx = (startSample + written) * numChannels_;
+				size_t dstIdx = 0;
+
+				// Process fade-in samples (with per-sample fade calculation)
+				for (size_t s = 0; s < fadeSamples; s++) {
+					size_t sampleIdx = totalSamplesWrittenToFile + s;
+					int32_t fadeMultiplier = static_cast<int32_t>((sampleIdx * 65536) / kFadeInSamples);
+					int32_t combinedGain =
+					    static_cast<int32_t>((static_cast<int64_t>(gainFactorFixed) * fadeMultiplier) >> 16);
+
+					for (size_t ch = 0; ch < numChannels_; ch++) {
+						int32_t sample = buf16[srcIdx++];
+						int32_t processed = static_cast<int32_t>((static_cast<int64_t>(sample) * combinedGain) >> 16);
+						if (processed > 32767) {
+							processed = 32767;
+						}
+						else if (processed < -32768) {
+							processed = -32768;
+						}
+						tmpBuf16[dstIdx++] = static_cast<int16_t>(processed);
+					}
 				}
 
-				for (size_t ch = 0; ch < numChannels_; ch++) {
-					int32_t sample;
-					if (bytesPerSample_ == 2) {
-						sample = static_cast<int16_t>(buffer_[srcOffset] | (buffer_[srcOffset + 1] << 8));
-						// Apply gain and fade
-						double processed = static_cast<double>(sample) * gainFactor * fadeMultiplier;
-						// Clamp to 16-bit range
-						if (processed > 32767.0) {
-							processed = 32767.0;
+				// Process bulk samples (constant gain, no fade calculation)
+				for (size_t s = 0; s < bulkSamples; s++) {
+					for (size_t ch = 0; ch < numChannels_; ch++) {
+						int32_t sample = buf16[srcIdx++];
+						int32_t processed =
+						    static_cast<int32_t>((static_cast<int64_t>(sample) * gainFactorFixed) >> 16);
+						if (processed > 32767) {
+							processed = 32767;
 						}
-						if (processed < -32768.0) {
-							processed = -32768.0;
+						else if (processed < -32768) {
+							processed = -32768;
 						}
-						sample = static_cast<int32_t>(processed);
-						tempBuffer[dstOffset] = sample & 0xFF;
-						tempBuffer[dstOffset + 1] = (sample >> 8) & 0xFF;
-						srcOffset += 2;
-						dstOffset += 2;
+						tmpBuf16[dstIdx++] = static_cast<int16_t>(processed);
 					}
-					else {
-						// 24-bit
-						sample = buffer_[srcOffset] | (buffer_[srcOffset + 1] << 8) | (buffer_[srcOffset + 2] << 16);
+				}
+			}
+			else {
+				// 24-bit path: must use byte access
+				size_t srcOffset = (startSample + written) * bytesPerFrame;
+				size_t dstOffset = 0;
+
+				// Process fade-in samples
+				for (size_t s = 0; s < fadeSamples; s++) {
+					size_t sampleIdx = totalSamplesWrittenToFile + s;
+					int32_t fadeMultiplier = static_cast<int32_t>((sampleIdx * 65536) / kFadeInSamples);
+					int32_t combinedGain =
+					    static_cast<int32_t>((static_cast<int64_t>(gainFactorFixed) * fadeMultiplier) >> 16);
+
+					for (size_t ch = 0; ch < numChannels_; ch++) {
+						int32_t sample =
+						    buffer_[srcOffset] | (buffer_[srcOffset + 1] << 8) | (buffer_[srcOffset + 2] << 16);
 						if (sample & 0x800000) {
-							sample |= 0xFF000000; // Sign extend
+							sample |= 0xFF000000;
 						}
-						// Apply gain and fade
-						double processed = static_cast<double>(sample) * gainFactor * fadeMultiplier;
-						// Clamp to 24-bit range
-						if (processed > 8388607.0) {
-							processed = 8388607.0;
+						int32_t processed = static_cast<int32_t>((static_cast<int64_t>(sample) * combinedGain) >> 16);
+						if (processed > 8388607) {
+							processed = 8388607;
 						}
-						if (processed < -8388608.0) {
-							processed = -8388608.0;
+						else if (processed < -8388608) {
+							processed = -8388608;
 						}
-						sample = static_cast<int32_t>(processed);
-						tempBuffer[dstOffset] = sample & 0xFF;
-						tempBuffer[dstOffset + 1] = (sample >> 8) & 0xFF;
-						tempBuffer[dstOffset + 2] = (sample >> 16) & 0xFF;
+						tempBuffer[dstOffset] = processed & 0xFF;
+						tempBuffer[dstOffset + 1] = (processed >> 8) & 0xFF;
+						tempBuffer[dstOffset + 2] = (processed >> 16) & 0xFF;
+						srcOffset += 3;
+						dstOffset += 3;
+					}
+				}
+
+				// Process bulk samples (constant gain)
+				for (size_t s = 0; s < bulkSamples; s++) {
+					for (size_t ch = 0; ch < numChannels_; ch++) {
+						int32_t sample =
+						    buffer_[srcOffset] | (buffer_[srcOffset + 1] << 8) | (buffer_[srcOffset + 2] << 16);
+						if (sample & 0x800000) {
+							sample |= 0xFF000000;
+						}
+						int32_t processed =
+						    static_cast<int32_t>((static_cast<int64_t>(sample) * gainFactorFixed) >> 16);
+						if (processed > 8388607) {
+							processed = 8388607;
+						}
+						else if (processed < -8388608) {
+							processed = -8388608;
+						}
+						tempBuffer[dstOffset] = processed & 0xFF;
+						tempBuffer[dstOffset + 1] = (processed >> 8) & 0xFF;
+						tempBuffer[dstOffset + 2] = (processed >> 16) & 0xFF;
 						srcOffset += 3;
 						dstOffset += 3;
 					}
@@ -689,18 +839,6 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 			}
 			written += chunkSamples;
 			totalSamplesWrittenToFile += chunkSamples;
-			samplesSincePopupRefresh += chunkSamples;
-
-			// Refresh popup periodically to prevent timeout
-			if (samplesSincePopupRefresh >= kPopupRefreshSamples) {
-				if (normalize) {
-					display->displayPopup(deluge::l10n::getView(deluge::l10n::String::STRING_FOR_RETRO_NORMALIZING));
-				}
-				else {
-					display->displayPopup(deluge::l10n::getView(deluge::l10n::String::STRING_FOR_RETRO_SAVING));
-				}
-				samplesSincePopupRefresh = 0;
-			}
 		}
 		return true;
 	};

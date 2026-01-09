@@ -29,8 +29,6 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/retrospective/retrospective_buffer.h"
-#include "processing/retrospective/retrospective_handler.h"
 #include "storage/flash_storage.h"
 #include "testing/hardware_testing.h"
 #include <map>
@@ -252,23 +250,13 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			if (display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)) {
 				display->cancelPopup();
 			}
-			else if (!recordButtonPressUsedUp) {
-				int32_t pressDuration = AudioEngine::audioSampleTimer - timeRecordButtonPressed;
-
-				// Long press - trigger retrospective save if enabled
-				if (pressDuration >= kShortPressTime
-				    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RetrospectiveSampler)
-				    && audioRecorder.recordingSource == AudioInputChannel::NONE && retrospectiveBuffer.hasAudio()) {
-					handleRetrospectiveSave();
+			else if (!recordButtonPressUsedUp
+			         && (int32_t)(AudioEngine::audioSampleTimer - timeRecordButtonPressed) < kShortPressTime) {
+				if (audioRecorder.isCurrentlyResampling()) {
+					audioRecorder.endRecordingSoon(kInternalButtonPressLatency);
 				}
-				// Short press - normal record behavior
-				else if (pressDuration < kShortPressTime) {
-					if (audioRecorder.isCurrentlyResampling()) {
-						audioRecorder.endRecordingSoon(kInternalButtonPressLatency);
-					}
-					else {
-						playbackHandler.recordButtonPressed();
-					}
+				else {
+					playbackHandler.recordButtonPressed();
 				}
 			}
 		}

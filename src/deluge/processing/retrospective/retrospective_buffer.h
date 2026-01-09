@@ -20,10 +20,8 @@
 #include "definitions_cxx.hpp"
 #include "dsp_ng/core/types.hpp"
 #include "util/d_string.h"
+#include <atomic>
 #include <cstdint>
-
-class Sample;
-class SampleHolder;
 
 /// Retrospective sampling buffer that continuously records audio in a rolling buffer.
 /// When triggered, the buffer contents can be saved to a sample for editing.
@@ -59,12 +57,6 @@ public:
 	/// @param numSamples Number of samples to record
 	void feedAudioMono(const int32_t* samples, size_t numSamples);
 
-	/// Create a Sample object from the current buffer contents.
-	/// The sample will contain all audio currently in the buffer, linearized from the circular buffer.
-	/// @param holder Optional SampleHolder to configure with the new sample
-	/// @return Pointer to the created Sample, or nullptr on failure
-	Sample* createSampleFromBuffer(SampleHolder* holder = nullptr);
-
 	/// Save the buffer contents to a WAV file.
 	/// @param filePath Output parameter to receive the saved file path
 	/// @return Error::NONE on success, or an error code on failure
@@ -74,7 +66,7 @@ public:
 	[[nodiscard]] bool isEnabled() const;
 
 	/// Check if the buffer has any audio data.
-	[[nodiscard]] bool hasAudio() const { return samplesWritten_ > 0; }
+	[[nodiscard]] bool hasAudio() const { return samplesWritten_.load(std::memory_order_relaxed) > 0; }
 
 	/// Get the current buffer size in bytes.
 	[[nodiscard]] size_t getBufferSizeBytes() const { return bufferSizeBytes_; }
@@ -113,12 +105,17 @@ private:
 	/// @return Peak absolute sample value
 	int32_t findPeakLevel(size_t savedWritePos, size_t savedSamplesWritten);
 
-	uint8_t* buffer_ = nullptr;    ///< Circular buffer in external SDRAM
-	size_t bufferSizeBytes_ = 0;   ///< Actual allocated buffer size in bytes
-	size_t bufferSizeSamples_ = 0; ///< Buffer capacity in samples
-	size_t writePos_ = 0;          ///< Current write position in samples
-	size_t samplesWritten_ = 0;    ///< Total samples written (to know if buffer is full)
-	bool enabled_ = false;         ///< Whether recording is active
+	uint8_t* buffer_ = nullptr;             ///< Circular buffer in external SDRAM
+	size_t bufferSizeBytes_ = 0;            ///< Actual allocated buffer size in bytes
+	size_t bufferSizeSamples_ = 0;          ///< Buffer capacity in samples
+	std::atomic<size_t> writePos_{0};       ///< Current write position in samples
+	std::atomic<size_t> samplesWritten_{0}; ///< Total samples written (to know if buffer is full)
+	bool enabled_ = false;                  ///< Whether recording is active
+
+	// Incremental peak tracking for fast normalization
+	std::atomic<int32_t> runningPeak_{0}; ///< Highest absolute sample value seen
+	std::atomic<size_t> peakPosition_{0}; ///< Buffer position where peak occurred
+	std::atomic<bool> peakValid_{false};  ///< True if runningPeak_ is valid (not overwritten)
 
 	// Cached settings (read from runtime feature settings)
 	uint8_t durationSeconds_ = 30;                         ///< Buffer duration: 15, 30, or 60 seconds

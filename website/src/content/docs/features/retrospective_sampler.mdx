@@ -14,9 +14,9 @@ This feature has been tested on the OLED version of the Deluge.
 
 ## Description
 
-The Retrospective Sampler continuously records audio in a rolling buffer. When you hear something you want to keep, long-press **RECORD** to save it instantly to a WAV file.
+The Retrospective Sampler continuously records audio in a rolling buffer. When you hear something you want to keep, hold **RECORD** and press **SYNC/SCALING** to save it instantly to a WAV file.
 
-If you're in a Kit with a drum pad selected, the sample is automatically loaded into that pad and the waveform editor opens so you can trim the start and end points immediately.
+If you're in a Kit with a drum pad selected, the sample is automatically loaded into a new drum row and the waveform editor opens so you can trim the start and end points immediately.
 
 ### Use Cases
 
@@ -50,14 +50,33 @@ The buffer is allocated in external SDRAM when enabled. The default settings (5s
 | 30s | 2.6 MB | 5.3 MB | 4.0 MB | 7.9 MB |
 | 60s | 5.3 MB | 10.6 MB | 7.9 MB | 15.9 MB |
 
+### Performance
+
+The retrospective buffer has **minimal CPU overhead**:
+
+| Metric | Default (5s mono 16-bit) | Max (60s stereo 24-bit) |
+|--------|--------------------------|-------------------------|
+| Memory writes per render | 256 bytes | 768 bytes |
+| Memory bandwidth | 86 KB/s | 258 KB/s |
+
+**Buffer duration does NOT affect CPU usage.** Whether you choose 5 seconds or 60 seconds, the audio engine processes the same 128 samples per render cycle. Longer durations only use more SDRAM.
+
+For comparison, the audio engine's existing `memset` operations write 1024 bytes per render - the retrospective buffer writes 4x less in its default configuration.
+
+The `feedAudio()` function is lock-free and real-time safe:
+- Zero memory allocations in the audio path
+- No floating point operations
+- No file I/O until you trigger a save
+- Simple shift/mask/store operations with sequential memory access
+
 ## Usage
 
 ### Basic Usage
 
 1. Enable **Retro Sampler** in Community Features
 2. Play, jam, or record - audio is continuously captured
-3. When you hear something worth keeping, **long-press RECORD**
-4. The sample is saved to `SAMPLES/RETRO/RETRxxxx.WAV`
+3. When you hear something worth keeping, hold **RECORD** and press **SYNC/SCALING**
+4. The sample is saved to `SAMPLES/RETRO/{SongName}/SESSION###/RETRxxxx.WAV`
 
 ### Kit Workflow (Recommended)
 
@@ -67,7 +86,7 @@ For the fastest workflow when building kits from external sources:
 2. Connect your external gear (synth, modular, drum machine, etc.)
 3. Create or open a Kit
 4. Tweak your external source until you hear something you like
-5. Long-press **RECORD**
+5. Hold **RECORD** and press **SYNC/SCALING**
 6. A new drum row is created and the sample is loaded into it
 7. The view scrolls to show the new drum row
 8. The waveform editor opens automatically so you can trim start/end points
@@ -105,6 +124,9 @@ When Monitor is disabled:
 
 ## File Location
 
-All retrospective samples are saved to: `SAMPLES/RETRO/`
+Samples are organized by song and session:
 
-You can browse this folder later to reload samples or manage your captures.
+- **With a saved song**: `SAMPLES/RETRO/{SongName}/SESSION###/RETRxxxx.WAV`
+- **Without a song**: `SAMPLES/RETRO/SESSION###/RETRxxxx.WAV`
+
+Each power cycle creates a new SESSION folder, keeping captures from different sessions organized. Use the sample browser's **LOAD ALL** option on a session folder to import all captures into a kit at once.
