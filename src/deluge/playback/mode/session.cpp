@@ -30,6 +30,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/clip/sequencer/sequencer_mode.h"
 #include "model/drum/drum.h"
 #include "model/note/note_row.h"
 #include "model/song/clip_iterators.h"
@@ -2471,6 +2472,29 @@ void Session::doTickForward(int32_t posIncrement) {
 
 		int32_t ticksTilNextArpEvent = thisOutput->doTickForwardForArp(modelStack, posForArp);
 		playbackHandler.swungTicksTilNextEvent = std::min(ticksTilNextArpEvent, playbackHandler.swungTicksTilNextEvent);
+	}
+
+	// Do sequencer modes too - similar to arpeggiator handling
+	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		if (thisOutput->getActiveClip() && currentSong->isClipActive(thisOutput->getActiveClip())) {
+			Clip* activeClip = thisOutput->getActiveClip();
+			if (activeClip->type == ClipType::INSTRUMENT) {
+				InstrumentClip* instrumentClip = static_cast<InstrumentClip*>(activeClip);
+				if (instrumentClip->hasSequencerMode()) {
+					ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+					    modelStack->addTimelineCounter(instrumentClip);
+					auto* sequencerMode = instrumentClip->getSequencerMode();
+					if (sequencerMode) {
+						int32_t ticksTilNextSequencerEvent = sequencerMode->processPlayback(
+						    modelStackWithTimelineCounter, playbackHandler.lastSwungTickActioned);
+						if (ticksTilNextSequencerEvent > 0) {
+							playbackHandler.swungTicksTilNextEvent =
+							    std::min(ticksTilNextSequencerEvent, playbackHandler.swungTicksTilNextEvent);
+						}
+					}
+				}
+			}
+		}
 	}
 
 	/*

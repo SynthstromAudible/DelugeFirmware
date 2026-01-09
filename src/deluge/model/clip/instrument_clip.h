@@ -22,11 +22,17 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
+#include <map>
+#include <memory>
+#include <string>
 
 class Song;
 
 class NoteRow;
 class InstrumentClip;
+namespace deluge::model::clip::sequencer {
+class SequencerMode;
+}
 class Instrument;
 class ModControllable;
 class Drum;
@@ -96,6 +102,13 @@ public:
 	                  int16_t const* mpeValuesOrNull = nullptr, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
 	void recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t velocity = kDefaultLiftValue);
 
+	// Sequencer mode management
+	bool hasSequencerMode() const { return sequencerMode_ != nullptr && !sequencerModeName_.empty(); }
+	void setSequencerMode(const std::string& modeName);
+	void clearSequencerMode();
+	const std::string& getSequencerModeName() const { return sequencerModeName_; }
+	deluge::model::clip::sequencer::SequencerMode* getSequencerMode() const { return sequencerMode_.get(); }
+
 	void copyBasicsFrom(Clip const* otherClip) override;
 
 	ArpeggiatorSettings arpSettings;
@@ -103,6 +116,13 @@ public:
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 
 	bool inScaleMode; // Probably don't quiz this directly - call isScaleModeClip() instead
+
+	// Sequencer mode support
+	std::unique_ptr<deluge::model::clip::sequencer::SequencerMode> sequencerMode_;
+	std::string sequencerModeName_; // For persistence and menu display
+
+	// Cache for preserving sequencer mode data when switching between modes
+	std::map<std::string, std::unique_ptr<deluge::model::clip::sequencer::SequencerMode>> cachedSequencerModes_;
 
 	int32_t yScroll;
 

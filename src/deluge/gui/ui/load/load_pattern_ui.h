@@ -60,6 +60,7 @@ private:
 	bool overwriteExisting;
 	bool noScaling;
 	std::string defaultDir;
+	std::string cachedSequencerModeName; // Cache mode name to avoid accessing clip during card routine
 	Error setupForLoadingPattern();
 	Error currentLabelLoadError = Error::NONE;
 };

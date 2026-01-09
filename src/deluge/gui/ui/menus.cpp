@@ -32,6 +32,7 @@
 #include "gui/menu_item/battery/level.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
+#include "gui/menu_item/clip/clip_type_selection.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/cv/cv2Mapping.h"
 #include "gui/menu_item/cv/selection.h"
@@ -627,6 +628,9 @@ Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiN
 // MIDIInstrument menu ----------------------------------------------------------------------
 midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
                                                      STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED};
+
+// Clip Type Selection Menu
+clip::ClipTypeSelection clipTypeSelectionMenu{STRING_FOR_CLIP_TYPE, STRING_FOR_CLIP_TYPE};
 
 midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu{
     STRING_FOR_MIDI_DEVICE_DEFINITION,
@@ -1389,6 +1393,7 @@ Submenu soundEditorRootActionsMenu{
 Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
+        &clipTypeSelectionMenu,
         &soundEditorRootActionsMenu,
         &soundMasterMenu,
         &arpMenu,
@@ -1528,6 +1533,7 @@ menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TIT
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
+        &clipTypeSelectionMenu,
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
         &arpMenuMIDIOrCV,
