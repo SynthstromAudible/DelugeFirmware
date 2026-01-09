@@ -362,16 +362,33 @@ int32_t getNumVoices() {
 	return std::transform_reduce(sounds.cbegin(), sounds.cend(), 0, std::plus{},
 	                             [](auto sound) { return sound->voices().size(); });
 }
-void yieldToAudio() {
-	if (!AudioEngine::audioRoutineLocked) {
-		// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
-		AudioEngine::routineBeenCalled = false;
-		yieldToIdle([]() { return (AudioEngine::routineBeenCalled); });
+
+void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
+	logAction("AudioDriver::routineWithClusterLoading");
+
+	routineBeenCalled = false;
+
+	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
+
+	if (!routineBeenCalled) {
+		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
+
+		logAction("call runRoutine() from routineWithClusterLoading()");
+		runRoutine();
 	}
 }
 
-void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
-	yieldToAudio();
+void runRoutine() {
+	// check if we've setup the audio routine task
+	if (routine_task_id != -1) [[likely]] {
+		// run AudioEngine::routine() task so that scheduler is aware
+		runTask(AudioEngine::routine_task_id);
+	}
+	// otherwise call audio routine directly (necessary otherwise Deluge freezes on boot)
+	else {
+		ignoreForStats();
+		routine();
+	}
 }
 
 #define TICK_TYPE_SWUNG 1
