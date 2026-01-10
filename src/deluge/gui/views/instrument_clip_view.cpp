@@ -2967,7 +2967,8 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 
 	bool inNoteEditor = getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
 
-	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE)
+	                || display->hasPopupOfType(PopupType::FILL);
 
 	// If just one press...
 	if (numEditPadPresses == 1) {
@@ -3059,6 +3060,12 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 									parameterValue++;
 									parameterHasBeenEdited = true;
 								}
+							}
+							// Wrap around for FILL when at max value
+							else if (parameterValue == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL
+							         && !inNoteEditor) {
+								parameterValue = parameterMinValue;
+								parameterHasBeenEdited = true;
 							}
 						}
 						// Decrementing
@@ -3264,6 +3271,12 @@ multiplePresses:
 							}
 						}
 					}
+					// Wrap around for FILL when at max value
+					else if (parameterValue == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL
+					         && !inNoteEditor) {
+						parameterValue = parameterMinValue;
+						parameterHasBeenEdited = true;
+					}
 				}
 				// Decrementing
 				else {
@@ -3384,6 +3397,9 @@ multiplePresses:
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 			displayIterance(Iterance::fromInt(parameterValue));
 		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			displayFill(parameterValue);
+		}
 	}
 }
 
@@ -3441,6 +3457,19 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 	}
 	else {
 		display->displayPopup(buffer, 0, true, 255, 1, PopupType::ITERANCE);
+	}
+}
+
+void InstrumentClipView::displayFill(uint8_t mode) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+
+	strcpy(buffer, getFillString(mode));
+
+	if (display->haveOLED()) {
+		display->popupText(buffer, PopupType::FILL);
+	}
+	else {
+		display->displayPopup(buffer, 0, true, 255, 1, PopupType::FILL);
 	}
 }
 
@@ -3899,7 +3928,8 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		return -1; // Get out if NoteRow doesn't exist and can't be created
 	}
 
-	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE)
+	                || display->hasPopupOfType(PopupType::FILL);
 
 	uint16_t original_parameter{0};
 	bool parameter_has_been_edited = false;
@@ -3966,6 +3996,12 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 						parameter_value++;
 						parameter_has_been_edited = true;
 					}
+				}
+				// Wrap around for FILL when at max value
+				else if (parameter_value == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL
+				         && !inNoteRowEditor) {
+					parameter_value = parameterMinValue;
+					parameter_has_been_edited = true;
 				}
 			}
 			// Decrementing
@@ -4043,6 +4079,9 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 			displayIterance(Iterance::fromInt(parameter_value));
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			displayFill(parameter_value);
 		}
 	}
 
