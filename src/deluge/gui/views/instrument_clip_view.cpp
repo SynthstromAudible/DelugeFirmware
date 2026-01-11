@@ -3380,6 +3380,9 @@ multiplePresses:
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 			displayIterance(Iterance::fromInt(parameterValue));
 		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			displayFill(parameterValue);
+		}
 	}
 }
 
@@ -3440,14 +3443,27 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 	}
 }
 
-const char* InstrumentClipView::getFillString(uint8_t fill) {
+void InstrumentClipView::displayFill(uint8_t mode) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+
+	strcpy(buffer, getFillString(mode));
+
+	if (display->haveOLED()) {
+		display->popupText(buffer, PopupType::FILL);
+	}
+	else {
+		display->displayPopup(buffer, 0, true, 255, 1, PopupType::FILL);
+	}
+}
+
+const char* InstrumentClipView::getFillString(uint8_t mode) {
 	// FILL mode
-	if (fill == FILL) {
+	if (mode == FILL) {
 		return "FILL";
 	}
 
 	// NO-FILL mode
-	if (fill == NOT_FILL) {
+	if (mode == NOT_FILL) {
 		return "NOT FILL";
 	}
 
@@ -3895,7 +3911,8 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		return -1; // Get out if NoteRow doesn't exist and can't be created
 	}
 
-	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE)
+	                || display->hasPopupOfType(PopupType::FILL);
 
 	uint16_t original_parameter{0};
 	bool parameter_has_been_edited = false;
@@ -3962,6 +3979,11 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 						parameter_value++;
 						parameter_has_been_edited = true;
 					}
+				}
+				// Wrap around for FILL when at max value
+				else if (parameterValue == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL) {
+					parameterValue = parameterMinValue;
+					parameterHasBeenEdited = true;
 				}
 			}
 			// Decrementing
@@ -4039,6 +4061,9 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 			displayIterance(Iterance::fromInt(parameter_value));
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			displayFill(parameterValue);
 		}
 	}
 
