@@ -1336,7 +1336,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being
 		// loaded right now because that would have added a "reason", so we wouldn't be here.) also do this on song
 		// swap
-		if (deletingSong) {
+		if (loadingQueue.erase(&cluster) || deletingSong) {
 
 			// Tell its Cluster to forget it exists
 			cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster = nullptr;

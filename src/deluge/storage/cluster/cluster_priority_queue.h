@@ -21,6 +21,7 @@
 #include "util/containers.h"
 #include <cstdint>
 #include <limits>
+#include <ranges>
 
 using Priority = uint32_t;
 using qcluster = std::pair<Priority, Cluster*>;
@@ -43,12 +44,14 @@ public:
 		while (!this->empty()) {
 			cluster = this->front();
 			this->pop();
-			// if this cluster is still wanted then we'll return it
-			if ((!cluster->unloadable) && cluster->numReasonsToBeLoaded > 0) {
-				return cluster;
+			if (cluster != nullptr) {
+				// if this cluster is still wanted then we'll return it
+				if ((!cluster->unloadable) && cluster->numReasonsToBeLoaded > 0) {
+					return cluster;
+				}
+				// otherwise get rid of it and continue to the next one
+				cluster->destroy();
 			}
-			// otherwise get rid of it and continue to the next one
-			cluster->destroy();
 		}
 		return nullptr;
 	}
@@ -58,4 +61,14 @@ public:
 	[[nodiscard]] constexpr bool hasAnyLowestPriority() const {
 		return !c.empty() && c.rbegin()->first == std::numeric_limits<uint32_t>::max();
 	}
+
+	bool erase(const Cluster* cluster) {
+		for (auto& val : this->c | std::views::values) {
+			if (val == cluster) {
+				val = nullptr;
+				return true;
+			}
+		}
+		return false;
+	};
 };
