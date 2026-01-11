@@ -163,9 +163,7 @@ void Sample::markAsUnloadable() {
 	// If any Clusters in the load-queue, remove them from there
 	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
 		Cluster* cluster = clusters.getElement(c)->cluster;
-		if (cluster != nullptr) {
-			audioFileManager.loadingQueue.erase(*cluster);
-		}
+		cluster->unloadable = true;
 	}
 }
 

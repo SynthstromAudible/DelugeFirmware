@@ -1263,15 +1263,7 @@ performActionsAndGetOut:
 
 		// pop clusters until we get one that has reasonsToBeLoaded
 		// this prevents loading clusters that have been quickly culled after they were enqueued
-		Cluster* cluster = nullptr;
-		while (!loadingQueue.empty()) {
-			cluster = &loadingQueue.front();
-			loadingQueue.pop();
-			if (cluster->numReasonsToBeLoaded > 0) {
-				break;
-			}
-			cluster->destroy();
-		}
+		Cluster* cluster = loadingQueue.getNext();
 
 		// no more clusters to load, so exit
 		if (cluster == nullptr) {
@@ -1307,7 +1299,7 @@ performActionsAndGetOut:
 				}
 
 				// TODO: If that fails, it'll just get awkwardly forgotten about
-				loadingQueue.push(*cluster, 0xFFFFFFFF); // lowest priority
+				loadingQueue.enqueueCluster(*cluster, 0xFFFFFFFF); // lowest priority
 
 				// Also, return now. Normally we stay here til there's nothing left in the load-queue, but now that
 				// would leave us in an infinite loop!
@@ -1344,7 +1336,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being
 		// loaded right now because that would have added a "reason", so we wouldn't be here.) also do this on song
 		// swap
-		if (loadingQueue.erase(cluster) || deletingSong) {
+		if (deletingSong) {
 
 			// Tell its Cluster to forget it exists
 			cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster = nullptr;

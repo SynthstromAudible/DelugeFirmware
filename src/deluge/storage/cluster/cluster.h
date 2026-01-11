@@ -66,7 +66,7 @@ public:
 
 	int32_t numReasonsToBeLoaded = 0;
 	int8_t numReasonsHeldBySampleRecorder = 0;
-
+	bool unloadable = false;
 	bool extraBytesAtStartConverted = false;
 	bool extraBytesAtEndConverted = false;
 
@@ -77,6 +77,6 @@ public:
 	bool loaded = false;
 
 	// MUST BE THE LAST TWO MEMBERS
-	char dummy[CACHE_LINE_SIZE];
-	char data[CACHE_LINE_SIZE];
+	alignas(CACHE_LINE_SIZE) char dummy[CACHE_LINE_SIZE];
+	alignas(CACHE_LINE_SIZE) char data[CACHE_LINE_SIZE];
 };
