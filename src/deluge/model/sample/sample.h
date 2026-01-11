@@ -154,6 +154,10 @@ public:
 
 	SampleClusterArray clusters;
 
+	// Stealable Implementation
+	bool mayBeStolen(void* thingNotToStealFrom = nullptr) override;
+	void steal(char const* errorCode) override;
+
 protected:
 #if ALPHA_OR_BETA_VERSION
 	void numReasonsDecreasedToZero(char const* errorCode) override;
