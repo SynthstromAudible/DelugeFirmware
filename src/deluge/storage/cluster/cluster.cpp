@@ -122,7 +122,7 @@ void Cluster::convertDataIfNecessary() {
 				}
 
 				AudioEngine::logAction("from convert-data");
-				AudioEngine::routine(); // ----------------------------------------------------
+				AudioEngine::runRoutine();
 			}
 		}
 
@@ -150,8 +150,7 @@ void Cluster::convertDataIfNecessary() {
 			for (; pos < endPos; pos++) {
 
 				if (!((uint32_t)pos & 0b1111111100)) {
-					AudioEngine::logAction("from convert-data");
-					AudioEngine::routine(); // ----------------------------------------------------
+					AudioEngine::runRoutine();
 				}
 
 				*pos = sample->convertToNative(*pos);
