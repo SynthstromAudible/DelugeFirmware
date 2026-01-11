@@ -35,13 +35,14 @@ struct TaskManager {
 	TaskID insertTaskToList(Task task);
 	void printStats();
 	bool checkConditionalTasks();
-	bool yield(RunCondition until, Time timeout = 0);
+	bool yield(RunCondition until, Time timeout = 0, bool returnOnIdle = false);
 	Time getSecondsFromStart();
 
 	void ignoreForStats();
 	void setNextRunTimeforCurrentTask(Time seconds);
 
-	Time getAverageRunTimeForCurrentTask();
+	[[nodiscard]] Time getAverageRunTimeForCurrentTask() const;
+	[[nodiscard]] Time getAverageRunTimeForTask(TaskID id) const;
 
 private:
 	// All current tasks
