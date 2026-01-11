@@ -335,7 +335,11 @@ doEndMidiLearnPressSession:
 			if (on && (currentUIMode == UI_MODE_NOTES_PRESSED || instrumentClipView.numEditPadPresses > 0)) {
 				currentSong->changeFillMode(on);
 				instrumentClipView.adjustNoteFillWithOffset(1);
-				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				return ActionResult::DEALT_WITH;
+			}
+			else if (on && (currentUIMode == UI_MODE_AUDITIONING)) {
+				currentSong->changeFillMode(on);
+				instrumentClipView.setNoteRowFillWithOffset(1);
 				return ActionResult::DEALT_WITH;
 			}
 			else if (!on && (currentUIMode == UI_MODE_NOTES_PRESSED || instrumentClipView.numEditPadPresses > 0)) {
