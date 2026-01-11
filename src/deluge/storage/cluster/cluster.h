@@ -77,6 +77,6 @@ public:
 	bool loaded = false;
 
 	// MUST BE THE LAST TWO MEMBERS
-	alignas(CACHE_LINE_SIZE) char dummy[CACHE_LINE_SIZE];
-	alignas(CACHE_LINE_SIZE) char data[CACHE_LINE_SIZE];
+	alignas(4) char dummy[CACHE_LINE_SIZE];
+	alignas(4) char data[CACHE_LINE_SIZE];
 };
