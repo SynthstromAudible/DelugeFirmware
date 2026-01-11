@@ -28,7 +28,9 @@ void startTaskManager() {
 void ignoreForStats() {
 	taskManager.ignoreForStats();
 }
-
+double getAverageRunTimeForTask(TaskID id) {
+	return taskManager.getAverageRunTimeForTask(id);
+}
 double getAverageRunTimeforCurrentTask() {
 	return taskManager.getAverageRunTimeForCurrentTask();
 }
@@ -37,18 +39,21 @@ void setNextRunTimeforCurrentTask(double seconds) {
 	taskManager.setNextRunTimeforCurrentTask(seconds);
 }
 
-uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
-                         double maxTimeBetweenCalls, const char* name, ResourceID resources) {
-	return taskManager.addRepeatingTask(
-	    task, TaskSchedule{priority, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls}, name,
-	    ResourceChecker{resources});
+int8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
+                        double maxTimeBetweenCalls, const char* name, ResourceID resources) {
+	return taskManager.addRepeatingTask(task,
+	                                    TaskSchedule{.priority = priority,
+	                                                 .backOffPeriod = backOffTime,
+	                                                 .targetInterval = targetTimeBetweenCalls,
+	                                                 .maxInterval = maxTimeBetweenCalls},
+	                                    name, ResourceChecker{resources});
 }
-uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name, ResourceID resources) {
+int8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name, ResourceID resources) {
 	return taskManager.addOnceTask(task, priority, timeToWait, name, ResourceChecker{resources});
 }
 
-uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
-                           ResourceID resources) {
+int8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
+                          ResourceID resources) {
 	return taskManager.addConditionalTask(task, priority, condition, name, ResourceChecker{resources});
 }
 
@@ -60,12 +65,22 @@ bool yieldWithTimeout(RunCondition until, double timeout) {
 	return taskManager.yield(until, timeout);
 }
 
-void removeTask(TaskID id) {
-	return taskManager.removeTask(id);
+bool yieldToIdle(RunCondition until) {
+	return taskManager.yield(until, 0, true);
 }
+
+void removeTask(TaskID id) {
+	taskManager.removeTask(id);
+}
+
 void boostTask(TaskID id) {
 	taskManager.boostTask(id);
 }
+
+void runTask(TaskID id) {
+	taskManager.runTask(id);
+}
+
 double getSystemTime() {
 	return taskManager.getSecondsFromStart();
 }
