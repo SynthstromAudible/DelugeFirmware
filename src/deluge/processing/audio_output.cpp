@@ -423,3 +423,45 @@ ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimel
 
 	return modelStackWithParam;
 }
+
+void AudioOutput::setOutputRecordingFrom(Output* toRecordfrom) {
+	if (toRecordfrom == this) {
+		// can happen from bad save files
+		return;
+	}
+	if (outputRecordingFrom) {
+		outputRecordingFrom->setRenderingToAudioOutput(false, nullptr);
+	}
+	outputRecordingFrom = toRecordfrom;
+	if (outputRecordingFrom) {
+		// If we are a SAMPLER or a LOOPER then we're monitoring the audio, so tell the other output that we're in
+		// charge of rendering
+		outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
+	}
+}
+
+void AudioOutput::scrollAudioOutputMode(int offset) {
+	auto modeInt = util::to_underlying(mode);
+	modeInt = (modeInt + offset) % kNumAudioOutputModes;
+
+	mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
+	if (outputRecordingFrom) {
+		// update the output we're recording from on whether we're monitoring
+		outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
+	}
+	renderUIsForOled(); // oled shows the type on the clip screen (including while holding a clip in song view)
+	if (display->have7SEG()) {
+		const char* type;
+		switch (mode) {
+		case AudioOutputMode::player:
+			type = "PLAY";
+			break;
+		case AudioOutputMode::sampler:
+			type = "SAMP";
+			break;
+		case AudioOutputMode::looper:
+			type = "LOOP";
+		}
+		display->displayPopup(type);
+	}
+}
