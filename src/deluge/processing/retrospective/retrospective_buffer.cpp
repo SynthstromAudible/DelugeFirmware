@@ -19,6 +19,7 @@
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/memory_allocator_interface.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "util/cfunctions.h"
@@ -120,8 +121,8 @@ Error RetrospectiveBuffer::init() {
 	bufferSizeBytes_ = calculateBufferSize();
 	bufferSizeSamples_ = static_cast<size_t>(durationSeconds_) * kSampleRate;
 
-	// Allocate from external SDRAM
-	buffer_ = static_cast<uint8_t*>(GeneralMemoryAllocator::get().allocLowSpeed(bufferSizeBytes_));
+	// Allocate directly from SDRAM - buffer is too large for external region
+	buffer_ = static_cast<uint8_t*>(allocSdram(bufferSizeBytes_));
 	if (buffer_ == nullptr) {
 		bufferSizeBytes_ = 0;
 		bufferSizeSamples_ = 0;
