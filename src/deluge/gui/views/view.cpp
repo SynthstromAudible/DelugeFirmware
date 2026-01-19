@@ -79,6 +79,8 @@
 #include "playback/mode/session.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/retrospective/retrospective_buffer.h"
+#include "processing/retrospective/retrospective_handler.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -328,9 +330,19 @@ doEndMidiLearnPressSession:
 	}
 
 	// Sync-scaling button - can be repurposed as Fill Mode in community settings
+	// Also used as RECORD + SYNC_SCALING combo for retrospective sampler
 	else if (b == SYNC_SCALING) {
-		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
-		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+		// RECORD + SYNC_SCALING combo - trigger retrospective save if enabled
+		// Don't trigger if threshold recording mode popup is active (RECORD shows that popup)
+		if (on && Buttons::isButtonPressed(RECORD) && !display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)
+		    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RetrospectiveSampler)
+		    && retrospectiveBuffer.hasAudio()) {
+			Buttons::recordButtonPressUsedUp = true; // Prevent normal record action on release
+			handleRetrospectiveSave();
+			return ActionResult::DEALT_WITH;
+		}
+		else if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+		          == RuntimeFeatureStateSyncScalingAction::Fill)) {
 			currentSong->changeFillMode(on);
 		}
 		else if (on && currentUIMode == UI_MODE_NONE) {

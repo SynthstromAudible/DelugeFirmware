@@ -41,6 +41,12 @@ enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1
 
 enum RuntimeFeatureStateEmulatedDisplay : uint32_t { Hardware = 0, Toggle = 1, OnBoot = 2 };
 
+// Retrospective sampler state enums
+enum RuntimeFeatureStateRetroSource : uint32_t { Input = 0, MasterOutput = 1 };
+enum RuntimeFeatureStateRetroDuration : uint32_t { Seconds5 = 0, Seconds15 = 1, Seconds30 = 2, Seconds60 = 3 };
+enum RuntimeFeatureStateRetroBitDepth : uint32_t { Bits16 = 0, Bits24 = 1 };
+enum RuntimeFeatureStateRetroChannels : uint32_t { Mono = 0, Stereo = 1 };
+
 /// Every setting needs to be declared in here
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
@@ -66,6 +72,13 @@ enum RuntimeFeatureSettingType : uint32_t {
 	HorizontalMenus,
 	TrimFromStartOfAudioClip,
 	ShowBatteryLevel,
+	RetrospectiveSampler,
+	RetrospectiveSamplerSource,
+	RetrospectiveSamplerDuration,
+	RetrospectiveSamplerBitDepth,
+	RetrospectiveSamplerChannels,
+	RetrospectiveSamplerMonitor,
+	RetrospectiveSamplerNormalize,
 	MaxElement // Keep as boundary
 };
 

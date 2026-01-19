@@ -46,6 +46,8 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/retrospective/retrospective_buffer.h"
+#include "processing/retrospective/retrospective_handler.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
@@ -557,6 +559,15 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	else if (inNoteRowEditor()) {
 		return instrumentClipView.handleNoteRowEditorButtonAction(b, on, inCardRoutine);
+	}
+
+	// RECORD + SYNC_SCALING combo - trigger retrospective save if enabled
+	else if (b == SYNC_SCALING && on && Buttons::isButtonPressed(RECORD)
+	         && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RetrospectiveSampler)
+	         && retrospectiveBuffer.hasAudio()) {
+		Buttons::recordButtonPressUsedUp = true;
+		handleRetrospectiveSave();
+		return ActionResult::DEALT_WITH;
 	}
 
 	else {
