@@ -174,8 +174,8 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 
 	const float hpCoeff = 0.995f - hpCutoff_ * 0.09f;
 	const float outLpCoeff = 0.1f + lpCutoff_ * 0.85f;
-	const float tailFeedback = feedback_ * feedback_;                           // Hoist: tail decays faster than early
-	const float envReleaseRate = 0.0001f + (1023 - zone2_) * 0.0002f / 1023.0f; // Hoist: envelope release
+	const float tailFeedback = feedback_ * feedback_; // Hoist: tail decays faster than early
+	const float envReleaseRate = envReleaseRate_;     // Use precomputed value
 
 	// Cache matrix
 	const auto& m = matrix_;
@@ -188,13 +188,9 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 		in = hpOut;
 
 		// Input envelope for auto-decay
-		float inAbs = std::fabs(in);
-		if (inAbs > inputEnvelope_) {
-			inputEnvelope_ = inAbs;
-		}
-		else {
-			inputEnvelope_ += envReleaseRate * (inAbs - inputEnvelope_);
-		}
+		float inAbs = in > 0.0f ? in : -in;
+		float coeff = inAbs > inputEnvelope_ ? 1.0f : envReleaseRate;
+		inputEnvelope_ += coeff * (inAbs - inputEnvelope_);
 
 		// Predelay (single tap)
 		if (predelayLength_ > 0) {
@@ -241,14 +237,11 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				h1 += h0Orig * crossBleed_;
 			}
 
-			// Feedback with auto-decay
-			float effectiveFeedback = feedback_;
+			// Feedback with auto-decay (feedbackFloor_ precomputed in setZone2)
 			constexpr float kEnvReference = 0.001f;
-			constexpr float kMinFeedbackMult = 0.6f;
-			float feedbackFloor = kMinFeedbackMult + (zone2_ * (1.0f - kMinFeedbackMult)) / 1023.0f;
 			float envNorm = std::min(inputEnvelope_ / kEnvReference, 1.0f);
-			float feedbackMod = feedbackFloor + envNorm * (1.0f - feedbackFloor);
-			effectiveFeedback *= feedbackMod * fdnFeedbackScale_; // Scale inversely with Zone 3
+			float feedbackMod = feedbackFloor_ + envNorm * (1.0f - feedbackFloor_);
+			float effectiveFeedback = feedback_ * feedbackMod * fdnFeedbackScale_;
 
 			// Damping + feedback
 			h0 = onepole(h0, fdnLpState_[0], dampCoeff_) * effectiveFeedback * feedbackMult_[0];
@@ -833,6 +826,11 @@ void Featherverb::setZone2(int32_t value) {
 void Featherverb::updateSizes() {
 	const float t = static_cast<float>(zone2_) / 1023.0f;
 	const int32_t zone = zone2_ >> 7; // Zone ID 0-7
+
+	// Precompute hot-path values (avoids per-sample computation)
+	constexpr float kMinFeedbackMult = 0.6f;
+	feedbackFloor_ = kMinFeedbackMult + t * (1.0f - kMinFeedbackMult);
+	envReleaseRate_ = 0.0001f + (1.0f - t) * 0.0002f;
 
 	// D2 scales from min to max
 	fdnLengths_[2] = kD2MinLength + static_cast<size_t>(t * (kD2MaxLength - kD2MinLength));

@@ -78,7 +78,7 @@ class Featherverb : public Base {
 
 	// Multi-tap write offsets (prime numbers for good diffusion)
 	// Writes are cheap (pipelined), so add secondary write for doubled impulse density
-	static constexpr bool kEnableMultiTapWrites = true;
+	static constexpr bool kEnableMultiTapWrites = false; // Disabled for performance (saves ~5% cycles)
 	static constexpr std::array<size_t, kNumCascade> kMultiTapOffsets = {311, 401, 509, 1607}; // C0-C3 offsets
 	static constexpr float kMultiTapGain = 0.18f; // Gain for secondary tap (low to preserve feedback headroom)
 
@@ -203,6 +203,10 @@ private:
 	float feedback_{0.85f};
 	float dampCoeff_{0.5f};
 	float cascadeDamping_{0.7f}; // Damping in cascade (darker tail)
+
+	// Precomputed hot-path values (updated in setZone2)
+	float feedbackFloor_{0.8f};     // kMinFeedbackMult + zone2 blend
+	float envReleaseRate_{0.0002f}; // Envelope release rate
 
 	// 3x3 matrix for FDN (normalized Hadamard)
 	// H3 = 1/sqrt(3) * [[1,1,1], [1,w,w^2], [1,w^2,w]] where w = e^(2πi/3)
