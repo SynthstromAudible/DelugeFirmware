@@ -306,19 +306,38 @@ def collect_data(output_file, duration, port=None, verbose=False):
 
         util.note(f"Wrote {len(samples)} samples to {output_file}")
         util.note("")
-        util.note("Summary:")
-        # Print summary by effect
+        util.note("Summary (totals only - see CSV for subsections):")
+        # Print summary by effect - only show total-level benchmarks (reverb_*, delay_*, etc.)
+        # Subsection benchmarks (feather_fdn, etc.) are written to CSV but not shown here
         fx_counts = {}
         for sample in samples:
             fx = sample.get("fx", "unknown")
+            # Only aggregate top-level benchmarks (pattern: category_name, not subsections)
+            # Top-level: reverb_feather, reverb_mutable, delay_analog, etc.
+            # Subsections would be: feather_fdn, feather_cascade (if we add them)
+            is_total = (
+                fx.startswith("reverb_")
+                or fx.startswith("delay_")
+                or fx.startswith("fx_")
+            )
+            if not is_total:
+                continue
             if fx not in fx_counts:
-                fx_counts[fx] = {"count": 0, "total_cycles": 0}
+                fx_counts[fx] = {"count": 0, "total_cycles": 0, "tags": {}}
             fx_counts[fx]["count"] += 1
             fx_counts[fx]["total_cycles"] += sample.get("cycles", 0)
+            # Track tag distribution for mode breakdown
+            for tag in sample.get("tags", []):
+                if tag:
+                    fx_counts[fx]["tags"][tag] = fx_counts[fx]["tags"].get(tag, 0) + 1
 
         for fx, stats in sorted(fx_counts.items()):
             avg = stats["total_cycles"] // stats["count"] if stats["count"] > 0 else 0
-            util.note(f"  {fx}: {stats['count']} samples, avg {avg:,} cycles")
+            tag_info = ""
+            if stats["tags"]:
+                tag_parts = [f"{t}:{c}" for t, c in sorted(stats["tags"].items())]
+                tag_info = f" [{', '.join(tag_parts)}]"
+            util.note(f"  {fx}: {stats['count']} samples, avg {avg:,} cycles{tag_info}")
     else:
         util.note("No samples collected!")
         util.note("Make sure effects are active and producing audio.")

@@ -845,6 +845,12 @@ void renderReverb(size_t numSamples) {
 			static Debug::FxBenchmark benchMutable("reverb_mutable");
 			static Debug::FxBenchmark benchDigital("reverb_digital");
 			static Debug::FxBenchmark* benches[] = {&benchFeather, &benchFreeverb, &benchMutable, &benchDigital};
+			// Add mode tag for Featherverb (zone2 >> 7 gives zone 0-7: 0-5=normal, 6=lush, 7=vast)
+			if (reverb.getModel() == dsp::Reverb::Model::FEATHERVERB) {
+				int32_t zone = reverb.getFeatherZone2() >> 7;
+				const char* mode = (zone == 7) ? "vast" : (zone >= 6) ? "lush" : "normal";
+				benchFeather.setTag(0, mode);
+			}
 			Debug::FxBenchmarkScope scope(*benches[static_cast<int>(reverb.getModel())]);
 #endif
 			reverb.process(reverbBuffer, renderingBuffer);
