@@ -67,3 +67,7 @@ if(ENABLE_MATRIX_DEBUG)
     target_compile_definitions(deluge PUBLIC ENABLE_MATRIX_DEBUG=1)
 endif(ENABLE_MATRIX_DEBUG)
 
+if(ENABLE_FX_BENCHMARK)
+    target_compile_definitions(deluge PUBLIC ENABLE_FX_BENCHMARK=1)
+endif(ENABLE_FX_BENCHMARK)
+
