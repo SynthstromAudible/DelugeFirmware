@@ -17,8 +17,8 @@ public:
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
-		return {l10n::getView(STRING_FOR_FREEVERB), l10n::getView(STRING_FOR_MUTABLE),
-		        l10n::getView(STRING_FOR_DIGITAL)};
+		return {l10n::getView(STRING_FOR_FEATHERVERB), l10n::getView(STRING_FOR_FREEVERB),
+		        l10n::getView(STRING_FOR_MUTABLE), l10n::getView(STRING_FOR_DIGITAL)};
 	}
 
 	void getColumnLabel(StringBuf& label) override {

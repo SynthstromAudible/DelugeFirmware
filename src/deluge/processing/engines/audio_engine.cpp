@@ -223,6 +223,9 @@ void init() {
 
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
+	// Allocate reverb buffer (Featherverb uses dynamic allocation)
+	(void)reverb.allocate();
+
 	i2sTXBufferPos = (uint32_t)getTxBufferStart();
 
 	i2sRXBufferPos = (uint32_t)getRxBufferStart()

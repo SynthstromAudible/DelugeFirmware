@@ -91,4 +91,23 @@ inline void foldBuffer(q31_t* startSample, q31_t* endSample, q31_t foldLevel) {
 		currentSample += 1;
 	} while (currentSample < endSample);
 }
+/// Simple unipolar triangle - 2 segments: 0→1→0 (peak at phase=0.5)
+/// @param phase Phase in cycles (wraps automatically via floor)
+/// @param duty Active portion 0.0-1.0 (default 1.0 = full triangle, no deadzone)
+/// @return Output 0.0 to 1.0
+inline float triangleSimpleUnipolar(float phase, float duty = 1.0f) {
+	// Fast floor via int32_t truncation (valid for non-negative phase)
+	phase = phase - static_cast<float>(static_cast<int32_t>(phase));
+	float halfDuty = duty * 0.5f;
+	float invHalfDuty = 2.0f / duty; // One division instead of two
+
+	if (phase < halfDuty) {
+		return phase * invHalfDuty; // Rising: 0→1
+	}
+	else if (phase < duty) {
+		return (duty - phase) * invHalfDuty; // Falling: 1→0
+	}
+	return 0.0f; // Deadzone
+}
+
 } // namespace deluge::dsp
