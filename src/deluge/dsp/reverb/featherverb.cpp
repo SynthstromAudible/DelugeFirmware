@@ -117,7 +117,6 @@ bool Featherverb::allocate() {
 	hpState_ = 0.0f;
 	lpStateL_ = 0.0f;
 	lpStateR_ = 0.0f;
-	lfoPhase_ = 0.0f;
 	prevOutputMono_ = 0.0f;
 	cascadeModDepth_ = 0.0f;
 	cascadeAmpMod_ = 0.0f;
@@ -202,19 +201,20 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			size_t d0Mod = 0;
 			size_t d1Mod = 0;
 			if (cascadeDoubleUndersample_ || skyChainMode_ || modDepth_ > 0.0f) {
-				if (skyChainMode_) {
-					// Sky mode: random walk for organic pitch drift
+				if (skyChainMode_ || vastChainMode_) {
+					// Sky/Vast mode: random walk for organic pitch drift
 					// LCG random: state = state * 1664525 + 1013904223
 					skyRandState_ = skyRandState_ * 1664525u + 1013904223u;
 					float randStep = (static_cast<float>(skyRandState_ >> 16) / 32768.0f - 1.0f); // -1 to 1
 					// Step size controlled by skyLfoFreq_ (0.5x to 2.5x)
-					float stepSize = 0.0004f * skyLfoFreq_;
+					float stepSize = 0.001f * skyLfoFreq_;
 					skyRandWalk_ += randStep * stepSize;
 					// Soft bounds: gentle pull back toward center
-					skyRandWalk_ *= 0.9997f;
+					skyRandWalk_ *= 0.9995f;
 					skyRandWalk_ = std::clamp(skyRandWalk_, -1.0f, 1.0f);
-					// Smooth the output (one-pole LP)
-					float smoothCoeff = 0.02f * skyLfoFreq_;
+					// Smooth the output (one-pole LP) - lower coeff = smoother
+					float smoothCoeff = vastChainMode_ ? 0.012f * skyLfoFreq_  // Extra smooth for 4x
+					                                   : 0.025f * skyLfoFreq_; // Normal for Sky
 					skyRandWalkSmooth_ += smoothCoeff * (skyRandWalk_ - skyRandWalkSmooth_);
 					lfoTri = skyRandWalkSmooth_;
 					// Z3 controls routing: low = pitch wobble, high = amp mod
@@ -222,15 +222,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					d0Mod = static_cast<size_t>(std::max(0.0f, lfoTri * modDepth_ * pitchScale));
 					d1Mod = static_cast<size_t>(std::max(0.0f, -lfoTri * modDepth_ * pitchScale));
 				}
-				else {
-					// Other modes: triangle LFO
-					lfoPhase_ += 0.0000034f;
-					if (lfoPhase_ >= 1.0f)
-						lfoPhase_ -= 1.0f;
-					lfoTri = lfoPhase_ < 0.5f ? (4.0f * lfoPhase_ - 1.0f) : (3.0f - 4.0f * lfoPhase_);
-					d0Mod = static_cast<size_t>(std::max(0.0f, lfoTri * modDepth_));
-					d1Mod = static_cast<size_t>(std::max(0.0f, -lfoTri * modDepth_));
-				}
+				// Other modes: no pitch modulation (d0Mod/d1Mod stay 0)
 			}
 
 			// Read FDN delays
@@ -283,56 +275,62 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			float dynamicWidth = width_; // Width breathing removed (was envelope-based)
 
 			if (vastChainMode_) {
-				// === VAST CHAIN MODE ===
-				// Topology with nested feedback loops + global recirculation:
-				//   Input ←───────────────────────────────────┐
-				//       → C0 → D0 ←──┐                        │
-				//                └→ C1 → D1 ←──┐              │
-				//                          └→ C2 → D2 ←──┐   │
-				//                                    └→ C3 ──┘
-				// Local loops add density, global loop adds tail length
+				// === VAST CHAIN MODE (Smeared feedback like Sky) ===
+				// Topology with smeared feedback loops + global recirculation:
+				//   Input → C0 → D0 → C1 → D1 → C2 → D2 → C3 → output
+				//                 ↑         ↑         ↑
+				//            (C2→C0)    (C3→C1)    (C3)
+				// Feedback passes through cascade stages for diffusion before entering delays
+				// This reduces comb filter sensitivity compared to direct feedback
 
 				// Feedback coefficients: Room → density, Zone 3 → tail length
 				// Self-limiting feedback: reduce when reverb level is high (can go to zero)
 				float fbEnvScale = 1.0f - std::min(feedbackEnvelope_ * 8.0f, 1.0f);
-				float loopFb = feedback_ * 0.4f * delayRatio_ * fbEnvScale;
+				float loopFb = feedback_ * 0.4f * delayRatio_ * fbEnvScale * skyLoopFb_; // Z3 controls density
 				float globalFb = cascadeNestFeedback_ * fbEnvScale * 0.8f;
 
 				// Pre-decimation AA filter with global C3 feedback
 				float chainIn = onepole(fdnIn * 1.4f + prevC3Out_ * globalFb, cascadeAaState1_, kPreCascadeAaCoeff);
+
+				// Z1 controls balance between feedback paths (like Sky)
+				float c2Fb = loopFb * (1.6f - skyFbBalance_ * 1.4f); // 1.6 → 0.2
+				float c3Fb = loopFb * (0.2f + skyFbBalance_ * 1.4f); // 0.2 → 1.6
 
 				// C0 with 4x undersample (input → first allpass)
 				c0Accum_ += chainIn;
 				if (c0Phase_ == 1) {
 					float avgIn = c0Accum_ * 0.5f;
 					c0Prev_ = processCascadeStage(0, avgIn);
+					// Smeared feedback: C2 → C0 → D0 (Z1 controls balance)
+					float c2Smeared = processCascadeStage(0, c2Prev_ * c2Fb);
+					c0Prev_ += c2Smeared;
 					c0Accum_ = 0.0f;
 				}
 				c0Phase_ = (c0Phase_ + 1) & 1;
 				c0 = c0Prev_;
 
-				// D0 delay between C0 and C1
+				// D0 delay between C0 and C1 (modulated pitch)
 				fdnWrite(0, c0);
 				fdnWrite(0, c0); // Double write for 4x undersample
-				float d0Out = fdnRead(0);
+				float d0Out = fdnReadAt(0, d0Mod);
 
 				// C1 with 4x undersample
 				c1Accum_ += d0Out;
 				if (c1Phase_ == 1) {
 					float avgIn = c1Accum_ * 0.5f;
 					c1Prev_ = processCascadeStage(1, avgIn);
+					// Smeared feedback: C3 → C1 → D1 (Z1 controls balance)
+					float c3Smeared = processCascadeStage(1, c3Prev_ * c3Fb);
+					c1Prev_ += c3Smeared;
 					c1Accum_ = 0.0f;
 				}
 				c1Phase_ = (c1Phase_ + 1) & 1;
 				c1 = c1Prev_;
 
-				// C1 → D0 nested feedback loop (single write - feedback timing less critical)
-				fdnWrite(0, c1 * loopFb);
-
-				// D1 delay between C1 and C2
+				// D1 delay between C1 and C2 (modulated pitch)
 				fdnWrite(1, c1);
 				fdnWrite(1, c1);
-				float d1Out = fdnRead(1);
+				float d1Out = fdnReadAt(1, d1Mod);
 
 				// C2 with 4x undersample + pitch modulation
 				c2Accum_ += d1Out;
@@ -340,7 +338,8 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					float avgIn = c2Accum_ * 0.5f;
 					float c2Coeff = cascadeCoeffs_[2];
 					size_t origWritePos = cascadeWritePos_[2];
-					size_t c2ModOffset = static_cast<size_t>(std::max(0.0f, lfoTri * cascadeModDepth_));
+					// DIAGNOSTIC: cascade pitch mod disabled
+					size_t c2ModOffset = 0; // static_cast<size_t>(std::max(0.0f, lfoTri * cascadeModDepth_));
 					size_t readPos = (origWritePos + c2ModOffset) % cascadeLengths_[2];
 					size_t idx = cascadeOffsets_[2] + readPos;
 					float delayed = buffer_[idx];
@@ -362,10 +361,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				c2Phase_ = (c2Phase_ + 1) & 1;
 				c2 = c2Prev_;
 
-				// C2 → D1 nested feedback loop
-				fdnWrite(1, c2 * loopFb);
-
-				// D2 delay between C2 and C3
+				// D2 delay between C2 and C3 (no direct feedback - using smeared instead)
 				fdnWrite(2, c2);
 				fdnWrite(2, c2);
 				float d2Out = fdnRead(2);
@@ -377,7 +373,8 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					float avgIn = c3Accum_ * 0.5f;
 					float c3Coeff = cascadeCoeffs_[3];
 					size_t origWritePos = cascadeWritePos_[3];
-					size_t c3ModOffset = static_cast<size_t>(std::max(0.0f, -lfoTri * cascadeModDepth_));
+					// DIAGNOSTIC: cascade pitch mod disabled
+					size_t c3ModOffset = 0; // static_cast<size_t>(std::max(0.0f, -lfoTri * cascadeModDepth_));
 					size_t readPos = (origWritePos + c3ModOffset) % cascadeLengths_[3];
 					size_t idx = cascadeOffsets_[3] + readPos;
 					float delayed = buffer_[idx];
@@ -396,6 +393,10 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					c3Prev_ = output;
 					c3Accum_ = 0.0f;
 				}
+				// Cache LFO value when cascade stages update to avoid discontinuities
+				if (c3Phase_ == 0) {
+					vastLfoCache_ = lfoTri; // Update cache when c3 finishes updating
+				}
 				c3Phase_ = (c3Phase_ + 1) & 1;
 				c3 = c3Prev_;
 
@@ -411,23 +412,28 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				float coeff = (c3Abs > feedbackEnvelope_) ? 0.05f : 0.0003f;
 				feedbackEnvelope_ += coeff * (c3Abs - feedbackEnvelope_);
 
-				// C3 → D2 nested feedback loop (scaled by self-limiting)
-				fdnWrite(2, c3 * loopFb);
-
 				// Amplitude modulation for diffusion contour
-				if (cascadeAmpMod_ > 0.0f) {
-					c2 *= (1.0f + lfoTri * cascadeAmpMod_);
-					c3 *= (1.0f - lfoTri * cascadeAmpMod_);
-				}
+				// Z1 controls base amplitude, Z3 controls routing (low=pitch, high=amp)
+				// Use cached LFO value to stay in sync with 4x cascade update rate
+				float ampMod = skyLfoAmp_ * skyLfoRouting_;
+				c2 *= (1.0f + vastLfoCache_ * ampMod);
+				c3 *= (1.0f - vastLfoCache_ * ampMod);
 
-				// Mix chain outputs - stereo from intermediate stages
+				// Mix chain outputs - stereo from early and late stages
 				float cascadeMono = (c2 + c3) * 0.5f;
-				float cascadeSide = (c0 - c1) * cascadeSideGain_ * dynamicWidth;
+				float earlySide = (c0 - c1) * cascadeSideGain_ * dynamicWidth;
+				float lateSide = (c2 - c3) * cascadeSideGain_ * 0.6f * dynamicWidth;
+				float cascadeSide = earlySide + lateSide;
 				cascadeMono = onepole(cascadeMono, cascadeLpStateMono_, kCascadeLpCoeffMono);
 				cascadeSide = onepole(cascadeSide, cascadeLpStateSide_, kCascadeLpCoeffSide);
 				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
 				cascadeOutL = cascadeMono + cascadeSide;
 				cascadeOutR = cascadeMono - cascadeSide;
+				// LFO output modulation: stereo movement + amplitude breathing
+				// Z3 high routes LFO here (same as amp mod routing)
+				float lfoOut = vastLfoCache_ * skyLfoAmp_ * skyLfoRouting_;
+				cascadeOutL *= (1.0f + lfoOut * 0.3f); // ±30% amplitude
+				cascadeOutR *= (1.0f - lfoOut * 0.3f); // Opposite phase for stereo movement
 
 				// No early reflections in vast chain mode (FDN is repurposed)
 				directEarlyL_ = 0.0f;
@@ -454,21 +460,21 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				// C0 at 2x rate
 				c0 = processCascadeStage(0, chainIn);
 
-				// D0 delay - feedback from C2 smeared through C0
+				// D0 delay - feedback from C2 smeared through C0 (modulated pitch)
 				// Z1 controls balance: low Z1 = more C2→C0, high Z1 = more C3→C1
 				float c2Fb = loopFb * (1.6f - skyFbBalance_ * 1.4f); // 1.6 → 0.2
 				float c2Smeared = processCascadeStage(0, c2Prev_ * c2Fb);
 				fdnWrite(0, c0 + c2Smeared);
-				float d0Out = fdnRead(0);
+				float d0Out = fdnReadAt(0, d0Mod);
 
 				// C1 at 2x rate
 				c1 = processCascadeStage(1, d0Out);
 
-				// D1 delay - feedback from C3 smeared through C1
+				// D1 delay - feedback from C3 smeared through C1 (modulated pitch)
 				float c3Fb = loopFb * (0.2f + skyFbBalance_ * 1.4f); // 0.2 → 1.6
 				float c3Smeared = processCascadeStage(1, c3Prev_ * c3Fb);
 				fdnWrite(1, c1 + c3Smeared);
-				float d1Out = fdnRead(1);
+				float d1Out = fdnReadAt(1, d1Mod);
 
 				// C2 at 2x rate
 				c2 = processCascadeStage(2, d1Out);
@@ -502,12 +508,18 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				c2 *= (1.0f + lfoTri * ampMod);
 				c3 *= (1.0f - lfoTri * ampMod);
 
-				// Mix chain outputs - stereo from early stages
+				// Mix chain outputs - stereo from early and late stages
 				float cascadeMono = (c2 + c3) * 0.5f;
-				float cascadeSide = (c0 - c1) * cascadeSideGain_ * dynamicWidth;
+				float earlySide = (c0 - c1) * cascadeSideGain_ * dynamicWidth;
+				float lateSide = (c2 - c3) * cascadeSideGain_ * 0.6f * dynamicWidth;
+				float cascadeSide = earlySide + lateSide;
 				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
 				cascadeOutL = cascadeMono + cascadeSide;
 				cascadeOutR = cascadeMono - cascadeSide;
+				// LFO output modulation: stereo movement + amplitude breathing
+				float lfoOut = lfoTri * skyLfoAmp_ * skyLfoRouting_;
+				cascadeOutL *= (1.0f + lfoOut * 0.3f);
+				cascadeOutR *= (1.0f - lfoOut * 0.3f);
 
 				// No early reflections in nested mode (FDN is repurposed as inter-stage delays)
 				directEarlyL_ = 0.0f;
@@ -1054,8 +1066,8 @@ void Featherverb::updateMatrix() {
 	// Precompute delay ratio for feedback normalization (avoid division in hot path)
 	delayRatio_ = static_cast<float>(fdnLengths_[0] + fdnLengths_[1]) / static_cast<float>(kD0MaxLength + kD1MaxLength);
 
-	// Sky mode: Z1 controls various parameters using phi triangles
-	if (skyChainMode_) {
+	// Sky/Vast mode: Z1 controls various parameters using phi triangles
+	if (skyChainMode_ || vastChainMode_) {
 		// Balance between C2→C0 and C3→C1 feedback paths
 		float balanceBase = yNorm;                           // 0 = favor C2→C0, 1 = favor C3→C1
 		float balanceMod = (vals[1] + 1.0f) * 0.15f - 0.15f; // ±0.15 texture
@@ -1065,7 +1077,7 @@ void Featherverb::updateMatrix() {
 		float ampTri = (vals[2] + 1.0f) * 0.5f;   // 0 to 1
 		float freqTri = (vals[4] + 1.0f) * 0.5f;  // 0 to 1
 		float pitchTri = (vals[5] + 1.0f) * 0.5f; // 0 to 1
-		skyLfoAmp_ = 0.15f + ampTri * 0.45f;      // 0.15 → 0.6
+		skyLfoAmp_ = 0.15f + ampTri * 0.85f;      // 0.15 → 1.0
 		skyLfoFreq_ = 0.5f + freqTri * 2.0f;      // 0.5x → 2.5x
 		modDepth_ = 20.0f + pitchTri * 160.0f;    // 20 → 180 samples wobble
 	}
@@ -1234,18 +1246,21 @@ void Featherverb::updateFeedbackPattern() {
 
 	// LFO pitch wobble depth - 13 periods (fast), adds subtle chorus/shimmer
 	// Enabled for extended modes (Feather/Sky/Lush/Vast)
-	if (skyChainMode_) {
-		// Sky mode: Z3 controls pitch wobble 0-300 samples
+	if (skyChainMode_ || vastChainMode_) {
+		// Sky/Vast mode: Z3 controls pitch wobble
+		// Vast uses lower max (150) to avoid artifacts at 4x undersample
 		// Fixed texture creates dead zones at low values (intentional rest spots)
 		float phase13 = yNorm * 13.0f;
 		float tri13 = 1.0f - 4.0f * std::abs(phase13 - std::floor(phase13) - 0.5f);
-		modDepth_ = std::max(0.0f, yNorm * 250.0f + tri13 * 50.0f); // 0 → 300 with ±50 texture
+		float maxWobble = vastChainMode_ ? 80.0f : 250.0f;
+		float wobbleTexture = vastChainMode_ ? 15.0f : 50.0f;
+		modDepth_ = std::max(0.0f, yNorm * maxWobble + tri13 * wobbleTexture);
 
-		// Sky mode: Z3 also controls local loop feedback (smeared path density)
+		// Sky/Vast mode: Z3 also controls local loop feedback (smeared path density)
 		// Low Z3 = sparse (0.3x), high Z3 = dense (1.5x), same texture for dead zones
 		skyLoopFb_ = std::max(0.3f, 0.3f + yNorm * 1.0f + tri13 * 0.2f); // 0.3 → 1.5 with ±0.2 texture
 
-		// Sky mode: Z3 controls LFO routing - low = pitch wobble, high = amplitude mod
+		// Sky/Vast mode: Z3 controls LFO routing - low = pitch wobble, high = amplitude mod
 		// Different period (7) for variety, gives different dead zone pattern
 		float phase7 = yNorm * 7.0f;
 		float tri7 = 1.0f - 4.0f * std::abs(phase7 - std::floor(phase7) - 0.5f);

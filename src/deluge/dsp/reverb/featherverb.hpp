@@ -212,8 +212,7 @@ private:
 	float lpStateR_{0.0f};
 	float dcBlockState_{0.0f};
 
-	// LFO for modulation
-	float lfoPhase_{0.0f};
+	// LFO for modulation (Sky/Vast use random walk, others have no pitch mod)
 	float modDepth_{0.0f};         // LFO pitch wobble depth for FDN (controlled by Zone 3)
 	float cascadeModDepth_{0.0f};  // LFO pitch wobble depth for C2/C3 in vast mode
 	float cascadeAmpMod_{0.0f};    // LFO amplitude modulation depth for C2/C3 diffusion contour
@@ -247,6 +246,7 @@ private:
 	float skyRandWalk_{0.0f};              // Random walk position for Sky mode pitch wobble (-1 to 1)
 	float skyRandWalkSmooth_{0.0f};        // Smoothed random walk output
 	uint32_t skyRandState_{12345};         // LCG state for random walk
+	float vastLfoCache_{0.0f};             // Cached LFO value for Vast mode (synced to 4x update rate)
 	bool featherMode_{false};              // When true, experimental mode placeholder (zone 4)
 	float cascadeAaState1_{0.0f};          // Anti-alias LP filter state (pre-decimation, vast only)
 	float cascadeLpStateMono_{0.0f};       // Cascade output LP filter state (mono component)
