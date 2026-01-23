@@ -221,8 +221,7 @@ private:
 	float fdnFeedbackScale_{1.0f}; // Inverse scale: reduce FDN feedback as Zone 3 (cascade) increases
 	float cascadeSideGain_{0.2f};  // Stereo side signal gain (higher for Owl mode)
 
-	// Envelope followers
-	float inputEnvelope_{0.0f};
+	// Envelope follower for feedback riding
 	float feedbackEnvelope_{0.0f}; // Tracks C3 output for self-limiting feedback
 
 	// Undersampling state
