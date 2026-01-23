@@ -125,21 +125,21 @@ public:
 	[[nodiscard]] const char* getZoneName(int32_t zoneIndex) const override {
 		switch (zoneIndex) {
 		case 0:
-			return "Smol"; // Small room
+			return "Mouse"; // Small room
 		case 1:
-			return "Room"; // Medium room
+			return "Rabbit"; // Chamber (compressed)
 		case 2:
-			return "Chamber"; // Chamber
+			return "Lake"; // Concert hall (compressed)
 		case 3:
-			return "Hall"; // Concert hall
+			return "Trees"; // Cathedral (compressed)
 		case 4:
-			return "Large"; // Large space
+			return "Feather"; // Experimental mode placeholder
 		case 5:
-			return "Church"; // Cathedral
+			return "Sky"; // Nested topology at 2x undersample
 		case 6:
-			return "Lush"; // Extended tails, FDN+cascade
+			return "Owl"; // Extended tails, FDN+cascade at 4x
 		case 7:
-			return "Vast"; // Chain topology, nested feedback
+			return "Vast"; // Nested topology at 4x undersample
 		default:
 			return "?";
 		}

@@ -80,17 +80,13 @@ class Featherverb : public Base {
 	// Writes are cheap (pipelined), so add secondary write for doubled impulse density
 	static constexpr bool kEnableMultiTapWrites = false; // Disabled for performance (saves ~5% cycles)
 	static constexpr std::array<size_t, kNumCascade> kMultiTapOffsets = {311, 401, 509, 1607}; // C0-C3 offsets
-	static constexpr float kMultiTapGain = 0.18f; // Gain for secondary tap (low to preserve feedback headroom)
+	static constexpr float kMultiTapGain = 0.22f; // Gain for secondary tap (low to preserve feedback headroom)
 
-	// Buffer layout: FDN delays + cascade + predelay + diffusers
+	// Buffer layout: FDN delays + cascade + predelay
 	static constexpr size_t kFdnMaxSamples = kD0MaxLength + kD1MaxLength + kD2MaxLength; // 4100
 	static constexpr size_t kPredelayMaxLength = 2205;                                   // 50ms at 44.1kHz (single tap)
-	static constexpr size_t kNumDiffusers = 2;
-	static constexpr size_t kDiffuser0Length = 137;
-	static constexpr size_t kDiffuser1Length = 211;
-	static constexpr size_t kDiffuserTotal = kDiffuser0Length + kDiffuser1Length; // 348
 
-	static constexpr size_t kTotalMaxSamples = kFdnMaxSamples + kCascadeMaxTotal + kPredelayMaxLength + kDiffuserTotal;
+	static constexpr size_t kTotalMaxSamples = kFdnMaxSamples + kCascadeMaxTotal + kPredelayMaxLength;
 	static constexpr size_t kBufferBytes = kTotalMaxSamples * sizeof(float); // ~77KB
 
 public:
@@ -172,11 +168,6 @@ private:
 	std::array<float, kNumCascade> cascadeCoeffs_{kCascadeCoeffBase, kCascadeCoeffBase, kCascadeCoeffBase,
 	                                              kCascadeCoeffBase};
 
-	// Diffuser state
-	std::array<size_t, kNumDiffusers> diffuserOffsets_{};
-	std::array<size_t, kNumDiffusers> diffuserWritePos_{};
-	static constexpr float kDiffuserCoeff = 0.5f;
-
 	// Predelay state (single tap, 50ms max)
 	size_t predelayOffset_{0};
 	size_t predelayWritePos_{0};
@@ -204,10 +195,6 @@ private:
 	float dampCoeff_{0.5f};
 	float cascadeDamping_{0.7f}; // Damping in cascade (darker tail)
 
-	// Precomputed hot-path values (updated in setZone2)
-	float feedbackFloor_{0.8f};     // kMinFeedbackMult + zone2 blend
-	float envReleaseRate_{0.0002f}; // Envelope release rate
-
 	// 3x3 matrix for FDN (normalized Hadamard)
 	// H3 = 1/sqrt(3) * [[1,1,1], [1,w,w^2], [1,w^2,w]] where w = e^(2πi/3)
 	// Using real approximation: sign pattern with 1/sqrt(3) normalization
@@ -233,6 +220,7 @@ private:
 	float widthBreath_{0.0f};      // Width breathing amount (controlled by Zone 3)
 	float crossBleed_{0.0f};       // L↔R cross-channel bleed in FDN (controlled by Zone 3)
 	float fdnFeedbackScale_{1.0f}; // Inverse scale: reduce FDN feedback as Zone 3 (cascade) increases
+	float cascadeSideGain_{0.2f};  // Stereo side signal gain (higher for Owl mode)
 
 	// Envelope followers
 	float inputEnvelope_{0.0f};
@@ -249,7 +237,9 @@ private:
 	// Cascade extra undersampling for vast rooms
 	// Normal: 2x, Lush/Vast: all stages at uniform 4x (8x caused ringing)
 	bool cascadeDoubleUndersample_{false}; // When true, cascade runs at 4x undersample (Lush or Vast zones)
-	bool vastChainMode_{false};            // When true, uses chain topology (Vast only); false = FDN+cascade (Lush)
+	bool vastChainMode_{false};            // When true, uses nested topology with 4x undersample (Vast only)
+	bool skyChainMode_{false};             // When true, uses nested topology with 2x undersample (Sky only)
+	bool featherMode_{false};              // When true, experimental mode placeholder (zone 4)
 	float cascadeAaState1_{0.0f};          // Anti-alias LP filter state (pre-decimation, vast only)
 	float cascadeLpStateMono_{0.0f};       // Cascade output LP filter state (mono component)
 	float cascadeLpStateSide_{0.0f};       // Cascade output LP filter state (side component)
@@ -316,17 +306,6 @@ private:
 
 		if (++cascadeWritePos_[stage] >= cascadeLengths_[stage]) {
 			cascadeWritePos_[stage] = 0;
-		}
-		return output;
-	}
-
-	// Diffuser helper
-	[[gnu::always_inline]] float processDiffuser(size_t idx, float input, size_t length) {
-		float delayed = buffer_[diffuserOffsets_[idx] + diffuserWritePos_[idx]];
-		float output = -kDiffuserCoeff * input + delayed;
-		buffer_[diffuserOffsets_[idx] + diffuserWritePos_[idx]] = input + kDiffuserCoeff * output;
-		if (++diffuserWritePos_[idx] >= length) {
-			diffuserWritePos_[idx] = 0;
 		}
 		return output;
 	}

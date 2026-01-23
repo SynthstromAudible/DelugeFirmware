@@ -79,12 +79,6 @@ Featherverb::Featherverb() {
 
 	// Predelay
 	predelayOffset_ = offset;
-	offset += kPredelayMaxLength;
-
-	// Diffusers
-	diffuserOffsets_[0] = offset;
-	offset += kDiffuser0Length;
-	diffuserOffsets_[1] = offset;
 
 	// Initialize defaults
 	setRoomSize(0.5f);
@@ -116,7 +110,6 @@ bool Featherverb::allocate() {
 	cascadeWritePos_.fill(0);
 	cascadeLpState_ = 0.0f;
 	prevC3Out_ = 0.0f;
-	diffuserWritePos_.fill(0);
 	predelayWritePos_ = 0;
 	dcBlockState_ = 0.0f;
 	inputEnvelope_ = 0.0f;
@@ -136,6 +129,8 @@ bool Featherverb::allocate() {
 	// Reset cascade extra undersampling
 	cascadeDoubleUndersample_ = false;
 	vastChainMode_ = false;
+	skyChainMode_ = false;
+	featherMode_ = false;
 	c0Phase_ = 0;
 	c0Accum_ = 0.0f;
 	c0Prev_ = 0.0f;
@@ -175,7 +170,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 	const float hpCoeff = 0.995f - hpCutoff_ * 0.09f;
 	const float outLpCoeff = 0.1f + lpCutoff_ * 0.85f;
 	const float tailFeedback = feedback_ * feedback_; // Hoist: tail decays faster than early
-	const float envReleaseRate = envReleaseRate_;     // Use precomputed value
 
 	// Cache matrix
 	const auto& m = matrix_;
@@ -186,11 +180,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 		float hpOut = in - hpState_;
 		hpState_ += (1.0f - hpCoeff) * hpOut;
 		in = hpOut;
-
-		// Input envelope for auto-decay
-		float inAbs = in > 0.0f ? in : -in;
-		float coeff = inAbs > inputEnvelope_ ? 1.0f : envReleaseRate;
-		inputEnvelope_ += coeff * (inAbs - inputEnvelope_);
 
 		// Predelay (single tap)
 		if (predelayLength_ > 0) {
@@ -211,7 +200,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			float lfoTri = 0.0f;
 			size_t d0Mod = 0;
 			size_t d1Mod = 0;
-			if (cascadeDoubleUndersample_ || modDepth_ > 0.0f) {
+			if (cascadeDoubleUndersample_ || skyChainMode_ || featherMode_ || modDepth_ > 0.0f) {
 				lfoPhase_ += 0.0000034f;
 				if (lfoPhase_ >= 1.0f)
 					lfoPhase_ -= 1.0f;
@@ -237,11 +226,8 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				h1 += h0Orig * crossBleed_;
 			}
 
-			// Feedback with auto-decay (feedbackFloor_ precomputed in setZone2)
-			constexpr float kEnvReference = 0.001f;
-			float envNorm = std::min(inputEnvelope_ / kEnvReference, 1.0f);
-			float feedbackMod = feedbackFloor_ + envNorm * (1.0f - feedbackFloor_);
-			float effectiveFeedback = feedback_ * feedbackMod * fdnFeedbackScale_;
+			// Feedback (envelope-based auto-decay removed for performance)
+			float effectiveFeedback = feedback_ * fdnFeedbackScale_;
 
 			// Damping + feedback
 			h0 = onepole(h0, fdnLpState_[0], dampCoeff_) * effectiveFeedback * feedbackMult_[0];
@@ -270,7 +256,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			// c0→c1→c2 series chain with optional 4x undersample for vast rooms
 			float c0, c1, c2;
 			float cascadeOutL, cascadeOutR;
-			float dynamicWidth = width_ + (1.0f - std::min(inputEnvelope_ * 100.0f, 1.0f)) * widthBreath_;
+			float dynamicWidth = width_; // Width breathing removed (was envelope-based)
 
 			if (vastChainMode_) {
 				// === VAST CHAIN MODE ===
@@ -412,7 +398,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 
 				// Mix chain outputs - stereo from intermediate stages
 				float cascadeMono = (c2 + c3) * 0.5f;
-				float cascadeSide = (c0 - c1) * 0.2f * dynamicWidth;
+				float cascadeSide = (c0 - c1) * cascadeSideGain_ * dynamicWidth;
 				cascadeMono = onepole(cascadeMono, cascadeLpStateMono_, kCascadeLpCoeffMono);
 				cascadeSide = onepole(cascadeSide, cascadeLpStateSide_, kCascadeLpCoeffSide);
 				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
@@ -422,6 +408,257 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				// No early reflections in vast chain mode (FDN is repurposed)
 				directEarlyL_ = 0.0f;
 				directEarlyR_ = 0.0f;
+			}
+			else if (skyChainMode_) {
+				// === SKY MODE (Nested topology at 2x) ===
+				// Same nested topology as Vast but at 2x undersample (no additional decimation)
+				// Faster response, less aliasing, more CPU usage than Vast
+				// Topology with nested feedback loops + global recirculation:
+				//   Input ←───────────────────────────────────┐
+				//       → C0 → D0 ←──┐                        │
+				//                └→ C1 → D1 ←──┐              │
+				//                          └→ C2 → D2 ←──┐   │
+				//                                    └→ C3 ──┘
+				// Local loops add density, global loop adds tail length
+
+				float fbEnvScale = 1.0f - std::min(feedbackEnvelope_ * 8.0f, 1.0f);
+				float loopFb = feedback_ * 0.4f * delayRatio_ * fbEnvScale;
+				float globalFb = cascadeNestFeedback_ * fbEnvScale * 0.8f;
+
+				float chainIn = fdnIn * 1.4f + prevC3Out_ * globalFb;
+
+				// C0 at 2x rate (every sample in this block)
+				c0 = processCascadeStage(0, chainIn);
+
+				// D0 delay between C0 and C1
+				fdnWrite(0, c0);
+				float d0Out = fdnRead(0);
+
+				// C1 at 2x rate
+				c1 = processCascadeStage(1, d0Out);
+
+				// C1 → D0 nested feedback loop
+				fdnWrite(0, c1 * loopFb);
+
+				// D1 delay between C1 and C2
+				fdnWrite(1, c1);
+				float d1Out = fdnRead(1);
+
+				// C2 at 2x rate with pitch modulation
+				float c2Coeff = cascadeCoeffs_[2];
+				size_t origWritePos2 = cascadeWritePos_[2];
+				size_t c2ModOffset = static_cast<size_t>(std::max(0.0f, lfoTri * cascadeModDepth_));
+				size_t readPos2 = (origWritePos2 + c2ModOffset) % cascadeLengths_[2];
+				float delayed2 = buffer_[cascadeOffsets_[2] + readPos2];
+				float c2Out = -c2Coeff * d1Out + delayed2;
+				buffer_[cascadeOffsets_[2] + origWritePos2] = d1Out + c2Coeff * c2Out;
+				if (++cascadeWritePos_[2] >= cascadeLengths_[2])
+					cascadeWritePos_[2] = 0;
+				c2 = c2Out;
+
+				// C2 → D1 nested feedback loop
+				fdnWrite(1, c2 * loopFb);
+
+				// D2 delay between C2 and C3
+				fdnWrite(2, c2);
+				float d2Out = fdnRead(2);
+
+				// C3 at 2x rate with inverted pitch modulation
+				float c3;
+				float c3Coeff = cascadeCoeffs_[3];
+				size_t origWritePos3 = cascadeWritePos_[3];
+				size_t c3ModOffset = static_cast<size_t>(std::max(0.0f, -lfoTri * cascadeModDepth_));
+				size_t readPos3 = (origWritePos3 + c3ModOffset) % cascadeLengths_[3];
+				float delayed3 = buffer_[cascadeOffsets_[3] + readPos3];
+				float c3Out = -c3Coeff * d2Out + delayed3;
+				buffer_[cascadeOffsets_[3] + origWritePos3] = d2Out + c3Coeff * c3Out;
+				if (++cascadeWritePos_[3] >= cascadeLengths_[3])
+					cascadeWritePos_[3] = 0;
+				c3 = c3Out;
+
+				// Soft clip C3 to prevent runaway
+				constexpr float kC3Limit = 0.15f;
+				if (std::abs(c3) > kC3Limit) {
+					c3 = std::copysign(kC3Limit + (std::abs(c3) - kC3Limit) * 0.2f, c3);
+				}
+				prevC3Out_ = c3;
+
+				// Track feedback envelope for self-limiting
+				float c3Abs = std::abs(c3);
+				float coeff = (c3Abs > feedbackEnvelope_) ? 0.05f : 0.0003f;
+				feedbackEnvelope_ += coeff * (c3Abs - feedbackEnvelope_);
+
+				// C3 → D2 nested feedback loop
+				fdnWrite(2, c3 * loopFb);
+
+				// Amplitude modulation for diffusion contour
+				if (cascadeAmpMod_ > 0.0f) {
+					c2 *= (1.0f + lfoTri * cascadeAmpMod_);
+					c3 *= (1.0f - lfoTri * cascadeAmpMod_);
+				}
+
+				// Mix chain outputs - stereo from early stages
+				float cascadeMono = (c2 + c3) * 0.5f;
+				float cascadeSide = (c0 - c1) * cascadeSideGain_ * dynamicWidth;
+				// Skip extra LPFs for Sky (only used in Lush/Vast)
+				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
+				cascadeOutL = cascadeMono + cascadeSide;
+				cascadeOutR = cascadeMono - cascadeSide;
+
+				// No early reflections in nested mode (FDN is repurposed as inter-stage delays)
+				directEarlyL_ = 0.0f;
+				directEarlyR_ = 0.0f;
+			}
+			else if (featherMode_) {
+				// === FEATHER/OWL MODE ===
+				// Dual parallel cascades: (C0→C1) for L, (C2→C3) for R
+				// Feather (zone 4): 2x undersample, Owl (zone 6): 4x undersample
+				// FDN provides shared early reflections, cascades create asymmetric stereo tail
+				// Z3 controls cascade recirculation for extended tails
+
+				// Cascade feedback from previous output (Z3 controlled)
+				float cascadeFb = prevC3Out_ * cascadeNestFeedback_ * 0.6f;
+				float cascadeInWithFb = cascadeIn + cascadeFb;
+
+				float cL1, cR1;
+				if (cascadeDoubleUndersample_) {
+					// === OWL: 4x undersample on cascades with multi-tap density ===
+					// Pre-decimation AA filter
+					cascadeInWithFb = onepole(cascadeInWithFb, cascadeAaState1_, kPreCascadeAaCoeff);
+
+					// Accumulate for L cascade (C0→C1)
+					c0Accum_ += cascadeInWithFb;
+					if (++c0Phase_ >= 2) {
+						c0Phase_ = 0;
+						float cL0 = processCascadeStage(0, c0Accum_ * 0.5f);
+						// Cross-channel multi-tap: L writes to R's buffer (C0 → C2)
+						size_t prevPos0 = (cascadeWritePos_[0] == 0) ? cascadeLengths_[0] - 1 : cascadeWritePos_[0] - 1;
+						float writeVal0 = buffer_[cascadeOffsets_[0] + prevPos0];
+						size_t tapPos0 = (prevPos0 + kMultiTapOffsets[0]) % cascadeLengths_[2];
+						buffer_[cascadeOffsets_[2] + tapPos0] += writeVal0 * kMultiTapGain;
+
+						c0Accum_ = 0.0f;
+						c1Accum_ += cL0;
+						if (++c1Phase_ >= 2) {
+							c1Phase_ = 0;
+							cL1 = processCascadeStage(1, c1Accum_ * 0.5f);
+							// Cross-channel multi-tap: L writes to R's buffer (C1 → C3)
+							size_t prevPos1 =
+							    (cascadeWritePos_[1] == 0) ? cascadeLengths_[1] - 1 : cascadeWritePos_[1] - 1;
+							float writeVal1 = buffer_[cascadeOffsets_[1] + prevPos1];
+							size_t tapPos1 = (prevPos1 + kMultiTapOffsets[1]) % cascadeLengths_[3];
+							buffer_[cascadeOffsets_[3] + tapPos1] += writeVal1 * kMultiTapGain;
+
+							c1Accum_ = 0.0f;
+							c1Prev_ = cL1;
+						}
+						else {
+							cL1 = c1Prev_;
+						}
+						c0Prev_ = cL1;
+					}
+					else {
+						cL1 = c0Prev_;
+					}
+
+					// Accumulate for R cascade (C2→C3)
+					float cascadeInR = cascadeInWithFb * 0.98f + (d0 - d1) * 0.02f;
+					c2Accum_ += cascadeInR;
+					if (++c2Phase_ >= 2) {
+						c2Phase_ = 0;
+						float cR0 = processCascadeStage(2, c2Accum_ * 0.5f);
+						// Cross-channel multi-tap: R writes to L's buffer (C2 → C0)
+						size_t prevPos2 = (cascadeWritePos_[2] == 0) ? cascadeLengths_[2] - 1 : cascadeWritePos_[2] - 1;
+						float writeVal2 = buffer_[cascadeOffsets_[2] + prevPos2];
+						size_t tapPos2 = (prevPos2 + kMultiTapOffsets[2]) % cascadeLengths_[0];
+						buffer_[cascadeOffsets_[0] + tapPos2] += writeVal2 * kMultiTapGain;
+
+						c2Accum_ = 0.0f;
+						c3Accum_ += cR0;
+						if (++c3Phase_ >= 2) {
+							c3Phase_ = 0;
+							cR1 = processCascadeStage(3, c3Accum_ * 0.5f);
+							// Cross-channel multi-tap: R writes to L's buffer (C3 → C1)
+							size_t prevPos3 =
+							    (cascadeWritePos_[3] == 0) ? cascadeLengths_[3] - 1 : cascadeWritePos_[3] - 1;
+							float writeVal3 = buffer_[cascadeOffsets_[3] + prevPos3];
+							size_t tapPos3 = (prevPos3 + kMultiTapOffsets[3]) % cascadeLengths_[1];
+							buffer_[cascadeOffsets_[1] + tapPos3] += writeVal3 * kMultiTapGain;
+
+							c3Accum_ = 0.0f;
+							c3Prev_ = cR1;
+						}
+						else {
+							cR1 = c3Prev_;
+						}
+						c2Prev_ = cR1;
+					}
+					else {
+						cR1 = c2Prev_;
+					}
+				}
+				else {
+					// === FEATHER: 2x undersample (every sample) ===
+					float cL0 = processCascadeStage(0, cascadeInWithFb);
+					cL1 = processCascadeStage(1, cL0);
+
+					float cascadeInR = cascadeInWithFb * 0.98f + (d0 - d1) * 0.02f;
+					float cR0 = processCascadeStage(2, cascadeInR);
+					cR1 = processCascadeStage(3, cR0);
+				}
+
+				// Cross-feed between L and R cascades - Z3 controls coherence/feedback tilt
+				float crossFeed = 0.15f + cascadeNestFeedback_ * 0.5f;
+				float cascadeOutLRaw = cL1 + cR1 * crossFeed;
+				float cascadeOutRRaw = cR1 + cL1 * crossFeed;
+
+				// Apply damping (extra LPFs for Owl mode)
+				float cascadeL, cascadeR;
+				if (cascadeDoubleUndersample_) {
+					// First apply zone-controlled damping
+					float cascadeMono = (cascadeOutLRaw + cascadeOutRRaw) * 0.5f;
+					// Owl mode: widen late cascade (1.5x) for spacious tail
+					float cascadeSide = (cascadeOutLRaw - cascadeOutRRaw) * 0.75f;
+					cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
+					// Then apply fixed mid/side AA filters for 4x rate
+					cascadeMono = onepole(cascadeMono, cascadeLpStateMono_, kCascadeLpCoeffMono);
+					cascadeSide = onepole(cascadeSide, cascadeLpStateSide_, kCascadeLpCoeffSide);
+					cascadeL = cascadeMono + cascadeSide;
+					cascadeR = cascadeMono - cascadeSide;
+				}
+				else {
+					cascadeL = onepole(cascadeOutLRaw, cascadeLpState_, cascadeDamping_);
+					cascadeR = onepole(cascadeOutRRaw, cascadeLpStateMono_, cascadeDamping_);
+				}
+
+				cascadeOutL = cascadeL;
+				cascadeOutR = cascadeR;
+				prevC3Out_ = (cL1 + cR1) * 0.5f;
+
+				// Keep early reflections from FDN
+				if (!kMuteEarly && !cascadeOnly_) {
+					float earlyMid = (d0 + d1) * earlyMixGain_;
+					// Owl mode: narrow early (60%) for focused transients, late cascade provides width
+					float earlyWidthScale = cascadeDoubleUndersample_ ? 0.6f : 1.0f;
+					float earlySide = (d0 - d1) * earlyMixGain_ * dynamicWidth * earlyWidthScale;
+					directEarlyL_ = (earlyMid + earlySide) * directEarlyGain_;
+					directEarlyR_ = (earlyMid - earlySide) * directEarlyGain_;
+				}
+				else {
+					directEarlyL_ = 0.0f;
+					directEarlyR_ = 0.0f;
+				}
+
+				// Inject input into FDN (no cascade feedback for cleaner separation)
+				h0 += fdnIn;
+
+				// Write FDN (double write for undersampling)
+				fdnWrite(0, h0);
+				fdnWrite(1, h1);
+				fdnWrite(2, h2);
+				fdnWrite(0, h0);
+				fdnWrite(1, h1);
+				fdnWrite(2, h2);
 			}
 			else if (cascadeDoubleUndersample_) {
 				// === LUSH MODE ===
@@ -532,8 +769,11 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				}
 
 				// Mix cascade outputs - stereo tail
+				// Early stages (c0-c1) provide fast stereo, late stages (c2-c3) add width
 				float cascadeMono = (c2 + c3) * 0.5f;
-				float cascadeSide = (c0 - c1) * 0.2f * dynamicWidth;
+				float earlySide = (c0 - c1) * cascadeSideGain_ * dynamicWidth;
+				float lateSide = (c2 - c3) * cascadeSideGain_ * 0.5f * dynamicWidth;
+				float cascadeSide = earlySide + lateSide;
 				cascadeMono = onepole(cascadeMono, cascadeLpStateMono_, kCascadeLpCoeffMono);
 				cascadeSide = onepole(cascadeSide, cascadeLpStateSide_, kCascadeLpCoeffSide);
 				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
@@ -581,9 +821,8 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 
 				// Mix outputs - stereo tail from cascade (mid/side)
 				float cascadeMono = (c2 + c3) * 0.5f;
-				float cascadeSide = (c0 - c1) * 0.2f * dynamicWidth;
-				cascadeMono = onepole(cascadeMono, cascadeLpStateMono_, kCascadeLpCoeffMono);
-				cascadeSide = onepole(cascadeSide, cascadeLpStateSide_, kCascadeLpCoeffSide);
+				float cascadeSide = (c0 - c1) * cascadeSideGain_ * dynamicWidth;
+				// Skip extra LPFs for normal mode (only used in Lush/Vast)
 				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
 				cascadeOutL = cascadeMono + cascadeSide;
 				cascadeOutR = cascadeMono - cascadeSide;
@@ -618,9 +857,9 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			}
 
 			// Output: early (FDN) + late (cascade)
-			// Vast chain mode has no early (FDN repurposed), Lush and normal modes have early
+			// Nested modes (Sky/Vast) have no early (FDN repurposed), normal modes have early
 			float earlyL = 0.0f, earlyR = 0.0f;
-			if (!vastChainMode_ && !kMuteEarly && !cascadeOnly_) {
+			if (!vastChainMode_ && !skyChainMode_ && !kMuteEarly && !cascadeOnly_) {
 				float earlyMid = (d0 + d1) * earlyMixGain_;
 				float earlySide = (d0 - d1) * earlyMixGain_ * dynamicWidth;
 				earlyL = earlyMid + earlySide;
@@ -797,12 +1036,6 @@ void Featherverb::updateMatrix() {
 	float d0Tri = (vals[0] + 1.0f) * 0.5f;
 	float d1Tri = (vals[3] + 1.0f) * 0.5f;
 
-	// In Vast mode, bias toward monotonic growth (70% yNorm, 30% phi variation)
-	if (vastChainMode_) {
-		d0Tri = yNorm * 0.7f + d0Tri * 0.3f;
-		d1Tri = yNorm * 0.7f + d1Tri * 0.3f;
-	}
-
 	fdnLengths_[0] = kD0MinLength + static_cast<size_t>(d0Tri * (kD0MaxLength - kD0MinLength));
 	fdnLengths_[1] = kD1MinLength + static_cast<size_t>(d1Tri * (kD1MaxLength - kD1MinLength));
 
@@ -827,11 +1060,6 @@ void Featherverb::updateSizes() {
 	const float t = static_cast<float>(zone2_) / 1023.0f;
 	const int32_t zone = zone2_ >> 7; // Zone ID 0-7
 
-	// Precompute hot-path values (avoids per-sample computation)
-	constexpr float kMinFeedbackMult = 0.6f;
-	feedbackFloor_ = kMinFeedbackMult + t * (1.0f - kMinFeedbackMult);
-	envReleaseRate_ = 0.0001f + (1.0f - t) * 0.0002f;
-
 	// D2 scales from min to max
 	fdnLengths_[2] = kD2MinLength + static_cast<size_t>(t * (kD2MaxLength - kD2MinLength));
 	if (fdnWritePos_[2] >= fdnLengths_[2])
@@ -847,35 +1075,58 @@ void Featherverb::updateSizes() {
 	tailMixGain_ = 0.25f + t * 1.05f;   // 0.25 → 1.3
 	directEarlyGain_ = 0.2f - t * 0.1f; // 0.2 → 0.1 (more direct brightness at small, less at vast)
 
-	// 4x undersample for Lush (zone 6) and Vast (zone 7) for extended tails
-	// Lush: FDN + Cascade separation with 4x undersample (old vast behavior)
-	// Vast: Chain topology with nested feedback loops (new chain mode)
+	// Zone layout (compressed small rooms to make room for Feather):
+	// Zones 0-3: Compressed small rooms (Smol, Chamber, Hall, Church)
+	// Zone 4: Feather - experimental mode placeholder
+	// Zone 5: Sky - nested topology at 2x undersample (responsive, extended)
+	// Zone 6: Lush - FDN + Cascade with 4x undersample
+	// Zone 7: Vast - nested topology at 4x undersample (maximum tail length)
 	cascadeDoubleUndersample_ = !kDisableVastUndersample && (zone >= 6);
-	vastChainMode_ = (zone == 7); // Only Vast uses chain topology
+	featherMode_ = (zone == 4);   // Feather: dual parallel cascades at 2x
+	skyChainMode_ = (zone == 5);  // Sky: nested at 2x
+	vastChainMode_ = (zone == 7); // Vast: nested at 4x
 
-	// Lush/Vast mode enhancements
+	// Mode-specific enhancements
 	// Recompute cascade damping from base damping_ value to avoid compounding
 	float baseCascadeDamping = 0.05f + (1.0f - damping_) * 0.6f;
 	if (zone == 7) {
-		// Vast: Chain topology with self-limiting feedback
+		// Vast: Nested topology with 4x undersample, self-limiting feedback
 		cascadeDamping_ = baseCascadeDamping * 0.5f;
 		cascadeModDepth_ = 14.0f;
 		cascadeAmpMod_ = 0.25f;
-		// Lower max feedback than before - self-limiting handles the rest
 		cascadeNestFeedback_ = std::clamp(cascadeNestFeedbackBase_ + 0.25f, 0.0f, 0.45f);
+		cascadeSideGain_ = 0.23f; // Slightly wider for spacious modes
 	}
 	else if (zone == 6) {
-		// Lush: FDN + Cascade with 4x undersample, lusher shimmer
-		cascadeDamping_ = baseCascadeDamping * 0.6f; // Slightly less soft than Vast
-		cascadeModDepth_ = 10.0f;                    // Less pitch wobble than Vast
-		cascadeAmpMod_ = 0.15f;                      // Subtler amplitude modulation
+		// Owl: FDN + Cascade with 4x undersample, wider stereo tail
+		cascadeDamping_ = baseCascadeDamping * 0.6f;
+		cascadeModDepth_ = 10.0f;
+		cascadeAmpMod_ = 0.15f;
 		cascadeNestFeedback_ = std::clamp(cascadeNestFeedbackBase_ + 0.25f, 0.0f, 0.55f);
+		cascadeSideGain_ = 0.25f; // Wider stereo spread for Owl
+	}
+	else if (zone == 5) {
+		// Sky: Nested topology at 2x undersample (faster response than Vast)
+		cascadeDamping_ = baseCascadeDamping * 0.65f;
+		cascadeModDepth_ = 8.0f;
+		cascadeAmpMod_ = 0.12f;
+		cascadeNestFeedback_ = std::clamp(cascadeNestFeedbackBase_ + 0.15f, 0.0f, 0.40f);
+		cascadeSideGain_ = 0.23f; // Slightly wider for spacious modes
+	}
+	else if (zone == 4) {
+		// Feather: Experimental mode - start with normal FDN+cascade, tweak from here
+		cascadeDamping_ = baseCascadeDamping * 0.7f;
+		cascadeModDepth_ = 4.0f;
+		cascadeAmpMod_ = 0.08f;
+		cascadeNestFeedback_ = std::clamp(cascadeNestFeedbackBase_ + 0.1f, 0.0f, 0.35f);
+		cascadeSideGain_ = 0.2f;
 	}
 	else {
 		cascadeDamping_ = baseCascadeDamping;
 		cascadeModDepth_ = 0.0f;
 		cascadeAmpMod_ = 0.0f;
 		cascadeNestFeedback_ = std::clamp(cascadeNestFeedbackBase_, 0.0f, 0.55f);
+		cascadeSideGain_ = 0.2f; // Default stereo side gain
 	}
 
 	cascadeLengths_[0] = static_cast<size_t>(kC0BaseLength * cascadeScale_);
@@ -953,8 +1204,8 @@ void Featherverb::updateFeedbackPattern() {
 	updateSizes();
 
 	// LFO pitch wobble depth - 13 periods (fast), adds subtle chorus/shimmer
-	// Only enabled for Lush/Vast modes (cascadeDoubleUndersample_)
-	if (cascadeDoubleUndersample_) {
+	// Enabled for extended modes (Feather/Sky/Lush/Vast)
+	if (cascadeDoubleUndersample_ || skyChainMode_ || featherMode_) {
 		float phase13 = yNorm * 13.0f;
 		float tri13 = 1.0f - 4.0f * std::abs(phase13 - std::floor(phase13) - 0.5f);
 		modDepth_ = std::clamp(0.3f + tri13 * 0.25f, 0.0f, 0.6f);
@@ -982,32 +1233,33 @@ void Featherverb::updateFeedbackPattern() {
 
 	// Per-stage cascade allpass coefficients - higher coeffs = more diffusion (less slapback)
 	// Each stage uses different triangle period for variety
-	// Lush/Vast need higher coefficients for proper diffusion; normal modes need lower for transient punch
-	float coeffBase = cascadeDoubleUndersample_ ? (0.5f + yNorm * 0.12f)  // Lush/Vast: 0.5-0.62
-	                                            : (0.32f + yNorm * 0.2f); // Normal: 0.32-0.52
+	// Extended modes (Feather/Sky/Lush/Vast) need higher coefficients for proper diffusion
+	bool extendedMode = cascadeDoubleUndersample_ || skyChainMode_ || featherMode_;
+	float coeffBase = extendedMode ? (0.5f + yNorm * 0.12f)  // Extended modes: 0.5-0.62
+	                               : (0.32f + yNorm * 0.2f); // Normal: 0.32-0.52
 
 	// C0: 8 periods - fastest stage, moderate variation
 	float phase8 = yNorm * 8.0f;
 	float tri8 = 1.0f - 4.0f * std::abs(phase8 - std::floor(phase8) - 0.5f);
-	float c0Min = cascadeDoubleUndersample_ ? 0.45f : 0.28f;
+	float c0Min = extendedMode ? 0.45f : 0.28f;
 	cascadeCoeffs_[0] = std::clamp(coeffBase + tri8 * 0.08f, c0Min, 0.75f);
 
 	// C1: 6 periods - slightly more variation
 	float phase6 = yNorm * 6.0f;
 	float tri6 = 1.0f - 4.0f * std::abs(phase6 - std::floor(phase6) - 0.5f);
-	float c1Min = cascadeDoubleUndersample_ ? 0.45f : 0.28f;
+	float c1Min = extendedMode ? 0.45f : 0.28f;
 	cascadeCoeffs_[1] = std::clamp(coeffBase + tri6 * 0.1f, c1Min, 0.75f);
 
 	// C2: 4 periods - slower variation, slightly higher base for density
 	float phase4 = yNorm * 4.0f;
 	float tri4 = 1.0f - 4.0f * std::abs(phase4 - std::floor(phase4) - 0.5f);
-	float c2Min = cascadeDoubleUndersample_ ? 0.48f : 0.30f;
+	float c2Min = extendedMode ? 0.48f : 0.30f;
 	cascadeCoeffs_[2] = std::clamp(coeffBase + 0.05f + tri4 * 0.1f, c2Min, 0.78f);
 
 	// C3: 3 periods - longest stage, highest base for maximum diffusion
 	float phase3 = yNorm * 3.0f;
 	float tri3 = 1.0f - 4.0f * std::abs(phase3 - std::floor(phase3) - 0.5f);
-	float c3Min = cascadeDoubleUndersample_ ? 0.50f : 0.32f;
+	float c3Min = extendedMode ? 0.50f : 0.32f;
 	cascadeCoeffs_[3] = std::clamp(coeffBase + 0.08f + tri3 * 0.12f, c3Min, 0.82f);
 }
 
