@@ -239,6 +239,14 @@ private:
 	bool cascadeDoubleUndersample_{false}; // When true, cascade runs at 4x undersample (Lush or Vast zones)
 	bool vastChainMode_{false};            // When true, uses nested topology with 4x undersample (Vast only)
 	bool skyChainMode_{false};             // When true, uses nested topology with 2x undersample (Sky only)
+	float skyFbBalance_{0.5f};             // Z1-controlled balance: 0=C2→C0 only, 1=C3→C1 only
+	float skyLfoAmp_{0.3f};                // Z1-controlled LFO amplitude for Sky mode
+	float skyLfoFreq_{1.0f};               // Z1-controlled LFO frequency multiplier for Sky mode
+	float skyLoopFb_{1.0f};                // Z3-controlled local loop feedback multiplier for Sky mode
+	float skyLfoRouting_{0.5f};            // Z3-controlled LFO routing: 0=pitch only, 1=amp only
+	float skyRandWalk_{0.0f};              // Random walk position for Sky mode pitch wobble (-1 to 1)
+	float skyRandWalkSmooth_{0.0f};        // Smoothed random walk output
+	uint32_t skyRandState_{12345};         // LCG state for random walk
 	bool featherMode_{false};              // When true, experimental mode placeholder (zone 4)
 	float cascadeAaState1_{0.0f};          // Anti-alias LP filter state (pre-decimation, vast only)
 	float cascadeLpStateMono_{0.0f};       // Cascade output LP filter state (mono component)
