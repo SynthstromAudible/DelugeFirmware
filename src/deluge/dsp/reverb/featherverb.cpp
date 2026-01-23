@@ -22,6 +22,7 @@
 #include "dsp/reverb/featherverb.hpp"
 #include "dsp/phi_triangle.hpp"
 #include "memory/general_memory_allocator.h"
+#include "util/cfunctions.h"
 #include "util/fixedpoint.h"
 
 namespace deluge::dsp::reverb {
@@ -410,16 +411,16 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				directEarlyR_ = 0.0f;
 			}
 			else if (skyChainMode_) {
-				// === SKY MODE (Nested topology at 2x) ===
-				// Same nested topology as Vast but at 2x undersample (no additional decimation)
-				// Faster response, less aliasing, more CPU usage than Vast
-				// Topology with nested feedback loops + global recirculation:
-				//   Input ←───────────────────────────────────┐
-				//       → C0 → D0 ←──┐                        │
-				//                └→ C1 → D1 ←──┐              │
-				//                          └→ C2 → D2 ←──┐   │
-				//                                    └→ C3 ──┘
-				// Local loops add density, global loop adds tail length
+				// === SKY MODE (Smeared feedback through cascades at 2x) ===
+				// Feedback goes through cascade stages for diffusion BEFORE entering delays.
+				// This smears the feedback signal, reducing comb filter sensitivity.
+				//
+				//   Input → C0 → D0 → C1 → D1 → C2 → D2 → C3 → output
+				//                 ↑         ↑
+				//            (C2→C0)    (C3→C1)
+				//
+				// C3 output → smear through C1 → write to D1
+				// C2 output → smear through C0 → write to D0
 
 				float fbEnvScale = 1.0f - std::min(feedbackEnvelope_ * 8.0f, 1.0f);
 				float loopFb = feedback_ * 0.4f * delayRatio_ * fbEnvScale;
@@ -427,69 +428,47 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 
 				float chainIn = fdnIn * 1.4f + prevC3Out_ * globalFb;
 
-				// C0 at 2x rate (every sample in this block)
+				// C0 at 2x rate
 				c0 = processCascadeStage(0, chainIn);
 
-				// D0 delay between C0 and C1
-				fdnWrite(0, c0);
+				// D0 delay - feedback from C2 smeared through C0
+				float c2Smeared = processCascadeStage(0, c2Prev_ * loopFb);
+				fdnWrite(0, c0 + c2Smeared);
 				float d0Out = fdnRead(0);
 
 				// C1 at 2x rate
 				c1 = processCascadeStage(1, d0Out);
 
-				// C1 → D0 nested feedback loop
-				fdnWrite(0, c1 * loopFb);
-
-				// D1 delay between C1 and C2
-				fdnWrite(1, c1);
+				// D1 delay - feedback from C3 smeared through C1
+				float c3Smeared = processCascadeStage(1, c3Prev_ * loopFb);
+				fdnWrite(1, c1 + c3Smeared);
 				float d1Out = fdnRead(1);
 
-				// C2 at 2x rate with pitch modulation
-				float c2Coeff = cascadeCoeffs_[2];
-				size_t origWritePos2 = cascadeWritePos_[2];
-				size_t c2ModOffset = static_cast<size_t>(std::max(0.0f, lfoTri * cascadeModDepth_));
-				size_t readPos2 = (origWritePos2 + c2ModOffset) % cascadeLengths_[2];
-				float delayed2 = buffer_[cascadeOffsets_[2] + readPos2];
-				float c2Out = -c2Coeff * d1Out + delayed2;
-				buffer_[cascadeOffsets_[2] + origWritePos2] = d1Out + c2Coeff * c2Out;
-				if (++cascadeWritePos_[2] >= cascadeLengths_[2])
-					cascadeWritePos_[2] = 0;
-				c2 = c2Out;
+				// C2 at 2x rate
+				c2 = processCascadeStage(2, d1Out);
 
-				// C2 → D1 nested feedback loop
-				fdnWrite(1, c2 * loopFb);
-
-				// D2 delay between C2 and C3
+				// D2 delay
 				fdnWrite(2, c2);
 				float d2Out = fdnRead(2);
 
-				// C3 at 2x rate with inverted pitch modulation
-				float c3;
-				float c3Coeff = cascadeCoeffs_[3];
-				size_t origWritePos3 = cascadeWritePos_[3];
-				size_t c3ModOffset = static_cast<size_t>(std::max(0.0f, -lfoTri * cascadeModDepth_));
-				size_t readPos3 = (origWritePos3 + c3ModOffset) % cascadeLengths_[3];
-				float delayed3 = buffer_[cascadeOffsets_[3] + readPos3];
-				float c3Out = -c3Coeff * d2Out + delayed3;
-				buffer_[cascadeOffsets_[3] + origWritePos3] = d2Out + c3Coeff * c3Out;
-				if (++cascadeWritePos_[3] >= cascadeLengths_[3])
-					cascadeWritePos_[3] = 0;
-				c3 = c3Out;
+				// C3 final stage
+				float c3 = processCascadeStage(3, d2Out);
 
 				// Soft clip C3 to prevent runaway
 				constexpr float kC3Limit = 0.15f;
 				if (std::abs(c3) > kC3Limit) {
 					c3 = std::copysign(kC3Limit + (std::abs(c3) - kC3Limit) * 0.2f, c3);
 				}
+
+				// Store for next iteration's smeared feedback
+				c2Prev_ = c2;
+				c3Prev_ = c3;
 				prevC3Out_ = c3;
 
 				// Track feedback envelope for self-limiting
 				float c3Abs = std::abs(c3);
 				float coeff = (c3Abs > feedbackEnvelope_) ? 0.05f : 0.0003f;
 				feedbackEnvelope_ += coeff * (c3Abs - feedbackEnvelope_);
-
-				// C3 → D2 nested feedback loop
-				fdnWrite(2, c3 * loopFb);
 
 				// Amplitude modulation for diffusion contour
 				if (cascadeAmpMod_ > 0.0f) {
@@ -500,7 +479,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				// Mix chain outputs - stereo from early stages
 				float cascadeMono = (c2 + c3) * 0.5f;
 				float cascadeSide = (c0 - c1) * cascadeSideGain_ * dynamicWidth;
-				// Skip extra LPFs for Sky (only used in Lush/Vast)
 				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
 				cascadeOutL = cascadeMono + cascadeSide;
 				cascadeOutR = cascadeMono - cascadeSide;
