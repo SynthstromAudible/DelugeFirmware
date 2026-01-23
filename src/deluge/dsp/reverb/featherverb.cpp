@@ -143,6 +143,18 @@ bool Featherverb::allocate() {
 	c3Phase_ = 0;
 	c3Accum_ = 0.0f;
 	c3Prev_ = 0.0f;
+	owlD0Cache_ = 0.0f;
+	owlD0ReadAccum_ = 0.0f;
+	owlD0WriteAccum_ = 0.0f;
+	owlD0WriteVal_ = 0.0f;
+	owlD1Cache_ = 0.0f;
+	owlD1ReadAccum_ = 0.0f;
+	owlD1WriteAccum_ = 0.0f;
+	owlD1WriteVal_ = 0.0f;
+	owlD2Cache_ = 0.0f;
+	owlD2ReadAccum_ = 0.0f;
+	owlD2WriteAccum_ = 0.0f;
+	owlD2WriteVal_ = 0.0f;
 
 	return true;
 }
@@ -201,8 +213,8 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			size_t d0Mod = 0;
 			size_t d1Mod = 0;
 			if (cascadeDoubleUndersample_ || skyChainMode_ || modDepth_ > 0.0f) {
-				if (skyChainMode_ || vastChainMode_) {
-					// Sky/Vast mode: random walk for organic pitch drift
+				if (skyChainMode_ || vastChainMode_ || owlMode_) {
+					// Sky/Vast/Owl mode: random walk for organic pitch drift
 					// LCG random: state = state * 1664525 + 1013904223
 					skyRandState_ = skyRandState_ * 1664525u + 1013904223u;
 					float randStep = (static_cast<float>(skyRandState_ >> 16) / 32768.0f - 1.0f); // -1 to 1
@@ -677,18 +689,52 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				fdnWrite(2, h2);
 			}
 			else if (cascadeDoubleUndersample_) {
-				// === LUSH MODE ===
+				// === LUSH/OWL MODE ===
 				// 4x undersample on cascade stages, but keeps FDN + cascade separate
-				// FDN provides early reflections, cascade provides diffuse tail
+				// Lush: 3-delay FDN for early reflections, cascade for tail
+				// Owl: 2-delay FDN (D0/D1 Hadamard) + D2 as nested feedback path
 
 				// Pre-decimation AA filter
 				cascadeIn = onepole(cascadeIn, cascadeAaState1_, kPreCascadeAaCoeff);
 
-				// C0 with 4x undersample
+				// Owl mode: interleaved D0 → C0 → D1 → C1, all at 4x undersample
+				// Input → D0 → C0 → D1 → C1 → C2 → C3 → Output
+				//               ↑                        ↓
+				//              D2 ←──────────────────────┘
+				float smearFb = 0.0f;
+				if (owlMode_) {
+					float fbEnvScale = 1.0f - std::min(feedbackEnvelope_ * 9.0f, 1.0f); // Threshold ~0.111
+					smearFb = feedback_ * 0.6f * fbEnvScale * skyLoopFb_;               // Z3 controls density
+
+					// Accumulate D0/D1/D2 reads for 4x AA
+					owlD0ReadAccum_ += d0;
+					owlD1ReadAccum_ += d1;
+
+					// C0 input: D0 + C3 global feedback (Vast-like topology)
+					// D2 now inline between C2→C3, not nested feedback
+					// Higher base feedback like Vast (not attenuated by feedback_ knob)
+					float globalFb = (0.8f + cascadeNestFeedback_) * fbEnvScale * skyLoopFb_;
+					cascadeIn = owlD0Cache_ + prevC3Out_ * globalFb;
+
+					// D0 write: input with damping - boosted for scale
+					float effectiveFeedback = feedback_ * fdnFeedbackScale_ * 1.3f;
+					float h0Sample = onepole(fdnIn, fdnLpState_[0], dampCoeff_) * effectiveFeedback;
+					owlD0WriteAccum_ += h0Sample;
+					// D1 write will be set from C0 output below
+					// h2 = C3 for nested feedback (accumulated and written at 4x rate)
+				}
+
+				// C0 with 4x undersample - fed by D0
 				c0Accum_ += cascadeIn;
 				if (c0Phase_ == 1) {
 					float avgIn = c0Accum_ * 0.5f;
 					c0Prev_ = processCascadeStage(0, avgIn);
+					// Owl: smeared feedback C2→C0 and C3→C0 blurs delay repeats
+					if (owlMode_) {
+						float c2Smeared = processCascadeStage(0, c2Prev_ * smearFb);
+						float c3Smeared = processCascadeStage(0, c3Prev_ * smearFb * 0.5f);
+						c0Prev_ += c2Smeared + c3Smeared;
+					}
 					// Double write for 4x undersample
 					if (cascadeWritePos_[0] == 0) {
 						cascadeWritePos_[0] = cascadeLengths_[0] - 1;
@@ -702,11 +748,24 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				c0Phase_ = (c0Phase_ + 1) & 1;
 				c0 = c0Prev_;
 
-				// C1 with 4x undersample
-				c1Accum_ += c0;
+				// Owl: C0 → D1 → C1 (D1 sits between C0 and C1)
+				if (owlMode_) {
+					// Accumulate C0 output for D1 write - boosted for scale
+					float h1Sample = onepole(c0, fdnLpState_[1], dampCoeff_) * feedback_ * fdnFeedbackScale_ * 1.3f;
+					owlD1WriteAccum_ += h1Sample;
+				}
+
+				// C1 with 4x undersample - fed by D1 (Owl) or C0 (Lush)
+				float c1Input = owlMode_ ? owlD1Cache_ : c0;
+				c1Accum_ += c1Input;
 				if (c1Phase_ == 1) {
 					float avgIn = c1Accum_ * 0.5f;
 					c1Prev_ = processCascadeStage(1, avgIn);
+					// Owl: smeared feedback C3→C1 blurs delay repeats
+					if (owlMode_) {
+						float c3Smeared = processCascadeStage(1, c3Prev_ * smearFb);
+						c1Prev_ += c3Smeared;
+					}
 					if (cascadeWritePos_[1] == 0) {
 						cascadeWritePos_[1] = cascadeLengths_[1] - 1;
 					}
@@ -748,7 +807,8 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				c2 = c2Prev_;
 
 				// C3 with 4x undersample + inverted pitch modulation + parallel/series blend
-				float c3In = cascadeIn + (c2 - cascadeIn) * cascadeSeriesMix_;
+				// Owl: D2 inline between C2→C3 (Vast-like topology)
+				float c3In = owlMode_ ? owlD2Cache_ : (cascadeIn + (c2 - cascadeIn) * cascadeSeriesMix_);
 				float c3;
 				c3Accum_ += c3In;
 				if (c3Phase_ == 1) {
@@ -774,14 +834,28 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					c3Prev_ = output;
 					c3Accum_ = 0.0f;
 				}
+				// Cache LFO value when cascade stages update to avoid discontinuities
+				if (c3Phase_ == 0 && owlMode_) {
+					vastLfoCache_ = lfoTri; // Update cache when c3 finishes updating
+				}
 				c3Phase_ = (c3Phase_ + 1) & 1;
 				c3 = c3Prev_;
 				prevC3Out_ = c3;
 
+				// Owl: track feedback envelope for self-limiting smeared feedback
+				if (owlMode_) {
+					float c3Abs = std::abs(c3);
+					float coeff = (c3Abs > feedbackEnvelope_) ? 0.05f : 0.0003f;
+					feedbackEnvelope_ += coeff * (c3Abs - feedbackEnvelope_);
+				}
+
 				// Amplitude modulation for diffusion contour
-				if (cascadeAmpMod_ > 0.0f) {
-					c2 *= (1.0f + lfoTri * cascadeAmpMod_);
-					c3 *= (1.0f - lfoTri * cascadeAmpMod_);
+				// Owl: use cached LFO (synced to 4x update rate like Vast)
+				float lfoForAmpMod = owlMode_ ? vastLfoCache_ : lfoTri;
+				if (cascadeAmpMod_ > 0.0f || owlMode_) {
+					float ampMod = owlMode_ ? (skyLfoAmp_ * skyLfoRouting_) : cascadeAmpMod_;
+					c2 *= (1.0f + lfoForAmpMod * ampMod);
+					c3 *= (1.0f - lfoForAmpMod * ampMod);
 				}
 
 				// Mix cascade outputs - stereo tail
@@ -790,14 +864,64 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				float earlySide = (c0 - c1) * cascadeSideGain_ * dynamicWidth;
 				float lateSide = (c2 - c3) * cascadeSideGain_ * 0.5f * dynamicWidth;
 				float cascadeSide = earlySide + lateSide;
-				cascadeMono = onepole(cascadeMono, cascadeLpStateMono_, kCascadeLpCoeffMono);
-				cascadeSide = onepole(cascadeSide, cascadeLpStateSide_, kCascadeLpCoeffSide);
+
+				// Owl: modulate mid/side filter cutoffs for stereo movement
+				// LFO positive = brighter side (more stereo highs), darker mono
+				// Z3 high routes more modulation here (same as amp mod routing)
+				float monoCoeff = kCascadeLpCoeffMono;
+				float sideCoeff = kCascadeLpCoeffSide;
+				if (owlMode_) {
+					float filterMod = vastLfoCache_ * skyLfoAmp_ * skyLfoRouting_ * 0.25f;
+					monoCoeff = std::clamp(kCascadeLpCoeffMono - filterMod, 0.15f, 0.75f);
+					sideCoeff = std::clamp(kCascadeLpCoeffSide + filterMod, 0.4f, 0.95f);
+				}
+				cascadeMono = onepole(cascadeMono, cascadeLpStateMono_, monoCoeff);
+				cascadeSide = onepole(cascadeSide, cascadeLpStateSide_, sideCoeff);
 				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
 				cascadeOutL = cascadeMono + cascadeSide;
 				cascadeOutR = cascadeMono - cascadeSide;
 
-				// Inject input + cascade feedback into FDN (same as normal mode)
-				if (kMuteCascadeFeedback || cascadeOnly_) {
+				// Owl: LFO output modulation for stereo movement + amplitude breathing (like Vast)
+				// Z3 high routes LFO here (same as amp mod routing)
+				if (owlMode_) {
+					float lfoOut = vastLfoCache_ * skyLfoAmp_ * skyLfoRouting_;
+					cascadeOutL *= (1.0f + lfoOut * 0.7f); // ±70% amplitude
+					cascadeOutR *= (1.0f - lfoOut * 0.7f); // Opposite phase for stereo movement
+
+					// D2 echo tap - distinct repeat before C3 diffuses it
+					float echoTap = owlD2Cache_ * owlEchoGain_;
+					cascadeOutL += echoTap;
+					cascadeOutR += echoTap;
+				}
+
+				// Inject input + cascade feedback into FDN
+				if (owlMode_) {
+					// Owl: All FDN delays at 4x undersample with proper AA
+					// D0/D1/D2 reads accumulated earlier, writes accumulated here
+					owlD2ReadAccum_ += d2;
+					float h2Sample = c2 * feedback_ * 0.85f; // C2→D2→C3 (Vast-like inline)
+					owlD2WriteAccum_ += h2Sample;
+					owlD0WriteAccum_ += fdnIn; // Add input to D0 write
+					if (c3Phase_ == 0) {
+						// c3 just updated - average all accumulated reads/writes
+						owlD0Cache_ = owlD0ReadAccum_ * 0.5f;
+						owlD1Cache_ = owlD1ReadAccum_ * 0.5f;
+						owlD2Cache_ = owlD2ReadAccum_ * 0.5f;
+						owlD0WriteVal_ = owlD0WriteAccum_ * 0.5f;
+						owlD1WriteVal_ = owlD1WriteAccum_ * 0.5f;
+						owlD2WriteVal_ = owlD2WriteAccum_ * 0.5f;
+						owlD0ReadAccum_ = 0.0f;
+						owlD1ReadAccum_ = 0.0f;
+						owlD2ReadAccum_ = 0.0f;
+						owlD0WriteAccum_ = 0.0f;
+						owlD1WriteAccum_ = 0.0f;
+						owlD2WriteAccum_ = 0.0f;
+					}
+					h0 = owlD0WriteVal_;
+					h1 = owlD1WriteVal_;
+					h2 = owlD2WriteVal_;
+				}
+				else if (kMuteCascadeFeedback || cascadeOnly_) {
 					h0 += fdnIn;
 				}
 				else {
@@ -812,10 +936,15 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				fdnWrite(1, h1);
 				fdnWrite(2, h2);
 
-				// Early reflections from FDN (Lush keeps early reflections)
+				// Early reflections from FDN
 				if (!kMuteEarly && !cascadeOnly_) {
-					float earlyMid = (d0 + d1) * earlyMixGain_;
-					float earlySide = (d0 - d1) * earlyMixGain_ * dynamicWidth;
+					// Owl: use cached D0/D1 (4x rate) for consistency
+					float earlyD0 = owlMode_ ? owlD0Cache_ : d0;
+					float earlyD1 = owlMode_ ? owlD1Cache_ : d1;
+					float earlyMid = (earlyD0 + earlyD1) * earlyMixGain_;
+					// Owl: wider early reflections (2-delay FDN is more stereo)
+					float earlyWidthMult = owlMode_ ? 1.3f : 1.0f;
+					float earlySide = (earlyD0 - earlyD1) * earlyMixGain_ * dynamicWidth * earlyWidthMult;
 					directEarlyL_ = (earlyMid + earlySide) * directEarlyGain_;
 					directEarlyR_ = (earlyMid - earlySide) * directEarlyGain_;
 				}
@@ -1066,8 +1195,8 @@ void Featherverb::updateMatrix() {
 	// Precompute delay ratio for feedback normalization (avoid division in hot path)
 	delayRatio_ = static_cast<float>(fdnLengths_[0] + fdnLengths_[1]) / static_cast<float>(kD0MaxLength + kD1MaxLength);
 
-	// Sky/Vast mode: Z1 controls various parameters using phi triangles
-	if (skyChainMode_ || vastChainMode_) {
+	// Sky/Vast/Owl mode: Z1 controls various parameters using phi triangles
+	if (skyChainMode_ || vastChainMode_ || owlMode_) {
 		// Balance between C2→C0 and C3→C1 feedback paths
 		float balanceBase = yNorm;                           // 0 = favor C2→C0, 1 = favor C3→C1
 		float balanceMod = (vals[1] + 1.0f) * 0.15f - 0.15f; // ±0.15 texture
@@ -1079,7 +1208,9 @@ void Featherverb::updateMatrix() {
 		float pitchTri = (vals[5] + 1.0f) * 0.5f; // 0 to 1
 		skyLfoAmp_ = 0.15f + ampTri * 0.85f;      // 0.15 → 1.0
 		skyLfoFreq_ = 0.5f + freqTri * 2.0f;      // 0.5x → 2.5x
-		modDepth_ = 20.0f + pitchTri * 160.0f;    // 20 → 180 samples wobble
+		// Owl: lower pitch modulation to avoid artifacts at 4x undersample
+		float maxPitch = owlMode_ ? 80.0f : 160.0f;
+		modDepth_ = 20.0f + pitchTri * maxPitch;
 	}
 
 	if (fdnWritePos_[0] >= fdnLengths_[0])
@@ -1124,6 +1255,7 @@ void Featherverb::updateSizes() {
 	cascadeDoubleUndersample_ = !kDisableVastUndersample && (zone >= 6);
 	featherMode_ = (zone == 4);   // Feather: dual parallel cascades at 2x
 	skyChainMode_ = (zone == 5);  // Sky: nested at 2x
+	owlMode_ = (zone == 6);       // Owl: nested with smeared feedback at 4x
 	vastChainMode_ = (zone == 7); // Vast: nested at 4x
 
 	// Mode-specific enhancements
@@ -1220,55 +1352,42 @@ void Featherverb::updateFeedbackPattern() {
 	}
 
 	// Cascade series mix - 10 periods for fine density control
-	// Triangle wave: 10 complete cycles over yNorm 0→1
 	// seriesMix=0 → C3 parallel (9 paths, sparse), seriesMix=1 → C3 series (16 paths, dense)
-	float phase10 = yNorm * 10.0f;
-	float tri10 = 1.0f - 4.0f * std::abs(phase10 - std::floor(phase10) - 0.5f);
-	// Map -1..1 to 0.35..0.85 range (biased toward series/dense)
-	cascadeSeriesMix_ = 0.6f + tri10 * 0.25f;
+	float tri10 = dsp::triangleSimpleUnipolar(yNorm * 10.0f) * 2.0f - 1.0f; // Bipolar -1..1
+	cascadeSeriesMix_ = 0.6f + tri10 * 0.25f;                               // Map to 0.35..0.85
 
 	// Cascade feedback - 7 periods, clockwise = more feedback
-	// Base increases with yNorm (0.4 to 0.9), triangle adds ±0.1 texture
-	float phase7 = yNorm * 7.0f;
-	float tri7 = 1.0f - 4.0f * std::abs(phase7 - std::floor(phase7) - 0.5f);
-	float baseFeedback = 0.03f + yNorm * 0.12f; // 0.03 to 0.15 as yNorm increases (tinier)
+	float tri7 = dsp::triangleSimpleUnipolar(yNorm * 7.0f) * 2.0f - 1.0f;
+	float baseFeedback = 0.03f + yNorm * 0.12f;
 	cascadeFeedbackMult_ = std::clamp(baseFeedback + tri7 * 0.02f, 0.02f, 0.2f);
 
-	// Nested cascade feedback (C3→C0) - 5 periods, clockwise = more recirculation
-	// Kicks in at higher yNorm values; scaled by room feedback in processing
-	// Sets base value; Zone 2 adds vast boost on top
-	float phase5 = yNorm * 5.0f;
-	float tri5 = 1.0f - 4.0f * std::abs(phase5 - std::floor(phase5) - 0.5f);
-	float baseNest = std::max(0.0f, (yNorm - 0.35f) * 0.5f); // 0 until yNorm>0.35, then 0 to 0.325
+	// Nested cascade feedback (C3→C0) - 5 periods
+	float tri5 = dsp::triangleSimpleUnipolar(yNorm * 5.0f) * 2.0f - 1.0f;
+	float baseNest = std::max(0.0f, (yNorm - 0.35f) * 0.5f);
 	cascadeNestFeedbackBase_ = std::clamp(baseNest + tri5 * 0.08f, 0.0f, 0.4f);
 	// Recompute combined value (Zone 2 adds vast boost)
 	updateSizes();
 
 	// LFO pitch wobble depth - 13 periods (fast), adds subtle chorus/shimmer
-	// Enabled for extended modes (Feather/Sky/Lush/Vast)
-	if (skyChainMode_ || vastChainMode_) {
-		// Sky/Vast mode: Z3 controls pitch wobble
-		// Vast uses lower max (150) to avoid artifacts at 4x undersample
-		// Fixed texture creates dead zones at low values (intentional rest spots)
-		float phase13 = yNorm * 13.0f;
-		float tri13 = 1.0f - 4.0f * std::abs(phase13 - std::floor(phase13) - 0.5f);
-		float maxWobble = vastChainMode_ ? 80.0f : 250.0f;
-		float wobbleTexture = vastChainMode_ ? 15.0f : 50.0f;
+	if (skyChainMode_ || vastChainMode_ || owlMode_) {
+		// Sky/Vast/Owl: Z3 controls pitch wobble (lower max at 4x to avoid artifacts)
+		float tri13 = dsp::triangleSimpleUnipolar(yNorm * 13.0f) * 2.0f - 1.0f;
+		float maxWobble = (vastChainMode_ || owlMode_) ? 80.0f : 250.0f;
+		float wobbleTexture = (vastChainMode_ || owlMode_) ? 15.0f : 50.0f;
 		modDepth_ = std::max(0.0f, yNorm * maxWobble + tri13 * wobbleTexture);
 
-		// Sky/Vast mode: Z3 also controls local loop feedback (smeared path density)
-		// Low Z3 = sparse (0.3x), high Z3 = dense (1.5x), same texture for dead zones
-		skyLoopFb_ = std::max(0.3f, 0.3f + yNorm * 1.0f + tri13 * 0.2f); // 0.3 → 1.5 with ±0.2 texture
+		// Z3 also controls local loop feedback (smeared path density)
+		skyLoopFb_ = std::max(0.3f, 0.3f + yNorm * 1.0f + tri13 * 0.2f);
 
-		// Sky/Vast mode: Z3 controls LFO routing - low = pitch wobble, high = amplitude mod
-		// Different period (7) for variety, gives different dead zone pattern
-		float phase7 = yNorm * 7.0f;
-		float tri7 = 1.0f - 4.0f * std::abs(phase7 - std::floor(phase7) - 0.5f);
-		skyLfoRouting_ = std::clamp(yNorm + tri7 * 0.15f, 0.0f, 1.0f); // 0 → 1 with ±0.15 texture
+		// Z3 controls LFO routing - 7 periods for variety
+		float tri7Route = dsp::triangleSimpleUnipolar(yNorm * 7.0f) * 2.0f - 1.0f;
+		skyLfoRouting_ = std::clamp(yNorm + tri7Route * 0.15f, 0.0f, 1.0f);
+
+		// Owl mode: D2 echo tap - 10 periods, 50% duty cycle
+		owlEchoGain_ = owlMode_ ? yNorm * 0.5f * dsp::triangleSimpleUnipolar(yNorm * 10.0f, 0.5f) : 0.0f;
 	}
 	else if (cascadeDoubleUndersample_) {
-		float phase13 = yNorm * 13.0f;
-		float tri13 = 1.0f - 4.0f * std::abs(phase13 - std::floor(phase13) - 0.5f);
+		float tri13 = dsp::triangleSimpleUnipolar(yNorm * 13.0f) * 2.0f - 1.0f;
 		modDepth_ = std::clamp(0.3f + tri13 * 0.25f, 0.0f, 0.6f);
 	}
 	else {

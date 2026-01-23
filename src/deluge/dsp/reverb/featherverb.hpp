@@ -238,6 +238,7 @@ private:
 	bool cascadeDoubleUndersample_{false}; // When true, cascade runs at 4x undersample (Lush or Vast zones)
 	bool vastChainMode_{false};            // When true, uses nested topology with 4x undersample (Vast only)
 	bool skyChainMode_{false};             // When true, uses nested topology with 2x undersample (Sky only)
+	bool owlMode_{false};                  // When true, uses nested topology with smeared feedback at 4x (Owl only)
 	float skyFbBalance_{0.5f};             // Z1-controlled balance: 0=C2→C0 only, 1=C3→C1 only
 	float skyLfoAmp_{0.3f};                // Z1-controlled LFO amplitude for Sky mode
 	float skyLfoFreq_{1.0f};               // Z1-controlled LFO frequency multiplier for Sky mode
@@ -252,8 +253,8 @@ private:
 	float cascadeLpStateMono_{0.0f};       // Cascade output LP filter state (mono component)
 	float cascadeLpStateSide_{0.0f};       // Cascade output LP filter state (side component)
 	static constexpr float kPreCascadeAaCoeff = 0.35f;  // LP coeff ~3.5kHz for pre-decimation AA (below 4x Nyquist)
-	static constexpr float kCascadeLpCoeffMono = 0.6f;  // LP coeff ~5.5kHz for cascade mono (darker tail)
-	static constexpr float kCascadeLpCoeffSide = 0.85f; // LP coeff ~8kHz for cascade side (brighter stereo spread)
+	static constexpr float kCascadeLpCoeffMono = 0.45f; // LP coeff ~4kHz for cascade mono (darker tail)
+	static constexpr float kCascadeLpCoeffSide = 0.7f;  // LP coeff ~6kHz for cascade side (brighter stereo spread)
 	uint8_t c0Phase_{0};                                // Phase counter for C0 undersampling
 	float c0Accum_{0.0f};                               // Accumulated input for C0
 	float c0Prev_{0.0f};                                // Previous C0 output for interpolation
@@ -266,6 +267,19 @@ private:
 	uint8_t c3Phase_{0};                                // Phase counter for C3 undersampling
 	float c3Accum_{0.0f};                               // Accumulated input for C3
 	float c3Prev_{0.0f};                                // Previous C3 output for interpolation
+	float owlD0Cache_{0.0f};                            // Cached D0 read for 4x undersample (Owl mode)
+	float owlD0ReadAccum_{0.0f};                        // Accumulated D0 reads for AA (Owl mode)
+	float owlD0WriteAccum_{0.0f};                       // Accumulated D0 writes for AA (Owl mode)
+	float owlD0WriteVal_{0.0f};                         // Held D0 write value for 4x undersample (Owl mode)
+	float owlD1Cache_{0.0f};                            // Cached D1 read for 4x undersample (Owl mode)
+	float owlD1ReadAccum_{0.0f};                        // Accumulated D1 reads for AA (Owl mode)
+	float owlD1WriteAccum_{0.0f};                       // Accumulated D1 writes for AA (Owl mode)
+	float owlD1WriteVal_{0.0f};                         // Held D1 write value for 4x undersample (Owl mode)
+	float owlD2Cache_{0.0f};                            // Cached D2 read for 4x undersample (Owl mode)
+	float owlD2ReadAccum_{0.0f};                        // Accumulated D2 reads for AA (Owl mode)
+	float owlD2WriteAccum_{0.0f};                       // Accumulated D2 writes for AA (Owl mode)
+	float owlD2WriteVal_{0.0f};                         // Held D2 write value for 4x undersample (Owl mode)
+	float owlEchoGain_{0.0f};                           // Z3-controlled D2 echo tap gain (phi triangle)
 
 	// Direct early tap (bypasses output LPF for brightness)
 	float directEarlyL_{0.0f};
