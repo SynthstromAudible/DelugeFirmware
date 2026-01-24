@@ -157,7 +157,8 @@ private:
 	float earlyMixGain_{0.3f};            // Early reflection gain (scales inverse with Zone 2: smaller = more early)
 	float tailMixGain_{0.6f};             // Tail output gain (scales with Zone 2: bigger room = more tail)
 	float directEarlyGain_{0.15f};        // Direct early tap (bypasses output LPF for brightness)
-	float cascadeLpState_{0.0f};          // LP filter state for cascade output
+	float cascadeLpState_{0.0f};          // LP filter state for cascade output (L channel in Feather)
+	float cascadeLpStateR_{0.0f};         // LP filter state for cascade output (R channel in Feather)
 	float cascadeSeriesMix_{0.6f};        // 0=parallel (C3 from cascadeIn), 1=series (C3 from c2)
 	float cascadeFeedbackMult_{0.7f};     // How much cascade feeds back into FDN (controlled by Zone 3)
 	float cascadeNestFeedback_{0.0f};     // Nested feedback: C3 → C0 for extended tails (combined)
@@ -221,8 +222,9 @@ private:
 	float fdnFeedbackScale_{1.0f}; // Inverse scale: reduce FDN feedback as Zone 3 (cascade) increases
 	float cascadeSideGain_{0.2f};  // Stereo side signal gain (higher for Owl mode)
 
-	// Envelope follower for feedback riding
+	// Envelope followers for feedback riding
 	float feedbackEnvelope_{0.0f}; // Tracks C3 output for self-limiting feedback
+	float inputEnvelope_{0.0f};    // Tracks input level for ratio-based limiting (Owl mode)
 
 	// Undersampling state
 	bool undersamplePhase_{false};
@@ -249,9 +251,10 @@ private:
 	float vastLfoCache_{0.0f};             // Cached LFO value for Vast mode (synced to 4x update rate)
 	bool featherMode_{false};              // When true, experimental mode placeholder (zone 4)
 	float cascadeAaState1_{0.0f};          // Anti-alias LP filter state (pre-decimation, vast only)
+	float owlInputAaState_{0.0f};          // Anti-alias LP filter state for FDN input (Owl mode)
 	float cascadeLpStateMono_{0.0f};       // Cascade output LP filter state (mono component)
 	float cascadeLpStateSide_{0.0f};       // Cascade output LP filter state (side component)
-	static constexpr float kPreCascadeAaCoeff = 0.35f;  // LP coeff ~3.5kHz for pre-decimation AA (below 4x Nyquist)
+	static constexpr float kPreCascadeAaCoeff = 0.30f;  // LP coeff ~3kHz for pre-decimation AA (below 4x Nyquist)
 	static constexpr float kCascadeLpCoeffMono = 0.45f; // LP coeff ~4kHz for cascade mono (darker tail)
 	static constexpr float kCascadeLpCoeffSide = 0.7f;  // LP coeff ~6kHz for cascade side (brighter stereo spread)
 	uint8_t c0Phase_{0};                                // Phase counter for C0 undersampling

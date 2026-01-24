@@ -185,6 +185,92 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 	const float outLpCoeff = 0.1f + lpCutoff_ * 0.85f;
 	const float tailFeedback = feedback_ * feedback_; // Hoist: tail decays faster than early
 
+	// Owl mode feedback constants (hoisted - don't change per sample)
+	const float owlFbDelta = feedback_ - 0.32f;
+	const float owlRoomNorm = owlFbDelta * 8.333f;
+	const float owlFdnFb = 0.32f + owlFbDelta * 0.7f;
+	const float owlCascadeFb = 0.32f + owlFbDelta * 2.0f;
+	const float owlGlobalFbBase = 0.9f + owlRoomNorm * 0.4f;
+	const float owlGlobalFbCoeff = (owlGlobalFbBase + cascadeNestFeedback_) * skyLoopFb_;
+
+	// Owl envelope application (buffer-rate - envelope time constants are very slow)
+	float owlFbEnvScale = 1.0f;
+	float owlDelayScale = 1.0f;
+	if (owlMode_) {
+		float rawEnv = feedbackEnvelope_ * 320000.0f;
+		float excess = std::max(0.0f, rawEnv);
+		float a = 1.0f + excess * excess * 5000.0f;
+		float y = std::clamp(2.0f - a, 0.001f, 1.0f);
+		y = y * (2.0f - a * y);
+		y = y * (2.0f - a * y);
+		owlFbEnvScale = y;
+		owlDelayScale = owlFbEnvScale * owlFbEnvScale;
+	}
+	const float owlSmearFb = owlCascadeFb * 0.75f * skyLoopFb_ * owlFbEnvScale;
+	const float owlEffFb = owlFdnFb * fdnFeedbackScale_ * 1.8f * owlDelayScale;
+	const float owlGlobalFb = owlGlobalFbCoeff * owlFbEnvScale;
+
+	// Sky/Vast shared feedback constants (hoisted - don't change per sample)
+	const float chainLoopFbBase = feedback_ * 0.4f * delayRatio_ * skyLoopFb_;
+	const float chainGlobalFbBase = cascadeNestFeedback_ * 0.8f;
+	const float chainC2FbBase = chainLoopFbBase * (1.6f - skyFbBalance_ * 1.4f);
+	const float chainC3FbBase = chainLoopFbBase * (0.2f + skyFbBalance_ * 1.4f);
+
+	// Normal mode hoisted constant
+	const float cascadeFbMult = tailFeedback * cascadeFeedbackMult_;
+
+	// Buffer-rate LFO for Sky/Vast/Owl (random walk evolves slowly due to smoothing)
+	float lfoTriCached = skyRandWalkSmooth_;
+	size_t d0ModCached = 0;
+	size_t d1ModCached = 0;
+	if (skyChainMode_ || vastChainMode_ || owlMode_) {
+		// Advance random walk by buffer duration worth of evolution
+		const size_t numSteps = input.size() / 2; // 2x undersample phases per buffer
+		// Advance LCG state (single step gives good randomness)
+		skyRandState_ = skyRandState_ * 1664525u + 1013904223u;
+		float randStep = (static_cast<float>(skyRandState_ >> 16) / 32768.0f - 1.0f);
+		// Scale step by number of iterations (larger aggregate step)
+		float stepSize = 0.001f * skyLfoFreq_ * static_cast<float>(numSteps);
+		skyRandWalk_ += randStep * stepSize;
+		// Soft bounds: decay by 0.9995^numSteps ≈ 0.97 for 64 steps
+		skyRandWalk_ *= 0.97f;
+		skyRandWalk_ = std::clamp(skyRandWalk_, -1.0f, 1.0f);
+		// Smoothing: 1-(1-c)^n ≈ n*c for small c
+		float smoothCoeff = vastChainMode_ ? 0.012f * skyLfoFreq_ : 0.025f * skyLfoFreq_;
+		float bufferSmooth = std::min(1.0f, smoothCoeff * static_cast<float>(numSteps));
+		skyRandWalkSmooth_ += bufferSmooth * (skyRandWalk_ - skyRandWalkSmooth_);
+		lfoTriCached = skyRandWalkSmooth_;
+		// Compute modulation offsets once for buffer
+		float pitchScale = 1.0f - skyLfoRouting_;
+		d0ModCached = static_cast<size_t>(std::max(0.0f, lfoTriCached * modDepth_ * pitchScale));
+		d1ModCached = static_cast<size_t>(std::max(0.0f, -lfoTriCached * modDepth_ * pitchScale));
+	}
+
+	// Owl filter coefficients (buffer-rate - depend on cached LFO)
+	float owlMonoCoeff = kCascadeLpCoeffMono;
+	float owlSideCoeff = kCascadeLpCoeffSide;
+	float owlAmpModL = 1.0f;
+	float owlAmpModR = 1.0f;
+	if (owlMode_) {
+		float filterMod = lfoTriCached * skyLfoAmp_ * skyLfoRouting_ * 0.25f;
+		owlMonoCoeff = std::clamp(kCascadeLpCoeffMono - filterMod, 0.15f, 0.75f);
+		owlSideCoeff = std::clamp(kCascadeLpCoeffSide + filterMod, 0.4f, 0.95f);
+		float lfoOut = lfoTriCached * skyLfoAmp_ * skyLfoRouting_;
+		owlAmpModL = 1.0f + lfoOut * 0.7f;
+		owlAmpModR = 1.0f - lfoOut * 0.7f;
+	}
+
+	// Sky/Vast feedback envelope scaling (buffer-rate - envelope is buffer-rate)
+	const float chainFbEnvScale = 1.0f - std::min(feedbackEnvelope_ * 8.0f, 1.0f);
+	const float chainGlobalFb = chainGlobalFbBase * chainFbEnvScale;
+	const float chainC2Fb = chainC2FbBase * chainFbEnvScale;
+	const float chainC3Fb = chainC3FbBase * chainFbEnvScale;
+
+	// Sky/Vast amplitude modulation (buffer-rate - LFO is buffer-rate)
+	const float chainLfoOut = lfoTriCached * skyLfoAmp_ * skyLfoRouting_;
+	const float chainAmpModL = 1.0f + chainLfoOut * 0.3f;
+	const float chainAmpModR = 1.0f - chainLfoOut * 0.3f;
+
 	// Cache matrix
 	const auto& m = matrix_;
 
@@ -197,7 +283,8 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 		// Save input for dry subtraction BEFORE gain boost
 		float inOrig = hpOut;
 
-		in = hpOut * 1.414f; // +3dB input gain to drive reverb harder
+		// +3dB input gain when dry subtraction enabled (linked to DRY- toggle)
+		in = cascadeOnly_ ? hpOut * 1.414f : hpOut;
 
 		// Predelay (single tap)
 		if (predelayLength_ > 0) {
@@ -214,34 +301,10 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			float fdnIn = accumIn_ * 0.5f;
 			accumIn_ = 0.0f;
 
-			// LFO for pitch/amplitude modulation (only compute when needed)
-			float lfoTri = 0.0f;
-			size_t d0Mod = 0;
-			size_t d1Mod = 0;
-			if (cascadeDoubleUndersample_ || skyChainMode_ || modDepth_ > 0.0f) {
-				if (skyChainMode_ || vastChainMode_ || owlMode_) {
-					// Sky/Vast/Owl mode: random walk for organic pitch drift
-					// LCG random: state = state * 1664525 + 1013904223
-					skyRandState_ = skyRandState_ * 1664525u + 1013904223u;
-					float randStep = (static_cast<float>(skyRandState_ >> 16) / 32768.0f - 1.0f); // -1 to 1
-					// Step size controlled by skyLfoFreq_ (0.5x to 2.5x)
-					float stepSize = 0.001f * skyLfoFreq_;
-					skyRandWalk_ += randStep * stepSize;
-					// Soft bounds: gentle pull back toward center
-					skyRandWalk_ *= 0.9995f;
-					skyRandWalk_ = std::clamp(skyRandWalk_, -1.0f, 1.0f);
-					// Smooth the output (one-pole LP) - lower coeff = smoother
-					float smoothCoeff = vastChainMode_ ? 0.012f * skyLfoFreq_  // Extra smooth for 4x
-					                                   : 0.025f * skyLfoFreq_; // Normal for Sky
-					skyRandWalkSmooth_ += smoothCoeff * (skyRandWalk_ - skyRandWalkSmooth_);
-					lfoTri = skyRandWalkSmooth_;
-					// Z3 controls routing: low = pitch wobble, high = amp mod
-					float pitchScale = 1.0f - skyLfoRouting_;
-					d0Mod = static_cast<size_t>(std::max(0.0f, lfoTri * modDepth_ * pitchScale));
-					d1Mod = static_cast<size_t>(std::max(0.0f, -lfoTri * modDepth_ * pitchScale));
-				}
-				// Other modes: no pitch modulation (d0Mod/d1Mod stay 0)
-			}
+			// LFO values cached at buffer rate for Sky/Vast/Owl (random walk evolves slowly)
+			const float lfoTri = lfoTriCached;
+			const size_t d0Mod = d0ModCached;
+			const size_t d1Mod = d1ModCached;
 
 			// Read FDN delays
 			float d0 = fdnReadAt(0, d0Mod);
@@ -301,18 +364,9 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				// Feedback passes through cascade stages for diffusion before entering delays
 				// This reduces comb filter sensitivity compared to direct feedback
 
-				// Feedback coefficients: Room → density, Zone 3 → tail length
-				// Self-limiting feedback: reduce when reverb level is high (can go to zero)
-				float fbEnvScale = 1.0f - std::min(feedbackEnvelope_ * 8.0f, 1.0f);
-				float loopFb = feedback_ * 0.4f * delayRatio_ * fbEnvScale * skyLoopFb_; // Z3 controls density
-				float globalFb = cascadeNestFeedback_ * fbEnvScale * 0.8f;
-
-				// Pre-decimation AA filter with global C3 feedback
-				float chainIn = onepole(fdnIn * 1.4f + prevC3Out_ * globalFb, cascadeAaState1_, kPreCascadeAaCoeff);
-
-				// Z1 controls balance between feedback paths (like Sky)
-				float c2Fb = loopFb * (1.6f - skyFbBalance_ * 1.4f); // 1.6 → 0.2
-				float c3Fb = loopFb * (0.2f + skyFbBalance_ * 1.4f); // 0.2 → 1.6
+				// Pre-decimation AA filter with global C3 feedback (hoisted coeffs)
+				float chainIn =
+				    onepole(fdnIn * 1.4f + prevC3Out_ * chainGlobalFb, cascadeAaState1_, kPreCascadeAaCoeff);
 
 				// C0 with 4x undersample (input → first allpass)
 				c0Accum_ += chainIn;
@@ -320,7 +374,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					float avgIn = c0Accum_ * 0.5f;
 					c0Prev_ = processCascadeStage(0, avgIn);
 					// Smeared feedback: C2 → C0 → D0 (Z1 controls balance)
-					float c2Smeared = processCascadeStage(0, c2Prev_ * c2Fb);
+					float c2Smeared = processCascadeStage(0, c2Prev_ * chainC2Fb);
 					c0Prev_ += c2Smeared;
 					c0Accum_ = 0.0f;
 				}
@@ -338,7 +392,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					float avgIn = c1Accum_ * 0.5f;
 					c1Prev_ = processCascadeStage(1, avgIn);
 					// Smeared feedback: C3 → C1 → D1 (Z1 controls balance)
-					float c3Smeared = processCascadeStage(1, c3Prev_ * c3Fb);
+					float c3Smeared = processCascadeStage(1, c3Prev_ * chainC3Fb);
 					c1Prev_ += c3Smeared;
 					c1Accum_ = 0.0f;
 				}
@@ -426,17 +480,9 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				}
 				prevC3Out_ = c3;
 
-				// Track feedback envelope for self-limiting (fast attack, slow release)
-				float c3Abs = std::abs(c3);
-				float coeff = (c3Abs > feedbackEnvelope_) ? 0.05f : 0.0003f;
-				feedbackEnvelope_ += coeff * (c3Abs - feedbackEnvelope_);
-
-				// Amplitude modulation for diffusion contour
-				// Z1 controls base amplitude, Z3 controls routing (low=pitch, high=amp)
-				// Use cached LFO value to stay in sync with 4x cascade update rate
-				float ampMod = skyLfoAmp_ * skyLfoRouting_;
-				c2 *= (1.0f + vastLfoCache_ * ampMod);
-				c3 *= (1.0f - vastLfoCache_ * ampMod);
+				// Amplitude modulation for diffusion contour (buffer-rate LFO)
+				c2 *= (1.0f + chainLfoOut);
+				c3 *= (1.0f - chainLfoOut);
 
 				// Mix chain outputs - stereo from early and late stages
 				float cascadeMono = (c2 + c3) * 0.5f;
@@ -448,11 +494,9 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
 				cascadeOutL = cascadeMono + cascadeSide;
 				cascadeOutR = cascadeMono - cascadeSide;
-				// LFO output modulation: stereo movement + amplitude breathing
-				// Z3 high routes LFO here (same as amp mod routing)
-				float lfoOut = vastLfoCache_ * skyLfoAmp_ * skyLfoRouting_;
-				cascadeOutL *= (1.0f + lfoOut * 0.3f); // ±30% amplitude
-				cascadeOutR *= (1.0f - lfoOut * 0.3f); // Opposite phase for stereo movement
+				// LFO output modulation: stereo movement (buffer-rate)
+				cascadeOutL *= chainAmpModL;
+				cascadeOutR *= chainAmpModR;
 
 				// No early reflections in vast chain mode (FDN is repurposed)
 				directEarlyL_ = 0.0f;
@@ -470,19 +514,15 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				// C3 output → smear through C1 → write to D1
 				// C2 output → smear through C0 → write to D0
 
-				float fbEnvScale = 1.0f - std::min(feedbackEnvelope_ * 8.0f, 1.0f);
-				float loopFb = feedback_ * 0.4f * delayRatio_ * fbEnvScale * skyLoopFb_; // Z3 controls density
-				float globalFb = cascadeNestFeedback_ * fbEnvScale * 0.8f;
-
-				float chainIn = fdnIn * 1.4f + prevC3Out_ * globalFb;
+				// Use hoisted constants (all computed at buffer-rate)
+				float chainIn = fdnIn * 1.4f + prevC3Out_ * chainGlobalFb;
 
 				// C0 at 2x rate
 				c0 = processCascadeStage(0, chainIn);
 
 				// D0 delay - feedback from C2 smeared through C0 (modulated pitch)
 				// Z1 controls balance: low Z1 = more C2→C0, high Z1 = more C3→C1
-				float c2Fb = loopFb * (1.6f - skyFbBalance_ * 1.4f); // 1.6 → 0.2
-				float c2Smeared = processCascadeStage(0, c2Prev_ * c2Fb);
+				float c2Smeared = processCascadeStage(0, c2Prev_ * chainC2Fb);
 				fdnWrite(0, c0 + c2Smeared);
 				float d0Out = fdnReadAt(0, d0Mod);
 
@@ -490,8 +530,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				c1 = processCascadeStage(1, d0Out);
 
 				// D1 delay - feedback from C3 smeared through C1 (modulated pitch)
-				float c3Fb = loopFb * (0.2f + skyFbBalance_ * 1.4f); // 0.2 → 1.6
-				float c3Smeared = processCascadeStage(1, c3Prev_ * c3Fb);
+				float c3Smeared = processCascadeStage(1, c3Prev_ * chainC3Fb);
 				fdnWrite(1, c1 + c3Smeared);
 				float d1Out = fdnReadAt(1, d1Mod);
 
@@ -516,16 +555,9 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				c3Prev_ = c3;
 				prevC3Out_ = c3;
 
-				// Track feedback envelope for self-limiting
-				float c3Abs = std::abs(c3);
-				float coeff = (c3Abs > feedbackEnvelope_) ? 0.05f : 0.0003f;
-				feedbackEnvelope_ += coeff * (c3Abs - feedbackEnvelope_);
-
-				// Amplitude modulation for diffusion contour
-				// Z1 controls base amplitude, Z3 controls routing (low=pitch, high=amp)
-				float ampMod = skyLfoAmp_ * skyLfoRouting_; // Scale by routing blend
-				c2 *= (1.0f + lfoTri * ampMod);
-				c3 *= (1.0f - lfoTri * ampMod);
+				// Amplitude modulation for diffusion contour (buffer-rate LFO)
+				c2 *= (1.0f + chainLfoOut);
+				c3 *= (1.0f - chainLfoOut);
 
 				// Mix chain outputs - stereo from early and late stages
 				float cascadeMono = (c2 + c3) * 0.5f;
@@ -535,10 +567,9 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
 				cascadeOutL = cascadeMono + cascadeSide;
 				cascadeOutR = cascadeMono - cascadeSide;
-				// LFO output modulation: stereo movement + amplitude breathing
-				float lfoOut = lfoTri * skyLfoAmp_ * skyLfoRouting_;
-				cascadeOutL *= (1.0f + lfoOut * 0.3f);
-				cascadeOutR *= (1.0f - lfoOut * 0.3f);
+				// LFO output modulation: stereo movement (buffer-rate)
+				cascadeOutL *= chainAmpModL;
+				cascadeOutR *= chainAmpModR;
 
 				// No early reflections in nested mode (FDN is repurposed as inter-stage delays)
 				directEarlyL_ = 0.0f;
@@ -663,7 +694,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				}
 				else {
 					cascadeL = onepole(cascadeOutLRaw, cascadeLpState_, cascadeDamping_);
-					cascadeR = onepole(cascadeOutRRaw, cascadeLpStateMono_, cascadeDamping_);
+					cascadeR = onepole(cascadeOutRRaw, cascadeLpStateR_, cascadeDamping_);
 				}
 
 				cascadeOutL = cascadeL;
@@ -705,32 +736,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				cascadeIn = onepole(cascadeIn, cascadeAaState1_, kPreCascadeAaCoeff);
 
 				// Owl: feedback envelope controls all feedback paths
-				// Simpler approach: just limit based on feedback level
-				// New input enters unscaled (fdnIn), naturally takes over when feedback is limited
-				float owlFbEnvScale = 1.0f;
-				float owlDelayScale = 1.0f; // Squared scale for delay writes - pulls down faster
-				float c3ForFb = 0.0f;       // DC-blocked feedback signal for envelope tracking
-				if (owlMode_) {
-					// Envelope is now squared (outAbs²), so values are ~100x smaller
-					// Scale up to compensate
-					// Since envelope is already squared, use linear excess (not excess²) = quadratic on original
-
-					float rawEnv = feedbackEnvelope_ * 320000.0f;
-
-					/**
-					 * this was pretty good.
-					float excess = std::max(0.0f, rawEnv - 0.01f); // Lower threshold, release controls pumping
-					// Higher strength (10) for more pulldown
-					owlFbEnvScale = 1.0f / (1.0f + excess * 1000.0f);
-		*/
-					float excess = std::max(0.0f, rawEnv - 0.0000f); // Lower threshold, release controls pumping
-
-					// Higher strength (10) for more pulldown
-					owlFbEnvScale = 1.0f / (1.0f + excess * excess * 5000.0f);
-					// Delays get squared scaling - chokes loop faster, lets cascade ring out
-					owlDelayScale = owlFbEnvScale * owlFbEnvScale;
-				}
-
 				// Owl mode: interleaved D0 → C0 → D1 → C1, all at 4x undersample
 				// Input → D0 → C0 → D1 → C1 → C2 → C3 → Output
 				//               ↑                        ↓
@@ -738,35 +743,25 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				float smearFb = 0.0f;
 				float fdnFb = feedback_;     // FDN feedback - scaled separately for Owl
 				float cascadeFb = feedback_; // Cascade feedback - scaled up for Owl
+				float c3ForFb = 0.0f;        // DC-blocked feedback signal for envelope tracking
 				if (owlMode_) {
-					// feedback_ ranges 0.32-0.44, normalize to 0-1 range for Room-based scaling
-					float roomNorm = (feedback_ - 0.32f) / 0.12f; // 0 at min Room, 1 at max
-					// FDN feedback scales less with Room (70% range) so high Room favors cascade
-					// 0.32 + 70% of Room increase = 0.32 to 0.404 instead of 0.32 to 0.44
-					fdnFb = 0.32f + (feedback_ - 0.32f) * 0.7f;
-					// Cascade feedback scales MORE with Room - up to 0.56 instead of 0.44
-					// 0.32 + 2.0x the Room increase = 0.32 to 0.56
-					cascadeFb = 0.32f + (feedback_ - 0.32f) * 2.0f;
-					smearFb = cascadeFb * 0.75f * owlFbEnvScale * skyLoopFb_; // Z3 controls density
+					// Use buffer-rate hoisted constants (envelope applied once per buffer)
+					fdnFb = owlFdnFb;
+					cascadeFb = owlCascadeFb;
+					smearFb = owlSmearFb;
 
 					// Accumulate D0/D1/D2 reads for 4x AA
 					owlD0ReadAccum_ += d0;
 					owlD1ReadAccum_ += d1;
 
 					// C0 input: D0 + C3 global feedback (Vast-like topology)
-					// Higher feedback - builds fast, limiter catches it
-					float globalFbBase = 0.9f + roomNorm * 0.4f; // 0.9 at min Room, 1.3 at max
-					float globalFb = (globalFbBase + cascadeNestFeedback_) * owlFbEnvScale * skyLoopFb_;
 					// Cheap HPF on feedback to tame LF rumble (~20Hz at 11kHz effective rate)
 					c3ForFb = prevC3Out_ - dcBlockState_;
 					dcBlockState_ += 0.011f * c3ForFb;
-					cascadeIn = owlD0Cache_ + c3ForFb * globalFb;
+					cascadeIn = owlD0Cache_ + c3ForFb * owlGlobalFb;
 
-					// D0 write: input - envelope limited (damping disabled for brightness)
-					// Use squared scale so delays choke faster than cascade
-					// fdnFb is less sensitive to Room than cascade feedback
-					float effectiveFeedback = fdnFb * fdnFeedbackScale_ * 1.8f * owlDelayScale;
-					float h0Sample = fdnIn * effectiveFeedback;
+					// D0 write: input - envelope limited (buffer-rate)
+					float h0Sample = fdnIn * owlEffFb;
 					owlD0WriteAccum_ += h0Sample;
 					// D1 write will be set from C0 output below
 					// h2 = C3 for nested feedback (accumulated and written at 4x rate)
@@ -791,6 +786,13 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 						--cascadeWritePos_[0];
 					}
 					processCascadeStage(0, avgIn);
+					// Multi-tap write for C0 (doubled density, consistent with C2/C3)
+					if (owlMode_) {
+						size_t prevPos = (cascadeWritePos_[0] == 0) ? cascadeLengths_[0] - 1 : cascadeWritePos_[0] - 1;
+						float writeVal = buffer_[cascadeOffsets_[0] + prevPos];
+						size_t tapPos = (prevPos + kMultiTapOffsets[0]) % cascadeLengths_[0];
+						buffer_[cascadeOffsets_[0] + tapPos] += writeVal * kMultiTapGain;
+					}
 					c0Accum_ = 0.0f;
 				}
 				c0Phase_ = (c0Phase_ + 1) & 1;
@@ -798,10 +800,8 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 
 				// Owl: C0 → D1 → C1 (D1 sits between C0 and C1)
 				if (owlMode_) {
-					// Accumulate C0 output for D1 write - envelope limited (damping disabled for brightness)
-					// Use squared scale so delays choke faster than cascade
-					// fdnFb is less sensitive to Room than cascade feedback
-					float h1Sample = c0 * fdnFb * fdnFeedbackScale_ * 1.8f * owlDelayScale;
+					// Accumulate C0 output for D1 write - envelope limited (buffer-rate)
+					float h1Sample = c0 * owlEffFb;
 					owlD1WriteAccum_ += h1Sample;
 				}
 
@@ -823,6 +823,13 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 						--cascadeWritePos_[1];
 					}
 					processCascadeStage(1, avgIn);
+					// Multi-tap write for C1 (doubled density, consistent with C2/C3)
+					if (owlMode_) {
+						size_t prevPos = (cascadeWritePos_[1] == 0) ? cascadeLengths_[1] - 1 : cascadeWritePos_[1] - 1;
+						float writeVal = buffer_[cascadeOffsets_[1] + prevPos];
+						size_t tapPos = (prevPos + kMultiTapOffsets[1]) % cascadeLengths_[1];
+						buffer_[cascadeOffsets_[1] + tapPos] += writeVal * kMultiTapGain;
+					}
 					c1Accum_ = 0.0f;
 				}
 				c1Phase_ = (c1Phase_ + 1) & 1;
@@ -881,21 +888,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 						size_t tapPos = (origWritePos + kMultiTapOffsets[3]) % cascadeLengths_[3];
 						buffer_[cascadeOffsets_[3] + tapPos] += writeVal * kMultiTapGain;
 					}
-					// Owl: track only smeared feedback signals (pure recirculating tail)
-					// Ignores fresh input passing through - only catches tail buildup
-					if (owlMode_) {
-						float outAbs = std::max(std::abs(c2Prev_), std::abs(c3Prev_));
-						// Track squared signal - envelope accelerates during exponential growth
-						// Delta grows quadratically with level, matching exponential buildup rate
-						float outSq = outAbs * outAbs;
-						// TUNING: predelay knob controls attack/release ratio
-						// predelay_ 0-1 maps to ratio 0.25-4.0 (attack speed multiplier)
-						float tuneRatio = 0.25f + predelay_ * 3.75f;
-						float attackCoeff = 0.0000125f * tuneRatio;
-						float releaseCoeff = 0.0002f; // Very fast release (~100ms)
-						float coeff = (outSq > feedbackEnvelope_) ? attackCoeff : releaseCoeff;
-						feedbackEnvelope_ += coeff * (outSq - feedbackEnvelope_);
-					}
 					c3Prev_ = output;
 					c3Accum_ = 0.0f;
 				}
@@ -906,13 +898,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				c3Phase_ = (c3Phase_ + 1) & 1;
 				c3 = c3Prev_;
 				prevC3Out_ = c3;
-
-				// Non-Owl modes: track feedback envelope here (already clipped for Owl)
-				if (!owlMode_) {
-					float c3Abs = std::abs(c3);
-					float coeff = (c3Abs > feedbackEnvelope_) ? 0.15f : 0.0003f; // Faster attack
-					feedbackEnvelope_ += coeff * (c3Abs - feedbackEnvelope_);
-				}
 
 				// Amplitude modulation for diffusion contour
 				// Owl: use cached LFO (synced to 4x update rate like Vast)
@@ -930,28 +915,19 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				float lateSide = (c2 - c3) * cascadeSideGain_ * 0.5f * dynamicWidth;
 				float cascadeSide = earlySide + lateSide;
 
-				// Owl: modulate mid/side filter cutoffs for stereo movement
-				// LFO positive = brighter side (more stereo highs), darker mono
-				// Z3 high routes more modulation here (same as amp mod routing)
-				float monoCoeff = kCascadeLpCoeffMono;
-				float sideCoeff = kCascadeLpCoeffSide;
-				if (owlMode_) {
-					float filterMod = vastLfoCache_ * skyLfoAmp_ * skyLfoRouting_ * 0.25f;
-					monoCoeff = std::clamp(kCascadeLpCoeffMono - filterMod, 0.15f, 0.75f);
-					sideCoeff = std::clamp(kCascadeLpCoeffSide + filterMod, 0.4f, 0.95f);
-				}
+				// Owl: modulate mid/side filter cutoffs for stereo movement (buffer-rate coeffs)
+				float monoCoeff = owlMode_ ? owlMonoCoeff : kCascadeLpCoeffMono;
+				float sideCoeff = owlMode_ ? owlSideCoeff : kCascadeLpCoeffSide;
 				cascadeMono = onepole(cascadeMono, cascadeLpStateMono_, monoCoeff);
 				cascadeSide = onepole(cascadeSide, cascadeLpStateSide_, sideCoeff);
 				cascadeMono = onepole(cascadeMono, cascadeLpState_, cascadeDamping_);
 				cascadeOutL = cascadeMono + cascadeSide;
 				cascadeOutR = cascadeMono - cascadeSide;
 
-				// Owl: LFO output modulation for stereo movement + amplitude breathing (like Vast)
-				// Z3 high routes LFO here (same as amp mod routing)
+				// Owl: LFO output modulation for stereo movement (buffer-rate)
 				if (owlMode_) {
-					float lfoOut = vastLfoCache_ * skyLfoAmp_ * skyLfoRouting_;
-					cascadeOutL *= (1.0f + lfoOut * 0.7f); // ±70% amplitude
-					cascadeOutR *= (1.0f - lfoOut * 0.7f); // Opposite phase for stereo movement
+					cascadeOutL *= owlAmpModL;
+					cascadeOutR *= owlAmpModR;
 
 					// D2 echo tap - distinct repeat before C3 diffuses it
 					float echoTap = owlD2Cache_ * owlEchoGain_;
@@ -968,7 +944,9 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					// fdnFb is less sensitive to Room than cascade feedback
 					float h2Sample = c2 * fdnFb * 0.95f * owlDelayScale; // C2→D2→C3 envelope limited
 					owlD2WriteAccum_ += h2Sample;
-					owlD0WriteAccum_ += fdnIn; // Unity input gain
+					// AA filter on input before FDN (prevents aliasing at 4x rate)
+					float fdnInAA = onepole(fdnIn, owlInputAaState_, kPreCascadeAaCoeff);
+					owlD0WriteAccum_ += fdnInAA;
 					if (c3Phase_ == 0) {
 						// c3 just updated - average all accumulated reads/writes
 						owlD0Cache_ = owlD0ReadAccum_ * 0.5f;
@@ -992,7 +970,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					h0 += fdnIn;
 				}
 				else {
-					h0 += fdnIn + cascadeMono * tailFeedback * cascadeFeedbackMult_;
+					h0 += fdnIn + cascadeMono * cascadeFbMult;
 				}
 
 				// Write FDN (double write for undersampling)
@@ -1044,7 +1022,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					h0 += fdnIn;
 				}
 				else {
-					h0 += fdnIn + cascadeMono * tailFeedback * cascadeFeedbackMult_;
+					h0 += fdnIn + cascadeMono * cascadeFbMult;
 				}
 
 				// Write FDN (double write for undersampling)
@@ -1139,6 +1117,21 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 		output[frame].l += multiply_32x32_rshift32_rounded(outLq31, getPanLeft());
 		output[frame].r += multiply_32x32_rshift32_rounded(outRq31, getPanRight());
 	}
+
+	// Buffer-end envelope update: sample final C3 value (feedback swell is slow)
+	// Fast release needed so feedback can build back up once it drops below threshold
+	// This creates self-regulating behavior: build → limit → release → build again
+	float c3Sq = prevC3Out_ * prevC3Out_;
+	float attackCoeff = 0.02f;
+	float releaseCoeff = 0.003f; // Faster than attack for quick recovery
+	if (owlMode_) {
+		// Owl mode: slightly slower attack/release for smoother limiting
+		// owlEnvRatio_ (0.5-2.0) fine-tunes the balance
+		attackCoeff = 0.015f * owlEnvRatio_;
+		releaseCoeff = 0.004f * owlEnvRatio_; // Fast release enables sustained ringing
+	}
+	float envCoeff = (c3Sq > feedbackEnvelope_) ? attackCoeff : releaseCoeff;
+	feedbackEnvelope_ += envCoeff * (c3Sq - feedbackEnvelope_);
 }
 
 void Featherverb::setRoomSize(float value) {
