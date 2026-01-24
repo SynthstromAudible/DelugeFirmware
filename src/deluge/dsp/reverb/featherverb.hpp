@@ -187,8 +187,8 @@ private:
 	int32_t zone3_{0};
 	float predelay_{0.0f};
 
-	// Diagnostic
-	bool cascadeOnly_{false}; // Runtime toggle: true = cascade-only (bypasses FDN, mutes early)
+	// Dry subtraction toggle (predelay encoder button)
+	bool cascadeOnly_{false}; // Runtime toggle: true = subtract dry input to remove bleedthrough
 
 	// Derived coefficients
 	float feedback_{0.85f};
@@ -279,6 +279,7 @@ private:
 	float owlD2WriteAccum_{0.0f};                       // Accumulated D2 writes for AA (Owl mode)
 	float owlD2WriteVal_{0.0f};                         // Held D2 write value for 4x undersample (Owl mode)
 	float owlEchoGain_{0.0f};                           // Z3-controlled D2 echo tap gain (phi triangle)
+	float owlEnvRatio_{1.0f};                           // Z3-controlled attack/release ratio (phi triangle)
 
 	// Direct early tap (bypasses output LPF for brightness)
 	float directEarlyL_{0.0f};

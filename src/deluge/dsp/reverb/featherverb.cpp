@@ -30,7 +30,7 @@ namespace deluge::dsp::reverb {
 using namespace deluge::dsp;
 
 // Compile-time diagnostic toggles (for permanent debugging builds)
-// Runtime toggle cascadeOnly_ is preferred - controlled via predelay encoder button
+// Runtime toggle cascadeOnly_ controls dry subtraction - via predelay encoder button
 static constexpr bool kMuteEarly = false;
 static constexpr bool kMuteCascade = false;
 static constexpr bool kMuteCascadeFeedback = false;
@@ -193,7 +193,11 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 		float in = static_cast<float>(input[frame]) * kInputScale;
 		float hpOut = in - hpState_;
 		hpState_ += (1.0f - hpCoeff) * hpOut;
-		in = hpOut;
+
+		// Save input for dry subtraction BEFORE gain boost
+		float inOrig = hpOut;
+
+		in = hpOut * 1.414f; // +3dB input gain to drive reverb harder
 
 		// Predelay (single tap)
 		if (predelayLength_ > 0) {
@@ -275,7 +279,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			// c0→c1→c2 always series, c3 input blends between cascadeIn (parallel) and c2 (series)
 			// seriesMix=0 → 9 paths (sparse), seriesMix=1 → 16 paths (dense)
 			float cascadeIn;
-			if (kBypassFdnToCascade || cascadeOnly_) {
+			if (kBypassFdnToCascade) {
 				cascadeIn = fdnIn * 1.4f + prevC3Out_ * cascadeNestFeedback_ * tailFeedback;
 			}
 			else {
@@ -667,7 +671,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				prevC3Out_ = (cL1 + cR1) * 0.5f;
 
 				// Keep early reflections from FDN
-				if (!kMuteEarly && !cascadeOnly_) {
+				if (!kMuteEarly) {
 					float earlyMid = (d0 + d1) * earlyMixGain_;
 					// Owl mode: narrow early (60%) for focused transients, late cascade provides width
 					float earlyWidthScale = cascadeDoubleUndersample_ ? 0.6f : 1.0f;
@@ -707,11 +711,22 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				float owlDelayScale = 1.0f; // Squared scale for delay writes - pulls down faster
 				float c3ForFb = 0.0f;       // DC-blocked feedback signal for envelope tracking
 				if (owlMode_) {
-					// Inverse square falloff above threshold for smooth limiting
-					// High threshold so only runaway feedback triggers, not normal input
-					float rawEnv = feedbackEnvelope_ * 3200.0f;
-					float excess = std::max(0.0f, rawEnv - 0.5f); // Knee at -66dB - only catches runaway
-					owlFbEnvScale = 1.0f / (1.0f + excess * excess * 128.0f);
+					// Envelope is now squared (outAbs²), so values are ~100x smaller
+					// Scale up to compensate
+					// Since envelope is already squared, use linear excess (not excess²) = quadratic on original
+
+					float rawEnv = feedbackEnvelope_ * 320000.0f;
+
+					/**
+					 * this was pretty good.
+					float excess = std::max(0.0f, rawEnv - 0.01f); // Lower threshold, release controls pumping
+					// Higher strength (10) for more pulldown
+					owlFbEnvScale = 1.0f / (1.0f + excess * 1000.0f);
+		*/
+					float excess = std::max(0.0f, rawEnv - 0.0000f); // Lower threshold, release controls pumping
+
+					// Higher strength (10) for more pulldown
+					owlFbEnvScale = 1.0f / (1.0f + excess * excess * 5000.0f);
 					// Delays get squared scaling - chokes loop faster, lets cascade ring out
 					owlDelayScale = owlFbEnvScale * owlFbEnvScale;
 				}
@@ -739,8 +754,8 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					owlD1ReadAccum_ += d1;
 
 					// C0 input: D0 + C3 global feedback (Vast-like topology)
-					// Global feedback scales with Room so envelope can catch it
-					float globalFbBase = 0.7f + roomNorm * 0.35f; // 0.7 at min Room, 1.05 at max
+					// Higher feedback - builds fast, limiter catches it
+					float globalFbBase = 0.9f + roomNorm * 0.4f; // 0.9 at min Room, 1.3 at max
 					float globalFb = (globalFbBase + cascadeNestFeedback_) * owlFbEnvScale * skyLoopFb_;
 					// Cheap HPF on feedback to tame LF rumble (~20Hz at 11kHz effective rate)
 					c3ForFb = prevC3Out_ - dcBlockState_;
@@ -750,7 +765,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					// D0 write: input - envelope limited (damping disabled for brightness)
 					// Use squared scale so delays choke faster than cascade
 					// fdnFb is less sensitive to Room than cascade feedback
-					float effectiveFeedback = fdnFb * fdnFeedbackScale_ * 1.4f * owlDelayScale;
+					float effectiveFeedback = fdnFb * fdnFeedbackScale_ * 1.8f * owlDelayScale;
 					float h0Sample = fdnIn * effectiveFeedback;
 					owlD0WriteAccum_ += h0Sample;
 					// D1 write will be set from C0 output below
@@ -786,7 +801,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					// Accumulate C0 output for D1 write - envelope limited (damping disabled for brightness)
 					// Use squared scale so delays choke faster than cascade
 					// fdnFb is less sensitive to Room than cascade feedback
-					float h1Sample = c0 * fdnFb * fdnFeedbackScale_ * 1.4f * owlDelayScale;
+					float h1Sample = c0 * fdnFb * fdnFeedbackScale_ * 1.8f * owlDelayScale;
 					owlD1WriteAccum_ += h1Sample;
 				}
 
@@ -870,9 +885,16 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					// Ignores fresh input passing through - only catches tail buildup
 					if (owlMode_) {
 						float outAbs = std::max(std::abs(c2Prev_), std::abs(c3Prev_));
-						// Very slow attack (~8s) to avoid pumping, slow release (~5s)
-						float coeff = (outAbs > feedbackEnvelope_) ? 0.0000125f : 0.00002f;
-						feedbackEnvelope_ += coeff * (outAbs - feedbackEnvelope_);
+						// Track squared signal - envelope accelerates during exponential growth
+						// Delta grows quadratically with level, matching exponential buildup rate
+						float outSq = outAbs * outAbs;
+						// TUNING: predelay knob controls attack/release ratio
+						// predelay_ 0-1 maps to ratio 0.25-4.0 (attack speed multiplier)
+						float tuneRatio = 0.25f + predelay_ * 3.75f;
+						float attackCoeff = 0.0000125f * tuneRatio;
+						float releaseCoeff = 0.0002f; // Very fast release (~100ms)
+						float coeff = (outSq > feedbackEnvelope_) ? attackCoeff : releaseCoeff;
+						feedbackEnvelope_ += coeff * (outSq - feedbackEnvelope_);
 					}
 					c3Prev_ = output;
 					c3Accum_ = 0.0f;
@@ -966,7 +988,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					h1 = owlD1WriteVal_;
 					h2 = owlD2WriteVal_;
 				}
-				else if (kMuteCascadeFeedback || cascadeOnly_) {
+				else if (kMuteCascadeFeedback) {
 					h0 += fdnIn;
 				}
 				else {
@@ -982,7 +1004,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				fdnWrite(2, h2);
 
 				// Early reflections from FDN
-				if (!kMuteEarly && !cascadeOnly_) {
+				if (!kMuteEarly) {
 					// Owl: use cached D0/D1 (4x rate) for consistency
 					float earlyD0 = owlMode_ ? owlD0Cache_ : d0;
 					float earlyD1 = owlMode_ ? owlD1Cache_ : d1;
@@ -1018,7 +1040,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				cascadeOutR = cascadeMono - cascadeSide;
 
 				// Inject input + cascade feedback into FDN
-				if (kMuteCascadeFeedback || cascadeOnly_) {
+				if (kMuteCascadeFeedback) {
 					h0 += fdnIn;
 				}
 				else {
@@ -1034,7 +1056,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				fdnWrite(2, h2);
 
 				// Early reflections from FDN
-				if (!kMuteEarly && !cascadeOnly_) {
+				if (!kMuteEarly) {
 					float earlyMid = (d0 + d1) * earlyMixGain_;
 					float earlySide = (d0 - d1) * earlyMixGain_ * dynamicWidth;
 					directEarlyL_ = (earlyMid + earlySide) * directEarlyGain_;
@@ -1049,7 +1071,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			// Output: early (FDN) + late (cascade)
 			// Nested modes (Sky/Vast) have no early (FDN repurposed), normal modes have early
 			float earlyL = 0.0f, earlyR = 0.0f;
-			if (!vastChainMode_ && !skyChainMode_ && !kMuteEarly && !cascadeOnly_) {
+			if (!vastChainMode_ && !skyChainMode_ && !kMuteEarly) {
 				float earlyMid = (d0 + d1) * earlyMixGain_;
 				float earlySide = (d0 - d1) * earlyMixGain_ * dynamicWidth;
 				earlyL = earlyMid + earlySide;
@@ -1098,6 +1120,14 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 		// Add direct early brightness tap (bypasses LPF for crisp transients)
 		outL += directEarlyL_;
 		outR += directEarlyR_;
+
+		// Subtract dry input to remove bleedthrough (sparse topology compensation)
+		// Toggle via predelay encoder button: DRY- = enabled, DRY+ = disabled
+		// inOrig is pre-gain, so subtract at unity
+		if (cascadeOnly_) {
+			outL -= inOrig;
+			outR -= inOrig;
+		}
 
 		// Clamp and output
 		constexpr float kMaxFloat = 0.06f;
@@ -1456,6 +1486,15 @@ void Featherverb::updateFeedbackPattern() {
 
 		// Owl mode: D2 echo tap - 10 periods, 50% duty cycle
 		owlEchoGain_ = owlMode_ ? yNorm * 0.5f * dsp::triangleSimpleUnipolar(yNorm * 10.0f, 0.5f) : 0.0f;
+
+		// Owl mode: envelope attack/release ratio - 5 periods for slow evolution
+		// Ratio modulates how fast attack is relative to release
+		// Low ratio (0.5): slower attack, quicker release - longer swell, faster decay
+		// High ratio (2.0): faster attack, slower release - catches peaks, holds longer
+		if (owlMode_) {
+			float tri5 = dsp::triangleSimpleUnipolar(yNorm * 5.0f); // [0,1]
+			owlEnvRatio_ = 0.5f + tri5 * 1.5f;                      // Range: 0.5 to 2.0
+		}
 	}
 	else if (cascadeDoubleUndersample_) {
 		float tri13 = dsp::triangleSimpleUnipolar(yNorm * 13.0f) * 2.0f - 1.0f;

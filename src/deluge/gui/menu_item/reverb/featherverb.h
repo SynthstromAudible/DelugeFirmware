@@ -202,11 +202,11 @@ public:
 		return AudioEngine::reverb.getModel() == dsp::Reverb::Model::FEATHERVERB;
 	}
 
-	/// Click encoder to toggle cascade-only diagnostic mode
+	/// Click encoder to toggle dry subtraction (removes bleedthrough)
 	MenuItem* selectButtonPress() override {
 		bool current = AudioEngine::reverb.getFeatherCascadeOnly();
 		AudioEngine::reverb.setFeatherCascadeOnly(!current);
-		display->displayPopup(current ? "FULL" : "CASC");
+		display->displayPopup(current ? "DRY+" : "DRY-");
 		return NO_NAVIGATION;
 	}
 };
