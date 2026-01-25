@@ -224,11 +224,15 @@ private:
 
 	// Envelope followers for feedback riding
 	float feedbackEnvelope_{0.0f}; // Tracks C3 output for self-limiting feedback
-	float inputEnvelope_{0.0f};    // Tracks input level for ratio-based limiting (Owl mode)
+	float inputEnvelope_{0.0f};    // P75 input level for ratio-based limiting (Owl mode)
+	float owlFbEnvScale_{1.0f};    // Servo-controlled feedback scale (persists between buffers)
+	uint8_t owlSilenceCount_{0};   // Buffers below noise floor (reset P75 after threshold)
 
 	// Undersampling state
 	bool undersamplePhase_{false};
 	float accumIn_{0.0f};
+	float inputAccum_{0.0f};    // Peak hold of |fdnIn|
+	bool inputPeakReset_{true}; // Reset peak on next above-noise sample
 	float prevOutL_{0.0f};
 	float prevOutR_{0.0f};
 	float currOutL_{0.0f};
@@ -257,6 +261,8 @@ private:
 	static constexpr float kPreCascadeAaCoeff = 0.30f;  // LP coeff ~3kHz for pre-decimation AA (below 4x Nyquist)
 	static constexpr float kCascadeLpCoeffMono = 0.45f; // LP coeff ~4kHz for cascade mono (darker tail)
 	static constexpr float kCascadeLpCoeffSide = 0.7f;  // LP coeff ~6kHz for cascade side (brighter stereo spread)
+	static constexpr float kOwlLpCoeffMono = 0.55f;     // Owl: brighter mono LP for more harmonic content
+	static constexpr float kOwlLpCoeffSide = 0.8f;      // Owl: brighter side LP for richer stereo
 	uint8_t c0Phase_{0};                                // Phase counter for C0 undersampling
 	float c0Accum_{0.0f};                               // Accumulated input for C0
 	float c0Prev_{0.0f};                                // Previous C0 output for interpolation
@@ -282,7 +288,8 @@ private:
 	float owlD2WriteAccum_{0.0f};                       // Accumulated D2 writes for AA (Owl mode)
 	float owlD2WriteVal_{0.0f};                         // Held D2 write value for 4x undersample (Owl mode)
 	float owlEchoGain_{0.0f};                           // Z3-controlled D2 echo tap gain (phi triangle)
-	float owlEnvRatio_{1.0f};                           // Z3-controlled attack/release ratio (phi triangle)
+	float owlEnvRatio_{1.0f};                           // Predelay-controlled attack/release ratio
+	float owlZ3Norm_{0.5f};                             // Z3 absolute position for max boost scaling
 
 	// Direct early tap (bypasses output LPF for brightness)
 	float directEarlyL_{0.0f};
