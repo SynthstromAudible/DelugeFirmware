@@ -5,8 +5,8 @@
 #include "cstdint"
 #include "mocks/timer_mocks.h"
 #include <iostream>
-#include <stdlib.h>
 #include <print>
+#include <stdlib.h>
 #ifdef _WIN32
 #include <Windows.h>
 #else
