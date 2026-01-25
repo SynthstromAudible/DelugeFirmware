@@ -227,6 +227,7 @@ private:
 	float inputEnvelope_{0.0f};    // P75 input level for ratio-based limiting (Owl mode)
 	float owlFbEnvScale_{1.0f};    // Servo-controlled feedback scale (persists between buffers)
 	uint8_t owlSilenceCount_{0};   // Buffers below noise floor (reset P75 after threshold)
+	float owlDuckEnv_{0.0f};       // Fast input envelope for ducking (Owl mode)
 
 	// Undersampling state
 	bool undersamplePhase_{false};
