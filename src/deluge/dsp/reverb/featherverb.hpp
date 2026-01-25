@@ -223,11 +223,13 @@ private:
 	float cascadeSideGain_{0.2f};  // Stereo side signal gain (higher for Owl mode)
 
 	// Envelope followers for feedback riding
-	float feedbackEnvelope_{0.0f}; // Tracks C3 output for self-limiting feedback
-	float inputEnvelope_{0.0f};    // P75 input level for ratio-based limiting (Owl mode)
-	float owlFbEnvScale_{1.0f};    // Servo-controlled feedback scale (persists between buffers)
-	uint8_t owlSilenceCount_{0};   // Buffers below noise floor (reset P75 after threshold)
-	float owlDuckEnv_{0.0f};       // Fast input envelope for ducking (Owl mode)
+	float feedbackEnvelope_{0.0f};    // Tracks C3 output for self-limiting feedback
+	float inputEnvelope_{0.0f};       // P75 input level for ratio-based limiting (Owl mode)
+	float owlFbEnvScale_{1.0f};       // Servo-controlled feedback scale (persists between buffers)
+	float owlFbEnvScaleTarget_{1.0f}; // Servo target (updated at strided rate, smoothed per-buffer)
+	uint8_t owlSilenceCount_{0};      // Buffers below noise floor (reset P75 after threshold)
+	float owlDuckEnv_{0.0f};          // Fast input envelope for ducking (Owl mode)
+	uint16_t slowUpdateCounter_{0};   // Sample counter for striding slow calculations (servo, LFO)
 
 	// Undersampling state
 	bool undersamplePhase_{false};
@@ -310,6 +312,24 @@ private:
 			pos -= fdnLengths_[line];
 		}
 		return buffer_[fdnOffsets_[line] + pos];
+	}
+
+	// Interpolating delay read for smooth pitch modulation
+	[[gnu::always_inline]] float fdnReadAtInterp(size_t line, float offset) const {
+		size_t len = fdnLengths_[line];
+		size_t base = fdnOffsets_[line];
+		size_t pos0 = fdnWritePos_[line] + static_cast<size_t>(offset);
+		if (pos0 >= len) {
+			pos0 -= len;
+		}
+		size_t pos1 = pos0 + 1;
+		if (pos1 >= len) {
+			pos1 = 0;
+		}
+		float frac = offset - static_cast<float>(static_cast<size_t>(offset));
+		float s0 = buffer_[base + pos0];
+		float s1 = buffer_[base + pos1];
+		return s0 + frac * (s1 - s0);
 	}
 
 	[[gnu::always_inline]] void fdnWrite(size_t line, float value) {

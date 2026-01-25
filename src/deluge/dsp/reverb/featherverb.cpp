@@ -201,104 +201,76 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 	const float owlGlobalFbBase = 0.9f + owlRoomNorm * 0.4f;
 	const float owlGlobalFbCoeff = (owlGlobalFbBase + cascadeNestFeedback_) * skyLoopFb_;
 
-	// Owl envelope application (buffer-rate - envelope time constants are very slow)
-	// Uses ratio-based limiting: compares feedback level to input level
-	// This works correctly for both loud and quiet sources
-	// owlFbEnvScale__ is a member variable that persists between buffers
+	// Owl servo: ratio-based feedback limiting (every buffer)
 	float owlDelayScale = 1.0f;
 	if (owlMode_) {
-		// Underdamped servo: aims for target ratio each buffer
-		// With 1-buffer delay, this results in controlled oscillation around target
-		// Oscillation is expected and musically desirable (sustain modulation)
-		constexpr float kNoiseFloorSq = 1.0e-9f; // Lowered for debug - match P75 tracking
-		constexpr float kTargetRatio = 1.0f;     // Output should match input level
-		constexpr float kAbsoluteLimit = 1e-4f;  // Hard ceiling: ~-40dBFS squared
-		constexpr float kSoftLimit = 1e-5f;      // Soft ceiling: start pulling back here
-
-		// Z3 controls max boost, but compensate for skyLoopFb_ (which also increases with Z3)
-		// This prevents runaway when both Z3-controlled gains compound
-		// float maxBoost = (1.0f + 10*owlZ3Norm_ ) ; // std::max(skyLoopFb_, 0.5f);
-		// Modulate boost rate with owlEnvRatio_ (predelay knob)
-		// float boostRate = 0.03f * owlEnvRatio_; // 0.015 at low, 0.06 at high
-
-		// Ratio-based limiting: compare feedback level to input level
-		// inputAccum_ is peak-hold, feedbackEnvelope_ is smoothed
 		float ratio = feedbackEnvelope_ / std::max(inputAccum_, 1e-6f);
-
-		// Knee ratio with hysteresis zone
 		float kneeRatio = owlZ3Norm_ * 0.2f;
 		constexpr float kBandwidth = 0.001f;
-		float excess = std::max(0.0f, ratio - kneeRatio - kBandwidth);  // limit above 0.85
-		float deficit = std::max(0.0f, kneeRatio - kBandwidth - ratio); // boost below 0.65
-
-		constexpr float kLimitStrength = 100.0f; // Attenuation above knee
-		constexpr float kBoostStrength = 10.0f;  // Boost below knee
-		float denom = 1.0f + excess * kLimitStrength;
+		float excess = std::max(0.0f, ratio - kneeRatio - kBandwidth);
+		float deficit = std::max(0.0f, kneeRatio - kBandwidth - ratio);
+		constexpr float kLimitStrength = 100.0f;
+		constexpr float kBoostStrength = 50.0f;
+		float denom = 1.0f + excess * excess * kLimitStrength;
 		float numer = 1.0f + deficit * kBoostStrength;
 		float targetScale = (numer) / (denom);
-		targetScale = std::clamp(targetScale, 0.001f, targetScale);
-
-		// Smooth scale changes to prevent scratchy artifacts
-		owlFbEnvScale_ += (targetScale - owlFbEnvScale_) * 0.1f;
-
-		// Debug servo: log every ~170ms
-		static uint8_t servoDbg = 0;
-		if (++servoDbg >= 64) {
-			servoDbg = 0;
-			D_PRINTLN("servo: r=%.2f ex=%.3f def=%.3f tgt=%.2f scl=%.2f", ratio, excess, deficit, targetScale,
-			          owlFbEnvScale_);
-		}
+		targetScale = std::clamp(targetScale, 0.001f, 10.0f);
+		owlFbEnvScale_ += (targetScale - owlFbEnvScale_) * 0.03f; // Slow smoothing to avoid gain scratching
 	}
-	owlDelayScale = owlFbEnvScale_ * owlFbEnvScale_; // Squared for faster choke
-	const float owlSmearFb = owlCascadeFb * 0.75f * skyLoopFb_ * owlFbEnvScale_;
-	// Z1-controlled forward cross-coupling: more paths at larger room = more modes
-	const float owlCrossSmear = owlRoomNorm * owlSmearFb * 0.4f; // Scales 0→0.4x smear with room
-	// Hoist threshold checks to buffer-rate (avoid 4 conditionals per sample in loop)
-	const bool owlSmearEnabled = owlMode_ && owlSmearFb > 0.001f;
-	const bool owlCrossSmearEnabled = owlMode_ && owlCrossSmear > 0.001f;
-	const float owlEffFb = owlFdnFb * fdnFeedbackScale_ * 1.8f * owlDelayScale;
-	const float owlGlobalFb = owlGlobalFbCoeff * owlFbEnvScale_;
-	const float owlReadCacheScale = owlFbEnvScale_ * 0.5f; // Combined scale for 4x-rate cache averaging
+	// Owl-specific buffer-rate calculations (skip entirely when not in Owl mode)
+	bool owlSmearEnabled = false;
+	bool owlCrossSmearEnabled = false;
+	float owlSmearFb = 0.0f;
+	float owlCrossSmear = 0.0f;
+	float owlEffFb = 0.0f;
+	float owlGlobalFb = 0.0f;
+	float owlReadCacheScale = 0.5f;
+	if (owlMode_) {
+		owlDelayScale = owlFbEnvScale_ * owlFbEnvScale_; // Squared for faster choke
+		owlSmearFb = owlCascadeFb * 0.75f * skyLoopFb_ * owlFbEnvScale_;
+		owlCrossSmear = owlRoomNorm * owlSmearFb * 0.4f;
+		owlSmearEnabled = owlSmearFb > 0.001f;
+		owlCrossSmearEnabled = owlCrossSmear > 0.001f;
+		owlEffFb = owlFdnFb * fdnFeedbackScale_ * 1.8f * owlDelayScale;
+		owlGlobalFb = owlGlobalFbCoeff * owlFbEnvScale_;
+		owlReadCacheScale = owlFbEnvScale_ * 0.5f;
+	}
 
 	// Sky/Vast shared feedback constants (hoisted - don't change per sample)
-	const float chainLoopFbBase = feedback_ * 0.4f * delayRatio_ * skyLoopFb_;
-	const float chainGlobalFbBase = cascadeNestFeedback_ * 0.8f;
-	const float chainC2FbBase = chainLoopFbBase * (1.6f - skyFbBalance_ * 1.4f);
-	const float chainC3FbBase = chainLoopFbBase * (0.2f + skyFbBalance_ * 1.4f);
+	float chainGlobalFbBase = 0.0f;
+	float chainC2FbBase = 0.0f;
+	float chainC3FbBase = 0.0f;
+	if (skyChainMode_ || vastChainMode_) {
+		const float chainLoopFbBase = feedback_ * 0.4f * delayRatio_ * skyLoopFb_;
+		chainGlobalFbBase = cascadeNestFeedback_ * 0.8f;
+		chainC2FbBase = chainLoopFbBase * (1.6f - skyFbBalance_ * 1.4f);
+		chainC3FbBase = chainLoopFbBase * (0.2f + skyFbBalance_ * 1.4f);
+	}
 
 	// Normal mode hoisted constant
 	const float cascadeFbMult = tailFeedback * cascadeFeedbackMult_;
 
-	// Buffer-rate LFO for Sky/Vast/Owl (random walk evolves slowly due to smoothing)
+	// LFO for Sky/Vast/Owl (every buffer - striding causes tonal artifacts)
 	float lfoTriCached = skyRandWalkSmooth_;
-	size_t d0ModCached = 0;
-	size_t d1ModCached = 0;
+	float d0ModCached = 0.0f;
+	float d1ModCached = 0.0f;
 	if (skyChainMode_ || vastChainMode_ || owlMode_) {
-		// Advance random walk by buffer duration worth of evolution
-		const size_t numSteps = input.size() / 2; // 2x undersample phases per buffer
-		// Advance LCG state (single step gives good randomness)
+		const size_t numSteps = input.size() / 2;
 		skyRandState_ = skyRandState_ * 1664525u + 1013904223u;
 		float randStep = (static_cast<float>(skyRandState_ >> 16) / 32768.0f - 1.0f);
-		// Scale step by number of iterations (larger aggregate step)
 		float stepSize = 0.001f * skyLfoFreq_ * static_cast<float>(numSteps);
 		skyRandWalk_ += randStep * stepSize;
-		// Soft bounds: decay by 0.9995^numSteps ≈ 0.97 for 64 steps
 		skyRandWalk_ *= 0.97f;
 		skyRandWalk_ = std::clamp(skyRandWalk_, -1.0f, 1.0f);
-		// Smoothing: 1-(1-c)^n ≈ n*c for small c
 		float smoothCoeff = vastChainMode_ ? 0.012f * skyLfoFreq_ : 0.025f * skyLfoFreq_;
 		float bufferSmooth = std::min(1.0f, smoothCoeff * static_cast<float>(numSteps));
 		skyRandWalkSmooth_ += bufferSmooth * (skyRandWalk_ - skyRandWalkSmooth_);
 		lfoTriCached = skyRandWalkSmooth_;
-		// Compute modulation offsets once for buffer (disabled for Owl - causes scratchy sound)
-		if (owlMode_) {
-			d0ModCached = 0;
-			d1ModCached = 0;
-		}
-		else {
+		// Compute modulation offsets as floats for interpolation (Sky/Vast only)
+		if (!owlMode_) {
 			float pitchScale = 1.0f - skyLfoRouting_;
-			d0ModCached = static_cast<size_t>(std::max(0.0f, lfoTriCached * modDepth_ * pitchScale));
-			d1ModCached = static_cast<size_t>(std::max(0.0f, -lfoTriCached * modDepth_ * pitchScale));
+			d0ModCached = std::max(0.0f, lfoTriCached * modDepth_ * pitchScale);
+			d1ModCached = std::max(0.0f, -lfoTriCached * modDepth_ * pitchScale);
 		}
 	}
 
@@ -325,36 +297,45 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 	// Linear approx: (1-x)^n ≈ 1 - n*x for small x (avoids std::pow)
 	const float inputAccumDecay = 1.0f - (owlMode_ ? 5e-6f * static_cast<float>(input.size()) : 0.0f);
 
-	// Sky/Vast feedback envelope scaling (buffer-rate - envelope is buffer-rate)
-	const float chainFbEnvScale = 1.0f - std::min(feedbackEnvelope_ * 3.0f, 1.0f);
-	const float chainGlobalFb = chainGlobalFbBase * chainFbEnvScale;
-	const float chainC2Fb = chainC2FbBase * chainFbEnvScale;
-	const float chainC3Fb = chainC3FbBase * chainFbEnvScale;
-
-	// Sky/Vast amplitude modulation (buffer-rate - LFO is buffer-rate)
-	const float chainLfoOut = lfoTriCached * skyLfoAmp_ * skyLfoRouting_;
-	const float chainAmpModL = 1.0f + chainLfoOut * 0.3f;
-	const float chainAmpModR = 1.0f - chainLfoOut * 0.3f;
+	// Sky/Vast feedback envelope scaling and amplitude modulation (buffer-rate)
+	float chainGlobalFb = 0.0f;
+	float chainC2Fb = 0.0f;
+	float chainC3Fb = 0.0f;
+	float chainLfoOut = 0.0f;
+	float chainAmpModL = 1.0f;
+	float chainAmpModR = 1.0f;
+	if (skyChainMode_ || vastChainMode_) {
+		const float chainFbEnvScale = 1.0f - std::min(feedbackEnvelope_ * 3.0f, 1.0f);
+		chainGlobalFb = chainGlobalFbBase * chainFbEnvScale;
+		chainC2Fb = chainC2FbBase * chainFbEnvScale;
+		chainC3Fb = chainC3FbBase * chainFbEnvScale;
+		chainLfoOut = lfoTriCached * skyLfoAmp_ * skyLfoRouting_;
+		chainAmpModL = 1.0f + chainLfoOut * 0.3f;
+		chainAmpModR = 1.0f - chainLfoOut * 0.3f;
+	}
 
 	// Stereo rotation coefficients (buffer-rate, small-angle approx)
 	const float rotSinA = lfoTriCached * 0.5f;
 	const float rotCosA = 1.0f - rotSinA * rotSinA * 0.5f;
 
-	// Owl: multi-tap write offset modulation (buffer-rate, creates evolving resonances)
-	// L→R and R→L use opposite polarity for stereo movement
-	const int32_t tapModL = owlMode_ ? static_cast<int32_t>(lfoTriCached * 280.0f) : 0;
-	const int32_t tapModR = -tapModL;
-	// Owl: FDN feedback modulation (opposite polarity from tapModL, ±30% for strong resonance shift)
-	const float absLfoTri = std::abs(lfoTriCached); // Cache for reuse in loop
-	const float owlFbLfoMod = owlMode_ ? (1.0f - lfoTriCached * 0.3f) : 1.0f;
-	// Owl: cascade feedback boost (opposite of D2 reduction - when D2 dips, cascade rises)
-	// 1.3x base + LFO modulation, scaled by envelope for limiting
-	const float owlCascadeFbMod = owlMode_ ? (1.3f + absLfoTri * 0.3f) * owlFbEnvScale_ : 1.0f;
-	// Owl: D2 read modulation factor (buffer-rate, 0.7 to 1.0 range)
-	const float owlD2ReadMod = owlMode_ ? (1.0f - absLfoTri * 0.3f) : 1.0f;
-	// Owl: pre-combined write scales (saves 4 multiplies/sample)
-	const float owlWriteScale = owlEffFb * owlFbLfoMod;        // For h0Sample, h1Sample
-	const float owlH2Scale = owlFdnFb * 0.95f * owlDelayScale; // For h2Sample
+	// Owl: buffer-rate modulation values (skip entirely when not in Owl mode)
+	int32_t tapModL = 0;
+	int32_t tapModR = 0;
+	float owlFbLfoMod = 1.0f;
+	float owlCascadeFbMod = 1.0f;
+	float owlD2ReadMod = 1.0f;
+	float owlWriteScale = 0.0f;
+	float owlH2Scale = 0.0f;
+	if (owlMode_) {
+		tapModL = static_cast<int32_t>(lfoTriCached * 280.0f);
+		tapModR = -tapModL;
+		const float absLfoTri = std::abs(lfoTriCached);
+		owlFbLfoMod = 1.0f - lfoTriCached * 0.3f;
+		owlCascadeFbMod = (1.3f + absLfoTri * 0.3f) * owlFbEnvScale_;
+		owlD2ReadMod = 1.0f - absLfoTri * 0.3f;
+		owlWriteScale = owlEffFb * owlFbLfoMod;
+		owlH2Scale = owlFdnFb * 0.95f * owlDelayScale;
+	}
 
 	// Cache matrix
 	const auto& m = matrix_;
@@ -425,12 +406,12 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 
 			// LFO values cached at buffer rate for Sky/Vast/Owl (random walk evolves slowly)
 			const float lfoTri = lfoTriCached;
-			const size_t d0Mod = d0ModCached;
-			const size_t d1Mod = d1ModCached;
+			const float d0Mod = d0ModCached;
+			const float d1Mod = d1ModCached;
 
-			// Read FDN delays (Owl: reduced gain to balance cascade emphasis)
-			float d0 = fdnReadAt(0, d0Mod);
-			float d1 = fdnReadAt(1, d1Mod);
+			// Read FDN delays with interpolation for smooth pitch mod (Sky/Vast)
+			float d0 = fdnReadAtInterp(0, d0Mod);
+			float d1 = fdnReadAtInterp(1, d1Mod);
 			float d2 = fdnRead(2);
 			// Owl: reduce D0/D1 gain, modulate D2 (buffer-rate values)
 			if (owlMode_) {
@@ -509,10 +490,10 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				c0Phase_ = (c0Phase_ + 1) & 1;
 				c0 = c0Prev_;
 
-				// D0 delay between C0 and C1 (modulated pitch)
+				// D0 delay between C0 and C1 (modulated pitch with interpolation)
 				fdnWrite(0, c0);
 				fdnWrite(0, c0); // Double write for 4x undersample
-				float d0Out = fdnReadAt(0, d0Mod);
+				float d0Out = fdnReadAtInterp(0, d0Mod);
 
 				// C1 with 4x undersample
 				c1Accum_ += d0Out;
@@ -527,10 +508,10 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				c1Phase_ = (c1Phase_ + 1) & 1;
 				c1 = c1Prev_;
 
-				// D1 delay between C1 and C2 (modulated pitch)
+				// D1 delay between C1 and C2 (modulated pitch with interpolation)
 				fdnWrite(1, c1);
 				fdnWrite(1, c1);
-				float d1Out = fdnReadAt(1, d1Mod);
+				float d1Out = fdnReadAtInterp(1, d1Mod);
 
 				// C2 with 4x undersample + pitch modulation
 				c2Accum_ += d1Out;
@@ -650,19 +631,19 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				// C0 at 2x rate
 				c0 = processCascadeStage(0, chainIn);
 
-				// D0 delay - feedback from C2 smeared through C0 (modulated pitch)
+				// D0 delay - feedback from C2 smeared through C0 (interpolated pitch mod)
 				// Z1 controls balance: low Z1 = more C2→C0, high Z1 = more C3→C1
 				float c2Smeared = processCascadeStage(0, c2Prev_ * chainC2Fb);
 				fdnWrite(0, c0 + c2Smeared);
-				float d0Out = fdnReadAt(0, d0Mod);
+				float d0Out = fdnReadAtInterp(0, d0Mod);
 
 				// C1 at 2x rate
 				c1 = processCascadeStage(1, d0Out);
 
-				// D1 delay - feedback from C3 smeared through C1 (modulated pitch)
+				// D1 delay - feedback from C3 smeared through C1 (interpolated pitch mod)
 				float c3Smeared = processCascadeStage(1, c3Prev_ * chainC3Fb);
 				fdnWrite(1, c1 + c3Smeared);
-				float d1Out = fdnReadAt(1, d1Mod);
+				float d1Out = fdnReadAtInterp(1, d1Mod);
 
 				// C2 at 2x rate
 				c2 = processCascadeStage(2, d1Out);
@@ -1235,28 +1216,22 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 	}
 
 	// Owl: apply aggregate inputAccum_ decay (hoisted from per-sample)
-	inputAccum_ *= inputAccumDecay;
+	if (owlMode_) {
+		inputAccum_ *= inputAccumDecay;
+	}
 
 	// Buffer-end envelope update: track amplitude (not squared)
 	float outAmp = std::abs(prevOutputMono_);
 	float releaseCoeff = 0.003f;
 	if (owlMode_) {
-		// Feedback envelope: track output level
+		// Feedback envelope: track output level (every buffer)
 		float attackCoeff = 0.008f + predelay_ * 0.019f;
-		constexpr float kReleaseCoeff = 0.05f; // ~50ms release
+		constexpr float kReleaseCoeff = 0.05f;
 		float fbCoeff = (outAmp > feedbackEnvelope_) ? attackCoeff : kReleaseCoeff;
 		feedbackEnvelope_ += fbCoeff * (outAmp - feedbackEnvelope_);
-
-		// Debug: sample every ~170ms (64 buffers at 375Hz)
-		static uint8_t dbgCount = 0;
-		if (++dbgCount >= 64) {
-			dbgCount = 0;
-			float ratio = feedbackEnvelope_ / std::max(inputAccum_, 1e-6f);
-			D_PRINTLN("fb=%.4f in=%.4f r=%.2f", feedbackEnvelope_ * 100.0f, inputAccum_ * 100.0f, ratio);
-		}
 	}
 	else {
-		// Non-Owl modes: original linear tracking
+		// Non-Owl modes: original per-buffer tracking
 		float attackCoeff = 0.02f;
 		float envCoeff = (outAmp > feedbackEnvelope_) ? attackCoeff : releaseCoeff;
 		feedbackEnvelope_ += envCoeff * (outAmp - feedbackEnvelope_);
@@ -1428,6 +1403,10 @@ void Featherverb::setZone2(int32_t value) {
 	zone2_ = value;
 	updateSizes();
 	updateFeedbackPattern(); // Recalc cascade coefficients (depend on cascadeDoubleUndersample_)
+	// Resync z1-controlled params (skyFbBalance_, LFO, etc.) to avoid feedback imbalance
+	if (skyChainMode_ || vastChainMode_ || owlMode_) {
+		updateMatrix();
+	}
 }
 
 void Featherverb::updateSizes() {
@@ -1564,6 +1543,10 @@ static constexpr std::array<phi::PhiTriConfig, 3> kFeedback3TriBank = {{
 void Featherverb::setZone3(int32_t value) {
 	zone3_ = value;
 	updateFeedbackPattern();
+	// Resync z1-controlled params (skyFbBalance_, LFO, etc.) to avoid feedback imbalance
+	if (skyChainMode_ || vastChainMode_ || owlMode_) {
+		updateMatrix();
+	}
 }
 
 void Featherverb::updateFeedbackPattern() {
@@ -1609,9 +1592,10 @@ void Featherverb::updateFeedbackPattern() {
 	// LFO pitch wobble depth - 13 periods (fast), adds subtle chorus/shimmer
 	if (skyChainMode_ || vastChainMode_ || owlMode_) {
 		// Sky/Vast/Owl: Z3 controls pitch wobble (lower max at 4x to avoid artifacts)
+		// Sky max capped at 180 to match z1's modDepth range and avoid aliasing
 		float tri13 = dsp::triangleSimpleUnipolar(yNorm * 13.0f) * 2.0f - 1.0f;
-		float maxWobble = (vastChainMode_ || owlMode_) ? 80.0f : 250.0f;
-		float wobbleTexture = (vastChainMode_ || owlMode_) ? 15.0f : 50.0f;
+		float maxWobble = (vastChainMode_ || owlMode_) ? 80.0f : 140.0f;
+		float wobbleTexture = (vastChainMode_ || owlMode_) ? 15.0f : 40.0f;
 		modDepth_ = std::max(0.0f, yNorm * maxWobble + tri13 * wobbleTexture);
 
 		// Z3 also controls local loop feedback (smeared path density)
