@@ -205,32 +205,24 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 	float owlDelayScale = 1.0f;
 	if (owlMode_) {
 		float ratio = feedbackEnvelope_ / std::max(inputAccum_, 1e-6f);
-		float kneeRatio = owlZ3Norm_ * 0.2f;
+		float kneeRatio = 0.1f + (owlZ3Norm_ * 0.1f);
 		constexpr float kBandwidth = 0.001f;
 		float excess = std::max(0.0f, ratio - kneeRatio - kBandwidth);
 		float deficit = std::max(0.0f, kneeRatio - kBandwidth - ratio);
-		constexpr float kLimitStrength = 100.0f;
-		constexpr float kBoostStrength = 50.0f;
-		float denom = 1.0f + excess * excess * kLimitStrength;
+		constexpr float kLimitStrength = 10.0f;
+		constexpr float kBoostStrength = 10.0f;
+		float denom = 1.0f + excess * kLimitStrength;
 		float numer = 1.0f + deficit * kBoostStrength;
 		float targetScale = (numer) / (denom);
 		targetScale = std::clamp(targetScale, 0.001f, 10.0f);
-		owlFbEnvScale_ += (targetScale - owlFbEnvScale_) * 0.03f; // Slow smoothing to avoid gain scratching
+		owlFbEnvScale_ += (targetScale - owlFbEnvScale_) * 0.003f; // Very slow smoothing to avoid servo oscillations
 	}
 	// Owl-specific buffer-rate calculations (skip entirely when not in Owl mode)
-	bool owlSmearEnabled = false;
-	bool owlCrossSmearEnabled = false;
-	float owlSmearFb = 0.0f;
-	float owlCrossSmear = 0.0f;
 	float owlEffFb = 0.0f;
 	float owlGlobalFb = 0.0f;
 	float owlReadCacheScale = 0.5f;
 	if (owlMode_) {
 		owlDelayScale = owlFbEnvScale_ * owlFbEnvScale_; // Squared for faster choke
-		owlSmearFb = owlCascadeFb * 0.75f * skyLoopFb_ * owlFbEnvScale_;
-		owlCrossSmear = owlRoomNorm * owlSmearFb * 0.4f;
-		owlSmearEnabled = owlSmearFb > 0.001f;
-		owlCrossSmearEnabled = owlCrossSmear > 0.001f;
 		owlEffFb = owlFdnFb * fdnFeedbackScale_ * 1.8f * owlDelayScale;
 		owlGlobalFb = owlGlobalFbCoeff * owlFbEnvScale_;
 		owlReadCacheScale = owlFbEnvScale_ * 0.5f;
@@ -839,8 +831,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				// Input → D0 → C0 → D1 → C1 → C2 → C3 → Output
 				//               ↑                        ↓
 				//              D2 ←──────────────────────┘
-				float smearFb = 0.0f;
-				float crossSmear = 0.0f;     // Z1-controlled forward cross-coupling (C0→C2, C1→C3)
 				float fdnFb = feedback_;     // FDN feedback - scaled separately for Owl
 				float cascadeFb = feedback_; // Cascade feedback - scaled up for Owl
 				float c3ForFb = 0.0f;        // DC-blocked feedback signal for envelope tracking
@@ -848,8 +838,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					// Use buffer-rate hoisted constants (envelope applied once per buffer)
 					fdnFb = owlFdnFb;
 					cascadeFb = owlCascadeFb;
-					smearFb = owlSmearFb;
-					crossSmear = owlCrossSmear;
 
 					// Accumulate D0/D1/D2 reads for 4x AA (envelope scale moved to 4x cache averaging)
 					owlD0ReadAccum_ += d0;
@@ -872,10 +860,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				if (c0Phase_ == 1) {
 					float avgIn = c0Accum_ * 0.5f;
 					c0Prev_ = processCascadeStage(0, avgIn);
-					// Owl: direct cross-coupling C2→C0, C3→C0 (cheaper than allpass smear)
-					if (owlSmearEnabled) {
-						c0Prev_ += (c2Prev_ + c3Prev_ * 0.5f) * smearFb;
-					}
 					// Double write for 4x undersample
 					if (cascadeWritePos_[0] == 0) {
 						cascadeWritePos_[0] = cascadeLengths_[0] - 1;
@@ -902,10 +886,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				if (c1Phase_ == 1) {
 					float avgIn = c1Accum_ * 0.5f;
 					c1Prev_ = processCascadeStage(1, avgIn);
-					// Owl: direct cross-coupling C2→C1, C3→C1 (symmetric with C0)
-					if (owlSmearEnabled) {
-						c1Prev_ += (c2Prev_ + c3Prev_ * 0.5f) * smearFb;
-					}
 					if (cascadeWritePos_[1] == 0) {
 						cascadeWritePos_[1] = cascadeLengths_[1] - 1;
 					}
@@ -926,10 +906,12 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					float avgIn = c2Accum_ * 0.5f;
 					float c2Coeff = cascadeCoeffs_[2];
 					size_t origWritePos = cascadeWritePos_[2];
+					// Pitch mod with subtraction wrap (no modulo - much cheaper)
 					size_t c2ModOffset = static_cast<size_t>(std::max(0.0f, lfoTri * cascadeModDepth_));
-					size_t readPos = (origWritePos + c2ModOffset) % cascadeLengths_[2];
-					size_t idx = cascadeOffsets_[2] + readPos;
-					float delayed = buffer_[idx];
+					size_t readPos = origWritePos + c2ModOffset;
+					if (readPos >= cascadeLengths_[2])
+						readPos -= cascadeLengths_[2];
+					float delayed = buffer_[cascadeOffsets_[2] + readPos];
 					float output = -c2Coeff * avgIn + delayed;
 					float writeVal = avgIn + c2Coeff * output;
 					buffer_[cascadeOffsets_[2] + origWritePos] = writeVal;
@@ -938,15 +920,14 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					buffer_[cascadeOffsets_[2] + cascadeWritePos_[2]] = writeVal;
 					if (++cascadeWritePos_[2] >= cascadeLengths_[2])
 						cascadeWritePos_[2] = 0;
+					// Multi-tap write with subtraction wrap (cheaper than modulo)
 					if (cascadeDoubleUndersample_) {
-						size_t tapPos = (origWritePos + kMultiTapOffsets[2]) % cascadeLengths_[2];
+						size_t tapPos = origWritePos + kMultiTapOffsets[2];
+						if (tapPos >= cascadeLengths_[2])
+							tapPos -= cascadeLengths_[2];
 						buffer_[cascadeOffsets_[2] + tapPos] += writeVal * kMultiTapGain;
 					}
 					c2Prev_ = output;
-					// Owl: direct forward cross-coupling C0→C2 (more modes at larger room)
-					if (owlCrossSmearEnabled) {
-						c2Prev_ += c0Prev_ * crossSmear;
-					}
 					c2Accum_ = 0.0f;
 				}
 				c2Phase_ = (c2Phase_ + 1) & 1;
@@ -978,10 +959,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 						buffer_[cascadeOffsets_[3] + tapPos] += writeVal * kMultiTapGain;
 					}
 					c3Prev_ = output;
-					// Owl: direct forward cross-coupling C1→C3 (more modes at larger room)
-					if (owlCrossSmearEnabled) {
-						c3Prev_ += c1Prev_ * crossSmear;
-					}
 					c3Accum_ = 0.0f;
 				}
 				// Cache LFO value when cascade stages update to avoid discontinuities
