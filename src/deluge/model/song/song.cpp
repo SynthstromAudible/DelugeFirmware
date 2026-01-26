@@ -59,6 +59,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "storage/field_serialization.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
@@ -1178,6 +1179,16 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("lpf", lpf);
 	writer.writeAttribute("pan", AudioEngine::reverbPan);
 	writer.writeAttribute("model", util::to_underlying(model));
+
+	// Featherverb-specific params (only saved when model is FEATHERVERB)
+	if (model == dsp::Reverb::Model::FEATHERVERB) {
+		WRITE_FIELD(writer, AudioEngine::reverb.getFeatherZone1(), "featherZone1");
+		WRITE_FIELD_DEFAULT(writer, AudioEngine::reverb.getFeatherZone2(), "featherZone2", 512);
+		WRITE_FIELD(writer, AudioEngine::reverb.getFeatherZone3(), "featherZone3");
+		WRITE_FLOAT(writer, AudioEngine::reverb.getFeatherPredelay(), "featherPredelay", 2147483648.0f);
+		WRITE_FIELD(writer, AudioEngine::reverb.getFeatherDryMinus() ? 1 : 0, "featherDryMinus");
+	}
+
 	writer.writeOpeningTagEnd();
 
 	writer.writeOpeningTagBeginning("compressor");
@@ -1401,6 +1412,12 @@ Error Song::readFromFile(Deserializer& reader) {
 						reverbPan = reader.readTagOrAttributeValueInt();
 						reader.exitTag("pan");
 					}
+					// Featherverb-specific params
+					READ_FIELD_ELSE(reader, tagName, featherZone1, "featherZone1")
+					READ_FIELD_ELSE(reader, tagName, featherZone2, "featherZone2")
+					READ_FIELD_ELSE(reader, tagName, featherZone3, "featherZone3")
+					READ_FLOAT_ELSE(reader, tagName, featherPredelay, "featherPredelay", 2147483648.0f)
+					READ_FIELD_ELSE(reader, tagName, featherDryMinus, "featherDryMinus")
 					else if (!strcmp(tagName, "compressor")) {
 						reader.match('{');
 						while (*(tagName = reader.readNextTagOrAttributeName())) {

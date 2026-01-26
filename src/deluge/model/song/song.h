@@ -407,6 +407,13 @@ public:
 	int32_t reverbSidechainRelease;
 	SyncLevel reverbSidechainSync;
 
+	// Featherverb-specific params (only used when model == FEATHERVERB)
+	int32_t featherZone1{0};
+	int32_t featherZone2{512}; // Default to middle (zone 4)
+	int32_t featherZone3{0};
+	float featherPredelay{0.0f};
+	bool featherDryMinus{false};
+
 	// START ~ new Automation Arranger View Variables
 	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
 	deluge::modulation::params::Kind

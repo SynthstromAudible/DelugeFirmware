@@ -30,35 +30,12 @@ namespace deluge::dsp::reverb {
 
 using namespace deluge::dsp;
 
-// Compile-time diagnostic toggles (for permanent debugging builds)
-// Runtime toggle cascadeOnly_ controls dry subtraction - via predelay encoder button
+// Compile-time diagnostic toggles
 static constexpr bool kMuteEarly = false;
 static constexpr bool kMuteCascade = false;
 static constexpr bool kMuteCascadeFeedback = false;
 static constexpr bool kBypassFdnToCascade = false;
 static constexpr bool kDisableVastUndersample = false;
-
-// === Development notes ===
-//
-// RESOLVED: C3 at 8x undersample caused ringing
-// C0/C1/C2 at 4x works fine. C3 at 8x caused audible ringing at high Zone 3.
-// Root cause likely: allpass coefficient (up to 0.7) too high at 8x rate, or
-// aliasing from insufficient anti-aliasing at that decimation factor.
-// Solution: All cascade stages now use uniform 4x undersample in vast mode.
-//
-// FEEDBACK TUNING (after 8x undersample fix):
-// With C3 at 4x (not 8x), moderate feedback increases are now stable:
-// - cascadeNestFeedback_ max: 0.55 (was 0.45)
-// - cascadeFeedbackMult_ max: 1.0 (was 0.95)
-// - cascadeNestFeedbackBase_ max: 0.4, kicks in at 0.35 (was 0.3, kicked in at 0.4)
-// - vastBoost: +0.25 in zone 7 only (compensates for pre-AA filter)
-// Previous experiment with 0.7/1.1 caused ringing - may have been 8x undersample issue.
-//
-// MULTI-TAP WRITES FOR DENSITY:
-// Multi-tap reads block CPU waiting for memory; multi-tap writes can be pipelined.
-// Each cascade stage writes to both normal position AND prime-offset position,
-// doubling impulse density without read penalty. Sequential writes stay cache-hot.
-// Enabled via kEnableMultiTapWrites in header. Offsets are prime numbers for good diffusion.
 
 Featherverb::Featherverb() {
 	// Compute buffer offsets for contiguous layout
@@ -266,19 +243,18 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 		}
 	}
 
+	// Flag for FDN pitch interpolation (only Sky/Vast use it - Owl and normal don't)
+	const bool needsPitchInterp = skyChainMode_ || vastChainMode_;
+
 	// Owl filter coefficients (buffer-rate - depend on cached LFO)
 	float owlMonoCoeff = kCascadeLpCoeffMono;
 	float owlSideCoeff = kCascadeLpCoeffSide;
 	float owlAmpModL = 1.0f;
 	float owlAmpModR = 1.0f;
 	if (owlMode_) {
-		float filterMod = lfoTriCached * skyLfoAmp_ * skyLfoRouting_ * 0.5f; // 2x modulation depth
+		float filterMod = lfoTriCached * skyLfoAmp_ * skyLfoRouting_ * 0.5f;
 		owlMonoCoeff = std::clamp(kOwlLpCoeffMono - filterMod, 0.2f, 0.85f);
-		owlSideCoeff = std::clamp(kOwlLpCoeffSide + filterMod * 1.5f, 0.4f, 0.99f); // Stronger side modulation
-		// Stereo amplitude LFO disabled for testing
-		// float lfoOut = lfoTriCached * skyLfoAmp_ * skyLfoRouting_;
-		// owlAmpModL = 1.0f + lfoOut * 0.7f;
-		// owlAmpModR = 1.0f - lfoOut * 0.7f;
+		owlSideCoeff = std::clamp(kOwlLpCoeffSide + filterMod * 1.5f, 0.4f, 0.99f);
 	}
 	// Hoisted values to eliminate in-loop ternaries
 	const float owlC2Scale = owlMode_ ? owlFbEnvScale_ : 1.0f;
@@ -342,7 +318,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 		float inOrig = hpOut;
 
 		// +3dB input gain when dry subtraction enabled (linked to DRY- toggle)
-		in = cascadeOnly_ ? hpOut * 1.414f : hpOut;
+		in = dryMinus_ ? hpOut * 1.414f : hpOut;
 
 		// Predelay (single tap)
 		if (predelayLength_ > 0) {
@@ -401,9 +377,16 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			const float d0Mod = d0ModCached;
 			const float d1Mod = d1ModCached;
 
-			// Read FDN delays with interpolation for smooth pitch mod (Sky/Vast)
-			float d0 = fdnReadAtInterp(0, d0Mod);
-			float d1 = fdnReadAtInterp(1, d1Mod);
+			// Read FDN delays - use interpolation only for Sky/Vast pitch mod (avoids overhead in normal/Owl)
+			float d0, d1;
+			if (needsPitchInterp) {
+				d0 = fdnReadAtInterp(0, d0Mod);
+				d1 = fdnReadAtInterp(1, d1Mod);
+			}
+			else {
+				d0 = fdnRead(0);
+				d1 = fdnRead(1);
+			}
 			float d2 = fdnRead(2);
 			// Owl: reduce D0/D1 gain, modulate D2 (buffer-rate values)
 			if (owlMode_) {
@@ -424,7 +407,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 				h1 += h0Orig * crossBleed_;
 			}
 
-			// Feedback (envelope-based auto-decay removed for performance)
 			float effectiveFeedback = feedback_ * fdnFeedbackScale_;
 
 			// Damping + feedback
@@ -454,7 +436,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 			// c0→c1→c2 series chain with optional 4x undersample for vast rooms
 			float c0, c1, c2;
 			float cascadeOutL, cascadeOutR;
-			float dynamicWidth = width_; // Width breathing removed (was envelope-based)
+			float dynamicWidth = width_ * widthBreath_; // Z3-controlled width variation
 
 			if (vastChainMode_) {
 				// === VAST CHAIN MODE (Smeared feedback like Sky) ===
@@ -511,9 +493,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					float avgIn = c2Accum_ * 0.5f;
 					float c2Coeff = cascadeCoeffs_[2];
 					size_t origWritePos = cascadeWritePos_[2];
-					// DIAGNOSTIC: cascade pitch mod disabled
-					size_t c2ModOffset = 0; // static_cast<size_t>(std::max(0.0f, lfoTri * cascadeModDepth_));
-					size_t readPos = (origWritePos + c2ModOffset) % cascadeLengths_[2];
+					size_t readPos = origWritePos;
 					size_t idx = cascadeOffsets_[2] + readPos;
 					float delayed = buffer_[idx];
 					float output = -c2Coeff * avgIn + delayed;
@@ -546,9 +526,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 					float avgIn = c3Accum_ * 0.5f;
 					float c3Coeff = cascadeCoeffs_[3];
 					size_t origWritePos = cascadeWritePos_[3];
-					// DIAGNOSTIC: cascade pitch mod disabled
-					size_t c3ModOffset = 0; // static_cast<size_t>(std::max(0.0f, -lfoTri * cascadeModDepth_));
-					size_t readPos = (origWritePos + c3ModOffset) % cascadeLengths_[3];
+					size_t readPos = origWritePos;
 					size_t idx = cascadeOffsets_[3] + readPos;
 					float delayed = buffer_[idx];
 					float output = -c3Coeff * avgIn + delayed;
@@ -868,7 +846,6 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 						--cascadeWritePos_[0];
 					}
 					processCascadeStage(0, avgIn);
-					// Multi-tap write for C0 disabled - hurts perf too much
 					c0Accum_ = 0.0f;
 				}
 				c0Phase_ = (c0Phase_ + 1) & 1;
@@ -893,14 +870,12 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 						--cascadeWritePos_[1];
 					}
 					processCascadeStage(1, avgIn);
-					// Multi-tap write for C1 disabled - hurts perf too much
 					c1Accum_ = 0.0f;
 				}
 				c1Phase_ = (c1Phase_ + 1) & 1;
 				c1 = c1Prev_;
 
 				// C2 with 4x undersample + pitch modulation
-				// Owl: apply duck control to C1→C2 path to break internal cascade feedback
 				c2Accum_ += c1 * owlC2Scale;
 				if (c2Phase_ == 1) {
 					float avgIn = c2Accum_ * 0.5f;
@@ -1176,7 +1151,7 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 		// Subtract dry input to remove bleedthrough (sparse topology compensation)
 		// Toggle via predelay encoder button: DRY- = enabled, DRY+ = disabled
 		// inOrig is pre-gain, so subtract at unity
-		if (cascadeOnly_) {
+		if (dryMinus_) {
 			outL -= inOrig;
 			outR -= inOrig;
 		}
@@ -1213,19 +1188,16 @@ void Featherverb::process(std::span<int32_t> input, std::span<StereoSample> outp
 		float envCoeff = (outAmp > feedbackEnvelope_) ? attackCoeff : releaseCoeff;
 		feedbackEnvelope_ += envCoeff * (outAmp - feedbackEnvelope_);
 	}
-
-	// (end-of-buffer debug removed)
 }
 
 void Featherverb::setRoomSize(float value) {
 	roomSize_ = value;
-	feedback_ = 0.32f + value * 0.12f; // 0.32 → 0.44
+	feedback_ = 0.32f + value * 0.12f;
 }
 
 void Featherverb::setDamping(float value) {
 	damping_ = value;
 	dampCoeff_ = 0.1f + (1.0f - value) * 0.85f;
-	// cascadeDamping_ is computed in updateSizes() with vast mode modifier
 	updateSizes();
 }
 
@@ -1533,20 +1505,22 @@ void Featherverb::updateFeedbackPattern() {
 	const int32_t zone = zone3_ >> 7;
 	const double gammaPhase = zone * 0.125;
 
+	// Widened bias for more tonal variation across z3 zones
 	static constexpr std::array<std::array<float, 3>, 8> kZoneBias = {{{1.00f, 1.00f, 1.00f},
-	                                                                   {1.05f, 1.00f, 0.95f},
-	                                                                   {0.95f, 1.00f, 1.05f},
-	                                                                   {1.02f, 0.96f, 1.02f},
-	                                                                   {0.92f, 1.08f, 0.92f},
-	                                                                   {1.06f, 0.94f, 1.00f},
-	                                                                   {0.90f, 1.00f, 1.10f},
-	                                                                   {1.08f, 1.00f, 0.92f}}};
+	                                                                   {1.25f, 0.90f, 0.75f},
+	                                                                   {0.70f, 1.00f, 1.30f},
+	                                                                   {1.20f, 0.70f, 1.15f},
+	                                                                   {0.65f, 1.35f, 0.70f},
+	                                                                   {1.30f, 0.75f, 1.00f},
+	                                                                   {0.60f, 1.00f, 1.40f},
+	                                                                   {1.35f, 0.85f, 0.60f}}};
 
 	const PhiTriContext ctx{yNorm, 1.0f, 1.0f, gammaPhase};
 	std::array<float, 3> mods = ctx.evalBank(kFeedback3TriBank);
 
 	for (size_t i = 0; i < 3; ++i) {
-		feedbackMult_[i] = std::clamp(kZoneBias[zone][i] + mods[i] * 0.075f, 0.85f, 1.15f);
+		// Wide range (±45%) for dramatic tonal variation
+		feedbackMult_[i] = std::clamp(kZoneBias[zone][i] + mods[i] * 0.2f, 0.55f, 1.45f);
 	}
 
 	// Cascade series mix - 10 periods for fine density control
@@ -1601,18 +1575,18 @@ void Featherverb::updateFeedbackPattern() {
 		modDepth_ = 0.0f;
 	}
 
-	// Width breathing - 11 periods (fast), expands stereo as signal decays
+	// Width breathing - 11 periods (fast), z3 increases stereo width
 	float tri11 = dsp::triangleSimpleUnipolar(yNorm * 11.0f) * 2.0f - 1.0f;
-	widthBreath_ = std::clamp(0.5f + tri11 * 0.4f, 0.0f, 1.2f);
+	widthBreath_ = std::clamp(0.6f + yNorm * 0.5f + tri11 * 0.35f, 0.3f, 1.4f);
 
 	// Cross-channel bleed - 9 periods, L↔R mixing in FDN feedback
 	float tri9 = dsp::triangleSimpleUnipolar(yNorm * 9.0f) * 2.0f - 1.0f;
 	float baseBleed = yNorm * 0.3f; // Increased for better L/R balance
 	crossBleed_ = std::clamp(baseBleed + tri9 * 0.1f, 0.0f, 0.4f);
 
-	// FDN feedback scale - reduce FDN feedback as Zone 3 increases (inverse relationship)
-	// At low Zone 3: full FDN feedback (1.0), at high Zone 3: reduced (0.7)
-	fdnFeedbackScale_ = 1.0f - yNorm * 0.3f;
+	// FDN feedback scale - keep at unity (room knob already controls overall feedback)
+	// Z3 only affects tonal balance via feedbackMult_, not overall decay
+	fdnFeedbackScale_ = 1.0f;
 
 	// Per-stage cascade allpass coefficients - higher coeffs = more diffusion (less slapback)
 	// Each stage uses different triangle period for variety

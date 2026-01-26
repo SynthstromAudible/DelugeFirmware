@@ -54,12 +54,13 @@ class Featherverb : public Base {
 
 	// FDN delay lengths (D0/D1 variable from Zone 1, D2 variable from Zone 2)
 	// With 2x undersample, effective times are 2x these values
-	static constexpr size_t kD0MinLength = 350;  // ~16ms effective
-	static constexpr size_t kD0MaxLength = 550;  // ~25ms effective (shrunk to give to D2)
-	static constexpr size_t kD1MinLength = 580;  // ~26ms effective
-	static constexpr size_t kD1MaxLength = 1500; // ~68ms effective
-	static constexpr size_t kD2MinLength = 650;  // ~29ms effective
-	static constexpr size_t kD2MaxLength = 2050; // ~93ms effective
+	// Scaled 20% larger for more z1 tonal variation while preserving ratios
+	static constexpr size_t kD0MinLength = 420;  // ~19ms effective
+	static constexpr size_t kD0MaxLength = 660;  // ~30ms effective
+	static constexpr size_t kD1MinLength = 696;  // ~32ms effective
+	static constexpr size_t kD1MaxLength = 1800; // ~82ms effective
+	static constexpr size_t kD2MinLength = 780;  // ~35ms effective
+	static constexpr size_t kD2MaxLength = 2460; // ~112ms effective
 
 	// 4-stage allpass cascade for tail density (replaces long D3)
 	// Each stage splits impulses → exponential density growth
@@ -83,7 +84,7 @@ class Featherverb : public Base {
 	static constexpr float kMultiTapGain = 0.22f; // Gain for secondary tap (low to preserve feedback headroom)
 
 	// Buffer layout: FDN delays + cascade + predelay
-	static constexpr size_t kFdnMaxSamples = kD0MaxLength + kD1MaxLength + kD2MaxLength; // 4100
+	static constexpr size_t kFdnMaxSamples = kD0MaxLength + kD1MaxLength + kD2MaxLength; // 4920
 	static constexpr size_t kPredelayMaxLength = 2205;                                   // 50ms at 44.1kHz (single tap)
 
 	static constexpr size_t kTotalMaxSamples = kFdnMaxSamples + kCascadeMaxTotal + kPredelayMaxLength;
@@ -132,9 +133,9 @@ public:
 	void setPredelay(float value);
 	[[nodiscard]] float getPredelay() const { return predelay_; }
 
-	/// Diagnostic: cascade-only mode (bypasses FDN, mutes early)
-	void setCascadeOnly(bool value) { cascadeOnly_ = value; }
-	[[nodiscard]] bool getCascadeOnly() const { return cascadeOnly_; }
+	/// Dry subtraction toggle: removes dry input bleedthrough
+	void setDryMinus(bool value) { dryMinus_ = value; }
+	[[nodiscard]] bool getDryMinus() const { return dryMinus_; }
 
 private:
 	// Buffer storage - controlled by kUseStaticBss
@@ -189,7 +190,7 @@ private:
 	float predelay_{0.0f};
 
 	// Dry subtraction toggle (predelay encoder button)
-	bool cascadeOnly_{false}; // Runtime toggle: true = subtract dry input to remove bleedthrough
+	bool dryMinus_{false}; // Runtime toggle: true = subtract dry input to remove bleedthrough
 
 	// Derived coefficients
 	float feedback_{0.85f};
@@ -219,17 +220,13 @@ private:
 	float cascadeAmpMod_{0.0f};    // LFO amplitude modulation depth for C2/C3 diffusion contour
 	float widthBreath_{0.0f};      // Width breathing amount (controlled by Zone 3)
 	float crossBleed_{0.0f};       // L↔R cross-channel bleed in FDN (controlled by Zone 3)
-	float fdnFeedbackScale_{1.0f}; // Inverse scale: reduce FDN feedback as Zone 3 (cascade) increases
+	float fdnFeedbackScale_{1.0f}; // FDN feedback multiplier (kept at 1.0 - room knob controls decay)
 	float cascadeSideGain_{0.2f};  // Stereo side signal gain (higher for Owl mode)
 
-	// Envelope followers for feedback riding
-	float feedbackEnvelope_{0.0f};    // Tracks C3 output for self-limiting feedback
-	float inputEnvelope_{0.0f};       // P75 input level for ratio-based limiting (Owl mode)
-	float owlFbEnvScale_{1.0f};       // Servo-controlled feedback scale (persists between buffers)
-	float owlFbEnvScaleTarget_{1.0f}; // Servo target (updated at strided rate, smoothed per-buffer)
-	uint8_t owlSilenceCount_{0};      // Buffers below noise floor (reset P75 after threshold)
-	float owlDuckEnv_{0.0f};          // Fast input envelope for ducking (Owl mode)
-	uint16_t slowUpdateCounter_{0};   // Sample counter for striding slow calculations (servo, LFO)
+	// Envelope followers for Owl mode feedback servo
+	float feedbackEnvelope_{0.0f}; // Tracks output level for ratio-based limiting
+	float owlFbEnvScale_{1.0f};    // Servo-controlled feedback scale
+	uint8_t owlSilenceCount_{0};   // Buffers below noise floor (reset tracking after threshold)
 
 	// Undersampling state
 	bool undersamplePhase_{false};

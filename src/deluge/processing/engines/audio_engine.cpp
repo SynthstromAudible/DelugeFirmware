@@ -1409,6 +1409,15 @@ void getReverbParamsFromSong(Song* song) {
 	reverbSidechain.attack = song->reverbSidechainAttack;
 	reverbSidechain.release = song->reverbSidechainRelease;
 	reverbSidechain.syncLevel = song->reverbSidechainSync;
+
+	// Featherverb-specific params
+	if (song->model == dsp::Reverb::Model::FEATHERVERB) {
+		reverb.setFeatherZone1(song->featherZone1);
+		reverb.setFeatherZone2(song->featherZone2);
+		reverb.setFeatherZone3(song->featherZone3);
+		reverb.setFeatherPredelay(song->featherPredelay);
+		reverb.setFeatherDryMinus(song->featherDryMinus);
+	}
 }
 
 bool allowedToStartVoice() {

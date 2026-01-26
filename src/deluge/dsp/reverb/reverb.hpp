@@ -42,6 +42,16 @@ public:
 	}
 
 	void setModel(Model m) {
+		// Save Featherverb params before switching away
+		if (model_ == Model::FEATHERVERB) {
+			auto& fv = std::get<reverb::Featherverb>(reverb_);
+			featherZone1_ = fv.getZone1();
+			featherZone2_ = fv.getZone2();
+			featherZone3_ = fv.getZone3();
+			featherPredelay_ = fv.getPredelay();
+			featherDryMinus_ = fv.getDryMinus();
+		}
+
 		switch (m) {
 		case Model::FEATHERVERB:
 			reverb_.emplace<reverb::Featherverb>();
@@ -67,6 +77,16 @@ public:
 		base_->setHPF(hpf_);
 		base_->setLPF(lpf_);
 		model_ = m;
+
+		// Restore Featherverb params after switching to it
+		if (m == Model::FEATHERVERB) {
+			auto& fv = std::get<reverb::Featherverb>(reverb_);
+			fv.setZone1(featherZone1_);
+			fv.setZone2(featherZone2_);
+			fv.setZone3(featherZone3_);
+			fv.setPredelay(featherPredelay_);
+			fv.setDryMinus(featherDryMinus_);
+		}
 	}
 
 	Model getModel() { return model_; }
@@ -179,16 +199,17 @@ public:
 		return featherPredelay_;
 	}
 
-	void setFeatherCascadeOnly(bool value) {
+	void setFeatherDryMinus(bool value) {
+		featherDryMinus_ = value;
 		if (model_ == Model::FEATHERVERB) {
-			reverb_as<reverb::Featherverb>().setCascadeOnly(value);
+			reverb_as<reverb::Featherverb>().setDryMinus(value);
 		}
 	}
-	[[nodiscard]] bool getFeatherCascadeOnly() const {
+	[[nodiscard]] bool getFeatherDryMinus() const {
 		if (model_ == Model::FEATHERVERB) {
-			return std::get<reverb::Featherverb>(reverb_).getCascadeOnly();
+			return std::get<reverb::Featherverb>(reverb_).getDryMinus();
 		}
-		return false;
+		return featherDryMinus_;
 	}
 
 	template <typename T>
@@ -216,9 +237,10 @@ private:
 	float lpf_;
 
 	// Featherverb zone caches (preserved across model switches)
-	int32_t featherZone1_{512};
-	int32_t featherZone2_{512};
+	int32_t featherZone1_{0};
+	int32_t featherZone2_{512}; // Default to zone 4 (Feather)
 	int32_t featherZone3_{0};
 	float featherPredelay_{0.0f};
+	bool featherDryMinus_{false};
 };
 } // namespace deluge::dsp

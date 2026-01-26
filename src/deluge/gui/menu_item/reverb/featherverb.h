@@ -204,8 +204,8 @@ public:
 
 	/// Click encoder to toggle dry subtraction (removes bleedthrough)
 	MenuItem* selectButtonPress() override {
-		bool current = AudioEngine::reverb.getFeatherCascadeOnly();
-		AudioEngine::reverb.setFeatherCascadeOnly(!current);
+		bool current = AudioEngine::reverb.getFeatherDryMinus();
+		AudioEngine::reverb.setFeatherDryMinus(!current);
 		display->displayPopup(current ? "DRY+" : "DRY-");
 		return NO_NAVIGATION;
 	}
