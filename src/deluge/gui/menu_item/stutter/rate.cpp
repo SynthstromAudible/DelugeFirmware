@@ -23,8 +23,8 @@
 
 namespace deluge::gui::menu_item::stutter {
 
-std::vector<const char*> Rate::optionLabels{"4ths", "8ths", "16ths", "32nds", "64ths"};
-std::vector<int32_t> Rate::optionValues{0, 12, 25, 37, 50};
+std::vector<const char*> Rate::optionLabels{"1 BAR", "2nds", "4ths", "8ths", "16ths", "32nds"};
+std::vector<int32_t> Rate::optionValues{2, 6, 13, 19, 25, 31};
 
 void Rate::selectEncoderAction(int32_t offset) {
 	if (!isStutterQuantized()) {

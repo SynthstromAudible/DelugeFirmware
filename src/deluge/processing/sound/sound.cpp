@@ -2587,7 +2587,16 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	processSRRAndBitcrushing(sound_stereo, &postFXVolume, paramManager);
 	processFX(sound_stereo, modFXType_, modFXRate, modFXDepth, delayWorkingState, &postFXVolume, paramManager,
 	          !voices_.empty(), reverbSendAmount >> 1);
-	processStutter(sound_stereo, paramManager);
+
+	// Scatter modulation support: pass modulated values from paramFinalValues
+	// Array order: [ZONE_A, ZONE_B, MACRO_CONFIG, MACRO]
+	q31_t modulatedScatterValues[4] = {
+	    paramFinalValues[params::GLOBAL_SCATTER_ZONE_A - params::FIRST_GLOBAL],
+	    paramFinalValues[params::GLOBAL_SCATTER_ZONE_B - params::FIRST_GLOBAL],
+	    paramFinalValues[params::GLOBAL_SCATTER_MACRO_CONFIG - params::FIRST_GLOBAL],
+	    paramFinalValues[params::GLOBAL_SCATTER_MACRO - params::FIRST_GLOBAL],
+	};
+	processStutter(sound_stereo, paramManager, modulatedScatterValues);
 
 	processReverbSendAndVolume(sound_stereo, reverbBuffer, postFXVolume, postReverbVolume, reverbSendAmount, 0, true);
 
@@ -4332,7 +4341,10 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 }
 
 void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
-	endStutter(paramManager);
+	// Only end classic stutter on mod button press, not scatter (which allows navigation)
+	if (!stutterer.isScatterPlaying()) {
+		endStutter(paramManager);
+	}
 
 	int32_t modKnobMode = *getModKnobMode();
 
@@ -4438,11 +4450,23 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 	if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
 	                                                         + params::UNPATCHED_STUTTER_RATE)) {
+		bool isScatter = (stutterConfig.scatterMode != ScatterMode::Classic);
 		if (on) {
-			beginStutter((ParamManagerForTimeline*)modelStack->paramManager);
+			if (isScatter && stutterer.isStuttering(this)) {
+				// WE are playing scatter - toggle off
+				stutterer.endStutter((ParamManagerForTimeline*)modelStack->paramManager);
+			}
+			else {
+				// Either nothing playing, or someone ELSE is playing (takeover)
+				beginStutter((ParamManagerForTimeline*)modelStack->paramManager);
+			}
 		}
 		else {
-			endStutter((ParamManagerForTimeline*)modelStack->paramManager);
+			// On release: don't end if latched in scatter mode
+			bool isLatched = isScatter && stutterConfig.latch;
+			if (!isLatched) {
+				endStutter((ParamManagerForTimeline*)modelStack->paramManager);
+			}
 		}
 		reassessRenderSkippingStatus(modelStack->addSoundFlags());
 

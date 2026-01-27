@@ -141,13 +141,17 @@ enum Global : ParamType {
 	GLOBAL_DELAY_FEEDBACK = FIRST_GLOBAL_NON_VOLUME,
 
 	// Global hybrid params begin
-
-	// There are no global hybrid params, so FIRST_GLOBAL_EXP is set to the same value. If you add a GLOBAL_HYBRID
-	// param, make sure you undo that!
 	FIRST_GLOBAL_HYBRID,
+	GLOBAL_SCATTER_MACRO = FIRST_GLOBAL_HYBRID, // Scatter macro control
+
+	// Global zone params begin
+	FIRST_GLOBAL_ZONE,
+	GLOBAL_SCATTER_ZONE_A = FIRST_GLOBAL_ZONE, // Scatter structural zone
+	GLOBAL_SCATTER_ZONE_B,                     // Scatter timbral zone
+	GLOBAL_SCATTER_MACRO_CONFIG,               // Scatter effect depth
 
 	// Global exp params begin
-	FIRST_GLOBAL_EXP = FIRST_GLOBAL_HYBRID,
+	FIRST_GLOBAL_EXP,
 	GLOBAL_DELAY_RATE = FIRST_GLOBAL_EXP,
 	GLOBAL_MOD_FX_RATE,
 	GLOBAL_LFO_FREQ_1,
@@ -186,6 +190,11 @@ enum UnpatchedShared : ParamType {
 	UNPATCHED_MOD_FX_FEEDBACK,
 	UNPATCHED_SIDECHAIN_SHAPE,
 	UNPATCHED_COMPRESSOR_THRESHOLD,
+	// Scatter controls
+	UNPATCHED_SCATTER_ZONE_A,
+	UNPATCHED_SCATTER_ZONE_B,
+	UNPATCHED_SCATTER_MACRO_CONFIG,
+	UNPATCHED_SCATTER_MACRO,
 	// Arp
 	UNPATCHED_FIRST_ARP_PARAM,
 	UNPATCHED_ARP_GATE = UNPATCHED_FIRST_ARP_PARAM,
@@ -385,4 +394,94 @@ const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
 // clang-format on
 
 uint32_t expressionParamFromShortcut(int x, int y);
+
+/// Zone param metadata for zone-based menu items
+struct ZoneParamInfo {
+	int32_t zoneCount;
+	int32_t resolution;
+};
+
+/// Get zone param info for patched params (GLOBAL zone params)
+constexpr ZoneParamInfo getZoneParamInfo(ParamType paramId) {
+	switch (paramId) {
+	case GLOBAL_SCATTER_ZONE_A:
+	case GLOBAL_SCATTER_ZONE_B:
+	case GLOBAL_SCATTER_MACRO_CONFIG:
+		return {8, 1024}; // 8 zones, 1024 steps
+	case GLOBAL_SCATTER_MACRO:
+		return {1, 128}; // Simple 0-127 range
+	default:
+		return {1, 128}; // Default non-zone param
+	}
+}
+
+/// Get zone param info for unpatched params
+constexpr ZoneParamInfo getZoneParamInfo(UnpatchedShared paramId) {
+	switch (paramId) {
+	case UNPATCHED_SCATTER_ZONE_A:
+	case UNPATCHED_SCATTER_ZONE_B:
+	case UNPATCHED_SCATTER_MACRO_CONFIG:
+		return {8, 1024}; // 8 zones, 1024 steps
+	case UNPATCHED_SCATTER_MACRO:
+		return {1, 128}; // Simple 0-127 range
+	default:
+		return {1, 128}; // Default non-zone param
+	}
+}
+
+/// Get the unpatched fallback param for a patched param (-1 if none)
+constexpr int32_t getUnpatchedFallback(ParamType patchedId) {
+	switch (patchedId) {
+	case GLOBAL_SCATTER_ZONE_A:
+		return UNPATCHED_SCATTER_ZONE_A;
+	case GLOBAL_SCATTER_ZONE_B:
+		return UNPATCHED_SCATTER_ZONE_B;
+	case GLOBAL_SCATTER_MACRO_CONFIG:
+		return UNPATCHED_SCATTER_MACRO_CONFIG;
+	case GLOBAL_SCATTER_MACRO:
+		return UNPATCHED_SCATTER_MACRO;
+	default:
+		return -1; // No fallback
+	}
+}
+
+/// Check if a patched param is a high-resolution zone param (1024+ steps)
+/// Used by gold knob to apply finer control for these params
+constexpr bool isHighResZoneParam(ParamType paramId) {
+	auto info = getZoneParamInfo(paramId);
+	return info.resolution >= 1024;
+}
+
+/// Check if an unpatched param is a high-resolution zone param (1024+ steps)
+constexpr bool isHighResZoneParam(UnpatchedShared paramId) {
+	auto info = getZoneParamInfo(paramId);
+	return info.resolution >= 1024;
+}
+
+/// Get resolution divisor for high-res params (how much to divide gold knob offset)
+/// Returns 1 for standard params, higher values for zone params (e.g., 8 for 1024-step)
+constexpr int32_t getHighResOffsetDivisor(ParamType paramId) {
+	auto info = getZoneParamInfo(paramId);
+	// 128 steps is standard gold knob resolution
+	// For 1024-step params, divide by 8 (1024/128)
+	return info.resolution / 128;
+}
+
+constexpr int32_t getHighResOffsetDivisor(UnpatchedShared paramId) {
+	auto info = getZoneParamInfo(paramId);
+	return info.resolution / 128;
+}
+
+/// Check if a patched param is a scatter param (supports gamma adjustment via push+twist)
+constexpr bool isScatterParam(ParamType paramId) {
+	return paramId == GLOBAL_SCATTER_MACRO || paramId == GLOBAL_SCATTER_ZONE_A || paramId == GLOBAL_SCATTER_ZONE_B
+	       || paramId == GLOBAL_SCATTER_MACRO_CONFIG;
+}
+
+/// Check if an unpatched param is a scatter param (supports gamma adjustment via push+twist)
+constexpr bool isScatterParam(UnpatchedShared paramId) {
+	return paramId == UNPATCHED_SCATTER_MACRO || paramId == UNPATCHED_SCATTER_ZONE_A
+	       || paramId == UNPATCHED_SCATTER_ZONE_B || paramId == UNPATCHED_SCATTER_MACRO_CONFIG;
+}
+
 } // namespace deluge::modulation::params

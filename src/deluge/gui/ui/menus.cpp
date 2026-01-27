@@ -199,8 +199,12 @@
 #include "gui/menu_item/source/patched_param/modulator_level.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/stutter/direction.h"
+#include "gui/menu_item/stutter/latch.h"
+#include "gui/menu_item/stutter/mode.h"
 #include "gui/menu_item/stutter/quantized.h"
 #include "gui/menu_item/stutter/rate.h"
+#include "gui/menu_item/stutter/scatter_macro.h"
+#include "gui/menu_item/stutter/scatter_zone.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
@@ -506,12 +510,34 @@ HorizontalMenu delayMenu{
 
 // Stutter ----------------------------------------------------------------------------------
 stutter::StutterDirection stutterDirectionMenu{STRING_FOR_DIRECTION, STRING_FOR_DIRECTION};
+stutter::ScatterLatch stutterLatchMenu{STRING_FOR_SCATTER_LATCH, STRING_FOR_SCATTER_LATCH};
 stutter::QuantizedStutter stutterQuantizedMenu{STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE};
+stutter::ScatterModeParam stutterModeParamMenu{STRING_FOR_SCATTER_PWRITE, STRING_FOR_SCATTER_PWRITE};
 stutter::Rate stutterRateMenu{STRING_FOR_RATE, STRING_FOR_STUTTER_RATE};
+stutter::ScatterModeMenu stutterModeMenu{STRING_FOR_SCATTER_MODE, STRING_FOR_SCATTER_MODE};
+// Scatter page 2
+stutter::ScatterZoneA stutterZoneAMenu{STRING_FOR_SCATTER_PATTERN, STRING_FOR_SCATTER_PATTERN};
+stutter::ScatterZoneB stutterZoneBMenu{STRING_FOR_SCATTER_COLOR, STRING_FOR_SCATTER_COLOR};
+stutter::ScatterMacroConfig stutterMacroConfigMenu{STRING_FOR_SCATTER_MACRO_CONFIG, STRING_FOR_SCATTER_MACRO_CONFIG};
+stutter::ScatterMacro stutterMacroMenu{STRING_FOR_SCATTER_MACRO, STRING_FOR_SCATTER_MACRO,
+                                       params::GLOBAL_SCATTER_MACRO};
 
 HorizontalMenu stutterMenu{STRING_FOR_STUTTER,
-                           {&stutterRateMenu, &stutterDirectionMenu, &stutterQuantizedMenu},
-                           HorizontalMenu::Layout::FIXED};
+                           {
+                               // Page 1: Core stutter controls
+                               &stutterRateMenu,
+                               &stutterDirectionMenu, // Direction for Classic/Burst
+                               &stutterLatchMenu,     // Latch toggle for scatter modes
+                               &stutterQuantizedMenu, // Toggle for Classic/Burst
+                               &stutterModeParamMenu, // Slider for Leaky/other modes (pWrite, etc.)
+                               &stutterModeMenu,
+                               // Page 2: Scatter zone controls (hidden for Classic/Burst)
+                               &stutterZoneAMenu,
+                               &stutterZoneBMenu,
+                               &stutterMacroConfigMenu,
+                               &stutterMacroMenu,
+                           },
+                           HorizontalMenu::Layout::DYNAMIC};
 
 // Bend Ranges -------------------------------------------------------------------------------
 

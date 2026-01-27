@@ -372,7 +372,13 @@ public:
 	void readCurrentValue() override {
 		q31_t value;
 		if constexpr (HAS_FALLBACK) {
-			value = soundEditor.currentParamManager->getValueWithFallback(PATCHED_ID);
+			// Check if we have a patched param set, otherwise use unpatched fallback
+			if (soundEditor.currentParamManager->containsAnyMainParamCollections()) {
+				value = soundEditor.currentParamManager->getPatchedParamSet()->getValue(PATCHED_ID);
+			}
+			else {
+				value = soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(UNPATCHED_ID);
+			}
 		}
 		else {
 			value = soundEditor.currentParamManager->getPatchedParamSet()->getValue(PATCHED_ID);
@@ -383,7 +389,7 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(void* memory) override {
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
 		if constexpr (HAS_FALLBACK) {
-			if (!soundEditor.currentParamManager->containsPatchedParamSetCollection()) {
+			if (!soundEditor.currentParamManager->containsAnyMainParamCollections()) {
 				return modelStack->getUnpatchedAutoParamFromId(UNPATCHED_ID);
 			}
 		}
@@ -401,7 +407,7 @@ public:
 	ParamDescriptor getLearningThing() override {
 		ParamDescriptor paramDescriptor;
 		if constexpr (HAS_FALLBACK) {
-			if (!soundEditor.currentParamManager->containsPatchedParamSetCollection()) {
+			if (!soundEditor.currentParamManager->containsAnyMainParamCollections()) {
 				paramDescriptor.setToHaveParamOnly(UNPATCHED_ID + params::UNPATCHED_START);
 				return paramDescriptor;
 			}
@@ -412,7 +418,7 @@ public:
 
 	[[nodiscard]] deluge::modulation::params::Kind getParamKind() override {
 		if constexpr (HAS_FALLBACK) {
-			if (!soundEditor.currentParamManager->containsPatchedParamSetCollection()) {
+			if (!soundEditor.currentParamManager->containsAnyMainParamCollections()) {
 				return deluge::modulation::params::Kind::UNPATCHED_SOUND;
 			}
 		}
@@ -427,7 +433,7 @@ public:
 		}
 		if constexpr (HAS_FALLBACK) {
 			// In unpatched context (GlobalEffectable), no mod matrix available
-			if (!soundEditor.currentParamManager->containsPatchedParamSetCollection()) {
+			if (!soundEditor.currentParamManager->containsAnyMainParamCollections()) {
 				return nullptr;
 			}
 		}
