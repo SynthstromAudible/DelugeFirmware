@@ -48,6 +48,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/live/live_input_buffer.h"
 #include "processing/metronome/metronome.h"
+#include "processing/retrospective/retrospective_buffer.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -1252,6 +1253,38 @@ bool doSomeOutputting() {
 					recorder->sourcePos -= SSI_RX_BUFFER_NUM_SAMPLES << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
 				}
 			}
+		}
+	}
+
+	// Feed retrospective buffer from external input when in input mode
+	if (retrospectiveBuffer.isEnabled() && retrospectiveBuffer.isInputMode()) {
+		int32_t* input_source_pos = retrospectiveBuffer.getInputSourcePos();
+
+		// Initialize the source position if not yet set
+		if (input_source_pos == nullptr) {
+			input_source_pos = reinterpret_cast<int32_t*>(i2sRXBufferPos);
+			retrospectiveBuffer.setInputSourcePos(input_source_pos);
+		}
+
+		// Calculate how many samples we can feed (same pattern as SampleRecorder)
+		uint32_t stop_pos = (i2sRXBufferPos < reinterpret_cast<uint32_t>(input_source_pos))
+		                        ? reinterpret_cast<uint32_t>(getRxBufferEnd())
+		                        : i2sRXBufferPos;
+
+		size_t num_samples_feeding =
+		    (stop_pos - reinterpret_cast<uint32_t>(input_source_pos)) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
+
+		// Cap at 256 samples per iteration to keep things sane
+		num_samples_feeding = std::min(num_samples_feeding, size_t{256});
+
+		if (num_samples_feeding > 0) {
+			// Feed the input buffer to the retrospective buffer
+			std::span stream_to_feed =
+			    std::span{reinterpret_cast<StereoSample*>(input_source_pos), num_samples_feeding};
+			retrospectiveBuffer.feedAudio(stream_to_feed.data(), stream_to_feed.size());
+
+			// Advance position and handle wraparound
+			retrospectiveBuffer.advanceInputSourcePos(num_samples_feeding, getRxBufferEnd(), SSI_RX_BUFFER_NUM_SAMPLES);
 		}
 	}
 
