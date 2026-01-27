@@ -47,9 +47,9 @@
 /// Helper to create a new SoundDrum for a kit
 static SoundDrum* createNewDrumForKit(Kit* kit) {
 	// Create unique name for the drum
-	String drumName;
-	drumName.set("RETR");
-	Error error = kit->makeDrumNameUnique(&drumName, 1);
+	String drum_name;
+	drum_name.set("RETR");
+	Error error = kit->makeDrumNameUnique(&drum_name, 1);
 	if (error != Error::NONE) {
 		return nullptr;
 	}
@@ -61,24 +61,24 @@ static SoundDrum* createNewDrumForKit(Kit* kit) {
 	}
 
 	// Set up param manager
-	ParamManagerForTimeline paramManager;
-	error = paramManager.setupWithPatching();
+	ParamManagerForTimeline param_manager;
+	error = param_manager.setupWithPatching();
 	if (error != Error::NONE) {
 		delugeDealloc(memory);
 		return nullptr;
 	}
 
 	// Initialize and create the drum
-	Sound::initParams(&paramManager);
-	SoundDrum* newDrum = new (memory) SoundDrum();
-	newDrum->setupAsSample(&paramManager);
+	Sound::initParams(&param_manager);
+	SoundDrum* new_drum = new (memory) SoundDrum();
+	new_drum->setupAsSample(&param_manager);
 
 	// Back up param manager and set name
-	currentSong->backUpParamManager(newDrum, currentSong->getCurrentClip(), &paramManager, true);
-	newDrum->name.set(&drumName);
-	newDrum->nameIsDiscardable = true;
+	currentSong->backUpParamManager(new_drum, currentSong->getCurrentClip(), &param_manager, true);
+	new_drum->name.set(&drum_name);
+	new_drum->nameIsDiscardable = true;
 
-	return newDrum;
+	return new_drum;
 }
 
 void handleRetrospectiveSave() {
@@ -108,12 +108,12 @@ void handleRetrospectiveSave() {
 	}
 
 	// Save retrospective buffer to file
-	String filePath;
-	Error error = retrospectiveBuffer.saveToFile(&filePath);
+	String file_path;
+	Error error = retrospectiveBuffer.saveToFile(&file_path);
 
 	if (error == Error::NONE) {
 		// Check if we're in a kit context
-		bool loadedToPad = false;
+		bool loaded_to_pad = false;
 
 		if (getCurrentOutputType() == OutputType::KIT) {
 			Kit* kit = getCurrentKit();
@@ -125,28 +125,28 @@ void handleRetrospectiveSave() {
 				// Always create a new drum row when in a kit
 				InstrumentClip* clip = getCurrentInstrumentClip();
 				if (clip) {
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithTimelineCounter* modelStack =
-					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+					char model_stack_memory[MODEL_STACK_MAX_SIZE];
+					ModelStackWithTimelineCounter* model_stack =
+					    currentSong->setupModelStackWithCurrentClip(model_stack_memory);
 
 					// Create a new SoundDrum
-					SoundDrum* soundDrum = createNewDrumForKit(kit);
-					if (soundDrum) {
-						kit->addDrum(soundDrum);
+					SoundDrum* sound_drum = createNewDrumForKit(kit);
+					if (sound_drum) {
+						kit->addDrum(sound_drum);
 
 						// Create a new note row at the end and directly assign our drum to it
-						int32_t noteRowIndex = clip->noteRows.getNumElements();
-						NoteRow* noteRow = clip->noteRows.insertNoteRowAtIndex(noteRowIndex);
+						int32_t note_row_index = clip->noteRows.getNumElements();
+						NoteRow* note_row = clip->noteRows.insertNoteRowAtIndex(note_row_index);
 
-						if (noteRow) {
-							ModelStackWithNoteRow* modelStackWithNoteRow =
-							    modelStack->addNoteRow(noteRowIndex, noteRow);
-							noteRow->setDrum(soundDrum, kit, modelStackWithNoteRow);
+						if (note_row) {
+							ModelStackWithNoteRow* model_stack_with_note_row =
+							    model_stack->addNoteRow(note_row_index, note_row);
+							note_row->setDrum(sound_drum, kit, model_stack_with_note_row);
 
 							// Scroll view to show the new drum row at the bottom
-							int32_t yDisplay = noteRowIndex - clip->yScroll;
-							if (yDisplay < 0 || yDisplay >= kDisplayHeight) {
-								clip->yScroll = noteRowIndex - (kDisplayHeight - 1);
+							int32_t y_display = note_row_index - clip->yScroll;
+							if (y_display < 0 || y_display >= kDisplayHeight) {
+								clip->yScroll = note_row_index - (kDisplayHeight - 1);
 								if (clip->yScroll < 0) {
 									clip->yScroll = 0;
 								}
@@ -154,29 +154,29 @@ void handleRetrospectiveSave() {
 						}
 
 						kit->beenEdited();
-						instrumentClipView.setSelectedDrum(soundDrum, true);
+						instrumentClipView.setSelectedDrum(sound_drum, true);
 
 						// Load the sample into the new drum
-						Source* source = &soundDrum->sources[0];
+						Source* source = &sound_drum->sources[0];
 						MultiRange* range = source->getOrCreateFirstRange();
 						if (range) {
 							AudioFileHolder* holder = range->getAudioFileHolder();
 							if (holder) {
 								holder->setAudioFile(nullptr);
-								holder->filePath.set(&filePath);
-								Error loadError = holder->loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY);
+								holder->filePath.set(&file_path);
+								Error load_error = holder->loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY);
 
-								if (loadError == Error::NONE) {
+								if (load_error == Error::NONE) {
 									// Set appropriate repeat mode based on sample length
 									Sample* sample = static_cast<Sample*>(holder->audioFile);
 									if (sample) {
 										source->repeatMode = (sample->getLengthInMSec() < 2002) ? SampleRepeatMode::ONCE
 										                                                        : SampleRepeatMode::CUT;
 									}
-									loadedToPad = true;
+									loaded_to_pad = true;
 
 									// Set up sound editor context for the waveform editor
-									soundEditor.currentSound = soundDrum;
+									soundEditor.currentSound = sound_drum;
 									soundEditor.currentSourceIndex = 0;
 									soundEditor.currentSource = source;
 									soundEditor.currentSampleControls = &source->sampleControls;
@@ -203,13 +203,13 @@ void handleRetrospectiveSave() {
 			}
 		}
 
-		if (!loadedToPad) {
+		if (!loaded_to_pad) {
 			// Extract just the filename from the path for display
 			// Path format: "SAMPLES/RETRO/RETRXXXX.WAV"
-			const char* fullPath = filePath.get();
-			const char* filename = fullPath;
+			const char* full_path = file_path.get();
+			const char* filename = full_path;
 			// Find the last '/' to get just the filename
-			for (const char* p = fullPath; *p; p++) {
+			for (const char* p = full_path; *p; p++) {
 				if (*p == '/') {
 					filename = p + 1;
 				}

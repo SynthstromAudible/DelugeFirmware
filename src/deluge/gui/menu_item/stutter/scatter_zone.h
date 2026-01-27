@@ -128,11 +128,11 @@ public:
 		return true;
 	}
 
-	// Override rendering to show numeric coordinates when phaseOffset > 0
+	// Override rendering to show numeric coordinates when phase_offset > 0
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		float phaseOffset = effectivePhaseOffset();
-		if (phaseOffset != 0.0f) {
-			cacheCoordDisplay(phaseOffset, this->getValue());
+		float phase_offset = effectivePhaseOffset();
+		if (phase_offset != 0.0f) {
+			cacheCoordDisplay(phase_offset, this->getValue());
 			renderZoneInHorizontalMenu(slot, this->getValue(), kScatterResolution, kScatterNumZones, getCoordName);
 		}
 		else {
@@ -143,9 +143,9 @@ public:
 
 protected:
 	void drawPixelsForOled() override {
-		float phaseOffset = effectivePhaseOffset();
-		if (phaseOffset != 0.0f) {
-			cacheCoordDisplay(phaseOffset, this->getValue());
+		float phase_offset = effectivePhaseOffset();
+		if (phase_offset != 0.0f) {
+			cacheCoordDisplay(phase_offset, this->getValue());
 			drawZoneForOled(this->getValue(), kScatterResolution, kScatterNumZones, getCoordName);
 		}
 		else {
@@ -162,13 +162,13 @@ private:
 		return sc.zoneAPhaseOffset + static_cast<float>(kScatterResolution) * sc.gammaPhase;
 	}
 
-	static inline char coordBuffer_[12] = {};
-	static void cacheCoordDisplay(float phaseOffset, int32_t value) {
-		int32_t p = static_cast<int32_t>(phaseOffset);
+	static inline char coord_buffer_[12] = {};
+	static void cacheCoordDisplay(float phase_offset, int32_t value) {
+		int32_t p = static_cast<int32_t>(phase_offset);
 		int32_t z = value >> 7; // 0-1023 → 0-7 (zone index)
-		snprintf(coordBuffer_, sizeof(coordBuffer_), "%d:%d", p, z);
+		snprintf(coord_buffer_, sizeof(coord_buffer_), "%d:%d", p, z);
 	}
-	static const char* getCoordName([[maybe_unused]] int32_t zoneIndex) { return coordBuffer_; }
+	static const char* getCoordName([[maybe_unused]] int32_t zoneIndex) { return coord_buffer_; }
 };
 
 /**
@@ -265,9 +265,9 @@ public:
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		float phaseOffset = effectivePhaseOffset();
-		if (phaseOffset != 0.0f) {
-			cacheCoordDisplay(phaseOffset, this->getValue());
+		float phase_offset = effectivePhaseOffset();
+		if (phase_offset != 0.0f) {
+			cacheCoordDisplay(phase_offset, this->getValue());
 			renderZoneInHorizontalMenu(slot, this->getValue(), kScatterResolution, kScatterNumZones, getCoordName);
 		}
 		else {
@@ -278,9 +278,9 @@ public:
 
 protected:
 	void drawPixelsForOled() override {
-		float phaseOffset = effectivePhaseOffset();
-		if (phaseOffset != 0.0f) {
-			cacheCoordDisplay(phaseOffset, this->getValue());
+		float phase_offset = effectivePhaseOffset();
+		if (phase_offset != 0.0f) {
+			cacheCoordDisplay(phase_offset, this->getValue());
 			drawZoneForOled(this->getValue(), kScatterResolution, kScatterNumZones, getCoordName);
 		}
 		else {
@@ -297,13 +297,13 @@ private:
 		return sc.zoneBPhaseOffset + static_cast<float>(kScatterResolution) * sc.gammaPhase;
 	}
 
-	static inline char coordBuffer_[12] = {};
-	static void cacheCoordDisplay(float phaseOffset, int32_t value) {
-		int32_t p = static_cast<int32_t>(phaseOffset);
+	static inline char coord_buffer_[12] = {};
+	static void cacheCoordDisplay(float phase_offset, int32_t value) {
+		int32_t p = static_cast<int32_t>(phase_offset);
 		int32_t z = value >> 7;
-		snprintf(coordBuffer_, sizeof(coordBuffer_), "%d:%d", p, z);
+		snprintf(coord_buffer_, sizeof(coord_buffer_), "%d:%d", p, z);
 	}
-	static const char* getCoordName([[maybe_unused]] int32_t zoneIndex) { return coordBuffer_; }
+	static const char* getCoordName([[maybe_unused]] int32_t zoneIndex) { return coord_buffer_; }
 };
 
 /**
@@ -396,9 +396,9 @@ public:
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		float phaseOffset = effectivePhaseOffset();
-		if (phaseOffset != 0.0f) {
-			cacheCoordDisplay(phaseOffset, this->getValue());
+		float phase_offset = effectivePhaseOffset();
+		if (phase_offset != 0.0f) {
+			cacheCoordDisplay(phase_offset, this->getValue());
 			renderZoneInHorizontalMenu(slot, this->getValue(), kScatterResolution, kScatterNumZones, getCoordName);
 		}
 		else {
@@ -411,9 +411,9 @@ public:
 
 protected:
 	void drawPixelsForOled() override {
-		float phaseOffset = effectivePhaseOffset();
-		if (phaseOffset != 0.0f) {
-			cacheCoordDisplay(phaseOffset, this->getValue());
+		float phase_offset = effectivePhaseOffset();
+		if (phase_offset != 0.0f) {
+			cacheCoordDisplay(phase_offset, this->getValue());
 			drawZoneForOled(this->getValue(), kScatterResolution, kScatterNumZones, getCoordName);
 		}
 		else {
@@ -430,13 +430,13 @@ private:
 		return sc.macroConfigPhaseOffset + static_cast<float>(kScatterResolution) * sc.gammaPhase;
 	}
 
-	static inline char coordBuffer_[12] = {};
-	static void cacheCoordDisplay(float phaseOffset, int32_t value) {
-		int32_t p = static_cast<int32_t>(phaseOffset);
+	static inline char coord_buffer_[12] = {};
+	static void cacheCoordDisplay(float phase_offset, int32_t value) {
+		int32_t p = static_cast<int32_t>(phase_offset);
 		int32_t z = value >> 7;
-		snprintf(coordBuffer_, sizeof(coordBuffer_), "%d:%d", p, z);
+		snprintf(coord_buffer_, sizeof(coord_buffer_), "%d:%d", p, z);
 	}
-	static const char* getCoordName([[maybe_unused]] int32_t zoneIndex) { return coordBuffer_; }
+	static const char* getCoordName([[maybe_unused]] int32_t zoneIndex) { return coord_buffer_; }
 };
 
 } // namespace deluge::gui::menu_item::stutter

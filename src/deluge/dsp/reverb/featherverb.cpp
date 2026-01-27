@@ -1243,7 +1243,7 @@ void Featherverb::setZone1(int32_t value) {
 }
 
 // Simple Gram-Schmidt for 3x3
-static bool gramSchmidt3x3(std::array<std::array<float, 3>, 3>& m) {
+static bool gram_schmidt_3x3(std::array<std::array<float, 3>, 3>& m) {
 	for (int col = 0; col < 3; ++col) {
 		for (int prev = 0; prev < col; ++prev) {
 			float dot = 0.0f;
@@ -1295,7 +1295,7 @@ void Featherverb::updateMatrix() {
 		}
 	}
 
-	if (!gramSchmidt3x3(matrix_)) {
+	if (!gram_schmidt_3x3(matrix_)) {
 		// Fallback
 		for (int row = 0; row < 3; ++row) {
 			for (int col = 0; col < 3; ++col) {
