@@ -278,6 +278,10 @@ void RetrospectiveBuffer::feedAudio(const StereoSample* samples, size_t numSampl
 	size_t pos = writePos_.load(std::memory_order_relaxed);
 	size_t written = samplesWritten_.load(std::memory_order_relaxed);
 
+	// Only apply gain when normalization is OFF - normalization will handle levels otherwise
+	// and we want to preserve headroom to avoid clipping before normalization
+	bool applyGain = !runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RetrospectiveSamplerNormalize);
+
 	// Cache peak tracking state for this batch
 	int32_t peak = runningPeak_.load(std::memory_order_relaxed);
 	size_t peakPos = peakPosition_.load(std::memory_order_relaxed);
@@ -289,10 +293,10 @@ void RetrospectiveBuffer::feedAudio(const StereoSample* samples, size_t numSampl
 			peakIsValid = false;
 		}
 
-		// Apply +5 bit gain to match MIX/OFFLINE_OUTPUT recording level
+		// Apply +5 bit gain only when normalization is off
 		// Internal mixing level is ~8 bits below DAC output; +5 matches stem export
-		int32_t sampleL = lshiftAndSaturate<5>(samples[i].l);
-		int32_t sampleR = lshiftAndSaturate<5>(samples[i].r);
+		int32_t sampleL = applyGain ? lshiftAndSaturate<5>(samples[i].l) : samples[i].l;
+		int32_t sampleR = applyGain ? lshiftAndSaturate<5>(samples[i].r) : samples[i].r;
 
 		size_t byteOffset = pos * bytesPerFrame;
 		uint8_t* dest = buffer_ + byteOffset;
@@ -399,6 +403,9 @@ void RetrospectiveBuffer::feedAudioMono(const int32_t* samples, size_t numSample
 	size_t pos = writePos_.load(std::memory_order_relaxed);
 	size_t written = samplesWritten_.load(std::memory_order_relaxed);
 
+	// Only apply gain when normalization is OFF
+	bool applyGain = !runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RetrospectiveSamplerNormalize);
+
 	// Cache peak tracking state for this batch
 	int32_t peak = runningPeak_.load(std::memory_order_relaxed);
 	size_t peakPos = peakPosition_.load(std::memory_order_relaxed);
@@ -410,8 +417,8 @@ void RetrospectiveBuffer::feedAudioMono(const int32_t* samples, size_t numSample
 			peakIsValid = false;
 		}
 
-		// Apply +5 bit gain to match MIX/OFFLINE_OUTPUT recording level
-		int32_t gainedSample = lshiftAndSaturate<5>(samples[i]);
+		// Apply +5 bit gain only when normalization is off
+		int32_t gainedSample = applyGain ? lshiftAndSaturate<5>(samples[i]) : samples[i];
 
 		size_t byteOffset = pos * bytesPerFrame;
 		uint8_t* dest = buffer_ + byteOffset;
