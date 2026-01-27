@@ -483,6 +483,32 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.writeAttribute("quantized", stutterConfig.quantized);
 	writer.writeAttribute("reverse", stutterConfig.reversed);
 	writer.writeAttribute("pingPong", stutterConfig.pingPong);
+	// Scatter mode settings (only write if non-default)
+	if (stutterConfig.scatterMode != ScatterMode::Classic) {
+		writer.writeAttribute("scatterMode", static_cast<int32_t>(stutterConfig.scatterMode));
+	}
+	if (stutterConfig.latch) {
+		writer.writeAttribute("scatterLatch", 1);
+	}
+	if (stutterConfig.leakyWriteProb != 0.2f) {
+		writer.writeAttribute("scatterPWrite", static_cast<int32_t>(stutterConfig.leakyWriteProb * 100.0f));
+	}
+	if (stutterConfig.pitchScale != 0) {
+		writer.writeAttribute("scatterPitchScale", stutterConfig.pitchScale);
+	}
+	// Secret knob phase offsets (only write if non-zero)
+	if (stutterConfig.zoneAPhaseOffset != 0) {
+		writer.writeAttribute("scatterPhaseA", static_cast<int32_t>(stutterConfig.zoneAPhaseOffset * 10.0f));
+	}
+	if (stutterConfig.zoneBPhaseOffset != 0) {
+		writer.writeAttribute("scatterPhaseB", static_cast<int32_t>(stutterConfig.zoneBPhaseOffset * 10.0f));
+	}
+	if (stutterConfig.macroConfigPhaseOffset != 0) {
+		writer.writeAttribute("scatterPhaseMacro", static_cast<int32_t>(stutterConfig.macroConfigPhaseOffset * 10.0f));
+	}
+	if (stutterConfig.gammaPhase != 0) {
+		writer.writeAttribute("scatterGamma", static_cast<int32_t>(stutterConfig.gammaPhase * 10.0f));
+	}
 	writer.closeTag();
 }
 
@@ -763,6 +789,14 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 		stutterConfig.quantized = true;
 		stutterConfig.reversed = false;
 		stutterConfig.pingPong = false;
+		stutterConfig.scatterMode = ScatterMode::Classic;
+		stutterConfig.latch = false;
+		stutterConfig.leakyWriteProb = 0.2f;
+		stutterConfig.pitchScale = 0;
+		stutterConfig.zoneAPhaseOffset = 0;
+		stutterConfig.zoneBPhaseOffset = 0;
+		stutterConfig.macroConfigPhaseOffset = 0;
+		stutterConfig.gammaPhase = 0;
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "quantized")) {
@@ -779,6 +813,41 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 				int32_t contents = reader.readTagOrAttributeValueInt();
 				stutterConfig.pingPong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				reader.exitTag("pingPong");
+			}
+			else if (!strcmp(tagName, "scatterMode")) {
+				int32_t contents = reader.readTagOrAttributeValueInt();
+				stutterConfig.scatterMode = static_cast<ScatterMode>(std::clamp(contents, 0_i32, 7_i32));
+				reader.exitTag("scatterMode");
+			}
+			else if (!strcmp(tagName, "scatterLatch")) {
+				int32_t contents = reader.readTagOrAttributeValueInt();
+				stutterConfig.latch = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				reader.exitTag("scatterLatch");
+			}
+			else if (!strcmp(tagName, "scatterPWrite")) {
+				stutterConfig.leakyWriteProb = static_cast<float>(reader.readTagOrAttributeValueInt()) / 100.0f;
+				reader.exitTag("scatterPWrite");
+			}
+			else if (!strcmp(tagName, "scatterPitchScale")) {
+				stutterConfig.pitchScale =
+				    static_cast<uint8_t>(std::clamp(reader.readTagOrAttributeValueInt(), 0_i32, 11_i32));
+				reader.exitTag("scatterPitchScale");
+			}
+			else if (!strcmp(tagName, "scatterPhaseA")) {
+				stutterConfig.zoneAPhaseOffset = static_cast<float>(reader.readTagOrAttributeValueInt()) / 10.0f;
+				reader.exitTag("scatterPhaseA");
+			}
+			else if (!strcmp(tagName, "scatterPhaseB")) {
+				stutterConfig.zoneBPhaseOffset = static_cast<float>(reader.readTagOrAttributeValueInt()) / 10.0f;
+				reader.exitTag("scatterPhaseB");
+			}
+			else if (!strcmp(tagName, "scatterPhaseMacro")) {
+				stutterConfig.macroConfigPhaseOffset = static_cast<float>(reader.readTagOrAttributeValueInt()) / 10.0f;
+				reader.exitTag("scatterPhaseMacro");
+			}
+			else if (!strcmp(tagName, "scatterGamma")) {
+				stutterConfig.gammaPhase = static_cast<float>(reader.readTagOrAttributeValueInt()) / 10.0f;
+				reader.exitTag("scatterGamma");
 			}
 		}
 		reader.exitTag("stutter", true);
@@ -1297,34 +1366,173 @@ const uint32_t stutterUIModes[] = {UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MODE_HO
                                    UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, UI_MODE_AUDITIONING, 0};
 
 void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
-	if (!isUIModeWithinRange(stutterUIModes)) {
+	// TODO: Re-enable UI mode check after testing looper
+	// Original check only allowed stutter when auditioning/holding clips
+	// if (!isUIModeWithinRange(stutterUIModes)) {
+	// 	return;
+	// }
+	// Get base config from song or local depending on useSongStutter
+	StutterConfig config = stutterConfig.useSongStutter ? currentSong->globalEffectable.stutterConfig : stutterConfig;
+	// Scatter mode is always per-sound (independent of useSongStutter)
+	config.scatterMode = stutterConfig.scatterMode;
+	// For scatter modes, also use local settings (scatter is per-sound feature)
+	if (config.scatterMode != ScatterMode::Classic) {
+		config.quantized = stutterConfig.quantized;
+		config.latch = stutterConfig.latch;
+		config.leakyWriteProb = stutterConfig.leakyWriteProb;
+		config.pitchScale = stutterConfig.pitchScale;
+		// Phase offsets are set via secret encoder menus on local config
+		config.zoneAPhaseOffset = stutterConfig.zoneAPhaseOffset;
+		config.zoneBPhaseOffset = stutterConfig.zoneBPhaseOffset;
+		config.macroConfigPhaseOffset = stutterConfig.macroConfigPhaseOffset;
+		config.gammaPhase = stutterConfig.gammaPhase;
+	}
+
+	int32_t magnitude = currentSong->getInputTickMagnitude();
+	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse();
+
+	// Calculate loop length in samples for scatter modes (one bar, max 4 seconds)
+	size_t loopLengthSamples = 0;
+	bool halfBarMode = false;
+	if (config.scatterMode != ScatterMode::Classic && config.scatterMode != ScatterMode::Burst
+	    && playbackHandler.isEitherClockActive()) {
+		uint64_t timePerTickBig = playbackHandler.getTimePerInternalTickBig();
+		uint32_t barLengthInTicks = currentSong->getBarLength();
+		loopLengthSamples = ((uint64_t)barLengthInTicks * timePerTickBig) >> 32;
+
+		// If bar exceeds buffer (4 seconds), use 2 beats instead
+		if (loopLengthSamples > Stutterer::kLooperBufferSize) {
+			uint32_t halfBarInTicks = barLengthInTicks / 2;
+			loopLengthSamples = ((uint64_t)halfBarInTicks * timePerTickBig) >> 32;
+			halfBarMode = true;
+		}
+	}
+
+	// For scatter modes with quantize, arm trigger to start on next beat
+	// Only arm if we DON'T already own the stutter - if we do, fall through to beginStutter (trigger)
+	// Repeat mode never uses quantization - it triggers immediately for responsive performance
+	if (config.scatterMode != ScatterMode::Classic && config.scatterMode != ScatterMode::Repeat && config.quantized
+	    && playbackHandler.isEitherClockActive() && !stutterer.ownsStutter(this)) {
+		// Calculate next beat boundary (16th note = bar / 16)
+		int64_t currentTick = playbackHandler.getCurrentInternalTickCount();
+		uint32_t barLength = currentSong->getBarLength();
+		uint32_t beatLength = barLength / 16; // 16th note resolution
+		if (beatLength == 0) {
+			beatLength = 1;
+		}
+
+		// Round up to next beat boundary
+		int64_t nextBeat = ((currentTick / beatLength) + 1) * beatLength;
+
+		if (Error::NONE
+		    == stutterer.armStutter(this, paramManager, config, magnitude, timePerTickInverse, nextBeat,
+		                            loopLengthSamples, halfBarMode)) {
+			// Armed successfully, will start on beat
+			view.notifyParamAutomationOccurred(paramManager);
+			display->displayPopup("Armed");
+		}
 		return;
 	}
+
+	// Immediate trigger for Classic mode or when quantize is off
 	if (Error::NONE
-	    == stutterer.beginStutter(
-	        this, paramManager,
-	        stutterConfig.useSongStutter ? currentSong->globalEffectable.stutterConfig : stutterConfig,
-	        currentSong->getInputTickMagnitude(), playbackHandler.getTimePerInternalTickInverse())) {
+	    == stutterer.beginStutter(this, paramManager, config, magnitude, timePerTickInverse, loopLengthSamples,
+	                              halfBarMode)) {
 		// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
 		view.notifyParamAutomationOccurred(paramManager);
-		enterUIMode(UI_MODE_STUTTERING);
+		// Classic stutter locks UI, scatter doesn't need UI mode
+		if (config.scatterMode == ScatterMode::Classic) {
+			enterUIMode(UI_MODE_STUTTERING);
+		}
+		// Show Armed notification for retrigger case (was in standby, now pending trigger)
+		else if (stutterer.hasPendingTrigger(this)) {
+			display->displayPopup("Armed");
+		}
 	}
 }
 
-void ModControllableAudio::processStutter(std::span<StereoSample> buffer, ParamManager* paramManager) {
+void ModControllableAudio::processStutter(std::span<StereoSample> buffer, ParamManager* paramManager,
+                                          const q31_t* modulatedScatterValues) {
+	int32_t magnitude = currentSong->getInputTickMagnitude();
+	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse();
+	// Use interpolated tick count for accurate beat boundary detection within audio buffers
+	// (lastSwungTickActioned only updates at discrete tick events, causing up to 1 buffer latency)
+	int64_t currentTick = playbackHandler.getCurrentInternalTickCount();
+	uint32_t barLength = currentSong->getBarLength();
+	uint32_t quarterNoteLength = barLength / 4; // Quarter note for responsive trigger sync
+	if (quarterNoteLength == 0) {
+		quarterNoteLength = 1;
+	}
+
+	// Check if armed trigger should fire
+	if (stutterer.isArmed()) {
+		stutterer.checkArmedTrigger(currentTick, paramManager, magnitude, timePerTickInverse);
+	}
+
+	// Check if pending play trigger should fire (quarter-note quantized)
+	if (stutterer.hasPendingTrigger(this)) {
+		stutterer.checkPendingTrigger(this, currentTick, quarterNoteLength, paramManager, magnitude,
+		                              timePerTickInverse);
+	}
+
+	// Always record to standby buffer (during both STANDBY and PLAYING)
+	// This captures clean input BEFORE scatter processing modifies the buffer
+	// Enables instant re-trigger after playback ends (playing->armed->playing flow)
+	stutterer.recordStandby(this, buffer, currentTick, quarterNoteLength);
+
 	if (stutterer.isStuttering(this)) {
-		stutterer.processStutter(buffer, paramManager, currentSong->getInputTickMagnitude(),
-		                         playbackHandler.getTimePerInternalTickInverse());
+		// Update live params from current config (allows real-time adjustment while playing)
+		if (stutterer.isScatterPlaying()) {
+			stutterer.updateLiveParams(stutterConfig);
+		}
+		// Note: benchmarking is done inside processStutter() to separate classic vs scatter modes
+		// Pass tick timing for bar boundary sync (locks slices to beat grid)
+		uint64_t timePerTickBig = playbackHandler.getTimePerInternalTickBig();
+		stutterer.processStutter(buffer, paramManager, magnitude, timePerTickInverse, currentTick, timePerTickBig,
+		                         barLength, modulatedScatterValues);
 	}
 }
 
 // paramManager is optional - if you don't send it, it won't restore the stutter rate and we won't redraw the LEDs
 void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
-	stutterer.endStutter(paramManager);
+	// Check what role this source has in the current stutter session
+	bool isPlayer = stutterer.isStuttering(this);
+	bool isRecorder = stutterer.isArmedForTakeover(this);
+	bool isStandbyRecorder = stutterer.isRecordingInStandby(this);
+
+	if (!isPlayer && !isRecorder && !isStandbyRecorder) {
+		return; // Not involved in current stutter
+	}
+
+	// In STANDBY (recording but not yet playing): mark release for momentary mode
+	// Don't cancel STANDBY - let beat trigger playback, then immediately stop
+	// Use THIS source's latch config, not the global stutterer's (which may be from another track)
+	if (isStandbyRecorder && !isPlayer && !stutterConfig.latch) {
+		stutterer.markReleasedDuringStandby();
+		return;
+	}
+
+	if (isRecorder && !isPlayer) {
+		// We're recording for takeover but NOT playing yet.
+		// Mark release for momentary mode - when we trigger, we'll check this flag
+		// Use THIS source's latch config, not the current player's
+		if (!stutterConfig.latch) {
+			stutterer.markReleasedDuringStandby();
+		}
+		return;
+	}
+
+	if (isPlayer) {
+		// We're playing - end our playback
+		// If someone else is recording for takeover, they lose their recording
+		stutterer.endStutter(paramManager);
+	}
+
 	if (paramManager) {
 		// Redraw the LEDs.
 		view.notifyParamAutomationOccurred(paramManager);
 	}
+	// Exit classic stutter UI mode if active
 	exitUIMode(UI_MODE_STUTTERING);
 }
 
@@ -1481,7 +1689,10 @@ char const* ModControllableAudio::getHPFModeDisplayName() {
 // This can get called either for hibernation, or because drum now has no active noteRow
 void ModControllableAudio::wontBeRenderedForAWhile() {
 	delay.discardBuffers();
-	endStutter(nullptr);
+	// Don't end latched scatter - it should keep playing when you switch tracks
+	if (!(stutterer.isLatched() && stutterer.isStuttering(this))) {
+		endStutter(nullptr);
+	}
 }
 
 void ModControllableAudio::clearModFXMemory() {

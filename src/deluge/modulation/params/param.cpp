@@ -162,6 +162,10 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [GLOBAL_REVERB_AMOUNT]           = "Reverb amt",
 	    [GLOBAL_MOD_FX_DEPTH]            = "ModFXdepth",
 	    [GLOBAL_DELAY_FEEDBACK]          = "Delay feed",
+	    [GLOBAL_SCATTER_MACRO]           = "Scat macro",
+	    [GLOBAL_SCATTER_ZONE_A]          = "Scat zoneA",
+	    [GLOBAL_SCATTER_ZONE_B]          = "Scat zoneB",
+	    [GLOBAL_SCATTER_MACRO_CONFIG]    = "Scat depth",
 	    [GLOBAL_DELAY_RATE]              = "Delay rate",
 	    [GLOBAL_MOD_FX_RATE]             = "ModFX rate",
 	    [GLOBAL_LFO_FREQ_1]                = "LFO1 rate",
@@ -233,6 +237,10 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [GLOBAL_REVERB_AMOUNT] = STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT,
 	    [GLOBAL_MOD_FX_DEPTH] = STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH,
 	    [GLOBAL_DELAY_FEEDBACK] = STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK,
+	    [GLOBAL_SCATTER_MACRO] = STRING_FOR_SCATTER_MACRO,
+	    [GLOBAL_SCATTER_ZONE_A] = STRING_FOR_SCATTER_PATTERN,
+	    [GLOBAL_SCATTER_ZONE_B] = STRING_FOR_SCATTER_COLOR,
+	    [GLOBAL_SCATTER_MACRO_CONFIG] = STRING_FOR_SCATTER_MACRO_CONFIG,
 	    [GLOBAL_DELAY_RATE] = STRING_FOR_PARAM_GLOBAL_DELAY_RATE,
 	    [GLOBAL_MOD_FX_RATE] = STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE,
 	    [GLOBAL_LFO_FREQ_1] = STRING_FOR_PARAM_GLOBAL_LFO_FREQ_1,
@@ -268,6 +276,10 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_MOD_FX_FEEDBACK] = STRING_FOR_MODFX_FEEDBACK,
 		    [UNPATCHED_SIDECHAIN_SHAPE] = STRING_FOR_SIDECHAIN_SHAPE,
 		    [UNPATCHED_COMPRESSOR_THRESHOLD] = STRING_FOR_THRESHOLD,
+		    [UNPATCHED_SCATTER_ZONE_A] = STRING_FOR_SCATTER_PATTERN,
+		    [UNPATCHED_SCATTER_ZONE_B] = STRING_FOR_SCATTER_COLOR,
+		    [UNPATCHED_SCATTER_MACRO_CONFIG] = STRING_FOR_SCATTER_MACRO_CONFIG,
+		    [UNPATCHED_SCATTER_MACRO] = STRING_FOR_SCATTER_MACRO,
 		    [UNPATCHED_ARP_GATE] = STRING_FOR_ARP_GATE_MENU_TITLE,
 		    [UNPATCHED_ARP_RHYTHM] = STRING_FOR_ARP_RHYTHM_MENU_TITLE,
 		    [UNPATCHED_ARP_SEQUENCE_LENGTH] = STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
@@ -514,6 +526,18 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case UNPATCHED_SPREAD_VELOCITY:
 			return "spreadVelocity";
 
+		case UNPATCHED_SCATTER_ZONE_A:
+			return "scatterZoneA";
+
+		case UNPATCHED_SCATTER_ZONE_B:
+			return "scatterZoneB";
+
+		case UNPATCHED_SCATTER_MACRO_CONFIG:
+			return "scatterDepth";
+
+		case UNPATCHED_SCATTER_MACRO:
+			return "scatterMacro";
+
 		case UNPATCHED_NUM_SHARED:
 		    // Intentionally not handled
 		    ;
@@ -540,6 +564,18 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case GLOBAL_DELAY_FEEDBACK:
 			return "delayFeedback";
+
+		case GLOBAL_SCATTER_MACRO:
+			return "globalScatterMacro";
+
+		case GLOBAL_SCATTER_ZONE_A:
+			return "globalScatterZoneA";
+
+		case GLOBAL_SCATTER_ZONE_B:
+			return "globalScatterZoneB";
+
+		case GLOBAL_SCATTER_MACRO_CONFIG:
+			return "globalScatterDepth";
 
 		case GLOBAL_REVERB_AMOUNT:
 			return "reverbAmount";

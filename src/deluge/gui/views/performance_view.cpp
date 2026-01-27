@@ -37,6 +37,7 @@
 #include "mem_functions.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/fx/stutterer.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "playback/mode/arrangement.h"
@@ -1384,9 +1385,10 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 		if (modelStackWithParam->getTimelineCounter()
 		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-			// if switching to a new pad in the stutter column and stuttering is already active
+			// if switching to a new pad in the stutter column and stuttering/scattering is already active
 			// e.g. it means a pad was held before, end previous stutter before starting stutter again
-			if (params::isParamStutter(paramKind, paramID) && (isUIModeActive(UI_MODE_STUTTERING))) {
+			if (params::isParamStutter(paramKind, paramID)
+			    && (isUIModeActive(UI_MODE_STUTTERING) || stutterer.isScatterPlaying())) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
@@ -1612,7 +1614,7 @@ void PerformanceView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 			}
 		}
 	}
-	if (isUIModeActive(UI_MODE_STUTTERING) && lastPadPress.isActive
+	if ((isUIModeActive(UI_MODE_STUTTERING) || stutterer.isScatterPlaying()) && lastPadPress.isActive
 	    && params::isParamStutter(lastPadPress.paramKind, lastPadPress.paramID)) {
 		return;
 	}

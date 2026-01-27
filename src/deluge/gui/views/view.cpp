@@ -65,6 +65,7 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -822,6 +823,31 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 			params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
+			// Push+twist on gold knob when learned to scatter param: adjust gammaPhase
+			// This provides a "secret" phase evolution control accessible via gold knob
+			hid::Button modEncButton = (whichModEncoder == 0) ? hid::button::MOD_ENCODER_0 : hid::button::MOD_ENCODER_1;
+			if (Buttons::isButtonPressed(modEncButton)) {
+				bool isScatter = false;
+				if (kind == params::Kind::PATCHED) {
+					isScatter = params::isScatterParam(static_cast<params::ParamType>(modelStackWithParam->paramId));
+				}
+				else if (kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) {
+					isScatter =
+					    params::isScatterParam(static_cast<params::UnpatchedShared>(modelStackWithParam->paramId));
+				}
+
+				if (isScatter && activeModControllableModelStack.modControllable) {
+					auto* mca = static_cast<ModControllableAudio*>(activeModControllableModelStack.modControllable);
+					float& gamma = mca->stutterConfig.gammaPhase;
+					gamma = std::max(0.0f, gamma + static_cast<float>(offset) * 0.1f);
+					// Display gamma value
+					char buffer[16];
+					snprintf(buffer, sizeof(buffer), "gamma:%d", static_cast<int32_t>(gamma * 10.0f));
+					display->displayPopup(buffer);
+					return;
+				}
+			}
+
 			int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 			int32_t lowerLimit;
@@ -832,6 +858,27 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			else {
 				lowerLimit = std::min(-64_i32, knobPos);
 			}
+
+			// Check if this is a high-resolution zone param (1024 steps instead of 128)
+			// For these params, use finer control by applying smaller deltas
+			// Zone params can be either patched (in Sound context) or unpatched (in GlobalEffectable context)
+			bool isHighResParam = false;
+			int32_t highResDivisor = 1;
+			if (kind == params::Kind::PATCHED) {
+				auto paramType = static_cast<params::ParamType>(modelStackWithParam->paramId);
+				if (params::isHighResZoneParam(paramType)) {
+					isHighResParam = true;
+					highResDivisor = params::getHighResOffsetDivisor(paramType);
+				}
+			}
+			else if (kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) {
+				auto paramId = static_cast<params::UnpatchedShared>(modelStackWithParam->paramId);
+				if (params::isHighResZoneParam(paramId)) {
+					isHighResParam = true;
+					highResDivisor = params::getHighResOffsetDivisor(paramId);
+				}
+			}
+
 			int32_t newKnobPos = knobPos + offset;
 			newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
 
@@ -880,7 +927,9 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, source1, source2);
 			}
 
-			if (newKnobPos == knobPos) {
+			// For standard params, skip if knobPos hasn't changed
+			// For high-res zone params, always proceed since value changes with finer granularity
+			if (!isHighResParam && newKnobPos == knobPos) {
 				return;
 			}
 
@@ -898,8 +947,24 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				modelStackWithParam->setTimelineCounter(nullptr);
 			}
 
-			int32_t newValue =
-			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+			int32_t newValue;
+			if (isHighResParam && highResDivisor > 1) {
+				// High-res zone params: use finer delta (1024 steps instead of 128)
+				// Standard: each knob step = 2^25 (~33.5M) in q31
+				// High-res: each step = 2^25 / divisor (~4.2M for 1024-step)
+				int32_t stepSize = (1 << 25) / highResDivisor;
+				newValue = value + (offset * stepSize);
+				// Clamp to valid q31 range
+				if (newValue < 0) {
+					newValue = 0;
+				}
+				if (newValue > 2147483647) {
+					newValue = 2147483647;
+				}
+			}
+			else {
+				newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+			}
 
 			// Perform the actual change
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);

@@ -55,6 +55,34 @@ Error DelayBuffer::init(uint32_t rate, uint32_t failIfThisSize, bool includeExtr
 	return Error::NONE;
 }
 
+Error DelayBuffer::initWithSize(size_t sampleCount, bool includeExtraSpace) {
+	// Clamp to valid range
+	if (sampleCount > kStutterMaxSize) {
+		sampleCount = kStutterMaxSize;
+	}
+	if (sampleCount < kMinSize) {
+		sampleCount = kMinSize;
+	}
+
+	size_ = sampleCount;
+	// Calculate native rate from size (inverse of size calculation)
+	// buffer_size = kNeutralSize * kMaxSampleValue / rate
+	// rate = kNeutralSize * kMaxSampleValue / buffer_size
+	native_rate_ = static_cast<uint32_t>((uint64_t)kNeutralSize * kMaxSampleValue / size_);
+
+	sizeIncludingExtra = size_ + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
+
+	start_ = (StereoSample*)allocLowSpeed(sizeIncludingExtra * sizeof(StereoSample));
+
+	if (start_ == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+
+	end_ = start_ + sizeIncludingExtra;
+	clear();
+	return Error::NONE;
+}
+
 void DelayBuffer::clear() {
 	memset(start_, 0, sizeof(StereoSample) * (delaySpaceBetweenReadAndWrite + 2));
 	current_ = start_ + delaySpaceBetweenReadAndWrite;

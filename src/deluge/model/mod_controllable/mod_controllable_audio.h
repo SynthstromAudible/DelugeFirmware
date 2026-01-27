@@ -50,7 +50,8 @@ public:
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 
-	void processStutter(std::span<StereoSample> buffer, ParamManager* paramManager);
+	void processStutter(std::span<StereoSample> buffer, ParamManager* paramManager,
+	                    const q31_t* modulatedScatterValues = nullptr);
 	void processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer, int32_t postFXVolume,
 	                                int32_t postReverbVolume, int32_t reverbSendAmount, int32_t pan = 0,
 	                                bool doAmplitudeIncrement = false);

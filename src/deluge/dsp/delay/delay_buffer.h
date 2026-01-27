@@ -29,13 +29,15 @@ constexpr ptrdiff_t delaySpaceBetweenReadAndWrite = 20;
 
 class DelayBuffer {
 public:
-	constexpr static size_t kMaxSize = 88200;
+	constexpr static size_t kMaxSize = 88200;         // 2 seconds - for delay effect
+	constexpr static size_t kStutterMaxSize = 264600; // 6 seconds - for stutter/scatter
 	constexpr static size_t kMinSize = 1;
 	constexpr static size_t kNeutralSize = 16384;
 
 	DelayBuffer() = default;
 	~DelayBuffer() { discard(); }
 	Error init(uint32_t newRate, uint32_t failIfThisSize = 0, bool includeExtraSpace = true);
+	Error initWithSize(size_t sampleCount, bool includeExtraSpace = true);
 
 	// Prevent the delaybuffer from deallocing the Sample array on destruction
 	// TODO (Kate): investigate a shared_ptr for start_
