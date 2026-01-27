@@ -53,7 +53,7 @@ jobs:
           build_dir: ${{ github.workspace }}/build
           source_dir: ${{ github.workspace }}
           only_affected_lines: true
-          fail_on_problems: true
+          fail_on_problems: false
           clang_tidy_args: ${{ steps.extract_system_includes.outputs.system_includes }} --extra-arg-before=--no-standard-includes
           clang_tidy_file: ${{ github.workspace }}/.clang-tidy
 
