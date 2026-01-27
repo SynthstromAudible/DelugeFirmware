@@ -28,6 +28,7 @@
 #include "gui/menu_item/audio_clip/transpose.h"
 #include "gui/menu_item/audio_compressor/compressor_params.h"
 #include "gui/menu_item/audio_compressor/compressor_values.h"
+#include "gui/menu_item/audio_compressor/multiband.h"
 #include "gui/menu_item/audio_interpolation.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
@@ -210,6 +211,7 @@
 #include "gui/menu_item/submenu/actual_source.h"
 #include "gui/menu_item/submenu/arp_mpe_submenu.h"
 #include "gui/menu_item/submenu/bend.h"
+#include "gui/menu_item/submenu/compressor.h"
 #include "gui/menu_item/submenu/mod_fx.h"
 #include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/swing/interval.h"
@@ -539,6 +541,53 @@ HorizontalMenu stutterMenu{STRING_FOR_STUTTER,
                            },
                            HorizontalMenu::Layout::DYNAMIC};
 
+// DOTT (Multiband Compressor) ---------------------------------------------------------------
+// 24 items organized for proper pagination (8 per page)
+audio_compressor::ModeZone dottMode{STRING_FOR_COMPRESSOR_MODE, STRING_FOR_COMPRESSOR_MODE};
+audio_compressor::LinkedThreshold mbLinkedThreshold{STRING_FOR_THRESHOLD, STRING_FOR_THRESHOLD};
+audio_compressor::LinkedRatio mbLinkedRatio{STRING_FOR_RATIO, STRING_FOR_RATIO};
+audio_compressor::UpDownSkew mbUpDownSkew{STRING_FOR_COMPRESSOR_UP_DOWN_SKEW, STRING_FOR_COMPRESSOR_UP_DOWN_SKEW};
+audio_compressor::LinkedAttack mbLinkedAttack{STRING_FOR_ATTACK, STRING_FOR_ATTACK};
+audio_compressor::LinkedRelease mbLinkedRelease{STRING_FOR_RELEASE, STRING_FOR_RELEASE};
+audio_compressor::Character mbCharacter{STRING_FOR_COMPRESSOR_CHARACTER, STRING_FOR_COMPRESSOR_CHARACTER};
+audio_compressor::Vibe mbVibe{STRING_FOR_COMPRESSOR_VIBE, STRING_FOR_COMPRESSOR_VIBE};
+// Per-band controls: Low
+audio_compressor::BandThreshold<0> mbLowThreshold{STRING_FOR_COMPRESSOR_LOW_THRESHOLD,
+                                                  STRING_FOR_COMPRESSOR_LOW_THRESHOLD};
+audio_compressor::BandRatio<0> mbLowRatio{STRING_FOR_COMPRESSOR_LOW_RATIO, STRING_FOR_COMPRESSOR_LOW_RATIO};
+audio_compressor::BandBandwidth<0> mbLowBandwidth{STRING_FOR_COMPRESSOR_LOW_BW, STRING_FOR_COMPRESSOR_LOW_BW};
+audio_compressor::BandOutputLevel<0> mbLowOutputLevel{STRING_FOR_COMPRESSOR_LOW_LEVEL, STRING_FOR_COMPRESSOR_LOW_LEVEL};
+// Per-band controls: Mid
+audio_compressor::BandThreshold<1> mbMidThreshold{STRING_FOR_COMPRESSOR_MID_THRESHOLD,
+                                                  STRING_FOR_COMPRESSOR_MID_THRESHOLD};
+audio_compressor::BandRatio<1> mbMidRatio{STRING_FOR_COMPRESSOR_MID_RATIO, STRING_FOR_COMPRESSOR_MID_RATIO};
+audio_compressor::BandBandwidth<1> mbMidBandwidth{STRING_FOR_COMPRESSOR_MID_BW, STRING_FOR_COMPRESSOR_MID_BW};
+audio_compressor::BandOutputLevel<1> mbMidOutputLevel{STRING_FOR_COMPRESSOR_MID_LEVEL, STRING_FOR_COMPRESSOR_MID_LEVEL};
+// Per-band controls: High
+audio_compressor::BandThreshold<2> mbHighThreshold{STRING_FOR_COMPRESSOR_HIGH_THRESHOLD,
+                                                   STRING_FOR_COMPRESSOR_HIGH_THRESHOLD};
+audio_compressor::BandRatio<2> mbHighRatio{STRING_FOR_COMPRESSOR_HIGH_RATIO, STRING_FOR_COMPRESSOR_HIGH_RATIO};
+audio_compressor::BandBandwidth<2> mbHighBandwidth{STRING_FOR_COMPRESSOR_HIGH_BW, STRING_FOR_COMPRESSOR_HIGH_BW};
+audio_compressor::BandOutputLevel<2> mbHighOutputLevel{STRING_FOR_COMPRESSOR_HIGH_LEVEL,
+                                                       STRING_FOR_COMPRESSOR_HIGH_LEVEL};
+// Global controls at end
+audio_compressor::LowCrossover compLowXover{STRING_FOR_COMPRESSOR_LOW_CROSSOVER, STRING_FOR_COMPRESSOR_LOW_CROSSOVER};
+audio_compressor::HighCrossover compHighXover{STRING_FOR_COMPRESSOR_HIGH_CROSSOVER,
+                                              STRING_FOR_COMPRESSOR_HIGH_CROSSOVER};
+audio_compressor::OutputGain mbOutputGain{STRING_FOR_COMPRESSOR_OUTPUT_GAIN, STRING_FOR_COMPRESSOR_OUTPUT_GAIN};
+audio_compressor::MultibandBlend mbBlend{STRING_FOR_BLEND, STRING_FOR_BLEND};
+
+submenu::CompressorHorizontalMenu dottMenu{
+    STRING_FOR_DOTT,
+    {
+        &dottMode,         &mbLinkedThreshold, &mbLinkedRatio,  &mbUpDownSkew,    &mbLinkedAttack,
+        &mbLinkedRelease,  &mbCharacter,       &mbVibe,         &mbLowThreshold,  &mbLowRatio,
+        &mbLowBandwidth,   &mbLowOutputLevel,  &mbMidThreshold, &mbMidRatio,      &mbMidBandwidth,
+        &mbMidOutputLevel, &mbHighThreshold,   &mbHighRatio,    &mbHighBandwidth, &mbHighOutputLevel,
+        &compLowXover,     &compHighXover,     &mbOutputGain,   &mbBlend,
+    },
+    HorizontalMenu::Layout::DYNAMIC};
+
 // Bend Ranges -------------------------------------------------------------------------------
 
 bend_range::Main mainBendRangeMenu{STRING_FOR_NORMAL};
@@ -851,6 +900,7 @@ Submenu globalFXMenu{
         &stutterMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
+        &dottMenu,
     },
 };
 
@@ -906,6 +956,7 @@ Submenu audioClipFXMenu{
         &stutterMenu,
         &globalModFXMenu,
         &audioClipDistortionMenu,
+        &dottMenu,
     },
 };
 
@@ -1417,6 +1468,7 @@ Submenu soundFXMenu{
         &modFXMenu,
         &soundDistortionMenu,
         &noiseMenu,
+        &dottMenu,
     },
 };
 
@@ -1857,7 +1909,7 @@ deluge::vector<HorizontalMenu*> horizontalMenusChainForKit = {
 	&kitClipMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
-	&globalSidechainMenu, &audioCompMenu, &stutterMenu,
+	&dottMenu, &globalSidechainMenu, &audioCompMenu, &stutterMenu,
 	&arpMenuGroupKit, &randomizerMenu
 };
 
@@ -1865,14 +1917,14 @@ deluge::vector<HorizontalMenu*> horizontalMenusChainForSong = {
 	&songMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
-	&audioCompMenu, &stutterMenu
+	&dottMenu, &audioCompMenu, &stutterMenu
 };
 
 deluge::vector<HorizontalMenu*> horizontalMenusChainForAudioClip = {
 	&audioClipMasterMenu, &audioClipSampleMenu,
 	&globalFiltersMenuGroup, &eqMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &audioClipDistortionMenu,
-	&globalSidechainMenu, &audioCompMenu, &stutterMenu
+	&dottMenu, &globalSidechainMenu, &audioCompMenu, &stutterMenu
 };
 
 deluge::vector<HorizontalMenu*> horizontalMenusChainForMidiOrCv = {

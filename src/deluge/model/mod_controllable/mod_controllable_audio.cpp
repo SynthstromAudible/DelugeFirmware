@@ -42,6 +42,7 @@
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include <algorithm>
+#include <cmath>
 
 namespace params = deluge::modulation::params;
 
@@ -99,6 +100,10 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
 	delay = other->delay;
 	stutterConfig = other->stutterConfig;
+	// Multiband compressor state
+	compressorMode = other->compressorMode;
+	multibandCompressor.setEnabledZone(other->multibandCompressor.getEnabledZone());
+	multibandCompressor.setCrossoverType(other->multibandCompressor.getCrossoverType());
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager) {
@@ -137,6 +142,87 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 
 	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(-601295438);
 	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(0);
+
+	// Multiband compressor default params
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_CHARACTER].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_LOW_CROSSOVER].setCurrentValueBasicForSetup(ONE_Q31 / 4);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_HIGH_CROSSOVER].setCurrentValueBasicForSetup(ONE_Q31 / 2);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(ONE_Q31 / 2);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_RATIO].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_ATTACK].setCurrentValueBasicForSetup(ONE_Q31 / 4);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_RELEASE].setCurrentValueBasicForSetup(ONE_Q31 / 4);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_SKEW].setCurrentValueBasicForSetup(ONE_Q31 / 2);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_LOW_LEVEL].setCurrentValueBasicForSetup(ONE_Q31 / 2);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_MID_LEVEL].setCurrentValueBasicForSetup(ONE_Q31 / 2);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_HIGH_LEVEL].setCurrentValueBasicForSetup(ONE_Q31 / 2);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_OUTPUT_GAIN].setCurrentValueBasicForSetup(ONE_Q31 / 2);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_VIBE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_MB_COMPRESSOR_BLEND].setCurrentValueBasicForSetup(ONE_Q31); // 100% wet
+}
+
+void ModControllableAudio::applyMultibandCompressorParams(ParamManager* paramManager) {
+	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+
+	// Character (Feel) - controls width, knee, timing, skew variations
+	q31_t character = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_CHARACTER);
+	multibandCompressor.setCharacter(character);
+
+	// Crossover frequencies (exponential mapping from q31_t to Hz)
+	q31_t lowCrossover = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_LOW_CROSSOVER);
+	q31_t highCrossover = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_HIGH_CROSSOVER);
+
+	// Low crossover: 50Hz-2000Hz
+	constexpr float kLowMinFreq = 50.0f;
+	constexpr float kLowMaxFreq = 2000.0f;
+	float lowNormalized = static_cast<float>(lowCrossover) / ONE_Q31f;
+	float lowFreqHz = kLowMinFreq * std::pow(kLowMaxFreq / kLowMinFreq, lowNormalized);
+
+	// High crossover: 200Hz-8000Hz
+	constexpr float kHighMinFreq = 200.0f;
+	constexpr float kHighMaxFreq = 8000.0f;
+	float highNormalized = static_cast<float>(highCrossover) / ONE_Q31f;
+	float highFreqHz = kHighMinFreq * std::pow(kHighMaxFreq / kHighMinFreq, highNormalized);
+
+	// Ensure minimum gap between crossovers
+	constexpr float kMinGap = 100.0f;
+	if (highFreqHz < lowFreqHz + kMinGap) {
+		highFreqHz = lowFreqHz + kMinGap;
+	}
+
+	multibandCompressor.setLowCrossover(lowFreqHz);
+	multibandCompressor.setHighCrossover(highFreqHz);
+
+	// Linked controls for all bands
+	q31_t threshold = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_THRESHOLD);
+	q31_t ratio = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_RATIO);
+	q31_t attack = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_ATTACK);
+	q31_t release = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_RELEASE);
+	q31_t skew = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_SKEW);
+	multibandCompressor.setAllThresholds(threshold);
+	multibandCompressor.setAllRatios(ratio);
+	multibandCompressor.setAllAttacks(attack);
+	multibandCompressor.setAllReleases(release);
+	multibandCompressor.setUpDownSkew(skew);
+
+	// Per-band output levels
+	q31_t lowLevel = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_LOW_LEVEL);
+	q31_t midLevel = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_MID_LEVEL);
+	q31_t highLevel = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_HIGH_LEVEL);
+	multibandCompressor.getBand(0).setOutputLevel(lowLevel);
+	multibandCompressor.getBand(1).setOutputLevel(midLevel);
+	multibandCompressor.getBand(2).setOutputLevel(highLevel);
+
+	// Master output gain
+	q31_t outputGain = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_OUTPUT_GAIN);
+	multibandCompressor.setOutputGain(outputGain);
+
+	// Vibe (phase relationships)
+	q31_t vibe = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_VIBE);
+	multibandCompressor.setVibe(vibe);
+
+	// Wet/dry blend
+	q31_t blend = unpatchedParams->getValue(params::UNPATCHED_MB_COMPRESSOR_BLEND);
+	multibandCompressor.setBlend(blend);
 }
 
 bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {

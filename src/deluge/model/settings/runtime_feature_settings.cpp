@@ -323,6 +323,10 @@ void RuntimeFeatureSettings::init() {
 	// Retrospective Sampler - Normalize (normalize audio when saving)
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RetrospectiveSamplerNormalize],
 	                  STRING_FOR_COMMUNITY_FEATURE_RETRO_NORMALIZE, "retroNormalize", RuntimeFeatureStateToggle::Off);
+
+	// ModFX after DOTT (post multiband compressor)
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ModFXPostDOTT], STRING_FOR_COMMUNITY_FEATURE_MODFX_POST_DOTT,
+	                  "modFxPostDott", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

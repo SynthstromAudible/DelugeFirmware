@@ -31,6 +31,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/instrument/kit.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
@@ -131,9 +132,34 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Render FX
 	processSRRAndBitcrushing(global_effectable_audio, &volumePostFX, paramManagerForClip);
-	processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
-	                             renderedLastTime, reverbSendAmount);
+
+	// Check if ModFX should run after DOTT and stutter
+	bool modFXPostDOTT =
+	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::ModFXPostDOTT) == RuntimeFeatureStateToggle::On;
+	bool dottEnabled = multibandCompressor.isEnabled();
+
+	// Default order: ModFX → Stutter → DOTT → Reverb
+	// With ModFXPostDOTT: Stutter → DOTT → ModFX → Reverb
+	if (!modFXPostDOTT) {
+		processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
+		                             renderedLastTime, reverbSendAmount);
+	}
+
 	processStutter(global_effectable_audio, paramManagerForClip);
+
+	// DOTT (multiband compressor) - runs after stutter
+	if (dottEnabled) {
+		applyMultibandCompressorParams(paramManagerForClip);
+		multibandCompressor.setMeteringEnabled(true);
+		multibandCompressor.render(global_effectable_audio);
+	}
+
+	// ModFX after DOTT when setting is ON
+	if (modFXPostDOTT) {
+		processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
+		                             renderedLastTime, reverbSendAmount);
+	}
+
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
