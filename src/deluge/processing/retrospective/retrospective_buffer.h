@@ -156,6 +156,9 @@ private:
 	uint8_t numChannels_ = 2;                              ///< Number of channels: 1 (mono) or 2 (stereo)
 	AudioInputChannel source_ = AudioInputChannel::STEREO; ///< Audio source
 
+	// TPDF dither state for 16-bit conversion (simple LCG PRNG)
+	uint32_t ditherState_ = 0x12345678; ///< PRNG state for dithering
+
 	// Bar-sync pending save state
 	std::atomic<bool> pendingSave_{false};   ///< True when waiting for downbeat to save
 	std::atomic<int64_t> saveTargetTick_{0}; ///< Tick position of target downbeat

@@ -2461,22 +2461,17 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 				// Create a span for the temp buffer
 				std::span<StereoSample> tempBuffer(tempBufferStorage, numSamples);
 
-				// Render to temp buffer at full level for capture (use unity gain)
-				// This ensures capture level matches what MasterOutput mode gets after global FX
-				constexpr int32_t kUnityGain = 0x3FFFFFFF; // ~0.5 in Q31, leaves headroom
-				output->renderOutput(modelStack, tempBuffer, reverbBuffer, kUnityGain, sideChainHitPending,
+				// Render to temp buffer at normal gain (same as other tracks)
+				output->renderOutput(modelStack, tempBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
 				                     !isClipActiveNow, isClipActiveNow);
 
 				// Feed to retrospective buffer (skip pending save check - we're in interrupt-disabled context)
 				retrospectiveBuffer.feedAudio(tempBufferStorage, numSamples, true);
 
-				// Scale down to match normal mix level before adding to output buffer
-				// Scale factor = (volumePostFX >> 1) / kUnityGain
-				int32_t scaleFactor = volumePostFX >> 1;
+				// Add temp buffer to main output buffer
 				for (size_t i = 0; i < numSamples; i++) {
-					// Apply scale using 64-bit multiply to avoid overflow
-					outputBuffer[i].l += (int32_t)(((int64_t)tempBufferStorage[i].l * scaleFactor) >> 30);
-					outputBuffer[i].r += (int32_t)(((int64_t)tempBufferStorage[i].r * scaleFactor) >> 30);
+					outputBuffer[i].l += tempBufferStorage[i].l;
+					outputBuffer[i].r += tempBufferStorage[i].r;
 				}
 			}
 			else {

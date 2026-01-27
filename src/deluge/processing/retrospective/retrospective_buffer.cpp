@@ -28,6 +28,8 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "util/cfunctions.h"
+#include "util/functions.h"
+#include <algorithm>
 #include <cstring>
 
 extern "C" {
@@ -287,14 +289,33 @@ void RetrospectiveBuffer::feedAudio(const StereoSample* samples, size_t numSampl
 			peakIsValid = false;
 		}
 
+		// Apply +5 bit gain to match MIX/OFFLINE_OUTPUT recording level
+		// Internal mixing level is ~8 bits below DAC output; +5 matches stem export
+		int32_t sampleL = lshiftAndSaturate<5>(samples[i].l);
+		int32_t sampleR = lshiftAndSaturate<5>(samples[i].r);
+
 		size_t byteOffset = pos * bytesPerFrame;
 		uint8_t* dest = buffer_ + byteOffset;
 		int32_t samplePeak = 0; // Track peak of this sample (at stored bit depth)
 
 		if (bytesPerSample_ == 2) {
-			// 16-bit: take the upper 16 bits of the 32-bit sample
-			int16_t left = static_cast<int16_t>(samples[i].l >> 16);
-			int16_t right = static_cast<int16_t>(samples[i].r >> 16);
+			// 16-bit with TPDF dither to eliminate quantization distortion
+			// Generate two random values using LCG and subtract for triangular distribution
+			// Dither range is ±1 LSB at 16-bit (±65536 in 32-bit domain)
+			ditherState_ = ditherState_ * 1664525u + 1013904223u;
+			int32_t rand1 = static_cast<int32_t>(ditherState_ & 0xFFFF); // [0, 65535]
+			ditherState_ = ditherState_ * 1664525u + 1013904223u;
+			int32_t rand2 = static_cast<int32_t>(ditherState_ & 0xFFFF); // [0, 65535]
+			int32_t dither = rand1 - rand2;                              // Triangular distribution (-65535, +65535)
+
+			// Apply dither before truncation (use 64-bit to avoid overflow)
+			int32_t leftDithered = static_cast<int32_t>(
+			    std::clamp(static_cast<int64_t>(sampleL) + dither, (int64_t)INT32_MIN, (int64_t)INT32_MAX));
+			int32_t rightDithered = static_cast<int32_t>(
+			    std::clamp(static_cast<int64_t>(sampleR) + dither, (int64_t)INT32_MIN, (int64_t)INT32_MAX));
+
+			int16_t left = static_cast<int16_t>(leftDithered >> 16);
+			int16_t right = static_cast<int16_t>(rightDithered >> 16);
 
 			if (numChannels_ == 2) {
 				// Stereo
@@ -313,9 +334,9 @@ void RetrospectiveBuffer::feedAudio(const StereoSample* samples, size_t numSampl
 			}
 		}
 		else {
-			// 24-bit: take the upper 24 bits of the 32-bit sample
-			int32_t left = samples[i].l >> 8;
-			int32_t right = samples[i].r >> 8;
+			// 24-bit: take the upper 24 bits of the gained sample
+			int32_t left = sampleL >> 8;
+			int32_t right = sampleR >> 8;
 
 			if (numChannels_ == 2) {
 				// Stereo
@@ -389,13 +410,24 @@ void RetrospectiveBuffer::feedAudioMono(const int32_t* samples, size_t numSample
 			peakIsValid = false;
 		}
 
+		// Apply +5 bit gain to match MIX/OFFLINE_OUTPUT recording level
+		int32_t gainedSample = lshiftAndSaturate<5>(samples[i]);
+
 		size_t byteOffset = pos * bytesPerFrame;
 		uint8_t* dest = buffer_ + byteOffset;
 		int32_t samplePeak = 0;
 
 		if (bytesPerSample_ == 2) {
-			// 16-bit: take the upper 16 bits
-			int16_t sample = static_cast<int16_t>(samples[i] >> 16);
+			// 16-bit with TPDF dither
+			ditherState_ = ditherState_ * 1664525u + 1013904223u;
+			int32_t rand1 = static_cast<int32_t>(ditherState_ & 0xFFFF);
+			ditherState_ = ditherState_ * 1664525u + 1013904223u;
+			int32_t rand2 = static_cast<int32_t>(ditherState_ & 0xFFFF);
+			int32_t dither = rand1 - rand2;
+
+			int32_t dithered = static_cast<int32_t>(
+			    std::clamp(static_cast<int64_t>(gainedSample) + dither, (int64_t)INT32_MIN, (int64_t)INT32_MAX));
+			int16_t sample = static_cast<int16_t>(dithered >> 16);
 			samplePeak = std::abs(static_cast<int32_t>(sample));
 
 			if (numChannels_ == 2) {
@@ -412,7 +444,7 @@ void RetrospectiveBuffer::feedAudioMono(const int32_t* samples, size_t numSample
 		}
 		else {
 			// 24-bit
-			int32_t sample = samples[i] >> 8;
+			int32_t sample = gainedSample >> 8;
 			// Sign-extend for abs
 			int32_t sampleSigned = sample;
 			if (sampleSigned & 0x800000) {
