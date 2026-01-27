@@ -98,7 +98,13 @@ enum Local : ParamType {
 	LOCAL_OSC_B_WAVE_INDEX,
 	LOCAL_PAN,
 	LOCAL_TABLE_SHAPER_DRIVE, // Table shaper drive (additive mod: base + mod)
+	LOCAL_SINE_SHAPER_DRIVE,  // Sine shaper drive (additive mod: base + mod)
 	LOCAL_TABLE_SHAPER_MIX,   // Table shaper wet/dry mix
+
+	// Local zone params begin (pure modulation pass-through, scaling handled by ZoneBasedParam)
+	FIRST_LOCAL_ZONE,
+	LOCAL_SINE_SHAPER_TWIST = FIRST_LOCAL_ZONE, // Sine shaper twist/modifier
+	LOCAL_SINE_SHAPER_HARMONIC,                 // Sine shaper harmonic zone
 
 	// Local exp params begin
 	FIRST_LOCAL_EXP,
@@ -207,7 +213,10 @@ enum UnpatchedShared : ParamType {
 	UNPATCHED_MB_COMPRESSOR_OUTPUT_GAIN,
 	UNPATCHED_MB_COMPRESSOR_VIBE,
 	UNPATCHED_MB_COMPRESSOR_BLEND,
-	// Table Shaper controls for GlobalEffectables (Kit/AudioClip at clip level)
+	// Shaper controls for GlobalEffectables (Kit/AudioClip at clip level)
+	UNPATCHED_SINE_SHAPER_DRIVE,
+	UNPATCHED_SINE_SHAPER_HARMONIC,
+	UNPATCHED_SINE_SHAPER_TWIST,
 	UNPATCHED_TABLE_SHAPER_DRIVE,
 	UNPATCHED_TABLE_SHAPER_MIX,
 	// Scatter controls
@@ -421,9 +430,11 @@ struct ZoneParamInfo {
 	int32_t resolution;
 };
 
-/// Get zone param info for patched params (GLOBAL zone params)
+/// Get zone param info for patched params (LOCAL and GLOBAL zone params)
 constexpr ZoneParamInfo getZoneParamInfo(ParamType paramId) {
 	switch (paramId) {
+	case LOCAL_SINE_SHAPER_HARMONIC:
+	case LOCAL_SINE_SHAPER_TWIST:
 	case GLOBAL_SCATTER_ZONE_A:
 	case GLOBAL_SCATTER_ZONE_B:
 	case GLOBAL_SCATTER_MACRO_CONFIG:
@@ -438,6 +449,8 @@ constexpr ZoneParamInfo getZoneParamInfo(ParamType paramId) {
 /// Get zone param info for unpatched params
 constexpr ZoneParamInfo getZoneParamInfo(UnpatchedShared paramId) {
 	switch (paramId) {
+	case UNPATCHED_SINE_SHAPER_HARMONIC:
+	case UNPATCHED_SINE_SHAPER_TWIST:
 	case UNPATCHED_SCATTER_ZONE_A:
 	case UNPATCHED_SCATTER_ZONE_B:
 	case UNPATCHED_SCATTER_MACRO_CONFIG:
@@ -455,6 +468,16 @@ constexpr ZoneParamInfo getZoneParamInfo(UnpatchedShared paramId) {
 /// Get the unpatched fallback param for a patched param (-1 if none)
 constexpr int32_t getUnpatchedFallback(ParamType patchedId) {
 	switch (patchedId) {
+	case LOCAL_TABLE_SHAPER_DRIVE:
+		return UNPATCHED_TABLE_SHAPER_DRIVE;
+	case LOCAL_TABLE_SHAPER_MIX:
+		return UNPATCHED_TABLE_SHAPER_MIX;
+	case LOCAL_SINE_SHAPER_DRIVE:
+		return UNPATCHED_SINE_SHAPER_DRIVE;
+	case LOCAL_SINE_SHAPER_HARMONIC:
+		return UNPATCHED_SINE_SHAPER_HARMONIC;
+	case LOCAL_SINE_SHAPER_TWIST:
+		return UNPATCHED_SINE_SHAPER_TWIST;
 	case GLOBAL_SCATTER_ZONE_A:
 		return UNPATCHED_SCATTER_ZONE_A;
 	case GLOBAL_SCATTER_ZONE_B:

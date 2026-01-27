@@ -178,6 +178,9 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 
 		lastSaturationTanHWorkingValue[0] = 2147483648;
 		lastSaturationTanHWorkingValue[1] = 2147483648;
+
+		// Reset sine shaper state (DC blocker, feedback, stereo LFO)
+		sineShaperState = dsp::SineShaperVoiceState{};
 	}
 
 	// Porta
@@ -1501,6 +1504,18 @@ skipUnisonPart: {}
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, paramFinalValues[params::LOCAL_FOLD]);
 		}
 
+		// Sine Shaper (per-voice, mod-matrix routable drive, harmonic, and twist)
+		if (sound.sineShaper.isEnabled()) {
+			std::span<StereoSample> stereoBuffer(reinterpret_cast<StereoSample*>(oscBuffer), numSamples);
+			dsp::processSineShaper(stereoBuffer, &sound.sineShaper, &sineShaperState,
+			                       paramFinalValues[params::LOCAL_SINE_SHAPER_DRIVE],
+			                       paramManager->getPatchedParamSet()->getValue(params::LOCAL_SINE_SHAPER_HARMONIC),
+			                       paramFinalValues[params::LOCAL_SINE_SHAPER_HARMONIC],
+			                       paramManager->getPatchedParamSet()->getValue(params::LOCAL_SINE_SHAPER_TWIST),
+			                       paramFinalValues[params::LOCAL_SINE_SHAPER_TWIST], 0, // filterGain: 0 = FM mode
+			                       sound.hasFilters());
+		}
+
 		// Table Shaper (per-voice, mod-matrix routable drive and mix)
 		if (sound.shaper.shapeX > 0) {
 			q31_t satDrive = paramFinalValues[params::LOCAL_TABLE_SHAPER_DRIVE];
@@ -1602,6 +1617,18 @@ skipUnisonPart: {}
 			q31_t foldAmount = paramFinalValues[params::LOCAL_FOLD];
 
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
+		}
+
+		// Sine Shaper (per-voice, mod-matrix routable drive, harmonic, and twist) - mono path
+		if (sound.sineShaper.isEnabled()) {
+			std::span<q31_t> monoBuffer(oscBuffer, numSamples);
+			dsp::processSineShaper(monoBuffer, &sound.sineShaper, &sineShaperState,
+			                       paramFinalValues[params::LOCAL_SINE_SHAPER_DRIVE],
+			                       paramManager->getPatchedParamSet()->getValue(params::LOCAL_SINE_SHAPER_HARMONIC),
+			                       paramFinalValues[params::LOCAL_SINE_SHAPER_HARMONIC],
+			                       paramManager->getPatchedParamSet()->getValue(params::LOCAL_SINE_SHAPER_TWIST),
+			                       paramFinalValues[params::LOCAL_SINE_SHAPER_TWIST], 0, // filterGain: 0 = FM mode
+			                       sound.hasFilters());
 		}
 
 		// Table Shaper (per-voice, mono path)

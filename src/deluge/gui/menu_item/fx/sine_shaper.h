@@ -15,13 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/integer.h"
 #include "gui/menu_item/patched_param/integer.h"
 #include "gui/menu_item/unpatched_param.h"
+#include "gui/menu_item/zone_based.h"
 #include "gui/ui/sound_editor.h"
+#include "model/instrument/kit.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
+#include "util/d_string.h"
+#include <cstdint>
 #include <hid/buttons.h>
 #include <hid/display/display.h>
+#include <hid/display/oled.h>
 #include <limits>
 
 namespace params = deluge::modulation::params;
@@ -95,9 +105,11 @@ protected:
 
 	params::ParamType getUnpatchedP() {
 		// Map patched drive/mix params to their unpatched equivalents
-		// (sine shaper params will be added when that effect is ported)
 		if (getP() == params::LOCAL_TABLE_SHAPER_MIX) {
 			return params::UNPATCHED_TABLE_SHAPER_MIX;
+		}
+		if (getP() == params::LOCAL_SINE_SHAPER_DRIVE) {
+			return params::UNPATCHED_SINE_SHAPER_DRIVE;
 		}
 		return params::UNPATCHED_TABLE_SHAPER_DRIVE;
 	}
@@ -123,7 +135,188 @@ protected:
 	}
 };
 
-// NOTE: SineShaperHarmonic, SineShaperTwist, SineShaperMix classes will be added
-// when sine shaper effect is ported (requires sineShaper field on ModControllableAudio)
+/// Harmonic zone control - 8 zones with triangle-modulated Chebyshev harmonics
+/// Secret menu: Push+twist encoder to adjust harmonicPhaseOffset (per-patch phase offset)
+/// Press encoder (no twist): Opens mod matrix source selection
+class SineShaperHarmonic final : public ZoneBasedDualParam<params::LOCAL_SINE_SHAPER_HARMONIC> {
+public:
+	using ZoneBasedDualParam::ZoneBasedDualParam;
+
+	[[nodiscard]] q31_t getFieldValue() const override {
+		return soundEditor.currentModControllable->sineShaper.harmonic;
+	}
+
+	void setFieldValue(q31_t value) override { soundEditor.currentModControllable->sineShaper.harmonic = value; }
+
+	[[nodiscard]] const char* getZoneName(int32_t zoneIndex) const override {
+		switch (zoneIndex) {
+		case 0:
+			return "3579";
+		case 1:
+			return "3579wm";
+		case 2:
+			return "FM";
+		case 3:
+			return "Fold";
+		case 4:
+			return "Ring";
+		case 5:
+			return "Add";
+		case 6:
+			return "Mod";
+		case 7:
+			return "Poly";
+		default:
+			return "?";
+		}
+	}
+
+	void selectEncoderAction(int32_t offset) override {
+		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
+			// Secret menu: adjust harmonicPhaseOffset
+			Buttons::selectButtonPressUsedUp = true;
+			float& phase = soundEditor.currentModControllable->sineShaper.harmonicPhaseOffset;
+			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 0.1f);
+			char buffer[16];
+			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(phase * 10.0f));
+			display->displayPopup(buffer);
+			renderUIsForOled();
+			suppressNotification_ = true;
+		}
+		else {
+			ZoneBasedDualParam::selectEncoderAction(offset);
+		}
+	}
+
+	[[nodiscard]] bool showNotification() const override {
+		if (suppressNotification_) {
+			suppressNotification_ = false;
+			return false;
+		}
+		return true;
+	}
+
+private:
+	mutable bool suppressNotification_ = false;
+};
+
+/// Twist zone control - 8 zones with different modifiers
+/// Secret menu: Push+twist encoder to adjust twistPhaseOffset (per-patch phase offset)
+/// Press encoder (no twist): Opens mod matrix source selection
+class SineShaperTwist final : public ZoneBasedDualParam<params::LOCAL_SINE_SHAPER_TWIST> {
+public:
+	using ZoneBasedDualParam::ZoneBasedDualParam;
+
+	[[nodiscard]] q31_t getFieldValue() const override { return soundEditor.currentModControllable->sineShaper.twist; }
+
+	void setFieldValue(q31_t value) override { soundEditor.currentModControllable->sineShaper.twist = value; }
+
+	[[nodiscard]] const char* getZoneName(int32_t zoneIndex) const override {
+		switch (zoneIndex) {
+		case 0:
+			return "Width";
+		case 1:
+			return "Evens";
+		case 2:
+			return "Rect";
+		case 3:
+			return "Fdbk";
+		case 4:
+			return "Twist1";
+		case 5:
+			return "Twist2";
+		case 6:
+			return "Twist3";
+		case 7:
+			return "Twist4";
+		default:
+			return "---";
+		}
+	}
+
+	void selectEncoderAction(int32_t offset) override {
+		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
+			// Secret menu: adjust twistPhaseOffset
+			Buttons::selectButtonPressUsedUp = true;
+			float& phase = soundEditor.currentModControllable->sineShaper.twistPhaseOffset;
+			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 0.1f);
+			char buffer[16];
+			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(phase * 10.0f));
+			display->displayPopup(buffer);
+			renderUIsForOled();
+			suppressNotification_ = true;
+		}
+		else {
+			ZoneBasedDualParam::selectEncoderAction(offset);
+		}
+	}
+
+	[[nodiscard]] bool showNotification() const override {
+		if (suppressNotification_) {
+			suppressNotification_ = false;
+			return false;
+		}
+		return true;
+	}
+
+private:
+	mutable bool suppressNotification_ = false;
+};
+
+/// Mix: wet/dry blend (0-127, 0 = bypass)
+/// Secret menu: Push encoder to adjust gammaPhase (offsets twistPhaseOffset by 1024*gamma)
+class SineShaperMix final : public IntegerWithOff {
+public:
+	using IntegerWithOff::IntegerWithOff;
+
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->sineShaper.mix); }
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		int32_t current_value = this->getValue();
+
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+			Kit* kit = getCurrentKit();
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					soundDrum->sineShaper.mix = current_value;
+				}
+			}
+		}
+		else {
+			soundEditor.currentModControllable->sineShaper.mix = current_value;
+		}
+	}
+
+	void selectEncoderAction(int32_t offset) override {
+		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
+			// Secret menu: adjust gammaPhase
+			Buttons::selectButtonPressUsedUp = true;
+			float& gamma = soundEditor.currentModControllable->sineShaper.gammaPhase;
+			gamma = std::max(0.0f, gamma + static_cast<float>(offset) * 0.1f);
+			char buffer[16];
+			snprintf(buffer, sizeof(buffer), "G:%d", static_cast<int32_t>(gamma * 10.0f));
+			display->displayPopup(buffer);
+			renderUIsForOled();
+			suppressNotification_ = true;
+		}
+		else {
+			IntegerWithOff::selectEncoderAction(offset);
+		}
+	}
+
+	[[nodiscard]] bool showNotification() const override {
+		if (suppressNotification_) {
+			suppressNotification_ = false;
+			return false;
+		}
+		return true;
+	}
+
+	[[nodiscard]] int32_t getMaxValue() const override { return 127; }
+
+private:
+	mutable bool suppressNotification_ = false;
+};
 
 } // namespace deluge::gui::menu_item::fx

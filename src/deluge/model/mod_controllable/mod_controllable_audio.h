@@ -23,6 +23,7 @@
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
 #include "dsp/shaper.h"
+#include "dsp/sine_shaper.hpp"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/fx/stutterer.h"
@@ -112,6 +113,9 @@ public:
 	// Table Shaper with X/Y shape control
 	deluge::dsp::TableShaper shaperDsp;   // DSP processor with lookup table
 	deluge::dsp::TableShaperState shaper; // All shaper state (knob values, smoothing, etc.)
+
+	// Sine shaper parameters and DSP state (struct defined in dsp/sine_shaper.hpp)
+	deluge::dsp::SineTableShaperParams sineShaper;
 
 	FilterMode lpfMode;
 	FilterMode hpfMode;
