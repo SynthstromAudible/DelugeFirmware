@@ -1506,15 +1506,19 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 
 	// In STANDBY (recording but not yet playing): mark release for momentary mode
 	// Don't cancel STANDBY - let beat trigger playback, then immediately stop
-	if (isStandbyRecorder && !isPlayer && !stutterer.isLatched()) {
+	// Use THIS source's latch config, not the global stutterer's (which may be from another track)
+	if (isStandbyRecorder && !isPlayer && !stutterConfig.latch) {
 		stutterer.markReleasedDuringStandby();
 		return;
 	}
 
 	if (isRecorder && !isPlayer) {
 		// We're recording for takeover but NOT playing yet.
-		// DON'T cancel on encoder release - keep recording until we trigger.
-		// This allows: press (arm) → release → press (trigger) → play
+		// Mark release for momentary mode - when we trigger, we'll check this flag
+		// Use THIS source's latch config, not the current player's
+		if (!stutterConfig.latch) {
+			stutterer.markReleasedDuringStandby();
+		}
 		return;
 	}
 

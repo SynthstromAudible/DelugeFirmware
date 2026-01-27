@@ -131,6 +131,10 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 
 		// If source has been recording (owns recordBuffer), request playback trigger
 		if (recordBuffer != nullptr && recordSource == source && loopLengthSamples > 0) {
+			// Update armedConfig for retrigger (source's current config)
+			armedConfig = sc;
+			releasedDuringStandby = false; // Fresh trigger, encoder is held
+
 			// Use full loop length for correct timing
 			playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
 
@@ -201,6 +205,12 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 		recordSource = source;
 		standbyIdleSamples = 0;        // Reset timeout for new owner
 		releasedDuringStandby = false; // Fresh start, encoder is held
+		// Store config for takeover trigger (new source's config, not old playSource's)
+		// Use 'sc' parameter directly, not stutterConfig which may have been modified by
+		// updateLiveParams() from the current player's config during audio processing
+		armedConfig = sc;
+		armedLoopLengthSamples = loopLengthSamples;
+		armedHalfBarMode = halfBar;
 		if (status != Status::PLAYING) {
 			status = Status::STANDBY;
 		}
@@ -1743,8 +1753,11 @@ void Stutterer::triggerPlaybackNow(void* source) {
 	playSource = source;
 	recordSource = source;
 
-	// Momentary mode: if encoder was released during STANDBY, end immediately
-	if (releasedDuringStandby && !isLatched()) {
+	// Momentary mode: if encoder was released during STANDBY/takeover, end immediately
+	// Use armedConfig.latch (set from source's config when they first pressed) instead of
+	// stutterConfig.latch (which may have been overwritten by updateLiveParams from previous player)
+	bool isLatchedFromArmed = armedConfig.latch && armedConfig.scatterMode != ScatterMode::Classic;
+	if (releasedDuringStandby && !isLatchedFromArmed) {
 		releasedDuringStandby = false;
 		endStutter(nullptr);
 	}
