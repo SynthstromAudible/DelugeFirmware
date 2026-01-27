@@ -97,6 +97,8 @@ enum Local : ParamType {
 	LOCAL_OSC_A_WAVE_INDEX,
 	LOCAL_OSC_B_WAVE_INDEX,
 	LOCAL_PAN,
+	LOCAL_TABLE_SHAPER_DRIVE, // Table shaper drive (additive mod: base + mod)
+	LOCAL_TABLE_SHAPER_MIX,   // Table shaper wet/dry mix
 
 	// Local exp params begin
 	FIRST_LOCAL_EXP,
@@ -205,6 +207,9 @@ enum UnpatchedShared : ParamType {
 	UNPATCHED_MB_COMPRESSOR_OUTPUT_GAIN,
 	UNPATCHED_MB_COMPRESSOR_VIBE,
 	UNPATCHED_MB_COMPRESSOR_BLEND,
+	// Table Shaper controls for GlobalEffectables (Kit/AudioClip at clip level)
+	UNPATCHED_TABLE_SHAPER_DRIVE,
+	UNPATCHED_TABLE_SHAPER_MIX,
 	// Scatter controls
 	UNPATCHED_SCATTER_ZONE_A,
 	UNPATCHED_SCATTER_ZONE_B,

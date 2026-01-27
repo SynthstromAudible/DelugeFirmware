@@ -21,6 +21,7 @@
 #include "dsp/dx/engine.h"
 #include "dsp/filter/filter_set.h"
 #include "dsp/oscillators/sine_osc.h"
+#include "dsp/shaper_buffer.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
 #include "gui/waveform/waveform_renderer.h"
@@ -1499,6 +1500,25 @@ skipUnisonPart: {}
 		if (paramFinalValues[params::LOCAL_FOLD] > 0) {
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, paramFinalValues[params::LOCAL_FOLD]);
 		}
+
+		// Table Shaper (per-voice, mod-matrix routable drive and mix)
+		if (sound.shaper.shapeX > 0) {
+			q31_t satDrive = paramFinalValues[params::LOCAL_TABLE_SHAPER_DRIVE];
+			q31_t satMix = paramFinalValues[params::LOCAL_TABLE_SHAPER_MIX];
+			// Convert buffer to StereoSample span
+			std::span<StereoSample> stereoBuffer(reinterpret_cast<StereoSample*>(oscBuffer), numSamples);
+			// Compute note frequency for LPF cutoff scaling
+			float noteFreqHz = 440.0f * powf(2.0f, (noteCodeAfterArpeggiation - 69) / 12.0f);
+			dsp::shapeBufferInt32(stereoBuffer, sound.shaperDsp, satDrive, &sound.shaper.driveLast, satMix,
+			                      &sound.shaper.threshold32Last, &sound.shaper.blendSlopeLast_Q8,
+			                      0, // filterGain: 0 = FM mode (no gain compensation for now)
+			                      sound.hasFilters(), &sound.shaper.prevScaledInputL, &sound.shaper.prevScaledInputR,
+			                      &sound.shaper.prevSampleL, &sound.shaper.prevSampleR, &sound.shaper.zcCountL,
+			                      &sound.shaper.zcCountR, &sound.shaper.subSignL, &sound.shaper.subSignR,
+			                      sound.shaper.extrasMask, sound.shaper.gammaPhase, &sound.shaper.slewedL,
+			                      &sound.shaper.slewedR, noteFreqHz);
+		}
+
 		// Filters
 		filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
 
@@ -1582,6 +1602,24 @@ skipUnisonPart: {}
 			q31_t foldAmount = paramFinalValues[params::LOCAL_FOLD];
 
 			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
+		}
+
+		// Table Shaper (per-voice, mono path)
+		if (sound.shaper.shapeX > 0) {
+			q31_t satDrive = paramFinalValues[params::LOCAL_TABLE_SHAPER_DRIVE];
+			q31_t satMix = paramFinalValues[params::LOCAL_TABLE_SHAPER_MIX];
+			// Convert buffer to q31_t span for mono processing
+			std::span<q31_t> monoBuffer(oscBuffer, numSamples);
+			// Compute note frequency for LPF cutoff scaling
+			float noteFreqHz = 440.0f * powf(2.0f, (noteCodeAfterArpeggiation - 69) / 12.0f);
+			// Use ShaperModState to group L-channel state for mono processing
+			dsp::ShaperModState state{&sound.shaper.prevSampleL, &sound.shaper.slewedL, &sound.shaper.prevScaledInputL,
+			                          &sound.shaper.zcCountL, &sound.shaper.subSignL};
+			dsp::shapeBufferInt32(monoBuffer, sound.shaperDsp, satDrive, &sound.shaper.driveLast, satMix,
+			                      &sound.shaper.threshold32Last, &sound.shaper.blendSlopeLast_Q8,
+			                      0, // filterGain: 0 = FM mode (no gain compensation for now)
+			                      sound.hasFilters(), state, sound.shaper.extrasMask, sound.shaper.gammaPhase,
+			                      noteFreqHz);
 		}
 
 		filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);

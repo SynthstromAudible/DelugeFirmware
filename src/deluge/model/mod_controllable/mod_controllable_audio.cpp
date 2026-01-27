@@ -100,6 +100,11 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
 	delay = other->delay;
 	stutterConfig = other->stutterConfig;
+	// Table shaper state (all user params in shaper struct)
+	shaper = other->shaper;
+	if (shaper.isEnabled()) {
+		shaperDsp.regenerateTable(shaper.shapeX, shaper.shapeY, shaper.gammaPhase, shaper.oscHarmonicWeight);
+	}
 	// Multiband compressor state
 	compressorMode = other->compressorMode;
 	multibandCompressor.setEnabledZone(other->multibandCompressor.getEnabledZone());
@@ -498,6 +503,8 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	if (clippingAmount) {
 		writer.writeAttribute("clippingAmount", clippingAmount);
 	}
+	// Table shaper state (only writes non-default values)
+	shaper.writeToFile(writer);
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer) {
@@ -848,6 +855,14 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 	else if (!strcmp(tagName, "clippingAmount")) {
 		clippingAmount = reader.readTagOrAttributeValueInt();
 		reader.exitTag("clippingAmount");
+	}
+
+	// Table shaper state
+	else if (shaper.readTag(reader, tagName)) {
+		// Regenerate table after any shaper param change
+		if (shaper.isEnabled()) {
+			shaperDsp.regenerateTable(shaper.shapeX, shaper.shapeY, shaper.gammaPhase, shaper.oscHarmonicWeight);
+		}
 	}
 
 	// Arpeggiator
