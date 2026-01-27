@@ -2461,17 +2461,22 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 				// Create a span for the temp buffer
 				std::span<StereoSample> tempBuffer(tempBufferStorage, numSamples);
 
-				// Render to temp buffer
-				output->renderOutput(modelStack, tempBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
+				// Render to temp buffer at full level for capture (use unity gain)
+				// This ensures capture level matches what MasterOutput mode gets after global FX
+				constexpr int32_t kUnityGain = 0x3FFFFFFF; // ~0.5 in Q31, leaves headroom
+				output->renderOutput(modelStack, tempBuffer, reverbBuffer, kUnityGain, sideChainHitPending,
 				                     !isClipActiveNow, isClipActiveNow);
 
 				// Feed to retrospective buffer (skip pending save check - we're in interrupt-disabled context)
 				retrospectiveBuffer.feedAudio(tempBufferStorage, numSamples, true);
 
-				// Add temp buffer to main output buffer
+				// Scale down to match normal mix level before adding to output buffer
+				// Scale factor = (volumePostFX >> 1) / kUnityGain
+				int32_t scaleFactor = volumePostFX >> 1;
 				for (size_t i = 0; i < numSamples; i++) {
-					outputBuffer[i].l += tempBufferStorage[i].l;
-					outputBuffer[i].r += tempBufferStorage[i].r;
+					// Apply scale using 64-bit multiply to avoid overflow
+					outputBuffer[i].l += (int32_t)(((int64_t)tempBufferStorage[i].l * scaleFactor) >> 30);
+					outputBuffer[i].r += (int32_t)(((int64_t)tempBufferStorage[i].r * scaleFactor) >> 30);
 				}
 			}
 			else {
@@ -2489,20 +2494,10 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	}
 	AudioEngine::logAction("done rendering outputs");
 
-	// Feed retrospective buffer with master output (if enabled and in master output mode)
-	// For focused track mode, we need to check for pending bar-synced saves here
+	// For focused track mode, check for pending bar-synced saves here
 	// (since feedAudio was called with skipPendingSaveCheck=true in interrupt context)
-	if (retrospectiveBuffer.isEnabled()) {
-		if (retrospectiveBuffer.isFocusedTrackMode()) {
-			// Check for pending bar-synced save (we couldn't do this in feedAudio due to interrupt context)
-			retrospectiveBuffer.checkAndExecutePendingSave();
-		}
-		else {
-			uint32_t sourceSetting = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RetrospectiveSamplerSource);
-			if (sourceSetting == RuntimeFeatureStateRetroSource::MasterOutput) {
-				retrospectiveBuffer.feedAudio(outputBuffer.data(), outputBuffer.size());
-			}
-		}
+	if (retrospectiveBuffer.isEnabled() && retrospectiveBuffer.isFocusedTrackMode()) {
+		retrospectiveBuffer.checkAndExecutePendingSave();
 	}
 
 	// If recording the "MIX", this is the place where we want to grab it - before any master FX or volume applied
@@ -2535,6 +2530,14 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	globalEffectable.processReverbSendAndVolume(outputBuffer, reverbBuffer, volumePostFX, postReverbVolume,
 	                                            reverbSendAmount >> 1);
 	AudioEngine::logAction("done global effectables");
+
+	// Feed retrospective buffer with master output AFTER master FX and volume are applied
+	if (retrospectiveBuffer.isEnabled() && !retrospectiveBuffer.isFocusedTrackMode()) {
+		uint32_t sourceSetting = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RetrospectiveSamplerSource);
+		if (sourceSetting == RuntimeFeatureStateRetroSource::MasterOutput) {
+			retrospectiveBuffer.feedAudio(outputBuffer.data(), outputBuffer.size());
+		}
+	}
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
 	    && currentPlaybackMode == &arrangement) {
