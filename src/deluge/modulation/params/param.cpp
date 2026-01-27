@@ -136,6 +136,8 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [LOCAL_OSC_A_WAVE_INDEX]         = "Osc1 wave",
 	    [LOCAL_OSC_B_WAVE_INDEX]         = "Osc2 wave",
 	    [LOCAL_PAN]                      = "Pan",
+	    [LOCAL_TABLE_SHAPER_DRIVE]       = "Shpr drive",
+	    [LOCAL_TABLE_SHAPER_MIX]         = "Shaper mix",
 	    [LOCAL_LPF_FREQ]                 = "LPf freq",
 	    [LOCAL_PITCH_ADJUST]             = "Pitch",
 	    [LOCAL_OSC_A_PITCH_ADJUST]       = "Osc1 pitch",
@@ -211,6 +213,8 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [LOCAL_OSC_A_WAVE_INDEX] = STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX,
 	    [LOCAL_OSC_B_WAVE_INDEX] = STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX,
 	    [LOCAL_PAN] = STRING_FOR_PARAM_LOCAL_PAN,
+	    [LOCAL_TABLE_SHAPER_DRIVE] = STRING_FOR_PARAM_LOCAL_TABLE_SHAPER_DRIVE,
+	    [LOCAL_TABLE_SHAPER_MIX] = STRING_FOR_PARAM_LOCAL_TABLE_SHAPER_MIX,
 	    [LOCAL_LPF_FREQ] = STRING_FOR_PARAM_LOCAL_LPF_FREQ,
 	    [LOCAL_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_PITCH_ADJUST,
 	    [LOCAL_OSC_A_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST,
@@ -290,6 +294,8 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_MB_COMPRESSOR_OUTPUT_GAIN] = STRING_FOR_COMPRESSOR_OUTPUT_GAIN,
 		    [UNPATCHED_MB_COMPRESSOR_VIBE] = STRING_FOR_COMPRESSOR_VIBE,
 		    [UNPATCHED_MB_COMPRESSOR_BLEND] = STRING_FOR_BLEND,
+		    [UNPATCHED_TABLE_SHAPER_DRIVE] = STRING_FOR_SHAPER_DRIVE,
+		    [UNPATCHED_TABLE_SHAPER_MIX] = STRING_FOR_SHAPER_MIX,
 		    [UNPATCHED_SCATTER_ZONE_A] = STRING_FOR_SCATTER_PATTERN,
 		    [UNPATCHED_SCATTER_ZONE_B] = STRING_FOR_SCATTER_COLOR,
 		    [UNPATCHED_SCATTER_MACRO_CONFIG] = STRING_FOR_SCATTER_MACRO_CONFIG,
@@ -524,6 +530,11 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case UNPATCHED_MB_COMPRESSOR_BLEND:
 			return "mbCompressorBlend";
 
+		case UNPATCHED_TABLE_SHAPER_DRIVE:
+			return "clipTableShaperDrive";
+		case UNPATCHED_TABLE_SHAPER_MIX:
+			return "clipTableShaperMix";
+
 		case UNPATCHED_ARP_GATE:
 			return "arpGate";
 
@@ -672,6 +683,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case LOCAL_PAN:
 			return "pan";
+
+		case LOCAL_TABLE_SHAPER_DRIVE:
+			return "tableShaperDrive";
+
+		case LOCAL_TABLE_SHAPER_MIX:
+			return "tableShaperMix";
 
 		case LOCAL_MODULATOR_0_VOLUME:
 			return "modulator1Volume";

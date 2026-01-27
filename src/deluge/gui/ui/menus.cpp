@@ -76,6 +76,7 @@
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/flash/status.h"
 #include "gui/menu_item/fx/clipping.h"
+#include "gui/menu_item/fx/shaper.h"
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/gate/off_time.h"
 #include "gui/menu_item/gate/selection.h"
@@ -214,6 +215,7 @@
 #include "gui/menu_item/submenu/compressor.h"
 #include "gui/menu_item/submenu/mod_fx.h"
 #include "gui/menu_item/submenu/modulator.h"
+#include "gui/menu_item/submenu/shaping.h"
 #include "gui/menu_item/swing/interval.h"
 #include "gui/menu_item/synth_mode.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
@@ -702,6 +704,25 @@ HorizontalMenu soundDistortionMenu{
         &srrMenu,
         &foldMenu,
     },
+};
+
+// Table Shaper - XY waveshaping with lookup tables
+fx::TableShaperDrive shaperDriveMenu{STRING_FOR_SHAPER_DRIVE, STRING_FOR_SHAPER_DRIVE, params::LOCAL_TABLE_SHAPER_DRIVE,
+                                     RenderingStyle::BAR};
+fx::TableShaperShapeX shaperShapeXMenu{STRING_FOR_SHAPER_SHAPE_X};
+fx::TableShaperShapeY shaperShapeYMenu{STRING_FOR_SHAPER_SHAPE_Y};
+fx::TableShaperMix shaperMixMenu{STRING_FOR_SHAPER_MIX, STRING_FOR_SHAPER_MIX, params::LOCAL_TABLE_SHAPER_MIX,
+                                 RenderingStyle::BAR};
+
+HorizontalMenu tableShaperSubMenu{
+    STRING_FOR_TABLE_SHAPER,
+    {&shaperDriveMenu, &shaperShapeXMenu, &shaperShapeYMenu, &shaperMixMenu},
+};
+
+// Shaping submenu - contains Table Shaper
+submenu::Shaping shapingMenu{
+    STRING_FOR_SHAPING,
+    {&tableShaperSubMenu},
 };
 
 // Output MIDI for sound drums --------------------------------------------------------------
@@ -1468,6 +1489,7 @@ Submenu soundFXMenu{
         &reverbMenu,
         &stutterMenu,
         &modFXMenu,
+        &shapingMenu,
         &soundDistortionMenu,
         &noiseMenu,
         &dott_menu,

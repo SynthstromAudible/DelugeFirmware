@@ -22,6 +22,7 @@
 #include "dsp/compressor/multiband.h"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
+#include "dsp/shaper.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/fx/stutterer.h"
@@ -107,6 +108,11 @@ public:
 
 	bool sampleRateReductionOnLastTime;
 	uint8_t clippingAmount; // Song probably doesn't currently use this?
+
+	// Table Shaper with X/Y shape control
+	deluge::dsp::TableShaper shaperDsp;   // DSP processor with lookup table
+	deluge::dsp::TableShaperState shaper; // All shaper state (knob values, smoothing, etc.)
+
 	FilterMode lpfMode;
 	FilterMode hpfMode;
 	FilterRoute filterRoute;
