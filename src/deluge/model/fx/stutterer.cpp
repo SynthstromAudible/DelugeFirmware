@@ -199,7 +199,8 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 		// Source claims recordBuffer, starts recording in STANDBY
 		// If someone else was playing, they keep playSource
 		recordSource = source;
-		standbyIdleSamples = 0; // Reset timeout for new owner
+		standbyIdleSamples = 0;        // Reset timeout for new owner
+		releasedDuringStandby = false; // Fresh start, encoder is held
 		if (status != Status::PLAYING) {
 			status = Status::STANDBY;
 		}
@@ -1510,6 +1511,7 @@ void Stutterer::disableStandby() {
 		status = Status::OFF;
 		playSource = nullptr;
 		recordSource = nullptr;
+		releasedDuringStandby = false;
 	}
 }
 
@@ -1740,6 +1742,12 @@ void Stutterer::triggerPlaybackNow(void* source) {
 	// Source now owns both buffers
 	playSource = source;
 	recordSource = source;
+
+	// Momentary mode: if encoder was released during STANDBY, end immediately
+	if (releasedDuringStandby && !isLatched()) {
+		releasedDuringStandby = false;
+		endStutter(nullptr);
+	}
 }
 
 void Stutterer::cancelArmed() {

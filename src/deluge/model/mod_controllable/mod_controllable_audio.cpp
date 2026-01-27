@@ -1498,9 +1498,17 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 	// Check what role this source has in the current stutter session
 	bool isPlayer = stutterer.isStuttering(this);
 	bool isRecorder = stutterer.isArmedForTakeover(this);
+	bool isStandbyRecorder = stutterer.isRecordingInStandby(this);
 
-	if (!isPlayer && !isRecorder) {
+	if (!isPlayer && !isRecorder && !isStandbyRecorder) {
 		return; // Not involved in current stutter
+	}
+
+	// In STANDBY (recording but not yet playing): mark release for momentary mode
+	// Don't cancel STANDBY - let beat trigger playback, then immediately stop
+	if (isStandbyRecorder && !isPlayer && !stutterer.isLatched()) {
+		stutterer.markReleasedDuringStandby();
+		return;
 	}
 
 	if (isRecorder && !isPlayer) {

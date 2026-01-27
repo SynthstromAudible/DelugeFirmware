@@ -122,6 +122,8 @@ public:
 					soundEditor.currentModControllable->endStutter(nullptr);
 				}
 			}
+			// Also update global stutterer for live changes
+			stutterer.setLiveLatch(latch);
 			return;
 		}
 

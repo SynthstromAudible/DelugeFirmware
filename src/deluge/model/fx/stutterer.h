@@ -173,6 +173,8 @@ public:
 	inline void setLivePitchScale(uint8_t scale) { stutterConfig.pitchScale = scale; }
 	inline void setLiveLeakyWriteProb(float prob) { stutterConfig.leakyWriteProb = prob; }
 	inline void setLiveLatch(bool latch) { stutterConfig.latch = latch; }
+	/// Mark that encoder was released during STANDBY (for momentary mode)
+	inline void markReleasedDuringStandby() { releasedDuringStandby = true; }
 
 	/// Arm stutter for quantized trigger (starts on next beat)
 	/// Returns Error::NONE if armed successfully
@@ -450,6 +452,8 @@ private:
 	StutterConfig armedConfig{};
 	size_t armedLoopLengthSamples{0};
 	bool armedHalfBarMode{false};
+	/// Track if encoder was released during STANDBY (for momentary mode: don't start playback)
+	bool releasedDuringStandby{false};
 };
 
 // There's only one stutter effect active at a time, so we have a global stutterer to save memory.
