@@ -788,10 +788,10 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 
 		// If no processing needed, write directly
 		if (!needs_processing) {
-			size_t bytes = num_samples_to_write * bytesPerFrame;
-			size_t offset = startSample * bytesPerFrame;
-			fres = f_write(&file, buffer_ + offset, bytes, &bytesWritten);
-			if (fres != FR_OK || bytesWritten != bytes) {
+			size_t bytes = num_samples_to_write * bytes_per_frame;
+			size_t offset = start_sample * bytes_per_frame;
+			fres = f_write(&file, buffer_ + offset, bytes, &bytes_written);
+			if (fres != FR_OK || bytes_written != bytes) {
 				return false;
 			}
 			total_samples_written_to_file += num_samples_to_write;
@@ -808,17 +808,17 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 
 		for (size_t written = 0; written < num_samples_to_write;) {
 			size_t chunk_samples = std::min(kChunkSamples, num_samples_to_write - written);
-			size_t chunk_bytes = chunk_samples * bytesPerFrame;
+			size_t chunk_bytes = chunk_samples * bytes_per_frame;
 
 			// Check if this chunk still needs processing
 			needs_fade_in = total_samples_written_to_file < kFadeInSamples;
 			if (!normalize && !needs_fade_in) {
 				// No more processing needed, write rest directly
 				size_t remaining = num_samples_to_write - written;
-				size_t bytes = remaining * bytesPerFrame;
-				size_t offset = (startSample + written) * bytesPerFrame;
-				fres = f_write(&file, buffer_ + offset, bytes, &bytesWritten);
-				if (fres != FR_OK || bytesWritten != bytes) {
+				size_t bytes = remaining * bytes_per_frame;
+				size_t offset = (start_sample + written) * bytes_per_frame;
+				fres = f_write(&file, buffer_ + offset, bytes, &bytes_written);
+				if (fres != FR_OK || bytes_written != bytes) {
 					return false;
 				}
 				total_samples_written_to_file += remaining;
@@ -834,7 +834,7 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 
 			if (bytesPerSample_ == 2) {
 				// 16-bit path: optimized with direct int16_t access
-				size_t src_idx = (startSample + written) * numChannels_;
+				size_t src_idx = (start_sample + written) * numChannels_;
 				size_t dst_idx = 0;
 
 				// Process fade-in samples (with per-sample fade calculation)
@@ -842,7 +842,7 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 					size_t sample_idx = total_samples_written_to_file + s;
 					int32_t fade_multiplier = static_cast<int32_t>((sample_idx * 65536) / kFadeInSamples);
 					int32_t combined_gain =
-					    static_cast<int32_t>((static_cast<int64_t>(gainFactorFixed) * fade_multiplier) >> 16);
+					    static_cast<int32_t>((static_cast<int64_t>(gain_factor_fixed) * fade_multiplier) >> 16);
 
 					for (size_t ch = 0; ch < numChannels_; ch++) {
 						int32_t sample = buf16[src_idx++];
@@ -862,7 +862,7 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 					for (size_t ch = 0; ch < numChannels_; ch++) {
 						int32_t sample = buf16[src_idx++];
 						int32_t processed =
-						    static_cast<int32_t>((static_cast<int64_t>(sample) * gainFactorFixed) >> 16);
+						    static_cast<int32_t>((static_cast<int64_t>(sample) * gain_factor_fixed) >> 16);
 						if (processed > 32767) {
 							processed = 32767;
 						}
@@ -875,7 +875,7 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 			}
 			else {
 				// 24-bit path: must use byte access
-				size_t src_offset = (startSample + written) * bytesPerFrame;
+				size_t src_offset = (start_sample + written) * bytes_per_frame;
 				size_t dst_offset = 0;
 
 				// Process fade-in samples
@@ -883,7 +883,7 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 					size_t sample_idx = total_samples_written_to_file + s;
 					int32_t fade_multiplier = static_cast<int32_t>((sample_idx * 65536) / kFadeInSamples);
 					int32_t combined_gain =
-					    static_cast<int32_t>((static_cast<int64_t>(gainFactorFixed) * fade_multiplier) >> 16);
+					    static_cast<int32_t>((static_cast<int64_t>(gain_factor_fixed) * fade_multiplier) >> 16);
 
 					for (size_t ch = 0; ch < numChannels_; ch++) {
 						int32_t sample =
@@ -915,7 +915,7 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 							sample |= 0xFF000000;
 						}
 						int32_t processed =
-						    static_cast<int32_t>((static_cast<int64_t>(sample) * gainFactorFixed) >> 16);
+						    static_cast<int32_t>((static_cast<int64_t>(sample) * gain_factor_fixed) >> 16);
 						if (processed > 8388607) {
 							processed = 8388607;
 						}
@@ -931,8 +931,8 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 				}
 			}
 
-			fres = f_write(&file, temp_buffer, chunk_bytes, &bytesWritten);
-			if (fres != FR_OK || bytesWritten != chunk_bytes) {
+			fres = f_write(&file, temp_buffer, chunk_bytes, &bytes_written);
+			if (fres != FR_OK || bytes_written != chunk_bytes) {
 				return false;
 			}
 			written += chunk_samples;
@@ -942,25 +942,25 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 	};
 
 	// Write first portion (older samples)
-	if (!writeSamples(startPos, samplesToWriteFirst)) {
+	if (!write_samples(start_pos, samples_to_write_first)) {
 		f_close(&file);
 		f_unlink(filename);
-		enabled_ = wasEnabled; // Re-enable before returning
+		enabled_ = was_enabled; // Re-enable before returning
 		return Error::SD_CARD;
 	}
 
 	// Write second portion (newer samples, after wrap-around)
-	if (!writeSamples(0, samplesToWriteSecond)) {
+	if (!write_samples(0, samples_to_write_second)) {
 		f_close(&file);
 		f_unlink(filename);
-		enabled_ = wasEnabled; // Re-enable before returning
+		enabled_ = was_enabled; // Re-enable before returning
 		return Error::SD_CARD;
 	}
 
 	f_close(&file);
 
 	// Re-enable recording now that save is complete
-	enabled_ = wasEnabled;
+	enabled_ = was_enabled;
 
 	// Return the file path
 	if (filePath != nullptr) {
