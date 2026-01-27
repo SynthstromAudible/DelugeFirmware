@@ -102,19 +102,6 @@ public:
 	/// Check if focused track mode is active.
 	[[nodiscard]] bool isFocusedTrackMode() const;
 
-	/// Check if input mode is active (external audio input).
-	[[nodiscard]] bool isInputMode() const;
-
-	/// Set the input source position for tracking the audio input buffer.
-	/// Called from audio engine when buffer is initialized.
-	void setInputSourcePos(int32_t* pos) { inputSourcePos_ = pos; }
-
-	/// Get the input source position.
-	[[nodiscard]] int32_t* getInputSourcePos() const { return inputSourcePos_; }
-
-	/// Update the input source position after feeding audio.
-	void advanceInputSourcePos(size_t numSamples, int32_t* bufferEnd, size_t bufferSizeSamples);
-
 	/// Request a bar-synced save. Sets up pending state and returns immediately.
 	/// When transport is running, save happens at next downbeat.
 	/// When transport is stopped, falls back to immediate save.
@@ -168,7 +155,6 @@ private:
 	uint8_t bytesPerSample_ = 2;                           ///< Bytes per sample: 2 (16-bit) or 3 (24-bit)
 	uint8_t numChannels_ = 2;                              ///< Number of channels: 1 (mono) or 2 (stereo)
 	AudioInputChannel source_ = AudioInputChannel::STEREO; ///< Audio source
-	int32_t* inputSourcePos_ = nullptr;                    ///< Tracking position for input buffer reads
 
 	// TPDF dither state for 16-bit conversion (simple LCG PRNG)
 	uint32_t ditherState_ = 0x12345678; ///< PRNG state for dithering

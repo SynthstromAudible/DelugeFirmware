@@ -169,7 +169,6 @@ void RetrospectiveBuffer::deinit() {
 	runningPeak_.store(0, std::memory_order_relaxed);
 	peakPosition_.store(0, std::memory_order_relaxed);
 	peakValid_.store(false, std::memory_order_relaxed);
-	inputSourcePos_ = nullptr;
 	enabled_ = false;
 }
 
@@ -203,7 +202,6 @@ void RetrospectiveBuffer::clear() {
 	runningPeak_.store(0, std::memory_order_relaxed);
 	peakPosition_.store(0, std::memory_order_relaxed);
 	peakValid_.store(false, std::memory_order_relaxed);
-	inputSourcePos_ = nullptr; // Reset input tracking position
 }
 
 void RetrospectiveBuffer::setEnabled(bool enabled) {
@@ -260,20 +258,6 @@ uint8_t RetrospectiveBuffer::getBarCount() const {
 bool RetrospectiveBuffer::isFocusedTrackMode() const {
 	uint32_t source_setting = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RetrospectiveSamplerSource);
 	return source_setting == RuntimeFeatureStateRetroSource::FocusedTrack;
-}
-
-bool RetrospectiveBuffer::isInputMode() const {
-	uint32_t source_setting = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RetrospectiveSamplerSource);
-	return source_setting == RuntimeFeatureStateRetroSource::Input;
-}
-
-void RetrospectiveBuffer::advanceInputSourcePos(size_t numSamples, int32_t* bufferEnd, size_t bufferSizeSamples) {
-	if (inputSourcePos_ != nullptr) {
-		inputSourcePos_ += numSamples * 2; // 2 channels (stereo input)
-		if (inputSourcePos_ >= bufferEnd) {
-			inputSourcePos_ -= bufferSizeSamples * 2;
-		}
-	}
 }
 
 bool RetrospectiveBuffer::isEnabled() const {
