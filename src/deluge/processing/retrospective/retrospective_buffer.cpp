@@ -631,9 +631,9 @@ Error RetrospectiveBuffer::saveToFile(String* filePath) {
 		peak_level = findPeakLevel(saved_write_pos, saved_samples_written);
 		if (peak_level > 0 && static_cast<double>(peak_level) < target_level) {
 			gain_factor = target_level / static_cast<double>(peak_level);
-			// Cap at 4x gain (~+12dB)
-			if (gain_factor > 4.0) {
-				gain_factor = 4.0;
+			// Cap at 128x gain (~+42dB) for external input which may need significant boost
+			if (gain_factor > 128.0) {
+				gain_factor = 128.0;
 			}
 		}
 		else {
@@ -1102,8 +1102,9 @@ Error RetrospectiveBuffer::saveToFileWithBPM(String* filePath, size_t maxSamples
 		peak_level = findPeakLevel(saved_write_pos, saved_samples_written);
 		if (peak_level > 0 && static_cast<double>(peak_level) < target_level) {
 			gain_factor = target_level / static_cast<double>(peak_level);
-			if (gain_factor > 4.0) {
-				gain_factor = 4.0;
+			// Cap at 128x gain (~+42dB) for external input which may need significant boost
+			if (gain_factor > 128.0) {
+				gain_factor = 128.0;
 			}
 		}
 		else {
