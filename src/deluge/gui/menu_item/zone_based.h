@@ -373,7 +373,7 @@ public:
 		q31_t value;
 		if constexpr (HAS_FALLBACK) {
 			// Check if we have a patched param set, otherwise use unpatched fallback
-			if (soundEditor.currentParamManager->containsAnyMainParamCollections()) {
+			if (soundEditor.currentParamManager->hasPatchedParamSet()) {
 				value = soundEditor.currentParamManager->getPatchedParamSet()->getValue(PATCHED_ID);
 			}
 			else {
@@ -389,7 +389,7 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(void* memory) override {
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
 		if constexpr (HAS_FALLBACK) {
-			if (!soundEditor.currentParamManager->containsAnyMainParamCollections()) {
+			if (!soundEditor.currentParamManager->hasPatchedParamSet()) {
 				return modelStack->getUnpatchedAutoParamFromId(UNPATCHED_ID);
 			}
 		}
@@ -407,7 +407,7 @@ public:
 	ParamDescriptor getLearningThing() override {
 		ParamDescriptor paramDescriptor;
 		if constexpr (HAS_FALLBACK) {
-			if (!soundEditor.currentParamManager->containsAnyMainParamCollections()) {
+			if (!soundEditor.currentParamManager->hasPatchedParamSet()) {
 				paramDescriptor.setToHaveParamOnly(UNPATCHED_ID + params::UNPATCHED_START);
 				return paramDescriptor;
 			}
@@ -418,7 +418,7 @@ public:
 
 	[[nodiscard]] deluge::modulation::params::Kind getParamKind() override {
 		if constexpr (HAS_FALLBACK) {
-			if (!soundEditor.currentParamManager->containsAnyMainParamCollections()) {
+			if (!soundEditor.currentParamManager->hasPatchedParamSet()) {
 				return deluge::modulation::params::Kind::UNPATCHED_SOUND;
 			}
 		}
@@ -433,7 +433,7 @@ public:
 		}
 		if constexpr (HAS_FALLBACK) {
 			// In unpatched context (GlobalEffectable), no mod matrix available
-			if (!soundEditor.currentParamManager->containsAnyMainParamCollections()) {
+			if (!soundEditor.currentParamManager->hasPatchedParamSet()) {
 				return nullptr;
 			}
 		}
