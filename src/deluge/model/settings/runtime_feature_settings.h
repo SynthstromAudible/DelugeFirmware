@@ -88,6 +88,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	RetrospectiveSamplerChannels,
 	RetrospectiveSamplerMonitor,
 	RetrospectiveSamplerNormalize,
+	ModFXPostDOTT,
 	MaxElement // Keep as boundary
 };
 

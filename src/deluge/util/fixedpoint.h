@@ -32,6 +32,11 @@ constexpr q31_t ONE_Q15{65536};
 constexpr q31_t NEGATIVE_ONE_Q31{-2147483648};
 constexpr q31_t ONE_OVER_SQRT2_Q31{1518500250};
 
+// Effective 0dBFS reference for headroom calculations
+// This represents 2^24 = 16,777,216 which gives ~24dB of headroom
+constexpr int32_t EFFECTIVE_0DBFS_Q31 = ONE_Q31 / 128; // 2^24 = 16,777,216
+constexpr float EFFECTIVE_0DBFS_Q31f = static_cast<float>(EFFECTIVE_0DBFS_Q31);
+
 // This converts the range -2^31 to 2^31 to the range 0-2^31
 static inline q31_t toPositive(q31_t a) __attribute__((always_inline, unused));
 static inline q31_t toPositive(q31_t a) {

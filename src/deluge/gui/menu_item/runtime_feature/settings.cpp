@@ -50,6 +50,7 @@ SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridVi
 SettingToggle menuAlternativeTapTempoBehaviour(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour);
 SettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
+SettingToggle menuModFXPostDOTT(RuntimeFeatureSettingType::ModFXPostDOTT);
 
 // Number of entries in the subMenuEntries array (total settings minus non-top-level minus submenu entries)
 // The 7 retro settings are grouped into menuRetrospectiveSamplerSubmenu, so we subtract 6 (7 settings - 1 submenu)
@@ -77,6 +78,7 @@ std::array<MenuItem*, kNumTopLevelEntries> subMenuEntries{&menuDrumRandomizer,
                                                           &menuAlternativeTapTempoBehaviour,
                                                           &menuHorizontalMenus,
                                                           &menuTrimFromStartOfAudioClip,
+                                                          &menuModFXPostDOTT,
                                                           &menuRetrospectiveSamplerSubmenu};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {

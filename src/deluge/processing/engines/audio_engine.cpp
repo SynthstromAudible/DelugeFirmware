@@ -908,6 +908,13 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 				masterVolumeAdjustmentR = multiply_32x32_rshift32(masterVolumeAdjustmentR, amplitudeR) << 2;
 			}
 		}
+		// Master DOTT (multiband compressor) - runs pre-compressor
+		if (currentSong->globalEffectable.multibandCompressor.isEnabled()) {
+			currentSong->globalEffectable.applyMultibandCompressorParams(&currentSong->paramManager);
+			currentSong->globalEffectable.multibandCompressor.setMeteringEnabled(true);
+			currentSong->globalEffectable.multibandCompressor.render(renderingBuffer);
+		}
+
 		logAction("mastercomp start");
 
 		int32_t songVolume =
