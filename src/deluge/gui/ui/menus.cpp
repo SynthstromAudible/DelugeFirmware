@@ -543,48 +543,50 @@ HorizontalMenu stutterMenu{STRING_FOR_STUTTER,
 
 // DOTT (Multiband Compressor) ---------------------------------------------------------------
 // 24 items organized for proper pagination (8 per page)
-audio_compressor::ModeZone dottMode{STRING_FOR_COMPRESSOR_MODE, STRING_FOR_COMPRESSOR_MODE};
-audio_compressor::LinkedThreshold mbLinkedThreshold{STRING_FOR_THRESHOLD, STRING_FOR_THRESHOLD};
-audio_compressor::LinkedRatio mbLinkedRatio{STRING_FOR_RATIO, STRING_FOR_RATIO};
-audio_compressor::UpDownSkew mbUpDownSkew{STRING_FOR_COMPRESSOR_UP_DOWN_SKEW, STRING_FOR_COMPRESSOR_UP_DOWN_SKEW};
-audio_compressor::LinkedAttack mbLinkedAttack{STRING_FOR_ATTACK, STRING_FOR_ATTACK};
-audio_compressor::LinkedRelease mbLinkedRelease{STRING_FOR_RELEASE, STRING_FOR_RELEASE};
-audio_compressor::Character mbCharacter{STRING_FOR_COMPRESSOR_CHARACTER, STRING_FOR_COMPRESSOR_CHARACTER};
-audio_compressor::Vibe mbVibe{STRING_FOR_COMPRESSOR_VIBE, STRING_FOR_COMPRESSOR_VIBE};
+audio_compressor::ModeZone dott_mode{STRING_FOR_COMPRESSOR_MODE, STRING_FOR_COMPRESSOR_MODE};
+audio_compressor::LinkedThreshold mb_linked_threshold{STRING_FOR_THRESHOLD, STRING_FOR_THRESHOLD};
+audio_compressor::LinkedRatio mb_linked_ratio{STRING_FOR_RATIO, STRING_FOR_RATIO};
+audio_compressor::UpDownSkew mb_up_down_skew{STRING_FOR_COMPRESSOR_UP_DOWN_SKEW, STRING_FOR_COMPRESSOR_UP_DOWN_SKEW};
+audio_compressor::LinkedAttack mb_linked_attack{STRING_FOR_ATTACK, STRING_FOR_ATTACK};
+audio_compressor::LinkedRelease mb_linked_release{STRING_FOR_RELEASE, STRING_FOR_RELEASE};
+audio_compressor::Character mb_character{STRING_FOR_COMPRESSOR_CHARACTER, STRING_FOR_COMPRESSOR_CHARACTER};
+audio_compressor::Vibe mb_vibe{STRING_FOR_COMPRESSOR_VIBE, STRING_FOR_COMPRESSOR_VIBE};
 // Per-band controls: Low
-audio_compressor::BandThreshold<0> mbLowThreshold{STRING_FOR_COMPRESSOR_LOW_THRESHOLD,
-                                                  STRING_FOR_COMPRESSOR_LOW_THRESHOLD};
-audio_compressor::BandRatio<0> mbLowRatio{STRING_FOR_COMPRESSOR_LOW_RATIO, STRING_FOR_COMPRESSOR_LOW_RATIO};
-audio_compressor::BandBandwidth<0> mbLowBandwidth{STRING_FOR_COMPRESSOR_LOW_BW, STRING_FOR_COMPRESSOR_LOW_BW};
-audio_compressor::BandOutputLevel<0> mbLowOutputLevel{STRING_FOR_COMPRESSOR_LOW_LEVEL, STRING_FOR_COMPRESSOR_LOW_LEVEL};
+audio_compressor::BandThreshold<0> mb_low_threshold{STRING_FOR_COMPRESSOR_LOW_THRESHOLD,
+                                                    STRING_FOR_COMPRESSOR_LOW_THRESHOLD};
+audio_compressor::BandRatio<0> mb_low_ratio{STRING_FOR_COMPRESSOR_LOW_RATIO, STRING_FOR_COMPRESSOR_LOW_RATIO};
+audio_compressor::BandBandwidth<0> mb_low_bandwidth{STRING_FOR_COMPRESSOR_LOW_BW, STRING_FOR_COMPRESSOR_LOW_BW};
+audio_compressor::BandOutputLevel<0> mb_low_output_level{STRING_FOR_COMPRESSOR_LOW_LEVEL,
+                                                         STRING_FOR_COMPRESSOR_LOW_LEVEL};
 // Per-band controls: Mid
-audio_compressor::BandThreshold<1> mbMidThreshold{STRING_FOR_COMPRESSOR_MID_THRESHOLD,
-                                                  STRING_FOR_COMPRESSOR_MID_THRESHOLD};
-audio_compressor::BandRatio<1> mbMidRatio{STRING_FOR_COMPRESSOR_MID_RATIO, STRING_FOR_COMPRESSOR_MID_RATIO};
-audio_compressor::BandBandwidth<1> mbMidBandwidth{STRING_FOR_COMPRESSOR_MID_BW, STRING_FOR_COMPRESSOR_MID_BW};
-audio_compressor::BandOutputLevel<1> mbMidOutputLevel{STRING_FOR_COMPRESSOR_MID_LEVEL, STRING_FOR_COMPRESSOR_MID_LEVEL};
+audio_compressor::BandThreshold<1> mb_mid_threshold{STRING_FOR_COMPRESSOR_MID_THRESHOLD,
+                                                    STRING_FOR_COMPRESSOR_MID_THRESHOLD};
+audio_compressor::BandRatio<1> mb_mid_ratio{STRING_FOR_COMPRESSOR_MID_RATIO, STRING_FOR_COMPRESSOR_MID_RATIO};
+audio_compressor::BandBandwidth<1> mb_mid_bandwidth{STRING_FOR_COMPRESSOR_MID_BW, STRING_FOR_COMPRESSOR_MID_BW};
+audio_compressor::BandOutputLevel<1> mb_mid_output_level{STRING_FOR_COMPRESSOR_MID_LEVEL,
+                                                         STRING_FOR_COMPRESSOR_MID_LEVEL};
 // Per-band controls: High
-audio_compressor::BandThreshold<2> mbHighThreshold{STRING_FOR_COMPRESSOR_HIGH_THRESHOLD,
-                                                   STRING_FOR_COMPRESSOR_HIGH_THRESHOLD};
-audio_compressor::BandRatio<2> mbHighRatio{STRING_FOR_COMPRESSOR_HIGH_RATIO, STRING_FOR_COMPRESSOR_HIGH_RATIO};
-audio_compressor::BandBandwidth<2> mbHighBandwidth{STRING_FOR_COMPRESSOR_HIGH_BW, STRING_FOR_COMPRESSOR_HIGH_BW};
-audio_compressor::BandOutputLevel<2> mbHighOutputLevel{STRING_FOR_COMPRESSOR_HIGH_LEVEL,
-                                                       STRING_FOR_COMPRESSOR_HIGH_LEVEL};
+audio_compressor::BandThreshold<2> mb_high_threshold{STRING_FOR_COMPRESSOR_HIGH_THRESHOLD,
+                                                     STRING_FOR_COMPRESSOR_HIGH_THRESHOLD};
+audio_compressor::BandRatio<2> mb_high_ratio{STRING_FOR_COMPRESSOR_HIGH_RATIO, STRING_FOR_COMPRESSOR_HIGH_RATIO};
+audio_compressor::BandBandwidth<2> mb_high_bandwidth{STRING_FOR_COMPRESSOR_HIGH_BW, STRING_FOR_COMPRESSOR_HIGH_BW};
+audio_compressor::BandOutputLevel<2> mb_high_output_level{STRING_FOR_COMPRESSOR_HIGH_LEVEL,
+                                                          STRING_FOR_COMPRESSOR_HIGH_LEVEL};
 // Global controls at end
-audio_compressor::LowCrossover compLowXover{STRING_FOR_COMPRESSOR_LOW_CROSSOVER, STRING_FOR_COMPRESSOR_LOW_CROSSOVER};
-audio_compressor::HighCrossover compHighXover{STRING_FOR_COMPRESSOR_HIGH_CROSSOVER,
-                                              STRING_FOR_COMPRESSOR_HIGH_CROSSOVER};
-audio_compressor::OutputGain mbOutputGain{STRING_FOR_COMPRESSOR_OUTPUT_GAIN, STRING_FOR_COMPRESSOR_OUTPUT_GAIN};
-audio_compressor::MultibandBlend mbBlend{STRING_FOR_BLEND, STRING_FOR_BLEND};
+audio_compressor::LowCrossover comp_low_xover{STRING_FOR_COMPRESSOR_LOW_CROSSOVER, STRING_FOR_COMPRESSOR_LOW_CROSSOVER};
+audio_compressor::HighCrossover comp_high_xover{STRING_FOR_COMPRESSOR_HIGH_CROSSOVER,
+                                                STRING_FOR_COMPRESSOR_HIGH_CROSSOVER};
+audio_compressor::OutputGain mb_output_gain{STRING_FOR_COMPRESSOR_OUTPUT_GAIN, STRING_FOR_COMPRESSOR_OUTPUT_GAIN};
+audio_compressor::MultibandBlend mb_blend{STRING_FOR_BLEND, STRING_FOR_BLEND};
 
-submenu::CompressorHorizontalMenu dottMenu{
+submenu::CompressorHorizontalMenu dott_menu{
     STRING_FOR_DOTT,
     {
-        &dottMode,         &mbLinkedThreshold, &mbLinkedRatio,  &mbUpDownSkew,    &mbLinkedAttack,
-        &mbLinkedRelease,  &mbCharacter,       &mbVibe,         &mbLowThreshold,  &mbLowRatio,
-        &mbLowBandwidth,   &mbLowOutputLevel,  &mbMidThreshold, &mbMidRatio,      &mbMidBandwidth,
-        &mbMidOutputLevel, &mbHighThreshold,   &mbHighRatio,    &mbHighBandwidth, &mbHighOutputLevel,
-        &compLowXover,     &compHighXover,     &mbOutputGain,   &mbBlend,
+        &dott_mode,           &mb_linked_threshold, &mb_linked_ratio,  &mb_up_down_skew,   &mb_linked_attack,
+        &mb_linked_release,   &mb_character,        &mb_vibe,          &mb_low_threshold,  &mb_low_ratio,
+        &mb_low_bandwidth,    &mb_low_output_level, &mb_mid_threshold, &mb_mid_ratio,      &mb_mid_bandwidth,
+        &mb_mid_output_level, &mb_high_threshold,   &mb_high_ratio,    &mb_high_bandwidth, &mb_high_output_level,
+        &comp_low_xover,      &comp_high_xover,     &mb_output_gain,   &mb_blend,
     },
     HorizontalMenu::Layout::DYNAMIC};
 
@@ -900,7 +902,7 @@ Submenu globalFXMenu{
         &stutterMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
-        &dottMenu,
+        &dott_menu,
     },
 };
 
@@ -956,7 +958,7 @@ Submenu audioClipFXMenu{
         &stutterMenu,
         &globalModFXMenu,
         &audioClipDistortionMenu,
-        &dottMenu,
+        &dott_menu,
     },
 };
 
@@ -1468,7 +1470,7 @@ Submenu soundFXMenu{
         &modFXMenu,
         &soundDistortionMenu,
         &noiseMenu,
-        &dottMenu,
+        &dott_menu,
     },
 };
 
@@ -1909,7 +1911,7 @@ deluge::vector<HorizontalMenu*> horizontalMenusChainForKit = {
 	&kitClipMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
-	&dottMenu, &globalSidechainMenu, &audioCompMenu, &stutterMenu,
+	&dott_menu, &globalSidechainMenu, &audioCompMenu, &stutterMenu,
 	&arpMenuGroupKit, &randomizerMenu
 };
 
@@ -1917,14 +1919,14 @@ deluge::vector<HorizontalMenu*> horizontalMenusChainForSong = {
 	&songMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
-	&dottMenu, &audioCompMenu, &stutterMenu
+	&dott_menu, &audioCompMenu, &stutterMenu
 };
 
 deluge::vector<HorizontalMenu*> horizontalMenusChainForAudioClip = {
 	&audioClipMasterMenu, &audioClipSampleMenu,
 	&globalFiltersMenuGroup, &eqMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &audioClipDistortionMenu,
-	&dottMenu, &globalSidechainMenu, &audioCompMenu, &stutterMenu
+	&dott_menu, &globalSidechainMenu, &audioCompMenu, &stutterMenu
 };
 
 deluge::vector<HorizontalMenu*> horizontalMenusChainForMidiOrCv = {

@@ -89,17 +89,17 @@ public:
 
 	void writeCurrentValue() override {
 		q31_t value = lshiftAndSaturate<24>(this->getValue());
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_LOW_CROSSOVER);
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+		ModelStackWithAutoParam* model_stack_with_param =
+		    model_stack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_LOW_CROSSOVER);
+		model_stack_with_param->autoParam->setCurrentValueInResponseToUserInput(value, model_stack_with_param);
 	}
 
 	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_LOW_CROSSOVER + params::UNPATCHED_START);
-		return paramDescriptor;
+		ParamDescriptor param_descriptor;
+		param_descriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_LOW_CROSSOVER + params::UNPATCHED_START);
+		return param_descriptor;
 	}
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
@@ -141,17 +141,17 @@ public:
 
 	void writeCurrentValue() override {
 		q31_t value = lshiftAndSaturate<24>(this->getValue());
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_HIGH_CROSSOVER);
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+		ModelStackWithAutoParam* model_stack_with_param =
+		    model_stack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_HIGH_CROSSOVER);
+		model_stack_with_param->autoParam->setCurrentValueInResponseToUserInput(value, model_stack_with_param);
 	}
 
 	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_HIGH_CROSSOVER + params::UNPATCHED_START);
-		return paramDescriptor;
+		ParamDescriptor param_descriptor;
+		param_descriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_HIGH_CROSSOVER + params::UNPATCHED_START);
+		return param_descriptor;
 	}
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
@@ -187,17 +187,17 @@ public:
 
 	void writeCurrentValue() override {
 		q31_t value = lshiftAndSaturate<24>(this->getValue());
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_THRESHOLD);
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+		ModelStackWithAutoParam* model_stack_with_param =
+		    model_stack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_THRESHOLD);
+		model_stack_with_param->autoParam->setCurrentValueInResponseToUserInput(value, model_stack_with_param);
 	}
 
 	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_THRESHOLD + params::UNPATCHED_START);
-		return paramDescriptor;
+		ParamDescriptor param_descriptor;
+		param_descriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_THRESHOLD + params::UNPATCHED_START);
+		return param_descriptor;
 	}
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
@@ -233,11 +233,11 @@ public:
 
 	void writeCurrentValue() override {
 		q31_t value = lshiftAndSaturate<24>(this->getValue());
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_RATIO);
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+		ModelStackWithAutoParam* model_stack_with_param =
+		    model_stack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_RATIO);
+		model_stack_with_param->autoParam->setCurrentValueInResponseToUserInput(value, model_stack_with_param);
 	}
 
 	[[nodiscard]] float getDisplayValue() override {
@@ -245,9 +245,9 @@ public:
 	}
 
 	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_RATIO + params::UNPATCHED_START);
-		return paramDescriptor;
+		ParamDescriptor param_descriptor;
+		param_descriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_RATIO + params::UNPATCHED_START);
+		return param_descriptor;
 	}
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
@@ -279,11 +279,11 @@ public:
 
 	void writeCurrentValue() override {
 		q31_t value = lshiftAndSaturate<24>(this->getValue());
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_ATTACK);
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+		ModelStackWithAutoParam* model_stack_with_param =
+		    model_stack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_ATTACK);
+		model_stack_with_param->autoParam->setCurrentValueInResponseToUserInput(value, model_stack_with_param);
 	}
 
 	[[nodiscard]] float getDisplayValue() override {
@@ -291,9 +291,9 @@ public:
 	}
 
 	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_ATTACK + params::UNPATCHED_START);
-		return paramDescriptor;
+		ParamDescriptor param_descriptor;
+		param_descriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_ATTACK + params::UNPATCHED_START);
+		return param_descriptor;
 	}
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
@@ -325,11 +325,11 @@ public:
 
 	void writeCurrentValue() override {
 		q31_t value = lshiftAndSaturate<24>(this->getValue());
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_RELEASE);
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+		ModelStackWithAutoParam* model_stack_with_param =
+		    model_stack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_RELEASE);
+		model_stack_with_param->autoParam->setCurrentValueInResponseToUserInput(value, model_stack_with_param);
 	}
 
 	[[nodiscard]] float getDisplayValue() override {
@@ -337,9 +337,9 @@ public:
 	}
 
 	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_RELEASE + params::UNPATCHED_START);
-		return paramDescriptor;
+		ParamDescriptor param_descriptor;
+		param_descriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_RELEASE + params::UNPATCHED_START);
+		return param_descriptor;
 	}
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
@@ -420,17 +420,17 @@ public:
 
 	void writeCurrentValue() override {
 		q31_t value = lshiftAndSaturate<24>(this->getValue());
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_SKEW);
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+		ModelStackWithAutoParam* model_stack_with_param =
+		    model_stack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_SKEW);
+		model_stack_with_param->autoParam->setCurrentValueInResponseToUserInput(value, model_stack_with_param);
 	}
 
 	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_SKEW + params::UNPATCHED_START);
-		return paramDescriptor;
+		ParamDescriptor param_descriptor;
+		param_descriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_SKEW + params::UNPATCHED_START);
+		return param_descriptor;
 	}
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
@@ -560,17 +560,17 @@ public:
 
 	void writeCurrentValue() override {
 		q31_t value = lshiftAndSaturate<24>(this->getValue());
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_OUTPUT_GAIN);
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+		ModelStackWithAutoParam* model_stack_with_param =
+		    model_stack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_OUTPUT_GAIN);
+		model_stack_with_param->autoParam->setCurrentValueInResponseToUserInput(value, model_stack_with_param);
 	}
 
 	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_OUTPUT_GAIN + params::UNPATCHED_START);
-		return paramDescriptor;
+		ParamDescriptor param_descriptor;
+		param_descriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_OUTPUT_GAIN + params::UNPATCHED_START);
+		return param_descriptor;
 	}
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
@@ -721,16 +721,16 @@ public:
 
 	void writeCurrentValue() override {
 		q31_t value = lshiftAndSaturate<24>(this->getValue());
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(getParamId());
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+		ModelStackWithAutoParam* model_stack_with_param = model_stack->getUnpatchedAutoParamFromId(getParamId());
+		model_stack_with_param->autoParam->setCurrentValueInResponseToUserInput(value, model_stack_with_param);
 	}
 
 	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(getParamId() + params::UNPATCHED_START);
-		return paramDescriptor;
+		ParamDescriptor param_descriptor;
+		param_descriptor.setToHaveParamOnly(getParamId() + params::UNPATCHED_START);
+		return param_descriptor;
 	}
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
@@ -865,17 +865,17 @@ public:
 
 	void writeCurrentValue() override {
 		q31_t value = lshiftAndSaturate<24>(this->getValue());
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_BLEND);
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+		ModelStackWithAutoParam* model_stack_with_param =
+		    model_stack->getUnpatchedAutoParamFromId(params::UNPATCHED_MB_COMPRESSOR_BLEND);
+		model_stack_with_param->autoParam->setCurrentValueInResponseToUserInput(value, model_stack_with_param);
 	}
 
 	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_BLEND + params::UNPATCHED_START);
-		return paramDescriptor;
+		ParamDescriptor param_descriptor;
+		param_descriptor.setToHaveParamOnly(params::UNPATCHED_MB_COMPRESSOR_BLEND + params::UNPATCHED_START);
+		return param_descriptor;
 	}
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }

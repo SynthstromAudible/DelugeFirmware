@@ -94,101 +94,101 @@ private:
 	/// Render GR meter with dual bars per band (output level + GR)
 	/// Layout: [L:out|gr] [M:out|gr] [H:out|gr] | [Master] [Clip]
 	void renderGRMeter() {
-		const bool popupShowing = OLED::isPopupPresent();
-		oled_canvas::Canvas& image = popupShowing ? OLED::popup : OLED::main;
+		const bool popup_showing = OLED::isPopupPresent();
+		oled_canvas::Canvas& image = popup_showing ? OLED::popup : OLED::main;
 
 		auto& compressor = soundEditor.currentModControllable->multibandCompressor;
 
 		// Use full header height
-		constexpr int32_t meterHeight = 14;
-		constexpr int32_t halfHeight = meterHeight / 2;
-		constexpr int32_t bandGap = 2; // Gap between bands
+		constexpr int32_t kMeterHeight = 14;
+		constexpr int32_t kHalfHeight = kMeterHeight / 2;
+		constexpr int32_t kBandGap = 2; // Gap between bands
 
 		// Position - moved left since "DOTT" is short
-		constexpr int32_t meterX = 45;
-		constexpr int32_t meterY = OLED_MAIN_TOPMOST_PIXEL;
-		const int32_t centerY = meterY + halfHeight;
-		const int32_t bottomY = meterY + meterHeight - 1;
+		constexpr int32_t kMeterX = 45;
+		constexpr int32_t kMeterY = OLED_MAIN_TOPMOST_PIXEL;
+		const int32_t center_y = kMeterY + kHalfHeight;
+		const int32_t bottom_y = kMeterY + kMeterHeight - 1;
 
 		// Scale bipolar GR value to half-height pixels
-		auto scaleBipolar = [](int8_t value, int32_t maxHalfHeight) -> int32_t {
-			return (static_cast<int32_t>(value) * maxHalfHeight) / 127;
+		auto scale_bipolar = [](int8_t value, int32_t max_half_height) -> int32_t {
+			return (static_cast<int32_t>(value) * max_half_height) / 127;
 		};
 
 		// Scale unipolar value (0-127) to full height
-		auto scaleUnipolar = [](uint8_t value, int32_t maxHeight) -> int32_t {
-			return (static_cast<int32_t>(value) * maxHeight) / 127;
+		auto scale_unipolar = [](uint8_t value, int32_t max_height) -> int32_t {
+			return (static_cast<int32_t>(value) * max_height) / 127;
 		};
 
 		// Draw a band meter: output level bar + GR bar + saturation indicator
-		auto drawBandMeter = [&](int32_t xPos, size_t bandIndex) {
-			uint8_t outputLevel = compressor.getBandOutputLevel(bandIndex);
-			int8_t grValue = compressor.getBandGainReduction(bandIndex);
-			bool saturating = compressor.isBandSaturating(bandIndex);
+		auto draw_band_meter = [&](int32_t x_pos, size_t band_index) {
+			uint8_t output_level = compressor.getBandOutputLevel(band_index);
+			int8_t gr_value = compressor.getBandGainReduction(band_index);
+			bool saturating = compressor.isBandSaturating(band_index);
 
 			// Bar 1: Output level (unipolar, grows upward from bottom)
-			int32_t outH = scaleUnipolar(outputLevel, meterHeight);
-			for (int32_t dy = 0; dy < outH; dy++) {
-				image.drawPixel(xPos, bottomY - dy);
+			int32_t out_h = scale_unipolar(output_level, kMeterHeight);
+			for (int32_t dy = 0; dy < out_h; dy++) {
+				image.drawPixel(x_pos, bottom_y - dy);
 			}
 
 			// Saturation indicator at top of output bar
 			if (saturating) {
-				image.drawPixel(xPos, meterY);
+				image.drawPixel(x_pos, kMeterY);
 			}
 
 			// Bar 2: GR (bipolar, from center)
-			xPos += 1;
-			int32_t h = scaleBipolar(grValue, halfHeight);
+			x_pos += 1;
+			int32_t h = scale_bipolar(gr_value, kHalfHeight);
 			// Draw center tick
-			image.drawPixel(xPos, centerY);
+			image.drawPixel(x_pos, center_y);
 			if (h > 0) {
 				// Upward compression (gain boost)
 				for (int32_t dy = 1; dy <= h; dy++) {
-					image.drawPixel(xPos, centerY - dy);
+					image.drawPixel(x_pos, center_y - dy);
 				}
 			}
 			else if (h < 0) {
 				// Downward compression (gain reduction)
 				for (int32_t dy = 1; dy <= -h; dy++) {
-					image.drawPixel(xPos, centerY + dy);
+					image.drawPixel(x_pos, center_y + dy);
 				}
 			}
 		};
 
-		int32_t x = meterX;
+		int32_t x = kMeterX;
 
 		// Draw L/M/H band meters (each is 2px wide: output + GR)
-		drawBandMeter(x, 0); // Low
-		x += 2 + bandGap;
+		draw_band_meter(x, 0); // Low
+		x += 2 + kBandGap;
 
-		drawBandMeter(x, 1); // Mid
-		x += 2 + bandGap;
+		draw_band_meter(x, 1); // Mid
+		x += 2 + kBandGap;
 
-		drawBandMeter(x, 2); // High
-		x += 2 + bandGap;
+		draw_band_meter(x, 2); // High
+		x += 2 + kBandGap;
 
 		// Separator (vertical dots at center)
-		image.drawPixel(x, centerY - 1);
-		image.drawPixel(x, centerY);
-		image.drawPixel(x, centerY + 1);
+		image.drawPixel(x, center_y - 1);
+		image.drawPixel(x, center_y);
+		image.drawPixel(x, center_y + 1);
 		x += 2;
 
 		// Master output level bar (2px wide for visibility)
-		uint8_t outLevel = compressor.getOutputLevel();
-		int32_t outH = scaleUnipolar(outLevel, meterHeight);
-		for (int32_t dy = 0; dy < outH; dy++) {
-			image.drawPixel(x, bottomY - dy);
-			image.drawPixel(x + 1, bottomY - dy);
+		uint8_t out_level = compressor.getOutputLevel();
+		int32_t out_h = scale_unipolar(out_level, kMeterHeight);
+		for (int32_t dy = 0; dy < out_h; dy++) {
+			image.drawPixel(x, bottom_y - dy);
+			image.drawPixel(x + 1, bottom_y - dy);
 		}
 
 		// Master clip indicator - top-right of output meter (2x2 dot when clipping)
 		if (compressor.isClipping()) {
-			int32_t clipX = x + 3;
-			image.drawPixel(clipX, meterY);
-			image.drawPixel(clipX + 1, meterY);
-			image.drawPixel(clipX, meterY + 1);
-			image.drawPixel(clipX + 1, meterY + 1);
+			int32_t clip_x = x + 3;
+			image.drawPixel(clip_x, kMeterY);
+			image.drawPixel(clip_x + 1, kMeterY);
+			image.drawPixel(clip_x, kMeterY + 1);
+			image.drawPixel(clip_x + 1, kMeterY + 1);
 		}
 
 		OLED::markChanged();
