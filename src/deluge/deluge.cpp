@@ -60,6 +60,7 @@
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/retrospective/retrospective_buffer.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
@@ -903,6 +904,12 @@ extern "C" int32_t deluge_main(void) {
 
 	// Hopefully we can read these files now
 	runtimeFeatureSettings.readSettingsFromFile();
+
+	// Initialize retrospective buffer if enabled in settings
+	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RetrospectiveSampler)) {
+		retrospectiveBuffer.init();
+	}
+
 	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);

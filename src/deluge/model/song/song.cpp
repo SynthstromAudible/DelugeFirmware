@@ -57,6 +57,7 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/retrospective/retrospective_buffer.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/field_serialization.h"
@@ -2428,6 +2429,19 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
+	// Check if retrospective buffer wants to capture the focused track
+	Output* focusedOutputForRetro = nullptr;
+	if (retrospectiveBuffer.isEnabled() && retrospectiveBuffer.isFocusedTrackMode()) {
+		Clip* currentClip = getCurrentClip();
+		if (currentClip) {
+			focusedOutputForRetro = currentClip->output;
+		}
+	}
+
+	// Stack-allocated temp buffer for focused track capture (max 256 stereo samples)
+	constexpr size_t kMaxTempBufferSamples = 256;
+	StereoSample tempBufferStorage[kMaxTempBufferSamples];
+
 	AudioEngine::logAction("Start output render");
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (!output->inValidState) {
@@ -2438,8 +2452,33 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		DISABLE_ALL_INTERRUPTS();
 		if (output->shouldRenderInSong()) {
-			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
-			                     !isClipActiveNow, isClipActiveNow);
+			// Check if this is the focused output and we need to capture it
+			if (output == focusedOutputForRetro && outputBuffer.size() <= kMaxTempBufferSamples) {
+				// Zero the temp buffer
+				size_t numSamples = outputBuffer.size();
+				std::memset(tempBufferStorage, 0, numSamples * sizeof(StereoSample));
+
+				// Create a span for the temp buffer
+				std::span<StereoSample> tempBuffer(tempBufferStorage, numSamples);
+
+				// Render to temp buffer
+				output->renderOutput(modelStack, tempBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
+				                     !isClipActiveNow, isClipActiveNow);
+
+				// Feed to retrospective buffer (skip pending save check - we're in interrupt-disabled context)
+				retrospectiveBuffer.feedAudio(tempBufferStorage, numSamples, true);
+
+				// Add temp buffer to main output buffer
+				for (size_t i = 0; i < numSamples; i++) {
+					outputBuffer[i].l += tempBufferStorage[i].l;
+					outputBuffer[i].r += tempBufferStorage[i].r;
+				}
+			}
+			else {
+				// Normal rendering path
+				output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
+				                     !isClipActiveNow, isClipActiveNow);
+			}
 		}
 		ENABLE_INTERRUPTS();
 #if DO_AUDIO_LOG
@@ -2449,6 +2488,23 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 #endif
 	}
 	AudioEngine::logAction("done rendering outputs");
+
+	// Feed retrospective buffer with master output (if enabled and in master output mode)
+	// For focused track mode, we need to check for pending bar-synced saves here
+	// (since feedAudio was called with skipPendingSaveCheck=true in interrupt context)
+	if (retrospectiveBuffer.isEnabled()) {
+		if (retrospectiveBuffer.isFocusedTrackMode()) {
+			// Check for pending bar-synced save (we couldn't do this in feedAudio due to interrupt context)
+			retrospectiveBuffer.checkAndExecutePendingSave();
+		}
+		else {
+			uint32_t sourceSetting = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RetrospectiveSamplerSource);
+			if (sourceSetting == RuntimeFeatureStateRetroSource::MasterOutput) {
+				retrospectiveBuffer.feedAudio(outputBuffer.data(), outputBuffer.size());
+			}
+		}
+	}
+
 	// If recording the "MIX", this is the place where we want to grab it - before any master FX or volume applied
 	// Go through each SampleRecorder, feeding them audio
 	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder; recorder = recorder->next) {
