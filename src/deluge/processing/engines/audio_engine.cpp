@@ -39,6 +39,7 @@
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
@@ -48,6 +49,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/live/live_input_buffer.h"
 #include "processing/metronome/metronome.h"
+#include "processing/retrospective/retrospective_buffer.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -933,6 +935,9 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 }
 void setMonitoringMode() { // Monitoring setup
 	doMonitoring = false;
+	bool isRetrospectiveMonitoring = false;
+
+	// Standard audio recorder monitoring
 	if (audioRecorder.recordingSource == AudioInputChannel::STEREO
 	    || audioRecorder.recordingSource == AudioInputChannel::LEFT) {
 		if (inputMonitoringMode == InputMonitoringMode::SMART) {
@@ -943,25 +948,42 @@ void setMonitoringMode() { // Monitoring setup
 		}
 	}
 
+	// Retrospective sampler monitoring: enable when retro is enabled, using input source, and monitor is on
+	if (!doMonitoring && retrospectiveBuffer.isEnabled()
+	    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RetrospectiveSamplerMonitor)
+	    && retrospectiveBuffer.getSource() != AudioInputChannel::MIX) {
+		doMonitoring = true;
+		isRetrospectiveMonitoring = true;
+	}
+
 	monitoringAction = MonitoringAction::NONE;
-	if (doMonitoring && audioRecorder.recorder) { // Double-check
-		if (lineInPluggedIn) {                    // Line input
-			if (audioRecorder.recorder->inputLooksDifferential()) {
-				monitoringAction = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
-			}
-			else if (audioRecorder.recorder->inputHasNoRightChannel()) {
+	if (doMonitoring) {
+		if (isRetrospectiveMonitoring) {
+			// For retrospective sampler: mono input should go to both outputs
+			if (retrospectiveBuffer.getNumChannels() == 1) {
 				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
+			// Stereo: no special action needed, both channels pass through
 		}
+		else if (audioRecorder.recorder) { // Standard recorder monitoring
+			if (lineInPluggedIn) {         // Line input
+				if (audioRecorder.recorder->inputLooksDifferential()) {
+					monitoringAction = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
+				}
+				else if (audioRecorder.recorder->inputHasNoRightChannel()) {
+					monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
+				}
+			}
 
-		else if (micPluggedIn) { // External mic
-			if (audioRecorder.recorder->inputHasNoRightChannel()) {
+			else if (micPluggedIn) { // External mic
+				if (audioRecorder.recorder->inputHasNoRightChannel()) {
+					monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
+				}
+			}
+
+			else { // Internal mic
 				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
-		}
-
-		else { // Internal mic
-			monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 		}
 	}
 }
@@ -1252,6 +1274,30 @@ bool doSomeOutputting() {
 					recorder->sourcePos -= SSI_RX_BUFFER_NUM_SAMPLES << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
 				}
 			}
+		}
+	}
+
+	// Feed retrospective buffer from external input when not in mix/focused track mode
+	if (retrospectiveBuffer.isEnabled() && !retrospectiveBuffer.isFocusedTrackMode()
+	    && retrospectiveBuffer.getSource() != AudioInputChannel::MIX && numSamplesOutputted > 0) {
+		// Look backwards from current position to find the input samples we just processed
+		int32_t* retro_input_pos =
+		    (int32_t*)i2sRXBufferPos - (numSamplesOutputted << NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
+
+		if (retro_input_pos < getRxBufferStart()) {
+			// Buffer wrapped - need to feed in two parts
+			// First: from wrapped position to end of buffer
+			int32_t* wrapped_pos = retro_input_pos + (SSI_RX_BUFFER_NUM_SAMPLES << NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
+			size_t samples_at_end = (getRxBufferEnd() - wrapped_pos) >> NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
+			retrospectiveBuffer.feedAudio(reinterpret_cast<StereoSample*>(wrapped_pos), samples_at_end);
+
+			// Second: from start of buffer for remaining samples
+			size_t samples_at_start = numSamplesOutputted - samples_at_end;
+			retrospectiveBuffer.feedAudio(reinterpret_cast<StereoSample*>(getRxBufferStart()), samples_at_start);
+		}
+		else {
+			// No wrap - feed all samples at once
+			retrospectiveBuffer.feedAudio(reinterpret_cast<StereoSample*>(retro_input_pos), numSamplesOutputted);
 		}
 	}
 
