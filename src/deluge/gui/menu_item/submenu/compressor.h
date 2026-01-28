@@ -94,22 +94,24 @@ private:
 	/// Render GR meter with dual bars per band (output level + GR)
 	/// Layout: [L:out|gr] [M:out|gr] [H:out|gr] | [Master] [Clip]
 	void renderGRMeter() {
-		const bool popup_showing = OLED::isPopupPresent();
-		oled_canvas::Canvas& image = popup_showing ? OLED::popup : OLED::main;
+		oled_canvas::Canvas& image = OLED::main;
 
 		auto& compressor = soundEditor.currentModControllable->multibandCompressor;
 
-		// Use full header height
-		constexpr int32_t kMeterHeight = 14;
+		// Header height - stay above the title separator line (kScreenTitleSeparatorY = 17)
+		constexpr int32_t kMeterHeight = 10;
 		constexpr int32_t kHalfHeight = kMeterHeight / 2;
 		constexpr int32_t kBandGap = 2; // Gap between bands
 
-		// Position - moved left since "DOTT" is short
-		constexpr int32_t kMeterX = 45;
-		constexpr int32_t kMeterY = OLED_MAIN_TOPMOST_PIXEL;
+		// Meter width: 3 bands (2px each) + 2 gaps (2px each) + separator (1px) + gap (2px) + master (2px) + clip (5px)
+		// = 6 + 4 + 1 + 2 + 2 + 5 = 20px total
+		constexpr int32_t kMeterWidth = 20;
+		// Position: to the left of page counter area (~20px on right)
+		constexpr int32_t kPageCounterWidth = 22;
+		constexpr int32_t kMeterX = OLED_MAIN_WIDTH_PIXELS - kMeterWidth - kPageCounterWidth;
+		constexpr int32_t kMeterY = 6; // Start below top edge, bottom at y=15
 		const int32_t center_y = kMeterY + kHalfHeight;
-		// Max y coordinate to avoid extending into UI below (truncate bottom row)
-		const int32_t max_y = kMeterY + kMeterHeight - 2;
+		const int32_t max_y = kMeterY + kMeterHeight - 1;
 
 		// Scale bipolar GR value to half-height pixels
 		auto scale_bipolar = [](int8_t value, int32_t max_half_height) -> int32_t {
