@@ -4,6 +4,13 @@ This is **owlet-firmware**, a personal fork of the Deluge Community Firmware mai
 
 This branch is based on **Community 1.3** for stability.
 
+### Known limitations
+presently, some of the ui elements used in this branch assume the user has enabled horizontal menus. Future work will attempt to decouple, but for now, consider enabling horizontal menus a requirement for testing.
+
+high cpu usage when using disperser stages >8
+sine shaper is also moderately cpu hungry
+other effects are fairly light
+
 ### Features (vs Community 1.3)
 
 | Feature | Description |
