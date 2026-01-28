@@ -17,6 +17,7 @@
 
 #pragma once
 #include "audio_file.h"
+#include "audio_file_vector.h"
 #include "definitions_cxx.hpp"
 #include "storage/cluster/cluster.h"
 #include "storage/cluster/cluster_priority_queue.h"
@@ -90,8 +91,7 @@ class AudioFileManager {
 public:
 	AudioFileManager();
 
-	deluge::fast_map<String*, Sample*, StringLessThan> sampleFiles;
-	deluge::fast_map<String*, WaveTable*, StringLessThan> wavetableFiles;
+	AudioFileVector audioFiles;
 
 	void init();
 	std::expected<AudioFile*, Error> getAudioFileFromFilename(String& fileName, bool mayReadCard,

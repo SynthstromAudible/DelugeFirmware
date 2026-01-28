@@ -1243,17 +1243,22 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
+		for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
+			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
-			// If this sample is one of the ones we loaded a moment ago...
-			if (thisSample->partOfFolderBeingLoaded) {
-				thisSample->partOfFolderBeingLoaded = false;
+			if (audioFile->type == AudioFileType::SAMPLE) {
+				Sample* thisSample = (Sample*)audioFile;
+
+				// If this sample is one of the ones we loaded a moment ago...
+				if (thisSample->partOfFolderBeingLoaded) {
+					thisSample->partOfFolderBeingLoaded = false;
 #if ALPHA_OR_BETA_VERSION
-				if (thisSample->numReasonsToBeLoaded <= 0) {
-					FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
-				}
+					if (thisSample->numReasonsToBeLoaded <= 0) {
+						FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
+					}
 #endif
-				thisSample->removeReason("E392"); // Remove that temporary reason we added
+					thisSample->removeReason("E392"); // Remove that temporary reason we added
+				}
 			}
 		}
 
@@ -1369,25 +1374,31 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int32_t sampleI = 0;
-	for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
-		// If this sample is one of the ones we loaded a moment ago...
-		if (thisSample->partOfFolderBeingLoaded) {
-			thisSample->partOfFolderBeingLoaded = false;
+	for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
+		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
-			if (discardingMIDINoteFromFile) {
-				thisSample->midiNoteFromFile = -1;
-			}
+		if (audioFile->type == AudioFileType::SAMPLE) {
 
-			if (detectPitch) {
-				thisSample->workOutMIDINote(doingSingleCycle);
-			}
+			Sample* thisSample = (Sample*)audioFile;
+			// If this sample is one of the ones we loaded a moment ago...
+			if (thisSample->partOfFolderBeingLoaded) {
+				thisSample->partOfFolderBeingLoaded = false;
 
-			*thisSamplePointer = thisSample;
-			sampleI++;
-			thisSamplePointer++;
+				if (discardingMIDINoteFromFile) {
+					thisSample->midiNoteFromFile = -1;
+				}
 
-			if (sampleI == numSamples) {
-				break; // Just for safety
+				if (detectPitch) {
+					thisSample->workOutMIDINote(doingSingleCycle);
+				}
+
+				*thisSamplePointer = thisSample;
+				sampleI++;
+				thisSamplePointer++;
+
+				if (sampleI == numSamples) {
+					break; // Just for safety
+				}
 			}
 		}
 	}
