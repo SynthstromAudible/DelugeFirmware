@@ -77,6 +77,7 @@ constexpr Patcher::Config kPatcherConfigForSound = {
     .firstParam = params::FIRST_GLOBAL,
     .firstNonVolumeParam = params::FIRST_GLOBAL_NON_VOLUME,
     .firstHybridParam = params::FIRST_GLOBAL_HYBRID,
+    .firstZoneParam = params::FIRST_GLOBAL_ZONE,
     .firstExpParam = params::FIRST_GLOBAL_EXP,
     .endParams = params::kNumParams,
     .globality = GLOBALITY_GLOBAL,

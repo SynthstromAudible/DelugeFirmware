@@ -201,9 +201,14 @@ private:
 };
 
 /// Twist zone control - 8 zones with different modifiers
+/// When twistPhaseOffset or gammaPhase > 0: all zones become meta/twist zones (shows "p:z" coords)
+/// When phaseOffset == 0: zones 0-3 are special (Width, Evens, Rect, Fdbk), zones 4-7 are twist
 /// Secret menu: Push+twist encoder to adjust twistPhaseOffset (per-patch phase offset)
 /// Press encoder (no twist): Opens mod matrix source selection
 class SineShaperTwist final : public ZoneBasedDualParam<params::LOCAL_SINE_SHAPER_TWIST> {
+	static constexpr int32_t kTwistResolution = 1024;
+	static constexpr int32_t kTwistNumZones = 8;
+
 public:
 	using ZoneBasedDualParam::ZoneBasedDualParam;
 
@@ -212,6 +217,7 @@ public:
 	void setFieldValue(q31_t value) override { soundEditor.currentModControllable->sineShaper.twist = value; }
 
 	[[nodiscard]] const char* getZoneName(int32_t zoneIndex) const override {
+		// Zone names only shown when phaseOffset == 0 (special mode)
 		switch (zoneIndex) {
 		case 0:
 			return "Width";
@@ -236,12 +242,12 @@ public:
 
 	void selectEncoderAction(int32_t offset) override {
 		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
-			// Secret menu: adjust twistPhaseOffset
+			// Secret menu: adjust twistPhaseOffset (same scale as gammaPhase for consistency)
 			Buttons::selectButtonPressUsedUp = true;
 			float& phase = soundEditor.currentModControllable->sineShaper.twistPhaseOffset;
-			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 0.1f);
+			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 1.0f);
 			char buffer[16];
-			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(phase * 10.0f));
+			snprintf(buffer, sizeof(buffer), "T:%d", static_cast<int32_t>(phase));
 			display->displayPopup(buffer);
 			renderUIsForOled();
 			suppressNotification_ = true;
@@ -259,12 +265,53 @@ public:
 		return true;
 	}
 
+	// Override rendering to show numeric coordinates when phase offset > 0
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		float phase_offset = effectivePhaseOffset();
+		if (phase_offset != 0.0f) {
+			cacheCoordDisplay(phase_offset, this->getValue());
+			renderZoneInHorizontalMenu(slot, this->getValue(), kTwistResolution, kTwistNumZones, getCoordName);
+		}
+		else {
+			renderZoneInHorizontalMenu(slot, this->getValue(), kTwistResolution, kTwistNumZones,
+			                           [this](int32_t z) { return this->getZoneName(z); });
+		}
+	}
+
+protected:
+	void drawPixelsForOled() override {
+		float phase_offset = effectivePhaseOffset();
+		if (phase_offset != 0.0f) {
+			cacheCoordDisplay(phase_offset, this->getValue());
+			drawZoneForOled(this->getValue(), kTwistResolution, kTwistNumZones, getCoordName);
+		}
+		else {
+			drawZoneForOled(this->getValue(), kTwistResolution, kTwistNumZones,
+			                [this](int32_t z) { return this->getZoneName(z); });
+		}
+	}
+
 private:
 	mutable bool suppressNotification_ = false;
+
+	/// Effective phase offset: twistPhaseOffset + kResolution * gammaPhase
+	/// When > 0, all zones become meta/twist zones with numeric display
+	[[nodiscard]] float effectivePhaseOffset() const {
+		auto& ss = soundEditor.currentModControllable->sineShaper;
+		return ss.twistPhaseOffset + static_cast<float>(kTwistResolution) * ss.gammaPhase;
+	}
+
+	static inline char coord_buffer_[12] = {};
+	static void cacheCoordDisplay(float phase_offset, int32_t value) {
+		int32_t p = static_cast<int32_t>(phase_offset);
+		int32_t z = value >> 7; // 0-1023 → 0-7 (zone index)
+		snprintf(coord_buffer_, sizeof(coord_buffer_), "%d:%d", p, z);
+	}
+	static const char* getCoordName([[maybe_unused]] int32_t zoneIndex) { return coord_buffer_; }
 };
 
 /// Mix: wet/dry blend (0-127, 0 = bypass)
-/// Secret menu: Push encoder to adjust gammaPhase (offsets twistPhaseOffset by 1024*gamma)
+/// Secret menu: Push+twist encoder to adjust gammaPhase (same scale as table shaper)
 class SineShaperMix final : public IntegerWithOff {
 public:
 	using IntegerWithOff::IntegerWithOff;
@@ -290,12 +337,12 @@ public:
 
 	void selectEncoderAction(int32_t offset) override {
 		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
-			// Secret menu: adjust gammaPhase
+			// Secret menu: adjust gammaPhase (same scale as table shaper: 1.0 per velocity-scaled click)
 			Buttons::selectButtonPressUsedUp = true;
 			float& gamma = soundEditor.currentModControllable->sineShaper.gammaPhase;
-			gamma = std::max(0.0f, gamma + static_cast<float>(offset) * 0.1f);
+			gamma = std::max(0.0f, gamma + static_cast<float>(velocity_.getScaledOffset(offset)) * 1.0f);
 			char buffer[16];
-			snprintf(buffer, sizeof(buffer), "G:%d", static_cast<int32_t>(gamma * 10.0f));
+			snprintf(buffer, sizeof(buffer), "G:%d", static_cast<int32_t>(gamma));
 			display->displayPopup(buffer);
 			renderUIsForOled();
 			suppressNotification_ = true;
@@ -316,6 +363,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 127; }
 
 private:
+	mutable VelocityEncoder velocity_;
 	mutable bool suppressNotification_ = false;
 };
 

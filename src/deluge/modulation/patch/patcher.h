@@ -41,6 +41,7 @@ public:
 		uint8_t firstParam;
 		uint8_t firstNonVolumeParam;
 		uint8_t firstHybridParam;
+		uint8_t firstZoneParam; // Zone params: pure modulation pass-through
 		uint8_t firstExpParam;
 		uint8_t endParams;
 		uint8_t globality;

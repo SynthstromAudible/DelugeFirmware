@@ -51,25 +51,32 @@ constexpr int32_t resolutionToShift(int32_t resolution) {
 }
 
 /// Convert q31 param value to menu value with given resolution
+/// Uses proper scaling to avoid drift between menu positions and zone boundaries
 template <int32_t RESOLUTION>
 inline int32_t paramToMenuValue(q31_t value) {
-	constexpr int32_t kShift = resolutionToShift(RESOLUTION);
-	constexpr q31_t kRounding = 1 << (kShift - 1);
-	constexpr q31_t kOverflowThreshold = 2147483647 - kRounding;
-	if (value > kOverflowThreshold) {
-		return RESOLUTION;
-	}
-	return (value + kRounding) >> kShift;
+	// Scale q31 [0, ONE_Q31] to menu [0, RESOLUTION]
+	// Use quotient + remainder to avoid 64-bit: value / (ONE_Q31/RES) with correction
+	constexpr int32_t kOneQ31 = 2147483647;
+	constexpr int32_t kQuotient = kOneQ31 / RESOLUTION; // Floor division
+	// Simple division by quotient, then clamp (slight over-estimate is OK for display)
+	int32_t result = value / kQuotient;
+	return std::min(result, RESOLUTION);
 }
 
 /// Convert menu value to q31 param value with given resolution
+/// Uses proper scaling to align menu positions with zone boundaries
 template <int32_t RESOLUTION>
 inline q31_t menuValueToParam(int32_t menuValue) {
-	constexpr int32_t kShift = resolutionToShift(RESOLUTION);
 	if (menuValue >= RESOLUTION) {
-		return 2147483647; // INT32_MAX
+		return 2147483647; // ONE_Q31
 	}
-	return menuValue << kShift;
+	// Exact 32-bit formula: menuValue * quotient + (menuValue * remainder) / RESOLUTION
+	// where quotient = ONE_Q31 / RESOLUTION, remainder = ONE_Q31 % RESOLUTION
+	// This gives exact results without 64-bit math
+	constexpr int32_t kOneQ31 = 2147483647;
+	constexpr int32_t kQuotient = kOneQ31 / RESOLUTION;
+	constexpr int32_t kRemainder = kOneQ31 % RESOLUTION;
+	return menuValue * kQuotient + (menuValue * kRemainder) / RESOLUTION;
 }
 
 // Legacy aliases for 1024-step resolution (used by existing code)

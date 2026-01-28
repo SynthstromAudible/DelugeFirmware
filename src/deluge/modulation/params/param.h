@@ -90,7 +90,7 @@ enum Local : ParamType {
 	LOCAL_LPF_MORPH,
 	LOCAL_HPF_MORPH,
 
-	// Local hybrid params begin
+	// Local hybrid params begin (bipolar, -ONE_Q31 to +ONE_Q31)
 	FIRST_LOCAL__HYBRID,
 	LOCAL_OSC_A_PHASE_WIDTH = FIRST_LOCAL__HYBRID,
 	LOCAL_OSC_B_PHASE_WIDTH,
@@ -101,7 +101,7 @@ enum Local : ParamType {
 	LOCAL_SINE_SHAPER_DRIVE,  // Sine shaper drive (additive mod: base + mod)
 	LOCAL_TABLE_SHAPER_MIX,   // Table shaper wet/dry mix
 
-	// Local zone params begin (pure modulation pass-through, scaling handled by ZoneBasedParam)
+	// Local zone params (pure modulation pass-through, scaling handled by ZoneBasedParam)
 	FIRST_LOCAL_ZONE,
 	LOCAL_SINE_SHAPER_TWIST = FIRST_LOCAL_ZONE, // Sine shaper twist/modifier
 	LOCAL_SINE_SHAPER_HARMONIC,                 // Sine shaper harmonic zone

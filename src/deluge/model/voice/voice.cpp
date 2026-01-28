@@ -71,6 +71,7 @@ const Patcher::Config kPatcherConfigForVoice = {
     .firstParam = 0,
     .firstNonVolumeParam = params::FIRST_LOCAL_NON_VOLUME,
     .firstHybridParam = params::FIRST_LOCAL__HYBRID,
+    .firstZoneParam = params::FIRST_LOCAL_ZONE,
     .firstExpParam = params::FIRST_LOCAL_EXP,
     .endParams = params::FIRST_GLOBAL,
     .globality = GLOBALITY_LOCAL,
