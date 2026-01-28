@@ -44,13 +44,16 @@ void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, Sound& sound,
 			final_value = getFinalParameterValueLinear(param_neutral_value, cable_combination);
 		}
 	}
+	else if (p < config.firstZoneParam) {
+		// Hybrid params
+		final_value = getFinalParameterValueHybrid(param_neutral_value, cable_combination);
+	}
+	else if (p < config.firstExpParam) {
+		// Zone params: output cables only, DSP combines with preset via ZoneBasedParam
+		final_value = cable_combination;
+	}
 	else {
-		if (p < config.firstExpParam) {
-			final_value = getFinalParameterValueHybrid(param_neutral_value, cable_combination); // Hybrid - add
-		}
-		else {
-			final_value = getFinalParameterValueExpWithDumbEnvelopeHack(param_neutral_value, cable_combination, p);
-		}
+		final_value = getFinalParameterValueExpWithDumbEnvelopeHack(param_neutral_value, cable_combination, p);
 	}
 
 	param_final_values_[p - config.firstParam] = final_value;
@@ -126,10 +129,16 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManage
 	}
 
 	// Hybrid params
-	for (; iterator < cable_combos.end() && iterator->first < config.firstExpParam; iterator++) {
+	for (; iterator < cable_combos.end() && iterator->first < config.firstZoneParam; iterator++) {
 		auto [param, cable_combo] = *iterator;
 		param_final_values_[param - config.firstParam] =
 		    getFinalParameterValueHybrid(paramNeutralValues[param], cable_combo);
+	}
+
+	// Zone params: output cables only, DSP combines with preset via ZoneBasedParam
+	for (; iterator < cable_combos.end() && iterator->first < config.firstExpParam; iterator++) {
+		auto [param, cable_combo] = *iterator;
+		param_final_values_[param - config.firstParam] = cable_combo;
 	}
 
 	// Exp params
@@ -264,8 +273,12 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 	}
 
 	// Do the "preset value" (which we treat like a "cable" here)
-	running_total = cableToExpParamWithoutRangeAdjustment(
-	    running_total, sound.getSmoothedPatchedParamValue(param, param_manager), paramRanges[param]);
+	// Zone params: return cables only, DSP combines with preset via ZoneBasedParam
+	bool isZoneParam = (param >= config.firstZoneParam && param < config.firstExpParam);
+	if (!isZoneParam) {
+		running_total = cableToExpParamWithoutRangeAdjustment(
+		    running_total, sound.getSmoothedPatchedParamValue(param, param_manager), paramRanges[param]);
+	}
 
 	return running_total;
 }
@@ -326,10 +339,13 @@ void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager) 
 	}
 
 	// Hybrid params
-	for (int32_t param = config.firstHybridParam; param < config.firstExpParam; param++) {
+	for (int32_t param = config.firstHybridParam; param < config.firstZoneParam; param++) {
 		param_final_values_[param - config.firstParam] =
 		    getFinalParameterValueHybrid(paramNeutralValues[param], param_final_values_[param - config.firstParam]);
 	}
+
+	// Zone params: cables only, DSP combines with preset via ZoneBasedParam
+	// (no transformation needed - combineCablesExp already returns cables only for zone params)
 
 	// Exp params
 	for (int32_t param = config.firstExpParam; param < config.endParams; param++) {

@@ -94,21 +94,24 @@ private:
 	/// Render GR meter with dual bars per band (output level + GR)
 	/// Layout: [L:out|gr] [M:out|gr] [H:out|gr] | [Master] [Clip]
 	void renderGRMeter() {
-		const bool popup_showing = OLED::isPopupPresent();
-		oled_canvas::Canvas& image = popup_showing ? OLED::popup : OLED::main;
+		oled_canvas::Canvas& image = OLED::main;
 
 		auto& compressor = soundEditor.currentModControllable->multibandCompressor;
 
-		// Use full header height
-		constexpr int32_t kMeterHeight = 14;
+		// Header height - stay above the title separator line (kScreenTitleSeparatorY = 17)
+		constexpr int32_t kMeterHeight = 10;
 		constexpr int32_t kHalfHeight = kMeterHeight / 2;
 		constexpr int32_t kBandGap = 2; // Gap between bands
 
-		// Position - moved left since "DOTT" is short
-		constexpr int32_t kMeterX = 45;
-		constexpr int32_t kMeterY = OLED_MAIN_TOPMOST_PIXEL;
+		// Meter width: 3 bands (2px each) + 2 gaps (2px each) + separator (1px) + gap (2px) + master (2px) + clip (5px)
+		// = 6 + 4 + 1 + 2 + 2 + 5 = 20px total
+		constexpr int32_t kMeterWidth = 20;
+		// Position: to the left of page counter area (~20px on right)
+		constexpr int32_t kPageCounterWidth = 22;
+		constexpr int32_t kMeterX = OLED_MAIN_WIDTH_PIXELS - kMeterWidth - kPageCounterWidth;
+		constexpr int32_t kMeterY = 6; // Start below top edge, bottom at y=15
 		const int32_t center_y = kMeterY + kHalfHeight;
-		const int32_t bottom_y = kMeterY + kMeterHeight - 1;
+		const int32_t max_y = kMeterY + kMeterHeight - 1;
 
 		// Scale bipolar GR value to half-height pixels
 		auto scale_bipolar = [](int8_t value, int32_t max_half_height) -> int32_t {
@@ -129,7 +132,10 @@ private:
 			// Bar 1: Output level (unipolar, grows upward from bottom)
 			int32_t out_h = scale_unipolar(output_level, kMeterHeight);
 			for (int32_t dy = 0; dy < out_h; dy++) {
-				image.drawPixel(x_pos, bottom_y - dy);
+				int32_t y = max_y - dy;
+				if (y >= kMeterY) {
+					image.drawPixel(x_pos, y);
+				}
 			}
 
 			// Saturation indicator at top of output bar
@@ -151,7 +157,10 @@ private:
 			else if (h < 0) {
 				// Downward compression (gain reduction)
 				for (int32_t dy = 1; dy <= -h; dy++) {
-					image.drawPixel(x_pos, center_y + dy);
+					int32_t y = center_y + dy;
+					if (y <= max_y) {
+						image.drawPixel(x_pos, y);
+					}
 				}
 			}
 		};
@@ -178,8 +187,11 @@ private:
 		uint8_t out_level = compressor.getOutputLevel();
 		int32_t out_h = scale_unipolar(out_level, kMeterHeight);
 		for (int32_t dy = 0; dy < out_h; dy++) {
-			image.drawPixel(x, bottom_y - dy);
-			image.drawPixel(x + 1, bottom_y - dy);
+			int32_t y = max_y - dy;
+			if (y >= kMeterY) {
+				image.drawPixel(x, y);
+				image.drawPixel(x + 1, y);
+			}
 		}
 
 		// Master clip indicator - top-right of output meter (2x2 dot when clipping)

@@ -77,6 +77,7 @@
 #include "gui/menu_item/flash/status.h"
 #include "gui/menu_item/fx/clipping.h"
 #include "gui/menu_item/fx/shaper.h"
+#include "gui/menu_item/fx/sine_shaper.h"
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/gate/off_time.h"
 #include "gui/menu_item/gate/selection.h"
@@ -706,6 +707,18 @@ HorizontalMenu soundDistortionMenu{
     },
 };
 
+// Sine Shaper - sinusoidal waveshaper distortion
+fx::DynamicsPatchedParam sineShaperDriveMenu{STRING_FOR_SINE_SHAPER_DRIVE, STRING_FOR_SINE_SHAPER_DRIVE,
+                                             params::LOCAL_SINE_SHAPER_DRIVE, RenderingStyle::BAR};
+fx::SineShaperHarmonic sineShaperHarmonicMenu{STRING_FOR_SINE_SHAPER_HARMONIC};
+fx::SineShaperTwist sineShaperTwistMenu{STRING_FOR_SINE_SHAPER_SYMMETRY};
+fx::SineShaperMix sineShaperMixMenu{STRING_FOR_SINE_SHAPER_MIX};
+
+HorizontalMenu sineShaperSubMenu{
+    STRING_FOR_SINE_SHAPER_MENU,
+    {&sineShaperDriveMenu, &sineShaperHarmonicMenu, &sineShaperTwistMenu, &sineShaperMixMenu},
+};
+
 // Table Shaper - XY waveshaping with lookup tables
 fx::TableShaperDrive shaperDriveMenu{STRING_FOR_SHAPER_DRIVE, STRING_FOR_SHAPER_DRIVE, params::LOCAL_TABLE_SHAPER_DRIVE,
                                      RenderingStyle::BAR};
@@ -719,10 +732,10 @@ HorizontalMenu tableShaperSubMenu{
     {&shaperDriveMenu, &shaperShapeXMenu, &shaperShapeYMenu, &shaperMixMenu},
 };
 
-// Shaping submenu - contains Table Shaper
+// Shaping submenu - contains Sine Shaper and Table Shaper
 submenu::Shaping shapingMenu{
     STRING_FOR_SHAPING,
-    {&tableShaperSubMenu},
+    {&sineShaperSubMenu, &tableShaperSubMenu},
 };
 
 // Output MIDI for sound drums --------------------------------------------------------------

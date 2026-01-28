@@ -137,7 +137,10 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [LOCAL_OSC_B_WAVE_INDEX]         = "Osc2 wave",
 	    [LOCAL_PAN]                      = "Pan",
 	    [LOCAL_TABLE_SHAPER_DRIVE]       = "Shpr drive",
+	    [LOCAL_SINE_SHAPER_DRIVE]        = "Sine drive",
 	    [LOCAL_TABLE_SHAPER_MIX]         = "Shaper mix",
+	    [LOCAL_SINE_SHAPER_TWIST]        = "Sine twist",
+	    [LOCAL_SINE_SHAPER_HARMONIC]     = "Sine harm",
 	    [LOCAL_LPF_FREQ]                 = "LPf freq",
 	    [LOCAL_PITCH_ADJUST]             = "Pitch",
 	    [LOCAL_OSC_A_PITCH_ADJUST]       = "Osc1 pitch",
@@ -214,7 +217,10 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [LOCAL_OSC_B_WAVE_INDEX] = STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX,
 	    [LOCAL_PAN] = STRING_FOR_PARAM_LOCAL_PAN,
 	    [LOCAL_TABLE_SHAPER_DRIVE] = STRING_FOR_PARAM_LOCAL_TABLE_SHAPER_DRIVE,
+	    [LOCAL_SINE_SHAPER_DRIVE] = STRING_FOR_PARAM_LOCAL_SINE_SHAPER_DRIVE,
 	    [LOCAL_TABLE_SHAPER_MIX] = STRING_FOR_PARAM_LOCAL_TABLE_SHAPER_MIX,
+	    [LOCAL_SINE_SHAPER_TWIST] = STRING_FOR_SINE_SHAPER_SYMMETRY, // Reuse existing twist/symmetry string
+	    [LOCAL_SINE_SHAPER_HARMONIC] = STRING_FOR_SINE_SHAPER_HARMONIC,
 	    [LOCAL_LPF_FREQ] = STRING_FOR_PARAM_LOCAL_LPF_FREQ,
 	    [LOCAL_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_PITCH_ADJUST,
 	    [LOCAL_OSC_A_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST,
@@ -294,6 +300,9 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_MB_COMPRESSOR_OUTPUT_GAIN] = STRING_FOR_COMPRESSOR_OUTPUT_GAIN,
 		    [UNPATCHED_MB_COMPRESSOR_VIBE] = STRING_FOR_COMPRESSOR_VIBE,
 		    [UNPATCHED_MB_COMPRESSOR_BLEND] = STRING_FOR_BLEND,
+		    [UNPATCHED_SINE_SHAPER_DRIVE] = STRING_FOR_SINE_SHAPER_DRIVE,
+		    [UNPATCHED_SINE_SHAPER_HARMONIC] = STRING_FOR_SINE_SHAPER_HARMONIC,
+		    [UNPATCHED_SINE_SHAPER_TWIST] = STRING_FOR_SINE_SHAPER_SYMMETRY,
 		    [UNPATCHED_TABLE_SHAPER_DRIVE] = STRING_FOR_SHAPER_DRIVE,
 		    [UNPATCHED_TABLE_SHAPER_MIX] = STRING_FOR_SHAPER_MIX,
 		    [UNPATCHED_SCATTER_ZONE_A] = STRING_FOR_SCATTER_PATTERN,
@@ -530,6 +539,13 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case UNPATCHED_MB_COMPRESSOR_BLEND:
 			return "mbCompressorBlend";
 
+		// Shapers (prefixed to avoid conflicts with LOCAL_* patched versions)
+		case UNPATCHED_SINE_SHAPER_DRIVE:
+			return "clipSineShaperDrive";
+		case UNPATCHED_SINE_SHAPER_HARMONIC:
+			return "clipSineShaperHarmonic";
+		case UNPATCHED_SINE_SHAPER_TWIST:
+			return "clipSineShaperSymmetry";
 		case UNPATCHED_TABLE_SHAPER_DRIVE:
 			return "clipTableShaperDrive";
 		case UNPATCHED_TABLE_SHAPER_MIX:
@@ -687,8 +703,17 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case LOCAL_TABLE_SHAPER_DRIVE:
 			return "tableShaperDrive";
 
+		case LOCAL_SINE_SHAPER_DRIVE:
+			return "sineShaperDrive";
+
 		case LOCAL_TABLE_SHAPER_MIX:
 			return "tableShaperMix";
+
+		case LOCAL_SINE_SHAPER_TWIST:
+			return "sineShaperTwist";
+
+		case LOCAL_SINE_SHAPER_HARMONIC:
+			return "patchedSineShaperHarmonic";
 
 		case LOCAL_MODULATOR_0_VOLUME:
 			return "modulator1Volume";

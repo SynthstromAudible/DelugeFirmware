@@ -150,6 +150,45 @@ struct PhiTriContext {
 };
 
 /**
+ * Evaluate a single triangle with proper phase handling
+ *
+ * Input args (phase, freqMult) combined with config (freq, duty, offset, bipolar).
+ * Formula: wrapPhase((phase + cfg.offset) * cfg.freq * freqMult)
+ *
+ * @param phase Base phase (double for precision with large values)
+ * @param freqMult Frequency modulation (e.g., Y-dependent acceleration), 1.0 = no mod
+ * @param cfg Triangle configuration (freq, duty, offset, bipolar)
+ * @return Triangle value in [0,1] or [-1,1] depending on cfg.bipolar
+ */
+[[gnu::always_inline]] inline float evalTriangle(double phase, float freqMult, const PhiTriConfig& cfg) {
+	float wrappedPhase = wrapPhase((phase + cfg.phaseOffset) * cfg.phiFreq * freqMult);
+	if (cfg.bipolar) {
+		return deluge::dsp::triangleFloat(wrappedPhase, cfg.duty);
+	}
+	return deluge::dsp::triangleSimpleUnipolar(wrappedPhase, cfg.duty);
+}
+
+/**
+ * Evaluate a bank of N triangles with proper phase handling
+ *
+ * Each triangle gets: wrapPhase((phase + cfg.phaseOffset) * cfg.phiFreq * freqMult)
+ *
+ * @param phase Base phase (double for precision)
+ * @param freqMult Frequency modulation applied to all triangles
+ * @param configs Array of N configurations
+ * @return Array of N triangle values (unipolar [0,1] or bipolar [-1,1] per config)
+ */
+template <size_t N>
+[[gnu::always_inline]] inline std::array<float, N> evalTriangleBank(double phase, float freqMult,
+                                                                    const std::array<PhiTriConfig, N>& configs) {
+	std::array<float, N> results;
+	for (size_t i = 0; i < N; ++i) {
+		results[i] = evalTriangle(phase, freqMult, configs[i]);
+	}
+	return results;
+}
+
+/**
  * Pre-configured phi triangle bank for "extras" effects
  *
  * Bank indices:

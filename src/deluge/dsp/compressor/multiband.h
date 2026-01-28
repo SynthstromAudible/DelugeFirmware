@@ -709,25 +709,26 @@ public:
 		// "Weird" crossover types (1,2,3,9) allow bass stereo/inversion
 		bool weirdXover = (crossoverType_ == 1 || crossoverType_ == 2 || crossoverType_ == 3 || crossoverType_ == 9);
 		switch (zone) {
-		case 0: // Width: sweep from narrow/inverted to very enhanced (same baseline, wider range)
-			bandWidth_[0] = weirdXover ? (-0.5f + zonePos * 1.8f) : (0.5f + zonePos * 0.7f); // weird: -0.5→1.3
-			bandWidth_[1] = 0.5f + zonePos * 1.2f;                                           // 0.5→1.7 (was 0.5→1.4)
-			bandWidth_[2] = 0.5f + zonePos * 1.5f;                                           // 0.5→2.0 (was 0.5→1.6)
+		case 0: // Width: sweep from slightly narrow to very enhanced (less mono collapse at default)
+			bandWidth_[0] =
+			    weirdXover ? (-0.2f + zonePos * 1.5f) : (0.7f + zonePos * 0.5f); // weird: -0.2→1.3, normal: 0.7→1.2
+			bandWidth_[1] = 0.85f + zonePos * 0.85f;                             // 0.85→1.7 (was 0.5→1.7)
+			bandWidth_[2] = 0.9f + zonePos * 1.1f;                               // 0.9→2.0 (was 0.5→2.0)
 			break;
-		case 4: // Air: very wide stereo, highs super enhanced
-			bandWidth_[0] = weirdXover ? (0.5f + zonePos * 0.5f) : 0.5f;
-			bandWidth_[1] = 1.0f + zonePos * 0.5f; // 1.0→1.5 (was 1.0→1.2)
-			bandWidth_[2] = 1.1f + zonePos * 0.7f; // 1.1→1.8 (was 1.1→1.5)
+		case 4:                                                          // Air: very wide stereo, highs super enhanced
+			bandWidth_[0] = weirdXover ? (0.6f + zonePos * 0.4f) : 0.7f; // Less mono collapse on bass
+			bandWidth_[1] = 1.0f + zonePos * 0.5f;                       // 1.0→1.5 (was 1.0→1.2)
+			bandWidth_[2] = 1.1f + zonePos * 0.7f;                       // 1.1→1.8 (was 1.1→1.5)
 			break;
-		case 6: // OTT: wide for that classic sound
-			bandWidth_[0] = weirdXover ? (0.5f + zonePos * 0.5f) : 0.5f;
-			bandWidth_[1] = 1.0f + zonePos * 0.5f; // 1.0→1.5 (was 1.0→1.25)
-			bandWidth_[2] = 1.0f + zonePos * 0.7f; // 1.0→1.7 (was 1.0→1.35)
+		case 6:                                                          // OTT: wide for that classic sound
+			bandWidth_[0] = weirdXover ? (0.6f + zonePos * 0.4f) : 0.7f; // Less mono collapse on bass
+			bandWidth_[1] = 1.0f + zonePos * 0.5f;                       // 1.0→1.5 (was 1.0→1.25)
+			bandWidth_[2] = 1.0f + zonePos * 0.7f;                       // 1.0→1.7 (was 1.0→1.35)
 			break;
-		case 3: // Punch: tight mids for focused impact
-			bandWidth_[0] = weirdXover ? (0.3f + zonePos * 0.5f) : 0.5f;
-			bandWidth_[1] = 0.7f + zonePos * 0.1f; // 0.7→0.8 (was 0.7→0.9, tighter)
-			bandWidth_[2] = 0.9f + zonePos * 0.2f; // 0.9→1.1
+		case 3: // Punch: tight mids for focused impact (but less mono collapse)
+			bandWidth_[0] = weirdXover ? (0.5f + zonePos * 0.3f) : 0.7f;
+			bandWidth_[1] = 0.85f + zonePos * 0.1f;  // 0.85→0.95 (was 0.7→0.8)
+			bandWidth_[2] = 0.95f + zonePos * 0.15f; // 0.95→1.1 (was 0.9→1.1)
 			break;
 		case 7: { // OWLTT: phi-modulated per-band width oscillation (0.85x freq, stronger)
 			bandWidth_[0] =
@@ -741,8 +742,8 @@ public:
 			break;
 		}
 		default:
-			bandWidth_[0] = weirdXover ? (0.25f + zonePos * 0.5f) : 0.5f; // weird: slight variation
-			bandWidth_[1] = 1.0f;                                         // Unity - preserve original stereo
+			bandWidth_[0] = weirdXover ? (0.5f + zonePos * 0.5f) : 0.7f; // weird: 0.5→1.0, normal: 0.7 (less mono)
+			bandWidth_[1] = 1.0f;                                        // Unity - preserve original stereo
 			bandWidth_[2] = 1.0f;
 		}
 
@@ -775,24 +776,24 @@ public:
 		// Stored as offset from 1.0 (so 0 = no change, -0.5 = half speed, +1.0 = double)
 		switch (zone) {
 		case 1:                                 // Timing: sweep from uniform to very differentiated
-			timingOffset_[0] = -0.5f * zonePos; // Low slower (was -0.3)
+			timingOffset_[0] = -0.7f * zonePos; // Low slower (was -0.5)
 			timingOffset_[1] = 0.0f;
-			timingOffset_[2] = 0.5f * zonePos; // High faster (was 0.3)
+			timingOffset_[2] = 0.7f * zonePos; // High faster (was 0.5)
 			break;
 		case 3:                                        // Punch: very fast attack across all bands
 			timingOffset_[0] = -0.5f - zonePos * 0.3f; // (was -0.4 - 0.2)
 			timingOffset_[1] = -0.4f - zonePos * 0.3f; // (was -0.3 - 0.2)
 			timingOffset_[2] = -0.3f - zonePos * 0.3f; // (was -0.2 - 0.2)
 			break;
-		case 4:                                       // Air: slow bass, fast high band
-			timingOffset_[0] = 0.3f + zonePos * 0.2f; // 0.3→0.5 (was 0.2, slower bass)
+		case 4:                                       // Air: slow bass, fast high band (more contrast)
+			timingOffset_[0] = 0.4f + zonePos * 0.3f; // 0.4→0.7 (was 0.3→0.5, even slower bass)
 			timingOffset_[1] = 0.0f;
-			timingOffset_[2] = -0.5f - zonePos * 0.3f; // -0.5→-0.8 (was -0.4 - 0.3)
+			timingOffset_[2] = -0.6f - zonePos * 0.3f; // -0.6→-0.9 (was -0.5→-0.8, faster highs)
 			break;
-		case 6:                                        // OTT: classic fast timing, more aggressive
-			timingOffset_[0] = -0.3f - zonePos * 0.1f; // (was -0.2)
-			timingOffset_[1] = -0.4f - zonePos * 0.1f; // (was -0.3)
-			timingOffset_[2] = -0.5f - zonePos * 0.1f; // (was -0.4)
+		case 6:                                         // OTT: classic fast timing, even more aggressive
+			timingOffset_[0] = -0.4f - zonePos * 0.15f; // -0.4→-0.55 (was -0.3→-0.4)
+			timingOffset_[1] = -0.5f - zonePos * 0.15f; // -0.5→-0.65 (was -0.4→-0.5)
+			timingOffset_[2] = -0.6f - zonePos * 0.15f; // -0.6→-0.75 (was -0.5→-0.6)
 			break;
 		case 7: { // OWLTT: chaos (with vibe phase offsets, 0.85x freq, stronger)
 			timingOffset_[0] =
@@ -809,20 +810,20 @@ public:
 
 		// Per-band skew: -1=upward, 0=balanced, +1=downward
 		switch (zone) {
-		case 2:                                      // Skew: sweep through more extreme skew variations
-			skewOffset_[0] = -0.7f + zonePos * 1.2f; // Low: -0.7→0.5 (was -0.5→0.5)
+		case 2:                                       // Skew: sweep through more extreme skew variations
+			skewOffset_[0] = -0.85f + zonePos * 1.5f; // Low: -0.85→0.65 (was -0.7→0.5)
 			skewOffset_[1] = 0.0f;
-			skewOffset_[2] = 0.7f - zonePos * 1.2f; // High: 0.7→-0.5 (was 0.5→-0.5)
+			skewOffset_[2] = 0.85f - zonePos * 1.5f; // High: 0.85→-0.65 (was 0.7→-0.5)
 			break;
-		case 4: // Air: strong upward on highs
-			skewOffset_[0] = 0.0f;
-			skewOffset_[1] = -0.3f * zonePos;        // (was -0.2)
-			skewOffset_[2] = -0.6f - zonePos * 0.3f; // -0.6→-0.9 (was -0.5 - 0.3)
+		case 4:                                       // Air: strong upward on highs (more pronounced)
+			skewOffset_[0] = 0.1f * zonePos;          // slight downward on bass for contrast
+			skewOffset_[1] = -0.4f * zonePos;         // -0.4 upward on mids (was -0.3)
+			skewOffset_[2] = -0.7f - zonePos * 0.25f; // -0.7→-0.95 (was -0.6→-0.9, stronger upward highs)
 			break;
-		case 5: // Rich: upward emphasis (unchanged)
-			skewOffset_[0] = -0.3f - zonePos * 0.3f;
-			skewOffset_[1] = -0.4f - zonePos * 0.3f;
-			skewOffset_[2] = -0.2f - zonePos * 0.2f;
+		case 5:                                       // Rich: upward emphasis (more pronounced)
+			skewOffset_[0] = -0.4f - zonePos * 0.35f; // -0.4→-0.75 (was -0.3→-0.6)
+			skewOffset_[1] = -0.5f - zonePos * 0.35f; // -0.5→-0.85 (was -0.4→-0.7)
+			skewOffset_[2] = -0.3f - zonePos * 0.25f; // -0.3→-0.55 (was -0.2→-0.4)
 			break;
 		case 6:                                     // OTT: more differentiated skew
 			skewOffset_[0] = 0.2f + zonePos * 0.1f; // slight downward on bass
@@ -845,28 +846,28 @@ public:
 		// Params: 0-2=width, 3=knee, 4-6=timing, 7-9=skew
 		// clang-format off
 		static constexpr float kVibeZoneMult[7][10] = {
-			{0.3f, 0.4f, 0.5f, 0.3f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, // Width
-			{0.0f, 0.0f, 0.0f, 0.0f, 0.4f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f}, // Timing
-			{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f, 0.5f}, // Skew
-			{0.2f, 0.2f, 0.2f, 0.2f, 0.3f, 0.3f, 0.3f, 0.0f, 0.0f, 0.0f}, // Punch
-			{0.2f, 0.3f, 0.4f, 0.2f, 0.3f, 0.0f, 0.3f, 0.0f, 0.3f, 0.4f}, // Air
-			{0.0f, 0.0f, 0.0f, 0.3f, 0.0f, 0.0f, 0.0f, 0.4f, 0.4f, 0.3f}, // Rich
-			{0.0f, 0.3f, 0.4f, 0.2f, 0.2f, 0.2f, 0.2f, 0.2f, 0.0f, 0.2f}, // OTT
+			{0.45f, 0.55f, 0.65f, 0.4f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, // Width (was 0.3-0.5)
+			{0.0f, 0.0f, 0.0f, 0.0f, 0.55f, 0.55f, 0.55f, 0.0f, 0.0f, 0.0f}, // Timing (was 0.4)
+			{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.65f, 0.65f, 0.65f}, // Skew (was 0.5)
+			{0.3f, 0.3f, 0.3f, 0.3f, 0.4f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f}, // Punch (was 0.2-0.3)
+			{0.3f, 0.4f, 0.55f, 0.3f, 0.4f, 0.0f, 0.4f, 0.0f, 0.4f, 0.55f}, // Air (was 0.2-0.4)
+			{0.0f, 0.0f, 0.0f, 0.4f, 0.0f, 0.0f, 0.0f, 0.55f, 0.55f, 0.4f}, // Rich (was 0.3-0.4)
+			{0.0f, 0.4f, 0.55f, 0.3f, 0.3f, 0.3f, 0.3f, 0.3f, 0.0f, 0.3f}, // OTT (was 0.2-0.4)
 		};
 		static constexpr float kFeelZoneMult[7][10] = {
-			{0.15f, 0.20f, 0.25f, 0.15f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f}, // Width
-			{0.00f, 0.00f, 0.00f, 0.00f, 0.20f, 0.20f, 0.20f, 0.00f, 0.00f, 0.00f}, // Timing
-			{0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.25f, 0.25f, 0.25f}, // Skew
-			{0.10f, 0.10f, 0.10f, 0.10f, 0.15f, 0.15f, 0.15f, 0.00f, 0.00f, 0.00f}, // Punch
-			{0.10f, 0.15f, 0.20f, 0.10f, 0.15f, 0.00f, 0.15f, 0.00f, 0.15f, 0.20f}, // Air
-			{0.00f, 0.00f, 0.00f, 0.15f, 0.00f, 0.00f, 0.00f, 0.20f, 0.20f, 0.15f}, // Rich
-			{0.00f, 0.15f, 0.20f, 0.10f, 0.10f, 0.10f, 0.10f, 0.10f, 0.00f, 0.10f}, // OTT
+			{0.22f, 0.28f, 0.35f, 0.22f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f}, // Width (was 0.15-0.25)
+			{0.00f, 0.00f, 0.00f, 0.00f, 0.28f, 0.28f, 0.28f, 0.00f, 0.00f, 0.00f}, // Timing (was 0.2)
+			{0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.35f, 0.35f, 0.35f}, // Skew (was 0.25)
+			{0.15f, 0.15f, 0.15f, 0.15f, 0.22f, 0.22f, 0.22f, 0.00f, 0.00f, 0.00f}, // Punch (was 0.1-0.15)
+			{0.15f, 0.22f, 0.28f, 0.15f, 0.22f, 0.00f, 0.22f, 0.00f, 0.22f, 0.28f}, // Air (was 0.1-0.2)
+			{0.00f, 0.00f, 0.00f, 0.22f, 0.00f, 0.00f, 0.00f, 0.28f, 0.28f, 0.22f}, // Rich (was 0.15-0.2)
+			{0.00f, 0.22f, 0.28f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.00f, 0.15f}, // OTT (was 0.1-0.2)
 		};
 		// clang-format on
 
 		// Apply vibe and feelPhaseOffset modulation to non-OWLTT zones
 		if (zone != 7) {
-			float vibeModAmount = 0.3f * (static_cast<float>(vibeKnob_) / ONE_Q31f);
+			float vibeModAmount = 0.55f * (static_cast<float>(vibeKnob_) / ONE_Q31f); // (was 0.3)
 			bool applyVibe = vibeModAmount > 0.01f;
 			bool applyFeel = std::abs(feelPhaseOffset_) > 0.01f;
 
@@ -1978,8 +1979,8 @@ private:
 	// Character knob (replaces knee) - controls width, knee, timing, skew
 	q31_t characterKnob_ = 0;        // Default 0 (Width zone start) - neutral settings
 	bool characterComputed_ = false; // Cache flag: true after first setCharacter() call
-	std::array<float, 3> bandWidth_{0.5f, 1.0f,
-	                                1.0f}; // Per-band stereo width [bass, mid, high]: 0=mono, 1=unity, >1=enhanced
+	std::array<float, 3> bandWidth_{0.7f, 0.85f,
+	                                0.9f}; // Per-band stereo width [bass, mid, high]: 0=mono, 1=unity, >1=enhanced
 	float knee_ = 0.2f;                    // 0=hard, 1=soft (derived from character) - steepish default
 	std::array<float, kNumBands> timingOffset_{0.0f, 0.0f, 0.0f}; // Per-band timing multiplier offset
 	std::array<float, kNumBands> skewOffset_{0.0f, 0.0f, 0.0f};   // Per-band up/down skew offset

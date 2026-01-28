@@ -72,12 +72,22 @@ struct ZoneInfo {
 }
 
 /// Compute zone info from a q31 value
+/// Uses 32-bit division (ARM hardware divider ~10-20 cycles) for zone index,
+/// then multiply-subtract for offset. Avoids 64-bit math entirely.
 [[nodiscard]] inline ZoneInfo computeZoneQ31(q31_t value, int32_t numZones) {
 	q31_t zoneWidth = computeZoneWidth(numZones);
-	int32_t index = std::clamp(static_cast<int32_t>(value / zoneWidth), static_cast<int32_t>(0),
-	                           static_cast<int32_t>(numZones - 1));
+
+	// Hardware 32-bit division for zone index, multiply-subtract for offset
+	// Clamp index because zoneWidth truncation leaves ~7 values that would overflow to zone 8
+	int32_t index = std::min(value / zoneWidth, numZones - 1);
 	q31_t zoneStart = index * zoneWidth;
-	float position = static_cast<float>(value - zoneStart) / static_cast<float>(zoneWidth);
+	// Clamp offset to prevent overflow in position calc (handles edge case at ONE_Q31)
+	q31_t offset = std::min(value - zoneStart, zoneWidth - 1);
+
+	// Convert offset to [0,1) position without 64-bit math:
+	// position = offset / zoneWidth = offset * numZones / ONE_Q31
+	// offset < zoneWidth guaranteed by clamp, so offset * numZones < ONE_Q31 (fits in 32 bits)
+	float position = static_cast<float>(offset * numZones) / static_cast<float>(ONE_Q31);
 	return {index, position, zoneStart, zoneWidth};
 }
 
