@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge/dsp/granular/GranularProcessor.h"
+#include "dsp/automodulator.hpp"
 #include "dsp/compressor/multiband.h"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
@@ -116,6 +117,9 @@ public:
 
 	// Sine shaper parameters and DSP state (struct defined in dsp/sine_shaper.hpp)
 	deluge::dsp::SineTableShaperParams sineShaper;
+
+	// Automodulator (auto-wah/filter/tremolo/comb)
+	deluge::dsp::AutomodulatorParams automod;
 
 	FilterMode lpfMode;
 	FilterMode hpfMode;

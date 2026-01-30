@@ -1641,6 +1641,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 
 	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
 		(*voiceForLegato)->changeNoteCode(modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel, mpeValues);
+		// Note: intentionally NO automod reset here - legato should maintain LFO continuity
 	}
 	else {
 		try {
@@ -1652,11 +1653,17 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				for (int32_t e = 0; e < kNumEnvelopes; e++) {
 					envelopePositions[e] = (*voiceToReuse)->envelopes[e].lastValue;
 				}
+				// Reset automod LFO phase for note retrigger - initial phase from phi triangle
+				float effectiveModPhase = automod.modPhaseOffset + automod.gammaPhase;
+				automod.lfoPhase = dsp::getLfoInitialPhaseFromMod(automod.mod, effectiveModPhase);
 			}
 			else {
 				// Since we potentially just added a voice where there were none before...
 				reassessRenderSkippingStatus(modelStack);
 				voice->randomizeOscPhases(*this);
+				// Reset automod LFO phase for note retrigger - initial phase from phi triangle
+				float effectiveModPhase = automod.modPhaseOffset + automod.gammaPhase;
+				automod.lfoPhase = dsp::getLfoInitialPhaseFromMod(automod.mod, effectiveModPhase);
 			}
 
 			if (sideChainSendLevel != 0) [[unlikely]] {
@@ -2604,6 +2611,19 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		          !voices_.empty(), reverbSendAmount >> 1);
 	}
 
+	// Automodulator processing (before stutter)
+	if (automod.isEnabled()) {
+		// Use paramFinalValues for modulated macro value (GLOBAL param supports mod matrix)
+		q31_t automodMacro = paramFinalValues[params::GLOBAL_AUTOMOD_MACRO - params::FIRST_GLOBAL];
+		// Pass timePerTickInverse for tempo sync (0 if clock not active)
+		uint32_t timePerTickInv =
+		    playbackHandler.isEitherClockActive() ? playbackHandler.getTimePerInternalTickInverse() : 0;
+		uint8_t voiceCount = static_cast<uint8_t>(std::min(voices_.size(), static_cast<size_t>(255)));
+		// Pass lastNoteCode for pitch tracking (filter/comb track played note)
+		deluge::dsp::processAutomodulator(sound_stereo, automod, automodMacro, true, voiceCount, timePerTickInv,
+		                                  lastNoteCode);
+	}
+
 	// Scatter modulation support: pass modulated values from paramFinalValues
 	// Array order: [ZONE_A, ZONE_B, MACRO_CONFIG, MACRO, PWRITE, DENSITY]
 	q31_t modulatedScatterValues[6] = {
@@ -2718,6 +2738,9 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 			// clearModFXMemory(); // No need anymore, now we wait for this to basically empty before starting skipping
 		}
+
+		// Reset automod voice tracking so LFO retrigs on first render after resuming
+		automod.lastVoiceCount = 0;
 
 		setSkippingRendering(false);
 	}

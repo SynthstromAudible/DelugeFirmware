@@ -75,6 +75,7 @@
 #include "gui/menu_item/filter_route.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/flash/status.h"
+#include "gui/menu_item/fx/automodulator.h"
 #include "gui/menu_item/fx/clipping.h"
 #include "gui/menu_item/fx/shaper.h"
 #include "gui/menu_item/fx/sine_shaper.h"
@@ -737,10 +738,21 @@ HorizontalMenu tableShaperSubMenu{
     {&shaperDriveMenu, &shaperShapeXMenu, &shaperShapeYMenu, &shaperMixMenu},
 };
 
-// Shaping submenu - contains Sine Shaper and Table Shaper
+// Automodulator (auto-wah/filter/tremolo/comb)
+fx::AutomodMacro automodMacroMenu{STRING_FOR_AUTOMOD_MACRO, STRING_FOR_AUTOMOD_MACRO, params::GLOBAL_AUTOMOD_MACRO};
+fx::AutomodType automodTypeMenu{STRING_FOR_AUTOMOD_TYPE, STRING_FOR_AUTOMOD_TYPE};
+fx::AutomodFlavor automodFlavorMenu{STRING_FOR_AUTOMOD_FLAVOR, STRING_FOR_AUTOMOD_FLAVOR};
+fx::AutomodMod automodModMenu{STRING_FOR_AUTOMOD_MOD, STRING_FOR_AUTOMOD_MOD};
+
+HorizontalMenu automodMenu{
+    STRING_FOR_AUTOMOD,
+    {&automodTypeMenu, &automodFlavorMenu, &automodModMenu, &automodMacroMenu},
+};
+
+// Shaping submenu - contains Sine Shaper, Table Shaper, and Automodulator
 submenu::Shaping shapingMenu{
     STRING_FOR_SHAPING,
-    {&sineShaperSubMenu, &tableShaperSubMenu},
+    {&sineShaperSubMenu, &tableShaperSubMenu, &automodMenu},
 };
 
 // Output MIDI for sound drums --------------------------------------------------------------

@@ -170,6 +170,7 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [GLOBAL_SCATTER_MACRO]           = "Scat macro",
 	    [GLOBAL_SCATTER_PWRITE]          = "Scat pWrite",
 	    [GLOBAL_SCATTER_DENSITY]         = "Scat density",
+	    [GLOBAL_AUTOMOD_MACRO]           = "Automod",
 	    [GLOBAL_SCATTER_ZONE_A]          = "Scat zoneA",
 	    [GLOBAL_SCATTER_ZONE_B]          = "Scat zoneB",
 	    [GLOBAL_SCATTER_MACRO_CONFIG]    = "Scat depth",
@@ -252,6 +253,7 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [GLOBAL_SCATTER_MACRO] = STRING_FOR_SCATTER_MACRO,
 	    [GLOBAL_SCATTER_PWRITE] = STRING_FOR_SCATTER_PWRITE,
 	    [GLOBAL_SCATTER_DENSITY] = STRING_FOR_SCATTER_DENSITY,
+	    [GLOBAL_AUTOMOD_MACRO] = STRING_FOR_AUTOMOD_MACRO,
 	    [GLOBAL_SCATTER_ZONE_A] = STRING_FOR_SCATTER_PATTERN,
 	    [GLOBAL_SCATTER_ZONE_B] = STRING_FOR_SCATTER_COLOR,
 	    [GLOBAL_SCATTER_MACRO_CONFIG] = STRING_FOR_SCATTER_MACRO_CONFIG,
@@ -309,6 +311,7 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_SINE_SHAPER_TWIST] = STRING_FOR_SINE_SHAPER_SYMMETRY,
 		    [UNPATCHED_TABLE_SHAPER_DRIVE] = STRING_FOR_SHAPER_DRIVE,
 		    [UNPATCHED_TABLE_SHAPER_MIX] = STRING_FOR_SHAPER_MIX,
+		    [UNPATCHED_AUTOMOD_MACRO] = STRING_FOR_AUTOMOD_MACRO,
 		    [UNPATCHED_SCATTER_ZONE_A] = STRING_FOR_SCATTER_PATTERN,
 		    [UNPATCHED_SCATTER_ZONE_B] = STRING_FOR_SCATTER_COLOR,
 		    [UNPATCHED_SCATTER_MACRO_CONFIG] = STRING_FOR_SCATTER_MACRO_CONFIG,
@@ -556,6 +559,8 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 			return "clipTableShaperDrive";
 		case UNPATCHED_TABLE_SHAPER_MIX:
 			return "clipTableShaperMix";
+		case UNPATCHED_AUTOMOD_MACRO:
+			return "clipAutomodMacro";
 
 		case UNPATCHED_ARP_GATE:
 			return "arpGate";
@@ -649,6 +654,9 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case GLOBAL_SCATTER_MACRO:
 			return "globalScatterMacro";
+
+		case GLOBAL_AUTOMOD_MACRO:
+			return "globalAutomodMacro";
 
 		case GLOBAL_SCATTER_ZONE_A:
 			return "globalScatterZoneA";

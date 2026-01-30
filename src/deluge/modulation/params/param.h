@@ -159,6 +159,7 @@ enum Global : ParamType {
 	GLOBAL_SCATTER_ZONE_A,                    // Scatter structural zone
 	GLOBAL_SCATTER_ZONE_B,                    // Scatter timbral zone
 	GLOBAL_SCATTER_MACRO_CONFIG,              // Scatter effect depth
+	GLOBAL_AUTOMOD_MACRO,                     // Automodulator macro depth
 
 	// Global exp params begin
 	FIRST_GLOBAL_EXP,
@@ -221,6 +222,8 @@ enum UnpatchedShared : ParamType {
 	UNPATCHED_SINE_SHAPER_TWIST,
 	UNPATCHED_TABLE_SHAPER_DRIVE,
 	UNPATCHED_TABLE_SHAPER_MIX,
+	// Automodulator controls
+	UNPATCHED_AUTOMOD_MACRO,
 	// Scatter controls
 	UNPATCHED_SCATTER_ZONE_A,
 	UNPATCHED_SCATTER_ZONE_B,
@@ -444,6 +447,7 @@ constexpr ZoneParamInfo getZoneParamInfo(ParamType paramId) {
 	case GLOBAL_SCATTER_MACRO_CONFIG:
 		return {8, 1024}; // 8 zones, 1024 steps
 	case GLOBAL_SCATTER_MACRO:
+	case GLOBAL_AUTOMOD_MACRO:
 		return {1, 128}; // Simple 0-127 range
 	default:
 		return {1, 128}; // Default non-zone param
@@ -460,6 +464,7 @@ constexpr ZoneParamInfo getZoneParamInfo(UnpatchedShared paramId) {
 	case UNPATCHED_SCATTER_MACRO_CONFIG:
 		return {8, 1024}; // 8 zones, 1024 steps
 	case UNPATCHED_SCATTER_MACRO:
+	case UNPATCHED_AUTOMOD_MACRO:
 		return {1, 128}; // Simple 0-127 range
 	case UNPATCHED_MB_COMPRESSOR_CHARACTER:
 	case UNPATCHED_MB_COMPRESSOR_VIBE:
@@ -494,6 +499,8 @@ constexpr int32_t getUnpatchedFallback(ParamType patchedId) {
 		return UNPATCHED_SCATTER_PWRITE;
 	case GLOBAL_SCATTER_DENSITY:
 		return UNPATCHED_SCATTER_DENSITY;
+	case GLOBAL_AUTOMOD_MACRO:
+		return UNPATCHED_AUTOMOD_MACRO;
 	default:
 		return -1; // No fallback
 	}
