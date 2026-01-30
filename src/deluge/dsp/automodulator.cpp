@@ -390,24 +390,33 @@ LfoWaypointBank getLfoWaypointBank(uint16_t mod, float phaseOffset) {
 		bank.segStartU32[i] = static_cast<uint32_t>(bank.segStart[i] * kPhaseToU32);
 	}
 
-	// Segment start amplitudes as unipolar q31 [0, ONE_Q31]
-	// Map [-1,+1] to [0, ONE_Q31]
+	// Segment start amplitudes as bipolar q31 [-ONE_Q31, ONE_Q31]
+	// Keep native bipolar range from phi triangle banks
 	for (int i = 0; i < 5; i++) {
-		float unipolar = (bank.segAmp[i] + 1.0f) * 0.5f;
-		bank.segAmpQ[i] = static_cast<q31_t>(unipolar * 2147483647.0f);
+		bank.segAmpQ[i] = static_cast<q31_t>(bank.segAmp[i] * 2147483647.0f);
 	}
 
-	// Slopes in q31 per uint32-phase-unit
+	// Slopes in q31 per uint32-phase-unit (bipolar)
 	// For: value = segAmpQ + multiply_32x32_rshift32(phaseOffset, segSlopeQ) << 1
-	// The slope needs to be scaled so that over the full uint32 range of a segment,
-	// the amplitude change equals the float slope * segment width (in 0-1 range)
-	// Since phaseOffset is uint32, we need: slopeQ = floatSlope * 0.5 * ONE_Q31 (bipolar to unipolar, then q31)
 	for (int i = 0; i < 5; i++) {
-		// Float slope is in bipolar amplitude per float phase unit
-		// Convert to unipolar: divide by 2 (since [-1,1] → [0,1] is /2)
-		// Then scale to q31
-		float unipolarSlope = bank.segSlope[i] * 0.5f;
-		bank.segSlopeQ[i] = static_cast<q31_t>(unipolarSlope * 2147483647.0f);
+		bank.segSlopeQ[i] = static_cast<q31_t>(bank.segSlope[i] * 2147483647.0f);
+	}
+
+	// === Inverse segment widths for IIR-style stepping ===
+	// Used to compute per-sample step without division:
+	// step = ampDelta * phaseInc * invSegWidth (scaled appropriately)
+	// invSegWidth is stored such that: (phaseInc * invSegWidth) >> 32 gives fraction of segment per sample
+	for (int i = 0; i < 5; i++) {
+		uint32_t segWidth =
+		    (i < 4) ? (bank.segStartU32[i + 1] - bank.segStartU32[i]) : (0xFFFFFFFF - bank.segStartU32[4]);
+		if (segWidth > 0x1000) { // Minimum width to avoid overflow
+			// invSegWidth = 2^32 / segWidth (approximately)
+			// Using 64-bit division for precision
+			bank.invSegWidthQ[i] = static_cast<uint32_t>((0xFFFFFFFFULL << 16) / segWidth);
+		}
+		else {
+			bank.invSegWidthQ[i] = 0x7FFFFFFF; // Max safe value for very narrow segments
+		}
 	}
 
 	return bank;
@@ -449,68 +458,119 @@ q31_t evalLfoWavetableQ31(uint32_t phaseU32, const LfoWaypointBank& bank) {
 	// Convert uint32 phase to float [0,1]
 	float t = static_cast<float>(phaseU32) * (1.0f / 4294967295.0f);
 
-	// Evaluate wavetable
+	// Evaluate wavetable - returns bipolar [-1, +1]
 	float value = evalLfoWavetable(t, bank);
 
-	// Convert to unipolar q31 [0, ONE_Q31] for compatibility with existing code
-	// Map [-1,+1] to [0,1] then scale to q31
-	float unipolar = (value + 1.0f) * 0.5f;
-	return static_cast<q31_t>(unipolar * 2147483647.0f);
+	// Convert to bipolar q31 [-ONE_Q31, ONE_Q31]
+	return static_cast<q31_t>(value * 2147483647.0f);
 }
 
-/// Hybrid LFO evaluation - uses float for wavetable eval, returns q31 for DSP
-/// Fast path uses segment slope when staying in same segment
-/// Slow path evaluates both endpoints when crossing segment boundary or phase wrap
+/// Find which segment a phase falls into (pure integer)
+[[gnu::always_inline]] inline int8_t findSegment(uint32_t phaseU32, const LfoWaypointBank& bank) {
+	if (phaseU32 <= bank.phaseU32[0]) {
+		return 0;
+	}
+	if (phaseU32 <= bank.phaseU32[1]) {
+		return 1;
+	}
+	if (phaseU32 <= bank.phaseU32[2]) {
+		return 2;
+	}
+	if (phaseU32 <= bank.phaseU32[3]) {
+		return 3;
+	}
+	return 4;
+}
+
+/// Update LFO using pure accumulation - add step each sample, no error correction
+/// @param state LFO state: value=accumulated, intermediate=step, segment=current seg
+/// @param phaseU32 Current phase position (for segment detection)
+/// @param phaseInc Phase increment per sample
+/// @param bank Wavetable configuration
+/// @return LfoIncremental with current value and per-sample step
+LfoIncremental updateLfoAccum(LfoIirState& state, uint32_t phaseU32, uint32_t phaseInc, const LfoWaypointBank& bank) {
+	int8_t seg = findSegment(phaseU32, bank);
+
+	// On segment change, compute new step
+	if (seg != state.segment) {
+		state.segment = seg;
+		q31_t segEnd = (seg < 4) ? bank.segAmpQ[seg + 1] : bank.segAmpQ[0];
+
+		// Compute ampDelta in 64-bit to avoid overflow for large bipolar swings
+		// (e.g., -ONE_Q31 to +ONE_Q31 = ~4 billion, overflows int32)
+		int64_t ampDelta64 = static_cast<int64_t>(segEnd) - static_cast<int64_t>(bank.segAmpQ[seg]);
+
+		// step = ampDelta * phaseInc / segWidth
+		// Split multiplication to avoid 64-bit overflow:
+		// (ampDelta * phaseInc) >> 16, then * invSegWidthQ >> 32
+		int64_t partial = (ampDelta64 * static_cast<int64_t>(phaseInc)) >> 16;
+		int64_t step64 = (partial * static_cast<int64_t>(bank.invSegWidthQ[seg])) >> 32;
+		state.intermediate = static_cast<q31_t>(step64);
+	}
+
+	// Return current accumulated value and step
+	return {state.value, state.intermediate};
+}
+
+/// Initialize LFO state from current phase for accumulator mode
+void initLfoIir(LfoIirState& state, uint32_t phaseU32, uint32_t phaseInc, const LfoWaypointBank& bank) {
+	int8_t seg = findSegment(phaseU32, bank);
+	state.segment = seg;
+	// Set initial accumulated value from wavetable
+	state.value = evalLfoWavetableQ31(phaseU32, bank);
+	// Compute initial step for this segment
+	q31_t segEnd = (seg < 4) ? bank.segAmpQ[seg + 1] : bank.segAmpQ[0];
+
+	// Compute ampDelta in 64-bit to avoid overflow for large bipolar swings
+	int64_t ampDelta64 = static_cast<int64_t>(segEnd) - static_cast<int64_t>(bank.segAmpQ[seg]);
+
+	// Split multiplication to avoid 64-bit overflow
+	int64_t partial = (ampDelta64 * static_cast<int64_t>(phaseInc)) >> 16;
+	int64_t step64 = (partial * static_cast<int64_t>(bank.invSegWidthQ[seg])) >> 32;
+	state.intermediate = static_cast<q31_t>(step64);
+	state.target = segEnd;
+}
+
+/// Pure integer LFO evaluation - no float operations in fast path
+/// Uses pre-computed integer segment data for efficiency
+/// @param startPhaseU32 Starting phase as uint32 (full 32-bit range)
+/// @param phaseInc Phase increment per sample
+/// @param bufferSize Number of samples in buffer
+/// @param bank Wavetable with pre-computed integer fields
+/// @return LfoIncremental with start value and per-sample delta
 LfoIncremental evalLfoIncremental(uint32_t startPhaseU32, uint32_t phaseInc, size_t bufferSize,
                                   const LfoWaypointBank& bank) {
-	constexpr float kPhaseToFloat = 1.0f / 4294967295.0f;
+	// Find segment using integer comparisons (fast path)
+	int8_t seg = findSegment(startPhaseU32, bank);
 
-	// Convert phases to [0,1] range
-	float tStart = static_cast<float>(startPhaseU32) * kPhaseToFloat;
+	// Compute value at start phase using integer math
+	// Scale phaseOffset to 31 bits to avoid overflow when cast to signed
+	// (phaseOffset >> 1) fits in signed q31, then compensate with extra << 1 at end
+	uint32_t phaseOffset = startPhaseU32 - bank.segStartU32[seg];
+	q31_t scaledOffset = static_cast<q31_t>(phaseOffset >> 1);
+	q31_t valueQ = bank.segAmpQ[seg] + (multiply_32x32_rshift32(scaledOffset, bank.segSlopeQ[seg]) << 2);
+
+	// Check for segment crossing or phase wrap
 	uint32_t endPhaseU32 = startPhaseU32 + phaseInc * static_cast<uint32_t>(bufferSize);
-	float tEnd = static_cast<float>(endPhaseU32) * kPhaseToFloat;
-
-	// Check for phase wrap (end < start means we crossed 1.0 -> 0.0)
 	bool phaseWrap = (endPhaseU32 < startPhaseU32);
+	int8_t endSeg = findSegment(endPhaseU32, bank);
 
-	// Find which segment start is in
-	int startSeg = (tStart <= bank.phase[0])   ? 0
-	               : (tStart <= bank.phase[1]) ? 1
-	               : (tStart <= bank.phase[2]) ? 2
-	               : (tStart <= bank.phase[3]) ? 3
-	                                           : 4;
-
-	// Find which segment end is in (after potential wrap)
-	float tEndClamped = std::clamp(tEnd, 0.0f, 1.0f);
-	int endSeg = (tEndClamped <= bank.phase[0])   ? 0
-	             : (tEndClamped <= bank.phase[1]) ? 1
-	             : (tEndClamped <= bank.phase[2]) ? 2
-	             : (tEndClamped <= bank.phase[3]) ? 3
-	                                              : 4;
-
-	// Evaluate start value
-	float startValue = evalLfoWavetable(tStart, bank);
-
-	// If we cross a segment boundary or phase wrap, do accurate two-eval method
-	// Otherwise use the fast single-eval with segment slope
-	float delta;
-	if (phaseWrap || startSeg != endSeg) {
-		// Accurate: evaluate both endpoints
-		float endValue = evalLfoWavetable(tEndClamped, bank);
-		delta = (endValue - startValue) / static_cast<float>(bufferSize);
+	q31_t deltaQ;
+	if (phaseWrap || seg != endSeg) {
+		// Segment crossing: compute end value and derive delta
+		uint32_t endOffset = endPhaseU32 - bank.segStartU32[endSeg];
+		q31_t scaledEndOffset = static_cast<q31_t>(endOffset >> 1);
+		q31_t endValueQ =
+		    bank.segAmpQ[endSeg] + (multiply_32x32_rshift32(scaledEndOffset, bank.segSlopeQ[endSeg]) << 2);
+		// delta = (end - start) / bufferSize, using >> 7 for ~128
+		deltaQ = (endValueQ - valueQ) >> 7;
 	}
 	else {
-		// Fast: use pre-computed segment slope
-		float phaseIncFloat = static_cast<float>(phaseInc) * kPhaseToFloat;
-		delta = bank.segSlope[startSeg] * phaseIncFloat;
+		// Same segment: use pre-computed slope directly
+		// delta = slope * phaseInc (per sample)
+		// phaseInc is small enough to fit in signed range
+		deltaQ = multiply_32x32_rshift32(static_cast<q31_t>(phaseInc), bank.segSlopeQ[seg]) << 1;
 	}
-
-	// Convert to unipolar q31 [0, ONE_Q31]
-	float unipolarValue = (startValue + 1.0f) * 0.5f;
-	q31_t valueQ = static_cast<q31_t>(unipolarValue * 2147483647.0f);
-
-	float unipolarDelta = delta * 0.5f;
-	q31_t deltaQ = static_cast<q31_t>(unipolarDelta * 2147483647.0f);
 
 	return {valueQ, deltaQ};
 }
@@ -549,6 +609,18 @@ void updateAutomodPhiCache(AutomodulatorParams& params, uint32_t timePerTickInve
 	else {
 		c.lfoInc = static_cast<uint32_t>(rateResult.value * 97391.263f);
 	}
+
+	// Compute IIR chase coefficient from LFO rate
+	// We want convergence to ~95% by end of average segment (~70 buffers at 1Hz)
+	// alpha ≈ 3/N where N = buffers per segment
+	// For lfoInc in phase/sample, buffers/seg ≈ (2^32/5) / (lfoInc * 128)
+	// alpha ≈ 3 * lfoInc * 128 * 5 / 2^32 = 1920 * lfoInc / 2^32
+	// As q31 coefficient for multiply_32x32_rshift32 << 1: coeff = 1920 * lfoInc / 2
+	// Simplified: coeff = lfoInc * 960, clamped to prevent overflow
+	// But 960 * 10M (100Hz) = 9.6B which overflows, so use: coeff = lfoInc << 9 (×512)
+	// and clamp to ~0.5 max (0x40000000) for stability
+	uint64_t rawCoeff = static_cast<uint64_t>(c.lfoInc) << 9;
+	c.iirCoeff = static_cast<q31_t>(std::min(rawCoeff, static_cast<uint64_t>(0x40000000)));
 
 	c.stereoPhaseOffsetRaw = getStereoOffsetFromMod(params.mod, effectiveModPhase);
 	c.envDepthInfluence = getEnvDepthInfluenceFromMod(params.mod, effectiveModPhase);
@@ -654,6 +726,7 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	q31_t peakR = std::max(std::abs(buffer.front().r), std::abs(buffer.back().r));
 
 	// Update phi triangle cache only when params change (big perf win)
+	bool wavetableChanged = false;
 	if (params.needsCacheUpdate(timePerTickInverse)) {
 #if ENABLE_FX_BENCHMARK
 		if (doBench) {
@@ -661,7 +734,7 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		}
 #endif
 		updateAutomodPhiCache(params, timePerTickInverse);
-		params.prevLfoPhase = 0xFFFFFFFF; // Force LFO recalc (wavetable changed)
+		wavetableChanged = true; // Need to reinit IIR states after cache is available
 #if ENABLE_FX_BENCHMARK
 		if (doBench) {
 			benchCache.stop();
@@ -677,6 +750,16 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 
 	// Reference to cache for cleaner code
 	const AutomodPhiCache& c = params.cache;
+
+	// Reinitialize LFO states if wavetable changed
+	if (wavetableChanged) {
+		initLfoIir(params.lfoIirL, params.lfoPhase, c.lfoInc, c.wavetable);
+		initLfoIir(params.lfoIirR, params.lfoPhase, c.lfoInc, c.wavetable);
+		initLfoIir(params.combLfoIirL, params.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
+		initLfoIir(params.combLfoIirR, params.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
+		initLfoIir(params.tremLfoIirL, params.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
+		initLfoIir(params.tremLfoIirR, params.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
+	}
 
 	// Store initial envelope state for derivative calculation
 	q31_t envStartL = params.envStateL;
@@ -717,6 +800,15 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	if (params.lastVoiceCount == 0 && voiceCount > 0) {
 		float effectiveModPhase = params.modPhaseOffset + params.gammaPhase;
 		params.lfoPhase = getLfoInitialPhaseFromMod(params.mod, effectiveModPhase);
+
+		// Initialize all LFO states from the new phase
+		// This ensures smooth startup without glitches
+		initLfoIir(params.lfoIirL, params.lfoPhase, c.lfoInc, c.wavetable);
+		initLfoIir(params.lfoIirR, params.lfoPhase, c.lfoInc, c.wavetable);
+		initLfoIir(params.combLfoIirL, params.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
+		initLfoIir(params.combLfoIirR, params.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
+		initLfoIir(params.tremLfoIirL, params.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
+		initLfoIir(params.tremLfoIirR, params.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
 	}
 	params.lastVoiceCount = voiceCount;
 
@@ -849,34 +941,31 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	q31_t bandMixQ = params.smoothedBandMixQ;
 	q31_t highMixQ = params.smoothedHighMixQ;
 
-	// === Buffer-rate LFO computation ===
-	// Always do fresh wavetable eval each buffer for now (simpler, no drift issues)
-	// TODO: Re-add caching optimization once glitches are resolved
+	// === Buffer-rate LFO computation using pure accumulation ===
+	// Just add step each sample - no phase-based correction
 
 	const size_t bufferSize = buffer.size();
 	const uint32_t startPhase = params.lfoPhase;
-	const uint32_t endPhase = startPhase + c.lfoInc * bufferSize;
+	const uint32_t phaseInc = c.lfoInc;
 
-	LfoIncremental lfoL, lfoR, combLfoL, combLfoR, tremLfoL, tremLfoR;
-
-	// Always do full wavetable eval (no caching for now)
+	// Compute phases for each LFO channel (used for segment detection)
 	uint32_t lfoPhaseL = startPhase + phasePushL;
 	uint32_t lfoPhaseR = startPhase + scaledStereoOffset + phasePushR;
-	lfoL = evalLfoIncremental(lfoPhaseL, c.lfoInc, bufferSize, c.wavetable);
-	lfoR = evalLfoIncremental(lfoPhaseR, c.lfoInc, bufferSize, c.wavetable);
-
 	uint32_t combPhaseL = startPhase + c.combPhaseOffsetU32;
 	uint32_t combPhaseR = combPhaseL + scaledStereoOffset;
-	combLfoL = evalLfoIncremental(combPhaseL, c.lfoInc, bufferSize, c.wavetable);
-	combLfoR = evalLfoIncremental(combPhaseR, c.lfoInc, bufferSize, c.wavetable);
-
 	uint32_t tremPhaseL = startPhase + c.tremPhaseOffset;
 	uint32_t tremPhaseR = tremPhaseL + scaledStereoOffset;
-	tremLfoL = evalLfoIncremental(tremPhaseL, c.lfoInc, bufferSize, c.wavetable);
-	tremLfoR = evalLfoIncremental(tremPhaseR, c.lfoInc, bufferSize, c.wavetable);
+
+	// Pure accumulation: get current value and step
+	LfoIncremental lfoL = updateLfoAccum(params.lfoIirL, lfoPhaseL, phaseInc, c.wavetable);
+	LfoIncremental lfoR = updateLfoAccum(params.lfoIirR, lfoPhaseR, phaseInc, c.wavetable);
+	LfoIncremental combLfoL = updateLfoAccum(params.combLfoIirL, combPhaseL, phaseInc, c.wavetable);
+	LfoIncremental combLfoR = updateLfoAccum(params.combLfoIirR, combPhaseR, phaseInc, c.wavetable);
+	LfoIncremental tremLfoL = updateLfoAccum(params.tremLfoIirL, tremPhaseL, phaseInc, c.wavetable);
+	LfoIncremental tremLfoR = updateLfoAccum(params.tremLfoIirR, tremPhaseR, phaseInc, c.wavetable);
 
 	// Update phase for next buffer
-	params.lfoPhase = endPhase;
+	params.lfoPhase = startPhase + phaseInc * bufferSize;
 
 	// === Pitch tracking (cached - only recompute when noteCode changes) ===
 	// Scale filter cutoff and comb delay based on played note frequency
@@ -909,14 +998,13 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 #endif
 
 	for (auto& sample : buffer) {
-		// Use q31 LFO values directly (computed from incremental evaluation)
-		// Clamp to valid unipolar range to handle segment boundary drift
-		q31_t lfoRawL = std::clamp(lfoL.value, q31_t{0}, ONE_Q31);
-		q31_t lfoRawR = std::clamp(lfoR.value, q31_t{0}, ONE_Q31);
-		q31_t combLfoValL = std::clamp(combLfoL.value, q31_t{0}, ONE_Q31);
-		q31_t combLfoValR = std::clamp(combLfoR.value, q31_t{0}, ONE_Q31);
-		q31_t tremLfoValL = std::clamp(tremLfoL.value, q31_t{0}, ONE_Q31);
-		q31_t tremLfoValR = std::clamp(tremLfoR.value, q31_t{0}, ONE_Q31);
+		// LFO values are bipolar [-ONE_Q31, ONE_Q31] - use directly
+		q31_t lfoRawL = lfoL.value;
+		q31_t lfoRawR = lfoR.value;
+		q31_t combLfoValL = combLfoL.value;
+		q31_t combLfoValR = combLfoR.value;
+		q31_t tremLfoValL = tremLfoL.value;
+		q31_t tremLfoValR = tremLfoR.value;
 
 		q31_t outL = sample.l;
 		q31_t outR = sample.r;
@@ -1062,14 +1150,23 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		sample.l = outL;
 		sample.r = outR;
 
-		// Increment LFO values using pre-computed segment slopes (just integer addition!)
-		lfoL.value += lfoL.delta;
-		lfoR.value += lfoR.delta;
-		combLfoL.value += combLfoL.delta;
-		combLfoR.value += combLfoR.delta;
-		tremLfoL.value += tremLfoL.delta;
-		tremLfoR.value += tremLfoR.delta;
+		// Increment LFO values using saturating add to prevent overflow
+		// qadd saturates to signed q31 range - allows small negative drift that self-corrects
+		lfoL.value = add_saturate(lfoL.value, lfoL.delta);
+		lfoR.value = add_saturate(lfoR.value, lfoR.delta);
+		combLfoL.value = add_saturate(combLfoL.value, combLfoL.delta);
+		combLfoR.value = add_saturate(combLfoR.value, combLfoR.delta);
+		tremLfoL.value = add_saturate(tremLfoL.value, tremLfoL.delta);
+		tremLfoR.value = add_saturate(tremLfoR.value, tremLfoR.delta);
 	}
+
+	// Write back accumulated LFO values for next buffer
+	params.lfoIirL.value = lfoL.value;
+	params.lfoIirR.value = lfoR.value;
+	params.combLfoIirL.value = combLfoL.value;
+	params.combLfoIirR.value = combLfoR.value;
+	params.tremLfoIirL.value = tremLfoL.value;
+	params.tremLfoIirR.value = tremLfoR.value;
 
 #if ENABLE_FX_BENCHMARK
 	if (doBench) {

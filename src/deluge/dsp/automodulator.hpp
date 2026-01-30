@@ -198,12 +198,26 @@ struct LfoWaypointBank {
 	uint32_t segStartU32[5]; // Segment start phases as uint32
 	q31_t segAmpQ[5];        // Segment start amplitudes (unipolar q31: 0 to ONE_Q31)
 	q31_t segSlopeQ[5];      // Slopes scaled for: value = amp + multiply_32x32_rshift32(phaseOffset, slope) << 1
+
+	// === IIR-style linear stepping (avoids wavetable eval per buffer) ===
+	// invSegWidth: reciprocal of segment width, scaled so that:
+	// step = multiply_32x32_rshift32(ampDelta, multiply_32x32_rshift32(phaseInc, invSegWidth) << 1) << 1
+	// gives the per-sample step in q31
+	uint32_t invSegWidthQ[5]; // 1/segWidth scaled for reciprocal multiply
+};
+
+/// State for IIR-style LFO tracking (one per LFO channel)
+/// Uses exponential chase toward segment targets - organic curves without wavetable eval
+struct LfoIirState {
+	q31_t value{0};        // Current LFO value (bipolar q31)
+	q31_t intermediate{0}; // Per-sample step (delta)
+	q31_t target{0};       // Target amplitude (segment endpoint)
+	int8_t segment{0};     // Current segment index (0-4)
 };
 
 /// Result of incremental LFO evaluation - start value and per-sample delta
-/// Used for efficient buffer-rate LFO computation without multiple wavetable evals
 struct LfoIncremental {
-	q31_t value; // Current LFO value (unipolar q31: 0 to ONE_Q31)
+	q31_t value; // Current LFO value (bipolar q31: -ONE_Q31 to ONE_Q31)
 	q31_t delta; // Per-sample delta (signed q31, add each sample)
 };
 
@@ -294,6 +308,10 @@ struct AutomodPhiCache {
 
 	// Pre-computed LFO phase increment
 	uint32_t lfoInc{0};
+
+	// IIR chase coefficient - scales with LFO rate for proper tracking
+	// Used as: value += multiply_32x32_rshift32(target - value, iirCoeff) << 1
+	q31_t iirCoeff{0};
 
 	// P4 phase as uint32 for fast last-segment detection (do full eval in last segment for clean wrap)
 	uint32_t lastSegmentPhaseU32{0xE6666666}; // Default ~0.9, updated from wavetable
@@ -399,14 +417,13 @@ struct AutomodulatorParams {
 	q31_t cachedPitchCutoffOffset{0}; // Filter cutoff pitch adjustment
 	float cachedPitchRatio{1.0f};     // Comb delay multiplier (1.0 = no change)
 
-	// LFO incremental cache (avoid wavetable eval every buffer - only recalc on phase wrap)
-	uint32_t prevLfoPhase{0xFFFFFFFF}; // Previous phase for wrap detection (init to force first calc)
-	LfoIncremental cachedLfoL{0, 0};
-	LfoIncremental cachedLfoR{0, 0};
-	LfoIncremental cachedCombLfoL{0, 0};
-	LfoIncremental cachedCombLfoR{0, 0};
-	LfoIncremental cachedTremLfoL{0, 0};
-	LfoIncremental cachedTremLfoR{0, 0};
+	// LFO IIR state (linear stepping through segments - avoids wavetable eval per buffer)
+	LfoIirState lfoIirL{};
+	LfoIirState lfoIirR{};
+	LfoIirState combLfoIirL{};
+	LfoIirState combLfoIirR{};
+	LfoIirState tremLfoIirL{};
+	LfoIirState tremLfoIirR{};
 
 	// Comb filter state - LAZILY ALLOCATED
 	static constexpr size_t kCombBufferSize = 1536;
@@ -500,13 +517,12 @@ private:
 		prevNoteCode = other.prevNoteCode;
 		cachedPitchCutoffOffset = other.cachedPitchCutoffOffset;
 		cachedPitchRatio = other.cachedPitchRatio;
-		prevLfoPhase = other.prevLfoPhase;
-		cachedLfoL = other.cachedLfoL;
-		cachedLfoR = other.cachedLfoR;
-		cachedCombLfoL = other.cachedCombLfoL;
-		cachedCombLfoR = other.cachedCombLfoR;
-		cachedTremLfoL = other.cachedTremLfoL;
-		cachedTremLfoR = other.cachedTremLfoR;
+		lfoIirL = other.lfoIirL;
+		lfoIirR = other.lfoIirR;
+		combLfoIirL = other.combLfoIirL;
+		combLfoIirR = other.combLfoIirR;
+		tremLfoIirL = other.tremLfoIirL;
+		tremLfoIirR = other.tremLfoIirR;
 		combIdx = other.combIdx;
 
 		// Transfer buffer ownership
@@ -541,10 +557,10 @@ public:
 		prevNoteCode = -2; // Force recomputation
 		cachedPitchCutoffOffset = 0;
 		cachedPitchRatio = 1.0f;
-		prevLfoPhase = 0xFFFFFFFF; // Force LFO recalc
-		cachedLfoL = cachedLfoR = {0, 0};
-		cachedCombLfoL = cachedCombLfoR = {0, 0};
-		cachedTremLfoL = cachedTremLfoR = {0, 0};
+		// Reset LFO IIR states
+		lfoIirL = lfoIirR = {};
+		combLfoIirL = combLfoIirR = {};
+		tremLfoIirL = tremLfoIirR = {};
 		combIdx = 0;
 		if (combBufferL != nullptr && combBufferR != nullptr) {
 			for (size_t i = 0; i < kCombBufferSize; ++i) {
