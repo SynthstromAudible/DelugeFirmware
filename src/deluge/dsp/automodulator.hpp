@@ -154,9 +154,58 @@ constexpr std::array<phi::PhiTriConfig, 3> kFilterPhaseOffsetBank = {{
     {phi::kPhi200, 0.7f, 0.66f, false}, // [2] HP phase: faster evolution
 }};
 
+/// Phi triangle bank for LFO wavetable waypoints (derived from mod)
+/// 9 bipolar triangles: 5 for phase deltas (0→P1→P2→P3→P4→1), 4 for amplitudes
+/// Phase deltas are accumulated and normalized to guarantee monotonic ordering
+/// Amplitude triangles output -1 to +1 directly
+constexpr std::array<phi::PhiTriConfig, 9> kLfoWaypointBank = {{
+    // Phase deltas (bipolar → abs → accumulate → normalize)
+    // 5 deltas for 5 segments: 0→P1, P1→P2, P2→P3, P3→P4, P4→1
+    {phi::kPhi075, 0.6f, 0.000f, true}, // [0] 0→P1 phase delta
+    {phi::kPhi100, 0.5f, 0.111f, true}, // [1] P1→P2 phase delta
+    {phi::kPhi125, 0.5f, 0.222f, true}, // [2] P2→P3 phase delta
+    {phi::kPhi150, 0.6f, 0.333f, true}, // [3] P3→P4 phase delta
+    {phi::kPhi175, 0.5f, 0.444f, true}, // [4] P4→1 phase delta
+    // Amplitudes (bipolar -1 to +1) - use lower phi exponents for slower evolution
+    {phi::kPhi050, 0.7f, 0.555f, true},  // [5] P1 amplitude
+    {phi::kPhi067, 0.6f, 0.666f, true},  // [6] P2 amplitude
+    {phi::kPhiN050, 0.6f, 0.777f, true}, // [7] P3 amplitude (negative exp for variety)
+    {phi::kPhi025, 0.7f, 0.888f, true},  // [8] P4 amplitude
+}};
+
+/// Wavetable phase normalization range (leave room for endpoints at 0 and 1)
+constexpr float kWaypointPhaseMin = 0.05f;
+constexpr float kWaypointPhaseMax = 0.95f;
+
 // ============================================================================
 // Type Definitions
 // ============================================================================
+
+/// LFO wavetable waypoints (4 movable points between fixed endpoints at 0,0 and 1,0)
+/// Pre-computes slopes for each segment to avoid divisions at runtime
+struct LfoWaypointBank {
+	float phase[4];     // Phase positions (0-1), should be monotonically increasing
+	float amplitude[4]; // Amplitude values (-1 to +1)
+	// Pre-computed for fast runtime evaluation:
+	// 6 boundaries: 0, P1, P2, P3, P4, 1
+	// 5 segments: 0→P1, P1→P2, P2→P3, P3→P4, P4→1
+	float segStart[5]; // Start phase of each segment (0, P1, P2, P3, P4)
+	float segSlope[5]; // Slope (amplitude change per phase unit) for each segment
+	float segAmp[5];   // Start amplitude for each segment (0, A1, A2, A3, A4)
+
+	// === Fast integer evaluation (pre-computed during cache update) ===
+	uint32_t phaseU32[4];    // Segment boundaries as uint32 (for fast comparison)
+	uint32_t segStartU32[5]; // Segment start phases as uint32
+	q31_t segAmpQ[5];        // Segment start amplitudes (unipolar q31: 0 to ONE_Q31)
+	q31_t segSlopeQ[5];      // Slopes scaled for: value = amp + multiply_32x32_rshift32(phaseOffset, slope) << 1
+};
+
+/// Result of incremental LFO evaluation - start value and per-sample delta
+/// Used for efficient buffer-rate LFO computation without multiple wavetable evals
+struct LfoIncremental {
+	q31_t value; // Current LFO value (unipolar q31: 0 to ONE_Q31)
+	q31_t delta; // Per-sample delta (signed q31, add each sample)
+};
 
 /// Result of LFO rate calculation - either free Hz or synced subdivision
 struct LfoRateResult {
@@ -240,8 +289,14 @@ struct AutomodPhiCache {
 	float envDerivDepthInfluence{0};
 	float envDerivPhaseInfluence{0};
 
+	// LFO wavetable waypoints (sorted by phase)
+	LfoWaypointBank wavetable{};
+
 	// Pre-computed LFO phase increment
 	uint32_t lfoInc{0};
+
+	// P4 phase as uint32 for fast last-segment detection (do full eval in last segment for clean wrap)
+	uint32_t lastSegmentPhaseU32{0xE6666666}; // Default ~0.9, updated from wavetable
 };
 
 /// Automodulator parameters and DSP state (stored per-Sound)
@@ -339,6 +394,20 @@ struct AutomodulatorParams {
 	q31_t smoothedTremLfoL{0};
 	q31_t smoothedTremLfoR{0};
 
+	// Pitch tracking cache (avoid recomputing fastPow2 every buffer)
+	int32_t prevNoteCode{-2};         // -2 = never computed (different from -1 = no note)
+	q31_t cachedPitchCutoffOffset{0}; // Filter cutoff pitch adjustment
+	float cachedPitchRatio{1.0f};     // Comb delay multiplier (1.0 = no change)
+
+	// LFO incremental cache (avoid wavetable eval every buffer - only recalc on phase wrap)
+	uint32_t prevLfoPhase{0xFFFFFFFF}; // Previous phase for wrap detection (init to force first calc)
+	LfoIncremental cachedLfoL{0, 0};
+	LfoIncremental cachedLfoR{0, 0};
+	LfoIncremental cachedCombLfoL{0, 0};
+	LfoIncremental cachedCombLfoR{0, 0};
+	LfoIncremental cachedTremLfoL{0, 0};
+	LfoIncremental cachedTremLfoR{0, 0};
+
 	// Comb filter state - LAZILY ALLOCATED
 	static constexpr size_t kCombBufferSize = 1536;
 	q31_t* combBufferL{nullptr};
@@ -428,6 +497,16 @@ private:
 		smoothedCombLfoR = other.smoothedCombLfoR;
 		smoothedTremLfoL = other.smoothedTremLfoL;
 		smoothedTremLfoR = other.smoothedTremLfoR;
+		prevNoteCode = other.prevNoteCode;
+		cachedPitchCutoffOffset = other.cachedPitchCutoffOffset;
+		cachedPitchRatio = other.cachedPitchRatio;
+		prevLfoPhase = other.prevLfoPhase;
+		cachedLfoL = other.cachedLfoL;
+		cachedLfoR = other.cachedLfoR;
+		cachedCombLfoL = other.cachedCombLfoL;
+		cachedCombLfoR = other.cachedCombLfoR;
+		cachedTremLfoL = other.cachedTremLfoL;
+		cachedTremLfoR = other.cachedTremLfoR;
 		combIdx = other.combIdx;
 
 		// Transfer buffer ownership
@@ -459,6 +538,13 @@ public:
 		smoothedLfoL = smoothedLfoR = 0;
 		smoothedCombLfoL = smoothedCombLfoR = 0;
 		smoothedTremLfoL = smoothedTremLfoR = 0;
+		prevNoteCode = -2; // Force recomputation
+		cachedPitchCutoffOffset = 0;
+		cachedPitchRatio = 1.0f;
+		prevLfoPhase = 0xFFFFFFFF; // Force LFO recalc
+		cachedLfoL = cachedLfoR = {0, 0};
+		cachedCombLfoL = cachedCombLfoR = {0, 0};
+		cachedTremLfoL = cachedTremLfoR = {0, 0};
 		combIdx = 0;
 		if (combBufferL != nullptr && combBufferR != nullptr) {
 			for (size_t i = 0; i < kCombBufferSize; ++i) {
@@ -559,6 +645,18 @@ float getEnvDerivDepthInfluenceFromMod(uint16_t mod, float phaseOffset);
 
 /// Get derivative envelope→phase influence from mod position
 float getEnvDerivPhaseInfluenceFromMod(uint16_t mod, float phaseOffset);
+
+/// Compute LFO wavetable waypoints from mod position
+/// Phase deltas are accumulated and normalized to guarantee monotonic ordering
+LfoWaypointBank getLfoWaypointBank(uint16_t mod, float phaseOffset);
+
+/// Evaluate the LFO wavetable at a given phase (0-1)
+/// Returns interpolated amplitude between waypoints
+/// Uses ramp (0→1) as input, not triangle
+float evalLfoWavetable(float t, const LfoWaypointBank& bank);
+
+/// Evaluate LFO wavetable returning q31 (for DSP loop)
+q31_t evalLfoWavetableQ31(uint32_t phaseU32, const LfoWaypointBank& bank);
 
 /// Update the phi triangle cache (called when zone params change)
 void updateAutomodPhiCache(AutomodulatorParams& params, uint32_t timePerTickInverse);

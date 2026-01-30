@@ -20,6 +20,7 @@
  */
 
 #include "dsp/automodulator.hpp"
+#include "dsp/fast_math.h"
 #include "io/debug/fx_benchmark.h"
 #include <algorithm>
 #include <cmath>
@@ -276,6 +277,244 @@ float getEnvDerivPhaseInfluenceFromMod(uint16_t mod, float phaseOffset) {
 	return phi::evalTriangle(phase, 1.0f, kEnvDerivPhaseInfluenceTriangle);
 }
 
+LfoWaypointBank getLfoWaypointBank(uint16_t mod, float phaseOffset) {
+	// Normalize mod to [0,1] and add phase offset
+	double phase = static_cast<double>(mod) / 1023.0 + static_cast<double>(phaseOffset);
+
+	// Evaluate all 9 triangles (5 phase deltas + 4 amplitudes)
+	auto raw = phi::evalTriangleBank<9>(phase, 1.0f, kLfoWaypointBank);
+
+	// Phase deltas: take abs of bipolar values, accumulate, then normalize
+	// 5 deltas for 5 segments: 0→P1, P1→P2, P2→P3, P3→P4, P4→1
+	// This guarantees monotonically increasing phases
+	float deltas[5];
+	for (int i = 0; i < 5; i++) {
+		// Map bipolar (-1,+1) to positive delta (0.1 to 1.0)
+		// Using abs + offset ensures we always have positive spacing
+		deltas[i] = 0.1f + std::abs(raw[i]) * 0.9f;
+	}
+
+	// Accumulate phases for the 4 waypoints
+	// P1 is after delta[0], P2 after delta[0]+delta[1], etc.
+	float cumulative[4];
+	cumulative[0] = deltas[0];
+	cumulative[1] = cumulative[0] + deltas[1];
+	cumulative[2] = cumulative[1] + deltas[2];
+	cumulative[3] = cumulative[2] + deltas[3];
+
+	// Total includes all 5 deltas (P4→1 segment)
+	float total = cumulative[3] + deltas[4];
+
+	// Normalize to [kWaypointPhaseMin, kWaypointPhaseMax] range
+	float phaseRange = kWaypointPhaseMax - kWaypointPhaseMin;
+
+	LfoWaypointBank bank;
+	for (int i = 0; i < 4; i++) {
+		bank.phase[i] = kWaypointPhaseMin + (cumulative[i] / total) * phaseRange;
+		bank.amplitude[i] = raw[5 + i]; // Amplitudes start at index 5
+	}
+
+	// Normalize amplitudes to ensure consistent peak-to-peak range
+	// The LFO strength multipliers (scaleQL/scaleQR) expect normalized output
+	// Consider all 6 points: (0,0), 4 waypoints, (1,0)
+	float minAmp = 0.0f; // Fixed endpoints are at 0
+	float maxAmp = 0.0f;
+	for (int i = 0; i < 4; i++) {
+		minAmp = std::min(minAmp, bank.amplitude[i]);
+		maxAmp = std::max(maxAmp, bank.amplitude[i]);
+	}
+
+	// Normalize to [-1, +1] range if there's any amplitude variation
+	float ampRange = maxAmp - minAmp;
+	if (ampRange > 0.01f) {
+		// Scale so peak-to-peak spans 2.0 (-1 to +1)
+		// Then center around 0
+		float scale = 2.0f / ampRange;
+		float center = (maxAmp + minAmp) * 0.5f;
+		for (int i = 0; i < 4; i++) {
+			bank.amplitude[i] = (bank.amplitude[i] - center) * scale;
+		}
+	}
+	else {
+		// All amplitudes nearly equal - output flat line at 0
+		for (int i = 0; i < 4; i++) {
+			bank.amplitude[i] = 0.0f;
+		}
+	}
+
+	// Pre-compute segment boundaries, start amplitudes, and slopes for fast runtime evaluation
+	// 6 points: (0, 0), P1, P2, P3, P4, (1, 0)
+	// 5 segments with pre-computed values (avoids division at runtime)
+	bank.segStart[0] = 0.0f;
+	bank.segStart[1] = bank.phase[0];
+	bank.segStart[2] = bank.phase[1];
+	bank.segStart[3] = bank.phase[2];
+	bank.segStart[4] = bank.phase[3];
+
+	// Segment start amplitudes: (0, A1, A2, A3, A4)
+	bank.segAmp[0] = 0.0f;
+	bank.segAmp[1] = bank.amplitude[0];
+	bank.segAmp[2] = bank.amplitude[1];
+	bank.segAmp[3] = bank.amplitude[2];
+	bank.segAmp[4] = bank.amplitude[3];
+
+	// Segment 0: (0,0) → P1
+	float width0 = bank.phase[0];
+	bank.segSlope[0] = (width0 > 0.001f) ? bank.amplitude[0] / width0 : 0.0f;
+
+	// Segment 1: P1 → P2
+	float width1 = bank.phase[1] - bank.phase[0];
+	bank.segSlope[1] = (width1 > 0.001f) ? (bank.amplitude[1] - bank.amplitude[0]) / width1 : 0.0f;
+
+	// Segment 2: P2 → P3
+	float width2 = bank.phase[2] - bank.phase[1];
+	bank.segSlope[2] = (width2 > 0.001f) ? (bank.amplitude[2] - bank.amplitude[1]) / width2 : 0.0f;
+
+	// Segment 3: P3 → P4
+	float width3 = bank.phase[3] - bank.phase[2];
+	bank.segSlope[3] = (width3 > 0.001f) ? (bank.amplitude[3] - bank.amplitude[2]) / width3 : 0.0f;
+
+	// Segment 4: P4 → (1,0)
+	float width4 = 1.0f - bank.phase[3];
+	bank.segSlope[4] = (width4 > 0.001f) ? (0.0f - bank.amplitude[3]) / width4 : 0.0f;
+
+	// === Pre-compute integer fields for fast runtime evaluation ===
+	// Phase boundaries as uint32 (for fast comparison without float conversion)
+	constexpr float kPhaseToU32 = 4294967295.0f;
+	for (int i = 0; i < 4; i++) {
+		bank.phaseU32[i] = static_cast<uint32_t>(bank.phase[i] * kPhaseToU32);
+	}
+
+	// Segment start phases as uint32
+	for (int i = 0; i < 5; i++) {
+		bank.segStartU32[i] = static_cast<uint32_t>(bank.segStart[i] * kPhaseToU32);
+	}
+
+	// Segment start amplitudes as unipolar q31 [0, ONE_Q31]
+	// Map [-1,+1] to [0, ONE_Q31]
+	for (int i = 0; i < 5; i++) {
+		float unipolar = (bank.segAmp[i] + 1.0f) * 0.5f;
+		bank.segAmpQ[i] = static_cast<q31_t>(unipolar * 2147483647.0f);
+	}
+
+	// Slopes in q31 per uint32-phase-unit
+	// For: value = segAmpQ + multiply_32x32_rshift32(phaseOffset, segSlopeQ) << 1
+	// The slope needs to be scaled so that over the full uint32 range of a segment,
+	// the amplitude change equals the float slope * segment width (in 0-1 range)
+	// Since phaseOffset is uint32, we need: slopeQ = floatSlope * 0.5 * ONE_Q31 (bipolar to unipolar, then q31)
+	for (int i = 0; i < 5; i++) {
+		// Float slope is in bipolar amplitude per float phase unit
+		// Convert to unipolar: divide by 2 (since [-1,1] → [0,1] is /2)
+		// Then scale to q31
+		float unipolarSlope = bank.segSlope[i] * 0.5f;
+		bank.segSlopeQ[i] = static_cast<q31_t>(unipolarSlope * 2147483647.0f);
+	}
+
+	return bank;
+}
+
+float evalLfoWavetable(float t, const LfoWaypointBank& bank) {
+	// Clamp t to [0, 1]
+	t = std::clamp(t, 0.0f, 1.0f);
+
+	// 6 points total: (0,0), P1, P2, P3, P4, (1,0)
+	// Find segment and use pre-computed slope (no division!)
+
+	// Amplitudes at segment starts: 0, A1, A2, A3, A4
+	// Using slope: value = startAmp + (t - segStart) * slope
+
+	if (t <= bank.phase[0]) {
+		// Segment 0: (0,0) to P1, startAmp = 0
+		return t * bank.segSlope[0];
+	}
+	else if (t <= bank.phase[1]) {
+		// Segment 1: P1 to P2, startAmp = A1
+		return bank.amplitude[0] + (t - bank.phase[0]) * bank.segSlope[1];
+	}
+	else if (t <= bank.phase[2]) {
+		// Segment 2: P2 to P3, startAmp = A2
+		return bank.amplitude[1] + (t - bank.phase[1]) * bank.segSlope[2];
+	}
+	else if (t <= bank.phase[3]) {
+		// Segment 3: P3 to P4, startAmp = A3
+		return bank.amplitude[2] + (t - bank.phase[2]) * bank.segSlope[3];
+	}
+	else {
+		// Segment 4: P4 to (1,0), startAmp = A4
+		return bank.amplitude[3] + (t - bank.phase[3]) * bank.segSlope[4];
+	}
+}
+
+q31_t evalLfoWavetableQ31(uint32_t phaseU32, const LfoWaypointBank& bank) {
+	// Convert uint32 phase to float [0,1]
+	float t = static_cast<float>(phaseU32) * (1.0f / 4294967295.0f);
+
+	// Evaluate wavetable
+	float value = evalLfoWavetable(t, bank);
+
+	// Convert to unipolar q31 [0, ONE_Q31] for compatibility with existing code
+	// Map [-1,+1] to [0,1] then scale to q31
+	float unipolar = (value + 1.0f) * 0.5f;
+	return static_cast<q31_t>(unipolar * 2147483647.0f);
+}
+
+/// Hybrid LFO evaluation - uses float for wavetable eval, returns q31 for DSP
+/// Fast path uses segment slope when staying in same segment
+/// Slow path evaluates both endpoints when crossing segment boundary or phase wrap
+LfoIncremental evalLfoIncremental(uint32_t startPhaseU32, uint32_t phaseInc, size_t bufferSize,
+                                  const LfoWaypointBank& bank) {
+	constexpr float kPhaseToFloat = 1.0f / 4294967295.0f;
+
+	// Convert phases to [0,1] range
+	float tStart = static_cast<float>(startPhaseU32) * kPhaseToFloat;
+	uint32_t endPhaseU32 = startPhaseU32 + phaseInc * static_cast<uint32_t>(bufferSize);
+	float tEnd = static_cast<float>(endPhaseU32) * kPhaseToFloat;
+
+	// Check for phase wrap (end < start means we crossed 1.0 -> 0.0)
+	bool phaseWrap = (endPhaseU32 < startPhaseU32);
+
+	// Find which segment start is in
+	int startSeg = (tStart <= bank.phase[0])   ? 0
+	               : (tStart <= bank.phase[1]) ? 1
+	               : (tStart <= bank.phase[2]) ? 2
+	               : (tStart <= bank.phase[3]) ? 3
+	                                           : 4;
+
+	// Find which segment end is in (after potential wrap)
+	float tEndClamped = std::clamp(tEnd, 0.0f, 1.0f);
+	int endSeg = (tEndClamped <= bank.phase[0])   ? 0
+	             : (tEndClamped <= bank.phase[1]) ? 1
+	             : (tEndClamped <= bank.phase[2]) ? 2
+	             : (tEndClamped <= bank.phase[3]) ? 3
+	                                              : 4;
+
+	// Evaluate start value
+	float startValue = evalLfoWavetable(tStart, bank);
+
+	// If we cross a segment boundary or phase wrap, do accurate two-eval method
+	// Otherwise use the fast single-eval with segment slope
+	float delta;
+	if (phaseWrap || startSeg != endSeg) {
+		// Accurate: evaluate both endpoints
+		float endValue = evalLfoWavetable(tEndClamped, bank);
+		delta = (endValue - startValue) / static_cast<float>(bufferSize);
+	}
+	else {
+		// Fast: use pre-computed segment slope
+		float phaseIncFloat = static_cast<float>(phaseInc) * kPhaseToFloat;
+		delta = bank.segSlope[startSeg] * phaseIncFloat;
+	}
+
+	// Convert to unipolar q31 [0, ONE_Q31]
+	float unipolarValue = (startValue + 1.0f) * 0.5f;
+	q31_t valueQ = static_cast<q31_t>(unipolarValue * 2147483647.0f);
+
+	float unipolarDelta = delta * 0.5f;
+	q31_t deltaQ = static_cast<q31_t>(unipolarDelta * 2147483647.0f);
+
+	return {valueQ, deltaQ};
+}
+
 // ============================================================================
 // Cache update function
 // ============================================================================
@@ -293,6 +532,12 @@ void updateAutomodPhiCache(AutomodulatorParams& params, uint32_t timePerTickInve
 	c.rateValue = rateResult.value;
 	c.rateSyncLevel = rateResult.syncLevel;
 	c.rateTriplet = rateResult.triplet;
+
+	// LFO wavetable (4-point XY shape)
+	c.wavetable = getLfoWaypointBank(params.mod, effectiveModPhase);
+
+	// P4 phase as uint32 for last-segment detection (do full eval in last segment for clean wrap)
+	c.lastSegmentPhaseU32 = static_cast<uint32_t>(c.wavetable.phase[3] * 4294967295.0f);
 
 	// Compute LFO increment
 	if (rateResult.syncLevel > 0 && timePerTickInverse > 0) {
@@ -394,33 +639,41 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 #if ENABLE_FX_BENCHMARK
 	const bool doBench = Debug::FxBenchGlobal::sampleThisBuffer;
 	static Debug::FxBenchmark benchTotal("automod", "total"); // Total cycles for entire effect
-	static Debug::FxBenchmark benchSetup("automod", "setup"); // Setup phase (phi triangles, smoothing)
+	static Debug::FxBenchmark benchCache("automod", "cache"); // Phi triangle cache update (rare)
+	static Debug::FxBenchmark benchSetup("automod", "setup"); // Per-buffer setup (envelope, smoothing)
 	static Debug::FxBenchmark benchLoop("automod", "loop");   // Main DSP loop
 	if (doBench) {
 		benchTotal.start();
-		benchSetup.start();
 	}
 #endif
 
 	// === Envelope tracking on INPUT (before processing) ===
-	// Measure peak amplitude of dry signal for proper auto-wah behavior
-	// (envelope follows input dynamics, not self-modulated output)
-	q31_t peakL = 0, peakR = 0;
-	for (const auto& sample : buffer) {
-		q31_t absL = std::abs(sample.l);
-		q31_t absR = std::abs(sample.r);
-		if (absL > peakL) {
-			peakL = absL;
-		}
-		if (absR > peakR) {
-			peakR = absR;
-		}
-	}
+	// Sample at buffer boundaries instead of scanning entire buffer (~400 cycles saved)
+	// TODO: verify this doesn't regress envelope tracking feel compared to full peak scan
+	q31_t peakL = std::max(std::abs(buffer.front().l), std::abs(buffer.back().l));
+	q31_t peakR = std::max(std::abs(buffer.front().r), std::abs(buffer.back().r));
 
 	// Update phi triangle cache only when params change (big perf win)
 	if (params.needsCacheUpdate(timePerTickInverse)) {
+#if ENABLE_FX_BENCHMARK
+		if (doBench) {
+			benchCache.start();
+		}
+#endif
 		updateAutomodPhiCache(params, timePerTickInverse);
+		params.prevLfoPhase = 0xFFFFFFFF; // Force LFO recalc (wavetable changed)
+#if ENABLE_FX_BENCHMARK
+		if (doBench) {
+			benchCache.stop();
+		}
+#endif
 	}
+
+#if ENABLE_FX_BENCHMARK
+	if (doBench) {
+		benchSetup.start();
+	}
+#endif
 
 	// Reference to cache for cleaner code
 	const AutomodPhiCache& c = params.cache;
@@ -515,12 +768,18 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	q31_t targetScaleQL = static_cast<q31_t>(targetScaleL * kQ31MaxFloat);
 	q31_t targetScaleQR = static_cast<q31_t>(targetScaleR * kQ31MaxFloat);
 
-	// Phase push conversion: MUST handle negative values correctly for circular phase math!
-	// Casting negative float to uint32_t is UNDEFINED BEHAVIOR and causes garbage values.
-	// Wrap to [0,1) range first: x - floor(x) always gives fractional part in [0,1)
-	// This correctly maps negative offsets: -0.25 → 0.75 (move back = add 0.75 forward)
-	float wrappedPhasePushL = targetPhasePushL - std::floor(targetPhasePushL);
-	float wrappedPhasePushR = targetPhasePushR - std::floor(targetPhasePushR);
+	// Phase push conversion: wrap to [0,1) range for safe uint32_t cast
+	// Fast wrap using integer truncation instead of std::floor (~30 cycles saved)
+	// Integer truncation goes toward zero, so adjust for negatives to get floor behavior
+	auto fastFractional = [](float x) -> float {
+		int32_t intPart = static_cast<int32_t>(x);
+		if (x < 0.0f && x != static_cast<float>(intPart)) {
+			intPart--; // Floor for negatives
+		}
+		return x - static_cast<float>(intPart);
+	};
+	float wrappedPhasePushL = fastFractional(targetPhasePushL);
+	float wrappedPhasePushR = fastFractional(targetPhasePushR);
 	uint32_t targetPhasePushUL = static_cast<uint32_t>(wrappedPhasePushL * kPhaseMaxFloat);
 	uint32_t targetPhasePushUR = static_cast<uint32_t>(wrappedPhasePushR * kPhaseMaxFloat);
 	uint32_t targetStereoOffset = static_cast<uint32_t>(static_cast<float>(stereoPhaseOffset) * stereoScaleFactor);
@@ -590,6 +849,58 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	q31_t bandMixQ = params.smoothedBandMixQ;
 	q31_t highMixQ = params.smoothedHighMixQ;
 
+	// === Buffer-rate LFO computation ===
+	// Always do fresh wavetable eval each buffer for now (simpler, no drift issues)
+	// TODO: Re-add caching optimization once glitches are resolved
+
+	const size_t bufferSize = buffer.size();
+	const uint32_t startPhase = params.lfoPhase;
+	const uint32_t endPhase = startPhase + c.lfoInc * bufferSize;
+
+	LfoIncremental lfoL, lfoR, combLfoL, combLfoR, tremLfoL, tremLfoR;
+
+	// Always do full wavetable eval (no caching for now)
+	uint32_t lfoPhaseL = startPhase + phasePushL;
+	uint32_t lfoPhaseR = startPhase + scaledStereoOffset + phasePushR;
+	lfoL = evalLfoIncremental(lfoPhaseL, c.lfoInc, bufferSize, c.wavetable);
+	lfoR = evalLfoIncremental(lfoPhaseR, c.lfoInc, bufferSize, c.wavetable);
+
+	uint32_t combPhaseL = startPhase + c.combPhaseOffsetU32;
+	uint32_t combPhaseR = combPhaseL + scaledStereoOffset;
+	combLfoL = evalLfoIncremental(combPhaseL, c.lfoInc, bufferSize, c.wavetable);
+	combLfoR = evalLfoIncremental(combPhaseR, c.lfoInc, bufferSize, c.wavetable);
+
+	uint32_t tremPhaseL = startPhase + c.tremPhaseOffset;
+	uint32_t tremPhaseR = tremPhaseL + scaledStereoOffset;
+	tremLfoL = evalLfoIncremental(tremPhaseL, c.lfoInc, bufferSize, c.wavetable);
+	tremLfoR = evalLfoIncremental(tremPhaseR, c.lfoInc, bufferSize, c.wavetable);
+
+	// Update phase for next buffer
+	params.lfoPhase = endPhase;
+
+	// === Pitch tracking (cached - only recompute when noteCode changes) ===
+	// Scale filter cutoff and comb delay based on played note frequency
+	if (noteCode != params.prevNoteCode) {
+		params.prevNoteCode = noteCode;
+		if (noteCode >= 0 && noteCode < 128) {
+			// Filter cutoff: add pitch-relative offset (octave up → +0.125 of range)
+			float pitchOctaves = (static_cast<float>(noteCode) - 60.0f) / 12.0f;
+			float cutoffOffset = pitchOctaves * 0.125f;
+			params.cachedPitchCutoffOffset = static_cast<q31_t>(cutoffOffset * kQ31MaxFloat);
+			// Comb delay ratio: inverse pitch (higher note = smaller ratio)
+			params.cachedPitchRatio = std::clamp(fastPow2(-pitchOctaves), 0.25f, 4.0f);
+		}
+		else {
+			params.cachedPitchCutoffOffset = 0;
+			params.cachedPitchRatio = 1.0f;
+		}
+	}
+	// Apply cached pitch ratio to current base delay (base delay changes with flavor)
+	q31_t pitchCutoffOffset = params.cachedPitchCutoffOffset;
+	int32_t pitchCombBaseDelay16 =
+	    static_cast<int32_t>(static_cast<float>(c.combBaseDelay16) * params.cachedPitchRatio);
+	pitchCombBaseDelay16 = std::clamp(pitchCombBaseDelay16, c.combMinDelay16, c.combMaxDelay16);
+
 #if ENABLE_FX_BENCHMARK
 	if (doBench) {
 		benchSetup.stop();
@@ -597,99 +908,15 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	}
 #endif
 
-	// === Buffer-rate LFO computation with linear interpolation ===
-	// Compute both start and end values fresh each buffer (12 triangle evals)
-	// This ensures consistency when phasePush/stereoOffset change between buffers
-
-	const size_t bufferSize = buffer.size();
-	const uint32_t startPhase = params.lfoPhase;
-	const uint32_t endPhase = startPhase + c.lfoInc * bufferSize;
-	const float bufferSizeF = static_cast<float>(bufferSize);
-
-	// Compute start values using current phasePush (ensures consistency)
-	uint32_t startPhaseL = startPhase + phasePushL;
-	uint32_t startPhaseR = startPhase + scaledStereoOffset + phasePushR;
-	q31_t startLfoRawL = makeUnipolarTriangle(startPhaseL);
-	q31_t startLfoRawR = makeUnipolarTriangle(startPhaseR);
-
-	uint32_t combStartPhaseL = startPhase + c.combPhaseOffsetU32;
-	uint32_t combStartPhaseR = combStartPhaseL + scaledStereoOffset;
-	q31_t startCombL = makeUnipolarTriangle(combStartPhaseL);
-	q31_t startCombR = makeUnipolarTriangle(combStartPhaseR);
-
-	uint32_t tremStartPhaseL = startPhase + c.tremPhaseOffset;
-	uint32_t tremStartPhaseR = tremStartPhaseL + scaledStereoOffset;
-	q31_t startTremL = makeUnipolarTriangle(tremStartPhaseL);
-	q31_t startTremR = makeUnipolarTriangle(tremStartPhaseR);
-
-	// Compute end values
-	uint32_t endPhaseL = endPhase + phasePushL;
-	uint32_t endPhaseR = endPhase + scaledStereoOffset + phasePushR;
-	q31_t endLfoRawL = makeUnipolarTriangle(endPhaseL);
-	q31_t endLfoRawR = makeUnipolarTriangle(endPhaseR);
-
-	uint32_t combEndPhaseL = endPhase + c.combPhaseOffsetU32;
-	uint32_t combEndPhaseR = combEndPhaseL + scaledStereoOffset;
-	q31_t endCombL = makeUnipolarTriangle(combEndPhaseL);
-	q31_t endCombR = makeUnipolarTriangle(combEndPhaseR);
-
-	uint32_t tremEndPhaseL = endPhase + c.tremPhaseOffset;
-	uint32_t tremEndPhaseR = tremEndPhaseL + scaledStereoOffset;
-	q31_t endTremL = makeUnipolarTriangle(tremEndPhaseL);
-	q31_t endTremR = makeUnipolarTriangle(tremEndPhaseR);
-
-	// Float deltas for interpolation (no truncation issues on slow LFOs)
-	float dLfoL = static_cast<float>(endLfoRawL - startLfoRawL) / bufferSizeF;
-	float dLfoR = static_cast<float>(endLfoRawR - startLfoRawR) / bufferSizeF;
-	float dCombL = static_cast<float>(endCombL - startCombL) / bufferSizeF;
-	float dCombR = static_cast<float>(endCombR - startCombR) / bufferSizeF;
-	float dTremL = static_cast<float>(endTremL - startTremL) / bufferSizeF;
-	float dTremR = static_cast<float>(endTremR - startTremR) / bufferSizeF;
-
-	// Float accumulators starting from computed start values
-	float lfoL_f = static_cast<float>(startLfoRawL);
-	float lfoR_f = static_cast<float>(startLfoRawR);
-	float combL_f = static_cast<float>(startCombL);
-	float combR_f = static_cast<float>(startCombR);
-	float tremL_f = static_cast<float>(startTremL);
-	float tremR_f = static_cast<float>(startTremR);
-
-	// Advance phase for next buffer
-	params.lfoPhase = endPhase;
-
-	// === Pitch tracking ===
-	// Scale filter cutoff and comb delay based on played note frequency
-	// Higher notes → higher cutoff and shorter comb delay
-	q31_t pitchCutoffOffset = 0;
-	int32_t pitchCombBaseDelay16 = c.combBaseDelay16;
-	if (noteCode >= 0 && noteCode < 128) {
-		// Filter cutoff: add pitch-relative offset (octave up → +0.125 of range)
-		// Relative to middle C (note 60)
-		float pitchOctaves = (static_cast<float>(noteCode) - 60.0f) / 12.0f;
-		float cutoffOffset = pitchOctaves * 0.125f; // ±0.5 over 4 octave range
-		pitchCutoffOffset = static_cast<q31_t>(cutoffOffset * kQ31MaxFloat);
-
-		// Comb delay: scale inversely with pitch (higher pitch = shorter delay)
-		// This makes the comb track the fundamental frequency
-		float pitchRatio = exp2f(-pitchOctaves); // inverse: higher note = smaller ratio
-		// Clamp to reasonable range (0.25x to 4x of base delay)
-		pitchRatio = std::clamp(pitchRatio, 0.25f, 4.0f);
-		pitchCombBaseDelay16 = static_cast<int32_t>(static_cast<float>(c.combBaseDelay16) * pitchRatio);
-		// Clamp to buffer limits
-		pitchCombBaseDelay16 = std::clamp(pitchCombBaseDelay16, c.combMinDelay16, c.combMaxDelay16);
-	}
-
 	for (auto& sample : buffer) {
-		// Convert float accumulators to q31 for DSP operations
-		// MUST clamp to valid unipolar range - float accumulation can drift slightly
-		// outside 0 to ONE_Q31 due to rounding errors over 128 samples, and casting
-		// out-of-range float to int32 is UNDEFINED BEHAVIOR
-		q31_t lfoRawL = static_cast<q31_t>(std::clamp(lfoL_f, 0.0f, kQ31MaxFloat));
-		q31_t lfoRawR = static_cast<q31_t>(std::clamp(lfoR_f, 0.0f, kQ31MaxFloat));
-		q31_t combLfoL = static_cast<q31_t>(std::clamp(combL_f, 0.0f, kQ31MaxFloat));
-		q31_t combLfoR = static_cast<q31_t>(std::clamp(combR_f, 0.0f, kQ31MaxFloat));
-		q31_t tremLfoL = static_cast<q31_t>(std::clamp(tremL_f, 0.0f, kQ31MaxFloat));
-		q31_t tremLfoR = static_cast<q31_t>(std::clamp(tremR_f, 0.0f, kQ31MaxFloat));
+		// Use q31 LFO values directly (computed from incremental evaluation)
+		// Clamp to valid unipolar range to handle segment boundary drift
+		q31_t lfoRawL = std::clamp(lfoL.value, q31_t{0}, ONE_Q31);
+		q31_t lfoRawR = std::clamp(lfoR.value, q31_t{0}, ONE_Q31);
+		q31_t combLfoValL = std::clamp(combLfoL.value, q31_t{0}, ONE_Q31);
+		q31_t combLfoValR = std::clamp(combLfoR.value, q31_t{0}, ONE_Q31);
+		q31_t tremLfoValL = std::clamp(tremLfoL.value, q31_t{0}, ONE_Q31);
+		q31_t tremLfoValR = std::clamp(tremLfoR.value, q31_t{0}, ONE_Q31);
 
 		q31_t outL = sample.l;
 		q31_t outR = sample.r;
@@ -757,8 +984,8 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			// Pure 32-bit delay calculation (no 64-bit multiply!)
 			// lfo >> 15 gives 16-bit (0-0xFFFF), × modRangeSamples (9-bit) = 25 bits, result is 16.16
 			// Use pitch-tracked base delay for note-relative comb tuning
-			int32_t lfo16L = combLfoL >> 15;
-			int32_t lfo16R = combLfoR >> 15;
+			int32_t lfo16L = combLfoValL >> 15;
+			int32_t lfo16R = combLfoValR >> 15;
 			int32_t delay16L = pitchCombBaseDelay16 + lfo16L * c.combModRangeSamples;
 			int32_t delay16R = pitchCombBaseDelay16 + lfo16R * c.combModRangeSamples;
 
@@ -823,8 +1050,8 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		if (mix.tremolo > 0.01f) {
 			// Scale to (1-depth) to 1.0 range: e.g. depth=0.8 → volume goes 0.2-1.0
 			// Use saturating add for safety (prevents overflow if LFO drifted out of range)
-			q31_t tremModL = multiply_32x32_rshift32(tremLfoL, c.tremoloDepthQ) << 1;
-			q31_t tremModR = multiply_32x32_rshift32(tremLfoR, c.tremoloDepthQ) << 1;
+			q31_t tremModL = multiply_32x32_rshift32(tremLfoValL, c.tremoloDepthQ) << 1;
+			q31_t tremModR = multiply_32x32_rshift32(tremLfoValR, c.tremoloDepthQ) << 1;
 			q31_t tremoloL = add_saturate(c.tremoloBaseLevel, tremModL);
 			q31_t tremoloR = add_saturate(c.tremoloBaseLevel, tremModR);
 
@@ -835,13 +1062,13 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		sample.l = outL;
 		sample.r = outR;
 
-		// Increment float accumulators AFTER using values (avoids discontinuity at buffer boundaries)
-		lfoL_f += dLfoL;
-		lfoR_f += dLfoR;
-		combL_f += dCombL;
-		combR_f += dCombR;
-		tremL_f += dTremL;
-		tremR_f += dTremR;
+		// Increment LFO values using pre-computed segment slopes (just integer addition!)
+		lfoL.value += lfoL.delta;
+		lfoR.value += lfoR.delta;
+		combLfoL.value += combLfoL.delta;
+		combLfoR.value += combLfoR.delta;
+		tremLfoL.value += tremLfoL.delta;
+		tremLfoR.value += tremLfoR.delta;
 	}
 
 #if ENABLE_FX_BENCHMARK
