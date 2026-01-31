@@ -215,13 +215,13 @@ private:
 	float dcBlockState_{0.0f};
 
 	// LFO for modulation (Sky/Vast use random walk, others have no pitch mod)
-	float modDepth_{0.0f};         // LFO pitch wobble depth for FDN (controlled by Zone 3)
-	float cascadeModDepth_{0.0f};  // LFO pitch wobble depth for C2/C3 in vast mode
-	float cascadeAmpMod_{0.0f};    // LFO amplitude modulation depth for C2/C3 diffusion contour
-	float widthBreath_{0.0f};      // Width breathing amount (controlled by Zone 3)
-	float crossBleed_{0.0f};       // L↔R cross-channel bleed in FDN (controlled by Zone 3)
-	float fdnFeedbackScale_{1.0f}; // FDN feedback multiplier (kept at 1.0 - room knob controls decay)
-	float cascadeSideGain_{0.2f};  // Stereo side signal gain (higher for Owl mode)
+	float modDepth_{0.0f};          // LFO pitch wobble depth for FDN (controlled by Zone 3)
+	float cascadeModDepth_{0.0f};   // LFO pitch wobble depth for C2/C3 in vast mode
+	float cascadeAmpMod_{0.0f};     // LFO amplitude modulation depth for C2/C3 diffusion contour
+	float widthBreath_{0.0f};       // Width breathing amount (controlled by Zone 3)
+	float crossBleed_{0.0f};        // L↔R cross-channel bleed in FDN (controlled by Zone 3)
+	float fdnFeedbackScale_{1.0f};  // FDN feedback multiplier (kept at 1.0 - room knob controls decay)
+	float cascade_side_gain_{0.2f}; // Stereo side signal gain (higher for Owl mode)
 
 	// Envelope followers for Owl mode feedback servo
 	float feedbackEnvelope_{0.0f}; // Tracks output level for ratio-based limiting
