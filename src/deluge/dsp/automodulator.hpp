@@ -80,10 +80,11 @@ constexpr float kLfoRateMax = 10.0f; // Hz (fastest, ~35 buffers/cycle)
 constexpr phi::PhiTriConfig kLfoRateTriangle = {phi::kPhi075, 0.7f, 0.0f, true};
 
 /// Phi triangle bank for filter output mixing (derived from type)
+/// Slow evolution (~5x slower than other params) for gradual timbral shifts
 constexpr std::array<phi::PhiTriConfig, 3> kFilterMixBank = {{
-    {phi::kPhi200, 0.6f, 0.00f, false}, // [0] Lowpass: φ^2.0, 60% duty
-    {phi::kPhi300, 0.5f, 0.33f, false}, // [1] Bandpass: φ^3.0, 50% duty, offset
-    {phi::kPhi400, 0.4f, 0.67f, false}, // [2] Highpass: φ^4.0, 40% duty, offset
+    {phi::kPhi050, 0.6f, 0.00f, false}, // [0] Lowpass: φ^0.5, 60% duty (was φ^2.0)
+    {phi::kPhi067, 0.5f, 0.33f, false}, // [1] Bandpass: φ^0.67, 50% duty (was φ^3.0)
+    {phi::kPhi100, 0.4f, 0.67f, false}, // [2] Highpass: φ^1.0, 40% duty (was φ^4.0)
 }};
 
 /// Phi triangle config for stereo phase offset derived from mod
@@ -125,6 +126,10 @@ constexpr phi::PhiTriConfig kCombStaticOffsetTriangle = {phi::kPhi125, 0.85f, 0.
 /// Phi triangle config for comb LFO phase offset derived from flavor
 constexpr phi::PhiTriConfig kCombLfoPhaseOffsetTriangle = {phi::kPhi175, 0.65f, 0.35f, false};
 
+/// Phi triangle for comb mono collapse (stereo width control)
+/// 50% duty = 50% deadzone at 0 (full stereo), ramps to 1 (mono) for variety
+constexpr phi::PhiTriConfig kCombMonoCollapseTriangle = {phi::kPhi225, 0.5f, 0.15f, false};
+
 /// Phi triangle config for filter resonance derived from flavor
 constexpr phi::PhiTriConfig kFilterResonanceTriangle = {phi::kPhi175, 0.8f, 0.4f, false};
 
@@ -152,6 +157,44 @@ constexpr std::array<phi::PhiTriConfig, 3> kFilterPhaseOffsetBank = {{
     {phi::kPhi100, 0.5f, 0.00f, false}, // [0] LP phase: slower evolution
     {phi::kPhi150, 0.6f, 0.33f, false}, // [1] BP phase: moderate evolution
     {phi::kPhi200, 0.7f, 0.66f, false}, // [2] HP phase: faster evolution
+}};
+
+// ============================================================================
+// Consolidated banks for batch evaluation (performance optimization)
+// ============================================================================
+
+/// Consolidated flavor bank - all scalar flavor-derived params in one batch
+/// Indices: [0]=cutoffBase, [1]=resonance, [2]=modDepth, [3]=attack, [4]=release,
+///          [5]=combStaticOffset, [6]=combLfoDepth, [7]=combPhaseOffset, [8]=combMonoCollapse
+constexpr std::array<phi::PhiTriConfig, 9> kFlavorScalarBank = {{
+    kFilterCutoffBaseTriangle,     // [0]
+    kFilterResonanceTriangle,      // [1]
+    kFilterCutoffLfoDepthTriangle, // [2]
+    kEnvAttackTriangle,            // [3]
+    kEnvReleaseTriangle,           // [4]
+    kCombStaticOffsetTriangle,     // [5]
+    kCombLfoDepthTriangle,         // [6]
+    kCombLfoPhaseOffsetTriangle,   // [7]
+    kCombMonoCollapseTriangle,     // [8]
+}};
+
+/// Consolidated type bank - all scalar type-derived params in one batch
+/// Indices: [0]=combFeedback, [1]=combMix, [2]=tremoloDepth, [3]=tremoloPhaseOffset
+constexpr std::array<phi::PhiTriConfig, 4> kTypeScalarBank = {{
+    kCombFeedbackTriangle,       // [0]
+    kCombMixTriangle,            // [1]
+    kTremoloDepthTriangle,       // [2]
+    kTremoloPhaseOffsetTriangle, // [3]
+}};
+
+/// Consolidated mod bank - all scalar mod-derived params in one batch
+/// Indices: [0]=stereoOffset, [1]=envDepth, [2]=envPhase, [3]=envDerivDepth, [4]=envDerivPhase
+constexpr std::array<phi::PhiTriConfig, 5> kModScalarBank = {{
+    kStereoOffsetTriangle,           // [0]
+    kEnvDepthInfluenceTriangle,      // [1]
+    kEnvPhaseInfluenceTriangle,      // [2]
+    kEnvDerivDepthInfluenceTriangle, // [3]
+    kEnvDerivPhaseInfluenceTriangle, // [4]
 }};
 
 /// Phi triangle bank for LFO wavetable waypoints (derived from mod)
@@ -228,13 +271,6 @@ struct LfoRateResult {
 	bool triplet;      // true = triplet timing (3/2 multiplier)
 };
 
-/// Get stage enable mix from type value
-struct TypeMix {
-	float filter;
-	float comb;
-	float tremolo;
-};
-
 /// Filter output mix weights (normalized to sum to 1.0)
 struct FilterMix {
 	float low;  // Lowpass weight
@@ -271,6 +307,7 @@ struct AutomodPhiCache {
 	float combStaticOffset{0};
 	float combLfoDepth{0};
 	uint32_t combPhaseOffsetU32{0};
+	q31_t combMonoCollapseQ{0}; // 0 = full stereo, ONE_Q31 = mono (crossfeed comb output only)
 	// Pre-computed comb delay constants (pure 32-bit math in loop)
 	int32_t combBaseDelay16{4 << 16};
 	int32_t combModRangeSamples{0};
@@ -298,10 +335,11 @@ struct AutomodPhiCache {
 	int32_t rateSyncLevel{0};
 	bool rateTriplet{false};
 	uint32_t stereoPhaseOffsetRaw{0};
-	float envDepthInfluence{0};
-	float envPhaseInfluence{0};
-	float envDerivDepthInfluence{0};
-	float envDerivPhaseInfluence{0};
+	// Env influences in q31 for integer-only per-buffer math
+	q31_t envDepthInfluenceQ{0};
+	q31_t envPhaseInfluenceQ{0};
+	q31_t envDerivDepthInfluenceQ{0};
+	q31_t envDerivPhaseInfluenceQ{0};
 
 	// LFO wavetable waypoints (sorted by phase)
 	LfoWaypointBank wavetable{};
@@ -315,13 +353,18 @@ struct AutomodPhiCache {
 
 	// P4 phase as uint32 for fast last-segment detection (do full eval in last segment for clean wrap)
 	uint32_t lastSegmentPhaseU32{0xE6666666}; // Default ~0.9, updated from wavetable
+
+	// Pre-computed stereo rate scale factor (q31) - avoids float division per buffer
+	q31_t stereoRateScaleQ{ONE_Q31};
 };
 
 /// Automodulator parameters and DSP state (stored per-Sound)
 struct AutomodulatorParams {
 	// === Rule of 5: Proper resource management for dynamically allocated comb buffers ===
 
-	AutomodulatorParams() = default;
+	/// Default constructor - explicitly initialize pointers to prevent garbage values
+	/// even if placed in uninitialized memory
+	AutomodulatorParams() : combBufferL(nullptr), combBufferR(nullptr) {}
 
 	~AutomodulatorParams() { deallocateCombBuffers(); }
 
@@ -413,9 +456,9 @@ struct AutomodulatorParams {
 	q31_t smoothedTremLfoR{0};
 
 	// Pitch tracking cache (avoid recomputing fastPow2 every buffer)
-	int32_t prevNoteCode{-2};         // -2 = never computed (different from -1 = no note)
-	q31_t cachedPitchCutoffOffset{0}; // Filter cutoff pitch adjustment
-	float cachedPitchRatio{1.0f};     // Comb delay multiplier (1.0 = no change)
+	int32_t prevNoteCode{-2};             // -2 = never computed (different from -1 = no note)
+	q31_t cachedPitchCutoffOffset{0};     // Filter cutoff pitch adjustment
+	int32_t cachedPitchRatioQ16{1 << 16}; // Comb delay multiplier in 16.16 fixed (1.0 = 0x10000)
 
 	// LFO IIR state (linear stepping through segments - avoids wavetable eval per buffer)
 	LfoIirState lfoIirL{};
@@ -426,7 +469,7 @@ struct AutomodulatorParams {
 	LfoIirState tremLfoIirR{};
 
 	// Comb filter state - LAZILY ALLOCATED
-	static constexpr size_t kCombBufferSize = 1536;
+	static constexpr size_t kCombBufferSize = 768;
 	q31_t* combBufferL{nullptr};
 	q31_t* combBufferR{nullptr};
 	uint16_t combIdx{0};
@@ -516,7 +559,7 @@ private:
 		smoothedTremLfoR = other.smoothedTremLfoR;
 		prevNoteCode = other.prevNoteCode;
 		cachedPitchCutoffOffset = other.cachedPitchCutoffOffset;
-		cachedPitchRatio = other.cachedPitchRatio;
+		cachedPitchRatioQ16 = other.cachedPitchRatioQ16;
 		lfoIirL = other.lfoIirL;
 		lfoIirR = other.lfoIirR;
 		combLfoIirL = other.combLfoIirL;
@@ -556,7 +599,7 @@ public:
 		smoothedTremLfoL = smoothedTremLfoR = 0;
 		prevNoteCode = -2; // Force recomputation
 		cachedPitchCutoffOffset = 0;
-		cachedPitchRatio = 1.0f;
+		cachedPitchRatioQ16 = 1 << 16;
 		// Reset LFO IIR states
 		lfoIirL = lfoIirR = {};
 		combLfoIirL = combLfoIirR = {};
@@ -585,14 +628,6 @@ public:
 /// Convert MIDI note code to Hz (A4=440Hz standard)
 [[gnu::always_inline]] inline float noteCodeToHz(int32_t noteCode) {
 	return kA4Hz * exp2f((static_cast<float>(noteCode) - 69.0f) / 12.0f);
-}
-
-/// Get stage enable mix from type value
-[[gnu::always_inline]] inline TypeMix getTypeMix(uint16_t type) {
-	if (type == 0) {
-		return {0.0f, 0.0f, 0.0f};
-	}
-	return {1.0f, 1.0f, 1.0f};
 }
 
 // ============================================================================

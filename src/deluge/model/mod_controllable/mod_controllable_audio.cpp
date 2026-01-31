@@ -105,10 +105,15 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	if (shaper.isEnabled()) {
 		shaperDsp.regenerateTable(shaper.shapeX, shaper.shapeY, shaper.gammaPhase, shaper.oscHarmonicWeight);
 	}
+	// Sine shaper state (copy params, invalidate cache to force recomputation)
+	sineShaper = other->sineShaper;
+	sineShaper.cachedZone = -1; // Invalidate cache
 	// Multiband compressor state
 	compressorMode = other->compressorMode;
 	multibandCompressor.setEnabledZone(other->multibandCompressor.getEnabledZone());
 	multibandCompressor.setCrossoverType(other->multibandCompressor.getCrossoverType());
+	// Automodulator params (does not copy comb buffers - they're lazy-allocated)
+	automod.cloneFrom(other->automod);
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager) {
