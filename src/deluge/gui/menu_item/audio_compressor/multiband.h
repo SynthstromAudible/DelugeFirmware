@@ -488,7 +488,38 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
-			ZoneBasedUnpatchedParam::selectEncoderAction(offset);
+			// Auto-wrap mode: wraps at boundaries and auto-adjusts phase offset
+			int32_t scaledOffset = velocity_.getScaledOffset(offset);
+			int32_t newValue = this->getValue() + scaledOffset;
+			auto& comp = soundEditor.currentModControllable->multibandCompressor;
+			float phaseOffset = comp.getVibePhaseOffset();
+
+			if (newValue > kVibeResolution) {
+				// Wrap past max: go to start and increment phase offset
+				this->setValue(newValue - kVibeResolution);
+				comp.setVibePhaseOffset(phaseOffset + 1.0f);
+			}
+			else if (newValue < 0) {
+				// Wrap past min: go to end and decrement phase offset (floor at 0)
+				if (phaseOffset >= 1.0f) {
+					this->setValue(newValue + kVibeResolution);
+					comp.setVibePhaseOffset(phaseOffset - 1.0f);
+				}
+				else {
+					// At phaseOffset=0, clamp at min (can't go negative)
+					this->setValue(0);
+				}
+			}
+			else {
+				this->setValue(newValue);
+			}
+			this->writeCurrentValue();
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				this->drawValue();
+			}
 		}
 	}
 

@@ -204,7 +204,39 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
-			IntegerWithOff::selectEncoderAction(velocity_.getScaledOffset(offset));
+			// Auto-wrap mode: wraps at boundaries and auto-adjusts gamma
+			int32_t scaledOffset = velocity_.getScaledOffset(offset);
+			int32_t newValue = this->getValue() + scaledOffset;
+			auto* mca = soundEditor.currentModControllable;
+			float& gammaPhase = mca->shaper.gammaPhase;
+
+			if (newValue > kShaperHighResSteps - 1) {
+				// Wrap past max: go to start and increment gamma (auto-enables wrap mode)
+				// When gammaPhase transitions 0→1, user's extrasMask settings become active
+				this->setValue(newValue - kShaperHighResSteps);
+				gammaPhase += 1.0f;
+			}
+			else if (newValue < 0) {
+				// Wrap past min: go to end and decrement gamma (floor at 0)
+				if (gammaPhase >= 1.0f) {
+					this->setValue(newValue + kShaperHighResSteps);
+					gammaPhase -= 1.0f;
+				}
+				else {
+					// At gamma=0, clamp at min (can't go negative)
+					this->setValue(0);
+				}
+			}
+			else {
+				this->setValue(newValue);
+			}
+			this->writeCurrentValue();
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				this->drawValue();
+			}
 		}
 	}
 

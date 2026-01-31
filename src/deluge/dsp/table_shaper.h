@@ -1127,10 +1127,10 @@ struct TableShaperXYMapper {
 		float asymBase = static_cast<float>(static_cast<double>(yNorm) * phi::kPhi100 * asymFreqMult * periodScale);
 		p.asymmetry = 0.3f + triangleSimpleUnipolar(phi::wrapPhase(asymBase + ph100), kPhaseWidth) * 0.4f;
 
-		// Deadzone modifier: completely disabled at gammaPhase=0, oscillates as secret knob increases
-		// dzEnable gates the entire deadzone feature off when phase offset is zero
+		// Deadzone modifier: oscillates as Y/phase increases
+		// Always enabled - extras are gated by extrasMask (user-controlled via push+twist X)
 		constexpr float kDeadzoneDuty = 0.2f;
-		float dzEnable = (gammaPhase != 0.0f) ? 1.0f : 0.0f;
+		constexpr float dzEnable = 1.0f;
 		float dzWidthBase = static_cast<float>(static_cast<double>(yNorm) * phi::kPhiN050 * freqMult * periodScale);
 		p.deadzoneWidth = dzEnable * triangleSimpleUnipolar(phi::wrapPhase(dzWidthBase + phDzWidth), kDeadzoneDuty);
 
@@ -1206,8 +1206,8 @@ struct TableShaperXYMapper {
 		// - saw (0.5) → 70% duty (moderate)
 		// - square (1.0) → 100% duty (always active - reliable detection)
 		// φ^1.75 frequency (uncorrelated with others)
-		// Enable for gammaPhase > 0 OR high harmonic content (square waves always)
-		float slewEnable = (gammaPhase != 0.0f || oscHarmonicWeight >= 0.8f) ? 1.0f : 0.0f;
+		// Always enabled - LPF/integrator gated by extrasMask (user-controlled via push+twist X)
+		constexpr float slewEnable = 1.0f;
 		float slewDuty = std::min(1.0f, oscHarmonicWeight + 0.2f); // Range [0.2, 1.0]
 		float phSlew = phi::wrapPhase(ph * phi::kPhi175);
 		float slewBase = static_cast<float>(static_cast<double>(yNorm) * phi::kPhi175 * freqMult * periodScale);

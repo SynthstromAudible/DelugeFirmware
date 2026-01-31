@@ -317,9 +317,10 @@ inline void shapeBufferInt32(std::span<q31_t> buffer, TableShaper& shaper, q31_t
 	int32_t threshold32_ctx = TableShaper::computeThreshold32(targetMixNorm_Q16);
 
 	// Hoist hysteresis offset - skip when intensity is 0 (phi triangle at zero)
+	// Always check regardless of gammaPhase - extras available via extrasMask
 	int32_t hystOffset = 0;
 	int32_t* hystState = nullptr;
-	if (state.prevScaledInput && gammaPhase != 0.0f) {
+	if (state.prevScaledInput) {
 		hystOffset = shaper.getHystOffset();
 		if (hystOffset != 0) {
 			hystState = state.prevScaledInput; // Only track slope when offset active
@@ -667,10 +668,11 @@ inline void shapeBufferInt32(std::span<StereoSample> buffer, TableShaper& shaper
 	int32_t threshold32_ctx = TableShaper::computeThreshold32(targetMixNorm_Q16);
 
 	// Hoist hysteresis offset - skip when intensity is 0 (phi triangle at zero)
+	// Always check regardless of gammaPhase - extras available via extrasMask
 	int32_t hystOffset = 0;
 	int32_t* hystStateL = nullptr;
 	int32_t* hystStateR = nullptr;
-	if (prevScaledInputL && prevScaledInputR && gammaPhase != 0.0f) {
+	if (prevScaledInputL && prevScaledInputR) {
 		hystOffset = shaper.getHystOffset();
 		if (hystOffset != 0) {
 			hystStateL = prevScaledInputL; // Only track slope when offset active

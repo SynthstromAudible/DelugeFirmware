@@ -184,6 +184,7 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
+			// Harmonic zones are topology-bound, so clamp at boundaries (no wrap)
 			ZoneBasedDualParam::selectEncoderAction(offset);
 		}
 	}
@@ -253,7 +254,37 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
-			ZoneBasedDualParam::selectEncoderAction(offset);
+			// Auto-wrap mode: wraps at boundaries and auto-adjusts gamma
+			int32_t scaledOffset = velocity_.getScaledOffset(offset);
+			int32_t newValue = this->getValue() + scaledOffset;
+			auto& ss = soundEditor.currentModControllable->sineShaper;
+
+			if (newValue > kTwistResolution) {
+				// Wrap past max: go to start and increment gamma (auto-enables wrap mode)
+				this->setValue(newValue - kTwistResolution);
+				ss.gammaPhase += 1.0f;
+			}
+			else if (newValue < 0) {
+				// Wrap past min: go to end and decrement gamma (floor at 0)
+				if (ss.gammaPhase >= 1.0f) {
+					this->setValue(newValue + kTwistResolution);
+					ss.gammaPhase -= 1.0f;
+				}
+				else {
+					// At gamma=0, clamp at min (can't go negative)
+					this->setValue(0);
+				}
+			}
+			else {
+				this->setValue(newValue);
+			}
+			this->writeCurrentValue();
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				this->drawValue();
+			}
 		}
 	}
 

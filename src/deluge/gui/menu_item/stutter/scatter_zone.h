@@ -116,7 +116,37 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
-			ZoneBasedDualParam::selectEncoderAction(offset);
+			// Auto-wrap mode: wraps at boundaries and auto-adjusts gamma
+			int32_t scaledOffset = velocity_.getScaledOffset(offset);
+			int32_t newValue = this->getValue() + scaledOffset;
+			auto& sc = soundEditor.currentModControllable->stutterConfig;
+
+			if (newValue > kScatterResolution) {
+				// Wrap past max: go to start and increment gamma
+				this->setValue(newValue - kScatterResolution);
+				sc.gammaPhase += 1.0f;
+			}
+			else if (newValue < 0) {
+				// Wrap past min: go to end and decrement gamma (floor at 0)
+				if (sc.gammaPhase >= 1.0f) {
+					this->setValue(newValue + kScatterResolution);
+					sc.gammaPhase -= 1.0f;
+				}
+				else {
+					// At gamma=0, clamp at min (can't go negative)
+					this->setValue(0);
+				}
+			}
+			else {
+				this->setValue(newValue);
+			}
+			this->writeCurrentValue();
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				this->drawValue();
+			}
 		}
 	}
 
@@ -252,7 +282,37 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
-			ZoneBasedDualParam::selectEncoderAction(offset);
+			// Auto-wrap mode: wraps at boundaries and auto-adjusts gamma
+			int32_t scaledOffset = velocity_.getScaledOffset(offset);
+			int32_t newValue = this->getValue() + scaledOffset;
+			auto& sc = soundEditor.currentModControllable->stutterConfig;
+
+			if (newValue > kScatterResolution) {
+				// Wrap past max: go to start and increment gamma
+				this->setValue(newValue - kScatterResolution);
+				sc.gammaPhase += 1.0f;
+			}
+			else if (newValue < 0) {
+				// Wrap past min: go to end and decrement gamma (floor at 0)
+				if (sc.gammaPhase >= 1.0f) {
+					this->setValue(newValue + kScatterResolution);
+					sc.gammaPhase -= 1.0f;
+				}
+				else {
+					// At gamma=0, clamp at min (can't go negative)
+					this->setValue(0);
+				}
+			}
+			else {
+				this->setValue(newValue);
+			}
+			this->writeCurrentValue();
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				this->drawValue();
+			}
 		}
 	}
 
