@@ -36,6 +36,7 @@ target_link_libraries(deluge_dsp PRIVATE
 target_compile_definitions(deluge_dsp PUBLIC
         $<$<CONFIG:DEBUG,RELWITHDEBINFO>:IN_HARDWARE_DEBUG=1>
         $<$<CONFIG:DEBUG,RELWITHDEBINFO>:ENABLE_TEXT_OUTPUT=1>
+        $<$<BOOL:${ENABLE_FX_BENCHMARK}>:ENABLE_FX_BENCHMARK=1>
 )
 
 target_compile_options(deluge_dsp PRIVATE
