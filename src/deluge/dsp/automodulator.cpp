@@ -25,6 +25,13 @@
 #include <algorithm>
 #include <cmath>
 
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+#include <arm_neon.h>
+#define USE_NEON_SVF 1
+#else
+#define USE_NEON_SVF 0
+#endif
+
 namespace deluge::dsp {
 
 // ============================================================================
@@ -123,6 +130,15 @@ uint32_t getCombLfoPhaseOffsetFromFlavor(uint16_t flavor, float phaseOffset) {
 	// Evaluate triangle (0-1 output), map to full phase range
 	float tri = phi::evalTriangle(phase, 1.0f, kCombLfoPhaseOffsetTriangle);
 	return static_cast<uint32_t>(tri * 4294967295.0f);
+}
+
+float getCombMonoCollapseFromFlavor(uint16_t flavor, float phaseOffset) {
+	// Normalize flavor to [0,1] and add phase offset
+	double phase = static_cast<double>(flavor) / 1023.0 + static_cast<double>(phaseOffset);
+
+	// Evaluate triangle (0-1 output): 0 = full stereo, 1 = mono
+	// 50% duty cycle means 50% deadzone at 0 (full stereo)
+	return phi::evalTriangle(phase, 1.0f, kCombMonoCollapseTriangle);
 }
 
 q31_t getFilterResonanceFromFlavor(uint16_t flavor, float phaseOffset) {
@@ -580,23 +596,32 @@ LfoIncremental evalLfoIncremental(uint32_t startPhaseU32, uint32_t phaseInc, siz
 // ============================================================================
 
 void updateAutomodPhiCache(AutomodulatorParams& params, uint32_t timePerTickInverse) {
-	AutomodPhiCache& c = params.cache;
+	// Cache must be allocated before calling this function (ensureStateAllocated in processAutomodulator)
+	AutomodPhiCache& c = *params.cache;
 
-	// Compute effective phases
+	// Compute effective phases (one calculation per source)
+	double modPhase = static_cast<double>(params.mod) / 1023.0 + params.modPhaseOffset + params.gammaPhase;
+	double flavorPhase = static_cast<double>(params.flavor) / 1023.0 + params.flavorPhaseOffset + params.gammaPhase;
+	double typePhase = static_cast<double>(params.type) / 1023.0 + params.typePhaseOffset + params.gammaPhase;
+
+	// === Batch evaluate mod-derived scalar params ===
+	// [0]=stereoOffset (unipolar), [1-4]=env influences (already bipolar in triangle config)
+	auto modScalars = phi::evalTriangleBank<5>(modPhase, 1.0f, kModScalarBank);
+	c.stereoPhaseOffsetRaw = modScalars[0];
+	// Store env influences as q31 for integer-only per-buffer math
+	c.envDepthInfluenceQ = static_cast<q31_t>(modScalars[1] * kQ31MaxFloat);
+	c.envPhaseInfluenceQ = static_cast<q31_t>(modScalars[2] * kQ31MaxFloat);
+	c.envDerivDepthInfluenceQ = static_cast<q31_t>(modScalars[3] * kQ31MaxFloat);
+	c.envDerivPhaseInfluenceQ = static_cast<q31_t>(modScalars[4] * kQ31MaxFloat);
+
+	// LFO rate and wavetable need special handling (multi-zone logic)
 	float effectiveModPhase = params.modPhaseOffset + params.gammaPhase;
-	float effectiveFlavorPhase = params.flavorPhaseOffset + params.gammaPhase;
-	float effectiveTypePhase = params.typePhaseOffset + params.gammaPhase;
-
-	// === From mod ===
 	LfoRateResult rateResult = getLfoRateFromMod(params.mod, effectiveModPhase);
 	c.rateValue = rateResult.value;
 	c.rateSyncLevel = rateResult.syncLevel;
 	c.rateTriplet = rateResult.triplet;
 
-	// LFO wavetable (4-point XY shape)
 	c.wavetable = getLfoWaypointBank(params.mod, effectiveModPhase);
-
-	// P4 phase as uint32 for last-segment detection (do full eval in last segment for clean wrap)
 	c.lastSegmentPhaseU32 = static_cast<uint32_t>(c.wavetable.phase[3] * 4294967295.0f);
 
 	// Compute LFO increment
@@ -610,82 +635,86 @@ void updateAutomodPhiCache(AutomodulatorParams& params, uint32_t timePerTickInve
 		c.lfoInc = static_cast<uint32_t>(rateResult.value * 97391.263f);
 	}
 
-	// Compute IIR chase coefficient from LFO rate
-	// We want convergence to ~95% by end of average segment (~70 buffers at 1Hz)
-	// alpha ≈ 3/N where N = buffers per segment
-	// For lfoInc in phase/sample, buffers/seg ≈ (2^32/5) / (lfoInc * 128)
-	// alpha ≈ 3 * lfoInc * 128 * 5 / 2^32 = 1920 * lfoInc / 2^32
-	// As q31 coefficient for multiply_32x32_rshift32 << 1: coeff = 1920 * lfoInc / 2
-	// Simplified: coeff = lfoInc * 960, clamped to prevent overflow
-	// But 960 * 10M (100Hz) = 9.6B which overflows, so use: coeff = lfoInc << 9 (×512)
-	// and clamp to ~0.5 max (0x40000000) for stability
+	// IIR chase coefficient from LFO rate
 	uint64_t rawCoeff = static_cast<uint64_t>(c.lfoInc) << 9;
 	c.iirCoeff = static_cast<q31_t>(std::min(rawCoeff, static_cast<uint64_t>(0x40000000)));
 
-	c.stereoPhaseOffsetRaw = getStereoOffsetFromMod(params.mod, effectiveModPhase);
-	c.envDepthInfluence = getEnvDepthInfluenceFromMod(params.mod, effectiveModPhase);
-	c.envPhaseInfluence = getEnvPhaseInfluenceFromMod(params.mod, effectiveModPhase);
-	c.envDerivDepthInfluence = getEnvDerivDepthInfluenceFromMod(params.mod, effectiveModPhase);
-	c.envDerivPhaseInfluence = getEnvDerivPhaseInfluenceFromMod(params.mod, effectiveModPhase);
+	// Pre-compute stereo rate scale factor (avoids float division per buffer)
+	// Slow LFOs get less stereo to avoid feeling stuck asymmetric
+	float rateScaleFactor;
+	if (rateResult.syncLevel > 0) {
+		// Synced: Level 1→0.1, Level 9→1.0
+		rateScaleFactor = std::clamp(static_cast<float>(rateResult.syncLevel) / 9.0f, 0.1f, 1.0f);
+	}
+	else {
+		// Free: 0.5Hz→0.1, 5Hz→1.0
+		rateScaleFactor = std::clamp(rateResult.value * 0.2f, 0.1f, 1.0f);
+	}
+	c.stereoRateScaleQ = static_cast<q31_t>(rateScaleFactor * kQ31MaxFloat);
 
-	// === From flavor ===
-	c.filterCutoffBase = getFilterCutoffBaseFromFlavor(params.flavor, effectiveFlavorPhase);
-	c.filterResonance = getFilterResonanceFromFlavor(params.flavor, effectiveFlavorPhase);
-	c.filterModDepth = getFilterCutoffLfoDepthFromFlavor(params.flavor, effectiveFlavorPhase);
-	c.envAttack = getEnvAttackFromFlavor(params.flavor, effectiveFlavorPhase);
-	c.envRelease = getEnvReleaseFromFlavor(params.flavor, effectiveFlavorPhase);
-	c.combStaticOffset = getCombStaticOffsetFromFlavor(params.flavor, effectiveFlavorPhase);
-	c.combLfoDepth = getCombLfoDepthFromFlavor(params.flavor, effectiveFlavorPhase);
-	c.combPhaseOffsetU32 = getCombLfoPhaseOffsetFromFlavor(params.flavor, effectiveFlavorPhase);
+	// === Batch evaluate flavor-derived scalar params ===
+	// [0]=cutoffBase, [1]=resonance, [2]=modDepth, [3]=attack, [4]=release,
+	// [5]=combStaticOffset, [6]=combLfoDepth, [7]=combPhaseOffset, [8]=combMonoCollapse
+	auto flavorScalars = phi::evalTriangleBank<9>(flavorPhase, 1.0f, kFlavorScalarBank);
 
-	// Pre-compute comb delay constants in 16.16 fixed-point (avoids float conversions in loop)
+	// Map raw triangle outputs to param ranges
+	c.filterCutoffBase = static_cast<q31_t>(flavorScalars[0] * kQ31MaxFloat);
+	c.filterResonance = static_cast<q31_t>(flavorScalars[1] * 0.85f * kQ31MaxFloat);
+	c.filterModDepth = static_cast<q31_t>(flavorScalars[2] * kQ31MaxFloat);
+	c.envAttack = static_cast<q31_t>(std::pow(flavorScalars[3], 2.0f) * kQ31MaxFloat);
+	c.envRelease = static_cast<q31_t>(std::pow(flavorScalars[4], 2.0f) * kQ31MaxFloat);
+	c.combStaticOffset = flavorScalars[5];
+	c.combLfoDepth = flavorScalars[6];
+	c.combPhaseOffsetU32 = static_cast<uint32_t>(flavorScalars[7] * 4294967295.0f);
+	c.combMonoCollapseQ = static_cast<q31_t>(flavorScalars[8] * kQ31MaxFloat);
+
+	// Pre-compute comb delay constants in 16.16 fixed-point
 	constexpr int32_t kMinDelay = 4;
-	constexpr int32_t kMaxDelay = 1470;
-	constexpr int32_t kMaxModRange = 400;
+	constexpr int32_t kMaxDelay = 735;
+	constexpr int32_t kMaxModRange = 200;
 	constexpr int32_t kCombSize = static_cast<int32_t>(AutomodulatorParams::kCombBufferSize);
-	// baseDelay = minDelay + staticOffset * (maxDelay - minDelay - maxModRange)
-	int32_t delayRange = kMaxDelay - kMinDelay - kMaxModRange; // 1066 samples
+	int32_t delayRange = kMaxDelay - kMinDelay - kMaxModRange;
 	int32_t baseDelaySamples = kMinDelay + static_cast<int32_t>(c.combStaticOffset * static_cast<float>(delayRange));
 	c.combBaseDelay16 = baseDelaySamples << 16;
-	c.combModRangeSamples = static_cast<int32_t>(c.combLfoDepth * static_cast<float>(kMaxModRange)); // 0-400 samples
+	c.combModRangeSamples = static_cast<int32_t>(c.combLfoDepth * static_cast<float>(kMaxModRange));
 	c.combMinDelay16 = 2 << 16;
 	c.combMaxDelay16 = (kCombSize - 2) << 16;
 
-	// Filter LFO params
-	FilterLfoParams filterLfo = getFilterLfoParamsFromFlavor(params.flavor, effectiveFlavorPhase);
-	c.lpResponse = filterLfo.lpResponse;
-	c.bpResponse = filterLfo.bpResponse;
-	c.hpResponse = filterLfo.hpResponse;
-	c.lpPhaseOffset = filterLfo.lpPhaseOffset;
-	c.bpPhaseOffset = filterLfo.bpPhaseOffset;
-	c.hpPhaseOffset = filterLfo.hpPhaseOffset;
-	c.lpPhaseOffsetU32 = static_cast<uint32_t>(filterLfo.lpPhaseOffset * kPhaseMaxFloat);
-	c.bpPhaseOffsetU32 = static_cast<uint32_t>(filterLfo.bpPhaseOffset * kPhaseMaxFloat);
-	c.hpPhaseOffsetU32 = static_cast<uint32_t>(filterLfo.hpPhaseOffset * kPhaseMaxFloat);
-
-	// Pre-compute response as Q31 for pure fixed-point loop math
-	c.lpResponseQ = static_cast<q31_t>(filterLfo.lpResponse * kQ31MaxFloat);
-	c.bpResponseQ = static_cast<q31_t>(filterLfo.bpResponse * kQ31MaxFloat);
-	c.hpResponseQ = static_cast<q31_t>(filterLfo.hpResponse * kQ31MaxFloat);
+	// Filter LFO banks (already batched - 2 banks of 3)
+	auto filterResponse = phi::evalTriangleBank<3>(flavorPhase, 1.0f, kFilterLfoResponseBank);
+	auto filterPhaseOffsets = phi::evalTriangleBank<3>(flavorPhase, 1.0f, kFilterPhaseOffsetBank);
+	c.lpResponse = filterResponse[0];
+	c.bpResponse = filterResponse[1];
+	c.hpResponse = filterResponse[2];
+	c.lpPhaseOffset = filterPhaseOffsets[0];
+	c.bpPhaseOffset = filterPhaseOffsets[1];
+	c.hpPhaseOffset = filterPhaseOffsets[2];
+	c.lpPhaseOffsetU32 = static_cast<uint32_t>(filterPhaseOffsets[0] * kPhaseMaxFloat);
+	c.bpPhaseOffsetU32 = static_cast<uint32_t>(filterPhaseOffsets[1] * kPhaseMaxFloat);
+	c.hpPhaseOffsetU32 = static_cast<uint32_t>(filterPhaseOffsets[2] * kPhaseMaxFloat);
+	c.lpResponseQ = static_cast<q31_t>(filterResponse[0] * kQ31MaxFloat);
+	c.bpResponseQ = static_cast<q31_t>(filterResponse[1] * kQ31MaxFloat);
+	c.hpResponseQ = static_cast<q31_t>(filterResponse[2] * kQ31MaxFloat);
 
 	constexpr float kResponseThreshold = 0.01f;
-	c.useStaticFilterMix = (filterLfo.lpResponse < kResponseThreshold && filterLfo.bpResponse < kResponseThreshold
-	                        && filterLfo.hpResponse < kResponseThreshold);
+	c.useStaticFilterMix = (filterResponse[0] < kResponseThreshold && filterResponse[1] < kResponseThreshold
+	                        && filterResponse[2] < kResponseThreshold);
 
-	// === From type ===
+	// === Batch evaluate type-derived scalar params ===
+	// [0]=combFeedback, [1]=combMix, [2]=tremoloDepth, [3]=tremoloPhaseOffset
+	auto typeScalars = phi::evalTriangleBank<4>(typePhase, 1.0f, kTypeScalarBank);
+	c.combFeedback = static_cast<q31_t>(typeScalars[0] * 0.85f * kQ31MaxFloat);
+	c.combMixQ = static_cast<q31_t>(typeScalars[1] * kQ31MaxFloat);
+	c.tremoloDepthQ = static_cast<q31_t>(typeScalars[2] * kQ31MaxFloat);
+	c.tremoloBaseLevel = ONE_Q31 - c.tremoloDepthQ;
+	c.tremPhaseOffset = static_cast<uint32_t>(typeScalars[3] * kPhaseMaxFloat);
+
+	// Filter mix needs constant-power normalization (keep separate function)
+	float effectiveTypePhase = params.typePhaseOffset + params.gammaPhase;
 	FilterMix filterMix = getFilterMixFromType(params.type, effectiveTypePhase);
 	c.filterMixLowQ = static_cast<q31_t>(filterMix.low * kQ31MaxFloat);
 	c.filterMixBandQ = static_cast<q31_t>(filterMix.band * kQ31MaxFloat);
 	c.filterMixHighQ = static_cast<q31_t>(filterMix.high * kQ31MaxFloat);
-
-	c.combFeedback = getCombFeedbackFromType(params.type, effectiveTypePhase);
-	float combMix = getCombMixFromType(params.type, effectiveTypePhase);
-	c.combMixQ = static_cast<q31_t>(combMix * kQ31MaxFloat);
-
-	c.tremPhaseOffset = getTremoloPhaseOffsetFromType(params.type, effectiveTypePhase);
-	float tremoloDepth = getTremoloDepthFromType(params.type, effectiveTypePhase);
-	c.tremoloDepthQ = static_cast<q31_t>(tremoloDepth * kQ31MaxFloat);
-	c.tremoloBaseLevel = ONE_Q31 - c.tremoloDepthQ;
 
 	// Update cache keys
 	params.prevType = params.type;
@@ -708,6 +737,11 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		return;
 	}
 
+	// Ensure lazily-allocated state is ready
+	if (!params.ensureStateAllocated()) {
+		return; // Allocation failed, skip processing
+	}
+
 #if ENABLE_FX_BENCHMARK
 	const bool doBench = Debug::FxBenchGlobal::sampleThisBuffer;
 	static Debug::FxBenchmark benchTotal("automod", "total"); // Total cycles for entire effect
@@ -718,6 +752,10 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		benchTotal.start();
 	}
 #endif
+
+	// Local references to lazily-allocated state (minimizes pointer dereferences)
+	AutomodPhiCache& c = *params.cache;
+	AutomodDspState& s = *params.dspState;
 
 	// === Envelope tracking on INPUT (before processing) ===
 	// Sample at buffer boundaries instead of scanning entire buffer (~400 cycles saved)
@@ -748,49 +786,49 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	}
 #endif
 
-	// Reference to cache for cleaner code
-	const AutomodPhiCache& c = params.cache;
-
 	// Reinitialize LFO states if wavetable changed
 	if (wavetableChanged) {
-		initLfoIir(params.lfoIirL, params.lfoPhase, c.lfoInc, c.wavetable);
-		initLfoIir(params.lfoIirR, params.lfoPhase, c.lfoInc, c.wavetable);
-		initLfoIir(params.combLfoIirL, params.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
-		initLfoIir(params.combLfoIirR, params.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
-		initLfoIir(params.tremLfoIirL, params.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
-		initLfoIir(params.tremLfoIirR, params.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
+		initLfoIir(s.lfoIirL, s.lfoPhase, c.lfoInc, c.wavetable);
+		initLfoIir(s.lfoIirR, s.lfoPhase, c.lfoInc, c.wavetable);
+		initLfoIir(s.combLfoIirL, s.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
+		initLfoIir(s.combLfoIirR, s.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
+		initLfoIir(s.tremLfoIirL, s.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
+		initLfoIir(s.tremLfoIirR, s.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
 	}
 
 	// Store initial envelope state for derivative calculation
-	q31_t envStartL = params.envStateL;
-	q31_t envStartR = params.envStateR;
+	q31_t envStartL = s.envStateL;
+	q31_t envStartR = s.envStateR;
 
 	// Envelope follower at buffer rate - one-pole filter on INPUT peaks
-	if (peakL > params.envStateL) {
-		params.envStateL += multiply_32x32_rshift32(peakL - params.envStateL, c.envAttack) << 1;
+	if (peakL > s.envStateL) {
+		s.envStateL += multiply_32x32_rshift32(peakL - s.envStateL, c.envAttack) << 1;
 	}
 	else {
-		params.envStateL -= multiply_32x32_rshift32(params.envStateL - peakL, c.envRelease) << 1;
+		s.envStateL -= multiply_32x32_rshift32(s.envStateL - peakL, c.envRelease) << 1;
 	}
-	if (peakR > params.envStateR) {
-		params.envStateR += multiply_32x32_rshift32(peakR - params.envStateR, c.envAttack) << 1;
+	if (peakR > s.envStateR) {
+		s.envStateR += multiply_32x32_rshift32(peakR - s.envStateR, c.envAttack) << 1;
 	}
 	else {
-		params.envStateR -= multiply_32x32_rshift32(params.envStateR - peakR, c.envRelease) << 1;
+		s.envStateR -= multiply_32x32_rshift32(s.envStateR - peakR, c.envRelease) << 1;
 	}
 
 	// Derivative = change over this buffer
-	q31_t rawDerivL = params.envStateL - envStartL;
-	q31_t rawDerivR = params.envStateR - envStartR;
+	q31_t rawDerivL = s.envStateL - envStartL;
+	q31_t rawDerivR = s.envStateR - envStartR;
 	// Smooth the derivative
-	params.envDerivStateL += multiply_32x32_rshift32(rawDerivL - params.envDerivStateL, c.envAttack) << 1;
-	params.envDerivStateR += multiply_32x32_rshift32(rawDerivR - params.envDerivStateR, c.envAttack) << 1;
+	s.envDerivStateL += multiply_32x32_rshift32(rawDerivL - s.envDerivStateL, c.envAttack) << 1;
+	s.envDerivStateR += multiply_32x32_rshift32(rawDerivR - s.envDerivStateR, c.envAttack) << 1;
 
-	TypeMix mix = getTypeMix(params.type);
+	// Stage enables as bools (avoids float comparison per sample)
+	const bool filterEnabled = (params.type > 0);
+	const bool combEnabled = (params.type > 0) && params.hasCombBuffers();
+	const bool tremEnabled = (params.type > 0);
 
 	// Lazy-allocate comb buffers only when comb effect is first used
 	// This saves 12KB per Sound when comb isn't needed
-	if (mix.comb > 0.01f && !params.hasCombBuffers()) {
+	if (params.type > 0 && !params.hasCombBuffers()) {
 		params.allocateCombBuffers(); // May fail silently - comb just won't process
 	}
 
@@ -799,100 +837,90 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	// Initial phase from phi triangle for varied attack character
 	if (params.lastVoiceCount == 0 && voiceCount > 0) {
 		float effectiveModPhase = params.modPhaseOffset + params.gammaPhase;
-		params.lfoPhase = getLfoInitialPhaseFromMod(params.mod, effectiveModPhase);
+		s.lfoPhase = getLfoInitialPhaseFromMod(params.mod, effectiveModPhase);
 
 		// Initialize all LFO states from the new phase
 		// This ensures smooth startup without glitches
-		initLfoIir(params.lfoIirL, params.lfoPhase, c.lfoInc, c.wavetable);
-		initLfoIir(params.lfoIirR, params.lfoPhase, c.lfoInc, c.wavetable);
-		initLfoIir(params.combLfoIirL, params.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
-		initLfoIir(params.combLfoIirR, params.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
-		initLfoIir(params.tremLfoIirL, params.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
-		initLfoIir(params.tremLfoIirR, params.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
+		initLfoIir(s.lfoIirL, s.lfoPhase, c.lfoInc, c.wavetable);
+		initLfoIir(s.lfoIirR, s.lfoPhase, c.lfoInc, c.wavetable);
+		initLfoIir(s.combLfoIirL, s.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
+		initLfoIir(s.combLfoIirR, s.lfoPhase + c.combPhaseOffsetU32, c.lfoInc, c.wavetable);
+		initLfoIir(s.tremLfoIirL, s.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
+		initLfoIir(s.tremLfoIirR, s.lfoPhase + c.tremPhaseOffset, c.lfoInc, c.wavetable);
 	}
 	params.lastVoiceCount = voiceCount;
 
-	// Scale stereo offset by LFO speed - slow LFOs get less stereo to avoid feeling stuck asymmetric
-	// At 0.5 Hz: 10% stereo, at 2 Hz: 40% stereo, at 5 Hz+: 100% stereo
-	float rateScaleFactor;
-	if (c.rateSyncLevel > 0) {
-		// Synced mode: faster subdivisions (higher levels) get more stereo
-		// Level 1 (whole) → 0.1, Level 5 (16th) → 0.5, Level 9 (256th) → 1.0
-		rateScaleFactor = std::clamp(static_cast<float>(c.rateSyncLevel) / 9.0f, 0.1f, 1.0f);
-	}
-	else {
-		// Free-running: scale by rate in Hz (0.1-20 Hz range)
-		// 0.5 Hz → 0.1, 2 Hz → 0.4, 5 Hz → 1.0
-		rateScaleFactor = std::clamp(c.rateValue * 0.2f, 0.1f, 1.0f);
-	}
-	uint32_t stereoPhaseOffset = static_cast<uint32_t>(static_cast<float>(c.stereoPhaseOffsetRaw) * rateScaleFactor);
+	// Scale stereo offset by LFO speed (pre-computed in cache)
+	uint32_t stereoPhaseOffset = multiply_32x32_rshift32(c.stereoPhaseOffsetRaw, c.stereoRateScaleQ) << 1;
 
-	// Macro scales overall modulation depth (bipolar -> 0.25-1.0 range)
-	// At macro=0 (center), depth is 0.625. At max, depth is 1.0. At min, depth is 0.25.
-	float macroScale = static_cast<float>(macro) * kOneOverQ31Max;
-	macroScale = 0.625f + macroScale * 0.375f; // Ensure always audible
+	// === Pure q31 envelope modulation math (no float conversions) ===
+	// Macro scales overall modulation depth: 0.625 + 0.375 * (macro/ONE_Q31)
+	constexpr q31_t kMacroBaseQ = 0x50000000;  // 0.625 in q31
+	constexpr q31_t kMacroRangeQ = 0x30000000; // 0.375 in q31
+	q31_t macroScaleQ = kMacroBaseQ + (multiply_32x32_rshift32(macro, kMacroRangeQ) << 1);
 
-	// Pre-compute depth influence coefficients for simplified per-sample math
-	// finalScale = scaleBase + scaleEnvCoeff * envNorm + scaleDerivCoeff * derivNorm
-	// (instead of: depthMod = 1 + 2*(envDepth*env + derivDepth*deriv), then finalScale = macro*depthMod)
-	float scaleBase = macroScale;
-	float scaleEnvCoeff = macroScale * 2.0f * c.envDepthInfluence;
-	float scaleDerivCoeff = macroScale * 2.0f * c.envDerivDepthInfluence;
+	// Pre-compute macro × influence products (all q31)
+	q31_t macroDepthQ = multiply_32x32_rshift32(macroScaleQ, c.envDepthInfluenceQ) << 1;
+	q31_t macroPhaseQ = multiply_32x32_rshift32(macroScaleQ, c.envPhaseInfluenceQ) << 1;
+	q31_t macroDerivDepthQ = multiply_32x32_rshift32(macroScaleQ, c.envDerivDepthInfluenceQ) << 1;
+	q31_t macroDerivPhaseQ = multiply_32x32_rshift32(macroScaleQ, c.envDerivPhaseInfluenceQ) << 1;
 
-	// Pre-compute phase influence coefficients
-	float phaseEnvCoeff = macroScale * c.envPhaseInfluence;
-	float phaseDerivCoeff = macroScale * c.envDerivPhaseInfluence;
+	// Derivative normalization: scale by 64 (matches 1/2^25 float normalization), clamp first
+	constexpr q31_t kDerivClampThresh = ONE_Q31 >> 6;
+	q31_t derivNormQL = std::clamp(s.envDerivStateL, -kDerivClampThresh, kDerivClampThresh) << 6;
+	q31_t derivNormQR = std::clamp(s.envDerivStateR, -kDerivClampThresh, kDerivClampThresh) << 6;
 
-	// === Compute buffer-level modulation targets from current envelope state ===
-	float envNormL = static_cast<float>(params.envStateL) * kOneOverQ31Max;
-	float envNormR = static_cast<float>(params.envStateR) * kOneOverQ31Max;
-	float derivNormL = std::clamp(static_cast<float>(params.envDerivStateL) * kDerivNormScale, -1.0f, 1.0f);
-	float derivNormR = std::clamp(static_cast<float>(params.envDerivStateR) * kDerivNormScale, -1.0f, 1.0f);
+	// Envelope scale contribution: macroDepth × envState × 2 (×2 via saturating add)
+	q31_t envScaleL = multiply_32x32_rshift32(macroDepthQ, s.envStateL);
+	q31_t envScaleR = multiply_32x32_rshift32(macroDepthQ, s.envStateR);
+	envScaleL = add_saturate(envScaleL, envScaleL);
+	envScaleR = add_saturate(envScaleR, envScaleR);
 
-	// Target values for this buffer
-	float targetScaleL = std::clamp(scaleBase + scaleEnvCoeff * envNormL + scaleDerivCoeff * derivNormL, -1.0f, 1.0f);
-	float targetScaleR = std::clamp(scaleBase + scaleEnvCoeff * envNormR + scaleDerivCoeff * derivNormR, -1.0f, 1.0f);
-	float targetPhasePushL = phaseEnvCoeff * envNormL + phaseDerivCoeff * derivNormL;
-	float targetPhasePushR = phaseEnvCoeff * envNormR + phaseDerivCoeff * derivNormR;
-	float stereoScaleFactor = (std::abs(targetScaleL) + std::abs(targetScaleR)) * 0.5f;
+	// Derivative scale contribution: macroDerivDepth × derivNorm × 2
+	q31_t derivScaleL = multiply_32x32_rshift32(macroDerivDepthQ, derivNormQL);
+	q31_t derivScaleR = multiply_32x32_rshift32(macroDerivDepthQ, derivNormQR);
+	derivScaleL = add_saturate(derivScaleL, derivScaleL);
+	derivScaleR = add_saturate(derivScaleR, derivScaleR);
 
-	// Convert targets to fixed-point
-	q31_t targetScaleQL = static_cast<q31_t>(targetScaleL * kQ31MaxFloat);
-	q31_t targetScaleQR = static_cast<q31_t>(targetScaleR * kQ31MaxFloat);
+	// targetScale = macroScale + envScale + derivScale (saturating)
+	q31_t targetScaleQL = add_saturate(add_saturate(macroScaleQ, envScaleL), derivScaleL);
+	q31_t targetScaleQR = add_saturate(add_saturate(macroScaleQ, envScaleR), derivScaleR);
 
-	// Phase push conversion: wrap to [0,1) range for safe uint32_t cast
-	// Fast wrap using integer truncation instead of std::floor (~30 cycles saved)
-	// Integer truncation goes toward zero, so adjust for negatives to get floor behavior
-	auto fastFractional = [](float x) -> float {
-		int32_t intPart = static_cast<int32_t>(x);
-		if (x < 0.0f && x != static_cast<float>(intPart)) {
-			intPart--; // Floor for negatives
-		}
-		return x - static_cast<float>(intPart);
-	};
-	float wrappedPhasePushL = fastFractional(targetPhasePushL);
-	float wrappedPhasePushR = fastFractional(targetPhasePushR);
-	uint32_t targetPhasePushUL = static_cast<uint32_t>(wrappedPhasePushL * kPhaseMaxFloat);
-	uint32_t targetPhasePushUR = static_cast<uint32_t>(wrappedPhasePushR * kPhaseMaxFloat);
-	uint32_t targetStereoOffset = static_cast<uint32_t>(static_cast<float>(stereoPhaseOffset) * stereoScaleFactor);
+	// Phase push: macroPhase × envState + macroDerivPhase × derivNorm
+	q31_t envPhaseL = multiply_32x32_rshift32(macroPhaseQ, s.envStateL) << 1;
+	q31_t envPhaseR = multiply_32x32_rshift32(macroPhaseQ, s.envStateR) << 1;
+	q31_t derivPhaseL = multiply_32x32_rshift32(macroDerivPhaseQ, derivNormQL) << 1;
+	q31_t derivPhaseR = multiply_32x32_rshift32(macroDerivPhaseQ, derivNormQR) << 1;
+	q31_t phasePushQL = add_saturate(envPhaseL, derivPhaseL);
+	q31_t phasePushQR = add_saturate(envPhaseR, derivPhaseR);
+
+	// Convert q31 phase push to uint32 phase offset (<<1 for full phase range)
+	uint32_t targetPhasePushUL = static_cast<uint32_t>(phasePushQL) << 1;
+	uint32_t targetPhasePushUR = static_cast<uint32_t>(phasePushQR) << 1;
+
+	// Stereo scale factor from |targetScale| average
+	q31_t absScaleL = (targetScaleQL >= 0) ? targetScaleQL : -targetScaleQL;
+	q31_t absScaleR = (targetScaleQR >= 0) ? targetScaleQR : -targetScaleQR;
+	q31_t stereoScaleFactorQ = (absScaleL >> 1) + (absScaleR >> 1);
+	uint32_t targetStereoOffset = multiply_32x32_rshift32(stereoPhaseOffset, stereoScaleFactorQ) << 1;
 
 	// Smooth toward targets (one-pole filter at buffer rate, ~12ms transition)
-	params.smoothedScaleL += multiply_32x32_rshift32(targetScaleQL - params.smoothedScaleL, kModSmoothCoeffQ) << 1;
-	params.smoothedScaleR += multiply_32x32_rshift32(targetScaleQR - params.smoothedScaleR, kModSmoothCoeffQ) << 1;
+	s.smoothedScaleL += multiply_32x32_rshift32(targetScaleQL - s.smoothedScaleL, kModSmoothCoeffQ) << 1;
+	s.smoothedScaleR += multiply_32x32_rshift32(targetScaleQR - s.smoothedScaleR, kModSmoothCoeffQ) << 1;
 	// Phase push smoothing: use signed arithmetic for proper interpolation
-	int32_t phaseDiffL = static_cast<int32_t>(targetPhasePushUL - params.smoothedPhasePushL);
-	int32_t phaseDiffR = static_cast<int32_t>(targetPhasePushUR - params.smoothedPhasePushR);
-	params.smoothedPhasePushL += static_cast<uint32_t>(multiply_32x32_rshift32(phaseDiffL, kModSmoothCoeffQ) << 1);
-	params.smoothedPhasePushR += static_cast<uint32_t>(multiply_32x32_rshift32(phaseDiffR, kModSmoothCoeffQ) << 1);
-	int32_t stereoDiff = static_cast<int32_t>(targetStereoOffset - params.smoothedStereoOffset);
-	params.smoothedStereoOffset += static_cast<uint32_t>(multiply_32x32_rshift32(stereoDiff, kModSmoothCoeffQ) << 1);
+	int32_t phaseDiffL = static_cast<int32_t>(targetPhasePushUL - s.smoothedPhasePushL);
+	int32_t phaseDiffR = static_cast<int32_t>(targetPhasePushUR - s.smoothedPhasePushR);
+	s.smoothedPhasePushL += static_cast<uint32_t>(multiply_32x32_rshift32(phaseDiffL, kModSmoothCoeffQ) << 1);
+	s.smoothedPhasePushR += static_cast<uint32_t>(multiply_32x32_rshift32(phaseDiffR, kModSmoothCoeffQ) << 1);
+	int32_t stereoDiff = static_cast<int32_t>(targetStereoOffset - s.smoothedStereoOffset);
+	s.smoothedStereoOffset += static_cast<uint32_t>(multiply_32x32_rshift32(stereoDiff, kModSmoothCoeffQ) << 1);
 
 	// Use smoothed values for the loop
-	q31_t scaleQL = params.smoothedScaleL;
-	q31_t scaleQR = params.smoothedScaleR;
-	uint32_t phasePushL = params.smoothedPhasePushL;
-	uint32_t phasePushR = params.smoothedPhasePushR;
-	uint32_t scaledStereoOffset = params.smoothedStereoOffset;
+	q31_t scaleQL = s.smoothedScaleL;
+	q31_t scaleQR = s.smoothedScaleR;
+	uint32_t phasePushL = s.smoothedPhasePushL;
+	uint32_t phasePushR = s.smoothedPhasePushR;
+	uint32_t scaledStereoOffset = s.smoothedStereoOffset;
 
 	// Lambda for unipolar triangle (used in multiple places)
 	auto makeUnipolarTriangle = [](uint32_t phase) -> q31_t {
@@ -914,9 +942,9 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	}
 	else {
 		// Use current LFO phase for mix calculation (will drift slightly over buffer - acceptable)
-		uint32_t lpPhase = params.lfoPhase + c.lpPhaseOffsetU32;
-		uint32_t bpPhase = params.lfoPhase + c.bpPhaseOffsetU32;
-		uint32_t hpPhase = params.lfoPhase + c.hpPhaseOffsetU32;
+		uint32_t lpPhase = s.lfoPhase + c.lpPhaseOffsetU32;
+		uint32_t bpPhase = s.lfoPhase + c.bpPhaseOffsetU32;
+		uint32_t hpPhase = s.lfoPhase + c.hpPhaseOffsetU32;
 		q31_t lpLfo = makeUnipolarTriangle(lpPhase);
 		q31_t bpLfo = makeUnipolarTriangle(bpPhase);
 		q31_t hpLfo = makeUnipolarTriangle(hpPhase);
@@ -932,20 +960,20 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	}
 
 	// Smooth filter mix toward targets (same ~12ms transition as other modulations)
-	params.smoothedLowMixQ += multiply_32x32_rshift32(targetLowMixQ - params.smoothedLowMixQ, kModSmoothCoeffQ) << 1;
-	params.smoothedBandMixQ += multiply_32x32_rshift32(targetBandMixQ - params.smoothedBandMixQ, kModSmoothCoeffQ) << 1;
-	params.smoothedHighMixQ += multiply_32x32_rshift32(targetHighMixQ - params.smoothedHighMixQ, kModSmoothCoeffQ) << 1;
+	s.smoothedLowMixQ += multiply_32x32_rshift32(targetLowMixQ - s.smoothedLowMixQ, kModSmoothCoeffQ) << 1;
+	s.smoothedBandMixQ += multiply_32x32_rshift32(targetBandMixQ - s.smoothedBandMixQ, kModSmoothCoeffQ) << 1;
+	s.smoothedHighMixQ += multiply_32x32_rshift32(targetHighMixQ - s.smoothedHighMixQ, kModSmoothCoeffQ) << 1;
 
 	// Use smoothed values in loop
-	q31_t lowMixQ = params.smoothedLowMixQ;
-	q31_t bandMixQ = params.smoothedBandMixQ;
-	q31_t highMixQ = params.smoothedHighMixQ;
+	q31_t lowMixQ = s.smoothedLowMixQ;
+	q31_t bandMixQ = s.smoothedBandMixQ;
+	q31_t highMixQ = s.smoothedHighMixQ;
 
 	// === Buffer-rate LFO computation using pure accumulation ===
 	// Just add step each sample - no phase-based correction
 
 	const size_t bufferSize = buffer.size();
-	const uint32_t startPhase = params.lfoPhase;
+	const uint32_t startPhase = s.lfoPhase;
 	const uint32_t phaseInc = c.lfoInc;
 
 	// Compute phases for each LFO channel (used for segment detection)
@@ -957,38 +985,48 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	uint32_t tremPhaseR = tremPhaseL + scaledStereoOffset;
 
 	// Pure accumulation: get current value and step
-	LfoIncremental lfoL = updateLfoAccum(params.lfoIirL, lfoPhaseL, phaseInc, c.wavetable);
-	LfoIncremental lfoR = updateLfoAccum(params.lfoIirR, lfoPhaseR, phaseInc, c.wavetable);
-	LfoIncremental combLfoL = updateLfoAccum(params.combLfoIirL, combPhaseL, phaseInc, c.wavetable);
-	LfoIncremental combLfoR = updateLfoAccum(params.combLfoIirR, combPhaseR, phaseInc, c.wavetable);
-	LfoIncremental tremLfoL = updateLfoAccum(params.tremLfoIirL, tremPhaseL, phaseInc, c.wavetable);
-	LfoIncremental tremLfoR = updateLfoAccum(params.tremLfoIirR, tremPhaseR, phaseInc, c.wavetable);
+	LfoIncremental lfoL = updateLfoAccum(s.lfoIirL, lfoPhaseL, phaseInc, c.wavetable);
+	LfoIncremental lfoR = updateLfoAccum(s.lfoIirR, lfoPhaseR, phaseInc, c.wavetable);
+	LfoIncremental combLfoL = updateLfoAccum(s.combLfoIirL, combPhaseL, phaseInc, c.wavetable);
+	LfoIncremental combLfoR = updateLfoAccum(s.combLfoIirR, combPhaseR, phaseInc, c.wavetable);
+	LfoIncremental tremLfoL = updateLfoAccum(s.tremLfoIirL, tremPhaseL, phaseInc, c.wavetable);
+	LfoIncremental tremLfoR = updateLfoAccum(s.tremLfoIirR, tremPhaseR, phaseInc, c.wavetable);
 
 	// Update phase for next buffer
-	params.lfoPhase = startPhase + phaseInc * bufferSize;
+	s.lfoPhase = startPhase + phaseInc * bufferSize;
 
 	// === Pitch tracking (cached - only recompute when noteCode changes) ===
 	// Scale filter cutoff and comb delay based on played note frequency
-	if (noteCode != params.prevNoteCode) {
-		params.prevNoteCode = noteCode;
+	if (noteCode != s.prevNoteCode) {
+		s.prevNoteCode = noteCode;
 		if (noteCode >= 0 && noteCode < 128) {
 			// Filter cutoff: add pitch-relative offset (octave up → +0.125 of range)
 			float pitchOctaves = (static_cast<float>(noteCode) - 60.0f) / 12.0f;
 			float cutoffOffset = pitchOctaves * 0.125f;
-			params.cachedPitchCutoffOffset = static_cast<q31_t>(cutoffOffset * kQ31MaxFloat);
-			// Comb delay ratio: inverse pitch (higher note = smaller ratio)
-			params.cachedPitchRatio = std::clamp(fastPow2(-pitchOctaves), 0.25f, 4.0f);
+			s.cachedPitchCutoffOffset = static_cast<q31_t>(cutoffOffset * kQ31MaxFloat);
+			// Comb delay ratio in 16.16 fixed: inverse pitch (higher note = smaller ratio)
+			float pitchRatio = std::clamp(fastPow2(-pitchOctaves), 0.25f, 4.0f);
+			s.cachedPitchRatioQ16 = static_cast<int32_t>(pitchRatio * 65536.0f);
 		}
 		else {
-			params.cachedPitchCutoffOffset = 0;
-			params.cachedPitchRatio = 1.0f;
+			s.cachedPitchCutoffOffset = 0;
+			s.cachedPitchRatioQ16 = 1 << 16; // 1.0 in 16.16
 		}
 	}
-	// Apply cached pitch ratio to current base delay (base delay changes with flavor)
-	q31_t pitchCutoffOffset = params.cachedPitchCutoffOffset;
+	// Apply cached pitch ratio to current base delay (16.16 × 16.16 → 16.16)
+	const q31_t pitchCutoffOffset = s.cachedPitchCutoffOffset;
 	int32_t pitchCombBaseDelay16 =
-	    static_cast<int32_t>(static_cast<float>(c.combBaseDelay16) * params.cachedPitchRatio);
+	    static_cast<int32_t>((static_cast<int64_t>(c.combBaseDelay16) * s.cachedPitchRatioQ16) >> 16);
 	pitchCombBaseDelay16 = std::clamp(pitchCombBaseDelay16, c.combMinDelay16, c.combMaxDelay16);
+
+	// Hoist loop-invariant filter constants
+	constexpr q31_t kCutoffMin = 0x08000000;
+	constexpr q31_t kCutoffMax = 0x78000000;
+	const q31_t filterBasePlusPitch = add_saturate(add_saturate(kCutoffMin, c.filterCutoffBase), pitchCutoffOffset);
+	const q31_t filterQ = ONE_Q31 - c.filterResonance;
+
+	// Hoist comb mono collapse check
+	const bool doCombMonoCollapse = (c.combMonoCollapseQ > 0);
 
 #if ENABLE_FX_BENCHMARK
 	if (doBench) {
@@ -998,82 +1036,112 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 #endif
 
 	for (auto& sample : buffer) {
-		// LFO values are bipolar [-ONE_Q31, ONE_Q31] - use directly
-		q31_t lfoRawL = lfoL.value;
-		q31_t lfoRawR = lfoR.value;
-		q31_t combLfoValL = combLfoL.value;
-		q31_t combLfoValR = combLfoR.value;
-		q31_t tremLfoValL = tremLfoL.value;
-		q31_t tremLfoValR = tremLfoR.value;
-
 		q31_t outL = sample.l;
 		q31_t outR = sample.r;
 
-		// SVF Filter (auto-wah) - phi triangle bank controls LP/BP/HP mix
-		if (mix.filter > 0.01f) {
-			// Apply envelope scale to raw LFO (scale can be negative for inverted wah)
-			q31_t lfoL = multiply_32x32_rshift32(lfoRawL, scaleQL) << 1;
-			q31_t lfoR = multiply_32x32_rshift32(lfoRawR, scaleQR) << 1;
+		// SVF Filter (auto-wah)
+		if (filterEnabled) {
+#if USE_NEON_SVF
+			// === NEON vectorized SVF: process L/R in parallel ===
+			// Pack L/R values into 2-lane vectors
+			int32x2_t lfoVal = {lfoL.value, lfoR.value};
+			int32x2_t scaleQ = {scaleQL, scaleQR};
+			int32x2_t out = {outL, outR};
+			int32x2_t svfLow = {s.svfLowL, s.svfLowR};
+			int32x2_t svfBand = {s.svfBandL, s.svfBandR};
+			int32x2_t filterQVec = vdup_n_s32(filterQ);
+			int32x2_t modDepth = vdup_n_s32(c.filterModDepth);
+			int32x2_t basePlusPitch = vdup_n_s32(filterBasePlusPitch);
 
-			// Compute filter cutoff: base + pitch offset + LFO contribution
-			// NOTE: Use saturating addition to prevent overflow wrap-around!
-			// With negative scale, LFO can go negative → inverted wah (filter closes on attack)
-			// Pitch tracking shifts cutoff center to track played note
-			constexpr q31_t kCutoffMin = 0x08000000;
-			constexpr q31_t kCutoffMax = 0x78000000;
-			q31_t lfoContribL = multiply_32x32_rshift32(lfoL, c.filterModDepth) << 1;
-			q31_t lfoContribR = multiply_32x32_rshift32(lfoR, c.filterModDepth) << 1;
-			q31_t basePlusPitch = add_saturate(c.filterCutoffBase, pitchCutoffOffset);
-			q31_t cutoffL = add_saturate(add_saturate(kCutoffMin, basePlusPitch), lfoContribL);
-			q31_t cutoffR = add_saturate(add_saturate(kCutoffMin, basePlusPitch), lfoContribR);
+			// LFO scaling: (lfoVal * scaleQ * 2) >> 32
+			int32x2_t lfoScaled = vqdmulh_s32(lfoVal, scaleQ);
 
-			// Clamp to valid range (saturating add handles overflow, clamp handles range)
-			cutoffL = std::clamp(cutoffL, kCutoffMin, kCutoffMax);
-			cutoffR = std::clamp(cutoffR, kCutoffMin, kCutoffMax);
+			// LFO contribution: (lfoScaled * modDepth * 2) >> 32
+			int32x2_t lfoContrib = vqdmulh_s32(lfoScaled, modDepth);
+
+			// Cutoff = clamp(basePlusPitch + lfoContrib)
+			int32x2_t cutoff = vqadd_s32(basePlusPitch, lfoContrib);
+			cutoff = vmax_s32(cutoff, vdup_n_s32(kCutoffMin));
+			cutoff = vmin_s32(cutoff, vdup_n_s32(kCutoffMax));
+
+			// f = cutoff >> 2
+			int32x2_t f = vshr_n_s32(cutoff, 2);
+
+			// SVF processing:
+			// high = out - svfLow - (svfBand * filterQ * 2) >> 32
+			int32x2_t bandTimesQ = vqdmulh_s32(svfBand, filterQVec);
+			int32x2_t high = vsub_s32(vsub_s32(out, svfLow), bandTimesQ);
+
+			// svfBand += (high * f * 2) >> 32
+			svfBand = vadd_s32(svfBand, vqdmulh_s32(high, f));
+
+			// svfLow += (svfBand * f * 2) >> 32
+			svfLow = vadd_s32(svfLow, vqdmulh_s32(svfBand, f));
+
+			// Store SVF state back
+			s.svfLowL = vget_lane_s32(svfLow, 0);
+			s.svfLowR = vget_lane_s32(svfLow, 1);
+			s.svfBandL = vget_lane_s32(svfBand, 0);
+			s.svfBandR = vget_lane_s32(svfBand, 1);
+
+			// Blend LP/BP/HP: filtered = (low * lowMix + band * bandMix + high * highMix) << 1
+			int32x2_t lowMix = vdup_n_s32(lowMixQ);
+			int32x2_t bandMix = vdup_n_s32(bandMixQ);
+			int32x2_t highMix = vdup_n_s32(highMixQ);
+
+			// vqdmulh gives (a*b*2)>>32, accumulate all three
+			int32x2_t filtered = vqdmulh_s32(svfLow, lowMix);
+			filtered = vadd_s32(filtered, vqdmulh_s32(svfBand, bandMix));
+			filtered = vadd_s32(filtered, vqdmulh_s32(high, highMix));
+
+			outL = vget_lane_s32(filtered, 0);
+			outR = vget_lane_s32(filtered, 1);
+#else
+			// === Scalar fallback for non-NEON platforms ===
+			// Apply envelope scale to raw LFO
+			q31_t lfoScaledL = multiply_32x32_rshift32(lfoL.value, scaleQL) << 1;
+			q31_t lfoScaledR = multiply_32x32_rshift32(lfoR.value, scaleQR) << 1;
+
+			// Compute filter cutoff: base + pitch + LFO contribution
+			q31_t lfoContribL = multiply_32x32_rshift32(lfoScaledL, c.filterModDepth) << 1;
+			q31_t lfoContribR = multiply_32x32_rshift32(lfoScaledR, c.filterModDepth) << 1;
+			q31_t cutoffL = std::clamp(add_saturate(filterBasePlusPitch, lfoContribL), kCutoffMin, kCutoffMax);
+			q31_t cutoffR = std::clamp(add_saturate(filterBasePlusPitch, lfoContribR), kCutoffMin, kCutoffMax);
 
 			// SVF processing (simplified 2-pole)
-			// f = cutoff coefficient (higher = higher frequency)
-			q31_t fL = cutoffL >> 2; // Scale for stability
+			q31_t fL = cutoffL >> 2;
 			q31_t fR = cutoffR >> 2;
-			q31_t q = ONE_Q31 - c.filterResonance;
 
 			// Left channel
-			q31_t highL = outL - params.svfLowL - multiply_32x32_rshift32(params.svfBandL, q);
-			params.svfBandL += multiply_32x32_rshift32(highL, fL) << 1;
-			params.svfLowL += multiply_32x32_rshift32(params.svfBandL, fL) << 1;
+			q31_t highL = outL - s.svfLowL - multiply_32x32_rshift32(s.svfBandL, filterQ);
+			s.svfBandL += multiply_32x32_rshift32(highL, fL) << 1;
+			s.svfLowL += multiply_32x32_rshift32(s.svfBandL, fL) << 1;
 
 			// Right channel
-			q31_t highR = outR - params.svfLowR - multiply_32x32_rshift32(params.svfBandR, q);
-			params.svfBandR += multiply_32x32_rshift32(highR, fR) << 1;
-			params.svfLowR += multiply_32x32_rshift32(params.svfBandR, fR) << 1;
+			q31_t highR = outR - s.svfLowR - multiply_32x32_rshift32(s.svfBandR, filterQ);
+			s.svfBandR += multiply_32x32_rshift32(highR, fR) << 1;
+			s.svfLowR += multiply_32x32_rshift32(s.svfBandR, fR) << 1;
 
-			// Blend LP/BP/HP using buffer-level mix weights (hoisted above loop)
-			q31_t filteredL = multiply_32x32_rshift32(params.svfLowL, lowMixQ)
-			                  + multiply_32x32_rshift32(params.svfBandL, bandMixQ)
+			// Blend LP/BP/HP using buffer-level mix weights
+			q31_t filteredL = multiply_32x32_rshift32(s.svfLowL, lowMixQ)
+			                  + multiply_32x32_rshift32(s.svfBandL, bandMixQ)
 			                  + multiply_32x32_rshift32(highL, highMixQ);
-			q31_t filteredR = multiply_32x32_rshift32(params.svfLowR, lowMixQ)
-			                  + multiply_32x32_rshift32(params.svfBandR, bandMixQ)
+			q31_t filteredR = multiply_32x32_rshift32(s.svfLowR, lowMixQ)
+			                  + multiply_32x32_rshift32(s.svfBandR, bandMixQ)
 			                  + multiply_32x32_rshift32(highR, highMixQ);
 
-			// Scale up (rshift32 reduces amplitude, weights sum to 1.0)
 			outL = filteredL << 1;
 			outR = filteredR << 1;
+#endif
 		}
 
-		// Comb filter (flanger effect) - feedback comb for pronounced resonance
-		// All delay math in 16.16 fixed-point (no float conversions)
-		// LFO values computed at stride boundaries above
-		// Pitch tracking: pitchCombBaseDelay16 scales base delay to track played note
-		// User's relative tuning (e.g., "F+1 octave") transposes with the note
-		// LAZY ALLOCATION: Buffers only allocated when comb effect is first used
-		if (mix.comb > 0.01f && params.hasCombBuffers()) {
+		// Comb filter (flanger effect)
+		if (combEnabled) {
 			constexpr int32_t kCombSize = static_cast<int32_t>(AutomodulatorParams::kCombBufferSize);
 
-			// Pure 32-bit delay calculation (no 64-bit multiply!)
-			// lfo >> 15 gives 16-bit (0-0xFFFF), × modRangeSamples (9-bit) = 25 bits, result is 16.16
-			// Use pitch-tracked base delay for note-relative comb tuning
-			int32_t lfo16L = combLfoValL >> 15;
-			int32_t lfo16R = combLfoValR >> 15;
+			// Delay calculation in 16.16 fixed-point
+			int32_t lfo16L = combLfoL.value >> 15;
+			int32_t lfo16R = combLfoR.value >> 15;
 			int32_t delay16L = pitchCombBaseDelay16 + lfo16L * c.combModRangeSamples;
 			int32_t delay16R = pitchCombBaseDelay16 + lfo16R * c.combModRangeSamples;
 
@@ -1089,7 +1157,7 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			q31_t fracQR = (delay16R & 0xFFFF) << 15;
 
 			// Linear interpolation for smooth delay modulation
-			int32_t combIdx = static_cast<int32_t>(params.combIdx);
+			int32_t combIdx = static_cast<int32_t>(s.combIdx);
 
 			// Read two adjacent samples and interpolate
 			// Use conditional subtraction instead of modulo (cheaper on ARM)
@@ -1119,13 +1187,20 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			q31_t combOutL = sample0L + (multiply_32x32_rshift32(sample1L - sample0L, fracQL) << 1);
 			q31_t combOutR = sample0R + (multiply_32x32_rshift32(sample1R - sample0R, fracQR) << 1);
 
+			// Mono collapse (hoisted check)
+			if (doCombMonoCollapse) {
+				q31_t combMonoOut = (combOutL >> 1) + (combOutR >> 1);
+				combOutL += multiply_32x32_rshift32(combMonoOut - combOutL, c.combMonoCollapseQ) << 1;
+				combOutR += multiply_32x32_rshift32(combMonoOut - combOutR, c.combMonoCollapseQ) << 1;
+			}
+
 			// Feedback comb: write input + scaled delayed back to buffer
 			q31_t feedbackL = multiply_32x32_rshift32(combOutL, c.combFeedback) << 1;
 			q31_t feedbackR = multiply_32x32_rshift32(combOutR, c.combFeedback) << 1;
-			params.combBufferL[params.combIdx] = outL + feedbackL;
-			params.combBufferR[params.combIdx] = outR + feedbackR;
-			if (++params.combIdx >= AutomodulatorParams::kCombBufferSize) {
-				params.combIdx = 0;
+			params.combBufferL[s.combIdx] = outL + feedbackL;
+			params.combBufferR[s.combIdx] = outR + feedbackR;
+			if (++s.combIdx >= AutomodulatorParams::kCombBufferSize) {
+				s.combIdx = 0;
 			}
 
 			// Mix comb output with dry signal
@@ -1133,23 +1208,54 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			outR = outR + (multiply_32x32_rshift32(combOutR, c.combMixQ) << 1);
 		}
 
-		// Tremolo (VCA) - amplitude modulation with phase offset from type
-		// LFO values computed at stride boundaries above
-		if (mix.tremolo > 0.01f) {
-			// Scale to (1-depth) to 1.0 range: e.g. depth=0.8 → volume goes 0.2-1.0
-			// Use saturating add for safety (prevents overflow if LFO drifted out of range)
-			q31_t tremModL = multiply_32x32_rshift32(tremLfoValL, c.tremoloDepthQ) << 1;
-			q31_t tremModR = multiply_32x32_rshift32(tremLfoValR, c.tremoloDepthQ) << 1;
+		// Tremolo (VCA)
+		if (tremEnabled) {
+#if USE_NEON_SVF
+			// NEON vectorized tremolo
+			int32x2_t tremLfo = {tremLfoL.value, tremLfoR.value};
+			int32x2_t depthQ = vdup_n_s32(c.tremoloDepthQ);
+			int32x2_t baseLevel = vdup_n_s32(c.tremoloBaseLevel);
+
+			// tremMod = (lfo * depth * 2) >> 32
+			int32x2_t tremMod = vqdmulh_s32(tremLfo, depthQ);
+			// tremolo = saturate(baseLevel + tremMod)
+			int32x2_t tremolo = vqadd_s32(baseLevel, tremMod);
+			// out = (out * tremolo * 2) >> 32
+			int32x2_t outVec = {outL, outR};
+			outVec = vqdmulh_s32(outVec, tremolo);
+
+			outL = vget_lane_s32(outVec, 0);
+			outR = vget_lane_s32(outVec, 1);
+#else
+			q31_t tremModL = multiply_32x32_rshift32(tremLfoL.value, c.tremoloDepthQ) << 1;
+			q31_t tremModR = multiply_32x32_rshift32(tremLfoR.value, c.tremoloDepthQ) << 1;
 			q31_t tremoloL = add_saturate(c.tremoloBaseLevel, tremModL);
 			q31_t tremoloR = add_saturate(c.tremoloBaseLevel, tremModR);
 
 			outL = multiply_32x32_rshift32(outL, tremoloL) << 1;
 			outR = multiply_32x32_rshift32(outR, tremoloR) << 1;
+#endif
 		}
 
 		sample.l = outL;
 		sample.r = outR;
 
+#if USE_NEON_SVF
+		// NEON vectorized LFO increment (4 at a time, then 2)
+		int32x4_t lfoVals = {lfoL.value, lfoR.value, combLfoL.value, combLfoR.value};
+		int32x4_t lfoDeltas = {lfoL.delta, lfoR.delta, combLfoL.delta, combLfoR.delta};
+		lfoVals = vqaddq_s32(lfoVals, lfoDeltas);
+		lfoL.value = vgetq_lane_s32(lfoVals, 0);
+		lfoR.value = vgetq_lane_s32(lfoVals, 1);
+		combLfoL.value = vgetq_lane_s32(lfoVals, 2);
+		combLfoR.value = vgetq_lane_s32(lfoVals, 3);
+
+		int32x2_t tremVals = {tremLfoL.value, tremLfoR.value};
+		int32x2_t tremDeltas = {tremLfoL.delta, tremLfoR.delta};
+		tremVals = vqadd_s32(tremVals, tremDeltas);
+		tremLfoL.value = vget_lane_s32(tremVals, 0);
+		tremLfoR.value = vget_lane_s32(tremVals, 1);
+#else
 		// Increment LFO values using saturating add to prevent overflow
 		// qadd saturates to signed q31 range - allows small negative drift that self-corrects
 		lfoL.value = add_saturate(lfoL.value, lfoL.delta);
@@ -1158,15 +1264,16 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		combLfoR.value = add_saturate(combLfoR.value, combLfoR.delta);
 		tremLfoL.value = add_saturate(tremLfoL.value, tremLfoL.delta);
 		tremLfoR.value = add_saturate(tremLfoR.value, tremLfoR.delta);
+#endif
 	}
 
 	// Write back accumulated LFO values for next buffer
-	params.lfoIirL.value = lfoL.value;
-	params.lfoIirR.value = lfoR.value;
-	params.combLfoIirL.value = combLfoL.value;
-	params.combLfoIirR.value = combLfoR.value;
-	params.tremLfoIirL.value = tremLfoL.value;
-	params.tremLfoIirR.value = tremLfoR.value;
+	s.lfoIirL.value = lfoL.value;
+	s.lfoIirR.value = lfoR.value;
+	s.combLfoIirL.value = combLfoL.value;
+	s.combLfoIirR.value = combLfoR.value;
+	s.tremLfoIirL.value = tremLfoL.value;
+	s.tremLfoIirR.value = tremLfoR.value;
 
 #if ENABLE_FX_BENCHMARK
 	if (doBench) {

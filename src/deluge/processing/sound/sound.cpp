@@ -1654,16 +1654,20 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 					envelopePositions[e] = (*voiceToReuse)->envelopes[e].lastValue;
 				}
 				// Reset automod LFO phase for note retrigger - initial phase from phi triangle
-				float effectiveModPhase = automod.modPhaseOffset + automod.gammaPhase;
-				automod.lfoPhase = dsp::getLfoInitialPhaseFromMod(automod.mod, effectiveModPhase);
+				if (automod.isEnabled() && automod.dspState != nullptr) {
+					float effectiveModPhase = automod.modPhaseOffset + automod.gammaPhase;
+					automod.dspState->lfoPhase = dsp::getLfoInitialPhaseFromMod(automod.mod, effectiveModPhase);
+				}
 			}
 			else {
 				// Since we potentially just added a voice where there were none before...
 				reassessRenderSkippingStatus(modelStack);
 				voice->randomizeOscPhases(*this);
 				// Reset automod LFO phase for note retrigger - initial phase from phi triangle
-				float effectiveModPhase = automod.modPhaseOffset + automod.gammaPhase;
-				automod.lfoPhase = dsp::getLfoInitialPhaseFromMod(automod.mod, effectiveModPhase);
+				if (automod.isEnabled() && automod.dspState != nullptr) {
+					float effectiveModPhase = automod.modPhaseOffset + automod.gammaPhase;
+					automod.dspState->lfoPhase = dsp::getLfoInitialPhaseFromMod(automod.mod, effectiveModPhase);
+				}
 			}
 
 			if (sideChainSendLevel != 0) [[unlikely]] {
@@ -2604,14 +2608,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::ModFXPostDOTT) == RuntimeFeatureStateToggle::On;
 	bool dottEnabled = multibandCompressor.isEnabled();
 
-	// Default order: ModFX → Stutter → DOTT → Reverb
-	// With ModFXPostDOTT: Stutter → DOTT → ModFX → Reverb
-	if (!modFXPostDOTT) {
-		processFX(sound_stereo, modFXType_, modFXRate, modFXDepth, delayWorkingState, &postFXVolume, paramManager,
-		          !voices_.empty(), reverbSendAmount >> 1);
-	}
-
-	// Automodulator processing (before stutter)
+	// Automodulator processing (pre-delay, pre-modFX)
 	if (automod.isEnabled()) {
 		// Use paramFinalValues for modulated macro value (GLOBAL param supports mod matrix)
 		q31_t automodMacro = paramFinalValues[params::GLOBAL_AUTOMOD_MACRO - params::FIRST_GLOBAL];
@@ -2622,6 +2619,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// Pass lastNoteCode for pitch tracking (filter/comb track played note)
 		deluge::dsp::processAutomodulator(sound_stereo, automod, automodMacro, true, voiceCount, timePerTickInv,
 		                                  lastNoteCode);
+	}
+
+	// Default order: Automodulator → ModFX → Stutter → DOTT → Reverb
+	// With ModFXPostDOTT: Automodulator → Stutter → DOTT → ModFX → Reverb
+	if (!modFXPostDOTT) {
+		processFX(sound_stereo, modFXType_, modFXRate, modFXDepth, delayWorkingState, &postFXVolume, paramManager,
+		          !voices_.empty(), reverbSendAmount >> 1);
 	}
 
 	// Scatter modulation support: pass modulated values from paramFinalValues

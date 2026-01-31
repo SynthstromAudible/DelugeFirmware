@@ -358,83 +358,22 @@ struct AutomodPhiCache {
 	q31_t stereoRateScaleQ{ONE_Q31};
 };
 
-/// Automodulator parameters and DSP state (stored per-Sound)
-struct AutomodulatorParams {
-	// === Rule of 5: Proper resource management for dynamically allocated comb buffers ===
-
-	/// Default constructor - explicitly initialize pointers to prevent garbage values
-	/// even if placed in uninitialized memory
-	AutomodulatorParams() : combBufferL(nullptr), combBufferR(nullptr) {}
-
-	~AutomodulatorParams() { deallocateCombBuffers(); }
-
-	// Delete copy operations - use cloneFrom() for explicit copying
-	AutomodulatorParams(const AutomodulatorParams&) = delete;
-	AutomodulatorParams& operator=(const AutomodulatorParams&) = delete;
-
-	// Move operations transfer buffer ownership
-	AutomodulatorParams(AutomodulatorParams&& other) noexcept { moveFrom(other); }
-	AutomodulatorParams& operator=(AutomodulatorParams&& other) noexcept {
-		if (this != &other) {
-			deallocateCombBuffers();
-			moveFrom(other);
-		}
-		return *this;
-	}
-
-	/// Clone params from another instance (for preset switching, etc.)
-	/// Copies all params but does NOT copy comb buffers - they'll be lazy-allocated if needed
-	void cloneFrom(const AutomodulatorParams& other) {
-		// Copy menu params
-		type = other.type;
-		flavor = other.flavor;
-		mod = other.mod;
-		typePhaseOffset = other.typePhaseOffset;
-		flavorPhaseOffset = other.flavorPhaseOffset;
-		modPhaseOffset = other.modPhaseOffset;
-		gammaPhase = other.gammaPhase;
-		// Invalidate cache to force recomputation
-		invalidateCache();
-		// Reset DSP state (don't copy - let it reinitialize fresh)
-		resetState();
-	}
-
-	// Menu params (stored/loaded)
-	uint16_t type{0};   // 0=OFF, 1-1023 = DSP topology blend (8 zones)
-	uint16_t flavor{0}; // 0-1023, routing zones (8 zones)
-	uint16_t mod{0};    // 0-1023, rate/phase zones (8 zones)
-
-	// Phase offsets (secret knob on each zone) for phi triangle evaluation
-	float typePhaseOffset{0};
-	float flavorPhaseOffset{0};
-	float modPhaseOffset{0};
-
-	// Global gamma (secret knob on macro) - multiplier for all phase offsets
-	float gammaPhase{0};
-
-	// Cache invalidation: previous values (initialized to invalid to force first compute)
-	uint16_t prevType{0xFFFF};
-	uint16_t prevFlavor{0xFFFF};
-	uint16_t prevMod{0xFFFF};
-	float prevGammaPhase{-999.0f};
-	float prevTypePhaseOffset{-999.0f};
-	float prevFlavorPhaseOffset{-999.0f};
-	float prevModPhaseOffset{-999.0f};
-	uint32_t prevTimePerTickInverse{0xFFFFFFFF};
-
-	// Cached phi triangle results
-	AutomodPhiCache cache;
-
-	// DSP state (runtime, not saved)
-	uint8_t lastVoiceCount{0};
+/// DSP runtime state for automodulator - lazily allocated when effect becomes active
+/// This keeps the per-Sound footprint minimal when automod is disabled
+struct AutomodDspState {
+	// SVF filter state
 	q31_t svfLowL{0};
 	q31_t svfBandL{0};
 	q31_t svfLowR{0};
 	q31_t svfBandR{0};
+
+	// Envelope follower state
 	q31_t envStateL{0};
 	q31_t envStateR{0};
 	q31_t envDerivStateL{0};
 	q31_t envDerivStateR{0};
+
+	// LFO phase accumulator
 	uint32_t lfoPhase{0};
 
 	// Smoothed modulation state
@@ -455,12 +394,12 @@ struct AutomodulatorParams {
 	q31_t smoothedTremLfoL{0};
 	q31_t smoothedTremLfoR{0};
 
-	// Pitch tracking cache (avoid recomputing fastPow2 every buffer)
-	int32_t prevNoteCode{-2};             // -2 = never computed (different from -1 = no note)
+	// Pitch tracking cache
+	int32_t prevNoteCode{-2};             // -2 = never computed
 	q31_t cachedPitchCutoffOffset{0};     // Filter cutoff pitch adjustment
-	int32_t cachedPitchRatioQ16{1 << 16}; // Comb delay multiplier in 16.16 fixed (1.0 = 0x10000)
+	int32_t cachedPitchRatioQ16{1 << 16}; // Comb delay multiplier in 16.16 fixed
 
-	// LFO IIR state (linear stepping through segments - avoids wavetable eval per buffer)
+	// LFO IIR state (6 channels)
 	LfoIirState lfoIirL{};
 	LfoIirState lfoIirR{};
 	LfoIirState combLfoIirL{};
@@ -468,17 +407,116 @@ struct AutomodulatorParams {
 	LfoIirState tremLfoIirL{};
 	LfoIirState tremLfoIirR{};
 
-	// Comb filter state - LAZILY ALLOCATED
+	// Comb filter write index
+	uint16_t combIdx{0};
+};
+
+/// Automodulator parameters and DSP state (stored per-Sound)
+/// Uses lazy allocation: cache and dspState are only allocated when effect is active
+/// When disabled (type=0), footprint is ~50 bytes instead of ~700 bytes
+struct AutomodulatorParams {
+	// === Rule of 5: Proper resource management for dynamically allocated state ===
+
+	/// Default constructor - all pointers explicitly nullptr
+	AutomodulatorParams() : cache(nullptr), dspState(nullptr), combBufferL(nullptr), combBufferR(nullptr) {}
+
+	~AutomodulatorParams() { deallocateAll(); }
+
+	// Delete copy operations - use cloneFrom() for explicit copying
+	AutomodulatorParams(const AutomodulatorParams&) = delete;
+	AutomodulatorParams& operator=(const AutomodulatorParams&) = delete;
+
+	// Move operations transfer ownership
+	AutomodulatorParams(AutomodulatorParams&& other) noexcept { moveFrom(other); }
+	AutomodulatorParams& operator=(AutomodulatorParams&& other) noexcept {
+		if (this != &other) {
+			deallocateAll();
+			moveFrom(other);
+		}
+		return *this;
+	}
+
+	/// Clone params from another instance (for preset switching, etc.)
+	/// Copies menu params only - state is deallocated and will be re-allocated on use
+	void cloneFrom(const AutomodulatorParams& other) {
+		// Copy menu params
+		type = other.type;
+		flavor = other.flavor;
+		mod = other.mod;
+		typePhaseOffset = other.typePhaseOffset;
+		flavorPhaseOffset = other.flavorPhaseOffset;
+		modPhaseOffset = other.modPhaseOffset;
+		gammaPhase = other.gammaPhase;
+		// Deallocate existing state - will be re-allocated on first use
+		deallocateAll();
+		// Invalidate cache tracking
+		invalidateCacheTracking();
+	}
+
+	// Menu params (stored/loaded) - always present
+	uint16_t type{0};   // 0=OFF, 1-1023 = DSP topology blend (8 zones)
+	uint16_t flavor{0}; // 0-1023, routing zones (8 zones)
+	uint16_t mod{0};    // 0-1023, rate/phase zones (8 zones)
+
+	// Phase offsets (secret knob on each zone) for phi triangle evaluation
+	float typePhaseOffset{0};
+	float flavorPhaseOffset{0};
+	float modPhaseOffset{0};
+
+	// Global gamma (secret knob on macro) - multiplier for all phase offsets
+	float gammaPhase{0};
+
+	// Cache invalidation tracking (to detect when cache needs recomputation)
+	uint16_t prevType{0xFFFF};
+	uint16_t prevFlavor{0xFFFF};
+	uint16_t prevMod{0xFFFF};
+	float prevGammaPhase{-999.0f};
+	float prevTypePhaseOffset{-999.0f};
+	float prevFlavorPhaseOffset{-999.0f};
+	float prevModPhaseOffset{-999.0f};
+	uint32_t prevTimePerTickInverse{0xFFFFFFFF};
+
+	// Voice count tracking (for note retrigger)
+	uint8_t lastVoiceCount{0};
+
+	// === LAZILY ALLOCATED POINTERS ===
+	// These are only allocated when the effect is active (type > 0)
+	AutomodPhiCache* cache{nullptr};    // ~400 bytes when allocated
+	AutomodDspState* dspState{nullptr}; // ~200 bytes when allocated
+
+	// Comb filter buffers - allocated separately (even larger)
 	static constexpr size_t kCombBufferSize = 768;
 	q31_t* combBufferL{nullptr};
 	q31_t* combBufferR{nullptr};
-	uint16_t combIdx{0};
 
 	/// Check if automodulator is enabled
 	[[nodiscard]] bool isEnabled() const { return type > 0; }
 
+	/// Check if state is allocated (cache and dspState)
+	[[nodiscard]] bool hasState() const { return cache != nullptr && dspState != nullptr; }
+
 	/// Check if comb buffers are allocated
 	[[nodiscard]] bool hasCombBuffers() const { return combBufferL != nullptr; }
+
+	/// Ensure cache and dspState are allocated (called when effect becomes active)
+	/// Returns false if allocation fails
+	bool ensureStateAllocated() {
+		if (cache == nullptr) {
+			void* mem = delugeAlloc(sizeof(AutomodPhiCache), true);
+			if (mem == nullptr) {
+				return false;
+			}
+			cache = new (mem) AutomodPhiCache();
+		}
+		if (dspState == nullptr) {
+			void* mem = delugeAlloc(sizeof(AutomodDspState), true);
+			if (mem == nullptr) {
+				return false;
+			}
+			dspState = new (mem) AutomodDspState();
+		}
+		return true;
+	}
 
 	/// Allocate comb buffers (called when comb effect is first used)
 	bool allocateCombBuffers() {
@@ -497,11 +535,13 @@ struct AutomodulatorParams {
 		}
 		std::memset(combBufferL, 0, kCombBufferSize * sizeof(q31_t));
 		std::memset(combBufferR, 0, kCombBufferSize * sizeof(q31_t));
-		combIdx = 0;
+		if (dspState != nullptr) {
+			dspState->combIdx = 0;
+		}
 		return true;
 	}
 
-	/// Deallocate comb buffers
+	/// Deallocate comb buffers only
 	void deallocateCombBuffers() {
 		if (combBufferL != nullptr) {
 			delugeDealloc(combBufferL);
@@ -511,12 +551,27 @@ struct AutomodulatorParams {
 			delugeDealloc(combBufferR);
 			combBufferR = nullptr;
 		}
-		combIdx = 0;
+	}
+
+	/// Deallocate all lazily-allocated state
+	void deallocateAll() {
+		deallocateCombBuffers();
+		if (dspState != nullptr) {
+			dspState->~AutomodDspState();
+			delugeDealloc(dspState);
+			dspState = nullptr;
+		}
+		if (cache != nullptr) {
+			cache->~AutomodPhiCache();
+			delugeDealloc(cache);
+			cache = nullptr;
+		}
 	}
 
 private:
-	/// Move all data from another instance
+	/// Move all data from another instance (transfers pointer ownership)
 	void moveFrom(AutomodulatorParams& other) noexcept {
+		// Copy menu params
 		type = other.type;
 		flavor = other.flavor;
 		mod = other.mod;
@@ -524,6 +579,8 @@ private:
 		flavorPhaseOffset = other.flavorPhaseOffset;
 		modPhaseOffset = other.modPhaseOffset;
 		gammaPhase = other.gammaPhase;
+
+		// Copy cache tracking
 		prevType = other.prevType;
 		prevFlavor = other.prevFlavor;
 		prevMod = other.prevMod;
@@ -532,48 +589,19 @@ private:
 		prevFlavorPhaseOffset = other.prevFlavorPhaseOffset;
 		prevModPhaseOffset = other.prevModPhaseOffset;
 		prevTimePerTickInverse = other.prevTimePerTickInverse;
-		cache = other.cache;
 		lastVoiceCount = other.lastVoiceCount;
-		svfLowL = other.svfLowL;
-		svfBandL = other.svfBandL;
-		svfLowR = other.svfLowR;
-		svfBandR = other.svfBandR;
-		envStateL = other.envStateL;
-		envStateR = other.envStateR;
-		envDerivStateL = other.envDerivStateL;
-		envDerivStateR = other.envDerivStateR;
-		lfoPhase = other.lfoPhase;
-		smoothedScaleL = other.smoothedScaleL;
-		smoothedScaleR = other.smoothedScaleR;
-		smoothedPhasePushL = other.smoothedPhasePushL;
-		smoothedPhasePushR = other.smoothedPhasePushR;
-		smoothedStereoOffset = other.smoothedStereoOffset;
-		smoothedLowMixQ = other.smoothedLowMixQ;
-		smoothedBandMixQ = other.smoothedBandMixQ;
-		smoothedHighMixQ = other.smoothedHighMixQ;
-		smoothedLfoL = other.smoothedLfoL;
-		smoothedLfoR = other.smoothedLfoR;
-		smoothedCombLfoL = other.smoothedCombLfoL;
-		smoothedCombLfoR = other.smoothedCombLfoR;
-		smoothedTremLfoL = other.smoothedTremLfoL;
-		smoothedTremLfoR = other.smoothedTremLfoR;
-		prevNoteCode = other.prevNoteCode;
-		cachedPitchCutoffOffset = other.cachedPitchCutoffOffset;
-		cachedPitchRatioQ16 = other.cachedPitchRatioQ16;
-		lfoIirL = other.lfoIirL;
-		lfoIirR = other.lfoIirR;
-		combLfoIirL = other.combLfoIirL;
-		combLfoIirR = other.combLfoIirR;
-		tremLfoIirL = other.tremLfoIirL;
-		tremLfoIirR = other.tremLfoIirR;
-		combIdx = other.combIdx;
 
-		// Transfer buffer ownership
+		// Transfer pointer ownership
+		cache = other.cache;
+		dspState = other.dspState;
 		combBufferL = other.combBufferL;
 		combBufferR = other.combBufferR;
+
+		// Clear source pointers
+		other.cache = nullptr;
+		other.dspState = nullptr;
 		other.combBufferL = nullptr;
 		other.combBufferR = nullptr;
-		other.combIdx = 0;
 	}
 
 public:
@@ -584,40 +612,28 @@ public:
 		        || modPhaseOffset != prevModPhaseOffset || timePerTickInverse != prevTimePerTickInverse);
 	}
 
-	/// Reset DSP state
+	/// Reset DSP state (if allocated)
 	void resetState() {
-		svfLowL = svfBandL = svfLowR = svfBandR = 0;
-		envStateL = envStateR = 0;
-		envDerivStateL = envDerivStateR = 0;
-		lfoPhase = 0;
-		smoothedScaleL = smoothedScaleR = 0;
-		smoothedPhasePushL = smoothedPhasePushR = 0;
-		smoothedStereoOffset = 0;
-		smoothedLowMixQ = smoothedBandMixQ = smoothedHighMixQ = 0;
-		smoothedLfoL = smoothedLfoR = 0;
-		smoothedCombLfoL = smoothedCombLfoR = 0;
-		smoothedTremLfoL = smoothedTremLfoR = 0;
-		prevNoteCode = -2; // Force recomputation
-		cachedPitchCutoffOffset = 0;
-		cachedPitchRatioQ16 = 1 << 16;
-		// Reset LFO IIR states
-		lfoIirL = lfoIirR = {};
-		combLfoIirL = combLfoIirR = {};
-		tremLfoIirL = tremLfoIirR = {};
-		combIdx = 0;
+		if (dspState != nullptr) {
+			*dspState = AutomodDspState{}; // Reset to defaults
+		}
+		// Clear comb buffers if allocated
 		if (combBufferL != nullptr && combBufferR != nullptr) {
-			for (size_t i = 0; i < kCombBufferSize; ++i) {
-				combBufferL[i] = combBufferR[i] = 0;
-			}
+			std::memset(combBufferL, 0, kCombBufferSize * sizeof(q31_t));
+			std::memset(combBufferR, 0, kCombBufferSize * sizeof(q31_t));
 		}
 	}
 
-	/// Invalidate cache
-	void invalidateCache() {
+	/// Invalidate cache tracking (forces recomputation on next use)
+	void invalidateCacheTracking() {
 		prevType = 0xFFFF;
 		prevFlavor = 0xFFFF;
 		prevMod = 0xFFFF;
 		prevGammaPhase = -999.0f;
+		prevTypePhaseOffset = -999.0f;
+		prevFlavorPhaseOffset = -999.0f;
+		prevModPhaseOffset = -999.0f;
+		prevTimePerTickInverse = 0xFFFFFFFF;
 	}
 };
 
