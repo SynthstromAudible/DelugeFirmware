@@ -102,6 +102,15 @@ public:
 		}
 	}
 
+	// Auto-wrap support: uses per-knob zoneAPhaseOffset
+	[[nodiscard]] bool supportsAutoWrap() const override { return true; }
+	[[nodiscard]] float getPhaseOffset() const override {
+		return soundEditor.currentModControllable->stutterConfig.zoneAPhaseOffset;
+	}
+	void setPhaseOffset(float offset) override {
+		soundEditor.currentModControllable->stutterConfig.zoneAPhaseOffset = offset;
+	}
+
 	void selectEncoderAction(int32_t offset) override {
 		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 			// Secret menu: adjust zoneAPhaseOffset
@@ -116,6 +125,7 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
+			// Use base class auto-wrap (uses zoneAPhaseOffset via virtual methods)
 			ZoneBasedDualParam::selectEncoderAction(offset);
 		}
 	}
@@ -238,6 +248,15 @@ public:
 		}
 	}
 
+	// Auto-wrap support: uses per-knob zoneBPhaseOffset
+	[[nodiscard]] bool supportsAutoWrap() const override { return true; }
+	[[nodiscard]] float getPhaseOffset() const override {
+		return soundEditor.currentModControllable->stutterConfig.zoneBPhaseOffset;
+	}
+	void setPhaseOffset(float offset) override {
+		soundEditor.currentModControllable->stutterConfig.zoneBPhaseOffset = offset;
+	}
+
 	void selectEncoderAction(int32_t offset) override {
 		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 			// Secret menu: adjust zoneBPhaseOffset
@@ -252,6 +271,7 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
+			// Use base class auto-wrap (uses zoneBPhaseOffset via virtual methods)
 			ZoneBasedDualParam::selectEncoderAction(offset);
 		}
 	}

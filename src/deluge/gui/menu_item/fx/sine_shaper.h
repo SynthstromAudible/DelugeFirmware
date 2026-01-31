@@ -184,6 +184,7 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
+			// Harmonic zones are topology-bound, so clamp at boundaries (no wrap)
 			ZoneBasedDualParam::selectEncoderAction(offset);
 		}
 	}
@@ -240,6 +241,15 @@ public:
 		}
 	}
 
+	// Auto-wrap support: uses per-knob twistPhaseOffset
+	[[nodiscard]] bool supportsAutoWrap() const override { return true; }
+	[[nodiscard]] float getPhaseOffset() const override {
+		return soundEditor.currentModControllable->sineShaper.twistPhaseOffset;
+	}
+	void setPhaseOffset(float offset) override {
+		soundEditor.currentModControllable->sineShaper.twistPhaseOffset = offset;
+	}
+
 	void selectEncoderAction(int32_t offset) override {
 		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 			// Secret menu: adjust twistPhaseOffset (same scale as gammaPhase for consistency)
@@ -253,6 +263,7 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
+			// Use base class auto-wrap (uses twistPhaseOffset via virtual methods)
 			ZoneBasedDualParam::selectEncoderAction(offset);
 		}
 	}

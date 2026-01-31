@@ -152,6 +152,7 @@ private:
 
 // Shape Y (UI: "Color"): Sweeps through saturation characters
 // Secret menu: Push+twist to adjust shaper.gammaPhase
+// Auto-wrap mode: wraps at boundaries and auto-adjusts per-knob shapeYPhaseOffset
 class TableShaperShapeY final : public IntegerWithOff {
 public:
 	using IntegerWithOff::IntegerWithOff;
@@ -204,7 +205,38 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
-			IntegerWithOff::selectEncoderAction(velocity_.getScaledOffset(offset));
+			// Auto-wrap mode: wraps at boundaries and auto-adjusts per-knob shapeYPhaseOffset
+			int32_t scaledOffset = velocity_.getScaledOffset(offset);
+			int32_t newValue = this->getValue() + scaledOffset;
+			auto* mca = soundEditor.currentModControllable;
+			float& phaseOffset = mca->shaper.shapeYPhaseOffset;
+
+			if (newValue > kShaperHighResSteps - 1) {
+				// Wrap past max: go to start and increment per-knob phase offset
+				this->setValue(newValue - kShaperHighResSteps);
+				phaseOffset += 1.0f;
+			}
+			else if (newValue < 0) {
+				// Wrap past min: go to end and decrement per-knob phase offset (floor at 0)
+				if (phaseOffset >= 1.0f) {
+					this->setValue(newValue + kShaperHighResSteps);
+					phaseOffset -= 1.0f;
+				}
+				else {
+					// At phaseOffset=0, clamp at min (can't go negative)
+					this->setValue(0);
+				}
+			}
+			else {
+				this->setValue(newValue);
+			}
+			this->writeCurrentValue();
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				this->drawValue();
+			}
 		}
 	}
 
@@ -217,10 +249,10 @@ public:
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		float gammaPhase = soundEditor.currentModControllable->shaper.gammaPhase;
-		if (gammaPhase != 0.0f) {
-			// When secret knob is engaged, show "~N" with zone visual indicator
-			cacheTwistNum(gammaPhase, this->getValue());
+		float phaseOffset = effectivePhaseOffset();
+		if (phaseOffset != 0.0f) {
+			// When phase offset is engaged, show "P:Z" with zone visual indicator
+			cacheTwistNum(phaseOffset, this->getValue());
 			renderZoneInHorizontalMenu(slot, this->getValue(), kShaperHighResSteps, kShaperNumZones, getTwistName);
 		}
 		else {
@@ -230,10 +262,10 @@ public:
 
 protected:
 	void drawPixelsForOled() override {
-		float gammaPhase = soundEditor.currentModControllable->shaper.gammaPhase;
-		if (gammaPhase != 0.0f) {
-			// When secret knob is engaged, show "~N" with zone visual indicator
-			cacheTwistNum(gammaPhase, this->getValue());
+		float phaseOffset = effectivePhaseOffset();
+		if (phaseOffset != 0.0f) {
+			// When phase offset is engaged, show coordinates
+			cacheTwistNum(phaseOffset, this->getValue());
 			drawZoneForOled(this->getValue(), kShaperHighResSteps, kShaperNumZones, getTwistName);
 		}
 		else {
@@ -244,6 +276,13 @@ protected:
 private:
 	mutable VelocityEncoder velocity_;
 	mutable bool suppressNotification_ = false;
+
+	/// Effective phase offset: shapeYPhaseOffset + gammaPhase
+	/// When > 0, zones show numeric coordinates
+	[[nodiscard]] float effectivePhaseOffset() const {
+		auto& shaper = soundEditor.currentModControllable->shaper;
+		return shaper.shapeYPhaseOffset + shaper.gammaPhase;
+	}
 
 	// Static storage for twist display (used by getTwistName callback)
 	static inline char twistBuffer_[12] = {};

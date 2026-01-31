@@ -95,11 +95,16 @@ inline q31_t zoneMenuValueToParam(int32_t menuValue) {
  * - Configurable resolution with velocity-sensitive encoder
  * - Zone name rendering (OLED and horizontal menu)
  * - Common display value scaling (0-50)
+ * - Optional auto-wrap mode: when turning past zone boundaries, wraps and adjusts phase offset
  *
  * Derived classes must implement:
  * - readCurrentValue() / writeCurrentValue() for storage
  * - getZoneName(int32_t) for zone labels
  * - isRelevant() if gating is needed
+ *
+ * For auto-wrap support, derived classes should also implement:
+ * - supportsAutoWrap() returning true
+ * - getPhaseOffset() / setPhaseOffset() for per-knob phase offset
  *
  * @tparam NUM_ZONES Number of zones (typically 8)
  * @tparam RESOLUTION Encoder steps (typically 1024 for zone params)
@@ -115,6 +120,17 @@ public:
 	/// Override to provide 2-char abbreviation for 7-segment display (default: first 2 chars of zone name)
 	[[nodiscard]] virtual const char* getShortZoneName(int32_t zoneIndex) const { return getZoneName(zoneIndex); }
 
+	/// Override to enable auto-wrap mode for this zone param
+	/// When true, turning past boundaries wraps and adjusts per-knob phase offset
+	[[nodiscard]] virtual bool supportsAutoWrap() const { return false; }
+
+	/// Override to get per-knob phase offset (used by auto-wrap)
+	/// Scale: 1.0 = one full zone cycle (RESOLUTION steps)
+	[[nodiscard]] virtual float getPhaseOffset() const { return 0.0f; }
+
+	/// Override to set per-knob phase offset (used by auto-wrap)
+	virtual void setPhaseOffset([[maybe_unused]] float offset) {}
+
 	[[nodiscard]] int32_t getMaxValue() const override { return RESOLUTION; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return KNOB; }
@@ -123,7 +139,43 @@ public:
 	[[nodiscard]] float getDisplayValue() override { return (this->getValue() * 50.0f) / RESOLUTION; }
 
 	void selectEncoderAction(int32_t offset) override {
-		DecimalWithoutScrolling::selectEncoderAction(velocity_.getScaledOffset(offset));
+		if (supportsAutoWrap()) {
+			// Auto-wrap mode: wraps at boundaries and auto-adjusts per-knob phase offset
+			int32_t scaledOffset = velocity_.getScaledOffset(offset);
+			int32_t newValue = this->getValue() + scaledOffset;
+			float phaseOffset = getPhaseOffset();
+
+			if (newValue > RESOLUTION) {
+				// Wrap past max: go to start and increment phase offset
+				this->setValue(newValue - RESOLUTION);
+				setPhaseOffset(phaseOffset + 1.0f);
+			}
+			else if (newValue < 0) {
+				// Wrap past min: go to end and decrement phase offset (floor at 0)
+				if (phaseOffset >= 1.0f) {
+					this->setValue(newValue + RESOLUTION);
+					setPhaseOffset(phaseOffset - 1.0f);
+				}
+				else {
+					// At phaseOffset=0, clamp at min (can't go negative)
+					this->setValue(0);
+				}
+			}
+			else {
+				this->setValue(newValue);
+			}
+			this->writeCurrentValue();
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				this->drawValue();
+			}
+		}
+		else {
+			// Standard clamped mode
+			DecimalWithoutScrolling::selectEncoderAction(velocity_.getScaledOffset(offset));
+		}
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
@@ -262,6 +314,17 @@ public:
 	/// Default does nothing - override if you have a separate field to sync
 	virtual void setFieldValue([[maybe_unused]] q31_t value) {}
 
+	/// Override to enable auto-wrap mode for this zone param
+	/// When true, turning past boundaries wraps and adjusts per-knob phase offset
+	[[nodiscard]] virtual bool supportsAutoWrap() const { return false; }
+
+	/// Override to get per-knob phase offset (used by auto-wrap)
+	/// Scale: 1.0 = one full zone cycle (RESOLUTION steps)
+	[[nodiscard]] virtual float getPhaseOffset() const { return 0.0f; }
+
+	/// Override to set per-knob phase offset (used by auto-wrap)
+	virtual void setPhaseOffset([[maybe_unused]] float offset) {}
+
 	[[nodiscard]] int32_t getMaxValue() const override { return RESOLUTION; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return KNOB; }
@@ -270,7 +333,43 @@ public:
 	[[nodiscard]] float getDisplayValue() override { return (this->getValue() * 50.0f) / RESOLUTION; }
 
 	void selectEncoderAction(int32_t offset) override {
-		DecimalWithoutScrolling::selectEncoderAction(velocity_.getScaledOffset(offset));
+		if (supportsAutoWrap()) {
+			// Auto-wrap mode: wraps at boundaries and auto-adjusts per-knob phase offset
+			int32_t scaledOffset = velocity_.getScaledOffset(offset);
+			int32_t newValue = this->getValue() + scaledOffset;
+			float phaseOffset = getPhaseOffset();
+
+			if (newValue > RESOLUTION) {
+				// Wrap past max: go to start and increment phase offset
+				this->setValue(newValue - RESOLUTION);
+				setPhaseOffset(phaseOffset + 1.0f);
+			}
+			else if (newValue < 0) {
+				// Wrap past min: go to end and decrement phase offset (floor at 0)
+				if (phaseOffset >= 1.0f) {
+					this->setValue(newValue + RESOLUTION);
+					setPhaseOffset(phaseOffset - 1.0f);
+				}
+				else {
+					// At phaseOffset=0, clamp at min (can't go negative)
+					this->setValue(0);
+				}
+			}
+			else {
+				this->setValue(newValue);
+			}
+			this->writeCurrentValue();
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				this->drawValue();
+			}
+		}
+		else {
+			// Standard clamped mode
+			DecimalWithoutScrolling::selectEncoderAction(velocity_.getScaledOffset(offset));
+		}
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {

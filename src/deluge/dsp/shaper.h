@@ -49,7 +49,8 @@ struct TableShaperState {
 	uint8_t shapeX{0};             // Soft→Hard axis (0-127, "Knee")
 	uint16_t shapeY{0};            // Clean→Weird axis (0-1023, high-res multi-zone, "Color")
 	bool aa{false};                // Anti-aliasing enabled (default off, reserved for future use)
-	float gammaPhase{0.0f};        // Gamma phase for phi triangles (secret knob, 0 = LPF/hyst/sub disabled)
+	float gammaPhase{0.0f};        // Gamma phase for phi triangles (secret knob via Mix push+twist)
+	float shapeYPhaseOffset{0.0f}; // Per-knob phase offset for Y auto-wrap (1.0 = one full cycle)
 	float oscHarmonicWeight{0.5f}; // Oscillator harmonic content [0-1]: 0=sine, 0.5=saw, 1=square
 
 	// DSP smoothing state (stores last per-buffer target values)
@@ -123,6 +124,7 @@ struct TableShaperState {
 			storage::writeAttributeInt(writer, "tableShaperAA", 1);
 		}
 		WRITE_FLOAT(writer, gammaPhase, "tableShaperPhase", 10.0f);
+		WRITE_FLOAT(writer, shapeYPhaseOffset, "tableShaperYPhase", 10.0f);
 		// Secret params (push+twist modifiers)
 		WRITE_FIELD(writer, extrasMask, "tableShaperExtras");
 		WRITE_FLOAT(writer, oscHarmonicWeight, "tableShaperHarmonic", 100.0f);
@@ -137,6 +139,7 @@ struct TableShaperState {
 			return true;
 		}
 		READ_FLOAT(reader, tagName, gammaPhase, "tableShaperPhase", 10.0f);
+		READ_FLOAT(reader, tagName, shapeYPhaseOffset, "tableShaperYPhase", 10.0f);
 		// Secret params (push+twist modifiers)
 		READ_FIELD(reader, tagName, extrasMask, "tableShaperExtras");
 		READ_FLOAT(reader, tagName, oscHarmonicWeight, "tableShaperHarmonic", 100.0f);
