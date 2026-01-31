@@ -241,6 +241,15 @@ public:
 		}
 	}
 
+	// Auto-wrap support: uses per-knob twistPhaseOffset
+	[[nodiscard]] bool supportsAutoWrap() const override { return true; }
+	[[nodiscard]] float getPhaseOffset() const override {
+		return soundEditor.currentModControllable->sineShaper.twistPhaseOffset;
+	}
+	void setPhaseOffset(float offset) override {
+		soundEditor.currentModControllable->sineShaper.twistPhaseOffset = offset;
+	}
+
 	void selectEncoderAction(int32_t offset) override {
 		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 			// Secret menu: adjust twistPhaseOffset (same scale as gammaPhase for consistency)
@@ -254,37 +263,8 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
-			// Auto-wrap mode: wraps at boundaries and auto-adjusts gamma
-			int32_t scaledOffset = velocity_.getScaledOffset(offset);
-			int32_t newValue = this->getValue() + scaledOffset;
-			auto& ss = soundEditor.currentModControllable->sineShaper;
-
-			if (newValue > kTwistResolution) {
-				// Wrap past max: go to start and increment gamma (auto-enables wrap mode)
-				this->setValue(newValue - kTwistResolution);
-				ss.gammaPhase += 1.0f;
-			}
-			else if (newValue < 0) {
-				// Wrap past min: go to end and decrement gamma (floor at 0)
-				if (ss.gammaPhase >= 1.0f) {
-					this->setValue(newValue + kTwistResolution);
-					ss.gammaPhase -= 1.0f;
-				}
-				else {
-					// At gamma=0, clamp at min (can't go negative)
-					this->setValue(0);
-				}
-			}
-			else {
-				this->setValue(newValue);
-			}
-			this->writeCurrentValue();
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				this->drawValue();
-			}
+			// Use base class auto-wrap (uses twistPhaseOffset via virtual methods)
+			ZoneBasedDualParam::selectEncoderAction(offset);
 		}
 	}
 

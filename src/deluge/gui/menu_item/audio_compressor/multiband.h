@@ -471,6 +471,15 @@ public:
 		return modControllable->multibandCompressor.isEnabled();
 	}
 
+	// Auto-wrap support: uses per-knob vibePhaseOffset
+	[[nodiscard]] bool supportsAutoWrap() const override { return true; }
+	[[nodiscard]] float getPhaseOffset() const override {
+		return soundEditor.currentModControllable->multibandCompressor.getVibePhaseOffset();
+	}
+	void setPhaseOffset(float offset) override {
+		soundEditor.currentModControllable->multibandCompressor.setVibePhaseOffset(offset);
+	}
+
 	// Override to add secret menu for twist phase adjustment
 	void selectEncoderAction(int32_t offset) override {
 		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
@@ -488,38 +497,8 @@ public:
 			suppressNotification_ = true;
 		}
 		else {
-			// Auto-wrap mode: wraps at boundaries and auto-adjusts phase offset
-			int32_t scaledOffset = velocity_.getScaledOffset(offset);
-			int32_t newValue = this->getValue() + scaledOffset;
-			auto& comp = soundEditor.currentModControllable->multibandCompressor;
-			float phaseOffset = comp.getVibePhaseOffset();
-
-			if (newValue > kVibeResolution) {
-				// Wrap past max: go to start and increment phase offset
-				this->setValue(newValue - kVibeResolution);
-				comp.setVibePhaseOffset(phaseOffset + 1.0f);
-			}
-			else if (newValue < 0) {
-				// Wrap past min: go to end and decrement phase offset (floor at 0)
-				if (phaseOffset >= 1.0f) {
-					this->setValue(newValue + kVibeResolution);
-					comp.setVibePhaseOffset(phaseOffset - 1.0f);
-				}
-				else {
-					// At phaseOffset=0, clamp at min (can't go negative)
-					this->setValue(0);
-				}
-			}
-			else {
-				this->setValue(newValue);
-			}
-			this->writeCurrentValue();
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				this->drawValue();
-			}
+			// Use base class auto-wrap (uses vibePhaseOffset via virtual methods)
+			ZoneBasedUnpatchedParam::selectEncoderAction(offset);
 		}
 	}
 
