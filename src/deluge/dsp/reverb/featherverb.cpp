@@ -1271,13 +1271,13 @@ static bool gram_schmidt_3x3(std::array<std::array<float, 3>, 3>& m) {
 void Featherverb::updateMatrix() {
 	using namespace phi;
 
-	const float yNorm = static_cast<float>(zone1_) / 1023.0f;
+	const float y_norm = static_cast<float>(zone1_) / 1023.0f;
 	const int32_t zone = zone1_ >> 7;
-	const double gammaPhase = zone * 0.125;
+	const double gamma_phase = zone * 0.125;
 
-	// Vast mode: offset yNorm slightly to avoid phi triangle null at Z1 max
-	float yNormAdj = (zone == 7) ? std::min(yNorm, 0.97f) : yNorm;
-	const PhiTriContext ctx{yNormAdj, 1.0f, 1.0f, gammaPhase};
+	// Vast mode: offset y_norm slightly to avoid phi triangle null at Z1 max
+	float y_norm_adj = (zone == 7) ? std::min(y_norm, 0.97f) : y_norm;
+	const PhiTriContext ctx{y_norm_adj, 1.0f, 1.0f, gamma_phase};
 	std::array<float, 9> vals = ctx.evalBank(kMatrix3TriBank);
 
 	// Base 3x3 Hadamard-like matrix
@@ -1313,11 +1313,11 @@ void Featherverb::updateMatrix() {
 	}
 
 	// Update D0/D1 lengths from phi triangles
-	float d0Tri = (vals[0] + 1.0f) * 0.5f;
-	float d1Tri = (vals[3] + 1.0f) * 0.5f;
+	float d0_tri = (vals[0] + 1.0f) * 0.5f;
+	float d1_tri = (vals[3] + 1.0f) * 0.5f;
 
-	fdnLengths_[0] = kD0MinLength + static_cast<size_t>(d0Tri * (kD0MaxLength - kD0MinLength));
-	fdnLengths_[1] = kD1MinLength + static_cast<size_t>(d1Tri * (kD1MaxLength - kD1MinLength));
+	fdnLengths_[0] = kD0MinLength + static_cast<size_t>(d0_tri * (kD0MaxLength - kD0MinLength));
+	fdnLengths_[1] = kD1MinLength + static_cast<size_t>(d1_tri * (kD1MaxLength - kD1MinLength));
 
 	// Precompute delay ratio for feedback normalization (avoid division in hot path)
 	delayRatio_ = static_cast<float>(fdnLengths_[0] + fdnLengths_[1]) / static_cast<float>(kD0MaxLength + kD1MaxLength);
@@ -1325,19 +1325,19 @@ void Featherverb::updateMatrix() {
 	// Sky/Vast/Owl mode: Z1 controls various parameters using phi triangles
 	if (skyChainMode_ || vastChainMode_ || owlMode_) {
 		// Balance between C2→C0 and C3→C1 feedback paths
-		float balanceBase = yNorm;                           // 0 = favor C2→C0, 1 = favor C3→C1
-		float balanceMod = (vals[1] + 1.0f) * 0.15f - 0.15f; // ±0.15 texture
-		skyFbBalance_ = std::clamp(balanceBase + balanceMod, 0.0f, 1.0f);
+		float balance_base = y_norm;                          // 0 = favor C2→C0, 1 = favor C3→C1
+		float balance_mod = (vals[1] + 1.0f) * 0.15f - 0.15f; // ±0.15 texture
+		skyFbBalance_ = std::clamp(balance_base + balance_mod, 0.0f, 1.0f);
 
 		// LFO amplitude and frequency from phi triangles
-		float ampTri = (vals[2] + 1.0f) * 0.5f;   // 0 to 1
-		float freqTri = (vals[4] + 1.0f) * 0.5f;  // 0 to 1
-		float pitchTri = (vals[5] + 1.0f) * 0.5f; // 0 to 1
-		skyLfoAmp_ = 0.15f + ampTri * 0.85f;      // 0.15 → 1.0
-		skyLfoFreq_ = 0.5f + freqTri * 2.0f;      // 0.5x → 2.5x
+		float amp_tri = (vals[2] + 1.0f) * 0.5f;   // 0 to 1
+		float freq_tri = (vals[4] + 1.0f) * 0.5f;  // 0 to 1
+		float pitch_tri = (vals[5] + 1.0f) * 0.5f; // 0 to 1
+		skyLfoAmp_ = 0.15f + amp_tri * 0.85f;      // 0.15 → 1.0
+		skyLfoFreq_ = 0.5f + freq_tri * 2.0f;      // 0.5x → 2.5x
 		// Owl: lower pitch modulation to avoid artifacts at 4x undersample
-		float maxPitch = owlMode_ ? 80.0f : 160.0f;
-		modDepth_ = 20.0f + pitchTri * maxPitch;
+		float max_pitch = owlMode_ ? 80.0f : 160.0f;
+		modDepth_ = 20.0f + pitch_tri * max_pitch;
 	}
 
 	if (fdnWritePos_[0] >= fdnLengths_[0])
@@ -1501,9 +1501,9 @@ void Featherverb::setZone3(int32_t value) {
 void Featherverb::updateFeedbackPattern() {
 	using namespace phi;
 
-	const float yNorm = static_cast<float>(zone3_) / 1023.0f;
+	const float y_norm = static_cast<float>(zone3_) / 1023.0f;
 	const int32_t zone = zone3_ >> 7;
-	const double gammaPhase = zone * 0.125;
+	const double gamma_phase = zone * 0.125;
 
 	// Widened bias for more tonal variation across z3 zones
 	static constexpr std::array<std::array<float, 3>, 8> kZoneBias = {{{1.00f, 1.00f, 1.00f},
@@ -1515,7 +1515,7 @@ void Featherverb::updateFeedbackPattern() {
 	                                                                   {0.60f, 1.00f, 1.40f},
 	                                                                   {1.35f, 0.85f, 0.60f}}};
 
-	const PhiTriContext ctx{yNorm, 1.0f, 1.0f, gammaPhase};
+	const PhiTriContext ctx{y_norm, 1.0f, 1.0f, gamma_phase};
 	std::array<float, 3> mods = ctx.evalBank(kFeedback3TriBank);
 
 	for (size_t i = 0; i < 3; ++i) {
@@ -1525,18 +1525,18 @@ void Featherverb::updateFeedbackPattern() {
 
 	// Cascade series mix - 10 periods for fine density control
 	// seriesMix=0 → C3 parallel (9 paths, sparse), seriesMix=1 → C3 series (16 paths, dense)
-	float tri10 = dsp::triangleSimpleUnipolar(yNorm * 10.0f) * 2.0f - 1.0f; // Bipolar -1..1
-	cascadeSeriesMix_ = 0.6f + tri10 * 0.25f;                               // Map to 0.35..0.85
+	float tri10 = dsp::triangleSimpleUnipolar(y_norm * 10.0f) * 2.0f - 1.0f; // Bipolar -1..1
+	cascadeSeriesMix_ = 0.6f + tri10 * 0.25f;                                // Map to 0.35..0.85
 
 	// Cascade feedback - 7 periods, clockwise = more feedback
-	float tri7 = dsp::triangleSimpleUnipolar(yNorm * 7.0f) * 2.0f - 1.0f;
-	float baseFeedback = 0.03f + yNorm * 0.12f;
-	cascadeFeedbackMult_ = std::clamp(baseFeedback + tri7 * 0.02f, 0.02f, 0.2f);
+	float tri7 = dsp::triangleSimpleUnipolar(y_norm * 7.0f) * 2.0f - 1.0f;
+	float base_feedback = 0.03f + y_norm * 0.12f;
+	cascadeFeedbackMult_ = std::clamp(base_feedback + tri7 * 0.02f, 0.02f, 0.2f);
 
 	// Nested cascade feedback (C3→C0) - 5 periods
-	float tri5 = dsp::triangleSimpleUnipolar(yNorm * 5.0f) * 2.0f - 1.0f;
-	float baseNest = std::max(0.0f, (yNorm - 0.35f) * 0.5f);
-	cascadeNestFeedbackBase_ = std::clamp(baseNest + tri5 * 0.08f, 0.0f, 0.4f);
+	float tri5 = dsp::triangleSimpleUnipolar(y_norm * 5.0f) * 2.0f - 1.0f;
+	float base_nest = std::max(0.0f, (y_norm - 0.35f) * 0.5f);
+	cascadeNestFeedbackBase_ = std::clamp(base_nest + tri5 * 0.08f, 0.0f, 0.4f);
 	// Recompute combined value (Zone 2 adds vast boost)
 	updateSizes();
 
@@ -1544,31 +1544,31 @@ void Featherverb::updateFeedbackPattern() {
 	if (skyChainMode_ || vastChainMode_ || owlMode_) {
 		// Sky/Vast/Owl: Z3 controls pitch wobble (lower max at 4x to avoid artifacts)
 		// Sky max capped at 180 to match z1's modDepth range and avoid aliasing
-		float tri13 = dsp::triangleSimpleUnipolar(yNorm * 13.0f) * 2.0f - 1.0f;
-		float maxWobble = (vastChainMode_ || owlMode_) ? 80.0f : 140.0f;
-		float wobbleTexture = (vastChainMode_ || owlMode_) ? 15.0f : 40.0f;
-		modDepth_ = std::max(0.0f, yNorm * maxWobble + tri13 * wobbleTexture);
+		float tri13 = dsp::triangleSimpleUnipolar(y_norm * 13.0f) * 2.0f - 1.0f;
+		float max_wobble = (vastChainMode_ || owlMode_) ? 80.0f : 140.0f;
+		float wobble_texture = (vastChainMode_ || owlMode_) ? 15.0f : 40.0f;
+		modDepth_ = std::max(0.0f, y_norm * max_wobble + tri13 * wobble_texture);
 
 		// Z3 also controls local loop feedback (smeared path density)
-		skyLoopFb_ = std::max(0.4f, 0.4f + yNorm * 0.9f + tri13 * 0.2f);
+		skyLoopFb_ = std::max(0.4f, 0.4f + y_norm * 0.9f + tri13 * 0.2f);
 
 		// Z3 controls LFO routing - 7 periods for variety
-		float tri7Route = dsp::triangleSimpleUnipolar(yNorm * 7.0f) * 2.0f - 1.0f;
-		skyLfoRouting_ = std::clamp(yNorm + tri7Route * 0.15f, 0.0f, 1.0f);
+		float tri7_route = dsp::triangleSimpleUnipolar(y_norm * 7.0f) * 2.0f - 1.0f;
+		skyLfoRouting_ = std::clamp(y_norm + tri7_route * 0.15f, 0.0f, 1.0f);
 
 		// Owl mode: D2 echo tap - 10 periods, 50% duty cycle
-		owlEchoGain_ = owlMode_ ? yNorm * 0.5f * dsp::triangleSimpleUnipolar(yNorm * 10.0f, 0.5f) : 0.0f;
+		owlEchoGain_ = owlMode_ ? y_norm * 0.5f * dsp::triangleSimpleUnipolar(y_norm * 10.0f, 0.5f) : 0.0f;
 
 		// Owl mode: Z3 controls max boost for ratio-based feedback
 		// Low Z3: no boost (unity only), High Z3: more boost allowed
 		// Envelope attack rate controlled by predelay knob
 		if (owlMode_) {
-			owlZ3Norm_ = yNorm;                     // Store Z3 position for ratio control max boost
+			owlZ3Norm_ = y_norm;                    // Store Z3 position for ratio control max boost
 			owlEnvRatio_ = 0.5f + predelay_ * 1.5f; // Range: 0.5 to 2.0
 		}
 	}
 	else if (cascadeDoubleUndersample_) {
-		float tri13 = dsp::triangleSimpleUnipolar(yNorm * 13.0f) * 2.0f - 1.0f;
+		float tri13 = dsp::triangleSimpleUnipolar(y_norm * 13.0f) * 2.0f - 1.0f;
 		modDepth_ = std::clamp(0.3f + tri13 * 0.25f, 0.0f, 0.6f);
 	}
 	else {
@@ -1576,13 +1576,13 @@ void Featherverb::updateFeedbackPattern() {
 	}
 
 	// Width breathing - 11 periods (fast), z3 increases stereo width
-	float tri11 = dsp::triangleSimpleUnipolar(yNorm * 11.0f) * 2.0f - 1.0f;
-	widthBreath_ = std::clamp(0.6f + yNorm * 0.5f + tri11 * 0.35f, 0.3f, 1.4f);
+	float tri11 = dsp::triangleSimpleUnipolar(y_norm * 11.0f) * 2.0f - 1.0f;
+	widthBreath_ = std::clamp(0.6f + y_norm * 0.5f + tri11 * 0.35f, 0.3f, 1.4f);
 
 	// Cross-channel bleed - 9 periods, L↔R mixing in FDN feedback
-	float tri9 = dsp::triangleSimpleUnipolar(yNorm * 9.0f) * 2.0f - 1.0f;
-	float baseBleed = yNorm * 0.3f; // Increased for better L/R balance
-	crossBleed_ = std::clamp(baseBleed + tri9 * 0.1f, 0.0f, 0.4f);
+	float tri9 = dsp::triangleSimpleUnipolar(y_norm * 9.0f) * 2.0f - 1.0f;
+	float base_bleed = y_norm * 0.3f; // Increased for better L/R balance
+	crossBleed_ = std::clamp(base_bleed + tri9 * 0.1f, 0.0f, 0.4f);
 
 	// FDN feedback scale - keep at unity (room knob already controls overall feedback)
 	// Z3 only affects tonal balance via feedbackMult_, not overall decay
@@ -1591,29 +1591,29 @@ void Featherverb::updateFeedbackPattern() {
 	// Per-stage cascade allpass coefficients - higher coeffs = more diffusion (less slapback)
 	// Each stage uses different triangle period for variety
 	// Extended modes (Feather/Sky/Lush/Vast) need higher coefficients for proper diffusion
-	bool extendedMode = cascadeDoubleUndersample_ || skyChainMode_ || featherMode_;
-	float coeffBase = extendedMode ? (0.5f + yNorm * 0.12f)  // Extended modes: 0.5-0.62
-	                               : (0.32f + yNorm * 0.2f); // Normal: 0.32-0.52
+	bool extended_mode = cascadeDoubleUndersample_ || skyChainMode_ || featherMode_;
+	float coeff_base = extended_mode ? (0.5f + y_norm * 0.12f)  // Extended modes: 0.5-0.62
+	                                 : (0.32f + y_norm * 0.2f); // Normal: 0.32-0.52
 
 	// C0: 8 periods - fastest stage, moderate variation
-	float tri8 = dsp::triangleSimpleUnipolar(yNorm * 8.0f) * 2.0f - 1.0f;
-	float c0Min = extendedMode ? 0.45f : 0.28f;
-	cascadeCoeffs_[0] = std::clamp(coeffBase + tri8 * 0.08f, c0Min, 0.75f);
+	float tri8 = dsp::triangleSimpleUnipolar(y_norm * 8.0f) * 2.0f - 1.0f;
+	float c0_min = extended_mode ? 0.45f : 0.28f;
+	cascadeCoeffs_[0] = std::clamp(coeff_base + tri8 * 0.08f, c0_min, 0.75f);
 
 	// C1: 6 periods - slightly more variation
-	float tri6 = dsp::triangleSimpleUnipolar(yNorm * 6.0f) * 2.0f - 1.0f;
-	float c1Min = extendedMode ? 0.45f : 0.28f;
-	cascadeCoeffs_[1] = std::clamp(coeffBase + tri6 * 0.1f, c1Min, 0.75f);
+	float tri6 = dsp::triangleSimpleUnipolar(y_norm * 6.0f) * 2.0f - 1.0f;
+	float c1_min = extended_mode ? 0.45f : 0.28f;
+	cascadeCoeffs_[1] = std::clamp(coeff_base + tri6 * 0.1f, c1_min, 0.75f);
 
 	// C2: 4 periods - slower variation, slightly higher base for density
-	float tri4 = dsp::triangleSimpleUnipolar(yNorm * 4.0f) * 2.0f - 1.0f;
-	float c2Min = extendedMode ? 0.48f : 0.30f;
-	cascadeCoeffs_[2] = std::clamp(coeffBase + 0.05f + tri4 * 0.1f, c2Min, 0.78f);
+	float tri4 = dsp::triangleSimpleUnipolar(y_norm * 4.0f) * 2.0f - 1.0f;
+	float c2_min = extended_mode ? 0.48f : 0.30f;
+	cascadeCoeffs_[2] = std::clamp(coeff_base + 0.05f + tri4 * 0.1f, c2_min, 0.78f);
 
 	// C3: 3 periods - longest stage, highest base for maximum diffusion
-	float tri3 = dsp::triangleSimpleUnipolar(yNorm * 3.0f) * 2.0f - 1.0f;
-	float c3Min = extendedMode ? 0.50f : 0.32f;
-	cascadeCoeffs_[3] = std::clamp(coeffBase + 0.08f + tri3 * 0.12f, c3Min, 0.82f);
+	float tri3 = dsp::triangleSimpleUnipolar(y_norm * 3.0f) * 2.0f - 1.0f;
+	float c3_min = extended_mode ? 0.50f : 0.32f;
+	cascadeCoeffs_[3] = std::clamp(coeff_base + 0.08f + tri3 * 0.12f, c3_min, 0.82f);
 }
 
 } // namespace deluge::dsp::reverb
