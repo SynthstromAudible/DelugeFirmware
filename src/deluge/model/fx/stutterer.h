@@ -32,7 +32,7 @@ enum class ScatterMode : uint8_t {
 	Repeat,      ///< Beat repeat with count control
 	Time,        ///< Zone A=combine (grain length), Zone B=repeat (hold same slice)
 	Shuffle,     ///< Phi-based segment reordering
-	Grain,       ///< Granular cloud: dual-voice crossfade, Zone A=size, Zone B=spread
+	Grain,       ///< Granular cloud: dual-voice crossfade, Rate=size, Zone A=spread
 	Pattern,     ///< Zone A selects slice pattern + phi offset: seq/weave/skip/mirror/pairs
 	Pitch,       ///< Pitch manipulation
 	NUM_MODES
@@ -415,13 +415,17 @@ private:
 	deluge::dsp::scatter::GrainParams scatterCachedGrain{}; ///< Cached grain during repeat (skip computeGrainParams)
 
 	/// Grain mode dual-voice state (crossfading granular clouds)
-	size_t grainPosA{0};       ///< Voice A buffer read position
-	size_t grainPosB{0};       ///< Voice B buffer read position
+	size_t grainPosA{0};       ///< Voice A grain START position in buffer
+	size_t grainPosB{0};       ///< Voice B grain START position in buffer
+	size_t grainOffsetA{0};    ///< Voice A playback offset within grain (0 to grainLength-1)
+	size_t grainOffsetB{0};    ///< Voice B playback offset within grain (0 to grainLength-1)
 	uint32_t grainPhaseA{0};   ///< Voice A envelope phase (0..UINT32_MAX = 0..1)
 	uint32_t grainPhaseB{0};   ///< Voice B envelope phase (50% offset from A)
 	size_t grainLength{4410};  ///< Grain length in samples (default ~100ms at 44.1kHz)
-	size_t grainSpread{0};     ///< Position spread range (how far new grains can be from current)
+	size_t grainSpread{0};     ///< Position spread range for new grains (0 = full buffer)
 	uint32_t grainRngState{1}; ///< Fast RNG state for grain positions
+	bool grainAIsDry{false};   ///< Voice A plays dry input (density decided at grain start)
+	bool grainBIsDry{false};   ///< Voice B plays dry input (density decided at grain start)
 
 	/// Bar counter for multi-bar patterns (0 to kBarIndexWrap-1)
 	/// Individual bits used as offsets with Zone B-derived weights to shift Zone A
