@@ -112,25 +112,28 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 	currentReverse = stutterConfig.reversed;
 	halfBarMode = halfBar;
 
-	// Non-Classic/Burst modes: double buffer system (swap instead of copy)
+	// Non-Classic/Burst modes: single shared buffer (pWrite controls content evolution)
 	// Classic and Burst use the simple DelayBuffer, others use the looper system
 	bool useLooper =
 	    (stutterConfig.scatterMode != ScatterMode::Classic && stutterConfig.scatterMode != ScatterMode::Burst);
 	if (useLooper) {
-		// Check if this is a takeover trigger (source was recording, now wants to play)
-		bool isTakeoverTrigger = (recordSource == source && playSource != source && status == Status::PLAYING);
+		// Check if this is a takeover trigger (pendingSource is armed to take over)
+		bool isTakeoverTrigger = (pendingSource == source && activeSource != source && status == Status::PLAYING);
 		if (isTakeoverTrigger) {
-			// Use stored values from armStutter
+			// Takeover: inherit buffer content instantly, start playing
 			stutterConfig = armedConfig;
 			currentReverse = stutterConfig.reversed;
 			if (loopLengthSamples == 0) {
 				loopLengthSamples = armedLoopLengthSamples;
 			}
 			halfBarMode = armedHalfBarMode;
+			playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
+			triggerPlaybackNow(source);
+			return Error::NONE;
 		}
 
-		// If source has been recording (owns recordBuffer), request playback trigger
-		if (recordBuffer != nullptr && recordSource == source && loopLengthSamples > 0) {
+		// If source owns the buffer, request playback trigger
+		if (looperBuffer != nullptr && activeSource == source && loopLengthSamples > 0) {
 			// Update armedConfig for retrigger (source's current config)
 			armedConfig = sc;
 			releasedDuringStandby = false; // Fresh trigger, encoder is held
@@ -138,20 +141,15 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 			// Use full loop length for correct timing
 			playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
 
-			// Allow trigger if:
-			// 1. We have enough fresh samples in recordBuffer, OR
-			// 2. playBuffer exists with stale audio (retrigger - tape loop style)
-			// On trigger, we swap buffers. If recordBuffer wasn't fully overwritten,
-			// playBuffer will have a mix of new + old audio - this is fine (musical).
-			bool hasEnoughSamples = recordBufferFull || recordWritePos >= playbackLength;
-			bool hasStaleAudio = playBuffer != nullptr; // Old audio from previous playback
-			if (!hasEnoughSamples && !hasStaleAudio && !waitingForRecordBeat) {
-				// No fresh samples and no stale audio - wait for more
+			// Allow trigger if we have enough samples or buffer has stale audio (tape loop style)
+			bool hasEnoughSamples = looperBufferFull || looperWritePos >= playbackLength;
+			if (!hasEnoughSamples && !waitingForRecordBeat) {
+				// No fresh samples - wait for more
 				return Error::NONE;
 			}
 
 			// Repeat mode triggers immediately (no beat quantization)
-			if (stutterConfig.scatterMode == ScatterMode::Repeat && (hasEnoughSamples || hasStaleAudio)) {
+			if (stutterConfig.scatterMode == ScatterMode::Repeat && hasEnoughSamples) {
 				triggerPlaybackNow(source);
 				return Error::NONE;
 			}
@@ -162,21 +160,26 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 			return Error::NONE;
 		}
 
-		// No buffers yet - allocate both and start standby recording
-		// Use allocLowSpeed() to go directly to SDRAM - these buffers are too large for the external region
-		if (bufferA == nullptr) {
-			bufferA = static_cast<StereoSample*>(allocLowSpeed(kLooperBufferSize * sizeof(StereoSample)));
-			if (bufferA == nullptr) {
-				status = Status::OFF;
-				return Error::INSUFFICIENT_RAM;
+		// Buffer exists but someone else owns it - immediate takeover
+		if (looperBuffer != nullptr && activeSource != nullptr && activeSource != source) {
+			// Takeover: inherit buffer content instantly, new source starts playing
+			playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
+			if (playbackLength == 0) {
+				playbackLength = looperBufferFull ? kLooperBufferSize : looperWritePos;
 			}
+			triggerPlaybackNow(source);
+			return Error::NONE;
 		}
-		if (bufferB == nullptr) {
-			bufferB = static_cast<StereoSample*>(allocLowSpeed(kLooperBufferSize * sizeof(StereoSample)));
-			if (bufferB == nullptr) {
+
+		// No buffer yet - allocate and start standby recording
+		// Use allocLowSpeed() to go directly to SDRAM - buffer is too large for external region
+		if (looperBuffer == nullptr) {
+			looperBuffer = static_cast<StereoSample*>(allocLowSpeed(kLooperBufferSize * sizeof(StereoSample)));
+			if (looperBuffer == nullptr) {
 				status = Status::OFF;
 				return Error::INSUFFICIENT_RAM;
 			}
+			memset(looperBuffer, 0, kLooperBufferSize * sizeof(StereoSample));
 		}
 		// Allocate delay send buffer (small, for slice-synced echo)
 		if (delayBuffer == nullptr) {
@@ -188,26 +191,19 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 		}
 		delayWritePos = 0;
 		delayActive = false;
-		recordBuffer = bufferA;
-		playBuffer = bufferB;
-		recordWritePos = 0;
-		recordBufferFull = false; // Fresh buffer, not full yet
+		looperWritePos = 0;
+		looperBufferFull = false; // Fresh buffer, not full yet
 		// Repeat mode records immediately; other modes wait for beat
 		waitingForRecordBeat = (stutterConfig.scatterMode != ScatterMode::Repeat);
 		recordStartTick = 0;        // Will be computed in recordStandby
 		pendingPlayTrigger = false; // No pending trigger yet
-		// Clear both buffers to prevent stale data reads
-		memset(bufferA, 0, kLooperBufferSize * sizeof(StereoSample));
-		memset(bufferB, 0, kLooperBufferSize * sizeof(StereoSample));
 
-		// Source claims recordBuffer, starts recording in STANDBY
-		// If someone else was playing, they keep playSource
-		recordSource = source;
+		// Source claims buffer, starts recording in STANDBY
+		activeSource = source;
+		pendingSource = nullptr;
 		standbyIdleSamples = 0;        // Reset timeout for new owner
 		releasedDuringStandby = false; // Fresh start, encoder is held
-		// Store config for takeover trigger (new source's config, not old playSource's)
-		// Use 'sc' parameter directly, not stutterConfig which may have been modified by
-		// updateLiveParams() from the current player's config during audio processing
+		// Store config for retrigger/takeover
 		armedConfig = sc;
 		armedLoopLengthSamples = loopLengthSamples;
 		armedHalfBarMode = halfBar;
@@ -248,8 +244,8 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 	if (error == Error::NONE) {
 		status = Status::RECORDING;
 		sizeLeftUntilRecordFinished = buffer.size();
-		playSource = source;
-		recordSource = source;
+		activeSource = source;
+		pendingSource = nullptr;
 	}
 	return error;
 }
@@ -275,13 +271,13 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
                                uint32_t timePerTickInverse, int64_t currentTick, uint64_t timePerTickBig,
                                uint32_t barLengthInTicks, const q31_t* modulatedValues) {
 
-	// Non-Classic/Burst modes: double buffer - play from playBuffer, record to recordBuffer
-	// Core loop: play current slice fully, then get next slice at boundary
+	// Non-Classic/Burst modes: single buffer - play and write to looperBuffer
+	// pWrite controls content evolution (0=freeze, 50=always overwrite)
 	constexpr bool kEnableDelay = true;
 	bool useLooper =
 	    (stutterConfig.scatterMode != ScatterMode::Classic && stutterConfig.scatterMode != ScatterMode::Burst);
 	if (useLooper) {
-		if (status == Status::PLAYING && playBuffer != nullptr && playbackLength > 0) {
+		if (status == Status::PLAYING && looperBuffer != nullptr && playbackLength > 0) {
 			// Benchmark: granular scatter processing with dynamic tags
 			// Tag layout: [0]=type, [1]=mode, [2]=extra (slices/subdiv for slice benchmark)
 			FX_BENCH_DECLARE(benchTotal, "scatter", "total");
@@ -380,8 +376,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							newLoopLength = std::min(newLoopLength, kLooperBufferSize);
 							playbackLength = newLoopLength;
 						}
-						// Leaky mode: no buffer swap - writes go directly to playBuffer
-						// Single buffer tape-loop with immediate feedback
+						// All looper modes: single buffer, pWrite controls writes
+						// Content evolves via pWrite probability
 					}
 				}
 				lastTickBarIndex = tickBarIndex;
@@ -937,15 +933,15 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			bool isShuffle_ = (stutterConfig.scatterMode == ScatterMode::Shuffle);
 			bool isTime = (stutterConfig.scatterMode == ScatterMode::Time);
 			bool isPitch = (stutterConfig.scatterMode == ScatterMode::Pitch);
-			// pWrite applies to Shuffle and Leaky modes (both have write-back capability)
+			// pWrite applies to all looper modes except Repeat (continuous loop)
 			// Grain write decision: made per-slice (not per-sample) to avoid discontinuities
 			// Hash of slice index determines if this grain writes wet or dry
 			// Duck entire grain if read/write regions overlap (prevents feedback artifacts)
-			bool hasPWrite = (isLeaky || isShuffle_);
+			bool hasPWrite = stutterConfig.isLooperMode() && stutterConfig.scatterMode != ScatterMode::Repeat;
 			bool pWriteGrainIsWet = false;
-			if (hasPWrite && recordSource == playSource) {
+			if (hasPWrite) {
 				// pWrite uses pWriteParam to control grain writes:
-				// CCW (0) = 100% writes (always overwrite), CW (50) = 0% writes (preserve buffer)
+				// CCW (0) = 0% writes (freeze/preserve buffer), CW (50) = 100% writes (always overwrite)
 				float pWriteProb = stutterConfig.getPWriteProb();
 				uint8_t pWriteThreshold = static_cast<uint8_t>(pWriteProb * 16.0f);
 				hash::Bits sliceBits(static_cast<uint32_t>(scatterSliceIndex) ^ (scatterBarIndex << 16) ^ 0xDEADBEEFu);
@@ -955,7 +951,10 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				// Read region: [sliceStartOffset, sliceStartOffset + sliceLength)
 				// Write region: [linearBarPos, linearBarPos + sliceLength)
 				// In circular buffer, overlap if either start is within the other's range
-				if (pWriteGrainIsWet && playbackLength > 0) {
+				// EXCEPTION: Skip overlap check when writing dry/fresh input (density down)
+				// Fresh input has no feedback concern - we're not reading what we just wrote
+				bool sliceUsesDry = (scatterDryMix > scatterDryThreshold);
+				if (pWriteGrainIsWet && playbackLength > 0 && !sliceUsesDry) {
 					size_t readStart = sliceStartOffset;
 					size_t writeStart = scatterLinearBarPos;
 					size_t len = currentSliceLength;
@@ -1045,14 +1044,14 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					if (benchThisSample) {
 						FX_BENCH_START(benchRead);
 					}
-					outputL = playBuffer[playReadPos].l;
-					outputR = playBuffer[playReadPos].r;
+					outputL = looperBuffer[playReadPos].l;
+					outputR = looperBuffer[playReadPos].r;
 
 					// Pitch up: check ZC on skipped sample (increment=2 skips every other sample)
 					if (loopPitchIncrement == 2 && playbackPos > 0) {
 						size_t skippedPos = loopReversed ? (playReadPos + 1) % kLooperBufferSize
 						                                 : (playReadPos > 0 ? playReadPos - 1 : kLooperBufferSize - 1);
-						q31_t skippedL = playBuffer[skippedPos].l;
+						q31_t skippedL = looperBuffer[skippedPos].l;
 						bufferZeroCrossing = (skippedL != 0) && ((outputL ^ skippedL) < 0);
 					}
 
@@ -1193,17 +1192,17 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					}
 				}
 
-				// === LEAKY: write wet grains directly to play buffer ===
+				// === pWRITE: write wet grains directly to buffer ===
 				// Single buffer tape-loop: read from shuffled position, write to linear position
 				// Entire grain is ducked at slice setup if read/write regions overlap
-				// pWrite=0 means no writes → content persists indefinitely
-				// pWrite>0 means wet grains overwrite → delayed feedback accumulation
-				if (hasPWrite && playBuffer != nullptr && pWriteGrainIsWet) {
-					size_t leakyWritePos = loopPlaybackStartPos + loopLinearBarPos;
-					while (leakyWritePos >= kLooperBufferSize) {
-						leakyWritePos -= kLooperBufferSize;
+				// pWrite=0 means no writes → content persists indefinitely (freeze)
+				// pWrite>0 means wet grains overwrite → content evolves
+				if (hasPWrite && looperBuffer != nullptr && pWriteGrainIsWet) {
+					size_t pWritePos = loopPlaybackStartPos + loopLinearBarPos;
+					while (pWritePos >= kLooperBufferSize) {
+						pWritePos -= kLooperBufferSize;
 					}
-					playBuffer[leakyWritePos] = {outputL, outputR};
+					looperBuffer[pWritePos] = {outputL, outputR};
 				}
 
 				sample.l = outputL;
@@ -1450,29 +1449,12 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 
 	if (isScatterMode) {
 		// Non-Classic/Burst modes: return to standby for continuous recording
-		// Zero-crossing flags set by triggerPlaybackNow on next trigger
+		// Buffer content is preserved - pWrite evolves content on next trigger
 		playbackPos = 0;
 
-		// Keep the playing source as the new recorder (ready for re-trigger)
-		// This maintains armed state - source keeps recording until explicit release
-		if (playSource != nullptr && recordSource == playSource) {
-			// Normal case: same source was playing and recording
-			// Keep recordSource, continue recording - ready for instant re-trigger
-			playSource = nullptr;
-			// Don't reset recordWritePos - continue ring buffer recording
-		}
-		else if (recordSource != nullptr && recordSource != playSource) {
-			// Takeover case: someone else was recording while we played
-			// Let the recorder become the new "armed" source
-			playSource = nullptr;
-			// recordSource keeps recording
-		}
-		else {
-			// No recorder - go to clean standby
-			playSource = nullptr;
-			recordSource = nullptr;
-			recordWritePos = 0;
-		}
+		// Return to standby, keep recording to buffer
+		// Ready for instant re-trigger with preserved content
+		// Don't reset looperWritePos - continue ring buffer recording
 		status = Status::STANDBY;
 		return;
 	}
@@ -1486,8 +1468,8 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 	else {
 		buffer.discard();
 		status = Status::OFF;
-		playSource = nullptr;
-		recordSource = nullptr;
+		activeSource = nullptr;
+		pendingSource = nullptr;
 	}
 
 	if (paramManager) {
@@ -1507,7 +1489,7 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 }
 
 Error Stutterer::enableStandby(void* source, int32_t magnitude, uint32_t timePerTickInverse) {
-	if (status == Status::STANDBY && recordSource == source) {
+	if (status == Status::STANDBY && activeSource == source) {
 		return Error::NONE;
 	}
 
@@ -1527,7 +1509,7 @@ Error Stutterer::enableStandby(void* source, int32_t magnitude, uint32_t timePer
 	buffer.setCurrent(buffer.begin());
 
 	status = Status::STANDBY;
-	recordSource = source;
+	activeSource = source;
 	standbyIdleSamples = 0; // Start timeout counter fresh
 	return Error::NONE;
 }
@@ -1537,45 +1519,39 @@ void Stutterer::disableStandby() {
 		// Classic mode: discard delay buffer
 		buffer.discard();
 
-		// Non-Classic modes: deallocate double buffers
-		if (bufferA != nullptr) {
-			delugeDealloc(bufferA);
-			bufferA = nullptr;
-		}
-		if (bufferB != nullptr) {
-			delugeDealloc(bufferB);
-			bufferB = nullptr;
+		// Looper modes: deallocate buffer
+		if (looperBuffer != nullptr) {
+			delugeDealloc(looperBuffer);
+			looperBuffer = nullptr;
 		}
 		if (delayBuffer != nullptr) {
 			delugeDealloc(delayBuffer);
 			delayBuffer = nullptr;
 		}
-		recordBuffer = nullptr;
-		playBuffer = nullptr;
 		delayActive = false;
 
 		status = Status::OFF;
-		playSource = nullptr;
-		recordSource = nullptr;
+		activeSource = nullptr;
+		pendingSource = nullptr;
 		releasedDuringStandby = false;
 	}
 }
 
 void Stutterer::recordStandby(void* source, std::span<StereoSample> audio, int64_t lastSwungTick, uint32_t syncLength) {
-	// === CLEAN OWNERSHIP MODEL ===
-	// Only recordSource can write to recordBuffer. Period.
-	// This works for both standby (source == recordSource) and takeover (B stole recordSource from A).
+	// === SINGLE-BUFFER OWNERSHIP MODEL ===
+	// Only activeSource can write to looperBuffer during STANDBY.
+	// During PLAYING, pWrite handles writes instead.
 
-	if (source != recordSource) {
+	if (source != activeSource) {
 		return; // Not your buffer
 	}
 
-	// Check if double buffers are in use (scatter mode)
-	bool hasDoubleBuffers = (recordBuffer != nullptr && playBuffer != nullptr);
+	// Check if looper buffer is in use (scatter mode)
+	bool hasLooperBuffer = (looperBuffer != nullptr);
 
-	if (hasDoubleBuffers) {
-		// Scatter mode: record during STANDBY or PLAYING (takeover)
-		if (status != Status::STANDBY && status != Status::PLAYING) {
+	if (hasLooperBuffer) {
+		// Only record during STANDBY - pWrite handles writes during PLAYING
+		if (status != Status::STANDBY) {
 			return;
 		}
 
@@ -1591,12 +1567,12 @@ void Stutterer::recordStandby(void* source, std::span<StereoSample> audio, int64
 			}
 			// Beat boundary crossed - start recording (sample-accurate)
 			waitingForRecordBeat = false;
-			recordWritePos = 0;
-			recordBufferFull = false;
+			looperWritePos = 0;
+			looperBufferFull = false;
 		}
 
 		// Standby timeout: count idle samples and release after N bars
-		if (status == Status::STANDBY && playbackLength > 0) {
+		if (playbackLength > 0) {
 			standbyIdleSamples += audio.size();
 			if (standbyIdleSamples >= playbackLength * kStandbyTimeoutBars) {
 				disableStandby();
@@ -1604,25 +1580,17 @@ void Stutterer::recordStandby(void* source, std::span<StereoSample> audio, int64
 			}
 		}
 
-		// In Leaky mode during PLAYING with exclusive ownership, skip normal recording
-		// Leaky writes happen during playback (process() function) - writes wet OR dry per sample
-		// TWEAKY: Would not skip - allow dry recording to mix with leaky cross-track writes
-		if (status == Status::PLAYING && stutterConfig.scatterMode == ScatterMode::Leaky
-		    && recordSource == playSource) {
-			return;
-		}
-
 		for (StereoSample sample : audio) {
-			recordBuffer[recordWritePos] = sample;
-			recordWritePos++;
-			if (recordWritePos >= kLooperBufferSize) {
-				recordWritePos = 0;
-				recordBufferFull = true; // Ring buffer wrapped - full loop available
+			looperBuffer[looperWritePos] = sample;
+			looperWritePos++;
+			if (looperWritePos >= kLooperBufferSize) {
+				looperWritePos = 0;
+				looperBufferFull = true; // Ring buffer wrapped - full loop available
 			}
 		}
 		// Also mark full if we've recorded at least playbackLength samples
-		if (!recordBufferFull && playbackLength > 0 && recordWritePos >= playbackLength) {
-			recordBufferFull = true;
+		if (!looperBufferFull && playbackLength > 0 && looperWritePos >= playbackLength) {
+			looperBufferFull = true;
 		}
 		return;
 	}
@@ -1640,30 +1608,28 @@ void Stutterer::recordStandby(void* source, std::span<StereoSample> audio, int64
 
 Error Stutterer::armStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig sc, int32_t magnitude,
                             uint32_t timePerTickInverse, int64_t targetTick, size_t loopLengthSamples, bool halfBar) {
-	// === SIMPLIFIED: armStutter just claims recordBuffer for this source ===
-	// No beat quantization for now - that's broken anyway.
-	// This is called when a source wants to START recording (first encoder press).
+	// This is called when a source wants to arm for playback.
 
 	if (status == Status::RECORDING) {
 		return Error::UNSPECIFIED; // Classic mode recording, can't interrupt
 	}
-
-	bool hasDoubleBuffers = (bufferA != nullptr && bufferB != nullptr);
 
 	// Store config for when trigger fires
 	armedConfig = sc;
 	armedHalfBarMode = halfBar;
 	armedLoopLengthSamples = loopLengthSamples;
 
-	if (status == Status::PLAYING && hasDoubleBuffers) {
-		// TAKEOVER: Someone else is playing, we want to steal the record buffer
-		// Source claims recordBuffer, starts recording while other source keeps playing
-		recordSource = source;
-		recordWritePos = 0;
-		// Clear buffer to start fresh
-		if (recordBuffer != nullptr) {
-			memset(recordBuffer, 0, kLooperBufferSize * sizeof(StereoSample));
+	if (status == Status::PLAYING && looperBuffer != nullptr && activeSource != source) {
+		// TAKEOVER: Someone else is playing, we want to inherit the buffer
+		// Do immediate takeover - single tap to take over
+		stutterConfig = sc;
+		currentReverse = stutterConfig.reversed;
+		halfBarMode = halfBar;
+		playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
+		if (playbackLength == 0) {
+			playbackLength = looperBufferFull ? kLooperBufferSize : looperWritePos;
 		}
+		triggerPlaybackNow(source);
 		return Error::NONE;
 	}
 
@@ -1682,7 +1648,7 @@ bool Stutterer::checkArmedTrigger(int64_t currentTick, ParamManager* paramManage
 
 bool Stutterer::checkPendingTrigger(void* source, int64_t lastSwungTick, uint32_t syncLength,
                                     ParamManager* paramManager, int32_t magnitude, uint32_t timePerTickInverse) {
-	if (!pendingPlayTrigger || recordSource != source) {
+	if (!pendingPlayTrigger || activeSource != source) {
 		return false;
 	}
 
@@ -1702,7 +1668,7 @@ bool Stutterer::checkPendingTrigger(void* source, int64_t lastSwungTick, uint32_
 
 	// Ensure we have enough recorded audio before triggering
 	// If not, delay trigger to next beat
-	bool hasEnoughSamples = recordBufferFull || recordWritePos >= playbackLength;
+	bool hasEnoughSamples = looperBufferFull || looperWritePos >= playbackLength;
 	if (!hasEnoughSamples) {
 		// Push trigger to next beat
 		playTriggerTick = currentBeatIndex + 1;
@@ -1717,48 +1683,44 @@ bool Stutterer::checkPendingTrigger(void* source, int64_t lastSwungTick, uint32_
 void Stutterer::triggerPlaybackNow(void* source) {
 	pendingPlayTrigger = false;
 
-	// Calculate where loop starts in the record buffer (which becomes play buffer)
-	// recordWritePos is where we WOULD write next, so loop ends there
-	// If we haven't fully overwritten the buffer, we'll play a mix of new + stale audio (tape loop style)
-	if (recordWritePos >= playbackLength) {
-		playbackStartPos = recordWritePos - playbackLength;
+	// Calculate where loop starts in buffer (single buffer, no swap)
+	// looperWritePos is where we WOULD write next, so loop ends there
+	// Buffer content is preserved - pWrite controls how fast new content overwrites old
+	if (looperWritePos >= playbackLength) {
+		playbackStartPos = looperWritePos - playbackLength;
 	}
 	else {
-		playbackStartPos = kLooperBufferSize - (playbackLength - recordWritePos);
+		playbackStartPos = kLooperBufferSize - (playbackLength - looperWritePos);
 	}
 
-	// Swap buffers - always swap, stale audio in new playBuffer is fine
-	std::swap(recordBuffer, playBuffer);
-	recordBufferFull = false; // New recordBuffer hasn't wrapped yet
-	// Repeat mode records immediately; other modes wait for beat
-	waitingForRecordBeat = (stutterConfig.scatterMode != ScatterMode::Repeat);
-	recordStartTick = 0; // Will be computed in recordStandby
+	// Single buffer: no swap needed, content preserved for inheritance/pWrite evolution
+	// Reset write position for pWrite (linear writes start from bar beginning)
+	looperWritePos = 0;
+	looperBufferFull = true; // Treat as full since we're playing from it
 
 	// Apply fade at buffer wrap boundary (position 0) to eliminate ring buffer discontinuity
 	// Position 0 and bufSize-1 were recorded ~4s apart - fade once here instead of per-sample
-	if (playBuffer != nullptr) {
+	if (looperBuffer != nullptr) {
 		for (size_t i = 0; i < kBufferWrapFadeLen; i++) {
 			// Fade in at start of buffer
 			q31_t fadeIn = static_cast<q31_t>((static_cast<int64_t>(i) << 31) / kBufferWrapFadeLen);
-			playBuffer[i].l = multiply_32x32_rshift32(playBuffer[i].l, fadeIn) << 1;
-			playBuffer[i].r = multiply_32x32_rshift32(playBuffer[i].r, fadeIn) << 1;
+			looperBuffer[i].l = multiply_32x32_rshift32(looperBuffer[i].l, fadeIn) << 1;
+			looperBuffer[i].r = multiply_32x32_rshift32(looperBuffer[i].r, fadeIn) << 1;
 			// Fade out at end of buffer
 			size_t endIdx = kLooperBufferSize - kBufferWrapFadeLen + i;
 			q31_t fadeOut =
 			    static_cast<q31_t>((static_cast<int64_t>(kBufferWrapFadeLen - 1 - i) << 31) / kBufferWrapFadeLen);
-			playBuffer[endIdx].l = multiply_32x32_rshift32(playBuffer[endIdx].l, fadeOut) << 1;
-			playBuffer[endIdx].r = multiply_32x32_rshift32(playBuffer[endIdx].r, fadeOut) << 1;
+			looperBuffer[endIdx].l = multiply_32x32_rshift32(looperBuffer[endIdx].l, fadeOut) << 1;
+			looperBuffer[endIdx].r = multiply_32x32_rshift32(looperBuffer[endIdx].r, fadeOut) << 1;
 		}
 	}
 
 	// Reset for playback
 	playbackPos = 0;
-	recordWritePos = 0;
 	waitingForZeroCrossL = waitingForZeroCrossR = true;
 	releaseMutedL = releaseMutedR = false;
 	prevOutputL = prevOutputR = 0; // Reset for fresh zero crossing detection
-	recordWritePos = 0;
-	scatterLinearBarPos = 0; // Reset linear position for leaky writes
+	scatterLinearBarPos = 0;       // Reset linear position for pWrite
 	currentSliceLength = playbackLength;
 	sliceStartOffset = 0;
 	scatterSliceIndex = 0;
@@ -1785,9 +1747,9 @@ void Stutterer::triggerPlaybackNow(void* source) {
 	standbyIdleSamples = 0;                     // Reset timeout counter
 	lastTickBarIndex = -1;                      // Reset bar boundary tracking
 	status = Status::PLAYING;
-	// Source now owns both buffers
-	playSource = source;
-	recordSource = source;
+	// Source now owns buffer
+	activeSource = source;
+	pendingSource = nullptr;
 
 	// Momentary mode: if encoder was released during STANDBY/takeover, end immediately
 	// Use armedConfig (set from source's config when they first pressed) instead of
@@ -1799,19 +1761,9 @@ void Stutterer::triggerPlaybackNow(void* source) {
 }
 
 void Stutterer::cancelArmed() {
-	// === SIMPLIFIED: Cancel takeover ===
-	// If source was recording for takeover, give up recordBuffer
-	// The current playSource keeps playing.
-
-	if (status == Status::PLAYING && recordSource != playSource) {
-		// Someone was preparing takeover - cancel it
-		// Give recordBuffer back to playSource
-		recordSource = playSource;
-		recordWritePos = 0;
-		// EXPERIMENT: commented out to test if memset causes audio glitch
-		// if (recordBuffer != nullptr) {
-		// 	memset(recordBuffer, 0, kLooperBufferSize * sizeof(StereoSample));
-		// }
+	// Cancel pending takeover
+	if (pendingSource != nullptr) {
+		pendingSource = nullptr;
 		return;
 	}
 
@@ -1823,8 +1775,8 @@ void Stutterer::cancelArmed() {
 		else {
 			buffer.discard();
 			status = Status::OFF;
-			playSource = nullptr;
-			recordSource = nullptr;
+			activeSource = nullptr;
+			pendingSource = nullptr;
 		}
 	}
 }

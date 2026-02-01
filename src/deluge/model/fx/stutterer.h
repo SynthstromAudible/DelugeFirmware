@@ -70,10 +70,16 @@ struct StutterConfig {
 	/// Default 50 = full density (normal grain playback)
 	uint8_t densityParam{50};
 
-	/// Get pWrite probability [0,1] from pWriteParam
+	/// Get pWrite probability [0,1] - mode-aware
+	/// For Pitch mode: uses densityParam (density knob repurposed as pWrite)
+	/// For other modes: uses pWriteParam
 	/// CCW (0) = 0% writes (freeze), CW (50) = 100% writes (fresh content)
-	/// Used to control buffer content evolution in all looper modes
-	[[nodiscard]] float getPWriteProb() const { return static_cast<float>(pWriteParam) / 50.0f; }
+	[[nodiscard]] float getPWriteProb() const {
+		if (scatterMode == ScatterMode::Pitch) {
+			return static_cast<float>(densityParam) / 50.0f;
+		}
+		return static_cast<float>(pWriteParam) / 50.0f;
+	}
 
 	/// Get output density [0,1] from densityParam
 	/// CCW (0) = all dry output, CW (50) = normal grain playback
@@ -120,29 +126,29 @@ public:
 	static constexpr size_t kLooperBufferSize = 44100 * 4;
 	/// Check if source is actively playing from the scatter buffer
 	inline bool isStuttering(void* source) {
-		return playSource == source && (status == Status::RECORDING || status == Status::PLAYING);
+		return activeSource == source && (status == Status::RECORDING || status == Status::PLAYING);
 	}
 	/// Check if scatter is actively playing (regardless of ownership)
 	inline bool isScatterPlaying() const {
 		return stutterConfig.scatterMode != ScatterMode::Classic
 		       && (status == Status::RECORDING || status == Status::PLAYING);
 	}
-	/// Check if this source owns either play or record buffer
-	inline bool ownsStutter(void* source) { return playSource == source || recordSource == source; }
+	/// Check if this source owns the buffer or is pending takeover
+	inline bool ownsStutter(void* source) { return activeSource == source || pendingSource == source; }
 	/// Check if scatter is playing but has no owner (released during patch change)
 	inline bool isOrphaned() const {
-		return playSource == nullptr && stutterConfig.scatterMode != ScatterMode::Classic
+		return activeSource == nullptr && stutterConfig.scatterMode != ScatterMode::Classic
 		       && (status == Status::RECORDING || status == Status::PLAYING);
 	}
 	/// Check if scatter is currently owned by a different source (not us, not orphaned)
 	/// Use this to distinguish "owned by someone else" from "not owned by us" (which includes orphaned)
-	inline bool isOwnedByOther(void* source) const { return playSource != nullptr && playSource != source; }
-	/// Release ownership while keeping scatter playing (for patch changes with latched scatter)
-	/// The scatter continues playing from its buffer; a new source can adopt it
+	inline bool isOwnedByOther(void* source) const { return activeSource != nullptr && activeSource != source; }
+	/// Release ownership while keeping buffer available (for patch changes with latched scatter)
+	/// The scatter continues from its buffer; a new source can adopt it
 	inline void releaseOwnership() {
-		if (isLatched() && (status == Status::RECORDING || status == Status::PLAYING)) {
-			playSource = nullptr;
-			recordSource = nullptr;
+		if (isLatched() && (status == Status::RECORDING || status == Status::PLAYING || status == Status::STANDBY)) {
+			activeSource = nullptr;
+			pendingSource = nullptr;
 		}
 	}
 	/// Adopt orphaned scatter (new source takes over processing after patch change)
@@ -150,8 +156,7 @@ public:
 	/// Global scatter state: ownership is just about who processes audio, config is global
 	inline bool adoptOrphanedScatter(void* source) {
 		if (isOrphaned()) {
-			playSource = source;
-			recordSource = source;
+			activeSource = source;
 			return true;
 		}
 		return false;
@@ -172,16 +177,12 @@ public:
 	/// Check if scatter is latched (should keep playing when switching views/tracks)
 	inline bool isLatched() const { return stutterConfig.isLatched(); }
 	/// Check if armed and waiting for beat quantize
-	/// Takeover = PLAYING with a different source recording (preparing to take over)
-	inline bool isArmed() const {
-		return status == Status::ARMED || (status == Status::PLAYING && recordSource != playSource);
-	}
-	/// Check if source is armed for takeover (recording while someone else plays)
-	inline bool isArmedForTakeover(void* source) const {
-		return status == Status::PLAYING && recordSource == source && playSource != source;
-	}
+	/// Takeover = PLAYING with pendingSource set (waiting to inherit buffer)
+	inline bool isArmed() const { return status == Status::ARMED || pendingSource != nullptr; }
+	/// Check if source is armed for takeover (waiting to inherit buffer from active source)
+	inline bool isArmedForTakeover(void* source) const { return pendingSource == source && status == Status::PLAYING; }
 	/// Check if source is recording in standby mode (buffer filling but not yet playing)
-	inline bool isRecordingInStandby(void* source) const { return status == Status::STANDBY && recordSource == source; }
+	inline bool isRecordingInStandby(void* source) const { return status == Status::STANDBY && activeSource == source; }
 	// These calls are slightly awkward with the magniture & timePerTickInverse, but that's the price for not depending
 	// on currentSong and playbackhandler...
 	// loopLengthSamples: for scatter modes, the length of the loop region in samples (one bar or 2 beats)
@@ -199,13 +200,14 @@ public:
 	/// Update live-adjustable params from source's current config (call before processStutter)
 	/// This allows real-time adjustment of phase offsets and leaky write prob while scatter is playing
 	/// Also allows seamless mode switching between looper modes without stopping/clearing
+	/// NOTE: pWriteParam and densityParam are NOT synced here - they use direct setters from menu
+	/// to avoid race conditions where updateLiveParams overwrites menu edits before they take effect
 	inline void updateLiveParams(const StutterConfig& sourceConfig) {
 		stutterConfig.zoneAPhaseOffset = sourceConfig.zoneAPhaseOffset;
 		stutterConfig.zoneBPhaseOffset = sourceConfig.zoneBPhaseOffset;
 		stutterConfig.macroConfigPhaseOffset = sourceConfig.macroConfigPhaseOffset;
 		stutterConfig.gammaPhase = sourceConfig.gammaPhase;
-		stutterConfig.pWriteParam = sourceConfig.pWriteParam;
-		stutterConfig.densityParam = sourceConfig.densityParam;
+		// pWriteParam and densityParam synced via setLivePWrite/setLiveDensity only
 		// Latch is always-on for looper modes; only sync for Classic/Burst
 		if (!sourceConfig.isLooperMode()) {
 			stutterConfig.latch = sourceConfig.latch;
@@ -262,11 +264,11 @@ public:
 	                         int32_t magnitude, uint32_t timePerTickInverse);
 
 	/// Check if source has a pending trigger waiting
-	inline bool hasPendingTrigger(void* source) const { return pendingPlayTrigger && recordSource == source; }
+	inline bool hasPendingTrigger(void* source) const { return pendingPlayTrigger && activeSource == source; }
 	/// Clear pending trigger without canceling standby recording
 	/// Use this in momentary mode when button is released during STANDBY
 	inline void clearPendingTrigger(void* source) {
-		if (recordSource == source) {
+		if (activeSource == source) {
 			pendingPlayTrigger = false;
 		}
 	}
@@ -294,16 +296,15 @@ private:
 	int32_t sizeLeftUntilRecordFinished = 0;
 	int32_t valueBeforeStuttering = 0;
 	int32_t lastQuantizedKnobDiff = 0;
-	/// === CLEAN BUFFER OWNERSHIP MODEL ===
-	/// Two independent ownership slots - can be same or different sources:
-	/// - playSource: who is playing from playBuffer (gets scatter output)
-	/// - recordSource: who is recording to recordBuffer (capturing audio)
+	/// === SINGLE-BUFFER OWNERSHIP MODEL ===
+	/// Single shared buffer with simple ownership:
+	/// - activeSource: who owns the buffer (playing and/or recording)
+	/// - pendingSource: who is armed for takeover (UI feedback only)
 	///
-	/// When different, we have a takeover in progress:
-	///   A is playSource (still playing), B is recordSource (preparing to take over)
-	/// When B triggers, swap buffers and B becomes both playSource and recordSource.
-	void* playSource = nullptr;   ///< Who owns playBuffer (or nullptr)
-	void* recordSource = nullptr; ///< Who owns recordBuffer (or nullptr)
+	/// Takeover behavior: new source inherits buffer content instantly.
+	/// pWrite controls how fast new content overwrites inherited content.
+	void* activeSource = nullptr;  ///< Who owns looperBuffer (playing/recording)
+	void* pendingSource = nullptr; ///< Armed for takeover (UI feedback)
 
 	/// Track if we started from standby mode (to return to it after stutter ends)
 	bool startedFromStandby = false;
@@ -324,14 +325,10 @@ private:
 	static constexpr size_t kStandbyTimeoutBars = 32; ///< ~64 seconds at 120 BPM
 	size_t standbyIdleSamples = 0;                    ///< Samples since last playback (reset on trigger)
 
-	/// Double buffer system - swap instead of copy on trigger
-	StereoSample* bufferA = nullptr;
-	StereoSample* bufferB = nullptr;
-	StereoSample* recordBuffer = nullptr; ///< Points to buffer being recorded
-	StereoSample* playBuffer = nullptr;   ///< Points to buffer being played
-
-	size_t recordWritePos = 0;     ///< Current write position in record buffer (ring buffer style)
-	bool recordBufferFull = false; ///< True once ring buffer has wrapped (full loop available)
+	/// Single shared buffer for all looper modes (pWrite controls content evolution)
+	StereoSample* looperBuffer = nullptr;
+	size_t looperWritePos = 0;     ///< Current write position in buffer (ring buffer style)
+	bool looperBufferFull = false; ///< True once ring buffer has wrapped (full loop available)
 	size_t playbackStartPos = 0;   ///< Where captured bar starts in play buffer (ring buffer offset)
 	size_t playbackLength = 0;     ///< Full captured bar length in samples
 
@@ -510,7 +507,7 @@ private:
 };
 
 // There's only one stutter effect active at a time, so we have a global stutterer to save memory.
-// NOTE: Classic mode uses DelayBuffer, scatter modes use double buffers (bufferA/bufferB).
+// NOTE: Classic mode uses DelayBuffer, scatter modes use looperBuffer (~1.4MB) + delayBuffer (~256KB).
 // These are separate memory, so in theory classic + scatter could run simultaneously on
-// different tracks. Would require separating the state (status, playSource, recordSource) per mode.
+// different tracks. Would require separating the state (status, activeSource) per mode.
 extern Stutterer stutterer;
