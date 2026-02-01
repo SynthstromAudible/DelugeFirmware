@@ -417,12 +417,11 @@ fail:
 			goto gotErrorAfterCreatingSong;
 		}
 
-		D_TRY_CATCH(audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
-		                                                        currentDir.get(), currentFilenameWithoutExtension),
-		            local_error, {
-			            error = local_error;
-			            goto gotErrorAfterCreatingSong;
-		            });
+		error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
+		                                                    currentDir.get(), currentFilenameWithoutExtension);
+		if (error != Error::NONE) {
+			goto gotErrorAfterCreatingSong;
+		}
 		audioFileManager.thingBeginningLoading(ThingType::SONG);
 
 		// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
@@ -481,12 +480,11 @@ gotErrorAfterCreatingSong:
 		goto gotErrorAfterCreatingSong;
 	}
 
-	D_TRY_CATCH(audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
-	                                                        currentDir.get(), currentFilenameWithoutExtension),
-	            local_error, {
-		            error = local_error;
-		            goto gotErrorAfterCreatingSong;
-	            });
+	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
+	                                                    currentFilenameWithoutExtension);
+	if (error != Error::NONE) {
+		goto gotErrorAfterCreatingSong;
+	}
 
 	audioFileManager.thingBeginningLoading(ThingType::SONG);
 

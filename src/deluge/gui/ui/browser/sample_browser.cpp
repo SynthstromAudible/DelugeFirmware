@@ -430,7 +430,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 						return ActionResult::DEALT_WITH;
 					}
 
-					bool allFine = audioFileManager.releaseSampleAtFilePath(filePath);
+					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
 
 					if (!allFine) {
 						display->displayPopup(
@@ -1318,16 +1318,13 @@ removeReasonsFromSamplesAndGetOut:
 		filePath.concatenateAtPos(staticFNO.fname, dirWithSlashLength);
 
 		// We really want to be able to pass a file pointer in here
-		auto maybeNewSample =
-		    audioFileManager.getAudioFileFromFilename(filePath, true, &thisFilePointer, AudioFileType::SAMPLE);
-
-		if (!maybeNewSample.has_value() || maybeNewSample.value() == nullptr) {
-			error = maybeNewSample.error_or(Error::NONE);
+		auto* newSample = static_cast<Sample*>(
+		    audioFileManager.getAudioFileFromFilename(filePath, true, &error, &thisFilePointer, AudioFileType::SAMPLE));
+		if (error != Error::NONE || newSample == nullptr) {
+			// Clean up any samples we loaded in this folder load attempt
 			staticDIR.close();
 			goto removeReasonsFromSamplesAndGetOut;
 		}
-
-		auto* newSample = static_cast<Sample*>(maybeNewSample.value());
 
 		newSample->addReason();
 		newSample->partOfFolderBeingLoaded = true;
