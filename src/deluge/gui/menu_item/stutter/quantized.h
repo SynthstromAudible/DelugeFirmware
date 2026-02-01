@@ -63,26 +63,12 @@ public:
 };
 
 /// pWrite param for looper scatter modes (stored in pWriteParam)
-/// Controls buffer write-back probability for all modes:
-/// - CCW (0) = 100% writes (always overwrite buffer with processed output)
-/// - CW (50) = 0% writes (preserve buffer, hear processed but don't record)
-/// Exception: Pitch mode repurposes this as scale selection (0-50 → 0-11 scales)
+/// Controls buffer write-back probability for all looper modes:
+/// - CCW (0) = 0% writes (freeze buffer, preserve content)
+/// - CW (50) = 100% writes (always overwrite buffer with processed output)
 class ScatterModeParam final : public IntegerContinuous {
 public:
 	using IntegerContinuous::IntegerContinuous;
-
-	// Scale names for Pitch mode (scales + triads)
-	static constexpr const char* kScaleNames[] = {
-	    "Chromatic", "Major",   "Minor",  "MajPent", "MinPent", "Blues",
-	    "Dorian",    "Mixolyd", "MajTri", "MinTri",  "Sus4",    "Dim",
-	};
-	static constexpr const char* kScaleShort[] = {
-	    "Chr", "Maj", "Min", "Ma5", "Mi5", "Blu", "Dor", "Mix", "MAJ", "MIN", "Su4", "Dim",
-	};
-	static constexpr int32_t kNumScales = 12;
-
-	/// Get current scatter mode
-	ScatterMode currentMode() const { return soundEditor.currentModControllable->stutterConfig.scatterMode; }
 
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.pWriteParam); }
 
@@ -124,59 +110,18 @@ public:
 		return 50;
 	}
 
-	void getColumnLabel(StringBuf& label) override {
-		if (currentMode() == ScatterMode::Pitch) {
-			label.append("Scale");
-		}
-		else {
-			label.append("pWrt");
-		}
-	}
+	void getColumnLabel(StringBuf& label) override { label.append("pWrt"); }
 
 	std::string_view getTitle() const override { return getName(); }
 
-	// Override getName to return dynamic name based on mode
-	[[nodiscard]] std::string_view getName() const override {
-		if (currentMode() == ScatterMode::Pitch) {
-			return "Scale";
-		}
-		return "pWrite";
-	}
+	[[nodiscard]] std::string_view getName() const override { return "pWrite"; }
 
-	// Override to show descriptive values for each mode
-	void drawValue() override {
-		auto mode = currentMode();
-		int32_t val = this->getValue();
-
-		if (mode == ScatterMode::Pitch) {
-			// Map 0-50 to 0-11 scale index
-			int32_t idx = (val * (kNumScales - 1)) / 50;
-			idx = std::clamp(idx, int32_t{0}, kNumScales - 1);
-			display->setTextAsNumber(idx);
-		}
-		else {
-			// pWrite: show percentage
-			IntegerContinuous::drawValue();
-		}
-	}
-
-	// Override notification to show descriptive values
+	// Override notification to show percentage (0=freeze, 100=fresh)
 	void getNotificationValue(StringBuf& valueBuf) override {
-		auto mode = currentMode();
 		int32_t val = this->getValue();
-
-		if (mode == ScatterMode::Pitch) {
-			// Scale selection for Pitch mode
-			int32_t idx = (val * (kNumScales - 1)) / 50;
-			idx = std::clamp(idx, int32_t{0}, kNumScales - 1);
-			valueBuf.append(kScaleShort[idx]);
-		}
-		else {
-			// pWrite: show percentage (0=freeze, 50=100% fresh)
-			int32_t writePercent = (val * 100) / 50;
-			valueBuf.appendInt(writePercent);
-			valueBuf.append("%");
-		}
+		int32_t writePercent = (val * 100) / 50;
+		valueBuf.appendInt(writePercent);
+		valueBuf.append("%");
 	}
 };
 

@@ -32,13 +32,9 @@ enum class ScatterMode : uint8_t {
 	Repeat,      ///< Beat repeat with count control
 	Time,        ///< Zone A=combine (grain length), Zone B=repeat (hold same slice)
 	Shuffle,     ///< Phi-based segment reordering
-	Leaky,       ///< Shuffle with probabilistic write-back to buffer (exclusive ownership)
-	// FUTURE: Tweaky - Leaky without ownership check, allows cross-track chaos
-	// Both tracks can write to recordBuffer simultaneously, creating unpredictable
-	// contamination where A's processed output bleeds into B's recording and vice versa.
-	// Implementation: remove `recordSource == playSource` check from leaky write logic.
-	Pattern, ///< Zone A selects slice pattern + phi offset: seq/weave/skip/mirror/pairs
-	Pitch,   ///< Pitch manipulation
+	Grain,       ///< Granular cloud: dual-voice crossfade, Zone A=size, Zone B=spread
+	Pattern,     ///< Zone A selects slice pattern + phi offset: seq/weave/skip/mirror/pairs
+	Pitch,       ///< Pitch manipulation
 	NUM_MODES
 };
 
@@ -70,16 +66,9 @@ struct StutterConfig {
 	/// Default 50 = full density (normal grain playback)
 	uint8_t densityParam{50};
 
-	/// Get pWrite probability [0,1] - mode-aware
-	/// For Pitch mode: uses densityParam (density knob repurposed as pWrite)
-	/// For other modes: uses pWriteParam
+	/// Get pWrite probability [0,1] from pWriteParam
 	/// CCW (0) = 0% writes (freeze), CW (50) = 100% writes (fresh content)
-	[[nodiscard]] float getPWriteProb() const {
-		if (scatterMode == ScatterMode::Pitch) {
-			return static_cast<float>(densityParam) / 50.0f;
-		}
-		return static_cast<float>(pWriteParam) / 50.0f;
-	}
+	[[nodiscard]] float getPWriteProb() const { return static_cast<float>(pWriteParam) / 50.0f; }
 
 	/// Get output density [0,1] from densityParam
 	/// CCW (0) = all dry output, CW (50) = normal grain playback
@@ -94,8 +83,8 @@ struct StutterConfig {
 	/// Check if density is in "force dry" mode (below 25%)
 	[[nodiscard]] bool isDensityForcingDry() const { return densityParam < 12; }
 
-	/// Get Pitch mode scale index [0,11] from pWriteParam (repurposed for Pitch mode)
-	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((pWriteParam * 11) / 50); }
+	/// Get Pitch mode scale index [0,11] from densityParam (repurposed as scale for Pitch mode)
+	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((densityParam * 11) / 50); }
 
 	/// Check if this is a looper mode that always latches
 	[[nodiscard]] bool isLooperMode() const {
@@ -424,6 +413,15 @@ private:
 	/// Repeat grain state (inverse of ratchet - hold same grain for N slices)
 	int32_t scatterRepeatCounter{0};                        ///< Countdown for repeat mode (0 = compute new grain)
 	deluge::dsp::scatter::GrainParams scatterCachedGrain{}; ///< Cached grain during repeat (skip computeGrainParams)
+
+	/// Grain mode dual-voice state (crossfading granular clouds)
+	size_t grainPosA{0};       ///< Voice A buffer read position
+	size_t grainPosB{0};       ///< Voice B buffer read position
+	uint32_t grainPhaseA{0};   ///< Voice A envelope phase (0..UINT32_MAX = 0..1)
+	uint32_t grainPhaseB{0};   ///< Voice B envelope phase (50% offset from A)
+	size_t grainLength{4410};  ///< Grain length in samples (default ~100ms at 44.1kHz)
+	size_t grainSpread{0};     ///< Position spread range (how far new grains can be from current)
+	uint32_t grainRngState{1}; ///< Fast RNG state for grain positions
 
 	/// Bar counter for multi-bar patterns (0 to kBarIndexWrap-1)
 	/// Individual bits used as offsets with Zone B-derived weights to shift Zone A

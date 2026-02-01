@@ -405,7 +405,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				switch (stutterConfig.scatterMode) {
 				case ScatterMode::Repeat:  // Falls through to Shuffle with isRepeat flag
 				case ScatterMode::Time:    // Time uses Shuffle but overrides stretch/sparse from zones
-				case ScatterMode::Leaky:   // Leaky uses Shuffle processing but writes output back to buffer
+				case ScatterMode::Grain:   // Grain mode: dual-voice crossfade (falls through to Shuffle for now)
 				case ScatterMode::Pattern: // Pattern mode: Zone A selects slice reordering pattern
 				case ScatterMode::Pitch:   // Pitch mode: Zone A selects scale degree for transposition
 				case ScatterMode::Shuffle: {
@@ -925,12 +925,11 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			// Hoist mode check and envelope params (constant during loop)
 			// Repeat shares processing with Shuffle (unified code path)
 			bool isShuffle =
-			    (stutterConfig.scatterMode == ScatterMode::Shuffle || stutterConfig.scatterMode == ScatterMode::Leaky
+			    (stutterConfig.scatterMode == ScatterMode::Shuffle || stutterConfig.scatterMode == ScatterMode::Grain
 			     || stutterConfig.scatterMode == ScatterMode::Repeat || stutterConfig.scatterMode == ScatterMode::Time
 			     || stutterConfig.scatterMode == ScatterMode::Pattern
 			     || stutterConfig.scatterMode == ScatterMode::Pitch);
-			bool isLeaky = (stutterConfig.scatterMode == ScatterMode::Leaky);
-			bool isShuffle_ = (stutterConfig.scatterMode == ScatterMode::Shuffle);
+			bool isGrain = (stutterConfig.scatterMode == ScatterMode::Grain);
 			bool isTime = (stutterConfig.scatterMode == ScatterMode::Time);
 			bool isPitch = (stutterConfig.scatterMode == ScatterMode::Pitch);
 			// pWrite applies to all looper modes except Repeat (continuous loop)
