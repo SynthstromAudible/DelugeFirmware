@@ -56,13 +56,73 @@ struct StutterConfig {
 	float macroConfigPhaseOffset{0}; ///< Macro config phase offset (push Macro Config encoder)
 	float gammaPhase{0};             ///< Gamma multiplier for macro (push Macro encoder)
 
-	// Leaky mode: probability of writing processed output back to buffer
-	// 0 = never write (no leak), 1 = always write (max leak)
-	float leakyWriteProb{0.2f}; ///< pWrite: write probability [0,1], default 20%
+	/// Unified mode parameter (0-50 range) - interpretation depends on scatterMode:
+	/// - Leaky: pWrite probability (modeSpecificParam/50.0 → 0.0-1.0)
+	/// - Pitch: scale index (modeSpecificParam*11/50 → 0-11)
+	/// - Repeat: repeat density (how quickly repeats speed up)
+	/// - Time: phrase length multiplier
+	/// - Shuffle: shuffle intensity
+	/// - Pattern: pattern index (modeSpecificParam*7/50 → 0-7)
+	/// Default 10 = 20% for Leaky, Chromatic for Pitch
+	uint8_t modeSpecificParam{10};
 
-	// Pitch mode: scale selection
-	// 0=Chromatic, 1=Major, 2=Minor, 3=MajPent, 4=MinPent, 5=Blues, 6=Dorian, 7=Mixolyd
-	uint8_t pitchScale{0};
+	/// Get Leaky mode write probability [0,1] from modeSpecificParam
+	/// Reaches 100% at 75% of knob (modeSpecificParam=37), stays 100% above that
+	[[nodiscard]] float getLeakyWriteProb() const {
+		if (modeSpecificParam >= 37) {
+			return 1.0f;
+		}
+		return static_cast<float>(modeSpecificParam) / 37.0f;
+	}
+
+	/// Get Leaky mode dry grain probability boost [0,1] from modeSpecificParam
+	/// Kicks in above 75% of knob (modeSpecificParam > 37), ramps 0→1 from 75%→100%
+	/// This ADDS to the normal scatter dry probability when pWrite is maxed
+	[[nodiscard]] float getLeakyDryBoost() const {
+		if (modeSpecificParam <= 37) {
+			return 0.0f;
+		}
+		return static_cast<float>(modeSpecificParam - 37) / 13.0f; // 38-50 → 0-1
+	}
+
+	/// Get Pitch mode scale index [0,11] from modeSpecificParam
+	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((modeSpecificParam * 11) / 50); }
+
+	/// Get Pattern mode repeat count as power of 2: 1, 2, 4, 8, 16, 32 (same as Repeat/Time)
+	/// Pattern selection stays in Zone A, this controls phrase length stretching
+	[[nodiscard]] uint8_t getPatternRepeatCount() const { return getRepeatCount(); }
+
+	/// Get Repeat mode repeat count as power of 2: 1, 2, 4, 8, 16, 32
+	/// Maps 0-50 to 6 steps: 0-8=1, 9-16=2, 17-25=4, 26-33=8, 34-42=16, 43-50=32
+	[[nodiscard]] uint8_t getRepeatCount() const {
+		if (modeSpecificParam <= 8) {
+			return 1;
+		}
+		if (modeSpecificParam <= 16) {
+			return 2;
+		}
+		if (modeSpecificParam <= 25) {
+			return 4;
+		}
+		if (modeSpecificParam <= 33) {
+			return 8;
+		}
+		if (modeSpecificParam <= 42) {
+			return 16;
+		}
+		return 32;
+	}
+
+	/// Get Time mode repeat count as power of 2: 1, 2, 4, 8, 16, 32 (same as Repeat)
+	[[nodiscard]] uint8_t getTimeRepeatCount() const { return getRepeatCount(); }
+
+	/// Get Shuffle mode dry probability [0,1] - higher = more dry grains
+	[[nodiscard]] float getShuffleDryProb() const { return static_cast<float>(modeSpecificParam) / 50.0f; }
+
+	// DEPRECATED: These fields are kept for backward compatibility with serialization.
+	// New code should use modeSpecificParam and the getter functions above.
+	float leakyWriteProb{0.2f}; ///< DEPRECATED: Use getLeakyWriteProb() instead
+	uint8_t pitchScale{0};      ///< DEPRECATED: Use getPitchScale() instead
 };
 
 class Stutterer {
@@ -158,8 +218,7 @@ public:
 		stutterConfig.zoneBPhaseOffset = sourceConfig.zoneBPhaseOffset;
 		stutterConfig.macroConfigPhaseOffset = sourceConfig.macroConfigPhaseOffset;
 		stutterConfig.gammaPhase = sourceConfig.gammaPhase;
-		stutterConfig.leakyWriteProb = sourceConfig.leakyWriteProb;
-		stutterConfig.pitchScale = sourceConfig.pitchScale;
+		stutterConfig.modeSpecificParam = sourceConfig.modeSpecificParam;
 		stutterConfig.latch = sourceConfig.latch;
 		// Allow mode switching between all looper-based modes (all except Classic)
 		// Classic uses different buffer system, can't switch to/from it during playback
@@ -170,8 +229,8 @@ public:
 	}
 
 	/// Direct setters for live params (for menu access)
-	inline void setLivePitchScale(uint8_t scale) { stutterConfig.pitchScale = scale; }
-	inline void setLiveLeakyWriteProb(float prob) { stutterConfig.leakyWriteProb = prob; }
+	/// Set mode-specific param directly (0-50 range)
+	inline void setLiveModeParam(uint8_t value) { stutterConfig.modeSpecificParam = value; }
 	inline void setLiveLatch(bool latch) { stutterConfig.latch = latch; }
 	/// Mark that encoder was released during STANDBY (for momentary mode)
 	inline void markReleasedDuringStandby() { releasedDuringStandby = true; }
@@ -377,7 +436,7 @@ private:
 
 	/// Bar counter for multi-bar patterns (0 to kBarIndexWrap-1)
 	/// Individual bits used as offsets with Zone B-derived weights to shift Zone A
-	static constexpr int32_t kBarIndexWrap = 16; ///< Bar counter wraps at 16 (supports phrases up to 16 bars)
+	static constexpr int32_t kBarIndexWrap = 64; ///< Bar counter wraps at 64 (supports phrases up to 32 bars)
 	int32_t scatterBarIndex{0};
 
 	/// Tick-based bar boundary detection for grid sync

@@ -62,7 +62,14 @@ public:
 	}
 };
 
-/// Slider-based mode param for scatter modes (pWrite for Leaky, scale for Pitch, placeholders for others)
+/// Unified mode-specific param for all scatter modes (stored in modeSpecificParam)
+/// Each mode interprets the 0-50 value differently:
+/// - Leaky: pWrite probability (0-50 → 0%-100%)
+/// - Pitch: scale selection (0-50 → 0-11 scales)
+/// - Pattern: pattern selection (0-50 → 0-7 patterns)
+/// - Repeat: density control (0-50)
+/// - Time: phrase multiplier (0-50)
+/// - Shuffle: intensity (0-50)
 class ScatterModeParam final : public IntegerContinuous {
 public:
 	using IntegerContinuous::IntegerContinuous;
@@ -77,77 +84,44 @@ public:
 	};
 	static constexpr int32_t kNumScales = 12;
 
+	// Pattern names for Pattern mode
+	static constexpr const char* kPatternNames[] = {
+	    "Seq", "Weave", "Skip", "Mirror", "Pairs", "Reverse", "Thirds", "Spiral",
+	};
+	static constexpr const char* kPatternShort[] = {
+	    "Seq", "Wea", "Skp", "Mir", "Pai", "Rev", "3rd", "Spi",
+	};
+	static constexpr int32_t kNumPatterns = 8;
+
 	/// Get current scatter mode
 	ScatterMode currentMode() const { return soundEditor.currentModControllable->stutterConfig.scatterMode; }
 
 	void readCurrentValue() override {
-		auto mode = currentMode();
-		switch (mode) {
-		case ScatterMode::Leaky:
-			// pWrite: read leakyWriteProb as 0-50 value
-			this->setValue(
-			    static_cast<int32_t>(soundEditor.currentModControllable->stutterConfig.leakyWriteProb * 50.0f));
-			break;
-		case ScatterMode::Pitch:
-			// Scale: read pitchScale as 0-7
-			this->setValue(soundEditor.currentModControllable->stutterConfig.pitchScale);
-			break;
-		default:
-			// Placeholder for other modes - read as 25 (middle)
-			this->setValue(25);
-			break;
-		}
+		// All modes use the unified modeSpecificParam
+		this->setValue(soundEditor.currentModControllable->stutterConfig.modeSpecificParam);
 	}
 
 	void writeCurrentValue() override {
-		auto mode = currentMode();
-		switch (mode) {
-		case ScatterMode::Leaky: {
-			// pWrite: write leakyWriteProb
-			float prob = static_cast<float>(this->getValue()) / 50.0f;
-			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
-				Kit* kit = getCurrentKit();
-				for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-					if (thisDrum->type == DrumType::SOUND) {
-						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-						if (soundDrum->stutterConfig.scatterMode == ScatterMode::Leaky) {
-							soundDrum->stutterConfig.leakyWriteProb = prob;
-						}
+		uint8_t value = static_cast<uint8_t>(this->getValue());
+
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+			Kit* kit = getCurrentKit();
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					// Only update drums in the same mode
+					if (soundDrum->stutterConfig.scatterMode == currentMode()) {
+						soundDrum->stutterConfig.modeSpecificParam = value;
 					}
 				}
 			}
-			else {
-				soundEditor.currentModControllable->stutterConfig.leakyWriteProb = prob;
-			}
-			// Also update global stutterer for live changes
-			stutterer.setLiveLeakyWriteProb(prob);
-			break;
 		}
-		case ScatterMode::Pitch: {
-			// Scale: write pitchScale
-			uint8_t scale = static_cast<uint8_t>(this->getValue());
-			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
-				Kit* kit = getCurrentKit();
-				for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-					if (thisDrum->type == DrumType::SOUND) {
-						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-						if (soundDrum->stutterConfig.scatterMode == ScatterMode::Pitch) {
-							soundDrum->stutterConfig.pitchScale = scale;
-						}
-					}
-				}
-			}
-			else {
-				soundEditor.currentModControllable->stutterConfig.pitchScale = scale;
-			}
-			// Also update global stutterer for live changes
-			stutterer.setLivePitchScale(scale);
-			break;
+		else {
+			soundEditor.currentModControllable->stutterConfig.modeSpecificParam = value;
 		}
-		default:
-			// Placeholder for other modes - no-op for now
-			break;
-		}
+
+		// Update global stutterer for live changes
+		stutterer.setLiveModeParam(value);
 	}
 
 	bool usesAffectEntire() override { return true; }
@@ -161,29 +135,29 @@ public:
 	// === Display configuration ===
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override {
-		// Pitch mode uses 0-7 for scale, others use 0-50
-		return (currentMode() == ScatterMode::Pitch) ? (kNumScales - 1) : 50;
+		// All modes use 0-50 range
+		return 50;
 	}
 
 	void getColumnLabel(StringBuf& label) override {
 		switch (currentMode()) {
 		case ScatterMode::Leaky:
-			label.append("pWrite");
+			label.append("pWrit");
 			break;
 		case ScatterMode::Repeat:
-			label.append("Rept"); // Placeholder
+			label.append("Reps");
 			break;
 		case ScatterMode::Time:
-			label.append("Time"); // Placeholder
+			label.append("Reps");
 			break;
 		case ScatterMode::Shuffle:
-			label.append("Shuf"); // Placeholder
+			label.append("Dry");
 			break;
 		case ScatterMode::Pitch:
 			label.append("Scale");
 			break;
 		case ScatterMode::Pattern:
-			label.append("Patn"); // Placeholder
+			label.append("Reps");
 			break;
 		default:
 			label.append("---");
@@ -200,30 +174,79 @@ public:
 			return l10n::getView(l10n::String::STRING_FOR_SCATTER_PWRITE);
 		case ScatterMode::Pitch:
 			return "Scale";
+		case ScatterMode::Pattern:
+			return "Repeats";
+		case ScatterMode::Repeat:
+			return "Repeats";
+		case ScatterMode::Time:
+			return "Repeats";
+		case ScatterMode::Shuffle:
+			return "Dry Prob";
 		default:
-			// For placeholder modes, just use mode name
 			return l10n::getView(l10n::String::STRING_FOR_SCATTER_MODE);
 		}
 	}
 
-	// Override to show scale name instead of number for Pitch mode
+	/// Get repeat count from value (power of 2: 1,2,4,8,16,32)
+	static int32_t getRepeatCountFromValue(int32_t val) {
+		if (val <= 8) {
+			return 1;
+		}
+		if (val <= 16) {
+			return 2;
+		}
+		if (val <= 25) {
+			return 4;
+		}
+		if (val <= 33) {
+			return 8;
+		}
+		if (val <= 42) {
+			return 16;
+		}
+		return 32;
+	}
+
+	// Override to show descriptive values for each mode
 	void drawValue() override {
-		if (currentMode() == ScatterMode::Pitch) {
-			int32_t val = this->getValue();
-			int32_t idx = (val < 0) ? 0 : (val >= kNumScales) ? (kNumScales - 1) : val;
-			display->setTextAsNumber(idx); // Could show name but 7seg is limited
+		auto mode = currentMode();
+		int32_t val = this->getValue();
+
+		if (mode == ScatterMode::Pitch) {
+			// Map 0-50 to 0-11 scale index
+			int32_t idx = (val * (kNumScales - 1)) / 50;
+			idx = std::clamp(idx, int32_t{0}, kNumScales - 1);
+			display->setTextAsNumber(idx);
+		}
+		else if (mode == ScatterMode::Repeat || mode == ScatterMode::Time || mode == ScatterMode::Pattern) {
+			// Show power-of-2 repeat count
+			display->setTextAsNumber(getRepeatCountFromValue(val));
 		}
 		else {
 			IntegerContinuous::drawValue();
 		}
 	}
 
-	// Override notification to show scale name for Pitch mode
+	// Override notification to show descriptive values
 	void getNotificationValue(StringBuf& valueBuf) override {
-		if (currentMode() == ScatterMode::Pitch) {
-			int32_t val = this->getValue();
-			int32_t idx = (val < 0) ? 0 : (val >= kNumScales) ? (kNumScales - 1) : val;
+		auto mode = currentMode();
+		int32_t val = this->getValue();
+
+		if (mode == ScatterMode::Pitch) {
+			int32_t idx = (val * (kNumScales - 1)) / 50;
+			idx = std::clamp(idx, int32_t{0}, kNumScales - 1);
 			valueBuf.append(kScaleShort[idx]);
+		}
+		else if (mode == ScatterMode::Repeat || mode == ScatterMode::Time || mode == ScatterMode::Pattern) {
+			// Show "Nx" format for repeat count
+			valueBuf.appendInt(getRepeatCountFromValue(val));
+			valueBuf.append("x");
+		}
+		else if (mode == ScatterMode::Shuffle) {
+			// Show percentage for dry probability
+			int32_t percent = (val * 100) / 50;
+			valueBuf.appendInt(percent);
+			valueBuf.append("%");
 		}
 		else {
 			IntegerContinuous::getNotificationValue(valueBuf);

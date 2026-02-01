@@ -682,7 +682,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 								degreeIdx = 7;
 
 							// Get semitone offset from scale table
-							uint8_t scaleIdx = stutterConfig.pitchScale;
+							uint8_t scaleIdx = stutterConfig.getPitchScale();
 							if (scaleIdx > 11)
 								scaleIdx = 0;
 							int8_t semitones = kScaleSemitones[scaleIdx][degreeIdx];
@@ -913,7 +913,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			// Duck entire grain if read/write regions overlap (prevents feedback artifacts)
 			bool leakyGrainIsWet = false;
 			if (isLeaky && recordSource == playSource) {
-				uint8_t leakyThreshold = static_cast<uint8_t>(stutterConfig.leakyWriteProb * 16.0f);
+				uint8_t leakyThreshold = static_cast<uint8_t>(stutterConfig.getLeakyWriteProb() * 16.0f);
 				hash::Bits sliceBits(static_cast<uint32_t>(scatterSliceIndex) ^ (scatterBarIndex << 16) ^ 0xDEADBEEFu);
 				leakyGrainIsWet = sliceBits.threshold4(0, leakyThreshold);
 
