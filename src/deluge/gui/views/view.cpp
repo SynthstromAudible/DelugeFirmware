@@ -1334,7 +1334,6 @@ int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int
 	}
 
 	float knobPosFloat = static_cast<float>(knobPos);
-	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
 	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
 	float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
 	float maxMenuRelativeValueFloat = static_cast<float>(kMaxMenuRelativeValue);

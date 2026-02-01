@@ -147,6 +147,8 @@ enum Global : ParamType {
 	// Global non-volume params begin
 	FIRST_GLOBAL_NON_VOLUME,
 	GLOBAL_DELAY_FEEDBACK = FIRST_GLOBAL_NON_VOLUME,
+	GLOBAL_SCATTER_PWRITE,  // Scatter buffer write probability (unipolar 0-1)
+	GLOBAL_SCATTER_DENSITY, // Scatter grain density (unipolar 0-1)
 
 	// Global hybrid params begin
 	FIRST_GLOBAL_HYBRID,
@@ -488,6 +490,10 @@ constexpr int32_t getUnpatchedFallback(ParamType patchedId) {
 		return UNPATCHED_SCATTER_MACRO_CONFIG;
 	case GLOBAL_SCATTER_MACRO:
 		return UNPATCHED_SCATTER_MACRO;
+	case GLOBAL_SCATTER_PWRITE:
+		return UNPATCHED_SCATTER_PWRITE;
+	case GLOBAL_SCATTER_DENSITY:
+		return UNPATCHED_SCATTER_DENSITY;
 	default:
 		return -1; // No fallback
 	}
@@ -523,13 +529,15 @@ constexpr int32_t getHighResOffsetDivisor(UnpatchedShared paramId) {
 /// Check if a patched param is a scatter param (supports gamma adjustment via push+twist)
 constexpr bool isScatterParam(ParamType paramId) {
 	return paramId == GLOBAL_SCATTER_MACRO || paramId == GLOBAL_SCATTER_ZONE_A || paramId == GLOBAL_SCATTER_ZONE_B
-	       || paramId == GLOBAL_SCATTER_MACRO_CONFIG;
+	       || paramId == GLOBAL_SCATTER_MACRO_CONFIG || paramId == GLOBAL_SCATTER_PWRITE
+	       || paramId == GLOBAL_SCATTER_DENSITY;
 }
 
 /// Check if an unpatched param is a scatter param (supports gamma adjustment via push+twist)
 constexpr bool isScatterParam(UnpatchedShared paramId) {
 	return paramId == UNPATCHED_SCATTER_MACRO || paramId == UNPATCHED_SCATTER_ZONE_A
-	       || paramId == UNPATCHED_SCATTER_ZONE_B || paramId == UNPATCHED_SCATTER_MACRO_CONFIG;
+	       || paramId == UNPATCHED_SCATTER_ZONE_B || paramId == UNPATCHED_SCATTER_MACRO_CONFIG
+	       || paramId == UNPATCHED_SCATTER_PWRITE || paramId == UNPATCHED_SCATTER_DENSITY;
 }
 
 } // namespace deluge::modulation::params
