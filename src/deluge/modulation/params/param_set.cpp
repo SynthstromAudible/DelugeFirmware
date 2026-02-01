@@ -418,31 +418,25 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 	return false;
 }
 int32_t UnpatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack) {
-		auto paramId = static_cast<params::UnpatchedShared>(modelStack->paramId);
-		// Half-precision unipolar params: map 0-INT32_MAX to -64 to +64 for full LED range
-		if (paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD || paramId == params::UNPATCHED_SCATTER_MACRO
-		    || paramId == params::UNPATCHED_SCATTER_PWRITE || paramId == params::UNPATCHED_SCATTER_DENSITY) {
-			return (paramValue >> 24) - 64;
-		}
+	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
+		return (paramValue >> 24) - 64;
 	}
-	return ParamSet::paramValueToKnobPos(paramValue, modelStack);
+	else {
+		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
+	}
 }
 
 int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack) {
-		auto paramId = static_cast<params::UnpatchedShared>(modelStack->paramId);
-		// Half-precision unipolar params: map -64 to +64 back to 0-INT32_MAX
-		if (paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD || paramId == params::UNPATCHED_SCATTER_MACRO
-		    || paramId == params::UNPATCHED_SCATTER_PWRITE || paramId == params::UNPATCHED_SCATTER_DENSITY) {
-			int32_t paramValue = 2147483647;
-			if (knobPos < 64) {
-				paramValue = (knobPos + 64) << 24;
-			}
-			return paramValue;
+	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
+		int32_t paramValue = 2147483647;
+		if (knobPos < 64) {
+			paramValue = (knobPos + 64) << 24;
 		}
+		return paramValue;
 	}
-	return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	else {
+		return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	}
 }
 
 bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) {
@@ -519,33 +513,29 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 }
 
 int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack) {
-		auto paramId = static_cast<params::ParamType>(modelStack->paramId);
-		// Half-precision unipolar params: map 0-INT32_MAX to -64 to +64 for full LED range
-		if (paramId == params::LOCAL_OSC_A_PHASE_WIDTH || paramId == params::LOCAL_OSC_B_PHASE_WIDTH
-		    || paramId == params::GLOBAL_SCATTER_MACRO || paramId == params::GLOBAL_SCATTER_PWRITE
-		    || paramId == params::GLOBAL_SCATTER_DENSITY) {
-			return (paramValue >> 24) - 64;
-		}
+	if (modelStack
+	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
+	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
+		return (paramValue >> 24) - 64;
 	}
-	return ParamSet::paramValueToKnobPos(paramValue, modelStack);
+	else {
+		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
+	}
 }
 
 int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack) {
-		auto paramId = static_cast<params::ParamType>(modelStack->paramId);
-		// Half-precision unipolar params: map -64 to +64 back to 0-INT32_MAX
-		if (paramId == params::LOCAL_OSC_A_PHASE_WIDTH || paramId == params::LOCAL_OSC_B_PHASE_WIDTH
-		    || paramId == params::GLOBAL_SCATTER_MACRO || paramId == params::GLOBAL_SCATTER_PWRITE
-		    || paramId == params::GLOBAL_SCATTER_DENSITY) {
-			int32_t paramValue = 2147483647;
-			if (knobPos < 64) {
-				paramValue = (knobPos + 64) << 24;
-			}
-			return paramValue;
+	if (modelStack
+	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
+	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
+		int32_t paramValue = 2147483647;
+		if (knobPos < 64) {
+			paramValue = (knobPos + 64) << 24;
 		}
+		return paramValue;
 	}
-	return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	else {
+		return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	}
 }
 
 bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
