@@ -602,6 +602,27 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							int32_t repeat = 1 + static_cast<int32_t>(zoneBNorm * (scatterNumSlices - 1));
 							grain.repeatSlices = std::clamp(repeat, int32_t{1}, scatterNumSlices);
 						}
+						// Grain mode: Zone A = grain size (1ms-100ms), Zone B = position spread
+						if (stutterConfig.scatterMode == ScatterMode::Grain && playbackLength > 0) {
+							// Zone A [0,1] → grain size in samples (44 to 4410 at 44.1kHz = 1ms to 100ms)
+							float zoneANorm = static_cast<float>(zoneAParam) * deluge::dsp::scatter::kQ31ToFloat;
+							constexpr size_t kMinGrainMs = 44;   // ~1ms at 44.1kHz
+							constexpr size_t kMaxGrainMs = 4410; // ~100ms at 44.1kHz
+							grainLength = kMinGrainMs + static_cast<size_t>(zoneANorm * (kMaxGrainMs - kMinGrainMs));
+							// Zone B [0,1] → spread range (0 to full buffer)
+							float zoneBNorm = static_cast<float>(zoneBParam) * deluge::dsp::scatter::kQ31ToFloat;
+							grainSpread = static_cast<size_t>(zoneBNorm * playbackLength);
+							// Initialize voice B at 50% phase offset if not already running
+							if (grainPhaseB == 0 && grainPhaseA == 0) {
+								grainPhaseB = 0x80000000u; // 50% offset
+								// Random initial positions
+								grainRngState ^= static_cast<uint32_t>(currentTick);
+								grainPosA = grainRngState % playbackLength;
+								grainRngState ^= grainRngState << 13;
+								grainRngState ^= grainRngState >> 17;
+								grainPosB = grainRngState % playbackLength;
+							}
+						}
 						if (!isRepeat) {
 							// Cache for repeat and set counter (Shuffle/Time)
 							scatterCachedGrain = grain;
@@ -1002,6 +1023,69 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 				// Benchmark first sample only to avoid 128x overhead
 				bool benchThisSample = (sampleIdx == 0);
+
+				// === GRAIN MODE: dual-voice crossfade processing ===
+				if (isGrain && looperBuffer != nullptr && loopPlaybackLength > 0) {
+					// Triangular envelope: 0→1→0, peak at phase 0.5
+					// env = 1 - |2*phase - 1| = 1 - |phase*2/MAX - 1|
+					auto triangleEnv = [](uint32_t phase) -> int32_t {
+						// Convert phase to signed, scale to get triangle
+						int32_t p = static_cast<int32_t>(phase >> 1); // 0..INT32_MAX
+						int32_t env = 0x7FFFFFFF - std::abs((p << 1) - 0x7FFFFFFF);
+						return env;
+					};
+
+					// Compute envelopes for both voices
+					int32_t envA = triangleEnv(grainPhaseA);
+					int32_t envB = triangleEnv(grainPhaseB);
+
+					// Read from both grain positions
+					size_t posA = (loopPlaybackStartPos + grainPosA) % kLooperBufferSize;
+					size_t posB = (loopPlaybackStartPos + grainPosB) % kLooperBufferSize;
+					q31_t sampleAL = looperBuffer[posA].l;
+					q31_t sampleAR = looperBuffer[posA].r;
+					q31_t sampleBL = looperBuffer[posB].l;
+					q31_t sampleBR = looperBuffer[posB].r;
+
+					// Mix with envelopes (Q31 multiply, scale up)
+					q31_t outputL = (multiply_32x32_rshift32(sampleAL, envA) + multiply_32x32_rshift32(sampleBL, envB))
+					                << 1;
+					q31_t outputR = (multiply_32x32_rshift32(sampleAR, envA) + multiply_32x32_rshift32(sampleBR, envB))
+					                << 1;
+
+					// Advance grain positions (forward playback within grain)
+					grainPosA = (grainPosA + 1) % loopPlaybackLength;
+					grainPosB = (grainPosB + 1) % loopPlaybackLength;
+
+					// Advance envelope phases
+					uint32_t phaseInc = grainLength > 0 ? (0xFFFFFFFFu / grainLength) : 0x10000000u;
+					uint32_t oldPhaseA = grainPhaseA;
+					uint32_t oldPhaseB = grainPhaseB;
+					grainPhaseA += phaseInc;
+					grainPhaseB += phaseInc;
+
+					// Fast RNG for new positions (xorshift)
+					auto fastRandom = [this]() -> uint32_t {
+						grainRngState ^= grainRngState << 13;
+						grainRngState ^= grainRngState >> 17;
+						grainRngState ^= grainRngState << 5;
+						return grainRngState;
+					};
+
+					// Phase wrap = new grain position
+					if (grainPhaseA < oldPhaseA) { // Wrapped
+						grainPosA = (fastRandom() % loopPlaybackLength);
+					}
+					if (grainPhaseB < oldPhaseB) { // Wrapped
+						grainPosB = (fastRandom() % loopPlaybackLength);
+					}
+
+					// Output (skip all the normal slice processing)
+					sample.l = outputL;
+					sample.r = outputR;
+					sampleIdx++;
+					continue;
+				}
 
 				// === PLAYBACK: read from current slice ===
 				// Save dry input for potential crossfade (density zone)

@@ -536,7 +536,7 @@ HorizontalMenu stutterMenu{STRING_FOR_STUTTER,
                                &stutterDirectionMenu, // Direction for Classic/Burst
                                &stutterLatchMenu,     // Latch toggle for Burst only (looper modes always latch)
                                &stutterQuantizedMenu, // Toggle for Classic/Burst
-                               &stutterModeParamMenu, // pWrite for Leaky/Shuffle, Scale for Pitch, Repeat for others
+                               &stutterModeParamMenu, // pWrite for all looper modes (buffer write probability)
                                &stutterDensityMenu,   // Output density for all looper modes
                                &stutterModeMenu,
                                // Page 2: Scatter zone controls (hidden for Classic/Burst)

@@ -187,7 +187,7 @@ public:
 	void endStutter(ParamManagerForTimeline* paramManager = nullptr);
 
 	/// Update live-adjustable params from source's current config (call before processStutter)
-	/// This allows real-time adjustment of phase offsets and leaky write prob while scatter is playing
+	/// This allows real-time adjustment of phase offsets while scatter is playing
 	/// Also allows seamless mode switching between looper modes without stopping/clearing
 	/// NOTE: pWriteParam and densityParam are NOT synced here - they use direct setters from menu
 	/// to avoid race conditions where updateLiveParams overwrites menu edits before they take effect
