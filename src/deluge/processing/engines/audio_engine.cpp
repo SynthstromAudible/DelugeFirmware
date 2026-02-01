@@ -16,6 +16,8 @@
  */
 
 #include "processing/engines/audio_engine.h"
+
+#include "chrono"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/reverb.hpp"
@@ -291,8 +293,8 @@ void killOneVoice(size_t num_samples) {
 		voice->sound.freeActiveVoice(voice);
 	}
 
-	D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-	          getNumVoices(), getNumAudio());
+	D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples, getNumVoices(),
+	          getNumAudio());
 }
 
 /// Force a voice to release very quickly - will be almost instant but not click
@@ -332,9 +334,10 @@ void forceReleaseOneVoice(size_t num_samples) {
 
 	const Sound::ActiveVoice* best = &all_voices.front();
 	for (const auto& voice : all_voices | std::views::drop(1)) {
-		// if the voice is already releasing faste than this we'd rather release another voice
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= 4096) {
+		// if a voice is already fast releasing just speed it up
+		if (voice->envelopes[0].state == EnvelopeStage::FAST_RELEASE) {
+			voice->speedUpRelease();
+			return;
 			continue;
 		}
 		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
@@ -404,12 +407,13 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 	bool culled = false;
 	int32_t numToCull = 0;
 	if (numAudio + numVoice > MIN_VOICES) {
+		static int32_t last_num_samples_over = 0;
 
-		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
+		int32_t num_samples_over_limit = numSamples - numSamplesLimit;
 		// If it's real dire, do a proper immediate cull
-		if (numSamplesOverLimit >= 20) {
+		if (num_samples_over_limit >= 20) {
 
-			numToCull = (numSamplesOverLimit >> 3);
+			numToCull = (num_samples_over_limit >> 3);
 
 			// leave at least 7 - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
@@ -435,17 +439,17 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
 		// is increasing
-		else if (numSamplesOverLimit >= 0) {
-
-			// If not in first routine call this is inaccurate, so just release another voice since things are
-			// probably bad
-			forceReleaseOneVoice(numSamples);
-			logAction("soft cull");
-			if (numRoutines > 0) {
-				culled = true;
-				D_PRINTLN("culling in second routine");
+		else if (num_samples_over_limit >= 0) {
+			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
+				forceReleaseOneVoice(numSamples);
+				logAction("soft cull");
+				if (numRoutines > 0) {
+					culled = true;
+					D_PRINTLN("culling in second routine");
+				}
 			}
 		}
+		last_num_samples_over = num_samples_over_limit;
 	}
 	else {
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
@@ -461,6 +465,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
+		D_PRINTLN("started %i voices this render cycle", voicesStartedThisRender);
 	}
 }
 
@@ -484,7 +489,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 		}
 		auto numAudio = currentSong ? currentSong->countAudioClips() : 0;
 		auto numVoice = getNumVoices();
-		if (!bypassCulling) {
+		if (!bypassCulling && voicesStartedThisRender == 0) {
 			cullVoices(numSamples, numAudio, numVoice);
 		}
 		else {
@@ -1008,9 +1013,7 @@ void routine() {
 	audioRoutineLocked = true;
 
 	numRoutines = 0;
-	voicesStartedThisRender = std::max<int>(
-	    cpuDireness - 12,
-	    0); // if we're at high direness then we pretend a couple have already been started to limit note ons
+	voicesStartedThisRender = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		while (doSomeOutputting() && numRoutines < 2) {
 
@@ -1385,7 +1388,8 @@ void getReverbParamsFromSong(Song* song) {
 }
 
 bool allowedToStartVoice() {
-	if (voicesStartedThisRender < 4) {
+	auto threshold = cpuDireness > 12 ? 1 : 4;
+	if (voicesStartedThisRender < threshold) {
 		voicesStartedThisRender += 1;
 		return true;
 	}
