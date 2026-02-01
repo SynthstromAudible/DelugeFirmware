@@ -99,6 +99,15 @@ struct StutterConfig {
 		return scatterMode != ScatterMode::Classic && scatterMode != ScatterMode::Burst;
 	}
 
+	/// Check if scatter should stay on after encoder release
+	/// Looper modes always latch, Classic never latches, Burst uses toggle
+	[[nodiscard]] bool isLatched() const {
+		if (isLooperMode()) {
+			return true;
+		}
+		return latch && scatterMode != ScatterMode::Classic;
+	}
+
 	// DEPRECATED: These fields are kept for backward compatibility with serialization.
 	// New code should use pWriteParam, densityParam and the getter functions above.
 	float leakyWriteProb{0.2f}; ///< DEPRECATED: Use getLeakyWriteProb() instead
@@ -164,14 +173,7 @@ public:
 	/// Check if standby recording is active
 	inline bool isInStandby() const { return status == Status::STANDBY; }
 	/// Check if scatter is latched (should keep playing when switching views/tracks)
-	/// Looper modes (Time, Shuffle, Leaky, Pattern, Pitch) are always latched
-	/// Classic/Burst use the latch config setting
-	inline bool isLatched() const {
-		if (stutterConfig.isLooperMode()) {
-			return true; // Looper modes always latch
-		}
-		return stutterConfig.latch && stutterConfig.scatterMode != ScatterMode::Classic;
-	}
+	inline bool isLatched() const { return stutterConfig.isLatched(); }
 	/// Check if armed and waiting for beat quantize
 	/// Takeover = PLAYING with a different source recording (preparing to take over)
 	inline bool isArmed() const {

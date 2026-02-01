@@ -1790,10 +1790,9 @@ void Stutterer::triggerPlaybackNow(void* source) {
 	recordSource = source;
 
 	// Momentary mode: if encoder was released during STANDBY/takeover, end immediately
-	// Use armedConfig.latch (set from source's config when they first pressed) instead of
-	// stutterConfig.latch (which may have been overwritten by updateLiveParams from previous player)
-	bool isLatchedFromArmed = armedConfig.latch && armedConfig.scatterMode != ScatterMode::Classic;
-	if (releasedDuringStandby && !isLatchedFromArmed) {
+	// Use armedConfig (set from source's config when they first pressed) instead of
+	// stutterConfig (which may have been overwritten by updateLiveParams from previous player)
+	if (releasedDuringStandby && !armedConfig.isLatched()) {
 		releasedDuringStandby = false;
 		endStutter(nullptr);
 	}

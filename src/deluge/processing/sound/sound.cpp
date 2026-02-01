@@ -4486,9 +4486,8 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			}
 		}
 		else {
-			// On release: don't end if latched in scatter mode
-			bool isLatched = isScatter && stutterConfig.latch;
-			if (!isLatched) {
+			// On release: don't end if latched (looper modes always latch, Burst uses toggle)
+			if (!stutterConfig.isLatched()) {
 				endStutter((ParamManagerForTimeline*)modelStack->paramManager);
 			}
 		}
