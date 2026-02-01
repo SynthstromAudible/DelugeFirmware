@@ -159,7 +159,8 @@ private:
 	static bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
 
 	static bool isScatterMode() {
-		return soundEditor.currentModControllable->stutterConfig.scatterMode != ScatterMode::Classic;
+		auto mode = soundEditor.currentModControllable->stutterConfig.scatterMode;
+		return mode != ScatterMode::Classic && mode != ScatterMode::Burst;
 	}
 
 	static void applyOptionToStutterConfig(const Direction value, StutterConfig& stutter) {

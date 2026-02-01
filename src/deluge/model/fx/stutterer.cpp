@@ -323,6 +323,17 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			// Repeat mode skips position reset (loops continuously) but still tracks bar for hash evolution
 			if (barLengthInTicks > 0 && currentTick >= 0) {
 				int64_t tickBarIndex = currentTick / static_cast<int64_t>(barLengthInTicks);
+
+				// First buffer after trigger: sync linear position to current bar position
+				// Trigger happens at beat boundary, not bar boundary - compensate for offset
+				// Only sync scatterLinearBarPos (for Leaky writes), not scatterSliceIndex
+				// Slice index is computed fresh in slice setup based on rate knob
+				if (lastTickBarIndex < 0 && playbackLength > 0) {
+					int64_t ticksIntoBar = currentTick % static_cast<int64_t>(barLengthInTicks);
+					size_t samplesIntoBar = (ticksIntoBar * playbackLength) / barLengthInTicks;
+					scatterLinearBarPos = samplesIntoBar % playbackLength;
+				}
+
 				if (lastTickBarIndex >= 0 && tickBarIndex != lastTickBarIndex) {
 					// Bar boundary crossed - increment bar index for hash evolution
 					scatterBarIndex = (scatterBarIndex + 1) % kBarIndexWrap;
@@ -737,7 +748,24 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					float thresholdInfluence =
 					    deluge::dsp::triangleSimpleUnipolar(macroConfigNorm * deluge::dsp::phi::kPhi, 0.5f);
 					bool macroWantsDry = (macroNorm * thresholdInfluence > 0.5f);
-					scatterDryMix = (grain.useDry || macroWantsDry) ? 1.0f : 0.0f;
+					bool wantsDry = grain.useDry || macroWantsDry;
+
+					// Density control: densityParam controls grain vs dry output for all looper modes
+					// Separate from pWriteParam (which controls buffer write-back probability)
+					// CCW (0) = all dry, 25% (12) = hash decides, CW (50) = hash decides (normal)
+					// Range 0-12 ramps from all-dry to normal hash behavior
+					if (stutterConfig.isDensityForcingDry()) {
+						// Below 25%: ramp from all-dry (0) to hash-based (12)
+						float density = stutterConfig.getDensity();
+						uint32_t densityHash = hash::mix(static_cast<uint32_t>(scatterSliceIndex) ^ 0xBADC0FFE);
+						float densityRand = static_cast<float>(densityHash & 0xFFFF) / 65535.0f;
+						if (densityRand >= density) {
+							wantsDry = true; // Below density threshold → force dry
+						}
+					}
+					// At 25% and above (densityParam >= 12), use normal hash behavior from grain
+
+					scatterDryMix = wantsDry ? 1.0f : 0.0f;
 					scatterDryThreshold = 0.5f; // Fixed threshold for bool comparison
 
 					// All timbral params from grain (computed with phase offset and gamma in computeGrainParams)
@@ -906,22 +934,28 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			     || stutterConfig.scatterMode == ScatterMode::Pattern
 			     || stutterConfig.scatterMode == ScatterMode::Pitch);
 			bool isLeaky = (stutterConfig.scatterMode == ScatterMode::Leaky);
+			bool isShuffle_ = (stutterConfig.scatterMode == ScatterMode::Shuffle);
 			bool isTime = (stutterConfig.scatterMode == ScatterMode::Time);
 			bool isPitch = (stutterConfig.scatterMode == ScatterMode::Pitch);
-			// Leaky grain decision: made per-slice (not per-sample) to avoid discontinuities
+			// pWrite applies to Shuffle and Leaky modes (both have write-back capability)
+			// Grain write decision: made per-slice (not per-sample) to avoid discontinuities
 			// Hash of slice index determines if this grain writes wet or dry
 			// Duck entire grain if read/write regions overlap (prevents feedback artifacts)
-			bool leakyGrainIsWet = false;
-			if (isLeaky && recordSource == playSource) {
-				uint8_t leakyThreshold = static_cast<uint8_t>(stutterConfig.getLeakyWriteProb() * 16.0f);
+			bool hasPWrite = (isLeaky || isShuffle_);
+			bool pWriteGrainIsWet = false;
+			if (hasPWrite && recordSource == playSource) {
+				// pWrite uses pWriteParam to control grain writes:
+				// CCW (0) = 100% writes (always overwrite), CW (50) = 0% writes (preserve buffer)
+				float pWriteProb = stutterConfig.getPWriteProb();
+				uint8_t pWriteThreshold = static_cast<uint8_t>(pWriteProb * 16.0f);
 				hash::Bits sliceBits(static_cast<uint32_t>(scatterSliceIndex) ^ (scatterBarIndex << 16) ^ 0xDEADBEEFu);
-				leakyGrainIsWet = sliceBits.threshold4(0, leakyThreshold);
+				pWriteGrainIsWet = sliceBits.threshold4(0, pWriteThreshold);
 
 				// Check for read/write region overlap - duck grain if they intersect
 				// Read region: [sliceStartOffset, sliceStartOffset + sliceLength)
 				// Write region: [linearBarPos, linearBarPos + sliceLength)
 				// In circular buffer, overlap if either start is within the other's range
-				if (leakyGrainIsWet && playbackLength > 0) {
+				if (pWriteGrainIsWet && playbackLength > 0) {
 					size_t readStart = sliceStartOffset;
 					size_t writeStart = scatterLinearBarPos;
 					size_t len = currentSliceLength;
@@ -930,7 +964,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					// Check: is readStart within [writeStart, writeStart+len)?
 					size_t readInWrite = (readStart + playbackLength - writeStart) % playbackLength;
 					if (writeInRead < len || readInWrite < len) {
-						leakyGrainIsWet = false; // Duck this grain - regions overlap
+						pWriteGrainIsWet = false; // Duck this grain - regions overlap
 					}
 				}
 			}
@@ -1029,7 +1063,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 				// Apply grain envelope and gate (using hoisted locals)
 				// Note: envDepth not used (always full fade) - depth blend adds ~30% overhead
-				if (loopEnvActive) {
+				// Skip envelope for dry grains - input audio should pass through unchanged
+				if (loopEnvActive && !useDry) {
 					if (benchThisSample) {
 						FX_BENCH_START(benchEnv);
 					}
@@ -1086,7 +1121,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 				// === ANTI-CLICK: per-channel zero-crossing based muting ===
 				// Skip ZC when slices are consecutive and no envelope (audio flows naturally)
-				if (!loopSkipZC) {
+				// Also skip for dry grains - input audio is continuous, no clicks to suppress
+				if (!loopSkipZC && !useDry) {
 					bool zcL = ((prevOutputL != 0) && ((outputL ^ prevOutputL) < 0)) || bufferZeroCrossing;
 					bool zcR = ((prevOutputR != 0) && ((outputR ^ prevOutputR) < 0)) || bufferZeroCrossing;
 					prevOutputL = outputL;
@@ -1162,7 +1198,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				// Entire grain is ducked at slice setup if read/write regions overlap
 				// pWrite=0 means no writes → content persists indefinitely
 				// pWrite>0 means wet grains overwrite → delayed feedback accumulation
-				if (isLeaky && playBuffer != nullptr && leakyGrainIsWet) {
+				if (hasPWrite && playBuffer != nullptr && pWriteGrainIsWet) {
 					size_t leakyWritePos = loopPlaybackStartPos + loopLinearBarPos;
 					while (leakyWritePos >= kLooperBufferSize) {
 						leakyWritePos -= kLooperBufferSize;

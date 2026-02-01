@@ -19,7 +19,7 @@
  * in all copies or substantial portions of this file.
  */
 #pragma once
-#include "gui/menu_item/toggle.h"
+#include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/fx/stutterer.h"
@@ -29,47 +29,64 @@
 
 namespace deluge::gui::menu_item::stutter {
 
-/// Toggle for scatter latch mode (momentary vs latched)
-class ScatterLatch final : public Toggle {
+/// Density control for scatter modes - controls output dry/wet probability
+/// CCW (0) = all dry output (hear input, no grains)
+/// CW (50) = normal grain playback (hash decides)
+class ScatterDensity final : public IntegerContinuous {
 public:
-	using Toggle::Toggle;
+	using IntegerContinuous::IntegerContinuous;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.latch); }
+	/// Get current scatter mode
+	ScatterMode currentMode() const { return soundEditor.currentModControllable->stutterConfig.scatterMode; }
+
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.densityParam); }
 
 	void writeCurrentValue() override {
-		bool latch = this->getValue();
+		uint8_t value = static_cast<uint8_t>(this->getValue());
 
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 			Kit* kit = getCurrentKit();
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->stutterConfig.latch = latch;
-					// Switching to momentary while scattering should end scatter
-					if (!latch && stutterer.isStuttering(soundDrum)) {
-						soundDrum->endStutter(nullptr);
+					// Only update drums in looper modes
+					if (soundDrum->stutterConfig.isLooperMode()) {
+						soundDrum->stutterConfig.densityParam = value;
 					}
 				}
 			}
 		}
 		else {
-			soundEditor.currentModControllable->stutterConfig.latch = latch;
-			// Switching to momentary while scattering should end scatter
-			if (!latch && stutterer.isStuttering(soundEditor.currentModControllable)) {
-				soundEditor.currentModControllable->endStutter(nullptr);
-			}
+			soundEditor.currentModControllable->stutterConfig.densityParam = value;
 		}
-		// Also update global stutterer for live changes
-		stutterer.setLiveLatch(latch);
+
+		// Update global stutterer for live changes
+		stutterer.setLiveDensity(value);
 	}
 
 	bool usesAffectEntire() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		// Latch toggle only relevant for Burst mode (Classic doesn't use latch at all)
-		// Looper modes (Time, Shuffle, Leaky, Pattern, Pitch) always latch - no toggle needed
-		auto mode = soundEditor.currentModControllable->stutterConfig.scatterMode;
-		return mode == ScatterMode::Burst;
+		// Only relevant for looper modes (not Classic/Burst)
+		return soundEditor.currentModControllable->stutterConfig.isLooperMode();
+	}
+
+	// === Display configuration ===
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+
+	void getColumnLabel(StringBuf& label) override { label.append("Dens"); }
+
+	std::string_view getTitle() const override { return getName(); }
+
+	[[nodiscard]] std::string_view getName() const override { return "Density"; }
+
+	// Override notification to show percentage
+	void getNotificationValue(StringBuf& valueBuf) override {
+		int32_t val = this->getValue();
+		int32_t percent = (val * 100) / 50;
+		valueBuf.appendInt(percent);
+		valueBuf.append("%");
 	}
 };
 

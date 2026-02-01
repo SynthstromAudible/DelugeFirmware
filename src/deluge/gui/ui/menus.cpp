@@ -201,6 +201,7 @@
 #include "gui/menu_item/source/patched_param/modulator_feedback.h"
 #include "gui/menu_item/source/patched_param/modulator_level.h"
 #include "gui/menu_item/stem_export/start.h"
+#include "gui/menu_item/stutter/density.h"
 #include "gui/menu_item/stutter/direction.h"
 #include "gui/menu_item/stutter/latch.h"
 #include "gui/menu_item/stutter/mode.h"
@@ -518,6 +519,7 @@ stutter::StutterDirection stutterDirectionMenu{STRING_FOR_DIRECTION, STRING_FOR_
 stutter::ScatterLatch stutterLatchMenu{STRING_FOR_SCATTER_LATCH, STRING_FOR_SCATTER_LATCH};
 stutter::QuantizedStutter stutterQuantizedMenu{STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE};
 stutter::ScatterModeParam stutterModeParamMenu{STRING_FOR_SCATTER_PWRITE, STRING_FOR_SCATTER_PWRITE};
+stutter::ScatterDensity stutterDensityMenu{STRING_FOR_SCATTER_DENSITY, STRING_FOR_SCATTER_DENSITY};
 stutter::Rate stutterRateMenu{STRING_FOR_RATE, STRING_FOR_STUTTER_RATE};
 stutter::ScatterModeMenu stutterModeMenu{STRING_FOR_SCATTER_MODE, STRING_FOR_SCATTER_MODE};
 // Scatter page 2
@@ -532,9 +534,10 @@ HorizontalMenu stutterMenu{STRING_FOR_STUTTER,
                                // Page 1: Core stutter controls
                                &stutterRateMenu,
                                &stutterDirectionMenu, // Direction for Classic/Burst
-                               &stutterLatchMenu,     // Latch toggle for scatter modes
+                               &stutterLatchMenu,     // Latch toggle for Burst only (looper modes always latch)
                                &stutterQuantizedMenu, // Toggle for Classic/Burst
-                               &stutterModeParamMenu, // Slider for Leaky/other modes (pWrite, etc.)
+                               &stutterModeParamMenu, // pWrite for Leaky/Shuffle, Scale for Pitch, Repeat for others
+                               &stutterDensityMenu,   // Output density for all looper modes
                                &stutterModeMenu,
                                // Page 2: Scatter zone controls (hidden for Classic/Burst)
                                &stutterZoneAMenu,

@@ -589,6 +589,13 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	if (stutterConfig.pitchScale != 0) {
 		writer.writeAttribute("scatterPitchScale", stutterConfig.pitchScale);
 	}
+	// New unified params (these are the active fields, above are deprecated)
+	if (stutterConfig.pWriteParam != 0) {
+		writer.writeAttribute("scatterPWriteParam", stutterConfig.pWriteParam);
+	}
+	if (stutterConfig.densityParam != 50) {
+		writer.writeAttribute("scatterDensity", stutterConfig.densityParam);
+	}
 	// Secret knob phase offsets (only write if non-zero)
 	if (stutterConfig.zoneAPhaseOffset != 0) {
 		writer.writeAttribute("scatterPhaseA", static_cast<int32_t>(stutterConfig.zoneAPhaseOffset * 10.0f));
@@ -894,6 +901,8 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 		stutterConfig.latch = false;
 		stutterConfig.leakyWriteProb = 0.2f;
 		stutterConfig.pitchScale = 0;
+		stutterConfig.pWriteParam = 0;
+		stutterConfig.densityParam = 50;
 		stutterConfig.zoneAPhaseOffset = 0;
 		stutterConfig.zoneBPhaseOffset = 0;
 		stutterConfig.macroConfigPhaseOffset = 0;
@@ -933,6 +942,16 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 				stutterConfig.pitchScale =
 				    static_cast<uint8_t>(std::clamp(reader.readTagOrAttributeValueInt(), 0_i32, 11_i32));
 				reader.exitTag("scatterPitchScale");
+			}
+			else if (!strcmp(tagName, "scatterModeParam") || !strcmp(tagName, "scatterPWriteParam")) {
+				stutterConfig.pWriteParam =
+				    static_cast<uint8_t>(std::clamp(reader.readTagOrAttributeValueInt(), 0_i32, 50_i32));
+				reader.exitTag(tagName);
+			}
+			else if (!strcmp(tagName, "scatterDensity")) {
+				stutterConfig.densityParam =
+				    static_cast<uint8_t>(std::clamp(reader.readTagOrAttributeValueInt(), 0_i32, 50_i32));
+				reader.exitTag("scatterDensity");
 			}
 			else if (!strcmp(tagName, "scatterPhaseA")) {
 				stutterConfig.zoneAPhaseOffset = static_cast<float>(reader.readTagOrAttributeValueInt()) / 10.0f;
@@ -1482,6 +1501,8 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		config.latch = stutterConfig.latch;
 		config.leakyWriteProb = stutterConfig.leakyWriteProb;
 		config.pitchScale = stutterConfig.pitchScale;
+		config.pWriteParam = stutterConfig.pWriteParam;
+		config.densityParam = stutterConfig.densityParam;
 		// Phase offsets are set via secret encoder menus on local config
 		config.zoneAPhaseOffset = stutterConfig.zoneAPhaseOffset;
 		config.zoneBPhaseOffset = stutterConfig.zoneBPhaseOffset;

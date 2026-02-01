@@ -56,71 +56,51 @@ struct StutterConfig {
 	float macroConfigPhaseOffset{0}; ///< Macro config phase offset (push Macro Config encoder)
 	float gammaPhase{0};             ///< Gamma multiplier for macro (push Macro encoder)
 
-	/// Unified mode parameter (0-50 range) - interpretation depends on scatterMode:
-	/// - Leaky: pWrite probability (modeSpecificParam/50.0 → 0.0-1.0)
-	/// - Pitch: scale index (modeSpecificParam*11/50 → 0-11)
-	/// - Repeat: repeat density (how quickly repeats speed up)
-	/// - Time: phrase length multiplier
-	/// - Shuffle: shuffle intensity
-	/// - Pattern: pattern index (modeSpecificParam*7/50 → 0-7)
-	/// Default 10 = 20% for Leaky, Chromatic for Pitch
-	uint8_t modeSpecificParam{10};
+	/// pWrite parameter (0-50 range) - buffer write-back probability for all looper modes:
+	/// - CCW (0) = 100% writes (always overwrite buffer)
+	/// - CW (50) = 0% writes (preserve buffer content)
+	/// - Pitch mode: repurposed as scale index (pWriteParam*11/50 → 0-11)
+	/// Default 0 = always write (fresh content)
+	uint8_t pWriteParam{0};
 
-	/// Get Leaky mode write probability [0,1] from modeSpecificParam
-	/// Reaches 100% at 75% of knob (modeSpecificParam=37), stays 100% above that
-	[[nodiscard]] float getLeakyWriteProb() const {
-		if (modeSpecificParam >= 37) {
-			return 1.0f;
-		}
-		return static_cast<float>(modeSpecificParam) / 37.0f;
+	/// Density parameter (0-50 range) - output dry/wet probability for looper modes:
+	/// - CCW (0) = all dry output (hear input, no grains)
+	/// - 25% (12) = hash decides with normal probability
+	/// - CW (50) = hash decides (normal grain behavior)
+	/// Default 50 = full density (normal grain playback)
+	uint8_t densityParam{50};
+
+	/// Get pWrite probability [0,1] from pWriteParam
+	/// CCW (0) = 100% writes (always overwrite buffer), CW (50) = 0% writes (preserve buffer)
+	/// Used to control buffer content evolution in all looper modes
+	[[nodiscard]] float getPWriteProb() const {
+		// Invert: 0 → 1.0 (always write), 50 → 0.0 (never write)
+		return 1.0f - (static_cast<float>(pWriteParam) / 50.0f);
 	}
 
-	/// Get Leaky mode dry grain probability boost [0,1] from modeSpecificParam
-	/// Kicks in above 75% of knob (modeSpecificParam > 37), ramps 0→1 from 75%→100%
-	/// This ADDS to the normal scatter dry probability when pWrite is maxed
-	[[nodiscard]] float getLeakyDryBoost() const {
-		if (modeSpecificParam <= 37) {
-			return 0.0f;
+	/// Get output density [0,1] from densityParam
+	/// CCW (0) = all dry output, CW (50) = normal grain playback
+	/// Range 0-12 ramps from all-dry to normal, 12+ is normal hash behavior
+	[[nodiscard]] float getDensity() const {
+		if (densityParam >= 12) {
+			return 1.0f; // Normal hash behavior
 		}
-		return static_cast<float>(modeSpecificParam - 37) / 13.0f; // 38-50 → 0-1
+		return static_cast<float>(densityParam) / 12.0f;
 	}
 
-	/// Get Pitch mode scale index [0,11] from modeSpecificParam
-	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((modeSpecificParam * 11) / 50); }
+	/// Check if density is in "force dry" mode (below 25%)
+	[[nodiscard]] bool isDensityForcingDry() const { return densityParam < 12; }
 
-	/// Get Pattern mode repeat count as power of 2: 1, 2, 4, 8, 16, 32 (same as Repeat/Time)
-	/// Pattern selection stays in Zone A, this controls phrase length stretching
-	[[nodiscard]] uint8_t getPatternRepeatCount() const { return getRepeatCount(); }
+	/// Get Pitch mode scale index [0,11] from pWriteParam (repurposed for Pitch mode)
+	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((pWriteParam * 11) / 50); }
 
-	/// Get Repeat mode repeat count as power of 2: 1, 2, 4, 8, 16, 32
-	/// Maps 0-50 to 6 steps: 0-8=1, 9-16=2, 17-25=4, 26-33=8, 34-42=16, 43-50=32
-	[[nodiscard]] uint8_t getRepeatCount() const {
-		if (modeSpecificParam <= 8) {
-			return 1;
-		}
-		if (modeSpecificParam <= 16) {
-			return 2;
-		}
-		if (modeSpecificParam <= 25) {
-			return 4;
-		}
-		if (modeSpecificParam <= 33) {
-			return 8;
-		}
-		if (modeSpecificParam <= 42) {
-			return 16;
-		}
-		return 32;
+	/// Check if this is a looper mode that always latches
+	[[nodiscard]] bool isLooperMode() const {
+		return scatterMode != ScatterMode::Classic && scatterMode != ScatterMode::Burst;
 	}
-
-	/// Get Time mode repeat count as power of 2: 1, 2, 4, 8, 16, 32 (same as Repeat)
-	[[nodiscard]] uint8_t getTimeRepeatCount() const { return getRepeatCount(); }
-
-	/// Get Shuffle mode dry probability [0,1] - higher = more dry grains
-	[[nodiscard]] float getShuffleDryProb() const { return static_cast<float>(modeSpecificParam) / 50.0f; }
 
 	// DEPRECATED: These fields are kept for backward compatibility with serialization.
-	// New code should use modeSpecificParam and the getter functions above.
+	// New code should use pWriteParam, densityParam and the getter functions above.
 	float leakyWriteProb{0.2f}; ///< DEPRECATED: Use getLeakyWriteProb() instead
 	uint8_t pitchScale{0};      ///< DEPRECATED: Use getPitchScale() instead
 };
@@ -184,7 +164,14 @@ public:
 	/// Check if standby recording is active
 	inline bool isInStandby() const { return status == Status::STANDBY; }
 	/// Check if scatter is latched (should keep playing when switching views/tracks)
-	inline bool isLatched() const { return stutterConfig.latch && stutterConfig.scatterMode != ScatterMode::Classic; }
+	/// Looper modes (Time, Shuffle, Leaky, Pattern, Pitch) are always latched
+	/// Classic/Burst use the latch config setting
+	inline bool isLatched() const {
+		if (stutterConfig.isLooperMode()) {
+			return true; // Looper modes always latch
+		}
+		return stutterConfig.latch && stutterConfig.scatterMode != ScatterMode::Classic;
+	}
 	/// Check if armed and waiting for beat quantize
 	/// Takeover = PLAYING with a different source recording (preparing to take over)
 	inline bool isArmed() const {
@@ -218,19 +205,27 @@ public:
 		stutterConfig.zoneBPhaseOffset = sourceConfig.zoneBPhaseOffset;
 		stutterConfig.macroConfigPhaseOffset = sourceConfig.macroConfigPhaseOffset;
 		stutterConfig.gammaPhase = sourceConfig.gammaPhase;
-		stutterConfig.modeSpecificParam = sourceConfig.modeSpecificParam;
-		stutterConfig.latch = sourceConfig.latch;
-		// Allow mode switching between all looper-based modes (all except Classic)
-		// Classic uses different buffer system, can't switch to/from it during playback
-		// Changes take effect on next slice boundary
-		if (stutterConfig.scatterMode != ScatterMode::Classic && sourceConfig.scatterMode != ScatterMode::Classic) {
+		stutterConfig.pWriteParam = sourceConfig.pWriteParam;
+		stutterConfig.densityParam = sourceConfig.densityParam;
+		// Latch is always-on for looper modes; only sync for Classic/Burst
+		if (!sourceConfig.isLooperMode()) {
+			stutterConfig.latch = sourceConfig.latch;
+		}
+		// Allow mode switching between looper-based modes only (not Classic or Burst)
+		// Classic and Burst use DelayBuffer, others use the looper double-buffer system
+		// Can't switch to/from DelayBuffer modes during playback - different buffer systems
+		bool currentIsLooper = stutterConfig.isLooperMode();
+		bool targetIsLooper = sourceConfig.isLooperMode();
+		if (currentIsLooper && targetIsLooper) {
 			stutterConfig.scatterMode = sourceConfig.scatterMode;
 		}
 	}
 
 	/// Direct setters for live params (for menu access)
-	/// Set mode-specific param directly (0-50 range)
-	inline void setLiveModeParam(uint8_t value) { stutterConfig.modeSpecificParam = value; }
+	/// Set pWrite param directly (0-50 range)
+	inline void setLivePWrite(uint8_t value) { stutterConfig.pWriteParam = value; }
+	/// Set density param directly (0-50 range)
+	inline void setLiveDensity(uint8_t value) { stutterConfig.densityParam = value; }
 	inline void setLiveLatch(bool latch) { stutterConfig.latch = latch; }
 	/// Mark that encoder was released during STANDBY (for momentary mode)
 	inline void markReleasedDuringStandby() { releasedDuringStandby = true; }
