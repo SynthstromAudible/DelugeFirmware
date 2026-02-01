@@ -56,9 +56,9 @@ public:
 	bool usesAffectEntire() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		// Only relevant for Classic and Burst modes
+		// Only relevant for Classic mode
 		auto mode = soundEditor.currentModControllable->stutterConfig.scatterMode;
-		return mode == ScatterMode::Classic || mode == ScatterMode::Burst;
+		return mode == ScatterMode::Classic;
 	}
 };
 
