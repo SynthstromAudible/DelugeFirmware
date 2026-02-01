@@ -54,10 +54,6 @@ public:
 	void deleteAllBandsAndData();
 	void bandDataBeingStolen(WaveTableBandData* bandData);
 
-	// Stealable Implementation
-	bool mayBeStolen(void* thingNotToStealFrom = nullptr) override;
-	void steal(char const* errorCode) override;
-
 	int32_t numCycles;
 	int32_t numCyclesMagnitude;
 

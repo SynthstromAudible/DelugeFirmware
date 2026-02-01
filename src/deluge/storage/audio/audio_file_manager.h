@@ -16,15 +16,12 @@
  */
 
 #pragma once
-#include "audio_file.h"
-#include "audio_file_vector.h"
 #include "definitions_cxx.hpp"
+#include "storage/audio/audio_file_vector.h"
 #include "storage/cluster/cluster.h"
 #include "storage/cluster/cluster_priority_queue.h"
 #include <array>
 #include <cstdint>
-#include <expected>
-#include <strings.h>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -35,7 +32,6 @@ class SampleCache;
 class String;
 class SampleRecorder;
 class Output;
-class WaveTable;
 
 enum class AlternateLoadDirStatus {
 	NONE_SET,
@@ -84,28 +80,24 @@ char const* const audioRecordingFolderNames[] = {
  */
 
 class AudioFileManager {
-	struct StringLessThan {
-		bool operator()(String* const& lhs, String* const& rhs) const { return strcasecmp(lhs->get(), rhs->get()) < 0; }
-	};
-
 public:
 	AudioFileManager();
 
 	AudioFileVector audioFiles;
 
 	void init();
-	std::expected<AudioFile*, Error> getAudioFileFromFilename(String& fileName, bool mayReadCard,
-	                                                          FilePointer* filePointer, AudioFileType type,
-	                                                          bool makeWaveTableWorkAtAllCosts = false);
+	AudioFile* getAudioFileFromFilename(String& fileName, bool mayReadCard, Error* error, FilePointer* filePointer,
+	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
 	bool loadCluster(Cluster& cluster, int32_t minNumReasonsAfter = 0);
 	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
 	void removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong = false);
 
+	bool ensureEnoughMemoryForOneMoreAudioFile();
+
 	void slowRoutine();
 
-	std::expected<void, Error> setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath);
-	std::expected<void, Error> setupAlternateAudioFileDir(String& newPath, char const* rootDir,
-	                                                      String& songFilenameWithoutExtension);
+	Error setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath);
+	Error setupAlternateAudioFileDir(String& newPath, char const* rootDir, String& songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
 	/// If songname isn't supplied the file is placed in the main recording folder and named as samples/folder/REC###.
 	/// If song and channel are supplied then it's placed in samples/folder/song/channel_###
@@ -113,11 +105,9 @@ public:
 	                                      AudioRecordingFolder folder, uint32_t* getNumber, const char* channelName,
 	                                      String* songName);
 	void deleteAnyTempRecordedSamplesFromMemory();
-
-	void releaseFile(Sample& sample);
-	void releaseFile(WaveTable& wavetable);
-	bool releaseSampleAtFilePath(String& filePath);
-	void releaseAllUnused();
+	void deleteUnusedAudioFileFromMemory(AudioFile& audioFile, int32_t i);
+	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile& audioFile);
+	bool tryToDeleteAudioFileFromMemoryIfItExists(char const* filePath);
 
 	void thingBeginningLoading(ThingType newThingType);
 	void thingFinishedLoading();
