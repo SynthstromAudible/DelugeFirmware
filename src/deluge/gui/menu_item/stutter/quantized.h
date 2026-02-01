@@ -172,8 +172,8 @@ public:
 			valueBuf.append(kScaleShort[idx]);
 		}
 		else {
-			// pWrite: show percentage (inverted: 0=100% writes, 50=0% writes)
-			int32_t writePercent = 100 - ((val * 100) / 50);
+			// pWrite: show percentage (0=freeze, 50=100% fresh)
+			int32_t writePercent = (val * 100) / 50;
 			valueBuf.appendInt(writePercent);
 			valueBuf.append("%");
 		}

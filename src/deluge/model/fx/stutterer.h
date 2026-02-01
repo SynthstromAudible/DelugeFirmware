@@ -57,11 +57,11 @@ struct StutterConfig {
 	float gammaPhase{0};             ///< Gamma multiplier for macro (push Macro encoder)
 
 	/// pWrite parameter (0-50 range) - buffer write-back probability for all looper modes:
-	/// - CCW (0) = 100% writes (always overwrite buffer)
-	/// - CW (50) = 0% writes (preserve buffer content)
+	/// - CCW (0) = 0% writes (freeze/preserve buffer content)
+	/// - CW (50) = 100% writes (always overwrite with fresh content)
 	/// - Pitch mode: repurposed as scale index (pWriteParam*11/50 → 0-11)
-	/// Default 0 = always write (fresh content)
-	uint8_t pWriteParam{0};
+	/// Default 50 = always write (fresh content)
+	uint8_t pWriteParam{50};
 
 	/// Density parameter (0-50 range) - output dry/wet probability for looper modes:
 	/// - CCW (0) = all dry output (hear input, no grains)
@@ -71,12 +71,9 @@ struct StutterConfig {
 	uint8_t densityParam{50};
 
 	/// Get pWrite probability [0,1] from pWriteParam
-	/// CCW (0) = 100% writes (always overwrite buffer), CW (50) = 0% writes (preserve buffer)
+	/// CCW (0) = 0% writes (freeze), CW (50) = 100% writes (fresh content)
 	/// Used to control buffer content evolution in all looper modes
-	[[nodiscard]] float getPWriteProb() const {
-		// Invert: 0 → 1.0 (always write), 50 → 0.0 (never write)
-		return 1.0f - (static_cast<float>(pWriteParam) / 50.0f);
-	}
+	[[nodiscard]] float getPWriteProb() const { return static_cast<float>(pWriteParam) / 50.0f; }
 
 	/// Get output density [0,1] from densityParam
 	/// CCW (0) = all dry output, CW (50) = normal grain playback
