@@ -1193,8 +1193,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						outputR = (multiply_32x32_rshift32(srcAR, envA) + multiply_32x32_rshift32(srcBR, envB)) << 1;
 					}
 
-					// Apply pan (same as slice modes)
-					if (loopGrainPanActive) {
+					// Apply pan only to wet grains (skip when both voices are dry)
+					if (loopGrainPanActive && !(grainAIsDry && grainBIsDry)) {
 						q31_t mixL = outputL;
 						q31_t mixR = outputR;
 						if (loopGrainPanRight) {
@@ -1412,7 +1412,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				// Apply crossfeed pan using hoisted Q31 coefficients (optimized: 2 muls instead of 3)
 				// At pan=1: L=0, R=(L+R)/2  |  At pan=-1: L=(L+R)/2, R=0
 				// Algebraic simplification: R + (L-R)*cross instead of R*keep + L*cross
-				if (loopPanActive) {
+				// Skip pan for dry grains - input audio should pass through unchanged
+				if (loopPanActive && !useDry) {
 					if (benchThisSample) {
 						FX_BENCH_START(benchPan);
 					}
