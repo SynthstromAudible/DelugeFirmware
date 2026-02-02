@@ -21,6 +21,35 @@
 
 #pragma once
 
+// ============================================================================
+// SCATTER TAKEOVER DESIGN
+// ============================================================================
+//
+// When Track B takes over scatter from Track A (via preset change or track switch):
+//
+// 1. BUFFER: B inherits A's audio buffer content instantly. pWrite controls
+//    how fast B's audio overwrites the inherited content.
+//
+// 2. PARAMS: A's scatter params (zones, macro, pWrite, density) are copied to
+//    B's ParamManager. This makes the UI correct - it shows A's inherited
+//    values, and B can edit them from there.
+//
+// 3. CONFIG: A's StutterConfig (mode, phase offsets, etc.) is copied to B's
+//    local stutterConfig via checkAndClearInheritConfig().
+//
+// 4. PERSISTENCE: Changes to B's ParamManager are in RAM only. They persist
+//    for the session but are NOT saved to SD card unless B explicitly saves
+//    the preset. This is consistent with other live parameter edits.
+//
+// Implementation in ModControllableAudio::processScatter():
+//   if (stutterer.checkAndClearInheritConfig()) {
+//       stutterConfig = stutterer.getStutterConfig();  // Copy mode, phase offsets
+//       auto cached = stutterer.getCachedScatterParams();
+//       // Copy zones, macro, pWrite, density to this source's ParamManager
+//   }
+//
+// ============================================================================
+
 #include "dsp/hash_random.hpp"
 #include "dsp/phi_triangle.hpp"
 #include "dsp/util.hpp"

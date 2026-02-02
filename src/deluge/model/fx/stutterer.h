@@ -152,9 +152,21 @@ public:
 	/// Adopt orphaned scatter (new source takes over processing after patch change)
 	/// Returns true if adoption occurred
 	/// Global scatter state: ownership is just about who processes audio, config is global
+	/// Sets shouldInheritConfig so processStutter will copy global config to local
 	inline bool adoptOrphanedScatter(void* source) {
 		if (isOrphaned()) {
 			activeSource = source;
+			shouldInheritConfig = true;
+			return true;
+		}
+		return false;
+	}
+	/// Check if new owner should inherit config (and clear the flag)
+	/// Call this before updateLiveParams to handle takeover config inheritance
+	/// Caller should also copy cached scatter params to new owner's ParamManager
+	inline bool checkAndClearInheritConfig() {
+		if (shouldInheritConfig) {
+			shouldInheritConfig = false;
 			return true;
 		}
 		return false;
@@ -170,6 +182,26 @@ public:
 	inline const StutterConfig& getStutterConfig() const { return stutterConfig; }
 	/// Get mutable stutter config (for direct menu writes when scatter is playing)
 	inline StutterConfig& getStutterConfigMutable() { return stutterConfig; }
+	/// Get cached scatter params for copying to new owner's ParamManager on takeover
+	/// Returns all 6 params as q31 values ready for ParamManager::setCurrentValueBasicForSetup
+	struct CachedScatterParams {
+		q31_t zoneA;
+		q31_t zoneB;
+		q31_t macroConfig;
+		q31_t macro;   // Unipolar q31 (stored as bipolar in ParamManager, needs conversion)
+		q31_t pWrite;  // Bipolar q31
+		q31_t density; // Bipolar q31
+	};
+	inline CachedScatterParams getCachedScatterParams() const {
+		// Convert macro from unipolar [0, INT32_MAX] back to bipolar for ParamManager storage
+		// Unipolar 0 → bipolar INT32_MIN, unipolar INT32_MAX → bipolar INT32_MAX
+		q31_t macroBipolar = static_cast<q31_t>((static_cast<int64_t>(cachedMacroParam) * 2) - 2147483648LL);
+		// Convert pWrite/density from 0-1 float to bipolar q31
+		q31_t pWriteBipolar = static_cast<q31_t>((cachedPWriteProb * 4294967296.0f) - 2147483648.0f);
+		q31_t densityBipolar = static_cast<q31_t>((cachedDensityProb * 4294967296.0f) - 2147483648.0f);
+		return {cachedZoneAParam, cachedZoneBParam, cachedMacroConfigParam,
+		        macroBipolar,     pWriteBipolar,    densityBipolar};
+	}
 	/// Check if standby recording is active
 	inline bool isInStandby() const { return status == Status::STANDBY; }
 	/// Check if scatter is latched (should keep playing when switching views/tracks)
@@ -302,8 +334,9 @@ private:
 	///
 	/// Takeover behavior: new source inherits buffer content instantly.
 	/// pWrite controls how fast new content overwrites inherited content.
-	void* activeSource = nullptr;  ///< Who owns looperBuffer (playing/recording)
-	void* pendingSource = nullptr; ///< Armed for takeover (UI feedback)
+	void* activeSource = nullptr;     ///< Who owns looperBuffer (playing/recording)
+	void* pendingSource = nullptr;    ///< Armed for takeover (UI feedback)
+	bool shouldInheritConfig = false; ///< New owner should inherit config (set on takeover)
 
 	/// Track if we started from standby mode (to return to it after stutter ends)
 	bool startedFromStandby = false;

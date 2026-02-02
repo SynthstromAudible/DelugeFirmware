@@ -3506,11 +3506,11 @@ traverseClips:
 	deleteOrAddToHibernationListOutput(oldOutput);
 
 	// Adopt orphaned scatter if present (old instrument released ownership during hibernation prep)
+	// Config inheritance is handled by processStutter() via shouldInheritConfig flag
 	if (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT) {
 		auto* newMca = static_cast<ModControllableAudio*>(newOutput->toModControllable());
-		if (newMca != nullptr && stutterer.adoptOrphanedScatter(newMca)) {
-			// Inherit scatter config so new preset continues with running scatter's params
-			newMca->stutterConfig = stutterer.getStutterConfig();
+		if (newMca != nullptr) {
+			stutterer.adoptOrphanedScatter(newMca);
 		}
 	}
 

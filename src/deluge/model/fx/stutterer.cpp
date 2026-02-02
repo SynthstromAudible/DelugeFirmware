@@ -19,6 +19,7 @@
 #include "dsp/scatter.hpp"
 #include "dsp/stereo_sample.h"
 #include "io/debug/fx_benchmark.h"
+#include "io/debug/log.h"
 #include "memory/memory_allocator_interface.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -122,32 +123,50 @@ int32_t Stutterer::getStutterRate(ParamManager* paramManager, int32_t magnitude,
 
 Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig sc, int32_t magnitude,
                               uint32_t timePerTickInverse, size_t loopLengthSamples, bool halfBar) {
-	stutterConfig = sc;
-	currentReverse = stutterConfig.reversed;
-	halfBarMode = halfBar;
-
+	D_PRINTLN("beginStutter ENTRY: source=%p mode=%d", source, static_cast<int>(sc.scatterMode));
 	// Non-Classic/Burst modes: single shared buffer (pWrite controls content evolution)
 	// Classic and Burst use the simple DelayBuffer, others use the looper system
-	bool useLooper =
-	    (stutterConfig.scatterMode != ScatterMode::Classic && stutterConfig.scatterMode != ScatterMode::Burst);
+	bool useLooper = (sc.scatterMode != ScatterMode::Classic && sc.scatterMode != ScatterMode::Burst);
 	if (useLooper) {
 		// Check if this is a takeover trigger (pendingSource is armed to take over)
 		bool isTakeoverTrigger = (pendingSource == source && activeSource != source && status == Status::PLAYING);
 		if (isTakeoverTrigger) {
-			// Takeover: inherit buffer content instantly, start playing
-			// Preserve playbackStartPos - triggerPlaybackNow would recalculate from looperWritePos (which is 0)
+			// Takeover: inherit buffer content AND config - DON'T overwrite stutterConfig
+			// Previous owner's config stays in stutterConfig, new owner will inherit via shouldInheritConfig
 			size_t inheritedStartPos = playbackStartPos;
-			stutterConfig = armedConfig;
-			currentReverse = stutterConfig.reversed;
 			if (loopLengthSamples == 0) {
 				loopLengthSamples = armedLoopLengthSamples;
 			}
 			halfBarMode = armedHalfBarMode;
 			playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
+			shouldInheritConfig = true; // New owner inherits scatter config
 			triggerPlaybackNow(source);
 			playbackStartPos = inheritedStartPos; // Restore inherited position
 			return Error::NONE;
 		}
+
+		// Buffer exists but someone else is PLAYING - immediate takeover
+		// Only takeover when PLAYING (affecting audio), not STANDBY (just recording)
+		D_PRINTLN("beginStutter: buf=%p active=%p source=%p status=%d", looperBuffer, activeSource, source,
+		          static_cast<int>(status));
+		if (looperBuffer != nullptr && activeSource != nullptr && activeSource != source && status == Status::PLAYING) {
+			// Takeover: inherit buffer content AND config - DON'T overwrite stutterConfig
+			// Previous owner's config stays in stutterConfig, new owner will inherit via shouldInheritConfig
+			size_t inheritedStartPos = playbackStartPos;
+			playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
+			if (playbackLength == 0) {
+				playbackLength = looperBufferFull ? kLooperBufferSize : looperWritePos;
+			}
+			shouldInheritConfig = true; // New owner should inherit scatter config
+			triggerPlaybackNow(source);
+			playbackStartPos = inheritedStartPos; // Restore inherited position
+			return Error::NONE;
+		}
+
+		// Non-takeover paths: use new owner's config
+		stutterConfig = sc;
+		currentReverse = stutterConfig.reversed;
+		halfBarMode = halfBar;
 
 		// If source owns the buffer, request playback trigger
 		if (looperBuffer != nullptr && activeSource == source && loopLengthSamples > 0) {
@@ -166,7 +185,7 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 			}
 
 			// Repeat mode triggers immediately (no beat quantization)
-			if (stutterConfig.scatterMode == ScatterMode::Repeat && hasEnoughSamples) {
+			if (sc.scatterMode == ScatterMode::Repeat && hasEnoughSamples) {
 				triggerPlaybackNow(source);
 				return Error::NONE;
 			}
@@ -177,22 +196,6 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 			return Error::NONE;
 		}
 
-		// Buffer exists but someone else is PLAYING - immediate takeover
-		// Only takeover when activeSource is PLAYING, not just STANDBY
-		// This allows track B to start fresh recording if track A is idle
-		if (looperBuffer != nullptr && activeSource != nullptr && activeSource != source && status == Status::PLAYING) {
-			// Takeover: inherit buffer content instantly, new source starts playing
-			// Preserve playbackStartPos - triggerPlaybackNow would recalculate from looperWritePos (which is 0)
-			size_t inheritedStartPos = playbackStartPos;
-			playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
-			if (playbackLength == 0) {
-				playbackLength = looperBufferFull ? kLooperBufferSize : looperWritePos;
-			}
-			triggerPlaybackNow(source);
-			playbackStartPos = inheritedStartPos; // Restore inherited position
-			return Error::NONE;
-		}
-
 		// Buffer exists but owner is idle (STANDBY/OFF) - take ownership, start fresh recording
 		if (looperBuffer != nullptr && activeSource != nullptr && activeSource != source) {
 			// Clear previous owner, new source takes over buffer
@@ -200,7 +203,7 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 			pendingSource = nullptr;
 			looperWritePos = 0;
 			looperBufferFull = false;
-			waitingForRecordBeat = (stutterConfig.scatterMode != ScatterMode::Repeat);
+			waitingForRecordBeat = (sc.scatterMode != ScatterMode::Repeat);
 			recordStartTick = 0;
 			pendingPlayTrigger = false;
 			standbyIdleSamples = 0;
@@ -253,6 +256,11 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 		}
 		return Error::NONE;
 	}
+
+	// Classic/Burst mode: use new owner's config (no takeover inheritance for these modes)
+	stutterConfig = sc;
+	currentReverse = stutterConfig.reversed;
+	halfBarMode = halfBar;
 
 	// Classic mode: original community behavior
 	// Quantized snapping
@@ -522,15 +530,10 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					q31_t macroConfigParam = cachedMacroConfigParam;
 					q31_t macroParam = cachedMacroParam;
 
-					if (shouldRecalcParams) {
-						// Helper: convert hybrid param output to unipolar Q31
-						// Hybrid output for positive presets: [0, +1073741824]
-						// Scale x2 to get full unipolar range: [0, 2147483647]
-						auto hybridToUnipolar = [](int32_t hybrid) -> q31_t {
-							return static_cast<q31_t>(
-							    std::clamp<int64_t>(static_cast<int64_t>(hybrid) * 2, 0, 2147483647));
-						};
+					// On takeover, previous owner's params are copied to new owner's ParamManager
+					// (see ModControllableAudio::processScatter). Reading from ParamManager gives inherited values.
 
+					if (shouldRecalcParams) {
 						// Helper: convert bipolar storage to unipolar Q31
 						// Bipolar range: INT32_MIN to INT32_MAX → Unipolar: 0 to INT32_MAX
 						auto bipolarToUnipolar = [](int32_t bipolar) -> q31_t {
@@ -547,8 +550,10 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							             + modulatedValues[1] / kCableScale;
 							macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG)
 							                   + modulatedValues[2] / kCableScale;
-							// Hybrid params: convert bipolar patcher output to unipolar
-							macroParam = hybridToUnipolar(modulatedValues[3]);
+							// Macro: preset value + cable contribution, then convert to unipolar
+							// (same as zone params - patcher outputs cables only)
+							macroParam = bipolarToUnipolar(patchedParams->getValue(params::GLOBAL_SCATTER_MACRO)
+							                               + modulatedValues[3] / kCableScale);
 						}
 						else if (paramManager->hasPatchedParamSet()) {
 							PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
@@ -600,6 +605,13 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						constexpr float kBipolarToUnipolar = 1.0f / 4294967296.0f;
 						cachedPWriteProb = (static_cast<int64_t>(pWriteQ31) + 2147483648LL) * kBipolarToUnipolar;
 						cachedDensityProb = (static_cast<int64_t>(densityQ31) + 2147483648LL) * kBipolarToUnipolar;
+						// DEBUG: Log pWrite/density values (remove after testing)
+						static int dbgCounter = 0;
+						if (++dbgCounter >= 100) {
+							dbgCounter = 0;
+							D_PRINTLN("pWrite=%.2f density=%.2f (q31: %d %d)", cachedPWriteProb, cachedDensityProb,
+							          pWriteQ31, densityQ31);
+						}
 					}
 					FX_BENCH_STOP(benchParamRead);
 
@@ -1855,6 +1867,7 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 		status = Status::OFF;
 		activeSource = nullptr;
 		pendingSource = nullptr;
+		shouldInheritConfig = false;
 	}
 
 	if (paramManager) {
@@ -1918,6 +1931,7 @@ void Stutterer::disableStandby() {
 		status = Status::OFF;
 		activeSource = nullptr;
 		pendingSource = nullptr;
+		shouldInheritConfig = false;
 		releasedDuringStandby = false;
 	}
 }
@@ -2005,9 +2019,21 @@ Error Stutterer::armStutter(void* source, ParamManagerForTimeline* paramManager,
 	armedLoopLengthSamples = loopLengthSamples;
 
 	if (status == Status::PLAYING && looperBuffer != nullptr && activeSource != source) {
-		// TAKEOVER: Someone else is playing, we want to inherit the buffer
-		// Do immediate takeover - single tap to take over
+		// TAKEOVER: Someone else is actively playing scatter, we want to inherit the buffer
+		// Only takeover when PLAYING (affecting audio), not STANDBY (just recording)
+		D_PRINTLN("armStutter TAKEOVER: prev=%p new=%p status=%d", activeSource, source, static_cast<int>(status));
+		shouldInheritConfig = true; // Signal new owner to copy params from cached values
+		// Preserve A's phase offsets and gamma - these are part of the "sound" being inherited
+		// Only update mode/toggle settings from B's config
+		float savedZoneAPhase = stutterConfig.zoneAPhaseOffset;
+		float savedZoneBPhase = stutterConfig.zoneBPhaseOffset;
+		float savedMacroConfigPhase = stutterConfig.macroConfigPhaseOffset;
+		float savedGammaPhase = stutterConfig.gammaPhase;
 		stutterConfig = sc;
+		stutterConfig.zoneAPhaseOffset = savedZoneAPhase;
+		stutterConfig.zoneBPhaseOffset = savedZoneBPhase;
+		stutterConfig.macroConfigPhaseOffset = savedMacroConfigPhase;
+		stutterConfig.gammaPhase = savedGammaPhase;
 		currentReverse = stutterConfig.reversed;
 		halfBarMode = halfBar;
 		playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
@@ -2172,6 +2198,7 @@ void Stutterer::cancelArmed() {
 			status = Status::OFF;
 			activeSource = nullptr;
 			pendingSource = nullptr;
+			shouldInheritConfig = false;
 		}
 	}
 }
