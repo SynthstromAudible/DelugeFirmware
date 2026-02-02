@@ -589,6 +589,13 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	if (stutterConfig.pitchScale != 0) {
 		writer.writeAttribute("scatterPitchScale", stutterConfig.pitchScale);
 	}
+	// New unified params (these are the active fields, above are deprecated)
+	if (stutterConfig.pWriteParam != 0) {
+		writer.writeAttribute("scatterPWriteParam", stutterConfig.pWriteParam);
+	}
+	if (stutterConfig.densityParam != 50) {
+		writer.writeAttribute("scatterDensity", stutterConfig.densityParam);
+	}
 	// Secret knob phase offsets (only write if non-zero)
 	if (stutterConfig.zoneAPhaseOffset != 0) {
 		writer.writeAttribute("scatterPhaseA", static_cast<int32_t>(stutterConfig.zoneAPhaseOffset * 10.0f));
@@ -894,6 +901,8 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 		stutterConfig.latch = false;
 		stutterConfig.leakyWriteProb = 0.2f;
 		stutterConfig.pitchScale = 0;
+		stutterConfig.pWriteParam = 0;
+		stutterConfig.densityParam = 50;
 		stutterConfig.zoneAPhaseOffset = 0;
 		stutterConfig.zoneBPhaseOffset = 0;
 		stutterConfig.macroConfigPhaseOffset = 0;
@@ -933,6 +942,16 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 				stutterConfig.pitchScale =
 				    static_cast<uint8_t>(std::clamp(reader.readTagOrAttributeValueInt(), 0_i32, 11_i32));
 				reader.exitTag("scatterPitchScale");
+			}
+			else if (!strcmp(tagName, "scatterModeParam") || !strcmp(tagName, "scatterPWriteParam")) {
+				stutterConfig.pWriteParam =
+				    static_cast<uint8_t>(std::clamp(reader.readTagOrAttributeValueInt(), 0_i32, 50_i32));
+				reader.exitTag(tagName);
+			}
+			else if (!strcmp(tagName, "scatterDensity")) {
+				stutterConfig.densityParam =
+				    static_cast<uint8_t>(std::clamp(reader.readTagOrAttributeValueInt(), 0_i32, 50_i32));
+				reader.exitTag("scatterDensity");
 			}
 			else if (!strcmp(tagName, "scatterPhaseA")) {
 				stutterConfig.zoneAPhaseOffset = static_cast<float>(reader.readTagOrAttributeValueInt()) / 10.0f;
@@ -1482,6 +1501,8 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		config.latch = stutterConfig.latch;
 		config.leakyWriteProb = stutterConfig.leakyWriteProb;
 		config.pitchScale = stutterConfig.pitchScale;
+		config.pWriteParam = stutterConfig.pWriteParam;
+		config.densityParam = stutterConfig.densityParam;
 		// Phase offsets are set via secret encoder menus on local config
 		config.zoneAPhaseOffset = stutterConfig.zoneAPhaseOffset;
 		config.zoneBPhaseOffset = stutterConfig.zoneBPhaseOffset;
@@ -1528,9 +1549,13 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		if (Error::NONE
 		    == stutterer.armStutter(this, paramManager, config, magnitude, timePerTickInverse, nextBeat,
 		                            loopLengthSamples, halfBarMode)) {
-			// Armed successfully, will start on beat
+			// Armed successfully, will start on beat (or takeover happened immediately)
 			view.notifyParamAutomationOccurred(paramManager);
-			display->displayPopup("Armed");
+			// If takeover happened, processScatter will show "Scatter Takeover"
+			// Otherwise we're armed and waiting for beat
+			if (!stutterer.isStuttering(this)) {
+				display->displayPopup("Scatter Armed");
+			}
 		}
 		return;
 	}
@@ -1547,7 +1572,11 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		}
 		// Show Armed notification for retrigger case (was in standby, now pending trigger)
 		else if (stutterer.hasPendingTrigger(this)) {
-			display->displayPopup("Armed");
+			display->displayPopup("Scatter Armed");
+		}
+		// Show Play notification for immediate scatter trigger
+		else if (stutterer.isStuttering(this)) {
+			display->displayPopup("Scatter Play");
 		}
 	}
 }
@@ -1572,8 +1601,11 @@ void ModControllableAudio::processStutter(std::span<StereoSample> buffer, ParamM
 
 	// Check if pending play trigger should fire (quarter-note quantized)
 	if (stutterer.hasPendingTrigger(this)) {
-		stutterer.checkPendingTrigger(this, currentTick, quarterNoteLength, paramManager, magnitude,
-		                              timePerTickInverse);
+		if (stutterer.checkPendingTrigger(this, currentTick, quarterNoteLength, paramManager, magnitude,
+		                                  timePerTickInverse)) {
+			// Trigger fired - playback just started
+			display->displayPopup("Scatter Play");
+		}
 	}
 
 	// Always record to standby buffer (during both STANDBY and PLAYING)
@@ -1582,6 +1614,36 @@ void ModControllableAudio::processStutter(std::span<StereoSample> buffer, ParamM
 	stutterer.recordStandby(this, buffer, currentTick, quarterNoteLength);
 
 	if (stutterer.isStuttering(this)) {
+		// On takeover, inherit config from global stutterer (same behavior as preset change)
+		if (stutterer.checkAndClearInheritConfig()) {
+			stutterConfig = stutterer.getStutterConfig();
+			// Copy all scatter params from previous owner to our ParamManager
+			// This makes the UI correct - shows inherited values, editable from here
+			auto cached = stutterer.getCachedScatterParams();
+			display->displayPopup("Scatter Takeover"); // DEBUG: verify inheritance path is hit
+			D_PRINTLN("SCATTER INHERIT: zoneA=%d zoneB=%d macroConfig=%d macro=%d pWrite=%d density=%d", cached.zoneA,
+			          cached.zoneB, cached.macroConfig, cached.macro, cached.pWrite, cached.density);
+			if (paramManager->hasPatchedParamSet()) {
+				auto* ps = paramManager->getPatchedParamSet();
+				D_PRINTLN("  Writing to PATCHED params");
+				ps->params[params::GLOBAL_SCATTER_ZONE_A].setCurrentValueBasicForSetup(cached.zoneA);
+				ps->params[params::GLOBAL_SCATTER_ZONE_B].setCurrentValueBasicForSetup(cached.zoneB);
+				ps->params[params::GLOBAL_SCATTER_MACRO_CONFIG].setCurrentValueBasicForSetup(cached.macroConfig);
+				ps->params[params::GLOBAL_SCATTER_MACRO].setCurrentValueBasicForSetup(cached.macro);
+				ps->params[params::GLOBAL_SCATTER_PWRITE].setCurrentValueBasicForSetup(cached.pWrite);
+				ps->params[params::GLOBAL_SCATTER_DENSITY].setCurrentValueBasicForSetup(cached.density);
+			}
+			else {
+				auto* us = paramManager->getUnpatchedParamSet();
+				D_PRINTLN("  Writing to UNPATCHED params");
+				us->params[params::UNPATCHED_SCATTER_ZONE_A].setCurrentValueBasicForSetup(cached.zoneA);
+				us->params[params::UNPATCHED_SCATTER_ZONE_B].setCurrentValueBasicForSetup(cached.zoneB);
+				us->params[params::UNPATCHED_SCATTER_MACRO_CONFIG].setCurrentValueBasicForSetup(cached.macroConfig);
+				us->params[params::UNPATCHED_SCATTER_MACRO].setCurrentValueBasicForSetup(cached.macro);
+				us->params[params::UNPATCHED_SCATTER_PWRITE].setCurrentValueBasicForSetup(cached.pWrite);
+				us->params[params::UNPATCHED_SCATTER_DENSITY].setCurrentValueBasicForSetup(cached.density);
+			}
+		}
 		// Update live params from current config (allows real-time adjustment while playing)
 		if (stutterer.isScatterPlaying()) {
 			stutterer.updateLiveParams(stutterConfig);
@@ -1608,7 +1670,7 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 	// In STANDBY (recording but not yet playing): mark release for momentary mode
 	// Don't cancel STANDBY - let beat trigger playback, then immediately stop
 	// Use THIS source's latch config, not the global stutterer's (which may be from another track)
-	if (isStandbyRecorder && !isPlayer && !stutterConfig.latch) {
+	if (isStandbyRecorder && !isPlayer && !stutterConfig.isLatched()) {
 		stutterer.markReleasedDuringStandby();
 		return;
 	}
@@ -1617,7 +1679,7 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 		// We're recording for takeover but NOT playing yet.
 		// Mark release for momentary mode - when we trigger, we'll check this flag
 		// Use THIS source's latch config, not the current player's
-		if (!stutterConfig.latch) {
+		if (!stutterConfig.isLatched()) {
 			stutterer.markReleasedDuringStandby();
 		}
 		return;
@@ -1791,7 +1853,11 @@ char const* ModControllableAudio::getHPFModeDisplayName() {
 void ModControllableAudio::wontBeRenderedForAWhile() {
 	delay.discardBuffers();
 	// Don't end latched scatter - it should keep playing when you switch tracks
-	if (!(stutterer.isLatched() && stutterer.isStuttering(this))) {
+	// But release our ownership so the sound can stop rendering (new source can adopt)
+	if (stutterer.isLatched() && stutterer.isStuttering(this)) {
+		stutterer.releaseOwnership();
+	}
+	else {
 		endStutter(nullptr);
 	}
 }

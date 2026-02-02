@@ -185,6 +185,11 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[params::LOCAL_OSC_B_PITCH_ADJUST].setCurrentValueBasicForSetup(0);       // Don't change
 	patchedParams->params[params::LOCAL_MODULATOR_0_PITCH_ADJUST].setCurrentValueBasicForSetup(0); // Don't change
 	patchedParams->params[params::LOCAL_MODULATOR_1_PITCH_ADJUST].setCurrentValueBasicForSetup(0); // Don't change
+
+	// Scatter params - pWrite/macro default to 0% (min), density defaults to 100% (max)
+	patchedParams->params[params::GLOBAL_SCATTER_PWRITE].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[params::GLOBAL_SCATTER_MACRO].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[params::GLOBAL_SCATTER_DENSITY].setCurrentValueBasicForSetup(2147483647);
 }
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
@@ -2600,12 +2605,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	// Scatter modulation support: pass modulated values from paramFinalValues
-	// Array order: [ZONE_A, ZONE_B, MACRO_CONFIG, MACRO]
-	q31_t modulatedScatterValues[4] = {
+	// Array order: [ZONE_A, ZONE_B, MACRO_CONFIG, MACRO, PWRITE, DENSITY]
+	q31_t modulatedScatterValues[6] = {
 	    paramFinalValues[params::GLOBAL_SCATTER_ZONE_A - params::FIRST_GLOBAL],
 	    paramFinalValues[params::GLOBAL_SCATTER_ZONE_B - params::FIRST_GLOBAL],
 	    paramFinalValues[params::GLOBAL_SCATTER_MACRO_CONFIG - params::FIRST_GLOBAL],
 	    paramFinalValues[params::GLOBAL_SCATTER_MACRO - params::FIRST_GLOBAL],
+	    paramFinalValues[params::GLOBAL_SCATTER_PWRITE - params::FIRST_GLOBAL],
+	    paramFinalValues[params::GLOBAL_SCATTER_DENSITY - params::FIRST_GLOBAL],
 	};
 	processStutter(sound_stereo, paramManager, modulatedScatterValues);
 
@@ -4486,9 +4493,8 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			}
 		}
 		else {
-			// On release: don't end if latched in scatter mode
-			bool isLatched = isScatter && stutterConfig.latch;
-			if (!isLatched) {
+			// On release: don't end if latched (looper modes always latch, Burst uses toggle)
+			if (!stutterConfig.isLatched()) {
 				endStutter((ParamManagerForTimeline*)modelStack->paramManager);
 			}
 		}

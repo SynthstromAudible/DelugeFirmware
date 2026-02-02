@@ -344,23 +344,24 @@ public:
 	}
 
 	[[nodiscard]] const char* getZoneName(int32_t zoneIndex) const override {
+		// Abstract weather/nature names (matching automodulator flavor)
 		switch (zoneIndex) {
 		case 0:
-			return "Off";
+			return "Frost";
 		case 1:
-			return "Light";
+			return "Dew";
 		case 2:
-			return "Medium";
+			return "Fog";
 		case 3:
-			return "Heavy";
+			return "Cloud";
 		case 4:
-			return "Deep";
+			return "Rain";
 		case 5:
-			return "Intense";
+			return "Storm";
 		case 6:
-			return "Wild";
+			return "Dark";
 		case 7:
-			return "Chaos";
+			return "Night";
 		default:
 			return "?";
 		}
@@ -369,21 +370,21 @@ public:
 	[[nodiscard]] const char* getShortZoneName(int32_t zoneIndex) const override {
 		switch (zoneIndex) {
 		case 0:
-			return "OF";
+			return "FR";
 		case 1:
-			return "LT";
+			return "DW";
 		case 2:
-			return "MD";
+			return "FG";
 		case 3:
-			return "HV";
+			return "CL";
 		case 4:
-			return "DP";
+			return "RN";
 		case 5:
-			return "IN";
+			return "ST";
 		case 6:
-			return "WD";
+			return "DK";
 		case 7:
-			return "CH";
+			return "NT";
 		default:
 			return "??";
 		}

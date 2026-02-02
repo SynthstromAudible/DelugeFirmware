@@ -165,6 +165,10 @@ int32_t getParamNeutralValue(int32_t p) {
 	case params::GLOBAL_MOD_FX_DEPTH:
 		return 526133494; // 2% lower than 536870912
 
+		// Note: Scatter zone params (MACRO, PWRITE, DENSITY, etc.) don't need neutral values
+		// because the patcher outputs cables only for zone params, and DSP combines
+		// base param value + cable output in stutterer.cpp
+
 	default:
 		return 0;
 	}

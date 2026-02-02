@@ -148,15 +148,17 @@ enum Global : ParamType {
 	FIRST_GLOBAL_NON_VOLUME,
 	GLOBAL_DELAY_FEEDBACK = FIRST_GLOBAL_NON_VOLUME,
 
-	// Global hybrid params begin
+	// Global hybrid params begin (none currently - placeholder for future params)
 	FIRST_GLOBAL_HYBRID,
-	GLOBAL_SCATTER_MACRO = FIRST_GLOBAL_HYBRID, // Scatter macro control
 
-	// Global zone params begin
-	FIRST_GLOBAL_ZONE,
-	GLOBAL_SCATTER_ZONE_A = FIRST_GLOBAL_ZONE, // Scatter structural zone
-	GLOBAL_SCATTER_ZONE_B,                     // Scatter timbral zone
-	GLOBAL_SCATTER_MACRO_CONFIG,               // Scatter effect depth
+	// Global zone params begin (patcher outputs cables only, DSP combines with preset)
+	FIRST_GLOBAL_ZONE = FIRST_GLOBAL_HYBRID,
+	GLOBAL_SCATTER_MACRO = FIRST_GLOBAL_ZONE, // Scatter macro control (zone param for cable-only output)
+	GLOBAL_SCATTER_PWRITE,                    // Scatter buffer write probability
+	GLOBAL_SCATTER_DENSITY,                   // Scatter grain density (dry/wet)
+	GLOBAL_SCATTER_ZONE_A,                    // Scatter structural zone
+	GLOBAL_SCATTER_ZONE_B,                    // Scatter timbral zone
+	GLOBAL_SCATTER_MACRO_CONFIG,              // Scatter effect depth
 
 	// Global exp params begin
 	FIRST_GLOBAL_EXP,
@@ -224,6 +226,8 @@ enum UnpatchedShared : ParamType {
 	UNPATCHED_SCATTER_ZONE_B,
 	UNPATCHED_SCATTER_MACRO_CONFIG,
 	UNPATCHED_SCATTER_MACRO,
+	UNPATCHED_SCATTER_PWRITE,
+	UNPATCHED_SCATTER_DENSITY,
 	// Arp
 	UNPATCHED_FIRST_ARP_PARAM,
 	UNPATCHED_ARP_GATE = UNPATCHED_FIRST_ARP_PARAM,
@@ -486,6 +490,10 @@ constexpr int32_t getUnpatchedFallback(ParamType patchedId) {
 		return UNPATCHED_SCATTER_MACRO_CONFIG;
 	case GLOBAL_SCATTER_MACRO:
 		return UNPATCHED_SCATTER_MACRO;
+	case GLOBAL_SCATTER_PWRITE:
+		return UNPATCHED_SCATTER_PWRITE;
+	case GLOBAL_SCATTER_DENSITY:
+		return UNPATCHED_SCATTER_DENSITY;
 	default:
 		return -1; // No fallback
 	}

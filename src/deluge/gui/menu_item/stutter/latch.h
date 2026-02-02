@@ -66,9 +66,10 @@ public:
 	bool usesAffectEntire() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		// Only relevant for scatter modes (not Classic or Burst)
+		// Latch toggle only relevant for Burst mode (Classic doesn't use latch at all)
+		// Looper modes (Time, Shuffle, Grain, Pattern, Pitch) always latch - no toggle needed
 		auto mode = soundEditor.currentModControllable->stutterConfig.scatterMode;
-		return mode != ScatterMode::Classic && mode != ScatterMode::Burst;
+		return mode == ScatterMode::Burst;
 	}
 };
 

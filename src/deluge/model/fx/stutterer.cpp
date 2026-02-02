@@ -19,6 +19,7 @@
 #include "dsp/scatter.hpp"
 #include "dsp/stereo_sample.h"
 #include "io/debug/fx_benchmark.h"
+#include "io/debug/log.h"
 #include "memory/memory_allocator_interface.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -34,19 +35,33 @@ namespace hash = deluge::dsp::hash;
 // Each scale/triad biases toward tonic (0) and important chord tones
 // Scales: Chromatic, Major, Minor, MajPent, MinPent, Blues, Dorian, Mixolydian
 // Triads: MajTri, MinTri, Sus4, Dim
-static constexpr int8_t kScaleSemitones[12][8] = {
-    {0, 0, 0, 3, 5, 7, 7, 12},  // Chromatic: tonic-heavy with 5th and octave
-    {0, 0, 4, 4, 7, 7, 0, 12},  // Major: tonic (3x), 3rd (2x), 5th (2x), octave
-    {0, 0, 3, 3, 7, 7, 0, 12},  // Minor: tonic (3x), m3rd (2x), 5th (2x), octave
-    {0, 0, 4, 7, 7, 0, 12, 12}, // MajPent: tonic (3x), 3rd, 5th (2x), octave (2x)
-    {0, 0, 3, 7, 7, 0, 10, 12}, // MinPent: tonic (3x), m3rd, 5th (2x), b7, octave
-    {0, 0, 3, 6, 7, 7, 0, 12},  // Blues: tonic (3x), m3rd, b5, 5th (2x), octave
-    {0, 0, 3, 5, 7, 7, 9, 12},  // Dorian: tonic (2x), m3rd, 4th, 5th (2x), 6th, octave
-    {0, 0, 4, 5, 7, 7, 10, 12}, // Mixolydian: tonic (2x), 3rd, 4th, 5th (2x), b7, octave
-    {0, 0, 0, 4, 4, 7, 7, 12},  // MajTri: tonic (3x), 3rd (2x), 5th (2x), octave
-    {0, 0, 0, 3, 3, 7, 7, 12},  // MinTri: tonic (3x), m3rd (2x), 5th (2x), octave
-    {0, 0, 0, 5, 5, 7, 7, 12},  // Sus4: tonic (3x), 4th (2x), 5th (2x), octave
-    {0, 0, 0, 3, 3, 6, 6, 12},  // Dim: tonic (3x), m3rd (2x), b5 (2x), octave
+// Fixed semitones: +1 through +13 (single interval repeated)
+static constexpr int8_t kScaleSemitones[25][8] = {
+    {0, 0, 0, 3, 5, 7, 7, 12},        // 0: Chromatic: tonic-heavy with 5th and octave
+    {0, 0, 4, 4, 7, 7, 0, 12},        // 1: Major: tonic (3x), 3rd (2x), 5th (2x), octave
+    {0, 0, 3, 3, 7, 7, 0, 12},        // 2: Minor: tonic (3x), m3rd (2x), 5th (2x), octave
+    {0, 0, 4, 7, 7, 0, 12, 12},       // 3: MajPent: tonic (3x), 3rd, 5th (2x), octave (2x)
+    {0, 0, 3, 7, 7, 0, 10, 12},       // 4: MinPent: tonic (3x), m3rd, 5th (2x), b7, octave
+    {0, 0, 3, 6, 7, 7, 0, 12},        // 5: Blues: tonic (3x), m3rd, b5, 5th (2x), octave
+    {0, 0, 3, 5, 7, 7, 9, 12},        // 6: Dorian: tonic (2x), m3rd, 4th, 5th (2x), 6th, octave
+    {0, 0, 4, 5, 7, 7, 10, 12},       // 7: Mixolydian: tonic (2x), 3rd, 4th, 5th (2x), b7, octave
+    {0, 0, 0, 4, 4, 7, 7, 12},        // 8: MajTri: tonic (3x), 3rd (2x), 5th (2x), octave
+    {0, 0, 0, 3, 3, 7, 7, 12},        // 9: MinTri: tonic (3x), m3rd (2x), 5th (2x), octave
+    {0, 0, 0, 5, 5, 7, 7, 12},        // 10: Sus4: tonic (3x), 4th (2x), 5th (2x), octave
+    {0, 0, 0, 3, 3, 6, 6, 12},        // 11: Dim: tonic (3x), m3rd (2x), b5 (2x), octave
+    {1, 1, 1, 1, 1, 1, 1, 1},         // 12: +1 semitone (minor 2nd)
+    {2, 2, 2, 2, 2, 2, 2, 2},         // 13: +2 semitones (major 2nd)
+    {3, 3, 3, 3, 3, 3, 3, 3},         // 14: +3 semitones (minor 3rd)
+    {4, 4, 4, 4, 4, 4, 4, 4},         // 15: +4 semitones (major 3rd)
+    {5, 5, 5, 5, 5, 5, 5, 5},         // 16: +5 semitones (perfect 4th)
+    {6, 6, 6, 6, 6, 6, 6, 6},         // 17: +6 semitones (tritone)
+    {7, 7, 7, 7, 7, 7, 7, 7},         // 18: +7 semitones (perfect 5th)
+    {8, 8, 8, 8, 8, 8, 8, 8},         // 19: +8 semitones (minor 6th)
+    {9, 9, 9, 9, 9, 9, 9, 9},         // 20: +9 semitones (major 6th)
+    {10, 10, 10, 10, 10, 10, 10, 10}, // 21: +10 semitones (minor 7th)
+    {11, 11, 11, 11, 11, 11, 11, 11}, // 22: +11 semitones (major 7th)
+    {12, 12, 12, 12, 12, 12, 12, 12}, // 23: +12 semitones (octave)
+    {13, 13, 13, 13, 13, 13, 13, 13}, // 24: +13 semitones (octave + minor 2nd)
 };
 
 // Pitch ratios as 16.16 fixed-point for semitone offsets 0-17
@@ -108,29 +123,53 @@ int32_t Stutterer::getStutterRate(ParamManager* paramManager, int32_t magnitude,
 
 Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig sc, int32_t magnitude,
                               uint32_t timePerTickInverse, size_t loopLengthSamples, bool halfBar) {
-	stutterConfig = sc;
-	currentReverse = stutterConfig.reversed;
-	halfBarMode = halfBar;
-
-	// Non-Classic/Burst modes: double buffer system (swap instead of copy)
+	D_PRINTLN("beginStutter ENTRY: source=%p mode=%d", source, static_cast<int>(sc.scatterMode));
+	// Non-Classic/Burst modes: single shared buffer (pWrite controls content evolution)
 	// Classic and Burst use the simple DelayBuffer, others use the looper system
-	bool useLooper =
-	    (stutterConfig.scatterMode != ScatterMode::Classic && stutterConfig.scatterMode != ScatterMode::Burst);
+	bool useLooper = (sc.scatterMode != ScatterMode::Classic && sc.scatterMode != ScatterMode::Burst);
 	if (useLooper) {
-		// Check if this is a takeover trigger (source was recording, now wants to play)
-		bool isTakeoverTrigger = (recordSource == source && playSource != source && status == Status::PLAYING);
+		// Check if this is a takeover trigger (pendingSource is armed to take over)
+		bool isTakeoverTrigger = (pendingSource == source && activeSource != source && status == Status::PLAYING);
 		if (isTakeoverTrigger) {
-			// Use stored values from armStutter
-			stutterConfig = armedConfig;
-			currentReverse = stutterConfig.reversed;
+			// Takeover: inherit buffer content AND config - DON'T overwrite stutterConfig
+			// Previous owner's config stays in stutterConfig, new owner will inherit via shouldInheritConfig
+			size_t inheritedStartPos = playbackStartPos;
 			if (loopLengthSamples == 0) {
 				loopLengthSamples = armedLoopLengthSamples;
 			}
 			halfBarMode = armedHalfBarMode;
+			playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
+			shouldInheritConfig = true; // New owner inherits scatter config
+			triggerPlaybackNow(source);
+			playbackStartPos = inheritedStartPos; // Restore inherited position
+			return Error::NONE;
 		}
 
-		// If source has been recording (owns recordBuffer), request playback trigger
-		if (recordBuffer != nullptr && recordSource == source && loopLengthSamples > 0) {
+		// Buffer exists but someone else is PLAYING - immediate takeover
+		// Only takeover when PLAYING (affecting audio), not STANDBY (just recording)
+		D_PRINTLN("beginStutter: buf=%p active=%p source=%p status=%d", looperBuffer, activeSource, source,
+		          static_cast<int>(status));
+		if (looperBuffer != nullptr && activeSource != nullptr && activeSource != source && status == Status::PLAYING) {
+			// Takeover: inherit buffer content AND config - DON'T overwrite stutterConfig
+			// Previous owner's config stays in stutterConfig, new owner will inherit via shouldInheritConfig
+			size_t inheritedStartPos = playbackStartPos;
+			playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
+			if (playbackLength == 0) {
+				playbackLength = looperBufferFull ? kLooperBufferSize : looperWritePos;
+			}
+			shouldInheritConfig = true; // New owner should inherit scatter config
+			triggerPlaybackNow(source);
+			playbackStartPos = inheritedStartPos; // Restore inherited position
+			return Error::NONE;
+		}
+
+		// Non-takeover paths: use new owner's config
+		stutterConfig = sc;
+		currentReverse = stutterConfig.reversed;
+		halfBarMode = halfBar;
+
+		// If source owns the buffer, request playback trigger
+		if (looperBuffer != nullptr && activeSource == source && loopLengthSamples > 0) {
 			// Update armedConfig for retrigger (source's current config)
 			armedConfig = sc;
 			releasedDuringStandby = false; // Fresh trigger, encoder is held
@@ -138,45 +177,50 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 			// Use full loop length for correct timing
 			playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
 
-			// Allow trigger if:
-			// 1. We have enough fresh samples in recordBuffer, OR
-			// 2. playBuffer exists with stale audio (retrigger - tape loop style)
-			// On trigger, we swap buffers. If recordBuffer wasn't fully overwritten,
-			// playBuffer will have a mix of new + old audio - this is fine (musical).
-			bool hasEnoughSamples = recordBufferFull || recordWritePos >= playbackLength;
-			bool hasStaleAudio = playBuffer != nullptr; // Old audio from previous playback
-			if (!hasEnoughSamples && !hasStaleAudio && !waitingForRecordBeat) {
-				// No fresh samples and no stale audio - wait for more
-				return Error::NONE;
-			}
+			// Allow trigger if we have enough samples or buffer has stale audio (tape loop style)
+			bool hasEnoughSamples = looperBufferFull || looperWritePos >= playbackLength;
 
-			// Repeat mode triggers immediately (no beat quantization)
-			if (stutterConfig.scatterMode == ScatterMode::Repeat && (hasEnoughSamples || hasStaleAudio)) {
+			// Repeat mode triggers immediately (no beat quantization) if we have samples
+			if (sc.scatterMode == ScatterMode::Repeat && hasEnoughSamples) {
 				triggerPlaybackNow(source);
 				return Error::NONE;
 			}
 
 			// Set pending trigger - actual transition happens in checkPendingTrigger on next beat
+			// Works even if buffer isn't full yet - checkPendingTrigger waits for enough samples
 			pendingPlayTrigger = true;
 			playTriggerTick = 0; // Will be computed in checkPendingTrigger
 			return Error::NONE;
 		}
 
-		// No buffers yet - allocate both and start standby recording
-		// Use allocLowSpeed() to go directly to SDRAM - these buffers are too large for the external region
-		if (bufferA == nullptr) {
-			bufferA = static_cast<StereoSample*>(allocLowSpeed(kLooperBufferSize * sizeof(StereoSample)));
-			if (bufferA == nullptr) {
-				status = Status::OFF;
-				return Error::INSUFFICIENT_RAM;
-			}
+		// Buffer exists but owner is idle (STANDBY/OFF) - take ownership, start fresh recording
+		if (looperBuffer != nullptr && activeSource != nullptr && activeSource != source) {
+			// Clear previous owner, new source takes over buffer
+			activeSource = source;
+			pendingSource = nullptr;
+			looperWritePos = 0;
+			looperBufferFull = false;
+			waitingForRecordBeat = (sc.scatterMode != ScatterMode::Repeat);
+			recordStartTick = 0;
+			pendingPlayTrigger = false;
+			standbyIdleSamples = 0;
+			releasedDuringStandby = false;
+			armedConfig = sc;
+			armedLoopLengthSamples = loopLengthSamples;
+			armedHalfBarMode = halfBar;
+			status = Status::STANDBY;
+			return Error::NONE;
 		}
-		if (bufferB == nullptr) {
-			bufferB = static_cast<StereoSample*>(allocLowSpeed(kLooperBufferSize * sizeof(StereoSample)));
-			if (bufferB == nullptr) {
+
+		// No buffer yet - allocate and start standby recording
+		// Use allocLowSpeed() to go directly to SDRAM - buffer is too large for external region
+		if (looperBuffer == nullptr) {
+			looperBuffer = static_cast<StereoSample*>(allocLowSpeed(kLooperBufferSize * sizeof(StereoSample)));
+			if (looperBuffer == nullptr) {
 				status = Status::OFF;
 				return Error::INSUFFICIENT_RAM;
 			}
+			memset(looperBuffer, 0, kLooperBufferSize * sizeof(StereoSample));
 		}
 		// Allocate delay send buffer (small, for slice-synced echo)
 		if (delayBuffer == nullptr) {
@@ -188,26 +232,19 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 		}
 		delayWritePos = 0;
 		delayActive = false;
-		recordBuffer = bufferA;
-		playBuffer = bufferB;
-		recordWritePos = 0;
-		recordBufferFull = false; // Fresh buffer, not full yet
+		looperWritePos = 0;
+		looperBufferFull = false; // Fresh buffer, not full yet
 		// Repeat mode records immediately; other modes wait for beat
 		waitingForRecordBeat = (stutterConfig.scatterMode != ScatterMode::Repeat);
 		recordStartTick = 0;        // Will be computed in recordStandby
 		pendingPlayTrigger = false; // No pending trigger yet
-		// Clear both buffers to prevent stale data reads
-		memset(bufferA, 0, kLooperBufferSize * sizeof(StereoSample));
-		memset(bufferB, 0, kLooperBufferSize * sizeof(StereoSample));
 
-		// Source claims recordBuffer, starts recording in STANDBY
-		// If someone else was playing, they keep playSource
-		recordSource = source;
+		// Source claims buffer, starts recording in STANDBY
+		activeSource = source;
+		pendingSource = nullptr;
 		standbyIdleSamples = 0;        // Reset timeout for new owner
 		releasedDuringStandby = false; // Fresh start, encoder is held
-		// Store config for takeover trigger (new source's config, not old playSource's)
-		// Use 'sc' parameter directly, not stutterConfig which may have been modified by
-		// updateLiveParams() from the current player's config during audio processing
+		// Store config for retrigger/takeover
 		armedConfig = sc;
 		armedLoopLengthSamples = loopLengthSamples;
 		armedHalfBarMode = halfBar;
@@ -216,6 +253,11 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 		}
 		return Error::NONE;
 	}
+
+	// Classic/Burst mode: use new owner's config (no takeover inheritance for these modes)
+	stutterConfig = sc;
+	currentReverse = stutterConfig.reversed;
+	halfBarMode = halfBar;
 
 	// Classic mode: original community behavior
 	// Quantized snapping
@@ -248,8 +290,8 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 	if (error == Error::NONE) {
 		status = Status::RECORDING;
 		sizeLeftUntilRecordFinished = buffer.size();
-		playSource = source;
-		recordSource = source;
+		activeSource = source;
+		pendingSource = nullptr;
 	}
 	return error;
 }
@@ -275,13 +317,13 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
                                uint32_t timePerTickInverse, int64_t currentTick, uint64_t timePerTickBig,
                                uint32_t barLengthInTicks, const q31_t* modulatedValues) {
 
-	// Non-Classic/Burst modes: double buffer - play from playBuffer, record to recordBuffer
-	// Core loop: play current slice fully, then get next slice at boundary
+	// Non-Classic/Burst modes: single buffer - play and write to looperBuffer
+	// pWrite controls content evolution (0=freeze, 50=always overwrite)
 	constexpr bool kEnableDelay = true;
 	bool useLooper =
 	    (stutterConfig.scatterMode != ScatterMode::Classic && stutterConfig.scatterMode != ScatterMode::Burst);
 	if (useLooper) {
-		if (status == Status::PLAYING && playBuffer != nullptr && playbackLength > 0) {
+		if (status == Status::PLAYING && looperBuffer != nullptr && playbackLength > 0) {
 			// Benchmark: granular scatter processing with dynamic tags
 			// Tag layout: [0]=type, [1]=mode, [2]=extra (slices/subdiv for slice benchmark)
 			FX_BENCH_DECLARE(benchTotal, "scatter", "total");
@@ -323,6 +365,17 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			// Repeat mode skips position reset (loops continuously) but still tracks bar for hash evolution
 			if (barLengthInTicks > 0 && currentTick >= 0) {
 				int64_t tickBarIndex = currentTick / static_cast<int64_t>(barLengthInTicks);
+
+				// First buffer after trigger: sync linear position to current bar position
+				// Trigger happens at beat boundary, not bar boundary - compensate for offset
+				// Only sync scatterLinearBarPos (for Leaky writes), not scatterSliceIndex
+				// Slice index is computed fresh in slice setup based on rate knob
+				if (lastTickBarIndex < 0 && playbackLength > 0) {
+					int64_t ticksIntoBar = currentTick % static_cast<int64_t>(barLengthInTicks);
+					size_t samplesIntoBar = (ticksIntoBar * playbackLength) / barLengthInTicks;
+					scatterLinearBarPos = samplesIntoBar % playbackLength;
+				}
+
 				if (lastTickBarIndex >= 0 && tickBarIndex != lastTickBarIndex) {
 					// Bar boundary crossed - increment bar index for hash evolution
 					scatterBarIndex = (scatterBarIndex + 1) % kBarIndexWrap;
@@ -369,36 +422,44 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							newLoopLength = std::min(newLoopLength, kLooperBufferSize);
 							playbackLength = newLoopLength;
 						}
-						// Leaky mode: no buffer swap - writes go directly to playBuffer
-						// Single buffer tape-loop with immediate feedback
+						// All looper modes: single buffer, pWrite controls writes
+						// Content evolves via pWrite probability
 					}
 				}
 				lastTickBarIndex = tickBarIndex;
 			}
+			else {
+				// Transport stopped - enable free-run mode by resetting tick tracking
+				// This allows sample-counted bar wrap detection in the sample loop
+				lastTickBarIndex = -1;
+			}
 
-			// === SLICE BOUNDARY (buffer-level): check once per buffer, accept ~3ms jitter ===
-			// Dirty flag set when slice completes mid-buffer, checked here at buffer start
-			// This eliminates per-sample boundary checks for significant performance gain
-			// Throttle param updates to max once per 10 buffers (~30ms) to reduce CPU load
-			// Bypass throttle if currentSliceLength == 0 (first run needs immediate setup)
+			// === SLICE SETUP: runs immediately when slice boundary was hit ===
+			// Throttle controls expensive param reads, not the slice state updates
 			scatterParamThrottle++;
-			if (needsSliceSetup && (scatterParamThrottle >= 10 || currentSliceLength == 0)) {
+			bool shouldRecalcParams = (scatterParamThrottle >= 10 || currentSliceLength == 0);
+			if (needsSliceSetup) {
 				needsSliceSetup = false;
-				scatterParamThrottle = 0;
+				if (shouldRecalcParams) {
+					scatterParamThrottle = 0;
+				}
 				// Reset playbackPos unless this is a Repeat bar-boundary update (continuous loop)
 				if (!repeatBarBoundaryUpdate) {
 					playbackPos = 0; // Snap to slice start, accept jitter
 				}
-				// Always ZC protect when params change, even for continuous loop
-				waitingForZeroCrossL = waitingForZeroCrossR = true;
+				// ZC protect when params change, UNLESS grain is consecutive (audio flows naturally)
+				// scatterNextConsecutive was computed by previous grain to predict this grain
+				if (!scatterNextConsecutive) {
+					waitingForZeroCrossL = waitingForZeroCrossR = true;
+					prevOutputL = prevOutputR = 0;
+				}
 				releaseMutedL = releaseMutedR = false;
-				prevOutputL = prevOutputR = 0;
 				repeatBarBoundaryUpdate = false; // Clear flag after use
 				FX_BENCH_START(benchSlice);
 				switch (stutterConfig.scatterMode) {
 				case ScatterMode::Repeat:  // Falls through to Shuffle with isRepeat flag
 				case ScatterMode::Time:    // Time uses Shuffle but overrides stretch/sparse from zones
-				case ScatterMode::Leaky:   // Leaky uses Shuffle processing but writes output back to buffer
+				case ScatterMode::Grain:   // Grain mode: dual-voice crossfade (falls through to Shuffle for now)
 				case ScatterMode::Pattern: // Pattern mode: Zone A selects slice reordering pattern
 				case ScatterMode::Pitch:   // Pitch mode: Zone A selects scale degree for transposition
 				case ScatterMode::Shuffle: {
@@ -465,41 +526,94 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						}
 					}
 
-					// Read zone params - preset from param set, cables from modulatedValues
-					// Zone params: paramFinalValues contains ONLY cable modulation, DSP combines with preset
-					// Hybrid params (SCATTER_MACRO): paramFinalValues already includes preset
-					// Pattern follows disperser: preset + scaled cables (like combinePresetAndCables)
-					// modulatedValues order: [ZONE_A, ZONE_B, MACRO_CONFIG, MACRO]
-					q31_t zoneAParam, zoneBParam, macroConfigParam, macroParam;
-					if (modulatedValues && paramManager->hasPatchedParamSet()) {
-						// Sound context: combine preset + cable modulation for ZONE params
-						// Scale cables: full modulation = 1 zone (8 zones, so divide by 4)
-						constexpr int32_t kCableScale = 4;
-						PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-						// Zone params need preset added (paramFinalValues has cables only)
-						zoneAParam =
-						    patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_A) + modulatedValues[0] / kCableScale;
-						zoneBParam =
-						    patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_B) + modulatedValues[1] / kCableScale;
-						macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG)
-						                   + modulatedValues[2] / kCableScale;
-						// SCATTER_MACRO is hybrid param - paramFinalValues already includes preset
-						macroParam = modulatedValues[3];
-					}
-					else if (paramManager->hasPatchedParamSet()) {
-						// Fallback: patched preset values (no modulation)
-						PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-						zoneAParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_A);
-						zoneBParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_B);
-						macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG);
-						macroParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO);
-					}
-					else {
-						// GlobalEffectable context: use unpatched values (no mod matrix available)
-						zoneAParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_ZONE_A);
-						zoneBParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_ZONE_B);
-						macroConfigParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO_CONFIG);
-						macroParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO);
+					// Zone params: use cached values, refresh if throttle allows
+					q31_t zoneAParam = cachedZoneAParam;
+					q31_t zoneBParam = cachedZoneBParam;
+					q31_t macroConfigParam = cachedMacroConfigParam;
+					q31_t macroParam = cachedMacroParam;
+
+					// On takeover, previous owner's params are copied to new owner's ParamManager
+					// (see ModControllableAudio::processScatter). Reading from ParamManager gives inherited values.
+
+					if (shouldRecalcParams) {
+						// Helper: convert bipolar storage to unipolar Q31
+						// Bipolar range: INT32_MIN to INT32_MAX → Unipolar: 0 to INT32_MAX
+						auto bipolarToUnipolar = [](int32_t bipolar) -> q31_t {
+							return static_cast<q31_t>((static_cast<int64_t>(bipolar) + 2147483648LL) >> 1);
+						};
+
+						// Read fresh zone params from param set
+						if (modulatedValues && paramManager->hasPatchedParamSet()) {
+							constexpr int32_t kCableScale = 4;
+							PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
+							zoneAParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_A)
+							             + modulatedValues[0] / kCableScale;
+							zoneBParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_B)
+							             + modulatedValues[1] / kCableScale;
+							macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG)
+							                   + modulatedValues[2] / kCableScale;
+							// Macro: preset value + cable contribution, then convert to unipolar
+							// (same as zone params - patcher outputs cables only)
+							macroParam = bipolarToUnipolar(patchedParams->getValue(params::GLOBAL_SCATTER_MACRO)
+							                               + modulatedValues[3] / kCableScale);
+						}
+						else if (paramManager->hasPatchedParamSet()) {
+							PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
+							zoneAParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_A);
+							zoneBParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_B);
+							macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG);
+							// Macro uses bipolar storage - convert to unipolar
+							macroParam = bipolarToUnipolar(patchedParams->getValue(params::GLOBAL_SCATTER_MACRO));
+						}
+						else {
+							zoneAParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_ZONE_A);
+							zoneBParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_ZONE_B);
+							macroConfigParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO_CONFIG);
+							// Macro uses bipolar storage - convert to unipolar
+							macroParam = bipolarToUnipolar(unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO));
+						}
+						// Cache for next slice
+						cachedZoneAParam = zoneAParam;
+						cachedZoneBParam = zoneBParam;
+						cachedMacroConfigParam = macroConfigParam;
+						cachedMacroParam = macroParam;
+
+						// Read pWrite and density directly from param set (not patcher output)
+						// Bipolar storage: INT32_MIN=0%, 0=50%, INT32_MAX=100% (like TableShaperMix)
+						q31_t pWriteQ31;
+						q31_t densityQ31;
+						if (paramManager->hasPatchedParamSet()) {
+							PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
+							pWriteQ31 = patchedParams->getValue(params::GLOBAL_SCATTER_PWRITE);
+							densityQ31 = patchedParams->getValue(params::GLOBAL_SCATTER_DENSITY);
+							// Add cable modulation if available (patcher outputs cables only for zone-like handling)
+							if (modulatedValues != nullptr) {
+								constexpr int32_t kCableScale = 4;
+								constexpr int64_t kBipolarMin = INT32_MIN;
+								constexpr int64_t kBipolarMax = INT32_MAX;
+								pWriteQ31 = std::clamp<int64_t>(static_cast<int64_t>(pWriteQ31)
+								                                    + modulatedValues[4] / kCableScale,
+								                                kBipolarMin, kBipolarMax);
+								densityQ31 = std::clamp<int64_t>(static_cast<int64_t>(densityQ31)
+								                                     + modulatedValues[5] / kCableScale,
+								                                 kBipolarMin, kBipolarMax);
+							}
+						}
+						else {
+							pWriteQ31 = unpatchedParams->getValue(params::UNPATCHED_SCATTER_PWRITE);
+							densityQ31 = unpatchedParams->getValue(params::UNPATCHED_SCATTER_DENSITY);
+						}
+						// Convert bipolar to 0-1: INT32_MIN→0.0, 0→0.5, INT32_MAX→1.0
+						constexpr float kBipolarToUnipolar = 1.0f / 4294967296.0f;
+						cachedPWriteProb = (static_cast<int64_t>(pWriteQ31) + 2147483648LL) * kBipolarToUnipolar;
+						cachedDensityProb = (static_cast<int64_t>(densityQ31) + 2147483648LL) * kBipolarToUnipolar;
+						// DEBUG: Log pWrite/density values (remove after testing)
+						static int dbgCounter = 0;
+						if (++dbgCounter >= 100) {
+							dbgCounter = 0;
+							D_PRINTLN("pWrite=%.2f density=%.2f (q31: %d %d)", cachedPWriteProb, cachedDensityProb,
+							          pWriteQ31, densityQ31);
+						}
 					}
 					FX_BENCH_STOP(benchParamRead);
 
@@ -568,6 +682,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					    isRepeat ? 0.0f : staticTriangles.delayScale, // No delay for Repeat
 					    scatterBarIndex,
 					};
+					// Cache offsets for slice boundary computation (used inline in sample loop)
+					cachedOffsets = offsets;
 
 					// Compute grain params - Repeat uses loop index for evolution, Shuffle uses slice index
 					deluge::dsp::scatter::GrainParams grain;
@@ -594,6 +710,40 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							float zoneBNorm = static_cast<float>(zoneBParam) * deluge::dsp::scatter::kQ31ToFloat;
 							int32_t repeat = 1 + static_cast<int32_t>(zoneBNorm * (scatterNumSlices - 1));
 							grain.repeatSlices = std::clamp(repeat, int32_t{1}, scatterNumSlices);
+						}
+						// Grain mode: Rate = grain size, Zone A = position spread
+						if (stutterConfig.scatterMode == ScatterMode::Grain && playbackLength > 0) {
+							// Rate controls grain size (exponential curve like Repeat)
+							int32_t grainNorm = 64 - knobPos; // CCW=large, CW=small
+							grainNorm = std::clamp(grainNorm, int32_t{0}, int32_t{128});
+							constexpr size_t kMinGrain = 1024; // ~23ms minimum (avoid harsh micro-grains)
+							grainLength = (playbackLength * grainNorm * grainNorm) / (128 * 128);
+							grainLength = std::clamp(grainLength, kMinGrain, playbackLength);
+							// Zone A [0,1] → spread range (pattern control: 0=sequential, 1=random)
+							float zoneANorm = static_cast<float>(zoneAParam) * deluge::dsp::scatter::kQ31ToFloat;
+							grainSpread = static_cast<size_t>(zoneANorm * playbackLength);
+							// Initialize voices if not already running
+							if (grainPhaseB == 0 && grainPhaseA == 0) {
+								grainPhaseB = 0x80000000u; // Voice B at 50% phase offset
+								grainRngState ^= static_cast<uint32_t>(currentTick);
+								grainPosA = grainRngState % playbackLength;
+								grainRngState ^= grainRngState << 13;
+								grainRngState ^= grainRngState >> 17;
+								grainPosB = grainRngState % playbackLength;
+								grainOffsetA = 0;
+								grainOffsetB = grainLength / 2; // 50% through grain
+								// Initialize per-voice effects
+								grainIndexA = 0;
+								grainIndexB = 1; // Offset so voices differ
+								grainAReversed = false;
+								grainBReversed = false;
+								grainAPitchUp = false;
+								grainBPitchUp = false;
+								grainAPan = 0;
+								grainBPan = 0;
+								grainAStereo = 0;
+								grainBStereo = 0;
+							}
 						}
 						if (!isRepeat) {
 							// Cache for repeat and set counter (Shuffle/Time)
@@ -682,8 +832,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 								degreeIdx = 7;
 
 							// Get semitone offset from scale table
-							uint8_t scaleIdx = stutterConfig.pitchScale;
-							if (scaleIdx > 11)
+							uint8_t scaleIdx = stutterConfig.getPitchScale();
+							if (scaleIdx > 24)
 								scaleIdx = 0;
 							int8_t semitones = kScaleSemitones[scaleIdx][degreeIdx];
 							if (semitones < 0)
@@ -732,12 +882,35 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					// Used to skip ZC protection when audio flows naturally between slices
 					scatterConsecutive = (grain.sliceOffset == 0) && !scatterReversed && !scatterPitchUp;
 
+					// Peek at next grain to determine if decay envelope should apply
+					// If next grain is consecutive, skip decay (content flows naturally)
+					// If next grain is non-consecutive, apply decay (need crossfade transition)
+					int32_t nextGrainIndex = isRepeat ? (scatterRepeatLoopIndex + 1) : (scatterSliceIndex + 1);
+					auto nextGrain = deluge::dsp::scatter::computeGrainParams(zoneAParam, zoneBParam, macroConfigParam,
+					                                                          macroParam, nextGrainIndex, &offsets);
+					bool nextReversed = nextGrain.shouldReverse;
+					bool nextPitchUp = nextGrain.shouldPitchUp;
+					scatterNextConsecutive = (nextGrain.sliceOffset == 0) && !nextReversed && !nextPitchUp;
+
 					// Dry decision (hash-based bool, macro can gate it)
 					// Macro high = more likely to override grain and use dry
 					float thresholdInfluence =
 					    deluge::dsp::triangleSimpleUnipolar(macroConfigNorm * deluge::dsp::phi::kPhi, 0.5f);
 					bool macroWantsDry = (macroNorm * thresholdInfluence > 0.5f);
-					scatterDryMix = (grain.useDry || macroWantsDry) ? 1.0f : 0.0f;
+					bool wantsDry = grain.useDry || macroWantsDry;
+
+					// Density control: densityParam controls grain vs dry output
+					// Linear: 0=all dry, 50=100% grains (normal behavior)
+					float density = cachedDensityProb;
+					if (density < 1.0f) {
+						uint32_t densityHash = hash::mix(static_cast<uint32_t>(scatterSliceIndex) ^ 0xBADC0FFE);
+						float densityRand = static_cast<float>(densityHash & 0xFFFF) / 65535.0f;
+						if (densityRand >= density) {
+							wantsDry = true;
+						}
+					}
+
+					scatterDryMix = wantsDry ? 1.0f : 0.0f;
 					scatterDryThreshold = 0.5f; // Fixed threshold for bool comparison
 
 					// All timbral params from grain (computed with phase offset and gamma in computeGrainParams)
@@ -901,27 +1074,34 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			// Hoist mode check and envelope params (constant during loop)
 			// Repeat shares processing with Shuffle (unified code path)
 			bool isShuffle =
-			    (stutterConfig.scatterMode == ScatterMode::Shuffle || stutterConfig.scatterMode == ScatterMode::Leaky
+			    (stutterConfig.scatterMode == ScatterMode::Shuffle || stutterConfig.scatterMode == ScatterMode::Grain
 			     || stutterConfig.scatterMode == ScatterMode::Repeat || stutterConfig.scatterMode == ScatterMode::Time
 			     || stutterConfig.scatterMode == ScatterMode::Pattern
 			     || stutterConfig.scatterMode == ScatterMode::Pitch);
-			bool isLeaky = (stutterConfig.scatterMode == ScatterMode::Leaky);
+			bool isGrain = (stutterConfig.scatterMode == ScatterMode::Grain);
 			bool isTime = (stutterConfig.scatterMode == ScatterMode::Time);
 			bool isPitch = (stutterConfig.scatterMode == ScatterMode::Pitch);
-			// Leaky grain decision: made per-slice (not per-sample) to avoid discontinuities
-			// Hash of slice index determines if this grain writes wet or dry
-			// Duck entire grain if read/write regions overlap (prevents feedback artifacts)
-			bool leakyGrainIsWet = false;
-			if (isLeaky && recordSource == playSource) {
-				uint8_t leakyThreshold = static_cast<uint8_t>(stutterConfig.leakyWriteProb * 16.0f);
+			// pWrite applies to all looper modes except Repeat (continuous loop)
+			// Slice modes: hash of slice index determines write decision per-slice
+			// Grain mode: uses grainAWritesWet (per-grain decision at phase wrap)
+			bool hasPWrite = stutterConfig.isLooperMode() && stutterConfig.scatterMode != ScatterMode::Repeat;
+			bool pWriteGrainIsWet = false;
+			if (hasPWrite && !isGrain) {
+				// Slice-based modes: pWrite decision per-slice using hash
+				// Grain mode uses grainAWritesWet directly (per-grain decision at phase wrap)
+				float pWriteProb = cachedPWriteProb;
+				uint8_t pWriteThreshold = static_cast<uint8_t>(pWriteProb * 16.0f);
 				hash::Bits sliceBits(static_cast<uint32_t>(scatterSliceIndex) ^ (scatterBarIndex << 16) ^ 0xDEADBEEFu);
-				leakyGrainIsWet = sliceBits.threshold4(0, leakyThreshold);
+				pWriteGrainIsWet = sliceBits.threshold4(0, pWriteThreshold);
 
 				// Check for read/write region overlap - duck grain if they intersect
 				// Read region: [sliceStartOffset, sliceStartOffset + sliceLength)
 				// Write region: [linearBarPos, linearBarPos + sliceLength)
 				// In circular buffer, overlap if either start is within the other's range
-				if (leakyGrainIsWet && playbackLength > 0) {
+				// EXCEPTION: Skip overlap check when writing dry/fresh input (density down)
+				// Fresh input has no feedback concern - we're not reading what we just wrote
+				bool sliceUsesDry = (scatterDryMix > scatterDryThreshold);
+				if (pWriteGrainIsWet && playbackLength > 0 && !sliceUsesDry) {
 					size_t readStart = sliceStartOffset;
 					size_t writeStart = scatterLinearBarPos;
 					size_t len = currentSliceLength;
@@ -930,7 +1110,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					// Check: is readStart within [writeStart, writeStart+len)?
 					size_t readInWrite = (readStart + playbackLength - writeStart) % playbackLength;
 					if (writeInRead < len || readInWrite < len) {
-						leakyGrainIsWet = false; // Duck this grain - regions overlap
+						pWriteGrainIsWet = false; // Duck this grain - regions overlap
 					}
 				}
 			}
@@ -940,6 +1120,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			int32_t loopPitchIncrement = (scatterPitchUp && isShuffle) ? 2 : 1;
 			// Skip ZC protection when slices are consecutive and no envelope (audio flows naturally)
 			bool loopSkipZC = scatterConsecutive && !loopEnvActive;
+			bool loopNextConsecutive = scatterNextConsecutive;
 
 			// Hoist envelope precomputed values
 			int32_t loopGatedLen = scatterEnvPrecomputed.gatedLength;
@@ -963,6 +1144,20 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			uint32_t loopPitchRatioFP = isPitch ? scatterPitchRatioFP : 65536;
 			uint32_t loopPitchPosFP = scatterPitchPosFP;
 
+			// Grain mode: per-voice effects (computed at grain phase wrap, not slice boundary)
+			// This ensures each grain gets independent effects based on its grain index
+			int32_t loopGrainRepeatSlices = isGrain ? scatterCachedGrain.repeatSlices : 1;
+			int32_t loopGrainRepeatCounter = 0;
+
+			// Stereo width from config (positions A left, B right - inherently two-voice effect)
+			float grainStereoWidth = isGrain ? stutterConfig.getStereoWidth() : 0.0f;
+			// Apply Zone B position as additional width modulation
+			float zoneBNorm = static_cast<float>(cachedZoneBParam) * deluge::dsp::scatter::kQ31ToFloat;
+			grainStereoWidth *= (0.5f + zoneBNorm * 0.5f); // Scale by Zone B
+			float grainStereoAbs = (grainStereoWidth > 0) ? grainStereoWidth : -grainStereoWidth;
+			int32_t loopGrainAntiWidthQ31 = static_cast<int32_t>((1.0f - grainStereoAbs) * 2147483647.0f);
+			bool loopGrainStereoInvert = (grainStereoWidth < 0); // Negative = A→R, B→L
+
 			for (StereoSample& sample : audio) {
 				// NOTE: Recording for re-trigger is handled by recordStandby() which is called
 				// BEFORE processStutter(). Recording here would double-record, causing
@@ -970,6 +1165,206 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 				// Benchmark first sample only to avoid 128x overhead
 				bool benchThisSample = (sampleIdx == 0);
+
+				// === GRAIN MODE: dual-voice crossfade processing ===
+				if (isGrain && looperBuffer != nullptr && loopPlaybackLength > 0) {
+					q31_t dryL = sample.l;
+					q31_t dryR = sample.r;
+
+					// Triangular envelope: 0→max→0 over full phase cycle
+					auto triangleEnv = [](uint32_t phase) -> int32_t {
+						if (phase < 0x80000000u) {
+							return static_cast<int32_t>(phase); // Rising: 0 → max
+						}
+						return static_cast<int32_t>(0xFFFFFFFFu - phase); // Falling: max → 0
+					};
+
+					int32_t envA = triangleEnv(grainPhaseA);
+					int32_t envB = triangleEnv(grainPhaseB);
+
+					// Read buffer samples (used if voice is wet)
+					// Reverse: per-voice - read from end of grain going backwards
+					size_t effectiveOffsetA = grainAReversed
+					                              ? (grainLength > grainOffsetA ? grainLength - 1 - grainOffsetA : 0)
+					                              : grainOffsetA;
+					size_t effectiveOffsetB = grainBReversed
+					                              ? (grainLength > grainOffsetB ? grainLength - 1 - grainOffsetB : 0)
+					                              : grainOffsetB;
+					size_t localPosA = (grainPosA + effectiveOffsetA) % loopPlaybackLength;
+					size_t localPosB = (grainPosB + effectiveOffsetB) % loopPlaybackLength;
+					size_t posA = (loopPlaybackStartPos + localPosA) % kLooperBufferSize;
+					size_t posB = (loopPlaybackStartPos + localPosB) % kLooperBufferSize;
+					q31_t bufAL = looperBuffer[posA].l;
+					q31_t bufAR = looperBuffer[posA].r;
+					q31_t bufBL = looperBuffer[posB].l;
+					q31_t bufBR = looperBuffer[posB].r;
+
+					// Per-voice source selection (dry or buffer) - decided at grain start
+					q31_t srcAL = grainAIsDry ? dryL : bufAL;
+					q31_t srcAR = grainAIsDry ? dryR : bufAR;
+					q31_t srcBL = grainBIsDry ? dryL : bufBL;
+					q31_t srcBR = grainBIsDry ? dryR : bufBR;
+
+					// Mix with envelopes - bypass entirely when both voices are dry
+					q31_t outputL, outputR;
+					if (grainAIsDry && grainBIsDry) {
+						// Both voices dry: pass through without envelope coloring
+						outputL = dryL;
+						outputR = dryR;
+					}
+					else {
+						// At least one voice wet: crossfade with triangular envelopes
+						// Apply bipolar stereo width:
+						// +width: A→L full, A→R attenuated, B→L attenuated, B→R full
+						// -width: A→R full, A→L attenuated, B→R attenuated, B→L full (inverted)
+						// |width|=0: mono, |width|=1: full stereo
+						if (loopGrainStereoInvert) {
+							// Inverted: A→R, B→L
+							q31_t srcAL_stereo = multiply_32x32_rshift32(srcAL, loopGrainAntiWidthQ31) << 1;
+							q31_t srcBR_stereo = multiply_32x32_rshift32(srcBR, loopGrainAntiWidthQ31) << 1;
+							outputL =
+							    (multiply_32x32_rshift32(srcAL_stereo, envA) + multiply_32x32_rshift32(srcBL, envB))
+							    << 1;
+							outputR =
+							    (multiply_32x32_rshift32(srcAR, envA) + multiply_32x32_rshift32(srcBR_stereo, envB))
+							    << 1;
+						}
+						else {
+							// Normal: A→L, B→R
+							q31_t srcAR_stereo = multiply_32x32_rshift32(srcAR, loopGrainAntiWidthQ31) << 1;
+							q31_t srcBL_stereo = multiply_32x32_rshift32(srcBL, loopGrainAntiWidthQ31) << 1;
+							outputL =
+							    (multiply_32x32_rshift32(srcAL, envA) + multiply_32x32_rshift32(srcBL_stereo, envB))
+							    << 1;
+							outputR =
+							    (multiply_32x32_rshift32(srcAR_stereo, envA) + multiply_32x32_rshift32(srcBR, envB))
+							    << 1;
+						}
+					}
+
+					// Apply per-voice pan (weighted by envelope contribution)
+					// Skip when both voices are dry (no effect to pan)
+					if (!(grainAIsDry && grainBIsDry)) {
+						// Combine voice pans weighted by their envelopes
+						float totalEnv = static_cast<float>(envA) + static_cast<float>(envB);
+						float combinedPan = 0;
+						if (totalEnv > 0) {
+							combinedPan = (grainAPan * static_cast<float>(envA) + grainBPan * static_cast<float>(envB))
+							              / totalEnv;
+						}
+						float panAbs = (combinedPan > 0) ? combinedPan : -combinedPan;
+						if (panAbs > 0.001f) {
+							int32_t panFadeQ31 = static_cast<int32_t>((1.0f - panAbs) * 2147483647.0f);
+							int32_t panCrossQ31 = static_cast<int32_t>((panAbs * 0.5f) * 2147483647.0f);
+							q31_t mixL = outputL;
+							q31_t mixR = outputR;
+							if (combinedPan > 0) {
+								outputL = multiply_32x32_rshift32(mixL, panFadeQ31) << 1;
+								outputR = mixR + (multiply_32x32_rshift32(mixL - mixR, panCrossQ31) << 1);
+							}
+							else {
+								outputR = multiply_32x32_rshift32(mixR, panFadeQ31) << 1;
+								outputL = mixL + (multiply_32x32_rshift32(mixR - mixL, panCrossQ31) << 1);
+							}
+						}
+					}
+
+					// pWrite: crossfade grain A into buffer at linear position
+					// Blend: existing * (1-env) + new * env - smooth transitions at grain edges
+					// Use grainAWritesWet directly (not hoisted pWriteGrainIsWet) for per-grain decision
+					if (hasPWrite && grainAWritesWet) {
+						size_t writePos = (loopPlaybackStartPos + loopLinearBarPos) % kLooperBufferSize;
+						int32_t invEnvA = 0x7FFFFFFF - envA;
+						q31_t existL = looperBuffer[writePos].l;
+						q31_t existR = looperBuffer[writePos].r;
+						q31_t newL = (multiply_32x32_rshift32(existL, invEnvA) + multiply_32x32_rshift32(srcAL, envA))
+						             << 1;
+						q31_t newR = (multiply_32x32_rshift32(existR, invEnvA) + multiply_32x32_rshift32(srcAR, envA))
+						             << 1;
+						looperBuffer[writePos] = {newL, newR};
+					}
+
+					// Advance offsets and linear position
+					// Pitch up: per-voice - advance by 2 (octave up via decimation)
+					grainOffsetA += grainAPitchUp ? 2 : 1;
+					grainOffsetB += grainBPitchUp ? 2 : 1;
+					loopLinearBarPos++;
+					if (loopLinearBarPos >= loopPlaybackLength) {
+						loopLinearBarPos = 0;
+					}
+
+					// Advance envelope phases (per-voice: double for pitch up to maintain grain length)
+					uint32_t basePhaseInc = grainLength > 0 ? (0xFFFFFFFFu / grainLength) : 0x10000000u;
+					uint32_t oldPhaseA = grainPhaseA;
+					uint32_t oldPhaseB = grainPhaseB;
+					grainPhaseA += grainAPitchUp ? (basePhaseInc * 2) : basePhaseInc;
+					grainPhaseB += grainBPitchUp ? (basePhaseInc * 2) : basePhaseInc;
+
+					// Fast RNG for new positions and density decisions
+					auto fastRandom = [this]() -> uint32_t {
+						grainRngState ^= grainRngState << 13;
+						grainRngState ^= grainRngState >> 17;
+						grainRngState ^= grainRngState << 5;
+						return grainRngState;
+					};
+
+					// Density threshold
+					float densityProb = cachedDensityProb;
+
+					// On phase wrap: new grain position, reset offset, decide dry/wet, pWrite, and effects
+					// Each grain gets independent effects based on its grain index + Zone B
+					// Repeat: hold position for N grain cycles
+					if (grainPhaseA < oldPhaseA) {
+						grainOffsetA = 0;
+						grainIndexA++;
+						if (loopGrainRepeatCounter > 0) {
+							loopGrainRepeatCounter--;
+						}
+						else {
+							size_t spread = grainSpread > 0 ? grainSpread : loopPlaybackLength;
+							grainPosA = fastRandom() % spread;
+							loopGrainRepeatCounter = loopGrainRepeatSlices - 1;
+						}
+						grainAIsDry = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) >= densityProb;
+						float pWriteProbGrain = cachedPWriteProb;
+						grainAWritesWet = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) < pWriteProbGrain;
+
+						// Compute per-grain effects using Zone B and grain index
+						float zoneBNorm = static_cast<float>(cachedZoneBParam) * deluge::dsp::scatter::kQ31ToFloat;
+						uint32_t hashBits = fastRandom();
+						// Reverse: probability scales with Zone B (max 40%)
+						grainAReversed = (static_cast<float>(hashBits & 0xFFFF) / 65535.0f) < (zoneBNorm * 0.4f);
+						// Pitch up: probability scales with Zone B (max 25%)
+						grainAPitchUp =
+						    (static_cast<float>((hashBits >> 16) & 0xFFFF) / 65535.0f) < (zoneBNorm * 0.25f);
+						// Pan: phi triangle based on grain index, scaled by Zone B
+						float grainPhase = deluge::dsp::phi::wrapPhase(static_cast<float>(grainIndexA) * 0.382f);
+						float panDir = ((grainIndexA & 1) != 0u) ? 1.0f : -1.0f;
+						grainAPan = panDir * zoneBNorm * 0.3f * deluge::dsp::triangleSimpleUnipolar(grainPhase, 0.4f);
+					}
+					if (grainPhaseB < oldPhaseB) {
+						grainOffsetB = 0;
+						grainIndexB++;
+						size_t spread = grainSpread > 0 ? grainSpread : loopPlaybackLength;
+						grainPosB = fastRandom() % spread;
+						grainBIsDry = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) >= densityProb;
+
+						// Compute per-grain effects for voice B
+						float zoneBNorm = static_cast<float>(cachedZoneBParam) * deluge::dsp::scatter::kQ31ToFloat;
+						uint32_t hashBits = fastRandom();
+						grainBReversed = (static_cast<float>(hashBits & 0xFFFF) / 65535.0f) < (zoneBNorm * 0.4f);
+						grainBPitchUp =
+						    (static_cast<float>((hashBits >> 16) & 0xFFFF) / 65535.0f) < (zoneBNorm * 0.25f);
+						float grainPhase = deluge::dsp::phi::wrapPhase(static_cast<float>(grainIndexB) * 0.382f);
+						float panDir = ((grainIndexB & 1) != 0u) ? 1.0f : -1.0f;
+						grainBPan = panDir * zoneBNorm * 0.3f * deluge::dsp::triangleSimpleUnipolar(grainPhase, 0.4f);
+					}
+
+					sample.l = outputL;
+					sample.r = outputR;
+					sampleIdx++;
+					continue;
+				}
 
 				// === PLAYBACK: read from current slice ===
 				// Save dry input for potential crossfade (density zone)
@@ -999,26 +1394,56 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				bool useDry = (scatterDryMix > scatterDryThreshold);
 
 				q31_t outputL, outputR;
+				q31_t srcL, srcR;                // Pre-envelope source for crossfaded pWrite
 				bool bufferZeroCrossing = false; // ZC detected in buffer (before processing)
 
 				if (useDry) {
 					// Use dry input signal
 					outputL = dryL;
 					outputR = dryR;
+					srcL = dryL;
+					srcR = dryR;
 				}
 				else {
 					// Use grain from buffer - main SDRAM access point
 					if (benchThisSample) {
 						FX_BENCH_START(benchRead);
 					}
-					outputL = playBuffer[playReadPos].l;
-					outputR = playBuffer[playReadPos].r;
+
+					// Pitch mode: linear interpolation for non-integer pitch ratios
+					// This avoids aliasing/bitcrushing artifacts from truncation
+					if (loopPitchRatioFP != 65536) {
+						// Read two samples and interpolate
+						q31_t s0L = looperBuffer[playReadPos].l;
+						q31_t s0R = looperBuffer[playReadPos].r;
+						// Next sample position (handle buffer wrap and reverse)
+						size_t nextPos;
+						if (loopReversed) {
+							nextPos = (playReadPos > 0) ? playReadPos - 1 : kLooperBufferSize - 1;
+						}
+						else {
+							nextPos = (playReadPos + 1) % kLooperBufferSize;
+						}
+						q31_t s1L = looperBuffer[nextPos].l;
+						q31_t s1R = looperBuffer[nextPos].r;
+						// Fractional part [0, 65535] from 16.16 fixed-point
+						int32_t frac = static_cast<int32_t>(loopPitchPosFP & 0xFFFF);
+						// Linear interpolation: s0 + frac * (s1 - s0)
+						outputL = s0L + (static_cast<int32_t>((static_cast<int64_t>(s1L - s0L) * frac) >> 16));
+						outputR = s0R + (static_cast<int32_t>((static_cast<int64_t>(s1R - s0R) * frac) >> 16));
+					}
+					else {
+						outputL = looperBuffer[playReadPos].l;
+						outputR = looperBuffer[playReadPos].r;
+					}
+					srcL = outputL; // Save pre-envelope for pWrite
+					srcR = outputR;
 
 					// Pitch up: check ZC on skipped sample (increment=2 skips every other sample)
 					if (loopPitchIncrement == 2 && playbackPos > 0) {
 						size_t skippedPos = loopReversed ? (playReadPos + 1) % kLooperBufferSize
 						                                 : (playReadPos > 0 ? playReadPos - 1 : kLooperBufferSize - 1);
-						q31_t skippedL = playBuffer[skippedPos].l;
+						q31_t skippedL = looperBuffer[skippedPos].l;
 						bufferZeroCrossing = (skippedL != 0) && ((outputL ^ skippedL) < 0);
 					}
 
@@ -1029,6 +1454,10 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 				// Apply grain envelope and gate (using hoisted locals)
 				// Note: envDepth not used (always full fade) - depth blend adds ~30% overhead
+				// Apply envelope to ALL grains (dry and wet) at non-consecutive boundaries
+				// This ensures smooth dry↔wet transitions (dry stops → wet envs in from 0 = click without this)
+				// pWrite envelope: skip attack if current consecutive, skip decay if next consecutive
+				int32_t pWriteEnvQ31 = 0x7FFFFFFF; // Default full (sustain region)
 				if (loopEnvActive) {
 					if (benchThisSample) {
 						FX_BENCH_START(benchEnv);
@@ -1041,20 +1470,25 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						// Past gate - releaseMuted should be true by now (set by ZC check)
 						// If not, force it to avoid playing past intended cutoff
 						releaseMutedL = releaseMutedR = true;
+						pWriteEnvQ31 = 0;
 					}
-					else if (pos < loopAttackLen) {
+					else if (pos < loopAttackLen && !scatterConsecutive) {
 						// Attack fade-in: linear ramp 0→1
+						// Skip if current grain is consecutive (flows naturally from previous)
 						int32_t envQ31 = pos * loopInvAttackLen;
 						outputL = multiply_32x32_rshift32(outputL, envQ31) << 1;
 						outputR = multiply_32x32_rshift32(outputR, envQ31) << 1;
+						pWriteEnvQ31 = envQ31;
 					}
-					else if (pos > loopGatedLen - loopDecayLen) {
+					else if (pos > loopGatedLen - loopDecayLen && !loopNextConsecutive) {
 						// Decay fade-out: linear ramp 1→0
+						// Skip if NEXT grain is consecutive (will flow naturally into next)
 						int32_t envQ31 = (loopGatedLen - pos) * loopInvDecayLen;
 						outputL = multiply_32x32_rshift32(outputL, envQ31) << 1;
 						outputR = multiply_32x32_rshift32(outputR, envQ31) << 1;
+						pWriteEnvQ31 = envQ31;
 					}
-					// else: flat middle - no attenuation needed
+					// else: flat middle - sustain region, pWriteEnvQ31 stays at full
 					if (benchThisSample) {
 						FX_BENCH_STOP(benchEnv);
 					}
@@ -1063,7 +1497,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				// Apply crossfeed pan using hoisted Q31 coefficients (optimized: 2 muls instead of 3)
 				// At pan=1: L=0, R=(L+R)/2  |  At pan=-1: L=(L+R)/2, R=0
 				// Algebraic simplification: R + (L-R)*cross instead of R*keep + L*cross
-				if (loopPanActive) {
+				// Skip pan for dry grains - input audio should pass through unchanged
+				if (loopPanActive && !useDry) {
 					if (benchThisSample) {
 						FX_BENCH_START(benchPan);
 					}
@@ -1086,6 +1521,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 				// === ANTI-CLICK: per-channel zero-crossing based muting ===
 				// Skip ZC when slices are consecutive and no envelope (audio flows naturally)
+				// Apply ZC to all grains (dry and wet) - needed for smooth dry↔wet transitions
 				if (!loopSkipZC) {
 					bool zcL = ((prevOutputL != 0) && ((outputL ^ prevOutputL) < 0)) || bufferZeroCrossing;
 					bool zcR = ((prevOutputR != 0) && ((outputR ^ prevOutputR) < 0)) || bufferZeroCrossing;
@@ -1157,17 +1593,22 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					}
 				}
 
-				// === LEAKY: write wet grains directly to play buffer ===
+				// === pWRITE: crossfade source into buffer ===
 				// Single buffer tape-loop: read from shuffled position, write to linear position
-				// Entire grain is ducked at slice setup if read/write regions overlap
-				// pWrite=0 means no writes → content persists indefinitely
-				// pWrite>0 means wet grains overwrite → delayed feedback accumulation
-				if (isLeaky && playBuffer != nullptr && leakyGrainIsWet) {
-					size_t leakyWritePos = loopPlaybackStartPos + loopLinearBarPos;
-					while (leakyWritePos >= kLooperBufferSize) {
-						leakyWritePos -= kLooperBufferSize;
+				// Uses grain envelope for crossfade (already handles small grains via prepareGrainEnvelopeQ31)
+				if (hasPWrite && looperBuffer != nullptr && pWriteGrainIsWet) {
+					size_t pWritePos = loopPlaybackStartPos + loopLinearBarPos;
+					while (pWritePos >= kLooperBufferSize) {
+						pWritePos -= kLooperBufferSize;
 					}
-					playBuffer[leakyWritePos] = {outputL, outputR};
+					int32_t invEnv = 0x7FFFFFFF - pWriteEnvQ31;
+					q31_t existL = looperBuffer[pWritePos].l;
+					q31_t existR = looperBuffer[pWritePos].r;
+					q31_t newL = (multiply_32x32_rshift32(existL, invEnv) + multiply_32x32_rshift32(srcL, pWriteEnvQ31))
+					             << 1;
+					q31_t newR = (multiply_32x32_rshift32(existR, invEnv) + multiply_32x32_rshift32(srcR, pWriteEnvQ31))
+					             << 1;
+					looperBuffer[pWritePos] = {newL, newR};
 				}
 
 				sample.l = outputL;
@@ -1210,14 +1651,53 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					}
 				}
 				if (sliceBoundary) {
-					waitingForZeroCrossL = waitingForZeroCrossR = true;
+					// Only force ZC wait if next grain is non-consecutive (needs transition protection)
+					// Consecutive grains flow naturally - no ZC needed
+					if (!loopNextConsecutive) {
+						waitingForZeroCrossL = waitingForZeroCrossR = true;
+						prevOutputL = prevOutputR = 0;
+					}
+					else {
+						// Consecutive grain: advance slice offset immediately for remaining samples
+						// This ensures audio continuity within the current buffer
+						sliceStartOffset = (sliceStartOffset + loopCurrentSliceLength) % loopPlaybackLength;
+						loopSliceStartOffset = sliceStartOffset;
+					}
 					releaseMutedL = releaseMutedR = false;
 					loopPitchUpLoopCount = 0;
-					prevOutputL = prevOutputR = 0;
 					// Advance subdivision only on real boundary
 					if (++scatterSubdivIndex >= scatterSubdivisions) {
 						scatterSubdivIndex = 0;
-						needsSliceSetup = true;
+
+						// Consecutive grains: handle inline, skip deferred block
+						// Non-consecutive: defer to buffer start for full recomputation
+						if (loopNextConsecutive && stutterConfig.scatterMode != ScatterMode::Repeat) {
+							// Advance slice index (use effectiveGrainLength from current grain)
+							int32_t grainLen = scatterCachedGrain.grainLength > 0 ? scatterCachedGrain.grainLength : 1;
+							int32_t prevSliceIndex = scatterSliceIndex;
+							scatterSliceIndex = (scatterSliceIndex + grainLen) % scatterNumSlices;
+
+							// Detect sample-counted bar wrap (slice index wrapped around)
+							// Only trigger in free-run mode (transport stopped) - tick sync handles it otherwise
+							if (scatterSliceIndex < prevSliceIndex && lastTickBarIndex < 0) {
+								scatterBarIndex = (scatterBarIndex + 1) % kBarIndexWrap;
+								needsSliceSetup = true; // Refresh params on next buffer
+							}
+
+							// Compute next grain's consecutive flag for decay envelope
+							// Use cached zone params and offsets (throttle controls when these refresh)
+							int32_t nextIdx = scatterSliceIndex + 1;
+							auto nextGrain = deluge::dsp::scatter::computeGrainParams(
+							    cachedZoneAParam, cachedZoneBParam, cachedMacroConfigParam, cachedMacroParam, nextIdx,
+							    &cachedOffsets);
+							scatterNextConsecutive =
+							    (nextGrain.sliceOffset == 0) && !nextGrain.shouldReverse && !nextGrain.shouldPitchUp;
+							loopNextConsecutive = scatterNextConsecutive;
+							// Skip deferred block - consecutive grains don't need full recomputation
+						}
+						else {
+							needsSliceSetup = true;
+						}
 					}
 					// Update lengths for next subdivision
 					loopEffectiveSubLen =
@@ -1414,29 +1894,12 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 
 	if (isScatterMode) {
 		// Non-Classic/Burst modes: return to standby for continuous recording
-		// Zero-crossing flags set by triggerPlaybackNow on next trigger
+		// Buffer content is preserved - pWrite evolves content on next trigger
 		playbackPos = 0;
 
-		// Keep the playing source as the new recorder (ready for re-trigger)
-		// This maintains armed state - source keeps recording until explicit release
-		if (playSource != nullptr && recordSource == playSource) {
-			// Normal case: same source was playing and recording
-			// Keep recordSource, continue recording - ready for instant re-trigger
-			playSource = nullptr;
-			// Don't reset recordWritePos - continue ring buffer recording
-		}
-		else if (recordSource != nullptr && recordSource != playSource) {
-			// Takeover case: someone else was recording while we played
-			// Let the recorder become the new "armed" source
-			playSource = nullptr;
-			// recordSource keeps recording
-		}
-		else {
-			// No recorder - go to clean standby
-			playSource = nullptr;
-			recordSource = nullptr;
-			recordWritePos = 0;
-		}
+		// Return to standby, keep recording to buffer
+		// Ready for instant re-trigger with preserved content
+		// Don't reset looperWritePos - continue ring buffer recording
 		status = Status::STANDBY;
 		return;
 	}
@@ -1450,8 +1913,9 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 	else {
 		buffer.discard();
 		status = Status::OFF;
-		playSource = nullptr;
-		recordSource = nullptr;
+		activeSource = nullptr;
+		pendingSource = nullptr;
+		shouldInheritConfig = false;
 	}
 
 	if (paramManager) {
@@ -1471,7 +1935,7 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 }
 
 Error Stutterer::enableStandby(void* source, int32_t magnitude, uint32_t timePerTickInverse) {
-	if (status == Status::STANDBY && recordSource == source) {
+	if (status == Status::STANDBY && activeSource == source) {
 		return Error::NONE;
 	}
 
@@ -1491,7 +1955,7 @@ Error Stutterer::enableStandby(void* source, int32_t magnitude, uint32_t timePer
 	buffer.setCurrent(buffer.begin());
 
 	status = Status::STANDBY;
-	recordSource = source;
+	activeSource = source;
 	standbyIdleSamples = 0; // Start timeout counter fresh
 	return Error::NONE;
 }
@@ -1501,45 +1965,40 @@ void Stutterer::disableStandby() {
 		// Classic mode: discard delay buffer
 		buffer.discard();
 
-		// Non-Classic modes: deallocate double buffers
-		if (bufferA != nullptr) {
-			delugeDealloc(bufferA);
-			bufferA = nullptr;
-		}
-		if (bufferB != nullptr) {
-			delugeDealloc(bufferB);
-			bufferB = nullptr;
+		// Looper modes: deallocate buffer
+		if (looperBuffer != nullptr) {
+			delugeDealloc(looperBuffer);
+			looperBuffer = nullptr;
 		}
 		if (delayBuffer != nullptr) {
 			delugeDealloc(delayBuffer);
 			delayBuffer = nullptr;
 		}
-		recordBuffer = nullptr;
-		playBuffer = nullptr;
 		delayActive = false;
 
 		status = Status::OFF;
-		playSource = nullptr;
-		recordSource = nullptr;
+		activeSource = nullptr;
+		pendingSource = nullptr;
+		shouldInheritConfig = false;
 		releasedDuringStandby = false;
 	}
 }
 
 void Stutterer::recordStandby(void* source, std::span<StereoSample> audio, int64_t lastSwungTick, uint32_t syncLength) {
-	// === CLEAN OWNERSHIP MODEL ===
-	// Only recordSource can write to recordBuffer. Period.
-	// This works for both standby (source == recordSource) and takeover (B stole recordSource from A).
+	// === SINGLE-BUFFER OWNERSHIP MODEL ===
+	// Only activeSource can write to looperBuffer during STANDBY.
+	// During PLAYING, pWrite handles writes instead.
 
-	if (source != recordSource) {
+	if (source != activeSource) {
 		return; // Not your buffer
 	}
 
-	// Check if double buffers are in use (scatter mode)
-	bool hasDoubleBuffers = (recordBuffer != nullptr && playBuffer != nullptr);
+	// Check if looper buffer is in use (scatter mode)
+	bool hasLooperBuffer = (looperBuffer != nullptr);
 
-	if (hasDoubleBuffers) {
-		// Scatter mode: record during STANDBY or PLAYING (takeover)
-		if (status != Status::STANDBY && status != Status::PLAYING) {
+	if (hasLooperBuffer) {
+		// Only record during STANDBY - pWrite handles writes during PLAYING
+		if (status != Status::STANDBY) {
 			return;
 		}
 
@@ -1555,12 +2014,12 @@ void Stutterer::recordStandby(void* source, std::span<StereoSample> audio, int64
 			}
 			// Beat boundary crossed - start recording (sample-accurate)
 			waitingForRecordBeat = false;
-			recordWritePos = 0;
-			recordBufferFull = false;
+			looperWritePos = 0;
+			looperBufferFull = false;
 		}
 
 		// Standby timeout: count idle samples and release after N bars
-		if (status == Status::STANDBY && playbackLength > 0) {
+		if (playbackLength > 0) {
 			standbyIdleSamples += audio.size();
 			if (standbyIdleSamples >= playbackLength * kStandbyTimeoutBars) {
 				disableStandby();
@@ -1568,25 +2027,17 @@ void Stutterer::recordStandby(void* source, std::span<StereoSample> audio, int64
 			}
 		}
 
-		// In Leaky mode during PLAYING with exclusive ownership, skip normal recording
-		// Leaky writes happen during playback (process() function) - writes wet OR dry per sample
-		// TWEAKY: Would not skip - allow dry recording to mix with leaky cross-track writes
-		if (status == Status::PLAYING && stutterConfig.scatterMode == ScatterMode::Leaky
-		    && recordSource == playSource) {
-			return;
-		}
-
 		for (StereoSample sample : audio) {
-			recordBuffer[recordWritePos] = sample;
-			recordWritePos++;
-			if (recordWritePos >= kLooperBufferSize) {
-				recordWritePos = 0;
-				recordBufferFull = true; // Ring buffer wrapped - full loop available
+			looperBuffer[looperWritePos] = sample;
+			looperWritePos++;
+			if (looperWritePos >= kLooperBufferSize) {
+				looperWritePos = 0;
+				looperBufferFull = true; // Ring buffer wrapped - full loop available
 			}
 		}
 		// Also mark full if we've recorded at least playbackLength samples
-		if (!recordBufferFull && playbackLength > 0 && recordWritePos >= playbackLength) {
-			recordBufferFull = true;
+		if (!looperBufferFull && playbackLength > 0 && looperWritePos >= playbackLength) {
+			looperBufferFull = true;
 		}
 		return;
 	}
@@ -1604,30 +2055,40 @@ void Stutterer::recordStandby(void* source, std::span<StereoSample> audio, int64
 
 Error Stutterer::armStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig sc, int32_t magnitude,
                             uint32_t timePerTickInverse, int64_t targetTick, size_t loopLengthSamples, bool halfBar) {
-	// === SIMPLIFIED: armStutter just claims recordBuffer for this source ===
-	// No beat quantization for now - that's broken anyway.
-	// This is called when a source wants to START recording (first encoder press).
+	// This is called when a source wants to arm for playback.
 
 	if (status == Status::RECORDING) {
 		return Error::UNSPECIFIED; // Classic mode recording, can't interrupt
 	}
-
-	bool hasDoubleBuffers = (bufferA != nullptr && bufferB != nullptr);
 
 	// Store config for when trigger fires
 	armedConfig = sc;
 	armedHalfBarMode = halfBar;
 	armedLoopLengthSamples = loopLengthSamples;
 
-	if (status == Status::PLAYING && hasDoubleBuffers) {
-		// TAKEOVER: Someone else is playing, we want to steal the record buffer
-		// Source claims recordBuffer, starts recording while other source keeps playing
-		recordSource = source;
-		recordWritePos = 0;
-		// Clear buffer to start fresh
-		if (recordBuffer != nullptr) {
-			memset(recordBuffer, 0, kLooperBufferSize * sizeof(StereoSample));
+	if (status == Status::PLAYING && looperBuffer != nullptr && activeSource != source) {
+		// TAKEOVER: Someone else is actively playing scatter, we want to inherit the buffer
+		// Only takeover when PLAYING (affecting audio), not STANDBY (just recording)
+		D_PRINTLN("armStutter TAKEOVER: prev=%p new=%p status=%d", activeSource, source, static_cast<int>(status));
+		shouldInheritConfig = true; // Signal new owner to copy params from cached values
+		// Preserve A's phase offsets and gamma - these are part of the "sound" being inherited
+		// Only update mode/toggle settings from B's config
+		float savedZoneAPhase = stutterConfig.zoneAPhaseOffset;
+		float savedZoneBPhase = stutterConfig.zoneBPhaseOffset;
+		float savedMacroConfigPhase = stutterConfig.macroConfigPhaseOffset;
+		float savedGammaPhase = stutterConfig.gammaPhase;
+		stutterConfig = sc;
+		stutterConfig.zoneAPhaseOffset = savedZoneAPhase;
+		stutterConfig.zoneBPhaseOffset = savedZoneBPhase;
+		stutterConfig.macroConfigPhaseOffset = savedMacroConfigPhase;
+		stutterConfig.gammaPhase = savedGammaPhase;
+		currentReverse = stutterConfig.reversed;
+		halfBarMode = halfBar;
+		playbackLength = std::min(loopLengthSamples, kLooperBufferSize);
+		if (playbackLength == 0) {
+			playbackLength = looperBufferFull ? kLooperBufferSize : looperWritePos;
 		}
+		triggerPlaybackNow(source);
 		return Error::NONE;
 	}
 
@@ -1646,12 +2107,11 @@ bool Stutterer::checkArmedTrigger(int64_t currentTick, ParamManager* paramManage
 
 bool Stutterer::checkPendingTrigger(void* source, int64_t lastSwungTick, uint32_t syncLength,
                                     ParamManager* paramManager, int32_t magnitude, uint32_t timePerTickInverse) {
-	if (!pendingPlayTrigger || recordSource != source) {
+	if (!pendingPlayTrigger || activeSource != source) {
 		return false;
 	}
 
 	// Tick-boundary detection: check if we've crossed into a new beat
-	// Uses interpolated tick position for accurate detection within audio buffers
 	int64_t currentBeatIndex = lastSwungTick / syncLength;
 
 	// On first check, set target to NEXT beat boundary
@@ -1666,9 +2126,8 @@ bool Stutterer::checkPendingTrigger(void* source, int64_t lastSwungTick, uint32_
 
 	// Ensure we have enough recorded audio before triggering
 	// If not, delay trigger to next beat
-	bool hasEnoughSamples = recordBufferFull || recordWritePos >= playbackLength;
+	bool hasEnoughSamples = looperBufferFull || looperWritePos >= playbackLength;
 	if (!hasEnoughSamples) {
-		// Push trigger to next beat
 		playTriggerTick = currentBeatIndex + 1;
 		return false;
 	}
@@ -1681,48 +2140,44 @@ bool Stutterer::checkPendingTrigger(void* source, int64_t lastSwungTick, uint32_
 void Stutterer::triggerPlaybackNow(void* source) {
 	pendingPlayTrigger = false;
 
-	// Calculate where loop starts in the record buffer (which becomes play buffer)
-	// recordWritePos is where we WOULD write next, so loop ends there
-	// If we haven't fully overwritten the buffer, we'll play a mix of new + stale audio (tape loop style)
-	if (recordWritePos >= playbackLength) {
-		playbackStartPos = recordWritePos - playbackLength;
+	// Calculate where loop starts in buffer (single buffer, no swap)
+	// looperWritePos is where we WOULD write next, so loop ends there
+	// Buffer content is preserved - pWrite controls how fast new content overwrites old
+	if (looperWritePos >= playbackLength) {
+		playbackStartPos = looperWritePos - playbackLength;
 	}
 	else {
-		playbackStartPos = kLooperBufferSize - (playbackLength - recordWritePos);
+		playbackStartPos = kLooperBufferSize - (playbackLength - looperWritePos);
 	}
 
-	// Swap buffers - always swap, stale audio in new playBuffer is fine
-	std::swap(recordBuffer, playBuffer);
-	recordBufferFull = false; // New recordBuffer hasn't wrapped yet
-	// Repeat mode records immediately; other modes wait for beat
-	waitingForRecordBeat = (stutterConfig.scatterMode != ScatterMode::Repeat);
-	recordStartTick = 0; // Will be computed in recordStandby
+	// Single buffer: no swap needed, content preserved for inheritance/pWrite evolution
+	// Reset write position for pWrite (linear writes start from bar beginning)
+	looperWritePos = 0;
+	looperBufferFull = true; // Treat as full since we're playing from it
 
 	// Apply fade at buffer wrap boundary (position 0) to eliminate ring buffer discontinuity
 	// Position 0 and bufSize-1 were recorded ~4s apart - fade once here instead of per-sample
-	if (playBuffer != nullptr) {
+	if (looperBuffer != nullptr) {
 		for (size_t i = 0; i < kBufferWrapFadeLen; i++) {
 			// Fade in at start of buffer
 			q31_t fadeIn = static_cast<q31_t>((static_cast<int64_t>(i) << 31) / kBufferWrapFadeLen);
-			playBuffer[i].l = multiply_32x32_rshift32(playBuffer[i].l, fadeIn) << 1;
-			playBuffer[i].r = multiply_32x32_rshift32(playBuffer[i].r, fadeIn) << 1;
+			looperBuffer[i].l = multiply_32x32_rshift32(looperBuffer[i].l, fadeIn) << 1;
+			looperBuffer[i].r = multiply_32x32_rshift32(looperBuffer[i].r, fadeIn) << 1;
 			// Fade out at end of buffer
 			size_t endIdx = kLooperBufferSize - kBufferWrapFadeLen + i;
 			q31_t fadeOut =
 			    static_cast<q31_t>((static_cast<int64_t>(kBufferWrapFadeLen - 1 - i) << 31) / kBufferWrapFadeLen);
-			playBuffer[endIdx].l = multiply_32x32_rshift32(playBuffer[endIdx].l, fadeOut) << 1;
-			playBuffer[endIdx].r = multiply_32x32_rshift32(playBuffer[endIdx].r, fadeOut) << 1;
+			looperBuffer[endIdx].l = multiply_32x32_rshift32(looperBuffer[endIdx].l, fadeOut) << 1;
+			looperBuffer[endIdx].r = multiply_32x32_rshift32(looperBuffer[endIdx].r, fadeOut) << 1;
 		}
 	}
 
 	// Reset for playback
 	playbackPos = 0;
-	recordWritePos = 0;
 	waitingForZeroCrossL = waitingForZeroCrossR = true;
 	releaseMutedL = releaseMutedR = false;
 	prevOutputL = prevOutputR = 0; // Reset for fresh zero crossing detection
-	recordWritePos = 0;
-	scatterLinearBarPos = 0; // Reset linear position for leaky writes
+	scatterLinearBarPos = 0;       // Reset linear position for pWrite
 	currentSliceLength = playbackLength;
 	sliceStartOffset = 0;
 	scatterSliceIndex = 0;
@@ -1748,35 +2203,34 @@ void Stutterer::triggerPlaybackNow(void* source) {
 	staticTriangles.valid = false;              // Force recompute on first slice
 	standbyIdleSamples = 0;                     // Reset timeout counter
 	lastTickBarIndex = -1;                      // Reset bar boundary tracking
+	// Reset Grain mode state for fresh start (important for takeover)
+	grainPhaseA = 0;
+	grainPhaseB = 0;
+	grainPosA = 0;
+	grainPosB = 0;
+	grainOffsetA = 0;
+	grainOffsetB = 0;
+	grainAIsDry = false;
+	grainBIsDry = false;
+	grainAWritesWet = true; // Default to writing until first grain wrap decides
 	status = Status::PLAYING;
-	// Source now owns both buffers
-	playSource = source;
-	recordSource = source;
+	// Source now owns buffer
+	activeSource = source;
+	pendingSource = nullptr;
 
 	// Momentary mode: if encoder was released during STANDBY/takeover, end immediately
-	// Use armedConfig.latch (set from source's config when they first pressed) instead of
-	// stutterConfig.latch (which may have been overwritten by updateLiveParams from previous player)
-	bool isLatchedFromArmed = armedConfig.latch && armedConfig.scatterMode != ScatterMode::Classic;
-	if (releasedDuringStandby && !isLatchedFromArmed) {
+	// Use armedConfig (set from source's config when they first pressed) instead of
+	// stutterConfig (which may have been overwritten by updateLiveParams from previous player)
+	if (releasedDuringStandby && !armedConfig.isLatched()) {
 		releasedDuringStandby = false;
 		endStutter(nullptr);
 	}
 }
 
 void Stutterer::cancelArmed() {
-	// === SIMPLIFIED: Cancel takeover ===
-	// If source was recording for takeover, give up recordBuffer
-	// The current playSource keeps playing.
-
-	if (status == Status::PLAYING && recordSource != playSource) {
-		// Someone was preparing takeover - cancel it
-		// Give recordBuffer back to playSource
-		recordSource = playSource;
-		recordWritePos = 0;
-		// EXPERIMENT: commented out to test if memset causes audio glitch
-		// if (recordBuffer != nullptr) {
-		// 	memset(recordBuffer, 0, kLooperBufferSize * sizeof(StereoSample));
-		// }
+	// Cancel pending takeover
+	if (pendingSource != nullptr) {
+		pendingSource = nullptr;
 		return;
 	}
 
@@ -1788,8 +2242,9 @@ void Stutterer::cancelArmed() {
 		else {
 			buffer.discard();
 			status = Status::OFF;
-			playSource = nullptr;
-			recordSource = nullptr;
+			activeSource = nullptr;
+			pendingSource = nullptr;
+			shouldInheritConfig = false;
 		}
 	}
 }

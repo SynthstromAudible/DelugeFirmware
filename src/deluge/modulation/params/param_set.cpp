@@ -434,9 +434,7 @@ int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAu
 		}
 		return paramValue;
 	}
-	else {
-		return ParamSet::knobPosToParamValue(knobPos, modelStack);
-	}
+	return ParamSet::knobPosToParamValue(knobPos, modelStack);
 }
 
 bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) {
@@ -533,9 +531,7 @@ int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAuto
 		}
 		return paramValue;
 	}
-	else {
-		return ParamSet::knobPosToParamValue(knobPos, modelStack);
-	}
+	return ParamSet::knobPosToParamValue(knobPos, modelStack);
 }
 
 bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {

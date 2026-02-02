@@ -91,6 +91,11 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 
 	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+
+	// Scatter params - bipolar storage, density defaults to 100%, others default to 0%
+	unpatchedParams->params[params::UNPATCHED_SCATTER_DENSITY].setCurrentValueBasicForSetup(INT32_MAX);
+	unpatchedParams->params[params::UNPATCHED_SCATTER_PWRITE].setCurrentValueBasicForSetup(INT32_MIN);
+	unpatchedParams->params[params::UNPATCHED_SCATTER_MACRO].setCurrentValueBasicForSetup(INT32_MIN);
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
@@ -240,9 +245,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			}
 		}
 		else {
-			// On release: don't end if latched in scatter mode
-			bool isLatched = isScatter && stutterConfig.latch;
-			if (!isLatched) {
+			// On release: don't end if latched (looper modes always latch, Burst uses toggle)
+			if (!stutterConfig.isLatched()) {
 				endStutter((ParamManagerForTimeline*)modelStack->paramManager);
 			}
 		}

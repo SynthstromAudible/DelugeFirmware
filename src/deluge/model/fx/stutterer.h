@@ -32,13 +32,9 @@ enum class ScatterMode : uint8_t {
 	Repeat,      ///< Beat repeat with count control
 	Time,        ///< Zone A=combine (grain length), Zone B=repeat (hold same slice)
 	Shuffle,     ///< Phi-based segment reordering
-	Leaky,       ///< Shuffle with probabilistic write-back to buffer (exclusive ownership)
-	// FUTURE: Tweaky - Leaky without ownership check, allows cross-track chaos
-	// Both tracks can write to recordBuffer simultaneously, creating unpredictable
-	// contamination where A's processed output bleeds into B's recording and vice versa.
-	// Implementation: remove `recordSource == playSource` check from leaky write logic.
-	Pattern, ///< Zone A selects slice pattern + phi offset: seq/weave/skip/mirror/pairs
-	Pitch,   ///< Pitch manipulation
+	Grain,       ///< Granular cloud: dual-voice crossfade, Rate=size, Zone A=spread
+	Pattern,     ///< Zone A selects slice pattern + phi offset: seq/weave/skip/mirror/pairs
+	Pitch,       ///< Pitch manipulation
 	NUM_MODES
 };
 
@@ -56,13 +52,67 @@ struct StutterConfig {
 	float macroConfigPhaseOffset{0}; ///< Macro config phase offset (push Macro Config encoder)
 	float gammaPhase{0};             ///< Gamma multiplier for macro (push Macro encoder)
 
-	// Leaky mode: probability of writing processed output back to buffer
-	// 0 = never write (no leak), 1 = always write (max leak)
-	float leakyWriteProb{0.2f}; ///< pWrite: write probability [0,1], default 20%
+	/// pWrite parameter (0-50 range) - buffer write-back probability for all looper modes:
+	/// - CCW (0) = 0% writes (freeze/preserve buffer content)
+	/// - CW (50) = 100% writes (always overwrite with fresh content)
+	/// Default 0 = freeze buffer (preserve recorded content)
+	uint8_t pWriteParam{0};
 
-	// Pitch mode: scale selection
-	// 0=Chromatic, 1=Major, 2=Minor, 3=MajPent, 4=MinPent, 5=Blues, 6=Dorian, 7=Mixolyd
-	uint8_t pitchScale{0};
+	/// Density parameter (0-50 range) - output dry/wet probability for looper modes:
+	/// - CCW (0) = all dry output (hear input, no grains)
+	/// - 25% (12) = hash decides with normal probability
+	/// - CW (50) = hash decides (normal grain behavior)
+	/// Default 50 = full density (normal grain playback)
+	uint8_t densityParam{50};
+
+	/// Pitch mode scale parameter (0-50 range) - separate from density to avoid mode switching issues
+	/// Maps to scale index [0,11]: Chromatic, Major, Minor, MajPent, MinPent, Blues,
+	///                             Dorian, Mixolyd, MajTri, MinTri, Sus4, Dim
+	/// Default 0 = Chromatic
+	uint8_t pitchScaleParam{0};
+
+	/// Stereo width for Grain mode (0-50 range)
+	/// - CCW (0) = mono (both voices centered)
+	/// - CW (50) = full stereo (voice A left, voice B right)
+	/// Default 25 = half stereo spread
+	uint8_t stereoWidthParam{25};
+
+	/// Get pWrite probability [0,1] from pWriteParam
+	/// CCW (0) = 0% writes (freeze), CW (50) = 100% writes (fresh content)
+	[[nodiscard]] float getPWriteProb() const { return static_cast<float>(pWriteParam) / 50.0f; }
+
+	/// Get output density [0,1] from densityParam
+	/// CCW (0) = all dry output, CW (50) = 100% grain playback
+	/// Linear mapping: 0→0%, 50→100%
+	[[nodiscard]] float getDensity() const { return static_cast<float>(densityParam) / 50.0f; }
+
+	/// Get Pitch mode scale index [0,24] from pitchScaleParam
+	/// 0-11: Scales (Chromatic, Major, Minor, etc.)
+	/// 12-24: Fixed semitones (+1 through +13)
+	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((pitchScaleParam * 24) / 50); }
+
+	/// Get stereo width [0,1] from stereoWidthParam (for Grain mode)
+	/// 0 = mono (both voices centered), 1 = full stereo (A left, B right)
+	[[nodiscard]] float getStereoWidth() const { return static_cast<float>(stereoWidthParam) / 50.0f; }
+
+	/// Check if this is a looper mode that always latches
+	[[nodiscard]] bool isLooperMode() const {
+		return scatterMode != ScatterMode::Classic && scatterMode != ScatterMode::Burst;
+	}
+
+	/// Check if scatter should stay on after encoder release
+	/// Looper modes always latch, Classic never latches, Burst uses toggle
+	[[nodiscard]] bool isLatched() const {
+		if (isLooperMode()) {
+			return true;
+		}
+		return latch && scatterMode != ScatterMode::Classic;
+	}
+
+	// DEPRECATED: These fields are kept for backward compatibility with serialization.
+	// New code should use pWriteParam, densityParam and the getter functions above.
+	float leakyWriteProb{0.2f}; ///< DEPRECATED: Use getLeakyWriteProb() instead
+	uint8_t pitchScale{0};      ///< DEPRECATED: Use getPitchScale() instead
 };
 
 class Stutterer {
@@ -74,38 +124,49 @@ public:
 	static constexpr size_t kLooperBufferSize = 44100 * 4;
 	/// Check if source is actively playing from the scatter buffer
 	inline bool isStuttering(void* source) {
-		return playSource == source && (status == Status::RECORDING || status == Status::PLAYING);
+		return activeSource == source && (status == Status::RECORDING || status == Status::PLAYING);
 	}
 	/// Check if scatter is actively playing (regardless of ownership)
 	inline bool isScatterPlaying() const {
 		return stutterConfig.scatterMode != ScatterMode::Classic
 		       && (status == Status::RECORDING || status == Status::PLAYING);
 	}
-	/// Check if this source owns either play or record buffer
-	inline bool ownsStutter(void* source) { return playSource == source || recordSource == source; }
+	/// Check if this source owns the buffer or is pending takeover
+	inline bool ownsStutter(void* source) { return activeSource == source || pendingSource == source; }
 	/// Check if scatter is playing but has no owner (released during patch change)
 	inline bool isOrphaned() const {
-		return playSource == nullptr && stutterConfig.scatterMode != ScatterMode::Classic
+		return activeSource == nullptr && stutterConfig.scatterMode != ScatterMode::Classic
 		       && (status == Status::RECORDING || status == Status::PLAYING);
 	}
 	/// Check if scatter is currently owned by a different source (not us, not orphaned)
 	/// Use this to distinguish "owned by someone else" from "not owned by us" (which includes orphaned)
-	inline bool isOwnedByOther(void* source) const { return playSource != nullptr && playSource != source; }
-	/// Release ownership while keeping scatter playing (for patch changes with latched scatter)
-	/// The scatter continues playing from its buffer; a new source can adopt it
+	inline bool isOwnedByOther(void* source) const { return activeSource != nullptr && activeSource != source; }
+	/// Release ownership while keeping buffer available (for patch changes with latched scatter)
+	/// The scatter continues from its buffer; a new source can adopt it
 	inline void releaseOwnership() {
-		if (isLatched() && (status == Status::RECORDING || status == Status::PLAYING)) {
-			playSource = nullptr;
-			recordSource = nullptr;
+		if (isLatched() && (status == Status::RECORDING || status == Status::PLAYING || status == Status::STANDBY)) {
+			activeSource = nullptr;
+			pendingSource = nullptr;
 		}
 	}
 	/// Adopt orphaned scatter (new source takes over processing after patch change)
 	/// Returns true if adoption occurred
 	/// Global scatter state: ownership is just about who processes audio, config is global
+	/// Sets shouldInheritConfig so processStutter will copy global config to local
 	inline bool adoptOrphanedScatter(void* source) {
 		if (isOrphaned()) {
-			playSource = source;
-			recordSource = source;
+			activeSource = source;
+			shouldInheritConfig = true;
+			return true;
+		}
+		return false;
+	}
+	/// Check if new owner should inherit config (and clear the flag)
+	/// Call this before updateLiveParams to handle takeover config inheritance
+	/// Caller should also copy cached scatter params to new owner's ParamManager
+	inline bool checkAndClearInheritConfig() {
+		if (shouldInheritConfig) {
+			shouldInheritConfig = false;
 			return true;
 		}
 		return false;
@@ -121,21 +182,37 @@ public:
 	inline const StutterConfig& getStutterConfig() const { return stutterConfig; }
 	/// Get mutable stutter config (for direct menu writes when scatter is playing)
 	inline StutterConfig& getStutterConfigMutable() { return stutterConfig; }
+	/// Get cached scatter params for copying to new owner's ParamManager on takeover
+	/// Returns all 6 params as q31 values ready for ParamManager::setCurrentValueBasicForSetup
+	struct CachedScatterParams {
+		q31_t zoneA;
+		q31_t zoneB;
+		q31_t macroConfig;
+		q31_t macro;   // Unipolar q31 (stored as bipolar in ParamManager, needs conversion)
+		q31_t pWrite;  // Bipolar q31
+		q31_t density; // Bipolar q31
+	};
+	inline CachedScatterParams getCachedScatterParams() const {
+		// Convert macro from unipolar [0, INT32_MAX] back to bipolar for ParamManager storage
+		// Unipolar 0 → bipolar INT32_MIN, unipolar INT32_MAX → bipolar INT32_MAX
+		q31_t macroBipolar = static_cast<q31_t>((static_cast<int64_t>(cachedMacroParam) * 2) - 2147483648LL);
+		// Convert pWrite/density from 0-1 float to bipolar q31
+		q31_t pWriteBipolar = static_cast<q31_t>((cachedPWriteProb * 4294967296.0f) - 2147483648.0f);
+		q31_t densityBipolar = static_cast<q31_t>((cachedDensityProb * 4294967296.0f) - 2147483648.0f);
+		return {cachedZoneAParam, cachedZoneBParam, cachedMacroConfigParam,
+		        macroBipolar,     pWriteBipolar,    densityBipolar};
+	}
 	/// Check if standby recording is active
 	inline bool isInStandby() const { return status == Status::STANDBY; }
 	/// Check if scatter is latched (should keep playing when switching views/tracks)
-	inline bool isLatched() const { return stutterConfig.latch && stutterConfig.scatterMode != ScatterMode::Classic; }
+	inline bool isLatched() const { return stutterConfig.isLatched(); }
 	/// Check if armed and waiting for beat quantize
-	/// Takeover = PLAYING with a different source recording (preparing to take over)
-	inline bool isArmed() const {
-		return status == Status::ARMED || (status == Status::PLAYING && recordSource != playSource);
-	}
-	/// Check if source is armed for takeover (recording while someone else plays)
-	inline bool isArmedForTakeover(void* source) const {
-		return status == Status::PLAYING && recordSource == source && playSource != source;
-	}
+	/// Takeover = PLAYING with pendingSource set (waiting to inherit buffer)
+	inline bool isArmed() const { return status == Status::ARMED || pendingSource != nullptr; }
+	/// Check if source is armed for takeover (waiting to inherit buffer from active source)
+	inline bool isArmedForTakeover(void* source) const { return pendingSource == source && status == Status::PLAYING; }
 	/// Check if source is recording in standby mode (buffer filling but not yet playing)
-	inline bool isRecordingInStandby(void* source) const { return status == Status::STANDBY && recordSource == source; }
+	inline bool isRecordingInStandby(void* source) const { return status == Status::STANDBY && activeSource == source; }
 	// These calls are slightly awkward with the magniture & timePerTickInverse, but that's the price for not depending
 	// on currentSong and playbackhandler...
 	// loopLengthSamples: for scatter modes, the length of the loop region in samples (one bar or 2 beats)
@@ -143,7 +220,8 @@ public:
 	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig stutterConfig,
 	                                 int32_t magnitude, uint32_t timePerTickInverse, size_t loopLengthSamples = 0,
 	                                 bool halfBar = false);
-	/// Optional modulatedValues array indexed as [SCATTER_ZONE_A, SCATTER_ZONE_B, SCATTER_MACRO_CONFIG, SCATTER_MACRO]
+	/// Optional modulatedValues array indexed as:
+	/// [0]=ZONE_A, [1]=ZONE_B, [2]=MACRO_CONFIG, [3]=MACRO, [4]=PWRITE, [5]=DENSITY
 	/// If nullptr, preset values are used. If provided, these modulated values override the param preset.
 	void processStutter(std::span<StereoSample> audio, ParamManager* paramManager, int32_t magnitude,
 	                    uint32_t timePerTickInverse, int64_t currentTick = 0, uint64_t timePerTickBig = 0,
@@ -151,27 +229,35 @@ public:
 	void endStutter(ParamManagerForTimeline* paramManager = nullptr);
 
 	/// Update live-adjustable params from source's current config (call before processStutter)
-	/// This allows real-time adjustment of phase offsets and leaky write prob while scatter is playing
+	/// This allows real-time adjustment of phase offsets while scatter is playing
 	/// Also allows seamless mode switching between looper modes without stopping/clearing
+	/// NOTE: pWriteParam and densityParam are NOT synced here - they use direct setters from menu
+	/// to avoid race conditions where updateLiveParams overwrites menu edits before they take effect
 	inline void updateLiveParams(const StutterConfig& sourceConfig) {
 		stutterConfig.zoneAPhaseOffset = sourceConfig.zoneAPhaseOffset;
 		stutterConfig.zoneBPhaseOffset = sourceConfig.zoneBPhaseOffset;
 		stutterConfig.macroConfigPhaseOffset = sourceConfig.macroConfigPhaseOffset;
 		stutterConfig.gammaPhase = sourceConfig.gammaPhase;
-		stutterConfig.leakyWriteProb = sourceConfig.leakyWriteProb;
-		stutterConfig.pitchScale = sourceConfig.pitchScale;
-		stutterConfig.latch = sourceConfig.latch;
-		// Allow mode switching between all looper-based modes (all except Classic)
-		// Classic uses different buffer system, can't switch to/from it during playback
-		// Changes take effect on next slice boundary
-		if (stutterConfig.scatterMode != ScatterMode::Classic && sourceConfig.scatterMode != ScatterMode::Classic) {
+		// pWriteParam and densityParam synced via setLivePWrite/setLiveDensity only
+		// Latch is always-on for looper modes; only sync for Classic/Burst
+		if (!sourceConfig.isLooperMode()) {
+			stutterConfig.latch = sourceConfig.latch;
+		}
+		// Allow mode switching between looper-based modes only (not Classic or Burst)
+		// Classic and Burst use DelayBuffer, others use the looper double-buffer system
+		// Can't switch to/from DelayBuffer modes during playback - different buffer systems
+		bool currentIsLooper = stutterConfig.isLooperMode();
+		bool targetIsLooper = sourceConfig.isLooperMode();
+		if (currentIsLooper && targetIsLooper) {
 			stutterConfig.scatterMode = sourceConfig.scatterMode;
 		}
 	}
 
 	/// Direct setters for live params (for menu access)
-	inline void setLivePitchScale(uint8_t scale) { stutterConfig.pitchScale = scale; }
-	inline void setLiveLeakyWriteProb(float prob) { stutterConfig.leakyWriteProb = prob; }
+	inline void setLivePWrite(uint8_t value) { stutterConfig.pWriteParam = value; }
+	inline void setLiveDensity(uint8_t value) { stutterConfig.densityParam = value; }
+	inline void setLivePitchScale(uint8_t value) { stutterConfig.pitchScaleParam = value; }
+	inline void setLiveStereoWidth(uint8_t value) { stutterConfig.stereoWidthParam = value; }
 	inline void setLiveLatch(bool latch) { stutterConfig.latch = latch; }
 	/// Mark that encoder was released during STANDBY (for momentary mode)
 	inline void markReleasedDuringStandby() { releasedDuringStandby = true; }
@@ -209,11 +295,11 @@ public:
 	                         int32_t magnitude, uint32_t timePerTickInverse);
 
 	/// Check if source has a pending trigger waiting
-	inline bool hasPendingTrigger(void* source) const { return pendingPlayTrigger && recordSource == source; }
+	inline bool hasPendingTrigger(void* source) const { return pendingPlayTrigger && activeSource == source; }
 	/// Clear pending trigger without canceling standby recording
 	/// Use this in momentary mode when button is released during STANDBY
 	inline void clearPendingTrigger(void* source) {
-		if (recordSource == source) {
+		if (activeSource == source) {
 			pendingPlayTrigger = false;
 		}
 	}
@@ -241,16 +327,16 @@ private:
 	int32_t sizeLeftUntilRecordFinished = 0;
 	int32_t valueBeforeStuttering = 0;
 	int32_t lastQuantizedKnobDiff = 0;
-	/// === CLEAN BUFFER OWNERSHIP MODEL ===
-	/// Two independent ownership slots - can be same or different sources:
-	/// - playSource: who is playing from playBuffer (gets scatter output)
-	/// - recordSource: who is recording to recordBuffer (capturing audio)
+	/// === SINGLE-BUFFER OWNERSHIP MODEL ===
+	/// Single shared buffer with simple ownership:
+	/// - activeSource: who owns the buffer (playing and/or recording)
+	/// - pendingSource: who is armed for takeover (UI feedback only)
 	///
-	/// When different, we have a takeover in progress:
-	///   A is playSource (still playing), B is recordSource (preparing to take over)
-	/// When B triggers, swap buffers and B becomes both playSource and recordSource.
-	void* playSource = nullptr;   ///< Who owns playBuffer (or nullptr)
-	void* recordSource = nullptr; ///< Who owns recordBuffer (or nullptr)
+	/// Takeover behavior: new source inherits buffer content instantly.
+	/// pWrite controls how fast new content overwrites inherited content.
+	void* activeSource = nullptr;     ///< Who owns looperBuffer (playing/recording)
+	void* pendingSource = nullptr;    ///< Armed for takeover (UI feedback)
+	bool shouldInheritConfig = false; ///< New owner should inherit config (set on takeover)
 
 	/// Track if we started from standby mode (to return to it after stutter ends)
 	bool startedFromStandby = false;
@@ -271,14 +357,10 @@ private:
 	static constexpr size_t kStandbyTimeoutBars = 32; ///< ~64 seconds at 120 BPM
 	size_t standbyIdleSamples = 0;                    ///< Samples since last playback (reset on trigger)
 
-	/// Double buffer system - swap instead of copy on trigger
-	StereoSample* bufferA = nullptr;
-	StereoSample* bufferB = nullptr;
-	StereoSample* recordBuffer = nullptr; ///< Points to buffer being recorded
-	StereoSample* playBuffer = nullptr;   ///< Points to buffer being played
-
-	size_t recordWritePos = 0;     ///< Current write position in record buffer (ring buffer style)
-	bool recordBufferFull = false; ///< True once ring buffer has wrapped (full loop available)
+	/// Single shared buffer for all looper modes (pWrite controls content evolution)
+	StereoSample* looperBuffer = nullptr;
+	size_t looperWritePos = 0;     ///< Current write position in buffer (ring buffer style)
+	bool looperBufferFull = false; ///< True once ring buffer has wrapped (full loop available)
 	size_t playbackStartPos = 0;   ///< Where captured bar starts in play buffer (ring buffer offset)
 	size_t playbackLength = 0;     ///< Full captured bar length in samples
 
@@ -366,18 +448,58 @@ private:
 	bool needsSliceSetup{true};            ///< Dirty flag: set when slice completes, cleared after setup
 	bool scatterPitchUp{false};            ///< Pitch up via sample decimation (2x = octave up)
 	bool scatterConsecutive{false};        ///< Slices are sequential (skip ZC when env=0)
+	bool scatterNextConsecutive{false};    ///< Next slice will be consecutive (for decay envelope decision)
 	int32_t scatterPitchUpLoopCount{0};    ///< Which loop of pitch-up grain (0=first, 1=second)
 	uint32_t scatterPitchRatioFP{65536};   ///< Pitch ratio (16.16 fixed-point), 65536 = 1.0 (unison)
 	uint32_t scatterPitchPosFP{0};         ///< Fixed-point position accumulator for pitch shifting
-	int32_t scatterParamThrottle{0};       ///< Buffers since last param update (throttle to 1 per 10 buffers)
+	int32_t scatterParamThrottle{0};       ///< Buffers since last param recalc (throttle expensive work)
+
+	/// Cached params for throttled recalculation
+	q31_t cachedZoneAParam{0};
+	q31_t cachedZoneBParam{0};
+	q31_t cachedMacroConfigParam{0};
+	q31_t cachedMacroParam{0};
+	float cachedPWriteProb{1.0f};  ///< Cached pWrite probability [0,1] from modulated param
+	float cachedDensityProb{1.0f}; ///< Cached density probability [0,1] from modulated param
+
+	/// Cached offsets structure for slice boundary grain computation
+	/// Updated at buffer start, used inline at slice boundary
+	deluge::dsp::scatter::ScatterPhaseOffsets cachedOffsets{};
 
 	/// Repeat grain state (inverse of ratchet - hold same grain for N slices)
 	int32_t scatterRepeatCounter{0};                        ///< Countdown for repeat mode (0 = compute new grain)
-	deluge::dsp::scatter::GrainParams scatterCachedGrain{}; ///< Cached grain during repeat (skip computeGrainParams)
+	deluge::dsp::scatter::GrainParams scatterCachedGrain{}; ///< Cached grain (reused when throttled or repeating)
+
+	/// Grain mode dual-voice state (crossfading granular clouds)
+	size_t grainPosA{0};        ///< Voice A grain START position in buffer
+	size_t grainPosB{0};        ///< Voice B grain START position in buffer
+	size_t grainOffsetA{0};     ///< Voice A playback offset within grain (0 to grainLength-1)
+	size_t grainOffsetB{0};     ///< Voice B playback offset within grain (0 to grainLength-1)
+	uint32_t grainPhaseA{0};    ///< Voice A envelope phase (0..UINT32_MAX = 0..1)
+	uint32_t grainPhaseB{0};    ///< Voice B envelope phase (50% offset from A)
+	size_t grainLength{4410};   ///< Grain length in samples (default ~100ms at 44.1kHz)
+	size_t grainSpread{0};      ///< Position spread range for new grains (0 = full buffer)
+	uint32_t grainRngState{1};  ///< Fast RNG state for grain positions
+	bool grainAIsDry{false};    ///< Voice A plays dry input (density decided at grain start)
+	bool grainBIsDry{false};    ///< Voice B plays dry input (density decided at grain start)
+	bool grainAWritesWet{true}; ///< Voice A writes to buffer (pWrite decided at grain start)
+
+	/// Per-voice grain effect state (computed at grain phase wrap, not slice boundary)
+	/// Each voice gets independent effects based on its grain index
+	uint32_t grainIndexA{0};    ///< Voice A grain counter (increments on phase wrap)
+	uint32_t grainIndexB{0};    ///< Voice B grain counter (increments on phase wrap)
+	bool grainAReversed{false}; ///< Voice A reverse playback
+	bool grainBReversed{false}; ///< Voice B reverse playback
+	bool grainAPitchUp{false};  ///< Voice A pitch up (2x via decimation)
+	bool grainBPitchUp{false};  ///< Voice B pitch up (2x via decimation)
+	float grainAPan{0};         ///< Voice A pan [-1,1] (includes direction)
+	float grainBPan{0};         ///< Voice B pan [-1,1] (includes direction)
+	float grainAStereo{0};      ///< Voice A stereo width [-1,1]
+	float grainBStereo{0};      ///< Voice B stereo width [-1,1]
 
 	/// Bar counter for multi-bar patterns (0 to kBarIndexWrap-1)
 	/// Individual bits used as offsets with Zone B-derived weights to shift Zone A
-	static constexpr int32_t kBarIndexWrap = 16; ///< Bar counter wraps at 16 (supports phrases up to 16 bars)
+	static constexpr int32_t kBarIndexWrap = 64; ///< Bar counter wraps at 64 (supports phrases up to 32 bars)
 	int32_t scatterBarIndex{0};
 
 	/// Tick-based bar boundary detection for grid sync
@@ -457,7 +579,7 @@ private:
 };
 
 // There's only one stutter effect active at a time, so we have a global stutterer to save memory.
-// NOTE: Classic mode uses DelayBuffer, scatter modes use double buffers (bufferA/bufferB).
+// NOTE: Classic mode uses DelayBuffer, scatter modes use looperBuffer (~1.4MB) + delayBuffer (~256KB).
 // These are separate memory, so in theory classic + scatter could run simultaneously on
-// different tracks. Would require separating the state (status, playSource, recordSource) per mode.
+// different tracks. Would require separating the state (status, activeSource) per mode.
 extern Stutterer stutterer;

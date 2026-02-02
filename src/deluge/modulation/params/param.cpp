@@ -168,6 +168,8 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [GLOBAL_MOD_FX_DEPTH]            = "ModFXdepth",
 	    [GLOBAL_DELAY_FEEDBACK]          = "Delay feed",
 	    [GLOBAL_SCATTER_MACRO]           = "Scat macro",
+	    [GLOBAL_SCATTER_PWRITE]          = "Scat pWrite",
+	    [GLOBAL_SCATTER_DENSITY]         = "Scat density",
 	    [GLOBAL_SCATTER_ZONE_A]          = "Scat zoneA",
 	    [GLOBAL_SCATTER_ZONE_B]          = "Scat zoneB",
 	    [GLOBAL_SCATTER_MACRO_CONFIG]    = "Scat depth",
@@ -248,6 +250,8 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [GLOBAL_MOD_FX_DEPTH] = STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH,
 	    [GLOBAL_DELAY_FEEDBACK] = STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK,
 	    [GLOBAL_SCATTER_MACRO] = STRING_FOR_SCATTER_MACRO,
+	    [GLOBAL_SCATTER_PWRITE] = STRING_FOR_SCATTER_PWRITE,
+	    [GLOBAL_SCATTER_DENSITY] = STRING_FOR_SCATTER_DENSITY,
 	    [GLOBAL_SCATTER_ZONE_A] = STRING_FOR_SCATTER_PATTERN,
 	    [GLOBAL_SCATTER_ZONE_B] = STRING_FOR_SCATTER_COLOR,
 	    [GLOBAL_SCATTER_MACRO_CONFIG] = STRING_FOR_SCATTER_MACRO_CONFIG,
@@ -309,6 +313,8 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_SCATTER_ZONE_B] = STRING_FOR_SCATTER_COLOR,
 		    [UNPATCHED_SCATTER_MACRO_CONFIG] = STRING_FOR_SCATTER_MACRO_CONFIG,
 		    [UNPATCHED_SCATTER_MACRO] = STRING_FOR_SCATTER_MACRO,
+		    [UNPATCHED_SCATTER_PWRITE] = STRING_FOR_SCATTER_PWRITE,
+		    [UNPATCHED_SCATTER_DENSITY] = STRING_FOR_SCATTER_DENSITY,
 		    [UNPATCHED_ARP_GATE] = STRING_FOR_ARP_GATE_MENU_TITLE,
 		    [UNPATCHED_ARP_RHYTHM] = STRING_FOR_ARP_RHYTHM_MENU_TITLE,
 		    [UNPATCHED_ARP_SEQUENCE_LENGTH] = STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
@@ -608,6 +614,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case UNPATCHED_SCATTER_MACRO:
 			return "scatterMacro";
 
+		case UNPATCHED_SCATTER_PWRITE:
+			return "scatterPWrite";
+
+		case UNPATCHED_SCATTER_DENSITY:
+			return "scatterDensity";
+
 		case UNPATCHED_NUM_SHARED:
 		    // Intentionally not handled
 		    ;
@@ -646,6 +658,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case GLOBAL_SCATTER_MACRO_CONFIG:
 			return "globalScatterDepth";
+
+		case GLOBAL_SCATTER_PWRITE:
+			return "globalScatterPWrite";
+
+		case GLOBAL_SCATTER_DENSITY:
+			return "globalScatterDensity";
 
 		case GLOBAL_REVERB_AMOUNT:
 			return "reverbAmount";
