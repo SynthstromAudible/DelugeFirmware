@@ -138,7 +138,7 @@ This visualization shows how parameter values change across the zone position:
 Notice how:
 - **envShape** (top) cycles rapidly, creating frequent transient variations
 - **reverseProb** (bottom) changes slowly, providing structural anchoring
-- Bright bands never align vertically - ensuring varied combinations
+- Bright bands align vertically in different combinations in different positions phase - ensuring varied combinations
 
 ## Implementation
 
