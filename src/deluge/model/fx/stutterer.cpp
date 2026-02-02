@@ -1415,10 +1415,11 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 				// Apply grain envelope and gate (using hoisted locals)
 				// Note: envDepth not used (always full fade) - depth blend adds ~30% overhead
-				// Skip envelope for dry grains - input audio should pass through unchanged
+				// Apply envelope to ALL grains (dry and wet) at non-consecutive boundaries
+				// This ensures smooth dry↔wet transitions (dry stops → wet envs in from 0 = click without this)
 				// pWrite envelope: skip attack if current consecutive, skip decay if next consecutive
 				int32_t pWriteEnvQ31 = 0x7FFFFFFF; // Default full (sustain region)
-				if (loopEnvActive && !useDry) {
+				if (loopEnvActive) {
 					if (benchThisSample) {
 						FX_BENCH_START(benchEnv);
 					}
@@ -1481,8 +1482,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 				// === ANTI-CLICK: per-channel zero-crossing based muting ===
 				// Skip ZC when slices are consecutive and no envelope (audio flows naturally)
-				// Also skip for dry grains - input audio is continuous, no clicks to suppress
-				if (!loopSkipZC && !useDry) {
+				// Apply ZC to all grains (dry and wet) - needed for smooth dry↔wet transitions
+				if (!loopSkipZC) {
 					bool zcL = ((prevOutputL != 0) && ((outputL ^ prevOutputL) < 0)) || bufferZeroCrossing;
 					bool zcR = ((prevOutputR != 0) && ((outputR ^ prevOutputR) < 0)) || bufferZeroCrossing;
 					prevOutputL = outputL;
