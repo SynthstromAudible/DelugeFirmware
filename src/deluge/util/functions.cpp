@@ -165,6 +165,13 @@ int32_t getParamNeutralValue(int32_t p) {
 	case params::GLOBAL_MOD_FX_DEPTH:
 		return 526133494; // 2% lower than 536870912
 
+	// Scatter params use bipolar storage: INT32_MIN=0%, INT32_MAX=100%
+	case params::GLOBAL_SCATTER_PWRITE:
+		return INT32_MIN; // Default 0% (freeze buffer)
+
+	case params::GLOBAL_SCATTER_DENSITY:
+		return INT32_MAX; // Default 100% (full grain output)
+
 	default:
 		return 0;
 	}

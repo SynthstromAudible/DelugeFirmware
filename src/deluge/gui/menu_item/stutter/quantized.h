@@ -97,11 +97,12 @@ public:
 		else {
 			value = soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SCATTER_PWRITE);
 		}
-		this->setValue(computeCurrentValueForHalfPrecisionMenuItem(value));
+		// Bipolar storage, displayed as 0-50 (like TableShaperMix)
+		this->setValue(computeCurrentValueForStandardMenuItem(value));
 	}
 
 	void writeCurrentValue() override {
-		q31_t value = computeFinalValueForHalfPrecisionMenuItem(this->getValue());
+		q31_t value = computeFinalValueForStandardMenuItem(this->getValue());
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStackMemory);
 		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);

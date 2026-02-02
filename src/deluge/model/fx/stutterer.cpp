@@ -564,8 +564,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						cachedMacroParam = macroParam;
 
 						// Read pWrite and density directly from param set (not patcher output)
-						// Patcher's hybrid output uses static paramNeutralValues, not user's preset
-						// Half-precision unipolar: 0 → 0.0, 2147483647 → 1.0
+						// Bipolar storage: INT32_MIN=0%, 0=50%, INT32_MAX=100% (like TableShaperMix)
 						q31_t pWriteQ31;
 						q31_t densityQ31;
 						if (paramManager->hasPatchedParamSet()) {
@@ -575,20 +574,24 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							// Add cable modulation if available (patcher outputs cables only for zone-like handling)
 							if (modulatedValues != nullptr) {
 								constexpr int32_t kCableScale = 4;
-								pWriteQ31 = std::clamp<int64_t>(
-								    static_cast<int64_t>(pWriteQ31) + modulatedValues[4] / kCableScale, 0, 2147483647);
-								densityQ31 = std::clamp<int64_t>(
-								    static_cast<int64_t>(densityQ31) + modulatedValues[5] / kCableScale, 0, 2147483647);
+								constexpr int64_t kBipolarMin = INT32_MIN;
+								constexpr int64_t kBipolarMax = INT32_MAX;
+								pWriteQ31 = std::clamp<int64_t>(static_cast<int64_t>(pWriteQ31)
+								                                    + modulatedValues[4] / kCableScale,
+								                                kBipolarMin, kBipolarMax);
+								densityQ31 = std::clamp<int64_t>(static_cast<int64_t>(densityQ31)
+								                                     + modulatedValues[5] / kCableScale,
+								                                 kBipolarMin, kBipolarMax);
 							}
 						}
 						else {
 							pWriteQ31 = unpatchedParams->getValue(params::UNPATCHED_SCATTER_PWRITE);
 							densityQ31 = unpatchedParams->getValue(params::UNPATCHED_SCATTER_DENSITY);
 						}
-						// Convert to 0-1 probability (half-precision: max Q31 = 1.0)
-						constexpr float kHalfQ31ToFloat = 1.0f / 2147483647.0f;
-						cachedPWriteProb = std::clamp(static_cast<float>(pWriteQ31) * kHalfQ31ToFloat, 0.0f, 1.0f);
-						cachedDensityProb = std::clamp(static_cast<float>(densityQ31) * kHalfQ31ToFloat, 0.0f, 1.0f);
+						// Convert bipolar to 0-1: INT32_MIN→0.0, 0→0.5, INT32_MAX→1.0
+						constexpr float kBipolarToUnipolar = 1.0f / 4294967296.0f;
+						cachedPWriteProb = (static_cast<int64_t>(pWriteQ31) + 2147483648LL) * kBipolarToUnipolar;
+						cachedDensityProb = (static_cast<int64_t>(densityQ31) + 2147483648LL) * kBipolarToUnipolar;
 					}
 					FX_BENCH_STOP(benchParamRead);
 
