@@ -410,23 +410,26 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				lastTickBarIndex = tickBarIndex;
 			}
 
-			// === SLICE BOUNDARY (buffer-level): check once per buffer, accept ~3ms jitter ===
-			// Dirty flag set when slice completes mid-buffer, checked here at buffer start
-			// This eliminates per-sample boundary checks for significant performance gain
-			// Throttle param updates to max once per 10 buffers (~30ms) to reduce CPU load
-			// Bypass throttle if currentSliceLength == 0 (first run needs immediate setup)
+			// === SLICE SETUP: runs immediately when slice boundary was hit ===
+			// Throttle controls expensive param reads, not the slice state updates
 			scatterParamThrottle++;
-			if (needsSliceSetup && (scatterParamThrottle >= 10 || currentSliceLength == 0)) {
+			bool shouldRecalcParams = (scatterParamThrottle >= 10 || currentSliceLength == 0);
+			if (needsSliceSetup) {
 				needsSliceSetup = false;
-				scatterParamThrottle = 0;
+				if (shouldRecalcParams) {
+					scatterParamThrottle = 0;
+				}
 				// Reset playbackPos unless this is a Repeat bar-boundary update (continuous loop)
 				if (!repeatBarBoundaryUpdate) {
 					playbackPos = 0; // Snap to slice start, accept jitter
 				}
-				// Always ZC protect when params change, even for continuous loop
-				waitingForZeroCrossL = waitingForZeroCrossR = true;
+				// ZC protect when params change, UNLESS grain is consecutive (audio flows naturally)
+				// scatterNextConsecutive was computed by previous grain to predict this grain
+				if (!scatterNextConsecutive) {
+					waitingForZeroCrossL = waitingForZeroCrossR = true;
+					prevOutputL = prevOutputR = 0;
+				}
 				releaseMutedL = releaseMutedR = false;
-				prevOutputL = prevOutputR = 0;
 				repeatBarBoundaryUpdate = false; // Clear flag after use
 				FX_BENCH_START(benchSlice);
 				switch (stutterConfig.scatterMode) {
@@ -499,41 +502,43 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						}
 					}
 
-					// Read zone params - preset from param set, cables from modulatedValues
-					// Zone params: paramFinalValues contains ONLY cable modulation, DSP combines with preset
-					// Hybrid params (SCATTER_MACRO): paramFinalValues already includes preset
-					// Pattern follows disperser: preset + scaled cables (like combinePresetAndCables)
-					// modulatedValues order: [ZONE_A, ZONE_B, MACRO_CONFIG, MACRO]
-					q31_t zoneAParam, zoneBParam, macroConfigParam, macroParam;
-					if (modulatedValues && paramManager->hasPatchedParamSet()) {
-						// Sound context: combine preset + cable modulation for ZONE params
-						// Scale cables: full modulation = 1 zone (8 zones, so divide by 4)
-						constexpr int32_t kCableScale = 4;
-						PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-						// Zone params need preset added (paramFinalValues has cables only)
-						zoneAParam =
-						    patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_A) + modulatedValues[0] / kCableScale;
-						zoneBParam =
-						    patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_B) + modulatedValues[1] / kCableScale;
-						macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG)
-						                   + modulatedValues[2] / kCableScale;
-						// SCATTER_MACRO is hybrid param - paramFinalValues already includes preset
-						macroParam = modulatedValues[3];
-					}
-					else if (paramManager->hasPatchedParamSet()) {
-						// Fallback: patched preset values (no modulation)
-						PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-						zoneAParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_A);
-						zoneBParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_B);
-						macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG);
-						macroParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO);
-					}
-					else {
-						// GlobalEffectable context: use unpatched values (no mod matrix available)
-						zoneAParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_ZONE_A);
-						zoneBParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_ZONE_B);
-						macroConfigParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO_CONFIG);
-						macroParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO);
+					// Zone params: use cached values, refresh if throttle allows
+					q31_t zoneAParam = cachedZoneAParam;
+					q31_t zoneBParam = cachedZoneBParam;
+					q31_t macroConfigParam = cachedMacroConfigParam;
+					q31_t macroParam = cachedMacroParam;
+
+					if (shouldRecalcParams) {
+						// Read fresh zone params from param set
+						if (modulatedValues && paramManager->hasPatchedParamSet()) {
+							constexpr int32_t kCableScale = 4;
+							PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
+							zoneAParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_A)
+							             + modulatedValues[0] / kCableScale;
+							zoneBParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_B)
+							             + modulatedValues[1] / kCableScale;
+							macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG)
+							                   + modulatedValues[2] / kCableScale;
+							macroParam = modulatedValues[3];
+						}
+						else if (paramManager->hasPatchedParamSet()) {
+							PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
+							zoneAParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_A);
+							zoneBParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_B);
+							macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG);
+							macroParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO);
+						}
+						else {
+							zoneAParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_ZONE_A);
+							zoneBParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_ZONE_B);
+							macroConfigParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO_CONFIG);
+							macroParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO);
+						}
+						// Cache for next slice
+						cachedZoneAParam = zoneAParam;
+						cachedZoneBParam = zoneBParam;
+						cachedMacroConfigParam = macroConfigParam;
+						cachedMacroParam = macroParam;
 					}
 					FX_BENCH_STOP(benchParamRead);
 
@@ -602,6 +607,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					    isRepeat ? 0.0f : staticTriangles.delayScale, // No delay for Repeat
 					    scatterBarIndex,
 					};
+					// Cache offsets for slice boundary computation (used inline in sample loop)
+					cachedOffsets = offsets;
 
 					// Compute grain params - Repeat uses loop index for evolution, Shuffle uses slice index
 					deluge::dsp::scatter::GrainParams grain;
@@ -788,6 +795,16 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					// Track consecutive playback: no offset, no transforms (all modes)
 					// Used to skip ZC protection when audio flows naturally between slices
 					scatterConsecutive = (grain.sliceOffset == 0) && !scatterReversed && !scatterPitchUp;
+
+					// Peek at next grain to determine if decay envelope should apply
+					// If next grain is consecutive, skip decay (content flows naturally)
+					// If next grain is non-consecutive, apply decay (need crossfade transition)
+					int32_t nextGrainIndex = isRepeat ? (scatterRepeatLoopIndex + 1) : (scatterSliceIndex + 1);
+					auto nextGrain = deluge::dsp::scatter::computeGrainParams(zoneAParam, zoneBParam, macroConfigParam,
+					                                                          macroParam, nextGrainIndex, &offsets);
+					bool nextReversed = nextGrain.shouldReverse;
+					bool nextPitchUp = nextGrain.shouldPitchUp;
+					scatterNextConsecutive = (nextGrain.sliceOffset == 0) && !nextReversed && !nextPitchUp;
 
 					// Dry decision (hash-based bool, macro can gate it)
 					// Macro high = more likely to override grain and use dry
@@ -1022,6 +1039,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			int32_t loopPitchIncrement = (scatterPitchUp && isShuffle) ? 2 : 1;
 			// Skip ZC protection when slices are consecutive and no envelope (audio flows naturally)
 			bool loopSkipZC = scatterConsecutive && !loopEnvActive;
+			bool loopNextConsecutive = scatterNextConsecutive;
 
 			// Hoist envelope precomputed values
 			int32_t loopGatedLen = scatterEnvPrecomputed.gatedLength;
@@ -1215,7 +1233,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				// Apply grain envelope and gate (using hoisted locals)
 				// Note: envDepth not used (always full fade) - depth blend adds ~30% overhead
 				// Skip envelope for dry grains - input audio should pass through unchanged
-				// Track envelope for crossfaded pWrite
+				// pWrite envelope: skip attack if current consecutive, skip decay if next consecutive
 				int32_t pWriteEnvQ31 = 0x7FFFFFFF; // Default full (sustain region)
 				if (loopEnvActive && !useDry) {
 					if (benchThisSample) {
@@ -1229,17 +1247,19 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						// Past gate - releaseMuted should be true by now (set by ZC check)
 						// If not, force it to avoid playing past intended cutoff
 						releaseMutedL = releaseMutedR = true;
-						pWriteEnvQ31 = 0; // No write past gate
+						pWriteEnvQ31 = 0;
 					}
-					else if (pos < loopAttackLen) {
+					else if (pos < loopAttackLen && !scatterConsecutive) {
 						// Attack fade-in: linear ramp 0→1
+						// Skip if current grain is consecutive (flows naturally from previous)
 						int32_t envQ31 = pos * loopInvAttackLen;
 						outputL = multiply_32x32_rshift32(outputL, envQ31) << 1;
 						outputR = multiply_32x32_rshift32(outputR, envQ31) << 1;
 						pWriteEnvQ31 = envQ31;
 					}
-					else if (pos > loopGatedLen - loopDecayLen) {
+					else if (pos > loopGatedLen - loopDecayLen && !loopNextConsecutive) {
 						// Decay fade-out: linear ramp 1→0
+						// Skip if NEXT grain is consecutive (will flow naturally into next)
 						int32_t envQ31 = (loopGatedLen - pos) * loopInvDecayLen;
 						outputL = multiply_32x32_rshift32(outputL, envQ31) << 1;
 						outputR = multiply_32x32_rshift32(outputR, envQ31) << 1;
@@ -1351,15 +1371,12 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 				// === pWRITE: crossfade source into buffer ===
 				// Single buffer tape-loop: read from shuffled position, write to linear position
-				// Uses pre-envelope source (srcL/R) with envelope crossfade - same pattern as Grain mode
-				// pWrite=0 means no writes → content persists indefinitely (freeze)
-				// pWrite>0 means source crossfades in → content evolves smoothly
+				// Uses grain envelope for crossfade (already handles small grains via prepareGrainEnvelopeQ31)
 				if (hasPWrite && looperBuffer != nullptr && pWriteGrainIsWet) {
 					size_t pWritePos = loopPlaybackStartPos + loopLinearBarPos;
 					while (pWritePos >= kLooperBufferSize) {
 						pWritePos -= kLooperBufferSize;
 					}
-					// Crossfade: existing * (1-env) + src * env - smooth transitions at grain edges
 					int32_t invEnv = 0x7FFFFFFF - pWriteEnvQ31;
 					q31_t existL = looperBuffer[pWritePos].l;
 					q31_t existR = looperBuffer[pWritePos].r;
@@ -1410,14 +1427,45 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					}
 				}
 				if (sliceBoundary) {
-					waitingForZeroCrossL = waitingForZeroCrossR = true;
+					// Only force ZC wait if next grain is non-consecutive (needs transition protection)
+					// Consecutive grains flow naturally - no ZC needed
+					if (!loopNextConsecutive) {
+						waitingForZeroCrossL = waitingForZeroCrossR = true;
+						prevOutputL = prevOutputR = 0;
+					}
+					else {
+						// Consecutive grain: advance slice offset immediately for remaining samples
+						// This ensures audio continuity within the current buffer
+						sliceStartOffset = (sliceStartOffset + loopCurrentSliceLength) % loopPlaybackLength;
+						loopSliceStartOffset = sliceStartOffset;
+					}
 					releaseMutedL = releaseMutedR = false;
 					loopPitchUpLoopCount = 0;
-					prevOutputL = prevOutputR = 0;
 					// Advance subdivision only on real boundary
 					if (++scatterSubdivIndex >= scatterSubdivisions) {
 						scatterSubdivIndex = 0;
-						needsSliceSetup = true;
+
+						// Consecutive grains: handle inline, skip deferred block
+						// Non-consecutive: defer to buffer start for full recomputation
+						if (loopNextConsecutive && stutterConfig.scatterMode != ScatterMode::Repeat) {
+							// Advance slice index (use effectiveGrainLength from current grain)
+							int32_t grainLen = scatterCachedGrain.grainLength > 0 ? scatterCachedGrain.grainLength : 1;
+							scatterSliceIndex = (scatterSliceIndex + grainLen) % scatterNumSlices;
+
+							// Compute next grain's consecutive flag for decay envelope
+							// Use cached zone params and offsets (throttle controls when these refresh)
+							int32_t nextIdx = scatterSliceIndex + 1;
+							auto nextGrain = deluge::dsp::scatter::computeGrainParams(
+							    cachedZoneAParam, cachedZoneBParam, cachedMacroConfigParam, cachedMacroParam, nextIdx,
+							    &cachedOffsets);
+							scatterNextConsecutive =
+							    (nextGrain.sliceOffset == 0) && !nextGrain.shouldReverse && !nextGrain.shouldPitchUp;
+							loopNextConsecutive = scatterNextConsecutive;
+							// Skip deferred block - consecutive grains don't need full recomputation
+						}
+						else {
+							needsSliceSetup = true;
+						}
 					}
 					// Update lengths for next subdivision
 					loopEffectiveSubLen =

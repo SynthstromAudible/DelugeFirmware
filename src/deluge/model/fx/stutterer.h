@@ -405,14 +405,25 @@ private:
 	bool needsSliceSetup{true};            ///< Dirty flag: set when slice completes, cleared after setup
 	bool scatterPitchUp{false};            ///< Pitch up via sample decimation (2x = octave up)
 	bool scatterConsecutive{false};        ///< Slices are sequential (skip ZC when env=0)
+	bool scatterNextConsecutive{false};    ///< Next slice will be consecutive (for decay envelope decision)
 	int32_t scatterPitchUpLoopCount{0};    ///< Which loop of pitch-up grain (0=first, 1=second)
 	uint32_t scatterPitchRatioFP{65536};   ///< Pitch ratio (16.16 fixed-point), 65536 = 1.0 (unison)
 	uint32_t scatterPitchPosFP{0};         ///< Fixed-point position accumulator for pitch shifting
-	int32_t scatterParamThrottle{0};       ///< Buffers since last param update (throttle to 1 per 10 buffers)
+	int32_t scatterParamThrottle{0};       ///< Buffers since last param recalc (throttle expensive work)
+
+	/// Cached params for throttled recalculation
+	q31_t cachedZoneAParam{0};
+	q31_t cachedZoneBParam{0};
+	q31_t cachedMacroConfigParam{0};
+	q31_t cachedMacroParam{0};
+
+	/// Cached offsets structure for slice boundary grain computation
+	/// Updated at buffer start, used inline at slice boundary
+	deluge::dsp::scatter::ScatterPhaseOffsets cachedOffsets{};
 
 	/// Repeat grain state (inverse of ratchet - hold same grain for N slices)
 	int32_t scatterRepeatCounter{0};                        ///< Countdown for repeat mode (0 = compute new grain)
-	deluge::dsp::scatter::GrainParams scatterCachedGrain{}; ///< Cached grain during repeat (skip computeGrainParams)
+	deluge::dsp::scatter::GrainParams scatterCachedGrain{}; ///< Cached grain (reused when throttled or repeating)
 
 	/// Grain mode dual-voice state (crossfading granular clouds)
 	size_t grainPosA{0};       ///< Voice A grain START position in buffer
