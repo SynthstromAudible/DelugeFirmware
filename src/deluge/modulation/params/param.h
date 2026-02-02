@@ -148,17 +148,17 @@ enum Global : ParamType {
 	FIRST_GLOBAL_NON_VOLUME,
 	GLOBAL_DELAY_FEEDBACK = FIRST_GLOBAL_NON_VOLUME,
 
-	// Global hybrid params begin
+	// Global hybrid params begin (none currently - placeholder for future params)
 	FIRST_GLOBAL_HYBRID,
-	GLOBAL_SCATTER_MACRO = FIRST_GLOBAL_HYBRID, // Scatter macro control
 
 	// Global zone params begin (patcher outputs cables only, DSP combines with preset)
-	FIRST_GLOBAL_ZONE,
-	GLOBAL_SCATTER_PWRITE = FIRST_GLOBAL_ZONE, // Scatter buffer write probability
-	GLOBAL_SCATTER_DENSITY,                    // Scatter grain density (dry/wet)
-	GLOBAL_SCATTER_ZONE_A,                     // Scatter structural zone
-	GLOBAL_SCATTER_ZONE_B,                     // Scatter timbral zone
-	GLOBAL_SCATTER_MACRO_CONFIG,               // Scatter effect depth
+	FIRST_GLOBAL_ZONE = FIRST_GLOBAL_HYBRID,
+	GLOBAL_SCATTER_MACRO = FIRST_GLOBAL_ZONE, // Scatter macro control (zone param for cable-only output)
+	GLOBAL_SCATTER_PWRITE,                    // Scatter buffer write probability
+	GLOBAL_SCATTER_DENSITY,                   // Scatter grain density (dry/wet)
+	GLOBAL_SCATTER_ZONE_A,                    // Scatter structural zone
+	GLOBAL_SCATTER_ZONE_B,                    // Scatter timbral zone
+	GLOBAL_SCATTER_MACRO_CONFIG,              // Scatter effect depth
 
 	// Global exp params begin
 	FIRST_GLOBAL_EXP,

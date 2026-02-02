@@ -186,7 +186,9 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[params::LOCAL_MODULATOR_0_PITCH_ADJUST].setCurrentValueBasicForSetup(0); // Don't change
 	patchedParams->params[params::LOCAL_MODULATOR_1_PITCH_ADJUST].setCurrentValueBasicForSetup(0); // Don't change
 
-	// Scatter params - density defaults to 100%, pWrite defaults to 0%
+	// Scatter params - pWrite/macro default to 0% (min), density defaults to 100% (max)
+	patchedParams->params[params::GLOBAL_SCATTER_PWRITE].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[params::GLOBAL_SCATTER_MACRO].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[params::GLOBAL_SCATTER_DENSITY].setCurrentValueBasicForSetup(2147483647);
 }
 
