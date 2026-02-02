@@ -172,6 +172,9 @@ p.envShape    = results[3];
 | Scatter | kStructuralBank, kTimbraBank | Zone-based + meta modes |
 | Sine Shaper | kBlendWeightBank | 4-way harmonic blending |
 | Table Shaper | kExtrasBank | Subharmonic/comb effects |
+| DOTT Multiband | ad-hoc | Vibe, Feel |
+| Featherverb | multiple | matrix, decay, color |
+| disperser | multiple | etc, etc... |
 
 ## Files
 
