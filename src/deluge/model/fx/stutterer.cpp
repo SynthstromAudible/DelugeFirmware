@@ -730,6 +730,17 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 								grainPosB = grainRngState % playbackLength;
 								grainOffsetA = 0;
 								grainOffsetB = grainLength / 2; // 50% through grain
+								// Initialize per-voice effects
+								grainIndexA = 0;
+								grainIndexB = 1; // Offset so voices differ
+								grainAReversed = false;
+								grainBReversed = false;
+								grainAPitchUp = false;
+								grainBPitchUp = false;
+								grainAPan = 0;
+								grainBPan = 0;
+								grainAStereo = 0;
+								grainBStereo = 0;
 							}
 						}
 						if (!isRepeat) {
@@ -1131,25 +1142,16 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			uint32_t loopPitchRatioFP = isPitch ? scatterPitchRatioFP : 65536;
 			uint32_t loopPitchPosFP = scatterPitchPosFP;
 
-			// Grain mode: Zone B effects from scatterCachedGrain
-			bool loopGrainReversed = isGrain && scatterCachedGrain.shouldReverse;
-			bool loopGrainPitchUp = isGrain && scatterCachedGrain.shouldPitchUp;
+			// Grain mode: per-voice effects (computed at grain phase wrap, not slice boundary)
+			// This ensures each grain gets independent effects based on its grain index
 			int32_t loopGrainRepeatSlices = isGrain ? scatterCachedGrain.repeatSlices : 1;
 			int32_t loopGrainRepeatCounter = 0;
-			float grainPanDir =
-			    (deluge::dsp::phi::wrapPhase(static_cast<float>(scatterBarIndex) * 1.3f) < 0.5f) ? -1.0f : 1.0f;
-			float grainPan = isGrain ? grainPanDir * scatterCachedGrain.panAmount : 0;
-			float grainPanAbs = (grainPan > 0) ? grainPan : -grainPan;
-			bool loopGrainPanActive = (grainPanAbs > 0.001f);
-			int32_t loopGrainPanFadeQ31 = static_cast<int32_t>((1.0f - grainPanAbs) * 2147483647.0f);
-			int32_t loopGrainPanCrossQ31 = static_cast<int32_t>((grainPanAbs * 0.5f) * 2147483647.0f);
-			bool loopGrainPanRight = (grainPan > 0);
 
-			// Stereo width: bipolar [-1,1] voice spread
-			// +width: A→L biased, B→R biased
-			// -width: A→R biased, B→L biased (inverted)
-			// |width|: amount of bias (0=mono, 1=full stereo)
-			float grainStereoWidth = isGrain ? scatterCachedGrain.stereoWidth : 0.0f;
+			// Stereo width from config (positions A left, B right - inherently two-voice effect)
+			float grainStereoWidth = isGrain ? stutterConfig.getStereoWidth() : 0.0f;
+			// Apply Zone B position as additional width modulation
+			float zoneBNorm = static_cast<float>(cachedZoneBParam) * deluge::dsp::scatter::kQ31ToFloat;
+			grainStereoWidth *= (0.5f + zoneBNorm * 0.5f); // Scale by Zone B
 			float grainStereoAbs = (grainStereoWidth > 0) ? grainStereoWidth : -grainStereoWidth;
 			int32_t loopGrainAntiWidthQ31 = static_cast<int32_t>((1.0f - grainStereoAbs) * 2147483647.0f);
 			bool loopGrainStereoInvert = (grainStereoWidth < 0); // Negative = A→R, B→L
@@ -1179,11 +1181,11 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					int32_t envB = triangleEnv(grainPhaseB);
 
 					// Read buffer samples (used if voice is wet)
-					// Reverse: read from end of grain going backwards
-					size_t effectiveOffsetA = loopGrainReversed
+					// Reverse: per-voice - read from end of grain going backwards
+					size_t effectiveOffsetA = grainAReversed
 					                              ? (grainLength > grainOffsetA ? grainLength - 1 - grainOffsetA : 0)
 					                              : grainOffsetA;
-					size_t effectiveOffsetB = loopGrainReversed
+					size_t effectiveOffsetB = grainBReversed
 					                              ? (grainLength > grainOffsetB ? grainLength - 1 - grainOffsetB : 0)
 					                              : grainOffsetB;
 					size_t localPosA = (grainPosA + effectiveOffsetA) % loopPlaybackLength;
@@ -1238,17 +1240,30 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						}
 					}
 
-					// Apply pan only to wet grains (skip when both voices are dry)
-					if (loopGrainPanActive && !(grainAIsDry && grainBIsDry)) {
-						q31_t mixL = outputL;
-						q31_t mixR = outputR;
-						if (loopGrainPanRight) {
-							outputL = multiply_32x32_rshift32(mixL, loopGrainPanFadeQ31) << 1;
-							outputR = mixR + (multiply_32x32_rshift32(mixL - mixR, loopGrainPanCrossQ31) << 1);
+					// Apply per-voice pan (weighted by envelope contribution)
+					// Skip when both voices are dry (no effect to pan)
+					if (!(grainAIsDry && grainBIsDry)) {
+						// Combine voice pans weighted by their envelopes
+						float totalEnv = static_cast<float>(envA) + static_cast<float>(envB);
+						float combinedPan = 0;
+						if (totalEnv > 0) {
+							combinedPan = (grainAPan * static_cast<float>(envA) + grainBPan * static_cast<float>(envB))
+							              / totalEnv;
 						}
-						else {
-							outputR = multiply_32x32_rshift32(mixR, loopGrainPanFadeQ31) << 1;
-							outputL = mixL + (multiply_32x32_rshift32(mixR - mixL, loopGrainPanCrossQ31) << 1);
+						float panAbs = (combinedPan > 0) ? combinedPan : -combinedPan;
+						if (panAbs > 0.001f) {
+							int32_t panFadeQ31 = static_cast<int32_t>((1.0f - panAbs) * 2147483647.0f);
+							int32_t panCrossQ31 = static_cast<int32_t>((panAbs * 0.5f) * 2147483647.0f);
+							q31_t mixL = outputL;
+							q31_t mixR = outputR;
+							if (combinedPan > 0) {
+								outputL = multiply_32x32_rshift32(mixL, panFadeQ31) << 1;
+								outputR = mixR + (multiply_32x32_rshift32(mixL - mixR, panCrossQ31) << 1);
+							}
+							else {
+								outputR = multiply_32x32_rshift32(mixR, panFadeQ31) << 1;
+								outputL = mixL + (multiply_32x32_rshift32(mixR - mixL, panCrossQ31) << 1);
+							}
 						}
 					}
 
@@ -1268,24 +1283,20 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					}
 
 					// Advance offsets and linear position
-					// Pitch up: advance by 2 (octave up via decimation)
-					int32_t offsetInc = loopGrainPitchUp ? 2 : 1;
-					grainOffsetA += offsetInc;
-					grainOffsetB += offsetInc;
+					// Pitch up: per-voice - advance by 2 (octave up via decimation)
+					grainOffsetA += grainAPitchUp ? 2 : 1;
+					grainOffsetB += grainBPitchUp ? 2 : 1;
 					loopLinearBarPos++;
 					if (loopLinearBarPos >= loopPlaybackLength) {
 						loopLinearBarPos = 0;
 					}
 
-					// Advance envelope phases (double for pitch up to maintain grain length)
-					uint32_t phaseInc = grainLength > 0 ? (0xFFFFFFFFu / grainLength) : 0x10000000u;
-					if (loopGrainPitchUp) {
-						phaseInc *= 2;
-					}
+					// Advance envelope phases (per-voice: double for pitch up to maintain grain length)
+					uint32_t basePhaseInc = grainLength > 0 ? (0xFFFFFFFFu / grainLength) : 0x10000000u;
 					uint32_t oldPhaseA = grainPhaseA;
 					uint32_t oldPhaseB = grainPhaseB;
-					grainPhaseA += phaseInc;
-					grainPhaseB += phaseInc;
+					grainPhaseA += grainAPitchUp ? (basePhaseInc * 2) : basePhaseInc;
+					grainPhaseB += grainBPitchUp ? (basePhaseInc * 2) : basePhaseInc;
 
 					// Fast RNG for new positions and density decisions
 					auto fastRandom = [this]() -> uint32_t {
@@ -1298,10 +1309,12 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					// Density threshold
 					float densityProb = cachedDensityProb;
 
-					// On phase wrap: new grain position, reset offset, decide dry/wet and pWrite
+					// On phase wrap: new grain position, reset offset, decide dry/wet, pWrite, and effects
+					// Each grain gets independent effects based on its grain index + Zone B
 					// Repeat: hold position for N grain cycles
 					if (grainPhaseA < oldPhaseA) {
 						grainOffsetA = 0;
+						grainIndexA++;
 						if (loopGrainRepeatCounter > 0) {
 							loopGrainRepeatCounter--;
 						}
@@ -1313,12 +1326,36 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						grainAIsDry = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) >= densityProb;
 						float pWriteProbGrain = cachedPWriteProb;
 						grainAWritesWet = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) < pWriteProbGrain;
+
+						// Compute per-grain effects using Zone B and grain index
+						float zoneBNorm = static_cast<float>(cachedZoneBParam) * deluge::dsp::scatter::kQ31ToFloat;
+						uint32_t hashBits = fastRandom();
+						// Reverse: probability scales with Zone B (max 40%)
+						grainAReversed = (static_cast<float>(hashBits & 0xFFFF) / 65535.0f) < (zoneBNorm * 0.4f);
+						// Pitch up: probability scales with Zone B (max 25%)
+						grainAPitchUp =
+						    (static_cast<float>((hashBits >> 16) & 0xFFFF) / 65535.0f) < (zoneBNorm * 0.25f);
+						// Pan: phi triangle based on grain index, scaled by Zone B
+						float grainPhase = deluge::dsp::phi::wrapPhase(static_cast<float>(grainIndexA) * 0.382f);
+						float panDir = ((grainIndexA & 1) != 0u) ? 1.0f : -1.0f;
+						grainAPan = panDir * zoneBNorm * 0.3f * deluge::dsp::triangleSimpleUnipolar(grainPhase, 0.4f);
 					}
 					if (grainPhaseB < oldPhaseB) {
 						grainOffsetB = 0;
+						grainIndexB++;
 						size_t spread = grainSpread > 0 ? grainSpread : loopPlaybackLength;
 						grainPosB = fastRandom() % spread;
 						grainBIsDry = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) >= densityProb;
+
+						// Compute per-grain effects for voice B
+						float zoneBNorm = static_cast<float>(cachedZoneBParam) * deluge::dsp::scatter::kQ31ToFloat;
+						uint32_t hashBits = fastRandom();
+						grainBReversed = (static_cast<float>(hashBits & 0xFFFF) / 65535.0f) < (zoneBNorm * 0.4f);
+						grainBPitchUp =
+						    (static_cast<float>((hashBits >> 16) & 0xFFFF) / 65535.0f) < (zoneBNorm * 0.25f);
+						float grainPhase = deluge::dsp::phi::wrapPhase(static_cast<float>(grainIndexB) * 0.382f);
+						float panDir = ((grainIndexB & 1) != 0u) ? 1.0f : -1.0f;
+						grainBPan = panDir * zoneBNorm * 0.3f * deluge::dsp::triangleSimpleUnipolar(grainPhase, 0.4f);
 					}
 
 					sample.l = outputL;

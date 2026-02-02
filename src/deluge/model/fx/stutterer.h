@@ -484,6 +484,19 @@ private:
 	bool grainBIsDry{false};    ///< Voice B plays dry input (density decided at grain start)
 	bool grainAWritesWet{true}; ///< Voice A writes to buffer (pWrite decided at grain start)
 
+	/// Per-voice grain effect state (computed at grain phase wrap, not slice boundary)
+	/// Each voice gets independent effects based on its grain index
+	uint32_t grainIndexA{0};    ///< Voice A grain counter (increments on phase wrap)
+	uint32_t grainIndexB{0};    ///< Voice B grain counter (increments on phase wrap)
+	bool grainAReversed{false}; ///< Voice A reverse playback
+	bool grainBReversed{false}; ///< Voice B reverse playback
+	bool grainAPitchUp{false};  ///< Voice A pitch up (2x via decimation)
+	bool grainBPitchUp{false};  ///< Voice B pitch up (2x via decimation)
+	float grainAPan{0};         ///< Voice A pan [-1,1] (includes direction)
+	float grainBPan{0};         ///< Voice B pan [-1,1] (includes direction)
+	float grainAStereo{0};      ///< Voice A stereo width [-1,1]
+	float grainBStereo{0};      ///< Voice B stereo width [-1,1]
+
 	/// Bar counter for multi-bar patterns (0 to kBarIndexWrap-1)
 	/// Individual bits used as offsets with Zone B-derived weights to shift Zone A
 	static constexpr int32_t kBarIndexWrap = 64; ///< Bar counter wraps at 64 (supports phrases up to 32 bars)
