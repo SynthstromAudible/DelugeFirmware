@@ -92,9 +92,10 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 
-	// Scatter params - bipolar storage, density defaults to 100%, pWrite defaults to 0%
+	// Scatter params - bipolar storage, density defaults to 100%, others default to 0%
 	unpatchedParams->params[params::UNPATCHED_SCATTER_DENSITY].setCurrentValueBasicForSetup(INT32_MAX);
 	unpatchedParams->params[params::UNPATCHED_SCATTER_PWRITE].setCurrentValueBasicForSetup(INT32_MIN);
+	unpatchedParams->params[params::UNPATCHED_SCATTER_MACRO].setCurrentValueBasicForSetup(INT32_MIN);
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {

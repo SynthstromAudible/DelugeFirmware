@@ -531,6 +531,12 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							    std::clamp<int64_t>(static_cast<int64_t>(hybrid) * 2, 0, 2147483647));
 						};
 
+						// Helper: convert bipolar storage to unipolar Q31
+						// Bipolar range: INT32_MIN to INT32_MAX → Unipolar: 0 to INT32_MAX
+						auto bipolarToUnipolar = [](int32_t bipolar) -> q31_t {
+							return static_cast<q31_t>((static_cast<int64_t>(bipolar) + 2147483648LL) >> 1);
+						};
+
 						// Read fresh zone params from param set
 						if (modulatedValues && paramManager->hasPatchedParamSet()) {
 							constexpr int32_t kCableScale = 4;
@@ -549,13 +555,15 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							zoneAParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_A);
 							zoneBParam = patchedParams->getValue(params::GLOBAL_SCATTER_ZONE_B);
 							macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG);
-							macroParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO);
+							// Macro uses bipolar storage - convert to unipolar
+							macroParam = bipolarToUnipolar(patchedParams->getValue(params::GLOBAL_SCATTER_MACRO));
 						}
 						else {
 							zoneAParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_ZONE_A);
 							zoneBParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_ZONE_B);
 							macroConfigParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO_CONFIG);
-							macroParam = unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO);
+							// Macro uses bipolar storage - convert to unipolar
+							macroParam = bipolarToUnipolar(unpatchedParams->getValue(params::UNPATCHED_SCATTER_MACRO));
 						}
 						// Cache for next slice
 						cachedZoneAParam = zoneAParam;

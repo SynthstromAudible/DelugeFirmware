@@ -166,6 +166,9 @@ int32_t getParamNeutralValue(int32_t p) {
 		return 526133494; // 2% lower than 536870912
 
 	// Scatter params use bipolar storage: INT32_MIN=0%, INT32_MAX=100%
+	case params::GLOBAL_SCATTER_MACRO:
+		return INT32_MIN; // Default 0% (no effect)
+
 	case params::GLOBAL_SCATTER_PWRITE:
 		return INT32_MIN; // Default 0% (freeze buffer)
 
