@@ -1000,14 +1000,13 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			bool isTime = (stutterConfig.scatterMode == ScatterMode::Time);
 			bool isPitch = (stutterConfig.scatterMode == ScatterMode::Pitch);
 			// pWrite applies to all looper modes except Repeat (continuous loop)
-			// Grain write decision: made per-slice (not per-sample) to avoid discontinuities
-			// Hash of slice index determines if this grain writes wet or dry
-			// Duck entire grain if read/write regions overlap (prevents feedback artifacts)
+			// Slice modes: hash of slice index determines write decision per-slice
+			// Grain mode: uses grainAWritesWet (per-grain decision at phase wrap)
 			bool hasPWrite = stutterConfig.isLooperMode() && stutterConfig.scatterMode != ScatterMode::Repeat;
 			bool pWriteGrainIsWet = false;
-			if (hasPWrite) {
-				// pWrite uses pWriteParam to control grain writes:
-				// CCW (0) = 0% writes (freeze/preserve buffer), CW (50) = 100% writes (always overwrite)
+			if (hasPWrite && !isGrain) {
+				// Slice-based modes: pWrite decision per-slice using hash
+				// Grain mode uses grainAWritesWet directly (per-grain decision at phase wrap)
 				float pWriteProb = stutterConfig.getPWriteProb();
 				uint8_t pWriteThreshold = static_cast<uint8_t>(pWriteProb * 16.0f);
 				hash::Bits sliceBits(static_cast<uint32_t>(scatterSliceIndex) ^ (scatterBarIndex << 16) ^ 0xDEADBEEFu);
@@ -1109,7 +1108,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 					// pWrite: crossfade grain A into buffer at linear position
 					// Blend: existing * (1-env) + new * env - smooth transitions at grain edges
-					if (hasPWrite && pWriteGrainIsWet) {
+					// Use grainAWritesWet directly (not hoisted pWriteGrainIsWet) for per-grain decision
+					if (hasPWrite && grainAWritesWet) {
 						size_t writePos = (loopPlaybackStartPos + loopLinearBarPos) % kLooperBufferSize;
 						int32_t invEnvA = 0x7FFFFFFF - envA;
 						q31_t existL = looperBuffer[writePos].l;
@@ -1148,13 +1148,16 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					// densityParam 0 = all dry, 12+ = normal hash behavior
 					float densityProb = stutterConfig.getDensity();
 
-					// On phase wrap: new grain position, reset offset, decide dry/wet
+					// On phase wrap: new grain position, reset offset, decide dry/wet and pWrite
 					if (grainPhaseA < oldPhaseA) {
 						size_t spread = grainSpread > 0 ? grainSpread : loopPlaybackLength;
 						grainPosA = fastRandom() % spread;
 						grainOffsetA = 0;
 						// Density: random chance to play dry instead of buffer
 						grainAIsDry = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) >= densityProb;
+						// pWrite: random chance to write this grain (decided per-grain, not per-buffer)
+						float pWriteProbGrain = stutterConfig.getPWriteProb();
+						grainAWritesWet = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) < pWriteProbGrain;
 					}
 					if (grainPhaseB < oldPhaseB) {
 						size_t spread = grainSpread > 0 ? grainSpread : loopPlaybackLength;
@@ -1968,6 +1971,7 @@ void Stutterer::triggerPlaybackNow(void* source) {
 	grainOffsetB = 0;
 	grainAIsDry = false;
 	grainBIsDry = false;
+	grainAWritesWet = true; // Default to writing until first grain wrap decides
 	status = Status::PLAYING;
 	// Source now owns buffer
 	activeSource = source;
