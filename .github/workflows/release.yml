@@ -3,7 +3,7 @@ name: Release Build
 on:
   push:
     tags:
-      - 'owlet-v*'
+      - 'owlet-v*-*'  # e.g., owlet-v1.3-0.1 (upstream-owlet)
 
 permissions:
   contents: write
