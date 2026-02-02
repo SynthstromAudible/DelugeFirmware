@@ -1,0 +1,77 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'owlet-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Release
+    uses: ./.github/workflows/build.yml
+    with:
+      firmware-retention-days: 90
+      build-type: 'Release'
+      build-tag: 'release'
+
+  publish:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release_Release_build_bundle
+
+      - name: Create readme for archive
+        run: |
+          cat <<'END' >README.txt
+          Owlet Firmware ${{ github.ref_name }}
+          Git revision ${{ github.sha }}
+          =====================================================
+
+          Experimental firmware fork with additional sound design features.
+          Based on Deluge Community Firmware 1.3.
+
+          See the update guide for detailed instructions on how to install this
+          firmware. If you have never updated your Deluge before, please make
+          extra sure to read this, as you might want to update your bootloader
+          first to not risk rendering your Deluge inoperable!
+
+          https://github.com/SynthstromAudible/DelugeFirmware/wiki/Update-guide
+
+          Also, make a backup copy of your SD card before proceeding, just for
+          additional safety.
+
+          If you have done firmware updates on your Deluge before, but need a
+          quick refresher on how to do it:
+
+            * Copy the .bin file to the top level of your SD card.
+            * Make sure that you have removed any other/leftover .bin files from
+              there, otherwise the Deluge cannot know which one to use.
+            * Turn your Deluge off.
+            * Insert the SD card.
+            * Hold SHIFT on the Deluge and power it back on. You can let go of
+              the shift key once the update has begun.
+          END
+
+      - name: Create release archive
+        run: |
+          zip -j ./${{ github.ref_name }}.zip README.txt *.bin
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 'Owlet Firmware ${{ github.ref_name }}'
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ./${{ github.ref_name }}.zip
