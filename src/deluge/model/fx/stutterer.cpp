@@ -179,18 +179,15 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 
 			// Allow trigger if we have enough samples or buffer has stale audio (tape loop style)
 			bool hasEnoughSamples = looperBufferFull || looperWritePos >= playbackLength;
-			if (!hasEnoughSamples && !waitingForRecordBeat) {
-				// No fresh samples - wait for more
-				return Error::NONE;
-			}
 
-			// Repeat mode triggers immediately (no beat quantization)
+			// Repeat mode triggers immediately (no beat quantization) if we have samples
 			if (sc.scatterMode == ScatterMode::Repeat && hasEnoughSamples) {
 				triggerPlaybackNow(source);
 				return Error::NONE;
 			}
 
 			// Set pending trigger - actual transition happens in checkPendingTrigger on next beat
+			// Works even if buffer isn't full yet - checkPendingTrigger waits for enough samples
 			pendingPlayTrigger = true;
 			playTriggerTick = 0; // Will be computed in checkPendingTrigger
 			return Error::NONE;
@@ -2102,7 +2099,6 @@ bool Stutterer::checkPendingTrigger(void* source, int64_t lastSwungTick, uint32_
 	}
 
 	// Tick-boundary detection: check if we've crossed into a new beat
-	// Uses interpolated tick position for accurate detection within audio buffers
 	int64_t currentBeatIndex = lastSwungTick / syncLength;
 
 	// On first check, set target to NEXT beat boundary
@@ -2119,7 +2115,6 @@ bool Stutterer::checkPendingTrigger(void* source, int64_t lastSwungTick, uint32_
 	// If not, delay trigger to next beat
 	bool hasEnoughSamples = looperBufferFull || looperWritePos >= playbackLength;
 	if (!hasEnoughSamples) {
-		// Push trigger to next beat
 		playTriggerTick = currentBeatIndex + 1;
 		return false;
 	}
