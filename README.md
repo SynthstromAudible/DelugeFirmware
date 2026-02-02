@@ -33,6 +33,9 @@ This branch is based on **Community 1.3** for stability.
 
 ### For Developers
 
+**DSP Documentation:**
+- [Phi Triangle Parameter Evolution](docs/dev/phi-triangle.md) - Design pattern for multi-parameter control evolution using golden ratio frequencies
+
 This fork is open source under the same GPL-3.0 license as the community firmware. Feel free to:
 - Fork this repo for your own experiments
 - Cherry-pick individual features into your own builds
