@@ -55,9 +55,8 @@ struct StutterConfig {
 	/// pWrite parameter (0-50 range) - buffer write-back probability for all looper modes:
 	/// - CCW (0) = 0% writes (freeze/preserve buffer content)
 	/// - CW (50) = 100% writes (always overwrite with fresh content)
-	/// - Pitch mode: repurposed as scale index (pWriteParam*11/50 → 0-11)
-	/// Default 50 = always write (fresh content)
-	uint8_t pWriteParam{50};
+	/// Default 0 = freeze buffer (preserve recorded content)
+	uint8_t pWriteParam{0};
 
 	/// Density parameter (0-50 range) - output dry/wet probability for looper modes:
 	/// - CCW (0) = all dry output (hear input, no grains)
@@ -66,25 +65,23 @@ struct StutterConfig {
 	/// Default 50 = full density (normal grain playback)
 	uint8_t densityParam{50};
 
+	/// Pitch mode scale parameter (0-50 range) - separate from density to avoid mode switching issues
+	/// Maps to scale index [0,11]: Chromatic, Major, Minor, MajPent, MinPent, Blues,
+	///                             Dorian, Mixolyd, MajTri, MinTri, Sus4, Dim
+	/// Default 0 = Chromatic
+	uint8_t pitchScaleParam{0};
+
 	/// Get pWrite probability [0,1] from pWriteParam
 	/// CCW (0) = 0% writes (freeze), CW (50) = 100% writes (fresh content)
 	[[nodiscard]] float getPWriteProb() const { return static_cast<float>(pWriteParam) / 50.0f; }
 
 	/// Get output density [0,1] from densityParam
-	/// CCW (0) = all dry output, CW (50) = normal grain playback
-	/// Range 0-12 ramps from all-dry to normal, 12+ is normal hash behavior
-	[[nodiscard]] float getDensity() const {
-		if (densityParam >= 12) {
-			return 1.0f; // Normal hash behavior
-		}
-		return static_cast<float>(densityParam) / 12.0f;
-	}
+	/// CCW (0) = all dry output, CW (50) = 100% grain playback
+	/// Linear mapping: 0→0%, 50→100%
+	[[nodiscard]] float getDensity() const { return static_cast<float>(densityParam) / 50.0f; }
 
-	/// Check if density is in "force dry" mode (below 25%)
-	[[nodiscard]] bool isDensityForcingDry() const { return densityParam < 12; }
-
-	/// Get Pitch mode scale index [0,11] from densityParam (repurposed as scale for Pitch mode)
-	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((densityParam * 11) / 50); }
+	/// Get Pitch mode scale index [0,11] from pitchScaleParam
+	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((pitchScaleParam * 11) / 50); }
 
 	/// Check if this is a looper mode that always latches
 	[[nodiscard]] bool isLooperMode() const {
@@ -212,10 +209,9 @@ public:
 	}
 
 	/// Direct setters for live params (for menu access)
-	/// Set pWrite param directly (0-50 range)
 	inline void setLivePWrite(uint8_t value) { stutterConfig.pWriteParam = value; }
-	/// Set density param directly (0-50 range)
 	inline void setLiveDensity(uint8_t value) { stutterConfig.densityParam = value; }
+	inline void setLivePitchScale(uint8_t value) { stutterConfig.pitchScaleParam = value; }
 	inline void setLiveLatch(bool latch) { stutterConfig.latch = latch; }
 	/// Mark that encoder was released during STANDBY (for momentary mode)
 	inline void markReleasedDuringStandby() { releasedDuringStandby = true; }

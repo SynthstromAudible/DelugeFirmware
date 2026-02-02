@@ -26,30 +26,15 @@
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "processing/sound/sound_drum.h"
-#include <algorithm>
 
 namespace deluge::gui::menu_item::stutter {
 
 /// Density control for scatter modes - controls output dry/wet probability
 /// CCW (0) = all dry output (hear input, no grains)
-/// CW (50) = normal grain playback (hash decides)
-/// Exception: Pitch mode repurposes this as scale selection (0-50 → 0-11 scales)
+/// CW (50) = 100% grain playback
 class ScatterDensity final : public IntegerContinuous {
 public:
 	using IntegerContinuous::IntegerContinuous;
-
-	// Scale names for Pitch mode (scales + triads)
-	static constexpr const char* kScaleNames[] = {
-	    "Chromatic", "Major",   "Minor",  "MajPent", "MinPent", "Blues",
-	    "Dorian",    "Mixolyd", "MajTri", "MinTri",  "Sus4",    "Dim",
-	};
-	static constexpr const char* kScaleShort[] = {
-	    "Chr", "Maj", "Min", "Ma5", "Mi5", "Blu", "Dor", "Mix", "MAJ", "MIN", "Su4", "Dim",
-	};
-	static constexpr int32_t kNumScales = 12;
-
-	/// Get current scatter mode
-	ScatterMode currentMode() const { return soundEditor.currentModControllable->stutterConfig.scatterMode; }
 
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.densityParam); }
 
@@ -61,8 +46,8 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					// Only update drums in looper modes
-					if (soundDrum->stutterConfig.isLooperMode()) {
+					if (soundDrum->stutterConfig.isLooperMode()
+					    && soundDrum->stutterConfig.scatterMode != ScatterMode::Pitch) {
 						soundDrum->stutterConfig.densityParam = value;
 					}
 				}
@@ -72,54 +57,30 @@ public:
 			soundEditor.currentModControllable->stutterConfig.densityParam = value;
 		}
 
-		// Update global stutterer for live changes
 		stutterer.setLiveDensity(value);
 	}
 
 	bool usesAffectEntire() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		// Only relevant for looper modes (not Classic/Burst)
 		auto mode = soundEditor.currentModControllable->stutterConfig.scatterMode;
-		return mode != ScatterMode::Classic && mode != ScatterMode::Burst;
+		return mode != ScatterMode::Classic && mode != ScatterMode::Burst && mode != ScatterMode::Pitch;
 	}
 
-	// === Display configuration ===
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 
-	void getColumnLabel(StringBuf& label) override {
-		if (currentMode() == ScatterMode::Pitch) {
-			label.append("Scale");
-		}
-		else {
-			label.append("Dens");
-		}
-	}
+	void getColumnLabel(StringBuf& label) override { label.append("Dens"); }
 
 	std::string_view getTitle() const override { return getName(); }
 
-	[[nodiscard]] std::string_view getName() const override {
-		if (currentMode() == ScatterMode::Pitch) {
-			return "Scale";
-		}
-		return "Density";
-	}
+	[[nodiscard]] std::string_view getName() const override { return "Density"; }
 
-	// Override notification to show percentage or scale name
 	void getNotificationValue(StringBuf& valueBuf) override {
 		int32_t val = this->getValue();
-		if (currentMode() == ScatterMode::Pitch) {
-			// Scale selection for Pitch mode
-			int32_t idx = (val * (kNumScales - 1)) / 50;
-			idx = std::clamp(idx, int32_t{0}, kNumScales - 1);
-			valueBuf.append(kScaleShort[idx]);
-		}
-		else {
-			int32_t percent = (val * 100) / 50;
-			valueBuf.appendInt(percent);
-			valueBuf.append("%");
-		}
+		int32_t percent = (val * 100) / 50;
+		valueBuf.appendInt(percent);
+		valueBuf.append("%");
 	}
 };
 

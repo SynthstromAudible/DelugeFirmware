@@ -25,6 +25,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include <algorithm>
 
 namespace deluge::gui::menu_item::stutter {
 
@@ -62,66 +63,114 @@ public:
 	}
 };
 
-/// pWrite param for looper scatter modes (stored in pWriteParam)
-/// Controls buffer write-back probability for all looper modes:
-/// - CCW (0) = 0% writes (freeze buffer, preserve content)
-/// - CW (50) = 100% writes (always overwrite buffer with processed output)
+/// pWrite param for looper scatter modes, or Scale for Pitch mode
+/// Non-Pitch modes: buffer write-back probability (0=freeze, 50=always write)
+/// Pitch mode: scale selection (0-50 maps to 12 scales)
 class ScatterModeParam final : public IntegerContinuous {
 public:
 	using IntegerContinuous::IntegerContinuous;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.pWriteParam); }
+	static constexpr const char* kScaleNames[] = {
+	    "Chromatic", "Major",   "Minor",  "MajPent", "MinPent", "Blues",
+	    "Dorian",    "Mixolyd", "MajTri", "MinTri",  "Sus4",    "Dim",
+	};
+	static constexpr const char* kScaleShort[] = {
+	    "Chr", "Maj", "Min", "Ma5", "Mi5", "Blu", "Dor", "Mix", "MAJ", "MIN", "Su4", "Dim",
+	};
+	static constexpr int32_t kNumScales = 12;
+
+	bool isPitchMode() const {
+		return soundEditor.currentModControllable->stutterConfig.scatterMode == ScatterMode::Pitch;
+	}
+
+	void readCurrentValue() override {
+		if (isPitchMode()) {
+			this->setValue(soundEditor.currentModControllable->stutterConfig.pitchScaleParam);
+		}
+		else {
+			this->setValue(soundEditor.currentModControllable->stutterConfig.pWriteParam);
+		}
+	}
 
 	void writeCurrentValue() override {
 		uint8_t value = static_cast<uint8_t>(this->getValue());
 
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
-			Kit* kit = getCurrentKit();
-			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DrumType::SOUND) {
-					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					// Only update drums in looper modes
-					if (soundDrum->stutterConfig.isLooperMode()) {
-						soundDrum->stutterConfig.pWriteParam = value;
+		if (isPitchMode()) {
+			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+				Kit* kit = getCurrentKit();
+				for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+					if (thisDrum->type == DrumType::SOUND) {
+						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+						if (soundDrum->stutterConfig.scatterMode == ScatterMode::Pitch) {
+							soundDrum->stutterConfig.pitchScaleParam = value;
+						}
 					}
 				}
 			}
+			else {
+				soundEditor.currentModControllable->stutterConfig.pitchScaleParam = value;
+			}
+			stutterer.setLivePitchScale(value);
 		}
 		else {
-			soundEditor.currentModControllable->stutterConfig.pWriteParam = value;
+			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+				Kit* kit = getCurrentKit();
+				for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+					if (thisDrum->type == DrumType::SOUND) {
+						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+						if (soundDrum->stutterConfig.isLooperMode()) {
+							soundDrum->stutterConfig.pWriteParam = value;
+						}
+					}
+				}
+			}
+			else {
+				soundEditor.currentModControllable->stutterConfig.pWriteParam = value;
+			}
+			stutterer.setLivePWrite(value);
 		}
-
-		// Update global stutterer for live changes
-		stutterer.setLivePWrite(value);
 	}
 
 	bool usesAffectEntire() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		// Only relevant for modes that use a slider param (not Classic/Burst which use Toggle)
 		auto mode = soundEditor.currentModControllable->stutterConfig.scatterMode;
 		return mode != ScatterMode::Classic && mode != ScatterMode::Burst;
 	}
 
-	// === Display configuration ===
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
-	[[nodiscard]] int32_t getMaxValue() const override {
-		// All modes use 0-50 range
-		return 50;
-	}
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 
-	void getColumnLabel(StringBuf& label) override { label.append("pWrt"); }
+	void getColumnLabel(StringBuf& label) override {
+		if (isPitchMode()) {
+			label.append("Scal");
+		}
+		else {
+			label.append("pWrt");
+		}
+	}
 
 	std::string_view getTitle() const override { return getName(); }
 
-	[[nodiscard]] std::string_view getName() const override { return "pWrite"; }
+	[[nodiscard]] std::string_view getName() const override {
+		if (isPitchMode()) {
+			return "Scale";
+		}
+		return "pWrite";
+	}
 
-	// Override notification to show percentage (0=freeze, 100=fresh)
 	void getNotificationValue(StringBuf& valueBuf) override {
 		int32_t val = this->getValue();
-		int32_t writePercent = (val * 100) / 50;
-		valueBuf.appendInt(writePercent);
-		valueBuf.append("%");
+		if (isPitchMode()) {
+			int32_t idx = (val * (kNumScales - 1)) / 50;
+			idx = std::clamp(idx, int32_t{0}, kNumScales - 1);
+			valueBuf.append(kScaleShort[idx]);
+		}
+		else {
+			int32_t writePercent = (val * 100) / 50;
+			valueBuf.appendInt(writePercent);
+			valueBuf.append("%");
+		}
 	}
 };
 

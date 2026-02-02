@@ -813,20 +813,16 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					bool macroWantsDry = (macroNorm * thresholdInfluence > 0.5f);
 					bool wantsDry = grain.useDry || macroWantsDry;
 
-					// Density control: densityParam controls grain vs dry output for all looper modes
-					// Separate from pWriteParam (which controls buffer write-back probability)
-					// CCW (0) = all dry, 25% (12) = hash decides, CW (50) = hash decides (normal)
-					// Range 0-12 ramps from all-dry to normal hash behavior
-					if (stutterConfig.isDensityForcingDry()) {
-						// Below 25%: ramp from all-dry (0) to hash-based (12)
-						float density = stutterConfig.getDensity();
+					// Density control: densityParam controls grain vs dry output
+					// Linear: 0=all dry, 50=100% grains (normal behavior)
+					float density = stutterConfig.getDensity();
+					if (density < 1.0f) {
 						uint32_t densityHash = hash::mix(static_cast<uint32_t>(scatterSliceIndex) ^ 0xBADC0FFE);
 						float densityRand = static_cast<float>(densityHash & 0xFFFF) / 65535.0f;
 						if (densityRand >= density) {
-							wantsDry = true; // Below density threshold → force dry
+							wantsDry = true;
 						}
 					}
-					// At 25% and above (densityParam >= 12), use normal hash behavior from grain
 
 					scatterDryMix = wantsDry ? 1.0f : 0.0f;
 					scatterDryThreshold = 0.5f; // Fixed threshold for bool comparison
