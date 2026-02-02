@@ -434,9 +434,13 @@ int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAu
 		}
 		return paramValue;
 	}
-	else {
-		return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	// Half-precision unipolar params: clamp knobPos to [0, 64]
+	if (modelStack
+	    && (modelStack->paramId == params::UNPATCHED_SCATTER_PWRITE
+	        || modelStack->paramId == params::UNPATCHED_SCATTER_DENSITY)) {
+		knobPos = std::clamp(knobPos, 0_i32, 64_i32);
 	}
+	return ParamSet::knobPosToParamValue(knobPos, modelStack);
 }
 
 bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) {
@@ -533,9 +537,13 @@ int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAuto
 		}
 		return paramValue;
 	}
-	else {
-		return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	// Half-precision unipolar params: clamp knobPos to [0, 64]
+	if (modelStack
+	    && (modelStack->paramId == params::GLOBAL_SCATTER_PWRITE
+	        || modelStack->paramId == params::GLOBAL_SCATTER_DENSITY)) {
+		knobPos = std::clamp(knobPos, 0_i32, 64_i32);
 	}
+	return ParamSet::knobPosToParamValue(knobPos, modelStack);
 }
 
 bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
