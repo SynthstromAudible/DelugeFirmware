@@ -34,19 +34,33 @@ namespace hash = deluge::dsp::hash;
 // Each scale/triad biases toward tonic (0) and important chord tones
 // Scales: Chromatic, Major, Minor, MajPent, MinPent, Blues, Dorian, Mixolydian
 // Triads: MajTri, MinTri, Sus4, Dim
-static constexpr int8_t kScaleSemitones[12][8] = {
-    {0, 0, 0, 3, 5, 7, 7, 12},  // Chromatic: tonic-heavy with 5th and octave
-    {0, 0, 4, 4, 7, 7, 0, 12},  // Major: tonic (3x), 3rd (2x), 5th (2x), octave
-    {0, 0, 3, 3, 7, 7, 0, 12},  // Minor: tonic (3x), m3rd (2x), 5th (2x), octave
-    {0, 0, 4, 7, 7, 0, 12, 12}, // MajPent: tonic (3x), 3rd, 5th (2x), octave (2x)
-    {0, 0, 3, 7, 7, 0, 10, 12}, // MinPent: tonic (3x), m3rd, 5th (2x), b7, octave
-    {0, 0, 3, 6, 7, 7, 0, 12},  // Blues: tonic (3x), m3rd, b5, 5th (2x), octave
-    {0, 0, 3, 5, 7, 7, 9, 12},  // Dorian: tonic (2x), m3rd, 4th, 5th (2x), 6th, octave
-    {0, 0, 4, 5, 7, 7, 10, 12}, // Mixolydian: tonic (2x), 3rd, 4th, 5th (2x), b7, octave
-    {0, 0, 0, 4, 4, 7, 7, 12},  // MajTri: tonic (3x), 3rd (2x), 5th (2x), octave
-    {0, 0, 0, 3, 3, 7, 7, 12},  // MinTri: tonic (3x), m3rd (2x), 5th (2x), octave
-    {0, 0, 0, 5, 5, 7, 7, 12},  // Sus4: tonic (3x), 4th (2x), 5th (2x), octave
-    {0, 0, 0, 3, 3, 6, 6, 12},  // Dim: tonic (3x), m3rd (2x), b5 (2x), octave
+// Fixed semitones: +1 through +13 (single interval repeated)
+static constexpr int8_t kScaleSemitones[25][8] = {
+    {0, 0, 0, 3, 5, 7, 7, 12},        // 0: Chromatic: tonic-heavy with 5th and octave
+    {0, 0, 4, 4, 7, 7, 0, 12},        // 1: Major: tonic (3x), 3rd (2x), 5th (2x), octave
+    {0, 0, 3, 3, 7, 7, 0, 12},        // 2: Minor: tonic (3x), m3rd (2x), 5th (2x), octave
+    {0, 0, 4, 7, 7, 0, 12, 12},       // 3: MajPent: tonic (3x), 3rd, 5th (2x), octave (2x)
+    {0, 0, 3, 7, 7, 0, 10, 12},       // 4: MinPent: tonic (3x), m3rd, 5th (2x), b7, octave
+    {0, 0, 3, 6, 7, 7, 0, 12},        // 5: Blues: tonic (3x), m3rd, b5, 5th (2x), octave
+    {0, 0, 3, 5, 7, 7, 9, 12},        // 6: Dorian: tonic (2x), m3rd, 4th, 5th (2x), 6th, octave
+    {0, 0, 4, 5, 7, 7, 10, 12},       // 7: Mixolydian: tonic (2x), 3rd, 4th, 5th (2x), b7, octave
+    {0, 0, 0, 4, 4, 7, 7, 12},        // 8: MajTri: tonic (3x), 3rd (2x), 5th (2x), octave
+    {0, 0, 0, 3, 3, 7, 7, 12},        // 9: MinTri: tonic (3x), m3rd (2x), 5th (2x), octave
+    {0, 0, 0, 5, 5, 7, 7, 12},        // 10: Sus4: tonic (3x), 4th (2x), 5th (2x), octave
+    {0, 0, 0, 3, 3, 6, 6, 12},        // 11: Dim: tonic (3x), m3rd (2x), b5 (2x), octave
+    {1, 1, 1, 1, 1, 1, 1, 1},         // 12: +1 semitone (minor 2nd)
+    {2, 2, 2, 2, 2, 2, 2, 2},         // 13: +2 semitones (major 2nd)
+    {3, 3, 3, 3, 3, 3, 3, 3},         // 14: +3 semitones (minor 3rd)
+    {4, 4, 4, 4, 4, 4, 4, 4},         // 15: +4 semitones (major 3rd)
+    {5, 5, 5, 5, 5, 5, 5, 5},         // 16: +5 semitones (perfect 4th)
+    {6, 6, 6, 6, 6, 6, 6, 6},         // 17: +6 semitones (tritone)
+    {7, 7, 7, 7, 7, 7, 7, 7},         // 18: +7 semitones (perfect 5th)
+    {8, 8, 8, 8, 8, 8, 8, 8},         // 19: +8 semitones (minor 6th)
+    {9, 9, 9, 9, 9, 9, 9, 9},         // 20: +9 semitones (major 6th)
+    {10, 10, 10, 10, 10, 10, 10, 10}, // 21: +10 semitones (minor 7th)
+    {11, 11, 11, 11, 11, 11, 11, 11}, // 22: +11 semitones (major 7th)
+    {12, 12, 12, 12, 12, 12, 12, 12}, // 23: +12 semitones (octave)
+    {13, 13, 13, 13, 13, 13, 13, 13}, // 24: +13 semitones (octave + minor 2nd)
 };
 
 // Pitch ratios as 16.16 fixed-point for semitone offsets 0-17
@@ -641,7 +655,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							// Rate controls grain size (exponential curve like Repeat)
 							int32_t grainNorm = 64 - knobPos; // CCW=large, CW=small
 							grainNorm = std::clamp(grainNorm, int32_t{0}, int32_t{128});
-							constexpr size_t kMinGrain = 256; // ~6ms minimum
+							constexpr size_t kMinGrain = 1024; // ~23ms minimum (avoid harsh micro-grains)
 							grainLength = (playbackLength * grainNorm * grainNorm) / (128 * 128);
 							grainLength = std::clamp(grainLength, kMinGrain, playbackLength);
 							// Zone A [0,1] → spread range (pattern control: 0=sequential, 1=random)
@@ -747,7 +761,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 							// Get semitone offset from scale table
 							uint8_t scaleIdx = stutterConfig.getPitchScale();
-							if (scaleIdx > 11)
+							if (scaleIdx > 24)
 								scaleIdx = 0;
 							int8_t semitones = kScaleSemitones[scaleIdx][degreeIdx];
 							if (semitones < 0)
@@ -1058,6 +1072,20 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			uint32_t loopPitchRatioFP = isPitch ? scatterPitchRatioFP : 65536;
 			uint32_t loopPitchPosFP = scatterPitchPosFP;
 
+			// Grain mode: Zone B effects from scatterCachedGrain
+			bool loopGrainReversed = isGrain && scatterCachedGrain.shouldReverse;
+			bool loopGrainPitchUp = isGrain && scatterCachedGrain.shouldPitchUp;
+			int32_t loopGrainRepeatSlices = isGrain ? scatterCachedGrain.repeatSlices : 1;
+			int32_t loopGrainRepeatCounter = 0;
+			float grainPanDir =
+			    (deluge::dsp::phi::wrapPhase(static_cast<float>(scatterBarIndex) * 1.3f) < 0.5f) ? -1.0f : 1.0f;
+			float grainPan = isGrain ? grainPanDir * scatterCachedGrain.panAmount : 0;
+			float grainPanAbs = (grainPan > 0) ? grainPan : -grainPan;
+			bool loopGrainPanActive = (grainPanAbs > 0.001f);
+			int32_t loopGrainPanFadeQ31 = static_cast<int32_t>((1.0f - grainPanAbs) * 2147483647.0f);
+			int32_t loopGrainPanCrossQ31 = static_cast<int32_t>((grainPanAbs * 0.5f) * 2147483647.0f);
+			bool loopGrainPanRight = (grainPan > 0);
+
 			for (StereoSample& sample : audio) {
 				// NOTE: Recording for re-trigger is handled by recordStandby() which is called
 				// BEFORE processStutter(). Recording here would double-record, causing
@@ -1083,8 +1111,15 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					int32_t envB = triangleEnv(grainPhaseB);
 
 					// Read buffer samples (used if voice is wet)
-					size_t localPosA = (grainPosA + grainOffsetA) % loopPlaybackLength;
-					size_t localPosB = (grainPosB + grainOffsetB) % loopPlaybackLength;
+					// Reverse: read from end of grain going backwards
+					size_t effectiveOffsetA = loopGrainReversed
+					                              ? (grainLength > grainOffsetA ? grainLength - 1 - grainOffsetA : 0)
+					                              : grainOffsetA;
+					size_t effectiveOffsetB = loopGrainReversed
+					                              ? (grainLength > grainOffsetB ? grainLength - 1 - grainOffsetB : 0)
+					                              : grainOffsetB;
+					size_t localPosA = (grainPosA + effectiveOffsetA) % loopPlaybackLength;
+					size_t localPosB = (grainPosB + effectiveOffsetB) % loopPlaybackLength;
 					size_t posA = (loopPlaybackStartPos + localPosA) % kLooperBufferSize;
 					size_t posB = (loopPlaybackStartPos + localPosB) % kLooperBufferSize;
 					q31_t bufAL = looperBuffer[posA].l;
@@ -1102,6 +1137,20 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					q31_t outputL = (multiply_32x32_rshift32(srcAL, envA) + multiply_32x32_rshift32(srcBL, envB)) << 1;
 					q31_t outputR = (multiply_32x32_rshift32(srcAR, envA) + multiply_32x32_rshift32(srcBR, envB)) << 1;
 
+					// Apply pan (same as slice modes)
+					if (loopGrainPanActive) {
+						q31_t mixL = outputL;
+						q31_t mixR = outputR;
+						if (loopGrainPanRight) {
+							outputL = multiply_32x32_rshift32(mixL, loopGrainPanFadeQ31) << 1;
+							outputR = mixR + (multiply_32x32_rshift32(mixL - mixR, loopGrainPanCrossQ31) << 1);
+						}
+						else {
+							outputR = multiply_32x32_rshift32(mixR, loopGrainPanFadeQ31) << 1;
+							outputL = mixL + (multiply_32x32_rshift32(mixR - mixL, loopGrainPanCrossQ31) << 1);
+						}
+					}
+
 					// pWrite: crossfade grain A into buffer at linear position
 					// Blend: existing * (1-env) + new * env - smooth transitions at grain edges
 					// Use grainAWritesWet directly (not hoisted pWriteGrainIsWet) for per-grain decision
@@ -1118,15 +1167,20 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					}
 
 					// Advance offsets and linear position
-					grainOffsetA++;
-					grainOffsetB++;
+					// Pitch up: advance by 2 (octave up via decimation)
+					int32_t offsetInc = loopGrainPitchUp ? 2 : 1;
+					grainOffsetA += offsetInc;
+					grainOffsetB += offsetInc;
 					loopLinearBarPos++;
 					if (loopLinearBarPos >= loopPlaybackLength) {
 						loopLinearBarPos = 0;
 					}
 
-					// Advance envelope phases
+					// Advance envelope phases (double for pitch up to maintain grain length)
 					uint32_t phaseInc = grainLength > 0 ? (0xFFFFFFFFu / grainLength) : 0x10000000u;
+					if (loopGrainPitchUp) {
+						phaseInc *= 2;
+					}
 					uint32_t oldPhaseA = grainPhaseA;
 					uint32_t oldPhaseB = grainPhaseB;
 					grainPhaseA += phaseInc;
@@ -1140,25 +1194,29 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						return grainRngState;
 					};
 
-					// Density threshold: below 25% (densityParam < 12) forces more dry grains
-					// densityParam 0 = all dry, 12+ = normal hash behavior
+					// Density threshold
 					float densityProb = stutterConfig.getDensity();
 
 					// On phase wrap: new grain position, reset offset, decide dry/wet and pWrite
+					// Repeat: hold position for N grain cycles
 					if (grainPhaseA < oldPhaseA) {
-						size_t spread = grainSpread > 0 ? grainSpread : loopPlaybackLength;
-						grainPosA = fastRandom() % spread;
 						grainOffsetA = 0;
-						// Density: random chance to play dry instead of buffer
+						if (loopGrainRepeatCounter > 0) {
+							loopGrainRepeatCounter--;
+						}
+						else {
+							size_t spread = grainSpread > 0 ? grainSpread : loopPlaybackLength;
+							grainPosA = fastRandom() % spread;
+							loopGrainRepeatCounter = loopGrainRepeatSlices - 1;
+						}
 						grainAIsDry = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) >= densityProb;
-						// pWrite: random chance to write this grain (decided per-grain, not per-buffer)
 						float pWriteProbGrain = stutterConfig.getPWriteProb();
 						grainAWritesWet = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) < pWriteProbGrain;
 					}
 					if (grainPhaseB < oldPhaseB) {
+						grainOffsetB = 0;
 						size_t spread = grainSpread > 0 ? grainSpread : loopPlaybackLength;
 						grainPosB = fastRandom() % spread;
-						grainOffsetB = 0;
 						grainBIsDry = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) >= densityProb;
 					}
 
@@ -1211,8 +1269,33 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					if (benchThisSample) {
 						FX_BENCH_START(benchRead);
 					}
-					outputL = looperBuffer[playReadPos].l;
-					outputR = looperBuffer[playReadPos].r;
+
+					// Pitch mode: linear interpolation for non-integer pitch ratios
+					// This avoids aliasing/bitcrushing artifacts from truncation
+					if (loopPitchRatioFP != 65536) {
+						// Read two samples and interpolate
+						q31_t s0L = looperBuffer[playReadPos].l;
+						q31_t s0R = looperBuffer[playReadPos].r;
+						// Next sample position (handle buffer wrap and reverse)
+						size_t nextPos;
+						if (loopReversed) {
+							nextPos = (playReadPos > 0) ? playReadPos - 1 : kLooperBufferSize - 1;
+						}
+						else {
+							nextPos = (playReadPos + 1) % kLooperBufferSize;
+						}
+						q31_t s1L = looperBuffer[nextPos].l;
+						q31_t s1R = looperBuffer[nextPos].r;
+						// Fractional part [0, 65535] from 16.16 fixed-point
+						int32_t frac = static_cast<int32_t>(loopPitchPosFP & 0xFFFF);
+						// Linear interpolation: s0 + frac * (s1 - s0)
+						outputL = s0L + (static_cast<int32_t>((static_cast<int64_t>(s1L - s0L) * frac) >> 16));
+						outputR = s0R + (static_cast<int32_t>((static_cast<int64_t>(s1R - s0R) * frac) >> 16));
+					}
+					else {
+						outputL = looperBuffer[playReadPos].l;
+						outputR = looperBuffer[playReadPos].r;
+					}
 					srcL = outputL; // Save pre-envelope for pWrite
 					srcR = outputR;
 

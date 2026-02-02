@@ -63,72 +63,30 @@ public:
 	}
 };
 
-/// pWrite param for looper scatter modes, or Scale for Pitch mode
-/// Non-Pitch modes: buffer write-back probability (0=freeze, 50=always write)
-/// Pitch mode: scale selection (0-50 maps to 12 scales)
-class ScatterModeParam final : public IntegerContinuous {
+/// pWrite param for all looper scatter modes (buffer write-back probability)
+class ScatterPWrite final : public IntegerContinuous {
 public:
 	using IntegerContinuous::IntegerContinuous;
 
-	static constexpr const char* kScaleNames[] = {
-	    "Chromatic", "Major",   "Minor",  "MajPent", "MinPent", "Blues",
-	    "Dorian",    "Mixolyd", "MajTri", "MinTri",  "Sus4",    "Dim",
-	};
-	static constexpr const char* kScaleShort[] = {
-	    "Chr", "Maj", "Min", "Ma5", "Mi5", "Blu", "Dor", "Mix", "MAJ", "MIN", "Su4", "Dim",
-	};
-	static constexpr int32_t kNumScales = 12;
-
-	bool isPitchMode() const {
-		return soundEditor.currentModControllable->stutterConfig.scatterMode == ScatterMode::Pitch;
-	}
-
-	void readCurrentValue() override {
-		if (isPitchMode()) {
-			this->setValue(soundEditor.currentModControllable->stutterConfig.pitchScaleParam);
-		}
-		else {
-			this->setValue(soundEditor.currentModControllable->stutterConfig.pWriteParam);
-		}
-	}
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.pWriteParam); }
 
 	void writeCurrentValue() override {
 		uint8_t value = static_cast<uint8_t>(this->getValue());
-
-		if (isPitchMode()) {
-			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
-				Kit* kit = getCurrentKit();
-				for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-					if (thisDrum->type == DrumType::SOUND) {
-						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-						if (soundDrum->stutterConfig.scatterMode == ScatterMode::Pitch) {
-							soundDrum->stutterConfig.pitchScaleParam = value;
-						}
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+			Kit* kit = getCurrentKit();
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					if (soundDrum->stutterConfig.isLooperMode()) {
+						soundDrum->stutterConfig.pWriteParam = value;
 					}
 				}
 			}
-			else {
-				soundEditor.currentModControllable->stutterConfig.pitchScaleParam = value;
-			}
-			stutterer.setLivePitchScale(value);
 		}
 		else {
-			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
-				Kit* kit = getCurrentKit();
-				for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-					if (thisDrum->type == DrumType::SOUND) {
-						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-						if (soundDrum->stutterConfig.isLooperMode()) {
-							soundDrum->stutterConfig.pWriteParam = value;
-						}
-					}
-				}
-			}
-			else {
-				soundEditor.currentModControllable->stutterConfig.pWriteParam = value;
-			}
-			stutterer.setLivePWrite(value);
+			soundEditor.currentModControllable->stutterConfig.pWriteParam = value;
 		}
+		stutterer.setLivePWrite(value);
 	}
 
 	bool usesAffectEntire() override { return true; }
@@ -141,36 +99,68 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 
-	void getColumnLabel(StringBuf& label) override {
-		if (isPitchMode()) {
-			label.append("Scal");
-		}
-		else {
-			label.append("pWrt");
-		}
-	}
-
-	std::string_view getTitle() const override { return getName(); }
-
-	[[nodiscard]] std::string_view getName() const override {
-		if (isPitchMode()) {
-			return "Scale";
-		}
-		return "pWrite";
-	}
+	void getColumnLabel(StringBuf& label) override { label.append("pWrt"); }
+	std::string_view getTitle() const override { return "pWrite"; }
+	[[nodiscard]] std::string_view getName() const override { return "pWrite"; }
 
 	void getNotificationValue(StringBuf& valueBuf) override {
-		int32_t val = this->getValue();
-		if (isPitchMode()) {
-			int32_t idx = (val * (kNumScales - 1)) / 50;
-			idx = std::clamp(idx, int32_t{0}, kNumScales - 1);
-			valueBuf.append(kScaleShort[idx]);
+		int32_t writePercent = (this->getValue() * 100) / 50;
+		valueBuf.appendInt(writePercent);
+		valueBuf.append("%");
+	}
+};
+
+/// Scale selection for Pitch mode only
+class PitchScale final : public IntegerContinuous {
+public:
+	using IntegerContinuous::IntegerContinuous;
+
+	static constexpr const char* kScaleShort[] = {
+	    "Chr", "Maj", "Min", "Ma5", "Mi5", "Blu", "Dor", "Mix", "MAJ", "MIN", "Su4", "Dim", "+1",
+	    "+2",  "+3",  "+4",  "+5",  "+6",  "+7",  "+8",  "+9",  "+10", "+11", "+12", "+13",
+	};
+	static constexpr int32_t kNumScales = 25;
+
+	void readCurrentValue() override {
+		this->setValue(soundEditor.currentModControllable->stutterConfig.pitchScaleParam);
+	}
+
+	void writeCurrentValue() override {
+		uint8_t value = static_cast<uint8_t>(this->getValue());
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+			Kit* kit = getCurrentKit();
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					if (soundDrum->stutterConfig.scatterMode == ScatterMode::Pitch) {
+						soundDrum->stutterConfig.pitchScaleParam = value;
+					}
+				}
+			}
 		}
 		else {
-			int32_t writePercent = (val * 100) / 50;
-			valueBuf.appendInt(writePercent);
-			valueBuf.append("%");
+			soundEditor.currentModControllable->stutterConfig.pitchScaleParam = value;
 		}
+		stutterer.setLivePitchScale(value);
+	}
+
+	bool usesAffectEntire() override { return true; }
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.currentModControllable->stutterConfig.scatterMode == ScatterMode::Pitch;
+	}
+
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+
+	void getColumnLabel(StringBuf& label) override { label.append("Scal"); }
+	std::string_view getTitle() const override { return "Scale"; }
+	[[nodiscard]] std::string_view getName() const override { return "Scale"; }
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		int32_t idx = (this->getValue() * (kNumScales - 1)) / 50;
+		idx = std::clamp(idx, int32_t{0}, kNumScales - 1);
+		valueBuf.append(kScaleShort[idx]);
 	}
 };
 

@@ -518,7 +518,8 @@ HorizontalMenu delayMenu{
 stutter::StutterDirection stutterDirectionMenu{STRING_FOR_DIRECTION, STRING_FOR_DIRECTION};
 stutter::ScatterLatch stutterLatchMenu{STRING_FOR_SCATTER_LATCH, STRING_FOR_SCATTER_LATCH};
 stutter::QuantizedStutter stutterQuantizedMenu{STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE};
-stutter::ScatterModeParam stutterModeParamMenu{STRING_FOR_SCATTER_PWRITE, STRING_FOR_SCATTER_PWRITE};
+stutter::ScatterPWrite stutterPWriteMenu{STRING_FOR_SCATTER_PWRITE, STRING_FOR_SCATTER_PWRITE};
+stutter::PitchScale stutterPitchScaleMenu{STRING_FOR_SCATTER_SCALE, STRING_FOR_SCATTER_SCALE};
 stutter::ScatterDensity stutterDensityMenu{STRING_FOR_SCATTER_DENSITY, STRING_FOR_SCATTER_DENSITY};
 stutter::Rate stutterRateMenu{STRING_FOR_RATE, STRING_FOR_STUTTER_RATE};
 stutter::ScatterModeMenu stutterModeMenu{STRING_FOR_SCATTER_MODE, STRING_FOR_SCATTER_MODE};
@@ -533,11 +534,12 @@ HorizontalMenu stutterMenu{STRING_FOR_STUTTER,
                            {
                                // Page 1: Core stutter controls
                                &stutterRateMenu,
-                               &stutterDirectionMenu, // Direction for Classic/Burst
-                               &stutterLatchMenu,     // Latch toggle for Burst only (looper modes always latch)
-                               &stutterQuantizedMenu, // Toggle for Classic/Burst
-                               &stutterModeParamMenu, // pWrite for all looper modes (buffer write probability)
-                               &stutterDensityMenu,   // Output density for all looper modes
+                               &stutterDirectionMenu,  // Direction for Classic/Burst
+                               &stutterLatchMenu,      // Latch toggle for Burst only (looper modes always latch)
+                               &stutterQuantizedMenu,  // Toggle for Classic/Burst
+                               &stutterPWriteMenu,     // pWrite for all looper modes (buffer write probability)
+                               &stutterPitchScaleMenu, // Scale selection for Pitch mode only
+                               &stutterDensityMenu,    // Output density for all looper modes
                                &stutterModeMenu,
                                // Page 2: Scatter zone controls (hidden for Classic/Burst)
                                &stutterZoneAMenu,

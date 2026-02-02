@@ -80,8 +80,10 @@ struct StutterConfig {
 	/// Linear mapping: 0→0%, 50→100%
 	[[nodiscard]] float getDensity() const { return static_cast<float>(densityParam) / 50.0f; }
 
-	/// Get Pitch mode scale index [0,11] from pitchScaleParam
-	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((pitchScaleParam * 11) / 50); }
+	/// Get Pitch mode scale index [0,24] from pitchScaleParam
+	/// 0-11: Scales (Chromatic, Major, Minor, etc.)
+	/// 12-24: Fixed semitones (+1 through +13)
+	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((pitchScaleParam * 24) / 50); }
 
 	/// Check if this is a looper mode that always latches
 	[[nodiscard]] bool isLooperMode() const {

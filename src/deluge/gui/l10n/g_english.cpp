@@ -163,6 +163,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SCATTER_GRAIN, "Grain"},
         {STRING_FOR_SCATTER_PATTERN_MODE, "Pattern"},
         {STRING_FOR_SCATTER_PITCH, "Pitch"},
+        {STRING_FOR_SCATTER_SCALE, "Scale"},
         {STRING_FOR_DISABLED, "Disabled"},
         {STRING_FOR_ENABLED, "Enabled"},
         {STRING_FOR_OK, "OK"},
