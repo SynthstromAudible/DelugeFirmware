@@ -16,11 +16,11 @@ This branch is based on **Community 1.3** for stability.
 | Feature | Description |
 |---------|-------------|
 | **Scatter (Bird Brain)** | Beat-repeat, slice manipulation effect and granular looper. Rate knob controls slice length. See [testing guide](docs/features/scatter-testing.md). |
-| **Featherverb** | Lightweight 4-tap FDN/allpass cascade reverb. 77 KB buffer vs Mutable's 128 KB |
-| **Multiband OTT Compressor (DOTT)** | 3-band upward/downward compressor with CHARACTER, RATIO, VIBE, and SKEW controls. 8 vibe zones for dynamic character. Can function as full downward, full upward, or anywhere in between. Aggressively optimized. Includes band-level metering. |
-| **Retrospective Sampler** | Lookback buffer for capturing audio after the fact. Sources: Input, Master mix, or Focused Track. Duration modes: time-based (5/15/30/60 sec) or bar-synced (1/2/4 bars). Bar modes tag filenames with BPM. |
-| **Sine Shaper (HOOT)** | Harmonic waveshaping with drive, harmonic content, symmetry, and mix controls. Adds musical saturation and overtones. |
-| **Table Shaper (PELLET)** | XY wavetable-based waveshaper with smooth interpolation between shapes. |
+| **Featherverb** | Lightweight 4-tap FDN/allpass cascade reverb. 77 KB buffer vs Mutable's 128 KB. See [testing guide](docs/features/featherverb-testing.md). |
+| **Multiband OTT Compressor (DOTT)** | 3-band upward/downward compressor with CHARACTER, RATIO, VIBE, and SKEW controls. 8 vibe zones for dynamic character. Can function as full downward, full upward, or anywhere in between. Aggressively optimized. Includes band-level metering. See [testing guide](docs/features/dott-testing.md). |
+| **Retrospective Sampler** | Lookback buffer for capturing audio after the fact. Sources: Input, Master mix, or Focused Track. Duration modes: time-based (5/15/30/60 sec) or bar-synced (1/2/4 bars). Bar modes tag filenames with BPM. See [testing guide](docs/features/retrospective-sampler-testing.md). |
+| **Sine Shaper (HOOT)** | Harmonic waveshaping with drive, harmonic content, symmetry, and mix controls. Adds musical saturation and overtones. See [testing guide](docs/features/sine-shaper-testing.md). |
+| **Table Shaper (PELLET)** | XY wavetable-based waveshaper with smooth interpolation between shapes. See [testing guide](docs/features/table-shaper-testing.md). |
 | **FX Benchmarking Framework** | Performance profiling tools for DSP development. |
 
 ### Not Yet Ported
