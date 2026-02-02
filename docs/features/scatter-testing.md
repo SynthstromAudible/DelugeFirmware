@@ -120,9 +120,9 @@ Master intensity control (0-50). Modulates all zone effects.
 ## Testing Scenarios
 
 ### 1. Basic Operation
-- [ ] Hold stutter encoder → shows "STANDBY" indicator
-- [ ] Buffer records for 1 bar, then loops
-- [ ] Release + re-press → playback starts on next beat
+- [ ] Press stutter encoder → shows "STANDBY" indicator
+- [ ] Buffer records a rolling 1 bar buffer in the background
+- [ ] re-press encoder → playback starts on next beat
 - [ ] Double-tap while buffer not full → queues trigger, starts when ready
 
 ### 2. Mode Switching
@@ -147,19 +147,19 @@ Master intensity control (0-50). Modulates all zone effects.
 
 ### 6. Takeover (Track Switching)
 - [ ] Start scatter on Track A
-- [ ] Switch to Track B, trigger scatter → B inherits A's buffer
-- [ ] B's zone values show A's inherited settings
+- [ ] Switch to Track B, trigger scatter → B inherits A's buffer if B starts playing while A is still playing
+- [ ] B's zone values show A's inherited settings in this scenario
 - [ ] pWrite controls how fast B's audio replaces A's
 
 ### 7. Preset Change During Scatter
-- [ ] Start scatter, then load different preset
-- [ ] Scatter continues with new preset's audio
-- [ ] New preset inherits previous scatter settings
+- [ ] Start scatter playback, then load different preset
+- [ ] Scatter continues with new preset's audio playing "under" the existing loop when density < 1
+- [ ] New preset inherits previous scatter settings if switched while playing
 
 ### 8. Grain Mode Specifics
 - [ ] Rate knob → grain size
-- [ ] Zone A → position spread
-- [ ] Zone B → timbral character
+- [ ] Zone A → position, spread
+- [ ] Zone B → timbral character (pan, delay, pitch, dry)
 - [ ] Stereo width (secret param) → voice A/B panning
 
 ### 9. Default Values (New Presets)
@@ -169,7 +169,8 @@ Master intensity control (0-50). Modulates all zone effects.
 
 ### 10. Mod Matrix (Synth Only)
 - [ ] Press select on Macro/pWrite/Density → opens mod source selection
-- [ ] Patch LFO to Macro → see animated intensity
+- [ ] Patch LFO to Macro → animated intensity
+- [ ] map random lfo to pwrite, macro, or density for long, slowly evolving patches
 - [ ] Patched params show dot on menu name
 
 ## Secret Menus
@@ -180,6 +181,7 @@ Push+twist encoder on zone params reveals phase offset adjustment:
 - **Macro Config encoder** → macroConfigPhaseOffset
 - **Macro encoder** → gammaPhase (multiplier for all offsets)
 
+These basically add an offset to the positions of their respective knobs. "gamma" applies a large global offset for large jumps in parameter space.
 Display shows "offset:X" or "gamma:X" while adjusting.
 
 ## Known Behaviors
@@ -192,7 +194,7 @@ Display shows "offset:X" or "gamma:X" while adjusting.
 
 ## Commit History (Recent)
 
-- `f00c7fdd` - Weather/nature names for macro config zones
+- `f00c7fdd` - Weather/nature names for macro config zones (abstract because the effects are predominatly determined by phi triangle phases)
 - `49d16ea0` - Queue pending trigger even when buffer not full
 - `adc18c12` - Fix macro zone param classification and defaults
 - `14c3eda1` - Compute per-grain effects in grain mode
