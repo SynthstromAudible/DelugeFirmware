@@ -405,24 +405,25 @@ uint8_t numRoutines = 0;
 /// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
 inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 	bool culled = false;
-	int32_t numToCull = 0;
+	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
+	// we can be a bit more lenient with the limit
+	auto max_num_samples = numSamplesLimit + (20 * voicesStartedThisRender);
 	if (numAudio + numVoice > MIN_VOICES) {
 		static int32_t last_num_samples_over = 0;
 
-		int32_t num_samples_over_limit = numSamples - numSamplesLimit;
+		int32_t num_samples_over_limit = numSamples - max_num_samples;
 		// If it's real dire, do a proper immediate cull
 		if (num_samples_over_limit >= 20) {
-
-			numToCull = (num_samples_over_limit >> 3);
+			int32_t num_to_cull = (num_samples_over_limit >> 3);
 
 			// leave at least 7 - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
-			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
-			for (int32_t i = numToCull / 2; i < numToCull; i++) {
+			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
+			for (int32_t i = num_to_cull / 2; i < num_to_cull; i++) {
 				// cull with fast release
 				terminateOneVoice(numSamples);
 			}
-			for (int32_t i = 1; i < numToCull / 2; i++) {
+			for (int32_t i = 1; i < num_to_cull / 2; i++) {
 				// cull with immediate release
 				killOneVoice(numSamples);
 			}
@@ -489,7 +490,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 		}
 		auto numAudio = currentSong ? currentSong->countAudioClips() : 0;
 		auto numVoice = getNumVoices();
-		if (!bypassCulling && voicesStartedThisRender == 0) {
+		if (!bypassCulling) {
 			cullVoices(numSamples, numAudio, numVoice);
 		}
 		else {
