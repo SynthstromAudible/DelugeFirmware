@@ -6,7 +6,7 @@ name: Deploy Pages and Doxygen
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["community"]
+    branches: ["owlet-firmware-1.3"]
     paths:
       - 'pages/**'
       - 'src/**'

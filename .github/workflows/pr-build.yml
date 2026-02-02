@@ -3,11 +3,11 @@ name: Pull Request Build
 on:
   push:
     branches:
-      - 'synthstrom-official'
+      - 'owlet-firmware-1.3'
   pull_request:
     branches:
-      - 'community'
-      - 'release/**'
+      - 'owlet-firmware-1.3'
+      - 'feature/**'
   merge_group:
   workflow_dispatch:
 
