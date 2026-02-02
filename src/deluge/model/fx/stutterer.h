@@ -71,6 +71,12 @@ struct StutterConfig {
 	/// Default 0 = Chromatic
 	uint8_t pitchScaleParam{0};
 
+	/// Stereo width for Grain mode (0-50 range)
+	/// - CCW (0) = mono (both voices centered)
+	/// - CW (50) = full stereo (voice A left, voice B right)
+	/// Default 25 = half stereo spread
+	uint8_t stereoWidthParam{25};
+
 	/// Get pWrite probability [0,1] from pWriteParam
 	/// CCW (0) = 0% writes (freeze), CW (50) = 100% writes (fresh content)
 	[[nodiscard]] float getPWriteProb() const { return static_cast<float>(pWriteParam) / 50.0f; }
@@ -84,6 +90,10 @@ struct StutterConfig {
 	/// 0-11: Scales (Chromatic, Major, Minor, etc.)
 	/// 12-24: Fixed semitones (+1 through +13)
 	[[nodiscard]] uint8_t getPitchScale() const { return static_cast<uint8_t>((pitchScaleParam * 24) / 50); }
+
+	/// Get stereo width [0,1] from stereoWidthParam (for Grain mode)
+	/// 0 = mono (both voices centered), 1 = full stereo (A left, B right)
+	[[nodiscard]] float getStereoWidth() const { return static_cast<float>(stereoWidthParam) / 50.0f; }
 
 	/// Check if this is a looper mode that always latches
 	[[nodiscard]] bool isLooperMode() const {
@@ -215,6 +225,7 @@ public:
 	inline void setLivePWrite(uint8_t value) { stutterConfig.pWriteParam = value; }
 	inline void setLiveDensity(uint8_t value) { stutterConfig.densityParam = value; }
 	inline void setLivePitchScale(uint8_t value) { stutterConfig.pitchScaleParam = value; }
+	inline void setLiveStereoWidth(uint8_t value) { stutterConfig.stereoWidthParam = value; }
 	inline void setLiveLatch(bool latch) { stutterConfig.latch = latch; }
 	/// Mark that encoder was released during STANDBY (for momentary mode)
 	inline void markReleasedDuringStandby() { releasedDuringStandby = true; }

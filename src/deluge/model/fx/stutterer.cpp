@@ -1133,6 +1133,15 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			int32_t loopGrainPanCrossQ31 = static_cast<int32_t>((grainPanAbs * 0.5f) * 2147483647.0f);
 			bool loopGrainPanRight = (grainPan > 0);
 
+			// Stereo width: bipolar [-1,1] voice spread
+			// +width: A→L biased, B→R biased
+			// -width: A→R biased, B→L biased (inverted)
+			// |width|: amount of bias (0=mono, 1=full stereo)
+			float grainStereoWidth = isGrain ? scatterCachedGrain.stereoWidth : 0.0f;
+			float grainStereoAbs = (grainStereoWidth > 0) ? grainStereoWidth : -grainStereoWidth;
+			int32_t loopGrainAntiWidthQ31 = static_cast<int32_t>((1.0f - grainStereoAbs) * 2147483647.0f);
+			bool loopGrainStereoInvert = (grainStereoWidth < 0); // Negative = A→R, B→L
+
 			for (StereoSample& sample : audio) {
 				// NOTE: Recording for re-trigger is handled by recordStandby() which is called
 				// BEFORE processStutter(). Recording here would double-record, causing
@@ -1189,8 +1198,32 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					}
 					else {
 						// At least one voice wet: crossfade with triangular envelopes
-						outputL = (multiply_32x32_rshift32(srcAL, envA) + multiply_32x32_rshift32(srcBL, envB)) << 1;
-						outputR = (multiply_32x32_rshift32(srcAR, envA) + multiply_32x32_rshift32(srcBR, envB)) << 1;
+						// Apply bipolar stereo width:
+						// +width: A→L full, A→R attenuated, B→L attenuated, B→R full
+						// -width: A→R full, A→L attenuated, B→R attenuated, B→L full (inverted)
+						// |width|=0: mono, |width|=1: full stereo
+						if (loopGrainStereoInvert) {
+							// Inverted: A→R, B→L
+							q31_t srcAL_stereo = multiply_32x32_rshift32(srcAL, loopGrainAntiWidthQ31) << 1;
+							q31_t srcBR_stereo = multiply_32x32_rshift32(srcBR, loopGrainAntiWidthQ31) << 1;
+							outputL =
+							    (multiply_32x32_rshift32(srcAL_stereo, envA) + multiply_32x32_rshift32(srcBL, envB))
+							    << 1;
+							outputR =
+							    (multiply_32x32_rshift32(srcAR, envA) + multiply_32x32_rshift32(srcBR_stereo, envB))
+							    << 1;
+						}
+						else {
+							// Normal: A→L, B→R
+							q31_t srcAR_stereo = multiply_32x32_rshift32(srcAR, loopGrainAntiWidthQ31) << 1;
+							q31_t srcBL_stereo = multiply_32x32_rshift32(srcBL, loopGrainAntiWidthQ31) << 1;
+							outputL =
+							    (multiply_32x32_rshift32(srcAL, envA) + multiply_32x32_rshift32(srcBL_stereo, envB))
+							    << 1;
+							outputR =
+							    (multiply_32x32_rshift32(srcAR_stereo, envA) + multiply_32x32_rshift32(srcBR, envB))
+							    << 1;
+						}
 					}
 
 					// Apply pan only to wet grains (skip when both voices are dry)

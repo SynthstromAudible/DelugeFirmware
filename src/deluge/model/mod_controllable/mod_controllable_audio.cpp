@@ -1812,7 +1812,11 @@ char const* ModControllableAudio::getHPFModeDisplayName() {
 void ModControllableAudio::wontBeRenderedForAWhile() {
 	delay.discardBuffers();
 	// Don't end latched scatter - it should keep playing when you switch tracks
-	if (!(stutterer.isLatched() && stutterer.isStuttering(this))) {
+	// But release our ownership so the sound can stop rendering (new source can adopt)
+	if (stutterer.isLatched() && stutterer.isStuttering(this)) {
+		stutterer.releaseOwnership();
+	}
+	else {
 		endStutter(nullptr);
 	}
 }

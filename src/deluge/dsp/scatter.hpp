@@ -789,6 +789,7 @@ struct GrainParams {
 	float envShape{0.5f};      ///< Envelope shape (0=percussive, 0.5=hanning, 1=reverse)
 	float envDepth{0};         ///< Envelope depth [0,1]: 0=hard cut, 1=full envelope
 	float panAmount{0};        ///< Crossfeed pan amount [0,1] before direction applied
+	float stereoWidth{0};      ///< Stereo spread [-1,1]: 0=mono, +1=A left/B right, -1=A right/B left
 
 	// Combined
 	float gateRatio{1.0f};   ///< Gate duty cycle [0.125, 1.0]
@@ -1030,6 +1031,12 @@ inline GrainParams computeGrainParams(q31_t zoneAParam, q31_t zoneBParam, q31_t 
 		float phPan = phi::wrapPhase(phRawB * phi::kPhi125);
 		p.panAmount = triangleSimpleUnipolar(pos * phi::kPhi125 + phPan + slicePhase, 0.25f);
 
+		// Stereo width: bipolar phi triangle for voice A/B stereo spread
+		// 30% duty cycle total: 15% positive (A→L,B→R), 15% negative (A→R,B→L), 70% mono
+		float phStereo = phi::wrapPhase(phRawB * phi::kPhi175);
+		float stereoPhase = pos * phi::kPhi175 + phStereo + slicePhase;
+		p.stereoWidth = triangleSimpleUnipolar(stereoPhase, 0.15f) - triangleSimpleUnipolar(stereoPhase + 0.5f, 0.15f);
+
 		// Gate phi triangle with 50% deadzone
 		float phGate = phi::wrapPhase(phRawB * phi::kPhi150);
 		float gateRaw = triangleSimpleUnipolar(pos * phi::kPhi150 + phGate + slicePhase, 0.5f);
@@ -1072,6 +1079,9 @@ inline GrainParams computeGrainParams(q31_t zoneAParam, q31_t zoneBParam, q31_t 
 
 		p.envDepth = triangleSimpleUnipolar(zoneBInfo.position * phi::kPhi050, 0.6f);
 		p.panAmount = triangleSimpleUnipolar(zoneBInfo.position * phi::kPhi125, 0.25f);
+		// Stereo width: bipolar with 30% duty (15% each direction)
+		float stereoPhase = zoneBInfo.position * phi::kPhi175;
+		p.stereoWidth = triangleSimpleUnipolar(stereoPhase, 0.15f) - triangleSimpleUnipolar(stereoPhase + 0.5f, 0.15f);
 		// Gate: macroConfig triangle selects sensitivity, macro controls intensity
 		// At macro=0, gateRatio stays at 1.0 (no gate)
 		if (zoneBInfo.position > 0.02f) {
