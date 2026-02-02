@@ -1133,9 +1133,18 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					q31_t srcBL = grainBIsDry ? dryL : bufBL;
 					q31_t srcBR = grainBIsDry ? dryR : bufBR;
 
-					// Mix with envelopes (both voices always enveloped for proper crossfade)
-					q31_t outputL = (multiply_32x32_rshift32(srcAL, envA) + multiply_32x32_rshift32(srcBL, envB)) << 1;
-					q31_t outputR = (multiply_32x32_rshift32(srcAR, envA) + multiply_32x32_rshift32(srcBR, envB)) << 1;
+					// Mix with envelopes - bypass entirely when both voices are dry
+					q31_t outputL, outputR;
+					if (grainAIsDry && grainBIsDry) {
+						// Both voices dry: pass through without envelope coloring
+						outputL = dryL;
+						outputR = dryR;
+					}
+					else {
+						// At least one voice wet: crossfade with triangular envelopes
+						outputL = (multiply_32x32_rshift32(srcAL, envA) + multiply_32x32_rshift32(srcBL, envB)) << 1;
+						outputR = (multiply_32x32_rshift32(srcAR, envA) + multiply_32x32_rshift32(srcBR, envB)) << 1;
+					}
 
 					// Apply pan (same as slice modes)
 					if (loopGrainPanActive) {
