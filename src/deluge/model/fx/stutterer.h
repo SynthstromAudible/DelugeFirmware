@@ -178,7 +178,8 @@ public:
 	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig stutterConfig,
 	                                 int32_t magnitude, uint32_t timePerTickInverse, size_t loopLengthSamples = 0,
 	                                 bool halfBar = false);
-	/// Optional modulatedValues array indexed as [SCATTER_ZONE_A, SCATTER_ZONE_B, SCATTER_MACRO_CONFIG, SCATTER_MACRO]
+	/// Optional modulatedValues array indexed as:
+	/// [0]=ZONE_A, [1]=ZONE_B, [2]=MACRO_CONFIG, [3]=MACRO, [4]=PWRITE, [5]=DENSITY
 	/// If nullptr, preset values are used. If provided, these modulated values override the param preset.
 	void processStutter(std::span<StereoSample> audio, ParamManager* paramManager, int32_t magnitude,
 	                    uint32_t timePerTickInverse, int64_t currentTick = 0, uint64_t timePerTickBig = 0,
@@ -414,6 +415,8 @@ private:
 	q31_t cachedZoneBParam{0};
 	q31_t cachedMacroConfigParam{0};
 	q31_t cachedMacroParam{0};
+	float cachedPWriteProb{1.0f};  ///< Cached pWrite probability [0,1] from modulated param
+	float cachedDensityProb{1.0f}; ///< Cached density probability [0,1] from modulated param
 
 	/// Cached offsets structure for slice boundary grain computation
 	/// Updated at buffer start, used inline at slice boundary

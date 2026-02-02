@@ -152,9 +152,11 @@ enum Global : ParamType {
 	FIRST_GLOBAL_HYBRID,
 	GLOBAL_SCATTER_MACRO = FIRST_GLOBAL_HYBRID, // Scatter macro control
 
-	// Global zone params begin
+	// Global zone params begin (patcher outputs cables only, DSP combines with preset)
 	FIRST_GLOBAL_ZONE,
-	GLOBAL_SCATTER_ZONE_A = FIRST_GLOBAL_ZONE, // Scatter structural zone
+	GLOBAL_SCATTER_PWRITE = FIRST_GLOBAL_ZONE, // Scatter buffer write probability
+	GLOBAL_SCATTER_DENSITY,                    // Scatter grain density (dry/wet)
+	GLOBAL_SCATTER_ZONE_A,                     // Scatter structural zone
 	GLOBAL_SCATTER_ZONE_B,                     // Scatter timbral zone
 	GLOBAL_SCATTER_MACRO_CONFIG,               // Scatter effect depth
 
@@ -488,6 +490,10 @@ constexpr int32_t getUnpatchedFallback(ParamType patchedId) {
 		return UNPATCHED_SCATTER_MACRO_CONFIG;
 	case GLOBAL_SCATTER_MACRO:
 		return UNPATCHED_SCATTER_MACRO;
+	case GLOBAL_SCATTER_PWRITE:
+		return UNPATCHED_SCATTER_PWRITE;
+	case GLOBAL_SCATTER_DENSITY:
+		return UNPATCHED_SCATTER_DENSITY;
 	default:
 		return -1; // No fallback
 	}

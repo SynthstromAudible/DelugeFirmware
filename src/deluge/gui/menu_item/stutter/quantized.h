@@ -15,17 +15,30 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/automation/automation.h"
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/menu_item_with_cc_learning.h"
+#include "gui/menu_item/patch_cable_strength/regular.h"
+#include "gui/menu_item/source_selection/regular.h"
 #include "gui/menu_item/toggle.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/fx/stutterer.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include <algorithm>
+
+namespace params = deluge::modulation::params;
 
 namespace deluge::gui::menu_item::stutter {
 
@@ -63,51 +76,124 @@ public:
 	}
 };
 
-/// pWrite param for all looper scatter modes (buffer write-back probability)
-class ScatterPWrite final : public IntegerContinuous {
+/// Scatter pWrite parameter - dual patched/unpatched for mod matrix support
+/// Uses GLOBAL_SCATTER_PWRITE in Sound context, UNPATCHED_SCATTER_PWRITE for GlobalEffectable
+/// CCW (0) = 0% writes (freeze buffer), CW (50) = 100% writes (always overwrite)
+class ScatterPWrite final : public IntegerContinuous, public MenuItemWithCCLearning, public Automation {
 public:
 	using IntegerContinuous::IntegerContinuous;
-
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.pWriteParam); }
-
-	void writeCurrentValue() override {
-		uint8_t value = static_cast<uint8_t>(this->getValue());
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
-			Kit* kit = getCurrentKit();
-			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DrumType::SOUND) {
-					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					if (soundDrum->stutterConfig.isLooperMode()) {
-						soundDrum->stutterConfig.pWriteParam = value;
-					}
-				}
-			}
-		}
-		else {
-			soundEditor.currentModControllable->stutterConfig.pWriteParam = value;
-		}
-		stutterer.setLivePWrite(value);
-	}
-
-	bool usesAffectEntire() override { return true; }
+	ScatterPWrite(l10n::String name, l10n::String title, int32_t /*paramId*/) : IntegerContinuous(name, title) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		auto mode = soundEditor.currentModControllable->stutterConfig.scatterMode;
 		return mode != ScatterMode::Classic && mode != ScatterMode::Burst;
 	}
 
-	[[nodiscard]] int32_t getMinValue() const override { return 0; }
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	void readCurrentValue() override {
+		q31_t value;
+		if (soundEditor.currentParamManager->hasPatchedParamSet()) {
+			value = soundEditor.currentParamManager->getPatchedParamSet()->getValue(params::GLOBAL_SCATTER_PWRITE);
+		}
+		else {
+			value = soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SCATTER_PWRITE);
+		}
+		this->setValue(computeCurrentValueForHalfPrecisionMenuItem(value));
+	}
+
+	void writeCurrentValue() override {
+		q31_t value = computeFinalValueForHalfPrecisionMenuItem(this->getValue());
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStackMemory);
+		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+	}
+
+	ModelStackWithAutoParam* getModelStackWithParam(void* memory) override {
+		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
+		if (soundEditor.currentParamManager->hasPatchedParamSet()) {
+			return modelStack->getPatchedAutoParamFromId(params::GLOBAL_SCATTER_PWRITE);
+		}
+		return modelStack->getUnpatchedAutoParamFromId(params::UNPATCHED_SCATTER_PWRITE);
+	}
+
+	ParamDescriptor getLearningThing() override {
+		ParamDescriptor paramDescriptor;
+		if (!soundEditor.currentParamManager->hasPatchedParamSet()) {
+			paramDescriptor.setToHaveParamOnly(params::UNPATCHED_SCATTER_PWRITE + params::UNPATCHED_START);
+		}
+		else {
+			paramDescriptor.setToHaveParamOnly(params::GLOBAL_SCATTER_PWRITE);
+		}
+		return paramDescriptor;
+	}
+
+	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
+	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
+	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
+		MenuItemWithCCLearning::learnKnob(cable, whichKnob, modKnobMode, midiChannel);
+	}
+
+	MenuItem* selectButtonPress() override {
+		if (Buttons::isShiftButtonPressed()) {
+			return Automation::selectButtonPress();
+		}
+		// In unpatched context (GlobalEffectable), no mod matrix available
+		if (!soundEditor.currentParamManager->hasPatchedParamSet()) {
+			return nullptr;
+		}
+		// In patched context (Sound), open mod matrix source selection
+		soundEditor.patchingParamSelected = params::GLOBAL_SCATTER_PWRITE;
+		return &source_selection::regularMenu;
+	}
+
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override {
+		if (!soundEditor.currentParamManager->hasPatchedParamSet()) {
+			return nullptr;
+		}
+		soundEditor.patchingParamSelected = params::GLOBAL_SCATTER_PWRITE;
+		source_selection::regularMenu.s = s;
+		return &patch_cable_strength::regularMenu;
+	}
+
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override {
+		if (!soundEditor.currentParamManager->hasPatchedParamSet()) {
+			return 255;
+		}
+		ParamDescriptor paramDescriptor{};
+		paramDescriptor.setToHaveParamOnly(params::GLOBAL_SCATTER_PWRITE);
+		return soundEditor.currentParamManager->getPatchCableSet()
+		               ->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, paramDescriptor)
+		           ? 3
+		           : 255;
+	}
+
+	uint8_t shouldDrawDotOnName() override {
+		if (!soundEditor.currentParamManager->hasPatchedParamSet()) {
+			return 255;
+		}
+		ParamDescriptor paramDescriptor{};
+		paramDescriptor.setToHaveParamOnly(params::GLOBAL_SCATTER_PWRITE);
+		return soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(
+		           paramDescriptor)
+		           ? 3
+		           : 255;
+	}
+
+	[[nodiscard]] deluge::modulation::params::Kind getParamKind() {
+		if (!soundEditor.currentParamManager->hasPatchedParamSet()) {
+			return deluge::modulation::params::Kind::UNPATCHED_SOUND;
+		}
+		return deluge::modulation::params::Kind::PATCHED;
+	}
+
+	bool usesAffectEntire() override { return true; }
+
+	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuValue; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return KNOB; }
 
 	void getColumnLabel(StringBuf& label) override { label.append("pWrt"); }
 	std::string_view getTitle() const override { return "pWrite"; }
 	[[nodiscard]] std::string_view getName() const override { return "pWrite"; }
-
-	void getNotificationValue(StringBuf& valueBuf) override {
-		int32_t writePercent = (this->getValue() * 100) / 50;
-		valueBuf.appendInt(writePercent);
-		valueBuf.append("%");
-	}
 };
 
 /// Scale selection for Pitch mode only

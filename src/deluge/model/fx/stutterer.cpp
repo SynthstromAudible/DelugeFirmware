@@ -523,6 +523,14 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					q31_t macroParam = cachedMacroParam;
 
 					if (shouldRecalcParams) {
+						// Helper: convert hybrid param output to unipolar Q31
+						// Hybrid output for positive presets: [0, +1073741824]
+						// Scale x2 to get full unipolar range: [0, 2147483647]
+						auto hybridToUnipolar = [](int32_t hybrid) -> q31_t {
+							return static_cast<q31_t>(
+							    std::clamp<int64_t>(static_cast<int64_t>(hybrid) * 2, 0, 2147483647));
+						};
+
 						// Read fresh zone params from param set
 						if (modulatedValues && paramManager->hasPatchedParamSet()) {
 							constexpr int32_t kCableScale = 4;
@@ -533,7 +541,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							             + modulatedValues[1] / kCableScale;
 							macroConfigParam = patchedParams->getValue(params::GLOBAL_SCATTER_MACRO_CONFIG)
 							                   + modulatedValues[2] / kCableScale;
-							macroParam = modulatedValues[3];
+							// Hybrid params: convert bipolar patcher output to unipolar
+							macroParam = hybridToUnipolar(modulatedValues[3]);
 						}
 						else if (paramManager->hasPatchedParamSet()) {
 							PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
@@ -553,6 +562,33 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						cachedZoneBParam = zoneBParam;
 						cachedMacroConfigParam = macroConfigParam;
 						cachedMacroParam = macroParam;
+
+						// Read pWrite and density directly from param set (not patcher output)
+						// Patcher's hybrid output uses static paramNeutralValues, not user's preset
+						// Half-precision unipolar: 0 → 0.0, 2147483647 → 1.0
+						q31_t pWriteQ31;
+						q31_t densityQ31;
+						if (paramManager->hasPatchedParamSet()) {
+							PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
+							pWriteQ31 = patchedParams->getValue(params::GLOBAL_SCATTER_PWRITE);
+							densityQ31 = patchedParams->getValue(params::GLOBAL_SCATTER_DENSITY);
+							// Add cable modulation if available (patcher outputs cables only for zone-like handling)
+							if (modulatedValues != nullptr) {
+								constexpr int32_t kCableScale = 4;
+								pWriteQ31 = std::clamp<int64_t>(
+								    static_cast<int64_t>(pWriteQ31) + modulatedValues[4] / kCableScale, 0, 2147483647);
+								densityQ31 = std::clamp<int64_t>(
+								    static_cast<int64_t>(densityQ31) + modulatedValues[5] / kCableScale, 0, 2147483647);
+							}
+						}
+						else {
+							pWriteQ31 = unpatchedParams->getValue(params::UNPATCHED_SCATTER_PWRITE);
+							densityQ31 = unpatchedParams->getValue(params::UNPATCHED_SCATTER_DENSITY);
+						}
+						// Convert to 0-1 probability (half-precision: max Q31 = 1.0)
+						constexpr float kHalfQ31ToFloat = 1.0f / 2147483647.0f;
+						cachedPWriteProb = std::clamp(static_cast<float>(pWriteQ31) * kHalfQ31ToFloat, 0.0f, 1.0f);
+						cachedDensityProb = std::clamp(static_cast<float>(densityQ31) * kHalfQ31ToFloat, 0.0f, 1.0f);
 					}
 					FX_BENCH_STOP(benchParamRead);
 
@@ -829,7 +865,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 
 					// Density control: densityParam controls grain vs dry output
 					// Linear: 0=all dry, 50=100% grains (normal behavior)
-					float density = stutterConfig.getDensity();
+					float density = cachedDensityProb;
 					if (density < 1.0f) {
 						uint32_t densityHash = hash::mix(static_cast<uint32_t>(scatterSliceIndex) ^ 0xBADC0FFE);
 						float densityRand = static_cast<float>(densityHash & 0xFFFF) / 65535.0f;
@@ -1017,7 +1053,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 			if (hasPWrite && !isGrain) {
 				// Slice-based modes: pWrite decision per-slice using hash
 				// Grain mode uses grainAWritesWet directly (per-grain decision at phase wrap)
-				float pWriteProb = stutterConfig.getPWriteProb();
+				float pWriteProb = cachedPWriteProb;
 				uint8_t pWriteThreshold = static_cast<uint8_t>(pWriteProb * 16.0f);
 				hash::Bits sliceBits(static_cast<uint32_t>(scatterSliceIndex) ^ (scatterBarIndex << 16) ^ 0xDEADBEEFu);
 				pWriteGrainIsWet = sliceBits.threshold4(0, pWriteThreshold);
@@ -1204,7 +1240,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					};
 
 					// Density threshold
-					float densityProb = stutterConfig.getDensity();
+					float densityProb = cachedDensityProb;
 
 					// On phase wrap: new grain position, reset offset, decide dry/wet and pWrite
 					// Repeat: hold position for N grain cycles
@@ -1219,7 +1255,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							loopGrainRepeatCounter = loopGrainRepeatSlices - 1;
 						}
 						grainAIsDry = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) >= densityProb;
-						float pWriteProbGrain = stutterConfig.getPWriteProb();
+						float pWriteProbGrain = cachedPWriteProb;
 						grainAWritesWet = (static_cast<float>(fastRandom() & 0xFFFF) / 65535.0f) < pWriteProbGrain;
 					}
 					if (grainPhaseB < oldPhaseB) {
