@@ -428,6 +428,11 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				}
 				lastTickBarIndex = tickBarIndex;
 			}
+			else {
+				// Transport stopped - enable free-run mode by resetting tick tracking
+				// This allows sample-counted bar wrap detection in the sample loop
+				lastTickBarIndex = -1;
+			}
 
 			// === SLICE SETUP: runs immediately when slice boundary was hit ===
 			// Throttle controls expensive param reads, not the slice state updates
@@ -1669,7 +1674,15 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						if (loopNextConsecutive && stutterConfig.scatterMode != ScatterMode::Repeat) {
 							// Advance slice index (use effectiveGrainLength from current grain)
 							int32_t grainLen = scatterCachedGrain.grainLength > 0 ? scatterCachedGrain.grainLength : 1;
+							int32_t prevSliceIndex = scatterSliceIndex;
 							scatterSliceIndex = (scatterSliceIndex + grainLen) % scatterNumSlices;
+
+							// Detect sample-counted bar wrap (slice index wrapped around)
+							// Only trigger in free-run mode (transport stopped) - tick sync handles it otherwise
+							if (scatterSliceIndex < prevSliceIndex && lastTickBarIndex < 0) {
+								scatterBarIndex = (scatterBarIndex + 1) % kBarIndexWrap;
+								needsSliceSetup = true; // Refresh params on next buffer
+							}
 
 							// Compute next grain's consecutive flag for decay envelope
 							// Use cached zone params and offsets (throttle controls when these refresh)
