@@ -323,6 +323,8 @@ public:
 	void process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
 	                           ArpReturnInstruction instruction);
 
+	virtual const char* getName() { return nullptr; }
+
 private:
 	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
