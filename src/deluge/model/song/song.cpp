@@ -40,6 +40,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
+#include "model/fx/stutterer.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -3503,6 +3504,15 @@ traverseClips:
 
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);
+
+	// Adopt orphaned scatter if present (old instrument released ownership during hibernation prep)
+	if (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT) {
+		auto* newMca = static_cast<ModControllableAudio*>(newOutput->toModControllable());
+		if (newMca != nullptr && stutterer.adoptOrphanedScatter(newMca)) {
+			// Inherit scatter config so new preset continues with running scatter's params
+			newMca->stutterConfig = stutterer.getStutterConfig();
+		}
+	}
 
 	// Put the newInstrument into the master list
 	*prevPointer = newOutput;
