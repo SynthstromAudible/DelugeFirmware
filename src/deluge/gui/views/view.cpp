@@ -868,25 +868,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				lowerLimit = std::min(-192_i32, knobPos);
 			}
 			else {
-				// Check for unipolar params (pWrite, density) that should not go below 0
-				bool isUnipolarParam = false;
-				if (kind == params::Kind::PATCHED) {
-					auto paramId = modelStackWithParam->paramId;
-					isUnipolarParam =
-					    (paramId == params::GLOBAL_SCATTER_PWRITE || paramId == params::GLOBAL_SCATTER_DENSITY);
-				}
-				else if (kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) {
-					auto paramId = modelStackWithParam->paramId;
-					isUnipolarParam =
-					    (paramId == params::UNPATCHED_SCATTER_PWRITE || paramId == params::UNPATCHED_SCATTER_DENSITY);
-				}
-
-				if (isUnipolarParam) {
-					lowerLimit = 0;
-				}
-				else {
-					lowerLimit = std::min(-64_i32, knobPos);
-				}
+				lowerLimit = std::min(-64_i32, knobPos);
 			}
 
 			// Check if this is a high-resolution zone param (1024 steps instead of 128)
