@@ -20,7 +20,7 @@ on:
       branch:
         type: choice
         options:
-          - owlet-firmware-1.3
+          - dev
 
 permissions:
   contents: write #required to update release tags
