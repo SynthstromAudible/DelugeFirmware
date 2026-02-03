@@ -48,32 +48,73 @@ namespace deluge::dsp {
 // ============================================================================
 // Pre-shifted Gain for Efficient Fixed-Point Multiplication
 // ============================================================================
-// Represents gains 0.03x to 32x without float conversion in the audio loop.
-// gain = mantissa * 2^shift where mantissa is q31 (0.5 to 1.0 range)
+// Q9.22 Fixed-Point Gain Representation
+// ============================================================================
+// Gains stored as q9.22: 9 integer bits (0-512), 22 fractional bits
+// Max gain: 512x (+54dB), min useful: ~0.00000024x (-132dB)
+// Unity gain (1.0) = 2^22 = 4194304
 
-/// Pre-shifted gain representation for efficient fixed-point multiplication
+/// Q9.22 gain constants
+static constexpr int32_t kGainQ22Unity = 1 << 22;               // 1.0x = 4194304
+static constexpr int32_t kGainQ22MaxBand = 256 * kGainQ22Unity; // 256x max for band gain (+48dB)
+static constexpr int32_t kGainQ22MaxOutput = 8 * kGainQ22Unity; // 8x max for output gain (+18dB)
+// Post-multiply shift to convert from intermediate to q31 output
+// vqdmulhq_s32 gives (a*b) >> 31, we have q31*q9.22 = 2^53, so result is 2^22
+// We want 2^31, so shift left by 9
+static constexpr int32_t kGainQ22Shift = 9;
+
+/// Convert float gain to q9.22 fixed-point, clamped to max
+/// @param gain Float gain value
+/// @param maxGain Maximum allowed gain in q9.22 (for clamping)
+/// @return Gain in q9.22 format
+[[gnu::always_inline]] inline int32_t floatToGainQ22(float gain, int32_t maxGain = kGainQ22MaxBand) {
+	if (gain <= 0.0f) {
+		return 0;
+	}
+	int32_t result = static_cast<int32_t>(gain * static_cast<float>(kGainQ22Unity));
+	return std::min(result, maxGain);
+}
+
+/// Apply q9.22 gain to a q31 sample with saturation (scalar version)
+/// @param sample Input sample in q31
+/// @param gainQ22 Gain in q9.22 format
+/// @return Gained sample, saturated to q31 range
+[[gnu::always_inline]] inline q31_t applyGainQ22(q31_t sample, int32_t gainQ22) {
+	// multiply_32x32_rshift32 gives (sample * gain) >> 32, then << 1 to match vqdmulhq
+	// Result is (q31 * q9.22) >> 31 = 2^22, shift left by 9 to get q31
+	q31_t scaled = multiply_32x32_rshift32(sample, gainQ22) << 1;
+	return lshiftAndSaturate<kGainQ22Shift>(scaled);
+}
+
+// ============================================================================
+// NEON-Vectorized Gain Application (4 samples in parallel)
+// ============================================================================
+
+/// Apply q9.22 gain to 4 q31 samples using NEON SIMD
+/// @param samples 4 input samples as NEON vector
+/// @param gainVec Gain broadcast to all lanes (q9.22 format)
+/// @param shiftVec Pre-computed shift vector (vdupq_n_s32(kGainQ22Shift))
+/// @return 4 gained samples, saturated to q31 range
+[[gnu::always_inline]] inline int32x4_t applyGainQ22Neon(int32x4_t samples, int32x4_t gainVec, int32x4_t shiftVec) {
+	// vqdmulhq_s32 gives (a*b*2) >> 32 = (a*b) >> 31
+	// For q31 sample * q9.22 gain: result is sample*gain * 2^53 >> 31 = sample*gain * 2^22
+	// We want q31 output (sample*gain * 2^31), so shift left by 9
+	int32x4_t scaled = vqdmulhq_s32(samples, gainVec);
+	return vqshlq_s32(scaled, shiftVec);
+}
+
+// Keep legacy ShiftedGain for any remaining uses (can be removed later)
 struct ShiftedGain {
-	q31_t mantissa; ///< Q31 mantissa, always in range [ONE_Q31/2, ONE_Q31) for normalized values
-	int8_t shift;   ///< Power of 2 multiplier: final_gain = mantissa * 2^shift
+	q31_t mantissa;
+	int8_t shift;
 };
 
-/// Convert float gain to pre-shifted fixed-point representation
-/// @param gain Float gain (0.03 to 32.0 typical range)
-/// @return ShiftedGain with mantissa in [0.5, 1.0) and appropriate shift
 [[gnu::always_inline]] inline ShiftedGain floatToShiftedGain(float gain) {
 	if (gain <= 0.0f) {
 		return {0, 0};
 	}
-
-	// Find shift such that gain / 2^shift is in [0.5, 1.0)
-	// shift = floor(log2(gain)) + 1
-	// For gain=4.0: shift=3, mantissa=0.5
-	// For gain=0.25: shift=-1, mantissa=0.5
-	// For gain=1.0: shift=1, mantissa=0.5
-
 	int8_t shift = 0;
 	float normalized = gain;
-
 	while (normalized >= 1.0f && shift < 6) {
 		normalized *= 0.5f;
 		shift++;
@@ -82,14 +123,9 @@ struct ShiftedGain {
 		normalized *= 2.0f;
 		shift--;
 	}
-
 	return {static_cast<q31_t>(normalized * static_cast<float>(ONE_Q31)), shift};
 }
 
-/// Apply pre-shifted gain to a q31 sample with saturation
-/// @param sample Input sample in q31
-/// @param gain Pre-shifted gain from floatToShiftedGain
-/// @return Gained sample, saturated to q31 range
 [[gnu::always_inline]] inline q31_t applyShiftedGain(q31_t sample, ShiftedGain gain) {
 	q31_t scaled = multiply_32x32_rshift32(sample, gain.mantissa) << 1;
 	if (gain.shift > 0) {
@@ -98,17 +134,7 @@ struct ShiftedGain {
 	return (gain.shift < 0) ? (scaled >> (-gain.shift)) : scaled;
 }
 
-// ============================================================================
-// NEON-Vectorized Gain Application (4 samples in parallel)
-// ============================================================================
-
-/// Apply pre-shifted gain to 4 q31 samples using NEON SIMD
-/// @param samples 4 input samples as NEON vector
-/// @param mantissa Mantissa broadcast to all lanes
-/// @param shift Shift amount (same for all samples)
-/// @return 4 gained samples, saturated to q31 range
 [[gnu::always_inline]] inline int32x4_t applyShiftedGainNeon(int32x4_t samples, int32x4_t mantissa, int8_t shift) {
-	// vqdmulhq_s32: saturating doubling multiply high (equivalent to multiply_32x32_rshift32 << 1)
 	int32x4_t scaled = vqdmulhq_s32(samples, mantissa);
 	if (shift > 0) {
 		return vqshlq_s32(scaled, vdupq_n_s32(shift));
@@ -1487,31 +1513,29 @@ public:
 		// This combines compression gain, per-band output level, stereo width, and output gain
 		// into a single pass over the data, reducing memory bandwidth
 
-		// Compute target gains and check if smoothing is needed
-		std::array<float, kNumBands> targetBandGain;
+		// Compute target gains in q9.22 format
+		std::array<int32_t, kNumBands> targetBandGainQ22;
 		for (size_t b = 0; b < kNumBands; ++b) {
-			targetBandGain[b] = bandGains[b] * bands_[b].getOutputLevelLinear();
+			float combinedGain = bandGains[b] * bands_[b].getOutputLevelLinear();
+			targetBandGainQ22[b] = floatToGainQ22(combinedGain, kGainQ22MaxBand);
 		}
-		float targetOutputGain = outputGain_;
+		int32_t targetOutputGainQ22 = floatToGainQ22(outputGain_, kGainQ22MaxOutput);
 
-		// Check convergence - skip smoothing if all gains are within epsilon of target
+		// Check convergence - skip smoothing if all gains are within threshold of target
 		bool gainsConverged = true;
 		for (size_t b = 0; b < kNumBands; ++b) {
-			if (std::abs(smoothedBandGain_[b] - targetBandGain[b]) > kGainConvergenceEpsilon * targetBandGain[b]) {
+			if (std::abs(smoothedBandGain_[b] - targetBandGainQ22[b]) > kGainConvergenceThreshold) {
 				gainsConverged = false;
 				break;
 			}
 		}
-		if (std::abs(smoothedOutputGain_ - targetOutputGain) > kGainConvergenceEpsilon * targetOutputGain) {
+		if (std::abs(smoothedOutputGain_ - targetOutputGainQ22) > kGainConvergenceThreshold) {
 			gainsConverged = false;
 		}
 
-		// Convert current smoothed gains to ShiftedGain for NEON inner loop
-		std::array<ShiftedGain, kNumBands> bandCombinedGain;
-		for (size_t b = 0; b < kNumBands; ++b) {
-			bandCombinedGain[b] = floatToShiftedGain(smoothedBandGain_[b]);
-		}
-		ShiftedGain outputGainShifted = floatToShiftedGain(smoothedOutputGain_);
+		// Current smoothed gains are already in q9.22, ready for NEON
+		std::array<int32_t, kNumBands> bandGainQ22 = smoothedBandGain_;
+		int32_t outputGainQ22 = smoothedOutputGain_;
 
 		// Pre-compute per-band stereo width as fixed-point
 		// Width 0=mono, 1=unity, >1=enhanced, <0=inverted - clamped to [-2, 2] to avoid overflow
@@ -1523,14 +1547,16 @@ public:
 		std::array<q31_t, kNumBands> bandPeakThisBuffer{}; // Per-band peak tracking (post-level)
 		const bool doMetering = meteringEnabled_;
 
-		// Pre-broadcast mantissa values for NEON (4-sample parallel processing)
-		int32x4_t mantissa0 = vdupq_n_s32(bandCombinedGain[0].mantissa);
-		int32x4_t mantissa1 = vdupq_n_s32(bandCombinedGain[1].mantissa);
-		int32x4_t mantissa2 = vdupq_n_s32(bandCombinedGain[2].mantissa);
-		int32x4_t mantissaOut = vdupq_n_s32(outputGainShifted.mantissa);
+		// Pre-broadcast gain and width values for NEON (4-sample parallel processing)
+		int32x4_t gainVec0 = vdupq_n_s32(bandGainQ22[0]);
+		int32x4_t gainVec1 = vdupq_n_s32(bandGainQ22[1]);
+		int32x4_t gainVec2 = vdupq_n_s32(bandGainQ22[2]);
+		int32x4_t gainVecOut = vdupq_n_s32(outputGainQ22);
 		int32x4_t widthVecBass = vdupq_n_s32(widthFixedBass);
 		int32x4_t widthVecMid = vdupq_n_s32(widthFixedMid);
 		int32x4_t widthVecHigh = vdupq_n_s32(widthFixedHigh);
+		// Fixed shift vector for q9.22 gain application (hoisted out of loop)
+		const int32x4_t shiftVecQ22 = vdupq_n_s32(kGainQ22Shift);
 
 		// NEON peak tracking vectors (reduced to scalar at end)
 		int32x4_t peakVec = vdupq_n_s32(0);
@@ -1554,19 +1580,19 @@ public:
 		for (size_t i = 0; i < vectorLen; i += 4) {
 			// Strided gain smoothing - update every kGainSmoothingStride samples
 			if (!gainsConverged && (smoothingCounter & (kGainSmoothingStride / 4 - 1)) == 0) {
-				// IIR smooth toward target gains
+				// Integer IIR smooth toward target gains: gain += (target - gain) >> shift
 				for (size_t b = 0; b < kNumBands; ++b) {
-					smoothedBandGain_[b] += (targetBandGain[b] - smoothedBandGain_[b]) * kGainSmoothingAlpha;
-					bandCombinedGain[b] = floatToShiftedGain(smoothedBandGain_[b]);
+					smoothedBandGain_[b] += (targetBandGainQ22[b] - smoothedBandGain_[b]) >> kGainSmoothingShift;
+					bandGainQ22[b] = smoothedBandGain_[b];
 				}
-				smoothedOutputGain_ += (targetOutputGain - smoothedOutputGain_) * kGainSmoothingAlpha;
-				outputGainShifted = floatToShiftedGain(smoothedOutputGain_);
+				smoothedOutputGain_ += (targetOutputGainQ22 - smoothedOutputGain_) >> kGainSmoothingShift;
+				outputGainQ22 = smoothedOutputGain_;
 
-				// Rebuild NEON mantissa vectors with updated gains
-				mantissa0 = vdupq_n_s32(bandCombinedGain[0].mantissa);
-				mantissa1 = vdupq_n_s32(bandCombinedGain[1].mantissa);
-				mantissa2 = vdupq_n_s32(bandCombinedGain[2].mantissa);
-				mantissaOut = vdupq_n_s32(outputGainShifted.mantissa);
+				// Rebuild NEON gain vectors with updated values
+				gainVec0 = vdupq_n_s32(bandGainQ22[0]);
+				gainVec1 = vdupq_n_s32(bandGainQ22[1]);
+				gainVec2 = vdupq_n_s32(bandGainQ22[2]);
+				gainVecOut = vdupq_n_s32(outputGainQ22);
 			}
 			++smoothingCounter;
 
@@ -1578,8 +1604,8 @@ public:
 			int32x4_t sideScaled0 = vqdmulhq_s32(side0, widthVecBass);
 			int32x4_t msL0 = vaddq_s32(mid0, sideScaled0);
 			int32x4_t msR0 = vsubq_s32(mid0, sideScaled0);
-			int32x4_t scaledL0 = applyShiftedGainNeon(msL0, mantissa0, bandCombinedGain[0].shift);
-			int32x4_t scaledR0 = applyShiftedGainNeon(msR0, mantissa0, bandCombinedGain[0].shift);
+			int32x4_t scaledL0 = applyGainQ22Neon(msL0, gainVec0, shiftVecQ22);
+			int32x4_t scaledR0 = applyGainQ22Neon(msR0, gainVec0, shiftVecQ22);
 			if (doSoftClip) {
 				scaledL0 = softClip_NEON(scaledL0, bandClipKnee);
 				scaledR0 = softClip_NEON(scaledR0, bandClipKnee);
@@ -1600,8 +1626,8 @@ public:
 			int32x4_t sideScaled1 = vqdmulhq_s32(side1, widthVecMid);
 			int32x4_t msL1 = vaddq_s32(mid1, sideScaled1);
 			int32x4_t msR1 = vsubq_s32(mid1, sideScaled1);
-			int32x4_t scaledL1 = applyShiftedGainNeon(msL1, mantissa1, bandCombinedGain[1].shift);
-			int32x4_t scaledR1 = applyShiftedGainNeon(msR1, mantissa1, bandCombinedGain[1].shift);
+			int32x4_t scaledL1 = applyGainQ22Neon(msL1, gainVec1, shiftVecQ22);
+			int32x4_t scaledR1 = applyGainQ22Neon(msR1, gainVec1, shiftVecQ22);
 			if (doSoftClip) {
 				scaledL1 = softClip_NEON(scaledL1, bandClipKnee);
 				scaledR1 = softClip_NEON(scaledR1, bandClipKnee);
@@ -1621,8 +1647,8 @@ public:
 			int32x4_t sideScaled2 = vqdmulhq_s32(side2, widthVecHigh);
 			int32x4_t msL2 = vaddq_s32(mid2, sideScaled2);
 			int32x4_t msR2 = vsubq_s32(mid2, sideScaled2);
-			int32x4_t scaledL2 = applyShiftedGainNeon(msL2, mantissa2, bandCombinedGain[2].shift);
-			int32x4_t scaledR2 = applyShiftedGainNeon(msR2, mantissa2, bandCombinedGain[2].shift);
+			int32x4_t scaledL2 = applyGainQ22Neon(msL2, gainVec2, shiftVecQ22);
+			int32x4_t scaledR2 = applyGainQ22Neon(msR2, gainVec2, shiftVecQ22);
 			if (doSoftClip) {
 				scaledL2 = softClip_NEON(scaledL2, bandClipKnee);
 				scaledR2 = softClip_NEON(scaledR2, bandClipKnee);
@@ -1635,8 +1661,8 @@ public:
 			}
 
 			// === Output gain + soft clip ===
-			int32x4_t outLVec = applyShiftedGainNeon(sumL, mantissaOut, outputGainShifted.shift);
-			int32x4_t outRVec = applyShiftedGainNeon(sumR, mantissaOut, outputGainShifted.shift);
+			int32x4_t outLVec = applyGainQ22Neon(sumL, gainVecOut, shiftVecQ22);
+			int32x4_t outRVec = applyGainQ22Neon(sumR, gainVecOut, shiftVecQ22);
 			if (doSoftClip) {
 				outLVec = softClip_NEON(outLVec, outputClipKnee);
 				outRVec = softClip_NEON(outRVec, outputClipKnee);
@@ -1690,8 +1716,8 @@ public:
 			q31_t mid0 = (bandBufferL[0][i] >> 1) + (bandBufferR[0][i] >> 1);
 			q31_t side0 = (bandBufferL[0][i] >> 1) - (bandBufferR[0][i] >> 1);
 			q31_t sideScaled0 = multiply_32x32_rshift32(side0, widthFixedBass) << 1;
-			q31_t gainedL0 = applyShiftedGain(mid0 + sideScaled0, bandCombinedGain[0]);
-			q31_t gainedR0 = applyShiftedGain(mid0 - sideScaled0, bandCombinedGain[0]);
+			q31_t gainedL0 = applyGainQ22(mid0 + sideScaled0, bandGainQ22[0]);
+			q31_t gainedR0 = applyGainQ22(mid0 - sideScaled0, bandGainQ22[0]);
 			sumL = add_saturate(sumL, doSoftClip ? softClip(gainedL0, bandClipKnee) : gainedL0);
 			sumR = add_saturate(sumR, doSoftClip ? softClip(gainedR0, bandClipKnee) : gainedR0);
 
@@ -1699,8 +1725,8 @@ public:
 			q31_t mid1 = (bandBufferL[1][i] >> 1) + (bandBufferR[1][i] >> 1);
 			q31_t side1 = (bandBufferL[1][i] >> 1) - (bandBufferR[1][i] >> 1);
 			q31_t sideScaled1 = multiply_32x32_rshift32(side1, widthFixedMid) << 1;
-			q31_t gainedL1 = applyShiftedGain(mid1 + sideScaled1, bandCombinedGain[1]);
-			q31_t gainedR1 = applyShiftedGain(mid1 - sideScaled1, bandCombinedGain[1]);
+			q31_t gainedL1 = applyGainQ22(mid1 + sideScaled1, bandGainQ22[1]);
+			q31_t gainedR1 = applyGainQ22(mid1 - sideScaled1, bandGainQ22[1]);
 			sumL = add_saturate(sumL, doSoftClip ? softClip(gainedL1, bandClipKnee) : gainedL1);
 			sumR = add_saturate(sumR, doSoftClip ? softClip(gainedR1, bandClipKnee) : gainedR1);
 
@@ -1708,14 +1734,14 @@ public:
 			q31_t mid2 = (bandBufferL[2][i] >> 1) + (bandBufferR[2][i] >> 1);
 			q31_t side2 = (bandBufferL[2][i] >> 1) - (bandBufferR[2][i] >> 1);
 			q31_t sideScaled2 = multiply_32x32_rshift32(side2, widthFixedHigh) << 1;
-			q31_t gainedL2 = applyShiftedGain(mid2 + sideScaled2, bandCombinedGain[2]);
-			q31_t gainedR2 = applyShiftedGain(mid2 - sideScaled2, bandCombinedGain[2]);
+			q31_t gainedL2 = applyGainQ22(mid2 + sideScaled2, bandGainQ22[2]);
+			q31_t gainedR2 = applyGainQ22(mid2 - sideScaled2, bandGainQ22[2]);
 			sumL = add_saturate(sumL, doSoftClip ? softClip(gainedL2, bandClipKnee) : gainedL2);
 			sumR = add_saturate(sumR, doSoftClip ? softClip(gainedR2, bandClipKnee) : gainedR2);
 
 			// Output gain + soft clip
-			q31_t gainedOutL = applyShiftedGain(sumL, outputGainShifted);
-			q31_t gainedOutR = applyShiftedGain(sumR, outputGainShifted);
+			q31_t gainedOutL = applyGainQ22(sumL, outputGainQ22);
+			q31_t gainedOutR = applyGainQ22(sumR, outputGainQ22);
 			q31_t outL = doSoftClip ? softClip(gainedOutL, outputClipKnee) : gainedOutL;
 			q31_t outR = doSoftClip ? softClip(gainedOutR, outputClipKnee) : gainedOutR;
 
@@ -1797,12 +1823,12 @@ public:
 		// This ensures we fully reach target over multiple buffers
 		if (!gainsConverged) {
 			for (size_t b = 0; b < kNumBands; ++b) {
-				if (std::abs(smoothedBandGain_[b] - targetBandGain[b]) < kGainConvergenceEpsilon * targetBandGain[b]) {
-					smoothedBandGain_[b] = targetBandGain[b];
+				if (std::abs(smoothedBandGain_[b] - targetBandGainQ22[b]) < kGainConvergenceThreshold) {
+					smoothedBandGain_[b] = targetBandGainQ22[b];
 				}
 			}
-			if (std::abs(smoothedOutputGain_ - targetOutputGain) < kGainConvergenceEpsilon * targetOutputGain) {
-				smoothedOutputGain_ = targetOutputGain;
+			if (std::abs(smoothedOutputGain_ - targetOutputGainQ22) < kGainConvergenceThreshold) {
+				smoothedOutputGain_ = targetOutputGainQ22;
 			}
 		}
 
@@ -2049,18 +2075,19 @@ private:
 	bool meterNeedsRefresh_{false}; // Set by audio path, cleared by UI
 
 	// Gain smoothing state - prevents zipper noise from step-wise gain changes
-	// Smoothed in float domain, converted to ShiftedGain for NEON inner loop
-	std::array<float, kNumBands> smoothedBandGain_{1.0f, 1.0f, 1.0f}; // Current smoothed band gains
-	float smoothedOutputGain_{1.0f};                                  // Current smoothed output gain
+	// Stored in q9.22 format for direct use in audio loop (no float conversion)
+	std::array<int32_t, kNumBands> smoothedBandGain_{kGainQ22Unity, kGainQ22Unity, kGainQ22Unity};
+	int32_t smoothedOutputGain_{kGainQ22Unity};
 
 	// Gain smoothing constants - update every 8 samples (2 NEON iterations)
 	static constexpr int32_t kGainSmoothingStride = 8;
-	// Alpha scaled for stride: ~2ms time constant at 44.1kHz
-	// alpha = 1 - exp(-stride / (tau * sampleRate)), tau = 0.002s
-	// For stride=8, alpha ≈ 0.09 gives ~2ms smoothing
-	static constexpr float kGainSmoothingAlpha = 0.09f;
-	// Convergence threshold - skip smoothing when within 0.1% of target
-	static constexpr float kGainConvergenceEpsilon = 0.001f;
+	// Alpha as right-shift for integer IIR: gain += (target - gain) >> kGainSmoothingShift
+	// Shift of 4 gives alpha ≈ 0.0625, similar to previous 0.09 float alpha
+	// Time constant: ~2ms at 44.1kHz with stride=8
+	static constexpr int32_t kGainSmoothingShift = 4;
+	// Convergence threshold in q9.22 - skip smoothing when within this delta of target
+	// ~0.1% of unity gain = 4194 (0.001 * 2^22)
+	static constexpr int32_t kGainConvergenceThreshold = kGainQ22Unity >> 10;
 
 public:
 	// ========== Serialization ==========
