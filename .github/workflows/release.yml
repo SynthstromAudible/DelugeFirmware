@@ -15,7 +15,8 @@ jobs:
     with:
       firmware-retention-days: 90
       build-type: 'Release'
-      build-tag: ${{ github.ref_name }}
+      build-tag: 'release'
+      artifact-name: ${{ github.ref_name }}
 
   publish:
     name: Publish Release

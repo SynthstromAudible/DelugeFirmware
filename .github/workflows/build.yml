@@ -12,6 +12,10 @@ on:
       build-tag:
         default: "dev"
         type: string
+      artifact-name:
+        description: "Optional custom artifact name prefix (defaults to build-tag)"
+        required: false
+        type: string
       branch:
         required: false
         type: string
@@ -79,7 +83,7 @@ jobs:
       - name: Publish built firmware (release-bin)
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.build-tag }}_${{ inputs.build-type }}_build_bundle
+          name: ${{ inputs.artifact-name || inputs.build-tag }}_${{ inputs.build-type }}_build_bundle
           path: build/${{ inputs.build-type }}/*
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
