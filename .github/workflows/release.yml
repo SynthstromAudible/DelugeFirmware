@@ -63,6 +63,12 @@ jobs:
               the shift key once the update has begun.
           END
 
+      - name: Rename binary to match tag
+        run: |
+          # Find the actual bin file (has versioned name from build)
+          bin_file=$(ls *.bin)
+          mv "$bin_file" ${{ github.ref_name }}.bin
+
       - name: Create release archive
         run: |
           zip -j ./${{ github.ref_name }}.zip README.txt *.bin
