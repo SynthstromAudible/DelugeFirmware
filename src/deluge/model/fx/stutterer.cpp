@@ -910,6 +910,28 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 						}
 					}
 
+					// Compute next grain's dry decision for consecutive-dry detection
+					bool nextWantsDry = nextGrain.useDry || macroWantsDry;
+					if (density < 1.0f) {
+						uint32_t nextDensityHash = hash::mix(static_cast<uint32_t>(nextGrainIndex) ^ 0xBADC0FFE);
+						float nextDensityRand = static_cast<float>(nextDensityHash & 0xFFFF) / 65535.0f;
+						if (nextDensityRand >= density) {
+							nextWantsDry = true;
+						}
+					}
+
+					// Update consecutive flags to include dry-to-dry transitions
+					// Consecutive dry grains don't need envelope fades (input audio is continuous)
+					// - Attack skip: previous was dry AND current is dry
+					// - Decay skip: current is dry AND next is dry
+					if (wantsDry && scatterCurrentIsDry) {
+						scatterConsecutive = true; // Previous was dry, current is dry → skip attack
+					}
+					if (wantsDry && nextWantsDry) {
+						scatterNextConsecutive = true; // Current is dry, next is dry → skip decay
+					}
+					scatterCurrentIsDry = wantsDry; // Store for next iteration
+
 					scatterDryMix = wantsDry ? 1.0f : 0.0f;
 					scatterDryThreshold = 0.5f; // Fixed threshold for bool comparison
 
@@ -1456,9 +1478,11 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				// Note: envDepth not used (always full fade) - depth blend adds ~30% overhead
 				// Apply envelope to ALL grains (dry and wet) at non-consecutive boundaries
 				// This ensures smooth dry↔wet transitions (dry stops → wet envs in from 0 = click without this)
+				// Skip envelope/gate entirely for consecutive dry grains (input is continuous)
 				// pWrite envelope: skip attack if current consecutive, skip decay if next consecutive
 				int32_t pWriteEnvQ31 = 0x7FFFFFFF; // Default full (sustain region)
-				if (loopEnvActive) {
+				bool skipEnvForDry = useDry && scatterConsecutive && loopNextConsecutive;
+				if (loopEnvActive && !skipEnvForDry) {
 					if (benchThisSample) {
 						FX_BENCH_START(benchEnv);
 					}
@@ -1522,7 +1546,8 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				// === ANTI-CLICK: per-channel zero-crossing based muting ===
 				// Skip ZC when slices are consecutive and no envelope (audio flows naturally)
 				// Apply ZC to all grains (dry and wet) - needed for smooth dry↔wet transitions
-				if (!loopSkipZC) {
+				// Also skip for consecutive dry grains (input is continuous, no clicks possible)
+				if (!loopSkipZC && !skipEnvForDry) {
 					bool zcL = ((prevOutputL != 0) && ((outputL ^ prevOutputL) < 0)) || bufferZeroCrossing;
 					bool zcR = ((prevOutputR != 0) && ((outputR ^ prevOutputR) < 0)) || bufferZeroCrossing;
 					prevOutputL = outputL;
@@ -1684,6 +1709,10 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 								needsSliceSetup = true; // Refresh params on next buffer
 							}
 
+							// Since we took the inline path, new grain IS consecutive with previous
+							// (that's why loopNextConsecutive was true)
+							scatterConsecutive = true;
+
 							// Compute next grain's consecutive flag for decay envelope
 							// Use cached zone params and offsets (throttle controls when these refresh)
 							int32_t nextIdx = scatterSliceIndex + 1;
@@ -1692,6 +1721,27 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 							    &cachedOffsets);
 							scatterNextConsecutive =
 							    (nextGrain.sliceOffset == 0) && !nextGrain.shouldReverse && !nextGrain.shouldPitchUp;
+
+							// Apply dry-aware logic for consecutive detection
+							// Compute dry status for new current and next grains based on density
+							float density = cachedDensityProb;
+							bool newCurrentIsDry = false;
+							bool newNextIsDry = false;
+							if (density < 1.0f) {
+								uint32_t curHash = hash::mix(static_cast<uint32_t>(scatterSliceIndex) ^ 0xBADC0FFE);
+								float curRand = static_cast<float>(curHash & 0xFFFF) / 65535.0f;
+								newCurrentIsDry = (curRand >= density);
+
+								uint32_t nextHash = hash::mix(static_cast<uint32_t>(nextIdx) ^ 0xBADC0FFE);
+								float nextRand = static_cast<float>(nextHash & 0xFFFF) / 65535.0f;
+								newNextIsDry = (nextRand >= density);
+							}
+							// If both current and next are dry, they're consecutive (input is continuous)
+							if (newCurrentIsDry && newNextIsDry) {
+								scatterNextConsecutive = true;
+							}
+							scatterCurrentIsDry = newCurrentIsDry;
+
 							loopNextConsecutive = scatterNextConsecutive;
 							// Skip deferred block - consecutive grains don't need full recomputation
 						}
@@ -2200,6 +2250,7 @@ void Stutterer::triggerPlaybackNow(void* source) {
 	scatterLastSubSliceLength = playbackLength; // Same when no subdivisions
 	needsSliceSetup = true;                     // Force slice setup on first buffer
 	scatterParamThrottle = 10;                  // Bypass throttle for first setup
+	scatterCurrentIsDry = false;                // First grain has no "previous" dry state
 	staticTriangles.valid = false;              // Force recompute on first slice
 	standbyIdleSamples = 0;                     // Reset timeout counter
 	lastTickBarIndex = -1;                      // Reset bar boundary tracking

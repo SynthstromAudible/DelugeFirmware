@@ -449,6 +449,7 @@ private:
 	bool scatterPitchUp{false};            ///< Pitch up via sample decimation (2x = octave up)
 	bool scatterConsecutive{false};        ///< Slices are sequential (skip ZC when env=0)
 	bool scatterNextConsecutive{false};    ///< Next slice will be consecutive (for decay envelope decision)
+	bool scatterCurrentIsDry{false};       ///< Current grain uses dry input (for consecutive dry detection)
 	int32_t scatterPitchUpLoopCount{0};    ///< Which loop of pitch-up grain (0=first, 1=second)
 	uint32_t scatterPitchRatioFP{65536};   ///< Pitch ratio (16.16 fixed-point), 65536 = 1.0 (unison)
 	uint32_t scatterPitchPosFP{0};         ///< Fixed-point position accumulator for pitch shifting
