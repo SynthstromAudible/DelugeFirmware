@@ -15,7 +15,7 @@ jobs:
     with:
       firmware-retention-days: 90
       build-type: 'Release'
-      build-tag: 'release'
+      build-tag: ${{ github.ref_name }}
 
   publish:
     name: Publish Release
@@ -28,7 +28,7 @@ jobs:
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
         with:
-          name: release_Release_build_bundle
+          name: ${{ github.ref_name }}_Release_build_bundle
 
       - name: Create readme for archive
         run: |
