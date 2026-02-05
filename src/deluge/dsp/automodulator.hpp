@@ -132,12 +132,6 @@ constexpr phi::PhiTriConfig kSpringFreqTriangle = {phi::kPhi175, 0.5f, 0.25f, fa
 /// Frequency-dependent boost keeps high-freq springs damped to prevent aliasing
 constexpr phi::PhiTriConfig kSpringDampingTriangle = {phi::kPhi150, 0.4f, 0.4f, false};
 
-/// Phi triangle configs for tremolo spring (separate from filter spring)
-/// Smoother defaults - tremolo benefits from less bounce than filter
-constexpr phi::PhiTriConfig kTremSpringFreqTriangle = {phi::kPhi125, 0.6f, 0.15f, false}; // Lower freq = smoother
-constexpr phi::PhiTriConfig kTremSpringDampingTriangle = {phi::kPhi100, 0.5f, 0.50f,
-                                                          false}; // More damped = less bounce
-
 /// Phi triangle config for comb feedback derived from type
 constexpr phi::PhiTriConfig kCombFeedbackTriangle = {phi::kPhi250, 0.8f, 0.0f, false};
 
@@ -154,12 +148,6 @@ constexpr phi::PhiTriConfig kTremoloDepthTriangle = {phi::kPhi275, 0.7f, 0.00f, 
 
 /// Phi triangle config for tremolo phase offset derived from flavor
 constexpr phi::PhiTriConfig kTremoloPhaseOffsetTriangle = {phi::kPhi225, 0.6f, 0.75f, false};
-
-/// Phi triangle configs for per-band tremolo rectification (0=half-wave/choppy, 1=full-wave/smooth)
-/// LP: high rectification (smooth bass), HP: low rectification (choppy highs)
-constexpr phi::PhiTriConfig kTremRectifyLpTriangle = {phi::kPhi125, 0.6f, 0.60f, false}; // LP: starts high
-constexpr phi::PhiTriConfig kTremRectifyBpTriangle = {phi::kPhi175, 0.5f, 0.35f, false}; // BP: moderate
-constexpr phi::PhiTriConfig kTremRectifyHpTriangle = {phi::kPhi225, 0.4f, 0.10f, false}; // HP: starts low
 
 /// Phi triangle config for comb LFO depth derived from flavor
 constexpr phi::PhiTriConfig kCombLfoDepthTriangle = {phi::kPhi175, 0.75f, 0.00f, false}; // No comb mod at zone 0
@@ -211,8 +199,8 @@ constexpr std::array<phi::PhiTriConfig, 3> kFilterPhaseOffsetBank = {{
 /// Consolidated flavor bank - all scalar flavor-derived params in one batch
 /// Indices: [0]=cutoffBase, [1]=resonance, [2]=filterModDepth, [3]=attack, [4]=release,
 ///          [5]=combStaticOffset, [6]=combLfoDepth, [7]=combPhaseOffset, [8]=combMonoCollapse,
-///          [9]=tremoloDepth, [10]=tremoloPhaseOffset, [11-13]=tremRectify LP/BP/HP
-constexpr std::array<phi::PhiTriConfig, 14> kFlavorScalarBank = {{
+///          [9]=tremoloDepth, [10]=tremoloPhaseOffset
+constexpr std::array<phi::PhiTriConfig, 11> kFlavorScalarBank = {{
     kFilterCutoffBaseTriangle,     // [0]
     kFilterResonanceTriangle,      // [1]
     kFilterCutoffLfoDepthTriangle, // [2]
@@ -224,9 +212,6 @@ constexpr std::array<phi::PhiTriConfig, 14> kFlavorScalarBank = {{
     kCombMonoCollapseTriangle,     // [8]
     kTremoloDepthTriangle,         // [9]
     kTremoloPhaseOffsetTriangle,   // [10]
-    kTremRectifyLpTriangle,        // [11]
-    kTremRectifyBpTriangle,        // [12]
-    kTremRectifyHpTriangle,        // [13]
 }};
 
 /// Consolidated type bank - all scalar type-derived params in one batch
@@ -239,8 +224,8 @@ constexpr std::array<phi::PhiTriConfig, 3> kTypeScalarBank = {{
 
 /// Consolidated mod bank - all scalar mod-derived params in one batch
 /// Indices: [0]=stereoOffset, [1]=envDepth, [2]=envPhase, [3]=envDerivDepth, [4]=envDerivPhase,
-///          [5]=envValue, [6]=springFreq, [7]=springDamping, [8]=tremSpringFreq, [9]=tremSpringDamping
-constexpr std::array<phi::PhiTriConfig, 10> kModScalarBank = {{
+///          [5]=envValue, [6]=springFreq, [7]=springDamping
+constexpr std::array<phi::PhiTriConfig, 8> kModScalarBank = {{
     kStereoOffsetTriangle,           // [0]
     kEnvDepthInfluenceTriangle,      // [1]
     kEnvPhaseInfluenceTriangle,      // [2]
@@ -249,8 +234,6 @@ constexpr std::array<phi::PhiTriConfig, 10> kModScalarBank = {{
     kEnvValueInfluenceTriangle,      // [5]
     kSpringFreqTriangle,             // [6]
     kSpringDampingTriangle,          // [7]
-    kTremSpringFreqTriangle,         // [8]
-    kTremSpringDampingTriangle,      // [9]
 }};
 
 /// Phi triangle bank for LFO wavetable waypoints (derived from mod)
@@ -336,10 +319,11 @@ struct LfoWaypointBank {
 /// State for IIR-style LFO tracking (one per LFO channel)
 /// Uses exponential chase toward segment targets - organic curves without wavetable eval
 struct LfoIirState {
-	q31_t value{0};        // Current LFO value (bipolar q31)
-	q31_t intermediate{0}; // Per-sample step (delta)
-	q31_t target{0};       // Target amplitude (segment endpoint)
-	int8_t segment{0};     // Current segment index (0-4)
+	q31_t value{0};              // Current LFO value (bipolar q31)
+	q31_t intermediate{0};       // Per-sample step (delta)
+	q31_t target{0};             // Target amplitude (segment endpoint)
+	int8_t segment{0};           // Current segment index (0-4)
+	uint32_t samplesRemaining{}; // Samples until segment boundary (decremented each buffer)
 };
 
 /// Result of incremental LFO evaluation - start value and per-sample delta
@@ -380,18 +364,9 @@ struct AutomodPhiCache {
 	q31_t combMixQ{0};
 	uint32_t tremPhaseOffset{0};
 	q31_t tremoloDepthQ{0};
-	// Per-band tremolo rectification: 0=half-wave (choppy), ONE_Q31=full-wave (smooth)
-	q31_t tremRectifyLpQ{ONE_Q31};                                  // LP: full-wave default (smooth bass)
-	q31_t tremRectifyBpQ{static_cast<q31_t>(0.5f * 2147483647.0f)}; // BP: moderate
-	q31_t tremRectifyHpQ{0};                                        // HP: half-wave default (choppy highs)
 	q31_t filterMixLowQ{0};
 	q31_t filterMixBandQ{0};
 	q31_t filterMixHighQ{0};
-	// Per-band stereo width: 0 = mono, ONE_Q31 = full stereo
-	// LP narrow, BP moderate, HP full - encourages wide mids/highs, focused bass
-	q31_t lpStereoWidthQ{static_cast<q31_t>(0.35f * 2147483647.0f)}; // 35% stereo for bass
-	q31_t bpStereoWidthQ{static_cast<q31_t>(0.85f * 2147483647.0f)}; // 85% stereo for mids
-	q31_t hpStereoWidthQ{ONE_Q31};                                   // 100% stereo for highs
 	q31_t svfFeedbackQ{0}; // BIPOLAR: positive = cutoff feedback, negative = phase push
 
 	// From flavor
@@ -443,10 +418,6 @@ struct AutomodPhiCache {
 	q31_t springOmega2Q{0};       // ω₀² coefficient for spring force
 	q31_t springDampingCoeffQ{0}; // 2*ζ*ω₀ coefficient for velocity damping
 
-	// Tremolo spring filter coefficients (separate from filter spring, smoother defaults)
-	q31_t tremSpringOmega2Q{0};
-	q31_t tremSpringDampingCoeffQ{0};
-
 	// LFO wavetable waypoints (sorted by phase)
 	LfoWaypointBank wavetable{};
 
@@ -482,12 +453,6 @@ struct AutomodDspState {
 	q31_t springPosR{0};
 	q31_t springVelL{0};
 	q31_t springVelR{0};
-
-	// Tremolo spring filter state (smooths tremolo LFO)
-	q31_t tremSpringPosL{0};
-	q31_t tremSpringPosR{0};
-	q31_t tremSpringVelL{0};
-	q31_t tremSpringVelR{0};
 
 	// LFO phase accumulator
 	uint32_t lfoPhase{0};
@@ -645,10 +610,15 @@ struct AutomodulatorParams {
 	AutomodPhiCache* cache{nullptr};    // ~400 bytes when allocated
 	AutomodDspState* dspState{nullptr}; // ~200 bytes when allocated
 
-	// Comb filter buffers - allocated separately (even larger)
-	static constexpr size_t kCombBufferSize = 768;
+	// Comb filter buffers - allocated separately in SDRAM (8KB per Sound when active)
+	static constexpr size_t kCombBufferSize = 1024; // Power of 2 for harmonic wrap (~23ms)
 	q31_t* combBufferL{nullptr};
 	q31_t* combBufferR{nullptr};
+
+	// Counter for deferred deallocation when disabled
+	// After kDeallocDelayBuffers of mix=0, deallocate comb buffers to save memory
+	static constexpr uint16_t kDeallocDelayBuffers = 10000; // ~29 seconds at 344 buffers/sec
+	uint16_t disabledBufferCount{0};
 
 	/// Check if automodulator is enabled (mix > 0 = active)
 	[[nodiscard]] bool isEnabled() const { return mix > 0; }
