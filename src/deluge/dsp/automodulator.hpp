@@ -730,6 +730,9 @@ private:
 		prevModPhaseOffset = other.prevModPhaseOffset;
 		prevTimePerTickInverse = other.prevTimePerTickInverse;
 		lastVoiceCount = other.lastVoiceCount;
+		heldNotesCount = other.heldNotesCount;
+		lastHeldNotesCount = other.lastHeldNotesCount;
+		disabledBufferCount = other.disabledBufferCount;
 
 		// Transfer pointer ownership
 		cache = other.cache;
@@ -795,77 +798,15 @@ public:
 // Function declarations (implementations in automodulator.cpp)
 // ============================================================================
 
-/// Get LFO rate from mod zone position
-LfoRateResult getLfoRateFromMod(uint16_t mod, float phaseOffset);
-
 /// Evaluate filter mix from type position using phi triangles
 FilterMix getFilterMixFromType(uint16_t type, float phaseOffset);
-
-/// Get filter LFO parameters from flavor position
-FilterLfoParams getFilterLfoParamsFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get comb LFO modulation depth from flavor position
-float getCombLfoDepthFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get comb static offset from flavor position
-float getCombStaticOffsetFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get comb LFO phase offset from flavor position
-uint32_t getCombLfoPhaseOffsetFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get filter resonance from flavor position
-q31_t getFilterResonanceFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get filter cutoff base from flavor position
-q31_t getFilterCutoffBaseFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get filter cutoff LFO depth from flavor position
-q31_t getFilterCutoffLfoDepthFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get envelope attack coefficient from flavor position
-q31_t getEnvAttackFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get envelope release coefficient from flavor position
-q31_t getEnvReleaseFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get comb feedback amount from type position
-q31_t getCombFeedbackFromType(uint16_t type, float phaseOffset);
-
-/// Get comb wet/dry mix from type position
-float getCombMixFromType(uint16_t type, float phaseOffset);
-
-/// Get tremolo depth from type position
-float getTremoloDepthFromType(uint16_t type, float phaseOffset);
-
-/// Get tremolo LFO phase offset from type position
-uint32_t getTremoloPhaseOffsetFromType(uint16_t type, float phaseOffset);
-
-/// Get stereo phase offset from mod position
-uint32_t getStereoOffsetFromMod(uint16_t mod, float phaseOffset);
 
 /// Get LFO initial phase from mod position
 uint32_t getLfoInitialPhaseFromMod(uint16_t mod, float phaseOffset);
 
-/// Get envelope→depth influence from mod position
-float getEnvDepthInfluenceFromMod(uint16_t mod, float phaseOffset);
-
-/// Get envelope→phase influence from mod position
-float getEnvPhaseInfluenceFromMod(uint16_t mod, float phaseOffset);
-
-/// Get derivative envelope→depth influence from mod position
-float getEnvDerivDepthInfluenceFromMod(uint16_t mod, float phaseOffset);
-
-/// Get derivative envelope→phase influence from mod position
-float getEnvDerivPhaseInfluenceFromMod(uint16_t mod, float phaseOffset);
-
 /// Compute LFO wavetable waypoints from mod position
 /// Phase deltas are accumulated and normalized to guarantee monotonic ordering
 LfoWaypointBank getLfoWaypointBank(uint16_t mod, float phaseOffset);
-
-/// Evaluate the LFO wavetable at a given phase (0-1)
-/// Returns interpolated amplitude between waypoints
-/// Uses ramp (0→1) as input, not triangle
-float evalLfoWavetable(float t, const LfoWaypointBank& bank);
 
 /// Evaluate LFO wavetable returning q31 (for DSP loop)
 q31_t evalLfoWavetableQ31(uint32_t phaseU32, const LfoWaypointBank& bank);

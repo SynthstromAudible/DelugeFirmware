@@ -739,14 +739,32 @@ HorizontalMenu tableShaperSubMenu{
 };
 
 // Automodulator (auto-wah/filter/tremolo/comb)
-fx::AutomodMacro automodMacroMenu{STRING_FOR_AUTOMOD_MACRO, STRING_FOR_AUTOMOD_MACRO, params::GLOBAL_AUTOMOD_MACRO};
+// Page 1: Freq, Rate, Manual, Mix
+fx::AutomodFreq automodFreqMenu{STRING_FOR_AUTOMOD_FREQ, STRING_FOR_AUTOMOD_FREQ, params::GLOBAL_AUTOMOD_FREQ};
+fx::AutomodRate automodRateMenu{STRING_FOR_AUTOMOD_RATE, STRING_FOR_AUTOMOD_RATE};
+fx::AutomodManual automodManualMenu{STRING_FOR_AUTOMOD_MANUAL, STRING_FOR_AUTOMOD_MANUAL,
+                                    params::GLOBAL_AUTOMOD_MANUAL};
+fx::AutomodMix automodMixMenu{STRING_FOR_AUTOMOD_MIX, STRING_FOR_AUTOMOD_MIX};
+// Page 2: Type, Flavor, Mod, Macro
 fx::AutomodType automodTypeMenu{STRING_FOR_AUTOMOD_TYPE, STRING_FOR_AUTOMOD_TYPE};
 fx::AutomodFlavor automodFlavorMenu{STRING_FOR_AUTOMOD_FLAVOR, STRING_FOR_AUTOMOD_FLAVOR};
 fx::AutomodMod automodModMenu{STRING_FOR_AUTOMOD_MOD, STRING_FOR_AUTOMOD_MOD};
+fx::AutomodDepth automodDepthMenu{STRING_FOR_AUTOMOD_DEPTH, STRING_FOR_AUTOMOD_DEPTH, params::GLOBAL_AUTOMOD_DEPTH};
 
 HorizontalMenu automodMenu{
     STRING_FOR_AUTOMOD,
-    {&automodTypeMenu, &automodFlavorMenu, &automodModMenu, &automodMacroMenu},
+    {
+        // Page 1: Zone controls
+        &automodTypeMenu,
+        &automodFlavorMenu,
+        &automodModMenu,
+        &automodMixMenu,
+        // Page 2: Core controls
+        &automodFreqMenu,
+        &automodRateMenu,
+        &automodManualMenu,
+        &automodDepthMenu,
+    },
 };
 
 // Shaping submenu - contains Sine Shaper, Table Shaper, and Automodulator
