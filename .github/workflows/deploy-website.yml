@@ -68,7 +68,7 @@ jobs:
       - name: Install CMake
         uses: lukka/get-cmake@latest
       - name: Install doxygen
-        uses: ssciwr/doxygen-install@v1
+        uses: ssciwr/doxygen-install@v2
       - name: Install graphvis
         run: |
           sudo apt-get update
