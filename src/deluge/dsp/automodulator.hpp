@@ -71,6 +71,14 @@ constexpr float kAutomodLfoRates[8] = {
 constexpr float kLfoRateMin = 0.1f;  // Hz (slowest)
 constexpr float kLfoRateMax = 10.0f; // Hz (fastest, ~35 buffers/cycle)
 
+/// LFO run mode (controlled via push toggle on depth knob)
+enum class AutomodLfoMode : uint8_t {
+	STOP = 0,   // LFO frozen, Manual knob used directly
+	ONCE = 1,   // Play one LFO cycle then freeze (retriggered on note)
+	RETRIG = 2, // Running LFO, resets phase on note trigger
+	FREE = 3,   // Free-running LFO, ignores note triggers
+};
+
 // ============================================================================
 // Phi Triangle Configuration Constants
 // ============================================================================
@@ -82,9 +90,9 @@ constexpr phi::PhiTriConfig kLfoRateTriangle = {phi::kPhi075, 0.7f, 0.0f, true};
 /// Phi triangle bank for filter output mixing (derived from type)
 /// Slow evolution (~5x slower than other params) for gradual timbral shifts
 constexpr std::array<phi::PhiTriConfig, 3> kFilterMixBank = {{
-    {phi::kPhi050, 0.6f, 0.00f, false}, // [0] Lowpass: φ^0.5, 60% duty (was φ^2.0)
-    {phi::kPhi067, 0.5f, 0.33f, false}, // [1] Bandpass: φ^0.67, 50% duty (was φ^3.0)
-    {phi::kPhi100, 0.4f, 0.67f, false}, // [2] Highpass: φ^1.0, 40% duty (was φ^4.0)
+    {phi::kPhi050, 0.6f, 0.50f, false}, // [0] Lowpass: HIGH at zone 0 for classic LP
+    {phi::kPhi067, 0.5f, 0.00f, false}, // [1] Bandpass: LOW at zone 0
+    {phi::kPhi100, 0.4f, 0.00f, false}, // [2] Highpass: LOW at zone 0
 }};
 
 /// Phi triangle config for stereo phase offset derived from mod
@@ -94,31 +102,55 @@ constexpr phi::PhiTriConfig kStereoOffsetTriangle = {phi::kPhi150, 0.7f, 0.0f, f
 constexpr phi::PhiTriConfig kLfoInitialPhaseTriangle = {phi::kPhi250, 1.0f, 0.0f, false};
 
 /// Phi triangle config for envelope→depth influence (BIPOLAR)
-constexpr phi::PhiTriConfig kEnvDepthInfluenceTriangle = {phi::kPhi150, 0.5f, 0.0f, true};
+/// Phase offset 0.121 = 0.25/kPhi150 produces zero at mod=0 (neutral)
+constexpr phi::PhiTriConfig kEnvDepthInfluenceTriangle = {phi::kPhi150, 0.5f, 0.121f, true};
 
 /// Phi triangle config for envelope→phase influence (BIPOLAR)
-constexpr phi::PhiTriConfig kEnvPhaseInfluenceTriangle = {phi::kPhi175, 0.5f, 0.5f, true};
+/// Phase offset 0.109 = 0.25/kPhi175 produces zero at mod=0 (neutral)
+constexpr phi::PhiTriConfig kEnvPhaseInfluenceTriangle = {phi::kPhi175, 0.5f, 0.109f, true};
 
 /// Phi triangle config for derivative envelope→depth influence (BIPOLAR)
-constexpr phi::PhiTriConfig kEnvDerivDepthInfluenceTriangle = {phi::kPhi125, 0.5f, 0.25f, true};
+/// Phase offset 0.135 = 0.25/kPhi125 produces zero at mod=0 (neutral)
+constexpr phi::PhiTriConfig kEnvDerivDepthInfluenceTriangle = {phi::kPhi125, 0.5f, 0.135f, true};
 
 /// Phi triangle config for derivative envelope→phase influence (BIPOLAR)
-constexpr phi::PhiTriConfig kEnvDerivPhaseInfluenceTriangle = {phi::kPhi150, 0.5f, 0.75f, true};
+/// Phase offset 0.121 = 0.25/kPhi150 produces zero at mod=0 (neutral)
+constexpr phi::PhiTriConfig kEnvDerivPhaseInfluenceTriangle = {phi::kPhi150, 0.5f, 0.121f, true};
+
+/// Phi triangle config for envelope→LFO value contribution (BIPOLAR)
+/// Phase offset 0.135 = 0.25/kPhi125 produces zero at mod=0 (neutral)
+/// Positive = envelope adds to LFO, negative = envelope subtracts from LFO
+constexpr phi::PhiTriConfig kEnvValueInfluenceTriangle = {phi::kPhi125, 0.5f, 0.135f, true};
+
+/// Phi triangle config for spring filter natural frequency (ω₀)
+/// Maps 0→1 to 2Hz→15Hz (buffer-rate spring on modulation signal)
+/// Base 2Hz ensures smooth tracking at mod=0, higher values add character
+constexpr phi::PhiTriConfig kSpringFreqTriangle = {phi::kPhi175, 0.5f, 0.25f, false};
+
+/// Phi triangle config for spring filter damping ratio (ζ) - INVERTED
+/// mod=0 → critically damped (smooth tracking), mod=1 → underdamped (bouncy)
+/// Frequency-dependent boost keeps high-freq springs damped to prevent aliasing
+constexpr phi::PhiTriConfig kSpringDampingTriangle = {phi::kPhi150, 0.4f, 0.4f, false};
 
 /// Phi triangle config for comb feedback derived from type
 constexpr phi::PhiTriConfig kCombFeedbackTriangle = {phi::kPhi250, 0.8f, 0.0f, false};
 
 /// Phi triangle config for comb wet/dry mix derived from type
-constexpr phi::PhiTriConfig kCombMixTriangle = {phi::kPhi350, 0.85f, 0.33f, false};
+constexpr phi::PhiTriConfig kCombMixTriangle = {phi::kPhi350, 0.85f, 0.00f, false}; // No comb at zone 0
 
-/// Phi triangle config for tremolo depth derived from type
-constexpr phi::PhiTriConfig kTremoloDepthTriangle = {phi::kPhi275, 0.7f, 0.5f, false};
+/// Phi triangle config for SVF feedback (LP output → cutoff/phase) derived from type (BIPOLAR)
+/// 25% duty: positive = cutoff feedback (screaming filter), negative = phase push (chaotic)
+/// Phase offset 0.1078 = 0.25/kPhi175 puts deadzone start at type=0 (no feedback until type increases)
+constexpr phi::PhiTriConfig kSvfFeedbackTriangle = {phi::kPhi175, 0.25f, 0.1078f, true};
 
-/// Phi triangle config for tremolo phase offset derived from type
+/// Phi triangle config for tremolo depth derived from flavor
+constexpr phi::PhiTriConfig kTremoloDepthTriangle = {phi::kPhi275, 0.7f, 0.00f, false}; // No tremolo at zone 0
+
+/// Phi triangle config for tremolo phase offset derived from flavor
 constexpr phi::PhiTriConfig kTremoloPhaseOffsetTriangle = {phi::kPhi225, 0.6f, 0.75f, false};
 
 /// Phi triangle config for comb LFO depth derived from flavor
-constexpr phi::PhiTriConfig kCombLfoDepthTriangle = {phi::kPhi175, 0.75f, 0.5f, false};
+constexpr phi::PhiTriConfig kCombLfoDepthTriangle = {phi::kPhi175, 0.75f, 0.00f, false}; // No comb mod at zone 0
 
 /// Phi triangle config for comb static offset derived from flavor
 constexpr phi::PhiTriConfig kCombStaticOffsetTriangle = {phi::kPhi125, 0.85f, 0.25f, false};
@@ -137,7 +169,8 @@ constexpr phi::PhiTriConfig kFilterResonanceTriangle = {phi::kPhi175, 0.8f, 0.4f
 constexpr phi::PhiTriConfig kFilterCutoffBaseTriangle = {phi::kPhi150, 0.75f, 0.0f, false};
 
 /// Phi triangle config for filter cutoff LFO depth derived from flavor
-constexpr phi::PhiTriConfig kFilterCutoffLfoDepthTriangle = {phi::kPhi200, 0.5f, 0.6f, false};
+constexpr phi::PhiTriConfig kFilterCutoffLfoDepthTriangle = {phi::kPhi200, 0.5f, 0.50f,
+                                                             false}; // HIGH LFO depth at zone 0
 
 /// Phi triangle config for envelope attack time derived from flavor
 constexpr phi::PhiTriConfig kEnvAttackTriangle = {phi::kPhi125, 0.7f, 0.15f, false};
@@ -164,9 +197,10 @@ constexpr std::array<phi::PhiTriConfig, 3> kFilterPhaseOffsetBank = {{
 // ============================================================================
 
 /// Consolidated flavor bank - all scalar flavor-derived params in one batch
-/// Indices: [0]=cutoffBase, [1]=resonance, [2]=modDepth, [3]=attack, [4]=release,
-///          [5]=combStaticOffset, [6]=combLfoDepth, [7]=combPhaseOffset, [8]=combMonoCollapse
-constexpr std::array<phi::PhiTriConfig, 9> kFlavorScalarBank = {{
+/// Indices: [0]=cutoffBase, [1]=resonance, [2]=filterModDepth, [3]=attack, [4]=release,
+///          [5]=combStaticOffset, [6]=combLfoDepth, [7]=combPhaseOffset, [8]=combMonoCollapse,
+///          [9]=tremoloDepth, [10]=tremoloPhaseOffset
+constexpr std::array<phi::PhiTriConfig, 11> kFlavorScalarBank = {{
     kFilterCutoffBaseTriangle,     // [0]
     kFilterResonanceTriangle,      // [1]
     kFilterCutoffLfoDepthTriangle, // [2]
@@ -176,25 +210,30 @@ constexpr std::array<phi::PhiTriConfig, 9> kFlavorScalarBank = {{
     kCombLfoDepthTriangle,         // [6]
     kCombLfoPhaseOffsetTriangle,   // [7]
     kCombMonoCollapseTriangle,     // [8]
+    kTremoloDepthTriangle,         // [9]
+    kTremoloPhaseOffsetTriangle,   // [10]
 }};
 
 /// Consolidated type bank - all scalar type-derived params in one batch
-/// Indices: [0]=combFeedback, [1]=combMix, [2]=tremoloDepth, [3]=tremoloPhaseOffset
-constexpr std::array<phi::PhiTriConfig, 4> kTypeScalarBank = {{
-    kCombFeedbackTriangle,       // [0]
-    kCombMixTriangle,            // [1]
-    kTremoloDepthTriangle,       // [2]
-    kTremoloPhaseOffsetTriangle, // [3]
+/// Indices: [0]=combFeedback, [1]=combMix, [2]=svfFeedback
+constexpr std::array<phi::PhiTriConfig, 3> kTypeScalarBank = {{
+    kCombFeedbackTriangle, // [0]
+    kCombMixTriangle,      // [1]
+    kSvfFeedbackTriangle,  // [2] BIPOLAR: positive=cutoff feedback, negative=phase push
 }};
 
 /// Consolidated mod bank - all scalar mod-derived params in one batch
-/// Indices: [0]=stereoOffset, [1]=envDepth, [2]=envPhase, [3]=envDerivDepth, [4]=envDerivPhase
-constexpr std::array<phi::PhiTriConfig, 5> kModScalarBank = {{
+/// Indices: [0]=stereoOffset, [1]=envDepth, [2]=envPhase, [3]=envDerivDepth, [4]=envDerivPhase,
+///          [5]=envValue, [6]=springFreq, [7]=springDamping
+constexpr std::array<phi::PhiTriConfig, 8> kModScalarBank = {{
     kStereoOffsetTriangle,           // [0]
     kEnvDepthInfluenceTriangle,      // [1]
     kEnvPhaseInfluenceTriangle,      // [2]
     kEnvDerivDepthInfluenceTriangle, // [3]
     kEnvDerivPhaseInfluenceTriangle, // [4]
+    kEnvValueInfluenceTriangle,      // [5]
+    kSpringFreqTriangle,             // [6]
+    kSpringDampingTriangle,          // [7]
 }};
 
 /// Phi triangle bank for LFO wavetable waypoints (derived from mod)
@@ -219,6 +258,34 @@ constexpr std::array<phi::PhiTriConfig, 9> kLfoWaypointBank = {{
 /// Wavetable phase normalization range (leave room for endpoints at 0 and 1)
 constexpr float kWaypointPhaseMin = 0.05f;
 constexpr float kWaypointPhaseMax = 0.95f;
+
+// ============================================================================
+// Future Feature Ideas (documented for later implementation)
+// ============================================================================
+//
+// 1. AUDIO-RATE ENVELOPE FOLLOWING
+//    - Per-sample envelope tracking instead of buffer-rate
+//    - Modulates filter cutoff and/or LFO phase at audio rate
+//    - Creates aggressive, hyper-responsive auto-wah
+//    - Amount derived from Mod zone (0 at zone 0, increases with Mod)
+//    - Needs fast attack coefficient for audio-rate response
+//
+// 2. FEEDBACK PATH (filter output → cutoff)
+//    - Route filter output back to modulate its own cutoff
+//    - At high resonance + feedback: self-oscillating filter screams
+//    - Amount derived from Type (0 at zone 0, increases with Type)
+//    - Store previous output sample, scale by feedback amount
+//    - Add to cutoff calculation: cutoff += prevOutput * feedbackQ
+//
+// 3. CROSS-CHANNEL LFO MULTIPLY (L×R ring mod)
+//    - Multiply L and R LFO values together
+//    - Creates sum/difference frequencies (ring mod on the LFO itself)
+//    - When stereo offset = 0°: squares the LFO (octave up effect)
+//    - When stereo offset = 90°: interesting interference patterns
+//    - Amount derived from Mod (pairs naturally with stereo offset control)
+//    - crossMod = multiply_32x32_rshift32(lfoL, lfoR) << 1
+//    - Blend back into both channels for metallic, inharmonic textures
+//
 
 // ============================================================================
 // Type Definitions
@@ -252,10 +319,11 @@ struct LfoWaypointBank {
 /// State for IIR-style LFO tracking (one per LFO channel)
 /// Uses exponential chase toward segment targets - organic curves without wavetable eval
 struct LfoIirState {
-	q31_t value{0};        // Current LFO value (bipolar q31)
-	q31_t intermediate{0}; // Per-sample step (delta)
-	q31_t target{0};       // Target amplitude (segment endpoint)
-	int8_t segment{0};     // Current segment index (0-4)
+	q31_t value{0};              // Current LFO value (bipolar q31)
+	q31_t intermediate{0};       // Per-sample step (delta)
+	q31_t target{0};             // Target amplitude (segment endpoint)
+	int8_t segment{0};           // Current segment index (0-4)
+	uint32_t samplesRemaining{}; // Samples until segment boundary (decremented each buffer)
 };
 
 /// Result of incremental LFO evaluation - start value and per-sample delta
@@ -268,6 +336,7 @@ struct LfoIncremental {
 struct LfoRateResult {
 	float value;       // Hz if free, ignored if synced
 	int32_t syncLevel; // 0 = free, 1-9 = SYNC_LEVEL_WHOLE through SYNC_LEVEL_256TH
+	uint8_t slowShift; // Additional right-shift for ultra-slow rates (8/1, 4/1)
 	bool triplet;      // true = triplet timing (3/2 multiplier)
 };
 
@@ -295,10 +364,10 @@ struct AutomodPhiCache {
 	q31_t combMixQ{0};
 	uint32_t tremPhaseOffset{0};
 	q31_t tremoloDepthQ{0};
-	q31_t tremoloBaseLevel{0};
 	q31_t filterMixLowQ{0};
 	q31_t filterMixBandQ{0};
 	q31_t filterMixHighQ{0};
+	q31_t svfFeedbackQ{0}; // BIPOLAR: positive = cutoff feedback, negative = phase push
 
 	// From flavor
 	q31_t filterCutoffBase{0};
@@ -334,12 +403,20 @@ struct AutomodPhiCache {
 	float rateValue{1.0f};
 	int32_t rateSyncLevel{0};
 	bool rateTriplet{false};
+	bool rateStopped{false}; // True when rate=0 (Stop mode), LFO frozen, Manual used directly
+	bool rateOnce{false};    // True when rate=1 (Once mode), plays one LFO cycle then freezes
 	uint32_t stereoPhaseOffsetRaw{0};
 	// Env influences in q31 for integer-only per-buffer math
 	q31_t envDepthInfluenceQ{0};
 	q31_t envPhaseInfluenceQ{0};
 	q31_t envDerivDepthInfluenceQ{0};
 	q31_t envDerivPhaseInfluenceQ{0};
+	q31_t envValueInfluenceQ{0}; // Envelope→LFO value contribution (bipolar)
+
+	// Spring filter coefficients (buffer-rate 2nd-order LPF on modulation signal)
+	// Computed from springFreq and springDamping phi triangles
+	q31_t springOmega2Q{0};       // ω₀² coefficient for spring force
+	q31_t springDampingCoeffQ{0}; // 2*ζ*ω₀ coefficient for velocity damping
 
 	// LFO wavetable waypoints (sorted by phase)
 	LfoWaypointBank wavetable{};
@@ -353,9 +430,6 @@ struct AutomodPhiCache {
 
 	// P4 phase as uint32 for fast last-segment detection (do full eval in last segment for clean wrap)
 	uint32_t lastSegmentPhaseU32{0xE6666666}; // Default ~0.9, updated from wavetable
-
-	// Pre-computed stereo rate scale factor (q31) - avoids float division per buffer
-	q31_t stereoRateScaleQ{ONE_Q31};
 };
 
 /// DSP runtime state for automodulator - lazily allocated when effect becomes active
@@ -373,8 +447,17 @@ struct AutomodDspState {
 	q31_t envDerivStateL{0};
 	q31_t envDerivStateR{0};
 
+	// Spring filter state (buffer-rate 2nd-order LPF on modulation signal)
+	// Position = current smoothed modulation value, Velocity = rate of change (momentum)
+	q31_t springPosL{0};
+	q31_t springPosR{0};
+	q31_t springVelL{0};
+	q31_t springVelR{0};
+
 	// LFO phase accumulator
 	uint32_t lfoPhase{0};
+	uint32_t onceStartPhase{0};   // Phase where Once mode started (for cycle detection)
+	bool oneCycleComplete{false}; // True when Once mode has completed its cycle
 
 	// Smoothed modulation state
 	q31_t smoothedScaleL{0};
@@ -395,9 +478,9 @@ struct AutomodDspState {
 	q31_t smoothedTremLfoR{0};
 
 	// Pitch tracking cache
-	int32_t prevNoteCode{-2};             // -2 = never computed
-	q31_t cachedPitchCutoffOffset{0};     // Filter cutoff pitch adjustment
-	int32_t cachedPitchRatioQ16{1 << 16}; // Comb delay multiplier in 16.16 fixed
+	int32_t prevNoteCode{-2};                   // -2 = never computed
+	int32_t cachedFilterPitchRatioQ16{1 << 16}; // Filter cutoff multiplier in 16.16 (higher note = higher cutoff)
+	int32_t cachedCombPitchRatioQ16{1 << 16};   // Comb delay multiplier in 16.16 (higher note = shorter delay)
 
 	// LFO IIR state (6 channels)
 	LfoIirState lfoIirL{};
@@ -407,8 +490,17 @@ struct AutomodDspState {
 	LfoIirState tremLfoIirL{};
 	LfoIirState tremLfoIirR{};
 
+	// Precomputed LFO stepping (recomputed when rate or wavetable changes)
+	uint32_t cachedPhaseInc{0};      // Cached rate for dirty detection
+	q31_t stepPerSegment[5]{};       // Per-sample amplitude step for each segment
+	uint32_t samplesPerSegment[5]{}; // Number of samples to traverse each segment
+
 	// Comb filter write index
 	uint16_t combIdx{0};
+
+	// Allpass interpolator state for comb delay line (reduces aliasing on fast modulation)
+	q31_t allpassStateL{0};
+	q31_t allpassStateR{0};
 };
 
 /// Automodulator parameters and DSP state (stored per-Sound)
@@ -438,8 +530,14 @@ struct AutomodulatorParams {
 
 	/// Clone params from another instance (for preset switching, etc.)
 	/// Copies menu params only - state is deallocated and will be re-allocated on use
+	/// Note: freqOffset not copied here - it's in param system (GLOBAL_AUTOMOD_FREQ)
 	void cloneFrom(const AutomodulatorParams& other) {
-		// Copy menu params
+		// Copy page 1 params (freqOffset handled by param system clone)
+		rate = other.rate;
+		rateSynced = other.rateSynced;
+		lfoMode = other.lfoMode;
+		mix = other.mix;
+		// Copy page 2 params
 		type = other.type;
 		flavor = other.flavor;
 		mod = other.mod;
@@ -454,19 +552,32 @@ struct AutomodulatorParams {
 	}
 
 	// Menu params (stored/loaded) - always present
-	uint16_t type{0};   // 0=OFF, 1-1023 = DSP topology blend (8 zones)
+	// Page 1: Type, Flavor, Mod, Mix (zone controls)
+	// Page 2: Freq (via patched param), Rate, Manual, Depth (depth has push toggle for mode)
+	// Note: freqOffset is stored in param system (GLOBAL_AUTOMOD_FREQ) for mod matrix support
+	uint16_t rate{6};                             // LFO rate (0=Free, 1+=sync rates; default 6 = 1/8 note)
+	bool rateSynced{true};                        // true=synced subdivisions, false=ms
+	AutomodLfoMode lfoMode{AutomodLfoMode::FREE}; // LFO mode: stop/once/retrig/free
+	uint8_t mix{0};                               // Wet/dry (0=OFF/bypass, 1-127=active)
+
+	// Zone params (Page 1)
+	uint16_t type{0};   // 0-1023 = DSP topology blend (8 zones)
 	uint16_t flavor{0}; // 0-1023, routing zones (8 zones)
-	uint16_t mod{0};    // 0-1023, rate/phase zones (8 zones)
+	uint16_t mod{0};    // 0-1023, rate/phase zones (8 zones) - controls LFO rate when rate=0
 
 	// Phase offsets (secret knob on each zone) for phi triangle evaluation
 	float typePhaseOffset{0};
 	float flavorPhaseOffset{0};
 	float modPhaseOffset{0};
 
-	// Global gamma (secret knob on macro) - multiplier for all phase offsets
+	// Global gamma (secret knob on mix) - multiplier for all phase offsets
 	float gammaPhase{0};
 
 	// Cache invalidation tracking (to detect when cache needs recomputation)
+	// Note: freqOffset is NOT tracked here - it's applied dynamically for mod matrix support
+	uint16_t prevRate{0xFFFF};
+	bool prevRateSynced{false};
+	AutomodLfoMode prevLfoMode{AutomodLfoMode::FREE};
 	uint16_t prevType{0xFFFF};
 	uint16_t prevFlavor{0xFFFF};
 	uint16_t prevMod{0xFFFF};
@@ -476,21 +587,41 @@ struct AutomodulatorParams {
 	float prevModPhaseOffset{-999.0f};
 	uint32_t prevTimePerTickInverse{0xFFFFFFFF};
 
-	// Voice count tracking (for note retrigger)
+	// Voice count tracking (for note retrigger in non-legato modes)
 	uint8_t lastVoiceCount{0};
 
+	// Held notes tracking (for Once mode retrigger)
+	// Updated via notifyNoteOn/notifyNoteOff called from Sound
+	uint8_t heldNotesCount{0};
+	uint8_t lastHeldNotesCount{0}; // For detecting note count changes
+
+	/// Called from Sound::noteOn - tracks held notes for Once mode
+	void notifyNoteOn() { heldNotesCount++; }
+
+	/// Called from Sound::noteOff - tracks held notes for Once mode
+	void notifyNoteOff() {
+		if (heldNotesCount > 0) {
+			heldNotesCount--;
+		}
+	}
+
 	// === LAZILY ALLOCATED POINTERS ===
-	// These are only allocated when the effect is active (type > 0)
+	// These are only allocated when the effect is active (mix > 0)
 	AutomodPhiCache* cache{nullptr};    // ~400 bytes when allocated
 	AutomodDspState* dspState{nullptr}; // ~200 bytes when allocated
 
-	// Comb filter buffers - allocated separately (even larger)
-	static constexpr size_t kCombBufferSize = 768;
+	// Comb filter buffers - allocated separately in SDRAM (8KB per Sound when active)
+	static constexpr size_t kCombBufferSize = 1024; // Power of 2 for harmonic wrap (~23ms)
 	q31_t* combBufferL{nullptr};
 	q31_t* combBufferR{nullptr};
 
-	/// Check if automodulator is enabled
-	[[nodiscard]] bool isEnabled() const { return type > 0; }
+	// Counter for deferred deallocation when disabled
+	// After kDeallocDelayBuffers of mix=0, deallocate comb buffers to save memory
+	static constexpr uint16_t kDeallocDelayBuffers = 10000; // ~29 seconds at 344 buffers/sec
+	uint16_t disabledBufferCount{0};
+
+	/// Check if automodulator is enabled (mix > 0 = active)
+	[[nodiscard]] bool isEnabled() const { return mix > 0; }
 
 	/// Check if state is allocated (cache and dspState)
 	[[nodiscard]] bool hasState() const { return cache != nullptr && dspState != nullptr; }
@@ -570,8 +701,14 @@ struct AutomodulatorParams {
 
 private:
 	/// Move all data from another instance (transfers pointer ownership)
+	/// Note: freqOffset not moved here - it's in param system (GLOBAL_AUTOMOD_FREQ)
 	void moveFrom(AutomodulatorParams& other) noexcept {
-		// Copy menu params
+		// Copy page 1 params (freqOffset handled by param system move)
+		rate = other.rate;
+		rateSynced = other.rateSynced;
+		lfoMode = other.lfoMode;
+		mix = other.mix;
+		// Copy page 2 params
 		type = other.type;
 		flavor = other.flavor;
 		mod = other.mod;
@@ -581,6 +718,9 @@ private:
 		gammaPhase = other.gammaPhase;
 
 		// Copy cache tracking
+		prevRate = other.prevRate;
+		prevRateSynced = other.prevRateSynced;
+		prevLfoMode = other.prevLfoMode;
 		prevType = other.prevType;
 		prevFlavor = other.prevFlavor;
 		prevMod = other.prevMod;
@@ -590,6 +730,9 @@ private:
 		prevModPhaseOffset = other.prevModPhaseOffset;
 		prevTimePerTickInverse = other.prevTimePerTickInverse;
 		lastVoiceCount = other.lastVoiceCount;
+		heldNotesCount = other.heldNotesCount;
+		lastHeldNotesCount = other.lastHeldNotesCount;
+		disabledBufferCount = other.disabledBufferCount;
 
 		// Transfer pointer ownership
 		cache = other.cache;
@@ -606,8 +749,10 @@ private:
 
 public:
 	/// Check if any cached values need recomputation
+	/// Note: freqOffset is NOT included here - it's applied dynamically for mod matrix support
 	[[nodiscard]] bool needsCacheUpdate(uint32_t timePerTickInverse) const {
-		return (type != prevType || flavor != prevFlavor || mod != prevMod || gammaPhase != prevGammaPhase
+		return (rate != prevRate || rateSynced != prevRateSynced || lfoMode != prevLfoMode || type != prevType
+		        || flavor != prevFlavor || mod != prevMod || gammaPhase != prevGammaPhase
 		        || typePhaseOffset != prevTypePhaseOffset || flavorPhaseOffset != prevFlavorPhaseOffset
 		        || modPhaseOffset != prevModPhaseOffset || timePerTickInverse != prevTimePerTickInverse);
 	}
@@ -626,6 +771,9 @@ public:
 
 	/// Invalidate cache tracking (forces recomputation on next use)
 	void invalidateCacheTracking() {
+		prevRate = 0xFFFF;
+		prevRateSynced = false;
+		prevLfoMode = AutomodLfoMode::FREE; // Use a valid default
 		prevType = 0xFFFF;
 		prevFlavor = 0xFFFF;
 		prevMod = 0xFFFF;
@@ -650,77 +798,15 @@ public:
 // Function declarations (implementations in automodulator.cpp)
 // ============================================================================
 
-/// Get LFO rate from mod zone position
-LfoRateResult getLfoRateFromMod(uint16_t mod, float phaseOffset);
-
 /// Evaluate filter mix from type position using phi triangles
 FilterMix getFilterMixFromType(uint16_t type, float phaseOffset);
-
-/// Get filter LFO parameters from flavor position
-FilterLfoParams getFilterLfoParamsFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get comb LFO modulation depth from flavor position
-float getCombLfoDepthFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get comb static offset from flavor position
-float getCombStaticOffsetFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get comb LFO phase offset from flavor position
-uint32_t getCombLfoPhaseOffsetFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get filter resonance from flavor position
-q31_t getFilterResonanceFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get filter cutoff base from flavor position
-q31_t getFilterCutoffBaseFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get filter cutoff LFO depth from flavor position
-q31_t getFilterCutoffLfoDepthFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get envelope attack coefficient from flavor position
-q31_t getEnvAttackFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get envelope release coefficient from flavor position
-q31_t getEnvReleaseFromFlavor(uint16_t flavor, float phaseOffset);
-
-/// Get comb feedback amount from type position
-q31_t getCombFeedbackFromType(uint16_t type, float phaseOffset);
-
-/// Get comb wet/dry mix from type position
-float getCombMixFromType(uint16_t type, float phaseOffset);
-
-/// Get tremolo depth from type position
-float getTremoloDepthFromType(uint16_t type, float phaseOffset);
-
-/// Get tremolo LFO phase offset from type position
-uint32_t getTremoloPhaseOffsetFromType(uint16_t type, float phaseOffset);
-
-/// Get stereo phase offset from mod position
-uint32_t getStereoOffsetFromMod(uint16_t mod, float phaseOffset);
 
 /// Get LFO initial phase from mod position
 uint32_t getLfoInitialPhaseFromMod(uint16_t mod, float phaseOffset);
 
-/// Get envelope→depth influence from mod position
-float getEnvDepthInfluenceFromMod(uint16_t mod, float phaseOffset);
-
-/// Get envelope→phase influence from mod position
-float getEnvPhaseInfluenceFromMod(uint16_t mod, float phaseOffset);
-
-/// Get derivative envelope→depth influence from mod position
-float getEnvDerivDepthInfluenceFromMod(uint16_t mod, float phaseOffset);
-
-/// Get derivative envelope→phase influence from mod position
-float getEnvDerivPhaseInfluenceFromMod(uint16_t mod, float phaseOffset);
-
 /// Compute LFO wavetable waypoints from mod position
 /// Phase deltas are accumulated and normalized to guarantee monotonic ordering
 LfoWaypointBank getLfoWaypointBank(uint16_t mod, float phaseOffset);
-
-/// Evaluate the LFO wavetable at a given phase (0-1)
-/// Returns interpolated amplitude between waypoints
-/// Uses ramp (0→1) as input, not triangle
-float evalLfoWavetable(float t, const LfoWaypointBank& bank);
 
 /// Evaluate LFO wavetable returning q31 (for DSP loop)
 q31_t evalLfoWavetableQ31(uint32_t phaseU32, const LfoWaypointBank& bank);
@@ -731,12 +817,16 @@ void updateAutomodPhiCache(AutomodulatorParams& params, uint32_t timePerTickInve
 /// Process automodulator effect on a stereo buffer
 /// @param buffer Audio buffer to process in-place
 /// @param params Automodulator params and state
-/// @param macro Macro modulation depth from param system (q31)
+/// @param depth Modulation depth from param system (q31, bipolar: 0=100%, negative=less, positive=more)
+/// @param freqOffset Filter frequency offset from param system (q31, bipolar)
+/// @param manual Manual LFO offset from param system (q31, bipolar) - added to LFO or used directly when stopped
 /// @param useInternalOsc True to use internal LFO, false for envelope follower
 /// @param voiceCount Current number of active voices (for note retrigger)
 /// @param timePerTickInverse For tempo sync (from playbackHandler), 0 if clock not active
 /// @param noteCode Last played MIDI note for pitch tracking (-1 if none)
-void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& params, q31_t macro, bool useInternalOsc,
-                          uint8_t voiceCount = 0, uint32_t timePerTickInverse = 0, int32_t noteCode = kNoteCodeInvalid);
+/// @param isLegato True if sound is in legato mode (uses note tracking instead of voice tracking)
+void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& params, q31_t depth, q31_t freqOffset,
+                          q31_t manual, bool useInternalOsc, uint8_t voiceCount = 0, uint32_t timePerTickInverse = 0,
+                          int32_t noteCode = kNoteCodeInvalid, bool isLegato = false);
 
 } // namespace deluge::dsp

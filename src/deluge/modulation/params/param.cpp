@@ -173,7 +173,9 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [GLOBAL_SCATTER_ZONE_A]          = "Scat zoneA",
 	    [GLOBAL_SCATTER_ZONE_B]          = "Scat zoneB",
 	    [GLOBAL_SCATTER_MACRO_CONFIG]    = "Scat depth",
-	    [GLOBAL_AUTOMOD_MACRO]           = "Automod",
+	    [GLOBAL_AUTOMOD_DEPTH]           = "Automod",
+	    [GLOBAL_AUTOMOD_FREQ]            = "AutoFrq",
+	    [GLOBAL_AUTOMOD_MANUAL]          = "AutoMan",
 	    [GLOBAL_DELAY_RATE]              = "Delay rate",
 	    [GLOBAL_MOD_FX_RATE]             = "ModFX rate",
 	    [GLOBAL_LFO_FREQ_1]                = "LFO1 rate",
@@ -256,7 +258,9 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [GLOBAL_SCATTER_ZONE_A] = STRING_FOR_SCATTER_PATTERN,
 	    [GLOBAL_SCATTER_ZONE_B] = STRING_FOR_SCATTER_COLOR,
 	    [GLOBAL_SCATTER_MACRO_CONFIG] = STRING_FOR_SCATTER_MACRO_CONFIG,
-	    [GLOBAL_AUTOMOD_MACRO] = STRING_FOR_AUTOMOD_MACRO,
+	    [GLOBAL_AUTOMOD_DEPTH] = STRING_FOR_AUTOMOD_DEPTH,
+	    [GLOBAL_AUTOMOD_FREQ] = STRING_FOR_AUTOMOD_FREQ,
+	    [GLOBAL_AUTOMOD_MANUAL] = STRING_FOR_AUTOMOD_MANUAL,
 	    [GLOBAL_DELAY_RATE] = STRING_FOR_PARAM_GLOBAL_DELAY_RATE,
 	    [GLOBAL_MOD_FX_RATE] = STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE,
 	    [GLOBAL_LFO_FREQ_1] = STRING_FOR_PARAM_GLOBAL_LFO_FREQ_1,
@@ -311,7 +315,9 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_SINE_SHAPER_TWIST] = STRING_FOR_SINE_SHAPER_SYMMETRY,
 		    [UNPATCHED_TABLE_SHAPER_DRIVE] = STRING_FOR_SHAPER_DRIVE,
 		    [UNPATCHED_TABLE_SHAPER_MIX] = STRING_FOR_SHAPER_MIX,
-		    [UNPATCHED_AUTOMOD_MACRO] = STRING_FOR_AUTOMOD_MACRO,
+		    [UNPATCHED_AUTOMOD_DEPTH] = STRING_FOR_AUTOMOD_DEPTH,
+		    [UNPATCHED_AUTOMOD_FREQ] = STRING_FOR_AUTOMOD_FREQ,
+		    [UNPATCHED_AUTOMOD_MANUAL] = STRING_FOR_AUTOMOD_MANUAL,
 		    [UNPATCHED_SCATTER_ZONE_A] = STRING_FOR_SCATTER_PATTERN,
 		    [UNPATCHED_SCATTER_ZONE_B] = STRING_FOR_SCATTER_COLOR,
 		    [UNPATCHED_SCATTER_MACRO_CONFIG] = STRING_FOR_SCATTER_MACRO_CONFIG,
@@ -559,8 +565,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 			return "clipTableShaperDrive";
 		case UNPATCHED_TABLE_SHAPER_MIX:
 			return "clipTableShaperMix";
-		case UNPATCHED_AUTOMOD_MACRO:
+		case UNPATCHED_AUTOMOD_DEPTH:
 			return "clipAutomodMacro";
+		case UNPATCHED_AUTOMOD_FREQ:
+			return "clipAutomodFreq";
+		case UNPATCHED_AUTOMOD_MANUAL:
+			return "clipAutomodManual";
 
 		case UNPATCHED_ARP_GATE:
 			return "arpGate";
@@ -655,8 +665,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case GLOBAL_SCATTER_MACRO:
 			return "globalScatterMacro";
 
-		case GLOBAL_AUTOMOD_MACRO:
+		case GLOBAL_AUTOMOD_DEPTH:
 			return "globalAutomodMacro";
+		case GLOBAL_AUTOMOD_FREQ:
+			return "globalAutomodFreq";
+		case GLOBAL_AUTOMOD_MANUAL:
+			return "globalAutomodManual";
 
 		case GLOBAL_SCATTER_ZONE_A:
 			return "globalScatterZoneA";

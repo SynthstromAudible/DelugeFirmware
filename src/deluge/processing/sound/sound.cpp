@@ -59,6 +59,7 @@
 #include "util/comparison.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
+#include "util/fixedpoint.h"
 #include "util/functions.h"
 #include "util/misc.h"
 #include <algorithm>
@@ -190,6 +191,9 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[params::GLOBAL_SCATTER_PWRITE].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[params::GLOBAL_SCATTER_MACRO].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[params::GLOBAL_SCATTER_DENSITY].setCurrentValueBasicForSetup(2147483647);
+
+	// Automod depth defaults to 100% (ONE_Q31) so effect is fully active when enabled
+	patchedParams->params[params::GLOBAL_AUTOMOD_DEPTH].setCurrentValueBasicForSetup(2147483647);
 }
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
@@ -1522,6 +1526,9 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		return;
 	}
 
+	// Notify automodulator of note-on for Once mode retrigger tracking
+	automod.notifyNoteOn();
+
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
@@ -1571,6 +1578,9 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 }
 
 void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode) {
+	// Notify automodulator of note-off for Once mode retrigger tracking
+	automod.notifyNoteOff();
+
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
@@ -1653,8 +1663,10 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				for (int32_t e = 0; e < kNumEnvelopes; e++) {
 					envelopePositions[e] = (*voiceToReuse)->envelopes[e].lastValue;
 				}
-				// Reset automod LFO phase for note retrigger - initial phase from phi triangle
-				if (automod.isEnabled() && automod.dspState != nullptr) {
+				// Reset automod LFO phase for note retrigger (only in ONCE/RETRIG modes)
+				if (automod.isEnabled() && automod.dspState != nullptr
+				    && (automod.lfoMode == dsp::AutomodLfoMode::ONCE
+				        || automod.lfoMode == dsp::AutomodLfoMode::RETRIG)) {
 					float effectiveModPhase = automod.modPhaseOffset + automod.gammaPhase;
 					automod.dspState->lfoPhase = dsp::getLfoInitialPhaseFromMod(automod.mod, effectiveModPhase);
 				}
@@ -1663,8 +1675,10 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				// Since we potentially just added a voice where there were none before...
 				reassessRenderSkippingStatus(modelStack);
 				voice->randomizeOscPhases(*this);
-				// Reset automod LFO phase for note retrigger - initial phase from phi triangle
-				if (automod.isEnabled() && automod.dspState != nullptr) {
+				// Reset automod LFO phase for note retrigger (only in ONCE/RETRIG modes)
+				if (automod.isEnabled() && automod.dspState != nullptr
+				    && (automod.lfoMode == dsp::AutomodLfoMode::ONCE
+				        || automod.lfoMode == dsp::AutomodLfoMode::RETRIG)) {
 					float effectiveModPhase = automod.modPhaseOffset + automod.gammaPhase;
 					automod.dspState->lfoPhase = dsp::getLfoInitialPhaseFromMod(automod.mod, effectiveModPhase);
 				}
@@ -2610,15 +2624,24 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// Automodulator processing (pre-delay, pre-modFX)
 	if (automod.isEnabled()) {
-		// Use paramFinalValues for modulated macro value (GLOBAL param supports mod matrix)
-		q31_t automodMacro = paramFinalValues[params::GLOBAL_AUTOMOD_MACRO - params::FIRST_GLOBAL];
+		// Zone params: paramFinalValues contains only modulation, add base value from patched params
+		PatchedParamSet* automodPatchedParams = paramManager->getPatchedParamSet();
+		q31_t automodDepth = add_saturate(automodPatchedParams->getValue(params::GLOBAL_AUTOMOD_DEPTH),
+		                                  paramFinalValues[params::GLOBAL_AUTOMOD_DEPTH - params::FIRST_GLOBAL]);
+		// Freq: base value + modulation (raw offset for filter/pitch)
+		q31_t automodFreq = add_saturate(automodPatchedParams->getValue(params::GLOBAL_AUTOMOD_FREQ),
+		                                 paramFinalValues[params::GLOBAL_AUTOMOD_FREQ - params::FIRST_GLOBAL]);
+		// Manual: base value + modulation (direct LFO offset)
+		q31_t automodManual = add_saturate(automodPatchedParams->getValue(params::GLOBAL_AUTOMOD_MANUAL),
+		                                   paramFinalValues[params::GLOBAL_AUTOMOD_MANUAL - params::FIRST_GLOBAL]);
 		// Pass timePerTickInverse for tempo sync (0 if clock not active)
 		uint32_t timePerTickInv =
 		    playbackHandler.isEitherClockActive() ? playbackHandler.getTimePerInternalTickInverse() : 0;
 		uint8_t voiceCount = static_cast<uint8_t>(std::min(voices_.size(), static_cast<size_t>(255)));
+		bool isLegato = (polyphonic == PolyphonyMode::LEGATO);
 		// Pass lastNoteCode for pitch tracking (filter/comb track played note)
-		deluge::dsp::processAutomodulator(sound_stereo, automod, automodMacro, true, voiceCount, timePerTickInv,
-		                                  lastNoteCode);
+		deluge::dsp::processAutomodulator(sound_stereo, automod, automodDepth, automodFreq, automodManual, true,
+		                                  voiceCount, timePerTickInv, lastNoteCode, isLegato);
 	}
 
 	// Default order: Automodulator → ModFX → Stutter → DOTT → Reverb

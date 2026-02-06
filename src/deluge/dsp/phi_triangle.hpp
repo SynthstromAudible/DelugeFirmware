@@ -168,6 +168,139 @@ struct PhiTriContext {
 	return deluge::dsp::triangleSimpleUnipolar(wrappedPhase, cfg.duty);
 }
 
+// ============================================================================
+// NEON-optimized phi triangle evaluation (4-wide)
+// ============================================================================
+
+// Set to 0 to disable NEON and use scalar path for benchmarking
+#ifndef PHI_TRIANGLE_USE_NEON
+#define PHI_TRIANGLE_USE_NEON 0
+#endif
+
+#if PHI_TRIANGLE_USE_NEON
+
+/**
+ * NEON reciprocal with Newton-Raphson refinement (ARMv7 doesn't have vdivq_f32)
+ * Two iterations gives ~24 bits of precision, sufficient for audio
+ */
+[[gnu::always_inline]] inline float32x4_t vrecipq_f32_nr(float32x4_t x) {
+	float32x4_t recip = vrecpeq_f32(x);
+	recip = vmulq_f32(recip, vrecpsq_f32(x, recip)); // First Newton-Raphson iteration
+	recip = vmulq_f32(recip, vrecpsq_f32(x, recip)); // Second iteration for more precision
+	return recip;
+}
+
+/**
+ * Wrap 4 phases to [0,1) using float precision
+ * Less precise than double version but sufficient for triangle evaluation
+ */
+[[gnu::always_inline]] inline float32x4_t wrapPhaseNeon(float32x4_t phase) {
+	// Truncate to integer and subtract (equivalent to phase - floor(phase) for positive values)
+	int32x4_t intPart = vcvtq_s32_f32(phase);
+	return vsubq_f32(phase, vcvtq_f32_s32(intPart));
+}
+
+/**
+ * Evaluate 4 unipolar triangles with NEON (branchless)
+ * @param phase 4 wrapped phases in [0,1)
+ * @param duty 4 duty cycles
+ * @return 4 triangle values in [0,1]
+ */
+[[gnu::always_inline]] inline float32x4_t triangleUnipolarNeon(float32x4_t phase, float32x4_t duty) {
+	// halfDuty = duty * 0.5
+	float32x4_t halfDuty = vmulq_n_f32(duty, 0.5f);
+	// invHalfDuty = 2.0 / duty (for scaling) - use reciprocal since no vdivq on ARMv7
+	float32x4_t invHalfDuty = vmulq_f32(vdupq_n_f32(2.0f), vrecipq_f32_nr(duty));
+
+	// Rising segment: phase < halfDuty → phase * invHalfDuty
+	float32x4_t rising = vmulq_f32(phase, invHalfDuty);
+
+	// Falling segment: phase < duty → (duty - phase) * invHalfDuty
+	float32x4_t falling = vmulq_f32(vsubq_f32(duty, phase), invHalfDuty);
+
+	// Select: phase < halfDuty ? rising : (phase < duty ? falling : 0)
+	uint32x4_t inRising = vcltq_f32(phase, halfDuty);
+	uint32x4_t inActive = vcltq_f32(phase, duty);
+
+	// Blend: rising where inRising, falling where inActive && !inRising, 0 otherwise
+	float32x4_t result = vbslq_f32(inRising, rising, falling);
+	result = vbslq_f32(inActive, result, vdupq_n_f32(0.0f));
+
+	return result;
+}
+
+/**
+ * Evaluate 4 bipolar triangles with NEON (branchless)
+ * @param phase 4 wrapped phases in [0,1)
+ * @param duty 4 duty cycles
+ * @return 4 triangle values in [-1,1]
+ */
+[[gnu::always_inline]] inline float32x4_t triangleBipolarNeon(float32x4_t phase, float32x4_t duty) {
+	// quarterDuty = duty * 0.25, halfDuty = duty * 0.5
+	float32x4_t quarterDuty = vmulq_n_f32(duty, 0.25f);
+	float32x4_t halfDuty = vmulq_n_f32(duty, 0.5f);
+	float32x4_t threeQuarterDuty = vaddq_f32(halfDuty, quarterDuty);
+	// invQuarterDuty = 1.0 / quarterDuty - use reciprocal since no vdivq on ARMv7
+	float32x4_t invQuarterDuty = vrecipq_f32_nr(quarterDuty);
+
+	// Segment 1: phase < quarterDuty → phase / quarterDuty (0→+1)
+	float32x4_t seg1 = vmulq_f32(phase, invQuarterDuty);
+
+	// Segment 2: phase < halfDuty → (halfDuty - phase) / quarterDuty (+1→0)
+	float32x4_t seg2 = vmulq_f32(vsubq_f32(halfDuty, phase), invQuarterDuty);
+
+	// Segment 3: phase < threeQuarterDuty → -(phase - halfDuty) / quarterDuty (0→-1)
+	float32x4_t seg3 = vnegq_f32(vmulq_f32(vsubq_f32(phase, halfDuty), invQuarterDuty));
+
+	// Segment 4: phase < duty → (phase - duty) / quarterDuty (-1→0)
+	float32x4_t seg4 = vmulq_f32(vsubq_f32(phase, duty), invQuarterDuty);
+
+	// Select segments based on phase ranges
+	uint32x4_t inSeg1 = vcltq_f32(phase, quarterDuty);
+	uint32x4_t inSeg2 = vcltq_f32(phase, halfDuty);
+	uint32x4_t inSeg3 = vcltq_f32(phase, threeQuarterDuty);
+	uint32x4_t inActive = vcltq_f32(phase, duty);
+
+	// Cascade selection: seg1 → seg2 → seg3 → seg4 → 0
+	float32x4_t result = vbslq_f32(inActive, seg4, vdupq_n_f32(0.0f));
+	result = vbslq_f32(inSeg3, seg3, result);
+	result = vbslq_f32(inSeg2, seg2, result);
+	result = vbslq_f32(inSeg1, seg1, result);
+
+	return result;
+}
+
+/**
+ * Evaluate 4 phi triangles with NEON
+ * @param phase Base phase (double for precision in offset calculation)
+ * @param freqMult Frequency multiplier
+ * @param phiFreqs 4 phi frequency multipliers
+ * @param duties 4 duty cycles
+ * @param offsets 4 phase offsets
+ * @param bipolarMask Bitmask: bit i set = triangle i is bipolar
+ * @return 4 evaluated triangle values
+ */
+[[gnu::always_inline]] inline float32x4_t evalTriangle4Neon(double phase, float freqMult, float32x4_t phiFreqs,
+                                                            float32x4_t duties, float32x4_t offsets,
+                                                            uint32_t bipolarMask) {
+	// Compute phases: (phase + offset) * phiFreq * freqMult
+	// Use float for the NEON path (sufficient precision for triangle evaluation)
+	float32x4_t basePhase = vdupq_n_f32(static_cast<float>(phase));
+	float32x4_t phases = vaddq_f32(basePhase, offsets);
+	phases = vmulq_f32(phases, phiFreqs);
+	phases = vmulq_n_f32(phases, freqMult);
+	phases = wrapPhaseNeon(phases);
+
+	// Evaluate both unipolar and bipolar
+	float32x4_t unipolar = triangleUnipolarNeon(phases, duties);
+	float32x4_t bipolar = triangleBipolarNeon(phases, duties);
+
+	// Select based on bipolar mask
+	uint32x4_t mask = {(bipolarMask & 1) ? 0xFFFFFFFF : 0, (bipolarMask & 2) ? 0xFFFFFFFF : 0,
+	                   (bipolarMask & 4) ? 0xFFFFFFFF : 0, (bipolarMask & 8) ? 0xFFFFFFFF : 0};
+	return vbslq_f32(mask, bipolar, unipolar);
+}
+
 /**
  * Evaluate a bank of N triangles with proper phase handling
  *
@@ -178,13 +311,49 @@ struct PhiTriContext {
  * @param configs Array of N configurations
  * @return Array of N triangle values (unipolar [0,1] or bipolar [-1,1] per config)
  */
+#endif // PHI_TRIANGLE_USE_NEON
+
 template <size_t N>
 [[gnu::always_inline]] inline std::array<float, N> evalTriangleBank(double phase, float freqMult,
                                                                     const std::array<PhiTriConfig, N>& configs) {
 	std::array<float, N> results;
+
+#if PHI_TRIANGLE_USE_NEON
+	// Process in chunks of 4 using NEON
+	constexpr size_t nChunks = N / 4;
+	for (size_t chunk = 0; chunk < nChunks; ++chunk) {
+		size_t base = chunk * 4;
+
+		// Load config data into NEON vectors
+		float32x4_t phiFreqs = {configs[base].phiFreq, configs[base + 1].phiFreq, configs[base + 2].phiFreq,
+		                        configs[base + 3].phiFreq};
+		float32x4_t duties = {configs[base].duty, configs[base + 1].duty, configs[base + 2].duty,
+		                      configs[base + 3].duty};
+		float32x4_t offsets = {configs[base].phaseOffset, configs[base + 1].phaseOffset, configs[base + 2].phaseOffset,
+		                       configs[base + 3].phaseOffset};
+
+		// Build bipolar mask
+		uint32_t bipolarMask = (configs[base].bipolar ? 1 : 0) | (configs[base + 1].bipolar ? 2 : 0)
+		                       | (configs[base + 2].bipolar ? 4 : 0) | (configs[base + 3].bipolar ? 8 : 0);
+
+		// Evaluate 4 triangles at once
+		float32x4_t vals = evalTriangle4Neon(phase, freqMult, phiFreqs, duties, offsets, bipolarMask);
+
+		// Store results
+		vst1q_f32(&results[base], vals);
+	}
+
+	// Handle remaining triangles (N % 4) with scalar path
+	for (size_t i = nChunks * 4; i < N; ++i) {
+		results[i] = evalTriangle(phase, freqMult, configs[i]);
+	}
+#else
+	// Scalar path - simple loop
 	for (size_t i = 0; i < N; ++i) {
 		results[i] = evalTriangle(phase, freqMult, configs[i]);
 	}
+#endif
+
 	return results;
 }
 
