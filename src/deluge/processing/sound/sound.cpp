@@ -1552,7 +1552,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 			}
 			else {
-				D_PRINTLN("couldn't start note from sound::noteon");
+				// D_PRINTLN("couldn't start note from sound::noteon");
 			}
 			// todo: end pending note?
 		}
@@ -1592,7 +1592,6 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
                                   int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
                                   int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
-	D_PRINTLN("starting note %x, velocity %x for sound %s", noteCodePreArp, velocity, getName());
 	const ActiveVoice* voiceToReuse = nullptr;
 	const ActiveVoice* voiceForLegato = nullptr;
 
@@ -4933,7 +4932,7 @@ void Sound::terminateOneActiveVoice() {
 	}
 
 	const ActiveVoice& voice = *best;
-	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
+	bool still_rendering = voice->doFastRelease(4 * SOFT_CULL_INCREMENT);
 
 	if (!still_rendering) {
 		this->freeActiveVoice(voice);
