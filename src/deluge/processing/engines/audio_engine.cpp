@@ -175,7 +175,7 @@ bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 uint32_t i2sTXBufferPos;
 uint32_t i2sRXBufferPos;
-int voicesStartedThisRender = 0;
+volatile int voices_started_this_render = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
@@ -338,7 +338,6 @@ void forceReleaseOneVoice(size_t num_samples) {
 		if (voice->envelopes[0].state == EnvelopeStage::FAST_RELEASE) {
 			voice->speedUpRelease();
 			return;
-			continue;
 		}
 		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
 	}
@@ -403,22 +402,25 @@ uint8_t numRoutines = 0;
 
 // not in header (private to audio engine)
 /// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
-inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
+void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
+
 	bool culled = false;
 	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
 	// we can be a bit more lenient with the limit
-	auto max_num_samples = numSamplesLimit + (20 * voicesStartedThisRender);
+	auto max_num_samples = numSamplesLimit + (20 * voices_started_this_render);
 	if (numAudio + numVoice > MIN_VOICES) {
 		static int32_t last_num_samples_over = 0;
 
 		int32_t num_samples_over_limit = numSamples - max_num_samples;
 		// If it's real dire, do a proper immediate cull
-		if (num_samples_over_limit >= 20) {
-			int32_t num_to_cull = (num_samples_over_limit >> 3);
+		if (num_samples_over_limit >= 32) {
+			int32_t num_to_cull = (num_samples_over_limit >> 4);
 
 			// leave at least 7 - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
 			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
+			D_PRINTLN("Culling %d voices", num_to_cull);
+
 			for (int32_t i = num_to_cull / 2; i < num_to_cull; i++) {
 				// cull with fast release
 				terminateOneVoice(numSamples);
@@ -466,7 +468,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
-		D_PRINTLN("started %i voices this render cycle", voicesStartedThisRender);
+		D_PRINTLN("started %i voices this render cycle", voices_started_this_render);
 	}
 }
 
@@ -565,7 +567,6 @@ bool calledFromScheduler = false;
 	AutomatedTester::possiblyDoSomething();
 #endif
 	flushMIDIGateBuffers();
-
 	setDireness(numSamples);
 
 	// Double the number of samples we're going to do - within some constraints
@@ -588,11 +589,13 @@ bool calledFromScheduler = false;
 	if (numSamples >= 3) {
 		numSamples = (numSamples + 2) & ~3;
 	}
+	voices_started_this_render = 0;
 
 	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
 	tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
 
 	numSamplesLastTime = numSamples;
+
 	renderAudio(numSamples);
 
 	scheduleMidiGateOutISR(saddrPosAtStart, unadjustedNumSamplesBeforeLappingPlayHead,
@@ -1014,7 +1017,6 @@ void routine() {
 	audioRoutineLocked = true;
 
 	numRoutines = 0;
-	voicesStartedThisRender = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		while (doSomeOutputting() && numRoutines < 2) {
 
@@ -1390,8 +1392,8 @@ void getReverbParamsFromSong(Song* song) {
 
 bool allowedToStartVoice() {
 	auto threshold = cpuDireness > 12 ? 1 : 4;
-	if (voicesStartedThisRender < threshold) {
-		voicesStartedThisRender += 1;
+	if (voices_started_this_render < threshold) {
+		voices_started_this_render += 1;
 		return true;
 	}
 	return false;
