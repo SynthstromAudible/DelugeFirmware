@@ -409,64 +409,77 @@ activenessDetermined:
 			    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_START_OFFSET_A + s);
 			guides[s].preRollSamples = 0;
 			if (startOffsetParam != 0) {
-				Sample* offsetSample = static_cast<Sample*>(guides[s].audioFileHolder->audioFile);
-				int32_t bytesPerFrame = offsetSample->numChannels * offsetSample->byteDepth;
-				int32_t regionBytes = guides[s].endPlaybackAtByte - guides[s].startPlaybackAtByte;
-				int32_t absRegion = std::abs(regionBytes);
-				bool forward = (regionBytes > 0);
+				bool synced = (source->repeatMode == SampleRepeatMode::STRETCH
+				               || source->repeatMode == SampleRepeatMode::PHASE_LOCKED)
+				              && guides[s].sequenceSyncLengthTicks > 0;
 
-				if (absRegion > 0 && bytesPerFrame > 0) {
-					if (startOffsetParam > 0) {
-						// Positive offset: shift start forward into the region
-						int64_t offsetBytes = ((int64_t)startOffsetParam * absRegion) >> 31;
-						int32_t fwd = static_cast<int32_t>(((offsetBytes % absRegion) + absRegion) % absRegion);
-						fwd = (fwd / bytesPerFrame) * bytesPerFrame;
-						guides[s].startPlaybackAtByte += forward ? fwd : -fwd;
-					}
-					else {
-						// Negative offset: move start backward into audio before the start marker.
-						// If we run out of audio, wrap (LOOP) or pad silence (ONCE/CUT).
-						int32_t desiredBackward = static_cast<int32_t>((-(int64_t)startOffsetParam * absRegion) >> 31);
-						desiredBackward = (desiredBackward / bytesPerFrame) * bytesPerFrame;
+				if (synced) {
+					// For synced modes, apply offset as a tick shift so the phase-lock
+					// seeking starts at the offset position. This only affects the initial
+					// entry point; the loop continues in phase from there.
+					int64_t tickShift = ((int64_t)startOffsetParam * (int64_t)guides[s].sequenceSyncLengthTicks) >> 31;
+					guides[s].sequenceSyncStartedAtTick -= static_cast<int32_t>(tickShift);
+				}
+				else {
+					// For non-synced modes, apply offset by modifying byte positions
+					Sample* offsetSample = static_cast<Sample*>(guides[s].audioFileHolder->audioFile);
+					int32_t bytesPerFrame = offsetSample->numChannels * offsetSample->byteDepth;
+					int32_t regionBytes = guides[s].endPlaybackAtByte - guides[s].startPlaybackAtByte;
+					int32_t absRegion = std::abs(regionBytes);
+					bool forward = (regionBytes > 0);
 
-						// How far back can we go into the actual audio data?
-						int32_t availableBackward;
-						if (forward) {
-							availableBackward = guides[s].startPlaybackAtByte
-							                    - static_cast<int32_t>(offsetSample->audioDataStartPosBytes);
+					if (absRegion > 0 && bytesPerFrame > 0) {
+						if (startOffsetParam > 0) {
+							// Positive offset: shift start forward into the region
+							int64_t offsetBytes = ((int64_t)startOffsetParam * absRegion) >> 31;
+							int32_t fwd = static_cast<int32_t>(((offsetBytes % absRegion) + absRegion) % absRegion);
+							fwd = (fwd / bytesPerFrame) * bytesPerFrame;
+							guides[s].startPlaybackAtByte += forward ? fwd : -fwd;
 						}
 						else {
-							int32_t audioEndByte = static_cast<int32_t>(offsetSample->audioDataStartPosBytes
-							                                            + offsetSample->audioDataLengthBytes);
-							availableBackward = audioEndByte - guides[s].startPlaybackAtByte;
-						}
-						if (availableBackward < 0) {
-							availableBackward = 0;
-						}
-						availableBackward = (availableBackward / bytesPerFrame) * bytesPerFrame;
+							// Negative offset: move start backward into audio before the
+							// start marker. If we run out, wrap (LOOP) or silence (ONCE/CUT).
+							// TODO: add "playoffset/slide" mode that shifts both start and end
+							// points together, with optional crossfade using the voice envelope.
+							int32_t desiredBackward =
+							    static_cast<int32_t>((-(int64_t)startOffsetParam * absRegion) >> 31);
+							desiredBackward = (desiredBackward / bytesPerFrame) * bytesPerFrame;
 
-						int32_t actualBackward = std::min(desiredBackward, availableBackward);
-						guides[s].startPlaybackAtByte += forward ? -actualBackward : actualBackward;
-
-						int32_t remainingBytes = desiredBackward - actualBackward;
-						if (remainingBytes > 0) {
-							bool looping = (source->repeatMode == SampleRepeatMode::LOOP
-							                || source->repeatMode == SampleRepeatMode::STRETCH
-							                || source->repeatMode == SampleRepeatMode::PHASE_LOCKED);
-							if (looping) {
-								// Wrap remaining from end of region
-								int32_t wrapped = remainingBytes % absRegion;
-								wrapped = (wrapped / bytesPerFrame) * bytesPerFrame;
-								if (forward) {
-									guides[s].startPlaybackAtByte = guides[s].endPlaybackAtByte - wrapped;
-								}
-								else {
-									guides[s].startPlaybackAtByte = guides[s].endPlaybackAtByte + wrapped;
-								}
+							int32_t availableBackward;
+							if (forward) {
+								availableBackward = guides[s].startPlaybackAtByte
+								                    - static_cast<int32_t>(offsetSample->audioDataStartPosBytes);
 							}
 							else {
-								// ONCE/CUT: pad with silence pre-roll
-								guides[s].preRollSamples = remainingBytes / bytesPerFrame;
+								int32_t audioEndByte = static_cast<int32_t>(offsetSample->audioDataStartPosBytes
+								                                            + offsetSample->audioDataLengthBytes);
+								availableBackward = audioEndByte - guides[s].startPlaybackAtByte;
+							}
+							if (availableBackward < 0) {
+								availableBackward = 0;
+							}
+							availableBackward = (availableBackward / bytesPerFrame) * bytesPerFrame;
+
+							int32_t actualBackward = std::min(desiredBackward, availableBackward);
+							guides[s].startPlaybackAtByte += forward ? -actualBackward : actualBackward;
+
+							int32_t remainingBytes = desiredBackward - actualBackward;
+							if (remainingBytes > 0) {
+								if (source->repeatMode == SampleRepeatMode::LOOP) {
+									// Wrap remaining from end of region
+									int32_t wrapped = remainingBytes % absRegion;
+									wrapped = (wrapped / bytesPerFrame) * bytesPerFrame;
+									if (forward) {
+										guides[s].startPlaybackAtByte = guides[s].endPlaybackAtByte - wrapped;
+									}
+									else {
+										guides[s].startPlaybackAtByte = guides[s].endPlaybackAtByte + wrapped;
+									}
+								}
+								else {
+									// ONCE/CUT: pad with silence pre-roll
+									guides[s].preRollSamples = remainingBytes / bytesPerFrame;
+								}
 							}
 						}
 					}
