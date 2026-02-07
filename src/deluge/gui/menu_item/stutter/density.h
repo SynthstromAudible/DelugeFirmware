@@ -150,7 +150,7 @@ public:
 		return deluge::modulation::params::Kind::PATCHED;
 	}
 
-	bool usesAffectEntire() override { return true; }
+	bool usesAffectEntire() override { return false; }
 
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuValue; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }

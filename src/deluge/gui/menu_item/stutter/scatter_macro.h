@@ -173,7 +173,7 @@ public:
 		return deluge::modulation::params::Kind::PATCHED;
 	}
 
-	bool usesAffectEntire() override { return true; }
+	bool usesAffectEntire() override { return false; }
 
 	// === Encoder action with secret menu ===
 
