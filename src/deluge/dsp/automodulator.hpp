@@ -318,22 +318,6 @@ struct LfoWaypointBank {
 	uint32_t invSegWidthQ[5]; // 1/segWidth scaled for reciprocal multiply
 };
 
-/// State for IIR-style LFO tracking (one per LFO channel)
-/// Uses exponential chase toward segment targets - organic curves without wavetable eval
-struct LfoIirState {
-	q31_t value{0};              // Current LFO value (bipolar q31)
-	q31_t intermediate{0};       // Per-sample step (delta)
-	q31_t target{0};             // Target amplitude (segment endpoint)
-	int8_t segment{0};           // Current segment index (0-4)
-	uint32_t samplesRemaining{}; // Samples until segment boundary (decremented each buffer)
-};
-
-/// Result of incremental LFO evaluation - start value and per-sample delta
-struct LfoIncremental {
-	q31_t value; // Current LFO value (bipolar q31: -ONE_Q31 to ONE_Q31)
-	q31_t delta; // Per-sample delta (signed q31, add each sample)
-};
-
 /// Result of LFO rate calculation - either free Hz or synced subdivision
 struct LfoRateResult {
 	float value;       // Hz if free, ignored if synced
@@ -420,6 +404,10 @@ struct AutomodPhiCache {
 	q31_t springOmega2Q{0};       // ω₀² coefficient for spring force
 	q31_t springDampingCoeffQ{0}; // 2*ζ*ω₀ coefficient for velocity damping
 
+	// Comb spring coefficients (critically damped, smooths buffer-rate LFO steps for comb delay)
+	q31_t combSpringOmega2Q{0};
+	q31_t combSpringDampingCoeffQ{0};
+
 	// LFO wavetable waypoints (sorted by phase)
 	LfoWaypointBank wavetable{};
 
@@ -456,6 +444,12 @@ struct AutomodDspState {
 	q31_t springVelL{0};
 	q31_t springVelR{0};
 
+	// Comb spring state (critically damped, smooths buffer-rate comb LFO steps)
+	q31_t combSpringPosL{0};
+	q31_t combSpringPosR{0};
+	q31_t combSpringVelL{0};
+	q31_t combSpringVelR{0};
+
 	// LFO phase accumulator
 	uint32_t lfoPhase{0};
 	uint32_t onceStartPhase{0};   // Phase where Once mode started (for cycle detection)
@@ -471,31 +465,10 @@ struct AutomodDspState {
 	q31_t smoothedBandMixQ{0};
 	q31_t smoothedHighMixQ{0};
 
-	// IIR-smoothed LFO values
-	q31_t smoothedLfoL{0};
-	q31_t smoothedLfoR{0};
-	q31_t smoothedCombLfoL{0};
-	q31_t smoothedCombLfoR{0};
-	q31_t smoothedTremLfoL{0};
-	q31_t smoothedTremLfoR{0};
-
 	// Pitch tracking cache
 	int32_t prevNoteCode{-2};                   // -2 = never computed
 	int32_t cachedFilterPitchRatioQ16{1 << 16}; // Filter cutoff multiplier in 16.16 (higher note = higher cutoff)
 	int32_t cachedCombPitchRatioQ16{1 << 16};   // Comb delay multiplier in 16.16 (higher note = shorter delay)
-
-	// LFO IIR state (6 channels)
-	LfoIirState lfoIirL{};
-	LfoIirState lfoIirR{};
-	LfoIirState combLfoIirL{};
-	LfoIirState combLfoIirR{};
-	LfoIirState tremLfoIirL{};
-	LfoIirState tremLfoIirR{};
-
-	// Precomputed LFO stepping (recomputed when rate or wavetable changes)
-	uint32_t cachedPhaseInc{0};      // Cached rate for dirty detection
-	q31_t stepPerSegment[5]{};       // Per-sample amplitude step for each segment
-	uint32_t samplesPerSegment[5]{}; // Number of samples to traverse each segment
 
 	// Comb filter write index
 	uint16_t combIdx{0};

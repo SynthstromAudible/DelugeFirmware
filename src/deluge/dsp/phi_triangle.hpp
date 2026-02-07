@@ -199,9 +199,16 @@ struct PhiTriContext {
  * Less precise than double version but sufficient for triangle evaluation
  */
 [[gnu::always_inline]] inline float32x4_t wrapPhaseNeon(float32x4_t phase) {
-	// Truncate to integer and subtract (equivalent to phase - floor(phase) for positive values)
-	int32x4_t intPart = vcvtq_s32_f32(phase);
-	return vsubq_f32(phase, vcvtq_f32_s32(intPart));
+	// Floor via truncation with negative correction:
+	// vcvtq truncates toward zero, but floor rounds toward -inf.
+	// For negative non-integer values, subtract 1 from the truncated result.
+	int32x4_t truncated = vcvtq_s32_f32(phase);
+	float32x4_t truncatedF = vcvtq_f32_s32(truncated);
+	// correction = (phase < truncatedF) ? -1.0f : 0.0f
+	uint32x4_t needsCorrection = vcltq_f32(phase, truncatedF);
+	float32x4_t correction = vcvtq_f32_s32(vreinterpretq_s32_u32(needsCorrection)); // -1 or 0
+	float32x4_t floored = vaddq_f32(truncatedF, correction);
+	return vsubq_f32(phase, floored);
 }
 
 /**
