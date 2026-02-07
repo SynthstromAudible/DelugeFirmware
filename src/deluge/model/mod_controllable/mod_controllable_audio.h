@@ -23,6 +23,7 @@
 #include "dsp/compressor/multiband.h"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
+#include "dsp/disperser.h"
 #include "dsp/shaper.h"
 #include "dsp/sine_shaper.hpp"
 #include "dsp/stereo_sample.h"
@@ -64,6 +65,8 @@ public:
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 	void processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager);
+	void processDisperser(std::span<StereoSample> buffer, ParamManager* paramManager, q31_t topoCables = 0,
+	                      q31_t twistCables = 0);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -95,6 +98,10 @@ public:
 	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 
+	/// Get last played note code for pitch tracking (override in Sound)
+	/// Returns -1 if no note info available (e.g., clips/samples)
+	[[nodiscard]] virtual int32_t getLastNoteCode() const { return -1; }
+
 	// EQ
 	int32_t bassFreq{}; // These two should eventually not be variables like this
 	int32_t trebleFreq{};
@@ -120,6 +127,10 @@ public:
 
 	// Automodulator (auto-wah/filter/tremolo/comb)
 	deluge::dsp::AutomodulatorParams automod;
+
+	// Disperser (allpass cascade with feedback)
+	deluge::dsp::Disperser disperserDsp;    // DSP processor
+	deluge::dsp::DisperserParams disperser; // All disperser state (freq, stages, zones, smoothing, delay)
 
 	FilterMode lpfMode;
 	FilterMode hpfMode;

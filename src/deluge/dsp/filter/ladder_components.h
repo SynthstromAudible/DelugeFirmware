@@ -206,6 +206,14 @@ struct StereoBiquadAllpass {
 		s2_[0] = s2_[1] = 0;
 	}
 
+	/// Fade state toward zero (keeps 12.5% per call) for click-free zone transitions
+	void fadeState() {
+		s1_[0] >>= 3;
+		s1_[1] >>= 3;
+		s2_[0] >>= 3;
+		s2_[1] >>= 3;
+	}
+
 	/// Process stereo sample through 2nd-order allpass
 	/// coeffs.a1 is stored at 0.5x scale, so we shift left after multiply
 	[[gnu::always_inline]] int32x2_t process(int32x2_t input, const BiquadAllpassCoeffs& coeffs) {

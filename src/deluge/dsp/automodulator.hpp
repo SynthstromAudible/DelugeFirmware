@@ -32,6 +32,7 @@
 #include "definitions.h"
 #include "dsp/phi_triangle.hpp"
 #include "dsp/stereo_sample.h"
+#include "dsp/util.hpp"
 #include "memory/memory_allocator_interface.h"
 #include "model/sync.h"
 #include "util/fixedpoint.h"
@@ -784,15 +785,6 @@ public:
 		prevTimePerTickInverse = 0xFFFFFFFF;
 	}
 };
-
-// ============================================================================
-// Small inline helpers (kept in header for performance)
-// ============================================================================
-
-/// Convert MIDI note code to Hz (A4=440Hz standard)
-[[gnu::always_inline]] inline float noteCodeToHz(int32_t noteCode) {
-	return kA4Hz * exp2f((static_cast<float>(noteCode) - 69.0f) / 12.0f);
-}
 
 // ============================================================================
 // Function declarations (implementations in automodulator.cpp)

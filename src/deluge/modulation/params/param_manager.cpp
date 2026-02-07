@@ -23,6 +23,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -56,6 +57,18 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 	return this;
 }
 #endif
+
+int32_t ParamManager::getValueWithFallback(int32_t patchedParam) {
+	using namespace deluge::modulation::params;
+	if (hasPatchedParamSet()) {
+		return getPatchedParamSet()->getValue(patchedParam);
+	}
+	int32_t unpatchedParam = getUnpatchedFallback(patchedParam);
+	if (unpatchedParam >= 0 && containsAnyMainParamCollections()) {
+		return getUnpatchedParamSet()->getValue(unpatchedParam);
+	}
+	return 0;
+}
 
 Error ParamManager::setupMIDI() {
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));

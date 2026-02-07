@@ -140,6 +140,8 @@ public:
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
+	[[nodiscard]] int32_t getLastNoteCode() const override { return lastNoteCode; }
+
 	bool oscillatorSync = false;
 
 	VoicePriority voicePriority = VoicePriority::MEDIUM;

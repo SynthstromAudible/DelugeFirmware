@@ -77,6 +77,7 @@
 #include "gui/menu_item/flash/status.h"
 #include "gui/menu_item/fx/automodulator.h"
 #include "gui/menu_item/fx/clipping.h"
+#include "gui/menu_item/fx/disperser.h"
 #include "gui/menu_item/fx/shaper.h"
 #include "gui/menu_item/fx/sine_shaper.h"
 #include "gui/menu_item/gate/mode.h"
@@ -767,10 +768,21 @@ HorizontalMenu automodMenu{
     },
 };
 
-// Shaping submenu - contains Sine Shaper, Table Shaper, and Automodulator
+// Disperser - allpass cascade with zone-based topology and character controls
+fx::DisperserFreq disperserFreqMenu{STRING_FOR_DISPERSER_FREQ};
+fx::DisperserTopo disperserTopoMenu{STRING_FOR_DISPERSER_TOPO};
+fx::DisperserTwist disperserTwistMenu{STRING_FOR_DISPERSER_TWIST};
+fx::DisperserStages disperserStagesMenu{STRING_FOR_DISPERSER_STAGES};
+
+HorizontalMenu disperserSubMenu{
+    STRING_FOR_DISPERSER_MENU,
+    {&disperserFreqMenu, &disperserTopoMenu, &disperserTwistMenu, &disperserStagesMenu},
+};
+
+// Shaping submenu - contains Sine Shaper, Table Shaper, Automodulator, and Disperser
 submenu::Shaping shapingMenu{
     STRING_FOR_SHAPING,
-    {&sineShaperSubMenu, &tableShaperSubMenu, &automodMenu},
+    {&sineShaperSubMenu, &tableShaperSubMenu, &automodMenu, &disperserSubMenu},
 };
 
 // Output MIDI for sound drums --------------------------------------------------------------

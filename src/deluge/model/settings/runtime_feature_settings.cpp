@@ -327,6 +327,10 @@ void RuntimeFeatureSettings::init() {
 	// ModFX after DOTT (post multiband compressor)
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ModFXPostDOTT], STRING_FOR_COMMUNITY_FEATURE_MODFX_POST_DOTT,
 	                  "modFxPostDott", RuntimeFeatureStateToggle::Off);
+
+	// Disperser High CPU mode (allows >8 stages, up to 32)
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisperserHiCPU],
+	                  STRING_FOR_COMMUNITY_FEATURE_DISPERSER_HI_CPU, "disperserHiCpu", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

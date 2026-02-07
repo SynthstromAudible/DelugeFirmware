@@ -2193,6 +2193,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 
 	bool skippingStatusNow =
 	    (voices_.empty() && (delay.repeatsUntilAbandon == 0u) && !stutterer.isStuttering(this)
+	     && !disperser.delay.hasEnergy() // Disperser tail still ringing
 	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF));
 
 	if (skippingStatusNow != skippingRendering) {
@@ -2616,6 +2617,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	int32_t modFXRate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
 	processSRRAndBitcrushing(sound_stereo, &postFXVolume, paramManager);
+
+	// Disperser modulation cables (for mod matrix support)
+	q31_t topoCables = paramFinalValues[params::GLOBAL_DISPERSER_TOPO - params::FIRST_GLOBAL];
+	q31_t twistCables = paramFinalValues[params::GLOBAL_DISPERSER_TWIST - params::FIRST_GLOBAL];
+	processDisperser(sound_stereo, paramManager, topoCables, twistCables);
 
 	// Check if ModFX should run after DOTT and stutter
 	bool modFXPostDOTT =
