@@ -124,6 +124,7 @@ public:
 
 	// Sine shaper parameters and DSP state (struct defined in dsp/sine_shaper.hpp)
 	deluge::dsp::SineTableShaperParams sineShaper;
+	deluge::dsp::SineShaperVoiceState sineShaperGlobalState; // Per-clip state for GlobalEffectable path
 
 	// Automodulator (auto-wah/filter/tremolo/comb)
 	deluge::dsp::AutomodulatorParams automod;
