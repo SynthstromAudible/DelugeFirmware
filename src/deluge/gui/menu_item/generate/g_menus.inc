@@ -73,7 +73,8 @@ sample::PitchSpeed sample0PitchSpeedMenu{STRING_FOR_PITCH_SPEED, 0};
 sample::Interpolation sample0InterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAMP_INTERP_MENU_TITLE, 0};
 sample::Start sample0StartMenu{STRING_FOR_START_POINT, 0};
 sample::End sample0EndMenu{STRING_FOR_END_POINT, 0};
-std::array<MenuItem*, 14> child6 = {
+sample::StartOffset sample0StartOffsetMenu{STRING_FOR_START_OFFSET, 0};
+std::array<MenuItem*, 15> child6 = {
     &osc0TypeMenu,
     &deluge::gui::menu_item::file0SelectorMenu,
     &source0TransposeMenu,
@@ -88,6 +89,7 @@ std::array<MenuItem*, 14> child6 = {
     &sample0InterpolationMenu,
     &sample0StartMenu,
     &sample0EndMenu,
+    &sample0StartOffsetMenu,
 };
 submenu::ActualSource source0Menu{STRING_FOR_OSCILLATOR_1, child6, 0};
 osc::Type osc1TypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE, 1};
@@ -104,7 +106,8 @@ sample::PitchSpeed sample1PitchSpeedMenu{STRING_FOR_PITCH_SPEED, 1};
 sample::Interpolation sample1InterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAMP_INTERP_MENU_TITLE, 1};
 sample::Start sample1StartMenu{STRING_FOR_START_POINT, 1};
 sample::End sample1EndMenu{STRING_FOR_END_POINT, 1};
-std::array<MenuItem*, 14> child7 = {
+sample::StartOffset sample1StartOffsetMenu{STRING_FOR_START_OFFSET, 1};
+std::array<MenuItem*, 15> child7 = {
     &osc1TypeMenu,
     &deluge::gui::menu_item::file1SelectorMenu,
     &source1TransposeMenu,
@@ -119,6 +122,7 @@ std::array<MenuItem*, 14> child7 = {
     &sample1InterpolationMenu,
     &sample1StartMenu,
     &sample1EndMenu,
+    &sample1StartOffsetMenu,
 };
 submenu::ActualSource source1Menu{STRING_FOR_OSCILLATOR_2, child7, 1};
 modulator::Transpose modulator0TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_FM_MOD_TRAN_MENU_TITLE, params::LOCAL_MODULATOR_0_PITCH_ADJUST, 0};

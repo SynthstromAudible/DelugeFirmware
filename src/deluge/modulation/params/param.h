@@ -265,6 +265,8 @@ enum UnpatchedShared : ParamType {
 /// Unpatched params which are only used for Sounds
 enum UnpatchedSound : ParamType {
 	UNPATCHED_PORTAMENTO = UNPATCHED_NUM_SHARED,
+	UNPATCHED_SAMPLE_START_OFFSET_A,
+	UNPATCHED_SAMPLE_START_OFFSET_B,
 	UNPATCHED_SOUND_MAX_NUM,
 };
 

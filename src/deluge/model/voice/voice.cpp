@@ -108,6 +108,85 @@ void Voice::unassignStuff(bool deletingSong) {
 
 uint32_t lastSoundOrder = 0;
 
+// Parse BPM from sample filename. Handles both explicit "120BPM" and bare numbers
+// like "drums_120_loop.wav" with sanity checking (range 40-300).
+// Returns 0 if no valid BPM found.
+static constexpr int32_t kMinPlausibleBPM = 40;
+static constexpr int32_t kMaxPlausibleBPM = 300;
+
+static int32_t extractNumber(const char* start, const char* end) {
+	int32_t val = 0;
+	for (const char* d = start; d < end; d++) {
+		val = val * 10 + (*d - '0');
+	}
+	return val;
+}
+
+static int32_t parseBPMFromFilename(const char* path) {
+	if (!path || !*path) {
+		return 0;
+	}
+
+	// Find the filename portion (after last '/')
+	const char* filename = path;
+	for (const char* p = path; *p; p++) {
+		if (*p == '/') {
+			filename = p + 1;
+		}
+	}
+
+	// First pass: look for explicit [digits]BPM pattern (highest confidence)
+	for (const char* p = filename; *p; p++) {
+		if ((p[0] == 'B' || p[0] == 'b') && (p[1] == 'P' || p[1] == 'p') && (p[2] == 'M' || p[2] == 'm')
+		    && (p[3] == '.' || p[3] == '_' || p[3] == '-' || p[3] == ' ' || p[3] == '\0')) {
+			const char* end = p;
+			const char* start = p;
+			while (start > filename && start[-1] >= '0' && start[-1] <= '9') {
+				start--;
+			}
+			if (start < end) {
+				int32_t bpm = extractNumber(start, end);
+				if (bpm >= kMinPlausibleBPM && bpm <= kMaxPlausibleBPM) {
+					return bpm;
+				}
+			}
+		}
+	}
+
+	// Second pass: look for bare numbers delimited by separators (_, -, space, or start/end)
+	// that fall in a plausible BPM range
+	for (const char* p = filename; *p; p++) {
+		if (*p >= '0' && *p <= '9') {
+			// Check that this number is at a word boundary (start of filename or after separator)
+			if (p > filename && p[-1] != '_' && p[-1] != '-' && p[-1] != ' ') {
+				// Skip this digit sequence — it's embedded in a word
+				while (*p >= '0' && *p <= '9') {
+					p++;
+				}
+				if (!*p) {
+					break;
+				}
+				continue;
+			}
+			const char* start = p;
+			while (*p >= '0' && *p <= '9') {
+				p++;
+			}
+			// Check trailing boundary (separator, dot/extension, or end)
+			if (*p == '_' || *p == '-' || *p == ' ' || *p == '.' || *p == '\0') {
+				int32_t val = extractNumber(start, p);
+				if (val >= kMinPlausibleBPM && val <= kMaxPlausibleBPM) {
+					return val;
+				}
+			}
+			if (!*p) {
+				break;
+			}
+		}
+	}
+	return 0;
+}
+
 // Returns false if fail and we need to unassign again
 bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
                    int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength,
@@ -258,6 +337,28 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 						                 // And yes, this is supposed to use lastSwungTickActioned, not
 						                 // getActualSwungTickCount(). ticksLate is relative to that.
 					}
+					else if (sound.sources[s].repeatMode == SampleRepeatMode::PHASE_LOCKED) {
+						// Try to parse BPM from the sample filename
+						int32_t sampleBPM = parseBPMFromFilename(holder->filePath.get());
+						if (sampleBPM > 0) {
+							int64_t currentTick = playbackHandler.lastSwungTickActioned - ticksLate;
+
+							// Compute the sample's musical length in ticks from its BPM.
+							// syncLength = sampleBeats * ticksPerBeat
+							//            = (sampleSamples / sampleRate / 60 * bpm) * quarterNoteLen
+							uint32_t sampleLengthInSamples =
+							    ((SampleHolder*)holder)->getLengthInSamplesAtSystemSampleRate(true);
+							uint32_t quarterNoteLength = currentSong->getQuarterNoteLength();
+							uint64_t syncLengthBig = (uint64_t)sampleLengthInSamples * sampleBPM * quarterNoteLength;
+							uint32_t syncLength = syncLengthBig / ((uint64_t)kSampleRate * 60);
+
+							if (syncLength > 0) {
+								guides[s].sequenceSyncLengthTicks = syncLength;
+								guides[s].sequenceSyncStartedAtTick = currentTick - (currentTick % syncLength);
+							}
+						}
+						// No BPM in filename — play raw, no time-stretch or phase-lock
+					}
 				}
 			}
 		}
@@ -303,7 +404,88 @@ activenessDetermined:
 			source->sampleControls.invertReversed = sound.invertReversed; // Copy the temporary flag from the sound
 			guides[s].setupPlaybackBounds(source->sampleControls.isCurrentlyReversed());
 
+			// Apply plocked sample start offset
+			int32_t startOffsetParam =
+			    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_START_OFFSET_A + s);
+			guides[s].preRollSamples = 0;
+			if (startOffsetParam != 0) {
+				Sample* offsetSample = static_cast<Sample*>(guides[s].audioFileHolder->audioFile);
+				int32_t bytesPerFrame = offsetSample->numChannels * offsetSample->byteDepth;
+				int32_t regionBytes = guides[s].endPlaybackAtByte - guides[s].startPlaybackAtByte;
+				int32_t absRegion = std::abs(regionBytes);
+				bool forward = (regionBytes > 0);
+
+				if (absRegion > 0 && bytesPerFrame > 0) {
+					if (startOffsetParam > 0) {
+						// Positive offset: shift start forward into the region
+						int64_t offsetBytes = ((int64_t)startOffsetParam * absRegion) >> 31;
+						int32_t fwd = static_cast<int32_t>(((offsetBytes % absRegion) + absRegion) % absRegion);
+						fwd = (fwd / bytesPerFrame) * bytesPerFrame;
+						guides[s].startPlaybackAtByte += forward ? fwd : -fwd;
+					}
+					else {
+						// Negative offset: move start backward into audio before the start marker.
+						// If we run out of audio, wrap (LOOP) or pad silence (ONCE/CUT).
+						int32_t desiredBackward = static_cast<int32_t>((-(int64_t)startOffsetParam * absRegion) >> 31);
+						desiredBackward = (desiredBackward / bytesPerFrame) * bytesPerFrame;
+
+						// How far back can we go into the actual audio data?
+						int32_t availableBackward;
+						if (forward) {
+							availableBackward = guides[s].startPlaybackAtByte
+							                    - static_cast<int32_t>(offsetSample->audioDataStartPosBytes);
+						}
+						else {
+							int32_t audioEndByte = static_cast<int32_t>(offsetSample->audioDataStartPosBytes
+							                                            + offsetSample->audioDataLengthBytes);
+							availableBackward = audioEndByte - guides[s].startPlaybackAtByte;
+						}
+						if (availableBackward < 0) {
+							availableBackward = 0;
+						}
+						availableBackward = (availableBackward / bytesPerFrame) * bytesPerFrame;
+
+						int32_t actualBackward = std::min(desiredBackward, availableBackward);
+						guides[s].startPlaybackAtByte += forward ? -actualBackward : actualBackward;
+
+						int32_t remainingBytes = desiredBackward - actualBackward;
+						if (remainingBytes > 0) {
+							bool looping = (source->repeatMode == SampleRepeatMode::LOOP
+							                || source->repeatMode == SampleRepeatMode::STRETCH
+							                || source->repeatMode == SampleRepeatMode::PHASE_LOCKED);
+							if (looping) {
+								// Wrap remaining from end of region
+								int32_t wrapped = remainingBytes % absRegion;
+								wrapped = (wrapped / bytesPerFrame) * bytesPerFrame;
+								if (forward) {
+									guides[s].startPlaybackAtByte = guides[s].endPlaybackAtByte - wrapped;
+								}
+								else {
+									guides[s].startPlaybackAtByte = guides[s].endPlaybackAtByte + wrapped;
+								}
+							}
+							else {
+								// ONCE/CUT: pad with silence pre-roll
+								guides[s].preRollSamples = remainingBytes / bytesPerFrame;
+							}
+						}
+					}
+				}
+			}
+
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
+		}
+
+		// For PHASE_LOCKED, force late-start path to seek to bar-phase position
+		// (but only when we're actually mid-bar, not on the downbeat)
+		uint16_t effectiveSamplesLate = samplesLate;
+		if (source->oscType == OscType::SAMPLE && source->repeatMode == SampleRepeatMode::PHASE_LOCKED
+		    && guides[s].sequenceSyncLengthTicks) {
+			int64_t tickIntoBar =
+			    (playbackHandler.lastSwungTickActioned - ticksLate) - guides[s].sequenceSyncStartedAtTick;
+			if (tickIntoBar > 0) {
+				effectiveSamplesLate = std::max<uint16_t>(1, samplesLate);
+			}
 		}
 
 		for (int32_t u = 0; u < sound.numUnison; u++) {
@@ -311,9 +493,9 @@ activenessDetermined:
 			// Check that we already marked this unison-part-source as active. Among other things, this ensures that if
 			// the osc is set to SAMPLE, there actually is a sample loaded.
 			if (unisonParts[u].sources[s].active) {
-				bool success =
-				    unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate, sound.oscRetriggerPhase[s],
-				                                     resetEnvelopes, sound.synthMode, velocity);
+				bool success = unisonParts[u].sources[s].noteOn(this, source, &guides[s], effectiveSamplesLate,
+				                                                sound.oscRetriggerPhase[s], resetEnvelopes,
+				                                                sound.synthMode, velocity);
 				if (!success) [[unlikely]] {
 					return false; // This shouldn't really ever happen I don't think really...
 				}
@@ -2013,6 +2195,19 @@ void Voice::renderBasicSource(Sound& sound, ParamManagerForTimeline* paramManage
 
 	GeneralMemoryAllocator::get().checkStack("Voice::renderBasicSource");
 
+	// Consume pre-roll silence for negative sample start offset.
+	// Moves the audio start later in the buffer so the first N samples stay silent.
+	if (sound.sources[s].oscType == OscType::SAMPLE && guides[s].preRollSamples > 0) {
+		int32_t samplesToSkip = std::min(guides[s].preRollSamples, numSamples);
+		guides[s].preRollSamples -= samplesToSkip;
+		if (samplesToSkip >= numSamples) {
+			return; // Entire block is silence
+		}
+		numSamples -= samplesToSkip;
+		oscBuffer += samplesToSkip * (stereoBuffer ? 2 : 1);
+		sourceAmplitude += amplitudeIncrement * samplesToSkip;
+	}
+
 	// For each unison part
 	for (int32_t u = 0; u < sound.numUnison; u++) {
 
@@ -2121,8 +2316,10 @@ pitchTooHigh:
 
 				int32_t rawSamplesLate;
 
-				// Synced / STRETCH - it's super easy.
-				if (sound.sources[s].repeatMode == SampleRepeatMode::STRETCH) {
+				// Synced / STRETCH / PHASE_LOCKED with sync - it's super easy.
+				if ((sound.sources[s].repeatMode == SampleRepeatMode::STRETCH
+				     || sound.sources[s].repeatMode == SampleRepeatMode::PHASE_LOCKED)
+				    && guides[s].sequenceSyncLengthTicks) {
 					rawSamplesLate = guides[s].getSyncedNumSamplesIn();
 				}
 

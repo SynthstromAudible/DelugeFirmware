@@ -121,7 +121,7 @@ void SampleHolderForVoice::recalculateFineTuner() {
 }
 
 uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
-	if (source->repeatMode == SampleRepeatMode::STRETCH) {
+	if (source->repeatMode == SampleRepeatMode::STRETCH || source->repeatMode == SampleRepeatMode::PHASE_LOCKED) {
 		return 9999999;
 	}
 	else {

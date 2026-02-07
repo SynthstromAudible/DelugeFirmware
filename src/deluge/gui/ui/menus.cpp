@@ -187,6 +187,7 @@
 #include "gui/menu_item/sample/repeat.h"
 #include "gui/menu_item/sample/reverse.h"
 #include "gui/menu_item/sample/start.h"
+#include "gui/menu_item/sample/start_offset.h"
 #include "gui/menu_item/sample/time_stretch.h"
 #include "gui/menu_item/sample/transpose.h"
 #include "gui/menu_item/sequence/direction.h"

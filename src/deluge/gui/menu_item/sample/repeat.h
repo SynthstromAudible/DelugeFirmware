@@ -58,12 +58,13 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[source_id_];
 
-					// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-					if (current_value == SampleRepeatMode::STRETCH) {
+					// Automatically switch pitch/speed independence on / off if stretch or gate mode is selected
+					if (current_value == SampleRepeatMode::STRETCH || current_value == SampleRepeatMode::PHASE_LOCKED) {
 						soundDrum->killAllVoices();
 						source->sampleControls.pitchAndSpeedAreIndependent = true;
 					}
-					else if (source->repeatMode == SampleRepeatMode::STRETCH) {
+					else if (source->repeatMode == SampleRepeatMode::STRETCH
+					         || source->repeatMode == SampleRepeatMode::PHASE_LOCKED) {
 						soundDrum->killAllVoices();
 						source->sampleControls.pitchAndSpeedAreIndependent = false;
 					}
@@ -81,12 +82,13 @@ public:
 		else {
 			Source& source = soundEditor.currentSound->sources[source_id_];
 
-			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-			if (current_value == SampleRepeatMode::STRETCH) {
+			// Automatically switch pitch/speed independence on / off if stretch or gate mode is selected
+			if (current_value == SampleRepeatMode::STRETCH || current_value == SampleRepeatMode::PHASE_LOCKED) {
 				soundEditor.currentSound->killAllVoices();
 				source.sampleControls.pitchAndSpeedAreIndependent = true;
 			}
-			else if (source.repeatMode == SampleRepeatMode::STRETCH) {
+			else if (source.repeatMode == SampleRepeatMode::STRETCH
+			         || source.repeatMode == SampleRepeatMode::PHASE_LOCKED) {
 				soundEditor.currentSound->killAllVoices();
 				source.sampleControls.pitchAndSpeedAreIndependent = false;
 			}
@@ -110,6 +112,7 @@ public:
 		    l10n::getView(l10n::String::STRING_FOR_ONCE),
 		    l10n::getView(l10n::String::STRING_FOR_LOOP),
 		    l10n::getView(l10n::String::STRING_FOR_STRETCH),
+		    l10n::getView(l10n::String::STRING_FOR_DRUM_GATE_MODE),
 		};
 	}
 
@@ -124,6 +127,8 @@ public:
 			case SampleRepeatMode::LOOP:
 				return OLED::sampleModeLoopIcon;
 			case SampleRepeatMode::STRETCH:
+				return OLED::sampleModeStretchIcon;
+			case SampleRepeatMode::PHASE_LOCKED:
 				return OLED::sampleModeStretchIcon;
 			}
 			return OLED::sampleModeCutIcon;

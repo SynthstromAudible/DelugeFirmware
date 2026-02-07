@@ -143,6 +143,14 @@ for i in range(2):
             name="STRING_FOR_END_POINT",
             available_when=_available_txt,
         ),
+        Menu(
+            "sample::StartOffset",
+            f"sample{i}StartOffsetMenu",
+            ["{name}", f"{i}"],
+            "oscillator/sample/start_offset.md",
+            name="STRING_FOR_START_OFFSET",
+            available_when=_available_txt,
+        ),
     ]
 
     volumes.append(

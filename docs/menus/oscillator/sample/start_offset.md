@@ -1,0 +1,1 @@
+Offsets the sample start position as a fraction of the sample region (between start and end markers). Supports per-step automation (parameter locks) so each note can start at a different position within the sample.
