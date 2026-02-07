@@ -167,6 +167,8 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [GLOBAL_REVERB_AMOUNT]           = "Reverb amt",
 	    [GLOBAL_MOD_FX_DEPTH]            = "ModFXdepth",
 	    [GLOBAL_DELAY_FEEDBACK]          = "Delay feed",
+	    [GLOBAL_DISPERSER_TOPO]          = "Disp topo",
+	    [GLOBAL_DISPERSER_TWIST]         = "Disp twist",
 	    [GLOBAL_SCATTER_MACRO]           = "Scat macro",
 	    [GLOBAL_SCATTER_PWRITE]          = "Scat pWrite",
 	    [GLOBAL_SCATTER_DENSITY]         = "Scat density",
@@ -252,6 +254,8 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [GLOBAL_REVERB_AMOUNT] = STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT,
 	    [GLOBAL_MOD_FX_DEPTH] = STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH,
 	    [GLOBAL_DELAY_FEEDBACK] = STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK,
+	    [GLOBAL_DISPERSER_TOPO] = STRING_FOR_DISPERSER_TOPO,
+	    [GLOBAL_DISPERSER_TWIST] = STRING_FOR_DISPERSER_TWIST,
 	    [GLOBAL_SCATTER_MACRO] = STRING_FOR_SCATTER_MACRO,
 	    [GLOBAL_SCATTER_PWRITE] = STRING_FOR_SCATTER_PWRITE,
 	    [GLOBAL_SCATTER_DENSITY] = STRING_FOR_SCATTER_DENSITY,
@@ -315,6 +319,8 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_SINE_SHAPER_TWIST] = STRING_FOR_SINE_SHAPER_SYMMETRY,
 		    [UNPATCHED_TABLE_SHAPER_DRIVE] = STRING_FOR_SHAPER_DRIVE,
 		    [UNPATCHED_TABLE_SHAPER_MIX] = STRING_FOR_SHAPER_MIX,
+		    [UNPATCHED_DISPERSER_TOPO] = STRING_FOR_DISPERSER_TOPO,
+		    [UNPATCHED_DISPERSER_TWIST] = STRING_FOR_DISPERSER_TWIST,
 		    [UNPATCHED_AUTOMOD_DEPTH] = STRING_FOR_AUTOMOD_DEPTH,
 		    [UNPATCHED_AUTOMOD_FREQ] = STRING_FOR_AUTOMOD_FREQ,
 		    [UNPATCHED_AUTOMOD_MANUAL] = STRING_FOR_AUTOMOD_MANUAL,
@@ -565,6 +571,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 			return "clipTableShaperDrive";
 		case UNPATCHED_TABLE_SHAPER_MIX:
 			return "clipTableShaperMix";
+
+		case UNPATCHED_DISPERSER_TOPO:
+			return "disperserTopo";
+		case UNPATCHED_DISPERSER_TWIST:
+			return "disperserTwist";
+
 		case UNPATCHED_AUTOMOD_DEPTH:
 			return "clipAutomodMacro";
 		case UNPATCHED_AUTOMOD_FREQ:
@@ -661,6 +673,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case GLOBAL_DELAY_FEEDBACK:
 			return "delayFeedback";
+
+		case GLOBAL_DISPERSER_TOPO:
+			return "globalDisperserTopo";
+
+		case GLOBAL_DISPERSER_TWIST:
+			return "globalDisperserTwist";
 
 		case GLOBAL_SCATTER_MACRO:
 			return "globalScatterMacro";

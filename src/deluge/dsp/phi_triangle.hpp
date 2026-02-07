@@ -79,8 +79,12 @@ constexpr float kPhi400 = 6.8541020f; // φ^4.0
  * @return Wrapped phase in [0,1)
  */
 [[gnu::always_inline]] inline float wrapPhase(double phase) {
-	// Fast floor via int64_t truncation (valid for positive values)
-	return static_cast<float>(phase - static_cast<double>(static_cast<int64_t>(phase)));
+	// Fast floor via int64_t truncation
+	// For negative values, truncation goes toward zero (not floor), so we subtract 1
+	int64_t truncated = static_cast<int64_t>(phase);
+	double floored = (phase < 0.0 && phase != static_cast<double>(truncated)) ? static_cast<double>(truncated - 1)
+	                                                                          : static_cast<double>(truncated);
+	return static_cast<float>(phase - floored);
 }
 
 /**

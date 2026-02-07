@@ -160,6 +160,13 @@ public:
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t currentValueChanged,
 	                                  bool automationChanged, bool paramAutomatedNow);
 
+	/// Get param value with automatic patched→unpatched fallback for GlobalEffectable contexts.
+	/// If this ParamManager has patched params, returns the patched value.
+	/// Otherwise returns the corresponding unpatched fallback value.
+	/// @param patchedParam The patched param ID (e.g., GLOBAL_DISPERSER_TOPO)
+	/// @return The param value from the appropriate param set
+	int32_t getValueWithFallback(int32_t patchedParam);
+
 #if ALPHA_OR_BETA_VERSION
 	virtual ParamManagerForTimeline* toForTimeline();
 #else

@@ -114,6 +114,12 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	multibandCompressor.setCrossoverType(other->multibandCompressor.getCrossoverType());
 	// Automodulator params (does not copy comb buffers - they're lazy-allocated)
 	automod.cloneFrom(other->automod);
+	// Disperser state (copy user params, delay buffer is per-instance)
+	disperser.freq = other->disperser.freq;
+	disperser.topo = other->disperser.topo;
+	disperser.twist = other->disperser.twist;
+	disperser.phases = other->disperser.phases;
+	disperser.setStages(other->disperser.getStages());
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager) {
@@ -466,6 +472,20 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 	}
 }
 
+void ModControllableAudio::processDisperser(std::span<StereoSample> buffer, ParamManager* paramManager,
+                                            q31_t topoCables, q31_t twistCables) {
+	using namespace deluge::modulation::params;
+	if (!disperser.isEnabled()) {
+		return;
+	}
+
+	q31_t topoPreset = paramManager ? paramManager->getValueWithFallback(GLOBAL_DISPERSER_TOPO) : 0;
+	q31_t twistPreset = paramManager ? paramManager->getValueWithFallback(GLOBAL_DISPERSER_TWIST) : 0;
+
+	deluge::dsp::processDisperser(buffer, disperserDsp, disperser, topoPreset, topoCables, twistPreset, twistCables,
+	                              getLastNoteCode());
+}
+
 inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount,
                                        int32_t trebleAmount) {
 	int32_t trebleOnlyL;
@@ -510,6 +530,8 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	}
 	// Table shaper state (only writes non-default values)
 	shaper.writeToFile(writer);
+	// Disperser state
+	disperser.writeToFile(writer);
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer) {
@@ -875,6 +897,11 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 		if (shaper.isEnabled()) {
 			shaperDsp.regenerateTable(shaper.shapeX, shaper.shapeY, shaper.gammaPhase, shaper.oscHarmonicWeight);
 		}
+	}
+
+	// Disperser state
+	else if (disperser.readTag(reader, tagName)) {
+		// Reading handled internally
 	}
 
 	// Arpeggiator
@@ -1857,6 +1884,11 @@ char const* ModControllableAudio::getHPFModeDisplayName() {
 // This can get called either for hibernation, or because drum now has no active noteRow
 void ModControllableAudio::wontBeRenderedForAWhile() {
 	delay.discardBuffers();
+	// Deallocate disperser delay buffers on hibernation to reclaim ~70KB SDRAM
+	if (disperser.isEnabled()) {
+		disperserDsp.reset();
+		disperser.delay.deallocate();
+	}
 	// Don't end latched scatter - it should keep playing when you switch tracks
 	// But release our ownership so the sound can stop rendering (new source can adopt)
 	if (stutterer.isLatched() && stutterer.isStuttering(this)) {

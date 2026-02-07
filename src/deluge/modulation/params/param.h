@@ -153,15 +153,17 @@ enum Global : ParamType {
 
 	// Global zone params begin (patcher outputs cables only, DSP combines with preset)
 	FIRST_GLOBAL_ZONE = FIRST_GLOBAL_HYBRID,
-	GLOBAL_SCATTER_MACRO = FIRST_GLOBAL_ZONE, // Scatter macro control (zone param for cable-only output)
-	GLOBAL_SCATTER_PWRITE,                    // Scatter buffer write probability
-	GLOBAL_SCATTER_DENSITY,                   // Scatter grain density (dry/wet)
-	GLOBAL_SCATTER_ZONE_A,                    // Scatter structural zone
-	GLOBAL_SCATTER_ZONE_B,                    // Scatter timbral zone
-	GLOBAL_SCATTER_MACRO_CONFIG,              // Scatter effect depth
-	GLOBAL_AUTOMOD_DEPTH,                     // Automodulator modulation depth
-	GLOBAL_AUTOMOD_FREQ,                      // Automodulator filter frequency offset (bipolar)
-	GLOBAL_AUTOMOD_MANUAL,                    // Automodulator manual LFO offset (bipolar)
+	GLOBAL_DISPERSER_TOPO = FIRST_GLOBAL_ZONE, // Disperser topology zone (clips to boundaries)
+	GLOBAL_DISPERSER_TWIST,                    // Disperser character zone (allows cross-zone)
+	GLOBAL_SCATTER_MACRO,                      // Scatter macro control (zone param for cable-only output)
+	GLOBAL_SCATTER_PWRITE,                     // Scatter buffer write probability
+	GLOBAL_SCATTER_DENSITY,                    // Scatter grain density (dry/wet)
+	GLOBAL_SCATTER_ZONE_A,                     // Scatter structural zone
+	GLOBAL_SCATTER_ZONE_B,                     // Scatter timbral zone
+	GLOBAL_SCATTER_MACRO_CONFIG,               // Scatter effect depth
+	GLOBAL_AUTOMOD_DEPTH,                      // Automodulator modulation depth
+	GLOBAL_AUTOMOD_FREQ,                       // Automodulator filter frequency offset (bipolar)
+	GLOBAL_AUTOMOD_MANUAL,                     // Automodulator manual LFO offset (bipolar)
 
 	// Global exp params begin
 	FIRST_GLOBAL_EXP,
@@ -224,6 +226,9 @@ enum UnpatchedShared : ParamType {
 	UNPATCHED_SINE_SHAPER_TWIST,
 	UNPATCHED_TABLE_SHAPER_DRIVE,
 	UNPATCHED_TABLE_SHAPER_MIX,
+	// Disperser zone controls
+	UNPATCHED_DISPERSER_TOPO,
+	UNPATCHED_DISPERSER_TWIST,
 	// Automodulator controls
 	UNPATCHED_AUTOMOD_DEPTH,
 	UNPATCHED_AUTOMOD_FREQ,
@@ -446,6 +451,8 @@ constexpr ZoneParamInfo getZoneParamInfo(ParamType paramId) {
 	switch (paramId) {
 	case LOCAL_SINE_SHAPER_HARMONIC:
 	case LOCAL_SINE_SHAPER_TWIST:
+	case GLOBAL_DISPERSER_TOPO:
+	case GLOBAL_DISPERSER_TWIST:
 	case GLOBAL_SCATTER_ZONE_A:
 	case GLOBAL_SCATTER_ZONE_B:
 	case GLOBAL_SCATTER_MACRO_CONFIG:
@@ -463,6 +470,8 @@ constexpr ZoneParamInfo getZoneParamInfo(UnpatchedShared paramId) {
 	switch (paramId) {
 	case UNPATCHED_SINE_SHAPER_HARMONIC:
 	case UNPATCHED_SINE_SHAPER_TWIST:
+	case UNPATCHED_DISPERSER_TOPO:
+	case UNPATCHED_DISPERSER_TWIST:
 	case UNPATCHED_SCATTER_ZONE_A:
 	case UNPATCHED_SCATTER_ZONE_B:
 	case UNPATCHED_SCATTER_MACRO_CONFIG:
@@ -491,6 +500,10 @@ constexpr int32_t getUnpatchedFallback(ParamType patchedId) {
 		return UNPATCHED_SINE_SHAPER_HARMONIC;
 	case LOCAL_SINE_SHAPER_TWIST:
 		return UNPATCHED_SINE_SHAPER_TWIST;
+	case GLOBAL_DISPERSER_TOPO:
+		return UNPATCHED_DISPERSER_TOPO;
+	case GLOBAL_DISPERSER_TWIST:
+		return UNPATCHED_DISPERSER_TWIST;
 	case GLOBAL_SCATTER_ZONE_A:
 		return UNPATCHED_SCATTER_ZONE_A;
 	case GLOBAL_SCATTER_ZONE_B:

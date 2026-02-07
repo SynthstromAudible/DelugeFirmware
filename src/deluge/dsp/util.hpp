@@ -178,4 +178,10 @@ inline float triangleFloat(float phase, float duty = 1.0f) {
 	return result;
 }
 
+/// Convert MIDI note code to Hz (A4=440Hz standard)
+/// Note code 60 = middle C (C3) = ~130.81 Hz, A4 (note 69) = 440 Hz
+[[gnu::always_inline]] inline float noteCodeToHz(int32_t noteCode) {
+	return 440.0f * exp2f((static_cast<float>(noteCode) - 69.0f) / 12.0f);
+}
+
 } // namespace deluge::dsp
