@@ -27,6 +27,7 @@
 #include <limits>
 #include <string.h>
 // #include <algorithm>
+#include "dsp/shaper_buffer.h"
 #include "hid/buttons.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
@@ -132,6 +133,43 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Render FX
 	processSRRAndBitcrushing(global_effectable_audio, &volumePostFX, paramManagerForClip);
+
+	// Sine shaper (no mod matrix cables in unpatched context)
+	if (sineShaper.isEnabled()) {
+		UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
+		q31_t sineDrive = unpatchedParams->getValue(params::UNPATCHED_SINE_SHAPER_DRIVE);
+		q31_t sineHarmonic = unpatchedParams->getValue(params::UNPATCHED_SINE_SHAPER_HARMONIC);
+		q31_t sineTwist = unpatchedParams->getValue(params::UNPATCHED_SINE_SHAPER_TWIST);
+		deluge::dsp::processSineShaper(global_effectable_audio, &sineShaper, &sineShaperGlobalState, sineDrive,
+		                               sineHarmonic, 0, sineTwist, 0);
+	}
+
+	// Table shaper (no mod matrix cables in unpatched context)
+	if (shaper.shapeX > 0) {
+		UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
+		q31_t satDrive = unpatchedParams->getValue(params::UNPATCHED_TABLE_SHAPER_DRIVE);
+		q31_t satMix = unpatchedParams->getValue(params::UNPATCHED_TABLE_SHAPER_MIX);
+		deluge::dsp::shapeBufferInt32(
+		    global_effectable_audio, shaperDsp, satDrive, &shaper.driveLast, satMix, &shaper.threshold32Last,
+		    &shaper.blendSlopeLast_Q8, 0, false, &shaper.prevScaledInputL, &shaper.prevScaledInputR,
+		    &shaper.prevSampleL, &shaper.prevSampleR, &shaper.zcCountL, &shaper.zcCountR, &shaper.subSignL,
+		    &shaper.subSignR, shaper.extrasMask, shaper.gammaPhase, &shaper.slewedL, &shaper.slewedR);
+	}
+
+	// Disperser (no mod matrix cables in unpatched context)
+	processDisperser(global_effectable_audio, paramManagerForClip, 0, 0);
+
+	// Automodulator
+	if (automod.isEnabled()) {
+		UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
+		q31_t automodDepth = unpatchedParams->getValue(params::UNPATCHED_AUTOMOD_DEPTH);
+		q31_t automodFreq = unpatchedParams->getValue(params::UNPATCHED_AUTOMOD_FREQ);
+		q31_t automodManual = unpatchedParams->getValue(params::UNPATCHED_AUTOMOD_MANUAL);
+		uint32_t timePerTickInv =
+		    playbackHandler.isEitherClockActive() ? playbackHandler.getTimePerInternalTickInverse() : 0;
+		deluge::dsp::processAutomodulator(global_effectable_audio, automod, automodDepth, automodFreq, automodManual,
+		                                  true, 0, timePerTickInv);
+	}
 
 	// Check if ModFX should run after DOTT and stutter
 	bool modFXPostDOTT =

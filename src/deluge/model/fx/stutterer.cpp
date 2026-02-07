@@ -1618,6 +1618,27 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					}
 				}
 
+				// === pWRITE: minimum fade at grain boundaries ===
+				// When output envelope is disabled (fast ratchets, gate-only, no env depth),
+				// pWriteEnvQ31 defaults to full weight with hard cutoff at gate. This creates
+				// buffer content discontinuities that cause clicks on future reads.
+				// Apply a short pWrite-only fade at non-consecutive boundaries independently
+				// of the output envelope (output can hard-cut for punch, buffer writes cannot).
+				if (hasPWrite) {
+					constexpr int32_t kPWriteFade = 64; // ~1.5ms at 44.1kHz
+					int32_t pos = static_cast<int32_t>(playbackPos);
+					// Attack: ramp pWrite up at start of non-consecutive grain
+					if (pos < kPWriteFade && !scatterConsecutive && loopAttackLen < kPWriteFade) {
+						pWriteEnvQ31 = std::min(pWriteEnvQ31, pos << 25);
+					}
+					// Decay: ramp pWrite down before gate cutoff
+					int32_t distToEnd = loopGatedLen - pos;
+					if (distToEnd >= 0 && distToEnd < kPWriteFade && !loopNextConsecutive
+					    && loopDecayLen < kPWriteFade) {
+						pWriteEnvQ31 = std::min(pWriteEnvQ31, distToEnd << 25);
+					}
+				}
+
 				// === pWRITE: crossfade source into buffer ===
 				// Single buffer tape-loop: read from shuffled position, write to linear position
 				// Uses grain envelope for crossfade (already handles small grains via prepareGrainEnvelopeQ31)
