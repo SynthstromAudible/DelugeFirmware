@@ -485,9 +485,10 @@ void updateAutomodPhiCache(AutomodulatorParams& params, uint32_t timePerTickInve
 	float bouncesPerCycle = 0.5f + springModFreq * 11.5f; // 0.5 to 12 bounces/cycle
 	float springFreqHz = bouncesPerCycle * lfoHz;
 
-	// Clamp spring freq: max ~150 Hz (below buffer Nyquist of 172 Hz)
+	// Clamp spring freq: max 80 Hz ensures meaningful smoothing at 344 Hz buffer rate
+	// (0.23× Nyquist = always acts as LPF, never transparent)
 	constexpr float kMinSpringHz = 0.5f;
-	constexpr float kMaxSpringHz = 150.0f;
+	constexpr float kMaxSpringHz = 80.0f;
 	springFreqHz = std::clamp(springFreqHz, kMinSpringHz, kMaxSpringHz);
 
 	// For discrete spring, correct coefficient for desired frequency:
@@ -513,7 +514,7 @@ void updateAutomodPhiCache(AutomodulatorParams& params, uint32_t timePerTickInve
 	// Compensation scales bounciness, NOT the critical damping baseline
 	// This preserves zeta=1.0 when springModDamp=0 (deadzone = critically damped)
 	float compensatedBounciness = bounciness / (rateCompensation * freqCompensation);
-	float zeta = std::max(1.0f - compensatedBounciness, 0.05f); // Floor at 0.05 for stability
+	float zeta = std::max(1.0f - compensatedBounciness, 0.15f); // Floor at 0.15 ensures minimum smoothing
 
 	// Correct discrete-time spring coefficient for desired oscillation frequency
 	// k = 2 * (1 - cos(2π * f / sampleRate)) gives exact frequency in discrete system
@@ -927,32 +928,41 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	uint32_t lfoPhaseR = startPhase + scaledStereoOffset; // was: + phasePushR
 	uint32_t combPhaseL = startPhase + c.combPhaseOffsetU32;
 	uint32_t combPhaseR = combPhaseL + scaledStereoOffset;
-	uint32_t tremPhaseL = startPhase + c.tremPhaseOffset;
-	uint32_t tremPhaseR = tremPhaseL + scaledStereoOffset;
+	const bool tremEnabled = (c.tremoloDepthQ != 0);
+	uint32_t tremPhaseL = 0;
+	uint32_t tremPhaseR = 0;
 
 	// Get initial LFO values - remaining counts stored in state, use precomputed step from s.stepPerSegment
 	LfoIncremental lfoL = updateLfoAccum(s.lfoIirL, lfoPhaseL, phaseInc, c.wavetable, s.samplesPerSegment);
 	LfoIncremental lfoR = updateLfoAccum(s.lfoIirR, lfoPhaseR, phaseInc, c.wavetable, s.samplesPerSegment);
 	LfoIncremental combLfoL = updateLfoAccum(s.combLfoIirL, combPhaseL, phaseInc, c.wavetable, s.samplesPerSegment);
 	LfoIncremental combLfoR = updateLfoAccum(s.combLfoIirR, combPhaseR, phaseInc, c.wavetable, s.samplesPerSegment);
-	LfoIncremental tremLfoL = updateLfoAccum(s.tremLfoIirL, tremPhaseL, phaseInc, c.wavetable, s.samplesPerSegment);
-	LfoIncremental tremLfoR = updateLfoAccum(s.tremLfoIirR, tremPhaseR, phaseInc, c.wavetable, s.samplesPerSegment);
+	LfoIncremental tremLfoL{};
+	LfoIncremental tremLfoR{};
+	if (tremEnabled) {
+		tremPhaseL = startPhase + c.tremPhaseOffset;
+		tremPhaseR = tremPhaseL + scaledStereoOffset;
+		tremLfoL = updateLfoAccum(s.tremLfoIirL, tremPhaseL, phaseInc, c.wavetable, s.samplesPerSegment);
+		tremLfoR = updateLfoAccum(s.tremLfoIirR, tremPhaseR, phaseInc, c.wavetable, s.samplesPerSegment);
+	}
 
 	// Copy remaining counts to locals for per-sample loop (written back at end)
 	uint32_t lfoLRemaining = s.lfoIirL.samplesRemaining;
 	uint32_t lfoRRemaining = s.lfoIirR.samplesRemaining;
 	uint32_t combLRemaining = s.combLfoIirL.samplesRemaining;
 	uint32_t combRRemaining = s.combLfoIirR.samplesRemaining;
-	uint32_t tremLRemaining = s.tremLfoIirL.samplesRemaining;
-	uint32_t tremRRemaining = s.tremLfoIirR.samplesRemaining;
+	uint32_t tremLRemaining = tremEnabled ? s.tremLfoIirL.samplesRemaining : 1;
+	uint32_t tremRRemaining = tremEnabled ? s.tremLfoIirR.samplesRemaining : 1;
 
 	// Override deltas with precomputed values from stepping params
 	lfoL.delta = s.stepPerSegment[s.lfoIirL.segment];
 	lfoR.delta = s.stepPerSegment[s.lfoIirR.segment];
 	combLfoL.delta = s.stepPerSegment[s.combLfoIirL.segment];
 	combLfoR.delta = s.stepPerSegment[s.combLfoIirR.segment];
-	tremLfoL.delta = s.stepPerSegment[s.tremLfoIirL.segment];
-	tremLfoR.delta = s.stepPerSegment[s.tremLfoIirR.segment];
+	if (tremEnabled) {
+		tremLfoL.delta = s.stepPerSegment[s.tremLfoIirL.segment];
+		tremLfoR.delta = s.stepPerSegment[s.tremLfoIirR.segment];
+	}
 
 	// === Manual offset handling ===
 	// IMPORTANT: Do NOT add manual to .value fields - those are used for accumulation
@@ -974,10 +984,12 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		combLfoL.delta = 0;
 		combLfoR.value = manual;
 		combLfoR.delta = 0;
-		tremLfoL.value = manual;
-		tremLfoL.delta = 0;
-		tremLfoR.value = manual;
-		tremLfoR.delta = 0;
+		if (tremEnabled) {
+			tremLfoL.value = manual;
+			tremLfoL.delta = 0;
+			tremLfoR.value = manual;
+			tremLfoR.delta = 0;
+		}
 
 		// manualOffset stays 0 since manual is already in .value
 	}
@@ -987,8 +999,10 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		lfoR.delta = 0;
 		combLfoL.delta = 0;
 		combLfoR.delta = 0;
-		tremLfoL.delta = 0;
-		tremLfoR.delta = 0;
+		if (tremEnabled) {
+			tremLfoL.delta = 0;
+			tremLfoR.delta = 0;
+		}
 
 		manualOffset = manual; // Add manual to frozen position for processing
 	}
@@ -1024,15 +1038,15 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	// discontinuities at buffer boundaries when segment resets cause raw LFO jumps.
 	// Values are stored in RAW (unscaled) space; depth scaling applied at use points.
 	// This allows depth changes without rescaling stored state.
-	q31_t processedTremL = s.smoothedTremLfoL;
-	q31_t processedTremR = s.smoothedTremLfoR;
+	q31_t processedTremL = tremEnabled ? s.smoothedTremLfoL : 0;
+	q31_t processedTremR = tremEnabled ? s.smoothedTremLfoR : 0;
 	q31_t processedCombL = s.smoothedCombLfoL;
 	q31_t processedCombR = s.smoothedCombLfoR;
 
 	// Deltas are RAW (unscaled) - slew limiting operates in raw space for consistent feel
 	// Depth scaling applied at point of use (tremolo gain, comb delay calculation)
-	q31_t tremDeltaL = tremLfoL.delta;
-	q31_t tremDeltaR = tremLfoR.delta;
+	q31_t tremDeltaL = tremEnabled ? tremLfoL.delta : 0;
+	q31_t tremDeltaR = tremEnabled ? tremLfoR.delta : 0;
 	q31_t combDeltaL = combLfoL.delta;
 	q31_t combDeltaR = combLfoR.delta;
 
@@ -1101,30 +1115,6 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		s.springPosR = add_saturate(s.springPosR, s.springVelR);
 	}
 
-	// Compute per-sample delta for smooth interpolation within buffer
-	// Scale up by 16 to compensate for input scaling (gives 16x headroom for overshoot)
-	// For buffer size N: delta = (newPos - oldPos) * 16 / N = (diff) >> (log2(N) - 4)
-	int bufferLog2 = 31 - __builtin_clz(std::max(static_cast<unsigned>(bufferSize), 1u));
-	int deltaShift = bufferLog2 - 4; // Combine /N and *16 into single shift
-	// Use 64-bit subtraction to avoid overflow from negation
-	q31_t diffL =
-	    static_cast<q31_t>(std::clamp(static_cast<int64_t>(s.springPosL) - static_cast<int64_t>(prevSpringPosL),
-	                                  static_cast<int64_t>(INT32_MIN), static_cast<int64_t>(INT32_MAX)));
-	q31_t diffR =
-	    static_cast<q31_t>(std::clamp(static_cast<int64_t>(s.springPosR) - static_cast<int64_t>(prevSpringPosR),
-	                                  static_cast<int64_t>(INT32_MIN), static_cast<int64_t>(INT32_MAX)));
-	// Use saturating shift for left shift case (small buffers)
-	q31_t springDeltaL, springDeltaR;
-	if (deltaShift >= 0) {
-		springDeltaL = diffL >> deltaShift;
-		springDeltaR = diffR >> deltaShift;
-	}
-	else {
-		// Left shift - clamp to prevent overflow
-		springDeltaL = std::clamp(diffL << (-deltaShift), -ONE_Q31, ONE_Q31);
-		springDeltaR = std::clamp(diffR << (-deltaShift), -ONE_Q31, ONE_Q31);
-	}
-
 	// Spring output for filter modulation (separate from lfoL/lfoR to preserve LFO state)
 	// Scale up by 16 to restore original amplitude (spring operates at 1/16 scale for headroom)
 	// Clip values exceeding 1/16 scale range before scaling up
@@ -1134,6 +1124,19 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	};
 	q31_t springOutL = clipAndScale(prevSpringPosL);
 	q31_t springOutR = clipAndScale(prevSpringPosR);
+
+	// Compute per-sample delta from CLIPPED positions (output domain).
+	// Bug fix: previously computed from raw spring positions, but springOutL starts from
+	// clipAndScale(prev). When the spring overshoots past kClipLimit, the raw delta was wrong
+	// relative to the clamped start — causing wrong-slope interpolation that "snaps back"
+	// at the next buffer boundary (visible as artifacts on scope near segment boundaries).
+	q31_t springEndL = clipAndScale(s.springPosL);
+	q31_t springEndR = clipAndScale(s.springPosR);
+	// Both values are within ±ONE_Q31, so subtraction can't overflow
+	q31_t diffL = springEndL - springOutL;
+	q31_t diffR = springEndR - springOutR;
+	q31_t springDeltaL = diffL / static_cast<q31_t>(bufferSize);
+	q31_t springDeltaR = diffR / static_cast<q31_t>(bufferSize);
 
 	// Tremolo uses processedTremL/R directly with tremDeltaL/R (no spring smoothing)
 
@@ -1197,9 +1200,18 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	q31_t filterBaseNoPitch = add_saturate(add_saturate(kCutoffMid, scaledCutoffBase), scaledFreqOffset);
 	// Apply pitch tracking multiplicatively (16.16 × q31 → q31)
 	// This maintains harmonic relationships: 1 octave up = 2× cutoff frequency
-	const q31_t filterBasePlusPitch =
+	const q31_t filterBasePlusPitchTarget =
 	    std::clamp(static_cast<q31_t>((static_cast<int64_t>(filterBaseNoPitch) * filterPitchRatioQ16) >> 16),
 	               kCutoffMin, kCutoffMax);
+
+	// Interpolate filter base across buffer to prevent clicks from knob changes
+	// prevFilterBase tracks last buffer's value; delta spreads the change over all samples
+	q31_t filterBaseRunning = s.prevFilterBase;
+	q31_t filterBaseDelta =
+	    static_cast<q31_t>((static_cast<int64_t>(filterBasePlusPitchTarget) - static_cast<int64_t>(filterBaseRunning))
+	                       / static_cast<int64_t>(bufferSize));
+	s.prevFilterBase = filterBasePlusPitchTarget;
+
 	const q31_t filterQ = ONE_Q31 - c.filterResonance;
 
 	// Hoist comb mono collapse check
@@ -1225,13 +1237,15 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 #if USE_NEON_SVF
 	const int32x2_t filterQVec = vdup_n_s32(filterQ);
 	const int32x2_t modDepthVec = vdup_n_s32(c.filterModDepth);
-	const int32x2_t basePlusPitchVec = vdup_n_s32(filterBasePlusPitch);
 	const int32x2_t feedbackVec = vdup_n_s32(c.svfFeedbackQ);
 	const int32x2_t cutoffMinVec = vdup_n_s32(kCutoffMin);
 	const int32x2_t cutoffMaxVec = vdup_n_s32(kCutoffMax);
 #endif
 
 	for (auto& sample : buffer) {
+		// Advance interpolated filter base cutoff
+		filterBaseRunning = add_saturate(filterBaseRunning, filterBaseDelta);
+
 		// Store dry signal for wet/dry blend
 		const q31_t dryL = sample.l;
 		const q31_t dryR = sample.r;
@@ -1250,8 +1264,8 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			// LFO contribution: spring output × modDepth
 			int32x2_t lfoContrib = vqdmulh_s32(springVal, modDepthVec);
 
-			// Cutoff = basePlusPitch + lfoContrib + feedbackContrib
-			// (when feedbackVec=0, feedbackContrib=0 - no branch needed)
+			// Cutoff = interpolated base + lfoContrib + feedbackContrib
+			int32x2_t basePlusPitchVec = vdup_n_s32(filterBaseRunning);
 			int32x2_t cutoff = vqadd_s32(basePlusPitchVec, lfoContrib);
 			int32x2_t feedbackContrib = vqdmulh_s32(svfLow, feedbackVec);
 			cutoff = vqadd_s32(cutoff, feedbackContrib);
@@ -1281,33 +1295,44 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			q31_t highL = vget_lane_s32(high, 0);
 			q31_t highR = vget_lane_s32(high, 1);
 
-			// Apply depth first, then manual offset (post-depth override)
-			// Use saturating add: depth-scaled LFO and manual are both full-scale q31
-			q31_t scaledTremL = add_saturate(multiply_32x32_rshift32(processedTremL, depthMultQ31) << 1, manualOffset);
-			q31_t scaledTremR = add_saturate(multiply_32x32_rshift32(processedTremR, depthMultQ31) << 1, manualOffset);
-			q31_t uniTremL = (scaledTremL >> 1) + (ONE_Q31 >> 1);
-			q31_t uniTremR = (scaledTremR >> 1) + (ONE_Q31 >> 1);
+			q31_t filteredL, filteredR;
+			if (tremEnabled) {
+				// Apply depth first, then manual offset (post-depth override)
+				q31_t scaledTremL =
+				    add_saturate(multiply_32x32_rshift32(processedTremL, depthMultQ31) << 1, manualOffset);
+				q31_t scaledTremR =
+				    add_saturate(multiply_32x32_rshift32(processedTremR, depthMultQ31) << 1, manualOffset);
+				q31_t uniTremL = (scaledTremL >> 1) + (ONE_Q31 >> 1);
+				q31_t uniTremR = (scaledTremR >> 1) + (ONE_Q31 >> 1);
 
-			// Tremolo gain: 1 - depth * unipolar
-			q31_t tremGainL = ONE_Q31 - (multiply_32x32_rshift32(c.tremoloDepthQ, uniTremL) << 1);
-			q31_t tremGainR = ONE_Q31 - (multiply_32x32_rshift32(c.tremoloDepthQ, uniTremR) << 1);
+				// Tremolo gain: 1 - depth * unipolar
+				q31_t tremGainL = ONE_Q31 - (multiply_32x32_rshift32(c.tremoloDepthQ, uniTremL) << 1);
+				q31_t tremGainR = ONE_Q31 - (multiply_32x32_rshift32(c.tremoloDepthQ, uniTremR) << 1);
 
-			// LP: mono tremolo (no stereo pulsing in bass)
-			q31_t tremMono = (tremGainL >> 1) + (tremGainR >> 1);
-			q31_t lowTremL = multiply_32x32_rshift32(s.svfLowL, tremMono) << 1;
-			q31_t lowTremR = multiply_32x32_rshift32(s.svfLowR, tremMono) << 1;
+				// LP: mono tremolo (no stereo pulsing in bass)
+				q31_t tremMono = (tremGainL >> 1) + (tremGainR >> 1);
+				q31_t lowTremL = multiply_32x32_rshift32(s.svfLowL, tremMono) << 1;
+				q31_t lowTremR = multiply_32x32_rshift32(s.svfLowR, tremMono) << 1;
 
-			// BP/HP: full stereo tremolo
-			q31_t bandTremL = multiply_32x32_rshift32(s.svfBandL, tremGainL) << 1;
-			q31_t bandTremR = multiply_32x32_rshift32(s.svfBandR, tremGainR) << 1;
-			q31_t highTremL = multiply_32x32_rshift32(highL, tremGainL) << 1;
-			q31_t highTremR = multiply_32x32_rshift32(highR, tremGainR) << 1;
+				// BP/HP: full stereo tremolo
+				q31_t bandTremL = multiply_32x32_rshift32(s.svfBandL, tremGainL) << 1;
+				q31_t bandTremR = multiply_32x32_rshift32(s.svfBandR, tremGainR) << 1;
+				q31_t highTremL = multiply_32x32_rshift32(highL, tremGainL) << 1;
+				q31_t highTremR = multiply_32x32_rshift32(highR, tremGainR) << 1;
 
-			// Blend LP/BP/HP using buffer-level mix weights
-			q31_t filteredL = multiply_32x32_rshift32(lowTremL, lowMixQ) + multiply_32x32_rshift32(bandTremL, bandMixQ)
-			                  + multiply_32x32_rshift32(highTremL, highMixQ);
-			q31_t filteredR = multiply_32x32_rshift32(lowTremR, lowMixQ) + multiply_32x32_rshift32(bandTremR, bandMixQ)
-			                  + multiply_32x32_rshift32(highTremR, highMixQ);
+				// Blend LP/BP/HP using buffer-level mix weights
+				filteredL = multiply_32x32_rshift32(lowTremL, lowMixQ) + multiply_32x32_rshift32(bandTremL, bandMixQ)
+				            + multiply_32x32_rshift32(highTremL, highMixQ);
+				filteredR = multiply_32x32_rshift32(lowTremR, lowMixQ) + multiply_32x32_rshift32(bandTremR, bandMixQ)
+				            + multiply_32x32_rshift32(highTremR, highMixQ);
+			}
+			else {
+				// No tremolo: blend SVF bands directly
+				filteredL = multiply_32x32_rshift32(s.svfLowL, lowMixQ) + multiply_32x32_rshift32(s.svfBandL, bandMixQ)
+				            + multiply_32x32_rshift32(highL, highMixQ);
+				filteredR = multiply_32x32_rshift32(s.svfLowR, lowMixQ) + multiply_32x32_rshift32(s.svfBandR, bandMixQ)
+				            + multiply_32x32_rshift32(highR, highMixQ);
+			}
 
 			outL = filteredL << 1;
 			outR = filteredR << 1;
@@ -1317,8 +1342,8 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			// Compute filter cutoff: base + pitch + spring contribution (clamped below)
 			q31_t lfoContribL = multiply_32x32_rshift32(springOutL, c.filterModDepth) << 1;
 			q31_t lfoContribR = multiply_32x32_rshift32(springOutR, c.filterModDepth) << 1;
-			q31_t cutoffL = add_saturate(filterBasePlusPitch, lfoContribL);
-			q31_t cutoffR = add_saturate(filterBasePlusPitch, lfoContribR);
+			q31_t cutoffL = add_saturate(filterBaseRunning, lfoContribL);
+			q31_t cutoffR = add_saturate(filterBaseRunning, lfoContribR);
 
 			// SVF feedback: LP output → cutoff (creates self-oscillation at high feedback)
 			if (c.svfFeedbackQ != 0) {
@@ -1344,33 +1369,44 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			s.svfBandR += multiply_32x32_rshift32(highR, fR) << 1;
 			s.svfLowR += multiply_32x32_rshift32(s.svfBandR, fR) << 1;
 
-			// Apply depth first, then manual offset (post-depth override)
-			// Use saturating add: depth-scaled LFO and manual are both full-scale q31
-			q31_t scaledTremL = add_saturate(multiply_32x32_rshift32(processedTremL, depthMultQ31) << 1, manualOffset);
-			q31_t scaledTremR = add_saturate(multiply_32x32_rshift32(processedTremR, depthMultQ31) << 1, manualOffset);
-			q31_t uniTremL = (scaledTremL >> 1) + (ONE_Q31 >> 1);
-			q31_t uniTremR = (scaledTremR >> 1) + (ONE_Q31 >> 1);
+			q31_t filteredL, filteredR;
+			if (tremEnabled) {
+				// Apply depth first, then manual offset (post-depth override)
+				q31_t scaledTremL =
+				    add_saturate(multiply_32x32_rshift32(processedTremL, depthMultQ31) << 1, manualOffset);
+				q31_t scaledTremR =
+				    add_saturate(multiply_32x32_rshift32(processedTremR, depthMultQ31) << 1, manualOffset);
+				q31_t uniTremL = (scaledTremL >> 1) + (ONE_Q31 >> 1);
+				q31_t uniTremR = (scaledTremR >> 1) + (ONE_Q31 >> 1);
 
-			// Tremolo gain: 1 - depth * unipolar
-			q31_t tremGainL = ONE_Q31 - (multiply_32x32_rshift32(c.tremoloDepthQ, uniTremL) << 1);
-			q31_t tremGainR = ONE_Q31 - (multiply_32x32_rshift32(c.tremoloDepthQ, uniTremR) << 1);
+				// Tremolo gain: 1 - depth * unipolar
+				q31_t tremGainL = ONE_Q31 - (multiply_32x32_rshift32(c.tremoloDepthQ, uniTremL) << 1);
+				q31_t tremGainR = ONE_Q31 - (multiply_32x32_rshift32(c.tremoloDepthQ, uniTremR) << 1);
 
-			// LP: mono tremolo (no stereo pulsing in bass)
-			q31_t tremMono = (tremGainL >> 1) + (tremGainR >> 1);
-			q31_t lowTremL = multiply_32x32_rshift32(s.svfLowL, tremMono) << 1;
-			q31_t lowTremR = multiply_32x32_rshift32(s.svfLowR, tremMono) << 1;
+				// LP: mono tremolo (no stereo pulsing in bass)
+				q31_t tremMono = (tremGainL >> 1) + (tremGainR >> 1);
+				q31_t lowTremL = multiply_32x32_rshift32(s.svfLowL, tremMono) << 1;
+				q31_t lowTremR = multiply_32x32_rshift32(s.svfLowR, tremMono) << 1;
 
-			// BP/HP: full stereo tremolo
-			q31_t bandTremL = multiply_32x32_rshift32(s.svfBandL, tremGainL) << 1;
-			q31_t bandTremR = multiply_32x32_rshift32(s.svfBandR, tremGainR) << 1;
-			q31_t highTremL = multiply_32x32_rshift32(highL, tremGainL) << 1;
-			q31_t highTremR = multiply_32x32_rshift32(highR, tremGainR) << 1;
+				// BP/HP: full stereo tremolo
+				q31_t bandTremL = multiply_32x32_rshift32(s.svfBandL, tremGainL) << 1;
+				q31_t bandTremR = multiply_32x32_rshift32(s.svfBandR, tremGainR) << 1;
+				q31_t highTremL = multiply_32x32_rshift32(highL, tremGainL) << 1;
+				q31_t highTremR = multiply_32x32_rshift32(highR, tremGainR) << 1;
 
-			// Blend LP/BP/HP using buffer-level mix weights
-			q31_t filteredL = multiply_32x32_rshift32(lowTremL, lowMixQ) + multiply_32x32_rshift32(bandTremL, bandMixQ)
-			                  + multiply_32x32_rshift32(highTremL, highMixQ);
-			q31_t filteredR = multiply_32x32_rshift32(lowTremR, lowMixQ) + multiply_32x32_rshift32(bandTremR, bandMixQ)
-			                  + multiply_32x32_rshift32(highTremR, highMixQ);
+				// Blend LP/BP/HP using buffer-level mix weights
+				filteredL = multiply_32x32_rshift32(lowTremL, lowMixQ) + multiply_32x32_rshift32(bandTremL, bandMixQ)
+				            + multiply_32x32_rshift32(highTremL, highMixQ);
+				filteredR = multiply_32x32_rshift32(lowTremR, lowMixQ) + multiply_32x32_rshift32(bandTremR, bandMixQ)
+				            + multiply_32x32_rshift32(highTremR, highMixQ);
+			}
+			else {
+				// No tremolo: blend SVF bands directly
+				filteredL = multiply_32x32_rshift32(s.svfLowL, lowMixQ) + multiply_32x32_rshift32(s.svfBandL, bandMixQ)
+				            + multiply_32x32_rshift32(highL, highMixQ);
+				filteredR = multiply_32x32_rshift32(s.svfLowR, lowMixQ) + multiply_32x32_rshift32(s.svfBandR, bandMixQ)
+				            + multiply_32x32_rshift32(highR, highMixQ);
+			}
 
 			outL = filteredL << 1;
 			outR = filteredR << 1;
@@ -1391,26 +1427,11 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			int32_t delay16L = pitchCombBaseDelay16 + lfo16L * c.combModRangeSamples;
 			int32_t delay16R = pitchCombBaseDelay16 + lfo16R * c.combModRangeSamples;
 
-			// Wrap delay at power-of-2 buffer size for harmonic consistency
-			// Use bitmask for fast modulo (buffer size is 2048 = 2^11)
-			// Fold delay into valid range [minDelay, maxDelay] with reflection at boundaries
-			// This avoids discontinuities from wrapping while keeping delay in bounds
+			// Hard clamp delay to valid range (prevents buffer overrun)
 			constexpr int32_t kBufferSize16 = kCombSize << 16;
-			constexpr int32_t kMaxDelay16 = kBufferSize16 - (2 << 16); // Leave room for interpolation
-			auto foldDelay = [&](int32_t d) -> int32_t {
-				// Reflect off min boundary
-				if (d < c.combMinDelay16) {
-					d = 2 * c.combMinDelay16 - d;
-				}
-				// Reflect off max boundary
-				if (d > kMaxDelay16) {
-					d = 2 * kMaxDelay16 - d;
-				}
-				// Clamp as safety (handles extreme cases)
-				return std::clamp(d, c.combMinDelay16, kMaxDelay16);
-			};
-			delay16L = foldDelay(delay16L);
-			delay16R = foldDelay(delay16R);
+			constexpr int32_t kMaxDelay16 = kBufferSize16 - (2 << 16);
+			delay16L = std::clamp(delay16L, c.combMinDelay16, kMaxDelay16);
+			delay16R = std::clamp(delay16R, c.combMinDelay16, kMaxDelay16);
 
 			// Extract integer (samples) and fractional (16-bit) parts
 			int32_t delayIntL = delay16L >> 16;
@@ -1460,35 +1481,9 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			outR = outR + (multiply_32x32_rshift32(combOutR, c.combMixQ) << 1);
 		}
 
-		// Note: Tremolo is now applied per-band in the filter mixing section above
-		// (with per-band rectification and frequency-dependent stereo width)
-
 		// Wet/dry blend: out = dry + (wet - dry) * mixFactor
 		sample.l = dryL + (multiply_32x32_rshift32(outL - dryL, wetMixQ) << 1);
 		sample.r = dryR + (multiply_32x32_rshift32(outR - dryR, wetMixQ) << 1);
-
-// DEBUG_SPRING: Set to 1 to output spring input/output for oscilloscope testing
-// L = spring input (pre-spring modulation signal), R = spring output (post-spring)
-// DEBUG_SPRING_RAW: Shows raw 1/8 scale values without scale-up (to check for clipping source)
-// DEBUG_COMB_LFO: Shows raw LFO values (full scale, no depth)
-#define DEBUG_SPRING 0
-#define DEBUG_SPRING_RAW 0
-#define DEBUG_COMB_LFO 0
-
-#if DEBUG_SPRING
-		// Debug: L = spring input (scaled up 8x), R = spring output (scaled up 8x)
-		sample.l = clipAndScale(scaledModL) >> 2;
-		sample.r = springOutL >> 2;
-#elif DEBUG_SPRING_RAW
-		// Debug: L = raw scaledModL (1/8 scale), R = raw spring pos (1/8 scale)
-		// No scale-up - if these clip, the math is wrong
-		sample.l = scaledModL;
-		sample.r = s.springPosL;
-#elif DEBUG_COMB_LFO
-		// Debug: output raw LFO (before spring)
-		sample.l = lfoL.value >> 2;
-		sample.r = lfoR.value >> 2;
-#endif
 
 		// Increment spring output for per-sample interpolation
 		springOutL = add_saturate(springOutL, springDeltaL);
@@ -1499,25 +1494,35 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 		lfoR.value += lfoR.delta;
 		combLfoL.value += combLfoL.delta;
 		combLfoR.value += combLfoR.delta;
-		tremLfoL.value += tremLfoL.delta;
-		tremLfoR.value += tremLfoR.delta;
+		if (tremEnabled) {
+			tremLfoL.value += tremLfoL.delta;
+			tremLfoR.value += tremLfoR.delta;
+		}
 
-		// Comb uses direct deltas (slew-limited at buffer rate above)
-		processedCombL += combDeltaL;
-		processedCombR += combDeltaR;
+		// Comb delay smoothing: delta + drift correction, total clamped to slew limit.
+		// Drift correction pulls processedComb toward raw LFO to prevent accumulated DC drift.
+		// Clamping the TOTAL ensures the Doppler anti-aliasing budget is respected.
+		{
+			q31_t totalL = combDeltaL + ((combLfoL.value - processedCombL) >> 8);
+			q31_t totalR = combDeltaR + ((combLfoR.value - processedCombR) >> 8);
+			processedCombL += std::clamp(totalL, -kMaxCombDelta, kMaxCombDelta);
+			processedCombR += std::clamp(totalR, -kMaxCombDelta, kMaxCombDelta);
+		}
 
-		// Tremolo: first-order slew limiting (cap max rate of change)
-		constexpr q31_t kTremMaxSlew = ONE_Q31 >> 12;
-		processedTremL += std::clamp(tremDeltaL, -kTremMaxSlew, kTremMaxSlew);
-		processedTremR += std::clamp(tremDeltaR, -kTremMaxSlew, kTremMaxSlew);
+		if (tremEnabled) {
+			processedTremL += tremDeltaL;
+			processedTremR += tremDeltaR;
+		}
 
 		// Advance phases
 		lfoPhaseL += phaseInc;
 		lfoPhaseR += phaseInc;
 		combPhaseL += phaseInc;
 		combPhaseR += phaseInc;
-		tremPhaseL += phaseInc;
-		tremPhaseR += phaseInc;
+		if (tremEnabled) {
+			tremPhaseL += phaseInc;
+			tremPhaseR += phaseInc;
+		}
 
 		// Decrement remaining counters, use precomputed values on segment crossing
 		if (--lfoLRemaining == 0) {
@@ -1540,9 +1545,7 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			combLfoL.value = c.wavetable.segAmpQ[newSeg];
 			combLfoL.delta = s.stepPerSegment[newSeg];
 			combLRemaining = s.samplesPerSegment[newSeg];
-			// Don't reset processedCombL - let it track naturally through slew-limited deltas
-			// This prevents discontinuities at segment boundaries
-			combDeltaL = s.stepPerSegment[newSeg]; // Raw delta (depth scaling at use)
+			combDeltaL = std::clamp(s.stepPerSegment[newSeg], -kMaxCombDelta, kMaxCombDelta);
 		}
 		if (--combRRemaining == 0) {
 			int8_t newSeg = (s.combLfoIirR.segment >= 4) ? 0 : (s.combLfoIirR.segment + 1);
@@ -1550,23 +1553,25 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 			combLfoR.value = c.wavetable.segAmpQ[newSeg];
 			combLfoR.delta = s.stepPerSegment[newSeg];
 			combRRemaining = s.samplesPerSegment[newSeg];
-			combDeltaR = s.stepPerSegment[newSeg]; // Raw delta (depth scaling at use)
+			combDeltaR = std::clamp(s.stepPerSegment[newSeg], -kMaxCombDelta, kMaxCombDelta);
 		}
-		if (--tremLRemaining == 0) {
-			int8_t newSeg = (s.tremLfoIirL.segment >= 4) ? 0 : (s.tremLfoIirL.segment + 1);
-			s.tremLfoIirL.segment = newSeg;
-			tremLfoL.value = c.wavetable.segAmpQ[newSeg];
-			tremLfoL.delta = s.stepPerSegment[newSeg];
-			tremLRemaining = s.samplesPerSegment[newSeg];
-			tremDeltaL = s.stepPerSegment[newSeg]; // Raw delta (depth scaling at use)
-		}
-		if (--tremRRemaining == 0) {
-			int8_t newSeg = (s.tremLfoIirR.segment >= 4) ? 0 : (s.tremLfoIirR.segment + 1);
-			s.tremLfoIirR.segment = newSeg;
-			tremLfoR.value = c.wavetable.segAmpQ[newSeg];
-			tremLfoR.delta = s.stepPerSegment[newSeg];
-			tremRRemaining = s.samplesPerSegment[newSeg];
-			tremDeltaR = s.stepPerSegment[newSeg]; // Raw delta (depth scaling at use)
+		if (tremEnabled) {
+			if (--tremLRemaining == 0) {
+				int8_t newSeg = (s.tremLfoIirL.segment >= 4) ? 0 : (s.tremLfoIirL.segment + 1);
+				s.tremLfoIirL.segment = newSeg;
+				tremLfoL.value = c.wavetable.segAmpQ[newSeg];
+				tremLfoL.delta = s.stepPerSegment[newSeg];
+				tremLRemaining = s.samplesPerSegment[newSeg];
+				tremDeltaL = s.stepPerSegment[newSeg];
+			}
+			if (--tremRRemaining == 0) {
+				int8_t newSeg = (s.tremLfoIirR.segment >= 4) ? 0 : (s.tremLfoIirR.segment + 1);
+				s.tremLfoIirR.segment = newSeg;
+				tremLfoR.value = c.wavetable.segAmpQ[newSeg];
+				tremLfoR.delta = s.stepPerSegment[newSeg];
+				tremRRemaining = s.samplesPerSegment[newSeg];
+				tremDeltaR = s.stepPerSegment[newSeg];
+			}
 		}
 	}
 
@@ -1576,18 +1581,20 @@ void processAutomodulator(std::span<StereoSample> buffer, AutomodulatorParams& p
 	s.lfoIirR.value = lfoR.value;
 	s.combLfoIirL.value = combLfoL.value;
 	s.combLfoIirR.value = combLfoR.value;
-	s.tremLfoIirL.value = tremLfoL.value;
-	s.tremLfoIirR.value = tremLfoR.value;
+	if (tremEnabled) {
+		s.tremLfoIirL.value = tremLfoL.value;
+		s.tremLfoIirR.value = tremLfoR.value;
+	}
 	s.lfoIirL.samplesRemaining = lfoLRemaining;
 	s.lfoIirR.samplesRemaining = lfoRRemaining;
 	s.combLfoIirL.samplesRemaining = combLRemaining;
 	s.combLfoIirR.samplesRemaining = combRRemaining;
-	s.tremLfoIirL.samplesRemaining = tremLRemaining;
-	s.tremLfoIirR.samplesRemaining = tremRRemaining;
-
-	// Write back processed (slew-limited) values for buffer-to-buffer continuity
-	s.smoothedTremLfoL = processedTremL;
-	s.smoothedTremLfoR = processedTremR;
+	if (tremEnabled) {
+		s.tremLfoIirL.samplesRemaining = tremLRemaining;
+		s.tremLfoIirR.samplesRemaining = tremRRemaining;
+		s.smoothedTremLfoL = processedTremL;
+		s.smoothedTremLfoR = processedTremR;
+	}
 	s.smoothedCombLfoL = processedCombL;
 	s.smoothedCombLfoR = processedCombR;
 

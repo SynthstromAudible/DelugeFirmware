@@ -145,7 +145,8 @@ constexpr phi::PhiTriConfig kCombMixTriangle = {phi::kPhi350, 0.85f, 0.00f, fals
 constexpr phi::PhiTriConfig kSvfFeedbackTriangle = {phi::kPhi175, 0.25f, 0.1078f, true};
 
 /// Phi triangle config for tremolo depth derived from flavor
-constexpr phi::PhiTriConfig kTremoloDepthTriangle = {phi::kPhi275, 0.7f, 0.00f, false}; // No tremolo at zone 0
+constexpr phi::PhiTriConfig kTremoloDepthTriangle = {phi::kPhi275, 0.0f, 0.00f,
+                                                     false}; // Disabled: band mixing provides AM
 
 /// Phi triangle config for tremolo phase offset derived from flavor
 constexpr phi::PhiTriConfig kTremoloPhaseOffsetTriangle = {phi::kPhi225, 0.6f, 0.75f, false};
@@ -502,6 +503,9 @@ struct AutomodDspState {
 	// Allpass interpolator state for comb delay line (reduces aliasing on fast modulation)
 	q31_t allpassStateL{0};
 	q31_t allpassStateR{0};
+
+	// Previous buffer's filter base cutoff (for per-sample interpolation to avoid clicks)
+	q31_t prevFilterBase{0};
 };
 
 /// Automodulator parameters and DSP state (stored per-Sound)
