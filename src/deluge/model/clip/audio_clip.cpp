@@ -27,6 +27,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_output_existence.h"
 #include "model/model_stack.h"
+#include "model/note/note.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
@@ -38,6 +39,7 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/d_stringbuf.h"
 #include "util/fixedpoint.h"
 #include <new>
 
@@ -75,6 +77,98 @@ AudioClip::~AudioClip() {
 	// the most likely. I've added some further error code diversification.
 }
 
+bool AudioClip::isGateOpenAtPos(int32_t pos, int32_t effectiveLength) {
+	int32_t numGateCloses = gateCloses.getNumElements();
+	if (numGateCloses == 0) {
+		return true;
+	}
+
+	if (effectiveLength > 0) {
+		pos = ((pos % effectiveLength) + effectiveLength) % effectiveLength;
+	}
+
+	int32_t i = gateCloses.search(pos + 1, LESS);
+	if (i >= 0) {
+		Note* gate = gateCloses.getElement(i);
+		if (pos < gate->pos + gate->getLength()) {
+			return false;
+		}
+	}
+
+	if (effectiveLength > 0) {
+		Note* last = gateCloses.getElement(numGateCloses - 1);
+		if (last->pos + last->getLength() > effectiveLength) {
+			int32_t wrappedEnd = (last->pos + last->getLength()) - effectiveLength;
+			if (pos < wrappedEnd) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+Note* AudioClip::getPrecedingGateClose(int32_t pos, int32_t effectiveLength) {
+	int32_t numGateCloses = gateCloses.getNumElements();
+	if (numGateCloses == 0) {
+		return nullptr;
+	}
+
+	if (effectiveLength > 0) {
+		pos = ((pos % effectiveLength) + effectiveLength) % effectiveLength;
+	}
+
+	int32_t i = gateCloses.search(pos + 1, LESS);
+	if (i >= 0) {
+		Note* gate = gateCloses.getElement(i);
+		if (pos >= gate->pos + gate->getLength()) {
+			return gate;
+		}
+		if (i > 0) {
+			return gateCloses.getElement(i - 1);
+		}
+		return gateCloses.getElement(numGateCloses - 1);
+	}
+
+	return gateCloses.getElement(numGateCloses - 1);
+}
+
+int32_t AudioClip::ticksTilNextGateEvent(int32_t pos, int32_t effectiveLength) {
+	int32_t numGateCloses = gateCloses.getNumElements();
+	if (numGateCloses == 0) {
+		return 2147483647;
+	}
+
+	if (effectiveLength > 0) {
+		pos = ((pos % effectiveLength) + effectiveLength) % effectiveLength;
+	}
+
+	bool currentlyOpen = isGateOpenAtPos(pos, effectiveLength);
+
+	if (currentlyOpen) {
+		int32_t i = gateCloses.search(pos, GREATER_OR_EQUAL);
+		if (i < numGateCloses) {
+			Note* gate = gateCloses.getElement(i);
+			return gate->pos - pos;
+		}
+		Note* first = gateCloses.getElement(0);
+		return (effectiveLength - pos) + first->pos;
+	}
+	else {
+		int32_t i = gateCloses.search(pos + 1, LESS);
+		if (i >= 0) {
+			Note* gate = gateCloses.getElement(i);
+			int32_t closeEnd = gate->pos + gate->getLength();
+			if (pos < closeEnd) {
+				return closeEnd - pos;
+			}
+		}
+		Note* last = gateCloses.getElement(numGateCloses - 1);
+		int32_t wrappedEnd = (last->pos + last->getLength()) - effectiveLength;
+		return wrappedEnd - pos;
+	}
+}
+
 // Will replace the Clip in the modelStack, if success.
 Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
@@ -105,6 +199,21 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	newClip->voicePriority = voicePriority;
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.isCurrentlyReversed());
+
+	// Clone gate closes
+	for (int32_t i = 0; i < const_cast<NoteVector&>(gateCloses).getNumElements(); i++) {
+		Note* src = const_cast<NoteVector&>(gateCloses).getElement(i);
+		int32_t idx = newClip->gateCloses.insertAtKey(src->pos);
+		if (idx >= 0) {
+			Note* dst = newClip->gateCloses.getElement(idx);
+			dst->setLength(src->getLength());
+			dst->setVelocity(src->getVelocity());
+			dst->setLift(src->getLift());
+			dst->setProbability(kNumProbabilityValues);
+			dst->setIterance(Iterance());
+			dst->setFill(FillMode::OFF);
+		}
+	}
 
 	return Error::NONE;
 }
@@ -310,6 +419,24 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 	// now. This isn't really the ideal place for this...
 	if (recorder && recorder->status == RecorderStatus::ABORTED) {
 		abortRecording();
+	}
+
+	// Update gate state for per-step muting
+	if (gateCloses.getNumElements()) {
+		int32_t effectiveLength = loopLength;
+		bool open = isGateOpenAtPos(lastProcessedPos, effectiveLength);
+		gateOpen = open;
+		if (open) {
+			Note* precedingClose = getPrecedingGateClose(lastProcessedPos, effectiveLength);
+			if (precedingClose) {
+				currentGateAttack = precedingClose->getVelocity();
+				currentGateRelease = precedingClose->getLift();
+			}
+		}
+		int32_t ticksTilGate = ticksTilNextGateEvent(lastProcessedPos, effectiveLength);
+		if (ticksTilGate > 0 && (uint32_t)ticksTilGate < playbackHandler.swungTicksTilNextEvent) {
+			playbackHandler.swungTicksTilNextEvent = ticksTilGate;
+		}
 	}
 
 	// If at pos 0, that's the only place where anything really important happens: play the Sample
@@ -758,6 +885,25 @@ justDontTimeStretch:
 		}
 	}
 
+	// Gate mute: ramp gateAmplitude toward target using per-segment attack/release rates
+	if (gateCloses.getNumElements()) {
+		int32_t gateTarget = gateOpen ? 0x7FFFFFFF : 0;
+		if (gateAmplitude < gateTarget) {
+			int32_t shift = ((int32_t)currentGateAttack * 14) >> 7;
+			int32_t rampRate = INT32_MAX >> shift;
+			int32_t remaining = gateTarget - gateAmplitude;
+			gateAmplitude += std::min(remaining, rampRate);
+		}
+		else if (gateAmplitude > gateTarget) {
+			int32_t shift = ((int32_t)currentGateRelease * 14) >> 7;
+			int32_t rampRate = INT32_MAX >> shift;
+			int32_t remaining = gateAmplitude - gateTarget;
+			gateAmplitude -= std::min(remaining, rampRate);
+		}
+		amplitude = multiply_32x32_rshift32(amplitude, gateAmplitude) << 1;
+		amplitudeIncrement = multiply_32x32_rshift32(amplitudeIncrement, gateAmplitude) << 1;
+	}
+
 	{
 		LoopType loopingType = getLoopingType(modelStack);
 
@@ -1085,7 +1231,43 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
-	Clip::writeDataToFile(writer, song);
+	// Write gate close data
+	if (gateCloses.getNumElements()) {
+		writer.writeTagNameAndSeperator("gateCloseData");
+		writer.write("\"0x");
+		for (int32_t n = 0; n < gateCloses.getNumElements(); n++) {
+			Note* g = gateCloses.getElement(n);
+			char buffer[9];
+			intToHex(g->pos, buffer);
+			writer.write(buffer);
+			intToHex(g->getLength(), buffer);
+			writer.write(buffer);
+		}
+		writer.write("\"");
+
+		bool hasEnvelope = false;
+		for (int32_t n = 0; n < gateCloses.getNumElements(); n++) {
+			Note* g = gateCloses.getElement(n);
+			if (g->getVelocity() != 0 || g->getLift() != 0) {
+				hasEnvelope = true;
+				break;
+			}
+		}
+		if (hasEnvelope) {
+			writer.writeTagNameAndSeperator("gateCloseEnv");
+			writer.write("\"0x");
+			for (int32_t n = 0; n < gateCloses.getNumElements(); n++) {
+				Note* g = gateCloses.getElement(n);
+				char buffer[5];
+				intToHex(g->getVelocity(), buffer, 2);
+				writer.write(buffer);
+				intToHex(g->getLift(), buffer, 2);
+				writer.write(buffer);
+			}
+			writer.write("\"");
+		}
+	}
+
 	Clip::writeDataToFile(writer, song);
 
 	writer.writeOpeningTagEnd();
@@ -1198,6 +1380,55 @@ someError:
 			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
 		}
 
+		else if (!strcmp(tagName, "gateCloseData")) {
+			if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+				if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+					while (true) {
+						char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(16);
+						if (!hexChars) {
+							break;
+						}
+						int32_t pos = hexToIntFixedLength(hexChars, 8);
+						int32_t length = hexToIntFixedLength(&hexChars[8], 8);
+						if (length > 0) {
+							int32_t idx = gateCloses.insertAtKey(pos);
+							if (idx >= 0) {
+								Note* gate = gateCloses.getElement(idx);
+								gate->setLength(length);
+								gate->setVelocity(0);
+								gate->setLift(0);
+								gate->setProbability(kNumProbabilityValues);
+								gate->setIterance(Iterance());
+								gate->setFill(FillMode::OFF);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		else if (!strcmp(tagName, "gateCloseEnv")) {
+			if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+				if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+					int32_t idx = 0;
+					while (idx < gateCloses.getNumElements()) {
+						char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(4);
+						if (!hexChars) {
+							break;
+						}
+						uint8_t atk = hexToIntFixedLength(hexChars, 2);
+						uint8_t rel = hexToIntFixedLength(&hexChars[2], 2);
+						Note* gate = gateCloses.getElement(idx);
+						gate->setVelocity(atk);
+						gate->setLift(rel);
+						idx++;
+					}
+				}
+			}
+		}
+
 		else {
 			readTagFromFile(reader, tagName, song, &readAutomationUpToPos);
 		}
@@ -1303,6 +1534,15 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 		}
 
 		renderData.xScroll = -1;
+	}
+
+	// Clear gate data
+	if (gateCloses.getNumElements()) {
+		gateCloses.deleteAtIndex(0, gateCloses.getNumElements());
+		gateAmplitude = 0x7FFFFFFF;
+		gateOpen = true;
+		currentGateAttack = 0;
+		currentGateRelease = 0;
 	}
 }
 

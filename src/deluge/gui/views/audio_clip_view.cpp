@@ -39,6 +39,7 @@
 #include "model/clip/clip_minder.h"
 #include "model/consequence/consequence_clip_length.h"
 #include "model/model_stack.h"
+#include "model/note/note.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_playback_guide.h"
 #include "model/sample/sample_recorder.h"
@@ -49,6 +50,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
+#include "util/cfunctions.h"
 
 extern "C" {
 extern uint8_t currentlyAccessingCard;
@@ -68,6 +70,8 @@ inline Sample* getSample() {
 
 bool AudioClipView::opened() {
 	mustRedrawTickSquares = true;
+	gateViewActive = false;
+	clearGateHeldPads();
 	uiNeedsRendering(this);
 
 	getCurrentClip()->onAutomationClipView = false;
@@ -81,6 +85,7 @@ void AudioClipView::focusRegained() {
 	endMarkerVisible = false;
 	startMarkerVisible = false;
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, gateViewActive);
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
 
@@ -155,6 +160,60 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	if (!success && image == PadLEDs::image) {
 		uiNeedsRendering(this, whichRows, 0);
 		return true;
+	}
+
+	// Gate view overlay
+	if (gateViewActive && clipPtr) {
+		AudioClip& gateClip = *clipPtr;
+		int32_t effectiveLength = gateClip.loopLength;
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			int32_t squareStart = getPosFromSquare(x);
+			int32_t squareEnd = getPosFromSquare(x + 1);
+			if (squareEnd <= squareStart || squareStart >= effectiveLength) {
+				continue;
+			}
+
+			bool hasGates = gateClip.gateCloses.getNumElements() > 0;
+			bool openAtStart = true;
+			bool openAtEnd = true;
+			bool hasTransition = false;
+			if (hasGates) {
+				int32_t wrappedStart = squareStart % effectiveLength;
+				int32_t wrappedEnd = (squareEnd - 1) % effectiveLength;
+				openAtStart = gateClip.isGateOpenAtPos(wrappedStart, effectiveLength);
+				openAtEnd = gateClip.isGateOpenAtPos(wrappedEnd, effectiveLength);
+				hasTransition = (openAtStart != openAtEnd);
+			}
+
+			// Bottom row (y=0): gate step pads — bright green/red
+			if (hasGates) {
+				if (hasTransition) {
+					image[0][x] = RGB(50, 40, 0); // amber
+				}
+				else if (openAtStart) {
+					image[0][x] = RGB(0, 60, 0); // green
+				}
+				else {
+					image[0][x] = RGB(60, 0, 0); // red
+				}
+			}
+			else {
+				// No gate data yet — bottom row shows dim green (all open)
+				image[0][x] = RGB(0, 30, 0);
+			}
+
+			// Rows 1-7: closed columns dimmed, open columns untouched
+			if (hasGates) {
+				for (int32_t row = 1; row < kDisplayHeight; row++) {
+					if (hasTransition) {
+						image[row][x] = image[row][x].adjustFractional(128 << 8, 255 << 8);
+					}
+					else if (!openAtStart) {
+						image[row][x] = image[row][x].adjustFractional(80 << 8, 255 << 8);
+					}
+				}
+			}
+		}
 	}
 
 	// If asked, draw grey regions + flashing columns
@@ -454,6 +513,22 @@ dontDeactivateMarker:
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 	}
+	else if (b == SCALE_MODE) {
+		if (on) {
+			gateViewActive = !gateViewActive;
+			clearGateHeldPads();
+			endMarkerVisible = false;
+			startMarkerVisible = false;
+			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+			indicator_leds::setLedState(IndicatorLED::SCALE_MODE, gateViewActive);
+			if (gateViewActive) {
+				display->displayPopup("GATE");
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
 	else {
 
 		result = ClipMinder::buttonAction(b, on);
@@ -479,6 +554,184 @@ deactivateMarkerIfNecessary:
 }
 
 ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
+	// Gate view pad action — bottom row (y=0) toggles gate steps
+	if (gateViewActive && x < kDisplayWidth) {
+		AudioClip* clip = getCurrentAudioClip();
+		if (!clip) {
+			return ActionResult::DEALT_WITH;
+		}
+		int32_t effectiveLength = clip->loopLength;
+
+		if (on == 0) {
+			// Pad release
+			int32_t idx = findGateHeldPad(x);
+			if (idx >= 0) {
+				GateHeldPad& held = gateHeldPads[idx];
+				if (!held.encoderUsed && !gateSpanFillDone) {
+					// Check for span fill partner: another held pad on same row, also no encoder use
+					int32_t spanPartner = -1;
+					for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+						if (i != idx && gateHeldPads[i].active && gateHeldPads[i].y == held.y
+						    && !gateHeldPads[i].encoderUsed) {
+							spanPartner = i;
+							break;
+						}
+					}
+
+					if (spanPartner >= 0) {
+						// Span fill between held and partner
+						int32_t startX = std::min((int32_t)held.x, (int32_t)gateHeldPads[spanPartner].x);
+						int32_t endX = std::max((int32_t)held.x, (int32_t)gateHeldPads[spanPartner].x);
+						int32_t rangeStart = getPosFromSquare(startX);
+						int32_t rangeEnd = getPosFromSquare(endX + 1);
+						if (rangeEnd > effectiveLength) {
+							rangeEnd = effectiveLength;
+						}
+
+						// Trim or delete closes that overlap with the range
+						for (int32_t i = clip->gateCloses.getNumElements() - 1; i >= 0; i--) {
+							Note* gate = clip->gateCloses.getElement(i);
+							int32_t gateEnd = gate->pos + gate->getLength();
+							if (gateEnd <= rangeStart || gate->pos >= rangeEnd) {
+								continue;
+							}
+							uint8_t origVelocity = gate->getVelocity();
+							uint8_t origLift = gate->getLift();
+
+							if (gateEnd > rangeEnd) {
+								int32_t tailIdx = clip->gateCloses.insertAtKey(rangeEnd);
+								if (tailIdx >= 0) {
+									Note* tail = clip->gateCloses.getElement(tailIdx);
+									tail->pos = rangeEnd;
+									tail->setLength(gateEnd - rangeEnd);
+									tail->setVelocity(origVelocity);
+									tail->setLift(origLift);
+									tail->setProbability(kNumProbabilityValues);
+									tail->setIterance(Iterance());
+									tail->setFill(FillMode::OFF);
+								}
+								i = clip->gateCloses.search(gate->pos + 1, LESS);
+								if (i < 0) {
+									continue;
+								}
+								gate = clip->gateCloses.getElement(i);
+							}
+
+							if (gate->pos < rangeStart) {
+								gate->setLength(rangeStart - gate->pos);
+								gate->setVelocity(0);
+								gate->setLift(0);
+							}
+							else {
+								clip->gateCloses.deleteAtIndex(i);
+							}
+						}
+
+						if (gateHeldPads[spanPartner].wasOpen) {
+							int32_t spanLength = rangeEnd - rangeStart;
+							if (spanLength > 0) {
+								int32_t ci = clip->gateCloses.insertAtKey(rangeStart);
+								if (ci >= 0) {
+									Note* gate = clip->gateCloses.getElement(ci);
+									gate->pos = rangeStart;
+									gate->setLength(spanLength);
+									gate->setVelocity(0);
+									gate->setLift(0);
+									gate->setProbability(kNumProbabilityValues);
+									gate->setIterance(Iterance());
+									gate->setFill(FillMode::OFF);
+								}
+							}
+						}
+						gateHeldPads[spanPartner].encoderUsed = true;
+						gateSpanFillDone = true;
+						uiNeedsRendering(this, 0xFFFFFFFF, 0);
+					}
+					else if (y == 0) {
+						// Single pad toggle on bottom row
+						int32_t squareStart = getPosFromSquare(x);
+						uint32_t squareWidth = std::min(effectiveLength, getPosFromSquare(x + 1)) - squareStart;
+						if (held.wasOpen) {
+							// Was open → close it
+							int32_t ci = clip->gateCloses.insertAtKey(squareStart);
+							if (ci >= 0) {
+								Note* gate = clip->gateCloses.getElement(ci);
+								gate->pos = squareStart;
+								gate->setLength(squareWidth);
+								gate->setVelocity(0);
+								gate->setLift(0);
+								gate->setProbability(kNumProbabilityValues);
+								gate->setIterance(Iterance());
+								gate->setFill(FillMode::OFF);
+							}
+						}
+						else {
+							// Was closed → open it (split the close around this cell)
+							int32_t ci = clip->gateCloses.search(squareStart + 1, LESS);
+							if (ci >= 0) {
+								Note* gate = clip->gateCloses.getElement(ci);
+								int32_t gateEnd = gate->pos + gate->getLength();
+								int32_t cellEnd = squareStart + squareWidth;
+								int32_t origPos = gate->pos;
+								uint8_t origVelocity = gate->getVelocity();
+								uint8_t origLift = gate->getLift();
+
+								if (cellEnd < gateEnd) {
+									int32_t afterIdx = clip->gateCloses.insertAtKey(cellEnd);
+									if (afterIdx >= 0) {
+										Note* after = clip->gateCloses.getElement(afterIdx);
+										after->pos = cellEnd;
+										after->setLength(gateEnd - cellEnd);
+										after->setVelocity(origVelocity);
+										after->setLift(origLift);
+										after->setProbability(kNumProbabilityValues);
+										after->setIterance(Iterance());
+										after->setFill(FillMode::OFF);
+									}
+									ci = clip->gateCloses.search(squareStart + 1, LESS);
+								}
+
+								if (origPos < squareStart) {
+									Note* before = clip->gateCloses.getElement(ci);
+									before->setLength(squareStart - origPos);
+									before->setVelocity(0);
+									before->setLift(0);
+								}
+								else {
+									clip->gateCloses.deleteAtIndex(ci);
+								}
+							}
+						}
+						uiNeedsRendering(this, 0xFFFFFFFF, 0);
+					}
+				}
+				held.active = false;
+			}
+			return ActionResult::DEALT_WITH;
+		}
+
+		// Pad press — always register as held pad
+		if (!isSquareDefined(x)) {
+			return ActionResult::DEALT_WITH;
+		}
+
+		{
+			int32_t squareStart = getPosFromSquare(x);
+			for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+				if (!gateHeldPads[i].active) {
+					gateHeldPads[i].active = true;
+					gateHeldPads[i].x = x;
+					gateHeldPads[i].y = y;
+					gateHeldPads[i].wasOpen = clip->isGateOpenAtPos(squareStart, effectiveLength);
+					gateHeldPads[i].encoderUsed = false;
+					break;
+				}
+			}
+			gateSpanFillDone = false;
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
 	if (x < kDisplayWidth) {
 		if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
 			if (on) {
@@ -783,6 +1036,12 @@ doReRender:
 }
 
 ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
+	// Gate view: hold green pad + horizontal encoder = adjust release
+	if (gateViewActive && anyGateHeldPadIsOpen()) {
+		adjustGateRelease(offset);
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Shift and x pressed - edit length of clip without timestretching
 	if (isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
 		return editClipLengthWithoutTimestretching(offset);
@@ -833,6 +1092,12 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 }
 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	// Gate view: hold green pad + vertical encoder = adjust attack
+	if (gateViewActive && anyGateHeldPadIsOpen()) {
+		adjustGateAttack(offset);
+		return ActionResult::DEALT_WITH;
+	}
+
 	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
@@ -869,4 +1134,109 @@ uint32_t AudioClipView::getMaxZoom() {
 		maxZoom <<= 1;
 	}
 	return maxZoom;
+}
+
+// Gate view helpers
+
+void AudioClipView::clearGateHeldPads() {
+	for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+		gateHeldPads[i] = GateHeldPad{};
+	}
+	gateSpanFillDone = false;
+}
+
+int32_t AudioClipView::findGateHeldPad(int8_t x) {
+	for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+		if (gateHeldPads[i].active && gateHeldPads[i].x == x) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+bool AudioClipView::anyGateHeldPadIsOpen() {
+	for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+		if (gateHeldPads[i].active && gateHeldPads[i].wasOpen) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void AudioClipView::adjustGateAttack(int32_t offset) {
+	AudioClip* clip = getCurrentAudioClip();
+	if (!clip || clip->gateCloses.getNumElements() == 0) {
+		return;
+	}
+	int32_t effectiveLength = clip->loopLength;
+	int32_t lastVal = -1;
+
+	for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+		if (!gateHeldPads[i].active || !gateHeldPads[i].wasOpen) {
+			continue;
+		}
+		gateHeldPads[i].encoderUsed = true;
+
+		int32_t padPos = getPosFromSquare(gateHeldPads[i].x);
+		Note* precedingClose = clip->getPrecedingGateClose(padPos, effectiveLength);
+		if (!precedingClose) {
+			continue;
+		}
+
+		int32_t newVal = std::clamp<int32_t>((int32_t)precedingClose->getVelocity() + offset, 0, 127);
+		precedingClose->setVelocity(newVal);
+		lastVal = newVal;
+	}
+
+	if (lastVal >= 0) {
+		char buffer[22];
+		if (display->haveOLED()) {
+			strcpy(buffer, "Attack: ");
+			intToString(lastVal, buffer + strlen(buffer));
+			display->popupTextTemporary(buffer);
+		}
+		else {
+			intToString(lastVal, buffer);
+			display->displayPopup(buffer, 0, true);
+		}
+	}
+}
+
+void AudioClipView::adjustGateRelease(int32_t offset) {
+	AudioClip* clip = getCurrentAudioClip();
+	if (!clip || clip->gateCloses.getNumElements() == 0) {
+		return;
+	}
+	int32_t effectiveLength = clip->loopLength;
+	int32_t lastVal = -1;
+
+	for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+		if (!gateHeldPads[i].active || !gateHeldPads[i].wasOpen) {
+			continue;
+		}
+		gateHeldPads[i].encoderUsed = true;
+
+		int32_t padPos = getPosFromSquare(gateHeldPads[i].x);
+		Note* precedingClose = clip->getPrecedingGateClose(padPos, effectiveLength);
+		if (!precedingClose) {
+			continue;
+		}
+
+		int32_t newVal = std::clamp<int32_t>((int32_t)precedingClose->getLift() + offset, 0, 127);
+		precedingClose->setLift(newVal);
+		lastVal = newVal;
+	}
+
+	if (lastVal >= 0) {
+		char buffer[22];
+		if (display->haveOLED()) {
+			strcpy(buffer, "Release: ");
+			intToString(lastVal, buffer + strlen(buffer));
+			display->popupTextTemporary(buffer);
+		}
+		else {
+			intToString(lastVal, buffer);
+			display->displayPopup(buffer, 0, true);
+		}
+	}
 }
