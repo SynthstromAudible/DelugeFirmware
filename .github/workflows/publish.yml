@@ -22,6 +22,7 @@ on:
         options:
           - release/1.1
           - release/1.2
+          - release/1.3
           - community
 
 permissions:
@@ -34,17 +35,17 @@ jobs:
     steps:
       - name: Checkout branch #required to put the tag on the correct branch
         if: inputs.branch != null
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch }}
       - name: Download Build Artifact
         if: inputs.run-id == null
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ${{ inputs.tag }}_Release_build_bundle
       - name: Download Build Artifact
         if: inputs.run-id != null
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ${{ inputs.tag }}_Release_build_bundle
           run-id: ${{inputs.run-id}}

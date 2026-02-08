@@ -1,0 +1,52 @@
+name: Build and Check Website
+
+on:
+  pull_request:
+    paths:
+      - "website/**"
+  workflow_dispatch:
+
+permissions:
+  checks: write
+  contents: write
+
+jobs:
+  build-website:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: "website/.bun-version"
+
+      - name: Install dependencies
+        run: bun install
+
+      # Playwright is needed for rendering mermaid diagrams at build time
+      # See: https://github.com/remcohaszing/rehype-mermaid?tab=readme-ov-file#installation
+      - name: Install Playwright browsers
+        run: bun playwright install --with-deps
+
+      # This gets us the site base URL
+      - name: Setup Pages
+        id: setup_pages
+        uses: actions/configure-pages@v5
+
+      - name: Run website checks
+        run: bun run check
+
+      - name: Build website
+        run: bun run build
+        env:
+          SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
+          SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
+
+      # We upload the artifact for manual downloading and opening locally
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: website-artifact
+          path: website/dist
