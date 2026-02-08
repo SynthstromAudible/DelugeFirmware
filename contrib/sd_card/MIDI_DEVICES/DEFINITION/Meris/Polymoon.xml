@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		4="Expression Pedal"
+		9="Dotted8th"
+		14="Bypass"
+		15="Tempo10ms Intervals"
+		16="Time"
+		17="Feedback"
+		18="MIX"
+		19="Multiply"
+		20="Dimension"
+		21="Dynamics"
+		22="Early Modulation"
+		23="Feedback Filter"
+		24="Delay Level"
+		25="Late Modulation"
+		26="DYN Flanger Mode"
+		27="DYN Flanger Speed"
+		28="TAP"
+		29="Phaser Mode"
+		30="Flanger Feedback"
+		31="Half Speed"/>
+</midiDevice>

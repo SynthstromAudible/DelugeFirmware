@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		0="Bank select"
+		1="Modulation"
+		5="Portamento time"
+		65="Portamento"
+		6="Data entry"
+		7="Volume"
+		10="Panpot"
+		11="Expression"
+		64="Hold 1"
+		73="Attack time"
+		75="Decay time"
+		72="Release time"
+		74="Cutoff"
+		71="Resonance"
+		76="Vibrato rate"
+		77="Vibrato depth"
+		78="Vibrato delay"
+		91="Reverb send level"
+		94="Delay send level"/>
+</midiDevice>

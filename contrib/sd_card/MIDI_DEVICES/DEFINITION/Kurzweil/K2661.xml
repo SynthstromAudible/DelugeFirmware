@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="MOD"
+		2="Breath"
+		4="Foot"
+		5="Port Time"
+		6="Data"
+		7="Volume"
+		8="Balance"
+		10="PAN"
+		11="Expression"
+		15="AUX Bend2"
+		16="CTL A"
+		17="CTL B"
+		18="CTL C"
+		19="CTL D"
+		21="AUX Bend1"
+		64="Sustain"
+		65="Port SW"
+		66="Sost PD"
+		67="Soft PD"
+		69="Frez PD"
+		75="Legato SW"
+		80="CTL E"
+		81="CTL F"
+		82="CTL G"
+		83="CTL H"
+		91="FX DEP"
+		96="Data INC"
+		97="Data DEC"/>
+</midiDevice>

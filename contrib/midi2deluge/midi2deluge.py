@@ -20,6 +20,7 @@ def convert_midi_to_xml(midi_file):
     mid = mido.MidiFile(midi_file)
     ppq_scale_factor = 96 / mid.ticks_per_beat
     midi_filename = os.path.splitext(os.path.basename(midi_file))[0]
+    valid_tracks = []
 
     for i, track in enumerate(mid.tracks):
         notes = []
@@ -40,7 +41,15 @@ def convert_midi_to_xml(midi_file):
                         note["duration"] = current_time - note["start"]
                         break
 
-        track_name = track_name or f"Track{i + 1}"
+        if notes:
+            valid_tracks.append((track_name or f"Track{i + 1}", notes))
+
+    if not valid_tracks:
+        return  # Skip files with no valid tracks
+
+    single_track = len(valid_tracks) == 1
+
+    for track_index, (track_name, notes) in enumerate(valid_tracks):
         last_note_end = max(
             (n["start"] + n.get("duration", 0) for n in notes), default=0
         )
@@ -71,14 +80,34 @@ def convert_midi_to_xml(midi_file):
 
         xml_output += "  </noteRows>\n</pattern>"
 
-        output_file = f"{midi_filename}_{track_name}.xml"
+        if single_track:
+            output_file = os.path.join(
+                os.path.dirname(midi_file), f"{midi_filename}.xml"
+            )
+        else:
+            output_file = os.path.join(
+                os.path.dirname(midi_file), f"{midi_filename}_{track_name}.xml"
+            )
+
         with open(output_file, "w") as f:
             f.write(xml_output)
         print(f"Generated {output_file}")
 
 
+def process_folder(folder_path, delete=False):
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            if file.lower().endswith(".mid"):
+                midi_path = os.path.join(root, file)
+                convert_midi_to_xml(midi_path)
+                if delete and "--delete" in sys.argv:
+                    os.remove(midi_path)
+                    print(f"Deleted {midi_path}")
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python midi_to_xml.py <midi_file>")
+        print("Usage: python midi2deluge.py <folder_path> [--delete]")
     else:
-        convert_midi_to_xml(sys.argv[1])
+        delete_flag = "--delete" in sys.argv
+        process_folder(sys.argv[1], delete=delete_flag)

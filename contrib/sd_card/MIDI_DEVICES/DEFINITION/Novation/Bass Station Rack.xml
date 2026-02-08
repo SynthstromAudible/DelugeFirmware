@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="MOD Wheel"
+		2="Breath Control"
+		7="Volume"
+		105="Filter Cutoff"
+		106="Filter RES"
+		107="Filter MOD Depth"
+		108="ENV1 Attack"
+		109="ENV1 Decay"
+		110="ENV1 Sustain"
+		111="ENV1 Release"
+		112="ENV1 Velocity"
+		114="ENV2 Attack"
+		115="ENV2 Decay"
+		116="ENV2 Sustain"
+		117="ENV2 Release"
+		118="ENV2 Velocity"/>
+</midiDevice>

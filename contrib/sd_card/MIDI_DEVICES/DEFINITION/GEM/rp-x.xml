@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="Modulation"
+		5="Portamento time"
+		7="Volume"
+		10="Pan pot"
+		11="Expression"
+		64="Sustain"
+		65="Portamento"
+		66="Sostenuto"
+		67="Soft"
+		71="Filter resonance"
+		72="Release time"
+		73="Attack time"
+		74="Filter cut off"
+		75="Decay time"
+		76="Vibrato rate"
+		77="Vibrato depth"
+		78="Vibrato delay"
+		84="Portamento control"
+		91="Reverb send level"
+		93="Chorus send level"/>
+</midiDevice>
