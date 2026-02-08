@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1"
+     x="0px" y="0px" width="128px" height="128px" viewBox="0 0 128 128">
+  <g transform="matrix(2.5, 0, 0, 2.5, 64, -26) ">
+    <g id="Layer_5">
+      <path fill="#DEDEDE" stroke="none" d="
+M -12 39.4
+L -12 15 -22.05 15 -22.05 56.6 -7.4 56.6 -7.4 39.4 -12 39.4
+M 11.6 39.4
+L 7.2 39.4 7.2 56.6 21.8 56.6 21.8 15 11.6 15 11.6 39.4
+M 3.2 39.4
+L 3.2 15 -3.6 15 -3.6 39.4 -7.4 39.4 -7.4 56.6 7.2 56.6 7.2 39.4 3.2 39.4 Z"/>
+
+      <path stroke="#B1B1B1" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M -3.6 15
+L 3.2 15
+M -7.4 39.4
+L -7.4 56.6 7.2 56.6 7.2 39.4
+M 11.6 15
+L 21.8 15 21.8 56.6 7.2 56.6
+M -12 15
+L -22.05 15 -22.05 56.6 -7.4 56.6"/>
+
+      <path fill="#383838" stroke="none" d="
+M -4.75 15
+L -10.95 15 -10.95 39.4 -4.75 39.4 -4.75 15
+M 10.45 15
+L 4.25 15 4.25 39.4 10.45 39.4 10.45 15 Z"/>
+    </g>
+
+    <path stroke="#383838" stroke-width="2.7" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 10.45 15
+L 10.45 39.4 4.25 39.4 4.25 15
+M -4.75 15
+L -4.75 39.4 -10.95 39.4 -10.95 15"/>
+
+    <path stroke="#B1B1B1" stroke-width="3" stroke-linejoin="miter" stroke-linecap="square"
+          stroke-miterlimit="3" fill="none" d="
+M 4.25 15
+L 10.45 15
+M -10.95 15
+L -4.75 15"/>
+  </g>
+</svg>

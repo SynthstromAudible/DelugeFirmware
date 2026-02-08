@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		0="Bank select A"
+		32="Bank select B"
+		1="Modulation"
+		5="Portamento time"
+		7="Volume"
+		6="Data entry"
+		64="Hold 1"
+		100="RPC"/>
+</midiDevice>

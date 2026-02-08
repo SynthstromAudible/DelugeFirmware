@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="Cutoff2"
+		2="Resonance2"
+		4="FM Depth"
+		7="VCA Bias"
+		11="AM Ring Depth"
+		5="Adsr Attack"
+		16="Adsr Decay"
+		17="Adsr Release"
+		18="AR Attack"
+		19="AR Release"/>
+</midiDevice>

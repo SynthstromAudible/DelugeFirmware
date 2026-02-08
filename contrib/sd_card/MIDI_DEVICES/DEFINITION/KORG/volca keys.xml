@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		5="Portamento"
+		11="Expression"
+		40="Voice"
+		41="Octave"
+		42="Detune"
+		43="VCO EG depth"
+		49="Attack"
+		50="Decay/release"
+		51="Sustain"
+		44="Cutoff"
+		45="VCF EG intensity"
+		46="Rate"
+		47="Pitch intensity"
+		48="Cutoff intensity"
+		52="Delay time"
+		53="Delay feedback"/>
+</midiDevice>

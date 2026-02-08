@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		40="VTO pitch"
+		41="VTO saturation"
+		42="VTO level"
+		43="VCF cutoff"
+		44="VCF peak"
+		45="VCF attack"
+		46="VCF decay"
+		47="VCF EG intensity"
+		48="Accent"
+		49="LFO rate"
+		50="LFO intensity"/>
+</midiDevice>

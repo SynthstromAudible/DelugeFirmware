@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		14="Type"
+		16="Attack"
+		19="Release"
+		20="Depth"
+		21="Rate"
+		24="LFO Rate"
+		26="LFO Depth"
+		28="Time"
+		29="Depth"
+		30="Time"
+		31="Depth"
+		33="Mix"
+		34="Time"
+		35="Depth"
+		36="Mix"
+		42="Type"
+		43="Cutoff"
+		44="Resonance"
+		45="Sweep Depth"
+		46="Sweep Rate"
+		53="Type"
+		54="Shape"
+		55="Alt"
+		88="Modulation type"
+		89="Delay type"
+		90="Reverb type"
+		117="Pattern"
+		118="Intervals"
+		119="Length"/>
+</midiDevice>
