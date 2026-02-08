@@ -1,0 +1,230 @@
+---
+title: Shortcuts
+sidebar:
+  order: 1
+---
+
+import { Badge } from "@astrojs/starlight/components"
+
+Shortcuts are the fastest way to execute actions on the Deluge. <Badge text="Updated as of c1.0.0" variant="tip" />
+
+## All Views
+
+| Context    | Action                    | Shortcut                                                        |
+| ---------- | ------------------------- | --------------------------------------------------------------- |
+| System     | Adjust brightness         | :key[SHIFT] + :key[LEARN] + :key[TURN HORIZONTAL]               |
+| System     | Settings menu             | :key[SHIFT] + :key[SELECT]                                      |
+| System     | Undo                      | :key[BACK]                                                      |
+| System     | Redo                      | :key[SHIFT] + :key[BACK]                                        |
+| System     | Tempo change              | :key[TURN TEMPO]                                                |
+| System     | Tempo change 1BPM inc     | :key[PRESS TURN TEMPO] <br/> Configurable in Community Features |
+| System     | Swing adjustment          | :key[SHIFT] + :key[TURN TEMPO]                                  |
+| System     | Metronome on/off          | :key[SHIFT] + :key[TAPTEMPO]                                    |
+| Navigation | Check current zoom level  | :key[HORIZONTAL]                                                |
+| Navigation | Change current zoom level | :key[PRESS TURN HORIZONTAL]                                     |
+| Navigation | Scroll left or right      | :key[TURN HORIZONTAL]                                           |
+| Navigation | Scroll up or down         | :key[TURN VERTICAL]                                             |
+| Song       | Load song (saved tempo)   | :key[LOAD] + :key[TURN SELECT], then :key[LOAD]                 |
+| Song       | Load song (current tempo) | :key[LOAD] + :key[TURN SELECT], then :key[TEMPO] + :key[LOAD]   |
+| Song       | Delete song               | :key[SHIFT] + :key[SAVE]                                        |
+| Song       | New song                  | :key[SHIFT] + :key[LOAD], then :key[LOAD]                       |
+| Song       | Delay load                | :key[LOAD], Then :key[TURN SELECT]                              |
+| Sampling   | Loop resample             | :key[RECORD] + :key[PLAY] then :key[RECORD] + :key[PLAY]        |
+| Sampling   | Resample                  | :key[SHIFT] + :key[RECORD]                                      |
+| Sequencer  | Nudge clock               | :key[HORIZONTAL] + :key[TURN TEMPO]                             |
+
+## Parameter Control - Rotary Push Controls - Toggle Options
+
+| Context | Action                                      | Shortcut                                                  |
+| ------- | ------------------------------------------- | --------------------------------------------------------- |
+| FX      | LP, HP, EQ option                           | [CUTOFF / RES] = on, :key[UPPER GOLD]                     |
+| FX      | LPF slope type                              | [CUTOFF / RES] = on, :key[LOWER GOLD]                     |
+| FX      | Ping-Pong on/off                            | [DELAY TIME / AMOUNT] = on, :key[UPPER GOLD]              |
+| FX      | Delay style digital / analog                | [DELAY TIME / AMOUNT] = on, :key[LOWER GOLD]              |
+| FX      | Compressor sync 8th - 32nd                  | [SIDECHAIN / REVERB] = on, :key[UPPER GOLD]               |
+| FX      | Reverb room size preset                     | [SIDECHAIN / REVERB] = on, :key[LOWER GOLD]               |
+| FX      | Effect song or kit: chorus, flanger, phaser | [MOD RATE / DEPTH] & affect entire = on, :key[UPPER GOLD] |
+| FX      | Effect song or kit: depth, offset, feedback | [MOD RATE / DEPTH] & affect entire = on, :key[LOWER GOLD] |
+| FX      | Stutter                                     | [STUTTER / CUSTOM 1] = on, :key[UPPER GOLD]               |
+| FX      | Stutter - ramp speed                        | [STUTTER / CUSTOM 1] = on, :key[PRESS TURN UPPER GOLD]    |
+
+## Song View
+
+| Context | Action                                | Shortcut                                                                       |
+| ------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| Song    | Switch song views - default row       | Hold :key[SONG] + :key[TURN SELECT] change row or grid                         |
+| Song    | Clip parameter adjustment             | Hold :key[PAD] on the grid + :key[TURN UPPER GOLD] or :key[TURN LOWER GOLD]    |
+| Song    | Change section assignment / Colour    | :key[SHIFT] + :key[SECTION PAD]                                                |
+| Song    | Change pad row colour in row view     | Hold :key[PAD] for row + :key[SHIFT] + :key[TURN VERTICAL]                     |
+| Song    | Section repeats / share status        | Press :key[SECTION PAD] + :key[TURN SELECT]                                    |
+| Song    | Move row                              | Hold :key[PAD] of row to move + :key[TURN VERTICAL]                            |
+| Song    | Clone clip                            | Hold :key[PAD] of master clone clip + press :key[PAD] of another row           |
+| Song    | Solo section                          | Tap :key[SECTION PAD]                                                          |
+| Song    | Solo clip (arm)                       | :key[HORIZONTAL] + press clip’s :key[LAUNCH PAD]                               |
+| Song    | Solo clip (Immediate)                 | :key[SHIFT] + press clip’s :key[LAUNCH PAD]                                    |
+| Song    | Un-solo                               | Press clip’s :key[MUTE PAD]                                                    |
+| Song    | Instant mute / launch                 | :key[SHIFT] + :key[MUTE PAD]                                                   |
+| Song    | Delete clip                           | Hold :key[PAD] of clip to delete + press :key[SAVE]                            |
+| Song    | Drag clip instance to arranger        | Hold :key[PAD] + press :key[SONG] + :key[TURN HORIZONTAL], release pad         |
+| Song    | Record to arranger                    | Hold :key[RECORD] + press :key[SONG]                                           |
+| Song    | Master compressor mode                | :key[AFFECTENTIRE] ON, [SIDECHAIN] ON, :key[UPPER GOLD]                        |
+| Song    | Grid View - Pad Modes                 | Press :key[AUDITION PAD] Green to Set Launch mode / Blue to edit               |
+| Looping | Create audio clip                     | Hold :key[PAD] of empty clip + :key[SELECT]                                    |
+| Looping | Set input source for audio clip       | Hold :key[LEARN] + Press :key[PAD] of clip                                     |
+| Looping | Loop record                           | In rec mode, press :key[PLAY] with armed, empty audio clip(s) present          |
+| Looping | Close loop recording                  | Press :key[LAUNCH PAD] of clip                                                 |
+| Looping | Close loop + immediate solo           | :key[HORIZONTAL] + press :key[LAUNCH PAD] to close loop.                       |
+| Looping | Loop record during playback           | In record mode, unmute armed, empty (audio) clip                               |
+| Looping | Overdub                               | Hold :key[RECORD] + press :key[PAD] of clip row underneath                     |
+| Looping | Continuous overdub layering           | Hold :key[RECORD] + press :key[AUDITION PAD] of row underneath                 |
+| Looping | ‘Loop pedal’ record                   | Record loop while no other clip is playing / unmuted and metronome is off      |
+| Looping | Grab tempo from audio clip            | :key[TEMPO] + press :key[PAD] for clip row (song view) or any pad in clip view |
+| Looping | Select MIDI switch LOOP target        | Enter audio clip or hold clip row in song view + press switch                  |
+| Looping | Auto extending instrument clip record | In record mode, unmute armed empty clip during playback                        |
+
+## Arranger View
+
+| Context     | Action                                   | Shortcut                                                                                                                  |
+| ----------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Clip        | Place clip instance                      | :key[PAD]                                                                                                                 |
+| Clip        | Delete clip instance                     | :key[PAD] Leftmost start pad of an instance                                                                               |
+| Clip        | Clip instance length                     | Hold :key[PAD] start + press :key[PAD] end on the same row                                                                |
+| Clip        | Move clip instance horizontally          | Hold :key[PAD] + :key[TURN HORIZONTAL]                                                                                    |
+| Clip        | Change instance clip                     | Hold :key[PAD] + :key[TURN SELECT]                                                                                        |
+| Clip        | Make clip instance unique                | :key[SHIFT] + :key[PAD] creates a ‘white’ clip instance                                                                   |
+| Clip        | Adjust clip instance parameters          | Hold :key[PAD] + :key[TURN UPPER GOLD] or :key[TURN LOWER GOLD] for the selected parameter                                |
+| Clip        | Enter clip view for a clip               | :key[PAD] of any clip instance pad other than the first / leftmost                                                        |
+| Clip        | Drag ‘unique’ clip instance to song view | Hold :key[PAD] + :key[SONG] + :key[TURN VERTICAL] then release pad                                                        |
+| Row         | Quantize or Humanize row                 | Hold :key[AUDITION PAD] + :key[TURN TEMPO]. Right - Quantize / Left - Humanize                                            |
+| Row         | Move track                               | Hold :key[AUDITION PAD] + :key[TURN VERTICAL]                                                                             |
+| Instrument  | Mute / unmute track                      | :key[MUTE PAD] for row                                                                                                    |
+| Instrument  | Solo track                               | :key[HORIZONTAL] + :key[MUTE PAD] for instrument                                                                          |
+| Instrument  | Change or Add new instrument             | Hold :key[AUDITION PAD] + :key[TURN SELECT] or press :key[SYNTH] or press :key[KIT] or press :key[MIDI] or press :key[CV] |
+| Instrument  | Delete track row                         | Hold :key[AUDITION PAD] + :key[SAVE]                                                                                      |
+| Instrument  | Audition instrument                      | :key[AUDITION PAD] - Songs root note or snare drum in kit mode                                                            |
+| Arrangement | Clear arrangement                        | :key[HORIZONTAL] + :key[BACK]                                                                                             |
+| Audio       | Create new audio track                   | Empty lane :key[AUDITION PAD] + :key[SELECT]                                                                              |
+| Audio       | Set input source for audio track         | :key[LEARN] + :key[AUDITION PAD] of audio track                                                                           |
+| Audio       | Record audio from current position       | :key[PLAY] while in :key[RECORD], with armed audio present                                                                |
+
+## Clip View
+
+| Context       | Action                                       | Shortcut                                                                                                                                                  |
+| ------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clip          | Change clip colour                           | :key[SHIFT] + :key[TURN VERTICAL]                                                                                                                         |
+| Clip          | Change clip preset, MIDI Ch, CV out          | :key[TURN SELECT]                                                                                                                                         |
+| Clip          | Adjust clip length                           | :key[SHIFT] + :key[TURN HORIZONTAL]                                                                                                                       |
+| Clip          | Duplicate / multiply and append clip content | :key[SHIFT] + :key[HORIZONTAL]                                                                                                                            |
+| Clip          | Horizontal clip shift / nudge L-R            | :key[VERTICAL] + :key[TURN HORIZONTAL]                                                                                                                    |
+| Clip          | Playback from current screen                 | :key[HORIZONTAL] + :key[PLAY]                                                                                                                             |
+| Clip          | Clear clip                                   | :key[HORIZONTAL] + :key[BACK]                                                                                                                             |
+| Clip          | Change Clip Direction                        | :key[SHIFT] + :key[DIRECTION PAD] Direction may not be labelled on the faceplate. Pad is located to the right of the OSC SYNC pad on the FM MOD 1 Column. |
+| Note          | Note length                                  | Hold :key[PAD] start + press :key[PAD] end on the same row                                                                                                |
+| Note          | Note length - long                           | Press :key[PAD] start. Navigate grid - :key[TURN HORIZONTAL]. :key[HORIZONTAL] + press :key[PAD] end on the same row                                      |
+| Note          | Note velocity                                | Hold :key[PAD] on the grid + :key[TURN HORIZONTAL]                                                                                                        |
+| Note          | Note repeat                                  | Hold :key[PAD] on the grid + hold and :key[TURN VERTICAL]                                                                                                 |
+| Note          | Note play probability %                      | Hold :key[PAD] of note + :key[TURN SELECT] anticlockwise / left                                                                                           |
+| Note          | Set dependance on first note                 | Hold All :key[PAD]s together + :key[TURN SELECT] anticlockwise / left                                                                                     |
+| Note          | Iteration dependance for a note              | Hold :key[PAD] of note + :key[TURN SELECT] clockwise / right                                                                                              |
+| Note          | Copy notes                                   | Hold :key[LEARN] + :key[HORIZONTAL]                                                                                                                       |
+| Note          | Paste notes                                  | Hold :key[LEARN] + :key[SHIFT] + :key[HORIZONTAL]                                                                                                         |
+| Note          | Nudge individual notes horizontally          | Hold :key[PAD] + :key[PRESS TURN HORIZONTAL]                                                                                                              |
+| Parameter     | Automate a parameter                         | While recording, LED on; :key[TURN UPPER GOLD] or :key[TURN LOWER GOLD] of selected parameter                                                             |
+| Parameter     | Per note parameter change                    | Hold :key[PAD] of note start + :key[TURN UPPER GOLD] or :key[TURN LOWER GOLD] of selected parameter                                                       |
+| Parameter     | Delete parameter automation                  | :key[SHIFT] + :key[UPPER GOLD] or :key[LOWER GOLD] of selected parameter                                                                                  |
+| Parameter     | Copy automation                              | Hold :key[LEARN] + :key[UPPER GOLD] or :key[LOWER GOLD] of selected parameter                                                                             |
+| Parameter     | Paste automation                             | Hold :key[LEARN] + :key[SHIFT] + :key[UPPER GOLD] or :key[LOWER GOLD] of selected parameter                                                               |
+| Sample        | Load sample                                  | :key[AUDITION PAD] + :key[LOAD]                                                                                                                           |
+| Sound         | Sound Editor                                 | :key[SHIFT] + :key[PAD] of shortcut as labelled or :key[SELECT]                                                                                           |
+| Preset        | Preset load interface                        | :key[LOAD] + :key[SYNTH] or :key[KIT] or :key[MIDI]                                                                                                       |
+| Audio         | Audio clip trim start                        | Press :key[PAD] of leftmost column at the start of the waveform                                                                                           |
+| Audio         | Audio clip trim end                          | Press :key[PAD] of rightmost column at the end of the waveform                                                                                            |
+| Euclidean Seq | Number of events on the row                  | Hold :key[AUDITION PAD] + :key[PRESS TURN VERTICAL]                                                                                                       |
+| Euclidean Seq | Row length                                   | Hold :key[AUDITION PAD] + :key[TURN HORIZONTAL]                                                                                                           |
+| Euclidean Seq | Rotate / Shift events or notes               | Hold :key[AUDITION PAD] + :key[PRESS TURN HORIZONTAL]                                                                                                     |
+
+## Sound Editor
+
+| Context      | Action                       | Shortcut                                                                            |
+| ------------ | ---------------------------- | ----------------------------------------------------------------------------------- |
+| Sound Editor | Editor Move cursor           | :key[TURN HORIZONTAL] to navigate                                                   |
+| Controls     | Parameter knob assignment    | Hold :key[LEARN] + :key[TURN UPPER GOLD] or :key[TURN LOWER GOLD] parameter control |
+| Controls     | MIDI knob assignment         | Hold :key[LEARN] + turn (MIDI) Control of external device                           |
+| Controls     | Unassign MIDI control knob   | :key[SHIFT] + :key[LEARN]                                                           |
+| Preset       | Save preset                  | :key[SAVE]                                                                          |
+| Parameter    | Apply a change to entire kit | Press & hold :key[AFFECTENTIRE] while changing parameter                            |
+
+## Synth, Keyboard, MIDI, CV Clips
+
+| Context   | Action                                        | Shortcut                                                                      |
+| --------- | --------------------------------------------- | ----------------------------------------------------------------------------- |
+| Synth     | Synth resample                                | :key[RECORD] + :key[AUDITION PAD] or grid :key[PAD]                           |
+| Synth     | Load blank synth                              | :key[SHIFT] + :key[SYNTH]                                                     |
+| Synth     | Load synth preset to a kit row                | :key[AUDITION PAD] + :key[SYNTH]                                              |
+| Synth     | Save synth preset                             | :key[SAVE] + :key[SYNTH]                                                      |
+| Scales    | Cycle through default scales                  | :key[SHIFT] + :key[SCALE]                                                     |
+| Scales    | Change root note                              | :key[SCALE] + :key[AUDITION PAD] row of new note                              |
+| Scales    | Chromatic scale                               | :key[SCALE] to turn it OFF, LED unlit                                         |
+| Scales    | Create scale                                  | In chromatic mode - scale OFF; Select :key[PAD] notes, then press :key[SCALE] |
+| Scales    | Alter current scale                           | Hold :key[AUDITION PAD] + :key[PRESS TURN SELECT]                             |
+| Transpose | Transpose current clip an octave              | :key[PRESS TURN VERTICAL]                                                     |
+| Transpose | Transpose current clip a semitone             | In chromatic mode - Scale OFF; :key[SHIFT] + :key[PRESS TURN VERTICAL]        |
+| Transpose | Transpose ALL clips a semitone                | In scale mode - scale ON; :key[SHIFT] + :key[PRESS TURN VERTICAL]             |
+| Note      | Create full screen ‘drone’ note               | Hold :key[PAD] first column + press :key[PAD] last column of grid             |
+| MIDI      | Assign MIDI CC to parameter knob (MIDI Track) | :key[UPPER GOLD] or :key[LOWER GOLD] + :key[TURN SELECT]                      |
+
+## Kit Clips
+
+| Context | Action                        | Shortcut                                                                                                               |
+| ------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Kit     | Change colour of specific row | :key[SHIFT] + :key[AUDITION PAD] + :key[TURN VERTICAL]                                                                 |
+| Kit     | Save kit preset               | :key[SAVE] + :key[KIT]                                                                                                 |
+| Kit     | Randomize Kit Row             | :key[AUDITION PAD] for row to edit + :key[RANDOM PAD]                                                                  |
+| Kit     | Move row Hold for row         | :key[AUDITION PAD] + :key[MUTE PAD] + :key[TURN VERTICAL]                                                              |
+| Kit     | Delete row                    | :key[PAD] for row to delete + :key[SAVE]                                                                               |
+| Kit     | Delete all unused rows        | :key[KIT] + :key[SHIFT] + :key[SAVE]                                                                                   |
+| Sample  | Slice a sample                | :key[SHIFT] + :key[KIT], :key[TURN SELECT] to choose sample, :key[SHIFT] + :key[SELECT] for slicer to set slice number |
+| Sample  | Lazy Chop Option              | In the slicer function and number selection, :key[HORIZONTAL] to open the manual lazy slicer pads                      |
+| Sample  | Record sample from input      | :key[AUDITION PAD] + :key[RECORD] to start recording. :key[RECORD] again to end                                        |
+| CV      | Set kit row output to gate    | :key[AUDITION PAD] + press :key[CV]                                                                                    |
+| CV      | Set kit row CV gate           | :key[AUDITION PAD] + :key[TURN LOWER GOLD] - must be set as a CV row                                                   |
+| MIDI    | Set kit row output to MIDI    | :key[AUDITION PAD] + press :key[MIDI]                                                                                  |
+| MIDI    | Set kit row MIDI channel      | :key[AUDITION PAD] + :key[TURN LOWER GOLD] - must be set as a MIDI row                                                 |
+| MIDI    | Set kit row MIDI note         | :key[AUDITION PAD] + :key[TURN UPPER GOLD] - must be set as a MIDI row                                                 |
+
+## Keyboard
+
+| Context  | Action                      | Shortcut                            |
+| -------- | --------------------------- | ----------------------------------- |
+| Keyboard | Select Keyboard view        | :key[KEYBOARD]                      |
+| Keyboard | Isomorphic, In-Key or Norns | :key[KEYBOARD] + :key[TURN SELECT]  |
+| Keyboard | Note offset                 | :key[SHIFT] + :key[TURN HORIZONTAL] |
+| Keyboard | Change Scale                | :key[SCALE] + :key[SELECT]          |
+| Keyboard | Change Root Note            | :key[SCALE] + :key[TURN SELECT]     |
+
+## Automation & Automation Editor - Clip View
+
+| Context     | Action                        | Shortcut                                                                    |
+| ----------- | ----------------------------- | --------------------------------------------------------------------------- |
+| Automation  | Select Automation Mode        | Press :key[CLIP] twice until it flashes blue.                               |
+| Automation  | Select Automation Mode        | Hold :key[SHIFT] + :key[CLIP] or :key[AUDITION PAD] + :key[CLIP]            |
+| Automation  | Select Automation Parameter   | :key[SHIFT] + :key[PAD] or :key[TURN SELECT]                                |
+| Automation  | Select Affected Kit Rows      | :key[AFFECTENTIRE] On for all, off for selected rows                        |
+| Automation  | Clear Automation              | :key[HORIZONTAL] + :key[BACK]                                               |
+| Automation  | Record Automation             | :key[RECORD], :key[PLAY], :key[TURN UPPER GOLD] or :key[TURN LOWER GOLD]    |
+| Automation  | Copy Automation               | :key[LEARN] + :key[UPPER GOLD] or :key[LOWER GOLD]                          |
+| Automation  | Paste Automation              | :key[SHIFT] + :key[LEARN] + :key[UPPER GOLD] or :key[LOWER GOLD]            |
+| Automation  | Delete Automation             | :key[SHIFT] + :key[UPPER GOLD] or :key[LOWER GOLD]                          |
+| Automation  | Interpolation On/Off          | :key[SHIFT] + :key[INTERPOLATION PAD] in first column of grid               |
+| Auto Editor | Check Parameter               | Press flashing :key[PAD]                                                    |
+| Auto Editor | Set Parameter Column Value    | Press :key[PAD]                                                             |
+| Auto Editor | Change Parameter Column Value | Hold :key[PAD] + :key[TURN UPPER GOLD] or :key[TURN LOWER GOLD]             |
+| Auto Editor | Set long automation shape     | Hold :key[PAD] start + Press :key[PAD] end.                                 |
+| Auto Editor | Pad selection mode            | :key[SHIFT] + press :key[WAVEFORM PAD] shortcut pad in first column of grid |
+| Auto Editor | Pad selection mode edit       | :key[TURN UPPER GOLD] or :key[TURN LOWER GOLD] in pad selection mode        |
+| Auto Editor | Duplicate Automation          | :key[SHIFT] + :key[HORIZONTAL]                                              |
+| Auto Editor | Shift Automation              | :key[VERTICAL] + :key[TURN HORIZONTAL]                                      |
+| Auto Editor | Reduce clip length            | :key[SHIFT] + :key[TURN HORIZONTAL]                                         |
+| Auto Editor | View zoom level               | :key[HORIZONTAL]                                                            |
+| Auto Editor | Change zoom level             | :key[PRESS TURN HORIZONTAL]                                                 |
+| Auto Editor | Scroll grid                   | :key[TURN HORIZONTAL]                                                       |

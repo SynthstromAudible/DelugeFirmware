@@ -1,0 +1,279 @@
+---
+title: Ports
+sidebar:
+  order: 6
+---
+
+import { Card } from "@astrojs/starlight/components"
+import { Steps } from "@astrojs/starlight/components"
+
+This page provides information on the Deluge's physical hardware inputs and outputs used to transmit audio and non-audio data (e.g. MIDI, CV, Gate, Trigger Clock).
+
+## Audio
+
+### Inputs
+
+#### Line
+
+For monitoring and recording from another device’s line output use the line input TRS 1/4” / 6.35mm connector, which may accept a single-ended / unbalanced signal, a differential / balanced signal, or a stereo signal.
+
+Input impedance: 4k.
+
+#### Microphone
+
+For monitoring and recording from an external microphone use the 3.5mm / 1/8” jack. Gain is set via the “mic gain” switch, which also affects the internal microphone. Stereo and mono microphones are supported. 4.5V plug-in power is supplied on the tip and ring of the connector, each through a 3.9k resistor.
+
+### Outputs
+
+#### L / MONO and R balanced
+
+The Deluge’s main audio outputs are two quasi-balanced (that is, resistor-balanced but not differential) 1/4" connectors. They will work with non-balanced cables too. For best noise rejection, use balanced cables when connecting the Deluge’s outputs to balanced / differential inputs.
+
+Output impedance: 47 ohms.
+
+The Deluge will detect if only the “L / MONO” output has a cable inserted (but not the “R” output or headphone output), and will output all sound in mono.
+
+- In this case all panning and ping-pong delay will be deactivated, and stereo samples will be condensed to mono. This allows you to work on your music on a stereo setup, but not necessarily need to change anything if you are faced with a mono setup.
+
+#### Headphone
+
+This can drive headphones, or can be used to connect other equipment with a 3.5mm / 1/8” connector - perhaps computer speakers or a car stereo.
+
+## Non-audio
+
+### MIDI
+
+Many functions on the Deluge can be controlled externally via MIDI commands. Common applications of this are:
+
+- Using a MIDI footswitch to control functions such as stopping or launching a clip, or stopping or starting playback, by sending in particular a MIDI note / channel combination.
+- Using an external MIDI keyboard to control (play through) one of the Deluge’s synths or kits live, or to record notes into a sequence.
+- Using an external controller with knobs or faders to control parameters of one of the Deluge’s synths or kits, or things like volume (covered separately).
+
+Some MIDI commands are song-specific. With them, you can:
+
+<Card title="Song-specific MIDI commands" icon="information">
+
+- Launch a given clip or section
+- Mute / unmute a row belonging to a clip in clip view
+- Play one sound in a kit clip
+- Play a synth belonging to a clip.
+  - For this, an entire MIDI channel is assigned, rather than just one note in that channel. This allows the synth to be played with a MIDI keyboard. The same function is available for MIDI and CV clips.
+
+</Card>
+
+Other MIDI commands are “global” - controlling core Deluge features like playback and recording. Of these, some can only be set via the settings menu, but those functions with a dedicated button may be set up more intuitively, as described in this section. These are:
+
+<Card title="Global MIDI commands" icon="information">
+
+- Play
+- Record
+- Tap tempo
+- Restart
+- Loop record
+- Undo
+- Redo
+
+</Card>
+
+The process for assigning an external control (the type which will send a MIDI note-on) to a function for which you can see a button / pad is as follows:
+
+<Steps>
+
+1. Ensure that your MIDI controller device is appropriately connected to the Deluge - either by physically connecting its MIDI output to the Deluge’s hardware MIDI input, or by using software to route the MIDI to the Deluge via its USB connection, or by having the Deluge host a USB MIDI controller.
+1. Hold down the :key[Learn] button on the Deluge, and then also hold down the button or pad on the Deluge for the function that you wish to assign MIDI control to - for instance, a “launch” pad (second from right; green or red) belonging to a clip in song view. The button / pad will begin to blink, indicating that you have the option to assign MIDI control to it.
+1. While holding these two buttons / pads on the Deluge, press the button or key on your MIDI controller that you wish to assign to this function on the Deluge. The button / pad that you are holding on the Deluge should begin blinking pink to indicate that MIDI control is assigned. (In the case of non-pad buttons, they are not capable of flashing pink, but see the next step to verify that MIDI control is correctly assigned to a given button.)
+
+</Steps>
+
+Now that MIDI control is assigned, anytime that you hold down the :key[Learn] button, whatever buttons or pads that MIDI control is assigned to will blink pink - or just blink their normal colour in the case of non-pad buttons. To un-assign MIDI control from a button or pad, just press it while holding down the MIDI :key[Learn] button.
+
+And, you can now use the button or key on your MIDI controller to enact whatever function you assigned it to on the Deluge.
+
+An individual sound within a kit clip may be set to be played via a MIDI controller (e.g. a keyboard) by assigning an individual key or button on the MIDI controller to that sound (i.e. row)’s audition pad.
+
+Setting up a MIDI keyboard to play a synth clip the way one would normally play a keyboard, i.e. with each key corresponding to a different note, is a similar process: while in clip view for the track, hold down the learn button, then hold down any audition pad, and then press any key on the MIDI keyboard.
+
+This same process can be used on a CV clip to cause incoming MIDI to control a CV / gate output, effectively turning the Deluge into a MIDI-to-CV/gate converter.
+
+Song-specific MIDI commands are saved along with the song. Global ones, once set, remain the same no matter what song you are working on.
+
+MIDI controllers with knobs that send CC messages can also be set up to control synth and sound parameters in the Deluge.
+
+#### DIN
+
+The Deluge has two 5 DIN MIDI ports for MIDI Input and Output.
+
+#### USB
+
+The Deluge’s USB type-B connection can be used as a connection to your computer as a USB MIDI device, for use in any software that supports MIDI.
+
+#### USB host
+
+The Deluge can use its USB type-B connection to act as a USB Host. This requires the Deluge to be DC powered and a USB device connected before the Deluge is powered up.
+
+#### MIDI implementation chart
+
+| Message type          | Message description          | Transmitted                                                               | Recognised                                                                    |
+| --------------------- | ---------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Velocity              | Note ON                      | YES                                                                       | YES                                                                           |
+| Velocity              | Note OFF                     | NO                                                                        | NO                                                                            |
+| Aftertouch / Pressure | Polyphonic                   | YES                                                                       | YES                                                                           |
+| Aftertouch / Pressure | Channel                      | YES                                                                       | YES                                                                           |
+| Pitch bend            | -                            | YES                                                                       | YES                                                                           |
+| CC, general           | -                            | YES (Where numbers assigned by user - see MIDI CC control and sequencing) | YES (Parameter must be “learned” by user - see Assigning knobs to parameters) |
+| Bank select           | CC 0                         | YES                                                                       | NO                                                                            |
+| Bank select           | CC 32                        | YES                                                                       | NO                                                                            |
+| PGM change            | -                            | YES                                                                       | NO                                                                            |
+| Channel mode          | All sound off                | NO                                                                        | NO                                                                            |
+| Channel mode          | Reset all controllers        | NO                                                                        | NO                                                                            |
+| Channel mode          | Local control                | NO                                                                        | NO                                                                            |
+| Channel mode          | All notes off                | NO                                                                        | YES                                                                           |
+| System common         | System exclusive             | NO                                                                        | NO                                                                            |
+| System common         | MIDI Time Code Quarter Frame | NO                                                                        | NO                                                                            |
+| System common         | Song position pointer        | YES                                                                       | YES                                                                           |
+| System common         | Song select                  | NO                                                                        | NO                                                                            |
+| System common         | Tune request                 | NO                                                                        | NO                                                                            |
+| System real-time      | Clock                        | YES\*                                                                     | YES                                                                           |
+| System real-time      | Start                        | YES\*                                                                     | YES                                                                           |
+| System real-time      | Continue                     | YES\*                                                                     | YES                                                                           |
+| System real-time      | Stop                         | YES\*                                                                     | YES                                                                           |
+| System real-time      | Stop                         | YES\*                                                                     | YES                                                                           |
+| System real-time      | Active sensing               | NO                                                                        | NO                                                                            |
+| System real-time      | Reset                        | NO                                                                        | NO                                                                            |
+
+```
+* Only if MIDI clock output is enabled. See the settings menu.
+```
+
+#### Outputting MIDI in a Kit
+
+As well as audio sounds, rows in a kit may be set to output a set MIDI note. This makes it convenient to sequence MIDI notes together which might be far apart or even on
+different channels.
+
+To set a selected kit row to output midi:
+
+<Steps>
+
+1. In clip view for a kit clip
+1. Hold down a row’s audition pad
+1. Press the MIDI button
+
+</Steps>
+
+Once that is set, holding down the row’s audition pad will show the MIDI output’s info on the display.
+
+Turning the two gold knobs (while still holding the audition pad) will change the channel and note respectively for that row.
+
+### CV, gate, and trigger clock ("CLK IN") connectors
+
+For interfacing with analog hardware, the Deluge includes 2 CV outputs, 4 gate outputs (which may also be set individually to output a trigger clock and / or “run” signal), and a trigger clock input.
+
+These all have the signal on their “tip”, ground on their “sleeve”, and their “ring” connected to ground via a 10k resistor.
+
+CV and gate, to describe them briefly, are an analog means of transmitting monophonic note information between devices. They were common before the advent of MIDI, and are still used on some modern analog hardware, particularly that of modular or boutique varieties. CV (control voltage) represents pitch as an analog DC voltage, and gate (sometimes known as “trigger”) indicates whether the note is currently “on” or “off”. A CV-gate pair is commonly used together.
+
+<Card title="Disclaimer" icon="warning">
+
+Every effort has been made to research adequately the compatibility and safety of connecting the Deluge’s CV and gate outputs to as many varieties of other equipment as possible. However, due to the nonstandard nature of CV and gate and the limitless ways in which users may choose to use these signals, Synthstrom Audible takes no responsibility for any ill effect caused by your use of these outputs. It is up to the user to, for instance, verify whether a given connected piece of equipment will operate correctly and safely given the range of voltages that the Deluge may output.
+
+In particular, if you intend to use one of the gate outputs as a trigger clock, see the warning about output voltage in the trigger clock section below.
+
+</Card>
+
+#### CV / gate compatibility and settings
+
+CV and gate are notoriously nonstandard. Different synthesizers expect to see pitch represented with voltage (CV) according to different standards, and their gate / trigger inputs may be either polarity.
+
+The Deluge has been designed to support the widest range of CV / gate standards possible. A number of settings are available in the settings menu.
+
+Each CV output may be set, in 0.01V increments, to any value between 0.01V and 2.00V per octave, or to “Hz per volt”.
+
+Analog synthesizer manufacturers typically adopt one of several standards here:
+
+| Standard         | Used by                              |
+| ---------------- | ------------------------------------ |
+| Hz per volt      | Yamaha and Korg                      |
+| 1V per octave    | Moog, Roland, ARP and Doepfer        |
+| 1.2V per octave  | Buchla and EML                       |
+| 0.32V per octave | EMS                                  |
+| 0.26V per octave | Used on oscillator 3 of the EMS VCS3 |
+
+And each gate output may be set to either of:
+
+| Gate output type | Description                                                                                                                                                                                                                                                                                                                                                                                        | Used by                             |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| V-trig           | represents a note being on by outputting a positive voltage (12V or 5V selectable), and outputs 0V the rest of the time.                                                                                                                                                                                                                                                                           | Roland, Sequential Circuits and ARP |
+| S-trig           | represents a note being on by “shorting” out the output to ground. When the note is off, the the Deluge “pulls up” the output’s voltage to 12V or 5V (selectable) with a 10K resistor: this is not a strict part of the S-trig standard but many devices do this and it is believed to be fully compatible and safe (see disclaimer above), and is in fact necessary (\*) for Yamaha synthesizers. | Yamaha, Korg and Moog               |
+
+<Card title="Switching Gate Output Voltage" icon="information">
+
+The Deluge’s gate output voltage may be switched between 5V and 12V via the small toggle switch located on the Deluge’s top panel by the gate outputs.
+
+The Deluge’s CV outputs’ range is 0V to 10V.
+
+</Card>
+
+#### Trigger clock
+
+The Deluge has a “trigger clock” input, allowing it to play as a slave to hardware which outputs a clock signal containing any number of “pulses per quarter-note” (PPQN). It can accept any voltage between 3.3V and 12V. Clock steps are read on the rising edge of the pulses. A device which has a DIN SYNC output could have pin 3 of this connector routed to the tip of the Deluge’s trigger clock input. PPQN can be set, along with an auto-start setting, in the settings menu. For more information about having the Deluge play as a slave to an external clock source (which could also be a MIDI beat clock), see Tempo and syncing.
+
+If you wish to use the Deluge as a syncing master to send a trigger clock signal to other devices, gate output 4 can be set to output a trigger clock signal, and / or gate 3 can be set to output a “run” signal (goes high while playback is occurring; low otherwise). These output assignments are accessible via the settings menu, as is the trigger clock output PPQN setting.
+
+<Card title="IMPORTANT" icon="warning">
+
+Many devices which receive a trigger clock signal, particularly those whose input is a DIN SYNC, aren’t happy to receive any more than 5V on these inputs.
+
+- If you wish to interface with such a device, you need to set the Deluge’s gate outputs to 5V rather than 12V.
+  - See the previous section for instructions on this.
+
+</Card>
+
+#### Outputting CV / gate
+
+##### CV clip
+
+To set a clip to output CV / gate:
+
+<Steps>
+
+1. Enter clip view for the selected clip.
+1. Press the CV button.
+
+</Steps>
+
+It will now be a CV track, as opposed to a synth, kit or MIDI track. Its notes’ pitch will be output as a voltage on whichever CV output channel you have selected (turn the select knob to change), and the gate output of the same number will convey whether a note is currently “on” or not.
+
+##### MIDI-to-CV/gate converter
+
+The Deluge can also act as a MIDI-to-CV/gate converter. To do this, create a CV clip, and then “learn” a MIDI channel to it.
+
+##### Gate kit drum
+
+Gate outputs (including outputs 3 and 4) can be controlled independently of the CV outputs.
+
+As well as audio sounds, rows in a kit may be set to output on a set gate channel.
+
+This gives access to gate channels 3 and 4, which don’t have a corresponding CV output.
+
+To set a selected kit row to output gate:
+
+<Steps>
+
+1. In clip view for a kit clip
+1. Hold down a row’s audition pad
+1. Press the CV button
+
+</Steps>
+
+Once that is set, holding down the row’s audition pad will show the gate output’s info on the display.
+
+<Card title="Available gate outputs" icon="information">
+
+- Gate 1 (GAT1)
+- Gate 2 (GAT2)
+- Gate 3 (GAT3)
+- Gate 4 (GAT4)
+
+Note: Gate outputs 3 and 4 will not output notes if their mode is set to either RUN or CLOCk - see the settings menu for instructions on setting gate outputs’ modes.
+
+</Card>

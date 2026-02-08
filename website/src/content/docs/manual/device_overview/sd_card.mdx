@@ -1,0 +1,94 @@
+---
+title: SD Card
+sidebar:
+  order: 4
+---
+
+import { Card } from "@astrojs/starlight/components"
+import { Steps } from "@astrojs/starlight/components"
+
+The Deluge uses SD (or SDHC) card storage to load and record audio samples, store presets and save songs. Typically a 16GB or 32GB is recommended, but any size can be used, formatted to FAT32. The Deluge’s firmware can also be updated via the SD card.
+
+## Updating Firmware
+
+The Deluge’s firmware may also be updated via an SD card.
+
+Firmware updates are distributed in the form of a .bin file.
+
+To update the firmware installed on your Deluge:
+
+<Steps>
+
+1. Place one of the firmware .bin file in the top-level directory of your SD card (also remove any other .bin file you put there
+   previously)
+1. Insert the card into the Deluge
+1. Hold down the shift button while powering on the Deluge.
+1. The Deluge will display the text “UPDA”, followed by a spinning animation which may last up to half a minute or so.
+1. The Deluge will then display the text “DONE”, before booting up on the new firmware, which will now be permanently installed.
+
+</Steps>
+
+<Card title="Info" icon="information">
+
+There is no risk of damaging your Deluge even if power is lost during a firmware update. You will still be able to perform the process again by repeating the above steps.
+
+</Card>
+
+## File structure
+
+The Deluge’s SD card contains the presets for kits and synths in XML format which stores the parameter settings and for kits points to the specific samples used.
+
+### Factory library
+
+The Deluge is supplied with a formatted SD card loaded with the factory library. Samples are streamed directly from the SD card when in use, making it an integral part of the device. Ensure the card is inserted in the Deluge when in use.
+
+## Slot
+
+The SD card is used for presets, streaming samples, firmware updates and storage. Any size, formatted to FAT32. Insert pins-up.
+
+<Card title="Warning" icon="warning">
+
+Be careful to slide the SD card in straight and not angled, otherwise the SD
+card can fall inside the Deluge.
+
+</Card>
+
+## Formatting
+
+For best results format the card with 32kB cluster size.
+
+## Card selection
+
+Most consumer SD cards are intended for cameras and video cameras, and the speeds advertised are for reading and writing a single large continous file. For Deluge what matters is random access speed. This is often not mentioned at all. A1/A2 class is an indication of a card intended for "application use", and should mean good random access speed. (A2 is not supported by Deluge: the card will work, but isn't going to be any faster.)
+
+While specific testing for Deluge is still in early steps, in addition to the information below you may want to refer to the [recommendations for the Dirtywave M8 tracker](https://dirtywave.com/pages/recommended-microsd-cards).
+
+### Good cards
+
+- [Kingston Canvas Go! Plus microSD card](https://www.kingston.com/en/memory-cards/canvas-go-plus-microsd-card). Tested size 64GB. Note: microSD, not full size! Achieved 9-12 simultaneous streams.
+- [Kingston Canvas Go! Plus SD card](https://www.kingston.com/en/memory-cards/canvas-go-plus-sd-card). Achieved 12 simultaneous streams with no dropouts
+
+### Decent cards
+
+- Sandisk Extreme Pro. Achieved 6-8 simultaneous streams.
+
+### Poor cards
+
+- Verbatim Premium (stock card that comes with the Deluge). Achieved 3-7 simultaneous streams.
+
+### Test Procedure
+
+<Steps>
+
+1. Export arranger stems for a song
+1. Load the stems into a kit
+1. Watch for dropouts (e.g. samples stop playing / get cut).
+
+</Steps>
+
+<Card title="Info" icon="information">
+Doing this test with a Kit is important as audio clips will paper over the dropouts and attempt to resume sample playback, while kit rows will stop playing.
+
+The song must have enough tracks for the total audio size to exceed available memory, 12 stereo tracks at around 1 minute should do it.
+
+</Card>

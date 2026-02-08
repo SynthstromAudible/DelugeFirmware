@@ -1,0 +1,102 @@
+---
+title: Note / Note Row Editor
+---
+
+import { Badge } from "@astrojs/starlight/components"
+
+<Badge text="c1.3 Feature" variant="tip" />
+
+## Enhance Note Probability, Iteration and Fill
+
+Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
+
+To edit probability, hold a note :key[PAD] / :key[AUDITION PAD] and :key[TURN SELECT LEFT] to display current probability value / set new probability value.
+
+To edit iterance, hold a note :key[PAD] / :key[AUDITION PAD] and :key[TURN SELECT RIGHT] to display current iterance value / set new iterance value.
+
+To edit fill, you need to access the new note and note row editor menu's.
+
+## Note Editor Menu
+
+### Enter Note Editor Menu
+
+Hold a note :key[PAD] and press :key[SELECT] to enter the note editor menu.
+
+The note you were holding will be the note selected when you enter the note editor.
+
+If playback is off, you will hear what that note sounds like. You can toggle whether you want to hear / not hear the note by pressing the note again.
+
+### Selecting a Note
+
+While in the note editor menu, the selected note will blink.
+
+You can select another note by pressing the note (:key[PAD]) on the grid.
+
+You can vertical scroll (:key[TURN VERTICAL]), horizontal scroll (:key[TURN HORIZONTAL]), and zoom in / out (:key[PRESS TURN HORIZONTAL]) to find a note you want to edit.
+
+Note: if you scroll, the note you previously selected will get de-selected and it will stop auditioning. If you were in a note parameter menu, it will kick you back out to the main note editor menu. If you then try to enter one of those note parameter menu's, it will tell you to select a note first.
+
+### Selected Note Auditioning
+
+By default when you select a note, the note will begin auditioning (so you can hear it) and it will continue auditioning until you either:
+
+- exit the note editor menu (:key[BACK])
+- press the note again (:key[PAD])
+- de-select the note by scrolling (:key[TURN HORIZONTAL] or :key[TURN VERTICAL])
+- select another note (:key[PAD])
+
+### Note Actions
+
+While in the note editing menu with a note selected, you are able to perform other functions as if you were holding that note, including:
+
+- :key[Press Turn Vertical] to edit note repeats
+- :key[Turn Gold] to add parameter step automation at current note zoom level
+
+### Exit Note Editor Menu
+
+You can exit the menu by pressing :key[back] to back out or you can press the greyed out :key[Mute Pad] / :key[Audition Pad] in the Sidebar
+
+## Note Row Editor Menu
+
+### Enter Note Row Editor Menu
+
+Hold a note row :key[AUDITION PAD]and press :key[SELECT] to enter the note row editor menu.
+
+The note row you were holding will be the note row selected when you enter the note row editor.
+
+While in the Note Row Editor Menu, the audition pads will not sound. They will function as if you are holding :key[SHIFT] to select rows silently.
+
+### Selecting A Note Row
+
+While in the note row editor menu, the selected note row audition pad will blink.
+
+You can select other note row's by:
+
+- pressing the note row :key[AUDITION PAD]
+- vertical scrolling with the vertical encoder (:key[TURN VERTICAL])
+
+### Note Row Actions
+
+While in the note row editing menu with a note row selected, you are able to perform other functions as if you were holding that note row's :key[AUDITION PAD], including:
+
+- :key[Press Turn Vertical] to enter euclidean notes
+- :key[Press Turn Horizontal] to rotate the note row
+
+By physically holding an :key[AUDITION PAD] you can:
+
+- edit a note row's length by :key[TURN HORIZONTAL]
+- zoom in / out by :key[PRESS TURN HORIZONTAL]
+
+### Editing Notes
+
+You can also perform note editing actions:
+
+- add / remove :key[Notes Pad] on the grid
+- press and hold one or more notes :key[PAD] to edit the same parameter selected for the row but for only for the notes you selected
+- with a note selected you can edit its velocity by :key[TURN HORIZONTAL]
+- with a note selected you can nudge it by :key[PRESS TURN HORIZONTAL]
+- with a note selected you can edit its repeats by :key[PRESS TURN VERTICAL]
+
+### Exit Note Row Editor Menu
+
+You can exit the menu by pressing :key[BACK] to back out

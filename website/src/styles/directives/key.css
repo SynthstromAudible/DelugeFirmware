@@ -1,0 +1,54 @@
+/* :key[] directive styles */
+
+span.button-sequence {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  word-spacing: -0.7ch;
+  letter-spacing: -0.02ch;
+
+  font-size: 0.95em;
+
+  --icon-height: 1.5em;
+  line-height: var(--icon-height);
+}
+
+/* This is preparation for when the shortcuts become clickable  */
+/*span.button-sequence:hover {*/
+/*  background: linear-gradient(*/
+/*    to bottom,*/
+/*    transparent 0%,*/
+/*    rgba(200, 200, 200, 0.25) 50%,*/
+/*    transparent 100%*/
+/*  );*/
+/*  border-radius: 1em;*/
+/*  cursor: pointer;*/
+/*}*/
+
+span.action {
+  word-spacing: -0.2ch;
+  background-color: var(--sl-color-bg-inline-code);
+  border-radius: 1em;
+  padding: 0.05em 0.35em;
+  white-space: break-spaces;
+}
+
+span.icon-with-label {
+  white-space: nowrap;
+}
+
+span.icon-with-label img {
+  display: inline-block;
+  height: var(--icon-height);
+  vertical-align: middle;
+  margin-top: -0.15em; /* Align to middle correctly */
+  margin-inline-start: -0.1em;
+}
+
+span.pad {
+  background-color: var(--sl-color-bg-inline-code);
+  border-radius: 0.25em;
+  border: 3px solid var(--sl-color-gray-4);
+  height: 1.75em; /* This is compensating for the border, but is not a good solution */
+  padding: 0 0.15em;
+}
