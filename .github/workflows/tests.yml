@@ -5,6 +5,7 @@ on:
     branches:
       - "community"
       - "release/**"
+      - "main"
   merge_group:
   workflow_dispatch:
 

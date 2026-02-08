@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["community"]
+    branches: ["main"]
     paths:
       - "website/**"
       - "src/**"

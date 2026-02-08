@@ -3,10 +3,10 @@ name: Format Check
 on:
   push:
     branches:
-      - "community"
+      - "main"
   pull_request:
     branches:
-      - "community"
+      - "main"
       - "release/**"
   merge_group:
   workflow_dispatch:

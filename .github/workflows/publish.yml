@@ -24,6 +24,7 @@ on:
           - release/1.2
           - release/1.3
           - community
+          - main
 
 permissions:
   contents: write #required to update release tags
