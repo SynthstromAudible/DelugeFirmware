@@ -296,6 +296,25 @@ public:
 	bool noteRowFlashOn;
 	bool noteRowBlinking;
 
+	bool gateViewActive{false};
+
+	static constexpr int32_t kGateHeldPadsMax = 8;
+	struct GateHeldPad {
+		bool active{false};
+		int8_t x{-1};
+		int8_t y{-1};
+		bool wasOpen{false};
+		bool encoderUsed{false};
+	};
+	GateHeldPad gateHeldPads[kGateHeldPadsMax];
+	bool gateSpanFillDone{false};
+
+	void adjustGateAttack(int32_t offset);
+	void adjustGateRelease(int32_t offset);
+	void clearGateHeldPads();
+	int32_t findGateHeldPad(int8_t x, int8_t y);
+	bool anyGateHeldPadIsOpen();
+
 	const char* getFillString(uint8_t fill);
 
 	// public for velocity keyboard view to access

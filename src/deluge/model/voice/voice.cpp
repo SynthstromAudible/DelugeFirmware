@@ -108,85 +108,6 @@ void Voice::unassignStuff(bool deletingSong) {
 
 uint32_t lastSoundOrder = 0;
 
-// Parse BPM from sample filename. Handles both explicit "120BPM" and bare numbers
-// like "drums_120_loop.wav" with sanity checking (range 40-300).
-// Returns 0 if no valid BPM found.
-static constexpr int32_t kMinPlausibleBPM = 40;
-static constexpr int32_t kMaxPlausibleBPM = 300;
-
-static int32_t extractNumber(const char* start, const char* end) {
-	int32_t val = 0;
-	for (const char* d = start; d < end; d++) {
-		val = val * 10 + (*d - '0');
-	}
-	return val;
-}
-
-static int32_t parseBPMFromFilename(const char* path) {
-	if (!path || !*path) {
-		return 0;
-	}
-
-	// Find the filename portion (after last '/')
-	const char* filename = path;
-	for (const char* p = path; *p; p++) {
-		if (*p == '/') {
-			filename = p + 1;
-		}
-	}
-
-	// First pass: look for explicit [digits]BPM pattern (highest confidence)
-	for (const char* p = filename; *p; p++) {
-		if ((p[0] == 'B' || p[0] == 'b') && (p[1] == 'P' || p[1] == 'p') && (p[2] == 'M' || p[2] == 'm')
-		    && (p[3] == '.' || p[3] == '_' || p[3] == '-' || p[3] == ' ' || p[3] == '\0')) {
-			const char* end = p;
-			const char* start = p;
-			while (start > filename && start[-1] >= '0' && start[-1] <= '9') {
-				start--;
-			}
-			if (start < end) {
-				int32_t bpm = extractNumber(start, end);
-				if (bpm >= kMinPlausibleBPM && bpm <= kMaxPlausibleBPM) {
-					return bpm;
-				}
-			}
-		}
-	}
-
-	// Second pass: look for bare numbers delimited by separators (_, -, space, or start/end)
-	// that fall in a plausible BPM range
-	for (const char* p = filename; *p; p++) {
-		if (*p >= '0' && *p <= '9') {
-			// Check that this number is at a word boundary (start of filename or after separator)
-			if (p > filename && p[-1] != '_' && p[-1] != '-' && p[-1] != ' ') {
-				// Skip this digit sequence — it's embedded in a word
-				while (*p >= '0' && *p <= '9') {
-					p++;
-				}
-				if (!*p) {
-					break;
-				}
-				continue;
-			}
-			const char* start = p;
-			while (*p >= '0' && *p <= '9') {
-				p++;
-			}
-			// Check trailing boundary (separator, dot/extension, or end)
-			if (*p == '_' || *p == '-' || *p == ' ' || *p == '.' || *p == '\0') {
-				int32_t val = extractNumber(start, p);
-				if (val >= kMinPlausibleBPM && val <= kMaxPlausibleBPM) {
-					return val;
-				}
-			}
-			if (!*p) {
-				break;
-			}
-		}
-	}
-	return 0;
-}
-
 // Returns false if fail and we need to unassign again
 bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
                    int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength,
@@ -200,6 +121,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 	noteCodeAfterArpeggiation = newNoteCodeAfterArpeggiation;
 	orderSounded = lastSoundOrder++;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
+	gateAmplitude = sound.gateOpen ? 0x7FFFFFFF : 0;
 
 	if (newNoteCodeAfterArpeggiation >= 128) {
 		sourceValues[util::to_underlying(PatchSource::NOTE)] = 2147483647;
@@ -337,28 +259,6 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 						                 // And yes, this is supposed to use lastSwungTickActioned, not
 						                 // getActualSwungTickCount(). ticksLate is relative to that.
 					}
-					else if (sound.sources[s].repeatMode == SampleRepeatMode::PHASE_LOCKED) {
-						// Try to parse BPM from the sample filename
-						int32_t sampleBPM = parseBPMFromFilename(holder->filePath.get());
-						if (sampleBPM > 0) {
-							int64_t currentTick = playbackHandler.lastSwungTickActioned - ticksLate;
-
-							// Compute the sample's musical length in ticks from its BPM.
-							// syncLength = sampleBeats * ticksPerBeat
-							//            = (sampleSamples / sampleRate / 60 * bpm) * quarterNoteLen
-							uint32_t sampleLengthInSamples =
-							    ((SampleHolder*)holder)->getLengthInSamplesAtSystemSampleRate(true);
-							uint32_t quarterNoteLength = currentSong->getQuarterNoteLength();
-							uint64_t syncLengthBig = (uint64_t)sampleLengthInSamples * sampleBPM * quarterNoteLength;
-							uint32_t syncLength = syncLengthBig / ((uint64_t)kSampleRate * 60);
-
-							if (syncLength > 0) {
-								guides[s].sequenceSyncLengthTicks = syncLength;
-								guides[s].sequenceSyncStartedAtTick = currentTick - (currentTick % syncLength);
-							}
-						}
-						// No BPM in filename — play raw, no time-stretch or phase-lock
-					}
 				}
 			}
 		}
@@ -409,9 +309,7 @@ activenessDetermined:
 			    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_START_OFFSET_A + s);
 			guides[s].preRollSamples = 0;
 			if (startOffsetParam != 0) {
-				bool synced = (source->repeatMode == SampleRepeatMode::STRETCH
-				               || source->repeatMode == SampleRepeatMode::PHASE_LOCKED)
-				              && guides[s].sequenceSyncLengthTicks > 0;
+				bool synced = source->repeatMode == SampleRepeatMode::STRETCH && guides[s].sequenceSyncLengthTicks > 0;
 
 				if (synced) {
 					// For synced modes, apply offset as a tick shift so the phase-lock
@@ -489,17 +387,7 @@ activenessDetermined:
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
 
-		// For PHASE_LOCKED, force late-start path to seek to bar-phase position
-		// (but only when we're actually mid-bar, not on the downbeat)
 		uint16_t effectiveSamplesLate = samplesLate;
-		if (source->oscType == OscType::SAMPLE && source->repeatMode == SampleRepeatMode::PHASE_LOCKED
-		    && guides[s].sequenceSyncLengthTicks) {
-			int64_t tickIntoBar =
-			    (playbackHandler.lastSwungTickActioned - ticksLate) - guides[s].sequenceSyncStartedAtTick;
-			if (tickIntoBar > 0) {
-				effectiveSamplesLate = std::max<uint16_t>(1, samplesLate);
-			}
-		}
 
 		for (int32_t u = 0; u < sound.numUnison; u++) {
 
@@ -1184,6 +1072,27 @@ skipAutoRelease: {}
 	int32_t overallOscAmplitude = lshiftAndSaturate<2>(
 	    multiply_32x32_rshift32(paramFinalValues[params::LOCAL_VOLUME],
 	                            (sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] >> 1) + 1073741824));
+
+	// Gate mute: ramp gateAmplitude toward target using per-segment attack/release rates
+	// 0 = instant, 127 = slowest fade (~2s). Exponential mapping via bit-shift.
+	{
+		int32_t gateTarget = sound.gateOpen ? 0x7FFFFFFF : 0;
+		if (gateAmplitude < gateTarget) {
+			// Exponential: shift increases with value, ramp rate halves per ~9 steps
+			// v=0 → shift=0 → instant, v=127 → shift=14 → ~2s fade
+			int32_t shift = ((int32_t)sound.gateAttack * 14) >> 7;
+			int32_t rampRate = INT32_MAX >> shift;
+			int32_t remaining = gateTarget - gateAmplitude;
+			gateAmplitude += std::min(remaining, rampRate);
+		}
+		else if (gateAmplitude > gateTarget) {
+			int32_t shift = ((int32_t)sound.gateRelease * 14) >> 7;
+			int32_t rampRate = INT32_MAX >> shift;
+			int32_t remaining = gateAmplitude - gateTarget;
+			gateAmplitude -= std::min(remaining, rampRate);
+		}
+		overallOscAmplitude = multiply_32x32_rshift32(overallOscAmplitude, gateAmplitude) << 1;
+	}
 
 	// This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
 	int32_t filterGain;
@@ -2329,10 +2238,8 @@ pitchTooHigh:
 
 				int32_t rawSamplesLate;
 
-				// Synced / STRETCH / PHASE_LOCKED with sync - it's super easy.
-				if ((sound.sources[s].repeatMode == SampleRepeatMode::STRETCH
-				     || sound.sources[s].repeatMode == SampleRepeatMode::PHASE_LOCKED)
-				    && guides[s].sequenceSyncLengthTicks) {
+				// Synced / STRETCH with sync - it's super easy.
+				if (sound.sources[s].repeatMode == SampleRepeatMode::STRETCH && guides[s].sequenceSyncLengthTicks) {
 					rawSamplesLate = guides[s].getSyncedNumSamplesIn();
 				}
 

@@ -80,6 +80,7 @@ public:
 	deluge::dsp::SineShaperVoiceState sineShaperState;
 
 	int32_t overallOscAmplitudeLastTime;
+	int32_t gateAmplitude{0x7FFFFFFF}; // Q31 gate attenuation (0 = silent, 0x7FFFFFFF = fully open)
 	std::array<int32_t, kNumSources> sourceAmplitudesLastTime;
 	std::array<int32_t, kNumModulators> modulatorAmplitudeLastTime;
 	std::array<uint32_t, kNumSources> sourceWaveIndexesLastTime;

@@ -196,6 +196,10 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 		error = notes.beenCloned();
 	}
 
+	if (error == Error::NONE) {
+		error = gateCloses.beenCloned();
+	}
+
 	if (shouldFlattenReversing && sequenceDirectionMode != SequenceDirection::PINGPONG) {
 		sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 	}
@@ -2139,6 +2143,22 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 	int32_t effectiveForwardPos =
 	    playingReversedNow ? (effectiveLength - effectiveCurrentPos - 1) : effectiveCurrentPos;
 
+	// Update gate state for SoundDrum voices
+	if (gateCloses.getNumElements() && drum && drum->type == DrumType::SOUND) {
+		SoundDrum* sd = static_cast<SoundDrum*>(drum);
+		bool open = isGateOpenAtPos(effectiveForwardPos, effectiveLength);
+		sd->gateOpen = open;
+		// Only update envelope rates while gate is open — when the gate closes,
+		// the voice continues ramping down using the previously set release value
+		if (open) {
+			Note* precedingClose = getPrecedingGateClose(effectiveForwardPos, effectiveLength);
+			if (precedingClose) {
+				sd->gateAttack = precedingClose->getVelocity();
+				sd->gateRelease = precedingClose->getLift();
+			}
+		}
+	}
+
 	// If we've "arrived" at a note we actually just recorded, reset the ignore state
 	if (effectiveForwardPos >= ignoreNoteOnsBefore_
 	    || (effectiveForwardPos < ticksSinceLast
@@ -2391,6 +2411,15 @@ gotValidNoteIndex:
 	}
 
 	ignoreUntil = std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
+
+	// Include gate boundaries in event timing so processCurrentPos runs at gate transitions
+	if (gateCloses.getNumElements()) {
+		int32_t ticksTilGate = ticksTilNextGateEvent(effectiveForwardPos, effectiveLength);
+		if (ticksTilGate > 0) {
+			ignoreUntil = std::min(ignoreUntil, ticksTilGate);
+		}
+	}
+
 	return ignoredNoteOn ? 1 : ignoreUntil;
 }
 
@@ -2679,6 +2708,21 @@ void NoteRow::trimToLength(uint32_t newLength, ModelStackWithNoteRow* modelStack
 
 	trimNoteDataToNewClipLength(newLength, (InstrumentClip*)modelStack->getTimelineCounter(), action,
 	                            modelStack->noteRowId);
+
+	// Trim gate pattern: remove entries past newLength, clamp entries that extend past it
+	while (gateCloses.getNumElements()) {
+		Note* last = gateCloses.getLast();
+		if (last->pos >= (int32_t)newLength) {
+			gateCloses.deleteAtIndex(gateCloses.getNumElements() - 1);
+		}
+		else {
+			int32_t maxLen = (int32_t)newLength - last->pos;
+			if (last->getLength() > maxLen) {
+				last->setLength(maxLen);
+			}
+			break;
+		}
+	}
 
 	((Clip*)modelStack->getTimelineCounter())->expectEvent();
 }
@@ -3522,6 +3566,55 @@ getOut: {}
 			goto doReadNoteData;
 		}
 
+		else if (!strcmp(tagName, "gateCloseData")) {
+			if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+				if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+					while (true) {
+						char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(16);
+						if (!hexChars) {
+							break;
+						}
+						int32_t pos = hexToIntFixedLength(hexChars, 8);
+						int32_t length = hexToIntFixedLength(&hexChars[8], 8);
+						if (length > 0) {
+							int32_t idx = gateCloses.insertAtKey(pos);
+							if (idx >= 0) {
+								Note* gate = gateCloses.getElement(idx);
+								gate->setLength(length);
+								gate->setVelocity(0);
+								gate->setLift(0);
+								gate->setProbability(kNumProbabilityValues);
+								gate->setIterance(Iterance());
+								gate->setFill(FillMode::OFF);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		else if (!strcmp(tagName, "gateCloseEnv")) {
+			if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+				if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+					int32_t idx = 0;
+					while (idx < gateCloses.getNumElements()) {
+						char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(4);
+						if (!hexChars) {
+							break;
+						}
+						uint8_t attack = hexToIntFixedLength(hexChars, 2);
+						uint8_t release = hexToIntFixedLength(&hexChars[2], 2);
+						Note* gate = gateCloses.getElement(idx);
+						gate->setVelocity(attack);
+						gate->setLift(release);
+						idx++;
+					}
+				}
+			}
+		}
+
 		else if (!strcmp(tagName, "expressionData")) {
 			paramManager.ensureExpressionParamSetExists();
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
@@ -3660,6 +3753,51 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.write("\"");
 		}
 #endif
+	}
+
+	if (gateCloses.getNumElements()) {
+		writer.insertCommaIfNeeded();
+		writer.write("\n");
+		writer.printIndents();
+		writer.writeTagNameAndSeperator("gateCloseData");
+		writer.write("\"0x");
+		for (int32_t n = 0; n < gateCloses.getNumElements(); n++) {
+			Note* g = gateCloses.getElement(n);
+			char buffer[9];
+			intToHex(g->pos, buffer);
+			writer.write(buffer);
+			intToHex(g->getLength(), buffer);
+			writer.write(buffer);
+		}
+		writer.write("\"");
+	}
+
+	// Write per-segment gate envelope data (attack/release stored on each close Note)
+	{
+		bool hasEnvelope = false;
+		for (int32_t n = 0; n < gateCloses.getNumElements(); n++) {
+			Note* g = gateCloses.getElement(n);
+			if (g->getVelocity() != 0 || g->getLift() != 0) {
+				hasEnvelope = true;
+				break;
+			}
+		}
+		if (hasEnvelope) {
+			writer.insertCommaIfNeeded();
+			writer.write("\n");
+			writer.printIndents();
+			writer.writeTagNameAndSeperator("gateCloseEnv");
+			writer.write("\"0x");
+			for (int32_t n = 0; n < gateCloses.getNumElements(); n++) {
+				Note* g = gateCloses.getElement(n);
+				char buffer[5];
+				intToHex(g->getVelocity(), buffer, 2);
+				writer.write(buffer);
+				intToHex(g->getLift(), buffer, 2);
+				writer.write(buffer);
+			}
+			writer.write("\"");
+		}
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
@@ -3897,6 +4035,110 @@ void NoteRow::rememberDrumName() {
 	}
 }
 
+bool NoteRow::isGateOpenAtPos(int32_t pos, int32_t effectiveLength) {
+	int32_t numGateCloses = gateCloses.getNumElements();
+	if (numGateCloses == 0) {
+		return true; // No gate pattern = all open
+	}
+
+	// Wrap position into [0, effectiveLength)
+	if (effectiveLength > 0) {
+		pos = ((pos % effectiveLength) + effectiveLength) % effectiveLength;
+	}
+
+	// Binary search: find the last gate-close whose pos <= this pos
+	int32_t i = gateCloses.search(pos + 1, LESS);
+	if (i >= 0) {
+		Note* gate = gateCloses.getElement(i);
+		if (pos < gate->pos + gate->getLength()) {
+			return false; // Inside a closed region
+		}
+	}
+
+	// Check wrap-around: last gate-close might wrap past effectiveLength
+	if (effectiveLength > 0) {
+		Note* last = gateCloses.getElement(numGateCloses - 1);
+		if (last->pos + last->getLength() > effectiveLength) {
+			int32_t wrappedEnd = (last->pos + last->getLength()) - effectiveLength;
+			if (pos < wrappedEnd) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+Note* NoteRow::getPrecedingGateClose(int32_t pos, int32_t effectiveLength) {
+	int32_t numGateCloses = gateCloses.getNumElements();
+	if (numGateCloses == 0) {
+		return nullptr;
+	}
+
+	if (effectiveLength > 0) {
+		pos = ((pos % effectiveLength) + effectiveLength) % effectiveLength;
+	}
+
+	// Find the last gate-close whose pos <= this pos
+	int32_t i = gateCloses.search(pos + 1, LESS);
+	if (i >= 0) {
+		Note* gate = gateCloses.getElement(i);
+		if (pos >= gate->pos + gate->getLength()) {
+			// This close ends before our position — it's the preceding close
+			return gate;
+		}
+		// Position is inside this close. Look at the one before it.
+		if (i > 0) {
+			return gateCloses.getElement(i - 1);
+		}
+		// Wrap to last
+		return gateCloses.getElement(numGateCloses - 1);
+	}
+
+	// No close with pos <= current pos. Wrap to last close.
+	return gateCloses.getElement(numGateCloses - 1);
+}
+
+int32_t NoteRow::ticksTilNextGateEvent(int32_t pos, int32_t effectiveLength) {
+	int32_t numGateCloses = gateCloses.getNumElements();
+	if (numGateCloses == 0) {
+		return 2147483647;
+	}
+
+	if (effectiveLength > 0) {
+		pos = ((pos % effectiveLength) + effectiveLength) % effectiveLength;
+	}
+
+	bool currentlyOpen = isGateOpenAtPos(pos, effectiveLength);
+
+	if (currentlyOpen) {
+		// Find next gate close start after pos
+		int32_t i = gateCloses.search(pos, GREATER_OR_EQUAL);
+		if (i < numGateCloses) {
+			Note* gate = gateCloses.getElement(i);
+			return gate->pos - pos;
+		}
+		// Wrap around to first gate close
+		Note* first = gateCloses.getElement(0);
+		return (effectiveLength - pos) + first->pos;
+	}
+	else {
+		// Find the end of the current gate close region
+		int32_t i = gateCloses.search(pos + 1, LESS);
+		if (i >= 0) {
+			Note* gate = gateCloses.getElement(i);
+			int32_t closeEnd = gate->pos + gate->getLength();
+			if (pos < closeEnd) {
+				return closeEnd - pos;
+			}
+		}
+		// Must be in wrap-around of the last gate close
+		Note* last = gateCloses.getElement(numGateCloses - 1);
+		int32_t wrappedEnd = (last->pos + last->getLength()) - effectiveLength;
+		return wrappedEnd - pos;
+	}
+}
+
 int32_t NoteRow::getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed) {
 	int32_t effectiveLength = modelStack->getLoopLength();
 
@@ -3993,9 +4235,10 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 		}
 	}
 
-	// if shiftSequenceAndMPE is true, shift notes
+	// if shiftSequenceAndMPE is true, shift notes and gate pattern
 	if (shiftSequenceAndMPE) {
 		notes.shiftHorizontal(amount, effectiveLength);
+		gateCloses.shiftHorizontal(amount, effectiveLength);
 	}
 }
 
@@ -4052,6 +4295,8 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clea
 justEmpty:
 			notes.empty();
 		}
+
+		gateCloses.empty();
 	}
 }
 

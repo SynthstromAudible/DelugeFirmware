@@ -450,6 +450,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case UNPATCHED_SAMPLE_START_OFFSET_B:
 			return "sampleStartOffsetB";
 
+		case UNPATCHED_GATE_ATTACK:
+			return "gateAttack";
+
+		case UNPATCHED_GATE_RELEASE:
+			return "gateRelease";
+
 		default:
 		    // Fall through to the other param kind handling
 		    ;

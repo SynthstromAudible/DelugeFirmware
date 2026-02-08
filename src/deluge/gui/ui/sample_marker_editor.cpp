@@ -1063,8 +1063,7 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 		return true;
 	}
 	else {
-		return (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
-		        || soundEditor.currentSource->repeatMode == SampleRepeatMode::PHASE_LOCKED);
+		return soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH;
 	}
 }
 

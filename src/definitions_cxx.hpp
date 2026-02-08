@@ -525,9 +525,8 @@ enum class SampleRepeatMode {
 	ONCE,
 	LOOP,
 	STRETCH,
-	PHASE_LOCKED,
 };
-constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::PHASE_LOCKED) + 1;
+constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
 enum class FilterType {
 	LPF,

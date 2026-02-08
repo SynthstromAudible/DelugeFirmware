@@ -965,8 +965,7 @@ doLoadAsSample:
 
 			// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
 			if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
-			    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP
-			    || soundEditor.currentSource->repeatMode == SampleRepeatMode::PHASE_LOCKED) {}
+			    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP) {}
 
 			// Otherwise...
 			else {
