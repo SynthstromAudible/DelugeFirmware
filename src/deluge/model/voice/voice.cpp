@@ -121,6 +121,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 	noteCodeAfterArpeggiation = newNoteCodeAfterArpeggiation;
 	orderSounded = lastSoundOrder++;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
+	gateAmplitude = sound.gateOpen ? 0x7FFFFFFF : 0;
 
 	if (newNoteCodeAfterArpeggiation >= 128) {
 		sourceValues[util::to_underlying(PatchSource::NOTE)] = 2147483647;
@@ -303,17 +304,110 @@ activenessDetermined:
 			source->sampleControls.invertReversed = sound.invertReversed; // Copy the temporary flag from the sound
 			guides[s].setupPlaybackBounds(source->sampleControls.isCurrentlyReversed());
 
+			// Apply plocked sample start offset — slides the playback window
+			int32_t startOffsetParam =
+			    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_START_OFFSET_A + s);
+			guides[s].preRollSamples = 0;
+			guides[s].wrapSyncPosition = false;
+			if (startOffsetParam != 0) {
+				bool synced = source->repeatMode == SampleRepeatMode::STRETCH && guides[s].sequenceSyncLengthTicks > 0;
+
+				if (synced) {
+					// For synced modes, apply offset as a tick shift so the phase-lock
+					// seeking starts at the offset position. The wrapSyncPosition flag
+					// makes the time stretcher wrap modularly instead of stopping at the end.
+					int32_t syncLen = static_cast<int32_t>(guides[s].sequenceSyncLengthTicks);
+					int64_t tickShift = ((int64_t)startOffsetParam * (int64_t)syncLen) >> 31;
+					// Normalize negative shifts to equivalent positive position to avoid
+					// uint32_t underflow in getSyncedNumSamplesIn().
+					if (tickShift < 0) {
+						tickShift += syncLen;
+					}
+					guides[s].sequenceSyncStartedAtTick -= static_cast<int32_t>(tickShift);
+					guides[s].wrapSyncPosition = true;
+				}
+				else {
+					Sample* offsetSample = static_cast<Sample*>(guides[s].audioFileHolder->audioFile);
+					int32_t bytesPerFrame = offsetSample->numChannels * offsetSample->byteDepth;
+					int32_t startByte = static_cast<int32_t>(guides[s].startPlaybackAtByte);
+					int32_t endByte = static_cast<int32_t>(guides[s].endPlaybackAtByte);
+					int32_t regionBytes = endByte - startByte;
+					int32_t absRegion = std::abs(regionBytes);
+					bool forward = (regionBytes > 0);
+
+					if (absRegion > 0 && bytesPerFrame > 0) {
+						int64_t offsetBytes = ((int64_t)startOffsetParam * absRegion) >> 31;
+						int32_t byteShift = static_cast<int32_t>(offsetBytes);
+						byteShift = (byteShift / bytesPerFrame) * bytesPerFrame;
+
+						if (source->repeatMode == SampleRepeatMode::LOOP) {
+							// LOOP: modular wrap of start position within the region.
+							// First iteration starts at the offset position. On loop,
+							// playback wraps back to the original start (loopStartPlaybackAtByte
+							// was set to the original start by setupPlaybackBounds).
+							int32_t mod = ((byteShift % absRegion) + absRegion) % absRegion;
+							mod = (mod / bytesPerFrame) * bytesPerFrame;
+							if (forward) {
+								guides[s].startPlaybackAtByte = static_cast<uint32_t>(startByte + mod);
+							}
+							else {
+								guides[s].startPlaybackAtByte = static_cast<uint32_t>(startByte - mod);
+							}
+							// loopStartPlaybackAtByte intentionally NOT updated —
+							// it stays at the original start so the loop wraps around
+						}
+						else {
+							// CUT/ONCE: window slide with silence for out-of-bounds.
+							// Instead of clamping both edges back, play silence (preRoll)
+							// when start goes before the audio data, and let the voice
+							// stop naturally when end goes past the audio data.
+							int32_t shiftDir = forward ? byteShift : -byteShift;
+							startByte += shiftDir;
+							endByte += shiftDir;
+
+							int32_t audioStart = static_cast<int32_t>(offsetSample->audioDataStartPosBytes);
+							int32_t audioEnd = audioStart + static_cast<int32_t>(offsetSample->audioDataLengthBytes);
+
+							if (forward) {
+								if (endByte > audioEnd) {
+									endByte = audioStart + ((audioEnd - audioStart) / bytesPerFrame) * bytesPerFrame;
+								}
+								if (startByte < audioStart) {
+									guides[s].preRollSamples = (audioStart - startByte) / bytesPerFrame;
+									startByte = audioStart;
+								}
+							}
+							else {
+								// Reversed: start is high byte, end is low byte
+								if (endByte < audioStart) {
+									endByte = audioStart;
+								}
+								if (startByte >= audioEnd) {
+									guides[s].preRollSamples = (startByte - (audioEnd - bytesPerFrame)) / bytesPerFrame;
+									startByte = audioEnd - bytesPerFrame;
+								}
+							}
+
+							guides[s].startPlaybackAtByte = static_cast<uint32_t>(startByte);
+							guides[s].endPlaybackAtByte = static_cast<uint32_t>(endByte);
+						}
+					}
+				}
+			}
+
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
+
+		uint16_t effectiveSamplesLate = samplesLate;
 
 		for (int32_t u = 0; u < sound.numUnison; u++) {
 
 			// Check that we already marked this unison-part-source as active. Among other things, this ensures that if
 			// the osc is set to SAMPLE, there actually is a sample loaded.
 			if (unisonParts[u].sources[s].active) {
-				bool success =
-				    unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate, sound.oscRetriggerPhase[s],
-				                                     resetEnvelopes, sound.synthMode, velocity);
+				bool success = unisonParts[u].sources[s].noteOn(this, source, &guides[s], effectiveSamplesLate,
+				                                                sound.oscRetriggerPhase[s], resetEnvelopes,
+				                                                sound.synthMode, velocity);
 				if (!success) [[unlikely]] {
 					return false; // This shouldn't really ever happen I don't think really...
 				}
@@ -989,6 +1083,33 @@ skipAutoRelease: {}
 	int32_t overallOscAmplitude = lshiftAndSaturate<2>(
 	    multiply_32x32_rshift32(paramFinalValues[params::LOCAL_VOLUME],
 	                            (sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] >> 1) + 1073741824));
+
+	// Gate mute: ramp gateAmplitude toward target using per-segment attack/release rates
+	// 0 = instant, 127 = slowest fade. Scaled by numSamples for block-size independence.
+	{
+		int32_t gateTarget = sound.gateOpen ? 0x7FFFFFFF : 0;
+		if (gateAmplitude < gateTarget) {
+			int32_t shift = ((int32_t)sound.gateAttack * 14) >> 7;
+			int32_t rampPerSample = (INT32_MAX >> shift) / SSI_TX_BUFFER_NUM_SAMPLES;
+			if (rampPerSample < 1) {
+				rampPerSample = 1;
+			}
+			int32_t rampRate = rampPerSample * numSamples;
+			int32_t remaining = gateTarget - gateAmplitude;
+			gateAmplitude += std::min(remaining, rampRate);
+		}
+		else if (gateAmplitude > gateTarget) {
+			int32_t shift = ((int32_t)sound.gateRelease * 14) >> 7;
+			int32_t rampPerSample = (INT32_MAX >> shift) / SSI_TX_BUFFER_NUM_SAMPLES;
+			if (rampPerSample < 1) {
+				rampPerSample = 1;
+			}
+			int32_t rampRate = rampPerSample * numSamples;
+			int32_t remaining = gateAmplitude - gateTarget;
+			gateAmplitude -= std::min(remaining, rampRate);
+		}
+		overallOscAmplitude = multiply_32x32_rshift32(overallOscAmplitude, gateAmplitude) << 1;
+	}
 
 	// This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
 	int32_t filterGain;
@@ -2013,6 +2134,19 @@ void Voice::renderBasicSource(Sound& sound, ParamManagerForTimeline* paramManage
 
 	GeneralMemoryAllocator::get().checkStack("Voice::renderBasicSource");
 
+	// Consume pre-roll silence for negative sample start offset.
+	// Moves the audio start later in the buffer so the first N samples stay silent.
+	if (sound.sources[s].oscType == OscType::SAMPLE && guides[s].preRollSamples > 0) {
+		int32_t samplesToSkip = std::min(guides[s].preRollSamples, numSamples);
+		guides[s].preRollSamples -= samplesToSkip;
+		if (samplesToSkip >= numSamples) {
+			return; // Entire block is silence
+		}
+		numSamples -= samplesToSkip;
+		oscBuffer += samplesToSkip * (stereoBuffer ? 2 : 1);
+		sourceAmplitude += amplitudeIncrement * samplesToSkip;
+	}
+
 	// For each unison part
 	for (int32_t u = 0; u < sound.numUnison; u++) {
 
@@ -2121,8 +2255,8 @@ pitchTooHigh:
 
 				int32_t rawSamplesLate;
 
-				// Synced / STRETCH - it's super easy.
-				if (sound.sources[s].repeatMode == SampleRepeatMode::STRETCH) {
+				// Synced / STRETCH with sync - it's super easy.
+				if (sound.sources[s].repeatMode == SampleRepeatMode::STRETCH && guides[s].sequenceSyncLengthTicks) {
 					rawSamplesLate = guides[s].getSyncedNumSamplesIn();
 				}
 
@@ -2183,6 +2317,14 @@ pitchTooHigh:
 					// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good /
 					// accurate
 					if (loopingType != LoopType::NONE) {
+						// If start offset has shifted the play start ahead of the loop
+						// restart position, the cache can't represent the asymmetric first
+						// iteration correctly (its loop-start maps to cache byte 0 which
+						// is the offset position, not the original start). Skip caching.
+						if (guides[s].startPlaybackAtByte != guides[s].loopStartPlaybackAtByte) {
+							goto dontUseCache;
+						}
+
 						SampleHolderForVoice* holder = (SampleHolderForVoice*)guides[s].audioFileHolder;
 						int32_t loopStart = holder->loopStartPos ? holder->loopStartPos : holder->startPos;
 						int32_t loopEnd = holder->loopEndPos ? holder->loopEndPos : holder->endPos;

@@ -145,6 +145,8 @@ bool InstrumentClipView::opened() {
 
 	openedInBackground();
 
+	gateViewActive = false;
+
 	focusRegained();
 
 	return true;
@@ -188,6 +190,9 @@ void InstrumentClipView::displayOrLanguageChanged() {
 
 void InstrumentClipView::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
+	if (getCurrentOutputType() == OutputType::KIT) {
+		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, gateViewActive);
+	}
 	InstrumentClipMinder::setLedStates();
 }
 
@@ -892,10 +897,16 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	// Kits can't do scales!
+	// In kit mode, SCALE toggles gate view
 	if (getCurrentOutputType() == OutputType::KIT) {
 		if (on) {
-			indicator_leds::indicateAlertOnLed(IndicatorLED::KIT);
+			gateViewActive = !gateViewActive;
+			clearGateHeldPads();
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+			indicator_leds::setLedState(IndicatorLED::SCALE_MODE, gateViewActive);
+			if (gateViewActive) {
+				display->displayPopup("GATE");
+			}
 		}
 		return ActionResult::DEALT_WITH;
 	}
@@ -1861,6 +1872,193 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 		if (result == ActionResult::DEALT_WITH) {
 			return result;
 		}
+	}
+
+	// Gate view pad action — deferred toggle model:
+	// Press records held state. Release toggles unless encoder was used during hold.
+	// Hold green pad(s) + twist encoder = adjust per-segment attack/release for all held.
+	// Hold first + press second on same row = span fill.
+	if (gateViewActive && getCurrentOutputType() == OutputType::KIT && x < kDisplayWidth) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(y, modelStack);
+		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+		if (!noteRow) {
+			return ActionResult::DEALT_WITH;
+		}
+		int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+
+		if (velocity == 0) {
+			// Pad release — toggle the gate if encoder wasn't used
+			int32_t idx = findGateHeldPad(x, y);
+			if (idx >= 0) {
+				GateHeldPad& held = gateHeldPads[idx];
+				if (!held.encoderUsed && !gateSpanFillDone) {
+					int32_t squareStart = getPosFromSquare(x);
+					uint32_t squareWidth = getSquareWidth(x, effectiveLength);
+					if (held.wasOpen) {
+						// Was open → close it
+						int32_t ci = noteRow->gateCloses.insertAtKey(squareStart);
+						if (ci >= 0) {
+							Note* gate = noteRow->gateCloses.getElement(ci);
+							gate->pos = squareStart;
+							gate->setLength(squareWidth);
+							gate->setVelocity(0);
+							gate->setLift(0);
+							gate->setProbability(kNumProbabilityValues);
+							gate->setIterance(Iterance());
+							gate->setFill(FillMode::OFF);
+						}
+					}
+					else {
+						// Was closed → open it (split the close around this cell)
+						int32_t ci = noteRow->gateCloses.search(squareStart + 1, LESS);
+						if (ci >= 0) {
+							Note* gate = noteRow->gateCloses.getElement(ci);
+							int32_t gateEnd = gate->pos + gate->getLength();
+							int32_t cellEnd = squareStart + squareWidth;
+							int32_t origPos = gate->pos;
+							uint8_t origVelocity = gate->getVelocity();
+							uint8_t origLift = gate->getLift();
+
+							if (cellEnd < gateEnd) {
+								int32_t afterIdx = noteRow->gateCloses.insertAtKey(cellEnd);
+								if (afterIdx >= 0) {
+									Note* after = noteRow->gateCloses.getElement(afterIdx);
+									after->pos = cellEnd;
+									after->setLength(gateEnd - cellEnd);
+									after->setVelocity(origVelocity);
+									after->setLift(origLift);
+									after->setProbability(kNumProbabilityValues);
+									after->setIterance(Iterance());
+									after->setFill(FillMode::OFF);
+								}
+								ci = noteRow->gateCloses.search(squareStart + 1, LESS);
+							}
+
+							if (origPos < squareStart) {
+								Note* before = noteRow->gateCloses.getElement(ci);
+								before->setLength(squareStart - origPos);
+								before->setVelocity(0);
+								before->setLift(0);
+							}
+							else {
+								noteRow->gateCloses.deleteAtIndex(ci);
+							}
+						}
+					}
+					uiNeedsRendering(this, 1 << y, 0);
+				}
+				held.active = false;
+			}
+			return ActionResult::DEALT_WITH;
+		}
+
+		if (!isSquareDefined(x)) {
+			return ActionResult::DEALT_WITH;
+		}
+
+		// Check for span fill: second pad on same row as an existing held pad
+		int32_t spanPartner = -1;
+		for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+			if (gateHeldPads[i].active && gateHeldPads[i].y == y && gateHeldPads[i].x != x) {
+				spanPartner = i;
+				break;
+			}
+		}
+
+		if (spanPartner >= 0) {
+			// Second pad on same row — span fill
+			int32_t startX = std::min((int32_t)gateHeldPads[spanPartner].x, (int32_t)x);
+			int32_t endX = std::max((int32_t)gateHeldPads[spanPartner].x, (int32_t)x);
+			int32_t rangeStart = getPosFromSquare(startX);
+			int32_t rangeEnd = getPosFromSquare(endX + 1);
+			if (rangeEnd > effectiveLength) {
+				rangeEnd = effectiveLength;
+			}
+
+			// Trim or delete closes that overlap with the range
+			for (int32_t i = noteRow->gateCloses.getNumElements() - 1; i >= 0; i--) {
+				Note* gate = noteRow->gateCloses.getElement(i);
+				int32_t gateEnd = gate->pos + gate->getLength();
+				if (gateEnd <= rangeStart || gate->pos >= rangeEnd) {
+					continue; // No overlap
+				}
+				uint8_t origVelocity = gate->getVelocity();
+				uint8_t origLift = gate->getLift();
+
+				// Close extends past rangeEnd — keep the tail
+				if (gateEnd > rangeEnd) {
+					int32_t tailIdx = noteRow->gateCloses.insertAtKey(rangeEnd);
+					if (tailIdx >= 0) {
+						Note* tail = noteRow->gateCloses.getElement(tailIdx);
+						tail->pos = rangeEnd;
+						tail->setLength(gateEnd - rangeEnd);
+						tail->setVelocity(origVelocity);
+						tail->setLift(origLift);
+						tail->setProbability(kNumProbabilityValues);
+						tail->setIterance(Iterance());
+						tail->setFill(FillMode::OFF);
+					}
+					// Re-find original since insert may have shifted indices
+					i = noteRow->gateCloses.search(gate->pos + 1, LESS);
+					if (i < 0) {
+						continue;
+					}
+					gate = noteRow->gateCloses.getElement(i);
+				}
+
+				// Close starts before rangeStart — trim it
+				if (gate->pos < rangeStart) {
+					gate->setLength(rangeStart - gate->pos);
+					gate->setVelocity(0);
+					gate->setLift(0);
+				}
+				else {
+					// Entirely within range — delete
+					noteRow->gateCloses.deleteAtIndex(i);
+				}
+			}
+
+			if (gateHeldPads[spanPartner].wasOpen) {
+				// First pad was open → fill range with close
+				int32_t spanLength = rangeEnd - rangeStart;
+				if (spanLength > 0) {
+					int32_t ci = noteRow->gateCloses.insertAtKey(rangeStart);
+					if (ci >= 0) {
+						Note* gate = noteRow->gateCloses.getElement(ci);
+						gate->pos = rangeStart;
+						gate->setLength(spanLength);
+						gate->setVelocity(0);
+						gate->setLift(0);
+						gate->setProbability(kNumProbabilityValues);
+						gate->setIterance(Iterance());
+						gate->setFill(FillMode::OFF);
+					}
+				}
+			}
+			// Mark span partner so it won't toggle on release
+			gateHeldPads[spanPartner].encoderUsed = true;
+			gateSpanFillDone = true;
+			uiNeedsRendering(this, 1 << y, 0);
+		}
+		else {
+			// Fresh pad press — add to held pads array
+			int32_t squareStart = getPosFromSquare(x);
+			for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+				if (!gateHeldPads[i].active) {
+					gateHeldPads[i].active = true;
+					gateHeldPads[i].x = x;
+					gateHeldPads[i].y = y;
+					gateHeldPads[i].wasOpen = noteRow->isGateOpenAtPos(squareStart, effectiveLength);
+					gateHeldPads[i].encoderUsed = false;
+					break;
+				}
+			}
+			gateSpanFillDone = false;
+		}
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Edit pad action...
@@ -2872,6 +3070,119 @@ void InstrumentClipView::popupVelocity(char const* displayString) {
 	}
 	else {
 		display->displayPopup(displayString, 0, true);
+	}
+}
+
+void InstrumentClipView::clearGateHeldPads() {
+	for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+		gateHeldPads[i] = GateHeldPad{};
+	}
+	gateSpanFillDone = false;
+}
+
+int32_t InstrumentClipView::findGateHeldPad(int8_t x, int8_t y) {
+	for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+		if (gateHeldPads[i].active && gateHeldPads[i].x == x && gateHeldPads[i].y == y) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+bool InstrumentClipView::anyGateHeldPadIsOpen() {
+	for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+		if (gateHeldPads[i].active && gateHeldPads[i].wasOpen) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void InstrumentClipView::adjustGateAttack(int32_t offset) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	int32_t lastVal = -1;
+
+	for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+		if (!gateHeldPads[i].active || !gateHeldPads[i].wasOpen) {
+			continue;
+		}
+		gateHeldPads[i].encoderUsed = true;
+
+		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(gateHeldPads[i].y, modelStack);
+		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+		if (!noteRow || noteRow->gateCloses.getNumElements() == 0) {
+			continue;
+		}
+
+		int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+		int32_t padPos = getPosFromSquare(gateHeldPads[i].x);
+		Note* precedingClose = noteRow->getPrecedingGateClose(padPos, effectiveLength);
+		if (!precedingClose) {
+			continue;
+		}
+
+		int32_t newVal = std::clamp<int32_t>((int32_t)precedingClose->getVelocity() + offset, 0, 127);
+		precedingClose->setVelocity(newVal);
+		lastVal = newVal;
+	}
+
+	if (lastVal >= 0) {
+		char buffer[22];
+		if (display->haveOLED()) {
+			strcpy(buffer, "Attack: ");
+			intToString(lastVal, buffer + strlen(buffer));
+			display->popupTextTemporary(buffer);
+		}
+		else {
+			intToString(lastVal, buffer);
+			display->displayPopup(buffer, 0, true);
+		}
+	}
+}
+
+void InstrumentClipView::adjustGateRelease(int32_t offset) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	int32_t lastVal = -1;
+
+	for (int32_t i = 0; i < kGateHeldPadsMax; i++) {
+		if (!gateHeldPads[i].active || !gateHeldPads[i].wasOpen) {
+			continue;
+		}
+		gateHeldPads[i].encoderUsed = true;
+
+		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(gateHeldPads[i].y, modelStack);
+		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+		if (!noteRow || noteRow->gateCloses.getNumElements() == 0) {
+			continue;
+		}
+
+		int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+		int32_t padPos = getPosFromSquare(gateHeldPads[i].x);
+		Note* precedingClose = noteRow->getPrecedingGateClose(padPos, effectiveLength);
+		if (!precedingClose) {
+			continue;
+		}
+
+		int32_t newVal = std::clamp<int32_t>((int32_t)precedingClose->getLift() + offset, 0, 127);
+		precedingClose->setLift(newVal);
+		lastVal = newVal;
+	}
+
+	if (lastVal >= 0) {
+		char buffer[22];
+		if (display->haveOLED()) {
+			strcpy(buffer, "Release: ");
+			intToString(lastVal, buffer + strlen(buffer));
+			display->popupTextTemporary(buffer);
+		}
+		else {
+			intToString(lastVal, buffer);
+			display->displayPopup(buffer, 0, true);
+		}
 	}
 }
 
@@ -6010,6 +6321,12 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
 
+	// Gate view: hold green gate pad(s) + vertical encoder = adjust gate attack
+	if (gateViewActive && anyGateHeldPadIsOpen() && getCurrentOutputType() == OutputType::KIT) {
+		adjustGateAttack(offset);
+		return ActionResult::DEALT_WITH;
+	}
+
 	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
 
 	// If encoder button pressed
@@ -6144,6 +6461,12 @@ static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDI
 ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
+	}
+
+	// Gate view: hold green gate pad(s) + horizontal encoder = adjust gate release
+	if (gateViewActive && anyGateHeldPadIsOpen() && getCurrentOutputType() == OutputType::KIT) {
+		adjustGateRelease(offset);
+		return ActionResult::DEALT_WITH;
 	}
 
 	// If holding down notes
@@ -7028,6 +7351,38 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 				                   occupancyMaskOfRow, true, modelStackWithNoteRow->getLoopLength(),
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
 				                   renderWidth, false);
+
+				// Gate view overlay: dim notes and show gate open/closed state
+				if (gateViewActive && clip->output->type == OutputType::KIT) {
+					int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+					for (int32_t x = 0; x < renderWidth; x++) {
+						int32_t squareStart = getPosFromSquare(x, xScroll, xZoom);
+						int32_t squareEnd = getPosFromSquare(x + 1, xScroll, xZoom);
+						if (squareEnd <= squareStart) {
+							continue;
+						}
+						// Wrap positions for cross-screen gate lookup
+						int32_t wrappedStart = squareStart % effectiveLength;
+						int32_t wrappedEnd = (squareEnd - 1) % effectiveLength; // last tick in square
+						bool openAtStart = noteRow->isGateOpenAtPos(wrappedStart, effectiveLength);
+						bool openAtEnd = noteRow->isGateOpenAtPos(wrappedEnd, effectiveLength);
+						bool hasTransition = (openAtStart != openAtEnd);
+
+						// Dim existing note rendering to ~25%
+						RGB dimmed = image[x].adjustFractional(64 << 8, 255 << 8);
+						if (hasTransition) {
+							// Transition within square — amber (both red+green) to show boundary
+							image[x] = RGB(std::min<uint8_t>(dimmed.r + 50, 255), std::min<uint8_t>(dimmed.g + 40, 255),
+							               dimmed.b);
+						}
+						else if (openAtStart) {
+							image[x] = RGB(dimmed.r, std::min<uint8_t>(dimmed.g + 60, 255), dimmed.b);
+						}
+						else {
+							image[x] = RGB(std::min<uint8_t>(dimmed.r + 60, 255), dimmed.g, dimmed.b);
+						}
+					}
+				}
 			}
 
 			if (drawUndefinedArea) {

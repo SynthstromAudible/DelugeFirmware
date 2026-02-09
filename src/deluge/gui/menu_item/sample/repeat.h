@@ -58,7 +58,7 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[source_id_];
 
-					// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
+					// Automatically switch pitch/speed independence on / off if stretch mode is selected
 					if (current_value == SampleRepeatMode::STRETCH) {
 						soundDrum->killAllVoices();
 						source->sampleControls.pitchAndSpeedAreIndependent = true;
@@ -81,7 +81,7 @@ public:
 		else {
 			Source& source = soundEditor.currentSound->sources[source_id_];
 
-			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
+			// Automatically switch pitch/speed independence on / off if stretch mode is selected
 			if (current_value == SampleRepeatMode::STRETCH) {
 				soundEditor.currentSound->killAllVoices();
 				source.sampleControls.pitchAndSpeedAreIndependent = true;

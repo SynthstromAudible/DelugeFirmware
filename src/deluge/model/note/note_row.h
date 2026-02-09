@@ -123,6 +123,9 @@ public:
 	             bool backupOldParamManager = true);
 
 	int32_t getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed = false);
+	bool isGateOpenAtPos(int32_t pos, int32_t effectiveLength);
+	Note* getPrecedingGateClose(int32_t pos, int32_t effectiveLength);
+	int32_t ticksTilNextGateEvent(int32_t pos, int32_t effectiveLength);
 
 	int16_t y; // This has to be at the top
 	bool muted;
@@ -144,6 +147,7 @@ public:
 	Drum* drum;
 	DrumName* firstOldDrumName;
 	NoteVector notes;
+	NoteVector gateCloses; // Each Note = a gate-closed region (pos + length). Empty = all gates open.
 	// values for whole row
 	uint8_t probabilityValue;
 	Iterance iteranceValue;

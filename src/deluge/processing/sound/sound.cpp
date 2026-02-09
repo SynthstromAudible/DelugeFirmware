@@ -2733,6 +2733,7 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	// reversible without doing anything
 
 	setSkippingRendering(true);
+	gateOpen = true;
 	grainFX->startSkippingRendering();
 	stopParamLPF(modelStack);
 }
@@ -2977,6 +2978,10 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDet
 // Song may be NULL
 void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWithThreeMainThings* modelStack) {
 
+	// Only applies to patched params — bail if no PatchCableSet (e.g. drum without full param manager)
+	if (!modelStack->paramManager->summaries[2].paramCollection) {
+		return;
+	}
 	ModelStackWithParamCollection* modelStackWithParamCollection =
 	    modelStack->paramManager->getPatchCableSet(modelStack);
 

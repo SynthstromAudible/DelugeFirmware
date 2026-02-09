@@ -353,7 +353,9 @@ void InstrumentClipMinder::setLedStates() {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, clip->wrapEditing);
 	}
 
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, clip->isScaleModeClip());
+	if (outputType != OutputType::KIT) {
+		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, clip->isScaleModeClip());
+	}
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
 #ifdef currentClipStatusButtonX

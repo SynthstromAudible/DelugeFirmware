@@ -27,6 +27,10 @@
 namespace deluge::modulation::params {
 
 bool isParamBipolar(Kind kind, int32_t paramID) {
+	if (kind == Kind::UNPATCHED_SOUND
+	    && (paramID == UNPATCHED_SAMPLE_START_OFFSET_A || paramID == UNPATCHED_SAMPLE_START_OFFSET_B)) {
+		return true;
+	}
 	return (kind == Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID)
 	       || isParamPitchBend(kind, paramID);
 }
@@ -364,6 +368,8 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		using enum UnpatchedSound;
 		static l10n::String const NAMES[UNPATCHED_SOUND_MAX_NUM - unc] = {
 		    [UNPATCHED_PORTAMENTO - unc] = STRING_FOR_PORTAMENTO,
+		    [UNPATCHED_SAMPLE_START_OFFSET_A - unc] = STRING_FOR_START_OFFSET,
+		    [UNPATCHED_SAMPLE_START_OFFSET_B - unc] = STRING_FOR_START_OFFSET,
 		};
 		return l10n::get(NAMES[p - unc]);
 	}
@@ -437,6 +443,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		switch (static_cast<UnpatchedSound>(param - UNPATCHED_START)) {
 		case UNPATCHED_PORTAMENTO:
 			return "portamento";
+
+		case UNPATCHED_SAMPLE_START_OFFSET_A:
+			return "sampleStartOffsetA";
+
+		case UNPATCHED_SAMPLE_START_OFFSET_B:
+			return "sampleStartOffsetB";
 
 		default:
 		    // Fall through to the other param kind handling

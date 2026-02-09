@@ -21,6 +21,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "model/clip/clip.h"
+#include "model/note/note_vector.h"
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
@@ -28,6 +29,7 @@
 #include "processing/audio_output.h"
 #include "util/d_string.h"
 
+class Note;
 class VoiceSample;
 class SampleRecorder;
 class ModelStackWithTimelineCounter;
@@ -113,6 +115,20 @@ public:
 
 	bool doingLateStart;
 	bool maySetupCache;
+
+	// Sample start offset — slides the playback window within the sample (Q31)
+	int32_t startOffset{0};
+
+	// Gate view data — per-step muting for audio clips (analogous to NoteRow::gateCloses)
+	NoteVector gateCloses;
+	int32_t gateAmplitude{0x7FFFFFFF};
+	bool gateOpen{true};
+	uint8_t currentGateAttack{0};
+	uint8_t currentGateRelease{0};
+
+	bool isGateOpenAtPos(int32_t pos, int32_t effectiveLength);
+	Note* getPrecedingGateClose(int32_t pos, int32_t effectiveLength);
+	int32_t ticksTilNextGateEvent(int32_t pos, int32_t effectiveLength);
 
 	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {

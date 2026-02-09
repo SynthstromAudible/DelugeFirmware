@@ -43,5 +43,7 @@ public:
 	                                  // so it can just be referred to when looping happens
 	uint32_t loopEndPlaybackAtByte;   // 0 means disabled
 
+	int32_t preRollSamples{0}; // Output samples of silence before playback starts (negative start offset)
+
 	bool noteOffReceived;
 };

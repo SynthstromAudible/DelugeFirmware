@@ -27,6 +27,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_output_existence.h"
 #include "model/model_stack.h"
+#include "model/note/note.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
@@ -38,6 +39,7 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/d_stringbuf.h"
 #include "util/fixedpoint.h"
 #include <new>
 
@@ -75,6 +77,107 @@ AudioClip::~AudioClip() {
 	// the most likely. I've added some further error code diversification.
 }
 
+bool AudioClip::isGateOpenAtPos(int32_t pos, int32_t effectiveLength) {
+	int32_t numGateCloses = gateCloses.getNumElements();
+	if (numGateCloses == 0) {
+		return true;
+	}
+
+	if (effectiveLength > 0) {
+		pos = ((pos % effectiveLength) + effectiveLength) % effectiveLength;
+	}
+
+	int32_t i = gateCloses.search(pos + 1, LESS);
+	if (i >= 0) {
+		Note* gate = gateCloses.getElement(i);
+		if (pos < gate->pos + gate->getLength()) {
+			return false;
+		}
+	}
+
+	if (effectiveLength > 0) {
+		Note* last = gateCloses.getElement(numGateCloses - 1);
+		if (last->pos + last->getLength() > effectiveLength) {
+			int32_t wrappedEnd = (last->pos + last->getLength()) - effectiveLength;
+			if (pos < wrappedEnd) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+Note* AudioClip::getPrecedingGateClose(int32_t pos, int32_t effectiveLength) {
+	int32_t numGateCloses = gateCloses.getNumElements();
+	if (numGateCloses == 0) {
+		return nullptr;
+	}
+
+	if (effectiveLength > 0) {
+		pos = ((pos % effectiveLength) + effectiveLength) % effectiveLength;
+	}
+
+	int32_t i = gateCloses.search(pos + 1, LESS);
+	if (i >= 0) {
+		Note* gate = gateCloses.getElement(i);
+		if (pos >= gate->pos + gate->getLength()) {
+			return gate;
+		}
+		if (i > 0) {
+			return gateCloses.getElement(i - 1);
+		}
+		// Wrap to last — but only if it's a different element
+		if (numGateCloses > 1) {
+			Note* last = gateCloses.getElement(numGateCloses - 1);
+			if (effectiveLength > 0 && last->pos + last->getLength() > effectiveLength
+			    && pos < (last->pos + last->getLength()) - effectiveLength) {
+				return nullptr;
+			}
+			return last;
+		}
+		return nullptr;
+	}
+
+	return gateCloses.getElement(numGateCloses - 1);
+}
+
+int32_t AudioClip::ticksTilNextGateEvent(int32_t pos, int32_t effectiveLength) {
+	int32_t numGateCloses = gateCloses.getNumElements();
+	if (numGateCloses == 0) {
+		return 2147483647;
+	}
+
+	if (effectiveLength > 0) {
+		pos = ((pos % effectiveLength) + effectiveLength) % effectiveLength;
+	}
+
+	bool currentlyOpen = isGateOpenAtPos(pos, effectiveLength);
+
+	if (currentlyOpen) {
+		int32_t i = gateCloses.search(pos, GREATER_OR_EQUAL);
+		if (i < numGateCloses) {
+			Note* gate = gateCloses.getElement(i);
+			return gate->pos - pos;
+		}
+		Note* first = gateCloses.getElement(0);
+		return (effectiveLength - pos) + first->pos;
+	}
+	else {
+		int32_t i = gateCloses.search(pos + 1, LESS);
+		if (i >= 0) {
+			Note* gate = gateCloses.getElement(i);
+			int32_t closeEnd = gate->pos + gate->getLength();
+			if (pos < closeEnd) {
+				return closeEnd - pos;
+			}
+		}
+		Note* last = gateCloses.getElement(numGateCloses - 1);
+		int32_t wrappedEnd = (last->pos + last->getLength()) - effectiveLength;
+		return wrappedEnd - pos;
+	}
+}
+
 // Will replace the Clip in the modelStack, if success.
 Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
@@ -105,6 +208,24 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	newClip->voicePriority = voicePriority;
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.isCurrentlyReversed());
+	newClip->startOffset = startOffset;
+
+	// Clone gate closes. We need a non-const reference to call getNumElements/getElement
+	// which are non-const in the base class, but don't actually mutate state.
+	NoteVector& srcGateCloses = const_cast<NoteVector&>(gateCloses);
+	for (int32_t i = 0; i < srcGateCloses.getNumElements(); i++) {
+		Note* src = srcGateCloses.getElement(i);
+		int32_t idx = newClip->gateCloses.insertAtKey(src->pos);
+		if (idx >= 0) {
+			Note* dst = newClip->gateCloses.getElement(idx);
+			dst->setLength(src->getLength());
+			dst->setVelocity(src->getVelocity());
+			dst->setLift(src->getLift());
+			dst->setProbability(kNumProbabilityValues);
+			dst->setIterance(Iterance());
+			dst->setFill(FillMode::OFF);
+		}
+	}
 
 	return Error::NONE;
 }
@@ -312,6 +433,24 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 		abortRecording();
 	}
 
+	// Update gate state for per-step muting
+	if (gateCloses.getNumElements()) {
+		int32_t effectiveLength = loopLength;
+		bool open = isGateOpenAtPos(lastProcessedPos, effectiveLength);
+		gateOpen = open;
+		if (open) {
+			Note* precedingClose = getPrecedingGateClose(lastProcessedPos, effectiveLength);
+			if (precedingClose) {
+				currentGateAttack = precedingClose->getVelocity();
+				currentGateRelease = precedingClose->getLift();
+			}
+		}
+		int32_t ticksTilGate = ticksTilNextGateEvent(lastProcessedPos, effectiveLength);
+		if (ticksTilGate > 0 && (uint32_t)ticksTilGate < playbackHandler.swungTicksTilNextEvent) {
+			playbackHandler.swungTicksTilNextEvent = ticksTilGate;
+		}
+	}
+
 	// If at pos 0, that's the only place where anything really important happens: play the Sample
 	// also play it if we're auto extending and we just did that
 	if (!lastProcessedPos || lastProcessedPos == nextSampleRestartPos) {
@@ -329,6 +468,19 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 			guide.sequenceSyncStartedAtTick =
 			    playbackHandler.lastSwungTickActioned; // Must do this even if we're going to return due to time
 			                                           // stretching being active
+
+			// Apply start offset as tick shift to slide the playback window
+			if (startOffset != 0 && loopLength > 0) {
+				int64_t tickShift = ((int64_t)startOffset * (int64_t)loopLength) >> 31;
+				if (tickShift < 0) {
+					tickShift += loopLength;
+				}
+				guide.sequenceSyncStartedAtTick -= static_cast<int32_t>(tickShift);
+				guide.wrapSyncPosition = true;
+			}
+			else {
+				guide.wrapSyncPosition = false;
+			}
 
 			// Obviously if no voiceSample yet, need to reset envelope for first usage. Otherwise,
 			// If the envelope's now releasing (e.g. from playback just being stopped and then restarted, e.g. by
@@ -472,6 +624,19 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	sequenceSyncStartedNumTicksAgo = (uint32_t)sequenceSyncStartedNumTicksAgo % (uint32_t)loopLength; // Wrapping
 	guide.sequenceSyncStartedAtTick =
 	    currentInternalTickCount - sequenceSyncStartedNumTicksAgo; // Finally, we've got our value
+
+	// Apply start offset as tick shift to slide the playback window
+	if (startOffset != 0 && loopLength > 0) {
+		int64_t tickShift = ((int64_t)startOffset * (int64_t)loopLength) >> 31;
+		if (tickShift < 0) {
+			tickShift += loopLength;
+		}
+		guide.sequenceSyncStartedAtTick -= static_cast<int32_t>(tickShift);
+		guide.wrapSyncPosition = true;
+	}
+	else {
+		guide.wrapSyncPosition = false;
+	}
 
 	setupPlaybackBounds();
 	sampleZoneChanged(modelStack); // Will only do any thing if there is in fact a voiceSample - which is what we want
@@ -758,6 +923,42 @@ justDontTimeStretch:
 		}
 	}
 
+	// Gate mute: ramp gateAmplitude toward target using per-segment attack/release rates.
+	// Scale by block size for consistent timing. Recompute amplitudeIncrement to interpolate
+	// smoothly across the block instead of applying a single step.
+	if (gateCloses.getNumElements()) {
+		int32_t numSamples = static_cast<int32_t>(outputBuffer.size());
+		int32_t gateTarget = gateOpen ? 0x7FFFFFFF : 0;
+		int32_t gateAmplitudeStart = gateAmplitude;
+		if (gateAmplitude < gateTarget) {
+			int32_t shift = ((int32_t)currentGateAttack * 14) >> 7;
+			int32_t rampPerSample = (INT32_MAX >> shift) / SSI_TX_BUFFER_NUM_SAMPLES;
+			if (rampPerSample < 1) {
+				rampPerSample = 1;
+			}
+			int32_t rampRate = rampPerSample * numSamples;
+			int32_t remaining = gateTarget - gateAmplitude;
+			gateAmplitude += std::min(remaining, rampRate);
+		}
+		else if (gateAmplitude > gateTarget) {
+			int32_t shift = ((int32_t)currentGateRelease * 14) >> 7;
+			int32_t rampPerSample = (INT32_MAX >> shift) / SSI_TX_BUFFER_NUM_SAMPLES;
+			if (rampPerSample < 1) {
+				rampPerSample = 1;
+			}
+			int32_t rampRate = rampPerSample * numSamples;
+			int32_t remaining = gateAmplitude - gateTarget;
+			gateAmplitude -= std::min(remaining, rampRate);
+		}
+		// Interpolate gate across the block: start amplitude uses gateAmplitudeStart,
+		// end amplitude uses gateAmplitude (after ramp). Recompute increment accordingly.
+		int32_t gatedAmplitudeStart = multiply_32x32_rshift32(amplitude, gateAmplitudeStart) << 1;
+		int32_t gatedAmplitudeEnd = multiply_32x32_rshift32(amplitude + amplitudeIncrement * numSamples, gateAmplitude)
+		                            << 1;
+		amplitudeIncrement = (gatedAmplitudeEnd - gatedAmplitudeStart) / numSamples;
+		amplitude = gatedAmplitudeStart;
+	}
+
 	{
 		LoopType loopingType = getLoopingType(modelStack);
 
@@ -988,13 +1189,20 @@ void AudioClip::getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_
 
 		int64_t xScrollSamplesWithinZone = getSamplesFromTicks(xScroll);
 
+		// Shift waveform display to match start offset so the visual aligns with what's heard
+		int64_t offsetSamples = 0;
+		if (startOffset != 0) {
+			int64_t durationInSamples = sampleHolder.getDurationInSamples(true);
+			offsetSamples = ((int64_t)startOffset * durationInSamples) >> 31;
+		}
+
 		if (sampleControls.isCurrentlyReversed()) {
-			*xScrollSamples =
-			    sampleHolder.getEndPos(true) - xScrollSamplesWithinZone - (*xZoomSamples << kDisplayWidthMagnitude);
+			*xScrollSamples = sampleHolder.getEndPos(true) - xScrollSamplesWithinZone
+			                  - (*xZoomSamples << kDisplayWidthMagnitude) - offsetSamples;
 		}
 		else {
 			int64_t sampleStartPos = recorder ? recorder->sample->fileLoopStartSamples : sampleHolder.startPos;
-			*xScrollSamples = xScrollSamplesWithinZone + sampleStartPos;
+			*xScrollSamples = xScrollSamplesWithinZone + sampleStartPos + offsetSamples;
 		}
 	}
 }
@@ -1074,6 +1282,10 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	writer.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
+	if (startOffset != 0) {
+		writer.writeAttribute("startOffset", startOffset);
+	}
+
 	if (onAutomationClipView) {
 		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
@@ -1085,7 +1297,43 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
-	Clip::writeDataToFile(writer, song);
+	// Write gate close data
+	if (gateCloses.getNumElements()) {
+		writer.writeTagNameAndSeperator("gateCloseData");
+		writer.write("\"0x");
+		for (int32_t n = 0; n < gateCloses.getNumElements(); n++) {
+			Note* g = gateCloses.getElement(n);
+			char buffer[9];
+			intToHex(g->pos, buffer);
+			writer.write(buffer);
+			intToHex(g->getLength(), buffer);
+			writer.write(buffer);
+		}
+		writer.write("\"");
+
+		bool hasEnvelope = false;
+		for (int32_t n = 0; n < gateCloses.getNumElements(); n++) {
+			Note* g = gateCloses.getElement(n);
+			if (g->getVelocity() != 0 || g->getLift() != 0) {
+				hasEnvelope = true;
+				break;
+			}
+		}
+		if (hasEnvelope) {
+			writer.writeTagNameAndSeperator("gateCloseEnv");
+			writer.write("\"0x");
+			for (int32_t n = 0; n < gateCloses.getNumElements(); n++) {
+				Note* g = gateCloses.getElement(n);
+				char buffer[5];
+				intToHex(g->getVelocity(), buffer, 2);
+				writer.write(buffer);
+				intToHex(g->getLift(), buffer, 2);
+				writer.write(buffer);
+			}
+			writer.write("\"");
+		}
+	}
+
 	Clip::writeDataToFile(writer, song);
 
 	writer.writeOpeningTagEnd();
@@ -1168,6 +1416,10 @@ someError:
 			sampleHolder.cents = reader.readTagOrAttributeValueInt();
 		}
 
+		else if (!strcmp(tagName, "startOffset")) {
+			startOffset = reader.readTagOrAttributeValueInt();
+		}
+
 		else if (!strcmp(tagName, "params")) {
 			paramManager.setupUnpatched();
 			GlobalEffectableForClip::initParams(&paramManager);
@@ -1196,6 +1448,55 @@ someError:
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
 			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "gateCloseData")) {
+			if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+				if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+					while (true) {
+						char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(16);
+						if (!hexChars) {
+							break;
+						}
+						int32_t pos = hexToIntFixedLength(hexChars, 8);
+						int32_t length = hexToIntFixedLength(&hexChars[8], 8);
+						if (length > 0) {
+							int32_t idx = gateCloses.insertAtKey(pos);
+							if (idx >= 0) {
+								Note* gate = gateCloses.getElement(idx);
+								gate->setLength(length);
+								gate->setVelocity(0);
+								gate->setLift(0);
+								gate->setProbability(kNumProbabilityValues);
+								gate->setIterance(Iterance());
+								gate->setFill(FillMode::OFF);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		else if (!strcmp(tagName, "gateCloseEnv")) {
+			if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+				if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+					int32_t idx = 0;
+					while (idx < gateCloses.getNumElements()) {
+						char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(4);
+						if (!hexChars) {
+							break;
+						}
+						uint8_t atk = hexToIntFixedLength(hexChars, 2);
+						uint8_t rel = hexToIntFixedLength(&hexChars[2], 2);
+						Note* gate = gateCloses.getElement(idx);
+						gate->setVelocity(atk);
+						gate->setLift(rel);
+						idx++;
+					}
+				}
+			}
 		}
 
 		else {
@@ -1303,6 +1604,15 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 		}
 
 		renderData.xScroll = -1;
+	}
+
+	// Clear gate data
+	if (gateCloses.getNumElements()) {
+		gateCloses.deleteAtIndex(0, gateCloses.getNumElements());
+		gateAmplitude = 0x7FFFFFFF;
+		gateOpen = true;
+		currentGateAttack = 0;
+		currentGateRelease = 0;
 	}
 }
 
