@@ -11,7 +11,7 @@ This branch is based on **Community 1.3** for stability.
 - Sine shaper (HOOT) is moderately CPU hungry
 - Other effects are fairly light
 
-### Features (vs Community 1.3)
+### Features (vs Main)
 
 | Feature | Description |
 |---------|-------------|
