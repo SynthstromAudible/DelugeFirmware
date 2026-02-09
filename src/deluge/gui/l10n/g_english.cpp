@@ -252,6 +252,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MINIMUM_OFF_TIME, "Minimum off-time"},
         {STRING_FOR_SINE, "Sine"},
         {STRING_FOR_TRIANGLE, "Triangle"},
+        {STRING_FOR_TRIANGLE_PW, "TrianglePW"},
         {STRING_FOR_SQUARE, "Square"},
         {STRING_FOR_SAW, "Saw"},
         {STRING_FOR_SAMPLE_AND_HOLD, "S&H"},

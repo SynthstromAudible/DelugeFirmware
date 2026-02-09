@@ -83,6 +83,7 @@ public:
 		deluge::vector options = {
 		    l10n::getView(STRING_FOR_SINE),          //<
 		    l10n::getView(STRING_FOR_TRIANGLE),      //<
+		    l10n::getView(STRING_FOR_TRIANGLE_PW),   //<
 		    l10n::getView(STRING_FOR_SQUARE),        //<
 		    l10n::getView(STRING_FOR_ANALOG_SQUARE), //<
 		    l10n::getView(STRING_FOR_SAW),           //<
@@ -141,6 +142,7 @@ public:
 			case OscType::SINE:
 				return OLED::sineIcon;
 			case OscType::TRIANGLE:
+			case OscType::TRIANGLE_PW:
 				return OLED::triangleIcon;
 			case OscType::SQUARE:
 			case OscType::ANALOG_SQUARE:
@@ -168,6 +170,12 @@ public:
 			constexpr int32_t y = OLED_MAIN_HEIGHT_PIXELS - kTextSpacingY - 8;
 			image.clearAreaExact(x - 1, y - 1, x + kTextSpacingX + 1, y + kTextSpacingY + 1);
 			image.drawChar('A', x, y, kTextSpacingX, kTextSpacingY);
+		}
+		else if (osc_type == OscType::TRIANGLE_PW) {
+			const int32_t x = slot.start_x + 4;
+			constexpr int32_t y = OLED_MAIN_HEIGHT_PIXELS - kTextSpacingY - 8;
+			image.clearAreaExact(x - 1, y - 1, x + kTextSpacingX + 1, y + kTextSpacingY + 1);
+			image.drawChar('P', x, y, kTextSpacingX, kTextSpacingY);
 		}
 	}
 

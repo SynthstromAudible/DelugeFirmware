@@ -29,7 +29,7 @@ public:
 	                      uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
 	                      int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
 	                      uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-	                      int sourceWaveIndexLastTime, WaveTable* waveTable);
+	                      int sourceWaveIndexLastTime, WaveTable* waveTable, uint64_t* prevPhaseScaler = nullptr);
 };
 
 } // namespace deluge::dsp

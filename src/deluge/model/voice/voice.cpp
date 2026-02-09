@@ -1460,7 +1460,8 @@ cantBeDoingOscSyncForFirstOsc:
 					    phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
 					    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
 					    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s],
-					    static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile));
+					    static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile),
+					    &unisonParts[u].sources[s].prevPhaseScaler);
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
 					// we need to compensate
@@ -2634,7 +2635,8 @@ dontUseCache: {}
 			    sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd, numSamples, phaseIncrement,
 			    pulseWidth, &unisonParts[u].sources[s].oscPos, true, amplitudeIncrement, doOscSync,
 			    oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,
-			    sourceWaveIndexesLastTime[s], static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile));
+			    sourceWaveIndexesLastTime[s], static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile),
+			    &unisonParts[u].sources[s].prevPhaseScaler);
 
 			if (stereoBuffer) {
 				// TODO: if render buffer was typed we could use addPannedMono()
