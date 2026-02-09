@@ -36,6 +36,9 @@ public:
 
 	// Stealable implementation (partial)
 	// Also implemented by children (WaveTable/Sample)
+	// Stealable implementation
+	bool mayBeStolen(void* thingNotToStealFrom = NULL) final;
+	void steal(char const* errorCode) final;
 	StealableQueue getAppropriateQueue() override;
 
 	String filePath;

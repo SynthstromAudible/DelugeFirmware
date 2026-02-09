@@ -1553,8 +1553,10 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
+			atLeastOneNoteOn = true;
+
 			if (AudioEngine::allowedToStartVoice()) {
-				atLeastOneNoteOn = true;
+
 				invertReversed = instruction.invertReversed;
 				noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp,
 				                      instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
@@ -1563,7 +1565,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 			}
 			else {
-				D_PRINTLN("couldn't start note from sound::noteon");
+				// D_PRINTLN("couldn't start note from sound::noteon");
 			}
 			// todo: end pending note?
 		}
@@ -1606,7 +1608,6 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
                                   int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
                                   int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
-
 	const ActiveVoice* voiceToReuse = nullptr;
 	const ActiveVoice* voiceForLegato = nullptr;
 
@@ -2370,10 +2371,9 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 
 void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
                                   ArpReturnInstruction instruction) {
-	if (instruction.arpNoteOn)
+	if (instruction.arpNoteOn) {
 		instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
-	while (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE
-	       && AudioEngine::allowedToStartVoice()) {
+
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
@@ -2388,8 +2388,6 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 		}
-		if (getArp()->handlePendingNotes(arpSettings, &instruction))
-			instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
 	}
 }
 
@@ -5049,7 +5047,7 @@ void Sound::terminateOneActiveVoice() {
 	}
 
 	const ActiveVoice& voice = *best;
-	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
+	bool still_rendering = voice->doFastRelease(4 * SOFT_CULL_INCREMENT);
 
 	if (!still_rendering) {
 		this->freeActiveVoice(voice);

@@ -3,7 +3,7 @@ name: Cherry pick
 on:
   pull_request_target:
     branches:
-      - owlet-firmware-1.3
+      - main
     types: [ "closed" ]
 
 permissions:
@@ -15,16 +15,16 @@ permissions:
 jobs:
   cherry_pick_release:
     runs-on: ubuntu-latest
-    name: Cherry pick into community branch
+    name: Cherry pick into release branch
     if: ${{ contains(github.event.pull_request.labels.*.name, 'cherry-pick') && github.event.pull_request.merged == true }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Cherry pick into community
+      - name: Cherry pick into release/1.3
         uses: carloscastrojumo/github-cherry-pick-action@v1.0.10
         with:
-          branch: community
+          branch: release/1.3
           labels: |
             cherry-picked

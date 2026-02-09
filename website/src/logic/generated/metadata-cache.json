@@ -1,0 +1,503 @@
+{
+  "https://apps.apple.com/es/app/deluge-display/id6745803020": {
+    "description": "Deluge Display is an iOS application designed to mirror the display of a Synthstrom Audible Deluge groovebox onto your iOS screen. This allows for better visibi…",
+    "image": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/cb/a6/fa/cba6fa03-ed69-7c27-3f3d-1d781bb4ef5d/AppIcon-0-0-1x_U007epad-0-1-85-220.png/1200x630wa.png",
+    "siteName": "App Store",
+    "title": "‎Deluge Display",
+    "url": "https://apps.apple.com/es/app/deluge-display/id6745803020"
+  },
+  "https://deluge-kit-generator.vercel.app": {
+    "description": "A web application used to build kits, multisamples and presets for the synthstrom deluge",
+    "siteName": "deluge-kit-generator.vercel.app",
+    "title": "Deluge preset builder",
+    "url": "https://deluge-kit-generator.vercel.app/"
+  },
+  "https://delugr.haila.fi": {
+    "image": "https://delugr.haila.fi/favicon.png",
+    "siteName": "delugr.haila.fi",
+    "title": "Delugr",
+    "url": "https://delugr.haila.fi/"
+  },
+  "https://dex.silicak.es": {
+    "description": "Unlock the full potential of your Synthstrom Deluge with DEx! A web-based tool offering display mirroring, debugging, and advanced control via WebMIDI. Try the live demo!",
+    "image": "https://dex.silicak.es/assets/DEx-logo.png",
+    "siteName": "DEx: Deluge EXtensions",
+    "title": "DEx: Deluge EXtensions - See Your Deluge Like Never Before",
+    "url": "https://dex.silicak.es/"
+  },
+  "https://docs.google.com/document/d/19kMPOUQkjPSATEmscG-kO1CfFvc16-h8_Y8BJhICOOo/view": {
+    "description": "Deluge Discord Tips and Tricks This is a map of town. A list of suggestions the locals put together.   View > Show Outline \t\topens the navigation tab on the left View > Show Print Layout \ttoggle on/off to taste \u000bIf you’ve got a fun use case for the Deluge, join the Discord and submit it to the T...",
+    "image": "https://lh7-us.googleusercontent.com/docs/AHkbwyLE5i-1XAg-MfYu616iqJOJ6lZ0KqXC06DJnSHH-2QgWOITdKMKjKngWcLikRWEPk7i2WCh9zbHg3DowxRU3EndIghkriCFNwPuAoVhgC8TrCLcl-O0=w1200-h630-p",
+    "siteName": "Google Docs",
+    "title": "Deluge Discord Tips and Tricks",
+    "url": "https://docs.google.com/document/d/19kMPOUQkjPSATEmscG-kO1CfFvc16-h8_Y8BJhICOOo/view"
+  },
+  "https://drive.google.com/file/d/1F8inZ25Ye_BGdMAzKT6N9nUBnHDQS2cd/view": {
+    "siteName": "Google Docs",
+    "title": "DelugeatorInstaller.msi",
+    "url": "https://drive.google.com/file/d/1F8inZ25Ye_BGdMAzKT6N9nUBnHDQS2cd/view"
+  },
+  "https://drive.google.com/file/d/1WMLCxavkTbJCeRtAZ_u3pfXVqEZb_1QX/view": {
+    "image": "https://drive.google.com/drive-viewer/AKGpihbiFc3lZfaIw2EoPD1shwuNKoSRvUWos4dUrCGXvnL2ch-G3yg3cgaM4zxgn8fO2jqPd1Iyphnjd8v7KcJVs5IdVZFURIj6jDc=s1600-rw-v1",
+    "siteName": "Google Docs",
+    "title": "Delugeator manual.pdf",
+    "url": "https://drive.google.com/file/d/1WMLCxavkTbJCeRtAZ_u3pfXVqEZb_1QX/view"
+  },
+  "https://fheft.github.io/deluge-companion/": {
+    "siteName": "fheft.github.io",
+    "title": "delugeCompanion",
+    "url": "https://fheft.github.io/deluge-companion/"
+  },
+  "https://forums.synthstrom.com/discussion/4247/deluge-xml-fixer-and-with-set-volumes": {
+    "description": "Hey, I made a small program to analyse and fix missing samples.",
+    "image": "https://forums.synthstrom.com/resources/emoji/smile.png",
+    "siteName": "Synthstrom Audible",
+    "title": "Delleague: xml- batch tool: fix samples, set volumes, set patches, create synth/kit/folder lists",
+    "url": "https://forums.synthstrom.com/discussion/4247/deluge-xml-fixer-and-with-set-volumes"
+  },
+  "https://forums.synthstrom.com/discussion/4547/delugr-a-wip-deluge-file-browser-in-the-browser": {
+    "description": "Hey all, So I finally also got to the point of too many samples and synths and songs and everything is a mess.",
+    "image": "https://forums.synthstrom.com/resources/emoji/expressionless.png",
+    "siteName": "Synthstrom Audible",
+    "title": "Delugr: A (wip) Deluge File Browser... In the Browser!",
+    "url": "https://forums.synthstrom.com/discussion/4547/delugr-a-wip-deluge-file-browser-in-the-browser"
+  },
+  "https://forums.synthstrom.com/discussion/5232/delugeator-2-0-out-now": {
+    "description": "Ok. Delugeator 2.0, a kit and synth editor and random synth and kit creator for Deluge is now OUT!",
+    "image": "https://img.youtube.com/vi/g7STxom19KE/0.jpg",
+    "siteName": "Synthstrom Audible",
+    "title": "Delugeator 2.0 OUT NOW!!",
+    "url": "https://forums.synthstrom.com/discussion/5232/delugeator-2-0-out-now"
+  },
+  "https://forums.synthstrom.com/discussion/comment/22852": {
+    "description": "When the source code launches I'll try to get my head around it and if successful I'll try to port my Delugeator random synth and kit generators directly to Deluge.",
+    "image": "https://forums.synthstrom.com/resources/emoji/grimace.png",
+    "siteName": "Synthstrom Audible",
+    "title": "Random synths and kits directly to Deluge",
+    "url": "https://forums.synthstrom.com/discussion/comment/22852"
+  },
+  "https://github.com/MrHaila/delugr": {
+    "description": "Contribute to MrHaila/delugr development by creating an account on GitHub.",
+    "image": "https://opengraph.githubassets.com/752db37ac4d9a7e5ead406746f00154c3009f6ba22910acfc0e965b772871b17/MrHaila/delugr",
+    "siteName": "GitHub",
+    "title": "GitHub - MrHaila/delugr",
+    "url": "https://github.com/MrHaila/delugr"
+  },
+  "https://github.com/Queroland/DelLeague/releases/tag/V2.0": {
+    "description": "Contribute to Queroland/DelLeague development by creating an account on GitHub.",
+    "image": "https://opengraph.githubassets.com/eb5ab40d1fbe76cbbec31ab806241e942166ffce6a514fb6bfaa9fc0eeb58868/Queroland/DelLeague/releases/tag/V2.0",
+    "siteName": "GitHub",
+    "title": "Release Deleague V2.0 · Queroland/DelLeague",
+    "url": "https://github.com/Queroland/DelLeague/releases/tag/V2.0"
+  },
+  "https://github.com/SynthstromAudible/DelugeWeb/tree/main/downrush/viewScore": {
+    "description": "Web applications for controlling/managing Deluge. Contribute to SynthstromAudible/DelugeWeb development by creating an account on GitHub.",
+    "image": "https://opengraph.githubassets.com/198d4b5d2faccbd39b7daf4b1c823506d421c2b86ca138444eccb60f7741235e/SynthstromAudible/DelugeWeb",
+    "siteName": "GitHub",
+    "title": "DelugeWeb/downrush/viewScore at main · SynthstromAudible/DelugeWeb",
+    "url": "https://github.com/SynthstromAudible/DelugeWeb/tree/main/downrush/viewScore"
+  },
+  "https://github.com/SynthstromAudible/DelugeWeb/tree/main/downrush/waverly": {
+    "description": "Web applications for controlling/managing Deluge. Contribute to SynthstromAudible/DelugeWeb development by creating an account on GitHub.",
+    "image": "https://opengraph.githubassets.com/198d4b5d2faccbd39b7daf4b1c823506d421c2b86ca138444eccb60f7741235e/SynthstromAudible/DelugeWeb",
+    "siteName": "GitHub",
+    "title": "DelugeWeb/downrush/waverly at main · SynthstromAudible/DelugeWeb",
+    "url": "https://github.com/SynthstromAudible/DelugeWeb/tree/main/downrush/waverly"
+  },
+  "https://github.com/SynthstromAudible/DelugeWeb/tree/main/vuefinder": {
+    "description": "Web applications for controlling/managing Deluge. Contribute to SynthstromAudible/DelugeWeb development by creating an account on GitHub.",
+    "image": "https://opengraph.githubassets.com/198d4b5d2faccbd39b7daf4b1c823506d421c2b86ca138444eccb60f7741235e/SynthstromAudible/DelugeWeb",
+    "siteName": "GitHub",
+    "title": "DelugeWeb/vuefinder at main · SynthstromAudible/DelugeWeb",
+    "url": "https://github.com/SynthstromAudible/DelugeWeb/tree/main/vuefinder"
+  },
+  "https://github.com/douglas-carmichael/DelugeDisplay/releases": {
+    "description": "Contribute to douglas-carmichael/DelugeDisplay development by creating an account on GitHub.",
+    "image": "https://opengraph.githubassets.com/b10a060d9068de618b7428b886c13bff83b56a368496b787d9a3995af409ed7b/douglas-carmichael/DelugeDisplay",
+    "siteName": "GitHub",
+    "title": "Releases · douglas-carmichael/DelugeDisplay",
+    "url": "https://github.com/douglas-carmichael/DelugeDisplay/releases"
+  },
+  "https://github.com/drbourbon/deluge-commander": {
+    "description": "Utility to keep Synthstrom Deluge sample folders organized - drbourbon/deluge-commander",
+    "image": "https://repository-images.githubusercontent.com/387466301/2e721b25-9417-4745-a6c9-99007d249981",
+    "siteName": "GitHub",
+    "title": "GitHub - drbourbon/deluge-commander: Utility to keep Synthstrom Deluge sample folders organized",
+    "url": "https://github.com/drbourbon/deluge-commander"
+  },
+  "https://github.com/fheft/deluge-companion": {
+    "description": "A website for easy browsing and searching of shortcuts for the Synthstrom Deluge - fheft/deluge-companion",
+    "image": "https://opengraph.githubassets.com/72c30f2e8911484d81b6e0bf4ce705d43ef3c3d4d3f8494aa08d9a25c963e3de/fheft/deluge-companion",
+    "siteName": "GitHub",
+    "title": "GitHub - fheft/deluge-companion: A website for easy browsing and searching of shortcuts for the Synthstrom Deluge",
+    "url": "https://github.com/fheft/deluge-companion"
+  },
+  "https://github.com/silicakes/deluge-extensions": {
+    "description": "DEx is a repository that tries to support whatever SysEx (data over usb) features are available on the deluge - silicakes/deluge-extensions",
+    "image": "https://opengraph.githubassets.com/f4dc6d3bf5a82f7ef54a5aea73e341d75aa7ef9b83dcc95b312fe7213650f4cf/silicakes/deluge-extensions",
+    "siteName": "GitHub",
+    "title": "GitHub - silicakes/deluge-extensions: DEx is a repository that tries to support whatever SysEx (data over usb) features are available on the deluge",
+    "url": "https://github.com/silicakes/deluge-extensions"
+  },
+  "https://neuma.studio/deluge-commander/": {
+    "description": "Utility to organize Synthstrom Deluge sample library, by moving and renaming samples while updating references in KITS, SONGS and SYNTHS.",
+    "image": "https://neuma.studio/content/images/2023/04/deluge-cmd-screenshot.png",
+    "siteName": "Neumatica Studio",
+    "title": "DELUGE COMMANDER",
+    "url": "https://neuma.studio/deluge-commander/"
+  },
+  "https://randomdelugesynth.azurewebsites.net": {
+    "siteName": "randomdelugesynth.azurewebsites.net",
+    "title": "Deluge Random Synth",
+    "url": "https://randomdelugesynth.azurewebsites.net/"
+  },
+  "https://www.fentonia.com/catnip/midian/index.html": {
+    "siteName": "www.fentonia.com",
+    "title": "Midian",
+    "url": "https://www.fentonia.com/catnip/midian/index.html"
+  },
+  "https://www.fentonia.com/deluge/viewScore/": {
+    "siteName": "www.fentonia.com",
+    "title": "Downrush XML Viewer",
+    "url": "https://www.fentonia.com/deluge/viewScore/"
+  },
+  "https://www.fentonia.com/deluge/vuefinder/": {
+    "siteName": "www.fentonia.com",
+    "title": "Vuefinder preview",
+    "url": "https://www.fentonia.com/deluge/vuefinder/"
+  },
+  "https://www.fentonia.com/deluge/waverly/": {
+    "siteName": "www.fentonia.com",
+    "title": "Waverly",
+    "url": "https://www.fentonia.com/deluge/waverly/"
+  },
+  "https://www.youtube.com/watch?v=0o8omWxdk_E": {
+    "description": "It's time to try the Synthstrom Deluge as a looper and it the results are shocking! But I guess I shouldn't be shocked with anything regarding the deluge. It...",
+    "image": "https://i.ytimg.com/vi/0o8omWxdk_E/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "The Deluge is a Looping Beast – Here’s Why! (Looper Series Ep.4)",
+    "url": "https://www.youtube.com/watch?v=0o8omWxdk_E"
+  },
+  "https://www.youtube.com/watch?v=G424fN_hcsQ": {
+    "description": "MIDI Follow is a Deluge community firmware feature (introduced in version 1.1)  that can be a life-saver when working with external synth gear, so it's high ...",
+    "image": "https://i.ytimg.com/vi/G424fN_hcsQ/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "MIDI Follow on the Synthstrom Deluge Is Your Best Friend When Working with External Synth Gear",
+    "url": "https://www.youtube.com/watch?v=G424fN_hcsQ"
+  },
+  "https://www.youtube.com/watch?v=GQkwBQYBOyc": {
+    "description": "Here is the MAIN PAGE where you can get the NEW 1.1 FIRMWARE file!https://synthstromaudible.github.io/DelugeFirmware/NONE of this could be possible without t...",
+    "image": "https://i.ytimg.com/vi/GQkwBQYBOyc/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgSShDMA8=&rs=AOn4CLAySZlKTVWOrFDt1Pvgynn-3afbXg",
+    "siteName": "YouTube",
+    "title": "DELUGE 1.1 AUDIO CLIPS GRID NEW WORKFLOW // SYNTHSTROM DELUGE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=GQkwBQYBOyc"
+  },
+  "https://www.youtube.com/watch?v=IBIPGdaVrDs": {
+    "description": "NONE of this could be possible without the AMAZING DEVELOPERS PLEASE consider to join their patreon! https://www.patreon.com/SynthstromCheck out the basics i...",
+    "image": "https://i.ytimg.com/vi/IBIPGdaVrDs/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGFIgTyhlMA8=&rs=AOn4CLBwQ3RECg5JyHb51B9tblQLwisGaA",
+    "siteName": "YouTube",
+    "title": "HOW TURN DELUGE TO YOUR DREAM GUITAR AUDIO LOOP SONGWRITING BOX AND //1.2 FIRMWARE DELUGE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=IBIPGdaVrDs"
+  },
+  "https://www.youtube.com/watch?v=IiwvwLqUmq4&t=1181": {
+    "description": "Here's look at just a handful of my most-used features from the recently released 1.2 (Chopin) community firmware for the Synthstrom Deluge. As usual, the fi...",
+    "image": "https://i.ytimg.com/vi/IiwvwLqUmq4/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "New Deluge Community Firmware 1.2 Features! DX7, Audio Export, Velocity View #synthstromdeluge",
+    "url": "https://www.youtube.com/watch?v=IiwvwLqUmq4&t=1181"
+  },
+  "https://www.youtube.com/watch?v=IiwvwLqUmq4&t=1478": {
+    "description": "Here's look at just a handful of my most-used features from the recently released 1.2 (Chopin) community firmware for the Synthstrom Deluge. As usual, the fi...",
+    "image": "https://i.ytimg.com/vi/IiwvwLqUmq4/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "New Deluge Community Firmware 1.2 Features! DX7, Audio Export, Velocity View #synthstromdeluge",
+    "url": "https://www.youtube.com/watch?v=IiwvwLqUmq4&t=1478"
+  },
+  "https://www.youtube.com/watch?v=IiwvwLqUmq4&t=1950": {
+    "description": "Here's look at just a handful of my most-used features from the recently released 1.2 (Chopin) community firmware for the Synthstrom Deluge. As usual, the fi...",
+    "image": "https://i.ytimg.com/vi/IiwvwLqUmq4/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "New Deluge Community Firmware 1.2 Features! DX7, Audio Export, Velocity View #synthstromdeluge",
+    "url": "https://www.youtube.com/watch?v=IiwvwLqUmq4&t=1950"
+  },
+  "https://www.youtube.com/watch?v=IiwvwLqUmq4&t=561": {
+    "description": "Here's look at just a handful of my most-used features from the recently released 1.2 (Chopin) community firmware for the Synthstrom Deluge. As usual, the fi...",
+    "image": "https://i.ytimg.com/vi/IiwvwLqUmq4/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "New Deluge Community Firmware 1.2 Features! DX7, Audio Export, Velocity View #synthstromdeluge",
+    "url": "https://www.youtube.com/watch?v=IiwvwLqUmq4&t=561"
+  },
+  "https://www.youtube.com/watch?v=J8hibZYJhoY": {
+    "description": "Download: https://synthstromaudible.github.io/DelugeFirmware/Release Notes: https://github.com/SynthstromAudible/DelugeFirmware/releases/tag/release_1_0Manua...",
+    "image": "https://i.ytimg.com/vi/J8hibZYJhoY/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "The Synthstrom Deluge Just Got Even Better",
+    "url": "https://www.youtube.com/watch?v=J8hibZYJhoY"
+  },
+  "https://www.youtube.com/watch?v=KR3xTCeQj0Y": {
+    "description": "timestamps will be here when completedHere is the MAIN PAGE where you can get the NEW 1.0 FIRMWARE file!https://synthstromaudible.github.io/DelugeFirmware/NO...",
+    "image": "https://i.ytimg.com/vi/KR3xTCeQj0Y/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgSChDMA8=&rs=AOn4CLBnzFwlo3UsrtNdIb1Wj7k3KC1uQQ",
+    "siteName": "YouTube",
+    "title": "DELUGE MIDI CC AND LINE IN FX / AUTOMATION PART 3 // SYNTHSTROM DELUGE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=KR3xTCeQj0Y"
+  },
+  "https://www.youtube.com/watch?v=KV5hWgcanxI": {
+    "description": "Intro 0:00Orientation 0:48Pitch Automation 1:25Filter Automation 3:00Bass Treble Settings 4:24FX Automation 4:48Delay Warning 5:27Extended Automation Lanes 6...",
+    "image": "https://i.ytimg.com/vi/KV5hWgcanxI/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgRyhLMA8=&rs=AOn4CLBWKUCSiwIhjgiC5C0TVmeWwCqrAg",
+    "siteName": "YouTube",
+    "title": "DELUGE AUTOMATION MODE PART 1 - EXPERIMENTATION // SYNTHSTROM DELUGE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=KV5hWgcanxI"
+  },
+  "https://www.youtube.com/watch?v=RGRlln8OW1s": {
+    "description": "This video is made to show how to set up an audio line in for realtime audio sequenced FX manipulation! The intent is to show how far we can change the origi...",
+    "image": "https://i.ytimg.com/vi/RGRlln8OW1s/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGD0gVShyMA8=&rs=AOn4CLC7l_psWuVOMPhZHeTM2P56m6BXfg",
+    "siteName": "YouTube",
+    "title": "DELUGE IS NOW AN ADVANCED GLITCH EFFECTS PEDAL / AUTOMATION PART 2 // SYNTHSTROM DELUGE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=RGRlln8OW1s"
+  },
+  "https://www.youtube.com/watch?v=VKbAr3fZe5I": {
+    "description": "NONE of this could be possible without the AMAZING DEVELOPERS PLEASE consider to join their patreon! https://www.patreon.com/SynthstromCheck out the basics i...",
+    "image": "https://i.ytimg.com/vi/VKbAr3fZe5I/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGFAgSShlMA8=&rs=AOn4CLDy1qLxbWJA8VSTM9x1Um14ZFr3UQ",
+    "siteName": "YouTube",
+    "title": "NEW SEQUENCING IN VELOCITY MODE AND SEQ TRANSPOSE // 1.2 CHOPIN FIRMWARE DELUGE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=VKbAr3fZe5I"
+  },
+  "https://www.youtube.com/watch?v=VuAESUsW8bw": {
+    "description": "NONE of this could be possible without the AMAZING DEVELOPERS PLEASE consider to join their patreon! https://www.patreon.com/SynthstromCheck out the basics i...",
+    "image": "https://i.ytimg.com/vi/VuAESUsW8bw/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgRShAMA8=&rs=AOn4CLC5xPAtX9pgSB2kqMKEnEMM2rdNQg",
+    "siteName": "YouTube",
+    "title": "DELUGE 1.1 CHORD MEMORY & ARPEGGIATOR // DELUGE 1.1 BEETHOVEN FIRMWARE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=VuAESUsW8bw"
+  },
+  "https://www.youtube.com/watch?v=WKI__I8qBIU": {
+    "description": "PLEASE NOTE: This video did not cover in depth the midi follow functions CC on internal synth engine or drum kits with midi follow - this tutorial is to pres...",
+    "image": "https://i.ytimg.com/vi/WKI__I8qBIU/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgTChIMA8=&rs=AOn4CLC9rFpc4s0F6zryYztfjDnrwoOiJQ",
+    "siteName": "YouTube",
+    "title": "DELUGE 1.1 NEW WORKFLOW MIDI FOLLOW GRID // DELUGE 1.1 BEETHOVEN FIRMWARE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=WKI__I8qBIU"
+  },
+  "https://www.youtube.com/watch?v=YykJfzpjMIM": {
+    "description": "Here is the MAIN PAGE where you can get the NEW 1.1 FIRMWARE file!https://synthstromaudible.github.io/DelugeFirmware/NONE of this could be possible without t...",
+    "image": "https://i.ytimg.com/vi/YykJfzpjMIM/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGDUgUihyMA8=&rs=AOn4CLBkbf3fYJ3w0xeg7WDixNgV6KcfIQ",
+    "siteName": "YouTube",
+    "title": "DELUGE 1.1 PERFORMANCE VIEW BASICS /// SYNTHSTROM DELUGE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=YykJfzpjMIM"
+  },
+  "https://www.youtube.com/watch?v=avUcqCHGcUs": {
+    "description": "Here is the link to the midi follow instructions, CC list, and loopy pro template: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/fe...",
+    "image": "https://i.ytimg.com/vi/avUcqCHGcUs/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgSihEMA8=&rs=AOn4CLCTzaPEb396Wzjq4cuFY7L_q0KGHg",
+    "siteName": "YouTube",
+    "title": "DELUGE 1.1 MIDI FOLLOW BASICS // Deluge 1.1 Beethoven Firmware Tutorial",
+    "url": "https://www.youtube.com/watch?v=avUcqCHGcUs"
+  },
+  "https://www.youtube.com/watch?v=g7STxom19KE": {
+    "description": "Finished (?} and out. A Synthstrom Deluge kit editor, synth viewer and a random synth and kit creator for Windows (sorry, Mac people)Get it from: https://dri...",
+    "image": "https://i.ytimg.com/vi/g7STxom19KE/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "Delugeator 2.0 - a preset editor for Synthstrom Deluge (WINDOWS only)",
+    "url": "https://www.youtube.com/watch?v=g7STxom19KE"
+  },
+  "https://www.youtube.com/watch?v=gn2HolqBBcc": {
+    "description": "The @SynthstromAudible Deluge has been a long time favorite of mine and it was about time to revisit it and show you how far it´s come since I last featured ...",
+    "image": "https://i.ytimg.com/vi/gn2HolqBBcc/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "How Synthstrom Made Deluge Immortal // Updates & Open Source Community Firmware 🔥",
+    "url": "https://www.youtube.com/watch?v=gn2HolqBBcc"
+  },
+  "https://www.youtube.com/watch?v=gxnK2XJthYo&t=1642": {
+    "description": "Here's look at just a handful of my most-used features from the recently released 1.1 (Beethoven) community firmware for the Synthstrom Deluge. As usual, the...",
+    "image": "https://i.ytimg.com/vi/gxnK2XJthYo/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "New Deluge Community Firmware 1.1 Features! Mutable Reverb, Performance View, New Arp, Paste Gently",
+    "url": "https://www.youtube.com/watch?v=gxnK2XJthYo&t=1642"
+  },
+  "https://www.youtube.com/watch?v=gxnK2XJthYo&t=521": {
+    "description": "Here's look at just a handful of my most-used features from the recently released 1.1 (Beethoven) community firmware for the Synthstrom Deluge. As usual, the...",
+    "image": "https://i.ytimg.com/vi/gxnK2XJthYo/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "New Deluge Community Firmware 1.1 Features! Mutable Reverb, Performance View, New Arp, Paste Gently",
+    "url": "https://www.youtube.com/watch?v=gxnK2XJthYo&t=521"
+  },
+  "https://www.youtube.com/watch?v=lBg1vCwBG0o": {
+    "description": "NONE of this could be possible without the AMAZING DEVELOPERS PLEASE consider to join their patreon! https://www.patreon.com/SynthstromCheck out the basics i...",
+    "image": "https://i.ytimg.com/vi/lBg1vCwBG0o/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgSyhWMA8=&rs=AOn4CLAT0CgPBsddRuTf5accLfcBQAu4_g",
+    "siteName": "YouTube",
+    "title": "1.2 NEW CHORD KEYBOARD CHORD LIBRARY CHORD MEMORY // 1.2 CHOPIN FIRMWARE DELUGE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=lBg1vCwBG0o"
+  },
+  "https://www.youtube.com/watch?v=pmDlRK_uzLE": {
+    "description": "Today, I’m diving into my beloved Deluge and some of the amazing features added by the Open Source community. These updates are a mix of new and ongoing proj...",
+    "image": "https://i.ytimg.com/vi/pmDlRK_uzLE/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "Synthstrom Deluge | Exploring My Favorite New Features in the Latest Community Firmware",
+    "url": "https://www.youtube.com/watch?v=pmDlRK_uzLE"
+  },
+  "https://www.youtube.com/watch?v=pmDlRK_uzLE&t=1325": {
+    "description": "Today, I’m diving into my beloved Deluge and some of the amazing features added by the Open Source community. These updates are a mix of new and ongoing proj...",
+    "image": "https://i.ytimg.com/vi/pmDlRK_uzLE/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "Synthstrom Deluge | Exploring My Favorite New Features in the Latest Community Firmware",
+    "url": "https://www.youtube.com/watch?v=pmDlRK_uzLE&t=1325"
+  },
+  "https://www.youtube.com/watch?v=pmDlRK_uzLE&t=1380": {
+    "description": "Today, I’m diving into my beloved Deluge and some of the amazing features added by the Open Source community. These updates are a mix of new and ongoing proj...",
+    "image": "https://i.ytimg.com/vi/pmDlRK_uzLE/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "Synthstrom Deluge | Exploring My Favorite New Features in the Latest Community Firmware",
+    "url": "https://www.youtube.com/watch?v=pmDlRK_uzLE&t=1380"
+  },
+  "https://www.youtube.com/watch?v=pmDlRK_uzLE&t=1590": {
+    "description": "Today, I’m diving into my beloved Deluge and some of the amazing features added by the Open Source community. These updates are a mix of new and ongoing proj...",
+    "image": "https://i.ytimg.com/vi/pmDlRK_uzLE/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "Synthstrom Deluge | Exploring My Favorite New Features in the Latest Community Firmware",
+    "url": "https://www.youtube.com/watch?v=pmDlRK_uzLE&t=1590"
+  },
+  "https://www.youtube.com/watch?v=pmDlRK_uzLE&t=940": {
+    "description": "Today, I’m diving into my beloved Deluge and some of the amazing features added by the Open Source community. These updates are a mix of new and ongoing proj...",
+    "image": "https://i.ytimg.com/vi/pmDlRK_uzLE/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "Synthstrom Deluge | Exploring My Favorite New Features in the Latest Community Firmware",
+    "url": "https://www.youtube.com/watch?v=pmDlRK_uzLE&t=940"
+  },
+  "https://www.youtube.com/watch?v=wBb4Eganhpg": {
+    "description": "NONE of this could be possible without the AMAZING DEVELOPERS PLEASE consider to join their patreon! https://www.patreon.com/SynthstromCheck out the basics i...",
+    "image": "https://i.ytimg.com/vi/wBb4Eganhpg/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgSyhIMA8=&rs=AOn4CLA-AaHwuROz8BFSi5zUP_7QnoYHQQ",
+    "siteName": "YouTube",
+    "title": "WORKFLOW 1.2 GRID MODE AUDIO CLIPS AND TEMPO AUTOMATION // 1.2 CHOPIN FIRMWARE DELUGE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=wBb4Eganhpg"
+  },
+  "https://www.youtube.com/watch?v=yaHdBgO0kJ8": {
+    "description": "CHECK OUT HOW TO EXPORT CLIPS, AND TRACKS!NONE of this could be possible without the AMAZING DEVELOPERS PLEASE consider to join their patreon! https://www.pa...",
+    "image": "https://i.ytimg.com/vi/yaHdBgO0kJ8/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGB0gMCh_MA8=&rs=AOn4CLAmRbnYqxvyxwhn4C8vx-487BfThg",
+    "siteName": "YouTube",
+    "title": "HOW TO AUTO EXPORT STEMS ON DELUGE AND IT'S SO // 1.2 CHOPIN FIRMWARE DELUGE TUTORIAL",
+    "url": "https://www.youtube.com/watch?v=yaHdBgO0kJ8"
+  },
+  "https://youtu.be/KQm-OxjSt5Y": {
+    "description": "Want to support the channel - and get ALL my tips in one convenient place including those to come in the future? Check out my In-Complete Book of Electronic ...",
+    "image": "https://i.ytimg.com/vi/KQm-OxjSt5Y/hqdefault.jpg",
+    "siteName": "YouTube",
+    "title": "Sound design and some crazy powerful features of the Synthstrom Deluge",
+    "url": "https://www.youtube.com/watch?v=KQm-OxjSt5Y&feature=youtu.be"
+  },
+  "https://youtu.be/MZtHX1dEgwg": {
+    "description": "Want to support the channel - and get ALL my tips in one convenient place including those to come in the future? Check out my In-Complete Book of Electronic ...",
+    "image": "https://i.ytimg.com/vi/MZtHX1dEgwg/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "Synthstrom Deluge Review and 10 reasons why it's special",
+    "url": "https://www.youtube.com/watch?v=MZtHX1dEgwg&feature=youtu.be"
+  },
+  "https://youtu.be/aBeeDwukpTs": {
+    "description": "Need help with what to do with all these LFOs and envelopes? Check out my book of electronic music tips and tricks:► Patreon: https://patreon.com/loopop Here...",
+    "image": "https://i.ytimg.com/vi/aBeeDwukpTs/maxresdefault.jpg",
+    "siteName": "YouTube",
+    "title": "DELUGE 3: Full tutorial and workflow walkthrough",
+    "url": "https://www.youtube.com/watch?v=aBeeDwukpTs&feature=youtu.be"
+  },
+  "https://youtube.com/playlist?list=PLQEn7gwODXtU1radHGODiRNmsPRHNnhd2": {
+    "description": "New features and discussions related to the Deluge community firmware",
+    "image": "https://i.ytimg.com/vi/XfGUyXBSFZM/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLCJgkTB2XO5GI2Wj9KIOedMXTpOqQ&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Deluge Community Firmware",
+    "url": "https://www.youtube.com/playlist?list=PLQEn7gwODXtU1radHGODiRNmsPRHNnhd2&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLQEn7gwODXtXUsJeNiR-Jkqz6HZlCQYRq": {
+    "description": "Quick tips for making the most out of the Synthstrom Deluge",
+    "image": "https://i.ytimg.com/vi/2eIJ7aOyvbA/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLDlBk17bfA-aw0DKdiEpRkB4hYXEw&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Deluge Quick Tips",
+    "url": "https://www.youtube.com/playlist?list=PLQEn7gwODXtXUsJeNiR-Jkqz6HZlCQYRq&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLQvVnhG7o2yQIQ6btjqfKcq8-jvluVlHF": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/OcUvIqPz-fY/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLAoBCAduSapPEOyJWN5_QbjGDIq4A&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Deluge 4.0 Firmware Release",
+    "url": "https://www.youtube.com/playlist?list=PLQvVnhG7o2yQIQ6btjqfKcq8-jvluVlHF&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLQvVnhG7o2yQmziHsoXyD1hexsa2QuK8x": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/DnqI_zDdu6M/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLAptQX5dgpreYyOBiKPQuTX1iECmQ&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Synthstrom Deluge Demos",
+    "url": "https://www.youtube.com/playlist?list=PLQvVnhG7o2yQmziHsoXyD1hexsa2QuK8x&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLQvVnhG7o2yS27BQE-uvy1IFXC7L6z5DG": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/k_PtJMUhgh0/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLAcgJlc7vZ1uKx-Vk6J5IK88XjSTw&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Deluge 1.1.0 Beethoven Public Firmware Tutorials",
+    "url": "https://www.youtube.com/playlist?list=PLQvVnhG7o2yS27BQE-uvy1IFXC7L6z5DG&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLQvVnhG7o2yS6fDMNWuo4fV1AFbYoudaS": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/bUtkIWG_tpc/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLD_btOm7ndRmwKpZl6AGw5LVEH_2g&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Deluge 3.0 Firmware Release",
+    "url": "https://www.youtube.com/playlist?list=PLQvVnhG7o2yS6fDMNWuo4fV1AFbYoudaS&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLQvVnhG7o2ySwMn_AvbPAIx7lnQYjJBUG": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/1l15U_M-Rac/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLDJ3W0sxWA86nITWcDDEETkBddwXw&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Deluge Boot Camp Series",
+    "url": "https://www.youtube.com/playlist?list=PLQvVnhG7o2ySwMn_AvbPAIx7lnQYjJBUG&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLQvVnhG7o2ySxBxYQ6usQhLUgr445sEb2": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/azYQAHAa5Z8/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLDJmtklsN7If-BvtHzvZ3HaPQ1ZsA&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Deluge Open Source Firmware 1.0 Videos",
+    "url": "https://www.youtube.com/playlist?list=PLQvVnhG7o2ySxBxYQ6usQhLUgr445sEb2&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLQvVnhG7o2yTabzBZM0Uz2pU4ep5aF31i": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/hRVOVK1HCqc/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLBuxZr7L_x4wzw5TTiKNnrF53JkUA&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Deluge 1.2 Chopin tutorials",
+    "url": "https://www.youtube.com/playlist?list=PLQvVnhG7o2yTabzBZM0Uz2pU4ep5aF31i&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLQvVnhG7o2yTj2jnUxwcknTtO5OPSubQV": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/dFfwc-qaeXE/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLAHBt0vTMM8daxn3MpBmRU1Aj3-rg&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Synthstrom Deluge Tutorials",
+    "url": "https://www.youtube.com/playlist?list=PLQvVnhG7o2yTj2jnUxwcknTtO5OPSubQV&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLcaEIjiwaCmTEMRyuv1-xPLU2dsBcIQ_n": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/7Wk2v4yzhVo/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLBhC4zZoPCr0vJYatP7Jc-6fSLCTA&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Synthstrom Deluge",
+    "url": "https://www.youtube.com/playlist?list=PLcaEIjiwaCmTEMRyuv1-xPLU2dsBcIQ_n&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLrIHpKJ98bAit7QCezdDLIGzmLJ1eYDRr": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/RfDnbN5VDdI/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLDft2uyY5YXm9TV0IJ-K5iL9cwVyA&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "The Deluge Video Manual",
+    "url": "https://www.youtube.com/playlist?list=PLrIHpKJ98bAit7QCezdDLIGzmLJ1eYDRr&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLrIHpKJ98bAjKSRLMyVXZn5kAmyfjhpvf": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/Nj4mL8bg7h4/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLBoUD5qftDpVmdeitglbP4hr11gLg&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Synthstrom Deluge",
+    "url": "https://www.youtube.com/playlist?list=PLrIHpKJ98bAjKSRLMyVXZn5kAmyfjhpvf&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLxMQ5voiKLgcBGKhLPNUEk4pGUoiXhjvb": {
+    "description": "Tips and Tricks for the Synthstrom Deluge #synthstromdeluge #tutorial #dawlessproduction #dawless #tutorials",
+    "image": "https://i.ytimg.com/vi/wXbb1jw29cU/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLA_ZJ02WNUG2h7DHXwYWzX0Fp9D5w&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Deluge For Dummies",
+    "url": "https://www.youtube.com/playlist?list=PLxMQ5voiKLgcBGKhLPNUEk4pGUoiXhjvb&cbrd=1"
+  },
+  "https://youtube.com/playlist?list=PLz8VB5SaBnsbyOd8I-bMhHNTtLMQAggEr": {
+    "description": "Share your videos with friends, family, and the world",
+    "image": "https://i.ytimg.com/vi/zTB4C-d5vTc/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLBN82q2lanjq6PRjJ-Kxl5Z98VKzg&days_since_epoch=20205",
+    "siteName": "YouTube",
+    "title": "Deluge by Synthtrom Audible",
+    "url": "https://www.youtube.com/playlist?list=PLz8VB5SaBnsbyOd8I-bMhHNTtLMQAggEr&cbrd=1"
+  }
+}

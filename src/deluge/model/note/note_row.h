@@ -256,7 +256,6 @@ private:
 	bool noteRowMayMakeSound(bool);
 	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColour[], bool overwriteExisting,
 	              uint8_t image[][3], uint8_t occupancyMask[]);
-	bool ignoredNoteOn{false};
 	int32_t ignoreUntil{0};
 	int32_t ignoredTicks{0};
 };

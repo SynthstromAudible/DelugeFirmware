@@ -479,7 +479,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 				           < cacheBytePos
 				                 + (TimeStretch::kDefaultFirstHopLength * kCacheByteDepth * sampleSourceNumChannels)) {
 
-					D_PRINTLN("avoiding click near end");
+					// D_PRINTLN("avoiding click near end");
 
 					bool success = stopReadingFromCache();
 					if (!success) {

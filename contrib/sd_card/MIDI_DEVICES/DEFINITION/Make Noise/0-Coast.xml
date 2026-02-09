@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		117="Arpeggiator switch"
+		119="Arpeggiator type"
+		118="Legato switch"
+		102="MIDI A channel"
+		103="MIDI B channel"
+		104="MIDI channel A CV"
+		105="MIDI channel B CV"
+		106="MIDI channel A gate"
+		107="MIDI channel B gate"
+		108="Pitch bend scale A"
+		109="Pitch bend scale B"
+		110="Aftertouch scale A"
+		111="Aftertouch scale B"
+		112="Velocity scale A"
+		113="Velocity scale B"
+		114="MIDI block switch"
+		116="Tempo in divisor"/>
+</midiDevice>

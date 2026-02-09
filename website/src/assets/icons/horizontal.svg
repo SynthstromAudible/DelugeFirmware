@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1"
+     x="0px" y="0px" width="128px" height="128px" viewBox="0 0 128 128">
+
+  <circle cx="64" cy="64" r="52.7" fill="#1E1E1E" stroke="#949494" stroke-width="7"/>
+
+  <g id="Horizontal_Arrows" transform="matrix(1, 0, 0, 1, 64.05,64) ">
+      <path fill="#D0D0D0" stroke="none" d="
+M 34.5 -0.7
+L 5.65 -15.1 5.65 13.65 34.5 -0.7
+M -5.75 -15.1
+L -34.6 -0.7 -5.75 13.65 -5.75 -15.1 Z"/>
+  </g>
+</svg>

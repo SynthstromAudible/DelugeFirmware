@@ -3,11 +3,12 @@ name: Pull Request Build
 on:
   push:
     branches:
-      - 'dev'
+      - 'synthstrom-official'
   pull_request:
     branches:
-      - 'dev'
-      - 'feature/**'
+      - 'community'
+      - 'release/**'
+      - 'main'
   merge_group:
   workflow_dispatch:
 

@@ -52,12 +52,12 @@ jobs:
     steps:
       - name: Checkout branch
         if: inputs.branch != null
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch }}
       - name: Checkout branch
         if: inputs.branch == null
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Validate Build Type
         run: buildtype=${{inputs.build-type }} node .github/scripts/validate_build_string.js
       - name: Fetch container image
@@ -81,7 +81,7 @@ jobs:
           git diff --exit-code
 
       - name: Publish built firmware (release-bin)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.artifact-name || inputs.build-tag }}_${{ inputs.build-type }}_build_bundle
           path: build/${{ inputs.build-type }}/*

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1"
+     x="0px" y="0px" width="128px" height="128px" viewBox="0 0 128 128">
+  <circle cx="64" cy="64" r="52.7" fill="#1E1E1E" stroke="#949494" stroke-width="7"/>
+
+  <g id="Cyan_Arrow_Right" transform="matrix(1, 0, 0, 1, 64.05,64) ">
+    <g  transform="matrix(1, 0, 0, 1, 0,-0.05) ">
+      <g id="Layer_3" transform="matrix(-1, 0, 0, 1, 29.75,-22.95) ">
+        <path stroke="#00FFCA" stroke-width="7" stroke-linejoin="miter" stroke-linecap="round"
+              stroke-miterlimit="3" fill="none" d="
+M -19.05 43.225
+Q -22.95 33.8830078125 -22.95 22.95 -22.95 1.2 -7.5 -14.4"/>
+      </g>
+
+      <g id="Layer_1" transform="matrix(-1, 0, 0, 1, 29.75,-22.95) ">
+        <path stroke="#00FFCA" stroke-width="7" stroke-linejoin="miter" stroke-linecap="round"
+              stroke-miterlimit="3" fill="none" d="
+M 28.4 -29.75
+Q 7.422265625 -29.2736328125 -7.5 -14.4 -22.7939453125 0.993359375 -22.9 22.6 -22.9 22.75 -22.9 22.9"/>
+
+        <g id="Layer_1"
+           transform="matrix(0.87713623046875, -0.4802093505859375, 0.4802093505859375, 0.87713623046875, -17.2,46.6) ">
+          <path fill="#36393F" fill-opacity="0" stroke="none" d="
+M 7.8 -3.9
+L 0.05 -3.9
+Q 0.05 -1.15 0.1 0.7
+L 0.2 3.7 7.8 -3.9 Z"/>
+
+          <path stroke="#00FFCA" stroke-width="6" stroke-linejoin="round" stroke-linecap="butt" fill="none" d="
+M 0.2 3.7
+L 7.8 -3.9 0.05 -3.9
+M -0.05 3.95
+L -7.85 -3.9 0.05 -3.9"/>
+
+          <path stroke="#00FFCA" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 0.1 0.7
+L 0.2 3.7 -0.05 3.95"/>
+
+          <path stroke="#00FFCA" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 0.05 -3.9
+Q 0.05 -1.15 0.1 0.7"/>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <g id="Horizontal_Arrows" transform="matrix(1, 0, 0, 1, 64.05,64) ">
+    <path fill="#D0D0D0" stroke="none" d="
+M 34.5 -0.7
+L 5.65 -15.1 5.65 13.65 34.5 -0.7
+M -5.75 -15.1
+L -34.6 -0.7 -5.75 13.65 -5.75 -15.1 Z"/>
+  </g>
+</svg>

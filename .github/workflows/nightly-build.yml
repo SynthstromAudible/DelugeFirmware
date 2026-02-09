@@ -3,7 +3,7 @@ name: Nightly Build
 on:
   workflow_dispatch: # allows manual triggering
   schedule:
-    - cron: '14 0 * * *' # runs daily at 00:14
+    - cron: "14 0 * * *" # runs daily at 00:14
 
 jobs:
   nightly-detect:
@@ -11,9 +11,9 @@ jobs:
     outputs:
       new-commits: ${{ steps.count-commits.outputs.count }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          ref: 'dev'
+          ref: "main"
           fetch-depth: 0 # Required to count the commits
       - name: Get new commits
         id: count-commits
@@ -27,12 +27,48 @@ jobs:
     if: needs.nightly-detect.outputs.new-commits > 0
     with:
       firmware-retention-days: 30
-      build-type: 'Release'
-      build-tag: 'nightly'
-      branch: 'dev'
+      build-type: "Release"
+      build-tag: "nightly"
+      branch: "main"
   nightly-publish:
     uses: ./.github/workflows/publish.yml
     needs: nightly-build
     with:
-      tag: 'nightly'
-      branch: 'dev'
+      tag: "nightly"
+
+  beta-detect:
+    runs-on: ubuntu-latest
+    outputs:
+      new-commits: ${{ steps.count-commits.outputs.count }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Get new commits if branch exists
+        id: count-commits
+        run: |
+          if git show-ref --verify --quiet refs/remotes/origin/release/1.3; then
+            echo "Branch release/1.3 exists, checking for commits"
+            git checkout release/1.3
+            count=$(git log --oneline --since '24 hours ago' | wc -l)
+            echo "Saw $count commits"
+            echo "count=$count" >> $GITHUB_OUTPUT
+          else
+            echo "Branch release/1.3 does not exist, skipping"
+            echo "count=0" >> $GITHUB_OUTPUT
+          fi
+  beta-build:
+    uses: ./.github/workflows/build.yml
+    needs: beta-detect
+    if: needs.beta-detect.outputs.new-commits > 0
+    with:
+      firmware-retention-days: 30
+      build-type: "Release"
+      build-tag: "beta"
+      branch: "release/1.3"
+  beta-publish:
+    uses: ./.github/workflows/publish.yml
+    needs: beta-build
+    with:
+      tag: "beta"
+      branch: "release/1.3"
