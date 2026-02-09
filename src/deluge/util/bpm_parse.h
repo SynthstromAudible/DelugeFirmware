@@ -76,6 +76,7 @@ inline int32_t parseBPMFromFilename(const char* path) {
 				if (!*p) {
 					break;
 				}
+				p--; // Compensate for the for-loop's p++ so we don't skip the next char
 				continue;
 			}
 			const char* start = p;

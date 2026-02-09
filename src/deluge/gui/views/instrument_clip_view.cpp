@@ -1906,6 +1906,9 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 							gate->setLength(squareWidth);
 							gate->setVelocity(0);
 							gate->setLift(0);
+							gate->setProbability(kNumProbabilityValues);
+							gate->setIterance(Iterance());
+							gate->setFill(FillMode::OFF);
 						}
 					}
 					else {
@@ -1927,6 +1930,9 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 									after->setLength(gateEnd - cellEnd);
 									after->setVelocity(origVelocity);
 									after->setLift(origLift);
+									after->setProbability(kNumProbabilityValues);
+									after->setIterance(Iterance());
+									after->setFill(FillMode::OFF);
 								}
 								ci = noteRow->gateCloses.search(squareStart + 1, LESS);
 							}
@@ -1991,6 +1997,9 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 						tail->setLength(gateEnd - rangeEnd);
 						tail->setVelocity(origVelocity);
 						tail->setLift(origLift);
+						tail->setProbability(kNumProbabilityValues);
+						tail->setIterance(Iterance());
+						tail->setFill(FillMode::OFF);
 					}
 					// Re-find original since insert may have shifted indices
 					i = noteRow->gateCloses.search(gate->pos + 1, LESS);
@@ -2023,6 +2032,9 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 						gate->setLength(spanLength);
 						gate->setVelocity(0);
 						gate->setLift(0);
+						gate->setProbability(kNumProbabilityValues);
+						gate->setIterance(Iterance());
+						gate->setFill(FillMode::OFF);
 					}
 				}
 			}

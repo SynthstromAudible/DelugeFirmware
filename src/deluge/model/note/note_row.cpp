@@ -4091,8 +4091,18 @@ Note* NoteRow::getPrecedingGateClose(int32_t pos, int32_t effectiveLength) {
 		if (i > 0) {
 			return gateCloses.getElement(i - 1);
 		}
-		// Wrap to last
-		return gateCloses.getElement(numGateCloses - 1);
+		// Wrap to last — but only if it's a different element (avoid returning
+		// the close we're currently inside when there's only one)
+		if (numGateCloses > 1) {
+			Note* last = gateCloses.getElement(numGateCloses - 1);
+			// Also verify we're not inside the wrapped last close
+			if (effectiveLength > 0 && last->pos + last->getLength() > effectiveLength
+			    && pos < (last->pos + last->getLength()) - effectiveLength) {
+				return nullptr;
+			}
+			return last;
+		}
+		return nullptr;
 	}
 
 	// No close with pos <= current pos. Wrap to last close.
@@ -4559,6 +4569,40 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	int32_t numExtraToDelete = notes.getNumElements() - insertIndex;
 	if (numExtraToDelete) {
 		notes.deleteAtIndex(insertIndex, numExtraToDelete);
+	}
+
+	// Append gate close data from other NoteRow with offset (and reverse if needed)
+	int32_t numGateCloses = otherNoteRow->gateCloses.getNumElements();
+	for (int32_t i = 0; i < numGateCloses; i++) {
+		int32_t srcIdx = reversingNow ? (numGateCloses - 1 - i) : i;
+		Note* srcGate = otherNoteRow->gateCloses.getElement(srcIdx);
+
+		int32_t newPos;
+		int32_t newLength = srcGate->getLength();
+		if (reversingNow) {
+			newPos = otherNoteRowLength - srcGate->pos - newLength;
+			if (newPos < 0) {
+				newLength += newPos;
+				newPos = 0;
+			}
+		}
+		else {
+			newPos = srcGate->pos;
+		}
+		newPos += offset;
+
+		if (newLength > 0) {
+			int32_t ci = gateCloses.insertAtKey(newPos);
+			if (ci >= 0) {
+				Note* dst = gateCloses.getElement(ci);
+				dst->setLength(newLength);
+				dst->setVelocity(srcGate->getVelocity());
+				dst->setLift(srcGate->getLift());
+				dst->setProbability(kNumProbabilityValues);
+				dst->setIterance(Iterance());
+				dst->setFill(FillMode::OFF);
+			}
+		}
 	}
 
 	return Error::NONE;

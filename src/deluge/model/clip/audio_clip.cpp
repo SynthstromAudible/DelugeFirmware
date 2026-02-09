@@ -127,7 +127,16 @@ Note* AudioClip::getPrecedingGateClose(int32_t pos, int32_t effectiveLength) {
 		if (i > 0) {
 			return gateCloses.getElement(i - 1);
 		}
-		return gateCloses.getElement(numGateCloses - 1);
+		// Wrap to last — but only if it's a different element
+		if (numGateCloses > 1) {
+			Note* last = gateCloses.getElement(numGateCloses - 1);
+			if (effectiveLength > 0 && last->pos + last->getLength() > effectiveLength
+			    && pos < (last->pos + last->getLength()) - effectiveLength) {
+				return nullptr;
+			}
+			return last;
+		}
+		return nullptr;
 	}
 
 	return gateCloses.getElement(numGateCloses - 1);
@@ -201,9 +210,11 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.isCurrentlyReversed());
 	newClip->startOffset = startOffset;
 
-	// Clone gate closes
-	for (int32_t i = 0; i < const_cast<NoteVector&>(gateCloses).getNumElements(); i++) {
-		Note* src = const_cast<NoteVector&>(gateCloses).getElement(i);
+	// Clone gate closes. We need a non-const reference to call getNumElements/getElement
+	// which are non-const in the base class, but don't actually mutate state.
+	NoteVector& srcGateCloses = const_cast<NoteVector&>(gateCloses);
+	for (int32_t i = 0; i < srcGateCloses.getNumElements(); i++) {
+		Note* src = srcGateCloses.getElement(i);
 		int32_t idx = newClip->gateCloses.insertAtKey(src->pos);
 		if (idx >= 0) {
 			Note* dst = newClip->gateCloses.getElement(idx);
@@ -912,23 +923,40 @@ justDontTimeStretch:
 		}
 	}
 
-	// Gate mute: ramp gateAmplitude toward target using per-segment attack/release rates
+	// Gate mute: ramp gateAmplitude toward target using per-segment attack/release rates.
+	// Scale by block size for consistent timing. Recompute amplitudeIncrement to interpolate
+	// smoothly across the block instead of applying a single step.
 	if (gateCloses.getNumElements()) {
+		int32_t numSamples = static_cast<int32_t>(outputBuffer.size());
 		int32_t gateTarget = gateOpen ? 0x7FFFFFFF : 0;
+		int32_t gateAmplitudeStart = gateAmplitude;
 		if (gateAmplitude < gateTarget) {
 			int32_t shift = ((int32_t)currentGateAttack * 14) >> 7;
-			int32_t rampRate = INT32_MAX >> shift;
+			int32_t rampPerSample = (INT32_MAX >> shift) / SSI_TX_BUFFER_NUM_SAMPLES;
+			if (rampPerSample < 1) {
+				rampPerSample = 1;
+			}
+			int32_t rampRate = rampPerSample * numSamples;
 			int32_t remaining = gateTarget - gateAmplitude;
 			gateAmplitude += std::min(remaining, rampRate);
 		}
 		else if (gateAmplitude > gateTarget) {
 			int32_t shift = ((int32_t)currentGateRelease * 14) >> 7;
-			int32_t rampRate = INT32_MAX >> shift;
+			int32_t rampPerSample = (INT32_MAX >> shift) / SSI_TX_BUFFER_NUM_SAMPLES;
+			if (rampPerSample < 1) {
+				rampPerSample = 1;
+			}
+			int32_t rampRate = rampPerSample * numSamples;
 			int32_t remaining = gateAmplitude - gateTarget;
 			gateAmplitude -= std::min(remaining, rampRate);
 		}
-		amplitude = multiply_32x32_rshift32(amplitude, gateAmplitude) << 1;
-		amplitudeIncrement = multiply_32x32_rshift32(amplitudeIncrement, gateAmplitude) << 1;
+		// Interpolate gate across the block: start amplitude uses gateAmplitudeStart,
+		// end amplitude uses gateAmplitude (after ramp). Recompute increment accordingly.
+		int32_t gatedAmplitudeStart = multiply_32x32_rshift32(amplitude, gateAmplitudeStart) << 1;
+		int32_t gatedAmplitudeEnd = multiply_32x32_rshift32(amplitude + amplitudeIncrement * numSamples, gateAmplitude)
+		                            << 1;
+		amplitudeIncrement = (gatedAmplitudeEnd - gatedAmplitudeStart) / numSamples;
+		amplitude = gatedAmplitudeStart;
 	}
 
 	{
@@ -1161,13 +1189,20 @@ void AudioClip::getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_
 
 		int64_t xScrollSamplesWithinZone = getSamplesFromTicks(xScroll);
 
+		// Shift waveform display to match start offset so the visual aligns with what's heard
+		int64_t offsetSamples = 0;
+		if (startOffset != 0) {
+			int64_t durationInSamples = sampleHolder.getDurationInSamples(true);
+			offsetSamples = ((int64_t)startOffset * durationInSamples) >> 31;
+		}
+
 		if (sampleControls.isCurrentlyReversed()) {
-			*xScrollSamples =
-			    sampleHolder.getEndPos(true) - xScrollSamplesWithinZone - (*xZoomSamples << kDisplayWidthMagnitude);
+			*xScrollSamples = sampleHolder.getEndPos(true) - xScrollSamplesWithinZone
+			                  - (*xZoomSamples << kDisplayWidthMagnitude) - offsetSamples;
 		}
 		else {
 			int64_t sampleStartPos = recorder ? recorder->sample->fileLoopStartSamples : sampleHolder.startPos;
-			*xScrollSamples = xScrollSamplesWithinZone + sampleStartPos;
+			*xScrollSamples = xScrollSamplesWithinZone + sampleStartPos + offsetSamples;
 		}
 	}
 }

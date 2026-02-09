@@ -1085,20 +1085,26 @@ skipAutoRelease: {}
 	                            (sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] >> 1) + 1073741824));
 
 	// Gate mute: ramp gateAmplitude toward target using per-segment attack/release rates
-	// 0 = instant, 127 = slowest fade (~2s). Exponential mapping via bit-shift.
+	// 0 = instant, 127 = slowest fade. Scaled by numSamples for block-size independence.
 	{
 		int32_t gateTarget = sound.gateOpen ? 0x7FFFFFFF : 0;
 		if (gateAmplitude < gateTarget) {
-			// Exponential: shift increases with value, ramp rate halves per ~9 steps
-			// v=0 → shift=0 → instant, v=127 → shift=14 → ~2s fade
 			int32_t shift = ((int32_t)sound.gateAttack * 14) >> 7;
-			int32_t rampRate = INT32_MAX >> shift;
+			int32_t rampPerSample = (INT32_MAX >> shift) / SSI_TX_BUFFER_NUM_SAMPLES;
+			if (rampPerSample < 1) {
+				rampPerSample = 1;
+			}
+			int32_t rampRate = rampPerSample * numSamples;
 			int32_t remaining = gateTarget - gateAmplitude;
 			gateAmplitude += std::min(remaining, rampRate);
 		}
 		else if (gateAmplitude > gateTarget) {
 			int32_t shift = ((int32_t)sound.gateRelease * 14) >> 7;
-			int32_t rampRate = INT32_MAX >> shift;
+			int32_t rampPerSample = (INT32_MAX >> shift) / SSI_TX_BUFFER_NUM_SAMPLES;
+			if (rampPerSample < 1) {
+				rampPerSample = 1;
+			}
+			int32_t rampRate = rampPerSample * numSamples;
 			int32_t remaining = gateAmplitude - gateTarget;
 			gateAmplitude -= std::min(remaining, rampRate);
 		}
