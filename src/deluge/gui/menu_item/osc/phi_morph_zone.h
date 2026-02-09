@@ -106,7 +106,7 @@ public:
 			float& phase = (zoneId_ == 0) ? source.phiMorphPhaseOffsetA : source.phiMorphPhaseOffsetB;
 			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 1.0f);
 			char buffer[16];
-			snprintf(buffer, sizeof(buffer), "P:%d", static_cast<int32_t>(phase));
+			snprintf(buffer, sizeof(buffer), "P:%d", static_cast<int32_t>(std::floor(effectivePhaseOffset())));
 			display->displayPopup(buffer);
 			renderUIsForOled();
 			suppressNotification_ = true;
@@ -166,7 +166,7 @@ private:
 
 	static inline char coordBuffer_[12] = {};
 	static void cacheCoordDisplay(float phaseOffset, int32_t value) {
-		int32_t p = static_cast<int32_t>(phaseOffset);
+		int32_t p = static_cast<int32_t>(std::floor(phaseOffset));
 		int32_t z = value >> 7; // 0-1023 -> 0-7 (zone index)
 		snprintf(coordBuffer_, sizeof(coordBuffer_), "%d:%d", p, z);
 	}

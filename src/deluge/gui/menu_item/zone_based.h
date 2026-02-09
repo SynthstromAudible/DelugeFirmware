@@ -151,15 +151,9 @@ public:
 				setPhaseOffset(phaseOffset + 1.0f);
 			}
 			else if (newValue < 0) {
-				// Wrap past min: go to end and decrement phase offset (floor at 0)
-				if (phaseOffset >= 1.0f) {
-					this->setValue(newValue + RESOLUTION);
-					setPhaseOffset(phaseOffset - 1.0f);
-				}
-				else {
-					// At phaseOffset=0, clamp at min (can't go negative)
-					this->setValue(0);
-				}
+				// Wrap past min: go to end and decrement phase offset
+				this->setValue(newValue + RESOLUTION);
+				setPhaseOffset(phaseOffset - 1.0f);
 			}
 			else {
 				this->setValue(newValue);
@@ -345,15 +339,9 @@ public:
 				setPhaseOffset(phaseOffset + 1.0f);
 			}
 			else if (newValue < 0) {
-				// Wrap past min: go to end and decrement phase offset (floor at 0)
-				if (phaseOffset >= 1.0f) {
-					this->setValue(newValue + RESOLUTION);
-					setPhaseOffset(phaseOffset - 1.0f);
-				}
-				else {
-					// At phaseOffset=0, clamp at min (can't go negative)
-					this->setValue(0);
-				}
+				// Wrap past min: go to end and decrement phase offset
+				this->setValue(newValue + RESOLUTION);
+				setPhaseOffset(phaseOffset - 1.0f);
 			}
 			else {
 				this->setValue(newValue);

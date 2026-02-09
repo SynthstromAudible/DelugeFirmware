@@ -195,6 +195,16 @@ class DisperserTopo final : public ZoneBasedDualParam<params::GLOBAL_DISPERSER_T
 public:
 	using ZoneBasedDualParam::ZoneBasedDualParam;
 
+	[[nodiscard]] bool supportsAutoWrap() const override { return true; }
+
+	[[nodiscard]] float getPhaseOffset() const override {
+		return soundEditor.currentModControllable->disperser.phases.topoPhaseOffset;
+	}
+
+	void setPhaseOffset(float offset) override {
+		soundEditor.currentModControllable->disperser.phases.topoPhaseOffset = offset;
+	}
+
 	// Field accessors for ZoneBasedPatchedParam (sync with disperser.topo)
 	[[nodiscard]] q31_t getFieldValue() const override {
 		return soundEditor.currentModControllable->disperser.topo.value;
@@ -254,7 +264,8 @@ public:
 			float& phase = soundEditor.currentModControllable->disperser.phases.topoPhaseOffset;
 			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 0.1f);
 			char buffer[16];
-			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(phase * 10.0f));
+			double eff = soundEditor.currentModControllable->disperser.phases.effectiveTopo();
+			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(std::floor(eff)));
 			display->displayPopup(buffer);
 			renderUIsForOled(); // Refresh display for consistency
 			suppressNotification_ = true;
@@ -294,6 +305,16 @@ private:
 class DisperserTwist final : public ZoneBasedDualParam<params::GLOBAL_DISPERSER_TWIST> {
 public:
 	using ZoneBasedDualParam::ZoneBasedDualParam;
+
+	[[nodiscard]] bool supportsAutoWrap() const override { return true; }
+
+	[[nodiscard]] float getPhaseOffset() const override {
+		return soundEditor.currentModControllable->disperser.phases.twistPhaseOffset;
+	}
+
+	void setPhaseOffset(float offset) override {
+		soundEditor.currentModControllable->disperser.phases.twistPhaseOffset = offset;
+	}
 
 	// Field accessors for ZoneBasedPatchedParam (sync with disperser.twist)
 	[[nodiscard]] q31_t getFieldValue() const override {
@@ -348,7 +369,8 @@ public:
 			float& phase = soundEditor.currentModControllable->disperser.phases.twistPhaseOffset;
 			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 0.1f);
 			char buffer[16];
-			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(phase * 10.0f));
+			double eff = soundEditor.currentModControllable->disperser.phases.effectiveMeta();
+			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(std::floor(eff)));
 			display->displayPopup(buffer);
 			renderUIsForOled(); // Refresh display to show updated coordinate format
 			suppressNotification_ = true;
@@ -406,7 +428,7 @@ private:
 	static void cacheCoordDisplay(double phaseOffset, int32_t value) {
 		// Format: "P:Z" where P=phaseOffset (int), Z=zone index (0-7)
 		// 128 encoder clicks = 1 zone, so Z increments once per zone traversal
-		int32_t p = static_cast<int32_t>(phaseOffset);
+		int32_t p = static_cast<int32_t>(std::floor(phaseOffset));
 		int32_t z = value >> 7; // 0-1023 → 0-7 (zone index)
 		snprintf(coordBuffer_, sizeof(coordBuffer_), "%d:%d", p, z);
 	}

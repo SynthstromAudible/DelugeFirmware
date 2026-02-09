@@ -289,7 +289,7 @@ private:
 	static void cacheTwistNum(float gammaPhase, int32_t value) {
 		// Format: "P:Y" where P=gammaPhase (int), Y=zone index (0-7)
 		// 128 encoder clicks = 1 zone, so Y increments once per zone traversal
-		int32_t p = static_cast<int32_t>(gammaPhase);
+		int32_t p = static_cast<int32_t>(std::floor(gammaPhase));
 		int32_t y = value >> 7; // 0-1023 → 0-7 (zone index)
 		snprintf(twistBuffer_, sizeof(twistBuffer_), "%d:%d", p, y);
 	}

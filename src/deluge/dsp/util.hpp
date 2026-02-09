@@ -97,8 +97,8 @@ inline void foldBuffer(q31_t* startSample, q31_t* endSample, q31_t foldLevel) {
 /// @param duty Active portion 0.0-1.0 (default 1.0 = full triangle, no deadzone)
 /// @return Output 0.0 to 1.0
 inline float triangleSimpleUnipolar(float phase, float duty = 1.0f) {
-	// Fast floor via int32_t truncation (valid for non-negative phase)
-	phase = phase - static_cast<float>(static_cast<int32_t>(phase));
+	// Wrap to [0,1) — floorf handles negative phases correctly (truncation does not)
+	phase = phase - floorf(phase);
 	float halfDuty = duty * 0.5f;
 	float invHalfDuty = 2.0f / duty; // One division instead of two
 
@@ -116,8 +116,8 @@ inline float triangleSimpleUnipolar(float phase, float duty = 1.0f) {
 /// @param duty Active portion 0.0-1.0 (default 1.0 = full triangle, no deadzone)
 /// @return Output -1.0 to +1.0
 inline float triangleFloat(float phase, float duty = 1.0f) {
-	// Fast floor via int32_t truncation (valid for non-negative phase)
-	phase = phase - static_cast<float>(static_cast<int32_t>(phase));
+	// Wrap to [0,1) — floorf handles negative phases correctly (truncation does not)
+	phase = phase - floorf(phase);
 	float quarterDuty = duty * 0.25f;
 	float halfDuty = duty * 0.5f;
 
