@@ -127,6 +127,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_SINE, "SINE"},
         {STRING_FOR_TRIANGLE, "TRIA"},
         {STRING_FOR_TRIANGLE_PW, "TRPW"},
+        {STRING_FOR_PHI_MORPH, "PHI"},
         {STRING_FOR_SQUARE, "SQUA"},
         {STRING_FOR_SAW, "SAW"},
         {STRING_FOR_SAMPLE_AND_HOLD, "S/H"},

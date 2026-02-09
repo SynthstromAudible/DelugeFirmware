@@ -17,7 +17,11 @@
 #pragma once
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/source/patched_param.h"
+#include "hid/buttons.h"
+#include "hid/display/display.h"
 #include "processing/sound/sound.h"
+#include <algorithm>
+#include <cstdio>
 
 namespace deluge::gui::menu_item::osc::source {
 class WaveIndex final : public menu_item::source::PatchedParam, public FormattedTitle {
@@ -30,8 +34,31 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		auto& source = sound->sources[source_id_];
-		return sound->getSynthMode() != SynthMode::FM && source.oscType == OscType::WAVETABLE
-		       && source.hasAtLeastOneAudioFileLoaded();
+		if (sound->getSynthMode() == SynthMode::FM) {
+			return false;
+		}
+		if (source.oscType == OscType::PHI_MORPH) {
+			return true;
+		}
+		return source.oscType == OscType::WAVETABLE && source.hasAtLeastOneAudioFileLoaded();
+	}
+
+	void selectEncoderAction(int32_t offset) override {
+		// Push+twist: adjust gamma (shared phase multiplier) for PHI_MORPH
+		if (Buttons::isButtonPressed(hid::button::SELECT_ENC)
+		    && soundEditor.currentSound->sources[source_id_].oscType == OscType::PHI_MORPH) {
+			Buttons::selectButtonPressUsedUp = true;
+			float& gamma = soundEditor.currentSound->sources[source_id_].phiMorphGamma;
+			gamma = std::max(0.0f, gamma + static_cast<float>(offset));
+			char buffer[16];
+			snprintf(buffer, sizeof(buffer), "G:%d", static_cast<int32_t>(gamma));
+			display->displayPopup(buffer);
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			return;
+		}
+		PatchedParam::selectEncoderAction(offset);
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return SLIDER; }

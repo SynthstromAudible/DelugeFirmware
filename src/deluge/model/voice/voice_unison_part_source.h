@@ -44,6 +44,7 @@ public:
 	uint64_t prevPhaseScaler{0}; // For TRIANGLE_PW phase scaler interpolation across blocks
 	int32_t carrierFeedback;
 	bool active;
+
 	VoiceSample* voiceSample = nullptr;
 	LivePitchShifter* livePitchShifter = nullptr;
 	DxVoice* dxVoice = nullptr;
