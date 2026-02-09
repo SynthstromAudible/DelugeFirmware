@@ -53,44 +53,123 @@ inline constexpr float kPhiMorphRefAmplitude = 1073741823.0f;
 // ============================================================================
 
 // 8 phase delta triangles (bipolar → abs → accumulate → normalize)
+// Wide ratio spread (φ^-0.5 to φ^3.5) for fast decorrelation at high gamma.
 inline constexpr std::array<phi::PhiTriConfig, kPhiMorphMaxSegments> kPhiMorphPhaseBank = {{
-    {phi::kPhi075, 0.6f, 0.000f, true},
-    {phi::kPhi100, 0.5f, 0.111f, true},
-    {phi::kPhi125, 0.5f, 0.222f, true},
-    {phi::kPhi150, 0.6f, 0.333f, true},
-    {phi::kPhi175, 0.5f, 0.444f, true},
-    {phi::kPhi200, 0.5f, 0.555f, true},
-    {phi::kPhi225, 0.6f, 0.666f, true},
-    {phi::kPhi250, 0.5f, 0.777f, true},
+    {phi::kPhiN050, 0.7f, 0.000f, true},
+    {phi::kPhi125, 0.5f, 0.111f, true},
+    {phi::kPhi275, 0.4f, 0.222f, true},
+    {phi::kPhi050, 0.6f, 0.333f, true},
+    {phi::kPhi200, 0.5f, 0.444f, true},
+    {phi::kPhi350, 0.3f, 0.555f, true},
+    {phi::kPhi075, 0.6f, 0.666f, true},
+    {phi::kPhi300, 0.4f, 0.777f, true},
 }};
 
 // 7 amplitude triangles for movable waypoints (bipolar -1 to +1)
+// Mix of sub-golden and super-golden periods with varied amplitudes.
 inline constexpr std::array<phi::PhiTriConfig, kPhiMorphMovableWaypoints> kPhiMorphAmplitudeBank = {{
-    {phi::kPhi050, 0.7f, 0.100f, true},
-    {phi::kPhi067, 0.6f, 0.250f, true},
-    {phi::kPhiN050, 0.6f, 0.400f, true},
-    {phi::kPhi025, 0.7f, 0.550f, true},
-    {phi::kPhi075, 0.5f, 0.700f, true},
-    {phi::kPhi100, 0.6f, 0.850f, true},
-    {phi::kPhiN025, 0.7f, 0.050f, true},
+    {phi::kPhi325, 0.3f, 0.100f, true},
+    {phi::kPhiN050, 0.8f, 0.250f, true},
+    {phi::kPhi175, 0.5f, 0.400f, true},
+    {phi::kPhiN025, 0.9f, 0.550f, true},
+    {phi::kPhi250, 0.4f, 0.700f, true},
+    {phi::kPhi067, 0.7f, 0.850f, true},
+    {phi::kPhi375, 0.3f, 0.050f, true},
 }};
 
 // 8 curvature triangles per segment (bipolar: positive = concave, negative = convex)
+// Wider ratio spread and varied amplitudes for more distinct curvature per zone.
 inline constexpr std::array<phi::PhiTriConfig, kPhiMorphMaxSegments> kPhiMorphCurvatureBank = {{
-    {phi::kPhi125, 0.4f, 0.050f, true},
-    {phi::kPhi175, 0.4f, 0.175f, true},
-    {phi::kPhi075, 0.4f, 0.300f, true},
-    {phi::kPhi225, 0.4f, 0.425f, true},
-    {phi::kPhi100, 0.4f, 0.550f, true},
-    {phi::kPhi150, 0.4f, 0.675f, true},
-    {phi::kPhiN050, 0.4f, 0.800f, true},
-    {phi::kPhi200, 0.4f, 0.925f, true},
+    {phi::kPhi275, 0.3f, 0.050f, true},
+    {phi::kPhiN050, 0.6f, 0.175f, true},
+    {phi::kPhi150, 0.4f, 0.300f, true},
+    {phi::kPhi350, 0.3f, 0.425f, true},
+    {phi::kPhi025, 0.5f, 0.550f, true},
+    {phi::kPhi225, 0.4f, 0.675f, true},
+    {phi::kPhiN025, 0.6f, 0.800f, true},
+    {phi::kPhi300, 0.3f, 0.925f, true},
 }};
 
 // 1 gain triangle (unipolar) - controls amplitude scaling per zone.
 // Values > 1.0 cause flat-topped clipping for square-like waveforms.
 inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphGainBank = {{
     {phi::kPhi150, 0.5f, 0.500f, false},
+}};
+
+// 1 endpoint triangle (unipolar) - non-zero start/end amplitude for pulse-like waveforms.
+// 30% duty cycle: only produces non-zero endpoints for ~30% of zone positions.
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphEndpointBank = {{
+    {phi::kPhi225, 1.0f, 0.300f, false},
+}};
+
+// 1 morph amplitude overshoot triangle (unipolar) — controls how much amplitude
+// pushes beyond linear interpolation during crossfade midpoint.
+// Derived from zone B only (morph target defines transition character).
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphAmpOvershootBank = {{
+    {phi::kPhi175, 0.6f, 0.200f, false},
+}};
+
+// 1 morph curvature boost triangle (unipolar) — controls how much curvature
+// is amplified during crossfade midpoint for richer harmonics.
+// Derived from zone B only.
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphCurvBoostBank = {{
+    {phi::kPhi300, 0.4f, 0.700f, false},
+}};
+
+// 1 morph phase distortion triangle (bipolar) — warps waypoint phases during crossfade.
+// Quadratic warp: compresses one half of the cycle, stretches the other.
+// Only active at crossfade midpoint (scaled by morphExcite). Derived from zone B.
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphPhaseDistortBank = {{
+    {phi::kPhi125, 0.7f, 0.450f, true},
+}};
+
+// --- Waveform shaping banks (applied at wavetable construction) ---
+
+// 1 sine blend triangle (unipolar) — lerps waypoint amplitudes toward sin(2π × phase).
+// Strengthens fundamental by smoothing toward the purest possible tone.
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphSineBlendBank = {{
+    {phi::kPhi067, 0.5f, 0.600f, false},
+}};
+
+// 1 odd symmetry triangle (unipolar) — enforces f(x) = -f(1-x) by pairing waypoints.
+// Eliminates even harmonics for cleaner, more organ/flute-like tones.
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphOddSymBank = {{
+    {phi::kPhi375, 0.4f, 0.350f, false},
+}};
+
+// 1 amplitude windowing triangle (unipolar) — raised cosine taper toward cycle extremes.
+// Concentrates energy in the waveform center, strengthening the fundamental.
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphWindowBank = {{
+    {phi::kPhi025, 0.3f, 0.800f, false},
+}};
+
+// 1 slope match triangle (unipolar) — blends curvatures toward C1-continuous values.
+// Computed from Catmull-Rom tangents at waypoint boundaries for smoother transitions.
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphSlopeMatchBank = {{
+    {phi::kPhiN025, 0.6f, 0.150f, false},
+}};
+
+// --- Per-sample render modifiers ---
+
+// 1 phase jitter triangle (unipolar) — adds noise to phase for analog drift character.
+// Noise amplitude scales with triangle value, max ~5% of phase cycle.
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphPhaseJitterBank = {{
+    {phi::kPhi250, 0.1f, 0.075f, false},
+}};
+
+// 1 amplitude-dependent noise triangle (unipolar) — adds grit scaled by signal level.
+// Louder parts get more noise, zero crossings stay clean. Analog VCO character.
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphAmpNoiseBank = {{
+    {phi::kPhi050, 0.1f, 0.525f, false},
+}};
+
+// --- Waveform asymmetry (applied at wavetable construction) ---
+
+// 1 asymmetric gain triangle (bipolar) — breaks waveform symmetry for even harmonics.
+// Negative values: reduce gain on positive-amplitude waypoints only.
+// Positive values: symmetric gain boost on all waypoints.
+inline constexpr std::array<phi::PhiTriConfig, 1> kPhiMorphAsymGainBank = {{
+    {phi::kPhi350, 0.5f, 0.875f, true},
 }};
 
 // ============================================================================
@@ -114,7 +193,13 @@ struct PhiMorphWavetable {
 	float phases[kPhiMorphMovableWaypoints];
 	float amplitudes[kPhiMorphMovableWaypoints]; // Already gain-scaled, may exceed [-1,1]
 	float curvatures[kPhiMorphMaxSegments];
-	float gain; // Amplitude gain multiplier [0.5..2.0]
+	float gain;              // Amplitude gain multiplier [0.5..2.0]
+	float endpointAmp;       // Non-zero start/end amplitude for pulse-like waveforms [0..~0.8]
+	float morphAmpOvershoot; // Amplitude overshoot during morph [0..~1.5]
+	float morphCurvBoost;    // Curvature boost multiplier during morph [0..~6.0]
+	float morphPhaseDistort; // Phase distortion during morph [-0.15..+0.15]
+	float phaseJitter;       // Phase noise amount [0..1], scaled to ~5% of cycle in render
+	float ampNoise;          // Amplitude-dependent noise amount [0..0.5]
 };
 
 struct PhiMorphCache {
@@ -124,6 +209,10 @@ struct PhiMorphCache {
 	// Crossfaded effective table — shared across unison voices within a buffer
 	PhiMorphWavetable effective{};
 	q31_t prevCrossfade{INT32_MIN};
+
+	// IIR-smoothed crossfade position to prevent clicks from abrupt table changes.
+	// Caller advances this once per buffer; renderPhiMorph uses it for the rebuild check.
+	q31_t smoothedCrossfade{INT32_MIN};
 
 	uint16_t prevZoneA{0xFFFF};
 	uint16_t prevZoneB{0xFFFF};
@@ -151,6 +240,6 @@ q31_t evaluateWaveformDirect(const PhiMorphWavetable& table, uint32_t phase);
 /// Waveform is evaluated per sample from crossfaded wavetable segments.
 void renderPhiMorph(PhiMorphCache& cache, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
                     uint32_t phaseIncrement, uint32_t* startPhase, uint32_t retriggerPhase, int32_t amplitude,
-                    int32_t amplitudeIncrement, bool applyAmplitude, q31_t crossfade);
+                    int32_t amplitudeIncrement, bool applyAmplitude, q31_t crossfade, uint32_t pulseWidth);
 
 } // namespace deluge::dsp

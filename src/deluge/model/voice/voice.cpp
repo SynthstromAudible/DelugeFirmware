@@ -1473,12 +1473,24 @@ cantBeDoingOscSyncForFirstOsc:
 							cache.prevPhaseOffsetB = effOffB;
 							cache.prevCrossfade = INT32_MIN; // Force effective table rebuild
 						}
-						q31_t crossfade = sourceWaveIndexesLastTime[s];
+						// IIR smooth crossfade (once per buffer via u == 0 guard)
+						if (u == 0) {
+							auto& smoothed = cache.smoothedCrossfade;
+							q31_t target = sourceWaveIndexesLastTime[s];
+							if (smoothed == INT32_MIN) {
+								smoothed = target;
+							}
+							else if (smoothed != target) {
+								q31_t diff = target - smoothed;
+								smoothed += (std::abs(diff) < 256) ? diff : (diff >> 2);
+							}
+						}
+						q31_t crossfade = cache.smoothedCrossfade;
 						memset(spareRenderingBuffer[s + 2], 0, numSamples * sizeof(int32_t));
 						dsp::renderPhiMorph(cache, spareRenderingBuffer[s + 2],
 						                    spareRenderingBuffer[s + 2] + numSamples, numSamples, phaseIncrements[s],
 						                    &unisonParts[u].sources[s].oscPos, sound.oscRetriggerPhase[s], 0, 0, false,
-						                    crossfade);
+						                    crossfade, pulseWidth);
 					}
 					else {
 						dsp::Oscillator::renderOsc(
@@ -2175,6 +2187,19 @@ void Voice::renderBasicSource(Sound& sound, ParamManagerForTimeline* paramManage
 		sourceAmplitude += amplitudeIncrement * samplesToSkip;
 	}
 
+	// IIR smooth crossfade position for PHI_MORPH (once per buffer, before unison loop)
+	if (sound.sources[s].oscType == OscType::PHI_MORPH && sound.sources[s].phiMorphCache) {
+		auto& smoothed = sound.sources[s].phiMorphCache->smoothedCrossfade;
+		q31_t target = sourceWaveIndexesLastTime[s];
+		if (smoothed == INT32_MIN) {
+			smoothed = target;
+		}
+		else if (smoothed != target) {
+			q31_t diff = target - smoothed;
+			smoothed += (std::abs(diff) < 256) ? diff : (diff >> 2);
+		}
+	}
+
 	// For each unison part
 	for (int32_t u = 0; u < sound.numUnison; u++) {
 
@@ -2645,7 +2670,7 @@ dontUseCache: {}
 				cache.prevCrossfade = INT32_MIN; // Force effective table rebuild
 			}
 
-			q31_t crossfade = sourceWaveIndexesLastTime[s];
+			q31_t crossfade = cache.smoothedCrossfade;
 
 			int32_t* renderBuffer = oscBuffer;
 			if (stereoUnison) {
@@ -2655,9 +2680,11 @@ dontUseCache: {}
 
 			int32_t* oscBufferEnd = renderBuffer + numSamples;
 
+			uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
+
 			dsp::renderPhiMorph(cache, renderBuffer, oscBufferEnd, numSamples, phaseIncrement,
 			                    &unisonParts[u].sources[s].oscPos, sound.oscRetriggerPhase[s], sourceAmplitude,
-			                    amplitudeIncrement, true, crossfade);
+			                    amplitudeIncrement, true, crossfade, pulseWidth);
 
 			if (stereoUnison) {
 				for (int32_t i = 0; i < numSamples; i++) {
