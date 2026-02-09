@@ -58,7 +58,7 @@ public:
 		}
 
 		return oscType != OscType::SAMPLE && oscType != OscType::INPUT_L && oscType != OscType::INPUT_R
-		       && oscType != OscType::INPUT_STEREO;
+		       && oscType != OscType::INPUT_STEREO && oscType != OscType::PHI_MORPH;
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {

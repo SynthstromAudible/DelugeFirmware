@@ -21,6 +21,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"
 #include "dsp/interpolate/interpolate.h"
+#include "io/debug/fx_benchmark.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
@@ -1055,6 +1056,11 @@ uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSample
                            uint32_t resetterPhaseIncrement, int32_t resetterDivideByPhaseIncrement,
                            uint32_t retriggerPhase, int32_t waveIndex, int32_t waveIndexIncrement) {
 
+#if ENABLE_FX_BENCHMARK
+	FX_BENCH_DECLARE(bench_wt_render, "wavetable", "render");
+	FX_BENCH_START(bench_wt_render);
+#endif
+
 	// Decide on ideal band
 	int32_t bHere = bands.search(phaseIncrement, GREATER_OR_EQUAL);
 	if (bHere >= bands.getNumElements()) {
@@ -1177,6 +1183,10 @@ doneRenderingACycle:
 			phase += phaseIncrement * numSamples;
 		}
 	}
+
+#if ENABLE_FX_BENCHMARK
+	FX_BENCH_STOP(bench_wt_render);
+#endif
 
 	return phase;
 }

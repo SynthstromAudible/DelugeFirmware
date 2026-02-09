@@ -763,6 +763,9 @@ char const* oscTypeToString(OscType oscType) {
 	case OscType::WAVETABLE:
 		return "wavetable";
 
+	case OscType::PHI_MORPH:
+		return "phiMorph";
+
 	case OscType::INPUT_L:
 		return "inLeft";
 
@@ -805,6 +808,9 @@ OscType stringToOscType(char const* string) {
 	}
 	else if (!strcmp(string, "wavetable")) {
 		return OscType::WAVETABLE;
+	}
+	else if (!strcmp(string, "phiMorph")) {
+		return OscType::PHI_MORPH;
 	}
 	else if (!strcmp(string, "inLeft")) {
 		return OscType::INPUT_L;

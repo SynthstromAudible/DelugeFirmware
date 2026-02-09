@@ -22,6 +22,10 @@
 #include "storage/multi_range/multi_range_array.h"
 #include "util/phase_increment_fine_tuner.h"
 
+namespace deluge::dsp {
+struct PhiMorphCache;
+}
+
 class Sound;
 class ParamManagerForTimeline;
 class WaveTable;
@@ -47,6 +51,14 @@ public:
 	DxPatch* dxPatch;
 	bool dxPatchChanged = false;
 	SampleRepeatMode repeatMode;
+
+	// PHI_MORPH zone parameters and cache (lazily allocated)
+	uint16_t phiMorphZoneA{0};
+	uint16_t phiMorphZoneB{0};
+	float phiMorphPhaseOffsetA{0.0f};
+	float phiMorphPhaseOffsetB{0.0f};
+	float phiMorphGamma{0.0f}; // Shared phase multiplier (push+twist on wave index)
+	deluge::dsp::PhiMorphCache* phiMorphCache{nullptr};
 
 	int8_t timeStretchAmount;
 

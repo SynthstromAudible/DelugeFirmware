@@ -18,6 +18,7 @@
 #include "processing/source.h"
 #include "definitions_cxx.hpp"
 #include "dsp/dx/engine.h"
+#include "dsp/phi_morph.hpp"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "model/sample/sample.h"
@@ -48,6 +49,7 @@ Source::Source() {
 
 Source::~Source() {
 	destructAllMultiRanges();
+	delete phiMorphCache;
 }
 
 // Destructs the actual MultiRanges, but doesn't actually deallocate the memory, aka calling empty() on the Array - the

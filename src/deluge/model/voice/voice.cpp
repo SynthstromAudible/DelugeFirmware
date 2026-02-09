@@ -21,6 +21,7 @@
 #include "dsp/dx/engine.h"
 #include "dsp/filter/filter_set.h"
 #include "dsp/oscillators/sine_osc.h"
+#include "dsp/phi_morph.hpp"
 #include "dsp/shaper_buffer.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
@@ -1455,13 +1456,39 @@ cantBeDoingOscSyncForFirstOsc:
 
 					OscType oscType = sound.sources[s].oscType;
 
-					dsp::Oscillator::renderOsc(
-					    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples, numSamples,
-					    phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
-					    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
-					    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s],
-					    static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile),
-					    &unisonParts[u].sources[s].prevPhaseScaler);
+					if (oscType == OscType::PHI_MORPH) {
+						auto& source = sound.sources[s];
+						if (!source.phiMorphCache) {
+							source.phiMorphCache = new dsp::PhiMorphCache{};
+						}
+						auto& cache = *source.phiMorphCache;
+						float effOffA = source.phiMorphPhaseOffsetA + source.phiMorphGamma;
+						float effOffB = source.phiMorphPhaseOffsetB + source.phiMorphGamma;
+						if (cache.needsUpdate(source.phiMorphZoneA, source.phiMorphZoneB, effOffA, effOffB)) {
+							cache.bankA = dsp::buildPhiMorphWavetable(source.phiMorphZoneA, effOffA);
+							cache.bankB = dsp::buildPhiMorphWavetable(source.phiMorphZoneB, effOffB);
+							cache.prevZoneA = source.phiMorphZoneA;
+							cache.prevZoneB = source.phiMorphZoneB;
+							cache.prevPhaseOffsetA = effOffA;
+							cache.prevPhaseOffsetB = effOffB;
+							cache.prevCrossfade = INT32_MIN; // Force effective table rebuild
+						}
+						q31_t crossfade = sourceWaveIndexesLastTime[s];
+						memset(spareRenderingBuffer[s + 2], 0, numSamples * sizeof(int32_t));
+						dsp::renderPhiMorph(cache, spareRenderingBuffer[s + 2],
+						                    spareRenderingBuffer[s + 2] + numSamples, numSamples, phaseIncrements[s],
+						                    &unisonParts[u].sources[s].oscPos, sound.oscRetriggerPhase[s], 0, 0, false,
+						                    crossfade);
+					}
+					else {
+						dsp::Oscillator::renderOsc(
+						    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples,
+						    numSamples, phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
+						    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
+						    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s],
+						    static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile),
+						    &unisonParts[u].sources[s].prevPhaseScaler);
+					}
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
 					// we need to compensate
@@ -2599,6 +2626,45 @@ dontUseCache: {}
 			}
 
 			// Or regular wave
+		}
+		else if (sound.sources[s].oscType == OscType::PHI_MORPH) {
+			auto& source = sound.sources[s];
+			if (!source.phiMorphCache) {
+				source.phiMorphCache = new dsp::PhiMorphCache{};
+			}
+			auto& cache = *source.phiMorphCache;
+			float effOffA = source.phiMorphPhaseOffsetA + source.phiMorphGamma;
+			float effOffB = source.phiMorphPhaseOffsetB + source.phiMorphGamma;
+			if (cache.needsUpdate(source.phiMorphZoneA, source.phiMorphZoneB, effOffA, effOffB)) {
+				cache.bankA = dsp::buildPhiMorphWavetable(source.phiMorphZoneA, effOffA);
+				cache.bankB = dsp::buildPhiMorphWavetable(source.phiMorphZoneB, effOffB);
+				cache.prevZoneA = source.phiMorphZoneA;
+				cache.prevZoneB = source.phiMorphZoneB;
+				cache.prevPhaseOffsetA = effOffA;
+				cache.prevPhaseOffsetB = effOffB;
+				cache.prevCrossfade = INT32_MIN; // Force effective table rebuild
+			}
+
+			q31_t crossfade = sourceWaveIndexesLastTime[s];
+
+			int32_t* renderBuffer = oscBuffer;
+			if (stereoUnison) {
+				renderBuffer = spareRenderingBuffer[2];
+				memset(renderBuffer, 0, SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
+			}
+
+			int32_t* oscBufferEnd = renderBuffer + numSamples;
+
+			dsp::renderPhiMorph(cache, renderBuffer, oscBufferEnd, numSamples, phaseIncrement,
+			                    &unisonParts[u].sources[s].oscPos, sound.oscRetriggerPhase[s], sourceAmplitude,
+			                    amplitudeIncrement, true, crossfade);
+
+			if (stereoUnison) {
+				for (int32_t i = 0; i < numSamples; i++) {
+					oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
+					oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
+				}
+			}
 		}
 		else [[likely]] {
 			uint32_t oscSyncPosThisUnison;

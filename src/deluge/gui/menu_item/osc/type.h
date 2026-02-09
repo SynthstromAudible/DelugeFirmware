@@ -62,6 +62,7 @@ public:
 
 		    // Haven't actually really determined if this needs to be here - maybe not?
 		    OscType::WAVETABLE,
+		    OscType::PHI_MORPH,
 		};
 
 		if (util::one_of(oldValue, needs_unassignment) || util::one_of(newValue, needs_unassignment)) {
@@ -89,6 +90,7 @@ public:
 		    l10n::getView(STRING_FOR_SAW),           //<
 		    l10n::getView(STRING_FOR_ANALOG_SAW),    //<
 		    l10n::getView(STRING_FOR_WAVETABLE),     //<
+		    l10n::getView(STRING_FOR_PHI_MORPH),     //<
 		};
 
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
@@ -158,6 +160,8 @@ public:
 				return AudioEngine::lineInPluggedIn ? OLED::inputIcon : OLED::micIcon;
 			case OscType::WAVETABLE:
 				return OLED::wavetableIcon;
+			case OscType::PHI_MORPH:
+				return OLED::phiMorphIcon;
 			default:
 				return OLED::sineIcon;
 			}

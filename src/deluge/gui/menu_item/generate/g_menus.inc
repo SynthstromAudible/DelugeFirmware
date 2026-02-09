@@ -74,11 +74,15 @@ sample::Interpolation sample0InterpolationMenu{STRING_FOR_INTERPOLATION, STRING_
 sample::Start sample0StartMenu{STRING_FOR_START_POINT, 0};
 sample::End sample0EndMenu{STRING_FOR_END_POINT, 0};
 sample::StartOffset sample0StartOffsetMenu{STRING_FOR_START_OFFSET, 0};
-std::array<MenuItem*, 15> child6 = {
+osc::PhiMorphZone osc0PhiZoneAMenu{STRING_FOR_PHI_ZONE_A, STRING_FOR_OSC_PHI_ZONE_A_MENU_TITLE, 0, 0};
+osc::PhiMorphZone osc0PhiZoneBMenu{STRING_FOR_PHI_ZONE_B, STRING_FOR_OSC_PHI_ZONE_B_MENU_TITLE, 0, 1};
+std::array<MenuItem*, 17> child6 = {
     &osc0TypeMenu,
     &deluge::gui::menu_item::file0SelectorMenu,
-    &source0TransposeMenu,
+    &osc0PhiZoneAMenu,
     &source0WaveIndexMenu,
+    &osc0PhiZoneBMenu,
+    &source0TransposeMenu,
     &osc0PulseWidthMenu,
     &source0FeedbackMenu,
     &osc0PhaseMenu,
@@ -107,11 +111,15 @@ sample::Interpolation sample1InterpolationMenu{STRING_FOR_INTERPOLATION, STRING_
 sample::Start sample1StartMenu{STRING_FOR_START_POINT, 1};
 sample::End sample1EndMenu{STRING_FOR_END_POINT, 1};
 sample::StartOffset sample1StartOffsetMenu{STRING_FOR_START_OFFSET, 1};
-std::array<MenuItem*, 15> child7 = {
+osc::PhiMorphZone osc1PhiZoneAMenu{STRING_FOR_PHI_ZONE_A, STRING_FOR_OSC_PHI_ZONE_A_MENU_TITLE, 1, 0};
+osc::PhiMorphZone osc1PhiZoneBMenu{STRING_FOR_PHI_ZONE_B, STRING_FOR_OSC_PHI_ZONE_B_MENU_TITLE, 1, 1};
+std::array<MenuItem*, 17> child7 = {
     &osc1TypeMenu,
     &deluge::gui::menu_item::file1SelectorMenu,
-    &source1TransposeMenu,
+    &osc1PhiZoneAMenu,
     &source1WaveIndexMenu,
+    &osc1PhiZoneBMenu,
+    &source1TransposeMenu,
     &osc1PulseWidthMenu,
     &source1FeedbackMenu,
     &osc1PhaseMenu,
