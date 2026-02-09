@@ -235,6 +235,7 @@ enum class String : size_t {
 	// gui/menu_item/lfo/shape.h
 	STRING_FOR_SINE,
 	STRING_FOR_TRIANGLE,
+	STRING_FOR_TRIANGLE_PW,
 	STRING_FOR_SQUARE,
 	STRING_FOR_SAW,
 	STRING_FOR_SAMPLE_AND_HOLD,

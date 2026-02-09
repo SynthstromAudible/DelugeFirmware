@@ -59,3 +59,25 @@ extern uint32_t z, w, jcong;
 	}
 	return slope * phase + offset;
 }
+
+/// Compute phase scaler for audio-rate triangle with dead zone
+[[gnu::always_inline]] inline uint64_t computeTrianglePhaseScaler(uint32_t phaseWidth) {
+	return 0xFFFFFFFFFFFFFFFFULL / phaseWidth;
+}
+
+/// Bipolar triangle with dead zone — one complete cycle then silence
+[[gnu::always_inline]] inline int32_t triangleWithDeadzoneBipolar(uint32_t phase, uint32_t phaseWidth,
+                                                                  uint64_t phaseScaler = 0) {
+	if (phase >= phaseWidth) {
+		return 0;
+	}
+
+	if (phaseScaler == 0) {
+		phaseScaler = 0xFFFFFFFFFFFFFFFFULL / phaseWidth;
+	}
+
+	uint32_t scaledPhase = static_cast<uint32_t>((static_cast<uint64_t>(phase) * phaseScaler) >> 32);
+
+	// Offset so waveform starts at 0 (quarter cycle), use getTriangleSmall for amplitude matching
+	return getTriangleSmall(scaledPhase + 0x40000000u);
+}

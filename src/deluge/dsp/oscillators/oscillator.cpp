@@ -20,6 +20,7 @@
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/fixedpoint.h"
+#include "util/waves.h"
 
 namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
@@ -29,7 +30,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
                       uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
                       int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-                      int sourceWaveIndexLastTime, WaveTable* waveTable) {
+                      int sourceWaveIndexLastTime, WaveTable* waveTable, uint64_t* prevPhaseScaler) {
 
 	// We save a decent bit of processing power by grabbing a local copy of the phase to work with, and just
 	// incrementing the startPhase once
@@ -50,7 +51,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 		retriggerPhase += 3221225472u;
 	}
 
-	else if (type != OscType::TRIANGLE) [[likely]] { // Not sines and not triangles
+	else if (type != OscType::TRIANGLE && type != OscType::TRIANGLE_PW) [[likely]] { // Not sines and not triangles
 		uint32_t phaseIncrementForCalculations = phaseIncrement;
 
 		// PW for the perfect mathematical/digital square - we'll do it by multiplying two squares
@@ -81,8 +82,9 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 		}
 	}
 
-	if (type != OscType::SQUARE) {
+	if (type != OscType::SQUARE && type != OscType::TRIANGLE_PW) {
 		// PW for oscillators other than the perfect mathematical square
+		// TRIANGLE_PW handles pulse width differently (dead zones, not phase scaling)
 		doPulseWave = (pulseWidth && !doOscSync);
 		if (doPulseWave) {
 
@@ -261,6 +263,55 @@ skipPastOscSyncStuff:
 			}
 			goto callRenderWave;
 		}
+	}
+
+	else if (type == OscType::TRIANGLE_PW) {
+		// pulseWidth: 0 (UI 0) → INT32_MAX (UI 50) via half-precision
+		// Inverted to match square wave UX: CW = narrower pulses
+		constexpr uint32_t kMinPhaseWidth = 0x00800000; // ~0.2% duty cycle minimum
+
+		uint32_t phaseWidth = 0xFFFFFFFF - (pulseWidth << 1);
+		if (phaseWidth < kMinPhaseWidth) {
+			phaseWidth = kMinPhaseWidth;
+		}
+
+		int32_t amplitudeNow = amplitude << 1;
+		uint32_t phaseNow = phase + retriggerPhase;
+		int32_t* thisSample = bufferStart;
+		amplitudeIncrement <<= 1;
+
+		uint64_t phaseScaler = computeTrianglePhaseScaler(phaseWidth);
+
+		uint64_t phaseScalerNow;
+		int64_t phaseScalerIncrement;
+		if (prevPhaseScaler != nullptr) {
+			phaseScalerNow = *prevPhaseScaler;
+			phaseScalerIncrement = static_cast<int64_t>(phaseScaler - *prevPhaseScaler) / numSamples;
+			*prevPhaseScaler = phaseScaler;
+		}
+		else {
+			phaseScalerNow = phaseScaler;
+			phaseScalerIncrement = 0;
+		}
+
+		if (applyAmplitude) {
+			do {
+				phaseNow += phaseIncrement;
+				amplitudeNow += amplitudeIncrement;
+				phaseScalerNow += phaseScalerIncrement;
+				int32_t value = triangleWithDeadzoneBipolar(phaseNow, phaseWidth, phaseScalerNow);
+				*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, value, amplitudeNow);
+			} while (++thisSample != bufferEnd);
+		}
+		else {
+			do {
+				phaseNow += phaseIncrement;
+				phaseScalerNow += phaseScalerIncrement;
+				int32_t value = triangleWithDeadzoneBipolar(phaseNow, phaseWidth, phaseScalerNow);
+				*thisSample = value << 1;
+			} while (++thisSample != bufferEnd);
+		}
+		return;
 	}
 
 	else [[likely]] {

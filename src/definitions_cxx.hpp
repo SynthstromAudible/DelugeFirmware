@@ -383,6 +383,7 @@ enum class MIDIFollowFeedbackAutomationMode : uint8_t {
 enum class OscType : uint8_t {
 	SINE,
 	TRIANGLE,
+	TRIANGLE_PW, // Triangle with pulse width (dead zones / truncation)
 	SQUARE,
 	ANALOG_SQUARE,
 	SAW,
