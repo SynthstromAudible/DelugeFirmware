@@ -550,7 +550,7 @@ private:
 	static void cacheCoordDisplay(float phaseOffset, int32_t value) {
 		// Format: "P:Z" where P=phaseOffset (int), Z=zone index (0-7)
 		// 128 encoder clicks = 1 zone (1024 / 8 = 128)
-		int32_t p = static_cast<int32_t>(phaseOffset * 10.0f);
+		int32_t p = static_cast<int32_t>(std::floor(phaseOffset * 10.0f));
 		int32_t z = value >> 7; // 0-1023 → 0-7 (zone index)
 		snprintf(coordBuffer_, sizeof(coordBuffer_), "%d:%d", p, z);
 	}

@@ -257,7 +257,7 @@ public:
 			float& phase = soundEditor.currentModControllable->sineShaper.twistPhaseOffset;
 			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 1.0f);
 			char buffer[16];
-			snprintf(buffer, sizeof(buffer), "T:%d", static_cast<int32_t>(phase));
+			snprintf(buffer, sizeof(buffer), "T:%d", static_cast<int32_t>(std::floor(effectivePhaseOffset())));
 			display->displayPopup(buffer);
 			renderUIsForOled();
 			suppressNotification_ = true;
@@ -314,7 +314,7 @@ private:
 
 	static inline char coord_buffer_[12] = {};
 	static void cacheCoordDisplay(float phase_offset, int32_t value) {
-		int32_t p = static_cast<int32_t>(phase_offset);
+		int32_t p = static_cast<int32_t>(std::floor(phase_offset));
 		int32_t z = value >> 7; // 0-1023 → 0-7 (zone index)
 		snprintf(coord_buffer_, sizeof(coord_buffer_), "%d:%d", p, z);
 	}

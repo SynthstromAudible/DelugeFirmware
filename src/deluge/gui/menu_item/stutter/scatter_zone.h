@@ -117,9 +117,9 @@ public:
 			Buttons::selectButtonPressUsedUp = true;
 			float& phase = soundEditor.currentModControllable->stutterConfig.zoneAPhaseOffset;
 			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 0.1f);
-			// Show current value on display
+			// Show effective value on display (includes gamma contribution)
 			char buffer[16];
-			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(phase * 10.0f));
+			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(std::floor(effectivePhaseOffset())));
 			display->displayPopup(buffer);
 			renderUIsForOled();
 			suppressNotification_ = true;
@@ -174,7 +174,7 @@ private:
 
 	static inline char coord_buffer_[12] = {};
 	static void cacheCoordDisplay(float phase_offset, int32_t value) {
-		int32_t p = static_cast<int32_t>(phase_offset);
+		int32_t p = static_cast<int32_t>(std::floor(phase_offset));
 		int32_t z = value >> 7; // 0-1023 → 0-7 (zone index)
 		snprintf(coord_buffer_, sizeof(coord_buffer_), "%d:%d", p, z);
 	}
@@ -263,9 +263,9 @@ public:
 			Buttons::selectButtonPressUsedUp = true;
 			float& phase = soundEditor.currentModControllable->stutterConfig.zoneBPhaseOffset;
 			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 0.1f);
-			// Show current value on display
+			// Show effective value on display (includes gamma contribution)
 			char buffer[16];
-			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(phase * 10.0f));
+			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(std::floor(effectivePhaseOffset())));
 			display->displayPopup(buffer);
 			renderUIsForOled();
 			suppressNotification_ = true;
@@ -319,7 +319,7 @@ private:
 
 	static inline char coord_buffer_[12] = {};
 	static void cacheCoordDisplay(float phase_offset, int32_t value) {
-		int32_t p = static_cast<int32_t>(phase_offset);
+		int32_t p = static_cast<int32_t>(std::floor(phase_offset));
 		int32_t z = value >> 7;
 		snprintf(coord_buffer_, sizeof(coord_buffer_), "%d:%d", p, z);
 	}
@@ -396,9 +396,9 @@ public:
 			Buttons::selectButtonPressUsedUp = true;
 			float& phase = soundEditor.currentModControllable->stutterConfig.macroConfigPhaseOffset;
 			phase = std::max(0.0f, phase + static_cast<float>(velocity_.getScaledOffset(offset)) * 0.1f);
-			// Show current value on display
+			// Show effective value on display (includes gamma contribution)
 			char buffer[16];
-			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(phase * 10.0f));
+			snprintf(buffer, sizeof(buffer), "offset:%d", static_cast<int32_t>(std::floor(effectivePhaseOffset())));
 			display->displayPopup(buffer);
 			renderUIsForOled();
 			suppressNotification_ = true;
@@ -453,7 +453,7 @@ private:
 
 	static inline char coord_buffer_[12] = {};
 	static void cacheCoordDisplay(float phase_offset, int32_t value) {
-		int32_t p = static_cast<int32_t>(phase_offset);
+		int32_t p = static_cast<int32_t>(std::floor(phase_offset));
 		int32_t z = value >> 7;
 		snprintf(coord_buffer_, sizeof(coord_buffer_), "%d:%d", p, z);
 	}
