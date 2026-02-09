@@ -31,6 +31,14 @@
 - Takeover: when one track inherits buffer from another playing track
 - Status states: OFF, STANDBY, RECORDING, ARMED, PLAYING
 
+## Branch Hierarchy & Syncing
+
+- **upstream/main** (SynthstromAudible/DelugeFirmware) → **owlet-firmware-1.3** (fork base) → **dev** (active development)
+- To sync upstream changes through the chain: `./scripts/sync-upstream.sh`
+- Feature branches are based on **dev**
+- When merging upstream, resolve workflow file conflicts by taking upstream's version
+- Source code conflicts need manual review to preserve owlet-labs additions
+
 ## Testing
 
 - Test on actual hardware when possible
