@@ -116,6 +116,9 @@ public:
 	bool doingLateStart;
 	bool maySetupCache;
 
+	// Sample start offset — slides the playback window within the sample (Q31)
+	int32_t startOffset{0};
+
 	// Gate view data — per-step muting for audio clips (analogous to NoteRow::gateCloses)
 	NoteVector gateCloses;
 	int32_t gateAmplitude{0x7FFFFFFF};

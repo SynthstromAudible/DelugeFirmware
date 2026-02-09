@@ -25,6 +25,7 @@
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h"
+#include "gui/menu_item/audio_clip/start_offset.h"
 #include "gui/menu_item/audio_clip/transpose.h"
 #include "gui/menu_item/audio_compressor/compressor_params.h"
 #include "gui/menu_item/audio_compressor/compressor_values.h"
@@ -1049,6 +1050,7 @@ audio_clip::Reverse audioClipReverseMenu{STRING_FOR_REVERSE};
 audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart{EMPTY_STRING, MarkerType::START};
 audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd{STRING_FOR_WAVEFORM, MarkerType::END};
 AudioInterpolation audioClipInterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_AUDIO_INTERPOLATION};
+audio_clip::StartOffset audioClipStartOffsetMenu{STRING_FOR_START_OFFSET};
 
 HorizontalMenu audioClipSampleMenu{
     STRING_FOR_SAMPLE,
@@ -1059,6 +1061,7 @@ HorizontalMenu audioClipSampleMenu{
         &sample0PitchSpeedMenu,
         &audioClipSampleMarkerEditorMenuEnd,
         &audioClipInterpolationMenu,
+        &audioClipStartOffsetMenu,
     },
 };
 

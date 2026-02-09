@@ -1180,10 +1180,17 @@ readTimestretched:
 
 						// Check this again, cos newer play-head can become inactive in hopEnd(). This probably isn't
 						// really crucial. Added June 2019
-						if (!cache && loopingType == LoopType::NONE
-						    && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+						if (!cache && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
 						    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
-							return false;
+							if (loopingType == LoopType::NONE) {
+								return false;
+							}
+							// Both heads dead but looping — restart the time stretcher.
+							// weShouldBeTimeStretchingNow() will re-create it next render.
+							unassignAllReasons(false);
+							endTimeStretching();
+							setupClusersForInitialPlay(guide, sample, 0, true, priorityRating);
+							return true;
 						}
 					}
 					else {
@@ -1424,9 +1431,17 @@ headsFinishedReading:
 			}
 #endif
 
-			if (!cache && loopingType == LoopType::NONE && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+			if (!cache && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
 			    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
-				return false;
+				if (loopingType == LoopType::NONE) {
+					return false;
+				}
+				// Both heads dead but looping — restart the time stretcher.
+				// weShouldBeTimeStretchingNow() will re-create it next render.
+				unassignAllReasons(false);
+				endTimeStretching();
+				setupClusersForInitialPlay(guide, sample, 0, true, priorityRating);
+				return true;
 			}
 
 			timeStretcher->samplesTilHopEnd -= numSamplesThisTimestretchedRead;

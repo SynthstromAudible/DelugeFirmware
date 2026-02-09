@@ -199,6 +199,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	newClip->voicePriority = voicePriority;
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.isCurrentlyReversed());
+	newClip->startOffset = startOffset;
 
 	// Clone gate closes
 	for (int32_t i = 0; i < const_cast<NoteVector&>(gateCloses).getNumElements(); i++) {
@@ -457,6 +458,19 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 			    playbackHandler.lastSwungTickActioned; // Must do this even if we're going to return due to time
 			                                           // stretching being active
 
+			// Apply start offset as tick shift to slide the playback window
+			if (startOffset != 0 && loopLength > 0) {
+				int64_t tickShift = ((int64_t)startOffset * (int64_t)loopLength) >> 31;
+				if (tickShift < 0) {
+					tickShift += loopLength;
+				}
+				guide.sequenceSyncStartedAtTick -= static_cast<int32_t>(tickShift);
+				guide.wrapSyncPosition = true;
+			}
+			else {
+				guide.wrapSyncPosition = false;
+			}
+
 			// Obviously if no voiceSample yet, need to reset envelope for first usage. Otherwise,
 			// If the envelope's now releasing (e.g. from playback just being stopped and then restarted, e.g. by
 			// pressing <> + play), and if not doing a late start (which would cause more sound to start happening after
@@ -599,6 +613,19 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	sequenceSyncStartedNumTicksAgo = (uint32_t)sequenceSyncStartedNumTicksAgo % (uint32_t)loopLength; // Wrapping
 	guide.sequenceSyncStartedAtTick =
 	    currentInternalTickCount - sequenceSyncStartedNumTicksAgo; // Finally, we've got our value
+
+	// Apply start offset as tick shift to slide the playback window
+	if (startOffset != 0 && loopLength > 0) {
+		int64_t tickShift = ((int64_t)startOffset * (int64_t)loopLength) >> 31;
+		if (tickShift < 0) {
+			tickShift += loopLength;
+		}
+		guide.sequenceSyncStartedAtTick -= static_cast<int32_t>(tickShift);
+		guide.wrapSyncPosition = true;
+	}
+	else {
+		guide.wrapSyncPosition = false;
+	}
 
 	setupPlaybackBounds();
 	sampleZoneChanged(modelStack); // Will only do any thing if there is in fact a voiceSample - which is what we want
@@ -1220,6 +1247,10 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	writer.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
+	if (startOffset != 0) {
+		writer.writeAttribute("startOffset", startOffset);
+	}
+
 	if (onAutomationClipView) {
 		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
@@ -1348,6 +1379,10 @@ someError:
 
 		else if (!strcmp(tagName, "cents")) {
 			sampleHolder.cents = reader.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "startOffset")) {
+			startOffset = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "params")) {

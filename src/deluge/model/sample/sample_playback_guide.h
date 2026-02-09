@@ -54,4 +54,5 @@ public:
 
 	int32_t sequenceSyncStartedAtTick;
 	uint32_t sequenceSyncLengthTicks; // When 0, means no syncing happening
+	bool wrapSyncPosition{false};     // When true, modular-wrap position in getSyncedNumSamplesIn
 };

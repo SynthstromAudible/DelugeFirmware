@@ -97,5 +97,13 @@ LoopType VoiceSamplePlaybackGuide::getLoopingType(const Source& source) const {
 	if (loopEndPlaybackAtByte) {
 		return noteOffReceived ? LoopType::NONE : LoopType::LOW_LEVEL;
 	}
-	return source.repeatMode == SampleRepeatMode::LOOP ? LoopType::LOW_LEVEL : LoopType::NONE;
+	if (source.repeatMode == SampleRepeatMode::LOOP) {
+		return LoopType::LOW_LEVEL;
+	}
+	// Enable looping for STRETCH mode when start offset is active,
+	// so the time stretcher wraps around instead of stopping at the sample end
+	if (wrapSyncPosition) {
+		return LoopType::LOW_LEVEL;
+	}
+	return LoopType::NONE;
 }

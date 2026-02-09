@@ -304,81 +304,92 @@ activenessDetermined:
 			source->sampleControls.invertReversed = sound.invertReversed; // Copy the temporary flag from the sound
 			guides[s].setupPlaybackBounds(source->sampleControls.isCurrentlyReversed());
 
-			// Apply plocked sample start offset
+			// Apply plocked sample start offset — slides the playback window
 			int32_t startOffsetParam =
 			    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_START_OFFSET_A + s);
 			guides[s].preRollSamples = 0;
+			guides[s].wrapSyncPosition = false;
 			if (startOffsetParam != 0) {
 				bool synced = source->repeatMode == SampleRepeatMode::STRETCH && guides[s].sequenceSyncLengthTicks > 0;
 
 				if (synced) {
 					// For synced modes, apply offset as a tick shift so the phase-lock
-					// seeking starts at the offset position. This only affects the initial
-					// entry point; the loop continues in phase from there.
-					int64_t tickShift = ((int64_t)startOffsetParam * (int64_t)guides[s].sequenceSyncLengthTicks) >> 31;
+					// seeking starts at the offset position. The wrapSyncPosition flag
+					// makes the time stretcher wrap modularly instead of stopping at the end.
+					int32_t syncLen = static_cast<int32_t>(guides[s].sequenceSyncLengthTicks);
+					int64_t tickShift = ((int64_t)startOffsetParam * (int64_t)syncLen) >> 31;
+					// Normalize negative shifts to equivalent positive position to avoid
+					// uint32_t underflow in getSyncedNumSamplesIn().
+					if (tickShift < 0) {
+						tickShift += syncLen;
+					}
 					guides[s].sequenceSyncStartedAtTick -= static_cast<int32_t>(tickShift);
+					guides[s].wrapSyncPosition = true;
 				}
 				else {
-					// For non-synced modes, apply offset by modifying byte positions
 					Sample* offsetSample = static_cast<Sample*>(guides[s].audioFileHolder->audioFile);
 					int32_t bytesPerFrame = offsetSample->numChannels * offsetSample->byteDepth;
-					int32_t regionBytes = guides[s].endPlaybackAtByte - guides[s].startPlaybackAtByte;
+					int32_t startByte = static_cast<int32_t>(guides[s].startPlaybackAtByte);
+					int32_t endByte = static_cast<int32_t>(guides[s].endPlaybackAtByte);
+					int32_t regionBytes = endByte - startByte;
 					int32_t absRegion = std::abs(regionBytes);
 					bool forward = (regionBytes > 0);
 
 					if (absRegion > 0 && bytesPerFrame > 0) {
-						if (startOffsetParam > 0) {
-							// Positive offset: shift start forward into the region
-							int64_t offsetBytes = ((int64_t)startOffsetParam * absRegion) >> 31;
-							int32_t fwd = static_cast<int32_t>(((offsetBytes % absRegion) + absRegion) % absRegion);
-							fwd = (fwd / bytesPerFrame) * bytesPerFrame;
-							guides[s].startPlaybackAtByte += forward ? fwd : -fwd;
-						}
-						else {
-							// Negative offset: move start backward into audio before the
-							// start marker. If we run out, wrap (LOOP) or silence (ONCE/CUT).
-							// TODO: add "playoffset/slide" mode that shifts both start and end
-							// points together, with optional crossfade using the voice envelope.
-							int32_t desiredBackward =
-							    static_cast<int32_t>((-(int64_t)startOffsetParam * absRegion) >> 31);
-							desiredBackward = (desiredBackward / bytesPerFrame) * bytesPerFrame;
+						int64_t offsetBytes = ((int64_t)startOffsetParam * absRegion) >> 31;
+						int32_t byteShift = static_cast<int32_t>(offsetBytes);
+						byteShift = (byteShift / bytesPerFrame) * bytesPerFrame;
 
-							int32_t availableBackward;
+						if (source->repeatMode == SampleRepeatMode::LOOP) {
+							// LOOP: modular wrap of start position within the region.
+							// First iteration starts at the offset position. On loop,
+							// playback wraps back to the original start (loopStartPlaybackAtByte
+							// was set to the original start by setupPlaybackBounds).
+							int32_t mod = ((byteShift % absRegion) + absRegion) % absRegion;
+							mod = (mod / bytesPerFrame) * bytesPerFrame;
 							if (forward) {
-								availableBackward = guides[s].startPlaybackAtByte
-								                    - static_cast<int32_t>(offsetSample->audioDataStartPosBytes);
+								guides[s].startPlaybackAtByte = static_cast<uint32_t>(startByte + mod);
 							}
 							else {
-								int32_t audioEndByte = static_cast<int32_t>(offsetSample->audioDataStartPosBytes
-								                                            + offsetSample->audioDataLengthBytes);
-								availableBackward = audioEndByte - guides[s].startPlaybackAtByte;
+								guides[s].startPlaybackAtByte = static_cast<uint32_t>(startByte - mod);
 							}
-							if (availableBackward < 0) {
-								availableBackward = 0;
-							}
-							availableBackward = (availableBackward / bytesPerFrame) * bytesPerFrame;
+							// loopStartPlaybackAtByte intentionally NOT updated —
+							// it stays at the original start so the loop wraps around
+						}
+						else {
+							// CUT/ONCE: window slide with silence for out-of-bounds.
+							// Instead of clamping both edges back, play silence (preRoll)
+							// when start goes before the audio data, and let the voice
+							// stop naturally when end goes past the audio data.
+							int32_t shiftDir = forward ? byteShift : -byteShift;
+							startByte += shiftDir;
+							endByte += shiftDir;
 
-							int32_t actualBackward = std::min(desiredBackward, availableBackward);
-							guides[s].startPlaybackAtByte += forward ? -actualBackward : actualBackward;
+							int32_t audioStart = static_cast<int32_t>(offsetSample->audioDataStartPosBytes);
+							int32_t audioEnd = audioStart + static_cast<int32_t>(offsetSample->audioDataLengthBytes);
 
-							int32_t remainingBytes = desiredBackward - actualBackward;
-							if (remainingBytes > 0) {
-								if (source->repeatMode == SampleRepeatMode::LOOP) {
-									// Wrap remaining from end of region
-									int32_t wrapped = remainingBytes % absRegion;
-									wrapped = (wrapped / bytesPerFrame) * bytesPerFrame;
-									if (forward) {
-										guides[s].startPlaybackAtByte = guides[s].endPlaybackAtByte - wrapped;
-									}
-									else {
-										guides[s].startPlaybackAtByte = guides[s].endPlaybackAtByte + wrapped;
-									}
+							if (forward) {
+								if (endByte > audioEnd) {
+									endByte = audioStart + ((audioEnd - audioStart) / bytesPerFrame) * bytesPerFrame;
 								}
-								else {
-									// ONCE/CUT: pad with silence pre-roll
-									guides[s].preRollSamples = remainingBytes / bytesPerFrame;
+								if (startByte < audioStart) {
+									guides[s].preRollSamples = (audioStart - startByte) / bytesPerFrame;
+									startByte = audioStart;
 								}
 							}
+							else {
+								// Reversed: start is high byte, end is low byte
+								if (endByte < audioStart) {
+									endByte = audioStart;
+								}
+								if (startByte >= audioEnd) {
+									guides[s].preRollSamples = (startByte - (audioEnd - bytesPerFrame)) / bytesPerFrame;
+									startByte = audioEnd - bytesPerFrame;
+								}
+							}
+
+							guides[s].startPlaybackAtByte = static_cast<uint32_t>(startByte);
+							guides[s].endPlaybackAtByte = static_cast<uint32_t>(endByte);
 						}
 					}
 				}
@@ -2300,6 +2311,14 @@ pitchTooHigh:
 					// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good /
 					// accurate
 					if (loopingType != LoopType::NONE) {
+						// If start offset has shifted the play start ahead of the loop
+						// restart position, the cache can't represent the asymmetric first
+						// iteration correctly (its loop-start maps to cache byte 0 which
+						// is the offset position, not the original start). Skip caching.
+						if (guides[s].startPlaybackAtByte != guides[s].loopStartPlaybackAtByte) {
+							goto dontUseCache;
+						}
+
 						SampleHolderForVoice* holder = (SampleHolderForVoice*)guides[s].audioFileHolder;
 						int32_t loopStart = holder->loopStartPos ? holder->loopStartPos : holder->startPos;
 						int32_t loopEnd = holder->loopEndPos ? holder->loopEndPos : holder->endPos;
