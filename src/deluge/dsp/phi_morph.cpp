@@ -252,6 +252,10 @@ q31_t evaluateWaveformDirect(const PhiMorphWavetable& table, uint32_t phase) {
 
 // ============================================================================
 // Main Render Function
+//
+// Benchmark at daad4d5c (mono, single voice, no osc sync):
+//   phi_morph render: median 1,048 cycles
+//   wavetable render: median 2,173 cycles
 // ============================================================================
 
 void renderPhiMorph(PhiMorphCache& cache, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
