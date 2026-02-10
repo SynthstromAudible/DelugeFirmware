@@ -3468,6 +3468,26 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			patch->setEngineMode(reader.readTagOrAttributeValueInt());
 			reader.exitTag("dx7enginemode");
 		}
+		else if (!strcmp(tagName, "phiMorphZoneA")) {
+			source->phiMorphZoneA = reader.readTagOrAttributeValueInt();
+			reader.exitTag("phiMorphZoneA");
+		}
+		else if (!strcmp(tagName, "phiMorphZoneB")) {
+			source->phiMorphZoneB = reader.readTagOrAttributeValueInt();
+			reader.exitTag("phiMorphZoneB");
+		}
+		else if (!strcmp(tagName, "phiMorphPhaseA")) {
+			source->phiMorphPhaseOffsetA = static_cast<float>(reader.readTagOrAttributeValueInt()) / 10.0f;
+			reader.exitTag("phiMorphPhaseA");
+		}
+		else if (!strcmp(tagName, "phiMorphPhaseB")) {
+			source->phiMorphPhaseOffsetB = static_cast<float>(reader.readTagOrAttributeValueInt()) / 10.0f;
+			reader.exitTag("phiMorphPhaseB");
+		}
+		else if (!strcmp(tagName, "phiMorphGamma")) {
+			source->phiMorphGamma = static_cast<float>(reader.readTagOrAttributeValueInt()) / 10.0f;
+			reader.exitTag("phiMorphGamma");
+		}
 		/*
 		else if (!strcmp(tagName, "sampleSync")) {
 		    source->sampleSync = stringToBool(reader.readTagContents());
@@ -3817,6 +3837,20 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			goto justCloseTag;
 		}
 		else {
+			// PHI_MORPH: persist zone knobs, phase offsets, and gamma
+			if (source->oscType == OscType::PHI_MORPH) {
+				writer.writeAttribute("phiMorphZoneA", source->phiMorphZoneA);
+				writer.writeAttribute("phiMorphZoneB", source->phiMorphZoneB);
+				if (source->phiMorphPhaseOffsetA != 0.0f) {
+					writer.writeAttribute("phiMorphPhaseA", static_cast<int32_t>(source->phiMorphPhaseOffsetA * 10.0f));
+				}
+				if (source->phiMorphPhaseOffsetB != 0.0f) {
+					writer.writeAttribute("phiMorphPhaseB", static_cast<int32_t>(source->phiMorphPhaseOffsetB * 10.0f));
+				}
+				if (source->phiMorphGamma != 0.0f) {
+					writer.writeAttribute("phiMorphGamma", static_cast<int32_t>(source->phiMorphGamma * 10.0f));
+				}
+			}
 justCloseTag:
 			writer.closeTag();
 		}
@@ -4102,6 +4136,81 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		paramManager->getPatchCableSet()->readPatchCablesFromFile(reader, readAutomationUpToPos);
 		reader.exitTag("patchCables");
 	}
+
+	// Shaper params (patched, Sound context)
+	else if (!strcmp(tagName, "tableShaperDrive")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_TABLE_SHAPER_DRIVE, readAutomationUpToPos);
+		reader.exitTag("tableShaperDrive");
+	}
+	else if (!strcmp(tagName, "tableShaperMix")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_TABLE_SHAPER_MIX, readAutomationUpToPos);
+		reader.exitTag("tableShaperMix");
+	}
+	else if (!strcmp(tagName, "sineShaperDrive")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_SINE_SHAPER_DRIVE, readAutomationUpToPos);
+		reader.exitTag("sineShaperDrive");
+	}
+	else if (!strcmp(tagName, "sineShaperTwist")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_SINE_SHAPER_TWIST, readAutomationUpToPos);
+		reader.exitTag("sineShaperTwist");
+	}
+	else if (!strcmp(tagName, "patchedSineShaperHarmonic")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_SINE_SHAPER_HARMONIC,
+		                         readAutomationUpToPos);
+		reader.exitTag("patchedSineShaperHarmonic");
+	}
+
+	// Disperser params (patched, Sound context)
+	else if (!strcmp(tagName, "globalDisperserTopo")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_DISPERSER_TOPO, readAutomationUpToPos);
+		reader.exitTag("globalDisperserTopo");
+	}
+	else if (!strcmp(tagName, "globalDisperserTwist")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_DISPERSER_TWIST, readAutomationUpToPos);
+		reader.exitTag("globalDisperserTwist");
+	}
+
+	// Automodulator params (patched, Sound context)
+	else if (!strcmp(tagName, "globalAutomodMacro")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_AUTOMOD_DEPTH, readAutomationUpToPos);
+		reader.exitTag("globalAutomodMacro");
+	}
+	else if (!strcmp(tagName, "globalAutomodFreq")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_AUTOMOD_FREQ, readAutomationUpToPos);
+		reader.exitTag("globalAutomodFreq");
+	}
+	else if (!strcmp(tagName, "globalAutomodManual")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_AUTOMOD_MANUAL, readAutomationUpToPos);
+		reader.exitTag("globalAutomodManual");
+	}
+
+	// Scatter params (patched, Sound context)
+	else if (!strcmp(tagName, "globalScatterZoneA")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_SCATTER_ZONE_A, readAutomationUpToPos);
+		reader.exitTag("globalScatterZoneA");
+	}
+	else if (!strcmp(tagName, "globalScatterZoneB")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_SCATTER_ZONE_B, readAutomationUpToPos);
+		reader.exitTag("globalScatterZoneB");
+	}
+	else if (!strcmp(tagName, "globalScatterDepth")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_SCATTER_MACRO_CONFIG,
+		                         readAutomationUpToPos);
+		reader.exitTag("globalScatterDepth");
+	}
+	else if (!strcmp(tagName, "globalScatterMacro")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_SCATTER_MACRO, readAutomationUpToPos);
+		reader.exitTag("globalScatterMacro");
+	}
+	else if (!strcmp(tagName, "globalScatterPWrite")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_SCATTER_PWRITE, readAutomationUpToPos);
+		reader.exitTag("globalScatterPWrite");
+	}
+	else if (!strcmp(tagName, "globalScatterDensity")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_SCATTER_DENSITY, readAutomationUpToPos);
+		reader.exitTag("globalScatterDensity");
+	}
+
 	else if (ModControllableAudio::readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
 
 	else {
@@ -4182,6 +4291,46 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	patchedParams->writeParamAsAttribute(writer, "hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
 
 	patchedParams->writeParamAsAttribute(writer, "waveFold", params::LOCAL_FOLD, writeAutomation);
+
+	// Shaper params (patched, Sound context)
+	patchedParams->writeParamAsAttribute(writer, "tableShaperDrive", params::LOCAL_TABLE_SHAPER_DRIVE, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "tableShaperMix", params::LOCAL_TABLE_SHAPER_MIX, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "sineShaperDrive", params::LOCAL_SINE_SHAPER_DRIVE, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "sineShaperTwist", params::LOCAL_SINE_SHAPER_TWIST, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "patchedSineShaperHarmonic", params::LOCAL_SINE_SHAPER_HARMONIC,
+	                                     writeAutomation, true);
+
+	// Disperser params (patched, Sound context)
+	patchedParams->writeParamAsAttribute(writer, "globalDisperserTopo", params::GLOBAL_DISPERSER_TOPO, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "globalDisperserTwist", params::GLOBAL_DISPERSER_TWIST,
+	                                     writeAutomation, true);
+
+	// Automodulator params (patched, Sound context)
+	patchedParams->writeParamAsAttribute(writer, "globalAutomodMacro", params::GLOBAL_AUTOMOD_DEPTH, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "globalAutomodFreq", params::GLOBAL_AUTOMOD_FREQ, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "globalAutomodManual", params::GLOBAL_AUTOMOD_MANUAL, writeAutomation,
+	                                     true);
+
+	// Scatter params (patched, Sound context)
+	patchedParams->writeParamAsAttribute(writer, "globalScatterZoneA", params::GLOBAL_SCATTER_ZONE_A, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "globalScatterZoneB", params::GLOBAL_SCATTER_ZONE_B, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "globalScatterDepth", params::GLOBAL_SCATTER_MACRO_CONFIG,
+	                                     writeAutomation, true);
+	patchedParams->writeParamAsAttribute(writer, "globalScatterMacro", params::GLOBAL_SCATTER_MACRO, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "globalScatterPWrite", params::GLOBAL_SCATTER_PWRITE, writeAutomation,
+	                                     true);
+	patchedParams->writeParamAsAttribute(writer, "globalScatterDensity", params::GLOBAL_SCATTER_DENSITY,
+	                                     writeAutomation, true);
 
 	writer.writeOpeningTagEnd();
 

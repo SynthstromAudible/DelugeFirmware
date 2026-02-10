@@ -35,6 +35,7 @@
 #include "dsp/util.hpp"
 #include "memory/memory_allocator_interface.h"
 #include "model/sync.h"
+#include "storage/field_serialization.h"
 #include "util/fixedpoint.h"
 #include <cmath>
 #include <cstdint>
@@ -527,6 +528,48 @@ struct AutomodulatorParams {
 		deallocateAll();
 		// Invalidate cache tracking
 		invalidateCacheTracking();
+	}
+
+	/// Write automodulator params to file (only non-default values)
+	void writeToFile(Serializer& writer) const {
+		WRITE_FIELD(writer, mix, "automodMix");
+		WRITE_FIELD(writer, rate, "automodRate");
+		if (rateSynced != true) {
+			deluge::storage::writeAttributeInt(writer, "automodRateSynced", 0);
+		}
+		if (lfoMode != AutomodLfoMode::FREE) {
+			deluge::storage::writeAttributeInt(writer, "automodLfoMode", static_cast<int32_t>(lfoMode));
+		}
+		WRITE_FIELD(writer, type, "automodType");
+		WRITE_FIELD(writer, flavor, "automodFlavor");
+		WRITE_FIELD(writer, mod, "automodMod");
+		WRITE_FLOAT(writer, typePhaseOffset, "automodTypePhase", 10.0f);
+		WRITE_FLOAT(writer, flavorPhaseOffset, "automodFlavorPhase", 10.0f);
+		WRITE_FLOAT(writer, modPhaseOffset, "automodModPhase", 10.0f);
+		WRITE_FLOAT(writer, gammaPhase, "automodGamma", 10.0f);
+	}
+
+	/// Read a tag into automodulator params, returns true if tag was handled
+	bool readTag(Deserializer& reader, const char* tagName) {
+		READ_FIELD(reader, tagName, mix, "automodMix");
+		READ_FIELD(reader, tagName, rate, "automodRate");
+		if (std::strcmp(tagName, "automodRateSynced") == 0) {
+			rateSynced = deluge::storage::readAndExitTag(reader, tagName) != 0;
+			return true;
+		}
+		if (std::strcmp(tagName, "automodLfoMode") == 0) {
+			lfoMode = static_cast<AutomodLfoMode>(
+			    std::clamp<int32_t>(deluge::storage::readAndExitTag(reader, tagName), 0, 3));
+			return true;
+		}
+		READ_FIELD(reader, tagName, type, "automodType");
+		READ_FIELD(reader, tagName, flavor, "automodFlavor");
+		READ_FIELD(reader, tagName, mod, "automodMod");
+		READ_FLOAT(reader, tagName, typePhaseOffset, "automodTypePhase", 10.0f);
+		READ_FLOAT(reader, tagName, flavorPhaseOffset, "automodFlavorPhase", 10.0f);
+		READ_FLOAT(reader, tagName, modPhaseOffset, "automodModPhase", 10.0f);
+		READ_FLOAT(reader, tagName, gammaPhase, "automodGamma", 10.0f);
+		return false;
 	}
 
 	// Menu params (stored/loaded) - always present
