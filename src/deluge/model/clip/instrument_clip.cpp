@@ -145,6 +145,7 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	}
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
+	harmonizerSettings = otherInstrumentClip->harmonizerSettings;
 }
 
 // Will replace the Clip in the modelStack, if success.
@@ -2380,6 +2381,20 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	writer.closeTag();
 
+	// Harmonizer per-clip settings
+	writer.writeOpeningTagBeginning("harmonizer");
+	writer.writeAttribute("mode", static_cast<int32_t>(harmonizerSettings.mode));
+	writer.writeAttribute("tightness", static_cast<int32_t>(harmonizerSettings.tightness));
+	writer.writeAttribute("voiceLeading", harmonizerSettings.voiceLeading ? 1 : 0);
+	writer.writeAttribute("retrigger", harmonizerSettings.retrigger ? 1 : 0);
+	writer.writeAttribute("transpose", static_cast<int32_t>(harmonizerSettings.transpose));
+	writer.writeAttribute("interval", static_cast<int32_t>(harmonizerSettings.interval));
+	writer.writeAttribute("chordChannel", static_cast<int32_t>(harmonizerSettings.chordChannel));
+	writer.writeAttribute("intervalVelocityOffset", static_cast<int32_t>(harmonizerSettings.intervalVelocityOffset));
+	writer.writeAttribute("probability", static_cast<int32_t>(harmonizerSettings.probability));
+	writer.writeAttribute("chordLatch", harmonizerSettings.chordLatch ? 1 : 0);
+	writer.closeTag();
+
 	if (output->type == OutputType::KIT) {
 		writer.writeOpeningTagBeginning("kitParams");
 		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true);
@@ -2656,6 +2671,65 @@ someError:
 				}
 			}
 			reader.match('}'); // End arpeggiator value object.
+		}
+
+		else if (!strcmp(tagName, "harmonizer")) {
+			reader.match('{');
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "mode")) {
+					int32_t val = reader.readTagOrAttributeValueInt();
+					if (val >= 0 && val <= static_cast<int32_t>(HarmonizerMappingMode::Root5th)) {
+						harmonizerSettings.mode = static_cast<HarmonizerMappingMode>(val);
+					}
+				}
+				else if (!strcmp(tagName, "tightness")) {
+					int32_t val = reader.readTagOrAttributeValueInt();
+					if (val >= 0 && val <= static_cast<int32_t>(HarmonizerTightness::Extensions)) {
+						harmonizerSettings.tightness = static_cast<HarmonizerTightness>(val);
+					}
+				}
+				else if (!strcmp(tagName, "voiceLeading")) {
+					harmonizerSettings.voiceLeading = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "retrigger")) {
+					harmonizerSettings.retrigger = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "transpose")) {
+					int32_t val = reader.readTagOrAttributeValueInt();
+					harmonizerSettings.transpose = static_cast<int8_t>(std::clamp(val, -24, 24));
+				}
+				else if (!strcmp(tagName, "interval")) {
+					int32_t val = reader.readTagOrAttributeValueInt();
+					if (val >= 0 && val <= static_cast<int32_t>(DiatonicInterval::Octave_Above)) {
+						harmonizerSettings.interval = static_cast<DiatonicInterval>(val);
+					}
+				}
+				else if (!strcmp(tagName, "chordChannel")) {
+					int32_t val = reader.readTagOrAttributeValueInt();
+					if (val >= 0 && val <= 15) {
+						harmonizerSettings.chordChannel = static_cast<int8_t>(val);
+					}
+				}
+				else if (!strcmp(tagName, "intervalVelocityOffset")) {
+					int32_t val = reader.readTagOrAttributeValueInt();
+					if (val >= -64 && val <= 64) {
+						harmonizerSettings.intervalVelocityOffset = static_cast<int8_t>(val);
+					}
+				}
+				else if (!strcmp(tagName, "probability")) {
+					int32_t val = reader.readTagOrAttributeValueInt();
+					if (val >= 0 && val <= 100) {
+						harmonizerSettings.probability = static_cast<uint8_t>(val);
+					}
+				}
+				else if (!strcmp(tagName, "chordLatch")) {
+					harmonizerSettings.chordLatch = reader.readTagOrAttributeValueInt();
+				}
+				else {
+					reader.exitTag(tagName);
+				}
+			}
+			reader.match('}'); // End harmonizer value object.
 		}
 
 		// For song files from before V2.0, where Instruments were stored within the Clip.
