@@ -96,6 +96,7 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 				if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
+				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 				noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 			}
 		}
@@ -127,6 +128,7 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 					noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 				}
 			}
@@ -210,6 +212,7 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
+			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 		}
 	}

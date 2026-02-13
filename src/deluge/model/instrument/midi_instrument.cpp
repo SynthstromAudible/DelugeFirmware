@@ -22,16 +22,19 @@
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_harmonizer.h"
 #include "io/midi/midi_transpose.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 #include <cstring>
 #include <string_view>
 
@@ -947,11 +950,165 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 		outputAllMPEValuesOnMemberChannel(mpeValuesToUse, outputMemberChannel);
 	}
 
+	// --- HARMONIZER HOOK ---
+	int32_t finalNoteCode = noteCodePostArp;
+	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::MidiHarmonizer) && !sendsToMPE() && !sendsToInternal()) {
+		auto& harm = midiHarmonizer;
+		// Determine chord channel from per-clip settings (default ch 0 if no clip)
+		int32_t chordCh = 0;
+		if (activeClip) {
+			chordCh = static_cast<InstrumentClip*>(activeClip)->harmonizerSettings.chordChannel;
+		}
+		if (channel == chordCh) {
+			// Chord channel: update chord state
+			bool latchOn = activeClip && static_cast<InstrumentClip*>(activeClip)->harmonizerSettings.chordLatch;
+			if (latchOn && harm.physicallyHeldCount_ == 0) {
+				// First key pressed after all released: start fresh chord
+				harm.chordState.reset();
+			}
+			if (latchOn) {
+				harm.physicallyHeldCount_++;
+			}
+			int32_t oldHeldCount = harm.chordState.heldCount();
+			harm.chordState.noteOn(static_cast<uint8_t>(noteCodePostArp));
+			bool isNewNote = (harm.chordState.heldCount() != oldHeldCount);
+			bool chordChanged = (isNewNote); // New note always changes pitch classes
+
+			// Retrigger active melody notes if chord changed
+			if (chordChanged && activeClip) {
+				auto* clip = static_cast<InstrumentClip*>(activeClip);
+				if (clip->harmonizerSettings.retrigger) {
+					HarmonizeConfig config;
+					config.mode = clip->harmonizerSettings.mode;
+					config.tightness = clip->harmonizerSettings.tightness;
+					config.voiceLeading = clip->harmonizerSettings.voiceLeading;
+					config.transpose = clip->harmonizerSettings.transpose;
+					DiatonicInterval intervalType = clip->harmonizerSettings.interval;
+					if ((config.tightness == HarmonizerTightness::Scale || intervalType != DiatonicInterval::Off)
+					    && currentSong) {
+						config.scaleRoot = currentSong->key.rootNote;
+						config.scaleBits = currentSong->key.modeNotes.toBits();
+					}
+					// Retrigger: re-harmonize all active notes on non-chord channels
+					for (int32_t ch = 0; ch < 16; ch++) {
+						if (ch == chordCh) {
+							continue;
+						}
+						auto& chState = harm.channelStates[ch];
+						for (uint8_t n = 0; n < 128; n++) {
+							auto existing = chState.getMapping(n);
+							if (!existing.active) {
+								continue;
+							}
+							uint8_t newOut = harmonize(n, harm.chordState, existing.outputNote, true, config);
+							if (newOut != existing.outputNote) {
+								midiEngine.sendNote(this, false, existing.outputNote, existing.velocity, ch, channel);
+								midiEngine.sendNote(this, true, newOut, existing.velocity, ch, channel);
+								chState.setMapping(n, newOut, existing.velocity);
+							}
+							// Update interval notes too
+							auto existingInterval = chState.getIntervalMapping(n);
+							if (existingInterval.active && intervalType != DiatonicInterval::Off
+							    && config.scaleBits != 0) {
+								int32_t newInterval =
+								    computeDiatonicInterval(newOut, intervalType, config.scaleRoot, config.scaleBits);
+								if (newInterval >= 0 && newInterval <= 127) {
+									uint8_t newINote = static_cast<uint8_t>(newInterval);
+									if (newINote != existingInterval.outputNote) {
+										midiEngine.sendNote(this, false, existingInterval.outputNote,
+										                    existingInterval.velocity, ch, channel);
+										midiEngine.sendNote(this, true, newINote, existingInterval.velocity, ch,
+										                    channel);
+										chState.setIntervalMapping(n, newINote, existingInterval.velocity);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			// Skip MIDI output for duplicate chord notes (prevents stuck notes)
+			if (!isNewNote) {
+				return;
+			}
+		}
+		else {
+			// Melody channel: harmonize the note using per-clip settings
+			auto& chState = harm.channelStates[channel];
+			// Deduplicate: if this input note is already active, skip (prevents repeated note-ons)
+			auto existingCheck = chState.getMapping(static_cast<uint8_t>(noteCodePostArp));
+			if (existingCheck.active) {
+				return;
+			}
+			HarmonizeConfig config;
+			DiatonicInterval intervalType = DiatonicInterval::Off;
+			if (activeClip) {
+				auto* clip = static_cast<InstrumentClip*>(activeClip);
+				config.mode = clip->harmonizerSettings.mode;
+				config.tightness = clip->harmonizerSettings.tightness;
+				config.voiceLeading = clip->harmonizerSettings.voiceLeading;
+				config.transpose = clip->harmonizerSettings.transpose;
+				intervalType = clip->harmonizerSettings.interval;
+				if ((config.tightness == HarmonizerTightness::Scale || intervalType != DiatonicInterval::Off)
+				    && currentSong) {
+					config.scaleRoot = currentSong->key.rootNote;
+					config.scaleBits = currentSong->key.modeNotes.toBits();
+				}
+			}
+
+			// Probability check: skip harmonization some % of the time
+			uint8_t prob = 100;
+			if (activeClip) {
+				prob = static_cast<InstrumentClip*>(activeClip)->harmonizerSettings.probability;
+			}
+			bool skipHarmonize = false;
+			if (prob < 100) {
+				uint8_t threshold = static_cast<uint8_t>((prob * 255 + 99) / 100);
+				if (getRandom255() >= threshold) {
+					skipHarmonize = true;
+				}
+			}
+
+			if (skipHarmonize) {
+				// Store identity mapping so noteOff can find it
+				chState.setMapping(static_cast<uint8_t>(noteCodePostArp), static_cast<uint8_t>(noteCodePostArp),
+				                   static_cast<uint8_t>(arpNote->velocity));
+				finalNoteCode = noteCodePostArp;
+			}
+			else {
+				uint8_t harmonized = harmonize(static_cast<uint8_t>(noteCodePostArp), harm.chordState,
+				                               chState.lastOutputNote, chState.hasLastOutput, config);
+				chState.setMapping(static_cast<uint8_t>(noteCodePostArp), harmonized,
+				                   static_cast<uint8_t>(arpNote->velocity));
+				finalNoteCode = harmonized;
+
+				// Diatonic interval: send parallel voice if enabled
+				if (intervalType != DiatonicInterval::Off && config.scaleBits != 0) {
+					int32_t intervalNote =
+					    computeDiatonicInterval(harmonized, intervalType, config.scaleRoot, config.scaleBits);
+					if (intervalNote >= 0 && intervalNote <= 127) {
+						uint8_t iNote = static_cast<uint8_t>(intervalNote);
+						int32_t intervalVel = arpNote->velocity;
+						if (activeClip) {
+							intervalVel +=
+							    static_cast<InstrumentClip*>(activeClip)->harmonizerSettings.intervalVelocityOffset;
+							intervalVel = std::clamp<int32_t>(intervalVel, 1, 127);
+						}
+						chState.setIntervalMapping(static_cast<uint8_t>(noteCodePostArp), iNote,
+						                           static_cast<uint8_t>(intervalVel));
+						midiEngine.sendNote(this, true, iNote, intervalVel, outputMemberChannel, channel);
+					}
+				}
+			}
+		}
+	}
+	// --- END HARMONIZER HOOK ---
+
 	if (sendsToInternal()) {
-		sendNoteToInternal(true, noteCodePostArp, arpNote->velocity, outputMemberChannel);
+		sendNoteToInternal(true, finalNoteCode, arpNote->velocity, outputMemberChannel);
 	}
 	else {
-		midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
+		midiEngine.sendNote(this, true, finalNoteCode, arpNote->velocity, outputMemberChannel, channel);
 	}
 }
 
@@ -982,12 +1139,119 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity,
                                     int32_t noteIndex) {
 	int32_t channel = getChannel();
+
+	// --- HARMONIZER HOOK ---
+	int32_t finalNoteCode = noteCodePostArp;
+	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::MidiHarmonizer) && !sendsToMPE() && !sendsToInternal()) {
+		auto& harm = midiHarmonizer;
+		// Determine chord channel from per-clip settings (default ch 0 if no clip)
+		int32_t chordCh = 0;
+		if (activeClip) {
+			chordCh = static_cast<InstrumentClip*>(activeClip)->harmonizerSettings.chordChannel;
+		}
+		// Check for melody mapping FIRST — if one exists, always use the melody
+		// path regardless of current chord channel. This prevents stuck notes when
+		// the chord channel setting changes while notes are in flight.
+		auto& chState = harm.channelStates[channel];
+		bool hasMelodyMapping = chState.getMapping(static_cast<uint8_t>(noteCodePostArp)).active;
+
+		if (hasMelodyMapping) {
+			// This note was harmonized as melody — use melody note-off path
+			auto intervalMapping = chState.removeIntervalMapping(static_cast<uint8_t>(noteCodePostArp));
+			if (intervalMapping.active) {
+				midiEngine.sendNote(this, false, intervalMapping.outputNote, velocity, oldOutputMemberChannel, channel);
+			}
+			auto mapping = chState.removeMapping(static_cast<uint8_t>(noteCodePostArp));
+			if (mapping.active) {
+				finalNoteCode = mapping.outputNote;
+			}
+			// Also clean up chord state if this note is somehow there too
+			harm.chordState.noteOff(static_cast<uint8_t>(noteCodePostArp));
+		}
+		else if (channel == chordCh) {
+			// Chord latch: don't remove notes from chord state on key release
+			bool latchOn = activeClip && static_cast<InstrumentClip*>(activeClip)->harmonizerSettings.chordLatch;
+			if (latchOn) {
+				harm.physicallyHeldCount_ = std::max<int32_t>(0, harm.physicallyHeldCount_ - 1);
+				return; // Chord persists after release
+			}
+			int32_t oldHeldCount = harm.chordState.heldCount();
+			harm.chordState.noteOff(static_cast<uint8_t>(noteCodePostArp));
+			bool isRemovedNote = (harm.chordState.heldCount() != oldHeldCount);
+			bool chordChanged = isRemovedNote;
+
+			// Retrigger on chord change from note-off
+			if (chordChanged && activeClip) {
+				auto* clip = static_cast<InstrumentClip*>(activeClip);
+				if (clip->harmonizerSettings.retrigger && !harm.chordState.isEmpty()) {
+					HarmonizeConfig config;
+					config.mode = clip->harmonizerSettings.mode;
+					config.tightness = clip->harmonizerSettings.tightness;
+					config.voiceLeading = clip->harmonizerSettings.voiceLeading;
+					config.transpose = clip->harmonizerSettings.transpose;
+					DiatonicInterval intervalType = clip->harmonizerSettings.interval;
+					if ((config.tightness == HarmonizerTightness::Scale || intervalType != DiatonicInterval::Off)
+					    && currentSong) {
+						config.scaleRoot = currentSong->key.rootNote;
+						config.scaleBits = currentSong->key.modeNotes.toBits();
+					}
+					for (int32_t ch = 0; ch < 16; ch++) {
+						if (ch == chordCh) {
+							continue;
+						}
+						auto& retrigChState = harm.channelStates[ch];
+						for (uint8_t n = 0; n < 128; n++) {
+							auto existing = retrigChState.getMapping(n);
+							if (!existing.active) {
+								continue;
+							}
+							uint8_t newOut = harmonize(n, harm.chordState, existing.outputNote, true, config);
+							if (newOut != existing.outputNote) {
+								midiEngine.sendNote(this, false, existing.outputNote, existing.velocity, ch, channel);
+								midiEngine.sendNote(this, true, newOut, existing.velocity, ch, channel);
+								retrigChState.setMapping(n, newOut, existing.velocity);
+							}
+							// Update interval notes too
+							auto existingInterval = retrigChState.getIntervalMapping(n);
+							if (existingInterval.active && intervalType != DiatonicInterval::Off
+							    && config.scaleBits != 0) {
+								int32_t newInterval =
+								    computeDiatonicInterval(newOut, intervalType, config.scaleRoot, config.scaleBits);
+								if (newInterval >= 0 && newInterval <= 127) {
+									uint8_t newINote = static_cast<uint8_t>(newInterval);
+									if (newINote != existingInterval.outputNote) {
+										midiEngine.sendNote(this, false, existingInterval.outputNote,
+										                    existingInterval.velocity, ch, channel);
+										midiEngine.sendNote(this, true, newINote, existingInterval.velocity, ch,
+										                    channel);
+										retrigChState.setIntervalMapping(n, newINote, existingInterval.velocity);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			// Skip MIDI output for duplicate chord note-offs
+			if (!isRemovedNote) {
+				return;
+			}
+		}
+		else {
+			// No melody mapping and not current chord channel.
+			// Could be an orphaned chord note (chord channel changed after note-on).
+			// Clean up chord state and let note-off pass through unchanged.
+			harm.chordState.noteOff(static_cast<uint8_t>(noteCodePostArp));
+		}
+	}
+	// --- END HARMONIZER HOOK ---
+
 	if (sendsToInternal()) {
-		sendNoteToInternal(false, noteCodePostArp, velocity, oldOutputMemberChannel);
+		sendNoteToInternal(false, finalNoteCode, velocity, oldOutputMemberChannel);
 	}
 	// If no MPE, nice and simple
 	else if (!sendsToMPE()) {
-		midiEngine.sendNote(this, false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
+		midiEngine.sendNote(this, false, finalNoteCode, velocity, channel, kMIDIOutputFilterNoMPE);
 
 		if (collapseAftertouch) {
 
@@ -1044,6 +1308,11 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 void MIDIInstrument::allNotesOff() {
 	int32_t channel = getChannel();
 	arpeggiator.reset();
+
+	// Reset harmonizer state so stale mappings don't cause stuck notes on next play
+	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::MidiHarmonizer)) {
+		midiHarmonizer.reset();
+	}
 
 	// If no MPE, nice and simple
 	if (!sendsToMPE()) {

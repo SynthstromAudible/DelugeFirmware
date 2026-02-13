@@ -41,6 +41,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_harmonizer.h"
 #include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -519,6 +520,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	                            // and insanely most stuff worked
 
 	playbackState = newPlaybackState;
+	midiHarmonizer.reset();   // Clear stale chord state and channel mappings from previous playback
 	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
 
 	// make exception for note / note row editor because we want to be able to hear note changes
@@ -585,6 +587,7 @@ void PlaybackHandler::endPlayback() {
 	// tick, which needs to refer to which clock is active, which is stored in playbackState.
 	playbackState = 0;
 
+	midiHarmonizer.reset();   // Clear harmonizer state on stop
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
 	PadLEDs::clearTickSquares();
 
