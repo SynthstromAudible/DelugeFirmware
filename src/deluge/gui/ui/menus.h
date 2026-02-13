@@ -56,6 +56,7 @@ extern gui::menu_item::stem_export::Start startStemExportMenu;
 
 extern gui::menu_item::firmware::Version firmwareVersionMenu;
 extern gui::menu_item::sequence::Direction sequenceDirectionMenu;
+extern gui::menu_item::HorizontalMenuGroup harmMenuGroupMIDIOrCV;
 extern gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
 extern gui::menu_item::Submenu soundEditorRootMenuMidiDrum;
 extern gui::menu_item::Submenu soundEditorRootMenuGateDrum;

@@ -23,6 +23,8 @@
 #include "hid/button.h"
 #include "modulation/arpeggiator.h"
 
+struct HarmonizerSettings;
+
 #define SHORTCUTS_VERSION_1 0
 #define SHORTCUTS_VERSION_3 1
 #define NUM_SHORTCUTS_VERSIONS 2
@@ -67,6 +69,7 @@ public:
 	ParamManagerForTimeline* currentParamManager;
 	SideChain* currentSidechain;
 	ArpeggiatorSettings* currentArpSettings;
+	HarmonizerSettings* currentHarmonizerSettings{nullptr};
 	::MultiRange* currentMultiRange;
 	SampleControls* currentSampleControls;
 	VoicePriority* currentPriority;
