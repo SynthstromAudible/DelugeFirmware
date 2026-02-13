@@ -31,6 +31,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
+#include "io/midi/harmonizer_settings.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -1245,6 +1246,11 @@ getOut:
 					else if (x == 4 && y == 7) {
 						item = &sequenceDirectionMenu;
 					}
+					else if (x == 7 && y == 6) {
+						if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::MidiHarmonizer)) {
+							item = &harmMenuGroupMIDIOrCV;
+						}
+					}
 					else {
 						item = nullptr;
 					}
@@ -1568,6 +1574,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
 	ArpeggiatorSettings* newArpSettings = nullptr;
+	HarmonizerSettings* newHarmonizerSettings = nullptr;
 	ModControllableAudio* newModControllable = nullptr;
 
 	InstrumentClip* instrumentClip = nullptr;
@@ -1604,6 +1611,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 					newModControllable = (ModControllableAudio*)(Instrument*)output->toModControllable();
 					newParamManager = &instrumentClip->paramManager;
 					newArpSettings = &instrumentClip->arpSettings;
+					newHarmonizerSettings = &instrumentClip->harmonizerSettings;
 				}
 
 				// If a SoundDrum is selected...
@@ -1645,6 +1653,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 				newParamManager = &clip->paramManager;
 				newArpSettings = &instrumentClip->arpSettings;
+				newHarmonizerSettings = &instrumentClip->harmonizerSettings;
 			}
 		}
 
@@ -1768,6 +1777,7 @@ doMIDIOrCV:
 
 	currentSound = newSound;
 	currentArpSettings = newArpSettings;
+	currentHarmonizerSettings = newHarmonizerSettings;
 	currentMultiRange = newRange;
 
 	if (currentModControllable) {
