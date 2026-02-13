@@ -1,0 +1,225 @@
+---
+title: MIDI Harmonizer
+---
+
+import { Badge } from "@astrojs/starlight/components"
+
+<Badge text="Experimental Feature" variant="caution" />
+
+The MIDI Harmonizer is a real-time note processor for MIDI and CV clips that remaps melody notes to fit a chord played on a separate channel. It enables automatic harmonization, diatonic intervals, voice leading, and live retrigger when the chord changes.
+
+## Enabling the Harmonizer
+
+The MIDI Harmonizer is gated behind a runtime feature flag. To enable it:
+
+1. Go to **Settings > Community Features**
+2. Find **MIDI Harmonizer** and set it to **On**
+
+Once enabled, the Harmonizer submenu appears in the sound editor for MIDI and CV clips.
+
+## Overview
+
+The harmonizer works by designating one MIDI channel as the **chord channel** and treating all other channels as **melody channels**. Notes arriving on the chord channel define the current chord. Notes arriving on melody channels are remapped (harmonized) to fit that chord in real time.
+
+This means you can:
+
+- Play a chord progression on one clip (chord channel)
+- Play a melody on another clip (melody channel)
+- The melody is automatically adjusted to fit the chords
+
+The harmonizer also integrates with the **Song scale** — when Target is set to `Scale` or a Diatonic Interval is active, it reads the current song key to determine which notes are on-scale.
+
+## How Snap and Target Work Together
+
+The harmonizer processes each melody note in two stages:
+
+1. **Target** decides *whether* a note needs correction. Depending on the mode, some notes are allowed to pass through unchanged while others are flagged for snapping.
+2. **Snap** decides *where* to move notes that need correction — to the nearest chord tone, always down, always to the root, etc.
+
+### Example
+
+With a **C major chord (C, E, G)** and melody notes **Eb, F, A, B**:
+
+| Target | Eb | F | A | B | Rule |
+|---|---|---|---|---|---|
+| **Chord Tones** | E | E | G | C | Every note snaps to a chord tone |
+| **Loose** | E | E | A | C | Notes within 1 semitone of a chord tone snap; others pass |
+| **Extensions** | Eb | E | A | B | Only "avoid notes" (half-step above a chord tone) snap; others pass |
+| **Scale** (C maj) | E | F | A | B | Off-scale notes snap; in-scale notes pass |
+
+- **Chord Tones** is the strictest — all four notes become chord tones.
+- **Loose** lets A through (it's 2 semitones from G, not close enough to clash) but snaps Eb, F, and B because they're each 1 semitone from a chord tone.
+- **Extensions** uses jazz theory: F is an "avoid note" (half-step above E) so it snaps, but Eb (minor 3rd), A (6th), and B (major 7th) are treated as valid chord extensions and pass through.
+- **Scale** only cares about the song key — Eb is the only note outside C major, so it's the only one corrected. F, A, and B are all in-scale and pass through, even though F clashes with E.
+
+In all four cases, the **Snap** setting (Nearest, Round Down, Round Up, Root, Root+5th) determines *where* the flagged notes land.
+
+## Accessing the Menu
+
+The harmonizer menu is accessible from the sound editor when editing a MIDI or CV clip:
+
+- **Grid shortcut**: Column 8, Row 7 (from bottom-left)
+- **Menu path**: Sound Editor > Harmonizer
+
+The menu has three pages that you cycle through using the **Scale Mode** (left arrow) and **Cross Screen Edit** (right arrow) buttons:
+
+- **Page 1 — MAPPING**: Snap, Target, Voice Leading, Transpose
+- **Page 2 — VOICES**: Interval, Int. Vel, Prob
+- **Page 3 — CHORD**: Chord Ch, Latch, Retrigger
+
+## Settings Reference
+
+### Page 1: Mapping (MAP)
+
+#### Snap
+
+Controls where notes land when they need to be corrected (as determined by **Target**).
+
+- **`Nearest`**: Snaps to the closest chord tone (up or down). Produces the smoothest results with minimal pitch jumps.
+- **`Round Down`**: Always snaps to the nearest chord tone below or equal to the input note. Creates a downward tendency.
+- **`Round Up`**: Always snaps to the nearest chord tone above or equal to the input note. Creates an upward tendency.
+- **`Root`**: Snaps to the chord root note (in the nearest octave). Useful for bass lines.
+- **`Root+5th`**: Snaps to either the root or the perfect 5th of the chord. Useful for power-chord style lines.
+
+#### Target
+
+Controls which melody notes are allowed to pass through unchanged and which get snapped to chord tones. Listed from strictest to most permissive:
+
+- **`Chord Tones`**: Every note gets snapped. The output will only contain chord tones. Produces the tightest harmonic lock.
+- **`Loose`**: Notes within 1 semitone of any chord tone (above or below) get snapped. Notes further away pass through. Catches most dissonances while allowing passing tones.
+- **`Extensions`**: Only "avoid notes" get snapped — notes that are a half-step *above* a chord tone (e.g., F against a C major chord with E). Other non-chord tones pass through as extensions (7ths, 9ths, 13ths). Produces jazzy harmonizations.
+- **`Scale`**: Only notes outside the current song scale get snapped. In-scale notes pass through freely, even if they clash with the chord. Requires a song scale to be set. Produces the most melodic freedom while staying in key.
+
+#### Voice Leading (VLAD)
+
+When enabled, the harmonizer balances proximity to the input pitch and proximity to the previous output note when choosing a chord tone, creating smoother melodic motion. Input proximity is weighted more heavily to preserve the melody's contour, while previous-output proximity encourages stepwise motion.
+
+- **`Off`**: Each note is harmonized independently.
+- **`On`**: Notes are harmonized with awareness of the previous output, creating smoother voice leading.
+
+#### Transpose (TRNS)
+
+Shifts the harmonized output up or down by a fixed number of semitones.
+
+- **Range**: -24 to +24 semitones (two octaves in either direction)
+- **Default**: 0
+
+This is applied after harmonization, so it shifts the final output without affecting the chord matching logic.
+
+### Page 2: Voices (VOIC)
+
+#### Interval (INTV)
+
+Adds a second parallel voice at a diatonic interval from the harmonized note. The interval is calculated using the current song scale, so it always stays diatonic.
+
+For example, if the harmonized note is C and Interval is set to `3rd Above` in C major, both C and E will sound.
+
+- **`Off`**: No parallel voice (single note output).
+- **`3rd Above`**: Adds a note a diatonic 3rd above the harmonized note.
+- **`3rd Below`**: Adds a note a diatonic 3rd below.
+- **`6th Above`**: Adds a note a diatonic 6th above.
+- **`6th Below`**: Adds a note a diatonic 6th below.
+- **`Octave`**: Adds a note one octave above.
+
+:::note
+Diatonic intervals require a song scale to be set. If no scale is configured, the interval feature has no effect (except Octave, which is always chromatic).
+:::
+
+#### Interval Velocity (IVEL)
+
+Offsets the velocity of the interval (parallel) voice relative to the main note's velocity.
+
+- **Range**: -64 to +64
+- **Default**: 0
+
+A negative offset makes the interval voice softer than the main voice, creating a more subtle parallel harmony. A positive offset makes it louder. The final velocity is clamped to 1-127.
+
+#### Probability (PROB)
+
+Controls the chance that each melody note is harmonized.
+
+- **Range**: 0-100%
+- **Default**: 100 (always harmonize)
+
+At 100%, every note is harmonized normally. At lower values, some notes randomly pass through unharmonized, keeping their original pitch. This creates a more organic, less mechanical feel.
+
+### Page 3: Chord (CHRD)
+
+#### Chord Channel (CHCH)
+
+Sets which MIDI channel is used as the chord input.
+
+- **Range**: 1-16
+- **Default**: 1
+
+Notes received on this channel update the harmonizer's chord state. Notes on all other channels are treated as melody and harmonized against the current chord.
+
+**Tip**: Set this to match the MIDI channel of your chord clip. For example, if your chord progression is on a MIDI clip set to channel 1, set Chord Channel to 1. Your melody clip on channel 2 will then be harmonized.
+
+#### Chord Latch (LTCH)
+
+When enabled, the chord persists after you release the keys.
+
+- **`Off`**: Chord tones are removed when keys are released (normal behavior).
+- **`On`**: Released chord notes remain active. The chord only resets when a new note is pressed after all previous keys have been released.
+
+This is useful for sequenced chord progressions where you want the chord to sustain between changes, or for live performance where you want to play a chord once and have it hold while you work on the melody.
+
+#### Retrigger (RTRG)
+
+Controls whether active melody notes are re-harmonized when the chord changes.
+
+- **`Off`**: Melody notes keep their original harmonization until they end naturally.
+- **`On`**: When a new chord is played (or a chord note is released), all currently sounding melody notes are re-harmonized to fit the new chord. The old note is turned off and the new note is turned on seamlessly.
+
+This creates a more responsive, "live" feel where the harmony follows chord changes in real time, even for sustained melody notes.
+
+:::caution
+Changing the chord channel while the sequencer is playing is supported, but it's best to stop playback first to ensure a clean state transition.
+:::
+
+## Setup Guide
+
+### Basic Two-Clip Setup
+
+1. **Create a chord clip**: Set up a MIDI clip on channel 1 with your chord progression
+2. **Create a melody clip**: Set up a MIDI clip on channel 2 with your melody
+3. **Enable the harmonizer**: Settings > Community Features > MIDI Harmonizer > On
+4. **Configure the melody clip**: Enter the sound editor on the melody clip, navigate to Harmonizer:
+   - Set **Chord Channel** to 1 (matching your chord clip's channel)
+   - Set **Snap** to Nearest
+   - Set **Target** to Chord Tones
+5. **Play both clips** and hear the melody conform to the chords
+
+### Using with Song Scale
+
+1. Set your song's key and scale (e.g., C Major)
+2. In the harmonizer settings, set **Target** to `Scale`
+3. The harmonizer will now use the song scale to determine valid notes, giving the melody more freedom while staying in key
+
+### Adding Parallel Harmony
+
+1. Set a song scale (required for diatonic intervals)
+2. In the harmonizer settings, set **Interval** to `3rd Above`
+3. Optionally adjust **Int. Vel** to make the parallel voice quieter (e.g., -20)
+4. Each melody note will now produce two notes: the harmonized note plus a diatonic 3rd above it
+
+### Using Chord Latch
+
+1. Enable **Latch** in the Chord page
+2. Play a chord on the chord channel — it will sustain after you release the keys
+3. Play melody notes and they harmonize against the latched chord
+4. When you press a new chord key after fully releasing the previous chord, the old chord clears and the new one takes over
+
+## Per-Clip Settings
+
+All harmonizer settings are stored **per clip**. This means different MIDI clips can have different harmonizer configurations — one clip could use `Nearest` snap while another uses `Root` snap, each with different chord channels.
+
+Settings are saved and loaded with the song XML file.
+
+## Technical Notes
+
+- The harmonizer operates after the arpeggiator in the signal chain. If both arp and harmonizer are active, notes are first arpeggiated, then harmonized.
+- The chord state is global — all clips share the same chord. If multiple clips send to the same chord channel, their notes are combined into one chord.
+- The harmonizer only processes non-MPE, non-internal MIDI output. MPE clips are not affected.
+- When the sequencer stops, all harmonizer state (chord and note mappings) is automatically reset.
