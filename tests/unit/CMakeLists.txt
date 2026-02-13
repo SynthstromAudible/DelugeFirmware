@@ -59,6 +59,8 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/model/sync.cpp
         # For chord tests
         ../../src/deluge/gui/ui/keyboard/chords.cpp
+        # For harmonizer tests
+        ../../src/deluge/io/midi/midi_harmonizer.cpp
 )
 
 add_executable(UnitTests
@@ -72,6 +74,7 @@ add_executable(UnitTests
         sync_tests.cpp
         chord_tests.cpp
         time_tests.cpp
+        harmonizer_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)
