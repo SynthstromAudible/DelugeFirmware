@@ -1012,7 +1012,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_HARMONIZER_INT_3RD_BELOW, "3rd Below"},
         {STRING_FOR_HARMONIZER_INT_6TH_ABOVE, "6th Above"},
         {STRING_FOR_HARMONIZER_INT_6TH_BELOW, "6th Below"},
-                {STRING_FOR_HARMONIZER_INT_OCTAVE, "Octave"},
+        {STRING_FOR_HARMONIZER_INT_OCTAVE, "Octave"},
         {STRING_FOR_HARMONIZER_MAPPING_MENU_TITLE, "Harmonizer Mapping"},
         {STRING_FOR_HARMONIZER_VOICES_MENU_TITLE, "Harmonizer Voices"},
         {STRING_FOR_HARMONIZER_CHORD_MENU_TITLE, "Harmonizer Chord"},
