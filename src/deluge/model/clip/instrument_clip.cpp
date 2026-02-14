@@ -2696,7 +2696,7 @@ someError:
 				}
 				else if (!strcmp(tagName, "transpose")) {
 					int32_t val = reader.readTagOrAttributeValueInt();
-					harmonizerSettings.transpose = static_cast<int8_t>(std::clamp(val, -24, 24));
+					harmonizerSettings.transpose = static_cast<int8_t>(std::clamp<int32_t>(val, -24, 24));
 				}
 				else if (!strcmp(tagName, "interval")) {
 					int32_t val = reader.readTagOrAttributeValueInt();
