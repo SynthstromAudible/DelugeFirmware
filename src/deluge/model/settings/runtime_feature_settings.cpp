@@ -200,6 +200,10 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+
+	// MIDI Harmonizer
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MidiHarmonizer], STRING_FOR_COMMUNITY_FEATURE_MIDI_HARMONIZER,
+	                  "midiHarmonizer", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

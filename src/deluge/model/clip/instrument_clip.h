@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
+#include "io/midi/harmonizer_settings.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
 
@@ -99,6 +100,7 @@ public:
 	void copyBasicsFrom(Clip const* otherClip) override;
 
 	ArpeggiatorSettings arpSettings;
+	HarmonizerSettings harmonizerSettings;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 
