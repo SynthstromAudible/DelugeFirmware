@@ -33,26 +33,26 @@ The harmonizer also integrates with the **Song scale** — when Target is set to
 
 The harmonizer processes each melody note in two stages:
 
-1. **Target** decides *whether* a note needs correction. Depending on the mode, some notes are allowed to pass through unchanged while others are flagged for snapping.
-2. **Snap** decides *where* to move notes that need correction — to the nearest chord tone, always down, always to the root, etc.
+1. **Target** decides _whether_ a note needs correction. Depending on the mode, some notes are allowed to pass through unchanged while others are flagged for snapping.
+2. **Snap** decides _where_ to move notes that need correction — to the nearest chord tone, always down, always to the root, etc.
 
 ### Example
 
 With a **C major chord (C, E, G)** and melody notes **Eb, F, A, B**:
 
-| Target | Eb | F | A | B | Rule |
-|---|---|---|---|---|---|
-| **Chord Tones** | E | E | G | C | Every note snaps to a chord tone |
-| **Loose** | E | E | A | C | Notes within 1 semitone of a chord tone snap; others pass |
-| **Extensions** | Eb | E | A | B | Only "avoid notes" (half-step above a chord tone) snap; others pass |
-| **Scale** (C maj) | E | F | A | B | Off-scale notes snap; in-scale notes pass |
+| Target            | Eb  | F   | A   | B   | Rule                                                                |
+| ----------------- | --- | --- | --- | --- | ------------------------------------------------------------------- |
+| **Chord Tones**   | E   | E   | G   | C   | Every note snaps to a chord tone                                    |
+| **Loose**         | E   | E   | A   | C   | Notes within 1 semitone of a chord tone snap; others pass           |
+| **Extensions**    | Eb  | E   | A   | B   | Only "avoid notes" (half-step above a chord tone) snap; others pass |
+| **Scale** (C maj) | E   | F   | A   | B   | Off-scale notes snap; in-scale notes pass                           |
 
 - **Chord Tones** is the strictest — all four notes become chord tones.
 - **Loose** lets A through (it's 2 semitones from G, not close enough to clash) but snaps Eb, F, and B because they're each 1 semitone from a chord tone.
 - **Extensions** uses jazz theory: F is an "avoid note" (half-step above E) so it snaps, but Eb (minor 3rd), A (6th), and B (major 7th) are treated as valid chord extensions and pass through.
 - **Scale** only cares about the song key — Eb is the only note outside C major, so it's the only one corrected. F, A, and B are all in-scale and pass through, even though F clashes with E.
 
-In all four cases, the **Snap** setting (Nearest, Round Down, Round Up, Root, Root+5th) determines *where* the flagged notes land.
+In all four cases, the **Snap** setting (Nearest, Round Down, Round Up, Root, Root+5th) determines _where_ the flagged notes land.
 
 ## Accessing the Menu
 
@@ -87,7 +87,7 @@ Controls which melody notes are allowed to pass through unchanged and which get 
 
 - **`Chord Tones`**: Every note gets snapped. The output will only contain chord tones. Produces the tightest harmonic lock.
 - **`Loose`**: Notes within 1 semitone of any chord tone (above or below) get snapped. Notes further away pass through. Catches most dissonances while allowing passing tones.
-- **`Extensions`**: Only "avoid notes" get snapped — notes that are a half-step *above* a chord tone (e.g., F against a C major chord with E). Other non-chord tones pass through as extensions (7ths, 9ths, 13ths). Produces jazzy harmonizations.
+- **`Extensions`**: Only "avoid notes" get snapped — notes that are a half-step _above_ a chord tone (e.g., F against a C major chord with E). Other non-chord tones pass through as extensions (7ths, 9ths, 13ths). Produces jazzy harmonizations.
 - **`Scale`**: Only notes outside the current song scale get snapped. In-scale notes pass through freely, even if they clash with the chord. Requires a song scale to be set. Produces the most melodic freedom while staying in key.
 
 #### Voice Leading (VLAD)
