@@ -1434,7 +1434,6 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 
 bool ArpeggiatorBase::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 	if (active_note.isPending()) {
-		ARP_PRINTLN("found a pending drum note");
 		instruction->arpNoteOn = &active_note;
 		return true;
 	}
@@ -1518,15 +1517,14 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	if (clipCurrentPos == 0) {
 		notesPlayedFromLockedRandomizer = 0;
 	}
-	if (handlePendingNotes(settings, instruction)) {
-		ARP_PRINTLN("pending during tick forward");
-		return 0;
-	}
 	// Make sure we actually intended to sync
 	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
 		return 2147483647;
 	}
-
+	if (handlePendingNotes(settings, instruction)) {
+		ARP_PRINTLN("pending during tick forward");
+		return 0;
+	}
 	uint32_t ticksPerPeriod = 3 << (9 - settings->syncLevel);
 	if (settings->syncType == SYNC_TYPE_EVEN) {} // Do nothing
 	else if (settings->syncType == SYNC_TYPE_TRIPLET) {
