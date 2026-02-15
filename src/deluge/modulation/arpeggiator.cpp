@@ -1434,6 +1434,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 
 bool ArpeggiatorBase::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 	if (active_note.isPending()) {
+		ARP_PRINTLN("found a pending drum note");
 		instruction->arpNoteOn = &active_note;
 		return true;
 	}
