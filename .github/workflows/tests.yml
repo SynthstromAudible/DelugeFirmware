@@ -5,6 +5,7 @@ on:
     branches:
       - "community"
       - "release/**"
+      - "main"
   merge_group:
   workflow_dispatch:
 
@@ -14,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install GCC multilib
         run: |
           sudo apt-get update
@@ -32,7 +33,10 @@ jobs:
         run: cmake --build build
 
       - name: Run CTest
-        run: ctest --test-dir build --output-junit results/ctest_results.xml
+        run: ctest --test-dir build --output-on-failure --output-junit results/ctest_results.xml
+
+      - name: Make results directory
+        run: mkdir -p build/results
 
       - name: Run 32 bit CppUTest
         run: |
@@ -45,18 +49,21 @@ jobs:
           ../unit/UnitTests -ojunit
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: Test Results x86
-          path: build/results/**/*.xml
+          path: |
+            build/results/**/*.xml
+            build/spec/results/**/*.xml
+            build/spec/results/*.xml
 
   test-build-qemu:
     name: Run tests for ARMv7 via QEMU
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install CMake
         uses: lukka/get-cmake@latest
@@ -81,21 +88,21 @@ jobs:
         run: cmake --build build
 
       - name: Run CTest
-        run: ctest --output-on-failure --test-dir build --output-junit results/ctest_results.xml
+        run: ctest --output-on-failure --test-dir build
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: Test Results ARMv7
-          path: build/results/**/*.xml
+          path: build/spec/results/**/*.xml
 
   event_file:
     name: "Event File"
     runs-on: ubuntu-latest
     steps:
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Event File
           path: ${{ github.event_path }}

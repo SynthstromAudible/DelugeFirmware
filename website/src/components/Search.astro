@@ -1,0 +1,29 @@
+---
+import Default from "@astrojs/starlight/components/Search.astro"
+---
+
+<Default>
+  <p class="message">
+    Use quotation marks to search for Deluge shortcuts.
+    <br />
+    Example: <code>"Shift + press turn Horizontal"</code>
+  </p>
+</Default>
+
+<style>
+  .message {
+    box-sizing: content-box;
+    color: var(--sl-color-gray-2);
+    font-size: calc(16px * 0.8);
+    padding: calc(20px * 0.8) 0;
+    font-weight: 700;
+    margin-top: 0;
+  }
+
+  .message code {
+    font-family: var(--__sl-font-mono);
+    background-color: var(--sl-color-bg-inline-code);
+    margin-block: -0.125em;
+    padding: 0.125em 0.375em;
+  }
+</style>

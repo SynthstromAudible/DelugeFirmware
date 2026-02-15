@@ -1,0 +1,107 @@
+---
+title: Deluge Screenshots
+---
+
+import { Steps, Tabs, TabItem } from "@astrojs/starlight/components"
+
+You can use the `::screen[...]` Markdown directive to include screenshots from the Deluge.
+
+## How to use
+
+<Steps>
+
+1.  Take a screenshot on [DEx](https://dex.silicak.es/) by pasting the following code snippet into your browser console:
+
+    <Tabs>
+
+      <TabItem label="All browsers">
+
+          ```js
+          const reader = Object.assign(new FileReader(), {
+            onload: () => console.log(
+              reader.result.split("data:application/octet-stream;base64,")[1]
+            ),
+            onerror: () => console.error(reader.error),
+          });
+
+          new Response(new Blob([lastOled]).stream()
+            .pipeThrough(new CompressionStream("gzip")))
+            .bytes().then((bytes) =>
+              reader.readAsDataURL(
+                new File([bytes], "", { type: "application/octet-stream" })
+              )
+            )
+          ```
+
+      </TabItem>
+
+      <TabItem label="Firefox and Safari">
+
+          Firefox and Safari can use a simpler snippet because they support the new [`toBase64` method](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array/toBase64).
+
+          ```js
+          new Response(new Blob([lastOled]).stream()
+            .pipeThrough(new CompressionStream("gzip")))
+            .bytes().then((bytes) => console.log(bytes.toBase64()))
+          ```
+
+      </TabItem>
+
+    </Tabs>
+
+2.  Copy the output, this will be the `screen-data` in the directive below.
+
+3.  Add your screen directive to any markdown (`.md` or `.mdx`) file:
+
+    ```mdx
+    ::screen[screen-data]{alt="Alt text"}
+    ```
+
+</Steps>
+
+Alt text is mandatory.
+
+You can also add a `scale` attribute to the directive to scale the image up or down. Default scale is 2, meaning that 1 deluge pixel will show as a 2x2 square in the browser.
+
+```mdx
+::screen[screen-data]{alt="Alt text" scale=4}
+```
+
+Directives that begin with `::` will be shown as block elements. If there is just one `:` then it will be shown inline. This is true for all directives.
+
+Inline example (note the single `:`):
+
+```mdx
+:screen[screen-data]{alt="Inline screenshot"}
+```
+
+## Examples
+
+### Scale 2 (default)
+
+::screen[H4sIAAAAAAAACmNgGGLAZ9KkSSkMbBwfONgY/nEIKPxjYGL6x8TE8E9AQODfQDuOFsCgoubNmTMNDCwyNR8e/LDhYWD486fiwYE/fxh4eHj+/AESDA9+AKk/PxgQDAYGCQmgCmoAJjY2NnZmRhCTnZ0BRjFD2FARZnaQGmQGQm5wAwC80z4YAAMAAA==]{alt="Synth 001"}
+
+::screen[H4sIAAAAAAAACq2RP2oCQRTGJ5tFNyHoZAyO+YMPkgtYBGwEISewcovgjkmhTQgWphNWcgIxhTZhr2DhATzCGBbWTvAEk8UD5Dk7imlSSH7wvvl437wp5hHSnyEEmWnMsW+SMNF+Yvu7qZ05kLt2+7VXKaDz/Var1STamXBnjPP9dKaCNlOtPjVfepX98cOwNPFwOHzWyqwVY+xW62rb195iMcObD+9WrFNm/QdKU5bzr6kqh2F4r3LT7pRpzSmuvuMLxbvrdU6pkIdKRZLOI/XRXb+NklFFJWK0M5GTjpKSbjqbTPdLJi2hTNRvQLNwXfcRCm7kFkAKTwxABsVAwoJzvgAaeJ8Ulm7NDWApakLgBMVa6pKe5wmQ9Xp9BINGozEAEBKvjPHNMcjizVUENJ/Pc7hGvYTfJFsA/Ak8KNCNT52eEyDHWOCkHFTbtmHbx4+nZndphzpp00nSE/Rn5p0spTRL4Miy4Y/9/wA4KsHoAAMAAA==]{alt="Settings"}
+
+::screen[H4sIAAAAAAAACmNgGBTggQKxQMfIyEhFQU3DQENNwU7DQMFOQUnJTklJwc7AwMCOaFMUFB6g2P8fTH6AkBMmTEgAkwJQWQgbWfyBgIDAA7D6DzBZhwYgGySuwGDg0OBgAJRzQFigAFJbEBAQMAHFRlT72VmAgIEdwkaShYkwMrFA1TCzsDKxAkkWFmaELkZ2sAgTXAcjwggWdhYGBiawemz283PQG/ATTBN0AQAMnKoUAAMAAA==]{alt="LPF Frequency"}
+
+::screen[H4sIAAAAAAAACvv/fxSMgpELAPxIvvkAAwAA]{alt="Full white"}
+
+### Scale 4
+
+::screen[H4sIAAAAAAAACq2RP2oCQRTGJ5tFNyHoZAyO+YMPkgtYBGwEISewcovgjkmhTQgWphNWcgIxhTZhr2DhATzCGBbWTvAEk8UD5Dk7imlSSH7wvvl437wp5hHSnyEEmWnMsW+SMNF+Yvu7qZ05kLt2+7VXKaDz/Var1STamXBnjPP9dKaCNlOtPjVfepX98cOwNPFwOHzWyqwVY+xW62rb195iMcObD+9WrFNm/QdKU5bzr6kqh2F4r3LT7pRpzSmuvuMLxbvrdU6pkIdKRZLOI/XRXb+NklFFJWK0M5GTjpKSbjqbTPdLJi2hTNRvQLNwXfcRCm7kFkAKTwxABsVAwoJzvgAaeJ8Ulm7NDWApakLgBMVa6pKe5wmQ9Xp9BINGozEAEBKvjPHNMcjizVUENJ/Pc7hGvYTfJFsA/Ak8KNCNT52eEyDHWOCkHFTbtmHbx4+nZndphzpp00nSE/Rn5p0spTRL4Miy4Y/9/wA4KsHoAAMAAA==]{alt="Settings" scale=4}
+
+::screen[H4sIAAAAAAAACsWPMQrCMBSG/zSDb4oZu0WkB3DsInZwyOAxPEaRkkEcpSdydPIMPULHDOVhLLZVcJBa8IPAx8v/PxLgv+zKstwDjh3AzrkcHCYOefAtWGvN8Mky8V2G9IInfUFWNEU26cY3lLox8zFY3TRKqUPjLy8a/gUBb60l1ERUA9r3ZW+vdoXqfDpXIPJEz+T3xHGapmtjoqKYGRN8Y+YCg8ooANlmRVABRDLq2vIxbG/70+ZHIOWY1q+Ygc+BO4NSq8IAAwAA]{alt="Modulation" scale=4}
+
+### Inline examples
+
+Can be used inline with text (for whatever reason): :screen[H4sIAAAAAAAACmNgGGLAZ9KkSSkMbBwfONgY/nEIKPxjYGL6x8TE8E9AQODfQDuOFsCgoubNmTMNDCwyNR8e/LDhYWD486fiwYE/fxh4eHj+/AESDA9+AKk/PxgQDAYGCQmgCmoAJjY2NnZmRhCTnZ0BRjFD2FARZnaQGmQGQm5wAwC80z4YAAMAAA==]{alt="Threshold" scale=1} Scale is `1` here.
+
+Or even smaller (for whatever reason): :screen[H4sIAAAAAAAACmNgGGLAZ9KkSSkMbBwfONgY/nEIKPxjYGL6x8TE8E9AQODfQDuOFsCgoubNmTMNDCwyNR8e/LDhYWD486fiwYE/fxh4eHj+/AESDA9+AKk/PxgQDAYGCQmgCmoAJjY2NnZmRhCTnZ0BRjFD2FARZnaQGmQGQm5wAwC80z4YAAMAAA==]{alt="Threshold" scale=0.5} This is at `0.5` scale.
+
+Screens can be used in tables too. This also uses the inline (single `:`) directive variant.
+
+| First Column                                                                                                                                                                                                                                                               | Second Colum                                                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| :screen[H4sIAAAAAAAACmNgGGLAZ9KkSSkMbBwfONgY/nEIKPxjYGL6x8TE8E9AQODfQDuOFsCgoubNmTMNDCwyNR8e/LDhYWD486fiwYE/fxh4eHj+/AESDA9+AKk/PxgQDAYGCQmgCmoAJjY2NnZmRhCTnZ0BRjFD2FARZnaQGmQGQm5wAwC80z4YAAMAAA==]{alt="Synth 001"}                                                     | :screen[H4sIAAAAAAAACmNgGGLAZ9KkSSkMbBwfONgY/nEIKPxjYGL6x8TE8E9AQODfQDuOFsCgoubNmTMNDCwyNR8e/LDhYWD486fiwYE/fxh4eHj+/AESDA9+AKk/PxgQDAYJGZ4zfyqoYT8TGxsbOzMjiMnOzgCjmCFsqAgzO0gNMoOFjR3IpIb9tAUA+IAEXwADAAA=]{alt="Synth 002"}                                     |
+| :screen[H4sIAAAAAAAACtWQvQ0CMQyFnR/FjQtKCgagZAiGSkERXc0IjHLFDZAhMgBFyiusCIcLR2i5AvEK2/ryXhwF4C9VdsfzADAUKVoXrX/9oO/FnPJIts1SiIhZSucJmW+cQ0dO/nKPMdRIjOyFTHm8TgLSLGGeO8LsU/Isl6+79gdaUgCIoBDta/7oTRaNUso001PaOSf0bVVVKAAM1qOOLBaUtu6yDsW1/fM26wHm2sSmAAMAAA==]{alt="Kit A"} | :screen[H4sIAAAAAAAACmNgGJLgn4CGSxMDQ9M/IMHE9I+JaaAdRD748+fBhz08LFA2kODh4fnzB0igqMnJ+fMDWZdBRc2bM2caQFJnzvypAIoc+LCn5wBQ4MEPoGawYpjInz8VDx5U/AEaDrdLQoYHoouBgZ2dgZGdnQXGRqFhgJ2djY2dGVmEiQ0kwohQyggC7EABBmaoYrgIRAk7kILbxcIGMpLCkKMGAAD0hpRBAAMAAA==]{alt="Kit B"} |

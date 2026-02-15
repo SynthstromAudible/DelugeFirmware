@@ -1,0 +1,146 @@
+---
+title: Save and Load Patterns
+---
+
+import { Badge } from "@astrojs/starlight/components"
+
+<Badge text="c1.3 Feature" variant="tip" />
+
+Added ability to save / load Patterns from/to Files. A Pattern represents all notes of the current Deluge screen, including the attributes Velocity, Probability, Lift, Iteration, and Fill. Patterns can be either melodic instruments (Synth, MIDI, CV) or rhythmic instruments (Kit, Drum).
+
+## Creating Pattern Files
+
+There are different ways to create Pattern files:
+
+### Directly on the Deluge
+
+You can manually enter notes into the Deluge and save them as a Pattern. This works similarly to the standard **Copy/Paste** function, with the key difference that the Pattern is stored on the **SD card** instead of just in the clipboard.
+
+- When you load a Pattern, it is first loaded into the clipboard and pasted once.
+- After that, you can paste it onto other screens or even use the **gentle paste** function multiple times.
+
+### Converting MIDI Files
+
+Another way to use this feature is by **converting MIDI files** into Deluge Pattern files.
+
+- Two tools for conversion are described in the [Additional Tools](#additional-tools) section.
+- These tools allow you to import simple MIDI files and save them as **Pattern XML files**.
+- These XML files can then be copied to the [corresponding folder](#folder-structure) on your SD card and loaded into the Deluge using the **Pattern Load function**.
+
+## Feature Benefits
+
+This feature allows you to build and share your own **Pattern Library** for the Deluge.
+Here are a few examples of what can be stored as a Pattern:
+
+- A simple Drum-Pattern for a single Drum
+- A complex Rhythm-Pattern for a Full Kit
+- A simple Melody
+- A Chord Progression
+- A full Instrument Track
+
+Everything you can think of and what can be copy/pasted can now also be stored an recalled to/from the SD Card.
+
+### Folder Structure
+
+You will Find the Pattern Files nn the following Structure on the Root of your SD Card:
+
+```
+"PATTERNS/RHYTHMIC/DRUM"
+"PATTERNS/RHYTHMIC/KIT"
+"PATTERNS/MELODIC"
+```
+
+### How To Use it
+
+**For Melodic Instruments (Synth, Midi, CV)**
+
+- Save Melodic Pattern: :key[SAVE] + :key[HORIZONTAL]
+
+- Load Melodic Pattern: :key[LOAD] + :key[HORIZONTAL]
+
+- Load Melodic Pattern without overwriting existing Notes:
+  :key[SAVE] + :key[CROSSSCREEN] + :key[HORIZONTAL]
+
+- Load Melodic Pattern without scaling original File:
+  :key[LOAD] + :key[SCALE] + :key[HORIZONTAL]
+
+_Remark: If noScaling is set, Pattern will allways overwrite existing Notes and start from beginning of the Clip and not at the left Side of the Screen._
+
+Preview of Pattern:
+Press and hold :key[PLAY] while in Pattern-Load Menu
+
+**For Rhythmic Instruments (Kit, Drums)**
+
+- Save Kit Pattern:
+  1. Enable :key[AFFECTENTIRE]
+  2. :key[SAVE] + :key[HORIZONTAL]
+
+- Load Kit Pattern:
+  1. Enable :key[AFFECTENTIRE]
+  2. :key[LOAD] + :key[HORIZONTAL]
+
+- Load Kit Pattern without overwriting existing Notes:
+  1. Enable :key[AFFECTENTIRE]
+  2. :key[SAVE] + :key[CROSSSCREEN] + :key[HORIZONTAL]
+
+- Load Kit Pattern without scaling original File:
+  1. Enable :key[AFFECTENTIRE]
+  2. :key[LOAD] + :key[SCALE] + :key[HORIZONTAL]
+
+_Remark: If noScaling is set, Pattern will allways overwrite existing Notes and start from beginning of the Clip and not at the left Side of the Screen._
+
+- Preview of Pattern:
+  Press and hold :key[PLAY] while in Pattern-Load Menu
+
+- Save Drum Pattern:
+  1. Disable :key[AFFECTENTIRE]
+  2. Select Drum Row to save (:key[AUDITION PAD])
+  3. :key[SAVE] + :key[HORIZONTAL]
+
+- Load Drum Pattern:
+  1. Disable :key[AFFECTENTIRE]
+  2. Select Drum Row to save (:key[AUDITION PAD])
+  3. :key[LOAD] + :key[HORIZONTAL]
+
+- Load Drum Pattern without overwriting existing Notes:
+  1. Disable :key[AFFECTENTIRE]
+  2. Select Drum Row to save (:key[AUDITION PAD])
+  3. :key[SAVE] + :key[CROSSSCREEN] + :key[HORIZONTAL]
+
+- Load Drum Pattern without scaling original File:
+  1. Disable :key[AFFECTENTIRE]
+  2. :key[LOAD] + :key[SCALE] + :key[HORIZONTAL]
+
+_Remark: If noScaling is set, Pattern will allways overwrite existing Notes and start from beginning of the Clip and not at the left Side of the Screen._
+
+- Preview of Pattern:
+  Press and hold :key[PLAY] while in Pattern-Load Menu
+
+Hint:
+After loading a Pattern, the Pattern is also copied into Clipboard and can be pasted (:key[SHIFT] + :key[LEARN] + :key[HORIZONTAL]) or gently pasted (:key[SHIFT] + :key[CROSSSCREEN] + :key[HORIZONTAL]) as many Times as needed.
+
+### Implemented Features
+
+- save/load of Pattern files for Synths, Midi, CV, Kit and Drums
+- Browsing and Preview of patterns (press and hold Play to audition them)
+- streching/compressing of patterns
+- paste Gently of Patterns
+- Dynamically change Window Size based on original-Pattern size (noScaling)
+- supported Note Attributes: velocity, propability, lift, iterance, fill
+- If Zoomlevel of the Loading Pattern is not identical to the actual Zoom level, a Popup with the Scaling is shown (Scale-Factor for 7Seg)
+- Auto-Creation of Folder Structure
+
+### Additional Tools
+
+Under [contrib/midi2deluge](https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi2deluge), you will find two simple Tools - a WebApp and a python Script - that can generate Pattern-Files for the Deluge from simple Midi-Files.
+Important:The Tools where tested with the [Wikipedia Midifile Sample](https://en.wikipedia.org/wiki/File:MIDI_sample.mid) and may will not work with very complex Midi-Files.
+
+![midi2Deluge](https://github.com/user-attachments/assets/902fdcd1-58e7-4992-8c02-6c0ad063233d)
+
+### 7-Seg Abbreviations
+
+- Save pattern:`SAVE`
+- Load pattern:`LOAD`
+- No Overwrite (aka gently Paste):`NOOW`
+- No Scaling:`NOSC`
+- Previwing:`PREV`

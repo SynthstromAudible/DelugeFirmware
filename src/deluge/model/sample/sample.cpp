@@ -164,7 +164,8 @@ void Sample::markAsUnloadable() {
 	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
 		Cluster* cluster = clusters.getElement(c)->cluster;
 		if (cluster != nullptr) {
-			audioFileManager.loadingQueue.erase(*cluster);
+			cluster->unloadable = true;
+			audioFileManager.loadingQueue.erase(cluster);
 		}
 	}
 }
@@ -1374,7 +1375,7 @@ continueWhileLoop:
 		for (int32_t i = 0; i < (1 << lengthDoublingsNow); i++) {
 
 			if (!(count & 255)) {
-				AudioEngine::routineWithClusterLoading(); // --------------------------------------
+				AudioEngine::routineWithClusterLoading();
 			}
 			count++;
 
@@ -1474,7 +1475,7 @@ doneReading:
 		writeIndex++;
 	}
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	/*
 	D_PRINTLN("doing fft ---------------- %d", PITCH_DETECT_WINDOW_SIZE_MAGNITUDE);
@@ -1500,7 +1501,7 @@ doneReading:
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
 		if (!(i & 1023)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t thisValue = fastPythag(fftOutput[i].r, fftOutput[i].i);
@@ -1536,7 +1537,7 @@ doneReading:
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
 		if (!(i & 255)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t thisValue = fftHeights[i];
@@ -1596,8 +1597,7 @@ doneReading:
 		// We're at a peak!
 
 		if (!(peakCount & 7)) {
-			AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 15 works. 7 is extra
-			                                          // safe
+			AudioEngine::routineWithClusterLoading(); // Rohan 15 works. 7 is extra safe
 		}
 		peakCount++;
 
@@ -1790,26 +1790,3 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 	}
 }
 #endif
-
-bool Sample::mayBeStolen(void* thingNotToStealFrom) {
-	if (numReasonsToBeLoaded > 0) {
-		return false;
-	}
-
-	// If we were stolen, sampleManager's sampleFiles would get an entry deleted from it, and that's not
-	// allowed while it's being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
-	return (thingNotToStealFrom != &audioFileManager.sampleFiles);
-
-	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as
-	// we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
-}
-
-void Sample::steal(char const* errorCode) {
-	// The destructor is about to be called too, so we don't have to do too much.
-#if ALPHA_OR_BETA_VERSION
-	if (!audioFileManager.sampleFiles.contains(&this->filePath)) {
-		display->displayPopup(errorCode); // Jensg still getting.
-	}
-#endif
-	audioFileManager.sampleFiles.erase(&this->filePath);
-}

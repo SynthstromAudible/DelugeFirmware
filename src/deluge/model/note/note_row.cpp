@@ -2026,15 +2026,6 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 	int32_t effectiveLength = modelStack->getLoopLength();
 	bool playingReversedNow = modelStack->isCurrentlyPlayingReversed();
 	bool didPingpong = false;
-	if (ignoredNoteOn) {
-		maybeStartLateNote(modelStack, modelStack->getLivePos());
-		// if we ignored a note on and are now actioning it we know that there's nothing left to do
-		if (ticksSinceLast < ignoreUntil) {
-			ignoreUntil -= ticksSinceLast;
-			return ignoredNoteOn ? 1 : ignoreUntil;
-		}
-		// otherwise we'll just continue and process the note row
-	}
 
 	// If we have an independent play-pos, we need to check if we've reached the end (right of left) of this NoteRow.
 	if (hasIndependentPlayPos()) {
@@ -2369,7 +2360,6 @@ gotValidNoteIndex:
 				if (newTicksTil <= 0) {
 					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
 						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
-						ignoredNoteOn = false;
 					}
 
 					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're
@@ -2391,7 +2381,7 @@ gotValidNoteIndex:
 	}
 
 	ignoreUntil = std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
-	return ignoredNoteOn ? 1 : ignoreUntil;
+	return ignoreUntil;
 }
 
 bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
@@ -3129,10 +3119,6 @@ void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effe
 	if (noteEnd > effectiveActualCurrentPos) {
 		// if we're not allowed we'll just come back here later (next tick)
 		attemptLateStartOfNextNoteToPlay(modelStack, note);
-		ignoredNoteOn = false;
-	}
-	else {
-		ignoredNoteOn = false;
 	}
 }
 // Attempts (possibly late) start of any note at or overlapping the currentPos

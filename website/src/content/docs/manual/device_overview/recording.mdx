@@ -1,0 +1,270 @@
+---
+title: Recording
+sidebar:
+  order: 15
+---
+
+import { Steps } from "@astrojs/starlight/components"
+
+The Deluge supports several Audio and Non-Audio recording workflows:
+
+| Audio / Non-Audio | Workflow   | Description                                                                                         |
+| ----------------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| Audio             | Live       | Record internal/external Audio directly into Audio clip and save to SAMPLES/AUDIO folder on SD card |
+| Audio             | Sampling   | Record external Audio directly into Synth/Kit clip and save to SAMPLES/RECORD folder on SD card     |
+| Audio             | Resampling | Resampling the Deluge's output to SAMPLES/RESAMPLE folder on SD card                                |
+| Audio             | Exporting  | Live and offline export of audio for tracks and clips to SAMPLES/EXPORTS folder on SD card          |
+| Non-Audio         | Live       | Used to record notes / automation into the sequencer                                                |
+
+## Resampling / recording the Deluge’s output
+
+The Deluge can record its audio output to a file on the SD card. This is useful both as a sonic tool, where the user may create interesting sounds on the Deluge and “resample” them for further use, or to allow the user to make high-quality recordings of compositions or performances.
+
+This is not to be confused, though, with live looping, one use of which allows the Deluge’s output to be recorded into an audio clip.
+
+There are three ways to begin output-recording, during which the record button will blink fast:
+
+- Pressing shift+record begins output-recording instantly.
+- To begin output-recording at the exact same instant that playback is begun, press record+play.
+- To begin output-recording at the exact same instant that a voice is sounded, hold down record and press an audition pad (or one of the main pads if you're in keyboard view).
+
+To stop output-recording, simply press record again. Or, if you wish for it to stop at the exact instant that a loop finishes playing, press record+play (again - if you began output-recording with this combination).
+
+Recorded WAV files will appear in the SAMPLES/RESAMPLE folder of the SD card. Also, after you've made a recording in this way, the next time you are taken to the file browser, you will be defaulted to your new file, allowing you to easily add it to a kit or as an audio clip.
+
+## Count-in
+
+A recording count-in may be enabled in the settings menu. With it enabled, then anytime you begin playback (with Deluge as "master") with the record button illuminated, the Deluge will do an audible 4-beat count-in first.
+
+## Arming to Record
+
+### Session View
+
+All clips are armed by default to record when they are empty (meaning no audio file for an audio clip).
+
+You can view and set a clip’s record-arming status by holding down the record button in session view.
+
+An armed clips’ “launch” pad will be either:
+
+- Red, meaning armed to record and any overdubs will be created on the same audio track, meaning only one overdub will be audible at a time.
+- Purple, meaning armed to record and overdubs will have their own audio track created, meaning they will all be audible simultaneously.
+
+Tap the clip’s launch pad, while still holding down the record button, to arm or disarm a clip for recording, or to switch between the red and purple options.
+
+### Arranger View
+
+Track's in arranger are disarmed by default.
+
+You can view and set a track's record-arming status by holding down the record button in arranger view.
+
+- An armed track's "mute" pad will blink red if it is armed to record to the arrangement.
+
+Tap the track's mute pad, while still holding record button, to arm or disarm a track for recording.
+
+## Audio Track Input Source
+
+An audio input source may be selected for an Audio Track. The default is LEFT, which is suitable for a mono input or the Deluge’s internal microphone.
+
+The available audio input sources for an Audio track are:
+
+| Source         | Description                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LEFT (default) | the left or mono channel of the Deluge’s line or mic input. Use this if using the Deluge’s internal mic, or recording a mono source with an unbalanced cable.                                                                                                                                                                                                                                            |
+| RIGHt          | you’d most likely use this if you’re using the Deluge’s stereo line input as two separate mono inputs.                                                                                                                                                                                                                                                                                                   |
+| STEReo         | use for a stereo line or mic input.                                                                                                                                                                                                                                                                                                                                                                      |
+| BALAnced       | for if you’re running a mono signal via a TRS cable from a balanced output into the Deluge’s line input socket.                                                                                                                                                                                                                                                                                          |
+| MIX            | sources audio from the Deluge’s output - i.e. the other tracks which are playing - but grabs the audio pre master FX and level adjustment, and without reverb applied. This is usually the best option for “resampling” or “bouncing” existing instrument clips down to a single new audio clip. (Not to be confused with the Deluge’s resampling function for recording its output straight to a file.) |
+| OUTPut         | Deluge audio output post FX and with reverb - same as resampling. Normally not the best option for recording audio clips though - use MIX instead.                                                                                                                                                                                                                                                       |
+| OFF            | no audio input; recording disabled.                                                                                                                                                                                                                                                                                                                                                                      |
+
+The first four of these options each has a second option of the same name but with a dot at the end - e.g. “LEFT.”
+
+- These options with the dot enable audio “thru” or “monitoring” on that input channel - echoing the audio that’s fed in.
+
+### Session View
+
+<Steps>
+
+1. Enter Session View
+1. Hold down the “learn / input” button and press one of the main 16 pads on the audio clip.
+1. The Deluge’s display will blink the currently selected audio input source - LEFT by default. (The input source here is in fact being set for the audio track which the clip exists on - not for the clip per se. This distinction is something many users won’t need to worry about though.)
+
+</Steps>
+
+### Arranger View
+
+<Steps>
+
+1. Enter Arranger View
+1. Hold down the “learn / input” button and press the audition pad for the track.
+1. The Deluge’s display will blink the currently selected audio input source - LEFT by default
+
+</Steps>
+
+## Live recording basics
+
+### Recording a first loop of undetermined length
+
+Once a clip is created, armed (it will be armed by default - see above), and has its MIDI or audio input set (audio input is set to LEFT by default), it will be ready to begin recording as soon as playback is begun with the record button illuminated.
+
+Clips which are currently recording will have a red play-cursor visible in session view and clip view. (There is a different, but similar, method for recording into an arrangement (see below)).
+
+Once a clip is recording in such a way, it will continue to record, and the recording will grow in length, until you tell it to stop. To do this, tap the clip’s launch pad - this will arm it to stop recording at the end of the current “loop” of the clip’s original length. It will then immediately
+begin playing back from its start.
+
+### Recording an overdub - regular
+
+You can quickly and easily create an “overdub” for an existing clip - in the form of a new clip which will appear directly below it. This will often be preferable to creating a new clip from scratch to record to because it requires only one button-combination-press to begin recording an overdub with no additional setting up - and this function may also be performed via a global MIDI command (e.g. from a foot controller).
+
+To create a regular overdub:
+
+<Steps>
+
+1. playback must be active.
+1. Hold down the record button and press any of the main 16 pads on the row where you want the overdub to be created - which will be the row directly below the existing clip upon which you want to base the overdub.
+1. The new overdub (which as mentioned above is also its own clip), will be created and armed to begin recording at the next opportunity to do so in time with the clip it was created from, or the other clips playing. For the brief time before it begins recording, it will display as a solid red row of pads - and during this time, you may tap any of these if you decide you wish to delete it and not begin recording after all. If the overdub was created from an existing clip which was itself still recording at the time, the existing clip will become armed to stop recording at the same time as the new overdub begins.
+1. Once recording begins on the new overdub, the process is just like for any other clip being recorded to - you will need to tell it when to stop recording (unless it’s a continuous layering one - see below).
+
+</Steps>
+
+### Recording an overdub - continuous layering
+
+You may wish to continuously build up many layered overdubs without having to manually create a new one each time.
+
+To create a continuous layering overdub:
+
+<Steps>
+
+1. playback must be active.
+1. Hold down the record button and press the “audition / section” pad for the row on which you wish to create the overdub (the row below the existing clip you’re creating the overdub from).
+1. The overdub will be created as normal - however as soon as it begins recording, it will arm itself to stop recording at its end (the length of the clip from which it was created), and will create yet another overdub armed to take over recording at that point.
+1. This process will continue for any number of overdubs.
+1. When you wish to stop recording them, press one of the main 16 pads on a “pending”, all-red overdub (as described above) to delete it and stop any more being created.
+
+</Steps>
+
+### Further notes on overdubs
+
+Since each overdub exists as its own clip, the user is free to mute, delete, or apply FX to each one individually.
+
+Also, the recording of each clip / overdub counts as a separate step which may be undone and redone by pressing back or shift+back respectively - or via MIDI commands - see undo / redo.
+
+### MIDI control of looping
+
+Looping can also be controlled via global MIDI commands - particularly useful for foot control. In addition to UNDO and REDO, whose use is noted above, there are two main looping-related commands - LOOP and LAYEr.
+
+The LOOP and LAYEr commands are very similar - the only difference being that LAYEr does “continuous layering” overdubs - so you may end up preferring to use just one or the other on your external MIDI controller / pedal.
+
+The LOOP (and LAYEr) command is intended as a single command which will always perform the next logical step in the process of recording loops and overdubs. It will:
+
+- If playback was not previously active, start playback and begin recording on any clip(s).
+- Finish recording of a clip (or overdub) if one is currently recording - either arming it to stop recording soon, or immediately “closing” a tempo-determing initial loop.
+- Create an overdub from (so, below) the last clip / overdub that was recorded to, if playback active but no recording happening currently. If the LAYEr command, this will be a continuous layering overdub. If you wish to manually select which clip the overdub will be created from, hold down one of its main 16 pads in song view and then send the LOOP / LAYEr command.
+- Delete an overdub if one is pending to begin recording (displaying as an all-red row of pads in song view).
+
+There is also a PLAY global MIDI command, which can be used to stop or start playback without triggering further recording.
+
+## Live recording into Audio clip
+
+Recording audio clips in song view is the means by which the Deluge can be used as a looper for audio - both live looping as part of a performance, and as
+a means of recording audio clips as part of a music creation workflow.
+
+### Setting the tempo with the first-recorded loop
+
+A familiar feature of live looping with a classic “loop pedal” is that the length of the first loop the musician records ultimately determines the tempo of the entire layered composition. This can be achieved on the Deluge too - accompanied by the ability to then also create sequenced parts or beats perfectly in sync with the tempo of that first recorded loop.
+
+This tempo-determining recording will happen automatically anytime you record an audio clip loop in session view if you have no other clips playing, the metronome is off, and the Deluge is the syncing master.
+
+The feature is not currently available for instrument clips.
+
+Recording will finish when the user hits the newly recording audio clip’s launch pad, or launches any other clip, or creates an overdub, or stops playback. Then (so long as playback wasn’t stopped) the newly recorded clip will begin to loop back. At that same instant, the song tempo will have been recalculated and will blink on the Deluge’s numeric display - determined by the length of the clip just recorded, and appropriately doubled or halved to be as close to the previously set tempo as possible.
+
+Also, at the same instant, any clocks being output by the Deluge (MIDI beat clock or trigger clock) will begin sending; they will not have been sent during the initial tempo-determining record while the tempo had not yet been determined.
+
+On a related note, you also may at any time manually “grab” the tempo from an existing audio clip, with the same logic applied (see tempo controls for "Grabbing tempo from an audio clip").
+
+### Recording with extra “margins”
+
+A common problem when looping an audio recording is that unless the start and end of the waveform align perfectly, and particularly noticeably on low-frequency sounds, an audible click will result at the loop-point. The Deluge gets around this problem by doing a very short crossfade, beginning just before the loop-point on audio clips. Or if the audio clip is being time-stretched or pitch-shifted, a similar effect is applied in conjunction with that algorithm to maximise sound quality.
+
+However this can only happen if the waveform extends slightly further back in time than the loop’s start-point - and ideally extends slightly further forward than its end-point too.
+
+If the “margins” feature is enabled in the settings menu (as it is by default), then all audio clips recorded from external input sources (i.e. not MIX or OUTPut), will have these extra short “margins” of audio recorded. The Deluge will even retrieve a few milliseconds of audio data from a buffer in order to have the waveform extend further back in time than the point at which the user pressed the button to begin the recording.
+
+This extra audio is simply written into the WAV file as part of the main waveform, along with tags indicating the intended actual start and end points - meaning that the file will be treated correctly if later loaded into another Deluge project. Other software / hardware may or may not know what to do with these tags; if you're intending to use your Deluge-recorded audio clips in other devices with maximum ease, you have the option of disabling the “margins” feature - but then of course the benefits described above would be lost.
+
+The click-avoiding crossfade described above isn’t applicable when an audio clip is played for the first time though, with no previous iteration to crossfade from - so a click may occur at its very start if the waveform doesn’t have a zero-crossing right at that point. To help with this, audio clips have an attack setting which controls a short fade-in - defaulting to slightly on when margins are in use for a given recording, or off otherwise.
+
+## Sampling audio into Kit clip
+
+Here we describe the process of recording samples “offline”, to then be sequenced or played. This is less likely to be done live as part of a performance than looping with audio clips.
+
+The easiest way to arrange recorded samples is in a kit clip.
+
+<Steps>
+
+1. Create a new, blank kit clip by pressing shift+kit (provided you were in clip view already).
+1. A new kit is created, and the user is placed in the file browser.
+1. To record a new sound rather than select a file, simply press the record button at this stage.
+1. The sound recorder is entered, and recording begins immediately, indicated by the word “REC” blinking on the Deluge’s display.
+1. Press the record button again to end recording. You will be returned to clip view, where the recorded sample will have been assigned a row of pads, indicated by its green-illuminated “mute” pad.
+1. You can audition the sample by pressing the row’s “audition” pad (far-right).
+
+</Steps>
+
+The “mic gain” switch sets gain in the analog domain for samples recorded via the internal microphone or an external microphone (but not via line-input).
+
+Additionally, after recording, the Deluge digitally normalizes the volume of a recorded sample to make it as loud as possible without clipping (it does not do this for audio clips).
+
+During recording, the input may be monitored. Three modes are available, and may be selected in the settings menu.
+
+- “Smart” mode is the default, and with it, if you're recording with a microphone (internal or external), monitoring will only occur if you also have headphones plugged into the Deluge;
+- if you're recording from the line input, monitoring will always occur.
+- Monitoring may alternatively be switched to always-on, or always-off.
+
+### Recording additional samples into an existing kit
+
+To record further samples into an existing kit:
+
+<Steps>
+
+1. hold down the “audition” pad on an unoccupied row, and press the record button.
+1. The sound recorder will be re-entered, and an additional sample may be recorded.
+1. This process may be repeated as many times as desired.
+1. The sound recorder may also be entered via the sound editor for a particular sound.
+
+</Steps>
+
+## Live recording Notes and Automation
+
+### Recording notes
+
+As well as manually entering notes into the pad grid, the Deluge allows you to record notes played on the audition pads, or in keyboard view, or on an external keyboard connected via MIDI.
+
+Pressing the “record” button makes recording active whenever the Deluge is playing. Now, every time you press a row’s audition pad, a note will also be recorded into the current sequence - meaning it will appear in the 16x8 pad grid (unless you are scrolled so that you can’t see it).
+
+Notes played in keyboard view or on a connected MIDI keyboard will be recorded also.
+
+If your clip does not yet contain any notes, a mode will be engaged in which the clip’s length will continuously extent until you tell it to stop recording, e.g. by pressing the record button so that it is no longer illuminated. In this mode, the play-position cursor will be red. This mode is detailed under “recording into clips, and live looping”
+
+Or, if your clip already contains notes, or you have manually disarmed it from recording, the clip at its pre-existing length will loop continuously, allowing recorded notes to be added with each iteration through it. In this mode, the play-position cursor will be white.
+
+Recorded notes are quantized to 32nd-notes by default. See the settings menu for instructions on how to change this.
+
+You can undo your most recent recording by pressing the back button - see undo / redo.
+
+If you are recording and your song doesn’t contain an audible beat to help you keep time, you may wish to enable the Deluge’s metronome, which can be done by holding the shift button and pressing the “tap tempo” button.
+
+### Recording automation
+
+The simplest way to automate a parameter is to "record" knob movement. While the Deluge is in record mode (press the "record" button), any movement of a parameter knob is recorded for that parameter. Recording begins when you begin to turn the knob, and ceases when the knob has been left alone for a second or so (a smooth transition back to the original value is then applied).
+
+You can overwrite the automation by simply turning the parameter knob some more while still in record mode.
+
+Once out of record mode (press the "record" button so that it is no longer illuminated), the parameter will continue to be automated while play mode is active. You may still take manual control of the parameter at any time by turning the corresponding parameter knob. Then, after leaving the knob alone for a second or so, the parameter value will smoothly transition back to follow its automated movement.
+
+Automation can also be recorded using an external MIDI controller, if a parameter is set up to be controlled in this way.
+
+## Live recording Audio / Notes / Automation into Arranger tracks
+
+When a track is armed for arrangement recording, and record mode is active (i.e. the record button is illuminated), then when playback is begun, provided there is not already a clip-instance at that position on that track, a new clip-instance is created there and will record audio, notes, and/or automation. Audio is recorded into audio tracks and Notes are recorded into instrument tracks.

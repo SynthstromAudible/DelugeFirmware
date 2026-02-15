@@ -1,0 +1,113 @@
+---
+title: Questions and Answers
+sidebar:
+  order: 4
+---
+
+This page provides various Frequently Asked Questions and Answers that have been asked over the years.
+
+## Hardware
+
+### Power
+
+Q: Which DC power supply?
+
+A. Center negative, same type used for guitar pedals. Make sure you have 9V and at least 500mA available from the supply. Generic guitar pedal power supplies should work fine (1Spot, Strymon, VoodooLab). USB port charging works also; it works with generic USB port phone chargers, public airport charging stations, computer USB ports, etc. The Deluge can not power most other devices via its USB port. Try first connecting a 9V power supply to the (9 - 12V) barrel jack input, then turning on the Deluge with the USB midi connected. Separately power external devices if possible.
+
+### Audio Output
+
+#### Splitting main and headphone out
+
+Q: Is it possible(or will it be) to route only one track/synth/kit to the headphone output, while everything else is playing in the main out?
+
+A: No it’s not possible. Main out and headphone out receive the same output
+
+Q: Can I split the main out and headphone out?
+
+A: The same stereo audio will output through the line outs and the headphones outs. There is no way to route audio through only one or the other.
+
+#### FX send / return
+
+Q: Can I send one track to an external FX unit, like an external reverb?
+
+A: You can create a “mono send and return” by panning all tracks to the left and using the right output as a send. Connect the returning audio to the Deluge input and use an audio clip or an input oscillator type to hear the input audio. Make sure to pan the input monitoring track to the left as well, or else there will be a feedback loop. The left output will be mono. You could swap left and right in this example as well. There is no way to create a stereo send and return.
+
+### MIDI
+
+#### Doubling of MIDI Output over USB
+
+Q: MACOS user. I am having a very weird bug - it is on 1.1 and 1.2 betas, where USB MIDI notes created from pressing the audition pad are doubled but ONLY FROM THE USB MIDI PORT. Regular DIN has normal behavior.
+
+it works fine on both DIN and USB on the final official firmware, so something added in Community Features seems to have messed something up - or I have a dumb setting enabled
+
+A: it’s a macOS issue
+
+You need to unplug the deluge, delete the deluge in macOS audio/midi setup, then plug the deluge back in
+
+After that it’ll work and you’ll see both usb ports in ableton and be able to select just one
+
+#### Clock Jitter over Computer USB
+
+Q: USB MIDI Clock is Jittering when Deluge is slaved.
+
+A: Try all USB ports on Computer, as they are not all equal. USB MIDI clock is notoriously unstable. An audio clock performs much better.
+
+### Upgrading CPU
+
+Q: Is possible to upgrade the deluge cpu To an ARM Cortex-A12 or ARM Cortex-A17
+
+A: Upgrading the deluge hardware is not currently possibly because The Deluge firmware is locked to the current Renesas hardware. Until the firmware can run independent of hardware this won’t be possible.
+
+### SD Card
+
+#### Lost SD card inside Deluge
+
+Q: I didn't mind the gap and lost my SD card inside the Deluge, help?
+
+A: Take off the wooden side cheeks by unscrewing the 4 screws on the top and 2 screws on the bottom of the deluge and shake it out. “The right side is probably the easiest way to get at it, just take the one cheek off and the SD card should easily fall out”
+
+#### Naming SD Card
+
+Q: Can I name my SD card?
+
+A: Yes
+
+#### Moving files on SD Card
+
+Q: Can I rename or move presets without damaging existing projects? How about samples?
+
+A: Renaming songs should be fine, but changing preset names will damage projects that reference that preset by name. Similarly for songs referencing samples via file location. There is a 3rd-Party App that a fellow player developed for the purpose of rearranging files on the SD card and updating song projects. Back up your data before using any 3rd-Party application.
+
+#### SD card type
+
+Q: Which SD card should I buy? How do I format an SD card? Does the SD Card speed matter?
+
+A: See SD card page
+
+## Arranger view
+
+### Looping
+
+Q: Is there a way to select and loop a section whilst playing live' in Arranger mode?
+
+A: No
+
+### Scrolling
+
+Q: How does one get the progress bar to stay static while the clips move?
+
+A: Press the cross screen button to turn on auto scroll mode
+
+## Clip view
+
+### Looping
+
+Q: Is it possible to loop a portion of a clip's sequence
+
+A: No
+
+### Scrolling
+
+Q: Is it possible to have a fixed playhead where the sequences auto scrolls like in arranger view?
+
+A: No

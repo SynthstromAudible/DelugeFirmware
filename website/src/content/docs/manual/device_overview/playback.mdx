@@ -1,0 +1,44 @@
+---
+title: Playback
+sidebar:
+  order: 14
+---
+
+import { Steps } from "@astrojs/starlight/components"
+
+The Deluge has two mutually-exclusive playback modes which decide how the Deluge's sequencer should operate, including what clips exist and are playing at any given moment when playback is active.
+
+Only one playback mode can be active at a time.
+
+The Deluge's two playback modes are:
+
+| Mode     | Description                                                                                                                                                                                                                                                                                                                       | View                                    |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Session  | Session mode consolidates all clips into a compressed view, with each clip shown as a row (row view) or as a single pad in a track column (grid view).                                                                                                                                                                            | Session (Row) View, Session (Grid) View |
+| Arranger | Arranger mode allows the chaining of clip instances into a longer more linear arrangements. each row represents a track (which has one synth or kit instrument or MIDI or CV channel, or is an audio track). Many clips may share that same track, and instances of any of these clips may be placed along that same track’s row. | Arranger View                           |
+
+Each playback mode has an accompanying View, which is the User Interface for configuring each mode, including creating new clips and editing / deleting / launching / stopping / arming existing clips.
+
+## Session Mode
+
+To enter the Session playback Mode:
+
+<Steps>
+
+1. Open Session (Row) View or Session (Grid) View
+1. If playback is not already running, start playback.
+1. If playback is already running and the current playback mode is Arranger Mode, restart playback.
+
+</Steps>
+
+## Arranger Mode
+
+To enter the Arranger playback Mode:
+
+<Steps>
+
+1. Open Arranger View
+1. If playback is not already running, start playback.
+1. If playback is already running and the current playback mode is Session Mode, restart playback.
+
+</Steps>

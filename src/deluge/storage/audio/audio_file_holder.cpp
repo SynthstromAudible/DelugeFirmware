@@ -44,18 +44,18 @@ Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayAc
 		return Error::NONE; // This could happen if the filename tag wasn't present in the file
 	}
 
-	auto maybeNewAudioFile = audioFileManager.getAudioFileFromFilename(filePath, mayActuallyReadFile, filePointer,
-	                                                                   audioFileType, makeWaveTableWorkAtAllCosts);
-
+	Error error;
+	AudioFile* maybeNewAudioFile = audioFileManager.getAudioFileFromFilename(
+	    filePath, mayActuallyReadFile, &error, filePointer, audioFileType, makeWaveTableWorkAtAllCosts);
 	// If we found it...
-	if (maybeNewAudioFile.has_value() && maybeNewAudioFile.value() != nullptr) {
+	if (maybeNewAudioFile != nullptr) {
 
 		// We only actually set it after already setting it up, processing the wavetable, etc. - so there's no risk of
 		// the audio routine trying to sound it before it's all set up.
-		setAudioFile(maybeNewAudioFile.value(), reversed, manuallySelected, clusterLoadInstruction);
+		setAudioFile(maybeNewAudioFile, reversed, manuallySelected, clusterLoadInstruction);
 	}
 
-	return maybeNewAudioFile.error_or(Error::NONE);
+	return error;
 }
 
 // For if we've already got a pointer to the AudioFile in memory.

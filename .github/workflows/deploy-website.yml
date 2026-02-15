@@ -1,0 +1,113 @@
+name: Deploy to GitHub Pages
+
+on:
+  # Runs on pushes targeting the default branch
+  push:
+    branches: ["main"]
+    paths:
+      - "website/**"
+      - "src/**"
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  # actions: read is required for us to fetch artifacts
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-website:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      # Playwright is needed for rendering mermaid diagrams at build time
+      # See: https://github.com/remcohaszing/rehype-mermaid?tab=readme-ov-file#installation
+      - name: Install Chromium for Playwright
+        run: bun playwright install --with-deps chromium
+
+      # This gets us the site base URL
+      - name: Setup Pages
+        id: setup_pages
+        uses: actions/configure-pages@v5
+
+      - name: Build website
+        run: bun run build
+        env:
+          SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
+          SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: website-artifact
+          path: website/dist
+
+  build-doxygen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+      - name: Install doxygen
+        uses: ssciwr/doxygen-install@v2
+      - name: Install graphvis
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y graphviz
+
+      - name: Run dbt configure
+        run: ./dbt configure
+      - name: Run dbt docs
+        run: ./dbt docs
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: doxygen-artifact
+          path: "./build/html"
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs:
+      - build-website
+      - build-doxygen
+    steps:
+      - name: Download website artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: website-artifact
+          path: website/dist
+      - name: Download doxygen artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: doxygen-artifact
+          path: website/dist/doxygen
+      - name: Upload artifact to GitHub Pages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: website/dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
