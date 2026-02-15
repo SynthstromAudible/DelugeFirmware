@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		5="Glide"
+		9="Type"
+		10="Wave"
+		12="Timbre"
+		13="Shape"
+		23="Cutoff"
+		83="Resonance"
+		102="Cycling env rise"
+		103="Cycling env fall"
+		28="Cycling env hold"
+		24="Cycling env amount"
+		91="ARP/SEQ rate (free)"
+		92="ARP/SEQ rate (sync)"
+		93="LFO rate (free)"
+		94="LFO rate (sync)"
+		105="Envelope attack"
+		106="Envelope decay"
+		29="Envelope sustain"
+		26="Filter amount"
+		64="Keyboard hold button (toggle)"
+		2="Keyboard spice"/>
+</midiDevice>

@@ -1,0 +1,54 @@
+---
+import background from "../assets/background.png"
+
+const rows = new Array(150).fill(1)
+const cols = new Array(100).fill(1)
+---
+
+<div
+  class="pointer-events-none absolute top-0 left-0 z-[-1] h-dvh w-dvw overflow-hidden"
+>
+  <div
+    class="h-dvh w-dvw -scale-100 [mask-image:linear-gradient(270deg,transparent,white)] bg-cover opacity-50 mix-blend-color dark:opacity-75"
+    style={`background-image: url(${background.src})`}
+  >
+  </div>
+  <div
+    class="pointer-events-none absolute inset-0 z-[-1] h-dvh w-dvw bg-slate-400 [mask-image:radial-gradient(transparent,white)] dark:bg-slate-900"
+  >
+  </div>
+
+  <div
+    style={{
+      transform: `translate(-40%,-60%) skewX(-48deg) skewY(14deg) scale(0.675) rotate(0deg) translateZ(0)`,
+    }}
+    class="absolute -top-1/4 left-1/4 z-[-2] flex h-dvh w-dvw -translate-x-1/2 -translate-y-1/2 p-4 opacity-75 dark:opacity-100"
+  >
+    {
+      rows.map((_, i) => (
+        <div class="relative h-8 w-16 border-l border-slate-400 dark:border-slate-700">
+          {cols.map((_, j) => (
+            <div class="relative h-8 w-16 border-t border-r border-slate-400 dark:border-slate-700">
+              {j % 2 === 0 && i % 2 === 0 ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="pointer-events-none absolute -top-[14px] -left-[22px] h-6 w-10 stroke-[1px] text-slate-400 dark:text-slate-700"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M12 6v12m6-6H6"
+                  />
+                </svg>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ))
+    }
+  </div>
+</div>

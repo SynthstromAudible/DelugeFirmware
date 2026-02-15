@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		7="Level"
+		10="Pan"
+		40="Sample start point"
+		41="Sample length"
+		42="Hi cutoff"
+		43="Speed"
+		44="Pitch EG intensity"
+		45="Pitch EG attack"
+		46="Pitch EG decay"
+		47="Amp EG attack"
+		48="Amp EG decay"/>
+</midiDevice>

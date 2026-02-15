@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		5="Portamento time"
+		65="Portamento"
+		69="Hold 2"
+		120="All sound off"
+		121="Reset all controllers"/>
+</midiDevice>

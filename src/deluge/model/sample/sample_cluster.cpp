@@ -120,7 +120,7 @@ justEnqueue:
 			}
 
 			// TODO: If that fails, it'll just get awkwardly forgotten about
-			audioFileManager.loadingQueue.push(*cluster, priorityRating);
+			audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating);
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
 			if (cluster && cluster->numReasonsToBeLoaded <= 0) {

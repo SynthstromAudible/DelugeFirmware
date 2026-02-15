@@ -116,5 +116,5 @@ public:
 
 private:
 	GranularProcessor* owner;
-	StereoSample sampleBuffer[kModFXGrainBufferSize * sizeof(StereoSample)];
+	StereoSample sampleBuffer[kModFXGrainBufferSize];
 };

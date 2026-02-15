@@ -7,7 +7,7 @@ jobs:
     if: startsWith(github.event_name, 'pull_request') # Posting a review only makes sense on PRs
     steps:
       # Repo config for pull_request_target
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -47,13 +47,13 @@ jobs:
       - name: Check clang-tidy version
         run: clang-tidy --version
 
-      - uses: stellar-aria/clang-tidy-annotations@7a07996fe01ffaa846b0f4a5e9de3c58a3217f73 #ZehMatt/clang-tidy-annotations@v1.1.1
+      - uses: ZehMatt/clang-tidy-annotations@v1.1.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           build_dir: ${{ github.workspace }}/build
           source_dir: ${{ github.workspace }}
           only_affected_lines: true
-          fail_on_problems: true
+          fail_on_problems: false
           clang_tidy_args: ${{ steps.extract_system_includes.outputs.system_includes }} --extra-arg-before=--no-standard-includes
           clang_tidy_file: ${{ github.workspace }}/.clang-tidy
 

@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1"
+     x="0px" y="0px" width="128px" height="128px" viewBox="0 0 128 128">
+
+  <circle cx="64" cy="64" r="52.7" fill="#1E1E1E" stroke="#949494" stroke-width="7"/>
+
+  <g id="Arrows" transform="matrix(1, 0, 0, 1, 64.05,64)">
+    <g id="Cyan_Arc" transform="matrix(1, 0, 0, 1, 0,-0.05) ">
+      <path stroke="#00FFCA" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M -47.25 -23.6
+Q -43.5595703125 -30.9578125 -37.25 -37.3 -21.8 -52.65 -0.05 -52.65 21.85 -52.65 37.25 -37.3 42.7921875 -31.7291015625 46.35 -25.375"/>
+    </g>
+
+    <g id="Cyan_Arrows" transform="matrix(1, 0, 0, 1, 0,-0.05) ">
+      <g id="Left_Cyan_Arrow_End"
+         transform="matrix(0.884735107421875, 0.4660491943359375, -0.4660491943359375, 0.884735107421875, -46.75,-24.55) ">
+        <path fill="#36393F" fill-opacity="0" stroke="none" d="
+M 7.8 -3.9
+L 0.05 -3.9
+Q 0.05 -1.15 0.1 0.7
+L 0.2 3.7 7.8 -3.9 Z"/>
+
+        <path stroke="#00FFCA" stroke-width="6" stroke-linejoin="round" stroke-linecap="butt" fill="none" d="
+M 0.2 3.7
+L 7.8 -3.9 0.05 -3.9
+M -0.05 3.95
+L -7.85 -3.9 0.05 -3.9"/>
+
+        <path stroke="#00FFCA" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 0.1 0.7
+L 0.2 3.7 -0.05 3.95"/>
+
+        <path stroke="#00FFCA" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 0.05 -3.9
+Q 0.05 -1.15 0.1 0.7"/>
+      </g>
+
+      <g id="Right_Cyan_Arrow_End"
+         transform="matrix(-0.884735107421875, 0.4660491943359375, 0.4660491943359375, 0.884735107421875, 46.35,-24.55) ">
+        <path fill="#36393F" fill-opacity="0" stroke="none" d="
+M 7.8 -3.9
+L 0.05 -3.9
+Q 0.05 -1.15 0.1 0.7
+L 0.2 3.7 7.8 -3.9 Z"/>
+
+        <path stroke="#00FFCA" stroke-width="6" stroke-linejoin="round" stroke-linecap="butt" fill="none" d="
+M 0.2 3.7
+L 7.8 -3.9 0.05 -3.9
+M -0.05 3.95
+L -7.85 -3.9 0.05 -3.9"/>
+
+        <path stroke="#00FFCA" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 0.1 0.7
+L 0.2 3.7 -0.05 3.95"/>
+
+        <path stroke="#00FFCA" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 0.05 -3.9
+Q 0.05 -1.15 0.1 0.7"/>
+      </g>
+    </g>
+
+
+    <g id="Red_Arrow" transform="matrix(1, 0, 0, 1, 0,-45.2) ">
+      <path fill="#FF0000" stroke="none" d="
+M 22.65 -6
+L 0 -6 -22.6 -6 -0.1 18.75 22.65 -6 Z"/>
+
+      <path stroke="#FF0000" stroke-width="21.75" stroke-linejoin="miter" stroke-linecap="butt"
+            stroke-miterlimit="3" fill="none" d="
+M 0 -18.8
+L 0 -6"/>
+
+      <path stroke="#FF0000" stroke-width="8" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 0 -6
+L 22.65 -6
+M -22.6 -6
+L 0 -6"/>
+
+      <path stroke="#FF0000" stroke-width="8" stroke-linejoin="miter" stroke-linecap="butt"
+            stroke-miterlimit="3" fill="none" d="
+M 22.65 -6
+L -0.1 18.75 -22.6 -6"/>
+    </g>
+  </g>
+
+  <text x="50%" y="51%" dominant-baseline="central" text-anchor="middle" font-family="Sans-Serif" font-weight="bold"
+        font-size="44"
+        fill="#D0D0D0" letter-spacing="-2">SEL
+  </text>
+</svg>

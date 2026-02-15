@@ -167,12 +167,12 @@ gotError:
 		goto gotError;
 	}
 
-	D_TRY_CATCH(
-	    audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(), filenameWithoutExtension),
-	    local_error, {
-		    error = local_error;
-		    goto gotError;
-	    });
+	error =
+	    audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(), filenameWithoutExtension);
+	if (error != Error::NONE) {
+		goto gotError;
+	}
+
 	error = newSongAlternatePath.concatenate("/");
 	if (error != Error::NONE) {
 		goto gotError;
@@ -315,15 +315,14 @@ gotError:
 					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was
 					// designed for...
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
-						D_TRY_CATCH(audioFileManager.setupAlternateAudioFilePath(newSongAlternatePath, dirPathLengthNew,
-						                                                         audioFile->filePath),
-						            local_error, {
-							            error = local_error;
-							            activeDeserializer->closeWriter();
-							            display->removeLoadingAnimation();
-							            display->displayError(error);
-							            return false;
-						            });
+						error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(),
+						                                                    filenameWithoutExtension);
+						if (error != Error::NONE) {
+							activeDeserializer->closeWriter();
+							display->removeLoadingAnimation();
+							display->displayError(error);
+							return false;
+						}
 					}
 
 					// Or, if it wasn't in the SAMPLES folder, e.g. if it was in a dedicated SYNTH folder, then we have
@@ -415,14 +414,9 @@ gotError:
 		return true;
 	};
 
-	for (Sample* sample : audioFileManager.sampleFiles | std::views::values) {
-		if (!saveAudioFile(sample)) {
-			return false;
-		}
-	}
-
-	for (WaveTable* wavetable : audioFileManager.wavetableFiles | std::views::values) {
-		if (!saveAudioFile(wavetable)) {
+	for (int32_t i = 0; i < audioFileManager.audioFiles.getNumElements(); i++) {
+		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(i);
+		if (!saveAudioFile(audioFile)) {
 			return false;
 		}
 	}

@@ -75,7 +75,7 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	outputRecordingFrom = nullptr;
 	// old style cloning overdubs
 	if (mode == AudioOutputMode::looper || mode == AudioOutputMode::sampler) {
-		// if the original track hasn't been recorded into then we'll just be a player
+		// if the original track hasn't been recorded into then we'll just be a player. Avoids doubling monitoring
 		if (ao->isEmpty()) {
 			mode = AudioOutputMode::player;
 		}
@@ -116,6 +116,23 @@ void AudioOutput::resetEnvelope() {
 	}
 	amplitudeLastTime = 0;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
+}
+
+bool AudioOutput::modeAllowsMonitoring() const {
+	if (mode == AudioOutputMode::player) {
+		return false;
+	}
+	if (mode == AudioOutputMode::sampler) {
+		auto& activeAudioClip = static_cast<AudioClip&>(*activeClip);
+		if (activeAudioClip.voiceSample) {
+			return false;
+		}
+		return true;
+	}
+	if (mode == AudioOutputMode::looper) {
+		return true;
+	}
+	return false;
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
@@ -194,7 +211,7 @@ renderEnvelope:
 	                                     : render;
 
 	// add in the monitored audio if in sampler or looper mode
-	if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
+	if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
 		int32_t const* __restrict__ input_ptr = (int32_t const*)AudioEngine::i2sRXBufferPos;
@@ -246,7 +263,7 @@ renderEnvelope:
 			}
 		}
 	}
-	else if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
+	else if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
 	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && (outputRecordingFrom != nullptr)) {
 		rendered = true;
 		std::byte modelStackMemory[MODEL_STACK_MAX_SIZE];

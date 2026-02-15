@@ -430,7 +430,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 						return ActionResult::DEALT_WITH;
 					}
 
-					bool allFine = audioFileManager.releaseSampleAtFilePath(filePath);
+					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
 
 					if (!allFine) {
 						display->displayPopup(
@@ -1156,7 +1156,7 @@ void sortSamples(bool (*sortFunction)(Sample*, Sample*), int32_t numSamples, Sam
 	// Go through various iterations of numComparing
 	while (numComparing < numSamples) {
 
-		AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+		AudioEngine::routineWithClusterLoading();
 
 		// And now, for this selected comparison size, do a number of comparisions
 		for (int32_t whichComparison = 0; whichComparison * numComparing * 2 < numSamples; whichComparison++) {
@@ -1243,17 +1243,22 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
+		for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
+			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
-			// If this sample is one of the ones we loaded a moment ago...
-			if (thisSample->partOfFolderBeingLoaded) {
-				thisSample->partOfFolderBeingLoaded = false;
+			if (audioFile->type == AudioFileType::SAMPLE) {
+				Sample* thisSample = (Sample*)audioFile;
+
+				// If this sample is one of the ones we loaded a moment ago...
+				if (thisSample->partOfFolderBeingLoaded) {
+					thisSample->partOfFolderBeingLoaded = false;
 #if ALPHA_OR_BETA_VERSION
-				if (thisSample->numReasonsToBeLoaded <= 0) {
-					FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
-				}
+					if (thisSample->numReasonsToBeLoaded <= 0) {
+						FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
+					}
 #endif
-				thisSample->removeReason("E392"); // Remove that temporary reason we added
+					thisSample->removeReason("E392"); // Remove that temporary reason we added
+				}
 			}
 		}
 
@@ -1261,7 +1266,7 @@ removeReasonsFromSamplesAndGetOut:
 		return false;
 	}
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	int32_t numCharsInPrefixForFolderLoad = 65535;
 
@@ -1313,16 +1318,13 @@ removeReasonsFromSamplesAndGetOut:
 		filePath.concatenateAtPos(staticFNO.fname, dirWithSlashLength);
 
 		// We really want to be able to pass a file pointer in here
-		auto maybeNewSample =
-		    audioFileManager.getAudioFileFromFilename(filePath, true, &thisFilePointer, AudioFileType::SAMPLE);
-
-		if (!maybeNewSample.has_value() || maybeNewSample.value() == nullptr) {
-			error = maybeNewSample.error_or(Error::NONE);
+		auto* newSample = static_cast<Sample*>(
+		    audioFileManager.getAudioFileFromFilename(filePath, true, &error, &thisFilePointer, AudioFileType::SAMPLE));
+		if (error != Error::NONE || newSample == nullptr) {
+			// Clean up any samples we loaded in this folder load attempt
 			staticDIR.close();
 			goto removeReasonsFromSamplesAndGetOut;
 		}
-
-		auto* newSample = static_cast<Sample*>(maybeNewSample.value());
 
 		newSample->addReason();
 		newSample->partOfFolderBeingLoaded = true;
@@ -1369,25 +1371,31 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int32_t sampleI = 0;
-	for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
-		// If this sample is one of the ones we loaded a moment ago...
-		if (thisSample->partOfFolderBeingLoaded) {
-			thisSample->partOfFolderBeingLoaded = false;
+	for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
+		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
-			if (discardingMIDINoteFromFile) {
-				thisSample->midiNoteFromFile = -1;
-			}
+		if (audioFile->type == AudioFileType::SAMPLE) {
 
-			if (detectPitch) {
-				thisSample->workOutMIDINote(doingSingleCycle);
-			}
+			Sample* thisSample = (Sample*)audioFile;
+			// If this sample is one of the ones we loaded a moment ago...
+			if (thisSample->partOfFolderBeingLoaded) {
+				thisSample->partOfFolderBeingLoaded = false;
 
-			*thisSamplePointer = thisSample;
-			sampleI++;
-			thisSamplePointer++;
+				if (discardingMIDINoteFromFile) {
+					thisSample->midiNoteFromFile = -1;
+				}
 
-			if (sampleI == numSamples) {
-				break; // Just for safety
+				if (detectPitch) {
+					thisSample->workOutMIDINote(doingSingleCycle);
+				}
+
+				*thisSamplePointer = thisSample;
+				sampleI++;
+				thisSamplePointer++;
+
+				if (sampleI == numSamples) {
+					break; // Just for safety
+				}
 			}
 		}
 	}
@@ -1656,7 +1664,7 @@ doReturnFalse:
 
 	D_PRINTLN("loaded and sorted samples");
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	// Delete all but first pre-existing range
 	int32_t oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
@@ -1761,7 +1769,7 @@ skipOctaveCorrection:
 	for (int32_t s = 0; s < numSamples; s++) {
 
 		if (!(s & 31)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		Sample* thisSample = sortArea[s];

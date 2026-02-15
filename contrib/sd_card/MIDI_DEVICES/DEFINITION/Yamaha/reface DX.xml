@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		80="Algorithm"
+		85="Op 1 output level"
+		86="Op 1 feedback level"
+		87="Op 1 feedback type"
+		88="Op 1 frequency mode"
+		89="Op 1 frequency ratio/freq (coarse)"
+		90="Op 1 frequency ratio/freq (fine)"
+		102="Op 2 output level"
+		103="Op 2 feedback level"
+		104="Op 2 feedback type"
+		105="Op 2 frequency mode"
+		106="Op 2 frequency ratio/freq (coarse)"
+		107="Op 2 frequency ratio/freq (fine)"
+		108="Op 3 output level"
+		109="Op 3 feedback level"
+		110="Op 3 feedback type"
+		111="Op 3 frequency mode"
+		112="Op 3 frequency ratio/freq (coarse)"
+		113="Op 3 frequency ratio/freq (fine)"
+		114="Op 4 output level"
+		115="Op 4 feedback level"
+		116="Op 4 feedback type"
+		117="Op 4 frequency mode"
+		118="Op 4 frequency ratio/freq (coarse)"
+		119="Op 4 frequency ratio/freq (fine)"/>
+</midiDevice>

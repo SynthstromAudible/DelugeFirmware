@@ -63,7 +63,7 @@ Kit::~Kit() {
 	// Delete all Drums
 	while (firstDrum) {
 		AudioEngine::logAction("~Kit");
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		AudioEngine::routineWithClusterLoading();
 		Drum* toDelete = firstDrum;
 		firstDrum = firstDrum->next;
 
@@ -118,8 +118,9 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
 
-	writer.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
-	                             // Attributes end
+	writer.writeOpeningTagEnd();
+	// Attributes end
+
 	// saving song
 	if (!clipForSavingOutputOnly) {
 		if (midiInput.containsSomething()) {
@@ -948,7 +949,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 		if (thisDrum->type == DrumType::SOUND) {
 
 			if (!(count & 7)) {
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				AudioEngine::routineWithClusterLoading();
 			}
 			count++;
 
@@ -980,7 +981,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
-					AudioEngine::routineWithClusterLoading(); // -----------------------------------
+					AudioEngine::routineWithClusterLoading();
 				}
 				count++;
 
@@ -1005,7 +1006,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisDrum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
-					AudioEngine::routineWithClusterLoading(); // -----------------------------------
+					AudioEngine::routineWithClusterLoading();
 				}
 				count++;
 
@@ -1053,9 +1054,8 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 					if (thisNoteRow->drum->type == DrumType::SOUND) {
 
 						if (!(count & 7)) {
-							AudioEngine::routineWithClusterLoading(); // ----------------------------------- I guess
-							                                          // very often this wouldn't work cos the audio
-							                                          // routine would be locked
+							// Rohan: I guess very often this wouldn't work cos the audio routine would be locked
+							AudioEngine::routineWithClusterLoading();
 						}
 						count++;
 
@@ -1114,7 +1114,7 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading();
 			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 		}
 	}
@@ -1181,7 +1181,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			}
 		}
 	}
-	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteStatus[0] == ArpNoteStatus::PENDING
+	    && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 		// Note on
 		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 			NoteRow* thisNoteRow =
@@ -1308,6 +1309,7 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 			// Do row note on
 			thisNoteRow->drum->noteOn(modelStack, kitInstruction.arpNoteOn->velocity,
 			                          kitInstruction.arpNoteOn->mpeValues, 0, sampleSyncLength, ticksLate, samplesLate);
+			kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 		}
 	}
 }

@@ -16,6 +16,8 @@
  */
 
 #include "processing/engines/audio_engine.h"
+
+#include "chrono"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/reverb.hpp"
@@ -173,7 +175,7 @@ bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 uint32_t i2sTXBufferPos;
 uint32_t i2sRXBufferPos;
-int voicesStartedThisRender = 0;
+volatile int voices_started_this_render = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
@@ -201,6 +203,7 @@ MonitoringAction monitoringAction;
 uint32_t saddr;
 
 deluge::fast_vector<Sound*> sounds;
+TaskID routine_task_id = -1;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
@@ -290,8 +293,8 @@ void killOneVoice(size_t num_samples) {
 		voice->sound.freeActiveVoice(voice);
 	}
 
-	D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-	          getNumVoices(), getNumAudio());
+	D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples, getNumVoices(),
+	          getNumAudio());
 }
 
 /// Force a voice to release very quickly - will be almost instant but not click
@@ -331,10 +334,10 @@ void forceReleaseOneVoice(size_t num_samples) {
 
 	const Sound::ActiveVoice* best = &all_voices.front();
 	for (const auto& voice : all_voices | std::views::drop(1)) {
-		// if the voice is already releasing faste than this we'd rather release another voice
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= 4096) {
-			continue;
+		// if a voice is already fast releasing just speed it up
+		if (voice->envelopes[0].state == EnvelopeStage::FAST_RELEASE) {
+			voice->speedUpRelease();
+			return;
 		}
 		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
 	}
@@ -366,11 +369,27 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	logAction("AudioDriver::routineWithClusterLoading");
 
 	routineBeenCalled = false;
+
 	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
+
 	if (!routineBeenCalled) {
-		bypassCulling = true; // yolo?
-		logAction("from routineWithClusterLoading()");
-		routine(); // -----------------------------------
+		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
+
+		logAction("call runRoutine() from routineWithClusterLoading()");
+		runRoutine();
+	}
+}
+
+void runRoutine() {
+	// check if we've setup the audio routine task
+	if (routine_task_id != -1) [[likely]] {
+		// run AudioEngine::routine() task so that scheduler is aware
+		runTask(AudioEngine::routine_task_id);
+	}
+	// otherwise call audio routine directly (necessary otherwise Deluge freezes on boot)
+	else {
+		ignoreForStats();
+		routine();
 	}
 }
 
@@ -383,25 +402,30 @@ uint8_t numRoutines = 0;
 
 // not in header (private to audio engine)
 /// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
-inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
+void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
+
 	bool culled = false;
-	int32_t numToCull = 0;
+	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
+	// we can be a bit more lenient with the limit
+	auto max_num_samples = numSamplesLimit + (20 * voices_started_this_render);
 	if (numAudio + numVoice > MIN_VOICES) {
+		static int32_t last_num_samples_over = 0;
 
-		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
+		int32_t num_samples_over_limit = numSamples - max_num_samples;
 		// If it's real dire, do a proper immediate cull
-		if (numSamplesOverLimit >= 20) {
-
-			numToCull = (numSamplesOverLimit >> 3);
+		if (num_samples_over_limit >= 32) {
+			int32_t num_to_cull = (num_samples_over_limit >> 4);
 
 			// leave at least 7 - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
-			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
-			for (int32_t i = numToCull / 2; i < numToCull; i++) {
+			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
+			D_PRINTLN("Culling %d voices", num_to_cull);
+
+			for (int32_t i = num_to_cull / 2; i < num_to_cull; i++) {
 				// cull with fast release
 				terminateOneVoice(numSamples);
 			}
-			for (int32_t i = 1; i < numToCull / 2; i++) {
+			for (int32_t i = 1; i < num_to_cull / 2; i++) {
 				// cull with immediate release
 				killOneVoice(numSamples);
 			}
@@ -418,17 +442,17 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
 		// is increasing
-		else if (numSamplesOverLimit >= 0) {
-
-			// If not in first routine call this is inaccurate, so just release another voice since things are
-			// probably bad
-			forceReleaseOneVoice(numSamples);
-			logAction("soft cull");
-			if (numRoutines > 0) {
-				culled = true;
-				D_PRINTLN("culling in second routine");
+		else if (num_samples_over_limit >= 0) {
+			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
+				forceReleaseOneVoice(numSamples);
+				logAction("soft cull");
+				if (numRoutines > 0) {
+					culled = true;
+					D_PRINTLN("culling in second routine");
+				}
 			}
 		}
+		last_num_samples_over = num_samples_over_limit;
 	}
 	else {
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
@@ -444,6 +468,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
+		D_PRINTLN("started %i voices this render cycle", voices_started_this_render);
 	}
 }
 
@@ -451,7 +476,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	// number of samples it took to do the last render
-	auto dspTime = (int32_t)(getAverageRunTimeforCurrentTask() * 44100.);
+	auto dspTime = (int32_t)(getAverageRunTimeForTask(routine_task_id) * 44100.);
 	size_t nonDSP = numSamples - dspTime;
 	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
 	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);
@@ -472,8 +497,8 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 		}
 		else {
 
-			size_t numSamplesOverLimit = numSamples - numSamplesLimit;
-			if (numSamplesOverLimit >= 0) {
+			int32_t num_samples_over_limit = (int32_t)numSamples - numSamplesLimit;
+			if (num_samples_over_limit >= 0) {
 #if DO_AUDIO_LOG
 				definitelyLog = true;
 #endif
@@ -509,9 +534,17 @@ void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
 void dumpAudioLog();
+bool calledFromScheduler = false;
+
 /// inner loop of audio rendering, deliberately not in header
 [[gnu::hot]] void routine_() {
-
+	static double last_call_time = getSystemTime();
+	double current_time = getSystemTime();
+	if (current_time - last_call_time > 0.003) {
+		// If the audio routine is called at less than a 3ms interval, something is wrong
+		D_PRINTLN("Audio routine latency high: %.3fms", (current_time - last_call_time) * 1000.);
+	}
+	last_call_time = current_time;
 #ifndef USE_TASK_MANAGER
 	playbackHandler.routine();
 #endif
@@ -525,7 +558,7 @@ void dumpAudioLog();
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
 	if (numSamples <= (10 * numRoutines)) {
-		if (!numRoutines) {
+		if (!numRoutines && calledFromScheduler) {
 			ignoreForStats();
 		}
 		return;
@@ -534,7 +567,6 @@ void dumpAudioLog();
 	AutomatedTester::possiblyDoSomething();
 #endif
 	flushMIDIGateBuffers();
-
 	setDireness(numSamples);
 
 	// Double the number of samples we're going to do - within some constraints
@@ -557,11 +589,13 @@ void dumpAudioLog();
 	if (numSamples >= 3) {
 		numSamples = (numSamples + 2) & ~3;
 	}
+	voices_started_this_render = 0;
 
 	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
 	tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
 
 	numSamplesLastTime = numSamples;
+
 	renderAudio(numSamples);
 
 	scheduleMidiGateOutISR(saddrPosAtStart, unadjustedNumSamplesBeforeLappingPlayHead,
@@ -966,9 +1000,10 @@ void routine_task() {
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
 		        // called from within this!
 	}
+	calledFromScheduler = true;
 	routine();
+	calledFromScheduler = false;
 }
-
 void routine() {
 
 	logAction("AudioDriver::routine");
@@ -982,9 +1017,6 @@ void routine() {
 	audioRoutineLocked = true;
 
 	numRoutines = 0;
-	voicesStartedThisRender = std::max<int>(
-	    cpuDireness - 12,
-	    0); // if we're at high direness then we pretend a couple have already been started to limit note ons
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		while (doSomeOutputting() && numRoutines < 2) {
 
@@ -1359,8 +1391,9 @@ void getReverbParamsFromSong(Song* song) {
 }
 
 bool allowedToStartVoice() {
-	if (voicesStartedThisRender < 4) {
-		voicesStartedThisRender += 1;
+	auto threshold = cpuDireness > 12 ? 1 : 4;
+	if (voices_started_this_render < threshold) {
+		voices_started_this_render += 1;
 		return true;
 	}
 	return false;

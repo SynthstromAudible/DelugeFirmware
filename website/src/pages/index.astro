@@ -1,0 +1,38 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
+import Background from "../components/Background.astro"
+import { withBase } from "../utils"
+import light from "../assets/deluge_community_firmware_logo_inverted.png"
+import dark from "../assets/banner.png"
+
+// This file could also be in .mdx, but we can only use `withBase` in
+//    frontmatter if we create the StarlightPage component like this
+---
+
+<StarlightPage
+  frontmatter={{
+    title: "Deluge Community",
+    description: "Home of the Deluge Community Firmware Project",
+    template: "splash",
+    hero: {
+      tagline:
+        "Synthstrom Audible released the source code of the Deluge firmware and started a Github community project inviting everyone to participate in improving and extending the Deluge user experience",
+      image: {
+        dark,
+        light,
+      },
+      actions: [
+        {
+          text: "Downloads",
+          link: withBase("/downloads"),
+        },
+        {
+          text: "Documentation",
+          link: withBase("/features/community_features"),
+        },
+      ],
+    },
+  }}
+>
+  <Background />
+</StarlightPage>

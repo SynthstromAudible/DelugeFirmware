@@ -119,9 +119,10 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Render saturation
 	if (clippingAmount != 0u) {
+		int32_t shiftAmount = getShiftAmountForSaturation();
 		for (StereoSample& sample : global_effectable_audio) {
-			sample.l = saturate(sample.l, &lastSaturationTanHWorkingValue[0]);
-			sample.r = saturate(sample.r, &lastSaturationTanHWorkingValue[1]);
+			sample.l = saturate(sample.l, &lastSaturationTanHWorkingValue[0], shiftAmount);
+			sample.r = saturate(sample.r, &lastSaturationTanHWorkingValue[1], shiftAmount);
 		}
 	}
 

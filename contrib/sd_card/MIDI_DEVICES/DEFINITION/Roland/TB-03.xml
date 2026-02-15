@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		12="Envelope modulation"
+		16="Accent level"
+		17="Overdrive"
+		18="Delay time"
+		19="Delay feedback"
+		71="Resonance"
+		74="Filter cutoff frequency"
+		75="Decay"
+		102="Slide status"
+		104="Tuning"/>
+</midiDevice>
