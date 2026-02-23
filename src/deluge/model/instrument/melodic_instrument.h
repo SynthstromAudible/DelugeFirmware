@@ -67,7 +67,8 @@ public:
 	bool isAnyAuditioningHappening() final;
 	void beginAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity, int16_t const* mpeValues,
 	                             int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0);
-	void endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity = kDefaultLiftValue);
+	void endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity = kDefaultLiftValue,
+	                          bool bypassSustain = false);
 	virtual ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
 	                                                                       ModelStackWithThreeMainThings* modelStack);
 	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
@@ -94,6 +95,15 @@ public:
 
 	deluge::fast_map<int16_t, EarlyNoteInfo> earlyNotes; // note value, velocity, still_active
 	deluge::fast_map<int16_t, EarlyNoteInfo> notesAuditioned;
+
+	// MIDI CC64 sustain pedal state
+	bool sustainPedalOn = false;
+	struct SustainedNoteInfo {
+		uint8_t velocity;
+		bool fromSequencer; // true = NoteRow::playNote(), false = auditioning/MIDI input
+	};
+	deluge::fast_map<int16_t, SustainedNoteInfo> sustainedNotes;
+	void sustainPedalRelease(ModelStackWithTimelineCounter* modelStack);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

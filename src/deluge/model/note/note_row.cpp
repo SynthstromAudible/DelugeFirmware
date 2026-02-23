@@ -2524,6 +2524,9 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 		// If it's a note-on, we'll send it "soon", after all note-offs
 
 		if (on) {
+			// Clear any pending sustain for re-struck note (mirrors beginAuditioningForNote)
+			static_cast<MelodicInstrument*>(output)->sustainedNotes.erase(static_cast<int16_t>(getNoteCode()));
+
 			if (noteMightBeConstant) {
 
 				// Special case for Sounds
@@ -2579,6 +2582,14 @@ storePendingNoteOn:
 			int32_t lift = kDefaultLiftValue;
 			if (thisNote) {
 				lift = thisNote->getLift();
+			}
+
+			// If sustain pedal is active, defer note-off until pedal release
+			auto* melodicInstrument = static_cast<MelodicInstrument*>(output);
+			if (melodicInstrument->sustainPedalOn) {
+				melodicInstrument->sustainedNotes[static_cast<int16_t>(getNoteCode())] = {
+				    static_cast<uint8_t>(lift), true};
+				return;
 			}
 
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =

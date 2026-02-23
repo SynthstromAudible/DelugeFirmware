@@ -240,23 +240,27 @@ justAuditionNote:
 			// NoteRow must already be auditioning
 			if (notesAuditioned.contains(note)) {
 				if (noteRow) {
-					// If we get here, we know there is a Clip
-					if (shouldRecordNotes
-					    && ((playbackHandler.recording == RecordingMode::ARRANGEMENT
-					         && instrumentClip->isArrangementOnlyClip())
-					        || currentSong->isClipActive(instrumentClip))) {
+					// If sustain pedal is down, defer recording — sustainPedalRelease() will call
+					// recordNoteOff() later at the correct (pedal-release) position.
+					if (!sustainPedalOn) {
+						// If we get here, we know there is a Clip
+						if (shouldRecordNotes
+						    && ((playbackHandler.recording == RecordingMode::ARRANGEMENT
+						         && instrumentClip->isArrangementOnlyClip())
+						        || currentSong->isClipActive(instrumentClip))) {
 
-						if (playbackHandler.recording == RecordingMode::ARRANGEMENT
-						    && !instrumentClip->isArrangementOnlyClip()) {}
-						else {
-							instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
-							if (getRootUI()) {
-								getRootUI()->noteRowChanged(instrumentClip, noteRow);
+							if (playbackHandler.recording == RecordingMode::ARRANGEMENT
+							    && !instrumentClip->isArrangementOnlyClip()) {}
+							else {
+								instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
+								if (getRootUI()) {
+									getRootUI()->noteRowChanged(instrumentClip, noteRow);
+								}
 							}
 						}
-					}
 
-					instrumentClipView.reportNoteOffForMPEEditing(modelStackWithNoteRow);
+						instrumentClipView.reportNoteOffForMPEEditing(modelStackWithNoteRow);
+					}
 				}
 			}
 
@@ -269,9 +273,10 @@ justAuditionNote:
 				}
 			}
 
-			// We want to make sure we sent the note-off even if it didn't think auditioning was happening. This is to
-			// stop a stuck note if MIDI thru was on and they're releasing the note while still holding learn to learn
-			// that input to a MIDIInstrument (with external synth attached)
+			// We want to make sure we sent the note-off even if it didn't think auditioning was happening.
+			// This is to stop a stuck note if MIDI thru was on and they're releasing the note while still
+			// holding learn to learn that input to a MIDIInstrument (with external synth attached)
+			// Note: sustain pedal deferral is handled inside endAuditioningForNote()
 			endAuditioningForNote(modelStack->toWithSong(), // Safe, cos we won't reference this again
 			                      note, velocity);
 		}
@@ -394,6 +399,17 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			return;
 		}
 
+		// CC64 sustain pedal — hold notes until pedal release (internal synths only)
+		if (ccNumber == CC_EXTERNAL_SUSTAIN_PEDAL && type != OutputType::MIDI_OUT) {
+			if (value >= 64) {
+				sustainPedalOn = true;
+			}
+			else {
+				sustainPedalRelease(modelStackWithTimelineCounter);
+			}
+			return;
+		}
+
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this
 		// themselves
 		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
@@ -512,10 +528,18 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 	for (int16_t note : notesAuditioned | std::views::keys) {
 		sendNote(modelStackWithThreeMainThings, false, note, nullptr);
 	}
+	// Also release any sequencer-originated notes held by sustain pedal
+	for (auto& [note, info] : sustainedNotes) {
+		if (info.fromSequencer) {
+			sendNote(modelStackWithThreeMainThings, false, note, nullptr, MIDI_CHANNEL_NONE, info.velocity);
+		}
+	}
 
 	notesAuditioned.clear();
 	earlyNotes.clear(); // This is fine, though in a perfect world we'd prefer to just mark the notes as no
 	                    // longer active
+	sustainedNotes.clear();
+	sustainPedalOn = false;
 	if (activeClip) {
 		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
 	}
@@ -531,10 +555,11 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 	if (!activeClip) {
 		return;
 	}
+	sustainedNotes.erase(static_cast<int16_t>(note)); // Clear any pending sustain for re-struck note
 	if (isNoteAuditioning(note)) {
 		//@todo this could definitely be handled better. Ideally we track both notes.
 		// if we don't do this then duplicate mpe notes get stuck
-		endAuditioningForNote(modelStack, note, 64);
+		endAuditioningForNote(modelStack, note, 64, /*bypassSustain=*/true);
 	}
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -559,7 +584,13 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 	sendNote(modelStackWithThreeMainThings, true, note, mpeValues, fromMIDIChannel, velocity, sampleSyncLength);
 }
 
-void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity) {
+void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity,
+                                               bool bypassSustain) {
+	// If sustain pedal is down, defer note-off instead of releasing
+	if (sustainPedalOn && !bypassSustain && notesAuditioned.contains(note)) {
+		sustainedNotes[static_cast<int16_t>(note)] = {static_cast<uint8_t>(velocity), false};
+		return;
+	}
 
 	notesAuditioned.erase(note);
 	earlyNotes[note].still_active = false; // set no longer active
@@ -586,6 +617,44 @@ void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t no
 	        ->addOtherTwoThingsButNoNoteRow(toModControllable(), getParamManager(modelStack->song));
 
 	sendNote(modelStackWithThreeMainThings, false, note, nullptr, MIDI_CHANNEL_NONE, velocity);
+}
+
+void MelodicInstrument::sustainPedalRelease(ModelStackWithTimelineCounter* modelStack) {
+	sustainPedalOn = false;
+	// Release all notes held by the sustain pedal. Notes currently held by a key press
+	// will have been removed from sustainedNotes by beginAuditioningForNote() on re-strike.
+	auto* instrumentClip = activeClip ? static_cast<InstrumentClip*>(activeClip) : nullptr;
+
+	for (auto& [note, info] : sustainedNotes) {
+		if (info.fromSequencer) {
+			// Sequencer-originated note: release directly via sendNote
+			if (activeClip) {
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(),
+				                                              getParamManager(modelStack->song));
+				sendNote(modelStackWithThreeMainThings, false, note, nullptr, MIDI_CHANNEL_NONE, info.velocity);
+			}
+		}
+		else {
+			// Auditioned note: record the deferred note-off if recording is active, then release
+			if (instrumentClip) {
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    instrumentClip->getNoteRowForYNote(note, modelStack);
+				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+				if (noteRow && instrumentClip->armedForRecording
+				    && ((playbackHandler.recording == RecordingMode::ARRANGEMENT
+				         && instrumentClip->isArrangementOnlyClip())
+				        || currentSong->isClipActive(instrumentClip))) {
+					instrumentClip->recordNoteOff(modelStackWithNoteRow, info.velocity);
+					if (getRootUI()) {
+						getRootUI()->noteRowChanged(instrumentClip, noteRow);
+					}
+				}
+			}
+			endAuditioningForNote(modelStack->toWithSong(), note, info.velocity);
+		}
+	}
+	sustainedNotes.clear();
 }
 
 bool MelodicInstrument::isAnyAuditioningHappening() {
