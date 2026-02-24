@@ -302,6 +302,7 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		using enum UnpatchedSound;
 		static l10n::String const NAMES[UNPATCHED_SOUND_MAX_NUM - unc] = {
 		    [UNPATCHED_PORTAMENTO - unc] = STRING_FOR_PORTAMENTO,
+		    [UNPATCHED_SUSTAIN_PEDAL - unc] = STRING_FOR_SUSTAIN_PEDAL,
 		};
 		return l10n::get(NAMES[p - unc]);
 	}
@@ -375,6 +376,8 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		switch (static_cast<UnpatchedSound>(param - UNPATCHED_START)) {
 		case UNPATCHED_PORTAMENTO:
 			return "portamento";
+		case UNPATCHED_SUSTAIN_PEDAL:
+			return "sustainPedal";
 
 		default:
 		    // Fall through to the other param kind handling

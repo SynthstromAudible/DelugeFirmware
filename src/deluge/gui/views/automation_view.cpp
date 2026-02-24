@@ -121,7 +121,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 83;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 84;
 constexpr int32_t kNumGlobalParamsForAutomation = 39;
 constexpr int32_t kParamNodeWidth = 3;
 
@@ -231,6 +231,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},
     // Portamento
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO},
+    // Sustain Pedal
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SUSTAIN_PEDAL},
     // Stutter Rate
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE},
     // Compressor Threshold
@@ -843,9 +845,11 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				}
 
 				else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					// don't make portamento available for automation in kit rows
+					// don't make portamento or sustain pedal available for automation in kit rows
 					if ((outputType == OutputType::KIT)
-					    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
+					    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO
+					        || unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]
+					               == params::UNPATCHED_SUSTAIN_PEDAL)) {
 						pixel = colours::black; // erase pad
 						continue;
 					}
@@ -2604,9 +2608,10 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	         && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 	             || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 	             || params::isPatchCableShortcut(xDisplay, yDisplay))) {
-		// don't allow automation of portamento in kit's
+		// don't allow automation of portamento or sustain pedal in kit's
 		if ((outputType == OutputType::KIT)
-		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
+		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO
+		        || unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_SUSTAIN_PEDAL)) {
 			return; // no parameter selected, don't re-render grid;
 		}
 
@@ -4630,7 +4635,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 		{
 			auto [kind, id] = nonGlobalParamsForAutomation[idx];
 			if ((clip->output->type == OutputType::KIT) && (kind == params::Kind::UNPATCHED_SOUND)
-			    && (id == params::UNPATCHED_PORTAMENTO)) {
+			    && (id == params::UNPATCHED_PORTAMENTO || id == params::UNPATCHED_SUSTAIN_PEDAL)) {
 				if (offset < 0) {
 					offset -= 1;
 				}
