@@ -136,6 +136,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
 
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_SUSTAIN_PEDAL].setCurrentValueBasicForSetup(-2147483648);
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	patchedParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(0);
@@ -1906,7 +1907,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 			else {
 justSwitchOff:
-				voice->noteOff(modelStack);
+				voice->noteOff(modelStack, true, noteCode == ALL_NOTES_OFF);
 			}
 		}
 	}

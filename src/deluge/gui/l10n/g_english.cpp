@@ -137,6 +137,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MODFX_RATE, "MOD-FX rate"},
         {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
         {STRING_FOR_PORTAMENTO_SHORT, "PRTA"},
+        {STRING_FOR_SUSTAIN_PEDAL, "Sustain pedal"},
+        {STRING_FOR_SUSTAIN_PEDAL_SHORT, "SPED"},
         {STRING_FOR_STUTTER, "STUTTER"},
         {STRING_FOR_STUTTER_RATE, "Stutter Rate"},
         {STRING_FOR_DISABLED, "Disabled"},

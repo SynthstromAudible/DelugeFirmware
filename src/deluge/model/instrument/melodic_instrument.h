@@ -101,4 +101,6 @@ public:
 
 private:
 	void possiblyRefreshAutomationEditorGrid(int32_t ccNumber);
+	void processSustainPedalParam(int32_t newValue, ModelStackWithTimelineCounter* modelStack);
+	void releaseSustainedVoices(ModelStackWithTimelineCounter* modelStack);
 };
