@@ -473,7 +473,7 @@ void MelodicInstrument::releaseSustainedVoices(ModelStackWithTimelineCounter* mo
 
 	for (const auto& voice : soundInstrument->voices()) {
 		if (voice->sustainPedalNoteOff) {
-			voice->noteOff(modelStackWithSoundFlags);
+			voice->noteOff(modelStackWithSoundFlags, true, true); // ignoreSustain — force release
 		}
 	}
 }

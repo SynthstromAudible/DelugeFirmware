@@ -53,6 +53,7 @@
 #include "model/consequence/consequence_begin_playback.h"
 #include "model/consequence/consequence_tempo_change.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/melodic_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_holder.h"
@@ -592,6 +593,22 @@ void PlaybackHandler::endPlayback() {
 	playbackState = 0;
 
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
+
+	// Release any voices held by sustain pedal — note-offs from endPlayback() may have been
+	// deferred by Voice::noteOff() if sustain param was active. We don't reset the param itself
+	// (it should reflect the physical pedal state), just force-release the deferred voices.
+	if (currentSong) {
+		for (Output* output = currentSong->firstOutput; output; output = output->next) {
+			if (output->type == OutputType::SYNTH) {
+				char sustainStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStack* sustainStack = setupModelStackWithSong(sustainStackMemory, currentSong);
+				ModelStackWithTimelineCounter* sustainStackWithTC =
+				    sustainStack->addTimelineCounter(output->getActiveClip());
+				static_cast<MelodicInstrument*>(output)->releaseSustainedVoices(sustainStackWithTC);
+			}
+		}
+	}
+
 	PadLEDs::clearTickSquares();
 
 	// Sometimes, ending playback will trigger an instant song swap
