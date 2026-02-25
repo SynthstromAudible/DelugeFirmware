@@ -485,6 +485,7 @@ bool Arpeggiator::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnIns
 					}
 					else {
 						instruction->arpNoteOn = arp_note;
+						arp_note->noteStatus[0] = ArpNoteStatus::PLAYING;
 						ARP_PRINTLN("found a pending a live note, starting it");
 						return true;
 					}
@@ -1435,6 +1436,11 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 bool ArpeggiatorBase::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 	if (active_note.isPending()) {
 		instruction->arpNoteOn = &active_note;
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (active_note.noteStatus[n] == ArpNoteStatus::PENDING) {
+				active_note.noteStatus[n] = ArpNoteStatus::PLAYING;
+			}
+		}
 		return true;
 	}
 	instruction->arpNoteOn = nullptr;
