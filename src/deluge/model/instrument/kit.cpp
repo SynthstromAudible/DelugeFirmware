@@ -1265,6 +1265,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 						break;
 					}
 					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 				}
 			}
 

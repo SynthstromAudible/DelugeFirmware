@@ -1436,11 +1436,6 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 bool ArpeggiatorBase::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 	if (active_note.isPending()) {
 		instruction->arpNoteOn = &active_note;
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (active_note.noteStatus[n] == ArpNoteStatus::PENDING) {
-				active_note.noteStatus[n] = ArpNoteStatus::PLAYING;
-			}
-		}
 		return true;
 	}
 	instruction->arpNoteOn = nullptr;
