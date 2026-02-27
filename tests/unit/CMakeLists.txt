@@ -75,6 +75,7 @@ add_executable(UnitTests
         chord_tests.cpp
         time_tests.cpp
         matriceal_engine_tests.cpp
+        matriceal_property_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)
