@@ -28,3 +28,21 @@ struct MatricealLane {
 	/// Resets position to 0 and pingpong state.
 	void reset();
 };
+
+// Forward declaration
+class MusicalKey;
+
+struct MatricealNote {
+	int16_t noteCode{-1}; // -1 = rest
+	uint8_t velocity{100};
+	uint8_t gate{64};
+	uint8_t retrigger{0};
+	bool glide{false};
+
+	bool isRest() const { return noteCode < 0; }
+	static MatricealNote rest() { return MatricealNote{-1, 0, 0, 0, false}; }
+};
+
+/// Converts a scale-degree offset (e.g., +3 or -2) to a semitone offset
+/// using the given musical key's mode notes.
+int32_t scaleDegreeToSemitoneOffset(int32_t degrees, const MusicalKey& key);
