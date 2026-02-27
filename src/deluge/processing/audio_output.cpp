@@ -124,10 +124,7 @@ bool AudioOutput::modeAllowsMonitoring() const {
 	}
 	if (mode == AudioOutputMode::sampler) {
 		auto& activeAudioClip = static_cast<AudioClip&>(*activeClip);
-		if (activeAudioClip.voiceSample) {
-			return false;
-		}
-		return true;
+		return activeAudioClip.isEmpty();
 	}
 	if (mode == AudioOutputMode::looper) {
 		return true;
