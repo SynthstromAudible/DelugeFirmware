@@ -75,4 +75,11 @@ public:
 
 	/// Resets all lane positions and interval accumulator.
 	void reset();
+
+	/// Sets the RNG seed for deterministic testing.
+	void setSeed(uint32_t seed);
+
+private:
+	uint32_t rngState_{1};
+	uint8_t randomPercent();
 };
