@@ -186,3 +186,183 @@ TEST(MatricealNoteTest, validNote) {
 	CHECK_EQUAL(false, note.isRest());
 	CHECK_EQUAL(60, note.noteCode);
 }
+
+TEST_GROUP(MatricealEngineTest) {
+	MatricealEngine engine;
+	MusicalKey cMajor;
+
+	void setup() {
+		engine = MatricealEngine();
+		cMajor.rootNote = 60;
+		cMajor.modeNotes = presetScaleNotes[MAJOR_SCALE];
+	}
+};
+
+TEST(MatricealEngineTest, allRestsWhenTriggerAllZeros) {
+	engine.trigger.length = 4;
+	engine.trigger.values[0] = 0;
+	engine.trigger.values[1] = 0;
+	engine.trigger.values[2] = 0;
+	engine.trigger.values[3] = 0;
+
+	engine.pitch.length = 2;
+	engine.pitch.values[0] = 60;
+	engine.pitch.values[1] = 64;
+
+	for (int i = 0; i < 8; i++) {
+		MatricealNote note = engine.step(cMajor);
+		CHECK(note.isRest());
+	}
+}
+
+TEST(MatricealEngineTest, triggerGatesOtherLanes) {
+	engine.trigger.length = 4;
+	engine.trigger.values[0] = 1;
+	engine.trigger.values[1] = 0;
+	engine.trigger.values[2] = 1;
+	engine.trigger.values[3] = 0;
+
+	engine.pitch.length = 3;
+	engine.pitch.values[0] = 60;
+	engine.pitch.values[1] = 64;
+	engine.pitch.values[2] = 67;
+
+	// Step 0: trigger=1, pitch[0]=60
+	MatricealNote n0 = engine.step(cMajor);
+	CHECK_EQUAL(60, n0.noteCode);
+
+	// Step 1: trigger=0, rest, pitch does NOT advance
+	MatricealNote n1 = engine.step(cMajor);
+	CHECK(n1.isRest());
+
+	// Step 2: trigger=1, pitch[1]=64
+	MatricealNote n2 = engine.step(cMajor);
+	CHECK_EQUAL(64, n2.noteCode);
+
+	// Step 3: trigger=0, rest
+	MatricealNote n3 = engine.step(cMajor);
+	CHECK(n3.isRest());
+
+	// Step 4: trigger wraps to [0]=1, pitch[2]=67
+	MatricealNote n4 = engine.step(cMajor);
+	CHECK_EQUAL(67, n4.noteCode);
+}
+
+TEST(MatricealEngineTest, velocityFromLane) {
+	engine.trigger.length = 2;
+	engine.trigger.values[0] = 1;
+	engine.trigger.values[1] = 1;
+
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+
+	engine.velocity.length = 2;
+	engine.velocity.values[0] = 100;
+	engine.velocity.values[1] = 50;
+
+	MatricealNote n0 = engine.step(cMajor);
+	CHECK_EQUAL(100, n0.velocity);
+
+	MatricealNote n1 = engine.step(cMajor);
+	CHECK_EQUAL(50, n1.velocity);
+}
+
+TEST(MatricealEngineTest, gateFromLane) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+
+	engine.gate.length = 3;
+	engine.gate.values[0] = 32;
+	engine.gate.values[1] = 96;
+	engine.gate.values[2] = 64;
+
+	CHECK_EQUAL(32, engine.step(cMajor).gate);
+	CHECK_EQUAL(96, engine.step(cMajor).gate);
+	CHECK_EQUAL(64, engine.step(cMajor).gate);
+}
+
+TEST(MatricealEngineTest, retriggerFromLane) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+
+	engine.retrigger.length = 2;
+	engine.retrigger.values[0] = 0;
+	engine.retrigger.values[1] = 3;
+
+	CHECK_EQUAL(0, engine.step(cMajor).retrigger);
+	CHECK_EQUAL(3, engine.step(cMajor).retrigger);
+}
+
+TEST(MatricealEngineTest, glideFromLane) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+
+	engine.glide.length = 2;
+	engine.glide.values[0] = 0;
+	engine.glide.values[1] = 1;
+
+	CHECK_EQUAL(false, engine.step(cMajor).glide);
+	CHECK_EQUAL(true, engine.step(cMajor).glide);
+}
+
+TEST(MatricealEngineTest, defaultLanesProduceDefaults) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+
+	MatricealNote note = engine.step(cMajor);
+	CHECK_EQUAL(60, note.noteCode);
+	CHECK_EQUAL(100, note.velocity); // default
+	CHECK_EQUAL(64, note.gate);      // default
+	CHECK_EQUAL(0, note.retrigger);  // default
+	CHECK_EQUAL(false, note.glide);  // default
+}
+
+TEST(MatricealEngineTest, probabilityZeroKillsNote) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+
+	engine.probability.length = 2;
+	engine.probability.values[0] = 0;  // never fire
+	engine.probability.values[1] = 50; // always fire (placeholder logic)
+
+	MatricealNote n0 = engine.step(cMajor);
+	CHECK(n0.isRest()); // probability 0 = rest
+
+	MatricealNote n1 = engine.step(cMajor);
+	CHECK_EQUAL(60, n1.noteCode); // probability 50 = fires
+}
+
+TEST(MatricealEngineTest, resetClearsAllPositions) {
+	engine.trigger.length = 4;
+	engine.trigger.values[0] = 1;
+	engine.trigger.values[1] = 1;
+	engine.trigger.values[2] = 1;
+	engine.trigger.values[3] = 1;
+	engine.pitch.length = 3;
+	engine.pitch.values[0] = 60;
+	engine.pitch.values[1] = 64;
+	engine.pitch.values[2] = 67;
+
+	engine.step(cMajor); // advance both
+	engine.step(cMajor); // advance both
+
+	engine.reset();
+
+	MatricealNote n = engine.step(cMajor);
+	CHECK_EQUAL(60, n.noteCode); // back to start
+}

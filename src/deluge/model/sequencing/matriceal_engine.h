@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm> // for std::clamp
 #include <array>
 #include <cstdint>
 
@@ -46,3 +47,32 @@ struct MatricealNote {
 /// Converts a scale-degree offset (e.g., +3 or -2) to a semitone offset
 /// using the given musical key's mode notes.
 int32_t scaleDegreeToSemitoneOffset(int32_t degrees, const MusicalKey& key);
+
+class MatricealEngine {
+public:
+	// The 9 parameter lanes
+	MatricealLane trigger;
+	MatricealLane pitch;
+	MatricealLane interval;
+	MatricealLane velocity;
+	MatricealLane octave;
+	MatricealLane gate;
+	MatricealLane retrigger;
+	MatricealLane probability;
+	MatricealLane glide;
+
+	// Interval accumulation state
+	int32_t intervalAccumulator{0};
+	static constexpr int32_t kMaxIntervalSemitones = 48;
+
+	// Default values for disabled lanes
+	static constexpr uint8_t kDefaultVelocity = 100;
+	static constexpr uint8_t kDefaultGate = 64;
+
+	/// Steps the engine forward by one tick.
+	/// Returns the composed note, or a rest if trigger is 0 or probability fails.
+	MatricealNote step(const MusicalKey& key);
+
+	/// Resets all lane positions and interval accumulator.
+	void reset();
+};
