@@ -56,6 +56,84 @@ void MatricealLane::reset() {
 	pingpongReversed = false;
 }
 
+MatricealNote MatricealEngine::step(const MusicalKey& key) {
+	// Read trigger value at current position
+	bool shouldFire = (trigger.length > 0) ? (trigger.currentValue() != 0) : false;
+	trigger.advance();
+
+	if (!shouldFire) {
+		return MatricealNote::rest();
+	}
+
+	// Read current values from all gated lanes BEFORE advancing
+	int32_t noteCode = (pitch.length > 0) ? pitch.currentValue() : 60;
+
+	// Add interval accumulation (scale degrees -> semitones)
+	if (interval.length > 0) {
+		intervalAccumulator += interval.currentValue();
+		intervalAccumulator = std::clamp(intervalAccumulator, -kMaxIntervalSemitones, kMaxIntervalSemitones);
+		noteCode += scaleDegreeToSemitoneOffset(intervalAccumulator, key);
+	}
+
+	// Add octave shift
+	if (octave.length > 0) {
+		noteCode += octave.currentValue() * 12;
+	}
+
+	// Clamp to MIDI range
+	noteCode = std::clamp(noteCode, 0, 127);
+
+	// Check probability — for now, probability 0 = never, 1-99 = always, 100 = always
+	// Full RNG comes in Task 5
+	if (probability.length > 0) {
+		uint8_t prob = static_cast<uint8_t>(probability.currentValue());
+		if (prob == 0) {
+			// Still advance all lanes even when probability kills the note
+			pitch.advance();
+			interval.advance();
+			velocity.advance();
+			octave.advance();
+			gate.advance();
+			retrigger.advance();
+			probability.advance();
+			glide.advance();
+			return MatricealNote::rest();
+		}
+	}
+
+	MatricealNote note;
+	note.noteCode = static_cast<int16_t>(noteCode);
+	note.velocity = (velocity.length > 0) ? static_cast<uint8_t>(velocity.currentValue()) : kDefaultVelocity;
+	note.gate = (gate.length > 0) ? static_cast<uint8_t>(gate.currentValue()) : kDefaultGate;
+	note.retrigger = (retrigger.length > 0) ? static_cast<uint8_t>(retrigger.currentValue()) : 0;
+	note.glide = (glide.length > 0) ? (glide.currentValue() != 0) : false;
+
+	// Now advance all gated lanes
+	pitch.advance();
+	interval.advance();
+	velocity.advance();
+	octave.advance();
+	gate.advance();
+	retrigger.advance();
+	probability.advance();
+	glide.advance();
+
+	return note;
+}
+
+void MatricealEngine::reset() {
+	trigger.reset();
+	pitch.reset();
+	interval.reset();
+	velocity.reset();
+	octave.reset();
+	gate.reset();
+	retrigger.reset();
+	probability.reset();
+	glide.reset();
+	intervalAccumulator = 0;
+}
+
 int32_t scaleDegreeToSemitoneOffset(int32_t degrees, const MusicalKey& key) {
 	int32_t scaleSize = key.modeNotes.count();
 	if (scaleSize <= 1) {
