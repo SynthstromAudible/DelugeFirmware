@@ -571,3 +571,126 @@ TEST(MatricealEngineTest, unlockAllowsVariation) {
 	for (int i = 0; i < 10; i++)
 		engine.step(cMajor); // should not crash
 }
+
+TEST(MatricealEngineTest, polymetricPhasingThreeByFive) {
+	// 3-step pitch x 5-step trigger = 15 unique steps before repeat
+	engine.trigger.length = 5;
+	for (int i = 0; i < 5; i++)
+		engine.trigger.values[i] = 1;
+
+	engine.pitch.length = 3;
+	engine.pitch.values[0] = 60; // C
+	engine.pitch.values[1] = 64; // E
+	engine.pitch.values[2] = 67; // G
+
+	// Collect 15 steps
+	int16_t cycle1[15];
+	for (int i = 0; i < 15; i++) {
+		cycle1[i] = engine.step(cMajor).noteCode;
+	}
+
+	// Expected pattern: C E G C E | G C E G C | E G C E G
+	CHECK_EQUAL(60, cycle1[0]);
+	CHECK_EQUAL(64, cycle1[1]);
+	CHECK_EQUAL(67, cycle1[2]);
+	CHECK_EQUAL(60, cycle1[3]);
+	CHECK_EQUAL(64, cycle1[4]);
+	CHECK_EQUAL(67, cycle1[5]);
+	CHECK_EQUAL(60, cycle1[6]);
+	CHECK_EQUAL(64, cycle1[7]);
+
+	// Verify second cycle is identical
+	int16_t cycle2[15];
+	for (int i = 0; i < 15; i++) {
+		cycle2[i] = engine.step(cMajor).noteCode;
+	}
+	for (int i = 0; i < 15; i++) {
+		CHECK_EQUAL(cycle1[i], cycle2[i]);
+	}
+}
+
+TEST(MatricealEngineTest, polymetricVelocityPhasing) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+
+	engine.pitch.length = 2;
+	engine.pitch.values[0] = 60;
+	engine.pitch.values[1] = 64;
+
+	engine.velocity.length = 3;
+	engine.velocity.values[0] = 100;
+	engine.velocity.values[1] = 80;
+	engine.velocity.values[2] = 60;
+
+	// LCM(2,3) = 6 steps to repeat
+	struct {
+		int16_t note;
+		uint8_t vel;
+	} expected[6] = {{60, 100}, {64, 80}, {60, 60}, {64, 100}, {60, 80}, {64, 60}};
+
+	for (int i = 0; i < 6; i++) {
+		MatricealNote n = engine.step(cMajor);
+		CHECK_EQUAL(expected[i].note, n.noteCode);
+		CHECK_EQUAL(expected[i].vel, n.velocity);
+	}
+
+	// Verify repeat
+	for (int i = 0; i < 6; i++) {
+		MatricealNote n = engine.step(cMajor);
+		CHECK_EQUAL(expected[i].note, n.noteCode);
+		CHECK_EQUAL(expected[i].vel, n.velocity);
+	}
+}
+
+TEST(MatricealEngineTest, triggerRestsDontAdvancePitch) {
+	engine.trigger.length = 4;
+	engine.trigger.values[0] = 1;
+	engine.trigger.values[1] = 0;
+	engine.trigger.values[2] = 0;
+	engine.trigger.values[3] = 1;
+
+	engine.pitch.length = 2;
+	engine.pitch.values[0] = 60;
+	engine.pitch.values[1] = 72;
+
+	CHECK_EQUAL(60, engine.step(cMajor).noteCode);
+	CHECK(engine.step(cMajor).isRest());
+	CHECK(engine.step(cMajor).isRest());
+	CHECK_EQUAL(72, engine.step(cMajor).noteCode);
+}
+
+TEST(MatricealEngineTest, allLanesActivePolymetric) {
+	engine.trigger.length = 2;
+	engine.trigger.values[0] = 1;
+	engine.trigger.values[1] = 1;
+
+	engine.pitch.length = 3;
+	engine.pitch.values[0] = 60;
+	engine.pitch.values[1] = 64;
+	engine.pitch.values[2] = 67;
+
+	engine.velocity.length = 2;
+	engine.velocity.values[0] = 100;
+	engine.velocity.values[1] = 50;
+
+	engine.gate.length = 2;
+	engine.gate.values[0] = 32;
+	engine.gate.values[1] = 96;
+
+	engine.octave.length = 1;
+	engine.octave.values[0] = 0;
+
+	engine.retrigger.length = 1;
+	engine.retrigger.values[0] = 0;
+
+	engine.glide.length = 2;
+	engine.glide.values[0] = 0;
+	engine.glide.values[1] = 1;
+
+	int16_t expectedPitch[] = {60, 64, 67, 60, 64, 67};
+	for (int i = 0; i < 6; i++) {
+		MatricealNote n = engine.step(cMajor);
+		CHECK_EQUAL(false, n.isRest());
+		CHECK_EQUAL(expectedPitch[i], n.noteCode);
+	}
+}
