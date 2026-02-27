@@ -81,7 +81,7 @@ MatricealNote MatricealEngine::step(const MusicalKey& key) {
 	}
 
 	// Clamp to MIDI range
-	noteCode = std::clamp(noteCode, 0, 127);
+	noteCode = std::clamp(noteCode, (int32_t)0, (int32_t)127);
 
 	// Check probability — values 0-100 control per-step chance of note firing
 	if (probability.length > 0) {
