@@ -130,6 +130,9 @@ void MatricealEngine::reset() {
 	probability.reset();
 	glide.reset();
 	intervalAccumulator = 0;
+	if (locked) {
+		rngState_ = lockedSeed;
+	}
 }
 
 int32_t scaleDegreeToSemitoneOffset(int32_t degrees, const MusicalKey& key) {
@@ -168,4 +171,13 @@ uint8_t MatricealEngine::randomPercent() {
 	rngState_ ^= rngState_ >> 17;
 	rngState_ ^= rngState_ << 5;
 	return rngState_ % 100;
+}
+
+void MatricealEngine::lock() {
+	locked = true;
+	lockedSeed = rngState_;
+}
+
+void MatricealEngine::unlock() {
+	locked = false;
 }
