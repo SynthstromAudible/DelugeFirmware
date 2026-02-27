@@ -696,6 +696,15 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		return; // Is this in case it's created a new Clip or something?
 	}
 
+	// Matriceal mode: delegate to engine instead of NoteRow iteration
+	if (matricealModeEnabled && matricealEngine) {
+		// TODO: Route engine output to clip's output
+		// For now this is a stub — the engine exists and can be tested,
+		// but actual note output routing is future work.
+		// MatricealNote note = matricealEngine->step(currentSong->key);
+		return;
+	}
+
 	// We already incremented / decremented noteRowsNumTicksBehindClip and ticksTilNextNoteRowEvent, in the call to
 	// incrementPos().
 
