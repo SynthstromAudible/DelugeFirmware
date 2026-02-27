@@ -366,3 +366,95 @@ TEST(MatricealEngineTest, resetClearsAllPositions) {
 	MatricealNote n = engine.step(cMajor);
 	CHECK_EQUAL(60, n.noteCode); // back to start
 }
+
+TEST(MatricealEngineTest, intervalAccumulatesAcrossSteps) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+	engine.interval.length = 3;
+	engine.interval.values[0] = 2;
+	engine.interval.values[1] = -1;
+	engine.interval.values[2] = 3;
+
+	// C major: C=0, D=2, E=4, F=5, G=7, A=9, B=11
+	CHECK_EQUAL(64, engine.step(cMajor).noteCode); // acc=+2, +4 semi -> E4
+	CHECK_EQUAL(62, engine.step(cMajor).noteCode); // acc=+1, +2 semi -> D4
+	CHECK_EQUAL(67, engine.step(cMajor).noteCode); // acc=+4, +7 semi -> G4
+	CHECK_EQUAL(71, engine.step(cMajor).noteCode); // acc=+6, +11 semi -> B4
+}
+
+TEST(MatricealEngineTest, intervalClampsBoundary) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+	engine.interval.length = 1;
+	engine.interval.values[0] = 12;
+
+	for (int i = 0; i < 20; i++) {
+		MatricealNote n = engine.step(cMajor);
+		CHECK(n.noteCode <= 127);
+		CHECK(n.noteCode >= 0);
+	}
+}
+
+TEST(MatricealEngineTest, intervalResetsOnEngineReset) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+	engine.interval.length = 1;
+	engine.interval.values[0] = 2;
+
+	engine.step(cMajor);
+	engine.step(cMajor);
+	engine.reset();
+	CHECK_EQUAL(0, engine.intervalAccumulator);
+	CHECK_EQUAL(64, engine.step(cMajor).noteCode); // acc=+2 -> E4 (64)
+}
+
+TEST(MatricealEngineTest, octaveShift) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+	engine.octave.length = 3;
+	engine.octave.values[0] = 0;
+	engine.octave.values[1] = 1;
+	engine.octave.values[2] = -1;
+
+	CHECK_EQUAL(60, engine.step(cMajor).noteCode);
+	CHECK_EQUAL(72, engine.step(cMajor).noteCode);
+	CHECK_EQUAL(48, engine.step(cMajor).noteCode);
+}
+
+TEST(MatricealEngineTest, pitchIntervalAndOctaveCombined) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+	engine.interval.length = 1;
+	engine.interval.values[0] = 2;
+	engine.octave.length = 1;
+	engine.octave.values[0] = 1;
+
+	// pitch=60, interval acc=+2 -> +4 semi, octave=+12 -> 60+4+12=76
+	CHECK_EQUAL(76, engine.step(cMajor).noteCode);
+}
+
+TEST(MatricealEngineTest, noteClampedToMidiRange) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 120;
+	engine.octave.length = 1;
+	engine.octave.values[0] = 3;
+
+	CHECK_EQUAL(127, engine.step(cMajor).noteCode);
+
+	engine.reset();
+	engine.pitch.values[0] = 10;
+	engine.octave.values[0] = -3;
+	CHECK_EQUAL(0, engine.step(cMajor).noteCode);
+}
