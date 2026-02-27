@@ -21,7 +21,9 @@
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
+#include "model/sequencing/matriceal_engine.h"
 #include "modulation/arpeggiator.h"
+#include <memory>
 
 class Song;
 
@@ -100,6 +102,10 @@ public:
 	void copyBasicsFrom(Clip const* otherClip) override;
 
 	ArpeggiatorSettings arpSettings;
+
+	// Matriceal generative sequencing mode
+	bool matricealModeEnabled{false};
+	std::unique_ptr<MatricealEngine> matricealEngine;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 
