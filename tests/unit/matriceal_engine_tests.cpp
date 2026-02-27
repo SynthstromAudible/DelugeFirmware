@@ -527,3 +527,47 @@ TEST(MatricealEngineTest, probabilityLanesStillAdvanceOnProbRest) {
 	MatricealNote n2 = engine.step(cMajor);
 	CHECK_EQUAL(67, n2.noteCode); // pitch advanced past 64
 }
+
+TEST(MatricealEngineTest, lockProducesIdenticalOutput) {
+	engine.trigger.length = 4;
+	for (int i = 0; i < 4; i++)
+		engine.trigger.values[i] = 1;
+	engine.pitch.length = 3;
+	engine.pitch.values[0] = 60;
+	engine.pitch.values[1] = 64;
+	engine.pitch.values[2] = 67;
+	engine.probability.length = 1;
+	engine.probability.values[0] = 50;
+
+	engine.setSeed(123);
+	engine.lock();
+
+	int16_t firstCycle[12];
+	for (int i = 0; i < 12; i++) {
+		firstCycle[i] = engine.step(cMajor).noteCode;
+	}
+
+	engine.reset();
+	for (int i = 0; i < 12; i++) {
+		CHECK_EQUAL(firstCycle[i], engine.step(cMajor).noteCode);
+	}
+}
+
+TEST(MatricealEngineTest, unlockAllowsVariation) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+	engine.probability.length = 1;
+	engine.probability.values[0] = 50;
+
+	engine.setSeed(123);
+	engine.lock();
+	for (int i = 0; i < 10; i++)
+		engine.step(cMajor);
+
+	engine.unlock();
+	engine.reset();
+	for (int i = 0; i < 10; i++)
+		engine.step(cMajor); // should not crash
+}

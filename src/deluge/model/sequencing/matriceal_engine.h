@@ -79,6 +79,12 @@ public:
 	/// Sets the RNG seed for deterministic testing.
 	void setSeed(uint32_t seed);
 
+	bool locked{false};
+	uint32_t lockedSeed{0};
+
+	void lock();
+	void unlock();
+
 private:
 	uint32_t rngState_{1};
 	uint8_t randomPercent();
