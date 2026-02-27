@@ -337,14 +337,14 @@ TEST(MatricealEngineTest, probabilityZeroKillsNote) {
 	engine.pitch.values[0] = 60;
 
 	engine.probability.length = 2;
-	engine.probability.values[0] = 0;  // never fire
-	engine.probability.values[1] = 50; // always fire (placeholder logic)
+	engine.probability.values[0] = 0;   // never fire
+	engine.probability.values[1] = 100; // always fire
 
 	MatricealNote n0 = engine.step(cMajor);
 	CHECK(n0.isRest()); // probability 0 = rest
 
 	MatricealNote n1 = engine.step(cMajor);
-	CHECK_EQUAL(60, n1.noteCode); // probability 50 = fires
+	CHECK_EQUAL(60, n1.noteCode); // probability 100 = fires
 }
 
 TEST(MatricealEngineTest, resetClearsAllPositions) {
@@ -457,4 +457,73 @@ TEST(MatricealEngineTest, noteClampedToMidiRange) {
 	engine.pitch.values[0] = 10;
 	engine.octave.values[0] = -3;
 	CHECK_EQUAL(0, engine.step(cMajor).noteCode);
+}
+
+TEST(MatricealEngineTest, probabilityZeroAlwaysRest) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+	engine.probability.length = 1;
+	engine.probability.values[0] = 0;
+
+	for (int i = 0; i < 10; i++) {
+		CHECK(engine.step(cMajor).isRest());
+	}
+}
+
+TEST(MatricealEngineTest, probabilityHundredAlwaysPlays) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+	engine.probability.length = 1;
+	engine.probability.values[0] = 100;
+
+	for (int i = 0; i < 10; i++) {
+		CHECK_EQUAL(false, engine.step(cMajor).isRest());
+	}
+}
+
+TEST(MatricealEngineTest, probabilityFiftyProducesMix) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 60;
+	engine.probability.length = 1;
+	engine.probability.values[0] = 50;
+
+	engine.setSeed(42);
+
+	int notes = 0, rests = 0;
+	for (int i = 0; i < 100; i++) {
+		if (engine.step(cMajor).isRest())
+			rests++;
+		else
+			notes++;
+	}
+	CHECK(notes > 20);
+	CHECK(rests > 20);
+}
+
+TEST(MatricealEngineTest, probabilityLanesStillAdvanceOnProbRest) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 3;
+	engine.pitch.values[0] = 60;
+	engine.pitch.values[1] = 64;
+	engine.pitch.values[2] = 67;
+	engine.probability.length = 3;
+	engine.probability.values[0] = 100;
+	engine.probability.values[1] = 0;
+	engine.probability.values[2] = 100;
+
+	MatricealNote n0 = engine.step(cMajor);
+	CHECK_EQUAL(60, n0.noteCode);
+
+	MatricealNote n1 = engine.step(cMajor);
+	CHECK(n1.isRest());
+
+	MatricealNote n2 = engine.step(cMajor);
+	CHECK_EQUAL(67, n2.noteCode); // pitch advanced past 64
 }
