@@ -83,12 +83,10 @@ MatricealNote MatricealEngine::step(const MusicalKey& key) {
 	// Clamp to MIDI range
 	noteCode = std::clamp(noteCode, 0, 127);
 
-	// Check probability — for now, probability 0 = never, 1-99 = always, 100 = always
-	// Full RNG comes in Task 5
+	// Check probability — values 0-100 control per-step chance of note firing
 	if (probability.length > 0) {
 		uint8_t prob = static_cast<uint8_t>(probability.currentValue());
-		if (prob == 0) {
-			// Still advance all lanes even when probability kills the note
+		if (prob < 100 && randomPercent() >= prob) {
 			pitch.advance();
 			interval.advance();
 			velocity.advance();
@@ -158,4 +156,16 @@ int32_t scaleDegreeToSemitoneOffset(int32_t degrees, const MusicalKey& key) {
 		semitones += key.modeNotes[remaining];
 	}
 	return semitones;
+}
+
+void MatricealEngine::setSeed(uint32_t seed) {
+	rngState_ = seed ? seed : 1;
+}
+
+uint8_t MatricealEngine::randomPercent() {
+	// xorshift32
+	rngState_ ^= rngState_ << 13;
+	rngState_ ^= rngState_ >> 17;
+	rngState_ ^= rngState_ << 5;
+	return rngState_ % 100;
 }
