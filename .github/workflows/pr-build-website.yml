@@ -46,7 +46,7 @@ jobs:
 
       # We upload the artifact for manual downloading and opening locally
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: website-artifact
           path: website/dist
