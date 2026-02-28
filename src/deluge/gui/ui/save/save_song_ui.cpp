@@ -315,8 +315,8 @@ gotError:
 					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was
 					// designed for...
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
-						error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(),
-						                                                    filenameWithoutExtension);
+						error = audioFileManager.setupAlternateAudioFilePath(newSongAlternatePath, dirPathLengthNew,
+						                                                     audioFile->filePath);
 						if (error != Error::NONE) {
 							activeDeserializer->closeWriter();
 							display->removeLoadingAnimation();
