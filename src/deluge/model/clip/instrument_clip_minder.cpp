@@ -45,6 +45,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/scale/preset_scales.h"
+#include "model/sequencing/lanes_engine.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -495,6 +496,18 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	// Back button to clear Clip
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
+			// Lanes mode: zero all lane values
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (clip->lanesModeEnabled && clip->lanesEngine) {
+				for (int32_t i = 0; i < LanesEngine::kNumLanes; i++) {
+					clip->lanesEngine->clearLane(i);
+				}
+				clip->lanesEngine->reset();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
+				uiNeedsRendering(getCurrentUI(), 0xFFFFFFFF, 0);
+				return ActionResult::DEALT_WITH;
+			}
+
 			// Clear Clip
 			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
 

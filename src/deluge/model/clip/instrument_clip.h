@@ -21,7 +21,7 @@
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
-#include "model/sequencing/matriceal_engine.h"
+#include "model/sequencing/lanes_engine.h"
 #include "modulation/arpeggiator.h"
 #include <memory>
 
@@ -103,9 +103,18 @@ public:
 
 	ArpeggiatorSettings arpSettings;
 
-	// Matriceal generative sequencing mode
-	bool matricealModeEnabled{false};
-	std::unique_ptr<MatricealEngine> matricealEngine;
+	// Lanes generative sequencing mode
+	bool lanesModeEnabled{false};
+	std::unique_ptr<LanesEngine> lanesEngine;
+	int16_t lanesCurrentNote_{-1};
+	int32_t lanesGateTicksRemaining_{0};
+	bool lanesTieActive_{false};
+	// Retrigger state
+	uint8_t lanesRetriggersRemaining_{0};
+	int32_t lanesRetriggerSubTicks_{0}; // ticks per subdivision
+	uint8_t lanesRetriggerVelocity_{100};
+	bool lanesRetriggerGapPhase_{false};           // true = in silence gap between retrigger hits
+	static constexpr int32_t kLanesStepTicks = 12; // 16th note at 48 PPQN
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 
@@ -253,6 +262,13 @@ private:
 	void deleteEmptyNoteRowsAtEitherEnd(bool onlyIfNoDrum, ModelStackWithTimelineCounter* modelStack,
 	                                    bool mustKeepLastOne = true, bool keepOnesWithMIDIInput = true);
 	void sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn);
+	void stopLanesNote(ModelStackWithTimelineCounter* modelStack);
+	/// Returns true if output is a melodic instrument type (SYNTH, MIDI_OUT, or CV).
+	bool isOutputMelodic() const {
+		return output
+		       && (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
+		           || output->type == OutputType::CV);
+	}
 	Error undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack);
 	void deleteBackedUpParamManagerMIDI();
 	bool possiblyDeleteEmptyNoteRow(NoteRow* noteRow, bool onlyIfNoDrum, Song* song, bool onlyIfNonNumeric = false,
