@@ -17,6 +17,10 @@
 
 #include "model/instrument/melodic_instrument.h"
 #include "definitions_cxx.hpp"
+#include "model/model_stack.h"
+#include "modulation/params/param_set.h"
+#include "model/voice/voice.h"
+#include "processing/sound/sound_instrument.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -394,6 +398,18 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			return;
 		}
 
+		// CC64 sustain pedal — route to unpatched param for internal synths (records as automation)
+		if (ccNumber == CC_EXTERNAL_SUSTAIN_PEDAL && type != OutputType::MIDI_OUT) {
+			int32_t paramValue = (value >= 64) ? 2147483647 : -2147483648;
+			processSustainPedalParam(paramValue, modelStackWithTimelineCounter);
+
+			// If pedal released, trigger release of any voices held by sustain
+			if (value < 64) {
+				releaseSustainedVoices(modelStackWithTimelineCounter);
+			}
+			return;
+		}
+
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this
 		// themselves
 		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
@@ -410,6 +426,54 @@ void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 			if (activeClip->lastSelectedParamID == ccNumber) {
 				uiNeedsRendering(&automationView);
 			}
+		}
+	}
+}
+
+void MelodicInstrument::processSustainPedalParam(int32_t newValue,
+                                                  ModelStackWithTimelineCounter* modelStack) {
+	int32_t modPos = 0;
+	int32_t modLength = 0;
+
+	if (modelStack->timelineCounterIsSet()) {
+		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+
+		if (view.modLength
+		    && modelStack->getTimelineCounter()
+		           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			modPos = view.modPos;
+			modLength = view.modLength;
+		}
+	}
+
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
+	ModelStackWithThreeMainThings* modelStackWith3Things =
+	    modelStackWithNoteRow->addOtherTwoThings(toModControllable(), getParamManager(modelStack->song));
+
+	ModelStackWithAutoParam* modelStackWithParam =
+	    modelStackWith3Things->getUnpatchedAutoParamFromId(deluge::modulation::params::UNPATCHED_SUSTAIN_PEDAL);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength,
+		                                                          false);
+	}
+}
+
+void MelodicInstrument::releaseSustainedVoices(ModelStackWithTimelineCounter* modelStack) {
+	if (type != OutputType::SYNTH) {
+		return;
+	}
+
+	auto* soundInstrument = static_cast<SoundInstrument*>(this);
+
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
+	ModelStackWithThreeMainThings* modelStackWith3Things =
+	    modelStackWithNoteRow->addOtherTwoThings(toModControllable(), getParamManager(modelStack->song));
+	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWith3Things->addSoundFlags();
+
+	for (const auto& voice : soundInstrument->voices()) {
+		if (voice->sustainPedalNoteOff) {
+			voice->noteOff(modelStackWithSoundFlags, true, true); // ignoreSustain — force release
 		}
 	}
 }
@@ -504,6 +568,13 @@ bool MelodicInstrument::isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow*
 }
 
 void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
+
+	// Reset sustain pedal param so note-offs are not deferred
+	if (type != OutputType::MIDI_OUT) {
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+		    modelStack->addTimelineCounter(activeClip);
+		processSustainPedalParam(-2147483648, modelStackWithTimelineCounter);
+	}
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addTimelineCounter(activeClip)
