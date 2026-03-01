@@ -84,6 +84,9 @@
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "gui/menu_item/keyboard/layout.h"
+#include "gui/menu_item/lanes/interval_range.h"
+#include "gui/menu_item/lanes/pitch_base_note.h"
+#include "gui/menu_item/lanes/track_length.h"
 #include "gui/menu_item/lfo/sync.h"
 #include "gui/menu_item/lfo/type.h"
 #include "gui/menu_item/master_transpose.h"
@@ -1508,6 +1511,32 @@ HorizontalMenu noteRowEditorRootMenu{STRING_FOR_NOTE_ROW_EDITOR,
                                          &noteRowIteranceMenu,
                                          &noteRowFillMenu,
                                      }};
+
+// Lanes lane editor menus
+menu_item::lanes::TrackLength lanesTrackLengthMenu{STRING_FOR_LANES_TRACK_LENGTH};
+
+HorizontalMenu lanesTriggerEditorMenu{STRING_FOR_LANES_TRIGGER,
+                                      {
+                                          &lanesTrackLengthMenu,
+                                      }};
+
+menu_item::lanes::PitchBaseNote lanesPitchBaseNoteMenu{STRING_FOR_NOTE};
+
+HorizontalMenu lanesPitchEditorMenu{STRING_FOR_PITCH,
+                                    {
+                                        &lanesPitchBaseNoteMenu,
+                                    }};
+
+menu_item::lanes::IntervalMin lanesIntervalMinMenu{STRING_FOR_INTERVAL_MIN};
+menu_item::lanes::IntervalMax lanesIntervalMaxMenu{STRING_FOR_INTERVAL_MAX};
+menu_item::lanes::IntervalScale lanesIntervalScaleMenu{STRING_FOR_INTERVAL_SCALE};
+
+HorizontalMenu lanesIntervalEditorMenu{STRING_FOR_INTERVAL,
+                                       {
+                                           &lanesIntervalMinMenu,
+                                           &lanesIntervalMaxMenu,
+                                           &lanesIntervalScaleMenu,
+                                       }};
 
 menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
                                                 {
