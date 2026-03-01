@@ -686,8 +686,8 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 	expressionValueChangesMustBeDoneSmoothly = true;
 
 	// If recording, we send the new value to the AutoParam, which will also sound that change right now.
-	if (modelStack->timelineCounterIsSet()) { // && playbackHandler.isEitherClockActive() &&
-		                                      // playbackHandler.recording) {
+	if (modelStack->timelineCounterIsSet() && playbackHandler.isEitherClockActive()
+	    && playbackHandler.recording != RecordingMode::OFF) {
 		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 
 		for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
