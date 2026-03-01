@@ -78,7 +78,7 @@ struct ConnectedUSBMIDIDevice {
 	uint8_t sq; // Only for connections as HOST
 	uint8_t canHaveMIDISent;
 	uint16_t numBytesReceived;
-	_Alignas(8) uint8_t receiveData[64];
+	__attribute__((aligned(8))) uint8_t receiveData[64];
 
 	// This buffer is passed directly to the USB driver, and is limited to what the hardware allows
 	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN_INNER * 4];
