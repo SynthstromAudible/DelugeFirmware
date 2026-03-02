@@ -792,7 +792,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 					expressionSourcesCurrentlySmoothing[i] = false;
 				}
 				else {
-					int32_t amountToAdd = diff * numSamples;
+					int32_t amountToAdd = diff * numSamples / 4;
 					sourceValues[i + util::to_underlying(PatchSource::X)] += amountToAdd;
 				}
 			}
