@@ -37,6 +37,7 @@ public:
 	Clip* findNextClipForOutput(SessionMacro& m, PressedPad pad);
 
 private:
+	int8_t activePad = -1;
 };
 
 } // namespace deluge::gui::ui::keyboard::controls
