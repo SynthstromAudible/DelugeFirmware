@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
 #include "util/container/enum_to_string_map.hpp"
@@ -332,6 +333,75 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 	}
 
 	return l10n::get(STRING_FOR_NONE);
+}
+
+/// Resolve the display name for a morph parameter based on the current filter mode.
+/// Returns nullptr if the parameter is not a morph param or modControllable is null.
+static char const* resolveMorphDisplayName(int32_t paramID, bool isLocal, ModControllableAudio* mc) {
+	using enum l10n::String;
+	using deluge::dsp::filter::FilterFamily;
+	using deluge::dsp::filter::SpecificFilter;
+
+	if (mc == nullptr) {
+		return nullptr;
+	}
+
+	if (isLocal) {
+		if (paramID == LOCAL_LPF_MORPH) {
+			if (SpecificFilter(mc->lpfMode).getFamily() == FilterFamily::LP_LADDER) {
+				return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_DRIVE);
+			}
+		}
+		else if (paramID == LOCAL_HPF_MORPH) {
+			if (SpecificFilter(mc->hpfMode).getFamily() == FilterFamily::HP_LADDER) {
+				return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_FM);
+			}
+		}
+	}
+	else {
+		if (paramID == UNPATCHED_LPF_MORPH) {
+			if (SpecificFilter(mc->lpfMode).getFamily() == FilterFamily::LP_LADDER) {
+				return l10n::get(STRING_FOR_LPF_DRIVE);
+			}
+		}
+		else if (paramID == UNPATCHED_HPF_MORPH) {
+			if (SpecificFilter(mc->hpfMode).getFamily() == FilterFamily::HP_LADDER) {
+				return l10n::get(STRING_FOR_HPF_FM);
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+char const* getPatchedParamShortName(ParamType type, ModControllableAudio* mc) {
+	char const* morphName = resolveMorphDisplayName(type, true, mc);
+	if (morphName != nullptr) {
+		return morphName;
+	}
+	return getPatchedParamShortName(type);
+}
+
+char const* getPatchedParamDisplayName(int32_t p, ModControllableAudio* mc) {
+	char const* morphName = resolveMorphDisplayName(p, true, mc);
+	if (morphName != nullptr) {
+		return morphName;
+	}
+	return getPatchedParamDisplayName(p);
+}
+
+char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* mc) {
+	char const* morphName = nullptr;
+	if (kind == Kind::PATCHED) {
+		morphName = resolveMorphDisplayName(p, true, mc);
+	}
+	else if (kind == Kind::UNPATCHED_GLOBAL) {
+		morphName = resolveMorphDisplayName(p, false, mc);
+	}
+	if (morphName != nullptr) {
+		return morphName;
+	}
+	return getParamDisplayName(kind, p);
 }
 
 bool paramNeedsLPF(ParamType p, bool fromAutomation) {
