@@ -17,10 +17,6 @@
 
 #include "model/instrument/melodic_instrument.h"
 #include "definitions_cxx.hpp"
-#include "model/model_stack.h"
-#include "modulation/params/param_set.h"
-#include "model/voice/voice.h"
-#include "processing/sound/sound_instrument.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -30,10 +26,14 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/voice/voice.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "processing/sound/sound_instrument.h"
 #include <cstdint>
 #include <cstring>
 #include <ranges>
@@ -430,8 +430,7 @@ void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 	}
 }
 
-void MelodicInstrument::processSustainPedalParam(int32_t newValue,
-                                                  ModelStackWithTimelineCounter* modelStack) {
+void MelodicInstrument::processSustainPedalParam(int32_t newValue, ModelStackWithTimelineCounter* modelStack) {
 	int32_t modPos = 0;
 	int32_t modLength = 0;
 
@@ -439,8 +438,7 @@ void MelodicInstrument::processSustainPedalParam(int32_t newValue,
 		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 
 		if (view.modLength
-		    && modelStack->getTimelineCounter()
-		           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+		    && modelStack->getTimelineCounter() == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 			modPos = view.modPos;
 			modLength = view.modLength;
 		}
@@ -571,8 +569,7 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 
 	// Reset sustain pedal param so note-offs are not deferred
 	if (type != OutputType::MIDI_OUT) {
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(activeClip);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 		processSustainPedalParam(-2147483648, modelStackWithTimelineCounter);
 	}
 
