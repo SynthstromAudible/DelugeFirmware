@@ -104,7 +104,7 @@ public:
 
 	// ui
 	bool exitUI() override {
-		Browser::close();
+		exitAction();
 		return true;
 	}
 
