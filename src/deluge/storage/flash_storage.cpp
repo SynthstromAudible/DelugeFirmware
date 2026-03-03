@@ -279,7 +279,9 @@ void resetSettings() {
 	playbackHandler.analogInTicksPPQN = 24;
 	playbackHandler.analogOutTicksPPQN = 24;
 	playbackHandler.midiOutClockEnabled = true;
+	playbackHandler.midiOutTransportEnabled = true;
 	playbackHandler.midiInClockEnabled = true;
+	playbackHandler.midiInTransportEnabled = true;
 	playbackHandler.tempoMagnitudeMatchingEnabled = false;
 
 	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
@@ -435,6 +437,10 @@ void readSettings() {
 	playbackHandler.midiOutClockEnabled = buffer[34];
 	playbackHandler.midiInClockEnabled = buffer[52];
 	playbackHandler.tempoMagnitudeMatchingEnabled = buffer[35];
+
+	// Transport enabled flags (slots 190-191). Default true if uninitialized (0xFF from blank flash).
+	playbackHandler.midiOutTransportEnabled = (buffer[190] != 0);
+	playbackHandler.midiInTransportEnabled = (buffer[191] != 0);
 
 	PadLEDs::flashCursor = buffer[36];
 
@@ -1101,6 +1107,9 @@ void writeSettings() {
 	buffer[188] = defaultUseSharps;
 
 	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
+
+	buffer[190] = playbackHandler.midiOutTransportEnabled;
+	buffer[191] = playbackHandler.midiInTransportEnabled;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

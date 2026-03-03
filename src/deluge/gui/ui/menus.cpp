@@ -1102,6 +1102,10 @@ ToggleBool midiInputDifferentiationMenu{STRING_FOR_DIFFERENTIATE_INPUTS, STRING_
 // MIDI clock menu
 ToggleBool midiClockOutStatusMenu{STRING_FOR_OUTPUT, STRING_FOR_MIDI_CLOCK_OUT, playbackHandler.midiOutClockEnabled};
 ToggleBool midiClockInStatusMenu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN, playbackHandler.midiInClockEnabled};
+ToggleBool midiTransportOutStatusMenu{STRING_FOR_TRANSPORT_OUT, STRING_FOR_MIDI_TRANSPORT_OUT,
+                                      playbackHandler.midiOutTransportEnabled};
+ToggleBool midiTransportInStatusMenu{STRING_FOR_TRANSPORT_IN, STRING_FOR_MIDI_TRANSPORT_IN,
+                                     playbackHandler.midiInTransportEnabled};
 ToggleBool tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_MAGNITUDE_MATCHING,
                                       playbackHandler.tempoMagnitudeMatchingEnabled};
 
@@ -1116,6 +1120,8 @@ Submenu midiClockMenu{
     {
         &midiClockInStatusMenu,
         &midiClockOutStatusMenu,
+        &midiTransportInStatusMenu,
+        &midiTransportOutStatusMenu,
         &tempoMagnitudeMatchingMenu,
     },
 };
