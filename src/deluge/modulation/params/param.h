@@ -278,6 +278,10 @@ char const* getPatchedParamDisplayName(int32_t p);
 /// Get the short version of a param name, for use in the OLED mod matrix display (maximum 10 characters)
 char const* getPatchedParamShortName(ParamType type);
 char const* getParamDisplayName(Kind kind, int32_t p);
+/// Filter-mode-aware overloads: resolve "LPF morph"→"LPF drive" / "HPF morph"→"HPF FM" when in ladder mode
+char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* mc);
+char const* getPatchedParamDisplayName(int32_t p, ModControllableAudio* mc);
+char const* getPatchedParamShortName(ParamType type, ModControllableAudio* mc);
 
 bool paramNeedsLPF(ParamType p, bool fromAutomation);
 

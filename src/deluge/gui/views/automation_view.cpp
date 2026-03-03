@@ -1673,10 +1673,12 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 				parameterName.append(display->haveOLED() ? " -> " : " - ");
 			}
 
-			parameterName.append(params::getPatchedParamShortName(lastSelectedParamID));
+			auto* mc = (ModControllableAudio*)view.activeModControllableModelStack.modControllable;
+			parameterName.append(params::getPatchedParamShortName(lastSelectedParamID, mc));
 		}
 		else {
-			parameterName.append(getParamDisplayName(lastSelectedParamKind, lastSelectedParamID));
+			auto* mc = (ModControllableAudio*)view.activeModControllableModelStack.modControllable;
+			parameterName.append(getParamDisplayName(lastSelectedParamKind, lastSelectedParamID, mc));
 		}
 	}
 	else {
