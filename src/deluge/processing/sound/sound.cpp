@@ -3017,6 +3017,24 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 
 	SynthMode oldSynthMode = synthMode;
 	synthMode = value;
+
+	// Update filter modes BEFORE setting up patching, so patch cables correctly
+	// reflect the new synth mode's filter state (fixes #4232)
+	if (synthMode == SynthMode::FM && oldSynthMode != SynthMode::FM) {
+		// switch the filters off so they don't render unless deliberately enabled
+		lpfMode = FilterMode::OFF;
+		hpfMode = FilterMode::OFF;
+	}
+	else if (synthMode != SynthMode::FM && oldSynthMode == SynthMode::FM) {
+		// switch the filters back on if needed
+		if (lpfMode == FilterMode::OFF) {
+			lpfMode = FilterMode::TRANSISTOR_24DB;
+		}
+		if (hpfMode == FilterMode::OFF) {
+			hpfMode = FilterMode::HPLADDER;
+		}
+	}
+
 	setupPatchingForAllParamManagers(song);
 
 	// Change mod knob functions over. Switching *to* FM...
@@ -3035,9 +3053,6 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 				}
 			}
 		}
-		// switch the filters off so they don't render unless deliberately enabled
-		lpfMode = FilterMode::OFF;
-		hpfMode = FilterMode::OFF;
 	}
 
 	// ... and switching *from* FM...
@@ -3048,13 +3063,6 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 				modKnobs[f][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
 				modKnobs[f][1].paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
 			}
-		}
-		// switch the filters back on if needed
-		if (lpfMode == FilterMode::OFF) {
-			lpfMode = FilterMode::TRANSISTOR_24DB;
-		}
-		if (hpfMode == FilterMode::OFF) {
-			hpfMode = FilterMode::HPLADDER;
 		}
 	}
 }
