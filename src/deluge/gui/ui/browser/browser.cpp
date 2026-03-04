@@ -1277,7 +1277,8 @@ gotErrorAfterAllocating:
 	else {
 		i--;
 		// If it didn't match exactly, try some other stuff before accepting that result.
-		if (memcasecmp(((FileItem*)fileItems.getElementAddress(i))->displayName, enteredText.get(), enteredTextEditPos)) {
+		if (memcasecmp(((FileItem*)fileItems.getElementAddress(i))->displayName, enteredText.get(),
+		               enteredTextEditPos)) {
 			if (numExtraZeroesAdded < 4) {
 				error = searchString.concatenateAtPos("0", searchString.getLength() - 1, 1);
 				if (error != Error::NONE) {
