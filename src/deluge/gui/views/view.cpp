@@ -2792,8 +2792,6 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 			break;
 		}
 		// No break
-	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
-
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
@@ -2803,6 +2801,15 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		}
 		else {
 			exitUIMode(UI_MODE_HOLDING_STATUS_PAD);
+		}
+		break;
+
+	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
+		// Toggle clip status without changing UI mode — preserves clip pressed state
+		// so clipPressEnded() is called properly on clip pad release
+		if (on) {
+			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
+			session.toggleClipStatus(clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
 
