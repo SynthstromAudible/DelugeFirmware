@@ -3087,6 +3087,81 @@ void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelSt
 	}
 }
 
+void Sound::retriggerVoicesForTransposeChange(ModelStackWithSoundFlags* modelStack) {
+	if (voices_.empty() || modelStack == nullptr) {
+		return;
+	}
+
+	// Check if any source uses multisamples (multiple zones)
+	bool hasMultisamples = false;
+	for (int32_t s = 0; s < kNumSources; s++) {
+		if (synthMode != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
+		    && sources[s].ranges.getNumElements() > 1) {
+			hasMultisamples = true;
+			break;
+		}
+	}
+
+	// No multisamples — existing behavior is correct
+	if (!hasMultisamples) {
+		recalculateAllVoicePhaseIncrements(modelStack);
+		return;
+	}
+
+	// For each voice, check if the multisample zone changed and re-trigger if so
+	for (auto it = voices_.begin(); it != voices_.end();) {
+		const ActiveVoice& voice = *it;
+
+		// Check if any multisample source's zone would change with the new transpose
+		bool rangeChanged = false;
+		for (int32_t s = 0; s < kNumSources; s++) {
+			if (synthMode != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
+			    && sources[s].ranges.getNumElements() > 1) {
+				MultiRange* newRange = sources[s].getRange(voice->noteCodeAfterArpeggiation + transpose);
+				if (newRange && newRange->getAudioFileHolder() != voice->guides[s].audioFileHolder) {
+					rangeChanged = true;
+					break;
+				}
+			}
+		}
+
+		if (!rangeChanged) {
+			// Same zone — just update pitch as before
+			voice->calculatePhaseIncrements(modelStack);
+			++it;
+			continue;
+		}
+
+		// Zone changed — re-trigger the voice with recovered parameters
+		int32_t notePreArp = voice->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
+		int32_t notePostArp = voice->noteCodeAfterArpeggiation;
+		int32_t midiChannel = voice->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)];
+
+		// Recover velocity from patched source value
+		int32_t velSrc = voice->sourceValues[util::to_underlying(PatchSource::VELOCITY)];
+		uint8_t velocity =
+		    (velSrc >= 2147483647) ? 128 : static_cast<uint8_t>(std::clamp((velSrc / 33554432) + 64, 0, 127));
+
+		// Recover MPE values (stored shifted left by 16)
+		int16_t mpeValues[kNumExpressionDimensions];
+		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+			mpeValues[m] = static_cast<int16_t>(voice->localExpressionSourceValuesBeforeSmoothing[m] >> 16);
+		}
+
+		uint32_t syncLength = voice->guides[0].sequenceSyncLengthTicks;
+
+		// Re-trigger with resetEnvelopes=true for clean attack from new sample zone
+		bool success =
+		    voice->noteOn(modelStack, notePreArp, notePostArp, velocity, syncLength, 0, 0, true, midiChannel, mpeValues);
+		if (!success) {
+			freeActiveVoice(voice, modelStack, false);
+			it = voices_.erase(it);
+			continue;
+		}
+		++it;
+	}
+}
+
 void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 	int32_t oldNum = numUnison;
 

@@ -51,7 +51,7 @@ public:
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 					ModelStackWithSoundFlags* modelStackForSoundDrum =
 					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
-					soundDrum->recalculateAllVoicePhaseIncrements(modelStackForSoundDrum);
+					soundDrum->retriggerVoicesForTransposeChange(modelStackForSoundDrum);
 				}
 			}
 		}
@@ -61,7 +61,7 @@ public:
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-			soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
+			soundEditor.currentSound->retriggerVoicesForTransposeChange(modelStack);
 		}
 	}
 	MenuItem* selectButtonPress() override { return PatchedParam::selectButtonPress(); }
