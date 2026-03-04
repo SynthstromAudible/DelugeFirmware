@@ -4494,6 +4494,7 @@ void SessionView::gridTransitionToSessionView() {
 }
 
 void SessionView::gridTransitionToViewForClip(Clip* clip) {
+	PadLEDs::skipGreyoutFade();
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
 	auto clipX = std::clamp<int32_t>(gridXFromTrack(gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
