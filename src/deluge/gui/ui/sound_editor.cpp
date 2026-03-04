@@ -1116,10 +1116,27 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		else {
-			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
-			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
-			           == RuntimeFeatureStateToggle::On) {
-				if (dxParam.potentialShortcutPadAction(x, y, on)) {
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
+			    == RuntimeFeatureStateToggle::On) {
+				bool inDxEditor = getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam;
+
+				// If the sound editor isn't open yet and the instrument is DX7,
+				// open the DX editor so shortcut pads route to DX parameters
+				// instead of standard shortcuts like Clip Name (#3369)
+				if (!inDxEditor && getCurrentUI() != &soundEditor && getCurrentClip()->type == ClipType::INSTRUMENT) {
+					Output* output = getCurrentClip()->output;
+					if (output->type == OutputType::SYNTH) {
+						auto* sound = static_cast<SoundInstrument*>(output);
+						if (sound->sources[0].oscType == OscType::DX7) {
+							if (setup(getCurrentClip(), &dxParam, 0)) {
+								enterOrUpdateSoundEditor(on);
+								inDxEditor = true;
+							}
+						}
+					}
+				}
+
+				if (inDxEditor && dxParam.potentialShortcutPadAction(x, y, on)) {
 					return ActionResult::DEALT_WITH;
 				}
 			}
