@@ -2253,7 +2253,9 @@ void PlaybackHandler::setMidiOutClockMode(bool newValue) {
 	}
 	midiOutClockEnabled = newValue;
 
-	// If currently playing on internal clock...
+	// If currently playing on internal clock, sync or cancel clock ticks.
+	// Note: STOP/continue messages are now handled by the separate transport toggle
+	// (midiOutTransportEnabled), so disabling clock output no longer sends STOP.
 	if (isInternalClockActive()) {
 		if (newValue) {
 			resyncMIDIClockOutTicksToInternalTicks();
