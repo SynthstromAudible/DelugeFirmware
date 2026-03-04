@@ -2747,13 +2747,18 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 	bool refreshVelocityEditor = false;
 	bool showNewVelocity = true;
 
-	// check if this press is a deletion (y matches the note's velocity range)
-	bool isDeletePress = velocity && squareInfo.numNotes != 0
-	                     && nonPatchCableMinPadDisplayValues[y] <= squareInfo.averageVelocity
-	                     && squareInfo.averageVelocity <= nonPatchCableMaxPadDisplayValues[y];
+	// For simultaneous presses at the velocity head (within 80ms), skip multi-pad logic
+	// so each press is registered independently for deletion on short release.
+	// The 80ms threshold matches editPadAction's length-edit timing guard.
+	bool isSimultaneousVelocityHeadPress =
+	    velocity && squareInfo.numNotes != 0
+	    && (int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) >= 0
+	    && nonPatchCableMinPadDisplayValues[y] <= squareInfo.averageVelocity
+	    && squareInfo.averageVelocity <= nonPatchCableMaxPadDisplayValues[y];
 
-	// check for middle or multi pad press (but not if the second press is a deletion)
-	if (velocity && squareInfo.numNotes != 0 && instrumentClipView.numEditPadPresses == 1 && !isDeletePress) {
+	// check for middle or multi pad press (but not for simultaneous velocity-head presses)
+	if (velocity && squareInfo.numNotes != 0 && instrumentClipView.numEditPadPresses == 1
+	    && !isSimultaneousVelocityHeadPress) {
 		// Find that original press
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 			if (instrumentClipView.editPadPresses[i].isActive) {
