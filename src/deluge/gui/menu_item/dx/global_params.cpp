@@ -94,6 +94,9 @@ void DxGlobalParams::selectEncoderAction(int32_t offset) {
 		}
 		else if (currentValue >= scrollPos + kOLEDMenuNumOptionsVisible) {
 			scrollPos = currentValue - kOLEDMenuNumOptionsVisible + 1;
+			if (scrollPos < 0) {
+				scrollPos = 0;
+			}
 		}
 	}
 
