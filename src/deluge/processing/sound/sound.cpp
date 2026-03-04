@@ -3139,8 +3139,8 @@ void Sound::retriggerVoicesForTransposeChange(ModelStackWithSoundFlags* modelSta
 
 		// Recover velocity from patched source value
 		int32_t velSrc = voice->sourceValues[util::to_underlying(PatchSource::VELOCITY)];
-		uint8_t velocity =
-		    (velSrc >= 2147483647) ? 128 : static_cast<uint8_t>(std::clamp((velSrc / 33554432) + 64, 0, 127));
+		int32_t velRecovered = std::clamp((velSrc / 33554432) + 64, (int32_t)0, (int32_t)127);
+		uint8_t velocity = (velSrc >= 2147483647) ? 128 : static_cast<uint8_t>(velRecovered);
 
 		// Recover MPE values (stored shifted left by 16)
 		int16_t mpeValues[kNumExpressionDimensions];
