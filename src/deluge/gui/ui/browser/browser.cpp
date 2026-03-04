@@ -1259,21 +1259,26 @@ gotErrorAfterAllocating:
 		// Fall through to i-- below to check it.
 	}
 
-	if (i == 0) {
+	// For numeric prefixes, the "~" upper bound may sort before items with higher
+	// numeric values that share the same character prefix (e.g., "1~" sorts before
+	// "15.XML" in strcmpspecial because 15 > 1). Check the item at position i
+	// (the first item >= our search string) for a forward prefix match. (fixes #4105)
+	if (i < fileItems.getNumElements()
+	    && !memcasecmp(((FileItem*)fileItems.getElementAddress(i))->displayName, enteredText.get(),
+	                   enteredTextEditPos)) {
+		// Forward match found — use position i directly
+	}
+	else if (i == 0) {
 		if (!doneNewRead) {
 			goto doNewRead;
 		}
-		else {
-			goto notFound;
-		}
+		goto notFound;
 	}
-
-	i--;
-	{
-		FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-
-		// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
-		if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos)) {
+	else {
+		i--;
+		// If it didn't match exactly, try some other stuff before accepting that result.
+		if (memcasecmp(((FileItem*)fileItems.getElementAddress(i))->displayName, enteredText.get(),
+		               enteredTextEditPos)) {
 			if (numExtraZeroesAdded < 4) {
 				error = searchString.concatenateAtPos("0", searchString.getLength() - 1, 1);
 				if (error != Error::NONE) {
@@ -1287,7 +1292,10 @@ gotErrorAfterAllocating:
 				goto notFound;
 			}
 		}
+	}
 
+	{
+		FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
 		fileIndexSelected = i;
 
 		// Move scroll only if found item is completely offscreen.
