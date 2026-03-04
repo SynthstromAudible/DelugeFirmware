@@ -377,6 +377,11 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					goUpOneLevel();
 				}
 
+				// goUpOneLevel() may have called exitCompletely(), closing this UI
+				if (getCurrentUI() != this) {
+					return ActionResult::DEALT_WITH;
+				}
+
 				handlePotentialParamMenuChange(b, inCardRoutine, currentMenuItem, getCurrentMenuItem(), false);
 
 				if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
@@ -419,6 +424,11 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				}
 				else {
 					goUpOneLevel();
+				}
+
+				// goUpOneLevel() may have called exitCompletely(), closing this UI (fixes #3898, #2759)
+				if (getCurrentUI() != this) {
+					return ActionResult::DEALT_WITH;
 				}
 
 				handlePotentialParamMenuChange(b, inCardRoutine, currentMenuItem, getCurrentMenuItem(), false);
