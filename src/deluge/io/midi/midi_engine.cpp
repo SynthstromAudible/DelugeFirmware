@@ -831,6 +831,17 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 
+void MidiEngine::check_incoming_usb() {
+	bool usbLockNow = usbLock;
+
+	if (!usbLockNow) {
+		// Have to call this regularly, to do "callbacks" that will grab out the received data
+		usbLock = 1;
+		usb_cstd_usb_task();
+		usbLock = 0;
+	}
+}
+
 void MidiEngine::checkIncomingUsbMidi() {
 
 	if (!usbCurrentlyInitialized
@@ -840,15 +851,8 @@ void MidiEngine::checkIncomingUsbMidi() {
 		}
 		return;
 	}
-
 	bool usbLockNow = usbLock;
-
-	if (!usbLockNow) {
-		// Have to call this regularly, to do "callbacks" that will grab out the received data
-		usbLock = 1;
-		usb_cstd_usb_task();
-		usbLock = 0;
-	}
+	check_incoming_usb();
 
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
 
@@ -864,10 +868,9 @@ void MidiEngine::checkIncomingUsbMidi() {
 
 				int32_t bytesReceivedHere = connectedUSBMIDIDevices[ip][d].numBytesReceived;
 				if (bytesReceivedHere) {
-
 					connectedUSBMIDIDevices[ip][d].numBytesReceived = 0;
 
-					__restrict__ uint8_t const* readPos = connectedUSBMIDIDevices[ip][d].receiveData;
+					uint8_t const* readPos = connectedUSBMIDIDevices[ip][d].receiveData;
 					const uint8_t* const stopAt = readPos + bytesReceivedHere;
 
 					// Receive all the stuff from this device
@@ -878,7 +881,11 @@ void MidiEngine::checkIncomingUsbMidi() {
 						uint8_t channel = readPos[1] & 0x0F;
 						uint8_t data1 = readPos[2];
 						uint8_t data2 = readPos[3];
-
+						if (data1 & 0x80 || data2 & 0x80) {
+							// This shouldn't be possible, indicates an error in transmission so just ignore the rest of
+							// the frame
+							break;
+						}
 						if (statusType < 0x08) {
 							if (statusType == 2 || statusType == 3) { // 2 or 3 byte system common messages
 								statusType = 0x0F;
