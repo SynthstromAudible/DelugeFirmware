@@ -113,8 +113,7 @@ public:
 	uint8_t lanesRetriggersRemaining_{0};
 	int32_t lanesRetriggerSubTicks_{0}; // ticks per subdivision
 	uint8_t lanesRetriggerVelocity_{100};
-	bool lanesRetriggerGapPhase_{false};           // true = in silence gap between retrigger hits
-	static constexpr int32_t kLanesStepTicks = 12; // 16th note at 48 PPQN
+	bool lanesRetriggerGapPhase_{false}; // true = in silence gap between retrigger hits
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 
