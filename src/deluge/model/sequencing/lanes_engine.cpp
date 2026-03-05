@@ -113,15 +113,17 @@ LanesNote LanesEngine::step(const MusicalKey& key) {
 	}
 
 	// Read ALL lane values at their current positions BEFORE advancing any
-	bool shouldFire = (trigger.length > 0) ? (trigger.currentValue() != 0) : false;
+	// Muted lanes return their default value (trigger muted = always rest)
+	bool shouldFire = (trigger.length > 0 && !trigger.muted) ? (trigger.currentValue() != 0) : false;
 	int32_t pitchDegrees = readLaneValue(pitch, 1, 0);
 	int16_t intervalVal = readLaneValue(interval, 5, 0);
 	int16_t octaveVal = readLaneValue(octave, 2, 0);
-	uint8_t probVal = (probability.length > 0) ? static_cast<uint8_t>(probability.currentValue()) : 100;
+	uint8_t probVal =
+	    (probability.length > 0 && !probability.muted) ? static_cast<uint8_t>(probability.currentValue()) : 100;
 	uint8_t velVal = static_cast<uint8_t>(readLaneValue(velocity, 3, defaultVelocity));
-	uint8_t gateVal = (gate.length > 0) ? static_cast<uint8_t>(gate.currentValue()) : kDefaultGate;
+	uint8_t gateVal = (gate.length > 0 && !gate.muted) ? static_cast<uint8_t>(gate.currentValue()) : kDefaultGate;
 	uint8_t retrigVal = static_cast<uint8_t>(readLaneValue(retrigger, 6, 0));
-	bool glideVal = (glide.length > 0) ? (glide.currentValue() != 0) : false;
+	bool glideVal = (glide.length > 0 && !glide.muted) ? (glide.currentValue() != 0) : false;
 
 	// Advance ALL lanes every tick — lanes free-run independently of trigger
 	advanceAllLanes();
@@ -295,7 +297,7 @@ void LanesLane::initProbability() {
 }
 
 int16_t LanesEngine::readLaneValue(LanesLane& lane, int32_t laneIdx, int16_t defaultVal) {
-	if (lane.length == 0) {
+	if (lane.length == 0 || lane.muted) {
 		return defaultVal;
 	}
 	if (kLaneHasStepProb[laneIdx]) {

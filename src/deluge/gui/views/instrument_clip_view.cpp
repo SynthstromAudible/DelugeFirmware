@@ -4277,6 +4277,20 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	// Lanes mode: toggle lane mute
+	{
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (clip->lanesModeEnabled && clip->lanesEngine) {
+			int32_t laneIdx = (kDisplayHeight - 1) - yDisplay;
+			LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
+			if (lane) {
+				lane->muted = !lane->muted;
+			}
+			uiNeedsRendering(this, 0, 1 << yDisplay);
+			return;
+		}
+	}
+
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -6090,9 +6104,20 @@ bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayW
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
 			if (lanesActive) {
-				// Lanes mode: mute column dark, audition column shows lane color
-				image[i][kDisplayWidth] = colours::black;
+				// Lanes mode: mute column shows lane mute state, audition column shows lane color
 				int32_t laneIdx = (kDisplayHeight - 1) - i;
+				if (laneIdx >= 0 && laneIdx < LanesEngine::kNumLanes) {
+					LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
+					if (lane && lane->muted) {
+						image[i][kDisplayWidth] = menu_item::mutedColourMenu.getRGB();
+					}
+					else {
+						image[i][kDisplayWidth] = menu_item::activeColourMenu.getRGB();
+					}
+				}
+				else {
+					image[i][kDisplayWidth] = colours::black;
+				}
 				if (laneIdx >= 0 && laneIdx < LanesEngine::kNumLanes) {
 					RGB laneColor = kLanesLaneColours[laneIdx];
 					if (auditionPadIsPressed[i]) {

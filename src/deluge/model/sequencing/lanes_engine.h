@@ -30,6 +30,9 @@ struct LanesLane {
 	/// Internal counter for division. Counts down from clockDivision.
 	uint8_t divisionCounter{1};
 
+	/// When muted, the lane's value is replaced by its default (or 0 for trigger).
+	bool muted{false};
+
 	/// Returns the value at the current position, or 0 if lane is disabled.
 	int16_t currentValue() const;
 
