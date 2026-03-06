@@ -125,6 +125,7 @@ const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIO
 
 constexpr int32_t kNumNonGlobalParamsForAutomation = 83;
 constexpr int32_t kNumGlobalParamsForAutomation = 39;
+constexpr int32_t kParamNodeWidth = 3;
 
 // synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
 const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutomation> nonGlobalParamsForAutomation{{
@@ -348,6 +349,7 @@ AutomationView::AutomationView() {
 	rightPadSelectedX = kNoSelection;
 	rightPadSelectedY = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
+	playbackStopped = false;
 	onArrangerView = false;
 	onMenuView = false;
 	navSysId = NAVIGATION_CLIP;
@@ -893,6 +895,234 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 	}
 }
 
+// gets the length of the clip, renders the pads corresponding to current parameter values set up to the
+// clip length renders the undefined area of the clip that the user can't interact with
+void AutomationView::renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+                                            RGB image[][kDisplayWidth + kSideBarWidth],
+                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
+                                            int32_t xScroll, uint32_t xZoom, int32_t effectiveLength, int32_t xDisplay,
+                                            bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
+		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
+	}
+	if (drawUndefinedArea) {
+		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
+		                    currentSong->tripletsOn, xDisplay);
+	}
+}
+
+/// render each square in each column of the automation editor grid
+void AutomationView::renderAutomationColumn(ModelStackWithAutoParam* modelStackWithParam,
+                                            RGB image[][kDisplayWidth + kSideBarWidth],
+                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                            int32_t lengthToDisplay, int32_t xDisplay, bool isAutomated,
+                                            int32_t xScroll, int32_t xZoom, params::Kind kind, bool isBipolar) {
+
+	uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
+	int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+
+	// iterate through each square
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		if (isBipolar) {
+			renderAutomationBipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, kind, knobPos);
+		}
+		else {
+			renderAutomationUnipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, knobPos);
+		}
+	}
+}
+
+/// render column for bipolar params - e.g. pan, pitch, patch cable
+void AutomationView::renderAutomationBipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
+                                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                   int32_t xDisplay, int32_t yDisplay, bool isAutomated,
+                                                   params::Kind kind, int32_t knobPos) {
+	RGB& pixel = image[yDisplay][xDisplay];
+
+	int32_t middleKnobPos;
+
+	// for patch cable that has a range of -128 to + 128, the middle point is 0
+	if (kind == params::Kind::PATCH_CABLE) {
+		middleKnobPos = 0;
+	}
+	// for non-patch cable that has a range of 0 to 128, the middle point is 64
+	else {
+		middleKnobPos = 64;
+	}
+
+	// if it's bipolar, only render grid rows above or below middle value
+	if (((knobPos > middleKnobPos) && (yDisplay < 4)) || ((knobPos < middleKnobPos) && (yDisplay > 3))) {
+		pixel = colours::black; // erase pad
+		return;
+	}
+
+	bool doRender = false;
+
+	// determine whether or not you should render a row based on current value
+	if (knobPos != middleKnobPos) {
+		if (kind == params::Kind::PATCH_CABLE) {
+			if (knobPos > middleKnobPos) {
+				doRender = (knobPos >= patchCableMinPadDisplayValues[yDisplay]);
+			}
+			else {
+				doRender = (knobPos <= patchCableMaxPadDisplayValues[yDisplay]);
+			}
+		}
+		else {
+			if (knobPos > middleKnobPos) {
+				doRender = (knobPos >= nonPatchCableMinPadDisplayValues[yDisplay]);
+			}
+			else {
+				doRender = (knobPos <= nonPatchCableMaxPadDisplayValues[yDisplay]);
+			}
+		}
+	}
+
+	// render automation lane
+	if (doRender) {
+		if (isAutomated) { // automated, render bright colour
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownColour[yDisplay];
+			}
+		}
+		else { // not automated, render less bright tail colour
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownTailColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownTailColour[yDisplay];
+			}
+		}
+		occupancyMask[yDisplay][xDisplay] = 64;
+	}
+	else {
+		pixel = colours::black; // erase pad
+	}
+
+	// pad selection mode, render cursor
+	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
+		if (doRender) {
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownBlurColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownBlurColour[yDisplay];
+			}
+		}
+		else {
+			pixel = colours::grey;
+		}
+		occupancyMask[yDisplay][xDisplay] = 64;
+	}
+}
+
+/// render column for unipolar params (e.g. not pan, pitch, or patch cables)
+void AutomationView::renderAutomationUnipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
+                                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                    int32_t xDisplay, int32_t yDisplay, bool isAutomated,
+                                                    int32_t knobPos) {
+	RGB& pixel = image[yDisplay][xDisplay];
+
+	// determine whether or not you should render a row based on current value
+	bool doRender = false;
+	if (knobPos) {
+		doRender = (knobPos >= nonPatchCableMinPadDisplayValues[yDisplay]);
+	}
+
+	// render square
+	if (doRender) {
+		if (isAutomated) { // automated, render bright colour
+			pixel = rowColour[yDisplay];
+		}
+		else { // not automated, render less bright tail colour
+			pixel = rowTailColour[yDisplay];
+		}
+		occupancyMask[yDisplay][xDisplay] = 64;
+	}
+	else {
+		pixel = colours::black; // erase pad
+	}
+
+	// pad selection mode, render cursor
+	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
+		if (doRender) {
+			pixel = rowBlurColour[yDisplay];
+		}
+		else {
+			pixel = colours::grey;
+		}
+		occupancyMask[yDisplay][xDisplay] = 64;
+	}
+}
+
+// gets the length of the note row, renders the pads corresponding to current note parameter values set up to the
+// note row length renders the undefined area of the note row that the user can't interact with
+void AutomationView::renderNoteEditor(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
+                                      RGB image[][kDisplayWidth + kSideBarWidth],
+                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
+                                      int32_t xScroll, uint32_t xZoom, int32_t effectiveLength, int32_t xDisplay,
+                                      bool drawUndefinedArea, SquareInfo& squareInfo) {
+	if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+		renderNoteColumn(modelStackWithNoteRow, clip, image, occupancyMask, xDisplay, xScroll, xZoom, squareInfo);
+	}
+	if (drawUndefinedArea) {
+		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
+		                    currentSong->tripletsOn, xDisplay);
+	}
+}
+
+/// render each square in each column of the note editor grid
+void AutomationView::renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
+                                      RGB image[][kDisplayWidth + kSideBarWidth],
+                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
+                                      int32_t xScroll, int32_t xZoom, SquareInfo& squareInfo) {
+	int32_t value = 0;
+
+	if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
+		value = squareInfo.averageVelocity;
+	}
+
+	// iterate through each square
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		renderNoteSquare(image, occupancyMask, xDisplay, yDisplay, squareInfo.squareType, value);
+	}
+}
+
+/// render column for note parameter
+void AutomationView::renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth],
+                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
+                                      int32_t yDisplay, uint8_t squareType, int32_t value) {
+	RGB& pixel = image[yDisplay][xDisplay];
+	bool doRender = false;
+
+	if (squareType == SQUARE_NO_NOTE) {
+		pixel = colours::black; // erase pad
+	}
+	else {
+		// render square
+		if (value >= nonPatchCableMinPadDisplayValues[yDisplay]) {
+			doRender = true;
+			if (squareType == SQUARE_NOTE_HEAD) {
+				pixel = velocityRowColour[yDisplay];
+			}
+			else if (squareType == SQUARE_NOTE_TAIL) {
+				pixel = velocityRowTailColour[yDisplay];
+			}
+			else if (squareType == SQUARE_BLURRED) {
+				pixel = velocityRowBlurColour[yDisplay];
+			}
+			occupancyMask[yDisplay][xDisplay] = 64;
+		}
+		else {
+			pixel = colours::black; // erase pad
+		}
+	}
+}
+
 // occupancyMask now optional
 void AutomationView::renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay,
                                          RGB image[][kDisplayWidth + kSideBarWidth],
@@ -1068,6 +1298,217 @@ void AutomationView::renderAutomationOverviewDisplay7SEG(Output* output, OutputT
 		overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION);
 	}
 	display->setScrollingText(overviewText);
+}
+
+void AutomationView::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft,
+                                                       bool modEncoderAction) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	if (onArrangerView) {
+		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+	}
+	else {
+		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
+	}
+
+	bool padSelected = (!padSelectionOn && isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelectionOn;
+
+	/* check if you're holding a pad
+	 * if yes, store pad press knob position in lastPadSelectedKnobPos
+	 * so that it can be used next time as the knob position if returning here
+	 * to display parameter value after another popup has been cancelled (e.g. audition pad)
+	 */
+	if (padSelected) {
+		if (knobPosLeft != kNoSelection) {
+			lastPadSelectedKnobPos = knobPosLeft;
+		}
+		else if (lastPadSelectedKnobPos != kNoSelection) {
+			params::Kind lastSelectedParamKind = params::Kind::NONE;
+			int32_t lastSelectedParamID = kNoSelection;
+			if (onArrangerView) {
+				lastSelectedParamKind = currentSong->lastSelectedParamKind;
+				lastSelectedParamID = currentSong->lastSelectedParamID;
+			}
+			else {
+				lastSelectedParamKind = clip->lastSelectedParamKind;
+				lastSelectedParamID = clip->lastSelectedParamID;
+			}
+			knobPosLeft =
+			    view.calculateKnobPosForDisplay(lastSelectedParamKind, lastSelectedParamID, lastPadSelectedKnobPos);
+		}
+	}
+
+	bool isAutomated =
+	    modelStackWithParam && modelStackWithParam->autoParam && modelStackWithParam->autoParam->isAutomated();
+	bool playbackStarted = playbackHandler.isEitherClockActive();
+
+	// display parameter value if knobPos is provided
+	if ((knobPosLeft != kNoSelection) && (padSelected || (playbackStarted && isAutomated) || modEncoderAction)) {
+		char buffer[5];
+		intToString(knobPosLeft, buffer);
+		if (modEncoderAction && !padSelected) {
+			display->displayPopup(buffer, 3, true);
+		}
+		else {
+			display->setText(buffer, true, 255, false);
+		}
+	}
+	// display parameter name
+	else if (knobPosLeft == kNoSelection) {
+		DEF_STACK_STRING_BUF(parameterName, 30);
+		getAutomationParameterName(clip, outputType, parameterName);
+		// if playback is running and there is automation, the screen will display the
+		// current automation value at the playhead position
+		// when changing to a parameter with automation, flash the parameter name first
+		// before the value is displayed
+		// otherwise if there's no automation, just scroll the parameter name
+		if (padSelected || (playbackStarted && isAutomated)) {
+			display->displayPopup(parameterName.c_str(), 3, true, isAutomated ? 3 : 255);
+		}
+		else {
+			display->setScrollingText(parameterName.c_str(), 0, 600, -1, isAutomated ? 3 : 255);
+		}
+	}
+}
+
+void AutomationView::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	bool isKit = outputType == OutputType::KIT;
+
+	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
+	                                                                        modelStack); // don't create
+	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+		if (!isKit) {
+			modelStackWithNoteRow =
+			    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
+		}
+	}
+
+	if (knobPosLeft != kNoSelection) {
+		char buffer[5];
+		intToString(knobPosLeft, buffer);
+		display->setText(buffer, true, 255, false);
+	}
+	else {
+		// display note / drum name
+		char noteRowName[50];
+		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+			if (isKit) {
+				DEF_STACK_STRING_BUF(drumName, 50);
+				instrumentClipView.getDrumName(modelStackWithNoteRow->getNoteRow()->drum, drumName);
+				strncpy(noteRowName, drumName.c_str(), 49);
+			}
+			else {
+				int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+				noteCodeToString(modelStackWithNoteRow->getNoteRow()->getNoteCode(), noteRowName, &isNatural);
+			}
+		}
+		else {
+			if (isKit) {
+				strncpy(noteRowName, "(Select Drum)", 49);
+			}
+			else {
+				strncpy(noteRowName, "(Select Note)", 49);
+			}
+		}
+		display->setScrollingText(noteRowName);
+	}
+}
+
+// get's the name of the Parameter being edited so it can be displayed on the screen
+void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputType, StringBuf& parameterName) {
+	if (onArrangerView || outputType != OutputType::MIDI_OUT) {
+		params::Kind lastSelectedParamKind = params::Kind::NONE;
+		int32_t lastSelectedParamID = kNoSelection;
+		PatchSource lastSelectedPatchSource = PatchSource::NONE;
+		if (onArrangerView) {
+			lastSelectedParamKind = currentSong->lastSelectedParamKind;
+			lastSelectedParamID = currentSong->lastSelectedParamID;
+		}
+		else {
+			lastSelectedParamKind = clip->lastSelectedParamKind;
+			lastSelectedParamID = clip->lastSelectedParamID;
+			lastSelectedPatchSource = clip->lastSelectedPatchSource;
+		}
+		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			PatchSource source2 = PatchSource::NONE;
+			ParamDescriptor paramDescriptor;
+			paramDescriptor.data = lastSelectedParamID;
+			if (!paramDescriptor.hasJustOneSource()) {
+				source2 = paramDescriptor.getTopLevelSource();
+			}
+
+			parameterName.append(sourceToStringShort(lastSelectedPatchSource));
+
+			if (display->haveOLED()) {
+				parameterName.append(" -> ");
+			}
+			else {
+				parameterName.append(" - ");
+			}
+
+			if (source2 != PatchSource::NONE) {
+				parameterName.append(sourceToStringShort(source2));
+				parameterName.append(display->haveOLED() ? " -> " : " - ");
+			}
+
+			parameterName.append(params::getPatchedParamShortName(lastSelectedParamID));
+		}
+		else {
+			parameterName.append(getParamDisplayName(lastSelectedParamKind, lastSelectedParamID));
+		}
+	}
+	else {
+		if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
+			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
+		}
+		else if (clip->lastSelectedParamID == CC_NUMBER_PITCH_BEND) {
+			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+		}
+		else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
+			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+		}
+		else if (clip->lastSelectedParamID == CC_EXTERNAL_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
+			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+		}
+		else {
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
+			bool appendedName = false;
+
+			if (clip->lastSelectedParamID >= 0 && clip->lastSelectedParamID < kNumRealCCNumbers) {
+				std::string_view name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
+				// if we have a name for this midi cc set by the user, display that instead of the cc number
+				if (!name.empty()) {
+					parameterName.append(name.data());
+					appendedName = true;
+				}
+			}
+
+			// if we don't have a midi cc name set, draw CC number instead
+			if (!appendedName) {
+				if (display->haveOLED()) {
+					parameterName.append("CC ");
+					parameterName.appendInt(clip->lastSelectedParamID);
+				}
+				else {
+					if (clip->lastSelectedParamID < 100) {
+						parameterName.append("CC");
+					}
+					else {
+						parameterName.append("C");
+					}
+					parameterName.appendInt(clip->lastSelectedParamID);
+				}
+			}
+		}
+	}
 }
 
 // adjust the LED meters and update the display
@@ -1812,13 +2253,12 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 				// toggle interpolation on / off
 				// not relevant for note editor because interpolation doesn't apply to note params
 				if ((x == kInterpolationShortcutX && y == kInterpolationShortcutY)) {
-					return automationEditorLayoutModControllable.toggleAutomationInterpolation();
+					return toggleAutomationInterpolation();
 				}
 				// toggle pad selection on / off
 				// not relevant for note editor because pad selection mode was deemed unnecessary
 				else if (inAutomationEditor() && (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY)) {
-					return automationEditorLayoutModControllable.toggleAutomationPadSelectionMode(
-					    modelStackWithParam, effectiveLength, xScroll, xZoom);
+					return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
 				}
 			}
 
@@ -1847,6 +2287,55 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 		}
 	}
 	return false;
+}
+
+/// toggle automation interpolation on / off
+bool AutomationView::toggleAutomationInterpolation() {
+	if (interpolation) {
+		interpolation = false;
+		initInterpolation();
+		resetInterpolationShortcutBlinking();
+
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
+	}
+	else {
+		interpolation = true;
+		blinkInterpolationShortcut();
+
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
+	}
+	return true;
+}
+
+/// toggle automation pad selection mode on / off
+bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam,
+                                                      int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+	// enter/exit pad selection mode
+	if (padSelectionOn) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
+
+		initPadSelection();
+		displayAutomation(true, !display->have7SEG());
+	}
+	else {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
+
+		padSelectionOn = true;
+		blinkPadSelectionShortcut();
+
+		multiPadPressSelected = false;
+		multiPadPressActive = false;
+
+		// display only left cursor initially
+		leftPadSelectedX = 0;
+		rightPadSelectedX = kNoSelection;
+
+		uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
+
+		updateAutomationModPosition(modelStackWithParam, squareStart, true, true);
+	}
+	uiNeedsRendering(this);
+	return true;
 }
 
 // called by shortcutPadAction when it is determined that you are selecting a parameter on automation
@@ -1993,6 +2482,536 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	if (clip && clip->type == ClipType::INSTRUMENT && ((InstrumentClip*)clip)->wrapEditing) {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	}
+}
+
+// note edit pad action
+// handles single and multi pad presses for note parameter editing (e.g. velocity)
+// stores pad presses in the EditPadPresses struct of the instrument clip view
+void AutomationView::noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+                                       InstrumentClip* clip, int32_t x, int32_t y, int32_t velocity,
+                                       int32_t effectiveLength, SquareInfo& squareInfo) {
+	if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
+		velocityEditPadAction(modelStackWithNoteRow, noteRow, clip, x, y, velocity, effectiveLength, squareInfo);
+	}
+}
+
+// velocity edit pad action
+void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+                                           InstrumentClip* clip, int32_t x, int32_t y, int32_t velocity,
+                                           int32_t effectiveLength, SquareInfo& squareInfo) {
+	// save pad selected
+	leftPadSelectedX = x;
+
+	// calculate new velocity based on Y of pad pressed
+	int32_t newVelocity = getVelocityFromY(y);
+
+	// middle pad press variables
+	middlePadPressSelected = false;
+
+	// multi pad press variables
+	multiPadPressSelected = false;
+	SquareInfo rowSquareInfo[kDisplayWidth];
+	int32_t multiPadPressVelocityIncrement = 0;
+
+	// update velocity editor rendering
+	bool refreshVelocityEditor = false;
+	bool showNewVelocity = true;
+
+	// check for middle or multi pad press
+	if (velocity && squareInfo.numNotes != 0 && instrumentClipView.numEditPadPresses == 1) {
+		// Find that original press
+		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+			if (instrumentClipView.editPadPresses[i].isActive) {
+				// if found, calculate middle velocity between two velocity pad presses
+				if (instrumentClipView.editPadPresses[i].xDisplay == x) {
+					// the last pad press will have updated the default velocity
+					// so get it as it will be used to calculate average between previous and new velocity
+					int32_t previousVelocity = getCurrentInstrument()->defaultVelocity;
+
+					// calculate middle velocity (average of two pad presses in a column)
+					newVelocity = (newVelocity + previousVelocity) / 2;
+
+					// update middle pad press selection indicator
+					middlePadPressSelected = true;
+
+					break;
+				}
+				// found a second press that isn't in the same column as the first press
+				else {
+					int32_t firstPadX = instrumentClipView.editPadPresses[i].xDisplay;
+
+					// get note info on all the squares in the note row
+					noteRow->getRowSquareInfo(effectiveLength, rowSquareInfo);
+
+					// the long press logic calculates and renders the interpolation as if the press was
+					// entered in a forward fashion (where the first pad is to the left of the second
+					// pad). if the user happens to enter a long press backwards then we fix that entry
+					// by re-ordering the pad presses so that it is forward again
+					leftPadSelectedX = firstPadX > x ? x : firstPadX;
+					rightPadSelectedX = firstPadX > x ? firstPadX : x;
+
+					int32_t numSquares = 0;
+					// find total number of notes in note row (excluding the first note)
+					for (int32_t i = leftPadSelectedX; i <= rightPadSelectedX; i++) {
+						// don't include note tails in note count
+						if (rowSquareInfo[i].numNotes != 0 && rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL) {
+							numSquares++;
+						}
+					}
+
+					//	DEF_STACK_STRING_BUF(numSquare, 50);
+					//	numSquare.append("Squares: ");
+					//	numSquare.appendInt(numSquares);
+					//	numSquare.append("\n");
+
+					// calculate start and end velocity for long press
+					int32_t leftPadSelectedVelocity;
+					int32_t rightPadSelectedVelocity;
+
+					if (leftPadSelectedX == firstPadX) { // then left pad is the first press
+						leftPadSelectedVelocity = rowSquareInfo[leftPadSelectedX].averageVelocity;
+						leftPadSelectedY = getYFromVelocity(leftPadSelectedVelocity);
+						rightPadSelectedVelocity = getVelocityFromY(y);
+						rightPadSelectedY = y;
+					}
+					else { // then left pad is the second press
+						leftPadSelectedVelocity = getVelocityFromY(y);
+						leftPadSelectedY = y;
+						rightPadSelectedVelocity = rowSquareInfo[rightPadSelectedX].averageVelocity;
+						rightPadSelectedY = getYFromVelocity(rightPadSelectedVelocity);
+					}
+
+					//	numSquare.append("L: ");
+					//	numSquare.appendInt(leftPadSelectedVelocity);
+					//	numSquare.append(" R: ");
+					//	numSquare.appendInt(rightPadSelectedVelocity);
+					//	numSquare.append("\n");
+
+					// calculate increment from first pad to last pad
+					float multiPadPressVelocityIncrementFloat =
+					    static_cast<float>((rightPadSelectedVelocity - leftPadSelectedVelocity)) / (numSquares - 1);
+					multiPadPressVelocityIncrement =
+					    static_cast<int32_t>(std::round(multiPadPressVelocityIncrementFloat));
+					// if ramp is upwards, make increment positive
+					if (leftPadSelectedVelocity < rightPadSelectedVelocity) {
+						multiPadPressVelocityIncrement = std::abs(multiPadPressVelocityIncrement);
+					}
+
+					//	numSquare.append("Inc: ");
+					//	numSquare.appendInt(multiPadPressVelocityIncrement);
+					//	display->displayPopup(numSquare.c_str());
+
+					// update multi pad press selection indicator
+					multiPadPressSelected = true;
+					multiPadPressActive = true;
+
+					break;
+				}
+			}
+		}
+	}
+
+	// if middle pad press was selected, set the velocity to middle velocity between two pads pressed
+	if (middlePadPressSelected) {
+		setVelocity(modelStackWithNoteRow, noteRow, x, newVelocity);
+		refreshVelocityEditor = true;
+	}
+	// if multi pad (long) press was selected, set the velocity of all the notes between the two pad presses
+	else if (multiPadPressSelected) {
+		setVelocityRamp(modelStackWithNoteRow, noteRow, rowSquareInfo, multiPadPressVelocityIncrement);
+		refreshVelocityEditor = true;
+	}
+	// otherwise, it's a regular velocity pad action
+	else {
+		// no existing notes in square pressed
+		// add note and set velocity
+		if (squareInfo.numNotes == 0) {
+			addNoteWithNewVelocity(x, velocity, newVelocity);
+			refreshVelocityEditor = true;
+		}
+		// pressing pad corresponding to note's current averageVelocity, remove note
+		else if (nonPatchCableMinPadDisplayValues[y] <= squareInfo.averageVelocity
+		         && squareInfo.averageVelocity <= nonPatchCableMaxPadDisplayValues[y]) {
+			recordNoteEditPadAction(x, velocity);
+			refreshVelocityEditor = true;
+			showNewVelocity = false;
+		}
+		// note(s) exists, adjust velocity of existing notes
+		else {
+			adjustNoteVelocity(modelStackWithNoteRow, noteRow, x, velocity, newVelocity, squareInfo.squareType);
+			refreshVelocityEditor = true;
+		}
+	}
+	// if no note exists and you're trying to remove a note (y == 0 && squareInfo.numNotes == 0),
+	// well no need to do anything
+
+	if (multiPadPressActive && !isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+		multiPadPressActive = false;
+	}
+
+	if (refreshVelocityEditor) {
+		// refresh grid and update default velocity on the display
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		// if holding a multi pad press, render left and right velocity of the multi pad press
+		if (multiPadPressActive) {
+			int32_t leftPadSelectedVelocity = getVelocityFromY(leftPadSelectedY);
+			int32_t rightPadSelectedVelocity = getVelocityFromY(rightPadSelectedY);
+			if (display->haveOLED()) {
+				renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
+			}
+			else {
+				// for 7seg, render value of last pad pressed
+				renderDisplay(leftPadSelectedX == x ? leftPadSelectedVelocity : rightPadSelectedVelocity);
+			}
+		}
+		else {
+			if (velocity) {
+				renderDisplay(showNewVelocity ? newVelocity : squareInfo.averageVelocity);
+			}
+			else {
+				renderDisplay();
+			}
+		}
+	}
+}
+
+// convert y of pad press into velocity value between 1 and 127
+int32_t AutomationView::getVelocityFromY(int32_t y) {
+	int32_t velocity = std::clamp<int32_t>(nonPatchCablePadPressValues[y], 1, 127);
+	return velocity;
+}
+
+// convert velocity of a square into y
+int32_t AutomationView::getYFromVelocity(int32_t velocity) {
+	for (int32_t i = 0; i < kDisplayHeight; i++) {
+		if (nonPatchCableMinPadDisplayValues[i] <= velocity && velocity <= nonPatchCableMaxPadDisplayValues[i]) {
+			return i;
+		}
+	}
+	return kNoSelection;
+}
+
+// add note and set velocity
+void AutomationView::addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity) {
+	if (velocity) {
+		// we change the instrument default velocity because it is used for new notes
+		getCurrentInstrument()->defaultVelocity = newVelocity;
+	}
+
+	// record pad press and release
+	// adds note with new velocity set
+	recordNoteEditPadAction(x, velocity);
+}
+
+// adjust velocity of existing notes
+void AutomationView::adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x,
+                                        int32_t velocity, int32_t newVelocity, uint8_t squareType) {
+	if (velocity) {
+		// record pad press
+		recordNoteEditPadAction(x, velocity);
+
+		// adjust velocities of notes within pressed pad square
+		setVelocity(modelStackWithNoteRow, noteRow, x, newVelocity);
+	}
+	else {
+		// record pad release
+		recordNoteEditPadAction(x, velocity);
+	}
+}
+
+// set velocity of notes within pressed pad square
+void AutomationView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x,
+                                 int32_t newVelocity) {
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+	if (!action) {
+		return;
+	}
+
+	int32_t velocityValue = 0;
+
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		bool foundPadPress = instrumentClipView.editPadPresses[i].isActive;
+
+		// if we found an active pad press and we're looking for a pad press with a specific xDisplay
+		// see if the active pad press is the one we are looking for
+		if (foundPadPress && (x != kNoSelection)) {
+			foundPadPress = (instrumentClipView.editPadPresses[i].xDisplay == x);
+		}
+
+		if (foundPadPress) {
+			instrumentClipView.editPadPresses[i].deleteOnDepress = false;
+
+			// Multiple notes in square
+			if (instrumentClipView.editPadPresses[i].isBlurredSquare) {
+
+				uint32_t velocitySumThisSquare = 0;
+				uint32_t numNotesThisSquare = 0;
+
+				int32_t noteI =
+				    noteRow->notes.search(instrumentClipView.editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+				Note* note = noteRow->notes.getElement(noteI);
+				while (note
+				       && note->pos - instrumentClipView.editPadPresses[i].intendedPos
+				              < instrumentClipView.editPadPresses[i].intendedLength) {
+					noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
+					                                     CORRESPONDING_NOTES_SET_VELOCITY, newVelocity);
+
+					instrumentClipView.updateVelocityValue(velocityValue, note->getVelocity());
+
+					numNotesThisSquare++;
+					velocitySumThisSquare += note->getVelocity();
+
+					noteI++;
+					note = noteRow->notes.getElement(noteI);
+				}
+
+				// Rohan: Get the average. Ideally we'd have done this when first selecting the note too, but I
+				// didn't
+
+				// Sean: not sure how getting the average when first selecting the note would help because the
+				// average will change based on the velocity adjustment happening here.
+
+				// We're adjusting the intendedVelocity here because this is the velocity that is used to audition
+				// the pad press note so you can hear the velocity changes as you're holding the note down
+				instrumentClipView.editPadPresses[i].intendedVelocity = velocitySumThisSquare / numNotesThisSquare;
+			}
+
+			// Only one note in square
+			else {
+				// We're adjusting the intendedVelocity here because this is the velocity that is used to audition
+				// the pad press note so you can hear the velocity changes as you're holding the note down
+				instrumentClipView.editPadPresses[i].intendedVelocity = newVelocity;
+				noteRow->changeNotesAcrossAllScreens(instrumentClipView.editPadPresses[i].intendedPos,
+				                                     modelStackWithNoteRow, action, CORRESPONDING_NOTES_SET_VELOCITY,
+				                                     newVelocity);
+
+				instrumentClipView.updateVelocityValue(velocityValue,
+				                                       instrumentClipView.editPadPresses[i].intendedVelocity);
+			}
+		}
+	}
+
+	instrumentClipView.displayVelocity(velocityValue, 0);
+
+	instrumentClipView.reassessAllAuditionStatus();
+}
+
+// set velocity of notes between pressed squares
+void AutomationView::setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+                                     SquareInfo rowSquareInfo[kDisplayWidth], int32_t velocityIncrement) {
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+	if (!action) {
+		return;
+	}
+
+	int32_t startVelocity = getVelocityFromY(leftPadSelectedY);
+	int32_t velocityValue = 0;
+	int32_t squaresProcessed = 0;
+
+	for (int32_t i = leftPadSelectedX; i <= rightPadSelectedX; i++) {
+		if (rowSquareInfo[i].numNotes != 0) {
+			int32_t intendedPos = rowSquareInfo[i].squareStartPos;
+
+			// Multiple notes in square
+			if (rowSquareInfo[i].numNotes > 1) {
+				int32_t intendedLength = rowSquareInfo[i].squareEndPos - intendedPos;
+
+				int32_t noteI = noteRow->notes.search(intendedPos, GREATER_OR_EQUAL);
+
+				Note* note = noteRow->notes.getElement(noteI);
+
+				while (note && note->pos - intendedPos < intendedLength) {
+					int32_t intendedVelocity =
+					    std::clamp<int32_t>(startVelocity + (velocityIncrement * squaresProcessed), 1, 127);
+
+					noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
+					                                     CORRESPONDING_NOTES_SET_VELOCITY, intendedVelocity);
+
+					noteI++;
+
+					note = noteRow->notes.getElement(noteI);
+				}
+			}
+			// one note in square
+			else {
+				int32_t intendedVelocity =
+				    std::clamp<int32_t>(startVelocity + (velocityIncrement * squaresProcessed), 1, 127);
+
+				noteRow->changeNotesAcrossAllScreens(intendedPos, modelStackWithNoteRow, action,
+				                                     CORRESPONDING_NOTES_SET_VELOCITY, intendedVelocity);
+			}
+
+			// don't include note tails in note count
+			if (rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL) {
+				squaresProcessed++;
+			}
+		}
+	}
+}
+
+// call instrument clip view edit pad action function to process velocity pad press actions
+void AutomationView::recordNoteEditPadAction(int32_t x, int32_t velocity) {
+	instrumentClipView.editPadAction(velocity, instrumentClipView.lastAuditionedYDisplay, x,
+	                                 currentSong->xZoom[NAVIGATION_CLIP]);
+}
+
+// automation edit pad action
+// handles single and multi pad presses for automation editing
+// stores pad presses in the EditPadPresses struct of the instrument clip view
+void AutomationView::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
+                                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength,
+                                             int32_t xScroll, int32_t xZoom) {
+	// If button down
+	if (velocity) {
+		// If this is a automation-length-edit press...
+		// needed for Automation
+		if (instrumentClipView.numEditPadPresses == 1) {
+
+			int32_t firstPadX = 255;
+			int32_t firstPadY = 255;
+
+			// Find that original press
+			int32_t i;
+			for (i = 0; i < kEditPadPressBufferSize; i++) {
+				if (instrumentClipView.editPadPresses[i].isActive) {
+
+					firstPadX = instrumentClipView.editPadPresses[i].xDisplay;
+					firstPadY = instrumentClipView.editPadPresses[i].yDisplay;
+
+					break;
+				}
+			}
+
+			if (firstPadX != 255 && firstPadY != 255) {
+				if (firstPadX != xDisplay) {
+					recordAutomationSinglePadPress(xDisplay, yDisplay);
+
+					multiPadPressSelected = true;
+					multiPadPressActive = true;
+
+					// the long press logic calculates and renders the interpolation as if the press was
+					// entered in a forward fashion (where the first pad is to the left of the second
+					// pad). if the user happens to enter a long press backwards then we fix that entry
+					// by re-ordering the pad presses so that it is forward again
+					leftPadSelectedX = firstPadX > xDisplay ? xDisplay : firstPadX;
+					leftPadSelectedY = firstPadX > xDisplay ? yDisplay : firstPadY;
+					rightPadSelectedX = firstPadX > xDisplay ? firstPadX : xDisplay;
+					rightPadSelectedY = firstPadX > xDisplay ? firstPadY : yDisplay;
+
+					// if you're not in pad selection mode, allow user to enter a long press
+					if (!padSelectionOn) {
+						handleAutomationMultiPadPress(modelStackWithParam, clip, leftPadSelectedX, leftPadSelectedY,
+						                              rightPadSelectedX, rightPadSelectedY, effectiveLength, xScroll,
+						                              xZoom);
+					}
+					else {
+						uiNeedsRendering(this);
+					}
+
+					// set led indicators to left / right pad selection values
+					// and update display
+					renderAutomationDisplayForMultiPadPress(modelStackWithParam, clip, effectiveLength, xScroll, xZoom,
+					                                        xDisplay);
+				}
+				else {
+					leftPadSelectedY = firstPadY;
+					middlePadPressSelected = true;
+					goto singlePadPressAction;
+				}
+			}
+		}
+
+		// Or, if this is a regular create-or-select press...
+		else {
+singlePadPressAction:
+			if (recordAutomationSinglePadPress(xDisplay, yDisplay)) {
+				multiPadPressActive = false;
+				handleAutomationSinglePadPress(modelStackWithParam, clip, xDisplay, yDisplay, effectiveLength, xScroll,
+				                               xZoom);
+			}
+		}
+	}
+
+	// Or if pad press ended...
+	else {
+		// Find the corresponding press, if there is one
+		int32_t i;
+		for (i = 0; i < kEditPadPressBufferSize; i++) {
+			if (instrumentClipView.editPadPresses[i].isActive
+			    && instrumentClipView.editPadPresses[i].yDisplay == yDisplay
+			    && instrumentClipView.editPadPresses[i].xDisplay == xDisplay) {
+				break;
+			}
+		}
+
+		// If we found it...
+		if (i < kEditPadPressBufferSize) {
+			instrumentClipView.endEditPadPress(i);
+
+			instrumentClipView.checkIfAllEditPadPressesEnded();
+		}
+
+		// outside pad selection mode, exit multi pad press once you've let go of the first pad in the
+		// long press
+		if (!padSelectionOn && multiPadPressSelected && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
+			initPadSelection();
+		}
+		// switch from long press selection to short press selection in pad selection mode
+		else if (padSelectionOn && multiPadPressSelected && !multiPadPressActive
+		         && (currentUIMode != UI_MODE_NOTES_PRESSED)
+		         && ((AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress) < kShortPressTime)) {
+
+			multiPadPressSelected = false;
+
+			leftPadSelectedX = xDisplay;
+			rightPadSelectedX = kNoSelection;
+
+			uiNeedsRendering(this);
+		}
+
+		if (currentUIMode != UI_MODE_NOTES_PRESSED) {
+			lastPadSelectedKnobPos = kNoSelection;
+			if (multiPadPressSelected) {
+				renderAutomationDisplayForMultiPadPress(modelStackWithParam, clip, effectiveLength, xScroll, xZoom,
+				                                        xDisplay);
+			}
+			else if (!padSelectionOn && !playbackHandler.isEitherClockActive()) {
+				displayAutomation();
+			}
+		}
+
+		middlePadPressSelected = false;
+	}
+}
+
+bool AutomationView::recordAutomationSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
+	instrumentClipView.timeLastEditPadPress = AudioEngine::audioSampleTimer;
+	// Find an empty space in the press buffer, if there is one
+	int32_t i;
+	for (i = 0; i < kEditPadPressBufferSize; i++) {
+		if (!instrumentClipView.editPadPresses[i].isActive) {
+			break;
+		}
+	}
+	if (i < kEditPadPressBufferSize) {
+		instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+
+		// If this is the first press, record the time
+		if (instrumentClipView.numEditPadPresses == 0) {
+			instrumentClipView.timeFirstEditPadPress = AudioEngine::audioSampleTimer;
+			instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+		}
+
+		instrumentClipView.editPadPresses[i].isActive = true;
+		instrumentClipView.editPadPresses[i].yDisplay = yDisplay;
+		instrumentClipView.editPadPresses[i].xDisplay = xDisplay;
+		instrumentClipView.numEditPadPresses++;
+		instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
+		enterUIMode(UI_MODE_NOTES_PRESSED);
+
+		return true;
+	}
+	return false;
 }
 
 // called by pad action when pressing a pad in the mute column (x = kDisplayWidth)
@@ -2365,7 +3384,7 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 			if ((!instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress
 			     || (!isUIModeActive(UI_MODE_NOTES_PRESSED) && !isUIModeActive(UI_MODE_AUDITIONING)))
 			    && (!(isUIModeActive(UI_MODE_NOTES_PRESSED) && inNoteEditor()))) {
-				instrumentClipView.scrollVertical(offset, inCardRoutine, false, modelStack);
+				scrollVertical(offset, modelStack);
 
 				// if we're in note editor scrolling vertically will change note selected
 				// so we want to re-render the display to show the updated note
@@ -2395,11 +3414,173 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 				int32_t yScrollAdjustment = noteRowIndex - lastAuditionedYDisplayScrolled;
-
-				instrumentClipView.scrollVertical(yScrollAdjustment, sdRoutineLock, false, modelStack);
+				scrollVertical(yScrollAdjustment, modelStack);
 			}
 		}
 	}
+}
+
+// Not used with Audio Clip Automation View or Arranger Automation View
+ActionResult AutomationView::scrollVertical(int32_t scrollAmount, ModelStackWithTimelineCounter* modelStack) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	Output* output = clip->output;
+	OutputType outputType = output->type;
+
+	int32_t noteRowToShiftI;
+	int32_t noteRowToSwapWithI;
+
+	bool isKit = outputType == OutputType::KIT;
+
+	// If a Kit...
+	if (isKit) {
+		// Limit scrolling
+		if (scrollAmount >= 0) {
+			if ((int16_t)(clip->yScroll + scrollAmount) > (int16_t)(clip->getNumNoteRows() - 1)) {
+				return ActionResult::DEALT_WITH;
+			}
+		}
+		else {
+			if (clip->yScroll + scrollAmount < 1 - kDisplayHeight) {
+				return ActionResult::DEALT_WITH;
+			}
+		}
+		// if we're in the note editor we don't want to over-scroll so that selected row is not a valid note row
+		if (inNoteEditor()) {
+			int32_t lastAuditionedYDisplayScrolled = instrumentClipView.lastAuditionedYDisplay + scrollAmount;
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, modelStack);
+			// over-scrolled, no valid note row, so return and don't do the actual scrolling
+			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+				return ActionResult::DEALT_WITH;
+			}
+			// we have a valid note row, so let's set selected drum equal to previous auditioned y display
+			else {
+				NoteRow* noteRow = clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, currentSong);
+				if (noteRow) {
+					instrumentClipView.setSelectedDrum(noteRow->drum, true);
+				}
+			}
+		}
+	}
+
+	// Or if not a Kit...
+	else {
+		int32_t newYNote;
+		if (scrollAmount > 0) {
+			newYNote = clip->getYNoteFromYDisplay(kDisplayHeight - 1 + scrollAmount, currentSong);
+		}
+		else {
+			newYNote = clip->getYNoteFromYDisplay(scrollAmount, currentSong);
+		}
+
+		if (!clip->isScrollWithinRange(scrollAmount, newYNote)) {
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
+	bool currentClipIsActive = currentSong->isClipActive(clip);
+
+	// Switch off any auditioned notes. But leave on the one whose NoteRow we're moving, if we are
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		if ((instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] != 255)
+		    && (instrumentClipView.lastAuditionedYDisplay != yDisplay)) {
+			instrumentClipView.sendAuditionNote(false, yDisplay, 127, 0);
+
+			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
+			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+
+			if (noteRow) {
+				// If recording, record a note-off for this NoteRow, if one exists
+				if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
+					clip->recordNoteOff(modelStackWithNoteRow);
+				}
+			}
+		}
+	}
+
+	// Do actual scroll
+	clip->yScroll += scrollAmount;
+
+	// Don't render - we'll do that after we've dealt with presses (potentially creating Notes)
+	instrumentClipView.recalculateColours();
+
+	// Switch on any auditioned notes - remembering that the one we're shifting (if we are) was left on
+	// before
+	bool drawnNoteCodeYet = false;
+	bool forceStoppedAnyAuditioning = false;
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		if (instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] != 255) {
+			// switch its audition back on
+			//  Check NoteRow exists, incase we've got a Kit
+			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
+
+			if (!isKit || modelStackWithNoteRow->getNoteRowAllowNull()) {
+
+				if (modelStackWithNoteRow->getNoteRowAllowNull() && modelStackWithNoteRow->getNoteRow()->sequenced) {}
+				else {
+
+					// Record note-on if we're recording
+					if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
+
+						// If no NoteRow existed before, try creating one
+						if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+							modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(modelStack, yDisplay);
+						}
+
+						if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+							clip->recordNoteOn(modelStackWithNoteRow, ((Instrument*)output)->defaultVelocity);
+						}
+					}
+
+					// Should this technically grab the note-length of the note if there is one?
+					instrumentClipView.sendAuditionNote(true, yDisplay,
+					                                    instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay], 0);
+				}
+			}
+			else {
+				instrumentClipView.auditionPadIsPressed[yDisplay] = false;
+				instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] = 255;
+				forceStoppedAnyAuditioning = true;
+			}
+			// If we're shiftingNoteRow, no need to re-draw the noteCode, because it'll be the same
+			if (!drawnNoteCodeYet && instrumentClipView.auditionPadIsPressed[yDisplay]) {
+				/* if you're in the note editor:
+				    - don't draw note code because the note code is already on the display
+				    - don't update selected drum as this was done above
+				*/
+				if (!inNoteEditor()) {
+					instrumentClipView.drawNoteCode(yDisplay);
+
+					if (isKit) {
+						Drum* newSelectedDrum = nullptr;
+						NoteRow* noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong);
+						if (noteRow) {
+							newSelectedDrum = noteRow->drum;
+						}
+						instrumentClipView.setSelectedDrum(newSelectedDrum, true);
+					}
+				}
+
+				if (outputType == OutputType::SYNTH) {
+					if (getCurrentUI() == &soundEditor
+					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+						menu_item::multiRangeMenu.noteOnToChangeRange(clip->getYNoteFromYDisplay(yDisplay, currentSong)
+						                                              + ((SoundInstrument*)output)->transpose);
+					}
+				}
+
+				drawnNoteCodeYet = true;
+			}
+		}
+	}
+	if (forceStoppedAnyAuditioning) {
+		// don't recalculateLastAuditionedNoteOnScreen if we're in the note editor because it
+		// messes up the note row selection	for velocity editing
+		instrumentClipView.someAuditioningHasEnded(!inNoteEditor());
+	}
+
+	uiNeedsRendering(this);
+	return ActionResult::DEALT_WITH;
 }
 
 // mod encoder action

@@ -43,14 +43,13 @@ public:
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound);
 
-	[[gnu::always_inline]] q31_t saturate(q31_t data, uint32_t* workingValue) {
+	int32_t getShiftAmountForSaturation() { return (clippingAmount >= 3) ? (clippingAmount - 3) : 0; }
+
+	/// clipping amount must be greater than 0! Check before calling
+	/// Shift amount is givben by getShiftAmountForSaturation
+	[[gnu::always_inline]] q31_t saturate(q31_t data, uint32_t* workingValue, int32_t shiftAmount) {
 		// Clipping
-		if (clippingAmount != 0u) {
-			int32_t shiftAmount = (clippingAmount >= 3) ? (clippingAmount - 3) : 0;
-			//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
-			return getTanHAntialiased(data, workingValue, 3 + clippingAmount) << (shiftAmount);
-		}
-		return data;
+		return getTanHAntialiased(data, workingValue, 3 + clippingAmount) << (shiftAmount);
 	}
 
 	std::array<uint32_t, 2> lastSaturationTanHWorkingValue = {2147483648u, 2147483648u};

@@ -66,4 +66,5 @@ public:
 	ArpeggiatorBase* getArp() override { return &arpeggiator; }
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) override { return &arpSettings; }
 	void resetTimeEnteredState();
+	const char* getName() override { return name.get(); }
 };

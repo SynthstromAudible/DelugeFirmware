@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: "community"
+          ref: "main"
           fetch-depth: 0 # Required to count the commits
       - name: Get new commits
         id: count-commits
@@ -29,7 +29,7 @@ jobs:
       firmware-retention-days: 30
       build-type: "Release"
       build-tag: "nightly"
-      branch: "community"
+      branch: "main"
   nightly-publish:
     uses: ./.github/workflows/publish.yml
     needs: nightly-build

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015-2023 Synthstrom Audible Limited
+ * Copyright © 2018-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,28 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/cluster/cluster_priority_queue.h"
-#include "definitions.h"
-#include "definitions_cxx.hpp"
-#include "util/exceptions.h"
-#include <cstdlib>
+#pragma once
 
-class Cluster;
+#include "util/container/vector/named_thing_vector.h"
 
-// Returns error
-Error ClusterPriorityQueue::push(Cluster& cluster, uint32_t priority) {
-	if (auto search = queued_clusters_.find(&cluster); search != queued_clusters_.end()) {
-		priority_map_.erase({search->second, &cluster});
-	}
+class AudioFile;
 
-	try {
-		priority_map_.insert({priority, &cluster});
-		queued_clusters_[&cluster] = priority;
-	} catch (deluge::exception e) {
-		if (e == deluge::exception::BAD_ALLOC) {
-			return Error::INSUFFICIENT_RAM;
-		}
-		FREEZE_WITH_ERROR("EXPQ");
-	}
-	return Error::NONE;
-}
+class AudioFileVector final : public NamedThingVector {
+public:
+	AudioFileVector();
+	int32_t searchForExactObject(AudioFile* audioFile);
+};

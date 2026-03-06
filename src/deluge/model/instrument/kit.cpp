@@ -699,9 +699,11 @@ void Kit::renderOutput(ModelStack* modelStack, deluge::dsp::StereoBuffer<q31_t> 
 }
 
 void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                     ParamManager* paramManager, deluge::dsp::StereoBuffer<q31_t> output) {
+                                     ParamManager* paramManager, std::span<StereoSample> output) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-
+	if (arpSettings == nullptr) {
+		return;
+	}
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 	// Nullify parameters not supported by Kit Arpeggiator (to avoid Midi Follow to modify them)
@@ -787,7 +789,10 @@ ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
 	}
 }
 
-void Kit::renderNonAudioArpPostOutput(deluge::dsp::StereoBuffer<q31_t> output) {
+void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
+	if (activeClip == nullptr) {
+		return;
+	}
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator
@@ -1181,7 +1186,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			}
 		}
 	}
-	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteStatus[0] == ArpNoteStatus::PENDING
+	    && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 		// Note on
 		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 			NoteRow* thisNoteRow =
@@ -1264,6 +1270,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 						break;
 					}
 					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 				}
 			}
 
@@ -1281,6 +1288,10 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 	ArpReturnInstruction kitInstruction;
 	// Run everything by the Kit Arp...
 	int32_t drumIndex = -1;
+	if (activeClip == nullptr || arpSettings == nullptr) {
+		drum->noteOn(modelStack, velocity, mpeValues, fromMIDIChannel, sampleSyncLength, ticksLate, samplesLate);
+		return;
+	}
 	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
 	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
 		// Check if kit arp is bypassed
@@ -1308,6 +1319,7 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 			// Do row note on
 			thisNoteRow->drum->noteOn(modelStack, kitInstruction.arpNoteOn->velocity,
 			                          kitInstruction.arpNoteOn->mpeValues, 0, sampleSyncLength, ticksLate, samplesLate);
+			kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 		}
 	}
 }
@@ -1317,6 +1329,10 @@ void Kit::noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum
 	ArpReturnInstruction kitInstruction;
 	// Run everything by the Kit Arp...
 	int32_t drumIndex = -1;
+	if (activeClip == nullptr || arpSettings == nullptr) {
+		drum->noteOff(modelStack, velocity);
+		return;
+	}
 	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
 	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
 		// Check if kit arp is bypassed

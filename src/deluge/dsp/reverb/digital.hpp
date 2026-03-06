@@ -128,7 +128,7 @@ public:
 			    static_cast<int32_t>(left_sum * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
 
 			q31_t output_right =
-			    static_cast<int32_t>(left_sum * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
+			    static_cast<int32_t>(right_sum * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
 
 			// Mix
 			output[frame].l += multiply_32x32_rshift32_rounded(output_left, getPanLeft());

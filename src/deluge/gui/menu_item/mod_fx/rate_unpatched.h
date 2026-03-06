@@ -15,16 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/unpatched_param.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
+#include "gui/menu_item/toggle.h"
+#include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
 
-namespace deluge::gui::menu_item::mod_fx {
-class Rate_Unpatched final : public UnpatchedParam {
+namespace deluge::gui::menu_item::midi {
+class ReceiveClock final : public Toggle {
 public:
-	using UnpatchedParam::UnpatchedParam;
-
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
-		return modControllable->getModFXType() != ModFXType::NONE;
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->receiveClock); }
+	void writeCurrentValue() override {
+		soundEditor.currentMIDICable->receiveClock = this->getValue();
+		MIDIDeviceManager::anyChangesToSave = true;
 	}
 };
-} // namespace deluge::gui::menu_item::mod_fx
+} // namespace deluge::gui::menu_item::midi

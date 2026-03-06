@@ -960,7 +960,7 @@ optForDirectReading:
 		                                         // at the start
 		delugeDealloc(buffer);
 		buffer = nullptr;
-		D_PRINTLN("abandoning buffer!!!!!!!!!!!!!!!!");
+		// D_PRINTLN("abandoning buffer!!!!!!!!!!!!!!!!");
 	}
 
 #endif
@@ -1221,7 +1221,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	crossfadeIncrement = kMaxSampleValue / (uint16_t)numSamplesThisCacheRead + 1;
 	crossfadeProgress = 0;
 
-	D_PRINTLN("doing crossfade from cache, length:  %d", numSamplesThisCacheRead);
+	// D_PRINTLN("doing crossfade from cache, length:  %d", numSamplesThisCacheRead);
 
 #if TIME_STRETCH_ENABLE_BUFFER
 	bufferWritePos = TimeStretch::BUFFER_SIZE - 1; // To trick it out of trying to do a "normal" thing later

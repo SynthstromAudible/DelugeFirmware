@@ -136,28 +136,7 @@ void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::option
 	popupMaxX = popupMinX + width;
 	popupMinY = startY.has_value() ? startY.value() : (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
 	popupMaxY = popupMinY + height;
-#if ALPHA_OR_BETA_VERSION
-	if (popupMaxX < 0 || popupMinX < 0 || popupMaxX < popupMinX || popupMinX > OLED_MAIN_WIDTH_PIXELS
-	    || popupMaxX > OLED_MAIN_WIDTH_PIXELS) {
 
-		uint32_t regLR = 0;
-		uint32_t regSP = 0;
-		asm volatile("MOV %0, LR\n" : "=r"(regLR));
-		asm volatile("MOV %0, SP\n" : "=r"(regSP));
-		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);
-		::freezeWithError("D003");
-	}
-	if (popupMaxY < 0 || popupMinY < 0 || popupMaxY < popupMinY || popupMinY > OLED_MAIN_WIDTH_PIXELS
-	    || popupMaxY > OLED_MAIN_WIDTH_PIXELS) {
-
-		uint32_t regLR = 0;
-		uint32_t regSP = 0;
-		asm volatile("MOV %0, LR\n" : "=r"(regLR));
-		asm volatile("MOV %0, SP\n" : "=r"(regSP));
-		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);
-		::freezeWithError("D003");
-	}
-#endif
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 
 	if (type != PopupType::NOTIFICATION) {
@@ -560,8 +539,18 @@ void OLED::popupText(std::string_view text, bool persistent, PopupType type) {
 
 	int32_t text_pixel_y = std::max<int32_t>((OLED_MAIN_HEIGHT_PIXELS - total_height) / 2, 0);
 
-	for (TextLine& line : breakdown.lines) {
-		if (text_pixel_y >= OLED_MAIN_HEIGHT_PIXELS) {
+	int32_t textWidth = textLineBreakdown.longestLineWidth;
+	int32_t textHeight = textLineBreakdown.numLines * kTextSpacingY;
+
+	setupPopup(type, textWidth + doubleMargin, textHeight + doubleMargin);
+
+	int32_t textPixelY = (OLED_MAIN_HEIGHT_PIXELS - textHeight) >> 1;
+	if (textPixelY < 0) {
+		textPixelY = 0;
+	}
+
+	for (int32_t l = 0; l < textLineBreakdown.numLines; l++) {
+		if (textPixelY >= OLED_MAIN_HEIGHT_PIXELS) {
 			continue;
 		}
 		int32_t text_pixel_x = (OLED_MAIN_WIDTH_PIXELS - static_cast<int32_t>(line.pixel_width)) / 2;
@@ -607,7 +596,7 @@ void updateWorkingAnimation() {
 	const int32_t x2 = x_max - w2;               // starting position of right rectangle
 	const int32_t y1 = popupY;                   // top of rectangles (absolute coordinates)
 	const int32_t y2 = y1 + h - 1;               // bottom of rectangles
-	int32_t h2;                                  // height of animated portion (will increase over time)
+	int32_t h2 = 0;                              // height of animated portion (will increase over time)
 	// position of left side of starting stack that will be shifted over
 	const int32_t x_pos2 = loading ? x2 - working_animation_count + 1 : x_min + 1 + working_animation_count;
 	const int32_t t_reset = w1 + w2 + (h - 2) * offset;
@@ -656,8 +645,8 @@ void updateWorkingAnimation() {
 	}
 }
 
-void OLED::displayWorkingAnimation(std::string_view word) {
-	loading = (word == "Loading");
+void OLED::displayWorkingAnimation(char const* word) {
+	loading = !strcmp(word, "Loading");
 	if (working_animation_count) {
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
 	}

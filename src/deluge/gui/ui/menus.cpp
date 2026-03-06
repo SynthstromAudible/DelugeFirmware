@@ -1365,8 +1365,7 @@ HorizontalMenu soundMasterMenuWithoutVibrato{
     {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu},
 };
 
-HorizontalMenuGroup sourceMenuGroup{
-    {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu, &oscTrackingMenu}};
+HorizontalMenuGroup sourceMenuGroup{{&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu}};
 
 Submenu soundFXMenu{
     STRING_FOR_FX,
@@ -1402,7 +1401,6 @@ Submenu soundEditorRootMenu{
         &modulator0Menu,
         &modulator1Menu,
         &oscMixerMenu,
-        &oscTrackingMenu,
         &env1Menu,
         &env2Menu,
         &env3Menu,

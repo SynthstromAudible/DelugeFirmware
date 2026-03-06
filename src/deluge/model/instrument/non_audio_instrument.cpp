@@ -97,6 +97,7 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 					break;
 				}
 				noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 			}
 		}
 	}

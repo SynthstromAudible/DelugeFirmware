@@ -187,8 +187,8 @@ Error Instrument::setupDefaultAudioFileDir() {
 	char const* dirPathChars = dirPath.get();
 	auto result =
 	    audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, dirPathChars, name);
-	if (!result.has_value()) {
-		return result.error();
+	if (result != Error::NONE) {
+		return result;
 	}
 
 	// TODO: (Kate) Why is OutputType getting converted to ThingType here???

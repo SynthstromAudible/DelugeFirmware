@@ -447,7 +447,7 @@ doSaw:
 						return;
 					}
 					else {
-						dsp::renderPulseWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd},
+						dsp::renderPulseWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd,
 						                     phaseIncrement, phase, applyAmplitude, phaseToAdd, amplitudeIncrement);
 						return;
 					}
@@ -494,7 +494,7 @@ callRenderWave:
 			return;
 		}
 		else {
-			dsp::renderWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd}, phaseIncrement, phase,
+			dsp::renderWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd, phaseIncrement, phase,
 			                applyAmplitude, phaseToAdd, amplitudeIncrement);
 			return;
 		}

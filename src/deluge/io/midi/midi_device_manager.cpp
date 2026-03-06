@@ -61,8 +61,12 @@ struct USBDev {
 };
 std::array<USBDev, USB_NUM_USBIP> usbDeviceCurrentlyBeingSetUp{};
 
-PLACE_SDRAM_BSS DINRootComplex root_din{};
-gsl::owner<MIDIRootComplex*> root_usb{nullptr};
+// This class represents a thing you can send midi too,
+// the virtual cable is an implementation detail
+PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable1{0, false, true};
+PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable2{1, true, false};
+PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable3{2, false, false};
+PLACE_SDRAM_BSS MIDICableDINPorts dinMIDIPorts{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;

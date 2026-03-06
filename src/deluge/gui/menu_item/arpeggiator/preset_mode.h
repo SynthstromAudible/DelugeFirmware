@@ -28,6 +28,7 @@
 #include "processing/sound/sound.h"
 
 #include <hid/display/oled.h>
+#include <numeric>
 
 namespace deluge::gui::menu_item::arpeggiator {
 class PresetMode final : public Selection {

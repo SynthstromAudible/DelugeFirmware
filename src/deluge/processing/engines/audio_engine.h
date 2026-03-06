@@ -212,10 +212,9 @@ extern Metronome metronome;
 extern deluge::dsp::RMSFeedbackCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
-extern deluge::dsp::StereoSample<float> approxRMSLevel;
-extern deluge::dsp::AbsValueFollower envelopeFollower;
+extern StereoFloatSample approxRMSLevel;
+extern AbsValueFollower envelopeFollower;
 extern TaskID routine_task_id;
-
 void feedReverbBackdoorForGrain(int index, q31_t value);
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick

@@ -182,7 +182,7 @@ private:
 
 	// Kit Arp
 	void setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                ParamManager* paramManager, deluge::dsp::StereoBuffer<q31_t> output);
+	                                ParamManager* paramManager, std::span<StereoSample> output);
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr);
-	void renderNonAudioArpPostOutput(deluge::dsp::StereoBuffer<q31_t> output);
+	void renderNonAudioArpPostOutput(std::span<StereoSample> output);
 };

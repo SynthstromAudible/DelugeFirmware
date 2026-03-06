@@ -107,6 +107,7 @@ public:
 
 	// vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult scrollVertical(int32_t scrollAmount, ModelStackWithTimelineCounter* modelStack);
 	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 
 	// mod encoder action
@@ -194,8 +195,29 @@ private:
 	bool shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, Output* output,
 	                       OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
 	                       int32_t xScroll, int32_t xZoom, SquareInfo& squareInfo);
+	bool toggleAutomationInterpolation();
+	bool toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
+	                                      int32_t xScroll, int32_t xZoom);
 	void handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
 	                              int32_t yDisplay);
+	void noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
+	                       int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
+	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
+	                           int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
+	int32_t getVelocityFromY(int32_t y);
+	int32_t getYFromVelocity(int32_t velocity);
+	void addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity);
+	void adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t velocity,
+	                        int32_t newVelocity, uint8_t squareType);
+	void setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t newVelocity);
+	void setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+	                     SquareInfo rowSquareInfo[kDisplayWidth], int32_t velocityIncrement);
+	void recordNoteEditPadAction(int32_t x, int32_t velocity);
+	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
+	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
+	                             int32_t xZoom);
+	bool recordAutomationSinglePadPress(int32_t xDisplay, int32_t yDisplay);
+
 	// mute pad action
 	ActionResult handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType, int32_t y,
@@ -245,7 +267,16 @@ private:
 	bool interpolationShortcutBlinking;
 	bool padSelectionShortcutBlinking;
 
-	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
+	bool padSelectionOn;
+	bool multiPadPressActive;
+	bool middlePadPressSelected;
+	int32_t leftPadSelectedX;
+	int32_t leftPadSelectedY;
+	int32_t rightPadSelectedX;
+	int32_t rightPadSelectedY;
+	int32_t lastPadSelectedKnobPos;
+
+	bool playbackStopped;
 
 	// grid sized array to assign midi cc values to each pad on the grid
 	void initMIDICCShortcutsForAutomation();

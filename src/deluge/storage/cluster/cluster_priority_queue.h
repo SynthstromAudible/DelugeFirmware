@@ -17,44 +17,58 @@
 
 #pragma once
 
+#include "cluster.h"
 #include "util/containers.h"
 #include <cstdint>
 #include <limits>
+#include <ranges>
 
-class Cluster;
+using Priority = uint32_t;
+using qcluster = std::pair<Priority, Cluster*>;
 
-class ClusterPriorityQueue {
-	using Priority = uint32_t;
+// comparator returns true if elements need to be swapped
+class Compare {
+public:
+	bool operator()(const qcluster& first, const qcluster& second) const { return first.first > second.first; }
+};
+class ClusterPriorityQueue : public std::priority_queue<qcluster, deluge::fast_vector<qcluster>, Compare> {
 
 public:
-	ClusterPriorityQueue() = default;
-
-	Error push(Cluster& cluster, uint32_t priorityRating);
-	constexpr Cluster& front() const { return *priority_map_.begin()->second; }
-
-	constexpr void pop() {
-		auto it = priority_map_.begin();
-		priority_map_.erase(it);
-		queued_clusters_.erase(it->second);
+	Error enqueueCluster(Cluster& cluster, uint32_t priorityRating) {
+		this->push(std::pair(priorityRating, &cluster));
+		return Error::NONE;
 	}
-
-	constexpr bool empty() const { return queued_clusters_.empty() || priority_map_.empty(); }
-	constexpr size_t erase(Cluster& cluster) {
-		if (auto search = queued_clusters_.find(&cluster); search != queued_clusters_.end()) {
-			priority_map_.erase({search->second, &cluster});
-			queued_clusters_.erase(&cluster);
-			return 1;
+	[[nodiscard]] constexpr Cluster* front() const { return this->top().second; }
+	[[nodiscard]] Cluster* getNext() {
+		Cluster* cluster = nullptr;
+		while (!this->empty()) {
+			cluster = this->front();
+			this->pop();
+			if (cluster != nullptr) {
+				// if this cluster is still wanted then we'll return it
+				if ((!cluster->unloadable) && cluster->numReasonsToBeLoaded > 0) {
+					return cluster;
+				}
+				// otherwise get rid of it and continue to the next one
+				cluster->destroy();
+			}
 		}
-		return 0;
+		return nullptr;
 	}
 
 	/* This is currently a consequence of how priorities are calculated (using full 32bits) next-gen getPriorityRating
 	 * should return an int32_t */
-	constexpr bool hasAnyLowestPriority() const {
-		return !priority_map_.empty() && priority_map_.rbegin()->first == std::numeric_limits<uint32_t>::max();
+	[[nodiscard]] constexpr bool hasAnyLowestPriority() const {
+		return !c.empty() && c.rbegin()->first == std::numeric_limits<uint32_t>::max();
 	}
 
-private:
-	deluge::fast_set<std::pair<Priority, Cluster*>> priority_map_;
-	deluge::fast_unordered_map<Cluster*, Priority> queued_clusters_;
+	bool erase(const Cluster* cluster) {
+		for (auto& val : this->c | std::views::values) {
+			if (val == cluster) {
+				val = nullptr;
+				return true;
+			}
+		}
+		return false;
+	};
 };

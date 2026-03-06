@@ -338,7 +338,7 @@ void PatchCableStrength::selectEncoderAction(int32_t offset) {
 			Buttons::selectButtonPressUsedUp = true;
 		}
 		else {
-			display->popupText(polarityToStringShort(polarity_in_the_ui_));
+			display->popupText(polarityToStringShort(polarity_in_the_ui_).data());
 		}
 		return;
 	}

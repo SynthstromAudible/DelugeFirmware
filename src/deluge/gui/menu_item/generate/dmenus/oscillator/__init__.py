@@ -56,22 +56,8 @@ menus.append(
             *source.volumes,
             *modulator.volumes,
             source.noise,
+            source.sync,
         ],
         name="STRING_FOR_OSCILLATOR_MIXER",
-    )
-)
-
-# pitch tacking menu
-menus.append(
-    Submenu(
-        "HorizontalMenu",
-        "oscTrackingMenu",
-        ["{name}", "%%CHILDREN%%"],
-        "oscillator/index.md",
-        [
-            source.sync,
-            *source.tracking,
-        ],
-        name="STRING_FOR_OSCILLATOR_TRACKING",
     )
 )

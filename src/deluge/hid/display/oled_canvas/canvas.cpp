@@ -279,7 +279,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		string = string.substr(numCharsToChopOff);
 		// adjust scroll position to indicate how far we've scrolled
 		scrollPos -= widthOfCharsToChopOff;
-		// calculate new string length
+		// calculate new last index
 		lastIndex = string.length() - 1;
 		// reset index
 		charIdx = 0;

@@ -120,6 +120,6 @@ public:
 
 private:
 	GranularProcessor* owner;
-	std::array<StereoSample<q31_t>, kModFXGrainBufferSize * sizeof(StereoSample<q31_t>)> sampleBuffer;
+	StereoSample sampleBuffer[kModFXGrainBufferSize];
 };
 } // namespace deluge::dsp

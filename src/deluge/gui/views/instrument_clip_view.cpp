@@ -24,6 +24,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -2150,92 +2151,6 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 
 	// we didn't randomize a drum sample
 	return ActionResult::NOT_DEALT_WITH;
-}
-
-ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32_t y) {
-	Clip* clip = getCurrentClip();
-	// don't enter if you're in a kit with affect entire on
-	if (!(clip->output->type == OutputType::KIT && automationView.getAffectEntire())) {
-		if (automationView.inAutomationEditor()) {
-			automationView.initParameterSelection(false);
-		}
-		automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
-		clip->lastSelectedParamShortcutX = x;
-		clip->lastSelectedParamShortcutY = y;
-		changeRootUI(&automationView);
-	}
-	return ActionResult::DEALT_WITH;
-}
-
-ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity) {
-	if (sdRoutineLock) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-
-	if (getCurrentOutputType() != OutputType::KIT) {
-		return ActionResult::DEALT_WITH;
-	}
-
-	NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(y, currentSong);
-	if (!noteRow || !noteRow->drum) {
-		return ActionResult::DEALT_WITH;
-	}
-
-	view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
-
-	return ActionResult::DEALT_WITH;
-}
-
-ActionResult InstrumentClipView::commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType,
-                                                         int32_t y, int32_t velocity) {
-	if (sdRoutineLock) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-
-	if (outputType == OutputType::KIT) {
-		NoteRow* thisNoteRow = clip->getNoteRowOnScreen(y, currentSong);
-		if (!thisNoteRow || !thisNoteRow->drum) {
-			return ActionResult::DEALT_WITH;
-		}
-		view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, (Kit*)output);
-	}
-	else {
-		view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
-	}
-	return ActionResult::DEALT_WITH;
-}
-
-ActionResult InstrumentClipView::commandSaveKitRow(InstrumentClip* clip, Output* output, OutputType outputType,
-                                                   int32_t y) {
-	Instrument* instrument = getCurrentInstrument();
-
-	bool isKit = (instrument->type == OutputType::KIT);
-	if (isKit) {
-		// this is fine - since it's a kit we don't need the song, it's only used to check scale for
-		// instrument clips
-		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(y, nullptr, nullptr); // On *current* clip!
-
-		if (noteRow && noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
-			auto* drum = static_cast<SoundDrum*>(noteRow->drum);
-			currentUIMode = UI_MODE_NONE;
-			indicator_leds::setLedState(IndicatorLED::SAVE, false);
-			saveKitRowUI.setup(static_cast<SoundDrum*>(drum), &noteRow->paramManager);
-			openUI(&saveKitRowUI);
-		}
-	}
-
-	return ActionResult::DEALT_WITH;
-}
-
-ActionResult InstrumentClipView::commandActivateSongMacro(int32_t y, int32_t velocity) {
-	if (sdRoutineLock) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-	if (!velocity) {
-		// TODO: long press..
-		view.activateMacro(y);
-	}
-	return ActionResult::DEALT_WITH;
 }
 
 uint8_t InstrumentClipView::getEditPadPressXDisplayOnScreen(uint8_t yDisplay) {
@@ -5332,13 +5247,14 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	if (isKit) {
 		setSelectedDrum(drum);
+		drawNoteCode(yDisplay);
+		return false; // No need to redraw any squares, because setSelectedDrum() has done it
 	}
-
-	if (displayNoteCode) {
+	else {
 		drawNoteCode(yDisplay);
 	}
 
-	return !isKit; // No need to redraw any squares in kit, because setSelectedDrum() has done it
+	return true;
 }
 
 // sub-function of AuditionPadAction

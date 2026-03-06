@@ -86,12 +86,6 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult potentiallyRandomizeDrumSamples();
 	ActionResult potentiallyRandomizeDrumSample(Kit* kit, Drum* drum, char* chosenFilename);
-	ActionResult commandEnterNoteVelocityEditor(int32_t x, int32_t y);
-	ActionResult commandLearnMutePad(int32_t y, int32_t velocity);
-	ActionResult commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay,
-	                                     int32_t velocity);
-	ActionResult commandSaveKitRow(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay);
-	ActionResult commandActivateSongMacro(int32_t y, int32_t velocity);
 
 	// SCALE MODE related commands.
 
