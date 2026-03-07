@@ -102,6 +102,18 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		considerCrossScreenReleaseForCrossScreenMode = false;
 	}
 
+	// Swap select and tempo encoder buttons if accessibility setting is enabled.
+	// buttonStates already recorded the physical state above, so isButtonPressed()
+	// still reflects physical reality — we only swap the logical identity for dispatch.
+	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::SwapTempoAndSelectEncoders)) {
+		if (b == TEMPO_ENC) {
+			b = SELECT_ENC;
+		}
+		else if (b == SELECT_ENC) {
+			b = TEMPO_ENC;
+		}
+	}
+
 	ActionResult result;
 
 	// See if it was one of the mod buttons
