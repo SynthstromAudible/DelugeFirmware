@@ -30,6 +30,9 @@ void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int
 	bool armed = false;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		armed |= view.renderMacros(column, y, -1, image, nullptr);
+		if (y != activePad) {
+			image[y][column] = image[y][column].dim();
+		}
 	}
 	if (armed) {
 		view.flashPlayEnable();
@@ -76,8 +79,11 @@ void SessionColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStac
 void SessionColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                               KeyboardLayout* layout) {
 
-	if (pad.active) {}
+	if (pad.active) {
+		activePad = pad.y;
+	}
 	else {
+		activePad = -1;
 		view.activateMacro(pad.y);
 	}
 	view.flashPlayEnable();
