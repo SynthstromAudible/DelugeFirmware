@@ -112,6 +112,12 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	auto valueOption = static_cast<Value>(currentOption);
 
+	// When switching away from SPECIFIC_OUTPUT, clear the recording-from state
+	// so the previously-selected track is no longer silently muted
+	if (audioOutput->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && valueOption != Value::TRACK) {
+		audioOutput->clearRecordingFrom();
+	}
+
 	switch (valueOption) {
 
 	case Value::LEFT:
