@@ -318,7 +318,10 @@ void GranularProcessor::getBuffer() {
 	bufferWriteIndex = 0;
 }
 GranularProcessor::~GranularProcessor() {
-	delete grainBuffer;
+	if (grainBuffer) {
+		grainBuffer->~GrainBuffer();
+		delugeDealloc(grainBuffer);
+	}
 }
 GranularProcessor::GranularProcessor(const GranularProcessor& other) {
 	wrapsToShutdown = other.wrapsToShutdown;
