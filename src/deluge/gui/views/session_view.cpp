@@ -3575,13 +3575,16 @@ void SessionView::setupNewClip(Clip* newClip) {
 	newClip->isUnfinishedAutoOverdub = false;
 	newClip->armState = ArmState::OFF;
 
+	newClip->timeSignature = currentSong->defaultTimeSignature;
+	int32_t tickMag = currentSong->getInputTickMagnitude();
+	uint32_t oneBar = increaseMagnitude(newClip->timeSignature.barLengthInBaseTicks(), tickMag);
+
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		newClip->loopLength = currentSong->getBarLength();
+		newClip->loopLength = oneBar;
 		newClip->activeIfNoSolo = false;
 	}
 	else {
 		uint32_t currentDisplayLength = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
-		uint32_t oneBar = currentSong->getBarLength();
 
 		// Default Clip length. Default to current zoom, minimum 1 bar
 		int32_t newClipLength = std::max(currentDisplayLength, oneBar);

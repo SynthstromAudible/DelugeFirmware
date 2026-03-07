@@ -1,6 +1,7 @@
 #include "gui/context_menu/clip_settings/clip_settings.h"
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clip_settings/launch_style.h"
+#include "gui/context_menu/clip_settings/time_signature.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/rename/rename_clip_ui.h"
 #include "gui/ui/root_ui.h"
@@ -23,17 +24,19 @@ std::span<char const*> ClipSettingsMenu::getOptions() {
 	if (clip->type == ClipType::AUDIO) {
 		static const char* optionsls[] = {
 		    l10n::get(STRING_FOR_CLIP_MODE),
+		    l10n::get(STRING_FOR_TIME_SIGNATURE),
 		    l10n::get(STRING_FOR_CLIP_NAME),
 		};
-		return {optionsls, 2};
+		return {optionsls, 3};
 	}
 	else {
 		static const char* optionsls[] = {
 		    l10n::get(STRING_FOR_CONVERT_TO_AUDIO),
 		    l10n::get(STRING_FOR_CLIP_MODE),
+		    l10n::get(STRING_FOR_TIME_SIGNATURE),
 		    l10n::get(STRING_FOR_CLIP_NAME),
 		};
-		return {optionsls, 3};
+		return {optionsls, 4};
 	}
 }
 
@@ -60,6 +63,11 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 			launchStyle.clip = clip;
 			launchStyle.setupAndCheckAvailability();
 			openUI(&launchStyle);
+		}
+		else if (option == 1) {
+			timeSignatureMenu.clip = clip;
+			timeSignatureMenu.setupAndCheckAvailability();
+			openUI(&timeSignatureMenu);
 		}
 		else {
 			currentUIMode = UI_MODE_NONE;

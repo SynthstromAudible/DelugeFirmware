@@ -39,6 +39,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "util/functions.h"
 #include <string.h>
 // #include <algorithm>
 #include "gui/ui/load/load_song_ui.h"
@@ -1488,7 +1489,11 @@ LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* curre
 			    || cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL
 			    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 
-				uint32_t oneBar = currentSong->getBarLength();
+				TimeSignature clipTimeSig =
+				    waitForClip ? waitForClip->timeSignature : currentSong->defaultTimeSignature;
+				int32_t tickMag = currentSong->getInputTickMagnitude();
+				uint32_t oneBar = increaseMagnitude(clipTimeSig.barLengthInBaseTicks(), tickMag);
+				uint32_t oneBeat = increaseMagnitude(clipTimeSig.beatLengthInBaseTicks(), tickMag);
 
 				// If using internal clock (meaning metronome or clock output is on), just quantize to one bar. This is
 				// potentially imperfect.
@@ -1499,11 +1504,10 @@ LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* curre
 				// Otherwise, quantize to: the sync scale, magnified up to be at least 3 beats long
 				else {
 
-					// Work out the length of 3 beats, given the length of 1 bar. Or if 1 bar is already too short, just
-					// use that, to avoid bugs
+					// Work out the length of 3 beats. Or if 1 bar is already too short, just use that, to avoid bugs
 					uint32_t threeBeats;
 					if (oneBar >= 2) {
-						threeBeats = (oneBar * 3) >> 2;
+						threeBeats = oneBeat * 3;
 					}
 					else {
 						threeBeats = oneBar;
