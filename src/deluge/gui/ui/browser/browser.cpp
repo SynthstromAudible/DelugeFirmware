@@ -496,7 +496,7 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 
 	//  Get the File Index
 	fileIndexSelected = fileItems.search(fileName);
-	if (fileIndexSelected > fileItems.getNumElements()) {
+	if (fileIndexSelected >= fileItems.getNumElements()) {
 		return Error::FILE_NOT_FOUND;
 	}
 
@@ -1251,66 +1251,82 @@ gotErrorAfterAllocating:
 			goto doSearch;
 		}
 
-		// Otherwise if we already tried that, then our whole search is fruitless.
-notFound:
-		if (display->haveOLED() && !mayDefaultToBrandNewNameOnEntry) {
-			if (fileIndexSelected >= 0) {
-				setEnteredTextFromCurrentFilename(); // Set it back
-			}
-			return false;
+		// After reload, if the list is empty, give up.
+		if (fileItems.getNumElements() == 0) {
+			goto notFound;
 		}
-
-		fileIndexSelected = -1;
-		return true;
+		// Otherwise i == numElements means the last item might match our prefix.
+		// Fall through to i-- below to check it.
 	}
 
-	if (i == 0) {
+	// For numeric prefixes, the "~" upper bound may sort before items with higher
+	// numeric values that share the same character prefix (e.g., "1~" sorts before
+	// "15.XML" in strcmpspecial because 15 > 1). Check the item at position i
+	// (the first item >= our search string) for a forward prefix match. (fixes #4105)
+	if (i < fileItems.getNumElements()
+	    && !memcasecmp(((FileItem*)fileItems.getElementAddress(i))->displayName, enteredText.get(),
+	                   enteredTextEditPos)) {
+		// Forward match found — use position i directly
+	}
+	else if (i == 0) {
 		if (!doneNewRead) {
 			goto doNewRead;
 		}
-		else {
-			goto notFound;
-		}
+		goto notFound;
 	}
-
-	i--;
-	FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-
-	// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
-	if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos)) {
-		if (numExtraZeroesAdded < 4) {
-			error = searchString.concatenateAtPos("0", searchString.getLength() - 1, 1);
-			if (error != Error::NONE) {
-				goto gotError; // Gets rid of previously appended "~"
+	else {
+		i--;
+		// If it didn't match exactly, try some other stuff before accepting that result.
+		if (memcasecmp(((FileItem*)fileItems.getElementAddress(i))->displayName, enteredText.get(),
+		               enteredTextEditPos)) {
+			if (numExtraZeroesAdded < 4) {
+				error = searchString.concatenateAtPos("0", searchString.getLength() - 1, 1);
+				if (error != Error::NONE) {
+					goto gotError; // Gets rid of previously appended "~"
+				}
+				numExtraZeroesAdded++;
+				doneNewRead = false;
+				goto addTildeAndSearch;
 			}
-			numExtraZeroesAdded++;
-			doneNewRead = false;
-			goto addTildeAndSearch;
-		}
-		else {
-			goto notFound;
+			else {
+				goto notFound;
+			}
 		}
 	}
 
-	fileIndexSelected = i;
+	{
+		FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
+		fileIndexSelected = i;
 
-	// Move scroll only if found item is completely offscreen.
-	if (display->have7SEG() || scrollPosVertical > i || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
-		scrollPosVertical = i;
+		// Move scroll only if found item is completely offscreen.
+		if (display->have7SEG() || scrollPosVertical > i || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
+			scrollPosVertical = i;
+		}
+
+		error = setEnteredTextFromCurrentFilename();
+		if (error != Error::NONE) {
+			goto gotError;
+		}
+
+		displayText();
+
+		// If we're now on a different file than before, preview it
+		if (fileItem->filePointer.sclust != oldClust) {
+			currentFileChanged(0);
+		}
+
+		return true;
 	}
 
-	error = setEnteredTextFromCurrentFilename();
-	if (error != Error::NONE) {
-		goto gotError;
+notFound:
+	if (display->haveOLED() && !mayDefaultToBrandNewNameOnEntry) {
+		if (fileIndexSelected >= 0) {
+			setEnteredTextFromCurrentFilename(); // Set it back
+		}
+		return false;
 	}
 
-	displayText();
-
-	// If we're now on a different file than before, preview it
-	if (fileItem->filePointer.sclust != oldClust) {
-		currentFileChanged(0);
-	}
-
+	fileIndexSelected = -1;
 	return true;
 }
 
