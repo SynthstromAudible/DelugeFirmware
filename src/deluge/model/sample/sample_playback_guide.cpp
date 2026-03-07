@@ -95,6 +95,10 @@ uint64_t SamplePlaybackGuide::getSyncedNumSamplesIn() {
 	    playbackHandler.getCurrentInternalTickCount(&timeSinceLastInternalTick) - sequenceSyncStartedAtTick;
 
 	uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
+	if (tempoRatioNumerator != tempoRatioDenominator) {
+		// Each clip-tick takes D/N × globalTimePerTick in wall-clock time
+		timePerInternalTick = (uint32_t)((uint64_t)timePerInternalTick * tempoRatioDenominator / tempoRatioNumerator);
+	}
 
 	if (timeSinceLastInternalTick >= timePerInternalTick) {
 		timeSinceLastInternalTick = timePerInternalTick - 1; // Ensure it doesn't get bigger.
