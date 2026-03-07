@@ -195,6 +195,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],
 	                  STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Swap tempo and select encoders (accessibility)
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::SwapTempoAndSelectEncoders],
+	                  STRING_FOR_COMMUNITY_FEATURE_SWAP_ENCODERS, "swapTempoAndSelectEncoders",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

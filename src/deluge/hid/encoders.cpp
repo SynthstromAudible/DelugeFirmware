@@ -124,6 +124,16 @@ bool interpretEncoders(bool skipActioning) {
 
 			ActionResult result;
 
+			// Swap select and tempo encoders if accessibility setting is enabled
+			if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::SwapTempoAndSelectEncoders)) {
+				if (name == EncoderName::TEMPO) {
+					name = EncoderName::SELECT;
+				}
+				else if (name == EncoderName::SELECT) {
+					name = EncoderName::TEMPO;
+				}
+			}
+
 			switch (name) {
 
 			case EncoderName::SCROLL_X:
@@ -148,21 +158,25 @@ checkResult:
 				}
 				break;
 
-			case EncoderName::TEMPO:
+			case EncoderName::TEMPO: {
+				// When encoders are swapped, the physical select encoder drives this case,
+				// so check its button press instead of the physical tempo encoder button.
+				auto tempoButton = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::SwapTempoAndSelectEncoders)
+				                       ? deluge::hid::button::SELECT_ENC
+				                       : deluge::hid::button::TEMPO_ENC;
 				if ((getCurrentUI() == &instrumentClipView
 				     || (getCurrentUI() == &automationView && automationView.inNoteEditor()))
 				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 				           == RuntimeFeatureStateToggle::On) {
-					instrumentClipView.tempoEncoderAction(limitedDetentPos,
-					                                      Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
+					instrumentClipView.tempoEncoderAction(limitedDetentPos, Buttons::isButtonPressed(tempoButton),
 					                                      Buttons::isShiftButtonPressed());
 				}
 				else {
-					playbackHandler.tempoEncoderAction(limitedDetentPos,
-					                                   Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
+					playbackHandler.tempoEncoderAction(limitedDetentPos, Buttons::isButtonPressed(tempoButton),
 					                                   Buttons::isShiftButtonPressed());
 				}
 				break;
+			}
 
 			case EncoderName::SELECT:
 				if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
