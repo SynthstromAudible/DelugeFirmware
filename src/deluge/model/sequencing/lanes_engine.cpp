@@ -1,6 +1,10 @@
 #include "model/sequencing/lanes_engine.h"
 
 #include "model/scale/musical_key.h"
+#ifndef IN_UNIT_TESTS
+#include "storage/storage_manager.h"
+#endif
+#include <cstring>
 
 LanesEngine::LanesEngine() {
 	// Probability lane: 100% so notes always fire
@@ -474,3 +478,117 @@ void LanesEngine::loadDefaultPattern() {
 	probability.initProbability();
 	glide.initProbability();
 }
+
+#ifndef IN_UNIT_TESTS
+void LanesEngine::writeToFile(Serializer& writer) {
+	writer.writeOpeningTagBeginning("lanesEngine");
+	writer.writeAttribute("baseNote", baseNote);
+	writer.writeAttribute("intervalMin", intervalMin);
+	writer.writeAttribute("intervalMax", intervalMax);
+	writer.writeAttribute("intervalScaleAware", intervalScaleAware ? 1 : 0);
+	writer.writeAttribute("defaultVelocity", defaultVelocity);
+	writer.writeAttribute("trackLength", trackLength);
+	writer.writeAttribute("locked", locked ? 1 : 0);
+	writer.writeAttribute("lockedSeed", (int32_t)lockedSeed);
+	writer.writeOpeningTagEnd();
+
+	for (int32_t i = 0; i < kNumLanes; i++) {
+		LanesLane* lane = getLane(i);
+		if (!lane) {
+			continue;
+		}
+
+		writer.writeOpeningTagBeginning("lane");
+		writer.writeAttribute("name", kLaneNames[i]);
+		writer.writeAttribute("length", lane->length);
+		writer.writeAttribute("direction", (int32_t)lane->direction);
+		writer.writeAttribute("clockDivision", lane->clockDivision);
+		writer.writeAttribute("euclideanPulses", lane->euclideanPulses);
+		writer.writeAttribute("muted", lane->muted ? 1 : 0);
+		writer.writeAttributeHexBytes("values", (uint8_t*)lane->values.data(), lane->length * sizeof(int16_t));
+		writer.writeAttributeHexBytes("stepProb", (uint8_t*)lane->stepProbability.data(), lane->length);
+		writer.closeTag();
+	}
+
+	writer.writeClosingTag("lanesEngine");
+}
+
+void LanesEngine::readFromFile(Deserializer& reader) {
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "baseNote")) {
+			baseNote = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "intervalMin")) {
+			intervalMin = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "intervalMax")) {
+			intervalMax = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "intervalScaleAware")) {
+			intervalScaleAware = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "defaultVelocity")) {
+			defaultVelocity = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "trackLength")) {
+			trackLength = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "locked")) {
+			locked = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "lockedSeed")) {
+			lockedSeed = (uint32_t)reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "lane")) {
+			LanesLane* lane = nullptr;
+			char const* innerTag;
+			while (*(innerTag = reader.readNextTagOrAttributeName())) {
+				if (!strcmp(innerTag, "name")) {
+					char const* laneName = reader.readTagOrAttributeValue();
+					for (int32_t j = 0; j < kNumLanes; j++) {
+						if (!strcmp(laneName, kLaneNames[j])) {
+							lane = getLane(j);
+							break;
+						}
+					}
+				}
+				else if (lane) {
+					if (!strcmp(innerTag, "length")) {
+						lane->length = reader.readTagOrAttributeValueInt();
+					}
+					else if (!strcmp(innerTag, "direction")) {
+						lane->direction = (LaneDirection)reader.readTagOrAttributeValueInt();
+					}
+					else if (!strcmp(innerTag, "clockDivision")) {
+						lane->clockDivision = reader.readTagOrAttributeValueInt();
+					}
+					else if (!strcmp(innerTag, "euclideanPulses")) {
+						lane->euclideanPulses = reader.readTagOrAttributeValueInt();
+					}
+					else if (!strcmp(innerTag, "muted")) {
+						lane->muted = reader.readTagOrAttributeValueInt();
+					}
+					else if (!strcmp(innerTag, "values")) {
+						reader.readTagOrAttributeValueHexBytes((uint8_t*)lane->values.data(),
+						                                       lane->length * sizeof(int16_t));
+					}
+					else if (!strcmp(innerTag, "stepProb")) {
+						reader.readTagOrAttributeValueHexBytes((uint8_t*)lane->stepProbability.data(), lane->length);
+					}
+					else {
+						reader.exitTag(innerTag);
+					}
+				}
+				else {
+					reader.exitTag(innerTag);
+				}
+			}
+		}
+		else {
+			reader.exitTag(tagName);
+		}
+		reader.exitTag();
+	}
+}
+#endif // !IN_UNIT_TESTS

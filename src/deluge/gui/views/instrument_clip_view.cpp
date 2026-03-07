@@ -61,6 +61,7 @@
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_instrument_clip_multiply.h"
+#include "model/consequence/consequence_lanes_change.h"
 #include "model/consequence/consequence_note_array_change.h"
 #include "model/consequence/consequence_note_row_horizontal_shift.h"
 #include "model/consequence/consequence_note_row_length.h"
@@ -113,8 +114,8 @@ using namespace deluge::gui;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
 
-// Lane colours for lanes grid (indexed by lane: trigger, pitch, octave, velocity, gate, interval, retrig, prob,
-// glide)
+// Lane colours for lanes grid (indexed by lane: trigger, pitch, octave, velocity, gate, interval, retrig, prob)
+// Note: 9th entry (glide, teal) kept for future CV glide support — see kVisibleLanes comment in lanes_engine.h
 static const RGB kLanesLaneColours[LanesEngine::kNumLanes] = {
     RGB(255, 180, 50), // trigger  - amber
     RGB(0, 200, 200),  // pitch    - cyan
@@ -327,7 +328,8 @@ doOther:
 		}
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (clip->output->type == OutputType::KIT) {
-			display->displayPopup("NO KIT");
+			char const* shortLong[2] = {"NKIT", "NO KIT"};
+			display->displayPopup(shortLong);
 			return ActionResult::DEALT_WITH;
 		}
 		clip->lanesModeEnabled = !clip->lanesModeEnabled;
@@ -340,13 +342,15 @@ doOther:
 				clip->lanesEngine->defaultVelocity = ((Instrument*)clip->output)->defaultVelocity;
 				clip->lanesEngine->velocity.values.fill(clip->lanesEngine->defaultVelocity);
 			}
-			display->displayPopup("LANES");
+			char const* shortLong[2] = {"LANE", "LANES"};
+			display->displayPopup(shortLong);
 		}
 		else {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 			clip->stopAllNotesPlaying(modelStack);
-			display->displayPopup("SEQNCE");
+			char const* shortLong[2] = {"SEQ", "SEQNCE"};
+			display->displayPopup(shortLong);
 		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return ActionResult::DEALT_WITH;
@@ -569,6 +573,13 @@ doOther:
 		if (on) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (clip->lanesModeEnabled) {
+				char const* shortLong[2] = {"NKIT", "NO KIT"};
+				display->displayPopup(shortLong);
+				return ActionResult::DEALT_WITH;
 			}
 
 			if (Buttons::isShiftButtonPressed()) {
@@ -834,10 +845,18 @@ doOther:
 				if (on && clip->lanesModeEnabled && clip->lanesEngine) {
 					// Hold grid pad + press horiz encoder = randomize held step
 					if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+						// Snapshot for undo
+						Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::NOT_ALLOWED);
+						if (action) {
+							void* mem = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceLanesChange));
+							if (mem) {
+								action->addConsequence(new (mem) ConsequenceLanesChange(clip));
+							}
+						}
 						for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 							if (editPadPresses[i].isActive) {
 								editPadPresses[i].deleteOnDepress = false;
-								int32_t laneIdx = (kDisplayHeight - 1) - editPadPresses[i].yDisplay;
+								int32_t laneIdx = lanesRowToLaneIdx(editPadPresses[i].yDisplay);
 								LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 								if (!lane) {
 									continue;
@@ -849,16 +868,19 @@ doOther:
 								int16_t newVal = clip->lanesEngine->randomInRange(LanesEngine::kLaneRndMins[laneIdx],
 								                                                  LanesEngine::kLaneRndMaxs[laneIdx]);
 								lane->values[step] = newVal;
-								char buffer[30];
+								char buffer[display->haveOLED() ? 30 : 5];
 								if (laneIdx == 1) {
 									char noteStr[8];
 									int32_t semis = scaleDegreeToSemitoneOffset(newVal, currentSong->key);
 									noteCodeToString(clip->lanesEngine->baseNote + semis, noteStr, nullptr, true);
-									snprintf(buffer, sizeof(buffer), "RND %s", noteStr);
+									snprintf(buffer, sizeof(buffer), display->haveOLED() ? "RND %s" : "%s", noteStr);
 								}
-								else {
+								else if (display->haveOLED()) {
 									snprintf(buffer, sizeof(buffer), "%s: RND %d", LanesEngine::kLaneNames[laneIdx],
 									         newVal);
+								}
+								else {
+									intToString(newVal, buffer);
 								}
 								display->displayPopup(buffer);
 							}
@@ -868,11 +890,24 @@ doOther:
 					}
 					// Hold audition pad + press horiz encoder = randomize entire lane
 					if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-						int32_t laneIdx = (kDisplayHeight - 1) - lastAuditionedYDisplay;
+						// Snapshot for undo
+						Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::NOT_ALLOWED);
+						if (action) {
+							void* mem = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceLanesChange));
+							if (mem) {
+								action->addConsequence(new (mem) ConsequenceLanesChange(clip));
+							}
+						}
+						int32_t laneIdx = lanesRowToLaneIdx(lastAuditionedYDisplay);
 						clip->lanesEngine->randomizeLane(laneIdx);
-						char buffer[30];
-						snprintf(buffer, sizeof(buffer), "%s: RANDOMIZED", LanesEngine::kLaneNames[laneIdx]);
-						display->displayPopup(buffer);
+						if (display->haveOLED()) {
+							char buffer[30];
+							snprintf(buffer, sizeof(buffer), "%s: RANDOMIZED", LanesEngine::kLaneNames[laneIdx]);
+							display->displayPopup(buffer);
+						}
+						else {
+							display->displayPopup(LanesEngine::kLaneNames7Seg[laneIdx]);
+						}
 						uiNeedsRendering(this, 0xFFFFFFFF, 0);
 						return ActionResult::DEALT_WITH;
 					}
@@ -904,10 +939,18 @@ doCancelPopup:
 		{
 			InstrumentClip* clip = getCurrentInstrumentClip();
 			if (on && clip->lanesModeEnabled && clip->lanesEngine && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+				// Snapshot for undo
+				Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::NOT_ALLOWED);
+				if (action) {
+					void* mem = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceLanesChange));
+					if (mem) {
+						action->addConsequence(new (mem) ConsequenceLanesChange(clip));
+					}
+				}
 				for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 					if (editPadPresses[i].isActive) {
 						editPadPresses[i].deleteOnDepress = false;
-						int32_t laneIdx = (kDisplayHeight - 1) - editPadPresses[i].yDisplay;
+						int32_t laneIdx = lanesRowToLaneIdx(editPadPresses[i].yDisplay);
 						LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 						if (!lane) {
 							continue;
@@ -918,9 +961,14 @@ doCancelPopup:
 						}
 						lane->values[step] = LanesEngine::kLaneDefaults[laneIdx];
 						lane->stepProbability[step] = 100;
-						char buffer[30];
-						snprintf(buffer, sizeof(buffer), "%s: DEF %d", LanesEngine::kLaneNames[laneIdx],
-						         LanesEngine::kLaneDefaults[laneIdx]);
+						char buffer[display->haveOLED() ? 30 : 5];
+						if (display->haveOLED()) {
+							snprintf(buffer, sizeof(buffer), "%s: DEF %d", LanesEngine::kLaneNames[laneIdx],
+							         LanesEngine::kLaneDefaults[laneIdx]);
+						}
+						else {
+							intToString(LanesEngine::kLaneDefaults[laneIdx], buffer);
+						}
 						display->displayPopup(buffer);
 					}
 				}
@@ -1894,17 +1942,31 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 	{
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (clip->lanesModeEnabled && clip->lanesEngine && currentUIMode == UI_MODE_AUDITIONING) {
-			int32_t laneIdx = (kDisplayHeight - 1) - lastAuditionedYDisplay;
+			// Snapshot for undo
+			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+			if (action) {
+				void* mem = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceLanesChange));
+				if (mem) {
+					action->addConsequence(new (mem) ConsequenceLanesChange(clip));
+				}
+			}
+			int32_t laneIdx = lanesRowToLaneIdx(lastAuditionedYDisplay);
 			LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 			if (lane) {
 				static constexpr const char* kDirectionNames[] = {"Forward", "Reverse", "Pingpong"};
+				static constexpr const char* kDirectionNames7Seg[] = {"FWD", "REV", "PONG"};
 				int32_t dir = static_cast<int32_t>(lane->direction) + offset;
 				dir = std::clamp(dir, (int32_t)0, (int32_t)2);
 				lane->direction = static_cast<LaneDirection>(dir);
 
-				char buffer[30];
-				snprintf(buffer, sizeof(buffer), "%s: %s", LanesEngine::kLaneNames[laneIdx], kDirectionNames[dir]);
-				display->displayPopup(buffer);
+				if (display->haveOLED()) {
+					char buffer[30];
+					snprintf(buffer, sizeof(buffer), "%s: %s", LanesEngine::kLaneNames[laneIdx], kDirectionNames[dir]);
+					display->displayPopup(buffer);
+				}
+				else {
+					display->displayPopup(kDirectionNames7Seg[dir]);
+				}
 			}
 			return;
 		}
@@ -2376,7 +2438,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 	// Lanes mode: track pad press for hold+knob editing, toggle on release
 	if (clip->lanesModeEnabled && clip->lanesEngine) {
-		int32_t laneIdx = (kDisplayHeight - 1) - yDisplay;
+		int32_t laneIdx = lanesRowToLaneIdx(yDisplay);
 		LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 		if (!lane || xDisplay >= kMaxLanesSteps) {
 			return;
@@ -2404,6 +2466,17 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				    && editPadPresses[i].xDisplay == xDisplay) {
 
 					if (editPadPresses[i].deleteOnDepress) {
+						// Snapshot for undo before toggle
+						{
+							Action* action =
+							    actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::NOT_ALLOWED);
+							if (action) {
+								void* mem = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceLanesChange));
+								if (mem) {
+									action->addConsequence(new (mem) ConsequenceLanesChange(clip));
+								}
+							}
+						}
 						// No knob was turned — do toggle
 						if (xDisplay >= lane->length) {
 							// Extend lane to reach this step — fill with lane-appropriate defaults
@@ -3856,7 +3929,7 @@ bool InstrumentClipView::enterLanesLaneEditor() {
 		return false;
 	}
 
-	int32_t laneIdx = (kDisplayHeight - 1) - lastAuditionedYDisplay;
+	int32_t laneIdx = lanesRowToLaneIdx(lastAuditionedYDisplay);
 
 	// Pick the right horizontal menu for this lane
 	MenuItem* laneMenu = nullptr;
@@ -3870,9 +3943,12 @@ bool InstrumentClipView::enterLanesLaneEditor() {
 	case 5: // Interval
 		laneMenu = &lanesIntervalEditorMenu;
 		break;
-	default:
-		display->displayPopup(LanesEngine::kLaneNames[laneIdx]);
+	default: {
+		const char* name =
+		    display->haveOLED() ? LanesEngine::kLaneNames[laneIdx] : LanesEngine::kLaneNames7Seg[laneIdx];
+		display->displayPopup(name);
 		return false; // No menu for this lane yet
+	}
 	}
 
 	display->setNextTransitionDirection(1);
@@ -4281,7 +4357,15 @@ void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 	{
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (clip->lanesModeEnabled && clip->lanesEngine) {
-			int32_t laneIdx = (kDisplayHeight - 1) - yDisplay;
+			// Snapshot for undo
+			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::NOT_ALLOWED);
+			if (action) {
+				void* mem = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceLanesChange));
+				if (mem) {
+					action->addConsequence(new (mem) ConsequenceLanesChange(clip));
+				}
+			}
+			int32_t laneIdx = lanesRowToLaneIdx(yDisplay);
 			LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 			if (lane) {
 				lane->muted = !lane->muted;
@@ -5161,22 +5245,32 @@ ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDi
 				auditionPadIsPressed[yDisplay] = velocity;
 				enterUIMode(UI_MODE_AUDITIONING);
 
-				int32_t laneIdx = (kDisplayHeight - 1) - yDisplay;
+				int32_t laneIdx = lanesRowToLaneIdx(yDisplay);
 				if (laneIdx >= 0 && laneIdx < LanesEngine::kNumLanes) {
 					LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 					if (lane) {
-						char buffer[30];
-						if (lane->clockDivision > 1) {
-							snprintf(buffer, sizeof(buffer), "%s L:%d D:/%d", LanesEngine::kLaneNames[laneIdx],
-							         lane->length, lane->clockDivision);
+						if (display->haveOLED()) {
+							char buffer[30];
+							if (lane->clockDivision > 1) {
+								snprintf(buffer, sizeof(buffer), "%s L:%d D:/%d", LanesEngine::kLaneNames[laneIdx],
+								         lane->length, lane->clockDivision);
+							}
+							else {
+								snprintf(buffer, sizeof(buffer), "%s L:%d", LanesEngine::kLaneNames[laneIdx],
+								         lane->length);
+							}
+							display->displayPopup(buffer);
 						}
 						else {
-							snprintf(buffer, sizeof(buffer), "%s L:%d", LanesEngine::kLaneNames[laneIdx], lane->length);
+							char buffer[5];
+							intToString(lane->length, buffer);
+							display->displayPopup(buffer, 0, true);
 						}
-						display->displayPopup(buffer);
 					}
 					else {
-						display->displayPopup(LanesEngine::kLaneNames[laneIdx]);
+						const char* name = display->haveOLED() ? LanesEngine::kLaneNames[laneIdx]
+						                                       : LanesEngine::kLaneNames7Seg[laneIdx];
+						display->displayPopup(name);
 					}
 				}
 			}
@@ -6105,7 +6199,7 @@ bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayW
 		if (whichRows & (1 << i)) {
 			if (lanesActive) {
 				// Lanes mode: mute column shows lane mute state, audition column shows lane color
-				int32_t laneIdx = (kDisplayHeight - 1) - i;
+				int32_t laneIdx = lanesRowToLaneIdx(i);
 				if (laneIdx >= 0 && laneIdx < LanesEngine::kNumLanes) {
 					LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 					if (lane && lane->muted) {
@@ -6355,24 +6449,38 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	{
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (clip->lanesModeEnabled && clip->lanesEngine && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+			// Snapshot for undo (ALLOWED merges rapid encoder turns)
+			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+			if (action) {
+				void* mem = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceLanesChange));
+				if (mem) {
+					action->addConsequence(new (mem) ConsequenceLanesChange(clip));
+				}
+			}
 			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 				if (editPadPresses[i].isActive) {
 					editPadPresses[i].deleteOnDepress = false;
-					int32_t laneIdx = (kDisplayHeight - 1) - editPadPresses[i].yDisplay;
+					int32_t laneIdx = lanesRowToLaneIdx(editPadPresses[i].yDisplay);
 					LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 					if (!lane) {
 						continue;
 					}
-
-					char buffer[30];
 
 					if (laneIdx == 0) {
 						// TRIGGER: euclidean pulses
 						int32_t newPulses = static_cast<int32_t>(lane->euclideanPulses) + offset;
 						newPulses = std::clamp(newPulses, (int32_t)0, static_cast<int32_t>(lane->length));
 						clip->lanesEngine->generateEuclidean(static_cast<int32_t>(lane->length), newPulses);
-						snprintf(buffer, sizeof(buffer), "TRIG LEN:%d P:%d", lane->length, lane->euclideanPulses);
-						display->displayPopup(buffer);
+						if (display->haveOLED()) {
+							char buffer[30];
+							snprintf(buffer, sizeof(buffer), "TRIG LEN:%d P:%d", lane->length, lane->euclideanPulses);
+							display->displayPopup(buffer);
+						}
+						else {
+							char buffer[5];
+							intToString(lane->euclideanPulses, buffer);
+							display->displayPopup(buffer, 0, true);
+						}
 					}
 					else if (LanesEngine::kLaneHasStepProb[laneIdx]) {
 						// Lanes with per-step probability
@@ -6384,10 +6492,18 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 						newProb = std::clamp(newProb, (int32_t)0, (int32_t)100);
 						lane->stepProbability[step] = static_cast<uint8_t>(newProb);
 
-						snprintf(buffer, sizeof(buffer), "%s PROB:%d%%", LanesEngine::kLaneNames[laneIdx], newProb);
-						display->displayPopup(buffer);
+						if (display->haveOLED()) {
+							char buffer[30];
+							snprintf(buffer, sizeof(buffer), "%s PROB:%d%%", LanesEngine::kLaneNames[laneIdx], newProb);
+							display->displayPopup(buffer);
+						}
+						else {
+							char buffer[5];
+							intToString(newProb, buffer);
+							display->displayPopup(buffer, 0, true);
+						}
 					}
-					// GATE, PROB, GLIDE: no vert encoder action
+					// GATE, PROB: no vert encoder action
 				}
 			}
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -6399,7 +6515,15 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	{
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (clip->lanesModeEnabled && clip->lanesEngine && isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-			int32_t laneIdx = (kDisplayHeight - 1) - lastAuditionedYDisplay;
+			// Snapshot for undo
+			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+			if (action) {
+				void* mem = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceLanesChange));
+				if (mem) {
+					action->addConsequence(new (mem) ConsequenceLanesChange(clip));
+				}
+			}
+			int32_t laneIdx = lanesRowToLaneIdx(lastAuditionedYDisplay);
 			LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 			if (lane) {
 				int32_t newDiv = static_cast<int32_t>(lane->clockDivision) + offset;
@@ -6439,13 +6563,23 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 					divName = nullptr;
 					break;
 				}
-				if (divName) {
-					snprintf(buffer, sizeof(buffer), "%s DIV:%s", LanesEngine::kLaneNames[laneIdx], divName);
+				if (display->haveOLED()) {
+					if (divName) {
+						snprintf(buffer, sizeof(buffer), "%s DIV:%s", LanesEngine::kLaneNames[laneIdx], divName);
+					}
+					else {
+						snprintf(buffer, sizeof(buffer), "%s DIV:/%d", LanesEngine::kLaneNames[laneIdx], newDiv);
+					}
+					display->displayPopup(buffer);
+				}
+				else if (divName) {
+					display->displayPopup(divName, 0, true);
 				}
 				else {
-					snprintf(buffer, sizeof(buffer), "%s DIV:/%d", LanesEngine::kLaneNames[laneIdx], newDiv);
+					char shortBuf[5];
+					intToString(newDiv, shortBuf);
+					display->displayPopup(shortBuf, 0, true);
 				}
-				display->displayPopup(buffer);
 			}
 			return ActionResult::DEALT_WITH;
 		}
@@ -6594,28 +6728,39 @@ ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 
 			// Hold pad + horizontal encoder = primary value / euclidean length
 			if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+				// Snapshot for undo (ALLOWED merges rapid encoder turns)
+				Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+				if (action) {
+					void* mem = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceLanesChange));
+					if (mem) {
+						action->addConsequence(new (mem) ConsequenceLanesChange(clip));
+					}
+				}
 				for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 					if (editPadPresses[i].isActive) {
 						editPadPresses[i].deleteOnDepress = false;
-						int32_t laneIdx = (kDisplayHeight - 1) - editPadPresses[i].yDisplay;
+						int32_t laneIdx = lanesRowToLaneIdx(editPadPresses[i].yDisplay);
 						LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 						if (!lane) {
 							continue;
 						}
-
-						char buffer[30];
 
 						if (laneIdx == 0) {
 							// TRIGGER: euclidean length
 							int32_t newLen = lane->length + offset;
 							newLen = std::clamp(newLen, (int32_t)1, (int32_t)kMaxLanesSteps);
 							clip->lanesEngine->generateEuclidean(newLen, static_cast<int32_t>(lane->euclideanPulses));
-							snprintf(buffer, sizeof(buffer), "TRIG LEN:%d P:%d", lane->length, lane->euclideanPulses);
-							display->displayPopup(buffer);
-						}
-						else if (laneIdx == 8) {
-							// GLIDE: binary, no knob editing
-							continue;
+							if (display->haveOLED()) {
+								char buffer[30];
+								snprintf(buffer, sizeof(buffer), "TRIG LEN:%d P:%d", lane->length,
+								         lane->euclideanPulses);
+								display->displayPopup(buffer);
+							}
+							else {
+								char buffer[5];
+								intToString(lane->length, buffer);
+								display->displayPopup(buffer, 0, true);
+							}
 						}
 						else {
 							// All other lanes: adjust primary value
@@ -6633,24 +6778,38 @@ ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 								char noteStr[8];
 								int32_t semis = scaleDegreeToSemitoneOffset(newVal, currentSong->key);
 								noteCodeToString(clip->lanesEngine->baseNote + semis, noteStr, nullptr, true);
-								snprintf(buffer, sizeof(buffer), "%s", noteStr);
+								display->displayPopup(noteStr);
 							}
 							else if (laneIdx == 4) {
 								// Gate: show percentage, TIE, or LEGATO
 								if (newVal == LanesEngine::kGateTie) {
-									snprintf(buffer, sizeof(buffer), "TIE");
+									display->displayPopup("TIE");
 								}
 								else if (newVal == LanesEngine::kGateLegato) {
-									snprintf(buffer, sizeof(buffer), "LEGATO");
+									char const* shortLong[2] = {"LEGA", "LEGATO"};
+									display->displayPopup(shortLong);
+								}
+								else if (display->haveOLED()) {
+									char buffer[20];
+									snprintf(buffer, sizeof(buffer), "GATE: %d%%", newVal);
+									display->displayPopup(buffer);
 								}
 								else {
-									snprintf(buffer, sizeof(buffer), "GATE: %d%%", newVal);
+									char buffer[5];
+									intToString(newVal, buffer);
+									display->displayPopup(buffer, 0, true);
 								}
 							}
-							else {
+							else if (display->haveOLED()) {
+								char buffer[30];
 								snprintf(buffer, sizeof(buffer), "%s: %d", LanesEngine::kLaneNames[laneIdx], newVal);
+								display->displayPopup(buffer);
 							}
-							display->displayPopup(buffer);
+							else {
+								char buffer[5];
+								intToString(newVal, buffer);
+								display->displayPopup(buffer, 0, true);
+							}
 						}
 					}
 				}
@@ -6660,7 +6819,15 @@ ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 
 			// Hold audition + horizontal encoder = change lane length
 			if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-				int32_t laneIdx = (kDisplayHeight - 1) - lastAuditionedYDisplay;
+				// Snapshot for undo
+				Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+				if (action) {
+					void* mem = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceLanesChange));
+					if (mem) {
+						action->addConsequence(new (mem) ConsequenceLanesChange(clip));
+					}
+				}
+				int32_t laneIdx = lanesRowToLaneIdx(lastAuditionedYDisplay);
 				LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 				if (lane) {
 					int32_t newLength = lane->length + offset;
@@ -6677,9 +6844,16 @@ ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 						lane->position = 0;
 					}
 
-					char buffer[20];
-					snprintf(buffer, sizeof(buffer), "%s LEN:%d", LanesEngine::kLaneNames[laneIdx], newLength);
-					display->displayPopup(buffer);
+					if (display->haveOLED()) {
+						char buffer[20];
+						snprintf(buffer, sizeof(buffer), "%s LEN:%d", LanesEngine::kLaneNames[laneIdx], newLength);
+						display->displayPopup(buffer);
+					}
+					else {
+						char buffer[5];
+						intToString(newLength, buffer);
+						display->displayPopup(buffer, 0, true);
+					}
 					uiNeedsRendering(this, 1 << lastAuditionedYDisplay, 0);
 				}
 				return ActionResult::DEALT_WITH;
@@ -7385,7 +7559,7 @@ void InstrumentClipView::graphicsRoutine() {
 	if (clip->lanesModeEnabled && clip->lanesEngine) {
 		if (!reallyNoTickSquare) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-				int32_t laneIdx = (kDisplayHeight - 1) - yDisplay;
+				int32_t laneIdx = lanesRowToLaneIdx(yDisplay);
 				if (laneIdx >= 0 && laneIdx < LanesEngine::kNumLanes) {
 					LanesLane* lane = clip->lanesEngine->getLane(laneIdx);
 					if (lane && lane->length > 0) {
@@ -7557,6 +7731,14 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	return true;
 }
 
+int32_t InstrumentClipView::lanesRowToLaneIdx(int32_t yDisplay) {
+	int32_t row = (kDisplayHeight - 1) - yDisplay;
+	if (row < 0 || row >= LanesEngine::kVisibleLanes) {
+		return -1;
+	}
+	return LanesEngine::kLaneMap[row];
+}
+
 void InstrumentClipView::renderLanesPads(uint32_t whichRows, RGB* image,
                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
                                          int32_t renderWidth) {
@@ -7570,7 +7752,7 @@ void InstrumentClipView::renderLanesPads(uint32_t whichRows, RGB* image,
 		}
 
 		// Map row to lane: top row (7) = trigger (0), row 6 = pitch (1), etc.
-		int32_t laneIdx = (kDisplayHeight - 1) - yDisplay;
+		int32_t laneIdx = lanesRowToLaneIdx(yDisplay);
 
 		uint8_t* occRow = occupancyMask ? occupancyMask[yDisplay] : nullptr;
 

@@ -799,7 +799,7 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 					lanesGateTicksRemaining_ = lanesStepTicks;
 				}
 				else {
-					// Normal or retrigger: note-off for previous, then note-on
+					// Normal: note-off first, then note-on
 					stopLanesNote(modelStack);
 					static_cast<MelodicInstrument*>(output)->sendNote(ms3, true, note.noteCode, mpeValues,
 					                                                  MIDI_CHANNEL_NONE, note.velocity, 0, 0);
@@ -2525,6 +2525,9 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeAttribute("drumsZoomLevel", keyboardState.drums.zoom_level);
 	writer.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
 	writer.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+	if (lanesModeEnabled) {
+		writer.writeAttribute("lanesMode", 1);
+	}
 
 	writer.writeOpeningTagEnd();
 
@@ -2589,6 +2592,10 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		}
 
 		writer.writeArrayEnding("noteRows");
+	}
+
+	if (lanesEngine) {
+		lanesEngine->writeToFile(writer);
 	}
 }
 
@@ -3033,6 +3040,15 @@ doReadBendRange:
 		}
 		else if (!strcmp(tagName, "columnControls")) {
 			keyboardState.columnControl.readFromFile(reader);
+		}
+		else if (!strcmp(tagName, "lanesMode")) {
+			lanesModeEnabled = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "lanesEngine")) {
+			if (!lanesEngine) {
+				lanesEngine = std::make_unique<LanesEngine>();
+			}
+			lanesEngine->readFromFile(reader);
 		}
 		else {
 			readTagFromFile(reader, tagName, song, &readAutomationUpToPos);

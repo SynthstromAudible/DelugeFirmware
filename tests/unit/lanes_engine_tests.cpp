@@ -1271,3 +1271,405 @@ TEST(LanesEngineTest, stepProbabilityOnVelocityFallsBackToDefault) {
 	CHECK(!note.isRest());
 	CHECK_EQUAL(100, note.velocity); // defaultVelocity, not 120
 }
+
+// ============================================================
+// Phase 3: Muted lanes, state snapshot/swap, glide edge cases
+// ============================================================
+
+TEST(LanesEngineTest, mutedTriggerProducesAllRests) {
+	engine.trigger.length = 4;
+	for (int i = 0; i < 4; i++) {
+		engine.trigger.values[i] = 1; // all triggers on
+	}
+	engine.trigger.muted = true;
+
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+
+	for (int i = 0; i < 8; i++) {
+		CHECK(engine.step(cMajor).isRest());
+	}
+}
+
+TEST(LanesEngineTest, mutedVelocityFallsBackToDefault) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.velocity.length = 1;
+	engine.velocity.values[0] = 50;
+	engine.velocity.muted = true;
+	engine.defaultVelocity = 100;
+
+	LanesNote note = engine.step(cMajor);
+	CHECK(!note.isRest());
+	CHECK_EQUAL(100, note.velocity); // muted velocity → defaultVelocity
+}
+
+TEST(LanesEngineTest, mutedGateFallsBackToDefault) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.gate.length = 1;
+	engine.gate.values[0] = 10; // very low gate
+	engine.gate.muted = true;
+
+	LanesNote note = engine.step(cMajor);
+	CHECK(!note.isRest());
+	CHECK_EQUAL(75, note.gate); // kDefaultGate
+}
+
+TEST(LanesEngineTest, mutedGlideAlwaysFalse) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.glide.length = 2;
+	engine.glide.values[0] = 1;
+	engine.glide.values[1] = 1;
+	engine.glide.muted = true;
+
+	CHECK_EQUAL(false, engine.step(cMajor).glide);
+	CHECK_EQUAL(false, engine.step(cMajor).glide);
+}
+
+TEST(LanesEngineTest, mutedProbabilityAlwaysFires) {
+	engine.setSeed(42);
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.probability.length = 1;
+	engine.probability.values[0] = 0; // 0% probability
+	engine.probability.muted = true;
+
+	// With probability muted, it should default to 100% — all notes fire
+	for (int i = 0; i < 20; i++) {
+		CHECK(!engine.step(cMajor).isRest());
+	}
+}
+
+TEST(LanesEngineTest, mutedOctaveNoShift) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.octave.length = 1;
+	engine.octave.values[0] = 2; // +2 octaves
+	engine.octave.muted = true;
+
+	LanesNote note = engine.step(cMajor);
+	CHECK(!note.isRest());
+	CHECK_EQUAL(60, note.noteCode); // no octave shift because muted
+}
+
+TEST(LanesEngineTest, mutedPitchUsesDefaultDegree) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 5; // scale degree 5
+	engine.pitch.muted = true;
+
+	LanesNote note = engine.step(cMajor);
+	CHECK(!note.isRest());
+	CHECK_EQUAL(60, note.noteCode); // degree 0 (default) = C4
+}
+
+TEST(LanesEngineTest, unmutingLaneRestoresValues) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.velocity.length = 1;
+	engine.velocity.values[0] = 42;
+	engine.velocity.muted = true;
+
+	CHECK_EQUAL(100, engine.step(cMajor).velocity); // muted → default
+
+	engine.velocity.muted = false;
+	// Reset engine to get back to step 0
+	engine.reset();
+	CHECK_EQUAL(42, engine.step(cMajor).velocity); // unmuted → lane value
+}
+
+// --- State snapshot and swap (tests ConsequenceLanesChange logic) ---
+
+TEST(LanesEngineTest, stateSnapshotAndSwapRestoresAllFields) {
+	// Set up engine with non-default values
+	engine.baseNote = 72;
+	engine.intervalMin = -5;
+	engine.intervalMax = 5;
+	engine.intervalScaleAware = true;
+	engine.defaultVelocity = 80;
+	engine.trackLength = 32;
+	engine.locked = true;
+	engine.lockedSeed = 99999;
+
+	engine.trigger.length = 4;
+	engine.trigger.direction = LaneDirection::REVERSE;
+	engine.trigger.clockDivision = 2;
+	engine.trigger.euclideanPulses = 3;
+	engine.trigger.muted = true;
+	for (int i = 0; i < 4; i++) {
+		engine.trigger.values[i] = i;
+		engine.trigger.stepProbability[i] = 50 + i;
+	}
+
+	engine.pitch.length = 3;
+	engine.pitch.direction = LaneDirection::PINGPONG;
+	for (int i = 0; i < 3; i++) {
+		engine.pitch.values[i] = i * 2;
+	}
+
+	// Snapshot: copy all serializable state to a second engine
+	LanesEngine snapshot;
+	snapshot.baseNote = engine.baseNote;
+	snapshot.intervalMin = engine.intervalMin;
+	snapshot.intervalMax = engine.intervalMax;
+	snapshot.intervalScaleAware = engine.intervalScaleAware;
+	snapshot.defaultVelocity = engine.defaultVelocity;
+	snapshot.trackLength = engine.trackLength;
+	snapshot.locked = engine.locked;
+	snapshot.lockedSeed = engine.lockedSeed;
+	for (int32_t i = 0; i < LanesEngine::kNumLanes; i++) {
+		LanesLane* src = engine.getLane(i);
+		LanesLane* dst = snapshot.getLane(i);
+		dst->values = src->values;
+		dst->stepProbability = src->stepProbability;
+		dst->length = src->length;
+		dst->direction = src->direction;
+		dst->euclideanPulses = src->euclideanPulses;
+		dst->clockDivision = src->clockDivision;
+		dst->muted = src->muted;
+	}
+
+	// Now modify engine (simulating user edits)
+	engine.baseNote = 48;
+	engine.intervalMin = -3;
+	engine.intervalMax = 3;
+	engine.defaultVelocity = 127;
+	engine.trackLength = 64;
+	engine.trigger.length = 8;
+	engine.trigger.direction = LaneDirection::FORWARD;
+	engine.trigger.muted = false;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 7;
+
+	// Swap (simulates ConsequenceLanesChange::revert)
+	std::swap(snapshot.baseNote, engine.baseNote);
+	std::swap(snapshot.intervalMin, engine.intervalMin);
+	std::swap(snapshot.intervalMax, engine.intervalMax);
+	std::swap(snapshot.intervalScaleAware, engine.intervalScaleAware);
+	std::swap(snapshot.defaultVelocity, engine.defaultVelocity);
+	std::swap(snapshot.trackLength, engine.trackLength);
+	std::swap(snapshot.locked, engine.locked);
+	std::swap(snapshot.lockedSeed, engine.lockedSeed);
+	for (int32_t i = 0; i < LanesEngine::kNumLanes; i++) {
+		LanesLane* eLane = engine.getLane(i);
+		LanesLane* sLane = snapshot.getLane(i);
+		std::swap(eLane->values, sLane->values);
+		std::swap(eLane->stepProbability, sLane->stepProbability);
+		std::swap(eLane->length, sLane->length);
+		std::swap(eLane->direction, sLane->direction);
+		std::swap(eLane->euclideanPulses, sLane->euclideanPulses);
+		std::swap(eLane->clockDivision, sLane->clockDivision);
+		std::swap(eLane->muted, sLane->muted);
+	}
+
+	// Engine should now be back to original state
+	CHECK_EQUAL(72, engine.baseNote);
+	CHECK_EQUAL(-5, engine.intervalMin);
+	CHECK_EQUAL(5, engine.intervalMax);
+	CHECK_EQUAL(true, engine.intervalScaleAware);
+	CHECK_EQUAL(80, engine.defaultVelocity);
+	CHECK_EQUAL(32, engine.trackLength);
+	CHECK_EQUAL(true, engine.locked);
+	CHECK_EQUAL((uint32_t)99999, engine.lockedSeed);
+
+	CHECK_EQUAL(4, engine.trigger.length);
+	CHECK_EQUAL((int)LaneDirection::REVERSE, (int)engine.trigger.direction);
+	CHECK_EQUAL(2, engine.trigger.clockDivision);
+	CHECK_EQUAL(3, engine.trigger.euclideanPulses);
+	CHECK_EQUAL(true, engine.trigger.muted);
+	for (int i = 0; i < 4; i++) {
+		CHECK_EQUAL(i, engine.trigger.values[i]);
+		CHECK_EQUAL(50 + i, engine.trigger.stepProbability[i]);
+	}
+
+	CHECK_EQUAL(3, engine.pitch.length);
+	CHECK_EQUAL((int)LaneDirection::PINGPONG, (int)engine.pitch.direction);
+	for (int i = 0; i < 3; i++) {
+		CHECK_EQUAL(i * 2, engine.pitch.values[i]);
+	}
+
+	// Snapshot should hold the "after edit" state
+	CHECK_EQUAL(48, snapshot.baseNote);
+	CHECK_EQUAL(-3, snapshot.intervalMin);
+	CHECK_EQUAL(3, snapshot.intervalMax);
+	CHECK_EQUAL(127, snapshot.defaultVelocity);
+	CHECK_EQUAL(64, snapshot.trackLength);
+	CHECK_EQUAL(8, snapshot.trigger.length);
+	CHECK_EQUAL((int)LaneDirection::FORWARD, (int)snapshot.trigger.direction);
+	CHECK_EQUAL(false, snapshot.trigger.muted);
+	CHECK_EQUAL(1, snapshot.pitch.length);
+	CHECK_EQUAL(7, snapshot.pitch.values[0]);
+}
+
+TEST(LanesEngineTest, doubleSwapRestoresEditedState) {
+	// Verifies that undo then redo (two swaps) returns to the edited state
+	engine.baseNote = 60;
+	engine.trigger.length = 2;
+	engine.trigger.values[0] = 1;
+	engine.trigger.values[1] = 0;
+
+	// Snapshot
+	LanesEngine snapshot;
+	snapshot.baseNote = engine.baseNote;
+	for (int32_t i = 0; i < LanesEngine::kNumLanes; i++) {
+		LanesLane* src = engine.getLane(i);
+		LanesLane* dst = snapshot.getLane(i);
+		dst->values = src->values;
+		dst->stepProbability = src->stepProbability;
+		dst->length = src->length;
+		dst->direction = src->direction;
+		dst->euclideanPulses = src->euclideanPulses;
+		dst->clockDivision = src->clockDivision;
+		dst->muted = src->muted;
+	}
+
+	// Edit
+	engine.baseNote = 48;
+	engine.trigger.length = 4;
+	engine.trigger.values[2] = 1;
+	engine.trigger.values[3] = 1;
+
+	// Swap 1 (undo)
+	std::swap(snapshot.baseNote, engine.baseNote);
+	for (int32_t i = 0; i < LanesEngine::kNumLanes; i++) {
+		std::swap(engine.getLane(i)->values, snapshot.getLane(i)->values);
+		std::swap(engine.getLane(i)->length, snapshot.getLane(i)->length);
+		std::swap(engine.getLane(i)->direction, snapshot.getLane(i)->direction);
+		std::swap(engine.getLane(i)->euclideanPulses, snapshot.getLane(i)->euclideanPulses);
+		std::swap(engine.getLane(i)->clockDivision, snapshot.getLane(i)->clockDivision);
+		std::swap(engine.getLane(i)->muted, snapshot.getLane(i)->muted);
+		std::swap(engine.getLane(i)->stepProbability, snapshot.getLane(i)->stepProbability);
+	}
+	CHECK_EQUAL(60, engine.baseNote); // back to original
+	CHECK_EQUAL(2, engine.trigger.length);
+
+	// Swap 2 (redo)
+	std::swap(snapshot.baseNote, engine.baseNote);
+	for (int32_t i = 0; i < LanesEngine::kNumLanes; i++) {
+		std::swap(engine.getLane(i)->values, snapshot.getLane(i)->values);
+		std::swap(engine.getLane(i)->length, snapshot.getLane(i)->length);
+		std::swap(engine.getLane(i)->direction, snapshot.getLane(i)->direction);
+		std::swap(engine.getLane(i)->euclideanPulses, snapshot.getLane(i)->euclideanPulses);
+		std::swap(engine.getLane(i)->clockDivision, snapshot.getLane(i)->clockDivision);
+		std::swap(engine.getLane(i)->muted, snapshot.getLane(i)->muted);
+		std::swap(engine.getLane(i)->stepProbability, snapshot.getLane(i)->stepProbability);
+	}
+	CHECK_EQUAL(48, engine.baseNote); // back to edited
+	CHECK_EQUAL(4, engine.trigger.length);
+	CHECK_EQUAL(1, engine.trigger.values[2]);
+	CHECK_EQUAL(1, engine.trigger.values[3]);
+}
+
+// --- Glide engine tests (lane exists internally, not mapped to grid yet) ---
+
+TEST(LanesEngineTest, glideAlternatesWithPingpong) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.glide.length = 3;
+	engine.glide.values[0] = 0;
+	engine.glide.values[1] = 1;
+	engine.glide.values[2] = 0;
+	engine.glide.direction = LaneDirection::PINGPONG;
+
+	// Pingpong cycle: 0,1,0,1,0,1,... (period = 2*(3-1) = 4)
+	bool g0 = engine.step(cMajor).glide;
+	bool g1 = engine.step(cMajor).glide;
+	bool g2 = engine.step(cMajor).glide;
+	bool g3 = engine.step(cMajor).glide;
+	CHECK_EQUAL(false, g0); // pos 0
+	CHECK_EQUAL(true, g1);  // pos 1
+	CHECK_EQUAL(false, g2); // pos 2
+	CHECK_EQUAL(true, g3);  // pos 1 (reversed)
+}
+
+TEST(LanesEngineTest, glideOnRestIsIrrelevant) {
+	engine.trigger.length = 2;
+	engine.trigger.values[0] = 0; // rest
+	engine.trigger.values[1] = 1; // note
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.glide.length = 2;
+	engine.glide.values[0] = 1; // glide on rest step
+	engine.glide.values[1] = 0; // no glide on note step
+
+	LanesNote rest = engine.step(cMajor);
+	CHECK(rest.isRest());
+
+	LanesNote note = engine.step(cMajor);
+	CHECK(!note.isRest());
+	CHECK_EQUAL(false, note.glide);
+}
+
+TEST(LanesEngineTest, glideWithClockDivision) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.glide.length = 2;
+	engine.glide.values[0] = 0;
+	engine.glide.values[1] = 1;
+	engine.glide.clockDivision = 2; // advance every 2 ticks
+	engine.glide.reset();           // sync divisionCounter to clockDivision
+
+	// Glide lane at clock div 2: reads value then advances
+	// divisionCounter starts at 2, so first advance decrements to 1 (no position change)
+	bool g0 = engine.step(cMajor).glide; // read pos 0 (false), counter 2→1
+	bool g1 = engine.step(cMajor).glide; // read pos 0 (false), counter 1→0, advance to pos 1
+	bool g2 = engine.step(cMajor).glide; // read pos 1 (true),  counter 2→1
+	bool g3 = engine.step(cMajor).glide; // read pos 1 (true),  counter 1→0, advance to pos 0
+	bool g4 = engine.step(cMajor).glide; // read pos 0 (false), counter 2→1
+	CHECK_EQUAL(false, g0);
+	CHECK_EQUAL(false, g1);
+	CHECK_EQUAL(true, g2);
+	CHECK_EQUAL(true, g3);
+	CHECK_EQUAL(false, g4);
+}
+
+TEST(LanesEngineTest, mutedRetriggerReturnsZero) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.retrigger.length = 1;
+	engine.retrigger.values[0] = 3;
+	engine.retrigger.muted = true;
+
+	LanesNote note = engine.step(cMajor);
+	CHECK(!note.isRest());
+	CHECK_EQUAL(0, note.retrigger); // muted → default (0)
+}
+
+TEST(LanesEngineTest, mutedIntervalNoAccumulation) {
+	engine.trigger.length = 1;
+	engine.trigger.values[0] = 1;
+	engine.pitch.length = 1;
+	engine.pitch.values[0] = 0;
+	engine.interval.length = 1;
+	engine.interval.values[0] = 3;
+	engine.interval.muted = true;
+
+	// Step several times — interval should not accumulate when muted
+	for (int i = 0; i < 5; i++) {
+		LanesNote note = engine.step(cMajor);
+		CHECK(!note.isRest());
+		CHECK_EQUAL(60, note.noteCode); // always base note, no interval accumulation
+	}
+	CHECK_EQUAL(0, engine.intervalAccumulator);
+}

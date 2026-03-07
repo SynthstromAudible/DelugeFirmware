@@ -1,6 +1,6 @@
 # Lanes Mode (Generative Lane Sequencer)
 
-Lanes Mode is an alternative sequencing mode for melodic instrument clips (Synth, MIDI, CV). Instead of the traditional note-per-row approach, it uses **9 independent parameter lanes** that combine to generate notes. Each lane controls one aspect of the note (pitch, velocity, gate, etc.) and can have its own length, direction, and clock division — creating polymetric and generative patterns from simple ingredients.
+Lanes Mode is an alternative sequencing mode for melodic instrument clips (Synth, MIDI, CV). Instead of the traditional note-per-row approach, it uses **8 independent parameter lanes** that combine to generate notes. Each lane controls one aspect of the note (pitch, velocity, gate, etc.) and can have its own length, direction, and clock division — creating polymetric and generative patterns from simple ingredients.
 
 ## Entering and Exiting
 
@@ -25,8 +25,6 @@ The grid shows 8 lanes (one per row), with the **trigger lane at the top** and *
 | Row 1 | **RETRIG** | Orange | 0–8 subdivisions per step |
 | Bottom (row 0) | **PROB** | Yellow | 0–100% chance of note firing |
 
-The 9th lane (**GLIDE**, teal) exists in the engine but has no visible grid row.
-
 ### Brightness
 
 Each pad's brightness encodes the step's value — higher absolute values appear brighter. Steps with a value of 0 are dark (off). Steps beyond a lane's length appear as a very dim ghost of the lane color.
@@ -41,7 +39,7 @@ Each lane displays its own independent playhead column, showing which step was m
 
 ## How Notes Are Generated
 
-**All 9 lanes advance independently on every tick** — they free-run regardless of whether the trigger lane fires. The trigger lane only gates the output (whether a note sounds), not the advancement of other lanes. This is what creates true polymetric phasing when lanes have different lengths.
+**All lanes advance independently on every tick** — they free-run regardless of whether the trigger lane fires. The trigger lane only gates the output (whether a note sounds), not the advancement of other lanes. This is what creates true polymetric phasing when lanes have different lengths.
 
 On each step tick (16th note by default):
 
@@ -53,7 +51,7 @@ On each step tick (16th note by default):
 6. **Octave** lane shifts the result up or down by octaves
 7. The combined pitch is clamped to MIDI range (0–127)
 8. **Probability** lane rolls a random check — if it fails, the note becomes a rest
-9. **Velocity**, **Gate**, **Retrigger**, and **Glide** lanes set the note's expression
+9. **Velocity**, **Gate**, and **Retrigger** lanes set the note's expression
 
 Pitch and interval values are **scale-degree offsets** — they follow the current musical key's scale. For example, in C major, a pitch value of +2 means "2 scale degrees up" = E, not D (which would be +2 semitones).
 
@@ -81,13 +79,12 @@ Some lanes support per-step probability (PITCH, OCTAVE, VELOCITY, INTERVAL, RETR
 - For **TRIGGER**: changes the euclidean pattern **length** (the held step doesn't matter)
 - For **PITCH**: shows the resulting note name (e.g., `"C#4"`)
 - For **GATE**: shows `"TIE"`, `"LEGATO"`, or `"GATE: 75%"`
-- For **GLIDE**: no effect (binary lane)
 
 ### Hold pad + turn vertical encoder — Per-step probability / Euclidean pulses
 
 - For lanes with per-step probability (PITCH, OCTAVE, VELOCITY, INTERVAL, RETRIG): adjusts that step's probability in 5% increments. Display: `"PITCH PROB:85%"`
 - For **TRIGGER**: changes the euclidean **pulse count**. Display: `"TRIG LEN:16 P:5"`
-- For GATE, PROB, GLIDE: no effect
+- For GATE, PROB: no effect
 
 ### Hold pad + press horizontal encoder — Randomize step
 

@@ -156,6 +156,8 @@ public:
 	                         bool drawUndefinedArea = true);
 	void renderLanesPads(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                     int32_t imageWidth, int32_t renderWidth);
+	/// Map a display row (0=bottom, 7=top) to a lane index based on output type.
+	int32_t lanesRowToLaneIdx(int32_t yDisplay);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 

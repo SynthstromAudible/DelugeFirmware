@@ -4,6 +4,9 @@
 #include <array>
 #include <cstdint>
 
+class Serializer;
+class Deserializer;
+
 static constexpr uint8_t kMaxLanesSteps = 64;
 
 enum class LaneDirection : uint8_t {
@@ -59,7 +62,7 @@ struct LanesNote {
 	uint8_t velocity{100};
 	uint8_t gate{75}; // matches kDefaultGate
 	uint8_t retrigger{0};
-	bool glide{false};
+	bool glide{false}; // Reserved for future CV glide — not read by playback yet
 
 	bool isRest() const { return noteCode < 0; }
 	static LanesNote rest() { return LanesNote{-1, 0, 0, 0, false}; }
@@ -75,6 +78,23 @@ public:
 	static constexpr const char* kLaneNames[kNumLanes] = {
 	    "TRIGGER", "PITCH", "OCTAVE", "VELOCITY", "GATE", "INTERVAL", "RETRIG", "PROB", "GLIDE",
 	};
+	/// Abbreviated lane names for 7-segment display (max 4 chars)
+	static constexpr const char* kLaneNames7Seg[kNumLanes] = {
+	    "TRIG", "PTCH", "OCTV", "VELC", "GATE", "INTV", "RETR", "PROB", "GLID",
+	};
+
+	/// Number of lanes visible on the grid (always 8, fits the display).
+	/// The glide lane (index 8) exists in the engine but is not mapped to the grid.
+	/// It is intended for CV clips once the CVEngine supports voltage slewing —
+	/// currently CVEngine outputs voltage changes instantly via the DAC with no
+	/// interpolation, so a per-step glide value would have no effect. To activate it:
+	///   1. Add slew rate state to CVChannel (targetVoltage, currentVoltage, glideRate)
+	///   2. Interpolate voltage toward target on each analogOutTick() or audio timer tick
+	///   3. Map glide lane values (0–100) to slew speed
+	///   4. Create a CV-specific lane map that swaps retrigger for glide
+	static constexpr int32_t kVisibleLanes = 8;
+	/// Lane index mapping: maps display row (0=top) to internal lane index
+	static constexpr int32_t kLaneMap[kVisibleLanes] = {0, 1, 2, 3, 4, 5, 6, 7};
 
 	/// Gate special values (above 100% = percentage)
 	static constexpr int16_t kGateTie = 101;
@@ -179,7 +199,7 @@ public:
 	LanesLane gate;
 	LanesLane retrigger;
 	LanesLane probability;
-	LanesLane glide;
+	LanesLane glide; // Currently unused — see kVisibleLanes comment for activation plan
 
 	/// Returns pointer to lane at given index (0=trigger, 1=pitch, ..., 8=glide), or nullptr
 	LanesLane* getLane(int32_t index);
@@ -235,6 +255,10 @@ public:
 
 	/// Randomizes all active steps in a lane within its min/max range.
 	void randomizeLane(int32_t laneIdx);
+
+	/// Serialization
+	void writeToFile(Serializer& writer);
+	void readFromFile(Deserializer& reader);
 
 private:
 	uint32_t rngState_{1};
