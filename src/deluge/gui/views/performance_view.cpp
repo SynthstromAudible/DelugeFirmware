@@ -531,10 +531,11 @@ void PerformanceView::renderViewDisplay() {
 
 /// Render Parameter Name and Value set when using Performance Pads
 void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, int32_t knobPos) {
+	auto* mc = (ModControllableAudio*)view.activeModControllableModelStack.modControllable;
 	if (editingParam) {
 		// display parameter name
 		char parameterName[30];
-		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+		strncpy(parameterName, getParamDisplayName(paramKind, paramID, mc), 29);
 		if (display->haveOLED()) {
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
@@ -561,7 +562,7 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 
 			// display parameter name
 			char parameterName[30];
-			strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+			strncpy(parameterName, getParamDisplayName(paramKind, paramID, mc), 29);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
