@@ -145,6 +145,12 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	}
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
+
+	// Copy lanes engine state
+	lanesModeEnabled = otherInstrumentClip->lanesModeEnabled;
+	if (otherInstrumentClip->lanesEngine) {
+		lanesEngine = std::make_unique<LanesEngine>(*otherInstrumentClip->lanesEngine);
+	}
 }
 
 // Will replace the Clip in the modelStack, if success.
@@ -375,6 +381,16 @@ void InstrumentClip::halveNoteRowsWithIndependentLength(ModelStackWithTimelineCo
 void InstrumentClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos,
                             bool useActualPosForParamManagers) {
 	Clip::setPos(modelStack, newPos, useActualPosForParamManagers); // This will also call our own virtual expectEvent()
+
+	// Reset lanes engine on position change — send note-off first to avoid stuck notes
+	if (lanesEngine) {
+		stopLanesNote(modelStack);
+		lanesRetriggersRemaining_ = 0;
+		lanesRetriggerGapPhase_ = false;
+		lanesGateTicksRemaining_ = 0;
+		lanesTieActive_ = false;
+		lanesEngine->reset();
+	}
 
 	noteRowsNumTicksBehindClip = 0;
 
@@ -696,6 +712,139 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		return; // Is this in case it's created a new Clip or something?
 	}
 
+	// Lanes mode: delegate to engine instead of NoteRow iteration
+	if (lanesModeEnabled && lanesEngine && isOutputMelodic()) {
+		// Step duration depends on song's tick magnitude (6 base ticks << magnitude)
+		const int32_t lanesStepTicks = currentSong->getSixteenthNoteLength();
+		// Gate/retrigger timer processing
+		if (lanesGateTicksRemaining_ > 0) {
+			lanesGateTicksRemaining_ -= ticksSinceLast;
+			if (lanesGateTicksRemaining_ <= 0) {
+				if (lanesRetriggerGapPhase_) {
+					// Gap finished — fire next retrigger hit
+					lanesRetriggerGapPhase_ = false;
+					if (lanesCurrentNote_ >= 0) {
+						int16_t mpeValues[kNumExpressionDimensions] = {0};
+						ModelStackWithThreeMainThings* ms3 =
+						    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+						static_cast<MelodicInstrument*>(output)->sendNote(
+						    ms3, true, lanesCurrentNote_, mpeValues, MIDI_CHANNEL_NONE, lanesRetriggerVelocity_, 0, 0);
+						// Gate = 50% of sub-step
+						lanesGateTicksRemaining_ = std::max(lanesRetriggerSubTicks_ / 2, (int32_t)1);
+					}
+					else {
+						// Note was killed (e.g. by setPos) — cancel remaining retriggers
+						lanesRetriggersRemaining_ = 0;
+						lanesGateTicksRemaining_ = 0;
+					}
+				}
+				else if (lanesRetriggersRemaining_ > 0 && !lanesTieActive_) {
+					// Note-on phase finished — note-off, keep note code for next retrigger hit
+					int16_t mpeValues[kNumExpressionDimensions] = {0};
+					ModelStackWithThreeMainThings* ms3 =
+					    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+					static_cast<MelodicInstrument*>(output)->sendNote(ms3, false, lanesCurrentNote_, mpeValues,
+					                                                  MIDI_CHANNEL_NONE, kDefaultLiftValue);
+					lanesRetriggersRemaining_--;
+					lanesRetriggerGapPhase_ = true;
+					// Gap = remaining 50% of sub-step
+					int32_t gap = lanesRetriggerSubTicks_ - lanesRetriggerSubTicks_ / 2;
+					lanesGateTicksRemaining_ = std::max(gap, (int32_t)1);
+				}
+				else if (!lanesTieActive_) {
+					// Normal gate expired (no retrigger) — note-off
+					stopLanesNote(modelStack);
+					lanesGateTicksRemaining_ = 0;
+				}
+			}
+		}
+
+		if (ticksTilNextNoteRowEvent <= 0) {
+			// Step engine
+			LanesNote note = lanesEngine->step(currentSong->key);
+
+			// Reset retrigger state for new step
+			lanesRetriggersRemaining_ = 0;
+			lanesRetriggerGapPhase_ = false;
+
+			if (!note.isRest()) {
+				int16_t mpeValues[kNumExpressionDimensions] = {0};
+				ModelStackWithThreeMainThings* ms3 =
+				    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+
+				if (note.gate == LanesEngine::kGateTie) {
+					// TIE: sustain note across step boundaries
+					if (lanesCurrentNote_ == note.noteCode && lanesCurrentNote_ >= 0) {
+						// Note still sounding with same pitch — just extend
+						lanesTieActive_ = true;
+						lanesGateTicksRemaining_ = lanesStepTicks;
+					}
+					else {
+						// Note was stopped (gate expired) or different pitch — (re)start
+						stopLanesNote(modelStack);
+						static_cast<MelodicInstrument*>(output)->sendNote(ms3, true, note.noteCode, mpeValues,
+						                                                  MIDI_CHANNEL_NONE, note.velocity, 0, 0);
+						lanesCurrentNote_ = note.noteCode;
+						lanesTieActive_ = true;
+						lanesGateTicksRemaining_ = lanesStepTicks;
+					}
+				}
+				else if (note.gate == LanesEngine::kGateLegato) {
+					// LEGATO: send new note-on BEFORE note-off for smooth pitch transition
+					static_cast<MelodicInstrument*>(output)->sendNote(ms3, true, note.noteCode, mpeValues,
+					                                                  MIDI_CHANNEL_NONE, note.velocity, 0, 0);
+					stopLanesNote(modelStack);
+					lanesCurrentNote_ = note.noteCode;
+					lanesTieActive_ = false;
+					lanesGateTicksRemaining_ = lanesStepTicks;
+				}
+				else {
+					// Normal or retrigger: note-off for previous, then note-on
+					stopLanesNote(modelStack);
+					static_cast<MelodicInstrument*>(output)->sendNote(ms3, true, note.noteCode, mpeValues,
+					                                                  MIDI_CHANNEL_NONE, note.velocity, 0, 0);
+					lanesCurrentNote_ = note.noteCode;
+					lanesTieActive_ = false;
+
+					if (note.retrigger >= 2) {
+						// Retrigger: subdivide step into N hits
+						lanesRetriggersRemaining_ = note.retrigger - 1;
+						lanesRetriggerSubTicks_ = lanesStepTicks / note.retrigger;
+						lanesRetriggerVelocity_ = note.velocity;
+						lanesGateTicksRemaining_ = std::max(lanesRetriggerSubTicks_ / 2, (int32_t)1);
+					}
+					else {
+						// Normal gate (5-100%)
+						int32_t gatePercent = std::clamp((int32_t)note.gate, (int32_t)5, (int32_t)100);
+						lanesGateTicksRemaining_ = lanesStepTicks * gatePercent / 100;
+						if (lanesGateTicksRemaining_ < 1) {
+							lanesGateTicksRemaining_ = 1;
+						}
+					}
+				}
+			}
+			else {
+				// Rest: stop any playing note
+				stopLanesNote(modelStack);
+				lanesTieActive_ = false;
+				lanesGateTicksRemaining_ = 0;
+			}
+
+			ticksTilNextNoteRowEvent = lanesStepTicks;
+			noteRowsNumTicksBehindClip = 0;
+		}
+
+		// Ensure playback handler knows about both step and gate timers
+		int32_t nextEvent = ticksTilNextNoteRowEvent;
+		if (lanesGateTicksRemaining_ > 0 && lanesGateTicksRemaining_ < nextEvent) {
+			nextEvent = lanesGateTicksRemaining_;
+		}
+		if (nextEvent < playbackHandler.swungTicksTilNextEvent) {
+			playbackHandler.swungTicksTilNextEvent = nextEvent;
+		}
+		return;
+	}
+
 	// We already incremented / decremented noteRowsNumTicksBehindClip and ticksTilNextNoteRowEvent, in the call to
 	// incrementPos().
 
@@ -927,10 +1076,9 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 	else {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStackWithNoteRow->addOtherTwoThings(output->toModControllable(), &paramManager);
-		((MelodicInstrument*)output)
-		    ->sendNote(modelStackWithThreeMainThings, true, pendingNoteOn->noteRow->getNoteCode(), mpeValues,
-		               MIDI_CHANNEL_NONE, pendingNoteOn->velocity, pendingNoteOn->sampleSyncLength,
-		               pendingNoteOn->ticksLate);
+		static_cast<MelodicInstrument*>(output)->sendNote(
+		    modelStackWithThreeMainThings, true, pendingNoteOn->noteRow->getNoteCode(), mpeValues, MIDI_CHANNEL_NONE,
+		    pendingNoteOn->velocity, pendingNoteOn->sampleSyncLength, pendingNoteOn->ticksLate);
 	}
 }
 
@@ -1188,9 +1336,25 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 	currentlyRecordingLinearly = false;
 }
 
+void InstrumentClip::stopLanesNote(ModelStackWithTimelineCounter* modelStack) {
+	if (lanesCurrentNote_ >= 0 && isOutputMelodic()) {
+		int16_t mpeValues[kNumExpressionDimensions] = {0};
+		ModelStackWithThreeMainThings* ms3 =
+		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+		static_cast<MelodicInstrument*>(output)->sendNote(ms3, false, lanesCurrentNote_, mpeValues, MIDI_CHANNEL_NONE,
+		                                                  kDefaultLiftValue);
+		lanesCurrentNote_ = -1;
+	}
+}
+
 // Stops currently-playing notes by actually sending a note-off right now.
 // Check that we're allowed to make sound before you call this (nowhere does, is that bad?)
 void InstrumentClip::stopAllNotesPlaying(ModelStackWithTimelineCounter* modelStack, bool actuallySoundChange) {
+	stopLanesNote(modelStack);
+	lanesRetriggersRemaining_ = 0;
+	lanesRetriggerGapPhase_ = false;
+	lanesGateTicksRemaining_ = 0;
+	lanesTieActive_ = false;
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -4043,7 +4207,7 @@ haveNoDrum:
 
 		// If we had a MIDI input channel for this Clip, as was the format pre V2.0, move this to the Instrument
 		if (soundMidiCommand.containsSomething()) {
-			((MelodicInstrument*)output)->midiInput = soundMidiCommand;
+			static_cast<MelodicInstrument*>(output)->midiInput = soundMidiCommand;
 		}
 
 		// Ensure all NoteRows have a NULL Drum pointer

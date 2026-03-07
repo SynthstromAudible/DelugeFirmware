@@ -59,6 +59,8 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/model/sync.cpp
         # For chord tests
         ../../src/deluge/gui/ui/keyboard/chords.cpp
+        # For lanes engine tests
+        ../../src/deluge/model/sequencing/lanes_engine.cpp
 )
 
 add_executable(UnitTests
@@ -72,6 +74,8 @@ add_executable(UnitTests
         sync_tests.cpp
         chord_tests.cpp
         time_tests.cpp
+        lanes_engine_tests.cpp
+        lanes_property_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

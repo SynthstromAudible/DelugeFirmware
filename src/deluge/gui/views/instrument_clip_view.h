@@ -154,6 +154,8 @@ public:
 	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
+	void renderLanesPads(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	                     int32_t imageWidth, int32_t renderWidth);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 
@@ -260,6 +262,7 @@ public:
 
 	// note row editor
 	bool enterNoteRowEditor();
+	bool enterLanesLaneEditor();
 	void exitNoteRowEditor();
 	bool handleNoteRowEditorPadAction(int32_t x, int32_t y, int32_t on);
 	bool handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on);
