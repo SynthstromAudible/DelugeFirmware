@@ -28,6 +28,7 @@
 #include "lib/printf.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "util/functions.h"
 #include "processing/engines/audio_engine.h"
 #include <algorithm>
 #include <string.h>
@@ -236,17 +237,18 @@ void TimelineView::displayScrollPos() {
 void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne,
                                                char const* tooLongText) {
 
-	uint32_t oneBar = currentSong->getBarLength();
+	Clip* clip = getCurrentClip();
+	TimeSignature timeSig = clip ? clip->timeSignature : currentSong->defaultTimeSignature;
+	int32_t tickMag = currentSong->getInputTickMagnitude();
+
+	uint32_t oneBar = increaseMagnitude(timeSig.barLengthInBaseTicks(), tickMag);
+	uint32_t oneBeat = increaseMagnitude(timeSig.beatLengthInBaseTicks(), tickMag);
 
 	uint32_t whichBar = number / oneBar;
-
 	uint32_t posWithinBar = number - whichBar * oneBar;
-
-	uint32_t whichBeat = posWithinBar / (oneBar >> 2);
-
-	uint32_t posWithinBeat = posWithinBar - whichBeat * (oneBar >> 2);
-
-	uint32_t whichSubBeat = posWithinBeat / (oneBar >> 4);
+	uint32_t whichBeat = posWithinBar / oneBeat;
+	uint32_t posWithinBeat = posWithinBar - whichBeat * oneBeat;
+	uint32_t whichSubBeat = posWithinBeat / (oneBeat >> 2);
 
 	if (countFromOne) {
 		whichBar++;
@@ -280,7 +282,7 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 			if (whichBar < 100) {
 				dotMask |= 1 << 2;
 
-				if (quantization >= (oneBar >> 2)) {
+				if (quantization >= oneBeat) {
 					text[2] = ' ';
 					goto putBeatCountOnFarRight;
 				}

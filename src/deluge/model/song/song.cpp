@@ -1130,6 +1130,11 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeAttribute("tripletsLevel", tripletsLevel);
 	}
 
+	if (!defaultTimeSignature.isDefault()) {
+		writer.writeAttribute("defaultTimeSignatureNumerator", defaultTimeSignature.numerator);
+		writer.writeAttribute("defaultTimeSignatureDenominator", defaultTimeSignature.denominator);
+	}
+
 	writer.writeAttribute("affectEntire", affectEntire);
 	writer.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
@@ -1626,6 +1631,20 @@ unknownTag:
 				tripletsLevel = reader.readTagOrAttributeValueInt();
 				reader.exitTag("tripletsLevel");
 				tripletsOn = true;
+			}
+
+			else if (!strcmp(tagName, "defaultTimeSignatureNumerator")) {
+				defaultTimeSignature.numerator = static_cast<uint8_t>(
+				    std::clamp(reader.readTagOrAttributeValueInt(), int32_t{1}, int32_t{32}));
+				reader.exitTag("defaultTimeSignatureNumerator");
+			}
+
+			else if (!strcmp(tagName, "defaultTimeSignatureDenominator")) {
+				int32_t val = reader.readTagOrAttributeValueInt();
+				if (val == 2 || val == 4 || val == 8 || val == 16) {
+					defaultTimeSignature.denominator = static_cast<uint8_t>(val);
+				}
+				reader.exitTag("defaultTimeSignatureDenominator");
 			}
 
 			else if (!strcmp(tagName, "activeModFunction")) {

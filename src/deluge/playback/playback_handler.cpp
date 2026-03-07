@@ -411,7 +411,11 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	if (allowCountIn && !doingTempolessRecord && recording == RecordingMode::NORMAL && countInBars
 	    && (!currentUIMode || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) && getCurrentUI() == rootUI) {
 
-		ticksLeftInCountIn = currentSong->getBarLength() * countInBars;
+		Clip* countInClip = getCurrentClip();
+		TimeSignature countInTimeSig =
+		    countInClip ? countInClip->timeSignature : currentSong->defaultTimeSignature;
+		ticksLeftInCountIn =
+		    increaseMagnitude(countInTimeSig.barLengthInBaseTicks(), currentSong->getInputTickMagnitude()) * countInBars;
 		currentVisualCountForCountIn = 0; // Reset it. In a moment it'll display as 4 - 12.
 		currentUIMode = UI_MODE_RECORD_COUNT_IN;
 	}
@@ -715,7 +719,11 @@ void PlaybackHandler::actionTimerTickPart2() {
 	// But if count-in happening, limit it to one bar's length (or perhaps this should be one beat, to avoid slight
 	// screwiness with very long swing intervals?)
 	if (ticksLeftInCountIn) {
-		uint32_t limit = currentSong->getBarLength();
+		Clip* countInClip = getCurrentClip();
+		TimeSignature countInTimeSig =
+		    countInClip ? countInClip->timeSignature : currentSong->defaultTimeSignature;
+		uint32_t limit =
+		    increaseMagnitude(countInTimeSig.barLengthInBaseTicks(), currentSong->getInputTickMagnitude());
 		if (timeTilNextTimerTick > limit) {
 			timeTilNextTimerTick = limit;
 		}
@@ -940,17 +948,22 @@ doMetronome:
 					currentMetronomeTick += metronomeOffset;
 				}
 
-				uint32_t swungTicksPerQuarterNote = currentSong->getQuarterNoteLength();
+				Clip* metroClip = getCurrentClip();
+				TimeSignature metroTimeSig =
+				    metroClip ? metroClip->timeSignature : currentSong->defaultTimeSignature;
+				int32_t tickMag = currentSong->getInputTickMagnitude();
+				uint32_t oneBeat = increaseMagnitude(metroTimeSig.beatLengthInBaseTicks(), tickMag);
+				uint32_t oneBar = increaseMagnitude(metroTimeSig.barLengthInBaseTicks(), tickMag);
 
-				if ((currentMetronomeTick % swungTicksPerQuarterNote) == 0) {
+				if ((currentMetronomeTick % oneBeat) == 0) {
 					uint32_t phaseIncrement =
-					    ((currentMetronomeTick % (swungTicksPerQuarterNote << 2)) == 0) ? 128411753 : 50960238;
+					    ((currentMetronomeTick % oneBar) == 0) ? 128411753 : 50960238;
 					AudioEngine::metronome.trigger(phaseIncrement);
 				}
 
-				int32_t ticksIntoCurrentBeep = currentMetronomeTick % swungTicksPerQuarterNote;
+				int32_t ticksIntoCurrentBeep = currentMetronomeTick % oneBeat;
 				int32_t swungTicksTilNextMetronomeEvent =
-				    swungTicksPerQuarterNote - ticksIntoCurrentBeep; // Ticks til next beep
+				    oneBeat - ticksIntoCurrentBeep; // Ticks til next beep
 				swungTicksTilNextEvent = std::min(swungTicksTilNextEvent, swungTicksTilNextMetronomeEvent);
 			}
 		}
