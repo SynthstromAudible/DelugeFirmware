@@ -28,8 +28,8 @@
 #include "lib/printf.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "util/functions.h"
 #include "processing/engines/audio_engine.h"
+#include "util/functions.h"
 #include <algorithm>
 #include <string.h>
 

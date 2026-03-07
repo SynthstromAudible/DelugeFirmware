@@ -1634,8 +1634,8 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "defaultTimeSignatureNumerator")) {
-				defaultTimeSignature.numerator = static_cast<uint8_t>(
-				    std::clamp(reader.readTagOrAttributeValueInt(), int32_t{1}, int32_t{32}));
+				defaultTimeSignature.numerator =
+				    static_cast<uint8_t>(std::clamp(reader.readTagOrAttributeValueInt(), int32_t{1}, int32_t{32}));
 				reader.exitTag("defaultTimeSignatureNumerator");
 			}
 

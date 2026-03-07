@@ -21,9 +21,27 @@
 #include "gui/ui/root_ui.h"
 #include "hid/display/display.h"
 #include "model/clip/clip.h"
+#include "model/song/song.h"
+#include "util/functions.h"
+#include <algorithm>
 #include <cstddef>
 
 namespace deluge::gui::context_menu::clip_settings {
+
+// Resize clip loopLength proportionally when time signature changes.
+// Preserves the number of bars: newLength = loopLength * newBarTicks / oldBarTicks.
+// Clamps to at least one new bar.
+static void resizeClipForTimeSignature(Clip* clip, TimeSignature oldSig) {
+	int32_t tickMag = currentSong->getInputTickMagnitude();
+	int32_t oldBar = increaseMagnitude(oldSig.barLengthInBaseTicks(), tickMag);
+	int32_t newBar = increaseMagnitude(clip->timeSignature.barLengthInBaseTicks(), tickMag);
+	if (oldBar == newBar || oldBar == 0) {
+		return;
+	}
+	// Scale proportionally, rounding to nearest whole new bar
+	int32_t numBars = std::max((clip->loopLength + oldBar / 2) / oldBar, int32_t{1});
+	clip->loopLength = numBars * newBar;
+}
 
 // ============ TimeSignatureMenu (top-level: Numerator / Denominator) ============
 
@@ -96,7 +114,9 @@ bool TimeSignatureNumeratorMenu::setupAndCheckAvailability() {
 
 void TimeSignatureNumeratorMenu::selectEncoderAction(int8_t offset) {
 	ContextMenu::selectEncoderAction(offset);
+	TimeSignature oldSig = clip->timeSignature;
 	clip->timeSignature.numerator = static_cast<uint8_t>(this->currentOption + 1);
+	resizeClipForTimeSignature(clip, oldSig);
 }
 
 // ============ TimeSignatureDenominatorMenu (2, 4, 8, 16) ============
@@ -136,7 +156,9 @@ bool TimeSignatureDenominatorMenu::setupAndCheckAvailability() {
 
 void TimeSignatureDenominatorMenu::selectEncoderAction(int8_t offset) {
 	ContextMenu::selectEncoderAction(offset);
+	TimeSignature oldSig = clip->timeSignature;
 	clip->timeSignature.denominator = kDenominatorValues[this->currentOption];
+	resizeClipForTimeSignature(clip, oldSig);
 }
 
 } // namespace deluge::gui::context_menu::clip_settings

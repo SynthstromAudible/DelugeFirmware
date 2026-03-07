@@ -1490,7 +1490,7 @@ LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* curre
 			    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 
 				TimeSignature clipTimeSig =
-			    waitForClip ? waitForClip->timeSignature : currentSong->defaultTimeSignature;
+				    waitForClip ? waitForClip->timeSignature : currentSong->defaultTimeSignature;
 				int32_t tickMag = currentSong->getInputTickMagnitude();
 				uint32_t oneBar = increaseMagnitude(clipTimeSig.barLengthInBaseTicks(), tickMag);
 				uint32_t oneBeat = increaseMagnitude(clipTimeSig.beatLengthInBaseTicks(), tickMag);
