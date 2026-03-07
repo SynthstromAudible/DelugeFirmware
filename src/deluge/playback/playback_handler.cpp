@@ -910,7 +910,9 @@ void PlaybackHandler::actionSwungTick() {
 				display->displayPopup(buffer, 0, true, 255, 2);
 			}
 			swungTicksTilNextEvent = 2147483647;
-			goto doMetronome;
+			if (metronomeOn) {
+				goto doMetronome;
+			}
 		}
 	}
 
