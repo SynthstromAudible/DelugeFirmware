@@ -338,6 +338,7 @@ GranularProcessor::GranularProcessor(const GranularProcessor& other) {
 	_pitchRandomness = other._pitchRandomness;
 	grainLastTickCountIsZero = true;
 	grainInitialized = false;
+	grainBuffer = nullptr;
 	getBuffer();
 }
 void GranularProcessor::startSkippingRendering() {
