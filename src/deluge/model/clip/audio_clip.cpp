@@ -518,6 +518,14 @@ void AudioClip::setupPlaybackBounds() {
 	if (sampleHolder.audioFile) {
 		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength;
 		guide.sequenceSyncLengthTicks = length;
+		if (tempoRatioNumerator != tempoRatioDenominator) {
+			guide.tempoRatioNumerator = tempoRatioNumerator;
+			guide.tempoRatioDenominator = tempoRatioDenominator;
+		}
+		else {
+			guide.tempoRatioNumerator = 1;
+			guide.tempoRatioDenominator = 1;
+		}
 		guide.setupPlaybackBounds(sampleControls.isCurrentlyReversed());
 	}
 }
@@ -578,8 +586,12 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 	}
 
 	uint32_t sampleLengthInSamples = sampleHolder.getDurationInSamples(true); // In the sample rate of the file!
-	uint32_t clipLengthInSamples =
-	    (playbackHandler.getTimePerInternalTickBig() * loopLength) >> 32; // We haven't rounded... should we?
+	uint64_t timePerTickBig = playbackHandler.getTimePerInternalTickBig();
+	if (tempoRatioNumerator != tempoRatioDenominator) {
+		// Each clip-tick takes D/N × globalTimePerTick in wall-clock time
+		timePerTickBig = (timePerTickBig * tempoRatioDenominator) / tempoRatioNumerator;
+	}
+	uint32_t clipLengthInSamples = (timePerTickBig * loopLength) >> 32;
 
 	// To stop things getting insane, limit to 32x speed
 	// if ((sampleLengthInSamples >> 5) > clipLengthInSamples) return false;
