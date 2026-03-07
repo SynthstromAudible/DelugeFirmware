@@ -786,8 +786,50 @@ void PlaybackHandler::doTriggerClockOutTick() {
 	}
 }
 
+// Maximum catch-up ticks per input tick to prevent ISR overrun (2 bars at 24ppqn)
+static constexpr int32_t kMaxClockCatchUpTicks = 48;
+
 // Check these are enabled before calling this!
 void PlaybackHandler::scheduleTriggerClockOutTick() {
+
+	if (isExternalClockActive()) {
+		uint32_t internalTicksPer;
+		uint32_t analogOutTicksPer;
+		getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
+
+		uint32_t inputTicksPer;
+		uint32_t internalTicksPerInput;
+		getInternalTicksToInputTicksRatio(&inputTicksPer, &internalTicksPerInput);
+
+		int64_t currentInternalTick = lastInputTickReceived * internalTicksPerInput / inputTicksPer;
+
+		int64_t nextAnalogOutTick = lastTriggerClockOutTickDone + 1;
+		int64_t internalTickForNextAnalogOut = nextAnalogOutTick * internalTicksPer / analogOutTicksPer;
+
+		int32_t catchUpCount = 0;
+		while (internalTickForNextAnalogOut <= currentInternalTick && catchUpCount < kMaxClockCatchUpTicks) {
+			doTriggerClockOutTick();
+			nextAnalogOutTick = lastTriggerClockOutTickDone + 1;
+			internalTickForNextAnalogOut = nextAnalogOutTick * internalTicksPer / analogOutTicksPer;
+			catchUpCount++;
+		}
+		if (catchUpCount >= kMaxClockCatchUpTicks) {
+			resyncAnalogOutTicksToInternalTicks();
+			return;
+		}
+
+		int64_t internalTicksUntilNextAnalogOut = internalTickForNextAnalogOut - currentInternalTick;
+
+		if (internalTicksUntilNextAnalogOut > 0 && timePerInputTickMovingAverage > 0) {
+			uint32_t timeUntilNextAnalogOut =
+			    (uint32_t)((uint64_t)internalTicksUntilNextAnalogOut * timePerInputTickMovingAverage * inputTicksPer
+			               / internalTicksPerInput);
+
+			triggerClockOutTickScheduled = true;
+			timeNextTriggerClockOutTick = timeLastInputTicks[0] + timeUntilNextAnalogOut;
+		}
+		return;
+	}
 
 	uint32_t internalTicksPer;
 	uint32_t analogOutTicksPer;
@@ -812,6 +854,45 @@ void PlaybackHandler::scheduleTriggerClockOutTickParamsKnown(uint32_t analogOutT
 
 // Check these are enabled before calling this!
 void PlaybackHandler::scheduleMIDIClockOutTick() {
+
+	if (isExternalClockActive()) {
+		uint32_t internalTicksPer;
+		uint32_t midiClockOutTicksPer;
+		getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
+
+		uint32_t inputTicksPer;
+		uint32_t internalTicksPerInput;
+		getInternalTicksToInputTicksRatio(&inputTicksPer, &internalTicksPerInput);
+
+		int64_t currentInternalTick = lastInputTickReceived * internalTicksPerInput / inputTicksPer;
+
+		int64_t nextMIDIClockOutTick = lastMIDIClockOutTickDone + 1;
+		int64_t internalTickForNextMIDIOut = nextMIDIClockOutTick * internalTicksPer / midiClockOutTicksPer;
+
+		int32_t catchUpCount = 0;
+		while (internalTickForNextMIDIOut <= currentInternalTick && catchUpCount < kMaxClockCatchUpTicks) {
+			doMIDIClockOutTick();
+			nextMIDIClockOutTick = lastMIDIClockOutTickDone + 1;
+			internalTickForNextMIDIOut = nextMIDIClockOutTick * internalTicksPer / midiClockOutTicksPer;
+			catchUpCount++;
+		}
+		if (catchUpCount >= kMaxClockCatchUpTicks) {
+			resyncMIDIClockOutTicksToInternalTicks();
+			return;
+		}
+
+		int64_t internalTicksUntilNextMIDIOut = internalTickForNextMIDIOut - currentInternalTick;
+
+		if (internalTicksUntilNextMIDIOut > 0 && timePerInputTickMovingAverage > 0) {
+			uint32_t timeUntilNextMIDIOut =
+			    (uint32_t)((uint64_t)internalTicksUntilNextMIDIOut * timePerInputTickMovingAverage * inputTicksPer
+			               / internalTicksPerInput);
+
+			midiClockOutTickScheduled = true;
+			timeNextMIDIClockOutTick = timeLastInputTicks[0] + timeUntilNextMIDIOut;
+		}
+		return;
+	}
 
 	uint32_t internalTicksPer;
 	uint32_t midiClockOutTicksPer;
@@ -1847,6 +1928,16 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	// re-schedule it now we have more information?
 	if (!swungTickScheduled) {
 		scheduleSwungTickFromExternalClock();
+	}
+
+	// Schedule clock output ticks. Under external clock, timer ticks don't fire, so we must
+	// schedule clock output from here using the input tick time base. Unlike swung ticks, we
+	// always reschedule on every input tick to keep timing aligned with the latest tempo estimate.
+	if (cvEngine.isTriggerClockOutputEnabled()) {
+		scheduleTriggerClockOutTick();
+	}
+	if (currentlySendingMIDIOutputClocks()) {
+		scheduleMIDIClockOutTick();
 	}
 }
 
