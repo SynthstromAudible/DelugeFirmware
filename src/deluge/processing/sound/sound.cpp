@@ -137,6 +137,7 @@ void Sound::initParams(ParamManager* paramManager) {
 
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_SUSTAIN_PEDAL].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_SOFT_PEDAL].setCurrentValueBasicForSetup(-2147483648);
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	patchedParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(0);
@@ -1518,6 +1519,11 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	}
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+
+	// CC67 soft pedal — reduce velocity when active (traditional una corda: ~2/3 velocity)
+	if (unpatchedParams->getValue(params::UNPATCHED_SOFT_PEDAL) >= 0) {
+		velocity = std::max((velocity * 2 + 1) / 3, int32_t{1});
+	}
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	if (arpSettings != nullptr) {

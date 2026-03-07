@@ -410,6 +410,14 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			return;
 		}
 
+		// CC67 soft pedal — route to unpatched param for internal synths (scales velocity on note-on)
+		if (ccNumber == CC_EXTERNAL_SOFT_PEDAL && type != OutputType::MIDI_OUT) {
+			int32_t paramValue = (value >= 64) ? 2147483647 : -2147483648;
+			processPedalParam(deluge::modulation::params::UNPATCHED_SOFT_PEDAL, paramValue,
+			                  modelStackWithTimelineCounter);
+			return;
+		}
+
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this
 		// themselves
 		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
@@ -450,6 +458,33 @@ void MelodicInstrument::processSustainPedalParam(int32_t newValue, ModelStackWit
 
 	ModelStackWithAutoParam* modelStackWithParam =
 	    modelStackWith3Things->getUnpatchedAutoParamFromId(deluge::modulation::params::UNPATCHED_SUSTAIN_PEDAL);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength,
+		                                                          false);
+	}
+}
+
+void MelodicInstrument::processPedalParam(int32_t paramId, int32_t newValue,
+                                          ModelStackWithTimelineCounter* modelStack) {
+	int32_t modPos = 0;
+	int32_t modLength = 0;
+
+	if (modelStack->timelineCounterIsSet()) {
+		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+
+		if (view.modLength
+		    && modelStack->getTimelineCounter() == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			modPos = view.modPos;
+			modLength = view.modLength;
+		}
+	}
+
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
+	ModelStackWithThreeMainThings* modelStackWith3Things =
+	    modelStackWithNoteRow->addOtherTwoThings(toModControllable(), getParamManager(modelStack->song));
+
+	ModelStackWithAutoParam* modelStackWithParam = modelStackWith3Things->getUnpatchedAutoParamFromId(paramId);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength,
