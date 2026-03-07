@@ -332,6 +332,8 @@ activenessDetermined:
 
 	previouslyIgnoredNoteOff = false;
 	sustainPedalNoteOff = false;
+	sostenutoHeld = false;
+	sostenutoPedalNoteOff = false;
 	expressionSourcesCurrentlySmoothing.reset();
 	filterGainLastTime = 0;
 
@@ -581,8 +583,18 @@ void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage
 			sustainPedalNoteOff = true;
 			return;
 		}
+
+		// Check sostenuto pedal — only holds notes that were captured when pedal went down
+		if (sostenutoHeld) {
+			int32_t sostenutoValue = unpatchedParams->getValue(params::UNPATCHED_SOSTENUTO_PEDAL);
+			if (sostenutoValue >= 0) {
+				sostenutoPedalNoteOff = true;
+				return;
+			}
+		}
 	}
 	sustainPedalNoteOff = false;
+	sostenutoPedalNoteOff = false;
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		guides[s].noteOffReceived = true;
@@ -748,6 +760,15 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 		int32_t sustainValue = unpatchedParams->getValue(params::UNPATCHED_SUSTAIN_PEDAL);
 		if (sustainValue < 0) {
+			noteOff(modelStack);
+		}
+	}
+
+	// If sostenuto pedal held this note, check if pedal has been released
+	if (sostenutoPedalNoteOff) {
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+		int32_t sostenutoValue = unpatchedParams->getValue(params::UNPATCHED_SOSTENUTO_PEDAL);
+		if (sostenutoValue < 0) {
 			noteOff(modelStack);
 		}
 	}

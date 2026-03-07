@@ -84,6 +84,8 @@ public:
 	bool doneFirstRender;
 	bool previouslyIgnoredNoteOff;
 	bool sustainPedalNoteOff{false};
+	bool sostenutoHeld{false};
+	bool sostenutoPedalNoteOff{false};
 
 	uint32_t orderSounded;
 

@@ -121,7 +121,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 85;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 86;
 constexpr int32_t kNumGlobalParamsForAutomation = 39;
 constexpr int32_t kParamNodeWidth = 3;
 
@@ -233,6 +233,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO},
     // Sustain Pedal
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SUSTAIN_PEDAL},
+    // Sostenuto Pedal
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SOSTENUTO_PEDAL},
     // Soft Pedal
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SOFT_PEDAL},
     // Stutter Rate
@@ -851,7 +853,9 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 					if ((outputType == OutputType::KIT)
 					    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO
 					        || unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_SUSTAIN_PEDAL
-					        || unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_SOFT_PEDAL)) {
+					        || unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_SOFT_PEDAL
+					        || unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]
+					               == params::UNPATCHED_SOSTENUTO_PEDAL)) {
 						pixel = colours::black; // erase pad
 						continue;
 					}
@@ -2614,7 +2618,8 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		if ((outputType == OutputType::KIT)
 		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO
 		        || unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_SUSTAIN_PEDAL
-		        || unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_SOFT_PEDAL)) {
+		        || unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_SOFT_PEDAL
+		        || unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_SOSTENUTO_PEDAL)) {
 			return; // no parameter selected, don't re-render grid;
 		}
 
@@ -4639,7 +4644,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 			auto [kind, id] = nonGlobalParamsForAutomation[idx];
 			if ((clip->output->type == OutputType::KIT) && (kind == params::Kind::UNPATCHED_SOUND)
 			    && (id == params::UNPATCHED_PORTAMENTO || id == params::UNPATCHED_SUSTAIN_PEDAL
-			        || id == params::UNPATCHED_SOFT_PEDAL)) {
+			        || id == params::UNPATCHED_SOFT_PEDAL || id == params::UNPATCHED_SOSTENUTO_PEDAL)) {
 				if (offset < 0) {
 					offset -= 1;
 				}

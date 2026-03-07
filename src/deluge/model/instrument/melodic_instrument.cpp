@@ -410,6 +410,21 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			return;
 		}
 
+		// CC66 sostenuto pedal — captures currently-held notes, releases them on pedal up
+		if (ccNumber == CC_EXTERNAL_SOSTENUTO_PEDAL && type != OutputType::MIDI_OUT) {
+			int32_t paramValue = (value >= 64) ? 2147483647 : -2147483648;
+			processPedalParam(deluge::modulation::params::UNPATCHED_SOSTENUTO_PEDAL, paramValue,
+			                  modelStackWithTimelineCounter);
+
+			if (value >= 64) {
+				captureSostenutoVoices(modelStackWithTimelineCounter);
+			}
+			else {
+				releaseSostenutoVoices(modelStackWithTimelineCounter);
+			}
+			return;
+		}
+
 		// CC67 soft pedal — route to unpatched param for internal synths (scales velocity on note-on)
 		if (ccNumber == CC_EXTERNAL_SOFT_PEDAL && type != OutputType::MIDI_OUT) {
 			int32_t paramValue = (value >= 64) ? 2147483647 : -2147483648;
@@ -506,6 +521,41 @@ void MelodicInstrument::releaseSustainedVoices(ModelStackWithTimelineCounter* mo
 
 	for (const auto& voice : soundInstrument->voices()) {
 		if (voice->sustainPedalNoteOff) {
+			voice->noteOff(modelStackWithSoundFlags, true, true); // ignoreSustain — force release
+		}
+	}
+}
+
+void MelodicInstrument::captureSostenutoVoices(ModelStackWithTimelineCounter* modelStack) {
+	if (type != OutputType::SYNTH) {
+		return;
+	}
+
+	auto* soundInstrument = static_cast<SoundInstrument*>(this);
+
+	// Mark all currently-sounding voices (not yet in release) as held by sostenuto
+	for (const auto& voice : soundInstrument->voices()) {
+		if (voice->envelopes[0].state < EnvelopeStage::RELEASE) {
+			voice->sostenutoHeld = true;
+		}
+	}
+}
+
+void MelodicInstrument::releaseSostenutoVoices(ModelStackWithTimelineCounter* modelStack) {
+	if (type != OutputType::SYNTH) {
+		return;
+	}
+
+	auto* soundInstrument = static_cast<SoundInstrument*>(this);
+
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
+	ModelStackWithThreeMainThings* modelStackWith3Things =
+	    modelStackWithNoteRow->addOtherTwoThings(toModControllable(), getParamManager(modelStack->song));
+	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWith3Things->addSoundFlags();
+
+	for (const auto& voice : soundInstrument->voices()) {
+		if (voice->sostenutoPedalNoteOff) {
+			voice->sostenutoHeld = false;
 			voice->noteOff(modelStackWithSoundFlags, true, true); // ignoreSustain — force release
 		}
 	}
