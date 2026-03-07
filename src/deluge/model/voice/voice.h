@@ -83,6 +83,9 @@ public:
 	int32_t filterGainLastTime;
 	bool doneFirstRender;
 	bool previouslyIgnoredNoteOff;
+	bool sustainPedalNoteOff{false};
+	bool sostenutoHeld{false};
+	bool sostenutoPedalNoteOff{false};
 
 	uint32_t orderSounded;
 
@@ -101,7 +104,7 @@ public:
 	bool noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	            int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate,
 	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
-	void noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage = true);
+	void noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage = true, bool ignoreSustain = false);
 
 	void randomizeOscPhases(const Sound& sound);
 	void changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,

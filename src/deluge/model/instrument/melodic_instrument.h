@@ -99,6 +99,12 @@ public:
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                bool affectEntire, bool useMenuStack) override;
 
+	void releaseSustainedVoices(ModelStackWithTimelineCounter* modelStack);
+
 private:
 	void possiblyRefreshAutomationEditorGrid(int32_t ccNumber);
+	void processSustainPedalParam(int32_t newValue, ModelStackWithTimelineCounter* modelStack);
+	void processPedalParam(int32_t paramId, int32_t newValue, ModelStackWithTimelineCounter* modelStack);
+	void captureSostenutoVoices(ModelStackWithTimelineCounter* modelStack);
+	void releaseSostenutoVoices(ModelStackWithTimelineCounter* modelStack);
 };

@@ -331,6 +331,9 @@ activenessDetermined:
 	}
 
 	previouslyIgnoredNoteOff = false;
+	sustainPedalNoteOff = false;
+	sostenutoHeld = false;
+	sostenutoPedalNoteOff = false;
 	expressionSourcesCurrentlySmoothing.reset();
 	filterGainLastTime = 0;
 
@@ -567,14 +570,37 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	}
 }
 
-void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage) {
+void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage, bool ignoreSustain) {
+
+	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
+
+	// Check sustain pedal — if active, defer the note-off instead of releasing
+	if (!ignoreSustain && !sound.isDrum()) {
+		auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+		int32_t sustainValue = unpatchedParams->getValue(params::UNPATCHED_SUSTAIN_PEDAL);
+		if (sustainValue >= 0) {
+			sustainPedalNoteOff = true;
+			return;
+		}
+
+		// Check sostenuto pedal — only holds notes that were captured when pedal went down
+		if (sostenutoHeld) {
+			int32_t sostenutoValue = unpatchedParams->getValue(params::UNPATCHED_SOSTENUTO_PEDAL);
+			if (sostenutoValue >= 0) {
+				sostenutoPedalNoteOff = true;
+				return;
+			}
+		}
+	}
+	sustainPedalNoteOff = false;
+	sostenutoPedalNoteOff = false;
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		guides[s].noteOffReceived = true;
 	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
-	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
 	// Only do it if note-offs are meant to be processed for this sound. Otherwise ignore it.
 	if (sound.allowNoteTails(modelStack, true)) {
@@ -727,6 +753,24 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	// now waiting for a note-off again
 	if (previouslyIgnoredNoteOff && sound.allowNoteTails(modelStack, true)) {
 		noteOff(modelStack);
+	}
+
+	// If sustain pedal held this note, check if pedal has been released (handles automation-driven transitions)
+	if (sustainPedalNoteOff) {
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+		int32_t sustainValue = unpatchedParams->getValue(params::UNPATCHED_SUSTAIN_PEDAL);
+		if (sustainValue < 0) {
+			noteOff(modelStack);
+		}
+	}
+
+	// If sostenuto pedal held this note, check if pedal has been released
+	if (sostenutoPedalNoteOff) {
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+		int32_t sostenutoValue = unpatchedParams->getValue(params::UNPATCHED_SOSTENUTO_PEDAL);
+		if (sostenutoValue < 0) {
+			noteOff(modelStack);
+		}
 	}
 
 	// Do envelopes - if they're patched to something (always do the first one though)
