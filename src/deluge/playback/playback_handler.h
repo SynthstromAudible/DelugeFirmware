@@ -151,7 +151,9 @@ public:
 	// User options
 	bool metronomeOn;
 	bool midiOutClockEnabled;
+	bool midiOutTransportEnabled;
 	bool midiInClockEnabled;
+	bool midiInTransportEnabled;
 	bool tempoMagnitudeMatchingEnabled;
 	uint8_t countInBars;
 
@@ -209,6 +211,7 @@ public:
 	void actionSwungTick();
 	void scheduleSwungTickFromInternalClock();
 	bool currentlySendingMIDIOutputClocks();
+	bool currentlySendingMIDIOutputTransport();
 
 	inline bool isExternalClockActive() { return (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE); }
 	inline bool isInternalClockActive() { return (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE); }
