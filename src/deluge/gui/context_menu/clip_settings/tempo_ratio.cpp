@@ -100,8 +100,7 @@ static void generateLabels() {
 		return;
 	}
 	for (size_t i = 0; i < kNumRatios; i++) {
-		unsigned int pct =
-		    (kRatios[i].numerator * 100 + kRatios[i].denominator / 2) / kRatios[i].denominator;
+		unsigned int pct = (kRatios[i].numerator * 100 + kRatios[i].denominator / 2) / kRatios[i].denominator;
 		char* p = labelBuffers[i];
 		p = writeUint(p, pct);
 		*p++ = '%';
