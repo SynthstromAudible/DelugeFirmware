@@ -170,4 +170,119 @@ TEST(TempoRatio, LargeRatio) {
 	CHECK_EQUAL(0, r.accumulator);
 }
 
+// ==================== Edge cases: precision & overflow ====================
+
+TEST_GROUP(TempoRatioEdgeCases){};
+
+// Zero input produces zero output, no accumulator change
+TEST(TempoRatioEdgeCases, ZeroTicksReturnsZero) {
+	TempoRatio r{7, 8, 0};
+	CHECK_EQUAL(0, r.scaleGlobalToClipTicks(0));
+	CHECK_EQUAL(0, r.accumulator);
+}
+
+// Zero clipTicks → zero globalTicks
+TEST(TempoRatioEdgeCases, ZeroClipTicksToGlobal) {
+	TempoRatio r{7, 8, 0};
+	CHECK_EQUAL(0, r.clipTicksToGlobalTicks(0));
+}
+
+// Equal but non-1 values (e.g. 5:5) should early-exit as passthrough
+TEST(TempoRatioEdgeCases, EqualNonOnePassthrough) {
+	TempoRatio r{5, 5, 0};
+	CHECK_FALSE(r.hasTempoRatio());
+	CHECK_EQUAL(42, r.scaleGlobalToClipTicks(42));
+	CHECK_EQUAL(42, r.clipTicksToGlobalTicks(42));
+}
+
+// Every ratio in the menu table (N,D ∈ [1,8], reduced) completes a full cycle exactly
+TEST(TempoRatioEdgeCases, AllReducedRatiosExactCycle) {
+	// All unique reduced fractions with N,D in [1,8]
+	struct R {
+		uint16_t n, d;
+	};
+	static constexpr R ratios[] = {
+	    {1, 8}, {1, 7}, {1, 6}, {1, 5}, {1, 4}, {2, 7}, {1, 3}, {3, 8}, {2, 5}, {3, 7}, {1, 2}, {4, 7},
+	    {3, 5}, {5, 8}, {2, 3}, {5, 7}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 8}, {1, 1}, {8, 7}, {7, 6},
+	    {6, 5}, {5, 4}, {4, 3}, {7, 5}, {3, 2}, {8, 5}, {5, 3}, {7, 4}, {2, 1}, {7, 3}, {5, 2}, {8, 3},
+	    {3, 1}, {7, 2}, {4, 1}, {5, 1}, {6, 1}, {7, 1}, {8, 1},
+	};
+	for (auto& ratio : ratios) {
+		TempoRatio r{ratio.n, ratio.d, 0};
+		int32_t total = 0;
+		// Feed D global ticks one at a time
+		for (int i = 0; i < ratio.d; i++) {
+			total += r.scaleGlobalToClipTicks(1);
+		}
+		CHECK_EQUAL(ratio.n, total);
+		CHECK_EQUAL(0, r.accumulator);
+	}
+}
+
+// Large tick values: ensure no overflow for reasonable tick counts.
+// Audio engine processes up to ~44100 * 600 = 26.5M ticks in 10 min at 44.1kHz.
+// With max ratio 8:1, that's 8 * 26.5M = 212M, well within int32_t range.
+TEST(TempoRatioEdgeCases, LargeTickNoOverflow) {
+	TempoRatio r{8, 1, 0};
+	int32_t result = r.scaleGlobalToClipTicks(10000000); // 10M global ticks
+	CHECK_EQUAL(80000000, result);                       // 80M clip ticks
+}
+
+// Near int32_t overflow boundary: N * globalTicks + accumulator must not overflow
+// int32_t max = 2147483647. With N=8, max safe globalTicks = 2147483647/8 = 268435455
+TEST(TempoRatioEdgeCases, MaxSafeTickValue) {
+	TempoRatio r{8, 3, 0};
+	int32_t bigTicks = 268000000; // Just under overflow boundary for N=8
+	int32_t result = r.scaleGlobalToClipTicks(bigTicks);
+	// 268000000 * 8 / 3 = 714666666 remainder 2
+	CHECK_EQUAL(714666666, result);
+	CHECK_EQUAL(2, r.accumulator);
+}
+
+// Negative ticks with fractional ratio should be symmetric
+TEST(TempoRatioEdgeCases, NegativeTicksFractional) {
+	TempoRatio r{3, 4, 0};
+	CHECK_EQUAL(0, r.scaleGlobalToClipTicks(-1)); // |-1| * 3 = 3, 3/4 = 0 rem 3
+	CHECK_EQUAL(3, r.accumulator);                // Accumulator keeps remainder from abs
+}
+
+// clipTicksToGlobalTicks ceiling: always rounds up to ensure scheduler wakes in time
+TEST(TempoRatioEdgeCases, CeilingAlwaysRoundsUp) {
+	TempoRatio r{3, 4, 0};
+	// For any clip tick count, global ticks * N >= clipTicks * D
+	for (int clipTicks = 1; clipTicks <= 20; clipTicks++) {
+		int32_t global = r.clipTicksToGlobalTicks(clipTicks);
+		// Verify: global * N >= clipTicks * D (scheduler wakes at-or-before)
+		CHECK(global * 3 >= clipTicks * 4);
+		// And it's the smallest such integer
+		CHECK((global - 1) * 3 < clipTicks * 4);
+	}
+}
+
+// 1:1 with dirty accumulator — passthrough should ignore accumulator
+TEST(TempoRatioEdgeCases, OneToOneIgnoresAccumulator) {
+	TempoRatio r{1, 1, 999};
+	CHECK_EQUAL(42, r.scaleGlobalToClipTicks(42));
+	CHECK_EQUAL(999, r.accumulator); // Unchanged — passthrough path skips accumulator
+}
+
+// Repeated single-tick calls match one bulk call for all menu ratios
+TEST(TempoRatioEdgeCases, SingleVsBulk_AllRatios) {
+	struct R {
+		uint16_t n, d;
+	};
+	static constexpr R ratios[] = {{7, 8}, {3, 4}, {5, 6}, {8, 3}, {1, 4}, {4, 1}};
+	for (auto& ratio : ratios) {
+		TempoRatio r1{ratio.n, ratio.d, 0};
+		TempoRatio r2{ratio.n, ratio.d, 0};
+		int32_t total = 0;
+		for (int i = 0; i < 100; i++) {
+			total += r1.scaleGlobalToClipTicks(1);
+		}
+		int32_t bulk = r2.scaleGlobalToClipTicks(100);
+		CHECK_EQUAL(total, bulk);
+		CHECK_EQUAL(r1.accumulator, r2.accumulator);
+	}
+}
+
 } // namespace

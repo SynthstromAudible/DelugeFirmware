@@ -25,13 +25,97 @@
 
 namespace deluge::gui::context_menu::clip_settings {
 
-static constexpr size_t kMaxValue = 16;
-
-static const char* kValueOptions[] = {
-    "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16",
+// All unique reduced fractions N:D with N,D in [1,8], sorted by N/D value.
+// Displayed as percentage. Range: 25% (1:4) to 400% (4:1).
+// Ratios beyond 4:1 or below 1:4 are excluded as musically extreme.
+struct RatioEntry {
+	uint16_t numerator;
+	uint16_t denominator;
 };
 
-// ============ TempoRatioMenu (top-level: Numerator / Denominator) ============
+static constexpr RatioEntry kRatios[] = {
+    {1, 4}, // 25%
+    {2, 7}, // 29%
+    {1, 3}, // 33%
+    {3, 8}, // 38%
+    {2, 5}, // 40%
+    {3, 7}, // 43%
+    {1, 2}, // 50%
+    {4, 7}, // 57%
+    {3, 5}, // 60%
+    {5, 8}, // 63%
+    {2, 3}, // 67%
+    {5, 7}, // 71%
+    {3, 4}, // 75%
+    {4, 5}, // 80%
+    {5, 6}, // 83%
+    {6, 7}, // 86%
+    {7, 8}, // 88%
+    {1, 1}, // 100%
+    {8, 7}, // 114%
+    {7, 6}, // 117%
+    {6, 5}, // 120%
+    {5, 4}, // 125%
+    {4, 3}, // 133%
+    {7, 5}, // 140%
+    {3, 2}, // 150%
+    {8, 5}, // 160%
+    {5, 3}, // 167%
+    {7, 4}, // 175%
+    {2, 1}, // 200%
+    {7, 3}, // 233%
+    {5, 2}, // 250%
+    {8, 3}, // 267%
+    {3, 1}, // 300%
+    {7, 2}, // 350%
+    {4, 1}, // 400%
+};
+
+static constexpr size_t kNumRatios = sizeof(kRatios) / sizeof(kRatios[0]);
+
+// Label buffers: "XXX% (N:D)" — max ~12 chars
+static char labelBuffers[kNumRatios][16];
+static const char* labelPtrs[kNumRatios];
+static bool labelsGenerated = false;
+
+static char* writeUint(char* buf, unsigned int val) {
+	if (val == 0) {
+		*buf++ = '0';
+		return buf;
+	}
+	char tmp[10];
+	int len = 0;
+	while (val > 0) {
+		tmp[len++] = '0' + (val % 10);
+		val /= 10;
+	}
+	for (int j = len - 1; j >= 0; j--) {
+		*buf++ = tmp[j];
+	}
+	return buf;
+}
+
+static void generateLabels() {
+	if (labelsGenerated) {
+		return;
+	}
+	for (size_t i = 0; i < kNumRatios; i++) {
+		unsigned int pct =
+		    (kRatios[i].numerator * 100 + kRatios[i].denominator / 2) / kRatios[i].denominator;
+		char* p = labelBuffers[i];
+		p = writeUint(p, pct);
+		*p++ = '%';
+		*p++ = ' ';
+		*p++ = '(';
+		p = writeUint(p, kRatios[i].numerator);
+		*p++ = ':';
+		p = writeUint(p, kRatios[i].denominator);
+		*p++ = ')';
+		*p = '\0';
+		labelPtrs[i] = labelBuffers[i];
+	}
+	labelsGenerated = true;
+}
 
 TempoRatioMenu tempoRatioMenu{};
 
@@ -40,93 +124,35 @@ char const* TempoRatioMenu::getTitle() {
 }
 
 std::span<char const*> TempoRatioMenu::getOptions() {
-	using enum l10n::String;
-	static const char* options[] = {
-	    l10n::get(STRING_FOR_TEMPO_RATIO_NUMERATOR),
-	    l10n::get(STRING_FOR_TEMPO_RATIO_DENOMINATOR),
-	};
-	return {options, 2};
+	generateLabels();
+	return {labelPtrs, kNumRatios};
 }
 
 bool TempoRatioMenu::setupAndCheckAvailability() {
 	currentUIMode = UI_MODE_NONE;
-	this->currentOption = scrollPos = 0;
+
+	// Find preset matching clip's current ratio, default to 1:1 (index 17)
+	this->currentOption = 17;
+	for (size_t i = 0; i < kNumRatios; i++) {
+		if (clip->tempoRatioNumerator == kRatios[i].numerator
+		    && clip->tempoRatioDenominator == kRatios[i].denominator) {
+			this->currentOption = static_cast<int32_t>(i);
+			break;
+		}
+	}
+
+	if (display->haveOLED()) {
+		scrollPos = this->currentOption;
+	}
+
 	return true;
 }
 
 void TempoRatioMenu::selectEncoderAction(int8_t offset) {
 	ContextMenu::selectEncoderAction(offset);
-}
-
-bool TempoRatioMenu::acceptCurrentOption() {
-	if (this->currentOption == 0) {
-		tempoRatioNumerator.clip = clip;
-		tempoRatioNumerator.setupAndCheckAvailability();
-		openUI(&tempoRatioNumerator);
-	}
-	else {
-		tempoRatioDenominator.clip = clip;
-		tempoRatioDenominator.setupAndCheckAvailability();
-		openUI(&tempoRatioDenominator);
-	}
-	return true;
-}
-
-// ============ TempoRatioNumeratorMenu (1-16) ============
-
-TempoRatioNumeratorMenu tempoRatioNumerator{};
-
-char const* TempoRatioNumeratorMenu::getTitle() {
-	return "Numerator";
-}
-
-std::span<char const*> TempoRatioNumeratorMenu::getOptions() {
-	return {kValueOptions, kMaxValue};
-}
-
-bool TempoRatioNumeratorMenu::setupAndCheckAvailability() {
-	currentUIMode = UI_MODE_NONE;
-	this->currentOption = clip->tempoRatioNumerator - 1; // 0-indexed
-
-	if (display->haveOLED()) {
-		scrollPos = this->currentOption;
-	}
-
-	return true;
-}
-
-void TempoRatioNumeratorMenu::selectEncoderAction(int8_t offset) {
-	ContextMenu::selectEncoderAction(offset);
-	clip->tempoRatioNumerator = static_cast<uint16_t>(this->currentOption + 1);
-	clip->tempoRatioAccumulator = 0;
-}
-
-// ============ TempoRatioDenominatorMenu (1-16) ============
-
-TempoRatioDenominatorMenu tempoRatioDenominator{};
-
-char const* TempoRatioDenominatorMenu::getTitle() {
-	return "Denominator";
-}
-
-std::span<char const*> TempoRatioDenominatorMenu::getOptions() {
-	return {kValueOptions, kMaxValue};
-}
-
-bool TempoRatioDenominatorMenu::setupAndCheckAvailability() {
-	currentUIMode = UI_MODE_NONE;
-	this->currentOption = clip->tempoRatioDenominator - 1; // 0-indexed
-
-	if (display->haveOLED()) {
-		scrollPos = this->currentOption;
-	}
-
-	return true;
-}
-
-void TempoRatioDenominatorMenu::selectEncoderAction(int8_t offset) {
-	ContextMenu::selectEncoderAction(offset);
-	clip->tempoRatioDenominator = static_cast<uint16_t>(this->currentOption + 1);
+	auto& ratio = kRatios[this->currentOption];
+	clip->tempoRatioNumerator = ratio.numerator;
+	clip->tempoRatioDenominator = ratio.denominator;
 	clip->tempoRatioAccumulator = 0;
 }
 

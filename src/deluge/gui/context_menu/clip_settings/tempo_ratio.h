@@ -23,42 +23,12 @@ class Clip;
 
 namespace deluge::gui::context_menu::clip_settings {
 
-/// Top-level menu listing Numerator / Denominator options for tempo ratio editing
+/// Single-level menu showing tempo ratio as percentage, scrollable via encoder.
+/// Each entry maps to the closest clean integer ratio N:D (max 8).
 class TempoRatioMenu final : public ContextMenu {
 
 public:
 	TempoRatioMenu() = default;
-	void selectEncoderAction(int8_t offset) override;
-	bool setupAndCheckAvailability();
-	bool canSeeViewUnderneath() override { return true; }
-	bool acceptCurrentOption() override;
-
-	Clip* clip = nullptr;
-
-	char const* getTitle() override;
-	std::span<const char*> getOptions() override;
-};
-
-/// Scrolls through numerator values 1-16
-class TempoRatioNumeratorMenu final : public ContextMenu {
-
-public:
-	TempoRatioNumeratorMenu() = default;
-	void selectEncoderAction(int8_t offset) override;
-	bool setupAndCheckAvailability();
-	bool canSeeViewUnderneath() override { return true; }
-
-	Clip* clip = nullptr;
-
-	char const* getTitle() override;
-	std::span<const char*> getOptions() override;
-};
-
-/// Scrolls through denominator values 1-16
-class TempoRatioDenominatorMenu final : public ContextMenu {
-
-public:
-	TempoRatioDenominatorMenu() = default;
 	void selectEncoderAction(int8_t offset) override;
 	bool setupAndCheckAvailability();
 	bool canSeeViewUnderneath() override { return true; }
@@ -70,7 +40,5 @@ public:
 };
 
 extern TempoRatioMenu tempoRatioMenu;
-extern TempoRatioNumeratorMenu tempoRatioNumerator;
-extern TempoRatioDenominatorMenu tempoRatioDenominator;
 
 } // namespace deluge::gui::context_menu::clip_settings
