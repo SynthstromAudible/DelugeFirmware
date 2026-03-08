@@ -315,6 +315,17 @@ dealtWith:
 }
 
 bool isButtonPressed(deluge::hid::Button b) {
+	// When encoder swap is active, queries for TEMPO_ENC/SELECT_ENC return
+	// the physical state of the other encoder button.
+	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::SwapTempoAndSelectEncoders)) {
+		using namespace deluge::hid::button;
+		if (b == TEMPO_ENC) {
+			b = SELECT_ENC;
+		}
+		else if (b == SELECT_ENC) {
+			b = TEMPO_ENC;
+		}
+	}
 	auto xy = deluge::hid::button::toXY(b);
 	return buttonStates[xy.x][xy.y];
 }

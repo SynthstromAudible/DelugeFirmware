@@ -158,25 +158,23 @@ checkResult:
 				}
 				break;
 
-			case EncoderName::TEMPO: {
-				// When encoders are swapped, the physical select encoder drives this case,
-				// so check its button press instead of the physical tempo encoder button.
-				auto tempoButton = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::SwapTempoAndSelectEncoders)
-				                       ? deluge::hid::button::SELECT_ENC
-				                       : deluge::hid::button::TEMPO_ENC;
+			case EncoderName::TEMPO:
 				if ((getCurrentUI() == &instrumentClipView
 				     || (getCurrentUI() == &automationView && automationView.inNoteEditor()))
 				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 				           == RuntimeFeatureStateToggle::On) {
-					instrumentClipView.tempoEncoderAction(limitedDetentPos, Buttons::isButtonPressed(tempoButton),
-					                                      Buttons::isShiftButtonPressed());
+					instrumentClipView.tempoEncoderAction(
+					    limitedDetentPos,
+					    Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
+					    Buttons::isShiftButtonPressed());
 				}
 				else {
-					playbackHandler.tempoEncoderAction(limitedDetentPos, Buttons::isButtonPressed(tempoButton),
-					                                   Buttons::isShiftButtonPressed());
+					playbackHandler.tempoEncoderAction(
+					    limitedDetentPos,
+					    Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
+					    Buttons::isShiftButtonPressed());
 				}
 				break;
-			}
 
 			case EncoderName::SELECT:
 				if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
