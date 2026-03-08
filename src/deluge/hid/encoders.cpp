@@ -163,16 +163,14 @@ checkResult:
 				     || (getCurrentUI() == &automationView && automationView.inNoteEditor()))
 				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 				           == RuntimeFeatureStateToggle::On) {
-					instrumentClipView.tempoEncoderAction(
-					    limitedDetentPos,
-					    Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
-					    Buttons::isShiftButtonPressed());
+					instrumentClipView.tempoEncoderAction(limitedDetentPos,
+					                                      Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
+					                                      Buttons::isShiftButtonPressed());
 				}
 				else {
-					playbackHandler.tempoEncoderAction(
-					    limitedDetentPos,
-					    Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
-					    Buttons::isShiftButtonPressed());
+					playbackHandler.tempoEncoderAction(limitedDetentPos,
+					                                   Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
+					                                   Buttons::isShiftButtonPressed());
 				}
 				break;
 
