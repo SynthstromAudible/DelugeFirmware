@@ -940,17 +940,19 @@ doMetronome:
 					currentMetronomeTick += metronomeOffset;
 				}
 
-				uint32_t swungTicksPerQuarterNote = currentSong->getQuarterNoteLength();
+				Clip* metroClip = getCurrentClip();
+				TimeSignature metroTimeSig = metroClip ? metroClip->timeSignature : currentSong->defaultTimeSignature;
+				int32_t tickMag = currentSong->getInputTickMagnitude();
+				uint32_t oneBeat = increaseMagnitude(metroTimeSig.beatLengthInBaseTicks(), tickMag);
+				uint32_t oneBar = increaseMagnitude(metroTimeSig.barLengthInBaseTicks(), tickMag);
 
-				if ((currentMetronomeTick % swungTicksPerQuarterNote) == 0) {
-					uint32_t phaseIncrement =
-					    ((currentMetronomeTick % (swungTicksPerQuarterNote << 2)) == 0) ? 128411753 : 50960238;
+				if ((currentMetronomeTick % oneBeat) == 0) {
+					uint32_t phaseIncrement = ((currentMetronomeTick % oneBar) == 0) ? 128411753 : 50960238;
 					AudioEngine::metronome.trigger(phaseIncrement);
 				}
 
-				int32_t ticksIntoCurrentBeep = currentMetronomeTick % swungTicksPerQuarterNote;
-				int32_t swungTicksTilNextMetronomeEvent =
-				    swungTicksPerQuarterNote - ticksIntoCurrentBeep; // Ticks til next beep
+				int32_t ticksIntoCurrentBeep = currentMetronomeTick % oneBeat;
+				int32_t swungTicksTilNextMetronomeEvent = oneBeat - ticksIntoCurrentBeep; // Ticks til next beep
 				swungTicksTilNextEvent = std::min(swungTicksTilNextEvent, swungTicksTilNextMetronomeEvent);
 			}
 		}

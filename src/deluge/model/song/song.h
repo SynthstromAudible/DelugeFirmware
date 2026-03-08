@@ -220,6 +220,7 @@ public:
 	Section sections[kMaxNumSections];
 
 	MusicalKey key;
+	TimeSignature defaultTimeSignature;
 	std::bitset<NUM_PRESET_SCALES> disabledPresetScales;
 
 	uint16_t slot;

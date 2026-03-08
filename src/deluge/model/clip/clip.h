@@ -26,6 +26,7 @@
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
+#include "model/time_signature.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "util/d_string.h"
@@ -202,6 +203,8 @@ public:
 	LaunchStyle launchStyle;
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput;
+
+	TimeSignature timeSignature;
 
 	// START ~ new Automation Clip View Variables
 	bool onAutomationClipView; // new to save the view that you are currently in

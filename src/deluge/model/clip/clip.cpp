@@ -103,6 +103,7 @@ void Clip::copyBasicsFrom(Clip const* otherClip) {
 	section = otherClip->section;
 	launchStyle = otherClip->launchStyle;
 	onAutomationClipView = otherClip->onAutomationClipView;
+	timeSignature = otherClip->timeSignature;
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature) {
@@ -688,6 +689,10 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (launchStyle != LaunchStyle::DEFAULT) {
 		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
+	if (!timeSignature.isDefault()) {
+		writer.writeAttribute("timeSignatureNumerator", timeSignature.numerator);
+		writer.writeAttribute("timeSignatureDenominator", timeSignature.denominator);
+	}
 }
 
 void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
@@ -764,6 +769,18 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 
 	else if (!strcmp(tagName, "launchStyle")) {
 		launchStyle = stringToLaunchStyle(reader.readTagOrAttributeValue());
+	}
+
+	else if (!strcmp(tagName, "timeSignatureNumerator")) {
+		timeSignature.numerator =
+		    static_cast<uint8_t>(std::clamp(reader.readTagOrAttributeValueInt(), int32_t{1}, int32_t{32}));
+	}
+
+	else if (!strcmp(tagName, "timeSignatureDenominator")) {
+		int32_t val = reader.readTagOrAttributeValueInt();
+		if (val == 2 || val == 4 || val == 8 || val == 16) {
+			timeSignature.denominator = static_cast<uint8_t>(val);
+		}
 	}
 
 	/*
