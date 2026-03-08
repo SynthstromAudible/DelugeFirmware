@@ -84,6 +84,21 @@ public:
 	bool doneFirstRender;
 	bool previouslyIgnoredNoteOff;
 
+	enum class PedalState : uint8_t {
+		None = 0,
+		SustainDeferred = 1 << 0,  // note-off deferred by CC64 sustain
+		SostenutoCapture = 1 << 1, // voice captured by CC66 pedal-down
+		SostenutoDeferred = 1 << 2 // note-off deferred by CC66 sostenuto
+	};
+	friend constexpr PedalState operator|(PedalState a, PedalState b) {
+		return static_cast<PedalState>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+	}
+	friend constexpr PedalState operator&(PedalState a, PedalState b) {
+		return static_cast<PedalState>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+	}
+	friend constexpr PedalState operator~(PedalState a) { return static_cast<PedalState>(~static_cast<uint8_t>(a)); }
+	PedalState pedalState{PedalState::None};
+
 	uint32_t orderSounded;
 
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
@@ -101,7 +116,7 @@ public:
 	bool noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	            int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate,
 	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
-	void noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage = true);
+	void noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage = true, bool ignoreSustain = false);
 
 	void randomizeOscPhases(const Sound& sound);
 	void changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,

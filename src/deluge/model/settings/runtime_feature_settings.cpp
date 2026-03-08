@@ -195,6 +195,19 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],
 	                  STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip",
 	                  RuntimeFeatureStateToggle::On);
+
+	// MIDI CC64 sustain pedal
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableSustainPedal],
+	                  STRING_FOR_COMMUNITY_FEATURE_SUSTAIN_PEDAL, "enableSustainPedal", RuntimeFeatureStateToggle::Off);
+
+	// MIDI CC66 sostenuto pedal
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableSostenutoPedal],
+	                  STRING_FOR_COMMUNITY_FEATURE_SOSTENUTO_PEDAL, "enableSostenutoPedal",
+	                  RuntimeFeatureStateToggle::Off);
+
+	// MIDI CC67 soft pedal
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableSoftPedal], STRING_FOR_COMMUNITY_FEATURE_SOFT_PEDAL,
+	                  "enableSoftPedal", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
