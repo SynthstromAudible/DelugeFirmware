@@ -3151,8 +3151,8 @@ void Sound::retriggerVoicesForTransposeChange(ModelStackWithSoundFlags* modelSta
 		uint32_t syncLength = voice->guides[0].sequenceSyncLengthTicks;
 
 		// Re-trigger with resetEnvelopes=true for clean attack from new sample zone
-		bool success =
-		    voice->noteOn(modelStack, notePreArp, notePostArp, velocity, syncLength, 0, 0, true, midiChannel, mpeValues);
+		bool success = voice->noteOn(modelStack, notePreArp, notePostArp, velocity, syncLength, 0, 0, true, midiChannel,
+		                             mpeValues);
 		if (!success) {
 			freeActiveVoice(voice, modelStack, false);
 			it = voices_.erase(it);
