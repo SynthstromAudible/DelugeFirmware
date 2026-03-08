@@ -72,6 +72,7 @@ add_executable(UnitTests
         sync_tests.cpp
         chord_tests.cpp
         time_tests.cpp
+        reverb_filter_roundtrip_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)
