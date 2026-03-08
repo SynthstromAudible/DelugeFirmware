@@ -65,9 +65,9 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 			openUI(&launchStyle);
 		}
 		else if (option == 1) {
-			tempoRatio.clip = clip;
-			tempoRatio.setupAndCheckAvailability();
-			openUI(&tempoRatio);
+			tempoRatioMenu.clip = clip;
+			tempoRatioMenu.setupAndCheckAvailability();
+			openUI(&tempoRatioMenu);
 		}
 		else {
 			currentUIMode = UI_MODE_NONE;
