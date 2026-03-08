@@ -81,10 +81,10 @@ private:
 	bool grainLastTickCountIsZero;
 	bool grainInitialized;
 
-	Grain grains[8];
+	Grain grains[8]{};
 
 	int32_t wrapsToShutdown;
-	GrainBuffer* grainBuffer;
+	GrainBuffer* grainBuffer{};
 	int32_t _densityKnobPos{0};
 	int32_t _rateKnobPos{0};
 	int32_t _mixKnobPos{0};
