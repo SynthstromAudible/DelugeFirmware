@@ -881,11 +881,6 @@ void MidiEngine::checkIncomingUsbMidi() {
 						uint8_t channel = readPos[1] & 0x0F;
 						uint8_t data1 = readPos[2];
 						uint8_t data2 = readPos[3];
-						if (data1 & 0x80 || data2 & 0x80) {
-							// This shouldn't be possible, indicates an error in transmission so just ignore the rest of
-							// the frame
-							break;
-						}
 						if (statusType < 0x08) {
 							if (statusType == 2 || statusType == 3) { // 2 or 3 byte system common messages
 								statusType = 0x0F;
@@ -894,6 +889,11 @@ void MidiEngine::checkIncomingUsbMidi() {
 								checkIncomingUsbSysex(readPos, ip, d, cable);
 								continue;
 							}
+						}
+						if (data1 & 0x80 || data2 & 0x80) {
+							// This shouldn't be possible for non-sysex messages, indicates an error in
+							// transmission so just ignore the rest of the frame
+							break;
 						}
 						// select appropriate device based on the cable number
 						if (cable > connectedUSBMIDIDevices[ip][d].maxPortConnected) {
