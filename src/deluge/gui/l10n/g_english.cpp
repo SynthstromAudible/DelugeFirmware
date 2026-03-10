@@ -978,6 +978,16 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_HORIZONTAL_MENU, "Horizontal Menu"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_ROW, "Chord Row Mode"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_COLUMN, "Chord Column Mode"},
+        {STRING_FOR_LANE_LENGTH, "Length"},
+        {STRING_FOR_LANE_LENGTH_TITLE, "Lane Length"},
+        {STRING_FOR_LANE_DIRECTION, "Direction"},
+        {STRING_FOR_LANE_DIRECTION_TITLE, "Lane Direction"},
+        {STRING_FOR_INTERVAL, "Interval"},
+        {STRING_FOR_INTERVAL_MIN, "Min"},
+        {STRING_FOR_INTERVAL_MAX, "Max"},
+        {STRING_FOR_INTERVAL_SCALE, "Scale"},
+        {STRING_FOR_LANES_TRIGGER, "Trigger"},
+        {STRING_FOR_LANES_TRACK_LENGTH, "Track Len"},
     },
 };
 } // namespace deluge::l10n::built_in

@@ -77,6 +77,7 @@ public:
 
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<SequenceDirection>();
+
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
