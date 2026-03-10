@@ -701,7 +701,9 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                      ParamManager* paramManager, std::span<StereoSample> output) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-
+	if (arpSettings == nullptr) {
+		return;
+	}
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 	// Nullify parameters not supported by Kit Arpeggiator (to avoid Midi Follow to modify them)
@@ -788,6 +790,9 @@ ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
 }
 
 void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
+	if (activeClip == nullptr) {
+		return;
+	}
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator
@@ -1283,6 +1288,10 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 	ArpReturnInstruction kitInstruction;
 	// Run everything by the Kit Arp...
 	int32_t drumIndex = -1;
+	if (activeClip == nullptr || arpSettings == nullptr) {
+		drum->noteOn(modelStack, velocity, mpeValues, fromMIDIChannel, sampleSyncLength, ticksLate, samplesLate);
+		return;
+	}
 	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
 	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
 		// Check if kit arp is bypassed
@@ -1320,6 +1329,10 @@ void Kit::noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum
 	ArpReturnInstruction kitInstruction;
 	// Run everything by the Kit Arp...
 	int32_t drumIndex = -1;
+	if (activeClip == nullptr || arpSettings == nullptr) {
+		drum->noteOff(modelStack, velocity);
+		return;
+	}
 	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
 	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
 		// Check if kit arp is bypassed
