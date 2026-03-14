@@ -22,7 +22,7 @@ std::expected<char*, std::errc> to_chars(char* first, char* last, float value, i
 
 	int written = snprintf_(first, buffer_size, format.data(), value);
 	if (written < 0 || static_cast<size_t>(written) >= buffer_size) {
-		std::unexpected{std::errc::no_buffer_space};
+		return std::unexpected{std::errc::no_buffer_space};
 	}
 	return first + written;
 }
