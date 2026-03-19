@@ -40,6 +40,8 @@ using namespace deluge;
 static constexpr const char* PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/KIT";
 static constexpr const char* PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/DRUM";
 static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
+static constexpr const char* PATTERN_SEQUENCER_STEP_DEFAULT_FOLDER = "PATTERNS/SEQUENCER/STEP";
+static constexpr const char* PATTERN_SEQUENCER_PULSE_DEFAULT_FOLDER = "PATTERNS/SEQUENCER/PULSE";
 
 SavePatternUI savePatternUI{};
 
@@ -68,6 +70,16 @@ bool SavePatternUI::opened() {
 		display->displayError(error);
 		return false;
 	}
+	error = createFoldersRecursiveIfNotExists(PATTERN_SEQUENCER_STEP_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
+	}
+	error = createFoldersRecursiveIfNotExists(PATTERN_SEQUENCER_PULSE_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
+	}
 
 	Instrument* currentInstrument = getCurrentInstrument();
 	// Must set this before calling SaveUI::opened(), which uses this to work out folder name
@@ -84,6 +96,12 @@ doReturnFalse:
 	currentFolderIsEmpty = false;
 
 	std::string patternFolder = "";
+
+	// Check if current clip has a sequencer mode
+	InstrumentClip* currentClip = getCurrentInstrumentClip();
+	bool hasSequencerMode = (currentClip && currentClip->hasSequencerMode());
+	std::string sequencerModeName = hasSequencerMode ? currentClip->getSequencerModeName() : "";
+
 	if (getCurrentOutputType() == OutputType::KIT) {
 		if (getRootUI()->getAffectEntire()) {
 			defaultDir = PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER;
@@ -97,8 +115,27 @@ doReturnFalse:
 		}
 	}
 	else {
-		defaultDir = std::string(PATTERN_MELODIC_DEFAULT_FOLDER);
-		title = "Save Pattern";
+		// Check for sequencer modes first
+		if (hasSequencerMode) {
+			if (sequencerModeName == "step_sequencer") {
+				defaultDir = std::string(PATTERN_SEQUENCER_STEP_DEFAULT_FOLDER);
+				title = "Save Step Pattern";
+			}
+			else if (sequencerModeName == "pulse_seq") {
+				defaultDir = std::string(PATTERN_SEQUENCER_PULSE_DEFAULT_FOLDER);
+				title = "Save Pulse Pattern";
+			}
+			else {
+				// Fallback for unknown sequencer modes
+				defaultDir = std::string(PATTERN_MELODIC_DEFAULT_FOLDER);
+				title = "Save Pattern";
+			}
+		}
+		else {
+			// Default melodic pattern
+			defaultDir = std::string(PATTERN_MELODIC_DEFAULT_FOLDER);
+			title = "Save Pattern";
+		}
 		selectedDrumOnly = false;
 	}
 

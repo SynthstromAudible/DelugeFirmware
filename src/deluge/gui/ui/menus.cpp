@@ -32,6 +32,7 @@
 #include "gui/menu_item/battery/level.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
+#include "gui/menu_item/clip/clip_type_selection.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/cv/cv2Mapping.h"
 #include "gui/menu_item/cv/selection.h"
@@ -85,6 +86,9 @@
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "gui/menu_item/keyboard/layout.h"
+#include "gui/menu_item/lanes/interval_range.h"
+#include "gui/menu_item/lanes/pitch_base_note.h"
+#include "gui/menu_item/lanes/track_length.h"
 #include "gui/menu_item/lfo/sync.h"
 #include "gui/menu_item/lfo/type.h"
 #include "gui/menu_item/master_transpose.h"
@@ -627,6 +631,9 @@ Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiN
 // MIDIInstrument menu ----------------------------------------------------------------------
 midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
                                                      STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED};
+
+// Clip Type Selection Menu
+clip::ClipTypeSelection clipTypeSelectionMenu{STRING_FOR_CLIP_TYPE, STRING_FOR_CLIP_TYPE};
 
 midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu{
     STRING_FOR_MIDI_DEVICE_DEFINITION,
@@ -1389,6 +1396,7 @@ Submenu soundEditorRootActionsMenu{
 Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
+        &clipTypeSelectionMenu,
         &soundEditorRootActionsMenu,
         &soundMasterMenu,
         &arpMenu,
@@ -1515,6 +1523,32 @@ HorizontalMenu noteRowEditorRootMenu{STRING_FOR_NOTE_ROW_EDITOR,
                                          &noteRowFillMenu,
                                      }};
 
+// Lanes lane editor menus
+menu_item::lanes::TrackLength lanesTrackLengthMenu{STRING_FOR_LANES_TRACK_LENGTH};
+
+HorizontalMenu lanesTriggerEditorMenu{STRING_FOR_LANES_TRIGGER,
+                                      {
+                                          &lanesTrackLengthMenu,
+                                      }};
+
+menu_item::lanes::PitchBaseNote lanesPitchBaseNoteMenu{STRING_FOR_NOTE};
+
+HorizontalMenu lanesPitchEditorMenu{STRING_FOR_PITCH,
+                                    {
+                                        &lanesPitchBaseNoteMenu,
+                                    }};
+
+menu_item::lanes::IntervalMin lanesIntervalMinMenu{STRING_FOR_INTERVAL_MIN};
+menu_item::lanes::IntervalMax lanesIntervalMaxMenu{STRING_FOR_INTERVAL_MAX};
+menu_item::lanes::IntervalScale lanesIntervalScaleMenu{STRING_FOR_INTERVAL_SCALE};
+
+HorizontalMenu lanesIntervalEditorMenu{STRING_FOR_INTERVAL,
+                                       {
+                                           &lanesIntervalMinMenu,
+                                           &lanesIntervalMaxMenu,
+                                           &lanesIntervalScaleMenu,
+                                       }};
+
 menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
                                                 {
                                                     &midiBankMenu,
@@ -1528,6 +1562,7 @@ menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TIT
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
+        &clipTypeSelectionMenu,
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
         &arpMenuMIDIOrCV,
