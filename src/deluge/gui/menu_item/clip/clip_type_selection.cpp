@@ -49,6 +49,9 @@ void ClipTypeSelection::readCurrentValue() {
 		else if (modeName == "pulse_seq") {
 			this->setValue(2); // PULSE SEQ
 		}
+		else if (modeName == "lanes") {
+			this->setValue(3); // LANES
+		}
 		else {
 			this->setValue(0); // Default to PIANO ROLL
 		}
@@ -75,6 +78,10 @@ void ClipTypeSelection::writeCurrentValue() {
 		else if (selectedMode == 2) {
 			// PULSE SEQ - set pulse sequencer mode
 			clip->setSequencerMode("pulse_seq");
+		}
+		else if (selectedMode == 3) {
+			// LANES - set lanes sequencer mode
+			clip->setSequencerMode("lanes");
 		}
 
 		// Recalculate colours for instrument clip view (needed when going back to normal mode)

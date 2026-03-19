@@ -59,9 +59,10 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
-#include "model/clip/sequencer/sequencer_mode.h"
-#include "model/clip/sequencer/modes/step_sequencer_mode.h"
+#include "model/clip/sequencer/modes/lanes_sequencer_mode.h"
 #include "model/clip/sequencer/modes/pulse_sequencer_mode.h"
+#include "model/clip/sequencer/modes/step_sequencer_mode.h"
+#include "model/clip/sequencer/sequencer_mode.h"
 #include "model/consequence/consequence_instrument_clip_multiply.h"
 #include "model/consequence/consequence_note_array_change.h"
 #include "model/consequence/consequence_note_row_horizontal_shift.h"
@@ -326,8 +327,20 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 		}
 	}
 
-	// Wrap edit button
+	// Wrap edit button / Performance mode toggle for sequencer modes
 	else if (b == CROSS_SCREEN_EDIT) {
+		// In sequencer modes: toggle performance control sidebar
+		if (on && currentUIMode == UI_MODE_NONE) {
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (clip && clip->hasSequencerMode()) {
+				if (clip->getSequencerModeName() == "lanes") {
+					auto* lanesMode = static_cast<deluge::model::clip::sequencer::modes::LanesSequencerMode*>(
+					    clip->getSequencerMode());
+					lanesMode->togglePerformanceMode();
+					return ActionResult::DEALT_WITH;
+				}
+			}
+		}
 		if (!on && currentUIMode == UI_MODE_NONE) {
 			// if another button wasn't pressed while cross screen was held
 			if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
@@ -1892,8 +1905,8 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 				if (stepMode->handleSelectEncoder(offset)) {
 					return;
 				}
-				// Sequencer mode didn't handle it (no valid pad held) - only allow preset changing if NOT in UI_MODE_NOTES_PRESSED
-				// This prevents blank/invalid pads from triggering iterance/prob
+				// Sequencer mode didn't handle it (no valid pad held) - only allow preset changing if NOT in
+				// UI_MODE_NOTES_PRESSED This prevents blank/invalid pads from triggering iterance/prob
 				if (currentUIMode != UI_MODE_NOTES_PRESSED) {
 					InstrumentClipMinder::selectEncoderAction(offset);
 				}
@@ -1901,12 +1914,13 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 			}
 			// Check for pulse sequencer
 			else if (clip->getSequencerModeName() == "pulse_seq") {
-				auto* pulseMode = static_cast<deluge::model::clip::sequencer::modes::PulseSequencerMode*>(sequencerMode);
+				auto* pulseMode =
+				    static_cast<deluge::model::clip::sequencer::modes::PulseSequencerMode*>(sequencerMode);
 				if (pulseMode->handleSelectEncoder(offset)) {
 					return;
 				}
-				// Sequencer mode didn't handle it (no valid pad held) - only allow preset changing if NOT in UI_MODE_NOTES_PRESSED
-				// This prevents blank/invalid pads (x8-x15) from triggering iterance/prob
+				// Sequencer mode didn't handle it (no valid pad held) - only allow preset changing if NOT in
+				// UI_MODE_NOTES_PRESSED This prevents blank/invalid pads (x8-x15) from triggering iterance/prob
 				if (currentUIMode != UI_MODE_NOTES_PRESSED) {
 					InstrumentClipMinder::selectEncoderAction(offset);
 				}

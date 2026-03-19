@@ -97,6 +97,11 @@ extern gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep7;
 extern gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep8;
 extern gui::menu_item::note_row::Fill noteRowFillMenu;
 
+// Lanes lane editor menus
+extern gui::menu_item::HorizontalMenu lanesTriggerEditorMenu;
+extern gui::menu_item::HorizontalMenu lanesPitchEditorMenu;
+extern gui::menu_item::HorizontalMenu lanesIntervalEditorMenu;
+
 extern gui::menu_item::PatchCables patchCablesMenu;
 extern gui::menu_item::source::patched_param::ModulatorLevel modulator0Volume;
 extern gui::menu_item::source::patched_param::ModulatorLevel modulator1Volume;

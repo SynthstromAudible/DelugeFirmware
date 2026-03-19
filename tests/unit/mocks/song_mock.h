@@ -20,6 +20,7 @@ public:
 		// TODO: extract getNoteLengthName() from Song, so we can test
 		// note length naming logic
 	}
+	uint32_t getSixteenthNoteLength() const { return 6u << insideWorldTickMagnitude; }
 	ClipArray sessionClips;
 	ClipArray arrangementOnlyClips;
 	int32_t insideWorldTickMagnitude = 1;
