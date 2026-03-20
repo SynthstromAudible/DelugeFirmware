@@ -269,8 +269,10 @@ private:
 	float getCurrentInternalTickFloatFollowingExternalClock();
 	void scheduleTriggerClockOutTickParamsKnown(uint32_t analogOutTicksPer, uint64_t fractionLastTimerTick,
 	                                            uint64_t fractionNextAnalogOutTick);
+	void scheduleTriggerClockOutTickFromExternalClock();
 	void scheduleMIDIClockOutTickParamsKnown(uint32_t midiClockOutTicksPer, uint64_t fractionLastTimerTick,
 	                                         uint64_t fractionNextMIDIClockOutTick);
+	void scheduleMIDIClockOutTickFromExternalClock();
 };
 
 extern PlaybackHandler playbackHandler;

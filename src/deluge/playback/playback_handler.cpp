@@ -59,6 +59,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/sync.h"
+#include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "processing/audio_output.h"
@@ -786,48 +787,11 @@ void PlaybackHandler::doTriggerClockOutTick() {
 	}
 }
 
-// Maximum catch-up ticks per input tick to prevent ISR overrun (2 bars at 24ppqn)
-static constexpr int32_t kMaxClockCatchUpTicks = 48;
-
 // Check these are enabled before calling this!
 void PlaybackHandler::scheduleTriggerClockOutTick() {
 
 	if (isExternalClockActive()) {
-		uint32_t internalTicksPer;
-		uint32_t analogOutTicksPer;
-		getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
-
-		uint32_t inputTicksPer;
-		uint32_t internalTicksPerInput;
-		getInternalTicksToInputTicksRatio(&inputTicksPer, &internalTicksPerInput);
-
-		int64_t currentInternalTick = lastInputTickReceived * internalTicksPerInput / inputTicksPer;
-
-		int64_t nextAnalogOutTick = lastTriggerClockOutTickDone + 1;
-		int64_t internalTickForNextAnalogOut = nextAnalogOutTick * internalTicksPer / analogOutTicksPer;
-
-		int32_t catchUpCount = 0;
-		while (internalTickForNextAnalogOut <= currentInternalTick && catchUpCount < kMaxClockCatchUpTicks) {
-			doTriggerClockOutTick();
-			nextAnalogOutTick = lastTriggerClockOutTickDone + 1;
-			internalTickForNextAnalogOut = nextAnalogOutTick * internalTicksPer / analogOutTicksPer;
-			catchUpCount++;
-		}
-		if (catchUpCount >= kMaxClockCatchUpTicks) {
-			resyncAnalogOutTicksToInternalTicks();
-			return;
-		}
-
-		int64_t internalTicksUntilNextAnalogOut = internalTickForNextAnalogOut - currentInternalTick;
-
-		if (internalTicksUntilNextAnalogOut > 0 && timePerInputTickMovingAverage > 0) {
-			uint32_t timeUntilNextAnalogOut =
-			    (uint32_t)((uint64_t)internalTicksUntilNextAnalogOut * timePerInputTickMovingAverage * inputTicksPer
-			               / internalTicksPerInput);
-
-			triggerClockOutTickScheduled = true;
-			timeNextTriggerClockOutTick = timeLastInputTicks[0] + timeUntilNextAnalogOut;
-		}
+		scheduleTriggerClockOutTickFromExternalClock();
 		return;
 	}
 
@@ -852,45 +816,37 @@ void PlaybackHandler::scheduleTriggerClockOutTickParamsKnown(uint32_t analogOutT
 	}
 }
 
+void PlaybackHandler::scheduleTriggerClockOutTickFromExternalClock() {
+	uint32_t internalTicksPer;
+	uint32_t analogOutTicksPer;
+	getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
+
+	uint32_t inputTicksPer;
+	uint32_t internalTicksPerInput;
+	getInternalTicksToInputTicksRatio(&inputTicksPer, &internalTicksPerInput);
+
+	auto result = computeExternalClockSchedule(lastTriggerClockOutTickDone, lastInputTickReceived, internalTicksPer,
+	                                           analogOutTicksPer, inputTicksPer, internalTicksPerInput,
+	                                           timePerInputTickMovingAverage, timeLastInputTicks[0]);
+
+	if (result.shouldEmitTick) {
+		doTriggerClockOutTick();
+	}
+	if (result.shouldResync) {
+		resyncAnalogOutTicksToInternalTicks();
+		return;
+	}
+	if (result.shouldSchedule) {
+		triggerClockOutTickScheduled = true;
+		timeNextTriggerClockOutTick = result.scheduledTime;
+	}
+}
+
 // Check these are enabled before calling this!
 void PlaybackHandler::scheduleMIDIClockOutTick() {
 
 	if (isExternalClockActive()) {
-		uint32_t internalTicksPer;
-		uint32_t midiClockOutTicksPer;
-		getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
-
-		uint32_t inputTicksPer;
-		uint32_t internalTicksPerInput;
-		getInternalTicksToInputTicksRatio(&inputTicksPer, &internalTicksPerInput);
-
-		int64_t currentInternalTick = lastInputTickReceived * internalTicksPerInput / inputTicksPer;
-
-		int64_t nextMIDIClockOutTick = lastMIDIClockOutTickDone + 1;
-		int64_t internalTickForNextMIDIOut = nextMIDIClockOutTick * internalTicksPer / midiClockOutTicksPer;
-
-		int32_t catchUpCount = 0;
-		while (internalTickForNextMIDIOut <= currentInternalTick && catchUpCount < kMaxClockCatchUpTicks) {
-			doMIDIClockOutTick();
-			nextMIDIClockOutTick = lastMIDIClockOutTickDone + 1;
-			internalTickForNextMIDIOut = nextMIDIClockOutTick * internalTicksPer / midiClockOutTicksPer;
-			catchUpCount++;
-		}
-		if (catchUpCount >= kMaxClockCatchUpTicks) {
-			resyncMIDIClockOutTicksToInternalTicks();
-			return;
-		}
-
-		int64_t internalTicksUntilNextMIDIOut = internalTickForNextMIDIOut - currentInternalTick;
-
-		if (internalTicksUntilNextMIDIOut > 0 && timePerInputTickMovingAverage > 0) {
-			uint32_t timeUntilNextMIDIOut =
-			    (uint32_t)((uint64_t)internalTicksUntilNextMIDIOut * timePerInputTickMovingAverage * inputTicksPer
-			               / internalTicksPerInput);
-
-			midiClockOutTickScheduled = true;
-			timeNextMIDIClockOutTick = timeLastInputTicks[0] + timeUntilNextMIDIOut;
-		}
+		scheduleMIDIClockOutTickFromExternalClock();
 		return;
 	}
 
@@ -912,6 +868,32 @@ void PlaybackHandler::scheduleMIDIClockOutTickParamsKnown(uint32_t midiClockOutT
 		     + ((uint64_t)((fractionNextMIDIClockOutTick - fractionLastTimerTick) * currentSong->timePerTimerTickBig))
 		           / midiClockOutTicksPer)
 		    >> 32;
+	}
+}
+
+void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
+	uint32_t internalTicksPer;
+	uint32_t midiClockOutTicksPer;
+	getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
+
+	uint32_t inputTicksPer;
+	uint32_t internalTicksPerInput;
+	getInternalTicksToInputTicksRatio(&inputTicksPer, &internalTicksPerInput);
+
+	auto result = computeExternalClockSchedule(lastMIDIClockOutTickDone, lastInputTickReceived, internalTicksPer,
+	                                           midiClockOutTicksPer, inputTicksPer, internalTicksPerInput,
+	                                           timePerInputTickMovingAverage, timeLastInputTicks[0]);
+
+	if (result.shouldEmitTick) {
+		doMIDIClockOutTick();
+	}
+	if (result.shouldResync) {
+		resyncMIDIClockOutTicksToInternalTicks();
+		return;
+	}
+	if (result.shouldSchedule) {
+		midiClockOutTickScheduled = true;
+		timeNextMIDIClockOutTick = result.scheduledTime;
 	}
 }
 
@@ -2022,6 +2004,11 @@ void PlaybackHandler::resyncAnalogOutTicksToInternalTicks() {
 	uint32_t analogOutTicksPer;
 	getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
 	lastTriggerClockOutTickDone = (uint64_t)getCurrentInternalTickCount() * analogOutTicksPer / internalTicksPer;
+
+	// The clock output is a square wave toggled by analogOutTick(). After jumping the tick
+	// counter, clockState must match the new counter's parity to avoid phase inversion
+	// (which would halve the apparent clock rate for edge-triggered followers like Pam's).
+	cvEngine.clockState = (lastTriggerClockOutTickDone & 1);
 }
 
 void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
