@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2023 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -296,6 +296,16 @@ void PerformanceView::focusRegained() {
 	}
 
 	uiNeedsRendering(this);
+}
+
+UIType PerformanceView::getUIContextType() {
+	// if performanceView was entered from arranger
+	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+		return UIType::ARRANGER;
+	}
+	else {
+		return UIType::SESSION;
+	}
 }
 
 void PerformanceView::graphicsRoutine() {

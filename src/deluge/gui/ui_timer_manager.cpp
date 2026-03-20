@@ -76,11 +76,11 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::DEFAULT_ROOT_NOTE:
-					if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
-						instrumentClipView.flashDefaultRootNote();
-					}
-					else if (getCurrentUI() == &keyboardScreen) {
+					if (getCurrentUI() == &keyboardScreen) {
 						keyboardScreen.flashDefaultRootNote();
+					}
+					else if (getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+						instrumentClipView.flashDefaultRootNote();
 					}
 					break;
 

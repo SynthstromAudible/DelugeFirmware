@@ -986,7 +986,7 @@ ActionResult ArrangerView::handleEditPadAction(int32_t x, int32_t y, int32_t vel
 	Output* output = outputsOnScreen[y];
 
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
-		if (velocity) {
+		if (velocity != 0) {
 			// NAME shortcut
 			if (x == 11 && y == 5) {
 				Output* output = outputsOnScreen[yPressedEffective];
@@ -1015,7 +1015,7 @@ ActionResult ArrangerView::handleStatusPadAction(int32_t y, int32_t velocity, UI
 		return ActionResult::DEALT_WITH;
 	}
 
-	if (velocity) {
+	if (velocity != 0) {
 		uint32_t rowsToRedraw = 1 << y;
 
 		switch (currentUIMode) {
@@ -1147,7 +1147,7 @@ ActionResult ArrangerView::handleAuditionPadAction(int32_t y, int32_t velocity, 
 	case UI_MODE_MIDI_LEARN:
 		if (output) {
 			if (output->type == OutputType::AUDIO) {
-				if (velocity) {
+				if (velocity != 0) {
 					view.endMIDILearn();
 					context_menu::audioInputSelector.audioOutput = (AudioOutput*)output;
 					context_menu::audioInputSelector.setupAndCheckAvailability();
@@ -3066,17 +3066,10 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (currentUIMode == UI_MODE_NONE) {
-			if (Buttons::isShiftButtonPressed()) {
-				currentSong->adjustMasterTransposeInterval(offset);
-			}
-			else {
-				currentSong->transpose(offset);
-			}
+			currentSong->commandTranspose(offset);
 		}
-		return ActionResult::DEALT_WITH;
 	}
-
-	if (isUIModeWithinRange(verticalEncoderUIModes)) {
+	else if (isUIModeWithinRange(verticalEncoderUIModes)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}

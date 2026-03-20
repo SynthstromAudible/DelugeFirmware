@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2023 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -67,6 +67,8 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::PERFORMANCE; }
+	UIType getUIContextType() override;
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
 	[[nodiscard]] int32_t getNavSysId() const override;
 
 	// rendering
