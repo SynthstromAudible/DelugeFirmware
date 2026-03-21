@@ -409,6 +409,12 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		    || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
 			if (on) {
 				if (inCardRoutine) {
+					// At navigationDepth 0, exitCompletely() is already in progress (it does
+					// card writes that yield via routineForSD). Consuming the press avoids a
+					// deferred replay that would re-enter the card writes and crash.
+					if (navigationDepth == 0) {
+						return ActionResult::DEALT_WITH;
+					}
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
