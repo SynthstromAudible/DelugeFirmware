@@ -661,8 +661,11 @@ void SoundEditor::goUpOneLevel() {
 
 void SoundEditor::exitCompletely() {
 	if (inSettingsMenu()) {
-		// First, save settings
+		// Unset the long-press timer to prevent a re-entrant call via the BACK_MENU_EXIT timer
+		// when goUpOneLevel() at navigationDepth == 0 already triggered this function.
+		uiTimerManager.unsetTimer(TimerName::BACK_MENU_EXIT);
 
+		// First, save settings
 		display->displayLoadingAnimationText("Saving settings");
 
 		FlashStorage::writeSettings();
