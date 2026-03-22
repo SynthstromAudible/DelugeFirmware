@@ -2370,7 +2370,16 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
 					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(outputType, newChannel,
 					                                                               newChannelSuffix)) {
-						break;
+						// When the old instrument can be replaced in-place (it has no other clips),
+						// also require the target slot to have no existing instrument. If there is one,
+						// the in-place replacement can't happen: the clip would end up sharing the
+						// existing instrument, and any further navigation would create a new instrument
+						// appended to the end of the output list, reordering tracks in the grid view.
+						if (!oldInstrumentCanBeReplaced
+						    || !modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix,
+						                                                      nullptr, nullptr, false)) {
+							break;
+						}
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
