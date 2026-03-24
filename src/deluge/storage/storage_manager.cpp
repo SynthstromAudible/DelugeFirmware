@@ -413,6 +413,7 @@ paramManagersMissing:
 	newInstrument->name.set(name);
 	newInstrument->dirPath.set(dirPath);
 	newInstrument->existsOnCard = true;
+	newInstrument->filePointer = *filePointer;
 	newInstrument->loadAllAudioFiles(mayReadSamplesFromFiles); // Needs name, directory and slots set first, above.
 
 	*getInstrument = newInstrument;

@@ -32,17 +32,28 @@ Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating)
 	instrumentAlreadyInSong = !hibernating;
 	displayName = filename.get();
 	if (newInstrument->existsOnCard && filePointer.sclust == 0) {
-		String tempFilePath;
-		tempFilePath.set(newInstrument->dirPath.get());
-		tempFilePath.concatenate("/");
-		tempFilePath.concatenate(filename.get());
-		existsOnCard = StorageManager::fileExists(tempFilePath.get(), &filePointer);
-		if (!existsOnCard) {
-			// this is recoverable later - will make a default synth or browse from top folder when encountering the
-			// null filepointer
-			D_PRINTLN("couldn't get filepath for file %s", filename.get());
-			// so we don't look for it again
-			newInstrument->existsOnCard = false;
+		// Use the instrument's cached FilePointer if available, avoiding an SD card read.
+		if (newInstrument->filePointer.sclust != 0) {
+			filePointer = newInstrument->filePointer;
+			existsOnCard = true;
+		}
+		else {
+			String tempFilePath;
+			tempFilePath.set(newInstrument->dirPath.get());
+			tempFilePath.concatenate("/");
+			tempFilePath.concatenate(filename.get());
+			existsOnCard = StorageManager::fileExists(tempFilePath.get(), &filePointer);
+			if (existsOnCard) {
+				// Cache the resolved pointer on the instrument for future calls.
+				newInstrument->filePointer = filePointer;
+			}
+			else {
+				// this is recoverable later - will make a default synth or browse from top folder when
+				// encountering the null filepointer
+				D_PRINTLN("couldn't get filepath for file %s", filename.get());
+				// so we don't look for it again
+				newInstrument->existsOnCard = false;
+			}
 		}
 	}
 	else {

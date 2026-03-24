@@ -418,7 +418,13 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 			else if (readItem->instrument) {
 				if (!nextItem->instrument && !nextItem->isFolder) {
 					if (!strcasecmp(readItem->displayName, nextItem->displayName)) {
-						// if (readItem->filename.equalsCaseIrrespective(&nextItem->filename)) {
+						// Copy the directory-sourced FilePointer to the instrument FileItem
+						// before destroying it. This avoids a redundant SD card read.
+						if (nextItem->filePointer.sclust != 0 && readItem->filePointer.sclust == 0) {
+							readItem->filePointer = nextItem->filePointer;
+							// Also cache on the instrument itself for future browser invocations.
+							readItem->instrument->filePointer = nextItem->filePointer;
+						}
 						nextItem->~FileItem();
 						readI++;
 						nextItem = (FileItem*)fileItems.getElementAddress(readI + 1);
@@ -445,6 +451,11 @@ deleteThisItem:
 			// Or if next item has an Instrument, and we're just a file...
 			else if (nextItem->instrument) {
 				if (!strcasecmp(readItem->displayName, nextItem->displayName)) { // And if same name...
+					// Copy the directory-sourced FilePointer to the instrument FileItem before deleting.
+					if (readItem->filePointer.sclust != 0 && nextItem->filePointer.sclust == 0) {
+						nextItem->filePointer = readItem->filePointer;
+						nextItem->instrument->filePointer = readItem->filePointer;
+					}
 					goto deleteThisItem;
 				}
 			}

@@ -947,6 +947,8 @@ giveUsedError:
 		if (doClone) {
 			newInstrument->name.set(&clonedName);
 			newInstrument->editedByUser = true;
+			// Invalidate cached FilePointer — it points to the original file, not the clone.
+			newInstrument->filePointer = {0};
 		}
 	}
 	display->displayLoadingAnimationText("Loading", false, true);

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "fatfs/ff.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip_instance_vector.h"
 #include "model/output.h"
@@ -49,6 +50,11 @@ public:
 	// not do this, partly because I don't want it doing memory allocation, and also because in many cases, the function
 	// creating the object hard-sets this anyway.
 	String dirPath;
+
+	// Cached FAT cluster pointer for this instrument's preset file on the SD card.
+	// Avoids repeated f_open() calls when the browser builds its file list.
+	// Zero means uncached — setupWithInstrument() will resolve it once via f_open().
+	FilePointer filePointer{0};
 
 	bool editedByUser = false;
 	bool existsOnCard = false;

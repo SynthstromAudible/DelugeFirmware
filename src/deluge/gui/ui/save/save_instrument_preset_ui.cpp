@@ -209,6 +209,8 @@ fail:
 	instrumentToSave->name.set(&enteredText);
 	instrumentToSave->dirPath.set(&currentDir);
 	instrumentToSave->existsOnCard = true;
+	// Invalidate cached FilePointer — the FAT cluster may have changed after writing.
+	instrumentToSave->filePointer = {0};
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the
 	// user to select such a slot
