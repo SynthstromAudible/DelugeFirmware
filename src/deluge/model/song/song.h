@@ -305,6 +305,7 @@ public:
 	void removeInstrumentFromHibernationList(Instrument* instrument);
 	bool doesOutputHaveActiveClipInSession(Output* output);
 	bool doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot = -1);
+	bool doesNonAudioSlotHaveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot);
 	bool doesOutputHaveAnyClips(Output* output);
 	void deleteBackedUpParamManagersForClip(Clip* clip);
 	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);

@@ -2368,8 +2368,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					break;
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(outputType, newChannel,
-					                                                               newChannelSuffix)) {
+					if (!modelStack->song->doesNonAudioSlotHaveClipInSession(outputType, newChannel,
+					                                                         newChannelSuffix)) {
 						break;
 					}
 				}
