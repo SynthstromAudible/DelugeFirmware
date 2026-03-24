@@ -151,7 +151,7 @@ public:
 	}
 	// called when back is held, used to exit menus or similar full screen views completely
 	/// returns whether a UI exited
-	virtual bool exitUI() { return false; };
+	virtual ActionResult exitUI() { return ActionResult::DEALT_WITH; };
 	void close();
 
 	virtual void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) = 0;

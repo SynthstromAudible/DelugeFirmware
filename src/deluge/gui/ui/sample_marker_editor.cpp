@@ -688,10 +688,10 @@ ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bo
 	return ActionResult::DEALT_WITH;
 }
 
-bool SampleMarkerEditor::exitUI() {
+ActionResult SampleMarkerEditor::exitUI() {
 	display->setNextTransitionDirection(-1);
 	close();
-	return true;
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
