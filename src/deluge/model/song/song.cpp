@@ -3971,6 +3971,26 @@ bool Song::doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_
 	return false;
 }
 
+// This is for non-audio Instruments only, so no name is relevant
+bool Song::doesNonAudioSlotHaveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot) {
+
+	// For each Clip in session
+	for (Clip* clip : AllClips::inSession(this)) {
+
+		if (clip->type == ClipType::INSTRUMENT) {
+
+			Instrument* instrument = (Instrument*)clip->output;
+
+			if (instrument->type == outputType && ((NonAudioInstrument*)instrument)->getChannel() == slot
+			    && (outputType == OutputType::CV || ((MIDIInstrument*)instrument)->channelSuffix == subSlot)) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 bool Song::doesOutputHaveAnyClips(Output* output) {
 	// Check arranger ones first via clipInstances
 	// TODO: why is this better than arrangerOnlyClips? Is this just a performance
