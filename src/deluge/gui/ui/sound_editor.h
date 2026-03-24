@@ -127,11 +127,8 @@ public:
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
 	bool setupKitGlobalFXMenu;
-	bool exitUI() override {
-		exitCompletely();
-		return true;
-	};
-	void exitCompletely();
+	ActionResult exitUI() override { return exitCompletely(); };
+	ActionResult exitCompletely();
 	void goUpOneLevel();
 	void enterSubmenu(MenuItem* newItem);
 	bool pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) override;

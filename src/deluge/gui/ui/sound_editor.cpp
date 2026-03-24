@@ -659,10 +659,16 @@ void SoundEditor::goUpOneLevel() {
 	beginScreen(oldItem);
 }
 
-void SoundEditor::exitCompletely() {
+ActionResult SoundEditor::exitCompletely() {
+
 	if (inSettingsMenu()) {
 		// First, save settings
-
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		else {
+			uiTimerManager.unsetTimer(TimerName::BACK_MENU_EXIT);
+		}
 		display->displayLoadingAnimationText("Saving settings");
 
 		FlashStorage::writeSettings();
@@ -691,6 +697,7 @@ void SoundEditor::exitCompletely() {
 	setupKitGlobalFXMenu = false;
 
 	currentUIMode = UI_MODE_NONE;
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
 bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout, bool* isSecondLayerParamOut) {

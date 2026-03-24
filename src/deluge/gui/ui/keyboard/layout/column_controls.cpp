@@ -86,7 +86,7 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 					if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit)
 					    == RuntimeFeatureStateToggle::On) {
 						// minimize happy path time since most of the time this will be a normal press
-						if (getCurrentUI()->exitUI()) [[unlikely]] {
+						if (getCurrentUI()->exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE) [[unlikely]] {
 							keyboardScreen.killColumnSwitchKey(LEFT_COL);
 							continue;
 						}

@@ -91,10 +91,10 @@ void RenameUI::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	drawTextForOLEDEditing(charsStartPixel, OLED_MAIN_WIDTH_PIXELS - charsStartPixel + 1, 27, maxNumChars, canvas);
 }
 
-bool RenameUI::exitUI() {
+ActionResult RenameUI::exitUI() {
 	display->setNextTransitionDirection(-1);
 	close();
-	return true;
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
 ActionResult RenameUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {

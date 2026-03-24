@@ -151,8 +151,10 @@ void UITimerManager::routine() {
 					break;
 				}
 				case TimerName::BACK_MENU_EXIT: {
-
-					getCurrentUI()->exitUI();
+					ActionResult result = getCurrentUI()->exitUI();
+					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+						timer.active = true;
+					}
 					break;
 				}
 

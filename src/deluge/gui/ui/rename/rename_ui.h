@@ -26,7 +26,7 @@ public:
 	void displayText(bool blinkImmediately = false) override;
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
-	bool exitUI() override;
+	ActionResult exitUI() override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
