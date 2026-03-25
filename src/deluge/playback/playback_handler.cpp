@@ -829,16 +829,20 @@ void PlaybackHandler::scheduleTriggerClockOutTickFromExternalClock() {
 	                                           analogOutTicksPer, inputTicksPer, internalTicksPerInput,
 	                                           timePerInputTickMovingAverage, timeLastInputTicks[0]);
 
-	if (result.shouldEmitTick) {
+	switch (result.action) {
+	case ClockScheduleAction::EmitAndResync:
 		doTriggerClockOutTick();
-	}
-	if (result.shouldResync) {
 		resyncAnalogOutTicksToInternalTicks();
 		return;
-	}
-	if (result.shouldSchedule) {
+	case ClockScheduleAction::EmitAndSchedule:
+		doTriggerClockOutTick();
+		[[fallthrough]];
+	case ClockScheduleAction::Schedule:
 		triggerClockOutTickScheduled = true;
 		timeNextTriggerClockOutTick = result.scheduledTime;
+		break;
+	case ClockScheduleAction::None:
+		break;
 	}
 }
 
@@ -884,16 +888,20 @@ void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
 	                                           midiClockOutTicksPer, inputTicksPer, internalTicksPerInput,
 	                                           timePerInputTickMovingAverage, timeLastInputTicks[0]);
 
-	if (result.shouldEmitTick) {
+	switch (result.action) {
+	case ClockScheduleAction::EmitAndResync:
 		doMIDIClockOutTick();
-	}
-	if (result.shouldResync) {
 		resyncMIDIClockOutTicksToInternalTicks();
 		return;
-	}
-	if (result.shouldSchedule) {
+	case ClockScheduleAction::EmitAndSchedule:
+		doMIDIClockOutTick();
+		[[fallthrough]];
+	case ClockScheduleAction::Schedule:
 		midiClockOutTickScheduled = true;
 		timeNextMIDIClockOutTick = result.scheduledTime;
+		break;
+	case ClockScheduleAction::None:
+		break;
 	}
 }
 

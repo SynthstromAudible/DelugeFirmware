@@ -11,18 +11,15 @@ ClockSchedulingResult computeExternalClockSchedule(int64_t lastTickDone, int64_t
 	int64_t nextOutTick = lastTickDone + 1;
 	int64_t internalTickForNextOut = nextOutTick * internalTicksPer / outTicksPer;
 
-	// If behind (or exactly on boundary), emit one immediate tick.
-	if (internalTickForNextOut <= currentInternalTick) {
-		result.shouldEmitTick = true;
+	bool shouldEmit = (internalTickForNextOut <= currentInternalTick);
 
-		// Simulate post-emit state: the caller will increment lastTickDone by 1.
+	if (shouldEmit) {
+		// Look one tick past the one we're about to emit (see header comment for + 2 rationale).
 		int64_t tickAfterEmit = lastTickDone + 2;
 		int64_t internalTickForTickAfterEmit = tickAfterEmit * internalTicksPer / outTicksPer;
 
-		// If strictly behind after emitting one, resync. Exactly on the boundary means the
-		// tick is due now — schedule it for the ISR to fire with proper temporal spacing.
 		if (internalTickForTickAfterEmit < currentInternalTick) {
-			result.shouldResync = true;
+			result.action = ClockScheduleAction::EmitAndResync;
 			return result;
 		}
 
@@ -36,8 +33,12 @@ ClockSchedulingResult computeExternalClockSchedule(int64_t lastTickDone, int64_t
 	if (internalTicksUntilNext >= 0 && timePerInputTickMovingAverage > 0) {
 		uint32_t timeUntilNext = (uint32_t)((uint64_t)internalTicksUntilNext * timePerInputTickMovingAverage
 		                                    * inputTicksPer / internalTicksPerInput);
-		result.shouldSchedule = true;
+		result.action = shouldEmit ? ClockScheduleAction::EmitAndSchedule : ClockScheduleAction::Schedule;
 		result.scheduledTime = inputTickTime + timeUntilNext;
+	}
+	else if (shouldEmit) {
+		// Emitted a tick but can't compute a schedule (e.g. zero tempo) -- treat as resync.
+		result.action = ClockScheduleAction::EmitAndResync;
 	}
 
 	return result;
