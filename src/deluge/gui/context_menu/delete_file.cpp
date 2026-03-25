@@ -99,6 +99,7 @@ bool DeleteFile::acceptCurrentOption() {
 			display->displayPopup(l10n::get(STRING_FOR_ERROR_PRESET_IN_USE));
 		}
 		else if (toDelete->instrument) {
+			display->displayPopup(l10n::get(STRING_FOR_FILE_DELETED));
 			// it has an instrument, it's not on the card, it's not in use, let's remove it
 			browser->currentFileDeleted();
 		}
