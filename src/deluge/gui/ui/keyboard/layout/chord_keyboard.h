@@ -23,7 +23,6 @@
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "util/const_functions.h"
 #include <array>
-#include <set>
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -79,7 +78,7 @@ private:
 	    colours::blue, colours::purple, colours::green, colours::kelly::very_light_blue,
 	    colours::cyan, colours::yellow};
 
-	std::array<int32_t, kOctaveSize + kDisplayHeight + kDisplayWidth> qualities;
+	std::array<int32_t, kOctaveSize + kDisplayHeight + kDisplayWidth> qualities{};
 
 	std::array<int32_t, kDisplayWidth - 1> scaleSteps = {
 	    SCALEFIRST,
@@ -102,10 +101,6 @@ private:
 
 	std::array<const std::array<const Chord, majorChords.size()>*, 6> chordColumns = {
 	    &majorChords, &minorChords, &diminishedChords, &augmentedChords, &dominantChords, &otherChords};
-
-	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,  Scale::DORIAN_SCALE,
-	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE, Scale::MIXOLYDIAN_SCALE,
-	                                  Scale::LOCRIAN_SCALE};
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

@@ -153,9 +153,10 @@ void KeyboardLayoutChord::precalculate() {
 	KeyboardStateChord& state = getState().chord;
 
 	Scale currentScale = currentSong->getCurrentScale();
-	D_PRINTLN("Current scale: %d", currentScale);
+	NoteSet& scaleNotes = getScaleNotes();
 
-	if (!(acceptedScales.find(currentScale) != acceptedScales.end())) {
+	// Chord quality analysis requires exactly 7 scale degrees
+	if (scaleNotes.count() != 7) {
 		if (lastScale == NO_SCALE) {
 			keyboardScreen.setScale(MAJOR_SCALE);
 		}
@@ -163,24 +164,20 @@ void KeyboardLayoutChord::precalculate() {
 			keyboardScreen.setScale(lastScale);
 		}
 		if (display->haveOLED()) {
-			display->popupTextTemporary("Chord mode only supports modes of major and minor scales");
+			display->popupTextTemporary("Chord mode requires a 7-note scale");
 		}
 		else {
-			display->setScrollingText("SCALE NOT SUPPORTED", 0);
+			display->setScrollingText("NEED 7 NOTE", 0);
 		}
+		return;
 	}
-	else {
-		lastScale = currentScale;
-		NoteSet& scaleNotes = getScaleNotes();
 
-		for (int32_t i = 0; i < qualities.size(); ++i) {
-			// Since each row is an degree of our scale, if we modulate by the inverse of the scale note,
-			//  we get the scale modes.
-			NoteSet scaleMode = scaleNotes.modulateByOffset((kOctaveSize - scaleNotes[i % scaleNotes.count()]));
-			ChordQuality chordQuality = getChordQuality(scaleMode);
-			int32_t quality = static_cast<int32_t>(chordQuality);
-			qualities[i] = quality;
-		}
+	lastScale = currentScale;
+
+	for (size_t i = 0; i < qualities.size(); ++i) {
+		// Modulate by the inverse of the scale note to get the scale modes
+		NoteSet scaleMode = scaleNotes.modulateByOffset((kOctaveSize - scaleNotes[i % scaleNotes.count()]));
+		qualities[i] = static_cast<int32_t>(getChordQuality(scaleMode));
 	}
 }
 
