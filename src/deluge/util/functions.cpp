@@ -1679,8 +1679,8 @@ ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char
 		string++;
 	}
 
-	if (*string < '1' || *string > '9') { // There has to be at least some number there if we're to consider this a note
-		                                  // name. And it can't start with 0.
+	if (*string < '0' || *string > '9') { // There has to be at least some number there if we're to consider this a note
+		                                  // name. Octave 0 is valid (e.g. C0, D#0).
 		toReturn.noteNumber = 100000;
 		toReturn.stringLength = 0;
 		return toReturn;
