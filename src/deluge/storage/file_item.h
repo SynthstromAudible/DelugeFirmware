@@ -33,9 +33,9 @@ public:
 	                         // e.g. "SONG". And I think this always includes the file extension...
 
 	String filename; // May or may not include file extension. (Or actually I think it always does now...)
-	FilePointer filePointer{0};
+	FilePointer filePointer{.sclust = 0, .objsize = 0};
 	Instrument* instrument = nullptr;
-	bool existsOnCard{true}; // only false when made through setupWithInstrument through an unsaved instrument
+	bool maybeExistsOnCard{true}; // only false when made through setupWithInstrument through an unsaved instrument
 	bool isFolder;
 	bool instrumentAlreadyInSong = false; // Only valid if instrument is set to something.
 	bool filenameIncludesExtension = true;

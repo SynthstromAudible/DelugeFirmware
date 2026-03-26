@@ -291,7 +291,7 @@ gotError:
 	}
 
 	newInstrument->editedByUser = true;
-	newInstrument->existsOnCard = false;
+	newInstrument->mightExistOnCard = false;
 
 	if (newOutputType == OutputType::KIT) {
 		// If we weren't a Kit already...

@@ -1961,7 +1961,7 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 	bool editedByUser = true;
 	if (output->type != OutputType::AUDIO) {
 		Instrument* instrument = (Instrument*)output;
-		editedByUser = !instrument->existsOnCard;
+		editedByUser = !instrument->mightExistOnCard;
 		switch (output->type) {
 		case OutputType::MIDI_OUT:
 			channelSuffix = ((MIDIInstrument*)instrument)->channelSuffix;
