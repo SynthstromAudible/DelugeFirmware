@@ -55,6 +55,7 @@ considerEnvelopeStage:
 		// a huge difference since we'd usually need to smooth it anyway
 
 		smoothedSustain = add_saturate(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
+		smoothedSustain = std::max<int32_t>(smoothedSustain, 0);
 		lastValue = smoothedSustain + multiply_32x32_rshift32(getDecay8(pos, 23), 2147483647 - smoothedSustain) * 2;
 
 		pos += decay * numSamples;
@@ -67,6 +68,7 @@ considerEnvelopeStage:
 
 	case EnvelopeStage::SUSTAIN:
 		smoothedSustain = add_saturate(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
+		smoothedSustain = std::max<int32_t>(smoothedSustain, 0);
 		lastValue = smoothedSustain;
 		if (ignoredNoteOff) {
 			unconditionalRelease();
