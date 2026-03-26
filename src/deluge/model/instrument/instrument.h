@@ -51,7 +51,7 @@ public:
 	String dirPath;
 
 	bool editedByUser = false;
-	bool existsOnCard = false;
+	bool mightExistOnCard = false;
 	bool shouldHibernate{true};
 	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
 	                   char const* otherPath) override {

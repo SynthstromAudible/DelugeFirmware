@@ -67,7 +67,8 @@ bool DeleteFile::acceptCurrentOption() {
 	auto* browser = static_cast<Browser*>(ui);
 
 	FileItem* toDelete = browser->getCurrentFileItem();
-	if (toDelete->existsOnCard) {
+	bool existed = true;
+	if (toDelete->maybeExistsOnCard) {
 		String filePath;
 		Error error = browser->getCurrentFilePath(&filePath);
 		if (error != Error::NONE) {
@@ -77,23 +78,33 @@ bool DeleteFile::acceptCurrentOption() {
 
 		FRESULT result = f_unlink(filePath.get());
 
+		// The file might not exist on the card in the first place, in which case whatever
+		if (result == FR_OK) {
+			display->displayPopup(l10n::get(STRING_FOR_FILE_DELETED));
+			browser->currentFileDeleted();
+			existed = true;
+		}
+		else if (result == FR_NO_FILE) {
+			existed = false;
+		}
 		// If didn't work
-		if (result != FR_OK) {
+		else {
 			display->displayPopup(l10n::get(STRING_FOR_ERROR_DELETING_FILE));
+			existed = true;
 			// But we'll still go back to the Browser
 		}
-		else {
+	}
+	if (existed == false) {
+		if (toDelete->instrumentAlreadyInSong) {
+			display->displayPopup(l10n::get(STRING_FOR_ERROR_PRESET_IN_USE));
+		}
+		else if (toDelete->instrument) {
 			display->displayPopup(l10n::get(STRING_FOR_FILE_DELETED));
+			// it has an instrument, it's not on the card, it's not in use, let's remove it
 			browser->currentFileDeleted();
 		}
 	}
-	else if (toDelete->instrumentAlreadyInSong) {
-		display->displayPopup(l10n::get(STRING_FOR_ERROR_PRESET_IN_USE));
-	}
-	else if (toDelete->instrument) {
-		// it has an instrument, it's not on the card, it's not in use, let's remove it
-		browser->currentFileDeleted();
-	}
+
 	close();
 	if (getCurrentUI() == &context_menu::saveSongOrInstrument) {
 		context_menu::saveSongOrInstrument.close();
