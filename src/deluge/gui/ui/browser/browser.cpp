@@ -419,6 +419,9 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 				if (!nextItem->instrument && !nextItem->isFolder) {
 					if (!strcasecmp(readItem->displayName, nextItem->displayName)) {
 						// if (readItem->filename.equalsCaseIrrespective(&nextItem->filename)) {
+						if (readItem->maybeExistsOnCard && readItem->filePointer.sclust == 0) {
+							readItem->filePointer = nextItem->filePointer;
+						}
 						nextItem->~FileItem();
 						readI++;
 						nextItem = (FileItem*)fileItems.getElementAddress(readI + 1);
@@ -445,6 +448,9 @@ deleteThisItem:
 			// Or if next item has an Instrument, and we're just a file...
 			else if (nextItem->instrument) {
 				if (!strcasecmp(readItem->displayName, nextItem->displayName)) { // And if same name...
+					if (nextItem->maybeExistsOnCard && nextItem->filePointer.sclust == 0) {
+						nextItem->filePointer = readItem->filePointer;
+					}
 					goto deleteThisItem;
 				}
 			}

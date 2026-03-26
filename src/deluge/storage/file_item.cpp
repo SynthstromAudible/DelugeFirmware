@@ -31,23 +31,7 @@ Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating)
 	isFolder = false;
 	instrumentAlreadyInSong = !hibernating;
 	displayName = filename.get();
-	if (newInstrument->existsOnCard && filePointer.sclust == 0) {
-		String tempFilePath;
-		tempFilePath.set(newInstrument->dirPath.get());
-		tempFilePath.concatenate("/");
-		tempFilePath.concatenate(filename.get());
-		existsOnCard = StorageManager::fileExists(tempFilePath.get(), &filePointer);
-		if (!existsOnCard) {
-			// this is recoverable later - will make a default synth or browse from top folder when encountering the
-			// null filepointer
-			D_PRINTLN("couldn't get filepath for file %s", filename.get());
-			// so we don't look for it again
-			newInstrument->existsOnCard = false;
-		}
-	}
-	else {
-		existsOnCard = newInstrument->existsOnCard;
-	}
+	maybeExistsOnCard = newInstrument->mightExistOnCard;
 
 	return Error::NONE;
 }

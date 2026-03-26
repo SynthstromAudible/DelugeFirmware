@@ -103,7 +103,7 @@ void DxCartridge::readValueAgain() {
 	pd->unpackProgram(patch->params, currentValue);
 	soundEditor.currentSound->killAllVoices();
 	Instrument* instrument = getCurrentInstrument();
-	if (instrument->type == OutputType::SYNTH && !instrument->existsOnCard) {
+	if (instrument->type == OutputType::SYNTH && !instrument->mightExistOnCard) {
 		char name[11];
 		pd->getProgramName(currentValue, name);
 		if (name[0] != 0) {
