@@ -6180,6 +6180,7 @@ ActionResult InstrumentClipView::commandTransposeKey(int32_t offset, bool inCard
 }
 
 void InstrumentClipView::commandRotateInCurrentOctave(int32_t offset) {
+	bool inOctave = Buttons::isButtonPressed(hid::button::Y_ENC);
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = getCurrentInstrumentClip();
@@ -6219,7 +6220,7 @@ void InstrumentClipView::commandRotateInCurrentOctave(int32_t offset) {
 
 		if (noteRow && !noteRow->hasNoNotes()) {
 			int32_t currentYNote = noteRow->y;
-			auto destYNote = currentSong->incrementYNoteInKey(currentYNote, offset, true);
+			auto destYNote = currentSong->incrementYNoteInKey(currentYNote, offset, inOctave);
 			D_PRINTLN("Moving note from row %i to %i", currentYNote, destYNote);
 
 			// Skip if note would stay in same row

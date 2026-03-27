@@ -709,29 +709,40 @@ int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKe
 	return yVisualWithinOctave + octave * key.modeNotes.count() + key.rootNote;
 }
 
-int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inKeyMode) const {
-	return incrementYNoteInKey(yNote, increment, inKeyMode, key);
+int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave) const {
+	return incrementYNoteInKey(yNote, increment, inOctave, key);
 }
 
-int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inKeyMode, const MusicalKey& key) {
+int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key) {
 	auto inc = std::clamp<int32_t>(increment, -1, 1);
-	if (!inKeyMode) {
-		return yNote + inc;
-	}
+	auto num_scale_notes = key.modeNotes.count();
 	int32_t y_note_relative_to_root = yNote - key.rootNote;
 	int32_t y_note_within_octave = (uint16_t)(y_note_relative_to_root + 120) % 12;
 
 	int32_t octave = ((uint16_t)(y_note_relative_to_root + 120 - y_note_within_octave) / 12) - 10;
 
 	int32_t y_visual_within_octave = 0;
-	for (int32_t i = 0; i < key.modeNotes.count() && key.modeNotes[i] <= y_note_within_octave; i++) {
+	for (int32_t i = 0; i < num_scale_notes && key.modeNotes[i] <= y_note_within_octave; i++) {
 		y_visual_within_octave = i;
 	}
-	y_visual_within_octave = (y_visual_within_octave + inc) % key.modeNotes.count();
-	if (y_visual_within_octave < 0) {
-		octave += 1;
+	if (inOctave) {
+		y_visual_within_octave = (y_visual_within_octave + inc) % num_scale_notes;
+		if (y_visual_within_octave < 0) {
+			y_visual_within_octave = y_visual_within_octave + num_scale_notes;
+		}
 	}
-	auto new_note = y_visual_within_octave + (octave * key.modeNotes.count()) + key.rootNote;
+	else {
+		y_visual_within_octave = y_visual_within_octave + inc;
+		if (y_visual_within_octave > num_scale_notes) {
+			y_visual_within_octave = y_visual_within_octave - num_scale_notes;
+			octave++;
+		}
+		else if (y_visual_within_octave < 0) {
+			y_visual_within_octave = y_visual_within_octave + num_scale_notes;
+			octave--;
+		}
+	}
+	auto new_note = key.modeNotes[y_visual_within_octave] + (octave * 12) + key.rootNote;
 	D_PRINTLN("incremented from %i to %i", yNote, new_note);
 	return new_note;
 }
