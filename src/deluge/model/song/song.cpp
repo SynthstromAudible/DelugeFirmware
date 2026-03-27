@@ -709,6 +709,33 @@ int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKe
 	return yVisualWithinOctave + octave * key.modeNotes.count() + key.rootNote;
 }
 
+int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inKeyMode) const {
+	return incrementYNoteInKey(yNote, increment, inKeyMode, key);
+}
+
+int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inKeyMode, const MusicalKey& key) {
+	auto inc = std::clamp<int32_t>(increment, -1, 1);
+	if (!inKeyMode) {
+		return yNote + inc;
+	}
+	int32_t y_note_relative_to_root = yNote - key.rootNote;
+	int32_t y_note_within_octave = (uint16_t)(y_note_relative_to_root + 120) % 12;
+
+	int32_t octave = ((uint16_t)(y_note_relative_to_root + 120 - y_note_within_octave) / 12) - 10;
+
+	int32_t y_visual_within_octave = 0;
+	for (int32_t i = 0; i < key.modeNotes.count() && key.modeNotes[i] <= y_note_within_octave; i++) {
+		y_visual_within_octave = i;
+	}
+	y_visual_within_octave = (y_visual_within_octave + inc) % key.modeNotes.count();
+	if (y_visual_within_octave < 0) {
+		octave += 1;
+	}
+	auto new_note = y_visual_within_octave + (octave * key.modeNotes.count()) + key.rootNote;
+	D_PRINTLN("incremented from %i to %i", yNote, new_note);
+	return new_note;
+}
+
 int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode) {
 	return getYNoteFromYVisual(yVisual, inKeyMode, key);
 }
