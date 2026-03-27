@@ -6214,9 +6214,10 @@ void InstrumentClipView::commandRotateInCurrentOctave(int32_t offset) {
 	// First pass: collect all notes from visible rows within screen bounds
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
-		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+	auto num_note_rows = clip->getNumNoteRows();
+	for (int32_t index = 0; index < num_note_rows; index++) {
+		NoteRow* noteRow = clip->noteRows.getElement(index);
+		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRow->y, noteRow);
 
 		if (noteRow && !noteRow->hasNoNotes()) {
 			int32_t currentYNote = noteRow->y;
