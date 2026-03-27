@@ -714,17 +714,19 @@ int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctav
 }
 
 int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key) {
+	D_PRINTLN("Incrementing note %i by %i", yNote, increment);
 	auto inc = std::clamp<int32_t>(increment, -1, 1);
 	auto num_scale_notes = key.modeNotes.count();
 	int32_t y_note_relative_to_root = yNote - key.rootNote;
 	int32_t y_note_within_octave = (uint16_t)(y_note_relative_to_root + 120) % 12;
 
 	int32_t octave = ((uint16_t)(y_note_relative_to_root + 120 - y_note_within_octave) / 12) - 10;
-
+	auto old_octave = octave;
 	int32_t y_visual_within_octave = 0;
 	for (int32_t i = 0; i < num_scale_notes && key.modeNotes[i] <= y_note_within_octave; i++) {
 		y_visual_within_octave = i;
 	}
+	auto old_mode_note = y_visual_within_octave;
 	if (inOctave) {
 		y_visual_within_octave = (y_visual_within_octave + inc) % num_scale_notes;
 		if (y_visual_within_octave < 0) {
@@ -733,7 +735,7 @@ int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctav
 	}
 	else {
 		y_visual_within_octave = y_visual_within_octave + inc;
-		if (y_visual_within_octave > num_scale_notes) {
+		if (y_visual_within_octave >= num_scale_notes) {
 			y_visual_within_octave = y_visual_within_octave - num_scale_notes;
 			octave++;
 		}
@@ -743,7 +745,13 @@ int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctav
 		}
 	}
 	auto new_note = key.modeNotes[y_visual_within_octave] + (octave * 12) + key.rootNote;
+	if (std::abs(new_note - yNote) > 2) {
+		D_PRINTLN("new note is too different");
+	}
 	D_PRINTLN("incremented from %i to %i", yNote, new_note);
+	D_PRINTLN("Octave %i, mode_note %i, old_octave %i, old mode note % i", octave, y_visual_within_octave, old_octave,
+	          old_mode_note);
+
 	return new_note;
 }
 
