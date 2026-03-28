@@ -195,6 +195,10 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],
 	                  STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip",
 	                  RuntimeFeatureStateToggle::On);
+	// Metronome follow clip (polymeter/polyrhythm)
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MetronomeFollowClip],
+	                  STRING_FOR_COMMUNITY_FEATURE_METRONOME_FOLLOW, "metronomeFollowClip",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

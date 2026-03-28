@@ -56,6 +56,10 @@ public:
 	void setTimeBaseScaleLedState();
 	void setLedStates();
 
+	/// Set by tempo encoder when SYNC_SCALING was used as a clip-ratio modifier.
+	/// Prevents the button's own action from firing on the same press.
+	bool syncScalingUsedAsModifier{false};
+
 	void clipStatusMidiLearnPadPressed(bool on, Clip* whichLoopable);
 	void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
 	void endMidiLearnPressSession(MidiLearn newThingPressed = MidiLearn::NONE);

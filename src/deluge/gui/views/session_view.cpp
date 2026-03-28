@@ -3570,6 +3570,8 @@ void SessionView::setupNewClip(Clip* newClip) {
 	newClip->isUnfinishedAutoOverdub = false;
 	newClip->armState = ArmState::OFF;
 
+	newClip->timeSignature = currentSong->defaultTimeSignature;
+
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		newClip->loopLength = currentSong->getBarLength();
 		newClip->activeIfNoSolo = false;

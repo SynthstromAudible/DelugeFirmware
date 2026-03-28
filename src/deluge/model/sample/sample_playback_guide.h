@@ -54,4 +54,8 @@ public:
 
 	int32_t sequenceSyncStartedAtTick;
 	uint32_t sequenceSyncLengthTicks; // When 0, means no syncing happening
+
+	// Per-clip tempo ratio for audio clip sync (set by AudioClip::setupPlaybackBounds)
+	uint16_t tempoRatioNumerator{1};
+	uint16_t tempoRatioDenominator{1};
 };
