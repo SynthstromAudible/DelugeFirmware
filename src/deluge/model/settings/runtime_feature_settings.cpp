@@ -195,6 +195,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],
 	                  STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Super fine tempo (±0.10 BPM steps)
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::SuperFineTempoKnob],
+	                  STRING_FOR_COMMUNITY_FEATURE_SUPER_FINE_TEMPO, "superFineTempoKnob",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

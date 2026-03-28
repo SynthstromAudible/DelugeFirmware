@@ -2116,6 +2116,17 @@ void PlaybackHandler::commandEditTempoFine(int8_t offset) {
 	}
 }
 
+void PlaybackHandler::commandEditTempoSuperFine(int8_t offset) {
+	float tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat());
+	// Step first, then round to 0.10 grid to avoid float-precision snap errors
+	tempoBPM += offset * 0.1f;
+	tempoBPM = std::round(tempoBPM * 10.0f) / 10.0f;
+	if (tempoBPM > 0) {
+		currentSong->setBPM(tempoBPM, true);
+		displayTempoBPM(tempoBPM);
+	}
+}
+
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
 
 	if (Buttons::isButtonPressed(deluge::hid::button::TAP_TEMPO)) {
@@ -2156,24 +2167,40 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 			UI* currentUI = getCurrentUI();
 			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
 			if (display->hasPopupOfType(PopupType::TEMPO) || isOLEDSessionView) {
-				// Truth table for how we decide between adjusting coarse and fine tempo:
+				// Truth table for tempo encoder modes:
 				//
-				// Setting | Button | Mode
-				// -----------------------
-				//  On     | Off    | Fine
-				//  On     | On     | Coarse
-				//  Off    | Off    | Coarse
-				//  Off    |  On    | Fine
+				// Fine | SuperFine | Button | Mode
+				// ------------------------------------
+				//  Off |    Off    |  Off   | Coarse
+				//  Off |    Off    |  On    | Fine
+				//  On  |    Off    |  Off   | Fine
+				//  On  |    Off    |  On    | Coarse
+				//  Off |    On     |  Off   | SuperFine
+				//  Off |    On     |  On    | Coarse
+				//  On  |    On     |  Off   | Fine
+				//  On  |    On     |  On    | SuperFine
 				//
-				bool feature = runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-				               == RuntimeFeatureStateToggle::On;
+				bool fine = runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+				            == RuntimeFeatureStateToggle::On;
+				bool superFine = runtimeFeatureSettings.get(RuntimeFeatureSettingType::SuperFineTempoKnob)
+				                 == RuntimeFeatureStateToggle::On;
 				bool button = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 
-				if (feature == button) {
-					return commandEditTempoCoarse(offset);
+				if (fine && superFine) {
+					// Both enabled: encoder = Fine, click = SuperFine
+					return button ? commandEditTempoSuperFine(offset) : commandEditTempoFine(offset);
+				}
+				else if (fine) {
+					// Fine only: encoder = Fine, click = Coarse
+					return button ? commandEditTempoCoarse(offset) : commandEditTempoFine(offset);
+				}
+				else if (superFine) {
+					// SuperFine only: encoder = SuperFine, click = Coarse
+					return button ? commandEditTempoCoarse(offset) : commandEditTempoSuperFine(offset);
 				}
 				else {
-					return commandEditTempoFine(offset);
+					// Neither: encoder = Coarse, click = Fine (original behavior)
+					return button ? commandEditTempoFine(offset) : commandEditTempoCoarse(offset);
 				}
 			}
 			else {
@@ -2320,7 +2347,7 @@ void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
 		buffer.append("FAST");
 	}
 	else {
-		int32_t numDecimalPlaces = (tempoBPM >= 1000 || isExternalClockActive()) ? 0 : 2;
+		int32_t numDecimalPlaces = isExternalClockActive() ? 0 : 2;
 		buffer.appendFloat(tempoBPM, 0, numDecimalPlaces);
 	}
 }
