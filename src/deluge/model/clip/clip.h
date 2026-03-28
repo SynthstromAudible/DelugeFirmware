@@ -26,6 +26,7 @@
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
+#include "model/time_signature.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "util/d_string.h"
@@ -186,6 +187,20 @@ public:
 	SequenceDirection sequenceDirectionMode;
 #endif
 
+	// Per-clip tempo ratio: clip advances N clip-ticks per D global-ticks
+	uint16_t tempoRatioNumerator{1};
+	uint16_t tempoRatioDenominator{1};
+	int32_t tempoRatioAccumulator{0};
+	int32_t lastScaledTickIncrement_{0};
+
+	[[nodiscard]] bool hasTempoRatio() const { return tempoRatioNumerator != tempoRatioDenominator; }
+	int32_t scaleGlobalToClipTicks(int32_t globalTicks);
+	[[nodiscard]] int32_t clipTicksToGlobalTicks(int32_t clipTicks) const;
+
+	// Metronome counter: accumulates tempo-scaled ticks independently of clip loop.
+	// Never resets on loop — the metronome keeps counting bars at its own pace.
+	uint32_t metronomeTickCounter{0};
+
 	int32_t loopLength;
 
 	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
@@ -202,6 +217,8 @@ public:
 	LaunchStyle launchStyle;
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput;
+
+	TimeSignature timeSignature;
 
 	// START ~ new Automation Clip View Variables
 	bool onAutomationClipView; // new to save the view that you are currently in

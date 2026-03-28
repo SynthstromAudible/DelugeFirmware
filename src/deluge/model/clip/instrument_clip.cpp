@@ -903,8 +903,12 @@ doNewProbability:
 		}
 	}
 
-	if (ticksTilNextNoteRowEvent < playbackHandler.swungTicksTilNextEvent) {
-		playbackHandler.swungTicksTilNextEvent = ticksTilNextNoteRowEvent;
+	// When a tempo ratio is active, the stateless clipTicksToGlobalTicks() ceiling division
+	// can't perfectly predict when the stateful Bresenham accumulator will produce enough
+	// clip ticks. Force the scheduler to check every global tick so no notes are missed.
+	int32_t globalTicksTilNextNoteRow = hasTempoRatio() ? 1 : clipTicksToGlobalTicks(ticksTilNextNoteRowEvent);
+	if (globalTicksTilNextNoteRow < playbackHandler.swungTicksTilNextEvent) {
+		playbackHandler.swungTicksTilNextEvent = globalTicksTilNextNoteRow;
 	}
 }
 
@@ -4692,13 +4696,43 @@ bool InstrumentClip::hasAnyPitchExpressionAutomationOnNoteRows() {
 }
 
 void InstrumentClip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks) {
-	Clip::incrementPos(modelStack, numTicks);
+	Clip::incrementPos(modelStack, numTicks); // Scales ticks via Bresenham accumulator
 
-	ticksTilNextNoteRowEvent -= numTicks; // We're one tick closer to the next event...
-	noteRowsNumTicksBehindClip += numTicks;
+	int32_t clipTicks = lastScaledTickIncrement_; // Use clip-domain ticks, not global
+
+	// For multi-tick advances (ratios > 100%), process intermediate positions so the
+	// NoteRow event system doesn't skip over notes. We temporarily rewind lastProcessedPos
+	// and run processCurrentPos at each intermediate step where an event falls.
+	if (clipTicks > 1 && ticksTilNextNoteRowEvent < clipTicks && ticksTilNextNoteRowEvent > 0) {
+		// An event falls within the multi-tick advance. Process at the intermediate position.
+		int32_t savedFinalPos = lastProcessedPos;
+		int32_t ticksToEvent = ticksTilNextNoteRowEvent;
+
+		// Rewind to the event position
+		if (currentlyPlayingReversed) {
+			lastProcessedPos = savedFinalPos + (clipTicks - ticksToEvent);
+		}
+		else {
+			lastProcessedPos = savedFinalPos - (clipTicks - ticksToEvent);
+		}
+
+		// Process at the intermediate position
+		noteRowsNumTicksBehindClip += ticksToEvent;
+		ticksTilNextNoteRowEvent = 0;
+		processCurrentPos(modelStack, ticksToEvent);
+
+		// Restore final position and account for remaining ticks
+		lastProcessedPos = savedFinalPos;
+		int32_t remaining = clipTicks - ticksToEvent;
+		ticksTilNextNoteRowEvent -= remaining;
+		noteRowsNumTicksBehindClip += remaining;
+	}
+	else {
+		ticksTilNextNoteRowEvent -= clipTicks;
+		noteRowsNumTicksBehindClip += clipTicks;
+	}
 
 	if (ticksTilNextNoteRowEvent <= 0) {
-
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
 			if (thisNoteRow->hasIndependentPlayPos()) {

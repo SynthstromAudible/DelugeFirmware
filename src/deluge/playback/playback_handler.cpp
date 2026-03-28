@@ -17,6 +17,7 @@
 
 #include "playback/playback_handler.h"
 #include "definitions_cxx.hpp"
+#include "gui/context_menu/clip_settings/tempo_ratio.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/audio_recorder.h"
@@ -25,6 +26,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
@@ -935,23 +937,74 @@ void PlaybackHandler::actionSwungTick() {
 			// If metronome on, make sure we stop on the right tick for that...
 			if (metronomeOn) {
 doMetronome:
-				uint64_t currentMetronomeTick = lastSwungTickActioned;
-				if (!ticksLeftInCountIn) {
-					currentMetronomeTick += metronomeOffset;
+				Clip* metroClip = getCurrentClip();
+				int32_t tickMag = currentSong->getInputTickMagnitude();
+
+				// Determine whether to use clip-local or global position.
+				// Clip view always uses clip-local. Session/arrangement uses the
+				// MetronomeFollowClip toggle. Count-in always uses global.
+				bool useClipLocal = false;
+				bool silenceMetronome = false;
+				if (metroClip && !ticksLeftInCountIn) {
+					RootUI* root = getRootUI();
+					bool inClipView = (root == &instrumentClipView || root == &audioClipView
+					                   || (root == &automationView && !automationView.onArrangerView));
+					if (inClipView) {
+						if (currentSong->isClipActive(metroClip)) {
+							useClipLocal = true;
+						}
+						else {
+							silenceMetronome = true; // inactive clip in clip view — no sound
+						}
+					}
+					else if (currentSong->isClipActive(metroClip)
+					         && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::MetronomeFollowClip)) {
+						useClipLocal = true;
+					}
 				}
-
-				uint32_t swungTicksPerQuarterNote = currentSong->getQuarterNoteLength();
-
-				if ((currentMetronomeTick % swungTicksPerQuarterNote) == 0) {
-					uint32_t phaseIncrement =
-					    ((currentMetronomeTick % (swungTicksPerQuarterNote << 2)) == 0) ? 128411753 : 50960238;
-					AudioEngine::metronome.trigger(phaseIncrement);
+				if (silenceMetronome) {
+					// Don't tick or schedule — just skip
 				}
+				else
 
-				int32_t ticksIntoCurrentBeep = currentMetronomeTick % swungTicksPerQuarterNote;
-				int32_t swungTicksTilNextMetronomeEvent =
-				    swungTicksPerQuarterNote - ticksIntoCurrentBeep; // Ticks til next beep
-				swungTicksTilNextEvent = std::min(swungTicksTilNextEvent, swungTicksTilNextMetronomeEvent);
+				    if (useClipLocal) {
+					// Clip-local metronome: uses dedicated counter that never resets on loop
+					TimeSignature timeSig = metroClip->timeSignature;
+					uint32_t beatLen = increaseMagnitude(timeSig.beatLengthInBaseTicks(), tickMag);
+					uint32_t barLen = increaseMagnitude(timeSig.barLengthInBaseTicks(), tickMag);
+					uint32_t metroPos = metroClip->metronomeTickCounter;
+
+					if ((metroPos % beatLen) == 0) {
+						uint32_t phaseIncrement = ((metroPos % barLen) == 0) ? 128411753 : 50960238;
+						AudioEngine::metronome.trigger(phaseIncrement);
+					}
+
+					// Schedule next beat in clip-local ticks, convert to global
+					int32_t ticksIntoBeat = static_cast<int32_t>(metroPos % beatLen);
+					int32_t clipTicksTilNext = static_cast<int32_t>(beatLen) - ticksIntoBeat;
+					int32_t globalTicksTilNext = metroClip->clipTicksToGlobalTicks(clipTicksTilNext);
+					swungTicksTilNextEvent = std::min(swungTicksTilNextEvent, globalTicksTilNext);
+				}
+				else {
+					// Global metronome: song default time sig on global tick counter
+					uint64_t currentMetronomeTick = lastSwungTickActioned;
+					if (!ticksLeftInCountIn) {
+						currentMetronomeTick += metronomeOffset;
+					}
+
+					TimeSignature timeSig = currentSong->defaultTimeSignature;
+					uint32_t oneBeat = increaseMagnitude(timeSig.beatLengthInBaseTicks(), tickMag);
+					uint32_t oneBar = increaseMagnitude(timeSig.barLengthInBaseTicks(), tickMag);
+
+					if ((currentMetronomeTick % oneBeat) == 0) {
+						uint32_t phaseIncrement = ((currentMetronomeTick % oneBar) == 0) ? 128411753 : 50960238;
+						AudioEngine::metronome.trigger(phaseIncrement);
+					}
+
+					int32_t ticksIntoCurrentBeep = currentMetronomeTick % oneBeat;
+					int32_t swungTicksTilNextMetronomeEvent = oneBeat - ticksIntoCurrentBeep;
+					swungTicksTilNextEvent = std::min(swungTicksTilNextEvent, swungTicksTilNextMetronomeEvent);
+				}
 			}
 		}
 	}
@@ -2086,6 +2139,22 @@ void PlaybackHandler::commandEditClockOutScale(int8_t offset) {
 }
 
 void PlaybackHandler::commandEditTempoCoarse(int8_t offset) {
+	// When sync-scaling is active, the magnitude decomposition in getCurrentTempoParams
+	// doesn't account for insideWorldTickMagnitudeOffsetFromBPM, causing the round-trip
+	// through setTempoFromParams (which adds getInputTickMagnitude) to double-apply the
+	// offset. Use the float BPM path instead — it handles magnitudes correctly.
+	if (currentSong->getSyncScalingClip()) {
+		float tempoBPM = calculateBPMForDisplay();
+		// Step by ~1 BPM in coarse mode (same granularity feel as the 16-value table)
+		tempoBPM = std::round(tempoBPM);
+		tempoBPM += offset;
+		if (tempoBPM > 0) {
+			currentSong->setBPM(tempoBPM, true);
+			displayTempoBPM(tempoBPM);
+		}
+		return;
+	}
+
 	// Get current tempo
 	int32_t magnitude;
 	int8_t whichValue;
@@ -2129,6 +2198,122 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	}
 
 	offset = std::max((int8_t)-1, std::min((int8_t)1, offset));
+
+	// Hold SYNC_SCALING + turn TEMPO = adjust current clip's tempo ratio.
+	// Same truth table as normal tempo coarse/fine: community FineTempoKnob setting
+	// and knob-press state determine whether we step ±1% or cycle preset ratios.
+	if (Buttons::isButtonPressed(deluge::hid::button::SYNC_SCALING)) {
+		UI* ui = getCurrentUI();
+		if (ui->toClipMinder()) {
+			Clip* clip = getCurrentClip();
+			if (clip) {
+				view.syncScalingUsedAsModifier = true;
+
+				// First turn: just display current ratio (like normal tempo's first-turn-displays behavior)
+				if (!display->hasPopupOfType(PopupType::GENERAL)) {
+					int32_t pct = (clip->tempoRatioNumerator * 100 + clip->tempoRatioDenominator / 2)
+					              / clip->tempoRatioDenominator;
+					char buf[16];
+					snprintf(buf, sizeof(buf), "%d%%", static_cast<int>(pct));
+					display->displayPopup(buf);
+					return;
+				}
+
+				bool feature = runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+				               == RuntimeFeatureStateToggle::On;
+				bool button = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
+				bool usePresets = (feature != button); // XOR: same logic as coarse/fine toggle
+
+				if (usePresets) {
+					// Cycle through musical preset ratios from the shared table.
+					// If current ratio isn't an exact preset match, first click snaps
+					// to the nearest preset without applying offset.
+					using namespace deluge::gui::context_menu::clip_settings;
+
+					bool exactMatch = false;
+					int32_t idx = 0;
+
+					// Look for exact match first
+					for (size_t i = 0; i < kNumRatios; i++) {
+						if (clip->tempoRatioNumerator == kRatios[i].numerator
+						    && clip->tempoRatioDenominator == kRatios[i].denominator) {
+							idx = static_cast<int32_t>(i);
+							exactMatch = true;
+							break;
+						}
+					}
+
+					if (!exactMatch) {
+						// Find nearest preset by ratio value
+						float currentRatio = static_cast<float>(clip->tempoRatioNumerator)
+						                     / static_cast<float>(clip->tempoRatioDenominator);
+						float bestDist = 999.0f;
+						for (size_t i = 0; i < kNumRatios; i++) {
+							float r =
+							    static_cast<float>(kRatios[i].numerator) / static_cast<float>(kRatios[i].denominator);
+							float dist = (r > currentRatio) ? (r - currentRatio) : (currentRatio - r);
+							if (dist < bestDist) {
+								bestDist = dist;
+								idx = static_cast<int32_t>(i);
+							}
+						}
+						// Snap to nearest preset — don't apply offset on this click
+					}
+					else {
+						// Already on a preset — apply offset normally
+						idx += offset;
+					}
+
+					if (idx < 0) {
+						idx = 0;
+					}
+					else if (idx >= static_cast<int32_t>(kNumRatios)) {
+						idx = static_cast<int32_t>(kNumRatios) - 1;
+					}
+
+					clip->tempoRatioNumerator = kRatios[idx].numerator;
+					clip->tempoRatioDenominator = kRatios[idx].denominator;
+					clip->tempoRatioAccumulator = 0;
+					clip->expectEvent(); // Recalculate scheduling for new ratio
+
+					unsigned int pct =
+					    (kRatios[idx].numerator * 100 + kRatios[idx].denominator / 2) / kRatios[idx].denominator;
+					char buf[20];
+					snprintf(buf, sizeof(buf), "%u%% (%u:%u)", pct, kRatios[idx].numerator, kRatios[idx].denominator);
+					display->displayPopup(buf);
+				}
+				else {
+					// Step ±1% for fine ear-tuning
+					int32_t pct = (clip->tempoRatioNumerator * 100 + clip->tempoRatioDenominator / 2)
+					              / clip->tempoRatioDenominator;
+					pct += offset;
+					if (pct < 10) {
+						pct = 10;
+					}
+					else if (pct > 400) {
+						pct = 400;
+					}
+
+					// Reduce pct:100 by GCD
+					int32_t a = pct, b = 100;
+					while (b) {
+						int32_t t = b;
+						b = a % b;
+						a = t;
+					}
+					clip->tempoRatioNumerator = static_cast<uint16_t>(pct / a);
+					clip->tempoRatioDenominator = static_cast<uint16_t>(100 / a);
+					clip->tempoRatioAccumulator = 0;
+					clip->expectEvent(); // Recalculate scheduling for new ratio
+
+					char buf[16];
+					snprintf(buf, sizeof(buf), "%d%%", static_cast<int>(pct));
+					display->displayPopup(buf);
+				}
+			}
+		}
+		return;
+	}
 
 	// Nudging sync
 	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
