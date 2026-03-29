@@ -44,8 +44,8 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t soundParamId, int32_t globalParamId,
 	                                                bool displayError = true);
-	void noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
-	                         bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
+	Output* noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
+	                            bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
 	void sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType match, bool on, int32_t channel, int32_t note,
 	                    int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
 	void midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t ccValue, bool* doingMidiThru,

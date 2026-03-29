@@ -629,8 +629,8 @@ void MidiFollow::removeClip(Clip* clip) {
 /// called from playback handler
 /// determines whether a note message received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
-                                     bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack) {
+Output* MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
+                                        bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack) {
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		if (note >= 0 && note <= 127) {
@@ -646,6 +646,11 @@ void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel,
 
 			sendNoteToClip(cable, clip, match, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
 			               modelStack);
+			// Return the output that handled this note so the caller can skip it
+			// in the general instrument loop, preventing duplicate note recording
+			if (clip) {
+				return clip->output;
+			}
 		}
 		// all notes off
 		else if (note == ALL_NOTES_OFF) {
@@ -657,6 +662,7 @@ void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel,
 			}
 		}
 	}
+	return nullptr;
 }
 
 void MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType match, bool on, int32_t channel,

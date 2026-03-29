@@ -2970,12 +2970,19 @@ void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t cha
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	// See if note message received should be processed by midi follow mode
-	midiFollow.noteMessageReceived(cable, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
-	                               modelStack);
+	// See if note message received should be processed by midi follow mode.
+	// Returns the Output that handled the note (if any) so we can skip it below
+	// to prevent duplicate note recording (fixes #4225).
+	Output* midiFollowOutput = midiFollow.noteMessageReceived(cable, on, channel, note, velocity, doingMidiThru,
+	                                                          shouldRecordNotesNowNow, modelStack);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+
+		// Skip the output already handled by MIDI Follow to prevent double note recording
+		if (thisOutput == midiFollowOutput) {
+			continue;
+		}
 
 		// Only send if not muted - but let note-offs through always, for safety
 		if (!on || currentSong->isOutputActiveInArrangement(thisOutput)) {
