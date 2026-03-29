@@ -273,39 +273,116 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
 
+	shouldInterpretNoteNames = false;
+	octaveStartsFromA = false;
+
 	int32_t currentFileIndexSelected = fileIndexSelected;
 
 	bool songFound = false;
+	int32_t maxIterations = fileItems.getNumElements() + 1;
+	int32_t iterations = 0;
 	do {
 		fileIndexSelected = fileIndexSelected + offset;
+
+		// When navigating past the edge of the loaded file item window,
+		// reload from disk if more files exist, or wrap to the other end
 		if (fileIndexSelected < 0) {
-			fileIndexSelected = fileItems.getNumElements() - 1;
-		}
-		else if (fileIndexSelected >= fileItems.getNumElements()) {
-			fileIndexSelected = 0;
-		}
-		Browser::setEnteredTextFromCurrentFilename();
-
-		FileItem* currentFileItem = getCurrentFileItem();
-
-		if (currentFileItem != nullptr) {
-			// Check if it's a directory...
-			if (currentFileItem->isFolder) {
-				// it is a folder
-				// scroll to the next item
-				continue;
-			}
-			else {
-				// if is a file, select it
-				songFound = true;
-				AudioEngine::logAction("performLoad");
-				performLoad();
-				if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-					runtimeFeatureSettings.writeSettingsToFile();
+			if (numFileItemsDeletedAtStart) {
+				// More files exist before the current window — reload centered on current position
+				Error error =
+				    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, nullptr, enteredText.get(), nullptr,
+				                                     true, Availability::ANY, CATALOG_SEARCH_BOTH);
+				if (error != Error::NONE) {
+					fileIndexSelected = currentFileIndexSelected;
+					break;
+				}
+				fileIndexSelected = fileItems.search(enteredText.get()) + offset;
+				if (fileIndexSelected < 0) {
+					// Still at the very start of all files — wrap to end
+					Error error =
+					    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, nullptr, nullptr, nullptr, true,
+					                                     Availability::ANY, CATALOG_SEARCH_LEFT);
+					if (error != Error::NONE) {
+						fileIndexSelected = currentFileIndexSelected;
+						break;
+					}
+					fileIndexSelected = fileItems.getNumElements() - 1;
 				}
 			}
+			else {
+				// All files at the start are loaded — wrap to end
+				if (numFileItemsDeletedAtEnd) {
+					Error error =
+					    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, nullptr, nullptr, nullptr, true,
+					                                     Availability::ANY, CATALOG_SEARCH_LEFT);
+					if (error != Error::NONE) {
+						fileIndexSelected = currentFileIndexSelected;
+						break;
+					}
+				}
+				fileIndexSelected = fileItems.getNumElements() - 1;
+			}
 		}
-	} while (currentFileIndexSelected != fileIndexSelected && !songFound);
+		else if (fileIndexSelected >= fileItems.getNumElements()) {
+			if (numFileItemsDeletedAtEnd) {
+				// More files exist after the current window — reload centered on current position
+				Error error =
+				    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, nullptr, enteredText.get(), nullptr,
+				                                     true, Availability::ANY, CATALOG_SEARCH_BOTH);
+				if (error != Error::NONE) {
+					fileIndexSelected = currentFileIndexSelected;
+					break;
+				}
+				fileIndexSelected = fileItems.search(enteredText.get()) + offset;
+				if (fileIndexSelected >= fileItems.getNumElements()) {
+					// Still at the very end of all files — wrap to start
+					Error error =
+					    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, nullptr, nullptr, nullptr, true,
+					                                     Availability::ANY, CATALOG_SEARCH_RIGHT);
+					if (error != Error::NONE) {
+						fileIndexSelected = currentFileIndexSelected;
+						break;
+					}
+					fileIndexSelected = 0;
+				}
+			}
+			else {
+				// All files at the end are loaded — wrap to start
+				if (numFileItemsDeletedAtStart) {
+					Error error =
+					    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, nullptr, nullptr, nullptr, true,
+					                                     Availability::ANY, CATALOG_SEARCH_RIGHT);
+					if (error != Error::NONE) {
+						fileIndexSelected = currentFileIndexSelected;
+						break;
+					}
+				}
+				fileIndexSelected = 0;
+			}
+		}
+
+		FileItem* currentFileItem = getCurrentFileItem();
+		if (currentFileItem == nullptr) {
+			fileIndexSelected = currentFileIndexSelected;
+			break;
+		}
+		setEnteredTextFromCurrentFilename();
+
+		// Check if it's a directory...
+		if (currentFileItem->isFolder) {
+			// scroll to the next item
+			continue;
+		}
+		else {
+			// if is a file, select it
+			songFound = true;
+			AudioEngine::logAction("performLoad");
+			performLoad();
+			if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+				runtimeFeatureSettings.writeSettingsToFile();
+			}
+		}
+	} while (currentFileIndexSelected != fileIndexSelected && !songFound && ++iterations < maxIterations);
 	// in case we wrapped around the whole list of files and didn't find a song,
 	// we just exit without doing anything else
 
