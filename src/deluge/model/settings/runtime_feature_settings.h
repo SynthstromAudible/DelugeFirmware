@@ -65,6 +65,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	AlternativeTapTempoBehaviour,
 	HorizontalMenus,
 	TrimFromStartOfAudioClip,
+	SuperFineTempoKnob,
 	MaxElement // Keep as boundary
 };
 

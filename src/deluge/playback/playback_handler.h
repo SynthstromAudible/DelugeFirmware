@@ -223,6 +223,7 @@ public:
 	void commandEditClockOutScale(int8_t offset);
 	void commandEditTempoCoarse(int8_t offset);
 	void commandEditTempoFine(int8_t offset);
+	void commandEditTempoSuperFine(int8_t offset);
 	void commandDisplayTempo(int8_t offset);
 	void commandClearTempoAutomation();
 
