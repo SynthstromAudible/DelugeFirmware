@@ -512,6 +512,7 @@ enum class Error {
 	OUT_OF_BUFFER_SPACE,
 	INVALID_SYSEX_FORMAT,
 	POS_PAST_STRING,
+	FILE_NOT_SAVED,
 };
 
 enum class SampleRepeatMode {
