@@ -327,13 +327,25 @@ doEndMidiLearnPressSession:
 		}
 	}
 
-	// Sync-scaling button - can be repurposed as Fill Mode in community settings
+	// Sync-scaling button - can be repurposed as Fill Mode in community settings.
+	// Also used as a modifier: hold SYNC_SCALING + turn TEMPO = adjust clip tempo ratio.
+	// Fill mode always works normally (press=on, release=off) since it's a performance tool.
+	// Sync-scale mode is deferred to release so it can be suppressed if used as modifier.
 	else if (b == SYNC_SCALING) {
+		// Fill mode: always pass through immediately — performance requires instant response
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
 			currentSong->changeFillMode(on);
+			if (on) {
+				syncScalingUsedAsModifier = false;
+			}
 		}
-		else if (on && currentUIMode == UI_MODE_NONE) {
+		// Sync-scale mode: defer toggle to release so modifier use can suppress it
+		else if (on) {
+			syncScalingUsedAsModifier = false;
+		}
+		else if (!syncScalingUsedAsModifier && currentUIMode == UI_MODE_NONE) {
+			// Release without modifier use — execute sync-scale toggle
 
 			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 cant:
@@ -374,6 +386,10 @@ cant:
 
 			playbackHandler.resyncInternalTicksToInputTicks(currentSong);
 			setTimeBaseScaleLedState();
+		}
+		else {
+			// Release after modifier use — just reset the flag
+			syncScalingUsedAsModifier = false;
 		}
 	}
 

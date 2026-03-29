@@ -33,6 +33,7 @@
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include <algorithm>
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -103,6 +104,10 @@ void Clip::copyBasicsFrom(Clip const* otherClip) {
 	section = otherClip->section;
 	launchStyle = otherClip->launchStyle;
 	onAutomationClipView = otherClip->onAutomationClipView;
+	timeSignature = otherClip->timeSignature;
+	tempoRatioNumerator = otherClip->tempoRatioNumerator;
+	tempoRatioDenominator = otherClip->tempoRatioDenominator;
+	// Do NOT copy accumulator — fresh start on clone
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature) {
@@ -151,6 +156,12 @@ uint32_t Clip::getLivePos() const {
 
 	int32_t numSwungTicksInSinceLastActioned = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
+	// Scale global interpolation ticks to clip domain (read-only, no accumulator)
+	if (tempoRatioNumerator != tempoRatioDenominator) {
+		numSwungTicksInSinceLastActioned =
+		    numSwungTicksInSinceLastActioned * tempoRatioNumerator / tempoRatioDenominator;
+	}
+
 	if (currentlyPlayingReversed) {
 		numSwungTicksInSinceLastActioned = -numSwungTicksInSinceLastActioned;
 	}
@@ -167,6 +178,12 @@ uint32_t Clip::getActualCurrentPosAsIfPlayingInForwardDirection() {
 	int32_t actualPos = lastProcessedPos;
 
 	int32_t numSwungTicksInSinceLastActioned = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
+
+	// Scale global interpolation ticks to clip domain (read-only, no accumulator)
+	if (tempoRatioNumerator != tempoRatioDenominator) {
+		numSwungTicksInSinceLastActioned =
+		    numSwungTicksInSinceLastActioned * tempoRatioNumerator / tempoRatioDenominator;
+	}
 
 #if HAVE_SEQUENCE_STEP_CONTROL
 	if (currentlyPlayingReversed) {
@@ -312,14 +329,16 @@ playingForwardNow:
 		bool mayInterpolate = (output->type != OutputType::MIDI_OUT && output->type != OutputType::CV);
 		paramManager.processCurrentPos(modelStackWithThreeMainThings, ticksSinceLast, currentlyPlayingReversed,
 		                               didPingpong, mayInterpolate);
-		if (paramManager.ticksTilNextEvent < playbackHandler.swungTicksTilNextEvent) {
-			playbackHandler.swungTicksTilNextEvent = paramManager.ticksTilNextEvent;
+		int32_t globalTicksTilParamEvent = hasTempoRatio() ? 1 : clipTicksToGlobalTicks(paramManager.ticksTilNextEvent);
+		if (globalTicksTilParamEvent < playbackHandler.swungTicksTilNextEvent) {
+			playbackHandler.swungTicksTilNextEvent = globalTicksTilParamEvent;
 		}
 	}
 
 	// At least make sure we come back at the end of this Clip
-	if (ticksTilEnd < playbackHandler.swungTicksTilNextEvent) {
-		playbackHandler.swungTicksTilNextEvent = ticksTilEnd;
+	int32_t globalTicksTilEnd = hasTempoRatio() ? 1 : clipTicksToGlobalTicks(ticksTilEnd);
+	if (globalTicksTilEnd < playbackHandler.swungTicksTilNextEvent) {
+		playbackHandler.swungTicksTilNextEvent = globalTicksTilEnd;
 	}
 }
 
@@ -384,6 +403,8 @@ void Clip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, boo
 	}
 
 	lastProcessedPos = newPos;
+	tempoRatioAccumulator = 0; // Reset fractional tick state on position reset
+	metronomeTickCounter = 0;  // Reset metronome phase on playback start
 
 	expectEvent(); // Remember, this is a virtual function call - extended in InstrumentClip
 }
@@ -667,6 +688,10 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (sequenceDirectionMode != SequenceDirection::FORWARD) {
 		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
+	if (tempoRatioNumerator != 1 || tempoRatioDenominator != 1) {
+		writer.writeAttribute("tempoRatioNumerator", tempoRatioNumerator);
+		writer.writeAttribute("tempoRatioDenominator", tempoRatioDenominator);
+	}
 	writer.writeAttribute("colourOffset", colourOffset);
 	if (section != 255) {
 		writer.writeAttribute("section", section);
@@ -687,6 +712,10 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	}
 	if (launchStyle != LaunchStyle::DEFAULT) {
 		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle));
+	}
+	if (!timeSignature.isDefault()) {
+		writer.writeAttribute("timeSignatureNumerator", timeSignature.numerator);
+		writer.writeAttribute("timeSignatureDenominator", timeSignature.denominator);
 	}
 }
 
@@ -762,8 +791,30 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 		sequenceDirectionMode = stringToSequenceDirectionMode(reader.readTagOrAttributeValue());
 	}
 
+	else if (!strcmp(tagName, "tempoRatioNumerator")) {
+		tempoRatioNumerator =
+		    static_cast<uint16_t>(std::clamp(reader.readTagOrAttributeValueInt(), int32_t{1}, int32_t{256}));
+	}
+
+	else if (!strcmp(tagName, "tempoRatioDenominator")) {
+		tempoRatioDenominator =
+		    static_cast<uint16_t>(std::clamp(reader.readTagOrAttributeValueInt(), int32_t{1}, int32_t{256}));
+	}
+
 	else if (!strcmp(tagName, "launchStyle")) {
 		launchStyle = stringToLaunchStyle(reader.readTagOrAttributeValue());
+	}
+
+	else if (!strcmp(tagName, "timeSignatureNumerator")) {
+		timeSignature.numerator =
+		    static_cast<uint8_t>(std::clamp(reader.readTagOrAttributeValueInt(), int32_t{1}, int32_t{32}));
+	}
+
+	else if (!strcmp(tagName, "timeSignatureDenominator")) {
+		int32_t val = reader.readTagOrAttributeValueInt();
+		if (val == 2 || val == 4 || val == 8 || val == 16) {
+			timeSignature.denominator = static_cast<uint8_t>(val);
+		}
 	}
 
 	/*
@@ -1166,12 +1217,38 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 	return false;
 }
 
+int32_t Clip::scaleGlobalToClipTicks(int32_t globalTicks) {
+	if (tempoRatioNumerator == tempoRatioDenominator) {
+		return globalTicks;
+	}
+	bool neg = (globalTicks < 0);
+	int32_t absTicks = neg ? -globalTicks : globalTicks;
+	int64_t total = static_cast<int64_t>(absTicks) * tempoRatioNumerator + tempoRatioAccumulator;
+	int32_t result = static_cast<int32_t>(total / tempoRatioDenominator);
+	tempoRatioAccumulator = static_cast<int32_t>(total % tempoRatioDenominator);
+	return neg ? -result : result;
+}
+
+// Precondition: clipTicks >= 0 (scheduling distances are always positive)
+int32_t Clip::clipTicksToGlobalTicks(int32_t clipTicks) const {
+	if (tempoRatioNumerator == tempoRatioDenominator) {
+		return clipTicks;
+	}
+	// Ceiling division: scheduler must wake at-or-before the clip event
+	return static_cast<int32_t>((static_cast<int64_t>(clipTicks) * tempoRatioDenominator + tempoRatioNumerator - 1)
+	                            / tempoRatioNumerator);
+}
+
 void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks) {
+	numTicks = scaleGlobalToClipTicks(numTicks);
+	lastScaledTickIncrement_ = numTicks;
+	metronomeTickCounter += static_cast<uint32_t>(numTicks); // always forward, never resets on loop
 	if (currentlyPlayingReversed) {
 		numTicks = -numTicks;
 	}
 	lastProcessedPos += numTicks;
 }
+
 void Clip::setupOverdubInPlace(OverDubType type) {
 	originalLength = loopLength;
 	armState = ArmState::ON_TO_RECORD;

@@ -194,6 +194,7 @@
 #include "gui/menu_item/sidechain/volume_global.h"
 #include "gui/menu_item/song/configure_macros.h"
 #include "gui/menu_item/song/midi_learn.h"
+#include "gui/menu_item/song/time_signature.h"
 #include "gui/menu_item/source/patched_param/modulator_feedback.h"
 #include "gui/menu_item/source/patched_param/modulator_level.h"
 #include "gui/menu_item/stem_export/start.h"
@@ -1646,6 +1647,18 @@ Submenu songThresholdRecordingSubmenu{
 song::ConfigureMacros configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
 song::MidiLearn midiLearnMenu{STRING_FOR_MIDI_LEARN};
 
+// Song default time signature submenu
+song::TimeSignatureNumerator songTimeSigNumerator{STRING_FOR_TIME_SIG_NUMERATOR};
+song::TimeSignatureDenominator songTimeSigDenominator{STRING_FOR_TIME_SIG_DENOMINATOR};
+
+menu_item::Submenu songTimeSigMenu{
+    STRING_FOR_TIME_SIGNATURE,
+    {
+        &songTimeSigNumerator,
+        &songTimeSigDenominator,
+    },
+};
+
 // Root menu for Song View
 menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
@@ -1654,6 +1667,7 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalFiltersMenu,
         &globalFXMenu,
         &swingIntervalMenu,
+        &songTimeSigMenu,
         &activeScaleMenu,
         &songThresholdRecordingSubmenu,
         &configureSongMacrosMenu,
