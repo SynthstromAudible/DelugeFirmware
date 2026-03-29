@@ -76,6 +76,9 @@ std::string_view getErrorMessage(Error error) {
 	case Error::POS_PAST_STRING:
 		return l10n::getView(STRING_FOR_STRING_ERROR);
 
+	case Error::FILE_NOT_SAVED:
+		return l10n::getView(STRING_FOR_ERROR_FILE_NOT_SAVED);
+
 	default:
 		return l10n::getView(STRING_FOR_ERROR_GENERIC);
 	}
