@@ -6185,9 +6185,6 @@ void InstrumentClipView::commandRotateInCurrentOctave(int32_t offset) {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
-	// Stop all currently playing notes
-	clip->stopAllNotesPlaying(modelStack);
-
 	// Calculate horizontal bounds of current screen
 	int32_t xScroll = currentSong->xScroll[NAVIGATION_CLIP];
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
