@@ -100,16 +100,43 @@ volatile bool spiTransferQueueCurrentlySending = false;
 volatile uint8_t spiTransferQueueReadPos = 0;
 uint8_t spiTransferQueueWritePos = 0;
 
+/// this is super not safe to call in an interrupt so please don't. also image is actually 2 16 bit ints if the
+/// destination is the CV DAC. It should really be a union but I guess it's fine hopefuly maybe
 void enqueueSPITransfer(int32_t destinationId, uint8_t const* image) {
-
-	// First check there isn't already an identical transfer enqueued.
-	int32_t readPosNow = spiTransferQueueReadPos;
-	/*
-	while (readPosNow != spiTransferQueueWritePos) {
-	    if (spiTransferQueue[readPosNow].destinationId == destinationId && spiTransferQueue[readPosNow].dataAddress ==
-	image) return; readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	// arguably should always be on but there's a chance it works out if it overwrites something to the same destination
+	if (((spiTransferQueueWritePos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1)) == spiTransferQueueReadPos) {
+#if ALPHA_OR_BETA_VERSION
+		FREEZE_WITH_ERROR("FULL");
+#endif
+		return;
 	}
-	*/
+	DISABLE_ALL_INTERRUPTS();
+	// First check there isn't already an identical transfer enqueued.
+	auto current_item = spiTransferQueue[spiTransferQueueReadPos];
+	if (current_item.destinationId == destinationId && current_item.dataAddress == image) {
+		// If so, then we don't need to enqueue anything.
+		goto exit;
+	}
+	// then look for another enqueued message we can just steal
+	int32_t readPosNow = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	while (readPosNow != spiTransferQueueWritePos) {
+		switch (destinationId) {
+		case SPI_DESTINATION_CV:
+			if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_CV) {
+				spiTransferQueue[readPosNow].dataAddress = image;
+				goto exit;
+			}
+			break;
+		case SPI_DESTINATION_OLED:
+			if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_OLED
+			    && spiTransferQueue[readPosNow].dataAddress == image) {
+				goto exit;
+			}
+			break;
+		}
+		readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	}
+	// if none of that worked then add a new message
 
 	spiTransferQueue[spiTransferQueueWritePos].destinationId = destinationId;
 	spiTransferQueue[spiTransferQueueWritePos].dataAddress = image;
@@ -120,6 +147,9 @@ void enqueueSPITransfer(int32_t destinationId, uint8_t const* image) {
 	if (!spiTransferQueueCurrentlySending && spiTransferQueueWritePos != spiTransferQueueReadPos) {
 		sendSPITransferFromQueue();
 	}
+exit:
+	ENABLE_INTERRUPTS();
+	return;
 }
 
 void oledDMAInit() {

@@ -41,11 +41,13 @@ void enqueueCVMessage(int channel, uint32_t message)
     enqueueSPITransfer(OLED_CODE_FOR_CV, (uint8_t const*)message);
 }
 
-int oledWaitingForMessage    = 256; // 256 means none.
-int oledPendingMessageToSend = 0;   // 0 means none. The purpose of this variable is to ensure thread safety.
-
+int oledWaitingForMessage    = OLED_MESSAGE_NONE; // 256 means none.
+int oledPendingMessageToSend = 0; // 0 means none. The purpose of this variable is to ensure thread safety.
+int last_message_sent        = 0;
 uint16_t oledMessageTimeoutTime;
-
+// these get optimized out, set em to volatile if you need to keep them for debugging
+bool oled_sending = false;
+bool cv_sending   = false;
 // Call this before you routinely call uartFlushIfNotSending().
 void oledRoutine()
 {
@@ -54,25 +56,34 @@ void oledRoutine()
         oledWaitingForMessage    = oledPendingMessageToSend; // We'll wait to hear back from the PIC.
         oledPendingMessageToSend = 0;
 sendMessageToPIC:
+        last_message_sent      = oledWaitingForMessage;
         oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
         bufferPICUart(oledWaitingForMessage);
     }
 
-    else if (oledWaitingForMessage != 256)
+    else if (oledWaitingForMessage != OLED_MESSAGE_NONE)
     {
         int16_t howLate = *TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime;
         if (howLate >= 0)
         {
             // oledLowLevelTimerCallback(); // No need to actually set the delay timer - we've already waited for ages -
             // any further delay would be pointless.
-            goto sendMessageToPIC;
+            oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
+            last_message_sent      = oledWaitingForMessage;
+            bufferPICUart(oledWaitingForMessage);
         }
     }
 }
 
 void oledSelectingComplete()
 {
-    oledWaitingForMessage                   = 256;
+    oledWaitingForMessage = OLED_MESSAGE_NONE;
+#if ALPHA_OR_BETA_VERSION
+    if (spiTransferQueue[spiTransferQueueReadPos].destinationId != SPI_DESTINATION_OLED)
+    {
+        FREEZE_WITH_ERROR("SPI transfer destination is not OLED");
+    }
+#endif
     RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR       = 0x20u;              // 8-bit
     RSPI(SPI_CHANNEL_OLED_MAIN).SPCMD0      = 0b0000011100000010; // 8-bit
     RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE = 0b01100000;         // 0b00100000;
@@ -82,7 +93,8 @@ void oledSelectingComplete()
     DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
     uint32_t dataAddress               = (uint32_t)spiTransferQueue[spiTransferQueueReadPos].dataAddress;
     DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
-    spiTransferQueueReadPos            = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+    spiTransferQueue[spiTransferQueueReadPos].destinationId = SPI_DESTINATION_NONE;
+    spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
     v7_dma_flush_range(dataAddress, dataAddress + transferSize);
     DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
         DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
@@ -92,6 +104,12 @@ int spiDestinationSendingTo;
 
 void sendCVTransfer()
 {
+#if ALPHA_OR_BETA_VERSION
+    if (spiTransferQueue[spiTransferQueueReadPos].destinationId != SPI_DESTINATION_CV)
+    {
+        FREEZE_WITH_ERROR("SPI transfer destination is not CV");
+    }
+#endif
     setOutputState(6, 1, false); // Select CV DAC
 
     RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR  = 0x60u;              // 32-bit
@@ -102,38 +120,51 @@ void sendCVTransfer()
     RSPI(SPI_CHANNEL_OLED_MAIN).SPCR |= 1 << 7; // Receive interrupt enable
 
     uint32_t message = (uint32_t)spiTransferQueue[spiTransferQueueReadPos].dataAddress;
+    spiTransferQueue[spiTransferQueueReadPos].destinationId = SPI_DESTINATION_NONE;
 
     spiTransferQueueReadPos =
         (spiTransferQueueReadPos + 1)
         & (SPI_TRANSFER_QUEUE_SIZE - 1); // Must do this before actually sending SPI, cos the interrupt could come
                                          // before we do this otherwise. True story.
-
     RSPI(SPI_CHANNEL_CV).SPDR.LONG = message;
 }
 
 void initiateSelectingOled()
 {
-    oledPendingMessageToSend = 248;
+#if ALPHA_OR_BETA_VERSION
+
+    if (oledWaitingForMessage != OLED_MESSAGE_NONE)
+    {
+        FREEZE_WITH_ERROR("OLED message already pending");
+    }
+#endif
+    oledPendingMessageToSend = OLED_MESSAGE_SELECT;
 
     // Actual queue position gets moved along in oledSelectingComplete() when that gets called.
 }
 
 void sendSPITransferFromQueue()
 {
-
-    spiTransferQueueCurrentlySending = true;
-
+#if ALPHA_OR_BETA_VERSION
     spiDestinationSendingTo = spiTransferQueue[spiTransferQueueReadPos].destinationId;
+    if (spiDestinationSendingTo == SPI_DESTINATION_NONE)
+    {
+        FREEZE_WITH_ERROR("SPI transfer destination is NONE");
+    }
+#endif
+    spiTransferQueueCurrentlySending = true;
 
     // If it's OLED data...
     if (spiDestinationSendingTo == 0)
     {
+        oled_sending = true;
         initiateSelectingOled();
     }
 
     // Or if it's CV...
     else
     {
+        cv_sending = true;
         sendCVTransfer();
         cvSent();
     }
@@ -144,7 +175,7 @@ void oledTransferComplete(uint32_t int_sense)
 
     // If anything else to send, and it's to the OLED again, then just go ahead.
     if (spiTransferQueueWritePos != spiTransferQueueReadPos
-        && spiTransferQueue[spiTransferQueueReadPos].destinationId == 0)
+        && spiTransferQueue[spiTransferQueueReadPos].destinationId == 0 && last_message_sent == OLED_MESSAGE_SELECT)
     {
         oledSelectingComplete();
     }
@@ -152,7 +183,7 @@ void oledTransferComplete(uint32_t int_sense)
     // Otherwise, deselect OLED. And when that's finished, we might send some more if there is more.
     else
     {
-        oledPendingMessageToSend = 249;
+        oledPendingMessageToSend = OLED_MESSAGE_DESELECT;
     }
 }
 
@@ -184,6 +215,8 @@ void cvSPITransferComplete(uint32_t sense)
         if (spiTransferQueueWritePos != spiTransferQueueReadPos)
         {
             spiDestinationSendingTo = 0;
+            oled_sending            = true;
+            cv_sending              = false;
             initiateSelectingOled();
         }
 
@@ -191,15 +224,16 @@ void cvSPITransferComplete(uint32_t sense)
         else
         {
             spiTransferQueueCurrentlySending = false;
+            cv_sending                       = false;
         }
     }
 }
 
 void oledDeselectionComplete()
 {
-    oledWaitingForMessage            = 256;
+    oledWaitingForMessage            = OLED_MESSAGE_NONE;
     spiTransferQueueCurrentlySending = false;
-
+    oled_sending                     = false;
     // There might be something more to send now...
     if (spiTransferQueueWritePos != spiTransferQueueReadPos)
     {
@@ -209,7 +243,7 @@ void oledDeselectionComplete()
 
 void oledLowLevelTimerCallback()
 {
-    if (oledWaitingForMessage == 248)
+    if (oledWaitingForMessage == OLED_MESSAGE_SELECT)
         oledSelectingComplete();
     else
         oledDeselectionComplete();
