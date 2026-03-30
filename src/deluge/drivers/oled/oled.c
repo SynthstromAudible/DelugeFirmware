@@ -100,27 +100,35 @@ volatile bool spiTransferQueueCurrentlySending = false;
 volatile uint8_t spiTransferQueueReadPos = 0;
 uint8_t spiTransferQueueWritePos = 0;
 
+/// this is super not safe to call in an interrupt so please don't
 void enqueueSPITransfer(int32_t destinationId, uint8_t const* image) {
 
 	if (((spiTransferQueueWritePos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1)) == spiTransferQueueReadPos) {
 		FREEZE_WITH_ERROR("FULL");
 	}
-	// // First check there isn't already an identical transfer enqueued.
-	// int32_t readPosNow = spiTransferQueueReadPos;
-	//
-	// while (readPosNow != spiTransferQueueWritePos) {
-	// 	switch (destinationId) {
-	// 	   case SPI_DESTINATION_CV:
-	// 		if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_CV) return;
-	// 		break;
-	// 		case SPI_DESTINATION_OLED:
-	// 		if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_OLED
-	// 		&& spiTransferQueue[readPosNow].dataAddress == image) return;
-	// 		break;
-	// 	}
-	// 	readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
-	// }
+	DISABLE_ALL_INTERRUPTS();
+	// First check there isn't already an identical transfer enqueued.
+	int32_t readPosNow = spiTransferQueueReadPos;
 
+	while (readPosNow != spiTransferQueueWritePos) {
+		switch (destinationId) {
+		case SPI_DESTINATION_CV:
+			if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_CV) {
+				spiTransferQueue[readPosNow].dataAddress = image;
+				return;
+			}
+			break;
+		case SPI_DESTINATION_OLED:
+			if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_OLED
+			    && spiTransferQueue[readPosNow].dataAddress == image) {
+				return;
+			}
+			break;
+		}
+		readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	}
+
+	ENABLE_INTERRUPTS();
 	spiTransferQueue[spiTransferQueueWritePos].destinationId = destinationId;
 	spiTransferQueue[spiTransferQueueWritePos].dataAddress = image;
 	spiTransferQueueWritePos = (spiTransferQueueWritePos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
