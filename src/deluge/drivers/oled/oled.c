@@ -102,14 +102,24 @@ uint8_t spiTransferQueueWritePos = 0;
 
 void enqueueSPITransfer(int32_t destinationId, uint8_t const* image) {
 
-	// First check there isn't already an identical transfer enqueued.
-	int32_t readPosNow = spiTransferQueueReadPos;
-	/*
-	while (readPosNow != spiTransferQueueWritePos) {
-	    if (spiTransferQueue[readPosNow].destinationId == destinationId && spiTransferQueue[readPosNow].dataAddress ==
-	image) return; readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	if (((spiTransferQueueWritePos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1)) == spiTransferQueueReadPos) {
+		FREEZE_WITH_ERROR("FULL");
 	}
-	*/
+	// // First check there isn't already an identical transfer enqueued.
+	// int32_t readPosNow = spiTransferQueueReadPos;
+	//
+	// while (readPosNow != spiTransferQueueWritePos) {
+	// 	switch (destinationId) {
+	// 	   case SPI_DESTINATION_CV:
+	// 		if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_CV) return;
+	// 		break;
+	// 		case SPI_DESTINATION_OLED:
+	// 		if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_OLED
+	// 		&& spiTransferQueue[readPosNow].dataAddress == image) return;
+	// 		break;
+	// 	}
+	// 	readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	// }
 
 	spiTransferQueue[spiTransferQueueWritePos].destinationId = destinationId;
 	spiTransferQueue[spiTransferQueueWritePos].dataAddress = image;
