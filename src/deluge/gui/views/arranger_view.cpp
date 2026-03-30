@@ -208,16 +208,23 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (currentUIMode == UI_MODE_NONE) {
-				if (Buttons::isShiftButtonPressed()) {
-					automationView.onArrangerView = true;
-					changeRootUI(&automationView);
-				}
-				else {
-					goToSongView();
-				}
+				goToSongView();
 			}
 			else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 				moveClipToSession();
+			}
+		}
+	}
+
+	// Clip button
+	else if (b == CLIP_VIEW) {
+		if (on) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			if (currentUIMode == UI_MODE_NONE) {
+				automationView.onArrangerView = true;
+				changeRootUI(&automationView);
 			}
 		}
 	}
@@ -503,6 +510,7 @@ void ArrangerView::clearArrangement() {
 }
 
 bool ArrangerView::opened() {
+	automationView.onArrangerView = false;
 
 	mustRedrawTickSquares = true;
 

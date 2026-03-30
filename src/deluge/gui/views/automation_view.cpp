@@ -1140,13 +1140,8 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	bool isAudioClip = clip->type == ClipType::AUDIO;
 
 	// these button actions are not used in the audio clip automation view
-	if (isAudioClip || onArrangerView) {
-		if (b == SCALE_MODE || b == KEYBOARD || b == KIT || b == SYNTH || b == MIDI || b == CV) {
-			return ActionResult::DEALT_WITH;
-		}
-	}
-	if (onArrangerView) {
-		if (b == CLIP_VIEW) {
+	if (isAudioClip) {
+		if (b == SCALE_MODE || b == KIT || b == SYNTH || b == MIDI || b == CV) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1302,7 +1297,6 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 		}
 		// automation arranger view transitioning back to arranger view
 		if (onArrangerView) {
-			onArrangerView = false;
 			changeRootUI(&arrangerView);
 		}
 		// automation clip view transitioning back to arranger or session view
@@ -1319,7 +1313,13 @@ void AutomationView::handleKeyboardButtonAction(bool on) {
 		if (padSelectionOn) {
 			initPadSelection();
 		}
-		changeRootUI(&keyboardScreen);
+		if (onArrangerView) {
+			performanceView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
+			changeRootUI(&performanceView);
+		}
+		else {
+			changeRootUI(&keyboardScreen);
+		}
 		// reset blinking if you're leaving automation view for keyboard view
 		// blinking will be reset when you come back
 		resetShortcutBlinking();
@@ -1339,9 +1339,15 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 		if (padSelectionOn) {
 			initPadSelection();
 		}
-		if (isAudioClip) {
+		// automation arranger view transitioning back to arranger view
+		if (onArrangerView) {
+			changeRootUI(&arrangerView);
+		}
+		// automation audio clip view transitioning back to audio clip view
+		else if (isAudioClip) {
 			changeRootUI(&audioClipView);
 		}
+		// automation instrument clip view transitioning back to instrument clip view
 		else {
 			changeRootUI(&instrumentClipView);
 		}
