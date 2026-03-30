@@ -67,44 +67,24 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 
 	// Clip or Song button
 	// Used to enter automation view from sound editor
-	if ((b == CLIP_VIEW && clipMinder) || (b == SESSION_VIEW && arrangerView)) {
-		if (on) {
-			// if we're not in automation view yet
-			// save current UI so you can switch back to it once we exit out of current menu
-			// flag automation view as onMenuView so we know that we're dealing with the background
-			// automation view used exclusively with the menu
-			if (rootUI != &automationView) {
-				automationView.onMenuView = true;
-				automationView.previousUI = rootUI;
-				selectAutomationViewParameter(clipMinder);
-				swapOutRootUILowLevel(&automationView);
-				automationView.initializeView();
-				automationView.openedInBackground();
-			}
-			// if we're in automation view and it's the menu view
-			// swap out background UI from automation view to the previous UI
-			else if (automationView.onMenuView) {
-				automationView.onMenuView = false;
-				automationView.resetInterpolationShortcutBlinking();
-				automationView.resetPadSelectionShortcutBlinking();
-				swapOutRootUILowLevel(automationView.previousUI);
-				uiNeedsRendering(automationView.previousUI);
-				view.setKnobIndicatorLevels();
-			}
-			view.setModLedStates();
-			PadLEDs::reassessGreyout();
-		}
-		return ActionResult::DEALT_WITH;
-	}
-	// Select encoder button, used to change current parameter selection in automation view
-	// Back button, used to back out of current automatable parameter menu
-	else if ((b == SELECT_ENC || b == BACK) && (clipMinder || arrangerView)) {
-		if (on) {
-			if (rootUI == &automationView) {
-				// if we got here, and we're in the automation menu view
-				// then we want to reset the background root UI to the previous UI
-				// because you just entered a new menu or backed out of the current param menu
-				if (automationView.onMenuView) {
+	if (clipMinder || arrangerView) {
+		if (b == CLIP_VIEW) {
+			if (on) {
+				// if we're not in automation view yet
+				// save current UI so you can switch back to it once we exit out of current menu
+				// flag automation view as onMenuView so we know that we're dealing with the background
+				// automation view used exclusively with the menu
+				if (rootUI != &automationView) {
+					automationView.onMenuView = true;
+					automationView.previousUI = rootUI;
+					selectAutomationViewParameter(clipMinder);
+					swapOutRootUILowLevel(&automationView);
+					automationView.initializeView();
+					automationView.openedInBackground();
+				}
+				// if we're in automation view and it's the menu view
+				// swap out background UI from automation view to the previous UI
+				else if (automationView.onMenuView) {
 					automationView.onMenuView = false;
 					automationView.resetInterpolationShortcutBlinking();
 					automationView.resetPadSelectionShortcutBlinking();
@@ -112,22 +92,44 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 					uiNeedsRendering(automationView.previousUI);
 					view.setKnobIndicatorLevels();
 				}
-				// if you are already in automation view and entered an automatable parameter menu
-				else {
-					selectAutomationViewParameter(clipMinder);
-					uiNeedsRendering(rootUI);
-				}
 				view.setModLedStates();
 				PadLEDs::reassessGreyout();
 			}
-		}
-		return ActionResult::DEALT_WITH;
-	}
-	else if ((b == X_ENC) && (clipMinder || arrangerView)) {
-		// Horizontal encoder button to zoom in/out of underlying automation view
-		if (rootUI == &automationView) {
-			automationView.buttonAction(b, on, inCardRoutine);
 			return ActionResult::DEALT_WITH;
+		}
+		// Select encoder button, used to change current parameter selection in automation view
+		// Back button, used to back out of current automatable parameter menu
+		else if (b == SELECT_ENC || b == BACK) {
+			if (on) {
+				if (rootUI == &automationView) {
+					// if we got here, and we're in the automation menu view
+					// then we want to reset the background root UI to the previous UI
+					// because you just entered a new menu or backed out of the current param menu
+					if (automationView.onMenuView) {
+						automationView.onMenuView = false;
+						automationView.resetInterpolationShortcutBlinking();
+						automationView.resetPadSelectionShortcutBlinking();
+						swapOutRootUILowLevel(automationView.previousUI);
+						uiNeedsRendering(automationView.previousUI);
+						view.setKnobIndicatorLevels();
+					}
+					// if you are already in automation view and entered an automatable parameter menu
+					else {
+						selectAutomationViewParameter(clipMinder);
+						uiNeedsRendering(rootUI);
+					}
+					view.setModLedStates();
+					PadLEDs::reassessGreyout();
+				}
+			}
+			return ActionResult::DEALT_WITH;
+		}
+		else if (b == X_ENC) {
+			// Horizontal encoder button to zoom in/out of underlying automation view
+			if (rootUI == &automationView) {
+				automationView.buttonAction(b, on, inCardRoutine);
+				return ActionResult::DEALT_WITH;
+			}
 		}
 	}
 	return ActionResult::NOT_DEALT_WITH;
