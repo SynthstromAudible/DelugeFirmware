@@ -20,19 +20,25 @@
 #include "stdint.h"
 
 #define SPI_TRANSFER_QUEUE_SIZE 32
+union SpiTransferData {
+	uint8_t const* imageAddress;
+	uint32_t cvData;
+};
 
+struct SpiTransferQueueItem {
+	uint8_t destinationId;
+	union {
+		uint8_t const* imageAddress;
+		uint32_t cvData;
+	};
+};
 void oledMainInit();
 void oledDMAInit();
-void enqueueSPITransfer(int32_t whichOled, uint8_t const* image);
+void enqueueSPITransfer(int32_t whichOled, union SpiTransferData image);
 void oledTransferComplete(uint32_t int_sense);
 
 extern volatile bool spiTransferQueueCurrentlySending;
 extern volatile uint8_t spiTransferQueueReadPos;
 extern uint8_t spiTransferQueueWritePos;
-
-struct SpiTransferQueueItem {
-	uint8_t destinationId;
-	uint8_t const* dataAddress;
-};
 
 extern struct SpiTransferQueueItem spiTransferQueue[SPI_TRANSFER_QUEUE_SIZE];
