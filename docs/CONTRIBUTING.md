@@ -4,8 +4,6 @@ Above all, thank you for your interest in both the Synthstrom Deluge and being a
 
 Please see also, the [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
-Due to bot spam we've temporarily removed the ability for non-collaborators to open PRs as of 29 Mar 2026. If you are a human being and want to contribute please message in our [discord](https://discord.gg/24mpbKjhJ6) and I'll give you permission. We're hoping to come up with a better solution to AI slop in the long term.
-
 ## Bug reports
 
 Even if you are not a software developer you can contribute immensely by informing us about bugs and other problems you
