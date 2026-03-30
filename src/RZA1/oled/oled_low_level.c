@@ -45,8 +45,9 @@ int oledWaitingForMessage    = OLED_MESSAGE_NONE; // 256 means none.
 int oledPendingMessageToSend = 0; // 0 means none. The purpose of this variable is to ensure thread safety.
 int last_message_sent        = 0;
 uint16_t oledMessageTimeoutTime;
-volatile bool oled_sending = false;
-volatile bool cv_sending   = false;
+// these get optimized out, set em to volatile if you need to keep them for debugging
+bool oled_sending = false;
+bool cv_sending   = false;
 // Call this before you routinely call uartFlushIfNotSending().
 void oledRoutine()
 {
@@ -72,24 +73,17 @@ sendMessageToPIC:
             bufferPICUart(oledWaitingForMessage);
         }
     }
-    else if (cv_sending == false && last_message_sent == OLED_MESSAGE_DESELECT)
-    {
-        // if we've somehow gotten here then just assume the message worked and something made us miss it? idk seems ok
-        int16_t howLate = *TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime;
-        if (howLate >= 0)
-        {
-            oledLowLevelTimerCallback();
-        }
-    }
 }
 
 void oledSelectingComplete()
 {
     oledWaitingForMessage = OLED_MESSAGE_NONE;
+#if ALPHA_OR_BETA_VERSION
     if (spiTransferQueue[spiTransferQueueReadPos].destinationId != SPI_DESTINATION_OLED)
     {
         FREEZE_WITH_ERROR("SPI transfer destination is not OLED");
     }
+#endif
     RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR       = 0x20u;              // 8-bit
     RSPI(SPI_CHANNEL_OLED_MAIN).SPCMD0      = 0b0000011100000010; // 8-bit
     RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE = 0b01100000;         // 0b00100000;
@@ -110,10 +104,12 @@ int spiDestinationSendingTo;
 
 void sendCVTransfer()
 {
+#if ALPHA_OR_BETA_VERSION
     if (spiTransferQueue[spiTransferQueueReadPos].destinationId != SPI_DESTINATION_CV)
     {
         FREEZE_WITH_ERROR("SPI transfer destination is not CV");
     }
+#endif
     setOutputState(6, 1, false); // Select CV DAC
 
     RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR  = 0x60u;              // 32-bit
@@ -135,10 +131,13 @@ void sendCVTransfer()
 
 void initiateSelectingOled()
 {
+#if ALPHA_OR_BETA_VERSION
+
     if (oledWaitingForMessage != OLED_MESSAGE_NONE)
     {
         FREEZE_WITH_ERROR("OLED message already pending");
     }
+#endif
     oledPendingMessageToSend = OLED_MESSAGE_SELECT;
 
     // Actual queue position gets moved along in oledSelectingComplete() when that gets called.
@@ -146,11 +145,13 @@ void initiateSelectingOled()
 
 void sendSPITransferFromQueue()
 {
+#if ALPHA_OR_BETA_VERSION
     spiDestinationSendingTo = spiTransferQueue[spiTransferQueueReadPos].destinationId;
     if (spiDestinationSendingTo == SPI_DESTINATION_NONE)
     {
         FREEZE_WITH_ERROR("SPI transfer destination is NONE");
     }
+#endif
     spiTransferQueueCurrentlySending = true;
 
     // If it's OLED data...
