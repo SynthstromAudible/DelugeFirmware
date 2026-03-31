@@ -100,7 +100,7 @@ volatile bool spiTransferQueueCurrentlySending = false;
 volatile uint8_t spiTransferQueueReadPos = 0;
 uint8_t spiTransferQueueWritePos = 0;
 
-bool equals(int32_t destination_id, union SpiTransferData a, struct SpiTransferQueueItem item) {
+inline bool equals(int32_t destination_id, union SpiTransferData a, struct SpiTransferQueueItem item) {
 	if (destination_id != item.destinationId) {
 		return false;
 	}
@@ -124,6 +124,7 @@ void enqueueSPITransfer(int32_t destinationId, union SpiTransferData image) {
 		return;
 	}
 
+	// if it's not one of these then just return, it's a bug but shouldn't crash in release builds
 	if (destinationId != SPI_DESTINATION_CV && destinationId != SPI_DESTINATION_OLED) {
 #if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("BAD DESTINATION");
@@ -140,20 +141,25 @@ void enqueueSPITransfer(int32_t destinationId, union SpiTransferData image) {
 	}
 	// then look for another enqueued message we can just steal
 	int32_t readPosNow = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
-	while (readPosNow != spiTransferQueueWritePos) {
-		if (destinationId == SPI_DESTINATION_CV) {
+
+	if (destinationId == SPI_DESTINATION_CV) {
+		// For CV: find any unsent CV message and overwrite it
+		while (readPosNow != spiTransferQueueWritePos) {
 			if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_CV) {
 				spiTransferQueue[readPosNow].cvData = image.cvData;
 				goto exit;
 			}
+			readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
 		}
-		else {
-			if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_OLED
-			    && spiTransferQueue[readPosNow].imageAddress == image.imageAddress) {
+	}
+	else {
+		// For OLED: use equals() to check for identical transfers
+		while (readPosNow != spiTransferQueueWritePos) {
+			if (equals(destinationId, image, spiTransferQueue[readPosNow])) {
 				goto exit;
 			}
+			readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
 		}
-		readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
 	}
 	// if none of that worked then add a new message
 
