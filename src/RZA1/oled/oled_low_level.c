@@ -38,7 +38,10 @@ void setupSPIInterrupts()
 
 void enqueueCVMessage(int channel, uint32_t message)
 {
-    enqueueSPITransfer(OLED_CODE_FOR_CV, (uint8_t const*)message);
+    union SpiTransferData m = {
+        .cvData = message,
+    };
+    enqueueSPITransfer(OLED_CODE_FOR_CV, m);
 }
 
 int oledWaitingForMessage    = OLED_MESSAGE_NONE; // 256 means none.
@@ -91,7 +94,7 @@ void oledSelectingComplete()
 
     int transferSize                   = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
     DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
-    uint32_t dataAddress               = (uint32_t)spiTransferQueue[spiTransferQueueReadPos].dataAddress;
+    uint32_t dataAddress               = (uint32_t)spiTransferQueue[spiTransferQueueReadPos].imageAddress;
     DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
     spiTransferQueue[spiTransferQueueReadPos].destinationId = SPI_DESTINATION_NONE;
     spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
@@ -119,7 +122,7 @@ void sendCVTransfer()
 
     RSPI(SPI_CHANNEL_OLED_MAIN).SPCR |= 1 << 7; // Receive interrupt enable
 
-    uint32_t message = (uint32_t)spiTransferQueue[spiTransferQueueReadPos].dataAddress;
+    uint32_t message                                        = spiTransferQueue[spiTransferQueueReadPos].cvData;
     spiTransferQueue[spiTransferQueueReadPos].destinationId = SPI_DESTINATION_NONE;
 
     spiTransferQueueReadPos =
