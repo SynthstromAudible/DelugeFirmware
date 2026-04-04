@@ -551,6 +551,19 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		}
 	}
 
+	// exit menu to arranger view or session view
+	else if (b == SESSION_VIEW) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			exitCompletely();
+			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+				changeRootUI(&arrangerView);
+			}
+			else {
+				changeRootUI(&sessionView);
+			}
+		}
+	}
+
 	else if (inNoteEditor()) {
 		return instrumentClipView.handleNoteEditorButtonAction(b, on, inCardRoutine);
 	}

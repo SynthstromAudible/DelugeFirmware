@@ -732,7 +732,10 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			releaseViewOnExit(modelStack);
-			sessionView.transitionToViewForClip(); // May fail if no currentClip
+			// only allow transitioning from performance view to clip in session view
+			if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+				sessionView.transitionToViewForClip(); // May fail if no currentClip
+			}
 		}
 	}
 
@@ -920,7 +923,12 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			else {
 				releaseViewOnExit(modelStack);
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-					changeRootUI(&arrangerView);
+					if (automationView.onArrangerView) {
+						changeRootUI(&automationView);
+					}
+					else {
+						changeRootUI(&arrangerView);
+					}
 				}
 				else {
 					changeRootUI(&sessionView);
@@ -933,7 +941,12 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			if (((AudioEngine::audioSampleTimer - timeKeyboardShortcutPress) >= FlashStorage::holdTime)) {
 				releaseViewOnExit(modelStack);
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-					changeRootUI(&arrangerView);
+					if (automationView.onArrangerView) {
+						changeRootUI(&automationView);
+					}
+					else {
+						changeRootUI(&arrangerView);
+					}
 				}
 				else {
 					changeRootUI(&sessionView);
