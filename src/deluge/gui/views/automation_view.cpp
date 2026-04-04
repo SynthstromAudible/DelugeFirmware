@@ -2054,14 +2054,25 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 
 		// Actual basic audition pad press:
 		else if (!velocity || isUIModeWithinRange(auditionPadActionUIModes)) {
-			if (inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-				// special handling for note editor and holding a note and we changed row selection
-				// don't process audition pad action as it leads to stuck notes
-				if (instrumentClipView.lastAuditionedYDisplay != y) {
-					return ActionResult::DEALT_WITH;
+			bool auditioningSilently = Buttons::isShiftButtonPressed();
+			if (inNoteEditor()) {
+				if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+					// special handling for note editor and holding a note and we changed row selection
+					// don't process audition pad action as it leads to stuck notes
+					if (instrumentClipView.lastAuditionedYDisplay != y) {
+						return ActionResult::DEALT_WITH;
+					}
+				}
+				// We're quantizing: either adding a new note to the set being quantized, or removing.
+				// In the first case we simply defer to auditionPadAction.
+				else if (isUIModeActive(UI_MODE_QUANTIZE)) {
+					if (velocity == 0) {
+						return instrumentClipView.commandStopQuantize(y);
+					}
+					auditioningSilently = true;
 				}
 			}
-			return auditionPadAction(instrumentClip, output, outputType, y, velocity, Buttons::isShiftButtonPressed());
+			return auditionPadAction(instrumentClip, output, outputType, y, velocity, auditioningSilently);
 		}
 	}
 	return ActionResult::DEALT_WITH;
