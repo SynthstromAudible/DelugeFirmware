@@ -36,11 +36,11 @@ class InstrumentClipMinder : public ClipMinder {
 public:
 	InstrumentClipMinder();
 	static void redrawNumericDisplay();
-	void displayOrLanguageChanged();
+	virtual void displayOrLanguageChanged();
 	bool createNewInstrument(OutputType newOutputType, bool is_dx = false);
 	void setLedStates();
-	void focusRegained();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	virtual void focusRegained();
+	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void calculateDefaultRootNote();
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();
