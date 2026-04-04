@@ -210,7 +210,10 @@ public:
 	void reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack);
 	void dontDeleteNotesOnDepress();
 
+	// tempo encoder commands
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
+	ActionResult commandStopQuantize(int32_t y);
+
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 
 	// made these public so they can be accessed by the automation clip view
@@ -392,7 +395,6 @@ private:
 	// TEMPO encoder commands
 	void commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode);
 	void commandStartQuantize(int8_t offset, NudgeMode nudgeMode);
-	ActionResult commandStopQuantize(int32_t y);
 	void silenceAllAuditions();
 
 	// auditionPadAction functions
