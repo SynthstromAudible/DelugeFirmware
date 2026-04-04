@@ -1,0 +1,12 @@
+services:
+  tests:
+    build:
+      context: tests
+      dockerfile: Dockerfile
+    working_dir: /src
+    volumes:
+      - .:/src
+    command: >
+      bash -c "cmake -B /tmp/build -S tests -G Ninja -DSKIP_32BIT_TESTS=ON &&
+               cmake --build /tmp/build &&
+               ctest --test-dir /tmp/build --output-on-failure"
