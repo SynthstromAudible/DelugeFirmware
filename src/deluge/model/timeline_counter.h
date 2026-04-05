@@ -50,4 +50,9 @@ public:
 
 	ParamManagerForTimeline paramManager;
 	bool armedForRecording{true};
+
+#if HAVE_SEQUENCE_STEP_CONTROL
+	bool currentlyPlayingReversed;
+	SequenceDirection sequenceDirectionMode;
+#endif
 };
