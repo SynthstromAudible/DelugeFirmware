@@ -33,7 +33,7 @@ jobs:
       # This gets us the site base URL
       - name: Setup Pages
         id: setup_pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Run website checks
         run: bun run check
