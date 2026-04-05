@@ -1119,6 +1119,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	else {
 		if constexpr (ALPHA_OR_BETA_VERSION) {
 			if (startPos < posAtWhichClipWillCut) {
+				// Sean: potentially solved by PR https://github.com/SynthstromAudible/DelugeFirmware/pull/4445
 				FREEZE_WITH_ERROR("E445");
 			}
 		}
