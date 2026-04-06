@@ -68,7 +68,11 @@ considerEnvelopeStage:
 	case EnvelopeStage::SUSTAIN:
 		smoothedSustain = add_saturate(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
 		lastValue = smoothedSustain;
-		if (ignoredNoteOff) {
+		// If sustain is equal to 0, we may as well be switched off already
+		if (sustain == 0) {
+			setState(EnvelopeStage::OFF);
+		}
+		else if (ignoredNoteOff) {
 			unconditionalRelease();
 		}
 		break;
