@@ -3017,7 +3017,6 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 
 	SynthMode oldSynthMode = synthMode;
 	synthMode = value;
-	setupPatchingForAllParamManagers(song);
 
 	// Change mod knob functions over. Switching *to* FM...
 	if (synthMode == SynthMode::FM && oldSynthMode != SynthMode::FM) {
@@ -3057,6 +3056,10 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 			hpfMode = FilterMode::HPLADDER;
 		}
 	}
+
+	// in Sound::maySourcePatchToParam, the filter mode is checked to determine if patch cables are allowed
+	// Setup patching after changing filter mode above to ensure PatchCableAcceptance is correctly determined
+	setupPatchingForAllParamManagers(song);
 }
 
 void Sound::setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack) {
