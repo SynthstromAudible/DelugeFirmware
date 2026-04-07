@@ -109,33 +109,19 @@ void PatchCables::drawValue() {
 }
 
 void PatchCables::selectEncoderAction(int32_t offset) {
-	int32_t newValue = currentValue + offset;
-
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 
-	if (display->haveOLED()) {
-		if (newValue >= set->numPatchCables || newValue < 0) {
-			return;
-		}
-	}
-	else {
-		if (newValue >= set->numPatchCables) {
-			newValue %= set->numPatchCables;
-		}
-		else if (newValue < 0) {
-			newValue = (newValue % set->numPatchCables + set->numPatchCables) % set->numPatchCables;
-		}
+	int32_t newValue = std::clamp<int32_t>(currentValue + offset, 0, set->numPatchCables - 1);
+
+	// if no change, just exit
+	if (newValue == currentValue) {
+		return;
 	}
 
 	currentValue = newValue;
 
 	if (display->haveOLED()) {
-		if (currentValue < scrollPos) {
-			scrollPos = currentValue;
-		}
-		else if (currentValue >= scrollPos + kOLEDMenuNumOptionsVisible) {
-			scrollPos++;
-		}
+		scrollPos = std::clamp<int>(newValue - 1, 0, set->numPatchCables - kOLEDMenuNumOptionsVisible);
 	}
 
 	readValueAgain(); // redraw
