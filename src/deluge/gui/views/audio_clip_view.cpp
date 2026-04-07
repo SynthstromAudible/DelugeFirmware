@@ -722,8 +722,14 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	if (currentUIMode) {
 		return;
 	}
-	auto ao = (AudioOutput*)getCurrentAudioClip()->output;
-	ao->scrollAudioOutputMode(offset);
+	// allows you to assign an audio clip to a different audio track
+	if (Buttons::isShiftButtonPressed()) {
+		view.navigateThroughAudioOutputsForAudioClip(offset, getCurrentAudioClip());
+	}
+	else {
+		auto ao = (AudioOutput*)getCurrentAudioClip()->output;
+		ao->scrollAudioOutputMode(offset);
+	}
 }
 
 void AudioClipView::setClipLengthEqualToSampleLength() {
