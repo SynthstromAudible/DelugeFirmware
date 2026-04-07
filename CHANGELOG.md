@@ -126,6 +126,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
+- Restored original behaviour which enabled you to insert / delete time for all automated parameters using shift + <>
 
 #### <ins>Song View</ins>
 - Doubled the number of Song View sections from 12 to 24.
@@ -208,6 +209,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - Values for program, bank and sub-bank were previously shown as 1-128, but now reflect the actual transmitted MIDI values.
 
 #### <ins>Automation View</ins>
+
+##### Defaults
+- The `Settings/Defaults/Automation/Shift` toggle now only applies to Clip View. In Arranger View if you use shift + <> to insert / delete time at a specific point in the arrangement, all parameter automation will also be impacted (maintaining previously recorded automation before and after that point in time).
 
 ##### Parameters
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts

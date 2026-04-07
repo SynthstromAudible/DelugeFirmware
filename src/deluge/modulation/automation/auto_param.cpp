@@ -2370,6 +2370,7 @@ void AutoParam::transposeCCValuesToChannelPressureValues() {
 	currentValue = (currentValue >> 1) + (1 << 30);
 }
 
+/// this is used in arranger view to delete time between automation nodes (shift + <>)
 void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack) {
 
 	// No need to do any revertability with an Action here - ParamCollection::backUpAllAutomatedParamsToAction() should
@@ -2442,6 +2443,7 @@ allDeleted:
 	}
 }
 
+/// this is used in arranger view to insert time between automation nodes (shift + <>)
 void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
 	int32_t start = nodes.search(pos, GREATER_OR_EQUAL);
 
