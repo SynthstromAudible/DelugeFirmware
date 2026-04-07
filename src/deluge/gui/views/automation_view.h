@@ -97,6 +97,8 @@ public:
 
 	// pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult auditionPadAction(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay,
+	                               int32_t velocity, bool shiftButtonDown);
 
 	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset) override;
@@ -204,8 +206,6 @@ private:
 	// audition pad action
 	ActionResult handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output, OutputType outputType,
 	                                     int32_t y, int32_t velocity);
-	ActionResult auditionPadAction(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay,
-	                               int32_t velocity, bool shiftButtonDown);
 
 	// Automation View Render Functions
 	void performActualRender(RGB image[][kDisplayWidth + kSideBarWidth],
