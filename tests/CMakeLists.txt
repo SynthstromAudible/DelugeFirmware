@@ -11,8 +11,9 @@ set(DELUGE_C_STANDARD 23)
 set(DELUGE_CXX_STANDARD 23)
 
 enable_testing()
+option(SKIP_32BIT_TESTS "Skip 32-bit unit tests (use when running under emulation)" OFF)
 #needs to support -m32 since the memory tests assume a 32 bit architecture
-if (UNIX AND NOT APPLE)
+if (UNIX AND NOT APPLE AND NOT SKIP_32BIT_TESTS)
     add_compile_options(-m32 -Og -ggdb3)
     add_link_options(-m32)
     add_subdirectory(32bit_unit_tests)
