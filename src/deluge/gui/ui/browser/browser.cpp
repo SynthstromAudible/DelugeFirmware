@@ -1160,11 +1160,16 @@ searchFromOneEnd:
 
 	fileIndexSelected = newFileIndex;
 
-	if (scrollPosVertical > fileIndexSelected) {
-		scrollPosVertical = fileIndexSelected;
+	if (display->haveOLED()) {
+		scrollPosVertical = std::clamp<int>(newFileIndex - 1, 0, maxNumFileItemsNow - kOLEDMenuNumOptionsVisible);
 	}
-	else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
-		scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
+	else {
+		if (scrollPosVertical > fileIndexSelected) {
+			scrollPosVertical = fileIndexSelected;
+		}
+		else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
+			scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
+		}
 	}
 
 	enteredTextEditPos = 0;
