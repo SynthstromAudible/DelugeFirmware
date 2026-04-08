@@ -1130,7 +1130,8 @@ searchFromOneEnd:
 		}
 	}
 
-	else if (newFileIndex >= fileItems.getNumElements()) {
+	// we try to have 1 beyond the current index
+	else if ((newFileIndex + 1) >= fileItems.getNumElements()) {
 		D_PRINTLN("out of file items");
 		if (numFileItemsDeletedAtEnd) {
 			scrollPosVertical = 0;
