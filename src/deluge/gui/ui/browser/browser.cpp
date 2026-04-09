@@ -1145,12 +1145,11 @@ searchFromOneEnd:
 		else {
 			scrollPosVertical = 9999;
 
-			if (numFileItemsDeletedAtStart) {
+			bool reachedEnd = newFileIndex >= fileItems.getNumElements();
+
+			if (numFileItemsDeletedAtStart && reachedEnd) {
 				newCatalogSearchDirection = CATALOG_SEARCH_RIGHT;
 				goto searchFromOneEnd;
-			}
-			else {
-				newFileIndex = 0;
 			}
 		}
 	}
