@@ -60,19 +60,20 @@ void SyncLevel::getColumnLabel(StringBuf& label) {
 	syncValueToStringForHorzMenuLabel(syncValueToSyncType(value), level, label, currentSong->getInputTickMagnitude());
 }
 
-void SyncLevel::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+void SyncLevel::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace deluge::hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 
 	const int32_t value = getValue();
 
 	if (const ::SyncLevel level = syncValueToSyncLevel(value); level == SYNC_LEVEL_NONE) {
-		const auto offString = l10n::get(l10n::String::STRING_FOR_OFF);
-		return image.drawStringCentered(offString, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+		const auto off_string = l10n::get(l10n::String::STRING_FOR_OFF);
+		return image.drawStringCentered(off_string, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+		                                kTextSpacingX, kTextSpacingY, slot.width);
 	}
 
 	// Draw only the sync type icon, sync level already drawn as a label
-	const Icon& typeIcon = [&] {
+	const Icon& type_icon = [&] {
 		switch (syncValueToSyncType(getValue())) {
 		case SYNC_TYPE_EVEN:
 			return OLED::syncTypeEvenIcon;
@@ -83,7 +84,7 @@ void SyncLevel::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t st
 		}
 		return OLED::syncTypeEvenIcon;
 	}();
-	image.drawIconCentered(typeIcon, startX, width, startY - 1);
+	image.drawIconCentered(type_icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset - 3);
 }
 
 int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {

@@ -67,8 +67,8 @@ morph = MultiModeMenu(
 menu = Submenu(
     "HorizontalMenu",
     "lpfMenu",
-    ["{title}", "%%CHILDREN%%", "HorizontalMenu::Layout::FIXED"],
+    ["{title}", "%%CHILDREN%%"],
     "filter/lpf/index.md",
-    [freq, res, morph, mode],
+    [mode, freq, res, morph],
     name="STRING_FOR_LPF",
 )

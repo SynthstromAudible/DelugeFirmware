@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		40="Transpose"
+		41="Velocity"
+		42="Modulator attack"
+		43="Modulator decay"
+		44="Carrier attack"
+		45="Carrier decay"
+		46="LFO rate"
+		47="LFO pitch depth"
+		48="Algorithm"
+		48="Arpeggiator type"
+		50="Arpeggiator div"/>
+</midiDevice>

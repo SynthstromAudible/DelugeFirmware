@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		10="Simulate EXP"
+		11="Load Preset"
+		20="Mode"
+		21="Decay Time"
+		22="MIX"
+		23="Volume"
+		24="LOW"
+		25="HI"
+		26="Thing1"
+		27="Thing2"
+		35="Select BTN"
+		36="Scroll BTN"
+		37="Bypass BTN"
+		38="Save BTN"
+		39="Save Preset"
+		51="Midi Clock"
+		60="Engage Bypass"/>
+</midiDevice>

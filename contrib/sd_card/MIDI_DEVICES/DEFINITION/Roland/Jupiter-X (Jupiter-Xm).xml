@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="Modulation"
+		5="Portamento Time"
+		6="Data Entry"
+		7="Volume"
+		10="Panpot"
+		11="Expression"
+		64="Hold1"
+		65="Portamento"
+		66="Sostenuto"
+		67="Soft"
+		68="Legato Foot Switch"
+		71="Resonance"
+		72="Release Time"
+		73="Attack Time"
+		74="Cutoff"
+		75="Decay Time"
+		76="Vibrato Rate"
+		77="Vibrato Depth"
+		78="Vibrato Delay"
+		84="Portamento Control"
+		91="General Purpose Effect1 Reverb Send Level"
+		93="General Purpose Effect3 Chorus Send Level"/>
+</midiDevice>

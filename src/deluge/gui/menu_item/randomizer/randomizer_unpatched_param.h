@@ -25,7 +25,7 @@ class RandomizerUnpatchedParam : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	RandomizerUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, NumberStyle style)
+	RandomizerUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, RenderingStyle style)
 	    : UnpatchedParam(newName, title, newP), style_(style) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
@@ -45,10 +45,10 @@ public:
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return style_; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 
 private:
-	NumberStyle style_ = KNOB;
+	RenderingStyle style_ = KNOB;
 };
 
 class RandomizerSoundOnlyUnpatchedParam final : public UnpatchedParam {
@@ -67,7 +67,7 @@ class RandomizerNonKitSoundUnpatchedParam final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	RandomizerNonKitSoundUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, NumberStyle style)
+	RandomizerNonKitSoundUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, RenderingStyle style)
 	    : UnpatchedParam(newName, title, newP), style_(style) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
@@ -77,10 +77,10 @@ public:
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return style_; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 
 private:
-	NumberStyle style_ = KNOB;
+	RenderingStyle style_ = KNOB;
 };
 
 } // namespace deluge::gui::menu_item::randomizer

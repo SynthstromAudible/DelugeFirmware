@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="LFO Depth"
+		48="Rate"
+		49="Depth"
+		50="Detune"
+		51="Glide"
+		52="Resonance"
+		53="Cutoff"
+		54="Filter Decay"
+		55="Amplitude Decay"
+		56="Accent"
+		57="Envelope Modulation"
+		58="Pulse Width"
+		59="Attack"
+		60="Amplitude Attack"
+		64="Sustain"
+		65="Sub-oscillator"
+		66="PWM Sweep"
+		67="Destination"
+		68="Wave"
+		69="Randomize"
+		70="Note retrigger"/>
+</midiDevice>

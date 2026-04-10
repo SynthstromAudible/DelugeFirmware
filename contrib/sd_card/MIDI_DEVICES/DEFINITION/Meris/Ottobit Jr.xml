@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		4="Expr Pedal"
+		14="Bypass"
+		15="Tempo"
+		16="Smpl Rate"
+		17="Filter"
+		18="Bits"
+		19="Stutter"
+		31="Stutter Hold"
+		20="Sequencer"
+		21="SEQ Mult"
+		29="SEQ Type"
+		22="Step1"
+		23="Step2"
+		24="Step3"
+		25="Step4"
+		26="Step5"
+		27="Step6"
+		28="TAP"/>
+</midiDevice>

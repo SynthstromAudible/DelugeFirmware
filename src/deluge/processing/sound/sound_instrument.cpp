@@ -450,20 +450,7 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	if (atLeastOneOff) {
 		invertReversed = false;
 	}
-	if (instruction.arpNoteOn != nullptr) {
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-				break;
-			}
-			invertReversed = instruction.invertReversed;
-			noteOnPostArpeggiator(
-			    modelStackWithSoundFlags,
-			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-			    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-			    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-		}
-	}
+	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction);
 
 	return ticksTilNextArpEvent;
 }

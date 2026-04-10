@@ -31,7 +31,7 @@ public:
 	bool isRangeDependent() final { return true; }
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) final;
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void getColumnLabel(StringBuf& label) override;
 
 	int32_t xZoom{0};

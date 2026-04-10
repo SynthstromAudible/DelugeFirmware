@@ -91,6 +91,7 @@ extern bool pendingUIRenderingLock;
 #define LONG_PRESS_DURATION 400
 class UI {
 public:
+	virtual ~UI() = default;
 	UI();
 
 	virtual ActionResult padAction(int32_t x, int32_t y, int32_t velocity) { return ActionResult::DEALT_WITH; }

@@ -60,30 +60,30 @@ public:
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonDetune; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
-		const float t = getValue() / 50.0f;
+		const float norm = normalize(getValue());
 
 		for (int i = 0; i < 3; ++i) {
-			constexpr int32_t lineSpacing = 5;
-			constexpr int32_t maxYOffset = 4;
+			constexpr int32_t line_spacing = 5;
+			constexpr int32_t max_y_offset = 4;
 
-			const int32_t y = startY + 3 + i * lineSpacing;
-			const int32_t x0 = startX + 6;
-			const int32_t x1 = startX + width - 7;
+			const int32_t y = slot.start_y + kHorizontalMenuSlotYOffset + i * line_spacing;
+			const int32_t x0 = slot.start_x + 6;
+			const int32_t x1 = slot.start_x + slot.width - 7;
 
 			if (i == 0) {
 				// Top line
-				const int32_t offset = static_cast<int32_t>(maxYOffset * t * 0.30f);
+				const int32_t offset = static_cast<int32_t>(max_y_offset * norm * 0.30f);
 				image.drawLine(x0, y, x1, y + offset);
 			}
 			else if (i == 1) {
 				// Middle line
-				const int32_t offset = static_cast<int32_t>(maxYOffset * t * 0.5f);
+				const int32_t offset = static_cast<int32_t>(max_y_offset * norm * 0.5f);
 				image.drawLine(x0, y - offset, x1, y + offset);
 
-				if (t > 0.7 && t < 1) {
+				if (norm > 0.7 && norm < 1) {
 					image.clearPixel(x0, y - offset);
 					image.clearPixel(x1, y + offset);
 					image.drawPixel(x0, y - offset - 1);
@@ -92,8 +92,8 @@ public:
 			}
 			else if (i == 2) {
 				// Bottom line
-				int32_t offset = y - static_cast<int32_t>(maxYOffset * t * 0.8f);
-				if (t > 0 && offset == y) {
+				int32_t offset = y - static_cast<int32_t>(max_y_offset * norm * 0.8f);
+				if (norm > 0 && offset == y) {
 					offset -= 1;
 				}
 

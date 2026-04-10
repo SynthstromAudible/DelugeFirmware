@@ -87,6 +87,7 @@ SampleBrowser::SampleBrowser() {
 	shouldWrapFolderContents = false;
 	qwertyAlwaysVisible = false;
 	shouldInterpretNoteNamesForThisBrowser = true;
+	qwertyCurrentlyDrawnOnscreen = false;
 }
 
 bool SampleBrowser::opened() {
@@ -95,6 +96,8 @@ bool SampleBrowser::opened() {
 	if (!success) {
 		return false;
 	}
+
+	qwertyAlwaysVisible = false;
 
 	favouritesManager.setCategory("SAMPLES");
 	favouritesChanged();
@@ -722,6 +725,11 @@ possiblyExit:
 
 				enteredTextEditPos = 0;
 				displayText(false);
+
+				// Process first press only if its not a favourite row press to prevent blind keypresses
+				if (y < favouriteRow) {
+					return Browser::padAction(x, y, on);
+				}
 			}
 		}
 		// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
@@ -994,7 +1002,7 @@ doLoadAsSample:
 				drum->name.clear();
 
 				String newName;
-				if (!numCharsInPrefix) {
+				if (!numCharsInPrefix || display->haveOLED()) {
 					newName.set(&enteredText);
 				}
 				else {
@@ -1074,6 +1082,10 @@ doLoadAsSample:
 		exitAndNeverDeleteDrum();
 
 		if (menuItemHeadingTo != nullptr && parentMenuHeadingTo != nullptr) {
+			if (isUIOpen(&soundEditor)) {
+				closeUI(&soundEditor);
+			}
+
 			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
 			soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo;
 			soundEditor.navigationDepth = 0;
@@ -1144,7 +1156,7 @@ void sortSamples(bool (*sortFunction)(Sample*, Sample*), int32_t numSamples, Sam
 	// Go through various iterations of numComparing
 	while (numComparing < numSamples) {
 
-		AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+		AudioEngine::routineWithClusterLoading();
 
 		// And now, for this selected comparison size, do a number of comparisions
 		for (int32_t whichComparison = 0; whichComparison * numComparing * 2 < numSamples; whichComparison++) {
@@ -1249,7 +1261,7 @@ removeReasonsFromSamplesAndGetOut:
 		return false;
 	}
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	int32_t numCharsInPrefixForFolderLoad = 65535;
 
@@ -1644,7 +1656,7 @@ doReturnFalse:
 
 	D_PRINTLN("loaded and sorted samples");
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	// Delete all but first pre-existing range
 	int32_t oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
@@ -1749,7 +1761,7 @@ skipOctaveCorrection:
 	for (int32_t s = 0; s < numSamples; s++) {
 
 		if (!(s & 31)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		Sample* thisSample = sortArea[s];

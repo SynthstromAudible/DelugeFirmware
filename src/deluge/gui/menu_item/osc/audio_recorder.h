@@ -16,11 +16,13 @@
  */
 #pragma once
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "processing/sound/sound.h"
+#include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::osc {
 class AudioRecorder final : public MenuItem, FormattedTitle {
@@ -34,6 +36,16 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		soundEditor.shouldGoUpOneLevelOnBegin = true;
 		soundEditor.setCurrentSource(source_id_);
+
+		if (parentMenuHeadingTo != nullptr && menuItemHeadingTo != nullptr) {
+			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
+			soundEditor.navigationDepth = 0;
+			soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = parentMenuHeadingTo;
+			soundEditor.shouldGoUpOneLevelOnBegin = false;
+
+			parentMenuHeadingTo = nullptr;
+			menuItemHeadingTo = nullptr;
+		}
 
 		if (bool success = openUI(&audioRecorder); !success) {
 			if (getCurrentUI() == &soundEditor) {
@@ -62,36 +74,47 @@ public:
 	}
 
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 	[[nodiscard]] bool showNotification() const override { return false; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 
-		// Draw record icon
-		int32_t x = startX + 5;
-		int32_t y = startY + 5;
-		const Icon& recIcon = OLED::recordIcon;
-		image.drawIcon(recIcon, x, y);
+		// Draw "rec" part
+		const uint8_t start_x = slot.start_x + 8;
+		const uint8_t start_y = slot.start_y + kHorizontalMenuSlotYOffset + 6;
+		constexpr uint8_t circle_radius = 3;
+		image.drawCircle(start_x + circle_radius + 1, start_y + circle_radius + 1, circle_radius, true);
+		image.drawString("rec", start_x + circle_radius * 2 + 5, start_y, kTextSpacingX, kTextSpacingY);
 
-		// Draw a "rec" string nearby
-		x += recIcon.width + 3;
-		y += 3;
-		image.drawString("rec", x, y, kTextSpacingX, kTextSpacingY);
+		// Draw the source number
+		DEF_STACK_STRING_BUF(buf, kShortStringBufferSize);
+		buf.appendInt(source_id_ + 1);
+		uint8_t source_x = slot.start_x + slot.width - kTextBigSpacingX - 7;
+		uint8_t source_y = slot.start_y + kHorizontalMenuSlotYOffset + 4;
 
-		// Draw the arrow icon next
-		x += kTextSpacingX * 3 + 3;
-		image.drawGraphicMultiLine(OLED::submenuArrowIconBold, x, y, 7);
+		const bool full_inversion = FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::FULL_INVERSION;
+		if (full_inversion || parent->getCurrentItem() == this) {
+			image.drawString(buf.data(), source_x, source_y, kTextBigSpacingX, kTextBigSizeY);
+		}
+		else {
+			image.drawString(buf.data(), source_x - 1, source_y + 2, kTextSpacingX, kTextSpacingY);
+		}
 
-		// Draw a big source number
-		x = startX + width - kTextBigSpacingX - 3;
-		y = startY + 6;
-		DEF_STACK_STRING_BUF(sourceNumberBuf, kShortStringBufferSize);
-		sourceNumberBuf.appendInt(source_id_ + 1);
-		image.drawString(sourceNumberBuf.data(), x, y, kTextBigSpacingX, kTextBigSizeY);
+		// Draw separator in the middle
+		if (!full_inversion && source_id_ == 0) {
+			const uint8_t y0 = slot.start_y + kHorizontalMenuSlotYOffset + 1;
+			const uint8_t y1 = y0 + 18;
+			for (uint8_t y = y0; y <= y1; y += 2) {
+				image.drawPixel(slot.start_x + slot.width - 1, y);
+			}
+		}
 	}
+
+	HorizontalMenu* parentMenuHeadingTo{nullptr};
+	MenuItem* menuItemHeadingTo{nullptr};
 
 private:
 	uint8_t source_id_;

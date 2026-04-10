@@ -17,8 +17,8 @@
 
 #include "horizontal_menu_group.h"
 #include "deluge/gui/menu_item/submenu.h"
-#include <gui/menu_item/horizontal_menu.h>
-#include <hid/buttons.h>
+#include "gui/menu_item/horizontal_menu.h"
+#include "hid/buttons.h"
 #include <ranges>
 #include <string_view>
 
@@ -28,18 +28,28 @@ std::string_view HorizontalMenuGroup::getTitle() const {
 	return current_menu_->getTitle();
 }
 
-MenuPermission HorizontalMenuGroup::checkPermissionToBeginSession(ModControllableAudio* modControllable,
-                                                                  int32_t whichThing, MultiRange** currentRange) {
-	for (const auto menu : menus_) {
-		menu->checkPermissionToBeginSession(modControllable, whichThing, currentRange);
-	}
-	return MenuPermission::YES;
-}
-
 void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
 	HorizontalMenu::beginSession(navigatedBackwardFrom);
 	navigated_backward_from = navigatedBackwardFrom;
 	lastSelectedItemPosition = kNoSelection;
+
+	for (const auto menu : menus_) {
+		menu->parent = this;
+		for (const auto it : menu->items) {
+			it->parent = menu;
+		}
+	}
+}
+
+void HorizontalMenuGroup::endSession() {
+	HorizontalMenu::endSession();
+
+	for (const auto menu : menus_) {
+		menu->parent = nullptr;
+		for (const auto it : menu->items) {
+			it->parent = nullptr;
+		}
+	}
 }
 
 bool HorizontalMenuGroup::focusChild(const MenuItem* child) {
@@ -185,75 +195,10 @@ void HorizontalMenuGroup::switchVisiblePage(int32_t direction) {
 	// Update UI
 	updateDisplay();
 	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
 	}
-}
-
-void HorizontalMenuGroup::selectEncoderAction(int32_t offset) {
-	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
-	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
-
-	if (renderingStyle() != HORIZONTAL || !selectButtonPressed) {
-		return HorizontalMenu::selectEncoderAction(offset);
-	}
-
-	// Traverse through menu items
-	int32_t menuIndex = std::distance(menus_.begin(), std::ranges::find(menus_, current_menu_));
-	int32_t itemIndex = std::distance(current_menu_->items.begin(), current_item_);
-
-	auto moveForward = [&](int32_t& menuIdx, int32_t& itemIdx) {
-		++itemIdx;
-		while (menuIdx < static_cast<int32_t>(menus_.size())) {
-			if (itemIdx < static_cast<int32_t>(menus_[menuIdx]->items.size())) {
-				return;
-			}
-			++menuIdx;
-			itemIdx = 0;
-		}
-		menuIdx = 0;
-		itemIdx = 0;
-	};
-
-	auto moveBackward = [&](int32_t& submenuIdx, int32_t& itemIdx) {
-		--itemIdx;
-		while (submenuIdx >= 0) {
-			if (itemIdx >= 0) {
-				return;
-			}
-			--submenuIdx;
-			if (submenuIdx >= 0) {
-				itemIdx = static_cast<int32_t>(menus_[submenuIdx]->items.size()) - 1;
-			}
-		}
-		submenuIdx = static_cast<int32_t>(menus_.size()) - 1;
-		itemIdx = static_cast<int32_t>(menus_[submenuIdx]->items.size()) - 1;
-	};
-
-	if (offset > 0) {
-		do {
-			moveForward(menuIndex, itemIndex);
-			if (auto* item = menus_[menuIndex]->items[itemIndex]; isItemRelevant(item)) {
-				current_item_ = menus_[menuIndex]->items.begin() + itemIndex;
-				offset--;
-			}
-		} while (offset > 0);
-	}
-	else if (offset < 0) {
-		do {
-			moveBackward(menuIndex, itemIndex);
-			if (auto* item = menus_[menuIndex]->items[itemIndex]; isItemRelevant(item)) {
-				current_item_ = menus_[menuIndex]->items.begin() + itemIndex;
-				offset++;
-			}
-		} while (offset < 0);
-	}
-
-	updateDisplay();
-	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
 }
 
 bool HorizontalMenuGroup::hasItem(const MenuItem* item) {

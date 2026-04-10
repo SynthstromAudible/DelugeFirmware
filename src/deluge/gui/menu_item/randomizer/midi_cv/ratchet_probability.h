@@ -32,6 +32,6 @@ public:
 		soundEditor.currentArpSettings->ratchetProbability = value;
 	}
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return PERCENT; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return PERCENT; }
 };
 } // namespace deluge::gui::menu_item::randomizer::midi_cv

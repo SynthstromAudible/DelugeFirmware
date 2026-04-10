@@ -30,6 +30,7 @@ public:
 	void writeCurrentValue() override { AudioEngine::reverb.setLPF((float)this->getValue() / kMaxMenuValue); }
 
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RenderingStyle::LPF; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		auto model = AudioEngine::reverb.getModel();

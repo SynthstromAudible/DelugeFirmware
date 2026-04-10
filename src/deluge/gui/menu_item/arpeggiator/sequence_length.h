@@ -22,14 +22,15 @@ class SequenceLength final : public ArpUnpatchedParam {
 public:
 	using ArpUnpatchedParam::ArpUnpatchedParam;
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		if (getValue() == 0) {
-			const auto offString = l10n::get(l10n::String::STRING_FOR_OFF);
-			return OLED::main.drawStringCentered(offString, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+			const auto off_string = l10n::get(l10n::String::STRING_FOR_OFF);
+			return OLED::main.drawStringCentered(off_string, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+			                                     kTextSpacingX, kTextSpacingY, slot.width);
 		}
-		ArpUnpatchedParam::renderInHorizontalMenu(startX, width, startY, height);
+		ArpUnpatchedParam::renderInHorizontalMenu(slot);
 	}
 
 	void getNotificationValue(StringBuf& valueBuf) override {

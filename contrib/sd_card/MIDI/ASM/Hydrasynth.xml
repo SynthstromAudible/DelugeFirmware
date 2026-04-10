@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midi
+	firmwareVersion="c1.3.0"
+	earliestCompatibleFirmware="4.1.0-alpha"
+	channel="1"
+	suffix="-1">
+	<modKnobs>
+		<modKnob
+			cc="45" />
+		<modKnob
+			cc="6" />
+		<modKnob
+			cc="71" />
+		<modKnob
+			cc="74" />
+		<modKnob
+			cc="84" />
+		<modKnob
+			cc="81" />
+		<modKnob
+			cc="92" />
+		<modKnob
+			cc="15" />
+		<modKnob
+			cc="91" />
+		<modKnob
+			cc="65" />
+		<modKnob
+			cc="30" />
+		<modKnob
+			cc="29" />
+		<modKnob
+			cc="16" />
+		<modKnob
+			cc="33" />
+		<modKnob
+			cc="18" />
+		<modKnob
+			cc="17" />
+	</modKnobs>
+	<polyToMonoConversion
+		aftertouch="0"
+		mpe="1"
+		yCC="74" />
+	<midiDevice>
+		<definitionFile
+			name="MIDI_DEVICES/DEFINITION/ASM/Hydrasynth.xml" />
+		<ccLabels
+			0=""
+			2=""
+			3="Noise-Vol"
+			4=""
+			5="Glide-Time"
+			6="Vol"
+			7=""
+			8="Noise-Pan"
+			9="RingM-Vol"
+			10="RingM-Pan"
+			11="Exp-Pedal"
+			12="Pre-Param1"
+			13="Pre-Param2"
+			14="Dly-FB"
+			15="Dly-Time"
+			16="Macro1"
+			17="Macro2"
+			18="Macro3"
+			19="Macro4"
+			20="Macro5"
+			21="Macro6"
+			22="Macro7"
+			23="Macro8"
+			24="OSC1-WScan"
+			25="Env4-Att"
+			26="OSC2-WScan"
+			27="Env4-Dec"
+			28="LFO2-Gain"
+			29="MUT1-Ratio"
+			30="MUT1-Depth"
+			31="MUT1-DryWet"
+			32=""
+			33="MUT2-Ratio"
+			34="MUT2-Depth"
+			35="MUT2-DryWet"
+			36="MUT3-Ratio"
+			37="MUT3-Depth"
+			38=""
+			39="MUT3-DryWet"
+			40="MUT4-Ratio"
+			41="MUT4-Depth"
+			42="MUT4-DryWet"
+			43="RingM12-Depth"
+			44="OSC1-Vol"
+			45="OSC1-Pan"
+			46="OSC2-Vol"
+			47="OSC2-Pan"
+			48="OSC3-Vol"
+			49="OSC3-Pan"
+			50="F1-Drive"
+			51="F1-KTrack"
+			52="F1-LFO1Amnt"
+			53="F1-VelEnv"
+			54="F1-Env1Amnt"
+			55="F2-Freq"
+			56="F2-Res"
+			57="F2-Type"
+			58="F2-KTrack"
+			59="F2-LFO1Amnt"
+			60="F2-VelEnv"
+			61="F2-Env1Amnt"
+			62="AMP-LFO2Amnt"
+			63="Dly-WetTone"
+			64="Sus-Pedal"
+			65="Rever-Time"
+			66="Glide"
+			67="Rever-Tone"
+			68="Post-Param1"
+			69="Post-Param2"
+			70="LFO1-Gain"
+			71="F1-Res"
+			72="LFO1-Rate"
+			73="LFO2-Rate"
+			74="F1-Freq"
+			75="LFO3-Gain"
+			76="LFO3-Rate"
+			77="LFO4-Gain"
+			78="LFO4-Rate"
+			79="LFO5-Gain"
+			80="LFO5-Rate"
+			81="Env1-Att"
+			82="Env1-Dec"
+			83="Env1-Sus"
+			84="Env1-Rel"
+			85="Env2-Att"
+			86="Env2-Dec"
+			87="Env2-Sus"
+			88="Env2-Rel"
+			89="Env3-Att"
+			90="Env3-Dec"
+			91="Rever-DryWet"
+			92="Dly-DryWet"
+			93="Pre-Mix"
+			94="Post-Mix"
+			95="Detune"
+			96="Env3-Sus"
+			97="Env3-Rel"
+			98=""
+			99=""
+			100=""
+			101=""
+			102="Env5-Att"
+			103="Env5-Dec"
+			104="Env5-Sus"
+			105="Env5-Rel"
+			106="ARP-Div"
+			107="ARP-Gate"
+			108="ARP-Mode"
+			109="ARP-Ratch"
+			110="ARP-Chance"
+			111="OSC1-Cent"
+			112="OSC2-Cent"
+			113="OSC3-Cent"
+			114="OSC3-FRate"
+			115="Noise-FRate"
+			116="Noise-FRate"
+			117="ST-Width"
+			118="OSC1-FRate"
+			119="OSC2-FRate" />
+	</midiDevice>
+</midi>

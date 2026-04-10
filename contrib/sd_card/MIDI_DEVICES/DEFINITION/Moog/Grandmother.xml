@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="Mod wheel"
+		3="Modulation rate"
+		5="Glide time"
+		8="Arpeggiator/sequencer rate"
+		12="Oscillator 2 frequency"
+		65="Glide on/off"
+		69="Arpeggiator/sequencer hold"
+		73="Arpeggiator/sequencer play"
+		74="Oscillator 1 octave"
+		75="Oscillator 2 octave"
+		77="Oscillator 2 sync"
+		85="Glide type"
+		89="Keyboard octave"
+		90="Arpeggiator/sequencer clock division"
+		91="Arpeggiator/sequencer mode"
+		92="Arpeggiator/sequencer pattern"
+		93="Arpeggiator/sequencer number"
+		94="Legato glide"
+		103="Gated glide"
+		107="Pitch bend up amount"
+		108="Pitch bend down amount"
+		119="Keyboard transpose (semitones)"/>
+</midiDevice>

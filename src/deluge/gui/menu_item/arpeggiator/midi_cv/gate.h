@@ -34,6 +34,6 @@ public:
 		int32_t value = computeFinalValueForStandardMenuItem(this->getValue());
 		soundEditor.currentArpSettings->gate = value;
 	}
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return LENGTH_SLIDER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return LENGTH_SLIDER; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

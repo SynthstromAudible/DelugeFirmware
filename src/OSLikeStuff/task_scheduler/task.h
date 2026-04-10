@@ -21,7 +21,7 @@
 #include "resource_checker.h"
 
 #include <io/debug/log.h>
-#define SCHEDULER_DETAILED_STATS (1 && ENABLE_TEXT_OUTPUT)
+#define SCHEDULER_DETAILED_STATS (0 && ENABLE_TEXT_OUTPUT)
 
 // internal to the scheduler - do not include from anywhere else
 struct StatBlock {
@@ -88,9 +88,7 @@ struct Task {
 	}
 
 	void updateNextTimes(Time startTime, Time runtime, Time finishTime) {
-		if (runtime > Time(0.003)) {
-			D_PRINTLN("Task %s took too long: %.3fms", name, double(runtime) * 1000.);
-		}
+
 		durationStats.update(runtime);
 
 #if SCHEDULER_DETAILED_STATS
@@ -130,6 +128,7 @@ struct Task {
 	Time latestCallTime{0};
 	Time lastCallTime{0};
 	Time lastFinishTime{0};
+	bool boosted{false};
 
 	StatBlock durationStats;
 #if SCHEDULER_DETAILED_STATS

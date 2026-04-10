@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		32="LSB Bank"
+		1="MOD"
+		5="Porta"
+		7="VOL"
+		8="BAL"
+		10="PAN"
+		11="Expr"
+		47="FX1 Type"
+		48="FX2 Type"
+		51="FX1 Ctrl1"
+		52="FX1 Ctrl2"
+		53="FX1 Ctrl3"
+		54="FX1 Ctrl4"
+		55="FX1 Ctrl5"
+		56="FX2 Ctrl1"
+		57="FX2 Ctrl2"
+		58="FX2 Ctrl3"
+		59="FX2 Ctrl4"
+		60="FX2 Ctrl5"
+		61="FX1 LVL"
+		62="FX2 LVL"
+		64="Sustain"
+		90="DRY LVL"
+		91="FX1 Send"
+		92="FX Rout MOD"
+		93="FX2 Send"
+		120="Note OFF"
+		126="Mono MOD"
+		127="Poly MOD"/>
+</midiDevice>

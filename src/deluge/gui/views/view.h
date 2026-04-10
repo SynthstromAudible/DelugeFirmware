@@ -172,6 +172,11 @@ private:
 	// mod encoder button action
 	void modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder);
 	void modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder, bool on);
+
+	// Timing constants for display arbitration in displayModEncoderValuePopup (in AudioEngine sample units)
+	static constexpr uint32_t MIN_DISPLAY_OWNERSHIP_TIME = kSampleRate; // 1 second (minimum juggling time)
+	static constexpr uint32_t DISPLAY_TIMEOUT = kSampleRate / 4;        // 0.25 seconds (ball drop timeout)
+	static constexpr uint32_t MIN_UPDATE_INTERVAL = kSampleRate / 22;   // ~45ms (minimum perceptible update frequency)
 };
 
 extern View view;

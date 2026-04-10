@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		48="Waveform A"
+		49="Waveform B"
+		50="Detune"
+		51="Cutoff"
+		52="Mix"
+		53="Rate"
+		54="Depth"
+		55="Amplitude attack"
+		56="Amplitude decay"
+		57="Portamento"
+		58="Filter Envelope Modulation Amount"
+		59="Pulse width"
+		64="Sustain"
+		65="Oscillator B Octave Shift"
+		66="Destination"
+		67="Randomize"
+		68="Retrigger"/>
+</midiDevice>

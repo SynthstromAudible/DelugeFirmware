@@ -53,6 +53,7 @@ public:
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 15; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };
 
 } // namespace deluge::gui::menu_item::fx

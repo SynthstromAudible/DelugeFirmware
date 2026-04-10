@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		80="Type"
+		81="Drive"
+		17="Tremolo/wah switch"
+		18="Tremolo/wah depth"
+		19="Tremolo/wah rate"
+		85="Chorus/phaser switch"
+		86="Chorus/phaser depth"
+		87="Chorus/phaser speed"
+		88="Digital delay/analog delay switch"
+		89="Digital delay/analog delay depth"
+		90="Digital delay/analog delay time"
+		91="Reverb depth"/>
+</midiDevice>

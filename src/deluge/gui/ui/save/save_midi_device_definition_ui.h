@@ -22,9 +22,11 @@ class Song;
 
 class SaveMidiDeviceDefinitionUI final : public SaveUI {
 public:
-	SaveMidiDeviceDefinitionUI() = default;
+	SaveMidiDeviceDefinitionUI();
 
 	bool opened() override;
+
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
 	void endSession() {};
 	bool performSave(bool mayOverwrite) override;

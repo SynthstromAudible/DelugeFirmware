@@ -68,22 +68,23 @@ public:
 		Number::selectEncoderAction(offset);
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		DEF_STACK_STRING_BUF(paramValue, 5);
-		int32_t sizeX, sizeY;
+		int32_t size_x, size_y;
 		if (this->getValue() == 128) {
 			paramValue.append(l10n::get(l10n::String::STRING_FOR_NONE));
-			sizeX = kTextSpacingX;
-			sizeY = kTextSpacingY;
+			size_x = kTextSpacingX;
+			size_y = kTextSpacingY;
 		}
 		else {
 			paramValue.appendInt(getValue());
-			sizeX = kTextTitleSpacingX;
-			sizeY = kTextTitleSizeY;
+			size_x = kTextTitleSpacingX;
+			size_y = kTextTitleSizeY;
 		}
-		image.drawStringCentered(paramValue, startX, startY + 2, sizeX, sizeY, width);
+		image.drawStringCentered(paramValue, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, size_x, size_y,
+		                         slot.width);
 	}
 
 	[[nodiscard]] bool showNotification() const override { return false; }

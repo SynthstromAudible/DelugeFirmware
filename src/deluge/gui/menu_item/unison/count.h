@@ -65,11 +65,11 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxNumVoicesUnison; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		DEF_STACK_STRING_BUF(paramValue, 2);
 		paramValue.appendInt(getValue());
-		return OLED::main.drawStringCentered(paramValue, startX + 1, startY + 6, kTextBigSpacingX, kTextBigSizeY,
-		                                     width);
+		OLED::main.drawStringCentered(paramValue, slot.start_x + 1, slot.start_y + kHorizontalMenuSlotYOffset + 3,
+		                              kTextBigSpacingX, kTextBigSizeY, slot.width);
 	}
 };
 

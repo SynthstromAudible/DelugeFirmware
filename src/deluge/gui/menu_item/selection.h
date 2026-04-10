@@ -44,9 +44,11 @@ public:
 
 	// toggles boolean ON / OFF
 	void toggleValue() {
-		readCurrentValue();
-		setValue(!getValue());
-		writeCurrentValue();
+		if (isToggle()) {
+			readCurrentValue();
+			setValue(!getValue());
+			writeCurrentValue();
+		}
 	};
 
 	// handles toggling a "toggle" selection menu from sub-menu level
@@ -58,11 +60,9 @@ public:
 			return nullptr; // go up a level
 		}
 		// you're toggling selection menu from submenu level
-		else {
-			toggleValue();
-			displayToggleValue();
-			return NO_NAVIGATION;
-		}
+		toggleValue();
+		displayToggleValue();
+		return NO_NAVIGATION;
 	}
 
 	// get's toggle status for rendering checkbox on OLED

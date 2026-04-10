@@ -7,7 +7,7 @@ import { Badge } from "@astrojs/starlight/components"
 
 <Badge text="c1.2 Feature" variant="tip" />
 
-Automatically export your clips in Session View, tracks in Arranger View, and drums in Kit Instrument Clip View into audio WAV files.
+Automatically export your clips in Session View, tracks in Arranger View, and drums (<Badge text="c1.3" variant="tip" />) in Kit Instrument Clip View into audio WAV files.
 
 ## Video Tutorials
 
@@ -24,7 +24,7 @@ Automatically export your clips in Session View, tracks in Arranger View, and dr
 
 ## Description
 
-Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SESSION VIEW`, `TRACK's` while in `ARRANGER VIEW`, and `DRUM's` while in `KIT INSTRUMENT CLIP VIEW`. Press :key[SAVE] + :key[RECORD] to start exporting.
+Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SESSION VIEW`, `TRACK's` while in `ARRANGER VIEW`, and `DRUM's` (<Badge text="c1.3" variant="tip" />) while in `KIT INSTRUMENT CLIP VIEW`. Press :key[SAVE] + :key[RECORD] to start exporting.
 
 Now with one quick action you can start an export job, walk away from your Deluge and come back to a collection of renders from all your clips, arranger tracks, and kit drums.
 
@@ -98,13 +98,13 @@ KIT_DRUM_KITNAME_DRUMNAME_Root Note-Scale Name_000.WAV
 - By default, normalization is off. Normalization sets the peak of the renders to be at 0dB (as loud as possible without distorting).
   - Normalization can be turned on in the export configuration menu located at:
     - In Session and Arranger: `SONG/EXPORT AUDIO/CONFIGURE EXPORT/NORMALIZATION`
-    - In Kit Instrument Clip: `KIT FX/ACTIONS/EXPORT AUDIO/CONFIGURE EXPORT/NORMALIZATION`
+    - In Kit Instrument Clip <Badge text="c1.3" variant="tip" />: `KIT FX/ACTIONS/EXPORT AUDIO/CONFIGURE EXPORT/NORMALIZATION`
 
 ### Song FX
 
 - By default, Song FX are excluded (these are the master FX in Session and Arranger Views when :key[AffectEntire] is enabled). They can be included in the export configuration menu located at: `SONG/EXPORT AUDIO/CONFIGURE EXPORT/SONG FX`
 
-### Kit FX
+### Kit FX <Badge text="c1.3" variant="tip" />
 
 - This is applicable for exporting Kit Drums only and is not visible in the Session and Arranger Audio Export menu's
 - By default, Kit FX are excluded (these are the Kit Global FX in Kit Instrument Clips when :key[AffectEntire] is enabled).
@@ -122,7 +122,7 @@ KIT_DRUM_KITNAME_DRUMNAME_Root Note-Scale Name_000.WAV
     - In Session and Arranger: `SONG/EXPORT AUDIO/CONFIGURE EXPORT/OFFLINE RENDERING`
     - In Kit Instrument Clip: `KIT FX/ACTIONS/EXPORT AUDIO/CONFIGURE EXPORT/OFFLINE RENDERING`
 
-### Mixdown Export
+### Mixdown Export <Badge text="c1.3" variant="tip" />
 
 - This is only applicable when exporting from Arranger
 - Exporting all unmuted tracks as a single stereo file is disabled by default.
@@ -130,7 +130,7 @@ KIT_DRUM_KITNAME_DRUMNAME_Root Note-Scale Name_000.WAV
 
 ## Audio Export Menu
 
-A new `EXPORT AUDIO` menu has been added to the `SONG` menu accessible in Session and Arranger Views and the `KIT FX/ACTIONS/` menu accessible in Kit Instrument Clip View.
+A new `EXPORT AUDIO` menu has been added to the `SONG` menu accessible in Session and Arranger Views and in <Badge text="c1.3" variant="tip" /> the `KIT FX/ACTIONS/` menu is accessible in Kit Instrument Clip View.
 
 This menu allows you to start an export and configure various settings related to the export.
 

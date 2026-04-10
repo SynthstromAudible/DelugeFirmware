@@ -2,6 +2,7 @@
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/edit_name.h"
+#include "gui/menu_item/filter/param.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/note/fill.h"
 #include "gui/menu_item/note/iterance_divisor.h"
@@ -13,6 +14,7 @@
 #include "gui/menu_item/note_row/iterance_preset.h"
 #include "gui/menu_item/note_row/iterance_step_toggle.h"
 #include "gui/menu_item/note_row/probability.h"
+#include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
 #include "gui/menu_item/patch_cables.h"
@@ -26,11 +28,12 @@
 #include "gui/menu_item/source/patched_param/modulator_level.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
-#include <array>
+#include "gui/menu_item/submenu/mod_fx.h"
 
 namespace deluge::gui::menu_item {
 class HorizontalMenu;
 class HorizontalMenuGroup;
+class HorizontalMenuContainer;
 } // namespace deluge::gui::menu_item
 
 extern gui::menu_item::patched_param::IntegerNonFM noiseMenu;
@@ -42,6 +45,8 @@ extern gui::menu_item::sample::Start sample0StartMenu;
 extern gui::menu_item::sample::Start sample1StartMenu;
 extern gui::menu_item::sample::End sample0EndMenu;
 extern gui::menu_item::sample::End sample1EndMenu;
+extern gui::menu_item::osc::AudioRecorder sample0RecorderMenu;
+extern gui::menu_item::osc::AudioRecorder sample1RecorderMenu;
 extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
 extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
 extern gui::menu_item::EditName nameEditMenu;
@@ -60,13 +65,15 @@ extern gui::menu_item::Submenu soundEditorRootMenuSongView;
 extern gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
 extern gui::menu_item::Submenu soundEditorRootMenu;
 extern gui::menu_item::Submenu settingsRootMenu;
+extern gui::menu_item::submenu::ModFxHorizontalMenu globalModFXMenu;
+extern gui::menu_item::submenu::ModFxHorizontalMenu modFXMenu;
 
 extern gui::menu_item::randomizer::RandomizerLock randomizerLockMenu;
 extern gui::menu_item::randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV;
 extern gui::menu_item::randomizer::midi_cv::NoteProbability randomizerNoteProbabilityMenuMIDIOrCV;
 
 // note editor menu's
-extern gui::menu_item::Submenu noteEditorRootMenu;
+extern gui::menu_item::HorizontalMenu noteEditorRootMenu;
 extern gui::menu_item::note::Probability noteProbabilityMenu;
 extern gui::menu_item::note::IterancePreset noteIteranceMenu;
 extern gui::menu_item::note::IteranceDivisor noteCustomIteranceDivisor;
@@ -80,7 +87,7 @@ extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep7;
 extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep8;
 extern gui::menu_item::note::Fill noteFillMenu;
 // note row editor menu's
-extern gui::menu_item::Submenu noteRowEditorRootMenu;
+extern gui::menu_item::HorizontalMenu noteRowEditorRootMenu;
 extern gui::menu_item::note_row::Probability noteRowProbabilityMenu;
 extern gui::menu_item::note_row::IterancePreset noteRowIteranceMenu;
 extern gui::menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor;
@@ -99,7 +106,6 @@ extern gui::menu_item::source::patched_param::ModulatorLevel modulator0Volume;
 extern gui::menu_item::source::patched_param::ModulatorLevel modulator1Volume;
 
 extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
-
 extern MenuItem* gateDrumParamShortcuts[kDisplayHeight];
 extern MenuItem* paramShortcutsForSounds[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSoundsSecondLayer[kDisplayWidth][kDisplayHeight];
@@ -107,11 +113,12 @@ extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
-extern const std::array<gui::menu_item::HorizontalMenu*, 17> horizontalMenusChainForSound;
-extern const std::array<gui::menu_item::HorizontalMenu*, 12> horizontalMenusChainForKit;
-extern const std::array<gui::menu_item::HorizontalMenu*, 9> horizontalMenusChainForSong;
-extern const std::array<gui::menu_item::HorizontalMenu*, 11> horizontalMenusChainForAudioClip;
-extern const std::array<gui::menu_item::HorizontalMenu*, 2> horizontalMenusChainForMidiOrCv;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSound;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForKit;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSong;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForAudioClip;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForMidiOrCv;
+extern deluge::vector<gui::menu_item::HorizontalMenuContainer*> horizontalMenuContainers;
 
 extern gui::menu_item::HorizontalMenuGroup sourceMenuGroup;
 extern gui::menu_item::HorizontalMenu audioClipSampleMenu;

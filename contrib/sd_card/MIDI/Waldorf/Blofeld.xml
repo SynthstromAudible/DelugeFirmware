@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midi
+	firmwareVersion="c1.3.0"
+	earliestCompatibleFirmware="4.1.0-alpha"
+	channel="1"
+	suffix="-1">
+	<modKnobs>
+		<modKnob
+			cc="10" />
+		<modKnob
+			cc="7" />
+		<modKnob
+			cc="70" />
+		<modKnob
+			cc="69" />
+		<modKnob
+			cc="81" />
+		<modKnob
+			cc="80" />
+		<modKnob
+			cc="94" />
+		<modKnob
+			cc="93" />
+		<modKnob
+			cc="none" />
+		<modKnob
+			cc="none" />
+		<modKnob
+			cc="20" />
+		<modKnob
+			cc="16" />
+		<modKnob
+			cc="100" />
+		<modKnob
+			cc="95" />
+		<modKnob
+			cc="106" />
+		<modKnob
+			cc="101" />
+	</modKnobs>
+	<polyToMonoConversion
+		aftertouch="0"
+		mpe="1"
+		yCC="74" />
+	<midiDevice>
+		<definitionFile
+			name="MIDI_DEVICES/DEFINITION/Waldorf/Blofeld.xml" />
+		<ccLabels
+			0="Bank"
+			2="Breath"
+			3=""
+			4="FootCtrl"
+			5="Glide"
+			6=""
+			7="Vol"
+			8=""
+			9=""
+			10="Pan"
+			11=""
+			12=""
+			13=""
+			14=""
+			15="LFO1-Shape"
+			16="LFO1-Speed"
+			17="LFO1-Sync"
+			18="LFO1-Delay"
+			19="LFO2-Shape"
+			20="LFO2-Speed"
+			21="LFO2-Sync"
+			22="LFO2-Delay"
+			23="LFO3-Shape"
+			24="LFO3-Speed"
+			25="LFO3-Sync"
+			26="LFO3-Delay"
+			27="OSC1-Oct"
+			28="OSC1-Semi"
+			29="OSC1-Detun"
+			30="OSC1-FM"
+			31="OSC1-Shape"
+			32=""
+			33="OSC1-PW"
+			34="OSC1-PWM"
+			35="OSC2-Oct"
+			36="OSC2-Semi"
+			37="OSC2-Detun"
+			38="OSC2-FM"
+			39="OSC2-Shape"
+			40="OSC2-PW"
+			41="OSC2-PWM"
+			42="OSC3-Oct"
+			43="OSC3-Semi"
+			44="OSC3-Detun"
+			45="OSC3-FM"
+			46="OSC3-Shape"
+			47="OSC3-PW"
+			48="OSC3-PWM"
+			49="OscSync"
+			50=""
+			51=""
+			52="MixOSC1-Lev"
+			53="MixOSC1-FBal"
+			54="MixRing-Lev"
+			55="MixRing-Bal"
+			56="MixOSC2-Lev"
+			57="MixOSC2-FBal"
+			58="MixOSC3-Lev"
+			59="MixOSC3-FBal"
+			60="MixNois-Lev"
+			61="MixNois-Bal"
+			62="NoiseColor"
+			63=""
+			64="Sustain"
+			65="Glide"
+			66="Sosten"
+			67="F-Route"
+			68="F1-Type"
+			69="F1-Freq"
+			70="F1-Res"
+			71="F1-Drive"
+			72="F1-Ktrack"
+			73="F1-EnvAmnt"
+			74="F1-EnvVel"
+			75="F1-FreqMod"
+			76="F1-FM"
+			77="F1-Pan"
+			78="F1-PanMod"
+			79="F2-Type"
+			80="F2-Freq"
+			81="F2-Res"
+			82="F2-Drive"
+			83="F2-Ktrack"
+			84="F2-EnvAmnt"
+			85="F2-EnvVel"
+			86="F2-FreqMod"
+			87="F2-FM"
+			88="F2-Pan"
+			89="F2-PanMod"
+			90="Amp-Vol"
+			91="Amp-Vel"
+			92="Amp-Mod"
+			93="FX1-Mix"
+			94="FX2-Mix"
+			95="FEnv-Att"
+			96="FEnv-Dec"
+			97="FEnv-Sus"
+			98="FEnv-Dec2"
+			99="FEnv-Sus2"
+			100="FEnv-Rel"
+			101="AEnv-Att"
+			102="AEnv-Dec"
+			103="AEnv-Sus"
+			104="AEnv-Dec2"
+			105="AEnv-Sus2"
+			106="AEnv-Rel"
+			107="Env3-Att"
+			108="Env3-Dec"
+			109="Env3-Sus"
+			110="Env3-Dec2"
+			111="Env3-Sus2"
+			112="Env3-Rel"
+			113="Env4-Att"
+			114="Env4-Dec"
+			115="Env4-Sus"
+			116="Env4-Dec2"
+			117="Env4-Sus2"
+			118="Env4-Rel"
+			119="" />
+	</midiDevice>
+</midi>

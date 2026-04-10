@@ -34,6 +34,6 @@ public:
 		       && source.hasAtLeastOneAudioFileLoaded();
 	}
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return SLIDER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return SLIDER; }
 };
 } // namespace deluge::gui::menu_item::osc::source

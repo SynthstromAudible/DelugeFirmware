@@ -195,24 +195,40 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 	uint32_t posWithinCluster = startPlaybackAtByte & (Cluster::size - 1);
 
 	// Set up new temp list
-	std::array<Cluster*, kNumClustersLoadedAhead> new_clusters{};
+	Cluster* newClusters[kNumClustersLoadedAhead];
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+		newClusters[l] = nullptr;
+	}
 
 	// Populate new list
-	for (auto& new_cluster : new_clusters) {
-		SampleCluster& sample_cluster = static_cast<Sample*>(audioFile)->clusters[clusterIndex];
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 
-		new_cluster = sample_cluster.getCluster(static_cast<Sample*>(audioFile), clusterIndex, clusterLoadInstruction);
+		/*
+		// If final one, only load it if posWithinCluster is at least a quarter of the way in
+		if (l == NUM_SAMPLE_CLUSTERS_LOADED_AHEAD - 1) {
+		    if (playDirection == 1) {
+		        if (posWithinCluster < (sampleManager.clusterSize >> 2)) break;
+		    }
+		    else {
+		        if (posWithinCluster > sampleManager.clusterSize - (sampleManager.clusterSize >> 2)) break;
+		    }
+		}
+		*/
 
-		if (new_cluster == nullptr) {
+		SampleCluster* sampleCluster = ((Sample*)audioFile)->clusters.getElement(clusterIndex);
+
+		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
+
+		if (!newClusters[l]) {
 			D_PRINTLN("NULL!!");
 		}
-		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !new_cluster->loaded) {
+		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) {
 			D_PRINTLN("not loaded!!");
 		}
 
 		clusterIndex += playDirection;
-		if (clusterIndex < static_cast<Sample*>(audioFile)->getFirstClusterIndexWithAudioData()
-		    || clusterIndex >= static_cast<Sample*>(audioFile)->getFirstClusterIndexWithNoAudioData()) {
+		if (clusterIndex < ((Sample*)audioFile)->getFirstClusterIndexWithAudioData()
+		    || clusterIndex >= ((Sample*)audioFile)->getFirstClusterIndexWithNoAudioData()) {
 			break;
 		}
 	}
@@ -222,6 +238,6 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		if (clusters[l] != nullptr) {
 			audioFileManager.removeReasonFromCluster(*clusters[l], "E146");
 		}
-		clusters[l] = new_clusters[l];
+		clusters[l] = newClusters[l];
 	}
 }

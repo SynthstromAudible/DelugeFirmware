@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		7="Level"
+		14="Reset Modulator Phase"
+		15="GO TO Step"
+		43="Attack"
+		44="Decay"
+		45="Sustain"
+		46="Release"
+		47="Filter ENV Amount"
+		48="OSC1 Freq"
+		49="OSC1 Detune"
+		50="OSC1 WAV"
+		51="OSC1 VOL"
+		52="FM Amount"
+		53="Sync"
+		54="OSC2 Freq"
+		55="OSC2 Detune"
+		56="OSC2 WAV"
+		57="OSC2 Volume"
+		74="Cutoff"
+		75="RES"
+		76="Color"
+		77="Follow Filter"
+		78="X MOD Rate"
+		79="X MOD Amount"
+		80="X ENV Attack"
+		81="X ENV Decay"
+		82="X ENV Amount"
+		83="X ENV Type"
+		84="X MOD WAV"/>
+</midiDevice>
