@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		2="Envel ALL"
+		1="Fill"
+		3="Variation"
+		4="VCA Band1"
+		8="VCA Band2"
+		9="VCA Band3"
+		10="VCA Band4"
+		11="VCA Band5"
+		12="VCA Band6"
+		13="VCA Band7"
+		14="VCA Band8"
+		15="VCA Band9"
+		16="VCA Band10"
+		17="VCA Band11"
+		18="VCA Band12"
+		19="ENV Band1"
+		20="ENV Band2"
+		21="ENV Band3"
+		22="ENV Band4"
+		23="ENV Band5"
+		24="ENV Band6"
+		25="ENV Band7"
+		26="ENV Band8"
+		27="ENV Band9"
+		28="ENV Band10"
+		29="ENV Band11"
+		30="ENV Band12"/>
+</midiDevice>

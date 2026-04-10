@@ -65,12 +65,12 @@ back up your SD card!
   - :key[TURN SELECT] to change the value of the selected menu item
   - You can select the different menu item's on the currently visible horizontal menu page using the :key[SYNTH], :key[KIT], :key[MIDI], :key[CV] buttons
     - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
-  - Additionally, you can change the selected menu item by :key[PRESS TURN SELECT]
   - You can use the :key[SCALE] and :key[CROSSSCREEN] buttons to switch between pages and adjacent menus
     - Use :key[CROSSSCREEN] button to switch to the next page
     - Use :key[SCALE] button to switch to the previous page
     - Use :key[SHIFT + CROSSSCREEN] button combo to switch to the next adjacent Horizontal menu
     - Use :key[SHIFT + SCALE] button combo to switch to the previous adjacent Horizontal menu
+  - You can fine-tune values (e.g., oscillator transpose) in a menu by either :key[PRESS TURN SELECT] or :key[SHIFT + TURN SELECT]
 
 ### 2.3 - Layered Shortcuts <Badge text="c1.3" variant="tip" />
 
@@ -492,6 +492,15 @@ Here is a list of general improvements that have been made, ordered from newest 
 ### 3.36 - Selectable Accidental
 
 - (#3794) <Badge text="c1.3" variant="tip" /> Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental. If selected, `D.` will mean D#. If not selected, `D.` will mean D♭.
+
+### 3.37 - Battery Level Display in System Menu
+
+- (#XXXX) <Badge text="c1.3" variant="tip" /> Added battery level display in the System menu
+  - Displays the current battery voltage in millivolts and percentage
+  - On OLED displays: Shows "Battery Level: X.XXV (XX%)"
+  - On 7-segment displays: Shows battery percentage
+  - The battery level menu item can be toggled on/off via the Community Features menu
+  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`
 
 ## 4. New Features Added
 
@@ -1364,6 +1373,9 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
   - When On, some menu items render in horizontal menus, with multiple items visible and editable at the same time.
 - `Trim from start of audio clips (TRIM)` <Badge text="c1.3" variant="tip" />
   - When On, the ability to trim from the start of an audio clip without needing to reverse it is enabled.
+
+- `Show Battery Level (BATT)` <Badge text="c1.3" variant="tip" />
+  - When On, displays battery level information in the System menu. Shows voltage and percentage on OLED displays, percentage on 7-segment displays.
 
 ## 6. Sysex Handling
 

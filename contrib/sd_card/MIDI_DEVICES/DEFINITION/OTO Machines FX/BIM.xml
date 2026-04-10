@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		12="Delay"
+		13="Feedback"
+		14="MIX"
+		15="LFO Rate"
+		16="LFO Depth"
+		17="Active"
+		18="Division"
+		19="Range"
+		20="FX Type"
+		21="IN Gain"
+		22="HPF"
+		23="LPF"
+		24="Feedback Filters"
+		25="Offset"
+		26="LFO Wave"
+		27="LFO Range"
+		28="Freeze"
+		29="Freeze Reverse"
+		30="LFO Division"
+		31="LFO Phase Reset"/>
+</midiDevice>

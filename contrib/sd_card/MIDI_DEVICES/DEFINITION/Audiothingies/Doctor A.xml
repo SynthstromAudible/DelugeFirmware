@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		12="Delay Time"
+		13="Delay Feedback"
+		14="Delay Modulation"
+		15="Delay Level"
+		16="Delay HPF"
+		17="Delay LPF"
+		18="Reverb Delay Level"
+		19="Reverb HPF"
+		20="Reverb LPF"
+		21="Reverb Predelay"
+		22="Reverb Decay"
+		23="Reverb Modulation"
+		24="Reverb Level"
+		25="Delay Ping Pong L R Offset"
+		26="Delay MOD Speed"
+		64="Delay TAP Tempo"
+		102="Delay OFF ON Absolute"
+		103="Reverb OFF ON Absolute"
+		104="Delay OFF ON Alternate"
+		105="Reverb OFF ON Alternate"/>
+</midiDevice>

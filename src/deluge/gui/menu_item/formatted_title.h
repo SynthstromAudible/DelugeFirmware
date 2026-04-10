@@ -18,7 +18,8 @@ public:
 	[[nodiscard]] std::string_view title() const {
 		if (arg_.has_value()) {
 			format(arg_.value());
-			arg_ = std::nullopt;
+			// We cannot do this only once, in case the display switches between 7-seg and OLED
+			// modes, and those have different strings.
 		}
 		return title_;
 	}

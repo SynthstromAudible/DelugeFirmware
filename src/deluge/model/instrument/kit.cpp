@@ -63,7 +63,7 @@ Kit::~Kit() {
 	// Delete all Drums
 	while (firstDrum) {
 		AudioEngine::logAction("~Kit");
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		AudioEngine::routineWithClusterLoading();
 		Drum* toDelete = firstDrum;
 		firstDrum = firstDrum->next;
 
@@ -118,8 +118,9 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
 
-	writer.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
-	                             // Attributes end
+	writer.writeOpeningTagEnd();
+	// Attributes end
+
 	// saving song
 	if (!clipForSavingOutputOnly) {
 		if (midiInput.containsSomething()) {
@@ -767,6 +768,7 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 					thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 					                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
 					                          0, 0);
+					kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 				}
 			}
 		}
@@ -824,6 +826,7 @@ void Kit::renderNonAudioArpPostOutput(deluge::dsp::StereoBuffer<q31_t> output) {
 					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 				}
 			}
@@ -946,7 +949,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 		if (thisDrum->type == DrumType::SOUND) {
 
 			if (!(count & 7)) {
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				AudioEngine::routineWithClusterLoading();
 			}
 			count++;
 
@@ -978,7 +981,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
-					AudioEngine::routineWithClusterLoading(); // -----------------------------------
+					AudioEngine::routineWithClusterLoading();
 				}
 				count++;
 
@@ -1003,7 +1006,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisDrum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
-					AudioEngine::routineWithClusterLoading(); // -----------------------------------
+					AudioEngine::routineWithClusterLoading();
 				}
 				count++;
 
@@ -1051,9 +1054,8 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 					if (thisNoteRow->drum->type == DrumType::SOUND) {
 
 						if (!(count & 7)) {
-							AudioEngine::routineWithClusterLoading(); // ----------------------------------- I guess
-							                                          // very often this wouldn't work cos the audio
-							                                          // routine would be locked
+							// Rohan: I guess very often this wouldn't work cos the audio routine would be locked
+							AudioEngine::routineWithClusterLoading();
 						}
 						count++;
 
@@ -1112,7 +1114,7 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading();
 			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 		}
 	}
@@ -1195,6 +1197,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 				                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn, 0,
 				                          0);
+				// no check needed - will be held by the drum's own arp if it can't start immediately
+				kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 			}
 		}
 	}
@@ -1237,18 +1241,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					}
 					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 				}
-				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-					if (instruction.arpNoteOn == nullptr
-					    || instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-						break;
-					}
-					soundDrum->invertReversed = instruction.invertReversed;
-					soundDrum->noteOnPostArpeggiator(
-					    modelStackWithSoundFlags,
-					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-					    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-					    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0);
-				}
+				soundDrum->process_postarp_notes(modelStackWithSoundFlags, &drum->arpSettings, instruction);
 			}
 			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
 				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;

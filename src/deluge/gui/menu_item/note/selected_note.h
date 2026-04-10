@@ -17,25 +17,20 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
-#include "model/clip/instrument_clip.h"
-#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
-#include "model/song/song.h"
 
 namespace deluge::gui::menu_item::note {
 class SelectedNote : public Integer {
 public:
 	using Integer::Integer;
 
-	bool shouldEnterSubmenu() {
-		int32_t xDisplay = instrumentClipView.lastSelectedNoteXDisplay;
-		int32_t yDisplay = instrumentClipView.lastSelectedNoteYDisplay;
-		if (xDisplay != kNoSelection && yDisplay != kNoSelection) {
-			if (instrumentClipView.gridSquareInfo[yDisplay][xDisplay].isValid) {
+	bool shouldEnterSubmenu() override {
+		int32_t x_display = instrumentClipView.lastSelectedNoteXDisplay;
+		int32_t y_display = instrumentClipView.lastSelectedNoteYDisplay;
+		if (x_display != kNoSelection && y_display != kNoSelection) {
+			if (instrumentClipView.gridSquareInfo[y_display][x_display].isValid) {
 				return true;
 			}
 		}

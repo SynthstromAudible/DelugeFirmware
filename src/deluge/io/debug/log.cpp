@@ -16,7 +16,9 @@
  */
 
 #include "log.h"
+
 #include "io/debug/print.h"
+#include "scheduler_api.h"
 #include "util/functions.h"
 #include <cstdarg>
 
@@ -38,7 +40,8 @@ void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsi
 		vsnprintf(buffer, bufsize, format, args);
 	}
 	else {
-		snprintf(buffer, sizeof(buffer), "%s:%d: ", baseFile, line);
+		snprintf(buffer, sizeof(buffer), "%.4f: ", getSystemTime());
+		snprintf(buffer + strlen(buffer), sizeof(buffer), "%s:%d: ", baseFile, line);
 		vsnprintf(buffer + strlen(buffer), bufsize - strlen(buffer), format, args);
 	}
 	// End variadic argument processing

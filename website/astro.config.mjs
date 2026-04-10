@@ -114,6 +114,10 @@ const config = defineConfig({
                 autogenerate: { directory: "resources/applications" },
               },
               {
+                label: "MIDI Devices",
+                autogenerate: { directory: "resources/midi_devices" },
+              },
+              {
                 label: "Tutorials",
                 link: "/resources/tutorials",
               },

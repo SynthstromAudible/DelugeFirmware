@@ -319,6 +319,8 @@ public:
 	bool anyNoteIsOn() override;
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	void prepareForHibernation() override;
+	void process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
+	                           ArpReturnInstruction instruction);
 
 private:
 	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
@@ -338,6 +340,7 @@ private:
 	void getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings);
 	void doParamLPF(int32_t numSamples, ModelStackWithSoundFlags* modelStack);
 	void stopParamLPF(ModelStackWithSoundFlags* modelStack);
+
 	bool renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack);
 	void setupDefaultExpressionPatching(ParamManager* paramManager);
 	void pushSwitchActionOnEncoderForParam(int32_t p, bool on, ModelStackWithThreeMainThings* modelStack);

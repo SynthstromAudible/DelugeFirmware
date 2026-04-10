@@ -49,6 +49,7 @@ SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridVi
 SettingToggle menuAlternativeTapTempoBehaviour(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour);
 SettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
+SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -72,7 +73,8 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuEnableGridViewLoopPads,
     &menuAlternativeTapTempoBehaviour,
     &menuHorizontalMenus,
-    &menuTrimFromStartOfAudioClip};
+    &menuTrimFromStartOfAudioClip,
+    &menuShowBatteryLevel};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }

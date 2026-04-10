@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="Modwheel"
+		31="OSC Shape"
+		70="OSC Wave"
+		28="Semitone"
+		29="Detune"
+		79="OSC Tune"
+		80="Vibr MOD"
+		5="Glide"
+		12="ARP Range"
+		13="ARP Direction"
+		14="ARP Tempo"
+		71="VCF Resonance"
+		74="VCF Cutoff"
+		83="VCF Keytrack"
+		103="ENV Sustain Switch"
+		64="Sustain"
+		72="ENV Release"
+		73="ENV MOD"
+		75="ENV Decay"
+		18="LFO Target"
+		76="LFO Speed"
+		77="LFO Depth"
+		78="LFO Shape"/>
+</midiDevice>

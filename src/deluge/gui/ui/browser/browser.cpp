@@ -140,8 +140,7 @@ void Browser::emptyFileItems() {
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
 			AudioEngine::logAction("emptyFileItems in loop");
-			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-			yield([]() { return true; });
+			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
@@ -161,8 +160,7 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
-			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-			yield([]() { return true; });
+			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
@@ -1337,12 +1335,18 @@ void Browser::updateUIState() {
 		    std::clamp(scrollPosVertical, fileIndexSelected - NUM_FILES_ON_SCREEN + 1, fileIndexSelected);
 	}
 	else {
-		scrollPosVertical = fileIndexSelected - 1;
-		if (scrollPosVertical < 0 && numFileItemsDeletedAtStart == 0) {
+		// For folders with fewer items than display slots, always start from index 0
+		if (fileItems.getNumElements() <= NUM_FILES_ON_SCREEN) {
 			scrollPosVertical = 0;
 		}
-		else if (fileIndexSelected == fileItems.getNumElements() - 1 && numFileItemsDeletedAtEnd == 0) {
-			scrollPosVertical--;
+		else {
+			scrollPosVertical = fileIndexSelected - 1;
+			if (scrollPosVertical < 0 && numFileItemsDeletedAtStart == 0) {
+				scrollPosVertical = 0;
+			}
+			else if (fileIndexSelected == fileItems.getNumElements() - 1 && numFileItemsDeletedAtEnd == 0) {
+				scrollPosVertical--;
+			}
 		}
 	}
 
@@ -1545,7 +1549,7 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 			{
 				int32_t i = o + scrollPosVertical;
 
-				if (i >= fileItems.getNumElements()) {
+				if (i < 0 || i >= fileItems.getNumElements()) {
 					break;
 				}
 
@@ -1807,7 +1811,6 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 void Browser::favouritesChanged() {
-	favouritesVisible = true;
 	renderFavourites();
 }
 

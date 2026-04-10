@@ -1,26 +1,26 @@
 // clang-format off
+filter::FilterModeSelection lpfModeMenu{STRING_FOR_MODE, STRING_FOR_LPF_MODE, filter::FilterSlot::LPF};
 filter::FilterParam lpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, params::LOCAL_LPF_FREQ, filter::FilterSlot::LPF, filter::FilterParamType::FREQUENCY};
 filter::FilterParam lpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::LOCAL_LPF_RESONANCE, filter::FilterSlot::LPF, filter::FilterParamType::RESONANCE};
 filter::FilterParam lpfMorphMenu{STRING_FOR_LPF_MORPH, params::LOCAL_LPF_MORPH, filter::FilterSlot::LPF, filter::FilterParamType::MORPH};
-filter::FilterModeSelection lpfModeMenu{STRING_FOR_MODE, STRING_FOR_LPF_MODE, filter::FilterSlot::LPF};
 std::array<MenuItem*, 4> child0 = {
+    &lpfModeMenu,
     &lpfFreqMenu,
     &lpfResMenu,
     &lpfMorphMenu,
-    &lpfModeMenu,
 };
-HorizontalMenu lpfMenu{STRING_FOR_LPF, child0, HorizontalMenu::Layout::FIXED};
+HorizontalMenu lpfMenu{STRING_FOR_LPF, child0};
+filter::FilterModeSelection hpfModeMenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE, filter::FilterSlot::HPF};
 filter::FilterParam hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::LOCAL_HPF_FREQ, filter::FilterSlot::HPF, filter::FilterParamType::FREQUENCY};
 filter::FilterParam hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE, filter::FilterSlot::HPF, filter::FilterParamType::RESONANCE};
 filter::FilterParam hpfMorphMenu{STRING_FOR_HPF_MORPH, params::LOCAL_HPF_MORPH, filter::FilterSlot::HPF, filter::FilterParamType::MORPH};
-filter::FilterModeSelection hpfModeMenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE, filter::FilterSlot::HPF};
 std::array<MenuItem*, 4> child1 = {
+    &hpfModeMenu,
     &hpfFreqMenu,
     &hpfResMenu,
     &hpfMorphMenu,
-    &hpfModeMenu,
 };
-HorizontalMenu hpfMenu{STRING_FOR_HPF, child1, HorizontalMenu::Layout::FIXED};
+HorizontalMenu hpfMenu{STRING_FOR_HPF, child1};
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
 std::array<MenuItem*, 3> child2 = {
     &lpfMenu,
@@ -28,7 +28,7 @@ std::array<MenuItem*, 3> child2 = {
     &filterRoutingMenu,
 };
 Submenu soundFiltersMenu{STRING_FOR_FILTERS, child2};
-audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_COMP_THRESHOLD_MENU_TITLE, params::UNPATCHED_COMPRESSOR_THRESHOLD};
+audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_COMP_THRESHOLD_MENU_TITLE, params::UNPATCHED_COMPRESSOR_THRESHOLD, BAR};
 audio_compressor::Ratio compRatio{STRING_FOR_RATIO, STRING_FOR_RATIO};
 audio_compressor::Blend compBlend{STRING_FOR_BLEND, STRING_FOR_BLEND};
 audio_compressor::Attack compAttack{STRING_FOR_ATTACK, STRING_FOR_ATTACK};
@@ -146,94 +146,101 @@ osc::source::Volume source1VolumeMenu{STRING_FOR_OSC_LEVEL_MENU_TITLE, params::L
 source::patched_param::ModulatorLevel modulator0Volume{STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, params::LOCAL_MODULATOR_0_VOLUME, 0};
 source::patched_param::ModulatorLevel modulator1Volume{STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, params::LOCAL_MODULATOR_0_VOLUME, 1};
 patched_param::IntegerNonFM noiseMenu{STRING_FOR_NOISE_LEVEL, params::LOCAL_NOISE_VOLUME};
-osc::Sync oscSyncMenu{STRING_FOR_OSCILLATOR_SYNC};
-std::array<MenuItem*, 6> child10 = {
+std::array<MenuItem*, 5> child10 = {
     &source0VolumeMenu,
     &source1VolumeMenu,
     &modulator0Volume,
     &modulator1Volume,
     &noiseMenu,
-    &oscSyncMenu,
 };
 HorizontalMenu oscMixerMenu{STRING_FOR_OSCILLATOR_MIXER, child10};
+osc::Sync oscSyncMenu{STRING_FOR_OSCILLATOR_SYNC};
+osc::Tracking osc0TrackingMenu{STRING_FOR_OSC_TRACKING_MENU_TITLE, 0};
+osc::Tracking osc1TrackingMenu{STRING_FOR_OSC_TRACKING_MENU_TITLE, 1};
+std::array<MenuItem*, 3> child11 = {
+    &oscSyncMenu,
+    &osc0TrackingMenu,
+    &osc1TrackingMenu,
+};
+HorizontalMenu oscTrackingMenu{STRING_FOR_OSCILLATOR_TRACKING, child11};
 envelope::Segment env1AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 0};
 envelope::Segment env1DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY, 0};
 envelope::Segment env1SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN, 0};
 envelope::Segment env1ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE, 0};
-std::array<MenuItem*, 4> child11 = {
+std::array<MenuItem*, 4> child12 = {
     &env1AttackMenu,
     &env1DecayMenu,
     &env1SustainMenu,
     &env1ReleaseMenu,
 };
-envelope::EnvelopeMenu env1Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child11, 0};
+envelope::EnvelopeMenu env1Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child12, 0};
 envelope::Segment env2AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 1};
 envelope::Segment env2DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY, 1};
 envelope::Segment env2SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN, 1};
 envelope::Segment env2ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE, 1};
-std::array<MenuItem*, 4> child12 = {
+std::array<MenuItem*, 4> child13 = {
     &env2AttackMenu,
     &env2DecayMenu,
     &env2SustainMenu,
     &env2ReleaseMenu,
 };
-envelope::EnvelopeMenu env2Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child12, 1};
+envelope::EnvelopeMenu env2Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child13, 1};
 envelope::Segment env3AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 2};
 envelope::Segment env3DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY, 2};
 envelope::Segment env3SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN, 2};
 envelope::Segment env3ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE, 2};
-std::array<MenuItem*, 4> child13 = {
+std::array<MenuItem*, 4> child14 = {
     &env3AttackMenu,
     &env3DecayMenu,
     &env3SustainMenu,
     &env3ReleaseMenu,
 };
-envelope::EnvelopeMenu env3Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child13, 2};
+envelope::EnvelopeMenu env3Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child14, 2};
 envelope::Segment env4AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 3};
 envelope::Segment env4DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY, 3};
 envelope::Segment env4SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN, 3};
 envelope::Segment env4ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE, 3};
-std::array<MenuItem*, 4> child14 = {
+std::array<MenuItem*, 4> child15 = {
     &env4AttackMenu,
     &env4DecayMenu,
     &env4SustainMenu,
     &env4ReleaseMenu,
 };
-envelope::EnvelopeMenu env4Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child14, 3};
+envelope::EnvelopeMenu env4Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child15, 3};
 lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO_TYPE, LFO1_ID};
 lfo::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO_SYNC, LFO1_ID};
 patched_param::Integer lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ_1};
-std::array<MenuItem*, 3> child15 = {
+std::array<MenuItem*, 3> child16 = {
     &lfo1TypeMenu,
     &lfo1SyncMenu,
     &lfo1RateMenu,
 };
-HorizontalMenu lfo1Menu{STRING_FOR_LFO1, child15};
+HorizontalMenu lfo1Menu{STRING_FOR_LFO1, child16};
 lfo::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO_TYPE, LFO2_ID};
 lfo::Sync lfo2SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO_SYNC, LFO2_ID};
 patched_param::Integer lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ_1};
-std::array<MenuItem*, 3> child16 = {
+std::array<MenuItem*, 3> child17 = {
     &lfo2TypeMenu,
     &lfo2SyncMenu,
     &lfo2RateMenu,
 };
-HorizontalMenu lfo2Menu{STRING_FOR_LFO2, child16};
+HorizontalMenu lfo2Menu{STRING_FOR_LFO2, child17};
 lfo::Type lfo3TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO_TYPE, LFO3_ID};
 lfo::Sync lfo3SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO_SYNC, LFO3_ID};
 patched_param::Integer lfo3RateMenu{STRING_FOR_RATE, STRING_FOR_LFO3_RATE, params::GLOBAL_LFO_FREQ_2};
-std::array<MenuItem*, 3> child17 = {
+std::array<MenuItem*, 3> child18 = {
     &lfo3TypeMenu,
     &lfo3SyncMenu,
     &lfo3RateMenu,
 };
-HorizontalMenu lfo3Menu{STRING_FOR_LFO3, child17};
+HorizontalMenu lfo3Menu{STRING_FOR_LFO3, child18};
 lfo::Type lfo4TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO_TYPE, LFO4_ID};
 lfo::Sync lfo4SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO_SYNC, LFO4_ID};
 patched_param::Integer lfo4RateMenu{STRING_FOR_RATE, STRING_FOR_LFO4_RATE, params::LOCAL_LFO_LOCAL_FREQ_2};
-std::array<MenuItem*, 3> child18 = {
+std::array<MenuItem*, 3> child19 = {
     &lfo4TypeMenu,
     &lfo4SyncMenu,
     &lfo4RateMenu,
 };
-HorizontalMenu lfo4Menu{STRING_FOR_LFO4, child18};
+HorizontalMenu lfo4Menu{STRING_FOR_LFO4, child19};
 // clang-format on

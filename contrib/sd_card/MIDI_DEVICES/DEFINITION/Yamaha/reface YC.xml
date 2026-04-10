@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		19="Rotary speed"
+		80="Wave"
+		102="Footage 16'"
+		103="Footage 5 1/3'"
+		104="Footage 8'"
+		105="Footage 4'"
+		106="Footage 2 2/3'"
+		107="Footage 2'"
+		108="Footage 1 3/5'"
+		109="Footage 1 1/3'"
+		110="Footage 1'"
+		79="Vibrato/chorus switch"
+		77="Vibrato/chorus depth"
+		111="Percussion on/off switch"
+		112="Percussion type switch"
+		113="Percussion length"
+		18="Effect dist"
+		91="Effect reverb"/>
+</midiDevice>

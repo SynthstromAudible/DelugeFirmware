@@ -125,6 +125,8 @@ static void firstPacket(uint8_t* data, int32_t len) {
 	PadLEDs::sendOutSidebarColours();
 	deluge::hid::display::OLED::clearMainImage();
 	deluge::hid::display::OLED::sendMainImage();
+
+	boostTask(midiEngine.routine_task_id);
 }
 
 void Debug::loadPacketReceived(uint8_t* data, int32_t len) {

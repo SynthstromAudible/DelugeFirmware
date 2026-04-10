@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="Cutoff"
+		2="Reso"
+		3="F.Env"
+		4="Level"
+		5="Pan"
+		6="Octave"
+		7="Glide"
+		8="Glide Mode"
+		11="Harmo"
+		12="Tmbre"
+		13="Morph"
+		14="Amp Attack"
+		15="Amp Decay"
+		16="Mod Attack"
+		17="Mod Decay"
+		18="Sustain"
+		19="Noise"
+		25="Chrous"
+		26="Space"
+		27="Delay"
+		30="Sound Engine"
+		40="Space Length"
+		41="Space Low Pass"
+		44="Delay Time"
+		45="Delay Feedback"
+		46="Delay Spread"
+		47="Delay Low Pass"/>
+</midiDevice>

@@ -90,6 +90,8 @@ public:
  * See MIDIDeviceManager or midiengine.cpp for details
  */
 
+enum class clock_setting { NONE, RECEIVE, SEND, BOTH };
+
 /// A MIDI cable connection. Stores all state specific to a given cable and its contained ports and channels.
 class MIDICable {
 public:
@@ -152,7 +154,8 @@ public:
 	// 0 if not connected. For USB devices, the bits signal a connection of the corresponding connectedUSBMIDIDevices[].
 	// Of course there'll usually just be one bit set, unless two of the same device are connected.
 	uint8_t connectionFlags;
-	bool sendClock; // whether to send clocks to this device
+	bool sendClock;    // whether to send clocks to this device
+	bool receiveClock; // whether to receive clocks from this device
 	uint8_t incomingSysexBuffer[1024];
 	int32_t incomingSysexPos = 0;
 

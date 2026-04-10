@@ -21,6 +21,8 @@
 #include "definitions.h"
 #include "deluge/util/d_string.h"
 #include <cstring>
+#include <functional>
+#include <optional>
 #include <string_view>
 
 namespace deluge::hid::display {
@@ -32,6 +34,19 @@ namespace oled_canvas {
 enum BorderRadius : uint8_t {
 	SMALL = 0, //< 1px
 	BIG = 1    //< 2px
+};
+
+struct Point {
+	int32_t x;
+	int32_t y;
+	bool operator==(const Point& other) const noexcept { return x == other.x && y == other.y; }
+};
+
+struct DrawLineOptions {
+	bool thick{false};
+	std::optional<uint8_t> min_x{std::nullopt};
+	std::optional<uint8_t> max_x{std::nullopt};
+	std::optional<std::function<void(Point)>> point_callback{std::nullopt};
 };
 
 class Canvas {
@@ -69,6 +84,9 @@ public:
 	/// Clear a single pixel
 	void clearPixel(int32_t x, int32_t y);
 
+	/// Invert a single pixel
+	void invertPixel(int32_t x, int32_t y);
+
 	/// Draw a horizontal line.
 	///
 	/// @param pixelY Y coordinate of the line to draw
@@ -83,13 +101,13 @@ public:
 	/// @param endY Y coordinate of the line, inclusive
 	void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY);
 
-	/// Draw a line using Bresenham's algorithm
+	/// Draw a line using Bresenham algorithm
 	/// @param x0 Start X coordinate of the line
 	/// @param y0 Start Y coordinate of the line
 	/// @param x1 End X coordinate of the line
 	/// @param y1 End Y coordinate of the line
-	/// @param thick Set to true if you want 2px line
-	void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick = false);
+	/// @param options Draw options
+	void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, const DrawLineOptions& options = {});
 
 	/// Draw a 1-px wide rectangle.
 	///
@@ -106,6 +124,13 @@ public:
 	/// @param maxX Maximum X coordinate, inclusive
 	/// @param maxY Maximum Y coordinate, inclusive
 	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius = SMALL);
+
+	/// Draw a circle using Bresenham algorithm
+	///
+	/// @param centerX Center X coordinate
+	/// @param centerY Center Y coordinate
+	/// @param radius Circle radius
+	void drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool fill = false);
 
 	/// Draw a string
 	///

@@ -22,27 +22,46 @@
 
 namespace deluge::gui::menu_item {
 
-enum NumberStyle { NUMBER, KNOB, VERTICAL_BAR, LEVEL, PERCENT, SLIDER, LENGTH_SLIDER };
+enum RenderingStyle {
+	NUMBER,
+	KNOB,
+	BAR,
+	PERCENT,
+	SLIDER,
+	LENGTH_SLIDER,
+	PAN,
+	LPF,
+	HPF,
+	ATTACK,
+	RELEASE,
+	SIDECHAIN_DUCKING
+};
 
 class Number : public Value<int32_t> {
 public:
 	using Value::Value;
-	void drawHorizontalBar(int32_t yTop, int32_t marginL, int32_t marginR = -1, int32_t height = 8);
+	void drawHorizontalBar(int32_t y_top, int32_t margin_l, int32_t margin_r = -1, int32_t height = 8);
 
 protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
 	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
-	[[nodiscard]] virtual NumberStyle getNumberStyle() const { return KNOB; }
-	float getNormalizedValue();
+	[[nodiscard]] virtual RenderingStyle getRenderingStyle() const { return KNOB; }
+	virtual float normalize(int32_t value);
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
-	void drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t height);
-	void drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
-	void drawLevel(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
-	void drawPercent(int32_t startX, int32_t startY, int32_t width, int32_t height);
-	void drawSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
-	void drawLengthSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight, bool minSliderPos = 3);
-	void getNotificationValue(StringBuf& value);
+	// Horizontal menus ------
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
+	void drawKnob(const SlotPosition& slot);
+	void drawBar(const SlotPosition& slot);
+	void drawPercent(const SlotPosition& slot);
+	void drawSlider(const SlotPosition& slot, std::optional<int32_t> value = std::nullopt);
+	void drawLengthSlider(const SlotPosition& slot, bool min_slider_pos = 3);
+	void drawPan(const SlotPosition& slot);
+	void drawLpf(const SlotPosition& slot);
+	void drawHpf(const SlotPosition& slot);
+	void drawAttack(const SlotPosition& slot);
+	void drawRelease(const SlotPosition& slot);
+	void drawSidechainDucking(const SlotPosition& slot);
+	void getNotificationValue(StringBuf& value) override;
 };
 
 } // namespace deluge::gui::menu_item

@@ -493,7 +493,7 @@ static void renderAlgorithm(uint8_t* params) {
 
 	FmAlgorithm a = FmCore::algorithms[params[134]];
 	for (int i = 0; i < 6; i++) {
-		int f = a.ops[i];
+		int f = a.ops[5 - i]; // compensate for inverted op order
 		char buffer[12];
 		int inbus = (f >> 4) & 3;
 		int outbus = f & 3;
@@ -501,11 +501,11 @@ static void renderAlgorithm(uint8_t* params) {
 		const char ob[] = {'c', 'x', 'y', 'q'};
 		buffer[0] = '1' + i;
 		buffer[1] = ':';
-		buffer[2] = ' ';
-		buffer[3] = ib[inbus];
-		buffer[4] = (f & OUT_BUS_ADD) ? '+' : '>';
-		buffer[5] = ob[outbus];
-		buffer[6] = (f & (FB_IN | FB_OUT)) ? 'f' : ' ';
+		buffer[2] = ib[inbus];
+		buffer[3] = (f & OUT_BUS_ADD) ? '+' : '>';
+		buffer[4] = ob[outbus];
+		buffer[5] = (f & (FB_IN | FB_OUT)) ? 'f' : ' ';
+		buffer[6] = ' ';
 		buffer[7] = 0;
 
 		int r = i / 3, c = i % 3;

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		0="Bank SEL MSB"
+		1="MOD Wheel"
+		5="Port Time"
+		7="Volume"
+		10="PAN"
+		11="Expression"
+		64="Hold1"
+		65="Glide Active"
+		66="Sostenuto"
+		67="Soft"
+		68="Legato Foot Switch"
+		71="Resonance"
+		72="Release"
+		73="Attack"
+		74="Cutoff"
+		75="Decay"
+		76="VIB Rate"
+		77="VIB Depth"
+		78="VIB Dlay"
+		80="Filter Knob"
+		81="MOD Knob"
+		82="FX Knob"
+		83="Sound Knob"
+		91="Reverb Send"
+		92="Chorus Send"/>
+</midiDevice>

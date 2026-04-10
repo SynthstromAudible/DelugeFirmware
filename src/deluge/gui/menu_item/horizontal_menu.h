@@ -52,10 +52,13 @@ public:
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
-	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             ::MultiRange** currentRange) override;
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void endSession() override;
+	bool focusChild(const MenuItem* child) override;
+
 	virtual bool hasItem(const MenuItem* item);
+	decltype(items)& getItems() { return items; }
+	MenuItem* getCurrentItem() const { return *current_item_; }
 
 protected:
 	Paging paging;
@@ -64,9 +67,9 @@ protected:
 
 	virtual void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem);
 	virtual Paging& preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem);
-	virtual void handleInstrumentButtonPress(std::span<MenuItem*> visiblePageItems, const MenuItem* previous,
-	                                         int32_t pressedButtonPosition);
-	virtual void selectMenuItem(int32_t pageNumber, int32_t itemPos);
+	virtual void handleInstrumentButtonPress(std::span<MenuItem*> visible_page_items, const MenuItem* previous,
+	                                         int32_t pressed_button_position);
+	virtual void selectMenuItem(int32_t page_number, int32_t item_pos);
 	virtual void switchVisiblePage(int32_t direction);
 	virtual void switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain);
 
@@ -74,9 +77,11 @@ private:
 	void updateSelectedMenuItemLED(int32_t itemNumber) const;
 	static void handleItemAction(MenuItem* menuItem);
 	static void displayNotification(MenuItem* menuItem);
+	void renderTitle(const Paging& paging) const;
 	static void renderPageCounters(const Paging& paging);
 	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
 	                              bool isSelected);
+	static void initializeItem(MenuItem* menuItem);
 
 	double currentKnobSpeed{0.0};
 	double calcNextKnobSpeed(int8_t offset);

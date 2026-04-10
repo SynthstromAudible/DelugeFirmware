@@ -30,6 +30,13 @@ enum class MenuPermission {
 	MUST_SELECT_RANGE,
 };
 
+struct SlotPosition {
+	uint8_t start_x{0};
+	uint8_t start_y{0};
+	uint8_t width{0};
+	uint8_t height{0};
+};
+
 class Sound;
 class MultiRange;
 class MIDICable;
@@ -275,9 +282,6 @@ public:
 	virtual bool isSubmenu() { return false; }
 	virtual void setupNumberEditor() {}
 	virtual void updatePadLights();
-	/// Called to inform automation view that the active parameter has changed. Parameters inheriting
-	/// from Automation forward there, no-op for everything else.
-	virtual void updateAutomationViewParameter() { return; }
 
 	/// @}
 	/// @name Horizontal menus
@@ -293,10 +297,10 @@ public:
 	/// true by default, but can be overridden
 	[[nodiscard]] virtual bool showColumnLabel() const { return true; }
 
-	/// @brief Get the number of occupied virtual columns in Horizontal menu.
+	/// @brief Get the number of occupied slots in Horizontal menu.
 	///
 	/// 1 by default, but can be overridden
-	[[nodiscard]] virtual int32_t getColumnSpan() const { return 1; };
+	[[nodiscard]] virtual int32_t getOccupiedSlots() const { return 1; };
 
 	/// @brief Show a popup with the full name and value of the editing parameter at the top of Horizontal menu
 	///
@@ -313,7 +317,7 @@ public:
 	/// Needs to be overridden
 	virtual void getNotificationValue(StringBuf& valueBuf) {}
 
-	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {};
+	virtual void renderInHorizontalMenu(const SlotPosition& slot) {};
 
 	deluge::gui::menu_item::HorizontalMenu* parent{nullptr};
 

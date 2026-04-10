@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		40="Kick level"
+		41="Snare level"
+		42="Lo tom level"
+		43="Hi tom level"
+		44="Closed hat level"
+		45="Open hat level"
+		46="Clap level"
+		47="Claves level"
+		48="Agogo level"
+		49="Crash level"
+		50="Clap PCM speed"
+		51="Claves PCM speed"
+		52="Agogo PCM speed"
+		53="Crash PCM speed"
+		54="Stutter time"
+		55="Stutter depth"
+		56="Tom decay"
+		57="Closed hat decay"
+		58="Open hat decay"
+		59="Hat grain"/>
+</midiDevice>

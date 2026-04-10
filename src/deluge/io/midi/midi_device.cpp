@@ -33,6 +33,7 @@ extern "C" {
 MIDICable::MIDICable() {
 	connectionFlags = 0;
 	sendClock = true;
+	receiveClock = true;
 	defaultVelocityToLevel = 0; // Means none set.
 
 	// These defaults for MPE are prescribed in the MPE standard. Wish we had the same for regular MIDI
@@ -204,6 +205,10 @@ void MIDICable::readFromFile(Deserializer& reader) {
 			sendClock = reader.readTagOrAttributeValueInt();
 		}
 
+		else if (!strcmp(tagName, "receiveClock")) {
+			receiveClock = reader.readTagOrAttributeValueInt();
+		}
+
 		reader.exitTag();
 	}
 }
@@ -214,6 +219,7 @@ void MIDICable::writeDefinitionAttributesToFile(Serializer& writer) {
 		writer.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
 	}
 	writer.writeAttribute("sendClock", sendClock);
+	writer.writeAttribute("receiveClock", receiveClock);
 }
 
 void MIDICable::writeToFile(Serializer& writer, char const* tagName) {

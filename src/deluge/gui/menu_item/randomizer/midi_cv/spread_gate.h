@@ -31,5 +31,6 @@ public:
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
 		soundEditor.currentArpSettings->spreadGate = value;
 	}
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };
 } // namespace deluge::gui::menu_item::randomizer::midi_cv

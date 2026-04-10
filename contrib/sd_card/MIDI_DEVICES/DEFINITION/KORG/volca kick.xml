@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		40="Pulse color"
+		41="Pulse level"
+		42="Amp attack"
+		43="Amp decay"
+		44="Drive"
+		45="Tone"
+		46="Resonator pitch"
+		47="Resonator bend"
+		48="Resonator time"
+		49="Accent"/>
+</midiDevice>

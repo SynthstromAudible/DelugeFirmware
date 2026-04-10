@@ -29,6 +29,7 @@
 #include "hid/led/indicator_leds.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
@@ -79,8 +80,11 @@ StemExport::StemExport() {
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
-/// instruments / clips for exporting
+/// instruments / clips / kit rows for exporting
 void StemExport::startStemExportProcess(StemExportType stemExportType) {
+	// in case playback is active when you start stem export, stop it.
+	stopPlayback();
+
 	currentStemExportType = stemExportType;
 	processStarted = true;
 
@@ -147,6 +151,7 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 void StemExport::stopStemExportProcess() {
 	exitUIMode(UI_MODE_STEM_EXPORT);
 	stopPlayback();
+	highestUsedStemFolderNumber++;
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_STOP_EXPORT_STEMS), 6);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 }
@@ -184,7 +189,6 @@ void StemExport::stopPlayback() {
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	}
-	highestUsedStemFolderNumber++;
 }
 
 /// simulate pressing record
@@ -292,9 +296,12 @@ int32_t StemExport::disarmAllInstrumentsForStemExport(StemExportType stemExportT
 				}
 				// if we're not exporting the mixdown,
 				// then we want to mute all the tracks as we'll be exporting them individually
+				// except for the MIDI transpose track, which must remain enabled for proper transposition
 				if (stemExportType != StemExportType::MIXDOWN) {
 					output->mutedInArrangementModeBeforeStemExport = output->mutedInArrangementMode;
-					output->mutedInArrangementMode = true;
+					output->mutedInArrangementMode =
+					    (output->type != OutputType::MIDI_OUT
+					     || ((NonAudioInstrument*)output)->getChannel() != MIDI_CHANNEL_TRANSPOSE);
 				}
 				output->recordingInArrangement = false;
 				output->armedForRecording = false;

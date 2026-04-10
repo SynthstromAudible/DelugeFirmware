@@ -34,5 +34,6 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.editingCVOrMIDIClip() && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };
 } // namespace deluge::gui::menu_item::randomizer::midi_cv

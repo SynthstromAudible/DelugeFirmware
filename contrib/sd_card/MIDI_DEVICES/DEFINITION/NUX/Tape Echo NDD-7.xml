@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		0="Enable"
+		1="Position"
+		2="Saturation"
+		3="Wow"
+		4="Flutter "
+		5="Kill dry"
+		6="Time"
+		7="Repeat"
+		8="Level"
+		9="Reverb"
+		10="Bass"
+		11="Treble"
+		12="Exp"
+		13="Age"
+		14="Rount"
+		15="Sync"/>
+</midiDevice>
