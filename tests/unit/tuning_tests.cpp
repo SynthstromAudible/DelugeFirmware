@@ -72,8 +72,9 @@ uint32_t memToUIntOrError(char const* mem, char const* end) {
 
 Tuning* tuning;
 
-TEST_GROUP(TestTuningSystem){//
-                             void setup(){TuningSystem::initialize();
+TEST_GROUP(TestTuningSystem){
+
+    void setup(){TuningSystem::initialize();
 
 // overwrite tuning 1 with garbage
 TuningSystem::selectForWrite(1);
