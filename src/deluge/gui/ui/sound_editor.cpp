@@ -1520,6 +1520,15 @@ bool SoundEditor::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNu
 		return true;
 	}
 
+	if (playbackHandler.recording != RecordingMode::OFF) {
+		if (ccNumber == 0) {
+			midiBankMenu.readValueAgain();
+		}
+		if (ccNumber == 32) {
+			midiSubMenu.readValueAgain();
+		}
+	}
+
 	return false;
 }
 
@@ -1529,6 +1538,15 @@ bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t d
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
 		getCurrentMenuItem()->learnKnob(&cable, 128, 0, channel);
 		return true;
+	}
+
+	return false;
+}
+
+bool SoundEditor::midiPCReceived(MIDICable& cable, uint8_t channel, uint8_t program) {
+
+	if (playbackHandler.recording != RecordingMode::OFF) {
+		midiPGMMenu.readValueAgain();
 	}
 
 	return false;

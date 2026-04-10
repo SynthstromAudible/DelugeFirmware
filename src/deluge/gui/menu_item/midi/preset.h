@@ -23,6 +23,8 @@
 #include "model/output.h"
 #include "model/song/song.h"
 
+using namespace deluge::hid::display;
+
 namespace deluge::gui::menu_item::midi {
 class Preset : public Integer {
 public:

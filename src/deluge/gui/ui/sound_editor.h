@@ -116,6 +116,7 @@ public:
 
 	bool programChangeReceived(MIDICable& cable, uint8_t channel, uint8_t program) { return false; }
 	bool midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value);
+	bool midiPCReceived(MIDICable& cable, uint8_t channel, uint8_t program);
 	bool pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset) override;
 	bool canSeeViewUnderneath() override { return true; }

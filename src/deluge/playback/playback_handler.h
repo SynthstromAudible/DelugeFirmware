@@ -183,7 +183,7 @@ public:
 	void setMidiOutClockMode(bool newValue);
 	void pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
-	void programChangeReceived(MIDICable& cable, int32_t channel, int32_t program);
+	void programChangeReceived(MIDICable& cable, int32_t channel, int32_t program, bool* doingMidiThru);
 	void aftertouchReceived(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
 	                        bool* doingMidiThru); // noteCode -1 means channel-wide
 	void loopCommand(OverDubType overdubNature);

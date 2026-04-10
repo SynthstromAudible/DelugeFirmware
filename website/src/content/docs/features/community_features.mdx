@@ -231,6 +231,10 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - (#2810) <Badge text="c1.3" variant="tip" /> Added new learnable global command `LOAD NEXT SONG` (which can be quickly learned holding `LEARN` and `LOAD` and sending a MIDI note or CC message). When the Deluge receives this command while it is playing, it will queue to load the next song within the folder of the current song (wraps around when reaching the end of the folder).
 
+- (#3698) <Badge text="c1.3" variant="tip" /> `Learned MIDI input updates clip PGM/BANK/SUB` - MIDI tracks that are learned to a channel will listen for program and bank changes (CC 0 and 32), and assign incoming values into the active clip when RECORD is illuminated.This is useful for toggling between the following scenarios:
+  - `RECORD` off, when you want to try different sounds on the instrument without the clip forgetting the previous values.
+  - `RECORD` on, when you want the clip to remember the most recently selected sound.
+
 ### 3.4 - Tempo & Swing
 
 - (#178) <Badge text="c1.0" variant="tip" /> New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
