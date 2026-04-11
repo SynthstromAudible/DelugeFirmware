@@ -16,24 +16,26 @@
  */
 
 #include "tuning.h"
+#include <cmath>
 #include <cstring>
-#include <math.h>
 
 constexpr double two14 = 0x1.p14;
 constexpr double two30 = 0x1.p30;
 constexpr double two32 = 0x1.p32;
+constexpr double kSampleRateDiv32 = kSampleRate / 32.0;
+constexpr double kCentsPerOctave = 1200.0;
 
 void Tuning::calculateNote(int noteWithin) {
 
 	double cents = 100 * (noteWithin - referenceNote);
 	cents += offsets[noteWithin] / 100.0;
-	double frequency = referenceFrequency * pow(2.0, cents / 1200.0);
+	double frequency = referenceFrequency * std::pow(2.0, cents / kCentsPerOctave);
 
-	double value = frequency / 1378.125; //  44,100 Hz / 32
+	double value = frequency / kSampleRateDiv32;
 	value *= two32;
 	tuningFrequencyTable[noteWithin] = lround(value);
 
-	value = pow(2.0, noteWithin / 12.0) * two30;
+	value = std::pow(2.0, noteWithin / (double)kOctaveSize) * two30;
 	tuningIntervalTable[noteWithin] = lround(value);
 }
 
@@ -84,7 +86,7 @@ void Tuning::setFrequency(int note, double freq) {
 	auto nwo = noteWithinOctave(note); // double check ±4
 
 	double semitone;
-	double estimate = 12.0 * log2(freq / 440.0) + 69;
+	double estimate = 12.0 * log2(freq / 440.0) + 69; // MIDI specifies reference as A=440
 	double c = 100.0 * modf(estimate, &semitone);
 
 	auto ds = semitone - note;
@@ -105,7 +107,7 @@ double Tuning::getFrequency(int note) {
 
 	auto nwo = noteWithinOctave(note); // double check ±4
 	auto span = double(tuningFrequencyTable[nwo.noteWithin]);
-	return pow(2.0, nwo.octave) * (span / two32) * 1378.125;
+	return std::pow(2.0, nwo.octave) * (span / two32) * kSampleRateDiv32;
 }
 
 void Tuning::getSysexFrequency(int note, TuningSysex::frequency_t& ret) {
@@ -137,17 +139,17 @@ void Tuning::setNextCents(double cents) {
 
 	if (nextNote >= MAX_DIVISIONS) {
 		nextNote = 0;
-		cents -= 1200.0;
+		cents -= kCentsPerOctave;
 	}
 	setCents(nextNote++, cents);
 }
 
 void Tuning::setNextRatio(int numerator, int denominator) {
 
-	double c = 1200.0 * log2(numerator / (double)denominator);
+	double c = kCentsPerOctave * log2(numerator / (double)denominator);
 	if (nextNote >= MAX_DIVISIONS) {
 		nextNote = 0;
-		c -= 1200.0;
+		c -= kCentsPerOctave;
 	}
 	setCents(nextNote++, c);
 }

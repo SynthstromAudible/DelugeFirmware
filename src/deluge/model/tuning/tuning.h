@@ -66,8 +66,10 @@ public:
 	void readTagFromFile(Deserializer& reader, char const* tagName);
 
 private:
-	int32_t tuningFrequencyTable[12];
-	int32_t tuningIntervalTable[12];
+	// Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible
+	// without going over 22.05kHz (2147483648), even when shifted up a semitone (via osc-cents and unison combined)
+	int32_t tuningFrequencyTable[MAX_DIVISIONS];
+	int32_t tuningIntervalTable[MAX_DIVISIONS];
 
 	void calculateAll();
 	void calculateNote(int);

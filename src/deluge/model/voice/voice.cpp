@@ -448,7 +448,7 @@ void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index)
 		}
 
 		auto nwo = tuning.noteWithinOctave(transposedNoteCode);
-		int32_t octave = (uint16_t)(transposedNoteCode + 120) / 12;
+		int32_t octave = (uint16_t)(transposedNoteCode + 120) / kOctaveSize;
 
 		phaseIncrement = multiply_32x32_rshift32(tuning.noteInterval(nwo.noteWithin), pitchAdjustNeutralValue);
 
