@@ -1812,6 +1812,13 @@ MenuItem* SoundEditor::getCurrentMenuItem() {
 	return menuItemNavigationRecord[navigationDepth];
 }
 
+MenuItem* SoundEditor::getPreviousMenuItem() {
+	if (navigationDepth == 0) {
+		return nullptr;
+	}
+	return menuItemNavigationRecord[navigationDepth - 1];
+}
+
 bool SoundEditor::inSettingsMenu() {
 	return (menuItemNavigationRecord[0] == &settingsRootMenu);
 }

@@ -67,7 +67,7 @@ PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_librar
 PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
 
-KeyboardScreen::KeyboardScreen() {
+KeyboardScreen::KeyboardScreen() : maxLastNoteCount(0) {
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = &keyboard_layout_isomorphic;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeInKey] = &keyboard_layout_in_key;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypePiano] = &keyboard_layout_piano;
@@ -79,7 +79,6 @@ KeyboardScreen::KeyboardScreen() {
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	currentNotesState = {0};
 	lastNotesState = {0};
-	maxLastNoteCount = 0;
 }
 
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
