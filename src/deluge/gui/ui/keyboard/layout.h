@@ -121,6 +121,7 @@ protected:
 	inline NoteHighlightIntensity& getNornsNotes() { return keyboardScreen.nornsNotes; }
 
 	inline KeyboardState& getState() { return getCurrentInstrumentClip()->keyboardState; }
+	inline Tuning& getTuning() { return getCurrentClip()->getTuning(); }
 
 public:
 	uint8_t velocity = 64;

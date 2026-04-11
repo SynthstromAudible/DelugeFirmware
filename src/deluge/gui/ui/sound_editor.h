@@ -125,6 +125,7 @@ public:
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
 	bool editingReverbSidechain();
 	MenuItem* getCurrentMenuItem();
+	MenuItem* getPreviousMenuItem();
 	bool inSettingsMenu();
 	bool setupKitGlobalFXMenu;
 	bool exitUI() override {

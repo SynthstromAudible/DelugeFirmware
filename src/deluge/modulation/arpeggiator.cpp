@@ -818,14 +818,14 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			note = noteForDrum
 			       + chordTypeSemitoneOffsets[settings->chordTypeIndex]
 			                                 [(getRandom255() % numActiveNotes) % MAX_CHORD_NOTES]
-			       + (int16_t)(getRandom255() % settings->numOctaves) * 12;
+			       + (int16_t)(getRandom255() % settings->numOctaves) * kOctaveSize;
 		}
 		else {
 			// Normal pattern step
-			int16_t diff = (int16_t)currentOctave * 12;
+			int16_t diff = (int16_t)currentOctave * kOctaveSize;
 			if (spreadOctaveForCurrentStep != 0) {
 				// Now apply octave spread to the base note
-				diff = diff + spreadOctaveForCurrentStep * 12;
+				diff = diff + spreadOctaveForCurrentStep * kOctaveSize;
 			}
 			note = noteForDrum
 			       + chordTypeSemitoneOffsets[settings->chordTypeIndex][whichNoteCurrentlyOnPostArp % MAX_CHORD_NOTES]
@@ -1345,14 +1345,14 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		else if (shouldPlayRandomStep) {
 			// Random step
 			note = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)]
-			       + (int16_t)(getRandom255() % settings->numOctaves) * 12;
+			       + (int16_t)(getRandom255() % settings->numOctaves) * kOctaveSize;
 		}
 		else {
 			// Normal pattern step
-			int16_t diff = (int16_t)currentOctave * 12;
+			int16_t diff = (int16_t)currentOctave * kOctaveSize;
 			if (spreadOctaveForCurrentStep != 0) {
 				// Now apply octave spread to the base note
-				diff = diff + spreadOctaveForCurrentStep * 12;
+				diff = diff + spreadOctaveForCurrentStep * kOctaveSize;
 			}
 			note = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + diff;
 		}
@@ -1403,7 +1403,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 						    musical_key.modeNotes[(degree + degree_offsets[n - 1]) % musical_key.modeNotes.count()];
 						if (target_offset <= base_offset) {
 							// If the note is lower than the base note, we need to add an octave
-							target_offset += 12;
+							target_offset += kOctaveSize;
 						}
 						arpNote->noteCodeOnPostArp[n] = note + target_offset - base_offset;
 						arpNote->noteStatus[n] = ArpNoteStatus::PENDING;
