@@ -147,6 +147,9 @@ bool NewClipType::acceptCurrentOption() {
 ActionResult NewClipType::padAction(int32_t x, int32_t y, int32_t on) {
 	ActionResult result = sessionView.padAction(x, y, on); // let the grid handle this
 
+	display->setNextTransitionDirection(-1);
+	close();
+
 	return result;
 }
 
