@@ -4082,8 +4082,6 @@ ActionResult SessionView::clipCreationButtonPressed(hid::Button i, bool on, bool
 	return ActionResult::NOT_DEALT_WITH;
 }
 void SessionView::exitTrackCreation() {
-	display->setNextTransitionDirection(-1);
-	getCurrentUI()->close();
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false, false);
