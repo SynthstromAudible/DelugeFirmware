@@ -104,10 +104,11 @@ void TuningSysex::bulkDumpRequest(MIDICable& cable, bulk_dump_request_t& msg) {
 	TuningSystem::select(msg.preset);
 	reply.preset = TuningSystem::selectedTuning;
 
-	strncpy(reply.name, getTuning().name, 16);
+	auto& tuning = getTuning();
+	strncpy(reply.name, tuning.name, 16);
 
 	for (int i = 0; i < 128; i++) {
-		getTuning().getSysexFrequency(i, reply.freq[i]);
+		tuning.getSysexFrequency(i, reply.freq[i]);
 	}
 	auto len = sizeof(header) + sizeof(reply);
 	reply.chksum = calculateChecksum(len);
@@ -122,8 +123,9 @@ void TuningSysex::bulkDump(MIDICable& cable, bulk_dump_t& msg) {
 		return;
 
 	msg.chksum; // best to avoid direct eye contact with it
+	auto& tuning = getTuning();
 	for (int i = 0; i < 128; i++) {
-		getTuning().setFrequency(i, msg.freq[i]);
+		tuning.setFrequency(i, msg.freq[i]);
 	}
 }
 
@@ -132,8 +134,9 @@ void TuningSysex::noteChange(MIDICable& cable, single_note_tuning_change_t& msg)
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
 
+	auto& tuning = getTuning();
 	for (int i = 0; i < msg.len; i++) {
-		getTuning().setFrequency(msg.key_freq[i].key, msg.key_freq[i].freq);
+		tuning.setFrequency(msg.key_freq[i].key, msg.key_freq[i].freq);
 	}
 }
 
@@ -150,10 +153,11 @@ void TuningSysex::bankDumpRequest(MIDICable& cable, bank_dump_request_t& msg) {
 	reply.preset = TuningSystem::selectedTuning;
 	reply.bank = msg.bank; // echo back since songs have one bank of many presets
 
-	strncpy(reply.name, getTuning().name, 16);
+	auto& tuning = getTuning();
+	strncpy(reply.name, tuning.name, 16);
 
 	for (int i = 0; i < 128; i++) {
-		getTuning().getSysexFrequency(i, reply.freq[i]);
+		tuning.getSysexFrequency(i, reply.freq[i]);
 	}
 	auto len = sizeof(header) + sizeof(reply);
 	reply.chksum = calculateChecksum(len);
@@ -167,8 +171,9 @@ void TuningSysex::keyBasedDump(MIDICable& cable, key_based_dump_t& msg) {
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
 
+	auto& tuning = getTuning();
 	for (int i = 0; i < 128; i++) {
-		getTuning().setFrequency(i, msg.freq[i]);
+		tuning.setFrequency(i, msg.freq[i]);
 	}
 }
 
@@ -177,9 +182,10 @@ void TuningSysex::scaleOctaveDump1(MIDICable& cable, scale_octave_dump_1_t& msg)
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
 
-	getTuning().setup(msg.name);
+	auto& tuning = getTuning();
+	tuning.setup(msg.name);
 	for (int i = 0; i < 12; i++) {
-		getTuning().setCents(i, cents(msg.cents[i]));
+		tuning.setCents(i, cents(msg.cents[i]));
 	}
 }
 
@@ -188,9 +194,10 @@ void TuningSysex::scaleOctaveDump2(MIDICable& cable, scale_octave_dump_2_t& msg)
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
 
-	getTuning().setup(msg.name);
+	auto& tuning = getTuning();
+	tuning.setup(msg.name);
 	for (int i = 0; i < 12; i++) {
-		getTuning().setCents(i, cents(msg.cents[i]));
+		tuning.setCents(i, cents(msg.cents[i]));
 	}
 }
 
@@ -199,21 +206,24 @@ void TuningSysex::bankNoteChange(MIDICable& cable, bank_note_change_t& msg) {
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
 
+	auto& tuning = getTuning();
 	for (int i = 0; i < msg.len; i++) {
-		getTuning().setFrequency(msg.key_freq[i].key, msg.key_freq[i].freq);
+		tuning.setFrequency(msg.key_freq[i].key, msg.key_freq[i].freq);
 	}
 }
 
 void TuningSysex::scaleOctave1(MIDICable& cable, scale_octave_1_t& msg) {
 
+	auto& tuning = getTuning();
 	for (int i = 0; i < 12; i++) {
-		getTuning().setCents(i, cents(msg.cents[i]));
+		tuning.setCents(i, cents(msg.cents[i]));
 	}
 }
 
 void TuningSysex::scaleOctave2(MIDICable& cable, scale_octave_2_t& msg) {
 
+	auto& tuning = getTuning();
 	for (int i = 0; i < 12; i++) {
-		getTuning().setCents(i, cents(msg.cents[i]));
+		tuning.setCents(i, cents(msg.cents[i]));
 	}
 }

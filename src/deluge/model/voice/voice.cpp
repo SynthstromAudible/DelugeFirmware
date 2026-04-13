@@ -448,10 +448,7 @@ void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index)
 		}
 
 		auto nwo = tuning.noteWithinOctave(transposedNoteCode);
-		int32_t octave = (uint16_t)(transposedNoteCode + 120) / kOctaveSize;
-
 		phaseIncrement = multiply_32x32_rshift32(tuning.noteInterval(nwo.noteWithin), pitchAdjustNeutralValue);
-
 		int32_t shiftRightAmount = 13 - nwo.octave;
 
 		// If shifting right...
@@ -478,9 +475,9 @@ void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index)
 
 	// Regular wave osc
 	else {
-		auto nwo = tuning.noteWithinOctave(transposedNoteCode - 4); // should this be -4?
-		int32_t shiftRightAmount = 20 - nwo.octave;
+		auto nwo = tuning.noteWithinOctave(transposedNoteCode - 4); // why -4?
 
+		int32_t shiftRightAmount = 20 - nwo.octave;
 		if (shiftRightAmount >= 0) {
 			phaseIncrement = tuning.noteFrequency(nwo.noteWithin) >> shiftRightAmount;
 		}
@@ -514,7 +511,7 @@ void Voice::calculatePhaseIncrementForFmMod(Sound& sound, int32_t mod_index) {
 	Tuning& tuning = TuningSystem::tuning[sound.selectedTuning];
 
 	int32_t transposedNoteCode = noteCodeAfterArpeggiation + sound.transpose + sound.modulatorTranspose[mod_index];
-	auto nwo = tuning.noteWithinOctave(transposedNoteCode - 4); // should this be -4?
+	auto nwo = tuning.noteWithinOctave(transposedNoteCode - 4); // why -4?
 	int32_t shiftRightAmount = 20 - nwo.octave;
 
 	int32_t phaseIncrement;
@@ -554,7 +551,6 @@ void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
-	Tuning& tuning = TuningSystem::tuning[sound.selectedTuning];
 
 	for (int32_t source_index = 0; source_index < kNumSources; source_index++) {
 		if (modelStack->checkSourceEverActive(source_index)) {
