@@ -181,11 +181,6 @@ public:
 
 	LearnedMIDI muteMIDICommand;
 
-#if HAVE_SEQUENCE_STEP_CONTROL
-	bool currentlyPlayingReversed;
-	SequenceDirection sequenceDirectionMode;
-#endif
-
 	int32_t loopLength;
 
 	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
