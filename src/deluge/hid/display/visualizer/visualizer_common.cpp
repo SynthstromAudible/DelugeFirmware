@@ -183,19 +183,22 @@ ActionResult handleVisualizerModeButton(deluge::hid::Button button, View& view) 
 	case deluge::hid::button::SYNTH:
 		deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerWaveform);
 		::display->displayPopup(
-		    deluge::hid::display::Visualizer::getModeDisplayName(RuntimeFeatureStateVisualizer::VisualizerWaveform));
+		    deluge::hid::display::Visualizer::getModeDisplayName(RuntimeFeatureStateVisualizer::VisualizerWaveform)
+		        .data());
 		return ActionResult::DEALT_WITH;
 
 	case deluge::hid::button::KIT:
 		deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerLineSpectrum);
-		::display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-		    RuntimeFeatureStateVisualizer::VisualizerLineSpectrum));
+		::display->displayPopup(
+		    deluge::hid::display::Visualizer::getModeDisplayName(RuntimeFeatureStateVisualizer::VisualizerLineSpectrum)
+		        .data());
 		return ActionResult::DEALT_WITH;
 
 	case deluge::hid::button::MIDI:
 		deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll);
-		::display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-		    RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll));
+		::display->displayPopup(
+		    deluge::hid::display::Visualizer::getModeDisplayName(RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll)
+		        .data());
 		return ActionResult::DEALT_WITH;
 
 	case deluge::hid::button::CV: {
@@ -247,13 +250,13 @@ ActionResult handleVisualizerModeButton(deluge::hid::Button button, View& view) 
 
 			deluge::hid::display::Visualizer::setSessionMode(next_mode);
 			deluge::hid::display::Visualizer::setCVVisualizerMode(next_mode);
-			::display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(next_mode));
+			::display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(next_mode).data());
 		}
 		else {
 			// Not viewing a special visualizer, switch to last viewed special visualizer
 			uint32_t last_special_mode = deluge::hid::display::Visualizer::getCVVisualizerMode();
 			deluge::hid::display::Visualizer::setSessionMode(last_special_mode);
-			::display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(last_special_mode));
+			::display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(last_special_mode).data());
 			// cv_visualizer_mode stays the same
 		}
 		return ActionResult::DEALT_WITH;

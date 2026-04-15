@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"
-#include "dsp_ng/core/types.hpp"
+#include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "hid/display/visualizer/visualizer_common.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -28,6 +28,7 @@
 #include "processing/engines/audio_engine.h"
 #include <array>
 #include <atomic>
+#include <span>
 #include <string_view>
 
 // Forward declarations
@@ -232,27 +233,25 @@ public:
 	/// Performs downsampling and stores samples in the circular buffer for display
 	/// @param renderingBuffer The audio buffer to sample from
 	/// @param numSamples Number of samples in the buffer
-	static void sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples);
+	static void sampleAudioForDisplay(std::span<StereoSample> renderingBuffer, size_t numSamples);
 
 	/// Helper function to sample audio into the circular buffers
 	/// @param renderingBuffer The audio buffer to sample from
 	/// @param numSamples Number of samples in the buffer
-	static void sampleIntoBuffers(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples);
+	static void sampleIntoBuffers(std::span<StereoSample> renderingBuffer, size_t numSamples);
 
 	/// Sample audio data for clip-specific visualizer display
 	/// Performs downsampling and stores samples in the circular buffer for display
 	/// @param renderingBuffer The audio buffer to sample from
 	/// @param numSamples Number of samples in the buffer
 	/// @param clip Pointer to the clip being sampled
-	static void sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
-	                                      Clip* clip);
+	static void sampleAudioForClipDisplay(std::span<StereoSample> renderingBuffer, size_t numSamples, Clip* clip);
 
 	/// Check buffer for audio activity and update silence timer
 	/// @param renderingBuffer The audio buffer to check
 	/// @param numSamples Number of samples in the buffer
 	/// @param lastAudioTime Reference to the timer to update if audio is detected
-	static void updateSilenceTimer(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
-	                               uint32_t& lastAudioTime);
+	static void updateSilenceTimer(std::span<StereoSample> renderingBuffer, size_t numSamples, uint32_t& lastAudioTime);
 
 	/// Get display name for a visualizer mode
 	/// @param mode The visualizer mode

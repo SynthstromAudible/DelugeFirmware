@@ -114,10 +114,9 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 		if (deluge::hid::display::Visualizer::isToggleEnabled()) {
 			// Create a local buffer for this clip's audio to avoid sampling accumulated audio from other clips
 			// This ensures the visualizer only shows audio from this specific instrument
-			alignas(CACHE_LINE_SIZE) deluge::dsp::StereoSample<q31_t>
-			    sound_instrument_memory[SSI_TX_BUFFER_NUM_SAMPLES];
-			memset(sound_instrument_memory, 0, sizeof(deluge::dsp::StereoSample<q31_t>) * output.size());
-			deluge::dsp::StereoBuffer<q31_t> sound_instrument_audio{sound_instrument_memory, output.size()};
+			alignas(CACHE_LINE_SIZE) StereoSample sound_instrument_memory[SSI_TX_BUFFER_NUM_SAMPLES];
+			memset(sound_instrument_memory, 0, sizeof(StereoSample) * output.size());
+			std::span<StereoSample> sound_instrument_audio{sound_instrument_memory, output.size()};
 
 			// Render this instrument's audio into the local buffer
 			Sound::render(modelStackWithThreeMainThings, sound_instrument_audio, reverbBuffer, sideChainHitPending,

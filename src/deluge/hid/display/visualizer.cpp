@@ -419,7 +419,7 @@ bool Visualizer::isToggleEnabled() {
 /// Helper function to sample audio into the circular buffers
 /// @param renderingBuffer The audio buffer to sample from
 /// @param numSamples Number of samples in the buffer
-void Visualizer::sampleIntoBuffers(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples) {
+void Visualizer::sampleIntoBuffers(std::span<StereoSample> renderingBuffer, size_t numSamples) {
 	for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
 		// Convert stereo channels to Q15
 		int32_t sample_l = renderingBuffer[i].l >> kQ31ToQ15Shift;
@@ -439,7 +439,7 @@ void Visualizer::sampleIntoBuffers(deluge::dsp::StereoBuffer<q31_t> renderingBuf
 	}
 }
 
-void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples) {
+void Visualizer::sampleAudioForDisplay(std::span<StereoSample> renderingBuffer, size_t numSamples) {
 	// Sample audio for visualizer visualization (downsample for efficiency)
 	// Only sample if visualizer feature is enabled and not in clip mode
 	if (isEnabled() && current_clip_for_visualizer.load(std::memory_order_acquire) == nullptr) {
@@ -451,8 +451,7 @@ void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderin
 	}
 }
 
-void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
-                                           Clip* clip) {
+void Visualizer::sampleAudioForClipDisplay(std::span<StereoSample> renderingBuffer, size_t numSamples, Clip* clip) {
 	// Sample clip-specific audio for visualizer display (downsamples and stores in circular buffer)
 	// Only samples when visualizer is enabled, toggle is enabled, and this clip is the current clip being visualized
 	if (isEnabled() && visualizer_toggle_enabled && clip == getCurrentClipForVisualizer()) {
@@ -471,7 +470,7 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 /// @param renderingBuffer The audio buffer to check
 /// @param numSamples Number of samples in the buffer
 /// @param lastAudioTime Reference to the timer to update if audio is detected
-void Visualizer::updateSilenceTimer(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
+void Visualizer::updateSilenceTimer(std::span<StereoSample> renderingBuffer, size_t numSamples,
                                     uint32_t& lastAudioTime) {
 	// Check for silence detection - look for any non-zero samples in this buffer
 	bool hasAudio = false;
