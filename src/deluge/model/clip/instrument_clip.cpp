@@ -704,12 +704,10 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		// Ok, time to do some ticks
 
 		// We need to at least come back when the Clip wraps
-#if HAVE_SEQUENCE_STEP_CONTROL
 		if (lastProcessedPos && currentlyPlayingReversed) {
 			ticksTilNextNoteRowEvent = lastProcessedPos;
 		}
 		else {
-#endif
 			ticksTilNextNoteRowEvent = loopLength - lastProcessedPos;
 		}
 
