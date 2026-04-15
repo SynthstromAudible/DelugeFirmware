@@ -70,9 +70,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 	lastSelectedPatchSource = PatchSource::NONE;
 	// end initialize of automation clip view variables
 
-#if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SequenceDirection::FORWARD;
-#endif
 }
 
 Clip::~Clip() {
@@ -168,11 +166,10 @@ uint32_t Clip::getActualCurrentPosAsIfPlayingInForwardDirection() {
 
 	int32_t numSwungTicksInSinceLastActioned = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
-#if HAVE_SEQUENCE_STEP_CONTROL
 	if (currentlyPlayingReversed) {
 		actualPos = loopLength - actualPos;
 	}
-#endif
+
 	actualPos += numSwungTicksInSinceLastActioned;
 
 	return actualPos;
@@ -181,11 +178,10 @@ uint32_t Clip::getActualCurrentPosAsIfPlayingInForwardDirection() {
 int32_t Clip::getCurrentPosAsIfPlayingInForwardDirection() {
 	int32_t posToReturn = lastProcessedPos;
 
-#if HAVE_SEQUENCE_STEP_CONTROL
 	if (currentlyPlayingReversed) {
 		posToReturn = loopLength - posToReturn;
 	}
-#endif
+
 	return posToReturn;
 }
 
