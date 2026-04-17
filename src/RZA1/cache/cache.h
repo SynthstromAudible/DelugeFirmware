@@ -28,6 +28,11 @@
  ******************************************************************************/
 #ifndef CACHE_H
 #define CACHE_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <inttypes.h>
 
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
@@ -63,10 +68,15 @@ void L1PrefetchDisable(void);
 void L2CacheInit(void);
 void L2CacheFlushAll(void);
 void L2CacheEnable(void);
+void L2CacheUnlockData(void);
 void L2CacheDisable(void);
-void L2CacheInit(void);
-extern void R_CACHE_L1Init(void);
+void L2CacheCleanInvalidateRange(uintptr_t start, uintptr_t end);
+void invalidate_range_all_caches(uintptr_t start, uintptr_t end);
 
+extern void R_CACHE_L1Init(void);
+#ifdef __cplusplus
+}
+#endif
 #endif /* CACHE_H */
 
 /* End of File */
