@@ -308,6 +308,7 @@ void ParamSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection
 	modelStack->summary->resetInterpolationRecord(topUintToRepParams);
 }
 
+/// this is used in arranger view to insert time between automation nodes (shift = <>)
 void ParamSet::insertTime(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t lengthToInsert) {
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
@@ -317,6 +318,7 @@ void ParamSet::insertTime(ModelStackWithParamCollection* modelStack, int32_t pos
 	FOR_EACH_PARAM_END
 }
 
+/// this is used in arranger view to delete time between automation nodes (shift + <>)
 void ParamSet::deleteTime(ModelStackWithParamCollection* modelStack, int32_t startPos, int32_t lengthToDelete) {
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);

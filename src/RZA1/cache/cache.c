@@ -31,6 +31,8 @@
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
 #include "RZA1/cache/cache.h"
+
+#include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/system/iodefine.h"
 #include "RZA1/system/r_typedefs.h"
 
@@ -240,10 +242,16 @@ void L2CacheFlushAll(void)
 void L2CacheEnable(void)
 {
     L2C.REG2_INT_CLEAR   = 0x000001FFuL; /* Clear the reg2_int_raw_status register */
-    L2C.REG9_D_LOCKDOWN0 = 0xFFFFFFFFuL; // lock the data cache - we need a lot of work around invalidating it with DMA
-                                         // before it can be used
+    L2C.REG9_D_LOCKDOWN0 = 0xFFFFFFFFuL; // lock the data cache - unlock late in boot sequence once everything is setup
     L2C.REG9_I_LOCKDOWN0 = 0x00000000uL; // unlock the instruction cache
-    L2C.REG1_CONTROL     = 0x00000001uL; /* Enable L2 cache */
+    L2C.REG1_AUX_CONTROL |= 0x30000000uL;
+    L2C.REG1_CONTROL = 0x00000001uL; /* Enable L2 cache */
+}
+
+void L2CacheUnlockData(void)
+{
+    L2CacheFlushAll();
+    L2C.REG9_D_LOCKDOWN0 = 0x00000000uL; // unlock the data cache
 }
 
 /******************************************************************************
@@ -262,6 +270,77 @@ void L2CacheInit(void)
     L2CacheDisable();
     L2CacheFlushAll();
     L2CacheEnable();
+}
+
+/******************************************************************************
+ * Function Name: L2CacheCleanRange
+ * Description  : Clean (flush dirty data to RAM) L2 cache lines by PA.
+ * Arguments    : start - start physical address
+ *                end   - end physical address (exclusive)
+ * Return Value : none
+ ******************************************************************************/
+void L2CacheCleanRange(uintptr_t start, uintptr_t end)
+{
+    uint32_t addr = start & ~31uL;
+    while (addr < end)
+    {
+        L2C.REG7_CLEAN_PA = addr;
+        while (L2C.REG7_CLEAN_PA & 1uL)
+        {
+        }
+        addr += 32;
+    }
+    L2C.REG7_CACHE_SYNC = 0;
+}
+
+/******************************************************************************
+ * Function Name: L2CacheInvalidateRange
+ * Description  : Invalidate L2 cache lines by PA (discard, no writeback).
+ * Arguments    : start - start physical address
+ *                end   - end physical address (exclusive)
+ * Return Value : none
+ ******************************************************************************/
+void L2CacheInvalidateRange(uintptr_t start, uintptr_t end)
+{
+
+    uint32_t addr = start & ~31uL;
+    while (addr < end)
+    {
+        L2C.REG7_INV_PA = addr;
+        while (L2C.REG7_INV_PA & 1uL)
+        {
+        }
+        addr += 32;
+    }
+    L2C.REG7_CACHE_SYNC = 0;
+}
+
+/******************************************************************************
+ * Function Name: L2CacheCleanInvalidateRange
+ * Description  : Clean and invalidate L2 cache lines by PA.
+ * Arguments    : start - start physical address
+ *                end   - end physical address (exclusive)
+ * Return Value : none
+ ******************************************************************************/
+void L2CacheCleanInvalidateRange(uintptr_t start, uintptr_t end)
+{
+    uint32_t addr = start & ~31uL;
+    while (addr < end)
+    {
+        L2C.REG7_CLEAN_INV_PA = addr;
+        while (L2C.REG7_CLEAN_INV_PA & 1uL)
+        {
+        }
+        addr += 32;
+    }
+    L2C.REG7_CACHE_SYNC = 0;
+}
+
+void invalidate_range_all_caches(uintptr_t start, uintptr_t end)
+{
+    v7_dma_flush_range(start, end);
+    L2CacheCleanInvalidateRange(start, end);
+    v7_dma_inv_range(start, end);
 }
 
 /* End of File */

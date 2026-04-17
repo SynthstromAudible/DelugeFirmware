@@ -25,6 +25,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ERROR_FILE_NOT_FOUND, "File not found"},
         {STRING_FOR_ERROR_FILE_UNREADABLE, "File unreadable"},
         {STRING_FOR_ERROR_FILE_UNSUPPORTED, "File unsupported"},
+        {STRING_FOR_ERROR_FILE_NOT_SAVED, "Must save file before loading it"},
         {STRING_FOR_ERROR_FILE_FIRMWARE_VERSION_TOO_NEW, "Your firmware version is too old to open this file"},
         {STRING_FOR_ERROR_FOLDER_DOESNT_EXIST, "Folder not found"},
         {STRING_FOR_ERROR_BUG, "Bug encountered"},

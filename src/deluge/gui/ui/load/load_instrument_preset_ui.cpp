@@ -1058,6 +1058,14 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	if (currentFileItem->isFolder) {
 		return Error::NONE;
 	}
+
+	// An unsaved (in-memory only) synth preset cannot be loaded into a kit row because
+	// loadSynthToDrum() reads XML from disk to create a SoundDrum. If the preset hasn't
+	// been saved yet, there is no file on the SD card to read from.
+	if (!currentFileItem->maybeExistsOnCard) {
+		return Error::FILE_NOT_SAVED;
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);

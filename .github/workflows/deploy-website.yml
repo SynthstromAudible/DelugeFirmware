@@ -46,7 +46,7 @@ jobs:
       # This gets us the site base URL
       - name: Setup Pages
         id: setup_pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Build website
         run: bun run build
@@ -110,4 +110,4 @@ jobs:
           path: website/dist
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

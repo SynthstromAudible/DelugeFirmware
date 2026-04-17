@@ -220,32 +220,22 @@ void SourceSelection::readValueAgain() {
 }
 
 void SourceSelection::selectEncoderAction(int32_t offset) {
-	bool isAllowed;
-	int32_t newValue = this->getValue();
+	int32_t currentValue = this->getValue();
+	int32_t newValue = 0;
 	do {
-		newValue += offset;
+		newValue = std::clamp<int32_t>(currentValue + offset, 0, kNumPatchSources - 1);
 
-		if (display->haveOLED()) {
-			if (newValue >= kNumPatchSources || newValue < 0) {
-				return;
-			}
+		// if no change, just exit
+		if (newValue == currentValue) {
+			return;
 		}
-		else {
-			newValue = ((newValue % kNumPatchSources) + kNumPatchSources) % kNumPatchSources;
-		}
-
 	} while (!sourceIsAllowed(sourceMenuContents[newValue]));
 
 	s = sourceMenuContents[newValue];
 	this->setValue(newValue);
 
 	if (display->haveOLED()) {
-		if (this->getValue() < scrollPos) {
-			scrollPos = this->getValue();
-		}
-		else if (offset >= 0 && selectedRowOnScreen == kOLEDMenuNumOptionsVisible - 1) {
-			scrollPos++;
-		}
+		scrollPos = std::clamp<int>(newValue - 1, 0, kNumPatchSources - kOLEDMenuNumOptionsVisible);
 
 		renderUIsForOled();
 	}

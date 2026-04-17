@@ -57,6 +57,7 @@ Added main grid pad shortcuts for the following parameters:
   - Note: :key[AUDITION PAD] + :key[RANDOM PAD] is reserved for future functionality
 - `VELOCITY PROBABILITY`: accessed using :key[SHIFT] + :key[VELOCITY PAD] in the `PATCH SOURCE` column between :key[AFTERTOUCH PAD] and :key[RANDOM PAD]
   - Note: :key[AUDITION PAD] + :key[VELOCITY PAD] is reserved for entering the Velocity Automation View
+- Press :key[SONG] while in the Menu to exit the menu and enter Arranger / Song view
 
 #### <ins>Layered Shortcuts</ins>
 
@@ -163,6 +164,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
+- Restored original behaviour which enabled you to insert / delete time for all automated parameters using `shift + <>`
 
 #### <ins>Song View</ins>
 
@@ -263,7 +265,17 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 - Updated MIDI Program menu to show values 0-127.
   - Values for program, bank and sub-bank were previously shown as 1-128, but now reflect the actual transmitted MIDI values.
 
+#### <ins>Velocity View</ins>
+
+##### General
+
+- Fixed Quantize/Humanize bug which would freeze the velocity view UI
+
 #### <ins>Automation View</ins>
+
+##### Defaults
+
+- The `Settings/Defaults/Automation/Shift` toggle now only applies to Clip View. In Arranger View if you use `shift + <>` to insert / delete time at a specific point in the arrangement, all paramet[...]
 
 ##### Parameters
 

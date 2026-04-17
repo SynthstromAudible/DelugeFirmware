@@ -26,7 +26,7 @@ namespace deluge::gui::menu_item::reverb {
 class LPF final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(AudioEngine::reverb.getLPF() * kMaxMenuValue); }
+	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getLPF() * kMaxMenuValue)); }
 	void writeCurrentValue() override { AudioEngine::reverb.setLPF((float)this->getValue() / kMaxMenuValue); }
 
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }

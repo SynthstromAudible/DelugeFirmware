@@ -104,7 +104,7 @@ public:
 
 	// ui
 	ActionResult exitUI() override {
-		Browser::close();
+		exitAction();
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
 

@@ -103,7 +103,7 @@ void DxCartridge::readValueAgain() {
 	pd->unpackProgram(patch->params, currentValue);
 	soundEditor.currentSound->killAllVoices();
 	Instrument* instrument = getCurrentInstrument();
-	if (instrument->type == OutputType::SYNTH && !instrument->existsOnCard) {
+	if (instrument->type == OutputType::SYNTH && !instrument->mightExistOnCard) {
 		char name[11];
 		pd->getProgramName(currentValue, name);
 		if (name[0] != 0) {
@@ -144,35 +144,22 @@ bool DxCartridge::tryLoad(std::string_view path) {
 }
 
 void DxCartridge::selectEncoderAction(int32_t offset) {
-	int32_t newValue = currentValue + offset;
 	int32_t numValues = pd->numPatches();
 
-	if (display->haveOLED()) {
-		if (newValue >= numValues || newValue < 0) {
-			return;
-		}
-	}
-	else {
-		if (newValue >= numValues) {
-			newValue %= numValues;
-		}
-		else if (newValue < 0) {
-			newValue = (newValue % numValues + numValues) % numValues;
-		}
+	int32_t newValue = std::clamp<int32_t>(currentValue + offset, 0, numValues - 1);
+
+	// if no change, just exit
+	if (newValue == currentValue) {
+		return;
 	}
 
 	currentValue = newValue;
 
 	if (display->haveOLED()) {
-		if (currentValue < scrollPos) {
-			scrollPos = currentValue;
-		}
-		else if (currentValue >= scrollPos + kOLEDMenuNumOptionsVisible) {
-			scrollPos++;
-		}
+		scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
 	}
 
-	readValueAgain();
+	readValueAgain(); // redraw
 }
 
 MenuItem* DxCartridge::selectButtonPress() {

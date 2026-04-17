@@ -419,6 +419,9 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 				if (!nextItem->instrument && !nextItem->isFolder) {
 					if (!strcasecmp(readItem->displayName, nextItem->displayName)) {
 						// if (readItem->filename.equalsCaseIrrespective(&nextItem->filename)) {
+						if (readItem->maybeExistsOnCard && readItem->filePointer.sclust == 0) {
+							readItem->filePointer = nextItem->filePointer;
+						}
 						nextItem->~FileItem();
 						readI++;
 						nextItem = (FileItem*)fileItems.getElementAddress(readI + 1);
@@ -445,6 +448,9 @@ deleteThisItem:
 			// Or if next item has an Instrument, and we're just a file...
 			else if (nextItem->instrument) {
 				if (!strcasecmp(readItem->displayName, nextItem->displayName)) { // And if same name...
+					if (nextItem->maybeExistsOnCard && nextItem->filePointer.sclust == 0) {
+						nextItem->filePointer = readItem->filePointer;
+					}
 					goto deleteThisItem;
 				}
 			}
@@ -1222,13 +1228,13 @@ gotError:
 
 	int32_t numExtraZeroesAdded = 0;
 
-addTildeAndSearch:
-	error = searchString.concatenate("~");
-	if (error != Error::NONE) {
-		goto gotError;
-	}
-
-	// Ok, search whatever FileItems we currently have in memory.
+	// Change 2026-03-29 - this code used to append a tilde to the search string. The tilde would match after all
+	// printable characters so it would return 1 greater than the index of the search result we wanted. unfortunately
+	// for reasons I don't fully understand (7seg compatibility maybe?) multi digit integers are compared as one number
+	// rather than character by character, so if you had files named "SONG1", "SONG2", "SONG10", and you typed in
+	// "SONG1", and then pressed the encoder to try to get it to predict "SONG10", it would instead match "SONG2"
+	// because 2 is the closest number to 1 that comes after 1. So now we just search for the string as is. The major
+	// impact is this now returns the first match instead of the last match.
 doSearch:
 	int32_t i = fileItems.search(searchString.get());
 
@@ -1264,28 +1270,23 @@ notFound:
 		return true;
 	}
 
-	if (i == 0) {
-		if (!doneNewRead) {
-			goto doNewRead;
-		}
-		else {
-			goto notFound;
-		}
-	}
-
-	i--;
+	// The search returns the index where searchString would be inserted
+	// Now check if the file at index i actually matches our prefix. Covers any shenanigans with the weird string
+	// matching
 	FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
 
 	// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
 	if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos)) {
+		// this code is original but I don't know what it does. Slot browser maybe?
+		// Just updated to append to the string instead of replacing the tilde
 		if (numExtraZeroesAdded < 4) {
-			error = searchString.concatenateAtPos("0", searchString.getLength() - 1, 1);
+			error = searchString.concatenateAtPos("0", searchString.getLength(), 1);
 			if (error != Error::NONE) {
-				goto gotError; // Gets rid of previously appended "~"
+				goto gotError;
 			}
 			numExtraZeroesAdded++;
 			doneNewRead = false;
-			goto addTildeAndSearch;
+			goto doSearch;
 		}
 		else {
 			goto notFound;

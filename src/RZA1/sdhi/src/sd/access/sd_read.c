@@ -41,6 +41,7 @@
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "deluge/drivers/uart/uart.h"
 #include "deluge/deluge.h"
+#include "RZA1/cache/cache.h"
 
 #ifdef __CC_ARM
 #pragma arm section code = "CODE_SDHI"
@@ -82,7 +83,7 @@ int doActualReadRohan(int sd_port, SDHNDL *hndl, unsigned char *buff, long cnt, 
 		// for this memory which hasn't been written/flushed back out yet, and that happens during the DMA transfer, overwriting the audio data in actual RAM.
 		// https://support.xilinx.com/s/article/64839?language=en_US - seems to concur with this, and actually suggests that it is normal and necessary to
 		// invalidate both before and after transfer.
-		v7_dma_inv_range((intptr_t)buff, (intptr_t)(buff + cnt * 512));
+		invalidate_range_all_caches((intptr_t)buff, (intptr_t)(buff + cnt * 512));
 
 		/* ---- initialize DMAC ---- */
 		unsigned long reg_base_here = hndl->reg_base;
@@ -311,7 +312,7 @@ int sd_read_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt)
 
 		if (mode != SD_MODE_SW) {
 			// Invalidate ram
-			v7_dma_inv_range((uintptr_t)buff, (uintptr_t)(buff + cnt * 512));
+			invalidate_range_all_caches((uintptr_t)buff, (uintptr_t)(buff + cnt * 512));
 		}
 
 		/* clear All end bit */
@@ -536,7 +537,7 @@ static int _sd_single_read(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
 
 	if (mode != SD_MODE_SW) {
 		// Invalidate ram
-		v7_dma_inv_range((uintptr_t)buff, (uintptr_t)(buff + 512));
+		invalidate_range_all_caches((uintptr_t)buff, (uintptr_t)(buff + 512));
 	}
 
 	/* clear All end bit */

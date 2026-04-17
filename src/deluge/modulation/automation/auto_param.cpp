@@ -1119,6 +1119,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	else {
 		if constexpr (ALPHA_OR_BETA_VERSION) {
 			if (startPos < posAtWhichClipWillCut) {
+				// Sean: potentially solved by PR https://github.com/SynthstromAudible/DelugeFirmware/pull/4445
 				FREEZE_WITH_ERROR("E445");
 			}
 		}
@@ -2370,6 +2371,7 @@ void AutoParam::transposeCCValuesToChannelPressureValues() {
 	currentValue = (currentValue >> 1) + (1 << 30);
 }
 
+/// this is used in arranger view to delete time between automation nodes (shift + <>)
 void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack) {
 
 	// No need to do any revertability with an Action here - ParamCollection::backUpAllAutomatedParamsToAction() should
@@ -2442,6 +2444,7 @@ allDeleted:
 	}
 }
 
+/// this is used in arranger view to insert time between automation nodes (shift + <>)
 void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
 	int32_t start = nodes.search(pos, GREATER_OR_EQUAL);
 

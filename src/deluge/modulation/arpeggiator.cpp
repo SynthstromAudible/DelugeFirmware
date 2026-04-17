@@ -1657,21 +1657,21 @@ bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char cons
 	else if (!strcmp(tagName, "lastLockedReverseProb")) {
 		lastLockedReverseProbabilityParameterValue = reader.readTagOrAttributeValueInt();
 	}
-	else if (!strcmp(tagName, "lockeReverseProbArray")) {
+	else if (!strcmp(tagName, "lockedReverseProbArray") || !strcmp(tagName, "lockeReverseProbArray")) {
 		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedReverseProbabilityValues.data(),
 		                                                 lockedReverseProbabilityValues.size());
 	}
 	else if (!strcmp(tagName, "lastLockedChordProb")) {
 		lastLockedChordProbabilityParameterValue = reader.readTagOrAttributeValueInt();
 	}
-	else if (!strcmp(tagName, "lockeChordProbArray")) {
+	else if (!strcmp(tagName, "lockedChordProbArray") || !strcmp(tagName, "lockeChordProbArray")) {
 		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedChordProbabilityValues.data(),
 		                                                 lockedChordProbabilityValues.size());
 	}
 	else if (!strcmp(tagName, "lastLockedRatchetProb")) {
 		lastLockedRatchetProbabilityParameterValue = reader.readTagOrAttributeValueInt();
 	}
-	else if (!strcmp(tagName, "lockeRatchetProbArray")) {
+	else if (!strcmp(tagName, "lockedRatchetProbArray") || !strcmp(tagName, "lockeRatchetProbArray")) {
 		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedRatchetProbabilityValues.data(),
 		                                                 lockedRatchetProbabilityValues.size());
 	}

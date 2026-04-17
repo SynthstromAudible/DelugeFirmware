@@ -1515,16 +1515,13 @@ void View::setModLedStates() {
 	RootUI* rootUI = getRootUI();
 	UIType uiType = UIType::NONE;
 	UIType uiContextType = UIType::NONE;
-	UIModControllableContext uiModControllableContext = UIModControllableContext::NONE;
 	if (rootUI) {
 		uiType = rootUI->getUIType();
 		uiContextType = rootUI->getUIContextType();
-		uiModControllableContext = rootUI->getUIModControllableContext();
 	}
 
 	// here we will set a boolean flag to let the function know whether we are dealing with the Song context
-	bool itsTheSong = ((activeModControllableModelStack.getTimelineCounterAllowNull() == currentSong)
-	                   || (uiModControllableContext == UIModControllableContext::SONG));
+	bool itsTheSong = !isClipContext();
 
 	// here we will set a boolean flag to let the function know if affect entire is enabled
 	// so that it can correctly illuminate the affect entire LED indicator
@@ -1545,8 +1542,14 @@ void View::setModLedStates() {
 	bool onAutomationClipView = false;
 
 	// turn off Clip LED indicator if we're in a song UI
+	// unless you're in automation arranger view, where we blink the Clip LED indicator
 	if (itsTheSong) {
-		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+		if ((uiType == UIType::AUTOMATION) || (uiContextType == UIType::ARRANGER && automationView.onArrangerView)) {
+			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+		}
 	}
 	// we're in a clip or we've selected a clip
 	// here we're going to see if we should blink the CLIP LED if we're in automation view
@@ -1961,7 +1964,7 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 	bool editedByUser = true;
 	if (output->type != OutputType::AUDIO) {
 		Instrument* instrument = (Instrument*)output;
-		editedByUser = !instrument->existsOnCard;
+		editedByUser = !instrument->mightExistOnCard;
 		switch (output->type) {
 		case OutputType::MIDI_OUT:
 			channelSuffix = ((MIDIInstrument*)instrument)->channelSuffix;

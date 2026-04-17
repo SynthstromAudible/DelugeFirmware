@@ -6507,7 +6507,17 @@ void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
 }
 
 ActionResult InstrumentClipView::commandStopQuantize(int32_t y) {
-	auto res = auditionPadAction(0, y, true);
+	ActionResult res;
+	bool inNoteEditor = getRootUI() == &automationView && automationView.inNoteEditor();
+	if (inNoteEditor) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Output* output = clip->output;
+		OutputType outputType = output->type;
+		res = automationView.auditionPadAction(clip, output, outputType, y, 0, true);
+	}
+	else {
+		res = auditionPadAction(0, y, true);
+	}
 	if (res != ActionResult::DEALT_WITH) {
 		return res;
 	}

@@ -1989,7 +1989,7 @@ loadOutput:
 						if (error != Error::NONE) {
 							goto gotError;
 						}
-						((Instrument*)newOutput)->existsOnCard = true;
+						((Instrument*)newOutput)->mightExistOnCard = true;
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
 						reader.match('}');
