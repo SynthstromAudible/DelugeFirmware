@@ -69,6 +69,8 @@
 #include "util/pack.h"
 #include <stdlib.h>
 
+#include "RZA1/cache/cache.h"
+
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
 #endif
@@ -977,6 +979,7 @@ extern "C" int32_t deluge_main(void) {
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
 	D_PRINTLN("going into main loop");
+	L2CacheUnlockData();
 	sdRoutineLock = false; // Allow SD routine to start happening
 
 #ifdef USE_TASK_MANAGER
