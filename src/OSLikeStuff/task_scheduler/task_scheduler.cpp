@@ -269,7 +269,8 @@ bool TaskManager::yield(RunCondition until, Time timeout, bool returnOnIdle) {
 	Time start_time = yielding_task->lastCallTime;
 	// for now we first end this as if the task finished - might be advantageous to replace with a context switch later
 	if (yielding_task->removeAfterUse) {
-		yielding_task->state = State::BLOCKED; // mark it as blocked so it won't be run again
+		yielding_task->state =
+		    State::WAITING_TO_END; // mark it as waiting so it won't be run again (block triggers recheck of condition)
 	}
 	if (countThisTask) {
 		if (runtime > Time(0.003)) {
