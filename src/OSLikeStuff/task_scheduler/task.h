@@ -63,6 +63,7 @@ enum class State {
 	BLOCKED,
 	QUEUED,
 	READY,
+	WAITING_TO_END,
 };
 
 struct Task {
