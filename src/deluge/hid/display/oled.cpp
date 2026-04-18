@@ -34,6 +34,8 @@
 #include <string.h>
 #include <string_view>
 
+#include "RZA1/cache/cache.h"
+
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
 #include "RZA1/rspi/rspi.h"
@@ -1221,7 +1223,7 @@ void OLED::freezeWithError(char const* text) {
 	uint32_t dataAddress = (uint32_t)(&OLED::main.hackGetImageStore()[0][0]);
 	DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
 	// spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
-	v7_dma_flush_range(dataAddress, dataAddress + transferSize);
+	invalidate_range_all_caches(dataAddress, dataAddress + transferSize);
 	DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
 	    DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 

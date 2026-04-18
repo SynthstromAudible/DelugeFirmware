@@ -20,6 +20,7 @@
 #include "deluge/drivers/oled/oled.h"
 
 #include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
+#include "RZA1/cache/cache.h"
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/mtu/mtu.h"
@@ -98,7 +99,7 @@ void oledSelectingComplete()
     DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
     spiTransferQueue[spiTransferQueueReadPos].destinationId = SPI_DESTINATION_NONE;
     spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
-    v7_dma_flush_range(dataAddress, dataAddress + transferSize);
+    invalidate_range_all_caches(dataAddress, dataAddress + transferSize);
     DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
         DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 }
