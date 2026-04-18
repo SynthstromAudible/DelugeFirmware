@@ -40,6 +40,7 @@
 
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "deluge/drivers/uart/uart.h"
+#include "RZA1/cache/cache.h"
 
 #ifdef __CC_ARM
 #pragma arm section code = "CODE_SDHI"
@@ -161,7 +162,8 @@ int _sd_write_sect(SDHNDL *hndl,unsigned char const*buff,unsigned long psn,
 		mode = SD_MODE_DMA;	/* set DMA mode */
 
 		// Flush ram
-		v7_dma_flush_range((intptr_t)buff, (intptr_t)(buff + cnt * 512));
+		//todo - should only need a flush
+		invalidate_range_all_caches((intptr_t)buff, (intptr_t)(buff + cnt * 512));
 
 		#if		(TARGET_RZ_A1 == 1)
 		if(hndl->trans_mode & SD_MODE_DMA_64){
