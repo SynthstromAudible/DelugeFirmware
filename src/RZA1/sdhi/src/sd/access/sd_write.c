@@ -162,6 +162,7 @@ int _sd_write_sect(SDHNDL *hndl,unsigned char const*buff,unsigned long psn,
 		mode = SD_MODE_DMA;	/* set DMA mode */
 
 		// Flush ram
+		//todo - should only need a flush
 		invalidate_range_all_caches((intptr_t)buff, (intptr_t)(buff + cnt * 512));
 
 		#if		(TARGET_RZ_A1 == 1)
