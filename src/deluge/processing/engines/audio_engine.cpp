@@ -529,7 +529,7 @@ void setMonitoringMode();
 void renderSongFX(size_t numSamples);
 void renderSamplePreview(size_t numSamples);
 void renderReverb(size_t numSamples);
-void tickSongFinalizeWindows(size_t& numSamples, int32_t& timeWithinWindowAtWhichMIDIOrGateOccurs);
+int32_t tickSongFinalizeWindows(size_t& numSamples);
 void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
@@ -591,8 +591,7 @@ bool calledFromScheduler = false;
 	}
 	voices_started_this_render = 0;
 
-	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
-	tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
+	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = tickSongFinalizeWindows(numSamples);
 
 	numSamplesLastTime = numSamples;
 
@@ -710,8 +709,9 @@ void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At
 		}
 	}
 }
-void tickSongFinalizeWindows(size_t& numSamples, int32_t& timeWithinWindowAtWhichMIDIOrGateOccurs) {
-	timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
+
+int32_t tickSongFinalizeWindows(size_t& numSamples) {
+	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
 
 	// If a timer-tick is due during or directly after this window of audio samples...
 	if (playbackHandler.isEitherClockActive()) {
@@ -761,7 +761,7 @@ startAgain:
 
 		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or
 		// MIDI clock out ticks during it
-		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
+		if (!stemExport.renderingOffline()) {
 			if (playbackHandler.triggerClockOutTickScheduled) {
 				int32_t timeTilTriggerClockOutTick = playbackHandler.timeNextTriggerClockOutTick - audioSampleTimer;
 				if (timeTilTriggerClockOutTick < numSamples) {
@@ -787,6 +787,7 @@ startAgain:
 			}
 		}
 	}
+	return timeWithinWindowAtWhichMIDIOrGateOccurs;
 }
 
 void feedReverbBackdoorForGrain(int index, q31_t value) {
@@ -1036,7 +1037,7 @@ void routine() {
 			while (getSystemTime() < timeNow + 32 / 44100.) {
 				size_t numSamples = 32;
 				int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
-				tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
+				tickSongFinalizeWindows(numSamples);
 
 				numSamplesLastTime = numSamples;
 				renderAudioForStemExport(numSamples);
