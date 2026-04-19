@@ -489,16 +489,12 @@ void ParamManagerForTimeline::deleteAllAutomation(Action* action, ModelStackWith
 
 void ParamManagerForTimeline::trimToLength(uint32_t newLength, ModelStackWithThreeMainThings* modelStack,
                                            Action* action, bool maySetupPatching) {
-#if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
-	                              // with its "while".
-#endif
 
-	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
+	FOR_EACH_AUTOMATED_PARAM_COLLECTION_IF_ANY_START
 
 	summary->paramCollection->trimToLength(newLength, modelStackWithParamCollection, action, maySetupPatching);
 
-	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
+	FOR_EACH_AUTOMATED_PARAM_COLLECTION_IF_ANY_END
 }
 
 void ParamManagerForTimeline::generateRepeats(ModelStackWithThreeMainThings* modelStack, uint32_t oldLength,
