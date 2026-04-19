@@ -529,7 +529,7 @@ void setMonitoringMode();
 void renderSongFX(size_t numSamples);
 void renderSamplePreview(size_t numSamples);
 void renderReverb(size_t numSamples);
-void tickSongFinalizeWindows(size_t& numSamples, int32_t& timeWithinWindowAtWhichMIDIOrGateOccurs);
+int32_t tickSongFinalizeWindows(size_t& numSamples);
 void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
@@ -580,9 +580,9 @@ bool calledFromScheduler = false;
 		if (samplesOverThreshold > 0) {
 			samplesOverThreshold = samplesOverThreshold << 1;
 			numSamples = sampleThreshold + samplesOverThreshold;
-			numSamples = std::min(numSamples, maxAdjustedNumSamples);
 		}
 	}
+	numSamples = std::min(numSamples, maxAdjustedNumSamples);
 
 	// Want to round to be doing a multiple of 4 samples, so the NEON functions can be utilized most efficiently.
 	// Note - this can take numSamples up as high as SSI_TX_BUFFER_NUM_SAMPLES (currently 128).
@@ -591,8 +591,7 @@ bool calledFromScheduler = false;
 	}
 	voices_started_this_render = 0;
 
-	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
-	tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
+	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = tickSongFinalizeWindows(numSamples);
 
 	numSamplesLastTime = numSamples;
 
@@ -692,6 +691,7 @@ void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At
 	                          // live user-triggered
 	// output and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and
 	// also want to give them a head-start being sent and out of the way so the clock messages can be sent on-time
+	CriticalSectionGuard guard;
 	bool anythingInMidiOutputBufferNow = midiEngine.anythingInOutputBuffer();
 	bool anythingInGateOutputBufferNow = cvEngine.isAnythingButRunPending();
 	if (anythingInMidiOutputBufferNow || anythingInGateOutputBufferNow) {
@@ -710,8 +710,9 @@ void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At
 		}
 	}
 }
-void tickSongFinalizeWindows(size_t& numSamples, int32_t& timeWithinWindowAtWhichMIDIOrGateOccurs) {
-	timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
+
+int32_t tickSongFinalizeWindows(size_t& numSamples) {
+	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
 
 	// If a timer-tick is due during or directly after this window of audio samples...
 	if (playbackHandler.isEitherClockActive()) {
@@ -761,10 +762,10 @@ startAgain:
 
 		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or
 		// MIDI clock out ticks during it
-		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
+		if (!stemExport.renderingOffline()) {
 			if (playbackHandler.triggerClockOutTickScheduled) {
 				int32_t timeTilTriggerClockOutTick = playbackHandler.timeNextTriggerClockOutTick - audioSampleTimer;
-				if (timeTilTriggerClockOutTick < numSamples) {
+				if (std::cmp_less(timeTilTriggerClockOutTick, numSamples)) {
 					playbackHandler.doTriggerClockOutTick();
 					playbackHandler.scheduleTriggerClockOutTick(); // Schedules another one
 
@@ -773,10 +774,13 @@ startAgain:
 					}
 				}
 			}
+			else {
+				playbackHandler.scheduleTriggerClockOutTick();
+			}
 
 			if (playbackHandler.midiClockOutTickScheduled) {
 				int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
-				if (timeTilMIDIClockOutTick < numSamples) {
+				if (std::cmp_less(timeTilMIDIClockOutTick, numSamples)) {
 					playbackHandler.doMIDIClockOutTick();
 					playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
 
@@ -785,8 +789,12 @@ startAgain:
 					}
 				}
 			}
+			else {
+				playbackHandler.scheduleMIDIClockOutTick();
+			}
 		}
 	}
+	return timeWithinWindowAtWhichMIDIOrGateOccurs;
 }
 
 void feedReverbBackdoorForGrain(int index, q31_t value) {
@@ -944,6 +952,8 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
                             int32_t timeWithinWindowAtWhichMIDIOrGateOccurs) {
 	bool anyGateOutputPending = cvEngine.isAnythingPending();
 
+	CriticalSectionGuard guard;
+	// guard against timer firing mid check
 	if ((midiEngine.anythingInOutputBuffer() || anyGateOutputPending) && !isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
 
 		// I don't think this actually could still get left at -1, but just in case...
@@ -1035,8 +1045,7 @@ void routine() {
 			auto timeNow = getSystemTime();
 			while (getSystemTime() < timeNow + 32 / 44100.) {
 				size_t numSamples = 32;
-				int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
-				tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
+				tickSongFinalizeWindows(numSamples);
 
 				numSamplesLastTime = numSamples;
 				renderAudioForStemExport(numSamples);

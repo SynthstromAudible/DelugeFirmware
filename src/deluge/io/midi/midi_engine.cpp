@@ -30,6 +30,7 @@
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/smsysex.h"
+#include "timers_interrupts/timers_interrupts.h"
 #include "version.h"
 
 extern "C" {
@@ -295,7 +296,8 @@ int32_t MidiEngine::getPotentialNumConnectedUSBMIDIDevices(int32_t ip) {
 
 // Warning - this will sometimes (not always) be called in an ISR
 void MidiEngine::flushUSBMIDIOutput() {
-
+	// make sure the interrupt doesn't fire mid flush
+	CriticalSectionGuard guard;
 	if (usbLock) {
 		return;
 	}

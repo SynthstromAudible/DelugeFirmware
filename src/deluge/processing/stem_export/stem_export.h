@@ -102,6 +102,7 @@ public:
 
 	// check if we're in context menu
 	bool inContextMenu();
+	bool renderingOffline() { return processStarted && renderOffline; }
 };
 
 extern StemExport stemExport;
