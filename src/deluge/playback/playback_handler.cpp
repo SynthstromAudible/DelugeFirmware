@@ -72,6 +72,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "timers_interrupts/timers_interrupts.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
 #include <math.h>
@@ -906,7 +907,12 @@ void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
 }
 
 void PlaybackHandler::doMIDIClockOutTick() {
-	// we need to flush the buffer in case there's a clock in it, otherwise both will be sent at once
+	CriticalSectionGuard guard;
+	// if there's a scheduled output already then don't mess with it. Will catch at next output
+	if (isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
+		return;
+	}
+	// otherwise if there's midi in here already then get it dumped
 	if (midiEngine.anythingInOutputBuffer()) {
 		midiEngine.flushMIDI();
 	}

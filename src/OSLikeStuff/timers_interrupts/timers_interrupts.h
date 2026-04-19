@@ -19,7 +19,7 @@
 #define DELUGE_TIMERS_INTERRUPTS_H
 
 #include "RZA1/system/r_typedefs.h"
-
+#include "stdatomic.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,7 +31,9 @@ extern "C" {
 // in future if we start using user mode this won't work from there
 
 /// disable all interrupts - must be in system mode
+extern atomic_int interrupt_depth;
 static inline __attribute__((no_instrument_function)) void DISABLE_ALL_INTERRUPTS() {
+	interrupt_depth++;
 	// memory creates a memory barrier in GCC to avoid reordering
 	// http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html#ss5.3
 	__asm volatile("CPSID i" ::: "memory");
@@ -41,9 +43,15 @@ static inline __attribute__((no_instrument_function)) void DISABLE_ALL_INTERRUPT
 
 /// enable all interrupts - must be in system mode
 static inline __attribute__((no_instrument_function)) void ENABLE_INTERRUPTS() {
-	__asm volatile("CPSIE i" ::: "memory");
-	__asm volatile("DSB");
-	__asm volatile("ISB");
+
+	if (interrupt_depth > 0) {
+		atomic_fetch_sub(&interrupt_depth, 1);
+		if (interrupt_depth == 0) {
+			__asm volatile("CPSIE i" ::: "memory");
+			__asm volatile("DSB");
+			__asm volatile("ISB");
+		}
+	}
 }
 void clearIRQInterrupt(int irqNumber);
 
@@ -60,6 +68,11 @@ void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint
 void setupRunningClock(int timer, int preScale);
 void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, uint8_t priority);
 #ifdef __cplusplus
+
+struct CriticalSectionGuard {
+	CriticalSectionGuard() { DISABLE_ALL_INTERRUPTS(); }
+	~CriticalSectionGuard() { ENABLE_INTERRUPTS(); }
+};
 }
 #endif
 

@@ -24,6 +24,7 @@
 extern "C" {
 #endif
 
+atomic_int interrupt_depth = 0;
 void clearIRQInterrupt(int irqNumber) {
 	uint16_t flagRead = INTC.IRQRR.WORD;
 	if (flagRead & (1 << irqNumber)) {
