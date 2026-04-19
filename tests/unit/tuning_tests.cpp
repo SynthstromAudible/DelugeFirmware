@@ -20,111 +20,105 @@ typedef struct {
 	int32_t offsets[12];
 } Expectation;
 
+// clang-format off
 struct {
 	Expectation equaltemp, tweaked, pythagorean;
-} expected = {.equaltemp =
-                  {
-                      .freq =
-                          {
-                              1027294024, // E
-                              1088380105, // F
-                              1153098554, // F#
-                              1221665363, // G
-                              1294309365, // G#
-                              1371273005, // A = 440 Hz
-                              1452813141, // A#
-                              1539201906, // B
-                              1630727614, // C
-                              1727695724, // C#
-                              1830429858, // D
-                              1939272882, // D#
-                          },
-                      .ival =
-                          {
-                              1073741824, // 2^(0/12) -> 0x40000000
-                              1137589835, // 2^(1/12)
-                              1205234447, // 2^(2/12)
-                              1276901417, // 2^(3/12)
-                              1352829926, // 2^(4/12)
-                              1433273380, // 2^(5/12)
-                              1518500250, // 2^(6/12)
-                              1608794974, // 2^(7/12)
-                              1704458901, // 2^(8/12)
-                              1805811301, // 2^(9/12)
-                              1913190429, // 2^(10/12)
-                              2026954652, // 2^(11/12)
-                          },
-                      .offsets = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-                  },
-              .tweaked =
-                  {
-                      .freq =
-                          {
-                              1027294024, //
-                              1088380105, //
-                              1153098554, //
-                              1221665363, //
-                              1294309365, //
-                              1371273005, //
-                              1452813141, //
-                              1539201906, //
-                              1630727614, //
-                              1727695724, //
-                              1830429858, //
-                              1996097915, // quarter-tone E half-flat
-                          },
-                      .ival =
-                          {
-                              1073741824, //
-                              1137589835, //
-                              1205234447, //
-                              1314317484, // 2^(3.5/12)
-                              1352829926, //
-                              1433273380, //
-                              1518500250, //
-                              1608794974, //
-                              1704458901, //
-                              1805811301, //
-                              1913190429, //
-                              2026954652, //
-                          },
-                      .offsets = {0, 0, 0, 5000, 0, 0, 0, 0, 0, 0, 0, 0},
-                  },
-              .pythagorean = {
-                  // this needs to be validated by a listening test
-                  .freq =
-                      {
-                          1031944816,
-                          1087148604,
-                          1160937917,
-                          1223049242,
-                          1288476142,
-                          1375930396,
-                          1449535659,
-                          1547921694,
-                          1630727614,
-                          1717963229,
-                          1834568564,
-                          1932708631,
-                      },
-
-                  .ival =
-                      {
-                          1073741824,
-                          1131181538,
-                          1207959551,
-                          1272579229,
-                          1358954493,
-                          1431651631,
-                          1528823803,
-                          1610617387,
-                          1696777207,
-                          1811944558,
-                          1908874356,
-                          2038437626,
-                      },
-                  .offsets = {0, -978, 391, -587, 782, -196, 1173, 196, -782, 587, -391, 978},
-              }};
+} expected = {
+	.equaltemp = {
+		.freq = {
+			1027294024, // E
+			1088380105, // F
+			1153098554, // F#
+			1221665363, // G
+			1294309365, // G#
+			1371273005, // A = 440 Hz
+			1452813141, // A#
+			1539201906, // B
+			1630727614, // C
+			1727695724, // C#
+			1830429858, // D
+			1939272882, // D#
+		},
+		.ival = {
+			1073741824, // 2^(0/12) -> 0x40000000
+			1137589835, // 2^(1/12)
+			1205234447, // 2^(2/12)
+			1276901417, // 2^(3/12)
+			1352829926, // 2^(4/12)
+			1433273380, // 2^(5/12)
+			1518500250, // 2^(6/12)
+			1608794974, // 2^(7/12)
+			1704458901, // 2^(8/12)
+			1805811301, // 2^(9/12)
+			1913190429, // 2^(10/12)
+			2026954652, // 2^(11/12)
+		},
+		.offsets = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	},
+	.tweaked = {
+		.freq = {
+			1027294024, //
+			1088380105, //
+			1153098554, //
+			1221665363, //
+			1294309365, //
+			1371273005, //
+			1452813141, //
+			1539201906, //
+			1630727614, //
+			1727695724, //
+			1830429858, //
+			1996097915, // quarter-tone E half-flat
+		},
+		.ival = {
+			1073741824, //
+			1137589835, //
+			1205234447, //
+			1314317484, // 2^(3.5/12)
+			1352829926, //
+			1433273380, //
+			1518500250, //
+			1608794974, //
+			1704458901, //
+			1805811301, //
+			1913190429, //
+			2026954652, //
+		},
+		.offsets = {0, 0, 0, 5000, 0, 0, 0, 0, 0, 0, 0, 0},
+	},
+	.pythagorean = {
+		// this needs to be validated by a listening test
+		.freq = {
+			1031944816,
+			1087148604,
+			1160937917,
+			1223049242,
+			1288476142,
+			1375930396,
+			1449535659,
+			1547921694,
+			1630727614,
+			1717963229,
+			1834568564,
+			1932708631,
+		},
+		.ival = {
+			1073741824,
+			1131181538,
+			1207959551,
+			1272579229,
+			1358954493,
+			1431651631,
+			1528823803,
+			1610617387,
+			1696777207,
+			1811944558,
+			1908874356,
+			2038437626,
+		},
+		.offsets = {0, -978, 391, -587, 782, -196, 1173, 196, -782, 587, -391, 978},
+	},
+};
 
 double stringToDouble(char const* __restrict__ mem) {
 	return atof(mem);
@@ -147,19 +141,16 @@ uint32_t memToUIntOrError(char const* mem, char const* end) {
 Tuning* tuning;
 
 TEST_GROUP(TestTuningSystem){
-
-    void setup(){TuningSystem::initialize();
-
-// overwrite tuning 1 with garbage
-TuningSystem::selectForWrite(1);
-tuning = TuningSystem::tuning;
-for (int i = 0; i < 12; i++) {
-	tuning->setOffset(i, -999 + i);
-}
-TuningSystem::select(0);
-}
-}
-;
+	void setup(){TuningSystem::initialize();
+		// overwrite tuning 1 with garbage
+		TuningSystem::selectForWrite(1);
+		tuning = TuningSystem::tuning;
+		for (int i = 0; i < 12; i++) {
+			tuning->setOffset(i, -999 + i);
+		}
+		TuningSystem::select(0);
+	}
+};
 
 void check_expectation(Expectation& expected) {
 	printf("\nDeg\tOffset\t\tfrequency\tinterval\n");
@@ -242,7 +233,7 @@ TEST(TestTuningSystem, TestSysex) {
 	memset(cable.buffer, '\0', 1024);
 	TuningSysex::sysexReceived(cable, msg, sizeof(msg));
 	MEMCMP_EQUAL(exp, cable.buffer, sizeof(exp));
-}
+};
 
 void check_offsets(int32_t* ex, int32_t* ac, int32_t num) {
 	char fixme[128];
@@ -276,4 +267,19 @@ TEST(TestTuningSystem, TestScala) {
 	reader.openScalaFile(NULL, "PYTHAGOREAN");
 	printf("pythagorean:\n");
 	check_expectation(expected.pythagorean);
+};
+
+double phaseIncrementToFrequency(int phaseIncrement) {
+	return phaseIncrement * 44100.0 / (double)0x1.p32;
 }
+
+TEST(TestTuningSystem, TestMidi) {
+	TuningSystem::select(0);
+	tuning = TuningSystem::tuning;
+
+	int noteCode = 69; // A above middle C
+	auto nwo = tuning->noteWithinOctave(noteCode);
+	auto phaseIncrement = tuning->noteFrequency(nwo);
+	auto freq = phaseIncrementToFrequency(phaseIncrement);
+	DOUBLES_EQUAL(440.0, freq, 0.000005);
+};
