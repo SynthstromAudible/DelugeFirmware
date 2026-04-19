@@ -243,18 +243,6 @@ const int16_t oldResonanceCompensation[] = {
 		0, 0, 0, 0, 0
 };
 
-// Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible without going over 22.05kHz (2147483648),
-// even when shifted up a semitone (via osc-cents and unison combined)
-const int32_t noteFrequencyTable[12] = {
-1027294024, 1088380105, 1153098554, 1221665363, 1294309365, 1371273005,
-1452813141, 1539201906, 1630727614, 1727695724, 1830429858, 1939272882, };
-
-
-const int32_t noteIntervalTable[12] = {
-1073741824, 1137589835, 1205234447, 1276901417, 1352829926, 1433273380,
-1518500250, 1608794974, 1704458901, 1805811301, 1913190429, 2026954652, };
-
-
 const int32_t timeStretchAdjustTable[193] = { // Should be 97
 1048576, 1110928, 1176987, 1246974, 1321123, 1399681,
 1482910, 1571089, 1664511, 1763488, 1868350, 1979448,

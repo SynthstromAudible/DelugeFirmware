@@ -44,6 +44,7 @@ const uint8_t DELUGE_SYSEX_ID_BYTE3 = 0x01;
 const uint8_t SYSEX_UNIVERSAL_NONRT = 0x7E;
 const uint8_t SYSEX_UNIVERSAL_RT = 0x7F;
 const uint8_t SYSEX_UNIVERSAL_IDENTITY = 0x06;
+const uint8_t SYSEX_MIDI_TUNING_STANDARD = 0x08;
 
 const uint8_t SYSEX_END = 0xF7;
 
@@ -55,6 +56,21 @@ enum SysexCommands : uint8_t {
 	Json,       // Json Request
 	JsonReply,  // Json Response
 	Pong = 0x7F // Pong reply
+};
+
+// e.g. F0 7E 08 03 bb tt F7
+// SYSEX_START, UNIVERSAL_NONRT, TUNING, bank, preset, SYSEX_END
+enum TuningCommands : uint8_t {
+	BulkDumpRequest = 0x00, // BULK TUNING DUMP REQUEST
+	BulkDump,               // BULK TUNING DUMP
+	NoteChange,             // SINGLE NOTE TUNING CHANGE (REAL-TIME)
+	BankDumpRequest,        // BULK TUNING DUMP REQUEST (BANK)
+	KeyBasedDump,           // KEY-BASED TUNING DUMP
+	ScaleOctaveDump1,       // SCALE/OCTAVE TUNING DUMP, 1 byte format
+	ScaleOctaveDump2,       // SCALE/OCTAVE TUNING DUMP, 2 byte format
+	BankNoteChange,         // SINGLE NOTE TUNING CHANGE (REAL-TIME / NON REAL-TIME) (BANK)
+	ScaleOctave1,           // SCALE/OCTAVE TUNING 1-BYTE FORM (REAL-TIME / NON REAL-TIME)
+	ScaleOctave2            // SCALE/OCTAVE TUNING 2-BYTE FORM (REAL-TIME / NON REAL-TIME)
 };
 
 } // namespace SysEx

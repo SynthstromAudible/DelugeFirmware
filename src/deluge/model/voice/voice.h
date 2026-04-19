@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
+#include "model/tuning/tuning.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part.h"
 #include "modulation/envelope.h"

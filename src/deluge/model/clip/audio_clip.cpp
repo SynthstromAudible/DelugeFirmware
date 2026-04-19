@@ -48,7 +48,7 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 
-AudioClip::AudioClip() : Clip(ClipType::AUDIO) {
+AudioClip::AudioClip() : Clip(ClipType::AUDIO), sampleHolder(selectedTuning) {
 	overdubsShouldCloneOutput = true;
 	voiceSample = nullptr;
 	guide.audioFileHolder = &sampleHolder; // It needs to permanently point here

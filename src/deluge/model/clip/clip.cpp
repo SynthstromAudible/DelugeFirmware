@@ -73,6 +73,8 @@ Clip::Clip(ClipType newType) : type(newType) {
 #if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SequenceDirection::FORWARD;
 #endif
+
+	selectedTuning = 128; // Means none
 }
 
 Clip::~Clip() {
@@ -688,6 +690,11 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (launchStyle != LaunchStyle::DEFAULT) {
 		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
+
+	// Tuning
+	if (selectedTuning != 128) {
+		writer.writeAttribute("selectedTuning", selectedTuning);
+	}
 }
 
 void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
@@ -764,6 +771,10 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 
 	else if (!strcmp(tagName, "launchStyle")) {
 		launchStyle = stringToLaunchStyle(reader.readTagOrAttributeValue());
+	}
+
+	else if (!strcmp(tagName, "selectedTuning")) {
+		selectedTuning = reader.readTagOrAttributeValueInt();
 	}
 
 	/*
@@ -1178,4 +1189,11 @@ void Clip::setupOverdubInPlace(OverDubType type) {
 	// This is used to indicate a cloned overdub clip that doesn't have anything in it, not overdub in place
 	isPendingOverdub = false;
 	overdubNature = type;
+}
+
+Tuning& Clip::getTuning() {
+	if (selectedTuning >= NUM_TUNINGS) {
+		return *TuningSystem::tuning;
+	}
+	return TuningSystem::tunings[selectedTuning];
 }

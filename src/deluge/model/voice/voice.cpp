@@ -32,6 +32,7 @@
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
+#include "model/tuning/tuning.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -379,13 +380,12 @@ void Voice::changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNote
 void Voice::setupPorta(const Sound& sound) {
 	portaEnvelopePos = 0;
 	int32_t semitoneAdjustment = sound.lastNoteCode - noteCodeAfterArpeggiation;
+	Tuning& tuning = TuningSystem::tuning[sound.selectedTuning];
 
-	int32_t noteWithinOctave = (semitoneAdjustment + 120) % 12;
-	int32_t octave = (semitoneAdjustment + 120) / 12;
+	auto nwo = tuning.noteWithinOctave(semitoneAdjustment);
+	int32_t phaseIncrement = tuning.noteInterval(nwo.noteWithin);
 
-	int32_t phaseIncrement = noteIntervalTable[noteWithinOctave];
-
-	int32_t shiftRightAmount = 16 - octave;
+	int32_t shiftRightAmount = 16 - nwo.octave;
 	if (shiftRightAmount >= 0) {
 		phaseIncrement >>= shiftRightAmount;
 	}
@@ -418,6 +418,7 @@ void Voice::makeUnisonPartsInactive(const Sound& sound, int32_t source_index) {
 
 void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index) {
 	Source* source = &sound.sources[source_index];
+	Tuning& tuning = TuningSystem::tuning[sound.selectedTuning];
 
 	int32_t noteCode = source->isTracking ? noteCodeAfterArpeggiation : kC3NoteCode;
 
@@ -446,12 +447,9 @@ void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index)
 			pitchAdjustNeutralValue = kMaxSampleValue;
 		}
 
-		int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
-		int32_t octave = (uint16_t)(transposedNoteCode + 120) / 12;
-
-		phaseIncrement = multiply_32x32_rshift32(noteIntervalTable[noteWithinOctave], pitchAdjustNeutralValue);
-
-		int32_t shiftRightAmount = 13 - octave;
+		auto nwo = tuning.noteWithinOctave(transposedNoteCode);
+		phaseIncrement = multiply_32x32_rshift32(tuning.noteInterval(nwo.noteWithin), pitchAdjustNeutralValue);
+		int32_t shiftRightAmount = 13 - nwo.octave;
 
 		// If shifting right...
 		if (shiftRightAmount >= 0) {
@@ -477,14 +475,9 @@ void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index)
 
 	// Regular wave osc
 	else {
-		int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240 - 4) % 12;
-		int32_t octave = (transposedNoteCode + 120 - 4) / 12;
-
-		int32_t shiftRightAmount = 20 - octave;
-		if (shiftRightAmount >= 0) {
-			phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
-		}
-		else {
+		auto nwo = tuning.noteWithinOctave(transposedNoteCode);
+		phaseIncrement = tuning.noteFrequency(nwo);
+		if (phaseIncrement >= 2147483648) {
 			return makeUnisonPartsInactive(sound, source_index);
 		}
 	}
@@ -511,17 +504,13 @@ void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index)
 }
 
 void Voice::calculatePhaseIncrementForFmMod(Sound& sound, int32_t mod_index) {
+	Tuning& tuning = TuningSystem::tuning[sound.selectedTuning];
+
 	int32_t transposedNoteCode = noteCodeAfterArpeggiation + sound.transpose + sound.modulatorTranspose[mod_index];
-	int32_t noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
-	int32_t octave = (transposedNoteCode + 120 - 4) / 12;
-	int32_t shiftRightAmount = 20 - octave;
+	auto nwo = tuning.noteWithinOctave(transposedNoteCode);
 
-	int32_t phaseIncrement;
-
-	if (shiftRightAmount >= 0) {
-		phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
-	}
-	else {
+	int32_t phaseIncrement = tuning.noteFrequency(nwo);
+	if (phaseIncrement >= 2147483648) {
 		// Frequency too high to render! (Higher than 22.05kHz)
 		for (int32_t u = 0; u < sound.numUnison; u++) {
 			unisonParts[u].modulatorPhaseIncrement[mod_index] = 0xFFFFFFFF; // Means "inactive"

@@ -19,8 +19,8 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 
-ConsequenceScaleAddNote::ConsequenceScaleAddNote(int32_t newNoteWithinOctave) {
-	noteWithinOctave = newNoteWithinOctave;
+ConsequenceScaleAddNote::ConsequenceScaleAddNote(int32_t newNoteWithin) {
+	noteWithin = newNoteWithin;
 }
 
 Error ConsequenceScaleAddNote::revert(TimeType time, ModelStack* modelStack) {
@@ -29,7 +29,7 @@ Error ConsequenceScaleAddNote::revert(TimeType time, ModelStack* modelStack) {
 	// The changing back of the scale itself is handled by the Action, which
 	// keeps a record
 	if (time == BEFORE) {
-		modelStack->song->removeYNoteFromMode(noteWithinOctave);
+		modelStack->song->removeYNoteFromMode(noteWithin);
 	}
 	else {}
 

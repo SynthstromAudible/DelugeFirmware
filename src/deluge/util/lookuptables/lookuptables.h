@@ -114,10 +114,6 @@ extern const int16_t analogSquare_861[];
 extern const int16_t analogSquare_1217[];
 extern const int16_t analogSquare_1722[];
 
-// Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible
-// without going over 22.05kHz (2147483648), even when shifted up a semitone (via osc-cents and unison combined)
-extern const int32_t noteFrequencyTable[12];
-extern const int32_t noteIntervalTable[12];
 extern const int32_t timeStretchAdjustTable[193];
 extern const int32_t attackRateTable[51];
 extern const int32_t releaseRateTable[51];

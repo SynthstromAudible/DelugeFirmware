@@ -24,6 +24,9 @@ __pycache__
 /tests/RunAllTests
 /tests/_deps/*
 /tests/build
+/tests/runtests*
+/tests/*.gcda
+/tests/coverage*
 *.a
 *.jdebug.user
 .idea

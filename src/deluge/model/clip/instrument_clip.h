@@ -178,6 +178,7 @@ public:
 	void reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) override;
 	void stopAllNotesForMIDIOrCV(ModelStackWithTimelineCounter* modelStack);
 	void sendMIDIPGM();
+	void sendMIDITuning();
 	void noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song);
 	void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
 	           bool clearSequenceAndMPE) override;

@@ -125,6 +125,8 @@ public:
 	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
 	uint8_t outputMidiNoteForDrum = MIDI_NOTE_NONE;
 
+	uint8_t selectedTuning = 0;
+
 	int16_t modulatorTranspose[kNumModulators] = {0, -12};
 	int8_t modulatorCents[kNumModulators] = {0, 0};
 
