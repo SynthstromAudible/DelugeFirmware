@@ -34,7 +34,6 @@ public:
 	void setOffset(int, int32_t);
 
 	char name[17];
-	int referenceNote; // default 5=A
 	double referenceFrequency;
 	int32_t offsets[MAX_DIVISIONS]; // cents -5000..+5000
 	// int32_t noteCents[MAX_DIVISIONS];
@@ -43,6 +42,7 @@ public:
 
 	int32_t noteInterval(int);
 	int32_t noteFrequency(int);
+	int32_t noteFrequency(NoteWithinOctave);
 
 	int32_t getReference();
 	void setReference(int32_t);
@@ -68,8 +68,12 @@ public:
 private:
 	// Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible
 	// without going over 22.05kHz (2147483648), even when shifted up a semitone (via osc-cents and unison combined)
+	inline NoteWithinOctave shiftForFrequency(NoteWithinOctave nwo);
 	int32_t tuningFrequencyTable[MAX_DIVISIONS];
 	int32_t tuningIntervalTable[MAX_DIVISIONS];
+
+	void calculateFrequency(int noteWithin);
+	void calculateInterval(int noteWithin);
 
 	void calculateAll();
 	void calculateNote(int);

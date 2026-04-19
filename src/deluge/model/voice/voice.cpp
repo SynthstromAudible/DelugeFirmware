@@ -475,13 +475,9 @@ void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index)
 
 	// Regular wave osc
 	else {
-		auto nwo = tuning.noteWithinOctave(transposedNoteCode - 4); // why -4?
-
-		int32_t shiftRightAmount = 20 - nwo.octave;
-		if (shiftRightAmount >= 0) {
-			phaseIncrement = tuning.noteFrequency(nwo.noteWithin) >> shiftRightAmount;
-		}
-		else {
+		auto nwo = tuning.noteWithinOctave(transposedNoteCode);
+		phaseIncrement = tuning.noteFrequency(nwo);
+		if (phaseIncrement >= 2147483648) {
 			return makeUnisonPartsInactive(sound, source_index);
 		}
 	}
@@ -511,15 +507,10 @@ void Voice::calculatePhaseIncrementForFmMod(Sound& sound, int32_t mod_index) {
 	Tuning& tuning = TuningSystem::tuning[sound.selectedTuning];
 
 	int32_t transposedNoteCode = noteCodeAfterArpeggiation + sound.transpose + sound.modulatorTranspose[mod_index];
-	auto nwo = tuning.noteWithinOctave(transposedNoteCode - 4); // why -4?
-	int32_t shiftRightAmount = 20 - nwo.octave;
+	auto nwo = tuning.noteWithinOctave(transposedNoteCode);
 
-	int32_t phaseIncrement;
-
-	if (shiftRightAmount >= 0) {
-		phaseIncrement = tuning.noteFrequency(nwo.noteWithin) >> shiftRightAmount;
-	}
-	else {
+	int32_t phaseIncrement = tuning.noteFrequency(nwo);
+	if (phaseIncrement >= 2147483648) {
 		// Frequency too high to render! (Higher than 22.05kHz)
 		for (int32_t u = 0; u < sound.numUnison; u++) {
 			unisonParts[u].modulatorPhaseIncrement[mod_index] = 0xFFFFFFFF; // Means "inactive"

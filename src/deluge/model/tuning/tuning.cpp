@@ -25,18 +25,30 @@ constexpr double two32 = 0x1.p32;
 constexpr double kSampleRateDiv32 = kSampleRate / 32.0;
 constexpr double kCentsPerOctave = 1200.0;
 
-void Tuning::calculateNote(int noteWithin) {
-
-	double cents = 100 * (noteWithin - referenceNote);
-	cents += offsets[noteWithin] / 100.0;
+void Tuning::calculateFrequency(int noteWithin) {
+	// MIDI note is C based, shift to E-based for frequency
+	int index = (divisions + noteWithin - 4) % divisions;
+	double offset = offsets[noteWithin] / 100.0;
+	double cents = 100 * (index - 5) + offset; // reference note is A (five semitones above E)
 	double frequency = referenceFrequency * std::pow(2.0, cents / kCentsPerOctave);
 
 	double value = frequency / kSampleRateDiv32;
 	value *= two32;
-	tuningFrequencyTable[noteWithin] = lround(value);
+	tuningFrequencyTable[index] = lround(value);
+}
 
-	value = std::pow(2.0, noteWithin / (double)kOctaveSize) * two30;
+void Tuning::calculateInterval(int noteWithin) {
+	double offset = offsets[noteWithin] / 100.0;
+	double cents = 100 * noteWithin + offset;
+
+	double value = std::pow(2.0, cents / kCentsPerOctave);
+	value *= two30;
 	tuningIntervalTable[noteWithin] = lround(value);
+}
+
+void Tuning::calculateNote(int noteWithin) {
+	calculateFrequency(noteWithin);
+	calculateInterval(noteWithin);
 }
 
 void Tuning::calculateAll() {
@@ -44,6 +56,17 @@ void Tuning::calculateAll() {
 	for (int i = 0; i < divisions; i++) {
 		calculateNote(i);
 	}
+}
+
+int32_t Tuning::noteFrequency(NoteWithinOctave nwo) {
+
+	auto nwo2 = shiftForFrequency(nwo);
+	int32_t shiftRightAmount = 20 - nwo2.octave;
+	int32_t freq = tuningFrequencyTable[nwo2.noteWithin];
+	if (nwo2.octave > 0) {
+		freq >>= shiftRightAmount;
+	}
+	return freq;
 }
 
 int32_t Tuning::noteFrequency(int noteWithin) {
@@ -135,6 +158,22 @@ NoteWithinOctave Tuning::noteWithinOctave(int noteCode) {
 	};
 }
 
+inline NoteWithinOctave Tuning::shiftForFrequency(NoteWithinOctave nwo) {
+	// MIDI note is C based, shift to E-based for frequency
+	if (nwo.noteWithin < 4) {
+		return {
+		    .octave = int16_t(nwo.octave - 1),
+		    .noteWithin = int16_t(nwo.noteWithin + kOctaveSize - 4),
+		};
+	}
+	else {
+		return {
+		    .octave = int16_t(nwo.octave),
+		    .noteWithin = int16_t(nwo.noteWithin - 4),
+		};
+	}
+}
+
 void Tuning::setNextCents(double cents) {
 
 	if (nextNote >= MAX_DIVISIONS) {
@@ -176,14 +215,11 @@ void Tuning::setup(const char* tuning_name) {
 	setName(tuning_name);
 }
 
-Tuning::Tuning() : referenceNote(5), divisions(12), nextNote(0), referenceFrequency(440.0) {
-	// noteWithin: 0=E, 2=F#, 4=G#, 5=A=440 Hz
+Tuning::Tuning() : divisions(12), nextNote(0), referenceFrequency(440.0) {
 	calculateAll();
 }
 
-Tuning::Tuning(Tuning& other)
-    : referenceNote(other.referenceNote), divisions(other.divisions), nextNote(0),
-      referenceFrequency(other.referenceFrequency) {
+Tuning::Tuning(Tuning& other) : divisions(other.divisions), nextNote(0), referenceFrequency(other.referenceFrequency) {
 	for (int i = 0; i < divisions; i++) {
 		setOffset(i, other.offsets[i]);
 	}

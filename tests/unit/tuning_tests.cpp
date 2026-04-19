@@ -14,43 +14,117 @@
 
 #include "tuning_tests.h"
 
-struct {
+typedef struct {
 	int32_t freq[12];
 	int32_t ival[12];
 	int32_t offsets[12];
-} expected = {
-    .freq =
-        {
-            1027294024,
-            1088380105,
-            1153098554,
-            1221665363,
-            1294309365,
-            1371273005,
-            1452813141,
-            1539201906,
-            1630727614,
-            1727695724,
-            1830429858,
-            1939272882,
-        },
-    .ival =
-        {
-            1073741824,
-            1137589835,
-            1205234447,
-            1276901417,
-            1352829926,
-            1433273380,
-            1518500250,
-            1608794974,
-            1704458901,
-            1805811301,
-            1913190429,
-            2026954652,
-        },
-    .offsets = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-};
+} Expectation;
+
+struct {
+	Expectation equaltemp, tweaked, pythagorean;
+} expected = {.equaltemp =
+                  {
+                      .freq =
+                          {
+                              1027294024, // E
+                              1088380105, // F
+                              1153098554, // F#
+                              1221665363, // G
+                              1294309365, // G#
+                              1371273005, // A = 440 Hz
+                              1452813141, // A#
+                              1539201906, // B
+                              1630727614, // C
+                              1727695724, // C#
+                              1830429858, // D
+                              1939272882, // D#
+                          },
+                      .ival =
+                          {
+                              1073741824, // 2^(0/12) -> 0x40000000
+                              1137589835, // 2^(1/12)
+                              1205234447, // 2^(2/12)
+                              1276901417, // 2^(3/12)
+                              1352829926, // 2^(4/12)
+                              1433273380, // 2^(5/12)
+                              1518500250, // 2^(6/12)
+                              1608794974, // 2^(7/12)
+                              1704458901, // 2^(8/12)
+                              1805811301, // 2^(9/12)
+                              1913190429, // 2^(10/12)
+                              2026954652, // 2^(11/12)
+                          },
+                      .offsets = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                  },
+              .tweaked =
+                  {
+                      .freq =
+                          {
+                              1027294024, //
+                              1088380105, //
+                              1153098554, //
+                              1221665363, //
+                              1294309365, //
+                              1371273005, //
+                              1452813141, //
+                              1539201906, //
+                              1630727614, //
+                              1727695724, //
+                              1830429858, //
+                              1996097915, // quarter-tone E half-flat
+                          },
+                      .ival =
+                          {
+                              1073741824, //
+                              1137589835, //
+                              1205234447, //
+                              1314317484, // 2^(3.5/12)
+                              1352829926, //
+                              1433273380, //
+                              1518500250, //
+                              1608794974, //
+                              1704458901, //
+                              1805811301, //
+                              1913190429, //
+                              2026954652, //
+                          },
+                      .offsets = {0, 0, 0, 5000, 0, 0, 0, 0, 0, 0, 0, 0},
+                  },
+              .pythagorean = {
+                  // this needs to be validated by a listening test
+                  .freq =
+                      {
+                          1031944816,
+                          1087148604,
+                          1160937917,
+                          1223049242,
+                          1288476142,
+                          1375930396,
+                          1449535659,
+                          1547921694,
+                          1630727614,
+                          1717963229,
+                          1834568564,
+                          1932708631,
+                      },
+
+                  .ival =
+                      {
+                          1073741824,
+                          1131181538,
+                          1207959551,
+                          1272579229,
+                          1358954493,
+                          1431651631,
+                          1528823803,
+                          1610617387,
+                          1696777207,
+                          1811944558,
+                          1908874356,
+                          2038437626,
+                      },
+                  .offsets = {0, -978, 391, -587, 782, -196, 1173, 196, -782, 587, -391, 978},
+              }};
 
 double stringToDouble(char const* __restrict__ mem) {
 	return atof(mem);
@@ -87,19 +161,29 @@ TuningSystem::select(0);
 }
 ;
 
-TEST(TestTuningSystem, FirstTest) {
-
-	tuning = TuningSystem::tuning;
+void check_expectation(Expectation& expected) {
 	printf("\nDeg\tOffset\t\tfrequency\tinterval\n");
 	for (int i = 0; i < 12; i++) {
 		int32_t o = tuning->offsets[i];
 		int32_t freq = tuning->noteFrequency(i);
 		int32_t ival = tuning->noteInterval(i);
 		printf("%d:\t%d\t:\t%d\t%d\n", i, o, freq, ival);
-
+	}
+	for (int i = 0; i < 12; i++) {
+		int32_t o = tuning->offsets[i];
+		int32_t freq = tuning->noteFrequency(i);
+		int32_t ival = tuning->noteInterval(i);
+		CHECK_EQUAL(expected.offsets[i], o);
 		CHECK_EQUAL(expected.freq[i], freq);
 		CHECK_EQUAL(expected.ival[i], ival);
 	}
+}
+
+TEST(TestTuningSystem, FirstTest) {
+
+	tuning = TuningSystem::tuning;
+	printf("equaltemp:\n");
+	check_expectation(expected.equaltemp);
 
 	const unsigned int umax = 0x80000000u;
 	tuning->setReference(4598);
@@ -108,12 +192,10 @@ TEST(TestTuningSystem, FirstTest) {
 	CHECK_FALSE(freq > umax);
 	CHECK_FALSE(ival > umax);
 
-	/*
-	if( freq > umax || ival > umax ) {
-	    printf("XX freq,ival = %u,%u > umax\n", freq,ival);
-	    exit(1);
-	}
-	*/
+	// if( freq > umax || ival > umax ) {
+	//     printf("XX freq,ival = %u,%u > umax\n", freq,ival);
+	//     exit(1);
+	// }
 };
 
 TEST(TestTuningSystem, TestStringToDouble) {
@@ -121,11 +203,10 @@ TEST(TestTuningSystem, TestStringToDouble) {
 	CHECK_EQUAL(123.45, stringToDouble("123.45"));
 	CHECK_EQUAL(-123.45, stringToDouble("-123.45"));
 	CHECK_EQUAL(1.0, stringToDouble("1.0"));
-	/*
-	if (!isnan(stringToDouble("123.45c"))) {
-	    fail("123.45c != NAN");
-	}
-	*/
+
+	// if (!isnan(stringToDouble("123.45c"))) {
+	//     fail("123.45c != NAN");
+	// }
 	printf("\n");
 };
 
@@ -138,8 +219,8 @@ TEST(TestTuningSystem, TestBanks) {
 	for (int i = 0; i < 12; i++) {
 		int32_t freq = tuning->noteFrequency(i);
 		int32_t ival = tuning->noteInterval(i);
-		CHECK_EQUAL(expected.freq[i], freq);
-		CHECK_EQUAL(expected.ival[i], ival);
+		CHECK_EQUAL(expected.equaltemp.freq[i], freq);
+		CHECK_EQUAL(expected.equaltemp.ival[i], ival);
 	}
 
 	TuningSystem::select(1);
@@ -177,14 +258,22 @@ TEST(TestTuningSystem, TestScala) {
 	TuningSystem::selectForWrite(1);
 	tuning = TuningSystem::tuning;
 	ScalaReader reader;
+
 	reader.fileClusterBuffer = scale_12tet;
 	reader.fileSize = sizeof(scale_12tet);
 	reader.openScalaFile(NULL, "12TET");
-	check_offsets(expected.offsets, tuning->offsets, 12);
+	printf("equaltemp:\n");
+	check_expectation(expected.equaltemp);
+
+	reader.fileClusterBuffer = scale_tweaked;
+	reader.fileSize = sizeof(scale_tweaked);
+	reader.openScalaFile(NULL, "TWEAKED");
+	printf("tweaked:\n");
+	check_expectation(expected.tweaked);
 
 	reader.fileClusterBuffer = scale_pythagorean;
 	reader.fileSize = sizeof(scale_pythagorean);
 	reader.openScalaFile(NULL, "PYTHAGOREAN");
-	int32_t ex[] = {0, -978, 391, -587, 782, -196, 1173, 196, -782, 587, -391, 978};
-	check_offsets(ex, tuning->offsets, 12);
+	printf("pythagorean:\n");
+	check_expectation(expected.pythagorean);
 }

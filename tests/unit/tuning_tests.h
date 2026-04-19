@@ -18,6 +18,25 @@ Twelve tone equal temperament
  2/1
 )SCL";
 
+char scale_tweaked[] = R"SCL(! TWEAKED.scl
+!
+Tweaked
+ 12
+!
+ 100.00
+ 200.00
+ 350.00
+ 400.00
+ 500.00
+ 600.00
+ 700.00
+ 800.00
+ 900.00
+1000.00
+1100.00
+ 2/1
+)SCL";
+
 char scale_pythagorean[] = R"SCL(! PYTHAGOREAN.scl
 !
 Pythagorean tuning
