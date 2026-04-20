@@ -17,35 +17,19 @@
 
 #pragma once
 
-#include "hid/encoder.h"
-#include "util/misc.h"
-#include <array>
+#include <cstdint>
 
 namespace deluge::hid::encoders {
 
-/// Index of the encoder.
-enum class EncoderName {
-	SCROLL_Y,
-	SCROLL_X,
-	TEMPO,
-	SELECT,
-	/// End of function (black, detented) encoders,
-	MAX_FUNCTION_ENCODERS,
-	/// The upper gold encoder
-	MOD_1 = MAX_FUNCTION_ENCODERS,
-	/// The lower gold encoder
-	MOD_0,
-	/// Total number of encoders
-	MAX_ENCODER,
-};
-
-/// Last AudioEngine::audioSampleTimer tick at which we noticed a change on one of the mod encoders.
-/// Defined in encoder_input.cpp; also written by view.cpp.
+/// Last AudioEngine::audioSampleTimer tick at which a mod encoder changed.
+/// Written here and by view.cpp to reset the "turned recently" window.
 extern uint32_t timeModEncoderLastTurned[];
 
-void init();
-void readEncoders();
+/// Translate accumulated encoder ticks into UI actions.
+///
+/// @param skipActioning  When true, drains and clears encoder state but suppresses most UI actions
+///                       (used during SD card I/O and audio engine yield paths).
+/// @return true if any encoder produced an action this call.
+bool interpretEncoders(bool skipActioning = false);
 
-DetentedEncoder& getFunctionEncoder(EncoderName which);
-ContinuousEncoder& getModEncoder(int index); // 0 = MOD_0, 1 = MOD_1
 } // namespace deluge::hid::encoders

@@ -17,32 +17,56 @@
 
 #pragma once
 
-#define encMinBacktrackTime (20 * 44) // In milliseconds/44
 #include <cstdint>
 
 namespace deluge::hid::encoders {
 
-class Encoder {
+/// Call setPinAsInput for both pins of an encoder on init.
+void encoderSetPins(uint8_t port, uint8_t pinA, uint8_t pinB);
+
+/// Base: converts raw A-pin edge counts (signed) into ticks.
+/// Two A-pin edges = one quadrature cycle = one detent click on Deluge encoders.
+class EncoderBase {
 public:
-	Encoder();
+	EncoderBase(const EncoderBase&) = delete;
+	EncoderBase& operator=(const EncoderBase&) = delete;
 
-	Encoder(Encoder& other) = delete;
-	Encoder(Encoder&& other) = delete;
-	Encoder& operator=(Encoder& other) = delete;
-	Encoder&& operator=(Encoder&& other) = delete;
+protected:
+	EncoderBase() = default;
 
-	/// Fold a number of A-pin edges (signed; from the IRQ accumulator) into encPos / detentPos.
-	/// Two edges = one detent step (or one raw tick for non-detent gold knobs), matching the
-	/// "1 quadrature cycle per detent" wiring on the Deluge encoders.
-	void applyEdges(int8_t edges);
-	void setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New);
-	void setNonDetentMode();
-	int32_t getLimitedDetentPosAndReset();
-	int8_t encPos;    // Keeps track of knob's position relative to centre of closest detent
-	int8_t detentPos; // Number of full detents offset since functions last dealt with
+	/// Converts edges → ticks (edges/2), accumulating the remainder.
+	/// Returns the number of whole ticks produced (may be 0).
+	int8_t edgesToTicks(int8_t edges);
+
 private:
-	int8_t edgeAccumulator; // Leftover edges from applyEdges() that haven't yet formed a tick.
-	bool doDetents;
+	int8_t edgeAccumulator = 0;
+};
+
+/// Black function encoders (SCROLL_X/Y, TEMPO, SELECT): detented, dispatch clamped UI actions.
+class DetentedEncoder : public EncoderBase {
+public:
+	DetentedEncoder() = default;
+
+	/// Fold edges into detentPos.
+	void applyEdges(int8_t edges);
+
+	/// Returns ±1 and resets detentPos to 0.
+	int32_t getLimitedDetentPosAndReset();
+
+	/// Number of full detent steps accumulated since the last consumer read.
+	int8_t detentPos = 0;
+};
+
+/// Gold mod encoders (MOD_0, MOD_1): continuous, accumulate raw ticks for velocity.
+class ContinuousEncoder : public EncoderBase {
+public:
+	ContinuousEncoder() = default;
+
+	/// Fold edges into encPos.
+	void applyEdges(int8_t edges);
+
+	/// Raw tick count accumulated since the last consumer read.
+	int8_t encPos = 0;
 };
 
 } // namespace deluge::hid::encoders

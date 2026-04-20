@@ -17,23 +17,7 @@
 
 #include "hid/encoders.h"
 #include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
-#include "definitions_cxx.hpp"
-#include "extern.h"
-#include "gui/ui/ui.h"
-#include "gui/views/automation_view.h"
-#include "gui/views/instrument_clip_view.h"
-#include "hid/buttons.h"
-#include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
-#include "model/action/action_logger.h"
-#include "model/settings/runtime_feature_settings.h"
-#include "model/song/song.h"
-#include "playback/playback_handler.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/stem_export/stem_export.h"
-#include "util/functions.h"
 #include <atomic>
-#include <new>
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
@@ -42,12 +26,11 @@ extern "C" {
 
 namespace deluge::hid::encoders {
 
-std::array<Encoder, util::to_underlying(EncoderName::MAX_ENCODER)> encoders = {};
-extern uint32_t timeModEncoderLastTurned[];
-uint32_t timeModEncoderLastTurned[2];
-int8_t modEncoderInitialTurnDirection[2];
+constexpr size_t kNumFunctionEncoders = util::to_underlying(EncoderName::MAX_FUNCTION_ENCODERS);
+constexpr size_t kNumModEncoders = 2;
 
-uint32_t encodersWaitingForCardRoutineEnd;
+std::array<DetentedEncoder, kNumFunctionEncoders> functionEncoders = {};
+std::array<ContinuousEncoder, kNumModEncoders> modEncoders = {};
 
 namespace {
 constexpr size_t kNumEncoders = util::to_underlying(EncoderName::MAX_ENCODER);
@@ -112,192 +95,41 @@ void initInterrupts() {
 }
 } // namespace
 
-Encoder& getEncoder(EncoderName which) {
-	return encoders[util::to_underlying(which)];
+DetentedEncoder& getFunctionEncoder(EncoderName which) {
+	return functionEncoders[util::to_underlying(which)];
+}
+
+ContinuousEncoder& getModEncoder(int index) {
+	return modEncoders[index];
 }
 
 void init() {
-	getEncoder(EncoderName::SCROLL_X).setPins(1, 11, 1, 12);
-	getEncoder(EncoderName::TEMPO).setPins(1, 7, 1, 6);
-	getEncoder(EncoderName::MOD_0).setPins(1, 0, 1, 15);
-	getEncoder(EncoderName::MOD_1).setPins(1, 5, 1, 4);
-	getEncoder(EncoderName::SCROLL_Y).setPins(1, 8, 1, 10);
-	getEncoder(EncoderName::SELECT).setPins(1, 2, 1, 3);
-
-	getEncoder(EncoderName::MOD_0).setNonDetentMode();
-	getEncoder(EncoderName::MOD_1).setNonDetentMode();
+	// Set up pin directions for all encoders (interrupt routing handled in initInterrupts).
+	encoderSetPins(1, 11, 12); // SCROLL_X
+	encoderSetPins(1, 7, 6);   // TEMPO
+	encoderSetPins(1, 0, 15);  // MOD_0
+	encoderSetPins(1, 5, 4);   // MOD_1
+	encoderSetPins(1, 8, 10);  // SCROLL_Y
+	encoderSetPins(1, 2, 3);   // SELECT
 
 	initInterrupts();
 }
 
 void readEncoders() {
-	for (size_t i = 0; i < util::to_underlying(EncoderName::MAX_ENCODER); i++) {
+	for (size_t i = 0; i < kNumFunctionEncoders; i++) {
 		int8_t edges = encoderEdgeDeltas[i].exchange(0, std::memory_order_relaxed);
 		if (edges != 0) {
-			encoders[i].applyEdges(edges);
+			functionEncoders[i].applyEdges(edges);
 		}
 	}
-}
-
-bool interpretEncoders(bool skipActioning) {
-	// do not interpret encoders when stem export is underway
-	if (stemExport.processStarted) {
-		return false;
-	}
-
-	skipActioning |= sdRoutineLock; // if the "sd routine" is yielding then always defer actioning encoders
-	bool anything = false;
-
-	if (!skipActioning) {
-		encodersWaitingForCardRoutineEnd = 0;
-	}
-
-	for (int32_t e = 0; e < util::to_underlying(EncoderName::MAX_FUNCTION_ENCODERS); e++) {
-		auto name = static_cast<EncoderName>(e);
-		if (name != EncoderName::SCROLL_Y) {
-
-			// Basically disables all function encoders during SD routine
-			if (skipActioning && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-				continue;
-			}
-		}
-
-		if (encodersWaitingForCardRoutineEnd & (1 << e)) {
-			continue;
-		}
-
-		if (encoders[e].detentPos != 0) {
-			anything = true;
-
-			// Limit. Some functions can break if they receive bigger numbers, e.g. LoadSongUI::selectEncoderAction()
-			int32_t limitedDetentPos = encoders[e].detentPos;
-			encoders[e].detentPos = 0; // Reset. Crucial that this happens before we call selectEncoderAction()
-			if (limitedDetentPos >= 0) {
-				limitedDetentPos = 1;
-			}
-			else {
-				limitedDetentPos = -1;
-			}
-
-			ActionResult result;
-
-			switch (name) {
-
-			case EncoderName::SCROLL_X:
-				result = getCurrentUI()->horizontalEncoderAction(limitedDetentPos);
-				// Actually, after coding this up, I realise I actually have it above stopping the X encoder from even
-				// getting here during the SD routine. Ok so we'll leave it that way, in addition to me having made all
-				// the horizontalEncoderAction() calls SD-routine-safe
-checkResult:
-				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-					encodersWaitingForCardRoutineEnd |= (1 << e);
-					encoders[e].detentPos = limitedDetentPos; // Put it back for next time
-				}
-				break;
-
-			case EncoderName::SCROLL_Y:
-				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-					PadLEDs::changeDimmerInterval(limitedDetentPos);
-				}
-				else {
-					result = getCurrentUI()->verticalEncoderAction(limitedDetentPos, skipActioning);
-					goto checkResult;
-				}
-				break;
-
-			case EncoderName::TEMPO:
-				if ((getCurrentUI() == &instrumentClipView
-				     || (getCurrentUI() == &automationView && automationView.inNoteEditor()))
-				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
-				           == RuntimeFeatureStateToggle::On) {
-					instrumentClipView.tempoEncoderAction(limitedDetentPos,
-					                                      Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
-					                                      Buttons::isShiftButtonPressed());
-				}
-				else {
-					playbackHandler.tempoEncoderAction(limitedDetentPos,
-					                                   Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
-					                                   Buttons::isShiftButtonPressed());
-				}
-				break;
-
-			case EncoderName::SELECT:
-				if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
-					PadLEDs::changeRefreshTime(limitedDetentPos);
-				}
-				else if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-					if (currentSong) {
-						currentSong->changeThresholdRecordingMode(limitedDetentPos);
-					}
-				}
-				else {
-					getCurrentUI()->selectEncoderAction(limitedDetentPos);
-				}
-				break;
-
-			// explicit fallthrough cases
-			case EncoderName::MOD_0: // nothing, really?
-			case EncoderName::MAX_ENCODER:
-			case EncoderName::MAX_FUNCTION_ENCODERS:;
-			}
+	for (size_t i = 0; i < kNumModEncoders; i++) {
+		// modEncoders[0]=MOD_0 (delta index 5), modEncoders[1]=MOD_1 (delta index 4)
+		int8_t edges =
+		    encoderEdgeDeltas[util::to_underlying(EncoderName::MOD_0) - i].exchange(0, std::memory_order_relaxed);
+		if (edges != 0) {
+			modEncoders[i].applyEdges(edges);
 		}
 	}
-
-	if (!skipActioning || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-		// Mod knobs
-		for (int32_t e = 0; e < 2; e++) {
-			// check encoder 0, then encoder 1
-			auto& encoder = encoders[util::to_underlying(EncoderName::MOD_0) - e];
-
-			// If encoder turned...
-			if (encoder.encPos != 0) {
-				anything = true;
-
-				bool turnedRecently = (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[e] < kShortPressTime);
-
-				// If it was turned recently...
-				if (turnedRecently) {
-
-					// Mark as turned recently again. Must do this before the encoder-action gets invoked below, because
-					// that might want to reset this
-					timeModEncoderLastTurned[e] = AudioEngine::audioSampleTimer;
-
-					// Do it, only if
-					if (encoder.encPos + modEncoderInitialTurnDirection[e] != 0) {
-						getCurrentUI()->modEncoderAction(e, encoder.encPos);
-						modEncoderInitialTurnDirection[e] = 0;
-					}
-
-					// Otherwise, write this off as an accidental wiggle
-					else {
-						modEncoderInitialTurnDirection[e] = encoder.encPos;
-					}
-				}
-
-				// Or if it wasn't turned recently, it's going to get marked as turned recently now, but remember what
-				// direction we came, so that if we go back that direction again we can write it off as an accidental
-				// wiggle
-				else {
-
-					// If the other one also hasn't been turned for a while...
-					bool otherTurnedRecently =
-					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < kShortPressTime);
-					if (!otherTurnedRecently) {
-						actionLogger.closeAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
-					}
-
-					modEncoderInitialTurnDirection[e] = encoder.encPos;
-
-					// Mark as turned recently
-					timeModEncoderLastTurned[e] = AudioEngine::audioSampleTimer;
-				}
-
-				encoder.encPos = 0;
-			}
-		}
-	}
-
-	return anything;
 }
 
 } // namespace deluge::hid::encoders

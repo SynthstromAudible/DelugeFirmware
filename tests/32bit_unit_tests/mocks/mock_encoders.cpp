@@ -1,20 +1,20 @@
 #include "hid/encoder.h"
+#include "hid/encoder_input.h"
 #include "hid/encoders.h"
 #include "mock_defines.h"
 #include "util/misc.h"
 
 namespace deluge::hid::encoders {
 
-Encoder encoders[NUM_ENCODERS] = {};
+std::array<DetentedEncoder, NUM_FUNCTION_ENCODERS> functionEncoders = {};
+std::array<ContinuousEncoder, 2> modEncoders = {};
 uint32_t timeModEncoderLastTurned[2];
-int8_t modEncoderInitialTurnDirection[2];
 
-uint32_t timeNextSDTestAction = 0;
-int32_t nextSDTestDirection = 1;
+DetentedEncoder& getFunctionEncoder(EncoderName which) {
+	return functionEncoders[util::to_underlying(which)];
+}
 
-uint32_t encodersWaitingForCardRoutineEnd;
-
-Encoder& getEncoder(EncoderName which) {
-	return encoders[util::to_underlying(which)];
+ContinuousEncoder& getModEncoder(int index) {
+	return modEncoders[index];
 }
 } // namespace deluge::hid::encoders

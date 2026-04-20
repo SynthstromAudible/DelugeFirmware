@@ -16,50 +16,48 @@
  */
 
 #include "hid/encoder.h"
-#include "processing/engines/audio_engine.h"
-
-using deluge::hid::encoders::Encoder;
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
 }
 
-Encoder::Encoder() {
-	encPos = 0;
-	detentPos = 0;
-	edgeAccumulator = 0;
-	doDetents = true;
+namespace deluge::hid::encoders {
+
+void encoderSetPins(uint8_t port, uint8_t pinA, uint8_t pinB) {
+	setPinAsInput(port, pinA);
+	setPinAsInput(port, pinB);
 }
 
-void Encoder::setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New) {
-	setPinAsInput(pinA1New, pinA2New);
-	setPinAsInput(pinB1New, pinB2New);
-}
-
-void Encoder::setNonDetentMode() {
-	doDetents = false;
-}
-
-void Encoder::applyEdges(int8_t edges) {
+int8_t EncoderBase::edgesToTicks(int8_t edges) {
 	if (edges == 0) {
-		return;
+		return 0;
 	}
-	// Two A-pin edges per quadrature cycle, one quadrature cycle per detent click on the
-	// Deluge encoders. Same halving as the embassy `take_detents()` does.
+	// Two A-pin edges per quadrature cycle, one quadrature cycle per detent click on
+	// the Deluge encoders. Same halving as the embassy `take_detents()` does.
 	edgeAccumulator += edges;
 	int8_t ticks = edgeAccumulator / 2;
-	if (ticks == 0) {
-		return;
-	}
 	edgeAccumulator -= ticks * 2;
-	if (doDetents) {
-		detentPos += ticks;
-	}
-	encPos += ticks;
+	return ticks;
 }
 
-int32_t Encoder::getLimitedDetentPosAndReset() {
+void DetentedEncoder::applyEdges(int8_t edges) {
+	int8_t ticks = edgesToTicks(edges);
+	if (ticks != 0) {
+		detentPos += ticks;
+	}
+}
+
+int32_t DetentedEncoder::getLimitedDetentPosAndReset() {
 	int32_t toReturn = (detentPos >= 0) ? 1 : -1;
 	detentPos = 0;
 	return toReturn;
 }
+
+void ContinuousEncoder::applyEdges(int8_t edges) {
+	int8_t ticks = edgesToTicks(edges);
+	if (ticks != 0) {
+		encPos += ticks;
+	}
+}
+
+} // namespace deluge::hid::encoders
