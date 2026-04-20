@@ -28,6 +28,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
+#include "hid/display/visualizer.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/action/action_logger.h"
@@ -787,6 +788,9 @@ void KeyboardScreen::displayOrLanguageChanged() {
 void KeyboardScreen::openedInBackground() {
 	getCurrentInstrumentClip()->onKeyboardScreen = true;
 
+	// Set current clip for visualizer when entering keyboard screen
+	deluge::hid::display::Visualizer::trySetClipForVisualizer(getCurrentInstrumentClip());
+
 	// Ensure scroll values are calculated in bounds
 	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads,
 	                                                                                              xEncoderActive);
@@ -937,6 +941,9 @@ void KeyboardScreen::graphicsRoutine() {
 	}
 
 	keyboardTickSquares[kDisplayHeight - 1] = newTickSquare;
+
+	// Request OLED refresh for visualizer if active (ensures continuous updates)
+	deluge::hid::display::Visualizer::requestVisualizerUpdateIfNeeded();
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
 }
