@@ -32,6 +32,16 @@ void clearIRQInterrupt(int irqNumber) {
 	}
 }
 
+void setIRQInterruptBothEdges(int irqNumber) {
+	// ICR1 holds two mode bits per IRQn channel (00=low level, 01=falling,
+	// 10=rising, 11=both-edge).
+	uint16_t shift = (uint16_t)(irqNumber * 2);
+	uint16_t mask = (uint16_t)(0x3u << shift);
+	uint16_t val = INTC.ICR1;
+	val = (uint16_t)((val & ~mask) | (0x3u << shift));
+	INTC.ICR1 = val;
+}
+
 void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint32_t intSense), uint8_t priority) {
 	disableTimer(timerNo);
 	*TCNT[timerNo] = 0u;
