@@ -7,6 +7,7 @@
 #include "midi_engine_mocks.h"
 #include "model/tuning/tuning.h"
 #include "model/tuning/tuning_sysex.h"
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -277,38 +278,31 @@ void check_note_frequency(int noteCode, double expected) {
 	auto nwo = tuning->noteWithinOctave(noteCode);
 	auto phaseIncrement = tuning->noteFrequency(nwo);
 	auto freq = phaseIncrementToFrequency(phaseIncrement);
-	DOUBLES_EQUAL(expected, freq, 0.005);
+	// less precision is expected for higher frequencies
+	auto precision = 0.00001 * std::pow(10, std::log10(expected));
+	DOUBLES_EQUAL(expected, freq, precision);
 }
 
 TEST(TestTuningSystem, TestMidiFrequencies) {
 	TuningSystem::select(0);
 	tuning = TuningSystem::tuning;
 
-	check_note_frequency(57, 220.0);            // A3
-	check_note_frequency(58, 233.08188075904);
-	check_note_frequency(59, 246.94165062806);
-	check_note_frequency(60, 261.62556530059); // middle C
-	check_note_frequency(61, 277.18263097687);
-	check_note_frequency(62, 293.66476791740);
-	check_note_frequency(63, 311.12698372208);
-	check_note_frequency(64, 329.62755691287);
-	check_note_frequency(65, 349.22823143300);
-	check_note_frequency(66, 369.99442271163);
-	check_note_frequency(67, 391.99543598174);
-	check_note_frequency(68, 415.30469757994);
-	check_note_frequency(69, 440.0);            // A above middle C
-	check_note_frequency(70, 466.16376151809);
-	check_note_frequency(71, 493.88330125612);
-	check_note_frequency(72, 523.25113060119); // C5
-	check_note_frequency(73, 554.36526195374);
-	check_note_frequency(74, 587.32953583481);
-	check_note_frequency(75, 622.25396744416);
-	check_note_frequency(76, 659.25511382574);
-	check_note_frequency(77, 698.45646286600);
-	check_note_frequency(78, 739.98884542326);
-	check_note_frequency(79, 783.99087196349);
-	check_note_frequency(80, 830.60939515989);
-	check_note_frequency(81, 880.0);            // A5
+	double equal_frequencies[] = {
+		   8.1758,    8.6620,    9.1770,    9.7227,    10.3009,    10.9134,    11.5623,    12.2499,   12.9783,   13.7500,   14.5676,   15.4339,
+		  16.3516,   17.3239,   18.3540,   19.4454,    20.6017,    21.8268,    23.1247,    24.4997,   25.9565,   27.5000,   29.1352,   30.8677,
+		  32.7032,   34.6478,   36.7081,   38.8909,    41.2034,    43.6535,    46.2493,    48.9994,   51.9131,   55.0000,   58.2705,   61.7354,
+		  65.4064,   69.2957,   73.4162,   77.7817,    82.4069,    87.3071,    92.4986,    97.9989,  103.8262,  110.0000,  116.5409,  123.4708,
+		 130.8128,  138.5913,  146.8324,  155.5635,   164.8138,   174.6141,   184.9972,   195.9977,  207.6523,  220.0000,  233.0819,  246.9417,
+		 261.6256,  277.1826,  293.6648,  311.1270,   329.6276,   349.2282,   369.9944,   391.9954,  415.3047,  440.0000,  466.1638,  493.8833,
+		 523.2511,  554.3653,  587.3295,  622.2540,   659.2551,   698.4565,   739.9888,   783.9909,  830.6094,  880.0000,  932.3275,  987.7666,
+		1046.5023, 1108.7305, 1174.6591, 1244.5079,  1318.5102,  1396.9129,  1479.9777,  1567.9817, 1661.2188, 1760.0000, 1864.6550, 1975.5332,
+		2093.0045, 2217.4610, 2349.3181, 2489.0159,  2637.0205,  2793.8259,  2959.9554,  3135.9635, 3322.4376, 3520.0000, 3729.3101, 3951.0664,
+		4186.0090, 4434.9221, 4698.6363, 4978.0317,  5274.0409,  5587.6517,  5919.9108,  6271.9270, 6644.8752, 7040.0000, 7458.6202, 7902.1328,
+		8372.0181, 8869.8442, 9397.2726, 9956.0635, 10548.0818, 11175.3034, 11839.8215, 12543.8540,
+	};
+	for (int i = 0; i < 128; i++) {
+		check_note_frequency(i, equal_frequencies[i]);
+	}
 
 	TuningSystem::select(1);
 	tuning = TuningSystem::tuning;
@@ -318,31 +312,20 @@ TEST(TestTuningSystem, TestMidiFrequencies) {
 	for (int i = 0; i < 12; i++) {
 		tuning->setOffset((i + 9) % 12, justs[i]);
 	}
-
-	check_note_frequency(57, 220.0000);
-	check_note_frequency(58, 234.6667);
-	check_note_frequency(59, 247.5000);
-	check_note_frequency(60, 264.0000);
-	check_note_frequency(61, 275.0000);
-	check_note_frequency(62, 293.3333);
-	check_note_frequency(63, 309.3750);
-	check_note_frequency(64, 330.0000);
-	check_note_frequency(65, 352.0000);
-	check_note_frequency(66, 366.6667);
-	check_note_frequency(67, 396.0000);
-	check_note_frequency(68, 412.5000);
-	check_note_frequency(69, 440.0000);
-	check_note_frequency(70, 469.3333);
-	check_note_frequency(71, 495.0000);
-	check_note_frequency(72, 528.0000);
-	check_note_frequency(73, 550.0000);
-	check_note_frequency(74, 586.6667);
-	check_note_frequency(75, 618.7500);
-	check_note_frequency(76, 660.0000);
-	check_note_frequency(77, 704.0000);
-	check_note_frequency(78, 733.3333);
-	check_note_frequency(79, 792.0000);
-	check_note_frequency(80, 825.0000);
-	check_note_frequency(81, 880.0000);
-
+	double just_frequencies[] = {
+		   8.2500,    8.5938,    9.1667,    9.6680,    10.3125,    11.0000,    11.4583,    12.3750,   12.8906,   13.7500,   14.6667,   15.4688,
+		  16.5000,   17.1875,   18.3333,   19.3359,    20.6250,    22.0000,    22.9167,    24.7500,   25.7813,   27.5000,   29.3333,   30.9375,
+		  33.0000,   34.3750,   36.6667,   38.6719,    41.2500,    44.0000,    45.8333,    49.5000,   51.5625,   55.0000,   58.6667,   61.8750,
+		  66.0000,   68.7500,   73.3333,   77.3438,    82.5000,    88.0000,    91.6667,    99.0000,  103.1250,  110.0000,  117.3333,  123.7500,
+		 132.0000,  137.5000,  146.6667,  154.6875,   165.0000,   176.0000,   183.3333,   198.0000,  206.2500,  220.0000,  234.6667,  247.5000,
+		 264.0000,  275.0000,  293.3333,  309.3750,   330.0000,   352.0000,   366.6667,   396.0000,  412.5000,  440.0000,  469.3333,  495.0000,
+		 528.0000,  550.0000,  586.6667,  618.7500,   660.0000,   704.0000,   733.3333,   792.0000,  825.0000,  880.0000,  938.6667,  990.0000,
+		1056.0000, 1100.0000, 1173.3333, 1237.5000,  1320.0000,  1408.0000,  1466.6667,  1584.0000, 1650.0000, 1760.0000, 1877.3333, 1980.0000,
+		2112.0000, 2200.0000, 2346.6667, 2475.0000,  2640.0000,  2816.0000,  2933.3333,  3168.0000, 3300.0000, 3520.0000, 3754.6667, 3960.0000,
+		4224.0000, 4400.0000, 4693.3333, 4950.0000,  5280.0000,  5632.0000,  5866.6667,  6336.0000, 6600.0000, 7040.0000, 7509.3333, 7920.0000,
+		8448.0000, 8800.0000, 9386.6667, 9900.0000, 10560.0000, 11264.0000, 11733.3333, 12672.0000,
+	};
+	for (int i = 0; i < 128; i++) {
+		check_note_frequency(i, just_frequencies[i]);
+	}
 };
