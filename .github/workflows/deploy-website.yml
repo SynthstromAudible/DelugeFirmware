@@ -105,7 +105,7 @@ jobs:
           name: doxygen-artifact
           path: website/dist/doxygen
       - name: Upload artifact to GitHub Pages
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: website/dist
       - name: Deploy to GitHub Pages
