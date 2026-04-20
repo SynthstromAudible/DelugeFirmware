@@ -273,13 +273,76 @@ double phaseIncrementToFrequency(int phaseIncrement) {
 	return phaseIncrement * 44100.0 / (double)0x1.p32;
 }
 
-TEST(TestTuningSystem, TestMidi) {
-	TuningSystem::select(0);
-	tuning = TuningSystem::tuning;
-
-	int noteCode = 69; // A above middle C
+void check_note_frequency(int noteCode, double expected) {
 	auto nwo = tuning->noteWithinOctave(noteCode);
 	auto phaseIncrement = tuning->noteFrequency(nwo);
 	auto freq = phaseIncrementToFrequency(phaseIncrement);
-	DOUBLES_EQUAL(440.0, freq, 0.000005);
+	DOUBLES_EQUAL(expected, freq, 0.005);
+}
+
+TEST(TestTuningSystem, TestMidiFrequencies) {
+	TuningSystem::select(0);
+	tuning = TuningSystem::tuning;
+
+	check_note_frequency(57, 220.0);            // A3
+	check_note_frequency(58, 233.08188075904);
+	check_note_frequency(59, 246.94165062806);
+	check_note_frequency(60, 261.62556530059); // middle C
+	check_note_frequency(61, 277.18263097687);
+	check_note_frequency(62, 293.66476791740);
+	check_note_frequency(63, 311.12698372208);
+	check_note_frequency(64, 329.62755691287);
+	check_note_frequency(65, 349.22823143300);
+	check_note_frequency(66, 369.99442271163);
+	check_note_frequency(67, 391.99543598174);
+	check_note_frequency(68, 415.30469757994);
+	check_note_frequency(69, 440.0);            // A above middle C
+	check_note_frequency(70, 466.16376151809);
+	check_note_frequency(71, 493.88330125612);
+	check_note_frequency(72, 523.25113060119); // C5
+	check_note_frequency(73, 554.36526195374);
+	check_note_frequency(74, 587.32953583481);
+	check_note_frequency(75, 622.25396744416);
+	check_note_frequency(76, 659.25511382574);
+	check_note_frequency(77, 698.45646286600);
+	check_note_frequency(78, 739.98884542326);
+	check_note_frequency(79, 783.99087196349);
+	check_note_frequency(80, 830.60939515989);
+	check_note_frequency(81, 880.0);            // A5
+
+	TuningSystem::select(1);
+	tuning = TuningSystem::tuning;
+
+	// check frequencies against a variation of just intonation
+	int justs[] = { 0, 1173, 391, 1564, -1369, -196, -978, 196, 1369, -1564, 1760, -1173 };
+	for (int i = 0; i < 12; i++) {
+		tuning->setOffset((i + 9) % 12, justs[i]);
+	}
+
+	check_note_frequency(57, 220.0000);
+	check_note_frequency(58, 234.6667);
+	check_note_frequency(59, 247.5000);
+	check_note_frequency(60, 264.0000);
+	check_note_frequency(61, 275.0000);
+	check_note_frequency(62, 293.3333);
+	check_note_frequency(63, 309.3750);
+	check_note_frequency(64, 330.0000);
+	check_note_frequency(65, 352.0000);
+	check_note_frequency(66, 366.6667);
+	check_note_frequency(67, 396.0000);
+	check_note_frequency(68, 412.5000);
+	check_note_frequency(69, 440.0000);
+	check_note_frequency(70, 469.3333);
+	check_note_frequency(71, 495.0000);
+	check_note_frequency(72, 528.0000);
+	check_note_frequency(73, 550.0000);
+	check_note_frequency(74, 586.6667);
+	check_note_frequency(75, 618.7500);
+	check_note_frequency(76, 660.0000);
+	check_note_frequency(77, 704.0000);
+	check_note_frequency(78, 733.3333);
+	check_note_frequency(79, 792.0000);
+	check_note_frequency(80, 825.0000);
+	check_note_frequency(81, 880.0000);
+
 };
