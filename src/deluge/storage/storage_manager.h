@@ -63,6 +63,7 @@ public:
 
 	FRESULT closeWriter();
 
+	bool readLine(char* thisLine);
 	bool peekChar(char* thisChar);
 	bool readChar(char* thisChar);
 	uint32_t bytesRemainingInBuffer() { return currentReadBufferEndPos - fileReadBufferCurrentPos; }
@@ -349,10 +350,14 @@ private:
 	Error readStringUntilChar(String* string, char endChar);
 };
 
+#include "ScalaReader.h"
+
 extern XMLSerializer smSerializer;
 extern XMLDeserializer smDeserializer;
 extern JsonSerializer smJsonSerializer;
 extern JsonDeserializer smJsonDeserializer;
+// TODO extern ScalaSerializer smScalaSerializer;
+extern ScalaReader smScalaReader;
 extern Serializer& GetSerializer();
 extern FileDeserializer* activeDeserializer;
 
@@ -368,6 +373,7 @@ Error openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char cons
                    char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 Error openDelugeFile(FileItem* currentFileItem, char const* firstTagName, char const* altTagName = "",
                      bool ignoreIncorrectFirmware = false);
+Error openScalaFile(FilePointer* filePointer, ScalaReader& reader, const char* name);
 Error initSD();
 
 bool fileExists(char const* pathName);

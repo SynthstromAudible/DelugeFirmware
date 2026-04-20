@@ -250,6 +250,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 
 bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 	bool shouldSendPGMs;
+	bool shouldSendTuning;
 	if (modelStack) {
 		InstrumentClip* newInstrumentClip = (InstrumentClip*)modelStack->getTimelineCounter();
 		InstrumentClip* oldInstrumentClip = (InstrumentClip*)activeClip;
@@ -258,6 +259,9 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 		                  && (newInstrumentClip->midiPGM != oldInstrumentClip->midiPGM
 		                      || newInstrumentClip->midiSub != oldInstrumentClip->midiSub
 		                      || newInstrumentClip->midiBank != oldInstrumentClip->midiBank));
+
+		shouldSendTuning = (activeClip && activeClip != newInstrumentClip
+		                    && newInstrumentClip->selectedTuning != oldInstrumentClip->selectedTuning);
 	}
 	else {
 		shouldSendPGMs = false;
@@ -266,6 +270,9 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 
 	if (shouldSendPGMs) {
 		sendMIDIPGM();
+	}
+	if (shouldSendPGMs) {
+		sendMIDITuning();
 	}
 	if (clipChanged) {
 		if (modelStack) {
@@ -292,6 +299,12 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 void MIDIInstrument::sendMIDIPGM() {
 	if (activeClip) {
 		((InstrumentClip*)activeClip)->sendMIDIPGM();
+	}
+}
+
+void MIDIInstrument::sendMIDITuning() {
+	if (activeClip) {
+		((InstrumentClip*)activeClip)->sendMIDITuning();
 	}
 }
 

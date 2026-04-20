@@ -28,6 +28,7 @@
 #include "io/midi/sysex.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
+#include "model/tuning/tuning_sysex.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/smsysex.h"
@@ -130,6 +131,20 @@ void MidiEngine::sendSubBank(MIDISource source, int32_t channel, int32_t num, in
 
 void MidiEngine::sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter) {
 	sendMidi(source, MIDIMessage::programChange(channel, pgm), filter);
+}
+
+void MidiEngine::sendRPN(MIDISource source, int32_t channel, int32_t rpn, int32_t value, int32_t filter) {
+	auto rpn_msb = (rpn >> 7) & 0x7f;
+	auto rpn_lsb = rpn & 0x7f;
+	auto value_lsb = value & 0x7f;
+	auto value_msb = (value >> 7) & 0x7f;
+	sendMidi(source, MIDIMessage::cc(channel, 100, rpn_lsb), filter);
+	sendMidi(source, MIDIMessage::cc(channel, 101, rpn_msb), filter);
+	sendMidi(source, MIDIMessage::cc(channel, 6, value_lsb), filter);
+	sendMidi(source, MIDIMessage::cc(channel, 38, value_msb), filter);
+	// deselect RPN
+	sendMidi(source, MIDIMessage::cc(channel, 0x7f, rpn_lsb), filter);
+	sendMidi(source, MIDIMessage::cc(channel, 0x7f, rpn_msb), filter);
 }
 
 void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter) {
@@ -238,24 +253,33 @@ void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len)
 	}
 	unsigned payloadOffset = 2;
 	// Non-real time universal SysEx broadcast
-	if (data[1] == SysEx::SYSEX_UNIVERSAL_NONRT && data[2] == 0x7f) {
-		// Identity request
-		if (data[3] == SysEx::SYSEX_UNIVERSAL_IDENTITY && data[4] == 0x01) {
-			const uint8_t reply[] = {
-			    SysEx::SYSEX_START, SysEx::SYSEX_UNIVERSAL_NONRT,
-			    0x7f, // Device channel, we don't have one yet
-			    SysEx::SYSEX_UNIVERSAL_IDENTITY, 0x02,
-			    // Manufacturer ID
-			    SysEx::DELUGE_SYSEX_ID_BYTE0, SysEx::DELUGE_SYSEX_ID_BYTE1, SysEx::DELUGE_SYSEX_ID_BYTE2,
-			    // 14bit device family LSB, MSB
-			    SysEx::DELUGE_SYSEX_ID_BYTE3, 0,
-			    // 14bit device family member LSB, MSB
-			    0, 0,
-			    // Four byte firmware version in human readable order
-			    FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH, 0, SysEx::SYSEX_END};
-			cable.sendSysex(reply, sizeof(reply));
+	if (data[1] == SysEx::SYSEX_UNIVERSAL_NONRT) {
+		// Any device ID
+		if (data[2] == 0x7f) {
+			// Identity request
+			if (data[3] == SysEx::SYSEX_UNIVERSAL_IDENTITY && data[4] == 0x01) {
+				const uint8_t reply[] = {
+				    SysEx::SYSEX_START, SysEx::SYSEX_UNIVERSAL_NONRT,
+				    0x7f, // Device channel, we don't have one yet
+				    SysEx::SYSEX_UNIVERSAL_IDENTITY, 0x02,
+				    // Manufacturer ID
+				    SysEx::DELUGE_SYSEX_ID_BYTE0, SysEx::DELUGE_SYSEX_ID_BYTE1, SysEx::DELUGE_SYSEX_ID_BYTE2,
+				    // 14bit device family LSB, MSB
+				    SysEx::DELUGE_SYSEX_ID_BYTE3, 0,
+				    // 14bit device family member LSB, MSB
+				    0, 0,
+				    // Four byte firmware version in human readable order
+				    FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH, 0, SysEx::SYSEX_END};
+				cable.sendSysex(reply, sizeof(reply));
+			}
+			return;
 		}
-		return;
+
+		// Ignore device ID
+		if (data[3] == SysEx::SYSEX_MIDI_TUNING_STANDARD) {
+			// forward the message to TuningSysex
+			TuningSysex::sysexReceived(cable, data, len);
+		}
 	}
 
 	if (data[1] == SysEx::DELUGE_SYSEX_ID_BYTE0 && data[2] == SysEx::DELUGE_SYSEX_ID_BYTE1

@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/tuning/octave.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -66,7 +67,7 @@ PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_librar
 PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
 
-KeyboardScreen::KeyboardScreen() {
+KeyboardScreen::KeyboardScreen() : maxLastNoteCount(0) {
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = &keyboard_layout_isomorphic;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeInKey] = &keyboard_layout_in_key;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypePiano] = &keyboard_layout_piano;
@@ -365,7 +366,15 @@ void KeyboardScreen::updateActiveNotes() {
 		noteOff(*modelStack, *activeInstrument, clipIsActiveOnInstrument, oldNote);
 	}
 
+	maxLastNoteCount = std::max(lastNotesState.count, maxLastNoteCount);
+
 	if (lastNotesState.count != 0 && currentNotesState.count == 0) {
+		if (getCurrentUI() == &soundEditor
+		    && soundEditor.getCurrentMenuItem() == &menu_item::tuning::octaveTuningMenu) {
+			if (maxLastNoteCount == 1) {
+				menu_item::tuning::octaveTuningMenu.selectNote(lastNotesState.notes[0].note);
+			}
+		}
 		exitUIMode(UI_MODE_AUDITIONING);
 
 		if (display->haveOLED()) {
@@ -374,6 +383,7 @@ void KeyboardScreen::updateActiveNotes() {
 		else {
 			redrawNumericDisplay();
 		}
+		maxLastNoteCount = 0;
 	}
 }
 
