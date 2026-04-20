@@ -19,7 +19,6 @@
 #define DELUGE_TIMERS_INTERRUPTS_H
 
 #include "RZA1/system/r_typedefs.h"
-#include "stdatomic.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

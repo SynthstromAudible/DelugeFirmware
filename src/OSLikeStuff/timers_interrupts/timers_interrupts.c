@@ -16,10 +16,12 @@
  */
 
 #include "timers_interrupts.h"
+
 #include "RZA1/system/r_typedefs.h"
 #include "RZA1/uart/sio_char.h"
 #include "deluge/deluge.h"
 #include "deluge/drivers/mtu/mtu.h"
+#include "stdatomic.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
