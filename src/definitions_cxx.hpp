@@ -24,12 +24,6 @@
 #include <cstdint>
 #include <cstdio>
 
-#define HARDWARE_TEST_MODE 0
-
-#define AUTOMATED_TESTER_ENABLED (0 && ALPHA_OR_BETA_VERSION)
-
-#define ALLOW_SPAM_MODE 0 // For debugging (in buttons.cpp, audio_engine.cpp, deluge.cpp)
-
 #if ALPHA_OR_BETA_VERSION
 // #define TEST_VECTOR 1
 // #define TEST_VECTOR_SEARCH_MULTIPLE 1
@@ -38,14 +32,6 @@
 // #define TEST_SD_WRITE 1
 // #define TEST_SAMPLE_LOOP_POINTS 1
 #endif
-
-#define SD_TEST_MODE_ENABLED 0
-#define SD_TEST_MODE_ENABLED_LOAD_SONGS 0
-#define SD_TEST_MODE_ENABLED_SAVE_SONGS 0
-#define UNDO_REDO_TEST_ENABLED 0
-#define RECORDING_TEST_ENABLED 0
-#define AUTOPILOT_TEST_ENABLED 0
-#define LAUNCH_CLIP_TEST_ENABLED 0
 
 #define PLAYBACK_STOP_SHOULD_CLEAR_MONO_EXPRESSION 1
 

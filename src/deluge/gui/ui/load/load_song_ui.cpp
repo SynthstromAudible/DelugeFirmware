@@ -111,11 +111,6 @@ gotError:
 		goto gotError;
 	}
 
-#if SD_TEST_MODE_ENABLED_LOAD_SONGS
-	currentSlot = (currentSlot + 1) % 19;
-	currentSubSlot = (currentSlot == 0) ? 0 : -1;
-#endif
-
 	focusRegained();
 
 	PadLEDs::vertical::setupScroll(1, false);
