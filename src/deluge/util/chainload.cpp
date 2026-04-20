@@ -36,7 +36,7 @@ void chainload_from_buf(uint8_t* buffer, int buf_size) {
 
 	// Disable interrupts so we don't get interrupted during the chainload
 #if defined(__arm__)
-	DISABLE_ALL_INTERRUPTS();
+	ENTER_CRITICAL_SECTION();
 #endif
 	// Disable timers
 	disableTimer(TIMER_MIDI_GATE_OUTPUT);

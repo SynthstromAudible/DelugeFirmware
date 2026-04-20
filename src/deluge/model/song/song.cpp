@@ -2419,12 +2419,12 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 
 		bool isClipActiveNow =
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
-		DISABLE_ALL_INTERRUPTS();
+		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
 			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
 			                     !isClipActiveNow, isClipActiveNow);
 		}
-		ENABLE_INTERRUPTS();
+		EXIT_CRITICAL_SECTION();
 #if DO_AUDIO_LOG
 		char buf[64];
 		snprintf(buf, sizeof(buf), "complete: %s", output->name.get());

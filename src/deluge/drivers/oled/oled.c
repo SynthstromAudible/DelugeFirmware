@@ -132,7 +132,7 @@ void enqueueSPITransfer(int32_t destinationId, union SpiTransferData image) {
 		return;
 	}
 
-	DISABLE_ALL_INTERRUPTS();
+	ENTER_CRITICAL_SECTION();
 	// First check there isn't already an identical transfer enqueued.
 	auto current_item = spiTransferQueue[spiTransferQueueReadPos];
 	if (equals(destinationId, image, current_item)) {
@@ -178,7 +178,7 @@ void enqueueSPITransfer(int32_t destinationId, union SpiTransferData image) {
 		sendSPITransferFromQueue();
 	}
 exit:
-	ENABLE_INTERRUPTS();
+	EXIT_CRITICAL_SECTION();
 	return;
 }
 

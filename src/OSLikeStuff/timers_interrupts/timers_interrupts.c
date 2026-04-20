@@ -24,7 +24,38 @@
 extern "C" {
 #endif
 
-atomic_int interrupt_depth = 0;
+atomic_int critical_section_depth = 0;
+
+void ENTER_CRITICAL_SECTION() {
+	atomic_int expected = 0;
+	atomic_int desired = 1;
+	// if we go from 0 to 1 then we need to issue the barrier instructions, otherwise just increment depth
+	if (atomic_compare_exchange_strong(&critical_section_depth, &expected, desired)) {
+		// memory creates a memory barrier in GCC to avoid reordering
+		// http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html#ss5.3
+		__asm volatile("CPSID i" ::: "memory");
+		__asm volatile("DSB");
+		__asm volatile("ISB");
+	}
+	else {
+		critical_section_depth++;
+	}
+}
+
+void EXIT_CRITICAL_SECTION() {
+
+	/// if the section depth is greater than 0 then we are guaranteed to be in a critical section and therefore
+	/// can't have a toctou issue here
+	if (critical_section_depth > 0) {
+		atomic_fetch_sub(&critical_section_depth, 1);
+		if (critical_section_depth == 0) {
+			__asm volatile("CPSIE i" ::: "memory");
+			__asm volatile("DSB");
+			__asm volatile("ISB");
+		}
+	}
+}
+
 void clearIRQInterrupt(int irqNumber) {
 	uint16_t flagRead = INTC.IRQRR.WORD;
 	if (flagRead & (1 << irqNumber)) {
