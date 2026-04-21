@@ -27,84 +27,35 @@ extern "C" {
 Encoder::Encoder() {
 	encPos = 0;
 	detentPos = 0;
-	encLastChange = 0;
-	pinALastSwitch = 1;
-	pinBLastSwitch = 1;
-	pinALastRead = 1;
-	pinBLastRead = 1;
+	edgeAccumulator = 0;
 	doDetents = true;
-	valuesNow[0] = true;
-	valuesNow[1] = true;
-}
-
-void Encoder::read() {
-	bool pinANewVal = readInput(portA, pinA);
-	bool pinBNewVal = readInput(portB, pinB);
-
-	// If they've both changed...
-	if (pinANewVal != pinALastSwitch && pinBNewVal != pinBLastSwitch) {
-
-		int32_t change = 0;
-
-		// Had pin A changed first?
-		if (pinALastRead != pinALastSwitch) {
-			change = (pinALastSwitch == pinBLastSwitch) ? -1 : 1;
-			pinALastSwitch = pinANewVal;
-		}
-
-		// Or had pin B changed first?
-		else if (pinBLastRead != pinBLastSwitch) {
-			change = (pinALastSwitch == pinBLastSwitch) ? 1 : -1;
-			pinBLastSwitch = pinBNewVal;
-		}
-
-		// Or if they both changed at the same time
-		else {
-
-			// If detents, we have to do a thing to ensure we don't end up "in between" detents
-			if (doDetents) {
-				change = (encLastChange >= 0) ? 2 : -2;
-			}
-			pinALastSwitch = pinANewVal;
-			pinBLastSwitch = pinBNewVal;
-		}
-
-		if (change != 0) {
-
-			encPos += change;
-
-			if (doDetents) {
-				while (encPos > 2) {
-					encPos -= 4;
-					detentPos += 1;
-				}
-
-				while (encPos < -2) {
-					encPos += 4;
-					detentPos -= 1;
-				}
-			}
-			encLastChange = change;
-		}
-	}
-
-	pinALastRead = pinANewVal;
-	pinBLastRead = pinBNewVal;
 }
 
 void Encoder::setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New) {
-	portA = pinA1New;
-	pinA = pinA2New;
-	portB = pinB1New;
-	pinB = pinB2New;
-	setPinAsInput(portA, pinA);
-	setPinAsInput(portB, pinB);
+	setPinAsInput(pinA1New, pinA2New);
+	setPinAsInput(pinB1New, pinB2New);
 }
 
 void Encoder::setNonDetentMode() {
 	doDetents = false;
-	pinALastSwitch = readInput(portA, pinA);
-	pinBLastSwitch = readInput(portB, pinB);
+}
+
+void Encoder::applyEdges(int8_t edges) {
+	if (edges == 0) {
+		return;
+	}
+	// Two A-pin edges per quadrature cycle, one quadrature cycle per detent click on the
+	// Deluge encoders. Same halving as the embassy `take_detents()` does.
+	edgeAccumulator += edges;
+	int8_t ticks = edgeAccumulator / 2;
+	if (ticks == 0) {
+		return;
+	}
+	edgeAccumulator -= ticks * 2;
+	if (doDetents) {
+		detentPos += ticks;
+	}
+	encPos += ticks;
 }
 
 int32_t Encoder::getLimitedDetentPosAndReset() {

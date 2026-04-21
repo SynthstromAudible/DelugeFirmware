@@ -23,6 +23,7 @@
 void setPinMux(uint8_t p, uint8_t q, uint8_t mux);
 void setPinAsOutput(uint8_t p, uint8_t q);
 void setPinAsInput(uint8_t p, uint8_t q);
+void enableInputBuffer(uint8_t p, uint8_t q);
 uint16_t getOutputState(uint8_t p, uint8_t q);
 void setOutputState(uint8_t p, uint8_t q, uint16_t state);
 uint16_t readInput(uint8_t p, uint8_t q);

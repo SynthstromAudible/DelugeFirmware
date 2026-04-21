@@ -52,6 +52,11 @@ void setPinAsInput(uint8_t p, uint8_t q)
     ioRegSet(&GPIO.PIBC1, p, q, 1);
 }
 
+void enableInputBuffer(uint8_t p, uint8_t q)
+{
+    ioRegSet(&GPIO.PIBC1, p, q, 1);
+}
+
 void setOutputState(uint8_t p, uint8_t q, uint16_t state)
 {
     ioRegSet(&GPIO.P1, p, q, state);

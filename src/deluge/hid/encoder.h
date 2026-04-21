@@ -31,24 +31,18 @@ public:
 	Encoder& operator=(Encoder& other) = delete;
 	Encoder&& operator=(Encoder&& other) = delete;
 
-	void read();
+	/// Fold a number of A-pin edges (signed; from the IRQ accumulator) into encPos / detentPos.
+	/// Two edges = one detent step (or one raw tick for non-detent gold knobs), matching the
+	/// "1 quadrature cycle per detent" wiring on the Deluge encoders.
+	void applyEdges(int8_t edges);
 	void setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New);
 	void setNonDetentMode();
 	int32_t getLimitedDetentPosAndReset();
 	int8_t encPos;    // Keeps track of knob's position relative to centre of closest detent
 	int8_t detentPos; // Number of full detents offset since functions last dealt with
 private:
-	uint8_t portA;
-	uint8_t pinA;
-	uint8_t portB;
-	uint8_t pinB;
-	bool pinALastSwitch;
-	bool pinBLastSwitch;
-	bool pinALastRead;
-	bool pinBLastRead;
-	int8_t encLastChange; // The "change" applied on the most recently detected action on this knob. Probably 1 or -1.
+	int8_t edgeAccumulator; // Leftover edges from applyEdges() that haven't yet formed a tick.
 	bool doDetents;
-	bool valuesNow[2];
 };
 
 } // namespace deluge::hid::encoders
