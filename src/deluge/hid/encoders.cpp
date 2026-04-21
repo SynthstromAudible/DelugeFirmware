@@ -135,7 +135,7 @@ void init() {
 
 void readEncoders() {
 	for (size_t i = 0; i < util::to_underlying(EncoderName::MAX_ENCODER); i++) {
-		int8_t edges = encoderEdgeDeltas[i].exchange(0, std::memory_order_acquire);
+		int8_t edges = encoderEdgeDeltas[i].exchange(0, std::memory_order_relaxed);
 		if (edges != 0) {
 			encoders[i].applyEdges(edges);
 		}
