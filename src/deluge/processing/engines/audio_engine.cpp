@@ -72,10 +72,6 @@
 
 namespace params = deluge::modulation::params;
 
-#if AUTOMATED_TESTER_ENABLED
-#include "testing/automated_tester.h"
-#endif
-
 extern "C" {
 #include "RZA1/mtu/mtu.h"
 #include "drivers/ssi/ssi.h"
@@ -97,8 +93,6 @@ uint32_t disableInterrupts[] = {INTC_ID_SPRI0,
 
 using namespace deluge;
 
-extern bool inSpamMode;
-extern bool anythingProbablyPressed;
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 // #define REPORT_CPU_USAGE 1
@@ -563,9 +557,6 @@ bool calledFromScheduler = false;
 		}
 		return;
 	}
-#if AUTOMATED_TESTER_ENABLED
-	AutomatedTester::possiblyDoSomething();
-#endif
 	flushMIDIGateBuffers();
 	setDireness(numSamples);
 
@@ -1133,25 +1124,6 @@ bool doSomeOutputting() {
 			}
 		}
 
-#if HARDWARE_TEST_MODE
-		// Send a square wave if anything pressed
-		if (anythingProbablyPressed) {
-			int32_t outputSample = 1 << 29;
-			if ((audioSampleTimer >> 6) & 1) {
-				outputSample = -outputSample;
-			}
-
-			i2sTXBufferPos->l = outputSample;
-			i2sTXBufferPos->r = outputSample;
-		}
-
-		// Otherwise, echo input
-		else {
-			i2sTXBufferPos->l = i2sRXBufferPos->l;
-			i2sTXBufferPos->r = i2sRXBufferPos->r;
-		}
-
-#else
 		outputBufferForResampling[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
 		outputBufferForResampling[numSamplesOutputted].r = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
 		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
@@ -1163,14 +1135,6 @@ bool doSomeOutputting() {
 			i2sTXBufferPosNow[0] = numSamplesOutputted % 2;
 			i2sTXBufferPosNow[1] = numSamplesOutputted % 2;
 		}
-#endif
-
-#if ALLOW_SPAM_MODE
-		if (inSpamMode) {
-			i2sTXBufferPosNow[0] = getNoise() >> 4;
-			i2sTXBufferPosNow[1] = getNoise() >> 4;
-		}
-#endif
 
 		i2sTXBufferPosNow += NUM_MONO_OUTPUT_CHANNELS;
 		if (i2sTXBufferPosNow == getTxBufferEnd()) {

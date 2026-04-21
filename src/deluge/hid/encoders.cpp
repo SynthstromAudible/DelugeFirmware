@@ -47,9 +47,6 @@ extern uint32_t timeModEncoderLastTurned[];
 uint32_t timeModEncoderLastTurned[2];
 int8_t modEncoderInitialTurnDirection[2];
 
-uint32_t timeNextSDTestAction = 0;
-int32_t nextSDTestDirection = 1;
-
 uint32_t encodersWaitingForCardRoutineEnd;
 
 namespace {
@@ -154,21 +151,6 @@ bool interpretEncoders(bool skipActioning) {
 	if (!skipActioning) {
 		encodersWaitingForCardRoutineEnd = 0;
 	}
-
-#if SD_TEST_MODE_ENABLED
-	if (!skipActioning && playbackHandler.isEitherClockActive()
-	    && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
-
-		if (getRandom255() < 96)
-			nextSDTestDirection *= -1;
-		getCurrentUI()->selectEncoderAction(nextSDTestDirection);
-
-		int32_t random = getRandom255();
-
-		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 6); // * 44 / 13;
-		anything = true;
-	}
-#endif
 
 	for (int32_t e = 0; e < util::to_underlying(EncoderName::MAX_FUNCTION_ENCODERS); e++) {
 		auto name = static_cast<EncoderName>(e);
