@@ -467,6 +467,10 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 				*segments = 0x01;
 				break;
 
+			case '=':
+				*segments = 0x09;
+				break;
+
 			case '_':
 				*segments = 0x08;
 				break;
