@@ -241,7 +241,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 		if (primaryBuffer.resampling() || delayWorkingState.userDelayRate != primaryBuffer.nativeRate()) {
 
 			// If delay speed has settled for a split second...
-			if (countCyclesWithoutChange >= (kSampleRate >> 5)) {
+			if (countCyclesWithoutChange >= (kSampleRate >> 3)) {
 				// D_PRINTLN("settling");
 				initializeSecondaryBuffer(delayWorkingState.userDelayRate, true);
 			}

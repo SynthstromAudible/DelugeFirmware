@@ -16,15 +16,59 @@
  */
 
 #include "timers_interrupts.h"
+
 #include "RZA1/system/r_typedefs.h"
-#include "RZA1/uart/sio_char.h"
-#include "deluge/deluge.h"
+#include "definitions.h"
 #include "deluge/drivers/mtu/mtu.h"
+#include "stdatomic.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-atomic_int interrupt_depth = 0;
+_Atomic int32_t critical_section_depth = 0;
+
+void ENTER_CRITICAL_SECTION() {
+	int32_t expected = 0;
+	int32_t desired = 1;
+	// if we go from 0 to 1 then we need to issue the synchronization instructions, otherwise just increment depth
+	// avoids having to clear the full pipeline
+	if (atomic_compare_exchange_strong_explicit(&critical_section_depth, &expected, desired, memory_order_relaxed,
+	                                            memory_order_relaxed)) {
+		// memory creates a memory barrier in GCC to avoid reordering
+		// http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html#ss5.3
+		__asm volatile("CPSID i" ::: "memory");
+		__asm volatile("DSB");
+		__asm volatile("ISB");
+	}
+	// in this case we're already in a critical section so just increment the count
+	else {
+		atomic_fetch_add_explicit(&critical_section_depth, 1, memory_order_relaxed);
+	}
+}
+
+void EXIT_CRITICAL_SECTION() {
+
+	int32_t expected = 1;
+	int32_t desired = 0;
+	// if we go from 1 to 0 then exit the critical section. In any other case just decrement the counter
+	if (atomic_compare_exchange_strong_explicit(&critical_section_depth, &expected, desired, memory_order_relaxed,
+	                                            memory_order_relaxed)) {
+		__asm volatile("DSB");
+		__asm volatile("ISB");
+		__asm volatile("CPSIE i" ::: "memory");
+	}
+	// if that fails we're still in a critical section so just decrement the count
+	else {
+		atomic_fetch_sub_explicit(&critical_section_depth, 1, memory_order_relaxed);
+	}
+
+#if ALPHA_OR_BETA_VERSTION
+	if (atomic_load_explicit(&critical_section_depth, memory_order_relaxed) < 0) {
+		FREEZE_WITH_ERROR("OH NO");
+	}
+#endif
+}
+
 void clearIRQInterrupt(int irqNumber) {
 	uint16_t flagRead = INTC.IRQRR.WORD;
 	if (flagRead & (1 << irqNumber)) {

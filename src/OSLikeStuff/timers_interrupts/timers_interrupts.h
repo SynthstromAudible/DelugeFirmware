@@ -19,7 +19,6 @@
 #define DELUGE_TIMERS_INTERRUPTS_H
 
 #include "RZA1/system/r_typedefs.h"
-#include "stdatomic.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -30,29 +29,14 @@ extern "C" {
 // ref http://www.rdrop.com/users/paulmck/scalability/paper/whymb.2010.07.23a.pdf
 // in future if we start using user mode this won't work from there
 
-/// disable all interrupts - must be in system mode
-extern atomic_int interrupt_depth;
-static inline __attribute__((no_instrument_function)) void DISABLE_ALL_INTERRUPTS() {
-	interrupt_depth++;
-	// memory creates a memory barrier in GCC to avoid reordering
-	// http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html#ss5.3
-	__asm volatile("CPSID i" ::: "memory");
-	__asm volatile("DSB");
-	__asm volatile("ISB");
-}
+/// enter critical section - must be in system mode, and must be paired with EXIT_CRITICAL_SECTION()
+/// these can be nested, but you must exit the same number of times as you enter
+/// use the RAII CriticalSectionGuard from C++ code instead to avoid manual management
+void ENTER_CRITICAL_SECTION();
 
-/// enable all interrupts - must be in system mode
-static inline __attribute__((no_instrument_function)) void ENABLE_INTERRUPTS() {
+/// exit critical section - ensure it's paired with ENTER_CRITICAL_SECTION()
+void EXIT_CRITICAL_SECTION();
 
-	if (interrupt_depth > 0) {
-		atomic_fetch_sub(&interrupt_depth, 1);
-		if (interrupt_depth == 0) {
-			__asm volatile("CPSIE i" ::: "memory");
-			__asm volatile("DSB");
-			__asm volatile("ISB");
-		}
-	}
-}
 void clearIRQInterrupt(int irqNumber);
 
 /// Configure external interrupt `irqNumber` (0–7) for both-edge detection.
@@ -75,8 +59,8 @@ void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, ui
 #ifdef __cplusplus
 
 struct CriticalSectionGuard {
-	CriticalSectionGuard() { DISABLE_ALL_INTERRUPTS(); }
-	~CriticalSectionGuard() { ENABLE_INTERRUPTS(); }
+	CriticalSectionGuard() { ENTER_CRITICAL_SECTION(); }
+	~CriticalSectionGuard() { EXIT_CRITICAL_SECTION(); }
 };
 }
 #endif
