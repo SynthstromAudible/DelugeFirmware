@@ -54,8 +54,8 @@ void EXIT_CRITICAL_SECTION() {
 	if (atomic_compare_exchange_strong_explicit(&critical_section_depth, &expected, desired, memory_order_relaxed,
 	                                            memory_order_relaxed)) {
 		__asm volatile("DSB");
-		__asm volatile("ISB");
 		__asm volatile("CPSIE i" ::: "memory");
+		__asm volatile("ISB");
 	}
 	// if that fails we're still in a critical section so just decrement the count
 	else {
