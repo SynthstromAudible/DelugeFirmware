@@ -73,7 +73,7 @@ public:
 	InstrumentClipView();
 	bool opened() override;
 	void focusRegained() override;
-	void displayOrLanguageChanged() final;
+	void displayOrLanguageChanged() override;
 
 	// BUTTON ACTION button press / release handling
 
@@ -114,6 +114,7 @@ public:
 	/// VERTICAL ENCODER ACTION related
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	ActionResult commandTransposeKey(int32_t offset, bool inCardRoutine);
+	void commandRotateInCurrentOctave(int32_t offset);
 	void commandShiftColour(int32_t offset);
 	ActionResult scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow = false,
 	                            ModelStackWithTimelineCounter* modelStack = nullptr);
@@ -236,33 +237,33 @@ public:
 		InstrumentClipMinder::renderOLED(canvas);
 	}
 
-	CopiedParamAutomation copiedParamAutomation;
+	CopiedParamAutomation copiedParamAutomation{};
 	// Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
-	bool auditioningSilently;
+	bool auditioningSilently{};
 	// Archaic leftover feature that users wouldn't let me get rid of
-	bool fileBrowserShouldNotPreview;
+	bool fileBrowserShouldNotPreview{};
 
-	int16_t mpeValuesAtHighestPressure[MPE_RECORD_LENGTH_FOR_NOTE_EDITING][kNumExpressionDimensions];
-	int16_t mpeMostRecentPressure;
-	uint32_t mpeRecordLastUpdateTime;
+	int16_t mpeValuesAtHighestPressure[MPE_RECORD_LENGTH_FOR_NOTE_EDITING][kNumExpressionDimensions]{};
+	int16_t mpeMostRecentPressure{};
+	uint32_t mpeRecordLastUpdateTime{};
 
 	// made these public so they can be accessed by the automation clip view
 	EditPadPress editPadPresses[kEditPadPressBufferSize];
-	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
-	uint8_t auditionPadIsPressed[kDisplayHeight];
-	uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight];
-	uint8_t lastAuditionedYDisplay;
+	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]{}; // 255 seems to mean none
+	uint8_t auditionPadIsPressed[kDisplayHeight]{};
+	uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight]{};
+	uint8_t lastAuditionedYDisplay{};
 	uint8_t numEditPadPresses;
 	uint32_t timeLastEditPadPress;
-	uint32_t timeFirstEditPadPress;
+	uint32_t timeFirstEditPadPress{};
 	// Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they
 	// rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
-	uint32_t timeHorizontalKnobLastReleased;
-	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
-	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
+	uint32_t timeHorizontalKnobLastReleased{};
+	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress{};
+	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress{};
 	// Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do
 	// that shortcut into the SoundEditor!
-	bool editedAnyPerNoteRowStuffSinceAuditioningBegan;
+	bool editedAnyPerNoteRowStuffSinceAuditioningBegan{};
 	// made these public so they can be accessed by the automation clip view
 
 	// ui
@@ -278,7 +279,7 @@ public:
 	ActionResult handleNoteEditorHorizontalEncoderAction(int32_t offset);
 	ActionResult handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
-	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth];
+	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
 	int32_t lastSelectedNoteXDisplay;
 	int32_t lastSelectedNoteYDisplay;
 
@@ -350,18 +351,18 @@ public:
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 
 private:
-	bool doneAnyNudgingSinceFirstEditPadPress;
-	bool offsettingNudgeNumberDisplay;
+	bool doneAnyNudgingSinceFirstEditPadPress{};
+	bool offsettingNudgeNumberDisplay{};
 
-	uint8_t flashScaleModeLedErrorCount;
+	uint8_t flashScaleModeLedErrorCount{};
 
-	Drum* selectedDrum;
+	Drum* selectedDrum{};
 
-	Drum* drumForNewNoteRow;
-	uint8_t yDisplayOfNewNoteRow;
+	Drum* drumForNewNoteRow{};
+	uint8_t yDisplayOfNewNoteRow{};
 
-	int32_t quantizeAmount;
-	uint32_t timeSongButtonPressed;
+	int32_t quantizeAmount{};
+	uint32_t timeSongButtonPressed{};
 
 	std::array<RGB, kDisplayHeight> rowColour;
 	std::array<RGB, kDisplayHeight> rowTailColour;
@@ -378,9 +379,9 @@ private:
 	                bool previewOnly = false, bool selectedDrumOnly = false);
 	void deleteCopiedNoteRows();
 	CopiedNoteRow* firstCopiedNoteRow;
-	int32_t copiedScreenWidth;
-	ScaleType copiedScaleType;
-	int16_t copiedYNoteOfBottomRow;
+	int32_t copiedScreenWidth{};
+	ScaleType copiedScaleType{};
+	int16_t copiedYNoteOfBottomRow{};
 
 	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay,
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
