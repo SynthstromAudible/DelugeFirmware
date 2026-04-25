@@ -38,6 +38,9 @@ public:
 	ArpeggiatorForKit arpeggiator;
 	ArpeggiatorSettings defaultArpSettings;
 
+	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE; // Kit-level MIDI out channel; survives drum preset swaps
+	uint8_t outputMidiBaseNote = 36;               // MIDI note for drum row 0 (GM C2 base)
+
 	Drum* getNextDrum(Drum* fromSoundSource);
 	Drum* getPrevDrum(Drum* fromSoundSource);
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;

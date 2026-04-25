@@ -19,20 +19,14 @@
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
-#include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
-#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::midi::kit {
 
-// Sets the MIDI output channel for every SoundDrum in the kit at once, and assigns
-// sequential note numbers starting at note 36 (GM drum base, C2).  This mirrors
-// the behaviour of other hardware drum machines where one channel covers the whole kit.
-//
-// The per-drum outputMidiChannel / outputMidiNoteForDrum fields on Sound are used for
-// the actual MIDI send (Sound::noteOnPostArpeggiator), so no changes to the send path
-// are required — this menu item simply populates those fields in bulk.
+// Sets the Kit-level MIDI output channel. Stored on the Kit instrument (not per-drum Sound data),
+// so the setting survives when drum row presets are swapped. Note sends/offs are injected in
+// Kit::noteOnPreKitArp() / noteOffPreKitArp() using drum row index + Kit::outputMidiBaseNote.
 class OutputMidiChannel final : public Integer {
 public:
 	using Integer::Integer;
@@ -49,15 +43,8 @@ public:
 			this->setValue(0);
 			return;
 		}
-		for (Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
-			if (d->type == DrumType::SOUND) {
-				auto* sd = static_cast<SoundDrum*>(d);
-				int32_t ch = sd->outputMidiChannel;
-				this->setValue(ch == MIDI_CHANNEL_NONE ? 0 : ch + 1);
-				return;
-			}
-		}
-		this->setValue(0);
+		int32_t ch = kit->outputMidiChannel;
+		this->setValue(ch == MIDI_CHANNEL_NONE ? 0 : ch + 1);
 	}
 
 	void writeCurrentValue() override {
@@ -66,22 +53,11 @@ public:
 		if (!kit) {
 			return;
 		}
-
-		int32_t drumIndex = 0;
-		for (Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
-			if (d->type != DrumType::SOUND) {
-				continue;
-			}
-			auto* sd = static_cast<SoundDrum*>(d);
-			if (display == 0) {
-				sd->outputMidiChannel = MIDI_CHANNEL_NONE;
-				sd->outputMidiNoteForDrum = MIDI_NOTE_NONE;
-			}
-			else {
-				sd->outputMidiChannel = display - 1;         // convert 1-based display to 0-based MIDI channel
-				sd->outputMidiNoteForDrum = 36 + drumIndex;  // GM drum base: note 36 = C2 = drum row 0
-			}
-			drumIndex++;
+		if (display == 0) {
+			kit->outputMidiChannel = MIDI_CHANNEL_NONE;
+		}
+		else {
+			kit->outputMidiChannel = display - 1; // convert 1-based display to 0-based MIDI channel
 		}
 	}
 
