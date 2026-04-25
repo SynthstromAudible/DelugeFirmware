@@ -17,9 +17,12 @@
 
 #include "model/drum/gate_drum.h"
 #include "definitions_cxx.hpp"
+#include "hid/display/display.h"
 #include "model/drum/non_audio_drum.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
+#include "util/string.h"
+
 #include <cstring>
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
@@ -97,9 +100,22 @@ Error GateDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 	return Error::NONE;
 }
 
-void GateDrum::getName(char* buffer) {
-	strcpy(buffer, "GAT");
-	intToString(channel + 1, &buffer[3]);
+std::string GateDrum::getDrumName() {
+	std::string buffer;
+	if (display->haveOLED()) {
+		if (!drumName.empty()) {
+			buffer.append(drumName);
+			buffer.append("\n");
+		}
+		buffer.append("GATE ");
+	}
+	else {
+		buffer = "GAT";
+	}
+
+	buffer.append(deluge::string::fromInt(channel + 1));
+
+	return buffer;
 }
 
 int32_t GateDrum::getNumChannels() {

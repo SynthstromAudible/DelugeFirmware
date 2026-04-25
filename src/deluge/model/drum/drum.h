@@ -46,6 +46,7 @@ public:
 	Drum(DrumType newType);
 	~Drum() override = default;
 
+	std::string drumName;
 	Kit* kit;
 
 	const DrumType type;
@@ -77,9 +78,9 @@ public:
 	virtual void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) = 0;
 	virtual Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) = 0;
 	virtual void drumWontBeRenderedForAWhile();
-
-	virtual void getName(char* buffer) = 0; // May return up to 5 actual characters, so supply at least a char[6]
+	virtual std::string getDrumName() = 0;
 	virtual void choke(ModelStackWithSoundFlags* modelStack) {} // modelStack can be NULL if you really insist
+
 	void writeMIDICommandsToFile(Serializer& writer);
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);

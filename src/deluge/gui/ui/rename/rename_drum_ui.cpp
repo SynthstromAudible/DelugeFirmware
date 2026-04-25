@@ -29,20 +29,29 @@
 
 RenameDrumUI renameDrumUI{"Drum Name"};
 
-String RenameDrumUI::getName() const {
-	return getDrum()->name;
+std::string_view RenameDrumUI::getCurrentName() const {
+	Kit* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		FREEZE_WITH_ERROR("RN01");
+		return "NONE";
+	}
+	else {
+		return kit->selectedDrum->drumName;
+	}
 }
 
-SoundDrum* RenameDrumUI::getDrum() const {
-	return (SoundDrum*)soundEditor.currentSound;
-}
-
-bool RenameDrumUI::trySetName(String* name) {
-	// don't let user set a name that is a duplicate of another name that has been set for another drum
-	if (!getDrum()->name.equalsCaseIrrespective(name) && getCurrentKit()->getDrumFromName(name->get())) {
+bool RenameDrumUI::trySetName(std::string_view name) {
+	Kit* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		FREEZE_WITH_ERROR("RN02");
+		return false;
+	}
+	Drum* other = kit->getDrumFromName(name);
+	if (other != nullptr && other != kit->selectedDrum) {
+		// We only allow renaming if there are no other drums with the same name.
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	getDrum()->name.set(name);
+	kit->selectedDrum->drumName = name;
 	return true;
 }

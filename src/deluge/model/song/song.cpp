@@ -3575,10 +3575,10 @@ void Song::markAllInstrumentsAsEdited() {
 
 // used with the renameOutputUI class to check if you're trying to rename an output to the same
 // name as another output
-AudioOutput* Song::getAudioOutputFromName(String* name) {
+AudioOutput* Song::getAudioOutputFromName(std::string_view name) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->type == OutputType::AUDIO) {
-			if (thisOutput->name.equalsCaseIrrespective(name)) {
+			if (deluge::string::caselessEquals(thisOutput->name.get(), name)) {
 				return (AudioOutput*)thisOutput;
 			}
 		}

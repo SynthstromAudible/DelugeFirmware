@@ -18,9 +18,12 @@
 #include "model/drum/midi_drum.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
 #include "model/drum/non_audio_drum.h"
 #include "storage/storage_manager.h"
+#include "util/string.h"
+
 #include <string.h>
 
 MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
@@ -114,33 +117,49 @@ Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 	return Error::NONE;
 }
 
-void MIDIDrum::getName(char* buffer) {
-
+std::string MIDIDrum::getDrumName() {
 	int32_t channelToDisplay = channel + 1;
+	std::string buffer;
 
-	if (channelToDisplay < 10 && note < 100) {
-		strcpy(buffer, " ");
+	if (display->haveOLED()) {
+		if (!drumName.empty()) {
+			buffer.append(drumName);
+			buffer.append("\n");
+		}
+		buffer.append("MIDI CH");
+		buffer.append(deluge::string::fromInt(channelToDisplay));
+		buffer.append(": ");
+		buffer.append(deluge::string::fromInt(note));
+		buffer.append(" (");
+		char noteLabel[5];
+		noteCodeToString(note, noteLabel);
+		buffer.append(noteLabel);
+		buffer.append(")");
 	}
 	else {
-		buffer[0] = 0;
+
+		// Old 7-seg logic adapted to std::string.
+		if (channelToDisplay < 10 && note < 100) {
+			buffer = " ";
+		}
+
+		// If can't fit everything on display, show channel as hexadecimal
+		if (channelToDisplay >= 10 && note >= 100) {
+			buffer.push_back('A' + channelToDisplay - 10);
+		}
+		else {
+			buffer.append(deluge::string::fromInt(channelToDisplay));
+		}
+
+		buffer.push_back('.');
+
+		if (note < 10 && channelToDisplay < 100) {
+			buffer.push_back(' ');
+		}
+		buffer.append(deluge::string::fromInt(note));
 	}
 
-	// If can't fit everything on display, show channel as hexadecimal
-	if (channelToDisplay >= 10 && note >= 100) {
-		buffer[0] = 'A' + channelToDisplay - 10;
-		buffer[1] = 0;
-	}
-	else {
-		intToString(channelToDisplay, &buffer[strlen(buffer)]);
-	}
-
-	strcat(buffer, ".");
-
-	if (note < 10 && channelToDisplay < 100) {
-		strcat(buffer, " ");
-	}
-
-	intToString(note, &buffer[strlen(buffer)]);
+	return buffer;
 }
 
 int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder) {

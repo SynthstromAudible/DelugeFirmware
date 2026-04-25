@@ -16,4 +16,6 @@ std::string fromFloat(float number, int32_t precision);
 std::string fromSlot(int32_t slot, int32_t sub_slot, size_t min_num_digits = 1);
 std::string fromNoteCode(int32_t noteCode, size_t* getLengthWithoutDot = nullptr, bool appendOctaveNo = true);
 
+bool caselessEquals(std::string_view a, std::string_view b);
+
 } // namespace deluge::string

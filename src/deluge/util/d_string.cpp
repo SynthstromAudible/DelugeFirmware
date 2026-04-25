@@ -212,8 +212,8 @@ Error String::concatenate(String* otherString) {
 	return concatenate(otherString->get());
 }
 
-Error String::concatenate(char const* newChars) {
-	return concatenateAtPos(newChars, getLength());
+Error String::concatenate(std::string_view newChars) {
+	return concatenateAtPos(newChars.data(), getLength(), newChars.size());
 }
 
 Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength) {

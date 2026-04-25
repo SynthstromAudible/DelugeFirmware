@@ -84,4 +84,12 @@ std::string fromNoteCode(int32_t noteCode, size_t* getLengthWithoutDot, bool app
 	return output;
 }
 
+bool caselessEquals(std::string_view a, std::string_view b) {
+	size_t n = a.size();
+	if (b.size() != n) {
+		return false;
+	}
+	return strncasecmp(a.data(), b.data(), n);
+}
+
 } // namespace deluge::string

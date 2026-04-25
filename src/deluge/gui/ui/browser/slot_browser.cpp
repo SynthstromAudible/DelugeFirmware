@@ -170,39 +170,23 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 	}
 }
 
-Error SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
-	Error error;
+std::string SlotBrowser::getCurrentFilenameWithoutExtension() {
 	if (display->have7SEG()) {
 		// If numeric...
 		Slot slot = getSlot(enteredText.get());
 		if (slot.slot != -1) {
-			error = filenameWithoutExtension->set(filePrefix);
-			if (error != Error::NONE) {
-				return error;
-			}
-			error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
-			if (error != Error::NONE) {
-				return error;
-			}
+			std::string filenameWithoutExtension{filePrefix};
+			filenameWithoutExtension.append(deluge::string::fromInt(slot.slot, 3));
 			if (slot.subSlot != -1) {
 				char buffer[2];
 				buffer[0] = 'A' + slot.subSlot;
 				buffer[1] = 0;
-				error = filenameWithoutExtension->concatenate(buffer);
-				if (error != Error::NONE) {
-					return error;
-				}
+				filenameWithoutExtension.append(buffer);
 			}
-		}
-		else {
-			filenameWithoutExtension->set(&enteredText);
+			return filenameWithoutExtension;
 		}
 	}
-	else {
-		filenameWithoutExtension->set(&enteredText);
-	}
-
-	return Error::NONE;
+	return enteredText.get();
 }
 
 Error SlotBrowser::getCurrentFilePath(String* path) {
@@ -213,13 +197,9 @@ Error SlotBrowser::getCurrentFilePath(String* path) {
 		return error;
 	}
 
-	String filenameWithoutExtension;
-	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);
-	if (error != Error::NONE) {
-		return error;
-	}
+	std::string filenameWithoutExtension = getCurrentFilenameWithoutExtension();
 
-	error = path->concatenate(&filenameWithoutExtension);
+	error = path->concatenate(filenameWithoutExtension);
 	if (error != Error::NONE) {
 		return error;
 	}
