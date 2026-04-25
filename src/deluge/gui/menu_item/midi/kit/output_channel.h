@@ -19,14 +19,15 @@
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
-#include "model/instrument/kit.h"
+#include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::midi::kit {
 
-// Sets the Kit-level MIDI output channel. Stored on the Kit instrument (not per-drum Sound data),
-// so the setting survives when drum row presets are swapped. Note sends/offs are injected in
-// Kit::noteOnPreKitArp() / noteOffPreKitArp() using drum row index + Kit::outputMidiBaseNote.
+// Sets the kit MIDI output channel. Stored on InstrumentClip (not on the Kit instrument or per-drum
+// Sound data), so the setting survives loading a different kit preset entirely.
+// Note-on/off are sent from Kit::noteOnPreKitArp() / noteOffPreKitArp() using drumIndex +
+// InstrumentClip::kitMidiOutBaseNote.
 class OutputMidiChannel final : public Integer {
 public:
 	using Integer::Integer;
@@ -38,26 +39,26 @@ public:
 	}
 
 	void readCurrentValue() override {
-		Kit* kit = getCurrentKit();
-		if (!kit) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (!clip) {
 			this->setValue(0);
 			return;
 		}
-		int32_t ch = kit->outputMidiChannel;
+		int32_t ch = clip->kitMidiOutChannel;
 		this->setValue(ch == MIDI_CHANNEL_NONE ? 0 : ch + 1);
 	}
 
 	void writeCurrentValue() override {
 		int32_t display = this->getValue();
-		Kit* kit = getCurrentKit();
-		if (!kit) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (!clip) {
 			return;
 		}
 		if (display == 0) {
-			kit->outputMidiChannel = MIDI_CHANNEL_NONE;
+			clip->kitMidiOutChannel = MIDI_CHANNEL_NONE;
 		}
 		else {
-			kit->outputMidiChannel = display - 1; // convert 1-based display to 0-based MIDI channel
+			clip->kitMidiOutChannel = display - 1; // convert 1-based display to 0-based MIDI channel
 		}
 	}
 
