@@ -31,7 +31,7 @@ extern "C" {
 }
 
 bool memIsNumericChars(char const* mem, int32_t size);
-bool stringIsNumericChars(char const* str);
+bool stringIsNumericChars(std::string_view str);
 
 void byteToHex(uint8_t number, char* buffer);
 uint8_t hexToByte(char const* firstChar);
@@ -49,6 +49,7 @@ public:
 	~String();
 	void clear(bool destructing = false);
 	Error set(char const* newChars, int32_t newLength = -1);
+	Error set(std::string_view newStr) { return set(newStr.data(), newStr.size()); }
 	void set(String const* otherString);
 	void beenCloned() const;
 	size_t getLength();
@@ -58,7 +59,7 @@ public:
 	Error setInt(int32_t number, int32_t minNumDigits = 1);
 	Error setChar(char newChar, int32_t pos);
 	Error concatenate(String* otherString);
-	Error concatenate(char const* newChars);
+	Error concatenate(std::string_view newChars);
 	Error get_new_memory(int32_t newCharsLength);
 	bool equals(char const* otherChars);
 	bool equalsCaseIrrespective(char const* otherChars);

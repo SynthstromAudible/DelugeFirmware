@@ -898,13 +898,13 @@ PLACE_SDRAM_DATA const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     nullptr,
 };
 
-PLACE_SDRAM_DATA const MenuItem* gateDrumParamShortcuts[8] = {
+PLACE_SDRAM_DATA const MenuItem* gateDrumParamShortcuts[kDisplayHeight] = {
     &arpRateMenuMIDIOrCV,
     &arpSyncMenu,
     &arpGateMenuMIDIOrCV,
     &arpRhythmMenuMIDIOrCV,
     &arpModeMenu,
-    nullptr,
+    &nameEditMenu,
     nullptr,
     nullptr,
 };

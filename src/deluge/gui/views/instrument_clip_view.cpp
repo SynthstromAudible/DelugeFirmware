@@ -2141,7 +2141,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 			// Remove the extension (e.g., ".WAV", ".AIFF") from chosenFilename before assigning as name
 			*dot = '\0';
 		}
-		soundDrum->name.set(chosenFilename);
+		soundDrum->drumName = chosenFilename;
 		kit->beenEdited();
 		*slashAddress = '/';
 
@@ -5436,7 +5436,7 @@ doDisplayError:
 
 	modelStack->song->backUpParamManager(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
 
-	newDrum->name.set(&soundName);
+	newDrum->drumName = soundName.get();
 	newDrum->nameIsDiscardable = true;
 
 	kit->addDrum(newDrum);
@@ -5566,9 +5566,13 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 }
 
 void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
-	DEF_STACK_STRING_BUF(drumName, 50);
-
-	getDrumName(drum, drumName);
+	std::string drumName;
+	if (drum != nullptr) {
+		drumName = drum->getDrumName();
+	}
+	else {
+		drumName = "NONE";
+	}
 
 	if (display->haveOLED()) {
 		display->popupText(drumName.c_str());
@@ -5595,53 +5599,6 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 		}
 		else if (drum->type == DrumType::GATE) {
 			indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
-		}
-	}
-}
-
-void InstrumentClipView::getDrumName(Drum* drum, StringBuf& drumName) {
-	if (display->haveOLED()) {
-		if (!drum) {
-			drumName.append("No sound");
-		}
-		else if (drum->type == DrumType::SOUND) {
-			drumName.append(((SoundDrum*)drum)->name.get());
-		}
-		else {
-			if (drum->type == DrumType::GATE) {
-				drumName.append("Gate channel ");
-				drumName.appendInt(((GateDrum*)drum)->channel + 1);
-			}
-			else { // MIDI
-				drumName.append("CH: ");
-				drumName.appendInt(((MIDIDrum*)drum)->channel + 1);
-				drumName.append(" N#: ");
-				drumName.appendInt(((MIDIDrum*)drum)->note);
-				drumName.append("\n");
-
-				char noteLabel[5];
-				noteCodeToString(((MIDIDrum*)drum)->note, noteLabel);
-
-				drumName.append(noteLabel);
-			}
-		}
-	}
-	else {
-		if (!drum) {
-			drumName.append("NONE");
-		}
-		else {
-			if (drum->type != DrumType::SOUND) {
-				char buffer[7];
-				drum->getName(buffer);
-				drumName.append(buffer);
-			}
-			else {
-				// If we're here, it's a SoundDrum
-				SoundDrum* soundDrum = (SoundDrum*)drum;
-
-				drumName.append(soundDrum->name.get());
-			}
 		}
 	}
 }

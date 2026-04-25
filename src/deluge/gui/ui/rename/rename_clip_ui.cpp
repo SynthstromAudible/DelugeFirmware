@@ -27,17 +27,16 @@
 
 RenameClipUI renameClipUI{"Clip Name"};
 
-String RenameClipUI::getName() const {
-	return clip->name;
+std::string_view RenameClipUI::getCurrentName() const {
+	return clip->name.get();
 }
 
-bool RenameClipUI::trySetName(String* name) {
+bool RenameClipUI::trySetName(std::string_view name) {
 	// Don't allow duplicate names on clips of a single output.
-	if (!clip->name.equalsCaseIrrespective(name)) {
-		if (clip->output->getClipFromName(name)) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
-			return false;
-		}
+	Clip* other = clip->output->getClipFromName(name);
+	if (other != nullptr && other != clip) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
+		return false;
 	}
 	clip->name.set(name);
 	return true;

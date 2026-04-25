@@ -93,7 +93,7 @@ gotError:
 			goto gotError;
 		}
 
-		drum->name.set(&newName);
+		drum->drumName = newName.get();
 	}
 
 	PadLEDs::clearTickSquares(true);

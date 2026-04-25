@@ -109,7 +109,7 @@ public:
 	void removeDrumFromKitArpeggiator(int32_t drumIndex);
 	void removeDrum(Drum* drum);
 	ModControllable* toModControllable() override;
-	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
+	Drum* getDrumFromName(std::string_view name, bool onlyIfNoNoteRow = false);
 	Error makeDrumNameUnique(String* name, int32_t startAtNumber);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	void setupPatching(ModelStackWithTimelineCounter* modelStack) override;

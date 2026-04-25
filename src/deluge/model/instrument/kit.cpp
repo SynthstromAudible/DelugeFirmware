@@ -506,15 +506,15 @@ Drum* Kit::getDrumFromIndexAllowNull(int32_t index) {
 	return nullptr;
 }
 
-SoundDrum* Kit::getDrumFromName(char const* name, bool onlyIfNoNoteRow) {
+Drum* Kit::getDrumFromName(std::string_view name, bool onlyIfNoNoteRow) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 
 		if (onlyIfNoNoteRow && thisDrum->noteRowAssignedTemp) {
 			continue;
 		}
 
-		if (thisDrum->type == DrumType::SOUND && ((SoundDrum*)thisDrum)->name.equalsCaseIrrespective(name)) {
-			return (SoundDrum*)thisDrum;
+		if (deluge::string::caselessEquals(name, thisDrum->drumName)) {
+			return thisDrum;
 		}
 	}
 

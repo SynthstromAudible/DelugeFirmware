@@ -1057,7 +1057,7 @@ ModelStackWithNoteRow* InstrumentClip::getNoteRowForDrumName(ModelStackWithTimel
 		    && thisNoteRow->drum->type == DrumType::SOUND) {
 			SoundDrum* thisDrum = (SoundDrum*)thisNoteRow->drum;
 
-			if (thisDrum->name.equalsCaseIrrespective(name)) {
+			if (deluge::string::caselessEquals(thisDrum->drumName, name)) {
 				goto foundIt;
 			}
 		}
@@ -1761,7 +1761,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 			for (DrumName* oldDrumName = thisNoteRow->firstOldDrumName; oldDrumName; oldDrumName = oldDrumName->next) {
 
 				// See if a Drum (which hasn't been assigned yet) has this name
-				SoundDrum* thisDrum = kit->getDrumFromName(oldDrumName->name.get(), true);
+				Drum* thisDrum = kit->getDrumFromName(oldDrumName->name.get(), true);
 
 				// If so, and if it's not already assigned to another NoteRow...
 				if (thisDrum) {
@@ -1947,7 +1947,7 @@ bool InstrumentClip::possiblyDeleteEmptyNoteRow(NoteRow* noteRow, bool onlyIfNoD
 			return false;
 		}
 
-		if (onlyIfNonNumeric && drum->type == DrumType::SOUND && stringIsNumericChars(((SoundDrum*)drum)->name.get())) {
+		if (onlyIfNonNumeric && drum->type == DrumType::SOUND && stringIsNumericChars(drum->drumName.c_str())) {
 			return false;
 		}
 
