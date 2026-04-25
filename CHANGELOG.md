@@ -188,6 +188,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Sounds have now the ability to send MIDI notes at the same time as they play a sample. This will allow your synths and drums to trigger external devices. A new menu `MIDI` has been added at the bottom of the `SOUND` menu to set the MIDI channel and the note (in case of drum sounds).
 
 ##### Kit
+- Added a kit-level MIDI output channel setting in the `Kit Global FX` menu under `MIDI > Channel`. Setting a channel routes all drum rows to that MIDI channel and automatically assigns sequential note numbers starting at note 36 (C2, GM drum base), so drum row 1 = note 36, row 2 = note 37, etc. Setting to `OFF` clears MIDI output for all drum rows. Individual drum rows can still override this via their own `SOUND > MIDI > Channel` and `Note` settings.
 - Extended the ability to batch change all drum sounds, by holding `Affect-Entire` while editing a parameter (indicated by flashing the `Affect-Entire` button), from the initially available handful of sample-related parameters, to ALL sound parameters (except for `Oscillator Type` and patch cable strengths).
 - Updated shortcuts for randomizing drum samples:
   - When no audition pads are pressed, randomize just the selected drum by: Pressing `LOAD` + `RANDOM`
