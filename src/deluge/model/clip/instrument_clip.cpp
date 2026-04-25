@@ -123,6 +123,8 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	midiBank = otherInstrumentClip->midiBank;
 	midiSub = otherInstrumentClip->midiSub;
 	midiPGM = otherInstrumentClip->midiPGM;
+	kitMidiOutChannel = otherInstrumentClip->kitMidiOutChannel;
+	kitMidiOutBaseNote = otherInstrumentClip->kitMidiOutBaseNote;
 
 	onKeyboardScreen = otherInstrumentClip->onKeyboardScreen;
 	inScaleMode = otherInstrumentClip->inScaleMode;
@@ -2339,6 +2341,12 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			writer.writeAttribute("midiPGM", midiPGM);
 		}
 	}
+	else if (output->type == OutputType::KIT) {
+		if (kitMidiOutChannel != MIDI_CHANNEL_NONE) {
+			writer.writeAttribute("kitMidiOutChannel", kitMidiOutChannel);
+			writer.writeAttribute("kitMidiOutBaseNote", kitMidiOutBaseNote);
+		}
+	}
 	else if (output->type == OutputType::CV) {
 		writer.writeAttribute("cvChannel", ((CVInstrument*)instrument)->getChannel());
 	}
@@ -2526,6 +2534,14 @@ someError:
 
 		else if (!strcmp(tagName, "midiPGM")) {
 			midiPGM = reader.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "kitMidiOutChannel")) {
+			kitMidiOutChannel = reader.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "kitMidiOutBaseNote")) {
+			kitMidiOutBaseNote = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScroll")) {
