@@ -429,7 +429,7 @@ bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
 }
 
 Error AudioFileManager::setupAlternateAudioFileDir(String& newPath, char const* rootDir,
-                                                   String& songFilenameWithoutExtension) {
+                                                   const char* songFilenameWithoutExtension) {
 
 	Error error = newPath.set(rootDir);
 	if (error != Error::NONE) {
@@ -441,7 +441,7 @@ Error AudioFileManager::setupAlternateAudioFileDir(String& newPath, char const* 
 		return error;
 	}
 
-	error = newPath.concatenate(&songFilenameWithoutExtension);
+	error = newPath.concatenate(songFilenameWithoutExtension);
 	if (error != Error::NONE) {
 		return error;
 	}

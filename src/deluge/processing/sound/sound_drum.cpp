@@ -32,16 +32,13 @@
 #include <new>
 
 bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
-	if (!strcmp(tagName, "name")) {
-		reader.readTagOrAttributeValueString(&name);
-		reader.exitTag("name");
-	}
-	else if (!strcmp(tagName, "path")) {
+	if (!strcmp(tagName, "path")) {
 		reader.readTagOrAttributeValueString(&path);
 		reader.exitTag("path");
 	}
-
-	else if (readDrumTagFromFile(reader, tagName)) {}
+	else if (readDrumTagFromFile(reader, tagName)) {
+		// Delegation is also considered a success.
+	}
 	else {
 		return false;
 	}
@@ -133,7 +130,7 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 
 void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("sound", true);
-	writer.writeAttribute("name", name.get());
+	writeDrumTagsToFile(writer);
 
 	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.get());
 
@@ -186,4 +183,8 @@ uint8_t* SoundDrum::getModKnobMode() {
 
 void SoundDrum::drumWontBeRenderedForAWhile() {
 	Sound::wontBeRenderedForAWhile();
+}
+
+std::string SoundDrum::getDrumName() {
+	return drumName;
 }
