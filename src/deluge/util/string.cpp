@@ -89,7 +89,7 @@ bool caselessEquals(std::string_view a, std::string_view b) {
 	if (b.size() != n) {
 		return false;
 	}
-	return strncasecmp(a.data(), b.data(), n);
+	return strncasecmp(a.data(), b.data(), n) == 0;
 }
 
 } // namespace deluge::string
