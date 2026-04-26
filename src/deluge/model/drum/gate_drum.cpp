@@ -75,7 +75,7 @@ void GateDrum::killAllVoices() {
 
 void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("gateOutput", true);
-
+	writeDrumTagsToFile(writer);
 	writer.writeAttribute("channel", channel, false);
 	writer.writeOpeningTagEnd();
 

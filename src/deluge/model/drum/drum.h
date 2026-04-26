@@ -82,6 +82,7 @@ public:
 	virtual void choke(ModelStackWithSoundFlags* modelStack) {} // modelStack can be NULL if you really insist
 
 	void writeMIDICommandsToFile(Serializer& writer);
+	void writeDrumTagsToFile(Serializer& writer);
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,

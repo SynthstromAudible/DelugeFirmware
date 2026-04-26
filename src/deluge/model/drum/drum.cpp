@@ -44,23 +44,29 @@ Drum::Drum(DrumType newType) : type(newType), arpeggiator(), arpSettings() {
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
+void Drum::writeDrumTagsToFile(Serializer& writer) {
+	// Called by subclasses to handle all the shared tags (except for MIDI commands).
+	writer.writeAttribute("name", drumName.c_str());
+}
+
 void Drum::writeMIDICommandsToFile(Serializer& writer) {
 	midiInput.writeNoteToFile(writer, "midiInput");
 	muteMIDICommand.writeNoteToFile(writer, "midiMuteCommand");
 }
 
 bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
-
-	if (!strcmp(tagName, "midiMuteCommand")) {
+	if (!strcmp(tagName, "name")) {
+		reader.readTagOrAttributeValueString(drumName);
+		reader.exitTag("name");
+	}
+	else if (!strcmp(tagName, "midiMuteCommand")) {
 		muteMIDICommand.readNoteFromFile(reader);
 		reader.exitTag();
 	}
-
 	else if (!strcmp(tagName, "midiInput")) {
 		midiInput.readNoteFromFile(reader);
 		reader.exitTag();
 	}
-
 	else {
 		return false;
 	}

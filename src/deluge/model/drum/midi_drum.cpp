@@ -87,7 +87,7 @@ void MIDIDrum::killAllVoices() {
 
 void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("midiOutput", true);
-
+	writeDrumTagsToFile(writer);
 	writer.writeAttribute("channel", channel, false);
 	writer.writeAttribute("note", note, false);
 	writer.writeOpeningTagEnd();
