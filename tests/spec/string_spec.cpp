@@ -58,6 +58,19 @@ describe string("deluge::string", ${
 			expect(length).to_equal(2);
 		});
 	});
+
+	context("caselessEquals", _ {
+		it("compares two equal strings", _ {
+			expect(string::caselessEquals("a123!", "A123!")).to_equal(true);
+			expect(string::caselessEquals("", "")).to_equal(true);
+			expect(string::caselessEquals("hapsf8asg ", "hapsf8asg ")).to_equal(true);
+		});
+		it("compares to unequal strings", _ {
+			expect(string::caselessEquals("a123!", "A123! ")).to_equal(false);
+			expect(string::caselessEquals("a123!", "A123")).to_equal(false);
+			expect(string::caselessEquals("a123!", "A123?")).to_equal(false);
+		});
+	});
 });
 
 CPPSPEC_SPEC(string);

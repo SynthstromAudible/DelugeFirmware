@@ -27,7 +27,6 @@ class ModelStackWithTimelineCounter;
 
 class SoundDrum final : public Sound, public Drum {
 public:
-	String name;
 	String path;
 	bool nameIsDiscardable = false;
 
@@ -50,7 +49,7 @@ public:
 	Error loadAllSamples(bool mayActuallyReadFiles) override;
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) override;
 	void writeToFileAsInstrument(bool savingSong, ParamManager* paramManager);
-	void getName(char* buffer) override {}
+	std::string getDrumName() override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void choke(ModelStackWithSoundFlags* modelStack) override;
 	void setSkippingRendering(bool newSkipping) override;
@@ -66,5 +65,5 @@ public:
 	ArpeggiatorBase* getArp() override { return &arpeggiator; }
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) override { return &arpSettings; }
 	void resetTimeEnteredState();
-	const char* getName() override { return name.get(); }
+	const char* getName() override { return drumName.c_str(); }
 };

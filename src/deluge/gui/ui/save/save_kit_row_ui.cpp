@@ -58,7 +58,7 @@ doReturnFalse:
 		return false;
 	}
 
-	enteredText.set(&soundDrumToSave->name);
+	enteredText.set(soundDrumToSave->drumName);
 	enteredTextEditPos = enteredText.getLength();
 	currentFolderIsEmpty = false;
 
@@ -152,7 +152,7 @@ fail:
 	}
 
 	// Give the Instrument in memory its new slot
-	soundDrumToSave->name.set(&enteredText);
+	soundDrumToSave->drumName = enteredText.get();
 	soundDrumToSave->path.set(&currentDir);
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the

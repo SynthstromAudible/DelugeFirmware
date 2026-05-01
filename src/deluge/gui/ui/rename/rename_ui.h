@@ -34,8 +34,8 @@ public:
 
 protected:
 	void enterKeyPress() override;
-	virtual bool trySetName(String*) = 0;
-	virtual String getName() const = 0;
+	virtual bool trySetName(std::string_view) = 0;
+	virtual std::string_view getCurrentName() const = 0;
 	virtual bool canRename() const { return true; }
 	virtual bool allowEmpty() const { return true; }
 };

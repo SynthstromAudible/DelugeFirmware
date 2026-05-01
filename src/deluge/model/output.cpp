@@ -53,9 +53,9 @@ Output::~Output() {
 	}
 }
 
-Clip* Output::getClipFromName(String* name) {
+Clip* Output::getClipFromName(std::string_view name) {
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
-		if (clip->output == this && clip->name.equalsCaseIrrespective(name)) {
+		if (clip->output == this && deluge::string::caselessEquals(clip->name.get(), name)) {
 			return clip;
 		}
 	}

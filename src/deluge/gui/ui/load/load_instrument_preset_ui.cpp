@@ -74,7 +74,7 @@ bool LoadInstrumentPresetUI::opened() {
 	if (loadingSynthToKitRow) {
 		initialOutputType = outputTypeToLoad = OutputType::SYNTH;
 		if (soundDrumToReplace) {
-			initialName.set(&soundDrumToReplace->name);
+			initialName.set(soundDrumToReplace->drumName);
 		}
 		else {
 			initialName.set("");
@@ -209,10 +209,9 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	else {
 		if (loadingSynthToKitRow && soundDrumToReplace) {
 
-			if (&soundDrumToReplace->name) {
-				String* name = &soundDrumToReplace->name;
-				enteredText.set(name);
-				searchFilename.set(name);
+			if (!soundDrumToReplace->drumName.empty()) {
+				enteredText.set(soundDrumToReplace->drumName);
+				searchFilename.set(soundDrumToReplace->drumName);
 			}
 
 			if (&soundDrumToReplace->path) {
@@ -1086,7 +1085,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	soundDrumToReplace->loadAllSamples(true);
 
 	// soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
-	getCurrentFilenameWithoutExtension(&soundDrumToReplace->name);
+	soundDrumToReplace->drumName = getCurrentFilenameWithoutExtension();
 	soundDrumToReplace->path.set(&currentDir);
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);

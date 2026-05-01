@@ -36,7 +36,7 @@ public:
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) override;
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
-	void getName(char* buffer) override;
+	std::string getDrumName() override;
 	int32_t getNumChannels() override;
 	void killAllVoices() override;
 };
