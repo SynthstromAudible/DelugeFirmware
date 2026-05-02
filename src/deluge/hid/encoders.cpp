@@ -26,36 +26,96 @@ extern "C" {
 
 namespace deluge::hid::encoders {
 
-constexpr size_t kNumFunctionEncoders = util::to_underlying(EncoderName::MAX_FUNCTION_ENCODERS);
-constexpr size_t kNumModEncoders = 2;
+// ── EncoderBase ────────────────────────────────────────────────────────────
 
-std::array<DetentedEncoder, kNumFunctionEncoders> functionEncoders = {};
-std::array<ContinuousEncoder, kNumModEncoders> modEncoders = {};
+int8_t EncoderBase::edgesToTicks(int8_t edges) {
+	if (edges == 0) {
+		return 0;
+	}
+	// Two A-pin edges per quadrature cycle, one quadrature cycle per detent click on
+	// the encoders.
+	edgeAccumulator += edges;
+	int8_t ticks = edgeAccumulator / 2;
+	edgeAccumulator -= ticks * 2;
+	return ticks;
+}
+
+// ── DetentedEncoder ────────────────────────────────────────────────────────
+
+void DetentedEncoder::applyEdges(int8_t edges) {
+	int8_t ticks = edgesToTicks(edges);
+	if (ticks != 0) {
+		pos += ticks;
+	}
+}
+
+int32_t DetentedEncoder::take() {
+	int32_t toReturn = (pos >= 0) ? 1 : -1;
+	pos = 0;
+	return toReturn;
+}
+
+int8_t ContinuousEncoder::take() {
+	int8_t toReturn = pos;
+	pos = 0;
+	return toReturn;
+}
+
+// ── ContinuousEncoder ─────────────────────────────────────────────────────
+
+void ContinuousEncoder::applyEdges(int8_t edges) {
+	int8_t ticks = edgesToTicks(edges);
+	if (ticks != 0) {
+		pos += ticks;
+	}
+}
+
+// ── Named encoder globals ──────────────────────────────────────────────────
+
+DetentedEncoder scrollY;
+DetentedEncoder scrollX;
+DetentedEncoder tempo;
+DetentedEncoder select;
+ContinuousEncoder mod0;
+ContinuousEncoder mod1;
+
+DetentedEncoder& functionEncoderAt(size_t i) {
+	static DetentedEncoder* const table[] = {&scrollY, &scrollX, &tempo, &select};
+	return *table[i];
+}
+
+ContinuousEncoder& modEncoderAt(size_t i) {
+	static ContinuousEncoder* const table[] = {&mod0, &mod1};
+	return *table[i];
+}
+
+// ── IRQ infrastructure ────────────────────────────────────────────────────
 
 namespace {
-constexpr size_t kNumEncoders = util::to_underlying(EncoderName::MAX_ENCODER);
+
 struct EncoderIrqEntry {
 	/// @brief  A-side pin that's routed via PFC alt-2 to RZ/A1L IRQn.
 	uint8_t irqPin;
 
-	/// @brief companion (B-side) pin, read as plain GPIO inside the ISR.
+	/// @brief Companion (B-side) pin, read as plain GPIO inside the ISR.
 	uint8_t compPin;
 	uint8_t irqNum;
 
-	/// @brief flip the direction sense when the A/B wiring is swapped relative to the polled order in `setPins(...)`.
+	/// @brief Flip the direction sense when the A/B wiring is swapped.
 	bool invert;
 };
 
+constexpr size_t kNumEncoders = 6;
 constexpr EncoderIrqEntry kEncoderIrqMap[kNumEncoders] = {
-    [util::to_underlying(EncoderName::SCROLL_Y)] = {.irqPin = 8, .compPin = 10, .irqNum = 0, .invert = false},
-    [util::to_underlying(EncoderName::SCROLL_X)] = {.irqPin = 11, .compPin = 12, .irqNum = 3, .invert = false},
-    [util::to_underlying(EncoderName::TEMPO)] = {.irqPin = 6, .compPin = 7, .irqNum = 2, .invert = true},
-    [util::to_underlying(EncoderName::SELECT)] = {.irqPin = 3, .compPin = 2, .irqNum = 7, .invert = true},
-    [util::to_underlying(EncoderName::MOD_1)] = {.irqPin = 5, .compPin = 4, .irqNum = 1, .invert = false},
-    [util::to_underlying(EncoderName::MOD_0)] = {.irqPin = 0, .compPin = 15, .irqNum = 4, .invert = false},
+    /* scrollY */ {.irqPin = 8, .compPin = 10, .irqNum = 0, .invert = false},
+    /* scrollX */ {.irqPin = 11, .compPin = 12, .irqNum = 3, .invert = false},
+    /* tempo   */ {.irqPin = 6, .compPin = 7, .irqNum = 2, .invert = true},
+    /* select  */ {.irqPin = 3, .compPin = 2, .irqNum = 7, .invert = true},
+    /* mod1    */ {.irqPin = 5, .compPin = 4, .irqNum = 1, .invert = false},
+    /* mod0    */ {.irqPin = 0, .compPin = 15, .irqNum = 4, .invert = false},
 };
 
-/// Atomic edge counters written by ISRs, drained by `readEncoders()`.
+/// Atomic edge counters written by ISRs, drained by readEncoders().
 std::atomic<int8_t> encoderEdgeDeltas[kNumEncoders] = {};
 
 template <size_t IDX>
@@ -77,6 +137,11 @@ constexpr IrqHandler kEncoderIrqHandlers[kNumEncoders] = {
 
 constexpr uint8_t kEncoderIrqPriority = 14;
 
+void encoderSetPins(uint8_t port, uint8_t pinA, uint8_t pinB) {
+	setPinAsInput(port, pinA);
+	setPinAsInput(port, pinB);
+}
+
 void initInterrupts() {
 	for (size_t i = 0; i < kNumEncoders; i++) {
 		const auto& m = kEncoderIrqMap[i];
@@ -93,43 +158,33 @@ void initInterrupts() {
 		setupAndEnableInterrupt(kEncoderIrqHandlers[i], INTC_ID_IRQ0 + m.irqNum, kEncoderIrqPriority);
 	}
 }
+
 } // namespace
 
-DetentedEncoder& getFunctionEncoder(EncoderName which) {
-	return functionEncoders[util::to_underlying(which)];
-}
-
-ContinuousEncoder& getModEncoder(int index) {
-	return modEncoders[index];
-}
-
 void init() {
-	// Set up pin directions for all encoders (interrupt routing handled in initInterrupts).
-	encoderSetPins(1, 11, 12); // SCROLL_X
-	encoderSetPins(1, 7, 6);   // TEMPO
-	encoderSetPins(1, 0, 15);  // MOD_0
-	encoderSetPins(1, 5, 4);   // MOD_1
-	encoderSetPins(1, 8, 10);  // SCROLL_Y
-	encoderSetPins(1, 2, 3);   // SELECT
+	encoderSetPins(1, 11, 12); // scrollX
+	encoderSetPins(1, 7, 6);   // tempo
+	encoderSetPins(1, 0, 15);  // mod0
+	encoderSetPins(1, 5, 4);   // mod1
+	encoderSetPins(1, 8, 10);  // scrollY
+	encoderSetPins(1, 2, 3);   // select
 
 	initInterrupts();
 }
 
 void readEncoders() {
-	for (size_t i = 0; i < kNumFunctionEncoders; i++) {
-		int8_t edges = encoderEdgeDeltas[i].exchange(0, std::memory_order_relaxed);
+	auto applyDelta = [](auto& enc, size_t idx) {
+		int8_t edges = encoderEdgeDeltas[idx].exchange(0, std::memory_order_acquire);
 		if (edges != 0) {
-			functionEncoders[i].applyEdges(edges);
+			enc.applyEdges(edges);
 		}
-	}
-	for (size_t i = 0; i < kNumModEncoders; i++) {
-		// modEncoders[0]=MOD_0 (delta index 5), modEncoders[1]=MOD_1 (delta index 4)
-		int8_t edges =
-		    encoderEdgeDeltas[util::to_underlying(EncoderName::MOD_0) - i].exchange(0, std::memory_order_relaxed);
-		if (edges != 0) {
-			modEncoders[i].applyEdges(edges);
-		}
-	}
+	};
+	applyDelta(scrollY, 0);
+	applyDelta(scrollX, 1);
+	applyDelta(tempo, 2);
+	applyDelta(select, 3);
+	applyDelta(mod1, 4);
+	applyDelta(mod0, 5);
 }
 
 } // namespace deluge::hid::encoders

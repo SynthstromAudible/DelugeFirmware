@@ -2065,9 +2065,8 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 }
 
 bool shouldAbortLoading() {
-	return (
-	    currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
-	    && (encoders::getFunctionEncoder(encoders::EncoderName::SELECT).detentPos || QwertyUI::predictionInterrupted));
+	return (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
+	        && (encoders::select.pending() || QwertyUI::predictionInterrupted));
 }
 
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude) {

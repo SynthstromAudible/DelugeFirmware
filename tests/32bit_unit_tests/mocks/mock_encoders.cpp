@@ -1,20 +1,25 @@
-#include "hid/encoder.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
-#include "mock_defines.h"
-#include "util/misc.h"
 
 namespace deluge::hid::encoders {
 
-std::array<DetentedEncoder, NUM_FUNCTION_ENCODERS> functionEncoders = {};
-std::array<ContinuousEncoder, 2> modEncoders = {};
+DetentedEncoder scrollY;
+DetentedEncoder scrollX;
+DetentedEncoder tempo;
+DetentedEncoder select;
+ContinuousEncoder mod0;
+ContinuousEncoder mod1;
+
+DetentedEncoder& functionEncoderAt(size_t i) {
+	static DetentedEncoder* const table[] = {&scrollY, &scrollX, &tempo, &select};
+	return *table[i];
+}
+
+ContinuousEncoder& modEncoderAt(size_t i) {
+	static ContinuousEncoder* const table[] = {&mod0, &mod1};
+	return *table[i];
+}
+
 uint32_t timeModEncoderLastTurned[2];
 
-DetentedEncoder& getFunctionEncoder(EncoderName which) {
-	return functionEncoders[util::to_underlying(which)];
-}
-
-ContinuousEncoder& getModEncoder(int index) {
-	return modEncoders[index];
-}
 } // namespace deluge::hid::encoders

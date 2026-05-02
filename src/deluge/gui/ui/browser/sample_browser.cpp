@@ -548,7 +548,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 	/*
 	// Was this in case they've already turned the knob further?
-	if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 &&
+	if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].pos > 0 &&
 	numFilesFoundInRightDirection > 1) { D_PRINTLN("returned 1"); return;
 	}
 	*/
@@ -596,7 +596,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		}
 
 		/*
-		if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 &&
+		if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].pos > 0 &&
 		numFilesFoundInRightDirection > 1) { D_PRINTLN("returned 2"); return;
 		}
 		*/
