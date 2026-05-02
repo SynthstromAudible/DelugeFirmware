@@ -1718,8 +1718,12 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 
 		SoundInstrument* synth = (SoundInstrument*)newInstrument;
 
-		paramManager.getPatchCableSet()->grabVelocityToLevelFromMIDIInput(
-		    &synth->midiInput); // Should happen before we call setupPatching().
+		// Guard against a null PatchCableSet. Can occur when converting a duplicated MIDI clip to
+		// Synth (#4014) — the paramManager ends up without patch cables in that path.
+		PatchCableSet* pcs = paramManager.getPatchCableSetAllowJibberish();
+		if (pcs != nullptr) {
+			pcs->grabVelocityToLevelFromMIDIInput(&synth->midiInput); // Should happen before setupPatching().
+		}
 
 		// Set up patching now. If a Kit, we do the drums individually below.
 		synth->setupPatching(modelStack);
