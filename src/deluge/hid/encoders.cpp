@@ -49,6 +49,8 @@ int8_t modEncoderInitialTurnDirection[2];
 
 uint32_t encodersWaitingForCardRoutineEnd;
 
+TaskID action_task_id = -1;
+
 namespace {
 constexpr size_t kNumEncoders = util::to_underlying(EncoderName::MAX_ENCODER);
 struct EncoderIrqEntry {
@@ -131,12 +133,22 @@ void init() {
 }
 
 void readEncoders() {
+	int8_t ticksAccumulated = 0;
 	for (size_t i = 0; i < util::to_underlying(EncoderName::MAX_ENCODER); i++) {
 		int8_t edges = encoderEdgeDeltas[i].exchange(0, std::memory_order_relaxed);
 		if (edges != 0) {
-			encoders[i].applyEdges(edges);
+			ticksAccumulated += encoders[i].applyEdges(edges);
 		}
 	}
+	// did we touch any of the encoders and we've setup the action encoders task?
+	if (ticksAccumulated > 0 && action_task_id != -1) {
+		// run Encoders::interpretEncoders(false) task so that scheduler is aware
+		unblockTask(action_task_id);
+	}
+}
+
+void setActionTaskID(TaskID id) {
+	action_task_id = id;
 }
 
 bool interpretEncoders(bool skipActioning) {
@@ -295,6 +307,12 @@ checkResult:
 				encoder.encPos = 0;
 			}
 		}
+	}
+
+	// did we try to action anything and we've setup the actioning task?
+	if (!skipActioning && action_task_id != -1) {
+		// re-block the task so that it is only actioned when it needs to
+		blockTask(action_task_id);
 	}
 
 	return anything;

@@ -81,6 +81,14 @@ void runTask(TaskID id) {
 	taskManager.runTask(id);
 }
 
+void unblockTask(TaskID id) {
+	taskManager.unblockTask(id);
+}
+
+void blockTask(TaskID id) {
+	taskManager.blockTask(id);
+}
+
 double getSystemTime() {
 	return taskManager.getSecondsFromStart();
 }
