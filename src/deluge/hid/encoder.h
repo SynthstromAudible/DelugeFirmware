@@ -34,7 +34,7 @@ public:
 	/// Fold a number of A-pin edges (signed; from the IRQ accumulator) into encPos / detentPos.
 	/// Two edges = one detent step (or one raw tick for non-detent gold knobs), matching the
 	/// "1 quadrature cycle per detent" wiring on the Deluge encoders.
-	void applyEdges(int8_t edges);
+	int8_t applyEdges(int8_t edges);
 	void setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New);
 	void setNonDetentMode();
 	int32_t getLimitedDetentPosAndReset();

@@ -70,6 +70,7 @@ void setNextRunTimeforCurrentTask(double seconds);
 void removeTask(TaskID id);
 void boostTask(TaskID id);
 void runTask(TaskID id);
+void runBlockedTask(TaskID id);
 void yield(RunCondition until);
 /// timeout in seconds, returns whether the condition was met
 bool yieldWithTimeout(RunCondition until, double timeout);
