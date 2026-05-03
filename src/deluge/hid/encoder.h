@@ -46,6 +46,7 @@ public:
 	/// just in case we have to backtrack because we can't actually action this yet, and this is somehow the least
 	/// insane way to deal with it
 	int8_t putDetentsBack(int8_t detents) { return detentPos.fetch_add(detents, std::memory_order_relaxed); }
+	double currentKnobSpeed{0.0}; // Used for encoder acceleration
 
 private:
 	int8_t edgeAccumulator; // Leftover edges from applyEdges() that haven't yet formed a tick.
