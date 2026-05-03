@@ -47,6 +47,7 @@ extern uint32_t timeModEncoderLastTurned[];
 void init();
 void interpretEncodersTask();
 bool interpretEncoders(bool skipActioning = false);
+double calcNextKnobSpeed(Encoder& encoder, int8_t offset);
 
 Encoder& getEncoder(EncoderName which);
 extern TaskID EncoderTaskID;
