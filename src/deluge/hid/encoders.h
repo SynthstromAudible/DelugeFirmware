@@ -47,6 +47,7 @@ void init();
 void readEncoders();
 bool interpretEncoders(bool skipActioning = false);
 void setActionTaskID(TaskID id);
+double calcNextKnobSpeed(int8_t offset);
 
 Encoder& getEncoder(EncoderName which);
 } // namespace deluge::hid::encoders
