@@ -23,6 +23,8 @@ struct TaskManager {
 	void removeTask(TaskID id);
 	void boostTask(TaskID id);
 	void runTask(TaskID id);
+	void blockTask(TaskID id);
+	void unblockTask(TaskID id);
 	void runHighestPriTask();
 	TaskID chooseBestTask(Time deadline);
 	TaskID addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name, ResourceChecker resources);

@@ -544,8 +544,9 @@ void registerTasks() {
 	// 30 Hz update desired?
 	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI", RESOURCE_NONE);
 	// this one actually actions them
-	addRepeatingTask([]() { encoders::interpretEncoders(false); }, p++, 0.005, 0.005, 0.01, "interpret encoders slow",
-	                 RESOURCE_SD_ROUTINE);
+	TaskID encoders_action_task_id = addRepeatingTask([]() { encoders::interpretEncoders(false); }, p++, 0.005, 0.005,
+	                                                  0.01, "interpret encoders slow", RESOURCE_SD_ROUTINE);
+	encoders::setActionTaskID(encoders_action_task_id);
 
 	// Check for and handle queued SysEx traffic
 	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.",

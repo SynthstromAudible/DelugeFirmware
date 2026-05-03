@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "OSLikeStuff/scheduler_api.h"
 #include "hid/encoder.h"
 #include "util/misc.h"
 #include <array>
@@ -45,6 +46,8 @@ extern uint32_t timeModEncoderLastTurned[];
 void init();
 void readEncoders();
 bool interpretEncoders(bool skipActioning = false);
+void setActionTaskID(TaskID id);
+double calcNextKnobSpeed(int8_t offset);
 
 Encoder& getEncoder(EncoderName which);
 } // namespace deluge::hid::encoders
