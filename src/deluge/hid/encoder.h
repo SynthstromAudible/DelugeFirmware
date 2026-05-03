@@ -38,8 +38,9 @@ public:
 	void setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New);
 	void setNonDetentMode();
 	int32_t getLimitedDetentPosAndReset();
-	int8_t encPos;    // Keeps track of knob's position relative to centre of closest detent
-	int8_t detentPos; // Number of full detents offset since functions last dealt with
+	int8_t encPos;                // Keeps track of knob's position relative to centre of closest detent
+	int8_t detentPos;             // Number of full detents offset since functions last dealt with
+	double currentKnobSpeed{0.0}; // Used for encoder acceleration
 private:
 	int8_t edgeAccumulator; // Leftover edges from applyEdges() that haven't yet formed a tick.
 	bool doDetents;

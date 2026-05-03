@@ -253,7 +253,8 @@ checkResult:
 
 					// Do it, only if
 					if (encoder.encPos + modEncoderInitialTurnDirection[e] != 0) {
-						getCurrentUI()->modEncoderAction(e, encoder.encPos);
+						getCurrentUI()->modEncoderAction(e,
+						                                 encoder.encPos * calcNextKnobSpeed(encoder, encoder.encPos));
 						modEncoderInitialTurnDirection[e] = 0;
 					}
 
@@ -287,6 +288,39 @@ checkResult:
 	}
 
 	return anything;
+}
+
+double calcNextKnobSpeed(Encoder& encoder, int8_t offset) {
+	// - inertia and acceleration control how fast the knob speeds up in horizontal menus
+	// - speedScale controls how we go from "raw speed" to speed used as offset multiplier
+	// - min and max speed clamp the max effective speed
+	//
+	// current values have been tuned to be slow enough to feel easy to control, but fast
+	// enough to go from 0 to 50 with one fast turn of the encoder. speedScale and min/max
+	// could potentially be user-configurable in a small range.
+	constexpr double acceleration = 0.1;
+	constexpr double inertia = 1.0 - acceleration;
+	constexpr double speed_scale = 0.15;
+	constexpr double min_speed = 1.0;
+	constexpr double max_speed = 5.0;
+	constexpr double reset_speed_time_threshold = 0.3;
+
+	// lastOffset and lastEncoderTime keep track of our direction and time
+	static int8_t last_offset = 0;
+	static double last_encoder_time = 0.0;
+	const double time = getSystemTime();
+
+	if (time - last_encoder_time >= reset_speed_time_threshold || offset != last_offset) {
+		// too much time passed, or the knob direction changed, reset the speed
+		encoder.currentKnobSpeed = 0.0;
+	}
+	else {
+		// moving in the same direction, update speed
+		encoder.currentKnobSpeed = encoder.currentKnobSpeed * inertia + 1.0 / (time - last_encoder_time) * acceleration;
+	}
+	last_encoder_time = time;
+	last_offset = offset;
+	return std::clamp((encoder.currentKnobSpeed * speed_scale), min_speed, max_speed);
 }
 
 } // namespace deluge::hid::encoders

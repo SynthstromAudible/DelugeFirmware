@@ -44,6 +44,7 @@ extern uint32_t timeModEncoderLastTurned[];
 
 void init();
 bool interpretEncoders(bool skipActioning = false);
+double calcNextKnobSpeed(Encoder& encoder, int8_t offset);
 
 Encoder& getEncoder(EncoderName which);
 } // namespace deluge::hid::encoders
