@@ -17,7 +17,6 @@
 
 #include "hid/encoders.h"
 #include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
-#include <atomic>
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
@@ -115,9 +114,6 @@ constexpr EncoderIrqEntry kEncoderIrqMap[kNumEncoders] = {
     /* mod0    */ {.irqPin = 0, .compPin = 15, .irqNum = 4, .invert = false},
 };
 
-/// Atomic edge counters written by ISRs, drained by readEncoders().
-std::atomic<int8_t> encoderEdgeDeltas[kNumEncoders] = {};
-
 template <size_t IDX>
 void encoderIrqHandler(uint32_t /*sense*/) {
 	constexpr EncoderIrqEntry m = kEncoderIrqMap[IDX];
@@ -125,7 +121,8 @@ void encoderIrqHandler(uint32_t /*sense*/) {
 	bool b = readInput(1, m.compPin) != 0;
 	bool cw = m.invert ? (a != b) : (a == b);
 	int8_t inc = cw ? +1 : -1;
-	encoderEdgeDeltas[IDX].fetch_add(inc, std::memory_order_relaxed);
+	encoders[IDX].applyEdges(inc);
+
 	clearIRQInterrupt(m.irqNum);
 }
 
@@ -170,21 +167,6 @@ void init() {
 	encoderSetPins(1, 2, 3);   // select
 
 	initInterrupts();
-}
-
-void readEncoders() {
-	auto applyDelta = [](auto& enc, size_t idx) {
-		int8_t edges = encoderEdgeDeltas[idx].exchange(0, std::memory_order_acquire);
-		if (edges != 0) {
-			enc.applyEdges(edges);
-		}
-	};
-	applyDelta(scrollY, 0);
-	applyDelta(scrollX, 1);
-	applyDelta(tempo, 2);
-	applyDelta(select, 3);
-	applyDelta(mod1, 4);
-	applyDelta(mod0, 5);
 }
 
 } // namespace deluge::hid::encoders

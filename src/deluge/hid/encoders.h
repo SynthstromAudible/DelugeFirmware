@@ -104,6 +104,5 @@ extern uint32_t timeModEncoderLastTurned[];
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 
 void init();
-void readEncoders();
 
 } // namespace deluge::hid::encoders
