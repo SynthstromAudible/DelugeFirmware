@@ -73,6 +73,7 @@ extern void freezeWithError(char const* errmsg);
 
 #define MAX_NUM_USB_MIDI_DEVICES 6
 
+#ifdef __arm__
 // Paul: It seems this area is not executable, could not find a reason in the datasheet, marked NOLOAD now
 #define PLACE_INTERNAL_FRUNK __attribute__((__section__(".frunk_bss")))
 
@@ -81,3 +82,10 @@ extern void freezeWithError(char const* errmsg);
 #define PLACE_SDRAM_RODATA __attribute__((__section__(".sdram_rodata")))
 // #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had problems with execution from
 // SDRAM, maybe timing?
+
+#else
+#define PLACE_INTERNAL_FRUNK
+#define PLACE_SDRAM_BSS
+#define PLACE_SDRAM_DATA
+#define PLACE_SDRAM_RODATA
+#endif

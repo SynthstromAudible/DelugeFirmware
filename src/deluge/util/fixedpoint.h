@@ -37,9 +37,13 @@ static inline q31_t toPositive(q31_t a) __attribute__((always_inline, unused));
 static inline q31_t toPositive(q31_t a) {
 	return ((a / 2) + (1073741824));
 }
-
+#if defined(__arm__) and not defined(__arm64__)
+#define Q31_TO_FLOAT_ASM true
+#else
+#define Q31_TO_FLOAT_ASM false
+#endif
 // this is only defined for 32 bit arm
-#if defined(__arm__)
+#if Q31_TO_FLOAT_ASM
 // This multiplies two numbers in signed Q31 fixed point as if they were q32, so the return value is half what it should
 // be. Use this when several corrective shifts can be accumulated and then combined
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) __attribute__((always_inline, unused));
@@ -140,8 +144,9 @@ static inline q31_t q31_from_float(float value) {
 
 ///@brief Convert from a q31 to a float
 ///@note VFP instruction - 1 cycle for issue, 4 cycles result latency
+template <std::uint8_t bits>
 static inline float q31_to_float(q31_t value) {
-	asm("vcvt.f32.s32 %0, %0, #31" : "=t"(value) : "t"(value));
+	asm("vcvt.f32.s32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(bits));
 	return std::bit_cast<float>(value);
 }
 #else
@@ -308,7 +313,7 @@ public:
 	/// @brief Convert from a float to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	constexpr explicit FixedPoint(float value) noexcept {
-		if constexpr (std::is_constant_evaluated()) {
+		if (std::is_constant_evaluated()) {
 			value *= FixedPoint::one();
 			// convert from floating-point to fixed point
 			if constexpr (rounded) {
@@ -319,7 +324,7 @@ public:
 			}
 		}
 		else {
-			asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
+			asm("vcvt.s32.f32 %0, %1, %2" : "=r"(value) : "r"(value), "I"(fractional_bits));
 			value_ = std::bit_cast<int32_t>(value); // NOLINT
 		}
 	}
@@ -327,18 +332,18 @@ public:
 	/// @brief Explicit conversion to float
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	constexpr explicit operator float() const noexcept {
-		if constexpr (std::is_constant_evaluated()) {
+		if (std::is_constant_evaluated()) {
 			return static_cast<float>(value_) / FixedPoint::one();
 		}
 		int32_t output = value_;
-		asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
+		asm("vcvt.f32.s32 %0, %1, %2" : "=r"(output) : "r"(output), "I"(fractional_bits));
 		return std::bit_cast<float>(output);
 	}
 
 	/// @brief Convert from a double to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	constexpr explicit FixedPoint(double value) noexcept {
-		if constexpr (std::is_constant_evaluated()) {
+		if (std::is_constant_evaluated()) {
 			value *= FixedPoint::one();
 			// convert from floating-point to fixed point
 			if constexpr (rounded) {
@@ -357,8 +362,8 @@ public:
 
 	/// @brief Explicit conversion to double
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	explicit operator double() const noexcept {
-		if constexpr (std::is_constant_evaluated()) {
+	constexpr explicit operator double() const noexcept {
+		if (std::is_constant_evaluated()) {
 			return static_cast<double>(value_) / FixedPoint::one();
 		}
 		auto output = std::bit_cast<double>((int64_t)value_);
