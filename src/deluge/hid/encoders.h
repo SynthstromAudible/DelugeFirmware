@@ -22,29 +22,13 @@
 
 namespace deluge::hid::encoders {
 
-// ── Encoder type hierarchy ────────────────────────────────────────────────
-
-/// Base: converts raw A-pin edge counts (signed) into ticks.
+/// Black function encoders (SCROLL_X/Y, TEMPO, SELECT) are detented.
 /// Two A-pin edges = one quadrature cycle = one detent click.
-class EncoderBase {
-public:
-	EncoderBase(const EncoderBase&) = delete;
-	EncoderBase& operator=(const EncoderBase&) = delete;
-
-protected:
-	EncoderBase() = default;
-
-	/// Converts edges → ticks (edges/2), accumulating the remainder.
-	int8_t edgesToTicks(int8_t edges);
-
-private:
-	int8_t edgeAccumulator = 0;
-};
-
-/// Black function encoders (SCROLL_X/Y, TEMPO, SELECT): detented, dispatch clamped UI actions.
-class DetentedEncoder : public EncoderBase {
+class DetentedEncoder {
 public:
 	DetentedEncoder() = default;
+	DetentedEncoder(const DetentedEncoder&) = delete;
+	DetentedEncoder& operator=(const DetentedEncoder&) = delete;
 
 	void applyEdges(int8_t edges);
 
@@ -58,15 +42,18 @@ public:
 	void restore(int32_t val) { pos = val; }
 
 private:
+	int8_t edgeAccumulator = 0;
 	int8_t pos = 0;
 };
 
-/// Gold mod encoders (MOD_0, MOD_1): continuous, accumulate raw ticks for velocity.
-class ContinuousEncoder : public EncoderBase {
+/// Gold mod encoders (MOD_0, MOD_1) are continuous, and accumulate raw edges for velocity.
+class ContinuousEncoder {
 public:
 	ContinuousEncoder() = default;
+	ContinuousEncoder(const ContinuousEncoder&) = delete;
+	ContinuousEncoder& operator=(const ContinuousEncoder&) = delete;
 
-	void applyEdges(int8_t edges);
+	void applyEdges(int8_t edges) { pos += edges; }
 
 	/// True if any ticks are waiting to be consumed.
 	bool pending() const { return pos != 0; }

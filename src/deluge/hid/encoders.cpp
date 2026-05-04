@@ -25,27 +25,14 @@ extern "C" {
 
 namespace deluge::hid::encoders {
 
-// ── EncoderBase ────────────────────────────────────────────────────────────
-
-int8_t EncoderBase::edgesToTicks(int8_t edges) {
-	if (edges == 0) {
-		return 0;
-	}
-	// Two A-pin edges per quadrature cycle, one quadrature cycle per detent click on
-	// the encoders.
-	edgeAccumulator += edges;
-	int8_t ticks = edgeAccumulator / 2;
-	edgeAccumulator -= ticks * 2;
-	return ticks;
-}
-
 // ── DetentedEncoder ────────────────────────────────────────────────────────
 
 void DetentedEncoder::applyEdges(int8_t edges) {
-	int8_t ticks = edgesToTicks(edges);
-	if (ticks != 0) {
-		pos += ticks;
-	}
+	// Two A-pin edges per quadrature cycle, one quadrature cycle per detent click.
+	edgeAccumulator += edges;
+	int8_t ticks = edgeAccumulator / 2;
+	edgeAccumulator -= ticks * 2;
+	pos += ticks;
 }
 
 int32_t DetentedEncoder::take() {
@@ -58,15 +45,6 @@ int8_t ContinuousEncoder::take() {
 	int8_t toReturn = pos;
 	pos = 0;
 	return toReturn;
-}
-
-// ── ContinuousEncoder ─────────────────────────────────────────────────────
-
-void ContinuousEncoder::applyEdges(int8_t edges) {
-	int8_t ticks = edgesToTicks(edges);
-	if (ticks != 0) {
-		pos += ticks;
-	}
 }
 
 // ── Named encoder globals ──────────────────────────────────────────────────
@@ -121,7 +99,25 @@ void encoderIrqHandler(uint32_t /*sense*/) {
 	bool b = readInput(1, m.compPin) != 0;
 	bool cw = m.invert ? (a != b) : (a == b);
 	int8_t inc = cw ? +1 : -1;
-	encoders[IDX].applyEdges(inc);
+
+	if constexpr (IDX == 0) {
+		scrollY.applyEdges(inc);
+	}
+	else if constexpr (IDX == 1) {
+		scrollX.applyEdges(inc);
+	}
+	else if constexpr (IDX == 2) {
+		tempo.applyEdges(inc);
+	}
+	else if constexpr (IDX == 3) {
+		select.applyEdges(inc);
+	}
+	else if constexpr (IDX == 4) {
+		mod1.applyEdges(inc);
+	}
+	else if constexpr (IDX == 5) {
+		mod0.applyEdges(inc);
+	}
 
 	clearIRQInterrupt(m.irqNum);
 }
