@@ -72,9 +72,6 @@ constexpr EncoderIrqEntry kEncoderIrqMap[kNumEncoders] = {
     [util::to_underlying(EncoderName::MOD_0)] = {.irqPin = 0, .compPin = 15, .irqNum = 4, .invert = false},
 };
 
-/// Atomic edge counters written by ISRs, drained by `readEncoders()`.
-std::atomic<int8_t> encoderEdgeDeltas[kNumEncoders] = {};
-
 template <size_t IDX>
 void encoderIrqHandler(uint32_t /*sense*/) {
 	constexpr EncoderIrqEntry m = kEncoderIrqMap[IDX];
@@ -82,7 +79,8 @@ void encoderIrqHandler(uint32_t /*sense*/) {
 	bool b = readInput(1, m.compPin) != 0;
 	bool cw = m.invert ? (a != b) : (a == b);
 	int8_t inc = cw ? +1 : -1;
-	encoderEdgeDeltas[IDX].fetch_add(inc, std::memory_order_relaxed);
+	encoders[IDX].applyEdges(inc);
+
 	clearIRQInterrupt(m.irqNum);
 }
 
@@ -128,15 +126,6 @@ void init() {
 	getEncoder(EncoderName::MOD_1).setNonDetentMode();
 
 	initInterrupts();
-}
-
-void readEncoders() {
-	for (size_t i = 0; i < util::to_underlying(EncoderName::MAX_ENCODER); i++) {
-		int8_t edges = encoderEdgeDeltas[i].exchange(0, std::memory_order_relaxed);
-		if (edges != 0) {
-			encoders[i].applyEdges(edges);
-		}
-	}
 }
 
 bool interpretEncoders(bool skipActioning) {
