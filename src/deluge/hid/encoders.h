@@ -17,8 +17,8 @@
 
 #pragma once
 
+#include "OSLikeStuff/scheduler_api.h"
 #include "hid/encoder.h"
-#include "scheduler_api.h"
 #include "util/misc.h"
 #include <array>
 
