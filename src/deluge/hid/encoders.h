@@ -43,7 +43,7 @@ enum class EncoderName {
 extern uint32_t timeModEncoderLastTurned[];
 
 void init();
-void readEncoders();
+// void readEncoders();
 bool interpretEncoders(bool skipActioning = false);
 
 Encoder& getEncoder(EncoderName which);

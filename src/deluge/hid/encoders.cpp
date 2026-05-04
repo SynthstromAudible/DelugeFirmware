@@ -82,7 +82,8 @@ void encoderIrqHandler(uint32_t /*sense*/) {
 	bool b = readInput(1, m.compPin) != 0;
 	bool cw = m.invert ? (a != b) : (a == b);
 	int8_t inc = cw ? +1 : -1;
-	encoderEdgeDeltas[IDX].fetch_add(inc, std::memory_order_relaxed);
+	encoders[IDX].applyEdges(inc);
+
 	clearIRQInterrupt(m.irqNum);
 }
 
@@ -251,6 +252,7 @@ checkResult:
 
 			// If encoder turned...
 			if (encoder.encPos != 0) {
+				D_PRINTLN("mod encoder %d turned %d", e, encoder.encPos);
 				anything = true;
 
 				bool turnedRecently = (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[e] < kShortPressTime);
