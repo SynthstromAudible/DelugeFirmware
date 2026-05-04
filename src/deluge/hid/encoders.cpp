@@ -33,6 +33,7 @@
 #include "processing/stem_export/stem_export.h"
 #include "util/functions.h"
 #include <atomic>
+#include <etl/atomic/atomic_std.h>
 #include <new>
 
 extern "C" {
@@ -44,6 +45,7 @@ namespace deluge::hid::encoders {
 
 std::array<Encoder, util::to_underlying(EncoderName::MAX_ENCODER)> encoders = {};
 extern uint32_t timeModEncoderLastTurned[];
+TaskID EncoderTaskID = -1;
 uint32_t timeModEncoderLastTurned[2];
 int8_t modEncoderInitialTurnDirection[2];
 
@@ -80,7 +82,7 @@ void encoderIrqHandler(uint32_t /*sense*/) {
 	bool cw = m.invert ? (a != b) : (a == b);
 	int8_t inc = cw ? +1 : -1;
 	encoders[IDX].applyEdges(inc);
-
+	unblockTask(EncoderTaskID);
 	clearIRQInterrupt(m.irqNum);
 }
 
@@ -128,6 +130,11 @@ void init() {
 	initInterrupts();
 }
 
+void interpretEncodersTask() {
+	interpretEncoders(false);
+	blockTask(EncoderTaskID);
+}
+
 bool interpretEncoders(bool skipActioning) {
 	// do not interpret encoders when stem export is underway
 	if (stemExport.processStarted) {
@@ -155,12 +162,12 @@ bool interpretEncoders(bool skipActioning) {
 			continue;
 		}
 
-		if (encoders[e].detentPos != 0) {
+		int8_t detentPos = encoders[e].readDetentPos();
+		if (detentPos != 0) {
 			anything = true;
 
 			// Limit. Some functions can break if they receive bigger numbers, e.g. LoadSongUI::selectEncoderAction()
-			int32_t limitedDetentPos = encoders[e].detentPos;
-			encoders[e].detentPos = 0; // Reset. Crucial that this happens before we call selectEncoderAction()
+			int32_t limitedDetentPos = detentPos;
 			if (limitedDetentPos >= 0) {
 				limitedDetentPos = 1;
 			}
@@ -180,7 +187,7 @@ bool interpretEncoders(bool skipActioning) {
 checkResult:
 				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 					encodersWaitingForCardRoutineEnd |= (1 << e);
-					encoders[e].detentPos = limitedDetentPos; // Put it back for next time
+					encoders[e].putDetentsBack(limitedDetentPos); // Put it back for next time
 				}
 				break;
 
@@ -239,7 +246,8 @@ checkResult:
 			auto& encoder = encoders[util::to_underlying(EncoderName::MOD_0) - e];
 
 			// If encoder turned...
-			if (encoder.encPos != 0) {
+			auto offset = encoder.readPos();
+			if (offset != 0) {
 				anything = true;
 
 				bool turnedRecently = (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[e] < kShortPressTime);
@@ -252,14 +260,14 @@ checkResult:
 					timeModEncoderLastTurned[e] = AudioEngine::audioSampleTimer;
 
 					// Do it, only if
-					if (encoder.encPos + modEncoderInitialTurnDirection[e] != 0) {
-						getCurrentUI()->modEncoderAction(e, encoder.encPos);
+					if (offset + modEncoderInitialTurnDirection[e] != 0) {
+						getCurrentUI()->modEncoderAction(e, offset);
 						modEncoderInitialTurnDirection[e] = 0;
 					}
 
 					// Otherwise, write this off as an accidental wiggle
 					else {
-						modEncoderInitialTurnDirection[e] = encoder.encPos;
+						modEncoderInitialTurnDirection[e] = offset;
 					}
 				}
 
@@ -275,13 +283,11 @@ checkResult:
 						actionLogger.closeAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 					}
 
-					modEncoderInitialTurnDirection[e] = encoder.encPos;
+					modEncoderInitialTurnDirection[e] = offset;
 
 					// Mark as turned recently
 					timeModEncoderLastTurned[e] = AudioEngine::audioSampleTimer;
 				}
-
-				encoder.encPos = 0;
 			}
 		}
 	}

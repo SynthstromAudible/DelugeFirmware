@@ -18,6 +18,8 @@
 #pragma once
 
 #define encMinBacktrackTime (20 * 44) // In milliseconds/44
+#include "atomic"
+
 #include <cstdint>
 
 namespace deluge::hid::encoders {
@@ -38,11 +40,18 @@ public:
 	void setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New);
 	void setNonDetentMode();
 	int32_t getLimitedDetentPosAndReset();
-	int8_t encPos;    // Keeps track of knob's position relative to centre of closest detent
-	int8_t detentPos; // Number of full detents offset since functions last dealt with
+	int8_t readPos() { return encPos.exchange(0, std::memory_order_relaxed); }
+	int8_t readDetentPos() { return detentPos.exchange(0, std::memory_order_relaxed); }
+	int8_t getDetentPos() const { return detentPos.load(std::memory_order_relaxed); }
+	/// just in case we have to backtrack because we can't actually action this yet, and this is somehow the least
+	/// insane way to deal with it
+	int8_t putDetentsBack(int8_t detents) { return detentPos.fetch_add(detents, std::memory_order_relaxed); }
+
 private:
 	int8_t edgeAccumulator; // Leftover edges from applyEdges() that haven't yet formed a tick.
 	bool doDetents;
+	std::atomic_int8_t encPos;    // Keeps track of knob's position relative to centre of closest detent
+	std::atomic_int8_t detentPos; // Number of full detents offset since functions last dealt with
 };
 
 } // namespace deluge::hid::encoders

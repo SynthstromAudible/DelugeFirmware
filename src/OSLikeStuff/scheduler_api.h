@@ -71,6 +71,10 @@ void removeTask(TaskID id);
 void boostTask(TaskID id);
 void runTask(TaskID id);
 void yield(RunCondition until);
+
+/// set the current task to blocked
+void blockTask(TaskID id);
+void unblockTask(TaskID id);
 /// timeout in seconds, returns whether the condition was met
 bool yieldWithTimeout(RunCondition until, double timeout);
 /// yield until the condition is met, but return immediately if the scheduler is idle

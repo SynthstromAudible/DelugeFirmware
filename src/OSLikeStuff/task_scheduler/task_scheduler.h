@@ -40,6 +40,8 @@ struct TaskManager {
 
 	void ignoreForStats();
 	void setNextRunTimeforCurrentTask(Time seconds);
+	void unblockTask(TaskID id);
+	void blockTask(TaskID task);
 
 	[[nodiscard]] Time getAverageRunTimeForCurrentTask() const;
 	[[nodiscard]] Time getAverageRunTimeForTask(TaskID id) const;
@@ -59,7 +61,7 @@ private:
 	Time lastFinishTime{0};
 	Time lastPrintedStats{0};
 
-	TaskID currentID{0};
+	volatile TaskID currentID{0};
 	// for time tracking with rollover
 	Time lastTime{0};
 	Time runningTime{0};
