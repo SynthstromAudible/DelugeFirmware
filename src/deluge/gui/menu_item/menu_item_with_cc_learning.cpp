@@ -27,6 +27,9 @@ void MenuItemWithCCLearning::unlearnAction() {
 
 	// If it was a reasonable-ish request...
 	if (!paramDescriptor.isNull()) {
+		if (!soundEditor.currentModControllable) {
+			return;
+		}
 		bool success = soundEditor.currentModControllable->unlearnKnobs(paramDescriptor, currentSong);
 
 		if (success) {
@@ -39,6 +42,10 @@ void MenuItemWithCCLearning::unlearnAction() {
 
 void MenuItemWithCCLearning::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	ParamDescriptor paramDescriptor = getLearningThing();
+
+	if (!soundEditor.currentModControllable) {
+		return;
+	}
 
 	bool success = soundEditor.currentModControllable->learnKnob(cable, paramDescriptor, whichKnob, modKnobMode,
 	                                                             midiChannel, currentSong);
