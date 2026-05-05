@@ -201,6 +201,24 @@ void TaskManager::setNextRunTimeforCurrentTask(Time seconds) {
 	currentTask->schedule.maxInterval = seconds;
 }
 
+void TaskManager::unblockTask(TaskID id) {
+	if (id > 0 && id < kMaxTasks) [[likely]] {
+		auto* current_task = &list[id];
+		if (current_task->state == State::BLOCKED) {
+			current_task->state = State::READY;
+		}
+	}
+}
+
+void TaskManager::blockTask(TaskID id) {
+	if (id > 0 && id < kMaxTasks) [[likely]] {
+		auto* current_task = &list[id];
+		if (current_task->state == State::READY) {
+			current_task->state = State::BLOCKED;
+		}
+	}
+}
+
 void TaskManager::runTask(TaskID id) {
 	countThisTask = true;
 	currentID = id;

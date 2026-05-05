@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "OSLikeStuff/scheduler_api.h"
 #include "hid/encoder.h"
 #include "util/misc.h"
 #include <array>
@@ -43,7 +44,9 @@ enum class EncoderName {
 extern uint32_t timeModEncoderLastTurned[];
 
 void init();
+void interpretEncodersTask();
 bool interpretEncoders(bool skipActioning = false);
 
 Encoder& getEncoder(EncoderName which);
+extern TaskID EncoderTaskID;
 } // namespace deluge::hid::encoders
