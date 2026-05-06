@@ -387,9 +387,16 @@ moveAfterClipInstance:
 
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE) {
+		// Track held state independently of the toggle below — the toggle is gated on UI_MODE_NONE,
+		// but the column-affect-entire combo needs to detect the button while a clip pad is held.
+		affectEntireButtonHeld = on;
 		if (on && currentUIMode == UI_MODE_NONE) {
 			currentSong->affectEntire = !currentSong->affectEntire;
 			view.setActiveModControllableTimelineCounter(currentSong);
+		}
+		updateAffectEntireLED();
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			requestRendering(this, 0xFFFFFFFF, 0);
 		}
 	}
 
@@ -3046,9 +3053,38 @@ void SessionView::midiLearnFlash() {
 void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	performActionOnPadRelease = false;
 
-	if (getCurrentUI() == this) { // This routine may also be called from the Arranger view
-		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+	if (getCurrentUI() != this) { // This routine may also be called from the Arranger view
+		return;
 	}
+
+	// Column-wide affect-entire combo: AFFECT_ENTIRE button held + a clip pad held in the main grid.
+	// Apply the active clip's resulting param value across every other clip in the same column.
+	if (isColumnAffectEntireActive()) {
+		Output* track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
+		Clip* sourceClip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
+
+		if (track != nullptr && sourceClip != nullptr) {
+			ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* sourceStack =
+			    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
+			sourceClip->getActiveModControllable(sourceStack);
+
+			auto* sourceThree = reinterpret_cast<ModelStackWithThreeMainThings*>(sourceStack);
+			if (sourceThree->modControllable != nullptr) {
+				ModelStackWithAutoParam* sourceParam =
+				    sourceThree->modControllable->getParamFromModEncoder(whichModEncoder, sourceThree);
+				if (sourceParam != nullptr && sourceParam->autoParam != nullptr) {
+					int32_t snappedValue = sourceParam->autoParam->getValuePossiblyAtPos(view.modPos, sourceParam);
+					applyAbsoluteValueToColumn(track, sourceClip, whichModEncoder, snappedValue);
+				}
+			}
+			return;
+		}
+	}
+
+	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
 Clip* SessionView::getClipForLayout() {
@@ -3404,6 +3440,16 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 
 	if (greyout) {
 		return resultColour.greyOut(6500000);
+	}
+
+	// Column-affect-entire visual: tint clips in the held column toward white so the user can see
+	// which clips will receive the broadcasted value.
+	if (isColumnAffectEntireActive()) {
+		Output* heldTrack = gridTrackFromX(gridFirstPressedX, gridTrackCount());
+		if (heldTrack != nullptr && clip->output == heldTrack) {
+			constexpr uint16_t kColumnTintBlend = 19661; // ~30% toward white
+			resultColour = RGB::blend(resultColour, deluge::gui::colours::white_full, kColumnTintBlend);
+		}
 	}
 
 	return resultColour;
@@ -3916,6 +3962,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 
 		if (modeHandleResult == ActionResult::DEALT_WITH) {
+			updateAffectEntireLED();
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -3925,6 +3972,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		view.flashPlayEnable();
 	}
 
+	updateAffectEntireLED();
 	return ActionResult::DEALT_WITH;
 }
 
@@ -4724,6 +4772,52 @@ int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
 	}
 
 	return -1;
+}
+
+bool SessionView::isColumnAffectEntireActive() const {
+	return currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid && affectEntireButtonHeld
+	       && gridFirstPressedX >= 0 && gridFirstPressedX < kDisplayWidth && gridFirstPressedY >= 0;
+}
+
+void SessionView::applyAbsoluteValueToColumn(Output* track, Clip* sourceClip, int32_t whichModEncoder,
+                                             int32_t snappedValue) {
+	if (track == nullptr || sourceClip == nullptr) {
+		return;
+	}
+
+	for (int32_t idx = 0; idx < currentSong->sessionClips.getNumElements(); ++idx) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(idx);
+		if (clip == sourceClip || clip->output != track) {
+			continue;
+		}
+
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* clipStack =
+		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
+		clip->getActiveModControllable(clipStack);
+
+		auto* threeStack = reinterpret_cast<ModelStackWithThreeMainThings*>(clipStack);
+		if (threeStack->modControllable == nullptr) {
+			continue;
+		}
+
+		ModelStackWithAutoParam* paramStack =
+		    threeStack->modControllable->getParamFromModEncoder(whichModEncoder, threeStack);
+		if (paramStack == nullptr || paramStack->autoParam == nullptr) {
+			continue;
+		}
+
+		paramStack->autoParam->setValuePossiblyForRegion(snappedValue, paramStack, view.modPos, view.modLength);
+	}
+}
+
+void SessionView::updateAffectEntireLED() {
+	if (isColumnAffectEntireActive()) {
+		indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1);
+	}
+	else {
+		indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, currentSong->affectEntire);
+	}
 }
 
 Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
