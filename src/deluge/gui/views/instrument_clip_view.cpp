@@ -6115,7 +6115,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	// If horizontal encoder button pressed, rotate notes within octave
 	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		if (getCurrentOutputType() != OutputType::KIT) {
-			commandRotateInCurrentOctave(offset);
+			commandTransposeScreen(offset, Buttons::isButtonPressed(hid::button::Y_ENC));
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -6179,8 +6179,7 @@ ActionResult InstrumentClipView::commandTransposeKey(int32_t offset, bool inCard
 	return ActionResult::DEALT_WITH;
 }
 
-void InstrumentClipView::commandRotateInCurrentOctave(int32_t offset) {
-	bool inOctave = Buttons::isButtonPressed(hid::button::Y_ENC);
+void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = getCurrentInstrumentClip();

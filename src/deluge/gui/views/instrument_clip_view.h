@@ -114,7 +114,7 @@ public:
 	/// VERTICAL ENCODER ACTION related
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	ActionResult commandTransposeKey(int32_t offset, bool inCardRoutine);
-	void commandRotateInCurrentOctave(int32_t offset);
+	void commandTransposeScreen(int32_t offset, bool inOctave);
 	void commandShiftColour(int32_t offset);
 	ActionResult scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow = false,
 	                            ModelStackWithTimelineCounter* modelStack = nullptr);
