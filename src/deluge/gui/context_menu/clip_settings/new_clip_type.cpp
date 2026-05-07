@@ -31,6 +31,10 @@ constexpr size_t kNumValues = 5;
 
 NewClipType newClipType{};
 
+bool NewClipType::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+	return false; // don't greyout
+}
+
 char const* NewClipType::getTitle() {
 	static char const* title = "New Clip Type";
 	return title;
