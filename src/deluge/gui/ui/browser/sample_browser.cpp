@@ -113,6 +113,8 @@ bool SampleBrowser::opened() {
 
 	autoLoadEnabled = false;
 
+	lastRenderedWavetableSlicePos.reset();
+
 	if (display->haveOLED()) {
 		fileIndexSelected = 0;
 	}
@@ -281,6 +283,29 @@ void SampleBrowser::exitAction() {
 	if (redrawUI) {
 		uiNeedsRendering(redrawUI);
 	}
+}
+
+void SampleBrowser::graphicsRoutine() {
+	// While ping-pong wavetable preview is running, redraw the LED grid each graphics tick (~15 ms) showing the
+	// current swept slice. The audio engine publishes the position; we only re-render when it has moved noticeably,
+	// to keep PIC bandwidth low.
+	float pos = 0.0f;
+	WaveTable* wt = AudioEngine::getPreviewWavetableState(&pos);
+	if (wt == nullptr) {
+		Browser::graphicsRoutine();
+		return;
+	}
+	if (lastRenderedWavetableSlicePos.has_value()) {
+		float delta = pos - *lastRenderedWavetableSlicePos;
+		if (delta < 0.02f && delta > -0.02f) {
+			return;
+		}
+	}
+	if (!waveformRenderer.renderWaveTableSlice(wt, pos, PadLEDs::image)) {
+		return;
+	}
+	lastRenderedWavetableSlicePos = pos;
+	PadLEDs::sendOutMainPadColours();
 }
 
 ActionResult SampleBrowser::timerCallback() {
@@ -587,7 +612,12 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 			}
 		}
 
-		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
+		bool asWavetable =
+		    soundEditor.currentSource != nullptr && soundEditor.currentSource->oscType == OscType::WAVETABLE;
+		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound, asWavetable);
+		// previewSample may silently fall back to sample mode if the file isn't loadable as a wavetable;
+		// re-read the actual mode rather than trusting our asWavetable hint.
+		bool previewingAsWavetable = AudioEngine::getPreviewWavetableState(nullptr) != nullptr;
 
 		if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
 			// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
@@ -601,8 +631,16 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		}
 		*/
 
+		// In wavetable-preview mode we animate the LED grid in graphicsRoutine() from the audio-engine's swept slice
+		// position, so the still-frame Sample waveform render below is skipped entirely.
+		if (previewingAsWavetable) {
+			lastRenderedWavetableSlicePos.reset();
+			currentlyShowingSamplePreview = true; // for cleanup-on-leave logic
+			didDraw = true;
+		}
 		// If the Sample at least loaded, even if we didn't sound it, then try to render its waveform.
-		if (AudioEngine::sampleForPreview->sources[0].ranges.getNumElements() >= 1) {
+		else if (AudioEngine::sampleForPreview->sources[0].ranges.getNumElements() >= 1
+		         && AudioEngine::sampleForPreview->sources[0].oscType == OscType::SAMPLE) {
 			AudioFile* sample = ((MultisampleRange*)AudioEngine::sampleForPreview->sources[0].ranges.getElement(0))
 			                        ->sampleHolder.audioFile;
 

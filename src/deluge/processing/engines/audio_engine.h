@@ -42,6 +42,7 @@ class Voice;
 class VoiceSample;
 class TimeStretcher;
 class String;
+class WaveTable;
 class SideChain;
 class VoiceVector;
 class Freeverb;
@@ -142,8 +143,12 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 void runRoutine();
 
 void init();
-void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
+void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound, bool asWavetable = false);
 void stopAnyPreviewing();
+
+/// Returns the WaveTable currently being previewed in ping-pong mode, plus the current shaped slice position
+/// in [0, numCycles - 1]. nullptr if not in wavetable-preview mode.
+WaveTable* getPreviewWavetableState(float* slicePos);
 
 void songSwapAboutToHappen();
 void killAllVoices(bool deletingSong = false);

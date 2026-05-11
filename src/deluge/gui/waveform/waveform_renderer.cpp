@@ -28,6 +28,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
+#include "storage/wave_table/wave_table.h"
+#include <algorithm>
 #include <optional>
 #include <string.h>
 
@@ -627,18 +629,125 @@ void WaveformRenderer::drawColBar(int32_t xDisplay, int32_t min24, int32_t max24
 	}
 }
 
+// Each WaveTableBand cycle is laid out as cycleSizeNoDuplicates real samples followed by a small wrap-padding
+// region used by the sinc-interpolating audio renderer. We only need the real samples for visualisation.
+constexpr int32_t kWaveTableBandCyclePaddingSamples = 7;
+
+bool WaveformRenderer::renderWaveTableSlice(WaveTable* waveTable, float slicePos,
+                                            RGB thisImage[][kDisplayWidth + kSideBarWidth]) {
+	if (waveTable == nullptr || waveTable->bands.getNumElements() == 0 || waveTable->numCycles < 1) {
+		return false;
+	}
+
+	// Pick a band that covers the cycle range we want and has the most samples-per-cycle for the best detail.
+	int32_t cycleA = (int32_t)slicePos;
+	if (cycleA < 0) {
+		cycleA = 0;
+	}
+	if (cycleA > waveTable->numCycles - 1) {
+		cycleA = waveTable->numCycles - 1;
+	}
+	int32_t cycleB = std::min(cycleA + 1, waveTable->numCycles - 1);
+	float frac = slicePos - (float)cycleA;
+	if (frac < 0.0f) {
+		frac = 0.0f;
+	}
+	if (frac > 1.0f) {
+		frac = 1.0f;
+	}
+
+	WaveTableBand* bestBand = nullptr;
+	for (int32_t b = 0; b < waveTable->bands.getNumElements(); b++) {
+		WaveTableBand* band = (WaveTableBand*)waveTable->bands.getElementAddress(b);
+		if (cycleA < band->fromCycleNumber || cycleB >= band->toCycleNumber) {
+			continue;
+		}
+		if (bestBand == nullptr || band->cycleSizeNoDuplicates > bestBand->cycleSizeNoDuplicates) {
+			bestBand = band;
+		}
+	}
+	if (bestBand == nullptr) {
+		return false;
+	}
+
+	int32_t stride = bestBand->cycleSizeNoDuplicates + kWaveTableBandCyclePaddingSamples;
+	int32_t cycleSize = bestBand->cycleSizeNoDuplicates;
+	const int16_t* dataA = &bestBand->dataAccessAddress[(cycleA - bestBand->fromCycleNumber) * stride];
+	const int16_t* dataB = &bestBand->dataAccessAddress[(cycleB - bestBand->fromCycleNumber) * stride];
+	int32_t fracQ16 = (int32_t)(frac * 65536.0f);
+
+	// Clear the display area we're about to write.
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		memset(thisImage[y], 0, kDisplayWidth * sizeof(RGB));
+	}
+
+	// Populate WaveformRenderData with per-column peaks from the blended cycle, then render through the
+	// standard normalization pipeline (getColBarPositions + drawColBar) for auto-scaling and centering.
+	WaveformRenderData data;
+	int32_t overallMin = INT32_MAX;
+	int32_t overallMax = INT32_MIN;
+
+	for (int32_t col = 0; col < kDisplayWidth; col++) {
+		int32_t startSample = (col * cycleSize) / kDisplayWidth;
+		int32_t endSample = ((col + 1) * cycleSize) / kDisplayWidth;
+		if (endSample <= startSample) {
+			endSample = startSample + 1;
+		}
+
+		int32_t minVal = INT32_MAX;
+		int32_t maxVal = INT32_MIN;
+		for (int32_t s = startSample; s < endSample; s++) {
+			int32_t a = dataA[s];
+			int32_t b = dataB[s];
+			int32_t blended = a + (((b - a) * fracQ16) >> 16);
+			if (blended < minVal) {
+				minVal = blended;
+			}
+			if (blended > maxVal) {
+				maxVal = blended;
+			}
+		}
+
+		data.minPerCol[col] = minVal << 16;
+		data.maxPerCol[col] = maxVal << 16;
+		data.colStatus[col] = COL_STATUS_INVESTIGATED;
+
+		if (data.minPerCol[col] < overallMin) {
+			overallMin = data.minPerCol[col];
+		}
+		if (data.maxPerCol[col] > overallMax) {
+			overallMax = data.maxPerCol[col];
+		}
+	}
+
+	int32_t valueCentrePoint = (overallMax >> 1) + (overallMin >> 1);
+	int32_t valueSpan = (overallMax >> kDisplayHeightMagnitude) - (overallMin >> kDisplayHeightMagnitude);
+	if (valueSpan == 0) {
+		valueSpan = 1;
+	}
+
+	for (int32_t col = 0; col < kDisplayWidth; col++) {
+		renderOneCol(col, thisImage, &data, valueCentrePoint, valueSpan, false, std::nullopt);
+	}
+
+	return true;
+}
+
 void WaveformRenderer::renderOneCol(Sample* sample, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth],
                                     WaveformRenderData* data, bool reversed, std::optional<RGB> rgb) {
+	renderOneCol(xDisplay, thisImage, data, sample->getFoundValueCentrePoint(), sample->getValueSpan(), reversed, rgb);
+}
+
+void WaveformRenderer::renderOneCol(int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth],
+                                    WaveformRenderData* data, int32_t valueCentrePoint, int32_t valueSpan,
+                                    bool reversed, std::optional<RGB> rgb) {
 	int32_t min24, max24;
 	int32_t brightness = rgb ? 256 : 128;
 
 	int32_t xDisplaySource = reversed ? (kDisplayWidth - 1 - xDisplay) : xDisplay;
 
 	if (data->colStatus[xDisplaySource] == COL_STATUS_INVESTIGATED) {
-
-		getColBarPositions(xDisplaySource, data, &min24, &max24, sample->getFoundValueCentrePoint(),
-		                   sample->getValueSpan());
-
+		getColBarPositions(xDisplaySource, data, &min24, &max24, valueCentrePoint, valueSpan);
 		drawColBar(xDisplay, min24, max24, thisImage, brightness, rgb);
 	}
 }
