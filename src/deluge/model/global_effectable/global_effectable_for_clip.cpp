@@ -126,11 +126,14 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		}
 	}
 
-	// Render filters
-	processFilters(global_effectable_audio);
+	if (renderedLastTime) {
+		// Render filters
+		processFilters(global_effectable_audio);
 
-	// Render FX
-	processSRRAndBitcrushing(global_effectable_audio, &volumePostFX, paramManagerForClip);
+		// Render FX
+		processSRRAndBitcrushing(global_effectable_audio, &volumePostFX, paramManagerForClip);
+	}
+
 	processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
 	                             renderedLastTime, reverbSendAmount);
 	processStutter(global_effectable_audio, paramManagerForClip);
