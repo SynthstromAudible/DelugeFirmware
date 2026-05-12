@@ -265,6 +265,9 @@ bool definitelyLog = false;
 
 uint16_t audioLogTimes[AUDIO_LOG_SIZE];
 char audioLogStrings[AUDIO_LOG_SIZE][64];
+const char* audioLogFiles[AUDIO_LOG_SIZE];
+int audioLogLines[AUDIO_LOG_SIZE];
+
 int32_t numAudioLogItems = 0;
 #endif
 
@@ -426,8 +429,6 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			forceReleaseOneVoice(numSamples);
 
 #if ALPHA_OR_BETA_VERSION
-
-			definitelyLog = true;
 			logAction("hard cull");
 
 #endif
@@ -493,9 +494,6 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 
 			int32_t num_samples_over_limit = (int32_t)numSamples - numSamplesLimit;
 			if (num_samples_over_limit >= 0) {
-#if DO_AUDIO_LOG
-				definitelyLog = true;
-#endif
 				D_PRINTLN("numSamples %d, numVoice %d, numAudio %d", numSamples, numVoice, numAudio);
 				logAction("skipped cull");
 			}
@@ -1203,21 +1201,15 @@ bool doSomeOutputting() {
 	return (renderingBufferOutputPos == renderingBufferOutputEnd);
 }
 
-void logAction(char const* string) {
+void logAudioAction(char const* string, const char* file, int line) {
 #if DO_AUDIO_LOG
 	if (numAudioLogItems >= AUDIO_LOG_SIZE)
 		return;
 	audioLogTimes[numAudioLogItems] = *TCNT[TIMER_SYSTEM_FAST];
 	strcpy(audioLogStrings[numAudioLogItems], string);
+	audioLogFiles[numAudioLogItems] = file;
+	audioLogLines[numAudioLogItems] = line;
 	numAudioLogItems++;
-#endif
-}
-
-void logAction(int32_t number) {
-#if DO_AUDIO_LOG
-	char buffer[12];
-	intToString(number, buffer);
-	logAction(buffer);
 #endif
 }
 
@@ -1226,18 +1218,18 @@ void dumpAudioLog() {
 	uint16_t currentTime = *TCNT[TIMER_SYSTEM_FAST];
 	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
 	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
-	if (definitelyLog || timePassedUSA > (1000)) {
+	if (timePassedUSA > (2500)) {
 
-		D_PRINTLN("");
+		D_PRINTLN("Audio log dump");
 		for (int32_t i = 0; i < numAudioLogItems; i++) {
 			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
 			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
-			D_PRINTLN("%d:  %s", timePassedUS, audioLogStrings[i]);
+			logDebug(kDebugPrintModeNewlined, audioLogFiles[i], audioLogLines[i], 256, "\t %d us:  %s", timePassedUS,
+			         audioLogStrings[i]);
 		}
 
 		D_PRINTLN("%d: end", timePassedUSA);
 	}
-	definitelyLog = false;
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
 	numAudioLogItems = 0;
 #endif
