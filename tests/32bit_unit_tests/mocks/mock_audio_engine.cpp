@@ -2,9 +2,9 @@
 #include <iostream>
 using namespace std;
 #define SHOW_AUDIO_LOG 0
-void AudioEngine::logAction(char const* item) {
+void AudioEngine::logAudioAction(char const* string, const char* file, int line) {
 #if SHOW_AUDIO_LOG
-	cout << item << endl;
+	cout << file << ":" << line << ": " << item << endl;
 #endif
 }
 
