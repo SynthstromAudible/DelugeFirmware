@@ -37,6 +37,20 @@ void ENTER_CRITICAL_SECTION();
 /// exit critical section - ensure it's paired with ENTER_CRITICAL_SECTION()
 void EXIT_CRITICAL_SECTION();
 
+static inline __attribute__((no_instrument_function)) void DISABLE_ALL_INTERRUPTS() {
+	// memory creates a memory barrier in GCC to avoid reordering
+	// http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html#ss5.3
+	__asm volatile("CPSID i" ::: "memory");
+	__asm volatile("DSB");
+	__asm volatile("ISB");
+}
+
+static inline __attribute__((no_instrument_function)) void ENABLE_ALL_INTERRUPTS() {
+	__asm volatile("CPSIE i" ::: "memory");
+	__asm volatile("DSB");
+	__asm volatile("ISB");
+}
+
 void clearIRQInterrupt(int irqNumber);
 
 /// Configure external interrupt `irqNumber` (0–7) for both-edge detection.
