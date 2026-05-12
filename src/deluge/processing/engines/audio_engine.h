@@ -134,6 +134,8 @@ class Reverb;
 #define DO_AUDIO_LOG 0
 
 namespace AudioEngine {
+#define logAction(string) logAudioAction(string, __FILE__, __LINE__)
+
 using VoicePool = deluge::memory::ObjectPool<Voice, deluge::memory::fast_allocator>;
 using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator>;
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
@@ -148,8 +150,7 @@ void stopAnyPreviewing();
 
 void songSwapAboutToHappen();
 void killAllVoices(bool deletingSong = false);
-void logAction(char const* string);
-void logAction(int32_t number);
+void logAudioAction(char const* string, const char* file, int line);
 
 void getReverbParamsFromSong(Song* song);
 
