@@ -131,7 +131,7 @@ class Reverb;
  */
 
 /// For advanced debugging printouts.
-#define DO_AUDIO_LOG 1
+#define DO_AUDIO_LOG 0
 
 namespace AudioEngine {
 #define logAction(string) logAudioAction(string, __FILE__, __LINE__)
