@@ -720,10 +720,21 @@ bool WaveformRenderer::renderWaveTableSlice(WaveTable* waveTable, float slicePos
 		}
 	}
 
-	int32_t valueCentrePoint = (overallMax >> 1) + (overallMin >> 1);
-	int32_t valueSpan = (overallMax >> kDisplayHeightMagnitude) - (overallMin >> kDisplayHeightMagnitude);
-	if (valueSpan == 0) {
-		valueSpan = 1;
+	int32_t valueCentrePoint;
+	int32_t valueSpan;
+	if (waveTable->globalValueSpan > 0) {
+		// Use the wavetable's global amplitude bounds — silent cycles render dark, loud cycles render with full
+		// vertical range. Without this, each slice was auto-normalised to its own min/max so a silent tail looked
+		// like full peaks because tiny sub-LSB wiggle got stretched to fill the screen.
+		valueCentrePoint = waveTable->globalValueCentrePoint;
+		valueSpan = waveTable->globalValueSpan;
+	}
+	else {
+		valueCentrePoint = (overallMax >> 1) + (overallMin >> 1);
+		valueSpan = (overallMax >> kDisplayHeightMagnitude) - (overallMin >> kDisplayHeightMagnitude);
+		if (valueSpan == 0) {
+			valueSpan = 1;
+		}
 	}
 
 	for (int32_t col = 0; col < kDisplayWidth; col++) {

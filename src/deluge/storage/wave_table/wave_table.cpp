@@ -138,7 +138,7 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 
 Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
                        uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat,
-                       WaveTableReader* reader) {
+                       WaveTableReader* reader, bool fastPreview) {
 	AudioEngine::logAction("WaveTable::setup");
 
 	uint32_t originalSampleLengthInSamples;
@@ -235,8 +235,17 @@ tryGettingFFTConfig:
 	// numBands is set such that the "smallest" band will have 8 samples per cycle. Not 4 - because NE10 can't do FFTs
 	// that small unless we enable its additional C code, which would take up program size for little advantage.
 	{
-		int32_t numBands =
-		    fftCFGForInitialBand ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
+		int32_t numBands;
+		if (fastPreview) {
+			// Browse-preview path: one raw band, no mipmap mip-levels, no FFT processing. The render engine
+			// picks bands by phase increment — at preview pitch (~native sample rate) band 0 always wins.
+			numBands = 1;
+		}
+		else {
+			numBands = fftCFGForInitialBand
+			               ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1))
+			               : 1;
+		}
 
 		// Don't refer to numBands after this! (Why? Because we might end up using less after all?)
 		error = bands.insertAtIndex(0, numBands);
@@ -291,6 +300,16 @@ gotError2:
 #else
 		                          1.25;
 #endif
+	}
+
+	// Browse-preview path: no FFT harmonic scan ever runs, so the per-cycle toCycleNumber update at the bottom of
+	// the cycle loop never fires. Mark band 0 as covering the full range up front, and raise maxPhaseIncrement to
+	// the max so any preview pitch lands on it (the single-band setup has no fallback bands to pick from).
+	if (fastPreview) {
+		auto* singleBand = (WaveTableBand*)bands.getElementAddress(0);
+		singleBand->fromCycleNumber = 0;
+		singleBand->toCycleNumber = numCycles;
+		singleBand->maxPhaseIncrement = 0xFFFFFFFF;
 	}
 
 	AudioEngine::logAction("bands set up");
@@ -747,6 +766,37 @@ transformBandToTimeDomain:
 		numCycleTransitionsNextPowerOf2 = 1 << numCycleTransitionsNextPowerOf2Magnitude;
 
 		waveIndexMultiplier = numCycleTransitions << (31 - numCycleTransitionsNextPowerOf2Magnitude);
+	}
+
+	// Compute global amplitude bounds so the preview LED renderer can normalise across the whole wavetable
+	// instead of per-cycle. Only done for fastPreview — the regular path produces multi-band data where global
+	// bounds aren't directly useful.
+	if (fastPreview && bands.getNumElements() >= 1) {
+		auto* band0 = (WaveTableBand*)bands.getElementAddress(0);
+		int32_t stride = band0->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE;
+		int16_t const* data = band0->dataAccessAddress;
+		int32_t overallMin = INT32_MAX;
+		int32_t overallMax = INT32_MIN;
+		for (int32_t c = 0; c < numCycles; c++) {
+			int16_t const* cyc = data + (int32_t)c * stride;
+			for (int32_t i = 0; i < band0->cycleSizeNoDuplicates; i++) {
+				int32_t v = (int32_t)cyc[i] << 16; // match the <<16 scaling used downstream in renderWaveTableSlice
+				if (v < overallMin) {
+					overallMin = v;
+				}
+				if (v > overallMax) {
+					overallMax = v;
+				}
+			}
+		}
+		if (overallMin >= overallMax) {
+			overallMax = overallMin + 1;
+		}
+		globalValueCentrePoint = (overallMax >> 1) + (overallMin >> 1);
+		globalValueSpan = (overallMax >> kDisplayHeightMagnitude) - (overallMin >> kDisplayHeightMagnitude);
+		if (globalValueSpan <= 0) {
+			globalValueSpan = 1;
+		}
 	}
 
 	// Dispose of temp memory

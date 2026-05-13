@@ -50,7 +50,8 @@ public:
 	                int32_t waveIndexIncrement);
 	Error setup(Sample* sample, int32_t nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
 	            uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0,
-	            RawDataFormat rawDataFormat = RawDataFormat::NATIVE, WaveTableReader* reader = nullptr);
+	            RawDataFormat rawDataFormat = RawDataFormat::NATIVE, WaveTableReader* reader = nullptr,
+	            bool fastPreview = false);
 	void deleteAllBandsAndData();
 	void bandDataBeingStolen(WaveTableBandData* bandData);
 
@@ -65,6 +66,12 @@ public:
 	int32_t numCycleTransitionsNextPowerOf2Magnitude;
 	int32_t waveIndexMultiplier;
 	OrderedResizeableArrayWith32bitKey bands;
+
+	// Global amplitude bounds across all cycles, populated by fastPreview setup. Lets renderWaveTableSlice draw
+	// silent cycles as silent instead of auto-normalising tiny wiggle into full-screen peaks. Zero values mean
+	// "not computed; fall back to per-slice normalisation" (preserves behaviour for non-preview wavetables).
+	int32_t globalValueCentrePoint = 0;
+	int32_t globalValueSpan = 0;
 
 protected:
 	void numReasonsIncreasedFromZero() override;

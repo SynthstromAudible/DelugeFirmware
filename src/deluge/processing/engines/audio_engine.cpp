@@ -67,6 +67,7 @@
 #include "util/misc.h"
 #include <algorithm>
 #include <bits/ranges_algo.h>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <execution>
@@ -167,6 +168,10 @@ constexpr uint32_t kPreviewWavetableHalfPeriodSamples = kSampleRate * 2; // 2 s 
 constexpr float kPreviewWavetableDwellFraction = 0.4f;                   // hold each integer slice for 40% of segment
 bool previewWavetableActive = false;
 uint32_t previewWavetablePhaseSamples = 0;
+// Manual scrub: when active, renderSamplePreview() uses previewWavetableManualPos as the slice index instead of
+// running the ping-pong. Set by SampleBrowser's vertical encoder; cleared on stopAnyPreviewing (file change).
+bool previewWavetableManualActive = false;
+float previewWavetableManualPos = 0.0f;
 // Read by the LED preview renderer in SampleBrowser. Written by renderSamplePreview() on the audio thread; the
 // reader uses these values opportunistically — slight tearing is harmless because the LED render only needs a
 // "near-current" position to look animated.
@@ -901,7 +906,19 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 			WaveTable* waveTable = (range != nullptr) ? (WaveTable*)range->waveTableHolder.audioFile : nullptr;
 			int32_t numCycles = (waveTable != nullptr) ? waveTable->numCycles : 0;
 			if (numCycles > 1) {
-				float pos = shapedPingPongPosition(previewWavetablePhaseSamples, numCycles);
+				float pos;
+				if (previewWavetableManualActive) {
+					pos = previewWavetableManualPos;
+					if (pos < 0.0f) {
+						pos = 0.0f;
+					}
+					if (pos > (float)(numCycles - 1)) {
+						pos = (float)(numCycles - 1);
+					}
+				}
+				else {
+					pos = shapedPingPongPosition(previewWavetablePhaseSamples, numCycles);
+				}
 				// Map pos ∈ [0, numCycles-1] to the patched-param value such that Voice's waveIndex
 				// (sourceWaveIndexLastTime + 2^30) sweeps the table from cycle 0 to cycle numCycles-1.
 				// Derivation: WaveTable::render expects waveIndex ∈ [0, 2^31] to span the cycle range.
@@ -1454,7 +1471,75 @@ static void configurePreviewSoundForMode(bool asWavetable) {
 		    getParamFromUserValue(params::LOCAL_ENV_0_SUSTAIN, 50));
 		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
 		    getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 0));
+		// Restore default pitch — the wavetable path may have shifted it down.
+		sampleForPreview->sources[0].transpose = 0;
+		sampleForPreview->sources[0].setCents(0);
 	}
+}
+
+// Pitch the wavetable preview so one stored cycle plays in exactly cycleSize output samples (i.e. the file would
+// sound the same as if it were played as raw PCM at the engine's native sample rate). At kNoteForDrum (60) the
+// wavetable would otherwise render at C4 = 261.63 Hz regardless of cycle length, which is many octaves above
+// the file's "intended" pitch.
+static void applyWavetablePitchForNativeRate(WaveTable* waveTable) {
+	if (waveTable == nullptr || waveTable->bands.getNumElements() == 0) {
+		return;
+	}
+	auto* band = (WaveTableBand*)waveTable->bands.getElementAddress(0);
+	int32_t cycleSize = band->cycleSizeNoDuplicates;
+	if (cycleSize <= 0) {
+		return;
+	}
+	// freq at note 60 = 440 * 2^((60 - 69) / 12) ≈ 261.6256 Hz. Target freq = kSampleRate / cycleSize.
+	constexpr float kFreqAtNoteForDrum = 261.6255653005986f;
+	float totalCents = 1200.0f * std::log2((float)kSampleRate / ((float)cycleSize * kFreqAtNoteForDrum));
+	int32_t totalCentsRounded = (int32_t)std::lround(totalCents);
+	int32_t transpose =
+	    totalCentsRounded / 100; // truncates toward zero, which is what we want for cents in (-100, 100)
+	int32_t cents = totalCentsRounded - transpose * 100;
+	sampleForPreview->sources[0].transpose = (int16_t)transpose;
+	sampleForPreview->sources[0].setCents(cents);
+}
+
+// Build a preview-only WaveTable: single-band, no FFT mipmap, NOT inserted into wavetableFiles. Reuses any cached
+// Sample (so re-previewing the same file is cheap). Caller owns lifetime — stopAnyPreviewing destroys it.
+static WaveTable* loadPreviewWavetable(String* path, FilePointer* filePointer, Error* errorOut) {
+	*errorOut = Error::NONE;
+	auto sampleResult =
+	    audioFileManager.getAudioFileFromFilename(*path, true, filePointer, AudioFileType::SAMPLE, false);
+	if (!sampleResult.has_value()) {
+		*errorOut = sampleResult.error();
+		return nullptr;
+	}
+	auto* sample = (Sample*)sampleResult.value();
+	if (sample == nullptr) {
+		*errorOut = Error::FILE_UNREADABLE;
+		return nullptr;
+	}
+	if (sample->numChannels != 1) {
+		*errorOut = Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO;
+		return nullptr;
+	}
+	void* mem = GeneralMemoryAllocator::get().allocStealable(sizeof(WaveTable));
+	if (!mem) {
+		*errorOut = Error::INSUFFICIENT_RAM;
+		return nullptr;
+	}
+	auto* wt = new (mem) WaveTable;
+	wt->addReason(); // Keep alive while setup() runs and against mid-setup steal.
+	Error err = wt->setup(sample, 0, 0, 0, 0, RawDataFormat::NATIVE, nullptr, /*fastPreview=*/true);
+	if (err != Error::NONE) {
+		wt->~WaveTable();
+		delugeDealloc(mem);
+		*errorOut = err;
+		return nullptr;
+	}
+	wt->filePath.set(path);
+	wt->finalizeAfterLoad(sample->audioDataLengthBytes); // mirrors AudioFileManager's normal load path
+	wt->removeReason("E_PV1");                           // back to 0; holder will addReason on setAudioFile.
+	// Deliberately NOT inserted into audioFileManager.wavetableFiles — preview-only wavetables don't pollute
+	// the song-wide cache, and stopAnyPreviewing eagerly destroys them when the holder releases its reason.
+	return wt;
 }
 
 void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound, bool asWavetable) {
@@ -1462,20 +1547,21 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 
 	configurePreviewSoundForMode(asWavetable);
 
-	AudioFileHolder* holder;
-	Error error;
+	Error error = Error::NONE;
 	if (asWavetable) {
 		MultiWaveTableRange* range = (MultiWaveTableRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
 		if (!range) {
 			return;
 		}
-		holder = &range->waveTableHolder;
+		AudioFileHolder* holder = &range->waveTableHolder;
 		holder->filePath.set(path);
-		// makeWaveTableWorkAtAllCosts=true so unmarked but plausible single-cycle WAVs still preview as wavetables.
-		error = holder->loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer, true);
-		if (error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE
-		    || error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO) {
-			// Fall back to sample preview.
+		WaveTable* wt = loadPreviewWavetable(path, filePointer, &error);
+		if (wt != nullptr) {
+			holder->setAudioFile(wt); // addReason for the holder.
+		}
+		else if (error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE
+		         || error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO) {
+			// Fall back to sample preview — file isn't wavetable-shaped.
 			configurePreviewSoundForMode(false);
 			MultisampleRange* sampleRange = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
 			if (!sampleRange) {
@@ -1502,6 +1588,18 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 	previewWavetableActive = asWavetable && error == Error::NONE;
 	previewWavetablePhaseSamples = 0;
 
+	if (previewWavetableActive) {
+		auto* range = (MultiWaveTableRange*)sampleForPreview->sources[0].ranges.getElement(0);
+		auto* wt = (WaveTable*)range->waveTableHolder.audioFile;
+		applyWavetablePitchForNativeRate(wt);
+		// Publish the handle synchronously. renderSamplePreview() also writes this on each audio tick, but the UI
+		// thread queries getPreviewWavetableState() the moment previewSample() returns — if we wait for the audio
+		// thread to publish, that race leaves previewWavetableHandle == nullptr just long enough for the caller's
+		// "is this a wavetable preview?" check to read false (skipping the SHORTCUT_BLINK unset + scroll setup).
+		previewWavetableHandle = wt;
+		previewWavetableSlicePos = 0.0f;
+	}
+
 	if (shouldActuallySound) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
@@ -1514,14 +1612,46 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 
 void stopAnyPreviewing() {
 	sampleForPreview->killAllVoices();
+	AudioFile* prevFile = nullptr;
 	if (sampleForPreview->sources[0].ranges.getNumElements()) {
 		MultiRange* range = (MultiRange*)sampleForPreview->sources[0].ranges.getElement(0);
+		prevFile = range->getAudioFileHolder()->audioFile;
 		range->getAudioFileHolder()->setAudioFile(nullptr);
+	}
+	// Preview WaveTables are allocated outside the audioFileManager.wavetableFiles cache; once the holder
+	// drops its reason no other reference exists, so they'd otherwise linger in stealable memory and fragment
+	// it after dozens of files browsed. Destroy + free now. Samples stay in the sample cache (snappy
+	// back-scroll, sample data is small and cluster-reclaimable under pressure).
+	if (prevFile != nullptr && prevFile->type == AudioFileType::WAVETABLE && prevFile->numReasonsToBeLoaded <= 0
+	    && !audioFileManager.wavetableFiles.contains(&prevFile->filePath)) {
+		prevFile->~AudioFile();
+		delugeDealloc(prevFile);
 	}
 	previewWavetableActive = false;
 	previewWavetablePhaseSamples = 0;
 	previewWavetableHandle = nullptr;
 	previewWavetableSlicePos = 0.0f;
+	previewWavetableManualActive = false;
+	previewWavetableManualPos = 0.0f;
+	// Reset any pitch offset applied by applyWavetablePitchForNativeRate so the next sample preview is not detuned.
+	sampleForPreview->sources[0].transpose = 0;
+	sampleForPreview->sources[0].setCents(0);
+}
+
+void setPreviewWavetableManualSlicePos(float pos) {
+	previewWavetableManualActive = true;
+	previewWavetableManualPos = pos;
+	// Mirror into the public slicePos so the LED graphicsRoutine renders the chosen slice immediately on the next
+	// graphics tick, without having to wait a full audio render to sync.
+	previewWavetableSlicePos = pos;
+}
+
+float getPreviewWavetableManualSlicePos() {
+	return previewWavetableManualPos;
+}
+
+bool getPreviewWavetableManualActive() {
+	return previewWavetableManualActive;
 }
 
 WaveTable* getPreviewWavetableState(float* slicePos) {

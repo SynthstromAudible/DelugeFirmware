@@ -150,6 +150,13 @@ void stopAnyPreviewing();
 /// in [0, numCycles - 1]. nullptr if not in wavetable-preview mode.
 WaveTable* getPreviewWavetableState(float* slicePos);
 
+/// Manual scrub for the wavetable browse preview: pins the played/displayed slice to pos and pauses the ping-pong
+/// sweep. Cleared automatically by stopAnyPreviewing (i.e. on every new file selection), so a single horizontal
+/// scroll resumes auto-animation.
+void setPreviewWavetableManualSlicePos(float pos);
+float getPreviewWavetableManualSlicePos();
+bool getPreviewWavetableManualActive();
+
 void songSwapAboutToHappen();
 void killAllVoices(bool deletingSong = false);
 void logAction(char const* string);

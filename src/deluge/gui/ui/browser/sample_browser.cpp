@@ -19,6 +19,7 @@
 #include "fatfs.hpp"
 #include "hid/button.h"
 #include "model/sample/sample.h"
+#include "storage/wave_table/wave_table.h"
 #include "util/try.h"
 #include <ranges>
 #undef __GNU_VISIBLE
@@ -278,6 +279,13 @@ void SampleBrowser::exitAction() {
 		}
 	}
 
+	// graphicsRoutine drives the wavetable LED animation off this flag, so stop animating immediately while we
+	// tear down. Critically, keep currentlyShowingSamplePreview = true here: closeUI() reads that via
+	// SampleBrowser::renderMainPads() to decide whether to walk the stack and repaint the underlying view.
+	// Clearing it before close (which is what the previous version of this function did) made closeUI skip the
+	// repaint, leaving the wavetable's last frame on the LEDs.
+	lastRenderedWavetableSlicePos.reset();
+
 	Browser::exitAction();
 
 	if (redrawUI) {
@@ -286,6 +294,12 @@ void SampleBrowser::exitAction() {
 }
 
 void SampleBrowser::graphicsRoutine() {
+	// During the horizontal slide-in transition, PadLEDs::image is owned by the scroll animation. Don't overwrite it
+	// with the swept wavetable frame — let the scroll complete first, then we resume animating from the next tick.
+	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL) {
+		Browser::graphicsRoutine();
+		return;
+	}
 	// While ping-pong wavetable preview is running, redraw the LED grid each graphics tick (~15 ms) showing the
 	// current swept slice. The audio engine publishes the position; we only re-render when it has moved noticeably,
 	// to keep PIC bandwidth low.
@@ -634,8 +648,26 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		// In wavetable-preview mode we animate the LED grid in graphicsRoutine() from the audio-engine's swept slice
 		// position, so the still-frame Sample waveform render below is skipped entirely.
 		if (previewingAsWavetable) {
+			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 			lastRenderedWavetableSlicePos.reset();
 			currentlyShowingSamplePreview = true; // for cleanup-on-leave logic
+			// Mirror the sample-preview path's greyout reassessment; without it the underlying view's pads can be left
+			// in a stale greyout state when the preview ends.
+			PadLEDs::reassessGreyout(true);
+
+			// Horizontal slide-in matching the sample-preview path: render slice 0 of the new wavetable into
+			// imageStore, then hand off to PadLEDs::horizontal::setupScroll. graphicsRoutine() suppresses its
+			// per-tick wavetable repaint while UI_MODE_HORIZONTAL_SCROLL is active so it doesn't fight the scroll.
+			if (movementDirection && !qwertyAlwaysVisible) {
+				WaveTable* wt = AudioEngine::getPreviewWavetableState(nullptr);
+				if (wt != nullptr && waveformRenderer.renderWaveTableSlice(wt, 0.0f, PadLEDs::imageStore)) {
+					memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
+					PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth);
+					currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
+				}
+			}
+
+			PadLEDs::sendOutSidebarColours();
 			didDraw = true;
 		}
 		// If the Sample at least loaded, even if we didn't sound it, then try to render its waveform.
@@ -2075,7 +2107,11 @@ static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
 
 ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	// Or, maybe we want to scroll or zoom around the waveform...
-	if (currentlyShowingSamplePreview
+	// Skip this path for wavetable previews: currentlyShowingSamplePreview is set true there so closeUI() walks the
+	// stack correctly, but waveformBasicNavigator.sample is never set up on the wavetable path, so dereferencing it
+	// in renderFullScreen → findPeaksPerCol would fault. For wavetable previews horizontal scroll falls through to
+	// Browser::horizontalEncoderAction (file change).
+	if (currentlyShowingSamplePreview && AudioEngine::getPreviewWavetableState(nullptr) == nullptr
 	    && (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) || waveformBasicNavigator.isZoomedIn())) {
 
 		// We're quite likely going to need to read the SD card to do either scrolling or zooming
@@ -2121,6 +2157,23 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed()) {
 		return Browser::verticalEncoderAction(offset, false);
+	}
+	// When a wavetable preview is active, "borrow" the vertical encoder to scrub the wave index manually: each
+	// detent moves one cycle forward/back, and the auto ping-pong pauses until the user picks a new file
+	// (horizontal scroll → stopAnyPreviewing → manual flag cleared).
+	float dummy;
+	if (WaveTable* wt = AudioEngine::getPreviewWavetableState(&dummy); wt != nullptr && wt->numCycles > 1) {
+		float current =
+		    AudioEngine::getPreviewWavetableManualActive() ? AudioEngine::getPreviewWavetableManualSlicePos() : dummy;
+		float newPos = current + (float)offset;
+		if (newPos < 0.0f) {
+			newPos = 0.0f;
+		}
+		if (newPos > (float)(wt->numCycles - 1)) {
+			newPos = (float)(wt->numCycles - 1);
+		}
+		AudioEngine::setPreviewWavetableManualSlicePos(newPos);
+		return ActionResult::DEALT_WITH;
 	}
 	if (getRootUI() == &instrumentClipView) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
