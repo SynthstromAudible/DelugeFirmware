@@ -840,7 +840,8 @@ extern "C" int32_t deluge_main(void) {
 		int32_t fileSize = (uint32_t)getNoise() % 1000000;
 
 		char fileName[20];
-		strcpy(fineName, "TEST/") intToString(fileNumber, &fileName[5], 4);
+		strcpy(fileName, "TEST/");
+		intToString(fileNumber, &fileName[5], 4);
 		strcat(fileName, ".TXT");
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
