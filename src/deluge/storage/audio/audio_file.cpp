@@ -57,7 +57,7 @@ Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTab
 	// This stuff for AIFF files only
 	int16_t sustainLoopBeginMarkerId = -1;
 	int16_t sustainLoopEndMarkerId = -1;
-	uint16_t numMarkers;
+	uint16_t numMarkers = 0;
 	int16_t markerIDs[MAX_NUM_MARKERS];
 	uint32_t markerPositions[MAX_NUM_MARKERS];
 
@@ -143,14 +143,12 @@ doSetupWaveTable:
 				switch (bits) {
 				case 8:
 					rawDataFormat = RawDataFormat::UNSIGNED_8;
-					// No break
+					[[fallthrough]];
 				case 16:
 				case 24:
 				case 32:
 					byteDepth = bits >> 3;
 					break;
-				case 256 ... 65535:
-					__builtin_unreachable();
 				default:
 					return Error::FILE_UNSUPPORTED;
 				}
