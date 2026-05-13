@@ -18,6 +18,47 @@
 #include "util/pack.h"
 #include <cstring>
 
+namespace {
+// Reject paths supplied over the SysEx file API that are unsafe to pass to
+// FatFs. The Deluge SysEx file endpoints accept paths from any USB-MIDI
+// peer that knows the JSON protocol, so an unvalidated path lets a
+// malicious peer reach files outside the area the user expects (".."
+// segments) or send shell-control bytes through to display routines that
+// log paths. Reject:
+//
+//   - null pointers
+//   - any path component (delimited by '/') equal to ".."
+//   - any byte below 0x20 or equal to 0x7F (control characters)
+//
+// Single dots and arbitrary non-control bytes are allowed so legitimate
+// filenames such as "MY.SONG" or paths containing dots inside a name keep
+// working.
+bool isPathSafe(const char* path) {
+	if (path == nullptr) {
+		return false;
+	}
+	const char* segment = path;
+	while (true) {
+		const char* slash = strchr(segment, '/');
+		size_t len = slash ? (size_t)(slash - segment) : strlen(segment);
+		if (len == 2 && segment[0] == '.' && segment[1] == '.') {
+			return false;
+		}
+		for (size_t i = 0; i < len; ++i) {
+			uint8_t c = (uint8_t)segment[i];
+			if (c < 0x20 || c == 0x7F) {
+				return false;
+			}
+		}
+		if (!slash) {
+			break;
+		}
+		segment = slash + 1;
+	}
+	return true;
+}
+} // namespace
+
 #define MAX_DIR_LINES 25
 
 extern "C" {
@@ -252,19 +293,25 @@ void smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
 
 	reader.match('}');
 	bool pathCreateTried = false;
-retry:
-	FRESULT errCode;
+	FRESULT errCode = FRESULT::FR_OK;
 	uint32_t fSize = 0;
+	FILdata* fp = nullptr;
 
-	FILdata* fp = openFIL(path.get(), forWrite, &fSize, &errCode);
-
-	if (fp != nullptr) {
-		fSize = fp->fSize;
+	if (!isPathSafe(path.get())) {
+		errCode = FRESULT::FR_INVALID_NAME;
 	}
-	if (forWrite && !pathCreateTried && errCode == FRESULT::FR_NO_PATH) { // was the path missing?
-		createPathDirectories(path, date, time);
-		pathCreateTried = true;
-		goto retry;
+	else {
+	retry:
+		fp = openFIL(path.get(), forWrite, &fSize, &errCode);
+
+		if (fp != nullptr) {
+			fSize = fp->fSize;
+		}
+		if (forWrite && !pathCreateTried && errCode == FRESULT::FR_NO_PATH) { // was the path missing?
+			createPathDirectories(path, date, time);
+			pathCreateTried = true;
+			goto retry;
+		}
 	}
 
 	startReply(jWriter, reader);
@@ -323,8 +370,13 @@ void smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
 	const TCHAR* pathTC = (const TCHAR*)pathVal;
 
 	if (pathTC && strlen(pathTC) > 0) {
-		D_PRINTLN(pathTC);
-		errCode = f_unlink(pathTC);
+		if (!isPathSafe(pathVal)) {
+			errCode = FRESULT::FR_INVALID_NAME;
+		}
+		else {
+			D_PRINTLN(pathTC);
+			errCode = f_unlink(pathTC);
+		}
 		startReply(jWriter, reader);
 		jWriter.writeOpeningTag("^delete", false, true);
 		jWriter.writeAttribute("err", errCode);
@@ -361,13 +413,18 @@ void smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	const TCHAR* pathTC = (const TCHAR*)pathVal;
 
 	if (pathTC && strlen(pathTC) > 0) {
-		D_PRINTLN(pathTC);
-		errCode = f_mkdir(pathTC);
-		if (errCode == FRESULT::FR_OK && (date != 0 || time != 0)) {
-			FILINFO finfo;
-			finfo.fdate = date;
-			finfo.ftime = time;
-			errCode = f_utime(pathTC, &finfo);
+		if (!isPathSafe(pathVal)) {
+			errCode = FRESULT::FR_INVALID_NAME;
+		}
+		else {
+			D_PRINTLN(pathTC);
+			errCode = f_mkdir(pathTC);
+			if (errCode == FRESULT::FR_OK && (date != 0 || time != 0)) {
+				FILINFO finfo;
+				finfo.fdate = date;
+				finfo.ftime = time;
+				errCode = f_utime(pathTC, &finfo);
+			}
 		}
 		startReply(jWriter, reader);
 		jWriter.writeOpeningTag("^mkdir", false, true);
@@ -404,9 +461,14 @@ void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 	const TCHAR* toTC = (const TCHAR*)toVal;
 
 	if (fromTC && strlen(fromTC) && toTC && strlen(toTC)) {
-		D_PRINTLN(fromTC);
-		D_PRINTLN(toTC);
-		errCode = f_rename(fromTC, toTC);
+		if (!isPathSafe(fromVal) || !isPathSafe(toVal)) {
+			errCode = FRESULT::FR_INVALID_NAME;
+		}
+		else {
+			D_PRINTLN(fromTC);
+			D_PRINTLN(toTC);
+			errCode = f_rename(fromTC, toTC);
+		}
 		startReply(jWriter, reader);
 		jWriter.writeOpeningTag("^rename", false, true);
 		jWriter.writeAttribute("from", fromVal);
@@ -448,6 +510,10 @@ void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 
 	const char* pathVal = path.get();
 	const TCHAR* pathTC = (const TCHAR*)pathVal;
+	if (!isPathSafe(pathVal)) {
+		errCode = FRESULT::FR_INVALID_NAME;
+		goto errorFound;
+	}
 	if (lineOffset == 0 || strcmp(activeDirName.get(), pathVal) || lineOffset != dirOffsetCounter) {
 		errCode = f_opendir(&sxDIR, pathTC);
 		if (errCode != FRESULT::FR_OK)
@@ -690,12 +756,17 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	reader.match('}');
 
 	if (!path.isEmpty() && (date != 0 || time != 0)) {
-		FILINFO finfo;
-		finfo.fdate = date;
-		finfo.ftime = time;
 		const char* pathVal = path.get();
-		const TCHAR* pathTC = (const TCHAR*)pathVal;
-		errCode = f_utime(pathTC, &finfo);
+		if (!isPathSafe(pathVal)) {
+			errCode = FRESULT::FR_INVALID_NAME;
+		}
+		else {
+			FILINFO finfo;
+			finfo.fdate = date;
+			finfo.ftime = time;
+			const TCHAR* pathTC = (const TCHAR*)pathVal;
+			errCode = f_utime(pathTC, &finfo);
+		}
 	}
 	else {
 		errCode = FRESULT::FR_INVALID_PARAMETER;
@@ -871,7 +942,10 @@ bool smSysex::parseFileOpParams(JsonDeserializer& reader, FileOpParams& params) 
 	}
 	reader.match('}');
 
-	return params.getFromTC() && strlen(params.getFromTC()) && params.getToTC() && strlen(params.getToTC());
+	if (!params.getFromTC() || !strlen(params.getFromTC()) || !params.getToTC() || !strlen(params.getToTC())) {
+		return false;
+	}
+	return isPathSafe(params.getFromPath()) && isPathSafe(params.getToPath());
 }
 
 // Helper function to set file timestamp
