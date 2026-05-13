@@ -755,7 +755,11 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int32_t ip, int32_t d
 bool developerSysexCodeReceived = false;
 
 void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
-	if (len < 4) {
+	// All branches below dereference up to data[5], so require at least
+	// six bytes (F0 + ID + sub-id + sub-id2 + value + payload byte) before
+	// proceeding. Crafted SysEx with len 4 or 5 previously read past the
+	// end of the message into stale buffer bytes.
+	if (len < 6) {
 		return;
 	}
 	unsigned payloadOffset = 2;
@@ -823,6 +827,7 @@ void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len)
 
 	case SysEx::SysexCommands::Pong: // PONG, reserved
 		D_PRINTLN("Pong");
+		break;
 	default:
 		break;
 	}
