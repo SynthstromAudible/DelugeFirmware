@@ -265,9 +265,22 @@ doSetupWaveTable:
 
 				if ((*(uint32_t*)data & 0x00FFFFFF) == charsToIntegerConstant('<', '!', '>', 0)) {
 					fileExplicitlySpecifiesSelfAsWaveTable = true;
-					int32_t number = memToUIntOrError(&data[3], &data[7]);
-
-					if (number >= 1) {
+					// Parse digits up to the first non-digit. memToUIntOrError() rejects the whole field if any
+					// byte is non-numeric, which silently fails on perfectly valid 1–3-digit cycle sizes like
+					// "<!>128 …" (data[3..6] = '1','2','8',' ' → returns -1 → cycle size falls back to 2048).
+					// Vital/Serum happen to always write 4 digits so nobody noticed.
+					int32_t number = 0;
+					bool gotAnyDigit = false;
+					for (int32_t i = 3; i < 7; i++) {
+						if (data[i] >= '0' && data[i] <= '9') {
+							number = number * 10 + (data[i] - '0');
+							gotAnyDigit = true;
+						}
+						else {
+							break;
+						}
+					}
+					if (gotAnyDigit && number >= 1) {
 						waveTableCycleSize = number;
 						D_PRINTLN("clm tag num samples per cycle:  %d", waveTableCycleSize);
 					}
