@@ -42,6 +42,9 @@ public:
 	void renderNoteEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, InstrumentClip* clip,
 	                                 OutputType outputType, int32_t knobPosLeft, int32_t knobPosRight);
 	void renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft);
+
+private:
+	std::string getNoteRowName(NoteRow* noteRow, bool isKit);
 };
 
 // }; // namespace deluge::gui::views::automation::editor_layout

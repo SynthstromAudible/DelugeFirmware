@@ -19,6 +19,7 @@
 #include "gui/views/automation/editor_layout/note/velocity.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 
 // namespace deluge::gui::views::automation::editor_layout {
 
@@ -78,29 +79,8 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
 		}
 	}
 
-	char noteRowName[50];
-
-	if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-		if (isKit) {
-			DEF_STACK_STRING_BUF(drumName, 50);
-			instrumentClipView.getDrumName(modelStackWithNoteRow->getNoteRow()->drum, drumName);
-			strncpy(noteRowName, drumName.c_str(), 49);
-		}
-		else {
-			int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-			noteCodeToString(modelStackWithNoteRow->getNoteRow()->getNoteCode(), noteRowName, &isNatural);
-		}
-	}
-	else {
-		if (isKit) {
-			strncpy(noteRowName, "(Select Drum)", 49);
-		}
-		else {
-			strncpy(noteRowName, "(Select Note)", 49);
-		}
-	}
-
-	canvas.drawStringCentred(noteRowName, yPos, kTextSpacingX, kTextSpacingY);
+	std::string noteRowName = getNoteRowName(modelStackWithNoteRow->getNoteRowAllowNull(), isKit);
+	canvas.drawStringCentred(noteRowName.c_str(), yPos, kTextSpacingX, kTextSpacingY);
 
 	// display parameter value
 	yPos = yPos + 12;
@@ -131,28 +111,38 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* cli
 		display->setText(buffer, true, 255, false);
 	}
 	else {
-		// display note / drum name
-		char noteRowName[50];
-		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			if (isKit) {
-				DEF_STACK_STRING_BUF(drumName, 50);
-				instrumentClipView.getDrumName(modelStackWithNoteRow->getNoteRow()->drum, drumName);
-				strncpy(noteRowName, drumName.c_str(), 49);
+		std::string noteRowName = getNoteRowName(modelStackWithNoteRow->getNoteRowAllowNull(), isKit);
+		display->setScrollingText(noteRowName.c_str());
+	}
+}
+
+std::string AutomationEditorLayoutNote::getNoteRowName(NoteRow* noteRow, bool isKit) {
+	if (noteRow != nullptr) {
+		if (isKit) {
+			Drum* drum = noteRow->drum;
+			if (drum != nullptr) {
+				return drum->getDrumName();
 			}
 			else {
-				int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-				noteCodeToString(modelStackWithNoteRow->getNoteRow()->getNoteCode(), noteRowName, &isNatural);
+				return "NONE";
 			}
 		}
 		else {
+			return deluge::string::fromNoteCode(noteRow->getNoteCode());
+		}
+	}
+	else {
+		if (display->haveOLED()) {
 			if (isKit) {
-				strncpy(noteRowName, "(Select Drum)", 49);
+				return "(Select Drum)";
 			}
 			else {
-				strncpy(noteRowName, "(Select Note)", 49);
+				return "(Select Note)";
 			}
 		}
-		display->setScrollingText(noteRowName);
+		else {
+			return "NONE";
+		}
 	}
 }
 

@@ -29,8 +29,8 @@ public:
 	Output* output;
 
 protected:
-	bool trySetName(String* name) override;
-	String getName() const override;
+	bool trySetName(std::string_view name) override;
+	std::string_view getCurrentName() const override;
 };
 
 extern RenameOutputUI renameOutputUI;

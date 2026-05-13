@@ -161,14 +161,10 @@ gotError:
 	// Create sample dir
 	String newSongAlternatePath;
 
-	String filenameWithoutExtension;
-	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	std::string filenameWithoutExtension = getCurrentFilenameWithoutExtension();
 
-	error =
-	    audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(), filenameWithoutExtension);
+	error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(),
+	                                                    filenameWithoutExtension.c_str());
 	if (error != Error::NONE) {
 		goto gotError;
 	}

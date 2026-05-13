@@ -413,7 +413,7 @@ fail:
 		}
 
 		error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
-		                                                    currentDir.get(), currentFilenameWithoutExtension);
+		                                                    currentDir.get(), currentFilenameWithoutExtension.get());
 		if (error != Error::NONE) {
 			goto gotErrorAfterCreatingSong;
 		}
@@ -476,7 +476,7 @@ gotErrorAfterCreatingSong:
 	}
 
 	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
-	                                                    currentFilenameWithoutExtension);
+	                                                    currentFilenameWithoutExtension.get());
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}

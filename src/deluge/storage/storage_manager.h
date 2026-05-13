@@ -201,6 +201,15 @@ public:
 	virtual void exitTag(char const* exitTagName = NULL, bool closeObject = false) = 0;
 
 	virtual void reset() = 0;
+
+	Error readTagOrAttributeValueString(std::string& string) {
+		String tmp;
+		Error error = readTagOrAttributeValueString(&tmp);
+		if (error == Error::NONE) {
+			string = tmp.get();
+		}
+		return error;
+	}
 };
 
 class FileDeserializer : public Deserializer, public FileReader {

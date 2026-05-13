@@ -34,8 +34,7 @@ bool RenameUI::opened() {
 		return false;
 	}
 
-	String name = getName();
-	enteredText.set(&name);
+	enteredText.set(getCurrentName());
 
 	displayText();
 	drawKeys();
@@ -47,7 +46,7 @@ void RenameUI::enterKeyPress() {
 	if (enteredText.isEmpty() && !allowEmpty()) {
 		return;
 	}
-	if (trySetName(&enteredText)) {
+	if (trySetName(enteredText.get())) {
 		exitUI();
 	}
 }
