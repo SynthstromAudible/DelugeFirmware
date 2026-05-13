@@ -791,7 +791,11 @@ void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len)
 		developerSysexCodeReceived = true;
 	}
 	// The payload includes the msgID and the ending 0F0
-	unsigned payloadLength = len - payloadOffset;
+	int payloadLength = len - payloadOffset;
+	if (payloadLength < 1) {
+		// in this case it's garbage so just ignore it
+		return;
+	}
 	uint8_t* payloadStart = data + payloadOffset;
 	switch (data[payloadOffset]) {
 	case SysEx::SysexCommands::Ping: // PING test message, reply
