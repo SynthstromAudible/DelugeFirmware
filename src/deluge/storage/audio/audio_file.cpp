@@ -84,6 +84,17 @@ Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTab
 
 		uint32_t bytePosOfThisChunkData = reader->getBytePos();
 
+		// Reject chunks that would extend past the end of the file or wrap the
+		// 32-bit byte position. Either case means a malformed (or hostile)
+		// file rather than a real chunk; without this check, an attacker-
+		// supplied chunk length close to UINT32_MAX wraps bytePos to a small
+		// value or back behind bytePosOfThisChunkData, which prevents the
+		// while-loop from making forward progress and either spins or seeks
+		// backward through the file.
+		if (thisChunk.length > reader->fileSize - bytePosOfThisChunkData) {
+			return Error::FILE_UNSUPPORTED;
+		}
+
 		// Move on for next RIFF chunk
 		bytePos = bytePosOfThisChunkData + thisChunk.length;
 
@@ -293,6 +304,14 @@ doSetupWaveTable:
 					return error;
 				}
 				offset = swapEndianness32(offset);
+
+				// AIFF SSND has an 8-byte sub-header (offset + blockSize)
+				// followed by the audio data. Reject any offset that would
+				// underflow the audio-data length or push the start position
+				// past the end of the chunk.
+				if (offset > bytesCurrentChunkNotRoundedUp || bytesCurrentChunkNotRoundedUp - offset < 8) {
+					return Error::FILE_UNSUPPORTED;
+				}
 				audioDataLengthBytes = bytesCurrentChunkNotRoundedUp - offset - 8;
 
 				// If we're here, we found the data! Take note of where it starts
