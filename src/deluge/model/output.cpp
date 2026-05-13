@@ -281,7 +281,7 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 				else {
 					clipCode = thisInstance->clip->indexForSaving;
 					if (thisInstance->clip->section == 255) {
-						clipCode |= (1 << 31);
+						clipCode |= ((uint32_t)1 << 31);
 					}
 				}
 

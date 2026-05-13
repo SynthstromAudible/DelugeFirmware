@@ -429,7 +429,7 @@ gotError5:
 			}                                                                                                          \
 			value32 &= bitMask;                                                                                        \
 			if (rawDataFormat == RawDataFormat::UNSIGNED_8) {                                                          \
-				value32 += (1 << 31);                                                                                  \
+				value32 += ((uint32_t)1 << 31);                                                                        \
 			}                                                                                                          \
 		}                                                                                                              \
 		*(cycleBufferDestination++) =                                                                                  \
