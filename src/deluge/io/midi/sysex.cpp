@@ -99,25 +99,51 @@ static uint8_t* load_buf;
 static size_t load_bufsize;
 static size_t load_codesize;
 
+// Generous upper bound on the firmware payload size that a SysEx load can
+// request. The Deluge firmware binary is well under 4 MiB; rejecting larger
+// values bounds what an attacker who has guessed or learned the dev-sysex
+// handshake can ask the allocator to do, and prevents a header with
+// user_code_end < user_code_start from wrapping the unsigned subtraction
+// into a near-4 GiB requested size.
+static constexpr size_t MAX_FIRMWARE_LOAD_SIZE = 4 * 1024 * 1024;
+
 static void firstPacket(uint8_t* data, int32_t len) {
 	uint8_t tmpbuf[0x40] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 9, 0x4a);
 	uint32_t user_code_start = *(uint32_t*)(tmpbuf + OFF_USER_CODE_START);
 	uint32_t user_code_end = *(uint32_t*)(tmpbuf + OFF_USER_CODE_END);
-	load_codesize = (int32_t)(user_code_end - user_code_start);
-	if (load_bufsize < load_codesize) {
+
+	// Reject inverted, empty, or oversized ranges before doing any
+	// arithmetic on the unsigned difference.
+	if (user_code_end <= user_code_start) {
+		return;
+	}
+	size_t requested_codesize = (size_t)(user_code_end - user_code_start);
+	if (requested_codesize > MAX_FIRMWARE_LOAD_SIZE) {
+		return;
+	}
+
+	if (load_bufsize < requested_codesize) {
 		if (load_buf != nullptr) {
 			delugeDealloc(load_buf);
+			load_buf = nullptr;
 		}
-		load_bufsize = load_codesize + (511 - ((load_codesize - 1) & 511));
+		size_t requested_bufsize = requested_codesize + (511 - ((requested_codesize - 1) & 511));
 
-		load_buf = (uint8_t*)GeneralMemoryAllocator::get().allocMaxSpeed(load_bufsize);
-		if (load_buf == nullptr) {
-			// fail :(
+		uint8_t* new_buf = (uint8_t*)GeneralMemoryAllocator::get().allocMaxSpeed(requested_bufsize);
+		if (new_buf == nullptr) {
+			// Allocation failed. Keep load_buf and load_bufsize coherent so
+			// that loadPacketReceived's "pos + 512 > load_bufsize" check
+			// cannot pass against a stale (large) load_bufsize while load_buf
+			// is null or points at a smaller previous allocation.
+			load_bufsize = 0;
 			return;
 		}
+		load_buf = new_buf;
+		load_bufsize = requested_bufsize;
 	}
+	load_codesize = requested_codesize;
 
 	// Pad LED Progress Bar Init
 	PadLEDs::clearAllPadsWithoutSending();
