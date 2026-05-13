@@ -47,14 +47,21 @@ Environment overrides:
 | `OPENOCD_PREFIX` | `toolchain/v<N>/<sys>-<arch>/openocd` | `make install` destination |
 | `OPENOCD_CONFIGURE_FLAGS` | `--enable-cmsis-dap --disable-werror` | Passed to `./configure` |
 
-System prerequisites for the build (Debian/Ubuntu names):
+System prerequisites:
 
-```
-build-essential autoconf automake libtool pkg-config texinfo
-libhidapi-dev libusb-1.0-0-dev libjim-dev
-```
+| Platform | Status | Setup |
+|---|---|---|
+| Linux (x86_64 / arm64) | Supported | `apt install build-essential autoconf automake libtool pkg-config texinfo libhidapi-dev libusb-1.0-0-dev libjim-dev` |
+| macOS (x86_64 / arm64) | Supported | `brew install autoconf automake libtool pkg-config hidapi libusb` |
+| Windows | Not yet | Use Linux/macOS to produce `openocd.exe`, copy into `toolchain/win32-x64/openocd/bin/` |
 
-(jim-dev is needed because we disable bundled jimtcl via the upstream defaults.)
+(`libjim-dev` / homebrew `jim` is only needed if you disable bundled jimtcl; the
+default `--recurse-submodules` clone pulls it in so the system package isn't
+strictly required.)
+
+The script bails with a clear message on Windows shells (MSYS/Cygwin) rather
+than failing inside `./configure` — building openocd-msvc with our driver is a
+separate Visual-Studio + msys2 effort we haven't tackled.
 
 ## What's in the patch
 

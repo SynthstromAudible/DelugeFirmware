@@ -15,6 +15,29 @@ ROOT="$(pwd)"
 SYS_TYPE="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH_TYPE="$(uname -m | tr '[:upper:]' '[:lower:]')"
 [ "$ARCH_TYPE" = "aarch64" ] && ARCH_TYPE="arm64"
+
+# Windows users: build-from-source on win32 is a separate effort (the DBT-shipped openocd is a
+# prebuilt openocd-msvc). Bail with a clear message rather than fail mysteriously inside ./configure.
+case "$SYS_TYPE" in
+    mingw*|msys*|cygwin*|windows*)
+        echo "FATAL: build-openocd.sh doesn't support Windows builds yet." >&2
+        echo "On Windows the DBT toolchain ships a prebuilt xPack openocd-msvc — to add the" >&2
+        echo "renesas_spibsc driver you'd need to rebuild that binary with our patch applied," >&2
+        echo "which is a Visual-Studio + msys2 + autotools side-project we haven't tackled." >&2
+        echo "Run this script on Linux or macOS and copy the resulting openocd.exe over." >&2
+        exit 1
+        ;;
+esac
+
+# Cross-platform parallel-job count.
+if command -v nproc >/dev/null 2>&1; then
+    NJOBS="$(nproc)"
+elif command -v sysctl >/dev/null 2>&1; then
+    NJOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+else
+    NJOBS=4
+fi
+
 TOOLCHAIN_VERSION="$(cat toolchain/REQUIRED_VERSION 2>/dev/null || true)"
 DEFAULT_PREFIX="$ROOT/toolchain/v${TOOLCHAIN_VERSION}/${SYS_TYPE}-${ARCH_TYPE}/openocd"
 
@@ -57,8 +80,8 @@ if [ ! -f src/openocd ] || [ ! -f config.status ]; then
         ${OPENOCD_CONFIGURE_FLAGS:---enable-cmsis-dap --disable-werror}
 fi
 
-echo "==> make ($(nproc) jobs)"
-make -j"$(nproc)"
+echo "==> make ($NJOBS jobs)"
+make -j"$NJOBS"
 
 echo "==> make install (replacing xPack openocd at $OPENOCD_PREFIX)"
 make install
