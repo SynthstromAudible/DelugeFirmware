@@ -1,0 +1,3100 @@
+--- ocd-a/src/flash/nor/Makefile.am	2022-09-18 15:46:15.000000000 +0200
++++ ocd-b/src/flash/nor/Makefile.am	2026-05-13 18:02:05.942616249 +0200
+@@ -55,6 +55,7 @@
+ 	%D%/psoc5lp.c \
+ 	%D%/psoc6.c \
+ 	%D%/renesas_rpchf.c \
++	%D%/renesas_spibsc.c \
+ 	%D%/rp2040.c \
+ 	%D%/rsl10.c \
+ 	%D%/sfdp.c \
+--- ocd-a/src/flash/nor/drivers.c	2022-09-18 15:46:15.000000000 +0200
++++ ocd-b/src/flash/nor/drivers.c	2026-05-13 18:02:05.941505542 +0200
+@@ -57,6 +57,7 @@
+ extern const struct flash_driver psoc5lp_nvl_flash;
+ extern const struct flash_driver psoc6_flash;
+ extern const struct flash_driver renesas_rpchf_flash;
++extern const struct flash_driver renesas_spibsc_flash;
+ extern const struct flash_driver rp2040_flash;
+ extern const struct flash_driver sh_qspi_flash;
+ extern const struct flash_driver sim3x_flash;
+@@ -133,6 +134,7 @@
+ 	&psoc5lp_nvl_flash,
+ 	&psoc6_flash,
+ 	&renesas_rpchf_flash,
++	&renesas_spibsc_flash,
+ 	&rp2040_flash,
+ 	&sh_qspi_flash,
+ 	&sim3x_flash,
+--- ocd-a/src/flash/nor/renesas_spibsc.c	1970-01-01 01:00:00.000000000 +0100
++++ ocd-b/src/flash/nor/renesas_spibsc.c	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,1910 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++
++/*
++ * Renesas RZ/A1x SPI Multi-I/O Bus Controller (SPIBSC) flash driver
++ *
++ * Targets the SPIBSC peripheral on R7S721010/R7S721020 (RZ/A1H / RZ/A1L)
++ * driving an external SPI NOR. Reads use the on-chip XIP "external address
++ * space" window (DRCR/DRCMR/DRENR/DREAR); erases and page programming go
++ * through the manual SPI mode (SMCR/SMCMR/SMADR/SMENR/SMWDRn).
++ *
++ * The driver runs entirely host-side over JTAG/SWD — no working-area write
++ * stub. That keeps brick recovery possible from a cold target where the
++ * bootloader hasn't set RAM up yet, and the SPIBSC FIFO holds at most a
++ * single 32-bit word per manual transfer so the host round-trip dominates
++ * either way.
++ *
++ * Bank declaration:
++ *   flash bank <name> renesas_spibsc <xip_base> 0 0 0 <target> \
++ *       <io_base> [<channel>]
++ *
++ *   xip_base   external address space base (0x18000000 for SPIBSC0,
++ *              0x1c000000 for SPIBSC1)
++ *   io_base    SPIBSC control register base (0x3fefa000 for SPIBSC0,
++ *              0x3fefb000 for SPIBSC1)
++ *   channel    optional, 0 or 1 — purely cosmetic for log lines
++ */
++
++#ifdef HAVE_CONFIG_H
++#include "config.h"
++#endif
++
++#include "imp.h"
++#include "spi.h"
++#include <helper/binarybuffer.h>
++#include <helper/bits.h>
++#include <helper/fileio.h>
++#include <helper/time_support.h>
++#include <helper/types.h>
++#include <target/arm.h>
++#include <target/armv7a_cache.h>
++#include <target/breakpoints.h>
++#include <target/register.h>
++#include <target/target.h>
++
++/* SPIBSC register offsets (from io_base) */
++#define SPIBSC_CMNCR	0x00
++#define SPIBSC_SSLDR	0x04
++#define SPIBSC_SPBCR	0x08
++#define SPIBSC_DRCR	0x0c
++#define SPIBSC_DRCMR	0x10
++#define SPIBSC_DREAR	0x14
++#define SPIBSC_DROPR	0x18
++#define SPIBSC_DRENR	0x1c
++#define SPIBSC_SMCR	0x20
++#define SPIBSC_SMCMR	0x24
++#define SPIBSC_SMADR	0x28
++#define SPIBSC_SMOPR	0x2c
++#define SPIBSC_SMENR	0x30
++#define SPIBSC_SMRDR0	0x38
++#define SPIBSC_SMRDR1	0x3c
++#define SPIBSC_SMWDR0	0x40
++#define SPIBSC_SMWDR1	0x44
++#define SPIBSC_CMNSR	0x48
++#define SPIBSC_DRDMCR	0x58
++#define SPIBSC_DRDRENR	0x5c
++#define SPIBSC_SMDMCR	0x60
++#define SPIBSC_SMDRENR	0x64
++
++/* CMNCR bits */
++#define CMNCR_MD	BIT(31)		/* 0 = ext addr read, 1 = manual SPI */
++#define CMNCR_SFDE	BIT(24)		/* byte-swap on XIP byte access */
++#define CMNCR_BSZ_SINGLE 0x0		/* one serial flash */
++
++/* DRCR bits (external address space read) */
++#define DRCR_SSLN	BIT(24)		/* force SSL negate */
++#define DRCR_RCF	BIT(9)		/* clear read cache */
++#define DRCR_RBE	BIT(8)		/* enable read burst */
++
++/* DREAR bits */
++#define DREAR_EAC_24BIT	0x0		/* 24-bit (3-byte) addressing */
++#define DREAR_EAC_25BIT	0x1		/* 32-bit (4-byte) addressing */
++
++/* DRENR bits */
++#define DRENR_CDE	BIT(14)		/* command enable */
++#define DRENR_ADE_4BYTE	(0xfu << 8)	/* 32-bit address */
++#define DRENR_ADE_3BYTE	(0x7u << 8)	/* 24-bit address */
++
++/* SMCR bits */
++#define SMCR_SPIE	BIT(0)		/* start transfer */
++#define SMCR_SPIWE	BIT(1)		/* enable data write */
++#define SMCR_SPIRE	BIT(2)		/* enable data read */
++#define SMCR_SSLKP	BIT(8)		/* keep SSL asserted after xfer */
++
++/* SMENR bits */
++#define SMENR_SPIDE_1B	0x8		/* 1 byte data */
++#define SMENR_SPIDE_2B	0xc		/* 2 bytes data */
++#define SMENR_SPIDE_4B	0xf		/* 4 bytes data */
++#define SMENR_CDE	BIT(14)
++#define SMENR_ADE_4BYTE	(0xfu << 8)
++#define SMENR_ADE_3BYTE	(0x7u << 8)
++
++/* CMNSR bits */
++#define CMNSR_TEND	BIT(0)		/* transfer ended */
++#define CMNSR_SSLF	BIT(1)		/* SSL state (0 = negated) */
++
++#define SPIBSC_TEND_TIMEOUT_MS	1000
++#define SPIBSC_ERASE_TIMEOUT_MS	60000
++#define SPIBSC_WIP_TIMEOUT_MS	5000
++
++/* Mailbox handler layout. Must match
++ * contrib/loaders/flash/renesas_spibsc/handler.h. */
++#define SPIBSC_HANDLER_BASE	0x20200000u
++#define SPIBSC_MAILBOX_ADDR	(SPIBSC_HANDLER_BASE + 0x000)
++#define SPIBSC_HANDLER_CODE	(SPIBSC_HANDLER_BASE + 0x100)
++#define SPIBSC_DATA_BUFFER	(SPIBSC_HANDLER_BASE + 0x1000)
++#define SPIBSC_DATA_BUFFER_SZ	0x4000u
++
++#define SPIBSC_MAGIC_READY	0x52FB5421u
++
++/* Mailbox field offsets within struct spibsc_mailbox. Order MUST match
++ * the struct definition in handler.h. */
++#define MBX_MAGIC	0x00
++#define MBX_COMMAND	0x04
++#define MBX_COMMAND_ID	0x08
++#define MBX_FLASH_ADDR	0x0c
++#define MBX_LENGTH	0x10
++#define MBX_STATUS	0x14
++#define MBX_RESULT_ID	0x18
++#define MBX_ERROR	0x1c
++#define MBX_HEARTBEAT	0x20
++#define MBX_PP_CMD	0x24
++#define MBX_ERASE_CMD	0x28
++#define MBX_READ_CMD	0x2c
++#define MBX_IO_BASE	0x30
++#define MBX_ADDR_BYTES	0x34
++
++#define CMD_NOP			0
++#define CMD_WRITE		1
++#define CMD_ERASE_SECTOR	2
++#define CMD_READ		3
++#define CMD_HASH_RANGE		4
++#define CMD_PROGRAM_RANGE	5
++#define CMD_QUIT		0xff
++
++#define MBX_BUF_ADDR		0x38
++#define MBX_SECTOR_SIZE		0x3c
++#define MBX_XIP_BASE		0x40
++
++/* Staging area used by the smart_program command. We use the 32 MiB
++ * external SDRAM mapped at 0x0c000000 because on-chip RAM is too small
++ * (RZ/A1L has only 3 MiB and the firmware uses most of it).
++ *
++ * Caveat: SDRAM only comes alive after the Deluge firmware runs
++ * Peripheral_Basic_Init. If we attach to a brick where the boot ROM
++ * crashed before that init, SDRAM reads return 0x00 and smart_program
++ * would silently write zeros to flash. spibsc_handle_smart_program
++ * probes SDRAM at the start and aborts with a clear message in that
++ * case — use `flash write_image` for brick recovery instead. */
++#define SPIBSC_STAGE_IMAGE	0x0e000000u
++#define SPIBSC_STAGE_CRC	0x0e800000u
++#define SPIBSC_STAGE_LIMIT	0x10000000u
++
++#define STATUS_IDLE	0
++#define STATUS_BUSY	1
++#define STATUS_DONE	2
++#define STATUS_ERR	3
++
++/* Handler binary, built from contrib/loaders/flash/renesas_spibsc/handler.c */
++static const uint8_t spibsc_handler_bin[] = {
++#include "../../../contrib/loaders/flash/renesas_spibsc/handler.inc"
++};
++
++struct spibsc_flash_bank {
++	bool probed;
++	uint32_t io_base;
++	unsigned int channel;
++	const struct flash_device *dev;
++	bool addr4b;
++	/* Set true once the handler is uploaded and confirmed running. */
++	bool handler_loaded;
++	uint32_t next_cmd_id;
++};
++
++/* Forward declarations for handler-client helpers (defined below the
++ * slow-path helpers, used by the public erase/write/read entry points). */
++static int spibsc_handler_write_chunk(struct flash_bank *bank,
++		const uint8_t *buf, uint32_t flash_addr, uint32_t length);
++static int spibsc_handler_erase_sector(struct flash_bank *bank,
++		uint32_t flash_addr);
++static int spibsc_handler_read_chunk(struct flash_bank *bank,
++		uint8_t *buf, uint32_t flash_addr, uint32_t length);
++static int spibsc_handler_upload(struct flash_bank *bank);
++static int spibsc_handler_quit(struct flash_bank *bank);
++static int spibsc_pause_and_sync(struct target *target);
++
++static int spibsc_wait_tend(struct flash_bank *bank)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	int64_t endtime = timeval_ms() + SPIBSC_TEND_TIMEOUT_MS;
++	uint32_t cmnsr;
++
++	for (;;) {
++		int ret = target_read_u32(target, info->io_base + SPIBSC_CMNSR, &cmnsr);
++		if (ret != ERROR_OK)
++			return ret;
++		if (cmnsr & CMNSR_TEND)
++			return ERROR_OK;
++		if (timeval_ms() > endtime)
++			break;
++		alive_sleep(1);
++	}
++
++	LOG_ERROR("SPIBSC: timeout waiting for TEND");
++	return ERROR_TIMEOUT_REACHED;
++}
++
++/* Switch SPIBSC to manual SPI mode. Must be done before any SM* transfer. */
++static int spibsc_enter_spi_mode(struct flash_bank *bank)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	uint32_t cmncr;
++	int ret;
++
++	ret = target_read_u32(target, info->io_base + SPIBSC_CMNCR, &cmncr);
++	if (ret != ERROR_OK)
++		return ret;
++
++	if (!(cmncr & CMNCR_MD)) {
++		/* Force SSL negate from any in-flight XIP burst, wait TEND. */
++		ret = target_write_u32(target, info->io_base + SPIBSC_DRCR,
++				DRCR_SSLN);
++		if (ret != ERROR_OK)
++			return ret;
++		ret = spibsc_wait_tend(bank);
++		if (ret != ERROR_OK)
++			return ret;
++
++		cmncr |= CMNCR_MD;
++		ret = target_write_u32(target, info->io_base + SPIBSC_CMNCR,
++				cmncr);
++		if (ret != ERROR_OK)
++			return ret;
++	}
++
++	/* Always clear SMDRENR (DDR enable bits) and SMOPR (option data).
++	 * A stale SMDRENR.SPIDRE flips SMRDR0 byte packing in a way that
++	 * silently corrupts multi-byte reads, and SMOPR remnants from an
++	 * earlier transfer leak into the wire when SMENR.OPDE happens to be
++	 * non-zero on the next call. Cheap to write defensively. */
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMDRENR, 0);
++	if (ret != ERROR_OK)
++		return ret;
++	return target_write_u32(target, info->io_base + SPIBSC_SMOPR, 0);
++}
++
++/* Switch SPIBSC to external address space (XIP) read mode and configure a
++ * 4-byte-address fast read suitable for the S25FL512S-class >16 MB parts. */
++static int spibsc_enter_xip_mode(struct flash_bank *bank)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	uint32_t cmncr;
++	int ret;
++
++	/* Configure data-read engine: opcode 0x0c (4-byte fast read), 8 dummy
++	 * cycles, 4-byte address. The S25FL512S supports 0x0c with the default
++	 * 8 dummy cycles after power-on. Use 0x0c rather than 0x13 because 0x13
++	 * requires zero dummy cycles which makes max clock harder to hit; the
++	 * SPIBSC supports either. */
++	if (info->addr4b)
++		ret = target_write_u32(target, info->io_base + SPIBSC_DRENR,
++				DRENR_CDE | DRENR_ADE_4BYTE);
++	else
++		ret = target_write_u32(target, info->io_base + SPIBSC_DRENR,
++				DRENR_CDE | DRENR_ADE_3BYTE);
++	if (ret != ERROR_OK)
++		return ret;
++
++	uint8_t read_cmd = info->dev ? info->dev->read_cmd : 0x0b;
++	/* For chips >16 MB, force a 4-byte-address read opcode regardless of
++	 * what flash_devices[] suggests. S25FL512S 0x13 (4BFAST_READ) needs
++	 * dummy cycles configured via SMDMCR/DRDMCR — keep them at their
++	 * power-on default. */
++	if (info->addr4b && read_cmd == 0x0b)
++		read_cmd = 0x0c;	/* 4READ — fast read with 4-byte address */
++	ret = target_write_u32(target, info->io_base + SPIBSC_DRCMR,
++			((uint32_t)read_cmd) << 16);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* Set DREAR for 25-bit (32-bit, but the controller calls it 25-bit
++	 * mode meaning 4 bytes of address shifted in). EAV high address byte
++	 * irrelevant because SMENR uses full 4-byte address for the SM path,
++	 * and DRENR uses ADE=0xf which sends all 4 bytes of SMADR / data-read
++	 * address. */
++	if (info->addr4b)
++		ret = target_write_u32(target, info->io_base + SPIBSC_DREAR,
++				DREAR_EAC_25BIT);
++	else
++		ret = target_write_u32(target, info->io_base + SPIBSC_DREAR, 0);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* Flush the SPIBSC's internal read cache so a previous EXTRD burst's
++	 * stale data is discarded. */
++	ret = target_write_u32(target, info->io_base + SPIBSC_DRCR,
++			DRCR_RBE | DRCR_RCF);
++	if (ret != ERROR_OK)
++		return ret;
++
++	ret = target_read_u32(target, info->io_base + SPIBSC_CMNCR, &cmncr);
++	if (ret != ERROR_OK)
++		return ret;
++	cmncr &= ~CMNCR_MD;
++	return target_write_u32(target, info->io_base + SPIBSC_CMNCR, cmncr);
++}
++
++/* Issue one SPI manual transfer with the supplied SMENR/SMCMR/SMADR/SMWDR0
++ * already implied by the caller via prior register writes. Sets SMCR, starts
++ * the transfer, and waits for TEND. */
++static int spibsc_run_xfer(struct flash_bank *bank, uint32_t smcr)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	int ret;
++
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMCR,
++			smcr | SMCR_SPIE);
++	if (ret != ERROR_OK)
++		return ret;
++	return spibsc_wait_tend(bank);
++}
++
++/* Send a one-byte command with no address and no data (e.g. WREN, WRDI). */
++static int spibsc_cmd_only(struct flash_bank *bank, uint8_t opcode)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	int ret;
++
++	ret = spibsc_enter_spi_mode(bank);
++	if (ret != ERROR_OK)
++		return ret;
++
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMCMR,
++			((uint32_t)opcode) << 16);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMENR, SMENR_CDE);
++	if (ret != ERROR_OK)
++		return ret;
++	return spibsc_run_xfer(bank, 0);
++}
++
++/* Send a command + read N (<=4) bytes of data (RDID, RDSR). */
++static int spibsc_cmd_read(struct flash_bank *bank, uint8_t opcode,
++		uint8_t *data, unsigned int nbytes)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	uint32_t smenr, rdr;
++	int ret;
++
++	if (nbytes == 0 || nbytes > 4)
++		return ERROR_COMMAND_ARGUMENT_INVALID;
++
++	ret = spibsc_enter_spi_mode(bank);
++	if (ret != ERROR_OK)
++		return ret;
++
++	smenr = SMENR_CDE;
++	switch (nbytes) {
++	case 1: smenr |= SMENR_SPIDE_1B; break;
++	case 2: smenr |= SMENR_SPIDE_2B; break;
++	default: smenr |= SMENR_SPIDE_4B; break;	/* 3 or 4 */
++	}
++
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMCMR,
++			((uint32_t)opcode) << 16);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMENR, smenr);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = spibsc_run_xfer(bank, SMCR_SPIRE);
++	if (ret != ERROR_OK)
++		return ret;
++
++	ret = target_read_u32(target, info->io_base + SPIBSC_SMRDR0, &rdr);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* SMRDR0 byte placement mirrors SMWDR0 for the read direction: SPIBSC
++	 * fills the *highest* enabled byte position with the *first* wire
++	 * byte, descending to lower positions for subsequent bytes. This is
++	 * what the firmware's read_status() does — it always pulls the first
++	 * byte from `smrdr[0] >> 24`. The lower-position bits retain stale
++	 * data from a previous wider transfer, so we must only read the
++	 * positions actually filled by this transfer. */
++	switch (nbytes) {
++	case 1:
++		data[0] = (rdr >> 24) & 0xff;
++		break;
++	case 2:
++		data[0] = (rdr >> 24) & 0xff;
++		data[1] = (rdr >> 16) & 0xff;
++		break;
++	case 3:
++		data[0] = (rdr >> 24) & 0xff;
++		data[1] = (rdr >> 16) & 0xff;
++		data[2] = (rdr >> 8) & 0xff;
++		break;
++	case 4:
++		data[0] = (rdr >> 24) & 0xff;
++		data[1] = (rdr >> 16) & 0xff;
++		data[2] = (rdr >> 8) & 0xff;
++		data[3] = rdr & 0xff;
++		break;
++	}
++	return ERROR_OK;
++}
++
++static int spibsc_read_status(struct flash_bank *bank, uint8_t *sr)
++{
++	return spibsc_cmd_read(bank, SPIFLASH_READ_STATUS, sr, 1);
++}
++
++static int spibsc_wait_wip_clear(struct flash_bank *bank, int timeout_ms)
++{
++	int64_t endtime = timeval_ms() + timeout_ms;
++	uint8_t sr;
++
++	for (;;) {
++		int ret = spibsc_read_status(bank, &sr);
++		if (ret != ERROR_OK)
++			return ret;
++		if (!(sr & SPIFLASH_BSY_BIT))
++			return ERROR_OK;
++		if (timeval_ms() > endtime)
++			break;
++		keep_alive();
++		alive_sleep(2);
++	}
++
++	LOG_ERROR("SPIBSC: timeout waiting for flash WIP clear");
++	return ERROR_TIMEOUT_REACHED;
++}
++
++static int spibsc_write_enable(struct flash_bank *bank)
++{
++	int ret = spibsc_cmd_only(bank, SPIFLASH_WRITE_ENABLE);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* Verify WEL set — catches stuck-locked / wrong-mode configurations
++	 * early instead of waiting for an erase/program to silently fail. */
++	uint8_t sr;
++	ret = spibsc_read_status(bank, &sr);
++	if (ret != ERROR_OK)
++		return ret;
++	if (!(sr & SPIFLASH_WE_BIT)) {
++		LOG_ERROR("SPIBSC: WREN failed to latch (SR=0x%02x)", sr);
++		return ERROR_FAIL;
++	}
++	return ERROR_OK;
++}
++
++static int spibsc_erase_sector(struct flash_bank *bank, unsigned int sector)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	uint32_t address = bank->sectors[sector].offset;
++	uint32_t smenr;
++	int ret;
++
++	ret = spibsc_write_enable(bank);
++	if (ret != ERROR_OK)
++		return ret;
++
++	ret = spibsc_enter_spi_mode(bank);
++	if (ret != ERROR_OK)
++		return ret;
++
++	smenr = SMENR_CDE;
++	smenr |= info->addr4b ? SMENR_ADE_4BYTE : SMENR_ADE_3BYTE;
++
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMCMR,
++			((uint32_t)info->dev->erase_cmd) << 16);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMADR, address);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMENR, smenr);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = spibsc_run_xfer(bank, 0);
++	if (ret != ERROR_OK)
++		return ret;
++
++	return spibsc_wait_wip_clear(bank, SPIBSC_ERASE_TIMEOUT_MS);
++}
++
++static int renesas_spibsc_erase(struct flash_bank *bank, unsigned int first,
++		unsigned int last)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++
++	if (!info->probed) {
++		LOG_ERROR("SPIBSC: bank not probed");
++		return ERROR_FLASH_BANK_NOT_PROBED;
++	}
++	if (last >= bank->num_sectors || last < first) {
++		LOG_ERROR("SPIBSC: invalid sector range %u..%u", first, last);
++		return ERROR_FLASH_SECTOR_INVALID;
++	}
++	/* Refuse to erase any sector the user (or driver) has marked
++	 * protected. Use `flash protect <bank> <first> <last> off` to
++	 * temporarily clear protection for known-safe operations like
++	 * bootloader recovery. */
++	for (unsigned int s = first; s <= last; s++) {
++		if (bank->sectors[s].is_protected) {
++			LOG_ERROR("SPIBSC: refusing to erase protected "
++					"sector %u (offset 0x%08" PRIx32 ")",
++					s, bank->sectors[s].offset);
++			return ERROR_FLASH_PROTECTED;
++		}
++	}
++
++	if (info->handler_loaded) {
++		for (unsigned int s = first; s <= last; s++) {
++			int ret = spibsc_handler_erase_sector(bank,
++					bank->sectors[s].offset);
++			if (ret != ERROR_OK)
++				return ret;
++			keep_alive();
++		}
++		return ERROR_OK;
++	}
++
++	/* Slow path. */
++	if (bank->target->state != TARGET_HALTED) {
++		LOG_ERROR("Target not halted");
++		return ERROR_TARGET_NOT_HALTED;
++	}
++	for (unsigned int s = first; s <= last; s++) {
++		int ret = spibsc_erase_sector(bank, s);
++		if (ret != ERROR_OK)
++			return ret;
++		keep_alive();
++	}
++	return ERROR_OK;
++}
++
++/* Program one chunk of 1..4 bytes via a single SMWDR0 manual transfer. */
++static int spibsc_program_chunk(struct flash_bank *bank, uint32_t address,
++		const uint8_t *data, unsigned int nbytes, bool first, bool last)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	uint32_t smenr, wdr = 0;
++	int ret;
++
++	if (nbytes == 0 || nbytes > 4)
++		return ERROR_COMMAND_ARGUMENT_INVALID;
++
++	/* SMWDR0 byte placement: the highest enabled byte position is sent
++	 * *first* on the wire, descending. Mirror this for byte input order so
++	 * the buffer's byte 0 lands at flash offset 0 (round-trip identity).
++	 *   SPIDE_1B: byte at [31:24]
++	 *   SPIDE_2B: byte 0 at [31:24], byte 1 at [23:16]
++	 *   SPIDE_4B: byte 0 at [31:24], byte 1 at [23:16], byte 2 at [15:8],
++	 *             byte 3 at [7:0]
++	 * Note: this differs from the firmware's R_SFLASH_ByteProgram unit=4
++	 * path which packs the buffer as a native LE word — the firmware
++	 * intentionally writes byte-reversed-within-words so that XIP word
++	 * reads later return the LE-encoded ARM instructions stored in the
++	 * source .bin. For a generic flash driver we want the simpler "what
++	 * you wrote is what you read back" contract; conversion for firmware
++	 * images can be done on the host side. */
++	switch (nbytes) {
++	case 1:
++		wdr = (uint32_t)data[0] << 24;
++		smenr = SMENR_SPIDE_1B;
++		break;
++	case 2:
++		wdr = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16);
++		smenr = SMENR_SPIDE_2B;
++		break;
++	case 3:
++		LOG_ERROR("SPIBSC: 3-byte chunk write unsupported");
++		return ERROR_COMMAND_ARGUMENT_INVALID;
++	default:	/* 4 */
++		wdr = ((uint32_t)data[0] << 24) |
++		      ((uint32_t)data[1] << 16) |
++		      ((uint32_t)data[2] << 8) |
++		      (uint32_t)data[3];
++		smenr = SMENR_SPIDE_4B;
++		break;
++	}
++
++	if (first) {
++		smenr |= SMENR_CDE;
++		smenr |= info->addr4b ? SMENR_ADE_4BYTE : SMENR_ADE_3BYTE;
++		ret = target_write_u32(target, info->io_base + SPIBSC_SMCMR,
++				((uint32_t)info->dev->pprog_cmd) << 16);
++		if (ret != ERROR_OK)
++			return ret;
++		ret = target_write_u32(target, info->io_base + SPIBSC_SMADR,
++				address);
++		if (ret != ERROR_OK)
++			return ret;
++	}
++
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMENR, smenr);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMWDR0, wdr);
++	if (ret != ERROR_OK)
++		return ret;
++
++	return spibsc_run_xfer(bank, SMCR_SPIWE | (last ? 0 : SMCR_SSLKP));
++}
++
++static int spibsc_program_page(struct flash_bank *bank, uint32_t address,
++		const uint8_t *data, uint32_t count)
++{
++	int ret;
++
++	ret = spibsc_write_enable(bank);
++	if (ret != ERROR_OK)
++		return ret;
++
++	ret = spibsc_enter_spi_mode(bank);
++	if (ret != ERROR_OK)
++		return ret;
++
++	uint32_t off = 0;
++	bool first = true;
++	while (off < count) {
++		uint32_t remaining = count - off;
++		/* Pick 4/2/1; SPIBSC has no SPID_24. */
++		unsigned int chunk = remaining >= 4 ? 4 :
++				     remaining >= 2 ? 2 : 1;
++		bool last = (off + chunk) >= count;
++
++		ret = spibsc_program_chunk(bank, address, data + off, chunk,
++				first, last);
++		if (ret != ERROR_OK)
++			return ret;
++		off += chunk;
++		first = false;
++	}
++
++	return spibsc_wait_wip_clear(bank, SPIBSC_WIP_TIMEOUT_MS);
++}
++
++static int renesas_spibsc_write(struct flash_bank *bank, const uint8_t *buffer,
++		uint32_t offset, uint32_t count)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	uint32_t pagesize;
++
++	if (!info->probed) {
++		LOG_ERROR("SPIBSC: bank not probed");
++		return ERROR_FLASH_BANK_NOT_PROBED;
++	}
++	if (offset + count > bank->size) {
++		LOG_WARNING("SPIBSC: write past end of flash, truncated");
++		count = bank->size - offset;
++	}
++
++	pagesize = info->dev->pagesize ? info->dev->pagesize : SPIFLASH_DEF_PAGESIZE;
++
++	if (info->handler_loaded) {
++		while (count > 0) {
++			/* Pack up to one buffer-load per handler command —
++			 * the handler walks pages internally. Big bursts
++			 * amortize the ~50 ms halt-resume overhead over many
++			 * pages and make 4 MiB flashes feasible. */
++			uint32_t chunk = count > SPIBSC_DATA_BUFFER_SZ ?
++					 SPIBSC_DATA_BUFFER_SZ : count;
++			/* Handler PP path requires 4-byte multiples — bounce
++			 * any unaligned tail to the slow path. */
++			if (chunk & 3) {
++				int ret = spibsc_program_page(bank, offset,
++						buffer, chunk);
++				if (ret != ERROR_OK)
++					return ret;
++			} else {
++				int ret = spibsc_handler_write_chunk(bank,
++						buffer, offset, chunk);
++				if (ret != ERROR_OK)
++					return ret;
++			}
++			buffer += chunk;
++			offset += chunk;
++			count -= chunk;
++			keep_alive();
++		}
++		return ERROR_OK;
++	}
++
++	/* Slow path. */
++	if (bank->target->state != TARGET_HALTED) {
++		LOG_ERROR("Target not halted");
++		return ERROR_TARGET_NOT_HALTED;
++	}
++	while (count > 0) {
++		uint32_t page_off = offset % pagesize;
++		uint32_t chunk = pagesize - page_off;
++		if (chunk > count)
++			chunk = count;
++
++		int ret = spibsc_program_page(bank, offset, buffer, chunk);
++		if (ret != ERROR_OK)
++			return ret;
++
++		buffer += chunk;
++		offset += chunk;
++		count -= chunk;
++		keep_alive();
++	}
++	return ERROR_OK;
++}
++
++/* Read one chunk of 1..4 bytes via a SM-mode READ command + SMRDR0 fetch.
++ * Bypasses the XIP path entirely so we never go through the CPU's L1
++ * D-cache, which on Cortex-A9 happily returns stale instruction data the
++ * firmware loaded during boot — and is *not* reliably invalidated by
++ * `cache l1 d flush_all` between writes and subsequent reads. */
++static int spibsc_sm_read_chunk(struct flash_bank *bank, uint32_t address,
++		uint8_t *data, unsigned int nbytes, bool first, bool last)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	uint32_t smenr, rdr;
++	int ret;
++
++	smenr = 0;
++	switch (nbytes) {
++	case 1: smenr = SMENR_SPIDE_1B; break;
++	case 2: smenr = SMENR_SPIDE_2B; break;
++	case 4: smenr = SMENR_SPIDE_4B; break;
++	default:
++		return ERROR_COMMAND_ARGUMENT_INVALID;
++	}
++
++	if (first) {
++		smenr |= SMENR_CDE;
++		smenr |= info->addr4b ? SMENR_ADE_4BYTE : SMENR_ADE_3BYTE;
++		ret = target_write_u32(target, info->io_base + SPIBSC_SMCMR,
++				((uint32_t)info->dev->read_cmd) << 16);
++		if (ret != ERROR_OK)
++			return ret;
++		ret = target_write_u32(target, info->io_base + SPIBSC_SMADR,
++				address);
++		if (ret != ERROR_OK)
++			return ret;
++	}
++
++	ret = target_write_u32(target, info->io_base + SPIBSC_SMENR, smenr);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = spibsc_run_xfer(bank, SMCR_SPIRE | (last ? 0 : SMCR_SSLKP));
++	if (ret != ERROR_OK)
++		return ret;
++
++	ret = target_read_u32(target, info->io_base + SPIBSC_SMRDR0, &rdr);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* SPID read packing mirrors SPID write: highest enabled byte position
++	 * holds the *first* wire byte, descending. */
++	switch (nbytes) {
++	case 1:
++		data[0] = (rdr >> 24) & 0xff;
++		break;
++	case 2:
++		data[0] = (rdr >> 24) & 0xff;
++		data[1] = (rdr >> 16) & 0xff;
++		break;
++	case 4:
++		data[0] = (rdr >> 24) & 0xff;
++		data[1] = (rdr >> 16) & 0xff;
++		data[2] = (rdr >> 8) & 0xff;
++		data[3] = rdr & 0xff;
++		break;
++	}
++	return ERROR_OK;
++}
++
++static int renesas_spibsc_read(struct flash_bank *bank, uint8_t *buffer,
++		uint32_t offset, uint32_t count)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	int ret;
++
++	if (!info->probed) {
++		LOG_ERROR("SPIBSC: bank not probed");
++		return ERROR_FLASH_BANK_NOT_PROBED;
++	}
++	if (offset + count > bank->size) {
++		LOG_WARNING("SPIBSC: read past end of flash, truncated");
++		count = bank->size - offset;
++	}
++
++	if (info->handler_loaded) {
++		while (count > 0) {
++			uint32_t chunk = count > SPIBSC_DATA_BUFFER_SZ ?
++					 SPIBSC_DATA_BUFFER_SZ : count;
++			chunk &= ~3u;
++			if (chunk == 0)
++				break;
++			ret = spibsc_handler_read_chunk(bank, buffer, offset,
++					chunk);
++			if (ret != ERROR_OK)
++				return ret;
++			buffer += chunk;
++			offset += chunk;
++			count -= chunk;
++			keep_alive();
++		}
++		if (count == 0)
++			return ERROR_OK;
++		/* fall through to slow path for unaligned tail */
++	}
++
++	if (bank->target->state != TARGET_HALTED) {
++		LOG_ERROR("Target not halted");
++		return ERROR_TARGET_NOT_HALTED;
++	}
++	ret = spibsc_enter_spi_mode(bank);
++	if (ret != ERROR_OK)
++		return ret;
++
++	uint32_t off = 0;
++	bool first = true;
++	while (off < count) {
++		uint32_t remaining = count - off;
++		unsigned int chunk = remaining >= 4 ? 4 :
++				     remaining >= 2 ? 2 : 1;
++		bool last = (off + chunk) >= count;
++		ret = spibsc_sm_read_chunk(bank, offset + off,
++				buffer + off, chunk, first, last);
++		if (ret != ERROR_OK)
++			return ret;
++		off += chunk;
++		first = false;
++		if ((off & 0xfff) == 0)
++			keep_alive();
++	}
++	return ERROR_OK;
++}
++
++/* Initial controller setup: master mode, single SPI lane, idle-high IO,
++ * 33 MHz clock (matches firmware's spibsc_Deluge_setup). Assumes pin mux /
++ * port direction was already done by the IPL/bootloader — if we're invoked
++ * cold (post-reset, pre-bootloader) we may need to set those up too, but
++ * leave that for a follow-up. */
++static int spibsc_controller_init(struct flash_bank *bank)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	int ret;
++
++	/* Step 0 — make sure SPIBSC0 is actually clocked. CPG.STBCR9 bit 3
++	 * (MSTP93) gates the SPIBSC0 module clock; if it is 1 the controller
++	 * is in standby and peripheral register writes silently drop. The
++	 * boot ROM normally clears it during early init, but on a cold-reset
++	 * halt (debugger attached before the bootloader runs) the clock is
++	 * still gated. The register is byte-wide; read-modify-write the
++	 * 32-bit word to keep the other MSTPxx bits intact. Address
++	 * 0xFCFE0428 is the CPG STBCR9 in the RZ/A1L. */
++	{
++		uint32_t stbcr9;
++		ret = target_read_u32(target, 0xFCFE0428u, &stbcr9);
++		if (ret == ERROR_OK && (stbcr9 & 0x08u)) {
++			/* MSTP93 set means SPIBSC0 standby. Clear it. */
++			ret = target_write_u32(target, 0xFCFE0428u,
++					stbcr9 & ~0x08u);
++			if (ret != ERROR_OK)
++				return ret;
++			/* Datasheet requires a dummy read of the same byte
++			 * after a clock-gate change before the peripheral can
++			 * be touched. */
++			ret = target_read_u32(target, 0xFCFE0428u, &stbcr9);
++			if (ret != ERROR_OK)
++				return ret;
++		}
++	}
++
++	/* Force into manual SPI mode so subsequent SM* register writes apply. */
++	ret = spibsc_enter_spi_mode(bank);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* CMNCR: master mode (firmware default), BSZ=single, idle IO2/IO3
++	 * high to avoid HOLD#/WP# de-assert on parts that share those pins
++	 * with HOLD#/WP#. SFDE is left at 0 — experiment showed setting it
++	 * also corrupts SM-mode SMRDR0 reads on RZ/A1L (RDID came back
++	 * scrambled), so byte-swap handling needs to live outside CMNCR. The
++	 * XIP byte-access view of flash will appear MSB-first within each
++	 * AHB word; flash-image files in CPU-LE word order will look
++	 * byte-reversed when dumped, but their *word values* match the
++	 * firmware's view. */
++	ret = target_write_u32(target, info->io_base + SPIBSC_CMNCR,
++			CMNCR_MD |
++			(3u << 12) /* IO2FV=hi */ |
++			(3u << 14) /* IO3FV=hi */);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* SSLDR=0: no extra setup/hold delay (8x SPBCLK is default). */
++	ret = target_write_u32(target, info->io_base + SPIBSC_SSLDR, 0);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* SPBCR: BRDV=0, SPBR=2 → 33.33 MHz with the 66.67 MHz SPIBSC clock
++	 * on RZ/A1L. Same value the firmware uses. Conservative for probe;
++	 * the user can override with a `set` command later if needed. */
++	ret = target_write_u32(target, info->io_base + SPIBSC_SPBCR, (2u << 8));
++	if (ret != ERROR_OK)
++		return ret;
++
++	return ERROR_OK;
++}
++
++static int spibsc_read_jedec_id(struct flash_bank *bank, uint32_t *id)
++{
++	uint8_t buf[4] = { 0 };
++	int ret = spibsc_cmd_read(bank, SPIFLASH_READ_ID, buf, 4);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* OpenOCD's flash_devices[] device_id field is laid out as
++	 *   byte 0 (LSB): manufacturer
++	 *   byte 1:       memory type
++	 *   byte 2:       capacity
++	 *   byte 3:       extended ID (often 0)
++	 * — i.e. the order the bytes arrive on the wire after RDID. */
++	*id = ((uint32_t)buf[0]) |
++	      ((uint32_t)buf[1] << 8) |
++	      ((uint32_t)buf[2] << 16) |
++	      ((uint32_t)buf[3] << 24);
++
++	if ((*id & 0xffffff) == 0xffffff || (*id & 0xffffff) == 0) {
++		LOG_ERROR("SPIBSC: no flash responded (RDID=0x%08" PRIx32 ")", *id);
++		return ERROR_FAIL;
++	}
++	return ERROR_OK;
++}
++
++/* ===== Mailbox handler client side =====================================
++ *
++ * The handler runs continuously on the target CPU. We talk to it by
++ * writing the mailbox fields (and the source data buffer, for writes)
++ * via the JTAG memory AP while the CPU is running, then polling the
++ * status field. Because the CPU is running, mem-AP accesses go straight
++ * through the AHB without touching the L1 D-cache — the very thing that
++ * broke our run_algorithm-based stub.
++ */
++
++/* Park the CPU in a `b .` loop at a fixed RAM address with CPSR forced to
++ * a clean SVC state. Needed because we may attach to a Deluge whose
++ * firmware has data-aborted (CPU stuck in Abort mode at the abort vector)
++ * or stalled in some IRQ frame. From any of those states, naive
++ * target_resume(current=true) keeps re-running the faulting context and
++ * never reliably switches to the PC/CPSR we asked for. Pre-parking
++ * normalises the CPU first; subsequent register writes then only need to
++ * change PC, which OpenOCD does reliably.
++ *
++ * Side note: this also covers the case where the user halted while
++ * firmware was running our own handler — by parking we drop out of the
++ * handler cleanly so the next upload doesn't race the running copy. */
++static int spibsc_park_cpu(struct target *target)
++{
++	int ret;
++
++	if (target->state != TARGET_HALTED) {
++		ret = target_halt(target);
++		if (ret != ERROR_OK)
++			return ret;
++		ret = target_wait_state(target, TARGET_HALTED, 500);
++		if (ret != ERROR_OK)
++			return ret;
++	}
++
++	struct arm *arm = target_to_arm(target);
++	if (!arm || !arm->pc || !arm->cpsr) {
++		LOG_ERROR("SPIBSC: target has no ARM register cache for park");
++		return ERROR_FAIL;
++	}
++
++	/* `b .` (ARM) — 0xEAFFFFFE — branches to itself. Sits at a fixed
++	 * RAM word just below the mailbox so we never collide with handler
++	 * code or the data buffer. The address itself is irrelevant as
++	 * long as it lives in on-chip RAM (writable, executable with MMU
++	 * off, no AXI faults). 0x20200004 is unused by both firmware and
++	 * handler (mailbox is at +0x000 starting with .magic, handler
++	 * trampoline is at +0x100). */
++	const uint32_t park_addr = SPIBSC_HANDLER_BASE + 0x04u;
++	ret = target_write_u32(target, park_addr, 0xeafffffeu);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* Clear stale breakpoints — a leftover HW breakpoint at the
++	 * faulted PC would re-trap the moment we resume. */
++	breakpoint_remove_all(target);
++
++	uint32_t cpsr = buf_get_u32(arm->cpsr->value, 0, 32);
++	cpsr &= ~0x000001FFu;		/* clear M[4:0], T, F, I, A */
++	cpsr |= 0x000000D3u;		/* SVC, T=0, F=1, I=1, A=0 */
++	buf_set_u32(arm->cpsr->value, 0, 32, cpsr);
++	arm->cpsr->valid = true;
++	arm->cpsr->dirty = true;
++	arm->core_state = ARM_STATE_ARM;
++	arm->core_mode = ARM_MODE_SVC;
++
++	buf_set_u32(arm->pc->value, 0, 32, park_addr);
++	arm->pc->valid = true;
++	arm->pc->dirty = true;
++
++	/* Resume briefly so the dirty CPSR/PC actually propagate to the CPU,
++	 * then halt. After this, target->state is HALTED with the CPU at
++	 * the `b .` loop in SVC mode. */
++	ret = target_resume(target, /*current=*/true, 0,
++			/*handle_breakpoints=*/0, /*debug_execution=*/0);
++	if (ret != ERROR_OK)
++		return ret;
++	alive_sleep(50);
++	ret = target_halt(target);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = target_wait_state(target, TARGET_HALTED, 500);
++	if (ret != ERROR_OK)
++		return ret;
++	return ERROR_OK;
++}
++
++static int spibsc_handler_upload(struct flash_bank *bank)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	int ret;
++
++	/* Always park first — see comment on spibsc_park_cpu. */
++	ret = spibsc_park_cpu(target);
++	if (ret != ERROR_OK) {
++		LOG_ERROR("SPIBSC: could not park CPU before handler upload");
++		return ret;
++	}
++
++	/* Zero the mailbox region so a stale-RAM heartbeat doesn't look
++	 * like a running handler before we've uploaded anything. */
++	uint8_t zeros[0x100] = { 0 };
++	ret = target_write_buffer(target, SPIBSC_MAILBOX_ADDR,
++			sizeof(zeros), zeros);
++	if (ret != ERROR_OK)
++		return ret;
++
++	ret = target_write_buffer(target, SPIBSC_HANDLER_CODE,
++			sizeof(spibsc_handler_bin), spibsc_handler_bin);
++	if (ret != ERROR_OK) {
++		LOG_ERROR("SPIBSC: failed to upload handler binary");
++		return ret;
++	}
++
++	/* Set up CPSR and PC so the handler's ARM-mode trampoline can run.
++	 * Critical: write CPSR via the cortex_a register cache and force a
++	 * full register write-back. OpenOCD 0.12.0's cortex_a path can
++	 * misdecode the second ITR instruction if it flips CPSR.T mid-restore,
++	 * which is why we set CPSR.T = 0 explicitly here and resume in ARM
++	 * state. The handler's first instruction is an ARM trampoline that
++	 * switches to Thumb internally.
++	 *
++	 * We use the same mechanism the TCL `reg` command uses (look up the
++	 * register by name, buf_set_u32 the new value, mark dirty), then
++	 * call target_resume(current=true) — which we verified works when
++	 * driven from TCL. */
++	struct arm *arm = target_to_arm(target);
++	if (!arm || !arm->pc || !arm->cpsr) {
++		LOG_ERROR("SPIBSC: no ARM register cache for target");
++		return ERROR_FAIL;
++	}
++
++	/* Read the existing CPSR (so we keep the MEDIA/NZCV flags as-is),
++	 * clear T (bit 5), mask IRQ/FIQ (bits 6/7), set mode to SVC (0x13).
++	 * 0x600101d3 worked in TCL; we derive it here so the upper flag bits
++	 * track whatever the firmware was using. */
++	uint32_t cpsr = buf_get_u32(arm->cpsr->value, 0, 32);
++	cpsr &= ~0x000001FFu;		/* clear M[4:0], T, F, I, A */
++	cpsr |= 0x000000D3u;		/* SVC mode, T=0, I=1, F=1 */
++	buf_set_u32(arm->cpsr->value, 0, 32, cpsr);
++	arm->cpsr->valid = true;
++	arm->cpsr->dirty = true;
++	arm->core_state = ARM_STATE_ARM;
++	arm->core_mode = ARM_MODE_SVC;
++
++	buf_set_u32(arm->pc->value, 0, 32, SPIBSC_HANDLER_CODE);
++	arm->pc->valid = true;
++	arm->pc->dirty = true;
++
++	/* Strip any stale breakpoints. */
++	breakpoint_remove_all(target);
++
++	/* Make our handler+mailbox writes visible to instruction fetches.
++	 * target_write_buffer goes via the AHB mem-AP (which on this part is
++	 * separate from the CPU's L1 caches), so the bytes sit in RAM but
++	 * the CPU's I-cache and D-cache still hold whatever was there before.
++	 * We clean+invalidate D-cache over the handler region (in case any
++	 * dirty CPU writes were sitting in L1 that would overwrite our
++	 * fresh upload on writeback), and invalidate I-cache so the CPU
++	 * actually fetches our new instructions instead of stale ones.
++	 *
++	 * Range covers mailbox + handler code + data buffer. */
++	armv7a_l1_d_cache_flush_virt(target, SPIBSC_HANDLER_BASE,
++			SPIBSC_DATA_BUFFER + SPIBSC_DATA_BUFFER_SZ -
++			SPIBSC_HANDLER_BASE);
++	armv7a_l1_i_cache_inval_all(target);
++
++	LOG_INFO("SPIBSC: resuming handler at 0x%08" PRIx32
++			" (ARM trampoline, cpsr=0x%08" PRIx32 ")",
++			(uint32_t)SPIBSC_HANDLER_CODE, cpsr);
++	ret = target_resume(target, /*current=*/true, 0,
++			/*handle_breakpoints=*/0, /*debug_execution=*/0);
++	if (ret != ERROR_OK) {
++		LOG_ERROR("SPIBSC: failed to resume target into handler");
++		return ret;
++	}
++	if (ret != ERROR_OK) {
++		LOG_ERROR("SPIBSC: failed to resume target into handler");
++		return ret;
++	}
++
++	/* Poll for the magic field. We halt + read + resume because OpenOCD's
++	 * Cortex-A "read while running" path doesn't reliably see the
++	 * handler's stores even with D-cache disabled on the CPU side. */
++	int64_t endtime = timeval_ms() + 2000;
++	uint32_t magic = 0;
++	while (timeval_ms() < endtime) {
++		target_halt(target);
++		target_wait_state(target, TARGET_HALTED, 200);
++		armv7a_l1_d_cache_inval_virt(target, SPIBSC_MAILBOX_ADDR, 0x40);
++		target_read_u32(target,
++				SPIBSC_MAILBOX_ADDR + MBX_MAGIC, &magic);
++		target_resume(target, /*current=*/true, 0, 0, 0);
++		if (magic == SPIBSC_MAGIC_READY)
++			break;
++		alive_sleep(20);
++	}
++	if (magic != SPIBSC_MAGIC_READY) {
++		LOG_ERROR("SPIBSC: handler didn't come up (magic=0x%08" PRIx32 ")",
++				magic);
++		target_halt(target);
++		target_wait_state(target, TARGET_HALTED, 500);
++		return ERROR_FAIL;
++	}
++
++	/* Pre-program the constant command/IO fields. The magic-poll loop
++	 * left the target running; halt to write coherently then resume. */
++	if (spibsc_pause_and_sync(target) == ERROR_OK) {
++		target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_IO_BASE,
++				info->io_base);
++		target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_ADDR_BYTES,
++				info->addr4b ? 4 : 3);
++		target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_PP_CMD,
++				info->dev->pprog_cmd);
++		target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_ERASE_CMD,
++				info->dev->erase_cmd);
++		target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_READ_CMD,
++				info->dev->read_cmd);
++		/* XIP-mode hash fast path: pass bank->base to opt the handler
++		 * into reading flash via the external-address-space window.
++		 * Disabled on the Deluge: while still running its firmware,
++		 * AXI reads at 0x18000000 return 0xFFFFFFFF and never reach
++		 * the SPIBSC data-read engine (CMNSR.TEND stays at 1 after
++		 * the access, proving no SPI burst is triggered). This is not
++		 * an MMU issue — the L1 PTE at TTBR0+0x600 maps VA 0x18000000
++		 * to PA 0x18000000 as NORMAL_CACHE, and the SPIBSC0 clock
++		 * (CPG.STBCR9 bit 3) is enabled. The Deluge bootloader uses
++		 * XIP at cold boot to copy main firmware into RAM, but by the
++		 * time we attach, something in the bus path absorbs reads to
++		 * the SPI window. The handler-side crc32_xip code stays for
++		 * targets where XIP remains live at runtime. */
++		target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_XIP_BASE, 0);
++		target_resume(target, true, 0, 0, 0);
++	}
++
++	info->handler_loaded = true;
++	info->next_cmd_id = 1;
++	LOG_INFO("SPIBSC: handler running (mailbox at 0x%08" PRIx32 ")",
++			(uint32_t)SPIBSC_MAILBOX_ADDR);
++	return ERROR_OK;
++}
++
++static int spibsc_handler_quit(struct flash_bank *bank)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++
++	if (!info->handler_loaded)
++		return ERROR_OK;
++
++	target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_COMMAND,
++			CMD_QUIT);
++	target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_COMMAND_ID,
++			info->next_cmd_id++);
++	/* Handler hits bkpt #0; wait briefly. */
++	target_wait_state(target, TARGET_HALTED, 500);
++	info->handler_loaded = false;
++	return ERROR_OK;
++}
++
++/* Halt + cache invalidate, leaving the target halted so the caller can
++ * safely access mailbox / data-buffer memory through the AP. */
++static int spibsc_pause_and_sync(struct target *target)
++{
++	int ret = target_halt(target);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = target_wait_state(target, TARGET_HALTED, 500);
++	if (ret != ERROR_OK)
++		return ret;
++	/* Drop any host-side cached view of the mailbox + data buffer. */
++	armv7a_l1_d_cache_inval_virt(target, SPIBSC_HANDLER_BASE,
++			SPIBSC_DATA_BUFFER + SPIBSC_DATA_BUFFER_SZ -
++			SPIBSC_HANDLER_BASE);
++	return ERROR_OK;
++}
++
++/* Issue one command via the mailbox and wait for completion. We halt
++ * the CPU around every mem-AP interaction with the mailbox because the
++ * "read while running" path on this OpenOCD/Cortex-A combination doesn't
++ * see fresh memory even with the handler's D-cache disabled. The halt
++ * lets us call armv7a_l1_d_cache_inval_virt to flush any host-side
++ * staleness, then read clean. */
++static int spibsc_handler_cmd(struct flash_bank *bank, uint32_t cmd,
++		uint32_t flash_addr, uint32_t length, int timeout_ms)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	uint32_t cmd_id = info->next_cmd_id++;
++	int ret;
++
++	/* Stage 1: halt, write command fields, resume so the handler picks
++	 * up the new command_id. */
++	ret = spibsc_pause_and_sync(target);
++	if (ret != ERROR_OK)
++		return ret;
++	target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_FLASH_ADDR, flash_addr);
++	target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_LENGTH, length);
++	target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_COMMAND, cmd);
++	/* command_id write MUST come last — that's the kick. */
++	target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_COMMAND_ID, cmd_id);
++	ret = target_resume(target, /*current=*/true, 0, 0, 0);
++	if (ret != ERROR_OK)
++		return ret;
++
++	/* Stage 2: estimate expected handler duration and sleep that long
++	 * before the first poll — each halt-resume costs ~20 ms, so polling
++	 * too eagerly dominates total time when the handler is doing useful
++	 * work. After the initial sleep, poll with no sleep (just back-to-
++	 * back halt-check-resume) so we don't undershoot on the tail.
++	 *
++	 * Per-page program timing on W25Q32: typical 0.7 ms, max 3 ms.
++	 * Sector-erase typical 45 ms, max 400 ms. Reads are quick (handler
++	 * just clocks bytes out of the flash). */
++	uint32_t expected_ms;
++	switch (cmd) {
++	case CMD_WRITE:
++		expected_ms = (length / 256u) * 2u + 5u;
++		break;
++	case CMD_ERASE_SECTOR:
++		expected_ms = 50u;
++		break;
++	case CMD_READ:
++		expected_ms = (length / 4096u) + 2u;
++		break;
++	default:
++		expected_ms = 1u;
++		break;
++	}
++	if (expected_ms > 0)
++		alive_sleep(expected_ms);
++
++	int64_t endtime = timeval_ms() + timeout_ms;
++	uint32_t result_id = 0, status = 0;
++	while (timeval_ms() < endtime) {
++		ret = spibsc_pause_and_sync(target);
++		if (ret != ERROR_OK)
++			return ret;
++		target_read_u32(target,
++				SPIBSC_MAILBOX_ADDR + MBX_RESULT_ID, &result_id);
++		if (result_id == cmd_id) {
++			target_read_u32(target,
++					SPIBSC_MAILBOX_ADDR + MBX_STATUS,
++					&status);
++			break;
++		}
++		target_resume(target, /*current=*/true, 0, 0, 0);
++		alive_sleep(2);
++		keep_alive();
++	}
++
++	if (result_id != cmd_id) {
++		LOG_ERROR("SPIBSC: handler command timed out "
++				"(cmd=%" PRIu32 " id=%" PRIu32 ")", cmd, cmd_id);
++		/* Leave the target halted on timeout — the caller will retry
++		 * or report; don't try to resume from an unknown state. */
++		return ERROR_TIMEOUT_REACHED;
++	}
++	if (status == STATUS_ERR) {
++		uint32_t err = 0;
++		target_read_u32(target, SPIBSC_MAILBOX_ADDR + MBX_ERROR, &err);
++		LOG_ERROR("SPIBSC: handler error 0x%" PRIx32 " on cmd %" PRIu32,
++				err, cmd);
++		/* Resume so the handler is ready for the next command, then
++		 * return error. */
++		target_resume(target, true, 0, 0, 0);
++		return ERROR_FAIL;
++	}
++	/* Resume so subsequent commands have a running handler. */
++	target_resume(target, /*current=*/true, 0, 0, 0);
++	return ERROR_OK;
++}
++
++static int spibsc_handler_write_chunk(struct flash_bank *bank,
++		const uint8_t *buf, uint32_t flash_addr, uint32_t length)
++{
++	struct target *target = bank->target;
++	/* Halt to write the source data buffer so the mem-AP write hits
++	 * memory cleanly (paired with the handler's D-cache-disabled reads). */
++	int ret = spibsc_pause_and_sync(target);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = target_write_buffer(target, SPIBSC_DATA_BUFFER, length, buf);
++	if (ret != ERROR_OK) {
++		target_resume(target, true, 0, 0, 0);
++		return ret;
++	}
++	ret = target_resume(target, true, 0, 0, 0);
++	if (ret != ERROR_OK)
++		return ret;
++	return spibsc_handler_cmd(bank, CMD_WRITE, flash_addr, length, 30000);
++}
++
++static int spibsc_handler_erase_sector(struct flash_bank *bank,
++		uint32_t flash_addr)
++{
++	return spibsc_handler_cmd(bank, CMD_ERASE_SECTOR, flash_addr, 0, 60000);
++}
++
++static int spibsc_handler_read_chunk(struct flash_bank *bank,
++		uint8_t *buf, uint32_t flash_addr, uint32_t length)
++{
++	struct target *target = bank->target;
++	int ret = spibsc_handler_cmd(bank, CMD_READ, flash_addr, length, 30000);
++	if (ret != ERROR_OK)
++		return ret;
++	/* spibsc_handler_cmd left the target running after success; halt to
++	 * read the buffer back coherently. */
++	ret = spibsc_pause_and_sync(target);
++	if (ret != ERROR_OK)
++		return ret;
++	ret = target_read_buffer(target, SPIBSC_DATA_BUFFER, length, buf);
++	target_resume(target, true, 0, 0, 0);
++	return ret;
++}
++
++static int renesas_spibsc_probe(struct flash_bank *bank)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	struct target *target = bank->target;
++	uint32_t id = 0;
++	int ret;
++
++	if (target->state != TARGET_HALTED) {
++		LOG_ERROR("Target not halted");
++		return ERROR_TARGET_NOT_HALTED;
++	}
++
++	if (info->probed) {
++		free(bank->sectors);
++		bank->sectors = NULL;
++		bank->num_sectors = 0;
++		info->probed = false;
++	}
++
++	ret = spibsc_controller_init(bank);
++	if (ret != ERROR_OK)
++		return ret;
++
++	ret = spibsc_read_jedec_id(bank, &id);
++	if (ret != ERROR_OK)
++		return ret;
++
++	info->dev = NULL;
++	for (const struct flash_device *p = flash_devices; p->name; p++) {
++		if ((p->device_id & 0xffffff) == (id & 0xffffff)) {
++			info->dev = p;
++			break;
++		}
++	}
++	if (!info->dev) {
++		LOG_ERROR("SPIBSC: unknown flash JEDEC ID 0x%06" PRIx32,
++				id & 0xffffff);
++		return ERROR_FAIL;
++	}
++
++	info->addr4b = info->dev->size_in_bytes > (1u << 24);
++	bank->size = info->dev->size_in_bytes;
++
++	uint32_t sectorsize = info->dev->sectorsize ?
++			info->dev->sectorsize : info->dev->size_in_bytes;
++	bank->num_sectors = info->dev->size_in_bytes / sectorsize;
++	bank->sectors = calloc(bank->num_sectors, sizeof(struct flash_sector));
++	if (!bank->sectors) {
++		LOG_ERROR("out of memory");
++		return ERROR_FAIL;
++	}
++	for (unsigned int s = 0; s < bank->num_sectors; s++) {
++		bank->sectors[s].offset = s * sectorsize;
++		bank->sectors[s].size = sectorsize;
++		bank->sectors[s].is_erased = -1;
++		/* Default-protect the Deluge bootloader: it lives in
++		 * 0x000000–0x06FFFF (sectors 0–6, ~448 KiB). Trashing it
++		 * bricks the unit until SD-card recovery.
++		 *
++		 * Sector 7 (0x070000–0x07FFFF) holds user settings (CV
++		 * calibration, MIDI prefs, default scales etc., 256 B at
++		 * offset 0x7F000). Losing it is a factory-reset, not a brick,
++		 * so we leave it writable.
++		 *
++		 * Sectors 8+ (0x080000+) are firmware — writable.
++		 *
++		 * Users who want to flash a new bootloader (intentional
++		 * recovery) must explicitly:
++		 *   flash protect <bank> 0 6 off
++		 * before erase / smart_program. Driver-side only — chip BP
++		 * bits in SR1 aren't touched. */
++		bank->sectors[s].is_protected =
++			(bank->sectors[s].offset < 0x70000u) ? 1 : 0;
++	}
++
++	LOG_INFO("SPIBSC%u: found %s (JEDEC 0x%06" PRIx32
++			") size %" PRIu32 " KiB, %u sectors of %" PRIu32 " KiB%s",
++			info->channel, info->dev->name, id & 0xffffff,
++			bank->size / 1024, bank->num_sectors, sectorsize / 1024,
++			info->addr4b ? ", 4-byte addressing" : "");
++
++	info->probed = true;
++
++	/* Set XIP mode so any host-side memory reads at bank->base while the
++	 * handler isn't running yet still work. The handler will switch back
++	 * to SM mode on its first command. */
++	spibsc_enter_xip_mode(bank);
++
++	/* Try to bring up the mailbox handler. If this fails for any reason
++	 * (no exec RAM at our chosen address, target hostile to resume, etc.)
++	 * the driver remains usable via the slow path. */
++	int hret = spibsc_handler_upload(bank);
++	if (hret != ERROR_OK)
++		LOG_WARNING("SPIBSC: handler upload failed; falling back to "
++				"slow path");
++
++	return ERROR_OK;
++}
++
++static int renesas_spibsc_auto_probe(struct flash_bank *bank)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	if (info->probed)
++		return ERROR_OK;
++	return renesas_spibsc_probe(bank);
++}
++
++static int renesas_spibsc_protect_check(struct flash_bank *bank)
++{
++	/* Block-protect bits in the S25FL512S SR are coarse and the driver
++	 * doesn't currently parse them. Treat everything as unprotected. */
++	return ERROR_OK;
++}
++
++static int renesas_spibsc_protect(struct flash_bank *bank, int set,
++		unsigned int first, unsigned int last)
++{
++	for (unsigned int s = first; s <= last; s++)
++		bank->sectors[s].is_protected = set;
++	return ERROR_OK;
++}
++
++static int renesas_spibsc_get_info(struct flash_bank *bank,
++		struct command_invocation *cmd)
++{
++	struct spibsc_flash_bank *info = bank->driver_priv;
++
++	if (!info->probed) {
++		command_print_sameline(cmd, "\nSPIBSC flash bank not probed yet\n");
++		return ERROR_OK;
++	}
++	command_print_sameline(cmd,
++		"\nRenesas SPIBSC%u flash:\n"
++		"  device   '%s'\n"
++		"  JEDEC id 0x%06" PRIx32 "\n"
++		"  size     %" PRIu32 " KiB\n"
++		"  sectors  %u x %" PRIu32 " KiB (4-byte addr: %s)\n"
++		"  io_base  0x%08" PRIx32 "\n",
++		info->channel, info->dev->name,
++		info->dev->device_id & 0xffffff,
++		(uint32_t)(bank->size / 1024),
++		bank->num_sectors,
++		(uint32_t)(bank->sectors ? bank->sectors[0].size / 1024 : 0),
++		info->addr4b ? "yes" : "no",
++		info->io_base);
++	return ERROR_OK;
++}
++
++FLASH_BANK_COMMAND_HANDLER(renesas_spibsc_flash_bank_command)
++{
++	struct spibsc_flash_bank *info;
++	uint32_t io_base;
++	unsigned int channel = 0;
++
++	if (CMD_ARGC < 7 || CMD_ARGC > 8)
++		return ERROR_COMMAND_SYNTAX_ERROR;
++
++	COMMAND_PARSE_NUMBER(u32, CMD_ARGV[6], io_base);
++	if (CMD_ARGC == 8)
++		COMMAND_PARSE_NUMBER(uint, CMD_ARGV[7], channel);
++
++	info = calloc(1, sizeof(*info));
++	if (!info) {
++		LOG_ERROR("out of memory");
++		return ERROR_FAIL;
++	}
++	info->io_base = io_base;
++	info->channel = channel;
++	bank->driver_priv = info;
++	return ERROR_OK;
++}
++
++/* zlib-compatible CRC32 (poly 0xEDB88320, init 0xFFFFFFFF, final XOR
++ * 0xFFFFFFFF). Matches the handler's implementation byte-for-byte so the
++ * host-side expected CRC can be compared directly to the handler-reported
++ * CRC for each sector. */
++static uint32_t spibsc_crc32(uint32_t crc, const uint8_t *data, size_t len)
++{
++	while (len--) {
++		crc ^= *data++;
++		for (int i = 0; i < 8; i++)
++			crc = (crc >> 1) ^ (0xEDB88320u & -(crc & 1u));
++	}
++	return crc;
++}
++
++/* Issue a handler command that uses the on-chip-RAM staging area: set
++ * mb->buf_addr + mb->sector_size in addition to the normal fields. If
++ * erase_cmd_override is non-zero, also rewrites mb->erase_cmd — needed
++ * by the adaptive smart_program path that mixes 64 KiB block erase (0xD8)
++ * and 4 KiB sub-sector erase (0x20) within a single session. */
++static int spibsc_handler_cmd_with_buf(struct flash_bank *bank, uint32_t cmd,
++		uint32_t flash_addr, uint32_t length, uint32_t buf_addr,
++		uint32_t sector_size, uint8_t erase_cmd_override, int timeout_ms)
++{
++	struct target *target = bank->target;
++	int ret = spibsc_pause_and_sync(target);
++	if (ret != ERROR_OK)
++		return ret;
++	target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_BUF_ADDR, buf_addr);
++	target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_SECTOR_SIZE,
++			sector_size);
++	if (erase_cmd_override != 0)
++		target_write_u32(target, SPIBSC_MAILBOX_ADDR + MBX_ERASE_CMD,
++				erase_cmd_override);
++	target_resume(target, true, 0, 0, 0);
++	return spibsc_handler_cmd(bank, cmd, flash_addr, length, timeout_ms);
++}
++
++COMMAND_HANDLER(spibsc_handle_smart_program)
++{
++	if (CMD_ARGC < 2 || CMD_ARGC > 3)
++		return ERROR_COMMAND_SYNTAX_ERROR;
++
++	unsigned int bank_num = 0;
++	const char *filename = CMD_ARGV[0];
++	uint32_t flash_offset;
++	COMMAND_PARSE_NUMBER(u32, CMD_ARGV[1], flash_offset);
++	if (CMD_ARGC == 3)
++		COMMAND_PARSE_NUMBER(uint, CMD_ARGV[2], bank_num);
++
++	struct flash_bank *bank;
++	int ret = get_flash_bank_by_num(bank_num, &bank);
++	if (ret != ERROR_OK)
++		return ret;
++	struct spibsc_flash_bank *info = bank->driver_priv;
++	if (!info->probed) {
++		LOG_ERROR("SPIBSC: bank not probed");
++		return ERROR_FLASH_BANK_NOT_PROBED;
++	}
++	if (!info->handler_loaded) {
++		LOG_ERROR("SPIBSC: handler not running — smart_program needs "
++				"the in-RAM handler. Probe the bank first.");
++		return ERROR_FAIL;
++	}
++
++	/* Probe SDRAM. The staging address only works once the Deluge
++	 * firmware (or the bootloader's peripheral_init_basic) has brought
++	 * up the SDRAM controller. On a brick where boot ROM crashed before
++	 * that init, the bus floats and writes silently drop — we'd ship
++	 * zeros to flash. Confirm round-trip before committing. */
++	struct target *probe_target = bank->target;
++	{
++		ret = spibsc_pause_and_sync(probe_target);
++		if (ret != ERROR_OK)
++			return ret;
++		const uint32_t test_addr = SPIBSC_STAGE_IMAGE;
++		const uint32_t test_pat1 = 0xdeadbeefu;
++		const uint32_t test_pat2 = 0xcafef00du;
++		uint32_t v1 = 0, v2 = 0;
++		target_write_u32(probe_target, test_addr, test_pat1);
++		target_write_u32(probe_target, test_addr + 4, test_pat2);
++		target_read_u32(probe_target, test_addr, &v1);
++		target_read_u32(probe_target, test_addr + 4, &v2);
++		target_resume(probe_target, true, 0, 0, 0);
++		if (v1 != test_pat1 || v2 != test_pat2) {
++			LOG_ERROR("SPIBSC: SDRAM at 0x%08" PRIx32 " is not "
++				"initialised (read back 0x%08" PRIx32
++				" 0x%08" PRIx32 ", expected 0x%08" PRIx32
++				" 0x%08" PRIx32 "). This usually means the "
++				"Deluge bootloader didn't run (cold brick "
++				"state). Use `flash write_image erase "
++				"<filename> 0x18%05" PRIx32 "` instead — that "
++				"path doesn't need SDRAM.",
++				test_addr, v1, v2, test_pat1, test_pat2,
++				flash_offset);
++			return ERROR_FAIL;
++		}
++	}
++
++	/* Slurp the image. */
++	struct fileio *fileio;
++	if (fileio_open(&fileio, filename, FILEIO_READ, FILEIO_BINARY) != ERROR_OK)
++		return ERROR_FAIL;
++	size_t file_size = 0;
++	fileio_size(fileio, &file_size);
++	if (file_size == 0) {
++		fileio_close(fileio);
++		LOG_ERROR("empty file");
++		return ERROR_FAIL;
++	}
++	if (flash_offset + file_size > bank->size) {
++		fileio_close(fileio);
++		LOG_ERROR("image extends past end of flash");
++		return ERROR_FAIL;
++	}
++
++	uint8_t *image = malloc(file_size);
++	if (!image) {
++		fileio_close(fileio);
++		return ERROR_FAIL;
++	}
++	size_t got;
++	fileio_read(fileio, file_size, image, &got);
++	fileio_close(fileio);
++	if (got != file_size) {
++		free(image);
++		LOG_ERROR("short read");
++		return ERROR_FAIL;
++	}
++
++	/* Probe-defined sectors are 64 KiB (W25Q32JV's natural block size).
++	 * Internally smart_program operates at 4 KiB granularity so a single-
++	 * page touch reprograms 4 KiB instead of 64 KiB. Adaptive logic later
++	 * decides per-64-KiB-block whether to use a fast 64 KiB block erase
++	 * (0xD8, ~150 ms typ) or per-sub-sector 4 KiB erase (0x20, ~45 ms typ).
++	 * Threshold: 5 differing sub-sectors → block erase wins on typical
++	 * timing (5 * 45 ms > 1 * 150 ms + extra programming overhead). */
++	const uint32_t block_size = bank->sectors[0].size;	/* 64 KiB */
++	const uint32_t sub_sector_size = 4096u;
++	const uint32_t subs_per_block = block_size / sub_sector_size;
++	const uint32_t block_erase_threshold = 5u;
++
++	uint32_t first_sect = flash_offset / block_size;
++	uint32_t last_sect = (flash_offset + file_size - 1) / block_size;
++	uint32_t n_sectors = last_sect - first_sect + 1;
++
++	/* Refuse if any sector in the destination range is protected — same
++	 * guard as the erase path. Stops a typo from trashing the
++	 * bootloader. */
++	for (uint32_t s = first_sect; s <= last_sect; s++) {
++		if (bank->sectors[s].is_protected) {
++			free(image);
++			LOG_ERROR("SPIBSC: target range covers protected "
++					"sector %" PRIu32
++					" (flash offset 0x%08" PRIx32 "); "
++					"use `flash protect %u %" PRIu32 " %" PRIu32
++					" off` to override",
++					s, bank->sectors[s].offset,
++					bank_num, first_sect, last_sect);
++			return ERROR_FLASH_PROTECTED;
++		}
++	}
++	uint32_t range_start = first_sect * block_size;
++	uint32_t range_end = (last_sect + 1) * block_size;
++	uint32_t range_len = range_end - range_start;
++	uint32_t n_sub = range_len / sub_sector_size;
++
++	if (range_len > SPIBSC_STAGE_LIMIT - SPIBSC_STAGE_IMAGE) {
++		free(image);
++		LOG_ERROR("range too large for SDRAM staging area");
++		return ERROR_FAIL;
++	}
++
++	/* Build an aligned padded copy of the image: anything outside the
++	 * supplied bytes is 0xFF (matches erased flash). */
++	uint8_t *staged = malloc(range_len);
++	if (!staged) {
++		free(image);
++		return ERROR_FAIL;
++	}
++	memset(staged, 0xff, range_len);
++	memcpy(staged + (flash_offset - range_start), image, file_size);
++	free(image);
++
++	/* Compute per-sub-sector expected CRC. */
++	uint32_t *expected_crc = malloc(n_sub * sizeof(uint32_t));
++	for (uint32_t i = 0; i < n_sub; i++) {
++		expected_crc[i] = spibsc_crc32(0xFFFFFFFFu,
++				staged + i * sub_sector_size,
++				sub_sector_size) ^ 0xFFFFFFFFu;
++	}
++
++	struct target *target = bank->target;
++
++	/* Stage 1: bulk-upload the aligned image to SDRAM. Halt for
++	 * the write so it reaches RAM cleanly. */
++	LOG_INFO("SPIBSC: uploading %" PRIu32 " KiB image to SDRAM @ 0x%08x...",
++			range_len / 1024, SPIBSC_STAGE_IMAGE);
++	ret = spibsc_pause_and_sync(target);
++	if (ret != ERROR_OK)
++		goto out_free;
++	int64_t t_upload = timeval_ms();
++	ret = target_write_buffer(target, SPIBSC_STAGE_IMAGE, range_len, staged);
++	target_resume(target, true, 0, 0, 0);
++	t_upload = timeval_ms() - t_upload;
++	if (ret != ERROR_OK) {
++		LOG_ERROR("image upload failed");
++		goto out_free;
++	}
++	LOG_INFO("  upload: %" PRId64 " ms", t_upload);
++
++	/* Stage 2: hash the flash range at 4 KiB granularity and read CRCs
++	 * back. The handler writes n_sub CRC32 words into SPIBSC_STAGE_CRC. */
++	LOG_INFO("SPIBSC: hashing %" PRIu32 " sub-sectors (%" PRIu32
++			" KiB) of flash...", n_sub, range_len / 1024);
++	int64_t t_hash = timeval_ms();
++	ret = spibsc_handler_cmd_with_buf(bank, CMD_HASH_RANGE,
++			range_start, range_len,
++			SPIBSC_STAGE_CRC, sub_sector_size,
++			/* erase_cmd irrelevant for hash */ 0,
++			/* Worst-case ~50 ms/sub-sector at our SPI clock,
++			 * with plenty of slack for halt-poll overhead. */
++			(int)(n_sub * 50u + 10000u));
++	t_hash = timeval_ms() - t_hash;
++	if (ret != ERROR_OK) {
++		LOG_ERROR("hash sweep failed");
++		goto out_free;
++	}
++	LOG_INFO("  hash: %" PRId64 " ms", t_hash);
++
++	uint32_t *got_crc = malloc(n_sub * sizeof(uint32_t));
++	ret = spibsc_pause_and_sync(target);
++	if (ret == ERROR_OK) {
++		ret = target_read_buffer(target, SPIBSC_STAGE_CRC,
++				n_sub * sizeof(uint32_t),
++				(uint8_t *)got_crc);
++		target_resume(target, true, 0, 0, 0);
++	}
++	if (ret != ERROR_OK) {
++		LOG_ERROR("CRC readback failed");
++		free(got_crc);
++		goto out_free;
++	}
++
++	/* Stage 3: per-64-KiB-block, decide between block erase (0xD8) and
++	 * per-sub-sector erase (0x20), then reprogram only the bytes that
++	 * actually differ. */
++	uint32_t diff_subs = 0;
++	uint32_t block_erases = 0;
++	uint32_t sub_erases = 0;
++	int64_t t_program = timeval_ms();
++	for (uint32_t b = 0; b < n_sectors; b++) {
++		uint32_t diffs_in_block = 0;
++		for (uint32_t s = 0; s < subs_per_block; s++) {
++			uint32_t idx = b * subs_per_block + s;
++			if (got_crc[idx] != expected_crc[idx])
++				diffs_in_block++;
++		}
++		if (diffs_in_block == 0)
++			continue;
++		diff_subs += diffs_in_block;
++
++		uint32_t block_fa = range_start + b * block_size;
++		uint32_t block_src = SPIBSC_STAGE_IMAGE + b * block_size;
++
++		if (diffs_in_block >= block_erase_threshold) {
++			/* One 64 KiB block erase + program the whole block. */
++			block_erases++;
++			ret = spibsc_handler_cmd_with_buf(bank,
++					CMD_PROGRAM_RANGE,
++					block_fa, block_size,
++					block_src, block_size,
++					info->dev->erase_cmd,
++					(int)(block_size / 256u * 3u + 5000u));
++			if (ret != ERROR_OK) {
++				LOG_ERROR("PROGRAM_RANGE failed for block %"
++						PRIu32, b);
++				free(got_crc);
++				goto out_free;
++			}
++		} else {
++			/* Per-sub-sector 4 KiB erase + program. */
++			for (uint32_t s = 0; s < subs_per_block; s++) {
++				uint32_t idx = b * subs_per_block + s;
++				if (got_crc[idx] == expected_crc[idx])
++					continue;
++				sub_erases++;
++				uint32_t fa = block_fa + s * sub_sector_size;
++				uint32_t src = block_src + s * sub_sector_size;
++				ret = spibsc_handler_cmd_with_buf(bank,
++						CMD_PROGRAM_RANGE,
++						fa, sub_sector_size,
++						src, sub_sector_size,
++						0x20,
++						(int)(sub_sector_size / 256u
++							* 3u + 2000u));
++				if (ret != ERROR_OK) {
++					LOG_ERROR("PROGRAM_RANGE failed for "
++							"sub-sector %" PRIu32,
++							idx);
++					free(got_crc);
++					goto out_free;
++				}
++			}
++		}
++		keep_alive();
++	}
++	t_program = timeval_ms() - t_program;
++	free(got_crc);
++
++	LOG_INFO("SPIBSC: smart_program done. %" PRIu32 "/%" PRIu32
++		" sub-sectors (4 KiB) needed reprogramming "
++		"(%" PRIu32 " block-erases, %" PRIu32 " sub-erases), "
++		"took %" PRId64 " ms "
++		"(upload %" PRId64 " ms, hash %" PRId64 " ms, program %" PRId64 " ms)",
++		diff_subs, n_sub, block_erases, sub_erases,
++		t_upload + t_hash + t_program, t_upload, t_hash, t_program);
++
++	ret = ERROR_OK;
++out_free:
++	free(staged);
++	free(expected_crc);
++	return ret;
++}
++
++static const struct command_registration spibsc_exec_command_handlers[] = {
++	{
++		.name = "smart_program",
++		.handler = spibsc_handle_smart_program,
++		.mode = COMMAND_EXEC,
++		.help = "Program a firmware image with per-sector CRC diff. "
++			"Uploads the image to SDRAM, asks the in-RAM "
++			"handler to CRC-sweep the destination flash range, and "
++			"re-programs only the sectors whose contents differ. "
++			"Much faster than `flash write_image` for incremental "
++			"updates.",
++		.usage = "filename flash_offset [bank_id]",
++	},
++	COMMAND_REGISTRATION_DONE
++};
++
++static const struct command_registration spibsc_command_handlers[] = {
++	{
++		.name = "renesas_spibsc",
++		.mode = COMMAND_ANY,
++		.help = "Renesas SPIBSC flash command group",
++		.usage = "",
++		.chain = spibsc_exec_command_handlers,
++	},
++	COMMAND_REGISTRATION_DONE
++};
++
++const struct flash_driver renesas_spibsc_flash = {
++	.name			= "renesas_spibsc",
++	.commands		= spibsc_command_handlers,
++	.flash_bank_command	= renesas_spibsc_flash_bank_command,
++	.erase			= renesas_spibsc_erase,
++	.protect		= renesas_spibsc_protect,
++	.write			= renesas_spibsc_write,
++	.read			= renesas_spibsc_read,
++	.probe			= renesas_spibsc_probe,
++	.auto_probe		= renesas_spibsc_auto_probe,
++	.erase_check		= default_flash_blank_check,
++	.protect_check		= renesas_spibsc_protect_check,
++	.info			= renesas_spibsc_get_info,
++	.free_driver_priv	= default_flash_free_driver_priv,
++};
+--- ocd-a/contrib/loaders/flash/renesas_spibsc/Makefile	1970-01-01 01:00:00.000000000 +0100
++++ ocd-b/contrib/loaders/flash/renesas_spibsc/Makefile	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,62 @@
++# SPDX-License-Identifier: GPL-2.0-or-later
++
++CROSS_COMPILE ?= arm-none-eabi-
++BIN2C = ../../../../src/helper/bin2char.sh
++
++CC      = $(CROSS_COMPILE)gcc
++LD      = $(CROSS_COMPILE)ld
++OBJCOPY = $(CROSS_COMPILE)objcopy
++NM      = $(CROSS_COMPILE)nm
++SIZE    = $(CROSS_COMPILE)size
++
++CFLAGS_COMMON = -Wall -nostartfiles -marm -ffreestanding \
++          -fno-pic -mno-unaligned-access \
++          -ffunction-sections -fdata-sections -fno-common \
++          -march=armv7-a -mtune=cortex-a9 -mfloat-abi=soft
++
++ASM_CFLAGS = $(CFLAGS_COMMON) -Os -nostdinc -mword-relocations \
++          -mabi=aapcs-linux -msoft-float -pipe -mtune=generic-armv7-a
++
++# Handler C build needs stdint.h, no stack-protector, and explicit
++# -fno-stack-protector to keep the binary tiny and dependency-free.
++HANDLER_CFLAGS = -Wall -nostartfiles -mthumb -mthumb-interwork \
++          -ffreestanding -fno-pic -mno-unaligned-access \
++          -ffunction-sections -fdata-sections -fno-common \
++          -march=armv7-a -mtune=cortex-a9 -mfloat-abi=soft -Os \
++          -fno-stack-protector -fno-asynchronous-unwind-tables -nostdlib
++
++all: renesas_spibsc.inc handler.inc
++
++# Old one-shot algorithm (kept as reference; not currently used by the
++# driver but compiles for archival).
++renesas_spibsc.o: renesas_spibsc.S
++	$(CC) $(ASM_CFLAGS) -c $< -o $@
++
++renesas_spibsc.elf: renesas_spibsc.o renesas_spibsc.ld
++	$(LD) -Trenesas_spibsc.ld -nostdlib -Map=renesas_spibsc.map \
++	    renesas_spibsc.o -o $@
++
++renesas_spibsc.bin: renesas_spibsc.elf
++	$(OBJCOPY) $< -O binary $@
++	$(SIZE) $<
++
++renesas_spibsc.inc: renesas_spibsc.bin
++	$(BIN2C) < $< > $@
++
++# Persistent mailbox handler.
++handler.o: handler.c handler.h
++	$(CC) $(HANDLER_CFLAGS) -c $< -o $@
++
++handler.elf: handler.o handler.ld
++	$(LD) -Thandler.ld -nostdlib -Map=handler.map handler.o -o $@
++
++handler.bin: handler.elf
++	$(OBJCOPY) $< -O binary $@
++	$(NM) -n handler.elf > handler.sym
++	$(SIZE) $<
++
++handler.inc: handler.bin
++	$(BIN2C) < $< > $@
++
++clean:
++	rm -f *.o *.elf *.bin *.map *.sym *.inc
+--- ocd-a/contrib/loaders/flash/renesas_spibsc/handler.c	1970-01-01 01:00:00.000000000 +0100
++++ ocd-b/contrib/loaders/flash/renesas_spibsc/handler.c	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,728 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++
++/*
++ * Renesas RZ/A1L SPIBSC flash handler (Cortex-A9, ARM mode).
++ *
++ * Runs in target RAM at SPIBSC_HANDLER_CODE. The host (OpenOCD driver)
++ * communicates with this code via a mailbox struct at SPIBSC_MAILBOX_ADDR
++ * — see handler.h for the protocol.
++ *
++ * The handler does its own cache maintenance after every peripheral write
++ * (DSB + DCCMVAC by VA) so it tolerates a wider range of MMU
++ * configurations than a naive memory-mapped-I/O sequence. Reads of
++ * peripheral registers go through DCIMVAC first to discard any stale
++ * cache line.
++ *
++ * The handler is freestanding: no startup file, no libc, no stack-using
++ * function calls beyond what the compiler emits for spill-restore.
++ * Compile with:
++ *   arm-none-eabi-gcc -march=armv7-a -mtune=cortex-a9 -marm -Os
++ *     -ffreestanding -fno-pic -fno-stack-protector -fno-common -nostdlib
++ *     -nostartfiles -T handler.ld
++ */
++
++#include <stdint.h>
++#include "handler.h"
++
++/* SPIBSC register offsets (must match driver) */
++#define SMCR	0x20
++#define SMCMR	0x24
++#define SMADR	0x28
++#define SMOPR	0x2c
++#define SMENR	0x30
++#define SMRDR0	0x38
++#define SMWDR0	0x40
++#define CMNCR	0x00
++#define DRCR	0x0c
++#define CMNSR	0x48
++#define SMDRENR	0x64
++
++#define CMNCR_MD	(1u << 31)
++#define DRCR_SSLN	(1u << 24)
++#define SMCR_SPIE	0x001
++#define SMCR_SPIWE	0x002
++#define SMCR_SPIRE	0x004
++#define SMCR_SSLKP	0x100
++#define CMNSR_TEND	0x001
++
++#define SMENR_CDE	(1u << 14)
++#define SMENR_ADE_3B	(0x7u << 8)
++#define SMENR_ADE_4B	(0xfu << 8)
++#define SMENR_SPIDE_1B	0x8
++#define SMENR_SPIDE_4B	0xf
++
++/* External-address-space (XIP) read engine */
++#define DRCMR		0x10
++#define DREAR		0x14
++#define DRENR		0x1c
++#define DRCR_RBE	(1u << 8)
++#define DRCR_RCF	(1u << 9)
++#define DREAR_EAC_25B	0x1
++#define DRENR_CDE	(1u << 14)
++#define DRENR_ADE_3B	(0x7u << 8)
++#define DRENR_ADE_4B	(0xfu << 8)
++
++#define SPI_OP_WREN	0x06
++#define SPI_OP_RDSR	0x05
++
++#define SR_WIP_MSB_POS	(1u << 24)	/* SR bit 0 in SMRDR0[31:24] */
++
++/* CP15 helpers */
++static inline void cpu_dsb(void)
++{
++	__asm__ volatile ("dsb sy" ::: "memory");
++}
++
++static inline void cpu_isb(void)
++{
++	__asm__ volatile ("isb sy" ::: "memory");
++}
++
++/* Clean (write back) the D-cache line containing va to the point of
++ * coherency. Needed after writes to peripheral addresses if the region
++ * happens to be marked cacheable in the running MMU. */
++static inline void dcache_clean_va(uintptr_t va)
++{
++	__asm__ volatile ("mcr p15, 0, %0, c7, c10, 1" :: "r" (va) : "memory");
++}
++
++/* Invalidate the D-cache line containing va. Used before reading a
++ * peripheral register to ensure we don't return stale cached data. */
++static inline void dcache_inval_va(uintptr_t va)
++{
++	__asm__ volatile ("mcr p15, 0, %0, c7, c6, 1" :: "r" (va) : "memory");
++}
++
++/* Peripheral write that survives D-cache being on by accident. */
++static inline void p_write(uint32_t base, uint32_t off, uint32_t val)
++{
++	*(volatile uint32_t *)(base + off) = val;
++	cpu_dsb();
++	dcache_clean_va(base + off);
++	cpu_dsb();
++}
++
++static inline uint32_t p_read(uint32_t base, uint32_t off)
++{
++	dcache_inval_va(base + off);
++	cpu_dsb();
++	uint32_t v = *(volatile uint32_t *)(base + off);
++	cpu_dsb();
++	return v;
++}
++
++/* With D-cache disabled by the trampoline, plain store + DSB is all we
++ * need — writes go straight to memory. Host can see them immediately. */
++static inline void mb_store(volatile uint32_t *p, uint32_t v)
++{
++	*p = v;
++	cpu_dsb();
++}
++
++static inline uint32_t mb_load(volatile uint32_t *p)
++{
++	cpu_dsb();
++	return *p;
++}
++
++static void wait_tend(uint32_t io_base)
++{
++	/* With D-cache disabled the SMCR.SPIE store is synchronous (DSB in
++	 * p_write drains it) so by the time we get here SPIBSC has already
++	 * seen the write and cleared TEND. Just poll for TEND=1.
++	 *
++	 * Without the delay loop a single sector-hash drops from ~6 s to
++	 * ~50 ms because we're no longer churning the (uncached!) stack
++	 * 200 times per 4-byte chunk. */
++	while ((p_read(io_base, CMNSR) & CMNSR_TEND) == 0)
++		;
++}
++
++static void enter_spi_mode(uint32_t io_base)
++{
++	uint32_t cmncr = p_read(io_base, CMNCR);
++	if (!(cmncr & CMNCR_MD)) {
++		p_write(io_base, DRCR, DRCR_SSLN);
++		wait_tend(io_base);
++		p_write(io_base, CMNCR, cmncr | CMNCR_MD);
++	}
++	/* Defensively clear DDR-enable / option-data bits — stale values
++	 * here silently change SMRDR0 byte packing. */
++	p_write(io_base, SMDRENR, 0);
++	p_write(io_base, SMOPR, 0);
++}
++
++/* Send a one-byte command with no address and no data (e.g. WREN). */
++static void spi_cmd_only(uint32_t io_base, uint8_t opcode)
++{
++	p_write(io_base, SMCMR, (uint32_t)opcode << 16);
++	p_write(io_base, SMENR, SMENR_CDE);
++	p_write(io_base, SMCR, SMCR_SPIE);
++	wait_tend(io_base);
++}
++
++/* Read the flash status register (1 byte) — SR0 bit 0 = WIP. */
++static uint8_t spi_read_status(uint32_t io_base)
++{
++	p_write(io_base, SMCMR, (uint32_t)SPI_OP_RDSR << 16);
++	p_write(io_base, SMENR, SMENR_CDE | SMENR_SPIDE_1B);
++	p_write(io_base, SMCR, SMCR_SPIE | SMCR_SPIRE);
++	wait_tend(io_base);
++	return (uint8_t)(p_read(io_base, SMRDR0) >> 24);
++}
++
++static void spi_wait_wip_clear(uint32_t io_base)
++{
++	while (spi_read_status(io_base) & 0x01)
++		;
++}
++
++/* Pack 4 source bytes MSB-first into SMWDR0 (matches the slow-path
++ * driver — source byte 0 → flash byte 0 round-trip identity). */
++static inline uint32_t pack_msb_first(const uint8_t *p)
++{
++	return ((uint32_t)p[0] << 24) |
++	       ((uint32_t)p[1] << 16) |
++	       ((uint32_t)p[2] << 8) |
++	       (uint32_t)p[3];
++}
++
++/* Program one flash page (up to 256 B) starting at flash[addr]. Caller
++ * guarantees the chunk fits in a single page (no page-boundary crossing)
++ * and that count is a multiple of 4. */
++static int do_page_program_one(uint32_t io_base, uint8_t pp_cmd, uint32_t ade,
++		uint32_t addr, const uint8_t *src, uint32_t count)
++{
++	spi_cmd_only(io_base, SPI_OP_WREN);
++	uint8_t sr = spi_read_status(io_base);
++	if (!(sr & 0x02))
++		return 1;
++
++	p_write(io_base, SMCMR, (uint32_t)pp_cmd << 16);
++	p_write(io_base, SMADR, addr);
++	p_write(io_base, SMENR, SMENR_CDE | ade | SMENR_SPIDE_4B);
++
++	uint32_t remaining = count;
++	const uint8_t *cur = src;
++	uint32_t smcr_keep = SMCR_SPIE | SMCR_SPIWE | SMCR_SSLKP;
++	uint32_t smcr_last = SMCR_SPIE | SMCR_SPIWE;
++
++	while (remaining >= 4) {
++		p_write(io_base, SMWDR0, pack_msb_first(cur));
++		p_write(io_base, SMCR,
++				remaining == 4 ? smcr_last : smcr_keep);
++		wait_tend(io_base);
++		p_write(io_base, SMENR, SMENR_SPIDE_4B);
++		cur += 4;
++		remaining -= 4;
++	}
++
++	spi_wait_wip_clear(io_base);
++	return 0;
++}
++
++/* Program count bytes spanning any number of pages, splitting at page
++ * boundaries internally. count must be a multiple of 4 and the
++ * destination range must already be erased. */
++static int do_page_program(uint32_t io_base, uint8_t pp_cmd, uint32_t ade,
++		uint32_t addr, const uint8_t *src, uint32_t count)
++{
++	while (count > 0) {
++		uint32_t page_off = addr & 0xff;	/* 256-byte page */
++		uint32_t chunk = 256u - page_off;
++		if (chunk > count)
++			chunk = count;
++		int err = do_page_program_one(io_base, pp_cmd, ade,
++				addr, src, chunk);
++		if (err)
++			return err;
++		addr += chunk;
++		src += chunk;
++		count -= chunk;
++	}
++	return 0;
++}
++
++static int do_sector_erase(uint32_t io_base, uint8_t erase_cmd, uint32_t ade,
++		uint32_t addr)
++{
++	spi_cmd_only(io_base, SPI_OP_WREN);
++	uint8_t sr = spi_read_status(io_base);
++	if (!(sr & 0x02))
++		return 1;
++
++	p_write(io_base, SMCMR, (uint32_t)erase_cmd << 16);
++	p_write(io_base, SMADR, addr);
++	p_write(io_base, SMENR, SMENR_CDE | ade);
++	p_write(io_base, SMCR, SMCR_SPIE);
++	wait_tend(io_base);
++	spi_wait_wip_clear(io_base);
++	return 0;
++}
++
++/* Sector erase via the user-supplied erase command. */
++static int do_sector_erase_at(uint32_t io_base, uint8_t erase_cmd, uint32_t ade,
++		uint32_t addr)
++{
++	return do_sector_erase(io_base, erase_cmd, ade, addr);
++}
++
++/* CRC32 (IEEE 802.3 / zlib) of an in-RAM buffer. Bit-reversed input,
++ * bit-reversed output, polynomial 0xEDB88320, initial value 0xFFFFFFFF,
++ * final XOR 0xFFFFFFFF. Matches Python's binascii.crc32. */
++static uint32_t crc32_block(uint32_t crc, const uint8_t *data, uint32_t len)
++{
++	while (len--) {
++		crc ^= *data++;
++		for (int i = 0; i < 8; i++)
++			crc = (crc >> 1) ^ (0xEDB88320u & -(crc & 1u));
++	}
++	return crc;
++}
++
++/* Switch SPIBSC from manual-SPI to external-address-space (XIP) read mode
++ * with the supplied read opcode + address width. Caller is responsible for
++ * restoring SM mode (enter_spi_mode) afterwards.
++ *
++ * Same register dance the host-side driver does in spibsc_enter_xip_mode()
++ * (renesas_spibsc.c). Kept here so the handler can do many sector hashes
++ * back-to-back without JTAG round-trips between them. */
++static void enter_xip_mode(uint32_t io_base, uint8_t read_cmd, uint32_t ade)
++{
++	uint32_t cmncr = p_read(io_base, CMNCR);
++	if (cmncr & CMNCR_MD) {
++		/* In SM mode: drain any in-flight SPI burst before flipping. */
++		wait_tend(io_base);
++	}
++
++	/* DRENR mirrors SMENR shape but uses its own enable bits. ADE bit
++	 * count matches the SM-mode ade value: 0x700 for 3-byte, 0xf00 for
++	 * 4-byte. We deliberately leave DME (dummy enable) clear — the
++	 * Deluge's W25Q32JV uses opcode 0x03 (READ, zero dummy cycles) so
++	 * adding dummy cycles would shift the data. */
++	uint32_t drenr = DRENR_CDE;
++	if (ade == SMENR_ADE_4B)
++		drenr |= DRENR_ADE_4B;
++	else
++		drenr |= DRENR_ADE_3B;
++	p_write(io_base, DRENR, drenr);
++	p_write(io_base, DRCMR, (uint32_t)read_cmd << 16);
++	p_write(io_base, DREAR, (ade == SMENR_ADE_4B) ? DREAR_EAC_25B : 0);
++
++	/* RBE enables the data-read engine's internal burst/prefetch buffer
++	 * (without it, the XIP path won't service CPU loads at all). RCF=1
++	 * is one-shot — it flushes any stale lines left over from a prior
++	 * XIP session (or from before we modified flash via SM mode). */
++	p_write(io_base, DRCR, DRCR_RBE | DRCR_RCF);
++	/* Now flip CMNCR.MD=0 to put the controller in XIP read mode. */
++	p_write(io_base, CMNCR, cmncr & ~CMNCR_MD);
++}
++
++/* Compute CRC32 over flash[addr .. addr+len-1] by reading through the XIP
++ * window. SPIBSC must already be in XIP mode (enter_xip_mode). With L1
++ * D-cache disabled in the trampoline and no L2 on the RZ/A1L, volatile
++ * loads at xip_base + addr go straight through the AXI to SPIBSC's
++ * data-read engine, which streams a SPI burst from flash.
++ *
++ * Byte ordering: SPIBSC packs the first flash byte of each 32-bit AHB
++ * word into the MSB position (this matches what SM-mode SMRDR0 returns).
++ * SFDE in CMNCR is left at 0 — setting it scrambles SM-mode SMRDR0 reads
++ * on RZ/A1L per the host driver's controller_init comment. So byte reads
++ * via the XIP window come back byte-reversed within each word; we must
++ * read words and unpack MSB-first to walk flash in linear byte order.
++ * len must be a multiple of 4. */
++static uint32_t crc32_xip(uint32_t xip_base, uint32_t addr, uint32_t len,
++		uint32_t crc)
++{
++	const volatile uint32_t *src =
++		(const volatile uint32_t *)(xip_base + addr);
++	uint32_t nwords = len >> 2;
++	for (uint32_t i = 0; i < nwords; i++) {
++		uint32_t w = src[i];
++		uint8_t bs[4] = {
++			(uint8_t)w,
++			(uint8_t)(w >> 8),
++			(uint8_t)(w >> 16),
++			(uint8_t)(w >> 24),
++		};
++		for (int k = 0; k < 4; k++) {
++			crc ^= bs[k];
++			for (int j = 0; j < 8; j++)
++				crc = (crc >> 1) ^
++					(0xEDB88320u & -(crc & 1u));
++		}
++	}
++	return crc;
++}
++
++/* Read count bytes from flash[addr..addr+count-1] into dst. count must be
++ * a multiple of 4. */
++static int do_read(uint32_t io_base, uint8_t read_cmd, uint32_t ade,
++		uint32_t addr, uint8_t *dst, uint32_t count)
++{
++	if (count == 0 || (count & 3))
++		return 1;
++
++	p_write(io_base, SMCMR, (uint32_t)read_cmd << 16);
++	p_write(io_base, SMADR, addr);
++	p_write(io_base, SMENR, SMENR_CDE | ade | SMENR_SPIDE_4B);
++
++	uint32_t remaining = count;
++	uint8_t *cur = dst;
++	while (remaining >= 4) {
++		uint32_t smcr = SMCR_SPIE | SMCR_SPIRE;
++		if (remaining > 4)
++			smcr |= SMCR_SSLKP;
++		p_write(io_base, SMCR, smcr);
++		wait_tend(io_base);
++		uint32_t rdr = p_read(io_base, SMRDR0);
++		cur[0] = (rdr >> 24) & 0xff;
++		cur[1] = (rdr >> 16) & 0xff;
++		cur[2] = (rdr >> 8) & 0xff;
++		cur[3] = rdr & 0xff;
++		cur += 4;
++		remaining -= 4;
++		/* From the second SPIE onwards, send no cmd/addr — just clock
++		 * out more data. */
++		p_write(io_base, SMENR, SMENR_SPIDE_4B);
++	}
++	return 0;
++}
++
++/* Mode-agnostic entry trampoline.
++ *
++ * OpenOCD's target_resume on cortex_a respects whatever CPSR.T was at
++ * halt, and on the Deluge that's typically Thumb (the debug config sets
++ * "arm core_state thumb"). Our handler is compiled as ARM, so we need to
++ * guarantee a switch to ARM mode no matter what state the CPU resumes in.
++ *
++ * We achieve that with a fixed 8-byte landing pad whose bytes are
++ * carefully chosen to do something sensible in BOTH modes:
++ *
++ *   Bytes:    00 f0 00 b8 | 00 f0 00 e8
++ *
++ *   As Thumb-2:                       T1 of Thumb-2 BL — but we don't
++ *                                     actually care; we use the first
++ *                                     halfword `00 f0 00 b8` which is
++ *                                     the Thumb-2 encoding of
++ *                                     `b.w arm_entry+8`, a relative jump
++ *                                     to the real entry below. The
++ *                                     destination is computed so the
++ *                                     target's low bit is 0 (ARM), and
++ *                                     the Thumb-2 B.W effectively does a
++ *                                     mode change to ARM as a side effect
++ *                                     of the branch target's bit 0 being
++ *                                     clear on ARMv7.
++ *
++ * Simpler approach that we actually use: emit a single ARM instruction
++ * that's also valid (and harmless) as Thumb. We can't easily do that, so
++ * instead we *unconditionally switch to ARM mode via inline asm* and
++ * place that inline-asm at the very top of _start. The OpenOCD-side code
++ * sets PC = _start (= ARM_entry). If we resume in Thumb, the CPU
++ * misdecodes the first ARM word as Thumb-2 — which is fine ONLY if those
++ * 4 bytes happen to be a harmless Thumb-2 sequence that ends with a mode
++ * switch back to ARM.
++ *
++ * The robust solution is to set PC = arm_thunk_thumb (an *odd* address,
++ * i.e. with bit 0 set), which forces the CPU into Thumb when resuming
++ * regardless of CPSR.T. The first Thumb instruction is `bx pc` which
++ * branches to PC+4 with the destination's bit 0 = 0 → switches to ARM.
++ * That's what we do here.
++ */
++/* Stack top for the handler. We use the area between handler code and
++ * the data buffer as a small stack. Stack grows downward from here. */
++#define HANDLER_STACK_TOP	0x20201000u
++
++/* ARM-mode trampoline at the handler's entry address.
++ *
++ * Background: OpenOCD 0.12.0's cortex_a resume injects two ITR opcodes
++ * (BX r0, then MOV pc, r0 / 0xe1a0f000) to write PC + switch core state.
++ * If we resume into Thumb mode directly, the second opcode is decoded
++ * as Thumb-2 (because BX r0 already flipped CPSR.T=1) and lands PC at a
++ * junk address — exactly what bit us in earlier attempts.
++ *
++ * Fix: enter in ARM state at this 4-byte-aligned address. Both ITR ops
++ * decode as ARM correctly, the CPU lands here in ARM mode, then we do
++ * a regular BX into the Thumb body. */
++__attribute__((naked, section(".text._start")))
++void _start(void)
++{
++	/* ARM-mode trampoline:
++	 *   1. Set up our own stack pointer.
++	 *   2. Clean+invalidate the whole D-cache (DCCISW by set/way over all
++	 *      sets/ways of L1; we use the "way0/set0 first" sweep — see
++	 *      ARMv7-A ARM B5.2.4). This flushes anything dirty in cache to
++	 *      memory so the host can see it via mem-AP, AND empties cache so
++	 *      our mailbox stores never linger.
++	 *   3. Disable D-cache (SCTLR.C = 0). All subsequent loads/stores
++	 *      bypass L1 D-cache and hit memory directly, which is what we
++	 *      need so the host's mem-AP reads see handler stores immediately
++	 *      and vice versa.
++	 *   4. BX into the Thumb handler body.
++	 *
++	 * We deliberately keep I-cache enabled (SCTLR.I unchanged). The
++	 * handler binary doesn't change at runtime so I-cache stays valid;
++	 * disabling it would tank performance for no benefit. */
++	__asm__ volatile (
++		".arm\n"
++
++		/* Step 0 — force a clean execution context. We may have been
++		 * resumed from any CPSR state (Abort mode after a faulted
++		 * firmware, IRQ mid-frame, whatever). Slam CPSR to SVC with
++		 * IRQ+FIQ+Abort masked, so subsequent banked-register accesses
++		 * (sp, lr) hit the SVC bank we expect. We must do this before
++		 * the stack pointer write below — otherwise it lands in the
++		 * wrong banked R13. */
++		"msr   cpsr_c, #0xd3\n"
++
++		/* Step 1 — stack pointer (SVC R13). The handler doesn't make
++		 * deep calls; this just covers compiler spill+restore. */
++		"ldr   r0, =0x20201000\n"
++		"mov   sp, r0\n"
++
++		/* Note on cache state: the original trampoline cleaned+
++		 * invalidated L1 D-cache here via DCCISW, but that operation
++		 * faults reproducibly on the Deluge after a firmware data-
++		 * abort (CPU stuck in Abort mode then resumed). Skipping it
++		 * is safe: in firmware-running state the host-side
++		 * armv7a_l1_d_cache_flush_virt that precedes the handler
++		 * upload already evicted dirty lines covering the
++		 * handler/mailbox/data-buffer range, and after we disable
++		 * D-cache in the next step the handler doesn't pull anything
++		 * out of L1 anyway. The mailbox/peripheral access path uses
++		 * by-VA D-cache maintenance per p_write/p_read which keeps
++		 * any stale entry from other regions out of the way. */
++
++		/* Step 2 — disable D-cache (SCTLR.C = 0). Reads/writes now
++		 * bypass L1 D so the host's mem-AP sees handler stores and
++		 * vice versa. MMU is left as-is: when firmware is running
++		 * it's flat-mapped to physical (so VA==PA for our purposes);
++		 * when MMU is off (boot-ROM crash case) loads are already
++		 * physical. Either way the handler's targets (RAM, SPIBSC,
++		 * mailbox) all resolve to a valid PA. */
++		"mrc   p15, 0, r0, c1, c0, 0\n"
++		"bic   r0, r0, #(1 << 2)\n"
++		"mcr   p15, 0, r0, c1, c0, 0\n"
++		"dsb   sy\n"
++		"isb   sy\n"
++
++		/* Step 3 — switch to Thumb and enter the handler body. */
++		"ldr   r0, =handler_main+1\n"
++		"bx    r0\n"
++	);
++}
++
++void handler_main(void) __attribute__((section(".text._start_arm")));
++void handler_main(void)
++{
++	struct spibsc_mailbox *mb = (struct spibsc_mailbox *)SPIBSC_MAILBOX_ADDR;
++	uint8_t *data_buf = (uint8_t *)SPIBSC_DATA_BUFFER;
++
++	/* Zero the fields the host watches, then publish magic last. Every
++	 * write goes through mb_store so the host's mem-AP read picks it up
++	 * instead of stale RAM. */
++	mb_store(&mb->command, SPIBSC_CMD_NOP);
++	mb_store(&mb->command_id, 0);
++	mb_store(&mb->result_id, 0);
++	mb_store(&mb->status, SPIBSC_STATUS_IDLE);
++	mb_store(&mb->error, 0);
++	mb_store(&mb->heartbeat, 0);
++	mb_store(&mb->magic, SPIBSC_MAGIC_READY);
++
++	uint32_t last_id = 0;
++	uint32_t hb = 0;
++
++	for (;;) {
++		hb++;
++		mb_store(&mb->heartbeat, hb);
++
++		uint32_t cmd_id = mb_load(&mb->command_id);
++		if (cmd_id == last_id || cmd_id == 0)
++			continue;
++
++		uint32_t cmd = mb_load(&mb->command);
++		uint32_t io_base = mb_load(&mb->io_base);
++		uint32_t addr = mb_load(&mb->flash_addr);
++		uint32_t len = mb_load(&mb->length);
++		uint32_t addr_bytes = mb_load(&mb->addr_bytes);
++		uint32_t ade = addr_bytes == 4 ? SMENR_ADE_4B : SMENR_ADE_3B;
++
++		mb_store(&mb->status, SPIBSC_STATUS_BUSY);
++		mb_store(&mb->error, 0);
++		int err = 0;
++
++		enter_spi_mode(io_base);
++
++		switch (cmd) {
++		case SPIBSC_CMD_NOP:
++			break;
++		case SPIBSC_CMD_WRITE: {
++			uint32_t pp_cmd = mb_load(&mb->pp_cmd);
++			err = do_page_program(io_base, (uint8_t)pp_cmd,
++					ade, addr, data_buf, len);
++			break;
++		}
++		case SPIBSC_CMD_ERASE_SECTOR: {
++			uint32_t erase_cmd = mb_load(&mb->erase_cmd);
++			err = do_sector_erase(io_base, (uint8_t)erase_cmd,
++					ade, addr);
++			break;
++		}
++		case SPIBSC_CMD_READ: {
++			uint32_t read_cmd = mb_load(&mb->read_cmd);
++			err = do_read(io_base, (uint8_t)read_cmd, ade,
++					addr, data_buf, len);
++			/* Make the host-visible buffer current. The handler
++			 * just wrote it through D-cache. */
++			for (uint32_t i = 0; i < len; i += 32) {
++				dcache_clean_va(
++					(uintptr_t)(data_buf + i));
++			}
++			cpu_dsb();
++			break;
++		}
++		case SPIBSC_CMD_HASH_RANGE: {
++			/* Compute CRC32 per sector across flash[addr..+len]
++			 * and write the results to *buf_addr as a sequence
++			 * of u32 (little-endian native).
++			 *
++			 * Reads use the XIP window if xip_base != 0 — orders
++			 * of magnitude faster than the SM-mode per-word loop
++			 * because the SPIBSC's data-read engine streams a
++			 * single SPI burst into its prefetch buffer and we
++			 * just consume bytes via volatile loads from the
++			 * external-address-space window. Per-sector RCF clears
++			 * the prefetch buffer so we never see stale data left
++			 * over from before the most recent SM-mode flash
++			 * modification. */
++			uint32_t read_cmd = mb_load(&mb->read_cmd);
++			uint32_t buf_addr = mb_load(&mb->buf_addr);
++			uint32_t xip_base = mb_load(&mb->xip_base);
++			uint32_t sect_sz = mb_load(&mb->sector_size);
++			if (sect_sz == 0)
++				sect_sz = 4096u;
++			volatile uint32_t *out = (volatile uint32_t *)buf_addr;
++
++			if (xip_base != 0) {
++				enter_xip_mode(io_base, (uint8_t)read_cmd, ade);
++
++				uint32_t fa = addr;
++				uint32_t remaining_total = len;
++				while (remaining_total > 0) {
++					uint32_t this_sect = sect_sz;
++					if (this_sect > remaining_total)
++						this_sect = remaining_total;
++					/* Flush SPIBSC's internal prefetch
++					 * buffer between sectors so a long
++					 * run never sees coherency artifacts
++					 * if upstream firmware leaves the
++					 * region marked cacheable. */
++					p_write(io_base, DRCR,
++							DRCR_RBE | DRCR_RCF);
++					uint32_t crc = crc32_xip(xip_base, fa,
++							this_sect,
++							0xFFFFFFFFu);
++					crc ^= 0xFFFFFFFFu;
++					*out++ = crc;
++					cpu_dsb();
++					fa += this_sect;
++					remaining_total -= this_sect;
++				}
++				/* Restore SM mode so subsequent commands (or
++				 * a follow-on PROGRAM_RANGE) don't have to
++				 * pay for the mode flip themselves. */
++				enter_spi_mode(io_base);
++				break;
++			}
++
++			/* Fallback: SM-mode reads via the staging buffer. */
++			uint32_t fa = addr;
++			uint32_t remaining_total = len;
++			while (remaining_total > 0 && err == 0) {
++				uint32_t this_sect = sect_sz;
++				if (this_sect > remaining_total)
++					this_sect = remaining_total;
++				uint32_t crc = 0xFFFFFFFFu;
++				uint32_t fa_sub = fa;
++				uint32_t sect_remaining = this_sect;
++				while (sect_remaining > 0) {
++					uint32_t chunk = sect_remaining;
++					if (chunk > 4096u)
++						chunk = 4096u;
++					chunk &= ~3u;
++					if (chunk == 0)
++						break;
++					err = do_read(io_base,
++							(uint8_t)read_cmd,
++							ade, fa_sub, data_buf,
++							chunk);
++					if (err)
++						break;
++					crc = crc32_block(crc, data_buf,
++							chunk);
++					fa_sub += chunk;
++					sect_remaining -= chunk;
++				}
++				if (err)
++					break;
++				crc ^= 0xFFFFFFFFu;
++				*out++ = crc;
++				cpu_dsb();
++				fa += this_sect;
++				remaining_total -= this_sect;
++			}
++			break;
++		}
++		case SPIBSC_CMD_PROGRAM_RANGE: {
++			/* Program flash[addr..+len] from buf_addr[0..len].
++			 * Handler erases each sector before programming its
++			 * pages — caller does NOT pre-erase. */
++			uint32_t pp_cmd = mb_load(&mb->pp_cmd);
++			uint32_t erase_cmd = mb_load(&mb->erase_cmd);
++			uint32_t buf_addr = mb_load(&mb->buf_addr);
++			uint32_t sect_sz = mb_load(&mb->sector_size);
++			if (sect_sz == 0)
++				sect_sz = 4096u;
++			const uint8_t *src = (const uint8_t *)buf_addr;
++			uint32_t fa = addr;
++			uint32_t remaining = len;
++			/* Erase any sector we touch the start of. */
++			while (remaining > 0 && err == 0) {
++				/* Sector-aligned erase address. */
++				uint32_t sect_base = fa & ~(sect_sz - 1u);
++				err = do_sector_erase_at(io_base,
++						(uint8_t)erase_cmd, ade,
++						sect_base);
++				if (err)
++					break;
++				/* Program until we cross the next sector. */
++				uint32_t in_sect = sect_sz - (fa - sect_base);
++				if (in_sect > remaining)
++					in_sect = remaining;
++				err = do_page_program(io_base,
++						(uint8_t)pp_cmd, ade,
++						fa, src, in_sect);
++				if (err)
++					break;
++				fa += in_sect;
++				src += in_sect;
++				remaining -= in_sect;
++			}
++			break;
++		}
++		case SPIBSC_CMD_QUIT:
++			mb_store(&mb->status, SPIBSC_STATUS_DONE);
++			mb_store(&mb->result_id, cmd_id);
++			__asm__ volatile ("bkpt #0");
++			return;
++		default:
++			err = 0xdead;
++			break;
++		}
++
++		mb_store(&mb->error, err);
++		mb_store(&mb->status, err ? SPIBSC_STATUS_ERR : SPIBSC_STATUS_DONE);
++		mb_store(&mb->result_id, cmd_id);
++		last_id = cmd_id;
++	}
++}
+--- ocd-a/contrib/loaders/flash/renesas_spibsc/handler.h	1970-01-01 01:00:00.000000000 +0100
++++ ocd-b/contrib/loaders/flash/renesas_spibsc/handler.h	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,118 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++
++/*
++ * Shared host/target mailbox layout for the RZ/A1L SPIBSC flash handler.
++ *
++ * The handler is a small ARM program that runs continuously on the
++ * Cortex-A9 core. The host (OpenOCD flash driver) talks to it by writing
++ * commands and arguments to the mailbox struct in target RAM via JTAG
++ * memory accesses, then polling the status field for completion.
++ *
++ * Why this protocol (vs. one-shot target_run_algorithm):
++ *   - The CPU keeps running, so host mem-AP accesses go straight through
++ *     the AHB without touching the CPU's L1 cache. No stale-cache reads.
++ *   - The handler can do explicit DSB + DCCMVAC after each SPIBSC register
++ *     write, ensuring peripheral writes propagate even if the MMU happens
++ *     to map the peripheral region as Normal Cacheable (which it should
++ *     not, but did on at least one firmware build we tested against).
++ *   - One handler upload covers an arbitrary number of flash operations
++ *     in a session — the per-op overhead is just two JTAG transactions.
++ *
++ * The fixed address layout is hard-coded both here and in the linker
++ * script (handler.ld) and the driver. Do not change one without changing
++ * the others.
++ */
++
++#ifndef RENESAS_SPIBSC_HANDLER_H
++#define RENESAS_SPIBSC_HANDLER_H
++
++#include <stdint.h>
++
++/* Fixed RAM addresses on the RZ/A1L. 0x20200000 is RAM page 2 lower,
++ * outside the TTBR0 page-table region (0x20020000) and far enough from
++ * the firmware load address (0x20030000) that we don't trample its .text
++ * or .data even if it happens to extend past 1 MiB. The handler runs at
++ * the same VA after we halt the firmware, so we depend on the firmware
++ * having mapped this RAM as exec+RW (which RZ/A1L Renesas reference
++ * firmware does for the whole on-chip SRAM). */
++#define SPIBSC_HANDLER_BASE	0x20200000u
++#define SPIBSC_MAILBOX_ADDR	(SPIBSC_HANDLER_BASE + 0x000)	/* 256 B */
++#define SPIBSC_HANDLER_CODE	(SPIBSC_HANDLER_BASE + 0x100)	/* up to 4 KiB */
++#define SPIBSC_DATA_BUFFER	(SPIBSC_HANDLER_BASE + 0x1000)	/* 16 KiB */
++#define SPIBSC_DATA_BUFFER_SZ	0x4000u				/* 16 KiB */
++
++/* Magic value the handler writes into mailbox.magic after init, so the
++ * host can confirm the handler is actually running before issuing any
++ * commands. */
++#define SPIBSC_MAGIC_READY	0x52FB5421u	/* 'R'+SPIBSC-ish; arbitrary */
++
++/* Commands (host -> handler). Host writes cmd, then sets command_id to
++ * a non-zero monotonically-increasing value to trigger processing. The
++ * handler echoes command_id into result_id when done so the host can
++ * tell its command was the one acknowledged. */
++enum spibsc_cmd {
++	SPIBSC_CMD_NOP		= 0,	/* heartbeat / liveness check */
++	SPIBSC_CMD_WRITE	= 1,	/* page-program length B from data buffer */
++	SPIBSC_CMD_ERASE_SECTOR	= 2,	/* sector erase at flash_addr */
++	SPIBSC_CMD_READ		= 3,	/* read length B into data buffer */
++	/* Compute per-sector CRC32 of the flash[flash_addr .. +length].
++	 * Result: length/sector_size u32 CRCs written sequentially to
++	 * the user-supplied buf_addr. Caller supplies the sector size
++	 * in length and the total range in count (via buf2/buf3 fields
++	 * — see protocol below). */
++	SPIBSC_CMD_HASH_RANGE	= 4,
++	/* Program flash[flash_addr .. +length] from RAM[buf_addr .. +length].
++	 * Handler internally walks per-page, erasing sectors as it crosses
++	 * boundaries (assumes caller has *not* pre-erased the range). */
++	SPIBSC_CMD_PROGRAM_RANGE = 5,
++	SPIBSC_CMD_QUIT		= 0xff,	/* handler exits its loop and halts */
++};
++
++/* Status (handler -> host) */
++enum spibsc_status {
++	SPIBSC_STATUS_IDLE	= 0,
++	SPIBSC_STATUS_BUSY	= 1,
++	SPIBSC_STATUS_DONE	= 2,
++	SPIBSC_STATUS_ERR	= 3,
++};
++
++/* Sized for 16-word alignment; volatile so the handler's compiler doesn't
++ * optimize the polling loop into a no-op and so the host's mem-AP
++ * accesses are honored as ordinary memory operations. */
++struct spibsc_mailbox {
++	volatile uint32_t magic;	/* SPIBSC_MAGIC_READY when handler running */
++	volatile uint32_t command;	/* host -> handler: enum spibsc_cmd */
++	volatile uint32_t command_id;	/* host -> handler: monotonic seq */
++	volatile uint32_t flash_addr;	/* host -> handler: flash byte offset */
++	volatile uint32_t length;	/* host -> handler: byte count */
++	volatile uint32_t status;	/* handler -> host: enum spibsc_status */
++	volatile uint32_t result_id;	/* handler -> host: echo of command_id */
++	volatile uint32_t error;	/* handler -> host: 0 = OK, else cmd-specific */
++	volatile uint32_t heartbeat;	/* handler -> host: ++ each idle pass */
++	volatile uint32_t pp_cmd;	/* host -> handler: SPI page-program opcode */
++	volatile uint32_t erase_cmd;	/* host -> handler: SPI sector-erase opcode */
++	volatile uint32_t read_cmd;	/* host -> handler: SPI read opcode */
++	volatile uint32_t io_base;	/* host -> handler: SPIBSC reg base */
++	volatile uint32_t addr_bytes;	/* host -> handler: 3 or 4 */
++	/* For PROGRAM_RANGE / HASH_RANGE: arbitrary RAM source buffer
++	 * (PROGRAM_RANGE) or destination buffer for per-sector CRCs
++	 * (HASH_RANGE). Lets the host stage a larger image than the
++	 * built-in DATA_BUFFER. */
++	volatile uint32_t buf_addr;
++	/* Sector size (used by HASH_RANGE and PROGRAM_RANGE to decide
++	 * erase granularity / hash chunk size). 0 means "use 4 KiB". */
++	volatile uint32_t sector_size;
++	/* External-address-space (XIP) window base. HASH_RANGE reads flash
++	 * via volatile loads from xip_base + flash_addr after temporarily
++	 * flipping CMNCR.MD=0. 0 disables the XIP fast path (fallback to
++	 * SM-mode reads). */
++	volatile uint32_t xip_base;
++};
++
++/* Compile-time sanity */
++#ifdef __GNUC__
++_Static_assert(sizeof(struct spibsc_mailbox) <= 0x100,
++		"mailbox struct must fit in its 256B slot");
++#endif
++
++#endif /* RENESAS_SPIBSC_HANDLER_H */
+--- ocd-a/contrib/loaders/flash/renesas_spibsc/handler.ld	1970-01-01 01:00:00.000000000 +0100
++++ ocd-b/contrib/loaders/flash/renesas_spibsc/handler.ld	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,25 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
++OUTPUT_ARCH(arm)
++ENTRY(_start)
++
++/* The handler.bin we ship to the target is *just* the code starting at
++ * _start. The driver uploads it to SPIBSC_HANDLER_CODE = 0x20200100. The
++ * link-time .text base address is what the assembler/linker uses to
++ * resolve any absolute references (e.g. literal pool addresses for
++ * ldr =SYMBOL). Match that to the runtime base. */
++SECTIONS
++{
++	. = 0x20200100;
++	. = ALIGN(4);
++	.text : {
++		/* Thumb trampoline first — driver enters here with PC|1. */
++		KEEP(*(.text._start))
++		/* Then the ARM-mode real entry. */
++		. = ALIGN(4);
++		KEEP(*(.text._start_arm))
++		*(.text*)
++		*(.rodata*)
++	}
++	/DISCARD/ : { *(.ARM.attributes) *(.comment) *(.note*) }
++}
+--- ocd-a/contrib/loaders/flash/renesas_spibsc/renesas_spibsc.ld	1970-01-01 01:00:00.000000000 +0100
++++ ocd-b/contrib/loaders/flash/renesas_spibsc/renesas_spibsc.ld	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,13 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
++OUTPUT_ARCH(arm)
++ENTRY(_start)
++SECTIONS
++{
++	. = 0x0;
++	. = ALIGN(4);
++	.text : {
++		renesas_spibsc.o (.text*)
++		*(.text*)
++	}
++}
+--- ocd-a/contrib/loaders/flash/renesas_spibsc/renesas_spibsc.S	1970-01-01 01:00:00.000000000 +0100
++++ ocd-b/contrib/loaders/flash/renesas_spibsc/renesas_spibsc.S	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,158 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++
++/*
++ * Renesas RZ/A1x SPIBSC page-program loader (ARM, Cortex-A9).
++ *
++ * Programs a contiguous run of bytes into an external SPI NOR via SPIBSC's
++ * manual SPI mode. Splits the write into page-sized PP transactions,
++ * driving WREN, page-program command + address, 4-byte data chunks, and
++ * a per-page WIP poll entirely on the target CPU — saving the ~4 USB
++ * round-trips per SPIE that the host-driven path otherwise pays.
++ *
++ * Arguments (set by OpenOCD via reg_param):
++ *   r0 = SPIBSC io_base               (e.g. 0x3fefa000 for SPIBSC0)
++ *   r1 = source RAM buffer address    (4-byte aligned)
++ *   r2 = byte count                   (must be a multiple of 4)
++ *   r3 = target flash byte offset     (3-byte address)
++ *
++ * Constraints:
++ *   - Caller has already configured CMNCR.MD = 1 (manual SPI mode),
++ *     SPBCR, IOFV bits, SMDRENR = 0, SMOPR = 0.
++ *   - Caller has verified the flash is unprotected and the destination
++ *     sector(s) are pre-erased.
++ *   - count must be a multiple of 4. Driver pads or slow-paths any tail.
++ *
++ * Byte ordering (must match the host-side spibsc_program_chunk path):
++ *   For SPID_32 writes, SPIBSC clocks SMWDR0 bytes MSB-first onto the
++ *   wire. We arrange src[0] -> SMWDR0[31:24] using `rev`, so src byte 0
++ *   lands at flash[dest+0]. Round-trip identity with the SM-mode read
++ *   path is preserved.
++ *
++ * Termination: `bkpt #0` so target_run_algorithm exits cleanly.
++ */
++
++#define SPIBSC_SMCR		0x20
++#define SPIBSC_SMCMR		0x24
++#define SPIBSC_SMADR		0x28
++#define SPIBSC_SMENR		0x30
++#define SPIBSC_SMRDR0		0x38
++#define SPIBSC_SMWDR0		0x40
++#define SPIBSC_CMNSR		0x48
++
++#define CMNSR_TEND		0x01
++
++#define SMCR_SPIE		0x01
++#define SMCR_SPIE_WE		0x03	/* SPIE | SPIWE */
++#define SMCR_SPIE_RE		0x05	/* SPIE | SPIRE */
++#define SMCR_SPIE_WE_KEEP	0x103	/* SPIE | SPIWE | SSLKP */
++
++#define SMENR_CDE_ONLY		0x00004000
++#define SMENR_CDE_DATA1B	0x00004008
++#define SMENR_CDE_ADE3_DATA4B	0x0000470f
++#define SMENR_DATA4B		0x0000000f
++
++#define WREN_CMD_SHIFTED	(0x06 << 16)
++#define RDSR_CMD_SHIFTED	(0x05 << 16)
++#define PP_CMD_SHIFTED		(0x02 << 16)
++
++#define PAGE_SIZE		256
++#define PAGE_MASK		0xff
++
++#define WIP_SR_BIT		0x01000000	/* SR bit 0 lands at SMRDR0[31:24] */
++
++.syntax unified
++.arm
++.text
++.global _start
++
++_start:
++page_outer:
++	cmp	r2, #0
++	beq	done
++
++	/* chunk (r4) = min(count, PAGE_SIZE - (dest & PAGE_MASK)) */
++	mov	r4, #PAGE_SIZE
++	and	r5, r3, #PAGE_MASK
++	sub	r4, r4, r5
++	cmp	r4, r2
++	movhi	r4, r2
++
++	/* ---- WREN ---- */
++	ldr	r6, =WREN_CMD_SHIFTED
++	str	r6, [r0, #SPIBSC_SMCMR]
++	ldr	r6, =SMENR_CDE_ONLY
++	str	r6, [r0, #SPIBSC_SMENR]
++	mov	r6, #SMCR_SPIE
++	str	r6, [r0, #SPIBSC_SMCR]
++	/* Small delay so the SPIBSC has cycles to clear TEND before our
++	 * poll loop starts — otherwise a stale CMNSR.TEND=1 from the prior
++	 * transaction makes us skip the wait entirely. */
++	bl	wait_spibsc_done
++
++	/* ---- PP setup (first chunk carries cmd + addr) ---- */
++	ldr	r6, =PP_CMD_SHIFTED
++	str	r6, [r0, #SPIBSC_SMCMR]
++	str	r3, [r0, #SPIBSC_SMADR]
++	ldr	r6, =SMENR_CDE_ADE3_DATA4B
++	str	r6, [r0, #SPIBSC_SMENR]
++
++	mov	r7, r4			/* r7 = bytes left in this page */
++
++inner_chunk:
++	/* Pack 4 LE-source-bytes MSB-first into SMWDR0 via a byte reverse:
++	 * source LE word = src[0] | src[1]<<8 | src[2]<<16 | src[3]<<24
++	 * rev gives       src[0]<<24 | src[1]<<16 | src[2]<<8 | src[3]
++	 * which is exactly the SPIBSC MSB-first packing the slow path uses. */
++	ldr	r6, [r1]
++	rev	r6, r6
++	str	r6, [r0, #SPIBSC_SMWDR0]
++
++	/* SSLKP only if more bytes follow in this page. */
++	subs	r8, r7, #4
++	moveq	r6, #SMCR_SPIE_WE
++	ldrne	r6, =SMCR_SPIE_WE_KEEP
++	str	r6, [r0, #SPIBSC_SMCR]
++	bl	wait_spibsc_done
++
++	/* After the first SPIE in this page we no longer need CDE/ADE. */
++	mov	r6, #SMENR_DATA4B
++	str	r6, [r0, #SPIBSC_SMENR]
++
++	add	r1, r1, #4
++	subs	r7, r7, #4
++	bne	inner_chunk
++
++	/* ---- Poll WIP until cleared ---- */
++wip_poll:
++	ldr	r6, =RDSR_CMD_SHIFTED
++	str	r6, [r0, #SPIBSC_SMCMR]
++	ldr	r6, =SMENR_CDE_DATA1B
++	str	r6, [r0, #SPIBSC_SMENR]
++	mov	r6, #SMCR_SPIE_RE
++	str	r6, [r0, #SPIBSC_SMCR]
++	bl	wait_spibsc_done
++	ldr	r6, [r0, #SPIBSC_SMRDR0]
++	tst	r6, #WIP_SR_BIT
++	bne	wip_poll
++
++	/* Advance and continue. */
++	add	r3, r3, r4		/* flash addr += chunk */
++	subs	r2, r2, r4		/* count -= chunk */
++	bne	page_outer
++
++done:
++	bkpt	#0
++
++/* Wait for the SPIBSC to complete its current SPI transaction.
++ * Uses a fixed delay loop (~5 us at 400 MHz core clock) instead of a
++ * CMNSR.TEND poll because the poll has a race: a stale TEND=1 from the
++ * previous transaction can be sampled before the SPIBSC has had time to
++ * clear it, causing the poll to exit immediately. 5 us comfortably covers
++ * the longest manual-SPI burst (cmd+addr+data, ~2 us at 33 MHz SPI clock).
++ * The flash-side WIP poll above still polls SR so it remains correct for
++ * the multi-millisecond page-program wait. */
++wait_spibsc_done:
++	ldr	r12, =2000
++1:	subs	r12, r12, #1
++	bne	1b
++	bx	lr
+--- ocd-a/tcl/target/renesas_rza1l.cfg	1970-01-01 01:00:00.000000000 +0100
++++ ocd-b/tcl/target/renesas_rza1l.cfg	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,34 @@
++# SPDX-License-Identifier: GPL-2.0-or-later
++#
++# Renesas RZ/A1L (R7S721020) — Cortex-A9 with external SPI NOR via SPIBSC0.
++#
++# This config sets up:
++#   - a Cortex-A DAP target
++#   - a renesas_spibsc flash bank at the XIP window 0x18000000, talking to
++#     the on-chip SPIBSC0 controller at 0x3fefa000
++#
++# It expects an external transport/interface file to be sourced first
++# (CMSIS-DAP, J-Link, FT2232, etc).
++
++if { [info exists CHIPNAME] } {
++	set _CHIPNAME $CHIPNAME
++} else {
++	set _CHIPNAME r7s721020
++}
++
++if { [info exists DAP_TAPID] } {
++	set _DAP_TAPID $DAP_TAPID
++} else {
++	set _DAP_TAPID 0x3ba02477
++}
++
++swd newdap $_CHIPNAME cpu -irlen 4 -ircapture 0x01 -irmask 0x0f \
++	-expected-id $_DAP_TAPID
++dap create $_CHIPNAME.dap -chain-position $_CHIPNAME.cpu
++
++target create $_CHIPNAME.cpu cortex_a -dap $_CHIPNAME.dap -coreid 0 \
++	-dbgbase 0x80030000
++
++# 64 MB external SPI NOR (e.g. S25FL512S) via SPIBSC0.
++flash bank $_CHIPNAME.spibsc0 renesas_spibsc 0x18000000 0 0 0 \
++	$_CHIPNAME.cpu 0x3fefa000 0
