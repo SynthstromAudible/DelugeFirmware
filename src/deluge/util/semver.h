@@ -1,3 +1,4 @@
+#pragma once
 #include <compare> // IWYU pragma: keep -used for operator <=>, false positive
 #include <cstdint>
 #include <expected>

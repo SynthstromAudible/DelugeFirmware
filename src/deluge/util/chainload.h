@@ -1,3 +1,4 @@
+#pragma once
 #include <cstdint>
 
 #define OFF_USER_CODE_START 0x20

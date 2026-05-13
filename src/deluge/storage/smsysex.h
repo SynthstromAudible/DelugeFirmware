@@ -1,3 +1,4 @@
+#pragma once
 #include "definitions_cxx.hpp"
 #include "io/midi/midi_device_manager.h"
 #include "storage/storage_manager.h"

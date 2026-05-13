@@ -1,3 +1,4 @@
+#pragma once
 #include "gui/menu_item/submenu.h"
 
 namespace deluge::gui::menu_item::midi {

@@ -1,3 +1,4 @@
+#pragma once
 #include "definitions.h"
 #include "io/debug/log.h"
 #include "mem_functions.h"
