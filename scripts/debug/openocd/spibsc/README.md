@@ -18,16 +18,24 @@ the destination range, and only re-programs 4 KiB sub-sectors whose hash differs
 The script:
 
 1. `git clone --recurse-submodules --depth 1 --branch v0.12.0` from
-   <https://github.com/openocd-org/openocd> into `openocd-0.12.0/` at the
-   repo root. Pinned to `v0.12.0` because the patch is against that tag's
-   layout; override with `OPENOCD_TAG=<tag>` if you want to try a newer
-   release (you'll likely need to refresh the patch).
+   <https://github.com/openocd-org/openocd> into `build/openocd-spibsc/`.
+   Pinned to `v0.12.0` because the patch is against that tag's layout;
+   override with `OPENOCD_TAG=<tag>` to try a newer release (you'll likely
+   need to refresh the patch).
 2. Applies [`openocd-0.12.0-spibsc.patch`](openocd-0.12.0-spibsc.patch) — adds the
    driver source, the in-RAM mailbox handler under
    `contrib/loaders/flash/renesas_spibsc/`, the RZ/A1L target config, and the
    two-line `Makefile.am`/`drivers.c` registration.
-3. `./bootstrap && ./configure && make`. By default configures with
-   `--enable-cmsis-dap --disable-werror`; override via `OPENOCD_CONFIGURE_FLAGS`.
+3. `./bootstrap && ./configure --prefix=$OPENOCD_PREFIX && make && make install`.
+   The default prefix is the DBT-toolchain openocd directory
+   (`toolchain/v<N>/<sys>-<arch>/openocd`), so the patched binary
+   **replaces the stock xPack openocd in place**. After this, you have one
+   openocd binary on the system; it has our `renesas_spibsc` driver; and
+   it's already on `$PATH` because `scripts/toolchain/dbtenv.sh` injects
+   `toolchain/.../openocd/bin` for every dbt task.
+
+If DBT re-fetches the toolchain (which would overwrite our binary with
+the stock xPack one), just re-run `build-openocd.sh`.
 
 Environment overrides:
 
@@ -35,7 +43,8 @@ Environment overrides:
 |---|---|---|
 | `OPENOCD_REPO` | `https://github.com/openocd-org/openocd.git` | Upstream remote |
 | `OPENOCD_TAG` | `v0.12.0` | Tag/branch to clone |
-| `OPENOCD_SRC_DIR` | `openocd-0.12.0` | Local checkout directory |
+| `OPENOCD_BUILD_DIR` | `build/openocd-spibsc` | Source/build directory |
+| `OPENOCD_PREFIX` | `toolchain/v<N>/<sys>-<arch>/openocd` | `make install` destination |
 | `OPENOCD_CONFIGURE_FLAGS` | `--enable-cmsis-dap --disable-werror` | Passed to `./configure` |
 
 System prerequisites for the build (Debian/Ubuntu names):

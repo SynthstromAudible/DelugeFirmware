@@ -1,21 +1,27 @@
 #! /usr/bin/env python3
-"""Flash firmware over SWD using the vendor OpenOCD and ``renesas_spibsc smart_program``.
+"""Flash firmware over SWD using OpenOCD with the Deluge SPIBSC driver and ``smart_program``.
 
-Runs ``openocd-0.12.0/src/openocd`` (this tree's SPIBSC driver) with
-``-s openocd-0.12.0/tcl``, DelugeProbe interface + ``deluge-swd.cfg``, then::
+Resolves the OpenOCD binary from (in order): ``$OPENOCD`` env var, the DBT toolchain at
+``toolchain/v<N>/<sys>-<arch>/openocd/bin/openocd``, or system ``$PATH``. The toolchain
+binary needs to be the one built by ``scripts/debug/openocd/spibsc/build-openocd.sh`` —
+the stock xPack openocd that DBT downloads does NOT have the ``renesas_spibsc`` flash
+driver. After running that script once, the patched binary replaces the xPack one in
+place and every subsequent ``make flash`` uses it.
+
+Inner command run by OpenOCD::
 
     renesas_spibsc smart_program <deluge.bin> <offset>; reset run; exit
 
-``smart_program`` is implemented in ``openocd-0.12.0/src/flash/nor/renesas_spibsc.c``:
-SDRAM staging, CRC sweep, and only reprograms 4 KiB sub-sectors that differ.
+``smart_program`` stages the image in SDRAM, CRC-sweeps the destination flash range,
+and reprograms only the 4 KiB sub-sectors that differ — typically ~10x faster than
+upstream ``program`` for incremental builds.
 
-By default runs a firmware build first, then flashes ``build/<Config>/deluge.bin``
-at flash offset ``0x080000`` (512 KiB — application region after the bootloader).
+By default runs a firmware build first, then flashes ``build/<Config>/deluge.bin`` at
+flash offset ``0x080000`` (512 KiB — application region after the bootloader).
 
 Environment overrides:
 
-- ``OPENOCD``: path to OpenOCD binary (default: ``openocd-0.12.0/src/openocd``).
-- ``OPENOCD_SCRIPT_PATH``: extra ``-s`` directory (prepended; vendor ``tcl`` is always used).
+- ``OPENOCD``: explicit path to an openocd binary (must have the renesas_spibsc driver).
 - ``SMART_PROGRAM_OFFSET``: hex or decimal flash offset (default ``0x080000``).
 """
 
@@ -28,10 +34,11 @@ import shlex
 import sys
 from pathlib import Path
 
+import platform
+import shutil
+
 import util
 
-_VENDOR_OPENOCD = Path("openocd-0.12.0/src/openocd")
-_VENDOR_TCL = Path("openocd-0.12.0/tcl")
 _DEFAULT_INTERFACE = Path("scripts/debug/openocd/interface/delugeprobe.cfg")
 _DEFAULT_TARGET = Path("scripts/debug/openocd/deluge-swd.cfg")
 _DEFAULT_FLASH_OFFSET = 0x080000
@@ -70,18 +77,45 @@ def _flash_offset() -> int:
     return int(raw, 0)
 
 
+def _dbt_toolchain_openocd() -> Path | None:
+    """Find the openocd installed in the DBT toolchain (xPack location, post-replaced by us)."""
+    root = util.get_git_root()
+    ver_file = root / "toolchain" / "REQUIRED_VERSION"
+    if not ver_file.is_file():
+        return None
+    version = ver_file.read_text().strip()
+    sys_type = platform.system().lower()
+    arch = platform.machine().lower()
+    if arch == "aarch64":
+        arch = "arm64"
+    candidate = (
+        root
+        / "toolchain"
+        / f"v{version}"
+        / f"{sys_type}-{arch}"
+        / "openocd"
+        / "bin"
+        / "openocd"
+    )
+    return candidate if candidate.is_file() and os.access(candidate, os.X_OK) else None
+
+
 def _openocd_bin() -> str:
     env = (os.environ.get("OPENOCD") or "").strip()
     if env:
         return env
-    if _VENDOR_OPENOCD.is_file() and os.access(_VENDOR_OPENOCD, os.X_OK):
-        return str(_VENDOR_OPENOCD.resolve())
+    found = _dbt_toolchain_openocd()
+    if found is not None:
+        return str(found.resolve())
+    path_lookup = shutil.which("openocd")
+    if path_lookup:
+        return path_lookup
     print(
-        "No OpenOCD binary found. Build the vendor tree first:\n"
+        "No OpenOCD binary found.\n"
+        "Build the patched openocd once:\n"
         "  ./scripts/debug/openocd/spibsc/build-openocd.sh\n"
-        "(downloads upstream openocd-0.12.0, applies the Deluge SPIBSC driver patch, builds)\n"
-        "Alternatively set OPENOCD to a suitable openocd executable that has the\n"
-        "renesas_spibsc flash driver linked in.",
+        "(clones upstream openocd, applies the Deluge SPIBSC driver patch, installs over\n"
+        "the DBT toolchain's xPack openocd). After that, every `make flash` uses it.",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -98,7 +132,6 @@ def _openocd_smart_flash_argv(
     ocd_cmd: list[str] = [ocd]
     if extra_script:
         ocd_cmd += ["-s", str(Path(extra_script).expanduser().resolve())]
-    ocd_cmd += ["-s", str((root / _VENDOR_TCL).resolve())]
 
     iface = Path(os.environ.get("OPENOCD_INTERFACE", _DEFAULT_INTERFACE))
     target = Path(os.environ.get("OPENOCD_TARGET", _DEFAULT_TARGET))

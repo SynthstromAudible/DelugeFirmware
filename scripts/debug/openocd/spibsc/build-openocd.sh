@@ -1,42 +1,70 @@
 #!/usr/bin/env bash
-# Clone upstream OpenOCD at v0.12.0, apply the Deluge SPIBSC driver patch, and build.
-# Output: openocd-0.12.0/src/openocd (the binary task-flash.py expects).
+# Build a Deluge-flavoured OpenOCD (renesas_spibsc driver included) and install it OVER the
+# xPack openocd that DBT already ships in toolchain/v<N>/<sys>-<arch>/openocd. After this script
+# runs there is one openocd binary on the system, it has our flash driver, and it lives on
+# $PATH (dbtenv.sh already injects toolchain/.../openocd/bin into PATH for every dbt task).
+#
+# Re-running ./dbt may re-fetch the xPack toolchain archive and overwrite our binary; in that
+# case just re-run this script. Override OPENOCD_PREFIX to install elsewhere.
 set -euo pipefail
 
 cd "$(dirname "$0")/../../../.."
 ROOT="$(pwd)"
 
+# --- detect the DBT toolchain arch dir (mirrors dbtenv.sh logic). ---
+SYS_TYPE="$(uname -s | tr '[:upper:]' '[:lower:]')"
+ARCH_TYPE="$(uname -m | tr '[:upper:]' '[:lower:]')"
+[ "$ARCH_TYPE" = "aarch64" ] && ARCH_TYPE="arm64"
+TOOLCHAIN_VERSION="$(cat toolchain/REQUIRED_VERSION 2>/dev/null || true)"
+DEFAULT_PREFIX="$ROOT/toolchain/v${TOOLCHAIN_VERSION}/${SYS_TYPE}-${ARCH_TYPE}/openocd"
+
 OPENOCD_REPO="${OPENOCD_REPO:-https://github.com/openocd-org/openocd.git}"
 OPENOCD_TAG="${OPENOCD_TAG:-v0.12.0}"
-SRC_DIR="${OPENOCD_SRC_DIR:-openocd-0.12.0}"
+BUILD_DIR="${OPENOCD_BUILD_DIR:-build/openocd-spibsc}"
+OPENOCD_PREFIX="${OPENOCD_PREFIX:-$DEFAULT_PREFIX}"
 PATCH="$ROOT/scripts/debug/openocd/spibsc/openocd-0.12.0-spibsc.patch"
 
-if [ ! -d "$SRC_DIR/.git" ]; then
-    echo "==> Cloning $OPENOCD_REPO @ $OPENOCD_TAG into $SRC_DIR/"
-    git clone --recurse-submodules --depth 1 --branch "$OPENOCD_TAG" \
-        "$OPENOCD_REPO" "$SRC_DIR"
+if [ ! -d "$OPENOCD_PREFIX" ]; then
+    echo "FATAL: install prefix '$OPENOCD_PREFIX' does not exist." >&2
+    echo "Run './dbt' once first to fetch the DBT toolchain, or set OPENOCD_PREFIX manually." >&2
+    exit 1
 fi
 
-cd "$SRC_DIR"
+# --- fetch source ---
+if [ ! -d "$BUILD_DIR/.git" ]; then
+    echo "==> Cloning $OPENOCD_REPO @ $OPENOCD_TAG into $BUILD_DIR/"
+    mkdir -p "$(dirname "$BUILD_DIR")"
+    git clone --recurse-submodules --depth 1 --branch "$OPENOCD_TAG" \
+        "$OPENOCD_REPO" "$BUILD_DIR"
+fi
 
-# Idempotent patch apply: only apply if the driver isn't already there. Lets the user re-run this
-# script to rebuild without re-fetching, while still applying cleanly on a fresh clone.
+cd "$BUILD_DIR"
+
+# --- apply our patch (idempotent: skip if driver source is already in place) ---
 if [ ! -f src/flash/nor/renesas_spibsc.c ]; then
     echo "==> Applying SPIBSC driver patch"
     patch -p1 < "$PATCH"
 fi
 
-if [ ! -x src/openocd ]; then
-    echo "==> ./bootstrap (regenerating autoconf for new flash driver)"
+# --- configure & build, then `make install` over the xPack tree ---
+if [ ! -f src/openocd ] || [ ! -f config.status ]; then
+    echo "==> ./bootstrap"
     ./bootstrap
-    echo "==> ./configure"
-    # Default: enable CMSIS-DAP (delugeprobe), disable -Werror (the renesas_rpchf source has a
-    # warning under newer gcc). Override with OPENOCD_CONFIGURE_FLAGS.
-    ./configure ${OPENOCD_CONFIGURE_FLAGS:---enable-cmsis-dap --disable-werror}
-    echo "==> make ($(nproc) jobs)"
-    make -j"$(nproc)"
+    echo "==> ./configure --prefix=$OPENOCD_PREFIX"
+    # Default: enable CMSIS-DAP (delugeprobe), match xPack's enabled adapters reasonably.
+    # Override with OPENOCD_CONFIGURE_FLAGS.
+    ./configure --prefix="$OPENOCD_PREFIX" \
+        ${OPENOCD_CONFIGURE_FLAGS:---enable-cmsis-dap --disable-werror}
 fi
 
+echo "==> make ($(nproc) jobs)"
+make -j"$(nproc)"
+
+echo "==> make install (replacing xPack openocd at $OPENOCD_PREFIX)"
+make install
+
 echo
-echo "openocd binary: $ROOT/$SRC_DIR/src/openocd"
-echo "run 'make flash' from $ROOT to flash."
+echo "Installed: $OPENOCD_PREFIX/bin/openocd"
+"$OPENOCD_PREFIX/bin/openocd" --version 2>&1 | head -1
+echo
+echo "Now 'make flash' will use this binary (via dbtenv.sh PATH injection)."
