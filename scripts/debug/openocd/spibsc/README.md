@@ -17,14 +17,26 @@ the destination range, and only re-programs 4 KiB sub-sectors whose hash differs
 
 The script:
 
-1. Downloads the upstream OpenOCD 0.12.0 source tarball (verifies SHA-256).
-2. Extracts to `openocd-0.12.0/` at the repo root.
-3. Applies [`openocd-0.12.0-spibsc.patch`](openocd-0.12.0-spibsc.patch) — adds the
+1. `git clone --recurse-submodules --depth 1 --branch v0.12.0` from
+   <https://github.com/openocd-org/openocd> into `openocd-0.12.0/` at the
+   repo root. Pinned to `v0.12.0` because the patch is against that tag's
+   layout; override with `OPENOCD_TAG=<tag>` if you want to try a newer
+   release (you'll likely need to refresh the patch).
+2. Applies [`openocd-0.12.0-spibsc.patch`](openocd-0.12.0-spibsc.patch) — adds the
    driver source, the in-RAM mailbox handler under
    `contrib/loaders/flash/renesas_spibsc/`, the RZ/A1L target config, and the
    two-line `Makefile.am`/`drivers.c` registration.
-4. `./bootstrap && ./configure && make`. By default configures with
+3. `./bootstrap && ./configure && make`. By default configures with
    `--enable-cmsis-dap --disable-werror`; override via `OPENOCD_CONFIGURE_FLAGS`.
+
+Environment overrides:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `OPENOCD_REPO` | `https://github.com/openocd-org/openocd.git` | Upstream remote |
+| `OPENOCD_TAG` | `v0.12.0` | Tag/branch to clone |
+| `OPENOCD_SRC_DIR` | `openocd-0.12.0` | Local checkout directory |
+| `OPENOCD_CONFIGURE_FLAGS` | `--enable-cmsis-dap --disable-werror` | Passed to `./configure` |
 
 System prerequisites for the build (Debian/Ubuntu names):
 
