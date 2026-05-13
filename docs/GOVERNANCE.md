@@ -8,7 +8,7 @@ Goal of the DelugeFirmware community is to produce high quality firmware applica
 
 In order to give everyone in the project clear expectations and transparency on what is going on, all development is organized in the form of Pull requests. This ensures visibility on the ongoing activities and prevents intransparent internal changes from disrupting community work.
 
-There is no official roamdap or project activities, instead all contributors are welcome to participate in the discussion and planning process as outlined in the [contribution guidelines](CONTRIBUTING.md). Members of the community can build informal working groups to achieve greater goals and work on them in the form of collaborative Pull requests.
+There is no official roadmap or project activities, instead all contributors are welcome to participate in the discussion and planning process as outlined in the [contribution guidelines](CONTRIBUTING.md). Members of the community can build informal working groups to achieve greater goals and work on them in the form of collaborative Pull requests.
 
 
 ## Release strategy

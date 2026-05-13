@@ -31,7 +31,6 @@ __pycache__
 .*.swo
 .session.vim
 
-.idea
 *.srctrl*
 
 .deluge_hex_key
