@@ -1,0 +1,569 @@
+#!/usr/bin/env python3
+"""STATUS: ABANDONED SPIKE. Do not run; left as documentation of a path we tried
+and ruled out, so future contributors don't re-investigate.
+
+Original goal: drive the SPIBSC mailbox handler from Python over openocd's TCL
+RPC socket, using **stock openocd** (any 0.12.x build, including the xPack one
+DBT ships) — i.e. get the same flash flow as the custom renesas_spibsc driver,
+but without needing a patched openocd build. Would have been a true cross-
+platform path (just `pip install` + DBT-bundled openocd → `make flash` works on
+Linux/macOS/Windows identically).
+
+WHY IT DOESN'T WORK (verified on hardware, 2026-05-14):
+
+1. Stock openocd's cortex_a `read_memory` requires the CPU to be HALTED. The
+   mailbox protocol is fundamentally "host reads memory while target CPU runs".
+   Workaround would be halt-around-each-poll at ~18 ms per round-trip — workable
+   but kills the perf comparison we were trying to make.
+
+2. `dap apreg` (MEM-AP direct register access) would bypass the halt
+   requirement, BUT in openocd 0.12.0 the read result goes to the log only;
+   nothing comes back through the TCL socket. Measured 0.06 ms turnaround per
+   call but with empty response strings, so the host can't actually get the
+   value.
+
+3. Resume-into-handler from TCL doesn't reliably enter our trampoline even
+   after matching the C driver's CPU state setup (CPSR=0xD3, core_state ARM,
+   PC=HANDLER_CODE — *not* HANDLER_CODE|1, because _start is ARM-mode). On
+   every test the CPU left the handler within ~500 ms and resumed running
+   firmware text (PC=0x20062e20). The C driver's spibsc_handler_upload() does
+   several setup steps that aren't reachable from TCL:
+
+     - spibsc_park_cpu(): parks the CPU at a `b .` loop with a clean CPSR
+       FIRST, because target_resume(current=true) on a CPU that's in some
+       random firmware state (abort mode, IRQ frame, fault loop) re-runs the
+       bad context instead of using our new PC/CPSR.
+     - breakpoint_remove_all(): strips stale breakpoints.
+     - armv7a_l1_d_cache_flush_virt(): D-cache flush by VA over the handler
+       region, so dirty firmware cache lines don't writeback over our fresh
+       upload.
+     - armv7a_l1_i_cache_inval_all(): so the CPU fetches our new code
+       instead of stale lines from whatever was at 0x20200100 before.
+     - Direct cortex_a register-cache dirty-flag manipulation so the new
+       CPSR/PC values are actually written back on the next resume.
+
+   These are openocd-internal C-API calls. TCL has no equivalents in 0.12.0,
+   so even with the "right" cpsr/pc/core_state values, the resume reverts.
+
+CONCLUSION:
+
+The C driver's handler upload isn't just a perf optimisation — it's also
+where careful Cortex-A startup choreography lives (cache management, register-
+cache writeback, breakpoint cleanup, mode/state setup, MEM-AP direct memory
+access on a running CPU). Reimplementing it on top of openocd's TCL surface
+would require either patching openocd to expose those operations (at which
+point we're back to a custom build) or moving to a pure-pyusb/CMSIS-DAP tool
+that owns the SWD stack — which means reimplementing ~1500 lines of fiddly
+ARMv7-A debug logic in Python. The custom-driver-in-C path is the cheaper
+option.
+
+For Windows: the right move is a one-time GitHub Actions workflow that builds
+openocd-msvc with our patch applied and ships the .exe as a release asset.
+
+References:
+- Custom driver: openocd-0.12.0/src/flash/nor/renesas_spibsc.c
+- Driver build instructions: scripts/debug/openocd/spibsc/README.md
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import socket
+import struct
+import subprocess
+import sys
+import tempfile
+import time
+import zlib
+from pathlib import Path
+
+# --- mailbox layout (matches contrib/loaders/flash/renesas_spibsc/handler.h) ---
+
+HANDLER_BASE = 0x20200000
+MAILBOX_ADDR = HANDLER_BASE + 0x000
+HANDLER_CODE = HANDLER_BASE + 0x100
+DATA_BUFFER = HANDLER_BASE + 0x1000
+DATA_BUFFER_SZ = 0x4000  # 16 KiB
+CRC_BUFFER = HANDLER_BASE + 0x5000  # where HASH_RANGE writes per-sector CRCs
+
+MAGIC_READY = 0x52FB5421
+
+# Mailbox struct field offsets (each uint32_t)
+MB_MAGIC, MB_COMMAND, MB_COMMAND_ID = 0x00, 0x04, 0x08
+MB_FLASH_ADDR, MB_LENGTH = 0x0C, 0x10
+MB_STATUS, MB_RESULT_ID, MB_ERROR, MB_HEARTBEAT = 0x14, 0x18, 0x1C, 0x20
+MB_PP_CMD, MB_ERASE_CMD, MB_READ_CMD = 0x24, 0x28, 0x2C
+MB_IO_BASE, MB_ADDR_BYTES = 0x30, 0x34
+MB_BUF_ADDR, MB_SECTOR_SIZE, MB_XIP_BASE = 0x38, 0x3C, 0x40
+
+CMD_NOP = 0
+CMD_WRITE = 1
+CMD_ERASE_SECTOR = 2
+CMD_READ = 3
+CMD_HASH_RANGE = 4
+CMD_PROGRAM_RANGE = 5
+CMD_QUIT = 0xFF
+
+STATUS_IDLE = 0
+STATUS_BUSY = 1
+STATUS_DONE = 2
+STATUS_ERR = 3
+
+# Deluge SPI NOR: Winbond W25Q32JV via SPIBSC0 channel 0
+PP_CMD = 0x02
+ERASE_4K = 0x20
+READ_CMD = 0x03
+ADDR_BYTES = 3
+SPIBSC0_BASE = 0x3FEFA000
+XIP_BASE = 0x18000000
+SECTOR_SIZE_4K = 0x1000
+
+# Default firmware location in flash. Bootloader sits in sectors 0–6 (0x000000–0x06FFFF),
+# user settings in sector 7 (0x070000), firmware from 0x080000.
+DEFAULT_FLASH_OFFSET = 0x080000
+
+OCD_TCL_PORT = 6666
+OCD_TERM = b"\x1a"
+
+
+# --- openocd TCL client ---
+
+
+class Openocd:
+    """Thin wrapper around the TCL RPC socket. Commands are line-based, terminated by 0x1a."""
+
+    def __init__(self, sock):
+        self._sock = sock
+        self._buf = bytearray()
+
+    @classmethod
+    def connect(cls, host="127.0.0.1", port=OCD_TCL_PORT, timeout=10.0):
+        deadline = time.time() + timeout
+        while True:
+            try:
+                s = socket.create_connection((host, port), timeout=2.0)
+                return cls(s)
+            except OSError:
+                if time.time() >= deadline:
+                    raise
+                time.sleep(0.1)
+
+    def send(self, cmd, timeout=120.0):
+        self._sock.sendall(cmd.encode() + OCD_TERM)
+        self._sock.settimeout(timeout)
+        while True:
+            idx = self._buf.find(OCD_TERM)
+            if idx >= 0:
+                out = bytes(self._buf[:idx])
+                del self._buf[: idx + 1]
+                return out.decode(errors="replace")
+            chunk = self._sock.recv(65536)
+            if not chunk:
+                raise RuntimeError("openocd closed the TCL connection")
+            self._buf.extend(chunk)
+
+    def close(self):
+        try:
+            self._sock.close()
+        except OSError:
+            pass
+
+
+# --- memory helpers ---
+
+
+def mww(ocd, addr, value):
+    # `mww` works whether the CPU is halted or running — it goes through the cortex_a write path
+    # which uses the debug-AP and doesn't depend on CPU state for writes.
+    ocd.send(f"mww 0x{addr:x} 0x{value & 0xFFFFFFFF:x}")
+
+
+def mdw_halted(ocd, addr):
+    """Read a 32-bit word; CPU must already be halted (stock openocd cortex_a constraint)."""
+    resp = ocd.send(f"read_memory 0x{addr:x} 32 1").strip()
+    parts = resp.split()
+    if not parts or parts[0].startswith("read_memory"):
+        raise RuntimeError(f"read_memory failed: {resp!r}")
+    return int(parts[0], 0) & 0xFFFFFFFF
+
+
+def mdw_running(ocd, addr):
+    """Read a 32-bit word while the handler is running. Stock openocd's cortex_a TCL path can't read
+    memory unless the CPU is halted, so we halt, read, resume. ~18ms per poll; tolerable only if
+    the host doesn't poll many times per command."""
+    ocd.send("halt")
+    try:
+        return mdw_halted(ocd, addr)
+    finally:
+        ocd.send("resume")
+
+
+def write_bytes(ocd, addr, data):
+    """Bulk write via load_image (single SWD streamed transfer)."""
+    if not data:
+        return
+    with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as f:
+        f.write(data)
+        tmp = f.name
+    try:
+        ocd.send(f"load_image {{{tmp}}} 0x{addr:x} bin")
+    finally:
+        os.unlink(tmp)
+
+
+def read_bytes(ocd, addr, length):
+    """Bulk read via dump_image (single SWD streamed transfer)."""
+    with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as f:
+        tmp = f.name
+    try:
+        ocd.send(f"dump_image {{{tmp}}} 0x{addr:x} {length}")
+        return Path(tmp).read_bytes()
+    finally:
+        os.unlink(tmp)
+
+
+# --- mailbox protocol ---
+
+
+class Handler:
+    """Driver for the SPIBSC mailbox handler running on the target."""
+
+    def __init__(self, ocd):
+        self.ocd = ocd
+        self._next_id = 1
+
+    def issue(self, cmd, **fields):
+        """Set mailbox fields, increment command_id, wait for matching result + DONE."""
+        # Fill per-command fields first.
+        for name, value in fields.items():
+            offset = globals()[f"MB_{name.upper()}"]
+            mww(self.ocd, MAILBOX_ADDR + offset, value)
+        # Clear status/result so we can detect the handler's response unambiguously.
+        mww(self.ocd, MAILBOX_ADDR + MB_STATUS, STATUS_IDLE)
+        mww(self.ocd, MAILBOX_ADDR + MB_RESULT_ID, 0)
+        mww(self.ocd, MAILBOX_ADDR + MB_ERROR, 0)
+        # Command field, then command_id last (publishes the request).
+        mww(self.ocd, MAILBOX_ADDR + MB_COMMAND, cmd)
+        cid = self._next_id
+        self._next_id += 1
+        mww(self.ocd, MAILBOX_ADDR + MB_COMMAND_ID, cid)
+        # Poll for completion. Timeout sized for the slowest command (PROGRAM_RANGE
+        # over the full bank ≈ 30 s on this flash; HASH_RANGE over 4 MiB ≈ 6 s).
+        deadline = time.monotonic() + 120.0
+        while True:
+            status = mdw_running(self.ocd, MAILBOX_ADDR + MB_STATUS)
+            rid = mdw_running(self.ocd, MAILBOX_ADDR + MB_RESULT_ID)
+            if rid == cid and status in (STATUS_DONE, STATUS_ERR):
+                if status == STATUS_ERR:
+                    err = mdw_running(self.ocd, MAILBOX_ADDR + MB_ERROR)
+                    raise RuntimeError(f"handler cmd {cmd} failed, error=0x{err:08x}")
+                return
+            if time.monotonic() > deadline:
+                raise TimeoutError(
+                    f"handler cmd {cmd} timed out (status={status} rid={rid})"
+                )
+            time.sleep(0.005)
+
+
+# --- handler upload + boot ---
+
+
+def upload_handler(ocd, handler_bin: bytes):
+    """Stop CPU, write handler binary, configure mailbox boilerplate, resume at handler."""
+    ocd.send("halt")
+    write_bytes(ocd, HANDLER_CODE, handler_bin)
+
+    # Pre-fill mailbox header that survives all commands.
+    mww(ocd, MAILBOX_ADDR + MB_PP_CMD, PP_CMD)
+    mww(ocd, MAILBOX_ADDR + MB_ERASE_CMD, ERASE_4K)
+    mww(ocd, MAILBOX_ADDR + MB_READ_CMD, READ_CMD)
+    mww(ocd, MAILBOX_ADDR + MB_IO_BASE, SPIBSC0_BASE)
+    mww(ocd, MAILBOX_ADDR + MB_ADDR_BYTES, ADDR_BYTES)
+    mww(ocd, MAILBOX_ADDR + MB_XIP_BASE, XIP_BASE)
+    mww(ocd, MAILBOX_ADDR + MB_SECTOR_SIZE, SECTOR_SIZE_4K)
+    mww(ocd, MAILBOX_ADDR + MB_MAGIC, 0)  # handler will publish READY when alive
+
+    # The handler's _start is ARM-mode (naked __asm__ with .arm directive). Match the C driver:
+    # CPSR → SVC, T=0, IRQ/FIQ masked (0xD3); core_state → ARM; PC → HANDLER_CODE (even, ARM).
+    ocd.send("reg cpsr 0xd3")
+    ocd.send("arm core_state arm")
+    ocd.send(f"reg pc 0x{HANDLER_CODE:x}")
+    ocd.send("resume")
+
+    deadline = time.monotonic() + 5.0
+    while True:
+        magic = mdw_running(ocd, MAILBOX_ADDR + MB_MAGIC)
+        if magic == MAGIC_READY:
+            return
+        if time.monotonic() > deadline:
+            raise RuntimeError(
+                f"handler did not signal MAGIC_READY (got 0x{magic:08x})"
+            )
+        time.sleep(0.005)
+
+
+# --- smart-program (CRC-diff) ---
+
+
+def smart_program(ocd, handler: Handler, image: bytes, flash_offset: int) -> dict:
+    """Reproduce the C driver's smart_program logic from the host side."""
+    if len(image) % SECTOR_SIZE_4K:
+        image += b"\xff" * (SECTOR_SIZE_4K - (len(image) % SECTOR_SIZE_4K))
+    nsubs = len(image) // SECTOR_SIZE_4K
+    timing = {}
+
+    # 1) Ask the handler to CRC the destination range, one CRC per 4 KiB sub-sector.
+    t0 = time.monotonic()
+    handler.issue(
+        CMD_HASH_RANGE,
+        flash_addr=flash_offset,
+        length=len(image),
+        buf_addr=CRC_BUFFER,
+        sector_size=SECTOR_SIZE_4K,
+    )
+    target_crcs_raw = read_bytes(ocd, CRC_BUFFER, nsubs * 4)
+    target_crcs = list(struct.unpack(f"<{nsubs}I", target_crcs_raw))
+    timing["hash"] = time.monotonic() - t0
+
+    # 2) Compute source CRCs in Python (zlib matches the handler's polynomial).
+    t0 = time.monotonic()
+    source_crcs = [
+        zlib.crc32(image[i * SECTOR_SIZE_4K : (i + 1) * SECTOR_SIZE_4K]) & 0xFFFFFFFF
+        for i in range(nsubs)
+    ]
+    timing["source_hash"] = time.monotonic() - t0
+
+    # 3) Diff. Group adjacent differing sub-sectors into ranges so we issue one
+    # PROGRAM_RANGE per contiguous block of dirty sub-sectors.
+    dirty = [s != t for s, t in zip(source_crcs, target_crcs)]
+    runs = []
+    i = 0
+    while i < nsubs:
+        if dirty[i]:
+            j = i
+            while j < nsubs and dirty[j]:
+                j += 1
+            runs.append((i, j - i))
+            i = j
+        else:
+            i += 1
+    changed_subs = sum(n for _, n in runs)
+    print(
+        f"  hash: {timing['hash']:.2f}s  diff: "
+        f"{changed_subs}/{nsubs} sub-sectors need reprogramming, {len(runs)} runs"
+    )
+
+    # 4) For each run: upload data → trigger PROGRAM_RANGE. Data buffer is 16 KiB,
+    # but PROGRAM_RANGE can drive arbitrarily large length if buf_addr points beyond
+    # DATA_BUFFER (the C driver does this too for SDRAM staging). For the spike we
+    # stage one run at a time into DATA_BUFFER, chunked at 16 KiB.
+    t0 = time.monotonic()
+    bytes_written = 0
+    for start_sub, n_subs in runs:
+        offset_in_image = start_sub * SECTOR_SIZE_4K
+        flash_addr = flash_offset + offset_in_image
+        remaining = n_subs * SECTOR_SIZE_4K
+        while remaining > 0:
+            chunk = min(remaining, DATA_BUFFER_SZ)
+            chunk_data = image[offset_in_image : offset_in_image + chunk]
+            write_bytes(ocd, DATA_BUFFER, chunk_data)
+            handler.issue(
+                CMD_PROGRAM_RANGE,
+                flash_addr=flash_addr,
+                length=chunk,
+                buf_addr=DATA_BUFFER,
+                sector_size=SECTOR_SIZE_4K,
+            )
+            bytes_written += chunk
+            flash_addr += chunk
+            offset_in_image += chunk
+            remaining -= chunk
+    timing["program"] = time.monotonic() - t0
+    timing["bytes_written"] = bytes_written
+    timing["changed_subs"] = changed_subs
+    timing["nsubs"] = nsubs
+    timing["runs"] = len(runs)
+    return timing
+
+
+# --- handler.bin location + auto-build ---
+
+
+def find_handler_bin(repo_root: Path, explicit: Path | None) -> Path:
+    if explicit:
+        return explicit
+    candidates = [
+        repo_root / "openocd-0.12.0/contrib/loaders/flash/renesas_spibsc/handler.bin",
+        repo_root
+        / "build/openocd-spibsc/contrib/loaders/flash/renesas_spibsc/handler.bin",
+    ]
+    for c in candidates:
+        if c.is_file():
+            return c
+    # Try to build from whichever source tree we can find.
+    for c in candidates:
+        srcdir = c.parent
+        if (srcdir / "Makefile").is_file() and (srcdir / "handler.c").is_file():
+            print(f"  building {srcdir.name}/handler.bin ...")
+            subprocess.check_call(["make", "-C", str(srcdir), "handler.bin"])
+            if c.is_file():
+                return c
+    raise FileNotFoundError(
+        "handler.bin not found and no buildable source tree available. "
+        "Build openocd first via scripts/debug/openocd/spibsc/build-openocd.sh"
+    )
+
+
+# --- openocd spawner ---
+
+
+def spawn_openocd(repo_root: Path, openocd_bin: str) -> subprocess.Popen:
+    """Spawn openocd with a minimal target cfg — no `flash bank renesas_spibsc` line, so this works
+    with the unmodified xPack openocd that DBT ships. We drive flash entirely from Python via the
+    mailbox, so we don't need openocd's flash subsystem to know anything about SPIBSC."""
+    iface = repo_root / "scripts/debug/openocd/interface/delugeprobe.cfg"
+    cfg = """
+transport select swd
+adapter speed 10000
+swd newdap r7s721020 cpu -irlen 4 -ircapture 0x01 -irmask 0x0f -expected-id 0x3ba02477
+dap create r7s721020.dap -chain-position r7s721020.cpu
+target create r7s721020.cpu cortex_a -dap r7s721020.dap -coreid 0 -dbgbase 0x80030000
+r7s721020.cpu configure -event reset-assert-post {
+    cortex_a dbginit
+    arm semihosting enable
+    arm core_state thumb
+}
+reset_config srst_only
+gdb_breakpoint_override hard
+init
+cortex_a dbginit
+cortex_a maskisr on
+cortex_a dacrfixup on
+arm semihosting enable
+"""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
+        f.write(cfg)
+        cfg_path = f.name
+    argv = [openocd_bin, "-f", str(iface), "-f", cfg_path]
+    print(f"  spawning: {' '.join(argv)}")
+    return subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+# --- entrypoint ---
+
+
+def find_openocd_bin(repo_root: Path) -> str:
+    env = os.environ.get("OPENOCD")
+    if env:
+        return env
+    # DBT toolchain openocd (might be xPack stock, or our patched build).
+    import platform
+
+    ver_file = repo_root / "toolchain" / "REQUIRED_VERSION"
+    if ver_file.is_file():
+        version = ver_file.read_text().strip()
+        sys_type = platform.system().lower()
+        arch = platform.machine().lower()
+        if arch == "aarch64":
+            arch = "arm64"
+        cand = (
+            repo_root
+            / "toolchain"
+            / f"v{version}"
+            / f"{sys_type}-{arch}"
+            / "openocd"
+            / "bin"
+            / "openocd"
+        )
+        if cand.is_file():
+            return str(cand)
+    import shutil
+
+    return shutil.which("openocd") or "openocd"
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("bin", help="firmware .bin to flash")
+    p.add_argument(
+        "--offset",
+        type=lambda x: int(x, 0),
+        default=DEFAULT_FLASH_OFFSET,
+        help=f"flash offset (default 0x{DEFAULT_FLASH_OFFSET:x})",
+    )
+    p.add_argument("--handler", type=Path, default=None, help="path to handler.bin")
+    p.add_argument("--openocd-port", type=int, default=OCD_TCL_PORT)
+    p.add_argument(
+        "--no-spawn",
+        action="store_true",
+        help="assume openocd is already listening on --openocd-port",
+    )
+    p.add_argument(
+        "--keep-openocd", action="store_true", help="leave openocd running after flash"
+    )
+    args = p.parse_args()
+
+    repo_root = Path(__file__).resolve().parents[3]
+    os.chdir(repo_root)
+
+    handler_path = find_handler_bin(repo_root, args.handler)
+    handler_bin = handler_path.read_bytes()
+    print(f"handler: {handler_path} ({len(handler_bin)} bytes)")
+
+    image = Path(args.bin).read_bytes()
+    pad = (-len(image)) & (SECTOR_SIZE_4K - 1)
+    if pad:
+        image += b"\xff" * pad
+    print(
+        f"image:   {args.bin} ({len(image)} bytes, {len(image) // SECTOR_SIZE_4K} sub-sectors), "
+        f"flash offset 0x{args.offset:x}"
+    )
+
+    proc = None
+    if not args.no_spawn:
+        proc = spawn_openocd(repo_root, find_openocd_bin(repo_root))
+
+    overall_t0 = time.monotonic()
+    try:
+        ocd = Openocd.connect(port=args.openocd_port, timeout=10.0)
+        try:
+            t0 = time.monotonic()
+            upload_handler(ocd, handler_bin)
+            t_upload = time.monotonic() - t0
+
+            timing = smart_program(ocd, Handler(ocd), image, args.offset)
+            timing["upload"] = t_upload
+
+            # Quit + reset.
+            mww(ocd, MAILBOX_ADDR + MB_COMMAND, CMD_QUIT)
+            mww(ocd, MAILBOX_ADDR + MB_COMMAND_ID, 0xFFFFFFFF)  # bypass id-match
+            ocd.send("reset run")
+        finally:
+            ocd.close()
+    finally:
+        if proc and not args.keep_openocd:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3.0)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+    overall = time.monotonic() - overall_t0
+
+    print()
+    print("=" * 60)
+    print(f"  wall clock:      {overall:.2f} s")
+    print(f"  handler upload:  {timing['upload']:.2f} s")
+    print(f"  hash sweep:      {timing['hash']:.2f} s")
+    print(f"  source hash:     {timing['source_hash']:.2f} s")
+    print(f"  program:         {timing['program']:.2f} s")
+    print(
+        f"  diff:            {timing['changed_subs']}/{timing['nsubs']} sub-sectors in {timing['runs']} runs "
+        f"({timing['bytes_written']} bytes written)"
+    )
+    print("=" * 60)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
