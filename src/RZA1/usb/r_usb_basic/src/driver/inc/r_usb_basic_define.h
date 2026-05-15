@@ -795,8 +795,9 @@
 #define USB_REL_BLK(ID, BLK)  (usb_cstd_rel_blk((uint8_t)(ID), (usb_utr_t*)(BLK)))
 
 /* Descriptor size */
-#define USB_DEVICESIZE (20u)  /* Device Descriptor size */
-#define USB_CONFIGSIZE (256u) /* Configuration Descriptor size */
+#define USB_DEVICESIZE (20u) /* Device Descriptor size */
+/* Configuration Descriptor size — was 256, raised to fit Blender's 394-byte composite config */
+#define USB_CONFIGSIZE (512u)
 
 /* Number of software retries when a no-response condition occurs during a transfer */
 #define USB_PIPEERROR (1u)
