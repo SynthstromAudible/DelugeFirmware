@@ -4,6 +4,9 @@ else
 		export DBT := ./dbt
 endif
 
+# Build configuration for `make flash` (release | debug | relwithdebinfo | CMake name).
+CONFIG ?= release
+
 all: debug release
 
 debug:
@@ -14,3 +17,7 @@ release:
 
 clean:
 	$(DBT) clean
+
+.PHONY: flash
+flash:
+	$(DBT) flash $(CONFIG)
