@@ -41,8 +41,12 @@ fi
 TOOLCHAIN_VERSION="$(cat toolchain/REQUIRED_VERSION 2>/dev/null || true)"
 DEFAULT_PREFIX="$ROOT/toolchain/v${TOOLCHAIN_VERSION}/${SYS_TYPE}-${ARCH_TYPE}/openocd"
 
-OPENOCD_REPO="${OPENOCD_REPO:-https://github.com/openocd-org/openocd.git}"
-OPENOCD_TAG="${OPENOCD_TAG:-v0.12.0}"
+# Default: clone the deluge-spibsc-v0.12.0 branch of our openocd fork — that branch is upstream
+# v0.12.0 with the SPIBSC patch already applied, so no patch step is needed. Override to upstream
+# + auto-apply the in-tree patch by setting:
+#   OPENOCD_REPO=https://github.com/openocd-org/openocd.git OPENOCD_TAG=v0.12.0
+OPENOCD_REPO="${OPENOCD_REPO:-https://github.com/heeen/openocd.git}"
+OPENOCD_TAG="${OPENOCD_TAG:-deluge-spibsc-v0.12.0}"
 BUILD_DIR="${OPENOCD_BUILD_DIR:-build/openocd-spibsc}"
 OPENOCD_PREFIX="${OPENOCD_PREFIX:-$DEFAULT_PREFIX}"
 PATCH="$ROOT/scripts/debug/openocd/spibsc/openocd-0.12.0-spibsc.patch"
