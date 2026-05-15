@@ -42,6 +42,7 @@ class Voice;
 class VoiceSample;
 class TimeStretcher;
 class String;
+class WaveTable;
 class SideChain;
 class VoiceVector;
 class Freeverb;
@@ -142,8 +143,19 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 void runRoutine();
 
 void init();
-void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
+void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound, bool asWavetable = false);
 void stopAnyPreviewing();
+
+/// Returns the WaveTable currently being previewed in ping-pong mode, plus the current shaped slice position
+/// in [0, numCycles - 1]. nullptr if not in wavetable-preview mode.
+WaveTable* getPreviewWavetableState(float* slicePos);
+
+/// Manual scrub for the wavetable browse preview: pins the played/displayed slice to pos and pauses the ping-pong
+/// sweep. Cleared automatically by stopAnyPreviewing (i.e. on every new file selection), so a single horizontal
+/// scroll resumes auto-animation.
+void setPreviewWavetableManualSlicePos(float pos);
+float getPreviewWavetableManualSlicePos();
+bool getPreviewWavetableManualActive();
 
 void songSwapAboutToHappen();
 void killAllVoices(bool deletingSong = false);

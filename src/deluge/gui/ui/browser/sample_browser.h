@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
 #include "hid/button.h"
+#include <optional>
 
 extern "C" {
 
@@ -57,6 +58,7 @@ public:
 	bool importFolderAsKit();
 	bool importFolderAsMultisamples();
 	ActionResult timerCallback() override;
+	void graphicsRoutine() override;
 	bool claimCurrentFile(int32_t mayDoPitchDetection = 1, int32_t mayDoSingleCycle = 1, int32_t mayDoWaveTable = 1,
 	                      bool loadWithoutExiting = false); // 0 means no. 1 means auto. 2 means yes definitely
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -96,6 +98,8 @@ private:
 	bool currentlyShowingSamplePreview;
 
 	bool qwertyCurrentlyDrawnOnscreen; // This will linger as true even when qwertyVisible has been set to false
+
+	std::optional<float> lastRenderedWavetableSlicePos;
 };
 
 extern SampleBrowser sampleBrowser;

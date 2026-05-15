@@ -25,6 +25,7 @@
 class Sample;
 class MultisampleRange;
 class SampleRecorder;
+class WaveTable;
 struct WaveformRenderData;
 
 struct MarkerColumn {
@@ -46,6 +47,9 @@ public:
 	                       SampleRecorder* recorder, RGB rgb, bool reversed, int32_t xStart, int32_t xEnd);
 	void renderOneCol(Sample* sample, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth],
 	                  WaveformRenderData* data, bool reversed = false, std::optional<RGB> rgb = std::nullopt);
+	void renderOneCol(int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth], WaveformRenderData* data,
+	                  int32_t valueCentrePoint, int32_t valueSpan, bool reversed = false,
+	                  std::optional<RGB> rgb = std::nullopt);
 	void renderOneColForCollapseAnimation(int32_t xDisplay, int32_t xDisplayOutput, int32_t maxPeakFromZero,
 	                                      int32_t progress, RGB thisImage[][kDisplayWidth + kSideBarWidth],
 	                                      WaveformRenderData* data, std::optional<RGB> rgb, bool reversed,
@@ -57,6 +61,11 @@ public:
 	                                               int32_t valueCentrePoint, int32_t valueSpan);
 	bool findPeaksPerCol(Sample* sample, int64_t xScroll, uint64_t xZoom, WaveformRenderData* data,
 	                     SampleRecorder* recorder = nullptr, int32_t xStart = 0, int32_t xEnd = kDisplayWidth);
+
+	/// Renders one cycle of a wavetable to the LED grid, blending between adjacent cycles per the fractional part
+	/// of `slicePos`. Used by the wavetable browser preview to animate the current swept slice in lock-step with
+	/// the audio. Returns true if drawn, false if the wavetable can't be drawn (e.g. no bands).
+	bool renderWaveTableSlice(WaveTable* waveTable, float slicePos, RGB thisImage[][kDisplayWidth + kSideBarWidth]);
 
 	int8_t collapseAnimationToWhichRow;
 
