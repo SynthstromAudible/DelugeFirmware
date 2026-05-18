@@ -47,7 +47,8 @@ public:
 	void noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
 	                         bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
 	void sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType match, bool on, int32_t channel, int32_t note,
-	                    int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
+	                    int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack,
+	                    bool updateClipForLastNoteReceived = true);
 	void midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t ccValue, bool* doingMidiThru,
 	                    ModelStack* modelStack);
 	void pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru,
@@ -84,9 +85,39 @@ private:
 	void clearMappings();
 	void initDefaultMappings();
 
+	// note recieved
+	void noteMessageReceivedForSelectedOrActiveClip(MIDICable& cable, bool on, int32_t channel, int32_t note,
+	                                                int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
+	                                                ModelStack* modelStack);
+	void noteMessageReceivedForSpecificTrack(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
+	                                         bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack,
+	                                         Output* specific_track, int32_t specific_track_index);
+	// cc received
+	void midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t ccValue,
+	                                           bool* doingMidiThru, ModelStack* modelStack);
+	void midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t ccValue,
+	                                    bool* doingMidiThru, ModelStack* modelStack, Output* specific_track,
+	                                    int32_t specific_track_index);
+
+	// pitch bend received
+	void pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
+	                                              bool* doingMidiThru, ModelStack* modelStack);
+	void pitchBendReceivedForSpecificTrack(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
+	                                       bool* doingMidiThru, ModelStack* modelStack, Output* specific_track,
+	                                       int32_t specific_track_index);
+
+	// after touch received
+	void aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
+	                                               bool* doingMidiThru, ModelStack* modelStack);
+	void aftertouchReceivedForSpecificTrack(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
+	                                        bool* doingMidiThru, ModelStack* modelStack, Output* specific_track,
+	                                        int32_t specific_track_index);
+
 	Clip* getSelectedOrActiveClip();
 	Clip* getSelectedClip();
 	Clip* getActiveClip(ModelStack* modelStack);
+	[[nodiscard]] const size_t getTrackCount() const;
+	Output* getTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
 
 	// get model stack with auto param for midi follow cc-param control
 	ModelStackWithAutoParam* getModelStackWithParamForSong(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
@@ -105,6 +136,7 @@ private:
 	void displayParamControlError(int32_t soundParamId, int32_t globalParamId);
 
 	MIDIMatchType checkMidiFollowMatch(MIDICable& cable, uint8_t channel);
+	MIDIMatchType checkMidiFollowMatchForSpecificTrack(MIDICable& cable, uint8_t channel, int32_t specific_track_index);
 	bool isFeedbackEnabled();
 
 	// saving

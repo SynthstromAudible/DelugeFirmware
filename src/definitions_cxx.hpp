@@ -619,9 +619,28 @@ enum class MIDIFollowChannelType : uint8_t {
 	A,
 	B,
 	C,
+	Track1,
+	Track2,
+	Track3,
+	Track4,
+	Track5,
+	Track6,
+	Track7,
+	Track8,
+	Track9,
+	Track10,
+	Track11,
+	Track12,
+	Track13,
+	Track14,
+	Track15,
+	Track16,
 	NONE,
 };
-constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::NONE);
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::Track1);              // 3
+constexpr auto kNumMIDIFollowChannelTypesIncludingTracks = util::to_underlying(MIDIFollowChannelType::NONE); // 19
+constexpr int32_t kNumMIDIFollowChannelTrackTypes =
+    kNumMIDIFollowChannelTypesIncludingTracks - kNumMIDIFollowChannelTypes; // 19 - 3 = 16
 
 enum class MIDITransposeControlMethod : uint8_t {
 	INKEY,
