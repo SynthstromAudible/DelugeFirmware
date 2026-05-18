@@ -102,8 +102,8 @@ public:
 	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands];
 
 	bool midiThru;
-	LearnedMIDI midiFollowChannelType[kNumMIDIFollowChannelTypes]; // A, B, C
-	MIDIFollowChannelType midiFollowFeedbackChannelType;           // A, B, C, NONE
+	LearnedMIDI midiFollowChannelType[kNumMIDIFollowChannelTypesIncludingTracks]; // A, B, C, Track 1-16
+	MIDIFollowChannelType midiFollowFeedbackChannelType;                          // A, B, C, NONE
 	uint8_t midiFollowKitRootNote;
 	bool midiFollowDisplayParam;
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation;
