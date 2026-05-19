@@ -572,6 +572,13 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		return instrumentClipView.handleNoteRowEditorButtonAction(b, on, inCardRoutine);
 	}
 
+	else if (b == deluge::hid::button::SYNC_SCALING
+	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+	                == RuntimeFeatureStateSyncScalingAction::Fill) {
+		currentSong->changeFillMode(on);
+		return ActionResult::DEALT_WITH;
+	}
+
 	else {
 		MenuItem* currentMenuItem = getCurrentMenuItem();
 		HorizontalMenu* asHorizontal = nullptr;

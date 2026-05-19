@@ -3061,8 +3061,8 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 								}
 							}
 							// Wrap around for FILL when at max value
-							else if (parameterValue == parameterMaxValue
-							         && changeType == CORRESPONDING_NOTES_SET_FILL) {
+							else if (parameterValue == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL
+							         && !inNoteEditor) {
 								parameterValue = parameterMinValue;
 								parameterHasBeenEdited = true;
 							}
@@ -3271,7 +3271,8 @@ multiplePresses:
 						}
 					}
 					// Wrap around for FILL when at max value
-					else if (parameterValue == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL) {
+					else if (parameterValue == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL
+					         && !inNoteEditor) {
 						parameterValue = parameterMinValue;
 						parameterHasBeenEdited = true;
 					}
@@ -3996,7 +3997,8 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 					}
 				}
 				// Wrap around for FILL when at max value
-				else if (parameter_value == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL) {
+				else if (parameter_value == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL
+				         && !inNoteRowEditor) {
 					parameter_value = parameterMinValue;
 					parameter_has_been_edited = true;
 				}

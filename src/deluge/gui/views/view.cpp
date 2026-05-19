@@ -331,26 +331,29 @@ doEndMidiLearnPressSession:
 	else if (b == SYNC_SCALING) {
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+			// If currently in the sound editor note editor / note row editor, keep this button as the global
+			// fill-mode toggle rather than changing note fill values.
+			if (getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())) {
+				currentSong->changeFillMode(on);
+				return ActionResult::DEALT_WITH;
+			}
+
 			// If notes pressed, adjust note fill
 			if (on && (currentUIMode == UI_MODE_NOTES_PRESSED || instrumentClipView.numEditPadPresses > 0)) {
-				currentSong->changeFillMode(on);
 				instrumentClipView.adjustNoteFillWithOffset(1);
 				return ActionResult::DEALT_WITH;
 			}
 			else if (on && (currentUIMode == UI_MODE_AUDITIONING)) {
-				currentSong->changeFillMode(on);
 				instrumentClipView.setNoteRowFillWithOffset(1);
-				return ActionResult::DEALT_WITH;
-			}
-			else if (!on && (currentUIMode == UI_MODE_NOTES_PRESSED || instrumentClipView.numEditPadPresses > 0)) {
-				currentSong->changeFillMode(on);
 				return ActionResult::DEALT_WITH;
 			}
 			else {
 				currentSong->changeFillMode(on);
 			}
 		}
-		else if (on && currentUIMode == UI_MODE_NONE) {
+		else if (on
+		         && (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
+		             || currentUIMode == UI_MODE_NOTES_PRESSED)) {
 
 			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 cant:
@@ -364,7 +367,7 @@ cant:
 
 			// If no scaling currently, start it, if we're on a Clip-minder screen
 			if (!currentSong->getSyncScalingClip()) {
-				if (!getCurrentUI()->toClipMinder()) {
+				if (!(getCurrentUI()->toClipMinder() || getRootUI()->toClipMinder())) {
 					indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW);
 					return ActionResult::DEALT_WITH;
 				}
