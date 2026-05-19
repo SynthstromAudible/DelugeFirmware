@@ -4065,6 +4065,9 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 			displayFill(parameterValue);
 		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			displayFill(parameterValue);
+		}
 	}
 
 	return parameterValue;
