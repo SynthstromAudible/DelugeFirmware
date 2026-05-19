@@ -3472,14 +3472,14 @@ void InstrumentClipView::displayFill(uint8_t mode) {
 	}
 }
 
-const char* InstrumentClipView::getFillString(uint8_t mode) {
+const char* InstrumentClipView::getFillString(uint8_t fill) {
 	// FILL mode
-	if (mode == FILL) {
+	if (fill == FILL) {
 		return "FILL";
 	}
 
 	// NO-FILL mode
-	if (mode == NOT_FILL) {
+	if (fill == NOT_FILL) {
 		return "NOT FILL";
 	}
 
