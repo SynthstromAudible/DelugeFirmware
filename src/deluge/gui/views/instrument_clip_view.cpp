@@ -3996,9 +3996,9 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 					}
 				}
 				// Wrap around for FILL when at max value
-				else if (parameterValue == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL) {
-					parameterValue = parameterMinValue;
-					parameterHasBeenEdited = true;
+				else if (parameter_value == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL) {
+					parameter_value = parameterMinValue;
+					parameter_has_been_edited = true;
 				}
 			}
 			// Decrementing
@@ -4078,7 +4078,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			displayIterance(Iterance::fromInt(parameter_value));
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
-			displayFill(parameterValue);
+			displayFill(parameter_value);
 		}
 	}
 
