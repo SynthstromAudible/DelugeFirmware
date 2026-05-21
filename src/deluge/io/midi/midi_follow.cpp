@@ -665,8 +665,8 @@ void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel,
                                      bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack) {
 	// first try to process note received through regular midi follow channels (A/B/C) against the selected / active
 	// clip
-	noteMessageReceivedForSelectedOrActiveClip(cable, on, channel, note, velocity, doingMidiThru,
-	                                           shouldRecordNotesNowNow, modelStack);
+	Output* selected_track = noteMessageReceivedForSelectedOrActiveClip(
+	    cable, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow, modelStack);
 
 	// logic for forwarding message to specific track
 	// get number of tracks
@@ -680,7 +680,8 @@ void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel,
 				break;
 			}
 			Output* track = getTrackFromIndex(trackIndex, trackCount);
-			if (track != nullptr) {
+			// if track is not null and we did not already send message to this track above
+			if (track != nullptr && track != selected_track) {
 				// next try to process note received through track midi follow channels (Track1-16)
 				noteMessageReceivedForSpecificTrack(cable, on, channel, note, velocity, doingMidiThru,
 				                                    shouldRecordNotesNowNow, modelStack, track, trackIndex);
@@ -691,9 +692,11 @@ void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel,
 
 /// determines whether a midi note received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiFollow::noteMessageReceivedForSelectedOrActiveClip(MIDICable& cable, bool on, int32_t channel, int32_t note,
-                                                            int32_t velocity, bool* doingMidiThru,
-                                                            bool shouldRecordNotesNowNow, ModelStack* modelStack) {
+Output* MidiFollow::noteMessageReceivedForSelectedOrActiveClip(MIDICable& cable, bool on, int32_t channel, int32_t note,
+                                                               int32_t velocity, bool* doingMidiThru,
+                                                               bool shouldRecordNotesNowNow, ModelStack* modelStack) {
+	Output* selected_track = nullptr;
+
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		if (note >= 0 && note <= 127) {
@@ -707,19 +710,20 @@ void MidiFollow::noteMessageReceivedForSelectedOrActiveClip(MIDICable& cable, bo
 				clip = clipForLastNoteReceived[note];
 			}
 
-			sendNoteToClip(cable, clip, match, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
-			               modelStack);
+			selected_track = sendNoteToClip(cable, clip, match, on, channel, note, velocity, doingMidiThru,
+			                                shouldRecordNotesNowNow, modelStack);
 		}
 		// all notes off
 		else if (note == ALL_NOTES_OFF) {
 			for (int32_t i = 0; i <= 127; i++) {
 				if (clipForLastNoteReceived[i]) {
-					sendNoteToClip(cable, clipForLastNoteReceived[i], match, on, channel, i, velocity, doingMidiThru,
-					               shouldRecordNotesNowNow, modelStack);
+					selected_track = sendNoteToClip(cable, clipForLastNoteReceived[i], match, on, channel, i, velocity,
+					                                doingMidiThru, shouldRecordNotesNowNow, modelStack);
 				}
 			}
 		}
 	}
+	return selected_track;
 }
 
 /// determines whether a midi note received is midi follow relevant
@@ -747,12 +751,15 @@ void MidiFollow::noteMessageReceivedForSpecificTrack(MIDICable& cable, bool on, 
 	}
 }
 
-void MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType match, bool on, int32_t channel,
-                                int32_t note, int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
-                                ModelStack* modelStack, bool updateClipForLastNoteReceived) {
+Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType match, bool on, int32_t channel,
+                                   int32_t note, int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
+                                   ModelStack* modelStack, bool updateClipForLastNoteReceived) {
+	Output* selected_track = nullptr;
 
 	// Only send if not muted - but let note-offs through always, for safety
 	if (clip && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
+		selected_track = clip->output;
+
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 		// Output is a kit or melodic instrument
 		if (modelStackWithTimelineCounter) {
@@ -782,6 +789,7 @@ void MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType matc
 			}
 		}
 	}
+	return selected_track;
 }
 
 /// called from playback handler
@@ -791,7 +799,8 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
                                 bool* doingMidiThru, ModelStack* modelStack) {
 
 	// first try to process cc received through regular midi follow channels (A/B/C) against the selected / active clip
-	midiCCReceivedForSelectedOrActiveClip(cable, channel, ccNumber, ccValue, doingMidiThru, modelStack);
+	Output* selected_track =
+	    midiCCReceivedForSelectedOrActiveClip(cable, channel, ccNumber, ccValue, doingMidiThru, modelStack);
 
 	// logic for forwarding message to specific track
 	// get number of tracks
@@ -805,7 +814,8 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
 				break;
 			}
 			Output* track = getTrackFromIndex(trackIndex, trackCount);
-			if (track != nullptr) {
+			// if track is not null and we did not already send message to this track above
+			if (track != nullptr && track != selected_track) {
 				// next try to process cc received through track midi follow channels (Track1-16)
 				midiCCReceivedForSpecificTrack(cable, channel, ccNumber, ccValue, doingMidiThru, modelStack, track,
 				                               trackIndex);
@@ -816,8 +826,11 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
 
 /// determines whether a midi cc received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber,
-                                                       uint8_t ccValue, bool* doingMidiThru, ModelStack* modelStack) {
+Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber,
+                                                          uint8_t ccValue, bool* doingMidiThru,
+                                                          ModelStack* modelStack) {
+	Output* selected_track = nullptr;
+
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context (for params that's only for the active mod controllable stack)
@@ -832,6 +845,7 @@ void MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint8_t
 			if (clip->output->type == OutputType::CV) {
 				isCVClip = true;
 			}
+			selected_track = clip->output;
 		}
 
 		// don't offer to handleReceivedCC if it's a MIDI or CV Clip
@@ -877,6 +891,7 @@ void MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint8_t
 			}
 		}
 	}
+	return selected_track;
 }
 
 /// determines whether a midi cc received is midi follow relevant
@@ -1131,7 +1146,8 @@ void MidiFollow::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t da
                                    ModelStack* modelStack) {
 	// first try to process pitch bend received through regular midi follow channels (A/B/C) against the selected /
 	// active clip
-	pitchBendReceivedForSelectedOrActiveClip(cable, channel, data1, data2, doingMidiThru, modelStack);
+	Output* selected_track =
+	    pitchBendReceivedForSelectedOrActiveClip(cable, channel, data1, data2, doingMidiThru, modelStack);
 
 	// logic for forwarding message to specific track
 	// get number of tracks
@@ -1145,7 +1161,8 @@ void MidiFollow::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t da
 				break;
 			}
 			Output* track = getTrackFromIndex(trackIndex, trackCount);
-			if (track != nullptr) {
+			// if track is not null and we did not already send message to this track above
+			if (track != nullptr && track != selected_track) {
 				// next try to process pitch bend received through track midi follow channels (Track1-16)
 				pitchBendReceivedForSpecificTrack(cable, channel, data1, data2, doingMidiThru, modelStack, track,
 				                                  trackIndex);
@@ -1156,13 +1173,18 @@ void MidiFollow::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t da
 
 /// determines whether a pitch bend received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiFollow::pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, uint8_t channel, uint8_t data1,
-                                                          uint8_t data2, bool* doingMidiThru, ModelStack* modelStack) {
+Output* MidiFollow::pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, uint8_t channel, uint8_t data1,
+                                                             uint8_t data2, bool* doingMidiThru,
+                                                             ModelStack* modelStack) {
+	Output* selected_track = nullptr;
+
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
 		Clip* clip = getActiveClip(modelStack);
 		if (clip) {
+			selected_track = clip->output;
+
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
@@ -1179,6 +1201,7 @@ void MidiFollow::pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 			}
 		}
 	}
+	return selected_track;
 }
 
 /// determines whether a pitch bend received is midi follow relevant
@@ -1216,7 +1239,8 @@ void MidiFollow::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t v
                                     bool* doingMidiThru, ModelStack* modelStack) {
 	// first try to process after touch received through regular midi follow channels (A/B/C) against the selected /
 	// active clip
-	aftertouchReceivedForSelectedOrActiveClip(cable, channel, value, noteCode, doingMidiThru, modelStack);
+	Output* selected_track =
+	    aftertouchReceivedForSelectedOrActiveClip(cable, channel, value, noteCode, doingMidiThru, modelStack);
 
 	// logic for forwarding message to specific track
 	// get number of tracks
@@ -1230,7 +1254,8 @@ void MidiFollow::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t v
 				break;
 			}
 			Output* track = getTrackFromIndex(trackIndex, trackCount);
-			if (track != nullptr) {
+			// if track is not null and we did not already send message to this track above
+			if (track != nullptr && track != selected_track) {
 				// next try to process after touch received through track midi follow channels (Track1-16)
 				aftertouchReceivedForSpecificTrack(cable, channel, value, noteCode, doingMidiThru, modelStack, track,
 				                                   trackIndex);
@@ -1241,14 +1266,18 @@ void MidiFollow::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t v
 
 /// determines whether aftertouch received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiFollow::aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, int32_t channel, int32_t value,
-                                                           int32_t noteCode, bool* doingMidiThru,
-                                                           ModelStack* modelStack) {
+Output* MidiFollow::aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, int32_t channel, int32_t value,
+                                                              int32_t noteCode, bool* doingMidiThru,
+                                                              ModelStack* modelStack) {
+	Output* selected_track = nullptr;
+
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
 		Clip* clip = getActiveClip(modelStack);
 		if (clip) {
+			selected_track = clip->output;
+
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
@@ -1265,6 +1294,7 @@ void MidiFollow::aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, int
 			}
 		}
 	}
+	return selected_track;
 }
 
 /// determines whether aftertouch received is midi follow relevant
