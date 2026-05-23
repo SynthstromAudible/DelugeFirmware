@@ -287,7 +287,7 @@ bool paramNeedsLPF(ParamType p, bool fromAutomation);
 /// UNPATCHED_START. The Kind is used to distinguish between UNPATCHED_Sound
 /// (when kind == UNPATCHED_SOUND) and UNPATCHED_GlobalEffectable (when kind == UNPATCHED_GLOBAL) as these
 /// two sub-ranges would otherwise overlap.
-char const* paramNameForFile(Kind kind, ParamType param);
+char const* paramNameForFile(Kind kind, ParamType param, bool forMidiFollowFile = false);
 
 /// Given a string and the expected Kind, attempts to find the ParamType value for that param.
 ///
