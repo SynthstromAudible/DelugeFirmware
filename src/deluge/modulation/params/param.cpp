@@ -368,7 +368,7 @@ bool paramNeedsLPF(ParamType p, bool fromAutomation) {
 	}
 }
 
-constexpr char const* paramNameForFileConst(Kind const kind, ParamType const param) {
+constexpr char const* paramNameForFileConst(Kind const kind, ParamType const param, bool forMidiFollowFile = false) {
 	using enum Kind;
 	if (kind == UNPATCHED_SOUND && param >= UNPATCHED_START + UNPATCHED_NUM_SHARED) {
 		// Unpatched params just for Sounds
@@ -420,12 +420,18 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 			return "reverbAmount";
 
 		case UNPATCHED_VOLUME:
+			if (forMidiFollowFile) {
+				return "volumePostFX";
+			}
 			return "volume";
 
 		case UNPATCHED_SIDECHAIN_VOLUME:
 			return "sidechainCompressorVolume";
 
 		case UNPATCHED_PITCH_ADJUST:
+			if (forMidiFollowFile) {
+				return "pitch";
+			}
 			return "pitchAdjust";
 
 		// explicit fallthrough cases
@@ -692,8 +698,8 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 	return "none";
 }
-char const* paramNameForFile(Kind const kind, ParamType const param) {
-	return paramNameForFileConst(kind, param);
+char const* paramNameForFile(Kind const kind, ParamType const param, bool forMidiFollowFile) {
+	return paramNameForFileConst(kind, param, forMidiFollowFile);
 }
 constexpr ParamType fileStringToParamConst(Kind kind, char const* name, bool allowPatched) {
 	int32_t start = allowPatched ? 0 : UNPATCHED_START;
