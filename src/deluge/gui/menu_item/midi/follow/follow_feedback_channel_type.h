@@ -38,6 +38,7 @@ public:
 		    l10n::getView(STRING_FOR_FOLLOW_CHANNEL_A),
 		    l10n::getView(STRING_FOR_FOLLOW_CHANNEL_B),
 		    l10n::getView(STRING_FOR_FOLLOW_CHANNEL_C),
+		    l10n::getView(STRING_FOR_FOLLOW_CHANNEL_TRACK),
 		    l10n::getView(STRING_FOR_NONE),
 		};
 	}

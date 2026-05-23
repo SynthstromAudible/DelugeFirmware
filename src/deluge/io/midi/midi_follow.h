@@ -73,6 +73,7 @@ public:
 	uint32_t timeAutomationFeedbackLastSent;
 
 	// public so it can be called from View::sendMidiFollowFeedback
+	MIDIFollowChannelType getChannelTypeForFeedback();
 	void sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation = false);
 	void sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos);
 
