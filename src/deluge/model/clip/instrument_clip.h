@@ -135,7 +135,8 @@ public:
 	uint8_t midiSub;  // 128 means none
 	uint8_t midiPGM;  // 128 means none
 
-	// Kit MIDI output routing — on the clip so it survives kit preset swaps
+	// Kit MIDI output routing — per-clip current value. Preset default lives on Kit::outputMidiChannel
+	// and is adopted onto the clip when a kit preset is loaded; menu edits write through to both.
 	uint8_t kitMidiOutChannel = MIDI_CHANNEL_NONE;
 	uint8_t kitMidiOutBaseNote = 36; // note 36 = drum row 0 (GM C2 base)
 

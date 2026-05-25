@@ -3828,7 +3828,11 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		int32_t maxScroll = (int32_t)getNumNoteRows() - kDisplayHeight;
 		maxScroll = std::max(0_i32, maxScroll);
 		yScroll = std::min(yScroll, maxScroll);
-		((Kit*)newInstrument)->selectedDrum = nullptr;
+		auto* kit = static_cast<Kit*>(newInstrument);
+		kit->selectedDrum = nullptr;
+		// Hybrid kit MIDI-out storage: adopt the Kit's preset defaults onto this clip.
+		kitMidiOutChannel = kit->outputMidiChannel;
+		kitMidiOutBaseNote = kit->outputMidiBaseNote;
 	}
 
 	outputChanged(modelStack, newInstrument);

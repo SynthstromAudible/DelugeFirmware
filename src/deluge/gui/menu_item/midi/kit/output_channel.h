@@ -20,12 +20,15 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::midi::kit {
 
-// Sets the kit MIDI output channel. Stored on InstrumentClip (not on the Kit instrument or per-drum
-// Sound data), so the setting survives loading a different kit preset entirely.
+// Sets the kit MIDI output channel. Hybrid storage: the per-clip current value lives on
+// InstrumentClip (kitMidiOutChannel), and the preset default lives on Kit (outputMidiChannel).
+// Writes here update both — clip for immediate effect, Kit so the preset captures the user's
+// intent when saved. Loading a kit preset adopts the Kit's default back onto the clip.
 // Note-on/off are sent from Kit::noteOnPreKitArp() / noteOffPreKitArp() using drumIndex +
 // InstrumentClip::kitMidiOutBaseNote.
 class OutputMidiChannel final : public Integer {
@@ -54,11 +57,11 @@ public:
 		if (!clip) {
 			return;
 		}
-		if (display == 0) {
-			clip->kitMidiOutChannel = MIDI_CHANNEL_NONE;
-		}
-		else {
-			clip->kitMidiOutChannel = display - 1; // convert 1-based display to 0-based MIDI channel
+		uint8_t newChannel = (display == 0) ? MIDI_CHANNEL_NONE : (uint8_t)(display - 1);
+		clip->kitMidiOutChannel = newChannel;
+		// Mirror to Kit so the preset save path captures the user's current intent.
+		if (clip->output && clip->output->type == OutputType::KIT) {
+			static_cast<Kit*>(clip->output)->outputMidiChannel = newChannel;
 		}
 	}
 

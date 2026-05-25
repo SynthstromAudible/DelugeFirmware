@@ -35,6 +35,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
+#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -998,6 +999,15 @@ giveUsedError:
 		}
 
 		changedInstrumentForClip = true;
+	}
+
+	// Hybrid kit MIDI-out storage: adopt the newly-loaded Kit preset's defaults onto the clip,
+	// so loading a preset auto-routes per its saved channel/baseNote. Per-clip edits made later
+	// stay on the clip until the next preset load.
+	if (instrumentClipToLoadFor && newInstrument && newInstrument->type == OutputType::KIT) {
+		auto* kit = static_cast<Kit*>(newInstrument);
+		instrumentClipToLoadFor->kitMidiOutChannel = kit->outputMidiChannel;
+		instrumentClipToLoadFor->kitMidiOutBaseNote = kit->outputMidiBaseNote;
 	}
 
 	// Check if old Instrument has been deleted, in which case need to update the appropriate FileItem.

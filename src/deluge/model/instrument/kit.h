@@ -38,6 +38,11 @@ public:
 	ArpeggiatorForKit arpeggiator;
 	ArpeggiatorSettings defaultArpSettings;
 
+	// Preset-level MIDI output defaults; per-clip current values live on InstrumentClip
+	// (kitMidiOutChannel / kitMidiOutBaseNote) and are adopted from these when the preset is loaded.
+	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
+	uint8_t outputMidiBaseNote = 36; // GM C2; matches InstrumentClip::kitMidiOutBaseNote default
+
 	Drum* getNextDrum(Drum* fromSoundSource);
 	Drum* getPrevDrum(Drum* fromSoundSource);
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
