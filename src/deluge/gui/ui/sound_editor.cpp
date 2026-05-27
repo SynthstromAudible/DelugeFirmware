@@ -709,6 +709,20 @@ ActionResult SoundEditor::exitCompletely() {
 
 	setupKitGlobalFXMenu = false;
 
+	// Clear cached pointers so external readers (slicer, sample marker editor, sample-browser
+	// synth context menu) that survive past close don't dereference freed Sound/SoundDrum
+	// memory if the object behind them is later deallocated (e.g. loading a new sound into a
+	// kit row, which destructs the old SoundDrum).
+	currentSound = nullptr;
+	currentModControllable = nullptr;
+	currentSource = nullptr;
+	currentMultiRange = nullptr;
+	currentSidechain = nullptr;
+	currentSampleControls = nullptr;
+	currentParamManager = nullptr;
+	currentArpSettings = nullptr;
+	currentPriority = nullptr;
+
 	currentUIMode = UI_MODE_NONE;
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
