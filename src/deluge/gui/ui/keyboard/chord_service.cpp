@@ -17,6 +17,8 @@
 
 #include "gui/ui/keyboard/chord_service.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
 #include "hid/display/display.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -41,7 +43,7 @@ void ChordService::capturePending(const PendingChord& chord) {
 	}
 	pendingChord_ = chord;
 	hasPending_ = true;
-	display->displayPopup("PEND");
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHORD_BRUSH_ARMED));
 }
 
 bool ChordService::hasPending() {
@@ -53,7 +55,7 @@ void ChordService::clearPending() {
 		return;
 	}
 	hasPending_ = false;
-	display->displayPopup("CLR");
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHORD_BRUSH_CLEARED));
 }
 
 bool ChordService::placePendingAt(int32_t pos, int32_t length) {
@@ -101,7 +103,7 @@ bool ChordService::placePendingAt(int32_t pos, int32_t length) {
 	if (placedAny) {
 		// Keep the pending chord so it can be stamped on multiple steps (e.g. syncopated rhythms).
 		// It is cleared when the user leaves the piano-roll screen (see changeRootUI).
-		display->displayPopup("PLCD");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHORD_BRUSH_PLACED));
 	}
 	return placedAny;
 }
