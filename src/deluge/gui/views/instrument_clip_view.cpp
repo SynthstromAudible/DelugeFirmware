@@ -178,6 +178,11 @@ void InstrumentClipView::focusRegained() {
 
 	auditioningSilently = false; // Necessary?
 
+	// Reset any in-progress harmonic-brush placement gesture on (re)entering the view.
+	chordBrushStartX = -1;
+	chordBrushStartY = -1;
+	chordBrushPlaced = false;
+
 	InstrumentClipMinder::focusRegained();
 
 	setLedStates();
@@ -1877,20 +1882,50 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		// Tap-to-place a Pending Chord captured from a chord keyboard mode. One tap drops the whole
-		// chord at the tapped column's time position (the chord keeps its own pitches; the row is
-		// ignored), each note one step long at the current zoom, then clears the pending chord.
-		// Placement consumes notes and doesn't care which mode produced them.
-		if (velocity && ui::keyboard::ChordService::hasPending() && isUIModeWithinRange(editPadActionUIModes)) {
+		// Harmonic brush: while a chord is armed, the main grid stamps it (mirrors the note
+		// length-edit gesture). Tap a column = one-step chord; hold the start column and press an end
+		// column = chord stretched to span both. The chord keeps its own pitches; only the column(s)
+		// matter. We place once per gesture with the resolved length, so all notes stay aligned.
+		if (ui::keyboard::ChordService::hasPending() && getCurrentInstrumentClip()->output->type != OutputType::KIT) {
 			InstrumentClip* clip = getCurrentInstrumentClip();
-			if (clip->output->type != OutputType::KIT) {
-				int32_t pos = getPosFromSquare(x);
-				int32_t length = getSquareWidth(x, clip->loopLength);
-				if (ui::keyboard::ChordService::placePendingAt(pos, length)) {
-					uiNeedsRendering(this); // repaint so the placed notes light up immediately
+			if (velocity) { // press
+				if (isUIModeWithinRange(editPadActionUIModes)) {
+					if (chordBrushStartX < 0) {
+						// Anchor the gesture on the first press; placement waits for the end column or release.
+						chordBrushStartX = x;
+						chordBrushStartY = y;
+						chordBrushPlaced = false;
+					}
+					else if (!chordBrushPlaced && x != chordBrushStartX) {
+						// Second press while holding the start: place the chord spanning both columns.
+						int32_t lo = std::min(chordBrushStartX, x);
+						int32_t hi = std::max(chordBrushStartX, x);
+						int32_t pos = getPosFromSquare(lo);
+						int32_t length = getPosFromSquare(hi + 1) - pos;
+						length = std::min(length, clip->loopLength - pos);
+						if (length > 0 && ui::keyboard::ChordService::placePendingAt(pos, length)) {
+							uiNeedsRendering(this);
+						}
+						chordBrushPlaced = true;
+					}
 				}
 				return ActionResult::DEALT_WITH;
 			}
+			// release
+			if (chordBrushStartX >= 0 && x == chordBrushStartX && y == chordBrushStartY) {
+				// Start column released without an end column => a one-step chord at that column.
+				if (!chordBrushPlaced) {
+					int32_t pos = getPosFromSquare(chordBrushStartX);
+					int32_t length = getSquareWidth(chordBrushStartX, clip->loopLength);
+					if (ui::keyboard::ChordService::placePendingAt(pos, length)) {
+						uiNeedsRendering(this);
+					}
+				}
+				chordBrushStartX = -1;
+				chordBrushStartY = -1;
+				chordBrushPlaced = false;
+			}
+			return ActionResult::DEALT_WITH;
 		}
 
 		// Perhaps the user wants to enter the SoundEditor via a shortcut. They can do this by holding an audition pad

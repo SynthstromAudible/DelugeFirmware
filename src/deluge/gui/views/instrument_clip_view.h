@@ -279,6 +279,13 @@ public:
 	int32_t lastSelectedNoteXDisplay;
 	int32_t lastSelectedNoteYDisplay;
 
+	// Harmonic-brush placement gesture (when a chord is armed via ChordService). Mirrors the note
+	// length-edit gesture: tap a column = one-step chord; hold the start column and press an end
+	// column = chord stretched to span. -1 startX means no gesture in progress.
+	int32_t chordBrushStartX = -1;
+	int32_t chordBrushStartY = -1;
+	bool chordBrushPlaced = false;
+
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange);
 	void updateVelocityValue(int32_t& velocityValue, int32_t newVelocity);
