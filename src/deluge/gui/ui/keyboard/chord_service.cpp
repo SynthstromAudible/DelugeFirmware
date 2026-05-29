@@ -72,8 +72,9 @@ bool ChordService::placePendingAt(int32_t pos, int32_t length) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	// One grouped action shared by every note, so the whole chord is a single undo step.
-	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+	// A fresh action per placement (NOT_ALLOWED = don't merge with the previous one), shared by every
+	// note in THIS chord. So one chord = one undo step, and each stamped chord undoes independently.
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::NOT_ALLOWED);
 
 	bool placedAny = false;
 	for (uint8_t i = 0; i < pendingChord_.count; i++) {
