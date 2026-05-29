@@ -1099,6 +1099,17 @@ For a detailed description of this feature, please refer to the feature document
 - This keyboard highlights incoming MIDI notes.
 - You can set this keyboard by default in `MENU -> DEFAULTS -> UI -> KEYBOARD -> LAYOUT -> PIAN`
 
+### 4.4.1.9 - Harmonic Brush (Chord Placement) <Badge text="c1.3" variant="tip" />
+
+Place a whole chord into the piano roll the same way you place a note. The chord can come from any chord-producing mode (`CHORD`, `CHORD LIBRARY`) or even a chord played by hand on any keyboard layout — the brush captures whatever notes are currently sounding, so it is not tied to any one chord source. Requires the `Chord Brush (BRSH)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings)).
+
+- **Arm:** In a keyboard view, hold the notes of a chord (press a chord pad in `CHORD`/`CHORD LIBRARY`, or hold a chord by hand) and press :key[Select] to capture the sounding notes as a "harmonic brush". The display shows `PEND`. The brush stays armed until you replace or clear it.
+- **Place:** Switch to the piano roll with :key[Keyboard] and tap a step to stamp the whole chord at that column. The chord keeps its own pitches; only the column (time position) matters. The display shows `PLCD`. Tap multiple steps to stamp the chord repeatedly — useful for syncopated rhythms.
+- **Set length:** Exactly like a note, hold the start step and press a step further along to stretch the whole chord to that length.
+- **Undo:** :key[Back] removes the most recently stamped chord, one stamp per press.
+- **Replace:** Arm a new chord at any time to swap the brush.
+- **Clear:** Press :key[Select] while the brush is armed (in the keyboard view or the piano roll) to clear it. The display shows `CLR` and normal single-note editing resumes.
+
 ### 4.4.2 - Scales
 
 - (#991) <Badge text="c1.1" variant="tip" /> Added new scales for instrument clips.
@@ -1372,6 +1383,8 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
 
 - `Show Battery Level (BATT)` <Badge text="c1.3" variant="tip" />
   - When On, displays battery level information in the System menu. Shows voltage and percentage on OLED displays, percentage on 7-segment displays.
+- `Chord Brush (BRSH)` <Badge text="c1.3" variant="tip" />
+  - When On, enables the Harmonic Brush: capture a sounding chord in a keyboard view with :key[Select] and stamp it into the piano roll like a note. See [Harmonic Brush (Chord Placement)](#441---keyboard-view) under Keyboard View features. On by default.
 
 ## 6. Sysex Handling
 

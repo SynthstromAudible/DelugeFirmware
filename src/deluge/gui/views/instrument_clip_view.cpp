@@ -1886,7 +1886,9 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 		// length-edit gesture). Tap a column = one-step chord; hold the start column and press an end
 		// column = chord stretched to span both. The chord keeps its own pitches; only the column(s)
 		// matter. We place once per gesture with the resolved length, so all notes stay aligned.
-		if (ui::keyboard::ChordService::hasPending() && getCurrentInstrumentClip()->output->type != OutputType::KIT) {
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ChordBrush) == RuntimeFeatureStateToggle::On
+		    && ui::keyboard::ChordService::hasPending()
+		    && getCurrentInstrumentClip()->output->type != OutputType::KIT) {
 			InstrumentClip* clip = getCurrentInstrumentClip();
 			if (velocity) { // press
 				if (isUIModeWithinRange(editPadActionUIModes)) {

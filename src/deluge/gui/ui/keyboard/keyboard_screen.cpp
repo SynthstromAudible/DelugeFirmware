@@ -565,7 +565,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	// them as a Pending Chord, then tap a step in the piano roll to place it. Layout-agnostic — it
 	// reads the currently-sounding notes (currentNotesState), so it works in Chord Library, Chord,
 	// or even a hand-played chord on any layout, with no library required.
-	else if (b == SELECT_ENC && on && currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count > 0) {
+	else if (b == SELECT_ENC && on && currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count > 0
+	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::ChordBrush) == RuntimeFeatureStateToggle::On) {
 		PendingChord pending;
 		for (uint8_t i = 0; i < currentNotesState.count && pending.count < kMaxPendingChordNotes; i++) {
 			pending.notes[pending.count] = currentNotesState.notes[i].note;
