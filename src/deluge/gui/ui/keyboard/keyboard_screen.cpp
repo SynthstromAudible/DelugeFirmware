@@ -43,6 +43,7 @@
 #include "processing/sound/sound_instrument.h"
 #include <cstring>
 
+#include "gui/ui/keyboard/chord_service.h"
 #include "gui/ui/keyboard/layout.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/chord_library.h"
@@ -558,6 +559,19 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		cycleThroughScales();
 		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
+	}
+
+	// Chord Library: press the select encoder while holding a chord to commit it into the clip at
+	// the playhead (Chord Commit PoC). See docs/CHORD_COMMIT_POC_PLAN.md.
+	else if (b == SELECT_ENC && on && currentUIMode == UI_MODE_AUDITIONING
+	         && getCurrentInstrumentClip()->keyboardState.currentLayout
+	                == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary) {
+		auto* chordLayout = static_cast<layout::KeyboardLayoutChordLibrary*>(
+		    layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]);
+		ChordSelection selection;
+		if (chordLayout->getCommitSelection(selection)) {
+			ChordService::commit(selection, ChordPlacement::Playhead);
+		}
 	}
 
 	// store if the user is holding the x encoder

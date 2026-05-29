@@ -125,6 +125,18 @@ int8_t ChordList::validateChordNo(int8_t chordNo) {
 	}
 	return chordNo;
 }
+
+uint8_t resolveChordNotes(const ChordSelection& selection, int16_t* notesOut, uint8_t maxNotes) {
+	uint8_t count = 0;
+	for (int32_t i = 0; i < kMaxChordKeyboardSize && count < maxNotes; i++) {
+		int8_t offset = selection.voicing.offsets[i];
+		if (offset == NONE) {
+			continue;
+		}
+		notesOut[count++] = static_cast<int16_t>(selection.rootNote + offset);
+	}
+	return count;
+}
 // ChordList
 PLACE_SDRAM_DATA const Chord kEmptyChord = {"", NoteSet({ROOT}), {{0, NONE, NONE, NONE, NONE, NONE}}};
 PLACE_SDRAM_DATA const Chord kMajor = {"M",

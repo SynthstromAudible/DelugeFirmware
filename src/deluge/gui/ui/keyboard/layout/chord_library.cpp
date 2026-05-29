@@ -32,6 +32,7 @@ namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
+	hasSelection_ = false;            // Recomputed below if a chord pad is held
 	KeyboardStateChordLibrary& state = getState().chordLibrary;
 
 	// We run through the presses in reverse order to display the most recent pressed chord on top
@@ -45,16 +46,32 @@ void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboard
 			Voicing voicing = state.chordList.getChordVoicing(chordNo);
 			drawChordName(noteFromCoords(pressed.x), state.chordList.chords[chordNo].name, voicing.supplementalName);
 
-			for (int i = 0; i < kMaxChordKeyboardSize; i++) {
-				int32_t offset = voicing.offsets[i];
-				if (offset == NONE) {
-					continue;
-				}
-				enableNote(noteFromCoords(pressed.x) + offset, velocity);
+			// Build the selection and resolve it to notes. resolveChordNotes() is the single shared
+			// voicing path used by both this audition and ChordService::commit(), so the chord heard
+			// is exactly the chord written.
+			ChordSelection selection{.rootNote = noteFromCoords(pressed.x),
+			                         .voicing = voicing,
+			                         .chordNo = static_cast<int8_t>(chordNo),
+			                         .velocity = static_cast<uint8_t>(velocity)};
+			currentSelection_ = selection;
+			hasSelection_ = true;
+
+			int16_t notes[kMaxChordKeyboardSize];
+			uint8_t noteCount = resolveChordNotes(selection, notes, kMaxChordKeyboardSize);
+			for (uint8_t i = 0; i < noteCount; i++) {
+				enableNote(notes[i], velocity);
 			}
 		}
 	}
 	ColumnControlsKeyboard::evaluatePads(presses);
+}
+
+bool KeyboardLayoutChordLibrary::getCommitSelection(ChordSelection& out) const {
+	if (!hasSelection_) {
+		return false;
+	}
+	out = currentSelection_;
+	return true;
 }
 
 void KeyboardLayoutChordLibrary::handleVerticalEncoder(int32_t offset) {
