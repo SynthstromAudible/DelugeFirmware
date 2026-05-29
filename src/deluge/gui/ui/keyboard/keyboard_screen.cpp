@@ -575,6 +575,12 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		ChordService::capturePending(pending);
 	}
 
+	// Click the select encoder while a chord is armed (but not holding new notes) to clear the
+	// harmonic brush.
+	else if (b == SELECT_ENC && on && ChordService::hasPending()) {
+		ChordService::clearPending();
+	}
+
 	// store if the user is holding the x encoder
 	else if (b == X_ENC) {
 		xEncoderActive = on;

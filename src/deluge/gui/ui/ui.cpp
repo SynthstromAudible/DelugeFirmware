@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/ui/keyboard/chord_service.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
@@ -103,13 +102,6 @@ void changeRootUI(UI* newUI) {
 	newUI = newUI->getUI();
 	uiNavigationHierarchy[0] = newUI;
 	numUIsOpen = 1;
-
-	// A captured chord is only valid for placement in the piano roll. Clear it whenever we leave to
-	// any other root UI (it survives the keyboard-view -> clip-view handoff because that enters the
-	// instrument clip view).
-	if (newUI->getUIType() != UIType::INSTRUMENT_CLIP) {
-		deluge::gui::ui::keyboard::ChordService::clearPending();
-	}
 
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);

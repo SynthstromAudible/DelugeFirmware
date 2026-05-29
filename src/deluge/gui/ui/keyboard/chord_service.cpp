@@ -49,7 +49,11 @@ bool ChordService::hasPending() {
 }
 
 void ChordService::clearPending() {
+	if (!hasPending_) {
+		return;
+	}
 	hasPending_ = false;
+	display->displayPopup("CLR");
 }
 
 bool ChordService::placePendingAt(int32_t pos, int32_t length) {

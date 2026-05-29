@@ -264,6 +264,13 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	// Click the select encoder while a harmonic-chord brush is armed to clear it, returning to
+	// normal single-note editing.
+	if (b == SELECT_ENC && on && ui::keyboard::ChordService::hasPending()) {
+		ui::keyboard::ChordService::clearPending();
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Scale mode button
 	if (b == SCALE_MODE && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		return handleScaleButtonAction(on, inCardRoutine);
