@@ -27,6 +27,7 @@
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/keyboard/chord_service.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/menus.h"
@@ -1867,6 +1868,20 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 	if (x < kDisplayWidth) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+
+		// Tap-to-place a Pending Chord captured from a chord keyboard mode. One tap drops the whole
+		// chord at the tapped column's time position (the chord keeps its own pitches; the row is
+		// ignored), each note one step long at the current zoom, then clears the pending chord.
+		// Placement consumes notes and doesn't care which mode produced them.
+		if (velocity && ui::keyboard::ChordService::hasPending() && isUIModeWithinRange(editPadActionUIModes)) {
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (clip->output->type != OutputType::KIT) {
+				int32_t pos = getPosFromSquare(x);
+				int32_t length = getSquareWidth(x, clip->loopLength);
+				ui::keyboard::ChordService::placePendingAt(pos, length);
+				return ActionResult::DEALT_WITH;
+			}
 		}
 
 		// Perhaps the user wants to enter the SoundEditor via a shortcut. They can do this by holding an audition pad

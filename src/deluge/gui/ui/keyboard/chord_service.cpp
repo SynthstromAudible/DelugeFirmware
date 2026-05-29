@@ -28,54 +28,64 @@
 
 namespace deluge::gui::ui::keyboard {
 
-bool ChordService::commit(const ChordSelection& selection, ChordPlacement placement) {
-	// Phase 1: only playhead placement is implemented. Step / Pending are future phases.
-	if (placement != ChordPlacement::Playhead) {
-		return false;
-	}
+namespace {
+// Lives here (module state, not on a UI) so the pending chord survives the keyboard-view ->
+// clip-view switch.
+PendingChord pendingChord_;
+bool hasPending_ = false;
+} // namespace
 
-	int16_t notes[kMaxChordKeyboardSize];
-	uint8_t noteCount = resolveChordNotes(selection, notes, kMaxChordKeyboardSize);
-	if (noteCount == 0) {
+void ChordService::capturePending(const PendingChord& chord) {
+	if (chord.count == 0) {
+		return;
+	}
+	pendingChord_ = chord;
+	hasPending_ = true;
+	display->displayPopup("PEND");
+}
+
+bool ChordService::hasPending() {
+	return hasPending_;
+}
+
+void ChordService::clearPending() {
+	hasPending_ = false;
+}
+
+bool ChordService::placePendingAt(int32_t pos, int32_t length) {
+	if (!hasPending_ || pendingChord_.count == 0) {
 		return false;
 	}
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if (clip == nullptr || clip->output == nullptr || clip->output->type == OutputType::KIT) {
-		return false; // melodic clips only for the PoC
+		return false; // melodic clips only
+	}
+	if (length <= 0) {
+		length = kDefaultClipLength; // safety fallback
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	// Place every voicing note at the current playhead position, with a length of one step at the
-	// clip's current zoom (the same length a step-pad tap produces). We use attemptNoteAdd rather
-	// than recordNoteOn: recordNoteOn lays down a 1-tick note and relies on a later note-off (key
-	// release) to set the length, which a one-shot commit never sends — that left committed chords
-	// inaudibly short.
-	int32_t pos = static_cast<int32_t>(clip->getLivePos());
-	int32_t noteLength = static_cast<int32_t>(currentSong->xZoom[NAVIGATION_CLIP]);
-	if (noteLength <= 0) {
-		noteLength = kDefaultClipLength; // safety fallback
-	}
+	// One grouped action shared by every note, so the whole chord is a single undo step.
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
-	// One grouped RECORD action so the whole chord is a single undo step (the same action is passed
-	// to every attemptNoteAdd below, so their consequences coalesce into one undo).
-	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-
-	bool committedAny = false;
-	for (uint8_t i = 0; i < noteCount; i++) {
+	bool placedAny = false;
+	for (uint8_t i = 0; i < pendingChord_.count; i++) {
 		bool scaleAltered = false;
 		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    clip->getOrCreateNoteRowForYNote(notes[i], modelStack, action, &scaleAltered);
+		    clip->getOrCreateNoteRowForYNote(pendingChord_.notes[i], modelStack, action, &scaleAltered);
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 		if (noteRow != nullptr) {
+			// Explicit-position write at the tapped step, with an explicit length — the chord lands
+			// vertically aligned (all notes share pos + length).
 			int32_t probability = noteRow->getDefaultProbability();
 			auto iterance = noteRow->getDefaultIterance();
 			int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
-			noteRow->attemptNoteAdd(pos, noteLength, selection.velocity, probability, iterance, fill,
+			noteRow->attemptNoteAdd(pos, length, pendingChord_.velocity, probability, iterance, fill,
 			                        modelStackWithNoteRow, action);
-			committedAny = true;
+			placedAny = true;
 
 			if (action != nullptr && scaleAltered) {
 				action->updateYScrollClipViewAfter();
@@ -83,10 +93,11 @@ bool ChordService::commit(const ChordSelection& selection, ChordPlacement placem
 		}
 	}
 
-	if (committedAny) {
-		display->displayPopup("CHRD");
+	if (placedAny) {
+		display->displayPopup("PLCD");
+		hasPending_ = false;
 	}
-	return committedAny;
+	return placedAny;
 }
 
 } // namespace deluge::gui::ui::keyboard

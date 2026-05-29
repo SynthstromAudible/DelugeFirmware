@@ -45,12 +45,6 @@ public:
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 
-	/// @brief Get the chord currently held/auditioned, for committing into the clip.
-	///
-	/// Returns true and fills @p out if a chord pad is currently pressed; false otherwise. The
-	/// commit gesture is wired in KeyboardScreen, which calls this then ChordService::commit().
-	bool getCommitSelection(ChordSelection& out) const;
-
 protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
@@ -62,10 +56,6 @@ private:
 	std::array<RGB, kOctaveSize> noteColours;
 	std::array<RGB, kVerticalPages> pageColours;
 	bool initializedNoteOffset = false;
-
-	// The chord currently held in evaluatePads(), captured for the commit gesture.
-	ChordSelection currentSelection_;
-	bool hasSelection_ = false;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

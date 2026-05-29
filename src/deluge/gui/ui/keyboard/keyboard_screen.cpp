@@ -561,17 +561,18 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		requestRendering();
 	}
 
-	// Chord Library: press the select encoder while holding a chord to commit it into the clip at
-	// the playhead (Chord Commit PoC). See docs/CHORD_COMMIT_POC_PLAN.md.
-	else if (b == SELECT_ENC && on && currentUIMode == UI_MODE_AUDITIONING
-	         && getCurrentInstrumentClip()->keyboardState.currentLayout
-	                == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary) {
-		auto* chordLayout = static_cast<layout::KeyboardLayoutChordLibrary*>(
-		    layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]);
-		ChordSelection selection;
-		if (chordLayout->getCommitSelection(selection)) {
-			ChordService::commit(selection, ChordPlacement::Playhead);
+	// Any chord-producing keyboard mode: press the select encoder while holding notes to capture
+	// them as a Pending Chord, then tap a step in the piano roll to place it. Layout-agnostic — it
+	// reads the currently-sounding notes (currentNotesState), so it works in Chord Library, Chord,
+	// or even a hand-played chord on any layout, with no library required.
+	else if (b == SELECT_ENC && on && currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count > 0) {
+		PendingChord pending;
+		for (uint8_t i = 0; i < currentNotesState.count && pending.count < kMaxPendingChordNotes; i++) {
+			pending.notes[pending.count] = currentNotesState.notes[i].note;
+			pending.count++;
 		}
+		pending.velocity = currentNotesState.notes[0].velocity;
+		ChordService::capturePending(pending);
 	}
 
 	// store if the user is holding the x encoder

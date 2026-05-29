@@ -17,28 +17,42 @@
 
 #pragma once
 
-#include "gui/ui/keyboard/chords.h"
+#include <cstdint>
 
 namespace deluge::gui::ui::keyboard {
 
-/// @brief Where/how a committed chord is written into the clip.
+constexpr uint8_t kMaxPendingChordNotes = 16;
+
+/// @brief A captured chord, represented as a plain list of absolute MIDI notes.
 ///
-/// Phase 1 implements Playhead only. Step (explicit grid position via NoteRow::attemptNoteAdd) and
-/// Pending (staged cross-view) are designed-in for later phases but not implemented yet.
-/// See docs/HARMONIC_COMPOSITION_ARCHITECTURE.md.
-enum class ChordPlacement {
-	Playhead,
+/// Deliberately source-agnostic: it holds resolved notes, NOT a chord index/voicing, so any
+/// chord-producing mode (Chord Library, Chord, future chord memory / packs / favorites) can
+/// capture into it from its currently-sounding notes. Placement consumes this and does not care
+/// where the notes came from. See docs/HARMONIC_COMPOSITION_ARCHITECTURE.md.
+struct PendingChord {
+	int16_t notes[kMaxPendingChordNotes] = {};
+	uint8_t count = 0;
+	uint8_t velocity = 64;
 };
 
-/// @brief UI-agnostic entry point for committing a selected chord into the current clip.
+/// @brief UI-agnostic store + placement for a Pending Chord.
 ///
-/// Resolves the selection to notes and writes them through the existing clip note-write path,
-/// grouped as a single undoable action. Intended to be callable from any view (keyboard today,
-/// clip view later).
+/// Capture happens in a keyboard mode; placement happens later in the piano roll. The pending
+/// chord lives here (module state), so it survives the keyboard-view -> clip-view switch.
 namespace ChordService {
-/// Commit @p selection into the current instrument clip using @p placement.
-/// Returns true if at least one note was written.
-bool commit(const ChordSelection& selection, ChordPlacement placement);
+/// Store @p chord as the pending chord and show a "PEND" confirmation. No-op if it has no notes.
+void capturePending(const PendingChord& chord);
+
+/// True if there is a pending chord awaiting placement.
+bool hasPending();
+
+/// Discard the pending chord (e.g. on cancel).
+void clearPending();
+
+/// Place the pending chord's notes into the current melodic clip at tick @p pos, each @p length
+/// ticks long, as one undoable action. Clears the pending chord and shows "PLCD" on success.
+/// Returns true if at least one note was placed.
+bool placePendingAt(int32_t pos, int32_t length);
 } // namespace ChordService
 
 } // namespace deluge::gui::ui::keyboard
