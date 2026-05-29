@@ -48,8 +48,19 @@ bool ChordService::commit(const ChordSelection& selection, ChordPlacement placem
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	// One grouped RECORD action so the whole chord is a single undo step (ActionAddition::ALLOWED
-	// coalesces the per-note calls below into this one action).
+	// Place every voicing note at the current playhead position, with a length of one step at the
+	// clip's current zoom (the same length a step-pad tap produces). We use attemptNoteAdd rather
+	// than recordNoteOn: recordNoteOn lays down a 1-tick note and relies on a later note-off (key
+	// release) to set the length, which a one-shot commit never sends — that left committed chords
+	// inaudibly short.
+	int32_t pos = static_cast<int32_t>(clip->getLivePos());
+	int32_t noteLength = static_cast<int32_t>(currentSong->xZoom[NAVIGATION_CLIP]);
+	if (noteLength <= 0) {
+		noteLength = kDefaultClipLength; // safety fallback
+	}
+
+	// One grouped RECORD action so the whole chord is a single undo step (the same action is passed
+	// to every attemptNoteAdd below, so their consequences coalesce into one undo).
 	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 	bool committedAny = false;
@@ -59,9 +70,11 @@ bool ChordService::commit(const ChordSelection& selection, ChordPlacement placem
 		    clip->getOrCreateNoteRowForYNote(notes[i], modelStack, action, &scaleAltered);
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 		if (noteRow != nullptr) {
-			// recordNoteOn writes at the live playhead position, quantized; called once per voicing
-			// note with no playback advance between, so all notes land at the same position.
-			clip->recordNoteOn(modelStackWithNoteRow, selection.velocity);
+			int32_t probability = noteRow->getDefaultProbability();
+			auto iterance = noteRow->getDefaultIterance();
+			int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
+			noteRow->attemptNoteAdd(pos, noteLength, selection.velocity, probability, iterance, fill,
+			                        modelStackWithNoteRow, action);
 			committedAny = true;
 
 			if (action != nullptr && scaleAltered) {
