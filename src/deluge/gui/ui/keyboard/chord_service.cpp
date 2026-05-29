@@ -94,8 +94,9 @@ bool ChordService::placePendingAt(int32_t pos, int32_t length) {
 	}
 
 	if (placedAny) {
+		// Keep the pending chord so it can be stamped on multiple steps (e.g. syncopated rhythms).
+		// It is cleared when the user leaves the piano-roll screen (see changeRootUI).
 		display->displayPopup("PLCD");
-		hasPending_ = false;
 	}
 	return placedAny;
 }

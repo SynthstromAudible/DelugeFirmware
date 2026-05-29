@@ -1879,7 +1879,9 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 			if (clip->output->type != OutputType::KIT) {
 				int32_t pos = getPosFromSquare(x);
 				int32_t length = getSquareWidth(x, clip->loopLength);
-				ui::keyboard::ChordService::placePendingAt(pos, length);
+				if (ui::keyboard::ChordService::placePendingAt(pos, length)) {
+					uiNeedsRendering(this); // repaint so the placed notes light up immediately
+				}
 				return ActionResult::DEALT_WITH;
 			}
 		}
