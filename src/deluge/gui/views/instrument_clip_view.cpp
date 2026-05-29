@@ -181,7 +181,7 @@ void InstrumentClipView::focusRegained() {
 	// Reset any in-progress harmonic-brush placement gesture on (re)entering the view.
 	chordBrushStartX = -1;
 	chordBrushStartY = -1;
-	chordBrushPlaced = false;
+	chordBrushEndX = -1;
 
 	InstrumentClipMinder::focusRegained();
 
@@ -1893,39 +1893,41 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 			if (velocity) { // press
 				if (isUIModeWithinRange(editPadActionUIModes)) {
 					if (chordBrushStartX < 0) {
-						// Anchor the gesture on the first press; placement waits for the end column or release.
+						// Anchor the gesture; the chord is placed on release of this pad.
 						chordBrushStartX = x;
 						chordBrushStartY = y;
-						chordBrushPlaced = false;
+						chordBrushEndX = -1;
 					}
-					else if (!chordBrushPlaced && x != chordBrushStartX) {
-						// Second press while holding the start: place the chord spanning both columns.
-						int32_t lo = std::min(chordBrushStartX, x);
-						int32_t hi = std::max(chordBrushStartX, x);
-						int32_t pos = getPosFromSquare(lo);
-						int32_t length = getPosFromSquare(hi + 1) - pos;
-						length = std::min(length, clip->loopLength - pos);
-						if (length > 0 && ui::keyboard::ChordService::placePendingAt(pos, length)) {
-							uiNeedsRendering(this);
-						}
-						chordBrushPlaced = true;
+					else if (x != chordBrushStartX) {
+						// Track the end column while the start is held. Updates on every press, so the
+						// length can be extended OR shortened (last press wins).
+						chordBrushEndX = x;
 					}
 				}
 				return ActionResult::DEALT_WITH;
 			}
-			// release
+			// Release of the start pad commits the chord, using the final end column for length.
 			if (chordBrushStartX >= 0 && x == chordBrushStartX && y == chordBrushStartY) {
-				// Start column released without an end column => a one-step chord at that column.
-				if (!chordBrushPlaced) {
-					int32_t pos = getPosFromSquare(chordBrushStartX);
-					int32_t length = getSquareWidth(chordBrushStartX, clip->loopLength);
-					if (ui::keyboard::ChordService::placePendingAt(pos, length)) {
-						uiNeedsRendering(this);
-					}
+				int32_t pos;
+				int32_t length;
+				if (chordBrushEndX >= 0) {
+					int32_t lo = std::min(chordBrushStartX, chordBrushEndX);
+					int32_t hi = std::max(chordBrushStartX, chordBrushEndX);
+					pos = getPosFromSquare(lo);
+					length = getPosFromSquare(hi + 1) - pos;
+				}
+				else {
+					// Tapped a single column => one-step chord.
+					pos = getPosFromSquare(chordBrushStartX);
+					length = getSquareWidth(chordBrushStartX, clip->loopLength);
+				}
+				length = std::min(length, clip->loopLength - pos);
+				if (length > 0 && ui::keyboard::ChordService::placePendingAt(pos, length)) {
+					uiNeedsRendering(this);
 				}
 				chordBrushStartX = -1;
 				chordBrushStartY = -1;
-				chordBrushPlaced = false;
+				chordBrushEndX = -1;
 			}
 			return ActionResult::DEALT_WITH;
 		}

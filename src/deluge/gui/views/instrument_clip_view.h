@@ -281,10 +281,12 @@ public:
 
 	// Harmonic-brush placement gesture (when a chord is armed via ChordService). Mirrors the note
 	// length-edit gesture: tap a column = one-step chord; hold the start column and press an end
-	// column = chord stretched to span. -1 startX means no gesture in progress.
+	// column to stretch the chord across the span. The end column updates on each press while the
+	// start is held (last press wins, so you can extend OR shorten), and the chord is placed on
+	// release of the start pad. -1 startX means no gesture in progress; -1 endX means none pressed.
 	int32_t chordBrushStartX = -1;
 	int32_t chordBrushStartY = -1;
-	bool chordBrushPlaced = false;
+	int32_t chordBrushEndX = -1;
 
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange);
