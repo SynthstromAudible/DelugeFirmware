@@ -57,6 +57,11 @@ bool placePendingAt(int32_t pos, int32_t length);
 /// Copy the pending chord's notes into @p notesOut (up to @p maxNotes) and its velocity into
 /// @p velocityOut. Returns the number of notes (0 if nothing is pending). For audible preview.
 uint8_t getPendingNotes(int16_t* notesOut, uint8_t maxNotes, uint8_t* velocityOut);
+
+/// Re-voice the pending chord by ear, operating on the resolved notes (NOT chord theory), so it
+/// works on any captured payload. Positive @p steps move the lowest note up an octave; negative
+/// move the highest note down an octave. Mutates the pending chord in place.
+void voicingCycle(int8_t steps);
 } // namespace ChordService
 
 } // namespace deluge::gui::ui::keyboard

@@ -72,6 +72,39 @@ uint8_t ChordService::getPendingNotes(int16_t* notesOut, uint8_t maxNotes, uint8
 	return count;
 }
 
+void ChordService::voicingCycle(int8_t steps) {
+	if (!hasPending_ || pendingChord_.count == 0) {
+		return;
+	}
+	int8_t direction = steps > 0 ? 1 : -1;
+	int8_t count = steps > 0 ? steps : -steps;
+	for (int8_t s = 0; s < count; s++) {
+		// Find the lowest and highest note in the resolved payload.
+		uint8_t loIdx = 0;
+		uint8_t hiIdx = 0;
+		for (uint8_t i = 1; i < pendingChord_.count; i++) {
+			if (pendingChord_.notes[i] < pendingChord_.notes[loIdx]) {
+				loIdx = i;
+			}
+			if (pendingChord_.notes[i] > pendingChord_.notes[hiIdx]) {
+				hiIdx = i;
+			}
+		}
+		if (direction > 0) {
+			// Clockwise: move the lowest note up an octave (clamped to MIDI range).
+			if (pendingChord_.notes[loIdx] + 12 <= 127) {
+				pendingChord_.notes[loIdx] += 12;
+			}
+		}
+		else {
+			// Counterclockwise: move the highest note down an octave (clamped to MIDI range).
+			if (pendingChord_.notes[hiIdx] - 12 >= 0) {
+				pendingChord_.notes[hiIdx] -= 12;
+			}
+		}
+	}
+}
+
 bool ChordService::placePendingAt(int32_t pos, int32_t length) {
 	if (!hasPending_ || pendingChord_.count == 0) {
 		return false;

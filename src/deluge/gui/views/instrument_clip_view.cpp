@@ -1776,6 +1776,19 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
+	// Harmonic Brush: while holding a placement pad, the select encoder re-voices the armed chord by
+	// ear — clockwise moves the lowest note up an octave, counterclockwise the highest down — then
+	// re-auditions. The transformed payload is what gets placed on release.
+	if (chordBrushStartX >= 0 && ui::keyboard::ChordService::hasPending()
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::ChordBrush) == RuntimeFeatureStateToggle::On) {
+		auditionChordPreview(false);                      // stop the current voicing
+		ui::keyboard::ChordService::voicingCycle(offset); // transform the armed payload in place
+		auditionChordPreview(true);                       // sound the new voicing
+		display->displayPopup(deluge::l10n::get(offset > 0 ? deluge::l10n::String::STRING_FOR_VOICING_UP
+		                                                   : deluge::l10n::String::STRING_FOR_VOICING_DOWN));
+		return;
+	}
+
 	// User may be trying to edit noteCode...
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		if (Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {

@@ -534,6 +534,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CHORD_BRUSH_ARMED, "Armed"},
         {STRING_FOR_CHORD_BRUSH_PLACED, "Placed"},
         {STRING_FOR_CHORD_BRUSH_CLEARED, "Cleared"},
+        {STRING_FOR_VOICING_UP, "Voicing up"},
+        {STRING_FOR_VOICING_DOWN, "Voicing down"},
         {STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR, "Alternative Playback Start Behaviour"},
         {STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, "Grid View Loop Layer Pads"},
         {STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR, "Alternative Tap Tempo Behaviour"},
