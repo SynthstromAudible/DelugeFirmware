@@ -178,7 +178,11 @@ void InstrumentClipView::focusRegained() {
 
 	auditioningSilently = false; // Necessary?
 
-	// Reset any in-progress harmonic-brush placement gesture on (re)entering the view.
+	// Reset any in-progress harmonic-brush placement gesture on (re)entering the view, stopping its
+	// audible preview first so an interrupted gesture can't leave a note stuck on.
+	if (chordBrushStartX >= 0) {
+		auditionChordPreview(false);
+	}
 	chordBrushStartX = -1;
 	chordBrushStartY = -1;
 	chordBrushEndX = -1;
@@ -1897,6 +1901,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 						chordBrushStartX = x;
 						chordBrushStartY = y;
 						chordBrushEndX = -1;
+						auditionChordPreview(true); // sound the chord while you position/size it
 					}
 					else if (x != chordBrushStartX) {
 						// Track the end column while the start is held. Updates on every press, so the
@@ -1908,6 +1913,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 			}
 			// Release of the start pad commits the chord, using the final end column for length.
 			if (chordBrushStartX >= 0 && x == chordBrushStartX && y == chordBrushStartY) {
+				auditionChordPreview(false); // stop the preview before writing the notes
 				int32_t pos;
 				int32_t length;
 				if (chordBrushEndX >= 0) {
@@ -4754,6 +4760,30 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 		}
 		else {
 			((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, yNote);
+		}
+	}
+}
+
+void InstrumentClipView::auditionChordPreview(bool on) {
+	Instrument* instrument = getCurrentInstrument();
+	if (instrument == nullptr || instrument->type == OutputType::KIT) {
+		return; // melodic only
+	}
+	int16_t notes[ui::keyboard::kMaxPendingChordNotes];
+	uint8_t velocity = 64;
+	uint8_t count = ui::keyboard::ChordService::getPendingNotes(notes, ui::keyboard::kMaxPendingChordNotes, &velocity);
+	if (count == 0) {
+		return;
+	}
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	for (uint8_t i = 0; i < count; i++) {
+		if (on) {
+			static_cast<MelodicInstrument*>(instrument)
+			    ->beginAuditioningForNote(modelStack, notes[i], velocity, zeroMPEValues, MIDI_CHANNEL_NONE, 0);
+		}
+		else {
+			static_cast<MelodicInstrument*>(instrument)->endAuditioningForNote(modelStack, notes[i]);
 		}
 	}
 }

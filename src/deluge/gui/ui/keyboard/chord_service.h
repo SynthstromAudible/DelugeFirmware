@@ -53,6 +53,10 @@ void clearPending();
 /// ticks long, as one undoable action. Clears the pending chord and shows "PLCD" on success.
 /// Returns true if at least one note was placed.
 bool placePendingAt(int32_t pos, int32_t length);
+
+/// Copy the pending chord's notes into @p notesOut (up to @p maxNotes) and its velocity into
+/// @p velocityOut. Returns the number of notes (0 if nothing is pending). For audible preview.
+uint8_t getPendingNotes(int16_t* notesOut, uint8_t maxNotes, uint8_t* velocityOut);
 } // namespace ChordService
 
 } // namespace deluge::gui::ui::keyboard

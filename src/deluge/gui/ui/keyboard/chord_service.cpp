@@ -58,6 +58,20 @@ void ChordService::clearPending() {
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHORD_BRUSH_CLEARED));
 }
 
+uint8_t ChordService::getPendingNotes(int16_t* notesOut, uint8_t maxNotes, uint8_t* velocityOut) {
+	if (!hasPending_) {
+		return 0;
+	}
+	uint8_t count = pendingChord_.count < maxNotes ? pendingChord_.count : maxNotes;
+	for (uint8_t i = 0; i < count; i++) {
+		notesOut[i] = pendingChord_.notes[i];
+	}
+	if (velocityOut != nullptr) {
+		*velocityOut = pendingChord_.velocity;
+	}
+	return count;
+}
+
 bool ChordService::placePendingAt(int32_t pos, int32_t length) {
 	if (!hasPending_ || pendingChord_.count == 0) {
 		return false;

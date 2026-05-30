@@ -212,6 +212,8 @@ public:
 
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
+	/// Audible preview of the armed Harmonic Brush chord while placing it in the piano roll.
+	void auditionChordPreview(bool on);
 
 	// made these public so they can be accessed by the automation clip view
 	void setLedStates();
