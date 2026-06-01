@@ -76,6 +76,11 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		auto pressed = presses[idxPress];
+		// Playing a note on the main grid dismisses the persistent chord-memory shape highlight,
+		// so the white shape shows you the voicing then gets out of the way once you start playing.
+		if (pressed.active && pressed.x < kDisplayWidth) {
+			keyboardScreen.clearChordShapeHighlight();
+		}
 		// in note columns
 		if (pressed.x == LEFT_COL) {
 			if (pressed.active) {

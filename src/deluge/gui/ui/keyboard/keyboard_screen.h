@@ -57,6 +57,16 @@ public:
 
 	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
 
+	// Clear the persistent white chord-memory "shape" highlight (the 255 sentinels) so it gets out of
+	// the way as soon as the player starts playing. Leaves velocity-tinted incoming-note highlights alone.
+	inline void clearChordShapeHighlight() {
+		for (uint8_t& v : highlightedNotes) {
+			if (v == 255) {
+				v = 0;
+			}
+		}
+	}
+
 	void killColumnSwitchKey(int32_t column);
 
 	// ui

@@ -23,8 +23,9 @@
 
 namespace deluge::gui::ui::keyboard::controls {
 
-// Brightness of the persistent chord-shape highlight on the grid (0-127, velocity-like).
-constexpr uint8_t kChordMemHighlightBrightness = 90;
+// Sentinel written into highlightedNotes[] for a recalled chord. The keyboard layouts render 255 as
+// a full-white "shape" highlight (distinct from velocity-tinted incoming-note highlights, which are <=127).
+constexpr uint8_t kChordMemHighlightBrightness = 255;
 
 void SongChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
                                       KeyboardLayout* layout) {
