@@ -56,8 +56,8 @@ bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out, bool pre
 
 // A suggested next chord: its root pitch-class (0-11) and the ChordList index of its diatonic quality.
 struct ChordSuggestion {
-	uint8_t rootNote; // pitch class 0-11
-	int8_t chordNo;   // index into ChordList, -1 if the diatonic quality isn't in the table
+	uint8_t rootNote; // pitch class 0-11 of a suggested next root; the library lights every diatonic
+	int8_t chordNo;   // chord type at this root. chordNo is the diatonic 7th (kept for reference/scoring).
 };
 
 // Describe a held chord both ways for the live inspector: fills `absOut` with the absolute, key-spelled

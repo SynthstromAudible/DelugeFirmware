@@ -2541,8 +2541,10 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 		    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::KeyboardNotePreview)
 		           == RuntimeFeatureStateToggle::On) {
 			int32_t noteCode = getNoteCode();
-			if (noteCode >= 0 && noteCode < deluge::gui::ui::keyboard::kHighestKeyboardNote) {
-				// 254 = the DIM-white playback highlight (255 is the full-bright chord-shape white).
+			// 254 = the DIM-white playback highlight. Never disturb a 255 chord-memory shape that's
+			// painted on this pad — the stored shape owns it until it's cleared by chord memory.
+			if (noteCode >= 0 && noteCode < deluge::gui::ui::keyboard::kHighestKeyboardNote
+			    && keyboardScreen.highlightedNotes[noteCode] != 255) {
 				keyboardScreen.highlightedNotes[noteCode] = on ? 254 : 0;
 				keyboardScreen.requestRendering();
 			}

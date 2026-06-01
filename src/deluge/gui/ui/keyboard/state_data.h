@@ -62,6 +62,13 @@ struct KeyboardStateChord {
 	int32_t scaleOffset = 0;
 	bool autoVoiceLeading = false;
 };
+
+// Harmonic layout: degree columns × richness rows. Horizontal scroll moves through scale degrees;
+// octaveBase sets the register of the tonic (MIDI tonic = octaveBase*12 + key root pitch class).
+struct KeyboardStateHarmonic {
+	int32_t scrollSteps = 0; // horizontal scroll, in scale-degree steps (0 = tonic at column 0)
+	int32_t octaveBase = 4;  // octave of the tonic; vertical encoder shifts it
+};
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
 /// share one struct for storage
 struct KeyboardState {
@@ -73,6 +80,7 @@ struct KeyboardState {
 	KeyboardStatePiano piano;
 	KeyboardStateChord chord;
 	KeyboardStateChordLibrary chordLibrary;
+	KeyboardStateHarmonic harmonic;
 
 	layout::ColumnControlState columnControl;
 };

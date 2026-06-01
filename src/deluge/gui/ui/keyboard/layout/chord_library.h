@@ -64,10 +64,13 @@ private:
 	bool initializedNoteOffset = false;
 	int16_t lastAnchoredRoot = 0; // the root the grid is currently anchored to; re-anchor when it changes
 
-	// "Brain" next-chord suggestions: recomputed when you press a chord, flashed white on the grid,
-	// and kept until you press another (so you can see where to go next, then walk it).
+	// "Brain" next-chord suggestions: recomputed when you press a chord. The library pulses every
+	// diatonic chord type at each suggested root in white; the chord you pressed (home) pulses in its
+	// own colour so you always know where you are. Kept until you press another chord.
 	ChordSuggestion suggestions[3];
 	uint8_t numSuggestions = 0;
+	uint8_t homeRootPc = 0xFF; // pitch class of the chord you pressed (home), 0xFF = none
+	int8_t homeChordNo = -1;   // its chord type (row)
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

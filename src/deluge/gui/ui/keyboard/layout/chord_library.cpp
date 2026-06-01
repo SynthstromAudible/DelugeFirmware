@@ -31,6 +31,28 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
+namespace {
+// Suggestions used to pulse EVERY diatonic chord type at each suggested root — a flood, and it dragged
+// in bland extensions that "don't sound good." We now only light the CORE chords: the basic triads and
+// sevenths. At a diatonic root exactly one triad + one seventh fit the scale, so each suggested root
+// shows just its two strongest options. Indices match the ChordList order in chords.cpp.
+inline bool isCoreSuggestionChord(int32_t chordNo) {
+	switch (chordNo) {
+	case 1:  // kMajor
+	case 2:  // kMinor
+	case 8:  // k7
+	case 11: // kM7
+	case 12: // kMinor7
+	case 15: // kDim
+	case 17: // kAug
+	case 20: // kMinor7b5
+		return true;
+	default:
+		return false;
+	}
+}
+} // namespace
+
 void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
 	KeyboardStateChordLibrary& state = getState().chordLibrary;
@@ -59,9 +81,11 @@ void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboard
 				enableNote(notes[i], velocity);
 			}
 
-			// Brain: from the chord just pressed, suggest the next-best chords to flash on the grid.
+			// Brain: remember the chord just pressed (home) and suggest the next-best roots to flash.
 			if (getScaleModeEnabled()) {
 				uint8_t rootPc = noteFromCoords(pressed.x) % kOctaveSize;
+				homeRootPc = rootPc;
+				homeChordNo = static_cast<int8_t>(chordNo);
 				numSuggestions =
 				    suggestNextChords(getRootNote(), getScaleNotes(), getScaleNoteCount(), rootPc, suggestions, 3);
 			}
@@ -182,24 +206,35 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 		}
 	}
 
-	// Brain: flash the suggested next-best chords, on top of the normal rendering, so you can see where
-	// to go from the chord you just played. They sit at (root column, diatonic-quality row). The pads
-	// PULSE (breathe ~0.75s) so they stand out unmistakably from the static, similarly-bright library
-	// pads — motion is what separates them.
+	// Brain: pulse the harmonic options for where to go next. Every diatonic chord type at a suggested
+	// root pulses WHITE (triads, 7ths, 9ths — whatever fits the scale); the chord you pressed (home)
+	// pulses in its OWN colour, so you always know where you are. Pulse breathes ~0.75s to stand out.
 	uint8_t phase = (AudioEngine::audioSampleTimer >> 7) & 0xFF;     // sawtooth, full cycle ~0.75s
 	uint8_t tri = (phase < 128) ? (phase * 2) : ((255 - phase) * 2); // triangle 0..255..0
-	uint8_t pulse = 30 + (uint8_t)((uint32_t)tri * 225 / 255);       // breathe between dim and full white
-	for (uint8_t s = 0; s < numSuggestions; s++) {
-		if (suggestions[s].chordNo < 0) {
-			continue;
+	uint8_t pulse = 30 + (uint8_t)((uint32_t)tri * 225 / 255);       // breathe between dim and full
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		uint8_t rootPc = (uint8_t)(noteFromCoords(x) % kOctaveSize);
+		uint16_t noteWithinOctave = (uint16_t)((noteFromCoords(x) + kOctaveSize) - getRootNote()) % kOctaveSize;
+		bool suggestedRoot = false;
+		for (uint8_t s = 0; s < numSuggestions; s++) {
+			if (suggestions[s].rootNote == rootPc) {
+				suggestedRoot = true;
+				break;
+			}
 		}
-		int32_t y = suggestions[s].chordNo - state.chordList.chordRowOffset;
-		if (y < 0 || y >= kDisplayHeight) {
-			continue; // suggested quality is scrolled off-screen
-		}
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			if ((uint16_t)(noteFromCoords(x) % kOctaveSize) == suggestions[s].rootNote) {
-				image[y][x] = RGB::monochrome(pulse);
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			int32_t chordNo = getChordNo(y);
+			// Home (the chord you pressed) pulses in its own colour so you know where you are.
+			if (rootPc == homeRootPc && chordNo == homeChordNo) {
+				image[y][x] = noteColours[x % noteColours.size()].adjust(pulse, 1);
+			}
+			// Only the core diatonic chords (triad + 7th) at a suggested root pulse white — not the whole
+			// stack of extensions (that flooded the grid and surfaced bland chords).
+			else if (suggestedRoot && inScaleMode && isCoreSuggestionChord(chordNo)) {
+				NoteSet modulated = state.chordList.chords[chordNo].intervalSet.modulateByOffset(noteWithinOctave);
+				if (modulated.isSubsetOf(octaveScaleNotes)) {
+					image[y][x] = RGB::monochrome(pulse);
+				}
 			}
 		}
 	}
