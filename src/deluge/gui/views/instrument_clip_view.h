@@ -219,6 +219,7 @@ public:
 	void setLedStates();
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
+	bool drawHeldChordName(); // live chord inspector: names a held chord (Roman + absolute)
 	bool createNewInstrument(OutputType instrumentType, bool is_fm = false);
 	bool changeOutputType(OutputType newOutputType);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);

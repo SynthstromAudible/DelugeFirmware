@@ -100,6 +100,7 @@ private:
 	void enterScaleMode(int32_t selectedRootNote = kDefaultCalculateRootNote);
 	void exitScaleMode();
 	void drawNoteCode(int32_t noteCode);
+	bool drawHeldChordName(); // name a manually-played chord (2+ held notes) — Roman + absolute
 
 	PressedPad pressedPads[kMaxNumKeyboardPadPresses];
 	NotesState lastNotesState;

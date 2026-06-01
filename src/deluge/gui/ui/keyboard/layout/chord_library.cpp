@@ -108,12 +108,19 @@ void KeyboardLayoutChordLibrary::handleHorizontalEncoder(int32_t offset, bool sh
 
 void KeyboardLayoutChordLibrary::precalculate() {
 	KeyboardStateChordLibrary& state = getState().chordLibrary;
-	// On first render, offset by the root note. This can't be done in the constructor
-	// because at constructor time, root note changes from the default menu aren't seen yet
-	// or if the root note is changed in the song also isn't seen.
+	// Anchor the grid to the song's root note. On first entry we offset by the root; whenever the root
+	// later changes (e.g. set in the piano roll), we shift the grid by the delta so it re-anchors to the
+	// new root while preserving the user's horizontal scroll. (Previously this happened only once, so
+	// changing the key left the grid stuck on the old/default root — it would "reanchor to C".)
+	int16_t root = getRootNote();
 	if (!initializedNoteOffset) {
 		initializedNoteOffset = true;
-		state.noteOffset += getRootNote();
+		state.noteOffset += root;
+		lastAnchoredRoot = root;
+	}
+	else if (lastAnchoredRoot != root) {
+		state.noteOffset += (root - lastAnchoredRoot);
+		lastAnchoredRoot = root;
 	}
 
 	// Pre-Buffer colours for next renderings
@@ -199,9 +206,8 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 }
 
 void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
-	char noteName[3] = {0};
-	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(noteCode, noteName, &isNatural, false);
+	// Spell the root with flats or sharps to match the song's key (e.g. "Db" in F minor, not "C#").
+	const char* noteName = noteNameInKey(((noteCode % 12) + 12) % 12, keyPrefersFlats(getRootNote(), getScaleNotes()));
 
 	char fullChordName[300];
 
@@ -216,7 +222,6 @@ void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* cho
 		display->popupTextTemporary(fullChordName);
 	}
 	else {
-		int8_t drawDot = !isNatural ? 0 : 255;
 		display->setScrollingText(fullChordName, 0);
 	}
 }

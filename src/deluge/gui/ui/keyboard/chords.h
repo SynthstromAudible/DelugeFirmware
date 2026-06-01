@@ -43,15 +43,28 @@ enum class ChordQuality {
 // Check and return the quality of a chord, assuming the notes are defined from the root, even if it is a rootless chord
 ChordQuality getChordQuality(NoteSet& notes);
 
-// Try to name a chord from absolute note codes (e.g. "A-7"), matching against the chord table and
-// trying each note as the root so inversions still resolve. Returns true and fills `out` on a match.
-bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out);
+// Name a pitch class (0-11) with flats or sharps, e.g. preferFlats -> "Db", else "C#".
+const char* noteNameInKey(uint8_t pitchClass, bool preferFlats);
+
+// True if the key spells with flats (F/Bb/Eb/Ab/Db major + their relative minors), from the scale.
+bool keyPrefersFlats(uint8_t keyRootPc, NoteSet scale);
+
+// Try to name a chord from absolute note codes (e.g. "Db M7"), matching against the chord table and
+// trying each note as the root so inversions still resolve. `preferFlats` picks the accidental style
+// to match the key. Returns true and fills `out` on a match.
+bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out, bool preferFlats);
 
 // A suggested next chord: its root pitch-class (0-11) and the ChordList index of its diatonic quality.
 struct ChordSuggestion {
 	uint8_t rootNote; // pitch class 0-11
 	int8_t chordNo;   // index into ChordList, -1 if the diatonic quality isn't in the table
 };
+
+// Describe a held chord both ways for the live inspector: fills `absOut` with the absolute, key-spelled
+// name (e.g. "Db M7") and `romanOut` with the Roman numeral in the key (e.g. "bVIM7", empty if the root
+// isn't a diatonic degree of a 7-note scale). Returns true if the chord was recognised.
+bool describeChordInKey(const uint8_t* notes, int32_t count, uint8_t keyRootPc, NoteSet scale, char* absOut,
+                        char* romanOut);
 
 // The "brain": given the key root, the scale (NoteSet of intervals from root, 7-note scales only),
 // and the pitch class of the chord you're currently on, rank the diatonic chords you could go to next

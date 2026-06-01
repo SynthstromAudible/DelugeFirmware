@@ -28,6 +28,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/chord_service.h"
+#include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/menus.h"
@@ -5656,6 +5657,11 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 	}
 
 	if (getCurrentOutputType() != OutputType::KIT) {
+		// If several notes are held at the same step, show the CHORD name (Roman + absolute) instead of
+		// a single note — the live chord inspector.
+		if (drawHeldChordName()) {
+			return;
+		}
 		drawActualNoteCode(getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong));
 	}
 	else {
@@ -5665,6 +5671,40 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 			drawDrumName(thisKit->selectedDrum);
 		}
 	}
+}
+
+// Live chord inspector: if 2+ audition pads are held (a chord), name it (Roman + absolute, spelled to
+// the song's key) and show it. Read-only — reads which rows are auditioned, never edits notes.
+bool InstrumentClipView::drawHeldChordName() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	uint8_t notes[16];
+	int32_t count = 0;
+	for (int32_t y = 0; y < kDisplayHeight && count < 16; y++) {
+		if (auditionPadIsPressed[y]) {
+			int32_t note = clip->getYNoteFromYDisplay(y, currentSong);
+			if (note >= 0 && note < 128) {
+				notes[count++] = (uint8_t)note;
+			}
+		}
+	}
+	if (count < 2) {
+		return false;
+	}
+	char absName[40];
+	char roman[16];
+	if (!ui::keyboard::describeChordInKey(notes, count, currentSong->key.rootNote % 12, currentSong->key.modeNotes,
+	                                      absName, roman)) {
+		return false;
+	}
+	char full[64];
+	if (roman[0] != '\0') {
+		sprintf(full, "%s  %s", roman, absName);
+	}
+	else {
+		sprintf(full, "%s", absName);
+	}
+	display->setScrollingText(full);
+	return true;
 }
 
 void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {

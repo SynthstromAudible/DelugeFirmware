@@ -324,7 +324,31 @@ PLACE_SDRAM_DATA const std::array<const Chord, 10> otherChords = {
     kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
 };
 
-bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out) {
+// Name a pitch class with flats or sharps to match the key signature.
+const char* noteNameInKey(uint8_t pitchClass, bool preferFlats) {
+	static const char* const kSharpNames[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+	static const char* const kFlatNames[12] = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
+	return (preferFlats ? kFlatNames : kSharpNames)[pitchClass % 12];
+}
+
+// Does this key spell with flats? Determined from the circle of fifths: find the key's relative major
+// (minor keys -> +3 semitones) and check whether that major key is a flat key (F/Bb/Eb/Ab/Db).
+bool keyPrefersFlats(uint8_t keyRootPc, NoteSet scale) {
+	bool isMinor = scale.has(MIN3) && !scale.has(MAJ3); // minor-ish scale (minor 3rd, no major 3rd)
+	uint8_t majorRoot = isMinor ? (uint8_t)((keyRootPc + 3) % 12) : (uint8_t)(keyRootPc % 12);
+	switch (majorRoot) {
+	case 5:  // F
+	case 10: // Bb
+	case 3:  // Eb
+	case 8:  // Ab
+	case 1:  // Db
+		return true;
+	default:
+		return false; // C/G/D/A/E/B and F# -> sharps (or no accidentals)
+	}
+}
+
+bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out, bool preferFlats) {
 	if (count < 2) {
 		return false;
 	}
@@ -357,9 +381,7 @@ bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out) {
 		for (int32_t c = 0; c < kUniqueChords; c++) {
 			const Chord& chord = chordList.chords[c];
 			if (chord.name[0] != '\0' && intervals == chord.intervalSet) {
-				char rootName[5] = {0};
-				noteCodeToString(rootPc, rootName, nullptr, false);
-				sprintf(out, "%s%s", rootName, chord.name);
+				sprintf(out, "%s%s", noteNameInKey(rootPc, preferFlats), chord.name);
 				return true;
 			}
 		}
@@ -482,6 +504,86 @@ int suggestNextChords(uint8_t keyRoot, NoteSet scaleNotes, uint8_t scaleCount, u
 		count++;
 	}
 	return count;
+}
+
+bool describeChordInKey(const uint8_t* notes, int32_t count, uint8_t keyRootPc, NoteSet scale, char* absOut,
+                        char* romanOut) {
+	romanOut[0] = '\0';
+	if (count < 2) {
+		return false;
+	}
+	static ChordList chordList;
+	bool flats = keyPrefersFlats(keyRootPc, scale);
+
+	uint8_t bass = notes[0];
+	NoteSet present;
+	present.clear();
+	for (int32_t i = 0; i < count; i++) {
+		if (notes[i] < bass) {
+			bass = notes[i];
+		}
+		present.add(notes[i] % 12);
+	}
+	int32_t bassPc = bass % 12;
+
+	// scale degrees as intervals from the key root (for the Roman numeral)
+	uint8_t scaleIv[12];
+	int32_t scaleCount = 0;
+	for (int32_t i = 0; i < 12; i++) {
+		if (scale.has(i)) {
+			scaleIv[scaleCount++] = i;
+		}
+	}
+	static const char* const kRoman[7] = {"I", "II", "III", "IV", "V", "VI", "VII"};
+	static const int8_t kMajorRef[7] = {0, 2, 4, 5, 7, 9, 11};
+
+	for (int32_t attempt = -1; attempt < 12; attempt++) {
+		int32_t rootPc = (attempt < 0) ? bassPc : attempt;
+		if ((attempt >= 0 && rootPc == bassPc) || !present.has(rootPc)) {
+			continue;
+		}
+		NoteSet intervals;
+		intervals.clear();
+		for (int32_t i = 0; i < count; i++) {
+			intervals.add((((notes[i] % 12) - rootPc) + 12) % 12);
+		}
+		for (int32_t c = 0; c < kUniqueChords; c++) {
+			const Chord& chord = chordList.chords[c];
+			if (chord.name[0] == '\0' || !(intervals == chord.intervalSet)) {
+				continue;
+			}
+			// Absolute name, spelled to the key (e.g. "Db M7").
+			sprintf(absOut, "%s%s", noteNameInKey(rootPc, flats), chord.name);
+
+			// Roman numeral: only for 7-note scales when the root is a scale degree.
+			if (scaleCount == 7) {
+				for (int32_t d = 0; d < 7; d++) {
+					if (((keyRootPc + scaleIv[d]) % 12) != (uint32_t)rootPc) {
+						continue;
+					}
+					int32_t acc = scaleIv[d] - kMajorRef[d]; // -1 = flat, +1 = sharp degree
+					bool upper = chord.intervalSet.has(MAJ3);
+					char num[8];
+					int32_t n = 0;
+					if (acc < 0) {
+						num[n++] = 'b';
+					}
+					else if (acc > 0) {
+						num[n++] = '#';
+					}
+					const char* numeral = kRoman[d];
+					for (int32_t k = 0; numeral[k] != '\0'; k++) {
+						num[n++] = upper ? numeral[k] : (char)(numeral[k] - 'A' + 'a');
+					}
+					num[n] = '\0';
+					sprintf(romanOut, "%s%s", num, chord.name);
+					break;
+				}
+			}
+			return true;
+		}
+	}
+	return false;
 }
 
 } // namespace deluge::gui::ui::keyboard

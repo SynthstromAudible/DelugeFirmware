@@ -44,6 +44,10 @@ public:
 	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_CHORD_LIBRARY; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
+	// Chord library is inherently scale-based (diatonic chords, the suggestion brain), so it requires
+	// scale mode — this keeps your key on entry, lights the scale LED, and stops the scale button from
+	// toggling it off and re-entering at the default root (which read as "resets to C").
+	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }
 	// Keep re-rendering while suggestions are showing, so they pulse.
 	bool requestsContinuousRender() override { return numSuggestions > 0; }
 
@@ -58,6 +62,7 @@ private:
 	std::array<RGB, kOctaveSize> noteColours;
 	std::array<RGB, kVerticalPages> pageColours;
 	bool initializedNoteOffset = false;
+	int16_t lastAnchoredRoot = 0; // the root the grid is currently anchored to; re-anchor when it changes
 
 	// "Brain" next-chord suggestions: recomputed when you press a chord, flashed white on the grid,
 	// and kept until you press another (so you can see where to go next, then walk it).

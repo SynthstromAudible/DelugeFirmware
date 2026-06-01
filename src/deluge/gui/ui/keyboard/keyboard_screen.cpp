@@ -44,6 +44,7 @@
 #include <cstring>
 
 #include "gui/ui/keyboard/chord_service.h"
+#include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/chord_library.h"
@@ -305,7 +306,10 @@ void KeyboardScreen::updateActiveNotes() {
 		// Post sound logic for non-retrigger events
 		if (currentToLastIdx[idx] == -1) {
 			if (!currentNotesState.notes[idx].generatedNote) {
-				drawNoteCode(newNote);
+				// If you're playing a chord (2+ notes held), name the chord; else the single note.
+				if (!drawHeldChordName()) {
+					drawNoteCode(newNote);
+				}
 			}
 			enterUIMode(UI_MODE_AUDITIONING);
 
@@ -916,6 +920,40 @@ void KeyboardScreen::drawNoteCode(int32_t noteCode) {
 	if (getCurrentOutputType() != OutputType::KIT) {
 		drawActualNoteCode(noteCode);
 	}
+}
+
+// Name a manually-played chord: if 2+ notes are currently held, match them against the chord table
+// and show the name (Roman + absolute, spelled to the key). Returns false (caller shows the single
+// note) if fewer than 2 notes or no chord matched.
+bool KeyboardScreen::drawHeldChordName() {
+	if (currentNotesState.count < 2) {
+		return false;
+	}
+	uint8_t notes[16];
+	int32_t count = 0;
+	for (uint8_t i = 0; i < currentNotesState.count && count < 16; i++) {
+		int32_t n = currentNotesState.notes[i].note;
+		if (n >= 0 && n < 128) {
+			notes[count++] = (uint8_t)n;
+		}
+	}
+	if (count < 2) {
+		return false;
+	}
+	char absName[40];
+	char roman[16];
+	if (!describeChordInKey(notes, count, currentSong->key.rootNote % 12, currentSong->key.modeNotes, absName, roman)) {
+		return false;
+	}
+	char full[64];
+	if (roman[0] != '\0') {
+		sprintf(full, "%s  %s", roman, absName);
+	}
+	else {
+		sprintf(full, "%s", absName);
+	}
+	display->setScrollingText(full);
+	return true;
 }
 
 bool KeyboardScreen::getAffectEntire() {
