@@ -367,4 +367,121 @@ bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out) {
 	return false;
 }
 
+// Voice-leading distance: total minimal semitone movement to get from chord `a` to chord `b`
+// (each note of `a` finds its nearest note in `b`).
+static int32_t voiceDistance(const uint8_t* a, int32_t na, const uint8_t* b, int32_t nb) {
+	int32_t total = 0;
+	for (int32_t i = 0; i < na; i++) {
+		int32_t best = 12;
+		for (int32_t j = 0; j < nb; j++) {
+			int32_t d = ((a[i] - b[j]) + 12) % 12;
+			if (d > 6) {
+				d = 12 - d;
+			}
+			if (d < best) {
+				best = d;
+			}
+		}
+		total += best;
+	}
+	return total;
+}
+
+// Build the diatonic 7th on scale degree `deg`: fill pcsOut[4] with its pitch classes and return the
+// matching ChordList index (or -1 if its quality isn't in the table).
+static int8_t diatonicChord(uint8_t keyRoot, const uint8_t* scaleIv, int deg, uint8_t* pcsOut, ChordList& chordList) {
+	uint8_t rootPc = (keyRoot + scaleIv[deg]) % 12;
+	NoteSet intervals;
+	intervals.clear();
+	for (int32_t k = 0; k < 4; k++) {
+		uint8_t pc = (keyRoot + scaleIv[(deg + 2 * k) % 7]) % 12;
+		pcsOut[k] = pc;
+		intervals.add(((pc - rootPc) + 12) % 12);
+	}
+	for (int32_t c = 0; c < kUniqueChords; c++) {
+		if (chordList.chords[c].name[0] != '\0' && intervals == chordList.chords[c].intervalSet) {
+			return c;
+		}
+	}
+	return -1;
+}
+
+int suggestNextChords(uint8_t keyRoot, NoteSet scaleNotes, uint8_t scaleCount, uint8_t currentRootPc,
+                      ChordSuggestion* out, int32_t maxOut) {
+	if (scaleCount != 7) {
+		return 0; // the pull table is defined for 7-note scales (minor/major/modes)
+	}
+	static ChordList chordList;
+
+	// scale intervals from root, in order
+	uint8_t scaleIv[7];
+	int32_t idx = 0;
+	for (int32_t i = 0; i < 12 && idx < 7; i++) {
+		if (scaleNotes.has(i)) {
+			scaleIv[idx++] = i;
+		}
+	}
+	if (idx != 7) {
+		return 0;
+	}
+
+	int32_t curDeg = -1;
+	for (int32_t d = 0; d < 7; d++) {
+		if (((keyRoot + scaleIv[d]) % 12) == currentRootPc) {
+			curDeg = d;
+		}
+	}
+	if (curDeg < 0) {
+		return 0; // current chord isn't a diatonic root
+	}
+
+	uint8_t curPcs[4];
+	diatonicChord(keyRoot, scaleIv, curDeg, curPcs, chordList);
+
+	// deep-house functional pull: weight[from][to] (baseline 1, 0 on the diagonal). Ported from
+	// chord_suggest.py's DH_PULL — modal loops over classical V-I.
+	static const int8_t DH_PULL[7][7] = {
+	    {0, 1, 2, 4, 3, 5, 5}, {3, 0, 1, 2, 5, 1, 2}, {2, 1, 0, 2, 1, 4, 3}, {4, 2, 1, 0, 1, 3, 5},
+	    {5, 1, 1, 2, 0, 4, 2}, {3, 2, 1, 4, 1, 0, 5}, {5, 1, 1, 3, 2, 4, 0},
+	};
+
+	int32_t scores[7];
+	int32_t degs[7];
+	int32_t n = 0;
+	for (int32_t d = 0; d < 7; d++) {
+		if (d == curDeg) {
+			continue;
+		}
+		uint8_t pcs[4];
+		diatonicChord(keyRoot, scaleIv, d, pcs, chordList);
+		int32_t vd = voiceDistance(curPcs, 4, pcs, 4);
+		scores[n] = 10 * DH_PULL[curDeg][d] + 8 * (6 - vd); // W_PULL=1.0, W_VOICE=0.8 (x10)
+		degs[n] = d;
+		n++;
+	}
+	// selection sort, descending by score
+	for (int32_t i = 0; i < n; i++) {
+		for (int32_t j = i + 1; j < n; j++) {
+			if (scores[j] > scores[i]) {
+				int32_t ts = scores[i];
+				scores[i] = scores[j];
+				scores[j] = ts;
+				int32_t td = degs[i];
+				degs[i] = degs[j];
+				degs[j] = td;
+			}
+		}
+	}
+
+	int32_t count = 0;
+	for (int32_t i = 0; i < n && count < maxOut; i++) {
+		uint8_t pcs[4];
+		int8_t cn = diatonicChord(keyRoot, scaleIv, degs[i], pcs, chordList);
+		out[count].rootNote = (keyRoot + scaleIv[degs[i]]) % 12;
+		out[count].chordNo = cn;
+		count++;
+	}
+	return count;
+}
+
 } // namespace deluge::gui::ui::keyboard

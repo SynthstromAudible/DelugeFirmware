@@ -76,6 +76,8 @@ public:
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
 	virtual RequiredScaleMode requiredScaleMode() { return RequiredScaleMode::Undefined; }
+	/// Return true to have the keyboard re-render every graphics tick (e.g. to animate pulsing pads).
+	virtual bool requestsContinuousRender() { return false; }
 
 	virtual NotesState& getNotesState() { return currentNotesState; }
 

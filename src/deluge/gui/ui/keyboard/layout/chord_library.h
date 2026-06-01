@@ -44,6 +44,8 @@ public:
 	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_CHORD_LIBRARY; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
+	// Keep re-rendering while suggestions are showing, so they pulse.
+	bool requestsContinuousRender() override { return numSuggestions > 0; }
 
 protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
@@ -56,6 +58,11 @@ private:
 	std::array<RGB, kOctaveSize> noteColours;
 	std::array<RGB, kVerticalPages> pageColours;
 	bool initializedNoteOffset = false;
+
+	// "Brain" next-chord suggestions: recomputed when you press a chord, flashed white on the grid,
+	// and kept until you press another (so you can see where to go next, then walk it).
+	ChordSuggestion suggestions[3];
+	uint8_t numSuggestions = 0;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

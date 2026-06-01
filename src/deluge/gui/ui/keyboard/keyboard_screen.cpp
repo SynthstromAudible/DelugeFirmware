@@ -963,6 +963,11 @@ void KeyboardScreen::graphicsRoutine() {
 	keyboardTickSquares[kDisplayHeight - 1] = newTickSquare;
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
+
+	// Let the active layout drive continuous animation (e.g. the chord library pulsing its suggestions).
+	if (layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->requestsContinuousRender()) {
+		requestRendering();
+	}
 }
 
 } // namespace deluge::gui::ui::keyboard

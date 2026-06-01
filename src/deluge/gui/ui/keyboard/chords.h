@@ -47,6 +47,20 @@ ChordQuality getChordQuality(NoteSet& notes);
 // trying each note as the root so inversions still resolve. Returns true and fills `out` on a match.
 bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out);
 
+// A suggested next chord: its root pitch-class (0-11) and the ChordList index of its diatonic quality.
+struct ChordSuggestion {
+	uint8_t rootNote; // pitch class 0-11
+	int8_t chordNo;   // index into ChordList, -1 if the diatonic quality isn't in the table
+};
+
+// The "brain": given the key root, the scale (NoteSet of intervals from root, 7-note scales only),
+// and the pitch class of the chord you're currently on, rank the diatonic chords you could go to next
+// by a deep-house-weighted functional pull + voice-leading smoothness (ported from chord_suggest.py).
+// Fills `out` with up to `maxOut` suggestions, best first. Returns the count (0 if not a 7-note scale
+// or the current root isn't in the scale).
+int suggestNextChords(uint8_t keyRoot, NoteSet scaleNotes, uint8_t scaleCount, uint8_t currentRootPc,
+                      ChordSuggestion* out, int32_t maxOut);
+
 // Interval offsets for convenience
 const int8_t NONE = INT8_MAX;
 const int8_t ROOT = 0;

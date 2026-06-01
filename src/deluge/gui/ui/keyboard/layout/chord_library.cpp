@@ -25,6 +25,7 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 #include <stdlib.h>
 
@@ -56,6 +57,13 @@ void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboard
 			uint8_t noteCount = resolveChordNotes(selection, notes, kMaxChordKeyboardSize);
 			for (uint8_t i = 0; i < noteCount; i++) {
 				enableNote(notes[i], velocity);
+			}
+
+			// Brain: from the chord just pressed, suggest the next-best chords to flash on the grid.
+			if (getScaleModeEnabled()) {
+				uint8_t rootPc = noteFromCoords(pressed.x) % kOctaveSize;
+				numSuggestions =
+				    suggestNextChords(getRootNote(), getScaleNotes(), getScaleNoteCount(), rootPc, suggestions, 3);
 			}
 		}
 	}
@@ -163,6 +171,28 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 				else {
 					image[y][x] = noteColours[x % noteColours.size()].dim(4);
 				}
+			}
+		}
+	}
+
+	// Brain: flash the suggested next-best chords, on top of the normal rendering, so you can see where
+	// to go from the chord you just played. They sit at (root column, diatonic-quality row). The pads
+	// PULSE (breathe ~0.75s) so they stand out unmistakably from the static, similarly-bright library
+	// pads — motion is what separates them.
+	uint8_t phase = (AudioEngine::audioSampleTimer >> 7) & 0xFF;     // sawtooth, full cycle ~0.75s
+	uint8_t tri = (phase < 128) ? (phase * 2) : ((255 - phase) * 2); // triangle 0..255..0
+	uint8_t pulse = 30 + (uint8_t)((uint32_t)tri * 225 / 255);       // breathe between dim and full white
+	for (uint8_t s = 0; s < numSuggestions; s++) {
+		if (suggestions[s].chordNo < 0) {
+			continue;
+		}
+		int32_t y = suggestions[s].chordNo - state.chordList.chordRowOffset;
+		if (y < 0 || y >= kDisplayHeight) {
+			continue; // suggested quality is scrolled off-screen
+		}
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			if ((uint16_t)(noteFromCoords(x) % kOctaveSize) == suggestions[s].rootNote) {
+				image[y][x] = RGB::monochrome(pulse);
 			}
 		}
 	}
