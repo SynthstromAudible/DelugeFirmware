@@ -1875,6 +1875,18 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 	if (actuallySoundChange) {
 		playNote(false, modelStack, note);
 	}
+	// Clear this row's playback note-preview white (254) whenever it stops being sequenced — regardless
+	// of the sound-change path — so loops, cuts and re-triggers can't leave stale white pads lit.
+	{
+		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+		int32_t noteCode = getNoteCode();
+		if (clip == getCurrentInstrumentClip() && noteCode >= 0
+		    && noteCode < deluge::gui::ui::keyboard::kHighestKeyboardNote
+		    && keyboardScreen.highlightedNotes[noteCode] == 254) {
+			keyboardScreen.highlightedNotes[noteCode] = 0;
+			keyboardScreen.requestRendering();
+		}
+	}
 	sequenced = false;
 }
 
