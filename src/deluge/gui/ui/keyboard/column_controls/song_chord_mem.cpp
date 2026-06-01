@@ -16,9 +16,11 @@
  */
 
 #include "song_chord_mem.h"
+#include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "hid/buttons.h"
+#include "hid/display/display.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::ui::keyboard::controls {
@@ -82,12 +84,24 @@ void SongChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWith
 		activeChordMem = pad.y;
 		auto noteCount = currentSong->chordMemNoteCount[pad.y];
 		for (int i = 0; i < noteCount && i < MAX_NOTES_CHORD_MEM; i++) {
-			currentNotesState.enableNote(currentSong->chordMem[pad.y][i], layout->velocity);
+			// generatedNote=true suppresses the per-note name display so the chord NAME (shown below)
+			// wins on the iso/in-key grids, matching how the chord library shows chord names.
+			currentNotesState.enableNote(currentSong->chordMem[pad.y][i], layout->velocity, true);
 		}
 		currentSong->chordMemNoteCount[pad.y] = noteCount;
 		// Light the recalled chord's shape on the grid; it persists after release.
 		if (noteCount > 0) {
 			setHighlight(pad.y);
+			// Name the recalled chord and show it (so the slot teaches you what it is).
+			char chordName[48];
+			if (nameChordFromNotes(currentSong->chordMem[pad.y], noteCount, chordName)) {
+				if (display->haveOLED()) {
+					display->popupTextTemporary(chordName);
+				}
+				else {
+					display->setScrollingText(chordName);
+				}
+			}
 		}
 	}
 	else {

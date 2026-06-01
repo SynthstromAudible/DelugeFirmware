@@ -43,6 +43,10 @@ enum class ChordQuality {
 // Check and return the quality of a chord, assuming the notes are defined from the root, even if it is a rootless chord
 ChordQuality getChordQuality(NoteSet& notes);
 
+// Try to name a chord from absolute note codes (e.g. "A-7"), matching against the chord table and
+// trying each note as the root so inversions still resolve. Returns true and fills `out` on a match.
+bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out);
+
 // Interval offsets for convenience
 const int8_t NONE = INT8_MAX;
 const int8_t ROOT = 0;

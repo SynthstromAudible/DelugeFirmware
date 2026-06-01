@@ -20,7 +20,9 @@
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
+#include "util/functions.h"
 #include <array>
+#include <stdio.h>
 #include <stdlib.h>
 
 namespace deluge::gui::ui::keyboard {
@@ -321,5 +323,48 @@ PLACE_SDRAM_DATA const std::array<const Chord, 10> otherChords = {
     kSus2,       kSus4,       kEmptyChord, kEmptyChord, kEmptyChord,
     kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
 };
+
+bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out) {
+	if (count < 2) {
+		return false;
+	}
+	static ChordList chordList; // the named-chord table, built once
+
+	// Bass = lowest absolute note; the set of pitch classes present.
+	uint8_t bass = notes[0];
+	NoteSet present;
+	present.clear();
+	for (int32_t i = 0; i < count; i++) {
+		if (notes[i] < bass) {
+			bass = notes[i];
+		}
+		present.add(notes[i] % 12);
+	}
+	int32_t bassPc = bass % 12;
+
+	// Try the bass as the root first (root-position reading), then every other present pitch class
+	// (so inversions still resolve to a name).
+	for (int32_t attempt = -1; attempt < 12; attempt++) {
+		int32_t rootPc = (attempt < 0) ? bassPc : attempt;
+		if ((attempt >= 0 && rootPc == bassPc) || !present.has(rootPc)) {
+			continue;
+		}
+		NoteSet intervals;
+		intervals.clear();
+		for (int32_t i = 0; i < count; i++) {
+			intervals.add((((notes[i] % 12) - rootPc) + 12) % 12);
+		}
+		for (int32_t c = 0; c < kUniqueChords; c++) {
+			const Chord& chord = chordList.chords[c];
+			if (chord.name[0] != '\0' && intervals == chord.intervalSet) {
+				char rootName[5] = {0};
+				noteCodeToString(rootPc, rootName, nullptr, false);
+				sprintf(out, "%s%s", rootName, chord.name);
+				return true;
+			}
+		}
+	}
+	return false;
+}
 
 } // namespace deluge::gui::ui::keyboard
