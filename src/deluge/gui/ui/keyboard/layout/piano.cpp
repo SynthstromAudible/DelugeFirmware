@@ -98,18 +98,17 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 				int32_t noteWithinOctave = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
 				RGB colourSource = noteColours[y / 2];
 				// Active Root Note: Full brightness and colour (unless the white chord-shape wins)
-				if (noteWithinOctave == 0 && octaveActiveNotes[noteWithinOctave]
-				    && getHighlightedNotes()[note] != 255) {
+				if (noteWithinOctave == 0 && octaveActiveNotes[noteWithinOctave] && getHighlightedNotes()[note] < 254) {
 					image[y][x] = colourSource.adjust(255, 1);
 				}
-				// Highlighted notes. 255 is the chord-memory "shape" highlight: full white, always shown.
-				// Other values are velocity-tinted incoming notes, shown only when the toggle is on.
+				// White sentinels always show + win: 255 = chord-memory shape (full white), 254 = playback
+				// note-preview (dimmer white). Lower values are velocity-tinted incoming notes (toggle-gated).
 				else if (getHighlightedNotes()[note] != 0
-				         && (getHighlightedNotes()[note] == 255
+				         && (getHighlightedNotes()[note] >= 254
 				             || runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
 				                    == RuntimeFeatureStateToggle::On)) {
-					image[y][x] = (getHighlightedNotes()[note] == 255)
-					                  ? RGB::monochrome(255)
+					image[y][x] = (getHighlightedNotes()[note] >= 254)
+					                  ? RGB::monochrome(getHighlightedNotes()[note] == 255 ? 255 : 110)
 					                  : colourSource.adjust(getHighlightedNotes()[note], 1);
 				}
 				// Inactive Root Note: Full colour but less brightness

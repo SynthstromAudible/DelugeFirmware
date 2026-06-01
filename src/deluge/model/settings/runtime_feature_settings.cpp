@@ -175,6 +175,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ChordBrush], STRING_FOR_COMMUNITY_FEATURE_CHORD_BRUSH,
 	                  "chordBrush", RuntimeFeatureStateToggle::On);
 
+	// KeyboardNotePreview — light up played notes on the keyboard grid (incl. during playback)
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::KeyboardNotePreview],
+	                  STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_NOTE_PREVIEW, "keyboardNotePreview",
+	                  RuntimeFeatureStateToggle::On);
+
 	// AlternativePlaybackStartBehaviour
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour],
 	                  STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,

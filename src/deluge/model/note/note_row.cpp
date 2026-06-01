@@ -17,6 +17,7 @@
 
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -2521,6 +2522,20 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 	Output* output = clip->output;
 
 	if (output->type != OutputType::KIT) {
+		// Light the playing note on the keyboard grid, so playback shows as shapes on the iso/in-key
+		// grids (watch a progression move under your fingers). Only for the clip you're viewing, and
+		// only when note highlighting is enabled; cleared on the note-off.
+		if (clip == getCurrentInstrumentClip()
+		    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::KeyboardNotePreview)
+		           == RuntimeFeatureStateToggle::On) {
+			int32_t noteCode = getNoteCode();
+			if (noteCode >= 0 && noteCode < deluge::gui::ui::keyboard::kHighestKeyboardNote) {
+				// 254 = the DIM-white playback highlight (255 is the full-bright chord-shape white).
+				keyboardScreen.highlightedNotes[noteCode] = on ? 254 : 0;
+				keyboardScreen.requestRendering();
+			}
+		}
+
 		// If it's a note-on, we'll send it "soon", after all note-offs
 
 		if (on) {

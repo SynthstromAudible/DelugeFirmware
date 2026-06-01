@@ -111,18 +111,18 @@ void KeyboardLayoutInKey::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			RGB colourSource = noteColours[padIndex - getState().inKey.scrollOffset];
 
 			// Full brightness and colour for active root note (unless the white chord-shape wins)
-			if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale] && getHighlightedNotes()[note] != 255) {
+			if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale] && getHighlightedNotes()[note] < 254) {
 				image[y][x] = colourSource.adjust(255, 1);
 			}
-			// Highlighted notes. 255 is the chord-memory "shape" highlight: full white, always shown
-			// (the recalled voicing pops). Other values are velocity-tinted incoming notes, shown only
-			// when the HighlightIncomingNotes toggle is on.
+			// Highlighted notes. White sentinels always show + win: 255 = chord-memory shape (full white),
+			// 254 = playback note-preview (dimmer white). Lower values are velocity-tinted incoming notes,
+			// shown only when the HighlightIncomingNotes toggle is on.
 			else if (getHighlightedNotes()[note] != 0
-			         && (getHighlightedNotes()[note] == 255
+			         && (getHighlightedNotes()[note] >= 254
 			             || runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
 			                    == RuntimeFeatureStateToggle::On)) {
-				image[y][x] = (getHighlightedNotes()[note] == 255)
-				                  ? RGB::monochrome(255)
+				image[y][x] = (getHighlightedNotes()[note] >= 254)
+				                  ? RGB::monochrome(getHighlightedNotes()[note] == 255 ? 255 : 110)
 				                  : colourSource.adjust(getHighlightedNotes()[note], 1);
 			}
 			// Full colour but less brightness for inactive root note
