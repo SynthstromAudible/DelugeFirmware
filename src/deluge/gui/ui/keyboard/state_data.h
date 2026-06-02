@@ -62,6 +62,13 @@ struct KeyboardStateChord {
 	int32_t scaleOffset = 0;
 	bool autoVoiceLeading = false;
 };
+
+struct KeyboardStateExpressiveChords {
+	uint8_t setIndex = 0;
+	int32_t transpose = 0;
+	uint8_t inversion = 0;
+	uint8_t spread = 0;
+};
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
 /// share one struct for storage
 struct KeyboardState {
@@ -73,6 +80,7 @@ struct KeyboardState {
 	KeyboardStatePiano piano;
 	KeyboardStateChord chord;
 	KeyboardStateChordLibrary chordLibrary;
+	KeyboardStateExpressiveChords expressiveChords;
 
 	layout::ColumnControlState columnControl;
 };

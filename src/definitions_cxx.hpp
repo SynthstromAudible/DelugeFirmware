@@ -1036,6 +1036,7 @@ enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
 	KeyboardLayoutTypeInKey,
 	KeyboardLayoutTypePiano,
+	KeyboardLayoutTypeExpressiveChords,
 	KeyboardLayoutTypeChord,
 	KeyboardLayoutTypeChordLibrary,
 	KeyboardLayoutTypeDrums,
