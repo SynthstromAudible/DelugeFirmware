@@ -43,6 +43,37 @@ enum class ChordQuality {
 // Check and return the quality of a chord, assuming the notes are defined from the root, even if it is a rootless chord
 ChordQuality getChordQuality(NoteSet& notes);
 
+// Name a pitch class (0-11) with flats or sharps, e.g. preferFlats -> "Db", else "C#".
+const char* noteNameInKey(uint8_t pitchClass, bool preferFlats);
+
+// True if the key spells with flats (F/Bb/Eb/Ab/Db major + their relative minors), from the scale.
+bool keyPrefersFlats(uint8_t keyRootPc, NoteSet scale);
+
+// Try to name a chord from absolute note codes (e.g. "Db M7"), matching against the chord table and
+// trying each note as the root so inversions still resolve. `preferFlats` picks the accidental style
+// to match the key. Returns true and fills `out` on a match.
+bool nameChordFromNotes(const uint8_t* notes, int32_t count, char* out, bool preferFlats);
+
+// A suggested next chord: its root pitch-class (0-11) and the ChordList index of its diatonic quality.
+struct ChordSuggestion {
+	uint8_t rootNote; // pitch class 0-11 of a suggested next root; the library lights every diatonic
+	int8_t chordNo;   // chord type at this root. chordNo is the diatonic 7th (kept for reference/scoring).
+};
+
+// Describe a held chord both ways for the live inspector: fills `absOut` with the absolute, key-spelled
+// name (e.g. "Db M7") and `romanOut` with the Roman numeral in the key (e.g. "bVIM7", empty if the root
+// isn't a diatonic degree of a 7-note scale). Returns true if the chord was recognised.
+bool describeChordInKey(const uint8_t* notes, int32_t count, uint8_t keyRootPc, NoteSet scale, char* absOut,
+                        char* romanOut);
+
+// The "brain": given the key root, the scale (NoteSet of intervals from root, 7-note scales only),
+// and the pitch class of the chord you're currently on, rank the diatonic chords you could go to next
+// by a deep-house-weighted functional pull + voice-leading smoothness (ported from chord_suggest.py).
+// Fills `out` with up to `maxOut` suggestions, best first. Returns the count (0 if not a 7-note scale
+// or the current root isn't in the scale).
+int suggestNextChords(uint8_t keyRoot, NoteSet scaleNotes, uint8_t scaleCount, uint8_t currentRootPc,
+                      ChordSuggestion* out, int32_t maxOut);
+
 // Interval offsets for convenience
 const int8_t NONE = INT8_MAX;
 const int8_t ROOT = 0;
@@ -159,5 +190,24 @@ public:
 private:
 	int8_t validateChordNo(int8_t chordNo);
 };
+
+/// @brief A fully-specified chord instance: a root note plus the chosen voicing.
+///
+/// This is the value object that flows through the harmonic-composition system. Chord selection
+/// produces it; audition (keyboard) and commit (clip write) both consume it. It carries intent
+/// (root + interval offsets + velocity), never resolved absolute-note data, so it stays small and
+/// stable across views. See docs/HARMONIC_COMPOSITION_ARCHITECTURE.md.
+struct ChordSelection {
+	int32_t rootNote = 0; // absolute MIDI base note (e.g. 60 = C4)
+	Voicing voicing{};    // chosen voicing (interval offsets from the root)
+	int8_t chordNo = -1;  // index into ChordList, for naming / future re-voicing; -1 = none
+	uint8_t velocity = 64;
+};
+
+/// @brief Resolve a ChordSelection into absolute MIDI note numbers.
+///
+/// Pure: depends only on the selection. Shared by audition and commit so the chord heard is exactly
+/// the chord written. Writes up to @p maxNotes notes into @p notesOut and returns how many.
+uint8_t resolveChordNotes(const ChordSelection& selection, int16_t* notesOut, uint8_t maxNotes);
 
 } // namespace deluge::gui::ui::keyboard

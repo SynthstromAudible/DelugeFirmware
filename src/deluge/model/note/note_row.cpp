@@ -17,6 +17,7 @@
 
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -1874,6 +1875,18 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 	if (actuallySoundChange) {
 		playNote(false, modelStack, note);
 	}
+	// Clear this row's playback note-preview white (254) whenever it stops being sequenced — regardless
+	// of the sound-change path — so loops, cuts and re-triggers can't leave stale white pads lit.
+	{
+		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+		int32_t noteCode = getNoteCode();
+		if (clip == getCurrentInstrumentClip() && noteCode >= 0
+		    && noteCode < deluge::gui::ui::keyboard::kHighestKeyboardNote
+		    && keyboardScreen.highlightedNotes[noteCode] == 254) {
+			keyboardScreen.highlightedNotes[noteCode] = 0;
+			keyboardScreen.requestRendering();
+		}
+	}
 	sequenced = false;
 }
 
@@ -2521,6 +2534,22 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 	Output* output = clip->output;
 
 	if (output->type != OutputType::KIT) {
+		// Light the playing note on the keyboard grid, so playback shows as shapes on the iso/in-key
+		// grids (watch a progression move under your fingers). Only for the clip you're viewing, and
+		// only when note highlighting is enabled; cleared on the note-off.
+		if (clip == getCurrentInstrumentClip()
+		    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::KeyboardNotePreview)
+		           == RuntimeFeatureStateToggle::On) {
+			int32_t noteCode = getNoteCode();
+			// 254 = the DIM-white playback highlight. Never disturb a 255 chord-memory shape that's
+			// painted on this pad — the stored shape owns it until it's cleared by chord memory.
+			if (noteCode >= 0 && noteCode < deluge::gui::ui::keyboard::kHighestKeyboardNote
+			    && keyboardScreen.highlightedNotes[noteCode] != 255) {
+				keyboardScreen.highlightedNotes[noteCode] = on ? 254 : 0;
+				keyboardScreen.requestRendering();
+			}
+		}
+
 		// If it's a note-on, we'll send it "soon", after all note-offs
 
 		if (on) {

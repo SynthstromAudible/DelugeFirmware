@@ -25,10 +25,33 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 #include <stdlib.h>
 
 namespace deluge::gui::ui::keyboard::layout {
+
+namespace {
+// Suggestions used to pulse EVERY diatonic chord type at each suggested root — a flood, and it dragged
+// in bland extensions that "don't sound good." We now only light the CORE chords: the basic triads and
+// sevenths. At a diatonic root exactly one triad + one seventh fit the scale, so each suggested root
+// shows just its two strongest options. Indices match the ChordList order in chords.cpp.
+inline bool isCoreSuggestionChord(int32_t chordNo) {
+	switch (chordNo) {
+	case 1:  // kMajor
+	case 2:  // kMinor
+	case 8:  // k7
+	case 11: // kM7
+	case 12: // kMinor7
+	case 15: // kDim
+	case 17: // kAug
+	case 20: // kMinor7b5
+		return true;
+	default:
+		return false;
+	}
+}
+} // namespace
 
 void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
@@ -45,12 +68,26 @@ void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboard
 			Voicing voicing = state.chordList.getChordVoicing(chordNo);
 			drawChordName(noteFromCoords(pressed.x), state.chordList.chords[chordNo].name, voicing.supplementalName);
 
-			for (int i = 0; i < kMaxChordKeyboardSize; i++) {
-				int32_t offset = voicing.offsets[i];
-				if (offset == NONE) {
-					continue;
-				}
-				enableNote(noteFromCoords(pressed.x) + offset, velocity);
+			// resolveChordNotes() turns the selected chord+voicing into sounding notes. Capture for
+			// placement is handled generically in KeyboardScreen from currentNotesState, so it works
+			// here and in any other chord-producing mode.
+			ChordSelection selection{.rootNote = noteFromCoords(pressed.x),
+			                         .voicing = voicing,
+			                         .chordNo = static_cast<int8_t>(chordNo),
+			                         .velocity = static_cast<uint8_t>(velocity)};
+			int16_t notes[kMaxChordKeyboardSize];
+			uint8_t noteCount = resolveChordNotes(selection, notes, kMaxChordKeyboardSize);
+			for (uint8_t i = 0; i < noteCount; i++) {
+				enableNote(notes[i], velocity);
+			}
+
+			// Brain: remember the chord just pressed (home) and suggest the next-best roots to flash.
+			if (getScaleModeEnabled()) {
+				uint8_t rootPc = noteFromCoords(pressed.x) % kOctaveSize;
+				homeRootPc = rootPc;
+				homeChordNo = static_cast<int8_t>(chordNo);
+				numSuggestions =
+				    suggestNextChords(getRootNote(), getScaleNotes(), getScaleNoteCount(), rootPc, suggestions, 3);
 			}
 		}
 	}
@@ -95,12 +132,19 @@ void KeyboardLayoutChordLibrary::handleHorizontalEncoder(int32_t offset, bool sh
 
 void KeyboardLayoutChordLibrary::precalculate() {
 	KeyboardStateChordLibrary& state = getState().chordLibrary;
-	// On first render, offset by the root note. This can't be done in the constructor
-	// because at constructor time, root note changes from the default menu aren't seen yet
-	// or if the root note is changed in the song also isn't seen.
+	// Anchor the grid to the song's root note. On first entry we offset by the root; whenever the root
+	// later changes (e.g. set in the piano roll), we shift the grid by the delta so it re-anchors to the
+	// new root while preserving the user's horizontal scroll. (Previously this happened only once, so
+	// changing the key left the grid stuck on the old/default root — it would "reanchor to C".)
+	int16_t root = getRootNote();
 	if (!initializedNoteOffset) {
 		initializedNoteOffset = true;
-		state.noteOffset += getRootNote();
+		state.noteOffset += root;
+		lastAnchoredRoot = root;
+	}
+	else if (lastAnchoredRoot != root) {
+		state.noteOffset += (root - lastAnchoredRoot);
+		lastAnchoredRoot = root;
 	}
 
 	// Pre-Buffer colours for next renderings
@@ -161,12 +205,44 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 			}
 		}
 	}
+
+	// Brain: pulse the harmonic options for where to go next. Every diatonic chord type at a suggested
+	// root pulses WHITE (triads, 7ths, 9ths — whatever fits the scale); the chord you pressed (home)
+	// pulses in its OWN colour, so you always know where you are. Pulse breathes ~0.75s to stand out.
+	uint8_t phase = (AudioEngine::audioSampleTimer >> 7) & 0xFF;     // sawtooth, full cycle ~0.75s
+	uint8_t tri = (phase < 128) ? (phase * 2) : ((255 - phase) * 2); // triangle 0..255..0
+	uint8_t pulse = 30 + (uint8_t)((uint32_t)tri * 225 / 255);       // breathe between dim and full
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		uint8_t rootPc = (uint8_t)(noteFromCoords(x) % kOctaveSize);
+		uint16_t noteWithinOctave = (uint16_t)((noteFromCoords(x) + kOctaveSize) - getRootNote()) % kOctaveSize;
+		bool suggestedRoot = false;
+		for (uint8_t s = 0; s < numSuggestions; s++) {
+			if (suggestions[s].rootNote == rootPc) {
+				suggestedRoot = true;
+				break;
+			}
+		}
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			int32_t chordNo = getChordNo(y);
+			// Home (the chord you pressed) pulses in its own colour so you know where you are.
+			if (rootPc == homeRootPc && chordNo == homeChordNo) {
+				image[y][x] = noteColours[x % noteColours.size()].adjust(pulse, 1);
+			}
+			// Only the core diatonic chords (triad + 7th) at a suggested root pulse white — not the whole
+			// stack of extensions (that flooded the grid and surfaced bland chords).
+			else if (suggestedRoot && inScaleMode && isCoreSuggestionChord(chordNo)) {
+				NoteSet modulated = state.chordList.chords[chordNo].intervalSet.modulateByOffset(noteWithinOctave);
+				if (modulated.isSubsetOf(octaveScaleNotes)) {
+					image[y][x] = RGB::monochrome(pulse);
+				}
+			}
+		}
+	}
 }
 
 void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
-	char noteName[3] = {0};
-	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(noteCode, noteName, &isNatural, false);
+	// Spell the root with flats or sharps to match the song's key (e.g. "Db" in F minor, not "C#").
+	const char* noteName = noteNameInKey(((noteCode % 12) + 12) % 12, keyPrefersFlats(getRootNote(), getScaleNotes()));
 
 	char fullChordName[300];
 
@@ -181,7 +257,6 @@ void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* cho
 		display->popupTextTemporary(fullChordName);
 	}
 	else {
-		int8_t drawDot = !isNatural ? 0 : 255;
 		display->setScrollingText(fullChordName, 0);
 	}
 }

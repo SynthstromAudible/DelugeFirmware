@@ -212,11 +212,14 @@ public:
 
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
+	/// Audible preview of the armed Harmonic Brush chord while placing it in the piano roll.
+	void auditionChordPreview(bool on);
 
 	// made these public so they can be accessed by the automation clip view
 	void setLedStates();
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
+	bool drawHeldChordName(); // live chord inspector: names a held chord (Roman + absolute)
 	bool createNewInstrument(OutputType instrumentType, bool is_fm = false);
 	bool changeOutputType(OutputType newOutputType);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
@@ -278,6 +281,15 @@ public:
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth];
 	int32_t lastSelectedNoteXDisplay;
 	int32_t lastSelectedNoteYDisplay;
+
+	// Harmonic-brush placement gesture (when a chord is armed via ChordService). Mirrors the note
+	// length-edit gesture: tap a column = one-step chord; hold the start column and press an end
+	// column to stretch the chord across the span. The end column updates on each press while the
+	// start is held (last press wins, so you can extend OR shorten), and the chord is placed on
+	// release of the start pad. -1 startX means no gesture in progress; -1 endX means none pressed.
+	int32_t chordBrushStartX = -1;
+	int32_t chordBrushStartY = -1;
+	int32_t chordBrushEndX = -1;
 
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange);

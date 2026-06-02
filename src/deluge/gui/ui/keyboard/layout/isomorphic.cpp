@@ -119,15 +119,22 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 		int32_t noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
 
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			// Full colour for every octaves root and active notes
-			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
+			// Full colour for every octaves root and active notes — but let the white chord-shape
+			// highlight (255) win, so the recalled voicing reads as one uniform shape, root included.
+			if ((octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0)
+			    && getHighlightedNotes()[noteCode] < 254) {
 				image[y][x] = noteColours[normalizedPadOffset];
 			}
-			// If highlighting notes is active, do it
-			else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
-			             == RuntimeFeatureStateToggle::On
-			         && getHighlightedNotes()[noteCode] != 0) {
-				image[y][x] = noteColours[normalizedPadOffset].adjust(getHighlightedNotes()[noteCode], 1);
+			// Highlighted notes. The "white" sentinels always show and win over the note colour: 255 is
+			// the chord-memory shape (full white), 254 is the playback note-preview (dimmer white). Lower
+			// values are velocity-tinted incoming-note highlights, shown only when the toggle is on.
+			else if (getHighlightedNotes()[noteCode] != 0
+			         && (getHighlightedNotes()[noteCode] >= 254
+			             || runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+			                    == RuntimeFeatureStateToggle::On)) {
+				image[y][x] = (getHighlightedNotes()[noteCode] >= 254)
+				                  ? RGB::monochrome(getHighlightedNotes()[noteCode] == 255 ? 255 : 110)
+				                  : noteColours[normalizedPadOffset].adjust(getHighlightedNotes()[noteCode], 1);
 			}
 
 			// Or, if this note is just within the current scale, show it dim

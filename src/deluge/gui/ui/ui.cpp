@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "gui/ui/keyboard/chord_service.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
@@ -102,6 +103,13 @@ void changeRootUI(UI* newUI) {
 	newUI = newUI->getUI();
 	uiNavigationHierarchy[0] = newUI;
 	numUIsOpen = 1;
+
+	// The harmonic-chord brush is only for placing in the piano roll. Auto-disarm it when leaving to
+	// any other root UI so it does not stay stuck armed. It survives the keyboard-view -> clip-view
+	// capture handoff because that enters the instrument clip view.
+	if (newUI->getUIType() != UIType::INSTRUMENT_CLIP) {
+		deluge::gui::ui::keyboard::ChordService::clearPending();
+	}
 
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);

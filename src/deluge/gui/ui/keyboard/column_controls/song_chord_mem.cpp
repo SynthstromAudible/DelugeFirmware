@@ -16,11 +16,18 @@
  */
 
 #include "song_chord_mem.h"
+#include "gui/ui/keyboard/chords.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "hid/buttons.h"
+#include "hid/display/display.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::ui::keyboard::controls {
+
+// Sentinel written into highlightedNotes[] for a recalled chord. The keyboard layouts render 255 as
+// a full-white "shape" highlight (distinct from velocity-tinted incoming-note highlights, which are <=127).
+constexpr uint8_t kChordMemHighlightBrightness = 255;
 
 void SongChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
                                       KeyboardLayout* layout) {
@@ -41,6 +48,34 @@ bool SongChordMemColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 void SongChordMemColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                              KeyboardLayout* layout) {};
 
+// Clear the currently-highlighted chord's notes from the grid highlight array.
+void SongChordMemColumn::clearHighlight() {
+	if (highlightSlot == 0xFF) {
+		return;
+	}
+	for (int i = 0; i < currentSong->chordMemNoteCount[highlightSlot] && i < MAX_NOTES_CHORD_MEM; i++) {
+		uint8_t note = currentSong->chordMem[highlightSlot][i];
+		if (note < kHighestKeyboardNote) {
+			keyboardScreen.highlightedNotes[note] = 0;
+		}
+	}
+	highlightSlot = 0xFF;
+	keyboardScreen.requestRendering();
+}
+
+// Persistently light a stored chord's notes on the grid so its shape stays visible after release.
+void SongChordMemColumn::setHighlight(int32_t slot) {
+	clearHighlight();
+	for (int i = 0; i < currentSong->chordMemNoteCount[slot] && i < MAX_NOTES_CHORD_MEM; i++) {
+		uint8_t note = currentSong->chordMem[slot][i];
+		if (note < kHighestKeyboardNote) {
+			keyboardScreen.highlightedNotes[note] = kChordMemHighlightBrightness;
+		}
+	}
+	highlightSlot = slot;
+	keyboardScreen.requestRendering();
+}
+
 void SongChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                                    KeyboardLayout* layout) {
 	NotesState& currentNotesState = layout->getNotesState();
@@ -49,13 +84,35 @@ void SongChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWith
 		activeChordMem = pad.y;
 		auto noteCount = currentSong->chordMemNoteCount[pad.y];
 		for (int i = 0; i < noteCount && i < MAX_NOTES_CHORD_MEM; i++) {
-			currentNotesState.enableNote(currentSong->chordMem[pad.y][i], layout->velocity);
+			// generatedNote=true suppresses the per-note name display so the chord NAME (shown below)
+			// wins on the iso/in-key grids, matching how the chord library shows chord names.
+			currentNotesState.enableNote(currentSong->chordMem[pad.y][i], layout->velocity, true);
 		}
 		currentSong->chordMemNoteCount[pad.y] = noteCount;
+		// Light the recalled chord's shape on the grid; it persists after release.
+		if (noteCount > 0) {
+			setHighlight(pad.y);
+			// Name the recalled chord and show it (so the slot teaches you what it is), spelled with
+			// flats or sharps to match the song's key.
+			char chordName[48];
+			bool preferFlats = keyPrefersFlats(currentSong->key.rootNote % kOctaveSize, currentSong->key.modeNotes);
+			if (nameChordFromNotes(currentSong->chordMem[pad.y], noteCount, chordName, preferFlats)) {
+				if (display->haveOLED()) {
+					display->popupTextTemporary(chordName);
+				}
+				else {
+					display->setScrollingText(chordName);
+				}
+			}
+		}
 	}
 	else {
 		activeChordMem = 0xFF;
 		if ((!currentSong->chordMemNoteCount[pad.y] || Buttons::isShiftButtonPressed()) && currentNotesState.count) {
+			// Slot contents about to change — drop its stale highlight first.
+			if (highlightSlot == pad.y) {
+				clearHighlight();
+			}
 			auto noteCount = currentNotesState.count;
 			for (int i = 0; i < noteCount && i < MAX_NOTES_CHORD_MEM; i++) {
 				currentSong->chordMem[pad.y][i] = currentNotesState.notes[i].note;
@@ -63,6 +120,9 @@ void SongChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWith
 			currentSong->chordMemNoteCount[pad.y] = noteCount;
 		}
 		else if (Buttons::isShiftButtonPressed()) {
+			if (highlightSlot == pad.y) {
+				clearHighlight();
+			}
 			currentSong->chordMemNoteCount[pad.y] = 0;
 		}
 	}

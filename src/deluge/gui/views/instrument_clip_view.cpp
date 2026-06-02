@@ -27,6 +27,8 @@
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/keyboard/chord_service.h"
+#include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/menus.h"
@@ -177,6 +179,15 @@ void InstrumentClipView::focusRegained() {
 
 	auditioningSilently = false; // Necessary?
 
+	// Reset any in-progress harmonic-brush placement gesture on (re)entering the view, stopping its
+	// audible preview first so an interrupted gesture can't leave a note stuck on.
+	if (chordBrushStartX >= 0) {
+		auditionChordPreview(false);
+	}
+	chordBrushStartX = -1;
+	chordBrushStartY = -1;
+	chordBrushEndX = -1;
+
 	InstrumentClipMinder::focusRegained();
 
 	setLedStates();
@@ -262,6 +273,13 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
+
+	// Click the select encoder while a harmonic-chord brush is armed to clear it, returning to
+	// normal single-note editing.
+	if (b == SELECT_ENC && on && ui::keyboard::ChordService::hasPending()) {
+		ui::keyboard::ChordService::clearPending();
+		return ActionResult::DEALT_WITH;
+	}
 
 	// Scale mode button
 	if (b == SCALE_MODE && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
@@ -1759,6 +1777,19 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
+	// Harmonic Brush: while holding a placement pad, the select encoder re-voices the armed chord by
+	// ear — clockwise moves the lowest note up an octave, counterclockwise the highest down — then
+	// re-auditions. The transformed payload is what gets placed on release.
+	if (chordBrushStartX >= 0 && ui::keyboard::ChordService::hasPending()
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::ChordBrush) == RuntimeFeatureStateToggle::On) {
+		auditionChordPreview(false);                      // stop the current voicing
+		ui::keyboard::ChordService::voicingCycle(offset); // transform the armed payload in place
+		auditionChordPreview(true);                       // sound the new voicing
+		display->displayPopup(deluge::l10n::get(offset > 0 ? deluge::l10n::String::STRING_FOR_VOICING_UP
+		                                                   : deluge::l10n::String::STRING_FOR_VOICING_DOWN));
+		return;
+	}
+
 	// User may be trying to edit noteCode...
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		if (Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
@@ -1867,6 +1898,58 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 	if (x < kDisplayWidth) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+
+		// Harmonic brush: while a chord is armed, the main grid stamps it (mirrors the note
+		// length-edit gesture). Tap a column = one-step chord; hold the start column and press an end
+		// column = chord stretched to span both. The chord keeps its own pitches; only the column(s)
+		// matter. We place once per gesture with the resolved length, so all notes stay aligned.
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ChordBrush) == RuntimeFeatureStateToggle::On
+		    && ui::keyboard::ChordService::hasPending()
+		    && getCurrentInstrumentClip()->output->type != OutputType::KIT) {
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (velocity) { // press
+				if (isUIModeWithinRange(editPadActionUIModes)) {
+					if (chordBrushStartX < 0) {
+						// Anchor the gesture; the chord is placed on release of this pad.
+						chordBrushStartX = x;
+						chordBrushStartY = y;
+						chordBrushEndX = -1;
+						auditionChordPreview(true); // sound the chord while you position/size it
+					}
+					else if (x != chordBrushStartX) {
+						// Track the end column while the start is held. Updates on every press, so the
+						// length can be extended OR shortened (last press wins).
+						chordBrushEndX = x;
+					}
+				}
+				return ActionResult::DEALT_WITH;
+			}
+			// Release of the start pad commits the chord, using the final end column for length.
+			if (chordBrushStartX >= 0 && x == chordBrushStartX && y == chordBrushStartY) {
+				auditionChordPreview(false); // stop the preview before writing the notes
+				int32_t pos;
+				int32_t length;
+				if (chordBrushEndX >= 0) {
+					int32_t lo = std::min(chordBrushStartX, chordBrushEndX);
+					int32_t hi = std::max(chordBrushStartX, chordBrushEndX);
+					pos = getPosFromSquare(lo);
+					length = getPosFromSquare(hi + 1) - pos;
+				}
+				else {
+					// Tapped a single column => one-step chord.
+					pos = getPosFromSquare(chordBrushStartX);
+					length = getSquareWidth(chordBrushStartX, clip->loopLength);
+				}
+				length = std::min(length, clip->loopLength - pos);
+				if (length > 0 && ui::keyboard::ChordService::placePendingAt(pos, length)) {
+					uiNeedsRendering(this);
+				}
+				chordBrushStartX = -1;
+				chordBrushStartY = -1;
+				chordBrushEndX = -1;
+			}
+			return ActionResult::DEALT_WITH;
 		}
 
 		// Perhaps the user wants to enter the SoundEditor via a shortcut. They can do this by holding an audition pad
@@ -4695,6 +4778,30 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 	}
 }
 
+void InstrumentClipView::auditionChordPreview(bool on) {
+	Instrument* instrument = getCurrentInstrument();
+	if (instrument == nullptr || instrument->type == OutputType::KIT) {
+		return; // melodic only
+	}
+	int16_t notes[ui::keyboard::kMaxPendingChordNotes];
+	uint8_t velocity = 64;
+	uint8_t count = ui::keyboard::ChordService::getPendingNotes(notes, ui::keyboard::kMaxPendingChordNotes, &velocity);
+	if (count == 0) {
+		return;
+	}
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	for (uint8_t i = 0; i < count; i++) {
+		if (on) {
+			static_cast<MelodicInstrument*>(instrument)
+			    ->beginAuditioningForNote(modelStack, notes[i], velocity, zeroMPEValues, MIDI_CHANNEL_NONE, 0);
+		}
+		else {
+			static_cast<MelodicInstrument*>(instrument)->endAuditioningForNote(modelStack, notes[i]);
+		}
+	}
+}
+
 uint8_t InstrumentClipView::getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength) {
 	int32_t numInstances = 0;
 	uint32_t sum = 0;
@@ -5550,6 +5657,11 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 	}
 
 	if (getCurrentOutputType() != OutputType::KIT) {
+		// If several notes are held at the same step, show the CHORD name (Roman + absolute) instead of
+		// a single note — the live chord inspector.
+		if (drawHeldChordName()) {
+			return;
+		}
 		drawActualNoteCode(getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong));
 	}
 	else {
@@ -5559,6 +5671,40 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 			drawDrumName(thisKit->selectedDrum);
 		}
 	}
+}
+
+// Live chord inspector: if 2+ audition pads are held (a chord), name it (Roman + absolute, spelled to
+// the song's key) and show it. Read-only — reads which rows are auditioned, never edits notes.
+bool InstrumentClipView::drawHeldChordName() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	uint8_t notes[16];
+	int32_t count = 0;
+	for (int32_t y = 0; y < kDisplayHeight && count < 16; y++) {
+		if (auditionPadIsPressed[y]) {
+			int32_t note = clip->getYNoteFromYDisplay(y, currentSong);
+			if (note >= 0 && note < 128) {
+				notes[count++] = (uint8_t)note;
+			}
+		}
+	}
+	if (count < 2) {
+		return false;
+	}
+	char absName[40];
+	char roman[16];
+	if (!ui::keyboard::describeChordInKey(notes, count, currentSong->key.rootNote % 12, currentSong->key.modeNotes,
+	                                      absName, roman)) {
+		return false;
+	}
+	char full[64];
+	if (roman[0] != '\0') {
+		sprintf(full, "%s  %s", roman, absName);
+	}
+	else {
+		sprintf(full, "%s", absName);
+	}
+	display->setScrollingText(full);
+	return true;
 }
 
 void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {

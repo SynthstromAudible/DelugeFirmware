@@ -43,10 +43,13 @@
 #include "processing/sound/sound_instrument.h"
 #include <cstring>
 
+#include "gui/ui/keyboard/chord_service.h"
+#include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/chord_library.h"
 #include "gui/ui/keyboard/layout/column_control_state.h"
+#include "gui/ui/keyboard/layout/harmonic.h"
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
@@ -63,6 +66,7 @@ PLACE_SDRAM_DATA layout::KeyboardLayoutInKey keyboard_layout_in_key{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutPiano keyboard_layout_piano{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutChord keyboard_layout_chord{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
+PLACE_SDRAM_DATA layout::KeyboardLayoutHarmonic keyboard_layout_harmonic{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
 
@@ -72,6 +76,7 @@ KeyboardScreen::KeyboardScreen() {
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypePiano] = &keyboard_layout_piano;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeChord] = &keyboard_layout_chord;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = &keyboard_layout_chord_library;
+	layout_list[KeyboardLayoutType::KeyboardLayoutTypeHarmonic] = &keyboard_layout_harmonic;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeDrums] = &keyboard_layout_velocity_drums;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeNorns] = &keyboard_layout_norns;
 
@@ -304,7 +309,10 @@ void KeyboardScreen::updateActiveNotes() {
 		// Post sound logic for non-retrigger events
 		if (currentToLastIdx[idx] == -1) {
 			if (!currentNotesState.notes[idx].generatedNote) {
-				drawNoteCode(newNote);
+				// If you're playing a chord (2+ notes held), name the chord; else the single note.
+				if (!drawHeldChordName()) {
+					drawNoteCode(newNote);
+				}
 			}
 			enterUIMode(UI_MODE_AUDITIONING);
 
@@ -560,6 +568,27 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		requestRendering();
 	}
 
+	// Any chord-producing keyboard mode: press the select encoder while holding notes to capture
+	// them as a Pending Chord, then tap a step in the piano roll to place it. Layout-agnostic — it
+	// reads the currently-sounding notes (currentNotesState), so it works in Chord Library, Chord,
+	// or even a hand-played chord on any layout, with no library required.
+	else if (b == SELECT_ENC && on && currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count > 0
+	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::ChordBrush) == RuntimeFeatureStateToggle::On) {
+		PendingChord pending;
+		for (uint8_t i = 0; i < currentNotesState.count && pending.count < kMaxPendingChordNotes; i++) {
+			pending.notes[pending.count] = currentNotesState.notes[i].note;
+			pending.count++;
+		}
+		pending.velocity = currentNotesState.notes[0].velocity;
+		ChordService::capturePending(pending);
+	}
+
+	// Click the select encoder while a chord is armed (but not holding new notes) to clear the
+	// harmonic brush.
+	else if (b == SELECT_ENC && on && ChordService::hasPending()) {
+		ChordService::clearPending();
+	}
+
 	// store if the user is holding the x encoder
 	else if (b == X_ENC) {
 		xEncoderActive = on;
@@ -690,6 +719,8 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 
 	getCurrentInstrumentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentInstrumentClip()->keyboardState.currentLayout != lastLayout) {
+		// Switching layout is a context change, so disarm any harmonic-chord brush.
+		ChordService::clearPending();
 		display->displayPopup(l10n::get(layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->name()));
 	}
 
@@ -894,6 +925,40 @@ void KeyboardScreen::drawNoteCode(int32_t noteCode) {
 	}
 }
 
+// Name a manually-played chord: if 2+ notes are currently held, match them against the chord table
+// and show the name (Roman + absolute, spelled to the key). Returns false (caller shows the single
+// note) if fewer than 2 notes or no chord matched.
+bool KeyboardScreen::drawHeldChordName() {
+	if (currentNotesState.count < 2) {
+		return false;
+	}
+	uint8_t notes[16];
+	int32_t count = 0;
+	for (uint8_t i = 0; i < currentNotesState.count && count < 16; i++) {
+		int32_t n = currentNotesState.notes[i].note;
+		if (n >= 0 && n < 128) {
+			notes[count++] = (uint8_t)n;
+		}
+	}
+	if (count < 2) {
+		return false;
+	}
+	char absName[40];
+	char roman[16];
+	if (!describeChordInKey(notes, count, currentSong->key.rootNote % 12, currentSong->key.modeNotes, absName, roman)) {
+		return false;
+	}
+	char full[64];
+	if (roman[0] != '\0') {
+		sprintf(full, "%s  %s", roman, absName);
+	}
+	else {
+		sprintf(full, "%s", absName);
+	}
+	display->setScrollingText(full);
+	return true;
+}
+
 bool KeyboardScreen::getAffectEntire() {
 	return getCurrentInstrumentClip()->affectEntire;
 }
@@ -939,6 +1004,11 @@ void KeyboardScreen::graphicsRoutine() {
 	keyboardTickSquares[kDisplayHeight - 1] = newTickSquare;
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
+
+	// Let the active layout drive continuous animation (e.g. the chord library pulsing its suggestions).
+	if (layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->requestsContinuousRender()) {
+		requestRendering();
+	}
 }
 
 } // namespace deluge::gui::ui::keyboard
