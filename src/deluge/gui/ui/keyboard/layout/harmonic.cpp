@@ -79,6 +79,11 @@ const uint8_t kRichBright[kDisplayHeight] = {255, 160, 102, 66, 45, 32, 24, 18};
 const char* const kNumerals[7] = {"I", "II", "III", "IV", "V", "VI", "VII"};
 const uint8_t kMajorIv[7] = {0, 2, 4, 5, 7, 9, 11};
 
+// The brain marks each suggested degree's standard core: triad (bottom) + 7th. The user chooses richer
+// voicings themselves. (kLadder[0] = triad, kLadder[4] = "7".)
+constexpr int32_t kRowTriad = 0;
+constexpr int32_t kRow7th = 4;
+
 // Divider control strip: THREE toggle buttons at the TOP; every dark pad below them acts as a CLEAR
 // pad when tapped. The dark rows also visually separate the chord selector (left) from the keyboard.
 constexpr int32_t kBtnIsoView = kDisplayHeight - 1; // toggle in-key <-> chromatic iso view
@@ -158,55 +163,8 @@ void KeyboardLayoutHarmonic::recomputeSuggestions(uint8_t keyRoot, const uint8_t
 			break;
 		}
 	}
-
-	// For each suggested degree, recommend the RICHNESS that voice-leads smoothest from the chord you're
-	// playing now (deep-house lean toward lush), so the suggestion is a specific chord that can be a
-	// 9th/11th/13th — not locked to triad/7th. The chosen row is what flashes in renderPads.
-	bool curPc[12] = {};
-	for (uint8_t i = 0; i < chordNoteCount; i++) {
-		curPc[((chordNotes[i] % 12) + 12) % 12] = true;
-	}
-	const int32_t candRows[5] = {0, 4, 5, 6, 7};                       // triad, 7, 9, 11, 13
-	const int32_t lush[kDisplayHeight] = {0, 0, 0, 0, 20, 30, 30, 20}; // bias (x10): 7/9/11/13 lean lush
-	for (uint8_t d = 0; d < sc; d++) {
-		bestRichness[d] = 0;
-		if (degBright[d] == 0) {
-			continue;
-		}
-		int32_t bestScore = -1000000;
-		for (int32_t ci = 0; ci < 5; ci++) {
-			int32_t r = candRows[ci];
-			int16_t cn[kMaxChordKeyboardSize];
-			uint8_t cnt =
-			    buildChordAtDegree(d, r, iv, sc, keyRoot, cn, kMaxChordKeyboardSize, nullptr, nullptr, nullptr);
-			if (cnt == 0) {
-				continue;
-			}
-			int32_t tot = 0; // total nearest-note movement (semitones) from the current voicing
-			for (uint8_t k = 0; k < cnt; k++) {
-				uint8_t pc = (uint8_t)(((cn[k] % 12) + 12) % 12);
-				int32_t md = 12;
-				for (int32_t p = 0; p < 12; p++) {
-					if (curPc[p]) {
-						int32_t dd = (pc > p) ? (pc - p) : (p - pc);
-						if (dd > 6) {
-							dd = 12 - dd;
-						}
-						if (dd < md) {
-							md = dd;
-						}
-					}
-				}
-				tot += md;
-			}
-			int32_t avg = (tot * 10) / cnt; // per-note movement (x10), fair across chord sizes
-			int32_t score = lush[r] - avg;  // smoother = higher; lush bias breaks ties toward 9/11
-			if (score > bestScore) {
-				bestScore = score;
-				bestRichness[d] = (uint8_t)r;
-			}
-		}
-	}
+	// Richness is the USER's choice — the brain only marks each suggested degree's standard core (triad +
+	// 7th) in renderPads; you decide how lush by playing where you want in that column.
 }
 
 uint8_t KeyboardLayoutHarmonic::buildChordAtDegree(uint8_t deg, int32_t y, const uint8_t* iv, uint8_t sc,
@@ -488,9 +446,9 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 					        .g = (uint8_t)((c.g + 255) >> 1),
 					        .b = (uint8_t)((c.b + 255) >> 1)};
 				}
-				// Brain: each suggested degree flashes ONE cell — the specific chord (its brain-recommended
-				// richness, which can be a 9th/11th/13th) — white, brightness = how strong the move is.
-				else if (haveBrain && x != selDeg && degBright[x] > 0 && y == bestRichness[x]) {
+				// Brain: each suggested degree flashes its standard core — triad + 7th — white, brightness =
+				// how strong the move is. Richness beyond that is the user's call (play up the column).
+				else if (haveBrain && x != selDeg && degBright[x] > 0 && (y == kRowTriad || y == kRow7th)) {
 					c = RGB::monochrome((uint8_t)((uint32_t)pulse * degBright[x] / 255));
 				}
 				image[y][x] = c;

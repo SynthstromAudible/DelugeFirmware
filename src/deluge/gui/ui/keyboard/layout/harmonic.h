@@ -80,13 +80,12 @@ private:
 	int8_t selDeg = -1;      // selected degree column 0-6 (-1 = none)
 	int8_t selRichness = -1; // selected richness row 0-(kDisplayHeight-1)
 
-	// Brain: ranks ALL diatonic next chords. Each degree column is shaded by how strong a move it is
-	// (brightest = best next, dim = weak); only the single best pick flashes white.
+	// Brain: ranks the diatonic next chords. Each suggested degree's triad + 7th flash, brightness = how
+	// strong a move it is. Richness beyond the core is the user's choice.
 	ChordSuggestion suggestions[7];
 	uint8_t numSuggestions = 0;
-	uint8_t degBright[7] = {};    // per-degree brightness (0-255) = strength as a next move; 0 when no brain
-	uint8_t bestRichness[7] = {}; // per-degree: the richness row the brain recommends moving to (triad..13)
-	int8_t topDeg = -1;           // the single strongest next degree (white-flashed); -1 = none
+	uint8_t degBright[7] = {}; // per-degree brightness (0-255) = strength as a next move; 0 when no brain
+	int8_t topDeg = -1;        // the single strongest next degree; -1 = none
 
 	uint8_t dividerHeldMask = 0; // rows of the divider control-strip held last frame (rising-edge detect)
 };
