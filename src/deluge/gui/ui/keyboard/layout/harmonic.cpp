@@ -19,6 +19,7 @@
 #include "gui/colour/colour.h"
 #include "gui/ui/keyboard/chords.h"
 #include "hid/display/display.h"
+#include "processing/engines/audio_engine.h"
 #include <stdio.h>
 
 namespace deluge::gui::ui::keyboard::layout {
@@ -99,6 +100,32 @@ int32_t KeyboardLayoutHarmonic::isoNoteAt(int32_t x, int32_t y) {
 	int32_t octave = padIndex / sc;
 	int32_t idx = padIndex % sc;
 	return octave * 12 + getRootNote() + getScaleNotes()[idx];
+}
+
+int32_t KeyboardLayoutHarmonic::isoNoteChromatic(int32_t x, int32_t y) {
+	// Standard chromatic isomorphic mapping (like the Isomorphic keyboard): semitone per column,
+	// rowInterval semitones per row. Shares the Isomorphic layout's scroll/rowInterval so the toggled
+	// view reads exactly like that keyboard. x is offset so the panel's left edge == iso col 0.
+	return getState().isomorphic.scrollOffset + (x - kIsoStartCol) + y * getState().isomorphic.rowInterval;
+}
+
+void KeyboardLayoutHarmonic::recomputeSuggestions(uint8_t keyRoot, const uint8_t* iv, uint8_t sc, uint8_t homeRootPc) {
+	suggestedDegMask = 0;
+	numSuggestions = 0;
+	// The brain is diatonic-7-note only (same constraint as the Chord Library's brain).
+	if (sc != 7 || !getScaleModeEnabled()) {
+		return;
+	}
+	numSuggestions = (uint8_t)suggestNextChords(keyRoot, getScaleNotes(), sc, homeRootPc, suggestions, 3);
+	// Map each suggested root pitch-class back to its degree column so we can flash that whole column.
+	for (uint8_t s = 0; s < numSuggestions; s++) {
+		for (uint8_t d = 0; d < sc; d++) {
+			if ((uint8_t)((keyRoot + iv[d]) % 12) == suggestions[s].rootNote) {
+				suggestedDegMask |= (uint8_t)(1u << d);
+				break;
+			}
+		}
+	}
 }
 
 uint8_t KeyboardLayoutHarmonic::buildChordAtDegree(uint8_t deg, int32_t y, const uint8_t* iv, uint8_t sc,
@@ -192,15 +219,22 @@ void KeyboardLayoutHarmonic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 	uint8_t numCols = (sc > 7) ? 7 : sc;
 	heldCols = 0;
 
+	bool dividerNow = false;
 	for (int32_t idx = kMaxNumKeyboardPadPresses - 1; idx >= 0; --idx) {
 		PressedPad pressed = presses[idx];
 		if (!pressed.active || pressed.x >= kDisplayWidth) {
 			continue;
 		}
+		if (pressed.x == kDividerCol) {
+			// The divider column doubles as the iso-view toggle: one press flips in-key <-> chromatic.
+			dividerNow = true;
+			continue;
+		}
 		if (pressed.x >= kIsoStartCol) {
-			// Right block: the iso panel — playing it clears the chord overlay so you can free-play clean.
-			chordPcMask = 0;
-			int32_t note = isoNoteAt(pressed.x, pressed.y);
+			// Right block: the iso panel. Play the note; KEEP the selected chord shape on screen (so you
+			// can still see which shape you're studying) — played notes just light on top in their colours.
+			int32_t note = getState().harmonic.isoChromatic ? isoNoteChromatic(pressed.x, pressed.y)
+			                                                : isoNoteAt(pressed.x, pressed.y);
 			if (note >= 0 && note <= 127) {
 				enableNote((uint8_t)note, velocity);
 			}
@@ -221,8 +255,23 @@ void KeyboardLayoutHarmonic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 				chordPcMask |= (uint16_t)(1u << (notes[i] % 12)); // remember the chord's pitch-classes
 			}
 			heldCols |= (uint16_t)(1u << pressed.x);
+			// Persist the selection so the white highlight + iso shape stay after release, and ask the
+			// brain where to go next (suggested degree columns flash white in renderPads).
+			selDeg = (int8_t)deg;
+			selRichness =
+			    (int8_t)((pressed.y < 0) ? 0 : (pressed.y >= kDisplayHeight ? kDisplayHeight - 1 : pressed.y));
+			recomputeSuggestions(keyRoot, iv, sc, rootPc);
 		}
 	}
+
+	// Edge-detect the divider toggle so holding it doesn't flip every frame.
+	if (dividerNow && !dividerHeld) {
+		bool& chromatic = getState().harmonic.isoChromatic;
+		chromatic = !chromatic;
+		display->displayPopup(chromatic ? "CHRO" : "KEY");
+	}
+	dividerHeld = dividerNow;
+
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
@@ -252,36 +301,58 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 	uint8_t sc = getScaleIntervals(iv);
 	uint8_t keyRoot = (uint8_t)getRootNote();
 	uint8_t numCols = (sc > 7) ? 7 : sc;
+	bool chromatic = getState().harmonic.isoChromatic;
 	(void)iv;
+
+	// Breathing white pulse for the brain's next-chord suggestions (same cadence as the Chord Library).
+	uint8_t phase = (AudioEngine::audioSampleTimer >> 7) & 0xFF;     // sawtooth, full cycle ~0.75s
+	uint8_t tri = (phase < 128) ? (phase * 2) : ((255 - phase) * 2); // triangle 0..255..0
+	uint8_t pulse = 30 + (uint8_t)((uint32_t)tri * 225 / 255);       // breathe between dim and full
 
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		if (x < kExplorerCols) {
-			// LEFT: the chord explorer — each column a distinct hue, shading light->dark up the rows.
+			// LEFT: the chord explorer. Each column a distinct hue; the ROOT/triad (bottom) is lightest and
+			// the column darkens upward as the chord grows lusher. The brain flashes suggested degree columns
+			// white; the selected chord's cell is highlighted so you see which shape the iso panel is showing.
 			if (x >= numCols) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 					image[y][x] = RGB{};
 				}
 				continue;
 			}
+			bool suggested = (suggestedDegMask >> x) & 1u;
 			RGB hue = kDegreeHue[x % 7];
-			bool held = (heldCols >> x) & 1u;
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				int32_t bright = held ? 255 : (255 - y * 30); // triad full -> 13 dim: a clear gradient up
-				if (bright < 35) {
-					bright = 35;
+				if (suggested) {
+					image[y][x] = RGB::monochrome(pulse); // brain: flash this whole degree column white
+					continue;
 				}
-				image[y][x] = hue.adjustFractional((uint16_t)bright, 255);
+				int32_t bright = 255 - y * 28; // bottom (root/triad) lightest -> darker up the richness ladder
+				if (bright < 45) {
+					bright = 45;
+				}
+				RGB c = hue.adjustFractional((uint16_t)bright, 255);
+				if (x == selDeg && y == selRichness) {
+					// Selected chord: a bright near-white tint of the column colour so it clearly reads as
+					// "this is the chord you're looking at" while still showing which degree it belongs to.
+					c = RGB{.r = (uint8_t)((c.r + 255) >> 1),
+					        .g = (uint8_t)((c.g + 255) >> 1),
+					        .b = (uint8_t)((c.b + 255) >> 1)};
+				}
+				image[y][x] = c;
 			}
 		}
-		else if (x < kIsoStartCol) {
-			// Blank divider column.
+		else if (x == kDividerCol) {
+			// Divider / iso-view toggle. Dim so it's plainly not a play pad; tinted by the current mode
+			// (warm white = in-key, cyan = chromatic) as a quiet status light.
+			RGB tint = chromatic ? RGB{.r = 0, .g = 12, .b = 14} : RGB{.r = 12, .g = 12, .b = 12};
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				image[y][x] = RGB{};
+				image[y][x] = tint;
 			}
 		}
-		else {
-			// RIGHT: in-key iso. Coloured scale grid (dim), bright coloured tonic anchor, the voiced chord
-			// pops white, and notes you play light in their own colours.
+		else if (!chromatic) {
+			// RIGHT (in-key): matches the In-Key keyboard. Dim coloured scale grid, steady coloured tonic
+			// anchor, the selected chord shape pops white, notes you play light in their own colours.
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				int32_t note = isoNoteAt(x, y);
 				int32_t clamped = (note < 0) ? 0 : (note > 127 ? 127 : note);
@@ -307,6 +378,38 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 				}
 				else {
 					image[y][x] = nc.dim(4); // quiet dim coloured in-key grid, so chord/tonic stand out
+				}
+			}
+		}
+		else {
+			// RIGHT (chromatic): matches the standard Isomorphic keyboard. Scale notes dim-coloured, root &
+			// played notes full colour, off-scale dark; the selected chord shape still pops white on top.
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				int32_t note = isoNoteChromatic(x, y);
+				int32_t clamped = (note < 0) ? 0 : (note > 127 ? 127 : note);
+				uint8_t pc = (uint8_t)(((clamped % 12) + 12) % 12);
+				uint8_t within = (uint8_t)(((pc + kOctaveSize) - keyRoot) % kOctaveSize); // 0 = scale tonic
+				bool playing = false;
+				for (uint8_t i = 0; i < currentNotesState.count; i++) {
+					if (currentNotesState.notes[i].note == note) {
+						playing = true;
+						break;
+					}
+				}
+				bool inChord = (chordPcMask & (uint16_t)(1u << pc)) != 0;
+				bool inScale = getScaleNotes().has(within);
+				RGB nc = getNoteColour((uint8_t)clamped);
+				if (inChord) {
+					image[y][x] = RGB::monochrome(255); // selected chord shape
+				}
+				else if (playing || within == 0) {
+					image[y][x] = nc; // root + played notes at full colour
+				}
+				else if (inScale) {
+					image[y][x] = nc.forTail(); // dim scale note, like the Isomorphic keyboard
+				}
+				else {
+					image[y][x] = RGB::monochrome(0); // off-scale: dark
 				}
 			}
 		}

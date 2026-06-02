@@ -48,23 +48,41 @@ public:
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }
+	// Keep re-rendering while the brain has suggestions, so the white next-chord pulse breathes.
+	bool requestsContinuousRender() override { return numSuggestions > 0; }
 
 protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
 	static constexpr int32_t kExplorerCols = 7;                // left block: the 7 in-key chords (cols 0-6)
-	static constexpr int32_t kIsoStartCol = kExplorerCols + 1; // iso panel starts here; col 7 is a blank divider
+	static constexpr int32_t kDividerCol = kExplorerCols;      // col 7: blank divider AND the iso-view toggle pad
+	static constexpr int32_t kIsoStartCol = kExplorerCols + 1; // iso panel starts here (cols 8-15)
 	static constexpr int32_t kIsoRowStep = 3;                  // iso panel: scale-steps per row (in-key)
 
 	uint8_t getScaleIntervals(uint8_t* ivOut);
 	uint8_t buildChordAtDegree(uint8_t deg, int32_t y, const uint8_t* iv, uint8_t sc, uint8_t keyRoot,
 	                           int16_t* notesOut, uint8_t maxNotes, uint8_t* rootPcOut, char* romanOut, char* absOut);
-	int32_t isoNoteAt(int32_t x, int32_t y); // in-key, anchored to the explorer's octave (tonic at bottom-left)
+	int32_t isoNoteAt(int32_t x, int32_t y);        // in-key mapping (matches the In-Key keyboard)
+	int32_t isoNoteChromatic(int32_t x, int32_t y); // standard chromatic isomorphic mapping
+	void recomputeSuggestions(uint8_t keyRoot, const uint8_t* iv, uint8_t sc, uint8_t homeRootPc);
 	void drawName(const char* roman, const char* abs);
 
 	uint16_t heldCols = 0;    // explorer columns currently held (light up as feedback)
 	uint16_t chordPcMask = 0; // pitch-classes of the selected chord — the iso shape; 0 = cleared (free play)
+
+	// Persisted selection: the chord you last picked. Drives the white highlight on the left and the
+	// shape on the iso panel, and stays put after you release so you can study the shape.
+	int8_t selDeg = -1;      // selected degree column 0-6 (-1 = none)
+	int8_t selRichness = -1; // selected richness row 0-(kDisplayHeight-1)
+
+	// Brain: next-chord suggestions, recomputed on each pick. The suggested degree columns flash white,
+	// exactly like the Chord Library's brain.
+	ChordSuggestion suggestions[3];
+	uint8_t numSuggestions = 0;
+	uint8_t suggestedDegMask = 0; // bitmask of degree columns (bit d) the brain suggests going to next
+
+	bool dividerHeld = false; // edge-detect the iso-view toggle so one press flips it once
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout
