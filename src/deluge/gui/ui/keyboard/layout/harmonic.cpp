@@ -432,11 +432,6 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				// Richness gradient: bottom (triad) bright -> top (complex) dim, on a perceptual ramp.
 				RGB c = hue.adjustFractional(kRichBright[y], 255);
-				// Brain: shade the WHOLE column by how strong a next move this degree is (home stays full,
-				// weak moves dim) — so you see the whole map. The single best pick flashes white below.
-				if (haveBrain) {
-					c = c.adjustFractional(degBright[x], 255);
-				}
 				if (x == selDeg && y == selRichness) {
 					// Selected chord cell: a bright near-white tint of the column colour so you can see which
 					// chord the iso panel is showing, while keeping the column's degree colour.
@@ -444,8 +439,11 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 					        .g = (uint8_t)((c.g + 255) >> 1),
 					        .b = (uint8_t)((c.b + 255) >> 1)};
 				}
-				if (haveBrain && x == topDeg && y == brainRow) {
-					c = RGB::monochrome(pulse); // the single strongest next chord, at your current richness
+				// Brain: each suggested next chord flashes as a single WHITE cell at your current richness
+				// row; the flash brightness = how strong the move is (best brightest, weaker dimmer), so the
+				// several flashing cells ARE the ranked options.
+				else if (haveBrain && y == brainRow && x != selDeg && degBright[x] > 0) {
+					c = RGB::monochrome((uint8_t)((uint32_t)pulse * degBright[x] / 255));
 				}
 				image[y][x] = c;
 			}
