@@ -220,6 +220,8 @@ void KeyboardLayoutHarmonic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 	heldCols = 0;
 
 	bool dividerNow = false;
+	bool isoPlayed = false;
+	bool leftPicked = false;
 	for (int32_t idx = kMaxNumKeyboardPadPresses - 1; idx >= 0; --idx) {
 		PressedPad pressed = presses[idx];
 		if (!pressed.active || pressed.x >= kDisplayWidth) {
@@ -231,8 +233,9 @@ void KeyboardLayoutHarmonic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 			continue;
 		}
 		if (pressed.x >= kIsoStartCol) {
-			// Right block: the iso panel. Play the note; KEEP the selected chord shape on screen (so you
-			// can still see which shape you're studying) — played notes just light on top in their colours.
+			// Right block: the iso panel — free play. Just sound the note; the selected chord highlight is
+			// cleared afterwards (see below) so the grid resets out of "chord mode" and you can pick a new shape.
+			isoPlayed = true;
 			int32_t note = getState().harmonic.isoChromatic ? isoNoteChromatic(pressed.x, pressed.y)
 			                                                : isoNoteAt(pressed.x, pressed.y);
 			if (note >= 0 && note <= 127) {
@@ -255,6 +258,7 @@ void KeyboardLayoutHarmonic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 				chordPcMask |= (uint16_t)(1u << (notes[i] % 12)); // remember the chord's pitch-classes
 			}
 			heldCols |= (uint16_t)(1u << pressed.x);
+			leftPicked = true;
 			// Persist the selection so the white highlight + iso shape stay after release, and ask the
 			// brain where to go next (suggested degree columns flash white in renderPads).
 			selDeg = (int8_t)deg;
@@ -262,6 +266,16 @@ void KeyboardLayoutHarmonic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 			    (int8_t)((pressed.y < 0) ? 0 : (pressed.y >= kDisplayHeight ? kDisplayHeight - 1 : pressed.y));
 			recomputeSuggestions(keyRoot, iv, sc, rootPc);
 		}
+	}
+
+	// Free play on the iso (without also picking a chord this frame) resets the grid: clear the chord
+	// shape, the left selection highlight, and the brain so you're not stuck in "chord mode".
+	if (isoPlayed && !leftPicked) {
+		chordPcMask = 0;
+		selDeg = -1;
+		selRichness = -1;
+		suggestedDegMask = 0;
+		numSuggestions = 0;
 	}
 
 	// Edge-detect the divider toggle so holding it doesn't flip every frame.
