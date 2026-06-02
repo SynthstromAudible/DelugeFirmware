@@ -68,8 +68,12 @@ private:
 	void recomputeSuggestions(uint8_t keyRoot, const uint8_t* iv, uint8_t sc, uint8_t homeRootPc);
 	void drawName(const char* roman, const char* abs);
 
-	uint16_t heldCols = 0;    // explorer columns currently held (light up as feedback)
-	uint16_t chordPcMask = 0; // pitch-classes of the selected chord — the iso shape; 0 = cleared (free play)
+	uint16_t heldCols = 0; // explorer columns currently held (light up as feedback)
+
+	// The EXACT voiced notes of the selected chord (absolute MIDI), so the iso panel shows the real
+	// shape once in the octave you picked — not every-octave pitch classes (that was an overlapping mess).
+	int16_t chordNotes[kMaxChordKeyboardSize] = {};
+	uint8_t chordNoteCount = 0; // 0 = cleared (free play)
 
 	// Persisted selection: the chord you last picked. Drives the white highlight on the left and the
 	// shape on the iso panel, and stays put after you release so you can study the shape.
@@ -82,7 +86,7 @@ private:
 	uint8_t numSuggestions = 0;
 	uint8_t suggestedDegMask = 0; // bitmask of degree columns (bit d) the brain suggests going to next
 
-	bool dividerHeld = false; // edge-detect the iso-view toggle so one press flips it once
+	uint8_t dividerHeldMask = 0; // rows of the divider control-strip held last frame (rising-edge detect)
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

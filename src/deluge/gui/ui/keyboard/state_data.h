@@ -69,6 +69,8 @@ struct KeyboardStateHarmonic {
 	int32_t scrollSteps = 0;   // horizontal scroll, in scale-degree steps (0 = tonic at column 0)
 	int32_t octaveBase = 3;    // octave of the tonic; vertical encoder shifts it (lower = warmer chords)
 	bool isoChromatic = false; // right panel: false = in-key (matches In-Key kbd), true = standard chromatic iso
+	bool stickyChord = false;  // true = selected chord shape persists through iso free-play; false = clears
+	bool brainOn = true;       // true = show next-chord brain suggestions on the left
 };
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
 /// share one struct for storage
