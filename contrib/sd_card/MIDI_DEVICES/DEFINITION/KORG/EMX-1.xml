@@ -2,23 +2,19 @@
 <midiDevice>
 	<ccLabels
 	
-		<!--Synth OSC-->
 		70="Osc Type"
 		14="Osc Edit1"
 		15="Osc Edit2"
-		<!--Synth MOD-->
 		89="Mod Speed"
 		90="Mod Depth"
 		87="Mod Type"
 		88="Mod Dest"
 		82="Mod BPM Sync"
-		<!--Synth Filter-->
 		74="Cutoff"
 		71="Resonance"
 		79="EG Int"
 		84="Drive"
 		83="Filter Type"
-		<!--Synth Part Common-->
 		5="Glide"
 		10="Pan"
 		75="EG Time"
@@ -28,22 +24,18 @@
 		91="Fx Send"
 		81="Fx Select"
 		80="Motion Seq"
-		<!--FX1-->
 		12="Fx1 Type"
 		92="Fx1 Edit1"
 		93="Fx1 Edit2"
 		20="Fx1 Motion Seq"
-		<!--FX2-->
 		13="Fx2 Type"
 		94="Fx2 Edit1"
 		95="Fx2 Edit2"
 		21="Fx2 Motion Seq"
-		<!--FX3-->
 		24="Fx3 Type"
 		25="Fx3 Edit1"
 		26="Fx3 Edit2"
 		22="Fx3 Motion Seq"
-		<!--FX ALL-->
 		23="Fx Chain"/>
 </midiDevice>
 
