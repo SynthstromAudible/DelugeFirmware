@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <midiDevice>
 	<ccLabels
-	
 		70="Osc Type"
 		14="Osc Edit1"
 		15="Osc Edit2"
