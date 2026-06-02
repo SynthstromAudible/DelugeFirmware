@@ -116,6 +116,16 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 
 		// Note-on
 		if (on) {
+			if (instrumentClip && instrumentClip->onKeyboardScreen && getRootUI() == &keyboardScreen
+			    && keyboardScreen.offerExpressiveMidiNote(note, velocity, true)) {
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+				        == RuntimeFeatureStateToggle::On
+				    && instrumentClip == getCurrentInstrumentClip()) {
+					highlightNoteValue = velocity;
+				}
+				break;
+			}
+
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
 			        == RuntimeFeatureStateToggle::On
 			    && instrumentClip == getCurrentInstrumentClip()) {
@@ -232,6 +242,16 @@ justAuditionNote:
 
 		// Note-off
 		else {
+			if (instrumentClip && instrumentClip->onKeyboardScreen && getRootUI() == &keyboardScreen
+			    && keyboardScreen.offerExpressiveMidiNote(note, velocity, false)) {
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+				        == RuntimeFeatureStateToggle::On
+				    && instrumentClip == getCurrentInstrumentClip()) {
+					highlightNoteValue = 0;
+				}
+				break;
+			}
+
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
 			        == RuntimeFeatureStateToggle::On
 			    && instrumentClip == getCurrentInstrumentClip()) {

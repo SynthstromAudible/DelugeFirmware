@@ -29,6 +29,9 @@ public:
 	bool supportsKit() override { return false; }
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }
 
+	/// Merge externally held MIDI chord keys into the active note set (called from KeyboardScreen).
+	[[gnu::noinline]] void appendMidiHeldSlots();
+
 protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
@@ -43,6 +46,7 @@ private:
 	Voicing voicingForSlot(const ExpressiveChordSlot& slot);
 	void playVoicing(int32_t root, const Voicing& voicing, uint8_t vel);
 	void playSlot(int32_t chordIndex, uint8_t vel);
+	[[gnu::noinline]] void playSlotIntoNotesState(int32_t chordIndex, uint8_t vel);
 	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName);
 	std::array<RGB, kExpressiveChordsPerSet> slotColours{};
 };

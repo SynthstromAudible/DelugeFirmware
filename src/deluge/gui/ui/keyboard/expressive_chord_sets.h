@@ -27,6 +27,9 @@ constexpr int32_t kExpressiveChordsPerSet = kExpressiveChordColumns * kExpressiv
 /// Pad (x=2, y=0) — bottom-left chord; defines the scale for the whole grid.
 constexpr int32_t kExpressiveRootChordIndex = 0;
 
+/// External MIDI: 32 consecutive notes from midiBaseNote (default C3) trigger chord slots 0–31.
+constexpr int32_t kExpressiveMidiBaseNoteDefault = 48;
+
 /// Column 12 / 13: inversion & spread; row y=0 (bottom) .. y=7 (top) selects amount 0–7.
 constexpr int32_t kExpressiveInversionColumnX = 12;
 constexpr int32_t kExpressiveSpreadColumnX = 13;

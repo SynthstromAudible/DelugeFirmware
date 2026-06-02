@@ -195,19 +195,42 @@ void KeyboardLayoutExpressiveChords::playVoicing(int32_t root, const Voicing& vo
 	}
 }
 
-void KeyboardLayoutExpressiveChords::playSlot(int32_t chordIndex, uint8_t vel) {
-	KeyboardStateExpressiveChords& state = getState().expressiveChords;
-	const ExpressiveChordSet& set = expressiveChordSets[state.setIndex % kExpressiveChordSetCount];
+void KeyboardLayoutExpressiveChords::playSlotIntoNotesState(int32_t chordIndex, uint8_t vel) {
+	const ExpressiveChordSet& set =
+	    expressiveChordSets[getState().expressiveChords.setIndex % kExpressiveChordSetCount];
 	const ExpressiveChordSlot& slot = set.slots[chordIndex];
 
-	if (!slot.chord || slot.chord->name == kEmptyChord.name) {
+	if (!slot.chord || slot.chord->name[0] == '\0') {
 		return;
 	}
 
 	Voicing voicing = voicingForSlot(slot);
 	int32_t root = computeSlotRoot(chordIndex, set);
+	playVoicing(root, voicing, vel);
+}
+
+void KeyboardLayoutExpressiveChords::playSlot(int32_t chordIndex, uint8_t vel) {
+	const ExpressiveChordSet& set =
+	    expressiveChordSets[getState().expressiveChords.setIndex % kExpressiveChordSetCount];
+	const ExpressiveChordSlot& slot = set.slots[chordIndex];
+
+	if (!slot.chord || slot.chord->name[0] == '\0') {
+		return;
+	}
+
+	int32_t root = computeSlotRoot(chordIndex, set);
+	Voicing voicing = voicingForSlot(slot);
 	drawChordName(root, slot.chord->name, voicing.supplementalName);
 	playVoicing(root, voicing, vel);
+}
+
+void KeyboardLayoutExpressiveChords::appendMidiHeldSlots() {
+	KeyboardStateExpressiveChords& state = getState().expressiveChords;
+	for (int32_t i = 0; i < kExpressiveChordsPerSet; i++) {
+		if (state.midiHeldMask & (1UL << i)) {
+			playSlotIntoNotesState(i, state.midiVelocity[i]);
+		}
+	}
 }
 
 void KeyboardLayoutExpressiveChords::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {

@@ -43,6 +43,7 @@
 #include "processing/sound/sound_instrument.h"
 #include <cstring>
 
+#include "gui/ui/keyboard/expressive_chord_sets.h"
 #include "gui/ui/keyboard/layout.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/chord_library.h"
@@ -196,8 +197,39 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 void KeyboardScreen::evaluateActiveNotes() {
 	lastNotesState = currentNotesState;
-	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->evaluatePads(pressedPads);
-	currentNotesState = layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->getNotesState();
+	KeyboardLayoutType layoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
+	KeyboardLayout* layout = layout_list[layoutType];
+	layout->evaluatePads(pressedPads);
+	if (layoutType == KeyboardLayoutType::KeyboardLayoutTypeExpressiveChords) {
+		static_cast<layout::KeyboardLayoutExpressiveChords*>(layout)->appendMidiHeldSlots();
+	}
+	currentNotesState = layout->getNotesState();
+}
+
+bool KeyboardScreen::offerExpressiveMidiNote(int32_t note, uint8_t velocity, bool on) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip || !clip->onKeyboardScreen
+	    || clip->keyboardState.currentLayout != KeyboardLayoutType::KeyboardLayoutTypeExpressiveChords) {
+		return false;
+	}
+
+	KeyboardStateExpressiveChords& state = clip->keyboardState.expressiveChords;
+	int32_t chordIndex = note - state.midiBaseNote;
+	if (chordIndex < 0 || chordIndex >= kExpressiveChordsPerSet) {
+		return false;
+	}
+
+	if (on) {
+		state.midiHeldMask |= (1UL << chordIndex);
+		state.midiVelocity[chordIndex] = velocity;
+	}
+	else {
+		state.midiHeldMask &= ~(1UL << chordIndex);
+	}
+
+	evaluateActiveNotes();
+	updateActiveNotes();
+	return true;
 }
 
 void KeyboardScreen::updateActiveNotes() {
