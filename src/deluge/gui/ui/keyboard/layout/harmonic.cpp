@@ -142,9 +142,9 @@ void KeyboardLayoutHarmonic::recomputeSuggestions(uint8_t keyRoot, const uint8_t
 	if (!getState().harmonic.brainOn || sc != 7 || !getScaleModeEnabled()) {
 		return;
 	}
-	// Rank ALL diatonic next chords (best first), then shade each degree by its rank — strongest move
-	// brightest, weakest dim-but-visible — so you see the whole map, not just a few picks.
-	numSuggestions = (uint8_t)suggestNextChords(keyRoot, getScaleNotes(), sc, homeRootPc, suggestions, 7);
+	// Exactly like Chord Library: take the TOP 3 next chords only (not all degrees), so just those few
+	// columns light. degBright shades them by rank (strongest brightest); the rest stay dark.
+	numSuggestions = (uint8_t)suggestNextChords(keyRoot, getScaleNotes(), sc, homeRootPc, suggestions, 3);
 	for (uint8_t s = 0; s < numSuggestions; s++) {
 		for (uint8_t d = 0; d < sc; d++) {
 			if ((uint8_t)((keyRoot + iv[d]) % 12) == suggestions[s].rootNote) {
