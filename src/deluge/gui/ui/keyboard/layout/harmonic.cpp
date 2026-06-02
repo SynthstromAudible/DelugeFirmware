@@ -60,27 +60,33 @@ const Richness kLadder[kDisplayHeight] = {
     {"13", {0, 2, 4, 6, 8, 10, 12}, 7}, //
 };
 
-// One MAXIMALLY-DISTINCT colour per scale degree — spread around the wheel (R/O/Y/G/C/B/magenta) with
-// big gaps between neighbours so adjacent columns never read alike. renderPads shades each light->dark.
+// One colour per scale degree, ordered so ADJACENT columns jump across the colour wheel (warm/cool
+// interleaved) — never grouped, so neighbours always contrast hard. renderPads shades each light->dark.
 const RGB kDegreeHue[7] = {
     RGB{.r = 255, .g = 0, .b = 0},   // i   red
-    RGB{.r = 255, .g = 105, .b = 0}, // ii  orange
-    RGB{.r = 220, .g = 210, .b = 0}, // III yellow
-    RGB{.r = 0, .g = 205, .b = 0},   // iv  green
-    RGB{.r = 0, .g = 195, .b = 205}, // v   cyan
-    RGB{.r = 30, .g = 70, .b = 255}, // VI  blue
-    RGB{.r = 225, .g = 0, .b = 225}, // VII magenta
+    RGB{.r = 0, .g = 220, .b = 220}, // ii  cyan     (opposite red)
+    RGB{.r = 235, .g = 220, .b = 0}, // III yellow
+    RGB{.r = 45, .g = 65, .b = 255}, // iv  blue
+    RGB{.r = 0, .g = 220, .b = 0},   // v   green
+    RGB{.r = 235, .g = 0, .b = 235}, // VI  magenta
+    RGB{.r = 255, .g = 120, .b = 0}, // VII orange
 };
+
+// Perceptual brightness ramp for the richness rows (bottom=triad brightest -> top=complex dimmest). A
+// plain linear ramp reads almost flat on saturated LEDs, so these steps are spaced for the eye.
+const uint8_t kRichBright[kDisplayHeight] = {255, 200, 158, 122, 92, 68, 50, 36};
 
 const char* const kNumerals[7] = {"I", "II", "III", "IV", "V", "VI", "VII"};
 const uint8_t kMajorIv[7] = {0, 2, 4, 5, 7, 9, 11};
 
-// Divider control-strip buttons, from the TOP of the column down; the rest of the column stays dark and
-// just visually separates the chord selector (left) from the keyboard (right).
+// Divider control strip: THREE toggle buttons at the TOP; every dark pad below them acts as a CLEAR
+// pad when tapped. The dark rows also visually separate the chord selector (left) from the keyboard.
 constexpr int32_t kBtnIsoView = kDisplayHeight - 1; // toggle in-key <-> chromatic iso view
 constexpr int32_t kBtnSticky = kDisplayHeight - 2;  // toggle sticky chord shape
-constexpr int32_t kBtnClear = kDisplayHeight - 3;   // clear chord + brain (momentary)
-constexpr int32_t kBtnBrain = kDisplayHeight - 4;   // toggle the next-chord brain on/off
+constexpr int32_t kBtnBrain = kDisplayHeight - 3;   // toggle the next-chord brain on/off
+constexpr int32_t kStripTopButtons = 3;             // lit toggle rows at the top; rows below = clear pads
+// Bitmask of the dark (clear) rows = everything below the three toggles.
+constexpr uint8_t kClearRowsMask = (uint8_t)((1u << (kDisplayHeight - kStripTopButtons)) - 1);
 
 } // namespace
 
@@ -121,20 +127,34 @@ int32_t KeyboardLayoutHarmonic::isoNoteChromatic(int32_t x, int32_t y) {
 }
 
 void KeyboardLayoutHarmonic::recomputeSuggestions(uint8_t keyRoot, const uint8_t* iv, uint8_t sc, uint8_t homeRootPc) {
-	suggestedDegMask = 0;
 	numSuggestions = 0;
+	topDeg = -1;
+	for (uint8_t d = 0; d < 7; d++) {
+		degBright[d] = 0;
+	}
 	// Off when the brain is toggled off; otherwise diatonic-7-note only (like the Chord Library's brain).
 	if (!getState().harmonic.brainOn || sc != 7 || !getScaleModeEnabled()) {
 		return;
 	}
-	numSuggestions = (uint8_t)suggestNextChords(keyRoot, getScaleNotes(), sc, homeRootPc, suggestions, 3);
-	// Map each suggested root pitch-class back to its degree column so we can flash that whole column.
+	// Rank ALL diatonic next chords (best first), then shade each degree by its rank — strongest move
+	// brightest, weakest dim-but-visible — so you see the whole map, not just a few picks.
+	numSuggestions = (uint8_t)suggestNextChords(keyRoot, getScaleNotes(), sc, homeRootPc, suggestions, 7);
 	for (uint8_t s = 0; s < numSuggestions; s++) {
 		for (uint8_t d = 0; d < sc; d++) {
 			if ((uint8_t)((keyRoot + iv[d]) % 12) == suggestions[s].rootNote) {
-				suggestedDegMask |= (uint8_t)(1u << d);
+				degBright[d] = (numSuggestions > 1) ? (uint8_t)(235 - (uint32_t)s * 165 / (numSuggestions - 1)) : 235;
+				if (s == 0) {
+					topDeg = (int8_t)d;
+				}
 				break;
 			}
+		}
+	}
+	// The chord you're on (home) stays full so you always see where you are.
+	for (uint8_t d = 0; d < sc; d++) {
+		if ((uint8_t)((keyRoot + iv[d]) % 12) == homeRootPc) {
+			degBright[d] = 255;
+			break;
 		}
 	}
 }
@@ -285,17 +305,25 @@ void KeyboardLayoutHarmonic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 
 	KeyboardStateHarmonic& hs = getState().harmonic;
 
-	// Free play on the iso (without also picking a chord this frame) resets the grid out of "chord mode"
-	// — UNLESS sticky is on, in which case the selected shape stays put while you play around it.
-	if (isoPlayed && !leftPicked && !hs.stickyChord) {
+	auto clearSelection = [&]() {
 		chordNoteCount = 0;
 		selDeg = -1;
 		selRichness = -1;
-		suggestedDegMask = 0;
 		numSuggestions = 0;
+		topDeg = -1;
+		for (uint8_t d = 0; d < 7; d++) {
+			degBright[d] = 0;
+		}
+	};
+
+	// Free play on the iso (without also picking a chord this frame) resets the grid out of "chord mode"
+	// — UNLESS sticky is on, in which case the selected shape stays put while you play around it.
+	if (isoPlayed && !leftPicked && !hs.stickyChord) {
+		clearSelection();
 	}
 
-	// Divider control strip: act on the rising edge of each button so holding doesn't repeat.
+	// Divider control strip: three toggles at the top (rising-edge so holding doesn't repeat); tapping any
+	// dark pad below them clears the selected chord + brain.
 	uint8_t rising = (uint8_t)(dividerNowMask & ~dividerHeldMask);
 	if (rising & (uint8_t)(1u << kBtnIsoView)) {
 		hs.isoChromatic = !hs.isoChromatic;
@@ -305,21 +333,20 @@ void KeyboardLayoutHarmonic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 		hs.stickyChord = !hs.stickyChord;
 		display->displayPopup(hs.stickyChord ? "HOLD" : "FREE");
 	}
-	if (rising & (uint8_t)(1u << kBtnClear)) {
-		chordNoteCount = 0;
-		selDeg = -1;
-		selRichness = -1;
-		suggestedDegMask = 0;
-		numSuggestions = 0;
-		display->displayPopup("CLR");
-	}
 	if (rising & (uint8_t)(1u << kBtnBrain)) {
 		hs.brainOn = !hs.brainOn;
 		if (!hs.brainOn) {
-			suggestedDegMask = 0;
 			numSuggestions = 0;
+			topDeg = -1;
+			for (uint8_t d = 0; d < 7; d++) {
+				degBright[d] = 0;
+			}
 		}
 		display->displayPopup(hs.brainOn ? "BRN" : "NOBR");
+	}
+	if (rising & kClearRowsMask) {
+		clearSelection();
+		display->displayPopup("CLR");
 	}
 	dividerHeldMask = dividerNowMask;
 
@@ -360,11 +387,6 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 	uint8_t tri = (phase < 128) ? (phase * 2) : ((255 - phase) * 2); // triangle 0..255..0
 	uint8_t pulse = 30 + (uint8_t)((uint32_t)tri * 225 / 255);       // breathe between dim and full
 
-	// Brain flashes only the next LOGICAL chords (like Chord mode): a suggested degree's triad and its
-	// diatonic 7th cells — not the whole column.
-	constexpr int32_t kBrainTriadRow = 0;   // kLadder[0] = triad
-	constexpr int32_t kBrainSeventhRow = 4; // kLadder[4] = "7"
-
 	// Match a pad's note against the EXACT voiced notes of the selected chord (not pitch classes), so the
 	// voicing shows once where those notes land — it can repeat up the iso grid, but never every octave.
 	auto inChordExact = [&](int32_t note) {
@@ -375,6 +397,23 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 		}
 		return false;
 	};
+
+	// The same voicing repeats up the iso grid, which is noisy. Pick ONE pad per voiced note — the lowest
+	// (bottom-most, then left-most) occurrence — to draw at full white; the repeats render dim white, so a
+	// single clean shape stays identifiable.
+	bool primary[kDisplayHeight][kDisplayWidth] = {};
+	for (uint8_t i = 0; i < chordNoteCount; i++) {
+		bool placed = false;
+		for (int32_t yy = 0; yy < kDisplayHeight && !placed; yy++) {
+			for (int32_t xx = kIsoStartCol; xx < kDisplayWidth && !placed; xx++) {
+				int32_t nn = chromatic ? isoNoteChromatic(xx, yy) : isoNoteAt(xx, yy);
+				if (nn == chordNotes[i]) {
+					primary[yy][xx] = true;
+					placed = true;
+				}
+			}
+		}
+	}
 
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		if (x < kExplorerCols) {
@@ -387,14 +426,17 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 				}
 				continue;
 			}
-			bool suggested = (suggestedDegMask >> x) & 1u;
 			RGB hue = kDegreeHue[x % 7];
+			bool haveBrain = (numSuggestions > 0); // a chord is selected and the brain is on
+			int32_t brainRow = (selRichness >= 0) ? selRichness : 0;
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				int32_t bright = 255 - y * 28; // bottom (triad) lightest -> darker up toward the lush extensions
-				if (bright < 45) {
-					bright = 45;
+				// Richness gradient: bottom (triad) bright -> top (complex) dim, on a perceptual ramp.
+				RGB c = hue.adjustFractional(kRichBright[y], 255);
+				// Brain: shade the WHOLE column by how strong a next move this degree is (home stays full,
+				// weak moves dim) — so you see the whole map. The single best pick flashes white below.
+				if (haveBrain) {
+					c = c.adjustFractional(degBright[x], 255);
 				}
-				RGB c = hue.adjustFractional((uint16_t)bright, 255);
 				if (x == selDeg && y == selRichness) {
 					// Selected chord cell: a bright near-white tint of the column colour so you can see which
 					// chord the iso panel is showing, while keeping the column's degree colour.
@@ -402,36 +444,32 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 					        .g = (uint8_t)((c.g + 255) >> 1),
 					        .b = (uint8_t)((c.b + 255) >> 1)};
 				}
-				// Brain: flash only the strong next chords (a suggested degree's triad + 7th), like Chord mode.
-				if (suggested && (y == kBrainTriadRow || y == kBrainSeventhRow)) {
-					c = RGB::monochrome(pulse);
+				if (haveBrain && x == topDeg && y == brainRow) {
+					c = RGB::monochrome(pulse); // the single strongest next chord, at your current richness
 				}
 				image[y][x] = c;
 			}
 		}
 		else if (x == kDividerCol) {
-			// Divider = a 4-button control strip at the TOP, the rest dark so it cleanly separates the
-			// chord selector from the keyboard. Each button's colour shows its state.
+			// Divider control strip: three toggles at the TOP, dark CLEAR pads below. The toggles are
+			// achromatic (white = on/active, dim grey = off) — deliberately OFF the degree palette so they
+			// never blend with the colourful chord columns; bright vs dim shows each toggle's state.
 			bool sticky = getState().harmonic.stickyChord;
 			bool brain = getState().harmonic.brainOn;
+			constexpr uint8_t kOn = 245;
+			constexpr uint8_t kOff = 75;
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				RGB c{};
 				if (y == kBtnIsoView) {
-					c = chromatic ? RGB{.r = 0, .g = 200, .b = 210}    // cyan  = chromatic iso
-					              : RGB{.r = 200, .g = 200, .b = 200}; // white = in-key
+					c = RGB::monochrome(chromatic ? kOn : kOff); // bright = chromatic, dim = in-key
 				}
 				else if (y == kBtnSticky) {
-					c = sticky ? RGB{.r = 235, .g = 150, .b = 0} // bright amber = sticky on (HOLD)
-					           : RGB{.r = 45, .g = 28, .b = 0};  // dim amber    = off (FREE)
-				}
-				else if (y == kBtnClear) {
-					c = RGB{.r = 130, .g = 0, .b = 0}; // dim red = momentary "clear chord + brain"
+					c = RGB::monochrome(sticky ? kOn : kOff);
 				}
 				else if (y == kBtnBrain) {
-					c = brain ? RGB{.r = 0, .g = 200, .b = 0} // bright green = brain on
-					          : RGB{.r = 0, .g = 35, .b = 0}; // dim green    = brain off
+					c = RGB::monochrome(brain ? kOn : kOff);
 				}
-				image[y][x] = c;
+				image[y][x] = c; // rows below the toggles stay dark (also the clear pads)
 			}
 		}
 		else if (!chromatic) {
@@ -453,7 +491,8 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 				uint8_t hi = getHighlightedNotes()[clamped];
 				RGB nc = getNoteColour((uint8_t)clamped);
 				if (inChordExact(note)) {
-					image[y][x] = RGB::monochrome(255); // the selected chord's exact voicing pops white
+					// One instance (the lowest) full white = the identifiable shape; repeats dim white.
+					image[y][x] = RGB::monochrome(primary[y][x] ? 255 : 95);
 				}
 				else if (playing) {
 					image[y][x] = nc; // notes you play live light in their own colours
@@ -494,7 +533,7 @@ void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidt
 				bool inScale = getScaleNotes().has(within);
 				RGB nc = getNoteColour((uint8_t)clamped);
 				if (inChordExact(note)) {
-					image[y][x] = RGB::monochrome(255); // selected chord's exact voicing
+					image[y][x] = RGB::monochrome(primary[y][x] ? 255 : 95); // one bright shape, dim repeats
 				}
 				else if (playing || within == 0) {
 					image[y][x] = nc; // root + live-played notes at full colour
