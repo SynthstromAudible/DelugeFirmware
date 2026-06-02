@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		80="Osc Pitch"
+		81="Osc Glide"
+		82="Osc Edit"
+		
+		74="Cutoff"
+		71="Resonance"
+		83="Filter EG Int"
+		
+		85="Mod Depth"
+		86="Mod Speed"
+		
+		7="Level"
+		10="Pan"
+		73="Attack"
+		72="Decay"
+		105="MFX Send"
+		
+		87="IFX Edit"
+		104="IFX Toggle"
+		
+		102="TouchPad X"
+		103="TouchPad Y"
+		106="TouchPad Toggle"
+		/>
+</midiDevice>
