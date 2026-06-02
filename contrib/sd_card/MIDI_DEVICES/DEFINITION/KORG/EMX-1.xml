@@ -4,16 +4,19 @@
 		70="Osc Type"
 		14="Osc Edit1"
 		15="Osc Edit2"
+        
 		89="Mod Speed"
 		90="Mod Depth"
 		87="Mod Type"
 		88="Mod Dest"
 		82="Mod BPM Sync"
+        
 		74="Cutoff"
 		71="Resonance"
 		79="EG Int"
 		84="Drive"
 		83="Filter Type"
+        
 		5="Glide"
 		10="Pan"
 		75="EG Time"
@@ -23,18 +26,22 @@
 		91="Fx Send"
 		81="Fx Select"
 		80="Motion Seq"
+        
 		12="Fx1 Type"
 		92="Fx1 Edit1"
 		93="Fx1 Edit2"
 		20="Fx1 Motion Seq"
+        
 		13="Fx2 Type"
 		94="Fx2 Edit1"
 		95="Fx2 Edit2"
 		21="Fx2 Motion Seq"
+        
 		24="Fx3 Type"
 		25="Fx3 Edit1"
 		26="Fx3 Edit2"
 		22="Fx3 Motion Seq"
+        
 		23="Fx Chain"/>
 </midiDevice>
 
@@ -114,4 +121,16 @@
 		32-63   : FX1-FX2
 		64-95   : FX2-FX3
 		96-127  : FX1-FX2-FX3
+        
+        ------Bool Toggles-------
+        Mod BPM Sync,
+        Amp EG,
+        Roll,
+        Fx Send,
+        Fx1 Motion Seq,
+        Fx2 Motion Seq,
+        Fx3 Motion Seq
+        
+        0-63	: OFF
+        64-127	: ON
 		-->
