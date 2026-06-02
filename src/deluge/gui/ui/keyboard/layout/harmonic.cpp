@@ -25,7 +25,6 @@ namespace deluge::gui::ui::keyboard::layout {
 
 namespace {
 
-// Floor division / modulo so chord extensions (9/11/13) that reach above the octave map correctly.
 inline int32_t floordiv(int32_t a, int32_t b) {
 	int32_t q = a / b;
 	if ((a % b != 0) && ((a < 0) != (b < 0))) {
@@ -41,9 +40,8 @@ inline int32_t floormod(int32_t a, int32_t b) {
 	return r;
 }
 
-// The richness ladder: y = 0 (bottom) is a plain triad, climbing to y = 7 (top) for the lushest
-// extension. `steps` are scale-degree offsets stacked from the column's degree (so every chord stays
-// diatonic / in-key). `suffix` is appended to the Roman + absolute name. Ordering blessed by ear.
+// Richness ladder: y=0 (bottom) plain triad, climbing to y=7 (top) for the lushest extension. `steps`
+// are scale-degree offsets stacked from the column's degree (always diatonic). `suffix` -> name.
 struct Richness {
 	const char* suffix;
 	int8_t steps[kMaxChordKeyboardSize];
@@ -60,16 +58,15 @@ const Richness kLadder[kDisplayHeight] = {
     {"13", {0, 2, 4, 6, 8, 10, 12}, 7}, //
 };
 
-enum Function : uint8_t { FUNC_TONIC, FUNC_SUBDOM, FUNC_DOM };
-// Diatonic functional grouping by scale-degree index — the same indices for major and minor:
-// tonic = I/iii/vi (0,2,5), subdominant = ii/IV (1,3), dominant = V/vii (4,6).
-const Function kDegreeFunction[7] = {FUNC_TONIC, FUNC_SUBDOM, FUNC_TONIC, FUNC_SUBDOM, FUNC_DOM, FUNC_TONIC, FUNC_DOM};
-// Muted, desaturated hues (à la Chord Library) — renderPads dims them further per row. This is the
-// "little brain": colour tells you each chord's role without ever dictating the next move.
-const RGB kFunctionColour[3] = {
-    RGB{.r = 0, .g = 130, .b = 60},  // tonic — green, rest
-    RGB{.r = 35, .g = 80, .b = 175}, // subdominant — blue, motion
-    RGB{.r = 175, .g = 50, .b = 30}, // dominant — red, tension
+// One DISTINCT colour per scale degree for clear column contrast (renderPads shades each light->dark).
+const RGB kDegreeHue[7] = {
+    RGB{.r = 225, .g = 40, .b = 40},  // i   red
+    RGB{.r = 225, .g = 120, .b = 25}, // ii  orange
+    RGB{.r = 205, .g = 195, .b = 30}, // III yellow
+    RGB{.r = 45, .g = 200, .b = 70},  // iv  green
+    RGB{.r = 30, .g = 190, .b = 205}, // v   cyan
+    RGB{.r = 60, .g = 95, .b = 230},  // VI  blue
+    RGB{.r = 165, .g = 65, .b = 220}, // VII purple
 };
 
 const char* const kNumerals[7] = {"I", "II", "III", "IV", "V", "VI", "VII"};
@@ -88,6 +85,22 @@ uint8_t KeyboardLayoutHarmonic::getScaleIntervals(uint8_t* ivOut) {
 	return count;
 }
 
+int32_t KeyboardLayoutHarmonic::isoNoteAt(int32_t x, int32_t y) {
+	uint8_t sc = getScaleNoteCount();
+	if (sc == 0) {
+		return getRootNote();
+	}
+	// EXACTLY the In-Key keyboard's mapping (same scrollOffset + rowInterval + scale-step->note formula),
+	// so the panel lays out identically to In-Key mode. x is offset so the panel's left edge == In-Key col 0.
+	int32_t padIndex = getState().inKey.scrollOffset + (x - kIsoStartCol) + y * getState().inKey.rowInterval;
+	if (padIndex < 0) {
+		padIndex = 0;
+	}
+	int32_t octave = padIndex / sc;
+	int32_t idx = padIndex % sc;
+	return octave * 12 + getRootNote() + getScaleNotes()[idx];
+}
+
 uint8_t KeyboardLayoutHarmonic::buildChordAtDegree(uint8_t deg, int32_t y, const uint8_t* iv, uint8_t sc,
                                                    uint8_t keyRoot, int16_t* notesOut, uint8_t maxNotes,
                                                    uint8_t* rootPcOut, char* romanOut, char* absOut) {
@@ -100,8 +113,7 @@ uint8_t KeyboardLayoutHarmonic::buildChordAtDegree(uint8_t deg, int32_t y, const
 	if (sc == 0) {
 		return 0;
 	}
-	KeyboardStateHarmonic& state = getState().harmonic;
-	int32_t anchor = state.octaveBase * 12 + keyRoot; // MIDI of the tonic
+	int32_t anchor = getState().harmonic.octaveBase * 12 + keyRoot;
 	uint8_t rootPc = (uint8_t)((keyRoot + iv[deg]) % 12);
 	if (rootPcOut) {
 		*rootPcOut = rootPc;
@@ -122,7 +134,6 @@ uint8_t KeyboardLayoutHarmonic::buildChordAtDegree(uint8_t deg, int32_t y, const
 		notesOut[count++] = (int16_t)midi;
 	}
 
-	// Names: absolute root spelled to the key, Roman from the degree + diatonic quality + richness suffix.
 	bool flats = keyPrefersFlats(keyRoot, getScaleNotes());
 	if (absOut) {
 		sprintf(absOut, "%s%s", noteNameInKey(rootPc, flats), rich.suffix);
@@ -179,25 +190,24 @@ void KeyboardLayoutHarmonic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 	uint8_t sc = getScaleIntervals(iv);
 	uint8_t keyRoot = (uint8_t)getRootNote();
 	uint8_t numCols = (sc > 7) ? 7 : sc;
-	int32_t isoBase = getState().harmonic.octaveBase * 12 + keyRoot;
 	heldCols = 0;
 
-	// Reverse order so the most recently pressed chord wins the name display.
 	for (int32_t idx = kMaxNumKeyboardPadPresses - 1; idx >= 0; --idx) {
 		PressedPad pressed = presses[idx];
 		if (!pressed.active || pressed.x >= kDisplayWidth) {
 			continue;
 		}
-		if (pressed.x >= kExplorerCols) {
-			// Right block: the isomorphic panel — play the note under the pad (noodle around the shape).
-			int32_t note = isoNoteAt(pressed.x, pressed.y, isoBase);
+		if (pressed.x >= kIsoStartCol) {
+			// Right block: the iso panel — playing it clears the chord overlay so you can free-play clean.
+			chordPcMask = 0;
+			int32_t note = isoNoteAt(pressed.x, pressed.y);
 			if (note >= 0 && note <= 127) {
 				enableNote((uint8_t)note, velocity);
 			}
 			continue;
 		}
 		if (pressed.x < numCols) {
-			// Left block: the harmonic explorer — columns are the diatonic degrees, in order.
+			// Left block: the chord explorer — columns are the diatonic degrees, in order.
 			uint8_t deg = (uint8_t)pressed.x;
 			int16_t notes[kMaxChordKeyboardSize];
 			uint8_t rootPc = 0;
@@ -208,9 +218,8 @@ void KeyboardLayoutHarmonic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 			chordPcMask = 0;
 			for (uint8_t i = 0; i < n; i++) {
 				enableNote((uint8_t)notes[i], velocity);
-				chordPcMask |= (uint16_t)(1u << (notes[i] % 12));
+				chordPcMask |= (uint16_t)(1u << (notes[i] % 12)); // remember the chord's pitch-classes
 			}
-			chordRootPc = (int8_t)rootPc; // selection drives the iso shape overlay
 			heldCols |= (uint16_t)(1u << pressed.x);
 		}
 	}
@@ -235,61 +244,70 @@ void KeyboardLayoutHarmonic::handleVerticalEncoder(int32_t offset) {
 void KeyboardLayoutHarmonic::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
                                                      PressedPad presses[kMaxNumKeyboardPadPresses],
                                                      bool encoderPressed) {
-	// Single octave of fixed columns — nothing to scroll; just let the column controls have the encoder.
 	horizontalEncoderHandledByColumns(offset, shiftEnabled);
 }
 
 void KeyboardLayoutHarmonic::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	uint8_t iv[12];
 	uint8_t sc = getScaleIntervals(iv);
-	bool seven = (sc == 7) && getScaleModeEnabled();
 	uint8_t keyRoot = (uint8_t)getRootNote();
 	uint8_t numCols = (sc > 7) ? 7 : sc;
-	KeyboardStateHarmonic& state = getState().harmonic;
-	int32_t isoBase = state.octaveBase * 12 + keyRoot;
+	(void)iv;
 
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		if (x < kExplorerCols) {
-			// LEFT: the harmonic explorer — the 7 in-key chords, function-coloured.
+			// LEFT: the chord explorer — each column a distinct hue, shading light->dark up the rows.
 			if (x >= numCols) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
-					image[y][x] = RGB{}; // unused explorer columns stay dark
+					image[y][x] = RGB{};
 				}
 				continue;
 			}
-			uint8_t deg = (uint8_t)x;
-			uint8_t rootPc = (uint8_t)((keyRoot + iv[deg]) % 12);
-			// Function colour for 7-note scales (the "little brain"); note-colour fallback otherwise.
-			RGB colCol = seven ? kFunctionColour[kDegreeFunction[deg]]
-			                   : getNoteColour((uint8_t)(state.octaveBase * 12 + rootPc));
+			RGB hue = kDegreeHue[x % 7];
 			bool held = (heldCols >> x) & 1u;
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				// Calm dim map (richer rows a touch brighter); the held column lights up as feedback.
-				uint16_t bright = held ? (uint16_t)(200 + y * 4) : (uint16_t)(70 + y * 6);
-				if (bright > 255) {
-					bright = 255;
+				int32_t bright = held ? 255 : (255 - y * 30); // triad full -> 13 dim: a clear gradient up
+				if (bright < 35) {
+					bright = 35;
 				}
-				image[y][x] = colCol.adjustFractional(bright, 255);
+				image[y][x] = hue.adjustFractional((uint16_t)bright, 255);
+			}
+		}
+		else if (x < kIsoStartCol) {
+			// Blank divider column.
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				image[y][x] = RGB{};
 			}
 		}
 		else {
-			// RIGHT: the isomorphic visualiser — the selected chord lit as a shape over dim wallpaper.
+			// RIGHT: in-key iso. Coloured scale grid (dim), bright coloured tonic anchor, the voiced chord
+			// pops white, and notes you play light in their own colours.
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				int32_t note = isoNoteAt(x, y, isoBase);
+				int32_t note = isoNoteAt(x, y);
 				int32_t clamped = (note < 0) ? 0 : (note > 127 ? 127 : note);
 				uint8_t pc = (uint8_t)(((clamped % 12) + 12) % 12);
-				RGB base = getNoteColour((uint8_t)clamped);
-				RGB cell;
-				if (chordRootPc >= 0 && pc == (uint8_t)chordRootPc) {
-					cell = RGB::monochrome(230); // root = bright white anchor
+				uint8_t within = (uint8_t)(((pc + kOctaveSize) - keyRoot) % kOctaveSize); // 0 = scale tonic
+				bool playing = false;
+				for (uint8_t i = 0; i < currentNotesState.count; i++) {
+					if (currentNotesState.notes[i].note == note) {
+						playing = true;
+						break;
+					}
 				}
-				else if (chordPcMask & (uint16_t)(1u << pc)) {
-					cell = base.adjustFractional(205, 255); // chord tone = bright note colour
+				bool inChord = (chordPcMask & (uint16_t)(1u << pc)) != 0;
+				RGB nc = getNoteColour((uint8_t)clamped);
+				if (playing) {
+					image[y][x] = nc; // play notes light in their colours, like a normal keyboard
+				}
+				else if (inChord) {
+					image[y][x] = RGB::monochrome(255); // the selected chord pops bright white
+				}
+				else if (within == 0) {
+					image[y][x] = nc; // bright COLOURED tonic anchor (steady, follows the key)
 				}
 				else {
-					cell = base.adjustFractional(45, 255); // wallpaper = dim
+					image[y][x] = nc.dim(4); // quiet dim coloured in-key grid, so chord/tonic stand out
 				}
-				image[y][x] = cell;
 			}
 		}
 	}

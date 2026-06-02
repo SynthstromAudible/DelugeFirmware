@@ -24,16 +24,13 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-/// @brief The "Harmonic" layout: a calm, organized map of every chord that's possible in your key.
+/// @brief The "Harmonic" layout: a chord explorer (left) beside an in-key isomorphic visualiser (right).
 ///
-/// One octave, no repeated columns, no algorithmic brain — the columns are simply the 7 diatonic chords
-/// in order (i ii ♭III iv v ♭VI ♭VII), coloured by harmonic function, with chord richness climbing the
-/// rows (triad at the bottom up to a 13th). Press a pad and it plays, named in Roman + absolute (e.g.
-/// "Db∆7  ♭VI"). The intelligence — what to play next, why — comes from the player/teacher, not the
-/// firmware; this is the instrument they explore.
-///
-/// X = the 7 in-key chords. Y = richness. Colour = function (tonic / subdominant / dominant). The
-/// vertical encoder shifts the octave.
+/// Left: the 7 in-key chords, one per column, each a DISTINCT colour, shading light->dark up the rows as
+/// chord richness builds (triad -> 13). Press a pad and it plays, named in Roman + absolute. Right: an
+/// in-key iso panel showing the scale grid in colour with the tonic as a steady anchor; the voiced chord
+/// you pick lights as one shape (the isomorphism repeats it a couple of times), and notes you play on it
+/// light in their colours like a keyboard.
 class KeyboardLayoutHarmonic : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutHarmonic() = default;
@@ -50,30 +47,24 @@ public:
 	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_HARMONIC; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
-	// Degree-based, so it needs the scale: keeps your key on entry and lights the scale LED.
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }
 
 protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
-	static constexpr int32_t kExplorerCols = 7;   // left block: the 7 in-key chords
-	static constexpr int32_t kIsoRowInterval = 5; // right block: isomorphic visualiser, a 4th per row
+	static constexpr int32_t kExplorerCols = 7;                // left block: the 7 in-key chords (cols 0-6)
+	static constexpr int32_t kIsoStartCol = kExplorerCols + 1; // iso panel starts here; col 7 is a blank divider
+	static constexpr int32_t kIsoRowStep = 3;                  // iso panel: scale-steps per row (in-key)
 
 	uint8_t getScaleIntervals(uint8_t* ivOut);
-	// Build the chord for scale-degree `deg` at richness row `y` into notesOut (absolute MIDI, ascending).
-	// Returns the note count and fills the Roman + absolute names and the root pitch class.
 	uint8_t buildChordAtDegree(uint8_t deg, int32_t y, const uint8_t* iv, uint8_t sc, uint8_t keyRoot,
 	                           int16_t* notesOut, uint8_t maxNotes, uint8_t* rootPcOut, char* romanOut, char* absOut);
-	// MIDI note shown by the isomorphic panel at grid (x, y). x is the full grid column (>= kExplorerCols).
-	inline int32_t isoNoteAt(int32_t x, int32_t y, int32_t isoBase) {
-		return isoBase + (x - kExplorerCols) + y * kIsoRowInterval;
-	}
+	int32_t isoNoteAt(int32_t x, int32_t y); // in-key, anchored to the explorer's octave (tonic at bottom-left)
 	void drawName(const char* roman, const char* abs);
 
-	uint16_t heldCols = 0;    // bitmask of explorer columns currently held, so the pressed column lights up
-	uint16_t chordPcMask = 0; // pitch-classes of the selected chord — lit as a shape on the iso panel
-	int8_t chordRootPc = -1;  // its root pitch-class, lit distinctly (white); -1 = none selected yet
+	uint16_t heldCols = 0;    // explorer columns currently held (light up as feedback)
+	uint16_t chordPcMask = 0; // pitch-classes of the selected chord — the iso shape; 0 = cleared (free play)
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

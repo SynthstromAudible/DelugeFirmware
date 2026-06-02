@@ -67,7 +67,7 @@ struct KeyboardStateChord {
 // octaveBase sets the register of the tonic (MIDI tonic = octaveBase*12 + key root pitch class).
 struct KeyboardStateHarmonic {
 	int32_t scrollSteps = 0; // horizontal scroll, in scale-degree steps (0 = tonic at column 0)
-	int32_t octaveBase = 4;  // octave of the tonic; vertical encoder shifts it
+	int32_t octaveBase = 3;  // octave of the tonic; vertical encoder shifts it (lower = warmer chords)
 };
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
 /// share one struct for storage
