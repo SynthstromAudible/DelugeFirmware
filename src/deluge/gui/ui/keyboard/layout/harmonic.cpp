@@ -72,9 +72,9 @@ const RGB kDegreeHue[7] = {
     RGB{.r = 255, .g = 120, .b = 0}, // VII orange
 };
 
-// Perceptual brightness ramp for the richness rows (bottom=triad brightest -> top=complex dimmest). A
-// plain linear ramp reads almost flat on saturated LEDs, so these steps are spaced for the eye.
-const uint8_t kRichBright[kDisplayHeight] = {255, 200, 158, 122, 92, 68, 50, 36};
+// Steep brightness ramp for the richness rows (bottom=triad brightest -> top=complex dimmest). Steep so
+// the fade is obvious even across the bright lower rows, where a gentle ramp reads as flat on LEDs.
+const uint8_t kRichBright[kDisplayHeight] = {255, 160, 102, 66, 45, 32, 24, 18};
 
 const char* const kNumerals[7] = {"I", "II", "III", "IV", "V", "VI", "VII"};
 const uint8_t kMajorIv[7] = {0, 2, 4, 5, 7, 9, 11};
@@ -106,11 +106,12 @@ int32_t KeyboardLayoutHarmonic::isoNoteAt(int32_t x, int32_t y) {
 	if (sc == 0) {
 		return getRootNote();
 	}
-	// In-Key keyboard mapping (scale-step layout + colours), but anchored to the chord register: the
-	// tonic at octaveBase sits bottom-left, so the voicing you pick is always framed in the panel, and
-	// the vertical encoder (which moves octaveBase) scrolls the panel with it.
+	// In-Key keyboard mapping (scale-step layout + colours). Anchor the panel ONE OCTAVE BELOW the chord
+	// register (octaveBase) so the voicing — built at octaveBase — lands up in the middle of the panel
+	// instead of jammed against the bottom edge (where the shape clips/flattens). Stable: the vertical
+	// encoder moves octaveBase, so the panel scrolls with it but always keeps the chord framed.
 	int32_t padIndex =
-	    getState().harmonic.octaveBase * (int32_t)sc + (x - kIsoStartCol) + y * getState().inKey.rowInterval;
+	    (getState().harmonic.octaveBase - 1) * (int32_t)sc + (x - kIsoStartCol) + y * getState().inKey.rowInterval;
 	if (padIndex < 0) {
 		padIndex = 0;
 	}
@@ -120,9 +121,9 @@ int32_t KeyboardLayoutHarmonic::isoNoteAt(int32_t x, int32_t y) {
 }
 
 int32_t KeyboardLayoutHarmonic::isoNoteChromatic(int32_t x, int32_t y) {
-	// Standard chromatic isomorphic mapping (semitone per column, rowInterval per row), anchored to the
-	// chord register so the voicing stays framed and the vertical encoder scrolls it.
-	return getState().harmonic.octaveBase * 12 + getRootNote() + (x - kIsoStartCol)
+	// Standard chromatic isomorphic mapping (semitone per column, rowInterval per row), anchored ONE
+	// OCTAVE BELOW the chord register so the voicing lands in the middle of the panel, not at the bottom.
+	return (getState().harmonic.octaveBase - 1) * 12 + getRootNote() + (x - kIsoStartCol)
 	       + y * getState().isomorphic.rowInterval;
 }
 
