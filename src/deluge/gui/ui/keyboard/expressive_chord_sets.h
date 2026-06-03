@@ -34,7 +34,7 @@ constexpr int32_t kExpressiveMidiBaseNoteDefault = 48;
 constexpr int32_t kExpressiveInversionColumnX = 12;
 constexpr int32_t kExpressiveSpreadColumnX = 13;
 constexpr int32_t kExpressiveControlSteps = kDisplayHeight;
-constexpr size_t kExpressiveChordSetCount = 4;
+constexpr size_t kExpressiveChordSetCount = 7;
 
 /// One pad in the expressive grid: a pre-voiced chord at a fixed root (Ableton-style "feel" slot).
 struct ExpressiveChordSlot {
