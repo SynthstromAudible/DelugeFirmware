@@ -27,6 +27,7 @@
 #include <etl/vector.h>
 
 namespace deluge::gui::menu_item {
+
 const PatchSource sourceMenuContents[] = {
     PatchSource::ENVELOPE_0,
     PatchSource::ENVELOPE_1,
@@ -45,6 +46,9 @@ const PatchSource sourceMenuContents[] = {
     PatchSource::AFTERTOUCH,
 };
 
+// We're assuming all patch sources are here -- and nothing else. Let's make sure.
+static_assert(kNumPatchSources == (sizeof(sourceMenuContents) / sizeof(PatchSource)));
+
 uint8_t SourceSelection::shouldDrawDotOnValue() {
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
 	           s, getDestinationDescriptor())
@@ -52,39 +56,55 @@ uint8_t SourceSelection::shouldDrawDotOnValue() {
 	           : 255;
 }
 
-int32_t SourceSelection::selectedRowOnScreen;
-
 void SourceSelection::drawPixelsForOled() {
-	etl::vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames{};
-
-	selectedRowOnScreen = 0;
-
-	int32_t thisOption = scrollPos;
-	size_t i = 0;
-
-	while (i < kOLEDMenuNumOptionsVisible) {
-		if (thisOption >= kNumPatchSources) {
-			break;
+	// Assuming 3 makes life easier -- let's make sure that holds.
+	static_assert(kOLEDMenuNumOptionsVisible == 3);
+	etl::vector<int32_t, kOLEDMenuNumOptionsVisible> items{};
+	int32_t selected = this->getValue();
+	int32_t sourceIndex = selected;
+	// 1. Collect the selected item, and allowed items following it.
+	//    Possible outcomes: [s], [s, s+1], [s, s+1, s+2]
+	while (sourceIndex < kNumPatchSources && items.size() < items.capacity()) {
+		if (sourceIsAllowed(sourceMenuContents[sourceIndex])) {
+			items.push_back(sourceIndex);
 		}
-
-		const PatchSource sHere = sourceMenuContents[thisOption];
-
-		if (sourceIsAllowed(sHere)) {
-			itemNames.push_back(getSourceDisplayNameForOLED(sHere));
-			if (thisOption == this->getValue()) {
-				selectedRowOnScreen = static_cast<int32_t>(i);
-			}
-			i++;
-		}
-		else {
-			if (thisOption == scrollPos) {
-				scrollPos++;
-			}
-		}
-		thisOption++;
+		sourceIndex++;
 	}
-
-	drawItemsForOled(itemNames, selectedRowOnScreen);
+	// 2. Collected the allowed items before the selected item:
+	//    2.1. If we have the max number of items, replace the last item.
+	//    2.2. Otherwise fill up.
+	sourceIndex = this->getValue() - 1;
+	if (items.size() == items.capacity()) {
+		while (sourceIndex >= 0) {
+			if (sourceIsAllowed(sourceMenuContents[sourceIndex])) {
+				items[items.size() - 1] = sourceIndex;
+				break;
+			}
+			sourceIndex--;
+		}
+	}
+	else {
+		while (sourceIndex >= 0 && items.size() < items.capacity()) {
+			if (sourceIsAllowed(sourceMenuContents[sourceIndex])) {
+				items.push_back(sourceIndex);
+			}
+			sourceIndex--;
+		}
+	}
+	// 3. Sort items.
+	std::sort(items.begin(), items.end());
+	// 4. Convert to names and record position of selected item.
+	etl::vector<std::string_view, kOLEDMenuNumOptionsVisible> names{};
+	int32_t selectedRowOnScreen = 0;
+	for (int32_t i = 0; i < items.size(); i++) {
+		sourceIndex = items[i];
+		names.push_back(getSourceDisplayNameForOLED(sourceMenuContents[sourceIndex]));
+		if (sourceIndex == selected) {
+			selectedRowOnScreen = i;
+		}
+	}
+	// All done.
+	drawItemsForOled(names, selectedRowOnScreen);
 }
 
 // 7SEG only
@@ -171,14 +191,14 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 		while (sourceMenuContents[this->getValue()] != s) {
 			this->setValue(this->getValue() + 1);
 		}
-		// Scroll pos will be retained from before.
 	}
 	else {
 		int32_t firstAllowedIndex = kNumPatchSources - 1;
+		// Find the first source which patching exists, or the first allowed one if nothing is patched.
 		while (true) {
 			s = sourceMenuContents[this->getValue()];
 
-			// If patching already exists on this source, we use this as the initial one to show to the user
+			// Patched already?
 			if (soundEditor.currentParamManager->getPatchCableSet()
 			        ->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor())) {
 				break;
@@ -190,15 +210,9 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 
 			this->setValue(this->getValue() + 1);
-			if (display->haveOLED()) {
-				scrollPos = this->getValue();
-			}
 
 			if (this->getValue() >= kNumPatchSources) {
 				this->setValue(firstAllowedIndex);
-				if (display->haveOLED()) {
-					scrollPos = this->getValue();
-				}
 				s = sourceMenuContents[this->getValue()];
 				break;
 			}
@@ -220,23 +234,31 @@ void SourceSelection::readValueAgain() {
 }
 
 void SourceSelection::selectEncoderAction(int32_t offset) {
-	int32_t currentValue = this->getValue();
-	int32_t newValue = 0;
-	do {
-		newValue = std::clamp<int32_t>(currentValue + offset, 0, kNumPatchSources - 1);
-
-		// if no change, just exit
-		if (newValue == currentValue) {
-			return;
+	// thisValue keeps track of our position
+	// newValue keeps track of last allowed value
+	int32_t thisValue = this->getValue();
+	int32_t newValue = thisValue;
+	// delta is the direction we step in
+	// steps is the number of step we want to take
+	int32_t delta = offset >= 1 ? 1 : -1;
+	int32_t steps = offset >= 1 ? offset : -offset;
+	// each time through the loop tries on step, which may or may not succeed
+	while (steps > 0) {
+		thisValue += delta;
+		if (thisValue < 0 || kNumPatchSources <= thisValue) {
+			// Last value in scroll direction.
+			break;
 		}
-	} while (!sourceIsAllowed(sourceMenuContents[newValue]));
+		if (sourceIsAllowed(sourceMenuContents[thisValue])) {
+			newValue = thisValue;
+			steps--;
+		}
+	}
 
 	s = sourceMenuContents[newValue];
 	this->setValue(newValue);
 
 	if (display->haveOLED()) {
-		scrollPos = std::clamp<int>(newValue - 1, 0, kNumPatchSources - kOLEDMenuNumOptionsVisible);
-
 		renderUIsForOled();
 	}
 	else {

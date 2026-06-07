@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		70="Osc Type"
+		14="Osc Edit1"
+		15="Osc Edit2"
+        
+		89="Mod Speed"
+		90="Mod Depth"
+		87="Mod Type"
+		88="Mod Dest"
+		82="Mod BPM Sync"
+        
+		74="Cutoff"
+		71="Resonance"
+		79="EG Int"
+		84="Drive"
+		83="Filter Type"
+        
+		5="Glide"
+		10="Pan"
+		75="EG Time"
+		7="Level"
+		86="Amp EG"
+		85="Roll"
+		91="Fx Send"
+		81="Fx Select"
+		80="Motion Seq"
+        
+		12="Fx1 Type"
+		92="Fx1 Edit1"
+		93="Fx1 Edit2"
+		20="Fx1 Motion Seq"
+        
+		13="Fx2 Type"
+		94="Fx2 Edit1"
+		95="Fx2 Edit2"
+		21="Fx2 Motion Seq"
+        
+		24="Fx3 Type"
+		25="Fx3 Edit1"
+		26="Fx3 Edit2"
+		22="Fx3 Motion Seq"
+        
+		23="Fx Chain"/>
+</midiDevice>
+
+	<!------ VALUE TABLES ------
+	
+	
+
+		--------OSC TYPE-------
+		0-7       : WAVE FORM
+		8-15      : DUAL OSC
+		16-23     : CHORD OSC
+		24-31     : UNISON OSC
+		32-39     : RING MOD
+		40-47     : OSC SYNC
+		48-55     : CROSS MOD
+		56-63     : VPM OSC
+		64-71     : WS
+		72-79     : ADDITIVE OSC
+		80-87     : COMB OSC
+		88-95     : FORMANT OSC
+		96-103    : NOISE OSC
+		104-111   : PCM OSC + COMB
+		112-119   : PCM OSC + WS
+		120-127   : AUDIO IN + COMB
+		
+		-------MOD TYPE------
+		0-15    : Saw
+		16-31   : Squ
+		32-47   : Tri
+		48-63   : S&H
+		64-127  : EG
+		
+		-------MOD DEST------
+		0-15    : PITCH
+		16-31   : OSC EDIT1
+		32-47   : OSC EDIT2
+		48-63   : CUTOFF
+		64-79   : AMP
+		80-127  : PAN
+		
+		-------FILTER TYPE------
+		0-31    : LPF
+		32-63   : HPF
+		64-95   : BPF
+		96-127  : BPF+
+		
+		-------FX SELECT------
+		0-42    : FX1
+		43-85   : FX2
+		86-127  : FX3
+		
+		-------MOTION SEQ------
+		0-42    : Off
+		43-85   : Smooth
+		86-127  : Trig Hold
+		
+		-------FX TYPE--------
+		0-7     : REVERB
+		8-15    : BPM SYNC DELAY
+		16-23   : SHORT DELAY
+		24-31   : MOD DELAY
+		32-39   : GRAIN SHIFTER
+		40-47   : CHO/FLG
+		48-55   : PHASER
+		56-63   : RING MOD
+		64-71   : TALKING MOD
+		72-79   : PITCH SHIFTER
+		80-87   : COMPRESSOR
+		88-95   : DISTORTION
+		96-103  : DECIMATOR
+		104-111 : EQ
+		112-119 : LPF
+		120-127 : HPF
+		
+		-------FX CHAIN------
+		0-31    : none
+		32-63   : FX1-FX2
+		64-95   : FX2-FX3
+		96-127  : FX1-FX2-FX3
+        
+        ------Bool Toggles-------
+        Mod BPM Sync,
+        Amp EG,
+        Roll,
+        Fx Send,
+        Fx1 Motion Seq,
+        Fx2 Motion Seq,
+        Fx3 Motion Seq
+        
+        0-63	: OFF
+        64-127	: ON
+		-->

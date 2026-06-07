@@ -37,23 +37,20 @@ bool RenameMidiCCUI::canRename() const {
 	return cc >= 0 && cc != CC_EXTERNAL_MOD_WHEEL && cc < kNumRealCCNumbers;
 }
 
-String RenameMidiCCUI::getName() const {
+std::string_view RenameMidiCCUI::getCurrentName() const {
 	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 	int32_t cc = clip->lastSelectedParamID;
-	std::string_view name = midiInstrument->getNameFromCC(cc);
-	String name_string;
-	name_string.set(name.data(), name.length());
-	return name_string;
+	return midiInstrument->getNameFromCC(cc);
 }
 
-bool RenameMidiCCUI::trySetName(String* name) {
+bool RenameMidiCCUI::trySetName(std::string_view name) {
 
 	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 	int32_t cc = clip->lastSelectedParamID;
 
-	midiInstrument->setNameForCC(cc, enteredText.get());
+	midiInstrument->setNameForCC(cc, name);
 	midiInstrument->editedByUser = true; // need to set this to true so that the name gets saved with the song / preset
 
 	return true;

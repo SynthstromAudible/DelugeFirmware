@@ -27,13 +27,14 @@
 
 RenameOutputUI renameOutputUI{"Track name"};
 
-String RenameOutputUI::getName() const {
-	return output->name;
+std::string_view RenameOutputUI::getCurrentName() const {
+	return output->name.get();
 }
 
-bool RenameOutputUI::trySetName(String* name) {
+bool RenameOutputUI::trySetName(std::string_view name) {
 	// Duplicate names not allowed for audio outputs.
-	if (!output->name.equalsCaseIrrespective(name) && currentSong->getAudioOutputFromName(name)) {
+	void* other = currentSong->getAudioOutputFromName(name);
+	if (other != nullptr && other != output) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}

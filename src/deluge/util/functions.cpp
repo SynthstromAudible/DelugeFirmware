@@ -582,8 +582,8 @@ bool memIsNumericChars(char const* mem, int32_t size) {
 	return true;
 }
 
-bool stringIsNumericChars(char const* str) {
-	return memIsNumericChars(str, strlen(str));
+bool stringIsNumericChars(std::string_view str) {
+	return memIsNumericChars(str.data(), str.size());
 }
 
 char const* getThingName(OutputType outputType) {

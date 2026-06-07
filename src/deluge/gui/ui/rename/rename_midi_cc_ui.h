@@ -28,8 +28,8 @@ public:
 	RenameMidiCCUI(const char* title_) : RenameUI(title_) {}
 
 protected:
-	bool trySetName(String*) override;
-	String getName() const override;
+	bool trySetName(std::string_view) override;
+	std::string_view getCurrentName() const override;
 	bool canRename() const override;
 };
 

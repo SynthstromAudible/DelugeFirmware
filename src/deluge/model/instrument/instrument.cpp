@@ -185,8 +185,8 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 Error Instrument::setupDefaultAudioFileDir() {
 	char const* dirPathChars = dirPath.get();
-	auto result =
-	    audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, dirPathChars, name);
+	auto result = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, dirPathChars,
+	                                                          name.get());
 	if (result != Error::NONE) {
 		return result;
 	}

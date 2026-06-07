@@ -35,6 +35,7 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void updateSelectedOption();
 	void updateOutputToCreate();
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 
 	LED getLedFromOption(int32_t option);
 	void disableLedForOption(int32_t option);

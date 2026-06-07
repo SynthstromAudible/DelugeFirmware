@@ -999,7 +999,7 @@ doLoadAsSample:
 				autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.get());
 
 				// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
-				drum->name.clear();
+				drum->drumName.clear();
 
 				String newName;
 				if (!numCharsInPrefix || display->haveOLED()) {
@@ -1023,7 +1023,7 @@ doLoadAsSample:
 					}
 				}
 
-				drum->name.set(&newName);
+				drum->drumName = newName.get();
 			}
 
 			// If a synth...
@@ -2009,7 +2009,7 @@ getOut:
 					}
 				}
 
-				drum->name.set(&newName);
+				drum->drumName = newName.get();
 			}
 skipNameStuff:
 

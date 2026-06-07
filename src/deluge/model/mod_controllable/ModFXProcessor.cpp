@@ -28,7 +28,9 @@
 void ModFXProcessor::processModFX(std::span<StereoSample> buffer, const ModFXType& modFXType, int32_t modFXRate,
                                   int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
                                   bool anySoundComingIn) {
-
+	// if nothing rendered into the clip then we can just return
+	if (anySoundComingIn == false)
+		return;
 	if (modFXType != ModFXType::NONE) {
 
 		LFOType modFXLFOWaveType{};

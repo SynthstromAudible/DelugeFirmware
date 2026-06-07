@@ -4,8 +4,7 @@ sidebar:
   order: 7
 ---
 
-import { Card } from "@astrojs/starlight/components"
-import { Steps } from "@astrojs/starlight/components"
+import { Card, Steps } from "@astrojs/starlight/components"
 
 This page provides information on the physical hardware controls used to interact with the Deluge's firmware user interface. This includes:
 
@@ -315,9 +314,11 @@ The other way that the scale may be altered and customized is by sharpening or f
 
 For songs with multiple clips, all clips that are in scale mode are always locked to the same scale, for convenience. Any change that you make to the scale while editing one clip will affect all others that are also in scale mode. Correspondingly, when the Deluge guesses the scale and root note when re-entering scale mode, the contents of all scale clips will be considered. So if you’re wondering why the Deluge threw some extra notes into your scale that you didn’t expect, it’s likely because you have a different clip which contains those notes!
 
-If you wish to transpose a clip up or down, this can be achieved by holding down the ▼▲ knob and turning it. Doing this alone will transpose a whole octave at a time. If you wish to transpose just a semitone, then hold down the shift button as well while turning.
+If you wish to transpose a clip up or down, this can be achieved by holding down the ▼▲ knob and turning it. Doing this alone will transpose a whole octave at a time. If you wish to transpose by scale degrees instead, then hold down the shift button as well while turning.
 
-If you transpose by semitones while in scale mode, then any other clips that are also in scale mode will also be transposed.
+To transpose just the current screen, hold down the ◄► knob and turn the ▼▲ knob. If you additionally hold down the ▼▲ knob while turning it, notes will be locked into their current octave for a voice leading style effect.
+
+Transpose will be in scale degrees if scale mode is active and semitones otherwise
 
 ### :key[Crossscreen]
 

@@ -97,7 +97,7 @@ public:
 	void slowRoutine();
 
 	Error setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath);
-	Error setupAlternateAudioFileDir(String& newPath, char const* rootDir, String& songFilenameWithoutExtension);
+	Error setupAlternateAudioFileDir(String& newPath, char const* rootDir, const char* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
 	/// If songname isn't supplied the file is placed in the main recording folder and named as samples/folder/REC###.
 	/// If song and channel are supplied then it's placed in samples/folder/song/channel_###

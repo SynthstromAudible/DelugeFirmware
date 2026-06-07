@@ -31,7 +31,7 @@ public:
 	void noteOffPostArp(int32_t noteCodePostArp) override;
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
-	void getName(char* buffer) override;
+	std::string getDrumName() override;
 	int32_t getNumChannels() override { return 16; }
 	void killAllVoices() override;
 

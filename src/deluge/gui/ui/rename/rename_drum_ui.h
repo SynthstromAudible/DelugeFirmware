@@ -27,12 +27,9 @@ public:
 	RenameDrumUI(const char* title_) : RenameUI(title_) {};
 
 protected:
-	bool trySetName(String*) override;
-	String getName() const override;
+	bool trySetName(std::string_view name) override;
+	std::string_view getCurrentName() const override;
 	bool allowEmpty() const override { return false; }
-
-private:
-	SoundDrum* getDrum() const;
 };
 
 extern RenameDrumUI renameDrumUI;

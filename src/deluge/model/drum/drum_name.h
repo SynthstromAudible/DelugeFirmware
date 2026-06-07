@@ -21,7 +21,7 @@
 
 class DrumName {
 public:
-	DrumName(String* newName);
+	DrumName(std::string_view newName);
 	virtual ~DrumName();
 
 	String name;

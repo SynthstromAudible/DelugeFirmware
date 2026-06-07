@@ -1129,8 +1129,8 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 	}
 	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_DrumName_tempo_noteName-scaleName_###.WAV
 	else if (stemExportType == StemExportType::DRUM) {
-		sprintf(fileName, "%s_%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType, outputName, drum->name.get(),
-		        tempo, noteName, scaleName, fileNumber);
+		sprintf(fileName, "%s_%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType, outputName,
+		        drum->drumName.c_str(), tempo, noteName, scaleName, fileNumber);
 	}
 	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_tempo_noteName-scaleName_###.WAV
 	else {

@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <string.h>
 
-DrumName::DrumName(String* newName) {
+DrumName::DrumName(std::string_view newName) {
 	next = nullptr;
 	name.set(newName);
 }

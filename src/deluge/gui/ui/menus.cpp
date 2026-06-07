@@ -29,6 +29,7 @@
 #include "gui/menu_item/audio_compressor/compressor_params.h"
 #include "gui/menu_item/audio_compressor/compressor_values.h"
 #include "gui/menu_item/audio_interpolation.h"
+#include "gui/menu_item/battery/level.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
@@ -898,13 +899,13 @@ PLACE_SDRAM_DATA const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     nullptr,
 };
 
-PLACE_SDRAM_DATA const MenuItem* gateDrumParamShortcuts[8] = {
+PLACE_SDRAM_DATA const MenuItem* gateDrumParamShortcuts[kDisplayHeight] = {
     &arpRateMenuMIDIOrCV,
     &arpSyncMenu,
     &arpGateMenuMIDIOrCV,
     &arpRhythmMenuMIDIOrCV,
     &arpModeMenu,
-    nullptr,
+    &nameEditMenu,
     nullptr,
     nullptr,
 };
@@ -986,6 +987,8 @@ sample::browser_preview::Mode sampleBrowserPreviewModeMenu{STRING_FOR_SAMPLE_PRE
 flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
 
 firmware::Version firmwareVersionMenu{STRING_FOR_FIRMWARE_VERSION, STRING_FOR_FIRMWARE_VER_MENU_TITLE};
+
+battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING_FOR_BATTERY_LEVEL_MENU_TITLE};
 
 runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS, STRING_FOR_COMMUNITY_FTS_MENU_TITLE};
 
@@ -1697,6 +1700,7 @@ Submenu settingsRootMenu{
         &flashStatusMenu,
         &recordSubmenu,
         &runtimeFeatureSettingsMenu,
+        &batteryLevelMenu,
         &firmwareVersionMenu,
     },
 };
