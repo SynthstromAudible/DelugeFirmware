@@ -43,6 +43,11 @@ static int32_t nextSDTestDirection = 1;
 
 static uint32_t encodersWaitingForCardRoutineEnd;
 
+void interpretEncodersTask() {
+	interpretEncoders(false);
+	blockTask(EncoderTaskID);
+}
+
 bool interpretEncoders(bool skipActioning) {
 	// do not interpret encoders when stem export is underway
 	if (stemExport.processStarted) {

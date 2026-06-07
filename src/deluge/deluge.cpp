@@ -522,6 +522,10 @@ void registerTasks() {
 	AudioEngine::routine_task_id = addRepeatingTask(&(AudioEngine::routine_task), p++, 8 / 44100., 64 / 44100.,
 	                                                128 / 44100., "audio  routine", RESOURCE_NONE);
 	addRepeatingTask(MidiEngine::check_incoming_usb, p++, 0.0005, 0.0005, 0.001, "check usb midi", RESOURCE_USB);
+
+	// this will block itself unless an encoder is actually moved so can have a fast rate
+	encoders::EncoderTaskID = addRepeatingTask(&(encoders::interpretEncodersTask), p++, 0.001, 0.001, 0.002,
+	                                           "interpret encoders fast", RESOURCE_NONE);
 	// formerly part of audio routine, updates midi and clock
 	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 0.0005, 0.001, 0.002, "playback routine", RESOURCE_NONE);
 	midiEngine.routine_task_id = addRepeatingTask([]() { playbackHandler.midiRoutine(); }, p++, 0.0005, 0.001, 0.002,
@@ -535,13 +539,9 @@ void registerTasks() {
 
 	// 11-19: Medium priority (20 for dyn tasks)
 	p = 11;
-	addRepeatingTask([]() { encoders::interpretEncoders(true); }, p++, 0.002, 0.003, 0.006, "interpret encoders fast",
-	                 RESOURCE_NONE);
+
 	// 30 Hz update desired?
 	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI", RESOURCE_NONE);
-	// this one actually actions them
-	addRepeatingTask([]() { encoders::interpretEncoders(false); }, p++, 0.005, 0.005, 0.01, "interpret encoders slow",
-	                 RESOURCE_SD_ROUTINE);
 
 	// Check for and handle queued SysEx traffic
 	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.",

@@ -25,6 +25,8 @@ extern "C" {
 
 namespace deluge::hid::encoders {
 
+TaskID EncoderTaskID = -1;
+
 // ── DetentedEncoder ────────────────────────────────────────────────────────
 
 void DetentedEncoder::applyEdges(int8_t edges) {
@@ -32,19 +34,15 @@ void DetentedEncoder::applyEdges(int8_t edges) {
 	edgeAccumulator += edges;
 	int8_t ticks = edgeAccumulator / 2;
 	edgeAccumulator -= ticks * 2;
-	pos += ticks;
+	pos.fetch_add(ticks, std::memory_order_relaxed);
 }
 
 int32_t DetentedEncoder::take() {
-	int32_t toReturn = pos;
-	pos = 0;
-	return toReturn;
+	return pos.exchange(0, std::memory_order_relaxed);
 }
 
 int8_t ContinuousEncoder::take() {
-	int8_t toReturn = pos;
-	pos = 0;
-	return toReturn;
+	return pos.exchange(0, std::memory_order_relaxed);
 }
 
 // ── Named encoder globals ──────────────────────────────────────────────────
@@ -118,6 +116,9 @@ void encoderIrqHandler(uint32_t /*sense*/) {
 	else if constexpr (IDX == 5) {
 		mod0.applyEdges(inc);
 	}
+
+	// Wake the (otherwise self-blocked) encoder task so it actions this movement.
+	unblockTask(EncoderTaskID);
 
 	clearIRQInterrupt(m.irqNum);
 }

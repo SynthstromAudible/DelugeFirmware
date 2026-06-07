@@ -52,6 +52,7 @@ target_include_directories(MemoryManagerTests PRIVATE
         # include the non test project source
         mocks
         ../../src/deluge
+        ../../src/OSLikeStuff
         ../../src/NE10/inc
         ../../src/lib
         ../../src

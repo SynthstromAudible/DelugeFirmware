@@ -32,4 +32,8 @@ extern uint32_t timeModEncoderLastTurned[];
 /// @return true if any encoder produced an action this call.
 bool interpretEncoders(bool skipActioning = false);
 
+/// Scheduler task entry point: actions any pending encoder movement, then re-blocks itself so it
+/// won't run again until the encoder IRQ unblocks it.
+void interpretEncodersTask();
+
 } // namespace deluge::hid::encoders

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "OSLikeStuff/scheduler_api.h"
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 
@@ -33,17 +35,18 @@ public:
 	void applyEdges(int8_t edges);
 
 	/// True if any detent steps are waiting to be consumed.
-	bool pending() const { return pos != 0; }
+	bool pending() const { return pos.load(std::memory_order_relaxed) != 0; }
 
 	/// Returns the accumulated signed detent count and resets pos to 0.
 	int32_t take();
 
 	/// Puts a value back (used by the SD card-routine retry path).
-	void restore(int32_t val) { pos = val; }
+	/// fetch_add rather than store so a detent that arrived from the IRQ since take() isn't clobbered.
+	void restore(int32_t val) { pos.fetch_add(val, std::memory_order_relaxed); }
 
 private:
-	int32_t edgeAccumulator = 0; ///< Accumulates A-pin edges until we have a full detent click.
-	int32_t pos = 0;
+	int32_t edgeAccumulator = 0; ///< Accumulates A-pin edges until we have a full detent click. IRQ-only.
+	std::atomic_int32_t pos = 0; ///< Written by the IRQ (applyEdges), drained by the encoder task.
 };
 
 /// Gold mod encoders (MOD_0, MOD_1) are continuous, and accumulate raw edges for velocity.
@@ -53,16 +56,16 @@ public:
 	ContinuousEncoder(const ContinuousEncoder&) = delete;
 	ContinuousEncoder& operator=(const ContinuousEncoder&) = delete;
 
-	void applyEdges(int8_t edges) { pos += edges; }
+	void applyEdges(int8_t edges) { pos.fetch_add(edges, std::memory_order_relaxed); }
 
 	/// True if any ticks are waiting to be consumed.
-	bool pending() const { return pos != 0; }
+	bool pending() const { return pos.load(std::memory_order_relaxed) != 0; }
 
 	/// Returns the accumulated tick count and resets pos to 0.
 	int8_t take();
 
 private:
-	int8_t pos = 0;
+	std::atomic_int8_t pos = 0; ///< Written by the IRQ (applyEdges), drained by the encoder task.
 };
 
 // ── Named encoder globals ─────────────────────────────────────────────────
@@ -91,5 +94,9 @@ extern uint32_t timeModEncoderLastTurned[];
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 
 void init();
+
+/// Scheduler task that drains the encoders. It blocks itself after each run and is unblocked from the
+/// encoder IRQ, so it only consumes CPU when an encoder has actually moved. Set by registerTasks().
+extern TaskID EncoderTaskID;
 
 } // namespace deluge::hid::encoders
