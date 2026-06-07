@@ -91,31 +91,35 @@ bool interpretEncoders(bool skipActioning) {
 		if (fe.pending()) {
 			anything = true;
 
-			// Limit. Some functions can break if they receive bigger numbers, e.g. LoadSongUI::selectEncoderAction()
-			int32_t limitedDetentPos = fe.take();
+			int32_t detentDelta = fe.take();
+
+			// Handlers that take int8_t (tempo, select) get a saturating narrowing cast so that very fast
+			// spinning cannot overflow the parameter type.  Horizontal/vertical actions take int32_t and
+			// receive the full accumulated delta for natural acceleration.
+			auto saturatedDelta = static_cast<int8_t>(std::clamp(detentDelta, (int32_t)-128, (int32_t)127));
 
 			ActionResult result;
 
 			switch (e) {
 
 			case 1: // scrollX
-				result = getCurrentUI()->horizontalEncoderAction(limitedDetentPos);
+				result = getCurrentUI()->horizontalEncoderAction(detentDelta);
 				// Actually, after coding this up, I realise I actually have it above stopping the X encoder from even
 				// getting here during the SD routine. Ok so we'll leave it that way, in addition to me having made all
 				// the horizontalEncoderAction() calls SD-routine-safe
 checkResult:
 				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 					encodersWaitingForCardRoutineEnd |= (1 << e);
-					fe.restore(limitedDetentPos); // Put it back for next time
+					fe.restore(detentDelta); // Put it back for next time
 				}
 				break;
 
 			case 0: // scrollY
 				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-					PadLEDs::changeDimmerInterval(limitedDetentPos);
+					PadLEDs::changeDimmerInterval(detentDelta);
 				}
 				else {
-					result = getCurrentUI()->verticalEncoderAction(limitedDetentPos, skipActioning);
+					result = getCurrentUI()->verticalEncoderAction(detentDelta, skipActioning);
 					goto checkResult;
 				}
 				break;
@@ -125,12 +129,12 @@ checkResult:
 				     || (getCurrentUI() == &automationView && automationView.inNoteEditor()))
 				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 				           == RuntimeFeatureStateToggle::On) {
-					instrumentClipView.tempoEncoderAction(limitedDetentPos,
+					instrumentClipView.tempoEncoderAction(saturatedDelta,
 					                                      Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
 					                                      Buttons::isShiftButtonPressed());
 				}
 				else {
-					playbackHandler.tempoEncoderAction(limitedDetentPos,
+					playbackHandler.tempoEncoderAction(saturatedDelta,
 					                                   Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
 					                                   Buttons::isShiftButtonPressed());
 				}
@@ -138,15 +142,15 @@ checkResult:
 
 			case 3: // select
 				if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
-					PadLEDs::changeRefreshTime(limitedDetentPos);
+					PadLEDs::changeRefreshTime(saturatedDelta);
 				}
 				else if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 					if (currentSong) {
-						currentSong->changeThresholdRecordingMode(limitedDetentPos);
+						currentSong->changeThresholdRecordingMode(saturatedDelta);
 					}
 				}
 				else {
-					getCurrentUI()->selectEncoderAction(limitedDetentPos);
+					getCurrentUI()->selectEncoderAction(saturatedDelta);
 				}
 				break;
 			}

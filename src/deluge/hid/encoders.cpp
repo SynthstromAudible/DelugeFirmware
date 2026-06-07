@@ -36,7 +36,7 @@ void DetentedEncoder::applyEdges(int8_t edges) {
 }
 
 int32_t DetentedEncoder::take() {
-	int32_t toReturn = (pos >= 0) ? 1 : -1;
+	int32_t toReturn = pos;
 	pos = 0;
 	return toReturn;
 }

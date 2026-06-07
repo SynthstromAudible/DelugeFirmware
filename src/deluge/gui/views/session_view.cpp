@@ -1344,7 +1344,7 @@ void SessionView::commandChangeCurrentSectionRepeats(int8_t offset) {
 		if (session.launchEventAtSwungTickCount) {
 			editNumRepeatsTilLaunch(offset);
 		}
-		else if (offset == 1) {
+		else if (offset > 0) {
 			session.userWantsToArmNextSection(1);
 		}
 	}

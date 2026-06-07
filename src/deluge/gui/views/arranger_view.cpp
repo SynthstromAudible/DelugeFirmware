@@ -2561,7 +2561,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 			}
 
 			else { // Arrangement playback
-				if (offset == -1 && playbackHandler.stopOutputRecordingAtLoopEnd) {
+				if (offset < 0 && playbackHandler.stopOutputRecordingAtLoopEnd) {
 					playbackHandler.stopOutputRecordingAtLoopEnd = false;
 					renderDisplay();
 				}
@@ -2719,7 +2719,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 			int32_t zoomMagnitude = -offset;
 
 			// Constrain to zoom limits
-			if (zoomMagnitude == -1) {
+			if (zoomMagnitude < 0) {
 				if (oldXZoom <= 3) {
 					return ActionResult::DEALT_WITH;
 				}
@@ -2820,7 +2820,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 			can_drag_clip_instance = (dragged_clip_position > 0);
 		}
 
-		if (can_drag_clip_instance || currentSong->xScroll[NAVIGATION_ARRANGEMENT] > 0 || offset == 1) {
+		if (can_drag_clip_instance || currentSong->xScroll[NAVIGATION_ARRANGEMENT] > 0 || offset > 0) {
 			// Allow movement left if we are above zero when either dragging or scrolling.
 			// This will always stop scrolling at zero, but dragging might let the clip instance go one
 			// square below zero if it is for example at a half step offset. But it will blink and then snap back to

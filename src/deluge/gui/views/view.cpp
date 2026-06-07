@@ -2329,12 +2329,14 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			}
 
 			while (true) {
-				newChannelSuffix += offset;
+				// Use ±1 step regardless of encoder acceleration so channel-wrap logic stays correct.
+				int32_t step = (offset > 0) ? 1 : -1;
+				newChannelSuffix += step;
 
 				// Turned left
-				if (offset == -1) {
+				if (offset < 0) {
 					if (newChannelSuffix < -1) {
-						newChannel = (newChannel + offset);
+						newChannel = (newChannel + step);
 						if (newChannel < 0) {
 							newChannel = IS_A_DEST + NUM_INTERNAL_DESTS;
 						}
@@ -2350,7 +2352,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 					if (newChannelSuffix >= 26
 					    || newChannelSuffix > modelStack->song->getMaxMIDIChannelSuffix(newChannel)) {
-						newChannel = (newChannel + offset);
+						newChannel = (newChannel + step);
 						if (newChannel > MIDI_CHANNEL_MPE_UPPER_ZONE && newChannel <= IS_A_DEST) {
 							newChannel = IS_A_DEST + 1;
 						}

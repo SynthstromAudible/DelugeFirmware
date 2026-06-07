@@ -89,7 +89,7 @@ void Decimal::selectEncoderAction(int32_t offset) {
 bool movingCursor = false; // Sorry, ugly hack.
 
 void Decimal::horizontalEncoderAction(int32_t offset) {
-	if (offset == 1) {
+	if (offset > 0) {
 		if (soundEditor.numberEditPos > 0) {
 			soundEditor.numberEditPos--;
 			soundEditor.numberEditSize /= 10;

@@ -468,7 +468,7 @@ void QwertyUI::processBackspace() {
 }
 
 ActionResult QwertyUI::horizontalEncoderAction(int32_t offset) {
-	if (offset == 1) {
+	if (offset > 0) {
 
 		// If already at far right end, just see if we can predict any further characters
 		if (enteredTextEditPos == enteredText.getLength()) {

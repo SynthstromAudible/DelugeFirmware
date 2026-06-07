@@ -4739,12 +4739,14 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 			oldNonAudioInstrument->setChannel(-1); // Get it out of the way
 
 			do {
-				newChannelSuffix += offset;
+				// Use +/-1 step regardless of encoder so channel-wrap logic stays correct.
+				int32_t step = (offset > 0) ? 1 : -1;
+				newChannelSuffix += step;
 
 				// Turned left
-				if (offset == -1) {
+				if (offset < 0) {
 					if (newChannelSuffix < -1) {
-						newChannel = (newChannel + offset) & 15;
+						newChannel = (newChannel + step) & 15;
 						newChannelSuffix = currentSong->getMaxMIDIChannelSuffix(newChannel);
 					}
 				}
@@ -4752,7 +4754,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 				// Turned right
 				else {
 					if (newChannelSuffix >= 26 || newChannelSuffix > currentSong->getMaxMIDIChannelSuffix(newChannel)) {
-						newChannel = (newChannel + offset) & 15;
+						newChannel = (newChannel + step) & 15;
 						newChannelSuffix = -1;
 					}
 				}

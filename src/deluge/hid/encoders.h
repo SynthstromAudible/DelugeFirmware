@@ -35,15 +35,15 @@ public:
 	/// True if any detent steps are waiting to be consumed.
 	bool pending() const { return pos != 0; }
 
-	/// Returns ±1 (clamped) and resets pos to 0.
+	/// Returns the accumulated signed detent count and resets pos to 0.
 	int32_t take();
 
 	/// Puts a value back (used by the SD card-routine retry path).
 	void restore(int32_t val) { pos = val; }
 
 private:
-	int8_t edgeAccumulator = 0;
-	int8_t pos = 0;
+	int32_t edgeAccumulator = 0; ///< Accumulates A-pin edges until we have a full detent click.
+	int32_t pos = 0;
 };
 
 /// Gold mod encoders (MOD_0, MOD_1) are continuous, and accumulate raw edges for velocity.

@@ -6608,6 +6608,9 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 
 // Supply offset as 0 to just popup number, not change anything
 void InstrumentClipView::nudgeNotes(int32_t offset) {
+	// moveRegionHorizontally (called via nudgeAutomationHorizontallyAtPos) assumes |offset| == 1 in its
+	// wrap-region path, so clamp here to keep notes and automation in sync.
+	offset = std::clamp(offset, (int32_t)-1, (int32_t)1);
 
 	// if we're in note row editor and we nudge a note we're holding
 	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
@@ -7492,11 +7495,11 @@ addConsequenceToAction:
 
 displayMessage:
 	if (display->haveOLED()) {
-		char const* message = (offset == 1) ? "Rotated right" : "Rotated left";
+		char const* message = (offset > 0) ? "Rotated right" : "Rotated left";
 		display->popupTextTemporary(message);
 	}
 	else {
-		char const* message = (offset == 1) ? "RIGHT" : "LEFT";
+		char const* message = (offset > 0) ? "RIGHT" : "LEFT";
 		display->displayPopup(message, 0);
 	}
 }
@@ -7550,7 +7553,7 @@ void InstrumentClipView::editNoteRowLength(ModelStackWithNoteRow* modelStack, in
 
 		// If we're recovering a bit that previously got chopped off, do secret undo to recover any chopped-off
 		// notes and automation
-		if (offset == 1 && prevCons->backedUpLength > oldLength) {
+		if (offset > 0 && prevCons->backedUpLength > oldLength) {
 			shouldResumePlaybackOnNoteRowLengthSet = false; // Ugly hack, kinda
 			actionLogger.revert(BEFORE, false, false);
 			shouldResumePlaybackOnNoteRowLengthSet = true;
@@ -7612,7 +7615,7 @@ ramError:
 	bool didScroll;
 
 	// Lengthening
-	if (offset == 1) {
+	if (offset > 0) {
 		didScroll = scrollRightToEndOfLengthIfNecessary(newLength);
 		if (!didScroll) {
 			goto tryScrollingLeft;

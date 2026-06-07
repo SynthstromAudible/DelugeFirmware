@@ -194,7 +194,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			int32_t midPoint = (currentRangeTop + currentRangeBottom) >> 1;
 
 			int32_t newI = this->getValue();
-			if (offset == 1) {
+			if (offset > 0) {
 				newI++;
 			}
 
