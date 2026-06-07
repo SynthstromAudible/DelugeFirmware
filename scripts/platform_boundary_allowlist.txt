@@ -1,0 +1,63 @@
+# Platform-boundary allowlist (Phase 0 of the libdeluge separation).
+#
+# Files under src/deluge/ that still include a HAL header (RZA1/...) directly,
+# bypassing the libdeluge boundary. This list may only SHRINK. Adding a new
+# entry should be rejected in review; removing one is the unit of progress.
+#
+# See docs/dev/libdeluge_separation_plan.md (Phase 0) and
+#     scripts/check_platform_boundary.py
+# Regenerate the *current* offender set (for comparison) with:
+#   grep -rl 'RZA1/' src/deluge | sort
+
+src/deluge/deluge.cpp
+src/deluge/drivers/dmac/dmac.c
+src/deluge/drivers/dmac/dmac.h
+src/deluge/drivers/mtu/mtu.h
+src/deluge/drivers/oled/oled.c
+src/deluge/drivers/pic/pic.h
+src/deluge/drivers/rspi/rspi.c
+src/deluge/drivers/rspi/rspi.h
+src/deluge/drivers/sd/sd.c
+src/deluge/drivers/ssi/ssi.c
+src/deluge/drivers/uart/uart.c
+src/deluge/gui/ui/audio_recorder.cpp
+src/deluge/gui/ui_timer_manager.cpp
+src/deluge/gui/views/arranger_view.cpp
+src/deluge/gui/views/automation_view.cpp
+src/deluge/gui/views/session_view.cpp
+src/deluge/hid/display/oled.cpp
+src/deluge/hid/display/oled_canvas/canvas.h
+src/deluge/hid/display/seven_segment.cpp
+src/deluge/hid/encoder.cpp
+src/deluge/hid/encoders.cpp
+src/deluge/hid/led/indicator_leds.cpp
+src/deluge/hid/led/pad_leds.cpp
+src/deluge/hid/led/pad_leds.h
+src/deluge/hid/matrix/matrix_driver.cpp
+src/deluge/io/midi/cable_types/din.cpp
+src/deluge/io/midi/midi_device.cpp
+src/deluge/io/midi/midi_device_manager.cpp
+src/deluge/io/midi/midi_engine.cpp
+src/deluge/io/midi/midi_follow.cpp
+src/deluge/io/midi/midi_takeover.cpp
+src/deluge/io/midi/r_usb_pmidi_descriptor.c
+src/deluge/model/clip/audio_clip.cpp
+src/deluge/model/clip/instrument_clip_minder.cpp
+src/deluge/model/note/note_row.cpp
+src/deluge/model/sample/sample.cpp
+src/deluge/model/voice/voice.cpp
+src/deluge/playback/playback_handler.cpp
+src/deluge/processing/engines/audio_engine.cpp
+src/deluge/processing/engines/cv_engine.cpp
+src/deluge/processing/sound/sound.cpp
+src/deluge/processing/stem_export/stem_export.cpp
+src/deluge/storage/Deserializer.cpp
+src/deluge/storage/JSONSerializer.cpp
+src/deluge/storage/JsonDeserializer.cpp
+src/deluge/storage/Serializer.cpp
+src/deluge/storage/flash_storage.cpp
+src/deluge/storage/storage_manager.cpp
+src/deluge/util/cfunctions.c
+src/deluge/util/chainload.cpp
+src/deluge/util/container/array/ordered_resizeable_array.cpp
+src/deluge/util/functions.cpp

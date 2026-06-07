@@ -14,6 +14,15 @@ repos:
     hooks:
       - id: clang-format
         types_or: [c, c++]
+  - repo: local
+    hooks:
+      - id: libdeluge-boundary
+        name: libdeluge platform boundary
+        description: src/deluge must include <libdeluge/...>, not HAL headers directly
+        entry: python3 scripts/check_platform_boundary.py
+        language: system
+        pass_filenames: false
+        files: ^(src/deluge/|scripts/(check_platform_boundary\.py|platform_boundary_allowlist\.txt))
 # - repo: local
 
 #   hooks:
