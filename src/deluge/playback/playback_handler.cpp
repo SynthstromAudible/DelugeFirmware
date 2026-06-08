@@ -78,10 +78,7 @@
 #include <math.h>
 #include <new>
 
-extern "C" {
-#include "RZA1/gpio/gpio.h"
-#include "RZA1/uart/sio_char.h"
-}
+#include "libdeluge/signals.h"
 
 PlaybackHandler playbackHandler{};
 
@@ -2507,7 +2504,7 @@ void PlaybackHandler::setLedStates() {
 	}
 
 	bool syncedLEDOn = isExternalClockActive();
-	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, syncedLEDOn);
+	deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, syncedLEDOn);
 
 	indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, metronomeOn);
 }

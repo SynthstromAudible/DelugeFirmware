@@ -20,7 +20,6 @@ src/deluge/io/midi/cable_types/din.cpp
 src/deluge/io/midi/midi_device_manager.cpp
 src/deluge/io/midi/midi_engine.cpp
 src/deluge/io/midi/r_usb_pmidi_descriptor.c
-src/deluge/playback/playback_handler.cpp
 src/deluge/processing/engines/audio_engine.cpp
 src/deluge/processing/engines/cv_engine.cpp
 src/deluge/storage/flash_storage.cpp
