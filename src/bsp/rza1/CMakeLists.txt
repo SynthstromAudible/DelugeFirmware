@@ -57,6 +57,7 @@ target_sources(deluge PUBLIC ${bsp_rza1_driver_SOURCES})
 # which point they move into the bsp_rza1 library beside clock.c/system.c.
 target_sources(deluge PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/control_surface.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/display_freeze.cpp
 )
 
 # Resolve `#include "drivers/..."` to the relocated headers (for both the

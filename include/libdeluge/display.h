@@ -53,6 +53,12 @@ void deluge_display_service(void);
 /// display's scheduled service timer fires. [task]
 void deluge_display_timer_event(void);
 
+/// Synchronously blit a 1-bpp OLED framebuffer to the panel and block until the
+/// user requests resume. Used by the fault handler to show an error screen from
+/// a frozen context, bypassing the normal async transfer queue. `pixels` is the
+/// full framebuffer (`OLED_MAIN_WIDTH*HEIGHT/8` bytes). [task]
+void deluge_display_freeze(const uint8_t* pixels);
+
 #ifdef __cplusplus
 }
 #endif

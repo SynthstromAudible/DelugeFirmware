@@ -16,17 +16,15 @@
  */
 
 #include "oled.h"
-#include "RZA1/cpu_specific.h"
-#include "RZA1/mtu/mtu.h"
 #include "definitions_cxx.hpp"
-#include "drivers/dmac/dmac.h"
-#include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
 #include "io/midi/sysex.h"
+#include "libdeluge/clock.h"
+#include "libdeluge/display.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
@@ -35,12 +33,7 @@
 #include <string.h>
 #include <string_view>
 
-#include "RZA1/cache/cache.h"
-
 extern "C" {
-#include "RZA1/oled/oled_low_level.h"
-#include "RZA1/rspi/rspi.h"
-#include "RZA1/uart/sio_char.h"
 #include "drivers/oled/oled.h"
 #include "gui/fonts/fonts.h"
 extern void v7_dma_flush_range(uint32_t start, uint32_t end);
@@ -73,7 +66,7 @@ bool drawnPermanentPopup = false;
 
 void OLED::clearMainImage() {
 #if ENABLE_TEXT_OUTPUT
-	renderStartTime = *TCNT[TIMER_SYSTEM_FAST];
+	renderStartTime = deluge_clock_now();
 #endif
 
 	stopBlink();
@@ -354,9 +347,8 @@ void OLED::sendMainImage() {
 	}
 
 #if OLED_LOG_TIMING
-	uint16_t renderStopTime = *TCNT[TIMER_SYSTEM_FAST];
-	uartPrint("oled render time: ");
-	uartPrintNumber((uint16_t)(renderStopTime - renderStartTime));
+	uint16_t renderStopTime = deluge_clock_now();
+	D_PRINTLN("oled render time: %d", (uint16_t)(renderStopTime - renderStartTime));
 #endif
 	SpiTransferData m = {.imageAddress = oledCurrentImage[0]};
 	enqueueSPITransfer(0, m);
@@ -1178,72 +1170,9 @@ void OLED::freezeWithError(char const* text) {
 	yPixel += kTextSpacingY;
 	main.drawString("save to new file.", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
 
-	// Wait for existing DMA transfer to finish
-	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
-	while (!(DMACn(OLED_SPI_DMA_CHANNEL).CHSTAT_n & DMAC0_CHSTAT_n_TC)
-	       && (uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {}
-
-	// Wait for PIC to de-select OLED, if it's been doing that.
-	if (oledWaitingForMessage != 256) {
-		startTime = *TCNT[TIMER_SYSTEM_SLOW];
-		while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {
-			uint8_t value;
-			bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
-			if (anything && value == oledWaitingForMessage) {
-				break;
-			}
-		}
-		oledWaitingForMessage = 256;
-	}
-	spiTransferQueueCurrentlySending = false;
-
-	// Select OLED
-	PIC::selectOLED();
-	PIC::flush();
-	oledWaitingForMessage = 248;
-
-	// Wait for selection to be done
-	startTime = *TCNT[TIMER_SYSTEM_SLOW];
-	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {
-		uint8_t value;
-		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
-		if (anything && value == 248) {
-			break;
-		}
-	}
-	oledWaitingForMessage = 256;
-
-	// Send data via DMA
-	RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR = 0x20u;               // 8-bit
-	RSPI(SPI_CHANNEL_OLED_MAIN).SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE = 0b01100000;    // 0b00100000;
-	// DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n = 0b00000000001000000000001001101000 | (OLED_SPI_DMA_CHANNEL & 7);
-
-	int32_t transferSize = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
-	DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
-	uint32_t dataAddress = (uint32_t)(&OLED::main.hackGetImageStore()[0][0]);
-	DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
-	// spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
-	// todo - should only need a flush
-	invalidate_range_all_caches(dataAddress, dataAddress + transferSize);
-	DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
-	    DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
-
-	while (1) {
-		PIC::flush();
-		uartFlushIfNotSending(UART_ITEM_MIDI);
-
-		uint8_t value;
-		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
-		if (anything) {
-			if (value == 175) {
-				break;
-			}
-			else if (value == 249) {}
-		}
-	}
-	oledWaitingForMessage = 256;
-	spiTransferQueueCurrentlySending = false;
+	// Synchronously blit the error screen and block until the user resumes. The
+	// raw DMA/PIC/cache transfer for this fault path lives in the BSP.
+	deluge_display_freeze((const uint8_t*)&OLED::main.hackGetImageStore()[0][0]);
 
 	clearMainImage();
 	OLED::popupText("Operation resumed. Save to new file then reboot.", false, PopupType::GENERAL);

@@ -10,7 +10,6 @@
 #   grep -rl 'RZA1/' src/deluge | sort
 
 src/deluge/deluge.cpp
-src/deluge/hid/display/oled.cpp
 src/deluge/hid/encoder.cpp
 src/deluge/hid/encoders.cpp
 src/deluge/io/midi/midi_device_manager.cpp
