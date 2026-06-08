@@ -11,7 +11,6 @@
 
 src/deluge/deluge.cpp
 src/deluge/gui/ui/audio_recorder.cpp
-src/deluge/gui/ui_timer_manager.cpp
 src/deluge/hid/display/oled.cpp
 src/deluge/hid/display/seven_segment.cpp
 src/deluge/hid/encoder.cpp
@@ -23,4 +22,3 @@ src/deluge/io/midi/r_usb_pmidi_descriptor.c
 src/deluge/processing/engines/audio_engine.cpp
 src/deluge/processing/engines/cv_engine.cpp
 src/deluge/storage/flash_storage.cpp
-src/deluge/storage/storage_manager.cpp

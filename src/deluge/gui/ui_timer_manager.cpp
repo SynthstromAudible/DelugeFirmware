@@ -37,9 +37,7 @@
 
 #include <algorithm>
 
-extern "C" {
-#include "RZA1/oled/oled_low_level.h"
-}
+#include "libdeluge/display.h"
 
 UITimerManager uiTimerManager{};
 extern void inputRoutine();
@@ -223,7 +221,7 @@ void UITimerManager::routine() {
 
 				case TimerName::OLED_LOW_LEVEL:
 					if (deluge::hid::display::have_oled_screen) {
-						oledLowLevelTimerCallback();
+						deluge_display_timer_event();
 					}
 					break;
 

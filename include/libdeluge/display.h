@@ -43,6 +43,16 @@ bool deluge_display_busy(void);
 /// (board-defined segment bit layout). No-op on OLED boards. [task]
 DelugeStatus deluge_display_write_seven_segment(const uint8_t* digits, uint8_t count);
 
+/// Service the display's pending output, pushing any queued transfer toward the
+/// panel. The application calls this to keep the display updating during long
+/// blocking operations (e.g. card access). No-op where there is no async
+/// display queue. [task]
+void deluge_display_service(void);
+
+/// Advance the display's low-level transfer state machine — called when the
+/// display's scheduled service timer fires. [task]
+void deluge_display_timer_event(void);
+
 #ifdef __cplusplus
 }
 #endif

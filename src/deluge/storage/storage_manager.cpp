@@ -46,8 +46,9 @@
 #include "version.h"
 #include <string.h>
 
+#include "libdeluge/display.h"
+
 extern "C" {
-#include "RZA1/oled/oled_low_level.h"
 #include "fatfs/diskio.h"
 #include "fatfs/ff.h"
 #include <scheduler_api.h>
@@ -917,7 +918,7 @@ void FileReader::readDone() {
 		uiTimerManager.routine();
 
 		if (display->haveOLED()) {
-			oledRoutine();
+			deluge_display_service();
 		}
 		PIC::flush();
 	}
