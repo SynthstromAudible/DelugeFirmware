@@ -37,9 +37,7 @@
 #include <new>
 #include <string_view>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
+#include "libdeluge/midi_io.h"
 
 /*
 Segments are repersented by 8 bits
@@ -701,11 +699,9 @@ void SevenSegment::freezeWithError(char const* text) {
 
 	while (1) {
 		PIC::flush();
-		uartFlushIfNotSending(UART_ITEM_MIDI);
+		deluge_midi_flush(DELUGE_MIDI_DIN);
 
-		uint8_t value;
-		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
-		if (anything && value == 175) {
+		if (PIC::read() == PIC::Response::RESET_SETTINGS) {
 			break;
 		}
 	}

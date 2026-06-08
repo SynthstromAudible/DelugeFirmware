@@ -12,10 +12,8 @@
 src/deluge/deluge.cpp
 src/deluge/gui/ui/audio_recorder.cpp
 src/deluge/hid/display/oled.cpp
-src/deluge/hid/display/seven_segment.cpp
 src/deluge/hid/encoder.cpp
 src/deluge/hid/encoders.cpp
-src/deluge/io/midi/cable_types/din.cpp
 src/deluge/io/midi/midi_device_manager.cpp
 src/deluge/io/midi/midi_engine.cpp
 src/deluge/io/midi/r_usb_pmidi_descriptor.c

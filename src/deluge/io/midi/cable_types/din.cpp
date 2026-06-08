@@ -15,14 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 #include "din.h"
 #include "drivers/uart/uart.h"
 #include "gui/l10n/l10n.h"
 #include "io/midi/midi_engine.h"
+#include "libdeluge/midi_io.h"
 #include "storage/storage_manager.h"
 
 void MIDICableDINPorts::writeReferenceAttributesToFile(Serializer& writer) {
@@ -43,7 +40,7 @@ void MIDICableDINPorts::sendMessage(MIDIMessage message) {
 }
 
 size_t MIDICableDINPorts::sendBufferSpace() const {
-	return uartGetTxBufferSpace(UART_ITEM_MIDI);
+	return deluge_midi_write_space(DELUGE_MIDI_DIN);
 }
 
 void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
@@ -52,9 +49,7 @@ void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 	}
 
 	// NB: beware of MIDI_TX_BUFFER_SIZE
-	for (int32_t i = 0; i < len; i++) {
-		bufferMIDIUart(data[i]);
-	}
+	deluge_midi_write(DELUGE_MIDI_DIN, data, len);
 }
 
 bool MIDICableDINPorts::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {
