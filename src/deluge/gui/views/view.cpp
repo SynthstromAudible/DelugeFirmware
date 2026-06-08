@@ -839,24 +839,7 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-	int32_t lowerLimit;
-
-	if (kind == params::Kind::PATCH_CABLE) {
-		lowerLimit = std::min(-192_i32, knobPos);
-	}
-	else {
-		lowerLimit = std::min(-64_i32, knobPos);
-	}
-	int32_t newKnobPos = knobPos + offset;
-	newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
-
-	// ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
-	// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change
-	// gets recorded if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased
-	// to 128. In which case, ignore value change
-	if (kind == params::Kind::MIDI && (newKnobPos == 64)) {
-		return;
-	}
+	int32_t newKnobPos = calculateKnobPosForModEncoderTurn(kind, knobPos, offset);
 
 	// if you had selected a parameter in performance view and the parameter name
 	// and current value is displayed on the screen, don't show pop-up as the display
@@ -940,6 +923,26 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	if ((getCurrentUI() == &soundEditor) && (getRootUI() == &automationView)) {
 		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, modelStackWithParam->paramId);
 	}
+}
+
+int32_t View::calculateKnobPosForModEncoderTurn(params::Kind kind, int32_t knobPos, int32_t offset) {
+	int32_t lowerLimit;
+	int32_t upperLimit = 64_i32;
+
+	if (kind == params::Kind::PATCH_CABLE) {
+		lowerLimit = std::min(-192_i32, knobPos);
+	}
+	else {
+		lowerLimit = std::min(-64_i32, knobPos);
+
+		if (kind == params::Kind::MIDI) {
+			upperLimit = 63;
+		}
+	}
+	int32_t newKnobPos = knobPos + offset;
+	newKnobPos = std::clamp(newKnobPos, lowerLimit, upperLimit);
+
+	return newKnobPos;
 }
 
 // get's modelStackWithParam for use with Gold Knobs and ModEncoderAction above

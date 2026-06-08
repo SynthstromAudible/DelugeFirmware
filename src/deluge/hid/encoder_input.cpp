@@ -168,47 +168,24 @@ checkResult:
 			// 0=mod0 (lower gold), 1=mod1 (upper gold)
 			auto& encoder = modEncoderAt(e);
 
+			int8_t offset = encoder.take();
+
 			// If encoder turned...
-			if (int8_t val = encoder.take()) {
+			if (offset != 0) {
 				anything = true;
 
-				bool turnedRecently = (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[e] < kShortPressTime);
+				// Do it, only if
+				if (offset + modEncoderInitialTurnDirection[e] != 0) {
+					int8_t offset_accelerated = offset * encoder.calcNextKnobSpeed(offset);
 
-				// If it was turned recently...
-				if (turnedRecently) {
+					getCurrentUI()->modEncoderAction(e, offset_accelerated);
 
-					// Mark as turned recently again. Must do this before the encoder-action gets invoked below, because
-					// that might want to reset this
-					timeModEncoderLastTurned[e] = AudioEngine::audioSampleTimer;
-
-					// Do it, only if
-					if (val + modEncoderInitialTurnDirection[e] != 0) {
-						getCurrentUI()->modEncoderAction(e, val);
-						modEncoderInitialTurnDirection[e] = 0;
-					}
-
-					// Otherwise, write this off as an accidental wiggle
-					else {
-						modEncoderInitialTurnDirection[e] = val;
-					}
+					modEncoderInitialTurnDirection[e] = 0;
 				}
 
-				// Or if it wasn't turned recently, it's going to get marked as turned recently now, but remember what
-				// direction we came, so that if we go back that direction again we can write it off as an accidental
-				// wiggle
+				// Otherwise, write this off as an accidental wiggle
 				else {
-
-					// If the other one also hasn't been turned for a while...
-					bool otherTurnedRecently =
-					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < kShortPressTime);
-					if (!otherTurnedRecently) {
-						actionLogger.closeAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
-					}
-
-					modEncoderInitialTurnDirection[e] = val;
-
-					// Mark as turned recently
-					timeModEncoderLastTurned[e] = AudioEngine::audioSampleTimer;
+					modEncoderInitialTurnDirection[e] = offset;
 				}
 			}
 		}

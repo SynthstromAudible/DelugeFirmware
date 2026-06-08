@@ -64,8 +64,12 @@ public:
 	/// Returns the accumulated tick count and resets pos to 0.
 	int8_t take();
 
+	/// Returns multiplier for encoder offset
+	double calcNextKnobSpeed(int8_t offset);
+
 private:
-	std::atomic_int8_t pos = 0; ///< Written by the IRQ (applyEdges), drained by the encoder task.
+	std::atomic_int8_t pos = 0;   ///< Written by the IRQ (applyEdges), drained by the encoder task.
+	double currentKnobSpeed{0.0}; // Used for encoder acceleration
 };
 
 // ── Named encoder globals ─────────────────────────────────────────────────
