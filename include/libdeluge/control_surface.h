@@ -78,6 +78,27 @@ void deluge_control_flush(void);
 /// it does not overrun the link to the surface. [task]
 uint32_t deluge_control_pad_output_space(void);
 
+/// Set the colours of a main-grid column pair. The Deluge surface drives main
+/// pads in 16-LED column pairs; `idx` is the column-pair index and `colours`
+/// holds `count` entries (one per LED in the pair). [task]
+void deluge_control_set_pad_columns(uint8_t idx, const DelugeColour* colours, uint8_t count);
+
+/// Flash main pad `idx` using the surface's built-in flash timer (optionally in
+/// a surface-defined palette colour index). [task]
+void deluge_control_flash_pad(uint8_t idx);
+void deluge_control_flash_pad_colour(uint8_t idx, int32_t colour_idx);
+
+/// Smooth-scroll animation primitives: the surface keeps an off-screen
+/// framebuffer it smears to animate scrolling. [task]
+void deluge_control_scroll_horizontal(uint8_t flags);
+void deluge_control_scroll_vertical(bool up, const DelugeColour* colours, uint8_t count);
+void deluge_control_scroll_row(uint8_t row, DelugeColour colour);
+void deluge_control_scroll_done(void);
+
+/// Surface refresh / dimmer timing (board-defined units). [task]
+void deluge_control_set_refresh_time(uint8_t ms);
+void deluge_control_set_dimmer_interval(uint8_t interval);
+
 #ifdef __cplusplus
 }
 #endif

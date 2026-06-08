@@ -1669,7 +1669,7 @@ doneReading:
 	delugeDealloc(fftInput);
 
 	float freq = freqBeforeAdjustment / (1 << lengthDoublings);
-	D_PRINTLN("freq: %f", freq);
+	D_PRINTLN("freq: %.2f", freq);
 
 	return freq;
 }

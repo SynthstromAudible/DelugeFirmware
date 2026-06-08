@@ -63,3 +63,48 @@ uint32_t deluge_control_pad_output_space(void) {
 void deluge_control_flush(void) {
 	PIC::flush();
 }
+
+// DelugeColour and RGB are both {uint8_t r, g, b}, so colour arrays pass by
+// reinterpret rather than a per-pad copy on these hot paths.
+static const RGB* as_rgb(const DelugeColour* c) {
+	return reinterpret_cast<const RGB*>(c);
+}
+
+void deluge_control_set_pad_columns(uint8_t idx, const DelugeColour* colours, uint8_t count) {
+	(void)count; // == kDisplayHeight * 2
+	PIC::setColourForTwoColumns(idx, *reinterpret_cast<const std::array<RGB, kDisplayHeight * 2>*>(as_rgb(colours)));
+}
+
+void deluge_control_flash_pad(uint8_t idx) {
+	PIC::flashMainPad(idx);
+}
+
+void deluge_control_flash_pad_colour(uint8_t idx, int32_t colour_idx) {
+	PIC::flashMainPadWithColourIdx(idx, colour_idx);
+}
+
+void deluge_control_scroll_horizontal(uint8_t flags) {
+	PIC::setupHorizontalScroll(flags);
+}
+
+void deluge_control_scroll_vertical(bool up, const DelugeColour* colours, uint8_t count) {
+	(void)count; // == kDisplayWidth + kSideBarWidth
+	PIC::doVerticalScroll(up,
+	                      *reinterpret_cast<const std::array<RGB, kDisplayWidth + kSideBarWidth>*>(as_rgb(colours)));
+}
+
+void deluge_control_scroll_row(uint8_t row, DelugeColour colour) {
+	PIC::sendScrollRow(row, RGB{.r = colour.r, .g = colour.g, .b = colour.b});
+}
+
+void deluge_control_scroll_done(void) {
+	PIC::doneSendingRows();
+}
+
+void deluge_control_set_refresh_time(uint8_t ms) {
+	PIC::setRefreshTime(ms);
+}
+
+void deluge_control_set_dimmer_interval(uint8_t interval) {
+	PIC::setDimmerInterval(interval);
+}

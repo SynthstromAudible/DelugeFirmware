@@ -1721,7 +1721,7 @@ doReturnFalse:
 				// going on, so get out
 				if (noteHere >= prevNote + 1.85) {
 					D_PRINTLN("aaa");
-					uartPrintlnFloat(noteHere - prevNote);
+					D_PRINTLN("%.2f", noteHere - prevNote);
 					goto skipOctaveCorrection;
 				}
 			}
