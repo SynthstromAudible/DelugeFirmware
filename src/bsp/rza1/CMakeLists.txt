@@ -4,6 +4,7 @@
 
 add_library(bsp_rza1 STATIC
     clock.c
+    system.c
 )
 
 # Public: the libdeluge headers this BSP implements (propagated to consumers so

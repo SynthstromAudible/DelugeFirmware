@@ -25,10 +25,6 @@
 #define FLASH_CURSOR_OFF 1
 #define FLASH_CURSOR_SLOW 2
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 class UI;
 class AudioClip;
 

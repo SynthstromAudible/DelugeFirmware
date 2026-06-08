@@ -35,7 +35,6 @@
 #include <string.h>
 
 extern "C" {
-#include "RZA1/uart/sio_char.h"
 #include "drivers/mtu/mtu.h"
 }
 

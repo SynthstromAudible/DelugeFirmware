@@ -21,10 +21,6 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 using namespace deluge;
 using namespace gui;
 

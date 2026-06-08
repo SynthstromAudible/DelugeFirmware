@@ -44,7 +44,6 @@
 namespace params = deluge::modulation::params;
 
 extern "C" {
-#include "RZA1/uart/sio_char.h"
 extern uint8_t currentlyAccessingCard;
 }
 

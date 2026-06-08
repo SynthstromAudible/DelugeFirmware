@@ -45,10 +45,6 @@
 #include <new>
 #include <string.h>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 NoteRow::NoteRow(int16_t newY) {
 	y = newY;
 	muted = false;

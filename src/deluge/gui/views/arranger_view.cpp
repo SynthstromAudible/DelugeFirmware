@@ -84,7 +84,6 @@
 
 extern "C" {
 extern uint8_t currentlyAccessingCard;
-#include "RZA1/uart/sio_char.h"
 }
 
 using namespace deluge;

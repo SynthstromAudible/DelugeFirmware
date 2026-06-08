@@ -55,10 +55,6 @@
 #include <cstring>
 #include <string.h>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 int16_t InstrumentClipMinder::defaultRootNote;
 bool InstrumentClipMinder::toggleScaleModeOnButtonRelease;
 uint32_t InstrumentClipMinder::scaleButtonPressTime;

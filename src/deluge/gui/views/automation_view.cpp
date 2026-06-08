@@ -97,10 +97,6 @@
 #include <new>
 #include <string.h>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 namespace params = deluge::modulation::params;
 using deluge::modulation::params::kNoParamID;
 using deluge::modulation::params::ParamType;

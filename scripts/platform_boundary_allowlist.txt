@@ -22,8 +22,6 @@ src/deluge/drivers/ssi/ssi.c
 src/deluge/drivers/uart/uart.c
 src/deluge/gui/ui/audio_recorder.cpp
 src/deluge/gui/ui_timer_manager.cpp
-src/deluge/gui/views/arranger_view.cpp
-src/deluge/gui/views/automation_view.cpp
 src/deluge/gui/views/session_view.cpp
 src/deluge/hid/display/oled.cpp
 src/deluge/hid/display/oled_canvas/canvas.h
@@ -32,18 +30,10 @@ src/deluge/hid/encoder.cpp
 src/deluge/hid/encoders.cpp
 src/deluge/hid/led/indicator_leds.cpp
 src/deluge/hid/led/pad_leds.cpp
-src/deluge/hid/led/pad_leds.h
-src/deluge/hid/matrix/matrix_driver.cpp
 src/deluge/io/midi/cable_types/din.cpp
-src/deluge/io/midi/midi_device.cpp
 src/deluge/io/midi/midi_device_manager.cpp
 src/deluge/io/midi/midi_engine.cpp
-src/deluge/io/midi/midi_follow.cpp
-src/deluge/io/midi/midi_takeover.cpp
 src/deluge/io/midi/r_usb_pmidi_descriptor.c
-src/deluge/model/clip/audio_clip.cpp
-src/deluge/model/clip/instrument_clip_minder.cpp
-src/deluge/model/note/note_row.cpp
 src/deluge/model/sample/sample.cpp
 src/deluge/playback/playback_handler.cpp
 src/deluge/processing/engines/audio_engine.cpp
@@ -55,6 +45,3 @@ src/deluge/storage/JsonDeserializer.cpp
 src/deluge/storage/Serializer.cpp
 src/deluge/storage/flash_storage.cpp
 src/deluge/storage/storage_manager.cpp
-src/deluge/util/chainload.cpp
-src/deluge/util/container/array/ordered_resizeable_array.cpp
-src/deluge/util/functions.cpp
