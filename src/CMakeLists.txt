@@ -4,6 +4,7 @@ target_sources(deluge PUBLIC main.c resetprg.c c_lib_alternatives.S malloc.c ter
 
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)
+add_subdirectory(bsp)
 add_subdirectory(RZA1)
 add_subdirectory(RTT)
 add_subdirectory(fatfs)

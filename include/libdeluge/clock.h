@@ -40,6 +40,10 @@ uint64_t deluge_clock_now(void);
 /// scheduler for anything non-trivial. [task]
 void deluge_clock_delay_us(uint32_t us);
 
+/// Busy-wait for approximately `ms` milliseconds. Separate from the microsecond
+/// path because boards may use a coarser timer for longer delays. [task]
+void deluge_clock_delay_ms(uint32_t ms);
+
 #ifdef __cplusplus
 }
 #endif

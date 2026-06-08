@@ -32,6 +32,7 @@ target_include_directories(deluge PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_LIST_DIR}
     ${SHARED_INCLUDE}
+    ${CMAKE_SOURCE_DIR}/include # <libdeluge/...> boundary headers
 )
 
 target_link_libraries(deluge PUBLIC

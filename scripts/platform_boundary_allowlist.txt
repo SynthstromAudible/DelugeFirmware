@@ -45,11 +45,9 @@ src/deluge/model/clip/audio_clip.cpp
 src/deluge/model/clip/instrument_clip_minder.cpp
 src/deluge/model/note/note_row.cpp
 src/deluge/model/sample/sample.cpp
-src/deluge/model/voice/voice.cpp
 src/deluge/playback/playback_handler.cpp
 src/deluge/processing/engines/audio_engine.cpp
 src/deluge/processing/engines/cv_engine.cpp
-src/deluge/processing/sound/sound.cpp
 src/deluge/processing/stem_export/stem_export.cpp
 src/deluge/storage/Deserializer.cpp
 src/deluge/storage/JSONSerializer.cpp
@@ -57,7 +55,6 @@ src/deluge/storage/JsonDeserializer.cpp
 src/deluge/storage/Serializer.cpp
 src/deluge/storage/flash_storage.cpp
 src/deluge/storage/storage_manager.cpp
-src/deluge/util/cfunctions.c
 src/deluge/util/chainload.cpp
 src/deluge/util/container/array/ordered_resizeable_array.cpp
 src/deluge/util/functions.cpp

@@ -16,8 +16,8 @@
  */
 
 #include "util/cfunctions.h"
-#include "RZA1/mtu/mtu.h"
 #include "definitions.h"
+#include "libdeluge/clock.h"
 #include <string.h>
 
 int32_t getNumDecimalDigits(uint32_t number) {
@@ -233,18 +233,14 @@ uint32_t msToSlowTimerCount(uint32_t ms) {
 	return ms * 33;
 }
 
+// Busy-wait delays are a board concern: they now route through the libdeluge
+// boundary, with the RZ/A1L timer code living in bsp/rza1/clock.c (behaviour
+// unchanged). The *TimerCount conversion helpers above stay here because the
+// rest of the application (e.g. hid/display/oled.cpp) still uses them.
 void delayMS(uint32_t ms) {
-	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
-	uint16_t stopTime = startTime + msToSlowTimerCount(ms);
-	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - stopTime) >= 8) {
-		;
-	}
+	deluge_clock_delay_ms(ms);
 }
 
 void delayUS(uint32_t us) {
-	uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
-	uint16_t stopTime = startTime + usToFastTimerCount(us);
-	while ((int16_t)(*TCNT[TIMER_SYSTEM_FAST] - stopTime) < 0) {
-		;
-	}
+	deluge_clock_delay_us(us);
 }

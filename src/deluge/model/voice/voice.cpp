@@ -54,7 +54,6 @@
 #include <new>
 
 extern "C" {
-#include "RZA1/mtu/mtu.h"
 #include "drivers/ssi/ssi.h"
 }
 
