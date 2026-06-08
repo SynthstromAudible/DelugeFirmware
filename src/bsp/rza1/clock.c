@@ -27,6 +27,7 @@
 /// rollover-tracked monotonic counter beyond the 16-bit MTU TCNT.
 
 #include "libdeluge/clock.h"
+#include "RZA1/cpu_specific.h"
 
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"

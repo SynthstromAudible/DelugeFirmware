@@ -16,6 +16,7 @@
  */
 
 #include "util/functions.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/fatfs.hpp"
 #include "fatfs/ff.h"

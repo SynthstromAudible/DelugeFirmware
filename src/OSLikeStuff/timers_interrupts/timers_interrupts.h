@@ -18,6 +18,7 @@
 #ifndef DELUGE_TIMERS_INTERRUPTS_H
 #define DELUGE_TIMERS_INTERRUPTS_H
 
+#include "RZA1/cpu_specific.h"
 #include "RZA1/system/r_typedefs.h"
 #ifdef __cplusplus
 extern "C" {

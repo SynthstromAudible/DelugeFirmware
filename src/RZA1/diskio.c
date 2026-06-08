@@ -28,6 +28,7 @@
 /
 /-------------------------------------------------------------------------*/
 
+#include "RZA1/cpu_specific.h"
 #include "RZA1/system/iodefine.h"
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"

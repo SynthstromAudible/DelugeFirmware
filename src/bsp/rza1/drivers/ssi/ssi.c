@@ -16,6 +16,7 @@
  */
 
 #include "drivers/ssi/ssi.h"
+#include "RZA1/cpu_specific.h"
 #include "RZA1/system/iodefines/dmac_iodefine.h"
 #include "RZA1/system/iodefines/ssif_iodefine.h"
 #include "definitions.h"

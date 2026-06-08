@@ -16,6 +16,7 @@
  */
 
 #include "drivers/uart/uart.h"
+#include "RZA1/cpu_specific.h"
 #include "RZA1/system/iodefines/dmac_iodefine.h"
 #include "definitions.h"
 #include "drivers/dmac/dmac.h"

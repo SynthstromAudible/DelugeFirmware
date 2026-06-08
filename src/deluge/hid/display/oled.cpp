@@ -16,6 +16,7 @@
  */
 
 #include "oled.h"
+#include "RZA1/cpu_specific.h"
 #include "RZA1/mtu/mtu.h"
 #include "definitions_cxx.hpp"
 #include "drivers/dmac/dmac.h"

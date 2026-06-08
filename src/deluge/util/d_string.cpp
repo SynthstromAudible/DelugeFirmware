@@ -16,6 +16,7 @@
  */
 
 #include "util/d_string.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
 #include "util/cfunctions.h"

@@ -16,6 +16,7 @@
  */
 
 #include "storage/storage_manager.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "fatfs/fatfs.hpp"

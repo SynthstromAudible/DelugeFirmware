@@ -16,6 +16,7 @@
  */
 
 #include "storage/audio/audio_file_manager.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"

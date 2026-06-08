@@ -54,6 +54,7 @@
 #include "fault_handler.h"
 #include "RTT/SEGGER_RTT.h"
 #include "RZA1/compiler/asm/inc/asm.h"
+#include "RZA1/cpu_specific.h"
 #include "RZA1/system/iodefines/dmac_iodefine.h"
 #include "RZA1/uart/sio_char.h"
 #include "definitions.h"

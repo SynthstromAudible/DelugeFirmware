@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "RZA1/cpu_specific.h"
 #include "definitions.h"
 
 #include "OSLikeStuff/timers_interrupts/timers_interrupts.h"

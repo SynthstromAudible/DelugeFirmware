@@ -16,6 +16,7 @@
  */
 
 #include "util/container/array/resizeable_array.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 // #include <algorithm>

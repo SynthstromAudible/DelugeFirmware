@@ -10,11 +10,24 @@
 #   grep -rl 'RZA1/' src/deluge | sort
 
 src/deluge/deluge.cpp
+src/deluge/gui/ui/ui.cpp
+src/deluge/gui/ui_timer_manager.cpp
 src/deluge/hid/display/oled.cpp
 src/deluge/hid/encoder.cpp
 src/deluge/hid/encoders.cpp
 src/deluge/io/midi/midi_device_manager.cpp
 src/deluge/io/midi/midi_engine.cpp
 src/deluge/io/midi/r_usb_pmidi_descriptor.c
+src/deluge/memory/general_memory_allocator.cpp
+src/deluge/memory/memory_region.cpp
+src/deluge/model/voice/voice_sample.cpp
+src/deluge/playback/playback_handler.cpp
 src/deluge/processing/engines/audio_engine.cpp
 src/deluge/processing/engines/cv_engine.cpp
+src/deluge/storage/audio/audio_file_manager.cpp
+src/deluge/storage/storage_manager.cpp
+src/deluge/storage/wave_table/wave_table.cpp
+src/deluge/util/container/array/ordered_resizeable_array.cpp
+src/deluge/util/container/array/resizeable_array.cpp
+src/deluge/util/d_string.cpp
+src/deluge/util/functions.cpp

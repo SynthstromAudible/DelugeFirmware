@@ -17,6 +17,7 @@
 
 // Most of the contents of this file have been copied from Renesas's SD card driver libraries.
 
+#include "RZA1/cpu_specific.h"
 #include "definitions.h"
 #include "drivers/mtu/mtu.h"
 

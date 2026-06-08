@@ -17,6 +17,7 @@
 
 #include "storage/wave_table/wave_table.h"
 #include "NE10.h"
+#include "RZA1/cpu_specific.h"
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"

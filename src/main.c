@@ -16,6 +16,7 @@
  */
 
 #include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
+#include "RZA1/cpu_specific.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/system/r_typedefs.h"
 #include "RZA1/uart/sio_char.h"

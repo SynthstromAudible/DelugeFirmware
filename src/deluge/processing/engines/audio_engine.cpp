@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "RZA1/cpu_specific.h"
 
 #include "chrono"
 #include "definitions.h"

@@ -16,6 +16,7 @@
  */
 
 #include "playback/playback_handler.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/sync_level.h"

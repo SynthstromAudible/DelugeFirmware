@@ -16,6 +16,7 @@
  */
 
 #include "RZA1/oled/oled_low_level.h"
+#include "RZA1/cpu_specific.h"
 #include "bsp/rza1/drivers/oled/oled.h"
 #include "definitions.h"
 

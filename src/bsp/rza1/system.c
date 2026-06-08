@@ -22,6 +22,7 @@
 /// behind the boundary.
 
 #include "libdeluge/system.h"
+#include "RZA1/cpu_specific.h"
 
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"

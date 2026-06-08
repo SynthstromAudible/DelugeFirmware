@@ -16,6 +16,7 @@
  */
 
 #include "deluge.h"
+#include "RZA1/cpu_specific.h"
 
 #include "RZA1/sdhi/inc/sdif.h"
 #include "definitions_cxx.hpp"

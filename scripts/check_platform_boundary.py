@@ -34,6 +34,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # The application tree that must respect the boundary.
 APP_ROOT = REPO_ROOT / "src" / "deluge"
 
+# Shared application-config headers that live outside src/deluge but are included
+# all over the app, so they must stay HAL-free too (otherwise the HAL leaks into
+# the app transitively). NOTE: this is a *direct*-include check — it cannot see a
+# HAL header pulled in transitively through some other include. The definitive
+# guarantee that the app has no transitive HAL dependency is building it with no
+# HAL on the include path (the host-sim / standalone-libdeluge target).
+EXTRA_APP_FILES = (
+    REPO_ROOT / "src" / "definitions.h",
+    REPO_ROOT / "src" / "definitions_cxx.hpp",
+)
+
 # Forbidden include path prefixes (HAL / SoC vendor code). Extend this as new
 # HALs or BSP-implementation directories appear (e.g. "hal/", "bsp/").
 FORBIDDEN_INCLUDE_PREFIXES = ("RZA1/",)
@@ -66,7 +77,8 @@ def forbidden_includes(path: Path) -> list[str]:
 def current_offenders() -> dict[str, list[str]]:
     """Map of {repo-relative path string: forbidden includes} across the app tree."""
     offenders: dict[str, list[str]] = {}
-    for path in sorted(APP_ROOT.rglob("*")):
+    candidates = list(APP_ROOT.rglob("*")) + list(EXTRA_APP_FILES)
+    for path in sorted(candidates):
         if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
             continue
         inc = forbidden_includes(path)

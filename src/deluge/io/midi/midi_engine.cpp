@@ -16,6 +16,7 @@
  */
 
 #include "io/midi/midi_engine.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"

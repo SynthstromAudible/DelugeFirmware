@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui_timer_manager.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"

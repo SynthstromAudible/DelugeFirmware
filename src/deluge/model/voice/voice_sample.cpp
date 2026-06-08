@@ -16,6 +16,7 @@
  */
 
 #include "model/voice/voice_sample.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"

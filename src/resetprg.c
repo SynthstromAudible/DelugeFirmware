@@ -51,6 +51,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "RZA1/cpu_specific.h"
 #include "RZA1/system/r_typedefs.h"
 
 #include "RZA1/bsc/bsc_userdef.h" //sdram init

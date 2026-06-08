@@ -16,6 +16,7 @@
  */
 
 #include "memory/memory_region.h"
+#include "RZA1/cpu_specific.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"

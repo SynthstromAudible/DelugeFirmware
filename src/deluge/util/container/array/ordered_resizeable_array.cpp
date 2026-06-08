@@ -16,6 +16,7 @@
  */
 
 #include "util/container/array/ordered_resizeable_array.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "drivers/mtu/mtu.h"
 #include "hid/display/display.h"
