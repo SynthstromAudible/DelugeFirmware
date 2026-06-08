@@ -85,10 +85,6 @@
 #include <cstdint>
 #include <new>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 using namespace deluge;
 using namespace gui;
 
@@ -3277,7 +3273,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 		auto trackIndex = gridTrackIndexFromTrack(clip->output, trackCount);
 		if (trackIndex < 0) {
-			uartPrintln("Global output list mismatch");
+			D_PRINTLN("Global output list mismatch");
 			continue; // Should never happen but theoretically global output list can diverge from clip pointers
 		}
 

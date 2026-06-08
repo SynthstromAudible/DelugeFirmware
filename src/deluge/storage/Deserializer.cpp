@@ -44,7 +44,6 @@
 #include <string.h>
 
 extern "C" {
-#include "RZA1/oled/oled_low_level.h"
 #include "fatfs/diskio.h"
 #include "fatfs/ff.h"
 }
