@@ -17,7 +17,6 @@
 
 #include "hid/display/seven_segment.h"
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 #include "hid/display/numeric_layer/numeric_layer_loading_animation.h"
@@ -37,6 +36,8 @@
 #include <new>
 #include <string_view>
 
+#include "libdeluge/control_surface.h"
+#include "libdeluge/display.h"
 #include "libdeluge/midi_io.h"
 
 /*
@@ -662,7 +663,7 @@ void SevenSegment::render() {
 		OLED::renderEmulated7Seg(segments);
 	}
 	else {
-		PIC::update7SEG(segments);
+		deluge_display_write_seven_segment(segments.data(), segments.size());
 	}
 	HIDSysex::sendDisplayIfChanged();
 
@@ -688,7 +689,7 @@ void SevenSegment::displayLoadingAnimation(bool delayed, bool transparent) {
 void SevenSegment::setTextVeryBasicA1(char const* text) {
 	std::array<uint8_t, kNumericDisplayLength> segments;
 	encodeText(text, segments.data(), false, {}, true, 0);
-	PIC::update7SEG(segments);
+	deluge_display_write_seven_segment(segments.data(), segments.size());
 }
 
 // Highest error code used, main branch: E453
@@ -698,10 +699,10 @@ void SevenSegment::freezeWithError(char const* text) {
 	setTextVeryBasicA1(text);
 
 	while (1) {
-		PIC::flush();
+		deluge_control_flush();
 		deluge_midi_flush(DELUGE_MIDI_DIN);
 
-		if (PIC::read() == PIC::Response::RESET_SETTINGS) {
+		if (deluge_control_poll_resume()) {
 			break;
 		}
 	}

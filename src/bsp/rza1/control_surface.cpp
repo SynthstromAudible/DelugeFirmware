@@ -32,6 +32,7 @@
 
 #include "libdeluge/control_surface.h"
 #include "RZA1/cpu_specific.h"
+#include "libdeluge/display.h" // deluge_display_write_seven_segment (PIC-driven 7-seg)
 
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
@@ -62,6 +63,18 @@ uint32_t deluge_control_pad_output_space(void) {
 
 void deluge_control_flush(void) {
 	PIC::flush();
+}
+
+bool deluge_control_poll_resume(void) {
+	return PIC::read() == PIC::Response::RESET_SETTINGS;
+}
+
+// The Deluge's 7-segment display is driven over the PIC, so its blit lives with
+// the PIC adapter even though it is declared in <libdeluge/display.h>.
+DelugeStatus deluge_display_write_seven_segment(const uint8_t* digits, uint8_t count) {
+	(void)count; // == kNumericDisplayLength
+	PIC::update7SEG(*reinterpret_cast<const std::array<uint8_t, kNumericDisplayLength>*>(digits));
+	return DELUGE_OK;
 }
 
 // DelugeColour and RGB are both {uint8_t r, g, b}, so colour arrays pass by

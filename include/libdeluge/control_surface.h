@@ -73,6 +73,11 @@ void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t 
 /// Flush any batched surface output (pad/LED) to the hardware. [task]
 void deluge_control_flush(void);
 
+/// Poll for a "resume" request from the control surface — e.g. the select knob
+/// pressed to dismiss a fault/freeze screen. Returns true once signalled. The
+/// fault handlers spin on this. [task]
+bool deluge_control_poll_resume(void);
+
 /// Free space, in bytes, in the control surface's bulk pad-output buffer. The
 /// application uses this as back-pressure before queueing large pad redraws, so
 /// it does not overrun the link to the surface. [task]
