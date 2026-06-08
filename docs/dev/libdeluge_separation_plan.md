@@ -22,20 +22,20 @@ interleaved in one binary. The end state we want:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ Deluge application  (portable: synth, sampler, sequencer, │
-│   UI, model, DSP, song/storage logic, scheduling policy)  │
-│                                                            │
-│   depends ONLY on libdeluge's public API                   │
+│ Deluge application  (portable: synth, sampler, sequencer,│
+│   UI, model, DSP, song/storage logic, scheduling policy) │
+│                                                          │
+│   depends ONLY on libdeluge's public API                 │
 └───────────────────────────┬──────────────────────────────┘
                             │  #include <libdeluge/...>   (the API boundary)
-┌───────────────────────────┴──────────────────────────────┐
+┌───────────────────────────┴────────────────────────────────┐
 │ libdeluge  (hardware support library / BSP — like libDaisy)│
 │   provides: audio I/O, MIDI, control surface, display,     │
 │   CV/gate, storage, clock, memory/cache services.          │
 │   the ONLY consumer of the HAL.                            │
-└───────────────────────────┬──────────────────────────────┘
+└───────────────────────────┬────────────────────────────────┘
                             │  HAL interface
-┌───────────────────────────┴──────────────────────────────┐
+┌───────────────────────────┴────────────────────────────────┐
 │ HAL  (per-SoC register/peripheral drivers; e.g. RZA1)      │
 │   wrapped/owned by libdeluge; swapped per board.           │
 └────────────────────────────────────────────────────────────┘

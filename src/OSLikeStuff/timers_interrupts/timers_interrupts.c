@@ -18,8 +18,8 @@
 #include "timers_interrupts.h"
 
 #include "RZA1/system/r_typedefs.h"
+#include "bsp/rza1/drivers/mtu/mtu.h"
 #include "definitions.h"
-#include "deluge/drivers/mtu/mtu.h"
 #include "stdatomic.h"
 #ifdef __cplusplus
 extern "C" {

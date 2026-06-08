@@ -20,7 +20,7 @@
 #include "io/midi/sysex.h"
 
 extern "C" {
-#include "deluge/drivers/uart/uart.h"
+#include "bsp/rza1/drivers/uart/uart.h"
 }
 
 namespace Debug {

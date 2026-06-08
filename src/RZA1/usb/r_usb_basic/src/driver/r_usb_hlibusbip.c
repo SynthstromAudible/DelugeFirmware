@@ -40,7 +40,7 @@
 #include "definitions.h"
 #include "deluge/io/midi/midi_device_manager.h"
 
-#include "deluge/drivers/uart/uart.h"
+#include "bsp/rza1/drivers/uart/uart.h"
 #include "deluge/io/midi/midi_engine.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))

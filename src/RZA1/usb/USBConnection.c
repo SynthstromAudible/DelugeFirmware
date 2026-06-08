@@ -33,7 +33,7 @@ Includes   <System Includes> , "Project Includes"
 #include "RZA1/system/r_typedefs.h"
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 
-#include "deluge/drivers/uart/uart.h"
+#include "bsp/rza1/drivers/uart/uart.h"
 
 #define WHICH_USB_MODULE USB_IP0
 

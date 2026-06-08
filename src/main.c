@@ -19,9 +19,9 @@
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/system/r_typedefs.h"
 #include "RZA1/uart/sio_char.h"
+#include "bsp/rza1/drivers/mtu/mtu.h"
 #include "definitions.h"
 #include "deluge/deluge.h"
-#include "deluge/drivers/mtu/mtu.h"
 #include "scheduler_api.h"
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {

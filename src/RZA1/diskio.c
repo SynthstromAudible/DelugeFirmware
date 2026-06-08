@@ -36,8 +36,8 @@
 #include "RZA1/rspi/rspi.h"
 #include "RZA1/sdhi/inc/sdif.h"
 #include "RZA1/system/rza_io_regrw.h"
+#include "bsp/rza1/drivers/uart/uart.h"
 #include "deluge/deluge.h"
-#include "deluge/drivers/uart/uart.h"
 #include "diskio.h"
 #include "ff.h"
 

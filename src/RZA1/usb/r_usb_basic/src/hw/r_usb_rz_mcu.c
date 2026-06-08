@@ -287,8 +287,8 @@ TIMER function
 
 #define MTU_TIMER_CNT 33
 
+#include "bsp/rza1/drivers/mtu/mtu.h"
 #include "definitions.h"
-#include "deluge/drivers/mtu/mtu.h"
 
 void usb_cpu_delay_1us(uint16_t time) // Modified by Rohan
 {

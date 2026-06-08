@@ -39,7 +39,7 @@
 #include "../inc/access/sd.h"
 
 #include "RZA1/compiler/asm/inc/asm.h"
-#include "deluge/drivers/uart/uart.h"
+#include "bsp/rza1/drivers/uart/uart.h"
 #include "RZA1/cache/cache.h"
 
 #ifdef __CC_ARM

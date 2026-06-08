@@ -35,7 +35,7 @@ Includes   <System Includes> , "Project Includes"
 #include "RZA1/intc/devdrv_intc.h" /* INTC Driver Header */
 #include "RZA1/system/iodefine.h"
 #include "RZA1/system/r_typedefs.h"
-#include "deluge/drivers/uart/uart.h"
+#include "bsp/rza1/drivers/uart/uart.h"
 
 #ifdef __ICCARM__
 #include <intrinsics.h>

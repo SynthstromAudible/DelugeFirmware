@@ -10,16 +10,6 @@
 #   grep -rl 'RZA1/' src/deluge | sort
 
 src/deluge/deluge.cpp
-src/deluge/drivers/dmac/dmac.c
-src/deluge/drivers/dmac/dmac.h
-src/deluge/drivers/mtu/mtu.h
-src/deluge/drivers/oled/oled.c
-src/deluge/drivers/pic/pic.h
-src/deluge/drivers/rspi/rspi.c
-src/deluge/drivers/rspi/rspi.h
-src/deluge/drivers/sd/sd.c
-src/deluge/drivers/ssi/ssi.c
-src/deluge/drivers/uart/uart.c
 src/deluge/gui/ui/audio_recorder.cpp
 src/deluge/gui/ui_timer_manager.cpp
 src/deluge/hid/display/oled.cpp
