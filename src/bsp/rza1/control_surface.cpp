@@ -59,3 +59,7 @@ uint32_t deluge_control_pad_output_space(void) {
 	// uartGetTxBufferSpace / UART_ITEM_PIC_PADS come via the PIC transport header.
 	return (uint32_t)uartGetTxBufferSpace(UART_ITEM_PIC_PADS);
 }
+
+void deluge_control_flush(void) {
+	PIC::flush();
+}

@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
 #include "model/iterance/iterance.h"
 #include "util/misc.h"
@@ -85,10 +86,9 @@ constexpr int32_t kEditPadPressBufferSize = 8;
 
 constexpr int32_t kNumModButtons = 8;
 
-// Display information (actually pads, not the display proper)
-constexpr int32_t kDisplayHeight = 8;
+// Display information (actually pads, not the display proper). kDisplayHeight/Width
+// live in board_layout.hpp (shared with the BSP).
 constexpr int32_t kDisplayHeightMagnitude = 3;
-constexpr int32_t kDisplayWidth = 16;
 constexpr int32_t kDisplayWidthMagnitude = 4;
 
 constexpr int32_t kNumBytesInColUpdateMessage = 49;
@@ -127,7 +127,6 @@ constexpr Pin SPI_CLK = {6, 0};
 constexpr Pin SPI_MOSI = {6, 2};
 constexpr Pin SPI_SSL = {6, 1};
 
-constexpr int32_t kSideBarWidth = 2;
 constexpr int32_t kMaxNumAnimatedRows = ((kDisplayHeight * 3) >> 1);
 
 enum class MidiLearn : uint8_t {
@@ -452,8 +451,6 @@ enum class PolyphonyMode : uint8_t {
 
 constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
-constexpr int32_t kNumericDisplayLength = 4;
-constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
 constexpr int32_t kMaxGoldKnobIndicatorLEDValue = kMaxKnobPos / 4;
 
 constexpr int32_t kMaxNumSections = 24;

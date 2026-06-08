@@ -31,6 +31,7 @@
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "libdeluge/control_surface.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/instrument/instrument.h"
@@ -873,7 +874,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 		__builtin_unreachable();
 	}
 
-	PIC::flush();
+	deluge_control_flush();
 
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 

@@ -1,7 +1,6 @@
 #pragma once
-#include "definitions_cxx.hpp"
+#include "board_layout.hpp" // board dimensions (HAL-free; was definitions_cxx.hpp)
 #include "gui/colour/colour.h"
-#include "util/misc.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -105,7 +104,7 @@ public:
 	 * @param colours The colours to set the pads to
 	 */
 	static void setColourForTwoColumns(size_t idx, const std::array<RGB, kDisplayHeight * 2>& colours) {
-		send(util::to_underlying(Message::SET_COLOUR_FOR_TWO_COLUMNS) + idx);
+		send(static_cast<uint8_t>(Message::SET_COLOUR_FOR_TWO_COLUMNS) + idx);
 		for (const RGB& colour : colours) {
 			send(colour);
 		}
@@ -131,8 +130,8 @@ public:
 		send(knob, indicator);
 	}
 
-	static void setLEDOff(size_t idx) { send(util::to_underlying(Message::SET_LED_OFF) + idx); }
-	static void setLEDOn(size_t idx) { send(util::to_underlying(Message::SET_LED_ON) + idx); }
+	static void setLEDOff(size_t idx) { send(static_cast<uint8_t>(Message::SET_LED_OFF) + idx); }
+	static void setLEDOn(size_t idx) { send(static_cast<uint8_t>(Message::SET_LED_ON) + idx); }
 
 	/**
 	 * @brief Request that the PIC resend all button states
@@ -147,7 +146,7 @@ public:
 		send(Message::SET_UART_SPEED, speed);
 	}
 
-	static void flashMainPad(size_t idx) { send(util::to_underlying(Message::SET_PAD_FLASHING) + idx); }
+	static void flashMainPad(size_t idx) { send(static_cast<uint8_t>(Message::SET_PAD_FLASHING) + idx); }
 
 	/**
 	 * @brief Flash a pad using the PIC's built-in timer and colour system
@@ -156,7 +155,7 @@ public:
 	 * @param colour_idx The colour "index" of colours the PIC knows
 	 */
 	static void flashMainPadWithColourIdx(size_t idx, int32_t colour_idx) {
-		send(util::to_underlying(Message::SET_FLASH_COLOR) + colour_idx);
+		send(static_cast<uint8_t>(Message::SET_FLASH_COLOR) + colour_idx);
 		flashMainPad(idx);
 	}
 
@@ -185,12 +184,12 @@ public:
 	 * @param idx the row to set
 	 */
 	static void sendScrollRow(size_t idx, RGB colour) {
-		send(util::to_underlying(Message::SET_SCROLL_ROW) + idx);
+		send(static_cast<uint8_t>(Message::SET_SCROLL_ROW) + idx);
 		send(colour);
 	}
 
 	static void setupHorizontalScroll(uint8_t bitflags) {
-		send(util::to_underlying(Message::SET_SCROLL_LEFT) + bitflags);
+		send(static_cast<uint8_t>(Message::SET_SCROLL_LEFT) + bitflags);
 	}
 
 	static void doVerticalScroll(bool direction, const std::array<RGB, kDisplayWidth + kSideBarWidth>& colours) {
@@ -283,7 +282,7 @@ private:
 	/**
 	 * @brief Send a single message
 	 */
-	inline static void send(Message msg) { send(util::to_underlying(msg)); }
+	inline static void send(Message msg) { send(static_cast<uint8_t>(msg)); }
 
 	/**
 	 * @brief Send a single colour

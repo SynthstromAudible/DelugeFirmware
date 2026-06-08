@@ -18,10 +18,10 @@
 #include "model/sample/sample_recorder.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
+#include "libdeluge/control_surface.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/sample/sample.h"
@@ -1261,7 +1261,7 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 
 			uiTimerManager.routine();
 
-			PIC::flush();
+			deluge_control_flush();
 		}
 
 		count++;

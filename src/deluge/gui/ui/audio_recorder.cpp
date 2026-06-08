@@ -27,6 +27,7 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "libdeluge/control_surface.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -191,7 +192,7 @@ void AudioRecorder::process() {
 		if (display->haveOLED()) {
 			deluge_display_service();
 		}
-		PIC::flush();
+		deluge_control_flush();
 
 		readButtonsAndPads();
 

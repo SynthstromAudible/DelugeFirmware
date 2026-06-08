@@ -17,13 +17,13 @@
 
 #include "storage/storage_manager.h"
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.h"
 #include "fatfs/fatfs.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "libdeluge/block_device.h"
+#include "libdeluge/control_surface.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
@@ -921,7 +921,7 @@ void FileReader::readDone() {
 		if (display->haveOLED()) {
 			deluge_display_service();
 		}
-		PIC::flush();
+		deluge_control_flush();
 	}
 }
 
