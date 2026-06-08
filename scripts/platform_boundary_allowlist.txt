@@ -16,8 +16,6 @@ src/deluge/hid/display/oled.cpp
 src/deluge/hid/display/seven_segment.cpp
 src/deluge/hid/encoder.cpp
 src/deluge/hid/encoders.cpp
-src/deluge/hid/led/indicator_leds.cpp
-src/deluge/hid/led/pad_leds.cpp
 src/deluge/io/midi/cable_types/din.cpp
 src/deluge/io/midi/midi_device_manager.cpp
 src/deluge/io/midi/midi_engine.cpp
@@ -25,6 +23,5 @@ src/deluge/io/midi/r_usb_pmidi_descriptor.c
 src/deluge/playback/playback_handler.cpp
 src/deluge/processing/engines/audio_engine.cpp
 src/deluge/processing/engines/cv_engine.cpp
-src/deluge/processing/stem_export/stem_export.cpp
 src/deluge/storage/flash_storage.cpp
 src/deluge/storage/storage_manager.cpp

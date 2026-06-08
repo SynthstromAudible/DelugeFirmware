@@ -41,11 +41,6 @@
 #include <new>
 #include <string.h>
 
-extern "C" {
-#include "RZA1/gpio/gpio.h"
-#include "RZA1/uart/sio_char.h"
-}
-
 using namespace deluge;
 using namespace gui;
 

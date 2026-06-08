@@ -65,12 +65,18 @@ void deluge_control_set_pad(uint8_t x, uint8_t y, DelugeColour colour);
 /// Set an indicator LED (by board-defined index) on or off. [task]
 void deluge_control_set_led(uint8_t led, bool on);
 
-/// Set a gold-knob / mod indicator ring level (0..max), `which` selects the
-/// indicator. [task]
-void deluge_control_set_indicator(uint8_t which, uint8_t level);
+/// Set the per-LED levels of a gold-knob / mod indicator ring. `which` selects
+/// the indicator; `levels` points to `count` brightness values (one per ring
+/// LED). [task]
+void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t count);
 
 /// Flush any batched surface output (pad/LED) to the hardware. [task]
 void deluge_control_flush(void);
+
+/// Free space, in bytes, in the control surface's bulk pad-output buffer. The
+/// application uses this as back-pressure before queueing large pad redraws, so
+/// it does not overrun the link to the surface. [task]
+uint32_t deluge_control_pad_output_space(void);
 
 #ifdef __cplusplus
 }

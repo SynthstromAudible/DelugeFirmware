@@ -44,6 +44,14 @@ file(GLOB_RECURSE bsp_rza1_driver_SOURCES CONFIGURE_DEPENDS
 )
 target_sources(deluge PUBLIC ${bsp_rza1_driver_SOURCES})
 
+# Port implementations that depend on application types via the legacy drivers
+# (e.g. control_surface.cpp uses RGB/definitions_cxx through the PIC class) are
+# likewise compiled into `deluge` until the underlying driver is decoupled, at
+# which point they move into the bsp_rza1 library beside clock.c/system.c.
+target_sources(deluge PUBLIC
+    ${CMAKE_CURRENT_LIST_DIR}/control_surface.cpp
+)
+
 # Resolve `#include "drivers/..."` to the relocated headers (for both the
 # drivers themselves and the application code that still uses them directly).
 target_include_directories(deluge PUBLIC ${CMAKE_CURRENT_LIST_DIR})

@@ -41,9 +41,7 @@
 #include <cstring>
 #include <limits>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
+#include "libdeluge/control_surface.h"
 
 using namespace deluge;
 
@@ -145,7 +143,7 @@ void clearTickSquares(bool shouldSend) {
 		if (colsToSend) {
 			for (int32_t x = 0; x < 8; x++) {
 				if (colsToSend & (1 << x)) {
-					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
+					if (deluge_control_pad_output_space() <= kNumBytesInColUpdateMessage) {
 						break;
 					}
 
@@ -213,7 +211,7 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 		if (colsToSend) {
 			for (int32_t x = 0; x < 8; x++) {
 				if (colsToSend & (1 << x)) {
-					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
+					if (deluge_control_pad_output_space() <= kNumBytesInColUpdateMessage) {
 						break;
 					}
 					sortLedsForCol(x << 1);
@@ -757,7 +755,7 @@ void setDimmerInterval(int32_t newInterval) {
 
 void timerRoutine() {
 	// If output buffer is too full, come back in a little while instead
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) {
+	if (deluge_control_pad_output_space() <= kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) {
 		setTimerForSoon();
 		return;
 	}
@@ -928,7 +926,7 @@ stopFade:
 
 void sendOutMainPadColours() {
 	AudioEngine::logAction("sendOutMainPadColours 1");
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInMainPadRedraw) {
+	if (deluge_control_pad_output_space() <= kNumBytesInMainPadRedraw) {
 		sendOutMainPadColoursSoon();
 		return;
 	}
@@ -953,7 +951,7 @@ void sendOutMainPadColoursSoon() {
 
 void sendOutSidebarColours() {
 
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInSidebarRedraw) {
+	if (deluge_control_pad_output_space() <= kNumBytesInSidebarRedraw) {
 		sendOutSidebarColoursSoon();
 		return;
 	}

@@ -16,15 +16,10 @@
  */
 
 #include "hid/led/indicator_leds.h"
-#include "RZA1/uart/sio_char.h"
-#include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
+#include "libdeluge/control_surface.h"
 #include <array>
 #include <cstdint>
-
-extern "C" {
-#include "RZA1/gpio/gpio.h"
-}
 
 namespace indicator_leds {
 
@@ -52,12 +47,7 @@ void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 	uint8_t l = static_cast<int32_t>(led);
 	ledStates[l] = newState;
 
-	if (newState) {
-		PIC::setLEDOn(l);
-	}
-	else {
-		PIC::setLEDOff(l);
-	}
+	deluge_control_set_led(l, newState);
 }
 
 void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialState) {
@@ -247,7 +237,7 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipo
 
 		indicator.at(i) = brightnessOutputValue;
 	}
-	PIC::setGoldKnobIndicator(whichKnob, indicator);
+	deluge_control_set_indicator(whichKnob, indicator.data(), indicator.size());
 
 	knobIndicatorLevels[whichKnob] = level;
 	knobIndicatorBipolar[whichKnob] = isBipolar;
