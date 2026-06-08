@@ -23,8 +23,7 @@
 #define WHICH_GATE_OUTPUT_IS_RUN 2
 #define WHICH_GATE_OUTPUT_IS_CLOCK 3
 
-const uint8_t gatePort[] = {2, 2, 2, 4};
-const uint8_t gatePin[] = {7, 8, 9, 0};
+// (The gate output pin map moved to the BSP's cv_gate implementation.)
 
 class CVChannel {
 public:

@@ -11,6 +11,7 @@ add_library(bsp_rza1 STATIC
     flash.c
     memory.c
     block_device.c
+    cv_gate.c
 )
 
 # Public: the libdeluge headers this BSP implements (propagated to consumers so

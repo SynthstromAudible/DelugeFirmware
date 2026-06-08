@@ -31,12 +31,23 @@
 extern "C" {
 #endif
 
-/// Set the DAC output for CV `channel` (0..cv_channels-1) to a raw 16-bit code.
-/// [task] [audio]
-void deluge_cv_set(uint8_t channel, uint16_t dac_code);
+/// Initialise the CV DAC (linearity calibration). `display_shares_spi` is true
+/// when the board's display shares the CV DAC's SPI bus, so the BSP serialises
+/// CV writes through the display's transfer queue rather than driving the bus
+/// directly. The setting is remembered for subsequent `deluge_cv_set`. [task]
+void deluge_cv_init(bool display_shares_spi);
 
-/// Set gate output `channel` (0..gate_channels-1) high or low. [task] [audio]
-void deluge_gate_set(uint8_t channel, bool high);
+/// Set CV output `channel` (0..cv_channels-1) to a raw 16-bit DAC value. The BSP
+/// owns the DAC command format and the SPI routing. [task] [audio]
+void deluge_cv_set(uint8_t channel, uint16_t value);
+
+/// Configure the gate output pins as outputs. [task]
+void deluge_gate_init(void);
+
+/// Drive gate output `channel` (0..gate_channels-1) to electrical state `on`.
+/// (The application applies any S-trig/V-trig inversion before calling.)
+/// [task] [audio]
+void deluge_gate_set(uint8_t channel, bool on);
 
 /// Callback invoked on each rising edge of the external trigger-clock input.
 /// `timestamp` is in the units of clock.h's sample/tick counter. [isr]

@@ -16,10 +16,10 @@
  */
 
 #include "processing/engines/cv_engine.h"
-#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
+#include "libdeluge/cv_gate.h"
 #include "processing/engines/audio_engine.h"
 #include "util/comparison.h"
 #include "util/functions.h"
@@ -27,14 +27,6 @@
 #include <string.h>
 // #include <algorithm>
 #include "playback/playback_handler.h"
-
-extern "C" {
-#include "RZA1/gpio/gpio.h"
-
-#include "RZA1/intc/devdrv_intc.h"
-#include "RZA1/oled/oled_low_level.h"
-#include "RZA1/rspi/rspi.h"
-}
 
 CVEngine cvEngine{};
 
@@ -48,41 +40,11 @@ CVEngine::CVEngine() {
 }
 
 void CVEngine::init() {
-	// As instructed by the AD DAC's datasheet, do the weird "linearity" routine
-	/*
-	IO::setOutputState(6, 13, 0);
-	SPI::send(1, 0b00000101);
-	SPI::send(1, 0b00000010); // LIN = 1
-	SPI::send(1, 0);
-	IO::setOutputState(6, 13, 1);
-*/
-	if (display->haveOLED()) {
-		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
-	}
-	else {
-		R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
-	}
-	delayMS(10);
-
-	/*
-	IO::setOutputState(6, 13, 0);
-	SPI::send(1, 0b00000101);
-	SPI::send(1, 0b00000000); // LIN = 0
-	SPI::send(1, 0);
-	IO::setOutputState(6, 13, 1);
-	*/
-	if (display->haveOLED()) {
-		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
-	}
-	else {
-		R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
-	}
-
-	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
-
-		// Setup gate outputs
-		setPinAsOutput(gatePort[i], gatePin[i]);
-	}
+	// CV DAC linearity init + gate pin setup are board concerns (the CV DAC shares
+	// SPI with the OLED; pass whether a display is present so writes are routed
+	// correctly).
+	deluge_cv_init(display->haveOLED());
+	deluge_gate_init();
 
 	// Switch all gate "off" to begin with - whatever "off" means
 	updateGateOutputs();
@@ -195,14 +157,10 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 }
 
 void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
-	uint32_t output = (uint32_t)(0b00110000 | (1 << channel)) << 24;
-	output |= (uint32_t)voltage << 8;
-	// if we have a physical oled then we need to send via the pic
-	if (deluge::hid::display::have_oled_screen) {
-		enqueueCVMessage(channel, output);
-	}
-	else {
-		R_RSPI_SendBasic32(SPI_CHANNEL_CV, output);
+	deluge_cv_set(channel, voltage);
+	// On non-OLED units the CV DAC has the SPI bus to itself, so the write has
+	// already completed; OLED units serialise it through the display queue.
+	if (!deluge::hid::display::have_oled_screen) {
 		cvOutPending = false;
 	}
 }
@@ -210,7 +168,7 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 void CVEngine::physicallySwitchGate(int32_t channel) {
 	// setOutputState is inverted - sending true turns the gate off
 	int32_t on = gateChannels[channel].on == (gateChannels[channel].mode == GateType::S_TRIG);
-	setOutputState(gatePort[channel], gatePin[channel], on);
+	deluge_gate_set(channel, on);
 }
 
 void CVEngine::setCVVoltsPerOctave(uint8_t channel, uint8_t value) {
