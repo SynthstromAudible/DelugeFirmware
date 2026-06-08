@@ -8,6 +8,7 @@ add_library(bsp_rza1 STATIC
     signals.c
     display.c
     midi_io.c
+    flash.c
 )
 
 # Public: the libdeluge headers this BSP implements (propagated to consumers so

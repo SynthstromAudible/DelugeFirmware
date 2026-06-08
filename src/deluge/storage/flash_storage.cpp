@@ -16,13 +16,13 @@
  */
 
 #include "storage/flash_storage.h"
-#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
+#include "libdeluge/flash.h"
 #include "model/scale/preset_scales.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -32,11 +32,6 @@
 #include "util/misc.h"
 #include <cstdint>
 #include <modulation/patch/patch_cable.h>
-
-extern "C" {
-#include "RZA1/spibsc/r_spibsc_flash_api.h"
-#include "RZA1/spibsc/spibsc.h"
-}
 
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
@@ -392,8 +387,7 @@ void resetAutomationSettings() {
 
 void readSettings() {
 	std::span buffer{(uint8_t*)miscStringBuffer, kFilenameBufferSize};
-	R_SFLASH_ByteRead(0x80000 - 0x1000, buffer.data(), kFilenameBufferSize, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE,
-	                  SPIBSC_1BIT, SPIBSC_OUTPUT_ADDR_24);
+	deluge_flash_read(0, buffer.data(), kFilenameBufferSize);
 
 	settingsBeenRead = true;
 
@@ -1102,9 +1096,8 @@ void writeSettings() {
 
 	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
 
-	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
-	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
-	                     SPIBSC_OUTPUT_ADDR_24);
+	deluge_flash_erase(0);
+	deluge_flash_program(0, buffer.data(), 256);
 }
 
 } // namespace FlashStorage
