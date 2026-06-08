@@ -29,6 +29,11 @@
 extern "C" {
 #endif
 
+/// The block-device unit (FatFs physical drive) of the board's SD card. The
+/// board owns which drive the SD is on, so the application does not hard-code
+/// it. [task]
+uint8_t deluge_block_sd_unit(void);
+
 /// Bring up storage media (e.g. SD card init). [task]
 DelugeStatus deluge_block_init(uint8_t unit);
 

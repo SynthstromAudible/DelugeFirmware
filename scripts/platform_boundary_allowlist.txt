@@ -19,5 +19,3 @@ src/deluge/io/midi/r_usb_pmidi_descriptor.c
 src/deluge/playback/playback_handler.cpp
 src/deluge/processing/engines/audio_engine.cpp
 src/deluge/processing/engines/cv_engine.cpp
-src/deluge/storage/audio/audio_file_manager.cpp
-src/deluge/storage/storage_manager.cpp

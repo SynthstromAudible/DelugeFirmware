@@ -16,7 +16,6 @@
  */
 
 #include "storage/audio/audio_file_manager.h"
-#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
@@ -24,6 +23,7 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
+#include "libdeluge/block_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
@@ -992,8 +992,9 @@ getOutEarly:
 	}
 #endif
 
-	DRESULT result = disk_read_without_streaming_first(
-	    SD_PORT, (BYTE*)cluster.data, sample->clusters.getElement(cluster.clusterIndex)->sdAddress, numSectors);
+	DRESULT result =
+	    disk_read_without_streaming_first(deluge_block_sd_unit(), (BYTE*)cluster.data,
+	                                      sample->clusters.getElement(cluster.clusterIndex)->sdAddress, numSectors);
 
 #if REPORT_LOAD_TIME
 	uint16_t endTime = MTU2.TCNT_0;

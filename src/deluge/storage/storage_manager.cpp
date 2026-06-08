@@ -16,7 +16,6 @@
  */
 
 #include "storage/storage_manager.h"
-#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "fatfs/fatfs.hpp"
@@ -24,6 +23,7 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
+#include "libdeluge/block_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
@@ -248,7 +248,7 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 Error StorageManager::initSD() {
 
 	// If we know the SD card is still initialised, no need to actually initialise
-	DSTATUS status = disk_status(SD_PORT);
+	DSTATUS status = disk_status(deluge_block_sd_unit());
 	if ((status & STA_NOINIT) == 0) {
 		auto _ = fileSystem.mount(0); // check that it's mounted but don't block if not
 		return Error::NONE;
@@ -271,13 +271,13 @@ Error StorageManager::initSD() {
 }
 
 bool StorageManager::checkSDPresent() {
-	DSTATUS status = disk_status(SD_PORT);
+	DSTATUS status = disk_status(deluge_block_sd_unit());
 	bool present = !(status & STA_NODISK);
 	return present;
 }
 
 bool StorageManager::checkSDInitialized() {
-	DSTATUS status = disk_status(SD_PORT);
+	DSTATUS status = disk_status(deluge_block_sd_unit());
 	return !(status & STA_NOINIT);
 }
 
