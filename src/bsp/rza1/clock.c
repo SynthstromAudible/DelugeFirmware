@@ -32,6 +32,20 @@
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"
 
+/// The high-resolution free-running counter is TIMER_SYSTEM_FAST (16-bit MTU
+/// TCNT), documented at ~528 ticks/ms.
+#define FAST_TIMER_TICKS_PER_SECOND 528000
+
+uint64_t deluge_clock_ticks_per_second(void) {
+	return FAST_TIMER_TICKS_PER_SECOND;
+}
+
+uint64_t deluge_clock_now(void) {
+	// 16-bit free-running fast timer; wraps (see header). Adequate for entropy
+	// and short-interval timing. A wide monotonic clock can be layered on later.
+	return *TCNT[TIMER_SYSTEM_FAST];
+}
+
 /// Counts of TIMER_SYSTEM_SLOW (P0/prescaler) per millisecond.
 /// Matches util/cfunctions.c::msToSlowTimerCount.
 static uint32_t ms_to_slow_timer_count(uint32_t ms) {

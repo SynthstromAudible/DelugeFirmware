@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "RZA1/cpu_specific.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
+#include "libdeluge/control_surface.h"
 #include "util/misc.h"
 #include <utility>
 
@@ -380,7 +380,7 @@ void doAnyPendingUIRendering() {
 		return; // There's no point going in here multiple times inside each other
 	}
 
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
+	if (deluge_control_pad_output_space() <= (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
 		return; // Trialling the *2 to fix flickering when flicking through presets very fast
 	}
 

@@ -16,7 +16,6 @@
  */
 
 #include "gui/ui_timer_manager.h"
-#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -38,6 +37,7 @@
 
 #include <algorithm>
 
+#include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
 
 UITimerManager uiTimerManager{};
@@ -214,7 +214,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::GRAPHICS_ROUTINE:
-					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > kNumBytesInColUpdateMessage) {
+					if (deluge_control_pad_output_space() > kNumBytesInColUpdateMessage) {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TimerName::GRAPHICS_ROUTINE, 15);

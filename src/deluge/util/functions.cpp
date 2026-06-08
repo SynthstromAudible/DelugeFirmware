@@ -16,7 +16,6 @@
  */
 
 #include "util/functions.h"
-#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/fatfs.hpp"
 #include "fatfs/ff.h"
@@ -26,6 +25,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
+#include "libdeluge/clock.h"
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
@@ -1966,7 +1966,7 @@ void concatenateLines(const char* lines[], size_t numLines, char* resultString) 
 }
 
 void seedRandom() {
-	jcong = *TCNT[TIMER_SYSTEM_FAST];
+	jcong = deluge_clock_now();
 }
 
 #define UnsignedToFloat(u) (((double)((long)(u - 2147483647L - 1))) + 2147483648.0)
