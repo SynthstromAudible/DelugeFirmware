@@ -48,6 +48,16 @@ uint8_t deluge_memory_region_count(void);
 /// Describe region `index` (0..count-1). [task]
 DelugeStatus deluge_memory_region(uint8_t index, DelugeMemoryRegion* out);
 
+/// Bounds (addresses) of the board's memory regions, for code that must reason
+/// about which region a pointer lies in — allocators, region-aware containers.
+/// [task] [audio] [isr]
+uintptr_t deluge_memory_external_end(void);   ///< one past the large external region
+uintptr_t deluge_memory_internal_begin(void); ///< base of the fast internal region
+
+/// A writable scratch address whose contents are never read (a "bit bucket"),
+/// for discarding streamed writes. [task] [audio] [isr]
+void* deluge_memory_scratch(void);
+
 /// Cache line size in bytes (alignment unit for DMA-coherent buffers). [task]
 uint32_t deluge_cache_line_size(void);
 

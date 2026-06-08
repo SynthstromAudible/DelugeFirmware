@@ -16,10 +16,10 @@
  */
 
 #include "model/voice/voice_sample.h"
-#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
+#include "libdeluge/memory.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
@@ -1470,7 +1470,7 @@ headsFinishedReading:
 					if (!success) {
 						return false; // Is this ideal? Didn't give much consideration when I wrote this line
 					}
-					cacheWritePosNow = (char*)UNUSED_MEMORY_SPACE_ADDRESS;
+					cacheWritePosNow = (char*)deluge_memory_scratch();
 				}
 
 				while (true) {
