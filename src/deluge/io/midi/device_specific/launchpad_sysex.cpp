@@ -7,6 +7,7 @@
 #include "io/midi/device_specific/launchpad_sysex.h"
 
 #include "io/midi/cable_types/usb_hosted.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "io/midi/device_specific/launchpad_programmer_map.h"
 #include "io/midi/device_specific/novation_launchpad_mk3.h"
 #include "io/midi/midi_engine.h"
@@ -25,7 +26,7 @@ uint8_t ledCacheG[kLedCacheSize];
 uint8_t ledCacheB[kLedCacheSize];
 bool ledCacheValid[kLedCacheSize];
 
-void invalidateLedCache() {
+void clearLedCache() {
 	for (int32_t i = 0; i < kLedCacheSize; i++) {
 		ledCacheValid[i] = false;
 	}
@@ -200,6 +201,16 @@ private:
 
 } // namespace
 
+void reassertProgrammerMode(MIDICableUSBHosted* cable) {
+	uint8_t deviceId = deviceIdFor(cable);
+	uint8_t programmerMode[] = {0xF0, 0x00, 0x20, 0x29, 0x02, deviceId, 0x0E, 0x01, 0xF7};
+	sendRaw(cable, programmerMode, sizeof programmerMode);
+}
+
+void invalidateLedCache() {
+	clearLedCache();
+}
+
 void sendSetup(MIDICableUSBHosted* cable) {
 	uint8_t deviceId = deviceIdFor(cable);
 
@@ -210,14 +221,15 @@ void sendSetup(MIDICableUSBHosted* cable) {
 	sendRaw(cable, maxBrightness, sizeof maxBrightness);
 
 	sendLedFeedbackOff(cable);
-	invalidateLedCache();
+	clearLedCache();
 	sendAuxLedsOff(cable);
 	midiEngine.flushMIDI();
 }
 
-void sendSessionGrid(MIDICableUSBHosted* cable, RGB image[][kDisplayWidth + kSideBarWidth],
-                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], RGB const sceneColours[8],
-                     bool transportPlaying, bool transportRecording) {
+void sendLaunchpadLeds(MIDICableUSBHosted* cable, launchpad_extension::ViewMode viewMode,
+                       RGB image[][kDisplayWidth + kSideBarWidth],
+                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], RGB const sceneColours[8],
+                       bool transportPlaying, bool transportRecording) {
 	uint8_t deviceId = deviceIdFor(cable);
 	DeltaBatch batch;
 	batch.begin(cable, deviceId);
@@ -237,12 +249,19 @@ void sendSessionGrid(MIDICableUSBHosted* cable, RGB image[][kDisplayWidth + kSid
 		}
 	}
 
-	for (int32_t y = 0; y < 8; y++) {
-		uint8_t outR;
-		uint8_t outG;
-		uint8_t outB;
-		scaleRgb(sceneColours[y].r, sceneColours[y].g, sceneColours[y].b, outR, outG, outB);
-		batch.queueIfChanged(launchpad_programmer_map::sceneLedIndexForDelugeRow(y), outR, outG, outB);
+	if (viewMode == launchpad_extension::ViewMode::Session) {
+		for (int32_t y = 0; y < 8; y++) {
+			uint8_t outR;
+			uint8_t outG;
+			uint8_t outB;
+			scaleRgb(sceneColours[y].r, sceneColours[y].g, sceneColours[y].b, outR, outG, outB);
+			batch.queueIfChanged(launchpad_programmer_map::sceneLedIndexForDelugeRow(y), outR, outG, outB);
+		}
+	}
+	else {
+		for (int32_t y = 0; y < 8; y++) {
+			batch.queueIfChanged(launchpad_programmer_map::sceneLedIndexForDelugeRow(y), 0, 0, 0);
+		}
 	}
 
 	uint8_t const* fixedOffIndices = launchpad_programmer_map::fixedOffLedIndices();

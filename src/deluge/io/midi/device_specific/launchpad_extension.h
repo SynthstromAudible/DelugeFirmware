@@ -15,8 +15,17 @@ struct MIDIMessage;
 
 namespace launchpad_extension {
 
+enum class ViewMode : uint8_t {
+	Session,
+	Note,
+};
+
+ViewMode getViewMode();
+
 void syncSessionGrid(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                      RGB const sceneColours[8]);
+
+void syncNoteView(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 // ~4 Hz background refresh (GRAPHICS_ROUTINE). No-op when feature off or no Launchpad connected.
 void periodicSyncIfNeeded();

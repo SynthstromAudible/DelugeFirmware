@@ -45,7 +45,7 @@ bool delugeGridCoordsFromNote(uint8_t note, int32_t& x, int32_t& y);
 constexpr uint8_t kNonGridLedIndexCount = 10;
 uint8_t const* nonGridLedIndices();
 
-// Top row + logo only; transport (97/98) is driven separately.
+// Top row + logo; transport (97/98) driven separately. Session/Note (95/96) are not host-controllable.
 constexpr uint8_t kFixedOffLedIndexCount = 8;
 uint8_t const* fixedOffLedIndices();
 

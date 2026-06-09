@@ -11,6 +11,7 @@
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/device_specific/launchpad_cable.h"
+#include "io/midi/device_specific/launchpad_note_mode.h"
 #include "io/midi/device_specific/launchpad_programmer_map.h"
 #include "io/midi/device_specific/launchpad_sysex.h"
 #include "io/midi/midi_engine.h"
@@ -24,6 +25,8 @@
 namespace launchpad_extension {
 
 namespace {
+
+ViewMode viewMode = ViewMode::Session;
 
 uint32_t lastPeriodicSyncTime = 0;
 uint32_t lastSyncSentTime = 0;
@@ -46,7 +49,13 @@ void doSync(bool force) {
 	}
 
 	lastSyncSentTime = now;
-	sessionView.launchpadSyncGridLedsNow();
+
+	if (viewMode == ViewMode::Note) {
+		launchpad_note_mode::syncLeds();
+	}
+	else {
+		sessionView.launchpadSyncGridLedsNow();
+	}
 }
 
 bool isPressed(uint8_t statusType, uint8_t data2) {
@@ -59,28 +68,74 @@ bool isPressed(uint8_t statusType, uint8_t data2) {
 	return false;
 }
 
-bool handleControlChange(uint8_t cc, bool on) {
+void switchViewMode(ViewMode newMode, MIDICable& cable, int32_t midiChannel) {
+	if (viewMode == newMode) {
+		return;
+	}
+
+	if (viewMode == ViewMode::Note) {
+		launchpad_note_mode::releaseAllHeldPads(cable, midiChannel);
+	}
+
+	viewMode = newMode;
+
+	MIDICableUSBHosted* port2 = launchpad_cable::getPort2();
+	if (port2 != nullptr) {
+		// Session/Note buttons can knock the Launchpad out of Programmer mode — stay in our layout.
+		launchpad_sysex::reassertProgrammerMode(port2);
+		launchpad_sysex::invalidateLedCache();
+	}
+
+	doSync(true);
+}
+
+bool handleControlChange(MIDICable& cable, uint8_t cc, bool on, int32_t midiChannel) {
 	if (!on) {
 		return true;
 	}
 
-	int32_t sceneRow;
-	if (launchpad_programmer_map::sceneRowFromCc(cc, sceneRow)) {
-		sessionView.launchpadStartSectionFromRow(sceneRow);
+	switch (cc) {
+	case launchpad_programmer_map::cc::kSession:
+		switchViewMode(ViewMode::Session, cable, midiChannel);
 		return true;
+	case launchpad_programmer_map::cc::kNote:
+		switchViewMode(ViewMode::Note, cable, midiChannel);
+		return true;
+	default:
+		break;
+	}
+
+	if (viewMode == ViewMode::Session) {
+		int32_t sceneRow;
+		if (launchpad_programmer_map::sceneRowFromCc(cc, sceneRow)) {
+			sessionView.launchpadStartSectionFromRow(sceneRow);
+			return true;
+		}
 	}
 
 	switch (cc) {
 	case launchpad_programmer_map::cc::kUp:
+		if (viewMode == ViewMode::Note) {
+			return launchpad_note_mode::handleScroll(0, -1);
+		}
 		sessionView.launchpadGridScroll(0, -1);
 		return true;
 	case launchpad_programmer_map::cc::kDown:
+		if (viewMode == ViewMode::Note) {
+			return launchpad_note_mode::handleScroll(0, 1);
+		}
 		sessionView.launchpadGridScroll(0, 1);
 		return true;
 	case launchpad_programmer_map::cc::kLeft:
+		if (viewMode == ViewMode::Note) {
+			return launchpad_note_mode::handleScroll(-1, 0);
+		}
 		sessionView.launchpadGridScroll(-1, 0);
 		return true;
 	case launchpad_programmer_map::cc::kRight:
+		if (viewMode == ViewMode::Note) {
+			return launchpad_note_mode::handleScroll(1, 0);
+		}
 		sessionView.launchpadGridScroll(1, 0);
 		return true;
 	case launchpad_programmer_map::cc::kCustom:
@@ -89,25 +144,45 @@ bool handleControlChange(uint8_t cc, bool on) {
 	case launchpad_programmer_map::cc::kCaptureMidi:
 		sessionView.launchpadToggleRecord();
 		return true;
-	case launchpad_programmer_map::cc::kSession:
-	case launchpad_programmer_map::cc::kNote:
 	default:
 		return true;
 	}
 }
 
-bool handleNote(uint8_t note, bool on) {
+bool handleNote(MIDICable& cable, uint8_t note, uint8_t velocity, bool on, int32_t midiChannel) {
 	int32_t x;
 	int32_t y;
 	if (!launchpad_programmer_map::delugeGridCoordsFromNote(note, x, y)) {
 		return true;
 	}
 
-	sessionView.gridHandlePadsFromLaunchpad(x, y, on);
+	if (viewMode == ViewMode::Note) {
+		return launchpad_note_mode::handlePad(cable, x, y, velocity, on, midiChannel);
+	}
+
+	sessionView.gridHandlePadsFromLaunchpad(x, y, on ? 1 : 0);
 	return true;
 }
 
+void sendLeds(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+              RGB const sceneColours[8]) {
+	MIDICableUSBHosted* cable = launchpad_cable::getPort2();
+	if (cable == nullptr) {
+		return;
+	}
+
+	bool transportPlaying = playbackHandler.playbackState != 0;
+	bool transportRecording = playbackHandler.recording == RecordingMode::NORMAL;
+	launchpad_sysex::sendLaunchpadLeds(cable, viewMode, image, occupancyMask, sceneColours, transportPlaying,
+	                                   transportRecording);
+	midiEngine.flushMIDI();
+}
+
 } // namespace
+
+ViewMode getViewMode() {
+	return viewMode;
+}
 
 void requestSync() {
 	if (!featureEnabled()) {
@@ -122,6 +197,7 @@ void requestSync() {
 }
 
 void onDeviceConnected() {
+	viewMode = ViewMode::Session;
 	doSync(true);
 }
 
@@ -146,15 +222,12 @@ void periodicSyncIfNeeded() {
 
 void syncSessionGrid(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                      RGB const sceneColours[8]) {
-	MIDICableUSBHosted* cable = launchpad_cable::getPort2();
-	if (cable == nullptr) {
-		return;
-	}
+	sendLeds(image, occupancyMask, sceneColours);
+}
 
-	bool transportPlaying = playbackHandler.playbackState != 0;
-	bool transportRecording = playbackHandler.recording == RecordingMode::NORMAL;
-	launchpad_sysex::sendSessionGrid(cable, image, occupancyMask, sceneColours, transportPlaying, transportRecording);
-	midiEngine.flushMIDI();
+void syncNoteView(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	static RGB const kBlackScenes[8] = {};
+	sendLeds(image, occupancyMask, kBlackScenes);
 }
 
 bool handleMidiMessage(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
@@ -171,17 +244,29 @@ bool handleMidiMessage(MIDICable& cable, uint8_t statusType, uint8_t channel, ui
 	}
 
 	bool on = isPressed(statusType, data2);
-	bool gridAction = false;
+	bool handled = false;
+	bool modeChanged = false;
 
 	if (statusType == 0x0B && data1 < 120) {
-		gridAction = handleControlChange(data1, on);
+		if (on && (data1 == launchpad_programmer_map::cc::kSession || data1 == launchpad_programmer_map::cc::kNote)) {
+			ViewMode previousMode = viewMode;
+			handled = handleControlChange(cable, data1, on, channel);
+			modeChanged = viewMode != previousMode;
+		}
+		else {
+			handled = handleControlChange(cable, data1, on, channel);
+		}
 	}
 
 	if (statusType == 0x09 || statusType == 0x08) {
-		gridAction = handleNote(data1, on) || gridAction;
+		uint8_t velocity = data2;
+		if (statusType == 0x08) {
+			velocity = 0;
+		}
+		handled = handleNote(cable, data1, velocity, on, channel) || handled;
 	}
 
-	if (gridAction) {
+	if (handled && !modeChanged) {
 		requestSync();
 	}
 
@@ -197,7 +282,6 @@ bool shouldBlockOutgoingMidi(MIDICableUSB& cable, MIDIMessage message) {
 		return false;
 	}
 
-	// SysEx uses sendSysex(), not sendMessage(). Block channel voice traffic — it lights pads.
 	if (message.statusType >= 0x08 && message.statusType <= 0x0E) {
 		return true;
 	}
