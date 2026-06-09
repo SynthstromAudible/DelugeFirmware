@@ -5,16 +5,19 @@ FetchContent_Declare(CppSpec
 FetchContent_MakeAvailable(CppSpec)
 
 add_subdirectory(../../src/lib printf)
+add_subdirectory(../../src/midi deluge_midi)
 
 add_library(deluge_spec STATIC
 ../../src/deluge/util/semver.cpp
 ../../src/deluge/util/string.cpp
-../../src/deluge/util/cfunctions.c
+# intToString/floatToString moved out of util/cfunctions.c into the dep-free
+# foundation library; cfunctions.c now only holds the clock-coupled delays.
+../../src/foundation/string_format.c
 ../../src/deluge/util/lookuptables/lookuptables.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 )
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf)
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi)
 
 target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/)
 
@@ -45,4 +48,4 @@ function(create_specs_driver driver_name spec_dir)
 endfunction()
 
 create_specs_driver(all_specs ${CMAKE_CURRENT_LIST_DIR})
-target_link_libraries(all_specs PUBLIC deluge_spec)
+target_link_libraries(all_specs PUBLIC deluge_spec deluge_midi)

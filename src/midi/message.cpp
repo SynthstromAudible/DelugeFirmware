@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "message.h"
+#include "midi/message.h"
 
 size_t bytesPerStatusMessage(uint8_t statusByte) {
 	if (statusByte == 0xF0    // System exclusive - dynamic length

@@ -200,6 +200,7 @@ target_link_libraries(deluge PUBLIC
         argon
         etl::etl
         deluge_foundation # foundation tier (formatting, timer-count, panic contract)
+        deluge_midi       # MIDI protocol library (message + USB-MIDI event spec)
 )
 
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)

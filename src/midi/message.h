@@ -39,6 +39,8 @@ struct MIDIMessage {
 
 	[[gnu::always_inline]] [[nodiscard]] bool isSystemMessage() const { return statusType == 0x0f; }
 
+	friend constexpr bool operator==(MIDIMessage, MIDIMessage) = default;
+
 	/// @name Constructors for certain types of message
 	/// @{
 
