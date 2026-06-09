@@ -53,16 +53,9 @@
 
 #pragma once
 
-#include <stdint.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
-                                                uint32_t addrUSRSP);
-extern void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP);
-
-#ifdef __cplusplus
-}
-#endif
+// The fault-handler declarations moved to the foundation tier, alongside the rest
+// of the panic primitive. This forwards for any remaining includers; new code
+// should include <foundation/panic.h> directly. (fault_handler.c here is the
+// board hardware-report implementation and stays HW-coupled — it cannot live in
+// the dep-free foundation library.)
+#include "foundation/panic.h"

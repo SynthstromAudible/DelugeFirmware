@@ -29,7 +29,7 @@
 #include "bsp/rza1/drivers/dmac/dmac.h"
 #include "bsp/rza1/drivers/rspi/rspi.h"
 #include "deluge/processing/engines/cv_engine_c_interface.h"
-#include "deluge/util/cfunctions.h"
+#include "foundation/timer_count.h"
 
 #define OLED_CODE_FOR_CV 1
 

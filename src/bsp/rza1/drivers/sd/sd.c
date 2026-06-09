@@ -22,8 +22,8 @@
 #include "drivers/mtu/mtu.h"
 
 #include "RZA1/sdhi/inc/sdif.h"
+#include "foundation/timer_count.h"
 #include "libdeluge/storage_wait.h" // routineForSD / yieldingRoutineForSD (runtime-provided yield hooks)
-#include "util/cfunctions.h"
 
 uint16_t stopTime;
 

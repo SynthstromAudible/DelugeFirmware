@@ -199,6 +199,7 @@ add_executable(deluge)
 target_link_libraries(deluge PUBLIC
         argon
         etl::etl
+        deluge_foundation # foundation tier (formatting, timer-count, panic contract)
 )
 
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)

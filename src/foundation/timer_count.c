@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2025 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,17 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "util/cfunctions.h"
-#include "libdeluge/clock.h"
+#include "foundation/timer_count.h"
+#include "board_config.h" // XTAL_SPEED_MHZ
 
-// Busy-wait delays are a board concern: they route through the libdeluge clock
-// boundary (the RZ/A1L timer code lives in bsp/rza1/clock.c). The pure number
-// formatting and board timer-count helpers that used to live here moved to the
-// foundation tier (foundation/string_format.* and foundation/timer_count.*).
-void delayMS(uint32_t ms) {
-	deluge_clock_delay_ms(ms);
+uint32_t superfastTimerCountToNS(uint32_t timerCount) {
+	return (uint64_t)timerCount * 400000000 / XTAL_SPEED_MHZ;
 }
 
-void delayUS(uint32_t us) {
-	deluge_clock_delay_us(us);
+uint32_t superfastTimerCountToUS(uint32_t timerCount) {
+	return (uint64_t)timerCount * 400000 / XTAL_SPEED_MHZ;
+}
+
+uint32_t fastTimerCountToUS(uint32_t timerCount) {
+	return (uint64_t)timerCount * 25600000 / XTAL_SPEED_MHZ;
+}
+
+uint32_t usToFastTimerCount(uint32_t us) {
+	return (uint64_t)us * XTAL_SPEED_MHZ / 25600000;
+}
+
+uint32_t msToSlowTimerCount(uint32_t ms) {
+	return ms * 33;
 }

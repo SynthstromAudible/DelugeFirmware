@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2025 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,21 +17,26 @@
 
 #pragma once
 
-// The pure number formatting (intToString, …) and the board timer-count math
-// (msToSlowTimerCount, …) moved to the foundation tier. This header forwards to
-// them so existing includers keep working; new code should include the
-// foundation headers directly. Only the busy-wait delays remain here — they wrap
-// the libdeluge clock boundary, so they sit above the foundation.
-#include "foundation/string_format.h"
-#include "foundation/timer_count.h"
+/// foundation/timer_count.h — conversions between the board's hardware timer
+/// counts and real time.
+///
+/// Foundation tier: pure math over the board crystal frequency (board_config.h's
+/// XTAL_SPEED_MHZ), no other dependencies — so the HAL (OLED/USB timing) and the
+/// app can both use them. Split out of the old deluge/util/cfunctions.h. (The
+/// busy-wait delayMS/delayUS wrappers, which go through the libdeluge clock
+/// boundary, stay above the foundation in util/cfunctions.h.)
+
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void delayMS(uint32_t ms);
-void delayUS(uint32_t us);
+uint32_t fastTimerCountToUS(uint32_t timerCount);
+uint32_t usToFastTimerCount(uint32_t us);
+uint32_t msToSlowTimerCount(uint32_t ms);
+uint32_t superfastTimerCountToUS(uint32_t timerCount);
+uint32_t superfastTimerCountToNS(uint32_t timerCount);
 
 #ifdef __cplusplus
 }

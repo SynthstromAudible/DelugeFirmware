@@ -37,7 +37,7 @@
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
-#include "deluge/util/cfunctions.h"
+#include "foundation/timer_count.h"
 #include "libdeluge/storage_wait.h"
 #include <stdbool.h>
 

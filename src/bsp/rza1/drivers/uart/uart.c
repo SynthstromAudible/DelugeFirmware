@@ -24,7 +24,7 @@
 
 #include "RZA1/intc/devdrv_intc.h"
 #include "RZA1/system/iodefines/scif_iodefine.h"
-#include "util/cfunctions.h"
+#include "foundation/string_format.h"
 #include <math.h>
 
 #include "RTT/SEGGER_RTT.h"

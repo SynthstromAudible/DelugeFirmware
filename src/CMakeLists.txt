@@ -2,6 +2,7 @@ cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR})
 
 target_sources(deluge PUBLIC main.c resetprg.c c_lib_alternatives.S malloc.c terminate.cpp memmove.c)
 
+add_subdirectory(foundation) # bottom of the stack; the layers below link it
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)
 add_subdirectory(bsp)

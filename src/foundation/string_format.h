@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2025 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,21 +17,23 @@
 
 #pragma once
 
-// The pure number formatting (intToString, …) and the board timer-count math
-// (msToSlowTimerCount, …) moved to the foundation tier. This header forwards to
-// them so existing includers keep working; new code should include the
-// foundation headers directly. Only the busy-wait delays remain here — they wrap
-// the libdeluge clock boundary, so they sit above the foundation.
-#include "foundation/string_format.h"
-#include "foundation/timer_count.h"
+/// foundation/string_format.h — pure number→string formatting.
+///
+/// Foundation tier: no dependencies beyond libc, so the app, BSP and HAL may all
+/// use it (the HAL's UART debug output formats numbers with intToString). Split
+/// out of the old deluge/util/cfunctions.h, whose timer/delay helpers are board-
+/// or clock-coupled and live elsewhere.
+
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void delayMS(uint32_t ms);
-void delayUS(uint32_t us);
+int32_t getNumDecimalDigits(uint32_t number);
+void intToString(int32_t number, char* buffer, int32_t minNumDigits);
+void floatToString(float number, char* __restrict__ buffer, int32_t minNumDecimalPlaces, int32_t maxNumDecimalPlaces);
+void slotToString(int32_t slot, int32_t subSlot, char* __restrict__ buffer, int32_t minNumDigits);
 
 #ifdef __cplusplus
 }

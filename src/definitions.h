@@ -1,6 +1,6 @@
 #pragma once
-#include "OSLikeStuff/fault_handler/fault_handler.h" // IWYU pragma: export (for expanding the freeze with error macro)
-#include "board_config.h"                            // board capabilities/layout (HAL-free; was RZA1/cpu_specific.h)
+#include "board_config.h"     // board capabilities/layout (HAL-free; was RZA1/cpu_specific.h)
+#include "foundation/panic.h" // IWYU pragma: export — freezeWithError + FREEZE_WITH_ERROR (foundation tier)
 // (Also was RZA1/system/r_typedefs.h, a Renesas wrapper around these standard headers.)
 #include <stdbool.h> // IWYU pragma: export
 #include <stddef.h>  // IWYU pragma: export
@@ -14,27 +14,8 @@
 #define ENABLE_SEQUENTIALITY_TESTS 0
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-// This is defined in display.cpp
-extern void freezeWithError(char const* errmsg);
-#ifdef __cplusplus
-}
-#endif
-#if defined(__arm__)
-#define FREEZE_WITH_ERROR(error)                                                                                       \
-	({                                                                                                                 \
-		uint32_t regLR = 0;                                                                                            \
-		uint32_t regSP = 0;                                                                                            \
-		asm volatile("MOV %0, LR\n" : "=r"(regLR));                                                                    \
-		asm volatile("MOV %0, SP\n" : "=r"(regSP));                                                                    \
-		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);                                                       \
-		freezeWithError(error);                                                                                        \
-	})
-#else
-#define FREEZE_WITH_ERROR(error) ({ freezeWithError(error); })
-#endif
+// freezeWithError() + the FREEZE_WITH_ERROR macro now live in <foundation/panic.h>
+// (the foundation tier), pulled in above.
 
 #define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 9
 
