@@ -37,7 +37,6 @@
 *******************************************************************************/
 #include "../../../inc/sdif.h"
 #include "../inc/access/sd.h"
-#include "libdeluge/storage_wait.h"
 
 #ifdef __CC_ARM
 #pragma arm section code = "CODE_SDHI"
@@ -81,7 +80,7 @@ int _sd_software_trans(SDHNDL *hndl,unsigned char *buff,long cnt,int dir)
 	
 	for(j=cnt; j>0 ;j--){
 		/* ---- wait BWE/BRE interrupt ---- */
-		routineForSD(); // By Rohan
+		// (No pump here: sddev_int_wait below yields to the scheduler while waiting.)
 
 		if(sddev_int_wait(hndl->sd_port, SD_TIMEOUT_MULTIPLE) != SD_OK){
 			_sd_set_err(hndl,SD_ERR_HOST_TOE);

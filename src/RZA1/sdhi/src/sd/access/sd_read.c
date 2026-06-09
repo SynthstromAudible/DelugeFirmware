@@ -40,7 +40,6 @@
 
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "bsp/rza1/drivers/uart/uart.h"
-#include "libdeluge/storage_wait.h"
 #include "RZA1/cache/cache.h"
 
 #ifdef __CC_ARM
@@ -135,9 +134,8 @@ int sd_read_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt)
 	unsigned short info1_back,opt_back;
 	int dma_64;
 
-
-
-	routineForSD(); // By Rohan. // called during disk reads but only once per read
+	// (No pre-read pump: the transfer's own waits — sddev_int_wait / the DMA-end wait —
+	// already yield to the scheduler, so audio/UI stay alive during the read.)
 
 	if( (sd_port != 0) && (sd_port != 1) ){
 		return SD_ERR;
@@ -485,10 +483,6 @@ static int _sd_single_read(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
 	int ret,error;
 	unsigned short info1_back;
 	int dma_64;
-
-
-	// Kinda need this because, reading just one sector, we're not gonna be sitting waiting for interrupts for very long, so might not do any audio routine calls later
-	//routineForSD();
 
 	/* ---- enable RespEnd and ILA ---- */
 	_sd_set_int_mask(hndl,SD_INFO1_MASK_RESP,SD_INFO2_MASK_ILA);
