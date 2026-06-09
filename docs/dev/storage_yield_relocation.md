@@ -113,7 +113,7 @@ work as tasks (it already does) and read `sdRoutineLock` for UI gating.
 2. **`sdRoutineLock` ownership.** Simplest: the relocated wrappers keep setting the
    existing app-visible `sdRoutineLock`; the UI keeps reading it. (Cleaner long-term:
    expose "is a storage routine running" via the scheduler, but that touches ~10 UI
-   files — probably out of scope here.)
+   files — probably out of scope here.). Do the cleaner long-term fix.
 3. **The manual pump → yield.** Replace each bare `routineForSD()` with
    `yieldToIdle(condition)`. This needs the hardware-ready `RunCondition` at each
    site (the SD/flash/USB loops already test a status flag — wrap it), OR a
@@ -126,6 +126,7 @@ work as tasks (it already does) and read `sdRoutineLock` for UI gating.
    boundary contract + a registered task; `diskio` calling it is a priority hint), or
    (b) invert — the app services its cluster queue before issuing reads rather than
    the HAL calling up. (a) is lower-risk; (b) is cleaner. Decide before touching it.
+   Decision: B.
 
 ## Phased plan (each phase build-green; only the whole is flash-testable)
 

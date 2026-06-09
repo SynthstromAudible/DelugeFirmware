@@ -53,7 +53,6 @@ Includes   <System Includes> , "Project Includes"
 #include "bsp/rza1/drivers/uart/uart.h"
 #include "libdeluge/storage_wait.h"
 #include "RZA1/intc/register_interrupt.h"
-#include "OSLikeStuff/scheduler_api.h"
 
 /******************************************************************************
 Typedef definitions
