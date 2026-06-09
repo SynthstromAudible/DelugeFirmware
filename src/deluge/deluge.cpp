@@ -50,6 +50,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
+#include "libdeluge/signals.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -108,7 +109,7 @@ uint16_t batteryMV;
 bool batteryLEDState = false;
 
 void batteryLEDBlink() {
-	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
+	deluge_signal_write(DELUGE_SIGNAL_BATTERY_LED, batteryLEDState);
 	int32_t blinkPeriod = ((int32_t)batteryMV - 2630) * 3;
 	blinkPeriod = std::min(blinkPeriod, 500_i32);
 	blinkPeriod = std::max(blinkPeriod, 60_i32);
@@ -120,16 +121,17 @@ void inputRoutine() {
 	disk_timerproc(UI_MS_PER_REFRESH);
 
 	// Check if mono output cable plugged in
-	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin) != 0u;
-	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin) != 0u;
+	bool outputPluggedInL = deluge_signal_read(DELUGE_SIGNAL_LINE_OUT_DETECT_L);
+	bool outputPluggedInR = deluge_signal_read(DELUGE_SIGNAL_LINE_OUT_DETECT_R);
 
-	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin) != 0u;
+	bool headphoneNow = deluge_signal_read(DELUGE_SIGNAL_HEADPHONE_DETECT);
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
 		D_PRINT("headphone %d", headphoneNow);
 		AudioEngine::headphonesPluggedIn = headphoneNow;
 	}
 
-	bool micNow = readInput(MIC_DETECT.port, MIC_DETECT.pin) == 0u;
+	// Mic detect is active-low on this board.
+	bool micNow = !deluge_signal_read(DELUGE_SIGNAL_MIC_DETECT);
 	if (micNow != AudioEngine::micPluggedIn) {
 		D_PRINT("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
@@ -137,12 +139,12 @@ void inputRoutine() {
 	}
 
 	bool speakerOn = (!AudioEngine::headphonesPluggedIn && !outputPluggedInR && !outputPluggedInL);
-	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, speakerOn);
+	deluge_signal_write(DELUGE_SIGNAL_SPEAKER_ENABLE, speakerOn);
 
 	AudioEngine::renderInStereo =
 	    (AudioEngine::headphonesPluggedIn || outputPluggedInR || AudioEngine::isAnyInternalRecordingHappening());
 
-	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin) != 0u;
+	bool lineInNow = deluge_signal_read(DELUGE_SIGNAL_LINE_IN_DETECT);
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
 		D_PRINTLN("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
@@ -171,7 +173,7 @@ void inputRoutine() {
 			if (batteryMV > 2950) {
 makeBattLEDSolid:
 				batteryCurrentRegion = 1;
-				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
+				deluge_signal_write(DELUGE_SIGNAL_BATTERY_LED, true); // solid on
 				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 		}
@@ -183,7 +185,7 @@ makeBattLEDSolid:
 
 			else if (batteryMV > 3300) {
 				batteryCurrentRegion = 2;
-				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
+				deluge_signal_write(DELUGE_SIGNAL_BATTERY_LED, false); // off (charged)
 				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 		}

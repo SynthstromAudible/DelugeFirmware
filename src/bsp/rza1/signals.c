@@ -39,10 +39,18 @@ void deluge_signal_write(DelugeSignal signal, bool on) {
 	case DELUGE_SIGNAL_SYNC_LED:
 		setOutputState(6, 7, on);
 		break;
+	case DELUGE_SIGNAL_BATTERY_LED:
+		// Open-drain: logical-on (LED lit) drives the line low, so invert here.
+		setOutputState(1, 1, !on);
+		break;
+	case DELUGE_SIGNAL_SPEAKER_ENABLE:
+		setOutputState(4, 1, on);
+		break;
+	case DELUGE_SIGNAL_CODEC_ENABLE:
+		setOutputState(6, 12, on);
+		break;
 	default:
-		// Remaining output signals are wired up as their callers migrate off
-		// direct GPIO. Note BATTERY_LED is open-drain (logical-on drives 0), so
-		// its polarity must be inverted here when it is added.
+		// Input-only signals (or any board line this BSP does not drive).
 		break;
 	}
 }
