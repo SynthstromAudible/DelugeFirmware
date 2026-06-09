@@ -56,6 +56,25 @@ void deluge_signal_write(DelugeSignal signal, bool on);
 bool deluge_signal_read(DelugeSignal signal);
 
 // ---------------------------------------------------------------------------
+// MIDI/gate output timer. A board one-shot that fires midiAndGateTimerGoneOff()
+// a precise number of audio samples in the future, so MIDI clock and gate edges
+// land sample-accurately rather than at the audio-block boundary. The app owns
+// *when* (it computes the sample delay); the board owns the timer hardware and
+// the samples→ticks conversion, so neither the timer number nor its clock rate
+// crosses the boundary.
+// ---------------------------------------------------------------------------
+
+/// True if the output timer is already armed (an output ISR is pending). The app
+/// checks this before arming, or before emitting output inline, so it never
+/// races the scheduled ISR. [task] [isr]
+bool deluge_midi_gate_timer_pending(void);
+
+/// Arm the output timer to fire midiAndGateTimerGoneOff() `samples_from_now`
+/// audio samples in the future. Call only when !deluge_midi_gate_timer_pending().
+/// [task]
+void deluge_midi_gate_timer_arm(uint32_t samples_from_now);
+
+// ---------------------------------------------------------------------------
 // Runtime-provided callbacks (inverse direction: the app implements, the
 // BSP/HAL call up). Declared here so the timer HAL depends only on
 // <libdeluge/...>, never on the app's deluge.h. See system.h for the rationale.

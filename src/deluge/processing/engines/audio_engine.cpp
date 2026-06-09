@@ -37,6 +37,7 @@
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
+#include "libdeluge/signals.h"
 #include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
 #include "model/instrument/kit.h"
@@ -74,7 +75,6 @@
 namespace params = deluge::modulation::params;
 
 extern "C" {
-#include "RZA1/mtu/mtu.h"
 #include "drivers/ssi/ssi.h"
 
 #include "RZA1/intc/devdrv_intc.h"
@@ -690,7 +690,7 @@ void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At
 		// it)
 		// - otherwise this will all get called soon anyway. I thiiiink this is 100% immune to any synchronization
 		// problems?
-		if (!isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
+		if (!deluge_midi_gate_timer_pending()) {
 			if (anythingInGateOutputBufferNow) {
 				cvEngine.updateGateOutputs();
 			}
@@ -944,7 +944,7 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
 
 	CriticalSectionGuard guard;
 	// guard against timer firing mid check
-	if ((midiEngine.anythingInOutputBuffer() || anyGateOutputPending) && !isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
+	if ((midiEngine.anythingInOutputBuffer() || anyGateOutputPending) && !deluge_midi_gate_timer_pending()) {
 
 		// I don't think this actually could still get left at -1, but just in case...
 		if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
@@ -985,11 +985,7 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
 			}
 		}
 
-		R_INTC_Enable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
-
-		// Set delay time. This is samplesTilMIDIOrGate * 515616 / kSampleRate.
-		*TGRA[TIMER_MIDI_GATE_OUTPUT] = ((uint32_t)samplesTilMIDIOrGate * 766245) >> 16;
-		enableTimer(TIMER_MIDI_GATE_OUTPUT);
+		deluge_midi_gate_timer_arm((uint32_t)samplesTilMIDIOrGate);
 	}
 }
 

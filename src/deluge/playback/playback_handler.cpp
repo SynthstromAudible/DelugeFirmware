@@ -16,9 +16,7 @@
  */
 
 #include "playback/playback_handler.h"
-#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
-#include "drivers/mtu/mtu.h" // isTimerEnabled (was reached transitively via pad_leds.h → pic.h)
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/audio_recorder.h"
@@ -908,7 +906,7 @@ void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
 void PlaybackHandler::doMIDIClockOutTick() {
 	CriticalSectionGuard guard;
 	// if there's a scheduled output already then don't mess with it. Will catch at next output
-	if (isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
+	if (deluge_midi_gate_timer_pending()) {
 		return;
 	}
 	// otherwise if there's midi in here already then get it dumped

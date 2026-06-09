@@ -29,7 +29,10 @@
 
 #include "libdeluge/signals.h"
 
-#include "RZA1/gpio/gpio.h"
+#include "RZA1/cpu_specific.h"     // TIMER_MIDI_GATE_OUTPUT
+#include "RZA1/gpio/gpio.h"        // setOutputState, readInput
+#include "RZA1/intc/devdrv_intc.h" // R_INTC_Enable, INTC_ID_TGIA
+#include "RZA1/mtu/mtu.h"          // isTimerEnabled, enableTimer, TGRA
 
 void deluge_signal_write(DelugeSignal signal, bool on) {
 	switch (signal) {
@@ -59,4 +62,16 @@ bool deluge_signal_read(DelugeSignal signal) {
 	default:
 		return false;
 	}
+}
+
+bool deluge_midi_gate_timer_pending(void) {
+	return isTimerEnabled(TIMER_MIDI_GATE_OUTPUT);
+}
+
+void deluge_midi_gate_timer_arm(uint32_t samples_from_now) {
+	R_INTC_Enable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
+	// samples → timer ticks: *766245 >> 16 (i.e. samples_from_now * 515616 / kSampleRate),
+	// the P0/prescaler tick rate of MTU2 channel TIMER_MIDI_GATE_OUTPUT on this board.
+	*TGRA[TIMER_MIDI_GATE_OUTPUT] = (uint16_t)((samples_from_now * 766245) >> 16);
+	enableTimer(TIMER_MIDI_GATE_OUTPUT);
 }
