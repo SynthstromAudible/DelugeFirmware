@@ -65,6 +65,7 @@ file(GLOB_RECURSE deluge_SOURCES
 
 add_executable(UnitTests
         RunAllTests.cpp
+        audio_pacing_tests.cpp
         scheduler_tests.cpp
         lfo_tests.cpp
         scale_tests.cpp
@@ -82,6 +83,7 @@ target_sources(UnitTests PRIVATE ${deluge_SOURCES})
 target_include_directories(UnitTests PRIVATE
         # include the non test project source
         mocks
+        ../../include
         ../../src
         ../../src/deluge
 )
