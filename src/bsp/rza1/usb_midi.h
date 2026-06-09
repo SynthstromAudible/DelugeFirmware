@@ -154,6 +154,30 @@ bool bsp_usb_midi_peripheral_connected(void);
 /// count copied. Backs `deluge_midi_read()` for USB ports.
 uint32_t bsp_usb_midi_read(uint8_t port, uint8_t* dst, uint32_t max);
 
+// --- Per-device receive drain (the receive path's app-facing surface). These let
+// the application drain + re-arm without dereferencing BspUsbMidiDevice, decoding
+// the bytes with the deluge_midi protocol library.
+
+/// True while device (ip, deviceNum) has a receive transfer in flight, so there is
+/// nothing to drain and it must not be re-armed yet.
+bool bsp_usb_midi_receive_pending(uint8_t ip, uint8_t deviceNum);
+
+/// Copy the bytes from a completed bulk-IN transfer for device (ip, deviceNum) into
+/// `dst` (up to `max_bytes`, a multiple of 4-byte USB-MIDI event packets), clear the
+/// device's received-count, and return the byte count (0 if nothing was received).
+/// Call only when !bsp_usb_midi_receive_pending(): no DMA is in flight then, so the
+/// buffer is stable.
+uint32_t bsp_usb_midi_drain_received(uint8_t ip, uint8_t deviceNum, uint8_t* dst, uint32_t max_bytes);
+
+/// Hardware timestamp (board foundation ticks) of the last bulk-IN completion on
+/// controller `ip`, for timing incoming MIDI clock. Mirrors the HAL's timeLastBRDY.
+uint32_t bsp_usb_midi_last_rx_ticks(uint8_t ip);
+
+/// True when controller `ip` is not mid-send through a chain of host devices, so it
+/// is safe to (re)arm a host receive transfer. Folds the app-side
+/// usbDeviceNumBeingSentToNow == stopSendingAfterDeviceNum send-guard into the BSP.
+bool bsp_usb_midi_host_send_idle(uint8_t ip);
+
 /// Queue `len` bytes for transmission on USB-MIDI `port`; returns the count
 /// accepted. Backs `deluge_midi_write()` for USB ports.
 uint32_t bsp_usb_midi_write(uint8_t port, const uint8_t* src, uint32_t len);

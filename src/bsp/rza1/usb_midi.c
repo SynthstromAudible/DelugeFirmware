@@ -506,6 +506,32 @@ uint32_t bsp_usb_midi_read(uint8_t port, uint8_t* dst, uint32_t max) {
 	return 0;
 }
 
+bool bsp_usb_midi_receive_pending(uint8_t ip, uint8_t deviceNum) {
+	return g_usb_midi_devices[ip][deviceNum].currentlyWaitingToReceive != 0;
+}
+
+uint32_t bsp_usb_midi_drain_received(uint8_t ip, uint8_t deviceNum, uint8_t* dst, uint32_t max_bytes) {
+	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, deviceNum);
+	uint32_t n = dev->numBytesReceived;
+	if (n == 0) {
+		return 0;
+	}
+	if (n > max_bytes) {
+		n = max_bytes;
+	}
+	memcpy(dst, dev->receiveData, n);
+	dev->numBytesReceived = 0;
+	return n;
+}
+
+uint32_t bsp_usb_midi_last_rx_ticks(uint8_t ip) {
+	return timeLastBRDY[ip];
+}
+
+bool bsp_usb_midi_host_send_idle(uint8_t ip) {
+	return usbDeviceNumBeingSentToNow[ip] == stopSendingAfterDeviceNum[ip];
+}
+
 uint32_t bsp_usb_midi_write(uint8_t port, const uint8_t* src, uint32_t len) {
 	(void)port;
 	(void)src;
