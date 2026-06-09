@@ -1,6 +1,8 @@
 # Storage-yield relocation (libdeluge)
 
-Status: **planned** on `feat/libdeluge-storage-yield`. This is the *last* remaining
+Status: **landed (build-green; awaiting hardware test)** on
+`feat/libdeluge-storage-yield`. See the Outcome section at the end for what shipped
+and how decision 3 was refined for the Embassy target. This is the *last* remaining
 upward coupling in the libdeluge separation — after it, `app → BSP → HAL →
 foundation` has no upward edges (the BSP is already clean; the HAL's only real
 remaining edge is this). Like the CV and MIDI inversions it rewrites a real-time
@@ -114,14 +116,16 @@ work as tasks (it already does) and read `sdRoutineLock` for UI gating.
    existing app-visible `sdRoutineLock`; the UI keeps reading it. (Cleaner long-term:
    expose "is a storage routine running" via the scheduler, but that touches ~10 UI
    files — probably out of scope here.). Do the cleaner long-term fix.
-3. **The manual pump → yield.** Replace each bare `routineForSD()` with
-   `yieldToIdle(condition)`. This needs the hardware-ready `RunCondition` at each
-   site (the SD/flash/USB loops already test a status flag — wrap it), OR a
-   conditionless "service the scheduler once" primitive. This is the behaviour-
-   sensitive heart of the change: the manual pump did one UI sub-stage per call in a
-   fixed round-robin; `yield`/`yieldToIdle` runs whatever tasks are due, so UI/audio
-   cadence during long reads changes. Convert **one call site at a time** and flash-
-   test each.
+3. **The manual pump → yield.** ~~Replace each bare `routineForSD()` with
+   `yieldToIdle(condition)`.~~ **Refined for the Embassy target (see Outcome):** each
+   site declares *what it is waiting for* instead of pumping. Embassy expresses every
+   storage wait as `poll_fn`-on-an-ISR-waker or `Timer::after`; a conditionless "pump"
+   has no async analog, so the conditionless `routineForSD()` is *eliminated*, not kept.
+   Sites become the existing guarded `yieldingRoutineForSD(until)` /
+   `yieldingRoutineWithTimeoutForSD` hooks (which already carry the ISR + reentrancy
+   guards). `RunCondition` is captureless, but its job is to read a hardware register —
+   the C mirror of an Embassy poll closure. This is the behaviour-sensitive heart of the
+   change (pump cadence → scheduler-yield cadence); flash-test under load.
 4. **`loadAnyEnqueuedClustersRoutine`.** Options: (a) leave it (it is already a
    boundary contract + a registered task; `diskio` calling it is a priority hint), or
    (b) invert — the app services its cluster queue before issuing reads rather than
@@ -163,3 +167,51 @@ work as tasks (it already does) and read `sdRoutineLock` for UI gating.
   deadlock or double-enter; exercise simultaneous SD + USB + audio.
 - **Timing change:** compare UI cadence / responsiveness during long reads before vs
   after — the manual-pump round-robin → scheduler yield is the main behavioural risk.
+
+## Outcome (what landed)
+
+Done on `feat/libdeluge-storage-yield`, one commit per logical step, each build-green.
+**Not yet hardware-tested** — the whole change is behaviour-sensitive and the matrix
+above must be run on a Deluge before merge.
+
+Decision 3 was refined around the strategic target (an eventual Embassy-backed
+HAL/BSP, see `deluge-embassy`). Embassy expresses a storage wait as either
+`poll_fn` awaiting an ISR-set waker ("wait until this hardware predicate") or
+`Timer::after` ("sleep this long") — never a "pump the app" / "drain the scheduler"
+call, because the executor runs other work while you `.await`. So the cleanest
+long-term shape is to make every site state its *intent* and to **eliminate** the
+conditionless pump (it has no async analog), rather than keep a `yieldToIdle`-style
+service tick. Each site then ports to Embassy mechanically.
+
+What shipped, by phase:
+1. Dead `OSLikeStuff/scheduler_api.h` include removed from `sd_dev_low.c`.
+2. `yieldingRoutineForSD` / `…WithTimeoutForSD` relocated from `deluge.cpp` into the
+   scheduler foundation (`task_scheduler_c_api.cpp`); they carry the ISR
+   (`intc_func_active`) and reentrancy guards. `<libdeluge/storage_wait.h>` stays the
+   contract.
+3. Each `routineForSD()` site converted to declare its wait:
+   `spibsc_wait_tend` / `Userdef_SFLASH_Busy_Wait` → `yieldingRoutineForSD(hw_ready)`
+   (→ Embassy `poll_fn`); `usb_cpu_delay_1us/_xms` → keep the ISR-safe timer loop, swap
+   the pump for `yieldingRoutineForSD(timer_done)` (→ Embassy `Timer::after`);
+   `sd_read`/`sd_trns` pre-pumps deleted (redundant — the transfer's own waits yield);
+   the app's `FileWriter` pump → `yieldToIdle`. (Captured state lives in file statics,
+   the C mirror of a poll closure — the pattern `sd_dev_low.c` already used.)
+4. `routineForSD()` retired: body, the `UIStage` enum, the `storage_wait.h` decl, and
+   the dead non-`USE_TASK_MANAGER` `#else` legacy paths all deleted. The boundary now
+   exposes only condition/timeout yields.
+5. Decision 2 (cleaner fix): the reentrancy flag is now scheduler-owned, exposed as
+   `isSDRoutineActive()` in the scheduler C API; the ~25 UI/app readers query it, the
+   global `sdRoutineLock` is gone from `deluge.cpp`/`extern.h`, and `resource_checker.h`
+   dropped its `<extern.h>` include (a removed foundation→app edge).
+6. Decision 4 = B: the FatFs `disk_read`/`disk_write` porting symbols moved from
+   `RZA1/diskio.c` into `audio_file_manager.cpp` — they service the cluster-streaming
+   queue then call *down* into the plain `disk_*_without_streaming_first` sector I/O.
+   The `loadAnyEnqueuedClustersRoutine()` upcall is deleted. Behaviour-identical (same
+   stream-then-read order); only the definition's layer moved, flipping app→HAL.
+
+Result: the HAL/BSP names no app code — its only storage-concurrency edge is the
+`<libdeluge/storage_wait.h>` boundary (two condition/timeout yields). The
+platform-boundary lint passes with no new violations; `app → BSP → HAL → foundation`
+has no upward edges left on this path. (One sanctioned downward edge: the relocated
+wrappers in the scheduler foundation read `intc_func_active` — HAL state — for the ISR
+guard, as intended.)
