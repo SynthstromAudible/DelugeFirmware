@@ -1,10 +1,42 @@
 # MIDI-engine HAL residue relocation (flash-test-gated)
 
-**Status:** planned, not started. Branch it off `feat/libdeluge` (suggested
-`feat/libdeluge-midi-residue`). The whole change touches the live real-time USB +
-DIN/serial MIDI path, so — like the USB-MIDI transport relocation it finishes —
-**the result must be flash-tested host + peripheral + DIN before merge.** Only the
-final state is meaningfully testable; intermediate phases are build-green only.
+**Status:** W1/W2/W3/W5 done + includes dropped — `midi_engine.cpp` has left the
+allowlist (on `feat/libdeluge-midi-engine`, build-green). W4 (the receive
+pull-through) is **deferred**; see the outcome note below. The whole change
+touches the live real-time USB + DIN/serial MIDI path, so — like the USB-MIDI
+transport relocation it finishes — **the result must be flash-tested host +
+peripheral + DIN before merge.** Only the final state is meaningfully testable;
+intermediate phases are build-green only.
+
+## Outcome (2026-06-09)
+
+Phases W5+W2, W1 and W3 landed as four build-green commits, then the four `RZA1/`
+includes were dropped and `midi_engine.cpp` was removed from
+`scripts/platform_boundary_allowlist.txt` (now 4 entries: `deluge.cpp`,
+`audio_engine.cpp`, `hid/encoder*.cpp`). Boundary additions:
+
+- `deluge_midi_usb_is_host()` / `deluge_midi_usb_peripheral_connected()` (W2),
+  backed by `bsp_usb_midi_is_host()/_peripheral_connected()`.
+- `deluge_midi_din_read_timed(byte, arrival_ticks)` + `deluge_midi_write_pending()`
+  (W1); the DIN write path moved to `deluge_midi_write(DELUGE_MIDI_DIN, …)`.
+- `usb_cstd_usb_task()` folded into `bsp_usb_midi_service()` (W3); the app pumps
+  via `deluge_midi_service()`. **`usbLock` decision: stays app-side** as the
+  re-entrancy gate (the receive arming still uses it).
+- `USB_NUM_USBIP` → `DELUGE_USB_NUM_CONTROLLERS` everywhere (W5).
+
+**Key finding:** the boundary checker (`check_platform_boundary.py`) only flags
+`RZA1/` includes, not `bsp/` ones. The receive decode still reaches into the
+BSP-owned transport via `bsp/rza1/usb_midi.h`
+(`connectedUSBMIDIDevices[..].transport->…`, plus the `stopSendingAfterDeviceNum`
+/ `usbDeviceNumBeingSentToNow` / `timeLastBRDY` externs), but that include does
+**not** gate leaving the allowlist. So the stated goal was reached without W4.
+
+**Why W4 is deferred:** it is the structural crux that changes the real-time
+receive-decode and the clock-in timestamp association (per-batch `timeLastBRDY`
+→ a timed/last-RX-ticks boundary op) — the single most flash-test-sensitive part
+(audible clock jitter), and it needs the timed-read shape designed. Doing it
+blind and committing it without hardware is the wrong trade. It remains the next
+step toward dropping the `bsp/rza1/usb_midi.h` reach-in and the C-ABI end state.
 
 ## Goal
 
