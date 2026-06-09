@@ -20,13 +20,17 @@
 /// While the BSP (and the RZ/A1L HAL it wraps) busy-waits on slow storage
 /// peripherals — SD/MMC and SPI flash — it must hand the CPU back to whoever
 /// owns it so audio, USB and UI keep running. These hooks are *provided by the
-/// runtime* (the application or RTOS) and *called by the BSP*: they are the one
-/// upward dependency the block-device path needs, expressed as a C-ABI callback
-/// rather than a direct call into the task scheduler. This is what lets the BSP
-/// stay free of the task layer.
+/// runtime* (the application or RTOS) and *called by the BSP*: the BSP passes a
+/// `RunCondition` describing *what hardware state it is waiting for* and the
+/// runtime yields until that holds. Expressing the wait as a C-ABI predicate
+/// (rather than a direct call into the task scheduler) is what lets the BSP stay
+/// free of the task layer.
 ///
-/// On the Deluge the runtime pumps the audio engine + USB here; on a host-sim it
-/// can be a no-op or an event-loop tick; on Embassy it yields the executor.
+/// On the Deluge the runtime yields to the cooperative scheduler, which keeps the
+/// registered audio/USB/UI tasks running; on a host-sim it can spin an event loop;
+/// on Embassy each maps onto an `await` (`poll_fn` on the condition / `Timer`).
+/// There is deliberately no conditionless "pump" form: every wait names its
+/// condition, so it ports to async unchanged.
 ///
 /// Despite the historical "SD" names, these fire for any slow-storage busy-wait.
 #ifndef LIBDELUGE_STORAGE_WAIT_H
@@ -40,10 +44,6 @@ extern "C" {
 
 /// Predicate the BSP polls while yielding; returns true once the wait can end.
 typedef bool (*RunCondition)();
-
-/// Run one slice of the runtime's cooperative work, then return. Called by the
-/// BSP/HAL repeatedly inside a hardware busy-wait. [task]
-void routineForSD(void);
 
 /// Yield to the runtime until `until` returns true. [task]
 void yieldingRoutineForSD(RunCondition until);

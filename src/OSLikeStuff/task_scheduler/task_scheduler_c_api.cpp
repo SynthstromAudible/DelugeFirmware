@@ -82,8 +82,8 @@ bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) 
 		return false;
 	}
 	auto timeNow = getSystemTime();
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
-	// USB -> routineForSD()
+	// We lock this to prevent multiple entry. Otherwise a storage wait could re-enter itself
+	// through the work it yields to: SD wait -> audio task -> USB -> SD wait.
 	if (sdRoutineLock) {
 		// busy wait - matches running sdroutine in a loop while checking for condition
 		while (!until()) {
@@ -104,8 +104,8 @@ void yieldingRoutineForSD(RunCondition until) {
 		return;
 	}
 
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
-	// USB -> routineForSD()
+	// We lock this to prevent multiple entry. Otherwise a storage wait could re-enter itself
+	// through the work it yields to: SD wait -> audio task -> USB -> SD wait.
 	if (sdRoutineLock) {
 		// busy wait - matches running sdroutine in a loop while checking for condition
 		while (!until()) {

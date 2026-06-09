@@ -41,7 +41,6 @@ extern void consoleTextIfAllBootedUp(char const* text);
 typedef bool (*RunCondition)();
 bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds);
 void yieldingRoutineForSD(RunCondition until);
-extern void routineForSD(void);
 
 extern void setTimeUSBInitializationEnds(int32_t timeFromNow);
 

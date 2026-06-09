@@ -23,7 +23,7 @@
 
 #include "RZA1/sdhi/inc/sdif.h"
 #include "foundation/timer_count.h"
-#include "libdeluge/storage_wait.h" // routineForSD / yieldingRoutineForSD (runtime-provided yield hooks)
+#include "libdeluge/storage_wait.h" // yieldingRoutineForSD / …WithTimeout (runtime-provided yield hooks)
 
 uint16_t stopTime;
 
@@ -44,14 +44,7 @@ int32_t sddev_power_on(int32_t sd_port) {
 
 	/* ---- Wait for  SD Wake up ---- */
 	sddev_start_timer(100); /* wait 100ms */
-#ifdef USE_TASK_MANAGER
 	yieldingRoutineForSD(wrappedCheckTimer);
-#else
-	while (sddev_check_timer() == SD_OK) {
-		/* wait */
-		routineForSD(); // By Rohan
-	}
-#endif
 	sddev_end_timer();
 
 	return SD_OK;
@@ -69,55 +62,12 @@ bool sdIntFinished() {
  ******************************************************************************/
 int32_t sddev_int_wait(int32_t sd_port, int32_t time) {
 
-	int32_t loop;
-#ifdef USE_TASK_MANAGER
 	if (yieldingRoutineWithTimeoutForSD(sdIntFinished, time / 1000.)) {
 		return SD_OK;
 	}
-	else
-		return SD_ERR;
-#else
-	if (time > 500) {
-		/* @1000ms */
-		loop = (time / 500);
-		if ((time % 500) != 0) {
-			loop++;
-		}
-		time = 500;
-	}
 	else {
-		loop = 1;
+		return SD_ERR;
 	}
-
-	do {
-		sddev_start_timer(time);
-
-		while (1) {
-
-			/* interrupt generated? */
-			if (sd_check_int(sd_port) == SD_OK) {
-				sddev_end_timer();
-				return SD_OK;
-			}
-			/* detect timeout? */
-			if (sddev_check_timer() == SD_ERR) {
-				break;
-			}
-			// called during command execution
-			routineForSD(); // By Rohan, obviously
-		}
-
-		loop--;
-		if (loop <= 0) {
-			break;
-		}
-
-	} while (1);
-
-	sddev_end_timer();
-
-	return SD_ERR;
-#endif
 }
 
 /******************************************************************************

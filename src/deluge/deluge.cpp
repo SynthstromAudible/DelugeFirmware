@@ -891,49 +891,12 @@ extern "C" int32_t deluge_main(void) {
 	return 0;
 }
 
-// yieldingRoutineForSD / yieldingRoutineWithTimeoutForSD have moved down into the
-// scheduler foundation (OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp): they are
-// pure concurrency logic and name no app code, so the HAL now yields to the scheduler
-// rather than up into the application.
-
-enum class UIStage { oled, readEnc, readButtons };
-
-/// this function is used as a busy wait loop for long SD reads, and while swapping songs
-extern "C" void routineForSD(void) {
-
-	if (intc_func_active != 0) {
-		return;
-	}
-
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine()
-	// -> USB -> routineForSD()
-	if (sdRoutineLock) {
-		return;
-	}
-
-	sdRoutineLock = true;
-	static UIStage step = UIStage::oled;
-	AudioEngine::logAction("from routineForSD()");
-	AudioEngine::runRoutine();
-	switch (step) {
-	case UIStage::oled:
-		if (display->haveOLED()) {
-			oledRoutine();
-		}
-		PIC::flush();
-		step = UIStage::readEnc;
-		break;
-	case UIStage::readEnc:
-		encoders::interpretEncoders(true);
-		step = UIStage::readButtons;
-		break;
-	case UIStage::readButtons:
-		readButtonsAndPads();
-		step = UIStage::oled;
-		break;
-	}
-	sdRoutineLock = false;
-}
+// The storage-wait hooks (yieldingRoutineForSD / yieldingRoutineWithTimeoutForSD) and the
+// old conditionless routineForSD() pump have all moved down into the scheduler foundation
+// (OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp) or been retired: they are pure
+// concurrency logic and named no app code beyond the manual audio/UI pump, which the task
+// manager makes redundant (audio/UI run as registered tasks). The HAL now yields *down* to
+// the scheduler during storage busy-waits rather than calling *up* into the application.
 
 // Card-detect is now pull-based: AudioFileManager::slowRoutine() polls
 // deluge_block_poll_card_event() instead of the BSP calling up into the app.
