@@ -194,7 +194,16 @@ extern uint32_t audioSampleTimer;
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;
-extern uint32_t i2sRXBufferPos;
+
+// The app-owned input ring. A mirror of the received audio input, filled by the
+// audio routine ahead of each render window; everything in the application that
+// consumes live input (monitoring, INPUT_L/R oscillators, live input buffers,
+// sample recorders) reads this, never the hardware DMA ring. Same geometry as
+// the board's RX ring: SSI_RX_BUFFER_NUM_SAMPLES frames of
+// NUM_MONO_INPUT_CHANNELS interleaved q31 samples.
+extern uint32_t inputRingPos; // read cursor: input aligned with the next output sample
+int32_t* inputRingStart();
+int32_t* inputRingEnd();
 extern int32_t cpuDireness;
 extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;

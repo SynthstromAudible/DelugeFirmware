@@ -53,10 +53,6 @@
 #include <cstring>
 #include <new>
 
-extern "C" {
-#include "drivers/ssi/ssi.h"
-}
-
 using namespace deluge;
 namespace params = deluge::modulation::params;
 
@@ -2278,7 +2274,7 @@ dontUseCache: {}
 			else {
 
 				int32_t* __restrict__ oscBufferPos = oscBuffer;
-				int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::i2sRXBufferPos;
+				int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::inputRingPos;
 				int32_t sourceAmplitudeThisUnison = sourceAmplitude;
 				int32_t amplitudeIncrementThisUnison = amplitudeIncrement;
 
@@ -2309,7 +2305,7 @@ dontUseCache: {}
 						                     << 4;
 
 						inputReadPos += NUM_MONO_INPUT_CHANNELS;
-						if (inputReadPos >= getRxBufferEnd()) {
+						if (inputReadPos >= AudioEngine::inputRingEnd()) {
 							inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 						}
 					} while (oscBufferPos != oscBufferEnd);
@@ -2343,7 +2339,7 @@ dontUseCache: {}
 						}
 
 						inputReadPos += NUM_MONO_INPUT_CHANNELS;
-						if (inputReadPos >= getRxBufferEnd()) {
+						if (inputReadPos >= AudioEngine::inputRingEnd()) {
 							inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 						}
 					} while (oscBufferPos != oscBufferEnd);

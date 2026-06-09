@@ -155,6 +155,33 @@ bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 uint32_t i2sTXBufferPos;
 uint32_t i2sRXBufferPos;
+
+// See audio_engine.h: the app-owned mirror of the received input, and the read
+// cursor into it. CPU-only memory (no DMA), so it may live in cached SDRAM.
+PLACE_SDRAM_BSS int32_t inputRing[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS];
+uint32_t inputRingPos;
+
+int32_t* inputRingStart() {
+	return inputRing;
+}
+int32_t* inputRingEnd() {
+	return inputRing + (SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS);
+}
+
+// Mirror the next `numSamples` of received input from the hardware RX ring into
+// the app-owned input ring, at the matching offsets. Must cover the full render
+// window before any input reader runs.
+static void fillInputRing(size_t numSamples) {
+	uint32_t rxStart = (uint32_t)getRxBufferStart();
+	uint32_t ringBytes = SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
+	uint32_t offsetBytes = i2sRXBufferPos - rxStart;
+	uint32_t copyBytes = numSamples << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
+	uint32_t firstChunkBytes = std::min(copyBytes, ringBytes - offsetBytes);
+	memcpy((uint8_t*)inputRing + offsetBytes, (void*)i2sRXBufferPos, firstChunkBytes);
+	if (copyBytes != firstChunkBytes) {
+		memcpy(inputRing, (void*)rxStart, copyBytes - firstChunkBytes);
+	}
+}
 volatile int voices_started_this_render = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
@@ -210,6 +237,8 @@ void init() {
 	i2sRXBufferPos = (uint32_t)getRxBufferStart()
 	                 + ((SSI_RX_BUFFER_NUM_SAMPLES - SSI_TX_BUFFER_NUM_SAMPLES - 16)
 	                    << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE)); // Subtracting 5 or more seems fine
+
+	inputRingPos = (uint32_t)inputRing + (i2sRXBufferPos - (uint32_t)getRxBufferStart());
 
 	VoicePool::get().repopulate();
 	VoiceSamplePool::get().repopulate();
@@ -569,6 +598,8 @@ bool calledFromScheduler = false;
 	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = tickSongFinalizeWindows(numSamples);
 
 	numSamplesLastTime = numSamples;
+
+	fillInputRing(numSamples);
 
 	renderAudio(numSamples);
 
@@ -1019,6 +1050,7 @@ void routine() {
 				tickSongFinalizeWindows(numSamples);
 
 				numSamplesLastTime = numSamples;
+				fillInputRing(numSamples);
 				renderAudioForStemExport(numSamples);
 				audioSampleTimer += numSamples;
 				doSomeOutputting();
@@ -1049,7 +1081,7 @@ bool doSomeOutputting() {
 	std::span<StereoSample> outputBufferForResampling{reinterpret_cast<StereoSample*>(spareRenderingBuffer), 128 * 2};
 	StereoSample* __restrict__ renderingBufferOutputPosNow = renderingBufferOutputPos;
 	int32_t* __restrict__ i2sTXBufferPosNow = (int32_t*)i2sTXBufferPos;
-	int32_t* __restrict__ inputReadPos = (int32_t*)i2sRXBufferPos;
+	int32_t* __restrict__ inputReadPos = (int32_t*)inputRingPos;
 
 	while (renderingBufferOutputPosNow != renderingBufferOutputEnd) {
 
@@ -1099,7 +1131,7 @@ bool doSomeOutputting() {
 			}
 
 			inputReadPos += NUM_MONO_INPUT_CHANNELS;
-			if (inputReadPos >= getRxBufferEnd()) {
+			if (inputReadPos >= inputRingEnd()) {
 				inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		}
@@ -1135,6 +1167,11 @@ bool doSomeOutputting() {
 			i2sRXBufferPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
 		}
 
+		inputRingPos += (numSamplesOutputted << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
+		if (inputRingPos >= (uint32_t)inputRingEnd()) {
+			inputRingPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
+		}
+
 		// Go through each SampleRecorder, feeding them audio
 		for (SampleRecorder* recorder = firstRecorder; recorder != nullptr; recorder = recorder->next) {
 
@@ -1154,7 +1191,7 @@ bool doSomeOutputting() {
 				// if the buffer wrapped around, we'll just go to the end of the buffer, and not worry about the
 				// extra bit at the start - that'll get done next time.
 				uint32_t stopPos =
-				    (i2sRXBufferPos < (uint32_t)recorder->sourcePos) ? (uint32_t)getRxBufferEnd() : i2sRXBufferPos;
+				    (inputRingPos < (uint32_t)recorder->sourcePos) ? (uint32_t)inputRingEnd() : inputRingPos;
 
 				size_t numSamplesFeedingNow =
 				    (stopPos - (uint32_t)recorder->sourcePos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
@@ -1173,7 +1210,7 @@ bool doSomeOutputting() {
 				recorder->feedAudio(streamToRecord);
 
 				recorder->sourcePos += numSamplesFeedingNow << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
-				if (recorder->sourcePos >= getRxBufferEnd()) {
+				if (recorder->sourcePos >= inputRingEnd()) {
 					recorder->sourcePos -= SSI_RX_BUFFER_NUM_SAMPLES << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
 				}
 			}
@@ -1458,6 +1495,13 @@ void slowRoutine() {
 		i2sRXBufferPos += (SSI_TX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
 		if (i2sRXBufferPos >= (uint32_t)getRxBufferEnd()) {
 			i2sRXBufferPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
+		}
+
+		// Keep the app input ring's cursor offset-locked to the hardware cursor,
+		// so mirror fills and mirror readers stay aligned across the resync.
+		inputRingPos += (SSI_TX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
+		if (inputRingPos >= (uint32_t)inputRingEnd()) {
+			inputRingPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
 		}
 		latencyWithinAppropriateWindow =
 		    (((rxBufferWriteAddr - (uint32_t)i2sRXBufferPos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE))

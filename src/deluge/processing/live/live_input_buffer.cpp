@@ -21,10 +21,6 @@
 #include "util/functions.h"
 #include <string.h>
 
-extern "C" {
-#include "drivers/ssi/ssi.h"
-}
-
 LiveInputBuffer::LiveInputBuffer() {
 	upToTime = 0;
 	numRawSamplesProcessed = 0;
@@ -44,7 +40,7 @@ void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscTyp
 		memset(angleLPFMem, 0, sizeof(angleLPFMem));
 	}
 
-	int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::i2sRXBufferPos;
+	int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::inputRingPos;
 
 	uint32_t endNumRawSamplesProcessed = numRawSamplesProcessed + numSamples;
 
@@ -96,7 +92,7 @@ void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscTyp
 		lastAngle = angle;
 
 		inputReadPos += NUM_MONO_INPUT_CHANNELS;
-		if (inputReadPos >= getRxBufferEnd()) {
+		if (inputReadPos >= AudioEngine::inputRingEnd()) {
 			inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 		}
 

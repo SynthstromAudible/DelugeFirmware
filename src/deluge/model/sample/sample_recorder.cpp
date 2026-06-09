@@ -37,7 +37,6 @@
 #include <new>
 
 extern "C" {
-#include "drivers/ssi/ssi.h"
 #include "fatfs/diskio.h"
 
 LBA_t clst2sect(           /* !=0:Sector number, 0:Failed (invalid cluster#) */
@@ -173,7 +172,7 @@ gotError:
 	// External sources
 	if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 
-		sourcePos = (int32_t*)AudioEngine::i2sRXBufferPos;
+		sourcePos = (int32_t*)AudioEngine::inputRingPos;
 
 		numSamplesToRunBeforeBeginningCapturing -=
 		    buttonPressLatency; // Compensate for button press latency. We only do this for external sources
@@ -190,7 +189,7 @@ gotError:
 			sourcePos += (SSI_TX_BUFFER_NUM_SAMPLES
 			              << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 1)); // I think the +1 was just because it needs to
 			                                                           // move two tx buffers' length for some reason...
-			if (sourcePos >= getRxBufferEnd()) {
+			if (sourcePos >= AudioEngine::inputRingEnd()) {
 				sourcePos -= SSI_RX_BUFFER_NUM_SAMPLES << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
 			}
 		}
@@ -204,7 +203,7 @@ gotError:
 
 				sourcePos +=
 				    numSamplesToRunBeforeBeginningCapturing * NUM_MONO_INPUT_CHANNELS; // This might be negative!
-				if (sourcePos < getRxBufferStart()) {
+				if (sourcePos < AudioEngine::inputRingStart()) {
 					sourcePos += SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 				}
 
