@@ -32,6 +32,16 @@ public:
 	/// Merge externally held MIDI chord keys into the active note set (called from KeyboardScreen).
 	[[gnu::noinline]] void appendMidiHeldSlots();
 
+	/// Build voiced chord MIDI notes for Launchpad / external triggers (uses clip expressiveChords state).
+	int32_t buildChordNotes(int32_t chordIndex, int32_t outNotes[kMaxChordKeyboardSize]);
+
+	void setInversion(uint8_t inversion);
+	void setSpread(uint8_t spread);
+	void changeChordSetByOffset(int32_t offset);
+	void adjustTranspose(int32_t offset);
+	void refreshSlotColours();
+	RGB slotColour(int32_t chordIndex) const;
+
 protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
@@ -44,7 +54,6 @@ private:
 	int32_t computeSlotRoot(int32_t chordIndex, const ExpressiveChordSet& set);
 	bool slotRootInHarmonicScale(int32_t chordIndex, const ExpressiveChordSet& set);
 	Voicing voicingForSlot(const ExpressiveChordSlot& slot);
-	void playVoicing(int32_t root, const Voicing& voicing, uint8_t vel);
 	void playSlot(int32_t chordIndex, uint8_t vel);
 	[[gnu::noinline]] void playSlotIntoNotesState(int32_t chordIndex, uint8_t vel);
 	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName);

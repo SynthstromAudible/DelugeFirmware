@@ -28,9 +28,15 @@
 class ModelStack;
 class Instrument;
 
+namespace deluge::gui::ui::keyboard::layout {
+class KeyboardLayoutExpressiveChords;
+}
+
 namespace deluge::gui::ui::keyboard {
 
 constexpr int32_t kMaxNumKeyboardPadPresses = 10;
+
+layout::KeyboardLayoutExpressiveChords& getExpressiveChordsLayout();
 
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:

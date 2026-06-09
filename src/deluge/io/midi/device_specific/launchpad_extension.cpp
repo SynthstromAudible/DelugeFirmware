@@ -34,6 +34,9 @@ ViewMode viewMode = ViewMode::Session;
 
 uint32_t lastPeriodicSyncTime = 0;
 uint32_t lastSyncSentTime = 0;
+uint32_t lastProgrammerKeepaliveTime = 0;
+uint32_t ignoreModeButtonCcUntilSample = 0;
+static constexpr uint32_t kProgrammerKeepaliveSamples = kSampleRate / 2;
 static constexpr uint32_t kPeriodicSyncSamples = kSampleRate / 4;
 static constexpr uint32_t kCountdownSyncSamples = kSampleRate / 8;
 static constexpr uint32_t kMinSyncGapSamples = kSampleRate / 20;
@@ -91,6 +94,28 @@ void requestDelugeSessionView() {
 	sessionView.transitionToSessionView();
 }
 
+void reassertLaunchpadLayout() {
+	MIDICableUSBHosted* port2 = launchpad_cable::getPort2();
+	if (port2 == nullptr) {
+		return;
+	}
+
+	// Session/Note hardware buttons can knock the Launchpad out of Programmer mode.
+	launchpad_sysex::reassertProgrammerMode(port2);
+	launchpad_sysex::invalidateLedCache();
+}
+
+void resetToSessionMode(MIDICable* cable, int32_t midiChannel) {
+	if (viewMode == ViewMode::Note && cable != nullptr) {
+		launchpad_note_mode::releaseAllHeldPads(*cable, midiChannel);
+	}
+
+	launchpad_note_mode::resetState();
+	viewMode = ViewMode::Session;
+	reassertLaunchpadLayout();
+	doSync(true);
+}
+
 void switchViewMode(ViewMode newMode, MIDICable& cable, int32_t midiChannel) {
 	if (viewMode == newMode) {
 		return;
@@ -101,14 +126,7 @@ void switchViewMode(ViewMode newMode, MIDICable& cable, int32_t midiChannel) {
 	}
 
 	viewMode = newMode;
-
-	MIDICableUSBHosted* port2 = launchpad_cable::getPort2();
-	if (port2 != nullptr) {
-		// Session/Note buttons can knock the Launchpad out of Programmer mode — stay in our layout.
-		launchpad_sysex::reassertProgrammerMode(port2);
-		launchpad_sysex::invalidateLedCache();
-	}
-
+	reassertLaunchpadLayout();
 	doSync(true);
 }
 
@@ -119,17 +137,31 @@ bool handleControlChange(MIDICable& cable, uint8_t cc, bool on, int32_t midiChan
 
 	switch (cc) {
 	case launchpad_programmer_map::cc::kSession:
+		if (AudioEngine::audioSampleTimer < ignoreModeButtonCcUntilSample) {
+			return true;
+		}
 		if (viewMode == ViewMode::Session) {
 			requestDelugeSessionView();
-			MIDICableUSBHosted* port2 = launchpad_cable::getPort2();
-			if (port2 != nullptr) {
-				launchpad_sysex::reassertProgrammerMode(port2);
-			}
+			reassertLaunchpadLayout();
+			doSync(true);
 			return true;
 		}
 		switchViewMode(ViewMode::Session, cable, midiChannel);
 		return true;
 	case launchpad_programmer_map::cc::kNote:
+		if (AudioEngine::audioSampleTimer < ignoreModeButtonCcUntilSample) {
+			return true;
+		}
+		if (viewMode == ViewMode::Note) {
+			if (launchpad_note_mode::toggleExpressiveChordsSubMode(cable, midiChannel)) {
+				reassertLaunchpadLayout();
+				doSync(true);
+				return true;
+			}
+			reassertLaunchpadLayout();
+			doSync(true);
+			return true;
+		}
 		switchViewMode(ViewMode::Note, cable, midiChannel);
 		return true;
 	default:
@@ -227,9 +259,25 @@ void requestSync() {
 	doSync(true);
 }
 
+void forceSessionDefault() {
+	if (!featureEnabled()) {
+		return;
+	}
+
+	resetToSessionMode(launchpad_cable::getPort2(), 0);
+	requestDelugeSessionView();
+}
+
 void onDeviceConnected() {
-	viewMode = ViewMode::Session;
-	doSync(true);
+	ignoreModeButtonCcUntilSample = AudioEngine::audioSampleTimer + (3 * kSampleRate);
+	lastProgrammerKeepaliveTime = 0;
+	forceSessionDefault();
+}
+
+void onSongLoaded() {
+	ignoreModeButtonCcUntilSample = AudioEngine::audioSampleTimer + (2 * kSampleRate);
+	lastProgrammerKeepaliveTime = 0;
+	forceSessionDefault();
 }
 
 void periodicSyncIfNeeded() {
@@ -239,6 +287,20 @@ void periodicSyncIfNeeded() {
 
 	if (launchpad_cable::getPort2() == nullptr) {
 		return;
+	}
+
+	if (viewMode == ViewMode::Note) {
+		launchpad_note_mode::serviceRepeats();
+	}
+	else {
+		uint32_t now = AudioEngine::audioSampleTimer;
+		if (now - lastProgrammerKeepaliveTime >= kProgrammerKeepaliveSamples) {
+			lastProgrammerKeepaliveTime = now;
+			MIDICableUSBHosted* port2 = launchpad_cable::getPort2();
+			if (port2 != nullptr) {
+				launchpad_sysex::reassertProgrammerMode(port2);
+			}
+		}
 	}
 
 	uint32_t now = AudioEngine::audioSampleTimer;
@@ -295,6 +357,19 @@ bool handleMidiMessage(MIDICable& cable, uint8_t statusType, uint8_t channel, ui
 			velocity = 0;
 		}
 		handled = handleNote(cable, data1, velocity, on, channel) || handled;
+	}
+
+	if (viewMode == ViewMode::Note) {
+		if (statusType == 0x0A) {
+			int32_t x = 0;
+			int32_t y = 0;
+			if (launchpad_programmer_map::delugeGridCoordsFromNote(data1, x, y)) {
+				handled = launchpad_note_mode::handlePadPressure(x, y, data2) || handled;
+			}
+		}
+		else if (statusType == 0x0D) {
+			handled = launchpad_note_mode::handleChannelPressure(data1) || handled;
+		}
 	}
 
 	if (handled && !modeChanged) {

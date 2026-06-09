@@ -46,6 +46,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -457,6 +458,8 @@ void setupBlankSong() {
 	AudioEngine::getReverbParamsFromSong(currentSong);
 
 	setUIForLoadedSong(currentSong);
+	currentUIMode = UI_MODE_NONE;
+	launchpad_extension::onSongLoaded();
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 

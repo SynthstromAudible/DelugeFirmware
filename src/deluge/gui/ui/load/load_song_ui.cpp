@@ -30,6 +30,7 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/instrument/midi_instrument.h"
@@ -605,6 +606,7 @@ swapDone:
 	PadLEDs::doGreyoutInstantly(); // This will get faded out of just below
 	setUIForLoadedSong(currentSong);
 	currentUIMode = UI_MODE_NONE;
+	launchpad_extension::onSongLoaded();
 
 	display->removeWorkingAnimation();
 

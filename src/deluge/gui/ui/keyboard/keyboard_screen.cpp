@@ -69,6 +69,10 @@ PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutExpressiveChords keyboard_layout_expressive_chords{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
 
+layout::KeyboardLayoutExpressiveChords& getExpressiveChordsLayout() {
+	return keyboard_layout_expressive_chords;
+}
+
 KeyboardScreen::KeyboardScreen() {
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = &keyboard_layout_isomorphic;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeInKey] = &keyboard_layout_in_key;

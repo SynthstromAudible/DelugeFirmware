@@ -35,6 +35,8 @@ void requestSync();
 
 void onDeviceConnected();
 
+void onSongLoaded();
+
 bool handleMidiMessage(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 
 // Programmer mode lights pads on any incoming Note/CC — block all channel MIDI out to port 2.

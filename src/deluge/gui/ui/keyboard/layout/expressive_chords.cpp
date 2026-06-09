@@ -148,8 +148,17 @@ Voicing KeyboardLayoutExpressiveChords::voicingForSlot(const ExpressiveChordSlot
 	return slot.chord->voicings[0];
 }
 
-void KeyboardLayoutExpressiveChords::playVoicing(int32_t root, const Voicing& voicing, uint8_t vel) {
+int32_t KeyboardLayoutExpressiveChords::buildChordNotes(int32_t chordIndex, int32_t outNotes[kMaxChordKeyboardSize]) {
 	KeyboardStateExpressiveChords& state = getState().expressiveChords;
+	const ExpressiveChordSet& set = expressiveChordSets[state.setIndex % kExpressiveChordSetCount];
+	const ExpressiveChordSlot& slot = set.slots[chordIndex];
+
+	if (!slot.chord || slot.chord->name[0] == '\0') {
+		return 0;
+	}
+
+	Voicing voicing = voicingForSlot(slot);
+	int32_t root = computeSlotRoot(chordIndex, set);
 
 	int32_t notes[kMaxChordKeyboardSize];
 	int32_t count = 0;
@@ -160,7 +169,7 @@ void KeyboardLayoutExpressiveChords::playVoicing(int32_t root, const Voicing& vo
 		notes[count++] = root + voicing.offsets[i];
 	}
 	if (count == 0) {
-		return;
+		return 0;
 	}
 
 	for (int32_t i = 0; i < count - 1; i++) {
@@ -182,7 +191,6 @@ void KeyboardLayoutExpressiveChords::playVoicing(int32_t root, const Voicing& vo
 		notes[count - 1] = bass + kOctaveSize;
 	}
 
-	// Spread: same chord, upper voices pushed up in whole octaves (bass stays).
 	if (state.spread > 0 && count > 1) {
 		for (int32_t i = 1; i < count; i++) {
 			int32_t octavesUp = (static_cast<int32_t>(state.spread) * i) / (count - 1);
@@ -191,22 +199,45 @@ void KeyboardLayoutExpressiveChords::playVoicing(int32_t root, const Voicing& vo
 	}
 
 	for (int32_t i = 0; i < count; i++) {
-		enableNote(notes[i], vel);
+		outNotes[i] = notes[i];
 	}
+	return count;
+}
+
+void KeyboardLayoutExpressiveChords::setInversion(uint8_t inversion) {
+	getState().expressiveChords.inversion = inversion;
+}
+
+void KeyboardLayoutExpressiveChords::setSpread(uint8_t spread) {
+	getState().expressiveChords.spread = spread;
+}
+
+void KeyboardLayoutExpressiveChords::changeChordSetByOffset(int32_t offset) {
+	changeChordSet(offset);
+}
+
+void KeyboardLayoutExpressiveChords::adjustTranspose(int32_t offset) {
+	getState().expressiveChords.transpose += offset;
+	refreshSlotColours();
+}
+
+void KeyboardLayoutExpressiveChords::refreshSlotColours() {
+	precalculate();
+}
+
+RGB KeyboardLayoutExpressiveChords::slotColour(int32_t chordIndex) const {
+	if (chordIndex < 0 || chordIndex >= kExpressiveChordsPerSet) {
+		return colours::black;
+	}
+	return slotColours[chordIndex];
 }
 
 void KeyboardLayoutExpressiveChords::playSlotIntoNotesState(int32_t chordIndex, uint8_t vel) {
-	const ExpressiveChordSet& set =
-	    expressiveChordSets[getState().expressiveChords.setIndex % kExpressiveChordSetCount];
-	const ExpressiveChordSlot& slot = set.slots[chordIndex];
-
-	if (!slot.chord || slot.chord->name[0] == '\0') {
-		return;
+	int32_t notes[kMaxChordKeyboardSize];
+	int32_t count = buildChordNotes(chordIndex, notes);
+	for (int32_t i = 0; i < count; i++) {
+		enableNote(notes[i], vel);
 	}
-
-	Voicing voicing = voicingForSlot(slot);
-	int32_t root = computeSlotRoot(chordIndex, set);
-	playVoicing(root, voicing, vel);
 }
 
 void KeyboardLayoutExpressiveChords::playSlot(int32_t chordIndex, uint8_t vel) {
@@ -221,7 +252,12 @@ void KeyboardLayoutExpressiveChords::playSlot(int32_t chordIndex, uint8_t vel) {
 	int32_t root = computeSlotRoot(chordIndex, set);
 	Voicing voicing = voicingForSlot(slot);
 	drawChordName(root, slot.chord->name, voicing.supplementalName);
-	playVoicing(root, voicing, vel);
+
+	int32_t notes[kMaxChordKeyboardSize];
+	int32_t count = buildChordNotes(chordIndex, notes);
+	for (int32_t i = 0; i < count; i++) {
+		enableNote(notes[i], vel);
+	}
 }
 
 void KeyboardLayoutExpressiveChords::appendMidiHeldSlots() {
