@@ -46,8 +46,6 @@ LBA_t clst2sect(           /* !=0:Sector number, 0:Failed (invalid cluster#) */
 );
 }
 
-extern "C" void routineForSD(void);
-
 extern uint8_t currentlyAccessingCard;
 
 #define MAX_FILE_SIZE_MAGNITUDE 32

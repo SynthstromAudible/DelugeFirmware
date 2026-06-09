@@ -47,8 +47,6 @@
 
 AudioRecorder audioRecorder{};
 
-extern "C" void routineForSD(void);
-
 #include "libdeluge/display.h"
 
 AudioRecorder::AudioRecorder() {

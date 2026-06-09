@@ -57,8 +57,6 @@ extern "C" {
 FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory object */
                                   FILINFO* fno, /* Pointer to file information to return */
                                   FilePointer* filePointer);
-
-void routineForSD(void);
 }
 
 FirmwareVersion song_firmware_version = FirmwareVersion::current();
@@ -975,8 +973,6 @@ void FileWriter::writeBlock(uint8_t* block, uint32_t size) {
 	}
 }
 
-extern "C" void routineForSD(void);
-
 void FileWriter::writeByte(int8_t b) {
 
 	if (fileWriteBufferCurrentPos == bufferSize) {
@@ -997,9 +993,11 @@ void FileWriter::writeByte(int8_t b) {
 	writeClusterBuffer[fileWriteBufferCurrentPos] = b;
 	fileWriteBufferCurrentPos++;
 
-	// Ensure we do some of the audio routine once in a while
+	// Ensure we do some of the audio routine once in a while: let the scheduler run a
+	// slice of registered audio/UI work while we fill the write buffer (pure-CPU work
+	// with no SD wait to yield at otherwise).
 	if (callRoutines && !(fileWriteBufferCurrentPos & 0b11111111)) {
-		routineForSD();
+		yieldToIdle([]() { return true; });
 	}
 }
 void FileWriter::writeChars(char const* output) {
