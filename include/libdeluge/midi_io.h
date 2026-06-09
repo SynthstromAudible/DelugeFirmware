@@ -64,6 +64,18 @@ uint32_t deluge_midi_write(DelugeMidiPort port, const uint8_t* src, uint32_t len
 /// Free space (in bytes) in the port's TX buffer. [task]
 uint32_t deluge_midi_write_space(DelugeMidiPort port);
 
+/// Bytes currently buffered for transmission on `port` but not yet on the wire.
+/// The app uses this to tell whether output is still pending. [task]
+uint32_t deluge_midi_write_pending(DelugeMidiPort port);
+
+/// Read the next received DIN/serial MIDI byte together with the hardware
+/// timestamp of its arrival. Returns true and fills `*byte` and `*arrival_ticks`
+/// when a byte was available; false (leaving the outputs untouched) when the RX
+/// buffer is empty. The timestamp is in the board's foundation tick units — the
+/// same source the app already uses to time incoming MIDI clock — so clock-in
+/// jitter is preserved. Non-blocking. [task] [isr]
+bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_ticks);
+
 /// Push any buffered TX bytes toward the wire if idle. [task]
 void deluge_midi_flush(DelugeMidiPort port);
 

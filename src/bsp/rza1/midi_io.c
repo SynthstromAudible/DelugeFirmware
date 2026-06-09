@@ -91,6 +91,27 @@ uint32_t deluge_midi_write_space(DelugeMidiPort port) {
 	}
 }
 
+uint32_t deluge_midi_write_pending(DelugeMidiPort port) {
+	switch (port) {
+	case DELUGE_MIDI_DIN:
+		return (uint32_t)uartGetTxBufferFullnessByItem(UART_ITEM_MIDI);
+	default:
+		return 0;
+	}
+}
+
+bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_ticks) {
+	// uartGetCharWithTiming returns a pointer to the byte's hardware arrival
+	// timestamp (NULL when nothing is buffered). The slot id never crosses the
+	// boundary: it is the board's DIN-MIDI capture slot, fixed here.
+	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)byte);
+	if (!timer) {
+		return false;
+	}
+	*arrival_ticks = *timer;
+	return true;
+}
+
 void deluge_midi_flush(DelugeMidiPort port) {
 	switch (port) {
 	case DELUGE_MIDI_DIN:

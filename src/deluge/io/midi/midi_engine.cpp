@@ -92,7 +92,7 @@ int32_t MidiEngine::getPotentialNumConnectedUSBMIDIDevices(int32_t ip) {
 }
 
 bool MidiEngine::anythingInOutputBuffer() {
-	return bsp_usb_midi_anything_in_output_buffer() || (bool)uartGetTxBufferFullnessByItem(UART_ITEM_MIDI);
+	return bsp_usb_midi_anything_in_output_buffer() || (deluge_midi_write_pending(DELUGE_MIDI_DIN) != 0);
 }
 
 void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter) {
@@ -258,29 +258,31 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 // Warning - this will sometimes (not always) be called in an ISR
 void MidiEngine::flushMIDI() {
 	bsp_usb_midi_flush_output();
-	uartFlushIfNotSending(UART_ITEM_MIDI);
+	deluge_midi_flush(DELUGE_MIDI_DIN);
 }
 
 void MidiEngine::sendSerialMidi(MIDIMessage message) {
 
 	uint8_t statusByte = message.channel | (message.statusType << 4);
 	int32_t messageLength = bytesPerStatusMessage(statusByte);
-	bufferMIDIUart(statusByte);
 
+	uint8_t bytes[3];
+	bytes[0] = statusByte;
 	if (messageLength >= 2) {
-		bufferMIDIUart(message.data1);
-
+		bytes[1] = message.data1;
 		if (messageLength == 3) {
-			bufferMIDIUart(message.data2);
+			bytes[2] = message.data2;
 		}
 	}
+	deluge_midi_write(DELUGE_MIDI_DIN, bytes, messageLength);
 }
 
 bool MidiEngine::checkIncomingSerialMidi() {
 
 	uint8_t thisSerialByte;
-	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
-	if (timer) {
+	uint32_t arrivalTime;
+	if (deluge_midi_din_read_timed(&thisSerialByte, &arrivalTime)) {
+		uint32_t* timer = &arrivalTime;
 		// D_PRINTLN((uint32_t)thisSerialByte);
 		MIDICable& cable = MIDIDeviceManager::dinMIDIPorts;
 
