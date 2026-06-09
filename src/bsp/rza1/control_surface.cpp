@@ -32,10 +32,93 @@
 #include "libdeluge/display.h" // deluge_display_write_seven_segment (PIC-driven 7-seg)
 
 #include "RZA1/cpu_specific.h"
-#include "board_layout.hpp" // kNumGoldKnobIndicatorLEDs, kNumericDisplayLength (HAL-free)
+#include "board_layout.hpp" // kNumGoldKnobIndicatorLEDs, kNumericDisplayLength, grid dims (HAL-free)
 #include "drivers/pic/pic.h"
 #include <array>
 #include <cstddef>
+
+extern "C" {
+#include "RZA1/oled/oled_low_level.h" // oledWaitingForMessage (the OLED transfer-ack value)
+}
+
+// Default pad/button velocity (255 = "use the instrument default"); mirrors the
+// application's USE_DEFAULT_VELOCITY. 0 means a release.
+#define CONTROL_DEFAULT_VELOCITY 255
+
+// Set when the input decode sees the OLED transfer-ack on the PIC link; drained
+// by deluge_display_consume_transfer_ack(). See display.h.
+static bool s_oled_transfer_ack_pending = false;
+
+bool deluge_control_poll_event(DelugeInputEvent* out) {
+	// Velocity carried across PIC bytes: a NEXT_PAD_OFF byte makes the *next*
+	// pad/button message a release. Persists between calls (it may arrive in a
+	// different poll than the message it qualifies).
+	static int32_t pending_velocity = CONTROL_DEFAULT_VELOCITY;
+
+	for (;;) {
+		PIC::Response value{0};
+		if (!uartGetChar(UART_ITEM_PIC, (char*)&value)) {
+			return false; // nothing buffered
+		}
+
+		if (value < PIC::kPadAndButtonMessagesEnd) {
+			int32_t velocity = pending_velocity;
+			pending_velocity = CONTROL_DEFAULT_VELOCITY;
+			uint8_t raw = static_cast<uint8_t>(value);
+
+			if (raw < (kDisplayHeight * 2 * 9)) {
+				// Pad: decode the PIC's packed code into grid (x,y). Mirrors
+				// Pad(uint8_t) in the application's pad.cpp.
+				int32_t y = raw / 9;
+				int32_t x = (raw - y * 9) << 1;
+				if (y >= kDisplayHeight) {
+					y -= kDisplayHeight;
+					x++;
+				}
+				out->kind = DELUGE_EVENT_PAD;
+				out->x = (uint8_t)x;
+				out->y = (uint8_t)y;
+			}
+			else {
+				// Button: raw == 9 * (y + kDisplayHeight*2) + x. Mirrors
+				// deluge::hid::button::fromXY, which the app inverts.
+				out->kind = DELUGE_EVENT_BUTTON;
+				out->x = (uint8_t)(raw % 9);
+				out->y = (uint8_t)(raw / 9 - kDisplayHeight * 2);
+			}
+			out->value = (int16_t)velocity;
+			return true;
+		}
+
+		if (value == PIC::Response::NEXT_PAD_OFF) {
+			pending_velocity = 0; // the next pad/button message is a release
+			continue;
+		}
+
+		if (value == PIC::Response::NO_PRESSES_HAPPENING) {
+			out->kind = DELUGE_EVENT_NO_PRESSES;
+			out->x = 0;
+			out->y = 0;
+			out->value = 0;
+			return true;
+		}
+
+		if (static_cast<int>(static_cast<uint8_t>(value)) == oledWaitingForMessage) {
+			// OLED transfer-ack: consume it here (it must not surface as input) and
+			// flag the display pump rather than emitting an event.
+			s_oled_transfer_ack_pending = true;
+			continue;
+		}
+
+		// Any other control byte: ignore and keep draining.
+	}
+}
+
+bool deluge_display_consume_transfer_ack(void) {
+	bool pending = s_oled_transfer_ack_pending;
+	s_oled_transfer_ack_pending = false;
+	return pending;
+}
 
 void deluge_control_read_boot_info(DelugeBootInfo* out) {
 	out->pic_firmware_version = 0;

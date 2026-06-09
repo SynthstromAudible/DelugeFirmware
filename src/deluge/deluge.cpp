@@ -51,6 +51,7 @@
 #include "io/midi/midi_follow.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "libdeluge/board.h"
+#include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
 #include "libdeluge/signals.h"
 #include "memory/general_memory_allocator.h"
@@ -207,9 +208,13 @@ makeBattLEDSolid:
 	uiTimerManager.setTimer(TimerName::READ_INPUTS, 100);
 }
 
-int32_t nextPadPressIsOn = USE_DEFAULT_VELOCITY; // Not actually used for 40-pad
 bool alreadyDoneScroll = false;
 bool waitingForSDRoutineToEnd = false;
+
+// An input event whose action returned REMIND_ME_OUTSIDE_CARD_ROUTINE: held here
+// and re-dispatched once the SD routine ends (the pull-model replacement for the
+// old uartPutCharBack back-pressure).
+static DelugeInputEvent heldInputEvent;
 
 extern uint8_t anythingInitiallyAttachedAsUSBHost;
 
@@ -238,6 +243,46 @@ bool isShortPress(uint32_t pressTime) {
 	return ((int32_t)(AudioEngine::audioSampleTimer - pressTime) < FlashStorage::holdTime);
 }
 
+// Dispatch one decoded input event. Returns false if it must be retried once the
+// SD routine ends (the event is stashed in heldInputEvent and
+// waitingForSDRoutineToEnd is set); true once handled.
+static bool dispatchInputEvent(const DelugeInputEvent& ev) {
+	switch (ev.kind) {
+	case DELUGE_EVENT_PAD: {
+		// value is the velocity; 255 means "use the instrument default", 0 a release.
+		ActionResult result = matrixDriver.padAction(ev.x, ev.y, ev.value);
+		if (ev.value) {
+			Buttons::ignoreCurrentShiftForSticky();
+		}
+		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+			heldInputEvent = ev;
+			waitingForSDRoutineToEnd = true;
+			return false;
+		}
+		break;
+	}
+	case DELUGE_EVENT_BUTTON: {
+		auto b = deluge::hid::button::fromXY(ev.x, ev.y);
+		ActionResult result = Buttons::buttonAction(b, ev.value, isSDRoutineActive());
+		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+			heldInputEvent = ev;
+			waitingForSDRoutineToEnd = true;
+			return false;
+		}
+		break;
+	}
+	case DELUGE_EVENT_NO_PRESSES:
+		if (!isSDRoutineActive()) {
+			matrixDriver.noPressesHappening(isSDRoutineActive());
+			Buttons::noPressesHappening(isSDRoutineActive());
+		}
+		break;
+	default:
+		break; // ENCODER events do not arrive on this channel
+	}
+	return true;
+}
+
 bool readButtonsAndPads() {
 
 	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
@@ -258,55 +303,24 @@ bool readButtonsAndPads() {
 		}
 		D_PRINTLN("got to end of sd routine");
 		waitingForSDRoutineToEnd = false;
+		// Re-dispatch the event we deferred; it may defer again.
+		if (!dispatchInputEvent(heldInputEvent)) {
+			return false;
+		}
 	}
 
-	PIC::Response value{0};
-	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
+	DelugeInputEvent ev;
+	bool anything = deluge_control_poll_event(&ev);
 	if (anything) {
-
-		if (value < PIC::kPadAndButtonMessagesEnd) {
-
-			int32_t thisPadPressIsOn = nextPadPressIsOn;
-			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
-
-			ActionResult result;
-			if (Pad::isPad(util::to_underlying(value))) {
-				auto p = Pad(util::to_underlying(value));
-				/* while this function takes an int32_t for velocity, 255 indicates to the downstream audition pad
-				 * function that it should use the default velocity for the instrument
-				 */
-				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
-				if (thisPadPressIsOn) {
-					Buttons::ignoreCurrentShiftForSticky();
-				}
-			}
-			else {
-				auto b = deluge::hid::Button(value);
-				result = Buttons::buttonAction(b, thisPadPressIsOn, isSDRoutineActive());
-			}
-
-			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-				nextPadPressIsOn = thisPadPressIsOn;
-				D_PRINTLN("putCharBack ---------");
-				uartPutCharBack(UART_ITEM_PIC);
-				waitingForSDRoutineToEnd = true;
-				return false;
-			}
+		if (!dispatchInputEvent(ev)) {
+			return false;
 		}
-		else if (value == PIC::Response::NEXT_PAD_OFF) {
-			nextPadPressIsOn = false;
-		}
+	}
 
-		// "No presses happening" message
-		else if (value == PIC::Response::NO_PRESSES_HAPPENING) {
-			if (!isSDRoutineActive()) {
-				matrixDriver.noPressesHappening(isSDRoutineActive());
-				Buttons::noPressesHappening(isSDRoutineActive());
-			}
-		}
-		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
-			uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
-		}
+	// OLED transfer-ack: the input decode consumed the PIC ack, so pump the next
+	// low-level OLED transfer here rather than off a raw byte.
+	if (deluge_display_consume_transfer_ack() && deluge::hid::display::have_oled_screen) {
+		uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
 	}
 
 	if (!isSDRoutineActive() && Buttons::shiftHasChanged()

@@ -38,15 +38,17 @@ typedef struct DelugeColour {
 } DelugeColour;
 
 typedef enum DelugeInputEventKind {
-	DELUGE_EVENT_PAD = 0,     ///< main grid pad
-	DELUGE_EVENT_BUTTON = 1,  ///< matrix button
-	DELUGE_EVENT_ENCODER = 2, ///< encoder detent(s)
+	DELUGE_EVENT_PAD = 0,        ///< main grid pad
+	DELUGE_EVENT_BUTTON = 1,     ///< matrix button
+	DELUGE_EVENT_ENCODER = 2,    ///< encoder detent(s)
+	DELUGE_EVENT_NO_PRESSES = 3, ///< periodic "all controls released" report
 } DelugeInputEventKind;
 
 /// A single decoded input event. Field meaning depends on `kind`:
-///  - PAD:     x,y = grid coords; value = velocity/pressure (0 = release)
-///  - BUTTON:  x,y = matrix coords; value = 1 pressed / 0 released
+///  - PAD:     x,y = grid coords; value = velocity (0 = release, 255 = default-on)
+///  - BUTTON:  x,y = matrix coords; value = on-state (0 = release, 255 = pressed)
 ///  - ENCODER: x = encoder index; value = signed detent delta
+///  - NO_PRESSES: x,y,value unused
 typedef struct DelugeInputEvent {
 	DelugeInputEventKind kind;
 	uint8_t x;

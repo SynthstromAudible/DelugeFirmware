@@ -58,6 +58,13 @@ void deluge_display_service(void);
 /// display's scheduled service timer fires. [task]
 void deluge_display_timer_event(void);
 
+/// Consume a pending OLED transfer-ack. The control surface's input decode owns
+/// the PIC link the panel acks its DMA completion on; when it sees that ack it
+/// records it here rather than surfacing it as an input event. Returns true once
+/// per ack, telling the app to schedule the next low-level transfer service.
+/// Always false on boards with no such ack. [task]
+bool deluge_display_consume_transfer_ack(void);
+
 /// Synchronously blit a 1-bpp OLED framebuffer to the panel and block until the
 /// user requests resume. Used by the fault handler to show an error screen from
 /// a frozen context, bypassing the normal async transfer queue. `pixels` is the
