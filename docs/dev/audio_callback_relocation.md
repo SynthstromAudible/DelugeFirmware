@@ -1,10 +1,14 @@
 # Audio-engine SSI/DMA relocation — the `deluge_app_render` audio boundary
 
-**Status:** planned, not started. The deepest remaining HAL seam in the
-application, and the one that most shapes the eventual host-sim and Embassy BSPs.
-Suggested branch `feat/libdeluge-audio-io`. This is the change that finally takes
-`audio_engine.cpp` off `scripts/platform_boundary_allowlist.txt` (after which only
-`deluge.cpp` and the deferred `hid/encoder*.cpp` remain). It touches the realtime
+**Status: implemented** on `feat/audio-callback-relocation` (2026-06-09),
+build-green, lint 2 (only `hid/encoder*.cpp` remain on the allowlist),
+unit suite green — **awaiting the hardware test matrix below before merge.**
+See "Outcome" at the end of this document for what landed, the intentional
+behavioural deviations, and what remains open (notably the full host-sim
+WAV harness, which needs the host BSP target and was descoped to a
+bit-exact pacing-policy unit test).
+
+It touches the realtime
 audio path end-to-end, so **the result must be validated on hardware — listening +
 scope, under CPU load, with input monitoring and recording — before merge.** A
 build alone cannot make this safe; the host-sim WAV-diff harness (Phase 0) is the
@@ -205,3 +209,80 @@ maintenance. Keep that access *inside* the BSP, or hand the app an uncached
 - `disableInterrupts[]`/`devdrv_intc` is a separable concern — port it on its own,
   don't let it grow the audio change.
 - Confirm nothing in the render path blocks (D3) before the Embassy BSP depends on it.
+
+## Outcome (2026-06-09, branch `feat/audio-callback-relocation`)
+
+Implemented in four commits, each build-green:
+
+1. **`audio: drop the RZA1/ includes from audio_engine.cpp (lint 2)`** — the
+   two `RZA1/` includes served only the `disableInterrupts[]` array (dead code,
+   no consumers anywhere) and the `DO_AUDIO_LOG` timestamps (now
+   `getSystemTime()`); `audio_engine.cpp` off the allowlist.
+2. **`audio: give the app its own input ring`** — all five app-side input
+   readers (monitoring, INPUT_L/R oscillators, AudioOutput, LiveInputBuffer,
+   SampleRecorder history) moved from the SSI RX DMA ring onto an app-owned
+   mirror ring of identical geometry (`AudioEngine::inputRing`/`inputRingPos`,
+   cached SDRAM). One uncached fill pass per window replaces many per-sample
+   uncached reads.
+3. **`audio: adopt deluge_app_render(in, out, frames)`** — the boundary itself:
+   - `src/bsp/rza1/audio_io.cpp` owns the TX/RX rings (uncached mirror), the
+     cursors/wraparound, the RX latency window, and the pacing policy
+     (`audio_pacing.h`, relocated verbatim, pure/host-testable).
+     `deluge_audio_drive()` flushes pending samples and calls
+     `deluge_app_render()` with the variable frame count; doubled windows still
+     trickle out across routine calls.
+   - `deluge_app_render()` (audio_engine.cpp) renders exactly `frames`,
+     sub-dividing at sequencer events; the output stage (volume/dither/
+     monitoring/recorder feeds) writes the BSP `out` block. Input pairing is
+     positional and exact.
+   - Gate/MIDI timing through `deluge_audio_frames_until_block_offset()`;
+     trigger/MIDI-clock capture stamps through
+     `deluge_audio_stamp_to_render_offset()` (playback_handler); RX resync
+     through `deluge_audio_input_resync()`.
+   - `drivers/ssi/ssi.h` no longer appears anywhere in `src/deluge/`.
+4. **`tests: pin the relocated RZ/A1L pacing policy bit-exactly`** — the
+   reduced Phase 0: `tests/unit/audio_pacing_tests.cpp` checks
+   `deluge_rza1_pace_window()` against the original `routine_()` arithmetic for
+   every possible input. (Also repaired the unit-test build, broken since the
+   storage-yield relocation: missing `include/` path + `intc_func_active` mock.)
+
+### Intentional deviations from the old control flow
+
+All confined to edge/heuristic paths; none change steady-state audio:
+
+- **Direness measurement** (`setDireness`) now receives the post-doubling
+  `frames` instead of the raw pre-doubling count. The parameter only enters the
+  `numRoutines * numSamples` correction, so this shifts the culling proxy
+  slightly on the *second* render of a heavily-loaded drive.
+- **Event-split windows**: when a sequencer event shortens a window, the
+  remainder of `frames` renders in the same `deluge_app_render` call instead of
+  after a fresh DMA poll. Same event alignment; envelope/LFO recalc points can
+  land marginally differently than before under load.
+- **Gate-min-delay guard** (`samplesTilAllowedToSend`): elapsed time is
+  measured from the block's render start; for sub-windows after the first it is
+  approximated as `max(blockElapsed − offsetInBlock, 0)`. First-window
+  behaviour (the common case) is bit-identical.
+- **Offline stem export**: the DAC keep-alive 0/1 pattern now fills whole
+  blocks via the render path (previously: only as many samples as ring space
+  allowed per loop pass). Input-cursor advance covers full blocks too.
+- **Input pairing no longer jitters**: monitoring/recorder input used to be
+  consumed at TX *flush* pace (lagging under partial flushes); it is now paired
+  positionally with the render block. Strictly more correct; recorded material
+  alignment is unchanged in the common case.
+- **RX resync after glitches** skips input *before* it enters the input ring,
+  so recorder catch-up after a glitch reads its own ring history rather than
+  whatever the DMA had overwritten — different garbage in an already-glitched
+  case.
+- Two small copies were added (BSP scratch → TX ring; RX ring → `in` block →
+  input ring, ≤ ~2 KB per 128-sample block) in exchange for removing all
+  per-sample uncached reads from the monitor/voice/recorder paths.
+
+### Still open
+
+- **The hardware test matrix above — mandatory before merge.**
+- The full host-sim WAV-diff harness (plan Phase 0) needs the host BSP/build
+  target, which doesn't exist yet; it remains the right next milestone and is
+  much closer now that the app's audio path is HAL-free.
+- `hid/encoder.cpp` / `hid/encoders.cpp` are the last allowlist entries.
+- The scheduler's ISR guard (`task_scheduler_c_api.cpp`) still reads the HAL's
+  `intc_func_active` directly — a separable `deluge_system_*` port.
