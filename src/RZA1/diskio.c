@@ -68,27 +68,10 @@ uint16_t ioRegGet2(volatile uint16_t* reg, uint8_t p, uint8_t q)
     return RZA_IO_RegRead_16((volatile uint16_t*)((uint32_t)reg + (p - 1) * 4), q, (uint16_t)1 << q);
 }
 
-DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count);
-
-extern int pendingGlobalMIDICommandNumClustersWritten;
-extern int currentlySearchingForCluster;
-
-DRESULT disk_read(BYTE pdrv, /* Physical drive nmuber (0) */
-    BYTE* buff,              /* Pointer to the data buffer to store read data */
-    LBA_t sector,            /* Start sector number (LBA) */
-    UINT count               /* Sector count (1..128) */
-)
-{
-
-    loadAnyEnqueuedClustersRoutine(); // Always ensure SD streaming is fulfilled before anything else
-
-    DRESULT result = disk_read_without_streaming_first(pdrv, buff, sector, count);
-
-    if (currentlySearchingForCluster)
-        pendingGlobalMIDICommandNumClustersWritten++;
-
-    return result;
-}
+// disk_read / disk_write (the FatFs porting symbols) live in the application
+// (audio_file_manager.cpp): they service the audio cluster-streaming queue before
+// each FatFs sector access, which is an app concern. They call *down* into the plain
+// sector I/O below, so the HAL no longer calls up into the app for streaming.
 
 BYTE diskStatus = STA_NOINIT;
 
@@ -249,14 +232,12 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
 /* Write Sector(s)                                                       */
 /*-----------------------------------------------------------------------*/
 
-DRESULT disk_write(BYTE pdrv, /* Physical drive nmuber to identify the drive */
-    const BYTE* buff,         /* Data to be written */
-    LBA_t sector,             /* Sector address in LBA */
-    UINT count                /* Number of sectors to write */
+DRESULT disk_write_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to identify the drive */
+    const BYTE* buff,                                 /* Data to be written */
+    LBA_t sector,                                     /* Sector address in LBA */
+    UINT count                                        /* Number of sectors to write */
 )
 {
-
-    loadAnyEnqueuedClustersRoutine(); // Always ensure SD streaming is fulfilled before anything else
 
     BYTE err;
 

@@ -69,11 +69,6 @@ typedef enum DelugeCardEvent {
 /// never call up into the app. [task]
 DelugeCardEvent deluge_block_poll_card_event(uint8_t unit);
 
-// NOTE: loadAnyEnqueuedClustersRoutine() is still an app upcall used by the
-// storage busy-wait path; it is removed when storage waits are converted to
-// scheduler yields (it belongs to that concurrency work, not card-detect).
-void loadAnyEnqueuedClustersRoutine(void);
-
 #ifdef __cplusplus
 }
 #endif

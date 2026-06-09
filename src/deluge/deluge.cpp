@@ -899,10 +899,6 @@ extern "C" int32_t deluge_main(void) {
 // Card-detect is now pull-based: AudioFileManager::slowRoutine() polls
 // deluge_block_poll_card_event() instead of the BSP calling up into the app.
 
-extern "C" void loadAnyEnqueuedClustersRoutine() {
-	audioFileManager.loadAnyEnqueuedClusters();
-}
-
 extern "C" void setNumeric(char* text) {
 	display->setText(text);
 }
