@@ -48,6 +48,7 @@ extern volatile uint32_t usbLock;
 usb_regadr_t usb_hstd_get_usb_ip_adr(uint16_t ipno);
 void change_destination_of_send_pipe(usb_utr_t* ptr, uint16_t pipe, uint16_t* tbl, int32_t sq);
 void usb_send_start_rohan(usb_utr_t* ptr, uint16_t pipe, uint8_t const* data, int32_t size);
+void usb_receive_start_rohan_midi(uint16_t pipe);
 
 // Per-device USB-MIDI transport state. The receive DMA targets receiveData
 // directly, so this stays in SDRAM (as it did inside connectedUSBMIDIDevices).
@@ -71,7 +72,13 @@ uint8_t currentDeviceNumWithSendPipe[USB_NUM_USBIP][2] = {MAX_NUM_USB_MIDI_DEVIC
 
 static bool anythingInUSBOutputBuffer = false;
 
+// Timestamp of the last bulk-IN completion (BRDY), recorded by the HAL for MIDI
+// clock timing. Defined here (moved from midi_engine.cpp); the HAL writes it and
+// the application reads it. External linkage so both resolve it at the link.
+uint32_t timeLastBRDY[USB_NUM_USBIP];
+
 static void send_complete_callback(usb_utr_t* p_mess, uint16_t data1, uint16_t data2);
+static void receive_complete_callback(usb_utr_t* p_mess, uint16_t data1, uint16_t data2);
 
 BspUsbMidiDevice* bsp_usb_midi_device(uint8_t ip, uint8_t d) {
 	return &g_usb_midi_devices[ip][d];
@@ -79,6 +86,8 @@ BspUsbMidiDevice* bsp_usb_midi_device(uint8_t ip, uint8_t d) {
 
 void bsp_usb_midi_init(void) {
 	memset(g_usb_midi_devices, 0, sizeof g_usb_midi_devices);
+
+	g_usb_peri_connected = 0; // Needs initializing with A2 driver
 
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
 		// This might not be used: the HAL calls bsp_usb_midi_send_complete_as_host()
@@ -89,6 +98,16 @@ void bsp_usb_midi_init(void) {
 		g_usb_midi_send_utr[ip].segment = USB_TRAN_END;
 		g_usb_midi_send_utr[ip].ip = ip;
 		g_usb_midi_send_utr[ip].ipp = usb_hstd_get_usb_ip_adr(ip);
+
+		for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
+			// The receive DMA writes straight into this BSP buffer (zero-copy).
+			g_usb_midi_recv_utr[ip][d].p_tranadr = g_usb_midi_devices[ip][d].receiveData;
+			g_usb_midi_recv_utr[ip][d].complete = (usb_cb_t)receive_complete_callback;
+			g_usb_midi_recv_utr[ip][d].p_setup = 0;
+			g_usb_midi_recv_utr[ip][d].segment = USB_TRAN_END;
+			g_usb_midi_recv_utr[ip][d].ip = ip;
+			g_usb_midi_recv_utr[ip][d].ipp = usb_hstd_get_usb_ip_adr(ip);
+		}
 	}
 }
 
@@ -377,6 +396,64 @@ void bsp_usb_midi_send_complete_as_peripheral(int32_t ip) {
 		// ring) "belongs" to ongoing/scheduled interrupts until this clears.
 		anyUSBSendingStillHappening[0] = 0;
 	}
+}
+
+// --- Receive completion + transfer setup --------------------------------------
+
+// Record a completed bulk-IN transfer for a device. tranlen is how many bytes of
+// the 64-byte request did NOT arrive, so 64 - tranlen is the count received.
+static void receive_complete(int32_t ip, int32_t deviceNum, int32_t tranlen) {
+	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, deviceNum);
+	// Warning - sometimes (with a Teensy, e.g. a knob box) length will be 0; cope.
+	dev->numBytesReceived = 64 - tranlen;
+	dev->currentlyWaitingToReceive = 0; // need to set up another receive
+}
+
+// Registered as the receive descriptor's completion callback. On the RZ/A1L the
+// HAL bulk-IN handlers usually record completions inline (writing the device's
+// receiveData directly), so this is the parity path for when the callback is used.
+static void receive_complete_callback(usb_utr_t* p_mess, uint16_t data1, uint16_t data2) {
+	(void)data1;
+	(void)data2;
+
+#if USB_NUM_USBIP == 1
+	int32_t ip = 0;
+#else
+	int32_t ip = p_mess->ip;
+#endif
+
+	if (p_mess->status == USB_DATA_ERR) {
+		return; // Can happen if the user disconnects a device - totally normal
+	}
+
+	int32_t deviceNum = p_mess - &g_usb_midi_recv_utr[ip][0];
+	receive_complete(ip, deviceNum, p_mess->tranlen);
+}
+
+// Lock USB before calling this!
+void bsp_usb_midi_setup_host_receive_transfer(int32_t ip, int32_t midiDeviceNum) {
+	(void)ip;
+	g_usb_midi_devices[USB_CFG_USE_USBIP][midiDeviceNum].currentlyWaitingToReceive = 1;
+
+	int32_t pipeNumber = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][midiDeviceNum][USB_EPL];
+
+	g_usb_midi_recv_utr[USB_CFG_USE_USBIP][midiDeviceNum].keyword = pipeNumber;
+	g_usb_midi_recv_utr[USB_CFG_USE_USBIP][midiDeviceNum].tranlen = 64;
+
+	g_p_usb_pipe[pipeNumber] = &g_usb_midi_recv_utr[USB_CFG_USE_USBIP][midiDeviceNum];
+
+	usb_receive_start_rohan_midi(pipeNumber);
+}
+
+// Lock USB before calling this!
+void bsp_usb_midi_rearm_peripheral_receive(int32_t ip) {
+	g_usb_midi_recv_utr[ip][0].keyword = USB_CFG_PMIDI_BULK_IN;
+	g_usb_midi_recv_utr[ip][0].tranlen = 64;
+
+	g_usb_midi_devices[ip][0].currentlyWaitingToReceive = 1;
+
+	g_p_usb_pipe[USB_CFG_PMIDI_BULK_IN] = &g_usb_midi_recv_utr[ip][0];
+	usb_receive_start_rohan_midi(USB_CFG_PMIDI_BULK_IN);
 }
 
 void bsp_usb_midi_service(void) {

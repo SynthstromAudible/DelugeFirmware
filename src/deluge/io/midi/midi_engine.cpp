@@ -51,71 +51,19 @@ void usb_cstd_usb_task();
 
 extern uint16_t g_usb_peri_connected;
 
-// The send-path state lives in the BSP usb_midi module now; the receive path below
-// still reads these two until it moves down in phase 5.
+// Send-path state lives in the BSP usb_midi module now; the receive decode below
+// still reads these two (the host re-arm guard) until phases 6-7.
 extern uint8_t stopSendingAfterDeviceNum[USB_NUM_USBIP];
 extern uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
 
-// The receive transfer descriptors are defined in the BSP usb_midi module; their
-// fields are still initialised in the MidiEngine ctor below until the receive path
-// moves down (phase 5). The send descriptors are wired by bsp_usb_midi_init().
-extern usb_utr_t g_usb_midi_recv_utr[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
+// Timestamp of the last bulk-IN completion, recorded by the HAL and defined in the
+// BSP usb_midi module; read here to timestamp incoming MIDI clock messages.
+extern uint32_t timeLastBRDY[USB_NUM_USBIP];
 
-extern uint16_t g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB_EPL * 2) + 1];
-
-extern usb_utr_t* g_p_usb_pipe[USB_MAX_PIPE_NO + 1u];
-
-usb_regadr_t usb_hstd_get_usb_ip_adr(uint16_t ipno);
-void usb_receive_start_rohan_midi(uint16_t pipe);
-void usb_pstd_set_stall(uint16_t pipe);
-void usb_cstd_set_nak(usb_utr_t* ptr, uint16_t pipe);
-void hw_usb_clear_pid(usb_utr_t* ptr, uint16_t pipeno, uint16_t data);
-uint16_t hw_usb_read_pipectr(usb_utr_t* ptr, uint16_t pipeno);
-
-// The USB-MIDI send path (usbSendCompleteAsHost / *AsPeripheral / the send-complete
-// callback) now lives in the BSP usb_midi module; the HAL bulk-OUT handlers call
-// bsp_usb_midi_send_complete_as_{host,peripheral}() directly.
-
-void usbReceiveComplete(int32_t ip, int32_t deviceNum, int32_t tranlen) {
-	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][deviceNum];
-
-	connectedDevice->transport->numBytesReceived =
-	    64 - tranlen; // Seems wack, but yet, tranlen is now how many bytes didn't get
-	                  // received out of the original transfer size
-	// Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not sure why - but we need to cope with
-	// that case.
-
-	connectedDevice->transport->currentlyWaitingToReceive = 0; // Take note that we need to set up another receive
-}
-
-void usbReceiveCompletePeripheralOrA1(usb_utr_t* p_mess, uint16_t data1, uint16_t data2) {
-
-#if USB_NUM_USBIP == 1
-	int32_t ip = 0;
-#else
-	int32_t ip = p_mess->ip;
-#endif
-
-	if (p_mess->status == USB_DATA_ERR) {
-		return; // Can happen if user disconnects device - totally normal
-	}
-
-	int32_t deviceNum = p_mess - &g_usb_midi_recv_utr[ip][0];
-
-	// Are there actually any other possibilities that could happen here? Can't remember.
-	if (p_mess->status != USB_DATA_SHT) {
-		uartPrint("status: ");
-		uartPrintNumber(p_mess->status);
-	}
-
-	usbReceiveComplete(ip, deviceNum, p_mess->tranlen);
-}
-
-uint32_t timeLastBRDY[USB_NUM_USBIP];
-
-void brdyOccurred(int32_t ip) {
-	timeLastBRDY[ip] = DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n; // Reading this not as volatile works fine
-}
+// The USB-MIDI send and receive *transport* (transfer descriptors, transfer setup,
+// completion handlers, the bulk-IN timestamp) now lives in the BSP usb_midi module.
+// The application drives it through bsp_usb_midi_* and decodes the bytes the HAL
+// leaves in the receive buffers.
 }
 
 PLACE_SDRAM_BSS MidiEngine midiEngine{};
@@ -135,23 +83,9 @@ MidiEngine::MidiEngine() {
 	midiTakeover = MIDITakeoverMode::JUMP;
 	midiSelectKitRow = false;
 
-	g_usb_peri_connected = 0; // Needs initializing with A2 driver
-
-	// The send transfer descriptors are set up by bsp_usb_midi_init(); here we still
-	// set up the receive descriptors until the receive path moves down (phase 5).
-	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
-		for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
-			// Reference the BSP transport block directly (its address is stable):
-			// connectedUSBMIDIDevices[ip][d].transport isn't wired until runtime init.
-			g_usb_midi_recv_utr[ip][d].p_tranadr = bsp_usb_midi_device(ip, d)->receiveData;
-			g_usb_midi_recv_utr[ip][d].complete = (usb_cb_t)usbReceiveCompletePeripheralOrA1;
-
-			g_usb_midi_recv_utr[ip][d].p_setup = 0; /* Setup message address set */
-			g_usb_midi_recv_utr[ip][d].segment = USB_TRAN_END;
-			g_usb_midi_recv_utr[ip][d].ip = ip;
-			g_usb_midi_recv_utr[ip][d].ipp = usb_hstd_get_usb_ip_adr(ip);
-		}
-	}
+	// The USB-MIDI transfer descriptors (send and receive) and g_usb_peri_connected
+	// are set up by bsp_usb_midi_init(), called from MIDIDeviceManager::init() before
+	// the USB stack is opened.
 
 	eventStackTop_ = eventStack_.begin();
 }
@@ -437,30 +371,6 @@ bool MidiEngine::checkIncomingSerialMidi() {
 	return false;
 }
 
-// Lock USB before calling this!
-void MidiEngine::setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum) {
-	connectedUSBMIDIDevices[ip][midiDeviceNum].transport->currentlyWaitingToReceive = 1;
-
-	int32_t pipeNumber = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][midiDeviceNum][USB_EPL];
-
-	g_usb_midi_recv_utr[USB_CFG_USE_USBIP][midiDeviceNum].keyword = pipeNumber;
-	g_usb_midi_recv_utr[USB_CFG_USE_USBIP][midiDeviceNum].tranlen = 64;
-
-	g_p_usb_pipe[pipeNumber] = &g_usb_midi_recv_utr[USB_CFG_USE_USBIP][midiDeviceNum];
-
-	// uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-
-	usb_receive_start_rohan_midi(pipeNumber);
-
-	/*
-	uint16_t endTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-	uint16_t duration = endTime - startTime;
-	uint32_t timePassedNS = superfastTimerCountToNS(duration);
-	uartPrint("send setup duration, nSec: ");
-	uartPrintNumber(timePassedNS);
-	*/
-}
-
 uint8_t usbCurrentlyInitialized = false;
 
 void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int32_t ip, int32_t d, int32_t cableIdx) {
@@ -671,15 +581,8 @@ void MidiEngine::checkIncomingUsbMidi() {
 
 				// As peripheral
 				if (aPeripheral) {
-
-					g_usb_midi_recv_utr[ip][0].keyword = USB_CFG_PMIDI_BULK_IN;
-					g_usb_midi_recv_utr[ip][0].tranlen = 64;
-
-					connectedUSBMIDIDevices[ip][0].transport->currentlyWaitingToReceive = 1;
-
 					usbLock = 1;
-					g_p_usb_pipe[USB_CFG_PMIDI_BULK_IN] = &g_usb_midi_recv_utr[ip][0];
-					usb_receive_start_rohan_midi(USB_CFG_PMIDI_BULK_IN);
+					bsp_usb_midi_rearm_peripheral_receive(ip);
 					usbLock = 0;
 				}
 
@@ -690,7 +593,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 					// (Wait, still? Was this just because of that insane bug that's now fixed?)
 					if (usbDeviceNumBeingSentToNow[ip] == stopSendingAfterDeviceNum[ip]) {
 						usbLock = 1;
-						setupUSBHostReceiveTransfer(ip, d);
+						bsp_usb_midi_setup_host_receive_transfer(ip, d);
 						usbLock = 0;
 					}
 				}

@@ -95,7 +95,6 @@ public:
 	void sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter);
 	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
-	void setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum);
 
 	// If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
 	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands];
