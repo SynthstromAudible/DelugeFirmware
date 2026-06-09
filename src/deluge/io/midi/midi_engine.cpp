@@ -17,6 +17,7 @@
 
 #include "io/midi/midi_engine.h"
 #include "RZA1/cpu_specific.h"
+#include "bsp/rza1/usb_midi.h" // BspUsbMidiDevice, g_usb_midi_*_utr, bsp_usb_midi_device (transport state)
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
@@ -54,8 +55,11 @@ uint8_t stopSendingAfterDeviceNum[USB_NUM_USBIP];
 uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
 uint8_t anyUSBSendingStillHappening[USB_NUM_USBIP];
 
-usb_utr_t g_usb_midi_send_utr[USB_NUM_USBIP];
-usb_utr_t g_usb_midi_recv_utr[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
+// The USB transfer descriptors are defined in the BSP usb_midi module now; their
+// fields (callbacks, ip/ipp, DMA pointers) are still initialised in the MidiEngine
+// ctor below until the send/receive paths move down (phases 4-5).
+extern usb_utr_t g_usb_midi_send_utr[USB_NUM_USBIP];
+extern usb_utr_t g_usb_midi_recv_utr[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 
 extern uint16_t g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB_EPL * 2) + 1];
 
@@ -82,7 +86,7 @@ void usbSendCompleteAsHost(int32_t ip) {
 
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
 
-	connectedDevice->numBytesSendingNow = 0; // We just do this instead from caller on A1 (see comment above)
+	connectedDevice->transport->numBytesSendingNow = 0; // We just do this instead from caller on A1 (see comment above)
 
 	// check if there was more to send on the same device, then resume sending
 	bool has_more = connectedDevice->consumeSendData();
@@ -107,7 +111,7 @@ void usbSendCompleteAsHost(int32_t ip) {
 			midiDeviceNum -= MAX_NUM_USB_MIDI_DEVICES;
 		}
 		connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
-		if (connectedDevice->cable[0] && connectedDevice->numBytesSendingNow) {
+		if (connectedDevice->cable[0] && connectedDevice->transport->numBytesSendingNow) {
 			// If here, we got a connected device, so flush
 			flushUSBMIDIToHostedDevice(ip, midiDeviceNum);
 			return;
@@ -144,8 +148,8 @@ void usbSendCompletePeripheralOrA1(usb_utr_t* p_mess, uint16_t data1, uint16_t d
 
 void usbSendCompleteAsPeripheral(int32_t ip) {
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
-	connectedDevice->numBytesSendingNow = 0; // Even easier!
-	                                         //
+	connectedDevice->transport->numBytesSendingNow = 0; // Even easier!
+	                                                    //
 
 	// I think this could happen as part of a detach see detachedAsPeripheral()
 	if (anyUSBSendingStillHappening[ip] == 0) {
@@ -157,11 +161,11 @@ void usbSendCompleteAsPeripheral(int32_t ip) {
 		// this is already the case:
 		// anyUSBSendingStillHappening[ip] = 1;
 
-		g_usb_midi_send_utr[ip].tranlen = connectedDevice->numBytesSendingNow;
-		g_usb_midi_send_utr[ip].p_tranadr = connectedDevice->dataSendingNow;
+		g_usb_midi_send_utr[ip].tranlen = connectedDevice->transport->numBytesSendingNow;
+		g_usb_midi_send_utr[ip].p_tranadr = connectedDevice->transport->dataSendingNow;
 
-		usb_send_start_rohan(NULL, USB_CFG_PMIDI_BULK_OUT, connectedDevice->dataSendingNow,
-		                     connectedDevice->numBytesSendingNow);
+		usb_send_start_rohan(NULL, USB_CFG_PMIDI_BULK_OUT, connectedDevice->transport->dataSendingNow,
+		                     connectedDevice->transport->numBytesSendingNow);
 	}
 	else {
 		// this effectively serves as a lock, does the sending part of the device, including the read part of the
@@ -173,12 +177,13 @@ void usbSendCompleteAsPeripheral(int32_t ip) {
 void usbReceiveComplete(int32_t ip, int32_t deviceNum, int32_t tranlen) {
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][deviceNum];
 
-	connectedDevice->numBytesReceived = 64 - tranlen; // Seems wack, but yet, tranlen is now how many bytes didn't get
-	                                                  // received out of the original transfer size
+	connectedDevice->transport->numBytesReceived =
+	    64 - tranlen; // Seems wack, but yet, tranlen is now how many bytes didn't get
+	                  // received out of the original transfer size
 	// Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not sure why - but we need to cope with
 	// that case.
 
-	connectedDevice->currentlyWaitingToReceive = 0; // Take note that we need to set up another receive
+	connectedDevice->transport->currentlyWaitingToReceive = 0; // Take note that we need to set up another receive
 }
 
 void usbReceiveCompletePeripheralOrA1(usb_utr_t* p_mess, uint16_t data1, uint16_t data2) {
@@ -246,7 +251,9 @@ MidiEngine::MidiEngine() {
 		g_usb_midi_send_utr[ip].ipp = usb_hstd_get_usb_ip_adr(ip);
 
 		for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
-			g_usb_midi_recv_utr[ip][d].p_tranadr = connectedUSBMIDIDevices[ip][d].receiveData;
+			// Reference the BSP transport block directly (its address is stable):
+			// connectedUSBMIDIDevices[ip][d].transport isn't wired until runtime init.
+			g_usb_midi_recv_utr[ip][d].p_tranadr = bsp_usb_midi_device(ip, d)->receiveData;
 			g_usb_midi_recv_utr[ip][d].complete = (usb_cb_t)usbReceiveCompletePeripheralOrA1;
 
 			g_usb_midi_recv_utr[ip][d].p_setup = 0; /* Setup message address set */
@@ -268,8 +275,8 @@ void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume) {
 	// useful
 	int32_t pipeNumber = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][0];
 	g_usb_midi_send_utr[USB_CFG_USE_USBIP].keyword = pipeNumber;
-	g_usb_midi_send_utr[USB_CFG_USE_USBIP].tranlen = connectedDevice->numBytesSendingNow;
-	g_usb_midi_send_utr[USB_CFG_USE_USBIP].p_tranadr = connectedDevice->dataSendingNow;
+	g_usb_midi_send_utr[USB_CFG_USE_USBIP].tranlen = connectedDevice->transport->numBytesSendingNow;
+	g_usb_midi_send_utr[USB_CFG_USE_USBIP].p_tranadr = connectedDevice->transport->dataSendingNow;
 
 	usbDeviceNumBeingSentToNow[USB_CFG_USE_USBIP] = d;
 
@@ -278,15 +285,15 @@ void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume) {
 	if (d != currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt]) {
 		currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt] = d;
 		change_destination_of_send_pipe(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber,
-		                                g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d], connectedDevice->sq);
+		                                g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d], connectedDevice->transport->sq);
 	}
 
-	connectedDevice->sq = !connectedDevice->sq;
+	connectedDevice->transport->sq = !connectedDevice->transport->sq;
 
 	g_p_usb_pipe[pipeNumber] = &g_usb_midi_send_utr[USB_CFG_USE_USBIP];
 
-	usb_send_start_rohan(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber, connectedDevice->dataSendingNow,
-	                     connectedDevice->numBytesSendingNow);
+	usb_send_start_rohan(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber,
+	                     connectedDevice->transport->dataSendingNow, connectedDevice->transport->numBytesSendingNow);
 }
 
 int32_t MidiEngine::getPotentialNumConnectedUSBMIDIDevices(int32_t ip) {
@@ -328,15 +335,15 @@ void MidiEngine::flushUSBMIDIOutput() {
 			}
 
 			g_usb_midi_send_utr[ip].keyword = USB_CFG_PMIDI_BULK_OUT;
-			g_usb_midi_send_utr[ip].tranlen = connectedDevice->numBytesSendingNow;
-			g_usb_midi_send_utr[ip].p_tranadr = connectedDevice->dataSendingNow;
+			g_usb_midi_send_utr[ip].tranlen = connectedDevice->transport->numBytesSendingNow;
+			g_usb_midi_send_utr[ip].p_tranadr = connectedDevice->transport->dataSendingNow;
 
 			usbDeviceNumBeingSentToNow[ip] = 0;
 			anyUSBSendingStillHappening[ip] = 1;
 
 			g_p_usb_pipe[USB_CFG_PMIDI_BULK_OUT] = &g_usb_midi_send_utr[ip];
-			usb_send_start_rohan(NULL, USB_CFG_PMIDI_BULK_OUT, connectedDevice->dataSendingNow,
-			                     connectedDevice->numBytesSendingNow);
+			usb_send_start_rohan(NULL, USB_CFG_PMIDI_BULK_OUT, connectedDevice->transport->dataSendingNow,
+			                     connectedDevice->transport->numBytesSendingNow);
 
 			// when done, usbSendCompleteAsPeripheral() will be called in an interrupt
 		}
@@ -553,7 +560,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 
 		for (int32_t d = 0; d < potentialNumDevices; d++) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
-			if (!connectedDevice->canHaveMIDISent) {
+			if (!connectedDevice->transport->canHaveMIDISent) {
 				continue;
 			}
 			int32_t maxPort = connectedDevice->maxPortConnected;
@@ -689,7 +696,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 
 // Lock USB before calling this!
 void MidiEngine::setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum) {
-	connectedUSBMIDIDevices[ip][midiDeviceNum].currentlyWaitingToReceive = 1;
+	connectedUSBMIDIDevices[ip][midiDeviceNum].transport->currentlyWaitingToReceive = 1;
 
 	int32_t pipeNumber = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][midiDeviceNum][USB_EPL];
 
@@ -871,13 +878,14 @@ void MidiEngine::checkIncomingUsbMidi() {
 		int32_t numDevicesNow = aPeripheral ? 1 : MAX_NUM_USB_MIDI_DEVICES;
 
 		for (int32_t d = 0; d < numDevicesNow; d++) {
-			if (connectedUSBMIDIDevices[ip][d].cable[0] && !connectedUSBMIDIDevices[ip][d].currentlyWaitingToReceive) {
+			if (connectedUSBMIDIDevices[ip][d].cable[0]
+			    && !connectedUSBMIDIDevices[ip][d].transport->currentlyWaitingToReceive) {
 
-				int32_t bytesReceivedHere = connectedUSBMIDIDevices[ip][d].numBytesReceived;
+				int32_t bytesReceivedHere = connectedUSBMIDIDevices[ip][d].transport->numBytesReceived;
 				if (bytesReceivedHere) {
-					connectedUSBMIDIDevices[ip][d].numBytesReceived = 0;
+					connectedUSBMIDIDevices[ip][d].transport->numBytesReceived = 0;
 
-					uint8_t const* readPos = connectedUSBMIDIDevices[ip][d].receiveData;
+					uint8_t const* readPos = connectedUSBMIDIDevices[ip][d].transport->receiveData;
 					const uint8_t* const stopAt = readPos + bytesReceivedHere;
 
 					// Receive all the stuff from this device
@@ -924,7 +932,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 					g_usb_midi_recv_utr[ip][0].keyword = USB_CFG_PMIDI_BULK_IN;
 					g_usb_midi_recv_utr[ip][0].tranlen = 64;
 
-					connectedUSBMIDIDevices[ip][0].currentlyWaitingToReceive = 1;
+					connectedUSBMIDIDevices[ip][0].transport->currentlyWaitingToReceive = 1;
 
 					usbLock = 1;
 					g_p_usb_pipe[USB_CFG_PMIDI_BULK_IN] = &g_usb_midi_recv_utr[ip][0];

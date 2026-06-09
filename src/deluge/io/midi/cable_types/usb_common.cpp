@@ -16,6 +16,7 @@
  */
 
 #include "usb_common.h"
+#include "bsp/rza1/usb_midi.h" // BspUsbMidiDevice (transport state)
 #include "io/midi/midi_engine.h"
 
 void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
@@ -44,7 +45,7 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 		if (connectionFlags & (1 << d)) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
-			if (connectedDevice->canHaveMIDISent) {
+			if (connectedDevice->transport->canHaveMIDISent) {
 				uint32_t channeledMessage = fullMessage | (portNumber << 4);
 				connectedDevice->bufferMessage(fullMessage);
 			}

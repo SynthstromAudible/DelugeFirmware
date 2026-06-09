@@ -41,6 +41,7 @@
 #include "deluge/io/midi/midi_device_manager.h"
 
 #include "bsp/rza1/drivers/uart/uart.h"
+#include "bsp/rza1/usb_midi.h" // bsp_usb_midi_device (USB-MIDI transport state)
 #include "deluge/io/midi/midi_engine.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
@@ -1292,12 +1293,11 @@ void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bits
                                     if (deviceNum < MAX_NUM_USB_MIDI_DEVICES)
                                     { // Gotta check this - I can totally see something going wrong, with all the other
                                       // checks I'm now skipping!
-                                        connectedUSBMIDIDevices[0][deviceNum].numBytesReceived =
-                                            64 - g_usb_data_cnt[pipe];
+                                        bsp_usb_midi_device(0, deviceNum)->numBytesReceived = 64 - g_usb_data_cnt[pipe];
                                         // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not
                                         // sure why - but we need to cope with that case.
 
-                                        connectedUSBMIDIDevices[0][deviceNum].currentlyWaitingToReceive =
+                                        bsp_usb_midi_device(0, deviceNum)->currentlyWaitingToReceive =
                                             0; // Take note that we need to set up another receive
                                     }
                                 }

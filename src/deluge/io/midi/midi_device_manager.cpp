@@ -16,6 +16,7 @@
  */
 
 #include "io/midi/midi_device_manager.h"
+#include "bsp/rza1/usb_midi.h" // BspUsbMidiDevice, bsp_usb_midi_device/init (transport state)
 #include "definitions_cxx.hpp"
 #include "deluge/deluge.h" // setTimeUSBInitializationEnds (app-owned popup-suppression window)
 #include "gui/l10n/l10n.h"
@@ -74,6 +75,18 @@ uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
 
 bool anyChangesToSave = false;
+
+void init() {
+	// Point each device at its BSP-owned transport block, then let the BSP zero
+	// the transport state. Runs before the USB stack is opened, so the transport
+	// pointer is valid before any send/receive can touch it.
+	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
+		for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
+			connectedUSBMIDIDevices[ip][d].transport = bsp_usb_midi_device(ip, d);
+		}
+	}
+	bsp_usb_midi_init();
+}
 
 // Gets called within UITimerManager, which may get called during SD card routine.
 void slowRoutine() {
@@ -275,9 +288,9 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 		connectedDevice->cable[i] = device;
 	}
 
-	connectedDevice->sq = 0;
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
+	connectedDevice->transport->sq = 0;
+	connectedDevice->transport->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
+	connectedDevice->transport->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
 
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
@@ -330,7 +343,7 @@ extern "C" void configuredAsPeripheral(int32_t ip) {
 	connectedDevice->cable[1] = &upstreamUSBMIDICable2;
 	connectedDevice->cable[2] = &upstreamUSBMIDICable3;
 	connectedDevice->maxPortConnected = 2;
-	connectedDevice->canHaveMIDISent = 1;
+	connectedDevice->transport->canHaveMIDISent = 1;
 
 	anyUSBSendingStillHappening[ip] = 0; // Initialize this. There's obviously nothing sending yet right now.
 
@@ -652,33 +665,33 @@ checkDevice:
 } // namespace MIDIDeviceManager
 
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	uint32_t queued = transport->ringBufWriteIdx - transport->ringBufReadIdx;
 	if (queued > 16) {
 		if (!anyUSBSendingStillHappening[0]) {
 			midiEngine.flushUSBMIDIOutput();
 		}
-		queued = ringBufWriteIdx - ringBufReadIdx;
+		queued = transport->ringBufWriteIdx - transport->ringBufReadIdx;
 	}
 	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
 		// TODO: show some error message
 		return;
 	}
 
-	sendDataRingBuf[ringBufWriteIdx & MIDI_SEND_RING_MASK] = fullMessage;
-	ringBufWriteIdx++;
+	transport->sendDataRingBuf[transport->ringBufWriteIdx & MIDI_SEND_RING_MASK] = fullMessage;
+	transport->ringBufWriteIdx++;
 
 	anythingInUSBOutputBuffer = true;
 }
 
 bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
 	// must be the same unsigned type as ringBufWriteIdx/ringBufReadIdx
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	uint32_t queued = transport->ringBufWriteIdx - transport->ringBufReadIdx;
 	return queued > 0;
 }
 
 int ConnectedUSBMIDIDevice::sendBufferSpace() {
 	// must be the same unsigned type as ringBufWriteIdx/ringBufReadIdx
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	uint32_t queued = transport->ringBufWriteIdx - transport->ringBufReadIdx;
 	// each 4-byte MIDI-USB message contains 3 bytes of serial MIDI data
 	return (MIDI_SEND_BUFFER_LEN_RING - queued) * 3;
 }
@@ -687,7 +700,7 @@ int ConnectedUSBMIDIDevice::sendBufferSpace() {
 // moves data into the smaller "dataSendingNow" buffer where
 // it is ready to be used by the hardware driver.
 bool ConnectedUSBMIDIDevice::consumeSendData() {
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	uint32_t queued = transport->ringBufWriteIdx - transport->ringBufReadIdx;
 	if (queued == 0) {
 		return false;
 	}
@@ -706,34 +719,27 @@ bool ConnectedUSBMIDIDevice::consumeSendData() {
 
 	int32_t to_send = std::min(queued, max_size);
 	for (i = 0; i < to_send; i++) {
-		memcpy(dataSendingNow + (i * 4), &sendDataRingBuf[ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
-		ringBufReadIdx++;
+		memcpy(transport->dataSendingNow + (i * 4),
+		       &transport->sendDataRingBuf[transport->ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
+		transport->ringBufReadIdx++;
 	}
 
-	numBytesSendingNow = to_send * 4;
+	transport->numBytesSendingNow = to_send * 4;
 	return true;
 }
 
 void ConnectedUSBMIDIDevice::setup() {
-	numBytesSendingNow = 0;
-	currentlyWaitingToReceive = false;
-	numBytesReceived = 0;
+	transport->numBytesSendingNow = 0;
+	transport->currentlyWaitingToReceive = false;
+	transport->numBytesReceived = 0;
 
 	// default to only a single port
 	maxPortConnected = 0;
 }
 ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
-	currentlyWaitingToReceive = 0;
-	sq = 0;
-	canHaveMIDISent = 0;
-	numBytesReceived = 0;
-	memset(receiveData, 0, 64);
-	memset(dataSendingNow, 0, MIDI_SEND_BUFFER_LEN_INNER * 4);
-	numBytesSendingNow = 0;
-	memset(sendDataRingBuf, 0, MIDI_SEND_BUFFER_LEN_RING);
-	ringBufWriteIdx = 0;
-	ringBufReadIdx = 0;
-
+	// The transport block (RX/TX buffers, send ring, counters) lives in the BSP
+	// usb_midi module and is wired/zeroed by MIDIDeviceManager::init() at startup.
+	transport = nullptr;
 	maxPortConnected = 0;
 }
 

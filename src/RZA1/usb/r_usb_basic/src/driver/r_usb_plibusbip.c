@@ -36,6 +36,7 @@
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 
 // Added by Rohan
+#include "bsp/rza1/usb_midi.h" // bsp_usb_midi_device (USB-MIDI transport state)
 #include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 #include "deluge/io/midi/midi_device_manager.h"
 #include "deluge/io/midi/midi_engine.h"
@@ -942,13 +943,13 @@ void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
                                 g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL; // Is this necessary? Doesn't look like it
                                 // Only sets received bytes for first device
                                 // I've just pasted the relevant contents of usbReceiveComplete() in here
-                                connectedUSBMIDIDevices[0][0].numBytesReceived =
+                                bsp_usb_midi_device(0, 0)->numBytesReceived =
                                     64 - g_usb_data_cnt[pipe]; // Seems wack, but yet, tranlen is now how many bytes
                                                                // didn't get received out of the original transfer size
                                 // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not sure why
                                 // - but we need to cope with that case.
 
-                                connectedUSBMIDIDevices[0][0].currentlyWaitingToReceive =
+                                bsp_usb_midi_device(0, 0)->currentlyWaitingToReceive =
                                     0; // Take note that we need to set up another receive
                             }
                         }

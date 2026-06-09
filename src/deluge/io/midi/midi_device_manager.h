@@ -30,17 +30,11 @@ class Deserializer;
 struct MIDICableUSB;
 #endif
 
-// size in 32-bit messages
-// NOTE: increasing this even more doesn't work.
-// Looks like a hardware limitation (maybe we more in FS mode)?
-#define MIDI_SEND_BUFFER_LEN_INNER 32
-// Seems to be the max for a hydrasynth on a usb hub? We should figure out how to find this from the device config but I
-// haven't seen anything below this yet. Widi bud's can do 3, both do fine at 16 without a hub involved
-#define MIDI_SEND_BUFFER_LEN_INNER_HOST 2
-
-// MUST be an exact power of two
-#define MIDI_SEND_BUFFER_LEN_RING 1024
-#define MIDI_SEND_RING_MASK (MIDI_SEND_BUFFER_LEN_RING - 1)
+// The USB-MIDI transport state (RX/TX buffers, send ring, completion counters and
+// the send-buffer sizing) lives in the BSP usb_midi module as `BspUsbMidiDevice`;
+// see docs/dev/usb_midi_transport_relocation.md. ConnectedUSBMIDIDevice keeps only
+// the logical cable fields and points at its transport block.
+struct BspUsbMidiDevice;
 
 #ifdef __cplusplus
 /*A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
@@ -74,31 +68,20 @@ public:
 struct ConnectedUSBMIDIDevice {
 	struct MIDICableUSB* device[4];
 #endif
-	uint8_t currentlyWaitingToReceive;
-	uint8_t sq; // Only for connections as HOST
-	uint8_t canHaveMIDISent;
-	uint16_t numBytesReceived;
-	__attribute__((aligned(8))) uint8_t receiveData[64];
-
-	// This buffer is passed directly to the USB driver, and is limited to what the hardware allows
-	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN_INNER * 4];
-	// This will show a value after the general flush function is called, throughout other Devices being sent to before
-	// this one, and until we've completed our send
-	uint8_t numBytesSendingNow;
-
-	// This is a ring buffer for data waiting to be sent which doesn't fit the smaller buffer above.
-	// Any code which wants to send midi data would use the writing side and append more messages.
-	// When we are ready to send data on this device, we consume data on the reading side and move it into the
-	// smaller dataSendingNow buffer above.
-	uint32_t sendDataRingBuf[MIDI_SEND_BUFFER_LEN_RING];
-	uint32_t ringBufWriteIdx;
-	uint32_t ringBufReadIdx;
-
 	uint8_t maxPortConnected;
+
+	// USB-MIDI transport state (RX/TX buffers, send ring, completion counters)
+	// owned by the BSP usb_midi module. Wired by MIDIDeviceManager::init() at
+	// startup; the transport methods below operate through it.
+	struct BspUsbMidiDevice* transport;
 };
 
 #ifdef __cplusplus
 namespace MIDIDeviceManager {
+
+/// Wire each ConnectedUSBMIDIDevice to its BSP-owned transport block and zero the
+/// transport state. Must run once at startup before the USB stack is opened.
+void init();
 
 void slowRoutine();
 MIDICable* readDeviceReferenceFromFile(Deserializer& reader);

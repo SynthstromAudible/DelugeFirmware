@@ -27,8 +27,14 @@
 /// `<libdeluge/midi_io.h>` byte-stream boundary; the application sees only that
 /// boundary and deals in MIDI bytes (parsed/produced via the deluge_midi library).
 ///
-/// Phase 2 (this file): the interface + inert stubs. The legacy transport path is
-/// still in effect, so behaviour is unchanged until the migration phases wire it.
+/// Phase 3 (this file): the transport *state* now lives here — the per-device
+/// RX/TX buffers, the send ring and the completion counters (`BspUsbMidiDevice`),
+/// plus the Renesas USB transfer descriptors (`g_usb_midi_*_utr`, defined in the
+/// .c). The application's `ConnectedUSBMIDIDevice` keeps only the logical cable
+/// fields and points at its `BspUsbMidiDevice` here. The transport *functions*
+/// (send/receive state machine) still live in `midi_engine.cpp` and reach in via
+/// this struct until phases 4–5 move them down; the read/write stubs below are
+/// still inert.
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -36,6 +42,51 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// USB-MIDI send buffering sizes (relocated from midi_device_manager.h; these are
+// transport, not protocol).
+//
+// size in 32-bit messages. NOTE: increasing this even more doesn't work.
+// Looks like a hardware limitation (maybe we more in FS mode)?
+#define MIDI_SEND_BUFFER_LEN_INNER 32
+// Seems to be the max for a hydrasynth on a usb hub? We should figure out how to find this from the device config but I
+// haven't seen anything below this yet. Widi bud's can do 3, both do fine at 16 without a hub involved
+#define MIDI_SEND_BUFFER_LEN_INNER_HOST 2
+
+// MUST be an exact power of two
+#define MIDI_SEND_BUFFER_LEN_RING 1024
+#define MIDI_SEND_RING_MASK (MIDI_SEND_BUFFER_LEN_RING - 1)
+
+/// Per-device USB-MIDI transport state. POD, no application dependencies. The
+/// receive DMA writes `receiveData` directly, so an instance must stay in a
+/// DMA-capable region (the storage array is placed in SDRAM, as before).
+typedef struct BspUsbMidiDevice {
+	uint8_t currentlyWaitingToReceive;
+	uint8_t sq; // Only for connections as HOST
+	uint8_t canHaveMIDISent;
+	uint16_t numBytesReceived;
+	__attribute__((aligned(8))) uint8_t receiveData[64];
+
+	// This buffer is passed directly to the USB driver, and is limited to what the hardware allows
+	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN_INNER * 4];
+	// This will show a value after the general flush function is called, throughout other Devices being sent to before
+	// this one, and until we've completed our send
+	uint8_t numBytesSendingNow;
+
+	// This is a ring buffer for data waiting to be sent which doesn't fit the smaller buffer above.
+	uint32_t sendDataRingBuf[MIDI_SEND_BUFFER_LEN_RING];
+	uint32_t ringBufWriteIdx;
+	uint32_t ringBufReadIdx;
+} BspUsbMidiDevice;
+
+/// The transport block for USB-MIDI device `d` on USB IP `ip`. The application's
+/// `ConnectedUSBMIDIDevice` wires its `transport` pointer to this at startup, and
+/// the HAL receive handlers record completions through it.
+BspUsbMidiDevice* bsp_usb_midi_device(uint8_t ip, uint8_t d);
+
+/// Zero the USB-MIDI transport state. Called once at startup, before the USB
+/// stack is opened.
+void bsp_usb_midi_init(void);
 
 /// Pump the USB-MIDI send/receive state machine and drain HAL pipe-completion
 /// events. Backs `deluge_midi_service()`.
