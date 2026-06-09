@@ -49,8 +49,9 @@ target_link_libraries(deluge PUBLIC bsp_rza1)
 # into bsp_rza1 — this guarantees identical inclusion and avoids an archive
 # pruning unreferenced ISR objects. They migrate into bsp_rza1 proper as each
 # is reworked into a <libdeluge/...> port implementation.
-# Note: drivers/usb/userdef stays under src/deluge (it is RZ/A1L USB *config*
-# consumed by the RZA1 HAL itself, not a driver).
+# Note: drivers/usb/userdef/r_usb_pmidi_config.h (RZ/A1L USB-MIDI *config*,
+# consumed by the RZA1 HAL and the usb_midi port) now lives here under
+# drivers/usb/userdef, out of the application tree.
 # ---------------------------------------------------------------------------
 file(GLOB_RECURSE bsp_rza1_driver_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_LIST_DIR}/drivers/*.S

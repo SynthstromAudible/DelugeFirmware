@@ -44,10 +44,8 @@ void usb_cstd_usb_task();
 #include "RZA1/system/iodefine.h"
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
-#include "drivers/usb/userdef/r_usb_pmidi_config.h"
 
 #include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
-#include "RZA1/usb/userdef/r_usb_hmidi_config.h"
 
 extern uint16_t g_usb_peri_connected;
 

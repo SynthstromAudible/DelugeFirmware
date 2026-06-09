@@ -36,8 +36,8 @@
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 
 // Added by Rohan
+#include "bsp/rza1/drivers/usb/userdef/r_usb_pmidi_config.h"
 #include "bsp/rza1/usb_midi.h" // bsp_usb_midi_* (USB-MIDI transport boundary)
-#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"

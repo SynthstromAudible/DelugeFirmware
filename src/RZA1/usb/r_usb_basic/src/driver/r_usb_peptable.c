@@ -44,7 +44,7 @@
 #endif /* defined(USB_CFG_PMSC_USE) */
 
 #if defined(USB_CFG_PMIDI_USE)
-#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
+#include "bsp/rza1/drivers/usb/userdef/r_usb_pmidi_config.h"
 #endif
 
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)

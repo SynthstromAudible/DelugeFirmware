@@ -75,8 +75,8 @@ usb_pcdreg_t g_usb_pstd_driver;
 usb_setup_t g_usb_pstd_req_reg; /* Device Request - Request structure */
 
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
+#include "bsp/rza1/drivers/usb/userdef/r_usb_pmidi_config.h"
 #include "definitions.h"
-#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 
 /***********************************************************************************************************************
  Exported global variables

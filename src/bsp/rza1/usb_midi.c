@@ -20,10 +20,10 @@
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h" // usb_utr_t, USB_NUM_USBIP, usb_cb_t, USB_TRAN_END
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
-#include "RZA1/usb/userdef/r_usb_hmidi_config.h"           // USB_CFG_HMIDI_INT_SEND, USB_CFG_USE_USBIP
-#include "board_config.h"                                  // MAX_NUM_USB_MIDI_DEVICES, PLACE_SDRAM_BSS
-#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h" // USB_CFG_PMIDI_BULK_OUT
-#include "libdeluge/system.h"                              // ENTER/EXIT_CRITICAL_SECTION
+#include "RZA1/usb/userdef/r_usb_hmidi_config.h"    // USB_CFG_HMIDI_INT_SEND, USB_CFG_USE_USBIP
+#include "board_config.h"                           // MAX_NUM_USB_MIDI_DEVICES, PLACE_SDRAM_BSS
+#include "drivers/usb/userdef/r_usb_pmidi_config.h" // USB_CFG_PMIDI_BULK_OUT/_IN
+#include "libdeluge/system.h"                       // ENTER/EXIT_CRITICAL_SECTION
 
 #include <string.h>
 
