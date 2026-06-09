@@ -16,6 +16,7 @@
  */
 
 #include "usb_common.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "io/midi/midi_engine.h"
 
 void MIDICableUSB::checkIncomingSysex(uint8_t const* msg, [[maybe_unused]] int32_t ip, [[maybe_unused]] int32_t d) {
@@ -85,6 +86,10 @@ static uint32_t setupUSBMessage(MIDIMessage message) {
 
 Error MIDICableUSB::sendMessage(MIDIMessage message) {
 	if (!connectionFlags) {
+		return Error::NONE;
+	}
+
+	if (launchpad_extension::shouldBlockOutgoingMidi(*this, message)) {
 		return Error::NONE;
 	}
 

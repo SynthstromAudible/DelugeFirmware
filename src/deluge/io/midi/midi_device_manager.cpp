@@ -23,6 +23,8 @@
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/cable_types/usb_hosted.h"
+#include "io/midi/device_specific/midi_device_launchpad_mk3.h"
+#include "io/midi/device_specific/novation_launchpad_mk3.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -157,6 +159,10 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 	MIDICableUSBHosted* device = nullptr;
 
 	SpecificMidiDeviceType devType = getSpecificMidiDeviceType(vendorId, productId);
+	if (devType == SpecificMidiDeviceType::LAUNCHPAD_MK3
+	    && (!gotAName || !novation_launchpad_mk3::nameIsMidiPort(name->get()))) {
+		devType = SpecificMidiDeviceType::NONE;
+	}
 	if (devType == SpecificMidiDeviceType::LUMI_KEYS) {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceLumiKeys));
 		if (!memory) {
@@ -164,6 +170,15 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 		}
 
 		MIDIDeviceLumiKeys* instDevice = new (memory) MIDIDeviceLumiKeys();
+		device = instDevice;
+	}
+	else if (devType == SpecificMidiDeviceType::LAUNCHPAD_MK3) {
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceLaunchpadMK3));
+		if (!memory) {
+			return nullptr;
+		}
+
+		MIDIDeviceLaunchpadMK3* instDevice = new (memory) MIDIDeviceLaunchpadMK3();
 		device = instDevice;
 	}
 	else {

@@ -23,6 +23,10 @@ SpecificMidiDeviceType getSpecificMidiDeviceType(uint16_t vendorId, uint16_t pro
 		return SpecificMidiDeviceType::LUMI_KEYS;
 	}
 
+	if (novation_launchpad_mk3::matchesVendorProduct(vendorId, productId)) {
+		return SpecificMidiDeviceType::LAUNCHPAD_MK3;
+	}
+
 	return SpecificMidiDeviceType::NONE;
 }
 

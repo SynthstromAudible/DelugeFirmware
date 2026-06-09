@@ -126,7 +126,13 @@ public:
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
+	ActionResult gridHandlePadsFromLaunchpad(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+	void launchpadGridScroll(int32_t offsetX, int32_t offsetY);
+	void launchpadStartSectionFromRow(int32_t y);
+	void launchpadTogglePlayStop();
+	void launchpadToggleRecord();
+	void launchpadSyncGridLedsNow();
 
 	// ui
 	UIType getUIType() override { return UIType::SESSION; }
@@ -211,7 +217,9 @@ private:
 	bool gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 
-	RGB gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse = true);
+	RGB gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse = true, bool stableMirror = false);
+	void launchpadRenderGrid(RGB image[][kDisplayWidth + kSideBarWidth],
+	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
@@ -233,6 +241,14 @@ private:
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
+
+	// Launchpad-only press state — does not affect Deluge grid mode or UI mode.
+	int32_t launchpadFirstPressedX = -1;
+	int32_t launchpadFirstPressedY = -1;
+	int32_t launchpadSecondPressedX = -1;
+	int32_t launchpadSecondPressedY = -1;
+	uint32_t launchpadSelectedClipTimePressed = 0;
+	void launchpadResetPress();
 
 	inline void gridResetPresses(bool first = true, bool second = true) {
 		if (first) {
