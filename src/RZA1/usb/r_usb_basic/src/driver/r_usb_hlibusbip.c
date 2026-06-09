@@ -38,11 +38,9 @@
 #include "RZA1/usb/userdef/r_usb_hmidi_config.h"
 
 #include "definitions.h"
-#include "deluge/io/midi/midi_device_manager.h"
 
 #include "bsp/rza1/drivers/uart/uart.h"
-#include "bsp/rza1/usb_midi.h" // bsp_usb_midi_device (USB-MIDI transport state)
-#include "deluge/io/midi/midi_engine.h"
+#include "bsp/rza1/usb_midi.h" // bsp_usb_midi_* (USB-MIDI transport boundary)
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "drivers/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
@@ -1293,12 +1291,8 @@ void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bits
                                     if (deviceNum < MAX_NUM_USB_MIDI_DEVICES)
                                     { // Gotta check this - I can totally see something going wrong, with all the other
                                       // checks I'm now skipping!
-                                        bsp_usb_midi_device(0, deviceNum)->numBytesReceived = 64 - g_usb_data_cnt[pipe];
-                                        // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not
-                                        // sure why - but we need to cope with that case.
-
-                                        bsp_usb_midi_device(0, deviceNum)->currentlyWaitingToReceive =
-                                            0; // Take note that we need to set up another receive
+                                        // Report the bulk-IN completion to the BSP transport (which owns the buffers).
+                                        bsp_usb_midi_receive_complete(0, deviceNum, 64 - g_usb_data_cnt[pipe]);
                                     }
                                 }
                             }

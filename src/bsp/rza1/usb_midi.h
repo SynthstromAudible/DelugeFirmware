@@ -120,10 +120,17 @@ void bsp_usb_midi_send_complete_as_peripheral(int32_t ip);
 
 // --- Receive path (BSP-owned: the bulk-IN transfer setup + the receive DMA
 // buffers). The HAL bulk-IN (BRDY) handlers write the received bytes straight into
-// the device's receiveData and record the length; the application drains and
-// decodes that buffer, then asks the BSP to arm the next transfer. (Re)arm the
-// receive transfer for a hosted device or for the upstream peripheral; call with
-// the USB lock held.
+// the device's receiveData and report the length here; the application drains and
+// decodes that buffer, then asks the BSP to arm the next transfer.
+
+/// Record a completed bulk-IN transfer for a device: `bytesReceived` bytes are now
+/// in its receiveData buffer, and it is no longer waiting to receive. Called by the
+/// HAL bulk-IN handler; the HAL reports the event and does not touch BSP state
+/// directly.
+void bsp_usb_midi_receive_complete(uint8_t ip, uint8_t deviceNum, uint16_t bytesReceived);
+
+/// (Re)arm the receive transfer for a hosted device or for the upstream peripheral;
+/// call with the USB lock held.
 void bsp_usb_midi_setup_host_receive_transfer(int32_t ip, int32_t midiDeviceNum);
 void bsp_usb_midi_rearm_peripheral_receive(int32_t ip);
 

@@ -400,18 +400,18 @@ void bsp_usb_midi_send_complete_as_peripheral(int32_t ip) {
 
 // --- Receive completion + transfer setup --------------------------------------
 
-// Record a completed bulk-IN transfer for a device. tranlen is how many bytes of
-// the 64-byte request did NOT arrive, so 64 - tranlen is the count received.
-static void receive_complete(int32_t ip, int32_t deviceNum, int32_t tranlen) {
+// Record a completed bulk-IN transfer for a device: bytesReceived bytes are now in
+// its receiveData buffer. (Sometimes, e.g. with a Teensy knob box, this is 0; cope.)
+void bsp_usb_midi_receive_complete(uint8_t ip, uint8_t deviceNum, uint16_t bytesReceived) {
 	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, deviceNum);
-	// Warning - sometimes (with a Teensy, e.g. a knob box) length will be 0; cope.
-	dev->numBytesReceived = 64 - tranlen;
+	dev->numBytesReceived = bytesReceived;
 	dev->currentlyWaitingToReceive = 0; // need to set up another receive
 }
 
 // Registered as the receive descriptor's completion callback. On the RZ/A1L the
-// HAL bulk-IN handlers usually record completions inline (writing the device's
-// receiveData directly), so this is the parity path for when the callback is used.
+// HAL bulk-IN handlers usually report completions via bsp_usb_midi_receive_complete()
+// directly, so this is the parity path for when the callback is used. tranlen is how
+// many bytes of the 64-byte request did NOT arrive, so 64 - tranlen were received.
 static void receive_complete_callback(usb_utr_t* p_mess, uint16_t data1, uint16_t data2) {
 	(void)data1;
 	(void)data2;
@@ -427,7 +427,7 @@ static void receive_complete_callback(usb_utr_t* p_mess, uint16_t data1, uint16_
 	}
 
 	int32_t deviceNum = p_mess - &g_usb_midi_recv_utr[ip][0];
-	receive_complete(ip, deviceNum, p_mess->tranlen);
+	bsp_usb_midi_receive_complete(ip, deviceNum, 64 - p_mess->tranlen);
 }
 
 // Lock USB before calling this!
