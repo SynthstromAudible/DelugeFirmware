@@ -1,11 +1,11 @@
 # MIDI-engine HAL residue relocation (flash-test-gated)
 
-**Status:** W1/W2/W3/W5 done + includes dropped — `midi_engine.cpp` has left the
-allowlist (on `feat/libdeluge-midi-engine`, build-green). W4 (the receive
-pull-through) is **deferred**; see the outcome note below. The whole change
-touches the live real-time USB + DIN/serial MIDI path, so — like the USB-MIDI
-transport relocation it finishes — **the result must be flash-tested host +
-peripheral + DIN before merge.** Only the final state is meaningfully testable;
+**Status:** all phases done (W1/W2/W3/W4/W5) + includes dropped on
+`feat/libdeluge-midi-engine`, build-green. `midi_engine.cpp` has left the
+allowlist and no longer reaches into the BSP-owned *receive* transport. The whole
+change touches the live real-time USB + DIN/serial MIDI path, so — like the
+USB-MIDI transport relocation it finishes — **the result must be flash-tested host
++ peripheral + DIN before merge.** Only the final state is meaningfully testable;
 intermediate phases are build-green only.
 
 ## Outcome (2026-06-09)
@@ -31,12 +31,23 @@ BSP-owned transport via `bsp/rza1/usb_midi.h`
 / `usbDeviceNumBeingSentToNow` / `timeLastBRDY` externs), but that include does
 **not** gate leaving the allowlist. So the stated goal was reached without W4.
 
-**Why W4 is deferred:** it is the structural crux that changes the real-time
-receive-decode and the clock-in timestamp association (per-batch `timeLastBRDY`
-→ a timed/last-RX-ticks boundary op) — the single most flash-test-sensitive part
-(audible clock jitter), and it needs the timed-read shape designed. Doing it
-blind and committing it without hardware is the wrong trade. It remains the next
-step toward dropping the `bsp/rza1/usb_midi.h` reach-in and the C-ABI end state.
+**W4 (done):** the receive decode no longer dereferences the transport. Added
+per-device BSP ops — `bsp_usb_midi_receive_pending`, `bsp_usb_midi_drain_received`,
+`bsp_usb_midi_last_rx_ticks`, `bsp_usb_midi_host_send_idle` — and `checkIncomingUsbMidi`
+now drains into a local buffer and decodes each 4-byte packet with
+`deluge::midi::decode_event`. The `nullopt` branch preserves the old split exactly
+(CIN 2/3 or ≥8 with a high data bit → abandon frame; SysEx/reserved CINs → the
+streaming SysEx parser). **Timestamp:** the per-batch value is the same
+`timeLastBRDY[ip]` read at the same point, now via `bsp_usb_midi_last_rx_ticks()`
+— no unit change or re-sampling, so clock-in timing is unchanged by construction.
+The three externs (`stopSendingAfterDeviceNum`, `usbDeviceNumBeingSentToNow`,
+`timeLastBRDY`) were removed from `midi_engine.cpp`.
+
+**Remaining reach-in (out of W4 scope):** the *send* path still reads
+`transport->canHaveMIDISent` (sendUsbMidi) via `bsp/rza1/usb_midi.h`. That is a
+`bsp/` include, not a HAL (`RZA1/`) one, so it does not gate the allowlist; moving
+it (and a generic port-enumerated `deluge_midi_read`) behind the boundary is the
+next cleanliness step toward the C-ABI end state.
 
 ## Goal
 
