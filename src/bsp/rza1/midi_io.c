@@ -45,6 +45,14 @@ bool deluge_midi_port_connected(DelugeMidiPort port) {
 	return bsp_usb_midi_port_connected(port);
 }
 
+bool deluge_midi_usb_is_host(void) {
+	return bsp_usb_midi_is_host();
+}
+
+bool deluge_midi_usb_peripheral_connected(void) {
+	return bsp_usb_midi_peripheral_connected();
+}
+
 DelugeUsbHostEvent deluge_midi_poll_usb_host_event(void) {
 	switch (usbHostEventTake()) {
 	case USB_HOST_EVENT_HUB_ATTACHED:

@@ -78,6 +78,19 @@ void deluge_midi_service(void);
 /// app polls this instead of reading USB-stack connection globals. [task]
 bool deluge_midi_port_connected(DelugeMidiPort port);
 
+/// USB-MIDI role queries. On this board USB host is the MIDI-device transport, so
+/// the app reads its role through the MIDI boundary rather than the USB-stack mode
+/// globals.
+///
+/// True when the USB controller acts as a host (devices plug into the Deluge);
+/// false when it is a peripheral (the Deluge plugs into a computer). The app uses
+/// this to decide how many USB-MIDI devices it may enumerate per controller. [task]
+bool deluge_midi_usb_is_host(void);
+
+/// True when, as a USB peripheral, a host is attached (has enumerated us).
+/// Meaningless in host mode. [task]
+bool deluge_midi_usb_peripheral_connected(void);
+
 /// A USB-host enumeration event observed since the last poll. USB host is the
 /// MIDI-device transport on this board, so these surface through the MIDI
 /// boundary.

@@ -482,6 +482,14 @@ bool bsp_usb_midi_port_connected(uint8_t port) {
 	return false;
 }
 
+bool bsp_usb_midi_is_host(void) {
+	return g_usb_usbmode == USB_HOST;
+}
+
+bool bsp_usb_midi_peripheral_connected(void) {
+	return g_usb_peri_connected != 0;
+}
+
 uint32_t bsp_usb_midi_read(uint8_t port, uint8_t* dst, uint32_t max) {
 	(void)port;
 	(void)dst;

@@ -27,6 +27,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/sysex.h"
+#include "libdeluge/midi_io.h"
 #include "libdeluge/system.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
@@ -46,16 +47,14 @@ void usb_cstd_usb_task();
 
 #include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
 
-extern uint16_t g_usb_peri_connected;
-
 // Send-path state lives in the BSP usb_midi module now; the receive decode below
 // still reads these two (the host re-arm guard) until phases 6-7.
-extern uint8_t stopSendingAfterDeviceNum[USB_NUM_USBIP];
-extern uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
+extern uint8_t stopSendingAfterDeviceNum[DELUGE_USB_NUM_CONTROLLERS];
+extern uint8_t usbDeviceNumBeingSentToNow[DELUGE_USB_NUM_CONTROLLERS];
 
 // Timestamp of the last bulk-IN completion, recorded by the HAL and defined in the
 // BSP usb_midi module; read here to timestamp incoming MIDI clock messages.
-extern uint32_t timeLastBRDY[USB_NUM_USBIP];
+extern uint32_t timeLastBRDY[DELUGE_USB_NUM_CONTROLLERS];
 
 // The USB-MIDI send and receive *transport* (transfer descriptors, transfer setup,
 // completion handlers, the bulk-IN timestamp) now lives in the BSP usb_midi module.
@@ -88,8 +87,7 @@ MidiEngine::MidiEngine() {
 }
 
 int32_t MidiEngine::getPotentialNumConnectedUSBMIDIDevices(int32_t ip) {
-	bool potentiallyAHost = (g_usb_usbmode == USB_HOST);
-	// bool aPeripheral = g_usb_peri_connected;
+	bool potentiallyAHost = deluge_midi_usb_is_host();
 	return potentiallyAHost ? MAX_NUM_USB_MIDI_DEVICES : 1;
 }
 
@@ -229,7 +227,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 
 	// formats message per USB midi spec on virtual cable 0
 	uint32_t fullMessage = setupUSBMessage(message);
-	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
+	for (int32_t ip = 0; ip < DELUGE_USB_NUM_CONTROLLERS; ip++) {
 		int32_t potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
 
 		for (int32_t d = 0; d < potentialNumDevices; d++) {
@@ -521,10 +519,10 @@ void MidiEngine::checkIncomingUsbMidi() {
 	bool usbLockNow = usbLock;
 	check_incoming_usb();
 
-	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
+	for (int32_t ip = 0; ip < DELUGE_USB_NUM_CONTROLLERS; ip++) {
 
-		bool aPeripheral = (g_usb_usbmode != USB_HOST);
-		if (aPeripheral && !g_usb_peri_connected) {
+		bool aPeripheral = !deluge_midi_usb_is_host();
+		if (aPeripheral && !deluge_midi_usb_peripheral_connected()) {
 			continue;
 		}
 		// assumes only single device in peripheral mode

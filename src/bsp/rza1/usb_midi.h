@@ -141,6 +141,15 @@ void bsp_usb_midi_service(void);
 /// Whether USB-MIDI `port` currently has a live (enumerated) endpoint.
 bool bsp_usb_midi_port_connected(uint8_t port);
 
+/// USB role queries. On this board the USB controller is the MIDI-device
+/// transport, so its host/peripheral role surfaces through the MIDI boundary.
+/// `bsp_usb_midi_is_host()` is true when the controller hosts devices (they plug
+/// into the Deluge); `bsp_usb_midi_peripheral_connected()` is true when, as a
+/// peripheral, a host has enumerated us. These replace the app reading the USB
+/// mode globals (g_usb_usbmode / g_usb_peri_connected) directly.
+bool bsp_usb_midi_is_host(void);
+bool bsp_usb_midi_peripheral_connected(void);
+
 /// Copy up to `max` received bytes from USB-MIDI `port` into `dst`; returns the
 /// count copied. Backs `deluge_midi_read()` for USB ports.
 uint32_t bsp_usb_midi_read(uint8_t port, uint8_t* dst, uint32_t max);
