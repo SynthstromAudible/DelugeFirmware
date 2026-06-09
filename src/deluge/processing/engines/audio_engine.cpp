@@ -16,7 +16,6 @@
  */
 
 #include "processing/engines/audio_engine.h"
-#include "RZA1/cpu_specific.h"
 
 #include "chrono"
 #include "definitions.h"
@@ -76,21 +75,7 @@ namespace params = deluge::modulation::params;
 
 extern "C" {
 #include "drivers/ssi/ssi.h"
-
-#include "RZA1/intc/devdrv_intc.h"
-// void *__dso_handle = NULL; // This fixes an insane error.
 }
-
-#define DISABLE_INTERRUPTS_COUNT (sizeof(disableInterrupts) / sizeof(uint32_t))
-uint32_t disableInterrupts[] = {INTC_ID_SPRI0,
-                                INTC_ID_DMAINT0 + PIC_TX_DMA_CHANNEL,
-                                IRQ_INTERRUPT_0 + 6,
-                                INTC_ID_USBI0,
-                                INTC_ID_SDHI1_0,
-                                INTC_ID_SDHI1_3,
-                                INTC_ID_DMAINT0 + OLED_SPI_DMA_CHANNEL,
-                                INTC_ID_DMAINT0 + MIDI_TX_DMA_CHANNEL,
-                                INTC_ID_SDHI1_1};
 
 using namespace deluge;
 
@@ -181,7 +166,7 @@ uint8_t numHopsEndedThisRoutineCall;
 LiveInputBuffer* liveInputBuffers[3];
 
 // For debugging
-uint16_t lastRoutineTime;
+double lastRoutineTime;
 
 alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingMemory;
 alignas(CACHE_LINE_SIZE) std::array<int32_t, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reverbMemory;
@@ -264,7 +249,7 @@ enum CullType { HARD, FORCE, SOFT_ALWAYS, SOFT };
 bool definitelyLog = false;
 #if DO_AUDIO_LOG
 
-uint16_t audioLogTimes[AUDIO_LOG_SIZE];
+double audioLogTimes[AUDIO_LOG_SIZE];
 char audioLogStrings[AUDIO_LOG_SIZE][64];
 const char* audioLogFiles[AUDIO_LOG_SIZE];
 int audioLogLines[AUDIO_LOG_SIZE];
@@ -1202,7 +1187,7 @@ void logAudioAction(char const* string, const char* file, int line) {
 #if DO_AUDIO_LOG
 	if (numAudioLogItems >= AUDIO_LOG_SIZE)
 		return;
-	audioLogTimes[numAudioLogItems] = *TCNT[TIMER_SYSTEM_FAST];
+	audioLogTimes[numAudioLogItems] = getSystemTime();
 	strcpy(audioLogStrings[numAudioLogItems], string);
 	audioLogFiles[numAudioLogItems] = file;
 	audioLogLines[numAudioLogItems] = line;
@@ -1212,22 +1197,20 @@ void logAudioAction(char const* string, const char* file, int line) {
 
 void dumpAudioLog() {
 #if DO_AUDIO_LOG
-	uint16_t currentTime = *TCNT[TIMER_SYSTEM_FAST];
-	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
-	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
+	double currentTime = getSystemTime();
+	uint32_t timePassedUSA = (uint32_t)((currentTime - lastRoutineTime) * 1e6);
 	if (timePassedUSA > (2500)) {
 
 		D_PRINTLN("Audio log dump");
 		for (int32_t i = 0; i < numAudioLogItems; i++) {
-			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
-			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
+			uint32_t timePassedUS = (uint32_t)((audioLogTimes[i] - lastRoutineTime) * 1e6);
 			logDebug(kDebugPrintModeNewlined, audioLogFiles[i], audioLogLines[i], 256, "\t %d us:  %s", timePassedUS,
 			         audioLogStrings[i]);
 		}
 
 		D_PRINTLN("%d: end", timePassedUSA);
 	}
-	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
+	lastRoutineTime = getSystemTime();
 	numAudioLogItems = 0;
 #endif
 }

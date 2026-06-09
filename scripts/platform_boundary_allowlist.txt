@@ -11,4 +11,3 @@
 
 src/deluge/hid/encoder.cpp
 src/deluge/hid/encoders.cpp
-src/deluge/processing/engines/audio_engine.cpp
