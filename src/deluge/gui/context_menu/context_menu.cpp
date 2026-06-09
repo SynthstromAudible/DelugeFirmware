@@ -22,6 +22,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
+#include "libdeluge/scheduler.h" // isSDRoutineActive()
 #include "storage/flash_storage.h"
 
 namespace deluge::gui {
@@ -206,7 +207,7 @@ void ContextMenu::drawCurrentOption() {
 
 ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		display->setNextTransitionDirection(-1);

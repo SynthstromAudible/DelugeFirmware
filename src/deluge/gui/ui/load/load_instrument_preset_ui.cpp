@@ -398,7 +398,7 @@ doChangeOutputType:
 ActionResult LoadInstrumentPresetUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // The below needs to access the card.
 		}
 
@@ -1132,7 +1132,7 @@ ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on)
 	else if (x == kDisplayWidth) {
 potentiallyExit:
 		if (on && !currentUIMode) {
-			if (sdRoutineLock) {
+			if (isSDRoutineActive()) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			exitAction();

@@ -144,7 +144,7 @@ bool NewClipType::acceptCurrentOption() {
 		b = CV;
 	}
 
-	sessionView.clipCreationButtonPressed(b, 1, sdRoutineLock); // let the grid handle this
+	sessionView.clipCreationButtonPressed(b, 1, isSDRoutineActive()); // let the grid handle this
 
 	return true;
 }

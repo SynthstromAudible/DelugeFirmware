@@ -164,7 +164,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		// Or if still here, we've already scrolled far-right
 
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
@@ -185,7 +185,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	             && Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW))) {
 		// Just be safe - maybe not necessary
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 

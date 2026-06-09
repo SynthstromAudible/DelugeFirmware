@@ -698,7 +698,7 @@ ActionResult SampleBrowser::padAction(int32_t x, int32_t y, int32_t on) {
 possiblyExit:
 		if (on && !currentUIMode) {
 			AudioEngine::stopAnyPreviewing();
-			if (sdRoutineLock) {
+			if (isSDRoutineActive()) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			exitAction();
@@ -709,7 +709,7 @@ possiblyExit:
 		// If qwerty not visible yet, make it visible
 		if (!qwertyVisible) {
 			if (on && !currentUIMode) {
-				if (sdRoutineLock) {
+				if (isSDRoutineActive()) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
@@ -2049,7 +2049,7 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	    && (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) || waveformBasicNavigator.isZoomedIn())) {
 
 		// We're quite likely going to need to read the SD card to do either scrolling or zooming
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 

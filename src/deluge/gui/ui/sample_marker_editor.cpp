@@ -345,7 +345,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 
 ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
@@ -741,7 +741,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 	}
 
 	// We're quite likely going to need to read the SD card to do either scrolling or zooming
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 

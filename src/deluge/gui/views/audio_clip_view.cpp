@@ -477,7 +477,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 		else {
-			if (sdRoutineLock) {
+			if (isSDRoutineActive()) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
@@ -571,7 +571,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 	else if (x == kDisplayWidth) {
 		if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
-			if (sdRoutineLock) {
+			if (isSDRoutineActive()) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (!on) {
@@ -802,7 +802,7 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 		return ActionResult::DEALT_WITH;
 	}
 
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 

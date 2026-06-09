@@ -289,7 +289,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 
 			else if (!currentUIMode) {
-				if (sdRoutineLock) {
+				if (isSDRoutineActive()) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 				enterKeyPress();
@@ -355,7 +355,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 					if (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {}
 
 					// But if otherwise accessing card, not fine - e.g. if loading song visual preview
-					else if (sdRoutineLock) {
+					else if (isSDRoutineActive()) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
@@ -373,7 +373,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 					// Or if the card is just generally being accessed (e.g. samples being buffered), come back soon,
 					// because we couldn't do anything like a "prediction" right now
-					else if (sdRoutineLock) {
+					else if (isSDRoutineActive()) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 					else {

@@ -141,7 +141,7 @@ bool interpretEncoders(bool skipActioning) {
 		return false;
 	}
 
-	skipActioning |= sdRoutineLock; // if the "sd routine" is yielding then always defer actioning encoders
+	skipActioning |= isSDRoutineActive(); // if the "sd routine" is yielding then always defer actioning encoders
 	bool anything = false;
 
 	if (!skipActioning) {

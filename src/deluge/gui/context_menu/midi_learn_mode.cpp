@@ -82,7 +82,7 @@ ActionResult MidiLearnMode::buttonAction(deluge::hid::Button b, bool on, bool in
 }
 
 ActionResult MidiLearnMode::padAction(int32_t x, int32_t y, int32_t on) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	// don't allow user to switch modes

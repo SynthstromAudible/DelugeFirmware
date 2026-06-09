@@ -963,7 +963,7 @@ void ArrangerView::auditionEnded() {
 }
 
 ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
@@ -2936,7 +2936,7 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 
 	if (new_x_scroll != currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
 
-		if (dragging_clip_instance && sdRoutineLock) {
+		if (dragging_clip_instance && isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
@@ -3021,7 +3021,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 			}
 		}
 
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 

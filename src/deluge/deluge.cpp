@@ -93,8 +93,6 @@ extern "C" void disk_timerproc(UINT msPassed);
 Song* currentSong = nullptr;
 Song* preLoadedSong = nullptr;
 
-bool sdRoutineLock = false;
-
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
 extern "C" void midiAndGateTimerGoneOff(void) {
@@ -250,7 +248,7 @@ bool readButtonsAndPads() {
 	*/
 
 	if (waitingForSDRoutineToEnd) {
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return false;
 		}
 		D_PRINTLN("got to end of sd routine");
@@ -279,7 +277,7 @@ bool readButtonsAndPads() {
 			}
 			else {
 				auto b = deluge::hid::Button(value);
-				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
+				result = Buttons::buttonAction(b, thisPadPressIsOn, isSDRoutineActive());
 			}
 
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
@@ -296,9 +294,9 @@ bool readButtonsAndPads() {
 
 		// "No presses happening" message
 		else if (value == PIC::Response::NO_PRESSES_HAPPENING) {
-			if (!sdRoutineLock) {
-				matrixDriver.noPressesHappening(sdRoutineLock);
-				Buttons::noPressesHappening(sdRoutineLock);
+			if (!isSDRoutineActive()) {
+				matrixDriver.noPressesHappening(isSDRoutineActive());
+				Buttons::noPressesHappening(isSDRoutineActive());
 			}
 		}
 		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
@@ -306,7 +304,7 @@ bool readButtonsAndPads() {
 		}
 	}
 
-	if (!sdRoutineLock && Buttons::shiftHasChanged()
+	if (!isSDRoutineActive() && Buttons::shiftHasChanged()
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
 		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
 	}
@@ -880,7 +878,7 @@ extern "C" int32_t deluge_main(void) {
 
 	D_PRINTLN("going into main loop");
 	L2CacheUnlockData();
-	sdRoutineLock = false; // Allow SD routine to start happening
+	// (The SD-routine reentrancy flag is scheduler-owned and starts clear; no reset needed here.)
 
 #ifdef USE_TASK_MANAGER
 	registerTasks();

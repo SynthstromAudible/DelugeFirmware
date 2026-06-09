@@ -1241,7 +1241,7 @@ void AudioFileManager::slowRoutine() {
 	}
 
 	// If we know the card's been ejected...
-	if (cardEjected && !sdRoutineLock) {
+	if (cardEjected && !isSDRoutineActive()) {
 		Error error = StorageManager::initSD();
 		if (error == Error::NONE) {
 			cardEjected = false;

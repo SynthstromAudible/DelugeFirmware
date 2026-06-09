@@ -80,6 +80,11 @@ bool yieldWithTimeout(RunCondition until, double timeout);
 /// yield until the condition is met, but return immediately if the scheduler is idle
 /// use if you're yielding in a loop such as the sd routine
 bool yieldToIdle(RunCondition until);
+/// True while a slow-storage (SD / SPI-flash / USB) busy-wait is yielding to the scheduler.
+/// The reentrancy guard the yieldingRoutine*ForSD hooks set; the application reads it to gate
+/// user actions that must not run re-entrantly inside a storage routine. Owned by the
+/// scheduler (the runtime concurrency layer), not the app — on Embassy this is a runtime flag.
+bool isSDRoutineActive(void);
 /// start the task scheduler
 void startTaskManager();
 #ifdef __cplusplus

@@ -18,7 +18,6 @@
 #define RESOURCE_CHECKER_H
 #include <OSLikeStuff/scheduler_api.h>
 #include <bitset>
-#include <extern.h>
 extern uint8_t currentlyAccessingCard;
 extern uint32_t usbLock;
 // this is basically a bitset however the enums need to be exposed to C code and this is easier to keep synced
@@ -42,7 +41,7 @@ public:
 			anythingLocked |= usbLock;
 		}
 		if ((resources_ & RESOURCE_SD_ROUTINE) != 0u) {
-			anythingLocked |= sdRoutineLock;
+			anythingLocked |= isSDRoutineActive();
 		}
 		return !anythingLocked;
 	}

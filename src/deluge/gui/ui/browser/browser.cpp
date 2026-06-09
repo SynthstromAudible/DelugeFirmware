@@ -1577,7 +1577,7 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 
 	if (favouritesVisible && y == favouriteRow && on) {
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (Buttons::isShiftButtonPressed()) {
@@ -1610,7 +1610,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::DEALT_WITH;
 	}
 	else if (favouritesVisible && banksVisible && y == favouriteBankRow && on) {
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		favouritesManager.selectFavouritesBank(x);
@@ -1643,7 +1643,7 @@ ActionResult Browser::mainButtonAction(bool on) {
 	// Press down
 	if (on) {
 		if (currentUIMode == UI_MODE_NONE) {
-			if (sdRoutineLock) {
+			if (isSDRoutineActive()) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, LONG_PRESS_DURATION);
@@ -1654,7 +1654,7 @@ ActionResult Browser::mainButtonAction(bool on) {
 	// Release press
 	else {
 		if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
-			if (sdRoutineLock) {
+			if (isSDRoutineActive()) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			currentUIMode = UI_MODE_NONE;
@@ -1669,7 +1669,7 @@ ActionResult Browser::mainButtonAction(bool on) {
 // Virtual function - may be overridden, by child classes that need to do more stuff, e.g. SampleBrowser needs to mute
 // any previewing Sample.
 ActionResult Browser::backButtonAction() {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	Error error = goUpOneDirectoryLevel();

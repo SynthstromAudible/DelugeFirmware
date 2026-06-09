@@ -1031,7 +1031,7 @@ void routine() {
 		}
 	}
 	else {
-		if (!sdRoutineLock) {
+		if (!isSDRoutineActive()) {
 			auto timeNow = getSystemTime();
 			while (getSystemTime() < timeNow + 32 / 44100.) {
 				size_t numSamples = 32;
@@ -1459,7 +1459,7 @@ void doRecorderCardRoutines() {
 }
 
 void slowRoutine() {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		// can happen if the SD routine is yielding
 		return;
 	}

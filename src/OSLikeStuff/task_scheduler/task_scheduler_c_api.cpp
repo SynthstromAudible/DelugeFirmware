@@ -19,9 +19,19 @@
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
 #include "RZA1/intc/devdrv_intc.h" // intc_func_active — HAL state read by the ISR guard
 #include "libdeluge/storage_wait.h"
-#include "resource_checker.h" // pulls in <extern.h> for the app-visible sdRoutineLock
+#include "resource_checker.h"
 
 extern TaskManager taskManager;
+
+// The slow-storage reentrancy flag, owned by the scheduler (the runtime concurrency layer).
+// Set around a storage busy-wait yield by the hooks below; read by the app via
+// isSDRoutineActive() to gate user actions. Was the app-global sdRoutineLock in deluge.cpp.
+namespace {
+bool sdRoutineActive = false;
+}
+extern "C" bool isSDRoutineActive() {
+	return sdRoutineActive;
+}
 
 extern "C" {
 void startTaskManager() {
@@ -75,8 +85,9 @@ bool yieldToIdle(RunCondition until) {
 // contract). The HAL/BSP calls these while spinning on SD / SPI-flash / USB so the
 // scheduler keeps audio + UI + USB alive. Relocated here from the application: they
 // are pure concurrency logic (an ISR guard, a reentrancy lock, a scheduler yield) and
-// name no app code. sdRoutineLock stays app-visible (the UI reads it to gate user
-// actions); intc_func_active is HAL state (the active interrupt id, 0 outside an ISR).
+// name no app code. sdRoutineActive is the scheduler-owned reentrancy flag the app reads
+// via isSDRoutineActive(); intc_func_active is HAL state (the active interrupt id, 0
+// outside an ISR).
 bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) {
 	if (intc_func_active != 0) {
 		return false;
@@ -84,7 +95,7 @@ bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) 
 	auto timeNow = getSystemTime();
 	// We lock this to prevent multiple entry. Otherwise a storage wait could re-enter itself
 	// through the work it yields to: SD wait -> audio task -> USB -> SD wait.
-	if (sdRoutineLock) {
+	if (sdRoutineActive) {
 		// busy wait - matches running sdroutine in a loop while checking for condition
 		while (!until()) {
 			if (getSystemTime() > timeNow + timeoutSeconds) {
@@ -93,9 +104,9 @@ bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) 
 		}
 		return true;
 	}
-	sdRoutineLock = true;
+	sdRoutineActive = true;
 	bool ret = yieldWithTimeout(until, timeoutSeconds);
-	sdRoutineLock = false;
+	sdRoutineActive = false;
 	return ret;
 }
 
@@ -106,16 +117,16 @@ void yieldingRoutineForSD(RunCondition until) {
 
 	// We lock this to prevent multiple entry. Otherwise a storage wait could re-enter itself
 	// through the work it yields to: SD wait -> audio task -> USB -> SD wait.
-	if (sdRoutineLock) {
+	if (sdRoutineActive) {
 		// busy wait - matches running sdroutine in a loop while checking for condition
 		while (!until()) {
 			asm volatile("nop");
 		}
 		return;
 	}
-	sdRoutineLock = true;
+	sdRoutineActive = true;
 	yield(until);
-	sdRoutineLock = false;
+	sdRoutineActive = false;
 }
 
 void removeTask(TaskID id) {
