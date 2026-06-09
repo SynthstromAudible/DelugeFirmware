@@ -145,41 +145,42 @@ int32_t Userdef_SFLASH_Write_Enable(uint32_t ch_no)
  * Return Value :  0 : success
  *                -1 : error
  ******************************************************************************/
-int32_t Userdef_SFLASH_Busy_Wait(uint32_t ch_no, uint32_t dual, uint8_t data_width)
+/* Captureless RunCondition state for Userdef_SFLASH_Busy_Wait. Single-core cooperative,
+   so the wait completes before another busy-wait can start. */
+static uint32_t s_sf_ch_no;
+static uint32_t s_sf_dual;
+static uint8_t s_sf_data_width;
+
+static bool sflash_not_busy(void)
 {
     uint8_t st_reg1;
     uint8_t st_reg2;
-    int32_t ret;
-
-    while (1)
+    read_status(&st_reg1, &st_reg2, s_sf_ch_no, s_sf_dual, s_sf_data_width);
+    if (s_sf_dual == SPIBSC_CMNCR_BSZ_DUAL)
     {
-        ret = read_status(&st_reg1, &st_reg2, ch_no, dual, data_width);
-
-        if (dual == SPIBSC_CMNCR_BSZ_DUAL)
-        {
-            /* s-flash x 2  */
-            if (((st_reg1 & 0x01) == 0) && ((st_reg2 & 0x01) == 0))
-            {
-                break;
-            }
-        }
-        else if (dual == SPIBSC_CMNCR_BSZ_SINGLE)
-        {
-            /* s-flash x 1  */
-            if ((st_reg1 & 0x01) == 0)
-            {
-                break;
-            }
-        }
-        else
-        {
-            ret = -1;
-            break;
-        }
-        /* serial flash is busy */
-        routineForSD();
+        /* s-flash x 2  */
+        return ((st_reg1 & 0x01) == 0) && ((st_reg2 & 0x01) == 0);
     }
-    return ret;
+    /* s-flash x 1  */
+    return (st_reg1 & 0x01) == 0;
+}
+
+int32_t Userdef_SFLASH_Busy_Wait(uint32_t ch_no, uint32_t dual, uint8_t data_width)
+{
+    if ((dual != SPIBSC_CMNCR_BSZ_DUAL) && (dual != SPIBSC_CMNCR_BSZ_SINGLE))
+    {
+        return -1;
+    }
+
+    /* Yield to the scheduler, re-reading the serial-flash status between turns, until the
+       flash is no longer busy. The condition issues an SPI status read; the scheduler runs a
+       task between checks, matching the original pump-then-recheck cadence. */
+    s_sf_ch_no      = ch_no;
+    s_sf_dual       = dual;
+    s_sf_data_width = data_width;
+    yieldingRoutineForSD(sflash_not_busy);
+
+    return 0;
 
 } /* End of function Userdef_SFLASH_Busy_Wait() */
 

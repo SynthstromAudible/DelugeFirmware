@@ -194,12 +194,19 @@ int32_t spibsc_common_init(uint32_t ch_no, uint32_t bsz, uint8_t spbr, uint8_t b
  * Arguments    : uint32_t ch_no : use channel No
  * Return Value : none
  ******************************************************************************/
+static uint32_t s_tend_ch_no;
+static bool spibsc_tend_reached(void)
+{
+    return RZA_IO_RegRead_32(&SPIBSC[s_tend_ch_no]->CMNSR, SPIBSC_CMNSR_TEND_SHIFT, SPIBSC_CMNSR_TEND)
+           == SPIBSC_TRANS_END;
+}
+
 void spibsc_wait_tend(uint32_t ch_no)
 {
-    while (RZA_IO_RegRead_32(&SPIBSC[ch_no]->CMNSR, SPIBSC_CMNSR_TEND_SHIFT, SPIBSC_CMNSR_TEND) != SPIBSC_TRANS_END)
-    {
-        routineForSD();
-    }
+    /* Yield to the scheduler until the SPI transfer completes (TEND). The condition is a
+       cheap memory-mapped register read; ch_no is stashed because RunCondition is captureless. */
+    s_tend_ch_no = ch_no;
+    yieldingRoutineForSD(spibsc_tend_reached);
 
 } /* End of function spibsc_wait_tend() */
 
