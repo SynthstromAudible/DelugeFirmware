@@ -270,16 +270,14 @@ Error MIDIRootComplexUSBHosted::poll() {
 							statusType = 0x0F;
 						}
 						else { // Invalid, or sysex, or something
-							// XXX: this collapses all cables to cable 0, but we only technically support 1 cable on
-							// remote USB devices for now..
-							connectedDevice.cable[0]->checkIncomingSysex(readPos, ip, d);
+							if (cable <= connectedDevice.maxPortConnected && connectedDevice.cable[cable]) {
+								connectedDevice.cable[cable]->checkIncomingSysex(readPos, ip, d);
+							}
 							continue;
 						}
 					}
-					// select appropriate device based on the cable number
-					if (cable > connectedDevice.maxPortConnected) {
-						// fallback to cable 0 since we don't support more than one port on hosted devices yet
-						cable = 0;
+					if (cable > connectedDevice.maxPortConnected || connectedDevice.cable[cable] == nullptr) {
+						continue;
 					}
 					midiEngine.midiMessageReceived(*connectedDevice.cable[cable], statusType, channel, data1, data2,
 					                               &timeLastBRDY[ip]);
