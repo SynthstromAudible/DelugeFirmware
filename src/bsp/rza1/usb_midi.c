@@ -49,6 +49,10 @@ usb_regadr_t usb_hstd_get_usb_ip_adr(uint16_t ipno);
 void change_destination_of_send_pipe(usb_utr_t* ptr, uint16_t pipe, uint16_t* tbl, int32_t sq);
 void usb_send_start_rohan(usb_utr_t* ptr, uint16_t pipe, uint8_t const* data, int32_t size);
 void usb_receive_start_rohan_midi(uint16_t pipe);
+// The HAL USB-stack task. Its bulk-IN/-OUT handlers record pipe completions into
+// the queue bsp_usb_midi_service() drains, so the BSP pumps it (rather than the
+// app) to keep the Renesas USB task behind the boundary.
+void usb_cstd_usb_task(void);
 
 // Per-device USB-MIDI transport state. The receive DMA targets receiveData
 // directly, so this stays in SDRAM (as it did inside connectedUSBMIDIDevices).
@@ -456,11 +460,16 @@ void bsp_usb_midi_rearm_peripheral_receive(int32_t ip) {
 	usb_receive_start_rohan_midi(USB_CFG_PMIDI_BULK_IN);
 }
 
-// Drain the HAL pipe-completion queue and act on each event: record received
-// bytes, or chain the next queued send. Called from the app's USB pump right after
-// usb_cstd_usb_task() (which is where the HAL records the completions), so it runs
-// in the same polled context with the USB lock held.
+// Pump the HAL USB-stack task (which records the completions), then drain the HAL
+// pipe-completion queue and act on each event: record received bytes, or chain the
+// next queued send. Called from the app's USB pump (via deluge_midi_service()) with
+// the USB lock held, so it runs in one polled context.
 void bsp_usb_midi_service(void) {
+	// Pump the HAL USB-stack task first; its bulk-IN/-OUT handlers record pipe
+	// completions into the queue we drain just below. The app no longer calls
+	// usb_cstd_usb_task() directly — it pumps the transport via the boundary.
+	usb_cstd_usb_task();
+
 	UsbMidiCompletion c;
 	while (usb_midi_completion_take(&c)) {
 		switch ((UsbMidiCompletionKind)c.kind) {

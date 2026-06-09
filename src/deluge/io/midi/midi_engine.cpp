@@ -499,12 +499,11 @@ void MidiEngine::check_incoming_usb() {
 	bool usbLockNow = usbLock;
 
 	if (!usbLockNow) {
-		// Have to call this regularly, to do "callbacks" that will grab out the received data
+		// Service the MIDI transport regularly: this pumps the HAL USB-stack task and
+		// drains the pipe completions it records (received bytes, chained sends). The
+		// usbLock guard stays app-side as the gate against re-entrant servicing.
 		usbLock = 1;
-		usb_cstd_usb_task();
-		// Drain the pipe completions the task just recorded: the BSP records received
-		// bytes and chains the next queued send (replaces the old HAL->BSP upcalls).
-		bsp_usb_midi_service();
+		deluge_midi_service();
 		usbLock = 0;
 	}
 }
