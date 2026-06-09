@@ -28,10 +28,20 @@
 #include "RZA1/uart/sio_char.h"
 #include "bsp/rza1/drivers/dmac/dmac.h"
 #include "bsp/rza1/drivers/rspi/rspi.h"
-#include "deluge/processing/engines/cv_engine_c_interface.h"
 #include "foundation/timer_count.h"
 
 #define OLED_CODE_FOR_CV 1
+
+// Count of CV transfers actually dispatched to the DAC. On units where the OLED
+// shares the CV SPI bus, a CV write is queued behind display transfers; higher
+// layers poll this (via the BSP / libdeluge cv_gate boundary) to tell when a
+// queued CV write has gone out. Pull-based — replaces the old cvSent() upcall.
+volatile uint32_t cvTransfersSent = 0;
+
+uint32_t getCVTransfersSent(void)
+{
+    return cvTransfersSent;
+}
 
 void setupSPIInterrupts()
 {
@@ -172,7 +182,7 @@ void sendSPITransferFromQueue()
     {
         cv_sending = true;
         sendCVTransfer();
-        cvSent();
+        cvTransfersSent++; // the app polls this (it used to be the cvSent() upcall)
     }
 }
 

@@ -63,6 +63,12 @@ void deluge_cv_set(uint8_t channel, uint16_t value) {
 	cv_send_word(channel, word);
 }
 
+uint32_t deluge_cv_sent_count(void) {
+	// On shared-SPI boards CV goes through the OLED transfer queue, which counts
+	// dispatches; on direct-drive boards nothing is queued and this stays 0.
+	return getCVTransfersSent();
+}
+
 void deluge_gate_init(void) {
 	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
 		setPinAsOutput(gate_port[i], gate_pin[i]);

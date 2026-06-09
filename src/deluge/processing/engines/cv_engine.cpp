@@ -55,6 +55,15 @@ void CVEngine::init() {
 
 // Gets called even for run and clock
 void CVEngine::updateGateOutputs() {
+	// On shared-SPI (OLED) boards a queued CV write clears cvOutPending only once
+	// the BSP reports it actually went out to the DAC. We poll the dispatch count
+	// here (this routine already runs every audio frame + from the gate timer)
+	// instead of the BSP calling up into us. Order is preserved: cvOutPending is
+	// cleared before the gate logic below fires the channel gate.
+	if (cvOutPending && deluge_cv_sent_count() != cvSentSnapshot) {
+		cvOutPending = false;
+	}
+
 	// clock or run signal
 	if (clockOutputPending || asapGateOutputPending) {
 		for (int32_t g = NUM_PHYSICAL_CV_CHANNELS; g < NUM_GATE_CHANNELS; g++) {
@@ -157,11 +166,18 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 }
 
 void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
+	// Snapshot the dispatch count *before* queuing: deluge_cv_set() may dispatch
+	// the write inline (if the SPI bus is idle), and updateGateOutputs() clears
+	// cvOutPending once the count moves past this snapshot.
+	uint32_t sentBefore = deluge_cv_sent_count();
 	deluge_cv_set(channel, voltage);
 	// On non-OLED units the CV DAC has the SPI bus to itself, so the write has
 	// already completed; OLED units serialise it through the display queue.
 	if (!deluge::hid::display::have_oled_screen) {
 		cvOutPending = false;
+	}
+	else {
+		cvSentSnapshot = sentBefore;
 	}
 }
 
@@ -308,14 +324,4 @@ void CVEngine::updateRunOutput() {
 
 bool CVEngine::isTriggerClockOutputEnabled() {
 	return (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL);
-}
-void CVEngine::cvOutUpdated() {
-	cvOutPending = false;
-	updateGateOutputs();
-}
-
-extern "C" {
-void cvSent() {
-	cvEngine.cvOutUpdated();
-}
 }

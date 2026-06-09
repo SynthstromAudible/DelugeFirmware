@@ -62,8 +62,6 @@ public:
 	void setCVPitchBend(uint8_t channel, int32_t value, bool outputToo = true);
 	int32_t calculateVoltage(int32_t note, uint8_t channel);
 	void physicallySwitchGate(int32_t channel);
-	// defer updating the gate while CV is pending and do it when it's done
-	void cvOutUpdated();
 
 	void analogOutTick();
 	void playbackBegun();
@@ -105,6 +103,9 @@ private:
 	void switchGateOn(int32_t channel, int32_t doInstantlyIfPossible = false);
 	/// signifies there's a gate that can't go until the cv is output
 	bool cvOutPending{false};
+	/// deluge_cv_sent_count() at the moment the pending CV was queued (shared-SPI
+	/// boards); cvOutPending clears once the count moves past it. See updateGateOutputs().
+	uint32_t cvSentSnapshot{0};
 	/// gate 1-4 as synths or drums
 	bool gateOutputPending{false};
 	/// gate 3 as a run signal

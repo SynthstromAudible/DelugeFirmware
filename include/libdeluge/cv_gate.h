@@ -41,6 +41,15 @@ void deluge_cv_init(bool display_shares_spi);
 /// owns the DAC command format and the SPI routing. [task] [audio]
 void deluge_cv_set(uint8_t channel, uint16_t value);
 
+/// Monotonically increasing count of CV writes actually dispatched to the DAC.
+///
+/// When the display shares the CV SPI bus (see deluge_cv_init), a deluge_cv_set()
+/// is queued behind display transfers and does not take effect immediately. The
+/// application polls this count (pull-based, never a callback) to tell when a
+/// queued CV write has gone out — e.g. to release a gate only after the pitch has
+/// settled. On boards that drive CV directly the count is unused. [task] [isr]
+uint32_t deluge_cv_sent_count(void);
+
 /// Configure the gate output pins as outputs. [task]
 void deluge_gate_init(void);
 
