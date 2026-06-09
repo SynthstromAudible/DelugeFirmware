@@ -51,6 +51,7 @@
 #include "io/midi/midi_follow.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "libdeluge/board.h"
+#include "libdeluge/display.h"
 #include "libdeluge/signals.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
@@ -474,29 +475,6 @@ void setupStartupSong() {
 	}
 }
 
-void setupOLED() {
-	// delayMS(10);
-
-	// Set up 8-bit
-	RSPI0.SPDCR = 0x20u;               // 8-bit
-	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI0.SPBFCR.BYTE = 0b01100000;    // 0b00100000;
-
-	PIC::setDCLow();
-	PIC::enableOLED();
-	PIC::selectOLED();
-	PIC::flush();
-
-	delayMS(5);
-
-	oledMainInit();
-
-	// delayMS(5);
-
-	PIC::deselectOLED();
-	PIC::flush();
-}
-
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);
 
@@ -565,7 +543,7 @@ void registerTasks() {
 	p = 31;
 	addRepeatingTask(&(PIC::flush), p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
 	if (hid::display::have_oled_screen) {
-		addRepeatingTask(&(oledRoutine), p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
+		addRepeatingTask(&deluge_display_service, p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
 	}
 	// needs to be called very frequently,
 	// handles animations and checks on the timers for any infrequent actions
@@ -582,7 +560,7 @@ void mainLoop() {
 
 		// Flush stuff - we just have to do this, regularly
 		if (hid::display::have_oled_screen) {
-			oledRoutine();
+			deluge_display_service();
 		}
 		PIC::flush();
 
@@ -639,7 +617,7 @@ extern "C" int32_t deluge_main(void) {
 	deluge_board_init_early(have_oled);
 
 	if (have_oled) {
-		setupOLED(); // Set up OLED now
+		deluge_display_init(); // Set up OLED now
 		display = new deluge::hid::display::OLED;
 	}
 	else {

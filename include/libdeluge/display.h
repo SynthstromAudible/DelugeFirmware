@@ -43,6 +43,11 @@ bool deluge_display_busy(void);
 /// (board-defined segment bit layout). No-op on OLED boards. [task]
 DelugeStatus deluge_display_write_seven_segment(const uint8_t* digits, uint8_t count);
 
+/// One-time display bring-up: configure the shared SPI for the panel and run
+/// the panel's init sequence. Call once at boot, only when an OLED is fitted
+/// (`deluge_board_probe_oled()`); no-op / not called on 7-segment boards. [task]
+void deluge_display_init(void);
+
 /// Service the display's pending output, pushing any queued transfer toward the
 /// panel. The application calls this to keep the display updating during long
 /// blocking operations (e.g. card access). No-op where there is no async

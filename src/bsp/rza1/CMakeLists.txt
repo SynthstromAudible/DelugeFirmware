@@ -7,7 +7,7 @@ add_library(bsp_rza1 STATIC
     system.c
     signals.c
     board.c
-    display.c
+    display.cpp
     midi_io.c
     usb_midi.c
     flash.c
