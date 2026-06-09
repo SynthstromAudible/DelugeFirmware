@@ -33,6 +33,11 @@ extern void loadAnyEnqueuedClustersRoutine(void);
 extern void logAudioAction(char const* string);
 
 extern void consoleTextIfAllBootedUp(char const* text);
+// The SD-wait yield hooks below are the runtime side of a libdeluge boundary
+// service — their canonical contract is <libdeluge/storage_wait.h>, which the BSP
+// consumes. These mirror declarations stay here because deluge.h is included very
+// widely (incl. vendored libs) and must not depend on the boundary headers; they
+// are kept signature-identical and are removed once deluge.h is slimmed down.
 typedef bool (*RunCondition)();
 bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds);
 void yieldingRoutineForSD(RunCondition until);

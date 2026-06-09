@@ -21,20 +21,18 @@
 /// (pads/buttons/encoders/LEDs over UART); this file forwards the boundary's
 /// logical operations to the PIC protocol class, which stays BSP-internal.
 ///
-/// Implemented so far: the indicator/LED output path. The pad-colour, button
-/// event, and flush operations declared in the header are added as their
-/// application consumers are migrated off the PIC class directly.
-///
-/// NOTE: this file depends on application types (RGB, definitions_cxx) via the
-/// PIC class, so it is compiled into the `deluge` target for now rather than the
-/// bsp_rza1 library. It moves into bsp_rza1 once the PIC class is decoupled from
-/// application headers.
+/// This file (and the PIC class) is now app-header-free — colours cross as raw
+/// r,g,b bytes, dimensions come from the HAL-free board_layout.hpp — so it is
+/// compiled into the bsp_rza1 library proper. It still references legacy-driver
+/// symbols (uart transport, etc.) that are compiled into the `deluge` target;
+/// those are resolved at the final link, the same as midi_io.c / cv_gate.c, until
+/// the drivers themselves are decoupled and relocated into the library (Phase C).
 
 #include "libdeluge/control_surface.h"
-#include "RZA1/cpu_specific.h"
 #include "libdeluge/display.h" // deluge_display_write_seven_segment (PIC-driven 7-seg)
 
-#include "definitions_cxx.hpp"
+#include "RZA1/cpu_specific.h"
+#include "board_layout.hpp" // kNumGoldKnobIndicatorLEDs, kNumericDisplayLength (HAL-free)
 #include "drivers/pic/pic.h"
 #include <array>
 #include <cstddef>
@@ -77,15 +75,10 @@ DelugeStatus deluge_display_write_seven_segment(const uint8_t* digits, uint8_t c
 	return DELUGE_OK;
 }
 
-// DelugeColour and RGB are both {uint8_t r, g, b}, so colour arrays pass by
-// reinterpret rather than a per-pad copy on these hot paths.
-static const RGB* as_rgb(const DelugeColour* c) {
-	return reinterpret_cast<const RGB*>(c);
-}
-
+// DelugeColour is {uint8_t r, g, b}, so a colour array is already the r,g,b byte
+// stream the PIC wants — pass it by reinterpret, no per-pad copy on these hot paths.
 void deluge_control_set_pad_columns(uint8_t idx, const DelugeColour* colours, uint8_t count) {
-	(void)count; // == kDisplayHeight * 2
-	PIC::setColourForTwoColumns(idx, *reinterpret_cast<const std::array<RGB, kDisplayHeight * 2>*>(as_rgb(colours)));
+	PIC::setColourForTwoColumns(idx, reinterpret_cast<const uint8_t*>(colours), count);
 }
 
 void deluge_control_flash_pad(uint8_t idx) {
@@ -101,13 +94,11 @@ void deluge_control_scroll_horizontal(uint8_t flags) {
 }
 
 void deluge_control_scroll_vertical(bool up, const DelugeColour* colours, uint8_t count) {
-	(void)count; // == kDisplayWidth + kSideBarWidth
-	PIC::doVerticalScroll(up,
-	                      *reinterpret_cast<const std::array<RGB, kDisplayWidth + kSideBarWidth>*>(as_rgb(colours)));
+	PIC::doVerticalScroll(up, reinterpret_cast<const uint8_t*>(colours), count);
 }
 
 void deluge_control_scroll_row(uint8_t row, DelugeColour colour) {
-	PIC::sendScrollRow(row, RGB{.r = colour.r, .g = colour.g, .b = colour.b});
+	PIC::sendScrollRow(row, colour.r, colour.g, colour.b);
 }
 
 void deluge_control_scroll_done(void) {

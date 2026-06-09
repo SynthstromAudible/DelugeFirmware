@@ -18,12 +18,13 @@
 #include "RZA1/cpu_specific.h"
 #include "definitions.h"
 
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/oled/oled_low_level.h"
 #include "RZA1/uart/sio_char.h"
+#include "drivers/bsp_interrupt.h" // bspRegisterAndEnableInterrupt (was setupAndEnableInterrupt)
 #include "drivers/dmac/dmac.h"
 #include "drivers/oled/oled.h"
 #include "drivers/rspi/rspi.h"
+#include "libdeluge/system.h" // ENTER/EXIT_CRITICAL_SECTION (BSP-owned CPU primitive)
 
 void MainOLED_WCom(char data) {
 	R_RSPI_SendBasic8(SPI_CHANNEL_OLED_MAIN, data);
@@ -207,5 +208,5 @@ void oledDMAInit() {
 	uint32_t dmarsTX = DMARS_FOR_RSPI_TX + (SPI_CHANNEL_OLED_MAIN << 2);
 	setDMARS(OLED_SPI_DMA_CHANNEL, dmarsTX);
 
-	setupAndEnableInterrupt(oledTransferComplete, DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, 13);
+	bspRegisterAndEnableInterrupt(oledTransferComplete, DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, 13);
 }

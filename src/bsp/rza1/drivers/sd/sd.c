@@ -22,8 +22,10 @@
 #include "drivers/mtu/mtu.h"
 
 #include "RZA1/sdhi/inc/sdif.h"
+#include "libdeluge/storage_wait.h" // routineForSD / yieldingRoutineForSD (runtime-provided yield hooks)
+// TODO(libdeluge): deluge.h is still pulled in only for logAudioAction() — an
+// app-layer tracing hook, the remaining (non-task-layer) coupling in this driver.
 #include "deluge.h"
-#include "scheduler_api.h"
 #include "util/cfunctions.h"
 
 uint16_t stopTime;

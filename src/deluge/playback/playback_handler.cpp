@@ -44,6 +44,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "io/midi/midi_transpose.h"
+#include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -74,7 +75,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "timers_interrupts/timers_interrupts.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
 #include <math.h>

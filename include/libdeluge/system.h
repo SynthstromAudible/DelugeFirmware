@@ -44,8 +44,28 @@ void deluge_system_quiesce(void);
 /// Emit a line of debug/log text (RTT/UART). Best-effort, may be dropped. [task] [isr]
 void deluge_log(const char* text);
 
+/// Enter a critical section: mask interrupts so the following code runs without
+/// preemption. Nestable — each ENTER must be paired with one EXIT, and only the
+/// outermost pair actually toggles interrupts (a shared depth counter tracks the
+/// nesting). Must be balanced. Prefer the RAII CriticalSectionGuard from C++.
+///
+/// This is a CPU/system primitive owned by the BSP (the RZ/A1L implementation
+/// masks IRQs via CPSID/CPSIE; a host-sim would use a recursive lock or no-op;
+/// Embassy would use a critical-section crate). [task] [isr]
+void ENTER_CRITICAL_SECTION();
+
+/// Exit a critical section opened by ENTER_CRITICAL_SECTION(). [task] [isr]
+void EXIT_CRITICAL_SECTION();
+
 #ifdef __cplusplus
 }
+
+/// RAII wrapper for ENTER/EXIT_CRITICAL_SECTION — enters on construction, exits
+/// on scope end, so the pairing can't be forgotten.
+struct CriticalSectionGuard {
+	CriticalSectionGuard() { ENTER_CRITICAL_SECTION(); }
+	~CriticalSectionGuard() { EXIT_CRITICAL_SECTION(); }
+};
 #endif
 
 #endif // LIBDELUGE_SYSTEM_H

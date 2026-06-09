@@ -12,6 +12,11 @@ add_library(bsp_rza1 STATIC
     memory.c
     block_device.c
     cv_gate.c
+    # App-header-free port impls that drive the PIC (pic.h is now byte-oriented /
+    # app-free). They still reference legacy-driver symbols compiled into the
+    # `deluge` target, resolved at the final link — same as midi_io.c/cv_gate.c.
+    control_surface.cpp
+    display_freeze.cpp
 )
 
 # Public: the libdeluge headers this BSP implements (propagated to consumers so
@@ -21,9 +26,11 @@ target_include_directories(bsp_rza1 PUBLIC
 )
 
 # Private: the HAL and shared config. The BSP may include RZA1/*; nothing above
-# the boundary may.
+# the boundary may. CMAKE_CURRENT_LIST_DIR (src/bsp/rza1) resolves `#include
+# "drivers/..."` from the lib's own port impls.
 target_include_directories(bsp_rza1 PRIVATE
     ${SHARED_INCLUDE}
+    ${CMAKE_CURRENT_LIST_DIR}
 )
 
 target_link_libraries(bsp_rza1 PUBLIC RZA1)
@@ -50,15 +57,6 @@ file(GLOB_RECURSE bsp_rza1_driver_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_LIST_DIR}/drivers/*.cpp
 )
 target_sources(deluge PUBLIC ${bsp_rza1_driver_SOURCES})
-
-# Port implementations that depend on application types via the legacy drivers
-# (e.g. control_surface.cpp uses RGB/definitions_cxx through the PIC class) are
-# likewise compiled into `deluge` until the underlying driver is decoupled, at
-# which point they move into the bsp_rza1 library beside clock.c/system.c.
-target_sources(deluge PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}/control_surface.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/display_freeze.cpp
-)
 
 # Resolve `#include "drivers/..."` to the relocated headers (for both the
 # drivers themselves and the application code that still uses them directly).

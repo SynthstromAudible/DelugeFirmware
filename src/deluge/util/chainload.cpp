@@ -20,7 +20,6 @@
 #include "chainload.h"
 #include "definitions.h"
 #include "libdeluge/system.h"
-#include "timers_interrupts/timers_interrupts.h"
 
 extern uint32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 

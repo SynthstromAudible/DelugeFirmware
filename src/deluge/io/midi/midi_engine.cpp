@@ -26,12 +26,12 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/sysex.h"
+#include "libdeluge/system.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/smsysex.h"
-#include "timers_interrupts/timers_interrupts.h"
 #include "version.h"
 
 extern "C" {

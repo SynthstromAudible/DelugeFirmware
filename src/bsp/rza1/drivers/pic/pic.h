@@ -1,6 +1,5 @@
 #pragma once
 #include "board_layout.hpp" // board dimensions (HAL-free; was definitions_cxx.hpp)
-#include "gui/colour/colour.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -103,10 +102,11 @@ public:
 	 * @param idx The column-pair idx (so half the number of squares from the left)
 	 * @param colours The colours to set the pads to
 	 */
-	static void setColourForTwoColumns(size_t idx, const std::array<RGB, kDisplayHeight * 2>& colours) {
+	/// `rgb` is `numColours` * 3 bytes (r, g, b per LED).
+	static void setColourForTwoColumns(size_t idx, const uint8_t* rgb, size_t numColours) {
 		send(static_cast<uint8_t>(Message::SET_COLOUR_FOR_TWO_COLUMNS) + idx);
-		for (const RGB& colour : colours) {
-			send(colour);
+		for (size_t i = 0; i < numColours * 3; i++) {
+			send(rgb[i]);
 		}
 	}
 
@@ -171,8 +171,6 @@ public:
 
 	static void requestFirmwareVersion() { send(Message::REQUEST_FIRMWARE_VERSION); }
 
-	static void sendColour(const RGB& colour) { send(colour); }
-
 	static void setRefreshTime(uint8_t time_ms) { send(Message::SET_REFRESH_TIME, time_ms); }
 	static void setDimmerInterval(uint8_t interval) { send(Message::SET_DIMMER_INTERVAL, interval); }
 
@@ -183,18 +181,22 @@ public:
 	 *
 	 * @param idx the row to set
 	 */
-	static void sendScrollRow(size_t idx, RGB colour) {
+	static void sendScrollRow(size_t idx, uint8_t r, uint8_t g, uint8_t b) {
 		send(static_cast<uint8_t>(Message::SET_SCROLL_ROW) + idx);
-		send(colour);
+		send(r);
+		send(g);
+		send(b);
 	}
 
 	static void setupHorizontalScroll(uint8_t bitflags) {
 		send(static_cast<uint8_t>(Message::SET_SCROLL_LEFT) + bitflags);
 	}
 
-	static void doVerticalScroll(bool direction, const std::array<RGB, kDisplayWidth + kSideBarWidth>& colours) {
-		Message msg = direction ? Message::SET_SCROLL_UP : Message::SET_SCROLL_DOWN;
-		send(msg, colours);
+	static void doVerticalScroll(bool direction, const uint8_t* rgb, size_t numColours) {
+		send(direction ? Message::SET_SCROLL_UP : Message::SET_SCROLL_DOWN);
+		for (size_t i = 0; i < numColours * 3; i++) {
+			send(rgb[i]);
+		}
 	}
 
 	static void doneSendingRows() { send(Message::DONE_SENDING_ROWS); }
@@ -283,15 +285,6 @@ private:
 	 * @brief Send a single message
 	 */
 	inline static void send(Message msg) { send(static_cast<uint8_t>(msg)); }
-
-	/**
-	 * @brief Send a single colour
-	 */
-	inline static void send(const RGB& colour) {
-		send(colour.r);
-		send(colour.g);
-		send(colour.b);
-	}
 
 	/**
 	 * @brief Send a byte. This was originally bufferPICUart()

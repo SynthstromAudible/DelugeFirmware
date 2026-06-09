@@ -24,19 +24,9 @@
 extern "C" {
 #endif
 
-// DSB/ISB are required due to pipelining
-// DSB ensures that the write has completed before continuing
-// ISB redoes the prefetch, ensuring that older instructions aren't used
-// ref http://www.rdrop.com/users/paulmck/scalability/paper/whymb.2010.07.23a.pdf
-// in future if we start using user mode this won't work from there
-
-/// enter critical section - must be in system mode, and must be paired with EXIT_CRITICAL_SECTION()
-/// these can be nested, but you must exit the same number of times as you enter
-/// use the RAII CriticalSectionGuard from C++ code instead to avoid manual management
-void ENTER_CRITICAL_SECTION();
-
-/// exit critical section - ensure it's paired with ENTER_CRITICAL_SECTION()
-void EXIT_CRITICAL_SECTION();
+// ENTER_CRITICAL_SECTION / EXIT_CRITICAL_SECTION and the CriticalSectionGuard
+// RAII helper now live in <libdeluge/system.h> — they are a BSP-owned CPU
+// primitive, not task scheduling. Include that header for them.
 
 static inline __attribute__((no_instrument_function)) void DISABLE_ALL_INTERRUPTS() {
 	// memory creates a memory barrier in GCC to avoid reordering
@@ -72,11 +62,6 @@ void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint
 void setupRunningClock(int timer, int preScale);
 void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, uint8_t priority);
 #ifdef __cplusplus
-
-struct CriticalSectionGuard {
-	CriticalSectionGuard() { ENTER_CRITICAL_SECTION(); }
-	~CriticalSectionGuard() { EXIT_CRITICAL_SECTION(); }
-};
 }
 #endif
 

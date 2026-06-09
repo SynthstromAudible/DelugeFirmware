@@ -37,6 +37,7 @@
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
+#include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -59,7 +60,6 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "timers_interrupts/timers_interrupts.h"
 #include "util/functions.h"
 #include "util/misc.h"
 #include <algorithm>
