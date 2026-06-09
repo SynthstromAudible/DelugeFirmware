@@ -37,6 +37,58 @@
 #include <array>
 #include <cstddef>
 
+void deluge_control_read_boot_info(DelugeBootInfo* out) {
+	out->pic_firmware_version = 0;
+	out->oled_present = false;
+	out->factory_reset_requested = false;
+
+	PIC::requestFirmwareVersion(); // Request PIC firmware version
+	PIC::resendButtonStates();     // Tell PIC to re-send button states
+	PIC::flush();
+
+	bool readingFirmwareVersion = false;
+	bool otherButtonsOrEvents = false;
+
+	PIC::read(0x8000, [&](PIC::Response response) -> int32_t {
+		if (readingFirmwareVersion) {
+			readingFirmwareVersion = false;
+			uint8_t value = static_cast<uint8_t>(response);
+			out->pic_firmware_version = value & 127;
+			out->oled_present = (value & 128) != 0;
+			return 0;
+		}
+
+		switch (response) {
+		case PIC::Response::FIRMWARE_VERSION_NEXT:
+			readingFirmwareVersion = true;
+			return 0;
+
+		case PIC::Response::RESET_SETTINGS:
+			// Latch the request; the application performs the reset once the read
+			// completes. Only honour it if no other button/event was seen first.
+			if (!otherButtonsOrEvents) {
+				out->factory_reset_requested = true;
+			}
+			return 0;
+
+		case PIC::Response::UNKNOWN_BREAK:
+			return 1;
+
+		case PIC::Response::UNKNOWN_BOOT_RESPONSE: // value 129. Happens every boot.
+			return 0;
+
+		default:
+			if (response >= PIC::Response::UNKNOWN_OLED_RELATED_COMMAND && response <= PIC::Response::SET_DC_HIGH) {
+				// OLED D/C low ack
+				return 0;
+			}
+			// If any hint of another button being held, don't do anything.
+			otherButtonsOrEvents = true;
+			return 0;
+		}
+	});
+}
+
 void deluge_control_set_led(uint8_t led, bool on) {
 	if (on) {
 		PIC::setLEDOn(led);

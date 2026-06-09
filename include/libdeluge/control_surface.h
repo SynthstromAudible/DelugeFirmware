@@ -54,6 +54,20 @@ typedef struct DelugeInputEvent {
 	int16_t value;
 } DelugeInputEvent;
 
+/// One-shot control-surface info captured during boot.
+typedef struct DelugeBootInfo {
+	uint8_t pic_firmware_version; ///< co-processor firmware version (0 if unknown)
+	bool oled_present;            ///< the surface reports an OLED is fitted
+	bool factory_reset_requested; ///< the user held the reset control at power-on
+} DelugeBootInfo;
+
+/// Read the one-shot boot info from the control surface and store it in `*out`:
+/// request the firmware version and a re-send of button states, then drain the
+/// boot response burst to capture the firmware version, the OLED-present flag,
+/// and whether the user is holding the reset control (select knob) for a factory
+/// reset. The application reacts (popup, settings reset). Call once at boot. [task]
+void deluge_control_read_boot_info(DelugeBootInfo* out);
+
 /// Poll one decoded input event into `out`. Returns true if an event was
 /// dequeued, false if the queue is empty. The application drains this each tick.
 /// (Push delivery is also available via `deluge_app_on_event`.) [task]

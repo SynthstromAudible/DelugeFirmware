@@ -660,54 +660,20 @@ extern "C" int32_t deluge_main(void) {
 	// SPIBSC wait routines, so those have to be running.
 	deluge_board_init_storage();
 
-	PIC::requestFirmwareVersion(); // Request PIC firmware version
-	PIC::resendButtonStates();     // Tell PIC to re-send button states
-	PIC::flush();
+	// Read the PIC firmware version + OLED-present bit, and check whether the user
+	// is holding the select knob for a factory reset. The BSP drains the boot
+	// response burst; the app reacts.
+	DelugeBootInfo bootInfo;
+	deluge_control_read_boot_info(&bootInfo);
+	picFirmwareVersion = bootInfo.pic_firmware_version;
+	picSaysOLEDPresent = bootInfo.oled_present;
+	D_PRINTLN("PIC firmware version reported: %d", picFirmwareVersion);
 
-	// Check if the user is holding down the select knob to do a factory reset
-	bool readingFirmwareVersion = false;
-	bool otherButtonsOrEvents = false;
-
-	PIC::read(0x8000, [&readingFirmwareVersion, &otherButtonsOrEvents](auto response) {
-		if (readingFirmwareVersion) {
-			readingFirmwareVersion = false;
-			uint8_t value = util::to_underlying(response);
-			picFirmwareVersion = value & 127;
-			picSaysOLEDPresent = value & 128;
-			D_PRINTLN("PIC firmware version reported: %s", value);
-			return 0;
-		}
-
-		using enum PIC::Response;
-		switch (response) {
-		case FIRMWARE_VERSION_NEXT:
-			readingFirmwareVersion = true;
-			return 0;
-
-		case RESET_SETTINGS:
-			if (!otherButtonsOrEvents) {
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
-				FlashStorage::resetSettings();
-				FlashStorage::writeSettings();
-			}
-			return 0;
-
-		case UNKNOWN_BREAK:
-			return 1;
-
-		case UNKNOWN_BOOT_RESPONSE: // value 129. Happens every boot. If you know what this is, please rename!
-			return 0;
-
-		default:
-			if (response >= UNKNOWN_OLED_RELATED_COMMAND && response <= SET_DC_HIGH) {
-				// OLED D/C low ack
-				return 0;
-			}
-			// If any hint of another button being held, don't do anything.
-			otherButtonsOrEvents = true;
-			return 0;
-		}
-	});
+	if (bootInfo.factory_reset_requested) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+		FlashStorage::resetSettings();
+		FlashStorage::writeSettings();
+	}
 
 	FlashStorage::readSettings();
 
