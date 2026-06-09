@@ -7,6 +7,10 @@
 #include "io/midi/device_specific/launchpad_extension.h"
 
 #include "definitions_cxx.hpp"
+#include "extern.h"
+#include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_hosted.h"
@@ -68,6 +72,25 @@ bool isPressed(uint8_t statusType, uint8_t data2) {
 	return false;
 }
 
+void requestDelugeSessionView() {
+	if (sdRoutineLock || currentUIMode != UI_MODE_NONE || getCurrentClip() == nullptr) {
+		return;
+	}
+
+	UI* rootUI = getRootUI();
+	if (rootUI == &sessionView || rootUI == &performanceView) {
+		return;
+	}
+
+	if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
+		if (arrangerView.transitionToArrangementEditor()) {
+			return;
+		}
+	}
+
+	sessionView.transitionToSessionView();
+}
+
 void switchViewMode(ViewMode newMode, MIDICable& cable, int32_t midiChannel) {
 	if (viewMode == newMode) {
 		return;
@@ -96,6 +119,14 @@ bool handleControlChange(MIDICable& cable, uint8_t cc, bool on, int32_t midiChan
 
 	switch (cc) {
 	case launchpad_programmer_map::cc::kSession:
+		if (viewMode == ViewMode::Session) {
+			requestDelugeSessionView();
+			MIDICableUSBHosted* port2 = launchpad_cable::getPort2();
+			if (port2 != nullptr) {
+				launchpad_sysex::reassertProgrammerMode(port2);
+			}
+			return true;
+		}
 		switchViewMode(ViewMode::Session, cable, midiChannel);
 		return true;
 	case launchpad_programmer_map::cc::kNote:

@@ -3413,7 +3413,20 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 
 	// Black phase of arm flashing
 	if (!stableMirror && view.clipArmFlashOn && clip->armState != ArmState::OFF) {
-		return colours::black;
+		bool shouldFlashBlack = true;
+		// Scene launch arms other rows to stop; on Launchpad only flash the row being launched.
+		if (launchpadRenderingLed) {
+			int32_t flashSection = session.lastSectionArmed;
+			if (flashSection >= SECTION_OUT_OF_RANGE) {
+				flashSection = launchpadSceneLaunchSection;
+			}
+			if (flashSection >= 0 && clip->section != static_cast<uint8_t>(flashSection)) {
+				shouldFlashBlack = false;
+			}
+		}
+		if (shouldFlashBlack) {
+			return colours::black;
+		}
 	}
 
 	// If we're currently pulsing this clip and we have the current pulse colour, use that instead
@@ -3900,6 +3913,7 @@ void SessionView::launchpadStartSectionFromRow(int32_t y) {
 		return;
 	}
 
+	launchpadSceneLaunchSection = section;
 	gridStartSection(static_cast<uint32_t>(section), false);
 	launchpad_extension::requestSync();
 }
@@ -3946,6 +3960,28 @@ void SessionView::launchpadResetPress() {
 	launchpadSecondPressedY = -1;
 }
 
+void SessionView::launchpadBeginClipHoldSelection(Clip* clip, int32_t x, int32_t y) {
+	gridFirstPressedX = x;
+	gridFirstPressedY = y;
+	launchpadFirstPressedX = x;
+	launchpadFirstPressedY = y;
+
+	const uint32_t pressTime = AudioEngine::audioSampleTimer;
+	selectedClipTimePressed = pressTime;
+	launchpadSelectedClipTimePressed = pressTime;
+
+	currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+	performActionOnPadRelease = true;
+	gridSelectClipForPulsing(*clip);
+	currentSong->setCurrentClip(clip);
+	view.displayOutputName(clip->output, true, clip);
+	view.setActiveModControllableTimelineCounter(clip);
+
+	if (!gridSelectedClipPulsing) {
+		gridPulseSelectedClip();
+	}
+}
+
 void SessionView::launchpadSyncGridLedsNow() {
 	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLaunchpadGridMirror)) {
 		return;
@@ -3955,10 +3991,16 @@ void SessionView::launchpadSyncGridLedsNow() {
 		return;
 	}
 
+	if (!playbackHandler.isEitherClockActive() || !session.launchEventAtSwungTickCount) {
+		launchpadSceneLaunchSection = -1;
+	}
+
 	static RGB launchpadImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 	static uint8_t launchpadOccupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 
+	launchpadRenderingLed = true;
 	launchpadRenderGrid(launchpadImage, launchpadOccupancyMask);
+	launchpadRenderingLed = false;
 
 	RGB sceneColours[8];
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -3988,12 +4030,13 @@ ActionResult SessionView::gridHandlePadsFromLaunchpad(int32_t x, int32_t y, int3
 		// Hold source clip, press destination — same copy gesture as Deluge grid.
 		if (launchpadFirstPressedX >= 0 && launchpadSecondPressedX == -1
 		    && (x != launchpadFirstPressedX || y != launchpadFirstPressedY)) {
+			if (clip != nullptr) {
+				return gridHandlePadsLaunchImmediate(x, y, on, clip);
+			}
 			launchpadSecondPressedX = x;
 			launchpadSecondPressedY = y;
-			if (clip == nullptr) {
-				performActionOnPadRelease = false;
-				display->popupText("COPY CLIPS");
-			}
+			performActionOnPadRelease = false;
+			display->popupText("COPY CLIPS");
 			launchpad_extension::requestSync();
 			return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 		}
@@ -4018,6 +4061,9 @@ ActionResult SessionView::gridHandlePadsFromLaunchpad(int32_t x, int32_t y, int3
 		if (launchpadFirstPressedX == -1) {
 			if (Buttons::isShiftButtonPressed()) {
 				gridHandlePadsLaunchToggleArming(clip, true);
+			}
+			else if (FlashStorage::gridAllowGreenSelection) {
+				launchpadBeginClipHoldSelection(clip, x, y);
 			}
 			else {
 				launchpadFirstPressedX = x;

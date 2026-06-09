@@ -242,13 +242,16 @@ private:
 	int32_t gridSecondPressedY = -1;
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
 
-	// Launchpad-only press state — does not affect Deluge grid mode or UI mode.
+	// Launchpad press state (copy gesture); hold-selection also updates grid/UI for MIDI follow.
 	int32_t launchpadFirstPressedX = -1;
 	int32_t launchpadFirstPressedY = -1;
 	int32_t launchpadSecondPressedX = -1;
 	int32_t launchpadSecondPressedY = -1;
 	uint32_t launchpadSelectedClipTimePressed = 0;
+	int32_t launchpadSceneLaunchSection = -1;
+	bool launchpadRenderingLed = false;
 	void launchpadResetPress();
+	void launchpadBeginClipHoldSelection(Clip* clip, int32_t x, int32_t y);
 
 	inline void gridResetPresses(bool first = true, bool second = true) {
 		if (first) {
