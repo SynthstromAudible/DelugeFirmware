@@ -42,7 +42,7 @@
 #include <stdbool.h>
 
 // Additions by Rohan
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
+#include "RZA1/intc/register_interrupt.h"
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"
 
@@ -185,7 +185,7 @@ void usb_cpu_usbint_init(uint8_t ip_type)
 {
     if (USB_IP0 == ip_type)
     {
-        setupAndEnableInterrupt(usb_cpu_usb_int_hand, INTC_ID_USBI0, 9);
+        registerAndEnableInterrupt(usb_cpu_usb_int_hand, INTC_ID_USBI0, 9);
     }
 
 #if USB_NUM_USBIP == 2

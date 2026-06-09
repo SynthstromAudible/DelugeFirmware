@@ -16,18 +16,17 @@
  */
 
 #pragma once
-/// BSP-internal interrupt registration.
-///
-/// Registering + enabling a hardware interrupt is a pure interrupt-controller
-/// (GIC) operation. OSLikeStuff happened to expose it as setupAndEnableInterrupt,
-/// but it is a board/HAL concern, not task scheduling — so the relocated RZ/A1L
-/// drivers call the controller directly through this helper instead of reaching
-/// up into the task layer.
+
+/// Register + enable a hardware interrupt directly via the RZ/A1L interrupt
+/// controller (GIC). This is a pure HAL operation — the four R_INTC calls that
+/// OSLikeStuff's setupAndEnableInterrupt wraps — so it lives in the HAL, and both
+/// the HAL and the BSP drivers call it instead of reaching up into the task layer.
 #include "RZA1/intc/devdrv_intc.h"
 
-static inline void bspRegisterAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, uint8_t priority) {
-	R_INTC_Disable(interruptID);
-	R_INTC_RegistIntFunc(interruptID, handler);
-	R_INTC_SetPriority(interruptID, priority);
-	R_INTC_Enable(interruptID);
+static inline void registerAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, uint8_t priority)
+{
+    R_INTC_Disable(interruptID);
+    R_INTC_RegistIntFunc(interruptID, handler);
+    R_INTC_SetPriority(interruptID, priority);
+    R_INTC_Enable(interruptID);
 }

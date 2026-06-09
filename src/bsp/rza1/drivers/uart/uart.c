@@ -28,7 +28,7 @@
 #include <math.h>
 
 #include "RTT/SEGGER_RTT.h"
-#include "drivers/bsp_interrupt.h" // bspRegisterAndEnableInterrupt (was setupAndEnableInterrupt)
+#include "RZA1/intc/register_interrupt.h" // registerAndEnableInterrupt (HAL interrupt-controller helper)
 
 void uartPrintln(char const* output) {
 #if ENABLE_TEXT_OUTPUT
@@ -339,8 +339,8 @@ void initUartDMA() {
 		// ---- Software Reset and clear TC bit ----
 		DMACn(txDmaChannel).CHCTRL_n |= DMAC_CHCTRL_0S_SWRST | DMAC_CHCTRL_0S_CLRTC;
 
-		bspRegisterAndEnableInterrupt(txInterruptFunctions[item], DMA_INTERRUPT_0 + txDmaChannel,
-		                              txInterruptPriorities[item]);
+		registerAndEnableInterrupt(txInterruptFunctions[item], DMA_INTERRUPT_0 + txDmaChannel,
+		                           txInterruptPriorities[item]);
 		// Set up RX DMA channel -----------------------------------------------------------------------
 		int32_t rxDmaChannel = rxDmaChannels[item];
 		uint32_t dmarsRX = (DMARS_FOR_SCIF0_RX) + (sciChannel << 2);

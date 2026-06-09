@@ -52,7 +52,7 @@ Includes   <System Includes> , "Project Includes"
 #include "RZA1/system/iobitmasks/gpio_iobitmask.h"
 #include "bsp/rza1/drivers/uart/uart.h"
 #include "libdeluge/storage_wait.h"
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
+#include "RZA1/intc/register_interrupt.h"
 #include "OSLikeStuff/scheduler_api.h"
 
 /******************************************************************************
@@ -178,9 +178,9 @@ static int sddev_init_0(void)
 
 #ifdef    SDCFG_HWINT
 
-    setupAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_0, INT_LEVEL_SDHI);
-    setupAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_3, INT_LEVEL_SDHI);
-    setupAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_1, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_0, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_3, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_1, INT_LEVEL_SDHI);
 
 #endif
 
@@ -221,9 +221,9 @@ static int sddev_init_1(void)
 
 #ifdef    SDCFG_HWINT
 
-    setupAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_0, INT_LEVEL_SDHI);
-    setupAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_3, INT_LEVEL_SDHI);
-    setupAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_1, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_0, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_3, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_1, INT_LEVEL_SDHI);
 #endif
 
 #ifdef    SDCFG_CD_INT

@@ -18,9 +18,9 @@
 #include "RZA1/cpu_specific.h"
 #include "definitions.h"
 
+#include "RZA1/intc/register_interrupt.h" // registerAndEnableInterrupt (HAL interrupt-controller helper)
 #include "RZA1/oled/oled_low_level.h"
 #include "RZA1/uart/sio_char.h"
-#include "drivers/bsp_interrupt.h" // bspRegisterAndEnableInterrupt (was setupAndEnableInterrupt)
 #include "drivers/dmac/dmac.h"
 #include "drivers/oled/oled.h"
 #include "drivers/rspi/rspi.h"
@@ -208,5 +208,5 @@ void oledDMAInit() {
 	uint32_t dmarsTX = DMARS_FOR_RSPI_TX + (SPI_CHANNEL_OLED_MAIN << 2);
 	setDMARS(OLED_SPI_DMA_CHANNEL, dmarsTX);
 
-	bspRegisterAndEnableInterrupt(oledTransferComplete, DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, 13);
+	registerAndEnableInterrupt(oledTransferComplete, DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, 13);
 }

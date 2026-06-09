@@ -20,10 +20,10 @@
 #include "bsp/rza1/drivers/oled/oled.h"
 #include "definitions.h"
 
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/cache/cache.h"
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
+#include "RZA1/intc/register_interrupt.h"
 #include "RZA1/mtu/mtu.h"
 #include "RZA1/uart/sio_char.h"
 #include "bsp/rza1/drivers/dmac/dmac.h"
@@ -35,7 +35,7 @@
 
 void setupSPIInterrupts()
 {
-    setupAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
+    registerAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
 }
 
 void enqueueCVMessage(int channel, uint32_t message)
