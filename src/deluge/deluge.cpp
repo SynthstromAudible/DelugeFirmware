@@ -891,46 +891,11 @@ extern "C" int32_t deluge_main(void) {
 	return 0;
 }
 
-extern "C" bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) {
-	if (intc_func_active != 0) {
-		return false;
-	}
-	auto timeNow = getSystemTime();
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
-	// USB -> routineForSD()
-	if (sdRoutineLock) {
-		// busy wait - matches running sdroutine in a loop while checking for condition
-		while (!until()) {
-			if (getSystemTime() > timeNow + timeoutSeconds) {
-				return false;
-			}
-		}
-		return true;
-	}
-	sdRoutineLock = true;
-	bool ret = yieldWithTimeout(until, timeoutSeconds);
-	sdRoutineLock = false;
-	return ret;
-}
+// yieldingRoutineForSD / yieldingRoutineWithTimeoutForSD have moved down into the
+// scheduler foundation (OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp): they are
+// pure concurrency logic and name no app code, so the HAL now yields to the scheduler
+// rather than up into the application.
 
-extern "C" void yieldingRoutineForSD(RunCondition until) {
-	if (intc_func_active != 0) {
-		return;
-	}
-
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
-	// USB -> routineForSD()
-	if (sdRoutineLock) {
-		// busy wait - matches running sdroutine in a loop while checking for condition
-		while (!until()) {
-			asm volatile("nop");
-		}
-		return;
-	}
-	sdRoutineLock = true;
-	yield(until);
-	sdRoutineLock = false;
-}
 enum class UIStage { oled, readEnc, readButtons };
 
 /// this function is used as a busy wait loop for long SD reads, and while swapping songs

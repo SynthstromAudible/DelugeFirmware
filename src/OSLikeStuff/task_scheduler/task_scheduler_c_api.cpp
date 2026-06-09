@@ -17,7 +17,9 @@
 
 #include "OSLikeStuff/scheduler_api.h"
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
-#include "resource_checker.h"
+#include "RZA1/intc/devdrv_intc.h" // intc_func_active — HAL state read by the ISR guard
+#include "libdeluge/storage_wait.h"
+#include "resource_checker.h" // pulls in <extern.h> for the app-visible sdRoutineLock
 
 extern TaskManager taskManager;
 
@@ -67,6 +69,53 @@ bool yieldWithTimeout(RunCondition until, double timeout) {
 
 bool yieldToIdle(RunCondition until) {
 	return taskManager.yield(until, 0, true);
+}
+
+// Cooperative yield hooks for slow-storage busy-waits (the <libdeluge/storage_wait.h>
+// contract). The HAL/BSP calls these while spinning on SD / SPI-flash / USB so the
+// scheduler keeps audio + UI + USB alive. Relocated here from the application: they
+// are pure concurrency logic (an ISR guard, a reentrancy lock, a scheduler yield) and
+// name no app code. sdRoutineLock stays app-visible (the UI reads it to gate user
+// actions); intc_func_active is HAL state (the active interrupt id, 0 outside an ISR).
+bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) {
+	if (intc_func_active != 0) {
+		return false;
+	}
+	auto timeNow = getSystemTime();
+	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
+	// USB -> routineForSD()
+	if (sdRoutineLock) {
+		// busy wait - matches running sdroutine in a loop while checking for condition
+		while (!until()) {
+			if (getSystemTime() > timeNow + timeoutSeconds) {
+				return false;
+			}
+		}
+		return true;
+	}
+	sdRoutineLock = true;
+	bool ret = yieldWithTimeout(until, timeoutSeconds);
+	sdRoutineLock = false;
+	return ret;
+}
+
+void yieldingRoutineForSD(RunCondition until) {
+	if (intc_func_active != 0) {
+		return;
+	}
+
+	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
+	// USB -> routineForSD()
+	if (sdRoutineLock) {
+		// busy wait - matches running sdroutine in a loop while checking for condition
+		while (!until()) {
+			asm volatile("nop");
+		}
+		return;
+	}
+	sdRoutineLock = true;
+	yield(until);
+	sdRoutineLock = false;
 }
 
 void removeTask(TaskID id) {
