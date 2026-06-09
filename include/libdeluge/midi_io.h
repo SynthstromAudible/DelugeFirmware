@@ -60,6 +60,17 @@ uint32_t deluge_midi_write_space(DelugeMidiPort port);
 /// Push any buffered TX bytes toward the wire if idle. [task]
 void deluge_midi_flush(DelugeMidiPort port);
 
+/// Service the MIDI transport: pump the USB-MIDI send/receive state machine and
+/// drain hardware completion events. The application calls this from its MIDI
+/// routine; it is the pull point that replaces the USB stack calling up into the
+/// app. (DIN has no state machine; this is a no-op for it.) [task]
+void deluge_midi_service(void);
+
+/// True if `port` currently has a connected/usable MIDI endpoint (a DIN port is
+/// always present; a USB port is present only while a device is enumerated). The
+/// app polls this instead of reading USB-stack connection globals. [task]
+bool deluge_midi_port_connected(DelugeMidiPort port);
+
 /// A USB-host enumeration event observed since the last poll. USB host is the
 /// MIDI-device transport on this board, so these surface through the MIDI
 /// boundary.

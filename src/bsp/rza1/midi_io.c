@@ -29,6 +29,21 @@
 #include "RZA1/cpu_specific.h"       // UART_ITEM_MIDI
 #include "RZA1/uart/sio_char.h"      // uartGetTxBufferSpace, uartFlushIfNotSending
 #include "RZA1/usb/usb_host_event.h" // usbHostEventTake (HAL-owned USB host event queue)
+#include "usb_midi.h"                // bsp_usb_midi_* (USB-MIDI transport, BSP-internal)
+
+void deluge_midi_service(void) {
+	// DIN has no state machine; the USB-MIDI transport pumps its send/receive +
+	// drains HAL completions here.
+	bsp_usb_midi_service();
+}
+
+bool deluge_midi_port_connected(DelugeMidiPort port) {
+	// The DIN serial port is always present; USB-MIDI ports only while enumerated.
+	if (port == DELUGE_MIDI_DIN) {
+		return true;
+	}
+	return bsp_usb_midi_port_connected(port);
+}
 
 DelugeUsbHostEvent deluge_midi_poll_usb_host_event(void) {
 	switch (usbHostEventTake()) {
