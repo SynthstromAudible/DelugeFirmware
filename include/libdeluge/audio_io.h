@@ -50,6 +50,39 @@ uint32_t deluge_audio_sample_rate(void);
 /// features (e.g. aligning MIDI/gate output to audio). [task] [audio]
 uint32_t deluge_audio_output_latency_frames(void);
 
+/// Drive the board's audio path. Flushes any rendered-but-unplayed samples to
+/// the DAC ring; then, while the previous block is fully flushed and the
+/// board's pacing policy asks for more (on RZ/A1L: render as far as the DMA
+/// play head has advanced, doubled under light load, capped at the ring size,
+/// rounded to a multiple of 4), calls `deluge_app_render()` with the chosen
+/// frame count and an input block aligned to it. Returns how many times
+/// `deluge_app_render()` was invoked (0 = no new audio was needed). The
+/// application's audio task calls this; the BSP never invokes the app
+/// unprompted. [task]
+uint32_t deluge_audio_drive(void);
+
+/// Re-align the input stream's latency window after a glitch or at start-up
+/// (the input ring is deeper than the output ring; if an entire output-ring
+/// cycle was missed, input latency grows by a lap until corrected). Cheap;
+/// call periodically from a housekeeping task, never from the render. [task]
+void deluge_audio_input_resync(void);
+
+/// During/after a `deluge_app_render()` call: how many frames from now until
+/// the DAC plays sample `offset_frames` of the current render block, modulo
+/// the output ring (0 means a full ring from now). Optionally reports how many
+/// frames of the block's play position have elapsed since the block's render
+/// began (`*elapsed_frames_out`, unmasked). Used to arm
+/// `deluge_midi_gate_timer_arm()` sample-accurately. Single play-head poll.
+/// [audio]
+uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t* elapsed_frames_out);
+
+/// Convert a board capture timestamp (the `arrival_ticks` of
+/// `deluge_midi_din_read_timed()`, or a trigger-clock edge stamp) into a frame
+/// offset relative to the application's render-timeline head, modulo the
+/// output ring. The app adds this to its sample timer to place external clock
+/// edges on its audio timeline. [task]
+uint32_t deluge_audio_stamp_to_render_offset(uint32_t stamp);
+
 #ifdef __cplusplus
 }
 #endif

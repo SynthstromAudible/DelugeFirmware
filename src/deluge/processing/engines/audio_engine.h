@@ -183,7 +183,6 @@ void printLog();
 #endif
 int32_t getNumAudio();
 int32_t getNumVoices();
-bool doSomeOutputting();
 void updateReverbParams();
 
 extern bool headphonesPluggedIn;
@@ -193,8 +192,6 @@ extern bool renderInStereo;
 extern uint32_t audioSampleTimer;
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
-extern uint32_t i2sTXBufferPos;
-
 // The app-owned input ring. A mirror of the received audio input, filled by the
 // audio routine ahead of each render window; everything in the application that
 // consumes live input (monitoring, INPUT_L/R oscillators, live input buffers,

@@ -3,6 +3,7 @@
 # time as application subsystems are moved behind the boundary.
 
 add_library(bsp_rza1 STATIC
+    audio_io.cpp
     clock.c
     system.c
     signals.c

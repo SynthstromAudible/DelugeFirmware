@@ -36,6 +36,8 @@
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
+#include "libdeluge/app.h"
+#include "libdeluge/audio_io.h"
 #include "libdeluge/signals.h"
 #include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
@@ -72,10 +74,6 @@
 #include <ranges>
 
 namespace params = deluge::modulation::params;
-
-extern "C" {
-#include "drivers/ssi/ssi.h"
-}
 
 using namespace deluge;
 
@@ -153,8 +151,6 @@ bool renderInStereo = true;
 bool bypassCulling = false;
 bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
-uint32_t i2sTXBufferPos;
-uint32_t i2sRXBufferPos;
 
 // See audio_engine.h: the app-owned mirror of the received input, and the read
 // cursor into it. CPU-only memory (no DMA), so it may live in cached SDRAM.
@@ -168,18 +164,27 @@ int32_t* inputRingEnd() {
 	return inputRing + (SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS);
 }
 
-// Mirror the next `numSamples` of received input from the hardware RX ring into
-// the app-owned input ring, at the matching offsets. Must cover the full render
-// window before any input reader runs.
-static void fillInputRing(size_t numSamples) {
-	uint32_t rxStart = (uint32_t)getRxBufferStart();
+// Append the input block the BSP handed to deluge_app_render() to the app-owned
+// input ring at the current cursor. Must cover the full render block before any
+// input reader runs; the cursor itself only advances as output is produced, so
+// each input sample stays paired with its output sample.
+static void fillInputRing(const DelugeStereoSample* in, size_t numSamples) {
 	uint32_t ringBytes = SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
-	uint32_t offsetBytes = i2sRXBufferPos - rxStart;
+	uint32_t offsetBytes = inputRingPos - (uint32_t)inputRing;
 	uint32_t copyBytes = numSamples << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
 	uint32_t firstChunkBytes = std::min(copyBytes, ringBytes - offsetBytes);
-	memcpy((uint8_t*)inputRing + offsetBytes, (void*)i2sRXBufferPos, firstChunkBytes);
+	memcpy((uint8_t*)inputRing + offsetBytes, in, firstChunkBytes);
 	if (copyBytes != firstChunkBytes) {
-		memcpy(inputRing, (void*)rxStart, copyBytes - firstChunkBytes);
+		memcpy(inputRing, (const uint8_t*)in + firstChunkBytes, copyBytes - firstChunkBytes);
+	}
+}
+
+// Advance the input-ring cursor by `numSamples`, wrapping. Called as output is
+// produced, keeping in/out sample pairing exact.
+static void advanceInputRingPos(size_t numSamples) {
+	inputRingPos += (numSamples << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
+	if (inputRingPos >= (uint32_t)inputRingEnd()) {
+		inputRingPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
 	}
 }
 volatile int voices_started_this_render = 0;
@@ -207,8 +212,6 @@ int32_t masterVolumeAdjustmentR;
 bool doMonitoring;
 MonitoringAction monitoringAction;
 
-uint32_t saddr;
-
 deluge::fast_vector<Sound*> sounds;
 TaskID routine_task_id = -1;
 
@@ -232,13 +235,8 @@ void init() {
 
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
-	i2sTXBufferPos = (uint32_t)getTxBufferStart();
-
-	i2sRXBufferPos = (uint32_t)getRxBufferStart()
-	                 + ((SSI_RX_BUFFER_NUM_SAMPLES - SSI_TX_BUFFER_NUM_SAMPLES - 16)
-	                    << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE)); // Subtracting 5 or more seems fine
-
-	inputRingPos = (uint32_t)inputRing + (i2sRXBufferPos - (uint32_t)getRxBufferStart());
+	deluge_audio_start();
+	inputRingPos = (uint32_t)inputRing;
 
 	VoicePool::get().repopulate();
 	VoiceSamplePool::get().repopulate();
@@ -530,8 +528,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	}
 }
 
-void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSamplesBeforeLappingPlayHead,
-                            int32_t timeWithinWindowAtWhichMIDIOrGateOccurs);
+void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWhichMIDIOrGateOccurs);
 void setMonitoringMode();
 void renderSongFX(size_t numSamples);
 void renderSamplePreview(size_t numSamples);
@@ -543,8 +540,15 @@ void renderAudioForStemExport(size_t numSamples);
 void dumpAudioLog();
 bool calledFromScheduler = false;
 
-/// inner loop of audio rendering, deliberately not in header
-[[gnu::hot]] void routine_() {
+static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t frames);
+
+/// The application's single audio entry point, called by the BSP render driver
+/// (see <libdeluge/app.h> / <libdeluge/audio_io.h>). Renders exactly `frames`
+/// stereo samples into the BSP's `out` block, sub-dividing internally so render
+/// windows still end exactly on sequencer events; `in` holds the `frames` input
+/// samples aligned with `out`. The window-length policy (how `frames` is
+/// chosen) is the board's: on RZ/A1L it stays the DMA-polled variable window.
+extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) {
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
 	if (current_time - last_call_time > 0.003) {
@@ -552,68 +556,70 @@ bool calledFromScheduler = false;
 		D_PRINTLN("Audio routine latency high: %.3fms", (current_time - last_call_time) * 1000.);
 	}
 	last_call_time = current_time;
-#ifndef USE_TASK_MANAGER
-	playbackHandler.routine();
-#endif
+
 	// At this point, there may be MIDI, including clocks, waiting to be sent.
 
 	GeneralMemoryAllocator::get().checkStack("AudioDriver::routine");
 
-	saddr = (uint32_t)(getTxBufferCurrentPlace());
-	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
-	size_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+	fillInputRing(in, frames);
 
-	if (numSamples <= (10 * numRoutines)) {
-		if (!numRoutines && calledFromScheduler) {
-			ignoreForStats();
+	bool offline = stemExport.processStarted && stemExport.renderOffline;
+
+	if (!offline) {
+		flushMIDIGateBuffers();
+		setDireness(frames);
+	}
+
+	uint32_t produced = 0;
+	while (produced < frames) {
+
+		// First drain anything already rendered through the output stage (the
+		// previous sub-window; during offline export, the export loop's block).
+		if (renderingBufferOutputPos != renderingBufferOutputEnd) {
+			produced += outputStage(out, produced, frames);
+			continue;
 		}
-		return;
-	}
-	flushMIDIGateBuffers();
-	setDireness(numSamples);
 
-	// Double the number of samples we're going to do - within some constraints
-	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
-	constexpr size_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES;
-
-	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
-
-	if (numSamples < maxAdjustedNumSamples) {
-		int32_t samplesOverThreshold = numSamples - sampleThreshold;
-		if (samplesOverThreshold > 0) {
-			samplesOverThreshold = samplesOverThreshold << 1;
-			numSamples = sampleThreshold + samplesOverThreshold;
+		// During offline stem export the export loop in routine() does the
+		// rendering; just keep the codec fed (it mutes on sustained zeros) and
+		// keep the input cursor pairing intact.
+		if (offline) {
+			for (uint32_t i = produced; i < frames; i++) {
+				out[i].l = (int32_t)((i - produced) % 2);
+				out[i].r = (int32_t)((i - produced) % 2);
+			}
+			advanceInputRingPos(frames - produced);
+			produced = frames;
+			break;
 		}
+
+		// Render the next sub-window, ending exactly at the next sequencer
+		// event (tickSongFinalizeWindows may shorten it).
+		if (produced != 0) {
+			flushMIDIGateBuffers();
+		}
+
+		voices_started_this_render = 0;
+
+		size_t numSamples = frames - produced;
+		int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = tickSongFinalizeWindows(numSamples);
+
+		numSamplesLastTime = numSamples;
+
+		renderAudio(numSamples);
+
+		scheduleMidiGateOutISR(produced, timeWithinWindowAtWhichMIDIOrGateOccurs);
+
+		sideChainHitPending = 0;
+		audioSampleTimer += numSamples;
 	}
-	numSamples = std::min(numSamples, maxAdjustedNumSamples);
-
-	// Want to round to be doing a multiple of 4 samples, so the NEON functions can be utilized most efficiently.
-	// Note - this can take numSamples up as high as SSI_TX_BUFFER_NUM_SAMPLES (currently 128).
-	if (numSamples >= 3) {
-		numSamples = (numSamples + 2) & ~3;
-	}
-	voices_started_this_render = 0;
-
-	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = tickSongFinalizeWindows(numSamples);
-
-	numSamplesLastTime = numSamples;
-
-	fillInputRing(numSamples);
-
-	renderAudio(numSamples);
-
-	scheduleMidiGateOutISR(saddrPosAtStart, unadjustedNumSamplesBeforeLappingPlayHead,
-	                       timeWithinWindowAtWhichMIDIOrGateOccurs);
 
 #if DO_AUDIO_LOG
 	dumpAudioLog();
 #endif
 
-	sideChainHitPending = 0;
-	audioSampleTimer += numSamples;
-
 	bypassCulling = false;
+	numRoutines += 1;
 }
 void renderAudio(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
@@ -954,8 +960,7 @@ void setMonitoringMode() { // Monitoring setup
 		}
 	}
 }
-void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSamplesBeforeLappingPlayHead,
-                            int32_t timeWithinWindowAtWhichMIDIOrGateOccurs) {
+void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWhichMIDIOrGateOccurs) {
 	bool anyGateOutputPending = cvEngine.isAnythingPending();
 
 	CriticalSectionGuard guard;
@@ -967,14 +972,12 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
 			timeWithinWindowAtWhichMIDIOrGateOccurs = 0;
 		}
 
-		uint32_t saddrAtEnd = (uint32_t)(getTxBufferCurrentPlace());
-		uint32_t saddrPosAtEnd = saddrAtEnd >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
-		uint32_t saddrMovementSinceStart =
-		    saddrPosAtEnd - saddrPosAtStart; // You'll need to &(SSI_TX_BUFFER_NUM_SAMPLES - 1) this anytime it's used
-
-		int32_t samplesTilMIDIOrGate = (timeWithinWindowAtWhichMIDIOrGateOccurs - saddrMovementSinceStart
-		                                - unadjustedNumSamplesBeforeLappingPlayHead)
-		                               & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+		// The event occurs `offsetInBlock + timeWithinWindow` frames into the
+		// render block the BSP is currently flushing; the BSP knows when the
+		// DAC will play that frame.
+		uint32_t blockElapsed;
+		int32_t samplesTilMIDIOrGate = (int32_t)deluge_audio_frames_until_block_offset(
+		    offsetInBlock + (uint32_t)timeWithinWindowAtWhichMIDIOrGateOccurs, &blockElapsed);
 
 		if (!samplesTilMIDIOrGate) {
 			samplesTilMIDIOrGate = SSI_TX_BUFFER_NUM_SAMPLES;
@@ -993,7 +996,14 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
 
 			if (samplesTilAllowedToSend > 0) {
 
-				samplesTilAllowedToSend -= (saddrMovementSinceStart & (SSI_TX_BUFFER_NUM_SAMPLES - 1));
+				// Real time elapsed since this sub-window's timeline anchor
+				// (audioSampleTimer): the block's played frames minus the
+				// sub-window's offset into the block.
+				int32_t windowElapsed =
+				    (int32_t)(blockElapsed & (SSI_TX_BUFFER_NUM_SAMPLES - 1)) - (int32_t)offsetInBlock;
+				if (windowElapsed > 0) {
+					samplesTilAllowedToSend -= windowElapsed;
+				}
 
 				if (samplesTilMIDIOrGate < samplesTilAllowedToSend) {
 					samplesTilMIDIOrGate = samplesTilAllowedToSend;
@@ -1030,16 +1040,11 @@ void routine() {
 
 	numRoutines = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
-		while (doSomeOutputting() && numRoutines < 2) {
-
-#ifndef USE_TASK_MANAGER
-			if (numRoutines > 0) {
-				deluge::hid::encoders::readEncoders();
-				deluge::hid::encoders::interpretEncoders(true);
-			}
-#endif
-			routine_();
-			numRoutines += 1;
+		// The BSP flushes previously-rendered audio toward the DAC and calls
+		// deluge_app_render() for as many new frames as its pacing policy asks.
+		uint32_t renders = deluge_audio_drive();
+		if (renders == 0 && calledFromScheduler) {
+			ignoreForStats();
 		}
 	}
 	else {
@@ -1050,10 +1055,11 @@ void routine() {
 				tickSongFinalizeWindows(numSamples);
 
 				numSamplesLastTime = numSamples;
-				fillInputRing(numSamples);
 				renderAudioForStemExport(numSamples);
 				audioSampleTimer += numSamples;
-				doSomeOutputting();
+				// Drains the just-rendered block to any OUTPUT-mode recorder
+				// and keeps the DAC fed (deluge_app_render's offline path).
+				deluge_audio_drive();
 				// gross and hacky way to make sure the audio recorder writes all of its data so it can't be stolen
 				while (audioRecorder.recorder->firstUnwrittenClusterIndex
 				       < audioRecorder.recorder->currentRecordClusterIndex) {
@@ -1072,32 +1078,26 @@ int32_t getNumSamplesLeftToOutputFromPreviousRender() {
 	return ((uint32_t)renderingBufferOutputEnd - (uint32_t)renderingBufferOutputPos) >> 3;
 }
 
-// Returns whether we got to the end
-bool doSomeOutputting() {
+// Drain up to `frames - produced` already-rendered samples through the output
+// stage — master volume + dither (+ input monitoring) — into the BSP's `out`
+// block at `produced`, feeding SampleRecorders along the way and advancing the
+// input-ring cursor in lockstep. During offline stem export the DAC gets the
+// 0/1 keep-alive pattern instead (it freaks out on sustained zeros) while the
+// real post-gain samples still reach OUTPUT-mode recorders. Returns the number
+// of samples produced.
+static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t frames) {
 
-	// Copy to actual output buffer, and apply heaps of gain too, with clipping
-	int32_t numSamplesOutputted = 0;
+	// Copy to the output block, and apply heaps of gain too, with clipping
+	uint32_t numSamplesOutputted = 0;
+	uint32_t maxSamples = frames - produced;
 
 	std::span<StereoSample> outputBufferForResampling{reinterpret_cast<StereoSample*>(spareRenderingBuffer), 128 * 2};
 	StereoSample* __restrict__ renderingBufferOutputPosNow = renderingBufferOutputPos;
-	int32_t* __restrict__ i2sTXBufferPosNow = (int32_t*)i2sTXBufferPos;
 	int32_t* __restrict__ inputReadPos = (int32_t*)inputRingPos;
 
-	while (renderingBufferOutputPosNow != renderingBufferOutputEnd) {
+	bool outputRealAudio = (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline));
 
-		// If we've reached the end of the known space in the output buffer...
-		if (!(((uint32_t)((uint32_t)i2sTXBufferPosNow - saddr) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-		      & (SSI_TX_BUFFER_NUM_SAMPLES - 1))) {
-
-			// See if there's now some more space.
-			saddr = (uint32_t)getTxBufferCurrentPlace();
-
-			// If there wasn't, stop for now
-			if (!(((uint32_t)((uint32_t)i2sTXBufferPosNow - saddr) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-			      & (SSI_TX_BUFFER_NUM_SAMPLES - 1))) {
-				break;
-			}
-		}
+	while (renderingBufferOutputPosNow != renderingBufferOutputEnd && numSamplesOutputted < maxSamples) {
 
 		// Here we're going to do something equivalent to a multiply_32x32_rshift32(), but add dithering.
 		// Because dithering is good, and also because the annoying codec chip freaks out if it sees the same 0s for
@@ -1138,19 +1138,14 @@ bool doSomeOutputting() {
 
 		outputBufferForResampling[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
 		outputBufferForResampling[numSamplesOutputted].r = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
-		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
-			i2sTXBufferPosNow[0] = outputBufferForResampling[numSamplesOutputted].l;
-			i2sTXBufferPosNow[1] = outputBufferForResampling[numSamplesOutputted].r;
+		if (outputRealAudio) {
+			out[produced + numSamplesOutputted].l = outputBufferForResampling[numSamplesOutputted].l;
+			out[produced + numSamplesOutputted].r = outputBufferForResampling[numSamplesOutputted].r;
 		}
 		// otherwise output 0 or 1 for silence, the DAC doesn't like all zeroes
 		else {
-			i2sTXBufferPosNow[0] = numSamplesOutputted % 2;
-			i2sTXBufferPosNow[1] = numSamplesOutputted % 2;
-		}
-
-		i2sTXBufferPosNow += NUM_MONO_OUTPUT_CHANNELS;
-		if (i2sTXBufferPosNow == getTxBufferEnd()) {
-			i2sTXBufferPosNow = getTxBufferStart();
+			out[produced + numSamplesOutputted].l = (int32_t)(numSamplesOutputted % 2);
+			out[produced + numSamplesOutputted].r = (int32_t)(numSamplesOutputted % 2);
 		}
 
 		numSamplesOutputted++;
@@ -1158,19 +1153,10 @@ bool doSomeOutputting() {
 	}
 
 	renderingBufferOutputPos = renderingBufferOutputPosNow; // Write back from __restrict__ pointer to permanent pointer
-	i2sTXBufferPos = (uint32_t)i2sTXBufferPosNow;
 
 	if (numSamplesOutputted) {
 
-		i2sRXBufferPos += (numSamplesOutputted << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
-		if (i2sRXBufferPos >= (uint32_t)getRxBufferEnd()) {
-			i2sRXBufferPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
-		}
-
-		inputRingPos += (numSamplesOutputted << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
-		if (inputRingPos >= (uint32_t)inputRingEnd()) {
-			inputRingPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
-		}
+		advanceInputRingPos(numSamplesOutputted);
 
 		// Go through each SampleRecorder, feeding them audio
 		for (SampleRecorder* recorder = firstRecorder; recorder != nullptr; recorder = recorder->next) {
@@ -1217,7 +1203,7 @@ bool doSomeOutputting() {
 		}
 	}
 
-	return (renderingBufferOutputPos == renderingBufferOutputEnd);
+	return numSamplesOutputted;
 }
 
 void logAudioAction(char const* string, const char* file, int line) {
@@ -1479,35 +1465,11 @@ void slowRoutine() {
 		// can happen if the SD routine is yielding
 		return;
 	}
-	// The RX buffer is much bigger than the TX, and we get our timing from the TX buffer's sending.
-	// However, if there's an audio glitch, and also at start-up, it's possible we might have missed an entire cycle
-	// of the TX buffer. That would cause the RX buffer's latency to increase. So here, we check for that and
-	// correct it. The correct latency for the RX buffer is between (SSI_TX_BUFFER_NUM_SAMPLES) and (2 *
-	// SSI_TX_BUFFER_NUM_SAMPLES).
 
-	uint32_t rxBufferWriteAddr = (uint32_t)getRxBufferCurrentPlace();
-	uint32_t latencyWithinAppropriateWindow =
-	    (((rxBufferWriteAddr - (uint32_t)i2sRXBufferPos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE))
-	     - SSI_TX_BUFFER_NUM_SAMPLES)
-	    & (SSI_RX_BUFFER_NUM_SAMPLES - 1);
-
-	while (latencyWithinAppropriateWindow >= SSI_TX_BUFFER_NUM_SAMPLES) {
-		i2sRXBufferPos += (SSI_TX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
-		if (i2sRXBufferPos >= (uint32_t)getRxBufferEnd()) {
-			i2sRXBufferPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
-		}
-
-		// Keep the app input ring's cursor offset-locked to the hardware cursor,
-		// so mirror fills and mirror readers stay aligned across the resync.
-		inputRingPos += (SSI_TX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
-		if (inputRingPos >= (uint32_t)inputRingEnd()) {
-			inputRingPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
-		}
-		latencyWithinAppropriateWindow =
-		    (((rxBufferWriteAddr - (uint32_t)i2sRXBufferPos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE))
-		     - SSI_TX_BUFFER_NUM_SAMPLES)
-		    & (SSI_RX_BUFFER_NUM_SAMPLES - 1);
-	}
+	// Re-align the input stream's latency window if an audio glitch (or
+	// start-up) made us miss a whole output-ring cycle. Ring geometry is the
+	// board's business; skipped input simply never reaches the input ring.
+	deluge_audio_input_resync();
 
 	// Discard any LiveInputBuffers which aren't in use
 	for (int32_t i = 0; i < 3; i++) {

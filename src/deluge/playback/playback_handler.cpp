@@ -42,6 +42,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "io/midi/midi_transpose.h"
+#include "libdeluge/audio_io.h"
 #include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -1793,10 +1794,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	// The 40 here is a fine-tuned amount to stop everything wrapping wrong when CPU load heavy. 28 to 98 seemed to
 	// work correctly
 	if (time) {
-		timeTilInputTick =
-		    (((uint32_t)(time - (uint32_t)AudioEngine::i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-		     + 40)
-		    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+		timeTilInputTick = (deluge_audio_stamp_to_render_offset(time) + 40) & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 	}
 	else {
 		timeTilInputTick = 0;
