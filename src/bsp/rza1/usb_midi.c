@@ -20,6 +20,7 @@
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h" // usb_utr_t, USB_NUM_USBIP, usb_cb_t, USB_TRAN_END
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
+#include "RZA1/usb/usb_midi_completion.h"           // HAL-owned pipe-completion queue (drained below)
 #include "RZA1/usb/userdef/r_usb_hmidi_config.h"    // USB_CFG_HMIDI_INT_SEND, USB_CFG_USE_USBIP
 #include "board_config.h"                           // MAX_NUM_USB_MIDI_DEVICES, PLACE_SDRAM_BSS
 #include "drivers/usb/userdef/r_usb_pmidi_config.h" // USB_CFG_PMIDI_BULK_OUT/_IN
@@ -27,15 +28,14 @@
 
 #include <string.h>
 
-// Phase 3 relocated the transport *state* here; phase 4 relocates the *send path*
-// (the send ring, the Renesas bulk-OUT pipe driving and the send-completion state
-// machine) from midi_engine.cpp. The receive path still lives in the app and is
-// pumped from there (phase 5); the service/read/write stubs below stay inert.
+// This module owns the USB-MIDI transport: the per-device RX/TX buffers + send
+// ring (phase 3), the send path - ring, Renesas bulk-OUT pipe driving, send
+// completion (phase 4) - and the receive transfer setup + completion (phase 5).
 //
-// Completion is still an upcall: the HAL bulk-OUT handlers call
-// bsp_usb_midi_send_complete_as_{host,peripheral}() (retargeted from the app's old
-// usbSendComplete*). Converting that to a HAL-recorded count the BSP polls is the
-// remaining phase-4 step (see docs/dev/usb_midi_transport_relocation.md).
+// Completion is pulled, not pushed: the HAL bulk-IN/-OUT handlers record generic
+// (pipe) completion events into a HAL-owned queue (usb_midi_completion.*), and
+// bsp_usb_midi_service() below drains them. The app calls that from its USB pump,
+// so there are no HAL -> BSP upcalls (see docs/dev/usb_midi_transport_relocation.md).
 
 // --- HAL globals/functions the send path drives (resolved at the final link). ---
 extern usb_utr_t* g_p_usb_pipe[];
@@ -456,7 +456,25 @@ void bsp_usb_midi_rearm_peripheral_receive(int32_t ip) {
 	usb_receive_start_rohan_midi(USB_CFG_PMIDI_BULK_IN);
 }
 
+// Drain the HAL pipe-completion queue and act on each event: record received
+// bytes, or chain the next queued send. Called from the app's USB pump right after
+// usb_cstd_usb_task() (which is where the HAL records the completions), so it runs
+// in the same polled context with the USB lock held.
 void bsp_usb_midi_service(void) {
+	UsbMidiCompletion c;
+	while (usb_midi_completion_take(&c)) {
+		switch ((UsbMidiCompletionKind)c.kind) {
+		case USB_MIDI_COMPLETION_RECEIVE:
+			bsp_usb_midi_receive_complete(0, c.deviceNum, c.bytesReceived);
+			break;
+		case USB_MIDI_COMPLETION_SEND_HOST:
+			bsp_usb_midi_send_complete_as_host(USB_CFG_USE_USBIP);
+			break;
+		case USB_MIDI_COMPLETION_SEND_PERIPHERAL:
+			bsp_usb_midi_send_complete_as_peripheral(0);
+			break;
+		}
+	}
 }
 
 bool bsp_usb_midi_port_connected(uint8_t port) {

@@ -36,8 +36,8 @@
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 
 // Added by Rohan
+#include "RZA1/usb/usb_midi_completion.h" // record pipe completions for the BSP to drain
 #include "bsp/rza1/drivers/usb/userdef/r_usb_pmidi_config.h"
-#include "bsp/rza1/usb_midi.h" // bsp_usb_midi_* (USB-MIDI transport boundary)
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
@@ -937,9 +937,9 @@ void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
                                 //((usb_cb_t)g_p_usb_pstd_pipe[pipe]->complete)(g_p_usb_pstd_pipe[pipe], USB_NULL,
                                 // USB_NULL); usbReceiveComplete(0, 0, g_usb_pstd_data_cnt[pipe]);
                                 g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL; // Is this necessary? Doesn't look like it
-                                // Only the first device receives in peripheral mode. Report the bulk-IN completion to
-                                // the BSP transport (which owns the buffers).
-                                bsp_usb_midi_receive_complete(0, 0, 64 - g_usb_data_cnt[pipe]);
+                                // Only the first device receives in peripheral mode. Record the bulk-IN completion;
+                                // the BSP drains it and owns the buffers.
+                                usb_midi_completion_record(USB_MIDI_COMPLETION_RECEIVE, 0, 64 - g_usb_data_cnt[pipe]);
                             }
                         }
                     }
@@ -1208,7 +1208,7 @@ void usb_pstd_bemp_pipe_process_rohan_midi(uint16_t bitsts)
                         // connectedUSBMIDIDevices[0][0].numBytesSendingNow = 0; // Even easier!
                         // anyUSBSendingStillHappening[0]                   = 0;
 
-                        bsp_usb_midi_send_complete_as_peripheral(0); // NOT SO EASY
+                        usb_midi_completion_record(USB_MIDI_COMPLETION_SEND_PERIPHERAL, 0, 0); // NOT SO EASY
                     }
                 }
             }

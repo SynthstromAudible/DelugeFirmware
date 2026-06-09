@@ -503,6 +503,9 @@ void MidiEngine::check_incoming_usb() {
 		// Have to call this regularly, to do "callbacks" that will grab out the received data
 		usbLock = 1;
 		usb_cstd_usb_task();
+		// Drain the pipe completions the task just recorded: the BSP records received
+		// bytes and chains the next queued send (replaces the old HAL->BSP upcalls).
+		bsp_usb_midi_service();
 		usbLock = 0;
 	}
 }

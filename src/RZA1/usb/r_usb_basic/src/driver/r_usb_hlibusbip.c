@@ -39,8 +39,8 @@
 
 #include "definitions.h"
 
+#include "RZA1/usb/usb_midi_completion.h" // record pipe completions for the BSP to drain
 #include "bsp/rza1/drivers/uart/uart.h"
-#include "bsp/rza1/usb_midi.h" // bsp_usb_midi_* (USB-MIDI transport boundary)
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "drivers/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
@@ -1291,8 +1291,9 @@ void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bits
                                     if (deviceNum < MAX_NUM_USB_MIDI_DEVICES)
                                     { // Gotta check this - I can totally see something going wrong, with all the other
                                       // checks I'm now skipping!
-                                        // Report the bulk-IN completion to the BSP transport (which owns the buffers).
-                                        bsp_usb_midi_receive_complete(0, deviceNum, 64 - g_usb_data_cnt[pipe]);
+                                        // Record the bulk-IN completion; the BSP drains it and owns the buffers.
+                                        usb_midi_completion_record(
+                                            USB_MIDI_COMPLETION_RECEIVE, deviceNum, 64 - g_usb_data_cnt[pipe]);
                                     }
                                 }
                             }
@@ -1549,7 +1550,7 @@ goAgain:
                                               // can do another transfer, which sets this to something else
                                 //(temp->complete)(temp, 0, 0); // This does our callback on our outgoing transfers.
                                 // Rohan
-                                bsp_usb_midi_send_complete_as_host(USB_CFG_USE_USBIP);
+                                usb_midi_completion_record(USB_MIDI_COMPLETION_SEND_HOST, 0, 0);
                             }
                         }
                     }
