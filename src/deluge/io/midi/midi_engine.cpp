@@ -16,8 +16,7 @@
  */
 
 #include "io/midi/midi_engine.h"
-#include "RZA1/cpu_specific.h"
-#include "bsp/rza1/usb_midi.h" // BspUsbMidiDevice, g_usb_midi_*_utr, bsp_usb_midi_device (transport state)
+#include "bsp/rza1/usb_midi.h" // BspUsbMidiDevice, bsp_usb_midi_* (transport state); receive decode still reaches in
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
@@ -37,18 +36,14 @@
 #include "version.h"
 
 extern "C" {
-#include "RZA1/uart/sio_char.h"
 
+// App-owned re-entrancy guard for USB-MIDI servicing (shared with the BSP send
+// path, which reads it during flush). Pumping and DIN/USB I/O now go through the
+// <libdeluge/midi_io.h> boundary, so no HAL header is included here.
 volatile uint32_t usbLock = 0;
-void usb_cstd_usb_task();
-
-#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
-#include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
-
-#include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
 
 // Send-path state lives in the BSP usb_midi module now; the receive decode below
-// still reads these two (the host re-arm guard) until phases 6-7.
+// still reads these two (the host re-arm guard) until the receive path moves down.
 extern uint8_t stopSendingAfterDeviceNum[DELUGE_USB_NUM_CONTROLLERS];
 extern uint8_t usbDeviceNumBeingSentToNow[DELUGE_USB_NUM_CONTROLLERS];
 
