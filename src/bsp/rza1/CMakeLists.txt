@@ -6,6 +6,7 @@ add_library(bsp_rza1 STATIC
     clock.c
     system.c
     signals.c
+    board.c
     display.c
     midi_io.c
     usb_midi.c

@@ -50,6 +50,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
+#include "libdeluge/board.h"
 #include "libdeluge/signals.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
@@ -154,8 +155,9 @@ void inputRoutine() {
 	// Battery voltage
 	// If analog read is ready...
 
-	if (ADC.ADCSR & (1 << 15)) {
-		int32_t numericReading = ADC.ADDRF;
+	uint16_t batteryADCReading;
+	if (deluge_battery_read_raw(&batteryADCReading)) {
+		int32_t numericReading = batteryADCReading;
 		// Apply LPF
 		int32_t voltageReading = numericReading * 3300;
 		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
@@ -197,7 +199,7 @@ makeBattLEDSolid:
 	}
 
 	// Set up for next analog read
-	ADC.ADCSR = (1 << 13) | (0b011 << 6) | SYS_VOLT_SENSE_PIN;
+	deluge_battery_start_conversion();
 
 	MIDIDeviceManager::slowRoutine();
 
@@ -612,9 +614,7 @@ void mainLoop() {
 	}
 }
 extern "C" int32_t deluge_main(void) {
-	// Piggyback off of bootloader DMA setup.
-	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
-	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
+	bool have_oled = deluge_board_probe_oled();
 
 	// Give the PIC some startup instructions
 	if (have_oled) {
@@ -634,62 +634,22 @@ extern "C" int32_t deluge_main(void) {
 
 	currentPlaybackMode = &session;
 
-	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
-	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
-
-	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0); // Switch it off
-	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);    // Synced LED
-
-	// Codec control
-	setPinAsOutput(CODEC.port, CODEC.pin);
-	setOutputState(CODEC.port, CODEC.pin, 0); // Switch it off
-
-	// Speaker / amp control
-	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
-	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 0); // Switch it off
-
-	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
-	setPinAsInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);     // Line in detect
-	setPinAsInput(MIC_DETECT.port, MIC_DETECT.pin);             // Mic detect
-
-	setPinMux(VOLT_SENSE.port, VOLT_SENSE.pin, 1); // Analog input for voltage sense
-
-	// Trigger clock input
-	setPinMux(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin, 2);
-
-	// Line out detect pins
-	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
-	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
-
-	// SPI for CV
-	R_RSPI_Create(SPI_CHANNEL_CV,
-	              have_oled ? 10000000 // Higher than this would probably work... but let's stick to the OLED
-	                                   // datasheet's spec of 100ns (10MHz).
-	                        : 30000000,
-	              0, 32);
-	R_RSPI_Start(SPI_CHANNEL_CV);
-	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);   // CLK
-	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
+	// One-time board bring-up: GPIO directions + initial state, the CV DAC SPI,
+	// and (when an OLED is fitted) its shared-SPI plumbing.
+	deluge_board_init_early(have_oled);
 
 	if (have_oled) {
-		// If OLED sharing SPI channel, have to manually control SSL pin.
-		setOutputState(SPI_SSL.port, SPI_SSL.pin, true);
-		setPinAsOutput(SPI_SSL.port, SPI_SSL.pin);
-
-		setupSPIInterrupts();
-		oledDMAInit();
 		setupOLED(); // Set up OLED now
 		display = new deluge::hid::display::OLED;
 	}
 	else {
-		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
 		display = new deluge::hid::display::SevenSegment;
 	}
 	// remember the physical display type
 	deluge::hid::display::have_oled_screen = have_oled;
 
 	// Setup audio output on SSI0
-	ssiInit(0, 1);
+	deluge_board_init_audio();
 
 #if RECORD_TEST_MODE == 1
 	makeTestRecording();
@@ -711,21 +671,16 @@ extern "C" int32_t deluge_main(void) {
 	PIC::waitForFlush();
 
 	PIC::setupForPads();
-	setOutputState(CODEC.port, CODEC.pin, 1); // Enable codec
+	deluge_signal_write(DELUGE_SIGNAL_CODEC_ENABLE, true); // Enable codec
 
 	AudioEngine::init();
 
 	audioFileManager.init();
 
-	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics
-	// and audio routines into the SPIBSC wait routines, so that has to be running
-	setPinMux(4, 2, 2);
-	setPinMux(4, 3, 2);
-	setPinMux(4, 4, 2);
-	setPinMux(4, 5, 2);
-	setPinMux(4, 6, 2);
-	setPinMux(4, 7, 2);
-	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
+	// Storage-phase board bring-up (SPIBSC). Must run only now that everything
+	// else is up, because the graphics and audio routines are injected into the
+	// SPIBSC wait routines, so those have to be running.
+	deluge_board_init_storage();
 
 	PIC::requestFirmwareVersion(); // Request PIC firmware version
 	PIC::resendButtonStates();     // Tell PIC to re-send button states
@@ -879,7 +834,7 @@ extern "C" int32_t deluge_main(void) {
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
 	D_PRINTLN("going into main loop");
-	L2CacheUnlockData();
+	deluge_board_unlock_data_cache();
 	// (The SD-routine reentrancy flag is scheduler-owned and starts clear; no reset needed here.)
 
 #ifdef USE_TASK_MANAGER

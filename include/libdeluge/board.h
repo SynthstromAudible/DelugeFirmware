@@ -67,6 +67,39 @@ typedef struct DelugeBoard {
 /// [task]
 const DelugeBoard* deluge_board(void);
 
+// ---------------------------------------------------------------------------
+// One-time board bring-up. The application's boot path is interleaved — app
+// subsystems (CV/audio/storage engines) come up between these hardware steps,
+// and the ordering is load-bearing — so bring-up is split into ordered entry
+// points the app calls at the existing seams rather than one monolith. All
+// pin/port numbers, SPI channels and register layout stay BSP-internal.
+// ---------------------------------------------------------------------------
+
+/// Runtime probe: true if the bootloader already configured the OLED panel's
+/// SPI DMA, i.e. an OLED is fitted. The app uses this to choose the OLED vs
+/// 7-segment bring-up and display object. Valid before any board_init. [task]
+bool deluge_board_probe_oled(void);
+
+/// Early bring-up, before the app's CV/audio/storage subsystems: GPIO
+/// direction + initial state for the status LEDs, codec and speaker enables,
+/// jack detects, analog voltage sense and the trigger-clock input; create and
+/// start the CV DAC SPI; and, when `have_oled`, the OLED-shared-SPI slave
+/// select, transfer interrupts and DMA (otherwise the 7-segment SPI mux). [task]
+void deluge_board_init_early(bool have_oled);
+
+/// Bring up the audio serial (SSI) port. Called once after init_early and the
+/// display object exists, before the audio engine starts. [task]
+void deluge_board_init_audio(void);
+
+/// Storage-phase bring-up: SPIBSC pins + serial-flash controller. Must run only
+/// after external RAM/audio is up, because the controller's busy-wait loops run
+/// the injected audio/graphics routines. [task]
+void deluge_board_init_storage(void);
+
+/// Unlock the L2 cache data region locked during boot, just before entering the
+/// main loop. [task]
+void deluge_board_unlock_data_cache(void);
+
 #ifdef __cplusplus
 }
 #endif

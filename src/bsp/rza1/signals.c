@@ -72,6 +72,22 @@ bool deluge_signal_read(DelugeSignal signal) {
 	}
 }
 
+// Battery sense rides system ADC channel SYS_VOLT_SENSE_PIN (5 on this board).
+#define BOARD_VOLT_SENSE_CHANNEL 5
+
+bool deluge_battery_read_raw(uint16_t* out) {
+	// Bit 15 of ADCSR is the conversion-complete flag.
+	if (!(ADC.ADCSR & (1 << 15))) {
+		return false;
+	}
+	*out = ADC.ADDRF;
+	return true;
+}
+
+void deluge_battery_start_conversion(void) {
+	ADC.ADCSR = (1 << 13) | (0b011 << 6) | BOARD_VOLT_SENSE_CHANNEL;
+}
+
 bool deluge_midi_gate_timer_pending(void) {
 	return isTimerEnabled(TIMER_MIDI_GATE_OUTPUT);
 }

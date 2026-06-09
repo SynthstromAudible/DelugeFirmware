@@ -56,6 +56,18 @@ void deluge_signal_write(DelugeSignal signal, bool on);
 bool deluge_signal_read(DelugeSignal signal);
 
 // ---------------------------------------------------------------------------
+// Battery voltage sense. The board owns the ADC channel and conversion; the app
+// runs its own smoothing/region logic over the raw readings.
+// ---------------------------------------------------------------------------
+
+/// If a battery-voltage conversion has completed, store its raw reading in
+/// `*out` and return true; otherwise return false. [task]
+bool deluge_battery_read_raw(uint16_t* out);
+
+/// Arm the next battery-voltage conversion. [task]
+void deluge_battery_start_conversion(void);
+
+// ---------------------------------------------------------------------------
 // MIDI/gate output timer. A board one-shot that fires midiAndGateTimerGoneOff()
 // a precise number of audio samples in the future, so MIDI clock and gate edges
 // land sample-accurately rather than at the audio-block boundary. The app owns
