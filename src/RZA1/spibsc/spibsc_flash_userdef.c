@@ -41,7 +41,7 @@ Includes <System Includes> , "Project Includes"
 #include "RZA1/spibsc/spibsc.h"
 #include "RZA1/system/r_typedefs.h"
 
-#include "deluge/deluge.h"
+#include "libdeluge/storage_wait.h"
 
 // #pragma arm section code   = "CODE_SPIBSC_INIT2"
 // #pragma arm section rodata = "CONST_SPIBSC_INIT2"

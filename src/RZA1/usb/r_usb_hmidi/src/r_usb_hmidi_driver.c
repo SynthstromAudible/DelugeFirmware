@@ -38,8 +38,8 @@
 #include "RZA1/usb/userdef/r_usb_hmidi_config.h"
 #include "definitions.h"
 
+#include "RZA1/usb/usb_host_event.h"
 #include "bsp/rza1/drivers/uart/uart.h"
-#include "deluge/deluge.h"
 
 /******************************************************************************
  Exported global variables
@@ -592,7 +592,7 @@ uint16_t usb_hmidi_pipe_info(usb_utr_t* ptr, uint8_t* table, uint16_t speed, uin
 
                     // If still here, we didn't find a pipe
                     uartPrintln("no free pipe");
-                    consoleTextIfAllBootedUp(l10n_get(l10n_STRING_FOR_USB_DEVICES_MAX));
+                    usbHostEventRecord(USB_HOST_EVENT_DEVICES_MAX);
                     goto moveOnToNextDescriptor;
 
 pickedReceivePipe:

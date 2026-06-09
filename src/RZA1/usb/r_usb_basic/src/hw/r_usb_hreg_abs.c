@@ -36,8 +36,6 @@
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 
-#include "deluge/deluge.h"
-
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
  Function Name   : usb_hstd_set_hub_port
@@ -289,7 +287,6 @@ uint16_t usb_hstd_chk_attach(usb_utr_t* ptr, uint16_t port)
         }
         else if ((buf[0] & USB_LNST) == USB_SE0)
         {
-            consoleTextIfAllBootedUp("DETACH"); // By Rohan
             USB_PRINTF0(" Detach device\n");
         }
         else

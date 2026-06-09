@@ -1233,6 +1233,13 @@ copy7ToMe:
 // Call this repeatedly so SD card is re-initialized on re-insert before we actually urgently need audio from it
 void AudioFileManager::slowRoutine() {
 
+	// Drain card-detect events from the BSP (pull-based; the card-detect ISR
+	// records them, we poll here). An ejection marks the card unusable until it
+	// is re-initialised by the re-insert path below.
+	if (deluge_block_poll_card_event(deluge_block_sd_unit()) == DELUGE_CARD_EVENT_EJECTED) {
+		setCardEjected();
+	}
+
 	// If we know the card's been ejected...
 	if (cardEjected && !sdRoutineLock) {
 		Error error = StorageManager::initSD();

@@ -37,7 +37,7 @@
 *******************************************************************************/
 #include "../../../inc/sdif.h"
 #include "../inc/access/sd.h"
-#include "deluge/deluge.h"
+#include "libdeluge/storage_wait.h"
 
 #ifdef __CC_ARM
 #pragma arm section code = "CODE_SDHI"
@@ -71,7 +71,6 @@ int _sd_software_trans(SDHNDL *hndl,unsigned char *buff,long cnt,int dir)
 	long j;
 	int (*func)(int, unsigned char *, unsigned long, long);
 	
-	logAudioAction("_sd_software_trans");
 
 	if(dir == SD_TRANS_READ){
 		func = sddev_read_data;
@@ -82,7 +81,6 @@ int _sd_software_trans(SDHNDL *hndl,unsigned char *buff,long cnt,int dir)
 	
 	for(j=cnt; j>0 ;j--){
 		/* ---- wait BWE/BRE interrupt ---- */
-		logAudioAction("from _sd_software_trans()");
 		routineForSD(); // By Rohan
 
 		if(sddev_int_wait(hndl->sd_port, SD_TIMEOUT_MULTIPLE) != SD_OK){

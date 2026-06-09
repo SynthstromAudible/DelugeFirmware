@@ -55,6 +55,25 @@ uint32_t deluge_block_sector_size(uint8_t unit);
 /// Flush any pending writes / complete in-flight operations. [task]
 DelugeStatus deluge_block_sync(uint8_t unit);
 
+/// A card-detect edge observed since the last poll.
+typedef enum DelugeCardEvent {
+	DELUGE_CARD_EVENT_NONE = 0,
+	DELUGE_CARD_EVENT_INSERTED,
+	DELUGE_CARD_EVENT_EJECTED,
+} DelugeCardEvent;
+
+/// Drain the next pending card-detect event for `unit` (NONE if none pending).
+///
+/// Pull-based, not a callback: the card-detect interrupt records the edge in the
+/// BSP/HAL and the application polls for it from its own loop. The lower layers
+/// never call up into the app. [task]
+DelugeCardEvent deluge_block_poll_card_event(uint8_t unit);
+
+// NOTE: loadAnyEnqueuedClustersRoutine() is still an app upcall used by the
+// storage busy-wait path; it is removed when storage waits are converted to
+// scheduler yields (it belongs to that concurrency work, not card-detect).
+void loadAnyEnqueuedClustersRoutine(void);
+
 #ifdef __cplusplus
 }
 #endif

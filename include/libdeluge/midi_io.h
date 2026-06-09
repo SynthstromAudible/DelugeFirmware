@@ -60,6 +60,24 @@ uint32_t deluge_midi_write_space(DelugeMidiPort port);
 /// Push any buffered TX bytes toward the wire if idle. [task]
 void deluge_midi_flush(DelugeMidiPort port);
 
+/// A USB-host enumeration event observed since the last poll. USB host is the
+/// MIDI-device transport on this board, so these surface through the MIDI
+/// boundary.
+typedef enum DelugeUsbHostEvent {
+	DELUGE_USB_HOST_NONE = 0,
+	DELUGE_USB_HOST_HUB_ATTACHED,
+	DELUGE_USB_HOST_DEVICE_DETACHED,
+	DELUGE_USB_HOST_DEVICE_NOT_RECOGNIZED,
+	DELUGE_USB_HOST_DEVICES_MAX,
+} DelugeUsbHostEvent;
+
+/// Drain the next pending USB-host enumeration event (NONE if none pending).
+///
+/// Pull-based, not a callback: the USB host stack records events and the app
+/// polls for them, then decides what to display and localize. The USB stack
+/// does no UI/localization and never calls up into the app. [task]
+DelugeUsbHostEvent deluge_midi_poll_usb_host_event(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -24,8 +24,20 @@
 
 #include "libdeluge/block_device.h"
 
-#include "RZA1/cpu_specific.h" // SD_PORT
+#include "RZA1/cpu_specific.h"   // SD_PORT
+#include "RZA1/sd_card_detect.h" // sdTakeCardDetectEvent (HAL-owned latch)
 
 uint8_t deluge_block_sd_unit(void) {
 	return SD_PORT;
+}
+
+DelugeCardEvent deluge_block_poll_card_event(uint8_t unit) {
+	switch (sdTakeCardDetectEvent((int)unit)) {
+	case SD_CD_INSERTED:
+		return DELUGE_CARD_EVENT_INSERTED;
+	case SD_CD_EJECTED:
+		return DELUGE_CARD_EVENT_EJECTED;
+	default:
+		return DELUGE_CARD_EVENT_NONE;
+	}
 }

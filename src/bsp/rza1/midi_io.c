@@ -26,8 +26,24 @@
 
 #include "libdeluge/midi_io.h"
 
-#include "RZA1/cpu_specific.h"  // UART_ITEM_MIDI
-#include "RZA1/uart/sio_char.h" // uartGetTxBufferSpace, uartFlushIfNotSending
+#include "RZA1/cpu_specific.h"       // UART_ITEM_MIDI
+#include "RZA1/uart/sio_char.h"      // uartGetTxBufferSpace, uartFlushIfNotSending
+#include "RZA1/usb/usb_host_event.h" // usbHostEventTake (HAL-owned USB host event queue)
+
+DelugeUsbHostEvent deluge_midi_poll_usb_host_event(void) {
+	switch (usbHostEventTake()) {
+	case USB_HOST_EVENT_HUB_ATTACHED:
+		return DELUGE_USB_HOST_HUB_ATTACHED;
+	case USB_HOST_EVENT_DEVICE_DETACHED:
+		return DELUGE_USB_HOST_DEVICE_DETACHED;
+	case USB_HOST_EVENT_DEVICE_NOT_RECOGNIZED:
+		return DELUGE_USB_HOST_DEVICE_NOT_RECOGNIZED;
+	case USB_HOST_EVENT_DEVICES_MAX:
+		return DELUGE_USB_HOST_DEVICES_MAX;
+	default:
+		return DELUGE_USB_HOST_NONE;
+	}
+}
 
 uint32_t deluge_midi_write(DelugeMidiPort port, const uint8_t* src, uint32_t len) {
 	switch (port) {

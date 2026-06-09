@@ -55,6 +55,16 @@ void deluge_signal_write(DelugeSignal signal, bool on);
 /// Read the current level of an input `signal`. [task]
 bool deluge_signal_read(DelugeSignal signal);
 
+// ---------------------------------------------------------------------------
+// Runtime-provided callbacks (inverse direction: the app implements, the
+// BSP/HAL call up). Declared here so the timer HAL depends only on
+// <libdeluge/...>, never on the app's deluge.h. See system.h for the rationale.
+// ---------------------------------------------------------------------------
+
+/// Fired from the MIDI/gate output timer ISR: the scheduled gate/clock output
+/// time has arrived and the app should emit pending events. [isr]
+void midiAndGateTimerGoneOff(void);
+
 #ifdef __cplusplus
 }
 #endif

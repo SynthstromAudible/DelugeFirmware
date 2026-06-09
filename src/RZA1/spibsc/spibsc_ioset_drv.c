@@ -44,7 +44,7 @@ Includes   <System Includes> , "Project Includes"
 #include "RZA1/system/r_typedefs.h"
 #include "RZA1/system/rza_io_regrw.h"
 
-#include "deluge/deluge.h"
+#include "libdeluge/storage_wait.h"
 
 /******************************************************************************
 Typedef definitions

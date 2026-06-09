@@ -887,10 +887,6 @@ extern "C" int32_t deluge_main(void) {
 	return 0;
 }
 
-extern "C" void logAudioAction(char const* string) {
-	AudioEngine::logAction(string);
-}
-
 extern "C" bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) {
 	if (intc_func_active != 0) {
 		return false;
@@ -970,12 +966,8 @@ extern "C" void routineForSD(void) {
 	sdRoutineLock = false;
 }
 
-extern "C" void sdCardInserted(void) {
-}
-
-extern "C" void sdCardEjected(void) {
-	audioFileManager.setCardEjected();
-}
+// Card-detect is now pull-based: AudioFileManager::slowRoutine() polls
+// deluge_block_poll_card_event() instead of the BSP calling up into the app.
 
 extern "C" void loadAnyEnqueuedClustersRoutine() {
 	audioFileManager.loadAnyEnqueuedClusters();

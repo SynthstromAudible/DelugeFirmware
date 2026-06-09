@@ -17,6 +17,9 @@
 
 #include "io/midi/midi_device_manager.h"
 #include "definitions_cxx.hpp"
+#include "deluge/deluge.h" // setTimeUSBInitializationEnds (app-owned popup-suppression window)
+#include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -25,6 +28,7 @@
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "libdeluge/midi_io.h" // deluge_midi_poll_usb_host_event
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
@@ -73,6 +77,33 @@ bool anyChangesToSave = false;
 
 // Gets called within UITimerManager, which may get called during SD card routine.
 void slowRoutine() {
+	// Drain USB host enumeration events from the BSP (pull-based: the USB host
+	// stack records them, we poll here) and surface them as console popups. The
+	// app owns the display + localization and the post-hub-attach popup-
+	// suppression window — the USB stack no longer does any UI itself.
+	for (DelugeUsbHostEvent usbEvent = deluge_midi_poll_usb_host_event(); usbEvent != DELUGE_USB_HOST_NONE;
+	     usbEvent = deluge_midi_poll_usb_host_event()) {
+		switch (usbEvent) {
+		case DELUGE_USB_HOST_HUB_ATTACHED:
+			consoleTextIfAllBootedUp(deluge::l10n::get(deluge::l10n::String::STRING_FOR_USB_HUB_ATTACHED));
+			// A hub enumerates many devices at once; suppress the per-device
+			// popups for ~2s (was setTimeUSBInitializationEnds(44100 << 1)).
+			setTimeUSBInitializationEnds(kSampleRate * 2);
+			break;
+		case DELUGE_USB_HOST_DEVICE_DETACHED:
+			consoleTextIfAllBootedUp(deluge::l10n::get(deluge::l10n::String::STRING_FOR_USB_DEVICE_DETACHED));
+			break;
+		case DELUGE_USB_HOST_DEVICE_NOT_RECOGNIZED:
+			consoleTextIfAllBootedUp(deluge::l10n::get(deluge::l10n::String::STRING_FOR_USB_DEVICE_NOT_RECOGNIZED));
+			break;
+		case DELUGE_USB_HOST_DEVICES_MAX:
+			consoleTextIfAllBootedUp(deluge::l10n::get(deluge::l10n::String::STRING_FOR_USB_DEVICES_MAX));
+			break;
+		case DELUGE_USB_HOST_NONE:
+			break;
+		}
+	}
+
 	upstreamUSBMIDICable1.sendMCMsNowIfNeeded();
 	upstreamUSBMIDICable2.sendMCMsNowIfNeeded();
 	// port3 is not used for channel data

@@ -1,7 +1,11 @@
 file(GLOB_RECURSE RZA1_SOURCES CONFIGURE_DEPENDS *.S *.c *.h)
 
 add_library(RZA1 STATIC ${RZA1_SOURCES})
-target_include_directories(RZA1 PRIVATE ${SHARED_INCLUDE})
+# ${CMAKE_SOURCE_DIR}/include: the HAL's storage/USB busy-wait + notification
+# paths call up into runtime-provided hooks declared in <libdeluge/...> (storage
+# yield, card-detect, logAudioAction, console, l10n). It depends on the boundary
+# contract directly instead of the app's deluge.h.
+target_include_directories(RZA1 PRIVATE ${SHARED_INCLUDE} ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(RZA1 PRIVATE fatfs)
 
 target_compile_definitions(RZA1 PRIVATE

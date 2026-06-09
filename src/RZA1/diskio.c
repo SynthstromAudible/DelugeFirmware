@@ -35,12 +35,14 @@
 
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/rspi/rspi.h"
+#include "RZA1/sd_card_detect.h"
 #include "RZA1/sdhi/inc/sdif.h"
 #include "RZA1/system/rza_io_regrw.h"
 #include "bsp/rza1/drivers/uart/uart.h"
-#include "deluge/deluge.h"
 #include "diskio.h"
 #include "ff.h"
+#include "libdeluge/block_device.h"
+#include "libdeluge/system.h"
 
 uint8_t currentlyAccessingCard = 0;
 
@@ -77,7 +79,6 @@ DRESULT disk_read(BYTE pdrv, /* Physical drive nmuber (0) */
     UINT count               /* Sector count (1..128) */
 )
 {
-    logAudioAction("disk_read");
 
     loadAnyEnqueuedClustersRoutine(); // Always ensure SD streaming is fulfilled before anything else
 
@@ -101,6 +102,10 @@ DSTATUS disk_status(BYTE pdrv /* Physical drive nmuber to identify the drive */
     return diskStatus;
 }
 
+// Card-detect event latch: written here in the CD interrupt, read+cleared by
+// sdTakeCardDetectEvent(). Pull-based — nothing is pushed up into the app.
+static volatile int pendingCardDetectEvent = SD_CD_NONE;
+
 int sdIntCallback(int sd_port, int cd)
 {
     if (sd_port == SD_PORT)
@@ -109,17 +114,30 @@ int sdIntCallback(int sd_port, int cd)
         {
             uartPrintln("SD Card insert!\n");
             diskStatus &= ~STA_NODISK;
-            sdCardInserted();
+            pendingCardDetectEvent = SD_CD_INSERTED;
         }
         else
         {
             uartPrintln("SD Card extract!\n");
-            diskStatus = STA_NOINIT | STA_NODISK;
-            sdCardEjected();
+            diskStatus             = STA_NOINIT | STA_NODISK;
+            pendingCardDetectEvent = SD_CD_EJECTED;
         }
     }
 
     return 0;
+}
+
+int sdTakeCardDetectEvent(int sd_port)
+{
+    if (sd_port != SD_PORT)
+    {
+        return SD_CD_NONE;
+    }
+    ENTER_CRITICAL_SECTION();
+    int event              = pendingCardDetectEvent;
+    pendingCardDetectEvent = SD_CD_NONE;
+    EXIT_CRITICAL_SECTION();
+    return event;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -189,8 +207,6 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
     UINT count                                       /* Number of sectors to read */
 )
 {
-
-    logAudioAction("disk_read_without_streaming_first");
 
     BYTE err;
 

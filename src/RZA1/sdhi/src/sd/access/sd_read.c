@@ -40,7 +40,7 @@
 
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "bsp/rza1/drivers/uart/uart.h"
-#include "deluge/deluge.h"
+#include "libdeluge/storage_wait.h"
 #include "RZA1/cache/cache.h"
 
 #ifdef __CC_ARM
@@ -136,7 +136,6 @@ int sd_read_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt)
 	int dma_64;
 
 
-	logAudioAction("sd_read_sect");
 
 	routineForSD(); // By Rohan. // called during disk reads but only once per read
 
@@ -295,7 +294,6 @@ int sd_read_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt)
 			goto ErrExit;
 		}
 		/* ---- wait All end interrupt ---- */
-		logAudioAction("0a");
 
 		// TODO: what if we didn't wait for this interrupt? It can't be that necessary, since we've already read the data... how much time would we save?
 		// Or is this just customary as the interrupt's already happened?
@@ -410,7 +408,6 @@ ErrExit:
 		/* ---- data transfer stop (issue CMD12) ---- */
 		sd_outp(hndl,SD_STOP,0x0001);
 		/* ---- wait All end ---- */
-		logAudioAction("0b");
 
 		sddev_int_wait(sd_port, SD_TIMEOUT_RESP);
 		_sd_clear_info(hndl,SD_INFO1_MASK_TRNS_RESP,0x837f);
@@ -489,7 +486,6 @@ static int _sd_single_read(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
 	unsigned short info1_back;
 	int dma_64;
 
-	logAudioAction("_sd_single_read");
 
 	// Kinda need this because, reading just one sector, we're not gonna be sitting waiting for interrupts for very long, so might not do any audio routine calls later
 	//routineForSD();
@@ -523,7 +519,6 @@ static int _sd_single_read(SDHNDL *hndl,unsigned char *buff,unsigned long psn,
 		goto ErrExit;
 	}
 	/* ---- wait All end interrupt ---- */
-	logAudioAction("0c");
 	if(sddev_int_wait(hndl->sd_port, SD_TIMEOUT_RESP) != SD_OK){
 		_sd_set_err(hndl,SD_ERR_HOST_TOE);
 		goto ErrExit;

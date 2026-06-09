@@ -51,7 +51,7 @@ Includes   <System Includes> , "Project Includes"
 #include "RZA1/sdhi/inc/sdif.h"
 #include "RZA1/system/iobitmasks/gpio_iobitmask.h"
 #include "bsp/rza1/drivers/uart/uart.h"
-#include "deluge/deluge.h"
+#include "libdeluge/storage_wait.h"
 #include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "OSLikeStuff/scheduler_api.h"
 
