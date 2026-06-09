@@ -9,7 +9,6 @@
 # Regenerate the *current* offender set (for comparison) with:
 #   grep -rl 'RZA1/' src/deluge | sort
 
-src/deluge/deluge.cpp
 src/deluge/hid/encoder.cpp
 src/deluge/hid/encoders.cpp
 src/deluge/processing/engines/audio_engine.cpp

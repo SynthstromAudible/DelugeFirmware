@@ -16,9 +16,6 @@
  */
 
 #include "deluge.h"
-#include "RZA1/cpu_specific.h"
-
-#include "RZA1/sdhi/inc/sdif.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
@@ -74,18 +71,8 @@
 #include "util/pack.h"
 #include <stdlib.h>
 
-#include "RZA1/cache/cache.h"
-
 extern "C" {
-#include "RZA1/gpio/gpio.h"
-#include "RZA1/oled/oled_low_level.h"
-#include "drivers/oled/oled.h"
-#include "drivers/ssi/ssi.h"
-#include "drivers/uart/uart.h"
 #include "fatfs/ff.h"
-
-#include "RZA1/rspi/rspi.h"
-#include "RZA1/spibsc/spibsc_Deluge_setup.h"
 }
 
 namespace encoders = deluge::hid::encoders;
