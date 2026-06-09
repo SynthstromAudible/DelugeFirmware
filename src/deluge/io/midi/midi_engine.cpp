@@ -41,7 +41,6 @@ extern "C" {
 volatile uint32_t usbLock = 0;
 void usb_cstd_usb_task();
 
-#include "RZA1/system/iodefine.h"
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 

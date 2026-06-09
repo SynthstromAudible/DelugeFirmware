@@ -12,7 +12,5 @@
 src/deluge/deluge.cpp
 src/deluge/hid/encoder.cpp
 src/deluge/hid/encoders.cpp
-src/deluge/io/midi/midi_device_manager.cpp
 src/deluge/io/midi/midi_engine.cpp
-src/deluge/io/midi/r_usb_pmidi_descriptor.c
 src/deluge/processing/engines/audio_engine.cpp

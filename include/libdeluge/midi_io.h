@@ -40,6 +40,13 @@ typedef enum DelugeMidiPortKind {
 	DELUGE_MIDI_USB_HOST = 2,
 } DelugeMidiPortKind;
 
+/// Number of independent USB controllers (IP cores) the board has, each hosting
+/// its own table of USB-MIDI devices. The application dimensions its
+/// per-controller device arrays by this. Mirrors the RZ/A1L HAL's USB_NUM_USBIP
+/// (=1); declared here so app code can size those arrays without including the
+/// USB HAL.
+#define DELUGE_USB_NUM_CONTROLLERS 1
+
 /// Number of MIDI ports the board exposes. [task]
 uint8_t deluge_midi_port_count(void);
 

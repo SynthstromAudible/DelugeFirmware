@@ -37,7 +37,6 @@
 #include "util/misc.h"
 
 extern "C" {
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
 #include "drivers/uart/uart.h"
 
 extern uint8_t anyUSBSendingStillHappening[];
@@ -49,7 +48,7 @@ extern uint8_t anyUSBSendingStillHappening[];
 #define SETTINGS_FOLDER "SETTINGS"
 #define MIDI_DEVICES_XML "SETTINGS/MIDIDevices.XML"
 
-PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
+PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[DELUGE_USB_NUM_CONTROLLERS][MAX_NUM_USB_MIDI_DEVICES];
 
 namespace MIDIDeviceManager {
 
@@ -62,7 +61,7 @@ struct USBDev {
 	uint16_t vendorId;
 	uint16_t productId;
 };
-std::array<USBDev, USB_NUM_USBIP> usbDeviceCurrentlyBeingSetUp{};
+std::array<USBDev, DELUGE_USB_NUM_CONTROLLERS> usbDeviceCurrentlyBeingSetUp{};
 
 // This class represents a thing you can send midi too,
 // the virtual cable is an implementation detail
@@ -80,7 +79,7 @@ void init() {
 	// Point each device at its BSP-owned transport block, then let the BSP zero
 	// the transport state. Runs before the USB stack is opened, so the transport
 	// pointer is valid before any send/receive can touch it.
-	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
+	for (int32_t ip = 0; ip < DELUGE_USB_NUM_CONTROLLERS; ip++) {
 		for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 			connectedUSBMIDIDevices[ip][d].transport = bsp_usb_midi_device(ip, d);
 		}
