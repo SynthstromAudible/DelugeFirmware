@@ -35,6 +35,10 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/lib/printf.c
 )
 
+# intToString/floatToString moved from util/cfunctions.c into the dep-free
+# foundation library; pull the formatting source in so the tests still link.
+list(APPEND deluge_SOURCES ${CMAKE_CURRENT_LIST_DIR}/../../src/foundation/string_format.c)
+
 file(GLOB_RECURSE mock_SOURCES
         # Mock implementations
         mocks/*
@@ -56,6 +60,8 @@ target_include_directories(MemoryManagerTests PRIVATE
         ../../src/NE10/inc
         ../../src/lib
         ../../src
+        ../../include    # libdeluge/* boundary headers
+        ../../src/bsp/rza1 # relocated drivers/* headers
 )
 
 set_target_properties(MemoryManagerTests
@@ -95,6 +101,8 @@ target_include_directories(SmallPointerTests PRIVATE
         ../../src/NE10/inc
         ../../src/lib
         ../../src
+        ../../include    # libdeluge/* boundary headers
+        ../../src/bsp/rza1 # relocated drivers/* headers
 )
 
 set_target_properties(SmallPointerTests
