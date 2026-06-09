@@ -1555,7 +1555,7 @@ goAgain:
                                               // can do another transfer, which sets this to something else
                                 //(temp->complete)(temp, 0, 0); // This does our callback on our outgoing transfers.
                                 // Rohan
-                                usbSendCompleteAsHost(USB_CFG_USE_USBIP);
+                                bsp_usb_midi_send_complete_as_host(USB_CFG_USE_USBIP);
                             }
                         }
                     }

@@ -1219,7 +1219,7 @@ void usb_pstd_bemp_pipe_process_rohan_midi(uint16_t bitsts)
                         // connectedUSBMIDIDevices[0][0].numBytesSendingNow = 0; // Even easier!
                         // anyUSBSendingStillHappening[0]                   = 0;
 
-                        usbSendCompleteAsPeripheral(0); // NOT SO EASY
+                        bsp_usb_midi_send_complete_as_peripheral(0); // NOT SO EASY
                     }
                 }
             }

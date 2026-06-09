@@ -291,6 +291,7 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	connectedDevice->transport->sq = 0;
 	connectedDevice->transport->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
 	connectedDevice->transport->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
+	connectedDevice->transport->connected = true; // a live send sink now (was cable[0] != NULL)
 
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
@@ -329,6 +330,7 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 		}
 		connectedDevice->cable[i] = nullptr;
 	}
+	connectedDevice->transport->connected = false;
 	recountSmallestMPEZones();
 }
 
@@ -344,6 +346,7 @@ extern "C" void configuredAsPeripheral(int32_t ip) {
 	connectedDevice->cable[2] = &upstreamUSBMIDICable3;
 	connectedDevice->maxPortConnected = 2;
 	connectedDevice->transport->canHaveMIDISent = 1;
+	connectedDevice->transport->connected = true;
 
 	anyUSBSendingStillHappening[ip] = 0; // Initialize this. There's obviously nothing sending yet right now.
 
@@ -359,6 +362,7 @@ extern "C" void detachedAsPeripheral(int32_t ip) {
 	for (int32_t i = 0; i <= ports; i++) {
 		connectedUSBMIDIDevices[ip][0].cable[i] = nullptr;
 	}
+	connectedUSBMIDIDevices[ip][0].transport->connected = false;
 	upstreamUSBMIDICable1.connectionFlags = 0;
 	upstreamUSBMIDICable2.connectionFlags = 0;
 	upstreamUSBMIDICable3.connectionFlags = 0;
@@ -664,68 +668,14 @@ checkDevice:
 
 } // namespace MIDIDeviceManager
 
+// The send ring + send state machine live in the BSP usb_midi module now; these
+// just forward to it.
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
-	uint32_t queued = transport->ringBufWriteIdx - transport->ringBufReadIdx;
-	if (queued > 16) {
-		if (!anyUSBSendingStillHappening[0]) {
-			midiEngine.flushUSBMIDIOutput();
-		}
-		queued = transport->ringBufWriteIdx - transport->ringBufReadIdx;
-	}
-	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
-		// TODO: show some error message
-		return;
-	}
-
-	transport->sendDataRingBuf[transport->ringBufWriteIdx & MIDI_SEND_RING_MASK] = fullMessage;
-	transport->ringBufWriteIdx++;
-
-	anythingInUSBOutputBuffer = true;
-}
-
-bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
-	// must be the same unsigned type as ringBufWriteIdx/ringBufReadIdx
-	uint32_t queued = transport->ringBufWriteIdx - transport->ringBufReadIdx;
-	return queued > 0;
+	bsp_usb_midi_buffer_message(transport, fullMessage);
 }
 
 int ConnectedUSBMIDIDevice::sendBufferSpace() {
-	// must be the same unsigned type as ringBufWriteIdx/ringBufReadIdx
-	uint32_t queued = transport->ringBufWriteIdx - transport->ringBufReadIdx;
-	// each 4-byte MIDI-USB message contains 3 bytes of serial MIDI data
-	return (MIDI_SEND_BUFFER_LEN_RING - queued) * 3;
-}
-
-// This tries to read data from the ring buffer, and
-// moves data into the smaller "dataSendingNow" buffer where
-// it is ready to be used by the hardware driver.
-bool ConnectedUSBMIDIDevice::consumeSendData() {
-	uint32_t queued = transport->ringBufWriteIdx - transport->ringBufReadIdx;
-	if (queued == 0) {
-		return false;
-	}
-
-	int32_t i = 0;
-	uint32_t max_size = MIDI_SEND_BUFFER_LEN_INNER;
-	if (g_usb_usbmode == USB_HOST) {
-		// many devices do not accept more than 64 bytes of data at a time
-		// likely this can be inferred from the device metadata somehow?
-
-		// some seem to take even less, especially with hubs involved. The hydrasynth seems to only respond to a max of
-		// 2 messages per transfer, the third gets blocked. For MPE this leads to ignoring note ons as the x and y
-		// resets are sent before the note on
-		max_size = MIDI_SEND_BUFFER_LEN_INNER_HOST;
-	}
-
-	int32_t to_send = std::min(queued, max_size);
-	for (i = 0; i < to_send; i++) {
-		memcpy(transport->dataSendingNow + (i * 4),
-		       &transport->sendDataRingBuf[transport->ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
-		transport->ringBufReadIdx++;
-	}
-
-	transport->numBytesSendingNow = to_send * 4;
-	return true;
+	return bsp_usb_midi_send_buffer_space(transport);
 }
 
 void ConnectedUSBMIDIDevice::setup() {

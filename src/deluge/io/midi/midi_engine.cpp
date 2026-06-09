@@ -51,14 +51,14 @@ void usb_cstd_usb_task();
 
 extern uint16_t g_usb_peri_connected;
 
-uint8_t stopSendingAfterDeviceNum[USB_NUM_USBIP];
-uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
-uint8_t anyUSBSendingStillHappening[USB_NUM_USBIP];
+// The send-path state lives in the BSP usb_midi module now; the receive path below
+// still reads these two until it moves down in phase 5.
+extern uint8_t stopSendingAfterDeviceNum[USB_NUM_USBIP];
+extern uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
 
-// The USB transfer descriptors are defined in the BSP usb_midi module now; their
-// fields (callbacks, ip/ipp, DMA pointers) are still initialised in the MidiEngine
-// ctor below until the send/receive paths move down (phases 4-5).
-extern usb_utr_t g_usb_midi_send_utr[USB_NUM_USBIP];
+// The receive transfer descriptors are defined in the BSP usb_midi module; their
+// fields are still initialised in the MidiEngine ctor below until the receive path
+// moves down (phase 5). The send descriptors are wired by bsp_usb_midi_init().
 extern usb_utr_t g_usb_midi_recv_utr[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 
 extern uint16_t g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB_EPL * 2) + 1];
@@ -66,113 +66,15 @@ extern uint16_t g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][
 extern usb_utr_t* g_p_usb_pipe[USB_MAX_PIPE_NO + 1u];
 
 usb_regadr_t usb_hstd_get_usb_ip_adr(uint16_t ipno);
-void change_destination_of_send_pipe(usb_utr_t* ptr, uint16_t pipe, uint16_t* tbl, int32_t sq);
-void usb_send_start_rohan(usb_utr_t* ptr, uint16_t pipe, uint8_t const* data, int32_t size);
 void usb_receive_start_rohan_midi(uint16_t pipe);
 void usb_pstd_set_stall(uint16_t pipe);
 void usb_cstd_set_nak(usb_utr_t* ptr, uint16_t pipe);
 void hw_usb_clear_pid(usb_utr_t* ptr, uint16_t pipeno, uint16_t data);
 uint16_t hw_usb_read_pipectr(usb_utr_t* ptr, uint16_t pipeno);
 
-void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume = false);
-
-uint8_t currentDeviceNumWithSendPipe[USB_NUM_USBIP][2] = {
-    MAX_NUM_USB_MIDI_DEVICES, MAX_NUM_USB_MIDI_DEVICES}; // One without, and one with, interrupt endpoints
-
-// We now bypass calling this for successful as peripheral on A1 (see usb_pstd_bemp_pipe_process_rohan_midi())
-void usbSendCompleteAsHost(int32_t ip) {
-
-	int32_t midiDeviceNum = usbDeviceNumBeingSentToNow[ip];
-
-	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
-
-	connectedDevice->transport->numBytesSendingNow = 0; // We just do this instead from caller on A1 (see comment above)
-
-	// check if there was more to send on the same device, then resume sending
-	bool has_more = connectedDevice->consumeSendData();
-	if (has_more) {
-		// TODO: do some cooperative scheduling here. so if there is a flood of data
-		// on connected device 1 and we just want to send a few notes on device 2,
-		// make sure device 2 ges a fair shot now and then
-
-		flushUSBMIDIToHostedDevice(ip, midiDeviceNum, true);
-		return;
-	}
-
-	// If that was the last device we were going to send to, that send's been done, so we can just get out.
-	if (midiDeviceNum == stopSendingAfterDeviceNum[ip]) {
-		anyUSBSendingStillHappening[ip] = 0;
-		return;
-	}
-
-	while (true) {
-		midiDeviceNum++;
-		if (midiDeviceNum >= MAX_NUM_USB_MIDI_DEVICES) {
-			midiDeviceNum -= MAX_NUM_USB_MIDI_DEVICES;
-		}
-		connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
-		if (connectedDevice->cable[0] && connectedDevice->transport->numBytesSendingNow) {
-			// If here, we got a connected device, so flush
-			flushUSBMIDIToHostedDevice(ip, midiDeviceNum);
-			return;
-		}
-		if (midiDeviceNum == stopSendingAfterDeviceNum[ip]) { // If reached end of devices and last one got disconnected
-			                                                  // in the interim (very rare)
-			usbDeviceNumBeingSentToNow[ip] = stopSendingAfterDeviceNum[ip];
-			anyUSBSendingStillHappening[ip] = 0;
-			return;
-		}
-	}
-}
-
-// We now bypass calling this for successful as peripheral on A1 (see usb_pstd_bemp_pipe_process_rohan_midi())
-void usbSendCompletePeripheralOrA1(usb_utr_t* p_mess, uint16_t data1, uint16_t data2) {
-
-	// If error, forget about device.
-	// No actually don't - sometimes there'll be an error if another device connected or disconnected from hub during
-	// fast MIDI sending. This seems to happen even though I've stopped it from setting up or down the out-pipe as it
-	// goes
-	if (p_mess->status == USB_DATA_ERR) {
-		uartPrintln("send error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-		// g_usb_host_connected[deviceNum] = 0;
-	}
-
-#if USB_NUM_USBIP == 1
-	int32_t ip = 0;
-#else
-	int32_t ip = p_mess->ip;
-#endif
-
-	usbSendCompleteAsHost(ip);
-}
-
-void usbSendCompleteAsPeripheral(int32_t ip) {
-	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
-	connectedDevice->transport->numBytesSendingNow = 0; // Even easier!
-	                                                    //
-
-	// I think this could happen as part of a detach see detachedAsPeripheral()
-	if (anyUSBSendingStillHappening[ip] == 0) {
-		return;
-	}
-
-	bool has_more = connectedDevice->consumeSendData();
-	if (has_more) {
-		// this is already the case:
-		// anyUSBSendingStillHappening[ip] = 1;
-
-		g_usb_midi_send_utr[ip].tranlen = connectedDevice->transport->numBytesSendingNow;
-		g_usb_midi_send_utr[ip].p_tranadr = connectedDevice->transport->dataSendingNow;
-
-		usb_send_start_rohan(NULL, USB_CFG_PMIDI_BULK_OUT, connectedDevice->transport->dataSendingNow,
-		                     connectedDevice->transport->numBytesSendingNow);
-	}
-	else {
-		// this effectively serves as a lock, does the sending part of the device, including the read part of the
-		// ring buffer "belong" to ongoing/scheduled interrupts. Document this better.
-		anyUSBSendingStillHappening[0] = 0;
-	}
-}
+// The USB-MIDI send path (usbSendCompleteAsHost / *AsPeripheral / the send-complete
+// callback) now lives in the BSP usb_midi module; the HAL bulk-OUT handlers call
+// bsp_usb_midi_send_complete_as_{host,peripheral}() directly.
 
 void usbReceiveComplete(int32_t ip, int32_t deviceNum, int32_t tranlen) {
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][deviceNum];
@@ -218,8 +120,6 @@ void brdyOccurred(int32_t ip) {
 
 PLACE_SDRAM_BSS MidiEngine midiEngine{};
 
-bool anythingInUSBOutputBuffer = false;
-
 MidiEngine::MidiEngine() {
 	numSerialMidiInput = 0;
 	currentlyReceivingSysExSerial = false;
@@ -237,19 +137,9 @@ MidiEngine::MidiEngine() {
 
 	g_usb_peri_connected = 0; // Needs initializing with A2 driver
 
+	// The send transfer descriptors are set up by bsp_usb_midi_init(); here we still
+	// set up the receive descriptors until the receive path moves down (phase 5).
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
-
-		// This might not be used due to the change in r_usb_hlibusbip (deluge is host) to call usbSendCompleteAsHost()
-		// directly and the change in r_usb_plibusbip (deluge is pheriperal) to just set some variables or it might be
-		// used for some other interrups like error conditions???
-		// TODO: try to delet this and see if something breaks..
-		g_usb_midi_send_utr[ip].complete = (usb_cb_t)usbSendCompletePeripheralOrA1;
-
-		g_usb_midi_send_utr[ip].p_setup = 0; /* Setup message address set */
-		g_usb_midi_send_utr[ip].segment = USB_TRAN_END;
-		g_usb_midi_send_utr[ip].ip = ip;
-		g_usb_midi_send_utr[ip].ipp = usb_hstd_get_usb_ip_adr(ip);
-
 		for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 			// Reference the BSP transport block directly (its address is stable):
 			// connectedUSBMIDIDevices[ip][d].transport isn't wired until runtime init.
@@ -266,161 +156,14 @@ MidiEngine::MidiEngine() {
 	eventStackTop_ = eventStack_.begin();
 }
 
-void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume) {
-
-	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
-	// there was an assumption that the pipe wouldn't have changed if we were resuming a transfer but that has turned
-	// out not to be true if hubs are involved. A hub transaction seems to be able to run before the
-	// usbSendCompleteAsHost interrupt is called and changes the pipe, and then the next write doesn't go anywhere
-	// useful
-	int32_t pipeNumber = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][0];
-	g_usb_midi_send_utr[USB_CFG_USE_USBIP].keyword = pipeNumber;
-	g_usb_midi_send_utr[USB_CFG_USE_USBIP].tranlen = connectedDevice->transport->numBytesSendingNow;
-	g_usb_midi_send_utr[USB_CFG_USE_USBIP].p_tranadr = connectedDevice->transport->dataSendingNow;
-
-	usbDeviceNumBeingSentToNow[USB_CFG_USE_USBIP] = d;
-
-	int32_t isInterrupt = (pipeNumber == USB_CFG_HMIDI_INT_SEND);
-
-	if (d != currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt]) {
-		currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt] = d;
-		change_destination_of_send_pipe(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber,
-		                                g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d], connectedDevice->transport->sq);
-	}
-
-	connectedDevice->transport->sq = !connectedDevice->transport->sq;
-
-	g_p_usb_pipe[pipeNumber] = &g_usb_midi_send_utr[USB_CFG_USE_USBIP];
-
-	usb_send_start_rohan(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber,
-	                     connectedDevice->transport->dataSendingNow, connectedDevice->transport->numBytesSendingNow);
-}
-
 int32_t MidiEngine::getPotentialNumConnectedUSBMIDIDevices(int32_t ip) {
 	bool potentiallyAHost = (g_usb_usbmode == USB_HOST);
 	// bool aPeripheral = g_usb_peri_connected;
 	return potentiallyAHost ? MAX_NUM_USB_MIDI_DEVICES : 1;
 }
 
-// Warning - this will sometimes (not always) be called in an ISR
-void MidiEngine::flushUSBMIDIOutput() {
-	// make sure the interrupt doesn't fire mid flush
-	CriticalSectionGuard guard;
-	if (usbLock) {
-		return;
-	}
-
-	anythingInUSBOutputBuffer = false;
-
-	// is this still relevant? anyUSBSendingStillHappening[ip] acts as the lock between routine and interrupt
-	// on the sending side. all other uses of usbLock seems to be about _receiving_. Can there be a conflict
-	// between sending and receiving as well??
-	usbLock = 1;
-
-	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
-		if (anyUSBSendingStillHappening[ip]) {
-			// still sending, call me later maybe
-			anythingInUSBOutputBuffer = true;
-			continue;
-		}
-
-		bool potentiallyAHost = (g_usb_usbmode == USB_HOST);
-		bool aPeripheral = g_usb_peri_connected;
-
-		if (aPeripheral) {
-			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
-
-			if (!connectedDevice->consumeSendData()) {
-				continue;
-			}
-
-			g_usb_midi_send_utr[ip].keyword = USB_CFG_PMIDI_BULK_OUT;
-			g_usb_midi_send_utr[ip].tranlen = connectedDevice->transport->numBytesSendingNow;
-			g_usb_midi_send_utr[ip].p_tranadr = connectedDevice->transport->dataSendingNow;
-
-			usbDeviceNumBeingSentToNow[ip] = 0;
-			anyUSBSendingStillHappening[ip] = 1;
-
-			g_p_usb_pipe[USB_CFG_PMIDI_BULK_OUT] = &g_usb_midi_send_utr[ip];
-			usb_send_start_rohan(NULL, USB_CFG_PMIDI_BULK_OUT, connectedDevice->transport->dataSendingNow,
-			                     connectedDevice->transport->numBytesSendingNow);
-
-			// when done, usbSendCompleteAsPeripheral() will be called in an interrupt
-		}
-
-		else if (potentiallyAHost) {
-			// This next bit was written with multiple devices on hubs in mind, but seems to work for a single MIDI
-			// device too
-
-			int32_t midiDeviceNumToSendTo = currentDeviceNumWithSendPipe[ip][0]; // This will do
-			if (midiDeviceNumToSendTo >= MAX_NUM_USB_MIDI_DEVICES) {
-				midiDeviceNumToSendTo = 0; // In case it was set to "none", I think
-			}
-
-			int32_t newStopSendingAfter = midiDeviceNumToSendTo - 1;
-			if (newStopSendingAfter < 0) {
-				newStopSendingAfter += MAX_NUM_USB_MIDI_DEVICES;
-			}
-
-			// Make sure that's on a connected device - it probably would be...
-			while (true) {
-				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNumToSendTo];
-				if (connectedDevice->cable[0] && connectedDevice->hasBufferedSendData()) {
-					break; // We found a connected one
-				}
-				if (midiDeviceNumToSendTo == newStopSendingAfter) {
-					goto getOut; // If back where we started, none are connected. Could this really happen? Probably.
-				}
-				midiDeviceNumToSendTo++;
-				if (midiDeviceNumToSendTo >= MAX_NUM_USB_MIDI_DEVICES) {
-					midiDeviceNumToSendTo = 0; // Wrap back to start of list
-				}
-			}
-
-			// Stop after a device which we know is connected
-			while (true) {
-				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][newStopSendingAfter];
-
-				if (connectedDevice->cable[0] && connectedDevice->hasBufferedSendData()) {
-					break; // We found a connected one
-				}
-
-				newStopSendingAfter--;
-				if (newStopSendingAfter < 0) {
-					newStopSendingAfter += MAX_NUM_USB_MIDI_DEVICES;
-				}
-			}
-
-			// Copy the buffers for all devices
-			int32_t d = midiDeviceNumToSendTo;
-			while (true) {
-				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
-
-				if (connectedDevice->cable[0]) {
-					connectedDevice->consumeSendData();
-				}
-				if (d == newStopSendingAfter) {
-					break;
-				}
-				d++;
-				if (d >= MAX_NUM_USB_MIDI_DEVICES) {
-					d = 0;
-				}
-			}
-
-			stopSendingAfterDeviceNum[ip] = newStopSendingAfter;
-			anyUSBSendingStillHappening[ip] = 1;
-
-			flushUSBMIDIToHostedDevice(ip, midiDeviceNumToSendTo);
-		}
-getOut: {}
-	}
-
-	usbLock = 0;
-}
-
 bool MidiEngine::anythingInOutputBuffer() {
-	return anythingInUSBOutputBuffer || (bool)uartGetTxBufferFullnessByItem(UART_ITEM_MIDI);
+	return bsp_usb_midi_anything_in_output_buffer() || (bool)uartGetTxBufferFullnessByItem(UART_ITEM_MIDI);
 }
 
 void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter) {
@@ -585,7 +328,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 
 // Warning - this will sometimes (not always) be called in an ISR
 void MidiEngine::flushMIDI() {
-	flushUSBMIDIOutput();
+	bsp_usb_midi_flush_output();
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
 

@@ -56,12 +56,12 @@ class ConnectedUSBMIDIDevice {
 public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
+	// Append a pre-packed USB-MIDI event word to this device's send ring (forwards
+	// to the BSP usb_midi transport).
 	void bufferMessage(uint32_t fullMessage);
 	void setup();
 
-	// move data from ring buffer to dataSendingNow, assuming it is free
-	bool consumeSendData();
-	bool hasBufferedSendData();
+	// Free space in the send ring, in bytes of serial MIDI (forwards to the BSP).
 	int sendBufferSpace();
 #else
 // warning - accessed as a C struct from usb driver

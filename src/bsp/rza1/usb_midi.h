@@ -64,6 +64,8 @@ typedef struct BspUsbMidiDevice {
 	uint8_t currentlyWaitingToReceive;
 	uint8_t sq; // Only for connections as HOST
 	uint8_t canHaveMIDISent;
+	uint8_t connected; // Non-zero while a device is attached on this slot (the
+	                   // send path's "is this an active sink", was cable[0]!=NULL)
 	uint16_t numBytesReceived;
 	__attribute__((aligned(8))) uint8_t receiveData[64];
 
@@ -84,9 +86,37 @@ typedef struct BspUsbMidiDevice {
 /// the HAL receive handlers record completions through it.
 BspUsbMidiDevice* bsp_usb_midi_device(uint8_t ip, uint8_t d);
 
-/// Zero the USB-MIDI transport state. Called once at startup, before the USB
-/// stack is opened.
+/// Zero the USB-MIDI transport state and initialise the send transfer
+/// descriptors. Called once at startup, before the USB stack is opened.
 void bsp_usb_midi_init(void);
+
+// --- Send path (BSP-owned: the send ring, the Renesas bulk-OUT pipe driving and
+// the send-completion state machine). The application appends pre-packed USB-MIDI
+// event words to a device's ring and asks the BSP to flush; the BSP moves the
+// bytes. Completion is still driven by the HAL calling
+// bsp_usb_midi_send_complete_as_{host,peripheral}() (an upcall, retargeted from
+// the app); converting that to a polled count is the remaining phase-4 step.
+
+/// Append a pre-packed 4-byte USB-MIDI event word to `dev`'s send ring (flushing
+/// first if the ring is getting full). Backs ConnectedUSBMIDIDevice::bufferMessage.
+void bsp_usb_midi_buffer_message(BspUsbMidiDevice* dev, uint32_t word);
+
+/// Free space in `dev`'s send ring, in bytes of serial MIDI (3 per event word).
+int bsp_usb_midi_send_buffer_space(BspUsbMidiDevice* dev);
+
+/// Flush buffered USB-MIDI output toward the wire if the pipe is idle (host: all
+/// connected devices; peripheral: the upstream device). Safe to call from the
+/// MIDI routine or the gate-output interrupt.
+void bsp_usb_midi_flush_output(void);
+
+/// Whether there is USB-MIDI output still buffered/in-flight.
+bool bsp_usb_midi_anything_in_output_buffer(void);
+
+/// Send-completion entry points, called by the HAL bulk-OUT (BEMP) handlers when a
+/// transfer finishes: chain the next queued transfer for the device(s). Host and
+/// peripheral variants.
+void bsp_usb_midi_send_complete_as_host(int32_t ip);
+void bsp_usb_midi_send_complete_as_peripheral(int32_t ip);
 
 /// Pump the USB-MIDI send/receive state machine and drain HAL pipe-completion
 /// events. Backs `deluge_midi_service()`.
