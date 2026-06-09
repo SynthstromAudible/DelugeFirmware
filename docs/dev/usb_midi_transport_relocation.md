@@ -1,9 +1,14 @@
 # USB-MIDI transport relocation (libdeluge)
 
-Status: **in progress** on `feat/libdeluge-midi-transport`. This is the last and
-largest HAL↔app coupling in the libdeluge separation. It rewrites real-time
-USB-MIDI I/O, so **"builds green" does not mean "works"** — it must be flashed and
-tested with real USB MIDI devices (host *and* peripheral mode) before merge.
+Status: **complete** on `feat/libdeluge-midi-transport` — all phases landed and
+flash-tested with real USB MIDI devices in host *and* peripheral mode. This was
+the last and largest HAL↔app coupling in the libdeluge separation; it rewrote
+real-time USB-MIDI I/O, so each phase was flashed and tested on hardware (not just
+built green) before the next. The USB-MIDI transport now lives entirely in the BSP
+(`src/bsp/rza1/usb_midi.*` + the HAL-owned completion queue
+`src/RZA1/usb/usb_midi_completion.*`); the application keeps only musical routing
+and MIDI decode and talks through `bsp_usb_midi_*` / the `<libdeluge/...>` boundary;
+the HAL is a pure event source (no upcalls); and `src/deluge/drivers/` is gone.
 
 ## The problem: the app co-implements the USB-MIDI driver
 
@@ -120,31 +125,47 @@ the USB-host enumeration-event poll. To add for USB-MIDI transport:
 
 ## Phased plan
 
-Phase 1 is pure and **fully testable** (it's the right place to start cutting code);
-phases 2–7 touch real-time USB and only the finished result is flash-testable.
+All phases are landed (commits noted below). Phase 1 was pure and unit-testable;
+phases 2–7 touched real-time USB and were each flashed and tested on hardware.
 
-1. **Extract the `deluge_midi` protocol library** (pure, low-risk, verifiable):
+1. ✅ **Extract the `deluge_midi` protocol library** (pure, low-risk, verifiable):
    create `src/midi/` → `deluge_midi`; move `MIDIMessage`/`bytesPerStatusMessage`,
    the USB-MIDI event pack (`setupUSBMessage`) + unpack, DIN serialize + running
    status, and sysex framing into it; the MIDI engine calls it for all
    serialization while keeping routing. No transport change — same bytes on the
-   wire, so existing behaviour is preserved and unit-checkable.
-2. **Foundation:** `src/bsp/rza1/usb_midi.{c,h}` + the boundary additions
-   (declarations + stubs). No behaviour change.
-3. **Move transport state down:** relocate the `g_usb_midi_*_utr` descriptor
+   wire, so existing behaviour is preserved and unit-checkable. (`3ffa2fc4`)
+2. ✅ **Foundation:** `src/bsp/rza1/usb_midi.{c,h}` + the boundary additions
+   (declarations + stubs). No behaviour change. (`29d13e59`)
+3. ✅ **Move transport state down:** relocate the `g_usb_midi_*_utr` descriptor
    definitions and the RX/TX buffers + ring into the BSP module; split
-   `ConnectedUSBMIDIDevice` (transport fields leave the app struct).
-4. **Send path:** move `flushUSBMIDIOutput`, `flushUSBMIDIToHostedDevice`, the
-   `usbSendComplete*` functions into the BSP; expose via `deluge_midi_write`/flush;
-   convert send-complete to a polled count.
-5. **Receive path:** move `setupUSBHostReceiveTransfer`, `usbReceiveComplete*`,
-   `brdyOccurred` into the BSP; the app pulls bytes via `deluge_midi_read`, then
-   decodes them with `deluge_midi`.
-6. **HAL `rohan_midi` functions:** reduce to generic pipe-complete event recording;
-   stop including app MIDI headers; the BSP drains the events.
-7. **Strip + rewire:** remove transport from `midi_engine.cpp`; app uses only the
-   boundary + `deluge_midi`; relocate `r_usb_pmidi_config.h` (USB-MIDI *config*)
-   out of the app tree into the BSP.
+   `ConnectedUSBMIDIDevice` (transport fields leave the app struct). (`6ba411f0`)
+4. ✅ **Send path:** move `flushUSBMIDIOutput`, `flushUSBMIDIToHostedDevice`, the
+   `usbSendComplete*` functions into the BSP; the app buffers through
+   `ConnectedUSBMIDIDevice::bufferMessage` → `bsp_usb_midi_*`. Send-complete became
+   a pulled event in the closer below rather than an upcall. (`10024b80`)
+5. ✅ **Receive path:** move `setupUSBHostReceiveTransfer`, the peripheral re-arm,
+   the receive-completion + `timeLastBRDY` into the BSP; the app drains the
+   per-device receive buffer and decodes it (musical dispatch stays in the engine).
+   `brdyOccurred` was dead (the HAL records `timeLastBRDY` inline) and was dropped.
+   (`1c276a09`)
+6. ✅ **HAL `rohan_midi` functions:** stop including app MIDI headers and stop
+   naming BSP structures — they report completions through generic BSP entry points
+   (`617fbec6`), then record generic pipe-completion events into a HAL-owned queue
+   that the BSP drains (`bsp_usb_midi_service()`), so there are no HAL→BSP upcalls
+   (closer: `2929f7d7`).
+7. ✅ **Strip + rewire:** transport is gone from `midi_engine.cpp` (it uses only the
+   boundary + `deluge_midi`); `r_usb_pmidi_config.h` relocated out of the app tree
+   into `src/bsp/rza1/drivers/usb/userdef/`, emptying `src/deluge/drivers/`.
+   (`878ac0df`)
+
+### Boundary API note
+
+`deluge_midi_read`/`deluge_midi_write` for USB ports (the byte-stream port form)
+were not needed to meet the goal and remain stubs: the app feeds the BSP send ring
+through `ConnectedUSBMIDIDevice::bufferMessage` and drains the receive buffer
+directly, both via `bsp_usb_midi_*`. Wiring the clean `DelugeMidiPort` byte-stream
+API over USB cables is a follow-up that depends on the port-numbering scheme and is
+orthogonal to the transport relocation.
 
 ## Risks / hardware test matrix
 
