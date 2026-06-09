@@ -38,6 +38,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -1367,6 +1368,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	loadSongUI.deletedPartsOfOldSong = false;
 
 	currentSong->sendAllMIDIPGMs();
+	launchpad_extension::onSongSwappedDuringLoad();
 	AudioEngine::getReverbParamsFromSong(currentSong);
 
 	// Some more "if we're playing" stuff - this needs to happen after currentSong is swapped over, because

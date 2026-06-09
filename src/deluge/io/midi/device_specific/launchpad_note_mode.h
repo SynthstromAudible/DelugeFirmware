@@ -14,6 +14,9 @@ class MIDICable;
 
 namespace launchpad_note_mode {
 
+// False for audio clips and other non-note-editable tracks.
+bool canEnterNoteMode();
+
 void syncLeds();
 
 bool toggleExpressiveChordsSubMode(MIDICable& cable, int32_t midiChannel);

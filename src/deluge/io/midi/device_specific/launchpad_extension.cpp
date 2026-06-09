@@ -8,6 +8,8 @@
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/colour/palette.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/performance_view.h"
@@ -19,12 +21,16 @@
 #include "io/midi/device_specific/launchpad_programmer_map.h"
 #include "io/midi/device_specific/launchpad_sysex.h"
 #include "io/midi/midi_engine.h"
+#include "model/action/action_logger.h"
 #include "model/midi/message.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+
+extern GlobalMIDICommand pendingGlobalMIDICommand;
+extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 
 namespace launchpad_extension {
 
@@ -35,21 +41,50 @@ ViewMode viewMode = ViewMode::Session;
 uint32_t lastPeriodicSyncTime = 0;
 uint32_t lastSyncSentTime = 0;
 uint32_t lastProgrammerKeepaliveTime = 0;
-uint32_t ignoreModeButtonCcUntilSample = 0;
+uint32_t ignoreLaunchpadInputUntilSample = 0;
+bool pendingDelugeSessionView = false;
+bool pendingDelugeSessionViewInstant = false;
+bool songLoadGuardActive = false;
+uint32_t pendingPostLoadResetSample = 0;
+static constexpr uint32_t kPostLoadResetDelaySamples = 2 * kSampleRate;
 static constexpr uint32_t kProgrammerKeepaliveSamples = kSampleRate / 2;
 static constexpr uint32_t kPeriodicSyncSamples = kSampleRate / 4;
 static constexpr uint32_t kCountdownSyncSamples = kSampleRate / 8;
 static constexpr uint32_t kMinSyncGapSamples = kSampleRate / 20;
 
+// Scene column in Note view (Deluge row: 7 = top Volume, 0 = bottom Record Arm).
+constexpr int32_t kNoteSceneRowMetronome = 7;
+constexpr int32_t kNoteSceneRowRedo = 1;
+constexpr int32_t kNoteSceneRowUndo = 0;
+
+bool noteSceneUndoLit = false;
+bool noteSceneRedoLit = false;
+bool launchpadSessionButtonHeld = false;
+bool launchpadSessionHoldUsedForPad = false;
+
 bool featureEnabled() {
 	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLaunchpadGridMirror);
+}
+
+bool launchpadQuiesced() {
+	return songLoadGuardActive || loadSongUI.isLoadingSong();
+}
+
+void hardResetLaunchpadHardware() {
+	MIDICableUSBHosted* port2 = launchpad_cable::getPort2();
+	if (port2 == nullptr) {
+		return;
+	}
+
+	// Programmer mode + LED feedback off + wipe all pad LEDs (safe after corrupt song state).
+	launchpad_sysex::sendSetup(port2);
 }
 
 bool launchCountdownActive() {
 	return playbackHandler.isEitherClockActive() && session.launchEventAtSwungTickCount != 0;
 }
 
-void doSync(bool force) {
+void doSync(bool force, bool forceFullRefresh = false) {
 	uint32_t now = AudioEngine::audioSampleTimer;
 	if (!force && (now - lastSyncSentTime) < kMinSyncGapSamples) {
 		return;
@@ -61,7 +96,7 @@ void doSync(bool force) {
 		launchpad_note_mode::syncLeds();
 	}
 	else {
-		sessionView.launchpadSyncGridLedsNow();
+		sessionView.launchpadSyncGridLedsNow(forceFullRefresh);
 	}
 }
 
@@ -75,23 +110,54 @@ bool isPressed(uint8_t statusType, uint8_t data2) {
 	return false;
 }
 
-void requestDelugeSessionView() {
-	if (sdRoutineLock || currentUIMode != UI_MODE_NONE || getCurrentClip() == nullptr) {
-		return;
+bool tryDelugeSessionViewNow(bool instant) {
+	if (sdRoutineLock || currentUIMode != UI_MODE_NONE) {
+		return false;
 	}
 
 	UI* rootUI = getRootUI();
 	if (rootUI == &sessionView || rootUI == &performanceView) {
-		return;
+		return true;
 	}
 
-	if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
+	Clip* clip = getCurrentClip();
+	if (clip != nullptr && (currentSong->lastClipInstanceEnteredStartPos != -1 || clip->isArrangementOnlyClip())) {
 		if (arrangerView.transitionToArrangementEditor()) {
-			return;
+			return true;
 		}
 	}
 
+	if (instant) {
+		changeRootUI(&sessionView);
+		currentUIMode = UI_MODE_NONE;
+		getCurrentUI()->focusRegained();
+		uiNeedsRendering(getCurrentUI());
+		return true;
+	}
+
 	sessionView.transitionToSessionView();
+	return true;
+}
+
+void requestDelugeSessionView(bool instant = false) {
+	if (tryDelugeSessionViewNow(instant)) {
+		pendingDelugeSessionView = false;
+		return;
+	}
+
+	pendingDelugeSessionView = true;
+	pendingDelugeSessionViewInstant = instant;
+}
+
+void tryPendingDelugeSessionView() {
+	if (!pendingDelugeSessionView) {
+		return;
+	}
+
+	if (tryDelugeSessionViewNow(pendingDelugeSessionViewInstant)) {
+		pendingDelugeSessionView = false;
+		doSync(true);
+	}
 }
 
 void reassertLaunchpadLayout() {
@@ -105,15 +171,89 @@ void reassertLaunchpadLayout() {
 	launchpad_sysex::invalidateLedCache();
 }
 
-void resetToSessionMode(MIDICable* cable, int32_t midiChannel) {
+void clearNoteSceneButtonState() {
+	noteSceneUndoLit = false;
+	noteSceneRedoLit = false;
+}
+
+void resetToSessionMode(MIDICable* cable, int32_t midiChannel, bool fullHardwareReset) {
 	if (viewMode == ViewMode::Note && cable != nullptr) {
 		launchpad_note_mode::releaseAllHeldPads(*cable, midiChannel);
 	}
 
 	launchpad_note_mode::resetState();
+	clearNoteSceneButtonState();
 	viewMode = ViewMode::Session;
-	reassertLaunchpadLayout();
-	doSync(true);
+
+	if (fullHardwareReset) {
+		hardResetLaunchpadHardware();
+	}
+	else {
+		reassertLaunchpadLayout();
+	}
+
+	if (!launchpadQuiesced()) {
+		doSync(true);
+	}
+}
+
+void buildNoteSceneColours(RGB sceneColours[8]) {
+	using deluge::gui::colours::amber;
+	using deluge::gui::colours::black;
+	using deluge::gui::colours::white;
+
+	// ~10/255 peak — matches inactive session clip dim level after Launchpad scaleRgb.
+	static constexpr RGB kSceneHintDim = RGB(10, 4, 0);
+	static constexpr RGB kSceneUndoRedoDim = RGB(10, 10, 10);
+
+	for (int32_t y = 0; y < 8; y++) {
+		sceneColours[y] = black;
+	}
+
+	sceneColours[kNoteSceneRowMetronome] = playbackHandler.metronomeOn ? amber : kSceneHintDim;
+	sceneColours[kNoteSceneRowRedo] = noteSceneRedoLit ? white : kSceneUndoRedoDim;
+	sceneColours[kNoteSceneRowUndo] = noteSceneUndoLit ? white : kSceneUndoRedoDim;
+}
+
+bool handleNoteSceneButton(int32_t sceneRow, bool on) {
+	if (sceneRow == kNoteSceneRowMetronome) {
+		if (on) {
+			playbackHandler.toggleMetronomeStatus();
+		}
+		return true;
+	}
+
+	if (sceneRow == kNoteSceneRowUndo) {
+		if (on) {
+			if (actionLogger.allowedToDoReversion()) {
+				pendingGlobalMIDICommand = GlobalMIDICommand::UNDO;
+				pendingGlobalMIDICommandNumClustersWritten = 0;
+				playbackHandler.slowRoutine();
+			}
+			noteSceneUndoLit = true;
+		}
+		else {
+			noteSceneUndoLit = false;
+		}
+		return true;
+	}
+
+	if (sceneRow == kNoteSceneRowRedo) {
+		if (on) {
+			if (actionLogger.allowedToDoReversion()) {
+				pendingGlobalMIDICommand = GlobalMIDICommand::REDO;
+				pendingGlobalMIDICommandNumClustersWritten = 0;
+				playbackHandler.slowRoutine();
+			}
+			noteSceneRedoLit = true;
+		}
+		else {
+			noteSceneRedoLit = false;
+		}
+		return true;
+	}
+
+	return false;
 }
 
 void switchViewMode(ViewMode newMode, MIDICable& cable, int32_t midiChannel) {
@@ -123,6 +263,7 @@ void switchViewMode(ViewMode newMode, MIDICable& cable, int32_t midiChannel) {
 
 	if (viewMode == ViewMode::Note) {
 		launchpad_note_mode::releaseAllHeldPads(cable, midiChannel);
+		clearNoteSceneButtonState();
 	}
 
 	viewMode = newMode;
@@ -130,28 +271,50 @@ void switchViewMode(ViewMode newMode, MIDICable& cable, int32_t midiChannel) {
 	doSync(true);
 }
 
+bool handleSessionButton(MIDICable& cable, bool on, int32_t midiChannel) {
+	if (on) {
+		launchpadSessionButtonHeld = true;
+		launchpadSessionHoldUsedForPad = false;
+		return true;
+	}
+
+	launchpadSessionButtonHeld = false;
+	if (launchpadSessionHoldUsedForPad) {
+		launchpadSessionHoldUsedForPad = false;
+		return true;
+	}
+
+	if (viewMode == ViewMode::Session) {
+		requestDelugeSessionView(false);
+		reassertLaunchpadLayout();
+		doSync(true);
+	}
+	else {
+		switchViewMode(ViewMode::Session, cable, midiChannel);
+	}
+	return true;
+}
+
 bool handleControlChange(MIDICable& cable, uint8_t cc, bool on, int32_t midiChannel) {
+	if (cc == launchpad_programmer_map::cc::kSession) {
+		return handleSessionButton(cable, on, midiChannel);
+	}
+
+	if (viewMode == ViewMode::Note) {
+		int32_t sceneRow = 0;
+		if (launchpad_programmer_map::sceneRowFromCc(cc, sceneRow)) {
+			if (handleNoteSceneButton(sceneRow, on)) {
+				return true;
+			}
+		}
+	}
+
 	if (!on) {
 		return true;
 	}
 
 	switch (cc) {
-	case launchpad_programmer_map::cc::kSession:
-		if (AudioEngine::audioSampleTimer < ignoreModeButtonCcUntilSample) {
-			return true;
-		}
-		if (viewMode == ViewMode::Session) {
-			requestDelugeSessionView();
-			reassertLaunchpadLayout();
-			doSync(true);
-			return true;
-		}
-		switchViewMode(ViewMode::Session, cable, midiChannel);
-		return true;
 	case launchpad_programmer_map::cc::kNote:
-		if (AudioEngine::audioSampleTimer < ignoreModeButtonCcUntilSample) {
-			return true;
-		}
 		if (viewMode == ViewMode::Note) {
 			if (launchpad_note_mode::toggleExpressiveChordsSubMode(cable, midiChannel)) {
 				reassertLaunchpadLayout();
@@ -160,6 +323,9 @@ bool handleControlChange(MIDICable& cable, uint8_t cc, bool on, int32_t midiChan
 			}
 			reassertLaunchpadLayout();
 			doSync(true);
+			return true;
+		}
+		if (!launchpad_note_mode::canEnterNoteMode()) {
 			return true;
 		}
 		switchViewMode(ViewMode::Note, cable, midiChannel);
@@ -228,7 +394,7 @@ bool handleNote(MIDICable& cable, uint8_t note, uint8_t velocity, bool on, int32
 }
 
 void sendLeds(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-              RGB const sceneColours[8]) {
+              RGB const sceneColours[8], bool forceFullRefresh = false) {
 	MIDICableUSBHosted* cable = launchpad_cable::getPort2();
 	if (cable == nullptr) {
 		return;
@@ -237,18 +403,26 @@ void sendLeds(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[
 	bool transportPlaying = playbackHandler.playbackState != 0;
 	bool transportRecording = playbackHandler.recording == RecordingMode::NORMAL;
 	launchpad_sysex::sendLaunchpadLeds(cable, viewMode, image, occupancyMask, sceneColours, transportPlaying,
-	                                   transportRecording);
+	                                   transportRecording, forceFullRefresh);
 	midiEngine.flushMIDI();
 }
 
 } // namespace
+
+bool isSessionButtonHeld() {
+	return launchpadSessionButtonHeld;
+}
+
+void notifySessionHoldUsedForPad() {
+	launchpadSessionHoldUsedForPad = true;
+}
 
 ViewMode getViewMode() {
 	return viewMode;
 }
 
 void requestSync() {
-	if (!featureEnabled()) {
+	if (!featureEnabled() || launchpadQuiesced()) {
 		return;
 	}
 
@@ -259,25 +433,82 @@ void requestSync() {
 	doSync(true);
 }
 
-void forceSessionDefault() {
+void forceSessionDefault(bool fullHardwareReset) {
 	if (!featureEnabled()) {
 		return;
 	}
 
-	resetToSessionMode(launchpad_cable::getPort2(), 0);
-	requestDelugeSessionView();
+	resetToSessionMode(launchpad_cable::getPort2(), 0, fullHardwareReset);
+	requestDelugeSessionView(true);
+	tryPendingDelugeSessionView();
 }
 
 void onDeviceConnected() {
-	ignoreModeButtonCcUntilSample = AudioEngine::audioSampleTimer + (3 * kSampleRate);
+	ignoreLaunchpadInputUntilSample = AudioEngine::audioSampleTimer + (3 * kSampleRate);
 	lastProgrammerKeepaliveTime = 0;
-	forceSessionDefault();
+	forceSessionDefault(true);
+}
+
+void onSongLoadStarting() {
+	if (!featureEnabled()) {
+		return;
+	}
+
+	songLoadGuardActive = true;
+	ignoreLaunchpadInputUntilSample = AudioEngine::audioSampleTimer + (4 * kSampleRate);
+	pendingDelugeSessionView = true;
+	pendingDelugeSessionViewInstant = true;
+
+	launchpad_note_mode::resetState();
+	clearNoteSceneButtonState();
+	launchpadSessionButtonHeld = false;
+	launchpadSessionHoldUsedForPad = false;
+	viewMode = ViewMode::Session;
+	hardResetLaunchpadHardware();
+}
+
+void onSongLoadAborted() {
+	songLoadGuardActive = false;
+
+	if (!featureEnabled() || currentSong == nullptr) {
+		return;
+	}
+
+	forceSessionDefault(true);
+}
+
+void onSongSwappedDuringLoad() {
+	if (!featureEnabled() || !songLoadGuardActive) {
+		return;
+	}
+
+	hardResetLaunchpadHardware();
 }
 
 void onSongLoaded() {
-	ignoreModeButtonCcUntilSample = AudioEngine::audioSampleTimer + (2 * kSampleRate);
+	if (!featureEnabled()) {
+		songLoadGuardActive = false;
+		return;
+	}
+
+	sessionView.launchpadResetMirrorState();
+	launchpad_note_mode::resetState();
+	clearNoteSceneButtonState();
+	viewMode = ViewMode::Session;
+	ignoreLaunchpadInputUntilSample = AudioEngine::audioSampleTimer + (3 * kSampleRate);
 	lastProgrammerKeepaliveTime = 0;
-	forceSessionDefault();
+	pendingDelugeSessionView = true;
+	pendingDelugeSessionViewInstant = true;
+
+	// Swap may have sent PGMs while guard was up; wipe hardware once load I/O is finished.
+	hardResetLaunchpadHardware();
+	requestDelugeSessionView(true);
+	tryPendingDelugeSessionView();
+	songLoadGuardActive = false;
+
+	// Full refresh — partial SysEx wipes during SD load can leave stale pads if we only send deltas.
+	doSync(true, true);
+	pendingPostLoadResetSample = AudioEngine::audioSampleTimer + kPostLoadResetDelaySamples;
 }
 
 void periodicSyncIfNeeded() {
@@ -289,11 +520,33 @@ void periodicSyncIfNeeded() {
 		return;
 	}
 
+	uint32_t now = AudioEngine::audioSampleTimer;
+
+	if (launchpadQuiesced()) {
+		// Long SD loads skip grid sync but must keep Programmer mode (Live mode + routed MIDI = garbage LEDs).
+		if (now - lastProgrammerKeepaliveTime >= kProgrammerKeepaliveSamples) {
+			lastProgrammerKeepaliveTime = now;
+			MIDICableUSBHosted* port2 = launchpad_cable::getPort2();
+			if (port2 != nullptr) {
+				launchpad_sysex::reassertProgrammerMode(port2);
+			}
+		}
+		tryPendingDelugeSessionView();
+		return;
+	}
+
+	if (pendingPostLoadResetSample != 0 && now >= pendingPostLoadResetSample) {
+		pendingPostLoadResetSample = 0;
+		hardResetLaunchpadHardware();
+		doSync(true, true);
+	}
+
+	tryPendingDelugeSessionView();
+
 	if (viewMode == ViewMode::Note) {
 		launchpad_note_mode::serviceRepeats();
 	}
 	else {
-		uint32_t now = AudioEngine::audioSampleTimer;
 		if (now - lastProgrammerKeepaliveTime >= kProgrammerKeepaliveSamples) {
 			lastProgrammerKeepaliveTime = now;
 			MIDICableUSBHosted* port2 = launchpad_cable::getPort2();
@@ -303,7 +556,7 @@ void periodicSyncIfNeeded() {
 		}
 	}
 
-	uint32_t now = AudioEngine::audioSampleTimer;
+	now = AudioEngine::audioSampleTimer;
 	uint32_t interval = launchCountdownActive() ? kCountdownSyncSamples : kPeriodicSyncSamples;
 	if (now - lastPeriodicSyncTime < interval) {
 		return;
@@ -314,13 +567,14 @@ void periodicSyncIfNeeded() {
 }
 
 void syncSessionGrid(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                     RGB const sceneColours[8]) {
-	sendLeds(image, occupancyMask, sceneColours);
+                     RGB const sceneColours[8], bool forceFullRefresh) {
+	sendLeds(image, occupancyMask, sceneColours, forceFullRefresh);
 }
 
 void syncNoteView(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	static RGB const kBlackScenes[8] = {};
-	sendLeds(image, occupancyMask, kBlackScenes);
+	RGB sceneColours[8];
+	buildNoteSceneColours(sceneColours);
+	sendLeds(image, occupancyMask, sceneColours);
 }
 
 bool handleMidiMessage(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
@@ -332,7 +586,11 @@ bool handleMidiMessage(MIDICable& cable, uint8_t statusType, uint8_t channel, ui
 		return false;
 	}
 
-	if (currentSong == nullptr) {
+	if (currentSong == nullptr || launchpadQuiesced()) {
+		return true;
+	}
+
+	if (AudioEngine::audioSampleTimer < ignoreLaunchpadInputUntilSample) {
 		return true;
 	}
 
@@ -384,8 +642,13 @@ bool shouldBlockOutgoingMidi(MIDICableUSB& cable, MIDIMessage message) {
 		return false;
 	}
 
-	if (!launchpad_cable::isPort2(cable)) {
+	// Block port 1 (DAW) too — song MIDI routed there lights pads in Live mode.
+	if (!launchpad_cable::isLaunchpadCable(cable)) {
 		return false;
+	}
+
+	if (launchpadQuiesced()) {
+		return message.statusType >= 0x08 && message.statusType <= 0x0E;
 	}
 
 	if (message.statusType >= 0x08 && message.statusType <= 0x0E) {

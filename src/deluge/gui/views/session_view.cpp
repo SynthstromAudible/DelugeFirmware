@@ -3943,8 +3943,10 @@ void SessionView::launchpadGridScroll(int32_t offsetX, int32_t offsetY) {
 
 	currentSong->songGridScrollY =
 	    std::clamp<int32_t>(currentSong->songGridScrollY - offsetY, 0, kMaxNumSections - kGridHeight);
-	currentSong->songGridScrollX = std::clamp<int32_t>(currentSong->songGridScrollX + offsetX, 0,
-	                                                   std::max<int32_t>(0, (gridTrackCount() - kDisplayWidth) + 1));
+	// Launchpad shows 8 columns; Deluge grid scroll math uses kDisplayWidth (16).
+	currentSong->songGridScrollX = std::clamp<int32_t>(
+	    currentSong->songGridScrollX + offsetX, 0,
+	    std::max<int32_t>(0, static_cast<int32_t>(gridTrackCount()) - static_cast<int32_t>(kLaunchpadGridWidth)));
 
 	if (getCurrentUI() == &sessionView) {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
@@ -3982,7 +3984,12 @@ void SessionView::launchpadBeginClipHoldSelection(Clip* clip, int32_t x, int32_t
 	}
 }
 
-void SessionView::launchpadSyncGridLedsNow() {
+void SessionView::launchpadResetMirrorState() {
+	launchpadResetPress();
+	launchpadSceneLaunchSection = -1;
+}
+
+void SessionView::launchpadSyncGridLedsNow(bool forceFullRefresh) {
 	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLaunchpadGridMirror)) {
 		return;
 	}
@@ -4007,7 +4014,7 @@ void SessionView::launchpadSyncGridLedsNow() {
 		sceneColours[y] = launchpadImage[y][kDisplayWidth];
 	}
 
-	launchpad_extension::syncSessionGrid(launchpadImage, launchpadOccupancyMask, sceneColours);
+	launchpad_extension::syncSessionGrid(launchpadImage, launchpadOccupancyMask, sceneColours, forceFullRefresh);
 }
 
 ActionResult SessionView::gridHandlePadsFromLaunchpad(int32_t x, int32_t y, int32_t on) {
@@ -4027,6 +4034,18 @@ ActionResult SessionView::gridHandlePadsFromLaunchpad(int32_t x, int32_t y, int3
 	Clip* clip = gridClipFromCoords(x, y);
 
 	if (on) {
+		// Hold Session + pad = Deluge shift+pad (immediate clip on/off, no wait for loop end).
+		if (clip != nullptr && launchpad_extension::isSessionButtonHeld()) {
+			launchpad_extension::notifySessionHoldUsedForPad();
+			gridHandlePadsLaunchToggleArming(clip, true);
+			launchpadResetPress();
+			if (getCurrentUI() == &sessionView) {
+				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+			}
+			launchpad_extension::requestSync();
+			return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+		}
+
 		// Hold source clip, press destination — same copy gesture as Deluge grid.
 		if (launchpadFirstPressedX >= 0 && launchpadSecondPressedX == -1
 		    && (x != launchpadFirstPressedX || y != launchpadFirstPressedY)) {

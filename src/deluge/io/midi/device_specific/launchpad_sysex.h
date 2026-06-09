@@ -31,6 +31,6 @@ void invalidateLedCache();
 void sendLaunchpadLeds(MIDICableUSBHosted* cable, launchpad_extension::ViewMode viewMode,
                        RGB image[][kDisplayWidth + kSideBarWidth],
                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], RGB const sceneColours[8],
-                       bool transportPlaying, bool transportRecording);
+                       bool transportPlaying, bool transportRecording, bool forceFullRefresh = false);
 
 } // namespace launchpad_sysex

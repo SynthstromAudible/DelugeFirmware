@@ -38,6 +38,19 @@ MIDIRootComplexUSBHosted::~MIDIRootComplexUSBHosted() {
 
 void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume = false);
 
+namespace {
+
+bool connectedDeviceHasCable(ConnectedUSBMIDIDevice const& connectedDevice) {
+	for (auto const* cable : connectedDevice.cable) {
+		if (cable != nullptr) {
+			return true;
+		}
+	}
+	return false;
+}
+
+} // namespace
+
 extern "C" {
 
 #include "RZA1/usb/userdef/r_usb_hmidi_config.h"
@@ -78,7 +91,7 @@ void usbSendCompleteAsHost(int32_t ip) {
 			midiDeviceNum -= MAX_NUM_USB_MIDI_DEVICES;
 		}
 		connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
-		if (connectedDevice->cable[0] && connectedDevice->numBytesSendingNow) {
+		if (connectedDeviceHasCable(*connectedDevice) && connectedDevice->numBytesSendingNow) {
 			// If here, we got a connected device, so flush
 			flushUSBMIDIToHostedDevice(ip, midiDeviceNum);
 			return;
@@ -181,7 +194,7 @@ void MIDIRootComplexUSBHosted::flush() {
 	// Make sure that's on a connected device - it probably would be...
 	while (true) {
 		ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNumToSendTo];
-		if (connectedDevice->cable[0] && connectedDevice->hasBufferedSendData()) {
+		if (connectedDeviceHasCable(*connectedDevice) && connectedDevice->hasBufferedSendData()) {
 			break; // We found a connected one
 		}
 		if (midiDeviceNumToSendTo == newStopSendingAfter) {
@@ -197,7 +210,7 @@ void MIDIRootComplexUSBHosted::flush() {
 	while (true) {
 		ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][newStopSendingAfter];
 
-		if (connectedDevice->cable[0] && connectedDevice->hasBufferedSendData()) {
+		if (connectedDeviceHasCable(*connectedDevice) && connectedDevice->hasBufferedSendData()) {
 			break; // We found a connected one
 		}
 
@@ -212,7 +225,7 @@ void MIDIRootComplexUSBHosted::flush() {
 	while (true) {
 		ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 
-		if (connectedDevice->cable[0]) {
+		if (connectedDeviceHasCable(*connectedDevice)) {
 			connectedDevice->consumeSendData();
 		}
 		if (d == newStopSendingAfter) {
@@ -246,7 +259,7 @@ Error MIDIRootComplexUSBHosted::poll() {
 
 	for (int32_t d = 0; d < numDevicesNow; d++) {
 		auto& connectedDevice = connectedUSBMIDIDevices[ip][d];
-		if (connectedDevice.cable[0] != nullptr && connectedDevice.currentlyWaitingToReceive == 0u) {
+		if (connectedDeviceHasCable(connectedDevice) && connectedDevice.currentlyWaitingToReceive == 0u) {
 
 			int32_t bytesReceivedHere = connectedDevice.numBytesReceived;
 			if (bytesReceivedHere) {
@@ -290,7 +303,7 @@ Error MIDIRootComplexUSBHosted::poll() {
 			}
 
 			// And maybe setup transfer to receive more data
-			if (connectedDevice.cable[0] != nullptr) {
+			if (connectedDeviceHasCable(connectedDevice)) {
 				// Only allowed to setup receive-transfer if not in the process of sending to various devices. (Wait,
 				// still? Was this just because of that insane bug that's now fixed?)
 				if (usbDeviceNumBeingSentToNow[ip] == stopSendingAfterDeviceNum[ip]) {

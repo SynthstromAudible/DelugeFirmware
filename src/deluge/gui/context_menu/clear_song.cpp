@@ -20,6 +20,7 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/song/song.h"
@@ -111,6 +112,7 @@ bool ClearSong::acceptCurrentOption() {
 
 	setUIForLoadedSong(currentSong);
 	currentUIMode = UI_MODE_NONE;
+	launchpad_extension::onSongLoaded();
 
 	display->removeWorkingAnimation();
 

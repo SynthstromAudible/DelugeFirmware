@@ -16,6 +16,9 @@ MIDICableUSBHosted* getPort2();
 
 bool isPort2(MIDICable& cable);
 
+// Either USB MIDI port of a connected Launchpad (port 1 DAW + port 2 Programmer).
+bool isLaunchpadCable(MIDICable& cable);
+
 void registerPort2(MIDICableUSBHosted* cable);
 
 } // namespace launchpad_cable

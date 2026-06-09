@@ -32,6 +32,7 @@
 #include "io/usb/usb_state.h"
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "storage/storage_manager.h"
 #include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
@@ -307,7 +308,15 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 		cablesToCreate = remainingSlots;
 	}
 
+	// Session grid mirror uses port 2 (Programmer) only — omit port 1 (DAW) from routing and MIDI Devices menu.
+	bool omitLaunchpadDawPort = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLaunchpadGridMirror)
+	                            && novation_launchpad_mk3::matchesVendorProduct(vendorId, productId);
+
 	for (int32_t i = 0; i < cablesToCreate; i++) {
+		if (omitLaunchpadDawPort && i == 0) {
+			continue;
+		}
+
 		String perPortName;
 		perPortName.set(&baseName);
 		if (cablesToCreate > 1) {

@@ -11,6 +11,7 @@
 #include "io/midi/device_specific/launchpad_programmer_map.h"
 #include "io/midi/device_specific/novation_launchpad_mk3.h"
 #include "io/midi/midi_engine.h"
+#include "util/functions.h"
 
 #include <algorithm>
 
@@ -18,7 +19,8 @@ namespace launchpad_sysex {
 
 namespace {
 
-static constexpr int32_t kMaxLedEntriesPerSysex = 81;
+static constexpr int32_t kSysexBufferBytes = 420;
+static constexpr int32_t kMaxLedEntriesPerSysex = 80;
 static constexpr int32_t kLedCacheSize = 128;
 
 uint8_t ledCacheR[kLedCacheSize];
@@ -36,13 +38,15 @@ void sendRaw(MIDICableUSBHosted* cable, uint8_t const* data, int32_t len) {
 	if (len < 6 || data[0] != 0xF0 || data[len - 1] != 0xF7) {
 		return;
 	}
-	if (len > cable->sendBufferSpace()) {
+
+	for (int32_t attempt = 0; attempt < 16; attempt++) {
+		if (len <= cable->sendBufferSpace()) {
+			if (cable->sendSysex(data, len) == Error::NONE) {
+				return;
+			}
+		}
 		midiEngine.flushMIDI();
 	}
-	if (len > cable->sendBufferSpace()) {
-		return;
-	}
-	cable->sendSysex(data, len);
 }
 
 uint8_t deviceIdFor(MIDICableUSBHosted* cable) {
@@ -123,26 +127,6 @@ void sendLedFeedbackOff(MIDICableUSBHosted* cable) {
 	sendRaw(cable, buffer, pos);
 }
 
-void sendAuxLedsOff(MIDICableUSBHosted* cable) {
-	uint8_t deviceId = deviceIdFor(cable);
-	uint8_t const* indices = launchpad_programmer_map::nonGridLedIndices();
-	uint8_t count = launchpad_programmer_map::kNonGridLedIndexCount;
-
-	uint8_t buffer[64];
-	int32_t pos = appendSysexHeader(buffer, 0, deviceId);
-
-	for (uint8_t i = 0; i < count; i++) {
-		pos = appendLedPaletteOff(buffer, pos, indices[i]);
-		ledCacheR[indices[i]] = 0;
-		ledCacheG[indices[i]] = 0;
-		ledCacheB[indices[i]] = 0;
-		ledCacheValid[indices[i]] = true;
-	}
-
-	buffer[pos++] = 0xF7;
-	sendRaw(cable, buffer, pos);
-}
-
 class DeltaBatch {
 public:
 	void begin(MIDICableUSBHosted* cable, uint8_t deviceId) {
@@ -152,14 +136,19 @@ public:
 		entryCount_ = 0;
 	}
 
-	void queueIfChanged(uint8_t ledIndex, uint8_t r, uint8_t g, uint8_t b) {
+	void queueIfChanged(uint8_t ledIndex, uint8_t r, uint8_t g, uint8_t b, bool force = false) {
 		if (ledIndex >= kLedCacheSize) {
 			return;
 		}
 
-		if (ledCacheValid[ledIndex] && ledCacheR[ledIndex] == r && ledCacheG[ledIndex] == g
+		if (!force && ledCacheValid[ledIndex] && ledCacheR[ledIndex] == r && ledCacheG[ledIndex] == g
 		    && ledCacheB[ledIndex] == b) {
 			return;
+		}
+
+		int32_t entryBytes = (r == 0 && g == 0 && b == 0) ? 3 : 5;
+		if (pos_ + entryBytes + 1 > kSysexBufferBytes) {
+			flush();
 		}
 
 		ledCacheR[ledIndex] = r;
@@ -194,10 +183,34 @@ public:
 private:
 	MIDICableUSBHosted* cable_ = nullptr;
 	uint8_t deviceId_ = 0;
-	uint8_t buffer_[420];
+	uint8_t buffer_[kSysexBufferBytes];
 	int32_t pos_ = 0;
 	int32_t entryCount_ = 0;
 };
+
+void sendAllProgrammerLedsOff(MIDICableUSBHosted* cable) {
+	uint8_t deviceId = deviceIdFor(cable);
+	DeltaBatch batch;
+	batch.begin(cable, deviceId);
+
+	for (int32_t lpY = 0; lpY < 8; lpY++) {
+		for (int32_t lpX = 0; lpX < 8; lpX++) {
+			batch.queueIfChanged(launchpad_programmer_map::gridLedIndex(lpX, lpY), 0, 0, 0);
+		}
+	}
+
+	for (int32_t y = 0; y < 8; y++) {
+		batch.queueIfChanged(launchpad_programmer_map::sceneLedIndexForDelugeRow(y), 0, 0, 0);
+	}
+
+	uint8_t const* indices = launchpad_programmer_map::nonGridLedIndices();
+	for (uint8_t i = 0; i < launchpad_programmer_map::kNonGridLedIndexCount; i++) {
+		batch.queueIfChanged(indices[i], 0, 0, 0);
+	}
+
+	batch.flush();
+	midiEngine.flushMIDI();
+}
 
 } // namespace
 
@@ -205,6 +218,9 @@ void reassertProgrammerMode(MIDICableUSBHosted* cable) {
 	uint8_t deviceId = deviceIdFor(cable);
 	uint8_t programmerMode[] = {0xF0, 0x00, 0x20, 0x29, 0x02, deviceId, 0x0E, 0x01, 0xF7};
 	sendRaw(cable, programmerMode, sizeof programmerMode);
+	// Session/Note buttons can re-enable MIDI LED feedback — any Note/CC then lights random pads.
+	sendLedFeedbackOff(cable);
+	midiEngine.flushMIDI();
 }
 
 void invalidateLedCache() {
@@ -214,22 +230,27 @@ void invalidateLedCache() {
 void sendSetup(MIDICableUSBHosted* cable) {
 	uint8_t deviceId = deviceIdFor(cable);
 
+	clearLedCache();
+
 	uint8_t programmerMode[] = {0xF0, 0x00, 0x20, 0x29, 0x02, deviceId, 0x0E, 0x01, 0xF7};
 	sendRaw(cable, programmerMode, sizeof programmerMode);
+	midiEngine.flushMIDI();
 
 	uint8_t maxBrightness[] = {0xF0, 0x00, 0x20, 0x29, 0x02, deviceId, 0x08, 0x7F, 0xF7};
 	sendRaw(cable, maxBrightness, sizeof maxBrightness);
+	midiEngine.flushMIDI();
 
 	sendLedFeedbackOff(cable);
-	clearLedCache();
-	sendAuxLedsOff(cable);
 	midiEngine.flushMIDI();
+
+	// Wipe every Programmer LED (64 grid + scene + top row) so stale bytes cannot leave ghosts.
+	sendAllProgrammerLedsOff(cable);
 }
 
 void sendLaunchpadLeds(MIDICableUSBHosted* cable, launchpad_extension::ViewMode viewMode,
                        RGB image[][kDisplayWidth + kSideBarWidth],
                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], RGB const sceneColours[8],
-                       bool transportPlaying, bool transportRecording) {
+                       bool transportPlaying, bool transportRecording, bool forceFullRefresh) {
 	uint8_t deviceId = deviceIdFor(cable);
 	DeltaBatch batch;
 	batch.begin(cable, deviceId);
@@ -245,45 +266,47 @@ void sendLaunchpadLeds(MIDICableUSBHosted* cable, launchpad_extension::ViewMode 
 				scaleRgb(image[y][x].r, image[y][x].g, image[y][x].b, outR, outG, outB);
 			}
 
-			batch.queueIfChanged(ledIndex, outR, outG, outB);
+			batch.queueIfChanged(ledIndex, outR, outG, outB, forceFullRefresh);
 		}
 	}
 
-	if (viewMode == launchpad_extension::ViewMode::Session) {
+	if (viewMode == launchpad_extension::ViewMode::Session || viewMode == launchpad_extension::ViewMode::Note) {
 		for (int32_t y = 0; y < 8; y++) {
 			uint8_t outR;
 			uint8_t outG;
 			uint8_t outB;
 			scaleRgb(sceneColours[y].r, sceneColours[y].g, sceneColours[y].b, outR, outG, outB);
-			batch.queueIfChanged(launchpad_programmer_map::sceneLedIndexForDelugeRow(y), outR, outG, outB);
+			batch.queueIfChanged(launchpad_programmer_map::sceneLedIndexForDelugeRow(y), outR, outG, outB,
+			                     forceFullRefresh);
 		}
 	}
 	else {
 		for (int32_t y = 0; y < 8; y++) {
-			batch.queueIfChanged(launchpad_programmer_map::sceneLedIndexForDelugeRow(y), 0, 0, 0);
+			batch.queueIfChanged(launchpad_programmer_map::sceneLedIndexForDelugeRow(y), 0, 0, 0, forceFullRefresh);
 		}
 	}
 
 	uint8_t const* fixedOffIndices = launchpad_programmer_map::fixedOffLedIndices();
 	for (uint8_t i = 0; i < launchpad_programmer_map::kFixedOffLedIndexCount; i++) {
-		batch.queueIfChanged(fixedOffIndices[i], 0, 0, 0);
+		batch.queueIfChanged(fixedOffIndices[i], 0, 0, 0, forceFullRefresh);
 	}
 
 	if (transportPlaying) {
-		batch.queueIfChanged(launchpad_programmer_map::cc::kCustom, 0, 127, 0);
+		batch.queueIfChanged(launchpad_programmer_map::cc::kCustom, 0, 127, 0, forceFullRefresh);
 	}
 	else {
-		batch.queueIfChanged(launchpad_programmer_map::cc::kCustom, 0, 0, 0);
+		batch.queueIfChanged(launchpad_programmer_map::cc::kCustom, 0, 0, 0, forceFullRefresh);
 	}
 
 	if (transportRecording) {
-		batch.queueIfChanged(launchpad_programmer_map::cc::kCaptureMidi, 127, 0, 0);
+		batch.queueIfChanged(launchpad_programmer_map::cc::kCaptureMidi, 127, 0, 0, forceFullRefresh);
 	}
 	else {
-		batch.queueIfChanged(launchpad_programmer_map::cc::kCaptureMidi, 0, 0, 0);
+		batch.queueIfChanged(launchpad_programmer_map::cc::kCaptureMidi, 0, 0, 0, forceFullRefresh);
 	}
 
 	batch.flush();
+	midiEngine.flushMIDI();
 }
 
 } // namespace launchpad_sysex

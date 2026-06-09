@@ -12,6 +12,5 @@
 
 void MIDIDeviceLaunchpadMK3::hookOnConnected() {
 	launchpad_cable::registerPort2(this);
-	launchpad_sysex::sendSetup(this);
 	launchpad_extension::onDeviceConnected();
 }

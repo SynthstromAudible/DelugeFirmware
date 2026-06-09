@@ -405,8 +405,18 @@ void setUIForLoadedSong(Song* song) {
 
 	UI* newUI;
 	Clip* currentClip = song->getCurrentClip();
+
+	// Songs saved from clip view set beingEdited in XML; always open session when Launchpad mirror is on.
+	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLaunchpadGridMirror)) {
+		if (song->lastClipInstanceEnteredStartPos != -1) {
+			newUI = &arrangerView;
+		}
+		else {
+			newUI = &sessionView;
+		}
+	}
 	// If in a Clip-minder view
-	if (currentClip && song->inClipMinderViewOnLoad) {
+	else if (currentClip && song->inClipMinderViewOnLoad) {
 		if (currentClip->onAutomationClipView) {
 			newUI = &automationView;
 		}

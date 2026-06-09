@@ -558,6 +558,10 @@ void syncKitLeds(InstrumentClip* clip, RGB launchpadImage[][kDisplayWidth + kSid
 
 } // namespace
 
+bool canEnterNoteMode() {
+	return noteModeClip() != nullptr;
+}
+
 bool handleExpressiveControlPad(int32_t x, int32_t y) {
 	auto& layout = getExpressiveChordsLayout();
 

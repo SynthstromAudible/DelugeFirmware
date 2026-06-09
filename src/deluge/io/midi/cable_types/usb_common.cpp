@@ -137,6 +137,10 @@ Error MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		return Error::INVALID_SYSEX_FORMAT;
 	}
 
+	for (int32_t attempt = 0; attempt < 8 && len > sendBufferSpace(); attempt++) {
+		midiEngine.flushMIDI();
+	}
+
 	if (len > sendBufferSpace()) {
 		return Error::OUT_OF_BUFFER_SPACE;
 	}

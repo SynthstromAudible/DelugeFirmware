@@ -72,4 +72,22 @@ bool isPort2(MIDICable& cable) {
 	return port2 != nullptr && &cable == static_cast<MIDICable*>(port2);
 }
 
+bool isLaunchpadCable(MIDICable& cable) {
+	using namespace MIDIDeviceManager;
+
+	if (root_usb == nullptr || root_usb->getType() != RootComplexType::RC_USB_HOST) {
+		return false;
+	}
+
+	for (auto& hostedCable : root_usb->getCables()) {
+		if (static_cast<MIDICable*>(&hostedCable) != &cable) {
+			continue;
+		}
+		auto& hosted = static_cast<MIDICableUSBHosted&>(hostedCable);
+		return hosted.connectionFlags
+		       && novation_launchpad_mk3::matchesVendorProduct(hosted.vendorId, hosted.productId);
+	}
+	return false;
+}
+
 } // namespace launchpad_cable

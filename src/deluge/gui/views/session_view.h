@@ -40,6 +40,7 @@ enum SessionGridMode : uint8_t {
 extern float getTransitionProgress();
 
 constexpr uint32_t kGridHeight = kDisplayHeight;
+constexpr uint32_t kLaunchpadGridWidth = 8;
 
 class SessionView final : public ClipNavigationTimelineView {
 public:
@@ -132,7 +133,8 @@ public:
 	void launchpadStartSectionFromRow(int32_t y);
 	void launchpadTogglePlayStop();
 	void launchpadToggleRecord();
-	void launchpadSyncGridLedsNow();
+	void launchpadSyncGridLedsNow(bool forceFullRefresh = false);
+	void launchpadResetMirrorState();
 
 	// ui
 	UIType getUIType() override { return UIType::SESSION; }

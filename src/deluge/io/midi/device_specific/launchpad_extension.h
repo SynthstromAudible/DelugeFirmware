@@ -22,8 +22,12 @@ enum class ViewMode : uint8_t {
 
 ViewMode getViewMode();
 
+// Session hardware button held = Deluge shift for grid pads (immediate clip on/off).
+bool isSessionButtonHeld();
+void notifySessionHoldUsedForPad();
+
 void syncSessionGrid(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                     RGB const sceneColours[8]);
+                     RGB const sceneColours[8], bool forceFullRefresh = false);
 
 void syncNoteView(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
@@ -34,6 +38,14 @@ void periodicSyncIfNeeded();
 void requestSync();
 
 void onDeviceConnected();
+
+// Freeze and clear Launchpad before reading a song from SD (blocks MIDI in/out until load finishes).
+void onSongLoadStarting();
+
+void onSongLoadAborted();
+
+// Called from doSongSwap while a file load is in progress (after PGM burst).
+void onSongSwappedDuringLoad();
 
 void onSongLoaded();
 
