@@ -25,22 +25,30 @@
 // ticks at 33.33 MHz
 
 enum OSTimerOperatingMode { TIMER, FREE_RUNNING };
+
+// NOTE: these are deliberately ostm*-prefixed. The MTU2 driver (RZA1/mtu/mtu.h)
+// also declares enableTimer()/disableTimer()/isTimerEnabled() — as `static inline`
+// functions on entirely different hardware. A translation unit that includes both
+// headers (e.g. src/bsp/rza1/clock.c, which needs MTU for delays and OSTM for the
+// monotonic clock) would silently bind the unprefixed names to the MTU versions,
+// leaving the OSTM timer configured but never started. Keep the prefix.
+
 /// in timer mode, start or reset the timer
 /// in free mode start the timer iff it's not running
-void enableTimer(int timerNo);
+void ostmEnableTimer(int timerNo);
 
 /// stop the timer
-void disableTimer(int timerNo);
+void ostmDisableTimer(int timerNo);
 
 /// return whether the timer is running
-bool isTimerEnabled(int timerNo);
+bool ostmIsTimerEnabled(int timerNo);
 
 /// The timer can be a timer, starting at OSTMnCMP and counting down to 0 then optionally sending an interrupt, or a
 /// free running loop with an optional interrupt when it equals OSTMnCMP. Count is driven by P0 (33.33MHz)
-void setOperatingMode(int timerNo, enum OSTimerOperatingMode mode, bool enable_interrupt);
+void ostmSetOperatingMode(int timerNo, enum OSTimerOperatingMode mode, bool enable_interrupt);
 
 /// Count is driven by P0 (33.33MHz)
-void setTimerValue(int timerNo, uint32_t timerValue);
+void ostmSetTimerValue(int timerNo, uint32_t timerValue);
 
-uint32_t getTimerValue(int timerNo);
+uint32_t ostmGetTimerValue(int timerNo);
 #endif // RZA1_OSTM_OSTM_H_

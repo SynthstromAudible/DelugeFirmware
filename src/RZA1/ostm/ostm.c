@@ -24,32 +24,32 @@
 
 static struct st_ostm volatile* const OSTimers[] = {&OSTM0, &OSTM1};
 
-void enableTimer(int timerNo)
+void ostmEnableTimer(int timerNo)
 {
     OSTimers[timerNo]->OSTMnTS = 1;
 }
 
-void disableTimer(int timerNo)
+void ostmDisableTimer(int timerNo)
 {
     OSTimers[timerNo]->OSTMnTT = 1;
 }
 
-bool isTimerEnabled(int timerNo)
+bool ostmIsTimerEnabled(int timerNo)
 {
     return OSTimers[timerNo]->OSTMnTE != 0;
 }
 
-void setOperatingMode(int timerNo, enum OSTimerOperatingMode mode, bool enable_interrupt)
+void ostmSetOperatingMode(int timerNo, enum OSTimerOperatingMode mode, bool enable_interrupt)
 {
     OSTimers[timerNo]->OSTMnCTL = mode << 1 | enable_interrupt;
 }
 
-void setTimerValue(int timerNo, uint32_t timerValue)
+void ostmSetTimerValue(int timerNo, uint32_t timerValue)
 {
     OSTimers[timerNo]->OSTMnCMP = timerValue;
 }
 
-uint32_t getTimerValue(int timerNo)
+uint32_t ostmGetTimerValue(int timerNo)
 {
     return OSTimers[timerNo]->OSTMnCNT;
 }

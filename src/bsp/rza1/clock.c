@@ -65,13 +65,13 @@ uint64_t deluge_clock_monotonic(void) {
 	static uint32_t last = 0;
 	static uint64_t high = 0;
 	if (!started) {
-		disableTimer(MONOTONIC_TIMER);
-		setTimerValue(MONOTONIC_TIMER, 0);
-		setOperatingMode(MONOTONIC_TIMER, FREE_RUNNING, false);
-		enableTimer(MONOTONIC_TIMER);
+		ostmDisableTimer(MONOTONIC_TIMER);
+		ostmSetTimerValue(MONOTONIC_TIMER, 0);
+		ostmSetOperatingMode(MONOTONIC_TIMER, FREE_RUNNING, false);
+		ostmEnableTimer(MONOTONIC_TIMER);
 		started = true;
 	}
-	uint32_t now = getTimerValue(MONOTONIC_TIMER);
+	uint32_t now = ostmGetTimerValue(MONOTONIC_TIMER);
 	if (now < last) {
 		high += (uint64_t)1 << 32;
 	}
