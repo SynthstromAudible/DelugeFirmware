@@ -218,6 +218,17 @@ Here is a list of general improvements that have been made, ordered from newest 
       Channel to send feedback to, the Rate at which feedback is sent for Automation, and you must set Filter Responses to DISABLED.
   - (#1053) For users of Touch OSC, you will find a MIDI Follow template in this
     folder: [MIDI Follow Mode Touch OSC Template]
+  - (#4526) <Badge text="c1.3" variant="tip" /> Added specific track control to `MIDI FOLLOW` enabling you to have instant mixer control of the parameters of up to 16 tracks. 
+    - You can now configure up to 16 channels in the MIDI Follow menu. 
+    - CC's received on the specific track channels are directed to the active clip of the corresponding track.
+    - Track 1 corresponds to bottom track in `ARRANGER VIEW` or left track in `GRID VIEW`.
+    - You can also now configure the Channel `TRACK` for MIDI Follow Feedback. If a specific track is selected and has been configured
+      for MIDI Follow control, the Deluge will send feedback of the CC values for that specific track.
+  - (#4526) <Badge text="c1.3" variant="tip" /> Added new default CC 89 to toggle the mute of the active clip in a specific track.
+    - Toggle mute: CC Value > 0 (Send a CC value greater than 0 to toggle mute for the active clip in a specific track)
+      - If used together with `SHIFT`, it will trigger instant mute.
+  - (#4526) <Badge text="c1.3" variant="tip" /> Added new default CC 90 to toggle solo of the active clip in a specific track.
+    - Toggle solo: CC Value > 0 (Send a CC Value greater than 0 to toggle mute for the active clip in a specific track)
 
 - (#963) <Badge text="c1.1" variant="tip" /> `MIDI Select Kit Row` - Added new Select Kit Row setting to the MIDI Defaults menu, which can be found
   in `SETTINGS > MIDI > SELECT KIT ROW`. When this setting is enabled, midi notes received for learned kit row's will
@@ -230,6 +241,10 @@ Here is a list of general improvements that have been made, ordered from newest 
   to the next rows
 
 - (#2810) <Badge text="c1.3" variant="tip" /> Added new learnable global command `LOAD NEXT SONG` (which can be quickly learned holding `LEARN` and `LOAD` and sending a MIDI note or CC message). When the Deluge receives this command while it is playing, it will queue to load the next song within the folder of the current song (wraps around when reaching the end of the folder).
+
+- (#4526) <Badge text="c1.3" variant="tip" /> Add new default CC 122 to toggle the deluge's `SHIFT` button. CC 122 can be sent on any channel. It can also be used to toggle sticky shift.
+  - Shift down: CC Value > 0 (Send a CC value greater than 0 to press shift)
+  - Shift up: CC Value = 0 (Send a CC value of 0 to release shift)
 
 ### 3.4 - Tempo & Swing
 

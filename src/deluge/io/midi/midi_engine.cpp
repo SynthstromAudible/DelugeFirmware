@@ -1047,6 +1047,7 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 
 				// CC command for shift button press
 				else if (data1 == 122) {
+					// If CC Value is greater than 0, press shift, else release shift
 					bool on = data2 > 0 ? true : false;
 					Buttons::commandToggleShift(on);
 
