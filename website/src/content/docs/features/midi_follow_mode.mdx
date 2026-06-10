@@ -10,8 +10,9 @@ import { Badge } from "@astrojs/starlight/components"
 <Badge text="c1.1 Feature" variant="tip" />
 
 MIDI control mode which enables you to learn your external controller to the Deluge only once.
+
 - Edit the active clip in the track you last interacted with
-- <Badge text="c1.3" variant="tip" /> Edit the active clip of specific tracks. 
+- <Badge text="c1.3" variant="tip" /> Edit the active clip of specific tracks.
 - Provides a standard MIDI CC implementation to control Deluge parameters with ease.
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/9389ad30-9d5a-435d-aee0-ba3f54d3c8a8)
@@ -35,7 +36,9 @@ MIDI control mode which enables you to learn your external controller to the Del
 Master MIDI follow mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active or selected clip. MIDI follow mode does not control song parameters.
 
 - There are three regular MIDI follow channel's (A/B/C) which will control the instrument of the active context. These follow channel's allows you to learn different devices to MIDI follow, should you require device specific channel settings.
-- <Badge text="c1.3" variant="tip" /> There are sixteen specific track MIDI follow channel's (Track1-16) which will always control the specific track configured.
+- <Badge text="c1.3" variant="tip" /> There are sixteen specific track MIDI
+  follow channel's (Track1-16) which will always control the specific track
+  configured.
 
 Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow feedback channel for mapped MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 
@@ -59,11 +62,13 @@ Comes with an XML file (`SETTINGS/MIDIFollow.XML`) with default CC to Deluge par
 
 To use MIDI follow mode, you will need to configure the various MIDI Follow Mode settings by entering the settings menu and going to the sub menu for `MIDI > MIDI-Follow`
 
-- In the `MIDI-Follow > Channel` submenu, set the channel between 1 and 16 for Non-MPE or MPE Lower/Upper for MPE. 
+- In the `MIDI-Follow > Channel` submenu, set the channel between 1 and 16 for Non-MPE or MPE Lower/Upper for MPE.
   - There are three regular channel's (A/B/C) available to accomodate learning multiple devices / channels to MIDI Follow Mode.
     - These channels will always control the selected / active clip context
-  - <Badge text="c1.3" variant="tip" /> There are sixteen specific track channel's (1-16) available so that you can always control specific tracks (e.g. like a mixer)
-    - These channels will always control the active clip of the specific track configured
+  - <Badge text="c1.3" variant="tip" /> There are sixteen specific track
+    channel's (1-16) available so that you can always control specific tracks
+    (e.g. like a mixer) - These channels will always control the active clip of
+    the specific track configured
   - You can quickly learn a Channel (and Device) by pressing :key[LEARN] and sending a MIDI CC/Note while in the Channel submenu
   - You can quickly unlearn a Channel by pressing :key[SHIFT] + :key[LEARN] while in the Channel submenu
     - Note: if no Channel has been set, MIDI Follow Mode will be Disabled
@@ -123,8 +128,9 @@ The parameters are controlled only in the current context.
 - In other words it checks what context you’re in and controls the parameters of that context.
 
 In <Badge text="c1.3" variant="tip" /> the above functionality has been expanded to add specific track control enabling you to have instant mixer control of the parameters of up to 16 tracks.
+
 - CC's received on those channels will control the specific track configured in the same fashion as the regular A/B/C channels.
-  - You can now configure up to 16 track channels in the MIDI Follow menu. 
+  - You can now configure up to 16 track channels in the MIDI Follow menu.
   - CC's received on the specific track channels are directed to the active clip of the corresponding track.
   - Track 1 corresponds to bottom track in `ARRANGER VIEW` or left track in `GRID VIEW`.
   - You can also now configure the Channel `TRACK` for MIDI Follow Feedback. If a specific track is selected and has been configured
@@ -165,6 +171,7 @@ Here are the MIDI CC #'s that have been reserved for other purposes:
 ![image](https://github.com/user-attachments/assets/530b8aa7-610c-411a-91b1-c98c3c4034ce)
 
 In <Badge text="c1.3" variant="tip" /> additional MIDI's CC's (89 and 90) have been reserved for Specific Track Mute and Solo commands:
+
 - Added new default CC 89 to toggle the mute of the active clip in a specific track.
   - Toggle mute: CC Value > 0 (Send a CC value greater than 0 to toggle mute for the active clip in a specific track)
     - If used together with `SHIFT`, it will trigger instant mute.
