@@ -681,8 +681,8 @@ extern "C" int32_t deluge_main(void) {
 		deluge::hid::display::swapDisplayType();
 	}
 
-	// Wire each ConnectedUSBMIDIDevice to its BSP-owned transport block (and zero
-	// that state) before the USB stack can drive any MIDI transfers.
+	// Assign each ConnectedUSBMIDIDevice its boundary MIDI port and initialise the
+	// MIDI transport before the USB stack can drive any MIDI transfers.
 	MIDIDeviceManager::init();
 
 	usbLock = 1;

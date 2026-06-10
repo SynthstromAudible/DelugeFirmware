@@ -9,7 +9,6 @@
 #     scripts/check_platform_boundary.py
 # Regenerate the *current* offender set (for comparison) with:
 #   scripts/check_platform_boundary.py --list
-
-src/deluge/io/midi/cable_types/usb_common.cpp
-src/deluge/io/midi/midi_device_manager.cpp
-src/deluge/io/midi/midi_engine.cpp
+#
+# The list is EMPTY: src/deluge includes only <libdeluge/...> — the application
+# compiles against any BSP.

@@ -29,13 +29,18 @@
 #include <string.h>
 
 // This module owns the USB-MIDI transport: the per-device RX/TX buffers + send
-// ring (phase 3), the send path - ring, Renesas bulk-OUT pipe driving, send
-// completion (phase 4) - and the receive transfer setup + completion (phase 5).
+// ring, the send path (ring, Renesas bulk-OUT pipe driving, send completion), the
+// receive transfer setup + completion, and per-slot connection tracking (the
+// attach/detach notifications called from the HAL enumeration paths). The
+// application sees none of it: it moves 4-byte event packets through the
+// <libdeluge/midi_io.h> byte-stream boundary (midi_io.c maps ports to (ip, d)
+// slots here), and the receive transfers are re-armed as part of the port read.
 //
 // Completion is pulled, not pushed: the HAL bulk-IN/-OUT handlers record generic
 // (pipe) completion events into a HAL-owned queue (usb_midi_completion.*), and
 // bsp_usb_midi_service() below drains them. The app calls that from its USB pump,
-// so there are no HAL -> BSP upcalls (see docs/dev/usb_midi_transport_relocation.md).
+// so there are no HAL -> BSP upcalls (see docs/dev/usb_midi_transport_relocation.md
+// and docs/dev/usb_midi_boundary_unification.md).
 
 // --- HAL globals/functions the send path drives (resolved at the final link). ---
 extern usb_utr_t* g_p_usb_pipe[];
@@ -83,8 +88,10 @@ uint32_t timeLastBRDY[USB_NUM_USBIP];
 
 static void send_complete_callback(usb_utr_t* p_mess, uint16_t data1, uint16_t data2);
 static void receive_complete_callback(usb_utr_t* p_mess, uint16_t data1, uint16_t data2);
+static void setup_host_receive_transfer(int32_t ip, int32_t midiDeviceNum);
+static void rearm_peripheral_receive(int32_t ip);
 
-BspUsbMidiDevice* bsp_usb_midi_device(uint8_t ip, uint8_t d) {
+static BspUsbMidiDevice* bsp_usb_midi_device(uint8_t ip, uint8_t d) {
 	return &g_usb_midi_devices[ip][d];
 }
 
@@ -146,13 +153,7 @@ static bool has_buffered_send_data(BspUsbMidiDevice* dev) {
 	return (dev->ringBufWriteIdx - dev->ringBufReadIdx) > 0;
 }
 
-int bsp_usb_midi_send_buffer_space(BspUsbMidiDevice* dev) {
-	uint32_t queued = dev->ringBufWriteIdx - dev->ringBufReadIdx;
-	// each 4-byte USB-MIDI event carries 3 bytes of serial MIDI data
-	return (MIDI_SEND_BUFFER_LEN_RING - queued) * 3;
-}
-
-void bsp_usb_midi_buffer_message(BspUsbMidiDevice* dev, uint32_t word) {
+static void bsp_usb_midi_buffer_message(BspUsbMidiDevice* dev, uint32_t word) {
 	uint32_t queued = dev->ringBufWriteIdx - dev->ringBufReadIdx;
 	if (queued > 16) {
 		if (!anyUSBSendingStillHappening[0]) {
@@ -169,10 +170,6 @@ void bsp_usb_midi_buffer_message(BspUsbMidiDevice* dev, uint32_t word) {
 	dev->ringBufWriteIdx++;
 
 	anythingInUSBOutputBuffer = true;
-}
-
-bool bsp_usb_midi_anything_in_output_buffer(void) {
-	return anythingInUSBOutputBuffer;
 }
 
 // --- Send to the wire ---------------------------------------------------------
@@ -435,7 +432,7 @@ static void receive_complete_callback(usb_utr_t* p_mess, uint16_t data1, uint16_
 }
 
 // Lock USB before calling this!
-void bsp_usb_midi_setup_host_receive_transfer(int32_t ip, int32_t midiDeviceNum) {
+static void setup_host_receive_transfer(int32_t ip, int32_t midiDeviceNum) {
 	(void)ip;
 	g_usb_midi_devices[USB_CFG_USE_USBIP][midiDeviceNum].currentlyWaitingToReceive = 1;
 
@@ -450,7 +447,7 @@ void bsp_usb_midi_setup_host_receive_transfer(int32_t ip, int32_t midiDeviceNum)
 }
 
 // Lock USB before calling this!
-void bsp_usb_midi_rearm_peripheral_receive(int32_t ip) {
+static void rearm_peripheral_receive(int32_t ip) {
 	g_usb_midi_recv_utr[ip][0].keyword = USB_CFG_PMIDI_BULK_IN;
 	g_usb_midi_recv_utr[ip][0].tranlen = 64;
 
@@ -486,11 +483,6 @@ void bsp_usb_midi_service(void) {
 	}
 }
 
-bool bsp_usb_midi_port_connected(uint8_t port) {
-	(void)port;
-	return false;
-}
-
 bool bsp_usb_midi_is_host(void) {
 	return g_usb_usbmode == USB_HOST;
 }
@@ -499,19 +491,54 @@ bool bsp_usb_midi_peripheral_connected(void) {
 	return g_usb_peri_connected != 0;
 }
 
-uint32_t bsp_usb_midi_read(uint8_t port, uint8_t* dst, uint32_t max) {
-	(void)port;
-	(void)dst;
-	(void)max;
-	return 0;
+// --- Connection tracking (called from the HAL enumeration paths) ---------------
+
+// A hosted device was configured on slot (ip, d): reset the slot's transport
+// state — the sequence bit and the transfer counters the application's setup()
+// used to zero — and mark it a live send sink for the send loop above.
+void bsp_usb_midi_device_attached(uint8_t ip, uint8_t d) {
+	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, d);
+	dev->sq = 0;
+	dev->numBytesSendingNow = 0;
+	dev->currentlyWaitingToReceive = 0;
+	dev->numBytesReceived = 0;
+	dev->connected = 1;
 }
 
-bool bsp_usb_midi_receive_pending(uint8_t ip, uint8_t deviceNum) {
-	return g_usb_midi_devices[ip][deviceNum].currentlyWaitingToReceive != 0;
+void bsp_usb_midi_device_detached(uint8_t ip, uint8_t d) {
+	if (d >= MAX_NUM_USB_MIDI_DEVICES) {
+		return; // The HAL's device-address search can come up empty.
+	}
+	g_usb_midi_devices[ip][d].connected = 0;
 }
 
-uint32_t bsp_usb_midi_drain_received(uint8_t ip, uint8_t deviceNum, uint8_t* dst, uint32_t max_bytes) {
-	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, deviceNum);
+void bsp_usb_midi_peripheral_configured(uint8_t ip) {
+	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, 0);
+	dev->numBytesSendingNow = 0;
+	dev->currentlyWaitingToReceive = 0;
+	dev->numBytesReceived = 0;
+	dev->connected = 1;
+	anyUSBSendingStillHappening[ip] = 0; // Nothing is sending yet right now.
+}
+
+void bsp_usb_midi_peripheral_detached(uint8_t ip) {
+	g_usb_midi_devices[ip][0].connected = 0;
+	// Reset this so a half-finished send can't wedge the flush path across a
+	// detach (see bsp_usb_midi_send_complete_as_peripheral).
+	anyUSBSendingStillHappening[ip] = 0;
+}
+
+bool bsp_usb_midi_device_connected(uint8_t ip, uint8_t d) {
+	return g_usb_midi_devices[ip][d].connected != 0;
+}
+
+// --- The byte-stream surface backing <libdeluge/midi_io.h> ---------------------
+
+// Copy the bytes of a completed bulk-IN transfer for slot (ip, d) into dst (up to
+// max_bytes), clear the slot's received-count, and return the byte count. Call
+// only while no transfer is in flight: the buffer is stable then.
+static uint32_t drain_received(uint8_t ip, uint8_t d, uint8_t* dst, uint32_t max_bytes) {
+	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, d);
 	uint32_t n = dev->numBytesReceived;
 	if (n == 0) {
 		return 0;
@@ -524,17 +551,71 @@ uint32_t bsp_usb_midi_drain_received(uint8_t ip, uint8_t deviceNum, uint8_t* dst
 	return n;
 }
 
-uint32_t bsp_usb_midi_last_rx_ticks(uint8_t ip) {
-	return timeLastBRDY[ip];
-}
-
-bool bsp_usb_midi_host_send_idle(uint8_t ip) {
+// True when controller ip is not mid-send through a chain of host devices, so it
+// is safe to (re)arm a host receive transfer.
+static bool host_send_idle(uint8_t ip) {
 	return usbDeviceNumBeingSentToNow[ip] == stopSendingAfterDeviceNum[ip];
 }
 
-uint32_t bsp_usb_midi_write(uint8_t port, const uint8_t* src, uint32_t len) {
-	(void)port;
-	(void)src;
-	(void)len;
-	return 0;
+uint32_t bsp_usb_midi_read_timed(uint8_t ip, uint8_t d, uint8_t* dst, uint32_t max, uint32_t* arrival_ticks) {
+	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, d);
+	if (dev->currentlyWaitingToReceive) {
+		return 0; // A transfer is in flight; nothing stable to drain yet.
+	}
+
+	uint32_t n = drain_received(ip, d, dst, max);
+	if (n && arrival_ticks) {
+		// One timestamp covers the whole drained batch — the same value (and read
+		// point) as the old timeLastBRDY read, so MIDI-clock-in timing is unchanged.
+		*arrival_ticks = timeLastBRDY[ip];
+	}
+
+	// (Re)arm the slot's next receive transfer — formerly the application's job
+	// after dispatching. Skipped when the USB lock is already held (an outer
+	// context owns the stack); the next read retries, as the app's usbLockNow
+	// guard did.
+	if (!usbLock) {
+		if (g_usb_usbmode == USB_HOST) {
+			// Only re-arm while not mid-send through the chain of host devices.
+			if (dev->connected && host_send_idle(ip)) {
+				usbLock = 1;
+				setup_host_receive_transfer(ip, d);
+				usbLock = 0;
+			}
+		}
+		else if (d == 0 && g_usb_peri_connected) {
+			usbLock = 1;
+			rearm_peripheral_receive(ip);
+			usbLock = 0;
+		}
+	}
+
+	return n;
+}
+
+uint32_t bsp_usb_midi_write(uint8_t ip, uint8_t d, const uint8_t* src, uint32_t len) {
+	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, d);
+	uint32_t accepted = 0;
+	// Whole 4-byte event packets only, in little-endian word order (the layout
+	// the deluge_midi protocol library's UsbEventPacket::word() produces).
+	while (accepted + 4 <= len) {
+		uint32_t word = (uint32_t)src[accepted] | ((uint32_t)src[accepted + 1] << 8)
+		                | ((uint32_t)src[accepted + 2] << 16) | ((uint32_t)src[accepted + 3] << 24);
+		bsp_usb_midi_buffer_message(dev, word);
+		accepted += 4;
+	}
+	return accepted;
+}
+
+uint32_t bsp_usb_midi_write_space(uint8_t ip, uint8_t d) {
+	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, d);
+	uint32_t queued = dev->ringBufWriteIdx - dev->ringBufReadIdx;
+	return (MIDI_SEND_BUFFER_LEN_RING - queued) * 4;
+}
+
+uint32_t bsp_usb_midi_write_pending(uint8_t ip, uint8_t d) {
+	// The send ring's backlog: bytes accepted but not yet handed to the hardware
+	// (bytes already moved into dataSendingNow belong to the wire).
+	BspUsbMidiDevice* dev = bsp_usb_midi_device(ip, d);
+	return (dev->ringBufWriteIdx - dev->ringBufReadIdx) * 4;
 }

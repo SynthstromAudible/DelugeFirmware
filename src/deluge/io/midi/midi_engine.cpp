@@ -16,7 +16,6 @@
  */
 
 #include "io/midi/midi_engine.h"
-#include "bsp/rza1/usb_midi.h" // BspUsbMidiDevice, bsp_usb_midi_* (transport state); receive decode still reaches in
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
@@ -38,17 +37,13 @@
 
 extern "C" {
 
-// App-owned re-entrancy guard for USB-MIDI servicing (shared with the BSP send
-// path, which reads it during flush). Pumping and DIN/USB I/O now go through the
-// <libdeluge/midi_io.h> boundary, so no HAL header is included here.
+// App-owned re-entrancy guard for USB-MIDI servicing (shared with the BSP, which
+// reads it during flush and receive re-arming). All MIDI transport — DIN and USB
+// alike — is driven through the <libdeluge/midi_io.h> port + byte-stream boundary:
+// the app reads/writes 4-byte USB-MIDI event packets on a device's port and packs/
+// decodes them with the deluge_midi protocol library; the BSP owns the transfer
+// mechanics (buffers, descriptors, send/receive state machine, re-arming).
 volatile uint32_t usbLock = 0;
-
-// The USB-MIDI send and receive *transport* (transfer descriptors, RX/TX buffers,
-// the send ring + completion state machine, the bulk-IN timestamp and the send-path
-// guards) now lives in the BSP usb_midi module. The application drives it through
-// bsp_usb_midi_*: it queues sends, drains received bytes (bsp_usb_midi_drain_received)
-// and decodes them with the deluge_midi protocol library — it never reaches into the
-// transport state itself.
 }
 
 PLACE_SDRAM_BSS MidiEngine midiEngine{};
@@ -68,9 +63,8 @@ MidiEngine::MidiEngine() {
 	midiTakeover = MIDITakeoverMode::JUMP;
 	midiSelectKitRow = false;
 
-	// The USB-MIDI transfer descriptors (send and receive) and g_usb_peri_connected
-	// are set up by bsp_usb_midi_init(), called from MIDIDeviceManager::init() before
-	// the USB stack is opened.
+	// The USB-MIDI transport is initialised by deluge_midi_init(), called from
+	// MIDIDeviceManager::init() before the USB stack is opened.
 
 	eventStackTop_ = eventStack_.begin();
 }
@@ -81,7 +75,12 @@ int32_t MidiEngine::getPotentialNumConnectedUSBMIDIDevices(int32_t ip) {
 }
 
 bool MidiEngine::anythingInOutputBuffer() {
-	return bsp_usb_midi_anything_in_output_buffer() || (deluge_midi_write_pending(DELUGE_MIDI_DIN) != 0);
+	for (DelugeMidiPort port = 0; port < deluge_midi_port_count(); port++) {
+		if (deluge_midi_write_pending(port) != 0) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter) {
@@ -221,7 +220,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 
 		for (int32_t d = 0; d < potentialNumDevices; d++) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
-			if (!connectedDevice->transport->canHaveMIDISent) {
+			if (!connectedDevice->canHaveMIDISent) {
 				continue;
 			}
 			int32_t maxPort = connectedDevice->maxPortConnected;
@@ -246,7 +245,9 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 
 // Warning - this will sometimes (not always) be called in an ISR
 void MidiEngine::flushMIDI() {
-	bsp_usb_midi_flush_output();
+	// USB-MIDI device ports share the controller's wire, so flushing any USB port
+	// pumps the whole USB-MIDI transport.
+	deluge_midi_flush(deluge_midi_usb_port(0, 0));
 	deluge_midi_flush(DELUGE_MIDI_DIN);
 }
 
@@ -506,7 +507,6 @@ void MidiEngine::checkIncomingUsbMidi() {
 		}
 		return;
 	}
-	bool usbLockNow = usbLock;
 	check_incoming_usb();
 
 	for (int32_t ip = 0; ip < DELUGE_USB_NUM_CONTROLLERS; ip++) {
@@ -519,77 +519,52 @@ void MidiEngine::checkIncomingUsbMidi() {
 		int32_t numDevicesNow = aPeripheral ? 1 : MAX_NUM_USB_MIDI_DEVICES;
 
 		for (int32_t d = 0; d < numDevicesNow; d++) {
-			if (connectedUSBMIDIDevices[ip][d].cable[0] && !bsp_usb_midi_receive_pending(ip, d)) {
+			if (!connectedUSBMIDIDevices[ip][d].cable[0]) {
+				continue;
+			}
 
-				// Drain a completed bulk-IN transfer into a local buffer (the BSP zeroes its
-				// count); receiveData is 64 bytes, so that is the most a transfer can hold.
-				uint8_t received[64];
-				uint32_t bytesReceivedHere = bsp_usb_midi_drain_received(ip, d, received, sizeof received);
-				if (bytesReceivedHere) {
-					// One timestamp for the whole batch — the same value (and read point) as
-					// the old &timeLastBRDY[ip], so MIDI-clock-in timing is unchanged.
-					uint32_t rxTicks = bsp_usb_midi_last_rx_ticks(ip);
+			// Drain whole 4-byte event packets from the device's port into a local
+			// buffer (one bulk transfer holds at most 64 bytes). The BSP (re)arms
+			// its own receive transfers as part of the read; one timestamp covers
+			// the batch — the same value (and read point) as the old
+			// &timeLastBRDY[ip], so MIDI-clock-in timing is unchanged.
+			uint8_t received[64];
+			uint32_t rxTicks = 0;
+			uint32_t bytesReceivedHere =
+			    deluge_midi_read_timed(connectedUSBMIDIDevices[ip][d].port, received, sizeof received, &rxTicks);
 
-					// Decode each 4-byte USB-MIDI event packet with the deluge_midi lib.
-					for (uint32_t off = 0; off + 4 <= bytesReceivedHere; off += 4) {
-						deluge::midi::UsbEventPacket packet{
-						    .header = received[off],
-						    .status = received[off + 1],
-						    .data1 = received[off + 2],
-						    .data2 = received[off + 3],
-						};
+			// Decode each 4-byte USB-MIDI event packet with the deluge_midi lib.
+			for (uint32_t off = 0; off + 4 <= bytesReceivedHere; off += 4) {
+				deluge::midi::UsbEventPacket packet{
+				    .header = received[off],
+				    .status = received[off + 1],
+				    .data1 = received[off + 2],
+				    .data2 = received[off + 3],
+				};
 
-						std::optional<deluge::midi::DecodedEvent> event = deluge::midi::decode_event(packet);
-						if (!event) {
-							// decode_event rejects SysEx fragments and corrupt frames alike. A
-							// CIN of 2/3 (system common) or >= 8 (voice) only fails here on a
-							// high data bit — a transmission error — so abandon the rest of the
-							// frame, as before. Everything else (SysEx start/continue/end, or
-							// reserved CINs) goes to the streaming SysEx parser.
-							uint8_t cin = packet.codeIndexNumber();
-							if (cin == 0x02 || cin == 0x03 || cin >= 0x08) {
-								break;
-							}
-							checkIncomingUsbSysex(received + off, ip, d, packet.cable());
-							continue;
-						}
-
-						// select appropriate device based on the cable number
-						uint8_t cable = event->cable;
-						if (cable > connectedUSBMIDIDevices[ip][d].maxPortConnected) {
-							// fallback to cable 0 since we don't support more than one port on hosted devices yet
-							cable = 0;
-						}
-						midiMessageReceived(*connectedUSBMIDIDevices[ip][d].cable[cable], event->message.statusType,
-						                    event->message.channel, event->message.data1, event->message.data2,
-						                    &rxTicks);
+				std::optional<deluge::midi::DecodedEvent> event = deluge::midi::decode_event(packet);
+				if (!event) {
+					// decode_event rejects SysEx fragments and corrupt frames alike. A
+					// CIN of 2/3 (system common) or >= 8 (voice) only fails here on a
+					// high data bit — a transmission error — so abandon the rest of the
+					// frame, as before. Everything else (SysEx start/continue/end, or
+					// reserved CINs) goes to the streaming SysEx parser.
+					uint8_t cin = packet.codeIndexNumber();
+					if (cin == 0x02 || cin == 0x03 || cin >= 0x08) {
+						break;
 					}
-				}
-
-				if (usbLockNow) {
+					checkIncomingUsbSysex(received + off, ip, d, packet.cable());
 					continue;
 				}
 
-				// And maybe setup transfer to receive more data
-
-				// As peripheral
-				if (aPeripheral) {
-					usbLock = 1;
-					bsp_usb_midi_rearm_peripheral_receive(ip);
-					usbLock = 0;
+				// select appropriate device based on the cable number
+				uint8_t cable = event->cable;
+				if (cable > connectedUSBMIDIDevices[ip][d].maxPortConnected) {
+					// fallback to cable 0 since we don't support more than one port on hosted devices yet
+					cable = 0;
 				}
-
-				// Or as host
-				else if (connectedUSBMIDIDevices[ip][d].cable[0]) {
-
-					// Only allowed to setup receive-transfer if not in the process of sending to various devices.
-					// (Wait, still? Was this just because of that insane bug that's now fixed?)
-					if (bsp_usb_midi_host_send_idle(ip)) {
-						usbLock = 1;
-						bsp_usb_midi_setup_host_receive_transfer(ip, d);
-						usbLock = 0;
-					}
-				}
+				midiMessageReceived(*connectedUSBMIDIDevices[ip][d].cable[cable], event->message.statusType,
+				                    event->message.channel, event->message.data1, event->message.data2, &rxTicks);
 			}
 		}
 	}

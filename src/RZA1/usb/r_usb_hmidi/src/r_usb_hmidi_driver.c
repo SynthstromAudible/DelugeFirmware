@@ -773,6 +773,9 @@ static uint16_t usb_hmidi_cmd_submit(usb_utr_t* ptr, usb_cb_t complete)
  ******************************************************************************/
 
 void hostedDeviceConfigured(int ip, int midiDeviceNum);
+// BSP usb_midi transport (src/bsp/rza1/usb_midi.h): per-slot connection tracking.
+void bsp_usb_midi_device_attached(uint8_t ip, uint8_t d);
+void bsp_usb_midi_device_detached(uint8_t ip, uint8_t d);
 
 /******************************************************************************
  Function Name   : hid_configured
@@ -801,6 +804,10 @@ void hmidi_configured(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
     if (currentDeviceNumWithSendPipe[isInterrupt] == midiDeviceNum)
         currentDeviceNumWithSendPipe[isInterrupt] =
             MAX_NUM_USB_MIDI_DEVICES; // Force a reset of pipe setup if it was already set to this deviceNum
+
+    // Reset the slot's transport state (sequence bit, counters) and mark it a
+    // live send sink before the application learns of the device.
+    bsp_usb_midi_device_attached(USB_CFG_USE_USBIP, midiDeviceNum);
 
     hostedDeviceConfigured(USB_CFG_USE_USBIP, midiDeviceNum);
 
@@ -831,6 +838,8 @@ void hmidi_detach(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
     g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][1] &= (uint16_t)(USB_BFREON | USB_CFG_SHTNAKON); /* PIPECFG */
     g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][3] = (uint16_t)(USB_NULL);                       /* PIPEMAXP */
     g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][4] = (uint16_t)(USB_NULL);                       /* PIPEPERI */
+
+    bsp_usb_midi_device_detached(USB_CFG_USE_USBIP, d);
 
     hostedDeviceDetached(USB_CFG_USE_USBIP, d);
 } /* End of function hid_detach() */

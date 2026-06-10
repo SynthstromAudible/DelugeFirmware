@@ -16,7 +16,6 @@
  */
 
 #include "io/midi/midi_device_manager.h"
-#include "bsp/rza1/usb_midi.h" // BspUsbMidiDevice, bsp_usb_midi_device/init (transport state)
 #include "definitions_cxx.hpp"
 #include "deluge/deluge.h" // setTimeUSBInitializationEnds (app-owned popup-suppression window)
 #include "gui/l10n/l10n.h"
@@ -30,17 +29,13 @@
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "libdeluge/midi_io.h" // deluge_midi_poll_usb_host_event
+#include "libdeluge/midi_io.h" // deluge_midi_init/_usb_port/_write/_write_space, deluge_midi_poll_usb_host_event
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
 #include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
 
-extern "C" {
-
-extern uint8_t anyUSBSendingStillHappening[];
-}
 #pragma GCC diagnostic push
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
@@ -76,15 +71,15 @@ uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
 bool anyChangesToSave = false;
 
 void init() {
-	// Point each device at its BSP-owned transport block, then let the BSP zero
-	// the transport state. Runs before the USB stack is opened, so the transport
-	// pointer is valid before any send/receive can touch it.
+	// Assign each device slot its boundary MIDI port, then initialise the MIDI
+	// transport. Runs before the USB stack is opened, so the ports are valid
+	// before any send/receive can use them.
 	for (int32_t ip = 0; ip < DELUGE_USB_NUM_CONTROLLERS; ip++) {
 		for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
-			connectedUSBMIDIDevices[ip][d].transport = bsp_usb_midi_device(ip, d);
+			connectedUSBMIDIDevices[ip][d].port = deluge_midi_usb_port(ip, d);
 		}
 	}
-	bsp_usb_midi_init();
+	deluge_midi_init();
 }
 
 // Gets called within UITimerManager, which may get called during SD card routine.
@@ -282,10 +277,11 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 		connectedDevice->cable[i] = device;
 	}
 
-	connectedDevice->transport->sq = 0;
-	connectedDevice->transport->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
-	connectedDevice->transport->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
-	connectedDevice->transport->connected = true; // a live send sink now (was cable[0] != NULL)
+	// App policy, from the device's name. (The transport's own per-slot state —
+	// sequence bit, counters, connected flag — is reset below the boundary, from
+	// the HAL enumeration path.)
+	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
+	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
 
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
@@ -323,7 +319,6 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 		}
 		connectedDevice->cable[i] = nullptr;
 	}
-	connectedDevice->transport->connected = false;
 	recountSmallestMPEZones();
 }
 
@@ -338,10 +333,7 @@ extern "C" void configuredAsPeripheral(int32_t ip) {
 	connectedDevice->cable[1] = &upstreamUSBMIDICable2;
 	connectedDevice->cable[2] = &upstreamUSBMIDICable3;
 	connectedDevice->maxPortConnected = 2;
-	connectedDevice->transport->canHaveMIDISent = 1;
-	connectedDevice->transport->connected = true;
-
-	anyUSBSendingStillHappening[ip] = 0; // Initialize this. There's obviously nothing sending yet right now.
+	connectedDevice->canHaveMIDISent = 1;
 
 	upstreamUSBMIDICable1.connectedNow(0);
 	upstreamUSBMIDICable2.connectedNow(0);
@@ -355,12 +347,9 @@ extern "C" void detachedAsPeripheral(int32_t ip) {
 	for (int32_t i = 0; i <= ports; i++) {
 		connectedUSBMIDIDevices[ip][0].cable[i] = nullptr;
 	}
-	connectedUSBMIDIDevices[ip][0].transport->connected = false;
 	upstreamUSBMIDICable1.connectionFlags = 0;
 	upstreamUSBMIDICable2.connectionFlags = 0;
 	upstreamUSBMIDICable3.connectionFlags = 0;
-	anyUSBSendingStillHappening[ip] = 0; // Reset this again. Been meaning to do this, and can no longer quite remember
-	                                     // reason or whether technically essential, but adds to safety at least.
 
 	recountSmallestMPEZones();
 }
@@ -661,28 +650,36 @@ checkDevice:
 
 } // namespace MIDIDeviceManager
 
-// The send ring + send state machine live in the BSP usb_midi module now; these
-// just forward to it.
+// USB-MIDI I/O goes through the <libdeluge/midi_io.h> byte-stream boundary: one
+// 4-byte event packet per message, on this device slot's port.
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
-	bsp_usb_midi_buffer_message(transport, fullMessage);
+	// The packet's bytes in little-endian word order — the same layout the
+	// deluge_midi protocol library's UsbEventPacket::word() produces.
+	uint8_t bytes[4] = {
+	    (uint8_t)fullMessage,
+	    (uint8_t)(fullMessage >> 8),
+	    (uint8_t)(fullMessage >> 16),
+	    (uint8_t)(fullMessage >> 24),
+	};
+	deluge_midi_write(port, bytes, sizeof(bytes));
 }
 
 int ConnectedUSBMIDIDevice::sendBufferSpace() {
-	return bsp_usb_midi_send_buffer_space(transport);
+	// The boundary reports transport bytes (4 per event packet); callers reason
+	// in bytes of serial MIDI (3 per packet).
+	return (int)(deluge_midi_write_space(port) / 4 * 3);
 }
 
 void ConnectedUSBMIDIDevice::setup() {
-	transport->numBytesSendingNow = 0;
-	transport->currentlyWaitingToReceive = false;
-	transport->numBytesReceived = 0;
-
-	// default to only a single port
+	// The transport state (counters, sequence bit) is reset below the boundary,
+	// from the HAL enumeration path. Default to only a single port.
 	maxPortConnected = 0;
 }
 ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
-	// The transport block (RX/TX buffers, send ring, counters) lives in the BSP
-	// usb_midi module and is wired/zeroed by MIDIDeviceManager::init() at startup.
-	transport = nullptr;
+	canHaveMIDISent = 0;
+	// The real port is assigned by MIDIDeviceManager::init() before the USB stack
+	// can deliver anything.
+	port = 0;
 	maxPortConnected = 0;
 }
 

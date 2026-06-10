@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "libdeluge/midi_io.h" // DelugeMidiPort
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "io/midi/cable_types/din.h"
@@ -30,38 +31,25 @@ class Deserializer;
 struct MIDICableUSB;
 #endif
 
-// The USB-MIDI transport state (RX/TX buffers, send ring, completion counters and
-// the send-buffer sizing) lives in the BSP usb_midi module as `BspUsbMidiDevice`;
-// see docs/dev/usb_midi_transport_relocation.md. ConnectedUSBMIDIDevice keeps only
-// the logical cable fields and points at its transport block.
-struct BspUsbMidiDevice;
-
 #ifdef __cplusplus
-/*A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
- * When a ConnectedUSBMIDIDevice has a numMessagesQueued>=MIDI_SEND_BUFFER_LEN and tries to add another,
- * all outputs are sent. The send routine calls the USB output function, points the
- * USB pipes FIFO buffer directly at the dataSendingNow array, and then sends.
- * Sends can also be triggered by the midiAndGateOutput interrupt
- *
- * Reads are more complicated.
- * Actual reads are done by usb_cstd_usb_task, which has a commented out interrupt associated
- * The function is instead called in the midiengine::checkincomingUSBmidi function, which is called
- * in the audio engine loop
- *
- * The USB read function is configured by setupUSBHostReceiveTransfer, which is called to
- * setup the next device after each successful read. Data is written directly into the receiveData
- * array from the USB device, it's set as the USB pipe address during midi engine setup
+/* A ConnectedUSBMIDIDevice is the app-side, purely logical record of one USB-MIDI
+ * device slot: which cables hang off it, whether we may send to it, and the
+ * <libdeluge/midi_io.h> port that carries its byte stream. The USB transport
+ * itself (buffers, transfer descriptors, send/receive state machine, connection
+ * tracking) lives below the boundary in the BSP; reads/writes here move whole
+ * 4-byte USB-MIDI event packets through deluge_midi_read_timed()/_write() on the
+ * device's port, packed/decoded with the deluge_midi protocol library.
  */
 class ConnectedUSBMIDIDevice {
 public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
-	// Append a pre-packed USB-MIDI event word to this device's send ring (forwards
-	// to the BSP usb_midi transport).
+	// Queue a pre-packed USB-MIDI event word for this device (one 4-byte event
+	// packet written to its boundary port).
 	void bufferMessage(uint32_t fullMessage);
 	void setup();
 
-	// Free space in the send ring, in bytes of serial MIDI (forwards to the BSP).
+	// Free space in the device's send buffer, in bytes of serial MIDI.
 	int sendBufferSpace();
 #else
 // warning - accessed as a C struct from usb driver
@@ -70,17 +58,21 @@ struct ConnectedUSBMIDIDevice {
 #endif
 	uint8_t maxPortConnected;
 
-	// USB-MIDI transport state (RX/TX buffers, send ring, completion counters)
-	// owned by the BSP usb_midi module. Wired by MIDIDeviceManager::init() at
-	// startup; the transport methods below operate through it.
-	struct BspUsbMidiDevice* transport;
+	// App policy: whether we send MIDI to this device at all (cleared for devices
+	// that must not receive any, e.g. LUMI Keys). Set on (re)connection from the
+	// device's name; read by the send paths.
+	uint8_t canHaveMIDISent;
+
+	// The <libdeluge/midi_io.h> port carrying this device slot's USB-MIDI byte
+	// stream. Assigned once by MIDIDeviceManager::init().
+	DelugeMidiPort port;
 };
 
 #ifdef __cplusplus
 namespace MIDIDeviceManager {
 
-/// Wire each ConnectedUSBMIDIDevice to its BSP-owned transport block and zero the
-/// transport state. Must run once at startup before the USB stack is opened.
+/// Assign each ConnectedUSBMIDIDevice its boundary MIDI port and initialise the
+/// MIDI transport. Must run once at startup before the USB stack is opened.
 void init();
 
 void slowRoutine();

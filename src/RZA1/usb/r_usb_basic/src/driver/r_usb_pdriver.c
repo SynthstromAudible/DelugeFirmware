@@ -1374,6 +1374,9 @@ uint16_t usb_peri_pipe_info(uint8_t* table, uint16_t speed, uint16_t length)
 
 void configuredAsPeripheral(int ip);
 void detachedAsPeripheral(int ip);
+// BSP usb_midi transport (src/bsp/rza1/usb_midi.h): upstream connection tracking.
+void bsp_usb_midi_peripheral_configured(uint8_t ip);
+void bsp_usb_midi_peripheral_detached(uint8_t ip);
 
 /***********************************************************************************************************************
  Function Name   : usb_peri_configured
@@ -1391,6 +1394,10 @@ void usb_peri_configured(usb_utr_t* ptr, uint16_t data1, uint16_t data2)
 
     g_usb_peri_connected = USB_TRUE;
     // consoleTextIfAllBootedUp("USB"); // Added by Rohan
+
+    // Reset the upstream slot's transport state before the application learns
+    // of the connection.
+    bsp_usb_midi_peripheral_configured(USB_CFG_USE_USBIP);
 
     configuredAsPeripheral(USB_CFG_USE_USBIP);
 
@@ -1419,6 +1426,7 @@ void usb_peri_detach(usb_utr_t* ptr, uint16_t data1, uint16_t data2)
 #endif /* defined(USB_CFG_PCDC_USE) | defined(USB_CFG_PHID_USE) */
 
     g_usb_peri_connected = USB_FALSE;
+    bsp_usb_midi_peripheral_detached(USB_CFG_USE_USBIP);
     detachedAsPeripheral(USB_CFG_USE_USBIP);
 
 #if defined(USB_CFG_PCDC_USE) | defined(USB_CFG_PHID_USE)

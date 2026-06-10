@@ -27,14 +27,15 @@
 /// `<libdeluge/midi_io.h>` byte-stream boundary; the application sees only that
 /// boundary and deals in MIDI bytes (parsed/produced via the deluge_midi library).
 ///
-/// Phase 3 (this file): the transport *state* now lives here — the per-device
-/// RX/TX buffers, the send ring and the completion counters (`BspUsbMidiDevice`),
-/// plus the Renesas USB transfer descriptors (`g_usb_midi_*_utr`, defined in the
-/// .c). The application's `ConnectedUSBMIDIDevice` keeps only the logical cable
-/// fields and points at its `BspUsbMidiDevice` here. The transport *functions*
-/// (send/receive state machine) still live in `midi_engine.cpp` and reach in via
-/// this struct until phases 4–5 move them down; the read/write stubs below are
-/// still inert.
+/// The module now owns the whole transport: the per-device RX/TX buffers, the
+/// send ring and completion counters (`BspUsbMidiDevice`), the Renesas USB
+/// transfer descriptors (`g_usb_midi_*_utr`, defined in the .c), the send/receive
+/// state machine *and* per-slot connection tracking (maintained from the HAL
+/// enumeration paths via the attach/detach notifications below). The application
+/// no longer includes this header: it reads and writes USB-MIDI as a byte stream
+/// of 4-byte event packets through `<libdeluge/midi_io.h>` (one port per device
+/// slot, mapped by the boundary implementation in midi_io.c), and the receive
+/// transfers are (re)armed down here as part of the port read.
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -81,36 +82,19 @@ typedef struct BspUsbMidiDevice {
 	uint32_t ringBufReadIdx;
 } BspUsbMidiDevice;
 
-/// The transport block for USB-MIDI device `d` on USB IP `ip`. The application's
-/// `ConnectedUSBMIDIDevice` wires its `transport` pointer to this at startup, and
-/// the HAL receive handlers record completions through it.
-BspUsbMidiDevice* bsp_usb_midi_device(uint8_t ip, uint8_t d);
-
 /// Zero the USB-MIDI transport state and initialise the send transfer
-/// descriptors. Called once at startup, before the USB stack is opened.
+/// descriptors. Backs `deluge_midi_init()`; runs before the USB stack is opened.
 void bsp_usb_midi_init(void);
 
 // --- Send path (BSP-owned: the send ring, the Renesas bulk-OUT pipe driving and
-// the send-completion state machine). The application appends pre-packed USB-MIDI
-// event words to a device's ring and asks the BSP to flush; the BSP moves the
-// bytes. Completion is still driven by the HAL calling
-// bsp_usb_midi_send_complete_as_{host,peripheral}() (an upcall, retargeted from
-// the app); converting that to a polled count is the remaining phase-4 step.
-
-/// Append a pre-packed 4-byte USB-MIDI event word to `dev`'s send ring (flushing
-/// first if the ring is getting full). Backs ConnectedUSBMIDIDevice::bufferMessage.
-void bsp_usb_midi_buffer_message(BspUsbMidiDevice* dev, uint32_t word);
-
-/// Free space in `dev`'s send ring, in bytes of serial MIDI (3 per event word).
-int bsp_usb_midi_send_buffer_space(BspUsbMidiDevice* dev);
+// the send-completion state machine). The boundary write queues pre-packed
+// USB-MIDI event words on a slot's ring; the flush moves the bytes.
 
 /// Flush buffered USB-MIDI output toward the wire if the pipe is idle (host: all
-/// connected devices; peripheral: the upstream device). Safe to call from the
-/// MIDI routine or the gate-output interrupt.
+/// connected devices; peripheral: the upstream device). Backs
+/// `deluge_midi_flush()` for USB ports (any USB port flushes the whole
+/// controller). Safe to call from the MIDI routine or the gate-output interrupt.
 void bsp_usb_midi_flush_output(void);
-
-/// Whether there is USB-MIDI output still buffered/in-flight.
-bool bsp_usb_midi_anything_in_output_buffer(void);
 
 /// Send-completion entry points, called by the HAL bulk-OUT (BEMP) handlers when a
 /// transfer finishes: chain the next queued transfer for the device(s). Host and
@@ -120,26 +104,40 @@ void bsp_usb_midi_send_complete_as_peripheral(int32_t ip);
 
 // --- Receive path (BSP-owned: the bulk-IN transfer setup + the receive DMA
 // buffers). The HAL bulk-IN (BRDY) handlers write the received bytes straight into
-// the device's receiveData and report the length here; the application drains and
-// decodes that buffer, then asks the BSP to arm the next transfer.
+// the device's receiveData and record the completion; the boundary read drains the
+// buffer and (re)arms the next transfer.
 
 /// Record a completed bulk-IN transfer for a device: `bytesReceived` bytes are now
-/// in its receiveData buffer, and it is no longer waiting to receive. Called by the
-/// HAL bulk-IN handler; the HAL reports the event and does not touch BSP state
-/// directly.
+/// in its receiveData buffer, and it is no longer waiting to receive. Dispatched
+/// from the HAL pipe-completion queue by bsp_usb_midi_service().
 void bsp_usb_midi_receive_complete(uint8_t ip, uint8_t deviceNum, uint16_t bytesReceived);
-
-/// (Re)arm the receive transfer for a hosted device or for the upstream peripheral;
-/// call with the USB lock held.
-void bsp_usb_midi_setup_host_receive_transfer(int32_t ip, int32_t midiDeviceNum);
-void bsp_usb_midi_rearm_peripheral_receive(int32_t ip);
 
 /// Pump the USB-MIDI send/receive state machine and drain HAL pipe-completion
 /// events. Backs `deluge_midi_service()`.
 void bsp_usb_midi_service(void);
 
-/// Whether USB-MIDI `port` currently has a live (enumerated) endpoint.
-bool bsp_usb_midi_port_connected(uint8_t port);
+// --- Connection tracking (maintained from the HAL enumeration paths). The HAL
+// calls these alongside the application's hosted/peripheral callbacks; they reset
+// the slot's transport counters + sequence bit and keep its `connected` flag —
+// state the application used to maintain through its ConnectedUSBMIDIDevice.
+
+/// A hosted device was configured on slot (ip, d): reset its transport state
+/// (sq, counters) and mark it a live send sink.
+void bsp_usb_midi_device_attached(uint8_t ip, uint8_t d);
+
+/// A hosted device on slot (ip, d) detached: it is no longer a send sink.
+void bsp_usb_midi_device_detached(uint8_t ip, uint8_t d);
+
+/// We were configured as a peripheral: slot (ip, 0) is the upstream connection.
+/// Resets its transport state and the controller's send-in-progress flag.
+void bsp_usb_midi_peripheral_configured(uint8_t ip);
+
+/// The upstream host detached us.
+void bsp_usb_midi_peripheral_detached(uint8_t ip);
+
+/// Whether device slot (ip, d) currently has a live (enumerated) endpoint.
+/// Backs `deluge_midi_port_connected()` for USB ports.
+bool bsp_usb_midi_device_connected(uint8_t ip, uint8_t d);
 
 /// USB role queries. On this board the USB controller is the MIDI-device
 /// transport, so its host/peripheral role surfaces through the MIDI boundary.
@@ -150,37 +148,31 @@ bool bsp_usb_midi_port_connected(uint8_t port);
 bool bsp_usb_midi_is_host(void);
 bool bsp_usb_midi_peripheral_connected(void);
 
-/// Copy up to `max` received bytes from USB-MIDI `port` into `dst`; returns the
-/// count copied. Backs `deluge_midi_read()` for USB ports.
-uint32_t bsp_usb_midi_read(uint8_t port, uint8_t* dst, uint32_t max);
+// --- The byte-stream surface backing <libdeluge/midi_io.h> for USB ports. The
+// boundary implementation (midi_io.c) maps a DelugeMidiPort to (ip, d) and calls
+// these; the bytes are whole 4-byte USB-MIDI event packets in little-endian word
+// order (the deluge_midi protocol library's wire layout).
 
-// --- Per-device receive drain (the receive path's app-facing surface). These let
-// the application drain + re-arm without dereferencing BspUsbMidiDevice, decoding
-// the bytes with the deluge_midi protocol library.
+/// Drain the bytes of a completed bulk-IN transfer for slot (ip, d) into `dst`
+/// (up to `max` bytes; 0 while a transfer is still in flight or nothing arrived),
+/// then (re)arm the slot's next receive transfer — host: only when the send chain
+/// is idle; peripheral: slot 0 — skipping the re-arm when the USB lock is already
+/// held (the next read retries). When it returns > 0 and `arrival_ticks` is
+/// non-NULL, fills it with the batch's bulk-IN completion timestamp (board
+/// foundation ticks, the HAL's timeLastBRDY) for MIDI-clock-in timing.
+uint32_t bsp_usb_midi_read_timed(uint8_t ip, uint8_t d, uint8_t* dst, uint32_t max, uint32_t* arrival_ticks);
 
-/// True while device (ip, deviceNum) has a receive transfer in flight, so there is
-/// nothing to drain and it must not be re-armed yet.
-bool bsp_usb_midi_receive_pending(uint8_t ip, uint8_t deviceNum);
+/// Queue whole 4-byte event packets (little-endian word order) from `src` for
+/// transmission to slot (ip, d); returns the byte count accepted (a multiple
+/// of 4, trailing partial packets are not consumed).
+uint32_t bsp_usb_midi_write(uint8_t ip, uint8_t d, const uint8_t* src, uint32_t len);
 
-/// Copy the bytes from a completed bulk-IN transfer for device (ip, deviceNum) into
-/// `dst` (up to `max_bytes`, a multiple of 4-byte USB-MIDI event packets), clear the
-/// device's received-count, and return the byte count (0 if nothing was received).
-/// Call only when !bsp_usb_midi_receive_pending(): no DMA is in flight then, so the
-/// buffer is stable.
-uint32_t bsp_usb_midi_drain_received(uint8_t ip, uint8_t deviceNum, uint8_t* dst, uint32_t max_bytes);
+/// Free space in slot (ip, d)'s send ring, in transport bytes (4 per packet).
+uint32_t bsp_usb_midi_write_space(uint8_t ip, uint8_t d);
 
-/// Hardware timestamp (board foundation ticks) of the last bulk-IN completion on
-/// controller `ip`, for timing incoming MIDI clock. Mirrors the HAL's timeLastBRDY.
-uint32_t bsp_usb_midi_last_rx_ticks(uint8_t ip);
-
-/// True when controller `ip` is not mid-send through a chain of host devices, so it
-/// is safe to (re)arm a host receive transfer. Folds the app-side
-/// usbDeviceNumBeingSentToNow == stopSendingAfterDeviceNum send-guard into the BSP.
-bool bsp_usb_midi_host_send_idle(uint8_t ip);
-
-/// Queue `len` bytes for transmission on USB-MIDI `port`; returns the count
-/// accepted. Backs `deluge_midi_write()` for USB ports.
-uint32_t bsp_usb_midi_write(uint8_t port, const uint8_t* src, uint32_t len);
+/// Bytes accepted for slot (ip, d) but not yet handed to the hardware (the send
+/// ring's backlog, in transport bytes). Backs `deluge_midi_write_pending()`.
+uint32_t bsp_usb_midi_write_pending(uint8_t ip, uint8_t d);
 
 #ifdef __cplusplus
 }
