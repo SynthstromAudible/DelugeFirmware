@@ -20,7 +20,6 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "modulation/arpeggiator_rhythms.h"
-#include <sys/_intsup.h>
 
 namespace deluge::gui::menu_item::arpeggiator {
 

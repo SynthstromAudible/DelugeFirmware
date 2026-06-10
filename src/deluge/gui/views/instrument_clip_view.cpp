@@ -2083,7 +2083,10 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 	if (path == &nothing) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
-	char* slashAddress = strrchr(path, '/');
+	// Deliberately mutated below (temporarily truncated at the slash, then restored) — the backing
+	// String buffer is mutable. const_cast is needed because glibc's strrchr is const-correct (returns
+	// const char* for a const char* arg) whereas newlib's returns char*.
+	char* slashAddress = const_cast<char*>(strrchr(path, '/'));
 	if (slashAddress == nullptr) {
 		return ActionResult::NOT_DEALT_WITH;
 	}

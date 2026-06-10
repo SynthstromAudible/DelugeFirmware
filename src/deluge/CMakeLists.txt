@@ -41,8 +41,7 @@ target_include_directories(deluge_app PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_LIST_DIR}
     ${SHARED_INCLUDE}
-    ${SHARED_INCLUDE}/OSLikeStuff # libdeluge/scheduler.h forwards to scheduler_api.h here
-    ${CMAKE_SOURCE_DIR}/include    # <libdeluge/...> boundary headers
+    ${CMAKE_SOURCE_DIR}/include # <libdeluge/...> boundary headers
 )
 
 target_link_libraries(deluge_app PUBLIC
@@ -50,6 +49,7 @@ target_link_libraries(deluge_app PUBLIC
     NE10
     eyalroz_printf
     deluge_dsp
+    deluge_scheduler # the cooperative task scheduler (provides scheduler_api.h on its path)
     argon
     etl::etl
     deluge_foundation

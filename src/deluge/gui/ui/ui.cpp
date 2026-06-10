@@ -359,7 +359,7 @@ void doAnyPendingOLEDRendering() {
 		}
 
 		OLED::clearMainImage();
-		u = std::max(u, 0L);
+		u = std::max<int32_t>(u, 0);
 		for (; u < numUIsOpen; u++) {
 			OLED::stopScrollingAnimation();
 			uiNavigationHierarchy[u]->renderOLED(deluge::hid::display::OLED::main);

@@ -24,6 +24,7 @@
 #include "modulation/lfo.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "util/fixedpoint.h" // q31_mult
 
 void GranularProcessor::setWrapsToShutdown() {
 

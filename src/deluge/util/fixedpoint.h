@@ -155,6 +155,18 @@ static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
 	return (int32_t)(((int64_t)a * b + 0x80000000) >> 32);
 }
 
+// This multiplies two numbers in signed Q31 fixed point, returning the result in q31. Matches the ARM
+// `smmul`-then-`* 2` of the hardware path (smmul = multiply_32x32_rshift32).
+static inline q31_t q31_mult(q31_t a, q31_t b) {
+	return multiply_32x32_rshift32(a, b) * 2;
+}
+
+// This multiplies a number in q31 by a number in q32, returning a scaled value. The ARM path is `smmul`
+// (a signed multiply) even though proportion is unsigned, so match that by treating proportion as signed.
+static inline q31_t q31tRescale(q31_t a, uint32_t proportion) {
+	return multiply_32x32_rshift32(a, (q31_t)proportion);
+}
+
 // Multiplies A and B, adds to sum, and returns output
 static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
 	return (int32_t)(((((int64_t)sum) << 32) + ((int64_t)a * b)) >> 32);
@@ -222,6 +234,11 @@ inline int32_t clz(uint32_t input) {
 
 	// Sign bit
 	return (negative) ? -output_value : output_value;
+}
+
+///@brief Convert from a q31 to a float. Matches the ARM `vcvt.f32.s32 #31` (divide by 2^31).
+static inline float q31_to_float(q31_t value) {
+	return static_cast<float>(value) / 2147483648.0f;
 }
 #endif
 

@@ -24,7 +24,9 @@
 #include <argon.hpp>
 
 #pragma GCC push_options
-#pragma GCC target("fpu=neon")
+#ifdef __ARM_NEON
+#pragma GCC target("fpu=neon") // no-op (and invalid) off-target; SIMDe supplies NEON on the host
+#endif
 
 #include "arm_neon_shim.h"
 

@@ -15,6 +15,8 @@ typedef int64_t dTime;
 #ifdef __cplusplus
 } // end of extern C section
 
+#include <compare> // Time's defaulted operator<=>
+
 constexpr double rollTime = ((double)(UINT32_MAX) / DELUGE_CLOCKS_PERf);
 class Time {
 	dTime time{0};
