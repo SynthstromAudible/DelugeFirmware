@@ -21,9 +21,11 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/hid_sysex.h"
+#include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_follow.h"
 #include "io/midi/sysex.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
@@ -1015,7 +1017,7 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 
 			case 0x0B: // CC or channel mode message
 				// CC
-				if (data1 < 120) {
+				if (data1 < kNumRealCCNumbers) {
 
 					// Interpret RPN stuff, before we additionally try to process the CC within the song, in case it
 					// means something different to the user.
@@ -1041,6 +1043,14 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 					}
 
 					playbackHandler.midiCCReceived(cable, channel, data1, data2, &shouldDoMidiThruNow);
+				}
+
+				// CC command for shift button press
+				else if (data1 == 122) {
+					bool on = data2 > 0 ? true : false;
+					Buttons::commandToggleShift(on);
+
+					indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
 				}
 
 				// Channel mode
