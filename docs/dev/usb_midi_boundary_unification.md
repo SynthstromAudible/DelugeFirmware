@@ -1,10 +1,12 @@
 # USB-MIDI transport → the `<libdeluge/midi_io.h>` boundary (the last Tier-2 coupling)
 
-**Status:** planned, not started. The final file-level coupling between the app
-and the RZ/A1L BSP. Suggested branch `feat/libdeluge-usb-midi-boundary`. It is the
-live, real-time USB-MIDI path, so — exactly like the original USB-MIDI transport
-relocation it completes — **it must be flash-tested as USB host *and* peripheral
-before merge.** Do not do it blind.
+**Status: implemented** on `feat/libdeluge-usb-midi-boundary` (2026-06-09) —
+build + extended boundary lint (**0**) + host tests green. **Not yet
+flash-tested**: it is the live, real-time USB-MIDI path, so — exactly like the
+original USB-MIDI transport relocation it completes — **it must be flash-tested
+as USB host *and* peripheral before merge** (matrix below). See the Outcome
+section at the end for how the implementation resolved each design decision and
+the intentional behavioral deviations to verify on hardware.
 
 When this lands, the extended platform-boundary lint (which now also forbids
 `drivers/` and `bsp/`) goes to **0**: `src/deluge` includes only `<libdeluge/...>`,
@@ -179,3 +181,49 @@ So:
   invisible to the app, and the MIDI boundary is one an `embassy-usb` `MidiClass`
   can implement directly. That is the long-term, Embassy-aligned shape — worth the
   extra phase-1 step of moving the fields rather than rename-relocating the BSP API.
+
+## Outcome (implementation, 2026-06-09)
+
+How the design decisions resolved:
+
+- **D-port-model:** port 0 = DIN; ports 1..MAX_NUM_USB_MIDI_DEVICES = USB device
+  slots on the single controller. The mapping is owned by the BSP and queried via
+  a new boundary call `deluge_midi_usb_port(controller, device)`; the app stores
+  the id in `ConnectedUSBMIDIDevice::port` at `MIDIDeviceManager::init()`.
+  `deluge_midi_port_count()/_kind()` are implemented.
+- **D-timestamp:** a read variant, `deluge_midi_read_timed(port, dst, max,
+  *arrival_ticks)` — one timestamp per drained batch, read from the same
+  `timeLastBRDY[ip]` at the same point as before, so MIDI-clock-in timing is
+  bit-identical. `deluge_midi_read()` forwards to it with a NULL timestamp.
+- **`connected` did *not* become an app field** (plan §phase-1 refined): the app
+  only ever *wrote* it — the only reader is the BSP send loop. So the BSP now
+  maintains it itself, from the HAL enumeration paths, via four new notifications
+  (`bsp_usb_midi_device_attached/_detached`, `bsp_usb_midi_peripheral_configured/
+  _detached`) called in `r_usb_hmidi_driver.c` (`hmidi_configured`/`hmidi_detach`)
+  and `r_usb_pdriver.c` (`usb_peri_configured`/`usb_peri_detach`) right before the
+  existing app callbacks. These also absorb the app-side `sq = 0`, `setup()`'s
+  transfer-counter zeroing, and the `anyUSBSendingStillHappening[ip] = 0` resets
+  (an extern-global coupling the plan's inventory missed).
+  `deluge_midi_port_connected()` now works for USB ports.
+- **`canHaveMIDISent`** became the planned app-policy field on
+  `ConnectedUSBMIDIDevice` (the pre-existing foot-controller/LUMI double-assignment
+  was preserved bit-for-bit).
+- **Send:** `bufferMessage` writes the event word's 4 little-endian bytes via
+  `deluge_midi_write(port, …)`; `sendBufferSpace` = `deluge_midi_write_space / 4 * 3`
+  (boundary speaks transport bytes, callers keep serial-MIDI bytes — values
+  identical). `anything_in_output_buffer` is gone: `anythingInOutputBuffer()` loops
+  `deluge_midi_write_pending()` over all ports; USB `write_pending` reports the send
+  ring's backlog (bytes accepted, not yet handed to hardware), which matches the old
+  global flag's semantics.
+- **Receive:** drain + re-arm live inside the BSP read. Gating is unchanged
+  (usbLock skip, host `send_idle` guard, connected check), **but the re-arm now
+  happens *before* the app dispatches the drained batch, not after** — the only
+  intentional ordering change; the drained bytes are already copied out, so the
+  DMA target is free. Verify under load on hardware.
+- **D-service / init:** `deluge_midi_service()` contract pinned as "pump all MIDI
+  transport, non-blocking"; new `deluge_midi_init()` replaces the app calling
+  `bsp_usb_midi_init()` (phase 6).
+- `usb_midi.h` is now referenced only from `src/bsp/rza1` and the two HAL
+  enumeration files (by prototype); the per-device drain/re-arm/ring helpers are
+  static. `ConnectedUSBMIDIDevice` lost its `transport` pointer; nothing in
+  `src/deluge` names `BspUsbMidiDevice`. Extended lint: **0**.
