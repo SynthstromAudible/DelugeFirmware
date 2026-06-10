@@ -4285,7 +4285,7 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 	if (immediate) {
 		if (horizontalEncoderPressed) {
-			session.soloClipAction(clip, kInternalButtonPressLatency);
+			session.soloClipAction(clip, immediate, kInternalButtonPressLatency);
 		}
 		else {
 			gridToggleClipPlay(clip, true);
@@ -4293,7 +4293,7 @@ void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 	}
 	else {
 		if (horizontalEncoderPressed) {
-			session.soloClipAction(clip, kInternalButtonPressLatency);
+			session.soloClipAction(clip, immediate, kInternalButtonPressLatency);
 		}
 		else if (viewingRecordArmingActive) {
 			// Here I removed the overdubbing settings

@@ -38,6 +38,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
+#include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
@@ -56,6 +57,8 @@ using namespace gui;
 #define MIDI_DEFAULTS_CC_TAG "defaultCCMappings"
 
 constexpr int32_t PARAM_ID_NONE = 255;
+constexpr int32_t MIDI_CC_MUTE = 89;
+constexpr int32_t MIDI_CC_SOLO = 90;
 
 PLACE_SDRAM_BSS MidiFollow midiFollow{};
 
@@ -797,7 +800,6 @@ Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType m
 /// and should be routed to the active context or a specific track for further processing
 void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t ccValue,
                                 bool* doingMidiThru, ModelStack* modelStack) {
-
 	// first try to process cc received through regular midi follow channels (A/B/C) against the selected / active clip
 	Output* selected_track =
 	    midiCCReceivedForSelectedOrActiveClip(cable, channel, ccNumber, ccValue, doingMidiThru, modelStack);
@@ -906,52 +908,64 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 
 		bool isMIDIClip = false;
 		bool isCVClip = false;
-		if (clip) {
-			if (specific_track->type == OutputType::MIDI_OUT) {
+
+		if (clip != nullptr) {
+			if (ccNumber == MIDI_CC_MUTE) {
+				if (ccValue > 0) {
+					session.toggleClipStatus(clip, nullptr, Buttons::isShiftButtonPressed(), kMIDIKeyInputLatency);
+				}
+				return;
+			}
+			else if (ccNumber == MIDI_CC_SOLO) {
+				if (ccValue > 0) {
+					session.soloClipAction(clip, Buttons::isShiftButtonPressed(), kMIDIKeyInputLatency);
+				}
+				return;
+			}
+			else if (specific_track->type == OutputType::MIDI_OUT) {
 				isMIDIClip = true;
 			}
-			if (specific_track->type == OutputType::CV) {
+			else if (specific_track->type == OutputType::CV) {
 				isCVClip = true;
 			}
-		}
 
-		// don't offer to handleReceivedCC if it's a MIDI or CV Clip
-		// this is because this function is used to control internal deluge parameters only (patched, unpatched)
-		// midi/cv clip cc parameters are handled below in the offerReceivedCCToMelodicInstrument function
-		if (clip && !isMIDIClip && !isCVClip
-		    && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
-			// if midi follow feedback and feedback filter is enabled,
-			// check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
-			// if it was greater or equal than 1 second ago, allow received midi cc to go through
-			// this helps avoid additional processing of midi cc's received
-			if (!isFeedbackEnabled()
-			    || (isFeedbackEnabled()
-			        && (!midiEngine.midiFollowFeedbackFilter
-			            || (midiEngine.midiFollowFeedbackFilter
-			                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
-				// setup model stack for the active context
-				if (modelStack) {
-					auto modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+			// don't offer to handleReceivedCC if it's a MIDI or CV Clip
+			// this is because this function is used to control internal deluge parameters only (patched, unpatched)
+			// midi/cv clip cc parameters are handled below in the offerReceivedCCToMelodicInstrument function
+			if (!isMIDIClip && !isCVClip && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
+				// if midi follow feedback and feedback filter is enabled,
+				// check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
+				// if it was greater or equal than 1 second ago, allow received midi cc to go through
+				// this helps avoid additional processing of midi cc's received
+				if (!isFeedbackEnabled()
+				    || (isFeedbackEnabled()
+				        && (!midiEngine.midiFollowFeedbackFilter
+				            || (midiEngine.midiFollowFeedbackFilter
+				                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
+					// setup model stack for the active context
+					if (modelStack) {
+						auto modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-					if (modelStackWithTimelineCounter) {
-						// See if it's learned to a parameter
-						handleReceivedCC(*modelStackWithTimelineCounter, clip, ccNumber, ccValue);
+						if (modelStackWithTimelineCounter) {
+							// See if it's learned to a parameter
+							handleReceivedCC(*modelStackWithTimelineCounter, clip, ccNumber, ccValue);
+						}
 					}
 				}
 			}
-		}
-		if (clip && clip->type == ClipType::INSTRUMENT) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-			if (modelStackWithTimelineCounter) {
-				if (specific_track->type == OutputType::KIT) {
-					Kit* kit = (Kit*)specific_track;
-					kit->receivedCCForKit(modelStackWithTimelineCounter, cable, match, channel, ccNumber, ccValue,
-					                      doingMidiThru, clip);
-				}
-				else {
-					MelodicInstrument* melodicInstrument = (MelodicInstrument*)specific_track;
-					melodicInstrument->receivedCC(modelStackWithTimelineCounter, cable, match, channel, ccNumber,
-					                              ccValue, doingMidiThru);
+			if (clip->type == ClipType::INSTRUMENT) {
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+				if (modelStackWithTimelineCounter) {
+					if (specific_track->type == OutputType::KIT) {
+						Kit* kit = (Kit*)specific_track;
+						kit->receivedCCForKit(modelStackWithTimelineCounter, cable, match, channel, ccNumber, ccValue,
+						                      doingMidiThru, clip);
+					}
+					else {
+						MelodicInstrument* melodicInstrument = (MelodicInstrument*)specific_track;
+						melodicInstrument->receivedCC(modelStackWithTimelineCounter, cable, match, channel, ccNumber,
+						                              ccValue, doingMidiThru);
+					}
 				}
 			}
 		}
