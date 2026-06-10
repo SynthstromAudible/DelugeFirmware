@@ -15,6 +15,7 @@ add_library(bsp_rza1 STATIC
     memory.c
     block_device.c
     cv_gate.c
+    encoder_io.c
     # App-header-free port impls that drive the PIC (pic.h is now byte-oriented /
     # app-free). They still reference legacy-driver symbols compiled into the
     # `deluge` target, resolved at the final link — same as midi_io.c/cv_gate.c.

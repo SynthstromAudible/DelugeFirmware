@@ -16,7 +16,7 @@
  */
 
 #include "hid/encoders.h"
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
+#include "OSLikeStuff/scheduler_api.h" // blockTask
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/ui.h"
@@ -25,6 +25,7 @@
 #include "hid/buttons.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "libdeluge/encoder_io.h"
 #include "model/action/action_logger.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -36,11 +37,6 @@
 #include <etl/atomic/atomic_std.h>
 #include <new>
 
-extern "C" {
-#include "RZA1/gpio/gpio.h"
-#include "RZA1/intc/devdrv_intc.h"
-}
-
 namespace deluge::hid::encoders {
 
 std::array<Encoder, util::to_underlying(EncoderName::MAX_ENCODER)> encoders = {};
@@ -51,83 +47,17 @@ int8_t modEncoderInitialTurnDirection[2];
 
 uint32_t encodersWaitingForCardRoutineEnd;
 
-namespace {
-constexpr size_t kNumEncoders = util::to_underlying(EncoderName::MAX_ENCODER);
-struct EncoderIrqEntry {
-	/// @brief  A-side pin that's routed via PFC alt-2 to RZ/A1L IRQn.
-	uint8_t irqPin;
-
-	/// @brief companion (B-side) pin, read as plain GPIO inside the ISR.
-	uint8_t compPin;
-	uint8_t irqNum;
-
-	/// @brief flip the direction sense when the A/B wiring is swapped relative to the polled order in `setPins(...)`.
-	bool invert;
-};
-
-constexpr EncoderIrqEntry kEncoderIrqMap[kNumEncoders] = {
-    [util::to_underlying(EncoderName::SCROLL_Y)] = {.irqPin = 8, .compPin = 10, .irqNum = 0, .invert = false},
-    [util::to_underlying(EncoderName::SCROLL_X)] = {.irqPin = 11, .compPin = 12, .irqNum = 3, .invert = false},
-    [util::to_underlying(EncoderName::TEMPO)] = {.irqPin = 6, .compPin = 7, .irqNum = 2, .invert = true},
-    [util::to_underlying(EncoderName::SELECT)] = {.irqPin = 3, .compPin = 2, .irqNum = 7, .invert = true},
-    [util::to_underlying(EncoderName::MOD_1)] = {.irqPin = 5, .compPin = 4, .irqNum = 1, .invert = false},
-    [util::to_underlying(EncoderName::MOD_0)] = {.irqPin = 0, .compPin = 15, .irqNum = 4, .invert = false},
-};
-
-template <size_t IDX>
-void encoderIrqHandler(uint32_t /*sense*/) {
-	constexpr EncoderIrqEntry m = kEncoderIrqMap[IDX];
-	bool a = readInput(1, m.irqPin) != 0;
-	bool b = readInput(1, m.compPin) != 0;
-	bool cw = m.invert ? (a != b) : (a == b);
-	int8_t inc = cw ? +1 : -1;
-	encoders[IDX].applyEdges(inc);
-	unblockTask(EncoderTaskID);
-	clearIRQInterrupt(m.irqNum);
-}
-
-using IrqHandler = void (*)(uint32_t);
-constexpr IrqHandler kEncoderIrqHandlers[kNumEncoders] = {
-    &encoderIrqHandler<0>, &encoderIrqHandler<1>, &encoderIrqHandler<2>,
-    &encoderIrqHandler<3>, &encoderIrqHandler<4>, &encoderIrqHandler<5>,
-};
-
-constexpr uint8_t kEncoderIrqPriority = 14;
-
-void initInterrupts() {
-	for (size_t i = 0; i < kNumEncoders; i++) {
-		const auto& m = kEncoderIrqMap[i];
-
-		// Route the A-side pin to its IRQn input via PFC alt-function 2.
-		setPinMux(1, m.irqPin, 2);
-		enableInputBuffer(1, m.irqPin);
-
-		setPinAsInput(1, m.compPin);
-
-		setIRQInterruptBothEdges(m.irqNum);
-
-		clearIRQInterrupt(m.irqNum);
-		setupAndEnableInterrupt(kEncoderIrqHandlers[i], INTC_ID_IRQ0 + m.irqNum, kEncoderIrqPriority);
-	}
-}
-} // namespace
-
 Encoder& getEncoder(EncoderName which) {
 	return encoders[util::to_underlying(which)];
 }
 
 void init() {
-	getEncoder(EncoderName::SCROLL_X).setPins(1, 11, 1, 12);
-	getEncoder(EncoderName::TEMPO).setPins(1, 7, 1, 6);
-	getEncoder(EncoderName::MOD_0).setPins(1, 0, 1, 15);
-	getEncoder(EncoderName::MOD_1).setPins(1, 5, 1, 4);
-	getEncoder(EncoderName::SCROLL_Y).setPins(1, 8, 1, 10);
-	getEncoder(EncoderName::SELECT).setPins(1, 2, 1, 3);
-
+	// The gold knobs (MOD_0/MOD_1) report raw position, not detents.
 	getEncoder(EncoderName::MOD_0).setNonDetentMode();
 	getEncoder(EncoderName::MOD_1).setNonDetentMode();
 
-	initInterrupts();
+	// The board owns the encoder pins + edge ISRs; it wakes our task on movement.
+	deluge_encoder_io_init(EncoderTaskID);
 }
 
 void interpretEncodersTask() {
@@ -136,6 +66,13 @@ void interpretEncodersTask() {
 }
 
 bool interpretEncoders(bool skipActioning) {
+	// Fold the edges the board's ISR has accumulated since last time into each
+	// encoder's position. Detent reduction (and the non-detent gold-knob mode)
+	// happens in applyEdges; this runs in task context now, not the ISR.
+	for (int32_t e = 0; e < util::to_underlying(EncoderName::MAX_ENCODER); e++) {
+		encoders[e].applyEdges(deluge_encoder_take_edges(e));
+	}
+
 	// do not interpret encoders when stem export is underway
 	if (stemExport.processStarted) {
 		return false;

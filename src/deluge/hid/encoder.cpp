@@ -20,20 +20,11 @@
 
 using deluge::hid::encoders::Encoder;
 
-extern "C" {
-#include "RZA1/gpio/gpio.h"
-}
-
 Encoder::Encoder() {
 	encPos = 0;
 	detentPos = 0;
 	edgeAccumulator = 0;
 	doDetents = true;
-}
-
-void Encoder::setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New) {
-	setPinAsInput(pinA1New, pinA2New);
-	setPinAsInput(pinB1New, pinB2New);
 }
 
 void Encoder::setNonDetentMode() {

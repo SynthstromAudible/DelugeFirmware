@@ -98,6 +98,7 @@ target_include_directories(SmallPointerTests PRIVATE
         # include the non test project source
         mocks
         ../../src/deluge
+        ../../src/OSLikeStuff # libdeluge/scheduler.h forwards to scheduler_api.h here
         ../../src/NE10/inc
         ../../src/lib
         ../../src

@@ -8,6 +8,3 @@
 #     scripts/check_platform_boundary.py
 # Regenerate the *current* offender set (for comparison) with:
 #   grep -rl 'RZA1/' src/deluge | sort
-
-src/deluge/hid/encoder.cpp
-src/deluge/hid/encoders.cpp
