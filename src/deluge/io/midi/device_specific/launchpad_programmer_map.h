@@ -45,8 +45,8 @@ bool delugeGridCoordsFromNote(uint8_t note, int32_t& x, int32_t& y);
 constexpr uint8_t kNonGridLedIndexCount = 10;
 uint8_t const* nonGridLedIndices();
 
-// Top row + logo; transport (97/98) driven separately. Session/Note (95/96) are not host-controllable.
-constexpr uint8_t kFixedOffLedIndexCount = 8;
+// Top row + logo; transport (97/98) and mode (95/96) driven separately.
+constexpr uint8_t kFixedOffLedIndexCount = 6;
 uint8_t const* fixedOffLedIndices();
 
 } // namespace launchpad_programmer_map

@@ -49,7 +49,7 @@ static constexpr uint8_t kNonGridLedIndices[kNonGridLedIndexCount] = {
 };
 
 static constexpr uint8_t kFixedOffLedIndices[kFixedOffLedIndexCount] = {
-    90, 91, 92, 93, 94, 95, 96, 99,
+    90, 91, 92, 93, 94, 99,
 };
 
 uint8_t const* nonGridLedIndices() {
