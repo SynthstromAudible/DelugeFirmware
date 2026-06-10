@@ -603,6 +603,7 @@ enum class GlobalMIDICommand {
 	FILL,
 	TRANSPOSE,
 	NEXT_SONG,
+	SHIFT,
 	LAST, // Keep as boundary
 };
 constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;

@@ -192,6 +192,9 @@ enum Entries {
 186: defaultLoopRecordingCommand
 188: defaultUseSharps
 189: default patch cable polarity
+190: GlobalMIDICommand::SHIFT channel + 1
+191: GlobalMIDICommand::SHIFT noteCode + 1
+192-195: GlobalMIDICommand::SHIFT product / vendor ids
 */
 
 uint8_t defaultScale;
@@ -463,6 +466,8 @@ void readSettings() {
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC = buffer[115] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].channelOrZone = buffer[179] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC = buffer[180] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::SHIFT)].channelOrZone = buffer[190] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::SHIFT)].noteOrCC = buffer[191] - 1;
 
 	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
 	/* buffer[81]  \
@@ -504,6 +509,10 @@ void readSettings() {
 	/* buffer[182]  \
 	   buffer[183]   device reference above occupies 4 bytes
 	   buffer[184] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::SHIFT, &buffer[192]);
+	/* buffer[193]  \
+	   buffer[194]   device reference above occupies 4 bytes
+	   buffer[195] */
 
 	if (buffer[50] >= kNumInputMonitoringModes) {
 		AudioEngine::inputMonitoringMode = InputMonitoringMode::SMART;
@@ -927,15 +936,17 @@ void writeSettings() {
 	buffer[66] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::UNDO)].noteOrCC + 1;
 	buffer[67] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].channelOrZone + 1;
 	buffer[68] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].noteOrCC + 1;
-	buffer[114] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone + 1;
-	buffer[115] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC + 1;
-	buffer[179] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].channelOrZone + 1;
-	buffer[180] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC + 1;
 	buffer[70] =
 	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone
 	    + 1;
 	buffer[71] =
 	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].noteOrCC + 1;
+	buffer[114] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone + 1;
+	buffer[115] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC + 1;
+	buffer[179] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].channelOrZone + 1;
+	buffer[180] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC + 1;
+	buffer[190] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::SHIFT)].channelOrZone + 1;
+	buffer[191] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::SHIFT)].noteOrCC + 1;
 
 	/* Global MIDI command device references - these occupy 4 bytes each */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
@@ -978,6 +989,10 @@ void writeSettings() {
 	/* buffer[182]  \
 	   buffer[183]   device reference above occupies 4 bytes
 	   buffer[184] */
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::SHIFT, &buffer[192]);
+	/* buffer[193]  \
+	   buffer[194]   device reference above occupies 4 bytes
+	   buffer[195] */
 
 	buffer[50] = util::to_underlying(AudioEngine::inputMonitoringMode);
 
