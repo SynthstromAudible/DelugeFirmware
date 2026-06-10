@@ -306,12 +306,12 @@ void sendLaunchpadLeds(MIDICableUSBHosted* cable, launchpad_extension::ViewMode 
 	}
 
 	if (viewMode == launchpad_extension::ViewMode::Session) {
-		batch.queueIfChanged(launchpad_programmer_map::cc::kSession, 0, 127, 0, forceFullRefresh);
+		batch.queueIfChanged(launchpad_programmer_map::cc::kSession, 127, 127, 0, forceFullRefresh);
 		batch.queueIfChanged(launchpad_programmer_map::cc::kNote, 0, 0, 0, forceFullRefresh);
 	}
 	else {
 		batch.queueIfChanged(launchpad_programmer_map::cc::kSession, 0, 0, 0, forceFullRefresh);
-		batch.queueIfChanged(launchpad_programmer_map::cc::kNote, 0, 127, 0, forceFullRefresh);
+		batch.queueIfChanged(launchpad_programmer_map::cc::kNote, 127, 127, 0, forceFullRefresh);
 	}
 
 	batch.flush();

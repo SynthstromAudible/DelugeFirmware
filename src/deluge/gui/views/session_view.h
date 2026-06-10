@@ -133,6 +133,7 @@ public:
 	void launchpadStartSectionFromRow(int32_t y);
 	void launchpadTogglePlayStop();
 	void launchpadToggleRecord();
+	bool launchpadTryEnterHeldClip();
 	void launchpadSyncGridLedsNow(bool forceFullRefresh = false);
 	void launchpadResetMirrorState();
 	bool launchpadMirrorWantsFastSync() const;

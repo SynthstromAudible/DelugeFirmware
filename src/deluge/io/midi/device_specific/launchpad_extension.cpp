@@ -374,6 +374,12 @@ bool handleControlChange(MIDICable& cable, uint8_t cc, bool on, int32_t midiChan
 		if (viewMode == ViewMode::Note) {
 			return launchpad_note_mode::handleScroll(1, 0);
 		}
+		if (sessionView.launchpadTryEnterHeldClip()) {
+			if (launchpad_note_mode::canEnterNoteMode()) {
+				switchViewMode(ViewMode::Note, cable, midiChannel);
+			}
+			return true;
+		}
 		sessionView.launchpadGridScroll(1, 0);
 		return true;
 	case launchpad_programmer_map::cc::kCustom:

@@ -3999,6 +3999,35 @@ void SessionView::launchpadToggleRecord() {
 	playbackHandler.recordButtonPressed();
 }
 
+bool SessionView::launchpadTryEnterHeldClip() {
+	if (launchpadFirstPressedX < 0 || launchpadSecondPressedX >= 0) {
+		return false;
+	}
+
+	if (sdRoutineLock || loadSongUI.isLoadingSong()) {
+		return false;
+	}
+
+	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION) {
+		return false;
+	}
+
+	Clip* clip = gridClipFromCoords(launchpadFirstPressedX, launchpadFirstPressedY);
+	if (clip == nullptr) {
+		return false;
+	}
+
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+		return true;
+	}
+
+	performActionOnPadRelease = false;
+	transitionToViewForClip(clip);
+	launchpadResetPress();
+	return true;
+}
+
 void SessionView::launchpadGridScroll(int32_t offsetX, int32_t offsetY) {
 	applySongGridScroll(offsetX, offsetY, gridScrollMaxXForLaunchpadGrid());
 	renderSessionGridIfActive();
