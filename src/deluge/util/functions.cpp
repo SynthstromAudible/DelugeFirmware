@@ -35,10 +35,6 @@
 #include <cstdint>
 #include <string.h>
 
-extern "C" {
-#include "drivers/mtu/mtu.h"
-}
-
 namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
 using namespace deluge;

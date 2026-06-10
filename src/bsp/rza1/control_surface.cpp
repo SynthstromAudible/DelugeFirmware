@@ -198,6 +198,27 @@ void deluge_control_flush(void) {
 	PIC::flush();
 }
 
+void deluge_control_init(void) {
+	// PIC input-controller tuning (board-specific); values match the original
+	// boot sequence in deluge.cpp.
+	PIC::setDebounce(20);
+	PIC::setMinInterruptInterval(8);
+	PIC::setFlashLength(6);
+	PIC::setUARTSpeed();
+}
+
+void deluge_control_wait_for_flush(void) {
+	PIC::waitForFlush();
+}
+
+void deluge_control_setup_for_pads(void) {
+	PIC::setupForPads();
+}
+
+void deluge_control_enable_oled(void) {
+	PIC::enableOLED();
+}
+
 bool deluge_control_poll_resume(void) {
 	return PIC::read() == PIC::Response::RESET_SETTINGS;
 }

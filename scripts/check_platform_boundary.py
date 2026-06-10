@@ -45,9 +45,14 @@ EXTRA_APP_FILES = (
     REPO_ROOT / "src" / "definitions_cxx.hpp",
 )
 
-# Forbidden include path prefixes (HAL / SoC vendor code). Extend this as new
-# HALs or BSP-implementation directories appear (e.g. "hal/", "bsp/").
-FORBIDDEN_INCLUDE_PREFIXES = ("RZA1/",)
+# Forbidden include path prefixes. The application must reach hardware only
+# through the <libdeluge/...> boundary, so it may include neither:
+#   - HAL / SoC vendor code ("RZA1/"), nor
+#   - BSP internals: the relocated legacy drivers ("drivers/") and the RZ/A1L
+#     BSP implementation ("bsp/"). These are board-specific, so an app that
+#     includes them cannot compile against a different BSP (host-sim / Embassy).
+# Extend this as new HALs or BSP-implementation directories appear (e.g. "hal/").
+FORBIDDEN_INCLUDE_PREFIXES = ("RZA1/", "drivers/", "bsp/")
 
 ALLOWLIST_PATH = REPO_ROOT / "scripts" / "platform_boundary_allowlist.txt"
 
@@ -100,16 +105,17 @@ def load_allowlist() -> set[str]:
 
 def write_allowlist(paths: list[str]) -> None:
     header = (
-        "# Platform-boundary allowlist (Phase 0 of the libdeluge separation).\n"
+        "# Platform-boundary allowlist (libdeluge separation).\n"
         "#\n"
-        "# Files under src/deluge/ that still include a HAL header (RZA1/...) directly,\n"
-        "# bypassing the libdeluge boundary. This list may only SHRINK. Adding a new\n"
-        "# entry should be rejected in review; removing one is the unit of progress.\n"
+        "# Files under src/deluge/ that still include a HAL header (RZA1/...) or a\n"
+        "# BSP-internal header (drivers/..., bsp/...) directly, bypassing the\n"
+        "# <libdeluge/...> boundary. This list may only SHRINK. Adding a new entry\n"
+        "# should be rejected in review; removing one is the unit of progress.\n"
         "#\n"
-        "# See docs/dev/libdeluge_separation_plan.md (Phase 0) and\n"
+        "# See docs/dev/libdeluge_separation_plan.md and\n"
         "#     scripts/check_platform_boundary.py\n"
         "# Regenerate the *current* offender set (for comparison) with:\n"
-        "#   grep -rl 'RZA1/' src/deluge | sort\n"
+        "#   scripts/check_platform_boundary.py --list\n"
         "\n"
     )
     ALLOWLIST_PATH.write_text(header + "\n".join(paths) + "\n")

@@ -34,7 +34,6 @@
 #include <string_view>
 
 extern "C" {
-#include "drivers/oled/oled.h"
 #include "gui/fonts/fonts.h"
 extern void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
@@ -350,8 +349,7 @@ void OLED::sendMainImage() {
 	uint16_t renderStopTime = deluge_clock_now();
 	D_PRINTLN("oled render time: %d", (uint16_t)(renderStopTime - renderStartTime));
 #endif
-	SpiTransferData m = {.imageAddress = oledCurrentImage[0]};
-	enqueueSPITransfer(0, m);
+	deluge_display_blit_oled(oledCurrentImage[0], OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
 	HIDSysex::sendDisplayIfChanged();
 	needsSending = false;
 }

@@ -17,7 +17,6 @@
 
 #include "deluge.h"
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -542,7 +541,7 @@ void registerTasks() {
 	                 RESOURCE_SD);
 	// 31-39: Idle priority (40 for dyn tasks)
 	p = 31;
-	addRepeatingTask(&(PIC::flush), p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
+	addRepeatingTask(&deluge_control_flush, p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
 	if (hid::display::have_oled_screen) {
 		addRepeatingTask(&deluge_display_service, p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
 	}
@@ -563,7 +562,7 @@ void mainLoop() {
 		if (hid::display::have_oled_screen) {
 			deluge_display_service();
 		}
-		PIC::flush();
+		deluge_control_flush();
 
 		AudioEngine::routineWithClusterLoading(true);
 
@@ -595,19 +594,16 @@ void mainLoop() {
 extern "C" int32_t deluge_main(void) {
 	bool have_oled = deluge_board_probe_oled();
 
-	// Give the PIC some startup instructions
+	// Give the control surface its startup configuration.
 	if (have_oled) {
-		PIC::enableOLED();
+		deluge_control_enable_oled();
 	}
 
-	PIC::setDebounce(20); // Set debounce time (mS) to...
+	deluge_control_init();
 
 	PadLEDs::setRefreshTime(23);
-	PIC::setMinInterruptInterval(8);
-	PIC::setFlashLength(6);
 
-	PIC::setUARTSpeed();
-	PIC::flush();
+	deluge_control_flush();
 
 	functionsInit();
 
@@ -647,9 +643,9 @@ extern "C" int32_t deluge_main(void) {
 
 	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't
 	// that.) Otherwise didn't seem necessary.
-	PIC::waitForFlush();
+	deluge_control_wait_for_flush();
 
-	PIC::setupForPads();
+	deluge_control_setup_for_pads();
 	deluge_signal_write(DELUGE_SIGNAL_CODEC_ENABLE, true); // Enable codec
 
 	AudioEngine::init();

@@ -55,6 +55,16 @@ void deluge_display_init(void) {
 	PIC::flush();
 }
 
+DelugeStatus deluge_display_blit_oled(const uint8_t* pixels, uint16_t width, uint16_t height) {
+	// The OLED transfer is a fixed full-frame DMA on this board; width/height are
+	// informational. Queue the framebuffer for transfer over the shared SPI bus.
+	(void)width;
+	(void)height;
+	SpiTransferData m = {.imageAddress = pixels};
+	enqueueSPITransfer(0, m);
+	return DELUGE_OK;
+}
+
 void deluge_display_service(void) {
 	oledRoutine();
 }

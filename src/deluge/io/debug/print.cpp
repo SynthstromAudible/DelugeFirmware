@@ -18,10 +18,16 @@
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/sysex.h"
+#include "libdeluge/system.h" // deluge_log (debug-channel sink)
 
-extern "C" {
-#include "bsp/rza1/drivers/uart/uart.h"
+namespace {
+// Route a finished debug line to the board's debug channel, preserving the
+// CRLF the legacy UART path emitted.
+void logLine(char const* s) {
+	deluge_log(s);
+	deluge_log("\r\n");
 }
+} // namespace
 
 namespace Debug {
 
@@ -114,7 +120,7 @@ void prependTimeStamp(bool isNewLine) {
 			sysexDebugPrint(midiDebugDevice, buffer, false);
 		}
 		else {
-			uartPrint(buffer);
+			deluge_log(buffer);
 		}
 	}
 	lastWasNewline = isNewLine;
@@ -128,7 +134,7 @@ void println(char const* output) {
 		sysexDebugPrint(*midiDebugCable, output, true);
 	}
 	else {
-		uartPrintln(output);
+		logLine(output);
 	}
 #endif
 }
@@ -148,7 +154,7 @@ void print(char const* output) {
 		sysexDebugPrint(*midiDebugCable, output, false);
 	}
 	else {
-		uartPrint(output);
+		deluge_log(output);
 	}
 #endif
 }
@@ -212,7 +218,7 @@ void RTimer::stop() {
 		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
-		uartPrintln(buffer);
+		logLine(buffer);
 	}
 
 #endif
@@ -237,7 +243,7 @@ void RTimer::stop(const char* stopLabel) {
 		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
-		uartPrintln(buffer);
+		logLine(buffer);
 	}
 	startTime = endTime;
 #endif
@@ -264,7 +270,7 @@ void RTimer::stop(int number) {
 		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
-		uartPrintln(buffer);
+		logLine(buffer);
 	}
 	startTime = endTime;
 #endif

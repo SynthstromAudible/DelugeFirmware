@@ -16,7 +16,6 @@
  */
 
 #include "din.h"
-#include "drivers/uart/uart.h"
 #include "gui/l10n/l10n.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/midi_io.h"

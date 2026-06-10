@@ -26,6 +26,7 @@
 
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"
+#include "drivers/uart/uart.h" // uartPrint (debug channel)
 #include "stdatomic.h"
 
 void deluge_system_quiesce(void) {
@@ -84,4 +85,9 @@ void EXIT_CRITICAL_SECTION() {
 		FREEZE_WITH_ERROR("OH NO");
 	}
 #endif
+}
+
+void deluge_log(const char* text) {
+	// Raw write to the board's debug channel (RTT or UART); caller owns newlines.
+	uartPrint(text);
 }

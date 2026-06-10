@@ -41,7 +41,8 @@ void deluge_system_reset(void) __attribute__((noreturn));
 /// (e.g. chainloading new firmware). Call with interrupts already disabled. [task]
 void deluge_system_quiesce(void);
 
-/// Emit a line of debug/log text (RTT/UART). Best-effort, may be dropped. [task] [isr]
+/// Emit debug/log text to the board's debug channel (RTT/UART), with no implicit
+/// newline — the caller owns formatting. Best-effort, may be dropped. [task] [isr]
 void deluge_log(const char* text);
 
 /// Enter a critical section: mask interrupts so the following code runs without

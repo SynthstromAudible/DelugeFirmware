@@ -89,6 +89,22 @@ void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t 
 /// Flush any batched surface output (pad/LED) to the hardware. [task]
 void deluge_control_flush(void);
 
+/// One-time control-surface bring-up: configure the board's input controller
+/// (debounce, interrupt interval, flash length, link speed). Call once at boot,
+/// before reading input. The board owns the specific tuning values. [task]
+void deluge_control_init(void);
+
+/// Block until batched surface output has actually been sent to the hardware. [task]
+void deluge_control_wait_for_flush(void);
+
+/// Switch the control surface into pad-scanning mode (full-speed link). Call once
+/// boot is far enough along to begin reading pads/buttons. [task]
+void deluge_control_setup_for_pads(void);
+
+/// Power/enable the OLED panel where it is driven through the control controller
+/// (shared-SPI boards). No-op on boards whose display is independent. [task]
+void deluge_control_enable_oled(void);
+
 /// Poll for a "resume" request from the control surface — e.g. the select knob
 /// pressed to dismiss a fault/freeze screen. Returns true once signalled. The
 /// fault handlers spin on this. [task]

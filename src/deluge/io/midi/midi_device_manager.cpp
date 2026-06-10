@@ -24,6 +24,7 @@
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "io/debug/log.h"
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/device_specific/specific_midi_device.h"
@@ -37,7 +38,6 @@
 #include "util/misc.h"
 
 extern "C" {
-#include "drivers/uart/uart.h"
 
 extern uint8_t anyUSBSendingStillHappening[];
 }
@@ -138,12 +138,7 @@ extern "C" void giveDetailsOfDeviceBeingSetUp(int32_t ip, char const* name, uint
 	usbDeviceCurrentlyBeingSetUp[ip].vendorId = vendorId;
 	usbDeviceCurrentlyBeingSetUp[ip].productId = productId;
 
-	uartPrint("name: ");
-	uartPrintln(name);
-	uartPrint("vendor: ");
-	uartPrintNumber(vendorId);
-	uartPrint("product: ");
-	uartPrintNumber(productId);
+	D_PRINTLN("name: %s  vendor: %d  product: %d", name, vendorId, productId);
 }
 
 // name can be NULL, or an empty String
@@ -318,8 +313,7 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 	}
 #endif
 
-	uartPrint("detached MIDI device: ");
-	uartPrintNumber(midiDeviceNum);
+	D_PRINTLN("detached MIDI device: %d", midiDeviceNum);
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
 	int32_t ports = connectedDevice->maxPortConnected;
 	for (int32_t i = 0; i <= ports; i++) {

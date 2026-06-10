@@ -16,7 +16,6 @@
  */
 
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.h"
 #include "fatfs/fatfs.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
