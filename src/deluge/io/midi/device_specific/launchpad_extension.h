@@ -31,11 +31,19 @@ void syncSessionGrid(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupan
 
 void syncNoteView(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
-// ~4 Hz background refresh (GRAPHICS_ROUTINE). No-op when feature off or no Launchpad connected.
+// Launchpad LED refresh policy:
+// - periodicSyncIfNeeded(): ~4 Hz (8 Hz during launch countdown / armed-clip pulse). Rate-limited deltas.
+// - requestSync(): immediate refresh — call from Deluge UI navigation (changeRootUI) and Deluge hardware
+//   grid/scroll input only. Do not call from Launchpad MIDI handlers; handleMidiMessage coalesces one sync
+//   per handled message at the tail.
+// - Deluge view changes always go through changeRootUI / changeUISideways, which call requestSync().
 void periodicSyncIfNeeded();
 
-// Immediate refresh after grid/transport interaction.
+// Immediate mirror refresh (bypasses periodic min-gap). Deluge-side changes only — see policy above.
 void requestSync();
+
+// True while session launch countdown is active (Launchpad progress ticker).
+bool isLaunchCountdownActive();
 
 void onDeviceConnected();
 

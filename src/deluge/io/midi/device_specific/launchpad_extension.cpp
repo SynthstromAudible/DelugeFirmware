@@ -61,6 +61,7 @@ bool noteSceneUndoLit = false;
 bool noteSceneRedoLit = false;
 bool launchpadSessionButtonHeld = false;
 bool launchpadSessionHoldUsedForPad = false;
+bool launchpadInputNeedsSync = false;
 
 bool featureEnabled() {
 	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLaunchpadGridMirror);
@@ -98,6 +99,18 @@ void doSync(bool force, bool forceFullRefresh = false) {
 	else {
 		sessionView.launchpadSyncGridLedsNow(forceFullRefresh);
 	}
+}
+
+void markLaunchpadInputNeedsSync() {
+	launchpadInputNeedsSync = true;
+}
+
+void flushLaunchpadInputSync() {
+	if (!launchpadInputNeedsSync) {
+		return;
+	}
+	launchpadInputNeedsSync = false;
+	doSync(true);
 }
 
 bool isPressed(uint8_t statusType, uint8_t data2) {
@@ -156,7 +169,6 @@ void tryPendingDelugeSessionView() {
 
 	if (tryDelugeSessionViewNow(pendingDelugeSessionViewInstant)) {
 		pendingDelugeSessionView = false;
-		doSync(true);
 	}
 }
 
@@ -275,19 +287,18 @@ bool handleSessionButton(MIDICable& cable, bool on, int32_t midiChannel) {
 	if (on) {
 		launchpadSessionButtonHeld = true;
 		launchpadSessionHoldUsedForPad = false;
-		return true;
+		return false;
 	}
 
 	launchpadSessionButtonHeld = false;
 	if (launchpadSessionHoldUsedForPad) {
 		launchpadSessionHoldUsedForPad = false;
-		return true;
+		return false;
 	}
 
 	if (viewMode == ViewMode::Session) {
 		requestDelugeSessionView(false);
 		reassertLaunchpadLayout();
-		doSync(true);
 	}
 	else {
 		switchViewMode(ViewMode::Session, cable, midiChannel);
@@ -310,7 +321,7 @@ bool handleControlChange(MIDICable& cable, uint8_t cc, bool on, int32_t midiChan
 	}
 
 	if (!on) {
-		return true;
+		return false;
 	}
 
 	switch (cc) {
@@ -318,11 +329,9 @@ bool handleControlChange(MIDICable& cable, uint8_t cc, bool on, int32_t midiChan
 		if (viewMode == ViewMode::Note) {
 			if (launchpad_note_mode::toggleExpressiveChordsSubMode(cable, midiChannel)) {
 				reassertLaunchpadLayout();
-				doSync(true);
 				return true;
 			}
 			reassertLaunchpadLayout();
-			doSync(true);
 			return true;
 		}
 		if (!launchpad_note_mode::canEnterNoteMode()) {
@@ -382,7 +391,7 @@ bool handleNote(MIDICable& cable, uint8_t note, uint8_t velocity, bool on, int32
 	int32_t x;
 	int32_t y;
 	if (!launchpad_programmer_map::delugeGridCoordsFromNote(note, x, y)) {
-		return true;
+		return false;
 	}
 
 	if (viewMode == ViewMode::Note) {
@@ -419,6 +428,10 @@ void notifySessionHoldUsedForPad() {
 
 ViewMode getViewMode() {
 	return viewMode;
+}
+
+bool isLaunchCountdownActive() {
+	return launchCountdownActive();
 }
 
 void requestSync() {
@@ -557,7 +570,10 @@ void periodicSyncIfNeeded() {
 	}
 
 	now = AudioEngine::audioSampleTimer;
-	uint32_t interval = launchCountdownActive() ? kCountdownSyncSamples : kPeriodicSyncSamples;
+	uint32_t interval = kPeriodicSyncSamples;
+	if (launchCountdownActive() || sessionView.launchpadMirrorWantsFastSync()) {
+		interval = kCountdownSyncSamples;
+	}
 	if (now - lastPeriodicSyncTime < interval) {
 		return;
 	}
@@ -593,6 +609,8 @@ bool handleMidiMessage(MIDICable& cable, uint8_t statusType, uint8_t channel, ui
 	if (AudioEngine::audioSampleTimer < ignoreLaunchpadInputUntilSample) {
 		return true;
 	}
+
+	launchpadInputNeedsSync = false;
 
 	bool on = isPressed(statusType, data2);
 	bool handled = false;
@@ -631,8 +649,9 @@ bool handleMidiMessage(MIDICable& cable, uint8_t statusType, uint8_t channel, ui
 	}
 
 	if (handled && !modeChanged) {
-		requestSync();
+		markLaunchpadInputNeedsSync();
 	}
+	flushLaunchpadInputSync();
 
 	return true;
 }

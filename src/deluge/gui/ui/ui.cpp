@@ -21,6 +21,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "util/misc.h"
 #include <utility>
 
@@ -112,6 +113,8 @@ void changeRootUI(UI* newUI) {
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
+
+	launchpad_extension::requestSync();
 }
 
 // Only called when setting up blank song, so don't worry about this
@@ -127,6 +130,9 @@ bool changeUISideways(UI* newUI) {
 	bool success = changeUIAtLevel(newUI, numUIsOpen - 1);
 	if (display->haveOLED()) {
 		renderUIsForOled();
+	}
+	if (success) {
+		launchpad_extension::requestSync();
 	}
 	return success;
 }

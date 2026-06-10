@@ -135,6 +135,7 @@ public:
 	void launchpadToggleRecord();
 	void launchpadSyncGridLedsNow(bool forceFullRefresh = false);
 	void launchpadResetMirrorState();
+	bool launchpadMirrorWantsFastSync() const;
 
 	// ui
 	UIType getUIType() override { return UIType::SESSION; }
@@ -220,8 +221,16 @@ private:
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 
 	RGB gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse = true, bool stableMirror = false);
+	RGB applyLaunchpadMirrorPulse(Clip* clip, int32_t x, int32_t y, RGB baseColour) const;
+	bool anySessionClipArmedForLaunchpadPulse() const;
 	void launchpadRenderGrid(RGB image[][kDisplayWidth + kSideBarWidth],
 	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	void renderSessionGridIfActive();
+	void afterDelugeHardwareGridInput(int32_t x);
+	void afterDelugeHardwareGridScroll();
+	void applySongGridScroll(int32_t offsetX, int32_t offsetY, int32_t maxScrollX);
+	int32_t gridScrollMaxXForDelugeGrid() const;
+	int32_t gridScrollMaxXForLaunchpadGrid() const;
 
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);

@@ -9,7 +9,7 @@
 namespace deluge::gui::ui::keyboard {
 
 // 32 chords per set on 8×4 grid; bottom-left pad at (x=2, y=0). Roots are MIDI before transpose.
-PLACE_SDRAM_DATA const std::array<ExpressiveChordSet, kExpressiveChordSetCount> expressiveChordSets = {{
+const std::array<ExpressiveChordSet, kExpressiveChordSetCount> expressiveChordSets = {{
     {"Pop",
      {{
          // bottom row → top row (indices 0–7, 8–15, 16–23, 24–31)
