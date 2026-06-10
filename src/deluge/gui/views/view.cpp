@@ -2767,7 +2767,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 #endif
 		if (on) {
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
-			session.soloClipAction(clip, kInternalButtonPressLatency);
+			session.soloClipAction(clip, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
 	}
