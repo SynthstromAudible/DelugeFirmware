@@ -321,8 +321,47 @@ void deluge_control_read_boot_info(DelugeBootInfo* out) {
 		memset(out, 0, sizeof(*out));
 	}
 }
+// Pad press injection (host harness). DELUGE_HOST_PAD="x,y" presses+holds a grid
+// pad. To audition the active synth in a clip, press the rightmost (audition)
+// column: x = kDisplayWidth+kSideBarWidth-1 = 17, y = 0..7. Emitted once after a
+// short warm-up (so the clip view is up + audio has settled), then held — no
+// release — for the rest of the capture, so the note sustains.
+static int host_pad_inited;
+static int host_pad_x = -1;
+static int host_pad_y;
+static int host_pad_warmup = 20;
+static int host_pad_done;
+
+static void host_pad_init(void) {
+	host_pad_inited = 1;
+	const char* p = getenv("DELUGE_HOST_PAD");
+	if (!p) {
+		return;
+	}
+	int x = -1, y = -1;
+	if (sscanf(p, "%d,%d", &x, &y) == 2 && x >= 0 && y >= 0) {
+		host_pad_x = x;
+		host_pad_y = y;
+	}
+}
+
 bool deluge_control_poll_event(DelugeInputEvent* out) {
-	(void)out;
+	if (!host_pad_inited) {
+		host_pad_init();
+	}
+	if (host_pad_x >= 0 && !host_pad_done) {
+		if (host_pad_warmup > 0) {
+			host_pad_warmup--;
+			return false;
+		}
+		out->kind = DELUGE_EVENT_PAD;
+		out->x = (uint8_t)host_pad_x;
+		out->y = (uint8_t)host_pad_y;
+		out->value = 255; // default-on velocity
+		host_pad_done = 1;
+		fprintf(stderr, "[host-pad] pad press+hold (x=%d, y=%d)\n", host_pad_x, host_pad_y);
+		return true;
+	}
 	return false;
 }
 void deluge_control_set_pad(uint8_t x, uint8_t y, DelugeColour colour) {
@@ -510,9 +549,44 @@ uint32_t deluge_midi_write_pending(DelugeMidiPort port) {
 	(void)port;
 	return 0;
 }
+// DIN MIDI note injection (host harness). DELUGE_HOST_MIDI_NOTE=<0..127> feeds a
+// single channel-1 note-on at startup so the default synth sounds (a blank song
+// otherwise renders silence). The note is held (no note-off) for the capture.
+static uint8_t host_din_seq[8];
+static uint32_t host_din_len;
+static uint32_t host_din_pos;
+static int host_din_inited;
+
+static void host_din_init(void) {
+	host_din_inited = 1;
+	const char* n = getenv("DELUGE_HOST_MIDI_NOTE");
+	if (!n) {
+		return;
+	}
+	int note = atoi(n);
+	if (note < 0 || note > 127) {
+		return;
+	}
+	host_din_seq[0] = 0x90;          // note-on, channel 1
+	host_din_seq[1] = (uint8_t)note; //
+	host_din_seq[2] = 100;           // velocity
+	host_din_len = 3;
+	fprintf(stderr, "[host-midi] injecting DIN note-on ch1 note=%d vel=100\n", note);
+}
+
 bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_ticks) {
-	(void)byte;
-	(void)arrival_ticks;
+	if (!host_din_inited) {
+		host_din_init();
+	}
+	if (host_din_pos < host_din_len) {
+		if (byte) {
+			*byte = host_din_seq[host_din_pos++];
+		}
+		if (arrival_ticks) {
+			*arrival_ticks = (uint32_t)deluge_clock_monotonic();
+		}
+		return true;
+	}
 	return false;
 }
 void deluge_midi_flush(DelugeMidiPort port) {

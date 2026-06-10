@@ -73,6 +73,12 @@ add_compile_definitions(SIMDE_NO_NATIVE)
 # (real _mm_* functions vs SIMDe's _mm_* #defines). The firmware target has no TBB; mirror that
 # by selecting libstdc++'s serial parallel backend (std::execution::par runs serially — fine here).
 add_compile_definitions(_GLIBCXX_USE_TBB_PAR_BACKEND=0)
+
+# Use the cooperative task scheduler (registerTasks + startTaskManager), exactly as the
+# firmware does — the `#else mainLoop()` path in deluge_main is legacy/dead on real hardware
+# and doesn't pump the scheduler (so MIDI/playback/UI tasks never run). Matching the firmware
+# execution model is both more faithful and what makes input (e.g. MIDI) reach the engine.
+add_compile_definitions(USE_TASK_MANAGER)
 include_directories(BEFORE
     ${CMAKE_CURRENT_LIST_DIR}/compat # <arm_neon.h> -> SIMDe shim
     ${REPO_ROOT}/include             # <libdeluge/...> boundary
