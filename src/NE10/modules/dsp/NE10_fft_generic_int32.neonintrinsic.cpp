@@ -48,7 +48,9 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
  * reduce branch jump.
  */
 #pragma GCC push_options
+#ifdef __ARM_NEON // host-sim: NEON intrinsics route through SIMDe, which needs no NEON target
 #pragma GCC target ("fpu=neon")
+#endif
 
 #include "NE10_fft_generic_int32.neonintrinsic.h"
 

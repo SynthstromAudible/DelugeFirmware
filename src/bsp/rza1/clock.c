@@ -30,6 +30,7 @@
 #include "RZA1/cpu_specific.h"
 
 #include "RZA1/mtu/mtu.h"
+#include "RZA1/ostm/ostm.h" // OSTM 32-bit free-running timer for the monotonic clock
 #include "definitions.h"
 
 /// The high-resolution free-running counter is TIMER_SYSTEM_FAST (16-bit MTU
@@ -44,6 +45,38 @@ uint64_t deluge_clock_now(void) {
 	// 16-bit free-running fast timer; wraps (see header). Adequate for entropy
 	// and short-interval timing. A wide monotonic clock can be layered on later.
 	return *TCNT[TIMER_SYSTEM_FAST];
+}
+
+/// The monotonic clock runs on OSTM timer 0, a 32-bit free-running counter driven
+/// by P0 (33.33 MHz) — the same source the task scheduler used directly before the
+/// clock boundary existed.
+#define MONOTONIC_TIMER 0
+#define MONOTONIC_TICKS_PER_SECOND 33330000u
+
+uint64_t deluge_clock_monotonic_hz(void) {
+	return MONOTONIC_TICKS_PER_SECOND;
+}
+
+uint64_t deluge_clock_monotonic(void) {
+	// 32-bit OSTM extended to 64-bit by accumulating rollover. Single-context
+	// (scheduler) reads only, so the rollover state needs no locking; the relocated
+	// startClock() setup happens lazily on first read.
+	static bool started = false;
+	static uint32_t last = 0;
+	static uint64_t high = 0;
+	if (!started) {
+		disableTimer(MONOTONIC_TIMER);
+		setTimerValue(MONOTONIC_TIMER, 0);
+		setOperatingMode(MONOTONIC_TIMER, FREE_RUNNING, false);
+		enableTimer(MONOTONIC_TIMER);
+		started = true;
+	}
+	uint32_t now = getTimerValue(MONOTONIC_TIMER);
+	if (now < last) {
+		high += (uint64_t)1 << 32;
+	}
+	last = now;
+	return high + now;
 }
 
 /// Counts of TIMER_SYSTEM_SLOW (P0/prescaler) per millisecond.

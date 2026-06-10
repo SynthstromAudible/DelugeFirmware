@@ -18,15 +18,12 @@
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
 
 #include "io/debug/log.h"
+#include "libdeluge/clock.h" // deluge_clock_monotonic — the scheduler's timekeeping
 #include "resource_checker.h"
 #include <algorithm>
 #if !IN_UNIT_TESTS
 #include "memory/general_memory_allocator.h"
 #endif
-
-extern "C" {
-#include "RZA1/ostm/ostm.h"
-}
 
 TaskManager taskManager;
 
@@ -361,13 +358,9 @@ void TaskManager::start(Time duration) {
 	}
 }
 void TaskManager::startClock() {
-	disableTimer(0);
-	setTimerValue(0, 0);
-	// just let it count - a full loop is 2 minutes or so and we'll handle that case manually
-	setOperatingMode(0, FREE_RUNNING, false);
-	enableTimer(0);
+	// The monotonic clock's hardware timer is set up lazily inside the BSP on first
+	// read of deluge_clock_monotonic(); here we only mark the manager as started.
 	running = true;
-	lastTime = 0;
 }
 bool TaskManager::checkConditionalTasks() {
 	bool addedTask = false;
@@ -432,23 +425,12 @@ void TaskManager::printStats() {
 	auto totalTime = cpuTime + overhead;
 	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds",
 	          double(cpuTime * 100) / double(totalTime), double(overhead * 100) / double(totalTime),
-	          double(runningTime));
+	          double(getSecondsFromStart()));
 	resetStats();
 }
-Time getTimerValueSeconds(int timerNo) {
-	Time seconds = getTimerValue(timerNo) * ONE_OVER_CLOCK;
-	return seconds;
-}
-/// return a monotonic timer value in seconds from when the task manager started
+/// Monotonic time since boot. The board's monotonic clock is a wide tick count at
+/// deluge_clock_monotonic_hz() (= the Time unit); the hardware-timer setup and any
+/// rollover extension now live in the BSP behind that boundary, not here.
 Time TaskManager::getSecondsFromStart() {
-	if (!running) [[unlikely]] {
-		startClock();
-	}
-	auto timeNow = getTimerValueSeconds(0);
-	if (timeNow < lastTime) {
-		runningTime += rollTime;
-	}
-	runningTime += timeNow - lastTime;
-	lastTime = timeNow;
-	return runningTime;
+	return Time(dTime(deluge_clock_monotonic()));
 }

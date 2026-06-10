@@ -17,8 +17,8 @@
 
 #include "OSLikeStuff/scheduler_api.h"
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
-#include "RZA1/intc/devdrv_intc.h" // intc_func_active — HAL state read by the ISR guard
 #include "libdeluge/storage_wait.h"
+#include "libdeluge/system.h" // deluge_in_interrupt — the ISR guard, via the boundary
 #include "resource_checker.h"
 
 extern TaskManager taskManager;
@@ -86,10 +86,9 @@ bool yieldToIdle(RunCondition until) {
 // scheduler keeps audio + UI + USB alive. Relocated here from the application: they
 // are pure concurrency logic (an ISR guard, a reentrancy lock, a scheduler yield) and
 // name no app code. sdRoutineActive is the scheduler-owned reentrancy flag the app reads
-// via isSDRoutineActive(); intc_func_active is HAL state (the active interrupt id, 0
-// outside an ISR).
+// via isSDRoutineActive(); the ISR guard now goes through deluge_in_interrupt() (true inside an ISR).
 bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) {
-	if (intc_func_active != 0) {
+	if (deluge_in_interrupt()) {
 		return false;
 	}
 	auto timeNow = getSystemTime();
@@ -111,7 +110,7 @@ bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) 
 }
 
 void yieldingRoutineForSD(RunCondition until) {
-	if (intc_func_active != 0) {
+	if (deluge_in_interrupt()) {
 		return;
 	}
 

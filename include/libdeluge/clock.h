@@ -40,6 +40,19 @@ uint64_t deluge_clock_ticks_per_second(void);
 /// counter width. [task] [audio] [isr]
 uint64_t deluge_clock_now(void);
 
+/// Wide (64-bit) monotonic tick count since boot — the board accumulates any
+/// hardware-counter rollover, so it does not wrap in practice. The unit is
+/// `deluge_clock_monotonic_hz()` ticks/second. This is the absolute clock the
+/// scheduler runs on; for short-interval timing / entropy use deluge_clock_now().
+///
+/// MUST be read from a single (cooperative-task) context: the board may extend a
+/// narrower hardware counter using internal rollover state that assumes serialized
+/// reads frequent enough never to miss a wrap. [task]
+uint64_t deluge_clock_monotonic(void);
+
+/// Rate of deluge_clock_monotonic() in ticks/second. [task]
+uint64_t deluge_clock_monotonic_hz(void);
+
 /// Busy-wait for approximately `us` microseconds. Use sparingly; prefer the
 /// scheduler for anything non-trivial. [task]
 void deluge_clock_delay_us(uint32_t us);

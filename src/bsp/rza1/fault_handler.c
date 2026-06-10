@@ -60,7 +60,7 @@
 #include "definitions.h"
 #include "drivers/ssi/ssi.h"
 #include "drivers/uart/uart.h"
-#include <version.h>
+#include <version.h> // kCommitShort — stamped into the crash dump
 
 extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;

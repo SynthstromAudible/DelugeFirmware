@@ -16,7 +16,6 @@
  */
 
 #include "GranularProcessor.h"
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"

@@ -24,10 +24,15 @@
 #include "libdeluge/system.h"
 #include "RZA1/cpu_specific.h"
 
+#include "RZA1/intc/devdrv_intc.h" // intc_func_active (the active interrupt id, 0 outside an ISR)
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"
 #include "drivers/uart/uart.h" // uartPrint (debug channel)
 #include "stdatomic.h"
+
+bool deluge_in_interrupt(void) {
+	return intc_func_active != 0;
+}
 
 void deluge_system_quiesce(void) {
 	// Disable all MTU system timers, as the chainload teardown previously did

@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 #include "stdint.h"
-#include "timers_interrupts/clock_type.h"
+#include "task_scheduler/clock_type.h"
 
 /// void function with no arguments
 typedef void (*TaskHandle)();

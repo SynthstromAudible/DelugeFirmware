@@ -25,10 +25,10 @@
 
 #include "libdeluge/encoder_io.h"
 
-#include "OSLikeStuff/scheduler_api.h"                       // unblockTask
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h" // setupAndEnableInterrupt, set/clearIRQInterrupt
-#include "RZA1/gpio/gpio.h"                                  // setPinAsInput, setPinMux, enableInputBuffer, readInput
-#include "RZA1/intc/devdrv_intc.h"                           // INTC_ID_IRQ0
+#include "OSLikeStuff/scheduler_api.h" // unblockTask
+#include "RZA1/gpio/gpio.h"            // setPinAsInput, setPinMux, enableInputBuffer, readInput
+#include "RZA1/intc/devdrv_intc.h"     // INTC_ID_IRQ0
+#include "timers_interrupts.h"         // setupAndEnableInterrupt, set/clearIRQInterrupt (sibling BSP file)
 
 #include <stdatomic.h>
 

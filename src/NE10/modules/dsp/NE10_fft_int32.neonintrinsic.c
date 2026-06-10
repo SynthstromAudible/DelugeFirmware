@@ -37,7 +37,9 @@
 #include "NE10_dsp.h"
 
 #pragma GCC push_options
+#ifdef __ARM_NEON // host-sim: NEON intrinsics route through SIMDe, which needs no NEON target
 #pragma GCC target ("fpu=neon")
+#endif
 
 #define FFT4_FS_START \
     ne10_int32_t s0_r, s0_i, s1_r, s1_i, s2_r, s2_i; \

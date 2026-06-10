@@ -45,6 +45,12 @@ void deluge_system_quiesce(void);
 /// newline — the caller owns formatting. Best-effort, may be dropped. [task] [isr]
 void deluge_log(const char* text);
 
+/// True if currently executing in an interrupt/ISR context (false in normal task
+/// context). The scheduler uses this to refuse to yield from within an ISR.
+/// Boards without preemptive interrupts (e.g. the host sim) always return false.
+/// [task] [isr]
+bool deluge_in_interrupt(void);
+
 /// Enter a critical section: mask interrupts so the following code runs without
 /// preemption. Nestable — each ENTER must be paired with one EXIT, and only the
 /// outermost pair actually toggles interrupts (a shared depth counter tracks the
