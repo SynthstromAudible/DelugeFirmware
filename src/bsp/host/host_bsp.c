@@ -119,38 +119,54 @@ void deluge_clock_delay_ms(uint32_t ms) {
 }
 
 // ===========================================================================
-// memory.h — malloc-backed regions so the app's allocator has real memory.
+// memory.h — static-backed regions. The app's GeneralMemoryAllocator carves its
+// regions from the firmware linker's boundary symbols (__sdram_bss_end,
+// __heap_start/program_stack_start, __frunk_bss_end/__frunk_slack_end) plus
+// deluge_memory_external_end(). On the SoC those describe one contiguous SDRAM
+// block (stealable | external | external_small) and the on-chip SRAM. We
+// reproduce that with static .bss pools and emulate the linker's PROVIDE()'d
+// boundary symbols by `.set`-ting them to the pool edges (the allocator only
+// reads their *addresses*). `.set` keeps the big arrays in .bss → no file bloat;
+// the offsets must be bare integers (the assembler can't parse the `u`/paren C
+// forms), so HOST_*_BYTES are plain literals and STR() stringifies them.
 // ===========================================================================
 
-#define HOST_EXTERNAL_BYTES (64u * 1024u * 1024u) // mirrors the RZ/A1L SDRAM size
-#define HOST_INTERNAL_BYTES (256u * 1024u)
+#define STR_(x) #x
+#define STR(x) STR_(x)
+
+#define HOST_SDRAM_BYTES 67108864   // 64 MiB — holds stealable + external + external_small
+#define HOST_INTERNAL_BYTES 2097152 // 2 MiB on-chip-SRAM-equivalent (internal heap region)
+#define HOST_FRUNK_BYTES 262144     // 256 KiB small-internal ("frunk") region
 #define HOST_SCRATCH_BYTES (32u * 1024u)
 
-static uint8_t* host_external_base;
-static uint8_t* host_internal_base;
+__attribute__((used)) static uint8_t host_sdram[HOST_SDRAM_BYTES];
+__attribute__((used)) static uint8_t host_internal[HOST_INTERNAL_BYTES];
+__attribute__((used)) static uint8_t host_frunk[HOST_FRUNK_BYTES];
 static uint8_t host_scratch[HOST_SCRATCH_BYTES];
 
-static void host_memory_ensure(void) {
-	if (!host_external_base) {
-		host_external_base = (uint8_t*)malloc(HOST_EXTERNAL_BYTES);
-		host_internal_base = (uint8_t*)malloc(HOST_INTERNAL_BYTES);
-	}
-}
+// clang-format off
+__asm__(
+    ".global __sdram_bss_end\n\t.set __sdram_bss_end, host_sdram\n"
+    ".global __heap_start\n\t.set __heap_start, host_internal\n"
+    ".global program_stack_start\n\t.set program_stack_start, host_internal + " STR(HOST_INTERNAL_BYTES) "\n"
+    ".global program_stack_end\n\t.set program_stack_end, host_internal + " STR(HOST_INTERNAL_BYTES) "\n"
+    ".global __frunk_bss_end\n\t.set __frunk_bss_end, host_frunk\n"
+    ".global __frunk_slack_end\n\t.set __frunk_slack_end, host_frunk + " STR(HOST_FRUNK_BYTES) "\n");
+// clang-format on
 
 uint8_t deluge_memory_region_count(void) {
 	return 2;
 }
 
 DelugeStatus deluge_memory_region(uint8_t index, DelugeMemoryRegion* out) {
-	host_memory_ensure();
 	if (index == 0) {
-		out->base = host_external_base;
-		out->size = HOST_EXTERNAL_BYTES;
+		out->base = host_sdram;
+		out->size = HOST_SDRAM_BYTES;
 		out->kind = DELUGE_MEM_LARGE_EXTERNAL;
 		return DELUGE_OK;
 	}
 	if (index == 1) {
-		out->base = host_internal_base;
+		out->base = host_internal;
 		out->size = HOST_INTERNAL_BYTES;
 		out->kind = DELUGE_MEM_FAST_INTERNAL;
 		return DELUGE_OK;
@@ -159,13 +175,11 @@ DelugeStatus deluge_memory_region(uint8_t index, DelugeMemoryRegion* out) {
 }
 
 uintptr_t deluge_memory_external_end(void) {
-	host_memory_ensure();
-	return (uintptr_t)host_external_base + HOST_EXTERNAL_BYTES;
+	return (uintptr_t)host_sdram + HOST_SDRAM_BYTES;
 }
 
 uintptr_t deluge_memory_internal_begin(void) {
-	host_memory_ensure();
-	return (uintptr_t)host_internal_base;
+	return (uintptr_t)host_internal;
 }
 
 void* deluge_memory_scratch(void) {
@@ -219,40 +233,7 @@ void deluge_board_init_storage(void) {
 void deluge_board_unlock_data_cache(void) {
 }
 
-// ===========================================================================
-// audio_io.h  [stub — host audio sink / WAV harness goes here]
-// ===========================================================================
-
-DelugeStatus deluge_audio_start(void) {
-	return DELUGE_OK;
-}
-void deluge_audio_stop(void) {
-}
-uint32_t deluge_audio_max_block_frames(void) {
-	return 128;
-}
-uint32_t deluge_audio_sample_rate(void) {
-	return 44100;
-}
-uint32_t deluge_audio_output_latency_frames(void) {
-	return 128;
-}
-uint32_t deluge_audio_drive(void) {
-	return 0;
-}
-void deluge_audio_input_resync(void) {
-}
-uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t* elapsed_frames_out) {
-	(void)offset_frames;
-	if (elapsed_frames_out) {
-		*elapsed_frames_out = 0;
-	}
-	return 0;
-}
-uint32_t deluge_audio_stamp_to_render_offset(uint32_t stamp) {
-	(void)stamp;
-	return 0;
-}
+// audio_io.h is implemented in host_audio.c (the render-driver + WAV capture).
 
 // ===========================================================================
 // block_device.h  [stub — a file-backed card image goes here]

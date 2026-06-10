@@ -46,6 +46,16 @@ add_link_options(-m32)
 set(DELUGE_COMMON_COMPILE_OPTIONS -fsigned-char)
 add_compile_options(-fsigned-char)
 
+# Debug info — this is a host debug / CI harness; -g makes the inevitable runtime
+# triage (gdb backtraces, member inspection) tractable.
+add_compile_options(-g)
+
+# Section GC, mirroring the firmware link. Beyond size, it strips genuinely-dead code
+# whose refs would otherwise fail to resolve — e.g. the NE10 float32 FFT path (Deluge
+# only uses the int32 FFT), which references ne10_fft_alloc_c2c_float32_c (never compiled).
+add_compile_options(-ffunction-sections -fdata-sections)
+add_link_options(LINKER:--gc-sections)
+
 # SIMDe root: argon's non-ARM backend does `#include <arm/neon.h>`, which must
 # resolve to <simde/arm/neon.h>. Put the simde dir + our arm_neon shim + the
 # boundary headers on every target's path.
@@ -129,6 +139,8 @@ add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # d
 # loop (deluge_app_init/render/tick) as the app is brought up.
 add_executable(deluge_host
     ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
     ${REPO_ROOT}/src/bsp/host/host_main.c
 )
 target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS})

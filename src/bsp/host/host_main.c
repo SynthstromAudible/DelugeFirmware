@@ -29,6 +29,12 @@
 #include "libdeluge/system.h"
 
 #include <stdio.h>
+#include <stdlib.h> // quick_exit
+
+// The application's monolithic boot + run loop (deluge.cpp). Declared here rather
+// than via deluge.h (a C++ header). On hardware src/main.c calls this after the
+// arm timer/interrupt bring-up; here deluge_platform_init() is the host analogue.
+extern int deluge_main(void);
 
 int main(void) {
 	deluge_platform_init();
@@ -37,17 +43,14 @@ int main(void) {
 	printf("libdeluge host-sim — board: %s (%ux%u pads, %u encoders, %u Hz)\n", board->name, board->pad_grid_width,
 	       board->pad_grid_height, board->encoder_count, board->audio_sample_rate_hz);
 
-	DelugeMemoryRegion ext;
-	if (deluge_memory_region(0, &ext) == DELUGE_OK) {
-		printf("external region: %u MB @ %p\n", ext.size / (1024u * 1024u), ext.base);
-	}
+	deluge_log("host-sim boundary OK — entering deluge_main()\n");
 
-	uint64_t t0 = deluge_clock_now();
-	deluge_clock_delay_ms(1);
-	uint64_t t1 = deluge_clock_now();
-	printf("clock: %llu ticks/s, 1ms delay measured %llu us\n", (unsigned long long)deluge_clock_ticks_per_second(),
-	       (unsigned long long)(t1 - t0));
+	// Boot and run the app. deluge_main() ends in mainLoop()'s while(1), so this
+	// does not return; the process runs until externally terminated (the bounded
+	// WAV-diff harness will drive a fixed number of render blocks instead later).
+	deluge_main();
 
-	deluge_log("host-sim boundary OK\n");
-	return 0;
+	// Unreachable today. Mirror the firmware's no-teardown exit if it ever returns.
+	fflush(NULL);
+	quick_exit(0);
 }

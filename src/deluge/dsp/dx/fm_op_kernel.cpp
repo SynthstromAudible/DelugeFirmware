@@ -18,9 +18,18 @@
 
 #include <cstdlib>
 
+// The hand-written NEON FM kernel (neon_fm_kernel.s) is ARM-only; off-target fall back to the scalar
+// path below (it computes the same operator output). kHaveNeon gates the runtime `neon` flag so the
+// host never reaches the (absent) kernel.
+#ifdef __ARM_NEON
 #define HAVE_NEON
+#endif
+
 #ifdef HAVE_NEON
+static constexpr bool kHaveNeon = true;
 // #include <cpu-features.h>
+#else
+static constexpr bool kHaveNeon = false;
 #endif
 
 #include "fm_op_kernel.h"
@@ -39,7 +48,7 @@ void FmOpKernel::compute(int32_t* output, int n, const int32_t* input, int32_t p
                          int32_t gain2, int32_t dgain, bool add, bool neon) {
 	int32_t gain = gain1;
 	int32_t phase = phase0;
-	if (neon) {
+	if (neon && kHaveNeon) {
 #ifdef HAVE_NEON
 		neon_fm_kernel(input, add ? output : zeros, output, n, phase0, freq, gain, dgain);
 #endif
@@ -70,7 +79,7 @@ void FmOpKernel::compute_pure(int32_t* output, int n, int32_t phase0, int32_t fr
                               int32_t dgain, bool add, bool neon) {
 	int32_t gain = gain1;
 	int32_t phase = phase0;
-	if (neon) {
+	if (neon && kHaveNeon) {
 #ifdef HAVE_NEON
 		neon_fm_kernel(zeros, add ? output : zeros, output, n, phase0, freq, gain, dgain);
 #endif

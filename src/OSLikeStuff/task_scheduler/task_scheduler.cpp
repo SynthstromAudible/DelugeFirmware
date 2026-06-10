@@ -189,6 +189,12 @@ Time TaskManager::getAverageRunTimeForCurrentTask() const {
 }
 
 Time TaskManager::getAverageRunTimeForTask(TaskID id) const {
+	// id is unset (-1) until the task is registered — callers such as setDireness query it during
+	// early boot before the audio task is scheduled. Guard the index (cf. unblockTask): no measured
+	// runtime yet → 0. (On hardware list[-1] silently read adjacent memory; host assertions catch it.)
+	if (id < 0 || id >= kMaxTasks) [[unlikely]] {
+		return Time{0};
+	}
 	auto task = &list[id];
 	return task->durationStats.average;
 }
