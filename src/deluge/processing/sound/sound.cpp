@@ -2634,7 +2634,9 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	// reversible without doing anything
 
 	setSkippingRendering(true);
-	grainFX->startSkippingRendering();
+	if (grainFX) { // grainFX is null unless GRAIN mod-FX has been used — guard like every other access
+		grainFX->startSkippingRendering();
+	}
 	stopParamLPF(modelStack);
 }
 
