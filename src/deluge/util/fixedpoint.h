@@ -155,44 +155,58 @@ static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
 	return (int32_t)(((int64_t)a * b + 0x80000000) >> 32);
 }
 
-// Multiplies A and B, adds to sum, and returns output
+// Multiplies A and B, adds to sum, and returns output.
+// NB: keep the 64-bit product term separate and add `sum` last. The old form shifted sum<<32 first
+// (~2^63) then added a*b (~2^62), overflowing int64 (UB) for Q31-scale operands — it diverged from the
+// ARM smmla (which wraps in 32-bit) and, at -O2, the UB corrupted neighbouring code. Mathematically the
+// non-overflowing forms below are identical to the originals: floor((sum<<32 ± a*b)/2^32) = sum ± (a*b>>32).
 static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
-	return (int32_t)(((((int64_t)sum) << 32) + ((int64_t)a * b)) >> 32);
+	return (q31_t)(sum + (((int64_t)a * b) >> 32));
 }
 
 // Multiplies A and B, adds to sum, and returns output, rounding
 static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
-	return (int32_t)(((((int64_t)sum) << 32) + ((int64_t)a * b) + 0x80000000) >> 32);
+	return (q31_t)(sum + (((int64_t)a * b + 0x80000000) >> 32));
 }
 
 // Multiplies A and B, subtracts from sum, and returns output
 static inline q31_t multiply_subtract_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
-	return (int32_t)(((((int64_t)sum) << 32) - ((int64_t)a * b)) >> 32);
+	return (q31_t)(sum + ((-((int64_t)a * b)) >> 32));
 }
 
 // Multiplies A and B, subtracts from sum, and returns output, rounding
 static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
-	return (int32_t)((((((int64_t)sum) << 32) - ((int64_t)a * b)) + 0x80000000) >> 32);
+	return (q31_t)(sum + ((0x80000000LL - (int64_t)a * b) >> 32));
 }
 
-// computes limit((val >> rshift), 2**bits)
+// Matches ARM `ssat %0, %1, #bits`: clamp to the signed range representable in `bits` bits,
+// i.e. [-2^(bits-1), 2^(bits-1)-1]. (The old host stub `std::min(val, 1<<bits)` clamped only the
+// upper bound, to the wrong value, with no lower bound — silently wrong saturation in the DSP.)
 template <uint8_t bits>
 static inline int32_t signed_saturate(int32_t val) {
-	return std::min(val, 1 << bits);
+	constexpr int32_t hi = static_cast<int32_t>((static_cast<uint32_t>(1) << (bits - 1)) - 1);
+	constexpr int32_t lo = -hi - 1;
+	return val > hi ? hi : (val < lo ? lo : val);
 }
 
+// Matches ARM `qadd`: saturating add, clamped to the signed 32-bit range (the old host stub
+// `a + b` wrapped on overflow — a ramp past INT32_MAX flipped to negative instead of pinning).
 static inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t add_saturate(int32_t a, int32_t b) {
-	return a + b;
+	int64_t r = static_cast<int64_t>(a) + b;
+	return r > INT32_MAX ? INT32_MAX : (r < INT32_MIN ? INT32_MIN : static_cast<int32_t>(r));
 }
 
+// Matches ARM `qsub`: saturating subtract, clamped to the signed 32-bit range.
 static inline int32_t subtract_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t subtract_saturate(int32_t a, int32_t b) {
-	return a - b;
+	int64_t r = static_cast<int64_t>(a) - b;
+	return r > INT32_MAX ? INT32_MAX : (r < INT32_MIN ? INT32_MIN : static_cast<int32_t>(r));
 }
 
 inline int32_t clz(uint32_t input) {
-	return __builtin_clz(input);
+	// ARM `clz` returns 32 for 0; __builtin_clz(0) is UB. Match the hardware.
+	return input ? __builtin_clz(input) : 32;
 }
 
 [[gnu::always_inline]] constexpr q31_t q31_from_float(float value) {
@@ -207,20 +221,21 @@ inline int32_t clz(uint32_t input) {
 	// Extract exponent and adjust for bias (IEEE 754)
 	int32_t exponent = static_cast<int32_t>((bits >> 23) & 0xFF) - 127;
 
-	q31_t output_value = 0;
-
-	// saturate if above 1.f
+	// saturate if |value| >= 1.f (vcvt.s32.f32 #31 saturates to INT32_MIN / INT32_MAX)
 	if (exponent >= 0) {
-		output_value = std::numeric_limits<q31_t>::max();
+		return negative ? std::numeric_limits<q31_t>::min() : std::numeric_limits<q31_t>::max();
 	}
 
-	// extract mantissa
-	else {
-		uint32_t mantissa = (bits << 8) | 0x80000000;
-		output_value = static_cast<q31_t>(mantissa >> -exponent);
+	// |value| < 2^-31 truncates to 0. (Was `mantissa >> -exponent` — for these tiny values -exponent
+	// is >= 32, i.e. a shift >= the operand width, which is UB and at -O2 corrupted neighbouring code.)
+	int32_t shift = -exponent;
+	if (shift >= 32) {
+		return 0;
 	}
 
-	// Sign bit
+	// extract mantissa (truncating toward zero, matching VCVT's rounding mode)
+	uint32_t mantissa = (bits << 8) | 0x80000000;
+	q31_t output_value = static_cast<q31_t>(mantissa >> shift);
 	return (negative) ? -output_value : output_value;
 }
 #endif
