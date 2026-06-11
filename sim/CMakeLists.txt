@@ -40,9 +40,25 @@ cmake_path(SET SHARED_INCLUDE ${REPO_ROOT}/src)
 # build the host as 32-bit — matching the existing tests (tests/32bit_unit_tests
 # use -m32) and the firmware's memory model. (Requires a multilib toolchain.)
 # The arm-linux reference toolchain is already 32-bit, so -m32 only applies to x86.
-if(NOT DELUGE_SIM_ARM)
+# Three host configurations:
+#   default            x86-32 — matches the firmware's 32-bit pointer model (the app
+#                      stores pointers in uint32_t fields). SIMDe runs its portable-C
+#                      fallbacks (the native -m32 path won't parse <immintrin.h>).
+#   DELUGE_SIM_X64=ON  x86-64 — lets SIMDe use real SSE/AVX (faster, and sidesteps the
+#                      vector_size(8)->MMX-register ABI hazard entirely). EXPERIMENTAL:
+#                      requires the app to be 64-bit-pointer-clean.
+#   DELUGE_SIM_ARM=ON  arm-linux/NEON cross (the native-SIMD reference oracle).
+if(NOT DELUGE_SIM_ARM AND NOT DELUGE_SIM_X64)
     add_compile_options(-m32)
     add_link_options(-m32)
+
+    # Use SSE for float math instead of the 32-bit x87 default. x87 evaluates float
+    # intermediates at 80-bit extended precision, which silently diverges from the
+    # firmware's strict IEEE-754 single-precision VFP — enough to perturb marginally
+    # stable float feedback loops (e.g. the Mutable reverb) away from the device's
+    # behaviour. -mfpmath=sse keeps host float arithmetic bit-comparable to the target.
+    # (64-bit already defaults to SSE, so this only applies to the -m32 build.)
+    add_compile_options(-msse2 -mfpmath=sse)
 endif()
 
 # Char signedness matches the firmware (ARM default is unsigned; be explicit).
@@ -65,12 +81,15 @@ add_link_options(LINKER:--gc-sections)
 if(NOT DELUGE_SIM_ARM)
     find_path(SIMDE_INCLUDE_DIR simde/arm/neon.h PATHS /usr/include /usr/local/include REQUIRED)
 
-    # Force SIMDe to its portable-C fallbacks instead of native x86 intrinsics. Under -m32 SIMDe's
-    # native path drags in GCC's AVX512/FMA <immintrin.h> sub-headers, which don't parse in 32-bit
-    # mode. The portable path is bit-accurate to NEON (the whole point of SIMDe) and deterministic —
-    # exactly what we want for host CI + the audio WAV-diff reference; the speed hit is irrelevant here.
-    # Must be global: argon includes <simde/arm/neon.h> directly, not via our compat shim.
-    add_compile_definitions(SIMDE_NO_NATIVE)
+    if(NOT DELUGE_SIM_X64)
+        # Force SIMDe to its portable-C fallbacks instead of native x86 intrinsics. Under -m32 SIMDe's
+        # native path drags in GCC's AVX512/FMA <immintrin.h> sub-headers, which don't parse in 32-bit
+        # mode. The portable path is bit-accurate to NEON (the whole point of SIMDe) and deterministic —
+        # exactly what we want for host CI + the audio WAV-diff reference; the speed hit is irrelevant here.
+        # Must be global: argon includes <simde/arm/neon.h> directly, not via our compat shim.
+        # On x86-64 we drop this and let SIMDe lower to real SSE/AVX.
+        add_compile_definitions(SIMDE_NO_NATIVE)
+    endif()
 endif()
 
 # The app includes <execution>. On host glibc libstdc++ the parallel STL backend is oneTBB,
