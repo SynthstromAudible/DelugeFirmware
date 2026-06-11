@@ -35,6 +35,7 @@ using deluge::gui::colours::enabled;
 using deluge::gui::colours::green;
 using deluge::gui::colours::grey;
 using deluge::gui::colours::magenta;
+using deluge::gui::colours::white;
 using deluge::gui::ui::keyboard::getExpressiveChordsLayout;
 using deluge::gui::ui::keyboard::kExpressiveChordsPerSet;
 using deluge::gui::ui::keyboard::KeyboardStateExpressiveChords;
@@ -58,6 +59,7 @@ constexpr int32_t kExpressiveLpSpreadRowY = 5;
 constexpr int32_t kExpressiveLpPrevSetY = 6;
 constexpr int32_t kExpressiveLpNextSetY = 7;
 constexpr int32_t kExpressiveLpSetControlX = 7;
+constexpr int32_t kExpressiveLpOctaveX = 6;
 
 enum class LayoutKind : uint8_t {
 	Melodic,
@@ -452,6 +454,14 @@ void syncExpressiveLeds(InstrumentClip* clip, RGB launchpadImage[][kDisplayWidth
 				colour = magenta.forTail();
 				occupied = true;
 			}
+			else if (y == kExpressiveLpPrevSetY && x == kExpressiveLpOctaveX) {
+				colour = white.dim(4);
+				occupied = true;
+			}
+			else if (y == kExpressiveLpNextSetY && x == kExpressiveLpOctaveX) {
+				colour = white.dim(3);
+				occupied = true;
+			}
 
 			launchpadImage[y][x] = colour;
 			launchpadOccupancyMask[y][x] = occupied ? 64 : 0;
@@ -581,6 +591,14 @@ bool handleExpressiveControlPad(int32_t x, int32_t y) {
 	}
 	if (y == kExpressiveLpPrevSetY && x == kExpressiveLpSetControlX) {
 		layout.changeChordSetByOffset(-1);
+		return true;
+	}
+	if (y == kExpressiveLpPrevSetY && x == kExpressiveLpOctaveX) {
+		layout.adjustTranspose(-kOctaveSize);
+		return true;
+	}
+	if (y == kExpressiveLpNextSetY && x == kExpressiveLpOctaveX) {
+		layout.adjustTranspose(kOctaveSize);
 		return true;
 	}
 	return false;
