@@ -47,6 +47,11 @@ static uint32_t wav_frames_written;
 static uint32_t wav_frames_target;
 static int capture_done;
 
+// Total frames rendered so far — a deterministic "audio clock" the input injection keys off
+// (instead of wall-clock poll counts), so the note onset is identical across the x86 and
+// arm-linux builds, making their captures diffable.
+uint32_t host_rendered_frames = 0;
+
 // ---- little-endian WAV helpers -------------------------------------------
 
 static void put_u32le(unsigned char* p, uint32_t v) {
@@ -167,6 +172,7 @@ uint32_t deluge_audio_drive(void) {
 	}
 
 	deluge_app_render(host_input_block, host_render_block, frames);
+	host_rendered_frames += frames;
 
 	// Q31 -> 16-bit signed PCM, interleaved L/R.
 	for (uint32_t i = 0; i < frames; i++) {

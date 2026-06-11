@@ -39,8 +39,11 @@ cmake_path(SET SHARED_INCLUDE ${REPO_ROOT}/src)
 # The app is written for a 32-bit target (it stores pointers in uint32_t etc.), so
 # build the host as 32-bit — matching the existing tests (tests/32bit_unit_tests
 # use -m32) and the firmware's memory model. (Requires a multilib toolchain.)
-add_compile_options(-m32)
-add_link_options(-m32)
+# The arm-linux reference toolchain is already 32-bit, so -m32 only applies to x86.
+if(NOT DELUGE_SIM_ARM)
+    add_compile_options(-m32)
+    add_link_options(-m32)
+endif()
 
 # Char signedness matches the firmware (ARM default is unsigned; be explicit).
 set(DELUGE_COMMON_COMPILE_OPTIONS -fsigned-char)
@@ -56,17 +59,19 @@ add_compile_options(-g)
 add_compile_options(-ffunction-sections -fdata-sections)
 add_link_options(LINKER:--gc-sections)
 
-# SIMDe root: argon's non-ARM backend does `#include <arm/neon.h>`, which must
-# resolve to <simde/arm/neon.h>. Put the simde dir + our arm_neon shim + the
-# boundary headers on every target's path.
-find_path(SIMDE_INCLUDE_DIR simde/arm/neon.h PATHS /usr/include /usr/local/include REQUIRED)
+# SIMDe (x86 host only): argon's non-ARM backend does `#include <arm/neon.h>`, which must
+# resolve to <simde/arm/neon.h>. The arm-linux reference has real NEON and a real <arm_neon.h>,
+# so it skips all of this.
+if(NOT DELUGE_SIM_ARM)
+    find_path(SIMDE_INCLUDE_DIR simde/arm/neon.h PATHS /usr/include /usr/local/include REQUIRED)
 
-# Force SIMDe to its portable-C fallbacks instead of native x86 intrinsics. Under -m32 SIMDe's
-# native path drags in GCC's AVX512/FMA <immintrin.h> sub-headers, which don't parse in 32-bit
-# mode. The portable path is bit-accurate to NEON (the whole point of SIMDe) and deterministic —
-# exactly what we want for host CI + the audio WAV-diff reference; the speed hit is irrelevant here.
-# Must be global: argon includes <simde/arm/neon.h> directly, not via our compat shim.
-add_compile_definitions(SIMDE_NO_NATIVE)
+    # Force SIMDe to its portable-C fallbacks instead of native x86 intrinsics. Under -m32 SIMDe's
+    # native path drags in GCC's AVX512/FMA <immintrin.h> sub-headers, which don't parse in 32-bit
+    # mode. The portable path is bit-accurate to NEON (the whole point of SIMDe) and deterministic —
+    # exactly what we want for host CI + the audio WAV-diff reference; the speed hit is irrelevant here.
+    # Must be global: argon includes <simde/arm/neon.h> directly, not via our compat shim.
+    add_compile_definitions(SIMDE_NO_NATIVE)
+endif()
 
 # The app includes <execution>. On host glibc libstdc++ the parallel STL backend is oneTBB,
 # whose headers pull in the full <immintrin.h> — which collides with SIMDe's NEON alias macros
@@ -79,17 +84,22 @@ add_compile_definitions(_GLIBCXX_USE_TBB_PAR_BACKEND=0)
 # and doesn't pump the scheduler (so MIDI/playback/UI tasks never run). Matching the firmware
 # execution model is both more faithful and what makes input (e.g. MIDI) reach the engine.
 add_compile_definitions(USE_TASK_MANAGER)
-include_directories(BEFORE
-    ${CMAKE_CURRENT_LIST_DIR}/compat # <arm_neon.h> -> SIMDe shim
-    ${REPO_ROOT}/include             # <libdeluge/...> boundary
-    ${SIMDE_INCLUDE_DIR}/simde        # argon's <arm/neon.h> -> SIMDe
-)
-
-set(HOST_INCLUDE_DIRS
-    ${CMAKE_CURRENT_LIST_DIR}/compat # arm_neon.h -> SIMDe shim
-    ${REPO_ROOT}/include             # <libdeluge/...> boundary
-    ${REPO_ROOT}/src                 # SHARED_INCLUDE
-)
+if(DELUGE_SIM_ARM)
+    # Real NEON: the cross toolchain provides <arm_neon.h>; argon's <arm/neon.h> is unused.
+    include_directories(BEFORE ${REPO_ROOT}/include)
+    set(HOST_INCLUDE_DIRS ${REPO_ROOT}/include ${REPO_ROOT}/src)
+else()
+    include_directories(BEFORE
+        ${CMAKE_CURRENT_LIST_DIR}/compat # <arm_neon.h> -> SIMDe shim
+        ${REPO_ROOT}/include             # <libdeluge/...> boundary
+        ${SIMDE_INCLUDE_DIR}/simde        # argon's <arm/neon.h> -> SIMDe
+    )
+    set(HOST_INCLUDE_DIRS
+        ${CMAKE_CURRENT_LIST_DIR}/compat # arm_neon.h -> SIMDe shim
+        ${REPO_ROOT}/include             # <libdeluge/...> boundary
+        ${REPO_ROOT}/src                 # SHARED_INCLUDE
+    )
+endif()
 
 # ===========================================================================
 # Stage 1: boundary smoke target (host BSP + a main that exercises it).
@@ -123,7 +133,7 @@ add_library(NE10 STATIC
     ${REPO_ROOT}/src/NE10/modules/dsp/NE10_init_dsp.c
 )
 target_include_directories(NE10 PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}/compat
+    $<$<NOT:$<BOOL:${DELUGE_SIM_ARM}>>:${CMAKE_CURRENT_LIST_DIR}/compat> # SIMDe shim (x86 only)
     ${REPO_ROOT}/src/NE10/inc ${REPO_ROOT}/src/NE10/common ${REPO_ROOT}/src/NE10
 )
 target_include_directories(NE10 PRIVATE ${REPO_ROOT}/src ${REPO_ROOT}/include)

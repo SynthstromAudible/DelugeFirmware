@@ -89,7 +89,41 @@ uint64_t deluge_clock_ticks_per_second(void) {
 	return HOST_CLOCK_HZ;
 }
 
+extern uint32_t host_rendered_frames; // host_audio.c — the offline audio clock
+
+// DELUGE_HOST_DETERMINISTIC: drive BOTH clocks off the rendered-frame count instead of wall time,
+// so two builds (e.g. x86/SIMDe vs arm-linux/NEON) reach byte-identical state and their WAV captures
+// are diffable. The scheduler still makes progress because audio is the always-ready fallback task
+// that advances host_rendered_frames. It also makes the dither deterministic: seedRandom() seeds the
+// PRNG from deluge_clock_now(), which is then identical across builds.
+static int host_deterministic(void) {
+	static int v = -1;
+	if (v < 0) {
+		v = getenv("DELUGE_HOST_DETERMINISTIC") ? 1 : 0;
+	}
+	return v;
+}
+
+// Deterministic clock anchored to the rendered-frame count but STRICTLY INCREASING per call: a pure
+// frames*rate value freezes within a render block (host_rendered_frames only advances between blocks),
+// which deadlocks any in-block `while (clock < target)` wait. Bumping by 1 per call when the frame base
+// hasn't moved keeps every such loop making progress while staying deterministic (the per-block call
+// count is identical across builds when the DSP is) and sample-accurate at block boundaries.
+static uint64_t host_det_clock(uint64_t base, uint64_t* state) {
+	if (base <= *state) {
+		*state += 1;
+	}
+	else {
+		*state = base;
+	}
+	return *state;
+}
+
 uint64_t deluge_clock_now(void) {
+	if (host_deterministic()) {
+		static uint64_t s = 0;
+		return host_det_clock((uint64_t)host_rendered_frames * HOST_CLOCK_HZ / 44100u, &s);
+	}
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return (uint64_t)ts.tv_sec * HOST_CLOCK_HZ + (uint64_t)ts.tv_nsec / 1000u;
@@ -104,6 +138,10 @@ uint64_t deluge_clock_monotonic_hz(void) {
 }
 
 uint64_t deluge_clock_monotonic(void) {
+	if (host_deterministic()) {
+		static uint64_t s = 0;
+		return host_det_clock((uint64_t)host_rendered_frames * DELUGE_TICK_HZ / 44100u, &s);
+	}
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return (uint64_t)ts.tv_sec * DELUGE_TICK_HZ + (uint64_t)ts.tv_nsec * DELUGE_TICK_HZ / 1000000000ull;
@@ -321,27 +359,32 @@ void deluge_control_read_boot_info(DelugeBootInfo* out) {
 		memset(out, 0, sizeof(*out));
 	}
 }
-// Pad press injection (host harness). DELUGE_HOST_PAD="x,y" presses+holds a grid
-// pad. To audition the active synth in a clip, press the rightmost (audition)
-// column: x = kDisplayWidth+kSideBarWidth-1 = 17, y = 0..7. Emitted once after a
-// short warm-up (so the clip view is up + audio has settled), then held — no
-// release — for the rest of the capture, so the note sustains.
+// Pad press injection (host harness). DELUGE_HOST_PAD="x,y" presses+holds a grid pad. To audition
+// the active synth in a clip, press the rightmost (audition) column: x = kDisplayWidth+kSideBarWidth-1
+// = 17, y = 0..7. Fired once the audio clock (host_rendered_frames) passes a frame threshold — keying
+// off rendered frames rather than wall-clock poll counts makes the onset deterministic and identical
+// across the x86 and arm-linux builds (so their captures are diffable). Held (no release) afterwards,
+// so the note sustains for the rest of the capture. DELUGE_HOST_PAD_AT_FRAME overrides the threshold.
+extern uint32_t host_rendered_frames; // host_audio.c
 static int host_pad_inited;
 static int host_pad_x = -1;
 static int host_pad_y;
-static int host_pad_warmup = 20;
+static uint32_t host_pad_at_frame = 4410; // ~0.1 s at 44.1 kHz
 static int host_pad_done;
 
 static void host_pad_init(void) {
 	host_pad_inited = 1;
 	const char* p = getenv("DELUGE_HOST_PAD");
-	if (!p) {
-		return;
+	if (p) {
+		int x = -1, y = -1;
+		if (sscanf(p, "%d,%d", &x, &y) == 2 && x >= 0 && y >= 0) {
+			host_pad_x = x;
+			host_pad_y = y;
+		}
 	}
-	int x = -1, y = -1;
-	if (sscanf(p, "%d,%d", &x, &y) == 2 && x >= 0 && y >= 0) {
-		host_pad_x = x;
-		host_pad_y = y;
+	const char* at = getenv("DELUGE_HOST_PAD_AT_FRAME");
+	if (at) {
+		host_pad_at_frame = (uint32_t)strtoul(at, NULL, 10);
 	}
 }
 
@@ -349,17 +392,14 @@ bool deluge_control_poll_event(DelugeInputEvent* out) {
 	if (!host_pad_inited) {
 		host_pad_init();
 	}
-	if (host_pad_x >= 0 && !host_pad_done) {
-		if (host_pad_warmup > 0) {
-			host_pad_warmup--;
-			return false;
-		}
+	if (host_pad_x >= 0 && !host_pad_done && host_rendered_frames >= host_pad_at_frame) {
 		out->kind = DELUGE_EVENT_PAD;
 		out->x = (uint8_t)host_pad_x;
 		out->y = (uint8_t)host_pad_y;
 		out->value = 255; // default-on velocity
 		host_pad_done = 1;
-		fprintf(stderr, "[host-pad] pad press+hold (x=%d, y=%d)\n", host_pad_x, host_pad_y);
+		fprintf(stderr, "[host-pad] pad press+hold (x=%d, y=%d) at frame %u\n", host_pad_x, host_pad_y,
+		        host_rendered_frames);
 		return true;
 	}
 	return false;

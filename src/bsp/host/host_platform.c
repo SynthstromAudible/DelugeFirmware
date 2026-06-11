@@ -109,3 +109,31 @@ uint32_t triggerClockRisingEdgesProcessed = 0;
 void putchar_(char c) {
 	putchar((unsigned char)c);
 }
+
+// ===========================================================================
+// arm-linux reference build only (sim/arm-linux-toolchain.cmake). On __arm__ the app takes code
+// paths that reference symbols normally provided by bsp/rza1 or hand-asm: the fault handler (its
+// FREEZE_WITH_ERROR macro reads LR/SP and calls fault_handler_print_freeze_pointers) and the FM
+// synth's neon_fm_kernel. Neither is on the audio path the WAV-diff harness exercises (error path;
+// default patch is subtractive, not FM), so stub them. On x86 (__arm__ undefined) these paths are
+// not taken and the symbols are not referenced.
+// ===========================================================================
+#if defined(__arm__)
+void fault_handler_print_freeze_pointers(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+	(void)a;
+	(void)b;
+	(void)c;
+	(void)d;
+}
+void neon_fm_kernel(const int32_t* in, const int32_t* busin, int32_t* out, int count, int32_t phase0, int32_t freq,
+                    int32_t gain1, int32_t dgain) {
+	(void)in;
+	(void)busin;
+	(void)out;
+	(void)count;
+	(void)phase0;
+	(void)freq;
+	(void)gain1;
+	(void)dgain;
+}
+#endif
