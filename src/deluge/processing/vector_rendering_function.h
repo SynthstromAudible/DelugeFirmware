@@ -33,7 +33,7 @@ waveRenderingFunctionGeneral(uint32_t phase, int32_t phaseIncrement, uint32_t _p
 		strength2[i] = rshifted;
 
 		uint32_t whichValue = phase >> (32 - tableSizeMagnitude);
-		uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));
+		uint32_t* readAddress = (uint32_t*)((uintptr_t)table + (whichValue << 1));
 		readValue[i].Load(readAddress);
 	});
 
