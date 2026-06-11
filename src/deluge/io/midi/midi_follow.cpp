@@ -135,8 +135,8 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::LOCAL_OSC_B_PHASE_WIDTH] = 28;
 	ccToSoundParam[29] = params::LOCAL_CARRIER_1_FEEDBACK;
 	soundParamToCC[params::LOCAL_CARRIER_1_FEEDBACK] = 29;
-	ccToSoundParam[30] = params::LOCAL_OSC_A_WAVE_INDEX;
-	soundParamToCC[params::LOCAL_OSC_A_WAVE_INDEX] = 30;
+	ccToSoundParam[30] = params::LOCAL_OSC_B_WAVE_INDEX;
+	soundParamToCC[params::LOCAL_OSC_B_WAVE_INDEX] = 30;
 	ccToSoundParam[36] = params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY] = 36;
 	ccToSoundParam[37] = params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY;
