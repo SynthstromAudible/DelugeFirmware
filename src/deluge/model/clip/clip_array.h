@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "util/containers.h"
+#include <algorithm>
 
 class Clip;
 
@@ -47,12 +48,8 @@ public:
 	}
 
 	int32_t getIndexForClip(Clip* clip) const {
-		for (int32_t c = 0; c < getNumElements(); c++) {
-			if (clips_[c] == clip) {
-				return c;
-			}
-		}
-		return -1;
+		auto it = std::ranges::find(clips_, clip);
+		return (it != clips_.end()) ? static_cast<int32_t>(it - clips_.begin()) : -1;
 	}
 
 	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded) {
@@ -66,7 +63,16 @@ public:
 
 	void swapElements(int32_t i1, int32_t i2) { std::swap(clips_[i1], clips_[i2]); }
 
-	void empty() { clips_.clear(); }
+	// Standard container surface
+	[[nodiscard]] size_t size() const { return clips_.size(); }
+	[[nodiscard]] bool empty() const { return clips_.empty(); }
+	void clear() { clips_.clear(); }
+	Clip*& operator[](size_t i) { return clips_[i]; }
+	Clip* const& operator[](size_t i) const { return clips_[i]; }
+	auto begin() { return clips_.begin(); }
+	auto end() { return clips_.end(); }
+	auto begin() const { return clips_.begin(); }
+	auto end() const { return clips_.end(); }
 
 private:
 	deluge::fast_vector<Clip*> clips_;

@@ -1100,7 +1100,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 					FREEZE_WITH_ERROR("E -1");
 				}
 
-				thisNoteRow->notes.empty(); // Undo our "total hack", above
+				thisNoteRow->notes.clear(); // Undo our "total hack", above
 
 				if (action) {
 					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceScaleAddNote));

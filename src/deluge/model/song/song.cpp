@@ -2375,7 +2375,7 @@ void Song::deleteSoundsWhichWontSound() {
 	}
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->clipInstances.empty();
+		thisOutput->clipInstances.clear();
 	}
 
 	deleteAllOutputs((Output**)&firstHibernatingInstrument);

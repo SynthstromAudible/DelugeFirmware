@@ -115,7 +115,9 @@ public:
 		ranges_.erase(ranges_.begin() + i, ranges_.begin() + i + numToDelete);
 	}
 
-	void empty() { ranges_.clear(); }
+	[[nodiscard]] size_t size() const { return ranges_.size(); }
+	[[nodiscard]] bool empty() const { return ranges_.empty(); }
+	void clear() { ranges_.clear(); }
 
 	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded) {
 		try {

@@ -48,7 +48,7 @@ void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo)
 			params.getElement(i)->param.deleteAutomationBasicForSetup();
 		}
 	}
-	params.empty(); // Destructs the params (the deleteStorageToo distinction is moot now this does both)
+	params.clear(); // Destructs the params (the deleteStorageToo distinction is moot now this does both)
 }
 
 void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelStack) {

@@ -467,7 +467,7 @@ void ArrangerView::deleteOutput() {
 		return;
 	}
 
-	output->clipInstances.empty(); // Because none of these have Clips, this is ok
+	output->clipInstances.clear(); // Because none of these have Clips, this is ok
 	output->cutAllSound();
 	currentSong->deleteOrHibernateOutput(output);
 

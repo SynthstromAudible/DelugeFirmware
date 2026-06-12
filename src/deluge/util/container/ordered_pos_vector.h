@@ -157,7 +157,15 @@ public:
 		}
 	}
 
-	void empty() { elements_.clear(); }
+	// Standard container surface
+	[[nodiscard]] size_t size() const { return elements_.size(); }
+	[[nodiscard]] bool empty() const { return elements_.empty(); }
+	void clear() { elements_.clear(); }
+	T& operator[](size_t i) { return elements_[i]; }
+	T const& operator[](size_t i) const { return elements_[i]; }
+	T& front() { return elements_.front(); }
+	T& back() { return elements_.back(); }
+	T* data() { return elements_.data(); }
 
 	void swapStateWith(OrderedPosVector* other) { elements_.swap(other->elements_); }
 

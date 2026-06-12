@@ -2753,7 +2753,7 @@ basicTrim:
 		if (action) {
 			action->recordNoteArrayChangeIfNotAlreadySnapshotted(clip, noteRowId, &notes, true); // Steal them
 		}
-		notes.empty(); // Delete them - in case no action, or the above chose not to steal them
+		notes.clear(); // Delete them - in case no action, or the above chose not to steal them
 	}
 }
 
@@ -4032,7 +4032,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clea
 		}
 		else {
 justEmpty:
-			notes.empty();
+			notes.clear();
 		}
 	}
 }

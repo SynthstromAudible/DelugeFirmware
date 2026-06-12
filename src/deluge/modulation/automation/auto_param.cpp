@@ -376,7 +376,7 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 	}
 
 	else {
-		nodes.empty();
+		nodes.clear();
 	}
 
 	valueIncrementPerHalfTick = 0;
@@ -390,7 +390,7 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 // Beware. As this will do no notifying, the caller must ensure that any required notification is done.
 // I.e. a ParamSet must be notified if automation is deleted.
 void AutoParam::deleteAutomationBasicForSetup() {
-	nodes.empty();
+	nodes.clear();
 	valueIncrementPerHalfTick = 0;
 	renewedOverridingAtTime = 0;
 }
@@ -1847,7 +1847,7 @@ addNewNodeAt0IfNecessary:
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true); // Steal
 		}
-		nodes.empty();                 // Delete them - either if no action, or if the above chose not to steal them.
+		nodes.clear();                 // Delete them - either if no action, or if the above chose not to steal them.
 		valueIncrementPerHalfTick = 0; // In case we were interpolating.
 	}
 }
@@ -2691,7 +2691,7 @@ doWrap:
 					// But if that would all mean that we'd actually end up with only 1 node, well that's not allowed.
 					// (Actually it is now, but let's be safe.)
 					if (nodes.getNumElements() == 1) {
-						nodes.empty();
+						nodes.clear();
 					}
 
 					// But yeah normally that'll be fine - just go copy to that node we've collided with

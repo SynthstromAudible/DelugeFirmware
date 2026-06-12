@@ -244,7 +244,7 @@ possiblyDeleteRanges:
 doChangeType:
 			Error error = ranges.changeType(multiRangeSize);
 			if (error != Error::NONE) {
-				ranges.empty();
+				ranges.clear();
 				soundEditor.currentMultiRangeIndex = 0;
 				goto doChangeType; // Can't fail now it's empty.
 			}
