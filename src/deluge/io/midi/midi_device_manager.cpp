@@ -169,7 +169,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 
 		if (candidate->vendorId == vendorId && candidate->productId == productId) {
 			// Update its name - if we got one and it's different
-			if (gotAName && !candidate->name.equals(name)) {
+			if (gotAName && candidate->name != name->get()) {
 				hostedMIDIDevices.renameMember(i, name);
 			}
 			return candidate;
@@ -204,7 +204,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 	}
 
 	if (gotAName) {
-		device->name.set(name);
+		device->name = name->get();
 	}
 	device->vendorId = vendorId;
 	device->productId = productId;
@@ -280,8 +280,8 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	// App policy, from the device's name. (The transport's own per-slot state —
 	// sequence bit, counters, connected flag — is reset below the boundary, from
 	// the HAL enumeration path.)
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
+	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.c_str(), "Synthstrom MIDI Foot Controller");
+	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.c_str(), "LUMI Keys BLOCK");
 
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
@@ -290,7 +290,7 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 	if (display->haveOLED()) {
 		String text;
-		text.set(&device->name);
+		text.set(device->name);
 		Error error = text.concatenate(" attached");
 		if (error == Error::NONE) {
 			consoleTextIfAllBootedUp(text.get());

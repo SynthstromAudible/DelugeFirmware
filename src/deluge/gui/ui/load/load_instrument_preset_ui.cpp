@@ -214,7 +214,7 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 			}
 
 			if (&soundDrumToReplace->path) {
-				currentDir.set(&soundDrumToReplace->path);
+				currentDir.set(soundDrumToReplace->path);
 				if (currentDir.isEmpty()) {
 					goto useDefaultFolder;
 				}
@@ -1085,7 +1085,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	// soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
 	soundDrumToReplace->drumName = getCurrentFilenameWithoutExtension();
-	soundDrumToReplace->path.set(&currentDir);
+	soundDrumToReplace->path = currentDir.get();
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {

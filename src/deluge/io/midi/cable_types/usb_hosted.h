@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge/io/midi/cable_types/usb_common.h"
+#include <string>
 
 class MIDICableUSBHosted : public MIDICableUSB {
 public:
@@ -91,5 +92,5 @@ public:
 
 	bool freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
-	String name;
+	std::string name;
 };

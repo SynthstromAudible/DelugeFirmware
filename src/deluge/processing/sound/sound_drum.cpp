@@ -33,7 +33,7 @@
 
 bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 	if (!strcmp(tagName, "path")) {
-		reader.readTagOrAttributeValueString(&path);
+		reader.readTagOrAttributeValueString(path);
 		reader.exitTag("path");
 	}
 	else if (readDrumTagFromFile(reader, tagName)) {
@@ -132,7 +132,7 @@ void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* p
 	writer.writeOpeningTagBeginning("sound", true);
 	writeDrumTagsToFile(writer);
 
-	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.get());
+	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.c_str());
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile(writer);
