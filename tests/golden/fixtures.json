@@ -1,0 +1,134 @@
+{
+ "analog_osc": {
+  "sha256": "d3b5424a55e2bf7dd0e8d7b2f00f5806d452a1ccd88e7b441002ada70c32336f",
+  "frames": 88200,
+  "peak": 2644,
+  "rms_db": -28.85
+ },
+ "env_shape": {
+  "sha256": "a12b56984b2bc129d66db262397def97b2019da5b9d8c81171d2449a21344b6a",
+  "frames": 132300,
+  "peak": 2645,
+  "rms_db": -28.6
+ },
+ "fm_2op": {
+  "sha256": "c2b711de002e7e9997aba3a80064c07f24e9a457efb90c2a449693b5e9c0e151",
+  "frames": 88200,
+  "peak": 8647,
+  "rms_db": -15.97
+ },
+ "fm_feedback": {
+  "sha256": "1ec75227943a2118992bd05c9dfde2f846393f0f1eb0e1eddc38448755e81cae",
+  "frames": 88200,
+  "peak": 8663,
+  "rms_db": -17.86
+ },
+ "lfo_vibrato": {
+  "sha256": "ad153f280dda73b99732cb4649b39b4b68c83700479f845b161c0bbe8b935828",
+  "frames": 88200,
+  "peak": 2646,
+  "rms_db": -26.76
+ },
+ "lpf_24db_env2": {
+  "sha256": "1b44e6d7dc50c13cc8bd5b831bfd3e6128c2c7ce63a3638f0fc53b30a273fa34",
+  "frames": 88200,
+  "peak": 4786,
+  "rms_db": -32.78
+ },
+ "mono_legato": {
+  "sha256": "97bdef19cde24ed22fb8497a0998264f9834f96a82411a72c30f0130482ac571",
+  "frames": 88200,
+  "peak": 2646,
+  "rms_db": -26.1
+ },
+ "noise_only": {
+  "sha256": "455e11338c2b678b545ca4979c5a31d85747c40000f5c50b17191840c6fee78b",
+  "frames": 88200,
+  "peak": 2646,
+  "rms_db": -30.53
+ },
+ "pitch_bend": {
+  "sha256": "6dbd4ad82ed3dd0886c86428fcd16d1afc6f4cece78ea92a718b6c9163a2c159",
+  "frames": 88200,
+  "peak": 2646,
+  "rms_db": -25.37
+ },
+ "poly_chord": {
+  "sha256": "5ac3a15d173752a9a94abfccc4ada27013d30bc1bc1e27b7186f6551155f25af",
+  "frames": 88200,
+  "peak": 7922,
+  "rms_db": -22.06
+ },
+ "porta": {
+  "sha256": "076576277d9ff096542904f34098c611ea13573e34b4f49030e4e0e47fc2d837",
+  "frames": 88200,
+  "peak": 2646,
+  "rms_db": -25.38
+ },
+ "ringmod": {
+  "sha256": "3021a8c6943637d746e4d0cd3b179726ded985519c06aaef65944042f05079fb",
+  "frames": 88200,
+  "peak": 2645,
+  "rms_db": -26.56
+ },
+ "saw_basic": {
+  "sha256": "b2ebf7e0dcf72d27c9e7e26be3e8cd3c265cc765b9898699260ea3cf1c548a17",
+  "frames": 88200,
+  "peak": 2646,
+  "rms_db": -26.76
+ },
+ "sine_basic": {
+  "sha256": "0e135a76c506203a6be93948af4870785a6651b184bc7fea6381c3874cee332c",
+  "frames": 88200,
+  "peak": 2645,
+  "rms_db": -26.48
+ },
+ "square_basic": {
+  "sha256": "8b127df8fac0af0c79159b21e61ddee20e916edbb828baa202260a4f7f6099a9",
+  "frames": 88200,
+  "peak": 1940,
+  "rms_db": -27.31
+ },
+ "square_pw": {
+  "sha256": "062393d069fe7ac8c315a26161cd5e21d52a0bc636f219bf1a00ef4d39c8f1bd",
+  "frames": 88200,
+  "peak": 1940,
+  "rms_db": -27.31
+ },
+ "svf_band": {
+  "sha256": "97e9c193b0b64d898b6837a9db16ebff4bc7a3e19953971a3561662dd83a042a",
+  "frames": 88200,
+  "peak": 6018,
+  "rms_db": -25.07
+ },
+ "triangle_basic": {
+  "sha256": "59143c7adade2a9b06db0a5a0ad1ca3778771d85f9720be32986e0097f583048",
+  "frames": 88200,
+  "peak": 2645,
+  "rms_db": -26.74
+ },
+ "two_osc_detune": {
+  "sha256": "5e3e46d6ea0fcbf494bf2eceb61395f0e11b1ad1df88e5595c7997a8a4673aad",
+  "frames": 88200,
+  "peak": 2646,
+  "rms_db": -27.52
+ },
+ "unison_spread": {
+  "sha256": "a0ab7ebffd89197c9693dee63a935a93bc214e59bb0cfa65be986489a8ec5de7",
+  "frames": 88200,
+  "peak": 2645,
+  "rms_db": -27.52
+ },
+ "velocity_dynamics": {
+  "sha256": "dfed7258ac1fa9ec59225be168c8cac4840e55a51a240af9f93eeb7ff89ece7c",
+  "frames": 88200,
+  "peak": 4334,
+  "rms_db": -24.61
+ },
+ "wavefold_sine": {
+  "sha256": "39772aedcda2aab253abaf29ea30d0461f5e95a9d6c2f831e110c7a47680a7ed",
+  "frames": 88200,
+  "peak": 2640,
+  "rms_db": -28.33
+ }
+}
