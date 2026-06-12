@@ -401,11 +401,7 @@ fail:
 
 		preLoadedSong->dirPath = currentDir;
 
-		std::string currentFilenameWithoutExtension;
-		error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
+		std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
 
 		error = audioFileManager.setupAlternateAudioFileDir(
 		    audioFileManager.alternateAudioFileLoadPath, currentDir.c_str(), currentFilenameWithoutExtension.c_str());
@@ -464,11 +460,7 @@ gotErrorAfterCreatingSong:
 
 	preLoadedSong->dirPath = currentDir;
 
-	std::string currentFilenameWithoutExtension;
-	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-	if (error != Error::NONE) {
-		goto gotErrorAfterCreatingSong;
-	}
+	std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
 
 	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.c_str(),
 	                                                    currentFilenameWithoutExtension.c_str());

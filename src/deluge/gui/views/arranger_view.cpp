@@ -833,8 +833,7 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 
 	Error error = Error::NONE;
 	if (!newInstrument) {
-		std::string newPresetName;
-		fileItem->getDisplayNameWithoutExtension(&newPresetName);
+		std::string newPresetName = fileItem->getDisplayNameWithoutExtension();
 		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, newOutputType, false, &newInstrument,
 		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}

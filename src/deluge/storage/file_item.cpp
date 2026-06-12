@@ -33,41 +33,37 @@ Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating)
 	return Error::NONE;
 }
 
-Error FileItem::getFilenameWithExtension(std::string* filenameWithExtension) {
-	(*filenameWithExtension) = filename;
+std::string FileItem::getFilenameWithExtension() const {
+	std::string result = filename;
 	if (!filenameIncludesExtension) {
-		(*filenameWithExtension).append(".XML");
+		result.append(".XML");
 	}
-	return Error::NONE;
+	return result;
 }
 
-Error FileItem::getFilenameWithoutExtension(std::string* filenameWithoutExtension) {
-	(*filenameWithoutExtension) = filename;
+std::string FileItem::getFilenameWithoutExtension() const {
+	std::string result = filename;
 	if (filenameIncludesExtension) {
-		char const* chars = filenameWithoutExtension->c_str();
-		char const* dotAddress = strrchr(chars, '.');
-		if (dotAddress) {
-			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			(*filenameWithoutExtension).resize(newLength);
+		size_t dotPos = result.rfind('.');
+		if (dotPos != std::string::npos) {
+			result.resize(dotPos);
 		}
 	}
-	return Error::NONE;
+	return result;
 }
 
-Error FileItem::getDisplayNameWithoutExtension(std::string* displayNameWithoutExtension) {
+std::string FileItem::getDisplayNameWithoutExtension() const {
 	if (display->haveOLED()) {
-		return getFilenameWithoutExtension(displayNameWithoutExtension);
+		return getFilenameWithoutExtension();
 	}
 
 	// 7SEG...
-	(*displayNameWithoutExtension) = displayName;
+	std::string result = displayName;
 	if (filenameIncludesExtension) {
-		char const* chars = displayNameWithoutExtension->c_str();
-		char const* dotAddress = strrchr(chars, '.');
-		if (dotAddress) {
-			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			(*displayNameWithoutExtension).resize(newLength);
+		size_t dotPos = result.rfind('.');
+		if (dotPos != std::string::npos) {
+			result.resize(dotPos);
 		}
 	}
-	return Error::NONE;
+	return result;
 }

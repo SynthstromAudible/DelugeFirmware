@@ -1545,11 +1545,7 @@ doneMoving:
 		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
 	}
 	else {
-		toReturn.error = toReturn.fileItem->getDisplayNameWithoutExtension(&newName);
-		if (toReturn.error != Error::NONE) {
-			emptyFileItems();
-			return toReturn;
-		}
+		newName = toReturn.fileItem->getDisplayNameWithoutExtension();
 		oldNameString = toReturn.fileItem->displayName;
 		toReturn.error = Error::NONE;
 		if (toReturn.error != Error::NONE) {

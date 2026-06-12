@@ -26,9 +26,9 @@ class FileItem {
 public:
 	FileItem() = default;
 	Error setupWithInstrument(Instrument* newInstrument, bool hibernating);
-	Error getFilenameWithExtension(std::string* filenameWithExtension);
-	Error getFilenameWithoutExtension(std::string* filenameWithoutExtension);
-	Error getDisplayNameWithoutExtension(std::string* displayNameWithoutExtension);
+	[[nodiscard]] std::string getFilenameWithExtension() const;
+	[[nodiscard]] std::string getFilenameWithoutExtension() const;
+	[[nodiscard]] std::string getDisplayNameWithoutExtension() const;
 
 	char const* displayName; // Usually points to filePointer.get(), but for "numeric" files, will cut off the prefix,
 	                         // e.g. "SONG". And I think this always includes the file extension...

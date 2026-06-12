@@ -1586,8 +1586,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 
 	Error error = Error::NONE;
 	if (!newInstrument) {
-		std::string newPresetName;
-		fileItem->getDisplayNameWithoutExtension(&newPresetName);
+		std::string newPresetName = fileItem->getDisplayNameWithoutExtension();
 		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &newInstrument,
 		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}

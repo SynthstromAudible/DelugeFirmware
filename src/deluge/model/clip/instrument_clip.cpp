@@ -3754,8 +3754,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
 
 		if (!newInstrument) {
-			std::string newPresetName;
-			fileItem->getDisplayNameWithoutExtension(&newPresetName);
+			std::string newPresetName = fileItem->getDisplayNameWithoutExtension();
 			error =
 			    StorageManager::loadInstrumentFromFile(modelStack->song, nullptr, newOutputType, false, &newInstrument,
 			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);

@@ -408,8 +408,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(nullptr, OutputType::SYNTH,
 	                                                                                Availability::ANY);
 	if (result) {
-		std::string newPresetName;
-		result.value()->getDisplayNameWithoutExtension(&newPresetName);
+		std::string newPresetName = result.value()->getDisplayNameWithoutExtension();
 		error =
 		    StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false, &newInstrument,
 		                                           &result.value()->filePointer, &newPresetName, &Browser::currentDir);
@@ -4974,8 +4973,7 @@ gotAnInstrument: {}
 
 		Error error = Error::NONE;
 		if (!newInstrument) {
-			std::string newPresetName;
-			fileItem->getDisplayNameWithoutExtension(&newPresetName);
+			std::string newPresetName = fileItem->getDisplayNameWithoutExtension();
 			error =
 			    StorageManager::loadInstrumentFromFile(this, nullptr, newOutputType, false, &newInstrument,
 			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);

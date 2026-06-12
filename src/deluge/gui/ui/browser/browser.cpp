@@ -781,11 +781,7 @@ noNumberYet:
 			}
 #endif
 			FileItem* prevFile = (FileItem*)fileItems.getElementAddress(searchResult - 1);
-			std::string prevFilename;
-			error = prevFile->getFilenameWithoutExtension(&prevFilename);
-			if (error != Error::NONE) {
-				goto gotErrorAfterAllocating;
-			}
+			std::string prevFilename = prevFile->getFilenameWithoutExtension();
 			char const* prevFilenameChars = prevFilename.c_str();
 			int32_t number;
 			if (prevFilename.size() > numberStartPos) {
@@ -874,11 +870,7 @@ doReturn:
 		int32_t minNumDigits = 1;
 		if (fileItems.getNumElements()) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-			std::string displayName;
-			error = fileItem->getDisplayNameWithoutExtension(&displayName);
-			if (error != Error::NONE) {
-				goto emptyFileItemsAndReturn;
-			}
+			std::string displayName = fileItem->getDisplayNameWithoutExtension();
 			char const* readingChar = &displayName.c_str()[strlen(thingName)];
 			freeSlotNumber = 0;
 			minNumDigits = 0;
@@ -914,11 +906,7 @@ noMoreToLookAt:
 		}
 		else {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-			std::string displayName;
-			error = fileItem->getDisplayNameWithoutExtension(&displayName);
-			if (error != Error::NONE) {
-				goto emptyFileItemsAndReturn;
-			}
+			std::string displayName = fileItem->getDisplayNameWithoutExtension();
 			char const* displayNameChars = displayName.c_str();
 			if (displayNameChars[0] < '0') {
 				goto noMoreToLookAt;
