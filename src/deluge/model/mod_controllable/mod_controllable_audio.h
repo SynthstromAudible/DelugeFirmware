@@ -29,7 +29,6 @@
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/knob.h"
 #include "modulation/lfo.h"
-#include "modulation/midi/midi_knob_array.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
 #include "modulation/sidechain/sidechain.h"
