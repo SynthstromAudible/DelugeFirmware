@@ -21,22 +21,46 @@
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file.h"
 #include "storage/wave_table/wave_table_band_data.h"
-#include "util/container/array/ordered_resizeable_array.h"
+#include "util/containers.h"
+#include <utility>
 
 class Sample;
 class WaveTableReader;
 
 class WaveTableBand {
 public:
+	WaveTableBand() = default;
 	~WaveTableBand();
-	uint32_t maxPhaseIncrement;
-	int32_t fromCycleNumber;
-	int32_t toCycleNumber;
-	uint16_t cycleSizeNoDuplicates;
-	uint8_t cycleSizeMagnitude;
-	bool intendedForLinearInterpolation;
-	int16_t* dataAccessAddress;
-	WaveTableBandData* data; // Might be different than the above if memory has been shortened
+
+	// The destructor releases `data`, so ownership must transfer on move and copying is forbidden
+	WaveTableBand(const WaveTableBand&) = delete;
+	WaveTableBand& operator=(const WaveTableBand&) = delete;
+	WaveTableBand(WaveTableBand&& other) noexcept
+	    : maxPhaseIncrement(other.maxPhaseIncrement), fromCycleNumber(other.fromCycleNumber),
+	      toCycleNumber(other.toCycleNumber), cycleSizeNoDuplicates(other.cycleSizeNoDuplicates),
+	      cycleSizeMagnitude(other.cycleSizeMagnitude),
+	      intendedForLinearInterpolation(other.intendedForLinearInterpolation),
+	      dataAccessAddress(other.dataAccessAddress), data(std::exchange(other.data, nullptr)) {}
+	WaveTableBand& operator=(WaveTableBand&& other) noexcept {
+		std::swap(maxPhaseIncrement, other.maxPhaseIncrement);
+		std::swap(fromCycleNumber, other.fromCycleNumber);
+		std::swap(toCycleNumber, other.toCycleNumber);
+		std::swap(cycleSizeNoDuplicates, other.cycleSizeNoDuplicates);
+		std::swap(cycleSizeMagnitude, other.cycleSizeMagnitude);
+		std::swap(intendedForLinearInterpolation, other.intendedForLinearInterpolation);
+		std::swap(dataAccessAddress, other.dataAccessAddress);
+		std::swap(data, other.data);
+		return *this;
+	}
+
+	uint32_t maxPhaseIncrement = 0;
+	int32_t fromCycleNumber = 0;
+	int32_t toCycleNumber = 0;
+	uint16_t cycleSizeNoDuplicates = 0;
+	uint8_t cycleSizeMagnitude = 0;
+	bool intendedForLinearInterpolation = false;
+	int16_t* dataAccessAddress = nullptr;
+	WaveTableBandData* data = nullptr; // Might be different than the above if memory has been shortened
 };
 
 class WaveTable final : public AudioFile {
@@ -60,7 +84,7 @@ public:
 	int32_t numCycleTransitionsNextPowerOf2;
 	int32_t numCycleTransitionsNextPowerOf2Magnitude;
 	int32_t waveIndexMultiplier;
-	OrderedResizeableArrayWith32bitKey bands;
+	deluge::fast_vector<WaveTableBand> bands; // Sorted ascending by maxPhaseIncrement
 
 protected:
 	void numReasonsIncreasedFromZero() override;
