@@ -22,9 +22,10 @@
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"
-#include "util/container/vector/named_thing_vector.h"
+#include "util/containers.h"
 class Serializer;
 class Deserializer;
+class MIDICableUSBHosted;
 
 #else
 #include "definitions.h"
@@ -91,7 +92,8 @@ extern MIDICableDINPorts dinMIDIPorts;
 
 extern bool differentiatingInputsByDevice;
 
-extern NamedThingVector hostedMIDIDevices;
+/// Hosted USB MIDI cables, sorted case-insensitively by name (may contain entries with empty names, which sort first)
+extern deluge::fast_vector<MIDICableUSBHosted*> hostedMIDIDevices;
 
 extern uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
 extern uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput;

@@ -38,7 +38,8 @@ static constexpr int32_t lowestDeviceNum = -3;
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	bool found = false;
 	if (navigatedBackwardFrom != nullptr) {
-		for (int32_t idx = lowestDeviceNum; idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); idx++) {
+		for (int32_t idx = lowestDeviceNum; idx < static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size());
+		     idx++) {
 			if (getCable(idx) == soundEditor.currentMIDICable) {
 				found = true;
 				this->setValue(idx);
@@ -66,7 +67,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 	do {
 		int32_t newValue = this->getValue() + offset;
 
-		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
+		if (newValue >= static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size())) {
 			if (display->haveOLED()) {
 				return;
 			}
@@ -76,7 +77,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 			if (display->haveOLED()) {
 				return;
 			}
-			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;
+			newValue = static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size()) - 1;
 		}
 
 		this->setValue(newValue);
@@ -114,7 +115,8 @@ void Devices::selectEncoderAction(int32_t offset) {
 }
 
 MIDICable* Devices::getCable(int32_t deviceIndex) {
-	if (deviceIndex < lowestDeviceNum || deviceIndex >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
+	if (deviceIndex < lowestDeviceNum
+	    || deviceIndex >= static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size())) {
 		D_PRINTLN("impossible device request");
 		return nullptr;
 	}
@@ -129,7 +131,7 @@ MIDICable* Devices::getCable(int32_t deviceIndex) {
 		return &MIDIDeviceManager::upstreamUSBMIDICable2;
 	}
 	default: {
-		return static_cast<MIDICable*>(MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex));
+		return MIDIDeviceManager::hostedMIDIDevices[deviceIndex];
 	}
 	}
 }
@@ -155,7 +157,8 @@ void Devices::drawPixelsForOled() {
 
 	int32_t device_idx = current_scroll_;
 	size_t row = 0;
-	while (row < kOLEDMenuNumOptionsVisible && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
+	while (row < kOLEDMenuNumOptionsVisible
+	       && device_idx < static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size())) {
 		MIDICable* cable = getCable(device_idx);
 		if (cable && cable->connectionFlags != 0u) {
 			itemNames.push_back(cable->getDisplayName());
