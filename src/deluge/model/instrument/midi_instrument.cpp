@@ -738,7 +738,7 @@ traverseClips:
 			}
 		}
 		else {
-			ClipInstance* clipInstance = clipInstances.getElement(c);
+			ClipInstance* clipInstance = &clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -755,7 +755,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = clipInstances.getNumElements();
+		numElements = std::ssize(clipInstances);
 		goto traverseClips;
 	}
 
@@ -773,7 +773,7 @@ traverseClips2:
 			}
 		}
 		else {
-			ClipInstance* clipInstance = clipInstances.getElement(c);
+			ClipInstance* clipInstance = &clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -787,7 +787,7 @@ traverseClips2:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = clipInstances.getNumElements();
+		numElements = std::ssize(clipInstances);
 		goto traverseClips2;
 	}
 

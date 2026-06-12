@@ -122,7 +122,7 @@ void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas)
 
 void ArrangerView::moveClipToSession() {
 	Output* output = outputsOnScreen[yPressedEffective];
-	ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
+	ClipInstance* clipInstance = &output->clipInstances[pressedClipInstanceIndex];
 	Clip* clip = clipInstance->clip;
 
 	// Empty ClipInstance - can't do
@@ -457,8 +457,8 @@ void ArrangerView::deleteOutput() {
 		return;
 	}
 
-	for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
-		if (output->clipInstances.getElement(i)->clip) {
+	for (int32_t i = 0; i < std::ssize(output->clipInstances); i++) {
+		if (output->clipInstances[i].clip) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST));
 			return;
 		}
@@ -501,8 +501,8 @@ void ArrangerView::clearArrangement() {
 	// calling of output->pickAnActiveClipIfPossible. So we have to ensure that extra ClipInstances don't exist at any
 	// instant in time, or else it'll look at those to pick the new activeClip, which might not exist anymore.
 	for (Output* output = currentSong->firstOutput; output; output = output->next) {
-		for (int32_t i = output->clipInstances.getNumElements() - 1; i >= 0; i--) {
-			deleteClipInstance(output, i, output->clipInstances.getElement(i), action, false);
+		for (int32_t i = std::ssize(output->clipInstances) - 1; i >= 0; i--) {
+			deleteClipInstance(output, i, &output->clipInstances[i], action, false);
 		}
 	}
 
@@ -1179,8 +1179,8 @@ void ArrangerView::outputActivated(Output* output) {
 
 	int32_t actualPos = arrangement.getLivePos();
 
-	int32_t i = output->clipInstances.search(actualPos + 1, LESS);
-	ClipInstance* clipInstance = output->clipInstances.getElement(i);
+	int32_t i = output->clipInstances.firstAtOrAfter(actualPos + 1) - 1;
+	ClipInstance* clipInstance = &output->clipInstances[i];
 	if (clipInstance && clipInstance->pos + clipInstance->length > actualPos) {
 		arrangement.resumeClipInstancePlayback(clipInstance);
 	}
@@ -1214,7 +1214,7 @@ void ArrangerView::deleteClipInstance(Output* output, int32_t clipInstanceIndex,
 
 	// Delete the ClipInstance
 	if (!clearingWholeArrangement) {
-		output->clipInstances.deleteAtIndex(clipInstanceIndex);
+		output->clipInstances.erase(output->clipInstances.begin() + clipInstanceIndex);
 	}
 
 	currentSong->deletingClipInstanceForClip(output, clip, action, !clearingWholeArrangement);
@@ -1314,7 +1314,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 					// Or if yes we do want to do some action...
 					else {
 						ClipInstance* clipInstance =
-						    output->clipInstances.getElement(pressedClipInstanceIndex); // Can't fail, I think?
+						    &output->clipInstances[pressedClipInstanceIndex]; // Can't fail, I think?
 
 						// If pressed head, delete
 						if (pressedHead) {
@@ -1349,8 +1349,8 @@ void ArrangerView::cloneClipInstanceToWhite(Output* output, int32_t x, int32_t y
 	int32_t squareStart = getPosFromSquare(x, xScroll);
 	int32_t squareEnd = getPosFromSquare(x + 1, xScroll);
 
-	int32_t i = output->clipInstances.search(squareEnd, LESS);
-	ClipInstance* clipInstance = output->clipInstances.getElement(i);
+	int32_t i = output->clipInstances.firstAtOrAfter(squareEnd) - 1;
+	ClipInstance* clipInstance = &output->clipInstances[i];
 	if (clipInstance && clipInstance->pos + clipInstance->length >= squareStart) {
 		Clip* oldClip = clipInstance->clip;
 
@@ -1376,8 +1376,8 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 	output->clipInstances.testSequentiality("E117");
 
 	// Look for a clip instance to the left of, or including press position
-	int32_t i = output->clipInstances.search(squareEnd, LESS);
-	ClipInstance* clipInstance = output->clipInstances.getElement(i);
+	int32_t i = output->clipInstances.firstAtOrAfter(squareEnd) - 1;
+	ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 
 	// If we did find a clip instance
 	if (clipInstance) {
@@ -1430,13 +1430,13 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 	Clip* newClip;
 
 	Output* lastOutputInteractedWith = currentSong->getOutputFromIndex(lastInteractedOutputIndex);
-	int32_t lastClipInstanceI = lastOutputInteractedWith->clipInstances.search(lastInteractedPos, GREATER_OR_EQUAL);
-	ClipInstance* lastClipInstance = lastOutputInteractedWith->clipInstances.getElement(lastClipInstanceI);
+	int32_t lastClipInstanceI = lastOutputInteractedWith->clipInstances.firstAtOrAfter(lastInteractedPos);
+	ClipInstance* lastClipInstance = &lastOutputInteractedWith->clipInstances[lastClipInstanceI];
 
 	// Test thing
 	{
-		int32_t j = output->clipInstances.search(squareStart, GREATER_OR_EQUAL);
-		ClipInstance* nextClipInstance = output->clipInstances.getElement(j);
+		int32_t j = output->clipInstances.firstAtOrAfter(squareStart);
+		ClipInstance* nextClipInstance = &output->clipInstances[j];
 		if (nextClipInstance && nextClipInstance->pos == squareStart) {
 			FREEZE_WITH_ERROR("E233"); // Yes, this happened to someone. Including me!!
 		}
@@ -1446,11 +1446,11 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 
 	// Make the actual new ClipInstance. Do it now, after potentially looking at existing ones above, so
 	// that we don't look at this new one above
-	pressedClipInstanceIndex = output->clipInstances.insertAtKey(squareStart);
+	pressedClipInstanceIndex = output->clipInstances.insertSorted(squareStart).value_or(-1);
 
 	// Test thing
 	{
-		ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
+		ClipInstance* nextInstance = output->clipInstances.tryGet(pressedClipInstanceIndex + 1);
 		if (nextInstance) {
 			if (nextInstance->pos == squareStart) {
 				FREEZE_WITH_ERROR("E232");
@@ -1458,7 +1458,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 		}
 	}
 
-	clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
+	clipInstance = output->clipInstances.tryGet(pressedClipInstanceIndex);
 	if (!clipInstance) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
@@ -1477,7 +1477,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 		FREEZE_WITH_ERROR("E049");
 	}
 
-	ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
+	ClipInstance* nextInstance = output->clipInstances.tryGet(pressedClipInstanceIndex + 1);
 	if (nextInstance) {
 
 		if (nextInstance->pos == squareStart) {
@@ -1575,7 +1575,7 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y
 	int32_t oldSquareEnd = getPosFromSquare(x + 1);
 
 	// Search for previously pressed ClipInstance
-	ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
+	ClipInstance* clipInstance = &output->clipInstances[pressedClipInstanceIndex];
 
 	int32_t lengthTilNewSquareStart = squareStart - clipInstance->pos;
 
@@ -1599,7 +1599,7 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y
 		int32_t newLength = squareEnd - clipInstance->pos;
 
 		// Make sure it doesn't collide with next ClipInstance
-		ClipInstance* nextClipInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
+		ClipInstance* nextClipInstance = output->clipInstances.tryGet(pressedClipInstanceIndex + 1);
 		if (nextClipInstance) {
 			int32_t maxLength = nextClipInstance->pos - clipInstance->pos;
 			if (newLength > maxLength) {
@@ -1933,8 +1933,8 @@ bool ArrangerView::transitionToArrangementEditor() {
 	}
 
 	Output* output = getCurrentOutput();
-	int32_t i = output->clipInstances.search(currentSong->lastClipInstanceEnteredStartPos, GREATER_OR_EQUAL);
-	ClipInstance* clipInstance = output->clipInstances.getElement(i);
+	int32_t i = output->clipInstances.firstAtOrAfter(currentSong->lastClipInstanceEnteredStartPos);
+	ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 	if (!clipInstance || clipInstance->clip != getCurrentClip()) {
 		return false;
 	}
@@ -2031,7 +2031,7 @@ bool ArrangerView::putDraggedClipInstanceInNewPosition(Output* newOutputToDragIn
 	uint32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 	int32_t xMovement = xScroll - pressedClipInstanceXScrollWhenLastInValidPosition;
 
-	ClipInstance* clipInstance = pressedClipInstanceOutput->clipInstances.getElement(pressedClipInstanceIndex);
+	ClipInstance* clipInstance = &pressedClipInstanceOutput->clipInstances[pressedClipInstanceIndex];
 	Clip* clip = clipInstance->clip;
 
 	// If Output still the same
@@ -2075,8 +2075,8 @@ itsInvalid:
 	}
 
 	// See what's before
-	int32_t iPrev = newOutputToDragInto->clipInstances.search(newStartPos, LESS);
-	ClipInstance* prevClipInstance = newOutputToDragInto->clipInstances.getElement(iPrev);
+	int32_t iPrev = newOutputToDragInto->clipInstances.firstAtOrAfter(newStartPos) - 1;
+	ClipInstance* prevClipInstance = newOutputToDragInto->clipInstances.tryGet(iPrev);
 	if (prevClipInstance != clipInstance) {
 		if (prevClipInstance) {
 			if (newOutputToDragInto->recordingInArrangement) {
@@ -2094,7 +2094,7 @@ itsInvalid:
 
 	// See what's after
 	int32_t iNext = iPrev + 1;
-	ClipInstance* nextClipInstance = newOutputToDragInto->clipInstances.getElement(iNext);
+	ClipInstance* nextClipInstance = &newOutputToDragInto->clipInstances[iNext];
 	if (nextClipInstance != clipInstance) {
 		if (nextClipInstance && nextClipInstance->pos < newStartPos + clipInstance->length) {
 			goto itsInvalid;
@@ -2123,11 +2123,12 @@ itsInvalid:
 			action->recordClipInstanceExistenceChange(pressedClipInstanceOutput, clipInstance,
 			                                          ExistenceChangeType::DELETE);
 		}
-		pressedClipInstanceOutput->clipInstances.deleteAtIndex(pressedClipInstanceIndex);
+		pressedClipInstanceOutput->clipInstances.erase(pressedClipInstanceOutput->clipInstances.begin()
+		                                               + pressedClipInstanceIndex);
 
-		pressedClipInstanceIndex = newOutputToDragInto->clipInstances.insertAtKey(newStartPos);
+		pressedClipInstanceIndex = newOutputToDragInto->clipInstances.insertSorted(newStartPos).value_or(-1);
 		// TODO: error check
-		clipInstance = newOutputToDragInto->clipInstances.getElement(pressedClipInstanceIndex);
+		clipInstance = &newOutputToDragInto->clipInstances[pressedClipInstanceIndex];
 		clipInstance->clip = clip;
 		clipInstance->length = length;
 		if (action) {
@@ -2262,7 +2263,7 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 
 		int32_t xMovement =
 		    currentSong->xScroll[NAVIGATION_ARRANGEMENT] - pressedClipInstanceXScrollWhenLastInValidPosition;
-		ClipInstance* clipInstance = pressedClipInstanceOutput->clipInstances.getElement(pressedClipInstanceIndex);
+		ClipInstance* clipInstance = &pressedClipInstanceOutput->clipInstances[pressedClipInstanceIndex];
 		int32_t newStartPos = clipInstance->pos + xMovement;
 		int32_t newEndPos = newStartPos + clipInstance->length;
 
@@ -2310,7 +2311,7 @@ bool ArrangerView::renderRowForOutput(ModelStack* modelStack, Output* output, in
 	// this is constant and zero - so does nothing?
 	int32_t firstXDisplayNotLeftOf0 = 0;
 
-	if (!output->clipInstances.getNumElements()) {
+	if (output->clipInstances.empty()) {
 		while (imageNow < imageEnd) {
 			*(imageNow++) = colours::black;
 		}
@@ -2346,7 +2347,7 @@ squareStartPosSet:
 		if (i == ignoreI) {
 			i--;
 		}
-		ClipInstance* clipInstance = output->clipInstances.getElement(i);
+		ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 
 		if (clipInstance) {
 			RGB colour = clipInstance->getColour();
@@ -2484,7 +2485,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
-		ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
+		ClipInstance* clipInstance = &output->clipInstances[pressedClipInstanceIndex];
 
 		// If an arrangement-only Clip, can't do anything
 		if (clipInstance->clip && clipInstance->clip->section == 255) {
@@ -2521,7 +2522,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		}
 
 		// Make sure it's not too long
-		ClipInstance* nextClipInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
+		ClipInstance* nextClipInstance = output->clipInstances.tryGet(pressedClipInstanceIndex + 1);
 		if (nextClipInstance) {
 			int32_t maxLength = nextClipInstance->pos - clipInstance->pos;
 
@@ -2631,7 +2632,7 @@ void ArrangerView::changeOutputToAudio() {
 		return;
 	}
 
-	if (oldOutput->clipInstances.getNumElements()) {
+	if (!oldOutput->clipInstances.empty()) {
 cant:
 		display->displayPopup(deluge::l10n::get(
 		    deluge::l10n::String::STRING_FOR_INSTRUMENTS_WITH_CLIPS_CANT_BE_TURNED_INTO_AUDIO_TRACKS));
@@ -2810,7 +2811,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
 
 			ClipInstance* pressed_instance =
-			    (ClipInstance*)pressedClipInstanceOutput->clipInstances.getElement(pressedClipInstanceIndex);
+			    (ClipInstance*)&pressedClipInstanceOutput->clipInstances[pressedClipInstanceIndex];
 			int32_t xMovement =
 			    currentSong->xScroll[NAVIGATION_ARRANGEMENT] - pressedClipInstanceXScrollWhenLastInValidPosition;
 			int32_t dragged_clip_position = pressed_instance->pos + xMovement;
@@ -2863,13 +2864,13 @@ void ArrangerView::shiftAutomationHorizontally(int32_t offset, int32_t scroll_am
 // This function will shift clips horizontally at a specific point in time by inserting / deleting time
 void ArrangerView::shiftClipsHorizontally(int32_t offset, int32_t scroll_amount, Action* action) {
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		int32_t i = thisOutput->clipInstances.search(currentSong->xScroll[NAVIGATION_ARRANGEMENT], GREATER_OR_EQUAL);
+		int32_t i = thisOutput->clipInstances.firstAtOrAfter(currentSong->xScroll[NAVIGATION_ARRANGEMENT]);
 
 		bool movedOneYet = false;
 
 		// And move the successive ones.
-		while (i < thisOutput->clipInstances.getNumElements()) {
-			ClipInstance* instance = thisOutput->clipInstances.getElement(i);
+		while (i < std::ssize(thisOutput->clipInstances)) {
+			ClipInstance* instance = &thisOutput->clipInstances[i];
 
 			// If contracting time and this bit has to be deleted...
 			if (offset < 0 && instance->pos + scroll_amount < currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
@@ -2889,7 +2890,7 @@ void ArrangerView::shiftClipsHorizontally(int32_t offset, int32_t scroll_amount,
 				// users.
 				if (!movedOneYet && offset < 0 && i > 0) {
 					movedOneYet = true;
-					ClipInstance* prevInstance = (ClipInstance*)thisOutput->clipInstances.getElement(i - 1);
+					ClipInstance* prevInstance = (ClipInstance*)&thisOutput->clipInstances[i - 1];
 					int32_t maxLength = new_pos - prevInstance->pos;
 					if (prevInstance->length > maxLength) {
 						prevInstance->change(action, thisOutput, prevInstance->pos, maxLength, prevInstance->clip);
@@ -3283,9 +3284,9 @@ uint32_t ArrangerView::getMaxLength() {
 			}
 		}
 
-		int32_t numElements = thisOutput->clipInstances.getNumElements();
+		int32_t numElements = std::ssize(thisOutput->clipInstances);
 		if (numElements) {
-			ClipInstance* lastInstance = thisOutput->clipInstances.getElement(numElements - 1);
+			ClipInstance* lastInstance = &thisOutput->clipInstances[numElements - 1];
 			uint32_t endPos = static_cast<uint32_t>(lastInstance->pos + lastInstance->length);
 			maxEndPos = std::max(maxEndPos, endPos);
 		}
@@ -3318,7 +3319,7 @@ uint32_t ArrangerView::getMaxZoom() {
 void ArrangerView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		PadLEDs::transitionTakingPlaceOnRow[yDisplay] =
-		    (outputsOnScreen[yDisplay] && outputsOnScreen[yDisplay]->clipInstances.getNumElements());
+		    (outputsOnScreen[yDisplay] && !outputsOnScreen[yDisplay]->clipInstances.empty());
 	}
 }
 

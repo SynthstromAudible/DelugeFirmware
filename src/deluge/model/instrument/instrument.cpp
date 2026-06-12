@@ -45,10 +45,10 @@ void Instrument::beenEdited(bool shouldMoveToEmptySlot) {
 void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
 	int32_t i = 0;
 
-	while (i < clipInstances.getNumElements()) {
-		ClipInstance* instance = clipInstances.getElement(i);
+	while (i < std::ssize(clipInstances)) {
+		ClipInstance* instance = &clipInstances[i];
 		if (instance->clip == clip) {
-			clipInstances.deleteAtIndex(i);
+			clipInstances.erase(clipInstances.begin() + i);
 		}
 		else {
 			i++;

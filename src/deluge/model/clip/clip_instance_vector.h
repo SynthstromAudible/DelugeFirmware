@@ -20,7 +20,4 @@
 #include "model/clip/clip_instance.h"
 #include "util/container/ordered_pos_vector.h"
 
-class ClipInstanceVector : public deluge::OrderedPosVector<ClipInstance> {
-public:
-	ClipInstance* getElement(int32_t index); // Plz deprecate.
-};
+using ClipInstanceVector = deluge::OrderedPosVector<ClipInstance>;

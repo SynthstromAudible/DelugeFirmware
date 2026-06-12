@@ -22,7 +22,6 @@
 
 class MIDIParamVector : public deluge::OrderedPosVector<MIDIParam, &MIDIParam::cc> {
 public:
-	MIDIParam* getElement(int32_t i);
 	MIDIParam* getParamFromCC(int32_t cc);
 	MIDIParam* insertParam(int32_t i);
 	MIDIParam* getOrCreateParamFromCC(int32_t cc, int32_t defaultValue = 0, bool allowCreation = true);

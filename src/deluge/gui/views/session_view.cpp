@@ -299,8 +299,8 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				int32_t posPressed = arrangerView.getPosFromSquare(selectedClipPressXDisplay);
 				int32_t proposedStartPos = posPressed;
 
-				int32_t i = output->clipInstances.search(proposedStartPos, LESS);
-				ClipInstance* otherInstance = output->clipInstances.getElement(i);
+				int32_t i = output->clipInstances.firstAtOrAfter(proposedStartPos) - 1;
+				ClipInstance* otherInstance = output->clipInstances.tryGet(i);
 				if (otherInstance) {
 					if (otherInstance->pos + otherInstance->length > proposedStartPos) {
 moveAfterClipInstance:
@@ -313,7 +313,7 @@ moveAfterClipInstance:
 
 				// Look at the next ClipInstance
 				i++;
-				otherInstance = output->clipInstances.getElement(i);
+				otherInstance = output->clipInstances.tryGet(i);
 				if (otherInstance) {
 					if (otherInstance->pos < proposedStartPos + clip->loopLength) {
 						goto moveAfterClipInstance;
@@ -334,7 +334,7 @@ moveAfterClipInstance:
 					return ActionResult::DEALT_WITH;
 				}
 
-				ClipInstance* newInstance = output->clipInstances.getElement(i);
+				ClipInstance* newInstance = &output->clipInstances[i];
 				newInstance->pos = proposedStartPos;
 				newInstance->clip = clip;
 				newInstance->length = clip->loopLength;

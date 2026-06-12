@@ -960,7 +960,7 @@ traverseClips:
 			}
 		}
 		else {
-			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &output->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -981,7 +981,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = output->clipInstances.getNumElements();
+		numElements = std::ssize(output->clipInstances);
 		goto traverseClips;
 	}
 
@@ -2097,7 +2097,7 @@ loadOutput:
 			anyOutputsSoloingInArrangement = true;
 		}
 
-		if (thisOutput->clipInstances.getNumElements() == 0
+		if (thisOutput->clipInstances.empty()
 		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
 		    && thisOutput->type == OutputType::AUDIO) {
 			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
@@ -2110,8 +2110,8 @@ loadOutput:
 			this->backUpParamManager((ModControllableAudio*)thisOutput->toModControllable(), nullptr, &paramManager);
 		}
 
-		for (int32_t i = 0; i < thisOutput->clipInstances.getNumElements(); i++) {
-			ClipInstance* thisInstance = thisOutput->clipInstances.getElement(i);
+		for (int32_t i = 0; i < std::ssize(thisOutput->clipInstances); i++) {
+			ClipInstance* thisInstance = &thisOutput->clipInstances[i];
 
 			// Grab out the encoded Clip reference and turn it into an actual Clip*
 			uint32_t clipCode = (uint32_t)thisInstance->clip;
@@ -2132,7 +2132,7 @@ loadOutput:
 					display->displayPopup("E248");
 #endif
 skipInstance:
-					thisOutput->clipInstances.deleteAtIndex(i);
+					thisOutput->clipInstances.erase(thisOutput->clipInstances.begin() + i);
 					i--;
 					continue;
 				}
@@ -2551,7 +2551,7 @@ traverseClips:
 			instrumentClip = (InstrumentClip*)clip;
 		}
 		else {
-			ClipInstance* clipInstance = kit->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &kit->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -2573,7 +2573,7 @@ traverseClips:
 		}
 		else {
 			doingClipsProvidedByOutput = true;
-			numElements = kit->clipInstances.getNumElements();
+			numElements = std::ssize(kit->clipInstances);
 			goto traverseClips;
 		}
 	}
@@ -2627,7 +2627,7 @@ traverseClips:
 			instrumentClip = (InstrumentClip*)clip;
 		}
 		else {
-			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &output->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -2673,7 +2673,7 @@ traverseClips:
 		// Clips directly from it
 		else {
 			doingClipsProvidedByOutput = true;
-			numElements = output->clipInstances.getNumElements();
+			numElements = std::ssize(output->clipInstances);
 			goto traverseClips;
 		}
 	}
@@ -2703,7 +2703,7 @@ traverseClips:
 			}
 		}
 		else {
-			ClipInstance* clipInstance = sound->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &sound->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -2722,7 +2722,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = sound->clipInstances.getNumElements();
+		numElements = std::ssize(sound->clipInstances);
 		goto traverseClips;
 	}
 }
@@ -2758,7 +2758,7 @@ traverseClips:
 			}
 		}
 		else {
-			ClipInstance* clipInstance = instrument->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &instrument->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -2780,7 +2780,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = instrument->clipInstances.getNumElements();
+		numElements = std::ssize(instrument->clipInstances);
 		goto traverseClips;
 	}
 }
@@ -2815,7 +2815,7 @@ traverseClips:
 			}
 		}
 		else {
-			ClipInstance* clipInstance = kit->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &kit->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -2847,7 +2847,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = kit->clipInstances.getNumElements();
+		numElements = std::ssize(kit->clipInstances);
 		goto traverseClips;
 	}
 }
@@ -3366,7 +3366,7 @@ traverseClips:
 			}
 		}
 		else {
-			ClipInstance* clipInstance = oldOutput->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &oldOutput->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -3396,12 +3396,12 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = oldOutput->clipInstances.getNumElements();
+		numElements = std::ssize(oldOutput->clipInstances);
 		goto traverseClips;
 	}
 
 	// Migrate all ClipInstances from oldInstrument to newInstrument
-	newOutput->clipInstances.swapStateWith(&oldOutput->clipInstances);
+	newOutput->clipInstances.swap(oldOutput->clipInstances);
 
 	outputClipInstanceListIsCurrentlyInvalid = false;
 
@@ -3842,8 +3842,8 @@ bool Song::doesOutputHaveAnyClips(Output* output) {
 	// Check arranger ones first via clipInstances
 	// TODO: why is this better than arrangerOnlyClips? Is this just a performance
 	// consideration?
-	for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
-		ClipInstance* thisInstance = output->clipInstances.getElement(i);
+	for (int32_t i = 0; i < std::ssize(output->clipInstances); i++) {
+		ClipInstance* thisInstance = &output->clipInstances[i];
 		if (thisInstance->clip) {
 			return true;
 		}
@@ -3918,7 +3918,7 @@ traverseClips:
 			}
 		}
 		else {
-			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &output->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -3948,7 +3948,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = output->clipInstances.getNumElements();
+		numElements = std::ssize(output->clipInstances);
 		goto traverseClips;
 	}
 
@@ -4302,13 +4302,13 @@ Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 		Clip* clip = sessionClips[c];
 
 		if (isClipActive(clip)) {
-			int32_t clipInstanceI = clip->output->clipInstances.getNumElements();
+			int32_t clipInstanceI = std::ssize(clip->output->clipInstances);
 			Error error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
 			if (error != Error::NONE) {
 				return error;
 			}
 
-			ClipInstance* clipInstance = clip->output->clipInstances.getElement(clipInstanceI);
+			ClipInstance* clipInstance = &clip->output->clipInstances[clipInstanceI];
 			clipInstance->clip = clip;
 			clipInstance->length = clip->loopLength;
 			clipInstance->pos = pos;
@@ -4335,13 +4335,13 @@ void Song::endInstancesOfActiveClips(int32_t pos, bool detachClipsToo) {
 				clipNow->beingRecordedFromClip = nullptr;
 			}
 
-			int32_t clipInstanceI = clip->output->clipInstances.search(pos + 1, LESS);
+			int32_t clipInstanceI = clip->output->clipInstances.firstAtOrAfter(pos + 1) - 1;
 			if (clipInstanceI >= 0) {
-				ClipInstance* clipInstance = clip->output->clipInstances.getElement(clipInstanceI);
+				ClipInstance* clipInstance = &clip->output->clipInstances[clipInstanceI];
 				if (clipInstance->clip == clipNow) {
 					int32_t newLength = pos - clipInstance->pos;
 					if (newLength == 0) {
-						clip->output->clipInstances.deleteAtIndex(clipInstanceI);
+						clip->output->clipInstances.erase(clip->output->clipInstances.begin() + clipInstanceI);
 					}
 					else {
 						clipInstance->length = newLength;
@@ -4383,20 +4383,20 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 	paramManager.trimToLength(pos, modelStack, action, false);
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		int32_t i = thisOutput->clipInstances.search(pos, GREATER_OR_EQUAL);
+		int32_t i = thisOutput->clipInstances.firstAtOrAfter(pos);
 
 		// We go through deleting the ClipInstances one by one. This is actually quite inefficient, but complicated
 		// to improve on because the deletion of the Clips themselves, where there are arrangement-only ones, causes
 		// the calling of output->pickAnActiveClipIfPossible. So we have to ensure that extra ClipInstances don't
 		// exist at any instant in time, or else it'll look at those to pick the new activeClip, which might not
 		// exist anymore.
-		for (int32_t j = thisOutput->clipInstances.getNumElements() - 1; j >= i; j--) {
-			ClipInstance* clipInstance = thisOutput->clipInstances.getElement(j);
+		for (int32_t j = std::ssize(thisOutput->clipInstances) - 1; j >= i; j--) {
+			ClipInstance* clipInstance = &thisOutput->clipInstances[j];
 			if (action) {
 				action->recordClipInstanceExistenceChange(thisOutput, clipInstance, ExistenceChangeType::DELETE);
 			}
 			Clip* clip = clipInstance->clip;
-			thisOutput->clipInstances.deleteAtIndex(j);
+			thisOutput->clipInstances.erase(thisOutput->clipInstances.begin() + j);
 
 			deletingClipInstanceForClip(thisOutput, clip, action,
 			                            true); // Could be bad that this calls the audio routine before we've
@@ -4404,9 +4404,9 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 		}
 
 		// Shorten the previous one if need be
-		int32_t numElements = thisOutput->clipInstances.getNumElements();
+		int32_t numElements = std::ssize(thisOutput->clipInstances);
 		if (numElements) {
-			ClipInstance* clipInstance = thisOutput->clipInstances.getElement(numElements - 1);
+			ClipInstance* clipInstance = &thisOutput->clipInstances[numElements - 1];
 			int32_t maxLength = pos - clipInstance->pos;
 			if (clipInstance->length > maxLength) {
 				clipInstance->change(action, thisOutput, clipInstance->pos, maxLength, clipInstance->clip);
@@ -4456,7 +4456,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 
 bool Song::arrangementHasAnyClipInstances() {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->clipInstances.getNumElements()) {
+		if (!thisOutput->clipInstances.empty()) {
 			return true;
 		}
 	}
@@ -4674,12 +4674,12 @@ void Song::instrumentSwapped(Instrument* newInstrument) {
 
 	// If we're playing, in this arrangement mode... (TODO: what if it just switched on while we were loading?)
 	if (arrangement.hasPlaybackActive()) {
-		int32_t i = newInstrument->clipInstances.search(arrangement.getLivePos() + 1, LESS);
+		int32_t i = newInstrument->clipInstances.firstAtOrAfter(arrangement.getLivePos() + 1) - 1;
 
 tryAgain:
 		if (i >= 0) {
 
-			ClipInstance* clipInstance = newInstrument->clipInstances.getElement(i);
+			ClipInstance* clipInstance = &newInstrument->clipInstances[i];
 
 			// If it didn't have an actual Clip, look further back in time
 			if (!clipInstance->clip) {
@@ -4985,7 +4985,7 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	*prevPointer = newOutput;
 
 	// Migrate all ClipInstances from oldInstrument to newInstrument
-	newOutput->clipInstances.swapStateWith(&oldOutput->clipInstances);
+	newOutput->clipInstances.swap(oldOutput->clipInstances);
 
 	newOutput->colour = oldOutput->colour;
 	oldOutput->colour = 0;
@@ -5085,8 +5085,8 @@ void Song::removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAbove
 	bool foundAtLeastOneInstanceInArranger = false;
 	Output* output = clip->output;
 
-	for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
-		ClipInstance* clipInstance = output->clipInstances.getElement(i);
+	for (int32_t i = 0; i < std::ssize(output->clipInstances); i++) {
+		ClipInstance* clipInstance = &output->clipInstances[i];
 		if (clipInstance->clip == clip) {
 
 			int32_t lengthGotUpTo = clipInstance->length;
@@ -5095,11 +5095,10 @@ void Song::removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAbove
 			bool deletedAnyElements = false;
 
 lookAtNextOne:
-			if (i + 1 < output->clipInstances.getNumElements() && (lengthGotUpTo % clip->loopLength) == 0) {
+			if (i + 1 < std::ssize(output->clipInstances) && (lengthGotUpTo % clip->loopLength) == 0) {
 
 				// See if next ClipInstance has the same Clip and lines up as a repeat...
-				ClipInstance* nextClipInstance =
-				    output->clipInstances.getElement(i + 1); // We already checked that this exists
+				ClipInstance* nextClipInstance = &output->clipInstances[i + 1]; // We already checked that this exists
 				if (nextClipInstance->clip == clip && startPos + lengthGotUpTo == nextClipInstance->pos) {
 
 					lengthGotUpTo += nextClipInstance->length;
@@ -5107,14 +5106,14 @@ lookAtNextOne:
 					// Delete that later ClipInstance
 					arrangement.rowEdited(output, nextClipInstance->pos,
 					                      nextClipInstance->pos + nextClipInstance->length, clip, nullptr);
-					output->clipInstances.deleteAtIndex(i + 1);
+					output->clipInstances.erase(output->clipInstances.begin() + i + 1);
 					deletedAnyElements = true;
 					goto lookAtNextOne;
 				}
 			}
 
 			if (deletedAnyElements) {
-				clipInstance = output->clipInstances.getElement(i); // Gotta re-get, since storage has changed
+				clipInstance = &output->clipInstances[i]; // Gotta re-get, since storage has changed
 			}
 
 			// If we'd already found one, we'll have to create a clone for this one - and possibly extend it
@@ -5876,7 +5875,7 @@ traverseClips:
             if (clip->output != output) continue;
         }
         else {
-            ClipInstance* clipInstance = output->clipInstances.getElement(c);
+            ClipInstance* clipInstance = &output->clipInstances[c];
             if (!clipInstance->clip) continue;
             if (!clipInstance->clip->isArrangementOnlyClip()) continue;
             clip = clipInstance->clip;
@@ -5884,7 +5883,7 @@ traverseClips:
 
     }
     if (!doingArrangementClips) { doingArrangementClips = true; numElements =
-output->clipInstances.getNumElements(); goto traverseClips; }
+std::ssize(output->clipInstances); goto traverseClips; }
 
 
 
@@ -5897,7 +5896,7 @@ numElements; c++) { Clip* clip; if (!doingClipsProvidedByOutput) { clip = (*clip
 (clip->output != output) continue;
         }
         else {
-            ClipInstance* clipInstance = output->clipInstances.getElement(c);
+            ClipInstance* clipInstance = &output->clipInstances[c];
             if (!clipInstance->clip) continue;
             if (!clipInstance->clip->isArrangementOnlyClip()) continue;
             clip = clipInstance->clip;
@@ -5906,7 +5905,7 @@ numElements; c++) { Clip* clip; if (!doingClipsProvidedByOutput) { clip = (*clip
     }
     if (!doingClipsProvidedByOutput && clipArray == &sessionClips) {
         if (currentlySwappingInstrument) { clipArray = &arrangementOnlyClips; goto decideNumElements; }
-        else { doingClipsProvidedByOutput = true; numElements = output->clipInstances.getNumElements(); goto
+        else { doingClipsProvidedByOutput = true; numElements = std::ssize(output->clipInstances); goto
 traverseClips; }
     }
  */

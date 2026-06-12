@@ -69,6 +69,15 @@ public:
 
 	void swap(OrderedPosVector& other) noexcept { elements_.swap(other.elements_); }
 
+	/// The element at this index, or nullptr if the index is out of range (including the -1 that "none"
+	/// search results produce). The modern name for the old bounds-checked getElement().
+	[[nodiscard]] T* tryGet(int32_t index) {
+		if (index < 0 || index >= static_cast<int32_t>(elements_.size())) {
+			return nullptr;
+		}
+		return &elements_[index];
+	}
+
 	/// Index of the first element whose key is >= the given key (size() if none). The index-returning
 	/// counterpart of lower_bound(), for the many call sites that do index arithmetic around the result.
 	[[nodiscard]] int32_t firstAtOrAfter(int32_t key, int32_t searchFrom = 0) const {

@@ -857,16 +857,16 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		if (!modelStack->song->arrangementOnlyClips.reserveExtra(1)) {
 			return;
 		}
-		if (!output->clipInstances.ensureEnoughSpaceAllocated(1)) {
+		if (!output->clipInstances.reserveExtra(1)) {
 			return;
 		}
 
 		int32_t arrangementRecordPos = playbackHandler.getActualArrangementRecordPos();
 
 		// Get that current clipInstance being recorded to
-		int32_t clipInstanceI = output->clipInstances.search(arrangementRecordPos, LESS);
+		int32_t clipInstanceI = output->clipInstances.firstAtOrAfter(arrangementRecordPos) - 1;
 		if (clipInstanceI >= 0) {
-			ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
+			ClipInstance* clipInstance = &output->clipInstances[clipInstanceI];
 
 			// Close it off
 			clipInstance->length = arrangementRecordPos - clipInstance->pos;
@@ -893,7 +893,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			return;
 		}
 
-		ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
+		ClipInstance* clipInstance = &output->clipInstances[clipInstanceI];
 		clipInstance->clip = newClip;
 		clipInstance->pos = arrangementRecordPos;
 		clipInstance->length = loopLength;
