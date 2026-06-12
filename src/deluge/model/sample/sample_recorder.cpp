@@ -487,8 +487,9 @@ aborted:
 			sample->filePath = filePath;                                 // Can't fail!
 			sample->tempFilePathForRecording = tempFilePathForRecording; // Can't fail!
 
-			error = audioFileManager.audioFiles.insertElement(sample);
-			if (error != Error::NONE) {
+			auto inserted = audioFileManager.audioFiles.insertElement(sample);
+			if (!inserted) {
+				error = inserted.error();
 				goto gotError;
 			}
 

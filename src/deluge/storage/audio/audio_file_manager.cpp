@@ -555,12 +555,13 @@ waveTableCloneError:
 				return NULL;
 			}
 
-			*error = audioFiles.insertElement(newWaveTable);
+			auto inserted = audioFiles.insertElement(newWaveTable);
+			*error = inserted ? Error::NONE : inserted.error();
 
 			newWaveTable->removeReason("E397");
 			foundAudioFile->removeReason("E398");
 
-			if (*error != Error::NONE) {
+			if (!inserted) {
 				goto waveTableCloneError;
 			}
 
@@ -886,8 +887,9 @@ audioFileError:
 		return NULL;
 	}
 
-	*error = audioFiles.insertElement(audioFile);
-	if (*error != Error::NONE) {
+	auto insertedFile = audioFiles.insertElement(audioFile);
+	if (!insertedFile) {
+		*error = insertedFile.error();
 		goto audioFileError;
 	}
 

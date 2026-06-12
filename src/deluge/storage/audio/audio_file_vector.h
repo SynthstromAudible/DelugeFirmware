@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "util/containers.h"
+#include <expected>
 
 class AudioFile;
 
@@ -36,5 +37,5 @@ public:
 	int32_t searchForExactObject(AudioFile* audioFile) const;
 
 	/// Inserts at the sorted position for the file's path.
-	Error insertElement(AudioFile* audioFile);
+	std::expected<void, Error> insertElement(AudioFile* audioFile);
 };
