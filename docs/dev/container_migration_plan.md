@@ -2,6 +2,14 @@
 
 *Audited at commit `9a74e162` (2026-06-12).*
 
+> **Status (2026-06-12):** Phases 0–3 are implemented on `feat/std-container-migration`, one build-green
+> commit per replacement for bisectability. All domain containers are migrated; high-traffic ones went
+> through the `deluge::OrderedPosVector<T, keyMember>` compatibility template
+> (`util/container/ordered_pos_vector.h`) so their call sites are unchanged. Still custom:
+> `MemoryRegion::emptySpaces` (Phase 4.1, allocator core — keep until it gets its own carefully-tested
+> carve-out onto `etl::vector_ext`) and `BidirectionalLinkedList` (Phase 4.2). `EnumStringMap` kept per plan.
+> **No hardware testing has been done yet** — flash and run the smoke matrix in §5 before merging.
+
 This document inventories every custom container in the firmware, analyzes each use
 location, and proposes a phased migration to standard C++ containers (via the
 `deluge::` aliases in `src/deluge/util/containers.h`). It also identifies the
