@@ -9,6 +9,15 @@
 > `MemoryRegion::emptySpaces` (Phase 4.1, allocator core — keep until it gets its own carefully-tested
 > carve-out onto `etl::vector_ext`) and `BidirectionalLinkedList` (Phase 4.2). `EnumStringMap` kept per plan.
 > **No hardware testing has been done yet** — flash and run the smoke matrix in §5 before merging.
+>
+> **Modernization pass (also done):** the migrated containers expose a standard surface
+> (`size()`/`empty()`/`clear()`/`operator[]`/iterators; `lower_bound(key)`/`find_key(key)` on
+> `OrderedPosVector`), the legacy clear-as-`empty()` is gone, and call sites with genuinely range-shaped
+> loops (MIDIParamCollection, audioFiles scans, WaveTable bands, browser sort/search) use range-for and
+> `std::ranges` algorithms. **Deliberately not converted:** loops in note_row.cpp, auto_param.cpp,
+> instrument_clip.cpp, song.cpp and session.cpp that mutate their container mid-iteration (or call into
+> code that can) — range-for caches `end()` and would silently change behavior. Convert those only with
+> per-loop review; prefer the iterator-returning APIs when doing so.
 
 This document inventories every custom container in the firmware, analyzes each use
 location, and proposes a phased migration to standard C++ containers (via the
