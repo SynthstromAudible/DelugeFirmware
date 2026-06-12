@@ -26,6 +26,7 @@
 #include "util/containers.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
+#include <array>
 #include <bit>
 #include <cstdint>
 
@@ -44,6 +45,20 @@ const float MIDI_NOTE_UNSET = (-999);
 const float MIDI_NOTE_ERROR = (-1000);
 class LoadedSamplePosReason;
 class SampleCache;
+
+/// One entry in Sample::caches, keyed by the playback parameters the cache was rendered with
+struct SampleCacheElement {
+	int32_t phaseIncrement;
+	int32_t timeStretchRatio;
+	int32_t skipSamplesAtStart;
+	bool reversed;
+	SampleCache* cache;
+
+	[[nodiscard]] std::array<uint32_t, 4> key() const {
+		return {static_cast<uint32_t>(phaseIncrement), static_cast<uint32_t>(timeStretchRatio),
+		        static_cast<uint32_t>(skipSamplesAtStart), static_cast<uint32_t>(reversed)};
+	}
+};
 class MultisampleRange;
 class TimeStretcher;
 class SampleHolder;
@@ -140,7 +155,7 @@ public:
 	int32_t minValueFound;
 	int32_t maxValueFound;
 
-	OrderedResizeableArrayWithMultiWordKey caches;
+	deluge::fast_vector<SampleCacheElement> caches; // Sorted ascending by SampleCacheElement::key()
 
 	uint8_t* percCacheMemory[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	// One for each play-direction: 0=forwards; 1=reversed. Sorted ascending by startPos. On the external

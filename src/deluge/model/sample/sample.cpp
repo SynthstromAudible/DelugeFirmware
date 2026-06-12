@@ -46,14 +46,6 @@
 	{}
 #endif
 
-struct SampleCacheElement {
-	int32_t phaseIncrement;
-	int32_t timeStretchRatio;
-	int32_t skipSamplesAtStart;
-	uint32_t reversed; // Bool would be fine, but got to make it 32-bit for OrderedResizeableArrayWithMultiWordKey
-	SampleCache* cache;
-};
-
 // Mirrors OrderedResizeableArray::search(): returns the index of the first zone whose startPos >= key,
 // plus `comparison` (GREATER_OR_EQUAL = 0 or LESS = -1).
 static int32_t searchPercCacheZones(deluge::vector<SamplePercCacheZone> const& zones, int32_t key, int32_t comparison) {
@@ -62,7 +54,7 @@ static int32_t searchPercCacheZones(deluge::vector<SamplePercCacheZone> const& z
 	return static_cast<int32_t>(it - zones.begin()) + comparison;
 }
 
-Sample::Sample() : caches(sizeof(SampleCacheElement), 4), AudioFile(AudioFileType::SAMPLE) {
+Sample::Sample() : AudioFile(AudioFileType::SAMPLE) {
 	audioDataLengthBytes = 0;
 	audioDataStartPosBytes = 0;
 	lengthInSamples = 0;
@@ -110,10 +102,9 @@ Error Sample::initialize(int32_t newNumClusters) {
 Sample::~Sample() {
 	deletePercCache(true);
 
-	for (int32_t i = 0; i < caches.getNumElements(); i++) {
-		SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
-		element->cache->~SampleCache();
-		delugeDealloc(element->cache);
+	for (SampleCacheElement& element : caches) {
+		element.cache->~SampleCache();
+		delugeDealloc(element.cache);
 	}
 }
 
@@ -183,18 +174,17 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 		skipSamplesAtStart = lengthInSamples - sampleHolder->getEndPos(false);
 	}
 
-	uint32_t keyWords[4];
-	keyWords[0] = phaseIncrement;
-	keyWords[1] = timeStretchRatio;
-	keyWords[2] = skipSamplesAtStart;
-	keyWords[3] = reversed;
-	int32_t i = caches.searchMultiWordExact(keyWords);
+	std::array<uint32_t, 4> keyWords = {static_cast<uint32_t>(phaseIncrement), static_cast<uint32_t>(timeStretchRatio),
+	                                    static_cast<uint32_t>(skipSamplesAtStart), static_cast<uint32_t>(reversed)};
+	auto cacheKeyLess = [](SampleCacheElement const& element, std::array<uint32_t, 4> const& key) {
+		return element.key() < key;
+	};
+	auto it = std::lower_bound(caches.begin(), caches.end(), keyWords, cacheKeyLess);
 
 	// If it already existed...
-	if (i != -1) {
+	if (it != caches.end() && it->key() == keyWords) {
 		*created = false;
-		SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
-		return element->cache;
+		return it->cache;
 	}
 
 	// Or if still here, it didn't already exist.
@@ -229,21 +219,19 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 		return nullptr;
 	}
 
-	i = caches.insertAtKeyMultiWord(keyWords);
-	if (i == -1) { // If error
-		delugeDealloc(memory);
-		return nullptr;
-	}
-
 	auto* samplePitchAdjustment = new (memory) SampleCache(this, numClusters, lengthInBytesCached, phaseIncrement,
 	                                                       timeStretchRatio, skipSamplesAtStart, reversed);
 
-	SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
-	element->phaseIncrement = phaseIncrement;
-	element->timeStretchRatio = timeStretchRatio;
-	element->cache = samplePitchAdjustment;
-	element->skipSamplesAtStart = skipSamplesAtStart;
-	element->reversed = reversed;
+	try {
+		// Re-search: the cache-memory allocation above may have run other code, so don't trust the old iterator.
+		it = std::lower_bound(caches.begin(), caches.end(), keyWords, cacheKeyLess);
+		caches.insert(it, SampleCacheElement{phaseIncrement, timeStretchRatio, skipSamplesAtStart,
+		                                     static_cast<bool>(reversed), samplePitchAdjustment});
+	} catch (deluge::exception&) {
+		samplePitchAdjustment->~SampleCache();
+		delugeDealloc(memory);
+		return nullptr;
+	}
 
 	*created = true;
 	return samplePitchAdjustment;
