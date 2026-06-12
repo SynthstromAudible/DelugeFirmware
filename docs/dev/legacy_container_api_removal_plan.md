@@ -3,6 +3,15 @@
 *Audited 2026-06-12 on `feat/std-container-migration` (after the std-container migration and the
 modernization pass — see `container_migration_plan.md`).*
 
+> **Status: executed (R0–R8 complete, same day).** All legacy methods listed below are deleted from
+> OrderedPosVector / ClipArray / MultiRangeArray / AudioFileVector; NoteVector, ParamNodeVector and
+> ClipInstanceVector are now plain using-aliases of the template. Naming refinements made during
+> execution: the nullable bounds-checked lookup became `tryGet(i)` / `tryGetLast()` (kept — 9+ call
+> sites use the null contract as logic), `firstAtOrAfter(key)` is the index-returning lower bound,
+> and fallible ops return `std::expected` (with `.error_or(Error::NONE)` / `.value_or(-1)` bridging
+> the old Error/sentinel flows exactly). Phase L (clone-idiom removal) remains open, as planned.
+> The legacy `OrderedResizeableArray` hierarchy survives only under `memory/` (main plan, Phase 4).
+
 The std-container migration kept the legacy method names (`getNumElements`, `getElement`,
 `deleteAtIndex`, `search` + `GREATER_OR_EQUAL`/`LESS`, Error-returning inserts, …) as a compatibility
 layer so each container could migrate in one bisectable commit. This plan removes that layer, leaving
