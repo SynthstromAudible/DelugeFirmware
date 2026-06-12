@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_cluster.h"
+#include "model/sample/sample_perc_cache_zone.h"
 #include "storage/audio/audio_file.h"
 #include "util/container/array/ordered_resizeable_array.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
@@ -141,8 +142,11 @@ public:
 
 	OrderedResizeableArrayWithMultiWordKey caches;
 
-	uint8_t* percCacheMemory[2]{nullptr, nullptr};        // One for each play-direction: 0=forwards; 1=reversed
-	OrderedResizeableArrayWith32bitKey percCacheZones[2]; // One for each play-direction: 0=forwards; 1=reversed
+	uint8_t* percCacheMemory[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
+	// One for each play-direction: 0=forwards; 1=reversed. Sorted ascending by startPos. On the external
+	// (non-stealable) region so that growing a zone list can never steal this sample's own perc-cache clusters,
+	// which would re-enter these arrays mid-modification.
+	deluge::vector<SamplePercCacheZone> percCacheZones[2];
 
 	Cluster** percCacheClusters[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	int32_t numPercCacheClusters{};
