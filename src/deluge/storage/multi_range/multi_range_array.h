@@ -21,6 +21,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "util/containers.h"
 #include <algorithm>
+#include <expected>
 #include <variant>
 
 #ifndef GREATER_OR_EQUAL
@@ -118,6 +119,23 @@ public:
 	[[nodiscard]] size_t size() const { return ranges_.size(); }
 	[[nodiscard]] bool empty() const { return ranges_.empty(); }
 	void clear() { ranges_.clear(); }
+
+	std::expected<void, Error> reserveExtra(int32_t numAdditionalElementsNeeded) {
+		try {
+			ranges_.reserve(ranges_.size() + numAdditionalElementsNeeded);
+		} catch (deluge::exception&) {
+			return std::unexpected(Error::INSUFFICIENT_RAM);
+		}
+		return {};
+	}
+
+	/// Index of the first range whose topNote is >= the given key (size() if none)
+	[[nodiscard]] int32_t firstAtOrAfter(int32_t key) const {
+		auto it = std::ranges::lower_bound(ranges_, key, {}, [](RangeVariant const& variant) {
+			return std::visit([](auto const& r) { return (int32_t)r.topNote; }, variant);
+		});
+		return static_cast<int32_t>(it - ranges_.begin());
+	}
 
 	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded) {
 		try {

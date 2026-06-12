@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "util/containers.h"
 #include <algorithm>
+#include <expected>
 
 class Clip;
 
@@ -33,6 +34,29 @@ public:
 	[[nodiscard]] Clip* getClipAtIndex(int32_t index) const { return clips_[index]; }
 	Clip** getElementAddress(int32_t index) { return &clips_[index]; }
 	void setPointerAtIndex(Clip* clip, int32_t index) { clips_[index] = clip; }
+
+	std::expected<void, Error> insertClipAt(Clip* clip, int32_t index) {
+		try {
+			clips_.insert(clips_.begin() + index, clip);
+		} catch (deluge::exception&) {
+			return std::unexpected(Error::INSUFFICIENT_RAM);
+		}
+		return {};
+	}
+
+	std::expected<void, Error> reserveExtra(int32_t numAdditionalElementsNeeded) {
+		try {
+			clips_.reserve(clips_.size() + numAdditionalElementsNeeded);
+		} catch (deluge::exception&) {
+			return std::unexpected(Error::INSUFFICIENT_RAM);
+		}
+		return {};
+	}
+
+	auto erase(deluge::fast_vector<Clip*>::iterator first, deluge::fast_vector<Clip*>::iterator last) {
+		return clips_.erase(first, last);
+	}
+	auto erase(deluge::fast_vector<Clip*>::iterator at) { return clips_.erase(at); }
 
 	Error insertClipAtIndex(Clip* clip, int32_t index) {
 		try {

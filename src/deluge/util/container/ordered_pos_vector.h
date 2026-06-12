@@ -21,6 +21,7 @@
 #include "util/containers.h"
 #include <algorithm>
 #include <cstring>
+#include <expected>
 #include <new>
 #include <type_traits>
 
@@ -65,6 +66,55 @@ public:
 	iterator end() { return elements_.end(); }
 	const_iterator begin() const { return elements_.begin(); }
 	const_iterator end() const { return elements_.end(); }
+
+	void swap(OrderedPosVector& other) noexcept { elements_.swap(other.elements_); }
+
+	/// Index of the first element whose key is >= the given key (size() if none). The index-returning
+	/// counterpart of lower_bound(), for the many call sites that do index arithmetic around the result.
+	[[nodiscard]] int32_t firstAtOrAfter(int32_t key, int32_t searchFrom = 0) const {
+		auto it = std::ranges::lower_bound(elements_.begin() + searchFrom, elements_.end(), key, {}, keyMember);
+		return static_cast<int32_t>(it - elements_.begin());
+	}
+
+	/// Inserts numToInsert default-constructed elements at index i.
+	std::expected<void, Error> insertAt(int32_t i, int32_t numToInsert = 1) {
+		try {
+			if constexpr (std::is_copy_constructible_v<T>) {
+				elements_.insert(elements_.begin() + i, numToInsert, T{});
+			}
+			else {
+				// Move-only T: reserve up front (the only step that can throw), then emplace one by one
+				elements_.reserve(elements_.size() + numToInsert);
+				for (int32_t n = 0; n < numToInsert; n++) {
+					elements_.emplace(elements_.begin() + i);
+				}
+			}
+		} catch (deluge::exception&) {
+			return std::unexpected(Error::INSUFFICIENT_RAM);
+		}
+		return {};
+	}
+
+	/// Inserts a default-constructed element with the given key at its sorted position; returns its index.
+	std::expected<int32_t, Error> insertSorted(int32_t key, bool isDefinitelyLast = false) {
+		int32_t i = isDefinitelyLast ? static_cast<int32_t>(elements_.size()) : firstAtOrAfter(key);
+		auto inserted = insertAt(i);
+		if (!inserted) {
+			return std::unexpected(inserted.error());
+		}
+		elements_[i].*keyMember = key;
+		return i;
+	}
+
+	/// Reserves room for this many elements beyond the current size.
+	std::expected<void, Error> reserveExtra(int32_t numAdditionalElementsNeeded) {
+		try {
+			elements_.reserve(elements_.size() + numAdditionalElementsNeeded);
+		} catch (deluge::exception&) {
+			return std::unexpected(Error::INSUFFICIENT_RAM);
+		}
+		return {};
+	}
 
 	/// First element whose key is >= the given key (prefer this iterator API over search() in new code)
 	[[nodiscard]] iterator lower_bound(int32_t key) { return std::ranges::lower_bound(elements_, key, {}, keyMember); }
