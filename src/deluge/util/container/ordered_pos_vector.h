@@ -66,11 +66,23 @@ public:
 	const_iterator begin() const { return elements_.begin(); }
 	const_iterator end() const { return elements_.end(); }
 
+	/// First element whose key is >= the given key (prefer this iterator API over search() in new code)
+	[[nodiscard]] iterator lower_bound(int32_t key) { return std::ranges::lower_bound(elements_, key, {}, keyMember); }
+	[[nodiscard]] const_iterator lower_bound(int32_t key) const {
+		return std::ranges::lower_bound(elements_, key, {}, keyMember);
+	}
+
+	/// Iterator to the element with exactly this key, or end() (prefer over searchExact() in new code)
+	[[nodiscard]] iterator find_key(int32_t key) {
+		auto it = lower_bound(key);
+		return (it != elements_.end() && (*it).*keyMember == key) ? it : elements_.end();
+	}
+
 	/// With duplicate keys, returns the leftmost matching (or greater) one if doing GREATER_OR_EQUAL, or the
 	/// rightmost lesser one if doing LESS.
 	[[nodiscard]] int32_t search(int32_t searchKey, int32_t comparison, int32_t rangeBegin, int32_t rangeEnd) const {
-		auto it = std::lower_bound(elements_.begin() + rangeBegin, elements_.begin() + rangeEnd, searchKey,
-		                           [](T const& element, int32_t key) { return element.*keyMember < key; });
+		auto it = std::ranges::lower_bound(elements_.begin() + rangeBegin, elements_.begin() + rangeEnd, searchKey, {},
+		                                   keyMember);
 		return static_cast<int32_t>(it - elements_.begin()) + comparison;
 	}
 	[[nodiscard]] int32_t search(int32_t searchKey, int32_t comparison, int32_t rangeBegin = 0) const {
@@ -79,12 +91,16 @@ public:
 
 	/// Returns -1 if not found
 	[[nodiscard]] int32_t searchExact(int32_t key) const {
-		int32_t i = search(key, GREATER_OR_EQUAL);
-		if (i < getNumElements() && elements_[i].*keyMember == key) {
-			return i;
+		auto it = lower_bound(key);
+		if (it != elements_.end() && (*it).*keyMember == key) {
+			return static_cast<int32_t>(it - elements_.begin());
 		}
 		return -1;
 	}
+
+	/// Erases by iterator (returns the iterator following the removed range, as std containers do)
+	iterator erase(iterator first, iterator last) { return elements_.erase(first, last); }
+	iterator erase(iterator at) { return elements_.erase(at); }
 
 	/// Batch search: results, as if GREATER_OR_EQUAL had been supplied to search(), are written back into
 	/// searchTerms. The terms must be in ascending order.
