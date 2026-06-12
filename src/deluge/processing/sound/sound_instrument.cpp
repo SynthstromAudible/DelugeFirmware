@@ -178,8 +178,8 @@ yesTickParamManagerForClip:
 		}
 
 		// Do the ParamManagers of each NoteRow, too
-		for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
+		for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
+			NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[0];
 			bool result = false;

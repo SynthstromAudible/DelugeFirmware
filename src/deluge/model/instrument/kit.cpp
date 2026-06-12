@@ -144,8 +144,8 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 	if (clipToTakeDrumOrderFrom) {
 		// First, write Drums in the order of their NoteRows. Remove these drums from our list - we'll re-add them in a
 		// moment, at the start, i.e. in the same order they appear in the file
-		for (int32_t i = 0; i < ((InstrumentClip*)clipToTakeDrumOrderFrom)->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = ((InstrumentClip*)clipToTakeDrumOrderFrom)->noteRows.getElement(i);
+		for (int32_t i = 0; i < std::ssize(((InstrumentClip*)clipToTakeDrumOrderFrom)->noteRows); i++) {
+			NoteRow* thisNoteRow = &((InstrumentClip*)clipToTakeDrumOrderFrom)->noteRows[i];
 			if (thisNoteRow->drum) {
 				Drum* drum = thisNoteRow->drum;
 
@@ -407,8 +407,8 @@ void Kit::loadCrucialAudioFilesOnly() {
 	}
 
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
-	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
+	for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
+		NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
 		if (!thisNoteRow->muted && !thisNoteRow->hasNoNotes() && thisNoteRow->drum) {
 			thisNoteRow->drum->loadAllSamples(true); // Why don't we deal with the error?
 		}
@@ -583,8 +583,8 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 
 		NoteRowVector* noteRows = &((InstrumentClip*)activeClip)->noteRows;
 
-		for (int32_t i = 0; i < noteRows->getNumElements(); i++) {
-			NoteRow* thisNoteRow = noteRows->getElement(i);
+		for (int32_t i = 0; i < std::ssize(*noteRows); i++) {
+			NoteRow* thisNoteRow = &(*noteRows)[i];
 
 			// Just don't bother ticking other ones for now - their MPE doesn't need to interpolate.
 			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
@@ -722,9 +722,9 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 
 		if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
 			// Glide note off
-			if (kitInstruction.glideNoteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+			if (kitInstruction.glideNoteCodeOffPostArp[0] < std::ssize(((InstrumentClip*)activeClip)->noteRows)) {
 				NoteRow* thisNoteRow =
-				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.glideNoteCodeOffPostArp[0]);
+				    &((InstrumentClip*)activeClip)->noteRows[kitInstruction.glideNoteCodeOffPostArp[0]];
 				if (thisNoteRow->drum != nullptr) {
 					// Reset invertReverse for drum arpeggiator (done for every noteOff)
 					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
@@ -739,9 +739,8 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 		}
 		if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
 			// Normal note off
-			if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
-				NoteRow* thisNoteRow =
-				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
+			if (kitInstruction.noteCodeOffPostArp[0] < std::ssize(((InstrumentClip*)activeClip)->noteRows)) {
+				NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[kitInstruction.noteCodeOffPostArp[0]];
 				if (thisNoteRow->drum != nullptr) {
 					// Reset invertReverse for drum arpeggiator (done for every noteOff)
 					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
@@ -755,10 +754,9 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 		}
 		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 			// Note on
-			if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0]
-			    < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+			if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < std::ssize(((InstrumentClip*)activeClip)->noteRows)) {
 				NoteRow* thisNoteRow =
-				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
+				    &((InstrumentClip*)activeClip)->noteRows[kitInstruction.arpNoteOn->noteCodeOnPostArp[0]];
 				if (thisNoteRow->drum != nullptr) {
 					// Set the invertReverse flag for the drum arpeggiator
 					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = kitInstruction.invertReversed;
@@ -793,8 +791,8 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 	if (activeClip == nullptr) {
 		return;
 	}
-	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
+	for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
+		NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator
 		if (thisNoteRow->drum == nullptr) {
 			continue;
@@ -864,8 +862,8 @@ void Kit::offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint
 	if (modelStack->timelineCounterIsSet()) {
 		InstrumentClip* clip =
 		    (InstrumentClip*)modelStack->getTimelineCounter(); // May have been changed by call above!
-		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
+		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+			NoteRow* thisNoteRow = &clip->noteRows[i];
 			Drum* thisDrum = thisNoteRow->drum;
 			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				((SoundDrum*)thisDrum)
@@ -890,8 +888,8 @@ bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channe
 		                                      // let's make this safe and future proof.
 		InstrumentClip* clip =
 		    (InstrumentClip*)modelStack->getTimelineCounter(); // May have been changed by call above!
-		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
+		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+			NoteRow* thisNoteRow = &clip->noteRows[i];
 			Drum* thisDrum = thisNoteRow->drum;
 			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				if (((SoundDrum*)thisDrum)
@@ -979,8 +977,8 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 	int32_t count = 0;
 
 	if (clip) {
-		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
+		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+			NoteRow* thisNoteRow = &clip->noteRows[i];
 			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
@@ -1045,8 +1043,8 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 		if (modelStack) {
 			int32_t count = 0;
 			NoteRowVector* noteRows = &((InstrumentClip*)modelStack->getTimelineCounter())->noteRows;
-			for (int32_t i = 0; i < noteRows->getNumElements(); i++) {
-				NoteRow* thisNoteRow = noteRows->getElement(i);
+			for (int32_t i = 0; i < std::ssize(*noteRows); i++) {
+				NoteRow* thisNoteRow = &(*noteRows)[i];
 
 				if (thisNoteRow->drum) { // In a perfect world we'd do this for every Drum, even any without NoteRows in
 					                     // new Clip, but meh this'll be fine
@@ -1154,9 +1152,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 	if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
 		// Glide note off
-		if (kitInstruction.glideNoteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
-			NoteRow* thisNoteRow =
-			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.glideNoteCodeOffPostArp[0]);
+		if (kitInstruction.glideNoteCodeOffPostArp[0] < std::ssize(((InstrumentClip*)activeClip)->noteRows)) {
+			NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[kitInstruction.glideNoteCodeOffPostArp[0]];
 			if (thisNoteRow->drum != nullptr) {
 				// reset invertReverse for drum arpeggiator (done for every noteOff)
 				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
@@ -1170,9 +1167,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	}
 	if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
 		// Normal note off
-		if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
-			NoteRow* thisNoteRow =
-			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
+		if (kitInstruction.noteCodeOffPostArp[0] < std::ssize(((InstrumentClip*)activeClip)->noteRows)) {
+			NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[kitInstruction.noteCodeOffPostArp[0]];
 			if (thisNoteRow->drum != nullptr) {
 				// reset invertReverse for drum arpeggiator (done for every noteOff)
 				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
@@ -1187,9 +1183,9 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteStatus[0] == ArpNoteStatus::PENDING
 	    && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 		// Note on
-		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < std::ssize(((InstrumentClip*)activeClip)->noteRows)) {
 			NoteRow* thisNoteRow =
-			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
+			    &((InstrumentClip*)activeClip)->noteRows[kitInstruction.arpNoteOn->noteCodeOnPostArp[0]];
 			if (thisNoteRow->drum != nullptr) {
 				// Set the invertReverse flag for the drum arpeggiator
 				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = kitInstruction.invertReversed;
@@ -1209,8 +1205,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 	ticksTilNextArpEvent = std::min(ticksTilNextArpEvent, ticksTilNextKitArpEvent);
 
-	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
+	for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
+		NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
 		if (thisNoteRow->drum) {
 			Drum* drum = (Drum*)thisNoteRow->drum;
 
@@ -1394,8 +1390,8 @@ void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** par
 
 	if (activeClip) {
 
-		for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
+		for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
+			NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
 			if (!thisNoteRow->drum || thisNoteRow->drum->type != DrumType::SOUND) {
 				continue;
 			}
@@ -1718,8 +1714,8 @@ Drum* Kit::getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode) {
 	// this is configurable through the default menu
 	if (noteCode >= 0) {
 		int32_t index = noteCode;
-		if (index < clip->noteRows.getNumElements()) {
-			NoteRow* noteRow = clip->noteRows.getElement(index);
+		if (index < std::ssize(clip->noteRows)) {
+			NoteRow* noteRow = &clip->noteRows[index];
 			if (noteRow) {
 				thisDrum = noteRow->drum;
 			}

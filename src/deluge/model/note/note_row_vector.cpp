@@ -19,16 +19,12 @@
 #include <cstring>
 #include <new>
 
-NoteRow* NoteRowVector::getElement(int32_t index) {
-	return getElementAddress(index);
-}
-
 NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
 	Error error = insertAtIndex(index);
 	if (error != Error::NONE) {
 		return nullptr;
 	}
-	return getElementAddress(index);
+	return &(*this)[index];
 }
 
 void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete) {
@@ -56,8 +52,7 @@ bool NoteRowVector::cloneFrom(NoteRowVector const* other) {
 		insertAtIndex(getNumElements()); // Can't fail; space reserved above
 		// Byte-copy over the freshly default-constructed row. The default row owns nothing, so nothing leaks;
 		// the copy aliases the source row's guts until beenCloned() gives it its own.
-		std::memcpy(static_cast<void*>(getElementAddress(i)), static_cast<void const*>(other->getElementAddress(i)),
-		            sizeof(NoteRow));
+		std::memcpy(static_cast<void*>(&(*this)[i]), static_cast<void const*>(&(*other)[i]), sizeof(NoteRow));
 	}
 	return true;
 }

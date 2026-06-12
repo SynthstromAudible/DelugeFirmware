@@ -710,8 +710,7 @@ ModelStackWithNoteRow* ArrangerView::getNoteRowForAudition(ModelStack* modelStac
 				    instrumentClip->getNoteRowForDrum(modelStackWithTimelineCounter, kit->selectedDrum);
 			}
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-				modelStackWithNoteRow =
-				    modelStackWithTimelineCounter->addNoteRow(0, instrumentClip->noteRows.getElement(0));
+				modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, &instrumentClip->noteRows[0]);
 			}
 		}
 	}

@@ -469,11 +469,11 @@ void StemExport::getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip) {
 
 	if (clip->type == ClipType::INSTRUMENT) {
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		int32_t totalNumNoteRows = instrumentClip->noteRows.getNumElements();
+		int32_t totalNumNoteRows = std::ssize(instrumentClip->noteRows);
 		if (totalNumNoteRows != 0) {
 			// iterate through all the note rows to find the longest one
 			for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
-				NoteRow* thisNoteRow = instrumentClip->noteRows.getElement(idxNoteRow);
+				NoteRow* thisNoteRow = &instrumentClip->noteRows[idxNoteRow];
 				if ((thisNoteRow != nullptr) && (thisNoteRow->loopLengthIfIndependent > loopLengthToStopStemExport)
 				    && !thisNoteRow->hasNoNotes()) {
 					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent;
@@ -561,12 +561,12 @@ int32_t StemExport::disarmAllDrumsForStemExport() {
 
 	// when we trigger stem export, we don't know how many drums there are yet
 	// so get the number and store it so we only need to ping getNumElements once
-	int32_t totalNumNoteRows = clip->noteRows.getNumElements();
+	int32_t totalNumNoteRows = std::ssize(clip->noteRows);
 
 	if (totalNumNoteRows != 0) {
 		// iterate through all the drums to disable all the recording relevant flags
 		for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
-			NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
+			NoteRow* thisNoteRow = &clip->noteRows[idxNoteRow];
 			if (thisNoteRow != nullptr) {
 				/* export drum stem if all these conditions are met:
 				    1) the note row is not muted
@@ -596,7 +596,7 @@ void StemExport::restoreAllDrumMutes(int32_t totalNumNoteRows) {
 	// iterate through all the drums to restore previous mute states
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
-		NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
+		NoteRow* thisNoteRow = &clip->noteRows[idxNoteRow];
 		if (thisNoteRow != nullptr) {
 			thisNoteRow->muted = thisNoteRow->mutedBeforeStemExport;
 		}
@@ -618,7 +618,7 @@ int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
 		Output* output = clip->output;
 		OutputType outputType = output->type;
 		for (int32_t idxNoteRow = totalNumNoteRows - 1; idxNoteRow >= 0; --idxNoteRow) {
-			NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
+			NoteRow* thisNoteRow = &clip->noteRows[idxNoteRow];
 			if (thisNoteRow != nullptr) {
 				clip->activeIfNoSolo = true; // unmute clip
 
