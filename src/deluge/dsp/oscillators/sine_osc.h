@@ -48,8 +48,11 @@ private:
 		                                   .BitwiseAnd(std::numeric_limits<int16_t>::max())
 		                                   .As<int16_t>();
 
-		// multiply by 2 due to interleave. i.e. sin(x) is actually table[x * 2]
-		Argon<uint32_t> indices = (phase >> (32 - kSineTableSizeMagnitude)) << 1;
+		// Pair index into the interleaved {value, diff} table. The gather scales
+		// offsets by its stride internally (base + offset*stride since argon
+		// 90fde9a "Fix load bugs"), so do NOT pre-multiply by 2 here — doing both
+		// read past the 512-entry table (caught by the golden-master FM cases).
+		Argon<uint32_t> indices = phase >> (32 - kSineTableSizeMagnitude);
 
 		//  load our two relevent table components
 		auto [sine, diff] =
