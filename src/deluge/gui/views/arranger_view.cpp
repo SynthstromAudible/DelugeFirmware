@@ -1179,7 +1179,7 @@ void ArrangerView::outputActivated(Output* output) {
 	int32_t actualPos = arrangement.getLivePos();
 
 	int32_t i = output->clipInstances.firstAtOrAfter(actualPos + 1) - 1;
-	ClipInstance* clipInstance = &output->clipInstances[i];
+	ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 	if (clipInstance && clipInstance->pos + clipInstance->length > actualPos) {
 		arrangement.resumeClipInstancePlayback(clipInstance);
 	}
@@ -1349,7 +1349,7 @@ void ArrangerView::cloneClipInstanceToWhite(Output* output, int32_t x, int32_t y
 	int32_t squareEnd = getPosFromSquare(x + 1, xScroll);
 
 	int32_t i = output->clipInstances.firstAtOrAfter(squareEnd) - 1;
-	ClipInstance* clipInstance = &output->clipInstances[i];
+	ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 	if (clipInstance && clipInstance->pos + clipInstance->length >= squareStart) {
 		Clip* oldClip = clipInstance->clip;
 
@@ -1435,7 +1435,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 	// Test thing
 	{
 		int32_t j = output->clipInstances.firstAtOrAfter(squareStart);
-		ClipInstance* nextClipInstance = &output->clipInstances[j];
+		ClipInstance* nextClipInstance = output->clipInstances.tryGet(j);
 		if (nextClipInstance && nextClipInstance->pos == squareStart) {
 			FREEZE_WITH_ERROR("E233"); // Yes, this happened to someone. Including me!!
 		}
@@ -2093,7 +2093,7 @@ itsInvalid:
 
 	// See what's after
 	int32_t iNext = iPrev + 1;
-	ClipInstance* nextClipInstance = &newOutputToDragInto->clipInstances[iNext];
+	ClipInstance* nextClipInstance = newOutputToDragInto->clipInstances.tryGet(iNext);
 	if (nextClipInstance != clipInstance) {
 		if (nextClipInstance && nextClipInstance->pos < newStartPos + clipInstance->length) {
 			goto itsInvalid;

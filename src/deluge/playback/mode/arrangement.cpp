@@ -177,7 +177,8 @@ notRecording:
 				// Or if inactive (and not recording), just check when final ClipInstance ends
 				if (!currentSong->isOutputActiveInArrangement(output)) {
 
-					ClipInstance* lastClipInstance = &output->clipInstances[std::ssize(output->clipInstances) - 1];
+					ClipInstance* lastClipInstance =
+					    output->clipInstances.tryGet(std::ssize(output->clipInstances) - 1);
 					if (lastClipInstance) {
 						int32_t endPos = lastClipInstance->pos + lastClipInstance->length;
 
@@ -370,7 +371,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 		}
 
 		int32_t i = output->clipInstances.firstAtOrAfter(lastProcessedPos + 1) - 1;
-		ClipInstance* clipInstance = &output->clipInstances[i];
+		ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 
 		// If there's a ClipInstance...
 		if (clipInstance && clipInstance->pos + clipInstance->length > lastProcessedPos) {
@@ -437,7 +438,7 @@ void Arrangement::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mus
 	int32_t actualPos = getLivePos();
 
 	int32_t i = output->clipInstances.firstAtOrAfter(actualPos + 1) - 1;
-	ClipInstance* clipInstance = &output->clipInstances[i];
+	ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 	if (clipInstance && clipInstance->clip == clip && clipInstance->pos + clipInstance->length > actualPos + 1) {
 		resumeClipInstancePlayback(clipInstance, true, mayResumeClip);
 	}
@@ -460,7 +461,7 @@ void Arrangement::reversionDone() {
 		}
 
 		int32_t i = output->clipInstances.firstAtOrAfter(actualPos + 1) - 1;
-		ClipInstance* clipInstance = &output->clipInstances[i];
+		ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 		if (clipInstance && clipInstance->pos + clipInstance->length > actualPos + 1) {
 			resumeClipInstancePlayback(clipInstance);
 		}

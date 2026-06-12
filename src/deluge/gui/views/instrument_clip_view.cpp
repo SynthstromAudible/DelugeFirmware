@@ -6172,7 +6172,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 
 	auto num_note_rows = clip->getNumNoteRows();
 	for (int32_t index = 0; index < num_note_rows; index++) {
-		NoteRow* noteRow = &clip->noteRows[index];
+		NoteRow* noteRow = clip->noteRows.tryGet(index);
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRow->y, noteRow);
 
 		if (noteRow && !noteRow->hasNoNotes()) {
@@ -6569,7 +6569,7 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 		ModelStackWithNoteRow* modelStackWithNoteRow;
 		NoteRow* thisNoteRow{nullptr};
 		if (quantizeAll) {
-			thisNoteRow = &currentClip->noteRows[i];
+			thisNoteRow = currentClip->noteRows.tryGet(i);
 			if (thisNoteRow == nullptr) {
 				// Note row missing
 				continue;

@@ -123,7 +123,7 @@ void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int32_t a
 
 	// First, see if there's an earlier-starting ClipInstance that's still going at this pos
 	int32_t i = clipInstances.firstAtOrAfter(arrangementPos + 1) - 1;
-	ClipInstance* instance = &clipInstances[i];
+	ClipInstance* instance = clipInstances.tryGet(i);
 	if (instance && instance->clip && instance->pos + instance->length > arrangementPos) {
 		instance->clip->activeIfNoSolo = true;
 yesSetActiveClip:
@@ -568,7 +568,7 @@ void Output::endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t t
 
 		// See if a ClipInstance was already playing
 		int32_t i = clipInstances.firstAtOrAfter(actualEndPos) - 1;
-		ClipInstance* clipInstance = &clipInstances[i];
+		ClipInstance* clipInstance = clipInstances.tryGet(i);
 		if (clipInstance && clipInstance->clip) {
 			int32_t endPos = clipInstance->pos + clipInstance->length;
 			if (endPos > actualEndPos) {

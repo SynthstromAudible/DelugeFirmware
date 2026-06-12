@@ -441,7 +441,7 @@ addNewNote:
 	int32_t squareEndPos = squareStart + squareWidth;
 	int32_t i = notes.firstAtOrAfter(squareEndPos) - 1;
 
-	Note* note = &notes[i];
+	Note* note = notes.tryGet(i);
 
 	// If Note starts somewhere within this square...
 	if (note && note->pos >= squareStart) {

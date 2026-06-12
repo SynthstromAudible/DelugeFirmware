@@ -1715,7 +1715,7 @@ Drum* Kit::getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode) {
 	if (noteCode >= 0) {
 		int32_t index = noteCode;
 		if (index < std::ssize(clip->noteRows)) {
-			NoteRow* noteRow = &clip->noteRows[index];
+			NoteRow* noteRow = clip->noteRows.tryGet(index);
 			if (noteRow) {
 				thisDrum = noteRow->drum;
 			}
