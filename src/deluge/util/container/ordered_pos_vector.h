@@ -69,6 +69,9 @@ public:
 
 	void swap(OrderedPosVector& other) noexcept { elements_.swap(other.elements_); }
 
+	/// The last element, or nullptr if empty
+	[[nodiscard]] T* tryGetLast() { return elements_.empty() ? nullptr : &elements_.back(); }
+
 	/// The element at this index, or nullptr if the index is out of range (including the -1 that "none"
 	/// search results produce). The modern name for the old bounds-checked getElement().
 	[[nodiscard]] T* tryGet(int32_t index) {

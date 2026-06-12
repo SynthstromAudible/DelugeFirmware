@@ -20,9 +20,4 @@
 #include "modulation/params/param_node.h"
 #include "util/container/ordered_pos_vector.h"
 
-class ParamNodeVector : public deluge::OrderedPosVector<ParamNode> {
-public:
-	ParamNode* getElement(int32_t index);
-	ParamNode* getFirst();
-	ParamNode* getLast();
-};
+using ParamNodeVector = deluge::OrderedPosVector<ParamNode>;

@@ -4574,9 +4574,9 @@ doNormal: // Wrap it back to the start.
 		if (effectiveLength == distanceToNextNote) {
 			param->deleteAutomation(nullptr, modelStackWithAutoParam, false);
 
-			Error error = param->nodes.insertAtIndex(0);
+			Error error = param->nodes.insertAt(0).error_or(Error::NONE);
 			if (error == Error::NONE) {
-				ParamNode* firstNode = param->nodes.getElement(0);
+				ParamNode* firstNode = &param->nodes[0];
 				firstNode->pos = quantizedPos;
 				firstNode->value = value;
 				firstNode->interpolated = reversed;
