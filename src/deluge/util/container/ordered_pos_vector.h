@@ -37,6 +37,19 @@ namespace deluge {
 template <typename T>
 class OrderedPosVector {
 public:
+	OrderedPosVector() = default;
+	~OrderedPosVector() = default;
+	OrderedPosVector(OrderedPosVector&&) noexcept = default;
+	OrderedPosVector& operator=(OrderedPosVector&&) noexcept = default;
+	// No implicit copying: the legacy byte-copy cloning idiom and C++ copies must not be mixed up.
+	// Use cloneFrom() for an explicit, fallible deep copy.
+	OrderedPosVector(OrderedPosVector const&) = delete;
+	OrderedPosVector& operator=(OrderedPosVector const&) = delete;
+
+	/// Forget the current contents *without* freeing them. Only for use when this object is a byte-copy of
+	/// another instance and so doesn't own what it points at (the legacy cloning idiom).
+	void init() { new (&elements_) fast_vector<T>(); }
+
 	using iterator = typename fast_vector<T>::iterator;
 	using const_iterator = typename fast_vector<T>::const_iterator;
 
@@ -99,7 +112,10 @@ public:
 		return Error::NONE;
 	}
 
-	void deleteAtIndex(int32_t i, int32_t numToDelete = 1) {
+	void deleteAtIndex(int32_t i, int32_t numToDelete = 1, bool mayShortenMemoryAfter = true) {
+		// mayShortenMemoryAfter is accepted for legacy-API compatibility; vector capacity is never shrunk by
+		// erase, so the "don't shorten so the next insert can't fail" contract holds regardless.
+		(void)mayShortenMemoryAfter;
 		elements_.erase(elements_.begin() + i, elements_.begin() + i + numToDelete);
 	}
 

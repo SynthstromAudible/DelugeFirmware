@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright © 2016-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,18 +17,11 @@
 
 #include "modulation/params/param_node_vector.h"
 
-#include "modulation/params/param_node.h"
-#include <cstdint>
-#include <string.h>
-
-ParamNodeVector::ParamNodeVector() : OrderedResizeableArrayWith32bitKey(sizeof(ParamNode)) {
-}
-
 ParamNode* ParamNodeVector::getElement(int32_t index) {
 	if (index < 0 || index >= getNumElements()) {
 		return nullptr;
 	}
-	return (ParamNode*)getElementAddress(index);
+	return getElementAddress(index);
 }
 
 ParamNode* ParamNodeVector::getFirst() {

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright © 2016-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,14 +17,11 @@
 
 #pragma once
 
-#include "util/container/array/ordered_resizeable_array.h"
+#include "modulation/params/param_node.h"
+#include "util/container/ordered_pos_vector.h"
 
-class ParamNode;
-
-class ParamNodeVector : public OrderedResizeableArrayWith32bitKey {
+class ParamNodeVector : public deluge::OrderedPosVector<ParamNode> {
 public:
-	ParamNodeVector();
-
 	ParamNode* getElement(int32_t index);
 	ParamNode* getFirst();
 	ParamNode* getLast();

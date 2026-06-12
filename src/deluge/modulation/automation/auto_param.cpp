@@ -1434,11 +1434,12 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 		int32_t numNodes = nodes.getNumElements();
 
 		if (reverseDirectionWithLength && numNodes) {
-			// Sneakily and temporarily clone this - still pointing to the old AutoParam's nodes' memory.
-			ParamNodeVector oldNodes = nodes;
-			nodes.init();
-
-			error = nodes.insertAtIndex(0, numNodes);
+			// 'nodes' is currently a byte-copy aliasing the old AutoParam's buffer. Deep-copy the data out
+			// (reading through the alias is safe), then detach and rebuild reversed.
+			ParamNodeVector oldNodes;
+			bool cloned = oldNodes.cloneFrom(&nodes);
+			nodes.init(); // Detach from the old AutoParam's buffer, which it still owns
+			error = cloned ? nodes.insertAtIndex(0, numNodes) : Error::INSUFFICIENT_RAM;
 
 			if (error == Error::NONE) {
 				ParamNode* rightmostNode = (ParamNode*)oldNodes.getElementAddress(numNodes - 1);
@@ -1477,9 +1478,7 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 				}
 			}
 
-			// Because this is about to get destructed, we need to stop it pointing to the old
-			// AutoParam's nodes' memory, cos we don't want that getting deallocated.
-			oldNodes.init();
+			// oldNodes owns a real deep copy now and frees it on destruction.
 		}
 
 		else {
