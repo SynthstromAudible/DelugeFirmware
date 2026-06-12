@@ -123,7 +123,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 
 				// Look at the final note, to see if it's wrapping and deal with that.
 				{
-					Note* oldNote = (Note*)oldNotes.getElementAddress(numNotes - 1);
+					Note* oldNote = &oldNotes[numNotes - 1];
 					int32_t finalNoteOvershoot = oldNote->pos + oldNote->length - effectiveLength;
 					if (finalNoteOvershoot > 0) {
 						numNotesBesidesWrapping--;
@@ -141,7 +141,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 				for (int32_t iOld = 0; iOld < numNotesBesidesWrapping; iOld++) {
 					int32_t iNew = numNotesBesidesWrapping - 1 - iOld;
 
-					Note* oldNote = (Note*)oldNotes.getElementAddress(iOld);
+					Note* oldNote = &oldNotes[iOld];
 					Note* newNote = (Note*)&notes[iNew];
 
 					int32_t newPos = effectiveLength - oldNote->pos - oldNote->length;
@@ -158,7 +158,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 			// No-tails (e.g. one-shot samples):
 			else {
 
-				Note* firstNote = (Note*)oldNotes.getElementAddress(0);
+				Note* firstNote = &oldNotes[0];
 				bool anythingAtZero = (firstNote->pos == 0);
 
 				for (int32_t iOld = 0; iOld < numNotes; iOld++) {
@@ -166,7 +166,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					if (iNew < 0) {
 						iNew += numNotes;
 					}
-					Note* oldNote = (Note*)oldNotes.getElementAddress(iOld);
+					Note* oldNote = &oldNotes[iOld];
 					Note* newNote = (Note*)&notes[iNew];
 
 					int32_t newPos = -oldNote->pos;

@@ -20,14 +20,13 @@ class AudioClip : public Clip {};
 class ClipArray {
 public:
 	Clip** getElementAddress(int32_t index) { return &data[index]; }
-	Clip* getClipAtIndex(int32_t index) { return data[index]; }
-	int32_t getNumElements() { return data.size(); }
-	void deleteAtIndex(int32_t index) {
-		for (int32_t i = index; i < data.size() - 1; i++) {
-			data[i] = data[i + 1];
-		}
-		data.pop_back();
-	}
+	Clip*& operator[](size_t index) { return data[index]; }
+	Clip* const& operator[](size_t index) const { return data[index]; }
+	[[nodiscard]] size_t size() const { return data.size(); }
+	[[nodiscard]] bool empty() const { return data.empty(); }
+	auto begin() { return data.begin(); }
+	auto end() { return data.end(); }
+	auto erase(std::vector<Clip*>::iterator at) { return data.erase(at); }
 	void clear() { data.clear(); }
 	void push(Clip* clip) { data.push_back(clip); }
 

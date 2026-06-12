@@ -533,7 +533,7 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 		}
 	}
 
-	if (output->clipInstances.insertAtIndex(clipInstanceI) == Error::NONE) {
+	if (output->clipInstances.insertAt(clipInstanceI)) {
 		clipInstance = &output->clipInstances[clipInstanceI];
 setupClipInstance:
 		clipInstance->clip = this;
@@ -1092,7 +1092,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					// automation on
 					clipInstanceI++;
 
-					Error error = output->clipInstances.insertAtIndex(clipInstanceI);
+					Error error = output->clipInstances.insertAt(clipInstanceI).error_or(Error::NONE);
 					if (error != Error::NONE) {
 						return false;
 					}

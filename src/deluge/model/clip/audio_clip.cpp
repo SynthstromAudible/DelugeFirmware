@@ -888,7 +888,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 		clipInstanceI++;
 
-		error = output->clipInstances.insertAtIndex(clipInstanceI); // Shouldn't be able to fail...
+		error = output->clipInstances.insertAt(clipInstanceI).error_or(Error::NONE); // Shouldn't be able to fail...
 		if (error != Error::NONE) {
 			return;
 		}

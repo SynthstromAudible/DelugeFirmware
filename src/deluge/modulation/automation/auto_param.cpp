@@ -1443,10 +1443,10 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 			error = cloned ? nodes.insertAt(0, numNodes).error_or(Error::NONE) : Error::INSUFFICIENT_RAM;
 
 			if (error == Error::NONE) {
-				ParamNode* rightmostNode = (ParamNode*)oldNodes.getElementAddress(numNodes - 1);
+				ParamNode* rightmostNode = &oldNodes[numNodes - 1];
 				int32_t oldNodeToLeftValue = rightmostNode->value;
 
-				ParamNode* leftmostNode = (ParamNode*)oldNodes.getElementAddress(0);
+				ParamNode* leftmostNode = &oldNodes[0];
 				bool anythingAtZero = !leftmostNode->pos;
 
 				for (int32_t iOld = 0; iOld < numNodes; iOld++) {
@@ -1455,14 +1455,14 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 						iNew += numNodes;
 					}
 
-					ParamNode* oldNode = (ParamNode*)oldNodes.getElementAddress(iOld);
+					ParamNode* oldNode = &oldNodes[iOld];
 					ParamNode* newNode = (ParamNode*)&nodes[iNew];
 
 					int32_t iOldToRight = iOld + 1;
 					if (iOldToRight == numNodes) {
 						iOldToRight = 0;
 					}
-					ParamNode* oldNodeToRight = (ParamNode*)oldNodes.getElementAddress(iOldToRight);
+					ParamNode* oldNodeToRight = &oldNodes[iOldToRight];
 
 					int32_t newPos = -oldNode->pos;
 					if (newPos < 0) {
@@ -1939,8 +1939,7 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
 					// this check again
 					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 16 + 1;
-					nodes.ensureEnoughSpaceAllocated(
-					    numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
+					(void)nodes.reserveExtra(numElementsToAllocateFor); // If this fails... oh well. We'll fail later
 				}
 			}
 
@@ -2419,9 +2418,8 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 		nodes.erase(nodes.begin() + start, nodes.begin() + start + numToDelete);
 
 		if (shouldAddNodeAtPos0) {
-			Error error =
-			    nodes.insertAtIndex(0); // Shouldn't ever fail as we told it not to shorten its memory previously
-			if (error == Error::NONE) {
+			// Shouldn't ever fail, as erase never shrinks the capacity we just freed up
+			if (nodes.insertAt(0)) {
 				ParamNode* newNode = &nodes[0];
 				newNode->value = oldValue;
 				newNode->pos = 0;
@@ -2512,7 +2510,7 @@ justShiftEverything:
 				if (nodeBeforeWrap->pos >= lengthBeforeLoop - 1) {
 					ParamNode tempNode = *nodeBeforeWrap;
 					nodes.erase(nodes.begin() + indexBeforeWrap, nodes.begin() + indexBeforeWrap + 1);
-					nodes.insertAtIndex(0); // Shouldn't be able to fail....
+					(void)nodes.insertAt(0); // Shouldn't be able to fail....
 					ParamNode* nodeAfterWrap = &nodes[0];
 					*nodeAfterWrap = tempNode;
 					nodeAfterWrap->pos = -1; // It'll get incremented below
@@ -2539,7 +2537,7 @@ justShiftEverything:
 					ParamNode tempNode = *nodeAfterWrap;
 					int32_t rightMostIndex = std::ssize(nodes) - 1;
 					nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + 1);
-					nodes.insertAtIndex(rightMostIndex); // Surely can't fail
+					(void)nodes.insertAt(rightMostIndex); // Surely can't fail
 					ParamNode* rightMostNode = &nodes[rightMostIndex];
 					*rightMostNode = tempNode;
 					rightMostNode->pos = lengthBeforeLoop; // It'll get decremented below.
@@ -2633,8 +2631,8 @@ justShiftEverything:
 						else {
 							ParamNode tempNode = *leftMostNode;
 							nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + 1);
-							nodes.insertAtIndex(lastNodeIndex); // Yes, lastNodeIndex is still correct. And, this really
-							                                    // shouldn't be able to give an error...
+							(void)nodes.insertAt(lastNodeIndex); // Yes, lastNodeIndex is still correct. And, this
+							                                     // really shouldn't be able to give an error...
 							lastNode = &nodes[lastNodeIndex];
 							*lastNode = tempNode;
 						}
@@ -2654,8 +2652,9 @@ justShiftEverything:
 
 void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
                                                 ModelStackWithAutoParam const* modelStack) {
-	int32_t nodeI = nodes.searchExact(pos);
-	if (nodeI != -1) {
+	auto nodeIt = nodes.find_key(pos);
+	if (nodeIt != nodes.end()) {
+		int32_t nodeI = static_cast<int32_t>(nodeIt - nodes.begin());
 
 		if (action) {
 			action->recordParamChangeDefinitely(modelStack, false);

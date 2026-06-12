@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/note/note_vector.h"
 #include "model/scale/note_set.h"
 #include <cstdint>
 
@@ -37,7 +38,6 @@ class Output;
 class Clip;
 class ClipArray;
 class AudioClip;
-class NoteVector;
 class ModelStackWithAutoParam;
 class ModelStack;
 

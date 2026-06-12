@@ -20,8 +20,4 @@
 #include "model/note/note.h"
 #include "util/container/ordered_pos_vector.h"
 
-class NoteVector : public deluge::OrderedPosVector<Note> {
-public:
-	Note* getElement(int32_t index);
-	Note* getLast();
-};
+using NoteVector = deluge::OrderedPosVector<Note>;

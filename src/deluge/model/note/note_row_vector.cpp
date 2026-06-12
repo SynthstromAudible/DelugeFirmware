@@ -20,19 +20,18 @@
 #include <new>
 
 NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
-	Error error = insertAtIndex(index);
-	if (error != Error::NONE) {
+	if (!insertAt(index)) {
 		return nullptr;
 	}
 	return &(*this)[index];
 }
 
 void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete) {
-	deleteAtIndex(startIndex, numToDelete); // Runs the NoteRows' destructors
+	erase(begin() + startIndex, begin() + startIndex + numToDelete); // Runs the NoteRows' destructors
 }
 
 NoteRow* NoteRowVector::insertNoteRowAtY(int32_t y, int32_t* getIndex) {
-	int32_t i = search(y, GREATER_OR_EQUAL);
+	int32_t i = firstAtOrAfter(y);
 	NoteRow* noteRow = insertNoteRowAtIndex(i);
 	if (noteRow) {
 		if (getIndex) {
@@ -44,12 +43,13 @@ NoteRow* NoteRowVector::insertNoteRowAtY(int32_t y, int32_t* getIndex) {
 }
 
 bool NoteRowVector::cloneFrom(NoteRowVector const* other) {
-	empty();
-	if (!ensureEnoughSpaceAllocated(other->getNumElements())) {
+	clear();
+	int32_t numToClone = static_cast<int32_t>(other->size());
+	if (!reserveExtra(numToClone)) {
 		return false;
 	}
-	for (int32_t i = 0; i < other->getNumElements(); i++) {
-		insertAtIndex(getNumElements()); // Can't fail; space reserved above
+	for (int32_t i = 0; i < numToClone; i++) {
+		(void)insertAt(static_cast<int32_t>(size())); // Can't fail; space reserved above
 		// Byte-copy over the freshly default-constructed row. The default row owns nothing, so nothing leaks;
 		// the copy aliases the source row's guts until beenCloned() gives it its own.
 		std::memcpy(static_cast<void*>(&(*this)[i]), static_cast<void const*>(&(*other)[i]), sizeof(NoteRow));

@@ -25,18 +25,15 @@
 #include <new>
 #include <type_traits>
 
-#ifndef GREATER_OR_EQUAL
-#define GREATER_OR_EQUAL 0
-#define LESS (-1)
-#endif
-
 namespace deluge {
 
-/// Drop-in replacement for OrderedResizeableArray(With32bitKey), backed by deluge::fast_vector.
-/// The (ascending) sort key is the member named by keyMember - by default T::pos.
+/// A sorted vector backed by deluge::fast_vector; the (ascending) sort key is the member named by
+/// keyMember - by default T::pos. Replaces the old OrderedResizeableArray(With32bitKey).
 ///
-/// The legacy method names and semantics are kept so the very large number of call sites stay unchanged;
-/// they can be modernised incrementally later.
+/// Beyond the standard surface, it offers: key-based lookups (lower_bound/find_key/firstAtOrAfter/tryGet),
+/// fallible std::expected mutations (insertAt/insertSorted/reserveExtra), the sequencer batch algorithms
+/// (searchMultiple/searchDual/shiftHorizontal/generateRepeats), and the legacy byte-copy clone idiom
+/// (init/cloneFrom/beenCloned) which survives until real fallible clone factories replace it.
 template <typename T, auto keyMember = &T::pos>
 class OrderedPosVector {
 public:
@@ -55,31 +52,6 @@ public:
 
 	using iterator = typename fast_vector<T>::iterator;
 	using const_iterator = typename fast_vector<T>::const_iterator;
-
-	[[nodiscard]] int32_t getNumElements() const { return static_cast<int32_t>(elements_.size()); }
-	T* getElementAddress(int32_t index) { return &elements_[index]; }
-	T const* getElementAddress(int32_t index) const { return &elements_[index]; }
-	[[nodiscard]] int32_t getKeyAtIndex(int32_t i) const { return elements_[i].*keyMember; }
-	void setKeyAtIndex(int32_t key, int32_t i) { elements_[i].*keyMember = key; }
-
-	iterator begin() { return elements_.begin(); }
-	iterator end() { return elements_.end(); }
-	const_iterator begin() const { return elements_.begin(); }
-	const_iterator end() const { return elements_.end(); }
-
-	void swap(OrderedPosVector& other) noexcept { elements_.swap(other.elements_); }
-
-	/// The last element, or nullptr if empty
-	[[nodiscard]] T* tryGetLast() { return elements_.empty() ? nullptr : &elements_.back(); }
-
-	/// The element at this index, or nullptr if the index is out of range (including the -1 that "none"
-	/// search results produce). The modern name for the old bounds-checked getElement().
-	[[nodiscard]] T* tryGet(int32_t index) {
-		if (index < 0 || index >= static_cast<int32_t>(elements_.size())) {
-			return nullptr;
-		}
-		return &elements_[index];
-	}
 
 	/// Index of the first element whose key is >= the given key (size() if none). The index-returning
 	/// counterpart of lower_bound(), for the many call sites that do index arithmetic around the result.
@@ -128,77 +100,56 @@ public:
 		return {};
 	}
 
-	/// First element whose key is >= the given key (prefer this iterator API over search() in new code)
+	void swap(OrderedPosVector& other) noexcept { elements_.swap(other.elements_); }
+
+	iterator begin() { return elements_.begin(); }
+	iterator end() { return elements_.end(); }
+	const_iterator begin() const { return elements_.begin(); }
+	const_iterator end() const { return elements_.end(); }
+
+	/// The element at this index, or nullptr if the index is out of range (including the -1 that "none"
+	/// search results produce).
+	[[nodiscard]] T* tryGet(int32_t index) {
+		if (index < 0 || index >= static_cast<int32_t>(elements_.size())) {
+			return nullptr;
+		}
+		return &elements_[index];
+	}
+
+	/// The last element, or nullptr if empty
+	[[nodiscard]] T* tryGetLast() { return elements_.empty() ? nullptr : &elements_.back(); }
+
+	/// First element whose key is >= the given key
 	[[nodiscard]] iterator lower_bound(int32_t key) { return std::ranges::lower_bound(elements_, key, {}, keyMember); }
 	[[nodiscard]] const_iterator lower_bound(int32_t key) const {
 		return std::ranges::lower_bound(elements_, key, {}, keyMember);
 	}
 
-	/// Iterator to the element with exactly this key, or end() (prefer over searchExact() in new code)
+	/// Iterator to the element with exactly this key, or end()
 	[[nodiscard]] iterator find_key(int32_t key) {
 		auto it = lower_bound(key);
 		return (it != elements_.end() && (*it).*keyMember == key) ? it : elements_.end();
-	}
-
-	/// With duplicate keys, returns the leftmost matching (or greater) one if doing GREATER_OR_EQUAL, or the
-	/// rightmost lesser one if doing LESS.
-	[[nodiscard]] int32_t search(int32_t searchKey, int32_t comparison, int32_t rangeBegin, int32_t rangeEnd) const {
-		auto it = std::ranges::lower_bound(elements_.begin() + rangeBegin, elements_.begin() + rangeEnd, searchKey, {},
-		                                   keyMember);
-		return static_cast<int32_t>(it - elements_.begin()) + comparison;
-	}
-	[[nodiscard]] int32_t search(int32_t searchKey, int32_t comparison, int32_t rangeBegin = 0) const {
-		return search(searchKey, comparison, rangeBegin, getNumElements());
-	}
-
-	/// Returns -1 if not found
-	[[nodiscard]] int32_t searchExact(int32_t key) const {
-		auto it = lower_bound(key);
-		if (it != elements_.end() && (*it).*keyMember == key) {
-			return static_cast<int32_t>(it - elements_.begin());
-		}
-		return -1;
 	}
 
 	/// Erases by iterator (returns the iterator following the removed range, as std containers do)
 	iterator erase(iterator first, iterator last) { return elements_.erase(first, last); }
 	iterator erase(iterator at) { return elements_.erase(at); }
 
-	/// Batch search: results, as if GREATER_OR_EQUAL had been supplied to search(), are written back into
-	/// searchTerms. The terms must be in ascending order.
+	/// Batch lower-bound search: each term is replaced with the index of the first element whose key is >= it.
+	/// The terms must be in ascending order.
 	void searchMultiple(int32_t* __restrict__ searchTerms, int32_t numSearchTerms, int32_t rangeEnd = -1) const {
-		if (rangeEnd == -1) {
-			rangeEnd = getNumElements();
-		}
-		int32_t rangeBegin = 0;
+		auto last = (rangeEnd == -1) ? elements_.end() : elements_.begin() + rangeEnd;
+		auto from = elements_.begin();
 		for (int32_t t = 0; t < numSearchTerms; t++) {
-			rangeBegin = search(searchTerms[t], GREATER_OR_EQUAL, rangeBegin, rangeEnd);
-			searchTerms[t] = rangeBegin;
+			from = std::ranges::lower_bound(from, last, searchTerms[t], {}, keyMember);
+			searchTerms[t] = static_cast<int32_t>(from - elements_.begin());
 		}
 	}
 
 	/// Like searchMultiple(), for exactly 2 ascending search terms.
 	void searchDual(int32_t const* __restrict__ searchTerms, int32_t* __restrict__ resultingIndexes) const {
-		resultingIndexes[0] = search(searchTerms[0], GREATER_OR_EQUAL);
-		resultingIndexes[1] = search(searchTerms[1], GREATER_OR_EQUAL, resultingIndexes[0]);
-	}
-
-	Error insertAtIndex(int32_t i, int32_t numToInsert = 1) {
-		try {
-			if constexpr (std::is_copy_constructible_v<T>) {
-				elements_.insert(elements_.begin() + i, numToInsert, T{});
-			}
-			else {
-				// Move-only T: reserve up front (the only step that can throw), then emplace one by one
-				elements_.reserve(elements_.size() + numToInsert);
-				for (int32_t n = 0; n < numToInsert; n++) {
-					elements_.emplace(elements_.begin() + i);
-				}
-			}
-		} catch (deluge::exception&) {
-			return Error::INSUFFICIENT_RAM;
-		}
-		return Error::NONE;
+		resultingIndexes[0] = firstAtOrAfter(searchTerms[0]);
+		resultingIndexes[1] = firstAtOrAfter(searchTerms[1], resultingIndexes[0]);
 	}
 
 	/// Moves the element at iFrom so it sits at iTo, shuffling those in between along by one.
@@ -211,27 +162,10 @@ public:
 		}
 	}
 
-	void deleteAtIndex(int32_t i, int32_t numToDelete = 1, bool mayShortenMemoryAfter = true) {
-		// mayShortenMemoryAfter is accepted for legacy-API compatibility; vector capacity is never shrunk by
-		// erase, so the "don't shorten so the next insert can't fail" contract holds regardless.
-		(void)mayShortenMemoryAfter;
-		elements_.erase(elements_.begin() + i, elements_.begin() + i + numToDelete);
-	}
-
-	/// Returns index created, or -1 if error
-	int32_t insertAtKey(int32_t key, bool isDefinitelyLast = false) {
-		int32_t i = isDefinitelyLast ? getNumElements() : search(key, GREATER_OR_EQUAL);
-		if (insertAtIndex(i) != Error::NONE) {
-			return -1;
-		}
-		elements_[i].*keyMember = key;
-		return i;
-	}
-
 	void deleteAtKey(int32_t key) {
-		int32_t i = searchExact(key);
-		if (i != -1) {
-			deleteAtIndex(i);
+		auto it = find_key(key);
+		if (it != elements_.end()) {
+			elements_.erase(it);
 		}
 	}
 
@@ -244,19 +178,6 @@ public:
 	T& front() { return elements_.front(); }
 	T& back() { return elements_.back(); }
 	T* data() { return elements_.data(); }
-
-	void swapStateWith(OrderedPosVector* other) { elements_.swap(other->elements_); }
-
-	void swapElements(int32_t i1, int32_t i2) { std::swap(elements_[i1], elements_[i2]); }
-
-	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded) {
-		try {
-			elements_.reserve(elements_.size() + numAdditionalElementsNeeded);
-			return true;
-		} catch (deluge::exception&) {
-			return false;
-		}
-	}
 
 	bool cloneFrom(OrderedPosVector const* other) {
 		try {
@@ -274,7 +195,7 @@ public:
 	/// Until this is called, the byte-copy aliases the original's buffer, which the original still owns; on
 	/// failure this copy is detached and left empty.
 	Error beenCloned() {
-		int32_t num = getNumElements();
+		int32_t num = static_cast<int32_t>(elements_.size());
 		T const* sourceData = elements_.data(); // Reading through the aliased buffer is safe
 		fast_vector<T> fresh;
 		try {
@@ -317,12 +238,12 @@ public:
 			amount += effectiveLength;
 		}
 
-		int32_t cutoffIndex = search(cutoffPos, GREATER_OR_EQUAL);
+		int32_t cutoffIndex = firstAtOrAfter(cutoffPos);
 
 		for (int32_t i = 0; i < cutoffIndex; i++) {
 			elements_[i].*keyMember += amount;
 		}
-		for (int32_t i = cutoffIndex; i < getNumElements(); i++) {
+		for (int32_t i = cutoffIndex; i < static_cast<int32_t>(elements_.size()); i++) {
 			elements_[i].*keyMember += amount - effectiveLength;
 		}
 
@@ -337,10 +258,10 @@ public:
 
 		int32_t numCompleteRepeats = static_cast<uint32_t>(endPos) / static_cast<uint32_t>(wrapPoint);
 		int32_t endPosWithinFirstRepeat = endPos - numCompleteRepeats * wrapPoint;
-		int32_t iEndPosWithinFirstRepeat = search(endPosWithinFirstRepeat, GREATER_OR_EQUAL);
+		int32_t iEndPosWithinFirstRepeat = firstAtOrAfter(endPosWithinFirstRepeat);
 
 		// Do this rather than just taking the size - this ensures we ignore / chop off any elements >= wrapPoint
-		int32_t oldNum = search(wrapPoint, GREATER_OR_EQUAL);
+		int32_t oldNum = firstAtOrAfter(wrapPoint);
 		int32_t newNum = oldNum * numCompleteRepeats + iEndPosWithinFirstRepeat;
 
 		try {
@@ -366,7 +287,7 @@ public:
 	void testSequentiality(char const* errorCode) const {
 #if ENABLE_SEQUENTIALITY_TESTS
 		int32_t lastKey = -2147483648;
-		for (int32_t i = 0; i < getNumElements(); i++) {
+		for (int32_t i = 0; i < static_cast<int32_t>(elements_.size()); i++) {
 			int32_t key = elements_[i].*keyMember;
 			if (key <= lastKey) {
 				FREEZE_WITH_ERROR(errorCode);

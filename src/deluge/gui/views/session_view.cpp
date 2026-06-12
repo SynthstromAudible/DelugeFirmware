@@ -328,7 +328,7 @@ moveAfterClipInstance:
 				}
 
 				// If we're here, we're ok!
-				Error error = output->clipInstances.insertAtIndex(i);
+				Error error = output->clipInstances.insertAt(i).error_or(Error::NONE);
 				if (error != Error::NONE) {
 					display->displayError(error);
 					return ActionResult::DEALT_WITH;
