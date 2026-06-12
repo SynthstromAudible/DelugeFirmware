@@ -849,8 +849,8 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 			// Count up notes per member channel. This traversal will *not* find the new note that we're switching on,
 			// which will have had its toMIDIChannel set to MIDI_CHANNEL_NONE (255) by Arpeggiator (we'll decide and set
 			// it below).
-			for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
-				ArpNote* thisArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+			for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size()); n++) {
+				ArpNote* thisArpNote = &arpeggiator.notes[n];
 				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
 					if (thisArpNote->outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
 						break;
@@ -916,9 +916,9 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 			                                                // container, so no overflowing
 			memset(mpeValuesSum, 0, sizeof(mpeValuesSum));
 
-			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
+			for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size());
 			     n++) { // This traversal will include the original note, which will get counted up too
-				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+				ArpNote* lookingAtArpNote = &arpeggiator.notes[n];
 				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
 					if (lookingAtArpNote->outputMemberChannel[i] == outputMemberChannel) {
 						numNotesFound++;
@@ -1017,9 +1017,9 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		                                                // no overflowing
 		memset(mpeValuesSum, 0, sizeof(mpeValuesSum));
 
-		for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
+		for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size());
 		     n++) { // This traversal will not include the original note, which has already been deleted from the array.
-			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+			ArpNote* lookingAtArpNote = &arpeggiator.notes[n];
 			for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
 				if (lookingAtArpNote->outputMemberChannel[i] == oldOutputMemberChannel) {
 					numNotesFound++;
@@ -1107,9 +1107,9 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			int32_t numNotesFound = 0;
 			int32_t mpeValuesSum = 0; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
 
-			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
+			for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size());
 			     n++) { // This traversal will include the original note, which will get counted up too
-				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+				ArpNote* lookingAtArpNote = &arpeggiator.notes[n];
 				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
 					if (lookingAtArpNote->outputMemberChannel[i] == memberChannel) {
 						numNotesFound++;
@@ -1185,8 +1185,8 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimensi
 		int32_t mpeValuesSum = 0; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
 		int32_t mpeValuesMax = -ONE_Q31;
 		// This traversal will include the original note, which will get counted up too
-		for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
-			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+		for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size()); n++) {
+			ArpNote* lookingAtArpNote = &arpeggiator.notes[n];
 
 			numNotesFound++;
 

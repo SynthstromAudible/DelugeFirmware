@@ -1735,9 +1735,9 @@ void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t e
 			// This is a sound instrument (synth)
 			Arpeggiator* arpeggiator = (Arpeggiator*)getArp();
 			// Search for the note
-			int32_t i = arpeggiator->notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
-			if (i < arpeggiator->notes.getNumElements()) {
-				ArpNote* arpNote = (ArpNote*)arpeggiator->notes.getElementAddress(i);
+			int32_t i = searchArpNotes(arpeggiator->notes, channelOrNoteNumber);
+			if (i < static_cast<int32_t>(arpeggiator->notes.size())) {
+				ArpNote* arpNote = &arpeggiator->notes[i];
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (arpNote->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
@@ -1871,8 +1871,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 				// might not be active anymore, cos we were keeping track of them for MPE purposes.
 				Arpeggiator* arpeggiator = &((SoundInstrument*)this)->arpeggiator;
 				if (arpeggiator->hasAnyInputNotesActive()) {
-					ArpNote* arpNote =
-					    (ArpNote*)arpeggiator->notes.getElementAddress(arpeggiator->notes.getNumElements() - 1);
+					ArpNote* arpNote = &arpeggiator->notes.back();
 					int32_t newNoteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 
 					if (polyphonic == PolyphonyMode::LEGATO) {

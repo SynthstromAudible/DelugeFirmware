@@ -690,8 +690,8 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 	    && playbackHandler.recording != RecordingMode::OFF) {
 		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 
-		for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
-			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+		for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size()); n++) {
+			ArpNote* arpNote = &arpeggiator.notes[n];
 			if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)]
 			    == channelOrNoteNumber) { // If we're actually identifying by MIDICharacteristic::NOTE, we could
 				                          // do a much faster search,
