@@ -21,6 +21,7 @@
 #include "util/containers.h"
 #include <algorithm>
 #include <new>
+#include <type_traits>
 
 #ifndef GREATER_OR_EQUAL
 #define GREATER_OR_EQUAL 0
@@ -29,12 +30,12 @@
 
 namespace deluge {
 
-/// Drop-in replacement for OrderedResizeableArrayWith32bitKey, backed by deluge::fast_vector.
-/// T must have a public int32_t `pos` member, which is the (ascending) sort key.
+/// Drop-in replacement for OrderedResizeableArray(With32bitKey), backed by deluge::fast_vector.
+/// The (ascending) sort key is the member named by keyMember - by default T::pos.
 ///
 /// The legacy method names and semantics are kept so the very large number of call sites stay unchanged;
 /// they can be modernised incrementally later.
-template <typename T>
+template <typename T, auto keyMember = &T::pos>
 class OrderedPosVector {
 public:
 	OrderedPosVector() = default;
@@ -56,8 +57,8 @@ public:
 	[[nodiscard]] int32_t getNumElements() const { return static_cast<int32_t>(elements_.size()); }
 	T* getElementAddress(int32_t index) { return &elements_[index]; }
 	T const* getElementAddress(int32_t index) const { return &elements_[index]; }
-	[[nodiscard]] int32_t getKeyAtIndex(int32_t i) const { return elements_[i].pos; }
-	void setKeyAtIndex(int32_t key, int32_t i) { elements_[i].pos = key; }
+	[[nodiscard]] int32_t getKeyAtIndex(int32_t i) const { return elements_[i].*keyMember; }
+	void setKeyAtIndex(int32_t key, int32_t i) { elements_[i].*keyMember = key; }
 
 	iterator begin() { return elements_.begin(); }
 	iterator end() { return elements_.end(); }
@@ -68,7 +69,7 @@ public:
 	/// rightmost lesser one if doing LESS.
 	[[nodiscard]] int32_t search(int32_t searchKey, int32_t comparison, int32_t rangeBegin, int32_t rangeEnd) const {
 		auto it = std::lower_bound(elements_.begin() + rangeBegin, elements_.begin() + rangeEnd, searchKey,
-		                           [](T const& element, int32_t key) { return element.pos < key; });
+		                           [](T const& element, int32_t key) { return element.*keyMember < key; });
 		return static_cast<int32_t>(it - elements_.begin()) + comparison;
 	}
 	[[nodiscard]] int32_t search(int32_t searchKey, int32_t comparison, int32_t rangeBegin = 0) const {
@@ -78,7 +79,7 @@ public:
 	/// Returns -1 if not found
 	[[nodiscard]] int32_t searchExact(int32_t key) const {
 		int32_t i = search(key, GREATER_OR_EQUAL);
-		if (i < getNumElements() && elements_[i].pos == key) {
+		if (i < getNumElements() && elements_[i].*keyMember == key) {
 			return i;
 		}
 		return -1;
@@ -105,11 +106,30 @@ public:
 
 	Error insertAtIndex(int32_t i, int32_t numToInsert = 1) {
 		try {
-			elements_.insert(elements_.begin() + i, numToInsert, T{});
+			if constexpr (std::is_copy_constructible_v<T>) {
+				elements_.insert(elements_.begin() + i, numToInsert, T{});
+			}
+			else {
+				// Move-only T: reserve up front (the only step that can throw), then emplace one by one
+				elements_.reserve(elements_.size() + numToInsert);
+				for (int32_t n = 0; n < numToInsert; n++) {
+					elements_.emplace(elements_.begin() + i);
+				}
+			}
 		} catch (deluge::exception&) {
 			return Error::INSUFFICIENT_RAM;
 		}
 		return Error::NONE;
+	}
+
+	/// Moves the element at iFrom so it sits at iTo, shuffling those in between along by one.
+	void repositionElement(int32_t iFrom, int32_t iTo) {
+		if (iFrom < iTo) {
+			std::rotate(elements_.begin() + iFrom, elements_.begin() + iFrom + 1, elements_.begin() + iTo + 1);
+		}
+		else {
+			std::rotate(elements_.begin() + iTo, elements_.begin() + iFrom, elements_.begin() + iFrom + 1);
+		}
 	}
 
 	void deleteAtIndex(int32_t i, int32_t numToDelete = 1, bool mayShortenMemoryAfter = true) {
@@ -125,7 +145,7 @@ public:
 		if (insertAtIndex(i) != Error::NONE) {
 			return -1;
 		}
-		elements_[i].pos = key;
+		elements_[i].*keyMember = key;
 		return i;
 	}
 
@@ -203,10 +223,10 @@ public:
 		int32_t cutoffIndex = search(cutoffPos, GREATER_OR_EQUAL);
 
 		for (int32_t i = 0; i < cutoffIndex; i++) {
-			elements_[i].pos += amount;
+			elements_[i].*keyMember += amount;
 		}
 		for (int32_t i = cutoffIndex; i < getNumElements(); i++) {
-			elements_[i].pos += amount - effectiveLength;
+			elements_[i].*keyMember += amount - effectiveLength;
 		}
 
 		std::rotate(elements_.begin(), elements_.begin() + cutoffIndex, elements_.end());
@@ -238,7 +258,7 @@ public:
 					break;
 				}
 				elements_[i + oldNum * r] = elements_[i];
-				elements_[i + oldNum * r].pos = elements_[i].pos + wrapPoint * r;
+				elements_[i + oldNum * r].*keyMember = elements_[i].*keyMember + wrapPoint * r;
 			}
 		}
 
@@ -250,7 +270,7 @@ public:
 #if ENABLE_SEQUENTIALITY_TESTS
 		int32_t lastKey = -2147483648;
 		for (int32_t i = 0; i < getNumElements(); i++) {
-			int32_t key = elements_[i].pos;
+			int32_t key = elements_[i].*keyMember;
 			if (key <= lastKey) {
 				FREEZE_WITH_ERROR(errorCode);
 			}

@@ -47,6 +47,19 @@ public:
 	ParamManager();
 	~ParamManager();
 
+	// Moves transfer ownership of the ParamCollections, emptying the source. Copying must stay explicit
+	// (cloneParamCollectionsFrom / beenCloned), as it can fail.
+	ParamManager(ParamManager&& other) noexcept { moveFrom(other); }
+	ParamManager& operator=(ParamManager&& other) noexcept {
+		if (this != &other) {
+			destructAndForgetParamCollections();
+			moveFrom(other);
+		}
+		return *this;
+	}
+	ParamManager(ParamManager const&) = delete;
+	ParamManager& operator=(ParamManager const&) = delete;
+
 	// Not including MPE params
 	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
 
@@ -169,11 +182,24 @@ public:
 	// This list should be terminated by an object whose values are all zero. Yes, all of them must be zero, because if
 	// we know this, we can check for stuff faster.
 	ParamCollectionSummary summaries[PARAM_COLLECTIONS_STORAGE_NUM];
+
+private:
+	void moveFrom(ParamManager& other) noexcept {
+		resonanceBackwardsCompatibilityProcessed = other.resonanceBackwardsCompatibilityProcessed;
+		expressionParamSetOffset = other.expressionParamSetOffset;
+		for (auto i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; i++) {
+			summaries[i] = other.summaries[i];
+			other.summaries[i] = {nullptr};
+		}
+		other.expressionParamSetOffset = 0;
+	}
 };
 
 class ParamManagerForTimeline final : public ParamManager { // I want to rename this one to "with automation"
 public:
 	ParamManagerForTimeline();
+	ParamManagerForTimeline(ParamManagerForTimeline&&) noexcept = default;
+	ParamManagerForTimeline& operator=(ParamManagerForTimeline&&) noexcept = default;
 
 	void tickSamples(int32_t numSamples, ModelStackWithThreeMainThings* modelStack);
 	void setPlayPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack, bool reversed);

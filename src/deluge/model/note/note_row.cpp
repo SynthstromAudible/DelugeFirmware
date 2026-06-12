@@ -3859,7 +3859,7 @@ void NoteRow::rememberDrumName() {
 		}
 
 		// Go through all existing old names
-		DrumName** prevPointer = &firstOldDrumName;
+		DrumName** prevPointer = firstOldDrumName.ptr();
 		while (*prevPointer) {
 
 			// If we'd already stored the name we were gonna store now, no need to do anything
