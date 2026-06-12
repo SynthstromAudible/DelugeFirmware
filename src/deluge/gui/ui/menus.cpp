@@ -1008,38 +1008,38 @@ midi::FollowChannel midiFollowChannelBMenu{STRING_FOR_FOLLOW_CHANNEL_B, STRING_F
                                            MIDIFollowChannelType::B};
 midi::FollowChannel midiFollowChannelCMenu{STRING_FOR_FOLLOW_CHANNEL_C, STRING_FOR_FOLLOW_CHANNEL_C,
                                            MIDIFollowChannelType::C};
-midi::FollowChannel midiFollowChannelTrack1Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK1, STRING_FOR_FOLLOW_CHANNEL_TRACK1,
-                                                MIDIFollowChannelType::Track1};
-midi::FollowChannel midiFollowChannelTrack2Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK2, STRING_FOR_FOLLOW_CHANNEL_TRACK2,
-                                                MIDIFollowChannelType::Track2};
-midi::FollowChannel midiFollowChannelTrack3Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK3, STRING_FOR_FOLLOW_CHANNEL_TRACK3,
-                                                MIDIFollowChannelType::Track3};
-midi::FollowChannel midiFollowChannelTrack4Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK4, STRING_FOR_FOLLOW_CHANNEL_TRACK4,
-                                                MIDIFollowChannelType::Track4};
-midi::FollowChannel midiFollowChannelTrack5Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK5, STRING_FOR_FOLLOW_CHANNEL_TRACK5,
-                                                MIDIFollowChannelType::Track5};
-midi::FollowChannel midiFollowChannelTrack6Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK6, STRING_FOR_FOLLOW_CHANNEL_TRACK6,
-                                                MIDIFollowChannelType::Track6};
-midi::FollowChannel midiFollowChannelTrack7Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK7, STRING_FOR_FOLLOW_CHANNEL_TRACK7,
-                                                MIDIFollowChannelType::Track7};
-midi::FollowChannel midiFollowChannelTrack8Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK8, STRING_FOR_FOLLOW_CHANNEL_TRACK8,
-                                                MIDIFollowChannelType::Track8};
-midi::FollowChannel midiFollowChannelTrack9Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK9, STRING_FOR_FOLLOW_CHANNEL_TRACK9,
-                                                MIDIFollowChannelType::Track9};
-midi::FollowChannel midiFollowChannelTrack10Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK10, STRING_FOR_FOLLOW_CHANNEL_TRACK10,
-                                                 MIDIFollowChannelType::Track10};
-midi::FollowChannel midiFollowChannelTrack11Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK11, STRING_FOR_FOLLOW_CHANNEL_TRACK11,
-                                                 MIDIFollowChannelType::Track11};
-midi::FollowChannel midiFollowChannelTrack12Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK12, STRING_FOR_FOLLOW_CHANNEL_TRACK12,
-                                                 MIDIFollowChannelType::Track12};
-midi::FollowChannel midiFollowChannelTrack13Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK13, STRING_FOR_FOLLOW_CHANNEL_TRACK13,
-                                                 MIDIFollowChannelType::Track13};
-midi::FollowChannel midiFollowChannelTrack14Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK14, STRING_FOR_FOLLOW_CHANNEL_TRACK14,
-                                                 MIDIFollowChannelType::Track14};
-midi::FollowChannel midiFollowChannelTrack15Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK15, STRING_FOR_FOLLOW_CHANNEL_TRACK15,
-                                                 MIDIFollowChannelType::Track15};
-midi::FollowChannel midiFollowChannelTrack16Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK16, STRING_FOR_FOLLOW_CHANNEL_TRACK16,
-                                                 MIDIFollowChannelType::Track16};
+midi::FollowChannelTrack midiFollowChannelTrack1Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                     MIDIFollowChannelType::Track1, 1};
+midi::FollowChannelTrack midiFollowChannelTrack2Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                     MIDIFollowChannelType::Track2, 2};
+midi::FollowChannelTrack midiFollowChannelTrack3Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                     MIDIFollowChannelType::Track3, 3};
+midi::FollowChannelTrack midiFollowChannelTrack4Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                     MIDIFollowChannelType::Track4, 4};
+midi::FollowChannelTrack midiFollowChannelTrack5Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                     MIDIFollowChannelType::Track5, 5};
+midi::FollowChannelTrack midiFollowChannelTrack6Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                     MIDIFollowChannelType::Track6, 6};
+midi::FollowChannelTrack midiFollowChannelTrack7Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                     MIDIFollowChannelType::Track7, 7};
+midi::FollowChannelTrack midiFollowChannelTrack8Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                     MIDIFollowChannelType::Track8, 8};
+midi::FollowChannelTrack midiFollowChannelTrack9Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                     MIDIFollowChannelType::Track9, 9};
+midi::FollowChannelTrack midiFollowChannelTrack10Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                      MIDIFollowChannelType::Track10, 10};
+midi::FollowChannelTrack midiFollowChannelTrack11Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                      MIDIFollowChannelType::Track11, 11};
+midi::FollowChannelTrack midiFollowChannelTrack12Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                      MIDIFollowChannelType::Track12, 12};
+midi::FollowChannelTrack midiFollowChannelTrack13Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                      MIDIFollowChannelType::Track13, 13};
+midi::FollowChannelTrack midiFollowChannelTrack14Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                      MIDIFollowChannelType::Track14, 14};
+midi::FollowChannelTrack midiFollowChannelTrack15Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                      MIDIFollowChannelType::Track15, 15};
+midi::FollowChannelTrack midiFollowChannelTrack16Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
+                                                      MIDIFollowChannelType::Track16, 16};
 midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
 ToggleBool midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM,
                                       midiEngine.midiFollowDisplayParam};

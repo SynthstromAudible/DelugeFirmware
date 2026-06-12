@@ -24,7 +24,7 @@
 class MIDICable;
 
 namespace deluge::gui::menu_item::midi {
-class FollowChannel final : public Integer {
+class FollowChannel : public Integer {
 public:
 	using Integer::Integer;
 
@@ -167,8 +167,25 @@ public:
 		}
 	}
 
-private:
 	MIDIFollowChannelType channelType;
+
+private:
 	LearnedMIDI& midiInput;
 };
+
+class FollowChannelTrack : public FollowChannel, FormattedTitle {
+public:
+	using FollowChannel::FollowChannel;
+
+	FollowChannelTrack(l10n::String newName, l10n::String title, MIDIFollowChannelType type, int32_t trackIndex)
+	    : FollowChannel(newName, title, type), midiInput(midiEngine.midiFollowChannelType[util::to_underlying(type)]),
+	      FormattedTitle(newName, trackIndex) {}
+
+	[[nodiscard]] std::string_view getName() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+private:
+	LearnedMIDI& midiInput;
+};
+
 } // namespace deluge::gui::menu_item::midi
