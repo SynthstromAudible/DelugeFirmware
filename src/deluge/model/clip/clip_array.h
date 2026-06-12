@@ -18,14 +18,56 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "util/container/array/resizeable_pointer_array.h"
+#include "util/containers.h"
 
 class Clip;
 
-class ClipArray final : public ResizeablePointerArray {
+/// The ordered list of Clips in a Song section. Legacy method names are kept from the old
+/// ResizeablePointerArray-based implementation; modernise call sites incrementally.
+class ClipArray final {
 public:
 	ClipArray() = default;
-	Error insertClipAtIndex(Clip* clip, int32_t index);
-	Clip* getClipAtIndex(int32_t index);
-	int32_t getIndexForClip(Clip* clip);
+
+	[[nodiscard]] int32_t getNumElements() const { return static_cast<int32_t>(clips_.size()); }
+	[[nodiscard]] Clip* getClipAtIndex(int32_t index) const { return clips_[index]; }
+	Clip** getElementAddress(int32_t index) { return &clips_[index]; }
+	void setPointerAtIndex(Clip* clip, int32_t index) { clips_[index] = clip; }
+
+	Error insertClipAtIndex(Clip* clip, int32_t index) {
+		try {
+			clips_.insert(clips_.begin() + index, clip);
+		} catch (deluge::exception&) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		return Error::NONE;
+	}
+
+	void deleteAtIndex(int32_t i, int32_t numToDelete = 1) {
+		clips_.erase(clips_.begin() + i, clips_.begin() + i + numToDelete);
+	}
+
+	int32_t getIndexForClip(Clip* clip) const {
+		for (int32_t c = 0; c < getNumElements(); c++) {
+			if (clips_[c] == clip) {
+				return c;
+			}
+		}
+		return -1;
+	}
+
+	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded) {
+		try {
+			clips_.reserve(clips_.size() + numAdditionalElementsNeeded);
+			return true;
+		} catch (deluge::exception&) {
+			return false;
+		}
+	}
+
+	void swapElements(int32_t i1, int32_t i2) { std::swap(clips_[i1], clips_[i2]); }
+
+	void empty() { clips_.clear(); }
+
+private:
+	deluge::fast_vector<Clip*> clips_;
 };
