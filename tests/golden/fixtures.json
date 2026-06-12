@@ -1,134 +1,140 @@
 {
  "analog_osc": {
-  "sha256": "d3b5424a55e2bf7dd0e8d7b2f00f5806d452a1ccd88e7b441002ada70c32336f",
+  "sha256": "a40b9e4af7fa5af7dc3c2d9311563ccfa1f4aebe6346149e35d73702ccc7dd8c",
   "frames": 88200,
-  "peak": 2644,
-  "rms_db": -28.85
+  "peak": 2646,
+  "rms_db": -29.01
  },
  "env_shape": {
-  "sha256": "a12b56984b2bc129d66db262397def97b2019da5b9d8c81171d2449a21344b6a",
+  "sha256": "3545562227cd4f12acaa5af1a448e95c3c0ba0a4ffae140a67b6f74ccc57d645",
   "frames": 132300,
   "peak": 2645,
-  "rms_db": -28.6
+  "rms_db": -28.62
  },
  "fm_2op": {
-  "sha256": "c2b711de002e7e9997aba3a80064c07f24e9a457efb90c2a449693b5e9c0e151",
+  "sha256": "a342ecb0e02c6a99d4a9dc1b97bc0bfebfdf7202c3d48c65f519b6ce1fd5cb42",
   "frames": 88200,
-  "peak": 8647,
-  "rms_db": -15.97
+  "peak": 8658,
+  "rms_db": -16.1
  },
  "fm_feedback": {
-  "sha256": "1ec75227943a2118992bd05c9dfde2f846393f0f1eb0e1eddc38448755e81cae",
+  "sha256": "38fd0529266703d3fd81f23ac9161f8faf21db2eb37d243d120cfa773e5f2783",
   "frames": 88200,
   "peak": 8663,
-  "rms_db": -17.86
+  "rms_db": -18.0
  },
  "lfo_vibrato": {
-  "sha256": "ad153f280dda73b99732cb4649b39b4b68c83700479f845b161c0bbe8b935828",
+  "sha256": "72ae42ba894324a3427bbbfc40e43f3e99c21941f995175db57a91b0391a2830",
   "frames": 88200,
   "peak": 2646,
-  "rms_db": -26.76
+  "rms_db": -26.78
  },
  "lpf_24db_env2": {
-  "sha256": "1b44e6d7dc50c13cc8bd5b831bfd3e6128c2c7ce63a3638f0fc53b30a273fa34",
+  "sha256": "004e208c5220a70c69a66becc959bc31e4b2499e7f9f20827b065bdad45bdbf1",
   "frames": 88200,
-  "peak": 4786,
-  "rms_db": -32.78
+  "peak": 4623,
+  "rms_db": -32.59
  },
  "mono_legato": {
-  "sha256": "97bdef19cde24ed22fb8497a0998264f9834f96a82411a72c30f0130482ac571",
+  "sha256": "c3a60784896360669a84a8fa0e4104d37e39ae1c3fbfaa76acd3b4769117daa5",
   "frames": 88200,
   "peak": 2646,
-  "rms_db": -26.1
+  "rms_db": -26.11
  },
  "noise_only": {
-  "sha256": "455e11338c2b678b545ca4979c5a31d85747c40000f5c50b17191840c6fee78b",
+  "sha256": "8f254614af06fbfde08942d0d7a79acb46137d43835a1bbe52157ad3b3065b5d",
   "frames": 88200,
   "peak": 2646,
-  "rms_db": -30.53
+  "rms_db": -30.54
  },
  "pitch_bend": {
-  "sha256": "6dbd4ad82ed3dd0886c86428fcd16d1afc6f4cece78ea92a718b6c9163a2c159",
-  "frames": 88200,
-  "peak": 2646,
-  "rms_db": -25.37
- },
- "poly_chord": {
-  "sha256": "5ac3a15d173752a9a94abfccc4ada27013d30bc1bc1e27b7186f6551155f25af",
-  "frames": 88200,
-  "peak": 7922,
-  "rms_db": -22.06
- },
- "porta": {
-  "sha256": "076576277d9ff096542904f34098c611ea13573e34b4f49030e4e0e47fc2d837",
+  "sha256": "52b4ee8dde838bcc18b6df647618ad2528f5a0461d0f1cb3a9c03637bc6d60ae",
   "frames": 88200,
   "peak": 2646,
   "rms_db": -25.38
  },
- "ringmod": {
-  "sha256": "3021a8c6943637d746e4d0cd3b179726ded985519c06aaef65944042f05079fb",
+ "poly_chord": {
+  "sha256": "4e9ab2d7785e38c9f294c04f147f79723e35215c405c59fb5016950e1daf5e70",
   "frames": 88200,
-  "peak": 2645,
-  "rms_db": -26.56
+  "peak": 7922,
+  "rms_db": -22.05
  },
- "saw_basic": {
-  "sha256": "b2ebf7e0dcf72d27c9e7e26be3e8cd3c265cc765b9898699260ea3cf1c548a17",
+ "porta": {
+  "sha256": "3ac20ab28fe8930c5c8f6cdf2e480f833ec78d891df5c2fffb3a0142e60c352f",
+  "frames": 88200,
+  "peak": 3399,
+  "rms_db": -25.39
+ },
+ "ringmod": {
+  "sha256": "b6f63d9a0d649a6a1dfb9b2b89ab7d6c13d65c871d66a76c66830747376b33ca",
   "frames": 88200,
   "peak": 2646,
-  "rms_db": -26.76
+  "rms_db": -26.68
+ },
+ "saw_basic": {
+  "sha256": "8781001e0c0f805a555a969b083bf0fd43414e71e8bead96362b4570adea3571",
+  "frames": 88200,
+  "peak": 2646,
+  "rms_db": -26.78
  },
  "sine_basic": {
-  "sha256": "0e135a76c506203a6be93948af4870785a6651b184bc7fea6381c3874cee332c",
+  "sha256": "8981be1e111b3f24b2c53eb45af3905bf201dac6ccc5b051c77d0acc52dc0c9e",
   "frames": 88200,
   "peak": 2645,
   "rms_db": -26.48
  },
  "square_basic": {
-  "sha256": "8b127df8fac0af0c79159b21e61ddee20e916edbb828baa202260a4f7f6099a9",
+  "sha256": "cffb6a396022b40095644441cd15ec5525bd1d2d1529b8c37505430b960e5862",
   "frames": 88200,
-  "peak": 1940,
-  "rms_db": -27.31
+  "peak": 1969,
+  "rms_db": -27.71
  },
  "square_pw": {
-  "sha256": "062393d069fe7ac8c315a26161cd5e21d52a0bc636f219bf1a00ef4d39c8f1bd",
+  "sha256": "d121c94edf2fc7102e4438bb29189733da872e3c5fae9d273f8cc76ca6ad2734",
+  "frames": 88200,
+  "peak": 2013,
+  "rms_db": -28.14
+ },
+ "square_pw_low": {
+  "sha256": "919398249aaf70cf4ccee82e651c419aef50c08605d2266d06ca7954f5784fbc",
   "frames": 88200,
   "peak": 1940,
-  "rms_db": -27.31
+  "rms_db": -27.26
  },
  "svf_band": {
-  "sha256": "97e9c193b0b64d898b6837a9db16ebff4bc7a3e19953971a3561662dd83a042a",
+  "sha256": "2434166bfcc5bca0ebe91ed2fd66940fb485941e636b0d2718344c32ccc59e8c",
   "frames": 88200,
-  "peak": 6018,
-  "rms_db": -25.07
+  "peak": 6226,
+  "rms_db": -25.1
  },
  "triangle_basic": {
-  "sha256": "59143c7adade2a9b06db0a5a0ad1ca3778771d85f9720be32986e0097f583048",
+  "sha256": "a539059c25e25344223a78d61c713e655e5249f8b08d0d6f72c5544969e1123a",
   "frames": 88200,
   "peak": 2645,
   "rms_db": -26.74
  },
  "two_osc_detune": {
-  "sha256": "5e3e46d6ea0fcbf494bf2eceb61395f0e11b1ad1df88e5595c7997a8a4673aad",
+  "sha256": "3cfe1143216102de58dde26505d21754ad1f76c770589f70d8b6b100d38c1b5e",
   "frames": 88200,
   "peak": 2646,
-  "rms_db": -27.52
+  "rms_db": -27.51
  },
  "unison_spread": {
-  "sha256": "a0ab7ebffd89197c9693dee63a935a93bc214e59bb0cfa65be986489a8ec5de7",
+  "sha256": "ec24d0b7bc663d96b27ce05b5cb6cc9537be3b0baf99d8448d10094ffc688b15",
   "frames": 88200,
-  "peak": 2645,
-  "rms_db": -27.52
+  "peak": 2646,
+  "rms_db": -27.68
  },
  "velocity_dynamics": {
-  "sha256": "dfed7258ac1fa9ec59225be168c8cac4840e55a51a240af9f93eeb7ff89ece7c",
+  "sha256": "46861b6f9942d7ec425c3cbe12dee71a9b0e83a63edbf1b4ef00e4401dc9deaa",
   "frames": 88200,
-  "peak": 4334,
+  "peak": 4335,
   "rms_db": -24.61
  },
  "wavefold_sine": {
-  "sha256": "39772aedcda2aab253abaf29ea30d0461f5e95a9d6c2f831e110c7a47680a7ed",
+  "sha256": "0ecfadce19996d6a40002120d11372ceb357f37ec723b2f22fbeb01f11c5dca5",
   "frames": 88200,
   "peak": 2640,
-  "rms_db": -28.33
+  "rms_db": -28.34
  }
 }

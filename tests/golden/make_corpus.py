@@ -130,6 +130,9 @@ case("sine_basic", osc1={"type": "sine"})
 case("triangle_basic", osc1={"type": "triangle"})
 case("square_basic", osc1={"type": "square"})
 case("square_pw", osc1={"type": "square"}, params={"oscAPulseWidth": "0x30000000"})
+# low pitch reaches the band-limited table pulse path (waveRenderingFunctionPulse)
+# rather than the analytic square; has its own .notes at C1
+case("square_pw_low", osc1={"type": "square"}, params={"oscAPulseWidth": "0x30000000"})
 case("analog_osc", osc1={"type": "analogSaw"}, osc2={"type": "analogSquare"}, params={"oscBVolume": "0x7FFFFFFF"})
 case("wavefold_sine", osc1={"type": "sine"}, params={"waveFold": "0x40000000"})
 
