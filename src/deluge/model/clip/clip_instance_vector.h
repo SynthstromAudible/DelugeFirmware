@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright © 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,13 +17,10 @@
 
 #pragma once
 
-#include "util/container/array/ordered_resizeable_array.h"
+#include "model/clip/clip_instance.h"
+#include "util/container/ordered_pos_vector.h"
 
-class ClipInstance;
-
-class ClipInstanceVector : public OrderedResizeableArrayWith32bitKey {
+class ClipInstanceVector : public deluge::OrderedPosVector<ClipInstance> {
 public:
-	ClipInstanceVector();
-
 	ClipInstance* getElement(int32_t index); // Plz deprecate.
 };

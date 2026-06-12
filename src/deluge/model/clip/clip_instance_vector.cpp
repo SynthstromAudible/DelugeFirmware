@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright © 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -16,14 +16,10 @@
  */
 
 #include "model/clip/clip_instance_vector.h"
-#include "model/clip/clip_instance.h"
-
-ClipInstanceVector::ClipInstanceVector() : OrderedResizeableArrayWith32bitKey(sizeof(ClipInstance)) {
-}
 
 ClipInstance* ClipInstanceVector::getElement(int32_t index) {
 	if (index < 0 || index >= getNumElements()) {
 		return nullptr;
 	}
-	return (ClipInstance*)getElementAddress(index);
+	return getElementAddress(index);
 }
