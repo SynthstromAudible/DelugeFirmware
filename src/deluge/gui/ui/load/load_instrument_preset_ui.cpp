@@ -227,10 +227,10 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		// If we've got a Clip, we can see if it used to use another Instrument of this new type...
 		else if (instrumentClipToLoadFor && outputTypeToLoad != OutputType::MIDI_OUT) {
 			const size_t outputTypeToLoadAsIdx = static_cast<size_t>(outputTypeToLoad);
-			String* backedUpName = &instrumentClipToLoadFor->backedUpInstrumentName[outputTypeToLoadAsIdx];
+			const std::string& backedUpName = instrumentClipToLoadFor->backedUpInstrumentName[outputTypeToLoadAsIdx];
 			enteredText.set(backedUpName);
 			searchFilename.set(backedUpName);
-			currentDir.set(&instrumentClipToLoadFor->backedUpInstrumentDirPath[outputTypeToLoadAsIdx]);
+			currentDir.set(instrumentClipToLoadFor->backedUpInstrumentDirPath[outputTypeToLoadAsIdx]);
 			if (currentDir.isEmpty()) {
 				goto useDefaultFolder;
 			}

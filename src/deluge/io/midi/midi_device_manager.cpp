@@ -169,7 +169,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 
 		if (candidate->vendorId == vendorId && candidate->productId == productId) {
 			// Update its name - if we got one and it's different
-			if (gotAName && candidate->name != name->get()) {
+			if (gotAName && !candidate->name.equals(name)) {
 				hostedMIDIDevices.renameMember(i, name);
 			}
 			return candidate;
@@ -204,7 +204,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 	}
 
 	if (gotAName) {
-		device->name = name->get();
+		device->name.set(name);
 	}
 	device->vendorId = vendorId;
 	device->productId = productId;
@@ -290,7 +290,7 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 	if (display->haveOLED()) {
 		String text;
-		text.set(device->name);
+		text.set(&device->name);
 		Error error = text.concatenate(" attached");
 		if (error == Error::NONE) {
 			consoleTextIfAllBootedUp(text.get());

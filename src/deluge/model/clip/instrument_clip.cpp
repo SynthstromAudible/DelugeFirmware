@@ -138,10 +138,10 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	memcpy(backedUpInstrumentSubSlot, otherInstrumentClip->backedUpInstrumentSubSlot,
 	       sizeof(backedUpInstrumentSubSlot));
 	for (int32_t i = 0; i < 2; i++) {
-		backedUpInstrumentName[i].set(&otherInstrumentClip->backedUpInstrumentName[i]);
+		backedUpInstrumentName[i] = otherInstrumentClip->backedUpInstrumentName[i];
 	}
 	for (int32_t i = 0; i < 2; i++) {
-		backedUpInstrumentDirPath[i].set(&otherInstrumentClip->backedUpInstrumentDirPath[i]);
+		backedUpInstrumentDirPath[i] = otherInstrumentClip->backedUpInstrumentDirPath[i];
 	}
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
@@ -2970,18 +2970,14 @@ doReadBendRange:
 	switch (outputTypeWhileLoading) {
 	case OutputType::SYNTH:
 	case OutputType::KIT:
-		backedUpInstrumentName[outputTypeWhileLoadingAsIdx].set(&instrumentPresetName);
+		backedUpInstrumentName[outputTypeWhileLoadingAsIdx] = instrumentPresetName.get();
 		if (dirPathHasBeenSpecified) {
-			backedUpInstrumentDirPath[outputTypeWhileLoadingAsIdx].set(&instrumentPresetDirPath);
+			backedUpInstrumentDirPath[outputTypeWhileLoadingAsIdx] = instrumentPresetDirPath.get();
 		}
 		else {
 			// Where dir path has not been specified (i.e. before V4.0.0), go with the default. The same has been done
 			// to the Instruments which this Clip will get matched against.
-			error =
-			    backedUpInstrumentDirPath[outputTypeWhileLoadingAsIdx].set(getInstrumentFolder(outputTypeWhileLoading));
-			if (error != Error::NONE) {
-				return error;
-			}
+			backedUpInstrumentDirPath[outputTypeWhileLoadingAsIdx] = getInstrumentFolder(outputTypeWhileLoading);
 		}
 		break;
 
@@ -3579,8 +3575,8 @@ void InstrumentClip::backupPresetSlot() {
 
 	case OutputType::SYNTH:
 	case OutputType::KIT:
-		backedUpInstrumentName[outputTypeAsIdx].set(&output->name);
-		backedUpInstrumentDirPath[outputTypeAsIdx].set(&((Instrument*)output)->dirPath);
+		backedUpInstrumentName[outputTypeAsIdx] = output->name.get();
+		backedUpInstrumentDirPath[outputTypeAsIdx] = ((Instrument*)output)->dirPath.get();
 		break;
 
 	default:
@@ -3744,8 +3740,8 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		String newName;
 		Error error;
 
-		newName.set(&backedUpInstrumentName[newOutputTypeAsIdx]);
-		Browser::currentDir.set(&backedUpInstrumentDirPath[newOutputTypeAsIdx]);
+		newName.set(backedUpInstrumentName[newOutputTypeAsIdx]);
+		Browser::currentDir.set(backedUpInstrumentDirPath[newOutputTypeAsIdx]);
 
 		if (Browser::currentDir.isEmpty()) {
 			error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
@@ -3871,8 +3867,8 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 		const OutputType outputType = outputTypeWhileLoading;
 		const size_t outputTypeAsIdx = static_cast<size_t>(outputType);
 
-		char const* instrumentName = (outputTypeAsIdx < 2) ? backedUpInstrumentName[outputTypeAsIdx].get() : nullptr;
-		char const* dirPath = (outputTypeAsIdx < 2) ? backedUpInstrumentDirPath[outputTypeAsIdx].get() : nullptr;
+		char const* instrumentName = (outputTypeAsIdx < 2) ? backedUpInstrumentName[outputTypeAsIdx].c_str() : nullptr;
+		char const* dirPath = (outputTypeAsIdx < 2) ? backedUpInstrumentDirPath[outputTypeAsIdx].c_str() : nullptr;
 
 		output = modelStack->song->getInstrumentFromPresetSlot(outputType, backedUpInstrumentSlot[outputTypeAsIdx],
 		                                                       backedUpInstrumentSubSlot[outputTypeAsIdx],
