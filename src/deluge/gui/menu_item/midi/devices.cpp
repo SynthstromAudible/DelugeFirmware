@@ -25,6 +25,7 @@
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include <algorithm>
 #include <etl/vector.h>
 #include <string_view>
 
@@ -86,9 +87,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 	if (display->haveOLED()) {
-		if (this->getValue() < currentScroll_) {
-			currentScroll_ = this->getValue();
-		}
+		currentScroll_ = std::min(this->getValue(), currentScroll_);
 		//
 		if (offset >= 0) {
 			int32_t d = this->getValue();
