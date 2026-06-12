@@ -2422,11 +2422,18 @@ dontUseCache: {}
 			// Work out pulse width
 			uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
-			dsp::Oscillator::renderOsc(
-			    sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd, numSamples, phaseIncrement,
-			    pulseWidth, &unisonParts[u].sources[s].oscPos, true, amplitudeIncrement, doOscSync,
-			    oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,
-			    sourceWaveIndexesLastTime[s], static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile));
+			// The wave table is only consumed by renderOsc when oscType == WAVETABLE. Basic
+			// oscillators (SAW/SQUARE/SINE/...) have no audio file, so audioFileHolder is null — don't
+			// dereference it. (On hardware the null read landed in mapped low memory and the value was
+			// ignored for non-wavetable types; the host faults on the unmapped read.)
+			WaveTable* waveTable = guides[s].audioFileHolder != nullptr
+			                           ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile)
+			                           : nullptr;
+			dsp::Oscillator::renderOsc(sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd,
+			                           numSamples, phaseIncrement, pulseWidth, &unisonParts[u].sources[s].oscPos, true,
+			                           amplitudeIncrement, doOscSync, oscSyncPosThisUnison,
+			                           oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,
+			                           sourceWaveIndexesLastTime[s], waveTable);
 
 			if (stereoBuffer) {
 				// TODO: if render buffer was typed we could use addPannedMono()
