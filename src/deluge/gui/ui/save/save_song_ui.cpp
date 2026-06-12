@@ -33,6 +33,7 @@
 #include "util/functions.h"
 #include "util/string.h"
 #include "util/try.h"
+#include <algorithm>
 #include <cstring>
 
 extern "C" {
@@ -405,11 +406,8 @@ gotError:
 		return true;
 	};
 
-	for (int32_t i = 0; i < static_cast<int32_t>(audioFileManager.audioFiles.size()); i++) {
-		AudioFile* audioFile = audioFileManager.audioFiles[i];
-		if (!saveAudioFile(audioFile)) {
-			return false;
-		}
+	if (!std::ranges::all_of(audioFileManager.audioFiles, saveAudioFile)) {
+		return false;
 	}
 
 	std::string filePathDuringWrite;

@@ -17,35 +17,17 @@
 
 #include "storage/audio/audio_file_vector.h"
 #include "storage/audio/audio_file.h"
+#include <algorithm>
 #include <strings.h>
 
 int32_t AudioFileVector::search(char const* searchString, bool* foundExact) const {
-	int32_t rangeBegin = 0;
-	int32_t rangeEnd = static_cast<int32_t>(size());
-
-	while (rangeBegin != rangeEnd) {
-		int32_t proposedIndex = rangeBegin + ((rangeEnd - rangeBegin) >> 1);
-
-		int32_t result = strcasecmp((*this)[proposedIndex]->filePath.c_str(), searchString);
-
-		if (result == 0) {
-			if (foundExact != nullptr) {
-				*foundExact = true;
-			}
-			return proposedIndex;
-		}
-		if (result < 0) {
-			rangeBegin = proposedIndex + 1;
-		}
-		else {
-			rangeEnd = proposedIndex;
-		}
-	}
-
+	auto it = std::ranges::lower_bound(
+	    *this, searchString, [](char const* a, char const* b) { return strcasecmp(a, b) < 0; },
+	    [](AudioFile const* file) { return file->filePath.c_str(); });
 	if (foundExact != nullptr) {
-		*foundExact = false;
+		*foundExact = (it != end() && strcasecmp((*it)->filePath.c_str(), searchString) == 0);
 	}
-	return rangeBegin;
+	return static_cast<int32_t>(it - begin());
 }
 
 int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) const {
