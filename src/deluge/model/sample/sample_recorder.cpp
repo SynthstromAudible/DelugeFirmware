@@ -373,9 +373,9 @@ aborted:
 		}
 
 		// Delete the file if one was created
-		if (!filePathCreated.isEmpty()) {
+		if (!filePathCreated.empty()) {
 
-			FRESULT result = f_unlink(filePathCreated.get());
+			FRESULT result = f_unlink(filePathCreated.c_str());
 
 			// If this was the most recent recording in this category, tick the counter backwards - so long as
 			// either the delete was successful or it was for an AudioClip, which means the file is in the TEMP folder
@@ -408,7 +408,7 @@ aborted:
 	if (!hadCardError) {
 
 		// If file not created yet, do that
-		if (filePathCreated.isEmpty()) {
+		if (filePathCreated.empty()) {
 
 			error = StorageManager::initSD();
 			if (error != Error::NONE) {
@@ -462,15 +462,15 @@ aborted:
 
 			// Now store our own copy of the actually (possibly temp) filename
 			if (!tempFilePathForRecording.isEmpty()) {
-				filePathCreated.set(&tempFilePathForRecording); // Can't fail!
+				filePathCreated = tempFilePathForRecording.get(); // Can't fail!
 			}
 			else {
-				filePathCreated.set(&filePath); // Can't fail!
+				filePathCreated = filePath.get(); // Can't fail!
 				mayOverwrite = false;
 			}
 
 			// Recording could finish or abort during this!
-			auto created = StorageManager::createFile(filePathCreated.get(), mayOverwrite);
+			auto created = StorageManager::createFile(filePathCreated.c_str(), mayOverwrite);
 			if (!created) {
 				filePathCreated.clear();
 				goto gotError;

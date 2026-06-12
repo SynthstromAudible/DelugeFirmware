@@ -236,7 +236,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 	while (*(currentTag = reader.readNextTagOrAttributeName())) {
 
 		if (strcmp(currentTag, "startupSong") == 0) {
-			reader.readTagOrAttributeValueString(&startupSong);
+			reader.readTagOrAttributeValueString(startupSong);
 		}
 		if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING) == 0) {
 			// Read name

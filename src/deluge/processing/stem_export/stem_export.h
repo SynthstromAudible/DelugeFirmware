@@ -21,6 +21,7 @@
 #include "processing/sound/sound_drum.h"
 #include "util/d_string.h"
 #include <cstdint>
+#include <string>
 
 class Output;
 class Clip;
@@ -94,10 +95,10 @@ public:
 	Error getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder);
 	Error getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
-	String lastFolderNameForStemExport;
+	std::string lastFolderNameForStemExport;
 	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,
 	                                 SoundDrum* drum = nullptr);
-	String wavFileNameForStemExport;
+	std::string wavFileNameForStemExport;
 	bool wavFileNameForStemExportSet;
 
 	// check if we're in context menu

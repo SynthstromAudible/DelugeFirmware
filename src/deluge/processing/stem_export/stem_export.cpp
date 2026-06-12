@@ -835,7 +835,7 @@ Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordin
 		// reset flag to false to ensure that next stem exported is valid
 		wavFileNameForStemExportSet = false;
 
-		error = filePath->concatenate(wavFileNameForStemExport.get());
+		error = filePath->concatenate(wavFileNameForStemExport);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -947,7 +947,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 	// did we just export this same folder?
 	// if yes, no need to find folder number to append (we have it)
-	if (strcmp(folderNameToCompare.get(), lastFolderNameForStemExport.get())) {
+	if (strcmp(folderNameToCompare.get(), lastFolderNameForStemExport.c_str())) {
 		// if we're here we didn't just export this song
 		String tempPathForSearch;
 
@@ -1040,10 +1040,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 	}
 
 	// save current folder name as last folder name exported
-	error = lastFolderNameForStemExport.set(folderNameToCompare.get());
-	if (error != Error::NONE) {
-		return error;
-	}
+	lastFolderNameForStemExport = folderNameToCompare.get();
 
 	return Error::NONE;
 }
@@ -1058,10 +1055,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber,
                                              SoundDrum* drum) {
 	// wavFileNameForStemExport = "/"
-	Error error = wavFileNameForStemExport.set("/");
-	if (error != Error::NONE) {
-		return;
-	}
+	wavFileNameForStemExport = "/";
 
 	const char* outputType;
 	const char* exportType;
@@ -1133,10 +1127,7 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		        scaleName, fileNumber);
 	}
 
-	error = wavFileNameForStemExport.concatenate(fileName);
-	if (error != Error::NONE) {
-		return;
-	}
+	wavFileNameForStemExport += fileName;
 
 	// set this flag to true so that the wavFileName set above is used when exporting
 	wavFileNameForStemExportSet = true;
