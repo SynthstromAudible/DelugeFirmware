@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include <utility>
 
 class Cluster;
 class Sample;
@@ -28,6 +29,21 @@ class SampleCluster {
 public:
 	SampleCluster() = default;
 	~SampleCluster();
+
+	// The destructor releases `cluster`, so ownership must transfer on move and copying is forbidden
+	SampleCluster(const SampleCluster&) = delete;
+	SampleCluster& operator=(const SampleCluster&) = delete;
+	SampleCluster(SampleCluster&& other) noexcept
+	    : sdAddress(other.sdAddress), cluster(std::exchange(other.cluster, nullptr)), minValue(other.minValue),
+	      maxValue(other.maxValue), investigatedWholeLength(other.investigatedWholeLength) {}
+	SampleCluster& operator=(SampleCluster&& other) noexcept {
+		std::swap(sdAddress, other.sdAddress);
+		std::swap(cluster, other.cluster);
+		std::swap(minValue, other.minValue);
+		std::swap(maxValue, other.maxValue);
+		std::swap(investigatedWholeLength, other.investigatedWholeLength);
+		return *this;
+	}
 
 	// TODO: This should return a std::expected<Cluster*, Error), removing the last parameter
 	Cluster* getCluster(Sample* sample, uint32_t clusterIndex, int32_t loadInstruction = CLUSTER_ENQUEUE,

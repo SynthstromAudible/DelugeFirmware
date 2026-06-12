@@ -94,14 +94,15 @@ Error Sample::initialize(int32_t newNumClusters) {
 	waveTableCycleSize = 2048; // Default
 	fileExplicitlySpecifiesSelfAsWaveTable = false;
 
-	return clusters.insertSampleClustersAtEnd(newNumClusters);
+	try {
+		clusters.resize(clusters.size() + newNumClusters);
+	} catch (deluge::exception&) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	return Error::NONE;
 }
 
 Sample::~Sample() {
-	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
-		clusters.getElement(c)->~SampleCluster();
-	}
-
 	deletePercCache(true);
 
 	for (int32_t i = 0; i < caches.getNumElements(); i++) {
@@ -157,8 +158,8 @@ void Sample::markAsUnloadable() {
 	unloadable = true;
 
 	// If any Clusters in the load-queue, remove them from there
-	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
-		Cluster* cluster = clusters.getElement(c)->cluster;
+	for (int32_t c = 0; c < static_cast<int32_t>(clusters.size()); c++) {
+		Cluster* cluster = clusters[c].cluster;
 		if (cluster != nullptr) {
 			cluster->unloadable = true;
 			audioFileManager.loadingQueue.erase(cluster);
@@ -568,9 +569,8 @@ doLoading:
 			percCacheNow = percCacheMemory[reversed];
 		}
 
-		Cluster* cluster =
-		    clusters.getElement(sourceClusterIndex)
-		        ->cluster; // Don't call getcluster() - that would add a reason, and potentially do loading and stuff.
+		// Don't call getCluster() - that would add a reason, and potentially do loading and stuff.
+		Cluster* cluster = clusters[sourceClusterIndex].cluster;
 		if (!cluster || !cluster->loaded) {
 			goto getOut;
 		}
@@ -788,7 +788,7 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 				FREEZE_WITH_ERROR("EEEE");
 			}
 
-			Cluster* cluster = clusters.getElement(whichCluster)->cluster;
+			Cluster* cluster = clusters[whichCluster].cluster;
 			if (!cluster || !cluster->loaded) {
 				return false;
 			}
@@ -1006,8 +1006,8 @@ int32_t Sample::getFirstClusterIndexWithAudioData() {
 int32_t Sample::getFirstClusterIndexWithNoAudioData() {
 	uint32_t clusterIndex =
 	    ((audioDataStartPosBytes + audioDataLengthBytes - 1) >> Cluster::size_magnitude) + 1; // Rounds up
-	if (clusterIndex > clusters.getNumElements()) {
-		clusterIndex = clusters.getNumElements();
+	if (clusterIndex > static_cast<int32_t>(clusters.size())) {
+		clusterIndex = static_cast<int32_t>(clusters.size());
 	}
 	return clusterIndex;
 }
@@ -1329,8 +1329,7 @@ startAgain:
 	uint32_t currentClusterIndex = currentOffset >> Cluster::size_magnitude;
 	int32_t writeIndex = 0;
 
-	Cluster* cluster =
-	    clusters.getElement(currentClusterIndex)->getCluster(this, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
+	Cluster* cluster = clusters[currentClusterIndex].getCluster(this, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
 	if (!cluster) {
 		D_PRINTLN("failed to load first");
 getOut:
@@ -1355,8 +1354,8 @@ getOut:
 continueWhileLoop:
 		// If there's no "next" Cluster, load it now
 		if (!nextCluster && currentClusterIndex + 1 < getFirstClusterIndexWithNoAudioData()) {
-			nextCluster = clusters.getElement(currentClusterIndex + 1)
-			                  ->getCluster(this, currentClusterIndex + 1, CLUSTER_LOAD_IMMEDIATELY);
+			nextCluster =
+			    clusters[currentClusterIndex + 1].getCluster(this, currentClusterIndex + 1, CLUSTER_LOAD_IMMEDIATELY);
 			if (!nextCluster) {
 				audioFileManager.removeReasonFromCluster(*cluster, "imcwn4o");
 				D_PRINTLN("failed to load next");
@@ -1677,7 +1676,7 @@ doneReading:
 void Sample::convertDataOnAnyClustersIfNecessary() {
 	if (rawDataFormat != RawDataFormat::NATIVE) {
 		for (int32_t c = getFirstClusterIndexWithAudioData(); c < getFirstClusterIndexWithNoAudioData(); c++) {
-			Cluster* cluster = clusters.getElement(c)->cluster;
+			Cluster* cluster = clusters[c].cluster;
 			if (cluster != nullptr) {
 
 				// Add reason in case it would get stolen
@@ -1732,9 +1731,9 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 
 	// Count up the individual reasons, as a bug check
 	int32_t numClusterReasons = 0;
-	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
+	for (int32_t c = 0; c < static_cast<int32_t>(clusters.size()); c++) {
 
-		Cluster* cluster = clusters.getElement(c)->cluster;
+		Cluster* cluster = clusters[c].cluster;
 		if (cluster) {
 
 			if (cluster->clusterIndex != c) {
@@ -1757,9 +1756,9 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 
 	if (numClusterReasons) {
 		D_PRINTLN("reason dump---");
-		for (int32_t c = 0; c < clusters.getNumElements(); c++) {
+		for (int32_t c = 0; c < static_cast<int32_t>(clusters.size()); c++) {
 
-			Cluster* cluster = clusters.getElement(c)->cluster;
+			Cluster* cluster = clusters[c].cluster;
 			if (cluster) {
 				D_PRINT("cluster->numReasonsToBeLoaded[%d]", cluster->numReasonsToBeLoaded);
 

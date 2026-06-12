@@ -19,10 +19,10 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_cluster.h"
-#include "model/sample/sample_cluster_array.h"
 #include "storage/audio/audio_file.h"
 #include "util/container/array/ordered_resizeable_array.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
+#include "util/containers.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
 #include <bit>
@@ -152,7 +152,7 @@ public:
 
 	uint32_t waveTableCycleSize{0}; // In case this later gets used for a WaveTable
 
-	SampleClusterArray clusters;
+	deluge::fast_vector<SampleCluster> clusters;
 
 protected:
 #if ALPHA_OR_BETA_VERSION

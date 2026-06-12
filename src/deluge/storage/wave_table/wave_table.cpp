@@ -393,8 +393,8 @@ gotError5:
 						audioFileManager.removeReasonFromCluster(*cluster, "E385");
 					}
 
-					cluster = sample->clusters.getElement(clusterIndex)
-					              ->getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY, 0, &error);
+					cluster = sample->clusters[clusterIndex].getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY,
+					                                                    0, &error);
 					if (!cluster) {
 						goto gotError5;
 					}

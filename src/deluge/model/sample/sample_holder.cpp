@@ -215,7 +215,7 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		}
 		*/
 
-		SampleCluster* sampleCluster = ((Sample*)audioFile)->clusters.getElement(clusterIndex);
+		SampleCluster* sampleCluster = &((Sample*)audioFile)->clusters[clusterIndex];
 
 		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
 

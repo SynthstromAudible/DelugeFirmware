@@ -205,7 +205,7 @@ clusterSizeChangedButItsOk:
 
 					// If address of first sector remained unchanged, we can be sure enough that the file hasn't been
 					// changed
-					if (firstSector == ((Sample*)thisAudioFile)->clusters.getElement(0)->sdAddress) {}
+					if (firstSector == ((Sample*)thisAudioFile)->clusters[0].sdAddress) {}
 
 					// Otherwise
 					else {
@@ -820,8 +820,7 @@ ramError:
 
 		while (true) {
 
-			((Sample*)audioFile)->clusters.getElement(currentClusterIndex)->sdAddress =
-			    clst2sect(&fileSystem, currentSDCluster);
+			((Sample*)audioFile)->clusters[currentClusterIndex].sdAddress = clst2sect(&fileSystem, currentSDCluster);
 
 			currentClusterIndex++;
 			if (currentClusterIndex >= numClusters) {
@@ -987,7 +986,7 @@ getOutEarly:
 
 	DRESULT result =
 	    disk_read_without_streaming_first(deluge_block_sd_unit(), (BYTE*)cluster.data,
-	                                      sample->clusters.getElement(cluster.clusterIndex)->sdAddress, numSectors);
+	                                      sample->clusters[cluster.clusterIndex].sdAddress, numSectors);
 
 #if REPORT_LOAD_TIME
 	uint16_t endTime = MTU2.TCNT_0;
@@ -1028,7 +1027,7 @@ getOutEarly:
 
 	// Give extra bytes to previous Cluster
 	if (clusterIndex > 0) {
-		Cluster* prevCluster = sample->clusters.getElement(cluster.clusterIndex - 1)->cluster;
+		Cluster* prevCluster = sample->clusters[cluster.clusterIndex - 1].cluster;
 
 		if (prevCluster && prevCluster->loaded) {
 
@@ -1094,8 +1093,8 @@ getOutEarly:
 	}
 
 	// Grab extra bytes from next Cluster
-	if (clusterIndex < sample->clusters.getNumElements() - 1) {
-		Cluster* nextCluster = sample->clusters.getElement(cluster.clusterIndex + 1)->cluster;
+	if (clusterIndex < static_cast<int32_t>(sample->clusters.size()) - 1) {
+		Cluster* nextCluster = sample->clusters[cluster.clusterIndex + 1].cluster;
 
 		if (nextCluster && nextCluster->loaded) {
 
@@ -1214,7 +1213,7 @@ copy7ToMe:
 	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter) {
 		FREEZE_WITH_ERROR("i037");
 	}
-	if (cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster != &cluster) {
+	if (cluster.sample->clusters[cluster.clusterIndex].cluster != &cluster) {
 		FREEZE_WITH_ERROR("E438");
 	}
 #endif
@@ -1381,7 +1380,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 		if (loadingQueue.erase(&cluster) || deletingSong) {
 
 			// Tell its Cluster to forget it exists
-			cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster = NULL;
+			cluster.sample->clusters[cluster.clusterIndex].cluster = NULL;
 
 			delete &cluster; // It contains nothing, so completely recycle it
 		}
