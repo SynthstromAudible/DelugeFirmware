@@ -1091,9 +1091,9 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 				}
 
 				// Recalculate the scale
-				int32_t newI = thisNoteRow->notes.insertAtKey(
-				    0); // Total hack - make it look like the NoteRow has a Note, so it doesn't get discarded during
-				        // setRootNote(). We set it back (and then will soon give it a real note) really soon
+				int32_t newI = thisNoteRow->notes.insertSorted(0).value_or(
+				    -1); // Total hack - make it look like the NoteRow has a Note, so it doesn't get discarded during
+				         // setRootNote(). We set it back (and then will soon give it a real note) really soon
 				modelStack->song->setRootNote(modelStack->song->key.rootNote);
 
 				thisNoteRow = getNoteRowForYNote(yNote); // Must re-get it
@@ -4133,9 +4133,8 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 
 		bool mayStillLengthen = true;
 
-		while (
-		    thisNoteRow->notes.getNumElements()) { // There's most likely only one offender, but you never really know
-			Note* lastNote = thisNoteRow->notes.getLast();
+		while (std::ssize(thisNoteRow->notes)) { // There's most likely only one offender, but you never really know
+			Note* lastNote = thisNoteRow->notes.tryGetLast();
 
 			// If Note is past new end-point that we're setting now, then delete / move the Note
 			if (lastNote->pos >= loopLength) {
@@ -4165,7 +4164,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 				}
 
 				// Delete the Note
-				thisNoteRow->deleteNoteByIndex(thisNoteRow->notes.getNumElements() - 1, nullptr,
+				thisNoteRow->deleteNoteByIndex(std::ssize(thisNoteRow->notes) - 1, nullptr,
 				                               getNoteRowId(thisNoteRow, i), this);
 			}
 
@@ -4278,9 +4277,9 @@ void InstrumentClip::quantizeLengthForArrangementRecording(ModelStackWithTimelin
 	if (alternativeLongerLength) {
 		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 			NoteRow* thisNoteRow = &noteRows[i];
-			int32_t numNotes = thisNoteRow->notes.getNumElements();
+			int32_t numNotes = std::ssize(thisNoteRow->notes);
 			if (numNotes) {
-				Note* lastNote = thisNoteRow->notes.getElement(numNotes - 1);
+				Note* lastNote = &thisNoteRow->notes[numNotes - 1];
 				if (lastNote->pos + lastNote->length > suggestedLength) {
 					goto useAlternativeLength;
 				}

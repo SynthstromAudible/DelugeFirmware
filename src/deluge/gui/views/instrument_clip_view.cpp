@@ -1162,8 +1162,8 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 		if (!thisNoteRow->hasNoNotes()) {
 
 			// And if any of them are in the right zone...
-			int32_t startI = thisNoteRow->notes.search(startPos, GREATER_OR_EQUAL);
-			int32_t endI = thisNoteRow->notes.search(endPos, GREATER_OR_EQUAL);
+			int32_t startI = thisNoteRow->notes.firstAtOrAfter(startPos);
+			int32_t endI = thisNoteRow->notes.firstAtOrAfter(endPos);
 
 			int32_t numNotes = endI - startI;
 
@@ -1212,7 +1212,7 @@ ramError:
 
 				// Fill in all the Notes' details
 				for (int32_t n = 0; n < numNotes; n++) {
-					Note* noteToCopy = thisNoteRow->notes.getElement(n + startI);
+					Note* noteToCopy = &thisNoteRow->notes[n + startI];
 					Note* newNote = &newCopiedNoteRow->notes[n];
 					newNote->pos = noteToCopy->pos - startPos;
 					newNote->length = std::min(noteToCopy->length,
@@ -2336,8 +2336,8 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 				// If multiple notes, pick the last one
 				if (editPadPresses[i].isBlurredSquare) {
-					int32_t noteI = noteRow->notes.search(squareStart + squareWidth, LESS);
-					Note* note = noteRow->notes.getElement(noteI);
+					int32_t noteI = noteRow->notes.firstAtOrAfter(squareStart + squareWidth) - 1;
+					Note* note = noteRow->notes.tryGet(noteI);
 					if (note) {
 						oldLength = note->getLength();
 						noteStartPos = note->pos;
@@ -2773,8 +2773,8 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 				uint32_t velocitySumThisSquare = 0;
 				uint32_t numNotesThisSquare = 0;
 
-				int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-				Note* note = noteRow->notes.getElement(noteI);
+				int32_t noteI = noteRow->notes.firstAtOrAfter(editPadPresses[i].intendedPos);
+				Note* note = &noteRow->notes[noteI];
 				while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
 					// Sean: check for pop-up so that you don't change encoder turn (cause you may just want to see the
 					// value) in automation view we change it right away because you see the value on the display when
@@ -2790,7 +2790,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 					velocitySumThisSquare += note->getVelocity();
 
 					noteI++;
-					note = noteRow->notes.getElement(noteI);
+					note = &noteRow->notes[noteI];
 				}
 
 				// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to audition
@@ -3166,8 +3166,8 @@ multiplePresses:
 				if (editPadPresses[i].isBlurredSquare) {
 					NoteRow* noteRow =
 					    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong);
-					int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-					Note* note = noteRow->notes.getElement(noteI);
+					int32_t noteI = noteRow->notes.firstAtOrAfter(editPadPresses[i].intendedPos);
+					Note* note = noteRow->notes.tryGet(noteI);
 					if (note) {
 						// re-get parameters as they might not have been grabbed properly initially
 						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
@@ -3331,8 +3331,8 @@ multiplePresses:
 					// "blurred square" with multiple notes
 					if (editPadPresses[i].isBlurredSquare) {
 
-						int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-						Note* note = noteRow->notes.getElement(noteI);
+						int32_t noteI = noteRow->notes.firstAtOrAfter(editPadPresses[i].intendedPos);
+						Note* note = &noteRow->notes[noteI];
 						while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
 							int32_t changeValue = parameterValueForMultipleNotes;
 							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
@@ -3347,7 +3347,7 @@ multiplePresses:
 							                                     changeValue);
 
 							noteI++;
-							note = noteRow->notes.getElement(noteI);
+							note = &noteRow->notes[noteI];
 						}
 					}
 					// Or, just 1 note in square
@@ -4014,9 +4014,9 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			}
 		}
 
-		uint32_t numNotes = noteRow->notes.getNumElements();
+		uint32_t numNotes = std::ssize(noteRow->notes);
 		for (int i = 0; i < numNotes; i++) {
-			Note* note = noteRow->notes.getElement(i);
+			Note* note = &noteRow->notes[i];
 			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 				note->setProbability(parameter_value);
 			}
@@ -6186,8 +6186,8 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 			}
 
 			// Collect only notes that are within the current horizontal screen position
-			for (int32_t i = 0; i < noteRow->notes.getNumElements(); i++) {
-				Note* note = noteRow->notes.getElement(i);
+			for (int32_t i = 0; i < std::ssize(noteRow->notes); i++) {
+				Note* note = &noteRow->notes[i];
 
 				// Check if note is within screen bounds
 				if (note->pos >= screenStartPos && note->pos < screenEndPos) {
@@ -6799,11 +6799,11 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 					}
 					else {
 						searchBoundary = newPos;
-						searchDirection = GREATER_OR_EQUAL;
+						searchDirection = 0; // The old GREATER_OR_EQUAL: the lower bound itself
 doSearch:
-						n = noteRow->notes.search(searchBoundary, searchDirection);
+						n = noteRow->notes.firstAtOrAfter(searchBoundary) + searchDirection;
 doCompareNote:
-						Note* note = noteRow->notes.getElement(n);
+						Note* note = noteRow->notes.tryGet(n);
 						if (note && note->pos == newPos) {
 							newPos = editPadPresses[i].intendedPos; // Make it so the below code just displays the
 							                                        // already existing offset
@@ -6813,12 +6813,12 @@ doCompareNote:
 				}
 				else { // Nudging left
 					if (editPadPresses[i].intendedPos == 0) {
-						n = noteRow->notes.getNumElements();
+						n = std::ssize(noteRow->notes);
 						goto doCompareNote;
 					}
 					else {
 						searchBoundary = editPadPresses[i].intendedPos;
-						searchDirection = LESS;
+						searchDirection = -1; // The old LESS: one left of the lower bound
 						goto doSearch;
 					}
 				}
@@ -6989,8 +6989,8 @@ abandonModRegion:
 	// Otherwise, update it for what they actually intend
 	else {
 
-		int32_t i = noteRow->notes.search(newPos, GREATER_OR_EQUAL);
-		Note* note = noteRow->notes.getElement(i);
+		int32_t i = noteRow->notes.firstAtOrAfter(newPos);
+		Note* note = noteRow->notes.tryGet(i);
 		if (!note || note->pos != newPos) {
 			goto abandonModRegion;
 		}
@@ -7380,7 +7380,7 @@ void InstrumentClipView::editNumEuclideanEvents(ModelStackWithNoteRow* modelStac
 	{
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-		int32_t oldNumNotes = noteRow->notes.getNumElements();
+		int32_t oldNumNotes = std::ssize(noteRow->notes);
 		newNumNotes = oldNumNotes;
 
 		if (offset) { // Or if offset is 0, we'll just display the current number, below, without changing anything
@@ -7425,7 +7425,8 @@ justDisplayOldNumNotes:
 					// Make new NoteVector for the new Notes, since ActionLogger should be "stealing" the old data
 					NoteVector newNotes;
 					if (newNumNotes) {
-						Error error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
+						Error error =
+						    newNotes.insertAt(0, newNumNotes).error_or(Error::NONE); // Pre-allocate, so no errors later
 						if (error != Error::NONE) {
 							display->displayError(error);
 							return;
@@ -7441,7 +7442,7 @@ justDisplayOldNumNotes:
 
 					// Create the Notes
 					for (int32_t n = 0; n < newNumNotes; n++) {
-						Note* note = newNotes.getElement(n);
+						Note* note = &newNotes[n];
 						note->pos = (uint32_t)(n * numStepsAvailable) / (uint32_t)newNumNotes * squareWidth;
 						note->length = squareWidth;
 						note->probability = noteRow->getDefaultProbability();
@@ -7453,7 +7454,7 @@ justDisplayOldNumNotes:
 
 					// Just make sure final note isn't too long
 					if (newNumNotes) {
-						Note* note = newNotes.getElement(newNumNotes - 1);
+						Note* note = &newNotes[newNumNotes - 1];
 						int32_t maxLength = effectiveLength - note->pos;
 						if (note->length > maxLength) {
 							note->length = maxLength;
@@ -7480,7 +7481,7 @@ justDisplayOldNumNotes:
 					}
 
 					// Swap the new temporary note data into the permanent place
-					noteRow->notes.swapStateWith(&newNotes);
+					noteRow->notes.swap(newNotes);
 
 #if ENABLE_SEQUENTIALITY_TESTS
 					noteRow->notes.testSequentiality("E376");
