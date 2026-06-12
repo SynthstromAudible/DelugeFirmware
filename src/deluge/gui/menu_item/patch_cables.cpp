@@ -121,7 +121,8 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 	currentValue = newValue;
 
 	if (display->haveOLED()) {
-		scrollPos = std::clamp<int>(newValue - 1, 0, set->numPatchCables - kOLEDMenuNumOptionsVisible);
+		int32_t max = std::max<int32_t>(0, set->numPatchCables - kOLEDMenuNumOptionsVisible);
+		scrollPos = std::clamp<int32_t>(newValue - 1, 0, max);
 	}
 
 	readValueAgain(); // redraw
