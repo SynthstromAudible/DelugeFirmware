@@ -26,6 +26,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include "util/string.h"
 #include <cstring>
 #include <new>
 
@@ -83,16 +84,16 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 	}
 	// saving song
 	if (!clipForSavingOutputOnly) {
-		if (!name.isEmpty()) {
-			writer.writeAttribute("presetName", name.get());
+		if (!name.empty()) {
+			writer.writeAttribute("presetName", name.c_str());
 		}
 		else if (type == OutputType::CV) {
 			char const* slotXMLTag = getSlotXMLTag();
 
 			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
 		}
-		if (!dirPath.isEmpty() && (type == OutputType::SYNTH || type == OutputType::KIT)) {
-			writer.writeAttribute("presetFolder", dirPath.get());
+		if (!dirPath.empty() && (type == OutputType::SYNTH || type == OutputType::KIT)) {
+			writer.writeAttribute("presetFolder", dirPath.c_str());
 		}
 		writer.writeAttribute("defaultVelocity", defaultVelocity);
 	}
@@ -107,10 +108,10 @@ bool Instrument::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	if (!strcmp(tagName, slotXMLTag)) {
 		int32_t slotHere = reader.readTagOrAttributeValueInt();
-		String slotChars;
-		slotChars.setInt(slotHere, 3);
-		slotChars.concatenate(&name);
-		name.set(&slotChars);
+		std::string slotChars;
+		slotChars = deluge::string::fromInt(slotHere, 3);
+		slotChars.append(name);
+		name = slotChars;
 	}
 
 	else if (!strcmp(tagName, subSlotXMLTag)) {
@@ -119,7 +120,7 @@ bool Instrument::readTagFromFile(Deserializer& reader, char const* tagName) {
 			char buffer[2];
 			buffer[0] = 'A' + subSlotHere;
 			buffer[1] = 0;
-			name.concatenate(buffer);
+			name.append(buffer);
 		}
 	}
 
@@ -184,9 +185,9 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 }
 
 Error Instrument::setupDefaultAudioFileDir() {
-	char const* dirPathChars = dirPath.get();
+	char const* dirPathChars = dirPath.c_str();
 	auto result = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, dirPathChars,
-	                                                          name.get());
+	                                                          name.c_str());
 	if (result != Error::NONE) {
 		return result;
 	}

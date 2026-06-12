@@ -69,14 +69,14 @@ bool DeleteFile::acceptCurrentOption() {
 	FileItem* toDelete = browser->getCurrentFileItem();
 	bool existed = true;
 	if (toDelete->maybeExistsOnCard) {
-		String filePath;
+		std::string filePath;
 		Error error = browser->getCurrentFilePath(&filePath);
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return false;
 		}
 
-		FRESULT result = f_unlink(filePath.get());
+		FRESULT result = f_unlink(filePath.c_str());
 
 		// The file might not exist on the card in the first place, in which case whatever
 		if (result == FR_OK) {

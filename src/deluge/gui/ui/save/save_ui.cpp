@@ -82,7 +82,7 @@ void SaveUI::enterKeyPress() {
 		}
 	}
 
-	else if (enteredText.isEmpty()) {} // Previously had &&currentFolderIsEmpty ... why?
+	else if (enteredText.empty()) {} // Previously had &&currentFolderIsEmpty ... why?
 
 	else {
 		SlotBrowser::enterKeyPress();

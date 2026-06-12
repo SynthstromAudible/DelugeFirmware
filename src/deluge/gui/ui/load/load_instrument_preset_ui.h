@@ -51,7 +51,7 @@ public:
 	std::expected<FileItem*, Error>
 	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
 	                                                Availability availabilityRequirement);
-	std::expected<FileItem*, Error> confirmPresetOrNextUnlaunchedOne(OutputType outputType, String* searchName,
+	std::expected<FileItem*, Error> confirmPresetOrNextUnlaunchedOne(OutputType outputType, std::string* searchName,
 	                                                                 Availability availabilityRequirement);
 	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
 	                                          Availability availabilityRequirement, bool doBlink);
@@ -90,7 +90,7 @@ private:
 	void revertToInitialPreset();
 	void exitAction() override;
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
-	bool findUnusedSlotVariation(String* oldName, String* newName);
+	bool findUnusedSlotVariation(std::string* oldName, std::string* newName);
 
 	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
 	Instrument* instrumentToReplace; // The Instrument that's actually successfully loaded and assigned to the Clip.
@@ -109,8 +109,8 @@ private:
 	bool changedInstrumentForClip;
 	bool replacedWholeInstrument;
 
-	String initialName;
-	String initialDirPath;
+	std::string initialName;
+	std::string initialDirPath;
 };
 
 extern LoadInstrumentPresetUI loadInstrumentPresetUI;

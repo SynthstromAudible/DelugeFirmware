@@ -35,6 +35,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/string.h"
 #include <string.h>
 
 using namespace deluge;
@@ -55,16 +56,16 @@ doReturnFalse:
 		return false;
 	}
 
-	enteredText.set(&currentInstrument->name);
-	enteredTextEditPos = enteredText.getLength();
+	enteredText = currentInstrument->name;
+	enteredTextEditPos = enteredText.size();
 	currentFolderIsEmpty = false;
 
 	char const* defaultDir = getInstrumentFolder(outputTypeToLoad);
 
-	currentDir.set(&currentInstrument->dirPath);
-	if (currentDir.isEmpty()) { // Would this even be able to happen?
+	currentDir = currentInstrument->dirPath;
+	if (currentDir.empty()) { // Would this even be able to happen?
 tryDefaultDir:
-		currentDir.set(defaultDir);
+		currentDir = defaultDir;
 	}
 
 	// reset
@@ -97,7 +98,7 @@ tryDefaultDir:
 	// not used for midi
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
 
-	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
+	Error error = arrivedInNewFolder(0, enteredText.c_str(), defaultDir);
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -112,7 +113,7 @@ gotError:
 	}
 
 	/*
-	String filePath;
+	std::string filePath;
 	error = getCurrentFilePath(&filePath);
 	if (error != Error::NONE) goto gotError;
 	currentFileExists = StorageManager::fileExists(filePath.get());
@@ -128,13 +129,13 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	}
 	Instrument* instrumentToSave = getCurrentInstrument();
 
-	bool isDifferentSlot = !enteredText.equalsCaseIrrespective(&instrumentToSave->name);
+	bool isDifferentSlot = !deluge::string::caselessEquals(enteredText, instrumentToSave->name);
 
 	// If saving into a new, different slot than the Instrument previously had...
 	if (isDifferentSlot) {
 
 		// We can't save into this slot if another Instrument in this Song already uses it
-		if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.get(), currentDir.get(),
+		if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.c_str(), currentDir.c_str(),
 		                                             false)) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
 			display->removeWorkingAnimation();
@@ -143,10 +144,10 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 
 		// Alright, we know the new slot isn't used by an Instrument in the Song, but there may be an Instrument lurking
 		// in memory with that slot, which we need to just delete
-		currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.get());
+		currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.c_str());
 	}
 
-	String filePath;
+	std::string filePath;
 	Error error = getCurrentFilePath(&filePath);
 	if (error != Error::NONE) {
 fail:
@@ -154,7 +155,7 @@ fail:
 		return false;
 	}
 
-	error = StorageManager::createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
+	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
@@ -198,7 +199,7 @@ fail:
 	case OutputType::NONE:;
 	}
 
-	error = GetSerializer().closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+	error = GetSerializer().closeFileAfterWriting(filePath.c_str(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
 	                                              endString);
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
@@ -206,8 +207,8 @@ fail:
 	}
 
 	// Give the Instrument in memory its new slot
-	instrumentToSave->name.set(&enteredText);
-	instrumentToSave->dirPath.set(&currentDir);
+	instrumentToSave->name = enteredText;
+	instrumentToSave->dirPath = currentDir;
 	instrumentToSave->mightExistOnCard = true;
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the

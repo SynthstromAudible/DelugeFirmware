@@ -126,28 +126,22 @@ processError:
 			}
 			triedCreatingFolder = true;
 
-			String folderPath;
-			error = folderPath.set(filePath);
-			if (error != Error::NONE) {
-				return std::unexpected(error);
-			}
+			std::string folderPath;
+			folderPath = filePath;
 
 			// Get just the folder path
 cutFolderPathAndTryCreating:
-			char const* folderPathChars = folderPath.get();
+			char const* folderPathChars = folderPath.c_str();
 			char const* slashAddr = strrchr(folderPathChars, '/');
 			if (!slashAddr) {
 				return std::unexpected(Error::UNSPECIFIED); // Shouldn't happen
 			}
 			int32_t slashPos = (uint32_t)slashAddr - (uint32_t)folderPathChars;
 
-			error = folderPath.shorten(slashPos);
-			if (error != Error::NONE) {
-				return std::unexpected(error);
-			}
+			folderPath.resize(slashPos);
 
 			// Try making the folder
-			auto made_dir = FatFS::mkdir(folderPath.get());
+			auto made_dir = FatFS::mkdir(folderPath.c_str());
 			if (made_dir) {
 				goto tryAgain;
 			}
@@ -330,15 +324,15 @@ Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* fil
 // clip may be NULL
 Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
                                              bool mayReadSamplesFromFiles, Instrument** getInstrument,
-                                             FilePointer* filePointer, String* name, String* dirPath) {
+                                             FilePointer* filePointer, std::string* name, std::string* dirPath) {
 
 	AudioEngine::logAction("loadInstrumentFromFile");
-	D_PRINTLN("opening instrument file -  %s %s  from FP  %lu", dirPath->get(), name->get(),
+	D_PRINTLN("opening instrument file -  %s %s  from FP  %lu", dirPath->c_str(), name->c_str(),
 	          (int32_t)filePointer->sclust);
 
 	Error error = openInstrumentFile(outputType, filePointer);
 	if (error != Error::NONE) {
-		D_PRINTLN("opening instrument file failed -  %s", name->get());
+		D_PRINTLN("opening instrument file failed -  %s", name->c_str());
 		return error;
 	}
 
@@ -347,7 +341,7 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 
 	if (!newInstrument) {
 		smDeserializer.closeWriter();
-		D_PRINTLN("Allocating instrument file failed -  %d", name->get());
+		D_PRINTLN("Allocating instrument file failed -  %d", name->c_str());
 		return Error::INSUFFICIENT_RAM;
 	}
 
@@ -357,13 +351,13 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
-		D_PRINTLN("reading instrument file failed -  %s", name->get());
+		D_PRINTLN("reading instrument file failed -  %s", name->c_str());
 		if (!fileSuccess) {
 			error = Error::SD_CARD;
 		}
 
 deleteInstrumentAndGetOut:
-		D_PRINTLN("abandoning load -  %s", name->get());
+		D_PRINTLN("abandoning load -  %s", name->c_str());
 		newInstrument->deleteBackedUpParamManagers(song);
 		void* toDealloc = static_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
@@ -394,7 +388,7 @@ deleteInstrumentAndGetOut:
 		}
 		else {
 paramManagersMissing:
-			D_PRINTLN("creating param manager failed -  %s", name->get());
+			D_PRINTLN("creating param manager failed -  %s", name->c_str());
 			error = Error::FILE_CORRUPTED;
 			goto deleteInstrumentAndGetOut;
 		}
@@ -415,8 +409,8 @@ paramManagersMissing:
 		}
 	}
 
-	newInstrument->name.set(name);
-	newInstrument->dirPath.set(dirPath);
+	newInstrument->name = *name;
+	newInstrument->dirPath = *dirPath;
 	newInstrument->mightExistOnCard = true;
 	newInstrument->loadAllAudioFiles(mayReadSamplesFromFiles); // Needs name, directory and slots set first, above.
 
@@ -439,16 +433,16 @@ Error StorageManager::openMidiDeviceDefinitionFile(FilePointer* filePointer) {
 
 // Returns error status
 Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, FilePointer* filePointer,
-                                                   String* fileName, bool updateFileName) {
+                                                   std::string* fileName, bool updateFileName) {
 	midiInstrument->loadDeviceDefinitionFile = false;
 
 	AudioEngine::logAction("loadMidiDeviceDefinitionFile");
-	D_PRINTLN("opening midi device definition file -  %s %s  from FP  %lu", fileName->get(),
+	D_PRINTLN("opening midi device definition file -  %s %s  from FP  %lu", fileName->c_str(),
 	          (int32_t)filePointer->sclust);
 
 	Error error = openMidiDeviceDefinitionFile(filePointer);
 	if (error != Error::NONE) {
-		D_PRINTLN("opening midi device definition file failed -  %s", fileName->get());
+		D_PRINTLN("opening midi device definition file failed -  %s", fileName->c_str());
 		return error;
 	}
 
@@ -460,7 +454,7 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
-		D_PRINTLN("reading midi device definition file failed -  %s", fileName->get());
+		D_PRINTLN("reading midi device definition file failed -  %s", fileName->c_str());
 		if (!fileSuccess) {
 			error = Error::SD_CARD;
 		}
@@ -468,7 +462,7 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 		return error;
 	}
 	else if (updateFileName) {
-		midiInstrument->deviceDefinitionFileName.set(fileName->get());
+		midiInstrument->deviceDefinitionFileName = fileName->c_str();
 	}
 
 	return Error::NONE;
@@ -501,7 +495,7 @@ Error StorageManager::openFavouriteFile(FilePointer* filePointer) {
 }
 
 // Returns error status
-Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName, bool overwriteExisting,
+Error StorageManager::loadPatternFile(FilePointer* filePointer, std::string* fileName, bool overwriteExisting,
                                       bool noScaling, bool previewOnly, bool selectedDrumOnly) {
 
 	AudioEngine::logAction("loadPatternFile");
@@ -531,7 +525,7 @@ Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName
 }
 
 // Returns error status
-Error StorageManager::loadFavouriteFile(FilePointer* filePointer, String* fileName) {
+Error StorageManager::loadFavouriteFile(FilePointer* filePointer, std::string* fileName) {
 
 	AudioEngine::logAction("loadFavouriteFile");
 
@@ -562,8 +556,8 @@ Error StorageManager::loadFavouriteFile(FilePointer* filePointer, String* fileNa
  * Special function to read a synth preset into a sound drum
  */
 Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles,
-                                      SoundDrum** getInstrument, FilePointer* filePointer, String* name,
-                                      String* dirPath) {
+                                      SoundDrum** getInstrument, FilePointer* filePointer, std::string* name,
+                                      std::string* dirPath) {
 	OutputType outputType = OutputType::SYNTH;
 	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
 	if (!newDrum) {

@@ -31,6 +31,7 @@
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/functions.h"
+#include "util/string.h"
 #include "util/try.h"
 #include <cstring>
 
@@ -66,14 +67,16 @@ doReturnFalse:
 
 	Error error;
 
-	String searchFilename;
-	searchFilename.set(&currentSong->name);
-	if (!searchFilename.isEmpty()) {
+	std::string searchFilename;
+	searchFilename = currentSong->name;
+	if (!searchFilename.empty()) {
 		if (writeJsonFlag) {
-			error = searchFilename.concatenate(".Json");
+			searchFilename.append(".Json");
+			error = Error::NONE;
 		}
 		else {
-			error = searchFilename.concatenate(".XML");
+			searchFilename.append(".XML");
+			error = Error::NONE;
 		}
 		if (error != Error::NONE) {
 gotError:
@@ -83,9 +86,9 @@ gotError:
 	}
 	currentFolderIsEmpty = false;
 
-	currentDir.set(&currentSong->dirPath);
+	currentDir = currentSong->dirPath;
 
-	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
+	error = arrivedInNewFolder(0, searchFilename.c_str(), "SONGS");
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -127,7 +130,7 @@ bool SaveSongUI::performSave(bool mayOverwrite) {
 
 	display->displayLoadingAnimationText("Saving");
 
-	String filePath;
+	std::string filePath;
 	Error error = getCurrentFilePath(&filePath);
 	if (error != Error::NONE) {
 gotError:
@@ -136,7 +139,7 @@ gotError:
 		return false;
 	}
 
-	bool fileAlreadyExisted = StorageManager::fileExists(filePath.get());
+	bool fileAlreadyExisted = StorageManager::fileExists(filePath.c_str());
 
 	if (!mayOverwrite && fileAlreadyExisted) {
 		context_menu::overwriteFile.currentSaveUI = this;
@@ -159,21 +162,18 @@ gotError:
 	// were loaded in from a collected folder and we now need to put them in the main samples folder.
 
 	// Create sample dir
-	String newSongAlternatePath;
+	std::string newSongAlternatePath;
 
 	std::string filenameWithoutExtension = getCurrentFilenameWithoutExtension();
 
-	error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(),
+	error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.c_str(),
 	                                                    filenameWithoutExtension.c_str());
 	if (error != Error::NONE) {
 		goto gotError;
 	}
 
-	error = newSongAlternatePath.concatenate("/");
-	if (error != Error::NONE) {
-		goto gotError;
-	}
-	int32_t dirPathLengthNew = newSongAlternatePath.getLength();
+	newSongAlternatePath.append("/");
+	int32_t dirPathLengthNew = newSongAlternatePath.size();
 
 	bool anyErrorMovingTempFiles = false;
 
@@ -185,9 +185,9 @@ gotError:
 			if (audioFile->type == AudioFileType::SAMPLE) {
 				Sample& sample = *static_cast<Sample*>(audioFile);
 				// If this is a recording which still exists at its temporary location, move the file
-				if (!sample.tempFilePathForRecording.isEmpty()) {
-					StorageManager::buildPathToFile(audioFile->filePath.get());
-					FRESULT result = f_rename(sample.tempFilePathForRecording.get(), audioFile->filePath.get());
+				if (!sample.tempFilePathForRecording.empty()) {
+					StorageManager::buildPathToFile(audioFile->filePath.c_str());
+					FRESULT result = f_rename(sample.tempFilePathForRecording.c_str(), audioFile->filePath.c_str());
 					if (result == FR_OK) {
 						sample.tempFilePathForRecording.clear();
 					}
@@ -195,8 +195,8 @@ gotError:
 						// We at least need to warn the user that although the main file save was (hopefully soon to be)
 						// successful, something's gone wrong
 						anyErrorMovingTempFiles = true;
-						D_PRINTLN("rename failed.  %d %s %s", result, sample.tempFilePathForRecording.get(),
-						          audioFile->filePath.get());
+						D_PRINTLN("rename failed.  %d %s %s", result, sample.tempFilePathForRecording.c_str(),
+						          audioFile->filePath.c_str());
 					}
 				}
 			}
@@ -204,13 +204,13 @@ gotError:
 			// Or if file needs copying either to or from an "alt" location - either because we're doing a "collect
 			// media" or importing from such a folder. Crucial obscure combination - we could be doing a "collect media"
 			// *AND ALSO* have moved (or even failed to move!) a recorded file from its "temp" location above
-			if (collectingSamples || !audioFile->loadedFromAlternatePath.isEmpty()) {
+			if (collectingSamples || !audioFile->loadedFromAlternatePath.empty()) {
 
 				// If saving as *same* song name/slot, collecting samples, and it already came from alt location, no
 				// need to do it again
-				if (collectingSamples && !audioFile->loadedFromAlternatePath.isEmpty()) {
-					if (currentDir.equalsCaseIrrespective(&currentSong->dirPath)) {
-						if (enteredText.equalsCaseIrrespective(&currentSong->name)) {
+				if (collectingSamples && !audioFile->loadedFromAlternatePath.empty()) {
+					if (deluge::string::caselessEquals(currentDir, currentSong->dirPath)) {
+						if (deluge::string::caselessEquals(enteredText, currentSong->name)) {
 							return true;
 						}
 					}
@@ -219,19 +219,19 @@ gotError:
 				char const* sourceFilePath;
 
 				// Sort out source file path
-				if (!audioFile->loadedFromAlternatePath.isEmpty()) {
+				if (!audioFile->loadedFromAlternatePath.empty()) {
 					// If we loaded the file from an alternate path originally, well we saved that exact path just so we
 					// can recall it here!
-					sourceFilePath = audioFile->loadedFromAlternatePath.get();
+					sourceFilePath = audioFile->loadedFromAlternatePath.c_str();
 				}
 				else {
 					sourceFilePath =
 					    (audioFile->type != AudioFileType::SAMPLE
-					     || ((Sample*)audioFile)->tempFilePathForRecording.isEmpty())
-					        ? audioFile->filePath.get()
+					     || ((Sample*)audioFile)->tempFilePathForRecording.empty())
+					        ? audioFile->filePath.c_str()
 					        : ((Sample*)audioFile)
-					              ->tempFilePathForRecording.get(); // It may still have a temp path if for some reason
-					                                                // we failed to move it, above
+					              ->tempFilePathForRecording.c_str(); // It may still have a temp path if for some
+					                                                  // reason we failed to move it, above
 				}
 
 				// Note: we can't just use the clusters to write back to the card, cos these might contain data that we
@@ -262,7 +262,7 @@ gotError:
 					// If this sample is a "recording", we need to append a random string on the end
 					// NOTE: I guess this would do this multiple times if we kept re-saving... probably not the end of
 					// the world?
-					normalFilePath = audioFile->filePath.get();
+					normalFilePath = audioFile->filePath.c_str();
 					if (!memcasecmp(normalFilePath, "SAMPLES/RECORD/REC", 18)
 					    || !memcasecmp(normalFilePath, "SAMPLES/RESAMPLE/REC", 20)
 					    || !memcasecmp(normalFilePath, "SAMPLES/CLIPS/REC", 17)) {
@@ -271,7 +271,7 @@ gotError:
 
 						int32_t fileNamePos = slashPos + 1;
 
-						if (audioFile->filePath.getLength() - fileNamePos == 12
+						if (audioFile->filePath.size() - fileNamePos == 12
 						    && !strcasecmp(normalFilePath + fileNamePos + 8, ".WAV")) {
 
 							// Generate random string, with _ at start and .WAV at end
@@ -296,7 +296,7 @@ gotError:
 							}
 
 							// Append that random string
-							audioFile->filePath.concatenateAtPos(buffer, fileNamePos + 8);
+							audioFile->filePath.resize(fileNamePos + 8), audioFile->filePath.append(buffer);
 
 							// And because the AudioFile in memory is now associated with a file name which only exists
 							// in the "alternative location", we need to mark it as if it was loaded from there, so any
@@ -310,7 +310,7 @@ gotError:
 
 					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was
 					// designed for...
-					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
+					if (!memcasecmp(audioFile->filePath.c_str(), "SAMPLES/", 8)) {
 						error = audioFileManager.setupAlternateAudioFilePath(newSongAlternatePath, dirPathLengthNew,
 						                                                     audioFile->filePath);
 						if (error != Error::NONE) {
@@ -324,24 +324,19 @@ gotError:
 					// Or, if it wasn't in the SAMPLES folder, e.g. if it was in a dedicated SYNTH folder, then we have
 					// to just use the original filename, and hope it doesn't clash with anything.
 					else {
-						char const* fileName = getFileNameFromEndOfPath(audioFile->filePath.get());
-						error = newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew);
-						if (error != Error::NONE) {
-							activeDeserializer->closeWriter();
-							display->removeLoadingAnimation();
-							display->displayError(error);
-							return false;
-						}
+						char const* fileName = getFileNameFromEndOfPath(audioFile->filePath.c_str());
+						newSongAlternatePath.resize(dirPathLengthNew);
+						newSongAlternatePath.append(fileName);
 					}
 
 					if (needToPretendLoadedAlternate) {
-						audioFile->loadedFromAlternatePath.set(&newSongAlternatePath);
+						audioFile->loadedFromAlternatePath = newSongAlternatePath;
 					}
 
-					destFilePath = newSongAlternatePath.get();
+					destFilePath = newSongAlternatePath.c_str();
 				}
 				else {
-					destFilePath = audioFile->filePath.get();
+					destFilePath = audioFile->filePath.c_str();
 				}
 
 				// Create file to write
@@ -417,7 +412,7 @@ gotError:
 		}
 	}
 
-	String filePathDuringWrite;
+	std::string filePathDuringWrite;
 
 	// If we're overwriting an existing file, we'll write to a temp file first. Find one that doesn't already exist
 	if (fileAlreadyExisted) {
@@ -425,25 +420,21 @@ gotError:
 		int32_t tempFileNumber = 0;
 
 		while (true) {
-			error = filePathDuringWrite.set("SONGS/TEMP");
-			if (error != Error::NONE) {
-				goto gotError;
-			}
-			error = filePathDuringWrite.concatenateInt(tempFileNumber, 4);
-			if (error != Error::NONE) {
-				goto gotError;
-			}
+			filePathDuringWrite = "SONGS/TEMP";
+			filePathDuringWrite.append(deluge::string::fromInt(tempFileNumber, 4));
 			if (writeJsonFlag) {
-				error = filePathDuringWrite.concatenate(".Json");
+				filePathDuringWrite.append(".Json");
+				error = Error::NONE;
 			}
 			else {
-				error = filePathDuringWrite.concatenate(".XML");
+				filePathDuringWrite.append(".XML");
+				error = Error::NONE;
 			}
 			if (error != Error::NONE) {
 				goto gotError;
 			}
 
-			if (!StorageManager::fileExists(filePathDuringWrite.get())) {
+			if (!StorageManager::fileExists(filePathDuringWrite.c_str())) {
 				break;
 			}
 
@@ -451,20 +442,20 @@ gotError:
 		}
 	}
 	else {
-		filePathDuringWrite.set(&filePath);
+		filePathDuringWrite = filePath;
 	}
 
-	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
+	D_PRINTLN("creating:  %s", filePathDuringWrite.c_str());
 
 	if (writeJsonFlag) {
 		// Write the actual song file
-		error = StorageManager::createJsonFile(filePathDuringWrite.get(), smJsonSerializer, false, false);
+		error = StorageManager::createJsonFile(filePathDuringWrite.c_str(), smJsonSerializer, false, false);
 		if (error != Error::NONE) {
 			goto gotError;
 		}
 	}
 	else {
-		error = StorageManager::createXMLFile(filePathDuringWrite.get(), smSerializer, false, false);
+		error = StorageManager::createXMLFile(filePathDuringWrite.c_str(), smSerializer, false, false);
 		if (error != Error::NONE) {
 			goto gotError;
 		}
@@ -476,7 +467,7 @@ gotError:
 	currentSong->writeToFile();
 
 	error = GetSerializer().closeFileAfterWriting(
-	    filePathDuringWrite.get(),
+	    filePathDuringWrite.c_str(),
 	    writeJsonFlag ? "{\"song\": {\n" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
 	if (error != Error::NONE) {
 		goto gotError;
@@ -486,7 +477,7 @@ gotError:
 	if (fileAlreadyExisted) {
 
 		// Delete the old file
-		FRESULT result = f_unlink(filePath.get());
+		FRESULT result = f_unlink(filePath.c_str());
 		if (result != FR_OK) {
 cardError:
 			error = fresultToDelugeErrorCode(result);
@@ -494,7 +485,7 @@ cardError:
 		}
 
 		// Rename the new file
-		result = f_rename(filePathDuringWrite.get(), filePath.get());
+		result = f_rename(filePathDuringWrite.c_str(), filePath.c_str());
 		if (result != FR_OK) {
 			goto cardError;
 		}
@@ -505,8 +496,8 @@ cardError:
 	                          ? (deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_MOVING_TEMP_FILES))
 	                          : (deluge::l10n::get(deluge::l10n::String::STRING_FOR_SONG_SAVED));
 	// Update all of these
-	currentSong->name.set(&enteredText);
-	currentSong->dirPath.set(&currentDir);
+	currentSong->name = enteredText;
+	currentSong->dirPath = currentDir;
 
 	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
 		runtimeFeatureSettings.writeSettingsToFile();

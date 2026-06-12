@@ -21,7 +21,7 @@
 #include <cstring>
 
 Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
-	filename = newInstrument->name.get();
+	filename = newInstrument->name.c_str();
 	filename += ".XML";
 	filenameIncludesExtension = true;
 	instrument = newInstrument;
@@ -33,52 +33,40 @@ Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating)
 	return Error::NONE;
 }
 
-Error FileItem::getFilenameWithExtension(String* filenameWithExtension) {
-	filenameWithExtension->set(filename);
+Error FileItem::getFilenameWithExtension(std::string* filenameWithExtension) {
+	(*filenameWithExtension) = filename;
 	if (!filenameIncludesExtension) {
-		Error error = filenameWithExtension->concatenate(".XML");
-		if (error != Error::NONE) {
-			return error;
-		}
+		(*filenameWithExtension).append(".XML");
 	}
 	return Error::NONE;
 }
 
-Error FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
-	filenameWithoutExtension->set(filename);
+Error FileItem::getFilenameWithoutExtension(std::string* filenameWithoutExtension) {
+	(*filenameWithoutExtension) = filename;
 	if (filenameIncludesExtension) {
-		char const* chars = filenameWithoutExtension->get();
+		char const* chars = filenameWithoutExtension->c_str();
 		char const* dotAddress = strrchr(chars, '.');
 		if (dotAddress) {
 			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			Error error = filenameWithoutExtension->shorten(newLength);
-			if (error != Error::NONE) {
-				return error;
-			}
+			(*filenameWithoutExtension).resize(newLength);
 		}
 	}
 	return Error::NONE;
 }
 
-Error FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension) {
+Error FileItem::getDisplayNameWithoutExtension(std::string* displayNameWithoutExtension) {
 	if (display->haveOLED()) {
 		return getFilenameWithoutExtension(displayNameWithoutExtension);
 	}
 
 	// 7SEG...
-	Error error = displayNameWithoutExtension->set(displayName);
-	if (error != Error::NONE) {
-		return error;
-	}
+	(*displayNameWithoutExtension) = displayName;
 	if (filenameIncludesExtension) {
-		char const* chars = displayNameWithoutExtension->get();
+		char const* chars = displayNameWithoutExtension->c_str();
 		char const* dotAddress = strrchr(chars, '.');
 		if (dotAddress) {
 			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			error = displayNameWithoutExtension->shorten(newLength);
-			if (error != Error::NONE) {
-				return error;
-			}
+			(*displayNameWithoutExtension).resize(newLength);
 		}
 	}
 	return Error::NONE;

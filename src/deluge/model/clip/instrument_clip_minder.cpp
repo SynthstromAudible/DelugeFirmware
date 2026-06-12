@@ -207,10 +207,12 @@ bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType, bool is
 
 	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(clip);
 
-	String newName;
+	std::string newName;
 	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
-	error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-	if (error != Error::NONE) {
+	Browser::currentDir = getInstrumentFolder(newOutputType);
+
+	// Reachable only via `goto gotError` from the error paths below.
+	if (false) {
 gotError:
 		display->displayError(error);
 		return false;
@@ -221,7 +223,7 @@ gotError:
 		goto gotError;
 	}
 
-	if (newName.isEmpty()) {
+	if (newName.empty()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS));
 		return false;
 	}
@@ -234,13 +236,7 @@ gotError:
 	}
 
 	// Set dirPath.
-	error = newInstrument->dirPath.set(getInstrumentFolder(newOutputType));
-	if (error != Error::NONE) {
-		void* toDealloc = dynamic_cast<void*>(newInstrument);
-		newInstrument->~Instrument();
-		delugeDealloc(toDealloc);
-		goto gotError;
-	}
+	newInstrument->dirPath = getInstrumentFolder(newOutputType);
 
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
@@ -307,7 +303,7 @@ gotError:
 
 	setLedStates();
 
-	newInstrument->name.set(&newName);
+	newInstrument->name = newName;
 
 	if (is_dx) {
 		soundEditor.setup(getCurrentInstrumentClip(), &dxMenu, 0);

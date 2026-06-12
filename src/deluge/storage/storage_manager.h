@@ -42,7 +42,7 @@ class ArpeggiatorSettings;
 class Song;
 class InstrumentClip;
 class Drum;
-class String;
+#include <string>
 class MIDIParamCollection;
 class ParamManager;
 class SoundDrum;
@@ -197,17 +197,17 @@ public:
 	virtual Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) = 0;
 
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
-	virtual Error readTagOrAttributeValueString(String* string) = 0;
+	virtual Error readTagOrAttributeValueString(std::string* string) = 0;
 	virtual bool match(char const ch) = 0;
 	virtual void exitTag(char const* exitTagName = NULL, bool closeObject = false) = 0;
 
 	virtual void reset() = 0;
 
 	Error readTagOrAttributeValueString(std::string& string) {
-		String tmp;
+		std::string tmp;
 		Error error = readTagOrAttributeValueString(&tmp);
 		if (error == Error::NONE) {
-			string = tmp.get();
+			string = tmp.c_str();
 		}
 		return error;
 	}
@@ -235,7 +235,7 @@ public:
 
 	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos);
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) override;
-	Error readTagOrAttributeValueString(String* string) override;
+	Error readTagOrAttributeValueString(std::string* string) override;
 	char const* readTagOrAttributeValue() override;
 	bool match(char const ch) override;
 
@@ -267,8 +267,8 @@ private:
 	bool getIntoAttributeValue();
 	int32_t readAttributeValueInt();
 
-	Error readStringUntilChar(String* string, char endChar);
-	Error readAttributeValueString(String* string);
+	Error readStringUntilChar(std::string* string, char endChar);
+	Error readAttributeValueString(std::string* string);
 };
 
 class JsonSerializer : public Serializer, public FileWriter {
@@ -320,7 +320,7 @@ public:
 
 	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos);
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) override;
-	Error readTagOrAttributeValueString(String* string) override;
+	Error readTagOrAttributeValueString(std::string* string) override;
 	char const* readTagOrAttributeValue() override;
 	bool match(char const ch) override;
 	void exitTag(char const* exitTagName = NULL, bool closeObject = false) override;
@@ -354,9 +354,9 @@ private:
 	int32_t readInt();
 	bool getIntoAttributeValue();
 	int32_t readAttributeValueInt();
-	Error readAttributeValueString(String* string);
+	Error readAttributeValueString(std::string* string);
 
-	Error readStringUntilChar(String* string, char endChar);
+	Error readStringUntilChar(std::string* string, char endChar);
 };
 
 extern XMLSerializer smSerializer;
@@ -390,23 +390,24 @@ bool checkSDInitialized();
 
 Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = nullptr);
 Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
-                             Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
+                             Instrument** getInstrument, FilePointer* filePointer, std::string* name,
+                             std::string* dirPath);
 Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
 Error openMidiDeviceDefinitionFile(FilePointer* filePointer);
-Error loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, FilePointer* filePointer, String* fileName,
+Error loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, FilePointer* filePointer, std::string* fileName,
                                    bool updateFileName = true);
 
 Error openPatternFile(FilePointer* filePointer);
-Error loadPatternFile(FilePointer* filePointer, String* fileName, bool overwriteExisting, bool noScaling,
+Error loadPatternFile(FilePointer* filePointer, std::string* fileName, bool overwriteExisting, bool noScaling,
                       bool previewOnly, bool selectedDrumOnly);
 
 Error openFavouriteFile(FilePointer* filePointer);
-Error loadFavouriteFile(FilePointer* filePointer, String* fileName);
+Error loadFavouriteFile(FilePointer* filePointer, std::string* fileName);
 
 Drum* createNewDrum(DrumType drumType);
 Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
-                      FilePointer* filePointer, String* name, String* dirPath);
+                      FilePointer* filePointer, std::string* name, std::string* dirPath);
 void openFilePointer(FilePointer* fp, FileReader& reader);
 
 Error checkSpaceOnCard();

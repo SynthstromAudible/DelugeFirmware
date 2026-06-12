@@ -32,7 +32,7 @@ public:
 
 	void readCurrentValue() override {
 		MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-		this->setValue(!midiInstrument->deviceDefinitionFileName.isEmpty());
+		this->setValue(!midiInstrument->deviceDefinitionFileName.empty());
 	}
 	void writeCurrentValue() override {
 		t = this->getValue();
@@ -64,7 +64,7 @@ public:
 
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 
-			char const* fullPath = midiInstrument->deviceDefinitionFileName.get();
+			char const* fullPath = midiInstrument->deviceDefinitionFileName.c_str();
 
 			// locate last occurence of "/" in string
 			char* fileName = strrchr((char*)fullPath, '/');

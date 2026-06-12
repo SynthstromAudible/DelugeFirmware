@@ -3863,7 +3863,7 @@ void NoteRow::rememberDrumName() {
 		while (*prevPointer) {
 
 			// If we'd already stored the name we were gonna store now, no need to do anything
-			if (deluge::string::caselessEquals((*prevPointer)->name.get(), soundDrum->drumName)) {
+			if (deluge::string::caselessEquals((*prevPointer)->name.c_str(), soundDrum->drumName)) {
 				return;
 			}
 

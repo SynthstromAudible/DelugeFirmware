@@ -144,8 +144,8 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	uint32_t originalSampleLengthInSamples;
 
 	if (sample) {
-		filePath.set(&sample->filePath);
-		loadedFromAlternatePath.set(&sample->loadedFromAlternatePath);
+		filePath = sample->filePath;
+		loadedFromAlternatePath = sample->loadedFromAlternatePath;
 
 		rawFileCycleSize = sample->waveTableCycleSize;
 		numChannels = sample->numChannels;

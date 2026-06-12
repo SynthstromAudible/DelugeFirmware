@@ -1574,10 +1574,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 // Will now look in subfolders too if need be.
 Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
                                    bool copyDrumsFromClip = true) {
-	Error error = Browser::currentDir.set(getInstrumentFolder(outputType));
-	if (error != Error::NONE) {
-		return error;
-	}
+	Browser::currentDir = getInstrumentFolder(outputType);
 
 	FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
 	                                     currentSong, outputType, Availability::INSTRUMENT_UNUSED),
@@ -1587,8 +1584,9 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 	bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
 	*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
 
+	Error error = Error::NONE;
 	if (!newInstrument) {
-		String newPresetName;
+		std::string newPresetName;
 		fileItem->getDisplayNameWithoutExtension(&newPresetName);
 		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &newInstrument,
 		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
@@ -2044,11 +2042,11 @@ void SessionView::renderViewDisplay() {
 #endif
 
 	char const* name;
-	if (currentSong->name.isEmpty()) {
+	if (currentSong->name.empty()) {
 		name = "UNSAVED";
 	}
 	else {
-		name = currentSong->name.get();
+		name = currentSong->name.c_str();
 	}
 
 	int32_t stringLengthPixels = canvas.getStringWidthInPixels(name, kTextTitleSizeY);
@@ -3605,13 +3603,13 @@ void SessionView::setupNewClip(Clip* newClip) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstack-usage="
 void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput) {
-	if (source->name.isEmpty()) {
+	if (source->name.empty()) {
 		return;
 	}
 	// Start from the original clip name. We have max 12 sections, so being able to append
 	// a two digit number is enough.
-	DEF_STACK_STRING_BUF(newName, source->name.getLength() + 2);
-	newName.append(source->name.get());
+	DEF_STACK_STRING_BUF(newName, source->name.size() + 2);
+	newName.append(source->name.c_str());
 	// If the name already exists on the target output, we'll append a number. We start from 2,
 	// because "BRIDGE" & "BRIDGE2" make more sense than "BRIDGE" & "BRIDGE1".
 	int32_t counter = 2;
@@ -3625,14 +3623,14 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 		counter = atoi(newName.data() + end);
 	}
 	// Keep trying until we have a name that's unique on the output.
-	String newNameString;
-	newNameString.set(newName.data());
-	while (targetOutput->getClipFromName(newNameString.get()) != nullptr) {
+	std::string newNameString;
+	newNameString = newName.data();
+	while (targetOutput->getClipFromName(newNameString.c_str()) != nullptr) {
 		newName.truncate(end);
 		newName.appendInt(counter++);
-		newNameString.set(newName.data());
+		newNameString = newName.data();
 	}
-	target->name.set(newName.data());
+	target->name = newName.data();
 }
 #pragma GCC diagnostic pop
 

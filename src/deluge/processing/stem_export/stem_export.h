@@ -92,8 +92,8 @@ public:
 	int32_t totalNumStemsToExport;
 
 	// audio file management
-	Error getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder);
-	Error getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder);
+	Error getUnusedStemRecordingFilePath(std::string* filePath, AudioRecordingFolder folder);
+	Error getUnusedStemRecordingFolderPath(std::string* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
 	std::string lastFolderNameForStemExport;
 	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,

@@ -91,5 +91,5 @@ public:
 
 	bool freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
-	String name;
+	std::string name;
 };

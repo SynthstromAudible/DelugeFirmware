@@ -421,8 +421,8 @@ aborted:
 				goto gotError;
 			}
 
-			String filePath;
-			String tempFilePathForRecording;
+			std::string filePath;
+			std::string tempFilePathForRecording;
 
 			// Note: we couldn't pass the actual Sample pointer into this function, cos the Sample might get destructed
 			// during the card access! (Though probably not anymore right?)
@@ -442,7 +442,7 @@ aborted:
 				}
 				else if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {
 					if (outputRecordingFrom) {
-						name = outputRecordingFrom->name.get();
+						name = outputRecordingFrom->name.c_str();
 					}
 				}
 				else {
@@ -461,11 +461,11 @@ aborted:
 			bool mayOverwrite = true;
 
 			// Now store our own copy of the actually (possibly temp) filename
-			if (!tempFilePathForRecording.isEmpty()) {
-				filePathCreated = tempFilePathForRecording.get(); // Can't fail!
+			if (!tempFilePathForRecording.empty()) {
+				filePathCreated = tempFilePathForRecording.c_str(); // Can't fail!
 			}
 			else {
-				filePathCreated = filePath.get(); // Can't fail!
+				filePathCreated = filePath.c_str(); // Can't fail!
 				mayOverwrite = false;
 			}
 
@@ -484,8 +484,8 @@ aborted:
 			}
 
 			// Ok, the Sample still exists.
-			sample->filePath.set(&filePath);                                 // Can't fail!
-			sample->tempFilePathForRecording.set(&tempFilePathForRecording); // Can't fail!
+			sample->filePath = filePath;                                 // Can't fail!
+			sample->tempFilePathForRecording = tempFilePathForRecording; // Can't fail!
 
 			error = audioFileManager.audioFiles.insertElement(sample);
 			if (error != Error::NONE) {
@@ -784,8 +784,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 	    * (sample->byteDepth
 	       * sample->numChannels); // Ensure whole number of samples (surely it already would be though?)
 
-	if (sample->tempFilePathForRecording.isEmpty()) {
-		sampleBrowser.lastFilePathLoaded.set(&sample->filePath);
+	if (sample->tempFilePathForRecording.empty()) {
+		sampleBrowser.lastFilePathLoaded = sample->filePath;
 	}
 
 	return Error::NONE;
@@ -1504,7 +1504,7 @@ writeFailed:
 
 		if (action != MonitoringAction::NONE || capturedTooMuch) {
 
-			auto opened = this->file->open(sample->filePath.get(), FA_WRITE);
+			auto opened = this->file->open(sample->filePath.c_str(), FA_WRITE);
 
 			if (!opened) {
 				return Error::SD_CARD;

@@ -21,7 +21,7 @@
 
 DrumName::DrumName(std::string_view newName) {
 	next = nullptr;
-	name.set(newName);
+	name = newName;
 }
 
 DrumName::~DrumName() {

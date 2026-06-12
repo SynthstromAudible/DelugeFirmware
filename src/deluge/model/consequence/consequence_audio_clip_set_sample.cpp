@@ -26,18 +26,18 @@
 ConsequenceAudioClipSetSample::ConsequenceAudioClipSetSample(AudioClip* newClip) {
 
 	clip = newClip;
-	filePathToRevertTo = newClip->sampleHolder.filePath.get();
+	filePathToRevertTo = newClip->sampleHolder.filePath.c_str();
 	endPosToRevertTo = newClip->sampleHolder.endPos;
 }
 
 Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStack) {
 
-	std::string filePathBeforeRevert = clip->sampleHolder.filePath.get();
+	std::string filePathBeforeRevert = clip->sampleHolder.filePath.c_str();
 	uint64_t endPosBeforeRevert = clip->sampleHolder.endPos;
 	// don't keep cached since we undid the set
 	clip->unassignVoiceSample(true);
 
-	clip->sampleHolder.filePath.set(filePathToRevertTo);
+	clip->sampleHolder.filePath = filePathToRevertTo;
 	clip->sampleHolder.endPos = endPosToRevertTo;
 
 	if (filePathToRevertTo.empty()) {

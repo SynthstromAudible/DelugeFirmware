@@ -19,9 +19,9 @@
 #include <new>
 #include <string.h>
 
-NamedThingVectorElement::NamedThingVectorElement(void* newNamedThing, String* newName) {
+NamedThingVectorElement::NamedThingVectorElement(void* newNamedThing, std::string* newName) {
 	namedThing = newNamedThing;
-	name.set(newName);
+	name = *newName;
 }
 
 NamedThingVector::NamedThingVector(int32_t newStringOffset)
@@ -39,7 +39,7 @@ int32_t NamedThingVector::search(char const* searchString, int32_t comparison, b
 		proposedIndex = rangeBegin + (rangeSize >> 1);
 
 		NamedThingVectorElement* element = getMemory(proposedIndex);
-		int32_t result = strcasecmp(element->name.get(), searchString);
+		int32_t result = strcasecmp(element->name.c_str(), searchString);
 
 		if (!result) {
 			if (foundExact) {
@@ -69,16 +69,16 @@ void* NamedThingVector::getElement(int32_t index) {
 	return getMemory(index)->namedThing;
 }
 
-String* NamedThingVector::getName(void* namedThing) {
-	return (String*)((uint32_t)namedThing + stringOffset);
+std::string* NamedThingVector::getName(void* namedThing) {
+	return (std::string*)((uint32_t)namedThing + stringOffset);
 }
 
 // Returns error code
 Error NamedThingVector::insertElement(void* namedThing) {
 
-	String* name = getName(namedThing);
+	std::string* name = getName(namedThing);
 
-	int32_t i = search(name->get(), GREATER_OR_EQUAL);
+	int32_t i = search(name->c_str(), GREATER_OR_EQUAL);
 
 	return insertElement(namedThing, i);
 }
@@ -91,25 +91,25 @@ Error NamedThingVector::insertElement(void* namedThing, int32_t i) {
 		return error;
 	}
 
-	String* name = getName(namedThing);
+	std::string* name = getName(namedThing);
 	new (getMemory(i)) NamedThingVectorElement(namedThing, name);
 
 	return Error::NONE;
 }
 
 void NamedThingVector::removeElement(int32_t i) {
-	getMemory(i)->~NamedThingVectorElement(); // Have to call this so String gets destructed!
+	getMemory(i)->~NamedThingVectorElement(); // Have to call this so std::string gets destructed!
 	deleteAtIndex(i);
 }
 
 // Check the new name is in fact different before calling this, if you want.
-void NamedThingVector::renameMember(int32_t i, String* newName) {
+void NamedThingVector::renameMember(int32_t i, std::string* newName) {
 
-	int32_t newI = search(newName->get(), GREATER_OR_EQUAL);
+	int32_t newI = search(newName->c_str(), GREATER_OR_EQUAL);
 
 	NamedThingVectorElement* memory = getMemory(i);
-	memory->name.set(newName);                 // Can't fail
-	getName(memory->namedThing)->set(newName); // Can't fail
+	memory->name = *newName;                   // Can't fail
+	(*getName(memory->namedThing)) = *newName; // Can't fail
 
 	// Probably need to move element now we've changed its name.
 	if (newI > i + 1) {

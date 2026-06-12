@@ -49,7 +49,7 @@ bool DxSyxBrowser::opened() {
 	if (error != Error::NONE)
 		goto sdError;
 
-	currentDir.set("DX7");
+	currentDir = "DX7";
 
 	// TODO: fill in last used name!
 	error = arrivedInNewFolder(1, "", "DX7");
@@ -63,25 +63,17 @@ sdError:
 }
 
 // TODO: this is identical to SampleBrowser, move to parent class?
-Error DxSyxBrowser::getCurrentFilePath(String* path) {
-	Error error;
-
-	path->set(&currentDir);
-	int oldLength = path->getLength();
+Error DxSyxBrowser::getCurrentFilePath(std::string* path) {
+	(*path) = currentDir;
+	int oldLength = path->size();
 	if (oldLength) {
-		error = path->concatenateAtPos("/", oldLength);
-		if (error != Error::NONE) {
-gotError:
-			path->clear();
-			return error;
-		}
+		(*path).resize(oldLength);
+		(*path).append("/");
 	}
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	error = path->concatenate(currentFileItem->filename);
-	if (error != Error::NONE)
-		goto gotError;
+	(*path).append(currentFileItem->filename);
 
 	return Error::NONE;
 }
@@ -108,12 +100,12 @@ void DxSyxBrowser::enterKeyPress() {
 	}
 	else {
 		// TODO: c.f. slotbrowser, we might just be able to pass a file pointer to the FAT loader
-		String path;
+		std::string path;
 		getCurrentFilePath(&path);
 		close();
 
-		if (!path.isEmpty()) {
-			if (menu_item::dxCartridge.tryLoad(path.get())) {
+		if (!path.empty()) {
+			if (menu_item::dxCartridge.tryLoad(path.c_str())) {
 				soundEditor.enterSubmenu(&menu_item::dxCartridge);
 			}
 		}

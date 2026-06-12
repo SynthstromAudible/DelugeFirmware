@@ -35,7 +35,7 @@ public:
 	}
 
 	static bool predictionInterrupted;
-	static String enteredText;
+	static std::string enteredText;
 
 protected:
 	bool opened() override;

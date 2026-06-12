@@ -361,11 +361,11 @@ void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFil
 
 void MIDIInstrument::writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer) {
 	writer.writeOpeningTagBeginning("definitionFile");
-	if (deviceDefinitionFileName.isEmpty()) {
+	if (deviceDefinitionFileName.empty()) {
 		writer.writeAttribute("name", "");
 	}
 	else {
-		writer.writeAttribute("name", deviceDefinitionFileName.get());
+		writer.writeAttribute("name", deviceDefinitionFileName.c_str());
 	}
 	writer.closeTag();
 }
@@ -494,7 +494,7 @@ Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader, bool readFr
 			readDeviceDefinitionFileNameFromPresetOrSong(reader);
 			// only flag definition file for loading if we aren't reading from preset or song
 			// and definition file name isn't blank
-			if (!deviceDefinitionFileName.isEmpty() && !readFromPresetOrSong) {
+			if (!deviceDefinitionFileName.empty() && !readFromPresetOrSong) {
 				loadDeviceDefinitionFile = true;
 			}
 		}

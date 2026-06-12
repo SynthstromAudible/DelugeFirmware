@@ -10,15 +10,15 @@ const uint32_t MAX_PATH_NAME_LEN = 255;
 
 // Helper structure for file operation parameters
 struct FileOpParams {
-	String fromName;
-	String toName;
+	std::string fromName;
+	std::string toName;
 	uint32_t date = 0;
 	uint32_t time = 0;
 
-	const char* getFromPath() const { return fromName.get(); }
-	const char* getToPath() const { return toName.get(); }
-	const TCHAR* getFromTC() const { return (const TCHAR*)fromName.get(); }
-	const TCHAR* getToTC() const { return (const TCHAR*)toName.get(); }
+	const char* getFromPath() const { return fromName.c_str(); }
+	const char* getToPath() const { return toName.c_str(); }
+	const TCHAR* getFromTC() const { return (const TCHAR*)fromName.c_str(); }
+	const TCHAR* getToTC() const { return (const TCHAR*)toName.c_str(); }
 	bool hasTimestamp() const { return date != 0 || time != 0; }
 };
 
@@ -42,7 +42,7 @@ void writeBlock(MIDICable& cable, JsonDeserializer& reader);
 void getDirEntries(MIDICable& cable, JsonDeserializer& reader);
 void deleteFile(MIDICable& cable, JsonDeserializer& reader);
 void createDirectory(MIDICable& cable, JsonDeserializer& reader);
-FRESULT createPathDirectories(String& path, uint32_t date, uint32_t time);
+FRESULT createPathDirectories(std::string& path, uint32_t date, uint32_t time);
 void rename(MIDICable& cable, JsonDeserializer& reader);
 void updateTime(MIDICable& cable, JsonDeserializer& reader);
 void copyFile(MIDICable& cable, JsonDeserializer& reader);

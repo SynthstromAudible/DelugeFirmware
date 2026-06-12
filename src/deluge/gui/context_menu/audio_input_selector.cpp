@@ -162,7 +162,7 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 		if (track && track->type != OutputType::MIDI_OUT && track->type != OutputType::CV) {
 			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 			audioOutput->setOutputRecordingFrom(track);
-			display->popupTextTemporary(track->name.get());
+			display->popupTextTemporary(track->name.c_str());
 			// sets scroll to the position of specific output
 			scrollPos = static_cast<int32_t>(Value::TRACK);
 			currentOption = scrollPos;

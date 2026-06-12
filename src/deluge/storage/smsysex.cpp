@@ -27,7 +27,7 @@ DIR sxDIR;
 uint32_t dirOffsetCounter;
 
 JsonSerializer jWriter;
-String activeDirName;
+std::string activeDirName;
 const size_t blockBufferMax = 1024;
 const size_t sysexBufferMax = blockBufferMax + 256;
 uint8_t* writeBlockBuffer = nullptr;
@@ -35,7 +35,7 @@ uint8_t* readBlockBuffer = nullptr;
 const uint32_t MAX_OPEN_FILES = 4;
 
 struct FILdata {
-	String fName;
+	std::string fName;
 	uint32_t fileID;
 	uint32_t LRUstamp = 0;
 	uint32_t fSize = 0;
@@ -137,7 +137,7 @@ void smSysex::sendMsg(MIDICable& cable, JsonSerializer& writer) {
 
 FILdata* smSysex::openFIL(const char* fPath, int forWrite, uint32_t* fsize, FRESULT* eCode) {
 	FILdata* fp = findEmptyFIL();
-	fp->fName.set(fPath);
+	fp->fName = fPath;
 	fp->fileID = FIDcounter++;
 	noteFileIdUse(fp);
 	BYTE mode = FA_READ;
@@ -172,15 +172,15 @@ FRESULT smSysex::closeFIL(FILdata* fp) {
 // Fill in missing directories for the full path name given.
 // Unless the last character in the path is a /, we assume the
 // path given ends with a filename (which we ignore).
-FRESULT smSysex::createPathDirectories(String& path, uint32_t date, uint32_t time) {
+FRESULT smSysex::createPathDirectories(std::string& path, uint32_t date, uint32_t time) {
 	FRESULT errCode;
-	if (path.getLength() > 256) {
+	if (path.size() > 256) {
 		return FRESULT::FR_INVALID_PARAMETER;
 	}
 
 	char working[257];
 	char pathPart[257];
-	strcpy(working, path.get());
+	strcpy(working, path.c_str());
 	// ignore the file name and extension part.
 	int len = strlen(working);
 	int lastSlash;
@@ -224,7 +224,7 @@ FRESULT smSysex::createPathDirectories(String& path, uint32_t date, uint32_t tim
 
 void smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
 	bool forWrite = false;
-	String path;
+	std::string path;
 	int32_t rn = 0;
 	char const* tagName;
 	uint32_t date = 0;
@@ -256,7 +256,7 @@ retry:
 	FRESULT errCode;
 	uint32_t fSize = 0;
 
-	FILdata* fp = openFIL(path.get(), forWrite, &fSize, &errCode);
+	FILdata* fp = openFIL(path.c_str(), forWrite, &fSize, &errCode);
 
 	if (fp != nullptr) {
 		fSize = fp->fSize;
@@ -307,7 +307,7 @@ void smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
 	FRESULT errCode = FRESULT::FR_OK;
 
 	char const* tagName;
-	String path;
+	std::string path;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "path")) {
@@ -319,7 +319,7 @@ void smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	const char* pathVal = path.get();
+	const char* pathVal = path.c_str();
 	const TCHAR* pathTC = (const TCHAR*)pathVal;
 
 	if (pathTC && strlen(pathTC) > 0) {
@@ -337,7 +337,7 @@ void smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	FRESULT errCode = FRESULT::FR_OK;
 
 	char const* tagName;
-	String path;
+	std::string path;
 	uint32_t date = 0;
 	uint32_t time = 0;
 	reader.match('{');
@@ -357,7 +357,7 @@ void smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	const char* pathVal = path.get();
+	const char* pathVal = path.c_str();
 	const TCHAR* pathTC = (const TCHAR*)pathVal;
 
 	if (pathTC && strlen(pathTC) > 0) {
@@ -382,8 +382,8 @@ void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 	FRESULT errCode = FRESULT::FR_OK;
 
 	char const* tagName;
-	String fromName;
-	String toName;
+	std::string fromName;
+	std::string toName;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "from")) {
@@ -398,9 +398,9 @@ void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	const char* fromVal = fromName.get();
+	const char* fromVal = fromName.c_str();
 	const TCHAR* fromTC = (const TCHAR*)fromVal;
-	const char* toVal = toName.get();
+	const char* toVal = toName.c_str();
 	const TCHAR* toTC = (const TCHAR*)toVal;
 
 	if (fromTC && strlen(fromTC) && toTC && strlen(toTC)) {
@@ -419,8 +419,8 @@ void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 
 // Returns a block of directory entries as a Json array.
 void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
-	String path;
-	path.set("/");
+	std::string path;
+	path = "/";
 	uint32_t lineOffset = 0;
 	uint32_t linesWanted = 20;
 
@@ -446,14 +446,14 @@ void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 		linesWanted = MAX_DIR_LINES;
 	// We should pick up on path changes and out-of-order offset requests.
 
-	const char* pathVal = path.get();
+	const char* pathVal = path.c_str();
 	const TCHAR* pathTC = (const TCHAR*)pathVal;
-	if (lineOffset == 0 || strcmp(activeDirName.get(), pathVal) || lineOffset != dirOffsetCounter) {
+	if (lineOffset == 0 || strcmp(activeDirName.c_str(), pathVal) || lineOffset != dirOffsetCounter) {
 		errCode = f_opendir(&sxDIR, pathTC);
 		if (errCode != FRESULT::FR_OK)
 			goto errorFound;
 		dirOffsetCounter = 0;
-		activeDirName.set(pathVal);
+		activeDirName = pathVal;
 		if (lineOffset > 0) {
 			FILINFO fno;
 			for (uint32_t ix = 0; ix < lineOffset; ++ix) {
@@ -670,7 +670,7 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t date = 0;
 	uint32_t time = 0;
-	String path;
+	std::string path;
 
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -689,11 +689,11 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	if (!path.isEmpty() && (date != 0 || time != 0)) {
+	if (!path.empty() && (date != 0 || time != 0)) {
 		FILINFO finfo;
 		finfo.fdate = date;
 		finfo.ftime = time;
-		const char* pathVal = path.get();
+		const char* pathVal = path.c_str();
 		const TCHAR* pathTC = (const TCHAR*)pathVal;
 		errCode = f_utime(pathTC, &finfo);
 	}
@@ -710,7 +710,7 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 // A session ID or sid is a number used by clients to keep track of which messages belong to who.
 void smSysex::assignSession(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
-	String tag;
+	std::string tag;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "tag")) {
@@ -740,7 +740,7 @@ void smSysex::assignSession(MIDICable& cable, JsonDeserializer& reader) {
 	startDirect(jWriter);
 	jWriter.writeOpeningTag("^session", false, true);
 	jWriter.writeAttribute("sid", sessionNum);
-	jWriter.writeAttribute("tag", tag.get());
+	jWriter.writeAttribute("tag", tag.c_str());
 	jWriter.writeAttribute("midBase", sessionNum << SYSEX_SESSION_SHIFT);
 	jWriter.writeAttribute("midMin", (sessionNum << SYSEX_SESSION_SHIFT) + 1);
 	jWriter.writeAttribute("midMax", (sessionNum << SYSEX_SESSION_SHIFT) + SYSEX_MSGID_MAX);
@@ -905,7 +905,7 @@ retry_copy:
 		if (errCode == FRESULT::FR_NO_PATH && !pathCreateTried) {
 			// Try to create the destination directory
 			// Don't set timestamps on directories - let them use current time
-			String toNameCopy = params.toName;
+			std::string toNameCopy = params.toName;
 			createPathDirectories(toNameCopy, 0, 0);
 			pathCreateTried = true;
 			f_close(&srcFile);
@@ -987,7 +987,7 @@ void smSysex::moveFile(MIDICable& cable, JsonDeserializer& reader) {
 	// If rename failed due to missing path, try creating directories
 	if (errCode == FRESULT::FR_NO_PATH) {
 		// Don't set timestamps on directories - let them use current time
-		String toNameCopy = params.toName;
+		std::string toNameCopy = params.toName;
 		createPathDirectories(toNameCopy, 0, 0);
 		errCode = f_rename(fromTC, toTC);
 	}

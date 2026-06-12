@@ -28,7 +28,7 @@
 RenameClipUI renameClipUI{"Clip Name"};
 
 std::string_view RenameClipUI::getCurrentName() const {
-	return clip->name.get();
+	return clip->name.c_str();
 }
 
 bool RenameClipUI::trySetName(std::string_view name) {
@@ -38,6 +38,6 @@ bool RenameClipUI::trySetName(std::string_view name) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	clip->name.set(name);
+	clip->name = name;
 	return true;
 }

@@ -34,7 +34,7 @@
 using namespace deluge::gui;
 
 bool QwertyUI::predictionInterrupted;
-String QwertyUI::enteredText{};
+std::string QwertyUI::enteredText{};
 // entered text edit position is the first difference from
 // the previously seen name while browsing/editing
 int16_t QwertyUI::enteredTextEditPos;
@@ -130,8 +130,8 @@ void QwertyUI::drawKeys() {
 void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t yPixel, int32_t maxNumChars,
                                       deluge::hid::display::oled_canvas::Canvas& canvas) {
 
-	char const* displayName = enteredText.get();
-	int32_t displayStringLength = enteredText.getLength();
+	char const* displayName = enteredText.c_str();
+	int32_t displayStringLength = enteredText.size();
 
 	bool atVeryEnd = enteredTextEditPos == displayStringLength;
 
@@ -172,14 +172,15 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 
 void QwertyUI::displayText(bool blinkImmediately) {
 
-	int32_t totalTextLength = enteredText.getLength();
+	int32_t totalTextLength = enteredText.size();
 
 	bool encodedEditPosAndAHalf;
 	int32_t encodedEditPos =
-	    display->getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
+	    display->getEncodedPosFromLeft(enteredTextEditPos, enteredText.c_str(), &encodedEditPosAndAHalf);
 
 	bool encodedEndPosAndAHalf;
-	int32_t encodedEndPos = display->getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
+	int32_t encodedEndPos =
+	    display->getEncodedPosFromLeft(totalTextLength, enteredText.c_str(), &encodedEndPosAndAHalf);
 
 	int32_t scrollPos = encodedEditPos - (kNumericDisplayLength >> 1) + encodedEditPosAndAHalf;
 	int32_t maxScrollPos = encodedEndPos - kNumericDisplayLength;
@@ -194,7 +195,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	// Place the '_' for editing
 	uint8_t encodedAddition[kNumericDisplayLength];
 	memset(encodedAddition, 0, kNumericDisplayLength);
-	if (totalTextLength == enteredTextEditPos || enteredText.get()[enteredTextEditPos] == ' ') {
+	if (totalTextLength == enteredTextEditPos || enteredText.c_str()[enteredTextEditPos] == ' ') {
 		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= kNumericDisplayLength)) {
 			FREEZE_WITH_ERROR("E292");
 		}
@@ -220,7 +221,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 
 	// Set the text, replacing the bottom layer - cos in some cases, we want this to slip under an existing loading
 	// animation layer
-	display->setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
+	display->setText(enteredText.c_str(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
 }
 
 const char keyboardChars[][5][11] = {{
@@ -349,7 +350,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 				}
 
 				// If this char was already predicted, that's easy and we can just move forward
-				if (charCaseEqual(enteredText.get()[enteredTextEditPos], newChar)) {
+				if (charCaseEqual(enteredText.c_str()[enteredTextEditPos], newChar)) {
 
 					// If currently loading a preset, that's fine!
 					if (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {}
@@ -382,7 +383,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 							// If following another letter, make it lowercase
 							if (enteredTextEditPos > 0) {
-								char prevChar = enteredText.get()[enteredTextEditPos - 1];
+								char prevChar = enteredText.c_str()[enteredTextEditPos - 1];
 								if ((prevChar >= 'A' && prevChar <= 'Z') || (prevChar >= 'a' && prevChar <= 'z')) {
 									newChar += 32;
 								}
@@ -393,12 +394,8 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 						stringToConcat[0] = newChar;
 						stringToConcat[1] = 0;
 
-						Error error = enteredText.concatenateAtPos(stringToConcat, enteredTextEditPos);
-
-						if (error != Error::NONE) {
-							display->displayError(error);
-							return ActionResult::DEALT_WITH;
-						}
+						enteredText.resize(enteredTextEditPos);
+						enteredText.append(stringToConcat);
 
 						enteredTextEditPos++;
 
@@ -459,8 +456,8 @@ void QwertyUI::processBackspace() {
 	if (enteredTextEditPos > 0) {
 		enteredTextEditPos--;
 	}
-	if (!enteredText.isEmpty()) {
-		enteredText.shorten(enteredTextEditPos);
+	if (!enteredText.empty()) {
+		enteredText.resize(enteredTextEditPos);
 		predictExtendedText();
 		predictionInterrupted = false;
 		displayText();
@@ -471,11 +468,11 @@ ActionResult QwertyUI::horizontalEncoderAction(int32_t offset) {
 	if (offset > 0) {
 
 		// If already at far right end, just see if we can predict any further characters
-		if (enteredTextEditPos == enteredText.getLength()) {
+		if (enteredTextEditPos == enteredText.size()) {
 			predictExtendedText();
 
 			// If not, get out
-			if (enteredTextEditPos == enteredText.getLength()) {
+			if (enteredTextEditPos == enteredText.size()) {
 				return ActionResult::DEALT_WITH;
 			}
 

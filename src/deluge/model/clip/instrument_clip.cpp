@@ -52,6 +52,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
+#include "util/string.h"
 #include "util/try.h"
 #include <cmath>
 #include <new>
@@ -1762,7 +1763,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 			for (DrumName* oldDrumName = thisNoteRow->firstOldDrumName; oldDrumName; oldDrumName = oldDrumName->next) {
 
 				// See if a Drum (which hasn't been assigned yet) has this name
-				Drum* thisDrum = kit->getDrumFromName(oldDrumName->name.get(), true);
+				Drum* thisDrum = kit->getDrumFromName(oldDrumName->name.c_str(), true);
 
 				// If so, and if it's not already assigned to another NoteRow...
 				if (thisDrum) {
@@ -2294,7 +2295,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 
 void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
-	writer.writeAttribute("clipName", name.get());
+	writer.writeAttribute("clipName", name.c_str());
 	writer.writeAttribute("inKeyMode", inScaleMode);
 	writer.writeAttribute("yScroll", yScroll);
 	writer.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
@@ -2344,10 +2345,10 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("cvChannel", ((CVInstrument*)instrument)->getChannel());
 	}
 	else {
-		writer.writeAttribute("instrumentPresetName", output->name.get());
+		writer.writeAttribute("instrumentPresetName", output->name.c_str());
 
-		if (!instrument->dirPath.isEmpty()) {
-			writer.writeAttribute("instrumentPresetFolder", instrument->dirPath.get());
+		if (!instrument->dirPath.empty()) {
+			writer.writeAttribute("instrumentPresetFolder", instrument->dirPath.c_str());
 		}
 	}
 
@@ -2454,8 +2455,8 @@ someError:
 
 	int16_t instrumentPresetSlot = 0;
 	int8_t instrumentPresetSubSlot = -1;
-	String instrumentPresetName;
-	String instrumentPresetDirPath;
+	std::string instrumentPresetName;
+	std::string instrumentPresetDirPath;
 	bool dirPathHasBeenSpecified = false;
 
 	int32_t readAutomationUpToPos = kMaxSequenceLength;
@@ -2474,10 +2475,10 @@ someError:
 
 		else if (!strcmp(tagName, "instrumentPresetSlot")) {
 			int32_t slotHere = reader.readTagOrAttributeValueInt();
-			String slotChars;
-			slotChars.setInt(slotHere, 3);
-			slotChars.concatenate(&instrumentPresetName);
-			instrumentPresetName.set(&slotChars);
+			std::string slotChars;
+			slotChars = deluge::string::fromInt(slotHere, 3);
+			slotChars.append(instrumentPresetName);
+			instrumentPresetName = slotChars;
 		}
 
 		else if (!strcmp(tagName, "instrumentPresetSubSlot")) {
@@ -2486,7 +2487,7 @@ someError:
 				char buffer[2];
 				buffer[0] = 'A' + subSlotHere;
 				buffer[1] = 0;
-				instrumentPresetName.concatenate(buffer);
+				instrumentPresetName.append(buffer);
 			}
 		}
 
@@ -2702,10 +2703,7 @@ someError:
 					outputTypeWhileLoading = OutputType::SYNTH;
 
 					SoundInstrument* soundInstrument = new (instrumentMemory) SoundInstrument();
-					error = soundInstrument->dirPath.set("SYNTHS");
-					if (error != Error::NONE) {
-						goto someError; // Default, in case not included in file.
-					}
+					soundInstrument->dirPath = "SYNTHS";
 					output = soundInstrument;
 				}
 
@@ -2737,10 +2735,7 @@ loadInstrument:
 
 				outputTypeWhileLoading = OutputType::KIT;
 				Kit* kit = new (instrumentMemory) Kit();
-				error = kit->dirPath.set("KITS");
-				if (error != Error::NONE) {
-					goto someError; // Default, in case not included in file.
-				}
+				kit->dirPath = "KITS";
 				output = kit;
 				goto loadInstrument;
 			}
@@ -2894,7 +2889,7 @@ doReadBendRange:
 
 			case OutputType::SYNTH:
 			case OutputType::KIT:
-				((Instrument*)output)->name.set(&instrumentPresetName);
+				((Instrument*)output)->name = instrumentPresetName;
 				break;
 
 			default:
@@ -2970,9 +2965,9 @@ doReadBendRange:
 	switch (outputTypeWhileLoading) {
 	case OutputType::SYNTH:
 	case OutputType::KIT:
-		backedUpInstrumentName[outputTypeWhileLoadingAsIdx] = instrumentPresetName.get();
+		backedUpInstrumentName[outputTypeWhileLoadingAsIdx] = instrumentPresetName.c_str();
 		if (dirPathHasBeenSpecified) {
-			backedUpInstrumentDirPath[outputTypeWhileLoadingAsIdx] = instrumentPresetDirPath.get();
+			backedUpInstrumentDirPath[outputTypeWhileLoadingAsIdx] = instrumentPresetDirPath.c_str();
 		}
 		else {
 			// Where dir path has not been specified (i.e. before V4.0.0), go with the default. The same has been done
@@ -3575,8 +3570,8 @@ void InstrumentClip::backupPresetSlot() {
 
 	case OutputType::SYNTH:
 	case OutputType::KIT:
-		backedUpInstrumentName[outputTypeAsIdx] = output->name.get();
-		backedUpInstrumentDirPath[outputTypeAsIdx] = ((Instrument*)output)->dirPath.get();
+		backedUpInstrumentName[outputTypeAsIdx] = output->name.c_str();
+		backedUpInstrumentDirPath[outputTypeAsIdx] = ((Instrument*)output)->dirPath.c_str();
 		break;
 
 	default:
@@ -3737,18 +3732,14 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 
 	// Synth / Kit
 	else {
-		String newName;
+		std::string newName;
 		Error error;
 
-		newName.set(backedUpInstrumentName[newOutputTypeAsIdx]);
-		Browser::currentDir.set(backedUpInstrumentDirPath[newOutputTypeAsIdx]);
+		newName = backedUpInstrumentName[newOutputTypeAsIdx];
+		Browser::currentDir = backedUpInstrumentDirPath[newOutputTypeAsIdx];
 
-		if (Browser::currentDir.isEmpty()) {
-			error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-			if (error != Error::NONE) {
-				display->displayError(error);
-				return nullptr;
-			}
+		if (Browser::currentDir.empty()) {
+			Browser::currentDir = getInstrumentFolder(newOutputType);
 		}
 
 		FileItem* fileItem = D_TRY_CATCH(
@@ -3763,7 +3754,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
 
 		if (!newInstrument) {
-			String newPresetName;
+			std::string newPresetName;
 			fileItem->getDisplayNameWithoutExtension(&newPresetName);
 			error =
 			    StorageManager::loadInstrumentFromFile(modelStack->song, nullptr, newOutputType, false, &newInstrument,

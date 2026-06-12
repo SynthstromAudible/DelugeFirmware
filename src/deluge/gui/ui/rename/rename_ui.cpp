@@ -34,7 +34,7 @@ bool RenameUI::opened() {
 		return false;
 	}
 
-	enteredText.set(getCurrentName());
+	enteredText = getCurrentName();
 
 	displayText();
 	drawKeys();
@@ -43,10 +43,10 @@ bool RenameUI::opened() {
 }
 
 void RenameUI::enterKeyPress() {
-	if (enteredText.isEmpty() && !allowEmpty()) {
+	if (enteredText.empty() && !allowEmpty()) {
 		return;
 	}
-	if (trySetName(enteredText.get())) {
+	if (trySetName(enteredText.c_str())) {
 		exitUI();
 	}
 }

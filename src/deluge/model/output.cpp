@@ -55,7 +55,7 @@ Output::~Output() {
 
 Clip* Output::getClipFromName(std::string_view name) {
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
-		if (clip->output == this && deluge::string::caselessEquals(clip->name.get(), name)) {
+		if (clip->output == this && deluge::string::caselessEquals(clip->name.c_str(), name)) {
 			return clip;
 		}
 	}

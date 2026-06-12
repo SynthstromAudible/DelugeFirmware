@@ -52,7 +52,7 @@ NamedThingVector hostedMIDIDevices{__builtin_offsetof(MIDICableUSBHosted, name)}
 bool differentiatingInputsByDevice = true;
 
 struct USBDev {
-	String name{};
+	std::string name{};
 	uint16_t vendorId;
 	uint16_t productId;
 };
@@ -129,25 +129,25 @@ void slowRoutine() {
 
 extern "C" void giveDetailsOfDeviceBeingSetUp(int32_t ip, char const* name, uint16_t vendorId, uint16_t productId) {
 
-	usbDeviceCurrentlyBeingSetUp[ip].name.set(name); // If that fails, it'll just have a 0-length name
+	usbDeviceCurrentlyBeingSetUp[ip].name = name; // If that fails, it'll just have a 0-length name
 	usbDeviceCurrentlyBeingSetUp[ip].vendorId = vendorId;
 	usbDeviceCurrentlyBeingSetUp[ip].productId = productId;
 
 	D_PRINTLN("name: %s  vendor: %d  product: %d", name, vendorId, productId);
 }
 
-// name can be NULL, or an empty String
-MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_t vendorId, uint16_t productId) {
+// name can be NULL, or an empty std::string
+MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, uint16_t vendorId, uint16_t productId) {
 
 	// Do we know any details about this device already?
 
-	bool gotAName = (name && !name->isEmpty());
+	bool gotAName = (name && !name->empty());
 	int32_t i = 0; // Need default value for below if we skip first bit because !gotAName
 
 	if (gotAName) {
 		// Search by name first
 		bool foundExact;
-		i = hostedMIDIDevices.search(name->get(), GREATER_OR_EQUAL, &foundExact);
+		i = hostedMIDIDevices.search(name->c_str(), GREATER_OR_EQUAL, &foundExact);
 
 		// If we'd already seen it before...
 		if (foundExact) {
@@ -169,7 +169,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 
 		if (candidate->vendorId == vendorId && candidate->productId == productId) {
 			// Update its name - if we got one and it's different
-			if (gotAName && !candidate->name.equals(name)) {
+			if (gotAName && !(candidate->name == *name)) {
 				hostedMIDIDevices.renameMember(i, name);
 			}
 			return candidate;
@@ -204,7 +204,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 	}
 
 	if (gotAName) {
-		device->name.set(name);
+		device->name = *name;
 	}
 	device->vendorId = vendorId;
 	device->productId = productId;
@@ -289,11 +289,12 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	device->freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
 	if (display->haveOLED()) {
-		String text;
-		text.set(&device->name);
-		Error error = text.concatenate(" attached");
+		std::string text;
+		text = device->name;
+		text.append(" attached");
+		Error error = Error::NONE;
 		if (error == Error::NONE) {
-			consoleTextIfAllBootedUp(text.get());
+			consoleTextIfAllBootedUp(text.c_str());
 		}
 	}
 	else {
@@ -359,7 +360,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 
 	uint16_t vendorId = 0;
 	uint16_t productId = 0;
-	String name;
+	std::string name;
 	MIDICable* device = nullptr;
 
 	char const* tagName;
@@ -397,7 +398,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 	}
 
 	// If we got something, go use it
-	if (!name.isEmpty() || vendorId) {
+	if (!name.empty() || vendorId) {
 		return getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId, productId); // Will return NULL if error.
 	}
 
@@ -566,7 +567,7 @@ void readDevicesFromFile() {
 void readAHostedDeviceFromFile(Deserializer& reader) {
 	MIDICableUSBHosted* device = nullptr;
 
-	String name;
+	std::string name;
 	uint16_t vendorId;
 	uint16_t productId;
 
@@ -588,7 +589,7 @@ void readAHostedDeviceFromFile(Deserializer& reader) {
 			whichPort = MIDI_DIRECTION_INPUT_TO_DELUGE;
 checkDevice:
 			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+				if (!name.empty() || vendorId) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
@@ -607,7 +608,7 @@ checkDevice:
 
 			// Sorry, I cloned this code from above.
 			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+				if (!name.empty() || vendorId) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
@@ -620,7 +621,7 @@ checkDevice:
 		else if (!strcmp(tagName, "sendClock")) {
 			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
 			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+				if (!name.empty() || vendorId) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
@@ -633,7 +634,7 @@ checkDevice:
 		else if (!strcmp(tagName, "receiveClock")) {
 			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
 			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+				if (!name.empty() || vendorId) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
@@ -646,7 +647,7 @@ checkDevice:
 		else if (!strcmp(tagName, "is_relative")) {
 			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
 			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+				if (!name.empty() || vendorId) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}

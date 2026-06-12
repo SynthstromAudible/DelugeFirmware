@@ -378,7 +378,7 @@ int32_t XMLDeserializer::readAttributeValueInt() {
 }
 
 // Only call if PAST_ATTRIBUTE_NAME or PAST_EQUALS_SIGN
-Error XMLDeserializer::readAttributeValueString(String* string) {
+Error XMLDeserializer::readAttributeValueString(std::string* string) {
 
 	if (!getIntoAttributeValue()) {
 		string->clear();
@@ -408,7 +408,7 @@ void XMLDeserializer::skipUntilChar(char endChar) {
 }
 
 // Returns memory error. If error, caller must deal with the fact that the end-character hasn't been reached
-Error XMLDeserializer::readStringUntilChar(String* string, char endChar) {
+Error XMLDeserializer::readStringUntilChar(std::string* string, char endChar) {
 
 	int32_t newStringPos = 0;
 
@@ -421,14 +421,10 @@ Error XMLDeserializer::readStringUntilChar(String* string, char endChar) {
 		int32_t numCharsHere = bufferPosNow - fileReadBufferCurrentPos;
 
 		if (numCharsHere) {
-			Error error =
-			    string->concatenateAtPos(&fileClusterBuffer[fileReadBufferCurrentPos], newStringPos, numCharsHere);
+			(*string).resize(newStringPos);
+			(*string).append(&fileClusterBuffer[fileReadBufferCurrentPos], numCharsHere);
 
 			fileReadBufferCurrentPos = bufferPosNow;
-
-			if (error != Error::NONE) {
-				return error;
-			}
 
 			newStringPos += numCharsHere;
 		}
@@ -723,7 +719,7 @@ getOut:
 }
 
 // Returns memory error
-Error XMLDeserializer::readTagOrAttributeValueString(String* string) {
+Error XMLDeserializer::readTagOrAttributeValueString(std::string* string) {
 
 	Error error;
 

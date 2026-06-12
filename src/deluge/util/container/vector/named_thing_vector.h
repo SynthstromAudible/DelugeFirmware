@@ -24,10 +24,10 @@
 
 class NamedThingVectorElement {
 public:
-	NamedThingVectorElement(void* newNamedThing, String* newName);
-	~NamedThingVectorElement() {} // Empty, but must call this so that the String's destructor is also called
+	NamedThingVectorElement(void* newNamedThing, std::string* newName);
+	~NamedThingVectorElement() {} // Empty, but must call this so that the std::string's destructor is also called
 	void* namedThing;
-	String name; // Store this here so we don't have to go follow the Sample's pointer first to find this out
+	std::string name; // Store this here so we don't have to go follow the Sample's pointer first to find this out
 };
 
 // Note: these are currently non-destructible. If you do destruct, well currently it doesn't destruct all the Strings in
@@ -40,11 +40,11 @@ public:
 	void removeElement(int32_t i);
 	Error insertElement(void* namedThing);
 	Error insertElement(void* namedThing, int32_t i);
-	void renameMember(int32_t i, String* newName);
+	void renameMember(int32_t i, std::string* newName);
 
 	const int32_t stringOffset;
 
 private:
 	NamedThingVectorElement* getMemory(int32_t index);
-	String* getName(void* namedThing);
+	std::string* getName(void* namedThing);
 };

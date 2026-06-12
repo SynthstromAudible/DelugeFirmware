@@ -103,13 +103,13 @@ doReturnFalse:
 	}
 
 tryDefaultDir:
-	currentDir.set(defaultDir.c_str());
+	currentDir = defaultDir.c_str();
 
 	fileIcon = deluge::hid::display::OLED::midiIcon;
 	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 	fileIconPt2Width = 0;
 
-	error = arrivedInNewFolder(0, enteredText.get(), defaultDir.c_str());
+	error = arrivedInNewFolder(0, enteredText.c_str(), defaultDir.c_str());
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -130,7 +130,7 @@ ActionResult SavePatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	else {
 		if (on && b == BACK) {
 			// don't allow navigation backwards if we're in the default folder
-			if (!strcmp(currentDir.get(), defaultDir.c_str())) {
+			if (!strcmp(currentDir.c_str(), defaultDir.c_str())) {
 				close();
 				return ActionResult::DEALT_WITH;
 			}
@@ -148,7 +148,7 @@ bool SavePatternUI::performSave(bool mayOverwrite) {
 		display->displayLoadingAnimation();
 	}
 
-	String filePath;
+	std::string filePath;
 	Error error = getCurrentFilePath(&filePath);
 	if (error != Error::NONE) {
 fail:
@@ -156,7 +156,7 @@ fail:
 		return false;
 	}
 
-	error = StorageManager::createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
+	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;

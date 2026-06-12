@@ -1318,13 +1318,13 @@ void registerSideChainHit(int32_t strength) {
 	sideChainHitPending = combineHitStrengths(strength, sideChainHitPending);
 }
 
-void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound) {
+void previewSample(std::string* path, FilePointer* filePointer, bool shouldActuallySound) {
 	stopAnyPreviewing();
 	MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
 	if (!range) {
 		return;
 	}
-	range->sampleHolder.filePath.set(path);
+	range->sampleHolder.filePath = *path;
 	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
 	if (error != Error::NONE) {

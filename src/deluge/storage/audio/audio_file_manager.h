@@ -29,7 +29,7 @@ extern "C" {
 
 class Sample;
 class SampleCache;
-class String;
+#include <string>
 class SampleRecorder;
 class Output;
 
@@ -86,7 +86,7 @@ public:
 	AudioFileVector audioFiles;
 
 	void init();
-	AudioFile* getAudioFileFromFilename(String& fileName, bool mayReadCard, Error* error, FilePointer* filePointer,
+	AudioFile* getAudioFileFromFilename(std::string& fileName, bool mayReadCard, Error* error, FilePointer* filePointer,
 	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
 	bool loadCluster(Cluster& cluster, int32_t minNumReasonsAfter = 0);
 	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
@@ -96,14 +96,15 @@ public:
 
 	void slowRoutine();
 
-	Error setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath);
-	Error setupAlternateAudioFileDir(String& newPath, char const* rootDir, const char* songFilenameWithoutExtension);
+	Error setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength, std::string& oldPath);
+	Error setupAlternateAudioFileDir(std::string& newPath, char const* rootDir,
+	                                 const char* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
 	/// If songname isn't supplied the file is placed in the main recording folder and named as samples/folder/REC###.
 	/// If song and channel are supplied then it's placed in samples/folder/song/channel_###
-	Error getUnusedAudioRecordingFilePath(String& filePath, String* tempFilePathForRecording,
+	Error getUnusedAudioRecordingFilePath(std::string& filePath, std::string* tempFilePathForRecording,
 	                                      AudioRecordingFolder folder, uint32_t* getNumber, const char* channelName,
-	                                      String* songName);
+	                                      std::string* songName);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile& audioFile, int32_t i);
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile& audioFile);
@@ -121,7 +122,7 @@ public:
 	int32_t minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug
 	                                            // hunting only.
 
-	String alternateAudioFileLoadPath;
+	std::string alternateAudioFileLoadPath;
 	AlternateLoadDirStatus alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	ThingType thingTypeBeingLoaded = ThingType::NONE;
 	DIR alternateLoadDir;

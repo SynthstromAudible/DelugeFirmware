@@ -1537,7 +1537,7 @@ ramError:
 
 	int32_t pastedScreenWidth = endPos - startPos;
 	float scaleFactor = 0;
-	String patternVersion;
+	std::string patternVersion;
 
 	if (pastedScreenWidth == 0) {
 		return Error::NONE;
@@ -1549,7 +1549,7 @@ ramError:
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "patternVersion")) {
 					reader.readTagOrAttributeValueString(&patternVersion);
-					if (!patternVersion.equals(PATTERN_FILE_VERSION)) {
+					if (!(patternVersion == PATTERN_FILE_VERSION)) {
 						display->displayError(Error::INVALID_PATTERN_VERSION);
 						return Error::INVALID_PATTERN_VERSION;
 					}
@@ -1989,7 +1989,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 		exitUIMode(UI_MODE_HOLDING_LOAD_BUTTON);
 	}
 
-	char chosenFilename[256] = "Nothing to randomize"; // not using "String" to avoid malloc etc. in hot loop
+	char chosenFilename[256] = "Nothing to randomize"; // not using "std::string" to avoid malloc etc. in hot loop
 
 	InstrumentClip* instrumentClip = getCurrentInstrumentClip();
 
@@ -2079,12 +2079,12 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 	if (afh == nullptr) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
-	char const* path = afh->filePath.get();
-	if (path == &nothing) {
+	if (afh->filePath.empty()) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
+	char const* path = afh->filePath.c_str();
 	// Deliberately mutated below (temporarily truncated at the slash, then restored) — the backing
-	// String buffer is mutable. const_cast is needed because glibc's strrchr is const-correct (returns
+	// std::string buffer is mutable. const_cast is needed because glibc's strrchr is const-correct (returns
 	// const char* for a const char* arg) whereas newlib's returns char*.
 	char* slashAddress = const_cast<char*>(strrchr(path, '/'));
 	if (slashAddress == nullptr) {
@@ -2120,10 +2120,10 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 		afh->setAudioFile(nullptr);
 		// set the slash to 0 again
 		*slashAddress = 0;
-		afh->filePath.set(path);
+		afh->filePath = path;
 
-		afh->filePath.concatenate("/");
-		afh->filePath.concatenate(chosenFilename);
+		afh->filePath.append("/");
+		afh->filePath.append(chosenFilename);
 		afh->loadFile(false, true, true, 1, nullptr, false);
 
 		char* dot = strrchr(chosenFilename, '.');
@@ -5386,7 +5386,7 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	D_PRINTLN("enterDrumCreator");
 
 	char const* prefix;
-	String soundName;
+	std::string soundName;
 
 	if (doRecording) {
 		prefix = "TEM"; // Means "temp". Actual "REC" name is set in audioRecorder
@@ -5395,7 +5395,7 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 		prefix = "U";
 	}
 
-	soundName.set(prefix);
+	soundName = prefix;
 
 	// safe since we can't get here without being in a kit
 	Kit* kit = getCurrentKit();
@@ -5426,7 +5426,7 @@ doDisplayError:
 
 	modelStack->song->backUpParamManager(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
 
-	newDrum->drumName = soundName.get();
+	newDrum->drumName = soundName.c_str();
 	newDrum->nameIsDiscardable = true;
 
 	kit->addDrum(newDrum);

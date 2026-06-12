@@ -63,7 +63,7 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void exitAndNeverDeleteDrum();
 
-	String lastFilePathLoaded;
+	std::string lastFilePathLoaded;
 
 	// menus to open when a sample file is selected
 	deluge::gui::menu_item::HorizontalMenu* parentMenuHeadingTo{nullptr};
@@ -86,7 +86,7 @@ private:
 	bool canImportWholeKit();
 	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
 	                            bool* getDoingSingleCycle = nullptr, int32_t* getNumCharsInPrefix = nullptr);
-	Error getCurrentFilePath(String* path) override;
+	Error getCurrentFilePath(std::string* path) override;
 	void drawKeysOverWaveform();
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	void possiblySetUpBlinking();

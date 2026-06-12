@@ -70,7 +70,7 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 		if (currentFileItem) {
 			// See if it's numeric. Here, filename has already had prefix removed if it's numeric.
 
-			Slot thisSlot = getSlot(enteredText.get());
+			Slot thisSlot = getSlot(enteredText.c_str());
 			if (thisSlot.slot < 0) {
 				goto nonNumeric;
 			}
@@ -124,12 +124,12 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (currentFileItem && currentFileHasSuffixFormatNameImplied && !enteredText.isEmpty()
+	if (currentFileItem && currentFileHasSuffixFormatNameImplied && !enteredText.empty()
 	    && !currentFileItem->isFolder) {
 
-		int32_t enteredTextLength = enteredText.getLength();
+		int32_t enteredTextLength = enteredText.size();
 
-		char const* enteredTextChars = enteredText.get();
+		char const* enteredTextChars = enteredText.c_str();
 
 		int32_t newSubSlot = -1;
 		int32_t newSlot = 0;
@@ -173,7 +173,7 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 std::string SlotBrowser::getCurrentFilenameWithoutExtension() {
 	if (display->have7SEG()) {
 		// If numeric...
-		Slot slot = getSlot(enteredText.get());
+		Slot slot = getSlot(enteredText.c_str());
 		if (slot.slot != -1) {
 			std::string filenameWithoutExtension{filePrefix};
 			filenameWithoutExtension.append(deluge::string::fromInt(slot.slot, 3));
@@ -186,29 +186,23 @@ std::string SlotBrowser::getCurrentFilenameWithoutExtension() {
 			return filenameWithoutExtension;
 		}
 	}
-	return enteredText.get();
+	return enteredText.c_str();
 }
 
-Error SlotBrowser::getCurrentFilePath(String* path) {
-	path->set(&currentDir);
+Error SlotBrowser::getCurrentFilePath(std::string* path) {
+	(*path) = currentDir;
 
-	Error error = path->concatenate("/");
-	if (error != Error::NONE) {
-		return error;
-	}
+	(*path).append("/");
 
 	std::string filenameWithoutExtension = getCurrentFilenameWithoutExtension();
 
-	error = path->concatenate(filenameWithoutExtension);
-	if (error != Error::NONE) {
-		return error;
-	}
+	(*path).append(filenameWithoutExtension);
 	if (writeJsonFlag) {
-		error = path->concatenate(".Json");
+		(*path).append(".Json");
 	}
 	else {
-		error = path->concatenate(".XML");
+		(*path).append(".XML");
 	}
 
-	return error;
+	return Error::NONE;
 }
