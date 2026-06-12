@@ -60,12 +60,26 @@ waveRenderingFunctionPulse(uint32_t phase, int32_t phaseIncrement, uint32_t phas
 	Argon<uint32_t> indicesA = phaseVector >> (32 - tableSizeMagnitude);
 	ArgonHalf<int16_t> rshiftedA =
 	    indicesA.ShiftRightNarrow<16>().BitwiseAnd(std::numeric_limits<int16_t>::max()).As<int16_t>();
-	auto [valueA1, valueA2] = ArgonHalf<int16_t>::LoadGatherOffsetIndexInterleaved<2>(table, indicesA.Narrow());
 
 	Argon<uint32_t> indicesB = phaseLater >> (32 - tableSizeMagnitude);
 	ArgonHalf<int16_t> rshiftedB =
 	    indicesB.ShiftRightNarrow<16>().BitwiseAnd(std::numeric_limits<int16_t>::max()).As<int16_t>();
-	auto [valueB1, valueB2] = ArgonHalf<int16_t>::LoadGatherOffsetIndexInterleaved<2>(table, indicesB.Narrow());
+
+	// Load the {table[i], table[i+1]} interpolation pairs as single u32 lane loads,
+	// the same pattern as waveRenderingFunctionGeneral above.
+	Argon<uint32_t> readValueA{0U};
+	Argon<uint32_t> readValueB{0U};
+	util::constexpr_for<0, 4, 1>([&]<int i>() {
+		uint32_t phaseHere = phase + phaseIncrement * (i + 1);
+		uint32_t whichValueA = phaseHere >> (32 - tableSizeMagnitude);
+		readValueA[i].Load((uint32_t*)((uintptr_t)table + (whichValueA << 1)));
+		uint32_t whichValueB = (phaseHere + phaseToAdd) >> (32 - tableSizeMagnitude);
+		readValueB[i].Load((uint32_t*)((uintptr_t)table + (whichValueB << 1)));
+	});
+	ArgonHalf<int16_t> valueA1 = readValueA.Narrow().As<int16_t>();
+	ArgonHalf<int16_t> valueA2 = readValueA.ShiftRightNarrow<16>().As<int16_t>();
+	ArgonHalf<int16_t> valueB1 = readValueB.Narrow().As<int16_t>();
+	ArgonHalf<int16_t> valueB2 = readValueB.ShiftRightNarrow<16>().As<int16_t>();
 
 	/* Sneakily do this backwards to flip the polarity of the output, which we need to do anyway */
 	ArgonHalf<int16_t> strengthA1 = rshiftedA | std::numeric_limits<int16_t>::min();
