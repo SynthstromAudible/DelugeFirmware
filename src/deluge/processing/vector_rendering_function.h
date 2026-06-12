@@ -60,12 +60,12 @@ waveRenderingFunctionPulse(uint32_t phase, int32_t phaseIncrement, uint32_t phas
 	Argon<uint32_t> indicesA = phaseVector >> (32 - tableSizeMagnitude);
 	ArgonHalf<int16_t> rshiftedA =
 	    indicesA.ShiftRightNarrow<16>().BitwiseAnd(std::numeric_limits<int16_t>::max()).As<int16_t>();
-	auto [valueA1, valueA2] = ArgonHalf<int16_t>::LoadGatherInterleaved<2>(table, indicesA);
+	auto [valueA1, valueA2] = ArgonHalf<int16_t>::LoadGatherOffsetIndexInterleaved<2>(table, indicesA.Narrow());
 
 	Argon<uint32_t> indicesB = phaseLater >> (32 - tableSizeMagnitude);
 	ArgonHalf<int16_t> rshiftedB =
 	    indicesB.ShiftRightNarrow<16>().BitwiseAnd(std::numeric_limits<int16_t>::max()).As<int16_t>();
-	auto [valueB1, valueB2] = ArgonHalf<int16_t>::LoadGatherInterleaved<2>(table, indicesB);
+	auto [valueB1, valueB2] = ArgonHalf<int16_t>::LoadGatherOffsetIndexInterleaved<2>(table, indicesB.Narrow());
 
 	/* Sneakily do this backwards to flip the polarity of the output, which we need to do anyway */
 	ArgonHalf<int16_t> strengthA1 = rshiftedA | std::numeric_limits<int16_t>::min();
@@ -82,6 +82,6 @@ waveRenderingFunctionPulse(uint32_t phase, int32_t phaseIncrement, uint32_t phas
 	                             .MultiplyDoubleSaturateLong(valueB2) //<
 	                             .MultiplyDoubleAddSaturateLong(strengthB1, valueB1);
 
-	auto output = outputA.MultiplyRoundFixedPoint(outputB) << 1; // (a *. b) << 1 (average?)
+	auto output = outputA.MultiplyRoundFixedQMax(outputB) << 1; // (a *. b) << 1 (average?)
 	return {output, phase + phaseIncrement * 4};
 }
