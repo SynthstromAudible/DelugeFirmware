@@ -1843,6 +1843,9 @@ void SessionView::removeClip(Clip* clip) {
 
 	clip->stopAllNotesPlaying(currentSong); // Stops any MIDI-controlled auditioning / stuck notes
 
+	// Scrub the clip from MIDI-follow's note-off routing cache. ~Clip() also does this, but only covers the case where
+	// removeSessionClip() destructs the clip - if it has arranger instances the clip is kept as arrangement-only and
+	// never destructed, so we must scrub it here.
 	midiFollow.removeClip(clip);
 	currentSong->removeSessionClip(clip, clipIndex);
 

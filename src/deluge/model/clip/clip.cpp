@@ -21,6 +21,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -77,6 +78,8 @@ Clip::~Clip() {
 	if (getCurrentClip() == this) {
 		currentSong->setCurrentClip(nullptr);
 	}
+	// Ensure MIDI-follow doesn't keep a dangling pointer to this Clip for routing note-offs
+	midiFollow.removeClip(this);
 }
 
 // This is more exhaustive than copyBasicsFrom(), and is designed to be used *between* different Clip types, just for
