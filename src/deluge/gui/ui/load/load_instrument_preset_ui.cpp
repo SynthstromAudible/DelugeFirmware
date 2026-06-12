@@ -1057,7 +1057,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 	// make sure the drum isn't currently in use
 	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
-	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
+	kitToLoadFor->drumsWithRenderingActive.erase(soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
 	// swaps out the drum pointed to by soundDrumToReplace

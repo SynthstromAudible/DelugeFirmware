@@ -49,11 +49,10 @@
 
 namespace params = deluge::modulation::params;
 
-Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)), arpeggiator(), defaultArpSettings() {
+Kit::Kit() : Instrument(OutputType::KIT), arpeggiator(), defaultArpSettings() {
 	defaultArpSettings.numOctaves = 1;
 	firstDrum = nullptr;
 	selectedDrum = nullptr;
-	drumsWithRenderingActive.emptyingShouldFreeMemory = false;
 }
 
 Kit::~Kit() {
@@ -456,8 +455,7 @@ void Kit::drumRemoved(Drum* drum) {
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	int32_t i = drumsWithRenderingActive.searchExact((int32_t)drum);
-	if (i != -1) {
+	if (drumsWithRenderingActive.contains(drum)) {
 		FREEZE_WITH_ERROR("E321");
 	}
 #endif
@@ -534,9 +532,11 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
                                         bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                         int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
-	// Render Drums. Traverse backwards, in case one stops rendering (removing itself from the list) as we render it
-	for (int32_t d = drumsWithRenderingActive.getNumElements() - 1; d >= 0; d--) {
-		Drum* thisDrum = (Drum*)drumsWithRenderingActive.getKeyAtIndex(d);
+	// Render Drums. Advance the iterator before rendering, in case the drum stops rendering (removing itself from
+	// the set) as we render it.
+	for (auto it = drumsWithRenderingActive.begin(); it != drumsWithRenderingActive.end();) {
+		Drum* thisDrum = *it;
+		++it;
 
 		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DrumType::SOUND) {
 			FREEZE_WITH_ERROR("E253");
