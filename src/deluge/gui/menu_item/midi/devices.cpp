@@ -52,7 +52,7 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.currentMIDICable = getCable(this->getValue());
 	if (display->haveOLED()) {
-		currentScroll = this->getValue();
+		currentScroll_ = this->getValue();
 	}
 	else {
 		drawValue();
@@ -86,8 +86,8 @@ void Devices::selectEncoderAction(int32_t offset) {
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 	if (display->haveOLED()) {
-		if (this->getValue() < currentScroll) {
-			currentScroll = this->getValue();
+		if (this->getValue() < currentScroll_) {
+			currentScroll_ = this->getValue();
 		}
 		//
 		if (offset >= 0) {
@@ -95,7 +95,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 			int32_t numSeen = 1;
 			while (d > lowestDeviceNum) {
 				d--;
-				if (d == currentScroll) {
+				if (d == currentScroll_) {
 					break;
 				}
 				auto device = getCable(d);
@@ -104,7 +104,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 				}
 				numSeen++;
 				if (numSeen >= kOLEDMenuNumOptionsVisible) {
-					currentScroll = d;
+					currentScroll_ = d;
 					break;
 				}
 			}
@@ -154,7 +154,7 @@ void Devices::drawPixelsForOled() {
 
 	int32_t selectedRow = -1;
 
-	int32_t device_idx = currentScroll;
+	int32_t device_idx = currentScroll_;
 	size_t row = 0;
 	while (row < kOLEDMenuNumOptionsVisible && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		MIDICable* cable = getCable(device_idx);
