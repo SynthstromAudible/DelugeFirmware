@@ -212,7 +212,7 @@ void SampleBrowser::focusRegained() {
 void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 
 	// If just one file, there's no prefix.
-	if (fileItems.getNumElements() <= 1) {
+	if (static_cast<int32_t>(fileItems.size()) <= 1) {
 		numCharsInPrefix = 0;
 	}
 
@@ -222,8 +222,8 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 
 		char const* currentFilenameChars = currentFileItem->filename.c_str();
 
-		for (int32_t f = 0; numCharsInPrefix && f < fileItems.getNumElements(); f++) {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
+		for (int32_t f = 0; numCharsInPrefix && f < static_cast<int32_t>(fileItems.size()); f++) {
+			FileItem* fileItem = &fileItems[f];
 
 			for (int32_t i = 0; i < numCharsInPrefix; i++) {
 				char const* thisFileName = fileItem->filename.c_str();
