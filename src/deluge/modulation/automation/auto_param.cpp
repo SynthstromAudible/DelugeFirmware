@@ -1652,7 +1652,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 	ParamNode* firstNode = otherParam->nodes.tryGet(0);
 	deleteNodesBeyondPos(oldLength + firstNode->pos);
 
-	ParamNode* nodeAfterWrap = (ParamNode*&)otherParam->nodes[0];
+	ParamNode* nodeAfterWrap = &otherParam->nodes[0];
 	bool nothingAtZero = nodeAfterWrap->pos;
 
 	// We may have to create a new node at pos 0 (of the new repeat) to represent the fact that a pingpong would
@@ -1662,7 +1662,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 
 		// This block is a quick simple alternative to calling getValueAtPos(), which would also require a modelStack
 		// and check for a bunch of unnecessary stuff.
-		ParamNode* nodeBeforeWrap = (ParamNode*&)otherParam->nodes[numToInsert - 1];
+		ParamNode* nodeBeforeWrap = &otherParam->nodes[numToInsert - 1];
 		int64_t valueDistance = (int64_t)nodeAfterWrap->value - (int64_t)nodeBeforeWrap->value;
 		int32_t ticksSinceLeftNode = oldLength - nodeBeforeWrap->pos;
 		int32_t ticksBetweenNodes = ticksSinceLeftNode + nodeAfterWrap->pos;
@@ -1698,7 +1698,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 				iOld += numToInsert;
 			}
 
-			ParamNode* oldNode = (ParamNode*&)otherParam->nodes[iOld];
+			ParamNode* oldNode = &otherParam->nodes[iOld];
 			int32_t newPos = oldNode->pos;
 
 			newPos = -newPos;
@@ -1716,7 +1716,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 				if (iOldToLeft < 0) {
 					iOldToLeft += numToInsert;
 				}
-				ParamNode* oldNodeToLeft = (ParamNode*&)otherParam->nodes[iOldToLeft];
+				ParamNode* oldNodeToLeft = &otherParam->nodes[iOldToLeft];
 				newValue = oldNodeToLeft->value;
 			}
 
@@ -1724,7 +1724,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 			if (iOldToRight >= numToInsert) {
 				iOldToRight = 0;
 			}
-			ParamNode* oldNodeToRight = (ParamNode*&)otherParam->nodes[iOldToRight];
+			ParamNode* oldNodeToRight = &otherParam->nodes[iOldToRight];
 			newInterpolated = oldNodeToRight->interpolated;
 
 			int32_t iNew = iNewWithinRepeat + oldNumNodes;

@@ -1942,7 +1942,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			}
 			int32_t i = searchTerms[xDisplay - xStartNow];
 			bool drewNote = false;
-			Note* note = &notes[i - 1]; // Subtracting 1 to do "LESS"
+			Note* note = notes.tryGet(i - 1); // Subtracting 1 to do "LESS"
 
 			RGB& pixel = image[xDisplay];
 
@@ -4194,7 +4194,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 		if (clip->allowNoteTails(thisModelStack)) {
 
 			// Investigate whether there's a wrapped note
-			Note* lastNote = (Note*&)otherNoteRow->notes[numToInsert - 1];
+			Note* lastNote = &otherNoteRow->notes[numToInsert - 1];
 
 			int32_t lengthBeforeWrap = otherNoteRowLength - lastNote->pos;
 			int32_t lengthAfterWrap = lastNote->length - lengthBeforeWrap;
@@ -4218,7 +4218,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 					iOld = numToInsert - 1; // In case of wrapping
 				}
 
-				Note* oldNote = (Note*&)otherNoteRow->notes[iOld];
+				Note* oldNote = &otherNoteRow->notes[iOld];
 
 				int32_t newLength = oldNote->length;
 				int32_t newPos = otherNoteRowLength - oldNote->pos - newLength;
@@ -4247,7 +4247,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 		// No-tails (e.g. one-shot samples):
 		else {
 
-			Note* firstNote = (Note*&)otherNoteRow->notes[0];
+			Note* firstNote = &otherNoteRow->notes[0];
 			bool anythingAtZero = (firstNote->pos == 0);
 
 			for (int32_t iNewWithinRepeat = 0; iNewWithinRepeat < numToInsert; iNewWithinRepeat++) {
@@ -4256,7 +4256,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 					iOld += numToInsert;
 				}
 
-				Note* oldNote = (Note*&)otherNoteRow->notes[iOld];
+				Note* oldNote = &otherNoteRow->notes[iOld];
 
 				int32_t newPos = -oldNote->pos;
 				if (newPos < 0) {
