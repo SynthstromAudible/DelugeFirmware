@@ -38,6 +38,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "util/functions.h"
 #include <cstdint>
+#include <iterator>
 #include <new>
 
 Action::Action(ActionType newActionType) {
@@ -315,8 +316,7 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 		return;
 	}
 
-	if (numClipStates
-	    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
+	if (numClipStates != std::ssize(currentSong->sessionClips) + std::ssize(currentSong->arrangementOnlyClips)) {
 		numClipStates = 0;
 		delugeDealloc(clipStates);
 		clipStates = nullptr;

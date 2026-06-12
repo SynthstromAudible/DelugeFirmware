@@ -77,6 +77,7 @@
 #include "util/cfunctions.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
+#include <iterator>
 #include <math.h>
 #include <new>
 
@@ -2631,8 +2632,8 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(currentSong->sessionClips); c++) {
+		Clip* clip = currentSong->sessionClips[c];
 
 		if (clip->getCurrentlyRecordingLinearly()) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -2931,8 +2932,8 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 	}
 
 	// Go through all Clips in session only
-	for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
+	for (int32_t c = std::ssize(currentSong->sessionClips) - 1; c >= 0; c--) {
+		Clip* clip = currentSong->sessionClips[c];
 
 		// Mute action on Clip?
 		if (clip->muteMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
@@ -3277,8 +3278,8 @@ probablyExitRecordMode:
 		anyGotArmedToStop = false;
 
 		// For each Clip in session
-		for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
-			Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
+		for (int32_t c = std::ssize(currentSong->sessionClips) - 1; c >= 0; c--) {
+			Clip* clip = currentSong->sessionClips[c];
 			if (clip->armState == ArmState::OFF && clip->getCurrentlyRecordingLinearly()) {
 				anyGotArmedToStop = true;
 				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);

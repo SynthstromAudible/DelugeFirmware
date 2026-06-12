@@ -415,7 +415,7 @@ getOut:
 
 Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
-	if (!song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+	if (!song->arrangementOnlyClips.reserveExtra(1)) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
@@ -444,7 +444,7 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 	newClip->section = 255;
 	newClip->loopLength = kMaxSequenceLength;
 
-	song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Will succeed - we checked above
+	(void)song->arrangementOnlyClips.insertClipAt(newClip, 0); // Will succeed - we checked above
 
 	// Set the ClipInstance's length to just 1, which kinda is how long it logically "is" at this point in time before
 	// recording has started. This leaves space directly after it, which the user might choose to suddenly to create

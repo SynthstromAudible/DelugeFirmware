@@ -50,6 +50,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
+#include <iterator>
 #include <new>
 #include <string.h>
 
@@ -150,8 +151,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		}
 
 		// Store states of every Clip in existence
-		int32_t numClips =
-		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
+		int32_t numClips = std::ssize(currentSong->sessionClips) + std::ssize(currentSong->arrangementOnlyClips);
 
 		ActionClipState* clipStates =
 		    (ActionClipState*)GeneralMemoryAllocator::get().allocLowSpeed(numClips * sizeof(ActionClipState));
@@ -207,7 +207,7 @@ void ActionLogger::updateAction(Action* newAction) {
 
 		// If number of Clips has changed, discard
 		if (newAction->numClipStates
-		    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
+		    != std::ssize(currentSong->sessionClips) + std::ssize(currentSong->arrangementOnlyClips)) {
 			newAction->numClipStates = 0;
 			delugeDealloc(newAction->clipStates);
 			newAction->clipStates = nullptr;
@@ -474,7 +474,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 		// Restore states of each Clip
 		if (action->numClipStates) {
 			int32_t totalNumClips =
-			    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
+			    std::ssize(currentSong->sessionClips) + std::ssize(currentSong->arrangementOnlyClips);
 			if (action->numClipStates == totalNumClips) {
 
 				// NOTE: i ranges over all clips, not just instrument clips

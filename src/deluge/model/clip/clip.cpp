@@ -1061,7 +1061,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 		else {
 
-			if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+			if (!modelStack->song->arrangementOnlyClips.reserveExtra(1)) {
 				return false;
 			}
 
@@ -1122,7 +1122,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			}
 
 			// Add to Song
-			modelStack->song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Can't fail
+			(void)modelStack->song->arrangementOnlyClips.insertClipAt(newClip, 0); // Can't fail
 
 			expectNoFurtherTicks(modelStack->song, false); // Don't sound
 

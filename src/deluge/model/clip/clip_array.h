@@ -30,10 +30,7 @@ class ClipArray final {
 public:
 	ClipArray() = default;
 
-	[[nodiscard]] int32_t getNumElements() const { return static_cast<int32_t>(clips_.size()); }
-	[[nodiscard]] Clip* getClipAtIndex(int32_t index) const { return clips_[index]; }
 	Clip** getElementAddress(int32_t index) { return &clips_[index]; }
-	void setPointerAtIndex(Clip* clip, int32_t index) { clips_[index] = clip; }
 
 	std::expected<void, Error> insertClipAt(Clip* clip, int32_t index) {
 		try {
@@ -58,34 +55,10 @@ public:
 	}
 	auto erase(deluge::fast_vector<Clip*>::iterator at) { return clips_.erase(at); }
 
-	Error insertClipAtIndex(Clip* clip, int32_t index) {
-		try {
-			clips_.insert(clips_.begin() + index, clip);
-		} catch (deluge::exception&) {
-			return Error::INSUFFICIENT_RAM;
-		}
-		return Error::NONE;
-	}
-
-	void deleteAtIndex(int32_t i, int32_t numToDelete = 1) {
-		clips_.erase(clips_.begin() + i, clips_.begin() + i + numToDelete);
-	}
-
 	int32_t getIndexForClip(Clip* clip) const {
 		auto it = std::ranges::find(clips_, clip);
 		return (it != clips_.end()) ? static_cast<int32_t>(it - clips_.begin()) : -1;
 	}
-
-	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded) {
-		try {
-			clips_.reserve(clips_.size() + numAdditionalElementsNeeded);
-			return true;
-		} catch (deluge::exception&) {
-			return false;
-		}
-	}
-
-	void swapElements(int32_t i1, int32_t i2) { std::swap(clips_[i1], clips_[i2]); }
 
 	// Standard container surface
 	[[nodiscard]] size_t size() const { return clips_.size(); }

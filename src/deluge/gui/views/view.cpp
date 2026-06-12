@@ -88,6 +88,7 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
+#include <iterator>
 
 namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
@@ -2900,8 +2901,8 @@ void View::activateMacro(uint32_t y) {
 
 Clip* View::findNextClipForOutput(Output* output) {
 	int last_active = -1;
-	for (int i = 0; i < currentSong->sessionClips.getNumElements(); i++) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(i);
+	for (int i = 0; i < std::ssize(currentSong->sessionClips); i++) {
+		Clip* clip = currentSong->sessionClips[i];
 		if (clip->output == output) {
 			if (last_active == -1) {
 				if (clip->activeIfNoSolo) {
@@ -2915,12 +2916,12 @@ Clip* View::findNextClipForOutput(Output* output) {
 	}
 
 	if (last_active == -1) {
-		last_active = currentSong->sessionClips.getNumElements();
+		last_active = std::ssize(currentSong->sessionClips);
 	}
 
 	// might need to cycle around to find the next clip
 	for (int i = 0; i < last_active; i++) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(i);
+		Clip* clip = currentSong->sessionClips[i];
 		if (clip->output == output) {
 			return clip;
 		}

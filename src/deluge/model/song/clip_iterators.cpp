@@ -1,4 +1,5 @@
 #include "model/song/clip_iterators.h"
+#include <iterator>
 
 ClipIteratorBase::ClipIteratorBase(ClipArray* array_, uint32_t index_, ClipArray* nextArray_,
                                    std::optional<ClipType> clipType_)
@@ -20,10 +21,10 @@ ClipIteratorBase ClipIteratorBase::operator++(int) {
 }
 
 void ClipIteratorBase::deleteClip(InstrumentRemoval instrumentRemoval) {
-	Clip* clip = array->getClipAtIndex(index);
+	Clip* clip = (*array)[index];
 	currentSong->deleteClipObject(clip, false, instrumentRemoval);
 	// This shifts all others down by one.
-	array->deleteAtIndex(index);
+	array->erase(array->begin() + index);
 	// By decreementing the index and doing next we force the type filter
 	// to run again. We don't actually need to loop backwards -- only
 	// forwards.
@@ -34,16 +35,16 @@ void ClipIteratorBase::deleteClip(InstrumentRemoval instrumentRemoval) {
 void ClipIteratorBase::next() {
 	for (;;) {
 		index++;
-		if (index >= array->getNumElements() && nextArray) {
+		if (index >= std::ssize(*array) && nextArray) {
 			array = nextArray;
 			nextArray = nullptr;
 			index = 0;
 		}
-		if (index >= array->getNumElements()) {
+		if (index >= std::ssize(*array)) {
 			// end
 			return;
 		}
-		if (!clipType.has_value() || clipType.value() == array->getClipAtIndex(index)->type) {
+		if (!clipType.has_value() || clipType.value() == (*array)[index]->type) {
 			// valid clip for this iteration
 			return;
 		}
@@ -68,7 +69,7 @@ ClipIterator<Clip> AllClips::begin() {
 
 ClipIterator<Clip> AllClips::end() {
 	ClipArray* last = second ? second : first;
-	int32_t n = last ? last->getNumElements() : 0;
+	int32_t n = last ? static_cast<int32_t>(last->size()) : 0;
 	return ClipIterator<Clip>(last, n, nullptr, {});
 }
 
@@ -82,7 +83,7 @@ ClipIterator<InstrumentClip> InstrumentClips::begin() {
 
 ClipIterator<InstrumentClip> InstrumentClips::end() {
 	ClipArray* last = second ? second : first;
-	return ClipIterator<InstrumentClip>(last, last->getNumElements(), nullptr, ClipType::INSTRUMENT);
+	return ClipIterator<InstrumentClip>(last, static_cast<int32_t>(last->size()), nullptr, ClipType::INSTRUMENT);
 }
 
 AudioClips AudioClips::everywhere(Song* song) {
@@ -95,5 +96,5 @@ ClipIterator<AudioClip> AudioClips::begin() {
 
 ClipIterator<AudioClip> AudioClips::end() {
 	ClipArray* last = second ? second : first;
-	return ClipIterator<AudioClip>(last, last->getNumElements(), nullptr, ClipType::AUDIO);
+	return ClipIterator<AudioClip>(last, static_cast<int32_t>(last->size()), nullptr, ClipType::AUDIO);
 }

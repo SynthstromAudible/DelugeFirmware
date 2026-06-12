@@ -79,6 +79,7 @@
 #include "util/try.h"
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <new>
 
 extern "C" {
@@ -146,13 +147,14 @@ void ArrangerView::moveClipToSession() {
 				intendedIndex = 0;
 			}
 
-			else if (intendedIndex > currentSong->sessionClips.getNumElements()) {
-				currentSong->songViewYScroll -= intendedIndex - currentSong->sessionClips.getNumElements();
-				intendedIndex = currentSong->sessionClips.getNumElements();
+			else if (intendedIndex > std::ssize(currentSong->sessionClips)) {
+				currentSong->songViewYScroll -= intendedIndex - std::ssize(currentSong->sessionClips);
+				intendedIndex = std::ssize(currentSong->sessionClips);
 			}
 
 			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
-			Error error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
+			auto inserted = currentSong->sessionClips.insertClipAt(clip, intendedIndex);
+			Error error = inserted ? Error::NONE : inserted.error();
 			if (error != Error::NONE) {
 				display->displayError(error);
 				return;
@@ -161,7 +163,7 @@ void ArrangerView::moveClipToSession() {
 
 			int32_t oldIndex = currentSong->arrangementOnlyClips.getIndexForClip(clip);
 			if (oldIndex != -1) {
-				currentSong->arrangementOnlyClips.deleteAtIndex(oldIndex);
+				currentSong->arrangementOnlyClips.erase(currentSong->arrangementOnlyClips.begin() + oldIndex);
 			}
 		}
 
@@ -1646,7 +1648,7 @@ void ArrangerView::deleteClipInstance(Output* output, ClipInstance* clipInstance
 /// called from ArrangerView::editPadAction
 /// creates a new clip when trying to enter a clip instance that does not have a clip assigned to it
 void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* clipInstance) {
-	if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+	if (!currentSong->arrangementOnlyClips.reserveExtra(1)) {
 		return exitSubModeWithoutAction();
 	}
 
@@ -1702,7 +1704,7 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 		output->setActiveClip(modelStack);
 	}
 
-	currentSong->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
+	(void)currentSong->arrangementOnlyClips.insertClipAt(newClip, 0);
 
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 	if (action) {
