@@ -31,15 +31,9 @@
 #define TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME "name"
 #define TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE "value"
 
-/// Unknown Settings container
-struct UnknownSetting {
-	std::string name;
-	uint32_t value;
-};
-
 RuntimeFeatureSettings runtimeFeatureSettings{};
 
-RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
+RuntimeFeatureSettings::RuntimeFeatureSettings() {
 }
 
 static void SetupOnOffSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
@@ -268,15 +262,11 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 
 			// Remember unknown settings for writing them back
 			if (!found) {
-				// unknownSettings.insertSetting(&currentName, currentValue);
-				int32_t idx = unknownSettings.getNumElements();
-				if (unknownSettings.insertAtIndex(idx) != Error::NONE) {
+				try {
+					unknownSettings.push_back(UnknownSetting{currentName, currentValue});
+				} catch (deluge::exception&) {
 					return;
 				}
-				void* address = unknownSettings.getElementAddress(idx);
-				auto* unknownSetting = new (address) UnknownSetting();
-				unknownSetting->name = currentName.c_str();
-				unknownSetting->value = currentValue;
 			}
 		}
 		reader.exitTag(currentTag);
@@ -307,11 +297,10 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	}
 
 	// Write unknown elements
-	for (uint32_t idxUnknownSetting = 0; idxUnknownSetting < unknownSettings.getNumElements(); idxUnknownSetting++) {
-		UnknownSetting* unknownSetting = (UnknownSetting*)unknownSettings.getElementAddress(idxUnknownSetting);
+	for (UnknownSetting& unknownSetting : unknownSettings) {
 		writer.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.data(), false);
-		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, unknownSetting->value, false);
+		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting.name.data(), false);
+		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, unknownSetting.value, false);
 		writer.writeOpeningTagEnd(false);
 		writer.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
 	}

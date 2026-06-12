@@ -18,7 +18,6 @@
 #pragma once
 
 #include "gui/l10n/strings.h"
-#include "util/container/array/resizeable_array.h"
 #include "util/containers.h"
 #include <array>
 #include <cstdint>
@@ -69,6 +68,12 @@ enum RuntimeFeatureSettingType : uint32_t {
 	MaxElement // Keep as boundary
 };
 
+/// Setting read from the settings file that no current setting matches, kept for writing back
+struct UnknownSetting {
+	std::string name;
+	uint32_t value;
+};
+
 /// Definition for selectable options
 struct RuntimeFeatureSettingOption {
 	std::string_view displayName;
@@ -113,7 +118,7 @@ protected:
 	std::string startupSong;
 
 private:
-	ResizeableArray unknownSettings;
+	deluge::vector<UnknownSetting> unknownSettings;
 
 public:
 	friend class deluge::gui::menu_item::runtime_feature::Setting;
