@@ -33,6 +33,7 @@
 #include "util/fixedpoint.h"
 #include <algorithm>
 #include <new>
+#include <ranges>
 
 extern int32_t oscSyncRenderingBuffer[];
 
@@ -55,12 +56,9 @@ void WaveTable::deleteAllBandsAndData() {
 }
 
 void WaveTable::bandDataBeingStolen(WaveTableBandData* bandData) {
-	for (int32_t b = 0; b < static_cast<int32_t>(bands.size()); b++) {
-		WaveTableBand* band = &bands[b];
-		if (band->data == bandData) {
-			band->data = nullptr;
-			break;
-		}
+	auto it = std::ranges::find(bands, bandData, &WaveTableBand::data);
+	if (it != bands.end()) {
+		it->data = nullptr;
 	}
 }
 
@@ -763,10 +761,9 @@ transformBandToTimeDomain:
 	          (initialBand->toCycleNumber - initialBand->fromCycleNumber)
 	              * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
 	int32_t total = 0;
-	for (int32_t b = 1; b < static_cast<int32_t>(bands.size()); b++) {
-		WaveTableBand* band = &bands[b];
-		total += (band->toCycleNumber - band->fromCycleNumber)
-		         * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2;
+	for (WaveTableBand const& band : bands | std::views::drop(1)) {
+		total += (band.toCycleNumber - band.fromCycleNumber)
+		         * (band.cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2;
 	}
 	D_PRINTLN("other bands total size after trimming:  %d", total);
 
@@ -1187,10 +1184,9 @@ doneRenderingACycle:
 void WaveTable::numReasonsIncreasedFromZero() {
 
 	// Remove all bands' data from Stealable-queue, as it may no longer be stolen.
-	for (int32_t b = static_cast<int32_t>(bands.size()) - 1; b >= 0; b--) {
-		WaveTableBand* band = &bands[b];
-		if (band->data) {
-			band->data->remove();
+	for (WaveTableBand& band : bands) {
+		if (band.data != nullptr) {
+			band.data->remove();
 		}
 	}
 }
@@ -1198,15 +1194,14 @@ void WaveTable::numReasonsIncreasedFromZero() {
 void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 
 	// Put all bands' data in queue to be stolen.
-	for (int32_t b = static_cast<int32_t>(bands.size()) - 1; b >= 0; b--) {
-		WaveTableBand* band = &bands[b];
-		if (band->data) {
+	for (WaveTableBand& band : bands) {
+		if (band.data != nullptr) {
 #if ALPHA_OR_BETA_VERSION
-			if (band->data->list) {
+			if (band.data->list) {
 				FREEZE_WITH_ERROR("E388");
 			}
 #endif
-			GeneralMemoryAllocator::get().putStealableInQueue(band->data, StealableQueue::NO_SONG_WAVETABLE_BAND_DATA);
+			GeneralMemoryAllocator::get().putStealableInQueue(band.data, StealableQueue::NO_SONG_WAVETABLE_BAND_DATA);
 		}
 	}
 }

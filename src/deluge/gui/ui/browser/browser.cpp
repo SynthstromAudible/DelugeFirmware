@@ -38,6 +38,7 @@
 #include "util/functions.h"
 #include "util/string.h"
 #include "util/try.h"
+#include <algorithm>
 #include <cstring>
 #include <new>
 
@@ -1753,26 +1754,11 @@ void Browser::sortFileItems() {
 }
 
 int32_t Browser::searchFileItems(char const* searchString, bool* foundExact) {
-	int32_t rangeBegin = 0;
-	int32_t rangeEnd = static_cast<int32_t>(fileItems.size());
-	while (rangeBegin != rangeEnd) {
-		int32_t proposedIndex = rangeBegin + ((rangeEnd - rangeBegin) >> 1);
-		int32_t result = strcmpspecial(fileItems[proposedIndex].displayName, searchString);
-		if (result == 0) {
-			if (foundExact != nullptr) {
-				*foundExact = true;
-			}
-			return proposedIndex;
-		}
-		if (result < 0) {
-			rangeBegin = proposedIndex + 1;
-		}
-		else {
-			rangeEnd = proposedIndex;
-		}
-	}
+	auto it = std::ranges::lower_bound(
+	    fileItems, searchString, [](char const* a, char const* b) { return strcmpspecial(a, b) < 0; },
+	    &FileItem::displayName);
 	if (foundExact != nullptr) {
-		*foundExact = false;
+		*foundExact = (it != fileItems.end() && strcmpspecial(it->displayName, searchString) == 0);
 	}
-	return rangeBegin;
+	return static_cast<int32_t>(it - fileItems.begin());
 }
