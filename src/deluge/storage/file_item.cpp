@@ -21,23 +21,20 @@
 #include <cstring>
 
 Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
-	filename.set(&newInstrument->name);
-	Error error = filename.concatenate(".XML");
-	if (error != Error::NONE) {
-		return error;
-	}
+	filename = newInstrument->name.get();
+	filename += ".XML";
 	filenameIncludesExtension = true;
 	instrument = newInstrument;
 	isFolder = false;
 	instrumentAlreadyInSong = !hibernating;
-	displayName = filename.get();
+	displayName = filename.c_str();
 	maybeExistsOnCard = newInstrument->mightExistOnCard;
 
 	return Error::NONE;
 }
 
 Error FileItem::getFilenameWithExtension(String* filenameWithExtension) {
-	filenameWithExtension->set(&filename);
+	filenameWithExtension->set(filename);
 	if (!filenameIncludesExtension) {
 		Error error = filenameWithExtension->concatenate(".XML");
 		if (error != Error::NONE) {
@@ -48,7 +45,7 @@ Error FileItem::getFilenameWithExtension(String* filenameWithExtension) {
 }
 
 Error FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
-	filenameWithoutExtension->set(&filename);
+	filenameWithoutExtension->set(filename);
 	if (filenameIncludesExtension) {
 		char const* chars = filenameWithoutExtension->get();
 		char const* dotAddress = strrchr(chars, '.');

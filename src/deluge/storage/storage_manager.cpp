@@ -755,7 +755,7 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
 Error StorageManager::openDelugeFile(FileItem* currentFileItem, char const* firstTagName, char const* altTagName,
                                      bool ignoreIncorrectFirmware) {
 	Error error;
-	if (currentFileItem->filename.contains(".Json")) {
+	if (currentFileItem->filename.find(".Json") != std::string::npos) {
 		error = StorageManager::openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, firstTagName,
 		                                     altTagName, ignoreIncorrectFirmware);
 	}

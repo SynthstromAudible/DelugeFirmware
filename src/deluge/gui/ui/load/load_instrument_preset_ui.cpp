@@ -308,7 +308,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
 
-		Error error = goIntoFolder(currentFileItem->filename.get());
+		Error error = goIntoFolder(currentFileItem->filename.c_str());
 
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -723,7 +723,7 @@ doSlotNumber:
 				}
 
 				FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-				char const* fileItemNameChars = fileItem->filename.get();
+				char const* fileItemNameChars = fileItem->filename.c_str();
 				if (!memcasecmp(buffer, fileItemNameChars, 4)) {
 					if (fileItemNameChars[4] == 0) {
 						continue;
@@ -751,7 +751,7 @@ tryWholeNewSlotNumbers:
 					}
 
 					FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-					char const* fileItemNameChars = fileItem->filename.get();
+					char const* fileItemNameChars = fileItem->filename.c_str();
 					if (!memcasecmp(buffer, fileItemNameChars, 4)) {
 						if (fileItemNameChars[4] == 0) {
 							continue;
@@ -831,7 +831,7 @@ addNumber:
 			}
 
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-			char const* fileItemNameChars = fileItem->filename.get();
+			char const* fileItemNameChars = fileItem->filename.c_str();
 			int32_t newNameLength = strlen(newNameChars);
 			if (!memcasecmp(newNameChars, fileItemNameChars, newNameLength)) {
 				if (fileItemNameChars[newNameLength] == 0) {
@@ -1299,7 +1299,7 @@ doThisFolder:
 			emptyFileItems();
 			return std::unexpected{error};
 		}
-		error = currentDir.concatenate(&fileItem->filename);
+		error = currentDir.concatenate(fileItem->filename);
 		if (error != Error::NONE) {
 			emptyFileItems();
 			return std::unexpected{error};

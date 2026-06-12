@@ -71,6 +71,7 @@
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include "util/functions.h"
+#include "util/string.h"
 #include <cstring>
 
 namespace params = deluge::modulation::params;
@@ -219,13 +220,13 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 		numCharsInPrefix = 65535;
 		FileItem* currentFileItem = getCurrentFileItem();
 
-		char const* currentFilenameChars = currentFileItem->filename.get();
+		char const* currentFilenameChars = currentFileItem->filename.c_str();
 
 		for (int32_t f = 0; numCharsInPrefix && f < fileItems.getNumElements(); f++) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
 
 			for (int32_t i = 0; i < numCharsInPrefix; i++) {
-				char const* thisFileName = fileItem->filename.get();
+				char const* thisFileName = fileItem->filename.c_str();
 				if (!thisFileName[i] || thisFileName[i] != currentFilenameChars[i]) {
 					numCharsInPrefix = i;
 					break;
@@ -355,7 +356,7 @@ void SampleBrowser::enterKeyPress() {
 	if (currentFileItem->isFolder) {
 
 		// Don't allow user to go into TEMP clips folder
-		if (currentFileItem->filename.equalsCaseIrrespective("TEMP")
+		if (deluge::string::caselessEquals(currentFileItem->filename, "TEMP")
 		    && currentDir.equalsCaseIrrespective("SAMPLES/CLIPS")) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED));
 			return;
@@ -363,7 +364,7 @@ void SampleBrowser::enterKeyPress() {
 
 		// Extremely weirdly, if we try to just put this inside the parentheses in the next line,
 		// it returns an empty string (&nothing). Surely this is a compiler error??
-		char const* filenameChars = currentFileItem->filename.get();
+		char const* filenameChars = currentFileItem->filename.c_str();
 
 		Error error = goIntoFolder(filenameChars);
 
@@ -524,7 +525,7 @@ gotError:
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	error = path->concatenate(&currentFileItem->filename);
+	error = path->concatenate(currentFileItem->filename);
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -1231,7 +1232,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	}
 	else {
 		dirToLoad.set(&currentDir);
-		previouslyViewedFilename = currentFileItem->filename.get();
+		previouslyViewedFilename = currentFileItem->filename.c_str();
 	}
 
 	staticDIR = D_TRY_CATCH(FatFS::Directory::open(dirToLoad.get()), error, {

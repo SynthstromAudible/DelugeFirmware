@@ -79,7 +79,7 @@ gotError:
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	error = path->concatenate(&currentFileItem->filename);
+	error = path->concatenate(currentFileItem->filename);
 	if (error != Error::NONE)
 		goto gotError;
 
@@ -96,8 +96,8 @@ void DxSyxBrowser::enterKeyPress() {
 		// [SIC]
 		char const* filenameChars =
 		    currentFileItem->filename
-		        .get(); // Extremely weirdly, if we try to just put this inside the parentheses in the next line,
-		                // it returns an empty string (&nothing). Surely this is a compiler error??
+		        .c_str(); // Extremely weirdly, if we try to just put this inside the parentheses in the next line,
+		                  // it returns an empty string (&nothing). Surely this is a compiler error??
 
 		Error error = goIntoFolder(filenameChars);
 		if (error != Error::NONE) {

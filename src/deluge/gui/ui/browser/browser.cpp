@@ -333,14 +333,11 @@ extensionNotSupported:
 			error = Error::INSUFFICIENT_RAM;
 			break;
 		}
-		error = thisItem->filename.set(staticFNO.fname);
-		if (error != Error::NONE) {
-			break;
-		}
+		thisItem->filename = staticFNO.fname;
 		thisItem->isFolder = isFolder;
 		thisItem->filePointer = thisFilePointer;
 
-		char const* storedFilenameChars = thisItem->filename.get();
+		char const* storedFilenameChars = thisItem->filename.c_str();
 		if (display->have7SEG()) {
 			if (filePrefixHere) {
 				if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength)) {
@@ -404,9 +401,9 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 			// If we're a folder, and the next item is a file of the same name, delete this item.
 			if (readItem->isFolder) {
 				if (!nextItem->isFolder) {
-					int32_t nameLength = readItem->filename.getLength();
-					char const* nextItemFilename = nextItem->filename.get();
-					if (!memcasecmp(readItem->filename.get(), nextItemFilename, nameLength)) {
+					int32_t nameLength = readItem->filename.size();
+					char const* nextItemFilename = nextItem->filename.c_str();
+					if (!memcasecmp(readItem->filename.c_str(), nextItemFilename, nameLength)) {
 						if (nextItemFilename[nameLength] == '.' && !strchr(&nextItemFilename[nameLength + 1], '.')) {
 							goto deleteThisItem;
 						}
@@ -1377,7 +1374,7 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 				FileItem* thisFile = (FileItem*)fileItems.getElementAddress(i);
 				isFolder = thisFile->isFolder;
-				displayName = thisFile->filename.get();
+				displayName = thisFile->filename.c_str();
 				isSelectedIndex = (i == fileIndexSelected);
 			}
 drawAFile:

@@ -20,6 +20,7 @@
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include <cstdint>
+#include <string>
 
 class FileItem {
 public:
@@ -32,7 +33,7 @@ public:
 	char const* displayName; // Usually points to filePointer.get(), but for "numeric" files, will cut off the prefix,
 	                         // e.g. "SONG". And I think this always includes the file extension...
 
-	String filename; // May or may not include file extension. (Or actually I think it always does now...)
+	std::string filename; // May or may not include file extension. (Or actually I think it always does now...)
 	FilePointer filePointer{.sclust = 0, .objsize = 0};
 	Instrument* instrument = nullptr;
 	bool maybeExistsOnCard{true}; // only false when made through setupWithInstrument through an unsaved instrument
