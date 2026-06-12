@@ -405,8 +405,8 @@ gotError:
 		return true;
 	};
 
-	for (int32_t i = 0; i < audioFileManager.audioFiles.getNumElements(); i++) {
-		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(i);
+	for (int32_t i = 0; i < static_cast<int32_t>(audioFileManager.audioFiles.size()); i++) {
+		AudioFile* audioFile = audioFileManager.audioFiles[i];
 		if (!saveAudioFile(audioFile)) {
 			return false;
 		}

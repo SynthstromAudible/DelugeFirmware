@@ -1215,8 +1215,8 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
+		for (int32_t e = 0; e < static_cast<int32_t>(audioFileManager.audioFiles.size()); e++) {
+			AudioFile* audioFile = audioFileManager.audioFiles[e];
 
 			if (audioFile->type == AudioFileType::SAMPLE) {
 				Sample* thisSample = (Sample*)audioFile;
@@ -1343,8 +1343,8 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int32_t sampleI = 0;
-	for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
+	for (int32_t e = 0; e < static_cast<int32_t>(audioFileManager.audioFiles.size()); e++) {
+		AudioFile* audioFile = audioFileManager.audioFiles[e];
 
 		if (audioFile->type == AudioFileType::SAMPLE) {
 

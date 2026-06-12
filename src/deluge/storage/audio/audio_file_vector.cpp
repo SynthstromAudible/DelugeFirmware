@@ -17,31 +17,52 @@
 
 #include "storage/audio/audio_file_vector.h"
 #include "storage/audio/audio_file.h"
+#include <strings.h>
 
-#pragma GCC diagnostic push
-// This is supported by GCC and other compilers should error (not warn), so turn off for this file
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+int32_t AudioFileVector::search(char const* searchString, bool* foundExact) const {
+	int32_t rangeBegin = 0;
+	int32_t rangeEnd = static_cast<int32_t>(size());
 
-AudioFileVector::AudioFileVector() : NamedThingVector(__builtin_offsetof(AudioFile, filePath)) {
+	while (rangeBegin != rangeEnd) {
+		int32_t proposedIndex = rangeBegin + ((rangeEnd - rangeBegin) >> 1);
+
+		int32_t result = strcasecmp((*this)[proposedIndex]->filePath.c_str(), searchString);
+
+		if (result == 0) {
+			if (foundExact != nullptr) {
+				*foundExact = true;
+			}
+			return proposedIndex;
+		}
+		if (result < 0) {
+			rangeBegin = proposedIndex + 1;
+		}
+		else {
+			rangeEnd = proposedIndex;
+		}
+	}
+
+	if (foundExact != nullptr) {
+		*foundExact = false;
+	}
+	return rangeBegin;
 }
 
-// Returns -1 if not found. All times this is called, it actually should get found - but some bugs remain, and the
-// caller must deal with these.
-int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
+int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) const {
 	bool foundExactName;
-	int32_t i = search(audioFile->filePath.c_str(), GREATER_OR_EQUAL, &foundExactName);
+	int32_t i = search(audioFile->filePath.c_str(), &foundExactName);
 	if (!foundExactName) {
 		return -1;
 	}
 
-	AudioFile* foundAudioFile = (AudioFile*)getElement(i);
+	AudioFile* foundAudioFile = (*this)[i];
 
 	// If object doesn't match, then we were looking for a Sample and got a Wavetable, or vice versa. So check
 	// neighbours.
 	if (foundAudioFile != audioFile) {
 		if (i > 0) {
 			i--;
-			foundAudioFile = (AudioFile*)getElement(i);
+			foundAudioFile = (*this)[i];
 			if (foundAudioFile == audioFile) {
 				goto gotIt;
 			}
@@ -49,10 +70,10 @@ int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 		}
 		i++; // Increment it (again). It's gotta be there... Except, some bugs?
 
-		if (i >= getNumElements()) {
+		if (i >= static_cast<int32_t>(size())) {
 			return -1;
 		}
-		foundAudioFile = (AudioFile*)getElement(i);
+		foundAudioFile = (*this)[i];
 		if (foundAudioFile != audioFile) {
 			return -1;
 		}
@@ -61,4 +82,13 @@ int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 gotIt:
 	return i;
 }
-#pragma GCC diagnostic pop
+
+Error AudioFileVector::insertElement(AudioFile* audioFile) {
+	int32_t i = search(audioFile->filePath.c_str());
+	try {
+		insert(begin() + i, audioFile);
+	} catch (deluge::exception&) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	return Error::NONE;
+}
