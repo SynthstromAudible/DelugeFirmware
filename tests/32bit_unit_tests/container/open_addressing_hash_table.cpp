@@ -41,16 +41,6 @@ void runTest(HashTable& table) {
 	CHECK_FALSE(table.remove(0));
 }
 
-TEST(OpenHashTableTest, test8bit) {
-	OpenAddressingHashTableWith8bitKey table;
-	runTest(table);
-}
-
-TEST(OpenHashTableTest, test16bit) {
-	OpenAddressingHashTableWith16bitKey table;
-	runTest(table);
-}
-
 TEST(OpenHashTableTest, test32bit) {
 	OpenAddressingHashTableWith32bitKey table;
 	runTest(table);

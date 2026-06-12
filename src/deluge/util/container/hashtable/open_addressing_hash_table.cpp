@@ -344,37 +344,3 @@ void OpenAddressingHashTableWith32bitKey::setKeyAtAddress(uint32_t key, void* ad
 bool OpenAddressingHashTableWith32bitKey::doesKeyIndicateEmptyBucket(uint32_t key) {
 	return (key == (uint32_t)0xFFFFFFFF);
 }
-
-// 16-bit key
-OpenAddressingHashTableWith16bitKey::OpenAddressingHashTableWith16bitKey() {
-	elementSize = sizeof(uint16_t);
-}
-
-uint32_t OpenAddressingHashTableWith16bitKey::getKeyFromAddress(void* address) {
-	return *(uint16_t*)address;
-}
-
-void OpenAddressingHashTableWith16bitKey::setKeyAtAddress(uint32_t key, void* address) {
-	*(uint16_t*)address = key;
-}
-
-bool OpenAddressingHashTableWith16bitKey::doesKeyIndicateEmptyBucket(uint32_t key) {
-	return (key == (uint32_t)0xFFFF);
-}
-
-// 8-bit key
-OpenAddressingHashTableWith8bitKey::OpenAddressingHashTableWith8bitKey() {
-	elementSize = sizeof(uint8_t);
-}
-
-uint32_t OpenAddressingHashTableWith8bitKey::getKeyFromAddress(void* address) {
-	return *(uint8_t*)address;
-}
-
-void OpenAddressingHashTableWith8bitKey::setKeyAtAddress(uint32_t key, void* address) {
-	*(uint8_t*)address = key;
-}
-
-bool OpenAddressingHashTableWith8bitKey::doesKeyIndicateEmptyBucket(uint32_t key) {
-	return (key == (uint32_t)0xFF);
-}
