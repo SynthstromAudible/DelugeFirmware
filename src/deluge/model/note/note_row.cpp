@@ -107,11 +107,12 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 
 	// If we want to reverse the sequence, do that.
 	if (flatteningReversingNow && numNotes) {
-		NoteVector oldNotes =
-		    notes; // Sneakily and temporarily clone this - still pointing to the old NoteRow's notes' memory.
-		notes.init();
-
-		error = notes.insertAtIndex(0, numNotes);
+		// 'notes' is currently a byte-copy aliasing the old NoteRow's buffer. Deep-copy the data out (reading
+		// through the alias is safe), then detach and rebuild reversed.
+		NoteVector oldNotes;
+		bool cloned = oldNotes.cloneFrom(&notes);
+		notes.init(); // Detach from the old NoteRow's buffer, which it still owns
+		error = cloned ? notes.insertAtIndex(0, numNotes) : Error::INSUFFICIENT_RAM;
 		if (error == Error::NONE) {
 
 			InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -183,8 +184,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 			}
 		}
 
-		oldNotes.init(); // Because this is about to get destructed, we need to stop it pointing to the old NoteRow's
-		                 // notes' memory, cos we don't want that getting deallocated.
+		// oldNotes owns a real deep copy now and frees it on destruction.
 	}
 
 	// Or if not reversing the sequence, we can just make a simple call.

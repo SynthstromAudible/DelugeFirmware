@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -16,17 +16,12 @@
  */
 
 #include "model/note/note_vector.h"
-#include "model/note/note.h"
-#include <cstring>
-
-NoteVector::NoteVector() : OrderedResizeableArrayWith32bitKey(sizeof(Note)) {
-}
 
 Note* NoteVector::getElement(int32_t index) {
 	if (index < 0 || index >= getNumElements()) {
 		return nullptr;
 	}
-	return (Note*)getElementAddress(index);
+	return getElementAddress(index);
 }
 
 Note* NoteVector::getLast() {
