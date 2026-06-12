@@ -230,14 +230,23 @@ attach here.
 Execution style follows the libdeluge pattern: one `feat/synth-*` branch per
 phase, small bisectable commits, green golden-masters as the merge gate.
 
-### Phase 0 — Lock the sound (golden masters)
+### Phase 0 — Lock the sound (golden masters) — **DONE**
 
-Preset-rendering harness in host-sim: scripted note events through
-`Sound::render` for a corpus covering every `OscType`, FM configurations,
-unison counts, ring mod, and representative patch-cable matrices; hash output
-buffers into committed fixtures. `dsp_diff` already proves x86≡ARM for the
-primitives, so x86 CI guards the real sound. **Every subsequent phase must
-stay bit-exact**; any deliberate waiver is documented per-commit.
+Landed as `tests/golden/` (see its README): 22 corpus presets rendered
+through the full app in the host-sim — file-backed card image, real
+`SYNTHS/` preset load at boot, scripted frame-keyed DIN MIDI, deterministic
+offline render — with PCM SHA-256 fixtures cross-validated bit-exact between
+the x86-SIMDe build and the arm-linux/NEON oracle (qemu cortex-a9). **Every
+subsequent phase must stay bit-exact**; any deliberate waiver is documented
+per-commit and re-validated against the ARM oracle.
+
+The harness paid for itself immediately, finding four pre-existing bugs:
+an uninitialized-index read in the patched `f_mount`; a null `WaveTable*`
+deref in the ringmod path; an out-of-bounds `Sound::paramFinalValues` read
+in `Voice::noteOff` (the offsetof bug class, live); and an out-of-bounds
+sine-table read breaking all vectorised FM since the argon bump (caught
+precisely by the x86-vs-ARM fixture divergence). Sample/wavetable corpus
+cases are deferred until audio files join the card images.
 
 ### Phase 1 — Make L0 true
 
