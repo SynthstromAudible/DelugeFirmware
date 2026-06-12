@@ -30,8 +30,8 @@ public:
 
 	SampleHolderForVoice(SampleHolderForVoice&& other) noexcept
 	    : SampleHolder(std::move(other)), loopStartPos(other.loopStartPos), loopEndPos(other.loopEndPos),
-	      transpose(other.transpose), cents(other.cents), loopLocked(other.loopLocked), startMSec(other.startMSec),
-	      endMSec(other.endMSec) {
+	      transpose(other.transpose), cents(other.cents), loopLocked(other.loopLocked), fineTuner(other.fineTuner),
+	      startMSec(other.startMSec), endMSec(other.endMSec) {
 		for (size_t i = 0; i < kNumClustersLoadedAhead; i++) {
 			clustersForLoopStart[i] = std::exchange(other.clustersForLoopStart[i], nullptr);
 		}
@@ -43,6 +43,7 @@ public:
 		transpose = other.transpose;
 		cents = other.cents;
 		loopLocked = other.loopLocked;
+		fineTuner = other.fineTuner;
 		startMSec = other.startMSec;
 		endMSec = other.endMSec;
 		for (size_t i = 0; i < kNumClustersLoadedAhead; i++) {
