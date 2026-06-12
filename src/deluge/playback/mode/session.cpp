@@ -48,7 +48,7 @@
 #include "model/model_stack.h"
 #include "playback/mode/arrangement.h"
 #include "storage/storage_manager.h"
-#include "util/container/hashtable/open_addressing_hash_table.h"
+#include "util/containers.h"
 
 Session session{};
 
@@ -284,7 +284,7 @@ void Session::doLaunch(bool isFillLaunch) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	OpenAddressingHashTableWith32bitKey outputsLaunchedFor;
+	deluge::fast_set<Output*> outputsLaunchedFor;
 
 	// First do a loop through all Clips seeing which ones are going to launch, so we can then go through again and
 	// deactivate those Outputs' other Clips
@@ -316,8 +316,7 @@ void Session::doLaunch(bool isFillLaunch) {
 				continue;
 			}
 
-			bool alreadyLaunchedFor = false;
-			outputsLaunchedFor.insert((uint32_t)output, &alreadyLaunchedFor);
+			bool alreadyLaunchedFor = !outputsLaunchedFor.insert(output).second;
 
 			// If already seen another Clip to launch with same Output...
 			if (alreadyLaunchedFor) {
@@ -498,7 +497,7 @@ stopOnlyIfOutputTaken:
 				}
 
 				// If some other Clip is launching for this Output, we gotta stop
-				if (outputsLaunchedFor.lookup((uint32_t)output)) {
+				if (outputsLaunchedFor.contains(output)) {
 
 					if (clip->launchStyle == LaunchStyle::FILL) {
 						// Must also disarm it if a fill clip to avoid it
@@ -1636,7 +1635,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 	// Or, if we were doing it for a whole section - which means that we know armState == ArmState::ON_NORMAL, and no
 	// late-start
 	else {
-		OpenAddressingHashTableWith32bitKey outputsWeHavePickedAClipFor;
+		deluge::fast_set<Output*> outputsWeHavePickedAClipFor;
 
 		// Ok, we're going to do a big complex thing where we traverse just once (or occasionally twice) through all
 		// sessionClips. Reverse order so behaviour of this new code is the same as the old code
@@ -1652,8 +1651,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 				// Because we're arming a section, we know there's no soloing Clips, so that's easy.
 				Output* output = thisClip->output;
 
-				bool alreadyPickedAClip = false;
-				outputsWeHavePickedAClipFor.insert((uint32_t)output, &alreadyPickedAClip);
+				bool alreadyPickedAClip = !outputsWeHavePickedAClipFor.insert(output).second;
 
 				// If we've already picked a Clip for this same Output...
 				if (alreadyPickedAClip) {
@@ -1751,7 +1749,7 @@ weWantThisClipInactive:
 
 						// If we've already picked a Clip for this same Output, we definitely don't want this one
 						// remaining active, so arm it to stop
-						if (outputsWeHavePickedAClipFor.lookup((uint32_t)thisClip->output)) {
+						if (outputsWeHavePickedAClipFor.contains(thisClip->output)) {
 							thisClip->armState = ArmState::ON_NORMAL;
 						}
 					}
