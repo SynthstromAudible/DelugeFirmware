@@ -2835,29 +2835,19 @@ bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t
 void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 
 	// We gotta do this for any backedUpParamManagers too!
-	int32_t i = song->backedUpParamManagers.search((uint32_t)(ModControllableAudio*)this,
-	                                               GREATER_OR_EQUAL); // Search by first word only.
-
-	while (true) {
-		if (i >= song->backedUpParamManagers.getNumElements()) {
-			break;
-		}
-		BackedUpParamManager* backedUp = (BackedUpParamManager*)song->backedUpParamManagers.getElementAddress(i);
-		if (backedUp->modControllable != this) {
-			break;
-		}
-
-		if (backedUp->clip) {
+	for (auto it = song->backedUpParamManagers.lower_bound(
+	         {static_cast<ModControllableAudio*>(this), static_cast<Clip*>(nullptr)});
+	     it != song->backedUpParamManagers.end() && it->first.first == this; ++it) {
+		Clip* clip = it->first.second;
+		if (clip) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, this, backedUp->clip,
-			                                                   &backedUp->paramManager);
+			    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, this, clip, &it->second);
 			ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
 		}
 		else {
-			ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&backedUp->paramManager);
+			ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&it->second);
 		}
-		i++;
 	}
 
 	song->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this); // What does this do exactly, again?
