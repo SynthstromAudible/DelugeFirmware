@@ -145,7 +145,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 void runRoutine();
 
 void init();
-void previewSample(std::string* path, FilePointer* filePointer, bool shouldActuallySound);
+void previewSample(std::string_view path, FilePointer* filePointer, bool shouldActuallySound);
 void stopAnyPreviewing();
 
 void songSwapAboutToHappen();

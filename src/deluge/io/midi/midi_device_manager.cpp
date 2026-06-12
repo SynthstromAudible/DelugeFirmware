@@ -170,7 +170,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 		if (candidate->vendorId == vendorId && candidate->productId == productId) {
 			// Update its name - if we got one and it's different
 			if (gotAName && !(candidate->name == *name)) {
-				hostedMIDIDevices.renameMember(i, name);
+				hostedMIDIDevices.renameMember(i, *name);
 			}
 			return candidate;
 		}
@@ -372,7 +372,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 			productId = reader.readTagOrAttributeValueHex(0);
 		}
 		else if (!strcmp(tagName, "name")) {
-			reader.readTagOrAttributeValueString(&name);
+			reader.readTagOrAttributeValueString(name);
 		}
 		else if (!strcmp(tagName, "port")) {
 			char const* port = reader.readTagOrAttributeValue();
@@ -583,7 +583,7 @@ void readAHostedDeviceFromFile(Deserializer& reader) {
 			productId = reader.readTagOrAttributeValueHex(0);
 		}
 		else if (!strcmp(tagName, "name")) {
-			reader.readTagOrAttributeValueString(&name);
+			reader.readTagOrAttributeValueString(name);
 		}
 		else if (!strcmp(tagName, "input")) {
 			whichPort = MIDI_DIRECTION_INPUT_TO_DELUGE;

@@ -94,12 +94,7 @@ bool Browser::opened() {
 // returns true if the FP for the filepath is correct
 bool Browser::checkFP() {
 	FileItem* currentFileItem = getCurrentFileItem();
-	std::string filePath;
-	Error error = getCurrentFilePath(&filePath);
-	if (error != Error::NONE) {
-		D_PRINTLN("couldn't get filepath");
-		return false;
-	}
+	std::string filePath = getCurrentFilePath();
 
 	FilePointer tempfp;
 	bool fileExists = StorageManager::fileExists(filePath.c_str(), &tempfp);
@@ -1549,11 +1544,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (Buttons::isShiftButtonPressed()) {
-			std::string filePath;
-			Error error = getCurrentFilePath(&filePath);
-			if (error != Error::NONE) {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
-			}
+			std::string filePath = getCurrentFilePath();
 			if (favouritesManager.isEmpty(x)) {
 				if (!getCurrentFileItem()->isFolder) {
 					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.c_str());

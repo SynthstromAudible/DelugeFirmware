@@ -134,8 +134,8 @@ bool SaveMidiDeviceDefinitionUI::performSave(bool mayOverwrite) {
 
 	MIDIInstrument* midiInstrumentToSave = (MIDIInstrument*)getCurrentInstrument();
 
-	std::string filePath;
-	Error error = getCurrentFilePath(&filePath);
+	std::string filePath = getCurrentFilePath();
+	Error error = Error::NONE;
 	if (error != Error::NONE) {
 fail:
 		display->displayError(error);

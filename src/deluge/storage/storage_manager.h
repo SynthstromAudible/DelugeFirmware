@@ -197,20 +197,11 @@ public:
 	virtual Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) = 0;
 
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
-	virtual Error readTagOrAttributeValueString(std::string* string) = 0;
+	virtual Error readTagOrAttributeValueString(std::string& string) = 0;
 	virtual bool match(char const ch) = 0;
 	virtual void exitTag(char const* exitTagName = NULL, bool closeObject = false) = 0;
 
 	virtual void reset() = 0;
-
-	Error readTagOrAttributeValueString(std::string& string) {
-		std::string tmp;
-		Error error = readTagOrAttributeValueString(&tmp);
-		if (error == Error::NONE) {
-			string = tmp.c_str();
-		}
-		return error;
-	}
 };
 
 class FileDeserializer : public Deserializer, public FileReader {
@@ -235,7 +226,7 @@ public:
 
 	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos);
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) override;
-	Error readTagOrAttributeValueString(std::string* string) override;
+	Error readTagOrAttributeValueString(std::string& string) override;
 	char const* readTagOrAttributeValue() override;
 	bool match(char const ch) override;
 
@@ -267,8 +258,8 @@ private:
 	bool getIntoAttributeValue();
 	int32_t readAttributeValueInt();
 
-	Error readStringUntilChar(std::string* string, char endChar);
-	Error readAttributeValueString(std::string* string);
+	Error readStringUntilChar(std::string& string, char endChar);
+	Error readAttributeValueString(std::string& string);
 };
 
 class JsonSerializer : public Serializer, public FileWriter {
@@ -320,7 +311,7 @@ public:
 
 	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos);
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) override;
-	Error readTagOrAttributeValueString(std::string* string) override;
+	Error readTagOrAttributeValueString(std::string& string) override;
 	char const* readTagOrAttributeValue() override;
 	bool match(char const ch) override;
 	void exitTag(char const* exitTagName = NULL, bool closeObject = false) override;
@@ -354,9 +345,9 @@ private:
 	int32_t readInt();
 	bool getIntoAttributeValue();
 	int32_t readAttributeValueInt();
-	Error readAttributeValueString(std::string* string);
+	Error readAttributeValueString(std::string& string);
 
-	Error readStringUntilChar(std::string* string, char endChar);
+	Error readStringUntilChar(std::string& string, char endChar);
 };
 
 extern XMLSerializer smSerializer;

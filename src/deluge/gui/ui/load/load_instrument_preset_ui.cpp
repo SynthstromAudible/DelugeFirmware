@@ -407,12 +407,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		// We want to open the context menu to choose to reload the original file for the currently selected preset in
 		// some way. So first up, make sure there is a file, and that we've got its pointer
-		std::string filePath;
-		Error error = getCurrentFilePath(&filePath);
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return ActionResult::DEALT_WITH;
-		}
+		std::string filePath = getCurrentFilePath();
 
 		bool fileExists = StorageManager::fileExists(filePath.c_str(), &currentFileItem->filePointer);
 		if (!fileExists) {
@@ -608,11 +603,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 				currentDir = initialDirPath;
 
 				// Try getting from file
-				std::string filePath;
-				Error error = getCurrentFilePath(&filePath);
-				if (error != Error::NONE) {
-					return;
-				}
+				std::string filePath = getCurrentFilePath();
 
 				FilePointer tempFilePointer;
 
@@ -621,9 +612,9 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 					return;
 				}
 
-				error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType,
-				                                               false, &initialInstrument, &tempFilePointer,
-				                                               &initialName, &initialDirPath);
+				Error error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor,
+				                                                     initialOutputType, false, &initialInstrument,
+				                                                     &tempFilePointer, &initialName, &initialDirPath);
 				if (error != Error::NONE) {
 					return;
 				}

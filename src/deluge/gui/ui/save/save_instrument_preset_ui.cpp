@@ -113,8 +113,7 @@ gotError:
 	}
 
 	/*
-	std::string filePath;
-	error = getCurrentFilePath(&filePath);
+	std::string filePath = getCurrentFilePath();
 	if (error != Error::NONE) goto gotError;
 	currentFileExists = StorageManager::fileExists(filePath.get());
 */
@@ -147,8 +146,8 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 		currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.c_str());
 	}
 
-	std::string filePath;
-	Error error = getCurrentFilePath(&filePath);
+	std::string filePath = getCurrentFilePath();
+	Error error = Error::NONE;
 	if (error != Error::NONE) {
 fail:
 		display->displayError(error);

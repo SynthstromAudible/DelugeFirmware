@@ -189,20 +189,20 @@ std::string SlotBrowser::getCurrentFilenameWithoutExtension() {
 	return enteredText.c_str();
 }
 
-Error SlotBrowser::getCurrentFilePath(std::string* path) {
-	(*path) = currentDir;
+std::string SlotBrowser::getCurrentFilePath() {
+	std::string path = currentDir;
 
-	(*path).append("/");
+	path.append("/");
 
 	std::string filenameWithoutExtension = getCurrentFilenameWithoutExtension();
 
-	(*path).append(filenameWithoutExtension);
+	path.append(filenameWithoutExtension);
 	if (writeJsonFlag) {
-		(*path).append(".Json");
+		path.append(".Json");
 	}
 	else {
-		(*path).append(".XML");
+		path.append(".XML");
 	}
 
-	return Error::NONE;
+	return path;
 }

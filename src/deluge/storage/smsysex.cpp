@@ -235,7 +235,7 @@ void smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
 			forWrite = reader.readTagOrAttributeValueInt();
 		}
 		else if (!strcmp(tagName, "path")) {
-			reader.readTagOrAttributeValueString(&path);
+			reader.readTagOrAttributeValueString(path);
 		}
 		// Since you can't change the date/time of an open file, we use date/time
 		// only for created directoris.
@@ -311,7 +311,7 @@ void smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "path")) {
-			reader.readTagOrAttributeValueString(&path);
+			reader.readTagOrAttributeValueString(path);
 		}
 		else {
 			reader.exitTag();
@@ -343,7 +343,7 @@ void smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "path")) {
-			reader.readTagOrAttributeValueString(&path);
+			reader.readTagOrAttributeValueString(path);
 		}
 		else if (!strcmp(tagName, "date")) {
 			date = reader.readTagOrAttributeValueInt();
@@ -387,10 +387,10 @@ void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "from")) {
-			reader.readTagOrAttributeValueString(&fromName);
+			reader.readTagOrAttributeValueString(fromName);
 		}
 		else if (!strcmp(tagName, "to")) {
-			reader.readTagOrAttributeValueString(&toName);
+			reader.readTagOrAttributeValueString(toName);
 		}
 		else {
 			reader.exitTag();
@@ -435,7 +435,7 @@ void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 			linesWanted = reader.readTagOrAttributeValueInt();
 		}
 		else if (!strcmp(tagName, "path")) {
-			reader.readTagOrAttributeValueString(&path);
+			reader.readTagOrAttributeValueString(path);
 		}
 		else {
 			reader.exitTag();
@@ -675,7 +675,7 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "path")) {
-			reader.readTagOrAttributeValueString(&path);
+			reader.readTagOrAttributeValueString(path);
 		}
 		else if (!strcmp(tagName, "date")) {
 			date = reader.readTagOrAttributeValueInt();
@@ -714,7 +714,7 @@ void smSysex::assignSession(MIDICable& cable, JsonDeserializer& reader) {
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "tag")) {
-			reader.readTagOrAttributeValueString(&tag);
+			reader.readTagOrAttributeValueString(tag);
 		}
 		else {
 			reader.exitTag();
@@ -854,10 +854,10 @@ bool smSysex::parseFileOpParams(JsonDeserializer& reader, FileOpParams& params) 
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "from")) {
-			reader.readTagOrAttributeValueString(&params.fromName);
+			reader.readTagOrAttributeValueString(params.fromName);
 		}
 		else if (!strcmp(tagName, "to")) {
-			reader.readTagOrAttributeValueString(&params.toName);
+			reader.readTagOrAttributeValueString(params.toName);
 		}
 		else if (!strcmp(tagName, "date")) {
 			params.date = reader.readTagOrAttributeValueInt();

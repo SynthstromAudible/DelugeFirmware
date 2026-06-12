@@ -148,8 +148,8 @@ bool SavePatternUI::performSave(bool mayOverwrite) {
 		display->displayLoadingAnimation();
 	}
 
-	std::string filePath;
-	Error error = getCurrentFilePath(&filePath);
+	std::string filePath = getCurrentFilePath();
+	Error error = Error::NONE;
 	if (error != Error::NONE) {
 fail:
 		display->displayError(error);

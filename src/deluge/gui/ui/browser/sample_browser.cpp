@@ -424,12 +424,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 					}
 
 					// Ensure sample isn't used in current song
-					std::string filePath;
-					Error error = getCurrentFilePath(&filePath);
-					if (error != Error::NONE) {
-						display->displayError(error);
-						return ActionResult::DEALT_WITH;
-					}
+					std::string filePath = getCurrentFilePath();
 
 					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.c_str());
 
@@ -509,21 +504,17 @@ bool SampleBrowser::canImportWholeKit() {
 	        && (!getCurrentKit()->firstDrum->next));
 }
 
-Error SampleBrowser::getCurrentFilePath(std::string* path) {
-	Error error;
-
-	(*path) = currentDir;
-	int32_t oldLength = path->size();
-	if (oldLength) {
-		(*path).resize(oldLength);
-		(*path).append("/");
+std::string SampleBrowser::getCurrentFilePath() {
+	std::string path = currentDir;
+	if (!path.empty()) {
+		path.append("/");
 	}
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	(*path).append(currentFileItem->filename);
+	path.append(currentFileItem->filename);
 
-	return Error::NONE;
+	return path;
 }
 
 bool SampleBrowser::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -554,12 +545,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	// Preview the WAV file, if we're allowed
 	if (currentFileItem && !currentFileItem->isFolder) {
 
-		std::string filePath;
-		Error error = getCurrentFilePath(&filePath);
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return;
-		}
+		std::string filePath = getCurrentFilePath();
 
 		// This more formally does the thing that actually was happening accidentally for ages, as found by Michael B.
 		lastFilePathLoaded = filePath;
@@ -581,7 +567,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 			}
 		}
 
-		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
+		AudioEngine::previewSample(filePath, &currentFileItem->filePointer, shouldActuallySound);
 
 		if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
 			// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
@@ -743,10 +729,7 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(nullptr);
-	Error error = getCurrentFilePath(&holder->filePath);
-	if (error != Error::NONE) {
-		return error;
-	}
+	holder->filePath = getCurrentFilePath();
 
 	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
 	                        CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
@@ -757,13 +740,10 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(nullptr);
-	Error error = getCurrentFilePath(&holder->filePath);
-	if (error != Error::NONE) {
-		return error;
-	}
+	holder->filePath = getCurrentFilePath();
 
 	bool reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
-	error = holder->loadFile(reversed, true, true);
+	Error error = holder->loadFile(reversed, true, true);
 
 	// If there's a pre-margin, we want to set an attack-time
 	if (error == Error::NONE && ((SampleHolder*)holder)->startPos) {
@@ -1214,11 +1194,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	char const* previouslyViewedFilename = "";
 
 	if (currentFileItem->isFolder) {
-		error = getCurrentFilePath(&dirToLoad);
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return false;
-		}
+		dirToLoad = getCurrentFilePath();
 	}
 	else {
 		dirToLoad = currentDir;

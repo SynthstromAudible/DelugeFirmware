@@ -401,7 +401,7 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 	}
 
 	else if (!strcmp(tagName, getNameXMLTag())) {
-		reader.readTagOrAttributeValueString(&name);
+		reader.readTagOrAttributeValueString(name);
 	}
 
 	else {

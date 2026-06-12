@@ -80,7 +80,7 @@ Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 					favourites[i].colour = reader.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName, "instrumentPresetFolder")) {
-					reader.readTagOrAttributeValueString(&fileName);
+					reader.readTagOrAttributeValueString(fileName);
 					favourites[i].filename = fileName.c_str();
 				}
 			}

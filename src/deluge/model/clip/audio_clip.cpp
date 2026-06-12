@@ -1118,11 +1118,11 @@ someError:
 		// D_PRINTLN(tagName); delayMS(30);
 
 		if (!strcmp(tagName, "trackName")) {
-			reader.readTagOrAttributeValueString(&outputNameWhileLoading);
+			reader.readTagOrAttributeValueString(outputNameWhileLoading);
 		}
 
 		else if (!strcmp(tagName, "filePath")) {
-			reader.readTagOrAttributeValueString(&sampleHolder.filePath);
+			reader.readTagOrAttributeValueString(sampleHolder.filePath);
 		}
 
 		else if (!strcmp(tagName, "overdubsShouldCloneAudioTrack")) {

@@ -132,7 +132,7 @@ bool Instrument::readTagFromFile(Deserializer& reader, char const* tagName) {
 	}
 
 	else if (!strcmp(tagName, "presetFolder")) {
-		reader.readTagOrAttributeValueString(&dirPath);
+		reader.readTagOrAttributeValueString(dirPath);
 	}
 
 	else {

@@ -63,19 +63,17 @@ sdError:
 }
 
 // TODO: this is identical to SampleBrowser, move to parent class?
-Error DxSyxBrowser::getCurrentFilePath(std::string* path) {
-	(*path) = currentDir;
-	int oldLength = path->size();
-	if (oldLength) {
-		(*path).resize(oldLength);
-		(*path).append("/");
+std::string DxSyxBrowser::getCurrentFilePath() {
+	std::string path = currentDir;
+	if (!path.empty()) {
+		path.append("/");
 	}
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	(*path).append(currentFileItem->filename);
+	path.append(currentFileItem->filename);
 
-	return Error::NONE;
+	return path;
 }
 
 void DxSyxBrowser::enterKeyPress() {
@@ -100,8 +98,7 @@ void DxSyxBrowser::enterKeyPress() {
 	}
 	else {
 		// TODO: c.f. slotbrowser, we might just be able to pass a file pointer to the FAT loader
-		std::string path;
-		getCurrentFilePath(&path);
+		std::string path = getCurrentFilePath();
 		close();
 
 		if (!path.empty()) {

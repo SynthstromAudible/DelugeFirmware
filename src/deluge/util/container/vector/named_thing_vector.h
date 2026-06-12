@@ -24,7 +24,7 @@
 
 class NamedThingVectorElement {
 public:
-	NamedThingVectorElement(void* newNamedThing, std::string* newName);
+	NamedThingVectorElement(void* newNamedThing, const std::string& newName);
 	~NamedThingVectorElement() {} // Empty, but must call this so that the std::string's destructor is also called
 	void* namedThing;
 	std::string name; // Store this here so we don't have to go follow the Sample's pointer first to find this out
@@ -40,7 +40,7 @@ public:
 	void removeElement(int32_t i);
 	Error insertElement(void* namedThing);
 	Error insertElement(void* namedThing, int32_t i);
-	void renameMember(int32_t i, std::string* newName);
+	void renameMember(int32_t i, const std::string& newName);
 
 	const int32_t stringOffset;
 

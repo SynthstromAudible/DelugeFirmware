@@ -3401,7 +3401,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				return Error::INSUFFICIENT_RAM;
 			}
 
-			reader.readTagOrAttributeValueString(&range->getAudioFileHolder()->filePath);
+			reader.readTagOrAttributeValueString(range->getAudioFileHolder()->filePath);
 
 			reader.exitTag("fileName");
 		}
@@ -3482,7 +3482,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 					while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 						if (!strcmp(tagName, "fileName")) {
-							reader.readTagOrAttributeValueString(&holder->filePath);
+							reader.readTagOrAttributeValueString(holder->filePath);
 							reader.exitTag("fileName");
 						}
 						else if (!strcmp(tagName, "rangeTopNote")) {

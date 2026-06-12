@@ -245,7 +245,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 				display->displayPopup("Community file err");
 				break;
 			}
-			reader.readTagOrAttributeValueString(&currentName);
+			reader.readTagOrAttributeValueString(currentName);
 			reader.exitTag();
 
 			// Read value

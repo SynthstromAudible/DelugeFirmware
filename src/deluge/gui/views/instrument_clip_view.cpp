@@ -1548,7 +1548,7 @@ ramError:
 		if (!strcmp(tagName, "attributes")) {
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "patternVersion")) {
-					reader.readTagOrAttributeValueString(&patternVersion);
+					reader.readTagOrAttributeValueString(patternVersion);
 					if (!(patternVersion == PATTERN_FILE_VERSION)) {
 						display->displayError(Error::INVALID_PATTERN_VERSION);
 						return Error::INVALID_PATTERN_VERSION;

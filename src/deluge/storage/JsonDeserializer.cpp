@@ -211,10 +211,10 @@ int32_t JsonDeserializer::readAttributeValueInt() {
 }
 
 // Only call if PAST_ATTRIBUTE_NAME or PAST_COLON
-Error JsonDeserializer::readAttributeValueString(std::string* string) {
+Error JsonDeserializer::readAttributeValueString(std::string& string) {
 
 	if (!getIntoAttributeValue()) {
-		string->clear();
+		string.clear();
 		return Error::NONE;
 	}
 	Error error = readStringUntilChar(string, '"');
@@ -239,7 +239,7 @@ void JsonDeserializer::skipUntilChar(char endChar) {
 
 // A non-destructive (to the fileClusterBuffer contents) routine to read into a std::string object.
 // Returns memory error. If error, caller must deal with the fact that the end-character hasn't been reached.
-Error JsonDeserializer::readStringUntilChar(std::string* string, char endChar) {
+Error JsonDeserializer::readStringUntilChar(std::string& string, char endChar) {
 
 	int32_t newStringPos = 0;
 
@@ -252,8 +252,8 @@ Error JsonDeserializer::readStringUntilChar(std::string* string, char endChar) {
 		int32_t numCharsHere = bufferPosNow - fileReadBufferCurrentPos;
 
 		if (numCharsHere) {
-			(*string).resize(newStringPos);
-			(*string).append(&fileClusterBuffer[fileReadBufferCurrentPos], numCharsHere);
+			string.resize(newStringPos);
+			string.append(&fileClusterBuffer[fileReadBufferCurrentPos], numCharsHere);
 
 			fileReadBufferCurrentPos = bufferPosNow;
 
@@ -468,7 +468,7 @@ getOut:
 }
 
 // Returns memory error
-Error JsonDeserializer::readTagOrAttributeValueString(std::string* string) {
+Error JsonDeserializer::readTagOrAttributeValueString(std::string& string) {
 	if (!skipWhiteSpace())
 		return Error::FILE_CORRUPTED;
 	skipUntilChar('\"');

@@ -517,7 +517,7 @@ void MIDIInstrument::readDeviceDefinitionFileNameFromPresetOrSong(Deserializer& 
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "name")) {
-			reader.readTagOrAttributeValueString(&deviceDefinitionFileName);
+			reader.readTagOrAttributeValueString(deviceDefinitionFileName);
 		}
 		reader.exitTag();
 	}

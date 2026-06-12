@@ -19,9 +19,9 @@
 #include <new>
 #include <string.h>
 
-NamedThingVectorElement::NamedThingVectorElement(void* newNamedThing, std::string* newName) {
+NamedThingVectorElement::NamedThingVectorElement(void* newNamedThing, const std::string& newName) {
 	namedThing = newNamedThing;
-	name = *newName;
+	name = newName;
 }
 
 NamedThingVector::NamedThingVector(int32_t newStringOffset)
@@ -92,7 +92,7 @@ Error NamedThingVector::insertElement(void* namedThing, int32_t i) {
 	}
 
 	std::string* name = getName(namedThing);
-	new (getMemory(i)) NamedThingVectorElement(namedThing, name);
+	new (getMemory(i)) NamedThingVectorElement(namedThing, *name);
 
 	return Error::NONE;
 }
@@ -103,13 +103,13 @@ void NamedThingVector::removeElement(int32_t i) {
 }
 
 // Check the new name is in fact different before calling this, if you want.
-void NamedThingVector::renameMember(int32_t i, std::string* newName) {
+void NamedThingVector::renameMember(int32_t i, const std::string& newName) {
 
-	int32_t newI = search(newName->c_str(), GREATER_OR_EQUAL);
+	int32_t newI = search(newName.c_str(), GREATER_OR_EQUAL);
 
 	NamedThingVectorElement* memory = getMemory(i);
-	memory->name = *newName;                   // Can't fail
-	(*getName(memory->namedThing)) = *newName; // Can't fail
+	memory->name = newName;                   // Can't fail
+	(*getName(memory->namedThing)) = newName; // Can't fail
 
 	// Probably need to move element now we've changed its name.
 	if (newI > i + 1) {

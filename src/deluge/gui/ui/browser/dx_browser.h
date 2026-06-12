@@ -26,7 +26,7 @@ public:
 	DxSyxBrowser();
 	bool opened() override;
 	void enterKeyPress() override;
-	Error getCurrentFilePath(std::string* path) override;
+	std::string getCurrentFilePath() override;
 	// ui
 	UIType getUIType() override { return UIType::DX_BROWSER; }
 };

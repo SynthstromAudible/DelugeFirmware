@@ -130,8 +130,8 @@ bool SaveSongUI::performSave(bool mayOverwrite) {
 
 	display->displayLoadingAnimationText("Saving");
 
-	std::string filePath;
-	Error error = getCurrentFilePath(&filePath);
+	std::string filePath = getCurrentFilePath();
+	Error error = Error::NONE;
 	if (error != Error::NONE) {
 gotError:
 		display->removeLoadingAnimation();
