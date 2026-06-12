@@ -41,7 +41,7 @@ public:
 
 		Source& source = soundEditor.currentSound->sources[source_id_];
 
-		if (source.ranges.getNumElements() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+		if (!source.ranges.empty() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && source.oscType == OscType::SAMPLE) {
 			const auto* multiRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
 			transpose = multiRange->sampleHolder.transpose;
@@ -70,7 +70,7 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source& source = soundDrum->sources[source_id_];
 
-					if (source.ranges.getNumElements() && soundDrum->getSynthMode() != SynthMode::FM
+					if (!source.ranges.empty() && soundDrum->getSynthMode() != SynthMode::FM
 					    && source.oscType == OscType::SAMPLE) {
 						auto* multisampleRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
 						multisampleRange->sampleHolder.transpose = transpose;
@@ -93,7 +93,7 @@ public:
 		else {
 			Source& source = soundEditor.currentSound->sources[source_id_];
 
-			if (source.ranges.getNumElements() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+			if (!source.ranges.empty() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 			    && source.oscType == OscType::SAMPLE) {
 				auto* multisampleRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
 				multisampleRange->sampleHolder.transpose = transpose;

@@ -20,6 +20,7 @@
 #include "hid/button.h"
 #include "model/sample/sample.h"
 #include "util/try.h"
+#include <iterator>
 #include <ranges>
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
@@ -582,7 +583,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		*/
 
 		// If the Sample at least loaded, even if we didn't sound it, then try to render its waveform.
-		if (AudioEngine::sampleForPreview->sources[0].ranges.getNumElements() >= 1) {
+		if (std::ssize(AudioEngine::sampleForPreview->sources[0].ranges) >= 1) {
 			AudioFile* sample = ((MultisampleRange*)AudioEngine::sampleForPreview->sources[0].ranges.getElement(0))
 			                        ->sampleHolder.audioFile;
 
@@ -827,7 +828,7 @@ doLoadAsWaveTable:
 
 			/*
 			// If multiple Ranges, then forbid the changing from Sample to WaveTable.
-			if (soundEditor.currentSource->ranges.getNumElements() > 1
+			if (std::ssize(soundEditor.currentSource->ranges) > 1
 			        && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 #if ALPHA_OR_BETA_VERSION
 			    if (mayDoWaveTable == 2) FREEZE_WITH_ERROR("E425");
@@ -895,7 +896,7 @@ doLoadAsSample:
 
 			/*
 			// If multiple Ranges, then forbid the changing from WaveTable to Sample.
-			if (soundEditor.currentSource->ranges.getNumElements() > 1
+			if (std::ssize(soundEditor.currentSource->ranges) > 1
 			        && soundEditor.currentSource->oscType == OscType::WAVETABLE) {
 #if ALPHA_OR_BETA_VERSION
 			    if (!mayDoWaveTable) FREEZE_WITH_ERROR("E426");
@@ -1007,7 +1008,7 @@ doLoadAsSample:
 
 				// Detect pitch
 				if (mayDoPitchDetection) {
-					bool shouldMinimizeOctaves = (soundEditor.currentSource->ranges.getNumElements() == 1);
+					bool shouldMinimizeOctaves = (std::ssize(soundEditor.currentSource->ranges) == 1);
 
 					((MultisampleRange*)soundEditor.currentMultiRange)
 					    ->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves, doingSingleCycleNow);
@@ -1048,7 +1049,7 @@ doLoadAsSample:
 		getCurrentInstrument()->beenEdited();
 
 		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).
-		if (soundEditor.currentSource->ranges.getNumElements() <= 1 && soundEditor.navigationDepth
+		if (std::ssize(soundEditor.currentSource->ranges) <= 1 && soundEditor.navigationDepth
 		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &menu_item::multiRangeMenu) {
 			soundEditor.navigationDepth--;
 		}
@@ -1635,7 +1636,7 @@ doReturnFalse:
 	AudioEngine::routineWithClusterLoading();
 
 	// Delete all but first pre-existing range
-	int32_t oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
+	int32_t oldNumRanges = std::ssize(soundEditor.currentSource->ranges);
 	for (int32_t i = oldNumRanges - 1; i >= 1; i--) {
 		soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex, i);
 	}
@@ -1645,7 +1646,7 @@ doReturnFalse:
 	if (numSamples > 1) {
 		soundEditor.currentSound->killAllVoices();
 		AudioEngine::audioRoutineLocked = true;
-		bool success = soundEditor.currentSource->ranges.ensureEnoughSpaceAllocated(numSamples - 1);
+		bool success = soundEditor.currentSource->ranges.reserveExtra(numSamples - 1).has_value();
 		AudioEngine::audioRoutineLocked = false;
 
 		if (!success) {

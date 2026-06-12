@@ -64,6 +64,7 @@
 #include <algorithm>
 #include <array>
 #include <bits/ranges_algo.h>
+#include <iterator>
 #include <limits>
 #include <ranges>
 
@@ -3521,11 +3522,10 @@ justExitTag:
 						}
 					}
 
-					int32_t i = source->ranges.search(tempRange->topNote, GREATER_OR_EQUAL);
+					int32_t i = source->ranges.firstAtOrAfter(tempRange->topNote);
 
 					// Ensure no duplicate topNote.
-					if (i < source->ranges.getNumElements()
-					    && source->ranges.getElement(i)->topNote == tempRange->topNote) {
+					if (i < std::ssize(source->ranges) && source->ranges.getElement(i)->topNote == tempRange->topNote) {
 						return Error::FILE_CORRUPTED;
 					}
 
@@ -3574,7 +3574,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			writer.writeAttribute("linearInterpolation", 1);
 		}
 
-		int32_t numRanges = source->ranges.getNumElements();
+		int32_t numRanges = std::ssize(source->ranges);
 
 		if (numRanges > 1) {
 			writer.writeOpeningTagEnd();
@@ -3642,7 +3642,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		// Sub-option for (multi)wavetable
 		if (source->oscType == OscType::WAVETABLE && synthMode != SynthMode::FM) {
 
-			int32_t numRanges = source->ranges.getNumElements();
+			int32_t numRanges = std::ssize(source->ranges);
 
 			if (numRanges > 1) {
 				writer.writeOpeningTagEnd();
@@ -4715,7 +4715,7 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	// during memory allocation
 	killAllVoices();
 	AudioEngine::audioRoutineLocked = true;
-	sources[s].ranges.deleteAtIndex(r); // Destructs the range
+	sources[s].ranges.erase(sources[s].ranges.begin() + r); // Destructs the range
 	AudioEngine::audioRoutineLocked = false;
 }
 
@@ -4757,7 +4757,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 		if (source->oscType == OscType::SAMPLE) { // Just SAMPLE, because WAVETABLEs can't be stereo.
 
-			int32_t numRanges = source->ranges.getNumElements();
+			int32_t numRanges = std::ssize(source->ranges);
 
 			// If multiple ranges, we have to come back and examine Voices to see which are in use
 			if (numRanges > 1) {

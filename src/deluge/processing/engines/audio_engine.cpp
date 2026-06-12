@@ -70,6 +70,7 @@
 #include <cstdint>
 #include <cstring>
 #include <execution>
+#include <iterator>
 #include <new>
 #include <numeric>
 #include <ranges>
@@ -1343,7 +1344,7 @@ void previewSample(std::string_view path, FilePointer* filePointer, bool shouldA
 
 void stopAnyPreviewing() {
 	sampleForPreview->killAllVoices();
-	if (sampleForPreview->sources[0].ranges.getNumElements()) {
+	if (std::ssize(sampleForPreview->sources[0].ranges)) {
 		MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
 	}

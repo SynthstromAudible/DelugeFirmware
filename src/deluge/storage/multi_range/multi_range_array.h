@@ -24,11 +24,6 @@
 #include <expected>
 #include <variant>
 
-#ifndef GREATER_OR_EQUAL
-#define GREATER_OR_EQUAL 0
-#define LESS (-1)
-#endif
-
 /// A Source's key ranges, sorted ascending by topNote. At any one time all elements are the same alternative
 /// (sample or wavetable) - changeType() converts the lot, which mirrors the old implementation where the whole
 /// array's element size was switched.
@@ -40,20 +35,13 @@ public:
 		return std::visit([](auto& range) -> MultiRange* { return &range; }, variant);
 	}
 
-	[[nodiscard]] int32_t getNumElements() const { return static_cast<int32_t>(ranges_.size()); }
+	auto begin() { return ranges_.begin(); }
+	auto end() { return ranges_.end(); }
 	MultiRange* getElement(int32_t i) { return variantToRange(ranges_[i]); }
 
 	/// The size of the elements currently stored, as a stand-in for a type tag (mirrors the old elementSize field)
 	[[nodiscard]] int32_t currentElementSize() const {
 		return holdsWaveTableRanges_ ? sizeof(MultiWaveTableRange) : sizeof(MultisampleRange);
-	}
-
-	[[nodiscard]] int32_t search(int32_t key, int32_t comparison, int32_t rangeBegin = 0) const {
-		auto it = std::lower_bound(
-		    ranges_.begin() + rangeBegin, ranges_.end(), key, [](RangeVariant const& variant, int32_t topNote) {
-			    return std::visit([](auto const& r) { return (int32_t)r.topNote; }, variant) < topNote;
-		    });
-		return static_cast<int32_t>(it - ranges_.begin()) + comparison;
 	}
 
 	/// Inserts a new, empty range of the current type at index i. Returns nullptr on OOM.
@@ -112,9 +100,7 @@ public:
 		return Error::NONE;
 	}
 
-	void deleteAtIndex(int32_t i, int32_t numToDelete = 1) {
-		ranges_.erase(ranges_.begin() + i, ranges_.begin() + i + numToDelete);
-	}
+	auto erase(deluge::fast_vector<RangeVariant>::iterator at) { return ranges_.erase(at); }
 
 	[[nodiscard]] size_t size() const { return ranges_.size(); }
 	[[nodiscard]] bool empty() const { return ranges_.empty(); }
@@ -135,15 +121,6 @@ public:
 			return std::visit([](auto const& r) { return (int32_t)r.topNote; }, variant);
 		});
 		return static_cast<int32_t>(it - ranges_.begin());
-	}
-
-	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded) {
-		try {
-			ranges_.reserve(ranges_.size() + numAdditionalElementsNeeded);
-			return true;
-		} catch (deluge::exception&) {
-			return false;
-		}
 	}
 
 private:

@@ -47,6 +47,7 @@
 #include "util/functions.h"
 #include <algorithm>
 #include <cstring>
+#include <iterator>
 
 using namespace deluge::gui;
 
@@ -433,7 +434,7 @@ void Slicer::stopAnyPreviewing() {
 	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 	drum->killAllVoices();
-	if (drum->sources[0].ranges.getNumElements()) {
+	if (std::ssize(drum->sources[0].ranges)) {
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
 	}
