@@ -156,10 +156,7 @@ static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
 }
 
 // Multiplies A and B, adds to sum, and returns output.
-// NB: keep the 64-bit product term separate and add `sum` last. The old form shifted sum<<32 first
-// (~2^63) then added a*b (~2^62), overflowing int64 (UB) for Q31-scale operands — it diverged from the
-// ARM smmla (which wraps in 32-bit) and, at -O2, the UB corrupted neighbouring code. Mathematically the
-// non-overflowing forms below are identical to the originals: floor((sum<<32 ± a*b)/2^32) = sum ± (a*b>>32).
+// NB: keep the 64-bit product term separate and add `sum` last.
 static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
 	return (q31_t)(sum + (((int64_t)a * b) >> 32));
 }
@@ -180,8 +177,7 @@ static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a,
 }
 
 // Matches ARM `ssat %0, %1, #bits`: clamp to the signed range representable in `bits` bits,
-// i.e. [-2^(bits-1), 2^(bits-1)-1]. (The old host stub `std::min(val, 1<<bits)` clamped only the
-// upper bound, to the wrong value, with no lower bound — silently wrong saturation in the DSP.)
+// i.e. [-2^(bits-1), 2^(bits-1)-1].
 template <uint8_t bits>
 static inline int32_t signed_saturate(int32_t val) {
 	constexpr int32_t hi = static_cast<int32_t>((static_cast<uint32_t>(1) << (bits - 1)) - 1);
@@ -189,8 +185,7 @@ static inline int32_t signed_saturate(int32_t val) {
 	return val > hi ? hi : (val < lo ? lo : val);
 }
 
-// Matches ARM `qadd`: saturating add, clamped to the signed 32-bit range (the old host stub
-// `a + b` wrapped on overflow — a ramp past INT32_MAX flipped to negative instead of pinning).
+// Matches ARM `qadd`: saturating add, clamped to the signed 32-bit range.
 static inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t add_saturate(int32_t a, int32_t b) {
 	int64_t r = static_cast<int64_t>(a) + b;
