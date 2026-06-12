@@ -43,18 +43,12 @@ MIDIParamCollection::~MIDIParamCollection() {
 }
 
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
-
-		if (action) {
-			midiParam->param.deleteAutomationBasicForSetup();
+	if (action) {
+		for (int32_t i = 0; i < params.getNumElements(); i++) {
+			params.getElement(i)->param.deleteAutomationBasicForSetup();
 		}
-		midiParam->~MIDIParam();
 	}
-
-	if (deleteStorageToo) {
-		params.empty();
-	}
+	params.empty(); // Destructs the params (the deleteStorageToo distinction is moot now this does both)
 }
 
 void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelStack) {

@@ -16,42 +16,31 @@
  */
 
 #include "modulation/midi/midi_param_vector.h"
-#include "modulation/midi/midi_param.h"
-#include <new>
-
-MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 8) {
-}
 
 MIDIParam* MIDIParamVector::getParamFromCC(int32_t cc) {
 	int32_t i = searchExact(cc);
 	if (i == -1) {
-		return NULL;
+		return nullptr;
 	}
-	else {
-		return getElement(i);
-	}
+	return getElement(i);
 }
 
 MIDIParam* MIDIParamVector::getOrCreateParamFromCC(int32_t cc, int32_t defaultValue, bool allowCreation) {
 	int32_t i = search(cc, GREATER_OR_EQUAL);
 	MIDIParam* param;
-	if (i >= getNumElements()) {
-doesntExistYet:
+	if (i >= getNumElements() || getElement(i)->cc != cc) {
 		if (!allowCreation) {
-			return NULL;
+			return nullptr;
 		}
 		param = insertParam(i);
 		if (!param) {
-			return NULL;
+			return nullptr;
 		}
 		param->cc = cc;
 		param->param.setCurrentValueBasicForSetup(defaultValue);
 	}
 	else {
 		param = getElement(i);
-		if (param->cc != cc) {
-			goto doesntExistYet;
-		}
 	}
 	return param;
 }
@@ -59,15 +48,11 @@ doesntExistYet:
 MIDIParam* MIDIParamVector::insertParam(int32_t i) {
 	Error error = insertAtIndex(i);
 	if (error != Error::NONE) {
-		return NULL;
+		return nullptr;
 	}
-	else {
-		void* address = getElementAddress(i);
-		MIDIParam* param = new (address) MIDIParam();
-		return param;
-	}
+	return getElementAddress(i);
 }
 
 MIDIParam* MIDIParamVector::getElement(int32_t i) {
-	return (MIDIParam*)getElementAddress(i);
+	return getElementAddress(i);
 }

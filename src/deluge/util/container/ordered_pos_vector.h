@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "util/containers.h"
 #include <algorithm>
+#include <cstring>
 #include <new>
 #include <type_traits>
 
@@ -181,17 +182,27 @@ public:
 	}
 
 	/// Call after this object was byte-copied from another instance (the legacy cloning idiom): gives this copy
-	/// its own buffer. Until this is called, the byte-copy aliases the original's buffer, which the original
-	/// still owns; on failure this copy is detached and left empty.
+	/// its own buffer, holding *byte-copies* of the elements. For trivially-copyable element types that is a
+	/// complete deep copy; for element types that themselves own memory, it reproduces the legacy semantics
+	/// where each element still aliases the original's allocations until its own beenCloned()-style fix-up runs.
+	/// Until this is called, the byte-copy aliases the original's buffer, which the original still owns; on
+	/// failure this copy is detached and left empty.
 	Error beenCloned() {
+		int32_t num = getNumElements();
+		T const* sourceData = elements_.data(); // Reading through the aliased buffer is safe
+		fast_vector<T> fresh;
 		try {
-			fast_vector<T> copy(elements_);                   // Deep copy; reading through the aliased buffer is safe
-			new (&elements_) fast_vector<T>(std::move(copy)); // Overwrite the alias without destructing it
-			return Error::NONE;
+			fresh.reserve(num);
 		} catch (deluge::exception&) {
 			new (&elements_) fast_vector<T>();
 			return Error::INSUFFICIENT_RAM;
 		}
+		for (int32_t i = 0; i < num; i++) {
+			fresh.emplace_back();
+			std::memcpy(static_cast<void*>(&fresh.back()), static_cast<void const*>(&sourceData[i]), sizeof(T));
+		}
+		new (&elements_) fast_vector<T>(std::move(fresh)); // Overwrite the alias without destructing it
+		return Error::NONE;
 	}
 
 	/// Rotates all keys forward by `amount` (which may be negative) within a span of `effectiveLength`,
