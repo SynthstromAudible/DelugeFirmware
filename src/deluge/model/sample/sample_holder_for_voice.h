@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "model/sample/sample_holder.h"
 #include "util/phase_increment_fine_tuner.h"
 
@@ -25,6 +27,29 @@ class Source;
 class SampleHolderForVoice final : public SampleHolder {
 public:
 	SampleHolderForVoice();
+
+	SampleHolderForVoice(SampleHolderForVoice&& other) noexcept
+	    : SampleHolder(std::move(other)), loopStartPos(other.loopStartPos), loopEndPos(other.loopEndPos),
+	      transpose(other.transpose), cents(other.cents), loopLocked(other.loopLocked), startMSec(other.startMSec),
+	      endMSec(other.endMSec) {
+		for (size_t i = 0; i < kNumClustersLoadedAhead; i++) {
+			clustersForLoopStart[i] = std::exchange(other.clustersForLoopStart[i], nullptr);
+		}
+	}
+	SampleHolderForVoice& operator=(SampleHolderForVoice&& other) noexcept {
+		SampleHolder::operator=(std::move(other));
+		loopStartPos = other.loopStartPos;
+		loopEndPos = other.loopEndPos;
+		transpose = other.transpose;
+		cents = other.cents;
+		loopLocked = other.loopLocked;
+		startMSec = other.startMSec;
+		endMSec = other.endMSec;
+		for (size_t i = 0; i < kNumClustersLoadedAhead; i++) {
+			clustersForLoopStart[i] = std::exchange(other.clustersForLoopStart[i], nullptr);
+		}
+		return *this;
+	}
 	~SampleHolderForVoice() override;
 	void unassignAllClusterReasons(bool beingDestructed = false) override;
 	void setCents(int32_t newCents);

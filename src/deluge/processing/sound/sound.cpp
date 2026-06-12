@@ -3456,15 +3456,11 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				if (!strcmp(tagName, "sampleRange") || !strcmp(tagName, "wavetableRange")) {
 					// is a sampleRange or wavetableRange
 
-					char tempMemory[source->ranges.elementSize];
-
-					MultiRange* tempRange;
-					if (source->oscType == OscType::WAVETABLE) {
-						tempRange = new (tempMemory) MultiWaveTableRange();
-					}
-					else {
-						tempRange = new (tempMemory) MultisampleRange();
-					}
+					MultiRangeArray::RangeVariant tempVariant =
+					    (source->oscType == OscType::WAVETABLE)
+					        ? MultiRangeArray::RangeVariant(std::in_place_type<MultiWaveTableRange>)
+					        : MultiRangeArray::RangeVariant(std::in_place_type<MultisampleRange>);
+					MultiRange* tempRange = MultiRangeArray::variantToRange(tempVariant);
 
 					AudioFileHolder* holder = tempRange->getAudioFileHolder();
 					reader.match('{');
@@ -3526,26 +3522,17 @@ justExitTag:
 					}
 
 					int32_t i = source->ranges.search(tempRange->topNote, GREATER_OR_EQUAL);
-					Error error;
 
 					// Ensure no duplicate topNote.
-					if (i < source->ranges.getNumElements()) {
-						MultisampleRange* existingRange = (MultisampleRange*)source->ranges.getElementAddress(i);
-						if (existingRange->topNote == tempRange->topNote) {
-							error = Error::FILE_CORRUPTED;
-							goto gotError;
-						}
+					if (i < source->ranges.getNumElements()
+					    && source->ranges.getElement(i)->topNote == tempRange->topNote) {
+						return Error::FILE_CORRUPTED;
 					}
 
-					error = source->ranges.insertAtIndex(i);
+					Error error = source->ranges.insertVariant(i, std::move(tempVariant));
 					if (error != Error::NONE) {
-gotError:
-						tempRange->~MultiRange();
 						return error;
 					}
-
-					void* destinationRange = (MultisampleRange*)source->ranges.getElementAddress(i);
-					memcpy(destinationRange, tempRange, source->ranges.elementSize);
 					reader.match('}');          // exit value object
 					reader.exitTag(NULL, true); // exit box.
 				}
@@ -4728,8 +4715,7 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	// during memory allocation
 	killAllVoices();
 	AudioEngine::audioRoutineLocked = true;
-	sources[s].ranges.getElement(r)->~MultiRange();
-	sources[s].ranges.deleteAtIndex(r);
+	sources[s].ranges.deleteAtIndex(r); // Destructs the range
 	AudioEngine::audioRoutineLocked = false;
 }
 

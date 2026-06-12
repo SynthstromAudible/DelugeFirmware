@@ -47,17 +47,6 @@ Source::Source() {
 }
 
 Source::~Source() {
-	destructAllMultiRanges();
-}
-
-// Destructs the actual MultiRanges, but doesn't actually deallocate the memory, aka calling empty() on the Array - the
-// caller must do this.
-void Source::destructAllMultiRanges() {
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
-		AudioEngine::logAction("destructAllMultiRanges()");
-		AudioEngine::routineWithClusterLoading();
-		ranges.getElement(e)->~MultiRange();
-	}
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
@@ -250,20 +239,11 @@ void Source::setOscType(OscType newType) {
 	if (newType == OscType::SAMPLE) {
 		multiRangeSize = sizeof(MultisampleRange);
 possiblyDeleteRanges:
-		if (ranges.elementSize != multiRangeSize) {
-
-			/*
-			if (ranges.anyRangeHasAudioFile()) {
-
-			}
-
-			destructAllMultiRanges();
-			*/
+		if (ranges.currentElementSize() != multiRangeSize) {
 
 doChangeType:
 			Error error = ranges.changeType(multiRangeSize);
 			if (error != Error::NONE) {
-				destructAllMultiRanges();
 				ranges.empty();
 				soundEditor.currentMultiRangeIndex = 0;
 				goto doChangeType; // Can't fail now it's empty.
@@ -276,8 +256,7 @@ doChangeType:
 
 			if (soundEditor.currentMultiRangeIndex >= 0
 			    && soundEditor.currentMultiRangeIndex < ranges.getNumElements()) {
-				soundEditor.currentMultiRange =
-				    (MultiRange*)ranges.getElementAddress(soundEditor.currentMultiRangeIndex);
+				soundEditor.currentMultiRange = ranges.getElement(soundEditor.currentMultiRangeIndex);
 			}
 		}
 	}

@@ -1772,7 +1772,7 @@ skipOctaveCorrection:
 		}
 		else {
 #if ALPHA_OR_BETA_VERSION
-			if (soundEditor.currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
+			if (soundEditor.currentSource->ranges.currentElementSize() != sizeof(MultisampleRange)) {
 				FREEZE_WITH_ERROR("E431");
 			}
 #endif

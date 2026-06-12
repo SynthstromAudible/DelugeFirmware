@@ -27,6 +27,8 @@ class Cluster;
 class MultisampleRange final : public MultiRange {
 public:
 	MultisampleRange();
+	MultisampleRange(MultisampleRange&&) noexcept = default;
+	MultisampleRange& operator=(MultisampleRange&&) noexcept = default;
 	AudioFileHolder* getAudioFileHolder() override;
 
 	SampleHolderForVoice sampleHolder;

@@ -71,5 +71,4 @@ public:
 	DxPatch* ensureDxPatch();
 
 private:
-	void destructAllMultiRanges();
 };
