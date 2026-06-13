@@ -268,11 +268,17 @@ cases are deferred until audio files join the card images.
 
 ### Phase 1 — Make L0 true
 
-Scrub `dsp/`'s upward reaches: invert the `oscillator.h → storage/wave_table`
-dependency (`WaveTableView` POD in dsp; storage owns loading); absorb
-`processing/render_wave.h` and `vector_rendering_function.h`; replace
-`spareRenderingBuffer` and FlashStorage reads with injected scratch/config.
-Grow per-primitive unit tests out of dsp_diff.
+Scrub `dsp/`'s upward reaches: relocate `processing/render_wave.h` +
+`vector_rendering_function.h` into `dsp/`; inject `cpuDireness`/`renderInStereo`
+and scratch buffers instead of reading the `AudioEngine` globals and
+`spareRenderingBuffer`; invert the `oscillator.h → storage/wave_table`
+dependency (`WaveTableView` POD in dsp; storage owns loading and the render
+kernels move down to dsp); carve the L0 lookup-table/filter-config subsets out
+of the shared util/model headers. Lock it with a `dsp/` include-lint gate and
+per-primitive dsp_diff drivers. Sample/granular/timestretch stay on an
+allowlist for Phase 3.
+
+**Detailed step-by-step plan: [synth_phase1_l0_plan.md](synth_phase1_l0_plan.md).**
 
 ### Phase 2 — Kill the offsetof data plane
 
