@@ -1038,6 +1038,7 @@ void routine() {
 
 				numSamplesLastTime = numSamples;
 				renderAudioForStemExport(numSamples);
+				sideChainHitPending = 0;
 				audioSampleTimer += numSamples;
 				doSomeOutputting();
 				// gross and hacky way to make sure the audio recorder writes all of its data so it can't be stolen
