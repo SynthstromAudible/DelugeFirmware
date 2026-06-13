@@ -27,7 +27,6 @@
 #include "dsp-next/fixed/table_oscillator.h"
 #include "wavetable_oscillator.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/fixedpoint.h"
 

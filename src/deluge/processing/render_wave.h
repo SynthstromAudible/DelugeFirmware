@@ -16,7 +16,6 @@
  */
 
 #pragma once
-#include "processing/vector_rendering_function.h"
 #include "util/fixedpoint.h"
 #include "util/waves.h"
 #include <argon.hpp>
@@ -89,21 +88,4 @@ renderOscSync(auto storageFunction, auto extraInstructionsForCrossoverSampleRedo
 		samplesIncludingNextCrossoverSample = 2; /* Make this 1 higher now, because resetterPhase's value is 1 sample
 		                                            later than what it "is in reality". */
 	}
-}
-
-auto renderWavetableLoop(auto bufferStartThisSync, auto firstCycleNumber, auto bandHere, auto phaseIncrement,
-                         auto crossCycleStrength2, auto crossCycleStrength2Increment, auto kernel) {
-	return [&](int32_t const* const bufferEndThisSyncRender, uint32_t phaseTemp, int32_t* __restrict__ writePos) {
-		doRenderingLoop(bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, bandHere, phaseTemp,
-		                phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);
-	};
-}
-
-/// @note amplitude and amplitudeIncrement multiplied by two before being passed to this function
-inline Argon<int32_t> createAmplitudeVector(int32_t amplitude, int32_t amplitudeIncrement) {
-	// amplitude + amplitudeIncrement * lane_n
-	auto amplitudeVector = Argon<int32_t>{amplitude}.MultiplyAdd(amplitudeIncrement, int32x4_t{1, 2, 3, 4});
-
-	// TODO(@stellar-aria): investigate where the doubling comes from (likely an unshifted smmul)
-	return amplitudeVector >> 1; // halve amplitude
 }
