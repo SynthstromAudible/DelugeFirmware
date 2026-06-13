@@ -2271,8 +2271,25 @@ dontUseCache: {}
 				int32_t interpolationBufferSize =
 				    sound.sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement);
 
-				source->livePitchShifter->render(oscBuffer, numSamples, phaseIncrement, sourceAmplitude,
-				                                 amplitudeIncrement, interpolationBufferSize);
+				// With unison stereo spread, oscBuffer is an interleaved stereo buffer. A mono input must be rendered
+				// to a temporary mono buffer first and then panned across it, otherwise the mono render would write
+				// into the interleaved buffer as if it were mono and produce noise.
+				if (stereoUnison && source->livePitchShifter->numChannels == 1) {
+					int32_t* renderBuffer = spareRenderingBuffer[2];
+					memset(renderBuffer, 0, numSamples * sizeof(int32_t));
+
+					source->livePitchShifter->render(renderBuffer, numSamples, phaseIncrement, sourceAmplitude,
+					                                 amplitudeIncrement, interpolationBufferSize);
+
+					for (int32_t i = 0; i < numSamples; i++) {
+						oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
+						oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
+					}
+				}
+				else {
+					source->livePitchShifter->render(oscBuffer, numSamples, phaseIncrement, sourceAmplitude,
+					                                 amplitudeIncrement, interpolationBufferSize);
+				}
 			}
 
 			// No pitch shifting
