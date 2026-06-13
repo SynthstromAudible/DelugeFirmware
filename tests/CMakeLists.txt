@@ -57,6 +57,10 @@ if (UNIX AND NOT APPLE)
     # and the reusable mocks in 32bit_unit_tests/mocks/ are pulled in directly by spec/.)
     add_subdirectory(spec_alloc)
     add_subdirectory(spec_resource)
+
+    # dsp-next specs need -m32 + SIMDe (the host-sim x86 NEON backend); tests/qemu
+    # builds the same specs for ARM. Gated here so non-Linux/x86 hosts skip them.
+    add_subdirectory(dsp)
 endif ()
 add_subdirectory(spec)
 add_subdirectory(unit)

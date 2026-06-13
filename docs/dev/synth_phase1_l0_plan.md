@@ -110,10 +110,13 @@ at the end. Migration order:
 6. **DX7** (`dx/`) — port or thin-wrap into `fixed/`; keep the
    `DELUGE_DX_SCALAR` host/asm split intact (see golden harness notes).
 
-Each primitive: rewrite in `dsp-next` → add a per-primitive `dsp_diff` driver
-proving x86≡ARM → switch the caller (oscillator dispatch / `Voice` /
-`FilterSet` / `WaveTable`) → full golden sweep (bit-exact) → delete the old
-`dsp/` implementation.
+Each primitive: rewrite in `dsp-next` → **write a thorough behavioural spec**
+(`tests/dsp/<name>_spec.cpp`, CppSpec) that runs as a CTest test on **both** x86
+(SIMDe) and ARM/qemu, locking the kernel's behaviour and cross-checking x86≡ARM
+→ switch the caller (oscillator dispatch / `Voice` / `FilterSet` / `WaveTable`)
+→ full golden sweep (bit-exact) → delete the old `dsp/` implementation. The spec
+is mandatory and lands with (or just before) the migration, not after — it is
+the per-primitive regression net. See `tests/dsp/README.md`.
 
 ### Deferred to Phase 3 (do not migrate now)
 `granular/`, `timestretch/`, and the sample path stay in the old `dsp/` and
@@ -140,8 +143,8 @@ change.
   (`scripts/check_dsp_boundary.py`, **no allowlist**; forbids the app layers,
   legacy `dsp/`, HAL/BSP; `memory/` only via `memory_allocator_interface.h`)
   wired into pre-commit + a CI workflow. Firmware Debug builds green, text
-  unchanged (empty libs add no code). Per-primitive `dsp_diff` include wiring
-  is added in S2 when the first primitive lands.
+  unchanged (empty libs add no code). The per-primitive unit-spec harness
+  (`tests/dsp/`, dual-arch CppSpec via CTest) lands with S2.
 - **S1 — `core/` vocabulary. ✅ done (2026-06-13).** Lean header-only
   foundation: `core/sample.h` (`q31`/`f32` aliases reusing the firmware-wide
   `q31_t`, + the `SampleType` concept) and `core/convert.h` (`toF32`/`toQ31`
@@ -158,7 +161,9 @@ change.
   LUT is now a TU-local table; magic numbers became named constants; full `///@`
   Doxygen; snake_case free functions via a scoped `dsp-next/.clang-tidy`. Bit-exact:
   x86 319/319, ARM oracle 5/5 (the sine/fm cases only — the full ARM/QEMU sweep
-  is too slow to run per-commit, so it is reserved for phase boundaries).
+  is too slow to run per-commit, so it is reserved for phase boundaries). Shipped
+  with a thorough dual-arch unit spec: `tests/dsp/sine_spec.cpp` (CppSpec, CTest)
+  runs on x86 (SIMDe) and ARM/qemu, both green.
 - **S3..S7 — migrate items 3–6** one primitive (or tight cluster) per commit,
   following the per-primitive recipe above. The first caller switch can move a
   fixture — gate hard.
@@ -170,8 +175,8 @@ change.
 ## Test & gate strategy
 
 - **`fixed/` primitives** are golden-bit-exact gated on caller-switch, and
-  each gets a `dsp_diff` driver proving x86-SIMDe ≡ ARM-NEON in isolation
-  (the harness already does this for sine/wave).
+  each gets a dual-arch CppSpec unit spec (`tests/dsp/`, run as CTest on x86
+  SIMDe + ARM/qemu) proving behaviour and x86 ≡ ARM in isolation.
 - **`float/` primitives** are validated by tolerance/perceptual comparison,
   never SHA — they are a different numeric track by design.
 - **Mechanical commits** (scaffold, LUT move, port-without-switch) expect
@@ -187,7 +192,7 @@ change.
   that proves the new one bit-exact, and deleting the old promptly so there is
   never a silently-diverging duplicate.
 - **Bit-drift porting q31 kernels** — same risk as before; the per-primitive
-  `dsp_diff` driver catches host/ARM divergence early, goldens catch
+  CppSpec unit spec catches host/ARM divergence early, goldens catch
   end-to-end drift. Treat any delta as guilty until shown a faithful reorder.
 - **`core/` interface churn** — getting the span/typed-alias contracts wrong
   forces re-touching every migrated primitive. Land `core/` (S1) deliberately;

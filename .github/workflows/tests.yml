@@ -19,7 +19,8 @@ jobs:
       - name: Install GCC multilib
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-14 gcc-14-multilib g++-14-multilib
+          # libsimde-dev: the dsp-next specs run the NEON kernels on x86 via SIMDe.
+          sudo apt-get install gcc-14 gcc-14-multilib g++-14-multilib libsimde-dev
           echo "CC=gcc-14" >> $GITHUB_ENV
           echo "CXX=g++-14" >> $GITHUB_ENV
 
