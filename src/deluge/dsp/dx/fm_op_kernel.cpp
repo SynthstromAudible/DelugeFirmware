@@ -19,9 +19,11 @@
 #include <cstdlib>
 
 // The hand-written NEON FM kernel (neon_fm_kernel.s) is ARM-only; off-target fall back to the scalar
-// path below (it computes the same operator output). kHaveNeon gates the runtime `neon` flag so the
-// host never reaches the (absent) kernel.
-#ifdef __ARM_NEON
+// path below. kHaveNeon gates the runtime `neon` flag so the host never reaches the (absent) kernel.
+// DELUGE_DX_SCALAR forces the scalar path even on ARM: the asm kernel computes sine by polynomial
+// approximation while the scalar path uses the LUT, so they are NOT bit-identical — the host-sim
+// builds (golden-master harness) define it so the x86 and arm-linux references take the same path.
+#if defined(__ARM_NEON) && !defined(DELUGE_DX_SCALAR)
 #define HAVE_NEON
 #endif
 

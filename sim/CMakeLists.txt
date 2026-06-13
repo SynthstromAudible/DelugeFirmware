@@ -117,6 +117,12 @@ add_compile_definitions(DELUGE_DETERMINISTIC_ALLOC)
 # which has no meaning without DMA and which the host allocator (8-byte aligned) can't honour.
 add_compile_definitions(DELUGE_HOST)
 
+# Both sim references take the scalar DX7 operator kernel: the firmware's NEON asm
+# kernel (neon_fm_kernel.s) computes sine by polynomial approximation — legitimately
+# different output from the scalar LUT path — so the arm-linux reference must not
+# use it or x86 and ARM golden renders of DX7 presets could never match.
+add_compile_definitions(DELUGE_DX_SCALAR)
+
 if(DELUGE_SIM_ARM)
     # Real NEON: the cross toolchain provides <arm_neon.h>; argon's <arm/neon.h> is unused.
     include_directories(BEFORE ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include)
