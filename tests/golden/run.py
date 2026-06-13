@@ -178,7 +178,9 @@ def run_case_inner(name, binary, setarch_prefix, keep_dir):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--binary", default=str(HERE / "../../build-sim/deluge_host"))
-    parser.add_argument("--filter", default="", help="only run cases whose name contains this substring")
+    parser.add_argument(
+        "--filter", default="", help="comma-separated substrings; run cases whose name contains any of them"
+    )
     parser.add_argument("--update", action="store_true", help="re-baseline fixtures.json with current output")
     parser.add_argument("--keep", default=None, help="directory to copy rendered WAVs into (for listening)")
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
@@ -218,7 +220,13 @@ def main():
         for ext in ("*.xml", "*.XML")
         for p in CORPUS.rglob(ext)
     )
-    cases = [c for c in cases if args.filter in c]
+    # --filter takes a comma-separated OR-list of substrings: a case runs if any
+    # substring is in its name. This keeps targeted runs cheap — notably the ARM/QEMU
+    # oracle, which is far too slow to sweep in full, so only run the cases that
+    # exercise the code under test (e.g. --filter sine,fm for the sine kernel).
+    if args.filter:
+        needles = [s for s in args.filter.split(",") if s]
+        cases = [c for c in cases if any(n in c for n in needles)]
     if not cases:
         sys.exit(f"no cases match filter {args.filter!r}")
 
