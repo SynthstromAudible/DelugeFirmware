@@ -36,30 +36,38 @@ renderOscSync(auto storageFunction, auto extraInstructionsForCrossoverSampleRedo
 	/* Do a bunch of samples until we get to the next crossover sample */
 	/* A starting value that'll be added to. It's 1 because we want to include the 1 extra sample at the end - the
 	 * crossover sample. */
+	/* Render one sync window per iteration. If the window ends on a crossover (a sync point) we
+	 * plan the next window and loop; otherwise we finish. (Was a backward `goto
+	 * startRenderingASync` — restructured to a loop, behaviour identical.) */
 	uint32_t samplesIncludingNextCrossoverSample = 1;
-startRenderingASync:
-	uint32_t distanceTilNextCrossoverSample = -resetterPhase - (resetterPhaseIncrement >> 1);
-	samplesIncludingNextCrossoverSample += (uint32_t)(distanceTilNextCrossoverSample - 1) / resetterPhaseIncrement;
-	bool shouldBeginNextSyncAfter = (numSamplesThisOscSyncSession >= samplesIncludingNextCrossoverSample);
-	int32_t numSamplesThisSyncRender = shouldBeginNextSyncAfter
-	                                       ? samplesIncludingNextCrossoverSample
-	                                       : numSamplesThisOscSyncSession; /* Just limit it, basically. */
+	while (true) {
+		uint32_t distanceTilNextCrossoverSample = -resetterPhase - (resetterPhaseIncrement >> 1);
+		samplesIncludingNextCrossoverSample += (uint32_t)(distanceTilNextCrossoverSample - 1) / resetterPhaseIncrement;
+		bool shouldBeginNextSyncAfter = (numSamplesThisOscSyncSession >= samplesIncludingNextCrossoverSample);
+		int32_t numSamplesThisSyncRender = shouldBeginNextSyncAfter
+		                                       ? samplesIncludingNextCrossoverSample
+		                                       : numSamplesThisOscSyncSession; /* Just limit it, basically. */
 
-	int32_t const* const bufferEndThisSyncRender = bufferStartThisSync + numSamplesThisSyncRender;
-	uint32_t phaseTemp = phase;
-	int32_t* __restrict__ writePos = bufferStartThisSync;
+		int32_t const* const bufferEndThisSyncRender = bufferStartThisSync + numSamplesThisSyncRender;
+		uint32_t phaseTemp = phase;
+		int32_t* __restrict__ writePos = bufferStartThisSync;
 
-	storageFunction(bufferEndThisSyncRender, phaseTemp, writePos);
+		storageFunction(bufferEndThisSyncRender, phaseTemp, writePos);
 
-	/* Sort out the crossover sample at the *start* of that window we just did, if there was one. */
-	if (renderedASyncFromItsStartYet) {
-		int32_t average = (*bufferStartThisSync >> 1) + (crossoverSampleBeforeSync >> 1);
-		int32_t halfDifference = (*bufferStartThisSync >> 1) - (crossoverSampleBeforeSync >> 1);
-		int32_t sineValue = getSine(fadeBetweenSyncs >> 1);
-		*bufferStartThisSync = average + (multiply_32x32_rshift32(halfDifference, sineValue) << 1);
-	}
+		/* Sort out the crossover sample at the *start* of that window we just did, if there was one. */
+		if (renderedASyncFromItsStartYet) {
+			int32_t average = (*bufferStartThisSync >> 1) + (crossoverSampleBeforeSync >> 1);
+			int32_t halfDifference = (*bufferStartThisSync >> 1) - (crossoverSampleBeforeSync >> 1);
+			int32_t sineValue = getSine(fadeBetweenSyncs >> 1);
+			*bufferStartThisSync = average + (multiply_32x32_rshift32(halfDifference, sineValue) << 1);
+		}
 
-	if (shouldBeginNextSyncAfter) {
+		if (!shouldBeginNextSyncAfter) {
+			/* Not beginning a next sync, so we don't reset phase — just increment it to keep it valid, and finish. */
+			phase += phaseIncrement * numSamplesThisSyncRender;
+			return;
+		}
+
 		/* We've just done a crossover (i.e. hit a sync point) at the end of that window, so start thinking about that
 		 * and planning the next window. */
 		bufferStartThisSync += samplesIncludingNextCrossoverSample - 1;
@@ -80,12 +88,7 @@ startRenderingASync:
 		renderedASyncFromItsStartYet = true;
 		samplesIncludingNextCrossoverSample = 2; /* Make this 1 higher now, because resetterPhase's value is 1 sample
 		                                            later than what it "is in reality". */
-		goto startRenderingASync;
 	}
-
-	/* We're not beginning a next sync, so are not going to reset phase, so need to update (increment) it to keep it
-	 * valid. */
-	phase += phaseIncrement * numSamplesThisSyncRender;
 }
 
 auto renderWavetableLoop(auto bufferStartThisSync, auto firstCycleNumber, auto bandHere, auto phaseIncrement,
