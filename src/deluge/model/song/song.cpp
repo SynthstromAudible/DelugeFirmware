@@ -5972,12 +5972,24 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 }
 
 void Song::updateBPMFromAutomation() {
+	// Evaluate the tempo from the automation at the current playhead position, rather than reading the param's
+	// interpolated currentValue. The generic per-sample interpolation (AutoParam::tickSamples) rounds its increment
+	// to zero for the tempo param - tempo values are tiny relative to the int32 param range - so currentValue never
+	// advances between interpolated nodes and the tempo freezes. getValueAtPos() interpolates exactly between the
+	// surrounding nodes (and still steps at non-interpolated nodes, preserving deliberate "snap" tempo changes).
+	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* model_stack_with_three_main_things =
+	    setupModelStackWithSongAsTimelineCounter(model_stack_memory);
+	ModelStackWithAutoParam* tempo_param =
+	    getModelStackWithParam(model_stack_with_three_main_things, params::UnpatchedGlobal::UNPATCHED_TEMPO);
+
+	int32_t current_tempo = tempo_param->autoParam->getValueAtPos(arrangement.lastProcessedPos, tempo_param);
+
 	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
 	// that
-	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
-	if (currentTempo && currentTempo != intBPM) {
-		setBPMInner((float)currentTempo / 100, false);
-		intBPM = currentTempo;
+	if (current_tempo && current_tempo != intBPM) {
+		setBPMInner((float)current_tempo / 100, false);
+		intBPM = current_tempo;
 	}
 }
 
