@@ -25,6 +25,7 @@
 #include "dsp-next/fixed/synced_oscillator.h"
 #include "dsp-next/fixed/synced_phasor.h"
 #include "dsp-next/fixed/table_oscillator.h"
+#include "wavetable_oscillator.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
@@ -47,7 +48,6 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 
 	bool doPulseWave = false;
 
-	int32_t resetterDivideByPhaseIncrement;
 	const int16_t* table;
 
 	// For cases other than sines and triangles, we use these standard table lookup size thingies. We need to work this
@@ -137,17 +137,12 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 			}
 
 			phase += retriggerPhase;
-			goto doOscSyncSetup;
 		}
 	}
 
-	// We want to see if we're within half a phase-increment of the "reset" pos. The sync
-	// components derive this reciprocal themselves now; it is kept here only for the wavetable
-	// render below (migrated later), and shares the one definition.
-	if (doOscSync) [[unlikely]] {
-doOscSyncSetup:
-		resetterDivideByPhaseIncrement = fixed::resetter_reciprocal(resetterPhaseIncrement);
-	}
+	// Each sync path (the SyncedOscillator/SyncedPhasor components and the wavetable adapter) now
+	// derives the resetter reciprocal itself from the resetter increment, so there is nothing to
+	// set up here — `doOscSync` is just threaded through to the render below.
 
 	// Shared tail (Phase A1): render a band-limited wave from `renderTable` — straight or with
 	// osc sync — and apply amplitude. Replaces the `callRenderWave` goto target. The rendering
@@ -202,9 +197,14 @@ doOscSyncSetup:
 
 		int32_t* wavetableRenderingBuffer = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 
-		phase = waveTable->render(wavetableRenderingBuffer, numSamples, phaseIncrement, phase, doOscSync, resetterPhase,
-		                          resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase, waveIndex,
-		                          waveIndexIncrement);
+		// The sample-backed wavetable engine, behind the dsp-next block-generator interface (it
+		// depends on storage/, so it adapts app-side rather than living in the dsp-next library).
+		WavetableOscillator osc{waveTable,        Phasor{phase, phaseIncrement},
+		                        doOscSync,         Phasor{resetterPhase, resetterPhaseIncrement},
+		                        retriggerPhase,    waveIndex,
+		                        waveIndexIncrement};
+		osc.renderBlock(fixed::Buffer{wavetableRenderingBuffer, static_cast<size_t>(numSamples)});
+		phase = osc.phase();
 
 		amplitude <<= 3;
 		amplitudeIncrement <<= 3;
