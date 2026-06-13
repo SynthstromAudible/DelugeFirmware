@@ -1,5 +1,6 @@
 configure_file(util/firmware_version.h.in util/firmware_version.h @ONLY)
 add_subdirectory(dsp)
+add_subdirectory(dsp-next)
 add_subdirectory(gui/l10n)
 add_subdirectory(gui/menu_item/generate)
 add_subdirectory(version)
@@ -13,6 +14,9 @@ file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
 
 # Filter out DSP sources as those are built as part of the deluge_dsp library
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
+# Likewise the new dsp-next library (built as deluge_dsp_fixed/_float); its path
+# is /dsp-next/, which the /dsp/ regex above does not match.
+list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp-next/.*)
 
 # ---------------------------------------------------------------------------
 # deluge_app: the PORTABLE application as a static library. It links only the
@@ -50,6 +54,7 @@ target_link_libraries(deluge_app PUBLIC
     NE10
     eyalroz_printf
     deluge_dsp
+    deluge_dsp_next # the clean L0 library primitives migrate into (synth untangling Phase 1)
     deluge_scheduler # the cooperative task scheduler (provides scheduler_api.h on its path)
     argon
     etl::etl

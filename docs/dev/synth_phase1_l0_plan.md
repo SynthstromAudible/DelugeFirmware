@@ -122,14 +122,19 @@ Bisectable commits; firmware Debug build + full golden sweep (x86 **and** ARM
 oracle) green before the next. `git mv`/port commits never carry a behaviour
 change.
 
-- **S0 — Scaffold.** Create `dsp-next/{core,fixed,float}` and their
-  `CMakeLists.txt` (two static libs as above, plus an empty-but-wired `core`
-  interface target). Wire both libs into the app link and the host-sim build;
-  add `dsp-next/` to the per-primitive `dsp_diff` include path. Add the
-  include-lint gate over `dsp-next/` (forbid `storage|model|processing|gui|
-  playback|modulation`; `memory/` only via `memory_allocator_interface.h`) —
-  **no allowlist**, it must be clean from the first commit. Builds green with
-  the libs empty.
+- **S0 — Scaffold. ✅ done (2026-06-13).** Created `dsp-next/{core,fixed,float}`:
+  `core` is a header-only INTERFACE target (`deluge_dsp_core`); `fixed`/`float`
+  are STATIC libs (`deluge_dsp_fixed`→`libdeluge-dsp-fixed`,
+  `deluge_dsp_float`→`libdeluge-dsp-float`) mirroring `deluge_dsp` (unity,
+  `-fno-lto -finline-functions`, `-marm` on HW); an umbrella `deluge_dsp_next`
+  INTERFACE links all three and is linked into `deluge_app` (so firmware + sim
+  pick it up). Namespaces: `deluge::dsp` (core), `deluge::dsp::fixed`,
+  `deluge::dsp::fp` (`float` is a keyword). Include-lint gate
+  (`scripts/check_dsp_boundary.py`, **no allowlist**; forbids the app layers,
+  legacy `dsp/`, HAL/BSP; `memory/` only via `memory_allocator_interface.h`)
+  wired into pre-commit + a CI workflow. Firmware Debug builds green, text
+  unchanged (empty libs add no code). Per-primitive `dsp_diff` include wiring
+  is added in S2 when the first primitive lands.
 - **S1 — `core/` + LUTs** (migration item 1). Lands the numeric aliases,
   span block types, conversions, and the relocated wave tables. Pure data +
   headers; no caller switch yet, so goldens are untouched.
