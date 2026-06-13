@@ -19,6 +19,7 @@
 // VCA, run on x86 (SIMDe) and ARM/QEMU via CTest. Bit-exact equivalence with the legacy crude
 // loops on real presets is the golden harness's job; here we pin the per-sample kernels.
 
+#include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/crude_amplitude.h"
 #include "dsp-next/fixed/crude_oscillators.h"
 #include "dsp-next/fixed/waves.h" // square, triangle
@@ -28,6 +29,7 @@
 #include <cstdint>
 
 namespace {
+using deluge::dsp::Phasor;
 using deluge::dsp::fixed::CrudeAmplitude;
 using deluge::dsp::fixed::CrudeSaw;
 using deluge::dsp::fixed::CrudeSquare;
@@ -40,7 +42,7 @@ using Signal = deluge::dsp::fixed::Signal;
 describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 	context("CrudeSaw", _ {
 		it("emits the phase ramp itself", _ {
-			CrudeSaw osc{0u, 0x10000000u};
+			CrudeSaw osc{Phasor{0u, 0x10000000u}};
 			std::array<int32_t, 4> out{};
 			osc.renderBlock(Buffer{out});
 			// Pre-increment: sample i is phase + (i+1) * increment.
@@ -53,7 +55,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 
 	context("CrudeSquare", _ {
 		it("switches at the pulse-width threshold", _ {
-			CrudeSquare osc{0u, 0x20000000u, 0x80000000u}; // 50% duty
+			CrudeSquare osc{Phasor{0u, 0x20000000u}, 0x80000000u}; // 50% duty
 			std::array<int32_t, 4> out{};
 			osc.renderBlock(Buffer{out});
 			// phases 0x20/0x40/0x60M are below the threshold (high), 0x80M is at/above it (low).
@@ -66,7 +68,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 
 	context("CrudeTriangle", _ {
 		it("matches the triangle kernel at each phase", _ {
-			CrudeTriangle osc{0u, 0x30000000u};
+			CrudeTriangle osc{Phasor{0u, 0x30000000u}};
 			std::array<int32_t, 4> out{};
 			osc.renderBlock(Buffer{out});
 			expect(out[0]).to_equal(deluge::dsp::fixed::triangle(0x30000000u));

@@ -17,7 +17,6 @@
 #pragma once
 
 #include "dsp-next/core/generator.h"
-#include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/waves.h" // square, triangle
 #include <cstdint>
 
@@ -27,21 +26,24 @@ namespace deluge::dsp::fixed {
 /// @brief The crude (non-band-limited) analytic oscillators: the cheap, scalar render used at
 /// low pitches and as the CPU-dire fallback (where aliasing is least audible / CPU is tight).
 ///
-/// Each is a stateful generator owning a @ref deluge::dsp::Phasor. render is **scalar** (one
-/// sample at a time, calling the exact legacy analytic kernel) rather than the 4-lane SIMD of
-/// the band-limited oscillators — this is the deliberately-light path, and it keeps the output
-/// bit-exact with the legacy scalar loops. Each emits the **full-scale** raw wave (the value
-/// the crude VCA, @ref CrudeAmplitude, consumes); the un-amplified path scales it by a single
-/// per-wave shift (saw/square >> 1, triangle << 1). seek()/phase() let a hard-sync driver
-/// reset and read back the phase.
+/// Each is a stateful generator templated on its **phase source** @p Phase — a plain
+/// @ref deluge::dsp::Phasor for free-running, or a @ref SyncedPhasor for hard sync (which
+/// resets the phase per sample). The generator body is identical for both; it only ever calls
+/// `phase.advance()`, so sync is just a different phase source (CTAD picks the type from the
+/// constructor argument). render is **scalar** (one sample at a time, the exact legacy analytic
+/// kernel) rather than the 4-lane SIMD of the band-limited oscillators — the deliberately-light
+/// path, bit-exact with the legacy scalar loops. Each emits the **full-scale** raw wave (the
+/// value the crude VCA, @ref CrudeAmplitude, consumes); the un-amplified path scales it by a
+/// single per-wave shift (saw/square >> 1, triangle << 1). phase() reads the phase back (for
+/// the synced arms to store per voice).
 
 /// @brief Crude sawtooth: the phase ramp itself is the wave.
+template <typename Phase>
 class [[gnu::hot]] CrudeSaw : public BlockGenerator<q31> {
-	Phasor phasor_;
+	Phase phasor_;
 
 public:
-	CrudeSaw(uint32_t phase, uint32_t increment) : phasor_{phase, increment} {}
-	void seek(uint32_t phase) { phasor_.seek(phase); }
+	explicit CrudeSaw(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
 	void renderBlock(Buffer output) override {
@@ -50,17 +52,18 @@ public:
 		}
 	}
 };
+template <typename Phase>
+CrudeSaw(Phase) -> CrudeSaw<Phase>;
 
 /// @brief Crude square: a hard switch at the pulse-width threshold (the width also makes it a
-/// (non-band-limited) pulse wave). @p pulse_width is the threshold phase passed to getSquare.
+/// (non-band-limited) pulse wave). @p pulse_width is the threshold phase passed to square().
+template <typename Phase>
 class [[gnu::hot]] CrudeSquare : public BlockGenerator<q31> {
-	Phasor phasor_;
+	Phase phasor_;
 	uint32_t pulse_width_;
 
 public:
-	CrudeSquare(uint32_t phase, uint32_t increment, uint32_t pulse_width)
-	    : phasor_{phase, increment}, pulse_width_{pulse_width} {}
-	void seek(uint32_t phase) { phasor_.seek(phase); }
+	CrudeSquare(Phase phasor, uint32_t pulse_width) : phasor_{phasor}, pulse_width_{pulse_width} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
 	void renderBlock(Buffer output) override {
@@ -69,14 +72,16 @@ public:
 		}
 	}
 };
+template <typename Phase>
+CrudeSquare(Phase, uint32_t) -> CrudeSquare<Phase>;
 
 /// @brief Crude triangle.
+template <typename Phase>
 class [[gnu::hot]] CrudeTriangle : public BlockGenerator<q31> {
-	Phasor phasor_;
+	Phase phasor_;
 
 public:
-	CrudeTriangle(uint32_t phase, uint32_t increment) : phasor_{phase, increment} {}
-	void seek(uint32_t phase) { phasor_.seek(phase); }
+	explicit CrudeTriangle(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
 	void renderBlock(Buffer output) override {
@@ -85,5 +90,7 @@ public:
 		}
 	}
 };
+template <typename Phase>
+CrudeTriangle(Phase) -> CrudeTriangle<Phase>;
 
 } // namespace deluge::dsp::fixed
