@@ -39,6 +39,8 @@ FetchContent_MakeAvailable(argon)
 # dsp-next is header-light, so building the few sources directly is simpler than
 # pulling in the whole library target here).
 set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/sine.cpp)
+# SyncedOscillator's seam crossfade calls getSine(), which reads the sineWaveSmall LUT.
+set(synced_oscillator_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 
 file(GLOB _specs ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)

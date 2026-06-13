@@ -17,8 +17,10 @@
 #pragma once
 
 #include "dsp-next/core/types.h"
+#include <algorithm>
 #include <argon.hpp>
 #include <argon/vectorize/store.hpp>
+#include <cstddef>
 
 namespace deluge::dsp {
 
@@ -36,12 +38,31 @@ struct BlockGenerator {
 /// @brief CRTP mixin: a SIMD generator defining a static `Argon<T> render()` (advancing
 /// its own phase) gets a vectorised renderBlock for free and satisfies BlockGenerator.
 /// @details `render()` stays non-virtual and inlinable — the hot path. A generator that
-/// needs an exact, non-4-aligned phase advance across the block overrides renderBlock.
+/// needs an exact, non-lane-aligned phase advance across the block overrides renderBlock.
+///
+/// The fill is **tail-safe**: full lane-width chunks are stored directly, then any
+/// remaining `size % lanes` samples are produced by one more `render()` and stored
+/// masked (only the valid lanes). This matters for arbitrary-length windows (e.g. osc
+/// sync) — `argon::vectorize::store` alone rounds the size *down* to a lane multiple and
+/// would silently drop the tail. For lane-multiple blocks (the common audio-block case)
+/// there is no tail and the result is identical.
 template <typename Derived, typename T>
 struct Generator : BlockGenerator<T> {
+	static constexpr std::size_t kLanes = argon::vectorize::store<T>::lanes;
+
 	void renderBlock(Buffer<T> output) override {
-		for (Argon<T>& chunk : argon::vectorize::store(output)) {
-			chunk = static_cast<Derived*>(this)->render();
+		Derived* self = static_cast<Derived*>(this);
+		T* out = output.data();
+		std::size_t size = output.size();
+		std::size_t whole = size & ~(kLanes - 1);
+
+		for (std::size_t i = 0; i < whole; i += kLanes) {
+			self->render().StoreTo(out + i);
+		}
+		if (whole != size) {
+			T tail[kLanes];
+			self->render().StoreTo(tail);
+			std::copy_n(tail, size - whole, out + whole);
 		}
 	}
 };

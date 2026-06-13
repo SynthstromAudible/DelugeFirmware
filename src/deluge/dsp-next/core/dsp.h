@@ -44,6 +44,7 @@
 #include "dsp-next/core/convert.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/mixer.h"
+#include "dsp-next/core/phasor.h"
 #include "dsp-next/core/processor.h"
 #include "dsp-next/core/sample.h"
 #include "dsp-next/core/types.h"

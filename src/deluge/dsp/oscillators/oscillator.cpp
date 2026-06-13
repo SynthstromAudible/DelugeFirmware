@@ -17,6 +17,7 @@
 #include "oscillator.h"
 #include "basic_waves.h"
 #include "dsp-next/fixed/amplitude.h"
+#include "dsp-next/fixed/synced_oscillator.h"
 #include "dsp-next/fixed/table_oscillator.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_wave.h"
@@ -148,33 +149,30 @@ doOscSyncSetup:
 	// Shared tail (Phase A1): render a band-limited wave from `renderTable` — straight or with
 	// osc sync — and apply amplitude. Replaces the `callRenderWave` goto target. The rendering
 	// context is captured by reference; the per-wave call sites vary only the table, its size
-	// magnitude, the amplitude pair, and the (general) pulse phase offset. Behaviour unchanged.
+	// magnitude, and the amplitude pair. Behaviour unchanged.
 	auto renderFromTable = [&](const int16_t* renderTable, int32_t renderTableSizeMagnitude, int32_t amp,
-	                           int32_t ampIncrement, uint32_t generalPhaseToAdd) {
+	                           int32_t ampIncrement) {
 		if (doOscSync) {
+			// Hard sync: a SyncedOscillator wraps the TableOscillator, restarting it at every
+			// resetter crossover and crossfading the seam. It fills the raw wave (into the sync
+			// scratch when amplitude applies), then the VCA scales-and-mixes it — bit-exact with
+			// the legacy renderOscSync + overshoot storageFunction, minus the overshoot.
 			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
-			int32_t numSamplesThisOscSyncSession = numSamples;
-			auto storeVectorWaveForOneSync = //<
-			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
-				    int32x4_t valueVector;
-				    do {
-					    std::tie(valueVector, phase) = waveRenderingFunctionGeneral(
-					        phase, phaseIncrement, generalPhaseToAdd, renderTable, renderTableSizeMagnitude);
-					    vst1q_s32(writePos, valueVector);
-					    writePos += 4;
-				    } while (writePos < bufferEndThisSyncRender);
-			    };
-			renderOscSync(storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
-			              resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase,
-			              numSamplesThisOscSyncSession, bufferStartThisSync);
+			fixed::SyncedOscillator osc{
+			    fixed::TableOscillator{fixed::table_from_pointer(renderTable, renderTableSizeMagnitude), phase,
+			                           phaseIncrement},
+			    phase, phaseIncrement,
+			    fixed::Resetter{resetterPhase, resetterPhaseIncrement, resetterDivideByPhaseIncrement}, retriggerPhase};
+			osc.renderBlock(fixed::Buffer{bufferStartThisSync, static_cast<size_t>(numSamples)});
+			phase = osc.phase();
 			applyAmplitudeVectorToBuffer(amp, numSamples, ampIncrement, bufferStart, oscSyncRenderingBuffer);
 			maybeStorePhase(type, startPhase, phase, doPulseWave);
 		}
 		else {
 			// Generate the raw band-limited wave with the TableOscillator, then (when amplitude
 			// is applied) scale-and-mix it with the Amplitude VCA — bit-exact with the fused
-			// renderWave path (generalPhaseToAdd is unused by the general render). The osc's owned
-			// phase is fill-only; the persistent per-voice phase was advanced at the top of renderOsc.
+			// renderWave path. The osc's owned phase is fill-only; the persistent per-voice phase
+			// was advanced at the top of renderOsc.
 			fixed::TableOscillator osc{fixed::table_from_pointer(renderTable, renderTableSizeMagnitude), phase,
 			                           phaseIncrement};
 			if (applyAmplitude) {
@@ -191,7 +189,7 @@ doOscSyncSetup:
 	};
 
 	if (type == OscType::SINE) [[unlikely]] {
-		renderFromTable(sineWaveSmall, 8, amplitude, amplitudeIncrement, 0);
+		renderFromTable(sineWaveSmall, 8, amplitude, amplitudeIncrement);
 		return;
 	}
 
@@ -304,7 +302,7 @@ doOscSyncSetup:
 					table = triangleWaveAntiAliasing1;
 				}
 			}
-			renderFromTable(table, tableSizeMagnitude, amplitude, amplitudeIncrement, 0);
+			renderFromTable(table, tableSizeMagnitude, amplitude, amplitudeIncrement);
 			return;
 		}
 	}
@@ -514,9 +512,7 @@ doOscSyncSetup:
 
 		amplitude <<= 1;
 		amplitudeIncrement <<= 1;
-		// phaseToAdd is unused by the general (non-pulse) render path; the pulse paths return
-		// above. Pass 0 rather than the uninitialised local.
-		renderFromTable(table, tableSizeMagnitude, amplitude, amplitudeIncrement, 0);
+		renderFromTable(table, tableSizeMagnitude, amplitude, amplitudeIncrement);
 		return;
 	}
 

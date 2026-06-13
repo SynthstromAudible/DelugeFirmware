@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/generator.h"
+#include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/table.h"
 #include "util/misc.h" // util::constexpr_for
 #include <argon.hpp>
@@ -36,33 +37,37 @@ namespace deluge::dsp::fixed {
 class [[gnu::hot]] TableOscillator : public Generator<TableOscillator, q31> {
 	const int16_t* samples_;
 	int32_t magnitude_;
-	uint32_t phase_;
-	uint32_t increment_;
+	Phasor phasor_;
 
 public:
 	TableOscillator(Table table, uint32_t phase, uint32_t increment)
-	    : samples_{table.samples.data()}, magnitude_{table.magnitude}, phase_{phase}, increment_{increment} {}
+	    : samples_{table.samples.data()}, magnitude_{table.magnitude}, phasor_{phase, increment} {}
+
+	/// Jump the phase (e.g. a hard-sync reset between windows). See @ref deluge::dsp::Phasor::seek.
+	void seek(uint32_t phase) { phasor_.seek(phase); }
 
 	[[gnu::always_inline]] Argon<q31> render() {
-		Argon<uint32_t> readValue = 0U;
-		ArgonHalf<uint16_t> strength2 = 0U;
+		// Per lane: the high bits of the phase pick a table entry, the next bits are the
+		// interpolation fraction. `value_pair` packs {entry, next entry} into one 32-bit word.
+		Argon<uint32_t> value_pair = 0U;
+		ArgonHalf<uint16_t> fraction = 0U;
 
 		util::constexpr_for<0, 4, 1>([&]<int i>() {
-			phase_ += increment_;
-			uint32_t rshifted = phase_ >> (32 - 16 - magnitude_);
-			strength2[i] = rshifted;
-			uint32_t whichValue = phase_ >> (32 - magnitude_);
-			// Read the {value, next-value} interpolation pair as one word (the table is flat
-			// int16; whichValue << 1 is the byte offset of entry whichValue).
-			readValue[i].Load(reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t>(samples_) + (whichValue << 1)));
+			uint32_t phase = phasor_.advance();
+			fraction[i] = phase >> (32 - 16 - magnitude_);
+			uint32_t index = phase >> (32 - magnitude_);
+			// Read the {entry, next-entry} interpolation pair as one word (the table is flat
+			// int16, so `index << 1` is the byte offset of entry `index`).
+			value_pair[i].Load(reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t>(samples_) + (index << 1)));
 		});
 
-		strength2 = strength2 >> 1;
-		ArgonHalf<int16_t> value1 = readValue.Narrow().As<int16_t>();
-		ArgonHalf<int16_t> value2 = readValue.ShiftRightNarrow<16>().As<int16_t>();
-		Argon<int32_t> value1Big = value1.ShiftLeftLong<16>();
-		ArgonHalf<int16_t> difference = value2 - value1;
-		return value1Big.MultiplyDoubleAddSaturateLong(difference, strength2.As<int16_t>());
+		// Linear interpolation, q31 high half: entry + (next - entry) * fraction.
+		fraction = fraction >> 1;
+		ArgonHalf<int16_t> entry = value_pair.Narrow().As<int16_t>();
+		ArgonHalf<int16_t> next_entry = value_pair.ShiftRightNarrow<16>().As<int16_t>();
+		Argon<int32_t> entry_wide = entry.ShiftLeftLong<16>();
+		ArgonHalf<int16_t> slope = next_entry - entry;
+		return entry_wide.MultiplyDoubleAddSaturateLong(slope, fraction.As<int16_t>());
 	}
 };
 

@@ -90,10 +90,17 @@ Cross-cutting, as composable pieces (not per-type branches):
 - `bandLimit(phaseIncrement, quality) -> band` — the exact `getTableNumber` +
   table pick + crude/antialiased decision; **quality injected** (today
   `AudioEngine::cpuDireness`). Selects which table a `TableOscillator` uses.
-- `renderSynced(generator, syncParams, Buffer, phase)` — the hard-sync combinator
-  (the cleaned `renderOscSync`), generic over any block-fill generator; this is
-  where the `storageFunction` overshoot contract is retired (the generator fills
-  exactly its window). Shared with the wavetable path.
+- `SyncedOscillator<Osc>` — hard sync as a **component**: a generator that *wraps*
+  a generator. It owns the resetter + seam state and a wrapped `Osc` (any block
+  generator with a seekable `Phasor`, i.e. `seek()` + `renderBlock()`), restarts
+  the wrapped oscillator at each resetter crossover, and crossfades the seam.
+  Being itself a `BlockGenerator`, it composes into the registry/chains. This is
+  the cleaned `renderOscSync` — `renderBlock` is overridden (windows are
+  irregular/block-level) and each window is filled to its *exact* length by the
+  wrapped osc's tail-safe `renderBlock`, retiring the `storageFunction` overshoot
+  contract. (Landed as a node, not the earlier free-function `renderSynced` sketch
+  — a free function taking a generator factory didn't compose like the rest of the
+  library.) Will be shared with the wavetable path.
 - `pulseWidth` — PWM setup (largely reuses sync).
 
 ## Layer 4 — processors & mixers
@@ -139,8 +146,11 @@ surgery in the structural pass.
 3. **Oscillator generators** — `TableOscillator`, `PulseOscillator`,
    `SineOscillator`, crude variants — each the exact current kernel, dual-arch
    spec'd; switch the matching `renderOsc` arm. Bit-exact per arm.
-4. **`bandLimit` + `renderSynced`** — factor the selection + sync combinator;
-   retire `storageFunction`. Bit-exact.
+4. **`SyncedOscillator` (+ `Phasor`)** — hard sync as a generator-wrapping-
+   generator node; introduces the seekable `Phasor` (the single home for phase
+   state) it needs to re-seed the wrapped oscillator. Retires the general table
+   path's `storageFunction` overshoot. Bit-exact. (`bandLimit` table selection is
+   deferred to the registry step, where the per-type table choice naturally lives.)
 5. **Registry** — replace the `OscType` switch with the block-level source
    registry composing generator + bandLimit + sync + Amplitude.
 6. **Retire** old `renderOsc`/`basic_waves`/`render_wave.h`.
