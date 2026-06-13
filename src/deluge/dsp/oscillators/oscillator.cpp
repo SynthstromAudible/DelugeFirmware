@@ -143,7 +143,6 @@ doOscSyncSetup:
 		                         // bit smaller, so things multiplied by it don't get a bit too big and overflow.
 	}
 
-skipPastOscSyncStuff:
 	if (type == OscType::SINE) [[unlikely]] {
 		table = sineWaveSmall;
 		tableSizeMagnitude = 8;
@@ -268,7 +267,6 @@ skipPastOscSyncStuff:
 		uint32_t phaseToAdd;
 
 		if (type == OscType::SAW) {
-doSaw:
 			// If frequency low enough, we just use a crude calculation for the wave without anti-aliasing
 			if (tableNumber < AudioEngine::cpuDireness + 6) {
 
@@ -461,7 +459,6 @@ doSaw:
 		}
 
 		else if (type == OscType::ANALOG_SQUARE) {
-doAnalogSquare:
 			// This sounds different enough to the digital square that we can never just swap back to that to save CPU
 			table = dsp::analogSquareTables[tableNumber];
 		}
