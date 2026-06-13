@@ -17,6 +17,7 @@
 #include "oscillator.h"
 #include "basic_waves.h"
 #include "dsp-next/fixed/amplitude.h"
+#include "dsp-next/fixed/table_oscillator.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
@@ -170,8 +171,22 @@ doOscSyncSetup:
 			maybeStorePhase(type, startPhase, phase, doPulseWave);
 		}
 		else {
-			dsp::renderWave(renderTable, renderTableSizeMagnitude, amp, bufferStart, bufferEnd, phaseIncrement, phase,
-			                applyAmplitude, generalPhaseToAdd, ampIncrement);
+			// Generate the raw band-limited wave with the TableOscillator, then (when amplitude
+			// is applied) scale-and-mix it with the Amplitude VCA — bit-exact with the fused
+			// renderWave path (generalPhaseToAdd is unused by the general render). The osc's owned
+			// phase is fill-only; the persistent per-voice phase was advanced at the top of renderOsc.
+			fixed::TableOscillator osc{fixed::table_from_pointer(renderTable, renderTableSizeMagnitude), phase,
+			                           phaseIncrement};
+			if (applyAmplitude) {
+				osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+				fixed::Amplitude vca{amp, ampIncrement};
+				vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
+				                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
+				                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
+			}
+			else {
+				osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
+			}
 		}
 	};
 
