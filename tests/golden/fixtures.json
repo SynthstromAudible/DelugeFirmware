@@ -1912,5 +1912,11 @@
   "frames": 88200,
   "peak": 2640,
   "rms_db": -28.34
+ },
+ "wavetable_basic": {
+  "sha256": "36e390a657d91081d20a8814788d3b25f43808282ce817e5f9ea0f2643653f61",
+  "frames": 88200,
+  "peak": 3135,
+  "rms_db": -27.82
  }
 }

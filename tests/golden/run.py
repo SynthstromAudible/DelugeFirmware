@@ -70,7 +70,7 @@ def stage_preset(preset_xml, tmp):
     return staged
 
 
-def build_card_image(path, staged_preset):
+def build_card_image(path, staged_preset, sample_wav=None):
     with open(path, "wb") as f:
         f.truncate(CARD_BYTES)
     subprocess.run(["mformat", "-i", str(path), "-F", "::"], check=True, capture_output=True)
@@ -78,6 +78,13 @@ def build_card_image(path, staged_preset):
     subprocess.run(
         ["mcopy", "-i", str(path), str(staged_preset), "::/SYNTHS/PRESET.XML"], check=True, capture_output=True
     )
+    # A case may carry a sample (e.g. a wavetable/sample osc): a sibling <name>.wav is staged
+    # to SAMPLES/WT.WAV, which its preset references by that path.
+    if sample_wav is not None:
+        subprocess.run(["mmd", "-i", str(path), "::/SAMPLES"], check=True, capture_output=True)
+        subprocess.run(
+            ["mcopy", "-i", str(path), str(sample_wav), "::/SAMPLES/WT.WAV"], check=True, capture_output=True
+        )
 
 
 def read_wav_pcm(path):
@@ -136,7 +143,8 @@ def run_case_inner(name, binary, setarch_prefix, keep_dir):
         tmp = pathlib.Path(tmp)
         image = tmp / "card.img"
         wav = tmp / "out.wav"
-        build_card_image(image, stage_preset(preset, tmp))
+        sample = preset.with_suffix(".wav")  # optional per-case sample (e.g. a wavetable osc)
+        build_card_image(image, stage_preset(preset, tmp), sample if sample.exists() else None)
 
         env = dict(os.environ)
         env.update(
