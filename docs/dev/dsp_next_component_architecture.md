@@ -152,8 +152,26 @@ surgery in the structural pass.
    path's `storageFunction` overshoot. Bit-exact. (`bandLimit` table selection is
    deferred to the registry step, where the per-type table choice naturally lives.)
 5. **Registry** — replace the `OscType` switch with the block-level source
-   registry composing generator + bandLimit + sync + Amplitude.
+   registry composing generator + bandLimit + sync + Amplitude. The sample-backed
+   wavetable joins it via the block-level virtual interface as an **app-side
+   adapter** (`WavetableOscillator`, wrapping `WaveTable::render`), since `WaveTable`
+   depends on `storage/` and can't live in the freestanding library yet.
 6. **Retire** old `renderOsc`/`basic_waves`/`render_wave.h`.
+
+### Later phase — storage-independent wavetable renderer (the band-data port)
+
+`WaveTable::render` is already pure DSP over in-memory bands, but it lives on a
+storage-backed class (`AudioFile`, SD load, band stealing) and reaches into
+`processing/` (`renderOscSync`, `doRenderingLoop`, `getKernel`). Promote the
+*renderer* into dsp-next behind a **band-data port**: a storage-independent
+band-set view (the band tables + magnitudes + kernels) that the app-side
+`WaveTable` provides, with the SD loading / band management / stealing staying
+app-side. This is the wavetable arm of the Phase-3 `SampleSource` port, and it
+retires the `WavetableOscillator` adapter's pass-through in favour of a real
+in-library renderer. **Unblocked now** that the harness has wavetable golden
+coverage and the NE10 int32 FFT is confirmed bit-exact x86≡ARM; gate the
+extraction on that fixture. (Also pulls the wavetable's own hard-sync onto
+`SyncedOscillator`/`SyncedPhasor`.)
 
 Later (separate, ear-validated, re-baselined): VCA-arithmetic unification,
 analytic-wave options, band-limiting/sync improvements, `FixedPoint<31>` types,
