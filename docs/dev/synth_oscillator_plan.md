@@ -115,6 +115,53 @@ per-type branches):
 seed of the L1 `SourceEngine` interface — each wave is a kernel the dispatcher
 composes with band-limiting, sync, PW, and the VCA stage.
 
+## Target render architecture (the composition)
+
+`renderOsc` today fuses five orthogonal concerns into one megaswitch, and
+`storageFunction` is a leaky bridge between two of them. The target separates
+them into composable, mostly-pure stages over `std::span` blocks:
+
+| Concern | Today (tangled) | Clean component (stateless L0) |
+|---|---|---|
+| wave generation | per-`OscType` arms + `waveRenderingFunction*` + `basic_waves` | one **kernel per wave**, each owning its LUT(s): `phase → sample(s)` |
+| band-limiting / quality | `getTableNumber` + scattered `cpuDireness` checks | `bandLimit(pitch, quality) → band`, pure, quality injected |
+| hard sync | `renderOscSync` + the `storageFunction` overshoot loop | a generic **sync combinator** over a block-fill (below) |
+| pulse width | `doPulseWave`/`doOscSync=true`/dual-square inline | a PW transform (largely *reuses* sync) |
+| amplitude / VCA | fused `vqdmulhq`/MAC in every loop | the separate **VCA+mix stage** |
+
+Pipeline: `phase ─▶ wave kernel ─▶ [sync] ─▶ [pulse width] ─▶ VCA+mix ─▶ out`.
+Each stage is a pure function over span blocks; the orchestrator only composes.
+
+**Retiring `storageFunction` (the crux).** The mess is that hard-sync needs
+"fill a contiguous run of samples from phase P" while the wave kernel is "sample
+at phase", so the caller hand-writes an overshooting `do-while` callback (writes
+4-at-a-time past the window; the `+4` pad on `oscSyncRenderingBuffer` exists to
+absorb it). Replace with one clean contract — a `WaveRenderer` that fills a block
+**respecting its span bounds** (mask the partial tail; no overshoot, no pad):
+
+```cpp
+concept WaveRenderer = requires { fill(std::span<q31> out, uint32_t& phase, ...); };
+
+void renderSynced(WaveRenderer auto&& fill, SyncParams sp, std::span<q31> out, uint32_t& phase);
+```
+
+`renderSynced` slices `out` into per-sync windows and calls `fill(window, phase)`
+per window, applying the crossover fade between windows. This keeps the existing
+*higher-order* instinct (which is correct — wavetable's cross-cycle fill is also a
+`WaveRenderer`, the very reason the hook exists) but: the overshoot and `+4` pad
+disappear, the general/pulse/wavetable copy-paste collapses to one `fill` each,
+and `phase` is threaded once instead of computed-and-discarded.
+
+State: everything here is **stateless L0** (pure over spans). The phase
+accumulator + unison/feedback state belong to the L1 `SourceEngine` (Phase 3),
+which owns phase and composes these stages into `Render(block)`; `renderOsc`
+dissolves into that composition.
+
+This redesign is **Phase B work** — it is relocation-coupled, and the overshoot
+is load-bearing, so it is not a safe in-place bit-exact edit. It stops being
+scary once the wave kernels exist as clean `WaveRenderer`s: `renderSynced` is
+then a small generic combinator, not a callback with a hidden overshoot contract.
+
 ## The shared `core/` concept
 
 With sine (done) plus these wave kernels, the generator concept is now real:
