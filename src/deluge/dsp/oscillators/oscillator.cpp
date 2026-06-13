@@ -17,6 +17,7 @@
 #include "oscillator.h"
 #include "basic_waves.h"
 #include "dsp-next/fixed/amplitude.h"
+#include "dsp-next/fixed/pulse_oscillator.h"
 #include "dsp-next/fixed/synced_oscillator.h"
 #include "dsp-next/fixed/table_oscillator.h"
 #include "processing/engines/audio_engine.h"
@@ -467,32 +468,35 @@ doOscSyncSetup:
 					phase >>= 1;
 					phaseIncrement >>= 1;
 
+					// The perfect pulse: ring-modulate two band-limited squares offset by the pulse
+					// width. Same raw kernel + vqdmulhq VCA as the table path, so the gen-then-VCA
+					// (and SyncedOscillator) migration is bit-exact with renderPulseWave/renderOscSync.
+					fixed::PulseOscillator pulse{fixed::table_from_pointer(table, tableSizeMagnitude), phase,
+					                             phaseIncrement, phaseToAdd};
 					if (doOscSync) {
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
-						int32_t numSamplesThisOscSyncSession = numSamples;
-						auto storeVectorWaveForOneSync = [&](int32_t const* const bufferEndThisSyncRender,
-						                                     uint32_t phase, int32_t* __restrict__ writePos) {
-							int32x4_t valueVector;
-							do {
-								std::tie(valueVector, phase) = waveRenderingFunctionPulse(
-								    phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
-								vst1q_s32(writePos, valueVector);
-								writePos += 4;
-							} while (writePos < bufferEndThisSyncRender);
-						};
-						renderOscSync(
-						    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
-						    resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase,
-						    numSamplesThisOscSyncSession, bufferStartThisSync);
-						phase <<= 1;
+						fixed::SyncedOscillator osc{
+						    pulse, phase, phaseIncrement,
+						    fixed::Resetter{resetterPhase, resetterPhaseIncrement, resetterDivideByPhaseIncrement},
+						    retriggerPhase};
+						osc.renderBlock(fixed::Buffer{bufferStartThisSync, static_cast<size_t>(numSamples)});
+						phase = osc.phase() << 1;
 						applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
 						                             oscSyncRenderingBuffer);
 						maybeStorePhase(type, startPhase, phase, doPulseWave);
 						return;
 					}
 					else {
-						dsp::renderPulseWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd,
-						                     phaseIncrement, phase, applyAmplitude, phaseToAdd, amplitudeIncrement);
+						if (applyAmplitude) {
+							pulse.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+							fixed::Amplitude vca{amplitude, amplitudeIncrement};
+							vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
+							                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
+							                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
+						}
+						else {
+							pulse.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
+						}
 						return;
 					}
 				}
