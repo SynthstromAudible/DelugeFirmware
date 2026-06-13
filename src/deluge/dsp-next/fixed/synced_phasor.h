@@ -17,7 +17,8 @@
 #pragma once
 
 #include "dsp-next/core/phasor.h"
-#include "util/fixedpoint.h" // multiply_32x32_rshift32
+#include "dsp-next/fixed/resetter.h" // resetter_reciprocal
+#include "util/fixedpoint.h"         // multiply_32x32_rshift32
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
@@ -42,10 +43,10 @@ class SyncedPhasor {
 public:
 	/// @param phasor the audible oscillator's phase accumulator
 	/// @param resetter the master phase accumulator whose cycle boundaries reset @p phasor
-	/// @param resetter_divide reciprocal of the audible increment (>> 47 effective)
 	/// @param retrigger_phase phase the audible wave restarts from at a crossover
-	SyncedPhasor(Phasor phasor, Phasor resetter, int32_t resetter_divide, uint32_t retrigger_phase)
-	    : phasor_{phasor}, resetter_{resetter}, resetter_divide_{resetter_divide}, retrigger_phase_{retrigger_phase} {}
+	SyncedPhasor(Phasor phasor, Phasor resetter, uint32_t retrigger_phase)
+	    : phasor_{phasor}, resetter_{resetter}, resetter_divide_{resetter_reciprocal(resetter.increment())},
+	      retrigger_phase_{retrigger_phase} {}
 
 	[[gnu::always_inline]] uint32_t advance() {
 		uint32_t phase = phasor_.advance();

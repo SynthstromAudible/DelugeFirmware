@@ -28,10 +28,6 @@ using deluge::dsp::Phasor;
 using deluge::dsp::fixed::SyncedPhasor;
 
 constexpr uint32_t kInc = 0x04000000; // audible increment
-
-constexpr int32_t resetterReciprocal(uint32_t increment) {
-	return static_cast<int32_t>(2147483648u / static_cast<uint16_t>((increment + 65535) >> 16));
-}
 } // namespace
 
 // clang-format off
@@ -39,7 +35,7 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 	context("a resetter too slow to wrap within the block", _ {
 		it("free-runs identically to a plain Phasor", _ {
 			// ~65536 samples per resetter cycle: no reset over a handful of samples.
-			SyncedPhasor synced{Phasor{0u, kInc}, Phasor{0u, 0x00010000u}, resetterReciprocal(0x00010000u), 0u};
+			SyncedPhasor synced{Phasor{0u, kInc}, Phasor{0u, 0x00010000u}, 0u};
 			Phasor plain{0u, kInc};
 			for (int i = 0; i < 8; ++i) {
 				expect(synced.advance()).to_equal(plain.advance());
@@ -50,7 +46,7 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 	context("a resetter wrapping every 4 samples", _ {
 		it("free-runs until the crossover, then snaps the phase", _ {
 			// resetter += 2^30 each step -> wraps on the 4th advance (0 -> reset).
-			SyncedPhasor synced{Phasor{0u, kInc}, Phasor{0u, 0x40000000u}, resetterReciprocal(0x40000000u), 0u};
+			SyncedPhasor synced{Phasor{0u, kInc}, Phasor{0u, 0x40000000u}, 0u};
 			Phasor plain{0u, kInc};
 			// Samples 0..2: no wrap yet, identical to free-running.
 			expect(synced.advance()).to_equal(plain.advance());

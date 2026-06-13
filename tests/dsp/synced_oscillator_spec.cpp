@@ -37,11 +37,6 @@ constexpr uint32_t kInc = 0x08000000;   // audible oscillator phase increment
 constexpr std::size_t kBlock = 16;      // samples per render
 constexpr std::array<int16_t, 8> kTable{0, 1000, 2000, 3000, 4000, 5000, 6000, 7000};
 
-// The resetter reciprocal, computed exactly as renderOsc does.
-constexpr int32_t resetterReciprocal(uint32_t increment) {
-	return static_cast<int32_t>(2147483648u / static_cast<uint16_t>((increment + 65535) >> 16));
-}
-
 // A plain (un-synced) render of the wrapped oscillator, for comparison.
 std::array<int32_t, kBlock> plainRender() {
 	TableOscillator osc{Table{kTable, kMag}, 0u, kInc};
@@ -56,7 +51,7 @@ describe synced_oscillator("deluge::dsp::fixed SyncedOscillator", ${
 	context("a resetter too slow to cross over within the block", _ {
 		// ~4096 samples per resetter cycle, so no crossover in 16 samples: pure passthrough.
 		it("renders the wrapped oscillator unchanged", _ {
-			Resetter slow{0u, 0x00100000u, resetterReciprocal(0x00100000u)};
+			Resetter slow{0u, 0x00100000u};
 			SyncedOscillator osc{TableOscillator{Table{kTable, kMag}, 0u, kInc}, 0u, kInc, slow, 0u};
 			std::array<int32_t, kBlock> out{};
 			osc.renderBlock(deluge::dsp::fixed::Buffer{out});
@@ -64,7 +59,7 @@ describe synced_oscillator("deluge::dsp::fixed SyncedOscillator", ${
 		});
 
 		it("advances the phase by the whole block", _ {
-			Resetter slow{0u, 0x00100000u, resetterReciprocal(0x00100000u)};
+			Resetter slow{0u, 0x00100000u};
 			SyncedOscillator osc{TableOscillator{Table{kTable, kMag}, 0u, kInc}, 0u, kInc, slow, 0u};
 			std::array<int32_t, kBlock> out{};
 			osc.renderBlock(deluge::dsp::fixed::Buffer{out});
@@ -75,7 +70,7 @@ describe synced_oscillator("deluge::dsp::fixed SyncedOscillator", ${
 	context("a resetter that crosses over mid-block", _ {
 		// 8 samples per resetter cycle: the first crossover lands at sample 8 within the block.
 		it("matches the un-synced wave up to the first crossover, then restarts", _ {
-			Resetter fast{0u, 0x20000000u, resetterReciprocal(0x20000000u)};
+			Resetter fast{0u, 0x20000000u};
 			SyncedOscillator osc{TableOscillator{Table{kTable, kMag}, 0u, kInc}, 0u, kInc, fast, 0u};
 			std::array<int32_t, kBlock> out{};
 			osc.renderBlock(deluge::dsp::fixed::Buffer{out});

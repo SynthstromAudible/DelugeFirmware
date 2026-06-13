@@ -21,6 +21,7 @@
 #include "dsp-next/fixed/crude_amplitude.h"
 #include "dsp-next/fixed/crude_oscillators.h"
 #include "dsp-next/fixed/pulse_oscillator.h"
+#include "dsp-next/fixed/resetter.h"
 #include "dsp-next/fixed/synced_oscillator.h"
 #include "dsp-next/fixed/synced_phasor.h"
 #include "dsp-next/fixed/table_oscillator.h"
@@ -140,15 +141,12 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 		}
 	}
 
-	// We want to see if we're within half a phase-increment of the "reset" pos
+	// We want to see if we're within half a phase-increment of the "reset" pos. The sync
+	// components derive this reciprocal themselves now; it is kept here only for the wavetable
+	// render below (migrated later), and shares the one definition.
 	if (doOscSync) [[unlikely]] {
 doOscSyncSetup:
-
-		resetterDivideByPhaseIncrement = // You should >> 47 if multiplying by this.
-		    (uint32_t)2147483648u
-		    / (uint16_t)((resetterPhaseIncrement + 65535)
-		                 >> 16); // Round resetterPhaseIncrement up first, so resetterDivideByPhaseIncrement gets a tiny
-		                         // bit smaller, so things multiplied by it don't get a bit too big and overflow.
+		resetterDivideByPhaseIncrement = fixed::resetter_reciprocal(resetterPhaseIncrement);
 	}
 
 	// Shared tail (Phase A1): render a band-limited wave from `renderTable` — straight or with
@@ -167,7 +165,7 @@ doOscSyncSetup:
 			    fixed::TableOscillator{fixed::table_from_pointer(renderTable, renderTableSizeMagnitude), phase,
 			                           phaseIncrement},
 			    phase, phaseIncrement,
-			    fixed::Resetter{resetterPhase, resetterPhaseIncrement, resetterDivideByPhaseIncrement}, retriggerPhase};
+			    fixed::Resetter{resetterPhase, resetterPhaseIncrement}, retriggerPhase};
 			osc.renderBlock(fixed::Buffer{bufferStartThisSync, static_cast<size_t>(numSamples)});
 			phase = osc.phase();
 			applyAmplitudeVectorToBuffer(amp, numSamples, ampIncrement, bufferStart, oscSyncRenderingBuffer);
@@ -227,7 +225,7 @@ doOscSyncSetup:
 				// (per-sample hard reset) instead of a plain Phasor.
 				fixed::CrudeTriangle osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
 				                                             Phasor{resetterPhase, resetterPhaseIncrement},
-				                                             resetterDivideByPhaseIncrement, retriggerPhase}};
+				                                             retriggerPhase}};
 				if (applyAmplitude) {
 					osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
 					fixed::CrudeAmplitude vca{amplitude << 1, amplitudeIncrement << 1};
@@ -331,8 +329,7 @@ doOscSyncSetup:
 				else {
 					// Crude saw under hard sync: same generator, SyncedPhasor phase source.
 					fixed::CrudeSaw osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
-					                                        Phasor{resetterPhase, resetterPhaseIncrement},
-					                                        resetterDivideByPhaseIncrement, retriggerPhase}};
+					                                        Phasor{resetterPhase, resetterPhaseIncrement}, retriggerPhase}};
 					if (applyAmplitude) {
 						osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
 						fixed::CrudeAmplitude vca{amplitude, amplitudeIncrement};
@@ -386,7 +383,7 @@ doOscSyncSetup:
 					// Crude square under hard sync: same generator, SyncedPhasor phase source.
 					fixed::CrudeSquare osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
 					                                           Phasor{resetterPhase, resetterPhaseIncrement},
-					                                           resetterDivideByPhaseIncrement, retriggerPhase},
+					                                           retriggerPhase},
 					                       pulseWidth};
 					if (applyAmplitude) {
 						osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
@@ -430,7 +427,7 @@ doOscSyncSetup:
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 						fixed::SyncedOscillator osc{
 						    pulse, phase, phaseIncrement,
-						    fixed::Resetter{resetterPhase, resetterPhaseIncrement, resetterDivideByPhaseIncrement},
+						    fixed::Resetter{resetterPhase, resetterPhaseIncrement},
 						    retriggerPhase};
 						osc.renderBlock(fixed::Buffer{bufferStartThisSync, static_cast<size_t>(numSamples)});
 						phase = osc.phase() << 1;

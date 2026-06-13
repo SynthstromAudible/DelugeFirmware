@@ -18,25 +18,20 @@
 
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "util/fixedpoint.h" // multiply_32x32_rshift32
-#include "util/waves.h"      // getSine
+#include "dsp-next/fixed/resetter.h" // Resetter reciprocal
+#include "util/fixedpoint.h"         // multiply_32x32_rshift32
+#include "util/waves.h"              // getSine
 #include <cstddef>
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
 
 /// @brief The hard-sync master: a virtual oscillator whose cycle boundaries ("crossovers")
-/// restart the audible oscillator.
-///
-/// @var Resetter::divide_by_phase_increment
-///   The precomputed reciprocal of the *audible* oscillator's phase increment (apply with
-///   `multiply_32x32_rshift32(...) << 17`, i.e. an effective `>> 47`). It converts the
-///   resetter's phase overshoot past a crossover into the fractional sample position used to
-///   place the seam crossfade.
+/// restart the audible oscillator. The reciprocal used to place the seam (see
+/// @ref resetter_reciprocal) is derived from @ref phase_increment, not stored here.
 struct Resetter {
 	uint32_t phase;
 	uint32_t phase_increment;
-	int32_t divide_by_phase_increment;
 };
 
 /// @brief Hard sync, as a component: a generator that wraps a generator.
@@ -62,15 +57,16 @@ template <typename Osc>
 class [[gnu::hot]] SyncedOscillator : public BlockGenerator<q31> {
 	Osc oscillator_;
 	Resetter resetter_;
-	uint32_t phase_; ///< audible oscillator phase; reset to the seam fade position at each crossover
+	int32_t resetter_divide_; ///< reciprocal of the resetter increment, for placing the seam (>> 47 effective)
+	uint32_t phase_;          ///< audible oscillator phase; reset to the seam fade position at each crossover
 	uint32_t phase_increment_;
 	uint32_t retrigger_phase_;
 
 public:
 	SyncedOscillator(Osc oscillator, uint32_t phase, uint32_t phase_increment, Resetter resetter,
 	                 uint32_t retrigger_phase)
-	    : oscillator_{oscillator}, resetter_{resetter}, phase_{phase}, phase_increment_{phase_increment},
-	      retrigger_phase_{retrigger_phase} {}
+	    : oscillator_{oscillator}, resetter_{resetter}, resetter_divide_{resetter_reciprocal(resetter.phase_increment)},
+	      phase_{phase}, phase_increment_{phase_increment}, retrigger_phase_{retrigger_phase} {}
 
 	/// The audible phase after rendering — what the voice stores back to continue next block.
 	[[nodiscard]] uint32_t phase() const { return phase_; }
@@ -132,7 +128,7 @@ public:
 			// Resetter overshoot past the boundary → fractional sample position (±0.5 as ±2^14),
 			// scaled to full range; from it derive the restarted audible phase.
 			seam_fade =
-			    multiply_32x32_rshift32(static_cast<int32_t>(resetter_.phase), resetter_.divide_by_phase_increment)
+			    multiply_32x32_rshift32(static_cast<int32_t>(resetter_.phase), resetter_divide_)
 			    << 17;
 			phase_ = multiply_32x32_rshift32(seam_fade, phase_increment_) + retrigger_phase_;
 			phase_ -= phase_increment_; // back up one: we redo the crossover sample as the seam
