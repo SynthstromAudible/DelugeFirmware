@@ -92,13 +92,18 @@ at the end. Migration order:
    `lookuptables` surgery. Block/span helpers and primitive concepts are also
    deferred until there are ≥1 primitives to shape them against
    (over-abstraction risk, per Risks). `core/` stays deliberately lean.
-2. **Sine oscillator + basic VA waves** — including the render kernels that
-   currently live, wrongly, in `processing/render_wave.h` +
-   `vector_rendering_function.h`; they are rewritten into `fixed/` over
-   `std::span`, not relocated within old `dsp/`.
-3. **Filters** (SVF, lp/hp ladders) — `cpuDireness` becomes an injected
-   quality arg; `FilterMode`/config arrive as a POD, not via the
-   `gui/l10n`-dragging `model/.../filter_config.h`.
+2. **Oscillator domain** — the sine kernel (done, S2) plus the basic VA waves
+   (saw/square/triangle/analog) and the render kernels that currently live,
+   wrongly, in `processing/render_wave.h` + `vector_rendering_function.h`.
+   Rewritten into `fixed/oscillators/` as per-wave kernel+LUT primitives over
+   `std::span`, with the VCA separated from generation and the `OscType`
+   megaswitch broken into a kernel registry. **This is the active thread after
+   S2** — detailed plan: [synth_oscillator_plan.md](synth_oscillator_plan.md).
+3. **Filters** (SVF, lp/hp ladders) — `cpuDireness` injected; per-filter mode
+   enums (not the `gui/l10n`-dragging app `FilterMode`); global `blendBuffer`
+   → injected scratch. **Deferred to a later cohesive arc**: it's a coupled
+   subsystem (`union{ladder,svf}` in `FilterSet`, shared tan/tanh LUTs), best
+   migrated as one unit, not interleaved with the oscillator work.
 4. **Wavetable** — `core::WaveTableView` POD (band descriptors + cycle
    metadata); the band-limited render kernel (today a *method of
    `storage::WaveTable`*) moves into `fixed/` operating on the view;
@@ -164,9 +169,16 @@ change.
   is too slow to run per-commit, so it is reserved for phase boundaries). Shipped
   with a thorough dual-arch unit spec: `tests/dsp/sine_spec.cpp` (CppSpec, CTest)
   runs on x86 (SIMDe) and ARM/qemu, both green.
-- **S3..S7 — migrate items 3–6** one primitive (or tight cluster) per commit,
-  following the per-primitive recipe above. The first caller switch can move a
-  fixture — gate hard.
+- **Oscillator domain** (the active thread): the VA wave kernels + LUTs, the VCA
+  separation, and the megaswitch → kernel-registry rewrite. Staged
+  in-place-refactor-first (Phase A, bit-exact vs existing hashes) → migrate
+  (Phase B) → unify VCA (Phase C). Its own detailed plan:
+  [synth_oscillator_plan.md](synth_oscillator_plan.md). Phase C (unifying the
+  VCA arithmetic) is the first **deliberate golden re-baseline** — ear +
+  hardware, not SHA. dsp-next kernels are **stateless** (state → L1 SourceEngine).
+- **Filters, then FX, then DX7** — later clusters (filters as one cohesive
+  subsystem arc), per the migration order above. The first caller switch of
+  each can move a fixture — gate hard.
 - **Sn — Retire.** When the only thing left in old `dsp/` is the deferred
   sample residue, the lint allowlist for `dsp/` is gone; the final cleanup
   (delete emptied `dsp/`, rename/settle `dsp-next`'s canonical name) is its
