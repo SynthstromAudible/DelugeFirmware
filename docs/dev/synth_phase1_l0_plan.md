@@ -31,6 +31,31 @@ zero firmware scaffolding.
 6. All 319 golden fixtures unchanged on x86 **and** ARM (or any waiver
    documented per-commit and re-baselined once, per the Phase-0 contract).
 
+### Restructuring is in scope
+
+The existing file layout is **not authoritative** — it accreted, and parts of
+it are simply in the wrong place (DSP kernels under `processing/`, the
+wavetable renderer under `storage/`, L0 lookup data behind `gui`-polluted util
+headers). Prefer **moving files to express the target L0/L1/L2 structure** over
+preserving their history. Use `git mv` so blame survives; keep each move its
+own commit so a relocation never hides a behaviour change. Concretely for this
+phase:
+
+- DSP kernels currently in `processing/` move **into** `dsp/`.
+- Pure DSP lookup data the engine needs (sine/wave tables) moves into a
+  `dsp/`-owned home, not carved into another `util/` header (see S6).
+- The wavetable renderer moves from `storage/` down into `dsp/` (S7).
+- `dsp/granular/` and `dsp/timestretch/` are **not** L0 — they are the sample
+  path. They stay put for this phase (allowlisted) and **relocate out of
+  `dsp/`** in Phase 3 when the `SampleSource` port lands. Don't invest in
+  their internal layout now.
+
+Target direction (settle exact names during implementation, not up front):
+`dsp/` holds only freestanding leaf kernels — oscillators (incl. the wave
+renderer + wavetable kernel + the wave LUTs), filters, reverb/delay/comp FX
+kernels, dx, interpolation. Everything that loads, steals, streams, or
+schedules lives above it.
+
 ## Non-goals (deferred, tracked on the lint allowlist)
 
 - `dsp/timestretch/`, `dsp/granular/`, and the sample path generally — these
@@ -111,14 +136,16 @@ the enum + constants into an L0-clean header (or remove the accidental
 `gui/l10n` include if nothing in the config truly needs it) so `dsp/filter/`
 depends only on the POD config.
 
-### S6 — Split the L0 subset out of the shared util headers
-`dsp/` pulls `multiply_32x32_*` (fine — `util/fixedpoint.h`), but also
-`getSine*`, `sineWaveDiff`, `interpolateTableSigned`, and wave lookup tables
-from `util/functions.h` + `util/lookuptables/lookuptables.h`, which export
-`gui/colour`, `gui/l10n`, and `model/iterance`. Carve the wave/lookup-table
-data and helpers the DSP needs into an L0-clean header (e.g.
-`util/waves_lut.h`) free of those reaches, and include *that* from `dsp/`.
-Scope strictly to symbols `dsp/` references — not a full util untangling.
+### S6 — Move the L0 wave/lookup data into `dsp/`
+`dsp/` pulls `multiply_32x32_*` (fine — `util/fixedpoint.h` is L0-clean), but
+also `getSine*`, `sineWaveDiff`, `interpolateTableSigned`, and the wave lookup
+tables from `util/functions.h` + `util/lookuptables/lookuptables.h`, which
+export `gui/colour`, `gui/l10n`, and `model/iterance`. These wave tables and
+their accessors are DSP data living in `util/` for historical reasons — give
+them a `dsp/`-owned home (e.g. `dsp/oscillators/wave_tables.{h,cpp}`) and have
+the (still app-level) `util` headers include *that* if they need it, inverting
+the direction. Scope strictly to the sine/wave LUTs + helpers `dsp/`
+references — not a full util untangling. `util/fixedpoint.h` stays where it is.
 
 ### S7 — Invert the WaveTable dependency (highest risk)
 Today `WaveTable::render()` + `doRenderingLoop[SingleCycle]()` are **methods
