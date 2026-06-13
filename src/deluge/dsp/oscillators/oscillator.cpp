@@ -144,6 +144,38 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 	// derives the resetter reciprocal itself from the resetter increment, so there is nothing to
 	// set up here — `doOscSync` is just threaded through to the render below.
 
+	// How an oscillator's un-amplified ("standalone") output relates to the raw value its VCA
+	// consumes: band-limited / pulse waves emit final-scale directly; the crude saw/square emit
+	// double (so the standalone is >> 1); the crude triangle emits half (standalone << 1).
+	enum class Standalone { kDirect, kHalve, kDouble };
+
+	// The shared render tail for one oscillator: fill its raw wave, then either scale-and-mix it
+	// through its VCA (when amplitude applies) or write the standalone wave (scaled) straight out.
+	// Collapses the otherwise-identical per-wave amp/no-amp blocks. `osc` already owns the right
+	// phase source (plain Phasor or hard-synced); `makeVca` builds the VCA only when needed.
+	auto renderThroughVca = [&](auto& osc, auto makeVca, Standalone scale) {
+		if (applyAmplitude) {
+			osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+			auto vca = makeVca();
+			vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
+			                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
+			                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
+		}
+		else {
+			osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
+			if (scale == Standalone::kHalve) {
+				for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
+					*sample >>= 1;
+				}
+			}
+			else if (scale == Standalone::kDouble) {
+				for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
+					*sample <<= 1;
+				}
+			}
+		}
+	};
+
 	// Shared tail (Phase A1): render a band-limited wave from `renderTable` — straight or with
 	// osc sync — and apply amplitude. Replaces the `callRenderWave` goto target. The rendering
 	// context is captured by reference; the per-wave call sites vary only the table, its size
@@ -173,16 +205,8 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 			// was advanced at the top of renderOsc.
 			fixed::TableOscillator osc{fixed::table_from_pointer(renderTable, renderTableSizeMagnitude), phase,
 			                           phaseIncrement};
-			if (applyAmplitude) {
-				osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-				fixed::Amplitude vca{amp, ampIncrement};
-				vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
-				                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
-				                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-			}
-			else {
-				osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-			}
+			renderThroughVca(
+			    osc, [&] { return fixed::Amplitude{amp, ampIncrement}; }, Standalone::kDirect);
 		}
 	};
 
@@ -220,48 +244,21 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 	else if (type == OscType::TRIANGLE) {
 
 		if (phaseIncrement < 69273666 || AudioEngine::cpuDireness >= 7) {
+			// Crude triangle: half-scale getTriangleSmall fed to a doubled-amplitude VCA, so the
+			// standalone (un-amplified) output is << 1. Plain Phasor free-runs; SyncedPhasor hard-syncs.
+			auto makeVca = [&] { return fixed::CrudeAmplitude{amplitude << 1, amplitudeIncrement << 1}; };
 			if (doOscSync) {
-				// Same crude triangle generator as the non-sync arm, but driven by a SyncedPhasor
-				// (per-sample hard reset) instead of a plain Phasor.
 				fixed::CrudeTriangle osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
 				                                             Phasor{resetterPhase, resetterPhaseIncrement},
 				                                             retriggerPhase}};
-				if (applyAmplitude) {
-					osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-					fixed::CrudeAmplitude vca{amplitude << 1, amplitudeIncrement << 1};
-					vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
-					                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
-					                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-				}
-				else {
-					osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-					for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
-						*sample <<= 1;
-					}
-				}
+				renderThroughVca(osc, makeVca, Standalone::kDouble);
 				phase = osc.phase();
 				maybeStorePhase(type, startPhase, phase, doPulseWave);
 				return;
 			}
-			else {
-				// Crude triangle generator, then the crude (rounded-MAC) VCA. Without amplitude the
-				// raw getTriangleSmall is the half-scale value, so the standalone output is << 1.
-				fixed::CrudeTriangle osc{Phasor{phase, phaseIncrement}};
-				if (applyAmplitude) {
-					osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-					fixed::CrudeAmplitude vca{amplitude << 1, amplitudeIncrement << 1};
-					vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
-					                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
-					                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-				}
-				else {
-					osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-					for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
-						*sample <<= 1;
-					}
-				}
-				return;
-			}
+			fixed::CrudeTriangle osc{Phasor{phase, phaseIncrement}};
+			renderThroughVca(osc, makeVca, Standalone::kDouble);
+			return;
 		}
 
 		else {
@@ -306,47 +303,19 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 			// If frequency low enough, we just use a crude calculation for the wave without anti-aliasing
 			if (tableNumber < AudioEngine::cpuDireness + 6) {
 
+				// Crude saw: the phase ramp itself (full scale), so the standalone output is >> 1.
+				auto makeVca = [&] { return fixed::CrudeAmplitude{amplitude, amplitudeIncrement}; };
 				if (!doOscSync) {
-					// Crude saw generator (the phase ramp itself), then the crude (rounded-MAC) VCA.
-					// Without amplitude the standalone saw is the ramp >> 1.
 					fixed::CrudeSaw osc{Phasor{phase, phaseIncrement}};
-					if (applyAmplitude) {
-						osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-						fixed::CrudeAmplitude vca{amplitude, amplitudeIncrement};
-						vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
-						                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
-						                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-					}
-					else {
-						osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-						for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
-							*sample >>= 1;
-						}
-					}
+					renderThroughVca(osc, makeVca, Standalone::kHalve);
 					return;
 				}
-
-				else {
-					// Crude saw under hard sync: same generator, SyncedPhasor phase source.
-					fixed::CrudeSaw osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
-					                                        Phasor{resetterPhase, resetterPhaseIncrement}, retriggerPhase}};
-					if (applyAmplitude) {
-						osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-						fixed::CrudeAmplitude vca{amplitude, amplitudeIncrement};
-						vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
-						                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
-						                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-					}
-					else {
-						osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-						for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
-							*sample >>= 1;
-						}
-					}
-					phase = osc.phase();
-					maybeStorePhase(type, startPhase, phase, doPulseWave);
-					return;
-				}
+				fixed::CrudeSaw osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
+				                                        Phasor{resetterPhase, resetterPhaseIncrement}, retriggerPhase}};
+				renderThroughVca(osc, makeVca, Standalone::kHalve);
+				phase = osc.phase();
+				maybeStorePhase(type, startPhase, phase, doPulseWave);
+				return;
 			}
 
 			else {
@@ -358,50 +327,20 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 			// If frequency low enough, we just use a crude calculation for the wave without anti-aliasing
 			if (tableNumber < AudioEngine::cpuDireness + 6) {
 
+				// Crude square: full-scale getSquare, so the standalone output is >> 1 (== getSquareSmall).
+				auto makeVca = [&] { return fixed::CrudeAmplitude{amplitude, amplitudeIncrement}; };
 				if (!doOscSync) {
-
-					// Crude square / pulse generator, then the crude (rounded-MAC) VCA. Without
-					// amplitude the standalone square is the full getSquare >> 1 (== getSquareSmall).
 					fixed::CrudeSquare osc{Phasor{phase, phaseIncrement}, pulseWidth};
-					if (applyAmplitude) {
-						osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-						fixed::CrudeAmplitude vca{amplitude, amplitudeIncrement};
-						vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
-						                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
-						                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-					}
-					else {
-						osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-						for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
-							*sample >>= 1;
-						}
-					}
+					renderThroughVca(osc, makeVca, Standalone::kHalve);
 					return;
 				}
-
-				else {
-					// Crude square under hard sync: same generator, SyncedPhasor phase source.
-					fixed::CrudeSquare osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
-					                                           Phasor{resetterPhase, resetterPhaseIncrement},
-					                                           retriggerPhase},
-					                       pulseWidth};
-					if (applyAmplitude) {
-						osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-						fixed::CrudeAmplitude vca{amplitude, amplitudeIncrement};
-						vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
-						                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
-						                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-					}
-					else {
-						osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-						for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
-							*sample >>= 1;
-						}
-					}
-					phase = osc.phase();
-					maybeStorePhase(type, startPhase, phase, doPulseWave);
-					return;
-				}
+				fixed::CrudeSquare osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
+				                                           Phasor{resetterPhase, resetterPhaseIncrement}, retriggerPhase},
+				                       pulseWidth};
+				renderThroughVca(osc, makeVca, Standalone::kHalve);
+				phase = osc.phase();
+				maybeStorePhase(type, startPhase, phase, doPulseWave);
+				return;
 			}
 
 			else {
