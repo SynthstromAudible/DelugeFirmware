@@ -16,6 +16,7 @@
  */
 #include "oscillator.h"
 #include "basic_waves.h"
+#include "dsp-next/fixed/amplitude.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
@@ -512,23 +513,15 @@ doOscSyncSetup:
 }
 void Oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
                                               int32_t* outputBufferPos, int32_t* inputBuferPos) {
-	int32_t const* const bufferEnd = outputBufferPos + numSamples;
-
-	int32x4_t amplitudeVector = createAmplitudeVector(amplitude, amplitudeIncrement);
-	int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
-
-	do {
-		int32x4_t waveDataFromBefore = vld1q_s32(inputBuferPos);
-		int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);
-		int32x4_t dataWithAmplitudeApplied = vqdmulhq_s32(amplitudeVector, waveDataFromBefore);
-		amplitudeVector = vaddq_s32(amplitudeVector, amplitudeIncrementVector);
-		int32x4_t sum = vaddq_s32(dataWithAmplitudeApplied, existingDataInBuffer);
-
-		vst1q_s32(outputBufferPos, sum);
-
-		outputBufferPos += 4;
-		inputBuferPos += 4;
-	} while (outputBufferPos < bufferEnd);
+	// Delegates to the dsp-next Amplitude mixer: out = (raw * amplitude) + mix, with the
+	// same vqdmulhq + accumulate and the same ramped amplitude vector — the VCA arithmetic
+	// now lives in one component. Bit-exact with the former inline loop (the masked tail
+	// also drops that loop's harmless 4-sample overshoot). Call sites switch to the mixer
+	// directly in a later step, retiring this shim.
+	fixed::Amplitude vca{amplitude, amplitudeIncrement};
+	vca.renderBlock(fixed::Signal{inputBuferPos, static_cast<size_t>(numSamples)},
+	                fixed::Signal{outputBufferPos, static_cast<size_t>(numSamples)},
+	                fixed::Buffer{outputBufferPos, static_cast<size_t>(numSamples)});
 }
 void Oscillator::maybeStorePhase(const OscType& type, uint32_t* startPhase, uint32_t phase, bool doPulseWave) {
 	if (!(doPulseWave && type != OscType::SQUARE)) {

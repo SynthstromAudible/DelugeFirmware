@@ -40,28 +40,10 @@ using Buffer = std::span<T>;
 template <typename T>
 using Signal = std::span<const T>;
 
-/// @brief An interleaved stereo sample.
-template <typename T>
-struct StereoSample {
-	Sample<T> l;
-	Sample<T> r;
-
-	[[nodiscard]] static constexpr StereoSample fromMono(Sample<T> sample) { return {sample, sample}; }
-
-	constexpr bool operator==(const StereoSample&) const = default;
-	constexpr StereoSample operator+(const StereoSample& o) const { return {l + o.l, r + o.r}; }
-	constexpr StereoSample& operator+=(const StereoSample& o) {
-		l += o.l;
-		r += o.r;
-		return *this;
-	}
-};
-
-template <typename T>
-using StereoBuffer = Buffer<StereoSample<T>>;
-
-template <typename T>
-using StereoSignal = Signal<StereoSample<T>>;
+// NOTE: a stereo sample type is deliberately *not* defined here yet — the app already
+// has a concrete `deluge::dsp::StereoSample`, and a second (templated) one in this
+// namespace would clash. dsp-next's stereo vocabulary lands when stereo components are
+// built, reconciled with the app's type. The current (oscillator/VCA) path is mono.
 
 /// @brief Concrete aliases for the bit-exact q31 backend (the Deluge core) — the same
 /// namespace its kernels live in (deluge::dsp::fixed::sine, ::TableOscillator, ...).
@@ -69,9 +51,6 @@ namespace fixed {
 using Sample = dsp::Sample<q31>;
 using Buffer = dsp::Buffer<q31>;
 using Signal = dsp::Signal<q31>;
-using StereoSample = dsp::StereoSample<q31>;
-using StereoBuffer = dsp::StereoBuffer<q31>;
-using StereoSignal = dsp::StereoSignal<q31>;
 } // namespace fixed
 
 /// @brief Concrete aliases for the float32 edge backend (engines/CLAP, later). `fp`
@@ -80,9 +59,6 @@ namespace fp {
 using Sample = dsp::Sample<f32>;
 using Buffer = dsp::Buffer<f32>;
 using Signal = dsp::Signal<f32>;
-using StereoSample = dsp::StereoSample<f32>;
-using StereoBuffer = dsp::StereoBuffer<f32>;
-using StereoSignal = dsp::StereoSignal<f32>;
 } // namespace fp
 
 } // namespace deluge::dsp
