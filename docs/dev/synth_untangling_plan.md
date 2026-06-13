@@ -1,6 +1,6 @@
 # Synth Engine Untangling — Audit, Target Architecture, and Plan
 
-Status: **architecture decided, plan drafted** (2026-06-12). No code changes yet.
+Status: **architecture decided; Phase 0 (golden masters) complete** (updated 2026-06-13). Phases 1–5 not yet started.
 
 Goal: extract the synthesizer/oscillator/DSP machinery into a clean, modern,
 portable, and *testable* library (`libdeluge-synth`), structured so that:
@@ -232,20 +232,38 @@ phase, small bisectable commits, green golden-masters as the merge gate.
 
 ### Phase 0 — Lock the sound (golden masters) — **DONE**
 
-Landed as `tests/golden/` (see its README): 22 corpus presets rendered
-through the full app in the host-sim — file-backed card image, real
+Landed as `tests/golden/` (see its README): a corpus of **319** presets — 23
+hand-written feature cases plus the sample-free synth presets imported from
+the Deluge OLED V4.1.0 factory card (168, legacy tag-based XML) and the
+Community Preset Pack 1.2 (128, modern attribute XML incl. DX7) — each
+rendered through the full app in the host-sim (file-backed card image, real
 `SYNTHS/` preset load at boot, scripted frame-keyed DIN MIDI, deterministic
-offline render — with PCM SHA-256 fixtures cross-validated bit-exact between
-the x86-SIMDe build and the arm-linux/NEON oracle (qemu cortex-a9). **Every
-subsequent phase must stay bit-exact**; any deliberate waiver is documented
-per-commit and re-validated against the ARM oracle.
+offline render), with PCM SHA-256 fixtures cross-validated bit-exact between
+the x86-SIMDe build and the arm-linux/NEON oracle (qemu cortex-a9). The two
+preset formats also exercise the legacy-format loader and version-compat
+transforms. **Every subsequent phase must stay bit-exact**; any deliberate
+waiver is documented per-commit and re-validated against the ARM oracle.
 
-The harness paid for itself immediately, finding four pre-existing bugs:
-an uninitialized-index read in the patched `f_mount`; a null `WaveTable*`
-deref in the ringmod path; an out-of-bounds `Sound::paramFinalValues` read
-in `Voice::noteOff` (the offsetof bug class, live); and an out-of-bounds
-sine-table read breaking all vectorised FM since the argon bump (caught
-precisely by the x86-vs-ARM fixture divergence). Sample/wavetable corpus
+The harness paid for itself immediately, surfacing several pre-existing bugs
+— most of them live on hardware:
+
+- an out-of-bounds sine-table read breaking *all* vectorised FM since the
+  argon bump (caught precisely by the x86-vs-ARM fixture divergence), and the
+  same argon-gather mistake in the pulse-wave renderer;
+- an out-of-bounds `Sound::paramFinalValues` read in `Voice::noteOff` (the
+  offsetof bug class, live);
+- a one-past-the-end span index in `Sound::render` and an unresolved
+  `PLACEHOLDER_RANGE` cable reaching the patcher (a `paramFinalValues` OOB
+  write) — together crashing ~78 real factory/community presets in host-sim;
+- an uninitialized-index read in the patched `f_mount`; a null `WaveTable*`
+  deref in the ringmod path.
+
+The six firmware-affecting fixes were cherry-picked onto `minor-fixes`
+(builds green) for independent release ahead of the untangling itself. One
+sim-only quirk also fell out: the DX7 NEON asm kernel (polynomial sine) and
+the scalar LUT path are not bit-identical, so the sim builds force the scalar
+path (`DELUGE_DX_SCALAR`) for x86≡ARM agreement. Hardware ear-checks on the
+FM, env2-release, and DX7 changes remain pending. Sample/wavetable corpus
 cases are deferred until audio files join the card images.
 
 ### Phase 1 — Make L0 true
