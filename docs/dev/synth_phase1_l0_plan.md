@@ -81,10 +81,17 @@ Follows the repo's existing multi-lib pattern (`deluge_midi`,
 Source material is the same `dsp/` audit as before — see the violation table
 at the end. Migration order:
 
-1. **`core/` foundations** — numeric aliases, span block types, concepts,
-   q31↔f32 conversion. The wave/sine **lookup tables** move here (or to
-   `fixed/`) as `dsp-next`-owned `constexpr`/`std::array` data, out of the
-   `gui`-polluted `util/functions.h` + `util/lookuptables/`.
+1. **`core/` foundations** — numeric aliases + `SampleType` concept
+   (`core/sample.h`, reusing the firmware-wide `q31_t`) and q31↔f32 edge
+   conversion (`core/convert.h`). **Lookup tables migrate later, with their
+   consuming primitive** (not up front): the wave tables are entangled in a
+   grab-bag `util/lookuptables/lookuptables.h` that also drags `gui/l10n` +
+   `model/iterance`, and the FM sine table lives inside `SineOsc` itself — so
+   the clean move is per-primitive (the sine table travels with the sine osc in
+   S2, which is the first thing migrated anyway), not a speculative
+   `lookuptables` surgery. Block/span helpers and primitive concepts are also
+   deferred until there are ≥1 primitives to shape them against
+   (over-abstraction risk, per Risks). `core/` stays deliberately lean.
 2. **Sine oscillator + basic VA waves** — including the render kernels that
    currently live, wrongly, in `processing/render_wave.h` +
    `vector_rendering_function.h`; they are rewritten into `fixed/` over
@@ -135,9 +142,13 @@ change.
   wired into pre-commit + a CI workflow. Firmware Debug builds green, text
   unchanged (empty libs add no code). Per-primitive `dsp_diff` include wiring
   is added in S2 when the first primitive lands.
-- **S1 — `core/` + LUTs** (migration item 1). Lands the numeric aliases,
-  span block types, conversions, and the relocated wave tables. Pure data +
-  headers; no caller switch yet, so goldens are untouched.
+- **S1 — `core/` vocabulary. ✅ done (2026-06-13).** Lean header-only
+  foundation: `core/sample.h` (`q31`/`f32` aliases reusing the firmware-wide
+  `q31_t`, + the `SampleType` concept) and `core/convert.h` (`toF32`/`toQ31`
+  edge conversion, with compile-time saturation self-tests — caught and avoided
+  the `ONE_Q31f`→2^31 float-rounding overflow at |x|==1). No caller switch, so
+  goldens are untouched; firmware text unchanged. LUTs, block helpers, and
+  primitive concepts deliberately deferred (see migration item 1).
 - **S2..S7 — migrate items 2–6** one primitive (or tight cluster) per
   commit, following the per-primitive recipe above. The first caller switch
   (sine osc) is the first commit that can move a fixture — gate hard.

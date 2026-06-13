@@ -32,9 +32,13 @@
 //   float/  f32 backend   -> libdeluge-dsp-float   (namespace deluge::dsp::fp;
 //                                                    `float` is a C++ keyword)
 //
-// S0 scaffold: the actual contracts (Sample/ModValue aliases, block/span types,
-// primitive concepts, conversions) land in S1. This header exists so the library
-// targets and include wiring are exercised by the build from the very first
-// commit — the libs build green while still empty.
+// Umbrella include for the numeric-agnostic core vocabulary. Backends include
+// this; app/migration sites can include the specific headers directly.
+//
+// Landed so far (S1): the q31/f32 sample aliases + SampleType concept (sample.h)
+// and the q31<->f32 edge conversions (convert.h). Still to come as primitives
+// migrate: block/span helpers, primitive concepts, and (Phase 2) the
+// ModValue/ControlValue control-plane vocabulary.
 
-namespace deluge::dsp {} // namespace deluge::dsp
+#include "dsp-next/core/convert.h"
+#include "dsp-next/core/sample.h"
