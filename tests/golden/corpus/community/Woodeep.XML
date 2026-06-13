@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sound
+	firmwareVersion="c1.2.0"
+	earliestCompatibleFirmware="4.1.0-alpha"
+	polyphonic="poly"
+	voicePriority="1"
+	mode="subtractive"
+	modFXType="StereoChorus"
+	lpfMode="24dB"
+	hpfMode="HPLadder"
+	filterRoute="H2L"
+	clippingAmount="1"
+	maxVoices="8">
+	<osc1
+		type="dx7"
+		transpose="0"
+		cents="0"
+		retrigPhase="-1"
+		dx7patch="55483C2B633909002700130001010003400008000755251A3B634E000027000000030100035F00010003551F1A1F634233002704000303010003530001000755251A3C634E00002700000003010003630001000B6363636363636300270000000000000000000100076363636363636300270000000000000000000100073B3B3B3B323232320400002000000000000318576F6F644550202020203E" />
+	<osc2
+		type="triangle"
+		transpose="0"
+		cents="-13"
+		retrigPhase="-1" />
+	<lfo1 type="sine" syncLevel="0" syncType="0" />
+	<lfo2 type="saw" syncLevel="2" syncType="0" />
+	<unison num="1" detune="8" spread="0" />
+	<defaultParams
+		arpeggiatorGate="0x00000000"
+		portamento="0x80000000"
+		compressorShape="0xDC28F5B2"
+		oscAVolume="0x7FFFFFFF"
+		oscAPulseWidth="0x00000000"
+		oscAWavetablePosition="0x00000000"
+		oscBVolume="0x7FFFFFFF"
+		oscBPulseWidth="0x00000000"
+		oscBWavetablePosition="0x00000000"
+		noiseVolume="0x80000000"
+		volume="0x6666663D"
+		pan="0x00000000"
+		lpfFrequency="0x7FFFFFFF"
+		lpfResonance="0xCCCCCCBF"
+		hpfFrequency="0x80000000"
+		hpfResonance="0x80000000"
+		lfo1Rate="0x23D70A20"
+		lfo2Rate="0x947AE144"
+		modulator1Amount="0x8006252F"
+		modulator1Feedback="0x80000000"
+		modulator2Amount="0x80000000"
+		modulator2Feedback="0x80000000"
+		carrier1Feedback="0x80000000"
+		carrier2Feedback="0x80000000"
+		modFXRate="0x00000000"
+		modFXDepth="0x00000000"
+		delayRate="0x8F5C28F3"
+		delayFeedback="0x80000000"
+		reverbAmount="0xF4000000"
+		arpeggiatorRate="0x80000000"
+		stutterRate="0x00000000"
+		sampleRateReduction="0x80000000"
+		bitCrush="0x80000000"
+		modFXOffset="0x00000000"
+		modFXFeedback="0x00000000"
+		compressorThreshold="0x00000000"
+		lpfMorph="0x80000000"
+		hpfMorph="0x80000000"
+		waveFold="0xCCCCCCBF"
+		ratchetProbability="0x80000000"
+		ratchetAmount="0x80000000"
+		sequenceLength="0x80000000"
+		rhythm="0x80000000">
+		<envelope1
+			attack="0x96000000"
+			decay="0xE6666654"
+			sustain="0xD1EB8510"
+			release="0xC6000000" />
+		<envelope2
+			attack="0x80000000"
+			decay="0x80000000"
+			sustain="0x80000000"
+			release="0x80000000" />
+		<patchCables>
+			<patchCable
+				source="lfo2"
+				destination="oscBPhaseWidth"
+				amount="0x0E147AE1">
+				<depthControlledBy>
+					<patchCable
+						source="aftertouch"
+						amount="0x3FFFFFFF" />
+				</depthControlledBy>
+			</patchCable>
+			<patchCable
+				source="note"
+				destination="volume"
+				amount="0xE6666666" />
+			<patchCable
+				source="aftertouch"
+				destination="volume"
+				amount="0x051EB851" />
+			<patchCable
+				source="note"
+				destination="lpfFrequency"
+				amount="0xD3333333" />
+			<patchCable
+				source="envelope2"
+				destination="lpfFrequency"
+				amount="0xD9999999" />
+			<patchCable
+				source="lfo1"
+				destination="pitch"
+				amount="0x04800000">
+				<depthControlledBy>
+					<patchCable
+						source="aftertouch"
+						amount="0x1FFFFFFF" />
+				</depthControlledBy>
+			</patchCable>
+			<patchCable
+				source="y"
+				destination="env2Decay"
+				amount="0x3FFFFFFF" />
+			<patchCable
+				source="y"
+				destination="env2Attack"
+				amount="0x3FFFFFFF" />
+			<patchCable
+				source="note"
+				destination="waveFold"
+				amount="0xC0000000" />
+			<patchCable
+				source="lfo1"
+				destination="oscBPitch"
+				amount="0x028F5C28" />
+		</patchCables>
+		<equalizer
+			bass="0x1999997E"
+			treble="0x33333313"
+			bassFrequency="0x1999997E"
+			trebleFrequency="0xB333332A" />
+	</defaultParams>
+	<arpeggiator
+		mode="off"
+		numOctaves="2"
+		syncLevel="7"
+		syncType="0"
+		arpMode="off"
+		noteMode="up"
+		octaveMode="up"
+		mpeVelocity="off" />
+	<modKnobs>
+		<modKnob controlsParam="pan" />
+		<modKnob controlsParam="volumePostFX" />
+		<modKnob controlsParam="lpfResonance" />
+		<modKnob controlsParam="lpfFrequency" />
+		<modKnob controlsParam="env1Release" />
+		<modKnob controlsParam="env1Attack" />
+		<modKnob controlsParam="delayFeedback" />
+		<modKnob controlsParam="delayRate" />
+		<modKnob controlsParam="reverbAmount" />
+		<modKnob controlsParam="volumePostReverbSend" patchAmountFromSource="compressor" />
+		<modKnob controlsParam="pitch" patchAmountFromSource="lfo1" />
+		<modKnob controlsParam="lfo1Rate" />
+		<modKnob controlsParam="portamento" />
+		<modKnob controlsParam="stutterRate" />
+		<modKnob controlsParam="bitcrushAmount" />
+		<modKnob controlsParam="oscBPhaseWidth" />
+	</modKnobs>
+	<delay
+		pingPong="0"
+		analog="0"
+		syncLevel="7"
+		syncType="19" />
+	<sidechain
+		attack="327244"
+		release="936"
+		syncLevel="6"
+		syncType="0" />
+	<audioCompressor
+		attack="83886080"
+		release="83886080"
+		thresh="0"
+		ratio="1073741824"
+		compHPF="0"
+		compBlend="2147483647" />
+</sound>

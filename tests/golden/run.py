@@ -51,13 +51,32 @@ CARD_BYTES = 64 * 1024 * 1024
 RUN_TIMEOUT = 600  # seconds of wall clock per case; a render is ~2s of CPU
 
 
-def build_card_image(path, preset_xml):
+def stage_preset(preset_xml, tmp):
+    """Copy the preset for the card image, injecting the harness MIDI binding.
+
+    Every case must respond to the scripted DIN input on MIDI channel 1. The
+    hand-written corpus presets carry inputMidiChannel="0" themselves; imported
+    factory/community presets are committed pristine, so inject the binding as
+    a child tag here (the deserializer reads root attributes and child tags
+    uniformly, and this works for both the old tag-based and new attribute-based
+    preset formats).
+    """
+    text = preset_xml.read_text()
+    if "inputMidiChannel" not in text:
+        open_tag_end = text.index(">", text.index("<sound")) + 1
+        text = text[:open_tag_end] + "\n\t<inputMidiChannel>0</inputMidiChannel>" + text[open_tag_end:]
+    staged = tmp / "PRESET.XML"
+    staged.write_text(text)
+    return staged
+
+
+def build_card_image(path, staged_preset):
     with open(path, "wb") as f:
         f.truncate(CARD_BYTES)
     subprocess.run(["mformat", "-i", str(path), "-F", "::"], check=True, capture_output=True)
     subprocess.run(["mmd", "-i", str(path), "::/SYNTHS"], check=True, capture_output=True)
     subprocess.run(
-        ["mcopy", "-i", str(path), str(preset_xml), "::/SYNTHS/PRESET.XML"], check=True, capture_output=True
+        ["mcopy", "-i", str(path), str(staged_preset), "::/SYNTHS/PRESET.XML"], check=True, capture_output=True
     )
 
 
@@ -91,18 +110,33 @@ def pcm_stats(pcm):
     return {"peak": peak, "rms_db": rms_db}
 
 
+def find_preset(name):
+    for suffix in (".xml", ".XML"):
+        p = CORPUS / f"{name}{suffix}"
+        if p.exists():
+            return p
+    raise FileNotFoundError(name)
+
+
 def run_case(name, binary, setarch_prefix, keep_dir):
-    preset = CORPUS / f"{name}.xml"
-    notes = CORPUS / f"{name}.notes"
+    try:
+        return run_case_inner(name, binary, setarch_prefix, keep_dir)
+    except Exception as e:  # report per-case, don't kill the sweep
+        return name, None, f"{type(e).__name__}: {e}"
+
+
+def run_case_inner(name, binary, setarch_prefix, keep_dir):
+    preset = find_preset(name)
+    notes = preset.with_suffix(".notes")
     if not notes.exists():
         notes = CORPUS / "default.notes"
     seconds = SECONDS.get(name, DEFAULT_SECONDS)
 
-    with tempfile.TemporaryDirectory(prefix=f"golden_{name}_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="golden_") as tmp:
         tmp = pathlib.Path(tmp)
         image = tmp / "card.img"
         wav = tmp / "out.wav"
-        build_card_image(image, preset)
+        build_card_image(image, stage_preset(preset, tmp))
 
         env = dict(os.environ)
         env.update(
@@ -128,7 +162,9 @@ def run_case(name, binary, setarch_prefix, keep_dir):
             return name, None, f"short capture: {frames}/{expected_frames} frames"
 
         if keep_dir:
-            shutil.copy(wav, keep_dir / f"{name}.wav")
+            dest = keep_dir / f"{name}.wav"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(wav, dest)
 
         result = {"sha256": hashlib.sha256(pcm).hexdigest(), "frames": frames, **pcm_stats(pcm)}
         # A silent render almost always means the preset failed to load (the
@@ -177,7 +213,12 @@ def main():
         keep_dir = pathlib.Path(args.keep)
         keep_dir.mkdir(parents=True, exist_ok=True)
 
-    cases = sorted(p.stem for p in CORPUS.glob("*.xml") if args.filter in p.stem)
+    cases = sorted(
+        str(p.relative_to(CORPUS).with_suffix(""))
+        for ext in ("*.xml", "*.XML")
+        for p in CORPUS.rglob(ext)
+    )
+    cases = [c for c in cases if args.filter in c]
     if not cases:
         sys.exit(f"no cases match filter {args.filter!r}")
 

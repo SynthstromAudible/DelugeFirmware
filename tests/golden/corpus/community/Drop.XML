@@ -1,0 +1,1075 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sound
+	firmwareVersion="c1.2.0"
+	earliestCompatibleFirmware="4.1.0-alpha"
+	polyphonic="poly"
+	voicePriority="1"
+	mode="subtractive"
+	modFXType="none"
+	lpfMode="24dB"
+	hpfMode="HPLadder"
+	filterRoute="H2L"
+	maxVoices="8">
+	<osc1
+		type="square"
+		transpose="0"
+		cents="0"
+		retrigPhase="-1" />
+	<osc2
+		type="square"
+		transpose="0"
+		cents="0"
+		retrigPhase="-1" />
+	<lfo1 type="triangle" syncLevel="0" syncType="0" />
+	<lfo2 type="triangle" syncLevel="0" syncType="0" />
+	<unison num="1" detune="8" spread="0" />
+	<defaultParams
+		arpeggiatorGate="0x40000000"
+		portamento="0x80000000"
+		compressorShape="0x80000000"
+		oscAVolume="0x7FFFFFFF"
+		oscAPulseWidth="0x14000000"
+		oscAWavetablePosition="0x00000000"
+		oscBVolume="0x7FFFFFFF"
+		oscBPulseWidth="0x58000000"
+		oscBWavetablePosition="0x00000000"
+		noiseVolume="0xF8000000"
+		volume="0xC7AE146E"
+		pan="0x00000000"
+		lpfFrequency="0x7FFFFFFF"
+		lpfResonance="0x92000000"
+		hpfFrequency="0x80000000"
+		hpfResonance="0x80000000"
+		lfo1Rate="0x80000000"
+		lfo2Rate="0x80000000"
+		modulator1Amount="0x80000000"
+		modulator1Feedback="0x80000000"
+		modulator2Amount="0x80000000"
+		modulator2Feedback="0x80000000"
+		carrier1Feedback="0x80000000"
+		carrier2Feedback="0x80000000"
+		pitchAdjust="0x80000000"
+		oscBPitchAdjust="0x02000000"
+		modFXRate="0xDE000000"
+		modFXDepth="0x20000000"
+		delayRate="0xAA000000"
+		delayFeedback="0xB6000000"
+		reverbAmount="0x0A000000"
+		arpeggiatorRate="0xD0000000"
+		stutterRate="0x00000000"
+		sampleRateReduction="0x80000000"
+		bitCrush="0x80000000"
+		modFXOffset="0x4C000000"
+		modFXFeedback="0x3C000000"
+		compressorThreshold="0x00000000"
+		lpfMorph="0x80000000"
+		hpfMorph="0x80000000"
+		waveFold="0x80000000"
+		ratchetProbability="0x80000000"
+		ratchetAmount="0x80000000"
+		sequenceLength="0x80000000"
+		rhythm="0x80000000">
+		<envelope1
+			attack="0x80000000"
+			decay="0x7FFFFFFF"
+			sustain="0x80000000"
+			release="0x80000000" />
+		<envelope2
+			attack="0x80000000"
+			decay="0x7FFFFFFF"
+			sustain="0xC4000000"
+			release="0xB2000000" />
+		<patchCables>
+			<patchCable
+				source="compressor"
+				destination="env1Decay"
+				amount="0x18800000" />
+			<patchCable
+				source="envelope1"
+				destination="env1Decay"
+				amount="0x0F800000" />
+			<patchCable
+				source="envelope1"
+				destination="env1Attack"
+				amount="0x12000000" />
+			<patchCable
+				source="compressor"
+				destination="env1Attack"
+				amount="0x01000000" />
+			<patchCable
+				source="aftertouch"
+				destination="volume"
+				amount="0x2A3D7094" />
+			<patchCable
+				source="velocity"
+				destination="volume"
+				amount="0x3FFFFFE8" />
+			<patchCable
+				source="compressor"
+				destination="volumePostReverbSend"
+				amount="0x0F000000" />
+			<patchCable
+				source="y"
+				destination="lpfFrequency"
+				amount="0x19999990" />
+			<patchCable
+				source="envelope1"
+				destination="env1Sustain"
+				amount="0x1D000000" />
+			<patchCable
+				source="envelope1"
+				destination="env1Release"
+				amount="0x15800000" />
+			<patchCable
+				source="envelope1"
+				destination="env2Attack"
+				amount="0x0B000000" />
+			<patchCable
+				source="envelope1"
+				destination="oscAVolume"
+				amount="0x40000000" />
+			<patchCable
+				source="envelope2"
+				destination="oscAVolume"
+				amount="0x0A800000" />
+			<patchCable
+				source="envelope2"
+				destination="oscAPitch"
+				amount="0x18000000" />
+			<patchCable
+				source="envelope1"
+				destination="oscAPitch"
+				amount="0x40000000" />
+			<patchCable
+				source="envelope1"
+				destination="oscAPhaseWidth"
+				amount="0x2E800000" />
+			<patchCable
+				source="envelope2"
+				destination="oscAPhaseWidth"
+				amount="0x00800000" />
+			<patchCable
+				source="envelope2"
+				destination="oscBVolume"
+				amount="0x40000000" />
+			<patchCable
+				source="envelope1"
+				destination="oscBVolume"
+				amount="0x40000000" />
+			<patchCable
+				source="envelope1"
+				destination="oscBPitch"
+				amount="0x3B000000" />
+			<patchCable
+				source="envelope2"
+				destination="oscBPitch"
+				amount="0x2A000000" />
+			<patchCable
+				source="envelope2"
+				destination="oscBPhaseWidth"
+				amount="0x11800000" />
+			<patchCable
+				source="envelope1"
+				destination="oscBPhaseWidth"
+				amount="0x14000000" />
+			<patchCable
+				source="envelope2"
+				destination="noiseVolume"
+				amount="0x09000000" />
+			<patchCable
+				source="envelope1"
+				destination="noiseVolume"
+				amount="0x17800000" />
+			<patchCable
+				source="lfo2"
+				destination="env2Release"
+				amount="0x17800000" />
+			<patchCable
+				source="lfo2"
+				destination="env2Sustain"
+				amount="0x1E000000" />
+		</patchCables>
+		<equalizer
+			bass="0x1A000000"
+			treble="0x5C000000"
+			bassFrequency="0xEC000000"
+			trebleFrequency="0xE0000000" />
+	</defaultParams>
+	<arpeggiator
+		mode="off"
+		numOctaves="2"
+		syncLevel="7"
+		syncType="0"
+		arpMode="off"
+		noteMode="up"
+		octaveMode="up"
+		mpeVelocity="off" />
+	<modKnobs>
+		<modKnob controlsParam="pan" />
+		<modKnob controlsParam="volumePostFX" />
+		<modKnob controlsParam="lpfResonance" />
+		<modKnob controlsParam="lpfFrequency" />
+		<modKnob controlsParam="env1Release" />
+		<modKnob controlsParam="env1Attack" />
+		<modKnob controlsParam="delayFeedback" />
+		<modKnob controlsParam="delayRate" />
+		<modKnob controlsParam="reverbAmount" />
+		<modKnob controlsParam="volumePostReverbSend" patchAmountFromSource="compressor" />
+		<modKnob controlsParam="pitch" patchAmountFromSource="lfo1" />
+		<modKnob controlsParam="lfo1Rate" />
+		<modKnob controlsParam="portamento" />
+		<modKnob controlsParam="stutterRate" />
+		<modKnob controlsParam="bitcrushAmount" />
+		<modKnob controlsParam="sampleRateReduction" />
+	</modKnobs>
+	<delay
+		pingPong="1"
+		analog="0"
+		syncLevel="7"
+		syncType="0" />
+	<midiKnobs>
+		<midiKnob channel="0" ccNumber="12"
+			relative="1"
+			controlsParam="oscAVolume" />
+		<midiKnob channel="0" ccNumber="13"
+			relative="1"
+			controlsParam="oscBVolume" />
+		<midiKnob channel="0" ccNumber="8"
+			relative="1"
+			controlsParam="oscAPitch" />
+		<midiKnob channel="0" ccNumber="9"
+			relative="1"
+			controlsParam="oscBPitch" />
+		<midiKnob channel="0" ccNumber="1"
+			relative="1"
+			controlsParam="hpfFrequency" />
+		<midiKnob channel="0" ccNumber="4"
+			relative="1"
+			controlsParam="lpfResonance" />
+		<midiKnob channel="0" ccNumber="5"
+			relative="1"
+			controlsParam="hpfResonance" />
+		<midiKnob channel="0" ccNumber="2"
+			relative="1"
+			controlsParam="env1Attack" />
+		<midiKnob channel="0" ccNumber="6"
+			relative="1"
+			controlsParam="env1Decay" />
+		<midiKnob channel="0" ccNumber="14"
+			relative="1"
+			controlsParam="env1Release" />
+		<midiKnob channel="0" ccNumber="3"
+			relative="1"
+			controlsParam="env2Attack" />
+		<midiKnob channel="0" ccNumber="7"
+			relative="1"
+			controlsParam="env2Decay" />
+		<midiKnob channel="0" ccNumber="11"
+			relative="1"
+			controlsParam="env2Sustain" />
+		<midiKnob channel="0" ccNumber="15"
+			relative="1"
+			controlsParam="env2Release" />
+		<midiKnob channel="10" ccNumber="52"
+			relative="0"
+			controlsParam="env1Attack" />
+		<midiKnob channel="10" ccNumber="53"
+			relative="0"
+			controlsParam="env1Decay" />
+		<midiKnob channel="10" ccNumber="55"
+			relative="0"
+			controlsParam="env1Release" />
+		<midiKnob channel="10" ccNumber="56"
+			relative="0"
+			controlsParam="env2Attack" />
+		<midiKnob channel="10" ccNumber="57"
+			relative="0"
+			controlsParam="env2Decay" />
+		<midiKnob channel="10" ccNumber="58"
+			relative="0"
+			controlsParam="env2Sustain" />
+		<midiKnob channel="10" ccNumber="59"
+			relative="0"
+			controlsParam="env2Release" />
+		<midiKnob channel="10" ccNumber="60"
+			relative="0"
+			controlsParam="lfo1Rate" />
+		<midiKnob channel="10" ccNumber="61"
+			relative="0"
+			controlsParam="lfo2Rate" />
+		<midiKnob channel="10" ccNumber="64"
+			relative="0"
+			controlsParam="reverbAmount" />
+		<midiKnob channel="10" ccNumber="63"
+			relative="0"
+			controlsParam="delayRate" />
+		<midiKnob channel="10" ccNumber="62"
+			relative="0"
+			controlsParam="delayFeedback" />
+		<midiKnob channel="10" ccNumber="3"
+			relative="0"
+			controlsParam="lpfResonance" />
+		<midiKnob channel="10" ccNumber="4"
+			relative="0"
+			controlsParam="hpfFrequency" />
+		<midiKnob channel="10" ccNumber="5"
+			relative="0"
+			controlsParam="hpfResonance" />
+		<midiKnob channel="10" ccNumber="2"
+			relative="0"
+			controlsParam="lpfFrequency"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="9"
+			relative="0"
+			controlsParam="lpfFrequency"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="13"
+			relative="0"
+			controlsParam="lpfFrequency"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="17"
+			relative="0"
+			controlsParam="lpfFrequency"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="6"
+			relative="0"
+			controlsParam="lpfResonance"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="10"
+			relative="0"
+			controlsParam="lpfResonance"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="14"
+			relative="0"
+			controlsParam="lpfResonance"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="18"
+			relative="0"
+			controlsParam="lpfResonance"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="7"
+			relative="0"
+			controlsParam="hpfFrequency"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="11"
+			relative="0"
+			controlsParam="hpfFrequency"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="15"
+			relative="0"
+			controlsParam="hpfFrequency"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="19"
+			relative="0"
+			controlsParam="hpfFrequency"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="8"
+			relative="0"
+			controlsParam="hpfResonance"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="12"
+			relative="0"
+			controlsParam="hpfResonance"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="16"
+			relative="0"
+			controlsParam="hpfResonance"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="20"
+			relative="0"
+			controlsParam="hpfResonance"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="21"
+			relative="0"
+			controlsParam="oscAVolume" />
+		<midiKnob channel="10" ccNumber="22"
+			relative="0"
+			controlsParam="oscAPitch" />
+		<midiKnob channel="10" ccNumber="23"
+			relative="0"
+			controlsParam="oscAPhaseWidth" />
+		<midiKnob channel="10" ccNumber="24"
+			relative="0"
+			controlsParam="oscBVolume" />
+		<midiKnob channel="10" ccNumber="25"
+			relative="0"
+			controlsParam="oscBPitch" />
+		<midiKnob channel="10" ccNumber="26"
+			relative="0"
+			controlsParam="oscBPhaseWidth" />
+		<midiKnob channel="10" ccNumber="27"
+			relative="0"
+			controlsParam="oscAVolume"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="33"
+			relative="0"
+			controlsParam="oscAVolume"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="39"
+			relative="0"
+			controlsParam="oscAVolume"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="28"
+			relative="0"
+			controlsParam="oscAPitch"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="34"
+			relative="0"
+			controlsParam="oscAPitch"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="40"
+			relative="0"
+			controlsParam="oscAPitch"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="46"
+			relative="0"
+			controlsParam="oscAPitch"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="29"
+			relative="0"
+			controlsParam="oscAPhaseWidth"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="35"
+			relative="0"
+			controlsParam="oscAPhaseWidth"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="41"
+			relative="0"
+			controlsParam="oscAPhaseWidth"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="47"
+			relative="0"
+			controlsParam="oscAPhaseWidth"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="30"
+			relative="0"
+			controlsParam="oscBVolume"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="36"
+			relative="0"
+			controlsParam="oscBVolume"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="42"
+			relative="0"
+			controlsParam="oscBVolume"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="48"
+			relative="0"
+			controlsParam="oscBVolume"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="31"
+			relative="0"
+			controlsParam="oscBPitch"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="37"
+			relative="0"
+			controlsParam="oscBPitch"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="43"
+			relative="0"
+			controlsParam="oscBPitch"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="49"
+			relative="0"
+			controlsParam="oscBPitch"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="32"
+			relative="0"
+			controlsParam="oscBPhaseWidth"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="38"
+			relative="0"
+			controlsParam="oscBPhaseWidth"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="44"
+			relative="0"
+			controlsParam="oscBPhaseWidth"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="50"
+			relative="0"
+			controlsParam="oscBPhaseWidth"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="11" ccNumber="65"
+			relative="0"
+			controlsParam="env1Attack"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="73"
+			relative="1"
+			controlsParam="env1Attack"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="81"
+			relative="0"
+			controlsParam="env1Attack"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="89"
+			relative="1"
+			controlsParam="env1Attack"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="66"
+			relative="0"
+			controlsParam="env1Decay"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="73"
+			relative="1"
+			controlsParam="env1Decay"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="82"
+			relative="0"
+			controlsParam="env1Decay"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="90"
+			relative="1"
+			controlsParam="env1Decay"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="10" ccNumber="54"
+			relative="0"
+			controlsParam="env1Sustain" />
+		<midiKnob channel="11" ccNumber="67"
+			relative="1"
+			controlsParam="env1Sustain"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="75"
+			relative="1"
+			controlsParam="env1Sustain"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="83"
+			relative="0"
+			controlsParam="env1Sustain"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="91"
+			relative="1"
+			controlsParam="env1Sustain"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="68"
+			relative="1"
+			controlsParam="env1Release"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="76"
+			relative="1"
+			controlsParam="env1Release"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="84"
+			relative="0"
+			controlsParam="env1Release"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="92"
+			relative="1"
+			controlsParam="env1Release"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="69"
+			relative="1"
+			controlsParam="env2Attack"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="77"
+			relative="1"
+			controlsParam="env2Attack"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="85"
+			relative="1"
+			controlsParam="env2Attack"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="93"
+			relative="0"
+			controlsParam="env2Attack"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="70"
+			relative="1"
+			controlsParam="env2Decay"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="78"
+			relative="1"
+			controlsParam="env2Decay"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="86"
+			relative="1"
+			controlsParam="env2Decay"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="94"
+			relative="1"
+			controlsParam="env2Decay"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="71"
+			relative="1"
+			controlsParam="env2Sustain"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="79"
+			relative="1"
+			controlsParam="env2Sustain"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="87"
+			relative="1"
+			controlsParam="env2Sustain"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="95"
+			relative="1"
+			controlsParam="env2Sustain"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="72"
+			relative="1"
+			controlsParam="env2Release"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="80"
+			relative="1"
+			controlsParam="env2Release"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="88"
+			relative="0"
+			controlsParam="env2Release"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="96"
+			relative="1"
+			controlsParam="env2Release"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="2"
+			relative="0"
+			controlsParam="lpfFrequency"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="9"
+			relative="0"
+			controlsParam="lpfFrequency"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="13"
+			relative="0"
+			controlsParam="lpfFrequency"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="17"
+			relative="0"
+			controlsParam="lpfFrequency"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="6"
+			relative="0"
+			controlsParam="lpfResonance"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="10"
+			relative="0"
+			controlsParam="lpfResonance"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="14"
+			relative="0"
+			controlsParam="lpfResonance"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="18"
+			relative="0"
+			controlsParam="lpfResonance"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="7"
+			relative="0"
+			controlsParam="hpfFrequency"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="11"
+			relative="0"
+			controlsParam="hpfFrequency"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="15"
+			relative="0"
+			controlsParam="hpfFrequency"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="19"
+			relative="0"
+			controlsParam="hpfFrequency"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="8"
+			relative="0"
+			controlsParam="hpfResonance"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="12"
+			relative="0"
+			controlsParam="hpfResonance"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="16"
+			relative="0"
+			controlsParam="hpfResonance"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="20"
+			relative="0"
+			controlsParam="hpfResonance"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="107"
+			relative="1"
+			controlsParam="volumePostReverbSend"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="108"
+			relative="1"
+			controlsParam="volume"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="105"
+			relative="1"
+			controlsParam="volume"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="106"
+			relative="1"
+			controlsParam="volume"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="101"
+			relative="1"
+			controlsParam="pitch"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="100"
+			relative="0"
+			controlsParam="pitch" />
+		<midiKnob channel="11" ccNumber="102"
+			relative="1"
+			controlsParam="pitch"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="103"
+			relative="1"
+			controlsParam="pitch"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="104"
+			relative="1"
+			controlsParam="pitch"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="27"
+			relative="1"
+			controlsParam="oscAVolume"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="33"
+			relative="1"
+			controlsParam="oscAVolume"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="39"
+			relative="1"
+			controlsParam="oscAVolume"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="45"
+			relative="1"
+			controlsParam="oscAVolume"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="28"
+			relative="1"
+			controlsParam="oscAPitch"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="34"
+			relative="1"
+			controlsParam="oscAPitch"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="40"
+			relative="0"
+			controlsParam="oscAPitch"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="46"
+			relative="1"
+			controlsParam="oscAPitch"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="29"
+			relative="1"
+			controlsParam="oscAPhaseWidth"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="35"
+			relative="1"
+			controlsParam="oscAPhaseWidth"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="41"
+			relative="1"
+			controlsParam="oscAPhaseWidth"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="47"
+			relative="1"
+			controlsParam="oscAPhaseWidth"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="30"
+			relative="1"
+			controlsParam="oscBVolume"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="36"
+			relative="1"
+			controlsParam="oscBVolume"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="42"
+			relative="1"
+			controlsParam="oscBVolume"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="48"
+			relative="1"
+			controlsParam="oscBVolume"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="31"
+			relative="1"
+			controlsParam="oscBPitch"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="37"
+			relative="1"
+			controlsParam="oscBPitch"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="43"
+			relative="1"
+			controlsParam="oscBPitch"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="49"
+			relative="1"
+			controlsParam="oscBPitch"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="11" ccNumber="32"
+			relative="1"
+			controlsParam="oscBPhaseWidth"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="38"
+			relative="1"
+			controlsParam="oscBPhaseWidth"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="44"
+			relative="1"
+			controlsParam="oscBPhaseWidth"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="50"
+			relative="1"
+			controlsParam="oscBPhaseWidth"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="10" ccNumber="95"
+			relative="0"
+			controlsParam="noiseVolume" />
+		<midiKnob channel="11" ccNumber="96"
+			relative="1"
+			controlsParam="noiseVolume"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="11" ccNumber="97"
+			relative="1"
+			controlsParam="noiseVolume"
+			patchAmountFromSource="note" />
+		<midiKnob channel="11" ccNumber="98"
+			relative="1"
+			controlsParam="noiseVolume"
+			patchAmountFromSource="random" />
+		<midiKnob channel="11" ccNumber="99"
+			relative="1"
+			controlsParam="noiseVolume"
+			patchAmountFromSource="velocity" />
+		<midiKnob channel="10" ccNumber="106"
+			relative="0"
+			controlsParam="volume"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="101"
+			relative="0"
+			controlsParam="pitch" />
+		<midiKnob channel="10" ccNumber="101"
+			relative="0"
+			controlsParam="pitch"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="102"
+			relative="0"
+			controlsParam="pitch"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="104"
+			relative="0"
+			controlsParam="pitch"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="45"
+			relative="0"
+			controlsParam="oscAVolume"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="96"
+			relative="0"
+			controlsParam="noiseVolume"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="97"
+			relative="0"
+			controlsParam="noiseVolume"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="98"
+			relative="0"
+			controlsParam="noiseVolume"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="99"
+			relative="0"
+			controlsParam="noiseVolume"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="110"
+			relative="0"
+			controlsParam="compressorShape" />
+		<midiKnob channel="10" ccNumber="111"
+			relative="0"
+			controlsParam="volumePostReverbSend"
+			patchAmountFromSource="compressor" />
+		<midiKnob channel="10" ccNumber="112"
+			relative="0"
+			controlsParam="arpGate" />
+		<midiKnob channel="10" ccNumber="113"
+			relative="0"
+			controlsParam="arpRate" />
+		<midiKnob channel="10" ccNumber="114"
+			relative="0"
+			controlsParam="bassFreq" />
+		<midiKnob channel="10" ccNumber="115"
+			relative="0"
+			controlsParam="bass" />
+		<midiKnob channel="10" ccNumber="116"
+			relative="0"
+			controlsParam="trebleFreq" />
+		<midiKnob channel="10" ccNumber="117"
+			relative="0"
+			controlsParam="treble" />
+		<midiKnob channel="10" ccNumber="118"
+			relative="1"
+			controlsParam="portamento" />
+		<midiKnob channel="10" ccNumber="51"
+			relative="0"
+			controlsParam="volumePostFX" />
+		<midiKnob channel="10" ccNumber="119"
+			relative="0"
+			controlsParam="modFXRate" />
+		<midiKnob channel="11" ccNumber="111"
+			relative="0"
+			controlsParam="modFXFeedback" />
+		<midiKnob channel="11" ccNumber="110"
+			relative="0"
+			controlsParam="modFXDepth" />
+		<midiKnob channel="11" ccNumber="112"
+			relative="0"
+			controlsParam="modFXOffset" />
+		<midiKnob channel="11" ccNumber="1"
+			relative="0"
+			controlsParam="lpfFrequency" />
+		<midiKnob channel="10" ccNumber="105"
+			relative="0"
+			controlsParam="volume"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="103"
+			relative="0"
+			controlsParam="pitch"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="65"
+			relative="0"
+			controlsParam="env1Attack"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="73"
+			relative="0"
+			controlsParam="env1Attack"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="81"
+			relative="0"
+			controlsParam="env1Attack"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="89"
+			relative="0"
+			controlsParam="env1Attack"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="66"
+			relative="0"
+			controlsParam="env1Decay"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="73"
+			relative="0"
+			controlsParam="env1Decay"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="82"
+			relative="0"
+			controlsParam="env1Decay"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="0" ccNumber="12"
+			relative="1"
+			controlsParam="env1Decay"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="90"
+			relative="0"
+			controlsParam="env1Decay"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="67"
+			relative="0"
+			controlsParam="env1Sustain"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="75"
+			relative="0"
+			controlsParam="env1Sustain"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="83"
+			relative="0"
+			controlsParam="env1Sustain"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="91"
+			relative="0"
+			controlsParam="env1Sustain"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="68"
+			relative="0"
+			controlsParam="env1Release"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="84"
+			relative="0"
+			controlsParam="env1Release"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="76"
+			relative="0"
+			controlsParam="env1Release"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="69"
+			relative="0"
+			controlsParam="env2Attack"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="77"
+			relative="0"
+			controlsParam="env2Attack"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="0" ccNumber="12"
+			relative="1"
+			controlsParam="env2Attack"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="85"
+			relative="0"
+			controlsParam="env2Attack"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="93"
+			relative="0"
+			controlsParam="env2Attack"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="70"
+			relative="0"
+			controlsParam="env2Decay"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="78"
+			relative="0"
+			controlsParam="env2Decay"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="86"
+			relative="0"
+			controlsParam="env2Decay"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="94"
+			relative="0"
+			controlsParam="env2Decay"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="71"
+			relative="0"
+			controlsParam="env2Sustain"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="79"
+			relative="0"
+			controlsParam="env2Sustain"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="87"
+			relative="0"
+			controlsParam="env2Sustain"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="95"
+			relative="0"
+			controlsParam="env2Sustain"
+			patchAmountFromSource="lfo2" />
+		<midiKnob channel="10" ccNumber="72"
+			relative="0"
+			controlsParam="env2Release"
+			patchAmountFromSource="envelope1" />
+		<midiKnob channel="10" ccNumber="80"
+			relative="0"
+			controlsParam="env2Release"
+			patchAmountFromSource="envelope2" />
+		<midiKnob channel="10" ccNumber="88"
+			relative="0"
+			controlsParam="env2Release"
+			patchAmountFromSource="lfo1" />
+		<midiKnob channel="10" ccNumber="96"
+			relative="0"
+			controlsParam="env2Release"
+			patchAmountFromSource="lfo2" />
+	</midiKnobs>
+	<sidechain
+		attack="327244"
+		release="936"
+		syncLevel="7"
+		syncType="0" />
+	<audioCompressor
+		attack="83886080"
+		release="83886080"
+		thresh="0"
+		ratio="1073741824"
+		compHPF="0"
+		compBlend="2147483647" />
+</sound>
