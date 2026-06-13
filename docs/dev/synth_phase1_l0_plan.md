@@ -1,204 +1,186 @@
-# Synth Untangling — Phase 1: Make L0 True (detailed plan)
+# Synth Untangling — Phase 1: `dsp-next` (the clean L0 library)
 
-Status: **planned** (2026-06-13). Companion to
+Status: **planned** (2026-06-13, revised). Companion to
 [synth_untangling_plan.md](synth_untangling_plan.md) Part 4, Phase 1.
-Prerequisite: Phase 0 golden masters (done) — every step below is gated on
-**bit-exact** 319-fixture renders, cross-checked against the ARM/NEON oracle.
+Prerequisite: Phase 0 golden masters (done) — every migration below is gated
+on **bit-exact** 319-fixture renders, cross-checked against the ARM/NEON
+oracle.
 
-## Goal
+## Strategy: build `dsp-next`, strangle the old `dsp/`
 
-Make `src/deluge/dsp/` a true L0: freestanding DSP primitives with **no
-upward includes** (no `storage/`, `model/`, `processing/`, `gui/`,
-`playback/`, `modulation/`), no global reads (`AudioEngine::*`,
-`spareRenderingBuffer`), no global allocator beyond the existing thin
-`memory_allocator_interface.h` seam. Buffers, scratch, and render-quality
-inputs are *injected*. Each primitive compiles and unit-tests off-target with
-zero firmware scaffolding.
+Rather than scrub the accreted `src/deluge/dsp/` in place, stand up a **new,
+clean L0 library — `dsp-next` — and migrate primitives into it one at a
+time**. Each primitive is ported as idiomatic C++23, its caller is switched
+over under golden-master cover, and the old implementation is deleted once no
+caller remains. When `dsp/` is empty (its sample-path residue having moved to
+the Phase-3 `SampleSource` home), it is removed and `dsp-next` becomes the
+canonical DSP library.
 
-### Definition of done
+Why a parallel library instead of in-place refactor:
+- The old code fights you — raw `int32_t*`+len, file-scope scratch, global
+  `AudioEngine::` reads, `offsetof` plumbing. A greenfield home is **clean by
+  construction**: the include-lint gate has no allowlist, the idioms are
+  enforced from commit one.
+- Migration is incremental and always shippable: at any point the firmware is
+  a mix of old and new primitives, all golden-green.
+- It gives the numeric split (below) a real home instead of retrofitting it.
 
-1. Every file under `dsp/` (minus the deferred sample allowlist below) has
-   zero includes of `storage|model|processing|gui|playback|modulation`, and
-   `memory/` only via `memory_allocator_interface.h`.
-2. `AudioEngine::cpuDireness` / `AudioEngine::renderInStereo` are no longer
-   read inside `dsp/`; they arrive as parameters.
-3. `dsp/` does not reference the file-scope `spareRenderingBuffer`.
-4. Wavetable rendering kernels live in `dsp/`; `storage::WaveTable` owns
-   loading/stealing and hands the renderer a POD `WaveTableView`.
-5. A lint gate (mirroring the libdeluge allowlist approach) fails CI if a
-   forbidden include reappears; per-primitive `dsp_diff` drivers exist for
-   the oscillator, wavetable, filter, and delay paths.
-6. All 319 golden fixtures unchanged on x86 **and** ARM (or any waiver
-   documented per-commit and re-baselined once, per the Phase-0 contract).
+## Library shape: `fixed/` and `float/` behind a numeric-agnostic core
 
-### Restructuring is in scope
+```
+src/deluge/dsp-next/
+  core/    headers only — numeric-agnostic interfaces, concepts, block/span
+           types, strong numeric aliases, q31<->f32 conversion. No globals.
+  fixed/   q31 implementations            -> lib  libdeluge-dsp-fixed
+  float/   f32 implementations            -> lib  libdeluge-dsp-float
+```
 
-The existing file layout is **not authoritative** — it accreted, and parts of
-it are simply in the wrong place (DSP kernels under `processing/`, the
-wavetable renderer under `storage/`, L0 lookup data behind `gui`-polluted util
-headers). Prefer **moving files to express the target L0/L1/L2 structure** over
-preserving their history. Use `git mv` so blame survives; keep each move its
-own commit so a relocation never hides a behaviour change. Concretely for this
-phase:
+- **`core/`** defines the contracts both numeric backends satisfy: typed
+  aliases (`Sample`, `ModValue`, `ControlValue` — never bare `int32_t`/`float`
+  in a public signature), block types over `std::span`, the engine/primitive
+  concepts, and the q31↔f32 edge conversions (one NEON op per vector). This is
+  decision 1's "numeric-agnostic interfaces" and the "q31 is an implementation
+  detail, never a public type" rule made physical.
+- **`fixed/`** is the bit-exact q31 core — that *is* the Deluge sound, and it
+  keeps golden masters bit-exact against current firmware. Most current `dsp/`
+  kernels migrate here.
+- **`float/`** is the float32 track. It is **not** bit-exact with `fixed/`
+  (different numerics, validated by tolerance/perceptual, not SHA) and is used
+  at the edges (Plaits-style engines, CLAP). Phase 1 stands `float/` up
+  structurally and lands the conversion helpers + one reference primitive as
+  proof; **populating it is later work** (decision 3 keeps the core q31 for
+  now) — the point here is that the home exists and the interface is shared.
 
-- DSP kernels currently in `processing/` move **into** `dsp/`.
-- Pure DSP lookup data the engine needs (sine/wave tables) moves into a
-  `dsp/`-owned home, not carved into another `util/` header (see S6).
-- The wavetable renderer moves from `storage/` down into `dsp/` (S7).
-- `dsp/granular/` and `dsp/timestretch/` are **not** L0 — they are the sample
-  path. They stay put for this phase (allowlisted) and **relocate out of
-  `dsp/`** in Phase 3 when the `SampleSource` port lands. Don't invest in
-  their internal layout now.
+Both are STATIC libs mirroring the existing `deluge_dsp` target (unity build,
+`-fno-lto -finline-functions`, `-marm` on hardware, link `argon`); the app and
+host-sim link whichever primitives have migrated. Targets: `deluge_dsp_fixed`,
+`deluge_dsp_float` (output names `libdeluge-dsp-fixed`, `libdeluge-dsp-float`).
+Follows the repo's existing multi-lib pattern (`deluge_midi`,
+`deluge_foundation`).
 
-Target direction (settle exact names during implementation, not up front):
-`dsp/` holds only freestanding leaf kernels — oscillators (incl. the wave
-renderer + wavetable kernel + the wave LUTs), filters, reverb/delay/comp FX
-kernels, dx, interpolation. Everything that loads, steals, streams, or
-schedules lives above it.
+## Idioms enforced in `dsp-next` (the migration's core focus)
 
-## Non-goals (deferred, tracked on the lint allowlist)
+- **C++23 throughout** (`gnu++23`, as the repo already builds).
+- **`std::span` for every buffer** — no `int32_t*, numSamples`, no
+  `bufferEnd` sentinels, no out-params via pointer. Block APIs take/return
+  spans; lengths come from `.size()`.
+- **Value types, no globals.** Scratch buffers, the render-quality input (the
+  old `AudioEngine::cpuDireness`), stereo-ness (`renderInStereo`), and the
+  allocator are **injected** as parameters/constructor args. `spareRenderingBuffer`
+  has no analogue here.
+- **Strong numeric typing** via `core/` aliases so the float track is an
+  interface-preserving impl swap, not a signature change.
+- **`std::array`/constexpr tables**, RAII, `[[nodiscard]]`, `std::optional`
+  over sentinel returns where it fits. Match the reverb's existing style
+  (header-only value types) — that is already the target idiom in-tree.
+- **Unit-testable in isolation**: every primitive constructible and renderable
+  in a host test with zero firmware scaffolding.
 
-- `dsp/timestretch/`, `dsp/granular/`, and the sample path generally — these
-  belong to the `SampleSource` port (decision 4) and land in **Phase 3**.
-  They keep their `model/sample`, `storage/cluster`, `voice_sample`,
-  `playback_handler`, and granular-reverb-backdoor reaches for now.
-- `voice.cpp`'s use of `spareRenderingBuffer` — app-side, **Phase 4**.
-- The Sound-level FX chain (`ModControllableAudio`) — separate untangling.
-- The float32 migration — enabled by, not part of, this phase.
+## What migrates, in order (dependency-led, lowest coupling first)
 
-## Inventory of current L0 violations (2026-06-13)
+Source material is the same `dsp/` audit as before — see the violation table
+at the end. Migration order:
 
-| File | Upward reach | Disposition |
-|---|---|---|
-| `oscillators/oscillator.h` | `storage/wave_table/wave_table.h` (param type `WaveTable*`) | **S7** invert → `WaveTableView` |
-| `oscillators/oscillator.cpp` | `processing/render_wave.h`; `audio_engine.h` (`cpuDireness`×5); `wave_table.h` | **S1**, **S3**, **S7** |
-| `oscillators/basic_waves.cpp` | `processing/render_wave.h` | **S1** |
-| `processing/render_wave.h` + `vector_rendering_function.h` | dsp code in the wrong dir; also included by `voice.cpp`, `wave_table.cpp` | **S1** relocate into `dsp/` |
-| `filter/lpladder.cpp` | `audio_engine.h` (`cpuDireness`) | **S3** |
-| `filter/filter.h`, `filter/filter_set.h` | `model/.../filter_config.h` (which itself drags `gui/l10n/strings.h`) | **S5** |
-| `delay/delay.cpp` | `audio_engine.h` (`renderInStereo`); `model/sync.h`; `spareRenderingBuffer` | **S4** |
-| `delay/delay.h` | `model/sync.h` (`SyncType`/`SyncLevel` in `DelayWorkingState`) | **S4** |
-| `delay/delay_buffer.cpp`, `dx/engine.cpp` | `memory/general_memory_allocator.h` (vs the interface) | **S2** |
-| (transitive) `util/functions.h`, `util/lookuptables/lookuptables.h` | export `gui/colour/colour.h`, `gui/l10n/strings.h`, `model/iterance/iterance.h` | **S6** split L0 subset |
+1. **`core/` foundations** — numeric aliases, span block types, concepts,
+   q31↔f32 conversion. The wave/sine **lookup tables** move here (or to
+   `fixed/`) as `dsp-next`-owned `constexpr`/`std::array` data, out of the
+   `gui`-polluted `util/functions.h` + `util/lookuptables/`.
+2. **Sine oscillator + basic VA waves** — including the render kernels that
+   currently live, wrongly, in `processing/render_wave.h` +
+   `vector_rendering_function.h`; they are rewritten into `fixed/` over
+   `std::span`, not relocated within old `dsp/`.
+3. **Filters** (SVF, lp/hp ladders) — `cpuDireness` becomes an injected
+   quality arg; `FilterMode`/config arrive as a POD, not via the
+   `gui/l10n`-dragging `model/.../filter_config.h`.
+4. **Wavetable** — `core::WaveTableView` POD (band descriptors + cycle
+   metadata); the band-limited render kernel (today a *method of
+   `storage::WaveTable`*) moves into `fixed/` operating on the view;
+   `storage::WaveTable` keeps loading/stealing and exposes `view()`. Inverts
+   the `dsp → storage` edge entirely.
+5. **Delay / reverb / compressor FX kernels** — injected scratch span and
+   stereo flag; tempo-sync resolved by the caller to a plain rate (the kernel
+   stops including `model/sync.h`).
+6. **DX7** (`dx/`) — port or thin-wrap into `fixed/`; keep the
+   `DELUGE_DX_SCALAR` host/asm split intact (see golden harness notes).
 
-## Ordered steps
+Each primitive: rewrite in `dsp-next` → add a per-primitive `dsp_diff` driver
+proving x86≡ARM → switch the caller (oscillator dispatch / `Voice` /
+`FilterSet` / `WaveTable`) → full golden sweep (bit-exact) → delete the old
+`dsp/` implementation.
 
-Each step is one bisectable commit (or a tight series), green firmware build +
-green goldens before the next. Ordered cheapest/safest first so the risky
-wavetable inversion (S7) lands on already-clean foundations.
+### Deferred to Phase 3 (do not migrate now)
+`granular/`, `timestretch/`, and the sample path stay in the old `dsp/` and
+keep their `model/sample`, `storage/cluster`, `voice_sample`,
+`playback_handler`, granular-reverb-backdoor reaches. They move to the
+`SampleSource` home in Phase 3, not into `dsp-next`. `voice.cpp`'s
+`spareRenderingBuffer` is app-side (Phase 4). The Sound-level FX chain is a
+separate untangling.
 
-### S1 — Relocate the render kernels into `dsp/` (zero behaviour change)
-Move `processing/render_wave.h` and `processing/vector_rendering_function.h`
-into `dsp/oscillators/` (e.g. `dsp/oscillators/wave_renderer.h`,
-`.../vector_rendering_function.h`). Update the four includers
-(`oscillator.cpp`, `basic_waves.cpp`, `voice.cpp`, `storage/wave_table.cpp`)
-to the new path. Pure move + include fix; goldens must be byte-identical.
-This flips two `dsp → processing` edges into intra-`dsp`, and lets `storage`
-and `voice` include *downward* into `dsp`.
+## Steps
 
-### S2 — Downgrade allocator includes to the existing seam
-`delay/delay_buffer.cpp`, `dx/engine.cpp` (and any other `dsp/` user) switch
-`memory/general_memory_allocator.h` → `memory/memory_allocator_interface.h`
-(the arm/thumb boundary header already exposing `allocStealable` etc.). No new
-abstraction needed — the seam exists. Mechanical, no behaviour change.
+Bisectable commits; firmware Debug build + full golden sweep (x86 **and** ARM
+oracle) green before the next. `git mv`/port commits never carry a behaviour
+change.
 
-### S3 — Inject `cpuDireness` as a render-quality parameter
-`AudioEngine::cpuDireness` is read in `oscillator.cpp` (band-limit table
-selection / crude-saw fallback, ×5) and `lpladder.cpp` (oversampling
-decision, ×1). Add an explicit quality input to the affected entry points
-(`Oscillator::renderOsc`, the ladder filter's per-block setup); callers
-(`Voice`, `FilterSet`) pass `AudioEngine::cpuDireness` unchanged. Removes the
-`audio_engine.h` include from both files. Behaviour identical → goldens
-bit-exact. (This is also the first concrete instance of the cross-cutting
-"scheduling/quality policy is an app input, not a library global" rule.)
-
-### S4 — Decouple `delay/` from `audio_engine` and `model/sync`
-Three sub-changes:
-- `renderInStereo`: pass as a parameter to the delay process call (the only
-  read is the ping-pong branch).
-- `spareRenderingBuffer`: the delay borrows `spareRenderingBuffer[0]` as a
-  working buffer — take an injected `std::span<StereoSample>` scratch arg
-  instead; caller supplies it.
-- `model/sync.h`: `DelayWorkingState` stores `SyncType`/`SyncLevel` and does
-  integer shifts off them. Preferred: the app resolves sync → rate and the
-  delay stores a plain rate (delay shouldn't know musical sync semantics).
-  Lighter alternative if that ripples too far: relocate the small
-  `SyncType`/`SyncLevel` enums to an L0-safe header. Pick during
-  implementation; either keeps goldens bit-exact.
-
-Note: `delay/` is FX, and the FX *chain* is out of scope — but `delay` lives
-in `dsp/`, so we scrub its includes here without relocating it.
-
-### S5 — L0-clean the filter config dependency
-`filter.h`/`filter_set.h` need only `FilterMode` + the mode-count constants
-from `filter_config.h`, but that header drags `gui/l10n/strings.h`. Extract
-the enum + constants into an L0-clean header (or remove the accidental
-`gui/l10n` include if nothing in the config truly needs it) so `dsp/filter/`
-depends only on the POD config.
-
-### S6 — Move the L0 wave/lookup data into `dsp/`
-`dsp/` pulls `multiply_32x32_*` (fine — `util/fixedpoint.h` is L0-clean), but
-also `getSine*`, `sineWaveDiff`, `interpolateTableSigned`, and the wave lookup
-tables from `util/functions.h` + `util/lookuptables/lookuptables.h`, which
-export `gui/colour`, `gui/l10n`, and `model/iterance`. These wave tables and
-their accessors are DSP data living in `util/` for historical reasons — give
-them a `dsp/`-owned home (e.g. `dsp/oscillators/wave_tables.{h,cpp}`) and have
-the (still app-level) `util` headers include *that* if they need it, inverting
-the direction. Scope strictly to the sine/wave LUTs + helpers `dsp/`
-references — not a full util untangling. `util/fixedpoint.h` stays where it is.
-
-### S7 — Invert the WaveTable dependency (highest risk)
-Today `WaveTable::render()` + `doRenderingLoop[SingleCycle]()` are **methods
-of `storage::WaveTable`**, operating directly on its stealable `bands` array;
-`oscillator.cpp` only calls `waveTable->render(...)`. Invert it:
-- **S7a** Define `dsp::WaveTableView` — a POD snapshot the renderer needs:
-  a span/array of band descriptors `{ const int16_t* data, maxPhaseIncrement,
-  fromCycleNumber, toCycleNumber, intendedForLinearInterpolation }` plus
-  `numCycles`, `numCyclesMagnitude`, `waveIndexMultiplier`. Add
-  `WaveTable::view()` producing it. No render move yet.
-- **S7b** Move the render kernels into a `dsp/` free function/class operating
-  on `WaveTableView` (they already use the S1-relocated `render_wave.h`
-  helpers). `WaveTable::render()` becomes a thin shim calling
-  `dsp::renderWavetable(view(), ...)` — keeps storage's public API stable.
-- **S7c** Switch `Oscillator::renderOsc` to take `const WaveTableView&` (or
-  produce the view at the Voice boundary), dropping `wave_table.h` from
-  `oscillator.h/.cpp`. `storage` now depends on `dsp`, never the reverse.
-
-Highest bit-drift risk (q31 ops relocating). Land S7b behind the goldens with
-the ARM oracle; if a documented rounding waiver is unavoidable, re-baseline
-once per the Phase-0 contract. Stealable-memory caveat: the view snapshots
-`band->data` pointers at render time, which is safe because rendering is
-synchronous within the audio block.
-
-### S8 — Lock it: tests + lint gate
-- Grow `tests/dsp_diff` drivers per scrubbed primitive (extend the existing
-  `sine_diff.cpp`/`wave_diff.cpp` with osc / filter / delay drivers) so L0
-  bit-equivalence is checked in isolation, not only end-to-end.
-- Add a lint gate (same shape as the libdeluge include allowlist) that fails
-  if any `dsp/` file gains a forbidden upward include. Seed its allowlist
-  with the deferred sample/granular/timestretch files so their known reaches
-  don't block the gate, and document that the allowlist must shrink to empty
-  in Phase 3.
+- **S0 — Scaffold.** Create `dsp-next/{core,fixed,float}` and their
+  `CMakeLists.txt` (two static libs as above, plus an empty-but-wired `core`
+  interface target). Wire both libs into the app link and the host-sim build;
+  add `dsp-next/` to the per-primitive `dsp_diff` include path. Add the
+  include-lint gate over `dsp-next/` (forbid `storage|model|processing|gui|
+  playback|modulation`; `memory/` only via `memory_allocator_interface.h`) —
+  **no allowlist**, it must be clean from the first commit. Builds green with
+  the libs empty.
+- **S1 — `core/` + LUTs** (migration item 1). Lands the numeric aliases,
+  span block types, conversions, and the relocated wave tables. Pure data +
+  headers; no caller switch yet, so goldens are untouched.
+- **S2..S7 — migrate items 2–6** one primitive (or tight cluster) per
+  commit, following the per-primitive recipe above. The first caller switch
+  (sine osc) is the first commit that can move a fixture — gate hard.
+- **Sn — Retire.** When the only thing left in old `dsp/` is the deferred
+  sample residue, the lint allowlist for `dsp/` is gone; the final cleanup
+  (delete emptied `dsp/`, rename/settle `dsp-next`'s canonical name) is its
+  own commit once Phase 3 has relocated the residue.
 
 ## Test & gate strategy
 
-- **Per step:** firmware Debug build green (`ninja -f build-Debug.ninja
-  deluge.elf:Debug`) + full golden sweep on x86 and the ARM oracle.
-- **Mechanical steps (S1, S2, S5, S6):** expect byte-identical fixtures.
-- **Parameter-injection steps (S3, S4):** identical too — same values,
-  different plumbing.
-- **S7:** the one place a rounding waiver might be needed; treat any fixture
-  delta as guilty until proven a faithful reorder, then re-baseline once.
+- **`fixed/` primitives** are golden-bit-exact gated on caller-switch, and
+  each gets a `dsp_diff` driver proving x86-SIMDe ≡ ARM-NEON in isolation
+  (the harness already does this for sine/wave).
+- **`float/` primitives** are validated by tolerance/perceptual comparison,
+  never SHA — they are a different numeric track by design.
+- **Mechanical commits** (scaffold, LUT move, port-without-switch) expect
+  byte-identical fixtures; **caller-switch commits** are the ones that can
+  legitimately need a documented rounding waiver (then re-baseline once, per
+  the Phase-0 contract).
+- The `dsp-next` include-lint gate runs in CI from S0.
 
 ## Risks
 
-- **Bit-drift on S7** — primary risk; mitigated by landing it last on clean
-  foundations and gating hard on the ARM oracle.
-- **`renderOsc` signature churn** (S3 + S7c touch the same 13-arg function) —
-  sequence them so the signature changes once, not twice; consider folding
-  S3's quality arg into the same S7c signature pass.
-- **Scope creep on S6** — the util headers are shared app-wide; resist
-  cleaning beyond the symbols `dsp/` actually needs.
-- **CPU headroom** — all changes are block-granularity plumbing; no new
-  per-sample indirection. Spot-check timing under host-sim; the goldens
-  double as perf canaries.
+- **Two implementations of one primitive** (old `dsp/` + new `dsp-next`)
+  during migration — mitigated by switching the caller in the *same* commit
+  that proves the new one bit-exact, and deleting the old promptly so there is
+  never a silently-diverging duplicate.
+- **Bit-drift porting q31 kernels** — same risk as before; the per-primitive
+  `dsp_diff` driver catches host/ARM divergence early, goldens catch
+  end-to-end drift. Treat any delta as guilty until shown a faithful reorder.
+- **`core/` interface churn** — getting the span/typed-alias contracts wrong
+  forces re-touching every migrated primitive. Land `core/` (S1) deliberately;
+  port two dissimilar primitives (an oscillator and a filter) early to
+  pressure-test the contract before the bulk migration.
+- **Over-investing in `float/`** now — keep it to structure + conversions +
+  one reference primitive; the real float work is later (decision 3).
+- **CPU headroom** — block-granularity only; `std::span` and value types are
+  zero-overhead. Goldens double as perf canaries; spot-check on hardware.
+
+## Appendix — current `dsp/` L0 violations (migration source material)
+
+| File / area | Upward reach | Becomes |
+|---|---|---|
+| `oscillators/oscillator.*` | `render_wave.h`, `audio_engine.h` (`cpuDireness`×5), `wave_table.h` | `fixed/` osc + wavetable view |
+| `oscillators/basic_waves.cpp`, `processing/render_wave.h` + `vector_rendering_function.h` | dsp code under `processing/` | rewritten into `fixed/` over spans |
+| `filter/lpladder.cpp` | `audio_engine.h` (`cpuDireness`) | injected quality arg |
+| `filter/filter*.h` | `model/.../filter_config.h` (drags `gui/l10n`) | POD config in `core/` |
+| `delay/delay.*` | `audio_engine.h` (`renderInStereo`), `model/sync.h`, `spareRenderingBuffer` | injected scratch/flag/rate |
+| `delay_buffer.cpp`, `dx/engine.cpp` | `memory/general_memory_allocator.h` | the `memory_allocator_interface.h` seam |
+| `util/functions.h`, `util/lookuptables/` | export `gui/colour`, `gui/l10n`, `model/iterance` | wave LUTs move into `dsp-next` |
+| `granular/`, `timestretch/` | sample path | **deferred to Phase 3**, not migrated |

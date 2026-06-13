@@ -138,6 +138,10 @@ per-note-id polyphonic parameter modulation.
    instruction per vector). Interfaces are designed numeric-agnostic so the
    engine infrastructure (envelopes, LFOs, patch cables) can *eventually*
    migrate to float32 as an implementation swap, not an interface change.
+   Physically this lands as the `dsp-next` library's `core/` (numeric-agnostic
+   interfaces + q31↔f32 conversion) over parallel `fixed/`
+   (`libdeluge-dsp-fixed`, the bit-exact q31 core) and `float/`
+   (`libdeluge-dsp-float`) backends — see Phase 1.
 
 2. **CLAP at L3 only.** Internal engines use a lean C++ interface (per-voice
    granularity, zero ABI overhead, q31-capable). CLAP appears at instrument
@@ -266,17 +270,19 @@ path (`DELUGE_DX_SCALAR`) for x86≡ARM agreement. Hardware ear-checks on the
 FM, env2-release, and DX7 changes remain pending. Sample/wavetable corpus
 cases are deferred until audio files join the card images.
 
-### Phase 1 — Make L0 true
+### Phase 1 — `dsp-next` (the clean L0 library)
 
-Scrub `dsp/`'s upward reaches: relocate `processing/render_wave.h` +
-`vector_rendering_function.h` into `dsp/`; inject `cpuDireness`/`renderInStereo`
-and scratch buffers instead of reading the `AudioEngine` globals and
-`spareRenderingBuffer`; invert the `oscillator.h → storage/wave_table`
-dependency (`WaveTableView` POD in dsp; storage owns loading and the render
-kernels move down to dsp); carve the L0 lookup-table/filter-config subsets out
-of the shared util/model headers. Lock it with a `dsp/` include-lint gate and
-per-primitive dsp_diff drivers. Sample/granular/timestretch stay on an
-allowlist for Phase 3.
+Rather than scrub the accreted `dsp/` in place, stand up a **new, clean L0
+library `dsp-next` and strangle the old one**: migrate primitives into it one
+at a time as idiomatic C++23 (`std::span` buffers, injected scratch/quality/
+allocator, strong numeric aliases, no globals), switch each caller under
+golden-master cover, delete the old implementation, and remove `dsp/` once
+empty. The library splits into `core/` (numeric-agnostic interfaces +
+q31↔f32 conversion), `fixed/` (the bit-exact q31 core → `libdeluge-dsp-fixed`)
+and `float/` (the float32 edge track → `libdeluge-dsp-float`, structurally
+stood up now, populated later). Clean by construction: the include-lint gate
+has no allowlist. Sample/granular/timestretch stay in old `dsp/` and relocate
+to the Phase-3 `SampleSource` home, not into `dsp-next`.
 
 **Detailed step-by-step plan: [synth_phase1_l0_plan.md](synth_phase1_l0_plan.md).**
 
