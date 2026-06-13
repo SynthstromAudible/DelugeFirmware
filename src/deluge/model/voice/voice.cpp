@@ -2325,8 +2325,8 @@ dontUseCache: {}
 						do {
 							sourceAmplitudeNow += amplitudeIncrement;
 
-							int32_t sample =
-							    multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow) << 4;
+							int32_t sample = multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow)
+							                 << 4;
 							*(oscBufferPos++) += multiply_32x32_rshift32(sample, amplitudeL) << 2;
 							*(oscBufferPos++) += multiply_32x32_rshift32(sample, amplitudeR) << 2;
 
