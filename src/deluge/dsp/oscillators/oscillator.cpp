@@ -17,6 +17,8 @@
 #include "oscillator.h"
 #include "basic_waves.h"
 #include "dsp-next/fixed/amplitude.h"
+#include "dsp-next/fixed/crude_amplitude.h"
+#include "dsp-next/fixed/crude_oscillators.h"
 #include "dsp-next/fixed/pulse_oscillator.h"
 #include "dsp-next/fixed/synced_oscillator.h"
 #include "dsp-next/fixed/table_oscillator.h"
@@ -253,23 +255,22 @@ doOscSyncSetup:
 				return;
 			}
 			else {
-				int32_t amplitudeNow = amplitude << 1;
-				uint32_t phaseNow = phase;
-				int32_t* thisSample = bufferStart;
-				amplitudeIncrement <<= 1;
-				do {
-					phaseNow += phaseIncrement;
-
-					int32_t value = getTriangleSmall(phaseNow);
-
-					if (applyAmplitude) {
-						amplitudeNow += amplitudeIncrement;
-						*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, value, amplitudeNow);
+				// Crude triangle generator, then the crude (rounded-MAC) VCA. Without amplitude the
+				// raw getTriangleSmall is the half-scale value, so the standalone output is << 1.
+				fixed::CrudeTriangle osc{phase, phaseIncrement};
+				if (applyAmplitude) {
+					osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+					fixed::CrudeAmplitude vca{amplitude << 1, amplitudeIncrement << 1};
+					vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
+					                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
+					                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
+				}
+				else {
+					osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
+					for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
+						*sample <<= 1;
 					}
-					else {
-						*thisSample = value << 1;
-					}
-				} while (++thisSample != bufferEnd);
+				}
 				return;
 			}
 		}
@@ -317,13 +318,21 @@ doOscSyncSetup:
 			if (tableNumber < AudioEngine::cpuDireness + 6) {
 
 				if (!doOscSync) {
+					// Crude saw generator (the phase ramp itself), then the crude (rounded-MAC) VCA.
+					// Without amplitude the standalone saw is the ramp >> 1.
+					fixed::CrudeSaw osc{phase, phaseIncrement};
 					if (applyAmplitude) {
-						dsp::renderCrudeSawWaveWithAmplitude(bufferStart, bufferEnd, phase, phaseIncrement, amplitude,
-						                                     amplitudeIncrement, numSamples);
+						osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+						fixed::CrudeAmplitude vca{amplitude, amplitudeIncrement};
+						vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
+						                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
+						                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
 					}
 					else {
-						dsp::renderCrudeSawWaveWithoutAmplitude(bufferStart, bufferEnd, phase, phaseIncrement,
-						                                        numSamples);
+						osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
+						for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
+							*sample >>= 1;
+						}
 					}
 					return;
 				}
@@ -380,43 +389,20 @@ doOscSyncSetup:
 
 				if (!doOscSync) {
 
+					// Crude square / pulse generator, then the crude (rounded-MAC) VCA. Without
+					// amplitude the standalone square is the full getSquare >> 1 (== getSquareSmall).
+					fixed::CrudeSquare osc{phase, phaseIncrement, pulseWidth};
 					if (applyAmplitude) {
-
-						do {
-							phaseNow += phaseIncrement;
-							amplitudeNow += amplitudeIncrement;
-							*thisSample = multiply_accumulate_32x32_rshift32_rounded(
-							    *thisSample, getSquare(phaseNow, pulseWidth),
-							    amplitudeNow); // Using multiply_accumulate saves like 20% here, WTF!!!!
-							++thisSample;
-						} while (thisSample != bufferEnd);
+						osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+						fixed::CrudeAmplitude vca{amplitude, amplitudeIncrement};
+						vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
+						                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
+						                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
 					}
-
 					else {
-						int32_t* remainderSamplesEnd = bufferStart + (numSamples & 3);
-
-						while (thisSample != remainderSamplesEnd) {
-							phaseNow += phaseIncrement;
-							*thisSample = getSquareSmall(phaseNow, pulseWidth);
-							++thisSample;
-						}
-
-						while (thisSample != bufferEnd) {
-							phaseNow += phaseIncrement;
-							*thisSample = getSquareSmall(phaseNow, pulseWidth);
-							++thisSample;
-
-							phaseNow += phaseIncrement;
-							*thisSample = getSquareSmall(phaseNow, pulseWidth);
-							++thisSample;
-
-							phaseNow += phaseIncrement;
-							*thisSample = getSquareSmall(phaseNow, pulseWidth);
-							++thisSample;
-
-							phaseNow += phaseIncrement;
-							*thisSample = getSquareSmall(phaseNow, pulseWidth);
-							++thisSample;
+						osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
+						for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
+							*sample >>= 1;
 						}
 					}
 					return;
