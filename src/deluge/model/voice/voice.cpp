@@ -2271,8 +2271,25 @@ dontUseCache: {}
 				int32_t interpolationBufferSize =
 				    sound.sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement);
 
-				source->livePitchShifter->render(oscBuffer, numSamples, phaseIncrement, sourceAmplitude,
-				                                 amplitudeIncrement, interpolationBufferSize);
+				// With unison stereo spread, oscBuffer is an interleaved stereo buffer. A mono input must be rendered
+				// to a temporary mono buffer first and then panned across it, otherwise the mono render would write
+				// into the interleaved buffer as if it were mono and produce noise.
+				if (stereoUnison && source->livePitchShifter->numChannels == 1) {
+					int32_t* renderBuffer = spareRenderingBuffer[2];
+					memset(renderBuffer, 0, numSamples * sizeof(int32_t));
+
+					source->livePitchShifter->render(renderBuffer, numSamples, phaseIncrement, sourceAmplitude,
+					                                 amplitudeIncrement, interpolationBufferSize);
+
+					for (int32_t i = 0; i < numSamples; i++) {
+						oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
+						oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
+					}
+				}
+				else {
+					source->livePitchShifter->render(oscBuffer, numSamples, phaseIncrement, sourceAmplitude,
+					                                 amplitudeIncrement, interpolationBufferSize);
+				}
 			}
 
 			// No pitch shifting
@@ -2287,8 +2304,6 @@ dontUseCache: {}
 				if (sound.sources[s].oscType != OscType::INPUT_STEREO
 				    || (!AudioEngine::lineInPluggedIn && !AudioEngine::micPluggedIn)) {
 
-					int32_t const* const oscBufferEnd = oscBuffer + numSamples;
-
 					int32_t channelOffset;
 					// If right, but not internal mic
 					if (sound.sources[s].oscType == OscType::INPUT_R
@@ -2302,18 +2317,40 @@ dontUseCache: {}
 					}
 
 					int32_t sourceAmplitudeNow = sourceAmplitudeThisUnison;
-					do {
-						sourceAmplitudeNow += amplitudeIncrement;
 
-						// Mono / left channel (or stereo condensed to mono)
-						*(oscBufferPos++) += multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow)
-						                     << 4;
+					// With unison stereo spread, oscBuffer is an interleaved stereo buffer and each unison part is
+					// panned across it.
+					if (stereoUnison) {
+						int32_t const* const oscBufferEnd = oscBuffer + numSamples * 2;
+						do {
+							sourceAmplitudeNow += amplitudeIncrement;
 
-						inputReadPos += NUM_MONO_INPUT_CHANNELS;
-						if (inputReadPos >= getRxBufferEnd()) {
-							inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
-						}
-					} while (oscBufferPos != oscBufferEnd);
+							int32_t sample = multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow)
+							                 << 4;
+							*(oscBufferPos++) += multiply_32x32_rshift32(sample, amplitudeL) << 2;
+							*(oscBufferPos++) += multiply_32x32_rshift32(sample, amplitudeR) << 2;
+
+							inputReadPos += NUM_MONO_INPUT_CHANNELS;
+							if (inputReadPos >= getRxBufferEnd()) {
+								inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+							}
+						} while (oscBufferPos != oscBufferEnd);
+					}
+					else {
+						int32_t const* const oscBufferEnd = oscBuffer + numSamples;
+						do {
+							sourceAmplitudeNow += amplitudeIncrement;
+
+							// Mono / left channel (or stereo condensed to mono)
+							*(oscBufferPos++) +=
+							    multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow) << 4;
+
+							inputReadPos += NUM_MONO_INPUT_CHANNELS;
+							if (inputReadPos >= getRxBufferEnd()) {
+								inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+							}
+						} while (oscBufferPos != oscBufferEnd);
+					}
 				}
 
 				// Stereo
