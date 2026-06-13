@@ -183,7 +183,8 @@ def main():
     )
     parser.add_argument("--update", action="store_true", help="re-baseline fixtures.json with current output")
     parser.add_argument("--keep", default=None, help="directory to copy rendered WAVs into (for listening)")
-    parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
+    parser.add_argument("--jobs", type=int, default=os.cpu_count() or 4,
+                        help="parallel cases (default: all cores)")
     parser.add_argument(
         "--wrapper",
         default=None,
