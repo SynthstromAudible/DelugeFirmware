@@ -2287,8 +2287,6 @@ dontUseCache: {}
 				if (sound.sources[s].oscType != OscType::INPUT_STEREO
 				    || (!AudioEngine::lineInPluggedIn && !AudioEngine::micPluggedIn)) {
 
-					int32_t const* const oscBufferEnd = oscBuffer + numSamples;
-
 					int32_t channelOffset;
 					// If right, but not internal mic
 					if (sound.sources[s].oscType == OscType::INPUT_R
@@ -2302,18 +2300,40 @@ dontUseCache: {}
 					}
 
 					int32_t sourceAmplitudeNow = sourceAmplitudeThisUnison;
-					do {
-						sourceAmplitudeNow += amplitudeIncrement;
 
-						// Mono / left channel (or stereo condensed to mono)
-						*(oscBufferPos++) += multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow)
-						                     << 4;
+					// With unison stereo spread, oscBuffer is an interleaved stereo buffer and each unison part is
+					// panned across it.
+					if (stereoUnison) {
+						int32_t const* const oscBufferEnd = oscBuffer + numSamples * 2;
+						do {
+							sourceAmplitudeNow += amplitudeIncrement;
 
-						inputReadPos += NUM_MONO_INPUT_CHANNELS;
-						if (inputReadPos >= getRxBufferEnd()) {
-							inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
-						}
-					} while (oscBufferPos != oscBufferEnd);
+							int32_t sample =
+							    multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow) << 4;
+							*(oscBufferPos++) += multiply_32x32_rshift32(sample, amplitudeL) << 2;
+							*(oscBufferPos++) += multiply_32x32_rshift32(sample, amplitudeR) << 2;
+
+							inputReadPos += NUM_MONO_INPUT_CHANNELS;
+							if (inputReadPos >= getRxBufferEnd()) {
+								inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+							}
+						} while (oscBufferPos != oscBufferEnd);
+					}
+					else {
+						int32_t const* const oscBufferEnd = oscBuffer + numSamples;
+						do {
+							sourceAmplitudeNow += amplitudeIncrement;
+
+							// Mono / left channel (or stereo condensed to mono)
+							*(oscBufferPos++) +=
+							    multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow) << 4;
+
+							inputReadPos += NUM_MONO_INPUT_CHANNELS;
+							if (inputReadPos >= getRxBufferEnd()) {
+								inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+							}
+						} while (oscBufferPos != oscBufferEnd);
+					}
 				}
 
 				// Stereo
