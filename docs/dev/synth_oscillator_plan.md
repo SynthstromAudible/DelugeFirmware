@@ -133,8 +133,19 @@ clean code into `dsp-next`. Each step is a bisectable commit.
 Pure behaviour-preserving restructuring of `oscillator.cpp`/`basic_waves`; the
 existing fixtures are the ground truth, so any hash change is a refactor bug,
 caught with the cleanest possible signal.
-- **A1 — de-switch.** Extract each `OscType` arm of `renderOsc` into its own
-  per-wave render function. Pure code motion → bit-exact.
+- **A1 — de-switch `renderOsc`.** Remove the dead labels and replace the
+  `callRenderWave` goto target with a `renderFromTable` helper, so `renderOsc`
+  is a goto-free `if/else-if` dispatcher. (Done — two bit-exact commits.) The
+  remaining inline per-wave arms need not be extracted in place; they become
+  `dsp-next` kernels in Phase B.
+- **A1b — untangle `renderOscSync`.** The hard-sync crossover engine (in
+  `render_wave.h`, shared by oscillators **and** wavetables — 4 call sites) has
+  a backward `goto startRenderingASync` loop. Convert it to a structured loop in
+  place; bit-exact, gated on the sync golden cases (Sync Bass, Saw/Square Sync,
+  Sync Squared, …). It is stateless (phase in/out by ref) and a higher-order
+  function (parameterised by a per-window wave renderer) — keep that factoring;
+  in Phase B it becomes a first-class `dsp-next` osc-sync component with its own
+  spec, used by both the oscillator kernels and the wavetable renderer.
 - **A2 — separate the VCA, per-path-exact.** Each wave generates a raw block into
   scratch, then that path's **existing** VCA op runs over it; delete the
   `applyAmplitude` dual-path (raw == "skip the VCA stage"). Reordering identical
