@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/dx/engine.h"
 #include "dsp/filter/filter_set.h"
-#include "dsp/oscillators/sine_osc.h"
+#include "dsp-next/fixed/sine.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
 #include "gui/waveform/waveform_renderer.h"
@@ -1734,7 +1734,7 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples,
 			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
-			feedbackValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, feedback);
+			feedbackValue = dsp::fixed::sine_fm_operator(phaseNow += phaseIncrement, feedback);
 
 			if (add) {
 				*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);
@@ -1753,7 +1753,9 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples,
 
 		if (amplitudeIncrement) {
 			do {
-				int32x4_t sineValueVector = dsp::SineOsc::getSineVector(&phaseNow, phaseIncrement);
+				auto phaseVector = Argon<uint32_t>{phaseNow}.MultiplyAdd(uint32x4_t{1, 2, 3, 4}, phaseIncrement);
+				phaseNow += phaseIncrement * 4;
+				int32x4_t sineValueVector = dsp::fixed::sine(phaseVector);
 
 				int32x4_t amplitudeVector;
 				for (int32_t i = 0; i < 4; i++) {
@@ -1778,7 +1780,9 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples,
 
 		else {
 			do {
-				int32x4_t sineValueVector = dsp::SineOsc::getSineVector(&phaseNow, phaseIncrement);
+				auto phaseVector = Argon<uint32_t>{phaseNow}.MultiplyAdd(uint32x4_t{1, 2, 3, 4}, phaseIncrement);
+				phaseNow += phaseIncrement * 4;
+				int32x4_t sineValueVector = dsp::fixed::sine(phaseVector);
 				int32x4_t resultValueVector = vqrdmulhq_n_s32(sineValueVector, amplitudeNow >> 1);
 
 				if (add) {
@@ -1820,7 +1824,7 @@ void Voice::renderFMWithFeedback(int32_t* bufferStart, int32_t numSamples, int32
 
 			uint32_t sum = (uint32_t)*thisSample + (uint32_t)feedback;
 
-			feedbackValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, sum);
+			feedbackValue = dsp::fixed::sine_fm_operator(phaseNow += phaseIncrement, sum);
 			*thisSample = multiply_32x32_rshift32(feedbackValue, amplitudeNow);
 		} while (++thisSample != bufferEnd);
 
@@ -1832,7 +1836,7 @@ void Voice::renderFMWithFeedback(int32_t* bufferStart, int32_t numSamples, int32
 		int32_t* bufferEnd = bufferStart + numSamples;
 		do {
 			amplitudeNow += amplitudeIncrement;
-			int32_t fmValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, *thisSample);
+			int32_t fmValue = dsp::fixed::sine_fm_operator(phaseNow += phaseIncrement, *thisSample);
 			*thisSample = multiply_32x32_rshift32(fmValue, amplitudeNow);
 		} while (++thisSample != bufferEnd);
 	}
@@ -1863,7 +1867,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 
 			uint32_t sum = (uint32_t)*(fmSample++) + (uint32_t)feedback;
 
-			feedbackValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, sum);
+			feedbackValue = dsp::fixed::sine_fm_operator(phaseNow += phaseIncrement, sum);
 			*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);
 		} while (++thisSample != bufferEnd);
 
@@ -1887,7 +1891,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 		if (amplitudeIncrement) {
 			while (true) {
 				uint32x4_t phaseShift = vld1q_u32(fmSample);
-				int32x4_t sineValueVector = dsp::SineOsc::doFMVector(phaseVector, phaseShift);
+				int32x4_t sineValueVector = dsp::fixed::sine(Argon<uint32_t>{phaseVector} + (Argon<uint32_t>{phaseShift} << 8));
 
 				int32x4_t amplitudeVector;
 				for (int32_t i = 0; i < 4; i++) {
@@ -1914,7 +1918,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 		else {
 			while (true) {
 				uint32x4_t phaseShift = vld1q_u32(fmSample);
-				int32x4_t sineValueVector = dsp::SineOsc::doFMVector(phaseVector, phaseShift);
+				int32x4_t sineValueVector = dsp::fixed::sine(Argon<uint32_t>{phaseVector} + (Argon<uint32_t>{phaseShift} << 8));
 
 				int32x4_t resultValueVector = vqrdmulhq_n_s32(sineValueVector, amplitudeNow >> 1);
 

@@ -149,9 +149,19 @@ change.
   the `ONE_Q31f`→2^31 float-rounding overflow at |x|==1). No caller switch, so
   goldens are untouched; firmware text unchanged. LUTs, block helpers, and
   primitive concepts deliberately deferred (see migration item 1).
-- **S2..S7 — migrate items 2–6** one primitive (or tight cluster) per
-  commit, following the per-primitive recipe above. The first caller switch
-  (sine osc) is the first commit that can move a fixture — gate hard.
+- **S2 — sine kernel. ✅ done (2026-06-13).** Migrated the sine table evaluator
+  into `fixed/sine.{h,cpp}` as free functions (not a class): `sine(Argon<uint32_t>)`
+  (the vector evaluator) and `sine_fm_operator(...)` (the scalar FM-feedback step,
+  labelled FM-engine-bound). Reframed per review: it's a stateless *evaluator*, not
+  an oscillator; vector FM dissolved into `sine(phase + mod)` at the `voice.cpp`
+  call sites; phase-advance (the osc concern) decomposed back to the caller; the
+  LUT is now a TU-local table; magic numbers became named constants; full `///@`
+  Doxygen; snake_case free functions via a scoped `dsp-next/.clang-tidy`. Bit-exact:
+  x86 319/319, ARM oracle 5/5 (the sine/fm cases only — the full ARM/QEMU sweep
+  is too slow to run per-commit, so it is reserved for phase boundaries).
+- **S3..S7 — migrate items 3–6** one primitive (or tight cluster) per commit,
+  following the per-primitive recipe above. The first caller switch can move a
+  fixture — gate hard.
 - **Sn — Retire.** When the only thing left in old `dsp/` is the deferred
   sample residue, the lint allowlist for `dsp/` is gone; the final cleanup
   (delete emptied `dsp/`, rename/settle `dsp-next`'s canonical name) is its
