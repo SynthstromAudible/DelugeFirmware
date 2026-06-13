@@ -39,8 +39,10 @@ template <class T> using Signal = std::span<const T>;  // read-only block
 template <class T> struct StereoSample { Sample<T> l, r; ... };
 ```
 
-with `fixed_point` (q31) and `floating_point` (f32) aliases, mirroring `dsp_ng`.
-Extends the existing `core/sample.h` (`q31`/`f32`/`SampleType`, `toF32`/`toQ31`).
+with per-backend alias bundles in **`fixed`** (q31) and **`fp`** (f32) — the same
+namespaces the kernels live in (`fixed::sine`, …). Layered on the existing
+`core/sample.h` (the scalar vocabulary: `q31`/`f32`/`SampleType`, `toF32`/`toQ31`):
+sample.h = scalars, types.h = blocks/aggregates, then the component framework.
 
 Sample type at the interfaces is **`q31_t` (= `int32_t`)** (decision Q1): zero
 friction with the app's int32 buffers and the kernels' raw ops. `FixedPoint<31>`

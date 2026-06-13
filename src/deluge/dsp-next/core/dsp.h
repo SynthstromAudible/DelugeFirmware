@@ -35,10 +35,15 @@
 // Umbrella include for the numeric-agnostic core vocabulary. Backends include
 // this; app/migration sites can include the specific headers directly.
 //
-// Landed so far (S1): the q31/f32 sample aliases + SampleType concept (sample.h)
-// and the q31<->f32 edge conversions (convert.h). Still to come as primitives
-// migrate: block/span helpers, primitive concepts, and (Phase 2) the
-// ModValue/ControlValue control-plane vocabulary.
+// Layering: sample.h is the scalar vocabulary (q31/f32 + SampleType + conversions);
+// types.h builds the block/aggregate vocabulary on it (Sample/Buffer/Signal/StereoSample
+// + the fixed::/fp:: backend aliases); concepts.h + generator/processor/mixer are the
+// component framework (static render() hot path, virtual renderBlock at block granularity).
 
+#include "dsp-next/core/concepts.h"
 #include "dsp-next/core/convert.h"
+#include "dsp-next/core/generator.h"
+#include "dsp-next/core/mixer.h"
+#include "dsp-next/core/processor.h"
 #include "dsp-next/core/sample.h"
+#include "dsp-next/core/types.h"
