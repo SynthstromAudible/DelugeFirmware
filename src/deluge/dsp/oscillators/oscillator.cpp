@@ -143,10 +143,40 @@ doOscSyncSetup:
 		                         // bit smaller, so things multiplied by it don't get a bit too big and overflow.
 	}
 
+	// Shared tail (Phase A1): render a band-limited wave from `renderTable` — straight or with
+	// osc sync — and apply amplitude. Replaces the `callRenderWave` goto target. The rendering
+	// context is captured by reference; the per-wave call sites vary only the table, its size
+	// magnitude, the amplitude pair, and the (general) pulse phase offset. Behaviour unchanged.
+	auto renderFromTable = [&](const int16_t* renderTable, int32_t renderTableSizeMagnitude, int32_t amp,
+	                           int32_t ampIncrement, uint32_t generalPhaseToAdd) {
+		if (doOscSync) {
+			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
+			int32_t numSamplesThisOscSyncSession = numSamples;
+			auto storeVectorWaveForOneSync = //<
+			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
+				    int32x4_t valueVector;
+				    do {
+					    std::tie(valueVector, phase) = waveRenderingFunctionGeneral(
+					        phase, phaseIncrement, generalPhaseToAdd, renderTable, renderTableSizeMagnitude);
+					    vst1q_s32(writePos, valueVector);
+					    writePos += 4;
+				    } while (writePos < bufferEndThisSyncRender);
+			    };
+			renderOscSync(storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
+			              resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase,
+			              numSamplesThisOscSyncSession, bufferStartThisSync);
+			applyAmplitudeVectorToBuffer(amp, numSamples, ampIncrement, bufferStart, oscSyncRenderingBuffer);
+			maybeStorePhase(type, startPhase, phase, doPulseWave);
+		}
+		else {
+			dsp::renderWave(renderTable, renderTableSizeMagnitude, amp, bufferStart, bufferEnd, phaseIncrement, phase,
+			                applyAmplitude, generalPhaseToAdd, ampIncrement);
+		}
+	};
+
 	if (type == OscType::SINE) [[unlikely]] {
-		table = sineWaveSmall;
-		tableSizeMagnitude = 8;
-		goto callRenderWave;
+		renderFromTable(sineWaveSmall, 8, amplitude, amplitudeIncrement, 0);
+		return;
 	}
 
 	else if (type == OscType::WAVETABLE) {
@@ -258,7 +288,8 @@ doOscSyncSetup:
 					table = triangleWaveAntiAliasing1;
 				}
 			}
-			goto callRenderWave;
+			renderFromTable(table, tableSizeMagnitude, amplitude, amplitudeIncrement, 0);
+			return;
 		}
 	}
 
@@ -467,35 +498,10 @@ doOscSyncSetup:
 
 		amplitude <<= 1;
 		amplitudeIncrement <<= 1;
-
-callRenderWave:
-		if (doOscSync) {
-			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
-			int32_t numSamplesThisOscSyncSession = numSamples;
-			auto storeVectorWaveForOneSync = //<
-			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
-				    int32x4_t valueVector;
-				    do {
-					    std::tie(valueVector, phase) =
-					        waveRenderingFunctionGeneral(phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
-					    vst1q_s32(writePos, valueVector);
-					    writePos += 4;
-				    } while (writePos < bufferEndThisSyncRender);
-			    };
-			renderOscSync(
-			    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
-			    resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession,
-			    bufferStartThisSync);
-			applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
-			                             oscSyncRenderingBuffer);
-			maybeStorePhase(type, startPhase, phase, doPulseWave);
-			return;
-		}
-		else {
-			dsp::renderWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd, phaseIncrement, phase,
-			                applyAmplitude, phaseToAdd, amplitudeIncrement);
-			return;
-		}
+		// phaseToAdd is unused by the general (non-pulse) render path; the pulse paths return
+		// above. Pass 0 rather than the uninitialised local.
+		renderFromTable(table, tableSizeMagnitude, amplitude, amplitudeIncrement, 0);
+		return;
 	}
 
 	// Rohan thinks we never get here but who knows
