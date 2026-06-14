@@ -54,11 +54,53 @@ using namespace gui;
 #define SETTINGS_FOLDER "SETTINGS"
 #define MIDI_FOLLOW_XML "SETTINGS/MIDIFollow.XML"
 #define MIDI_DEFAULTS_TAG "defaults"
-#define MIDI_DEFAULTS_CC_TAG "defaultCCMappings"
+#define MIDI_DEFAULTS_SETTINGS_TAG "settings"
+// channels
+#define MIDI_DEFAULTS_SETTINGS_CHANNELS_TAG "channels"
+#define MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG "channel"
+#define MIDI_DEFAULTS_SETTINGS_DEVICE_TAG "device"
+// root note
+#define MIDI_DEFAULTS_SETTINGS_KITROOTNOTE_TAG "kit_root_note"
+#define MIDI_DEFAULTS_SETTINGS_KITROOTNOTE_NOTE_TAG "note"
+#define MIDI_DEFAULTS_SETTINGS_FEEDBACK_TAG "feedback"
+#define MIDI_DEFAULTS_SETTINGS_FEEDBACK_AUTOMATION_TAG "automation"
+#define MIDI_DEFAULTS_SETTINGS_FEEDBACK_FILTER_TAG "filter"
+#define MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_TAG "display_param"
+#define MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_POPUP_TAG "popup"
+#define MIDI_DEFAULTS_CC_TAG "cc_mappings"
 
 constexpr int32_t PARAM_ID_NONE = 255;
 constexpr int32_t MIDI_CC_MUTE = 89;
 constexpr int32_t MIDI_CC_SOLO = 90;
+
+EnumStringMap<MIDIFollowChannelType, util::to_underlying(MIDIFollowChannelType::LAST)> channelTypeMap = {
+    {{{MIDIFollowChannelType::A, "a"},
+      {MIDIFollowChannelType::B, "b"},
+      {MIDIFollowChannelType::C, "c"},
+      {MIDIFollowChannelType::NONE, "none"},
+      {MIDIFollowChannelType::Track, "track"},
+      {MIDIFollowChannelType::Track1, "track_1"},
+      {MIDIFollowChannelType::Track2, "track_2"},
+      {MIDIFollowChannelType::Track3, "track_3"},
+      {MIDIFollowChannelType::Track4, "track_4"},
+      {MIDIFollowChannelType::Track5, "track_5"},
+      {MIDIFollowChannelType::Track6, "track_6"},
+      {MIDIFollowChannelType::Track7, "track_7"},
+      {MIDIFollowChannelType::Track8, "track_8"},
+      {MIDIFollowChannelType::Track9, "track_9"},
+      {MIDIFollowChannelType::Track10, "track_10"},
+      {MIDIFollowChannelType::Track11, "track_11"},
+      {MIDIFollowChannelType::Track12, "track_12"},
+      {MIDIFollowChannelType::Track13, "track_13"},
+      {MIDIFollowChannelType::Track14, "track_14"},
+      {MIDIFollowChannelType::Track15, "track_15"},
+      {MIDIFollowChannelType::Track16, "track_16"}}}};
+
+EnumStringMap<MIDIFollowFeedbackAutomationMode, util::to_underlying(MIDIFollowFeedbackAutomationMode::LAST)>
+    feedbackAutomationModeMap = {{{{MIDIFollowFeedbackAutomationMode::DISABLED, "disabled"},
+                                   {MIDIFollowFeedbackAutomationMode::LOW, "low"},
+                                   {MIDIFollowFeedbackAutomationMode::MEDIUM, "medium"},
+                                   {MIDIFollowFeedbackAutomationMode::HIGH, "high"}}}};
 
 PLACE_SDRAM_BSS MidiFollow midiFollow{};
 
@@ -1441,17 +1483,22 @@ void MidiFollow::writeDefaultsToFile() {
 		return;
 	}
 	Serializer& writer = GetSerializer();
+
 	//<defaults>
 	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();
 
-	//<defaultCCMappings>
+	//<cc_mappings>
 	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_CC_TAG);
 	writer.writeOpeningTagEnd();
-
-	writeDefaultMappingsToFile();
-
+	writeDefaultMappingsToFile(writer);
 	writer.writeClosingTag(MIDI_DEFAULTS_CC_TAG);
+
+	//<settings>
+	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_SETTINGS_TAG);
+	writer.writeOpeningTagEnd();
+	writeDefaultSettingsToFile(writer);
+	writer.writeClosingTag(MIDI_DEFAULTS_SETTINGS_TAG);
 
 	writer.writeClosingTag(MIDI_DEFAULTS_TAG);
 
@@ -1459,8 +1506,7 @@ void MidiFollow::writeDefaultsToFile() {
 }
 
 /// convert paramID to a paramName to write to XML
-void MidiFollow::writeDefaultMappingsToFile() {
-	Serializer& writer = GetSerializer();
+void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
 	for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
 		uint8_t soundParamId = ccToSoundParam[ccNumber];
 		uint8_t globalParamId = ccToGlobalParam[ccNumber];
@@ -1496,6 +1542,105 @@ void MidiFollow::writeDefaultMappingsToFile() {
 	}
 }
 
+/// write default settings (channels, kit root note, feedback, display param) to XML
+void MidiFollow::writeDefaultSettingsToFile(Serializer& writer) {
+	//<channels>
+	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_SETTINGS_CHANNELS_TAG);
+	writer.writeOpeningTagEnd();
+
+	writeChannelSettingsToFile(writer);
+
+	writer.writeClosingTag(MIDI_DEFAULTS_SETTINGS_CHANNELS_TAG);
+
+	//<kit_root_note>
+	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_SETTINGS_KITROOTNOTE_TAG);
+	writer.writeOpeningTagEnd();
+
+	writeKitRootNoteSettingToFile(writer);
+
+	writer.writeClosingTag(MIDI_DEFAULTS_SETTINGS_KITROOTNOTE_TAG);
+
+	//<feedback>
+	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_SETTINGS_FEEDBACK_TAG);
+	writer.writeOpeningTagEnd();
+
+	writeFeedbackSettingsToFile(writer);
+
+	writer.writeClosingTag(MIDI_DEFAULTS_SETTINGS_FEEDBACK_TAG);
+
+	//<display_param>
+	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_TAG);
+	writer.writeOpeningTagEnd();
+
+	writeDisplayParamSettingToFile(writer);
+
+	writer.writeClosingTag(MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_TAG);
+}
+
+/// Write Channel settings to XML
+void MidiFollow::writeChannelSettingsToFile(Serializer& writer) {
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::A);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::B);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::C);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track1);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track2);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track3);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track4);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track5);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track6);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track7);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track8);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track9);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track10);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track11);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track12);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track13);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track14);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track15);
+	writeSpecificChannelSettingsToFile(writer, MIDIFollowChannelType::Track16);
+}
+
+/// Write Specific Channel settings to XML
+void MidiFollow::writeSpecificChannelSettingsToFile(Serializer& writer, MIDIFollowChannelType type) {
+	char const* tag_name = getNameFromChannelType(type);
+
+	writer.writeOpeningTagBeginning(tag_name);
+	writer.writeOpeningTagEnd();
+
+	writer.writeTag(MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG,
+	                midiEngine.midiFollowChannelType[util::to_underlying(type)].channelOrZone + 1);
+
+	MIDICable* cable = midiEngine.midiFollowChannelType[util::to_underlying(type)].cable;
+
+	if (cable != nullptr) {
+		// write reference inside <device> tag
+		cable->writeReferenceToFile(writer, MIDI_DEFAULTS_SETTINGS_DEVICE_TAG);
+	}
+
+	writer.writeClosingTag(tag_name);
+}
+
+/// Write Kit Root Note setting to XML
+void MidiFollow::writeKitRootNoteSettingToFile(Serializer& writer) {
+	char note[10];
+	intToString(midiEngine.midiFollowKitRootNote, note);
+	writer.writeTag(MIDI_DEFAULTS_SETTINGS_KITROOTNOTE_NOTE_TAG, note);
+}
+
+/// Write Feedback settings to XML
+void MidiFollow::writeFeedbackSettingsToFile(Serializer& writer) {
+	writer.writeTag(MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG,
+	                getNameFromChannelType(midiEngine.midiFollowFeedbackChannelType));
+	writer.writeTag(MIDI_DEFAULTS_SETTINGS_FEEDBACK_AUTOMATION_TAG,
+	                getNameFromFeedbackAutomationMode(midiEngine.midiFollowFeedbackAutomation));
+	writer.writeTag(MIDI_DEFAULTS_SETTINGS_FEEDBACK_FILTER_TAG, getNameFromBool(midiEngine.midiFollowFeedbackFilter));
+}
+
+/// Write Display Param setting to XML
+void MidiFollow::writeDisplayParamSettingToFile(Serializer& writer) {
+	writer.writeTag(MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_POPUP_TAG, getNameFromBool(midiEngine.midiFollowDisplayParam));
+}
+
 /// read defaults from XML
 void MidiFollow::readDefaultsFromFile() {
 	// no need to keep reading from SD card after first load
@@ -1509,19 +1654,10 @@ void MidiFollow::readDefaultsFromFile() {
 	// MIDIFollow.XML
 	bool success = StorageManager::fileExists(MIDI_FOLLOW_XML, &fp);
 	if (!success) {
-		// since we changed the file path for the MIDIFollow.XML in c1.3, it's possible
-		// that a MIDIFollow file may exists in the root of the SD card
-		// if so, let's move it to the new SETTINGS folder (but first make sure folder exists)
+		// if file doesn't exist, lets make SETTINGS folder if it doesn't already exist
 		FRESULT result = f_mkdir(SETTINGS_FOLDER);
 		if (result == FR_OK || result == FR_EXIST) {
-			result = f_rename("MIDIFollow.XML", MIDI_FOLLOW_XML);
-			if (result == FR_OK) {
-				// this means we moved it
-				// now let's open it
-				success = StorageManager::fileExists(MIDI_FOLLOW_XML, &fp);
-			}
-		}
-		if (!success) {
+			// folder eixsts now, write defaults
 			writeDefaultsToFile();
 			successfullyReadDefaultsFromFile = true;
 			return;
@@ -1540,11 +1676,15 @@ void MidiFollow::readDefaultsFromFile() {
 	clearMappings();
 
 	Deserializer& reader = *activeDeserializer;
-	char const* tagName;
-	// step into the <defaultCCMappings> tag
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, MIDI_DEFAULTS_CC_TAG)) {
+	char const* tag_name;
+	while (*(tag_name = reader.readNextTagOrAttributeName())) {
+		// step into the <cc_mappings> tag
+		if (!strcmp(tag_name, MIDI_DEFAULTS_CC_TAG)) {
 			readDefaultMappingsFromFile(reader);
+		}
+		// step into the <settings> tag
+		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_TAG)) {
+			readDefaultSettingsFromFile(reader);
 		}
 		reader.exitTag();
 	}
@@ -1555,14 +1695,14 @@ void MidiFollow::readDefaultsFromFile() {
 /// compares param name tag to the list of params available are midi controllable
 /// if param is found, it loads the CC mapping info for that param into the view
 void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
-	char const* tagName;
+	char const* tag_name;
 	bool foundParam;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tag_name = reader.readNextTagOrAttributeName())) {
 		foundParam = false;
 		int32_t value = reader.readTagOrAttributeValueInt();
 		// Loop through patched sound params
 		for (uint8_t paramId = 0; paramId < params::GLOBAL_NONE; paramId++) {
-			if (!strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED, paramId, true))) {
+			if (!strcmp(tag_name, params::paramNameForFile(params::Kind::PATCHED, paramId, true))) {
 				soundParamToCC[paramId] = value;
 				ccToSoundParam[value] = paramId;
 				foundParam = true;
@@ -1572,8 +1712,8 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 		if (!foundParam) {
 			// Loop through unpatched sound params (if not found before)
 			for (uint8_t paramId = 0; paramId < params::UNPATCHED_SOUND_MAX_NUM; paramId++) {
-				if (!strcmp(tagName, params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
-				                                              params::UNPATCHED_START + paramId, true))) {
+				if (!strcmp(tag_name, params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+				                                               params::UNPATCHED_START + paramId, true))) {
 					soundParamToCC[params::UNPATCHED_START + paramId] = value;
 					ccToSoundParam[value] = params::UNPATCHED_START + paramId;
 					foundParam = true;
@@ -1583,8 +1723,8 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 		}
 		// Loop through global params
 		for (uint8_t paramId = 0; paramId < params::UNPATCHED_GLOBAL_MAX_NUM; paramId++) {
-			if (!strcmp(tagName, params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
-			                                              params::UNPATCHED_START + paramId, true))) {
+			if (!strcmp(tag_name, params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
+			                                               params::UNPATCHED_START + paramId, true))) {
 				globalParamToCC[paramId] = value;
 				ccToGlobalParam[value] = paramId;
 				break;
@@ -1593,4 +1733,148 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 		// exit out of this tag so you can check the next tag
 		reader.exitTag();
 	}
+}
+
+/// read default settings (channels, kit root note, feedback, display param) from XML
+void MidiFollow::readDefaultSettingsFromFile(Deserializer& reader) {
+	char const* tag_name;
+	while (*(tag_name = reader.readNextTagOrAttributeName())) {
+		// step into <channels> tag
+		if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_CHANNELS_TAG)) {
+			readChannelSettingsFromFile(reader);
+		}
+		// step into <kit_root_note> tag
+		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_KITROOTNOTE_TAG)) {
+			readKitRootNoteSettingFromFile(reader);
+		}
+		// step into <feedback> tag
+		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_FEEDBACK_TAG)) {
+			readFeedbackSettingsFromFile(reader);
+		}
+		// step into <display_param> tag
+		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_TAG)) {
+			readDisplayParamSettingFromFile(reader);
+		}
+		reader.exitTag();
+	}
+}
+
+/// Read Channel settings from XML
+void MidiFollow::readChannelSettingsFromFile(Deserializer& reader) {
+	char const* tag_name;
+	while (*(tag_name = reader.readNextTagOrAttributeName())) {
+		// step into first channel type tag
+		MIDIFollowChannelType type = getChannelTypeFromName(tag_name);
+		if (type != MIDIFollowChannelType::LAST) {
+			readSpecificChannelSettingsFromFile(reader, type);
+		}
+		// exit so we can step into next tag
+		reader.exitTag();
+	}
+}
+
+/// Read Specific Channel settings from XML
+void MidiFollow::readSpecificChannelSettingsFromFile(Deserializer& reader, MIDIFollowChannelType type) {
+	char const* tag_name;
+	while (*(tag_name = reader.readNextTagOrAttributeName())) {
+		// step into <channel> tag
+		if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG)) {
+			int32_t value = reader.readTagOrAttributeValueInt();
+			if (value >= 0 && value < NUM_CHANNELS) {
+				midiEngine.midiFollowChannelType[util::to_underlying(type)].channelOrZone = value - 1;
+			}
+		}
+		// step into <device> tag
+		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_DEVICE_TAG)) {
+			MIDICable* cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+		}
+		// exit so we can step into next tag
+		reader.exitTag();
+	}
+}
+
+/// Read Kit Root Note setting from XML
+void MidiFollow::readKitRootNoteSettingFromFile(Deserializer& reader) {
+	char const* tag_name;
+	while (*(tag_name = reader.readNextTagOrAttributeName())) {
+		// step into <note> tag
+		if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_KITROOTNOTE_NOTE_TAG)) {
+			int32_t value = reader.readTagOrAttributeValueInt();
+			if (value >= 0 && value <= kMaxMIDIValue) {
+				midiEngine.midiFollowKitRootNote = value;
+			}
+		}
+		// exit so we can step into next tag
+		reader.exitTag();
+	}
+}
+
+/// Read Feedback settings from XML
+void MidiFollow::readFeedbackSettingsFromFile(Deserializer& reader) {
+	char const* tag_name;
+	while (*(tag_name = reader.readNextTagOrAttributeName())) {
+		// step into <channel> tag
+		if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG)) {
+			char const* value = reader.readTagOrAttributeValue();
+			MIDIFollowChannelType type = getChannelTypeFromName(value);
+			if (type != MIDIFollowChannelType::LAST) {
+				midiEngine.midiFollowFeedbackChannelType = type;
+			}
+		}
+		// step into <automation> tag
+		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_FEEDBACK_AUTOMATION_TAG)) {
+			char const* value = reader.readTagOrAttributeValue();
+			MIDIFollowFeedbackAutomationMode mode = getFeedbackAutomationModeFromName(value);
+			if (mode != MIDIFollowFeedbackAutomationMode::LAST) {
+				midiEngine.midiFollowFeedbackAutomation = mode;
+			}
+		}
+		// step into <filter> tag
+		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_FEEDBACK_FILTER_TAG)) {
+			char const* value = reader.readTagOrAttributeValue();
+			midiEngine.midiFollowFeedbackFilter = getBoolFromName(value);
+		}
+		// exit so we can step into next tag
+		reader.exitTag();
+	}
+}
+
+/// Read Display Param setting from XML
+void MidiFollow::readDisplayParamSettingFromFile(Deserializer& reader) {
+	char const* tag_name;
+	while (*(tag_name = reader.readNextTagOrAttributeName())) {
+		// step into <popup> tag
+		if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_POPUP_TAG)) {
+			char const* value = reader.readTagOrAttributeValue();
+			midiEngine.midiFollowDisplayParam = getBoolFromName(value);
+		}
+		// exit so we can step into next tag
+		reader.exitTag();
+	}
+}
+
+/// enum / string lookup functions
+
+char const* MidiFollow::getNameFromChannelType(MIDIFollowChannelType type) {
+	return channelTypeMap(type);
+}
+
+MIDIFollowChannelType MidiFollow::getChannelTypeFromName(char const* name) {
+	return channelTypeMap(name);
+}
+
+char const* MidiFollow::getNameFromFeedbackAutomationMode(MIDIFollowFeedbackAutomationMode mode) {
+	return feedbackAutomationModeMap(mode);
+}
+
+MIDIFollowFeedbackAutomationMode MidiFollow::getFeedbackAutomationModeFromName(char const* name) {
+	return feedbackAutomationModeMap(name);
+}
+
+char const* MidiFollow::getNameFromBool(bool value) {
+	return value == true ? "enabled" : "disabled";
+}
+
+bool MidiFollow::getBoolFromName(char const* name) {
+	return !strcmp(name, "enabled");
 }

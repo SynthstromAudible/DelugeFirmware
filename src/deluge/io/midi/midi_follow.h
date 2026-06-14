@@ -39,6 +39,7 @@ namespace params = deluge::modulation::params;
 class MidiFollow final {
 public:
 	MidiFollow();
+	void writeDefaultsToFile();
 	void readDefaultsFromFile();
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
@@ -140,13 +141,42 @@ private:
 	MIDIMatchType checkMidiFollowMatchForSpecificTrack(MIDICable& cable, uint8_t channel, int32_t specific_track_index);
 	bool isFeedbackEnabled();
 
-	// saving
-	void writeDefaultsToFile();
-	void writeDefaultMappingsToFile();
+	// Saving
 
-	// loading
+	// CC Mappings
+	void writeDefaultMappingsToFile(Serializer& writer);
+
+	// Settings
+	void writeDefaultSettingsToFile(Serializer& writer);
+	void writeChannelSettingsToFile(Serializer& writer);
+	void writeSpecificChannelSettingsToFile(Serializer& writer, MIDIFollowChannelType type);
+	void writeKitRootNoteSettingToFile(Serializer& writer);
+	void writeFeedbackSettingsToFile(Serializer& writer);
+	void writeDisplayParamSettingToFile(Serializer& writer);
+
+	// Loading
 	bool successfullyReadDefaultsFromFile;
+
+	// CC Mappings
 	void readDefaultMappingsFromFile(Deserializer& reader);
+
+	// Settings
+	void readDefaultSettingsFromFile(Deserializer& reader);
+	void readChannelSettingsFromFile(Deserializer& reader);
+	void readSpecificChannelSettingsFromFile(Deserializer& reader, MIDIFollowChannelType type);
+	void readKitRootNoteSettingFromFile(Deserializer& reader);
+	void readFeedbackSettingsFromFile(Deserializer& reader);
+	void readDisplayParamSettingFromFile(Deserializer& reader);
+
+	// string tags / values
+	char const* getNameFromChannelType(MIDIFollowChannelType type);
+	MIDIFollowChannelType getChannelTypeFromName(char const* name);
+
+	char const* getNameFromFeedbackAutomationMode(MIDIFollowFeedbackAutomationMode mode);
+	MIDIFollowFeedbackAutomationMode getFeedbackAutomationModeFromName(char const* name);
+
+	char const* getNameFromBool(bool value);
+	bool getBoolFromName(char const* name);
 };
 
 extern MidiFollow midiFollow;

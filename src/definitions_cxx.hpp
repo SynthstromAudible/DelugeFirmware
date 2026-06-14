@@ -362,6 +362,7 @@ enum class MIDIFollowFeedbackAutomationMode : uint8_t {
 	LOW,
 	MEDIUM,
 	HIGH,
+	LAST,
 };
 
 enum class OscType : uint8_t {
