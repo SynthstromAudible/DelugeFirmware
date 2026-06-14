@@ -55,7 +55,7 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 		std::vector<SyncWindower::Window> windows = collect(kSlowResetter);
 		expect(windows.size()).to_equal(static_cast<std::size_t>(1));
 		expect(windows.front().offset).to_equal(0);
-		expect(windows.front().length).to_equal(kBlock);
+		expect(static_cast<int32_t>(windows.front().output.size())).to_equal(kBlock);
 	});
 
 	it("tiles the block with single-sample seam overlaps when it crosses over", _ {
@@ -63,12 +63,13 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 		expect(windows.size() > 1).to_be_truthy();
 		expect(windows.front().offset).to_equal(0);
 		for (std::size_t k = 0; k + 1 < windows.size(); ++k) {
-			expect(windows[k].length >= 1).to_be_truthy();
+			int32_t length = static_cast<int32_t>(windows[k].output.size());
+			expect(length >= 1).to_be_truthy();
 			// every non-final window ends on a crossover; the next overlaps it by exactly one sample
-			expect(windows[k + 1].offset).to_equal(windows[k].offset + windows[k].length - 1);
+			expect(windows[k + 1].offset).to_equal(windows[k].offset + length - 1);
 		}
 		// the final window reaches the block end
-		expect(windows.back().offset + windows.back().length).to_equal(kBlock);
+		expect(windows.back().offset + static_cast<int32_t>(windows.back().output.size())).to_equal(kBlock);
 	});
 
 	it("advances the phase by the whole block when there is no crossover", _ {

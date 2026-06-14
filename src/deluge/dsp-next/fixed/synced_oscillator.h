@@ -68,8 +68,8 @@ public:
 		// position-indexed state, so the window offset is ignored.
 		SyncWindower windower{output, resetter_, phase_, phase_increment_, retrigger_phase_};
 		while (std::optional<SyncWindower::Window> window = windower.next()) {
-			oscillator_.seek(window->phase);
-			oscillator_.renderBlock(Buffer{window->data, static_cast<std::size_t>(window->length)});
+			oscillator_.seek(window->phasor.phase());
+			oscillator_.renderBlock(window->output);
 		}
 		phase_ = windower.phase();
 	}

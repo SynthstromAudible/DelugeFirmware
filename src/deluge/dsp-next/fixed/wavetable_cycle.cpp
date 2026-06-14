@@ -26,9 +26,13 @@
 
 namespace deluge::dsp::fixed {
 
-__attribute__((optimize("unroll-loops"))) void
-render_wavetable_single_cycle(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, const WaveTableBand& band,
-                              uint32_t phase, uint32_t phaseIncrement, const int16_t* __restrict__ kernel) {
+__attribute__((optimize("unroll-loops"))) void render_wavetable_single_cycle(Buffer output, const WaveTableBand& band,
+                                                                             Phasor phasor,
+                                                                             const int16_t* __restrict__ kernel) {
+	int32_t* __restrict__ thisSample = output.data();
+	int32_t const* const bufferEnd = output.data() + output.size();
+	uint32_t phase = phasor.phase();
+	uint32_t phaseIncrement = phasor.increment();
 
 	int32_t bandCycleSizeMagnitude = band.cycleSizeMagnitude;
 	int16_t const* __restrict__ table = band.dataAccessAddress;
@@ -120,9 +124,12 @@ render_wavetable_single_cycle(int32_t* __restrict__ thisSample, int32_t const* b
 }
 
 __attribute__((optimize("unroll-loops"))) void
-render_wavetable_cycle(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int32_t firstCycleNumber,
-                       const WaveTableBand& band, uint32_t phase, uint32_t phaseIncrement, uint32_t crossCycleStrength2,
-                       int32_t crossCycleStrength2Increment, const int16_t* __restrict__ kernel) {
+render_wavetable_cycle(Buffer output, int32_t firstCycleNumber, const WaveTableBand& band, Phasor phasor,
+                       uint32_t crossCycleBlend, int32_t crossCycleBlendIncrement, const int16_t* __restrict__ kernel) {
+	int32_t* __restrict__ thisSample = output.data();
+	int32_t const* const bufferEnd = output.data() + output.size();
+	uint32_t phase = phasor.phase();
+	uint32_t phaseIncrement = phasor.increment();
 
 	int32_t bandCycleSizeMagnitude = band.cycleSizeMagnitude;
 	int32_t bandCycleSizeWithDuplicates = band.cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd;
@@ -221,12 +228,12 @@ render_wavetable_cycle(int32_t* __restrict__ thisSample, int32_t const* bufferEn
 
 		int32_t waveTableFinalValue = multiply_accumulate_32x32_rshift32_rounded(
 		    value1 >> 1, difference,
-		    crossCycleStrength2 >> 1); // Have to make value1 a magnitude smaller, because the difference is getting a
-		                               // magnitude smaller as a multiplication like this always does.
+		    crossCycleBlend >> 1); // Have to make value1 a magnitude smaller, because the difference is getting a
+		                           // magnitude smaller as a multiplication like this always does.
 
 		*thisSample = waveTableFinalValue;
 
-		crossCycleStrength2 += crossCycleStrength2Increment;
+		crossCycleBlend += crossCycleBlendIncrement;
 
 	} while (++thisSample != bufferEnd);
 }

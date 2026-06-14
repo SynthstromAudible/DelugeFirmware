@@ -22,7 +22,7 @@
 #include "dsp-next/fixed/sync_windower.h" // Resetter, SyncWindower
 #include "dsp-next/fixed/wave_table_data.h"
 #include "dsp-next/fixed/wavetable_cycle.h"
-#include "util/fixedpoint.h" // multiply_32x32_rshift32_rounded
+#include "dsp-next/fixed/wavetable_cycle_chunker.h"
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -31,16 +31,15 @@ namespace deluge::dsp::fixed {
 
 /// @brief A hard-synced wavetable oscillator, as a dsp-next component.
 ///
-/// Like @ref WavetableOscillator but each morph chunk is restarted at every @ref Resetter crossover
-/// (classic osc-sync) via a @ref SyncWindower, which owns the window split + half-sine seam blend.
+/// Like @ref WavetableOscillator, but each piece is restarted at every @ref Resetter crossover
+/// (classic osc-sync) by a @ref SyncWindower, which owns the window split + half-sine seam blend.
+/// The same @ref WavetableCycleChunker drives the cross-cycle morph; the only difference is that
+/// each chunk is filled through a windower rather than straight.
 ///
-/// The cross-cycle morph is reformulated: legacy code carried it in a free-running counter nudged by
-/// a per-crossover callback, *only* so the redone crossover sample reused the same value. Morph is
-/// really a function of output position — `morph(n) = chunkStart + n · increment` — so each window
-/// just takes `crossCycleStrength2 + window.offset · increment` (offset is the window's start within
-/// the chunk, == the committed samples before it). That is identically the legacy accumulation
-/// (Σ increment·(samples−1) = increment·offset), so it is bit-exact, and the redo trivially reuses
-/// the same morph because the overlapping window has the same offset.
+/// The morph is indexed by output position — `crossCycleStrength2 + window.offset · increment` —
+/// which is identically the legacy per-crossover callback accumulation (Σ increment·(samples−1) =
+/// increment·offset), so the redone crossover sample reuses the same morph and the result is
+/// bit-exact.
 class [[gnu::hot]] WavetableSyncOscillator : public BlockGenerator<q31> {
 public:
 	WavetableSyncOscillator(WaveTableData table, uint32_t phase, uint32_t increment, Resetter resetter,
@@ -52,95 +51,30 @@ public:
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
 	void renderBlock(Buffer output) override {
-		int32_t numSamples = static_cast<int32_t>(output.size());
-		int32_t* outputBuffer = output.data();
 		uint32_t phase = phasor_.phase();
-		uint32_t phaseIncrement = phasor_.increment();
-		uint32_t resetterPhase = resetter_.phase;
-		uint32_t resetterPhaseIncrement = resetter_.phase_increment;
-
-		int32_t bHere = table_.select_band(phaseIncrement);
-		const WaveTableBand* bandHere = &table_.band(bHere);
+		uint32_t phase_increment = phasor_.increment();
+		uint32_t resetter_phase = resetter_.phase;
+		uint32_t resetter_increment = resetter_.phase_increment;
 
 		if (table_.num_cycles() > 1) [[likely]] {
-			int32_t numSamplesLeftToDo = numSamples;
-
-			int32_t waveIndexScaled = multiply_32x32_rshift32_rounded(table_.wave_index_multiplier(), wave_index_);
-			int32_t waveIndexIncrementScaled =
-			    multiply_32x32_rshift32_rounded(table_.wave_index_multiplier(), wave_index_increment_);
-
-			int32_t lshiftAmountToGetCrossCycleStrength =
-			    32 + table_.num_cycle_transitions_magnitude() - kWaveIndexScaledInputBits;
-			int32_t crossCycleStrength2Increment = waveIndexIncrementScaled << lshiftAmountToGetCrossCycleStrength;
-
-			while (numSamplesLeftToDo > 0) {
-				int32_t numSamplesThisCycle = numSamplesLeftToDo;
-
-				int32_t firstCycleNumber =
-				    waveIndexScaled >> (kWaveIndexScaledInputBits - table_.num_cycle_transitions_magnitude());
-				int32_t firstCycleNumberAfterAllIncrements =
-				    (waveIndexScaled + waveIndexIncrementScaled * (numSamplesLeftToDo - 1))
-				    >> (kWaveIndexScaledInputBits - table_.num_cycle_transitions_magnitude());
-
-				if (firstCycleNumber != firstCycleNumberAfterAllIncrements) {
-					int32_t cycleSizeInWaveIndex =
-					    1 << (kWaveIndexScaledInputBits - table_.num_cycle_transitions_magnitude());
-					int32_t waveIndexPlaceWithinCycle = waveIndexScaled & (cycleSizeInWaveIndex - 1);
-					int32_t waveIndexDistanceUntilFinalBigValueStillInThisCycle =
-					    (waveIndexIncrementScaled >= 0) ? (cycleSizeInWaveIndex - 1 - waveIndexPlaceWithinCycle)
-					                                    : (waveIndexPlaceWithinCycle);
-					int32_t waveIndexIncrementScaledAbs = waveIndexIncrementScaled;
-					if (waveIndexIncrementScaledAbs < 0) {
-						waveIndexIncrementScaledAbs = -waveIndexIncrementScaledAbs;
-					}
-					int32_t numIncrementsWeCanDoNow = (uint32_t)waveIndexDistanceUntilFinalBigValueStillInThisCycle
-					                                  / (uint32_t)waveIndexIncrementScaledAbs;
-					numSamplesThisCycle = numIncrementsWeCanDoNow + 1;
+			WavetableCycleChunker chunker{table_, output, phase_increment, wave_index_, wave_index_increment_};
+			while (std::optional<CycleChunk> chunk = chunker.next()) {
+				if (chunk->band != nullptr) {
+					const int16_t* kernel = select_sinc_kernel(phase_increment, chunk->band->maxPhaseIncrement);
+					phase =
+					    renderSyncedChunk(*chunk, phase, phase_increment, resetter_phase, resetter_increment, kernel);
 				}
-
-				uint32_t crossCycleStrength2 = waveIndexScaled << lshiftAmountToGetCrossCycleStrength;
-
-				while (bandHere->fromCycleNumber > firstCycleNumber
-				       || bandHere->toCycleNumber <= firstCycleNumber + 1) {
-					bHere++;
-					if (bHere == table_.num_bands()) {
-						break;
-					}
-					bandHere = &table_.band(bHere);
-				}
-
-				if (bHere < table_.num_bands()) {
-					const int16_t* kernel = select_sinc_kernel(phaseIncrement, bandHere->maxPhaseIncrement);
-					SyncWindower windower{Buffer{outputBuffer, static_cast<std::size_t>(numSamplesThisCycle)},
-					                      Resetter{resetterPhase, resetterPhaseIncrement}, phase, phaseIncrement,
-					                      retrigger_phase_};
-					while (std::optional<SyncWindower::Window> window = windower.next()) {
-						// Morph by output position: the same value the legacy per-crossover callback built up.
-						uint32_t crossCycleStrengthHere = crossCycleStrength2
-						                                  + static_cast<uint32_t>(crossCycleStrength2Increment)
-						                                        * static_cast<uint32_t>(window->offset);
-						render_wavetable_cycle(window->data, window->data + window->length, firstCycleNumber, *bandHere,
-						                       window->phase, phaseIncrement, crossCycleStrengthHere,
-						                       crossCycleStrength2Increment, kernel);
-					}
-					phase = windower.phase();
-				}
-
-				numSamplesLeftToDo -= numSamplesThisCycle;
-				outputBuffer += numSamplesThisCycle;
-				waveIndexScaled += waveIndexIncrementScaled * numSamplesThisCycle;
-				resetterPhase += resetterPhaseIncrement * static_cast<uint32_t>(numSamplesThisCycle);
+				// The resetter advances past the whole chunk whether or not it had data.
+				resetter_phase += resetter_increment * static_cast<uint32_t>(chunk->output.size());
 			}
 		}
-
 		else {
-			const int16_t* kernel = select_sinc_kernel(phaseIncrement, bandHere->maxPhaseIncrement);
-			SyncWindower windower{Buffer{outputBuffer, static_cast<std::size_t>(numSamples)},
-			                      Resetter{resetterPhase, resetterPhaseIncrement}, phase, phaseIncrement,
+			const WaveTableBand& band = table_.band(table_.select_band(phase_increment));
+			const int16_t* kernel = select_sinc_kernel(phase_increment, band.maxPhaseIncrement);
+			SyncWindower windower{output, Resetter{resetter_phase, resetter_increment}, phase, phase_increment,
 			                      retrigger_phase_};
 			while (std::optional<SyncWindower::Window> window = windower.next()) {
-				render_wavetable_single_cycle(window->data, window->data + window->length, *bandHere, window->phase,
-				                              phaseIncrement, kernel);
+				render_wavetable_single_cycle(window->output, band, window->phasor, kernel);
 			}
 			phase = windower.phase();
 		}
@@ -149,7 +83,23 @@ public:
 	}
 
 private:
-	static constexpr int32_t kWaveIndexScaledInputBits = 30; // legacy NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT
+	/// Fill one morph chunk through a sync windower, restarting at each crossover. Returns the audible
+	/// phase after the chunk.
+	[[gnu::always_inline]] uint32_t renderSyncedChunk(const CycleChunk& chunk, uint32_t phase, uint32_t phase_increment,
+	                                                  uint32_t resetter_phase, uint32_t resetter_increment,
+	                                                  const int16_t* kernel) {
+		SyncWindower windower{chunk.output, Resetter{resetter_phase, resetter_increment}, phase, phase_increment,
+		                      retrigger_phase_};
+		while (std::optional<SyncWindower::Window> window = windower.next()) {
+			// Morph by output position: the same value the legacy per-crossover callback built up.
+			uint32_t cross_cycle_blend =
+			    chunk.cross_cycle_blend
+			    + static_cast<uint32_t>(chunk.cross_cycle_blend_increment) * static_cast<uint32_t>(window->offset);
+			render_wavetable_cycle(window->output, chunk.first_cycle, *chunk.band, window->phasor, cross_cycle_blend,
+			                       chunk.cross_cycle_blend_increment, kernel);
+		}
+		return windower.phase();
+	}
 
 	WaveTableData table_;
 	Phasor phasor_;

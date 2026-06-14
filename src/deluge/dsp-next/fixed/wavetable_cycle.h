@@ -16,6 +16,8 @@
  */
 #pragma once
 
+#include "dsp-next/core/generator.h" // Buffer
+#include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/wave_table_data.h"
 #include <cstdint>
 
@@ -26,23 +28,22 @@ namespace deluge::dsp::fixed {
 /// WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE).
 inline constexpr int32_t kWavetableDuplicateSamplesAtCycleEnd = 7;
 
-/// @brief Render one chunk of a multi-cycle wavetable into `[thisSample, bufferEnd)`.
+/// @brief Render one chunk of a multi-cycle wavetable into @p output.
 ///
-/// Per sample: advance @p phase, windowed-sinc-interpolate it (via @p kernel) out of the two
+/// Per sample: advance @p phasor, windowed-sinc-interpolate it (via @p kernel) out of the two
 /// adjacent cycles @p firstCycleNumber and +1 of @p band, then linearly cross-blend those two by
-/// @p crossCycleStrength2 (the wave-index morph), which advances by @p crossCycleStrength2Increment
-/// each sample. Relocated verbatim from the legacy `WaveTable::doRenderingLoop`.
-void render_wavetable_cycle(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int32_t firstCycleNumber,
-                            const WaveTableBand& band, uint32_t phase, uint32_t phaseIncrement,
-                            uint32_t crossCycleStrength2, int32_t crossCycleStrength2Increment,
+/// @p crossCycleBlend (the wave-index morph), which advances by @p crossCycleBlendIncrement each
+/// sample. Relocated from the legacy `WaveTable::doRenderingLoop` (the NEON body is verbatim;
+/// argon-ifying it is the W-f pass).
+void render_wavetable_cycle(Buffer output, int32_t firstCycleNumber, const WaveTableBand& band, Phasor phasor,
+                            uint32_t crossCycleBlend, int32_t crossCycleBlendIncrement,
                             const int16_t* __restrict__ kernel);
 
-/// @brief Render one chunk of a single-cycle wavetable into `[thisSample, bufferEnd)`.
+/// @brief Render one chunk of a single-cycle wavetable into @p output.
 ///
-/// Per sample: advance @p phase and windowed-sinc-interpolate it (via @p kernel) out of @p band's
-/// single cycle. Relocated verbatim from the legacy `WaveTable::doRenderingLoopSingleCycle`.
-void render_wavetable_single_cycle(int32_t* __restrict__ thisSample, int32_t const* bufferEnd,
-                                   const WaveTableBand& band, uint32_t phase, uint32_t phaseIncrement,
+/// Per sample: advance @p phasor and windowed-sinc-interpolate it (via @p kernel) out of @p band's
+/// single cycle. Relocated from the legacy `WaveTable::doRenderingLoopSingleCycle`.
+void render_wavetable_single_cycle(Buffer output, const WaveTableBand& band, Phasor phasor,
                                    const int16_t* __restrict__ kernel);
 
 } // namespace deluge::dsp::fixed

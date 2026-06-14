@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/generator.h" // Buffer, q31
+#include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/resetter.h" // resetter_reciprocal
 #include "util/fixedpoint.h"         // multiply_32x32_rshift32
 #include "util/waves.h"              // getSine
@@ -59,9 +60,8 @@ public:
 	/// fills with position-indexed state (e.g. the wavetable cross-cycle morph, which advances with
 	/// output position and so reuses the same value when the crossover sample is redone).
 	struct Window {
-		q31* data;
-		int32_t length;
-		uint32_t phase; ///< the (reset) phase to fill this window from; pre-increment per sample.
+		Buffer output;
+		Phasor phasor; ///< the (reset) phasor to fill this window from; pre-increment per sample.
 		int32_t offset;
 	};
 
@@ -130,7 +130,8 @@ public:
 		crosses_ = (samples_remaining_ >= static_cast<int32_t>(samples_to_crossover_));
 		length_ = crosses_ ? static_cast<int32_t>(samples_to_crossover_) : samples_remaining_;
 		started_ = true;
-		return Window{window_, length_, phase_, static_cast<int32_t>(window_ - block_start_)};
+		return Window{Buffer{window_, static_cast<std::size_t>(length_)}, Phasor{phase_, phase_increment_},
+		              static_cast<int32_t>(window_ - block_start_)};
 	}
 
 	/// The audible phase after the whole block — what the voice stores to continue next block.
