@@ -41,6 +41,10 @@ FetchContent_MakeAvailable(argon)
 set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/sine.cpp)
 # SyncedOscillator's seam crossfade calls getSine(), which reads the sineWaveSmall LUT.
 set(synced_oscillator_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The sinc kernel + the legacy interpolate.cpp it is pinned bit-for-bit against (windowedSincKernel).
+set(sinc_kernel_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/sinc_kernel.cpp
+  ${_repo_root}/src/deluge/dsp/interpolate/interpolate.cpp)
 
 file(GLOB _specs ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)
