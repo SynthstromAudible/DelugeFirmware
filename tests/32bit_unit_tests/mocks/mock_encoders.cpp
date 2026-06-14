@@ -1,5 +1,6 @@
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
+#include "mock_defines.h"
 
 namespace deluge::hid::encoders {
 
