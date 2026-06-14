@@ -19,6 +19,8 @@
 #include "NE10.h"
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/sinc_kernel.h"
+#include "dsp-next/fixed/wavetable_cycle.h"
 #include "dsp/fft/fft_config_manager.h"
 #include "dsp/interpolate/interpolate.h"
 #include "io/debug/log.h"
@@ -854,241 +856,7 @@ transformBandToTimeDomain:
 	return Error::NONE;
 }
 
-__attribute__((optimize("unroll-loops"))) void
-WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t const* bufferEnd,
-                                      WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
-                                      const int16_t* __restrict__ kernel) {
-
-	int32_t bandCycleSizeMagnitude = bandHere->cycleSizeMagnitude;
-	int16_t const* __restrict__ table = bandHere->dataAccessAddress;
-
-	do {
-		phase += phaseIncrement;
-
-		// Work out the location of the waveform data in memory
-		int32_t whichValueCentral = (phase >> (32 - bandCycleSizeMagnitude));
-		uint32_t whichValue = whichValueCentral - (kInterpolationMaxNumSamples >> 1);
-		int32_t whichValueStored[2];
-
-		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-			whichValue = whichValue & ((1 << bandCycleSizeMagnitude) - 1);
-			whichValueStored[i] = whichValue;
-			whichValue += 8;
-		}
-
-		// Grab the actual waveform data from memory
-		int16x8x2_t interpolationBuffer;
-		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-			interpolationBuffer.val[i] = vld1q_s16(&table[whichValueStored[i]]);
-		}
-
-// Get the windowed sinc kernel that we need for this individual audio-sample
-#define numBitsInWindowedSyncTableSize 8
-#define rshiftAmount ((32 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInWindowedSyncTableSize + 1)
-
-		uint32_t rshifted =
-		    ((uint32_t)-phase)
-		    >> (rshiftAmount - bandCycleSizeMagnitude); // Warning - rshiftAmount is 13, so bandCycleSizeMagnitude
-		                                                // better not be bigger than that!
-		int16_t strength2 = rshifted & 32767;
-
-		int32_t windowedSincTableLineOffsetBytes =
-		    ((uint32_t)-phase)
-		    >> (32 + kInterpolationMaxNumSamplesMagnitude - numBitsInWindowedSyncTableSize - 5
-		        - bandCycleSizeMagnitude); // The -5 is for 32 bytes (16 samples) per line in the windowed sinc table.
-		windowedSincTableLineOffsetBytes &= 0b111100000;
-		int16_t const* __restrict__ sincKernelReadPos =
-		    (int16_t const*)((uint32_t)&kernel[0] + windowedSincTableLineOffsetBytes);
-
-		int16x8_t kernelVector[kInterpolationMaxNumSamples >> 3];
-
-		/*
-		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work.
-		Tried reading 2 values, too. I just get some noise from final output.
-
-		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-		    int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
-		    int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
-		    kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
-		}
-		*/
-
-		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-			int16x8_t value1 = vld1q_s16(sincKernelReadPos + (i << 3));
-			int16x8_t value2 = vld1q_s16(sincKernelReadPos + 16 + (i << 3));
-
-			int16x8_t difference = vsubq_s16(value2, value1);
-			int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
-			kernelVector[i] = vaddq_s16(value1, multipliedDifference);
-		}
-
-		// Apply the windowed sinc kernel to the waveform data
-		int32x4_t multiplied;
-		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-
-			if (i == 0) {
-				multiplied = vmull_s16(vget_low_s16(kernelVector[i]), vget_low_s16(interpolationBuffer.val[i]));
-			}
-			else {
-				multiplied =
-				    vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), vget_low_s16(interpolationBuffer.val[i]));
-			}
-
-			multiplied =
-			    vmlal_s16(multiplied, vget_high_s16(kernelVector[i]), vget_high_s16(interpolationBuffer.val[i]));
-		}
-
-		int32x2_t twosies = vadd_s32(vget_high_s32(multiplied), vget_low_s32(multiplied));
-		int32x2_t onesie = vpadd_s32(twosies, twosies);
-
-		int32_t singleCycleFinalValue = vget_lane_s32(onesie, 0);
-
-		*thisSample = singleCycleFinalValue;
-
-	} while (++thisSample != bufferEnd);
-}
-
 #define NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT 30
-
-__attribute__((optimize("unroll-loops"))) void
-WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int32_t firstCycleNumber,
-                           WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
-                           uint32_t crossCycleStrength2, int32_t crossCycleStrength2Increment,
-                           const int16_t* __restrict__ kernel) {
-
-	int32_t bandCycleSizeMagnitude = bandHere->cycleSizeMagnitude;
-	int32_t bandCycleSizeWithDuplicates =
-	    bandHere->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE;
-	const int16_t* bandData = bandHere->dataAccessAddress;
-	int16_t const* __restrict__ table1 = &bandData[firstCycleNumber * bandCycleSizeWithDuplicates];
-	int16_t const* __restrict__ table2 = table1 + bandCycleSizeWithDuplicates;
-
-	do {
-		phase += phaseIncrement;
-
-		// Work out the location of the waveform data in memory
-		int32_t whichValueCentral = (phase >> (32 - bandCycleSizeMagnitude));
-		uint32_t whichValue = whichValueCentral - (kInterpolationMaxNumSamples >> 1);
-		int32_t whichValueStored[2];
-
-		for (int32_t i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
-			whichValue = whichValue & ((1 << bandCycleSizeMagnitude) - 1);
-			whichValueStored[i] = whichValue;
-			whichValue += 8;
-		}
-
-		// Grab the actual waveform data from memory, for both cycles that we need for this sample
-		int16x8x2_t interpolationBuffer[2];
-		for (int32_t i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
-			interpolationBuffer[0].val[i] = vld1q_s16(&table1[whichValueStored[i]]);
-		}
-		for (int32_t i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
-			interpolationBuffer[1].val[i] = vld1q_s16(&table2[whichValueStored[i]]);
-		}
-
-// Get the windowed sinc kernel that we need for this individual audio-sample
-#define numBitsInWindowedSyncTableSize 8
-#define rshiftAmount ((32 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInWindowedSyncTableSize + 1)
-
-		uint32_t rshifted =
-		    ((uint32_t)-phase)
-		    >> (rshiftAmount - bandCycleSizeMagnitude); // Warning - rshiftAmount is 13, so bandCycleSizeMagnitude
-		                                                // better not be bigger than that!
-		int16_t strength2 = rshifted & 32767;
-
-		int32_t windowedSincTableLineOffsetBytes =
-		    ((uint32_t)-phase)
-		    >> (32 + kInterpolationMaxNumSamplesMagnitude - numBitsInWindowedSyncTableSize - 5
-		        - bandCycleSizeMagnitude); // The -5 is for 32 bytes (16 samples) per line in the windowed sinc table.
-		windowedSincTableLineOffsetBytes &= 0b111100000;
-		int16_t const* __restrict__ sincKernelReadPos =
-		    (int16_t const*)((uint32_t)&kernel[0] + windowedSincTableLineOffsetBytes);
-
-		int16x8_t kernelVector[kInterpolationMaxNumSamples >> 3];
-
-		/*
-		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work.
-		Tried reading 2 values, too. I just get some noise from final output.
-
-		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-		    int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
-		    int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
-		    kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
-		}
-		*/
-
-		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-			int16x8_t value1 = vld1q_s16(sincKernelReadPos + (i << 3));
-			int16x8_t value2 = vld1q_s16(sincKernelReadPos + 16 + (i << 3));
-
-			int16x8_t difference = vsubq_s16(value2, value1);
-			int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
-			kernelVector[i] = vaddq_s16(value1, multipliedDifference);
-		}
-
-		// Apply the windowed sinc kernel to the waveform data
-		int32x2_t twosies[2];
-		for (int32_t c = 0; c < 2; c++) {
-			int32x4_t multiplied;
-			for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-
-				if (i == 0) {
-					multiplied = vmull_s16(vget_low_s16(kernelVector[i]), vget_low_s16(interpolationBuffer[c].val[i]));
-				}
-				else {
-					multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]),
-					                       vget_low_s16(interpolationBuffer[c].val[i]));
-				}
-
-				multiplied =
-				    vmlal_s16(multiplied, vget_high_s16(kernelVector[i]), vget_high_s16(interpolationBuffer[c].val[i]));
-			}
-
-			twosies[c] = vadd_s32(vget_high_s32(multiplied), vget_low_s32(multiplied));
-		}
-
-		// We now have one value for each cycle, so linearly interpolate between those.
-		int32x2_t onesie = vpadd_s32(twosies[0], twosies[1]);
-		int32_t value1 = vget_lane_s32(onesie, 0);
-		int32_t difference = vget_lane_s32(onesie, 1) - value1;
-
-		int32_t waveTableFinalValue = multiply_accumulate_32x32_rshift32_rounded(
-		    value1 >> 1, difference,
-		    crossCycleStrength2 >> 1); // Have to make value1 a magnitude smaller, because the difference is getting a
-		                               // magnitude smaller as a multiplication like this always does.
-
-		*thisSample = waveTableFinalValue;
-
-		crossCycleStrength2 += crossCycleStrength2Increment;
-
-	} while (++thisSample != bufferEnd);
-}
-
-const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) {
-	int32_t whichKernel = 0;
-#if NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS == 2
-	if (phaseIncrement >= (band->maxPhaseIncrement * 0.65))
-		whichKernel = 3;
-	else if (phaseIncrement >= (band->maxPhaseIncrement * 0.5))
-		whichKernel = 2;
-	else if (phaseIncrement >= (band->maxPhaseIncrement * 0.354))
-		whichKernel = 1;
-	if (!getRandom255()) {
-		D_PRINTLN("kernel:  %d", whichKernel);
-	}
-#else
-	uint32_t phaseIncrementHere = phaseIncrement;
-	while (phaseIncrementHere >= bandMaxPhaseIncrement && whichKernel < 6) {
-		whichKernel += 2;
-		phaseIncrementHere >>= 1;
-	}
-	if (whichKernel < 6 && phaseIncrementHere >= (bandMaxPhaseIncrement * 0.707)) {
-		whichKernel++;
-	}
-#endif
-
-	return &windowedSincKernel[whichKernel][0][0];
-}
 
 // waveIndex comes in as a 31-bit number
 uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, uint32_t phaseIncrement,
@@ -1165,7 +933,7 @@ startRenderingACycle:
 		}
 
 		{
-			const int16_t* kernel = getKernel(phaseIncrement, bandHere->maxPhaseIncrement);
+			const int16_t* kernel = deluge::dsp::fixed::select_sinc_kernel(phaseIncrement, bandHere->maxPhaseIncrement);
 
 			if (doOscSync) {
 				int32_t* bufferStartThisSync = outputBuffer;
@@ -1173,8 +941,9 @@ startRenderingACycle:
 				int32_t numSamplesThisOscSyncSession = numSamplesThisCycle;
 				renderOscSync(
 				    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
-					    doRenderingLoop(bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, bandHere, phase,
-					                    phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);
+					    deluge::dsp::fixed::render_wavetable_cycle(
+					        bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, *bandHere, phase,
+					        phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);
 				    },
 				    [&](uint32_t samplesIncludingNextCrossoverSample) {
 					    crossCycleStrength2 += crossCycleStrength2Increment * (samplesIncludingNextCrossoverSample - 1);
@@ -1184,8 +953,9 @@ startRenderingACycle:
 			}
 			else {
 				int32_t const* bufferEnd = outputBuffer + numSamplesThisCycle;
-				doRenderingLoop(outputBuffer, bufferEnd, firstCycleNumber, bandHere, phase, phaseIncrement,
-				                crossCycleStrength2, crossCycleStrength2Increment, kernel);
+				deluge::dsp::fixed::render_wavetable_cycle(outputBuffer, bufferEnd, firstCycleNumber, *bandHere, phase,
+				                                           phaseIncrement, crossCycleStrength2,
+				                                           crossCycleStrength2Increment, kernel);
 				phase += phaseIncrement * numSamplesThisCycle;
 			}
 		}
@@ -1202,22 +972,23 @@ doneRenderingACycle:
 
 	// Or, if we're actually a single-cycle waveform, with only one cycle...
 	else {
-		const int16_t* kernel = getKernel(phaseIncrement, bandHere->maxPhaseIncrement);
+		const int16_t* kernel = deluge::dsp::fixed::select_sinc_kernel(phaseIncrement, bandHere->maxPhaseIncrement);
 		if (doOscSync) {
 			int32_t* bufferStartThisSync = outputBuffer;
 			uint32_t resetterPhase = resetterPhaseThisCycle;
 			int32_t numSamplesThisOscSyncSession = numSamples;
 			renderOscSync(
 			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
-				    doRenderingLoopSingleCycle(bufferStartThisSync, bufferEndThisSyncRender, bandHere, phase,
-				                               phaseIncrement, kernel);
+				    deluge::dsp::fixed::render_wavetable_single_cycle(bufferStartThisSync, bufferEndThisSyncRender,
+				                                                      *bandHere, phase, phaseIncrement, kernel);
 			    },
 			    [](uint32_t) {}, phase, phaseIncrement, resetterPhase, resetterPhaseIncrement,
 			    resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession, bufferStartThisSync);
 		}
 		else {
 			int32_t const* bufferEnd = outputBuffer + numSamples;
-			doRenderingLoopSingleCycle(outputBuffer, bufferEnd, bandHere, phase, phaseIncrement, kernel);
+			deluge::dsp::fixed::render_wavetable_single_cycle(outputBuffer, bufferEnd, *bandHere, phase, phaseIncrement,
+			                                                  kernel);
 			phase += phaseIncrement * numSamples;
 		}
 	}

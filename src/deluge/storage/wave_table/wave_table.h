@@ -99,13 +99,4 @@ private:
 	Error setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
 	            uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat,
 	            DeserializerByteSource* byteSource);
-
-	void doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int32_t firstCycleNumber,
-	                     WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
-	                     uint32_t waveIndexScaled, int32_t waveIndexIncrementScaled,
-	                     const int16_t* __restrict__ kernel);
-
-	void doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t const* bufferEnd,
-	                                WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
-	                                const int16_t* __restrict__ kernel);
 };
