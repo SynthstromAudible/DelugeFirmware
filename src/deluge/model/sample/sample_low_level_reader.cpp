@@ -954,7 +954,9 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 
 	int32_t* __restrict__ oscBufferPosNow = *oscBufferPos;
 
-	char* __restrict__ cacheWritePosNow = (char*)*cacheWritePos;
+	// cacheWritePos is null on the non-caching paths (e.g. time-stretch resampling passes nullptr);
+	// cacheWritePosNow is then only touched under `if (writingCache)` below, so don't dereference here.
+	char* __restrict__ cacheWritePosNow = cacheWritePos ? (char*)*cacheWritePos : nullptr;
 
 	int32_t const* const oscBufferEnd = oscBufferPosNow + numSamplesTotal * numChannelsAfterCondensing;
 
