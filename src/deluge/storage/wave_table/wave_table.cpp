@@ -22,13 +22,13 @@
 #include "dsp-next/fixed/sinc_kernel.h"
 #include "dsp-next/fixed/wavetable_cycle.h"
 #include "dsp-next/fixed/wavetable_oscillator.h"
+#include "dsp-next/fixed/wavetable_sync_oscillator.h"
 #include "dsp/fft/fft_config_manager.h"
 #include "dsp/interpolate/interpolate.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/render_wave.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/deserializer_byte_source.h"
 #include "storage/cluster/cluster.h"
@@ -857,8 +857,6 @@ transformBandToTimeDomain:
 	return Error::NONE;
 }
 
-#define NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT 30
-
 // waveIndex comes in as a 31-bit number
 uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, uint32_t phaseIncrement,
                            uint32_t phase, bool doOscSync, uint32_t resetterPhaseThisCycle,
@@ -873,136 +871,18 @@ uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSample
 		return osc.phase();
 	}
 
-	// Decide on ideal band
-	int32_t bHere = static_cast<int32_t>(
-	    std::lower_bound(bands.begin(), bands.end(), phaseIncrement,
-	                     [](WaveTableBand const& band, uint32_t key) { return band.maxPhaseIncrement < key; })
-	    - bands.begin());
-	if (bHere >= static_cast<int32_t>(bands.size())) {
-		bHere--;
-	}
-	WaveTableBand* bandHere = &bands[bHere];
-
-	// If we're an actual wave table with more than one cycle...
-	if (numCycles > 1) [[likely]] {
-		int32_t numSamplesLeftToDo = numSamples;
-
-		// Haven't yet investigated why, but we do need to use the "rounded" multiply functions here, otherwise get a
-		// click when moving to wav pos 0 if numSamples is 32 (when testing performance).
-		int32_t waveIndexScaled = multiply_32x32_rshift32_rounded(waveIndexMultiplier, waveIndex);
-		int32_t waveIndexIncrementScaled = multiply_32x32_rshift32_rounded(waveIndexMultiplier, waveIndexIncrement);
-
-		int32_t lshiftAmountToGetCrossCycleStrength =
-		    32 + numCycleTransitionsNextPowerOf2Magnitude - NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT; // Always positive.
-		int32_t crossCycleStrength2Increment = waveIndexIncrementScaled << lshiftAmountToGetCrossCycleStrength;
-
-startRenderingACycle:
-		int32_t numSamplesThisCycle = numSamplesLeftToDo;
-
-		int32_t firstCycleNumber =
-		    waveIndexScaled >> (NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT - numCycleTransitionsNextPowerOf2Magnitude);
-
-		int32_t firstCycleNumberAfterAllIncrements =
-		    (waveIndexScaled + waveIndexIncrementScaled * (numSamplesLeftToDo - 1))
-		    >> (NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT - numCycleTransitionsNextPowerOf2Magnitude);
-
-		// See if this rendering window will span multiple cycles as waveIndex is incremented?
-		if (firstCycleNumber != firstCycleNumberAfterAllIncrements) {
-			int32_t cycleSizeInWaveIndex =
-			    1 << (NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT - numCycleTransitionsNextPowerOf2Magnitude);
-			int32_t waveIndexPlaceWithinCycle = waveIndexScaled & (cycleSizeInWaveIndex - 1);
-			int32_t waveIndexDistanceUntilFinalBigValueStillInThisCycle =
-			    (waveIndexIncrementScaled >= 0) ? (cycleSizeInWaveIndex - 1 - waveIndexPlaceWithinCycle)
-			                                    : (waveIndexPlaceWithinCycle);
-			int32_t waveIndexIncrementScaledAbs = waveIndexIncrementScaled;
-			if (waveIndexIncrementScaledAbs < 0) {
-				waveIndexIncrementScaledAbs = -waveIndexIncrementScaledAbs;
-			}
-			int32_t numIncrementsWeCanDoNow =
-			    (uint32_t)waveIndexDistanceUntilFinalBigValueStillInThisCycle / (uint32_t)waveIndexIncrementScaledAbs;
-			numSamplesThisCycle =
-			    numIncrementsWeCanDoNow + 1; // +1 because we can only have to increment *between* the samples we're
-			                                 // rendering. If can only do 1 increment, we can still render 2 samples.
-			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle > numSamplesLeftToDo) {
-				FREEZE_WITH_ERROR("E386");
-			}
-		}
-
-		uint32_t crossCycleStrength2 = waveIndexScaled << lshiftAmountToGetCrossCycleStrength;
-
-		// If this band doesn't have data for either of the two cycle indexes we'll be interpolating between...
-		while (bandHere->fromCycleNumber > firstCycleNumber || bandHere->toCycleNumber <= firstCycleNumber + 1) {
-
-			bHere++;
-			if (bHere == static_cast<int32_t>(bands.size())) {
-				goto doneRenderingACycle;
-			}
-
-			bandHere = &bands[bHere];
-		}
-
-		{
-			const int16_t* kernel = deluge::dsp::fixed::select_sinc_kernel(phaseIncrement, bandHere->maxPhaseIncrement);
-
-			if (doOscSync) {
-				int32_t* bufferStartThisSync = outputBuffer;
-				uint32_t resetterPhase = resetterPhaseThisCycle;
-				int32_t numSamplesThisOscSyncSession = numSamplesThisCycle;
-				renderOscSync(
-				    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
-					    deluge::dsp::fixed::render_wavetable_cycle(
-					        bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, *bandHere, phase,
-					        phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);
-				    },
-				    [&](uint32_t samplesIncludingNextCrossoverSample) {
-					    crossCycleStrength2 += crossCycleStrength2Increment * (samplesIncludingNextCrossoverSample - 1);
-				    },
-				    phase, phaseIncrement, resetterPhase, resetterPhaseIncrement, resetterDivideByPhaseIncrement,
-				    retriggerPhase, numSamplesThisOscSyncSession, bufferStartThisSync);
-			}
-			else {
-				int32_t const* bufferEnd = outputBuffer + numSamplesThisCycle;
-				deluge::dsp::fixed::render_wavetable_cycle(outputBuffer, bufferEnd, firstCycleNumber, *bandHere, phase,
-				                                           phaseIncrement, crossCycleStrength2,
-				                                           crossCycleStrength2Increment, kernel);
-				phase += phaseIncrement * numSamplesThisCycle;
-			}
-		}
-
-doneRenderingACycle:
-		numSamplesLeftToDo -= numSamplesThisCycle;
-		if (numSamplesLeftToDo) {
-			outputBuffer += numSamplesThisCycle;
-			waveIndexScaled += waveIndexIncrementScaled * numSamplesThisCycle;
-			resetterPhaseThisCycle += resetterPhaseIncrement * numSamplesThisCycle;
-			goto startRenderingACycle;
-		}
-	}
-
-	// Or, if we're actually a single-cycle waveform, with only one cycle...
-	else {
-		const int16_t* kernel = deluge::dsp::fixed::select_sinc_kernel(phaseIncrement, bandHere->maxPhaseIncrement);
-		if (doOscSync) {
-			int32_t* bufferStartThisSync = outputBuffer;
-			uint32_t resetterPhase = resetterPhaseThisCycle;
-			int32_t numSamplesThisOscSyncSession = numSamples;
-			renderOscSync(
-			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
-				    deluge::dsp::fixed::render_wavetable_single_cycle(bufferStartThisSync, bufferEndThisSyncRender,
-				                                                      *bandHere, phase, phaseIncrement, kernel);
-			    },
-			    [](uint32_t) {}, phase, phaseIncrement, resetterPhase, resetterPhaseIncrement,
-			    resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession, bufferStartThisSync);
-		}
-		else {
-			int32_t const* bufferEnd = outputBuffer + numSamples;
-			deluge::dsp::fixed::render_wavetable_single_cycle(outputBuffer, bufferEnd, *bandHere, phase, phaseIncrement,
-			                                                  kernel);
-			phase += phaseIncrement * numSamples;
-		}
-	}
-
-	return phase;
+	// Hard-synced wavetable render: the dsp-next WavetableSyncOscillator (SyncWindower-based) over our
+	// view. The resetter reciprocal is derived inside, so resetterDivideByPhaseIncrement is unused.
+	deluge::dsp::fixed::WavetableSyncOscillator osc{
+	    view(),
+	    phase,
+	    phaseIncrement,
+	    deluge::dsp::fixed::Resetter{resetterPhaseThisCycle, resetterPhaseIncrement},
+	    retriggerPhase,
+	    waveIndex,
+	    waveIndexIncrement};
+	osc.renderBlock(deluge::dsp::fixed::Buffer{outputBuffer, static_cast<size_t>(numSamples)});
+	return osc.phase();
 }
 
 void WaveTable::numReasonsIncreasedFromZero() {

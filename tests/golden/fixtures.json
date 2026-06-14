@@ -1925,6 +1925,12 @@
   "peak": 6873,
   "rms_db": -32.05
  },
+ "wavetable/morph_sync": {
+  "sha256": "3b9b9540b637289c3686bac4aba5bb147545db889c244a8b389b9b57098b64c5",
+  "frames": 88200,
+  "peak": 5903,
+  "rms_db": -25.85
+ },
  "wavetable/scw": {
   "sha256": "3e7306a6a5de020382c16c135290d2f3cdd7d8371a2a6ae91b5753145b517e6d",
   "frames": 88200,
