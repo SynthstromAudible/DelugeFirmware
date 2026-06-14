@@ -4,8 +4,6 @@
 #include <array>
 #include <cstdint>
 
-extern const int16_t windowedSincKernel[][17][16];
-
 namespace deluge::dsp {
 struct [[gnu::hot]] Interpolator {
 

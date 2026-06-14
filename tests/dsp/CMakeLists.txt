@@ -42,12 +42,10 @@ set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/sine.cpp)
 # SyncedOscillator + SyncWindower seam crossfades call getSine(), which reads the sineWaveSmall LUT.
 set(synced_oscillator_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 set(sync_windower_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
-# The sinc kernel + the legacy interpolate.cpp it is pinned bit-for-bit against (windowedSincKernel).
-set(sinc_kernel_spec_DEPS
-  ${_repo_root}/src/deluge/dsp-next/fixed/sinc_kernel.cpp
-  ${_repo_root}/src/deluge/dsp/interpolate/interpolate.cpp)
-# The chunker caches each chunk's sinc kernel via select_sinc_kernel.
-set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/sinc_kernel.cpp)
+# The shared windowed-sinc kernel table + its select()/variant() variant picks.
+set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/windowed_sinc_kernel.cpp)
+# The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().
+set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/windowed_sinc_kernel.cpp)
 
 file(GLOB _specs ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)

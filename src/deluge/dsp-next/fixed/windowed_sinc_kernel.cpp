@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "dsp-next/fixed/sinc_kernel.h"
+#include "dsp-next/fixed/windowed_sinc_kernel.h"
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
@@ -23,10 +23,12 @@ namespace {
 
 // A NEON quadword-load cache line is 32 bytes; keep the table aligned so the renderer's vector
 // loads stay on a line (matches the legacy `aligned(CACHE_LINE_SIZE)`). Purely a layout hint —
-// it does not affect the values, which a sinc_kernel_spec pins bit-for-bit to the legacy table.
+// it does not affect the values, which the wavetable/ + sample/ golden fixtures pin end-to-end.
 inline constexpr int32_t kSincKernelAlignment = 32;
 
-// Private copy of the legacy dsp/interpolate `windowedSincKernel` (values verbatim).
+// The one windowed-sinc table (was duplicated as the legacy dsp/interpolate `windowedSincKernel`
+// and a private dsp-next copy; now the single source for both the wavetable renderer and sample
+// playback). Values verbatim from the original.
 // clang-format off
 alignas(kSincKernelAlignment) constexpr int16_t
     kWindowedSincKernel[kSincKernelVariants][kSincKernelPhaseSteps][kSincKernelTaps] = {
@@ -168,24 +170,28 @@ alignas(kSincKernelAlignment) constexpr int16_t
 
 } // namespace
 
-const int16_t* select_sinc_kernel(uint32_t phase_increment, uint32_t band_max_phase_increment) {
+const int16_t* WindowedSincKernel::select(uint32_t phase_increment, uint32_t band_max_phase_increment) const {
 	// Each variant covers half an octave of oversampling. Drop an octave (halving the rate) per two
 	// variants while the rate still reaches the band limit, then take the in-between (odd) variant
 	// once past the √½ ≈ 0.707 midpoint. Identical ladder + arithmetic to the legacy getKernel.
-	int32_t variant = 0;
+	int32_t which = 0;
 	uint32_t rate = phase_increment;
-	while (rate >= band_max_phase_increment && variant < 6) {
-		variant += 2;
+	while (rate >= band_max_phase_increment && which < 6) {
+		which += 2;
 		rate >>= 1;
 	}
 	// Legacy getKernel declared the band limit as int32_t, so the √½ midpoint used its *signed*
 	// reading: a band whose limit has the top bit set (≥ 2^31, above Nyquist) reads as negative
 	// here, making the comparison always true — that band always takes the +1 (sharper) variant.
 	// Reproduce the narrowing at exactly this spot so the pick stays bit-identical to the legacy.
-	if (variant < 6 && rate >= (static_cast<int32_t>(band_max_phase_increment) * 0.707)) {
-		variant++;
+	if (which < 6 && rate >= (static_cast<int32_t>(band_max_phase_increment) * 0.707)) {
+		which++;
 	}
-	return &kWindowedSincKernel[variant][0][0];
+	return variant(which);
+}
+
+const int16_t* WindowedSincKernel::variant(int32_t which) const {
+	return &kWindowedSincKernel[which][0][0];
 }
 
 } // namespace deluge::dsp::fixed

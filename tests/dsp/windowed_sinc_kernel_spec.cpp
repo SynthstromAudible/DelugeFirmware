@@ -15,30 +15,27 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Pins the dsp-next wavetable sinc kernel (a private copy of the legacy dsp/interpolate
-// windowedSincKernel) to the original: the table values are byte-identical, and select_sinc_kernel
-// reproduces the legacy getKernel octave-walk across all 7 oversampling variants. Run on x86
-// (SIMDe) and ARM/QEMU via CTest — pure index/data logic, kept dual-arch for parity.
+// Pins the two variant picks of the shared deluge::dsp::fixed::windowed_sinc_kernel: select()
+// reproduces the legacy getKernel octave-walk (the wavetable renderer's band-limited choice), and
+// variant() indexes a variant by number (sample playback's getWhichKernel choice) into the one
+// contiguous [7][17][16] table. The table *values* are pinned end-to-end by the wavetable/ and
+// sample/ golden fixtures (and were byte-verified against the legacy table before the two copies
+// were unified). Run on x86 (SIMDe) and ARM/QEMU via CTest — pure index logic, dual-arch for parity.
 
-#include "dsp-next/fixed/sinc_kernel.h"
+#include "dsp-next/fixed/windowed_sinc_kernel.h"
 #include <cppspec.hpp>
 #include <cstdint>
-#include <cstring>
-
-// The legacy kernel table (defined in src/deluge/dsp/interpolate/interpolate.cpp, linked in as a
-// spec dependency) — the bit-exact oracle for our private copy.
-extern const int16_t windowedSincKernel[][17][16];
 
 namespace {
 using deluge::dsp::fixed::kSincKernelPhaseSteps;
 using deluge::dsp::fixed::kSincKernelTaps;
 using deluge::dsp::fixed::kSincKernelVariants;
-using deluge::dsp::fixed::select_sinc_kernel;
+using deluge::dsp::fixed::windowed_sinc_kernel;
 
 constexpr int32_t kTapsPerVariant = kSincKernelPhaseSteps * kSincKernelTaps;
 
-// Independent re-derivation of the legacy ladder, used to check the variant select() lands on.
-// Mirrors the legacy getKernel signed narrowing of the band limit at the √½ midpoint (see below).
+// Independent re-derivation of the legacy getKernel ladder, used to check the variant select()
+// lands on. Mirrors the legacy signed narrowing of the band limit at the √½ midpoint (see below).
 int32_t reference_variant(uint32_t phase_increment, uint32_t band_max) {
 	int32_t variant = 0;
 	uint32_t rate = phase_increment;
@@ -54,31 +51,33 @@ int32_t reference_variant(uint32_t phase_increment, uint32_t band_max) {
 } // namespace
 
 // clang-format off
-describe sinc_kernel("deluge::dsp::fixed sinc kernel", ${
-	// A play rate well below the band limit and below the 0.707 midpoint -> variant 0, whose base
-	// is the base of the whole contiguous [7][17][16] table.
-	constexpr int32_t kBand = 200000000;
-	const int16_t* base = select_sinc_kernel(0, kBand);
+describe windowed_sinc_kernel_spec("deluge::dsp::fixed windowed_sinc_kernel", ${
+	// variant(0) is the base of the whole contiguous [7][17][16] table.
+	const int16_t* base = windowed_sinc_kernel.variant(0);
 
-	it("copies the windowed-sinc table bit-for-bit from the legacy kernel", _ {
-		expect(std::memcmp(base, &windowedSincKernel[0][0][0],
-		                   sizeof(int16_t) * kSincKernelVariants * kTapsPerVariant))
-		    .to_equal(0);
+	it("indexes each variant at its contiguous block base", _ {
+		for (int32_t which = 0; which < kSincKernelVariants; ++which) {
+			expect(windowed_sinc_kernel.variant(which)).to_equal(base + which * kTapsPerVariant);
+		}
 	});
 
 	it("selects the variant matching the legacy getKernel ladder", _ {
+		// A play rate well below the band limit and below the 0.707 midpoint -> variant 0.
+		constexpr int32_t kBand = 200000000;
 		// One play rate inside each of the 7 oversampling regions (0 / 0.707 / 1 / √2 / 2 / 2√2 / cap).
 		const int32_t rates[] = {kBand / 2,     (kBand * 4) / 5, (kBand * 6) / 5, (kBand * 8) / 5,
 		                         (kBand * 5) / 2, kBand * 3,      kBand * 10};
 		for (int32_t rate : rates) {
 			int32_t expected = reference_variant(rate, kBand);
-			expect(select_sinc_kernel(rate, kBand)).to_equal(base + expected * kTapsPerVariant);
+			expect(windowed_sinc_kernel.select(rate, kBand)).to_equal(windowed_sinc_kernel.variant(expected));
 		}
 	});
 
 	it("never selects past the last (sharpest-capped) variant", _ {
 		// A rate many octaves above the band limit would walk past variant 6 if unguarded.
-		expect(select_sinc_kernel(2000000000, kBand)).to_equal(base + (kSincKernelVariants - 1) * kTapsPerVariant);
+		constexpr int32_t kBand = 200000000;
+		expect(windowed_sinc_kernel.select(2000000000, kBand))
+		    .to_equal(windowed_sinc_kernel.variant(kSincKernelVariants - 1));
 	});
 
 	it("preserves the legacy signed-narrowing quirk for band limits above 2^31", _ {
@@ -88,9 +87,9 @@ describe sinc_kernel("deluge::dsp::fixed sinc kernel", ${
 		constexpr uint32_t kHighBand = 0x90000000u; // ≥ 2^31
 		constexpr uint32_t kSubLimitRate = 0x10000000u;
 		expect(reference_variant(kSubLimitRate, kHighBand)).to_equal(1);
-		expect(select_sinc_kernel(kSubLimitRate, kHighBand)).to_equal(base + 1 * kTapsPerVariant);
+		expect(windowed_sinc_kernel.select(kSubLimitRate, kHighBand)).to_equal(windowed_sinc_kernel.variant(1));
 	});
 });
 // clang-format on
 
-CPPSPEC_MAIN(sinc_kernel);
+CPPSPEC_MAIN(windowed_sinc_kernel_spec);

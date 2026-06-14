@@ -20,9 +20,9 @@
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/sinc_interpolation.h" // windowed_sinc_apply, SincWindow
-#include "dsp-next/fixed/sinc_kernel.h"        // select_sinc_kernel
 #include "dsp-next/fixed/wave_table_data.h"
-#include "util/fixedpoint.h" // multiply_32x32_rshift32(_accumulate)_rounded
+#include "dsp-next/fixed/windowed_sinc_kernel.h" // windowed_sinc_kernel
+#include "util/fixedpoint.h"                     // multiply_32x32_rshift32(_accumulate)_rounded
 #include <argon.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -219,7 +219,7 @@ private:
 	}
 
 	const int16_t* kernel_for(const WaveTableBand* band) const {
-		return (band != nullptr) ? select_sinc_kernel(phase_increment_, band->maxPhaseIncrement) : nullptr;
+		return (band != nullptr) ? windowed_sinc_kernel.select(phase_increment_, band->maxPhaseIncrement) : nullptr;
 	}
 
 	const WaveTableData* table_;
