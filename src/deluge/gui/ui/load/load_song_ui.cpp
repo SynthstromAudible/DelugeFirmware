@@ -58,6 +58,7 @@ void routineForSD(void);
 extern void setupBlankSong();
 
 using namespace deluge::gui;
+namespace encoders = deluge::hid::encoders;
 
 LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
@@ -819,9 +820,9 @@ goAgain:
 			displayText(false);
 
 			// If user turned knob while finding file, get out so the new action can be done
-			if (Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos) {
+			if (encoders::select.pending()) {
 			    currentUIMode = UI_MODE_HORIZONTAL_SCROLL; // It might have been set to waitingForNextFileToLoad
-			    offset = Encoders::encoders[ENCODER_THIS_CPU_SELECT].getLimitedDetentPosAndReset();
+			    offset = encoders::select.take();
 			    goto goAgain;
 			}
 

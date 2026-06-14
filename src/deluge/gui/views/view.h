@@ -150,6 +150,8 @@ public:
 
 	bool isClipContext();
 
+	int32_t calculateKnobPosForModEncoderTurn(deluge::modulation::params::Kind kind, int32_t knobPos, int32_t offset);
+
 private:
 	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();

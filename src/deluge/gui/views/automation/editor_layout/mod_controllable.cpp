@@ -752,14 +752,6 @@ bool AutomationEditorLayoutModControllable::automationModEncoderActionForSelecte
 
 			int32_t newKnobPos = calculateAutomationKnobPosForModEncoderTurn(modelStackWithParam, knobPos, offset);
 
-			// ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
-			// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a
-			// value change gets recorded if newKnobPos exceeds 127, then it means current knobPos was
-			// 127 and it was increased to 128. In which case, ignore value change
-			if (!getOnArrangerView() && ((clip->output->type == OutputType::MIDI_OUT) && (newKnobPos == 64))) {
-				return true;
-			}
-
 			// use default interpolation settings
 			initInterpolation();
 
@@ -798,14 +790,6 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos);
 
 			int32_t newKnobPos = calculateAutomationKnobPosForModEncoderTurn(modelStackWithParam, knobPos, offset);
-
-			// ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
-			// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a
-			// value change gets recorded if newKnobPos exceeds 127, then it means current knobPos was
-			// 127 and it was increased to 128. In which case, ignore value change
-			if (!getOnArrangerView() && ((clip->output->type == OutputType::MIDI_OUT) && (newKnobPos == 64))) {
-				return;
-			}
 
 			int32_t newValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
@@ -1428,41 +1412,9 @@ void AutomationEditorLayoutModControllable::renderAutomationDisplayForMultiPadPr
 int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForModEncoderTurn(
     ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, int32_t offset) {
 
-	// adjust the current knob so that it is within the range of 0-128 for calculation purposes
-	knobPos = knobPos + kKnobPosOffset;
+	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-	int32_t newKnobPos = 0;
-
-	if ((knobPos + offset) < 0) {
-		params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-		if (kind == params::Kind::PATCH_CABLE) {
-			if ((knobPos + offset) >= -kMaxKnobPos) {
-				newKnobPos = knobPos + offset;
-			}
-			else if ((knobPos + offset) < -kMaxKnobPos) {
-				newKnobPos = -kMaxKnobPos;
-			}
-			else {
-				newKnobPos = knobPos;
-			}
-		}
-		else {
-			newKnobPos = knobPos;
-		}
-	}
-	else if ((knobPos + offset) <= kMaxKnobPos) {
-		newKnobPos = knobPos + offset;
-	}
-	else if ((knobPos + offset) > kMaxKnobPos) {
-		newKnobPos = kMaxKnobPos;
-	}
-	else {
-		newKnobPos = knobPos;
-	}
-
-	// in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos
-	// set above.
-	newKnobPos = newKnobPos - kKnobPosOffset;
+	int32_t newKnobPos = view.calculateKnobPosForModEncoderTurn(kind, knobPos, offset);
 
 	return newKnobPos;
 }

@@ -679,8 +679,8 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 			break;
 		}
 
-		// Offset is guaranteed to be -1, 0 or 1, see limitedDetentPos
-		nextLayout += (offset == 0 ? 1 : offset);
+		// Use sign of offset as search step so fast spinning still scans one layout at a time.
+		nextLayout += (offset >= 0) ? 1 : -1;
 		++searchCount;
 	}
 

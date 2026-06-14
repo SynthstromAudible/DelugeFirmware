@@ -42,6 +42,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/encoder_input.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -838,24 +839,7 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-	int32_t lowerLimit;
-
-	if (kind == params::Kind::PATCH_CABLE) {
-		lowerLimit = std::min(-192_i32, knobPos);
-	}
-	else {
-		lowerLimit = std::min(-64_i32, knobPos);
-	}
-	int32_t newKnobPos = knobPos + offset;
-	newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
-
-	// ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
-	// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change
-	// gets recorded if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased
-	// to 128. In which case, ignore value change
-	if (kind == params::Kind::MIDI && (newKnobPos == 64)) {
-		return;
-	}
+	int32_t newKnobPos = calculateKnobPosForModEncoderTurn(kind, knobPos, offset);
 
 	// if you had selected a parameter in performance view and the parameter name
 	// and current value is displayed on the screen, don't show pop-up as the display
@@ -939,6 +923,26 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	if ((getCurrentUI() == &soundEditor) && (getRootUI() == &automationView)) {
 		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, modelStackWithParam->paramId);
 	}
+}
+
+int32_t View::calculateKnobPosForModEncoderTurn(params::Kind kind, int32_t knobPos, int32_t offset) {
+	int32_t lowerLimit;
+	int32_t upperLimit = 64_i32;
+
+	if (kind == params::Kind::PATCH_CABLE) {
+		lowerLimit = std::min(-192_i32, knobPos);
+	}
+	else {
+		lowerLimit = std::min(-64_i32, knobPos);
+
+		if (kind == params::Kind::MIDI) {
+			upperLimit = 63;
+		}
+	}
+	int32_t newKnobPos = knobPos + offset;
+	newKnobPos = std::clamp(newKnobPos, lowerLimit, upperLimit);
+
+	return newKnobPos;
 }
 
 // get's modelStackWithParam for use with Gold Knobs and ModEncoderAction above
@@ -2328,12 +2332,14 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			}
 
 			while (true) {
-				newChannelSuffix += offset;
+				// Use ±1 step regardless of encoder acceleration so channel-wrap logic stays correct.
+				int32_t step = (offset > 0) ? 1 : -1;
+				newChannelSuffix += step;
 
 				// Turned left
-				if (offset == -1) {
+				if (offset < 0) {
 					if (newChannelSuffix < -1) {
-						newChannel = (newChannel + offset);
+						newChannel = (newChannel + step);
 						if (newChannel < 0) {
 							newChannel = IS_A_DEST + NUM_INTERNAL_DESTS;
 						}
@@ -2349,7 +2355,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 					if (newChannelSuffix >= 26
 					    || newChannelSuffix > modelStack->song->getMaxMIDIChannelSuffix(newChannel)) {
-						newChannel = (newChannel + offset);
+						newChannel = (newChannel + step);
 						if (newChannel > MIDI_CHANNEL_MPE_UPPER_ZONE && newChannel <= IS_A_DEST) {
 							newChannel = IS_A_DEST + 1;
 						}
