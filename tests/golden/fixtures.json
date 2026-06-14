@@ -1847,6 +1847,36 @@
   "peak": 2646,
   "rms_db": -26.68
  },
+ "sample/linear": {
+  "sha256": "1ab0a9e49229bd973480bb0340c4d9be10bb5b00e1a430cdd1278ceaa47faa7d",
+  "frames": 88200,
+  "peak": 3742,
+  "rms_db": -25.06
+ },
+ "sample/mono": {
+  "sha256": "0cd17f544676c31327e3a69ce6dd0833a05d806aa5a2e3c25ecb382383e3d85b",
+  "frames": 88200,
+  "peak": 3742,
+  "rms_db": -25.26
+ },
+ "sample/reversed": {
+  "sha256": "329c39fd614e6d189adb359f5030f7ea51e12d8d8d6fb2b2e84e2bcb88d18cdf",
+  "frames": 88200,
+  "peak": 3742,
+  "rms_db": -25.06
+ },
+ "sample/smooth_sweep": {
+  "sha256": "207f0e511544b7353f899d345096d0f8c7b87791926f2211f0dfb23f69c75c8d",
+  "frames": 88200,
+  "peak": 5575,
+  "rms_db": -22.79
+ },
+ "sample/timestretch": {
+  "sha256": "b6b1b7da987904eb56ca6b6186d78e357508d1395ea35bc13cd36eaecb7b05d5",
+  "frames": 88200,
+  "peak": 3742,
+  "rms_db": -36.24
+ },
  "saw_basic": {
   "sha256": "8781001e0c0f805a555a969b083bf0fd43414e71e8bead96362b4570adea3571",
   "frames": 88200,

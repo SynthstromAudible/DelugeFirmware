@@ -1,0 +1,15 @@
+# Sample-playback kernel sweep: one looping sample played at rising pitches so the
+# windowed-sinc reader steps through whichKernel 0..6 (root note is C4 / MIDI 60).
+# C2 (down, kernel 0 + loop wrap), C4 (native), G4 (+7), G5 (+19), C6 (+24), C8 (+36).
+4608 90 24 64
+18000 80 24 40
+18000 90 3C 64
+32000 80 3C 40
+32000 90 43 64
+46000 80 43 40
+46000 90 4F 64
+60000 80 4F 40
+60000 90 54 64
+74000 80 54 40
+74000 90 60 64
+87000 80 60 40
