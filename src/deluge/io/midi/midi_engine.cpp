@@ -23,6 +23,7 @@
 #include "hid/display/display.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/sysex.h"
@@ -217,6 +218,8 @@ void MidiEngine::checkIncomingMidi() {
 			D_PRINTLN("MIDI poll error: %d\n", static_cast<int>(error));
 		}
 	}
+
+	launchpad_extension::flushDeferredInputSync();
 }
 
 // Warning - this will sometimes (not always) be called in an ISR
@@ -348,6 +351,10 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 
 		// All these messages, we should only interpret if there's definitely a song loaded
 		if (currentSong) {
+
+			if (launchpad_extension::handleMidiMessage(cable, statusType, channel, data1, data2)) {
+				return;
+			}
 
 			switch (statusType) {
 

@@ -63,7 +63,7 @@ struct MIDICableUSB;
  */
 class ConnectedUSBMIDIDevice {
 public:
-	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
+	MIDICableUSB* cable[6]; // If NULL, then no cable is connected here. Up to 6 virtual cables per device.
 	ConnectedUSBMIDIDevice();
 	void bufferMessage(uint32_t fullMessage);
 	void setup();
@@ -75,7 +75,7 @@ public:
 #else
 // warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
-	struct MIDICableUSB* device[4];
+	struct MIDICableUSB* device[6];
 #endif
 	uint8_t currentlyWaitingToReceive;
 	uint8_t sq; // Only for connections as HOST

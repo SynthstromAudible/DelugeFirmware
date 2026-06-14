@@ -30,6 +30,7 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/instrument/midi_instrument.h"
@@ -314,6 +315,7 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 
 // Before calling this, you must set loadButtonReleased.
 void LoadSongUI::performLoad() {
+	launchpad_extension::onSongLoadStarting();
 	performingLoad = true;
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -323,6 +325,7 @@ void LoadSongUI::performLoad() {
 		                          : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
 		                                                                     // for consistency with old times.
 		performingLoad = false;
+		launchpad_extension::onSongLoadAborted();
 		return;
 	}
 
@@ -441,6 +444,7 @@ fail:
 		currentUIMode = UI_MODE_NONE;
 		display->removeWorkingAnimation();
 		performingLoad = false;
+		launchpad_extension::onSongLoadAborted();
 		return;
 	}
 
@@ -624,6 +628,7 @@ swapDone:
 	}
 
 	performingLoad = false;
+	launchpad_extension::onSongLoaded();
 }
 
 ActionResult LoadSongUI::timerCallback() {

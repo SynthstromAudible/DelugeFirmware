@@ -28,9 +28,15 @@
 class ModelStack;
 class Instrument;
 
+namespace deluge::gui::ui::keyboard::layout {
+class KeyboardLayoutExpressiveChords;
+}
+
 namespace deluge::gui::ui::keyboard {
 
 constexpr int32_t kMaxNumKeyboardPadPresses = 10;
+
+layout::KeyboardLayoutExpressiveChords& getExpressiveChordsLayout();
 
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:
@@ -64,6 +70,9 @@ public:
 	UIType getUIContextType() override { return UIType::INSTRUMENT_CLIP; }
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 	void checkNewInstrument(Instrument* newInstrument);
+
+	/// Map incoming MIDI notes to expressive chord slots (returns true if handled).
+	bool offerExpressiveMidiNote(int32_t note, uint8_t velocity, bool on);
 
 private:
 	bool opened() override;

@@ -23,6 +23,8 @@
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/cable_types/usb_hosted.h"
+#include "io/midi/device_specific/midi_device_launchpad_mk3.h"
+#include "io/midi/device_specific/novation_launchpad_mk3.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -30,6 +32,7 @@
 #include "io/usb/usb_state.h"
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "storage/storage_manager.h"
 #include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
@@ -39,6 +42,7 @@ using namespace deluge::io::usb;
 
 extern "C" {
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
+#include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
 #include "drivers/uart/uart.h"
 }
 #pragma GCC diagnostic push
@@ -137,16 +141,14 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 		}
 	}
 
-	// Ok, try searching by vendor / product id
-	for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
-		auto* candidate = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
+	// If we have a name, do not merge by vendor/product IDs — allow multiple entries per VID:PID (multi-port devices).
+	if (!gotAName) {
+		for (int32_t j = 0; j < hostedMIDIDevices.getNumElements(); j++) {
+			auto* candidate = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(j));
 
-		if (candidate->vendorId == vendorId && candidate->productId == productId) {
-			// Update its name - if we got one and it's different
-			if (gotAName && !candidate->name.equals(name)) {
-				hostedMIDIDevices.renameMember(i, name);
+			if (candidate->vendorId == vendorId && candidate->productId == productId) {
+				return candidate;
 			}
-			return candidate;
 		}
 	}
 
@@ -158,6 +160,10 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 	MIDICableUSBHosted* device = nullptr;
 
 	SpecificMidiDeviceType devType = getSpecificMidiDeviceType(vendorId, productId);
+	if (devType == SpecificMidiDeviceType::LAUNCHPAD_MK3
+	    && (!gotAName || !novation_launchpad_mk3::nameIsMidiPort(name->get()))) {
+		devType = SpecificMidiDeviceType::NONE;
+	}
 	if (devType == SpecificMidiDeviceType::LUMI_KEYS) {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceLumiKeys));
 		if (!memory) {
@@ -165,6 +171,15 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 		}
 
 		MIDIDeviceLumiKeys* instDevice = new (memory) MIDIDeviceLumiKeys();
+		device = instDevice;
+	}
+	else if (devType == SpecificMidiDeviceType::LAUNCHPAD_MK3) {
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceLaunchpadMK3));
+		if (!memory) {
+			return nullptr;
+		}
+
+		MIDIDeviceLaunchpadMK3* instDevice = new (memory) MIDIDeviceLaunchpadMK3();
 		device = instDevice;
 	}
 	else {
@@ -231,37 +246,112 @@ void recountSmallestMPEZones() {
 
 // Create the midi device configuration and add to the USB midi array
 extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
-	MIDICableUSBHosted* device = getOrCreateHostedMIDIDeviceFromDetails(&usbDeviceCurrentlyBeingSetUp[ip].name,
-	                                                                    usbDeviceCurrentlyBeingSetUp[ip].vendorId,
-	                                                                    usbDeviceCurrentlyBeingSetUp[ip].productId);
+	MIDIRootComplexUSBHosted* root = getHosted();
+	if (!root) {
+		return;
+	}
+
+	auto& hostedMIDIDevices = root->getHostedMIDIDevices();
+
+	String baseName;
+	baseName.set(&usbDeviceCurrentlyBeingSetUp[ip].name);
+	uint16_t vendorId = usbDeviceCurrentlyBeingSetUp[ip].vendorId;
+	uint16_t productId = usbDeviceCurrentlyBeingSetUp[ip].productId;
+
+	// Determine number of embedded MIDI jacks (virtual cables) from configuration descriptor, if available.
+	int32_t detectedCables = 0;
+	if (g_p_usb_hmidi_config_table[ip]) {
+		uint8_t const* cfg = g_p_usb_hmidi_config_table[ip];
+		uint16_t totalLen = cfg[2] | (cfg[3] << 8);
+		uint16_t pos = 0;
+		while (pos + 2 < totalLen) {
+			uint8_t bLen = cfg[pos];
+			uint8_t bType = cfg[pos + 1];
+			if (bLen == 0) {
+				break;
+			}
+			// Class-Specific Endpoint (MS_GENERAL): parse bNumEmbMIDIJack
+			if (bType == 0x25 && bLen >= 5) {
+				uint8_t subType = cfg[pos + 2];
+				if (subType == 0x01) {
+					uint8_t numJacks = cfg[pos + 3];
+					if (numJacks > detectedCables) {
+						detectedCables = numJacks;
+					}
+				}
+			}
+			pos += bLen;
+		}
+	}
 
 	usbDeviceCurrentlyBeingSetUp[ip].name.clear(); // Save some memory. Not strictly necessary
 
-	if (!device) {
-		return; // Only if ran out of RAM - i.e. very unlikely.
-	}
-
-	// Associate with USB port
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
 
 	connectedDevice->setup();
-	int32_t ports = connectedDevice->maxPortConnected;
-	for (int32_t i = 0; i <= ports; i++) {
-		connectedDevice->cable[i] = device;
+	// Prefer exact count from descriptor; fall back to driver-reported maxPortConnected; cap to 6 cables.
+	int32_t ports = (detectedCables > 0) ? (detectedCables - 1) : connectedDevice->maxPortConnected;
+	if (ports > 5) {
+		ports = 5;
+	}
+	if (ports < 0) {
+		ports = 0;
 	}
 
+	int32_t remainingSlots = 6 - hostedMIDIDevices.getNumElements();
+	if (remainingSlots < 0) {
+		remainingSlots = 0;
+	}
+
+	int32_t cablesToCreate = ports + 1;
+	if (cablesToCreate > remainingSlots) {
+		cablesToCreate = remainingSlots;
+	}
+
+	// Session grid mirror uses port 2 (Programmer) only — omit port 1 (DAW) from routing and MIDI Devices menu.
+	bool omitLaunchpadDawPort = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLaunchpadGridMirror)
+	                            && novation_launchpad_mk3::matchesVendorProduct(vendorId, productId);
+
+	for (int32_t i = 0; i < cablesToCreate; i++) {
+		if (omitLaunchpadDawPort && i == 0) {
+			continue;
+		}
+
+		String perPortName;
+		perPortName.set(&baseName);
+		if (cablesToCreate > 1) {
+			perPortName.concatenate(" port ");
+			char numBuf[8];
+			snprintf(numBuf, sizeof numBuf, "%d", i + 1);
+			perPortName.concatenate(numBuf);
+		}
+
+		MIDICableUSBHosted* perPortDevice = getOrCreateHostedMIDIDeviceFromDetails(&perPortName, vendorId, productId);
+		if (!perPortDevice) {
+			continue;
+		}
+
+		perPortDevice->portNumber = static_cast<uint8_t>(i);
+		connectedDevice->cable[i] = perPortDevice;
+	}
+
+	connectedDevice->maxPortConnected = (cablesToCreate > 0) ? (cablesToCreate - 1) : 0;
+
 	connectedDevice->sq = 0;
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
+	connectedDevice->canHaveMIDISent = (bool)strcmp(baseName.get(), "Synthstrom MIDI Foot Controller");
+	connectedDevice->canHaveMIDISent = (bool)strcmp(baseName.get(), "LUMI Keys BLOCK");
 
-	device->connectedNow(midiDeviceNum);
+	for (int32_t i = 0; i < cablesToCreate; i++) {
+		if (connectedDevice->cable[i]) {
+			connectedDevice->cable[i]->connectedNow(midiDeviceNum);
+			static_cast<MIDICableUSBHosted*>(connectedDevice->cable[i])->freshly_connected = true;
+		}
+	}
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
-
-	device->freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
 	if (display->haveOLED()) {
 		String text;
-		text.set(&device->name);
+		text.set(&baseName);
 		Error error = text.concatenate(" attached");
 		if (error == Error::NONE) {
 			consoleTextIfAllBootedUp(text.get());
@@ -284,6 +374,9 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 	uartPrintNumber(midiDeviceNum);
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
 	int32_t ports = connectedDevice->maxPortConnected;
+	if (ports > 5) {
+		ports = 5;
+	}
 	for (int32_t i = 0; i <= ports; i++) {
 		MIDICableUSB* device = connectedDevice->cable[i];
 		if (device) { // Surely always has one?

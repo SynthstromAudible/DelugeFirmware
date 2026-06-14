@@ -603,7 +603,8 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if (clip->onKeyboardScreen
 	    && ((clip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary)
-	        || (clip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChord))) {
+	        || (clip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChord)
+	        || (clip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeExpressiveChords))) {
 		return;
 	}
 

@@ -40,6 +40,7 @@ enum SessionGridMode : uint8_t {
 extern float getTransitionProgress();
 
 constexpr uint32_t kGridHeight = kDisplayHeight;
+constexpr uint32_t kLaunchpadGridWidth = 8;
 
 class SessionView final : public ClipNavigationTimelineView {
 public:
@@ -126,7 +127,16 @@ public:
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
+	ActionResult gridHandlePadsFromLaunchpad(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+	void launchpadGridScroll(int32_t offsetX, int32_t offsetY);
+	void launchpadStartSectionFromRow(int32_t y);
+	void launchpadTogglePlayStop();
+	void launchpadToggleRecord();
+	bool launchpadTryEnterHeldClip();
+	void launchpadSyncGridLedsNow(bool forceFullRefresh = false);
+	void launchpadResetMirrorState();
+	bool launchpadMirrorWantsFastSync() const;
 
 	// ui
 	UIType getUIType() override { return UIType::SESSION; }
@@ -211,7 +221,17 @@ private:
 	bool gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 
-	RGB gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse = true);
+	RGB gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse = true, bool stableMirror = false);
+	RGB applyLaunchpadMirrorPulse(Clip* clip, int32_t x, int32_t y, RGB baseColour) const;
+	bool anySessionClipArmedForLaunchpadPulse() const;
+	void launchpadRenderGrid(RGB image[][kDisplayWidth + kSideBarWidth],
+	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	void renderSessionGridIfActive();
+	void afterDelugeHardwareGridInput(int32_t x);
+	void afterDelugeHardwareGridScroll();
+	void applySongGridScroll(int32_t offsetX, int32_t offsetY, int32_t maxScrollX);
+	int32_t gridScrollMaxXForDelugeGrid() const;
+	int32_t gridScrollMaxXForLaunchpadGrid() const;
 
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
@@ -233,6 +253,17 @@ private:
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
+
+	// Launchpad press state (copy gesture); hold-selection also updates grid/UI for MIDI follow.
+	int32_t launchpadFirstPressedX = -1;
+	int32_t launchpadFirstPressedY = -1;
+	int32_t launchpadSecondPressedX = -1;
+	int32_t launchpadSecondPressedY = -1;
+	uint32_t launchpadSelectedClipTimePressed = 0;
+	int32_t launchpadSceneLaunchSection = -1;
+	bool launchpadRenderingLed = false;
+	void launchpadResetPress();
+	void launchpadBeginClipHoldSelection(Clip* clip, int32_t x, int32_t y);
 
 	inline void gridResetPresses(bool first = true, bool second = true) {
 		if (first) {

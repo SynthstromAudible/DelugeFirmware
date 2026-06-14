@@ -29,6 +29,7 @@
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "playback/playback_handler.h"
@@ -216,6 +217,7 @@ void UITimerManager::routine() {
 					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > kNumBytesInColUpdateMessage) {
 						getCurrentUI()->graphicsRoutine();
 					}
+					launchpad_extension::periodicSyncIfNeeded();
 					setTimer(TimerName::GRAPHICS_ROUTINE, 15);
 					break;
 

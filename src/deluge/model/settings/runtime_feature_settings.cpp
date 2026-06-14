@@ -200,6 +200,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Launchpad grid mirror
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableLaunchpadGridMirror],
+	                  STRING_FOR_COMMUNITY_FEATURE_LAUNCHPAD_GRID_MIRROR, "enableLaunchpadGridMirror",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

@@ -66,6 +66,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	HorizontalMenus,
 	TrimFromStartOfAudioClip,
 	ShowBatteryLevel,
+	EnableLaunchpadGridMirror,
 	MaxElement // Keep as boundary
 };
 

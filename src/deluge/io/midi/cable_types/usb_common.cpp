@@ -16,6 +16,7 @@
  */
 
 #include "usb_common.h"
+#include "io/midi/device_specific/launchpad_extension.h"
 #include "io/midi/midi_engine.h"
 
 void MIDICableUSB::checkIncomingSysex(uint8_t const* msg, [[maybe_unused]] int32_t ip, [[maybe_unused]] int32_t d) {
@@ -88,6 +89,10 @@ Error MIDICableUSB::sendMessage(MIDIMessage message) {
 		return Error::NONE;
 	}
 
+	if (launchpad_extension::shouldBlockOutgoingMidi(*this, message)) {
+		return Error::NONE;
+	}
+
 	int32_t ip = 0;
 
 	uint32_t fullMessage = setupUSBMessage(message);
@@ -130,6 +135,10 @@ extern bool developerSysexCodeReceived;
 Error MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 6 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return Error::INVALID_SYSEX_FORMAT;
+	}
+
+	for (int32_t attempt = 0; attempt < 8 && len > sendBufferSpace(); attempt++) {
+		midiEngine.flushMIDI();
 	}
 
 	if (len > sendBufferSpace()) {

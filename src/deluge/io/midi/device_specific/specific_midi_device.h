@@ -17,10 +17,12 @@
 
 #pragma once
 
-#include "io/midi/device_specific/midi_device_lumi_keys.h" // IWYU pragma: export
+#include "io/midi/device_specific/midi_device_launchpad_mk3.h" // IWYU pragma: export
+#include "io/midi/device_specific/midi_device_lumi_keys.h"     // IWYU pragma: export
+#include "io/midi/device_specific/novation_launchpad_mk3.h"    // IWYU pragma: export
 #include "io/midi/midi_device.h"
 
-enum class SpecificMidiDeviceType { NONE = 0, LUMI_KEYS = 1 };
+enum class SpecificMidiDeviceType { NONE = 0, LUMI_KEYS = 1, LAUNCHPAD_MK3 = 2 };
 
 SpecificMidiDeviceType getSpecificMidiDeviceType(uint16_t vendorId, uint16_t productId);
 
