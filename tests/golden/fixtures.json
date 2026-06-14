@@ -1913,6 +1913,48 @@
   "peak": 2640,
   "rms_db": -28.34
  },
+ "wavetable/morph_lfo": {
+  "sha256": "f3acab345c6aaa6328fc08968b0aa1441bf5f152c74265c33c21a93cdcad7cb1",
+  "frames": 88200,
+  "peak": 7844,
+  "rms_db": -21.93
+ },
+ "wavetable/morph_note": {
+  "sha256": "3b161b21f5a404aff6291930b238b8b8a5b5b9dfab012b79efee0012251fbfec",
+  "frames": 88200,
+  "peak": 6873,
+  "rms_db": -32.05
+ },
+ "wavetable/scw": {
+  "sha256": "3e7306a6a5de020382c16c135290d2f3cdd7d8371a2a6ae91b5753145b517e6d",
+  "frames": 88200,
+  "peak": 9975,
+  "rms_db": -21.3
+ },
+ "wavetable/scw_hi": {
+  "sha256": "4bb4f5d15f1bc0354e246f14e33d3b502cebb6fd70fadb5ed4e6ecce2ab5b81e",
+  "frames": 88200,
+  "peak": 7370,
+  "rms_db": -23.98
+ },
+ "wavetable/static": {
+  "sha256": "2630cb7e7d02a348841658f272f3cd3c9edfb3138e1b1bf49b77707db73d54aa",
+  "frames": 88200,
+  "peak": 1702,
+  "rms_db": -32.83
+ },
+ "wavetable/static_lo": {
+  "sha256": "703eb26929e92493fe975d5a047b4808276a2f1229b4d2ec319f217147d02248",
+  "frames": 88200,
+  "peak": 1524,
+  "rms_db": -34.42
+ },
+ "wavetable/sync": {
+  "sha256": "277ef2d18881121642b8964607667c9f70bf0f131398f2cebdf4c9c68e0a6fa4",
+  "frames": 88200,
+  "peak": 5899,
+  "rms_db": -25.64
+ },
  "wavetable_basic": {
   "sha256": "36e390a657d91081d20a8814788d3b25f43808282ce817e5f9ea0f2643653f61",
   "frames": 88200,

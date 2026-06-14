@@ -70,7 +70,7 @@ def stage_preset(preset_xml, tmp):
     return staged
 
 
-def build_card_image(path, staged_preset, sample_wav=None):
+def build_card_image(path, staged_preset, sample_wavs=()):
     with open(path, "wb") as f:
         f.truncate(CARD_BYTES)
     subprocess.run(["mformat", "-i", str(path), "-F", "::"], check=True, capture_output=True)
@@ -78,13 +78,15 @@ def build_card_image(path, staged_preset, sample_wav=None):
     subprocess.run(
         ["mcopy", "-i", str(path), str(staged_preset), "::/SYNTHS/PRESET.XML"], check=True, capture_output=True
     )
-    # A case may carry a sample (e.g. a wavetable/sample osc): a sibling <name>.wav is staged
-    # to SAMPLES/WT.WAV, which its preset references by that path.
-    if sample_wav is not None:
+    # A case may carry samples (e.g. a wavetable/sample osc): a sibling <name>.wav is staged to
+    # SAMPLES/WT.WAV and an optional <name>.2.wav to SAMPLES/WT2.WAV (a second wavetable osc), which
+    # its preset references by those paths.
+    if sample_wavs:
         subprocess.run(["mmd", "-i", str(path), "::/SAMPLES"], check=True, capture_output=True)
-        subprocess.run(
-            ["mcopy", "-i", str(path), str(sample_wav), "::/SAMPLES/WT.WAV"], check=True, capture_output=True
-        )
+        for sample_wav, dest in zip(sample_wavs, ("WT.WAV", "WT2.WAV")):
+            subprocess.run(
+                ["mcopy", "-i", str(path), str(sample_wav), f"::/SAMPLES/{dest}"], check=True, capture_output=True
+            )
 
 
 def read_wav_pcm(path):
@@ -143,8 +145,11 @@ def run_case_inner(name, binary, setarch_prefix, keep_dir):
         tmp = pathlib.Path(tmp)
         image = tmp / "card.img"
         wav = tmp / "out.wav"
-        sample = preset.with_suffix(".wav")  # optional per-case sample (e.g. a wavetable osc)
-        build_card_image(image, stage_preset(preset, tmp), sample if sample.exists() else None)
+        # Optional per-case samples (e.g. wavetable oscs): <name>.wav -> WT.WAV, <name>.2.wav -> WT2.WAV.
+        sample = preset.with_suffix(".wav")
+        sample2 = preset.with_suffix(".2.wav")
+        samples = [s for s in (sample, sample2) if s.exists()]
+        build_card_image(image, stage_preset(preset, tmp), samples)
 
         env = dict(os.environ)
         env.update(
