@@ -18,11 +18,8 @@
 
 #include "dsp-next/core/generator.h" // BlockGenerator, Buffer, q31
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/sinc_kernel.h"
 #include "dsp-next/fixed/wave_table_data.h"
-#include "dsp-next/fixed/wavetable_cycle.h"
 #include "dsp-next/fixed/wavetable_cycle_chunker.h"
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 
@@ -30,10 +27,9 @@ namespace deluge::dsp::fixed {
 
 /// @brief A free-running (non-synced) wavetable oscillator, as a dsp-next component.
 ///
-/// Renders a @ref WaveTableData view of a loaded wavetable. A multi-cycle (morphing) wave is walked
-/// as @ref CycleChunk "cross-cycle chunks" by a @ref WavetableCycleChunker — each filled straight
-/// through @ref render_wavetable_cycle; a single-cycle wave is one @ref render_wavetable_single_cycle
-/// pass. Bit-identical to the legacy non-sync `WaveTable::render`.
+/// Walks the @ref WaveTableData view as @ref CycleChunk "chunks" (single-cycle: one; morphing: one
+/// per cross-cycle run) and renders each straight from the running phase. Bit-identical to the
+/// legacy non-sync `WaveTable::render`.
 class [[gnu::hot]] WavetableOscillator : public BlockGenerator<q31> {
 public:
 	WavetableOscillator(WaveTableData table, uint32_t phase, uint32_t increment, int32_t wave_index,
@@ -48,23 +44,13 @@ public:
 		uint32_t phase = phasor_.phase();
 		uint32_t phase_increment = phasor_.increment();
 
-		if (table_.num_cycles() > 1) [[likely]] {
-			WavetableCycleChunker chunker{table_, output, phase_increment, wave_index_, wave_index_increment_};
-			while (std::optional<CycleChunk> chunk = chunker.next()) {
-				if (chunk->band == nullptr) {
-					continue; // no band has data for this cycle pair — skip it (phase doesn't advance)
-				}
-				const int16_t* kernel = select_sinc_kernel(phase_increment, chunk->band->maxPhaseIncrement);
-				render_wavetable_cycle(chunk->output, chunk->first_cycle, *chunk->band, Phasor{phase, phase_increment},
-				                       chunk->cross_cycle_blend, chunk->cross_cycle_blend_increment, kernel);
-				phase += phase_increment * static_cast<uint32_t>(chunk->output.size());
+		WavetableCycleChunker chunker{table_, output, phase_increment, wave_index_, wave_index_increment_};
+		while (std::optional<CycleChunk> chunk = chunker.next()) {
+			if (chunk->band == nullptr) {
+				continue; // no band has data for this cycle pair — skip it (phase doesn't advance)
 			}
-		}
-		else {
-			const WaveTableBand& band = table_.band(table_.select_band(phase_increment));
-			const int16_t* kernel = select_sinc_kernel(phase_increment, band.maxPhaseIncrement);
-			render_wavetable_single_cycle(output, band, Phasor{phase, phase_increment}, kernel);
-			phase += phase_increment * static_cast<uint32_t>(output.size());
+			chunk->render(chunk->output, Phasor{phase, phase_increment}, 0);
+			phase += phase_increment * static_cast<uint32_t>(chunk->output.size());
 		}
 
 		phasor_.seek(phase);

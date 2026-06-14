@@ -18,12 +18,9 @@
 
 #include "dsp-next/core/generator.h" // BlockGenerator, Buffer, q31
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/sinc_kernel.h"
 #include "dsp-next/fixed/sync_windower.h" // Resetter, SyncWindower
 #include "dsp-next/fixed/wave_table_data.h"
-#include "dsp-next/fixed/wavetable_cycle.h"
 #include "dsp-next/fixed/wavetable_cycle_chunker.h"
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 
@@ -31,15 +28,11 @@ namespace deluge::dsp::fixed {
 
 /// @brief A hard-synced wavetable oscillator, as a dsp-next component.
 ///
-/// Like @ref WavetableOscillator, but each piece is restarted at every @ref Resetter crossover
-/// (classic osc-sync) by a @ref SyncWindower, which owns the window split + half-sine seam blend.
-/// The same @ref WavetableCycleChunker drives the cross-cycle morph; the only difference is that
-/// each chunk is filled through a windower rather than straight.
-///
-/// The morph is indexed by output position — `crossCycleStrength2 + window.offset · increment` —
-/// which is identically the legacy per-crossover callback accumulation (Σ increment·(samples−1) =
-/// increment·offset), so the redone crossover sample reuses the same morph and the result is
-/// bit-exact.
+/// Like @ref WavetableOscillator, but each @ref CycleChunk is rendered through a @ref SyncWindower,
+/// which restarts the wave at every @ref Resetter crossover (classic osc-sync) and seam-blends each
+/// restart. The chunk's cross-cycle morph is indexed by the window's offset — identically the legacy
+/// per-crossover callback accumulation — so the redone crossover sample reuses the same blend and
+/// the result is bit-exact.
 class [[gnu::hot]] WavetableSyncOscillator : public BlockGenerator<q31> {
 public:
 	WavetableSyncOscillator(WaveTableData table, uint32_t phase, uint32_t increment, Resetter resetter,
@@ -56,51 +49,24 @@ public:
 		uint32_t resetter_phase = resetter_.phase;
 		uint32_t resetter_increment = resetter_.phase_increment;
 
-		if (table_.num_cycles() > 1) [[likely]] {
-			WavetableCycleChunker chunker{table_, output, phase_increment, wave_index_, wave_index_increment_};
-			while (std::optional<CycleChunk> chunk = chunker.next()) {
-				if (chunk->band != nullptr) {
-					const int16_t* kernel = select_sinc_kernel(phase_increment, chunk->band->maxPhaseIncrement);
-					phase =
-					    renderSyncedChunk(*chunk, phase, phase_increment, resetter_phase, resetter_increment, kernel);
+		WavetableCycleChunker chunker{table_, output, phase_increment, wave_index_, wave_index_increment_};
+		while (std::optional<CycleChunk> chunk = chunker.next()) {
+			if (chunk->band != nullptr) {
+				SyncWindower windower{chunk->output, Resetter{resetter_phase, resetter_increment}, phase,
+				                      phase_increment, retrigger_phase_};
+				while (std::optional<SyncWindower::Window> window = windower.next()) {
+					chunk->render(window->output, window->phasor, window->offset);
 				}
-				// The resetter advances past the whole chunk whether or not it had data.
-				resetter_phase += resetter_increment * static_cast<uint32_t>(chunk->output.size());
+				phase = windower.phase();
 			}
-		}
-		else {
-			const WaveTableBand& band = table_.band(table_.select_band(phase_increment));
-			const int16_t* kernel = select_sinc_kernel(phase_increment, band.maxPhaseIncrement);
-			SyncWindower windower{output, Resetter{resetter_phase, resetter_increment}, phase, phase_increment,
-			                      retrigger_phase_};
-			while (std::optional<SyncWindower::Window> window = windower.next()) {
-				render_wavetable_single_cycle(window->output, band, window->phasor, kernel);
-			}
-			phase = windower.phase();
+			// The resetter advances past the whole chunk whether or not it had data.
+			resetter_phase += resetter_increment * static_cast<uint32_t>(chunk->output.size());
 		}
 
 		phasor_.seek(phase);
 	}
 
 private:
-	/// Fill one morph chunk through a sync windower, restarting at each crossover. Returns the audible
-	/// phase after the chunk.
-	[[gnu::always_inline]] uint32_t renderSyncedChunk(const CycleChunk& chunk, uint32_t phase, uint32_t phase_increment,
-	                                                  uint32_t resetter_phase, uint32_t resetter_increment,
-	                                                  const int16_t* kernel) {
-		SyncWindower windower{chunk.output, Resetter{resetter_phase, resetter_increment}, phase, phase_increment,
-		                      retrigger_phase_};
-		while (std::optional<SyncWindower::Window> window = windower.next()) {
-			// Morph by output position: the same value the legacy per-crossover callback built up.
-			uint32_t cross_cycle_blend =
-			    chunk.cross_cycle_blend
-			    + static_cast<uint32_t>(chunk.cross_cycle_blend_increment) * static_cast<uint32_t>(window->offset);
-			render_wavetable_cycle(window->output, chunk.first_cycle, *chunk.band, window->phasor, cross_cycle_blend,
-			                       chunk.cross_cycle_blend_increment, kernel);
-		}
-		return windower.phase();
-	}
-
 	WaveTableData table_;
 	Phasor phasor_;
 	Resetter resetter_;
