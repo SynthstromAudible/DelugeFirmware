@@ -19,7 +19,7 @@
 // source), run on x86 (SIMDe) and ARM/QEMU via CTest.
 
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/synced_phasor.h"
+#include "dsp-next/fixed/sync/synced_phasor.h"
 #include <cppspec.hpp>
 #include <cstdint>
 

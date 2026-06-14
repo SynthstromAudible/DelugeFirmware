@@ -4,8 +4,8 @@
  * This file is part of The Synthstrom Audible Deluge Firmware. (GPLv3+, see LICENSE.)
  */
 // clang-format off
-#include "dsp-next/fixed/triangle.h"
-#include "dsp-next/fixed/band_limited_table.h"
+#include "dsp-next/fixed/bandlimited/triangle.h"
+#include "dsp-next/fixed/bandlimited/band_limited_table.h"
 #include <cstdint>
 
 namespace deluge::dsp::fixed {

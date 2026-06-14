@@ -19,7 +19,7 @@
 // via CTest (every assertion is therefore an x86-vs-NEON cross-check). Bit-exact equivalence
 // with the legacy waveRenderingFunctionPulse on the real square tables is the golden's job.
 
-#include "dsp-next/fixed/pulse_oscillator.h"
+#include "dsp-next/fixed/osc/pulse_oscillator.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>

@@ -18,7 +18,7 @@
 #include "model/voice/voice.h"
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/sine.h"
+#include "dsp-next/fixed/osc/sine.h"
 #include "dsp/dx/engine.h"
 #include "dsp/filter/filter_set.h"
 #include "dsp/timestretch/time_stretcher.h"

@@ -20,8 +20,8 @@
 // table and a TableOscillator as the wrapped generator; bit-exact equivalence with the legacy
 // renderOscSync on the real band-limited tables is the golden harness's job.
 
-#include "dsp-next/fixed/synced_oscillator.h"
-#include "dsp-next/fixed/table_oscillator.h"
+#include "dsp-next/fixed/osc/table_oscillator.h"
+#include "dsp-next/fixed/sync/synced_oscillator.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>

@@ -18,7 +18,7 @@
 
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/sync_windower.h" // Resetter, SyncWindower
+#include "dsp-next/fixed/sync/sync_windower.h" // Resetter, SyncWindower
 #include <cstddef>
 #include <cstdint>
 #include <optional>

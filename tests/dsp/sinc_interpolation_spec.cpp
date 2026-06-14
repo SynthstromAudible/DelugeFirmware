@@ -21,7 +21,7 @@
 // on both x86 (SIMDe) and ARM/QEMU. (The raw-NEON reference here is the verbatim apply from the
 // legacy WaveTable::doRenderingLoop.)
 
-#include "dsp-next/fixed/sinc_interpolation.h"
+#include "dsp-next/fixed/interpolation/sinc_interpolation.h"
 #include <arm_neon.h>
 #include <array>
 #include <cppspec.hpp>

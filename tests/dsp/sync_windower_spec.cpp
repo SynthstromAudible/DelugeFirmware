@@ -20,7 +20,7 @@
 // payoff of making it an object): bit-exact equivalence with the legacy renderOscSync on real waves
 // is the golden harness's job; here we pin the structural invariants. Dual-arch (x86 SIMDe + ARM).
 
-#include "dsp-next/fixed/sync_windower.h"
+#include "dsp-next/fixed/sync/sync_windower.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>

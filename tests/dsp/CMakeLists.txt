@@ -38,14 +38,14 @@ FetchContent_MakeAvailable(argon)
 # Each spec -> the dsp-next source(s) it exercises (compiled into the spec executable;
 # dsp-next is header-light, so building the few sources directly is simpler than
 # pulling in the whole library target here).
-set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/sine.cpp)
+set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/osc/sine.cpp)
 # SyncedOscillator + SyncWindower seam crossfades call getSine(), which reads the sineWaveSmall LUT.
 set(synced_oscillator_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 set(sync_windower_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
-set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/windowed_sinc_kernel.cpp)
+set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().
-set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/windowed_sinc_kernel.cpp)
+set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 
 file(GLOB _specs ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)

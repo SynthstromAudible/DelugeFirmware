@@ -17,8 +17,8 @@
 
 // clang-format off
 
-#include "dsp-next/fixed/analog_saw.h"
-#include "dsp-next/fixed/band_limited_table.h"
+#include "dsp-next/fixed/bandlimited/analog_saw.h"
+#include "dsp-next/fixed/bandlimited/band_limited_table.h"
 #include <cstdint>
 
 namespace deluge::dsp::fixed {

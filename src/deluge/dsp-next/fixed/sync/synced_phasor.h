@@ -17,8 +17,8 @@
 #pragma once
 
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/resetter.h" // resetter_reciprocal
-#include "util/fixedpoint.h"         // multiply_32x32_rshift32
+#include "dsp-next/fixed/sync/resetter.h" // resetter_reciprocal
+#include "util/fixedpoint.h"              // multiply_32x32_rshift32
 #include <cstdint>
 
 namespace deluge::dsp::fixed {

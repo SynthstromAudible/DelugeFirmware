@@ -24,7 +24,7 @@
 // these assertions an exact regression guard — notably for the argon-gather index
 // scaling that the FM/pulse OOB bugs came from.
 
-#include "dsp-next/fixed/sine.h"
+#include "dsp-next/fixed/osc/sine.h"
 #include <arm_neon.h> // int32x4_t, vld1q_u32, vgetq_lane_s32 (SIMDe shim on host)
 #include <cppspec.hpp>
 #include <cstdint>

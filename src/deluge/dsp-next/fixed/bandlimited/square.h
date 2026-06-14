@@ -16,12 +16,12 @@
  */
 #pragma once
 
-#include "dsp-next/fixed/band_limited_table.h"
+#include "dsp-next/fixed/bandlimited/band_limited_table.h"
 
 namespace deluge::dsp::fixed {
 
-/// @brief The band-limited triangle wave kernel: its six anti-aliasing bands (its own pitch
-/// ladder, distinct from the standard getTableNumber ladder), owning their LUTs.
-[[nodiscard]] const BandlimitedTable& triangle_bandlimited_table();
+/// @brief The band-limited square wave kernel (also the band for the perfect-pulse ring-mod):
+/// its anti-aliased square bands, owning their LUTs and exposing only the band set.
+[[nodiscard]] const BandlimitedTable& square_bandlimited_table();
 
 } // namespace deluge::dsp::fixed

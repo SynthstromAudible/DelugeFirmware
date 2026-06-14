@@ -20,10 +20,10 @@
 // loops on real presets is the golden harness's job; here we pin the per-sample kernels.
 
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/crude_amplitude.h"
-#include "dsp-next/fixed/crude_oscillators.h"
-#include "dsp-next/fixed/waves.h" // square, triangle
-#include "util/fixedpoint.h"      // multiply_accumulate_32x32_rshift32_rounded
+#include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
+#include "dsp-next/fixed/osc/crude_oscillators.h"
+#include "dsp-next/fixed/vca/crude_amplitude.h"
+#include "util/fixedpoint.h" // multiply_accumulate_32x32_rshift32_rounded
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>

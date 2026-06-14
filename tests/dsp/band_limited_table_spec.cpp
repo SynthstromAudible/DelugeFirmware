@@ -19,7 +19,7 @@
 // pick that replaced the legacy getTableNumber-indexed lookup. Run on x86 (SIMDe) and ARM/QEMU
 // via CTest. Pure index logic (no SIMD), but kept dual-arch for parity with the other specs.
 
-#include "dsp-next/fixed/band_limited_table.h"
+#include "dsp-next/fixed/bandlimited/band_limited_table.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>

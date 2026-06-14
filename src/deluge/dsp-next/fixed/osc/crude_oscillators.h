@@ -17,7 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/generator.h"
-#include "dsp-next/fixed/waves.h" // square, triangle
+#include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
 #include <cstdint>
 
 namespace deluge::dsp::fixed {

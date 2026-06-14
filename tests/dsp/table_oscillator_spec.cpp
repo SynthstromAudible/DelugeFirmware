@@ -20,7 +20,7 @@
 // controlled synthetic tables; bit-exact equivalence with the legacy
 // waveRenderingFunctionGeneral on the real band-limited tables is the golden harness's job.
 
-#include "dsp-next/fixed/table_oscillator.h"
+#include "dsp-next/fixed/osc/table_oscillator.h"
 #include <arm_neon.h>
 #include <array>
 #include <cppspec.hpp>

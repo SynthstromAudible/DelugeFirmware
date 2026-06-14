@@ -20,7 +20,7 @@
 // x86-vs-NEON cross-check. (Bit-exact equivalence with the legacy
 // applyAmplitudeVectorToBuffer is covered separately by the golden harness.)
 
-#include "dsp-next/fixed/amplitude.h"
+#include "dsp-next/fixed/vca/amplitude.h"
 #include <arm_neon.h>
 #include <cppspec.hpp>
 #include <cstdint>

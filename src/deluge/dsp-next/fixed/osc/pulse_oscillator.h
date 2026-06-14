@@ -18,7 +18,7 @@
 
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/table.h"
+#include "dsp-next/fixed/bandlimited/table.h"
 #include "util/misc.h" // util::constexpr_for
 #include <argon.hpp>
 #include <cstdint>

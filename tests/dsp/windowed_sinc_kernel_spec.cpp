@@ -22,7 +22,7 @@
 // sample/ golden fixtures (and were byte-verified against the legacy table before the two copies
 // were unified). Run on x86 (SIMDe) and ARM/QEMU via CTest — pure index logic, dual-arch for parity.
 
-#include "dsp-next/fixed/windowed_sinc_kernel.h"
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include <cppspec.hpp>
 #include <cstdint>
 

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "dsp-next/fixed/windowed_sinc_kernel.h"
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include <cstdint>
 
 namespace deluge::dsp::fixed {

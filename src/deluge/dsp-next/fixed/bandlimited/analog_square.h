@@ -16,13 +16,12 @@
  */
 #pragma once
 
-#include "dsp-next/fixed/band_limited_table.h"
+#include "dsp-next/fixed/bandlimited/band_limited_table.h"
 
 namespace deluge::dsp::fixed {
 
-/// @brief The band-limited sawtooth wave kernel: its anti-aliased bands (the harmonic-limited
-/// saw tables, one per pitch range above the crude region), owning their own LUTs and exposing
-/// only the band set. Pair with a @ref BandLimitedTableOscillator.
-[[nodiscard]] const BandlimitedTable& saw_bandlimited_table();
+/// @brief The band-limited "analog" square kernel: 20 anti-aliased bands (sounds distinct enough
+/// from the digital square that it never falls back to crude), owning their LUTs.
+[[nodiscard]] const BandlimitedTable& analog_square_bandlimited_table();
 
 } // namespace deluge::dsp::fixed

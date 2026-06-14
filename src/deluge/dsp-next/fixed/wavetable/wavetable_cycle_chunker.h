@@ -19,10 +19,10 @@
 #include "definitions_cxx.hpp" // kInterpolationMaxNumSamples(Magnitude)
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/sinc_interpolation.h" // windowed_sinc_apply, SincWindow
-#include "dsp-next/fixed/wave_table_data.h"
-#include "dsp-next/fixed/windowed_sinc_kernel.h" // windowed_sinc_kernel
-#include "util/fixedpoint.h"                     // multiply_32x32_rshift32(_accumulate)_rounded
+#include "dsp-next/fixed/interpolation/sinc_interpolation.h"   // windowed_sinc_apply, SincWindow
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h" // windowed_sinc_kernel
+#include "dsp-next/fixed/wavetable/wave_table_data.h"
+#include "util/fixedpoint.h" // multiply_32x32_rshift32(_accumulate)_rounded
 #include <argon.hpp>
 #include <cstddef>
 #include <cstdint>

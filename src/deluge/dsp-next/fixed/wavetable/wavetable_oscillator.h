@@ -18,8 +18,8 @@
 
 #include "dsp-next/core/generator.h" // BlockGenerator, Buffer, q31
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/wave_table_data.h"
-#include "dsp-next/fixed/wavetable_cycle_chunker.h"
+#include "dsp-next/fixed/wavetable/wave_table_data.h"
+#include "dsp-next/fixed/wavetable/wavetable_cycle_chunker.h"
 #include <cstdint>
 #include <optional>
 

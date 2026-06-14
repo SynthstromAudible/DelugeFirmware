@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/fixed/band_limited_table.h"
+#include "dsp-next/fixed/bandlimited/band_limited_table.h"
 
 namespace deluge::dsp::fixed {
 

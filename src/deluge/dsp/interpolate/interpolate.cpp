@@ -1,8 +1,8 @@
 #include "interpolate.h"
 #include "definitions_cxx.hpp"
 #include "deluge/dsp/stereo_sample.h"
-#include "dsp-next/fixed/sinc_interpolation.h"   // SincWindow, blend_sinc_kernel, windowed_sinc_dot
-#include "dsp-next/fixed/windowed_sinc_kernel.h" // windowed_sinc_kernel
+#include "dsp-next/fixed/interpolation/sinc_interpolation.h"   // SincWindow, blend_sinc_kernel, windowed_sinc_dot
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h" // windowed_sinc_kernel
 #include <argon.hpp>
 #include <cstdint>
 #include <limits>

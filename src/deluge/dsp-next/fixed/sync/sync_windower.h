@@ -18,9 +18,9 @@
 
 #include "dsp-next/core/generator.h" // Buffer, q31
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/resetter.h" // resetter_reciprocal
-#include "util/fixedpoint.h"         // multiply_32x32_rshift32
-#include "util/waves.h"              // getSine
+#include "dsp-next/fixed/sync/resetter.h" // resetter_reciprocal
+#include "util/fixedpoint.h"              // multiply_32x32_rshift32
+#include "util/waves.h"                   // getSine
 #include <cstddef>
 #include <cstdint>
 #include <optional>

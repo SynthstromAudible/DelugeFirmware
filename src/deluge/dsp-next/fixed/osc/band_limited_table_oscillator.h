@@ -17,8 +17,8 @@
 #pragma once
 
 #include "dsp-next/core/generator.h"
-#include "dsp-next/fixed/band_limited_table.h"
-#include "dsp-next/fixed/table_oscillator.h"
+#include "dsp-next/fixed/bandlimited/band_limited_table.h"
+#include "dsp-next/fixed/osc/table_oscillator.h"
 #include <argon.hpp>
 #include <cstdint>
 

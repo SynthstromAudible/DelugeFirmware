@@ -20,7 +20,7 @@
 // asserting the chunk tiling + cycle walk in isolation; the per-sample sinc render is golden-covered.
 // Dual-arch (x86 SIMDe + ARM/QEMU) via CTest — pure index logic, kept dual-arch for parity.
 
-#include "dsp-next/fixed/wavetable_cycle_chunker.h"
+#include "dsp-next/fixed/wavetable/wavetable_cycle_chunker.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>

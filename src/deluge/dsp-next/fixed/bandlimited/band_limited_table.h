@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/fixed/table.h"
+#include "dsp-next/fixed/bandlimited/table.h"
 #include <cstdint>
 #include <span>
 #include <utility>
