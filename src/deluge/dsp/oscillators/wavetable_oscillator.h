@@ -18,7 +18,6 @@
 
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/resetter.h" // resetter_reciprocal
 #include "storage/wave_table/wave_table.h"
 #include <cstdint>
 
@@ -57,9 +56,8 @@ public:
 
 	void renderBlock(fixed::Buffer output) override {
 		phasor_.seek(table_->render(output.data(), static_cast<int32_t>(output.size()), phasor_.increment(),
-		                            phasor_.phase(), sync_, resetter_.phase(), resetter_.increment(),
-		                            fixed::resetter_reciprocal(resetter_.increment()), retrigger_phase_, wave_index_,
-		                            wave_index_increment_));
+		                            phasor_.phase(), sync_, resetter_.phase(), resetter_.increment(), retrigger_phase_,
+		                            wave_index_, wave_index_increment_));
 	}
 };
 

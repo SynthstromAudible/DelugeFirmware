@@ -860,8 +860,8 @@ transformBandToTimeDomain:
 // waveIndex comes in as a 31-bit number
 uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, uint32_t phaseIncrement,
                            uint32_t phase, bool doOscSync, uint32_t resetterPhaseThisCycle,
-                           uint32_t resetterPhaseIncrement, int32_t resetterDivideByPhaseIncrement,
-                           uint32_t retriggerPhase, int32_t waveIndex, int32_t waveIndexIncrement) {
+                           uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
+                           int32_t waveIndexIncrement) {
 
 	// The non-sync render is now the clean dsp-next WavetableOscillator over our view; only the
 	// hard-sync path still runs the legacy code below (relocated to a sync oscillator in W-d2).
