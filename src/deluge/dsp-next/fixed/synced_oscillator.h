@@ -18,9 +18,10 @@
 
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/sync_windower.h" // Resetter, for_each_sync_window
+#include "dsp-next/fixed/sync_windower.h" // Resetter, SyncWindower
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 namespace deluge::dsp::fixed {
 
@@ -35,15 +36,15 @@ namespace deluge::dsp::fixed {
 /// The node owns the wrapped oscillator, the resetter, and the audible phase; it is itself a
 /// @ref BlockGenerator, so it composes into the oscillator registry / signal chains like any
 /// other generator. renderBlock() is overridden rather than synthesised from a per-lane
-/// render(), because sync windows are irregular and inherently block-level. It delegates the
-/// window split + seam crossfade to the shared @ref for_each_sync_window and, for each window,
+/// render(), because sync windows are irregular and inherently block-level. It composes a shared
+/// @ref SyncWindower (which owns the window split + seam crossfade) and, for each window it yields,
 /// just restarts the wrapped oscillator at the window's phase (it carries no position-indexed
 /// state, so the window offset is ignored).
 ///
 /// This is the cleaned, exact replacement for the legacy `renderOscSync` plus its
 /// 4-sample-overshoot `storageFunction` callback (the windowing/crossfade arithmetic, now in
-/// @ref for_each_sync_window, is transcribed verbatim → bit-identical; the only change is each
-/// window is filled to its precise length instead of overshooting into a padded scratch buffer).
+/// @ref SyncWindower, is transcribed verbatim → bit-identical; the only change is each window is
+/// filled to its precise length instead of overshooting into a padded scratch buffer).
 template <typename Osc>
 class [[gnu::hot]] SyncedOscillator : public BlockGenerator<q31> {
 	Osc oscillator_;
@@ -64,12 +65,13 @@ public:
 	void renderBlock(Buffer output) override {
 		// Each sync window is just the wrapped oscillator restarted at the window's phase; the
 		// shared windower owns the split + seam crossfade. The wrapped oscillator carries no
-		// position-indexed state, so the output offset is ignored.
-		phase_ = for_each_sync_window(output, resetter_, phase_, phase_increment_, retrigger_phase_,
-		                              [this](q31* window, int32_t length, uint32_t phase, int32_t /*output_offset*/) {
-			                              oscillator_.seek(phase);
-			                              oscillator_.renderBlock(Buffer{window, static_cast<std::size_t>(length)});
-		                              });
+		// position-indexed state, so the window offset is ignored.
+		SyncWindower windower{output, resetter_, phase_, phase_increment_, retrigger_phase_};
+		while (std::optional<SyncWindower::Window> window = windower.next()) {
+			oscillator_.seek(window->phase);
+			oscillator_.renderBlock(Buffer{window->data, static_cast<std::size_t>(window->length)});
+		}
+		phase_ = windower.phase();
 	}
 };
 

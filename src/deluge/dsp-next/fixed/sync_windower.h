@@ -22,6 +22,7 @@
 #include "util/waves.h"              // getSine
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 namespace deluge::dsp::fixed {
 
@@ -33,95 +34,130 @@ struct Resetter {
 	uint32_t phase_increment;
 };
 
-/// @brief Split a render block into hard-sync windows and drive a fill for each, blending seams.
+/// @brief Splits a render block into hard-sync windows, one per master-oscillator cycle.
 ///
-/// Hard sync restarts the audible oscillator at every master-cycle boundary. This walks the block
-/// one window per master cycle, asks the caller to fill each window from the (reset) phase, and
-/// crossfades each restart seam with a half-sine — the shared machinery behind
-/// @ref SyncedOscillator and @ref WavetableSyncOscillator. It is the cleaned, exact arithmetic of
-/// the legacy `renderOscSync` (windows filled to their precise length, no padded overshoot).
+/// Hard sync restarts the audible oscillator at every master-cycle boundary. This is the shared
+/// machinery behind @ref SyncedOscillator and the wavetable sync oscillator: pull a @ref Window at
+/// a time with @ref next, fill it from its phase, and the windower blends each restart seam with a
+/// half-sine. It is the cleaned, exact arithmetic of the legacy `renderOscSync` (windows filled to
+/// their precise length, no padded overshoot), but as an object you iterate rather than a callback.
 ///
-/// Windows overlap by one sample — the crossover sample — which is filled again ("redone") from the
-/// reset phase and then seam-blended into the cycle that preceded it.
-///
-/// @param output the block to fill.
-/// @param resetter the master oscillator's phase + increment at the block start.
-/// @param phase the audible oscillator's starting phase (UQ0.32; pre-increment per sample).
-/// @param phase_increment the audible oscillator's per-sample phase step (UQ0.32).
-/// @param retrigger_phase the phase the audible oscillator restarts from at each crossover.
-/// @param fill invoked once per window as `fill(q31* window, int32_t length, uint32_t phase,
-///        int32_t output_offset)`: fill `[window, window + length)` from @p phase (pre-increment
-///        per sample). @c output_offset is the window's offset from the block start, for fills with
-///        position-indexed state (e.g. the wavetable cross-cycle morph, which advances with output
-///        position and so reuses the same value when the crossover sample is redone).
-/// @returns the audible phase after the block — what the voice stores to continue next block.
-template <typename Fill>
-[[gnu::hot]] uint32_t for_each_sync_window(Buffer output, Resetter resetter, uint32_t phase, uint32_t phase_increment,
-                                           uint32_t retrigger_phase, Fill&& fill) {
-	q31* const block_start = output.data();
-	q31* window = block_start;
-	int32_t samples_remaining = static_cast<int32_t>(output.size());
-	const int32_t resetter_divide = resetter_reciprocal(resetter.phase_increment);
+/// Each window overlaps the next by one sample — the crossover sample — which is filled again
+/// ("redone") from the reset phase and then seam-blended into the cycle before it. Because the
+/// blend reads the *filled* sample, @ref next finalises the window it handed out last call (blend +
+/// resetter bookkeeping) before planning the next, so the loop is simply:
+/// @code
+///   SyncWindower windower{output, resetter, phase, increment, retrigger};
+///   while (std::optional<SyncWindower::Window> w = windower.next()) {
+///       // fill [w->data, w->data + w->length) from w->phase
+///   }
+///   phase = windower.phase();
+/// @endcode
+class SyncWindower {
+public:
+	/// One sync window to fill. @ref offset is the window's start position within the block, for
+	/// fills with position-indexed state (e.g. the wavetable cross-cycle morph, which advances with
+	/// output position and so reuses the same value when the crossover sample is redone).
+	struct Window {
+		q31* data;
+		int32_t length;
+		uint32_t phase; ///< the (reset) phase to fill this window from; pre-increment per sample.
+		int32_t offset;
+	};
 
-	// Whether a crossover has already happened in this block — i.e. whether `window` opens on a
-	// restart seam that must be crossfaded into the cycle that preceded it.
-	bool crossed_over = false;
-	int32_t pre_crossover_sample = 0; // last sample of the previous cycle, kept for the seam blend
-	int32_t seam_fade = 0;            // crossfade position at the seam, full-scale (±1 == ±2^31)
+	/// @param output the block to fill.
+	/// @param resetter the master oscillator's phase + increment at the block start.
+	/// @param phase the audible oscillator's starting phase (UQ0.32; pre-increment per sample).
+	/// @param phase_increment the audible oscillator's per-sample phase step (UQ0.32).
+	/// @param retrigger_phase the phase the audible oscillator restarts from at each crossover.
+	SyncWindower(Buffer output, Resetter resetter, uint32_t phase, uint32_t phase_increment,
+	             uint32_t retrigger_phase)
+	    : block_start_{output.data()}, window_{output.data()},
+	      samples_remaining_{static_cast<int32_t>(output.size())}, resetter_{resetter},
+	      resetter_divide_{resetter_reciprocal(resetter.phase_increment)}, phase_{phase},
+	      phase_increment_{phase_increment}, retrigger_phase_{retrigger_phase} {}
 
-	// Samples from the window start up to *and including* the next crossover sample; the leading 1
-	// accounts for that inclusive crossover sample.
-	uint32_t samples_to_crossover = 1;
-	while (true) {
+	/// The next window to fill, or `nullopt` once the block is done. Finalises the previously
+	/// handed-out window first (blends its seam, advances past the crossover), so call it in a
+	/// `while` loop and fill each window before the next call.
+	[[gnu::hot]] std::optional<Window> next() {
+		if (done_) {
+			return std::nullopt;
+		}
+		if (started_) {
+			// Finalise the window handed out last call (the caller has filled it by now).
+			// Crossfade the restart seam at its *start*, if it opened on a crossover.
+			if (crossed_over_) {
+				int32_t average = (*window_ >> 1) + (pre_crossover_sample_ >> 1);
+				int32_t half_difference = (*window_ >> 1) - (pre_crossover_sample_ >> 1);
+				int32_t sine = getSine(seam_fade_ >> 1);
+				*window_ = average + (multiply_32x32_rshift32(half_difference, sine) << 1);
+			}
+
+			if (!crosses_) {
+				// No crossover in that (final) window: advance the phase to stay valid for the next
+				// block, and finish.
+				phase_ += phase_increment_ * static_cast<uint32_t>(length_);
+				done_ = true;
+				return std::nullopt;
+			}
+
+			// Re-base onto the crossover sample (this window overlaps it by one), and plan the restart.
+			window_ += samples_to_crossover_ - 1;
+			pre_crossover_sample_ = *window_;
+			samples_remaining_ -= static_cast<int32_t>(samples_to_crossover_) - 1;
+
+			// Advance the resetter past the crossover. After the first crossover its phase reads one
+			// sample late, so subtract `crossed_over_` (0 the first time, 1 thereafter).
+			resetter_.phase += resetter_.phase_increment * (samples_to_crossover_ - (crossed_over_ ? 1u : 0u));
+
+			// Resetter overshoot past the boundary → fractional sample position (±0.5 as ±2^14),
+			// scaled to full range; from it derive the restarted audible phase.
+			seam_fade_ = multiply_32x32_rshift32(static_cast<int32_t>(resetter_.phase), resetter_divide_) << 17;
+			phase_ = multiply_32x32_rshift32(seam_fade_, phase_increment_) + retrigger_phase_;
+			phase_ -= phase_increment_; // back up one: we redo the crossover sample as the seam
+
+			crossed_over_ = true;
+			// Bump to 2 now: the resetter phase sits one sample later than "reality", so this window's
+			// inclusive-crossover count starts one higher.
+			samples_to_crossover_ = 2;
+		}
+
+		// Plan the next window: samples from its start up to *and including* the next crossover sample.
 		// How far (in resetter phase) until its next cycle boundary, biased half an increment so the
 		// boundary lands mid-sample; divide by the increment to get it in samples.
-		uint32_t phase_to_crossover = -resetter.phase - (resetter.phase_increment >> 1);
-		samples_to_crossover += (phase_to_crossover - 1) / resetter.phase_increment;
+		uint32_t phase_to_crossover = -resetter_.phase - (resetter_.phase_increment >> 1);
+		samples_to_crossover_ += (phase_to_crossover - 1) / resetter_.phase_increment;
 
-		bool crosses_within_window = (samples_remaining >= static_cast<int32_t>(samples_to_crossover));
-		int32_t window_length =
-		    crosses_within_window ? static_cast<int32_t>(samples_to_crossover) : samples_remaining;
-
-		// Fill this window exactly (clean tail) from the current phase; the caller owns the wave.
-		fill(window, window_length, phase, static_cast<int32_t>(window - block_start));
-
-		// Crossfade the restart seam at the *start* of the window we just filled, if it opened on a
-		// crossover.
-		if (crossed_over) {
-			int32_t average = (*window >> 1) + (pre_crossover_sample >> 1);
-			int32_t half_difference = (*window >> 1) - (pre_crossover_sample >> 1);
-			int32_t sine = getSine(seam_fade >> 1);
-			*window = average + (multiply_32x32_rshift32(half_difference, sine) << 1);
-		}
-
-		if (!crosses_within_window) {
-			// No crossover in this (final) window: don't reset, just advance the phase to stay valid
-			// for the next block, and finish.
-			phase += phase_increment * window_length;
-			return phase;
-		}
-
-		// We hit a crossover at the end of the window. Re-base onto the crossover sample (the next
-		// window overlaps it by one), and plan the restart.
-		window += samples_to_crossover - 1;
-		pre_crossover_sample = *window;
-		samples_remaining -= samples_to_crossover - 1;
-
-		// Advance the resetter past the crossover. After the first crossover its phase reads one
-		// sample late, so subtract `crossed_over` (0 the first time, 1 thereafter).
-		resetter.phase += resetter.phase_increment * (samples_to_crossover - crossed_over);
-
-		// Resetter overshoot past the boundary → fractional sample position (±0.5 as ±2^14), scaled
-		// to full range; from it derive the restarted audible phase.
-		seam_fade = multiply_32x32_rshift32(static_cast<int32_t>(resetter.phase), resetter_divide) << 17;
-		phase = multiply_32x32_rshift32(seam_fade, phase_increment) + retrigger_phase;
-		phase -= phase_increment; // back up one: we redo the crossover sample as the seam
-
-		crossed_over = true;
-		// Bump to 2 now: the resetter phase sits one sample later than "reality", so the next
-		// window's inclusive-crossover count starts one higher.
-		samples_to_crossover = 2;
+		crosses_ = (samples_remaining_ >= static_cast<int32_t>(samples_to_crossover_));
+		length_ = crosses_ ? static_cast<int32_t>(samples_to_crossover_) : samples_remaining_;
+		started_ = true;
+		return Window{window_, length_, phase_, static_cast<int32_t>(window_ - block_start_)};
 	}
-}
+
+	/// The audible phase after the whole block — what the voice stores to continue next block.
+	/// Valid once @ref next has returned `nullopt`.
+	[[nodiscard]] uint32_t phase() const { return phase_; }
+
+private:
+	q31* const block_start_;
+	q31* window_;
+	int32_t samples_remaining_;
+	Resetter resetter_;
+	const int32_t resetter_divide_;
+	uint32_t phase_;
+	uint32_t phase_increment_;
+	uint32_t retrigger_phase_;
+
+	// Per-window state carried from the call that handed a window out to the call that finalises it.
+	bool crossed_over_ = false;       // whether the outstanding window opened on a restart seam
+	int32_t pre_crossover_sample_ = 0; // last sample of the previous cycle, for the seam blend
+	int32_t seam_fade_ = 0;            // crossfade position at the seam, full-scale (±1 == ±2^31)
+	uint32_t samples_to_crossover_ = 1; // samples up to and including the next crossover (leading 1 = it)
+	int32_t length_ = 0;               // the outstanding window's length
+	bool crosses_ = false;             // whether the outstanding window ends on a crossover
+	bool started_ = false;             // whether a window has been handed out yet
+	bool done_ = false;
+};
 
 } // namespace deluge::dsp::fixed
