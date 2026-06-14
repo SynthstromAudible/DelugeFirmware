@@ -19,8 +19,6 @@
 #include "NE10.h"
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/sinc_kernel.h"
-#include "dsp-next/fixed/wavetable_cycle.h"
 #include "dsp-next/fixed/wavetable_oscillator.h"
 #include "dsp-next/fixed/wavetable_sync_oscillator.h"
 #include "dsp/fft/fft_config_manager.h"

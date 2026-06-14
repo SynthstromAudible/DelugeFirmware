@@ -16,17 +16,61 @@
  */
 #pragma once
 
-#include "dsp-next/core/generator.h" // Buffer, q31
+#include "definitions_cxx.hpp" // kInterpolationMaxNumSamples(Magnitude)
+#include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/sinc_kernel.h"
+#include "dsp-next/fixed/sinc_interpolation.h" // windowed_sinc_apply, SincWindow
+#include "dsp-next/fixed/sinc_kernel.h"        // select_sinc_kernel
 #include "dsp-next/fixed/wave_table_data.h"
-#include "dsp-next/fixed/wavetable_cycle.h"
-#include "util/fixedpoint.h" // multiply_32x32_rshift32_rounded
+#include "util/fixedpoint.h" // multiply_32x32_rshift32(_accumulate)_rounded
+#include <argon.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 
 namespace deluge::dsp::fixed {
+
+/// Duplicate samples appended to the end of each stored cycle, so the interpolation window's
+/// rightmost loads can read past the wrap without a second masked load (legacy
+/// WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE).
+inline constexpr int32_t kWavetableDuplicateSamplesAtCycleEnd = 7;
+
+namespace wavetable_detail {
+// The windowed-sinc table has 2^kSincKernelRowBits sub-sample rows; the phase fraction selects the
+// row to read (@ref sinc_kernel_row) and the Q15 blend toward the next row (@ref sinc_row_blend).
+constexpr int32_t kSincKernelRowBits = 8; // legacy numBitsInWindowedSyncTableSize
+constexpr int32_t kSincRowBlendShift =
+    (32 + kInterpolationMaxNumSamplesMagnitude) - 16 - kSincKernelRowBits + 1; // legacy rshiftAmount
+
+/// The @ref kInterpolationMaxNumSamples sample window centred on @p phase within a cycle of
+/// 2^magnitude samples, wrapping at the cycle edge.
+[[gnu::always_inline]] inline SincWindow load_window(const int16_t* __restrict__ table, uint32_t phase,
+                                                     int32_t magnitude) {
+	SincWindow window;
+	int32_t centre = phase >> (32 - magnitude);
+	uint32_t index = centre - (kInterpolationMaxNumSamples >> 1);
+	for (std::size_t i = 0; i < kSincWindowVectors; ++i) {
+		index &= (1 << magnitude) - 1;
+		window[i] = Argon<int16_t>::Load(&table[index]);
+		index += Argon<int16_t>::lanes;
+	}
+	return window;
+}
+
+/// The Q15 blend toward the next kernel row (the sub-sample position), for @p phase at this magnitude.
+[[gnu::always_inline]] inline int16_t sinc_row_blend(uint32_t phase, int32_t magnitude) {
+	return (static_cast<uint32_t>(-phase) >> (kSincRowBlendShift - magnitude)) & 32767;
+}
+
+/// The first of the two kernel rows to blend, for @p phase, offset into @p kernel.
+[[gnu::always_inline]] inline const int16_t* sinc_kernel_row(const int16_t* kernel, uint32_t phase, int32_t magnitude) {
+	// The -5 is for 32 bytes (16 int16 samples) per row of the windowed-sinc table.
+	int32_t offset_bytes = static_cast<uint32_t>(-phase)
+	                       >> (32 + kInterpolationMaxNumSamplesMagnitude - kSincKernelRowBits - 5 - magnitude);
+	offset_bytes &= 0b111100000;
+	return reinterpret_cast<const int16_t*>(reinterpret_cast<uintptr_t>(kernel) + offset_bytes);
+}
+} // namespace wavetable_detail
 
 /// @brief One renderable chunk of a wavetable — knows how to render itself.
 ///
@@ -44,19 +88,45 @@ struct CycleChunk {
 	const int16_t* kernel;               ///< the windowed-sinc kernel for this chunk's band + pitch.
 	bool single_cycle;
 
-	/// Render @p output_window from @p phasor. @p offset is the window's position within the chunk
-	/// (0 for the whole chunk), which positions the cross-cycle blend so a redone sync-crossover
-	/// sample reuses the same blend. Caller must have checked @ref band is non-null.
+	/// Render @p output_window from @p phasor (per sample: window the band's cycle(s) through the
+	/// sinc @ref kernel). @p offset is the window's position within the chunk (0 for the whole chunk),
+	/// which positions the cross-cycle blend so a redone sync-crossover sample reuses the same blend.
+	/// Caller must have checked @ref band is non-null.
 	[[gnu::always_inline]] void render(Buffer output_window, Phasor phasor, int32_t offset) const {
+		using namespace wavetable_detail;
+		int32_t* __restrict__ sample = output_window.data();
+		int32_t const* const end = sample + output_window.size();
+		uint32_t phase = phasor.phase();
+		uint32_t phase_increment = phasor.increment();
+		int32_t magnitude = band->cycleSizeMagnitude;
+
 		if (single_cycle) {
-			render_wavetable_single_cycle(output_window, *band, phasor, kernel);
+			const int16_t* __restrict__ cycle = band->dataAccessAddress;
+			do {
+				phase += phase_increment;
+				*sample = windowed_sinc_apply(sinc_kernel_row(kernel, phase, magnitude),
+				                              sinc_row_blend(phase, magnitude), load_window(cycle, phase, magnitude));
+			} while (++sample != end);
+			return;
 		}
-		else {
-			uint32_t blend =
-			    cross_cycle_blend + static_cast<uint32_t>(cross_cycle_blend_increment) * static_cast<uint32_t>(offset);
-			render_wavetable_cycle(output_window, first_cycle, *band, phasor, blend, cross_cycle_blend_increment,
-			                       kernel);
-		}
+
+		// Morphing: window each of the two adjacent cycles, then linearly cross-blend by the morph.
+		int32_t cycle_stride = band->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd;
+		const int16_t* __restrict__ cycle1 = &band->dataAccessAddress[first_cycle * cycle_stride];
+		const int16_t* __restrict__ cycle2 = cycle1 + cycle_stride;
+		uint32_t blend =
+		    cross_cycle_blend + static_cast<uint32_t>(cross_cycle_blend_increment) * static_cast<uint32_t>(offset);
+		do {
+			phase += phase_increment;
+			const int16_t* kernel_row = sinc_kernel_row(kernel, phase, magnitude);
+			int16_t row_blend = sinc_row_blend(phase, magnitude);
+			int32_t value1 = windowed_sinc_apply(kernel_row, row_blend, load_window(cycle1, phase, magnitude));
+			int32_t value2 = windowed_sinc_apply(kernel_row, row_blend, load_window(cycle2, phase, magnitude));
+			int32_t difference = value2 - value1;
+			// value1 is taken a magnitude smaller, because the multiply below shrinks `difference` by one.
+			*sample = multiply_accumulate_32x32_rshift32_rounded(value1 >> 1, difference, blend >> 1);
+			blend += cross_cycle_blend_increment;
+		} while (++sample != end);
 	}
 };
 
@@ -93,8 +163,7 @@ public:
 
 		// A single-cycle wavetable is one chunk over the band picked for this pitch.
 		if (table_->num_cycles() <= 1) {
-			CycleChunk chunk{take(samples_remaining_), 0, band_, 0, 0, kernel_for(band_), /*single_cycle=*/true};
-			return chunk;
+			return CycleChunk{take(samples_remaining_), 0, band_, 0, 0, kernel_for(band_), /*single_cycle=*/true};
 		}
 
 		int32_t cycle_shift = kWaveIndexScaledInputBits - table_->num_cycle_transitions_magnitude();
