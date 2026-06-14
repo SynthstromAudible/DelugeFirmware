@@ -350,7 +350,11 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 - `Midi Learned Note Input for the Whole Kit` now persists between Kit preset changes.
 - Fixed unexpected behaviour for `Synth` and `Kit` clips that would cause `MIDI LEARNED PARAMS` to get lost when changing presets for Synth / Kits.
   - Note: for `Kit` clips it will migrate midi learn for `Kit Affect Entire` params only.
-- Added new learnable global command `LOAD NEXT SONG`, which when received while playing, it will queue to load the next song within the folder of the current song.
+- Added new learnable global commands:
+  - `LOAD NEXT SONG`, which when received while playing, it will queue to load the next song within the folder of the current song.
+  - `SHIFT` to toggle the deluge's `SHIFT` button. It can also be used to toggle sticky shift.
+    - Shift down: Note On or CC Value > 0
+    - Shift up: Note Off or CC Value = 0
 
 ### SD CARD
 
