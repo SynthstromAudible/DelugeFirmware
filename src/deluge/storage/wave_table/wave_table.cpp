@@ -81,6 +81,18 @@ void WaveTable::deleteAllBandsAndData() {
 	bands.clear(); // Destructors release each band's data
 }
 
+deluge::dsp::fixed::WaveTableData WaveTable::view() {
+	int32_t numBands = static_cast<int32_t>(bands.size());
+	return {
+	    numCycles,
+	    numCycleTransitionsNextPowerOf2Magnitude,
+	    waveIndexMultiplier,
+	    numBands ? bands.data() : nullptr,
+	    sizeof(WaveTableBand),
+	    numBands,
+	};
+}
+
 void WaveTable::bandDataBeingStolen(WaveTableBandData* bandData) {
 	auto it = std::ranges::find(bands, bandData, &WaveTableBand::data);
 	if (it != bands.end()) {
