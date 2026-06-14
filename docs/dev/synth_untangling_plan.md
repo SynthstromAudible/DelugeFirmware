@@ -1,6 +1,12 @@
 # Synth Engine Untangling — Audit, Target Architecture, and Plan
 
-Status: **architecture decided; Phase 0 (golden masters) complete** (updated 2026-06-13). Phases 1–5 not yet started.
+Status: **architecture decided; Phase 0 (golden masters) + Phase 1 (`dsp-next` L0
+library — full oscillator migration, wavetable storage port, sample/wavetable
+interpolator unification) complete; Phase 2 in planning** (updated 2026-06-14).
+Phase 1 detail lives in `dsp_next_component_architecture.md`; the original
+Phase-2 framing ("kill the offsetof data plane") was substantially resolved by
+PR #3366 and is re-scoped to a decoupling/extraction phase in
+`synth_phase2_data_plane.md`. Phases 3–5 not yet started.
 
 Goal: extract the synthesizer/oscillator/DSP machinery into a clean, modern,
 portable, and *testable* library (`libdeluge-synth`), structured so that:
