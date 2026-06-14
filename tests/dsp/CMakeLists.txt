@@ -46,6 +46,8 @@ set(sync_windower_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptab
 set(sinc_kernel_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/sinc_kernel.cpp
   ${_repo_root}/src/deluge/dsp/interpolate/interpolate.cpp)
+# The chunker caches each chunk's sinc kernel via select_sinc_kernel.
+set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/sinc_kernel.cpp)
 
 file(GLOB _specs ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)
