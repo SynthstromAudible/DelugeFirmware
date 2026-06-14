@@ -489,9 +489,9 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 
 	for (const auto& voice : this->voices()) {
 		if ((voice->noteCodeAfterArpeggiation == noteCode)
-		    && voice->envelopes[0].state < EnvelopeStage::RELEASE) { // Ignore releasing notes. Is this right?
+		    && voice->envelopes[0].stage() < Envelope::Stage::RELEASE) { // Ignore releasing notes. Is this right?
 			if (resetTimeEntered) {
-				voice->envelopes[0].resetTimeEntered();
+				voice->resetEnvelope0TimeEntered();
 			}
 			return true;
 		}

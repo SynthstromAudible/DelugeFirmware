@@ -49,7 +49,7 @@ bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 void SoundDrum::resetTimeEnteredState() {
 	// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
 	for (const ActiveVoice& voice : this->voices()) {
-		voice->envelopes[0].resetTimeEntered();
+		voice->resetEnvelope0TimeEntered();
 	}
 }
 

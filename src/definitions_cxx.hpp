@@ -275,16 +275,8 @@ constexpr int32_t kMaxNumNoteOnsPending = 64;
 constexpr int32_t kNumUnsignedIntegersToRepPatchCables = 1;
 constexpr int32_t kMaxNumPatchCables = (kNumUnsignedIntegersToRepPatchCables * 32);
 
-enum class EnvelopeStage : uint8_t {
-	ATTACK,
-	HOLD,
-	DECAY,
-	SUSTAIN,
-	RELEASE,
-	FAST_RELEASE,
-	OFF,
-};
-constexpr int32_t kNumEnvelopeStages = util::to_underlying(EnvelopeStage::OFF) + 1;
+// The envelope stage enum now lives inside the Envelope class (Envelope::Stage), as it is owned by
+// that component; see modulation/envelope.h.
 
 enum class VoicePriority : uint8_t {
 	LOW,

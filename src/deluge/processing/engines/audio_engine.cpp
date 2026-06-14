@@ -324,8 +324,8 @@ void terminateOneVoice(size_t numSamples) {
 	const Sound::ActiveVoice* best = &all_voices.front();
 	for (const auto& voice : all_voices | std::views::drop(1)) {
 		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
+		if (voice->envelopes[0].stage() >= Envelope::Stage::FAST_RELEASE
+		    && voice->envelopes[0].fastReleaseRate() >= SOFT_CULL_INCREMENT) {
 			continue;
 		}
 		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
@@ -351,7 +351,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 	const Sound::ActiveVoice* best = &all_voices.front();
 	for (const auto& voice : all_voices | std::views::drop(1)) {
 		// if a voice is already fast releasing just speed it up
-		if (voice->envelopes[0].state == EnvelopeStage::FAST_RELEASE) {
+		if (voice->envelopes[0].stage() == Envelope::Stage::FAST_RELEASE) {
 			voice->speedUpRelease();
 			return;
 		}
@@ -360,8 +360,8 @@ void forceReleaseOneVoice(size_t num_samples) {
 
 	const Sound::ActiveVoice& voice = *best;
 
-	auto stage = voice->envelopes[0].state;
-	if (stage < EnvelopeStage::FAST_RELEASE) {
+	auto stage = voice->envelopes[0].stage();
+	if (stage < Envelope::Stage::FAST_RELEASE) {
 		D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
 		          getNumVoices(), getNumAudio());
 	}

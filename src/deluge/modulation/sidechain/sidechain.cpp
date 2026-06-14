@@ -23,7 +23,7 @@
 #include "util/lookuptables/lookuptables.h"
 
 SideChain::SideChain() {
-	status = EnvelopeStage::OFF;
+	status = Envelope::Stage::OFF;
 	lastValue = 2147483647;
 	pos = 0;
 	attack = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_SIDECHAIN_ATTACK), 7);
@@ -70,7 +70,7 @@ void SideChain::registerHitRetrospectively(int32_t strength, uint32_t numSamples
 	// If we're still in the attack stage...
 	if (numSamplesAgo < attackStageLengthInSamples) {
 		pos = numSamplesAgo * alteredAttack;
-		status = EnvelopeStage::ATTACK;
+		status = Envelope::Stage::ATTACK;
 	}
 
 	// Or if past attack stage...
@@ -82,12 +82,12 @@ void SideChain::registerHitRetrospectively(int32_t strength, uint32_t numSamples
 		// If we're still in the release stage...
 		if (numSamplesSinceRelease < releaseStageLengthInSamples) {
 			pos = numSamplesSinceRelease * alteredRelease;
-			status = EnvelopeStage::RELEASE;
+			status = Envelope::Stage::RELEASE;
 		}
 
 		// Or if we're past the release stage...
 		else {
-			status = EnvelopeStage::OFF;
+			status = Envelope::Stage::OFF;
 		}
 	}
 }
@@ -141,19 +141,19 @@ int32_t SideChain::render(uint16_t numSamples, int32_t shapeValue) {
 				goto prepareForRelease;
 			}
 
-			status = EnvelopeStage::ATTACK;
+			status = Envelope::Stage::ATTACK;
 			envelopeHeight = lastValue - envelopeOffset;
 			pos = 0;
 		}
 	}
 
-	if (status == EnvelopeStage::ATTACK) {
+	if (status == Envelope::Stage::ATTACK) {
 		pos += numSamples * getActualAttackRate();
 
 		if (pos >= 8388608) {
 prepareForRelease:
 			pos = 0;
-			status = EnvelopeStage::RELEASE;
+			status = Envelope::Stage::RELEASE;
 			envelopeHeight = ONE_Q31 - envelopeOffset;
 			goto doRelease;
 		}
@@ -169,12 +169,12 @@ prepareForRelease:
 		// 2147483647 - pos * (pos >> 15)) << 1) + envelopeOffset; // Parabola. Not bad, but doesn't quite have
 		// punchiness
 	}
-	else if (status == EnvelopeStage::RELEASE) {
+	else if (status == Envelope::Stage::RELEASE) {
 doRelease:
 		pos += numSamples * getActualReleaseRate();
 
 		if (pos >= 8388608) {
-			status = EnvelopeStage::OFF;
+			status = Envelope::Stage::OFF;
 			goto doOff;
 		}
 

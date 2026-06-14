@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sync.h"
+#include "modulation/envelope.h" // Envelope::Stage
 
 #include <cstdint>
 
@@ -29,7 +30,7 @@ public:
 	SideChain();
 	void cloneFrom(SideChain* other);
 
-	EnvelopeStage status;
+	Envelope::Stage status;
 	uint32_t pos;
 	int32_t lastValue;
 	int32_t pendingHitStrength;

@@ -96,10 +96,38 @@ phase boundaries.
 1. **Boundary lint + baseline.** Add `scripts/check_synth_boundary.py` listing
    the app back-refs reachable from `patcher/envelope/lfo` (seed allowlist that
    only shrinks). Capture the golden baseline. No code change.
-2. **Envelope decouple.** Replace `noteOn(idx, Sound*, Voice*)` /
-   `noteOff(idx, Sound*, ParamManagerForTimeline*)` with value-parameter
-   signatures; the `voice.cpp` call sites pass exactly the ADSR/flags the
-   overloads read today. Add `envelope_spec`. Bit-exact.
+2. **Envelope decouple — DONE.** Rewrote `Envelope` to first principles: a
+   self-contained ADSR generator driven purely by sample progression, with no
+   `Sound`/`Voice`/`ParamManager`/`AudioEngine`. `noteOn`/`noteOff`/`render` take
+   plain values; internal state is fully private behind intent-revealing
+   accessors (`stage()`, `outputLevel()`, `fastReleaseRate()`, `isAtAttackStart()`)
+   plus one documented transitional seam (`setOutputLevel`, to be removed by the
+   `ControlBlock` step). `EnvelopeStage` moved out of `definitions_cxx.hpp` into
+   the class as `Envelope::Stage` (values unchanged — `getPriorityRating` packs
+   the stage into 3 bits). The voice-cull timestamp (`timeEnteredState`, stamped
+   from `AudioEngine::nextVoiceState`) was *lifted to the Voice*
+   (`Voice::envelope0TimeEntered`, stamped via `takeStageChanged()`), so the
+   envelope is fully global-free; this slightly shifts the cull-stamp timing for
+   intra-render multi-transitions (accepted — voice-stealing isn't golden-covered).
+   The render switch was decomposed into named per-stage step methods
+   (`stepAttack`/`stepDecay`/…) driven by a small dispatch loop (no `goto`). All
+   bit-exact (x86 golden 333/333, ARM oracle, both arches). **TODO:** a dual-arch
+   `envelope_spec` (the payoff — the envelope is now constructible in isolation)
+   is *blocked* on the curve helpers it calls (`getDecay4/8`, `interpolateTable`,
+   `getSine`) living in the monolithic `util/functions.cpp`, which drags in
+   fatfs/gui/hid/display — linking it into a leaf spec explodes. Extract those
+   helpers into a leaf TU (a dsp-next-ward move) first, then add the spec.
+
+   > **Future (the audible/float pass, NOT this phase): data-driven segments.**
+   > The most modular envelope is a generic stepper over an array of
+   > `{target, rate, curve, exit}` segments (trivially gives DAHDSR / looping /
+   > custom curves). It does *not* fit today's envelope under the bit-exact
+   > constraint — the stages have idiosyncratic, non-uniform math (attack
+   > `getDecay4` curve, decay layered over a smoothed sustain, the sustain
+   > note-off handling, a release lookup table, a *sine*-shaped fast-release), so
+   > a uniform segment model would be a pile of special cases and can't be
+   > bit-exact. Revisit it with the float/curve-unification work, where
+   > re-baselining + a listening test are expected anyway.
 3. **LFO decouple.** Push `getLocalLFOPhaseIncrement`'s `sound.lfoConfig` +
    `paramFinalValues` reads to the call site; the synth-side LFO sees only
    `LFOConfig` + increment (already its `render` signature). Add `lfo_spec`.

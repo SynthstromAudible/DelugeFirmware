@@ -61,6 +61,13 @@ public:
 	std::array<int32_t, kNumExpressionDimensions> localExpressionSourceValuesBeforeSmoothing{};
 
 	std::array<Envelope, kNumEnvelopes> envelopes{};
+
+	// Voice-cull timestamp for the amplitude envelope (envelopes[0]). This used to live inside the
+	// Envelope (stamped from AudioEngine::nextVoiceState on every stage change), but it is a
+	// voice-scheduling concern, not envelope DSP — so the now-pure Envelope reports stage changes
+	// (takeStageChanged()) and the Voice owns the stamp. Read by getPriorityRating(). See
+	// stampEnvelope0StageEntry() / resetEnvelope0TimeEntered().
+	uint32_t envelope0TimeEntered{};
 	LFO lfo2;
 	LFO lfo4;
 
@@ -109,6 +116,14 @@ public:
 	bool hasReleaseStage();
 	void unassignStuff(bool deletingSong);
 	[[nodiscard]] uint32_t getPriorityRating() const;
+
+	/// Stamp @ref envelope0TimeEntered if the amplitude envelope (envelopes[0]) has just changed
+	/// stage — call after any operation that may transition it. Replaces the Envelope's old internal
+	/// AudioEngine::nextVoiceState stamping, now that the Envelope is pure.
+	void stampEnvelope0StageEntry();
+	/// Re-stamp while in sustain, to lower a drone note's cull likelihood (was Envelope::resetTimeEntered).
+	void resetEnvelope0TimeEntered();
+
 	void expressionEventImmediate(const Sound& sound, int32_t voiceLevelValue, int32_t s);
 	void expressionEventSmooth(int32_t newValue, int32_t s);
 

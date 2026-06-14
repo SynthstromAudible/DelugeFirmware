@@ -335,7 +335,7 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 			// the envelope finishes releasing), then we'd absolutely better reset that envelope because there's no
 			// other way any sound's going to come out!
 			bool shouldResetEnvelope = !voiceSample
-			                           || (((AudioOutput*)output)->envelope.state >= EnvelopeStage::RELEASE
+			                           || (((AudioOutput*)output)->envelope.stage() >= Envelope::Stage::RELEASE
 			                               && !doingLateStart); // Come to think of it, would doingLateStart ever (or
 			                                                    // normally) be true if we're at play pos 0?
 
@@ -482,7 +482,8 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	// If already time stretching, no need to do anything - that'll take care of the new play-position.
 	// Also can only do this if envelope not releasing, which (possibly not anymore since I fixed other bug) it can
 	// still be if this is our second quick successive <>+play starting playback partway through Clip
-	if (voiceSample && voiceSample->timeStretcher && ((AudioOutput*)output)->envelope.state < EnvelopeStage::RELEASE) {
+	if (voiceSample && voiceSample->timeStretcher
+	    && ((AudioOutput*)output)->envelope.stage() < Envelope::Stage::RELEASE) {
 		return;
 	}
 
@@ -497,7 +498,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		// TODO: probably not super necessary now we've got time-stretching taking care of sorta doing a crossfade,
 		// above. We'd only actually need to do any such fade manually if we weren't time-stretching before, and we're
 		// also not going to be after (though it'd be hard to predict whether we're going to be after)
-		((AudioOutput*)output)->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+		((AudioOutput*)output)->envelope.unconditionalRelease(Envelope::Stage::FAST_RELEASE);
 	}
 
 	// Otherwise, get a new VoiceSample
@@ -554,7 +555,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 
 	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data
 	// hasn't loaded yet)
-	if (doingLateStart && static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+	if (doingLateStart && static_cast<AudioOutput*>(this->output)->envelope.stage() < Envelope::Stage::FAST_RELEASE) {
 		uint64_t numSamplesIn = guide.getSyncedNumSamplesIn();
 
 		LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
@@ -726,7 +727,7 @@ justDontTimeStretch:
 		// forgot?) It's perhaps a little bit surprising, but this even works and sounds perfect (you never hear any of
 		// the margin) when time-stretching is happening! Down to about half speed. Below that, you hear some of the
 		// margin.
-		if (static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+		if (static_cast<AudioOutput*>(this->output)->envelope.stage() < Envelope::Stage::FAST_RELEASE) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
@@ -740,7 +741,8 @@ justDontTimeStretch:
 
 				if (timeTilLoop < 1024) {
 					static_cast<AudioOutput*>(this->output)
-					    ->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE, 8192); // Let's make it extra fast?
+					    ->envelope.unconditionalRelease(Envelope::Stage::FAST_RELEASE,
+					                                    8192); // Let's make it extra fast?
 				}
 			}
 		}
@@ -819,7 +821,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 			if (doingLateStart) {
 				// If waiting to do a late start, and we're not waiting for a past bit to fade out, well there's no
 				// sound right now, so just cut out.
-				if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+				if (((AudioOutput*)output)->envelope.stage() < Envelope::Stage::FAST_RELEASE) {
 					unassignVoiceSample(false);
 				}
 
@@ -831,7 +833,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 			}
 			else {
 				// Or normal case - do a fade when we weren't going to before. And no late start is or was happening.
-				((AudioOutput*)output)->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+				((AudioOutput*)output)->envelope.unconditionalRelease(Envelope::Stage::FAST_RELEASE);
 			}
 		}
 	}

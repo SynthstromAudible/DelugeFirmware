@@ -1600,7 +1600,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			ActiveVoice& voice = *it;
 			// if it's not MONO, and the envelope is not in release and we're allowing note tails, this is a legato
 			// voice
-			if (polyphonic != PolyphonyMode::MONO && voice->envelopes[0].state < EnvelopeStage::RELEASE
+			if (polyphonic != PolyphonyMode::MONO && voice->envelopes[0].stage() < Envelope::Stage::RELEASE
 			    && allowNoteTails(modelStack, true)) {
 				voiceForLegato = &voice;
 				break;
@@ -1614,7 +1614,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				                           return isSourceActiveCurrently(s, paramManager)
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
-			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE
+			    || (voice->envelopes[0].stage() != Envelope::Stage::FAST_RELEASE
 			        && !voice->doFastRelease(SOFT_CULL_INCREMENT));
 
 			if (needs_unassign) {
@@ -1642,7 +1642,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			if (voiceToReuse != nullptr) [[unlikely]] {
 				// The osc phases and stuff will remain
 				for (int32_t e = 0; e < kNumEnvelopes; e++) {
-					envelopePositions[e] = (*voiceToReuse)->envelopes[e].lastValue;
+					envelopePositions[e] = (*voiceToReuse)->envelopes[e].outputLevel();
 				}
 			}
 			else {
@@ -1858,7 +1858,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 	for (const ActiveVoice& voice : voices_) {
 		if ((voice->noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
-		    && voice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
+		    && voice->envelopes[0].stage() < Envelope::Stage::RELEASE) { // Don't bother if it's already "releasing"
 
 			// If we have actual arpeggiation, just switch off.
 			if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
@@ -2632,8 +2632,8 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	timeStartedSkippingRenderingModFX = AudioEngine::audioSampleTimer;
 	timeStartedSkippingRenderingLFO = AudioEngine::audioSampleTimer;
 	timeStartedSkippingRenderingArp = AudioEngine::audioSampleTimer;
-	// compressor.status = EnvelopeStage::OFF; // Was this doing anything? Have removed, to make all of this completely
-	// reversible without doing anything
+	// compressor.status = Envelope::Stage::OFF; // Was this doing anything? Have removed, to make all of this
+	// completely reversible without doing anything
 
 	setSkippingRendering(true);
 	if (grainFX) { // grainFX is null unless GRAIN mod-FX has been used — guard like every other access
@@ -4693,7 +4693,7 @@ void Sound::wontBeRenderedForAWhile() {
 	                 // Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
-	sidechain.status = EnvelopeStage::OFF;
+	sidechain.status = Envelope::Stage::OFF;
 
 	// Tell it to just cut the MODFX tail - we needa change status urgently!
 	reassessRenderSkippingStatus(nullptr, true);
@@ -4903,8 +4903,8 @@ void Sound::terminateOneActiveVoice() {
 	ActiveVoice* best = &voices_.front();
 	for (ActiveVoice& voice : voices_ | std::views::drop(1)) {
 		// skip voices which are already releasing faster than we're going to release them
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
+		if (voice->envelopes[0].stage() >= Envelope::Stage::FAST_RELEASE
+		    && voice->envelopes[0].fastReleaseRate() >= SOFT_CULL_INCREMENT) {
 			continue;
 		}
 		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
@@ -4930,8 +4930,8 @@ void Sound::forceReleaseOneActiveVoice() {
 	ActiveVoice* best = &voices_.front();
 	for (ActiveVoice& voice : voices_ | std::views::drop(1)) {
 		// skip voices releasing faster than this - we'd rather release another voice
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= 4096) {
+		if (voice->envelopes[0].stage() >= Envelope::Stage::FAST_RELEASE
+		    && voice->envelopes[0].fastReleaseRate() >= 4096) {
 			continue;
 		}
 		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
@@ -4939,7 +4939,7 @@ void Sound::forceReleaseOneActiveVoice() {
 
 	const ActiveVoice& voice = *best;
 
-	auto stage = voice->envelopes[0].state;
+	auto stage = voice->envelopes[0].stage();
 
 	bool still_rendering = voice->speedUpRelease();
 

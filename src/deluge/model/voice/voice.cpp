@@ -134,12 +134,12 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 
 		// If no attack-stage...
 		if (paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e) == -2147483648u) {
-			envelopes[e].lastValue = 2147483647;
+			envelopes[e].setOutputLevel(2147483647);
 		}
 
 		// Otherwise...
 		else {
-			envelopes[e].lastValue = 0;
+			envelopes[e].setOutputLevel(0);
 		}
 	}
 
@@ -197,8 +197,12 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 	// Setup and render envelopes - again. Because they're local params (since mid-late 2017), we really need to render
 	// them *after* initial patching is performed.
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
-		sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] = envelopes[e].noteOn(e, &sound, this);
+		int32_t attack = paramFinalValues[params::LOCAL_ENV_0_ATTACK + e];
+		int32_t sustain = paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + e];
+		bool directlyToDecay = (attack > 245632); // Skip a (near-)instant attack straight to decay.
+		sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] = envelopes[e].noteOn(directlyToDecay, sustain);
 	}
+	stampEnvelope0StageEntry();
 
 	if (resetEnvelopes) {
 		for (int32_t s = 0; s < kNumSources; s++) {
@@ -575,21 +579,22 @@ void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage
 
 		// If no release-stage, we'll stop as soon as we can
 		if (!allowReleaseStage || !hasReleaseStage()) {
-			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+			envelopes[0].unconditionalRelease(Envelope::Stage::FAST_RELEASE);
 		}
 
 		// Or, do the release-stage
 		else {
-			envelopes[0].noteOff(0, &sound, paramManager);
+			envelopes[0].noteOff(sound.envelopeHasSustainCurrently(0, paramManager));
 
 			// Only start releasing envelope 2 if release wasn't at max value. LOCAL_ENV_1_RELEASE is a
 			// *local* param, so read the voice's own paramFinalValues (sized LOCAL_LAST) — not
 			// sound.paramFinalValues, which holds *global* params only (indexing it here was an
 			// out-of-bounds read of adjacent Sound memory; the hardened host build's bounds check caught it).
 			if (paramFinalValues[params::LOCAL_ENV_1_RELEASE] >= 9) {
-				envelopes[1].noteOff(1, &sound, paramManager);
+				envelopes[1].noteOff(sound.envelopeHasSustainCurrently(1, paramManager));
 			}
 		}
+		stampEnvelope0StageEntry();
 	}
 
 	else {
@@ -744,10 +749,11 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 			sourcesChanged |= anyChange << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 		}
 	}
+	stampEnvelope0StageEntry();
 
 	bool unassignVoiceAfter =
-	    (envelopes[0].state == EnvelopeStage::OFF)
-	    || (envelopes[0].state > EnvelopeStage::DECAY
+	    (envelopes[0].stage() == Envelope::Stage::OFF)
+	    || (envelopes[0].stage() > Envelope::Stage::DECAY
 	        && sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] == std::numeric_limits<int32_t>::min());
 	// Local LFO
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
@@ -857,7 +863,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 
 	// If not already releasing and some release is set, and no noise-source...
 	//@todo - cache this, it never changes
-	if (sound.getSynthMode() != SynthMode::FM && envelopes[0].state < EnvelopeStage::RELEASE && hasReleaseStage()
+	if (sound.getSynthMode() != SynthMode::FM && envelopes[0].stage() < Envelope::Stage::RELEASE && hasReleaseStage()
 	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
 
 		uint32_t whichSourcesNeedAttention = 0;
@@ -961,10 +967,11 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 			// If we're still here, then *all* sources which needed attention say yes do it now, so do it
 			// Just do this for the amplitude envelope
 			overrideAmplitudeEnvelopeReleaseRate = 8388608 / highestNumSamplesLeft;
-			if (envelopes[0].state == EnvelopeStage::ATTACK && envelopes[0].pos == 0) {
-				envelopes[0].lastValue = 2147483647;
+			if (envelopes[0].isAtAttackStart()) {
+				envelopes[0].setOutputLevel(2147483647);
 			}
 			envelopes[0].unconditionalRelease();
+			stampEnvelope0StageEntry();
 		}
 	}
 skipAutoRelease: {}
@@ -1256,8 +1263,8 @@ skipAutoRelease: {}
 
 			// Otherwise, must do a fast-release to avoid a click
 			else {
-				if (envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
-					envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+				if (envelopes[0].stage() < Envelope::Stage::FAST_RELEASE) {
+					envelopes[0].unconditionalRelease(Envelope::Stage::FAST_RELEASE);
 				}
 			}
 		}
@@ -2503,7 +2510,8 @@ dontUseCache: {}
 
 bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	if (doneFirstRender) {
-		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, releaseIncrement);
+		envelopes[0].unconditionalRelease(Envelope::Stage::FAST_RELEASE, releaseIncrement);
+		stampEnvelope0StageEntry();
 		return true;
 	}
 
@@ -2517,12 +2525,13 @@ bool Voice::forceNormalRelease() {
 	if (doneFirstRender) {
 		// If no release-stage, we'll stop as soon as we can
 		if (!hasReleaseStage()) {
-			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, SOFT_CULL_INCREMENT);
+			envelopes[0].unconditionalRelease(Envelope::Stage::FAST_RELEASE, SOFT_CULL_INCREMENT);
 		}
 		// otherwise we'll just let it get there on its own
 		else {
 			envelopes[0].unconditionalRelease();
 		}
+		stampEnvelope0StageEntry();
 		return true;
 	}
 
@@ -2533,15 +2542,17 @@ bool Voice::forceNormalRelease() {
 }
 
 bool Voice::speedUpRelease() {
-	auto stage = envelopes[0].state;
-	if (stage == EnvelopeStage::RELEASE) {
+	auto currentStage = envelopes[0].stage();
+	if (currentStage == Envelope::Stage::RELEASE) {
 		auto currentRelease = paramFinalValues[params::LOCAL_ENV_0_RELEASE];
-		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, currentRelease * 2);
+		envelopes[0].unconditionalRelease(Envelope::Stage::FAST_RELEASE, currentRelease * 2);
+		stampEnvelope0StageEntry();
 		return true;
 	}
-	else if (stage == EnvelopeStage::FAST_RELEASE) {
-		auto currentRelease = envelopes[0].fastReleaseIncrement;
-		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, currentRelease * 2);
+	else if (currentStage == Envelope::Stage::FAST_RELEASE) {
+		auto currentRelease = envelopes[0].fastReleaseRate();
+		envelopes[0].unconditionalRelease(Envelope::Stage::FAST_RELEASE, currentRelease * 2);
+		stampEnvelope0StageEntry();
 		return true;
 	}
 
@@ -2554,6 +2565,7 @@ bool Voice::speedUpRelease() {
 bool Voice::doImmediateRelease() {
 	if (doneFirstRender) {
 		envelopes[0].unconditionalOff();
+		stampEnvelope0StageEntry();
 		return true;
 	}
 
@@ -2566,7 +2578,7 @@ bool Voice::hasReleaseStage() {
 }
 
 // if more added, need to change the shifts around
-static_assert(kNumEnvelopeStages < 8, "Too many envelope stages");
+static_assert(Envelope::kNumStages < 8, "Too many envelope stages");
 static_assert(kNumVoicePriorities < 4, "Too many priority options");
 
 // Higher numbers are lower priority. 1 is top priority. Will never return 0, because nextVoiceState starts at 1
@@ -2582,8 +2594,20 @@ uint32_t Voice::getPriorityRating() const {
 	    + ((uint32_t)std::min<size_t>(sound.numActiveVoices(), 7) << 27)
 
 	    // Bits 24-26 - envelope state
-	    + ((uint32_t)envelopes[0].state << 24)
+	    + ((uint32_t)envelopes[0].stage() << 24)
 
 	    // Bits  0-23 - time entered
-	    + ((uint32_t)(-envelopes[0].timeEnteredState) & (0xFFFFFFFF >> 8));
+	    + ((uint32_t)(-envelope0TimeEntered) & (0xFFFFFFFF >> 8));
+}
+
+void Voice::stampEnvelope0StageEntry() {
+	if (envelopes[0].takeStageChanged()) {
+		envelope0TimeEntered = AudioEngine::nextVoiceState++;
+	}
+}
+
+void Voice::resetEnvelope0TimeEntered() {
+	if (envelopes[0].stage() == Envelope::Stage::SUSTAIN) {
+		envelope0TimeEntered = AudioEngine::nextVoiceState++;
+	}
 }
