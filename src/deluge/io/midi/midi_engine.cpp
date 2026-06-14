@@ -218,6 +218,8 @@ void MidiEngine::checkIncomingMidi() {
 			D_PRINTLN("MIDI poll error: %d\n", static_cast<int>(error));
 		}
 	}
+
+	launchpad_extension::flushDeferredInputSync();
 }
 
 // Warning - this will sometimes (not always) be called in an ISR

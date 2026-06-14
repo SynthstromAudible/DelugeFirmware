@@ -34,13 +34,17 @@ void syncNoteView(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyM
 // Launchpad LED refresh policy:
 // - periodicSyncIfNeeded(): ~4 Hz (8 Hz during launch countdown / armed-clip pulse). Rate-limited deltas.
 // - requestSync(): immediate refresh — call from Deluge UI navigation (changeRootUI) and Deluge hardware
-//   grid/scroll input only. Do not call from Launchpad MIDI handlers; handleMidiMessage coalesces one sync
-//   per handled message at the tail.
-// - Deluge view changes always go through changeRootUI / changeUISideways, which call requestSync().
+//   grid/scroll input only. Do not call from Launchpad MIDI handlers; handleMidiMessage marks dirty and
+//   flushDeferredInputSync() runs once per checkIncomingMidi() poll batch.
+// - Deluge view changes go through changeRootUI / changeUISideways, which call requestSyncAfterViewChange()
+//   (rate-limited — avoids USB hub floods during rapid UI navigation).
 void periodicSyncIfNeeded();
 
-// Immediate mirror refresh (bypasses periodic min-gap). Deluge-side changes only — see policy above.
+// Immediate mirror refresh (bypasses periodic min-gap). Deluge hardware grid/scroll input only.
 void requestSync();
+
+// Rate-limited refresh for Deluge UI navigation (changeRootUI / changeUISideways).
+void requestSyncAfterViewChange();
 
 // True while session launch countdown is active (Launchpad progress ticker).
 bool isLaunchCountdownActive();
@@ -58,6 +62,9 @@ void onSongSwappedDuringLoad();
 void onSongLoaded();
 
 bool handleMidiMessage(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
+
+// Flush one coalesced LED sync after a USB/DIN poll batch (see handleMidiMessage).
+void flushDeferredInputSync();
 
 // Programmer mode lights pads on any incoming Note/CC — block all channel MIDI out to port 2.
 bool shouldBlockOutgoingMidi(MIDICableUSB& cable, MIDIMessage message);

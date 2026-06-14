@@ -20,6 +20,8 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/melodic_instrument.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/scale/note_set.h"
@@ -302,9 +304,33 @@ void clearHeldPadChordData(HeldPad& pad) {
 }
 
 void injectNote(MIDICable& cable, bool on, int32_t midiChannel, int32_t note, uint8_t velocity) {
+	// Route directly to the current clip's output (like Deluge keyboard), not through noteMessageReceived's
+	// midi-follow + all-output fan-out — that double-processes each note and can flood arp/MIDI on release.
+	InstrumentClip* clip = noteModeClip();
+	if (clip == nullptr || clip->output == nullptr) {
+		return;
+	}
+
 	bool doingMidiThru = false;
 	int32_t liftVelocity = on ? velocity : kDefaultLiftValue;
-	playbackHandler.noteMessageReceived(cable, on, midiChannel, note, liftVelocity, &doingMidiThru);
+	bool shouldRecordNotes =
+	    playbackHandler.shouldRecordNotesNow() && currentSong->isOutputActiveInArrangement(clip->output);
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
+	if (clip->output->type == OutputType::KIT) {
+		static_cast<Kit*>(clip->output)
+		    ->receivedNoteForKit(modelStackWithTimelineCounter, cable, on, midiChannel,
+		                         note - midiEngine.midiFollowKitRootNote, liftVelocity, shouldRecordNotes,
+		                         &doingMidiThru, clip);
+	}
+	else {
+		static_cast<MelodicInstrument*>(clip->output)
+		    ->receivedNote(modelStackWithTimelineCounter, cable, on, midiChannel, MIDIMatchType::CHANNEL, note,
+		                   liftVelocity, shouldRecordNotes, &doingMidiThru);
+	}
 }
 
 void injectAftertouch(MIDICable& cable, int32_t midiChannel, int32_t noteCode, uint8_t pressure) {
