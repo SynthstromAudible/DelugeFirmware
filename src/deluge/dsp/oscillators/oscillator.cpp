@@ -31,11 +31,11 @@
 #include "dsp-next/fixed/synced_phasor.h"
 #include "dsp-next/fixed/table_oscillator.h"
 #include "dsp-next/fixed/triangle.h"
-#include "wavetable_oscillator.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
+#include "wavetable_oscillator.h"
 
 namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
@@ -211,8 +211,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 			// with the Amplitude VCA. The osc's owned phase is fill-only; the persistent per-voice
 			// phase was advanced at the top of renderOsc.
 			fixed::BandLimitedTableOscillator osc{bands, phase, phaseIncrement, selectionIncrement};
-			renderThroughVca(
-			    osc, [&] { return fixed::Amplitude{amp, ampIncrement}; }, Standalone::kDirect);
+			renderThroughVca(osc, [&] { return fixed::Amplitude{amp, ampIncrement}; }, Standalone::kDirect);
 		}
 	};
 
@@ -232,7 +231,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 
 		// The sample-backed wavetable engine, behind the dsp-next block-generator interface (it
 		// depends on storage/, so it adapts app-side rather than living in the dsp-next library).
-		WavetableOscillator osc{waveTable,        Phasor{phase, phaseIncrement},
+		WavetableOscillator osc{waveTable,         Phasor{phase, phaseIncrement},
 		                        doOscSync,         Phasor{resetterPhase, resetterPhaseIncrement},
 		                        retriggerPhase,    waveIndex,
 		                        waveIndexIncrement};
@@ -257,9 +256,8 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 			// standalone (un-amplified) output is << 1. Plain Phasor free-runs; SyncedPhasor hard-syncs.
 			auto makeVca = [&] { return fixed::CrudeAmplitude{amplitude << 1, amplitudeIncrement << 1}; };
 			if (doOscSync) {
-				fixed::CrudeTriangle osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
-				                                             Phasor{resetterPhase, resetterPhaseIncrement},
-				                                             retriggerPhase}};
+				fixed::CrudeTriangle osc{fixed::SyncedPhasor{
+				    Phasor{phase, phaseIncrement}, Phasor{resetterPhase, resetterPhaseIncrement}, retriggerPhase}};
 				renderThroughVca(osc, makeVca, Standalone::kDouble);
 				phase = osc.phase();
 				maybeStorePhase(type, startPhase, phase, doPulseWave);
@@ -319,7 +317,8 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 					return;
 				}
 				fixed::CrudeSquare osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
-				                                           Phasor{resetterPhase, resetterPhaseIncrement}, retriggerPhase},
+				                                           Phasor{resetterPhase, resetterPhaseIncrement},
+				                                           retriggerPhase},
 				                       pulseWidth};
 				renderThroughVca(osc, makeVca, Standalone::kHalve);
 				phase = osc.phase();
@@ -344,14 +343,14 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 					// The perfect pulse: ring-modulate two band-limited squares offset by the pulse
 					// width. Same raw kernel + vqdmulhq VCA as the table path, so the gen-then-VCA
 					// (and SyncedOscillator) migration is bit-exact with renderPulseWave/renderOscSync.
-					fixed::PulseOscillator pulse{fixed::square_bandlimited_table().select(phaseIncrementForCalculations), phase,
-					                             phaseIncrement, phaseToAdd};
+					fixed::PulseOscillator pulse{
+					    fixed::square_bandlimited_table().select(phaseIncrementForCalculations), phase, phaseIncrement,
+					    phaseToAdd};
 					if (doOscSync) {
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
-						fixed::SyncedOscillator osc{
-						    pulse, phase, phaseIncrement,
-						    fixed::Resetter{resetterPhase, resetterPhaseIncrement},
-						    retriggerPhase};
+						fixed::SyncedOscillator osc{pulse, phase, phaseIncrement,
+						                            fixed::Resetter{resetterPhase, resetterPhaseIncrement},
+						                            retriggerPhase};
 						osc.renderBlock(fixed::Buffer{bufferStartThisSync, static_cast<size_t>(numSamples)});
 						phase = osc.phase() << 1;
 						applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,

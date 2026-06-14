@@ -34,7 +34,7 @@ namespace deluge::dsp::fixed {
 /// renderer — a private copy of the legacy `dsp/interpolate` `windowedSincKernel` (kept for sample
 /// playback / live pitch-shift, which interpolate differently). A @c sinc_kernel_spec asserts the
 /// copy and the variant pick are bit-identical to the legacy table + `getKernel`.
-inline constexpr int32_t kSincKernelVariants = 7;   ///< Oversampling-ratio sharpness variants.
+inline constexpr int32_t kSincKernelVariants = 7;    ///< Oversampling-ratio sharpness variants.
 inline constexpr int32_t kSincKernelPhaseSteps = 17; ///< 16 sub-sample phase rows + 1 wrap row.
 inline constexpr int32_t kSincKernelTaps = 16;       ///< Taps per sample (== kInterpolationMaxNumSamples).
 

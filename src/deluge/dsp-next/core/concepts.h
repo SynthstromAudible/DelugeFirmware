@@ -45,10 +45,9 @@ concept generator = block_generator<G> && sample_generator<G>;
 
 /// @brief Transforms an input block into an output block (e.g. a filter, the VCA).
 template <typename P>
-concept block_processor =
-    requires(P p, Signal<typename P::value_type> in, Buffer<typename P::value_type> out) {
-	    { p.renderBlock(in, out) } -> std::same_as<void>;
-    };
+concept block_processor = requires(P p, Signal<typename P::value_type> in, Buffer<typename P::value_type> out) {
+	{ p.renderBlock(in, out) } -> std::same_as<void>;
+};
 
 /// @brief Transforms one sample (or vector) per call.
 template <typename P>

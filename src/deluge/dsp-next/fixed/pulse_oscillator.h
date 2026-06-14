@@ -84,12 +84,14 @@ public:
 		// biased by kMin), which is the polarity flip the ring-mod needs anyway.
 		ArgonHalf<int16_t> strength_a1 = fraction_a | kMin;
 		ArgonHalf<int16_t> strength_a2 = static_cast<int16_t>(kMin) - strength_a1;
-		Argon<int32_t> square_a = strength_a2.MultiplyDoubleSaturateLong(next_a) //<
+		Argon<int32_t> square_a = strength_a2
+		                              .MultiplyDoubleSaturateLong(next_a) //<
 		                              .MultiplyDoubleAddSaturateLong(strength_a1, entry_a);
 
 		ArgonHalf<int16_t> strength_b2 = fraction_b & kMax;
 		ArgonHalf<int16_t> strength_b1 = static_cast<int16_t>(kMax) - strength_b2;
-		Argon<int32_t> square_b = strength_b2.MultiplyDoubleSaturateLong(next_b) //<
+		Argon<int32_t> square_b = strength_b2
+		                              .MultiplyDoubleSaturateLong(next_b) //<
 		                              .MultiplyDoubleAddSaturateLong(strength_b1, entry_b);
 
 		// Ring-modulate the two squares; the << 1 restores full scale.

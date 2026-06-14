@@ -32,9 +32,9 @@ using deluge::dsp::fixed::SyncedOscillator;
 using deluge::dsp::fixed::Table;
 using deluge::dsp::fixed::TableOscillator;
 
-constexpr int32_t kMag = 2;             // index = phase >> 30, in [0, 4)
-constexpr uint32_t kInc = 0x08000000;   // audible oscillator phase increment
-constexpr std::size_t kBlock = 16;      // samples per render
+constexpr int32_t kMag = 2;           // index = phase >> 30, in [0, 4)
+constexpr uint32_t kInc = 0x08000000; // audible oscillator phase increment
+constexpr std::size_t kBlock = 16;    // samples per render
 constexpr std::array<int16_t, 8> kTable{0, 1000, 2000, 3000, 4000, 5000, 6000, 7000};
 
 // A plain (un-synced) render of the wrapped oscillator, for comparison.

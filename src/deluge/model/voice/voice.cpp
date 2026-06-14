@@ -18,9 +18,9 @@
 #include "model/voice/voice.h"
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/sine.h"
 #include "dsp/dx/engine.h"
 #include "dsp/filter/filter_set.h"
-#include "dsp-next/fixed/sine.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
 #include "gui/waveform/waveform_renderer.h"
@@ -1890,7 +1890,8 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 		if (amplitudeIncrement) {
 			while (true) {
 				uint32x4_t phaseShift = vld1q_u32(fmSample);
-				int32x4_t sineValueVector = dsp::fixed::sine(Argon<uint32_t>{phaseVector} + (Argon<uint32_t>{phaseShift} << 8));
+				int32x4_t sineValueVector =
+				    dsp::fixed::sine(Argon<uint32_t>{phaseVector} + (Argon<uint32_t>{phaseShift} << 8));
 
 				int32x4_t amplitudeVector;
 				for (int32_t i = 0; i < 4; i++) {
@@ -1917,7 +1918,8 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 		else {
 			while (true) {
 				uint32x4_t phaseShift = vld1q_u32(fmSample);
-				int32x4_t sineValueVector = dsp::fixed::sine(Argon<uint32_t>{phaseVector} + (Argon<uint32_t>{phaseShift} << 8));
+				int32x4_t sineValueVector =
+				    dsp::fixed::sine(Argon<uint32_t>{phaseVector} + (Argon<uint32_t>{phaseShift} << 8));
 
 				int32x4_t resultValueVector = vqrdmulhq_n_s32(sineValueVector, amplitudeNow >> 1);
 

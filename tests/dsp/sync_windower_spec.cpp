@@ -31,8 +31,8 @@ using deluge::dsp::fixed::Buffer;
 using deluge::dsp::fixed::Resetter;
 using deluge::dsp::fixed::SyncWindower;
 
-constexpr uint32_t kInc = 0x08000000;     // audible oscillator increment (doesn't affect windowing)
-constexpr int32_t kBlock = 64;            // samples per render
+constexpr uint32_t kInc = 0x08000000;           // audible oscillator increment (doesn't affect windowing)
+constexpr int32_t kBlock = 64;                  // samples per render
 constexpr uint32_t kFastResetter = 0x20000000u; // ~8 samples per cycle -> several crossovers in 64
 constexpr uint32_t kSlowResetter = 0x00040000u; // ~16k samples per cycle -> no crossover in 64
 

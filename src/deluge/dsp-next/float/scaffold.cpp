@@ -22,4 +22,4 @@
 // source lands. Namespace is `fp` because `float` is a C++ keyword.
 #include "dsp-next/core/dsp.h"
 
-namespace deluge::dsp::fp {} // namespace anchor
+namespace deluge::dsp::fp {} // namespace deluge::dsp::fp

@@ -70,11 +70,9 @@ public:
 	/// @param phase the audible oscillator's starting phase (UQ0.32; pre-increment per sample).
 	/// @param phase_increment the audible oscillator's per-sample phase step (UQ0.32).
 	/// @param retrigger_phase the phase the audible oscillator restarts from at each crossover.
-	SyncWindower(Buffer output, Resetter resetter, uint32_t phase, uint32_t phase_increment,
-	             uint32_t retrigger_phase)
-	    : block_start_{output.data()}, window_{output.data()},
-	      samples_remaining_{static_cast<int32_t>(output.size())}, resetter_{resetter},
-	      resetter_divide_{resetter_reciprocal(resetter.phase_increment)}, phase_{phase},
+	SyncWindower(Buffer output, Resetter resetter, uint32_t phase, uint32_t phase_increment, uint32_t retrigger_phase)
+	    : block_start_{output.data()}, window_{output.data()}, samples_remaining_{static_cast<int32_t>(output.size())},
+	      resetter_{resetter}, resetter_divide_{resetter_reciprocal(resetter.phase_increment)}, phase_{phase},
 	      phase_increment_{phase_increment}, retrigger_phase_{retrigger_phase} {}
 
 	/// The next window to fill, or `nullopt` once the block is done. Finalises the previously
@@ -150,13 +148,13 @@ private:
 	uint32_t retrigger_phase_;
 
 	// Per-window state carried from the call that handed a window out to the call that finalises it.
-	bool crossed_over_ = false;       // whether the outstanding window opened on a restart seam
-	int32_t pre_crossover_sample_ = 0; // last sample of the previous cycle, for the seam blend
-	int32_t seam_fade_ = 0;            // crossfade position at the seam, full-scale (±1 == ±2^31)
+	bool crossed_over_ = false;         // whether the outstanding window opened on a restart seam
+	int32_t pre_crossover_sample_ = 0;  // last sample of the previous cycle, for the seam blend
+	int32_t seam_fade_ = 0;             // crossfade position at the seam, full-scale (±1 == ±2^31)
 	uint32_t samples_to_crossover_ = 1; // samples up to and including the next crossover (leading 1 = it)
-	int32_t length_ = 0;               // the outstanding window's length
-	bool crosses_ = false;             // whether the outstanding window ends on a crossover
-	bool started_ = false;             // whether a window has been handed out yet
+	int32_t length_ = 0;                // the outstanding window's length
+	bool crosses_ = false;              // whether the outstanding window ends on a crossover
+	bool started_ = false;              // whether a window has been handed out yet
 	bool done_ = false;
 };
 

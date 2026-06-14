@@ -83,17 +83,15 @@ namespace deluge::dsp::fixed {
 	// Q15 interpolation weight: the kInterpWeightBits phase bits just below the index.
 	// ShiftRightNarrow drops to a 16-bit lane; the mask clears the index bit that leaks
 	// into the top of that lane, leaving a 15-bit fraction.
-	ArgonHalf<int16_t> fraction = phase.ShiftRightNarrow<kFractionShift>()
-	                                  .BitwiseAnd(std::numeric_limits<int16_t>::max())
-	                                  .As<int16_t>();
+	ArgonHalf<int16_t> fraction =
+	    phase.ShiftRightNarrow<kFractionShift>().BitwiseAnd(std::numeric_limits<int16_t>::max()).As<int16_t>();
 
 	// The table entry index is the top kTableSizeMagnitude bits of the phase. The gather
 	// scales the offset by its stride (2 int16 per entry) internally since argon 90fde9a
 	// "Fix load bugs", so pass the entry index directly — do NOT pre-multiply by 2.
 	Argon<uint32_t> index = phase >> kIndexShift;
 
-	auto [value, diff] =
-	    ArgonHalf<int16_t>::LoadGatherOffsetIndexInterleaved<2>(sine_wave_diff.data(), index.Narrow());
+	auto [value, diff] = ArgonHalf<int16_t>::LoadGatherOffsetIndexInterleaved<2>(sine_wave_diff.data(), index.Narrow());
 
 	// Linear interpolation, value + diff*fraction, kept in the high half of a q31 lane:
 	// promote the int16 value to bit 16, then qdmlal adds the (doubled, saturating)
@@ -117,8 +115,8 @@ namespace deluge::dsp::fixed {
 
 	// Read the {value (low 16), diff (high 16)} pair as one word.
 	const uint32_t pair = *reinterpret_cast<uint32_t*>(&sine_wave_diff[entry_offset]);
-	const int32_t value = pair << 16;                       // sine value promoted to the q31 high half
-	const int32_t diff = static_cast<int32_t>(pair) >> 16;  // sign-extended diff
+	const int32_t value = pair << 16;                      // sine value promoted to the q31 high half
+	const int32_t diff = static_cast<int32_t>(pair) >> 16; // sign-extended diff
 	return value + (diff * fraction);
 }
 
