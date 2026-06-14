@@ -27,7 +27,16 @@ namespace deluge::dsp::fixed {
 /// Both sync components (@ref SyncedPhasor, @ref SyncedOscillator) derive this from the resetter
 /// increment they already hold, rather than having the caller precompute it. The increment is
 /// rounded up first so the reciprocal comes out a touch small — products of it can't overflow.
+///
+/// @p resetter_increment of 0 means there is no resetter (the caller isn't syncing); the reciprocal
+/// is then unused, but the division must still not run — a 0 increment makes the divisor 0, and on
+/// ARM `__aeabi_idiv0` raises SIGFPE (x86 -m32 libgcc quietly returns garbage, which is why it only
+/// bites on hardware/QEMU). Return 0: a non-crossing resetter has no fractional reset position, so
+/// the value this feeds is correctly nothing.
 [[nodiscard]] inline int32_t resetter_reciprocal(uint32_t resetter_increment) {
+	if (resetter_increment == 0) {
+		return 0;
+	}
 	return static_cast<int32_t>(2147483648u / static_cast<uint16_t>((resetter_increment + 65535) >> 16));
 }
 
