@@ -237,6 +237,11 @@ bool Source::hasAnyLoopEndPoint() {
 	return false;
 }
 
+// Return current osc type
+OscType Source::getOscType() {
+	return oscType;
+}
+
 // If setting to SAMPLE or WAVETABLE, you must call killAllVoices before this, because ranges is going to get
 // emptied.
 void Source::setOscType(OscType newType) {
