@@ -118,10 +118,11 @@ struct CycleChunk {
 		    cross_cycle_blend + static_cast<uint32_t>(cross_cycle_blend_increment) * static_cast<uint32_t>(offset);
 		do {
 			phase += phase_increment;
-			const int16_t* kernel_row = sinc_kernel_row(kernel, phase, magnitude);
-			int16_t row_blend = sinc_row_blend(phase, magnitude);
-			int32_t value1 = windowed_sinc_apply(kernel_row, row_blend, load_window(cycle1, phase, magnitude));
-			int32_t value2 = windowed_sinc_apply(kernel_row, row_blend, load_window(cycle2, phase, magnitude));
+			// Both cycles share the same sub-sample kernel position, so blend the kernel once.
+			SincWindow blended =
+			    blend_sinc_kernel(sinc_kernel_row(kernel, phase, magnitude), sinc_row_blend(phase, magnitude));
+			int32_t value1 = windowed_sinc_dot(blended, load_window(cycle1, phase, magnitude));
+			int32_t value2 = windowed_sinc_dot(blended, load_window(cycle2, phase, magnitude));
 			int32_t difference = value2 - value1;
 			// value1 is taken a magnitude smaller, because the multiply below shrinks `difference` by one.
 			*sample = multiply_accumulate_32x32_rshift32_rounded(value1 >> 1, difference, blend >> 1);
