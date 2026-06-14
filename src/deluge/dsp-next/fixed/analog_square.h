@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited, 2025 Mark Adams
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,20 +14,14 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
-#include <cstdint>
-#include <utility>
-namespace deluge::dsp {
-/**
- * @brief Get a table number and size, depending on the increment
- *
- * @return table_number, table_size
- */
-std::pair<int32_t, int32_t> getTableNumber(uint32_t phaseIncrement);
-extern const int16_t* sawTables[20];
-extern const int16_t* squareTables[20];
-extern const int16_t* analogSquareTables[20];
-extern const int16_t* analogSawTables[20];
 
-} // namespace deluge::dsp
+#include "dsp-next/fixed/band_limited_table.h"
+
+namespace deluge::dsp::fixed {
+
+/// @brief The band-limited "analog" square kernel: 20 anti-aliased bands (sounds distinct enough
+/// from the digital square that it never falls back to crude), owning their LUTs.
+[[nodiscard]] const BandlimitedTable& analog_square_bandlimited_table();
+
+} // namespace deluge::dsp::fixed

@@ -32,87 +32,9 @@ extern const int16_t hanningWindow[];
 
 extern const int16_t sineWaveSmall[];
 
-extern const int16_t triangleWaveAntiAliasing1[];
-extern const int16_t triangleWaveAntiAliasing3[];
-extern const int16_t triangleWaveAntiAliasing5[];
-extern const int16_t triangleWaveAntiAliasing7[];
-extern const int16_t triangleWaveAntiAliasing9[];
-extern const int16_t triangleWaveAntiAliasing15[];
-extern const int16_t triangleWaveAntiAliasing21[];
-extern const int16_t triangleWaveAntiAliasing31[];
-
-extern const int16_t sawWave1[];
-extern const int16_t sawWave3[];
-extern const int16_t sawWave5[];
-extern const int16_t sawWave7[];
-extern const int16_t sawWave9[];
-extern const int16_t sawWave13[];
-extern const int16_t sawWave19[];
-extern const int16_t sawWave27[];
-extern const int16_t sawWave39[];
-extern const int16_t sawWave53[];
-extern const int16_t sawWave76[];
-extern const int16_t sawWave109[];
-extern const int16_t sawWave153[];
-extern const int16_t sawWave215[];
-
-extern const int16_t squareWave1[];
-extern const int16_t squareWave3[];
-extern const int16_t squareWave5[];
-extern const int16_t squareWave7[];
-extern const int16_t squareWave9[];
-extern const int16_t squareWave13[];
-extern const int16_t squareWave19[];
-extern const int16_t squareWave27[];
-extern const int16_t squareWave39[];
-extern const int16_t squareWave53[];
-extern const int16_t squareWave76[];
-extern const int16_t squareWave109[];
-extern const int16_t squareWave153[];
-extern const int16_t squareWave215[];
-
-extern const int16_t mysterySynthASaw_153[];
-extern const int16_t mysterySynthASaw_215[];
-extern const int16_t mysterySynthASaw_305[];
-extern const int16_t mysterySynthASaw_431[];
-extern const int16_t mysterySynthASaw_609[];
-extern const int16_t mysterySynthASaw_861[];
-extern const int16_t mysterySynthASaw_1217[];
-extern const int16_t mysterySynthASaw_1722[];
-
-extern const int16_t mysterySynthBSaw_1[];
-extern const int16_t mysterySynthBSaw_3[];
-extern const int16_t mysterySynthBSaw_5[];
-extern const int16_t mysterySynthBSaw_7[];
-extern const int16_t mysterySynthBSaw_9[];
-extern const int16_t mysterySynthBSaw_13[];
-extern const int16_t mysterySynthBSaw_19[];
-extern const int16_t mysterySynthBSaw_27[];
-extern const int16_t mysterySynthBSaw_39[];
-extern const int16_t mysterySynthBSaw_53[];
-extern const int16_t mysterySynthBSaw_76[];
-extern const int16_t mysterySynthBSaw_109[];
-
-extern const int16_t analogSquare_1[];
-extern const int16_t analogSquare_3[];
-extern const int16_t analogSquare_5[];
-extern const int16_t analogSquare_7[];
-extern const int16_t analogSquare_9[];
-extern const int16_t analogSquare_13[];
-extern const int16_t analogSquare_19[];
-extern const int16_t analogSquare_27[];
-extern const int16_t analogSquare_39[];
-extern const int16_t analogSquare_53[];
-extern const int16_t analogSquare_76[];
-extern const int16_t analogSquare_109[];
-extern const int16_t analogSquare_153[];
-extern const int16_t analogSquare_215[];
-extern const int16_t analogSquare_305[];
-extern const int16_t analogSquare_431[];
-extern const int16_t analogSquare_609[];
-extern const int16_t analogSquare_861[];
-extern const int16_t analogSquare_1217[];
-extern const int16_t analogSquare_1722[];
+// The band-limited oscillator wave LUTs (triangle AA, saw, square, analog saw/square) moved
+// into their dsp-next kernels (dsp-next/fixed/{saw,square,triangle,analog_saw,analog_square}.cpp),
+// which own them internally. sineWaveSmall stays here (shared with getSine + the wavetable engine).
 
 // Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible
 // without going over 22.05kHz (2147483648), even when shifted up a semitone (via osc-cents and unison combined)

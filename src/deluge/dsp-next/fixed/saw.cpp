@@ -17,7 +17,12 @@
 
 // clang-format off
 
-#include "util/lookuptables/lookuptables.h"
+#include "dsp-next/fixed/saw.h"
+#include "dsp-next/fixed/band_limited_table.h"
+#include <cstdint>
+
+namespace deluge::dsp::fixed {
+namespace {
 
 
 
@@ -1461,3 +1466,13 @@ const int16_t sawWave215[] {
 	-234, -229, -228, -226, -216, -196, -168, -136, -108, -88, -78, -76, -76, -70, -55, -31,
 	0,
 };
+
+} // namespace
+
+const BandlimitedTable& saw_bandlimited_table() {
+	static const Band kBands[] = {{sawWave215,11,9988296},{sawWave153,11,14035840},{sawWave109,11,19701684},{sawWave76,11,28256363},{sawWave53,11,40518559},{sawWave39,11,55063683},{sawWave27,11,79536431},{sawWave19,11,113025455},{sawWave13,10,165191049},{sawWave9,10,238609294},{sawWave7,10,306783378},{sawWave5,10,429496729},{sawWave3,9,715827882},{sawWave1,9,0xFFFFFFFFu}};
+	static const BandlimitedTable table{kBands};
+	return table;
+}
+
+} // namespace deluge::dsp::fixed

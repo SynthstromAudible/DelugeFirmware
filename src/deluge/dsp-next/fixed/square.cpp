@@ -17,7 +17,12 @@
 
 // clang-format off
 
-#include "util/lookuptables/lookuptables.h"
+#include "dsp-next/fixed/square.h"
+#include "dsp-next/fixed/band_limited_table.h"
+#include <cstdint>
+
+namespace deluge::dsp::fixed {
+namespace {
 
 
 // Table for up to 22050Hz / 1
@@ -1459,3 +1464,13 @@ const int16_t squareWave215[] {
 	-17142, -17645, -17774, -17415, -16655, -15773, -15156, -15149, -15899, -17248, -18720, -19620, -19222, -16991, -12772, -6868,
 	0,
 };
+
+} // namespace
+
+const BandlimitedTable& square_bandlimited_table() {
+	static const Band kBands[] = {{squareWave215,11,9988296},{squareWave153,11,14035840},{squareWave109,11,19701684},{squareWave76,11,28256363},{squareWave53,11,40518559},{squareWave39,11,55063683},{squareWave27,11,79536431},{squareWave19,11,113025455},{squareWave13,10,165191049},{squareWave9,10,238609294},{squareWave7,10,306783378},{squareWave5,10,429496729},{squareWave3,9,715827882},{squareWave1,9,0xFFFFFFFFu}};
+	static const BandlimitedTable table{kBands};
+	return table;
+}
+
+} // namespace deluge::dsp::fixed

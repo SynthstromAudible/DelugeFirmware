@@ -17,8 +17,12 @@
 
 // clang-format off
 
-#include "util/lookuptables/lookuptables.h"
+#include "dsp-next/fixed/analog_square.h"
+#include "dsp-next/fixed/band_limited_table.h"
 #include <cstdint>
+
+namespace deluge::dsp::fixed {
+namespace {
 
 
 // Table for up to 22050Hz / 1. Window size: 16.
@@ -2911,3 +2915,13 @@ const int16_t analogSquare_1722[] {
 	-3180, -2775, -3102, -3750, -3706, -2897, -2496, -3261, -4189, -3720, -2193, -1952, -4164, -6119, -3058, 6741,
 	19341,
 };
+
+} // namespace
+
+const BandlimitedTable& analog_square_bandlimited_table() {
+	static const Band kBands[] = {{analogSquare_1722,13,1247086},{analogSquare_1217,12,1764571},{analogSquare_861,12,2494173},{analogSquare_609,11,3526245},{analogSquare_431,11,4982560},{analogSquare_305,11,7040929},{analogSquare_215,11,9988296},{analogSquare_153,11,14035840},{analogSquare_109,11,19701684},{analogSquare_76,11,28256363},{analogSquare_53,11,40518559},{analogSquare_39,11,55063683},{analogSquare_27,11,79536431},{analogSquare_19,11,113025455},{analogSquare_13,10,165191049},{analogSquare_9,10,238609294},{analogSquare_7,10,306783378},{analogSquare_5,10,429496729},{analogSquare_3,9,715827882},{analogSquare_1,9,0xFFFFFFFFu}};
+	static const BandlimitedTable table{kBands};
+	return table;
+}
+
+} // namespace deluge::dsp::fixed

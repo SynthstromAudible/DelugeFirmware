@@ -15,20 +15,27 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "oscillator.h"
-#include "basic_waves.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/amplitude.h"
+#include "dsp-next/fixed/analog_saw.h"
+#include "dsp-next/fixed/analog_square.h"
+#include "dsp-next/fixed/band_limited_table.h"
+#include "dsp-next/fixed/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/crude_amplitude.h"
 #include "dsp-next/fixed/crude_oscillators.h"
 #include "dsp-next/fixed/pulse_oscillator.h"
 #include "dsp-next/fixed/resetter.h"
+#include "dsp-next/fixed/saw.h"
+#include "dsp-next/fixed/square.h"
 #include "dsp-next/fixed/synced_oscillator.h"
 #include "dsp-next/fixed/synced_phasor.h"
 #include "dsp-next/fixed/table_oscillator.h"
+#include "dsp-next/fixed/triangle.h"
 #include "wavetable_oscillator.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/fixedpoint.h"
+#include "util/lookuptables/lookuptables.h"
 
 namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
@@ -47,20 +54,22 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 
 	bool doPulseWave = false;
 
-	const int16_t* table;
+	// The band-limited wave selected for this voice (one of the kernel BandlimitedTables); the
+	// band itself is picked by pitch inside the BandLimitedTableOscillator.
+	const fixed::BandlimitedTable* bands = nullptr;
 
-	// For cases other than sines and triangles, we use these standard table lookup size thingies. We need to work this
-	// out now so we can decide whether to switch the analog saw to the digital one
-	int32_t tableNumber; // These only apply for waves other than sine and triangle
-	int32_t tableSizeMagnitude;
+	// The standard band number for non-sine/triangle waves — used to decide whether to drop to the
+	// crude (aliasing) calculation and for the analog-saw downgrade. The phase increment used for
+	// it (`phaseIncrementForCalculations`) is also what the square-pulse path selects its band by,
+	// so it lives at function scope.
+	int32_t tableNumber;
+	uint32_t phaseIncrementForCalculations = phaseIncrement;
 
 	if (type == OscType::SINE) {
 		retriggerPhase += 3221225472u;
 	}
 
 	else if (type != OscType::TRIANGLE) [[likely]] { // Not sines and not triangles
-		uint32_t phaseIncrementForCalculations = phaseIncrement;
-
 		// PW for the perfect mathematical/digital square - we'll do it by multiplying two squares
 		if (type == OscType::SQUARE) {
 			doPulseWave = (pulseWidth != 0);
@@ -72,7 +81,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 			}
 		}
 
-		std::tie(tableNumber, tableSizeMagnitude) = dsp::getTableNumber(phaseIncrementForCalculations);
+		tableNumber = fixed::getTableNumber(phaseIncrementForCalculations).first;
 		// TODO: that should really take into account the phaseIncrement (pitch) after it's potentially been altered for
 		// non-square PW below.
 
@@ -175,42 +184,43 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 		}
 	};
 
-	// Shared tail (Phase A1): render a band-limited wave from `renderTable` — straight or with
-	// osc sync — and apply amplitude. Replaces the `callRenderWave` goto target. The rendering
-	// context is captured by reference; the per-wave call sites vary only the table, its size
-	// magnitude, and the amplitude pair. Behaviour unchanged.
-	auto renderFromTable = [&](const int16_t* renderTable, int32_t renderTableSizeMagnitude, int32_t amp,
-	                           int32_t ampIncrement) {
+	// Shared tail (Phase A1): render a band-limited wave — a BandLimitedTableOscillator picks the
+	// right band of `bands` for this pitch — straight or with osc sync, then apply amplitude.
+	// The per-wave call sites vary only which kernel's BandlimitedTable and the amplitude pair.
+	// `selectionIncrement` is the pitch that picks the band; it equals `phaseIncrement` except for
+	// pulse-width waves, where `phaseIncrement` has been rewritten to the (faster) pulse render rate
+	// while the band-limiting must still target the original note (the legacy `getTableNumber`
+	// argument, `phaseIncrementForCalculations`).
+	auto renderFromTable = [&](const fixed::BandlimitedTable& bands, int32_t amp, int32_t ampIncrement,
+	                           uint32_t selectionIncrement) {
 		if (doOscSync) {
-			// Hard sync: a SyncedOscillator wraps the TableOscillator, restarting it at every
-			// resetter crossover and crossfading the seam. It fills the raw wave (into the sync
-			// scratch when amplitude applies), then the VCA scales-and-mixes it — bit-exact with
-			// the legacy renderOscSync + overshoot storageFunction, minus the overshoot.
+			// Hard sync: a SyncedOscillator wraps the band-limited oscillator, restarting it at
+			// every resetter crossover and crossfading the seam. It fills the raw wave (into the
+			// sync scratch when amplitude applies), then the VCA scales-and-mixes it.
 			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 			fixed::SyncedOscillator osc{
-			    fixed::TableOscillator{fixed::table_from_pointer(renderTable, renderTableSizeMagnitude), phase,
-			                           phaseIncrement},
-			    phase, phaseIncrement,
-			    fixed::Resetter{resetterPhase, resetterPhaseIncrement}, retriggerPhase};
+			    fixed::BandLimitedTableOscillator{bands, phase, phaseIncrement, selectionIncrement}, phase,
+			    phaseIncrement, fixed::Resetter{resetterPhase, resetterPhaseIncrement}, retriggerPhase};
 			osc.renderBlock(fixed::Buffer{bufferStartThisSync, static_cast<size_t>(numSamples)});
 			phase = osc.phase();
 			applyAmplitudeVectorToBuffer(amp, numSamples, ampIncrement, bufferStart, oscSyncRenderingBuffer);
 			maybeStorePhase(type, startPhase, phase, doPulseWave);
 		}
 		else {
-			// Generate the raw band-limited wave with the TableOscillator, then (when amplitude
-			// is applied) scale-and-mix it with the Amplitude VCA — bit-exact with the fused
-			// renderWave path. The osc's owned phase is fill-only; the persistent per-voice phase
-			// was advanced at the top of renderOsc.
-			fixed::TableOscillator osc{fixed::table_from_pointer(renderTable, renderTableSizeMagnitude), phase,
-			                           phaseIncrement};
+			// Generate the raw band-limited wave, then (when amplitude is applied) scale-and-mix it
+			// with the Amplitude VCA. The osc's owned phase is fill-only; the persistent per-voice
+			// phase was advanced at the top of renderOsc.
+			fixed::BandLimitedTableOscillator osc{bands, phase, phaseIncrement, selectionIncrement};
 			renderThroughVca(
 			    osc, [&] { return fixed::Amplitude{amp, ampIncrement}; }, Standalone::kDirect);
 		}
 	};
 
 	if (type == OscType::SINE) [[unlikely]] {
-		renderFromTable(sineWaveSmall, 8, amplitude, amplitudeIncrement);
+		// Sine has no aliasing — a single band (the small sine table) covers every pitch.
+		static const fixed::Band kSineBand[] = {{sineWaveSmall, 8, 0xFFFFFFFFu}};
+		static const fixed::BandlimitedTable kSineTable{kSineBand};
+		renderFromTable(kSineTable, amplitude, amplitudeIncrement, phaseIncrement);
 		return;
 	}
 
@@ -262,34 +272,9 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 
 		else {
 
-			// Size 7
-			if (phaseIncrement <= 429496729) {
-				tableSizeMagnitude = 7;
-				if (phaseIncrement <= 102261126) {
-					table = triangleWaveAntiAliasing21;
-				}
-				else if (phaseIncrement <= 143165576) {
-					table = triangleWaveAntiAliasing15;
-				}
-				else if (phaseIncrement <= 238609294) {
-					table = triangleWaveAntiAliasing9;
-				}
-				else if (phaseIncrement <= 429496729) {
-					table = triangleWaveAntiAliasing5;
-				}
-			}
-
-			// Size 6
-			else {
-				tableSizeMagnitude = 6;
-				if (phaseIncrement <= 715827882) {
-					table = triangleWaveAntiAliasing3;
-				}
-				else {
-					table = triangleWaveAntiAliasing1;
-				}
-			}
-			renderFromTable(table, tableSizeMagnitude, amplitude, amplitudeIncrement);
+			// Triangle's band ladder always used the (post-pulse-width) `phaseIncrement` directly, so
+			// its selection increment is `phaseIncrement`, not `phaseIncrementForCalculations`.
+			renderFromTable(fixed::triangle_bandlimited_table(), amplitude, amplitudeIncrement, phaseIncrement);
 			return;
 		}
 	}
@@ -318,7 +303,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 			}
 
 			else {
-				table = dsp::sawTables[tableNumber];
+				bands = &fixed::saw_bandlimited_table();
 			}
 		}
 
@@ -343,7 +328,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 			}
 
 			else {
-				table = dsp::squareTables[tableNumber];
+				bands = &fixed::square_bandlimited_table();
 
 				// If pulse wave, we have our own special routines here
 				if (doPulseWave) {
@@ -359,7 +344,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 					// The perfect pulse: ring-modulate two band-limited squares offset by the pulse
 					// width. Same raw kernel + vqdmulhq VCA as the table path, so the gen-then-VCA
 					// (and SyncedOscillator) migration is bit-exact with renderPulseWave/renderOscSync.
-					fixed::PulseOscillator pulse{fixed::table_from_pointer(table, tableSizeMagnitude), phase,
+					fixed::PulseOscillator pulse{fixed::square_bandlimited_table().select(phaseIncrementForCalculations), phase,
 					                             phaseIncrement, phaseToAdd};
 					if (doOscSync) {
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
@@ -392,19 +377,22 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 		}
 
 		else if (type == OscType::ANALOG_SAW_2) {
-			table = dsp::analogSawTables[tableNumber];
+			bands = &fixed::analog_saw_bandlimited_table();
 		}
 
 		else if (type == OscType::ANALOG_SQUARE) {
 			// This sounds different enough to the digital square that we can never just swap back to that to save CPU
-			table = dsp::analogSquareTables[tableNumber];
+			bands = &fixed::analog_square_bandlimited_table();
 		}
 
 		// If we're still here, we need to render the wave according to a table decided above
 
 		amplitude <<= 1;
 		amplitudeIncrement <<= 1;
-		renderFromTable(table, tableSizeMagnitude, amplitude, amplitudeIncrement);
+		// Saw/analog band selection tracks the note (`phaseIncrementForCalculations`), which is what
+		// the legacy `getTableNumber(phaseIncrementForCalculations)` indexed — `phaseIncrement` may
+		// have been rewritten to the pulse-width render rate above.
+		renderFromTable(*bands, amplitude, amplitudeIncrement, phaseIncrementForCalculations);
 		return;
 	}
 
