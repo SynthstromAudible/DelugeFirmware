@@ -1017,7 +1017,7 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 
 			case 0x0B: // CC or channel mode message
 				// CC
-				if (data1 < kNumRealCCNumbers) {
+				if (data1 < 120) {
 
 					// Interpret RPN stuff, before we additionally try to process the CC within the song, in case it
 					// means something different to the user.
@@ -1043,15 +1043,6 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 					}
 
 					playbackHandler.midiCCReceived(cable, channel, data1, data2, &shouldDoMidiThruNow);
-				}
-
-				// CC command for shift button press
-				else if (data1 == 122) {
-					// If CC Value is greater than 0, press shift, else release shift
-					bool on = data2 > 0 ? true : false;
-					Buttons::commandToggleShift(on);
-
-					indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
 				}
 
 				// Channel mode

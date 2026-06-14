@@ -24,7 +24,6 @@
 namespace Buttons {
 
 ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-void commandToggleShift(bool on);
 bool isButtonPressed(deluge::hid::Button b);
 bool isAnyOfButtonsPressed(std::initializer_list<deluge::hid::Button> buttons);
 bool isShiftButtonPressed();
