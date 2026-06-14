@@ -1227,12 +1227,21 @@ skipAutoRelease: {}
 				memset(&oscBuffer[numSamples], 0, numSamples * sizeof(int32_t));
 			}
 
-			// Render each source that's stereo
+			// Render each source that's stereo. Osc sync must still be applied here: with stereo unison spread, both
+			// sources get deferred into this path (see Source::renderInStereo()), so we have to capture osc A's phase
+			// increments and sync osc B to them just like the mono path above does.
 			for (int32_t s = 0; s < kNumSources; s++) {
 				if (sourcesToRenderInStereo & (1 << s)) {
+
+					uint32_t* getPhaseIncrements = ((s == 0) && doingOscSync) ? oscSyncPhaseIncrement : nullptr;
+					bool getOutAfterGettingPhaseIncrements =
+					    getPhaseIncrements && !sound.isSourceActiveCurrently(s, paramManager);
+
 					renderBasicSource(sound, paramManager, s, oscBuffer, numSamples, true, sourceAmplitudesNow[s],
-					                  &unisonPartBecameInactive, overallPitchAdjust, false, nullptr, nullptr,
-					                  sourceAmplitudeIncrements[s], nullptr, false, sourceWaveIndexIncrements[s]);
+					                  &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync,
+					                  oscSyncPos, oscSyncPhaseIncrement, sourceAmplitudeIncrements[s],
+					                  getPhaseIncrements, getOutAfterGettingPhaseIncrements,
+					                  sourceWaveIndexIncrements[s]);
 				}
 			}
 
