@@ -20,7 +20,7 @@
 // loops on real presets is the golden harness's job; here we pin the per-sample kernels.
 
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
+#include "dsp-next/fixed/bandlimited/waves.h" // square, triangle_half_scale
 #include "dsp-next/fixed/osc/crude_oscillators.h"
 #include "dsp-next/fixed/osc/sine_table.h" // sine_table
 #include "dsp-next/fixed/vca/crude_amplitude.h"
@@ -74,10 +74,10 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 			CrudeTriangle osc{Phasor{0u, 0x30000000u}};
 			std::array<int32_t, 4> out{};
 			osc.renderBlock(Buffer{out});
-			expect(out[0]).to_equal(deluge::dsp::fixed::triangle(0x30000000u));
-			expect(out[1]).to_equal(deluge::dsp::fixed::triangle(0x60000000u));
-			expect(out[2]).to_equal(deluge::dsp::fixed::triangle(0x90000000u));
-			expect(out[3]).to_equal(deluge::dsp::fixed::triangle(0xC0000000u));
+			expect(out[0]).to_equal(deluge::dsp::fixed::triangle_half_scale(0x30000000u));
+			expect(out[1]).to_equal(deluge::dsp::fixed::triangle_half_scale(0x60000000u));
+			expect(out[2]).to_equal(deluge::dsp::fixed::triangle_half_scale(0x90000000u));
+			expect(out[3]).to_equal(deluge::dsp::fixed::triangle_half_scale(0xC0000000u));
 		});
 	});
 

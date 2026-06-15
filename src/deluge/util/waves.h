@@ -27,7 +27,7 @@ extern uint32_t z, w, jcong;
 }
 
 // The analytic waves now live in dsp-next: the square/triangle kernels (deluge::dsp::fixed::square /
-// triangle / triangle_full, dsp-next/fixed/bandlimited/waves.h) and the sine LUT evaluator
+// triangle / triangle_half_scale, dsp-next/fixed/bandlimited/waves.h) and the sine LUT evaluator
 // (deluge::dsp::fixed::sine_table, dsp-next/fixed/osc/sine_table.h) — the canonical home shared by the
 // crude oscillators, the LFO, the envelope and GUI easing. interpolateTableSigned stays here as the generic
 // signed-table linear interp still used across the sample/timestretch/filter DSP.

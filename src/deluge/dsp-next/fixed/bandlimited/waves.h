@@ -28,8 +28,8 @@ namespace deluge::dsp::fixed {
 /// These are the canonical analytic waves for the whole synth: the crude (non-band-limited)
 /// oscillators wrap them, and the control-rate @ref LFO evaluates them per block. They live here,
 /// snake_case, so the oscillator library is self-contained rather than reaching up into the app's
-/// @c util/waves.h. Two triangle scales are offered deliberately — see @ref triangle (half) and
-/// @ref triangle_full (full).
+/// @c util/waves.h. Two triangle scales exist deliberately — the canonical full-scale @ref triangle (like
+/// @ref square) and the half-scale @ref triangle_half_scale the crude-triangle VCA needs.
 
 /// @brief Square wave: full-scale, switching at the pulse-width threshold.
 /// @param phase Full-circle q32 phase (2^32 == one cycle).
@@ -40,28 +40,11 @@ namespace deluge::dsp::fixed {
 	return (phase >= pulse_width) ? std::numeric_limits<int32_t>::min() : std::numeric_limits<int32_t>::max();
 }
 
-/// @brief Triangle wave at half scale (±2^30): folds the phase about its midpoint.
-///
-/// Half scale (not full like @ref square) is deliberate and load-bearing: the crude triangle's
-/// VCA multiplies this by a *doubled* amplitude, and `value * (amp<<1)` differs from
-/// `(value<<1) * amp` exactly when `amp<<1` overflows int32 — so full-scaling the kernel would
-/// be an (unprovable) behavioural change. TODO(audible): unify wave scales + amplitude
-/// convention in the re-baselined audible-improvement phase.
-/// @param phase Full-circle q32 phase (2^32 == one cycle).
-/// @return The triangle sample, in [-2^30, 2^30).
-[[nodiscard, gnu::always_inline]] inline int32_t triangle(uint32_t phase) {
-	if (phase >= 2147483648u) {
-		phase = -phase;
-	}
-	return static_cast<int32_t>(phase - 1073741824u);
-}
-
-/// @brief Triangle wave at full scale (±2^31): the same fold as @ref triangle but spanning the whole q31
-/// range — the shape the control-rate @ref LFO uses (it has no doubled-amplitude VCA, so it wants the full
-/// swing directly).
+/// @brief Triangle wave at full scale (±2^31): folds the phase about its midpoint, spanning the whole q31
+/// range. The canonical triangle (full-scale, like @ref square); the control-rate @ref LFO uses it directly.
 /// @param phase Full-circle q32 phase (2^32 == one cycle).
 /// @return The triangle sample, in [INT32_MIN, INT32_MAX].
-[[nodiscard, gnu::always_inline]] inline int32_t triangle_full(uint32_t phase) {
+[[nodiscard, gnu::always_inline]] inline int32_t triangle(uint32_t phase) {
 	// `slope * phase + offset` walks up then down. Both intercepts are written as unsigned 2^31 literals that
 	// narrow to int32 on assignment — the rising intercept wraps to INT32_MIN, the falling one to INT32_MAX —
 	// and the whole expression is evaluated mod 2^32. This narrowing is load-bearing for the exact turnover
@@ -73,6 +56,22 @@ namespace deluge::dsp::fixed {
 		offset = 0x80000000u - 1; // falling half: 0x7FFFFFFF == INT32_MAX
 	}
 	return slope * phase + offset;
+}
+
+/// @brief Triangle wave at half scale (±2^30): the same fold as @ref triangle but half the amplitude.
+///
+/// The half scale (not full like @ref triangle / @ref square) is deliberate and load-bearing: the crude
+/// triangle's VCA multiplies this by a *doubled* amplitude, and `value * (amp<<1)` differs from
+/// `(value<<1) * amp` exactly when `amp<<1` overflows int32 — so full-scaling the kernel would be an
+/// (unprovable) behavioural change. TODO(audible): unify wave scales + amplitude convention in the
+/// re-baselined audible-improvement phase.
+/// @param phase Full-circle q32 phase (2^32 == one cycle).
+/// @return The triangle sample, in [-2^30, 2^30).
+[[nodiscard, gnu::always_inline]] inline int32_t triangle_half_scale(uint32_t phase) {
+	if (phase >= 2147483648u) {
+		phase = -phase;
+	}
+	return static_cast<int32_t>(phase - 1073741824u);
 }
 
 } // namespace deluge::dsp::fixed

@@ -17,7 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/generator.h"
-#include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
+#include "dsp-next/fixed/bandlimited/waves.h" // square, triangle_half_scale
 #include "dsp-next/fixed/osc/sine_table.h"    // sine_table
 #include <cstdint>
 
@@ -87,7 +87,7 @@ public:
 
 	void renderBlock(Buffer output) override {
 		for (q31& sample : output) {
-			sample = triangle(phasor_.advance());
+			sample = triangle_half_scale(phasor_.advance());
 		}
 	}
 };
