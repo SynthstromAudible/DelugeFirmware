@@ -224,6 +224,38 @@ phase boundaries.
 Steps 2/3 are independent and small; 4 is the crux; 5–7 follow once the back-refs
 are severed.
 
+### 3.1 Follow-up — cutting the synth core's *transitive* reaches (in progress)
+
+The step-6 lint is direct-include only; the synth TUs still pull app layers
+*transitively*. Cutting these is the prerequisite for a real `libdeluge-synth` (and
+makes the namespace wrap meaningful). Status (verified via the build's recorded header
+deps, `ninja -t deps`):
+
+- **gui/colour — CUT (`0c5b26bc`).** Extracted `util/param_functions.h` (the param-math
+  cluster: `paramRanges`/`paramNeutralValues`, `getFinalParameterValue*`, the inline
+  saturate helpers, `getExp`/`lookupReleaseRate` decls) out of the grab-bag
+  `util/functions.h` (which pulls `gui/colour` for one inline). `functions.h` re-exports
+  it; `synth/patcher.cpp` includes the lean header → no longer drags `gui/colour`.
+- **storage — CUT (`ec536716`).** `auto_param.h` + `param_set.h` included
+  `storage/storage_manager.h` (fatfs/scheduler) only for `Serializer`/`Deserializer`
+  parameter types → forward-declared + moved the include to their `.cpp`s. Zero ripple.
+  `synth/patcher.cpp` no longer pulls `storage_manager.h`.
+- **STILL REMAINING (larger than the initial 2-reach estimate — these gate a standalone
+  lib):**
+  - `util/lookuptables/lookuptables.h` directly includes `gui/l10n/strings.h` +
+    `model/iterance/iterance.h` — pulled by **all** synth TUs (envelope/lfo via the
+    LUTs, patcher via params). Lightening it is broad (it's included everywhere).
+  - `auto_param.h` → `model/action/action.h` stays: `ActionType` (an enum) is used as a
+    *default-argument value*, so it needs the full definition — relocating `ActionType`
+    out of `model/` is its own change.
+  - Param/patch headers reach `model/scale/note_set.h` + `model/iterance`; envelope/lfo
+    also reach `model/model_stack.h`.
+
+Both cuts are bit-exact header hygiene (x86 golden 333/333, ARM oracle green, all three
+boundary lints green). The remaining reaches are a meatier follow-on (relocate
+`ActionType`; lighten `lookuptables.h`; etc.) before a `libdeluge-synth` target + a
+*transitive* boundary check can land.
+
 ---
 
 ## 4. Verification
