@@ -20,8 +20,8 @@
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "synth/control_block.h"
-#include "util/functions.h" // paramNeutralValues, paramRanges, getFinalParameterValue*
-#include <algorithm>        // std::ranges::sort
+#include "util/param_functions.h" // paramNeutralValues, paramRanges, getFinalParameterValue*, lshiftAndSaturate
+#include <algorithm>              // std::ranges::sort
 #include <etl/vector.h>
 #include <functional> // std::less
 #include <utility>    // std::pair, std::to_underlying

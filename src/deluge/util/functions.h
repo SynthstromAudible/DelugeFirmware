@@ -27,6 +27,7 @@
 #include "util/etl_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/param_functions.h" // IWYU pragma: export — param scaling/patching math (split out for the synth core)
 #include "util/waves.h"
 #include <bit>
 #include <cstdint>
@@ -42,72 +43,13 @@ extern const uint8_t modButtonY[];
 
 extern uint8_t subModeToReturnTo;
 
-extern int32_t paramRanges[];
-extern int32_t paramNeutralValues[];
-
 void functionsInit();
 
 char const* getThingName(OutputType outputType);
 char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
-// bits must be *less* than 32! I.e. 31 or less
-[[gnu::always_inline]] inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
-
-	// Despite having this switch at the per-audio-sample level, it doesn't introduce any slowdown compared to just
-	// always saturating by the same amount!
-	switch (bits) {
-	case 31:
-		return signed_saturate<31>(val);
-	case 30:
-		return signed_saturate<30>(val);
-	case 29:
-		return signed_saturate<29>(val);
-	case 28:
-		return signed_saturate<28>(val);
-	case 27:
-		return signed_saturate<27>(val);
-	case 26:
-		return signed_saturate<26>(val);
-	case 25:
-		return signed_saturate<25>(val);
-	case 24:
-		return signed_saturate<24>(val);
-	case 23:
-		return signed_saturate<23>(val);
-	case 22:
-		return signed_saturate<22>(val);
-	case 21:
-		return signed_saturate<21>(val);
-	case 20:
-		return signed_saturate<20>(val);
-	case 19:
-		return signed_saturate<19>(val);
-	case 18:
-		return signed_saturate<18>(val);
-	case 17:
-		return signed_saturate<17>(val);
-	case 16:
-		return signed_saturate<16>(val);
-	case 15:
-		return signed_saturate<15>(val);
-	case 14:
-		return signed_saturate<14>(val);
-	case 13:
-		return signed_saturate<13>(val);
-	default:
-		return signed_saturate<12>(val);
-	}
-}
-
-template <uint8_t lshift>
-[[gnu::always_inline]] inline int32_t lshiftAndSaturate(int32_t val) {
-	return signed_saturate<32 - lshift>(val) << lshift;
-}
-
-// lshift must be greater than 0! Not 0
-[[gnu::always_inline]] inline int32_t lshiftAndSaturateUnknown(int32_t val, uint8_t lshift) {
-	return signed_saturate_operand_unknown(val, 32 - lshift) << lshift;
-}
+// signed_saturate_operand_unknown / lshiftAndSaturate / lshiftAndSaturateUnknown now live in
+// util/param_functions.h (included above), split out so the synth core needn't pull this heavy header.
 
 // charsToIntegerConstant / swapEndianness* / memToUIntOrError / ConvertFromIeeeExtended now live in
 // util/audio_format_helpers.h (included above), so the parser can depend on them without this heavy header.
@@ -197,15 +139,12 @@ LaunchStyle stringToLaunchStyle(char const* string);
 
 char const* getInstrumentFolder(OutputType outputType);
 
-int32_t getExp(int32_t presetValue, int32_t adjustment);
-
 bool isAudioFilename(char const* filename);
 bool isAiffFilename(char const* filename);
 
 char const* getFileNameFromEndOfPath(char const* filePathChars);
 char const* getPathFromFullPath(char const* filePathChars);
 
-int32_t lookupReleaseRate(int32_t input);
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue);
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex);
 int32_t instantTan(int32_t input);
@@ -217,11 +156,6 @@ int32_t cableToExpParamShortcut(int32_t sourceValue);
 
 class Sound;
 struct StereoSample;
-int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p);
 
 char const* getSourceDisplayNameForOLED(PatchSource s);
 
