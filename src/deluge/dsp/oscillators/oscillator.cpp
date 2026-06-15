@@ -16,26 +16,15 @@
  */
 #include "oscillator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/bandlimited/analog_saw.h"
-#include "dsp-next/fixed/bandlimited/analog_square.h"
-#include "dsp-next/fixed/bandlimited/band_limited_table.h"
-#include "dsp-next/fixed/bandlimited/saw.h"
-#include "dsp-next/fixed/bandlimited/square.h"
-#include "dsp-next/fixed/bandlimited/triangle.h"
-#include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
-#include "dsp-next/fixed/osc/crude_oscillators.h"
-#include "dsp-next/fixed/osc/pulse_oscillator.h"
-#include "dsp-next/fixed/osc/table_oscillator.h"
-#include "dsp-next/fixed/sync/resetter.h"
-#include "dsp-next/fixed/sync/synced_oscillator.h"
-#include "dsp-next/fixed/sync/synced_phasor.h"
+#include "dsp-next/core/ramp.h"
+#include "dsp-next/fixed/bandlimited/band_limited_table.h" // getTableNumber
 #include "dsp-next/fixed/vca/amplitude.h"
-#include "dsp-next/fixed/vca/crude_amplitude.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/wave_table/wave_table.h"
+#include "synth/source/virtual_analog_engine.h" // the L1 VA engine + BlockControls
 #include "util/fixedpoint.h"
-#include "util/lookuptables/lookuptables.h"
 #include "wavetable_oscillator.h"
+#include <optional>
 
 namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
@@ -53,10 +42,6 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 	*startPhase += phaseIncrement * numSamples;
 
 	bool doPulseWave = false;
-
-	// The band-limited wave selected for this voice (one of the kernel BandlimitedTables); the
-	// band itself is picked by pitch inside the BandLimitedTableOscillator.
-	const fixed::BandlimitedTable* bands = nullptr;
 
 	// The standard band number for non-sine/triangle waves — used to decide whether to drop to the
 	// crude (aliasing) calculation and for the analog-saw downgrade. The phase increment used for
@@ -148,89 +133,14 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 		}
 	}
 
-	// Each sync path (the SyncedOscillator/SyncedPhasor components and the wavetable adapter) now
-	// derives the resetter reciprocal itself from the resetter increment, so there is nothing to
-	// set up here — `doOscSync` is just threaded through to the render below.
-
-	// How an oscillator's un-amplified ("standalone") output relates to the raw value its VCA
-	// consumes: band-limited / pulse waves emit final-scale directly; the crude saw/square emit
-	// double (so the standalone is >> 1); the crude triangle emits half (standalone << 1).
-	enum class Standalone { kDirect, kHalve, kDouble };
-
-	// The shared render tail for one oscillator: fill its raw wave, then either scale-and-mix it
-	// through its VCA (when amplitude applies) or write the standalone wave (scaled) straight out.
-	// Collapses the otherwise-identical per-wave amp/no-amp blocks. `osc` already owns the right
-	// phase source (plain Phasor or hard-synced); `makeVca` builds the VCA only when needed.
-	auto renderThroughVca = [&](auto& osc, auto makeVca, Standalone scale) {
-		if (applyAmplitude) {
-			osc.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-			auto vca = makeVca();
-			vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
-			                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
-			                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-		}
-		else {
-			osc.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-			if (scale == Standalone::kHalve) {
-				for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
-					*sample >>= 1;
-				}
-			}
-			else if (scale == Standalone::kDouble) {
-				for (int32_t* sample = bufferStart; sample != bufferEnd; ++sample) {
-					*sample <<= 1;
-				}
-			}
-		}
-	};
-
-	// Shared tail (Phase A1): render a band-limited wave — a BandLimitedTableOscillator picks the
-	// right band of `bands` for this pitch — straight or with osc sync, then apply amplitude.
-	// The per-wave call sites vary only which kernel's BandlimitedTable and the amplitude pair.
-	// `selectionIncrement` is the pitch that picks the band; it equals `phaseIncrement` except for
-	// pulse-width waves, where `phaseIncrement` has been rewritten to the (faster) pulse render rate
-	// while the band-limiting must still target the original note (the legacy `getTableNumber`
-	// argument, `phaseIncrementForCalculations`).
-	auto renderFromTable = [&](const fixed::BandlimitedTable& bands, int32_t amp, int32_t ampIncrement,
-	                           uint32_t selectionIncrement) {
-		if (doOscSync) {
-			// Hard sync: a SyncedOscillator wraps the band-limited oscillator, restarting it at
-			// every resetter crossover and crossfading the seam. It fills the raw wave (into the
-			// sync scratch when amplitude applies), then the VCA scales-and-mixes it.
-			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
-			fixed::SyncedOscillator osc{
-			    fixed::BandLimitedTableOscillator{bands, phase, phaseIncrement, selectionIncrement}, phase,
-			    phaseIncrement, fixed::Resetter{resetterPhase, resetterPhaseIncrement}, retriggerPhase};
-			osc.renderBlock(fixed::Buffer{bufferStartThisSync, static_cast<size_t>(numSamples)});
-			phase = osc.phase();
-			applyAmplitudeVectorToBuffer(amp, numSamples, ampIncrement, bufferStart, oscSyncRenderingBuffer);
-			maybeStorePhase(type, startPhase, phase, doPulseWave);
-		}
-		else {
-			// Generate the raw band-limited wave, then (when amplitude is applied) scale-and-mix it
-			// with the Amplitude VCA. The osc's owned phase is fill-only; the persistent per-voice
-			// phase was advanced at the top of renderOsc.
-			fixed::BandLimitedTableOscillator osc{bands, phase, phaseIncrement, selectionIncrement};
-			renderThroughVca(osc, [&] { return fixed::Amplitude{amp, ampIncrement}; }, Standalone::kDirect);
-		}
-	};
-
-	if (type == OscType::SINE) [[unlikely]] {
-		// Sine has no aliasing — a single band (the small sine table) covers every pitch.
-		static const fixed::Band kSineBand[] = {{sineWaveSmall, 8, 0xFFFFFFFFu}};
-		static const fixed::BandlimitedTable kSineTable{kSineBand};
-		renderFromTable(kSineTable, amplitude, amplitudeIncrement, phaseIncrement);
-		return;
-	}
-
-	else if (type == OscType::WAVETABLE) {
+	if (type == OscType::WAVETABLE) {
 
 		int32_t waveIndex = sourceWaveIndexLastTime + 1073741824;
 
 		int32_t* wavetableRenderingBuffer = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 
-		// The sample-backed wavetable engine, behind the dsp-next block-generator interface (it
-		// depends on storage/, so it adapts app-side rather than living in the dsp-next library).
+		// The sample-backed wavetable engine, behind the dsp-next block-generator interface (it depends on
+		// storage/, so it stays app-side rather than becoming a synth/source SourceEngine for now).
 		WavetableOscillator osc{waveTable,         Phasor{phase, phaseIncrement},
 		                        doOscSync,         Phasor{resetterPhase, resetterPhaseIncrement},
 		                        retriggerPhase,    waveIndex,
@@ -249,157 +159,27 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 		return;
 	}
 
-	else if (type == OscType::TRIANGLE) {
-
-		if (phaseIncrement < 69273666 || AudioEngine::cpuDireness >= 7) {
-			// Crude triangle: half-scale dsp::fixed::triangle fed to a doubled-amplitude VCA, so the
-			// standalone (un-amplified) output is << 1. Plain Phasor free-runs; SyncedPhasor hard-syncs.
-			auto makeVca = [&] { return fixed::CrudeAmplitude{amplitude << 1, amplitudeIncrement << 1}; };
-			if (doOscSync) {
-				fixed::CrudeTriangle osc{fixed::SyncedPhasor{
-				    Phasor{phase, phaseIncrement}, Phasor{resetterPhase, resetterPhaseIncrement}, retriggerPhase}};
-				renderThroughVca(osc, makeVca, Standalone::kDouble);
-				phase = osc.phase();
-				maybeStorePhase(type, startPhase, phase, doPulseWave);
-				return;
-			}
-			fixed::CrudeTriangle osc{Phasor{phase, phaseIncrement}};
-			renderThroughVca(osc, makeVca, Standalone::kDouble);
-			return;
-		}
-
-		else {
-
-			// Triangle's band ladder always used the (post-pulse-width) `phaseIncrement` directly, so
-			// its selection increment is `phaseIncrement`, not `phaseIncrementForCalculations`.
-			renderFromTable(fixed::triangle_bandlimited_table(), amplitude, amplitudeIncrement, phaseIncrement);
-			return;
-		}
+	// Every remaining (virtual-analog) wave is rendered by the L1 engine. The adapter has finalised the control
+	// values above (pulse-as-sync, retrigger, analog-saw downgrade) — that derivation is shared with the
+	// wavetable path, so it stays here — and just hands the engine the already-modulated values. Phase
+	// persistence also stays here: the engine exposes its post-render phase, which on hard-sync blocks we store
+	// exactly as the legacy path did via maybeStorePhase (non-sync blocks keep the advance done at the top).
+	synth::VirtualAnalogEngine engine{type, Phasor{phase, phaseIncrement}};
+	synth::BlockControls controls{
+	    .amplitude = Ramp{amplitude, amplitudeIncrement},
+	    .apply_amplitude = applyAmplitude,
+	    .pulse_width = pulseWidth,
+	    .pulse_wave = doPulseWave,
+	    .retrigger_phase = retriggerPhase,
+	    .sync = doOscSync ? std::optional<Phasor>{Phasor{resetterPhase, resetterPhaseIncrement}} : std::nullopt,
+	    .bandlimit_increment = phaseIncrementForCalculations,
+	    .cpu_direness = AudioEngine::cpuDireness,
+	};
+	engine.renderBlock(controls, fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)},
+	                   fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+	if (doOscSync) {
+		maybeStorePhase(type, startPhase, engine.phase(), doPulseWave);
 	}
-
-	else [[likely]] {
-
-		uint32_t phaseToAdd;
-
-		if (type == OscType::SAW) {
-			// If frequency low enough, we just use a crude calculation for the wave without anti-aliasing
-			if (tableNumber < AudioEngine::cpuDireness + 6) {
-
-				// Crude saw: the phase ramp itself (full scale), so the standalone output is >> 1.
-				auto makeVca = [&] { return fixed::CrudeAmplitude{amplitude, amplitudeIncrement}; };
-				if (!doOscSync) {
-					fixed::CrudeSaw osc{Phasor{phase, phaseIncrement}};
-					renderThroughVca(osc, makeVca, Standalone::kHalve);
-					return;
-				}
-				fixed::CrudeSaw osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
-				                                        Phasor{resetterPhase, resetterPhaseIncrement}, retriggerPhase}};
-				renderThroughVca(osc, makeVca, Standalone::kHalve);
-				phase = osc.phase();
-				maybeStorePhase(type, startPhase, phase, doPulseWave);
-				return;
-			}
-
-			else {
-				bands = &fixed::saw_bandlimited_table();
-			}
-		}
-
-		else if (type == OscType::SQUARE) {
-			// If frequency low enough, we just use a crude calculation for the wave without anti-aliasing
-			if (tableNumber < AudioEngine::cpuDireness + 6) {
-
-				// Crude square: full-scale dsp::fixed::square, so the standalone output is >> 1 (half scale).
-				auto makeVca = [&] { return fixed::CrudeAmplitude{amplitude, amplitudeIncrement}; };
-				if (!doOscSync) {
-					fixed::CrudeSquare osc{Phasor{phase, phaseIncrement}, pulseWidth};
-					renderThroughVca(osc, makeVca, Standalone::kHalve);
-					return;
-				}
-				fixed::CrudeSquare osc{fixed::SyncedPhasor{Phasor{phase, phaseIncrement},
-				                                           Phasor{resetterPhase, resetterPhaseIncrement},
-				                                           retriggerPhase},
-				                       pulseWidth};
-				renderThroughVca(osc, makeVca, Standalone::kHalve);
-				phase = osc.phase();
-				maybeStorePhase(type, startPhase, phase, doPulseWave);
-				return;
-			}
-
-			else {
-				bands = &fixed::square_bandlimited_table();
-
-				// If pulse wave, we have our own special routines here
-				if (doPulseWave) {
-
-					amplitude <<= 1;
-					amplitudeIncrement <<= 1;
-
-					phaseToAdd = -(pulseWidth >> 1);
-
-					phase >>= 1;
-					phaseIncrement >>= 1;
-
-					// The perfect pulse: ring-modulate two band-limited squares offset by the pulse
-					// width. Same raw kernel + vqdmulhq VCA as the table path, so the gen-then-VCA
-					// (and SyncedOscillator) migration is bit-exact with renderPulseWave/renderOscSync.
-					fixed::PulseOscillator pulse{
-					    fixed::square_bandlimited_table().select(phaseIncrementForCalculations), phase, phaseIncrement,
-					    phaseToAdd};
-					if (doOscSync) {
-						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
-						fixed::SyncedOscillator osc{pulse, phase, phaseIncrement,
-						                            fixed::Resetter{resetterPhase, resetterPhaseIncrement},
-						                            retriggerPhase};
-						osc.renderBlock(fixed::Buffer{bufferStartThisSync, static_cast<size_t>(numSamples)});
-						phase = osc.phase() << 1;
-						applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
-						                             oscSyncRenderingBuffer);
-						maybeStorePhase(type, startPhase, phase, doPulseWave);
-						return;
-					}
-					else {
-						if (applyAmplitude) {
-							pulse.renderBlock(fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-							fixed::Amplitude vca{amplitude, amplitudeIncrement};
-							vca.renderBlock(fixed::Signal{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)},
-							                fixed::Signal{bufferStart, static_cast<size_t>(numSamples)},
-							                fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-						}
-						else {
-							pulse.renderBlock(fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)});
-						}
-						return;
-					}
-				}
-			}
-		}
-
-		else if (type == OscType::ANALOG_SAW_2) {
-			bands = &fixed::analog_saw_bandlimited_table();
-		}
-
-		else if (type == OscType::ANALOG_SQUARE) {
-			// This sounds different enough to the digital square that we can never just swap back to that to save CPU
-			bands = &fixed::analog_square_bandlimited_table();
-		}
-
-		// If we're still here, we need to render the wave according to a table decided above
-
-		amplitude <<= 1;
-		amplitudeIncrement <<= 1;
-		// Saw/analog band selection tracks the note (`phaseIncrementForCalculations`), which is what
-		// the legacy `getTableNumber(phaseIncrementForCalculations)` indexed — `phaseIncrement` may
-		// have been rewritten to the pulse-width render rate above.
-		renderFromTable(*bands, amplitude, amplitudeIncrement, phaseIncrementForCalculations);
-		return;
-	}
-
-	// Rohan thinks we never get here but who knows
-
-	applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart, oscSyncRenderingBuffer);
-
-	maybeStorePhase(type, startPhase, phase, doPulseWave);
 }
 void Oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
                                               int32_t* outputBufferPos, int32_t* inputBuferPos) {
