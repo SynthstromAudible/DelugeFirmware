@@ -288,9 +288,9 @@ private:
 	static constexpr float c = 0.5403f;
 	static constexpr float s = 0.8414f;
 	static constexpr uint32_t RMat[4][4] = {
-	    {(uint32_t)(c * ONE_Q15), 0, (uint32_t)(s* ONE_Q15), 0},
-	    {(uint32_t)(s * ONE_Q15), (uint32_t)(c* ONE_Q15), 0, 0},
-	    {0, (uint32_t)(s* ONE_Q15), (uint32_t)(c* ONE_Q15), 0},
+	    {(uint32_t)(c * ONE_Q15), 0, (uint32_t)(s * ONE_Q15), 0},
+	    {(uint32_t)(s * ONE_Q15), (uint32_t)(c * ONE_Q15), 0, 0},
+	    {0, (uint32_t)(s * ONE_Q15), (uint32_t)(c * ONE_Q15), 0},
 	    {0, 0, 0, ONE_Q15},
 	};
 

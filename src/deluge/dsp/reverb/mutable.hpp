@@ -41,9 +41,16 @@ public:
 		typename FxEngine::Context c;
 		FxEngine::ConstructTopology(engine_, //<
 		                            {
-		                                &ap1, &ap2, &ap3, &ap4, //<
-		                                &dap1a, &dap1b, &del1,  //<
-		                                &dap2a, &dap2b, &del2,  //<
+		                                &ap1,
+		                                &ap2,
+		                                &ap3,
+		                                &ap4, //<
+		                                &dap1a,
+		                                &dap1b,
+		                                &del1, //<
+		                                &dap2a,
+		                                &dap2b,
+		                                &del2, //<
 		                            });
 
 		const float kap = diffusion_;

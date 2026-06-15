@@ -75,7 +75,7 @@ Exported global variables (to be accessed by other files)
 uint8_t g_midi_device[USB_DD_BLENGTH + (USB_DD_BLENGTH % 2)] = {
     USB_DD_BLENGTH,                                        /*  0:bLength */
     USB_DT_DEVICE,                                         /*  1:bDescriptorType */
-    (uint8_t)(USB_BCDNUM&(uint8_t)0xff),                   /*  2:bcdUSB_lo */
+    (uint8_t)(USB_BCDNUM & (uint8_t)0xff),                 /*  2:bcdUSB_lo */
     (uint8_t)((uint8_t)(USB_BCDNUM >> 8) & (uint8_t)0xff), /*  3:bcdUSB_hi */
                                                            // Device to be specified at interface level
     0x00,                                                  /*  4:bDeviceClass */
@@ -83,11 +83,11 @@ uint8_t g_midi_device[USB_DD_BLENGTH + (USB_DD_BLENGTH % 2)] = {
     0x00,                                                  /*  6:bDeviceProtocol */
 
     (uint8_t)USB_DCPMAXP,                                     /*  7:bMAXPacketSize(for DCP) */
-    (uint8_t)(USB_VENDORID&(uint8_t)0xff),                    /*  8:idVendor_lo */
+    (uint8_t)(USB_VENDORID & (uint8_t)0xff),                  /*  8:idVendor_lo */
     (uint8_t)((uint8_t)(USB_VENDORID >> 8) & (uint8_t)0xff),  /*  9:idVendor_hi */
-    (uint8_t)(USB_PRODUCTID&(uint8_t)0xff),                   /* 10:idProduct_lo */
+    (uint8_t)(USB_PRODUCTID & (uint8_t)0xff),                 /* 10:idProduct_lo */
     (uint8_t)((uint8_t)(USB_PRODUCTID >> 8) & (uint8_t)0xff), /* 11:idProduct_hi */
-    (uint8_t)(USB_RELEASE&(uint8_t)0xff),                     /* 12:bcdDevice_lo */
+    (uint8_t)(USB_RELEASE & (uint8_t)0xff),                   /* 12:bcdDevice_lo */
     (uint8_t)((uint8_t)(USB_RELEASE >> 8) & (uint8_t)0xff),   /* 13:bcdDevice_hi */
     1,                                                        /* 14:iManufacturer */
     2,                                                        /* 15:iProduct */
@@ -134,10 +134,11 @@ uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = 
      * to add ports/cables add more jacks here
      */
     // Header
-    0x07,                        // header length
-    CS_INTERFACE,                // bDescriptorType - CS interface
-    0x01,                        // Subtype - Midi Streaming Header
-    0x00, 0x01,                  // BCD revision (1.00)
+    0x07,         // header length
+    CS_INTERFACE, // bDescriptorType - CS interface
+    0x01,         // Subtype - Midi Streaming Header
+    0x00,
+    0x01,                        // BCD revision (1.00)
     (uint8_t)(7 + 15 * NCABLES), // TotalLength - LSB of interface descriptors - 7+15*ncables
     0x00,                        // Interface descriptors MSB
     // MIDI_IN 1
@@ -206,16 +207,17 @@ uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = 
     0x05,                            // bDescriptorType = ENDPOINT
     (uint8_t)(USB_EP_OUT | USB_EP2), // bEndpointAddress. D7 direction, low 4 addr
     0x02,                            // bmAttributes (bulk)
-    0x40, 0x00,                      // wMaxPacketSize
-    0x00,                            // bInterval
-    0x00,                            // bRefresh
-    0x00,                            // bSynchAddress
-                                     // midi class specific bulk out
-    (uint8_t)(4 + NCABLES),          // bLength - 4+ncables
-    0x25,                            // bDescriptorType - CS_ENDPOINT
-    0x01,                            // bDescriptorSubType - MS_GENERAL
-    0x03,                            // bNumEmbMidiJack - number of MIDI IN jacks
-    0x01,                            // BaAssocJackID - ID of first associated jack
+    0x40,
+    0x00,                   // wMaxPacketSize
+    0x00,                   // bInterval
+    0x00,                   // bRefresh
+    0x00,                   // bSynchAddress
+                            // midi class specific bulk out
+    (uint8_t)(4 + NCABLES), // bLength - 4+ncables
+    0x25,                   // bDescriptorType - CS_ENDPOINT
+    0x01,                   // bDescriptorSubType - MS_GENERAL
+    0x03,                   // bNumEmbMidiJack - number of MIDI IN jacks
+    0x01,                   // BaAssocJackID - ID of first associated jack
     0x03,
     0x05, // ID of last associated jack
 
@@ -224,16 +226,17 @@ uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = 
     0x05,                           // bDescriptor
     (uint8_t)(USB_EP_IN | USB_EP1), // different address
     0x02,                           // bmAttributes
-    0x40, 0x00,                     // wMaxPacketSize
-    0x00,                           // bInterval
-    0x00,                           // bRefresh
-    0x00,                           // bSynchAddress
-                                    // midi specific bulk in
-    (uint8_t)(4 + NCABLES),         // bLength - 4+ncables
-    CS_ENDPOINT,                    // bDescriptorType - CS_ENDPOINT
-    0x01,                           // bDescriptorSubtype
-    0x03,                           // bNumEmbMidiJack - number of MIDI OUT jacks
-    0x02,                           // BaAssocJackID - first associated jack
+    0x40,
+    0x00,                   // wMaxPacketSize
+    0x00,                   // bInterval
+    0x00,                   // bRefresh
+    0x00,                   // bSynchAddress
+                            // midi specific bulk in
+    (uint8_t)(4 + NCABLES), // bLength - 4+ncables
+    CS_ENDPOINT,            // bDescriptorType - CS_ENDPOINT
+    0x01,                   // bDescriptorSubtype
+    0x03,                   // bNumEmbMidiJack - number of MIDI OUT jacks
+    0x02,                   // BaAssocJackID - first associated jack
     0x04,
     0x06, // Last associated jack
 };

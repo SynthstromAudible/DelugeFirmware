@@ -69,8 +69,10 @@
 const uint8_t g_usb_pipe_peri[] = {
 /* OUT pipe */ /* IN pipe */
 #if defined(USB_CFG_PCDC_USE)
-    USB_CFG_PCDC_BULK_OUT, USB_CFG_PCDC_BULK_IN, /* USB_PCDC */
-    USB_NULL, USB_CFG_PCDC_INT_IN,               /* USB_PCDCC */
+    USB_CFG_PCDC_BULK_OUT,
+    USB_CFG_PCDC_BULK_IN, /* USB_PCDC */
+    USB_NULL,
+    USB_CFG_PCDC_INT_IN, /* USB_PCDCC */
 #else
     USB_NULL,
     USB_NULL,
@@ -79,7 +81,8 @@ const uint8_t g_usb_pipe_peri[] = {
 #endif
 
 #if defined(USB_CFG_PHID_USE)
-    USB_CFG_PHID_INT_OUT, USB_CFG_PHID_INT_IN, /* USB_PHID */
+    USB_CFG_PHID_INT_OUT,
+    USB_CFG_PHID_INT_IN, /* USB_PHID */
 #else
     USB_NULL,
     USB_NULL,
