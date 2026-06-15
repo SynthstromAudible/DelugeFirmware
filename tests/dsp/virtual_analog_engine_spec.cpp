@@ -38,6 +38,7 @@ using deluge::dsp::Phasor;
 using deluge::dsp::Ramp;
 using deluge::synth::BlockControls;
 using deluge::synth::VirtualAnalogEngine;
+using Wave = deluge::synth::va_shape::Wave;
 using Buffer = deluge::dsp::fixed::Buffer;
 
 constexpr std::size_t kN = 8;
@@ -62,7 +63,7 @@ std::array<int32_t, kN> renderKernel(Osc osc) {
 	return out;
 }
 
-std::array<int32_t, kN> renderEngine(OscType wave, uint32_t phase, uint32_t increment, const BlockControls& controls) {
+std::array<int32_t, kN> renderEngine(Wave wave, uint32_t phase, uint32_t increment, const BlockControls& controls) {
 	VirtualAnalogEngine engine{wave, Phasor{phase, increment}};
 	std::array<int32_t, kN> out{};
 	std::array<int32_t, kN> scratch{};
@@ -77,7 +78,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	constexpr uint32_t kInc = 0x02000000u; // low pitch ⇒ low table number ⇒ crude arms (with cpu_direness 7)
 
 	it("crude SAW is the phase ramp halved (standalone)", _ {
-		auto got = renderEngine(OscType::SAW, kPhase, kInc, standalone(7, kInc));
+		auto got = renderEngine(Wave::Saw, kPhase, kInc, standalone(7, kInc));
 		auto raw = renderKernel(deluge::dsp::fixed::CrudeSaw{Phasor{kPhase, kInc}});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i] >> 1); // Standalone::kHalve
@@ -85,7 +86,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	});
 
 	it("crude SQUARE is the square halved (standalone)", _ {
-		auto got = renderEngine(OscType::SQUARE, kPhase, kInc, standalone(7, kInc));
+		auto got = renderEngine(Wave::Square, kPhase, kInc, standalone(7, kInc));
 		auto raw = renderKernel(deluge::dsp::fixed::CrudeSquare{Phasor{kPhase, kInc}, 2147483648u});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i] >> 1); // Standalone::kHalve
@@ -93,7 +94,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	});
 
 	it("crude TRIANGLE is the triangle doubled (standalone)", _ {
-		auto got = renderEngine(OscType::TRIANGLE, kPhase, kInc, standalone(7, kInc));
+		auto got = renderEngine(Wave::Triangle, kPhase, kInc, standalone(7, kInc));
 		auto raw = renderKernel(deluge::dsp::fixed::CrudeTriangle{Phasor{kPhase, kInc}});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i] << 1); // Standalone::kDouble
@@ -103,7 +104,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	it("SINE reads the sine band directly (no scale)", _ {
 		static const deluge::dsp::fixed::Band kSineBand[] = {{sineWaveSmall, 8, 0xFFFFFFFFu}};
 		static const deluge::dsp::fixed::BandlimitedTable kSineTable{kSineBand};
-		auto got = renderEngine(OscType::SINE, kPhase, kInc, standalone(7, kInc));
+		auto got = renderEngine(Wave::Sine, kPhase, kInc, standalone(7, kInc));
 		auto raw = renderKernel(deluge::dsp::fixed::BandLimitedTableOscillator{kSineTable, kPhase, kInc, kInc});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i]); // Standalone::kDirect
@@ -115,7 +116,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 		constexpr uint32_t kResetInc = 0x01000000u;
 		auto controls = standalone(7, kInc, 2147483648u, Phasor{kResetPhase, kResetInc});
 
-		VirtualAnalogEngine engine{OscType::SAW, Phasor{kPhase, kInc}};
+		VirtualAnalogEngine engine{Wave::Saw, Phasor{kPhase, kInc}};
 		std::array<int32_t, kN> out{};
 		std::array<int32_t, kN> scratch{};
 		engine.renderBlock(controls, Buffer{out}, Buffer{scratch});

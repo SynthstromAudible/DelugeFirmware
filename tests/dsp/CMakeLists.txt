@@ -50,6 +50,7 @@ set(crude_oscillators_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/looku
 # The L1 VirtualAnalogEngine composes every band-limited wave table + the sine band (sineWaveSmall).
 set(virtual_analog_engine_spec_DEPS
   ${_repo_root}/src/deluge/synth/source/virtual_analog_engine.cpp
+  ${_repo_root}/src/deluge/synth/source/va_shapes.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/saw.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/square.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/triangle.cpp

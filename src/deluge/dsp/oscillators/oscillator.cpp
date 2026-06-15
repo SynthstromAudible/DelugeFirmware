@@ -29,6 +29,27 @@
 namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
     __attribute__((aligned(CACHE_LINE_SIZE)));
+
+namespace {
+// The adapter's open OscType → the VA engine's closed wave set. Only the (post-downgrade) VA waves reach this
+// path — WAVETABLE is handled above and SAMPLE/DX7/INPUT never enter renderOsc.
+synth::va_shape::Wave vaWaveFor(OscType type) {
+	switch (type) {
+	case OscType::TRIANGLE:
+		return synth::va_shape::Wave::Triangle;
+	case OscType::SQUARE:
+		return synth::va_shape::Wave::Square;
+	case OscType::SAW:
+		return synth::va_shape::Wave::Saw;
+	case OscType::ANALOG_SAW_2:
+		return synth::va_shape::Wave::AnalogSaw;
+	case OscType::ANALOG_SQUARE:
+		return synth::va_shape::Wave::AnalogSquare;
+	default: // SINE
+		return synth::va_shape::Wave::Sine;
+	}
+}
+} // namespace
 __attribute__((optimize("unroll-loops"))) void
 Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
                       uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
@@ -164,7 +185,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 	// wavetable path, so it stays here — and just hands the engine the already-modulated values. Phase
 	// persistence also stays here: the engine exposes its post-render phase, which on hard-sync blocks we store
 	// exactly as the legacy path did via maybeStorePhase (non-sync blocks keep the advance done at the top).
-	synth::VirtualAnalogEngine engine{type, Phasor{phase, phaseIncrement}};
+	synth::VirtualAnalogEngine engine{vaWaveFor(type), Phasor{phase, phaseIncrement}};
 	synth::BlockControls controls{
 	    .amplitude = Ramp{amplitude, amplitudeIncrement},
 	    .apply_amplitude = applyAmplitude,
