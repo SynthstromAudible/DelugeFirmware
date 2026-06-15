@@ -352,6 +352,20 @@ A `Favourites` feature has been added to the browser for most file types. The `F
   - Note: for `Kit` clips it will migrate midi learn for `Kit Affect Entire` params only.
 - Added new learnable global command `LOAD NEXT SONG`, which when received while playing, it will queue to load the next song within the folder of the current song.
 
+#### <ins>Follow</ins>
+
+- Add specific track control to `MIDI FOLLOW` enabling you to have instant mixer control of the parameters of up to 16 tracks.
+  - You can now configure up to 16 channels in the MIDI Follow menu.
+  - CC's received on the specific track channels are directed to the active clip of the corresponding track.
+  - Track 1 corresponds to bottom track in `ARRANGER VIEW` or left track in `GRID VIEW`.
+  - You can also now configure the Channel `TRACK` for MIDI Follow Feedback. If a specific track is selected and has been configured
+    for MIDI Follow control, the Deluge will send feedback of the CC values for that specific track.
+- Added new default CC 89 to toggle the mute of the active clip in a specific track.
+  - Toggle mute: CC Value > 0 (Send a CC value greater than 0 to toggle mute for the active clip in a specific track)
+    - If used together with `SHIFT`, it will trigger instant mute.
+- Added new default CC 90 to toggle solo of the active clip in a specific track.
+  - Toggle solo: CC Value > 0 (Send a CC Value greater than 0 to toggle mute for the active clip in a specific track)
+
 ### SD CARD
 
 #### <ins>SETTINGS folder</ins>

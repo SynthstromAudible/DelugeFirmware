@@ -50,7 +50,6 @@ extern gui::menu_item::KeyRange defaultKeyMenu;
 namespace FlashStorage {
 
 // Static declarations
-static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer);
 static bool areAutomationSettingsValid(std::span<uint8_t> buffer);
 
 enum Entries {
@@ -144,17 +143,9 @@ enum Entries {
 123: defaultSessionLayout
 124: defaultKeyboardLayout
 125: gridEmptyPadsUnarm
-126: midiFollow set follow channel A
-127: midiFollow set follow channel B
-128: midiFollow set follow channel C
-129: midiFollow set kit root note
-130: midiFollow display param pop up
-131: midiFollow set feedback channel type (A/B/C/NONE)
-132: midiFollow feedback automation mode
-133: midiFollow feedback filter to handle feedback loops
-134-137: midiFollow set follow device A product / vendor ids
-138-141: midiFollow set follow device B	product / vendor ids
-142-145: midiFollow set follow device C	product / vendor ids
+
+126-145: free (previously reserved for midi follow)
+
 146: gridEmptyPadsCreateRec
 147: midi select kit row on learned note message received
 148: default scale (NEW)
@@ -174,7 +165,9 @@ enum Entries {
 165: "fill" colour
 166: "once" colour
 167: defaultSliceMode
-168: midiFollow control song params
+
+168: free (previously reserved for midi follow)
+
 169: High CPU Usage Indicator
 170: default hold time (1-20)
 171: default swing interval
@@ -288,8 +281,6 @@ void resetSettings() {
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
 	midiEngine.midiSelectKitRow = false;
 
-	resetMidiFollowSettings();
-
 	for (auto& globalMIDICommand : midiEngine.globalMIDICommands) {
 		globalMIDICommand.clear();
 	}
@@ -369,17 +360,6 @@ void resetSettings() {
 	defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
 
 	defaultUseSharps = true;
-}
-
-void resetMidiFollowSettings() {
-	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
-		midiChannelType.clear();
-	}
-	midiEngine.midiFollowKitRootNote = 36;
-	midiEngine.midiFollowDisplayParam = false;
-	midiEngine.midiFollowFeedbackChannelType = MIDIFollowChannelType::NONE;
-	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
-	midiEngine.midiFollowFeedbackFilter = false;
 }
 
 void resetAutomationSettings() {
@@ -625,37 +605,6 @@ void readSettings() {
 
 	gridEmptyPadsUnarm = buffer[125];
 
-	if (savedVersion.type() != FirmwareVersion::Type::COMMUNITY) {
-		resetMidiFollowSettings();
-	}
-	else {
-		if (areMidiFollowSettingsValid(buffer)) {
-			midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone = buffer[126];
-			midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::B)].channelOrZone = buffer[127];
-			midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::C)].channelOrZone = buffer[128];
-			MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::A, &buffer[134]);
-			/* buffer[135]  \
-			buffer[136]   device reference above occupies 4 bytes
-			buffer[137] */
-			MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::B, &buffer[138]);
-			/* buffer[139]  \
-			buffer[140]   device reference above occupies 4 bytes
-			buffer[141] */
-			MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::C, &buffer[142]);
-			/* buffer[143]  \
-			buffer[144]   device reference above occupies 4 bytes
-			buffer[145] */
-			midiEngine.midiFollowKitRootNote = buffer[129];
-			midiEngine.midiFollowDisplayParam = !!buffer[130];
-			midiEngine.midiFollowFeedbackChannelType = static_cast<MIDIFollowChannelType>(buffer[131]);
-			midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
-			midiEngine.midiFollowFeedbackFilter = !!buffer[133];
-		}
-		else {
-			resetMidiFollowSettings();
-		}
-	}
-
 	gridEmptyPadsCreateRec = buffer[146];
 
 	midiEngine.midiSelectKitRow = buffer[147];
@@ -817,43 +766,6 @@ void readSettings() {
 	else {
 		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
-}
-
-static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
-	// midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone
-	if ((buffer[126] < 0 || buffer[126] >= NUM_CHANNELS) && buffer[126] != MIDI_CHANNEL_NONE) {
-		return false;
-	}
-	// midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::B)].channelOrZone
-	else if ((buffer[127] < 0 || buffer[127] >= NUM_CHANNELS) && buffer[127] != MIDI_CHANNEL_NONE) {
-		return false;
-	}
-	// midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::C)].channelOrZone
-	else if ((buffer[128] < 0 || buffer[128] >= NUM_CHANNELS) && buffer[128] != MIDI_CHANNEL_NONE) {
-		return false;
-	}
-	// midiEngine.midiFollowKitRootNote
-	else if (buffer[129] < 0 || buffer[129] > kMaxMIDIValue) {
-		return false;
-	}
-	// midiEngine.midiFollowDisplayParam
-	else if (buffer[130] != 0 && buffer[130] != 1) {
-		return false;
-	}
-	// midiEngine.midiFollowFeedbackChannelType
-	else if (buffer[131] < 0 || buffer[131] > util::to_underlying(MIDIFollowChannelType::NONE)) {
-		return false;
-	}
-	// midiEngine.midiFollowFeedbackAutomation
-	else if (buffer[132] < 0 || buffer[132] > util::to_underlying(MIDIFollowFeedbackAutomationMode::HIGH)) {
-		return false;
-	}
-	// midiEngine.midiFollowFeedbackFilter
-	else if (buffer[133] != 0 && buffer[133] != 1) {
-		return false;
-	}
-	// place holder for checking if midi follow devices are valid
-	return true;
 }
 
 static bool areAutomationSettingsValid(std::span<uint8_t> buffer) {
@@ -1026,26 +938,6 @@ void writeSettings() {
 	buffer[124] = util::to_underlying(defaultKeyboardLayout);
 
 	buffer[125] = gridEmptyPadsUnarm;
-	buffer[126] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone;
-	buffer[127] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::B)].channelOrZone;
-	buffer[128] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::C)].channelOrZone;
-	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::A, &buffer[134]);
-	/* buffer[135]  \
-	   buffer[136]   device reference above occupies 4 bytes
-	   buffer[137] */
-	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::B, &buffer[138]);
-	/* buffer[139]  \
-	   buffer[140]   device reference above occupies 4 bytes
-	   buffer[141] */
-	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::C, &buffer[142]);
-	/* buffer[143]  \
-	   buffer[144]   device reference above occupies 4 bytes
-	   buffer[145] */
-	buffer[129] = midiEngine.midiFollowKitRootNote;
-	buffer[130] = midiEngine.midiFollowDisplayParam;
-	buffer[131] = util::to_underlying(midiEngine.midiFollowFeedbackChannelType);
-	buffer[132] = util::to_underlying(midiEngine.midiFollowFeedbackAutomation);
-	buffer[133] = midiEngine.midiFollowFeedbackFilter;
 
 	buffer[146] = gridEmptyPadsCreateRec;
 

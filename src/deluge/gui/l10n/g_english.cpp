@@ -902,6 +902,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FOLLOW_CHANNEL_A, "Channel A"},
         {STRING_FOR_FOLLOW_CHANNEL_B, "Channel B"},
         {STRING_FOR_FOLLOW_CHANNEL_C, "Channel C"},
+        {STRING_FOR_FOLLOW_CHANNEL_TRACK, "Channel Track**"},
         {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "Kit Root Note"},
         {STRING_FOR_FOLLOW_DISPLAY_PARAM, "Display Param"},
         {STRING_FOR_FOLLOW_FEEDBACK, "Feedback"},

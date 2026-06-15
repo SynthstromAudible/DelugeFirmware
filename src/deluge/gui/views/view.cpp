@@ -1680,10 +1680,9 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 }
 
 void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
-	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
-		int32_t channel =
-		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
-		        .channelOrZone;
+	MIDIFollowChannelType feedbackChannelType = midiFollow.getChannelTypeForFeedback();
+	if (feedbackChannelType != MIDIFollowChannelType::NONE) {
+		int32_t channel = midiEngine.midiFollowChannelType[util::to_underlying(feedbackChannelType)].channelOrZone;
 		if (channel != MIDI_CHANNEL_NONE) {
 			// check if we're dealing with a clip context param (don't send feedback for song params)
 			if (isClipContext()) {
@@ -2775,7 +2774,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 #endif
 		if (on) {
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
-			session.soloClipAction(clip, kInternalButtonPressLatency);
+			session.soloClipAction(clip, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
 	}
