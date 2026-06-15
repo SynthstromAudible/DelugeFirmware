@@ -18,11 +18,15 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "io/debug/log.h"
 #include "model/sync.h"
 #include "util/fixedpoint.h"
 #include "util/waves.h"
+#include <cstdint>
+#include <variant>
 
+/// The preset-level configuration of one LFO: its waveform plus, optionally, how it locks to the transport.
+/// Owned by the app (one per LFO slot on a Sound) and passed into LFO::render — the LFO itself is otherwise
+/// configuration-free.
 class LFOConfig {
 public:
 	LFOConfig() : waveType(LFOType::TRIANGLE), syncType(SYNC_TYPE_EVEN), syncLevel(SYNC_LEVEL_NONE) {}
@@ -32,97 +36,168 @@ public:
 	SyncLevel syncLevel;
 };
 
+/// The individual LFO waveform generators.
+///
+/// Each generator's @ref render reads the *pre-advance* phase, produces its q31 value, then advances the
+/// phase itself — so per-waveform quirks (notably the warbler's double-rate sweep) stay self-contained. The
+/// deterministic waves are stateless; the random ones own exactly the accumulator state they carry between
+/// periods. The owning @ref LFO holds one of these in a `std::variant` and dispatches with `std::visit`.
+///
+/// Phase is unsigned UQ0.32: one full waveform period spans the whole `uint32_t` range, and a period boundary
+/// is the wrap from near-max back past zero.
+namespace lfo_wave {
+
+/// Advance the shared phase accumulator.
+/// @param phase_increment per-sample phase step, UQ0.32 (freq·2^32/sampleRate).
+/// @param num_samples     samples in this render block.
+[[gnu::always_inline]] inline void advance(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
+	phase += phase_increment * num_samples;
+}
+
+/// Rising ramp: the phase itself, reinterpreted as a signed q31 sweep from −1 to +1.
+struct Saw {
+	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
+		int32_t value = static_cast<int32_t>(phase);
+		advance(phase, phase_increment, num_samples);
+		return value;
+	}
+};
+
+struct Square {
+	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
+		int32_t value = getSquare(phase);
+		advance(phase, phase_increment, num_samples);
+		return value;
+	}
+};
+
+struct Sine {
+	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
+		int32_t value = getSine(phase);
+		advance(phase, phase_increment, num_samples);
+		return value;
+	}
+};
+
+struct Triangle {
+	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
+		int32_t value = getTriangle(phase);
+		advance(phase, phase_increment, num_samples);
+		return value;
+	}
+};
+
+/// Sample-and-hold: latch a fresh random value at each period boundary, then hold it steady until the next.
+struct SampleHold {
+	int32_t held_value_ = 0;
+	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
+		bool new_period = (phase == 0) || (phase + phase_increment * num_samples < phase);
+		int32_t value = new_period ? (held_value_ = CONG) : held_value_;
+		advance(phase, phase_increment, num_samples);
+		return value;
+	}
+};
+
+/// Random walk: at each period boundary, step the held value by a random amount that is biased back towards
+/// zero modulation — the further it has wandered from zero, the stronger the pull home — then hold.
+struct RandomWalk {
+	int32_t held_value_ = 0;
+	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
+		// The walk spans ±(range/2) per step; full modulation depth is reached after several steps.
+		uint32_t range = 4294967295u / 20;
+		if (phase == 0) {
+			// First period: a plain centred random value, no previous value to bias against.
+			held_value_ = (range / 2) - CONG % range;
+		}
+		else if (phase + phase_increment * num_samples < phase) {
+			// (held_value_ / -16) is the homing bias. Its effect at the extremes:
+			//   held_value_ ==  8*range => bias + range/2 == 0       => next value <= current (forced down)
+			//   held_value_ ==  0       => bias + range/2 == range/2 => equal chance up or down
+			//   held_value_ == -8*range => bias + range/2 == range   => next value >= current (forced up)
+			held_value_ = add_saturate((held_value_ / -16) + (range / 2) - CONG % range, held_value_);
+		}
+		advance(phase, phase_increment, num_samples);
+		return held_value_;
+	}
+};
+
+/// Warbler: a smooth random curve. It runs at *double* phase rate and, at each (doubled) period boundary,
+/// picks a new random target. Rather than filtering the distance to the target, it filters the *rate* of
+/// approach (a second-order response), so the curve eases out — zero derivative — at both ends.
+struct Warbler {
+	int32_t held_value_ = 0;
+	int32_t target_ = 0;
+	int32_t speed_ = 0;
+	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
+		phase_increment *= 2; // the warbler sweeps at twice the configured rate
+		if (phase + phase_increment * num_samples < phase) {
+			target_ = CONG;
+			speed_ = 0;
+		}
+		int32_t distance_to_target = target_ - held_value_;
+		speed_ = speed_ + num_samples * (multiply_32x32_rshift32(distance_to_target, phase_increment >> 8));
+		held_value_ = add_saturate(held_value_, speed_);
+		advance(phase, phase_increment, num_samples);
+		return held_value_;
+	}
+};
+
+} // namespace lfo_wave
+
+/// A low-frequency oscillator: a free-running phase accumulator driving one of the @ref lfo_wave generators,
+/// producing a q31 modulation value per render block.
+///
+/// Decoupled by design — render() takes the phase increment as a plain value, so the LFO knows nothing of
+/// Sound/Voice/ParamManager/tempo. The caller derives the increment (from a rate parameter, or from the
+/// transport for a synced LFO). The oscillator owns only its UQ0.32 @ref phase_; each random waveform owns
+/// its own inter-period state inside the variant.
 class LFO {
 public:
 	LFO() = default;
-	uint32_t phase{0};
-	int32_t holdValue{0};
-	int32_t target{0};
-	int32_t speed{0};
+
+	/// Re-seat the waveform and set the phase for a fresh note (local LFOs always start at the negative
+	/// extreme) or a transport re-sync (global LFOs). Both reset the active waveform's accumulators.
 	void setLocalInitialPhase(const LFOConfig& config);
 	void setGlobalInitialPhase(const LFOConfig& config);
-	[[gnu::always_inline]] int32_t render(int32_t numSamples, LFOConfig& config, uint32_t phaseIncrement) {
-		return render(numSamples, config.waveType, phaseIncrement);
-	}
-	[[gnu::always_inline]] int32_t render(int32_t numSamples, LFOType waveType, uint32_t phaseIncrement) {
-		int32_t value;
-		switch (waveType) {
-		case LFOType::SAW:
-			value = static_cast<int32_t>(phase);
-			break;
 
-		case LFOType::SQUARE:
-			value = getSquare(phase);
-			break;
-
-		case LFOType::SINE:
-			value = getSine(phase);
-			break;
-
-		case LFOType::TRIANGLE:
-			value = getTriangle(phase);
-			break;
-
-		case LFOType::SAMPLE_AND_HOLD:
-			if ((phase == 0) || (phase + phaseIncrement * numSamples < phase)) {
-				value = CONG;
-				holdValue = value;
-			}
-			else {
-				value = holdValue;
-			}
-			break;
-
-		case LFOType::RANDOM_WALK: {
-			uint32_t range = 4294967295u / 20;
-			if (phase == 0) {
-				value = (range / 2) - CONG % range;
-				holdValue = value;
-			}
-			else if (phase + phaseIncrement * numSamples < phase) {
-				// (holdValue / -16) adds a slight bias to make the new value move
-				// back towards zero modulation the further holdValue has moved away
-				// from zero. This is probably best explained by showing the edge
-				// cases:
-				// holdValue == 8 * range => (holdValue / -16) + (range / 2) == 0 =>
-				// next holdValue <= current holdValue
-				// holdValue == 0 => (holdValue / -16) + (range / 2) == range / 2 =>
-				// equal chance for next holdValue smaller or lager than current
-				// holdValue == -8 * range => (holdValue / -16) + (range / 2) ==
-				// range => next holdValue >= current holdValuie
-				holdValue = add_saturate((holdValue / -16) + (range / 2) - CONG % range, holdValue);
-				value = holdValue;
-			}
-			else {
-				value = holdValue;
-			}
-			break;
-		}
-		case LFOType::WARBLER: {
-			phaseIncrement *= 2;
-			warble(numSamples, phaseIncrement);
-			value = holdValue;
-		}
-		}
-
-		phase += phaseIncrement * numSamples;
-		return value;
-	}
-	void warble(int32_t numSamples, uint32_t phaseIncrement) {
-		if (phase + phaseIncrement * numSamples < phase) {
-			target = CONG;
-			speed = 0;
-		}
-		// this is a second order filter - the rate that the held value approaches the target is filtered instead of
-		// the difference. It makes a nice smooth random curve since the derivative is 0 at the start and end
-		auto targetSpeed = target - holdValue;
-		speed = speed + numSamples * (multiply_32x32_rshift32(targetSpeed, phaseIncrement >> 8));
-		holdValue = add_saturate(holdValue, speed);
+	[[gnu::always_inline]] int32_t render(int32_t num_samples, LFOConfig& config, uint32_t phase_increment) {
+		return render(num_samples, config.waveType, phase_increment);
 	}
 
-	void tick(int32_t numSamples, uint32_t phaseIncrement) {
-		// Note: if this overflows and we're using S&H or RANDOM_WALK, the
-		// next render() won't know it has overflown. Probably not an issue.
-		phase += phaseIncrement * numSamples;
+	/// Render one block, returning the LFO's q31 value for it.
+	/// @param phase_increment per-sample phase step, UQ0.32 (freq·2^32/sampleRate). The phase accumulates
+	///        `phase_increment * num_samples` across the block.
+	[[gnu::always_inline]] int32_t render(int32_t num_samples, LFOType wave_type, uint32_t phase_increment) {
+		selectWave(wave_type);
+		return std::visit([&](auto& wave) { return wave.render(phase_, phase_increment, num_samples); }, wave_);
 	}
+
+	/// Advance the phase without producing output (used while rendering is skipped). Waveform-agnostic.
+	void tick(int32_t num_samples, uint32_t phase_increment) {
+		// Note: if this overflows and we're using SAMPLE_AND_HOLD or RANDOM_WALK, the next render() won't know
+		// it has overflown. Probably not an issue.
+		phase_ += phase_increment * num_samples;
+	}
+
+	uint32_t phase() const { return phase_; }
+	void setPhase(uint32_t phase) { phase_ = phase; }
+	/// Nudge the phase forward (e.g. to align a synced global LFO to the transport position).
+	void advancePhase(uint32_t delta) { phase_ += delta; }
+
+private:
+	// Force a fresh waveform of `type`, resetting its accumulators (note-on / re-sync).
+	void emplaceWave(LFOType type);
+	// Reseat the waveform only on an actual type change, so SAMPLE_AND_HOLD / RANDOM_WALK / WARBLER state
+	// persists across same-type render blocks.
+	void selectWave(LFOType type) {
+		if (wave_.index() != static_cast<std::size_t>(type)) {
+			emplaceWave(type);
+		}
+	}
+
+	uint32_t phase_ = 0;
+	// Alternatives are ordered to match the LFOType enum, so wave_.index() == static_cast<size_t>(LFOType).
+	std::variant<lfo_wave::Sine, lfo_wave::Triangle, lfo_wave::Square, lfo_wave::Saw, lfo_wave::SampleHold,
+	             lfo_wave::RandomWalk, lfo_wave::Warbler>
+	    wave_{};
 };

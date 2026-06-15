@@ -2758,7 +2758,7 @@ void Sound::resyncGlobalLFOs() {
 				uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 				uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
 				uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
-				globalLFO1.phase += (uint32_t)((float)offsetTime / timePerPeriod * 4294967296);
+				globalLFO1.advancePhase((uint32_t)((float)offsetTime / timePerPeriod * 4294967296));
 			}
 		}
 	}
@@ -2795,7 +2795,7 @@ void Sound::resyncGlobalLFOs() {
 				uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 				uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
 				uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
-				globalLFO3.phase += (uint32_t)((float)offsetTime / timePerPeriod * 4294967296);
+				globalLFO3.advancePhase((uint32_t)((float)offsetTime / timePerPeriod * 4294967296));
 			}
 		}
 	}

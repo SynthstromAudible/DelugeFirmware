@@ -111,12 +111,15 @@ phase boundaries.
    intra-render multi-transitions (accepted — voice-stealing isn't golden-covered).
    The render switch was decomposed into named per-stage step methods
    (`stepAttack`/`stepDecay`/…) driven by a small dispatch loop (no `goto`). All
-   bit-exact (x86 golden 333/333, ARM oracle, both arches). **TODO:** a dual-arch
-   `envelope_spec` (the payoff — the envelope is now constructible in isolation)
-   is *blocked* on the curve helpers it calls (`getDecay4/8`, `interpolateTable`,
-   `getSine`) living in the monolithic `util/functions.cpp`, which drags in
-   fatfs/gui/hid/display — linking it into a leaf spec explodes. Extract those
-   helpers into a leaf TU (a dsp-next-ward move) first, then add the spec.
+   bit-exact (x86 golden 333/333, ARM oracle, both arches). **Curve helpers +
+   `envelope_spec` DONE (`5a97499e`):** the blocking curve helpers (`getDecay4/8`,
+   `interpolateTable`, `interpolateTableInverse`) were extracted verbatim out of the
+   monolithic `util/functions.cpp` into a new leaf `util/interpolation.{h,cpp}` (only
+   dep = the decay/release LUTs); 5 callers + `functions.cpp` re-include it. (`getSine`
+   already lived in the leaf `util/waves.h`.) That unblocked a dual-arch
+   `tests/dsp/envelope_spec.cpp` — 8 cases driving the `Envelope` in isolation
+   (`envelope.cpp` + `interpolation.cpp` + `lookuptables.cpp`, no fatfs/gui/hid), green
+   on x86 (SIMDe) and ARM/qemu. Pure relocation, bit-exact (x86 333/333, ARM subset).
 
    > **Future (the audible/float pass, NOT this phase): data-driven segments.**
    > The most modular envelope is a generic stepper over an array of
@@ -128,9 +131,26 @@ phase boundaries.
    > a uniform segment model would be a pile of special cases and can't be
    > bit-exact. Revisit it with the float/curve-unification work, where
    > re-baselining + a listening test are expected anyway.
-3. **LFO decouple.** Push `getLocalLFOPhaseIncrement`'s `sound.lfoConfig` +
-   `paramFinalValues` reads to the call site; the synth-side LFO sees only
-   `LFOConfig` + increment (already its `render` signature). Add `lfo_spec`.
+3. **LFO decouple — DONE.** The audit found `LFO::render(numSamples, LFOConfig&,
+   phaseIncrement)` was *already* value-driven (no Sound/Voice/engine reads); the
+   increment derivation (`getLocal/GlobalLFOPhaseIncrement`) is the legitimate
+   app-side proto-adapter for step 4 and stays put. So the literal "push the reads"
+   was already satisfied. The realized work was the o-o + testability debt: each
+   waveform is now its own typed generator in a `namespace lfo_wave`
+   (`Saw`/`Square`/`Sine`/`Triangle`/`SampleHold`/`RandomWalk`/`Warbler`) held in a
+   `std::variant` and dispatched by `std::visit` — the closed-sum, no-vtable,
+   value-semantics form (C++ mirror of a Rust data-carrying `enum`, not `dyn Trait`).
+   `LFO` state is fully private behind `phase()`/`setPhase()`/`advancePhase()` seams
+   (the lone firmware poke `globalLFO.phase += offset` in `resyncGlobalLFOs` became
+   `advancePhase`). `LFOType`/`LFOConfig` stay app-level (serialized + UI). Bit-exact
+   hazards preserved verbatim: the warbler's 2× phase advance and the S&H/walk/warbler
+   pre-advance overflow detection. One flagged micro-change (golden-gated, like the
+   envelope cull-timing shift): per-struct state means a *live local-LFO shape change
+   between two stateful waves* resets the accumulators (an accidental cross-type state
+   leak in the old shared-fields code), unobservable in the corpus. Added a dual-arch
+   `tests/dsp/lfo_spec.cpp` (exact per-waveform values ported from the retired x86-only
+   `tests/unit/lfo_tests.cpp`, which is deleted) — 12 cases green on x86 + ARM/qemu.
+   Bit-exact: x86 golden 333/333, ARM oracle 8/8 LFO-exercising cases.
 4. **`ControlBlock` + patcher param source.** Introduce `ControlBlock`; Patcher
    reads patched-param preset values + cable set from it instead of
    `sound.getSmoothedPatchedParamValue` / `param_manager.getPatchCableSet`.
