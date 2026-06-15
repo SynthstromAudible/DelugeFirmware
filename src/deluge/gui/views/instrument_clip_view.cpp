@@ -93,6 +93,7 @@
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/lookuptables/preset_tables.h"
 #include "util/try.h"
 #include <new>
 #include <string.h>

@@ -24,6 +24,8 @@
 #include <cstdint>
 #include <span>
 
+class UnpatchedParamSet; // used only as a pointer below (was previously seen transitively via lfo.h's LUTs)
+
 class ModFXProcessor {
 
 	void setupChorus(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,

@@ -1,4 +1,5 @@
 #include "util/string.h"
+#include "hid/display/display.h" // the global `display` (was previously seen transitively via lookuptables.h)
 #include "printf.h"
 #include "util/c_string.h" // intToHex
 #include "util/etl_string.h"
@@ -11,6 +12,7 @@
 #include <cstring>
 #include <expected>
 #include <string>
+#include <strings.h> // strncasecmp
 #include <system_error>
 
 extern "C" {

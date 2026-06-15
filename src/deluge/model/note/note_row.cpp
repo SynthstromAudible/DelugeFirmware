@@ -42,6 +42,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/lookuptables/preset_tables.h"
 #include <new>
 #include <string.h>
 

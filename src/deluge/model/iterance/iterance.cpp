@@ -18,6 +18,7 @@
 #include "model/iterance/iterance.h"
 #include "definitions_cxx.hpp"
 #include "util/lookuptables/lookuptables.h"
+#include "util/lookuptables/preset_tables.h"
 #include <cstdint>
 
 // To/from int

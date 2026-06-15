@@ -17,10 +17,12 @@
 
 #pragma once
 
-#include "gui/l10n/strings.h"
-#include "model/iterance/iterance.h"
 #include <array>
 #include <cstdint>
+
+// NOTE: the preset *name* / iterance tables (presetReverbNames, chordNames, iterancePresets) that need
+// gui/l10n + model/iterance live in util/lookuptables/preset_tables.h, so this header stays a leaf of
+// numeric DSP tables (no gui/ or model/ reach). Include preset_tables.h if you need those.
 
 extern const uint16_t centAdjustTableSmall[];
 extern const uint16_t decayTableSmall4[];
@@ -50,16 +52,16 @@ extern const int16_t oldResonanceCompensation[];
 #define NUM_PRESET_REVERBS 3
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
 const uint8_t presetReverbDamping[NUM_PRESET_REVERBS] = {29, 36, 45};
-extern deluge::l10n::String presetReverbNames[NUM_PRESET_REVERBS];
+// presetReverbNames -> util/lookuptables/preset_tables.h (needs l10n::String)
 
 extern const uint8_t noteCodeToNoteLetter[];
 extern const uint8_t noteCodeToNoteLetterFlats[];
 extern const bool noteCodeIsSharp[];
 
-extern const std::array<Iterance, 35> iterancePresets;
+// iterancePresets -> util/lookuptables/preset_tables.h (needs Iterance)
 
 #define MAX_CHORD_TYPES 9
 #define MAX_CHORD_NOTES 4
 extern uint8_t chordTypeSemitoneOffsets[MAX_CHORD_TYPES][MAX_CHORD_NOTES];
 extern uint8_t chordTypeNoteCount[MAX_CHORD_TYPES];
-extern const std::array<deluge::l10n::String, MAX_CHORD_TYPES> chordNames;
+// chordNames -> util/lookuptables/preset_tables.h (needs l10n::String)
