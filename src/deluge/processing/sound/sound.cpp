@@ -79,7 +79,7 @@ constexpr Patcher::Config kPatcherConfigForSound = {
     .globality = GLOBALITY_GLOBAL,
 };
 
-Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalValues) {
+Sound::Sound() : patcher(kPatcherConfigForSound, params.sourceValues, params.paramFinalValues) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	oscRetriggerPhase.fill(0xFFFFFFFF);
@@ -2370,27 +2370,27 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_1)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_1);
 
-		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
+		int32_t old = params.sourceValues[patchSourceLFOGlobalUnderlying];
 		// TODO: We don't really need to recompute phase increment unless rate, sync, or
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		globalSourceValues[patchSourceLFOGlobalUnderlying] = globalLFO1.render(
+		params.sourceValues[patchSourceLFOGlobalUnderlying] = globalLFO1.render(
 		    output.size(), lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
+		uint32_t anyChange = (old != params.sourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_2)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_2);
 
-		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
+		int32_t old = params.sourceValues[patchSourceLFOGlobalUnderlying];
 		// TODO: We don't really need to recompute phase increment unless rate, sync, or
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		globalSourceValues[patchSourceLFOGlobalUnderlying] = globalLFO3.render(
+		params.sourceValues[patchSourceLFOGlobalUnderlying] = globalLFO3.render(
 		    output.size(), lfoConfig[LFO3_ID], getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
+		uint32_t anyChange = (old != params.sourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 
@@ -2408,10 +2408,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		const auto patchSourceSidechainUnderlying = util::to_underlying(PatchSource::SIDECHAIN);
 
-		int32_t old = globalSourceValues[patchSourceSidechainUnderlying];
-		globalSourceValues[patchSourceSidechainUnderlying] = sidechain.render(
+		int32_t old = params.sourceValues[patchSourceSidechainUnderlying];
+		params.sourceValues[patchSourceSidechainUnderlying] = sidechain.render(
 		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceSidechainUnderlying]);
+		uint32_t anyChange = (old != params.sourceValues[patchSourceSidechainUnderlying]);
 		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
 	}
 
@@ -2423,7 +2423,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	// Setup some reverb-related stuff
 	int32_t reverbSendAmount =
 	    multiply_32x32_rshift32_rounded(reverbAmountAdjust,
-	                                    paramFinalValues[params::GLOBAL_REVERB_AMOUNT - params::FIRST_GLOBAL])
+	                                    params.paramFinalValues[params::GLOBAL_REVERB_AMOUNT - params::FIRST_GLOBAL])
 	    << 5;
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
@@ -2441,7 +2441,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
-		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+		    arpSettings->getPhaseIncrement(params.paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 	}
@@ -2470,12 +2470,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// Setup delay
 	Delay::State delayWorkingState{};
-	delayWorkingState.delayFeedbackAmount = paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
+	delayWorkingState.delayFeedbackAmount =
+	    params.paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    std::min(delayWorkingState.delayFeedbackAmount, (q31_t)(1 << 30) - (1 << 26));
 	}
-	delayWorkingState.userDelayRate = paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
+	delayWorkingState.userDelayRate = params.paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	delay.setupWorkingState(delayWorkingState, timePerTickInverse, !voices_.empty());
 	delayWorkingState.analog_saturation = 8;
@@ -2570,15 +2571,15 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		}
 	}
 
-	int32_t postFXVolume = paramFinalValues[params::GLOBAL_VOLUME_POST_FX - params::FIRST_GLOBAL];
-	int32_t postReverbVolume = paramFinalValues[params::GLOBAL_VOLUME_POST_REVERB_SEND - params::FIRST_GLOBAL];
+	int32_t postFXVolume = params.paramFinalValues[params::GLOBAL_VOLUME_POST_FX - params::FIRST_GLOBAL];
+	int32_t postReverbVolume = params.paramFinalValues[params::GLOBAL_VOLUME_POST_REVERB_SEND - params::FIRST_GLOBAL];
 
 	if (postReverbVolumeLastTime == -1) {
 		postReverbVolumeLastTime = postReverbVolume;
 	}
 
-	int32_t modFXDepth = paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
-	int32_t modFXRate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
+	int32_t modFXDepth = params.paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
+	int32_t modFXRate = params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
 	processSRRAndBitcrushing(sound_stereo, &postFXVolume, paramManager);
 	processFX(sound_stereo, modFXType_, modFXRate, modFXDepth, delayWorkingState, &postFXVolume, paramManager,
@@ -2659,7 +2660,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			                getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
 
 			// Do Mod FX
-			modfx.tickLFO(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
+			modfx.tickLFO(modFXTimeOff, params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
 
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
@@ -2686,7 +2687,7 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 	if (skippingRendering) {
 		if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 			uint32_t phaseIncrement =
-			    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+			    arpSettings->getPhaseIncrement(params.paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 			getArp()->gatePos +=
 			    (phaseIncrement >> 8) * (AudioEngine::audioSampleTimer - timeStartedSkippingRenderingArp);
 
@@ -2698,7 +2699,7 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 uint32_t Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param) {
 	LFOConfig& config = lfoConfig[lfoId];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
-		return paramFinalValues[param - params::FIRST_GLOBAL];
+		return params.paramFinalValues[param - params::FIRST_GLOBAL];
 	}
 	return getSyncedLFOPhaseIncrement(config);
 }

@@ -172,8 +172,20 @@ phase boundaries.
    deferred to step 5). Bit-exact: x86 golden 333/333, ARM oracle 10/10 patching-stress
    cases. A `patcher_spec` is deferred — `PatchedParamSet`/`PatchCableSet` are still
    heavy for a leaf spec; the goldens fully cover the patcher meanwhile.
-5. **`VoiceParams` POD.** Gather the per-voice data plane into the POD; the
-   components take `VoiceParams&` rather than loose `Voice` fields.
+5. **`VoiceParams` POD — DONE.** Introduced `template <size_t NumSources, size_t
+   NumParams> struct ParamPlane { std::array sourceValues; std::array
+   paramFinalValues; }` (`modulation/param_plane.h`) — one shape, two aliases:
+   `VoiceParams = ParamPlane<kNumPatchSources, LOCAL_LAST>` and
+   `GlobalParams = ParamPlane<kFirstLocalSource, kNumParams - FIRST_GLOBAL>`. `Voice`
+   and `Sound` each replace their two loose arrays with a `params` member; the Patcher
+   is constructed with spans over `params.sourceValues` / `params.paramFinalValues`
+   (no Patcher change — it already takes `std::span`). ~107 accessors repointed to
+   `params.…` (Sound's `globalSourceValues` → `params.sourceValues`; voice.cpp's 3
+   cross-object reads → `sound.params.sourceValues`). `sourcesChanged` (asymmetric —
+   Voice render-local vs Sound member) and the compile-time `Patcher::Config`s stay
+   out of the POD. Pure structural move, bit-exact: x86 golden 333/333, ARM oracle
+   10/10 broad spread; both host-sims build clean. (The eager preset-value span stays
+   deferred — the lazy `ControlBlock::presetValue` is unchanged.)
 6. **Relocate to `deluge::synth`.** `git mv` Patcher/Envelope/LFO (+ the new
    types) into the new namespace/lib; flip the boundary lint to empty.
 7. **Retire the #2660 `alignas(8)` workaround.** Remove it; confirm the goldens

@@ -23,6 +23,7 @@
 #include "model/voice/voice_unison_part.h"
 #include "modulation/envelope.h"
 #include "modulation/lfo.h"
+#include "modulation/param_plane.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patcher.h"
 #include <bitset>
@@ -47,14 +48,10 @@ public:
 
 	Sound& sound; // This is a reference to the Sound that owns this Voice
 
-	///
-	/// This is just for the *local* params, specific to this Voice only
-	///
-	std::array<int32_t, deluge::modulation::params::LOCAL_LAST> paramFinalValues{};
-
-	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and
-	// choose where the Patcher looks for them
-	std::array<int32_t, kNumPatchSources> sourceValues{};
+	// The per-voice modulation data plane: the *local* param final values (specific to this Voice) plus the patch
+	// source values. At the start of sourceValues are local copies of the "global" sources — cheaper to copy them
+	// here than to make the Patcher pick and choose where to look.
+	VoiceParams params;
 
 	std::bitset<kNumExpressionDimensions> expressionSourcesCurrentlySmoothing{};
 	std::bitset<kNumExpressionDimensions> expressionSourcesFinalValueChanged{};

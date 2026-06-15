@@ -24,6 +24,7 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
 #include "modulation/lfo.h"
+#include "modulation/param_plane.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -81,11 +82,9 @@ public:
 
 	Source sources[kNumSources];
 
-	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value
-	// before accessing this array!
-	std::array<int32_t, deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL>
-	    paramFinalValues{};
-	std::array<int32_t, util::to_underlying(kFirstLocalSource)> globalSourceValues{};
+	// The per-sound *global* modulation data plane. params.paramFinalValues begins with FIRST_GLOBAL, so
+	// subtract that from your p value before indexing it; params.sourceValues holds only the global sources.
+	GlobalParams params;
 
 	uint32_t sourcesChanged{}; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
