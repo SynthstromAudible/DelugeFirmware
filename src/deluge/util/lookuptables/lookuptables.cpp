@@ -18,9 +18,9 @@
 // clang-format off
 
 #include "util/lookuptables/lookuptables.h"
-#include "util/lookuptables/preset_tables.h"
-#include "gui/l10n/l10n.h"
 #include "definitions_cxx.hpp"
+// The l10n/iterance preset tables (presetReverbNames, chordNames, iterancePresets) live in preset_tables.cpp
+// so this TU stays gui-free (numeric DSP tables only).
 
 const uint16_t centAdjustTableSmall[257] = {
 31835, 31842, 31850, 31857, 31864, 31871, 31878, 31885, 31893, 31900, 31907, 31914, 31921, 31929, 31936, 31943,
@@ -153,11 +153,6 @@ const int16_t tanHSmall[] = {
 32729, 32733, 32736, 32739, 32742, 32745, 32748, 32750, 32753, 32755, 32757, 32759, 32761, 32762, 32764, 32766,
 32767, };
 
-deluge::l10n::String presetReverbNames[] = {
-	deluge::l10n::String::STRING_FOR_SMALL_ROOM_REVERB, //<
-	deluge::l10n::String::STRING_FOR_MEDIUM_ROOM_REVERB, //<
-	deluge::l10n::String::STRING_FOR_LARGE_ROOM_REVERB, //<
-};
 
 const int16_t tanH2d[][129] = {
 	{-32767, -32766, -32764, -32762, -32760, -32758, -32756, -32754, -32751, -32748, -32745, -32742, -32738, -32734, -32729, -32724, -32719, -32713, -32706, -32699, -32691, -32682, -32672, -32661, -32650, -32636, -32622, -32606, -32588, -32569, -32547, -32523, -32497, -32468, -32436, -32400, -32360, -32317, -32268, -32215, -32156, -32091, -32019, -31940, -31852, -31756, -31650, -31533, -31405, -31265, -31111, -30943, -30760, -30561, -30345, -30110, -29857, -29585, -29293, -28980, -28647, -28293, -27918, -27524, -27110, -26677, -26226, -25759, -25277, -24780, -24271, -23751, -23222, -22686, -22143, -21596, -21047, -20495, -19943, -19392, -18843, -18297, -17755, -17217, -16685, -16158, -15637, -15123, -14616, -14117, -13624, -13140, -12663, -12193, -11732, -11278, -10832, -10394, -9963, -9540, -9125, -8716, -8315, -7921, -7535, -7154, -6781, -6414, -6054, -5700, -5352, -5010, -4674, -4344, -4019, -3700, -3387, -3078, -2775, -2477, -2183, -1895, -1611, -1332, -1057, -786, -520, -258, 0, },
@@ -495,16 +490,6 @@ const bool noteCodeIsSharp[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
  *   This iterance is Custom and will read as "5 and 6, of 6". Iterance value is 0x0630
  */
 
-const std::array<Iterance, 35> iterancePresets = {
-	Iterance{2, 0b1}, Iterance{2, 0b10},
-	Iterance{3, 0b1}, Iterance{3, 0b10}, Iterance{3, 0b100},
-	Iterance{4, 0b1}, Iterance{4, 0b10}, Iterance{4, 0b100}, Iterance{4, 0b1000},
-	Iterance{5, 0b1}, Iterance{5, 0b10}, Iterance{5, 0b100}, Iterance{5, 0b1000}, Iterance{5, 0b10000},
-	Iterance{6, 0b1}, Iterance{6, 0b10}, Iterance{6, 0b100}, Iterance{6, 0b1000}, Iterance{6, 0b10000}, Iterance{6, 0b100000},
-	Iterance{7, 0b1}, Iterance{7, 0b10}, Iterance{7, 0b100}, Iterance{7, 0b1000}, Iterance{7, 0b10000}, Iterance{7, 0b100000}, Iterance{7, 0b1000000},
-	Iterance{8, 0b1}, Iterance{8, 0b10}, Iterance{8, 0b100}, Iterance{8, 0b1000}, Iterance{8, 0b10000}, Iterance{8, 0b100000}, Iterance{8, 0b1000000}, Iterance{8, 0b10000000}
-	};
-
 // CHORD TYPES
 
 uint8_t chordTypeSemitoneOffsets[MAX_CHORD_TYPES][MAX_CHORD_NOTES] = {
@@ -531,14 +516,3 @@ uint8_t chordTypeNoteCount[MAX_CHORD_TYPES] = {
     /* MAJOR7    */ 4,
 };
 
-const std::array<deluge::l10n::String, MAX_CHORD_TYPES> chordNames = {
-    deluge::l10n::String::STRING_FOR_NONE,
-    deluge::l10n::String::STRING_FOR_FIFTH,
-	deluge::l10n::String::STRING_FOR_SUS2,
-	deluge::l10n::String::STRING_FOR_MINOR,
-	deluge::l10n::String::STRING_FOR_MAJOR,
-	deluge::l10n::String::STRING_FOR_SUS4,
-	deluge::l10n::String::STRING_FOR_MINOR7,
-	deluge::l10n::String::STRING_FOR_DOMINANT7,
-	deluge::l10n::String::STRING_FOR_MAJOR7,
-};

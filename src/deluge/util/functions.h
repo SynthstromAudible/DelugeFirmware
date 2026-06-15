@@ -297,12 +297,7 @@ inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& squ
 	return number >> (-magnitude);
 }
 
-[[gnu::always_inline]] inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
-	if (magnitude > 0) {
-		return lshiftAndSaturateUnknown(number, magnitude);
-	}
-	return number >> (-magnitude);
-}
+// increaseMagnitudeAndSaturate moved to util/param_functions.h (re-exported via the include above).
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = nullptr,

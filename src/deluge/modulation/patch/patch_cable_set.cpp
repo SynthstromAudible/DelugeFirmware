@@ -505,41 +505,8 @@ bool PatchCableSet::patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings 
 	        == PatchCableAcceptance::ALLOWED);
 }
 
-int32_t PatchCableSet::getModifiedPatchCableAmount(int32_t c, int32_t p) {
-	// For some params, we square the cable strength, to make it slope up more slowly at first, so we have access
-	// to small effects as well as big
-	int32_t output;
-	int32_t amount = patchCables[c].param.getCurrentValue();
-	switch (p) {
-	case params::LOCAL_PITCH_ADJUST:
-	case params::LOCAL_OSC_A_PITCH_ADJUST:
-	case params::LOCAL_OSC_B_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-	case params::GLOBAL_DELAY_RATE:
-		output = (amount >> 15) * (amount >> 16);
-		if (amount < 0) {
-			output = -output;
-		}
-
-		if (p == params::LOCAL_PITCH_ADJUST) {
-			// If patching to master pitch, adjust range so that, on max range, the velocity-editing steps correspond
-			// with whole semitones
-			if (patchCables[c].from == PatchSource::VELOCITY) {
-				// output = (output / 3 << 1);
-				output = multiply_32x32_rshift32_rounded(output, 1431655765) << 1;
-			}
-			else {
-				output = multiply_32x32_rshift32_rounded(output, 1518500250)
-				         << 1; // Divides by square root of 2. Gives us 3 octaves of shifting rather than 4
-			}
-		}
-
-		return output;
-	default:
-		return amount;
-	}
-}
+// PatchCableSet::getModifiedPatchCableAmount is defined in patch_cable_set_amount.cpp (a gui-free TU, so the
+// standalone synth core can link it).
 
 // No need to supply Sound if you don't need setupPatching() to be called now (cos you're gonna call it later)
 void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p) {

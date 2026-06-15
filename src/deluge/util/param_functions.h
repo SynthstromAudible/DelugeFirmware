@@ -89,6 +89,15 @@ template <uint8_t lshift>
 	return signed_saturate_operand_unknown(val, 32 - lshift) << lshift;
 }
 
+// Scale `number` by 2^magnitude (negative magnitude = right-shift), saturating on positive magnitude. Lives
+// here (rather than functions.h) because getExp() in param_functions.cpp needs it gui-free.
+[[gnu::always_inline]] inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
+	if (magnitude > 0) {
+		return lshiftAndSaturateUnknown(number, magnitude);
+	}
+	return number >> (-magnitude);
+}
+
 int32_t getExp(int32_t presetValue, int32_t adjustment);
 int32_t lookupReleaseRate(int32_t input);
 
