@@ -73,7 +73,7 @@ constexpr int32_t PARAM_ID_NONE = 255;
 constexpr int32_t MIDI_CC_MUTE = 89;
 constexpr int32_t MIDI_CC_SOLO = 90;
 
-EnumStringMap<MIDIFollowChannelType, util::to_underlying(MIDIFollowChannelType::LAST)> channelTypeMap = {
+EnumStringMap<MIDIFollowChannelType, kNumMIDIFollowChannelTypesIncludingTracks> channelTypeMap = {
     {{{MIDIFollowChannelType::A, "a"},
       {MIDIFollowChannelType::B, "b"},
       {MIDIFollowChannelType::C, "c"},
@@ -96,11 +96,11 @@ EnumStringMap<MIDIFollowChannelType, util::to_underlying(MIDIFollowChannelType::
       {MIDIFollowChannelType::Track15, "track_15"},
       {MIDIFollowChannelType::Track16, "track_16"}}}};
 
-EnumStringMap<MIDIFollowFeedbackAutomationMode, util::to_underlying(MIDIFollowFeedbackAutomationMode::LAST)>
-    feedbackAutomationModeMap = {{{{MIDIFollowFeedbackAutomationMode::DISABLED, "disabled"},
-                                   {MIDIFollowFeedbackAutomationMode::LOW, "low"},
-                                   {MIDIFollowFeedbackAutomationMode::MEDIUM, "medium"},
-                                   {MIDIFollowFeedbackAutomationMode::HIGH, "high"}}}};
+EnumStringMap<MIDIFollowFeedbackAutomationMode, kNumMIDIFollowFeedbackAutomationModes> feedbackAutomationModeMap = {
+    {{{MIDIFollowFeedbackAutomationMode::DISABLED, "disabled"},
+      {MIDIFollowFeedbackAutomationMode::LOW, "low"},
+      {MIDIFollowFeedbackAutomationMode::MEDIUM, "medium"},
+      {MIDIFollowFeedbackAutomationMode::HIGH, "high"}}}};
 
 PLACE_SDRAM_BSS MidiFollow midiFollow{};
 
@@ -1765,7 +1765,7 @@ void MidiFollow::readChannelSettingsFromFile(Deserializer& reader) {
 	while (*(tag_name = reader.readNextTagOrAttributeName())) {
 		// step into first channel type tag
 		MIDIFollowChannelType type = getChannelTypeFromName(tag_name);
-		if (type != MIDIFollowChannelType::LAST) {
+		if (type != MIDIFollowChannelType::INVALID) {
 			readSpecificChannelSettingsFromFile(reader, type);
 		}
 		// exit so we can step into next tag
@@ -1817,7 +1817,7 @@ void MidiFollow::readFeedbackSettingsFromFile(Deserializer& reader) {
 		if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG)) {
 			char const* value = reader.readTagOrAttributeValue();
 			MIDIFollowChannelType type = getChannelTypeFromName(value);
-			if (type != MIDIFollowChannelType::LAST) {
+			if (type != MIDIFollowChannelType::INVALID) {
 				midiEngine.midiFollowFeedbackChannelType = type;
 			}
 		}
@@ -1825,7 +1825,7 @@ void MidiFollow::readFeedbackSettingsFromFile(Deserializer& reader) {
 		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_FEEDBACK_AUTOMATION_TAG)) {
 			char const* value = reader.readTagOrAttributeValue();
 			MIDIFollowFeedbackAutomationMode mode = getFeedbackAutomationModeFromName(value);
-			if (mode != MIDIFollowFeedbackAutomationMode::LAST) {
+			if (mode != MIDIFollowFeedbackAutomationMode::INVALID) {
 				midiEngine.midiFollowFeedbackAutomation = mode;
 			}
 		}
