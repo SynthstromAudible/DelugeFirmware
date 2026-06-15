@@ -18,6 +18,7 @@
 #include "hid/led/pad_leds.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "dsp-next/fixed/osc/sine_table.h"
 #include "gui/colour/colour.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -43,6 +44,7 @@
 #include <limits>
 
 using deluge::dsp::fixed::linear_table_interpolator;
+using deluge::dsp::fixed::sine_table;
 
 #include "libdeluge/control_surface.h"
 
@@ -1096,7 +1098,7 @@ void renderZoom() {
 		transitionProgress = 65536 - transitionProgress;
 	}
 
-	uint32_t sineValue = (getSine((transitionProgress + 98304) & 131071, 17) >> 16) + 32768;
+	uint32_t sineValue = (sine_table.value((transitionProgress + 98304) & 131071, 17) >> 16) + 32768;
 
 	// The commented line is equivalent to the other lines just below
 	// int32_t negativeFactorProgress = pow(zoomFactor, transitionProgress - 1) * 134217728; // Sorry, the purpose of

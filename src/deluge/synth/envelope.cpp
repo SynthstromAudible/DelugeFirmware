@@ -17,15 +17,16 @@
 
 #include "synth/envelope.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4/8, linear_table_interpolator
+#include "dsp-next/fixed/osc/sine_table.h"                    // sine_table (sine-shaped fast-release)
 #include "util/fixedpoint.h"                                  // multiply_32x32_rshift32, add_saturate
 #include "util/lookuptables/lookuptables.h"                   // decayTableSmall4
-#include "util/waves.h"                                       // getSine
 #include <algorithm>
 #include <limits>
 
 using deluge::dsp::fixed::getDecay4;
 using deluge::dsp::fixed::getDecay8;
 using deluge::dsp::fixed::linear_table_interpolator;
+using deluge::dsp::fixed::sine_table;
 
 namespace {
 constexpr uint32_t kStageEnd = 1u << 23;   ///< A stage completes once its position accumulator reaches this.
@@ -148,9 +149,10 @@ Envelope::StepOutcome Envelope::stepFastRelease(uint32_t release_rate, uint32_t 
 	}
 	// A sine-shaped release: less high-frequency content than a linear ramp, and sounds a touch better
 	// on deep bass samples.
-	current_level_ = multiply_32x32_rshift32((getSine(stage_position_ + (kStageEnd >> 1), 24) >> 1) + kHalfScale,
-	                                         level_at_stage_entry_)
-	                 << 1;
+	current_level_ =
+	    multiply_32x32_rshift32((sine_table.value(stage_position_ + (kStageEnd >> 1), 24) >> 1) + kHalfScale,
+	                            level_at_stage_entry_)
+	    << 1;
 	return StepOutcome::EMIT_LEVEL;
 }
 

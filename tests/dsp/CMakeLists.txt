@@ -39,9 +39,10 @@ FetchContent_MakeAvailable(argon)
 # dsp-next is header-light, so building the few sources directly is simpler than
 # pulling in the whole library target here).
 set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/osc/sine.cpp)
-# SyncedOscillator + SyncWindower seam crossfades call getSine(), which reads the sineWaveSmall LUT.
+# SyncedOscillator + SyncWindower seam crossfades + CrudeSine read sine_table, which reads the sineWaveSmall LUT.
 set(synced_oscillator_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 set(sync_windower_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+set(crude_oscillators_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The LFO (a leaf component now): the jcong RNG state (waves.cpp) + the sine/triangle LUTs.
 set(lfo_spec_DEPS
   ${_repo_root}/src/deluge/synth/lfo.cpp

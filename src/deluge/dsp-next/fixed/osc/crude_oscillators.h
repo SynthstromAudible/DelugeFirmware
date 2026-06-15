@@ -18,6 +18,7 @@
 
 #include "dsp-next/core/generator.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
+#include "dsp-next/fixed/osc/sine_table.h"    // sine_table
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
@@ -92,5 +93,24 @@ public:
 };
 template <typename Phase>
 CrudeTriangle(Phase) -> CrudeTriangle<Phase>;
+
+/// @brief Crude sine: the @ref sine_table LUT evaluated at the running phase. The cheap, non-band-limited
+/// sine — full-scale, the same value the LFO/envelope read, but here as a free-running owned-phasor oscillator.
+template <typename Phase>
+class [[gnu::hot]] CrudeSine : public BlockGenerator<q31> {
+	Phase phasor_;
+
+public:
+	explicit CrudeSine(Phase phasor) : phasor_{phasor} {}
+	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+
+	void renderBlock(Buffer output) override {
+		for (q31& sample : output) {
+			sample = sine_table.value(phasor_.advance());
+		}
+	}
+};
+template <typename Phase>
+CrudeSine(Phase) -> CrudeSine<Phase>;
 
 } // namespace deluge::dsp::fixed

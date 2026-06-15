@@ -36,7 +36,8 @@ extern const int16_t sineWaveSmall[];
 
 // The band-limited oscillator wave LUTs (triangle AA, saw, square, analog saw/square) moved
 // into their dsp-next kernels (dsp-next/fixed/{saw,square,triangle,analog_saw,analog_square}.cpp),
-// which own them internally. sineWaveSmall stays here (shared with getSine + the wavetable engine).
+// which own them internally. sineWaveSmall stays here (read by the dsp-next sine_table evaluator + the
+// wavetable engine).
 
 // Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible
 // without going over 22.05kHz (2147483648), even when shifted up a semitone (via osc-cents and unison combined)

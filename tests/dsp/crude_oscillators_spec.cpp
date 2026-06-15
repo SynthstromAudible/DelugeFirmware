@@ -22,6 +22,7 @@
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
 #include "dsp-next/fixed/osc/crude_oscillators.h"
+#include "dsp-next/fixed/osc/sine_table.h" // sine_table
 #include "dsp-next/fixed/vca/crude_amplitude.h"
 #include "util/fixedpoint.h" // multiply_accumulate_32x32_rshift32_rounded
 #include <array>
@@ -32,8 +33,10 @@ namespace {
 using deluge::dsp::Phasor;
 using deluge::dsp::fixed::CrudeAmplitude;
 using deluge::dsp::fixed::CrudeSaw;
+using deluge::dsp::fixed::CrudeSine;
 using deluge::dsp::fixed::CrudeSquare;
 using deluge::dsp::fixed::CrudeTriangle;
+using deluge::dsp::fixed::sine_table;
 using Buffer = deluge::dsp::fixed::Buffer;
 using Signal = deluge::dsp::fixed::Signal;
 } // namespace
@@ -75,6 +78,18 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 			expect(out[1]).to_equal(deluge::dsp::fixed::triangle(0x60000000u));
 			expect(out[2]).to_equal(deluge::dsp::fixed::triangle(0x90000000u));
 			expect(out[3]).to_equal(deluge::dsp::fixed::triangle(0xC0000000u));
+		});
+	});
+
+	context("CrudeSine", _ {
+		it("matches the sine LUT at each phase", _ {
+			CrudeSine osc{Phasor{0u, 0x30000000u}};
+			std::array<int32_t, 4> out{};
+			osc.renderBlock(Buffer{out});
+			expect(out[0]).to_equal(sine_table.value(0x30000000u));
+			expect(out[1]).to_equal(sine_table.value(0x60000000u));
+			expect(out[2]).to_equal(sine_table.value(0x90000000u));
+			expect(out[3]).to_equal(sine_table.value(0xC0000000u));
 		});
 	});
 

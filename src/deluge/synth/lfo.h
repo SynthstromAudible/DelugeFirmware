@@ -19,9 +19,10 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/bandlimited/waves.h" // square, triangle_full
+#include "dsp-next/fixed/osc/sine_table.h"    // sine_table
 #include "modulation/sync.h"
 #include "util/fixedpoint.h"
-#include "util/waves.h" // getSine + the jcong/CONG RNG (random waveforms)
+#include "util/waves.h" // the jcong/CONG RNG (random waveforms)
 #include <cstdint>
 #include <variant>
 
@@ -74,7 +75,7 @@ struct Square {
 
 struct Sine {
 	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
-		int32_t value = getSine(phase);
+		int32_t value = deluge::dsp::fixed::sine_table.value(phase);
 		advance(phase, phase_increment, num_samples);
 		return value;
 	}

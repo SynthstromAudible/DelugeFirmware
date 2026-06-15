@@ -26,9 +26,8 @@ extern uint32_t z, w, jcong;
 	return (int32_t)table[whichValue] * strength1 + (int32_t)table[whichValue + 1] * strength2;
 }
 
-[[gnu::always_inline]] inline int32_t getSine(uint32_t phase, uint8_t numBitsInInput = 32) {
-	return interpolateTableSigned(phase, numBitsInInput, sineWaveSmall, 8);
-}
-
-// The analytic square/triangle waves now live in dsp-next (deluge::dsp::fixed::square / triangle / triangle_full,
-// dsp-next/fixed/bandlimited/waves.h) — the canonical home shared by the crude oscillators and the LFO.
+// The analytic waves now live in dsp-next: the square/triangle kernels (deluge::dsp::fixed::square /
+// triangle / triangle_full, dsp-next/fixed/bandlimited/waves.h) and the sine LUT evaluator
+// (deluge::dsp::fixed::sine_table, dsp-next/fixed/osc/sine_table.h) — the canonical home shared by the
+// crude oscillators, the LFO, the envelope and GUI easing. interpolateTableSigned stays here as the generic
+// signed-table linear interp still used across the sample/timestretch/filter DSP.

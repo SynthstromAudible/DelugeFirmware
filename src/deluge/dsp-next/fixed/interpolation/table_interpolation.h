@@ -55,6 +55,31 @@ public:
 	/// @return The fixed-point index, in `[0, 2^output_fractional_bits)`.
 	[[nodiscard]] uint32_t inverse(int32_t table_value_q15, int32_t output_fractional_bits, const uint16_t* table,
 	                               int32_t table_size_log2 = 8) const;
+
+	/// @brief @ref interpolate for a **signed** (`int16_t`) table, with a full 16-bit blend weight.
+	///
+	/// Kept inline (header) because the sine LUT it backs (@ref SineTable) is evaluated per-sample in the
+	/// oscillator-sync seam crossfade — the same hot path the old free `getSine`/`interpolateTableSigned`
+	/// were inlined for.
+	/// @param input Fixed-point index with @p input_fractional_bits fractional bits.
+	/// @param input_fractional_bits Total bit-width of @p input.
+	/// @param table The signed lookup table; needs `2^table_size_log2 + 1` entries.
+	/// @param table_size_log2 log2 of the table's entry count.
+	/// @return The interpolated value at Q16 of the table's units (`table_value * 2^16`).
+	[[nodiscard, gnu::always_inline]] int32_t interpolateSigned(uint32_t input, int32_t input_fractional_bits,
+	                                                            const int16_t* table,
+	                                                            int32_t table_size_log2 = 8) const {
+		int32_t index = input >> (input_fractional_bits - table_size_log2);
+
+		// The signed blend uses a full 16-bit weight (vs interpolate()'s 15-bit), so line up `input`'s
+		// sub-entry bits into the bottom 16.
+		int32_t shift = input_fractional_bits - 16 - table_size_log2;
+		uint32_t fraction = (shift >= 0) ? (input >> shift) : (input << -shift);
+
+		int32_t strength2 = fraction & 0xFFFF;   // weight toward the upper neighbour (Q16)
+		int32_t strength1 = 0x10000 - strength2; // and the remainder toward the lower
+		return static_cast<int32_t>(table[index]) * strength1 + static_cast<int32_t>(table[index + 1]) * strength2;
+	}
 };
 
 /// The shared stateless instance (matches @ref windowed_sinc_kernel).

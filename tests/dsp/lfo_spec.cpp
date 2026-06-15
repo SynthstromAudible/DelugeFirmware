@@ -21,6 +21,7 @@
 // std::variant rewrite preserves behaviour. Runs on x86 (SIMDe) and ARM/QEMU via CTest.
 
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle_full (the LFO's triangle shape)
+#include "dsp-next/fixed/osc/sine_table.h"    // sine_table (the LFO's sine shape)
 #include "synth/lfo.h"
 #include "util/waves.h" // the jcong RNG state (for deterministic S&H / random-walk / warbler)
 #include <cppspec.hpp>
@@ -167,7 +168,7 @@ describe lfo_spec("LFO", ${
 	it("advances phase through a stateless generator", _ {
 		lfo_wave::Sine sine;
 		uint32_t phase = 0;
-		expect(sine.render(phase, 100, 10)).to_equal(getSine(0));
+		expect(sine.render(phase, 100, 10)).to_equal(deluge::dsp::fixed::sine_table.value(0));
 		expect(phase).to_equal(1000u); // 100 * 10
 	});
 
