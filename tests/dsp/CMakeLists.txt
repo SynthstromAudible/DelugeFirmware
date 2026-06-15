@@ -44,12 +44,12 @@ set(synced_oscillator_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/looku
 set(sync_windower_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The LFO (a leaf component now): the jcong RNG state (waves.cpp) + the sine/triangle LUTs.
 set(lfo_spec_DEPS
-  ${_repo_root}/src/deluge/modulation/lfo.cpp
+  ${_repo_root}/src/deluge/synth/lfo.cpp
   ${_repo_root}/src/deluge/util/waves.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The Envelope (a leaf component now): its curve helpers (interpolation.cpp) + the decay/release tables.
 set(envelope_spec_DEPS
-  ${_repo_root}/src/deluge/modulation/envelope.cpp
+  ${_repo_root}/src/deluge/synth/envelope.cpp
   ${_repo_root}/src/deluge/util/interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.

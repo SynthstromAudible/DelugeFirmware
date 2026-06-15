@@ -22,7 +22,7 @@
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stack_guard.h"
-#include "model/sync.h"
+#include "modulation/sync.h"
 #include "processing/engines/audio_engine.h"
 #include <cstdlib>
 #include <ranges>

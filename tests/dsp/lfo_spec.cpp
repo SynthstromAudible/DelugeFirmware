@@ -20,7 +20,7 @@
 // suite (tests/unit/lfo_tests.cpp); freezing the same q31 outputs is the bit-exact proof that the
 // std::variant rewrite preserves behaviour. Runs on x86 (SIMDe) and ARM/QEMU via CTest.
 
-#include "modulation/lfo.h"
+#include "synth/lfo.h"
 #include "util/waves.h" // getTriangle + the jcong RNG state (for deterministic S&H / random-walk / warbler)
 #include <cppspec.hpp>
 #include <cstdint>

@@ -20,7 +20,7 @@
 // refactor. Asserts the stage-machine contract (the audio bit-exactness itself is pinned end-to-end
 // by the golden masters). Runs on x86 (SIMDe) and ARM/QEMU via CTest.
 
-#include "modulation/envelope.h"
+#include "synth/envelope.h"
 #include "util/lookuptables/lookuptables.h" // decayTableSmall8 (the release curve the voice passes)
 #include <cppspec.hpp>
 #include <cstdint>

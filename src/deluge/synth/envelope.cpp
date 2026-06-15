@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "modulation/envelope.h"
+#include "synth/envelope.h"
 #include "util/fixedpoint.h"                // multiply_32x32_rshift32, add_saturate
 #include "util/interpolation.h"             // getDecay4/8, interpolateTable(Inverse)
 #include "util/lookuptables/lookuptables.h" // decayTableSmall4

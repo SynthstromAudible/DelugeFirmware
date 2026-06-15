@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "modulation/patch/patcher.h"
+#include "synth/patcher.h"
 #include "definitions_cxx.hpp"
-#include "modulation/patch/control_block.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "synth/control_block.h"
 #include "util/functions.h" // paramNeutralValues, paramRanges, getFinalParameterValue*
 #include <algorithm>        // std::ranges::sort
 #include <etl/vector.h>

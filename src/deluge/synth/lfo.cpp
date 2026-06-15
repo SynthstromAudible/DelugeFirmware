@@ -1,4 +1,4 @@
-#include "modulation/lfo.h"
+#include "synth/lfo.h"
 
 uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType wave_type) {
 	switch (wave_type) {

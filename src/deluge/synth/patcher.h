@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "modulation/patch/control_block.h"
+#include "synth/control_block.h"
 #include <cstdint>
 #include <span>
 

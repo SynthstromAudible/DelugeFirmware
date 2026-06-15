@@ -30,6 +30,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge/dsp-next/|scripts/check_dsp_boundary\.py)
+      - id: synth-boundary
+        name: synth core boundary
+        description: src/deluge/synth must not include app layers (model/processing/gui/storage/...), the legacy dsp/, or the HAL/BSP
+        entry: python3 scripts/check_synth_boundary.py
+        language: system
+        pass_filenames: false
+        files: ^(src/deluge/synth/|scripts/(check_synth_boundary\.py|synth_boundary_allowlist\.txt))
 # - repo: local
 
 #   hooks:

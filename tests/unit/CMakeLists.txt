@@ -55,7 +55,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # For clip iterator tests
         ../../src/deluge/model/song/clip_iterators.cpp
         # For sync tests
-        ../../src/deluge/model/sync.cpp
+        ../../src/deluge/modulation/sync.cpp
         # For chord tests
         ../../src/deluge/gui/ui/keyboard/chords.cpp
         # For clock output scheduler tests

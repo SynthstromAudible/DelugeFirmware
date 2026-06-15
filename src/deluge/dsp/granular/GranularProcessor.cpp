@@ -21,9 +21,9 @@
 #include "memory/general_memory_allocator.h"
 #include "model/fx/stutterer.h"
 #include "model/mod_controllable/mod_controllable.h"
-#include "modulation/lfo.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "synth/lfo.h"
 #include "util/fixedpoint.h" // q31_mult
 
 void GranularProcessor::setWrapsToShutdown() {

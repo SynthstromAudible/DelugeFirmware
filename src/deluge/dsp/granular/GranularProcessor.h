@@ -22,7 +22,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
 #include "dsp/stereo_sample.h"
-#include "modulation/lfo.h"
+#include "synth/lfo.h"
 #include <span>
 
 class UnpatchedParamSet;

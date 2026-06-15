@@ -186,8 +186,29 @@ phase boundaries.
    out of the POD. Pure structural move, bit-exact: x86 golden 333/333, ARM oracle
    10/10 broad spread; both host-sims build clean. (The eager preset-value span stays
    deferred — the lazy `ControlBlock::presetValue` is unchanged.)
-6. **Relocate to `deluge::synth`.** `git mv` Patcher/Envelope/LFO (+ the new
-   types) into the new namespace/lib; flip the boundary lint to empty.
+6. **Relocate to `src/deluge/synth/` + boundary lint — DONE (relocation + lint;
+   namespace deferred).** `git mv`'d the five components — `envelope.{h,cpp}`,
+   `lfo.{h,cpp}`, `param_plane.h`, `patcher.{h,cpp}`, `control_block.h` — out of
+   `modulation/` into a new `src/deluge/synth/` (flat). Added
+   `scripts/check_synth_boundary.py` (mirrors `check_dsp_boundary.py` but ALLOWS
+   `modulation/` + `util/` + `dsp-next/`; forbids the app layers model/processing/
+   storage/gui/playback/hid/io, the legacy dsp/, and the HAL/BSP) + a shrink-only
+   `synth_boundary_allowlist.txt` (seeded **EMPTY**), a `synth-boundary` pre-commit
+   hook, and `.github/workflows/synth-boundary.yml`. The one direct violation —
+   `lfo.h → model/sync.h` — was cleared by relocating the small sync-enum leaf
+   `model/sync.{h,cpp}` → `modulation/sync.{h,cpp}` (10 includer edits), so the lint
+   is clean with an empty allowlist. The app `GLOB_RECURSE` picked the moved sources
+   up automatically; only the two dual-arch specs' `_DEPS`/includes + the unit
+   suite's sync path needed CMake edits. Pure relocation, bit-exact: x86 golden
+   333/333, ARM oracle 10/10, both specs green both arches, both host-sims clean.
+
+   > **Deferred (NOT this step):** the `namespace deluge::synth` wrap (~44 files /
+   > 327 refs of qualification reaching gui/model/processing) and a `libdeluge-synth`
+   > static-lib target — premature while the synth core still pulls model/storage
+   > *transitively* via `modulation/params/param_set.h` (PatchedParamSet) and gui
+   > via `util/functions.h`. A direct-include lint can't see those; cutting them (a
+   > lean `util/param_functions.h`; lightening `PatchedParamSet`/`PatchCableSet`) is
+   > the prerequisite for both the namespace wrap and a true standalone lib.
 7. **Retire the #2660 `alignas(8)` workaround.** Remove it; confirm the goldens
    do not move on x86 **and** ARM (the alignment bug, if it were still live,
    would re-voice the synth — so this is the gated proof it's dead). If anything

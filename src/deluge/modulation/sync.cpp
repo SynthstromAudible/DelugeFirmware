@@ -1,4 +1,4 @@
-#include "model/sync.h"
+#include "modulation/sync.h"
 #include "definitions_cxx.hpp"
 #include "etl/string.h"
 #include "util/const_functions.h"

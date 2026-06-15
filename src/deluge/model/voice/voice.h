@@ -21,11 +21,11 @@
 #include "dsp/filter/filter_set.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part.h"
-#include "modulation/envelope.h"
-#include "modulation/lfo.h"
-#include "modulation/param_plane.h"
 #include "modulation/params/param.h"
-#include "modulation/patch/patcher.h"
+#include "synth/envelope.h"
+#include "synth/lfo.h"
+#include "synth/param_plane.h"
+#include "synth/patcher.h"
 #include <bitset>
 #include <compare>
 #include <memory>

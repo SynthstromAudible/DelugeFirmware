@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/sync.h"
+#include "modulation/sync.h"
 #include "util/fixedpoint.h"
 #include "util/waves.h"
 #include <cstdint>

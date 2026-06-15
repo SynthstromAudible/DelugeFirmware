@@ -28,10 +28,10 @@
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/knob.h"
-#include "modulation/lfo.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
 #include "modulation/sidechain/sidechain.h"
+#include "synth/lfo.h"
 
 class Clip;
 class Knob;

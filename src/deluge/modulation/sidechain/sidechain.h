@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/sync.h"
-#include "modulation/envelope.h" // Envelope::Stage
+#include "modulation/sync.h"
+#include "synth/envelope.h" // Envelope::Stage
 
 #include <cstdint>
 
