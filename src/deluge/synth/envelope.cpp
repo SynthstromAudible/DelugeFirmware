@@ -16,12 +16,16 @@
  */
 
 #include "synth/envelope.h"
-#include "util/fixedpoint.h"                // multiply_32x32_rshift32, add_saturate
-#include "util/interpolation.h"             // getDecay4/8, interpolateTable(Inverse)
-#include "util/lookuptables/lookuptables.h" // decayTableSmall4
-#include "util/waves.h"                     // getSine
+#include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4/8, linear_table_interpolator
+#include "util/fixedpoint.h"                                  // multiply_32x32_rshift32, add_saturate
+#include "util/lookuptables/lookuptables.h"                   // decayTableSmall4
+#include "util/waves.h"                                       // getSine
 #include <algorithm>
 #include <limits>
+
+using deluge::dsp::fixed::getDecay4;
+using deluge::dsp::fixed::getDecay8;
+using deluge::dsp::fixed::linear_table_interpolator;
 
 namespace {
 constexpr uint32_t kStageEnd = 1u << 23;   ///< A stage completes once its position accumulator reaches this.
@@ -126,8 +130,9 @@ Envelope::StepOutcome Envelope::stepRelease(uint32_t release_rate, uint32_t num_
 		current_level_ = 0;
 		return StepOutcome::EMIT_OFF;
 	}
-	current_level_ =
-	    multiply_32x32_rshift32(interpolateTable(stage_position_, 23, release_table), level_at_stage_entry_) << 1;
+	current_level_ = multiply_32x32_rshift32(linear_table_interpolator.interpolate(stage_position_, 23, release_table),
+	                                         level_at_stage_entry_)
+	                 << 1;
 	return StepOutcome::EMIT_LEVEL;
 }
 
@@ -200,6 +205,6 @@ void Envelope::unconditionalRelease(Stage release_stage, uint32_t fast_release_r
 
 void Envelope::resumeAttack(int32_t resume_level) {
 	if (stage_ == Stage::ATTACK) {
-		stage_position_ = interpolateTableInverse(kFullScale - resume_level, 23, decayTableSmall4);
+		stage_position_ = linear_table_interpolator.inverse(kFullScale - resume_level, 23, decayTableSmall4);
 	}
 }

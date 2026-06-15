@@ -17,11 +17,14 @@
 
 #include "modulation/sidechain/sidechain.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4/8
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
-#include "util/interpolation.h"
 #include "util/lookuptables/lookuptables.h"
+
+using deluge::dsp::fixed::getDecay4;
+using deluge::dsp::fixed::getDecay8;
 
 SideChain::SideChain() {
 	status = Envelope::Stage::OFF;

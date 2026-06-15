@@ -30,7 +30,6 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
-#include "util/interpolation.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cmath>
 #include <cstdint>

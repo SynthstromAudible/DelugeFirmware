@@ -17,6 +17,7 @@
 
 #include "hid/led/pad_leds.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "gui/colour/colour.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -37,10 +38,11 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
-#include "util/interpolation.h"
 
 #include <cstring>
 #include <limits>
+
+using deluge::dsp::fixed::linear_table_interpolator;
 
 #include "libdeluge/control_surface.h"
 
@@ -1110,7 +1112,7 @@ void renderZoom() {
 	// "0.5" (32768). And so on.
 
 	uint32_t inImageTimesBiggerThanNormal =
-	    interpolateTable(fine, 10, expTableSmall); // This could be changed to run on a bigger number of bits in input
+	    linear_table_interpolator.interpolate(fine, 10, expTableSmall); // could run on more input bits
 	inImageTimesBiggerThanNormal = increaseMagnitude(inImageTimesBiggerThanNormal, coarse - 14);
 
 	renderZoomWithProgress(inImageTimesBiggerThanNormal, sineValue, &imageStore[0][0][0],

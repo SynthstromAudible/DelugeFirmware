@@ -47,10 +47,10 @@ set(lfo_spec_DEPS
   ${_repo_root}/src/deluge/synth/lfo.cpp
   ${_repo_root}/src/deluge/util/waves.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
-# The Envelope (a leaf component now): its curve helpers (interpolation.cpp) + the decay/release tables.
+# The Envelope (a leaf component now): its curve helpers (dsp-next table_interpolation) + the decay/release tables.
 set(envelope_spec_DEPS
   ${_repo_root}/src/deluge/synth/envelope.cpp
-  ${_repo_root}/src/deluge/util/interpolation.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
@@ -92,7 +92,7 @@ if(NOT DSP_SPEC_ARM)
     ${_repo_root}/src/deluge/synth/envelope.cpp
     ${_repo_root}/src/deluge/synth/lfo.cpp
     ${_repo_root}/src/deluge/util/param_functions.cpp
-    ${_repo_root}/src/deluge/util/interpolation.cpp
+    ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
     ${_repo_root}/src/deluge/util/waves.cpp
     ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
     ${_repo_root}/src/deluge/modulation/patch/patch_cable_set_amount.cpp

@@ -16,9 +16,11 @@
  */
 
 #include "model/sample/sample_holder_for_clip.h"
+#include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "model/sample/sample.h"
-#include "util/interpolation.h"
 #include "util/lookuptables/lookuptables.h"
+
+using deluge::dsp::fixed::linear_table_interpolator;
 
 SampleHolderForClip::SampleHolderForClip() {
 	transpose = 0;
@@ -50,7 +52,8 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 		}
 
 		if (cents) {
-			int32_t multiplier = interpolateTable(2147483648u + (int32_t)cents * 42949672, 32, centAdjustTableSmall);
+			int32_t multiplier = linear_table_interpolator.interpolate(2147483648u + (int32_t)cents * 42949672, 32,
+			                                                           centAdjustTableSmall);
 			neutralPhaseIncrement = multiply_32x32_rshift32(neutralPhaseIncrement, multiplier) << 2;
 		}
 	}

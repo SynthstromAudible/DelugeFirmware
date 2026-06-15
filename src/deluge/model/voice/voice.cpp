@@ -18,6 +18,7 @@
 #include "model/voice/voice.h"
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/interpolation/table_interpolation.h" // getDecay4
 #include "dsp-next/fixed/osc/sine.h"
 #include "dsp/dx/engine.h"
 #include "dsp/filter/filter_set.h"
@@ -46,7 +47,6 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
-#include "util/interpolation.h"
 
 #include "dsp/oscillators/oscillator.h"
 #include "util/misc.h"
@@ -54,6 +54,7 @@
 #include <new>
 
 using namespace deluge;
+using deluge::dsp::fixed::getDecay4;
 namespace params = deluge::modulation::params;
 
 PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
