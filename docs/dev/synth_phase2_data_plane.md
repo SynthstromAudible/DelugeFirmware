@@ -278,6 +278,22 @@ include lint.
 the shared `util/` dep TUs also being globbed into the app — an ODR concern the link-*test* sidesteps), and the
 `namespace deluge::synth` wrap (~44 files, cosmetic).
 
+**DSP-foundation migration into dsp-next — DONE.** Rather than carry the synth's general DSP deps in `util/`,
+they moved into **dsp-next** (the L0 lib everything may depend on; its boundary lint *allows* `util/`). Not a
+verbatim relocation — each arrived as a proper OO component in dsp-next's idioms, behaviour held bit-exact (the
+LUTs themselves stayed in `util/lookuptables`, which dsp-next is permitted to read — no risky table moves). Three
+bisectable commits, each x86 golden 333/333 + ARM/qemu oracle, both arches' dsp specs + `synth_link_test` green:
+- **Interpolation → `dsp-next/fixed/interpolation/table_interpolation.{h,cpp}`:** `LinearTableInterpolator`
+  (`interpolate`/`inverse`/`interpolateSigned`) + shared `inline constexpr linear_table_interpolator`, mirroring
+  `WindowedSincKernel`; `getDecay4/8` alongside. The 7 unsigned-interp consumers repointed; `util/interpolation.*`
+  deleted.
+- **LFO square/triangle → the dsp-next wave kernels** (`deluge::dsp::fixed::square` / `triangle_full`, the latter
+  added beside the half-scale `triangle`). `util/waves.h`'s now-dead `getSquare`/`getTriangle*` dropped.
+- **Scalar sine → `dsp-next/fixed/osc/sine_table.h`** (`SineTable` evaluator + `sine_table` instance) and
+  **`CrudeSine`** completing the crude-osc family. The LFO/envelope/sync-seam/GUI eval-at-a-phase consumers call
+  `sine_table.value()`; `getSine` dropped from `util/waves.h` (`interpolateTableSigned` stays — sample/timestretch/
+  filter still use it). The vector FM `sine` stays distinct; unifying the two sines is the deferred audible pass.
+
 ---
 
 ## 4. Verification
