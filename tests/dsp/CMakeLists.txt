@@ -78,3 +78,31 @@ foreach(_spec_path IN LISTS _specs)
 
   add_test(NAME ${_name} COMMAND ${_name} --verbose)
 endforeach()
+
+# Standalone-link proof for the synth core (x86 only — the closure is arch-agnostic). The synth TUs + ONLY
+# their gui-free dependency TUs link into an executable with NOTHING from the app; a successful link (no
+# undefined symbols, no gui/model/processing/storage objects) proves libdeluge-synth is self-contained. This
+# is the link-time companion to scripts/check_synth_boundary.py's transitive include check. The dep set is the
+# `nm -u` closure of the synth objects: param-math (param_functions), the numeric LUTs, interpolation, the
+# jcong RNG (waves), and the one PatchCableSet runtime method (patch_cable_set_amount).
+if(NOT DSP_SPEC_ARM)
+  add_executable(synth_link_test
+    ${CMAKE_CURRENT_LIST_DIR}/synth_link_main.cpp
+    ${_repo_root}/src/deluge/synth/patcher.cpp
+    ${_repo_root}/src/deluge/synth/envelope.cpp
+    ${_repo_root}/src/deluge/synth/lfo.cpp
+    ${_repo_root}/src/deluge/util/param_functions.cpp
+    ${_repo_root}/src/deluge/util/interpolation.cpp
+    ${_repo_root}/src/deluge/util/waves.cpp
+    ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
+    ${_repo_root}/src/deluge/modulation/patch/patch_cable_set_amount.cpp
+  )
+  target_link_libraries(synth_link_test PRIVATE argon etl::etl)
+  target_include_directories(synth_link_test PRIVATE
+    ${_repo_root}/src/deluge ${_repo_root}/src ${_repo_root}/sim/compat ${SIMDE_INCLUDE_DIR}/simde)
+  target_compile_definitions(synth_link_test PRIVATE SIMDE_NO_NATIVE)
+  target_compile_options(synth_link_test PRIVATE -msse2 -mfpmath=sse)
+  target_link_options(synth_link_test PRIVATE -Wl,--no-undefined)
+  set_target_properties(synth_link_test PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME synth_link_test COMMAND synth_link_test)
+endif()
