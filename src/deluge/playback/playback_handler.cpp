@@ -3123,10 +3123,8 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 	else {
 		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 		// If the SoundEditor is the active UI, give it first dibs on the message
-		if (getCurrentUI() == &soundEditor) {
-			if (soundEditor.midiCCReceived(cable, channelOrZone, ccNumber, value)) {
-				return;
-			}
+		if (getCurrentUI() == &soundEditor && soundEditor.midiCCReceived(cable, channelOrZone, ccNumber, value)) {
+			return;
 		}
 		// then midi learn is second priority
 		else if (currentUIMode == UI_MODE_MIDI_LEARN) {
