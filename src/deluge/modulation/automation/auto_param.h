@@ -17,14 +17,15 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
-#include "model/action/action.h" // ActionType is used as a default-argument value below (can't be forward-declared)
+#include "modulation/action/action_type.h" // ActionType (used as a default-argument value below)
 #include "modulation/params/param_node_vector.h"
 #include <cstdint>
 
-// storage/storage_manager.h is deliberately NOT included: Serializer / Deserializer appear only as
-// method-parameter types below, so forward declarations suffice and the heavy storage include (fatfs,
-// scheduler) lives in auto_param.cpp. (model/action stays for now — ActionType, an enum used in a default
-// arg, needs the full definition; relocating it out of model/ is future work toward a standalone synth lib.)
+// model/action/action.h and storage/storage_manager.h are deliberately NOT included here: ActionType comes
+// from the leaf modulation/action/action_type.h, while Action / Serializer / Deserializer appear only as
+// method-parameter types below, so forward declarations suffice and the heavy includes live in
+// auto_param.cpp. This keeps AutoParam (and the synth core, which reaches it via ParamSet) off model/ and
+// storage/.
 class InstrumentClip;
 class ParamNode;
 class Action;

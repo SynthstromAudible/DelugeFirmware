@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/note/note_vector.h"
 #include "model/scale/note_set.h"
+#include "modulation/action/action_type.h" // ActionType (re-exported here so existing users are unaffected)
 #include <cstdint>
 
 class Consequence;
@@ -41,36 +42,7 @@ class AudioClip;
 class ModelStackWithAutoParam;
 class ModelStack;
 
-enum class ActionType {
-	MISC,
-	NOTE_EDIT,
-	NOTE_TAIL_EXTEND,
-	CLIP_LENGTH_INCREASE,
-	CLIP_LENGTH_DECREASE,
-	RECORD,
-	AUTOMATION_DELETE,
-	PARAM_UNAUTOMATED_VALUE_CHANGE,
-	SWING_CHANGE,
-	TEMPO_CHANGE,
-	CLIP_MULTIPLY,
-	CLIP_CLEAR,
-	CLIP_DELETE,
-	NOTES_PASTE,
-	PATTERN_PASTE,
-	AUTOMATION_PASTE,
-	CLIP_INSTANCE_EDIT,
-	ARRANGEMENT_TIME_EXPAND,
-	ARRANGEMENT_TIME_CONTRACT,
-	ARRANGEMENT_CLEAR,
-	ARRANGEMENT_RECORD,
-	CLIP_HORIZONTAL_SHIFT,
-	NOTE_NUDGE,
-	NOTE_REPEAT_EDIT,
-	EUCLIDEAN_NUM_EVENTS_EDIT,
-	NOTEROW_ROTATE,
-	NOTEROW_LENGTH_EDIT,
-	NOTEROW_HORIZONTAL_SHIFT,
-};
+// enum class ActionType moved to modulation/action/action_type.h (included above).
 
 class Action {
 public:
