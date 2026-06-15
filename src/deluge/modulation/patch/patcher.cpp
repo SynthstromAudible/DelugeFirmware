@@ -17,21 +17,22 @@
 
 #include "modulation/patch/patcher.h"
 #include "definitions_cxx.hpp"
-#include "modulation/params/param_manager.h"
+#include "modulation/patch/control_block.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "processing/sound/sound.h"
+#include "util/functions.h" // paramNeutralValues, paramRanges, getFinalParameterValue*
+#include <algorithm>        // std::ranges::sort
 #include <etl/vector.h>
-#include <utility>
+#include <functional> // std::less
+#include <utility>    // std::pair, std::to_underlying
 
 namespace params = deluge::modulation::params;
 
 // If NULL Destination, that means no cables - just the preset value
-void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, Sound& sound,
-                                                        ParamManagerForTimeline& param_manager) {
+void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, ControlBlock control_block) {
 
-	int32_t cable_combination = (p < config.firstHybridParam) ? combineCablesLinear(nullptr, p, sound, param_manager)
-	                                                          : combineCablesExp(nullptr, p, sound, param_manager);
+	int32_t cable_combination = (p < config.firstHybridParam) ? combineCablesLinear(nullptr, p, control_block)
+	                                                          : combineCablesExp(nullptr, p, control_block);
 
 	int32_t final_value = 0;
 	int32_t param_neutral_value = paramNeutralValues[p];
@@ -60,9 +61,9 @@ int32_t rangeFinalValues[kMaxNumPatchCables]; // TODO: storing these in permanen
                                               // of time... actually so minor though, maybe not worth it.
 
 // You may as well check sourcesChanged before calling this.
-void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManagerForTimeline& param_manager) {
+void Patcher::performPatching(uint32_t sourcesChanged, ControlBlock control_block) {
 
-	PatchCableSet& patch_cable_set = *param_manager.getPatchCableSet();
+	PatchCableSet& patch_cable_set = *control_block.patch_cable_set;
 	int32_t globality = config.globality;
 	Destination* destination = patch_cable_set.destinations[globality];
 	if (destination == nullptr) {
@@ -80,7 +81,7 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManage
 			continue; // And don't increment i.
 		}
 
-		int32_t cables_combination = combineCablesLinearForRangeParam(destination, param_manager);
+		int32_t cables_combination = combineCablesLinearForRangeParam(destination, control_block);
 		rangeFinalValues[i] = getFinalParameterValueLinear(536870912, cables_combination);
 	}
 
@@ -94,7 +95,7 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManage
 		}
 
 		int32_t param = destination->destinationParamDescriptor.getJustTheParam();
-		cable_combos.push_back({param, combineCablesLinear(destination, param, sound, param_manager)});
+		cable_combos.push_back({param, combineCablesLinear(destination, param, control_block)});
 	}
 
 	for (; destination->sources != 0u; destination++) {
@@ -103,7 +104,7 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManage
 		}
 
 		int32_t param = destination->destinationParamDescriptor.getJustTheParam();
-		cable_combos.push_back({param, combineCablesExp(destination, param, sound, param_manager)});
+		cable_combos.push_back({param, combineCablesExp(destination, param, control_block)});
 	}
 
 	// sort by param_id
@@ -173,11 +174,11 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 }
 
 [[gnu::always_inline]] inline int32_t Patcher::combineCablesLinearForRangeParam(const Destination* destination,
-                                                                                ParamManager& param_manager) {
+                                                                                ControlBlock control_block) {
 	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
 	                                   // to get bigger than 2147483647, which means "4".
 
-	PatchCableSet& patch_cable_set = *param_manager.getPatchCableSet();
+	PatchCableSet& patch_cable_set = *control_block.patch_cable_set;
 
 	// For each patch cable affecting the range of this cable (got that?)
 	for (int32_t cable = destination->firstCable; cable < destination->endCable; cable++) {
@@ -208,15 +209,15 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 // from "0" to "2". Output (product) clips off at "4". Call this if (p < getFirstHybridParam()) - "Pan" sits at the end
 // of the linear params and is the exception to the rule - it doesn't want this multiplying treatment
 [[gnu::always_inline]] inline int32_t Patcher::combineCablesLinear(const Destination* destination, uint32_t p,
-                                                                   Sound& sound, ParamManager& param_manager) {
+                                                                   ControlBlock control_block) {
 	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
 	                                   // to get bigger than 2147483647, which means "4".
 
-	PatchCableSet& patch_cable_set = *param_manager.getPatchCableSet();
+	PatchCableSet& patch_cable_set = *control_block.patch_cable_set;
 
 	// Do the "preset value" (which we treat like a "cable" here)
-	running_total = cableToLinearParamWithoutRangeAdjustment(
-	    running_total, sound.getSmoothedPatchedParamValue(p, param_manager), paramRanges[p]);
+	running_total =
+	    cableToLinearParamWithoutRangeAdjustment(running_total, control_block.presetValue(p), paramRanges[p]);
 
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
@@ -238,11 +239,11 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 // Exp param - combine all cables by adding their values (centred around 0)
 // Call this if (p >= getFirstHybridParam())
 [[gnu::always_inline]] inline int32_t Patcher::combineCablesExp(const Destination* destination, uint32_t param,
-                                                                Sound& sound, ParamManager& param_manager) {
+                                                                ControlBlock control_block) {
 
 	int32_t running_total = 0;
 
-	PatchCableSet& patch_cable_set = *param_manager.getPatchCableSet();
+	PatchCableSet& patch_cable_set = *control_block.patch_cable_set;
 
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
@@ -264,15 +265,15 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 	}
 
 	// Do the "preset value" (which we treat like a "cable" here)
-	running_total = cableToExpParamWithoutRangeAdjustment(
-	    running_total, sound.getSmoothedPatchedParamValue(param, param_manager), paramRanges[param]);
+	running_total =
+	    cableToExpParamWithoutRangeAdjustment(running_total, control_block.presetValue(param), paramRanges[param]);
 
 	return running_total;
 }
 
 // NOTE: parameter preset values can't be bigger than 536870912, otherwise overflowing will occur
 
-void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager) {
+void Patcher::performInitialPatching(ControlBlock control_block) {
 	// In this function, we are sneaky and write the "cable combination" working value in to paramFinalValues, before
 	// going back over that array with the final step. This saves memory. Didn't seem to have a real effect on speed.
 
@@ -283,20 +284,20 @@ void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager) 
 	// First for the params whose cables get multiplied, we go do them all as if they have no patching, and then for
 	// the few which do, we overwrite those values
 	for (int32_t p = config.firstParam; p < config.firstHybridParam; p++) {
-		param_final_values_[p - config.firstParam] = combineCablesLinear(nullptr, p, sound, param_manager);
+		param_final_values_[p - config.firstParam] = combineCablesLinear(nullptr, p, control_block);
 	}
 
 	// And now we do the same for params whose cables get added
 	for (int32_t p = config.firstHybridParam; p < config.endParams; p++) {
-		param_final_values_[p - config.firstParam] = combineCablesExp(nullptr, p, sound, param_manager);
+		param_final_values_[p - config.firstParam] = combineCablesExp(nullptr, p, control_block);
 	}
 
-	Destination* destination = param_manager.getPatchCableSet()->destinations[config.globality];
+	Destination* destination = control_block.patch_cable_set->destinations[config.globality];
 	if (destination != nullptr) {
 
 		// First, "range" Destinations
 		for (int32_t i = 0; destination->destinationParamDescriptor.data < (uint32_t)0xFFFFFF00; destination++, i++) {
-			int32_t cables_combination = combineCablesLinearForRangeParam(destination, param_manager);
+			int32_t cables_combination = combineCablesLinearForRangeParam(destination, control_block);
 
 			rangeFinalValues[i] = getFinalParameterValueLinear(536870912, cables_combination);
 		}
@@ -304,11 +305,11 @@ void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager) 
 		// Now, regular Destinations going directly to a param
 		for (; destination->destinationParamDescriptor.data < (config.firstHybridParam | 0xFFFFFF00); destination++) {
 			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
-			param_final_values_[p - config.firstParam] = combineCablesLinear(destination, p, sound, param_manager);
+			param_final_values_[p - config.firstParam] = combineCablesLinear(destination, p, control_block);
 		}
 		for (; destination->sources; destination++) {
 			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
-			param_final_values_[p - config.firstParam] = combineCablesExp(destination, p, sound, param_manager);
+			param_final_values_[p - config.firstParam] = combineCablesExp(destination, p, control_block);
 		}
 	}
 

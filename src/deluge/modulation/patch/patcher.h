@@ -18,16 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "modulation/patch/control_block.h"
 #include <cstdint>
 #include <span>
 
 struct CableGroup;
 
-class Sound;
-class ParamManagerForTimeline;
-class PatchCableSet;
 struct Destination;
-class ParamManager;
 class PatchCable;
 
 enum Globality {
@@ -48,15 +45,14 @@ public:
 
 	Patcher(const Config& config, std::span<int32_t> source_values, std::span<int32_t> param_final_values)
 	    : config(config), source_values_(source_values), param_final_values_(param_final_values) {};
-	void performInitialPatching(Sound& sound, ParamManager& param_manager);
-	void performPatching(uint32_t sources_changed, Sound& sound, ParamManagerForTimeline& param_manager);
-	void recalculateFinalValueForParamWithNoCables(int32_t param, Sound& sound, ParamManagerForTimeline& param_manager);
+	void performInitialPatching(ControlBlock control_block);
+	void performPatching(uint32_t sources_changed, ControlBlock control_block);
+	void recalculateFinalValueForParamWithNoCables(int32_t param, ControlBlock control_block);
 
 private:
-	int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager& param_manager);
-	int32_t combineCablesLinear(Destination const* destination, uint32_t param, Sound& sound,
-	                            ParamManager& param_manager);
-	int32_t combineCablesExp(Destination const* destination, uint32_t param, Sound& sound, ParamManager& param_manager);
+	int32_t combineCablesLinearForRangeParam(Destination const* destination, ControlBlock control_block);
+	int32_t combineCablesLinear(Destination const* destination, uint32_t param, ControlBlock control_block);
+	int32_t combineCablesExp(Destination const* destination, uint32_t param, ControlBlock control_block);
 	static int32_t cableToLinearParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
 	                                                        int32_t cable_strength);
 	static int32_t cableToLinearParam(int32_t running_total, const PatchCable& cable, int32_t source_value,

@@ -151,11 +151,27 @@ phase boundaries.
    `tests/dsp/lfo_spec.cpp` (exact per-waveform values ported from the retired x86-only
    `tests/unit/lfo_tests.cpp`, which is deleted) — 12 cases green on x86 + ARM/qemu.
    Bit-exact: x86 golden 333/333, ARM oracle 8/8 LFO-exercising cases.
-4. **`ControlBlock` + patcher param source.** Introduce `ControlBlock`; Patcher
-   reads patched-param preset values + cable set from it instead of
-   `sound.getSmoothedPatchedParamValue` / `param_manager.getPatchCableSet`.
-   `Voice`/`Sound` build the `ControlBlock` at the call site (the proto-adapter).
-   This is the largest step — slice by patcher method if needed.
+4. **`ControlBlock` + patcher param source — DONE.** The audit showed the Patcher's
+   only app-coupling is `sound.getSmoothedPatchedParamValue(p, pm)` (= `paramLPF`
+   override ∥ `getPatchedParamSet()->getValue(p)`, the latter already
+   automation/MPE-folded *upstream* before patching) plus `getPatchCableSet()` — and
+   it never actually used `ParamManagerForTimeline`'s timeline features. So a small
+   value type carries both: `struct ControlBlock { PatchedParamSet* patched_params;
+   PatchCableSet* patch_cable_set; int32_t smoothing_param; int32_t smoothing_value;
+   presetValue(p); }` (`modulation/patch/control_block.h`), built once per call by
+   `Sound::patchControlBlock(ParamManager&)` (mirrors `getSmoothedPatchedParamValue`;
+   safe to snapshot `paramLPF` since `doParamLPF` runs after `performPatching`). The
+   Patcher's `performPatching`/`performInitialPatching`/`recalculateFinalValue…`/
+   `combineCables*` now take `ControlBlock` by value instead of `Sound&` +
+   `ParamManager(ForTimeline)&` — so `patcher.{h,cpp}` reference **no** `processing/`
+   or `model/` types (verified: includes are `modulation/` + `util/functions.h` only).
+   ~12 call sites build the block (the proto-adapter), e.g.
+   `patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager))`.
+   `getSmoothedPatchedParamValue` stays (it has non-patcher callers). Lazy
+   `presetValue` keeps the per-voice hot path identical (the eager preset-value span is
+   deferred to step 5). Bit-exact: x86 golden 333/333, ARM oracle 10/10 patching-stress
+   cases. A `patcher_spec` is deferred — `PatchedParamSet`/`PatchCableSet` are still
+   heavy for a leaf spec; the goldens fully cover the patcher meanwhile.
 5. **`VoiceParams` POD.** Gather the per-voice data plane into the POD; the
    components take `VoiceParams&` rather than loose `Voice` fields.
 6. **Relocate to `deluge::synth`.** `git mv` Patcher/Envelope/LFO (+ the new

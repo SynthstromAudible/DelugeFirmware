@@ -381,13 +381,13 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 
 	// Whether global...
 	if (p >= params::FIRST_GLOBAL) {
-		patcher.recalculateFinalValueForParamWithNoCables(p, *this, *paramManager);
+		patcher.recalculateFinalValueForParamWithNoCables(p, patchControlBlock(*paramManager));
 		return;
 	}
 
 	// Or local (do to each voice)...
 	for (ActiveVoice& voice : voices_) {
-		voice->patcher.recalculateFinalValueForParamWithNoCables(p, *this, *paramManager);
+		voice->patcher.recalculateFinalValueForParamWithNoCables(p, patchControlBlock(*paramManager));
 	}
 }
 
@@ -2417,7 +2417,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// Perform the actual patching
 	if (sourcesChanged) {
-		patcher.performPatching(sourcesChanged, *this, *paramManager);
+		patcher.performPatching(sourcesChanged, patchControlBlock(*paramManager));
 	}
 
 	// Setup some reverb-related stuff

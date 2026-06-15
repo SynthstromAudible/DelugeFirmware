@@ -275,6 +275,12 @@ public:
 		return paramManager.getPatchedParamSet()->getValue(p);
 	}
 
+	// Snapshot the per-block inputs the Patcher reads from ParamManager-world into a ControlBlock, so the
+	// patcher needs no Sound&/ParamManager&. presetValue() on the result mirrors getSmoothedPatchedParamValue.
+	ControlBlock patchControlBlock(ParamManager& paramManager) const {
+		return {paramManager.getPatchedParamSet(), paramManager.getPatchCableSet(), paramLPF.p, paramLPF.currentValue};
+	}
+
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
 	void deleteMultiRange(int32_t s, int32_t r);
