@@ -224,37 +224,38 @@ phase boundaries.
 Steps 2/3 are independent and small; 4 is the crux; 5–7 follow once the back-refs
 are severed.
 
-### 3.1 Follow-up — cutting the synth core's *transitive* reaches (in progress)
+### 3.1 Follow-up — cutting the synth core's *transitive* reaches (DONE)
 
-The step-6 lint is direct-include only; the synth TUs still pull app layers
-*transitively*. Cutting these is the prerequisite for a real `libdeluge-synth` (and
-makes the namespace wrap meaningful). Status (verified via the build's recorded header
-deps, `ninja -t deps`):
+The step-6 lint is direct-include only; the synth TUs still pulled app layers
+*transitively*. These are all now cut (each a bit-exact header move, verified via the
+build's recorded header deps, `ninja -t deps`): **the synth TUs (patcher/envelope/lfo)
+reach ZERO `gui/`/`model/`/`processing/`/`storage/` headers.**
 
 - **gui/colour — CUT (`0c5b26bc`).** Extracted `util/param_functions.h` (the param-math
-  cluster: `paramRanges`/`paramNeutralValues`, `getFinalParameterValue*`, the inline
-  saturate helpers, `getExp`/`lookupReleaseRate` decls) out of the grab-bag
-  `util/functions.h` (which pulls `gui/colour` for one inline). `functions.h` re-exports
-  it; `synth/patcher.cpp` includes the lean header → no longer drags `gui/colour`.
-- **storage — CUT (`ec536716`).** `auto_param.h` + `param_set.h` included
-  `storage/storage_manager.h` (fatfs/scheduler) only for `Serializer`/`Deserializer`
-  parameter types → forward-declared + moved the include to their `.cpp`s. Zero ripple.
-  `synth/patcher.cpp` no longer pulls `storage_manager.h`.
-- **STILL REMAINING (larger than the initial 2-reach estimate — these gate a standalone
-  lib):**
-  - `util/lookuptables/lookuptables.h` directly includes `gui/l10n/strings.h` +
-    `model/iterance/iterance.h` — pulled by **all** synth TUs (envelope/lfo via the
-    LUTs, patcher via params). Lightening it is broad (it's included everywhere).
-  - `auto_param.h` → `model/action/action.h` stays: `ActionType` (an enum) is used as a
-    *default-argument value*, so it needs the full definition — relocating `ActionType`
-    out of `model/` is its own change.
-  - Param/patch headers reach `model/scale/note_set.h` + `model/iterance`; envelope/lfo
-    also reach `model/model_stack.h`.
+  cluster) out of the grab-bag `util/functions.h` (which pulls `gui/colour` for one
+  inline); `synth/patcher.cpp` includes the lean header.
+- **storage — CUT (`ec536716`).** `auto_param.h` + `param_set.h` carried
+  `storage/storage_manager.h` only for `Serializer`/`Deserializer` param types →
+  forward-declared + moved the include to their `.cpp`s.
+- **gui/l10n + model/model_stack — CUT (`4aad8213`).** Split the app-typed preset tables
+  (`presetReverbNames`/`chordNames`/`iterancePresets`) out of `lookuptables.h` into
+  `util/lookuptables/preset_tables.h`, so `lookuptables.h` (included by ~25 files incl.
+  the synth LUTs) no longer drags `gui/l10n/strings.h` (→ `midi_device.h` → `model_stack.h`).
+- **model/action + model/scale/note_set — CUT (`0f4fe4ae`).** Relocated `enum class
+  ActionType` to a leaf `modulation/action/action_type.h` (action.h re-exports it);
+  `auto_param.h` includes the leaf, not `action.h` (which also pulls `note_set.h`).
+- **model/iterance — CUT (`c0ef8101`).** `git mv model/iterance → sequence/` (a pure
+  39-line leaf pulled globally by `definitions_cxx.hpp`), so no synth TU reaches `model/`.
 
-Both cuts are bit-exact header hygiene (x86 golden 333/333, ARM oracle green, all three
-boundary lints green). The remaining reaches are a meatier follow-on (relocate
-`ActionType`; lighten `lookuptables.h`; etc.) before a `libdeluge-synth` target + a
-*transitive* boundary check can land.
+All bit-exact (x86 golden 333/333 per step, ARM oracle/sweep green, all three boundary
+lints green). Two latent IWYU relies the lookuptables split exposed were fixed
+(`ModFXProcessor.h` `UnpatchedParamSet` fwd-decl; `util/string.cpp` `<strings.h>` +
+`hid/display/display.h`).
+
+**Remaining (step 4 — the payoff):** a `libdeluge-synth` static-lib target (compiled with
+the app layers off the include path — the build itself then proves the boundary) + a
+*transitive* boundary check (scripted `ninja -t deps`, mirroring the direct-include lint).
+The namespace `deluge::synth` wrap (~44 files) stays an orthogonal/cosmetic option.
 
 ---
 
