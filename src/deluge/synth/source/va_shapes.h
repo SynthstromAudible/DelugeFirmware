@@ -84,7 +84,9 @@ public:
 	                 deluge::dsp::fixed::Buffer scratch);
 };
 
-/// @brief Analog sawtooth — always band-limited (the CPU-dire downgrade to a digital saw is resolved adapter-side).
+/// @brief Analog sawtooth — band-limited, but downgrades internally to the crude digital saw at a high band
+/// number when CPU is dire (matching the legacy, the downgrade keeps the digital saw's resetter tweak but not
+/// its retrigger tweak).
 class AnalogSaw {
 	deluge::dsp::Phasor phasor_;
 

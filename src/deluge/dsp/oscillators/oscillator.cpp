@@ -62,99 +62,33 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 	uint32_t phase = *startPhase;
 	*startPhase += phaseIncrement * numSamples;
 
-	bool doPulseWave = false;
-
-	// The standard band number for non-sine/triangle waves — used to decide whether to drop to the
-	// crude (aliasing) calculation and for the analog-saw downgrade. The phase increment used for
-	// it (`phaseIncrementForCalculations`) is also what the square-pulse path selects its band by,
-	// so it lives at function scope.
-	int32_t tableNumber;
-	uint32_t phaseIncrementForCalculations = phaseIncrement;
-
-	if (type == OscType::SINE) {
-		retriggerPhase += 3221225472u;
-	}
-
-	else if (type != OscType::TRIANGLE) [[likely]] { // Not sines and not triangles
-		// PW for the perfect mathematical/digital square - we'll do it by multiplying two squares
-		if (type == OscType::SQUARE) {
-			doPulseWave = (pulseWidth != 0);
-			pulseWidth += 2147483648u;
-			if (doPulseWave) {
-				// Mildly band limit the square waves before they get ringmodded to create the
-				// pulse wave. *0.5 would be no band limiting
-				phaseIncrementForCalculations = phaseIncrement * 0.6;
-			}
-		}
-
-		tableNumber = fixed::getTableNumber(phaseIncrementForCalculations).first;
-		// TODO: that should really take into account the phaseIncrement (pitch) after it's potentially been altered for
-		// non-square PW below.
-
-		if (type == OscType::ANALOG_SAW_2) {
-			// Analog saw tables 8 and above are quite saw-shaped and sound relatively similar to the digital saw. So
-			// for these, if the CPU load is getting dire, we can do the crude, aliasing digital saw.
-			if (tableNumber >= 8 && tableNumber < AudioEngine::cpuDireness + 6) {
-				type = OscType::SAW;
-			}
-		}
-
-		else if (type == OscType::SAW) {
-			retriggerPhase += 2147483648u; // This is the normal case, when CPU usage is *not* dire.
-		}
-	}
-
-	if (type != OscType::SQUARE) {
-		// PW for oscillators other than the perfect mathematical square
-		doPulseWave = (pulseWidth && !doOscSync);
+	if (type == OscType::WAVETABLE) {
+		// The wavetable engine still lives app-side (it depends on storage/), so the shared pulse-width-as-sync
+		// preamble stays here for it. The very same derivation now also lives in the VA shapes; the two copies
+		// converge when the wavetable becomes a SourceEngine. Wavetable is never SINE/SAW/SQUARE, so it takes
+		// none of the per-wave retrigger/resetter tweaks — only the plain multiply rewrite.
+		bool doPulseWave = (pulseWidth && !doOscSync);
 		if (doPulseWave) {
-
 			doOscSync = true;
 
 			uint32_t pulseWidthAbsolute = ((int32_t)pulseWidth >= 0) ? pulseWidth : -pulseWidth;
-
 			resetterPhase = phase;
 			resetterPhaseIncrement = phaseIncrement;
 
-			if (type == OscType::ANALOG_SQUARE) {
-
-				int64_t resetterPhaseToDivide = (uint64_t)resetterPhase << 30;
-
-				if ((uint32_t)(resetterPhase) >= (uint32_t)-(resetterPhaseIncrement >> 1)) {
-					resetterPhaseToDivide -= (uint64_t)1 << 62;
-				}
-
-				phase = resetterPhaseToDivide / (int32_t)((pulseWidthAbsolute + 2147483648u) >> 1);
-				phaseIncrement = ((uint64_t)phaseIncrement << 31) / (pulseWidthAbsolute + 2147483648u);
+			int32_t resetterPhaseToMultiply = resetterPhase >> 1;
+			if ((uint32_t)(resetterPhase) >= (uint32_t)-(resetterPhaseIncrement >> 1)) {
+				resetterPhaseToMultiply -= ((uint32_t)1 << 31); // Count the last little bit of the cycle as
+				                                                // actually a negative-number bit of the next one.
 			}
 
-			else {
-				if (type == OscType::SAW) {
-					resetterPhase += 2147483648u;
-				}
-				else if (type == OscType::SINE) {
-					resetterPhase -= 3221225472u;
-				}
-
-				int32_t resetterPhaseToMultiply = resetterPhase >> 1;
-				if ((uint32_t)(resetterPhase) >= (uint32_t)-(resetterPhaseIncrement >> 1)) {
-					resetterPhaseToMultiply -= ((uint32_t)1 << 31); // Count the last little bit of the cycle as
-					                                                // actually a negative-number bit of the next one.
-				}
-
-				phase = (uint32_t)multiply_32x32_rshift32_rounded((pulseWidthAbsolute >> 1) + 1073741824,
-				                                                  resetterPhaseToMultiply)
-				        << 3;
-				phaseIncrement = ((uint32_t)multiply_32x32_rshift32_rounded((pulseWidthAbsolute >> 1) + 1073741824,
-				                                                            (uint32_t)phaseIncrement >> 1)
-				                  << 3);
-			}
-
+			phase = (uint32_t)multiply_32x32_rshift32_rounded((pulseWidthAbsolute >> 1) + 1073741824,
+			                                                  resetterPhaseToMultiply)
+			        << 3;
+			phaseIncrement = ((uint32_t)multiply_32x32_rshift32_rounded((pulseWidthAbsolute >> 1) + 1073741824,
+			                                                            (uint32_t)phaseIncrement >> 1)
+			                  << 3);
 			phase += retriggerPhase;
 		}
-	}
-
-	if (type == OscType::WAVETABLE) {
 
 		int32_t waveIndex = sourceWaveIndexLastTime + 1073741824;
 
@@ -180,26 +114,26 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 		return;
 	}
 
-	// Every remaining (virtual-analog) wave is rendered by the L1 engine. The adapter has finalised the control
-	// values above (pulse-as-sync, retrigger, analog-saw downgrade) — that derivation is shared with the
-	// wavetable path, so it stays here — and just hands the engine the already-modulated values. Phase
-	// persistence also stays here: the engine exposes its post-render phase, which on hard-sync blocks we store
-	// exactly as the legacy path did via maybeStorePhase (non-sync blocks keep the advance done at the top).
+	// Every remaining (virtual-analog) wave is rendered by the L1 engine, which now owns its full per-block
+	// derivation: the adapter hands it the *original* (unrewritten) phase + increment and the *raw* controls
+	// (raw pulse width, real osc sync only, raw retrigger), and each shape applies its own pulse-as-sync /
+	// retrigger / band-select / analog-saw downgrade internally. Phase persistence: the original-domain advance
+	// above is what carries over, except on a real hard-sync block, where the engine's post-render phase (the
+	// synced oscillator's advanced phase) replaces it — exactly the legacy maybeStorePhase rule, which for any
+	// real-sync block always stores (pulse-as-sync, the only case it skipped, can't co-occur with real sync).
 	synth::VirtualAnalogEngine engine{vaWaveFor(type), Phasor{phase, phaseIncrement}};
 	synth::BlockControls controls{
 	    .amplitude = Ramp{amplitude, amplitudeIncrement},
 	    .apply_amplitude = applyAmplitude,
 	    .pulse_width = pulseWidth,
-	    .pulse_wave = doPulseWave,
 	    .retrigger_phase = retriggerPhase,
 	    .sync = doOscSync ? std::optional<Phasor>{Phasor{resetterPhase, resetterPhaseIncrement}} : std::nullopt,
-	    .bandlimit_increment = phaseIncrementForCalculations,
 	    .cpu_direness = AudioEngine::cpuDireness,
 	};
 	engine.renderBlock(controls, fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)},
 	                   fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
 	if (doOscSync) {
-		maybeStorePhase(type, startPhase, engine.phase(), doPulseWave);
+		*startPhase = engine.phase();
 	}
 }
 void Oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,

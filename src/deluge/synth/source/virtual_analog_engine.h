@@ -28,12 +28,13 @@ namespace deluge::synth {
 /// SAW/ANALOG_SAW_2). It holds the **active shape** (a properly-encapsulated stateful oscillator that owns its
 /// phase — see @ref va_shape) in a `std::variant`, chosen once at construction from the OscType, and dispatches
 /// per block with `std::visit`. The wave is fixed for the note's life, so there is no per-block `switch`; the
-/// crude↔band-limited choice, pulse, hard sync, scale and VCA all live inside each shape.
+/// crude↔band-limited choice, pulse-width-as-sync, the retrigger/analog-saw-downgrade tweaks, hard sync, scale
+/// and VCA all live inside each shape — the engine owns its full per-block render derivation.
 ///
-/// Pulse-width-as-sync, the retrigger/analog-saw-downgrade tweaks, and phase persistence stay in the app-side
-/// adapter (`dsp/oscillators/oscillator.cpp`): it hands the engine the already-finalised @ref BlockControls and
-/// reads @ref phase() back. (The engine is currently rebuilt per block by that adapter; making it persistent in
-/// Voice is the following stage.)
+/// The app-side adapter (`dsp/oscillators/oscillator.cpp`) hands the engine the *original* (unrewritten) phase +
+/// increment and the *raw* @ref BlockControls, and reads @ref phase() back only to persist a real hard-sync's
+/// advanced phase. (The engine is currently rebuilt per block by that adapter; making it persistent in Voice is
+/// the following stage.)
 class VirtualAnalogEngine : public SourceEngine {
 public:
 	/// @param wave the VA wave to render — selects the variant alternative.

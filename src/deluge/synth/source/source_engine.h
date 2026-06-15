@@ -42,16 +42,19 @@ struct BlockControls {
 	/// When true, VCA-scale the wave and mix it into @c output's prior contents (the normal voice path). When
 	/// false, write the raw "standalone" wave straight out (e.g. the ring-mod carrier, which is multiplied later).
 	bool apply_amplitude;
-	uint32_t pulse_width;     ///< pulse-width / phase-width control (UQ0.32), as finalised by the adapter
-	bool pulse_wave;          ///< render a perfect pulse (band-limited square ring-modulated with itself)
-	uint32_t retrigger_phase; ///< phase offset applied on (re)trigger / sync reset
-	/// present ⇒ hard-sync this block to this master oscillator (its phase + increment, UQ0.32).
+	/// Raw pulse-width modulation (UQ0.32, sign-magnitude). Zero ⇒ no pulse. Each shape derives its own pulse
+	/// behaviour from this: the square turns it into a perfect (ring-modulated) pulse, while the saw/sine/
+	/// triangle/analog-square turn it into pulse-width-*as-sync* (the render phase is rewritten and the wave is
+	/// hard-synced to its own untouched-rate phase). That derivation lives in the shapes, not here.
+	uint32_t pulse_width;
+	/// Raw (re)trigger / sync-reset phase offset. The per-wave tweaks (SINE +3·2^30, SAW +2^31) are applied
+	/// inside the shapes, not here.
+	uint32_t retrigger_phase;
+	/// present ⇒ **real** hard-sync this block to this master oscillator (its phase + increment, UQ0.32). The
+	/// self-sync a pulse-width wave induces is derived in the shape and never appears here.
 	std::optional<deluge::dsp::Phasor> sync;
-	uint32_t bandlimit_increment; ///< the note pitch (UQ0.32) that picks the anti-aliasing band / crude↔BL choice
-	                              ///< (== the unrewritten phase increment; differs from the render pitch for
-	                              ///< pulse waves, whose phase increment is rewritten to the pulse render rate)
-	int32_t cpu_direness;         ///< snapshot of AudioEngine::cpuDireness — drives the crude↔band-limited
-	                              ///< choice without the engine reaching into processing/
+	int32_t cpu_direness; ///< snapshot of AudioEngine::cpuDireness — drives the crude↔band-limited
+	                      ///< choice (and the analog-saw downgrade) without the engine reaching into processing/
 };
 
 /// @brief Renders one block of one sound source. Stateful: per-source state lives in the concrete engine and

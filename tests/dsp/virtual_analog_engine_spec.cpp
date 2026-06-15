@@ -24,6 +24,7 @@
 #include "synth/source/virtual_analog_engine.h"
 
 #include "dsp-next/core/phasor.h"
+#include "dsp-next/fixed/bandlimited/analog_saw.h"
 #include "dsp-next/fixed/bandlimited/band_limited_table.h"
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/osc/crude_oscillators.h"
@@ -43,16 +44,14 @@ using Buffer = deluge::dsp::fixed::Buffer;
 
 constexpr std::size_t kN = 8;
 
-// Standalone controls (apply_amplitude=false): the engine writes the raw, scaled wave straight out.
-BlockControls standalone(int32_t cpu_direness, uint32_t bandlimit_increment, uint32_t pulse_width = 2147483648u,
-                         std::optional<Phasor> sync = std::nullopt) {
+// Standalone controls (apply_amplitude=false): the engine writes the raw, scaled wave straight out. pulse_width
+// is the raw modulation value (0 ⇒ no pulse); the shapes derive pulse/sync/retrigger/band-select themselves.
+BlockControls standalone(int32_t cpu_direness, uint32_t pulse_width = 0, std::optional<Phasor> sync = std::nullopt) {
 	return BlockControls{.amplitude = Ramp{0, 0},
 	                     .apply_amplitude = false,
 	                     .pulse_width = pulse_width,
-	                     .pulse_wave = false,
 	                     .retrigger_phase = 0,
 	                     .sync = sync,
-	                     .bandlimit_increment = bandlimit_increment,
 	                     .cpu_direness = cpu_direness};
 }
 
@@ -78,7 +77,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	constexpr uint32_t kInc = 0x02000000u; // low pitch ⇒ low table number ⇒ crude arms (with cpu_direness 7)
 
 	it("crude SAW is the phase ramp halved (standalone)", _ {
-		auto got = renderEngine(Wave::Saw, kPhase, kInc, standalone(7, kInc));
+		auto got = renderEngine(Wave::Saw, kPhase, kInc, standalone(7));
 		auto raw = renderKernel(deluge::dsp::fixed::CrudeSaw{Phasor{kPhase, kInc}});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i] >> 1); // Standalone::kHalve
@@ -86,7 +85,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	});
 
 	it("crude SQUARE is the square halved (standalone)", _ {
-		auto got = renderEngine(Wave::Square, kPhase, kInc, standalone(7, kInc));
+		auto got = renderEngine(Wave::Square, kPhase, kInc, standalone(7));
 		auto raw = renderKernel(deluge::dsp::fixed::CrudeSquare{Phasor{kPhase, kInc}, 2147483648u});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i] >> 1); // Standalone::kHalve
@@ -94,7 +93,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	});
 
 	it("crude TRIANGLE is the triangle doubled (standalone)", _ {
-		auto got = renderEngine(Wave::Triangle, kPhase, kInc, standalone(7, kInc));
+		auto got = renderEngine(Wave::Triangle, kPhase, kInc, standalone(7));
 		auto raw = renderKernel(deluge::dsp::fixed::CrudeTriangle{Phasor{kPhase, kInc}});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i] << 1); // Standalone::kDouble
@@ -104,8 +103,28 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	it("SINE reads the sine band directly (no scale)", _ {
 		static const deluge::dsp::fixed::Band kSineBand[] = {{sineWaveSmall, 8, 0xFFFFFFFFu}};
 		static const deluge::dsp::fixed::BandlimitedTable kSineTable{kSineBand};
-		auto got = renderEngine(Wave::Sine, kPhase, kInc, standalone(7, kInc));
+		auto got = renderEngine(Wave::Sine, kPhase, kInc, standalone(7));
 		auto raw = renderKernel(deluge::dsp::fixed::BandLimitedTableOscillator{kSineTable, kPhase, kInc, kInc});
+		for (std::size_t i = 0; i < kN; ++i) {
+			expect(got[i]).to_equal(raw[i]); // Standalone::kDirect
+		}
+	});
+
+	// kInc ⇒ table number 10. With dire CPU (10 < 7+6) the analog saw downgrades — a decision the AnalogSaw
+	// shape now owns internally — to the crude *digital* saw (kHalve, no retrigger tweak); with fine CPU it
+	// stays band-limited.
+	it("analog SAW downgrades to the crude digital saw at dire CPU", _ {
+		auto got = renderEngine(Wave::AnalogSaw, kPhase, kInc, standalone(7));
+		auto raw = renderKernel(deluge::dsp::fixed::CrudeSaw{Phasor{kPhase, kInc}});
+		for (std::size_t i = 0; i < kN; ++i) {
+			expect(got[i]).to_equal(raw[i] >> 1); // Standalone::kHalve
+		}
+	});
+
+	it("analog SAW stays band-limited when CPU is fine", _ {
+		auto got = renderEngine(Wave::AnalogSaw, kPhase, kInc, standalone(0));
+		auto raw = renderKernel(deluge::dsp::fixed::BandLimitedTableOscillator{
+		    deluge::dsp::fixed::analog_saw_bandlimited_table(), kPhase, kInc, kInc});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i]); // Standalone::kDirect
 		}
@@ -114,15 +133,16 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	it("hard-synced crude SAW matches the synced kernel and reports its phase", _ {
 		constexpr uint32_t kResetPhase = 0x40000000u;
 		constexpr uint32_t kResetInc = 0x01000000u;
-		auto controls = standalone(7, kInc, 2147483648u, Phasor{kResetPhase, kResetInc});
+		auto controls = standalone(7, 0, Phasor{kResetPhase, kResetInc});
 
 		VirtualAnalogEngine engine{Wave::Saw, Phasor{kPhase, kInc}};
 		std::array<int32_t, kN> out{};
 		std::array<int32_t, kN> scratch{};
 		engine.renderBlock(controls, Buffer{out}, Buffer{scratch});
 
+		// The Saw shape applies the +2^31 retrigger tweak internally, so the synced kernel must use it too.
 		deluge::dsp::fixed::CrudeSaw ref{deluge::dsp::fixed::SyncedPhasor{
-		    Phasor{kPhase, kInc}, Phasor{kResetPhase, kResetInc}, 0u}};
+		    Phasor{kPhase, kInc}, Phasor{kResetPhase, kResetInc}, 2147483648u}};
 		std::array<int32_t, kN> raw{};
 		ref.renderBlock(Buffer{raw}); // render in place so ref.phase() reflects the advanced phase
 		for (std::size_t i = 0; i < kN; ++i) {
