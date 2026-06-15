@@ -21,9 +21,13 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
-#include "storage/storage_manager.h"
 #include <array>
 
+// storage/storage_manager.h is deliberately NOT included: Serializer / Deserializer appear only as
+// method-parameter types below, so forward declarations suffice and the heavy storage include lives in
+// param_set.cpp. This keeps ParamSet (and the synth core, which reaches it via control_block.h) off storage/.
+class Serializer;
+class Deserializer;
 class Sound;
 class ParamManagerForTimeline;
 class TimelineCounter;
