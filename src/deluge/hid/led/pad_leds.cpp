@@ -37,6 +37,7 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "util/interpolation.h"
 
 #include <cstring>
 #include <limits>

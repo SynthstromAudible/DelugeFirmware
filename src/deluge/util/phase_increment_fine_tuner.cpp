@@ -17,6 +17,7 @@
 
 #include "util/phase_increment_fine_tuner.h"
 #include "util/functions.h"
+#include "util/interpolation.h"
 
 PhaseIncrementFineTuner::PhaseIncrementFineTuner() {
 	setNoDetune();

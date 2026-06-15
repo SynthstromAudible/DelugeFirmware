@@ -46,6 +46,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
+#include "util/interpolation.h"
 
 #include "dsp/oscillators/oscillator.h"
 #include "util/misc.h"

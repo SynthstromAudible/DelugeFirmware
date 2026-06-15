@@ -16,7 +16,8 @@
  */
 
 #include "modulation/envelope.h"
-#include "util/functions.h" // getDecay4/8, interpolateTable(Inverse), multiply_32x32_rshift32, add_saturate
+#include "util/fixedpoint.h"                // multiply_32x32_rshift32, add_saturate
+#include "util/interpolation.h"             // getDecay4/8, interpolateTable(Inverse)
 #include "util/lookuptables/lookuptables.h" // decayTableSmall4
 #include "util/waves.h"                     // getSine
 #include <algorithm>

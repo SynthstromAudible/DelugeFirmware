@@ -232,10 +232,6 @@ char const* sourceToStringShort(PatchSource source);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 
-int32_t interpolateTable(uint32_t input, int32_t numBitsInInput, const uint16_t* table, int32_t numBitsInTableSize = 8);
-uint32_t interpolateTableInverse(int32_t tableValueBig, int32_t numBitsInLookupOutput, const uint16_t* table,
-                                 int32_t numBitsInTableSize = 8);
-
 // input must not have any extra bits set than numBitsInInput specifies
 // Output of this function (unlike the regular 1d one) is only +- 1073741824
 [[gnu::always_inline]] inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY,
@@ -298,9 +294,6 @@ template <unsigned saturationAmount>
 	*lastWorkingValue = workingValue;
 	return toReturn;
 }
-
-int32_t getDecay8(uint32_t input, uint8_t numBitsInInput);
-int32_t getDecay4(uint32_t input, uint8_t numBitsInInput);
 
 #define znew (z = 36969 * (z & 65535) + (z >> 16))
 #define wnew (w = 18000 * (w & 65535) + (w >> 16))

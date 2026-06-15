@@ -17,6 +17,7 @@
 
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample.h"
+#include "util/interpolation.h"
 #include "util/lookuptables/lookuptables.h"
 
 SampleHolderForClip::SampleHolderForClip() {

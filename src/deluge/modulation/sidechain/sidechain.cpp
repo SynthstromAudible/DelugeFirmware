@@ -20,6 +20,7 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
+#include "util/interpolation.h"
 #include "util/lookuptables/lookuptables.h"
 
 SideChain::SideChain() {

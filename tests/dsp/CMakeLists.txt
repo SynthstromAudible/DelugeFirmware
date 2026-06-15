@@ -42,6 +42,11 @@ set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/osc/sine.cpp)
 # SyncedOscillator + SyncWindower seam crossfades call getSine(), which reads the sineWaveSmall LUT.
 set(synced_oscillator_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 set(sync_windower_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The Envelope (a leaf component now): its curve helpers (interpolation.cpp) + the decay/release tables.
+set(envelope_spec_DEPS
+  ${_repo_root}/src/deluge/modulation/envelope.cpp
+  ${_repo_root}/src/deluge/util/interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().
