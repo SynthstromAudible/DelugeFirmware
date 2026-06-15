@@ -7,24 +7,21 @@
 
 src/deluge/synth/ holds the decoupled per-voice modulation core — Envelope, LFO,
 Patcher, ControlBlock, ParamPlane. It is a step below the application: it may use
-util/, dsp-next/, definitions*, and its sibling modulation/ headers, but it must
-not reach up into the app layers. This check fails if a synth/ file directly
-includes a forbidden header (unless that file is on the shrink-only allowlist).
+util/, dsp-next/, sequence/, definitions*, and its sibling modulation/ headers,
+but it must not reach up into the app layers — storage/, model/, processing/,
+gui/, playback/, hid/, io/, the legacy dsp/ library, or the HAL/BSP (RZA1/, bsp/,
+drivers/). memory/ is allowed only via the thin memory_allocator_interface.h seam.
 
-Unlike dsp-next (which forbids modulation/ too), the synth core legitimately uses
-modulation/ — the ParamManager-world types (PatchedParamSet, PatchCableSet) and
-the param tables it patches over still live there. Forbidden are the app layers
-above it: storage/, model/, processing/, gui/, playback/, hid/, io/, the legacy
-dsp/ library, and the HAL/BSP (RZA1/, bsp/, drivers/). memory/ is allowed only
-via the thin memory_allocator_interface.h seam.
-
-NOTE: this is a *direct*-include check (like the dsp/platform ones) — it cannot
-see a forbidden header pulled in transitively through, e.g., util/functions.h or
-modulation/params/param_set.h. Cutting those transitive reaches is later work.
+This is a TRANSITIVE check: it follows the `#include "..."` graph from every
+synth/ file (resolving against the same roots the build uses — src/deluge and
+src) and fails if any reached header lives under a forbidden layer. That catches
+reaches buried behind intermediate headers (e.g. util/functions.h -> gui/colour,
+or param_set.h -> storage/), not just direct includes. A synth file may be put on
+the shrink-only allowlist as a last resort.
 
 Usage:
     scripts/check_synth_boundary.py            # check, exit 1 on violation
-    scripts/check_synth_boundary.py --list     # print offenders and exit 0
+    scripts/check_synth_boundary.py --list     # print offenders (+ a chain) and exit 0
     scripts/check_synth_boundary.py --update   # rewrite the allowlist to match
 """
 
@@ -39,8 +36,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SYNTH_ROOT = REPO_ROOT / "src" / "deluge" / "synth"
 ALLOWLIST_PATH = REPO_ROOT / "scripts" / "synth_boundary_allowlist.txt"
 
-# Upward / sideways reaches that break the synth boundary. (modulation/ is NOT
-# here — the synth core may use its sibling modulation/ headers.)
+# The include roots the build hands the compiler (-I), longest first so a file under
+# src/deluge resolves to its src/deluge-relative logical path before its src-relative one.
+INCLUDE_ROOTS = (REPO_ROOT / "src" / "deluge", REPO_ROOT / "src")
+
+# Upward / sideways reaches that break the synth boundary. (modulation/, util/, dsp-next/,
+# sequence/ are NOT here — the synth core may use them.)
 FORBIDDEN_INCLUDE_PREFIXES = (
     "storage/",
     "model/",
@@ -61,39 +62,80 @@ MEMORY_ALLOWED = {"memory/memory_allocator_interface.h"}
 
 SOURCE_SUFFIXES = {".c", ".cpp", ".cc", ".h", ".hpp", ".hh", ".s", ".S"}
 
-# Matches:  #include "model/foo.h"   or   #include <model/foo.h>
-_INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^">]+)[>"]')
+# Matches the quoted form only:  #include "model/foo.h"  (system <...> headers are stdlib/etl/argon).
+_INCLUDE_RE = re.compile(r'^\s*#\s*include\s*"([^"]+)"')
 
 
-def _is_forbidden(inc: str) -> bool:
-    if inc.startswith(MEMORY_PREFIX):
-        return inc not in MEMORY_ALLOWED
-    return any(inc.startswith(p) for p in FORBIDDEN_INCLUDE_PREFIXES)
+def _is_forbidden(logical: str) -> bool:
+    if logical.startswith(MEMORY_PREFIX):
+        return logical not in MEMORY_ALLOWED
+    return any(logical.startswith(p) for p in FORBIDDEN_INCLUDE_PREFIXES)
 
 
-def forbidden_includes(path: Path) -> list[str]:
-    found: list[str] = []
+def _quoted_includes(path: Path) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
-        return found
-    for line in text.splitlines():
-        m = _INCLUDE_RE.match(line)
-        if m and _is_forbidden(m.group(1)):
-            found.append(m.group(1))
+        return []
+    return [m.group(1) for line in text.splitlines() if (m := _INCLUDE_RE.match(line))]
+
+
+def _resolve(inc: str) -> Path | None:
+    for root in INCLUDE_ROOTS:
+        candidate = root / inc
+        if candidate.is_file():
+            return candidate.resolve()
+    return None
+
+
+def _logical(path: Path) -> str | None:
+    """The path as the boundary sees it (relative to the deepest matching include root)."""
+    for root in INCLUDE_ROOTS:
+        try:
+            return path.relative_to(root.resolve()).as_posix()
+        except ValueError:
+            continue
+    return None
+
+
+def _reaches(synth_file: Path) -> dict[str, list[str]]:
+    """Forbidden logical paths reachable from synth_file -> an example include chain."""
+    found: dict[str, list[str]] = {}
+    visited: set[Path] = {synth_file.resolve()}
+    # queue of (file, chain-of-logical-includes-to-reach-it)
+    queue: list[tuple[Path, list[str]]] = [(synth_file, [])]
+    while queue:
+        current, chain = queue.pop()
+        for inc in _quoted_includes(current):
+            resolved = _resolve(inc)
+            if resolved is None:
+                # Unresolved (system-absent / generated). Still flag if the *string* is forbidden
+                # (e.g. a stray RZA1/ include with no host-side file).
+                if _is_forbidden(inc) and inc not in found:
+                    found[inc] = [*chain, inc]
+                continue
+            logical = _logical(resolved)
+            if logical is None:
+                continue  # outside the known roots (e.g. fatfs/ via its own -I) — not an app layer
+            if _is_forbidden(logical):
+                found.setdefault(logical, [*chain, logical])
+                continue  # record the breach; don't descend into the app layer
+            if resolved not in visited:
+                visited.add(resolved)
+                queue.append((resolved, [*chain, logical]))
     return found
 
 
-def current_offenders() -> dict[str, list[str]]:
-    offenders: dict[str, list[str]] = {}
+def current_offenders() -> dict[str, dict[str, list[str]]]:
+    offenders: dict[str, dict[str, list[str]]] = {}
     if not SYNTH_ROOT.exists():
         return offenders
     for path in sorted(SYNTH_ROOT.rglob("*")):
         if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
             continue
-        inc = forbidden_includes(path)
-        if inc:
-            offenders[str(path.relative_to(REPO_ROOT))] = inc
+        reaches = _reaches(path)
+        if reaches:
+            offenders[str(path.relative_to(REPO_ROOT))] = reaches
     return offenders
 
 
@@ -111,7 +153,7 @@ def load_allowlist() -> set[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--list", action="store_true", help="print offenders and exit 0"
+        "--list", action="store_true", help="print offenders (with a chain) and exit 0"
     )
     parser.add_argument(
         "--update",
@@ -123,8 +165,9 @@ def main() -> int:
     offenders = current_offenders()
 
     if args.list:
-        for p in sorted(offenders):
-            print(f"{p}: {', '.join(offenders[p])}")
+        for synth_file in sorted(offenders):
+            for target, chain in sorted(offenders[synth_file].items()):
+                print(f"{synth_file}: {target}   (via {' -> '.join(chain)})")
         return 0
 
     if args.update:
@@ -135,25 +178,29 @@ def main() -> int:
         return 0
 
     allowed = load_allowlist()
-    violations = {p: inc for p, inc in offenders.items() if p not in allowed}
+    violations = {p: r for p, r in offenders.items() if p not in allowed}
 
     if violations:
         print(
-            "ERROR: synth core files reach outside the synth boundary:", file=sys.stderr
+            "ERROR: synth core files transitively reach outside the synth boundary:",
+            file=sys.stderr,
         )
-        for p in sorted(violations):
-            print(f"  {p}  ->  {', '.join(violations[p])}", file=sys.stderr)
+        for synth_file in sorted(violations):
+            for target, chain in sorted(violations[synth_file].items()):
+                print(
+                    f"  {synth_file}  ->  {target}   (via {' -> '.join(chain)})",
+                    file=sys.stderr,
+                )
         print(
-            "\nsrc/deluge/synth/ must not include the app layers (storage/model/\n"
-            "processing/gui/playback/hid/io), the legacy dsp/ library, or the HAL/BSP.\n"
-            "It MAY use util/, dsp-next/, and its sibling modulation/ headers. Finish\n"
-            "decoupling the offending include, or — only as a last resort — add the file\n"
-            "to scripts/synth_boundary_allowlist.txt (which may only shrink).",
+            "\nsrc/deluge/synth/ must not reach the app layers (storage/model/processing/\n"
+            "gui/playback/hid/io), the legacy dsp/ library, or the HAL/BSP — directly OR\n"
+            "transitively. Confine the offending include (forward-declare + move it to a\n"
+            ".cpp, or split the header), or — only as a last resort — add the synth file to\n"
+            "scripts/synth_boundary_allowlist.txt (which may only shrink).",
             file=sys.stderr,
         )
         return 1
 
-    # Anything on the allowlist that is now clean should be removed (keep it honest).
     stale = sorted(allowed - set(offenders))
     if stale:
         print(
@@ -167,7 +214,7 @@ def main() -> int:
     n = sum(
         1 for p in SYNTH_ROOT.rglob("*") if p.suffix in SOURCE_SUFFIXES and p.is_file()
     )
-    print(f"OK: {n} synth file(s) scanned; no synth boundary violations.")
+    print(f"OK: {n} synth file(s) scanned; no synth boundary violations (transitive).")
     return 0
 
 
@@ -175,15 +222,16 @@ def _write_allowlist(paths: list[str]) -> None:
     lines = [
         "# Synth-boundary allowlist (synth untangling, Phase 2).",
         "#",
-        "# Files under src/deluge/synth/ that still directly include a forbidden app/HAL",
-        "# header. This list may only SHRINK — adding an entry should be rejected in",
-        "# review; removing one is the unit of progress. Regenerate for comparison with:",
+        "# Files under src/deluge/synth/ that still TRANSITIVELY reach a forbidden app/HAL",
+        "# header. This list may only SHRINK — adding an entry should be rejected in review;",
+        "# removing one is the unit of progress. Regenerate for comparison with:",
         "#   scripts/check_synth_boundary.py --list",
         "#",
         "# See docs/dev/synth_phase2_data_plane.md and scripts/check_synth_boundary.py.",
         "#",
-        "# The list is EMPTY: src/deluge/synth includes only util/, dsp-next/, modulation/,",
-        "# definitions*, and standard/etl headers.",
+        "# The list is EMPTY: src/deluge/synth reaches only util/, dsp-next/, modulation/,",
+        "# sequence/, definitions*, and standard/etl headers — no app layer, directly or",
+        "# transitively.",
     ]
     lines.extend(paths)
     ALLOWLIST_PATH.write_text("\n".join(lines) + "\n")
