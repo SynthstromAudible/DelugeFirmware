@@ -258,13 +258,25 @@ and fails on any reached header under a forbidden layer — reporting the chain.
 (0 transitive violations); the existing pre-commit hook + CI workflow already run it (CI on every push is the
 backstop for regressions in shared `modulation/`/`util/` headers).
 
-**Still remaining — a true link-standalone `libdeluge-synth` static lib.** The synth TUs now *compile*
-app-layer-free, but they still *link-depend* on definitions that live in the gui-laden `util/functions.cpp`
-(`getFinalParameterValue*`, `getExp`, `paramRanges`/`paramNeutralValues`) and `lookuptables.cpp`. A standalone
-lib (not linking the app's gui-laden objects) needs those defs relocated into gui-free TUs first — the
-"A-full" `param_functions.cpp` move that was deferred when only the header was split, plus a numeric-only
-`lookuptables` split. That def-relocation is the prerequisite for the lib target. The namespace
-`deluge::synth` wrap (~44 files) stays an orthogonal/cosmetic option.
+**Link-standalone synth core — DONE.** The synth TUs now both compile AND link app-layer-free. An `nm -u`
+of the synth objects showed their only out-of-core link-deps were defs in gui-laden TUs; those were relocated
+into gui-free TUs (all bit-exact, x86 golden 333/333 + ARM oracle):
+- param-math defs (`getFinalParameterValue*`, `getExp`, `lookupReleaseRate`, `paramRanges`/`paramNeutralValues`,
+  `getParamRange`/`getParamNeutralValue`, `functionsInit`) → new `util/param_functions.cpp` (the deferred
+  "A-full"); `increaseMagnitudeAndSaturate` → `param_functions.h`; `functions.h` re-exports.
+- the 3 l10n/iterance preset-table defs → new `util/lookuptables/preset_tables.cpp` (numeric `lookuptables.cpp`
+  is now gui-free).
+- `PatchCableSet::getModifiedPatchCableAmount` (the patcher's one PatchCableSet runtime dep — self-contained:
+  cable value/source + math) → new `modulation/patch/patch_cable_set_amount.cpp`.
+
+Proven + guarded by **`synth_link_test`** (a CTest target): it links `synth/*.cpp` + ONLY those gui-free dep
+TUs + a stub main, with nothing from the app — a successful link (no undefined symbols, no
+gui/model/processing/storage objects) is the standalone guarantee, the link-time companion to the transitive
+include lint.
+
+**Remaining (optional):** productizing this as a CMake `deluge_synth` static lib the app links (complicated by
+the shared `util/` dep TUs also being globbed into the app — an ODR concern the link-*test* sidesteps), and the
+`namespace deluge::synth` wrap (~44 files, cosmetic).
 
 ---
 
