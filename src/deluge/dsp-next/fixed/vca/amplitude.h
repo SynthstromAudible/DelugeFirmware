@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/mixer.h"
+#include "dsp-next/core/ramp.h"
 #include "dsp-next/core/types.h"
 #include <argon.hpp>
 #include <arm_neon.h>
@@ -42,6 +43,9 @@ public:
 	Amplitude(int32_t amplitude, int32_t amplitude_increment)
 	    : amplitude_{Argon<int32_t>{amplitude}.MultiplyAdd(amplitude_increment, int32x4_t{1, 2, 3, 4}) >> 1},
 	      amplitude_increment_{amplitude_increment << 1} {}
+
+	/// Build from an amplitude @ref deluge::dsp::Ramp (its value + per-sample increment).
+	explicit Amplitude(Ramp ramp) : Amplitude(ramp.value(), ramp.increment()) {}
 
 	/// @param raw the freshly-generated wave block (read-only)
 	/// @param mix the existing mix to accumulate into

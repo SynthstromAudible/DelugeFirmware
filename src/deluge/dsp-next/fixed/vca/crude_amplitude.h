@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/mixer.h"
+#include "dsp-next/core/ramp.h"
 #include "util/fixedpoint.h" // multiply_accumulate_32x32_rshift32_rounded
 #include <cstddef>
 #include <cstdint>
@@ -40,6 +41,9 @@ class CrudeAmplitude : public BlockMixer<q31> {
 
 public:
 	CrudeAmplitude(int32_t amplitude, int32_t increment) : amplitude_{amplitude}, increment_{increment} {}
+
+	/// Build from an amplitude @ref deluge::dsp::Ramp (its value + per-sample increment).
+	explicit CrudeAmplitude(Ramp ramp) : CrudeAmplitude(ramp.value(), ramp.increment()) {}
 
 	/// out = raw * amplitude + mix (raw == @p input_a, mix == @p input_b), scalar rounded MAC.
 	void renderBlock(Signal input_a, Signal input_b, Buffer output) override {
