@@ -252,10 +252,19 @@ lints green). Two latent IWYU relies the lookuptables split exposed were fixed
 (`ModFXProcessor.h` `UnpatchedParamSet` fwd-decl; `util/string.cpp` `<strings.h>` +
 `hid/display/display.h`).
 
-**Remaining (step 4 — the payoff):** a `libdeluge-synth` static-lib target (compiled with
-the app layers off the include path — the build itself then proves the boundary) + a
-*transitive* boundary check (scripted `ninja -t deps`, mirroring the direct-include lint).
-The namespace `deluge::synth` wrap (~44 files) stays an orthogonal/cosmetic option.
+**Transitive boundary check — DONE (`aa7d2122`).** `scripts/check_synth_boundary.py` now follows the
+`#include "..."` closure from each `synth/` file (resolving against the build's roots, `src/deluge` + `src`)
+and fails on any reached header under a forbidden layer — reporting the chain. Passes with an empty allowlist
+(0 transitive violations); the existing pre-commit hook + CI workflow already run it (CI on every push is the
+backstop for regressions in shared `modulation/`/`util/` headers).
+
+**Still remaining — a true link-standalone `libdeluge-synth` static lib.** The synth TUs now *compile*
+app-layer-free, but they still *link-depend* on definitions that live in the gui-laden `util/functions.cpp`
+(`getFinalParameterValue*`, `getExp`, `paramRanges`/`paramNeutralValues`) and `lookuptables.cpp`. A standalone
+lib (not linking the app's gui-laden objects) needs those defs relocated into gui-free TUs first — the
+"A-full" `param_functions.cpp` move that was deferred when only the header was split, plus a numeric-only
+`lookuptables` split. That def-relocation is the prerequisite for the lib target. The namespace
+`deluge::synth` wrap (~44 files) stays an orthogonal/cosmetic option.
 
 ---
 
