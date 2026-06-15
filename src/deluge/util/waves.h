@@ -30,32 +30,5 @@ extern uint32_t z, w, jcong;
 	return interpolateTableSigned(phase, numBitsInInput, sineWaveSmall, 8);
 }
 
-[[gnu::always_inline]] inline int32_t getSquare(uint32_t phase, uint32_t phaseWidth = 2147483648u) {
-	return ((phase >= phaseWidth) ? (-2147483648) : 2147483647);
-}
-
-[[gnu::always_inline]] inline int32_t getSquareSmall(uint32_t phase, uint32_t phaseWidth = 2147483648u) {
-	return ((phase >= phaseWidth) ? (-1073741824) : 1073741823);
-}
-
-/* Should be faster, but isn't...
- * inline int32_t getTriangleSmall(int32_t phase) {
-    int32_t multiplier = (phase >> 31) | 1;
-    phase *= multiplier;
- */
-
-[[gnu::always_inline]] inline int32_t getTriangleSmall(uint32_t phase) {
-	if (phase >= 2147483648u)
-		phase = -phase;
-	return phase - 1073741824;
-}
-
-[[gnu::always_inline]] inline int32_t getTriangle(uint32_t phase) {
-	int32_t slope = 2;
-	int32_t offset = 0x80000000u;
-	if (phase >= 0x80000000u) {
-		slope = -2;
-		offset = 0x80000000u - 1;
-	}
-	return slope * phase + offset;
-}
+// The analytic square/triangle waves now live in dsp-next (deluge::dsp::fixed::square / triangle / triangle_full,
+// dsp-next/fixed/bandlimited/waves.h) — the canonical home shared by the crude oscillators and the LFO.

@@ -18,9 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/bandlimited/waves.h" // square, triangle_full
 #include "modulation/sync.h"
 #include "util/fixedpoint.h"
-#include "util/waves.h"
+#include "util/waves.h" // getSine + the jcong/CONG RNG (random waveforms)
 #include <cstdint>
 #include <variant>
 
@@ -65,7 +66,7 @@ struct Saw {
 
 struct Square {
 	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
-		int32_t value = getSquare(phase);
+		int32_t value = deluge::dsp::fixed::square(phase, 2147483648u);
 		advance(phase, phase_increment, num_samples);
 		return value;
 	}
@@ -81,7 +82,7 @@ struct Sine {
 
 struct Triangle {
 	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
-		int32_t value = getTriangle(phase);
+		int32_t value = deluge::dsp::fixed::triangle_full(phase);
 		advance(phase, phase_increment, num_samples);
 		return value;
 	}

@@ -252,7 +252,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 	else if (type == OscType::TRIANGLE) {
 
 		if (phaseIncrement < 69273666 || AudioEngine::cpuDireness >= 7) {
-			// Crude triangle: half-scale getTriangleSmall fed to a doubled-amplitude VCA, so the
+			// Crude triangle: half-scale dsp::fixed::triangle fed to a doubled-amplitude VCA, so the
 			// standalone (un-amplified) output is << 1. Plain Phasor free-runs; SyncedPhasor hard-syncs.
 			auto makeVca = [&] { return fixed::CrudeAmplitude{amplitude << 1, amplitudeIncrement << 1}; };
 			if (doOscSync) {
@@ -309,7 +309,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 			// If frequency low enough, we just use a crude calculation for the wave without anti-aliasing
 			if (tableNumber < AudioEngine::cpuDireness + 6) {
 
-				// Crude square: full-scale getSquare, so the standalone output is >> 1 (== getSquareSmall).
+				// Crude square: full-scale dsp::fixed::square, so the standalone output is >> 1 (half scale).
 				auto makeVca = [&] { return fixed::CrudeAmplitude{amplitude, amplitudeIncrement}; };
 				if (!doOscSync) {
 					fixed::CrudeSquare osc{Phasor{phase, phaseIncrement}, pulseWidth};

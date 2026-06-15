@@ -25,11 +25,11 @@ namespace deluge::dsp::fixed {
 /// @brief Stateless analytic (non-band-limited) wave kernels — the leaf math for the crude
 /// oscillators. Pure functions of phase, owning no phase/frequency (the generator owns those).
 ///
-/// These are dsp-next's own copies, snake_case, so the oscillator library is self-contained
-/// rather than reaching up into the app's @c util/waves.h — which keeps its camelCase
-/// `getSquare`/`getTriangleSmall` for its many other consumers (LFOs, envelopes, GUI
-/// animation). The bodies are identical, so substituting them is bit-exact. Mirrors how the
-/// sine table evaluator moved to @ref sine.h while @c getSine stayed in util for the rest.
+/// These are the canonical analytic waves for the whole synth: the crude (non-band-limited)
+/// oscillators wrap them, and the control-rate @ref LFO evaluates them per block. They live here,
+/// snake_case, so the oscillator library is self-contained rather than reaching up into the app's
+/// @c util/waves.h. Two triangle scales are offered deliberately — see @ref triangle (half) and
+/// @ref triangle_full (full).
 
 /// @brief Square wave: full-scale, switching at the pulse-width threshold.
 /// @param phase Full-circle q32 phase (2^32 == one cycle).
@@ -54,6 +54,25 @@ namespace deluge::dsp::fixed {
 		phase = -phase;
 	}
 	return static_cast<int32_t>(phase - 1073741824u);
+}
+
+/// @brief Triangle wave at full scale (±2^31): the same fold as @ref triangle but spanning the whole q31
+/// range — the shape the control-rate @ref LFO uses (it has no doubled-amplitude VCA, so it wants the full
+/// swing directly).
+/// @param phase Full-circle q32 phase (2^32 == one cycle).
+/// @return The triangle sample, in [INT32_MIN, INT32_MAX].
+[[nodiscard, gnu::always_inline]] inline int32_t triangle_full(uint32_t phase) {
+	// `slope * phase + offset` walks up then down. Both intercepts are written as unsigned 2^31 literals that
+	// narrow to int32 on assignment — the rising intercept wraps to INT32_MIN, the falling one to INT32_MAX —
+	// and the whole expression is evaluated mod 2^32. This narrowing is load-bearing for the exact turnover
+	// values; do not "fix" it.
+	int32_t slope = 2;
+	int32_t offset = 0x80000000u; // rising half: intercept narrows to INT32_MIN
+	if (phase >= 2147483648u) {
+		slope = -2;
+		offset = 0x80000000u - 1; // falling half: 0x7FFFFFFF == INT32_MAX
+	}
+	return slope * phase + offset;
 }
 
 } // namespace deluge::dsp::fixed

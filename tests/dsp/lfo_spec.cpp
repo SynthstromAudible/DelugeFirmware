@@ -20,8 +20,9 @@
 // suite (tests/unit/lfo_tests.cpp); freezing the same q31 outputs is the bit-exact proof that the
 // std::variant rewrite preserves behaviour. Runs on x86 (SIMDe) and ARM/QEMU via CTest.
 
+#include "dsp-next/fixed/bandlimited/waves.h" // triangle_full (the LFO's triangle shape)
 #include "synth/lfo.h"
-#include "util/waves.h" // getTriangle + the jcong RNG state (for deterministic S&H / random-walk / warbler)
+#include "util/waves.h" // the jcong RNG state (for deterministic S&H / random-walk / warbler)
 #include <cppspec.hpp>
 #include <cstdint>
 
@@ -181,11 +182,12 @@ describe lfo_spec("LFO", ${
 
 	// ---- Wave LUT sanity (ported from the retired suite's WaveTest) ----
 	it("computes the triangle wave around its turnover points", _ {
-		expect(getTriangle(UINT32_MAX)).to_equal(-2147483647);
-		expect(getTriangle(0)).to_equal(-2147483648);
-		expect(getTriangle(1073741824)).to_equal(0);
-		expect(getTriangle(2147483648u)).to_equal(2147483647);
-		expect(getTriangle(3221225472u)).to_equal(-1);
+		using deluge::dsp::fixed::triangle_full;
+		expect(triangle_full(UINT32_MAX)).to_equal(-2147483647);
+		expect(triangle_full(0)).to_equal(-2147483648);
+		expect(triangle_full(1073741824)).to_equal(0);
+		expect(triangle_full(2147483648u)).to_equal(2147483647);
+		expect(triangle_full(3221225472u)).to_equal(-1);
 	});
 });
 // clang-format on
