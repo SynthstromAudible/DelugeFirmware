@@ -22,10 +22,10 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
-#include "model/iterance/iterance.h"
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_instrument.h"
+#include "sequence/iterance.h"
 
 #define SQUARE_NEW_NOTE 1
 #define SQUARE_NOTE_HEAD 2

@@ -18,7 +18,7 @@
 #pragma once
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
-#include "model/iterance/iterance.h"
+#include "sequence/iterance.h"
 #include "util/misc.h"
 
 #include <cstddef>

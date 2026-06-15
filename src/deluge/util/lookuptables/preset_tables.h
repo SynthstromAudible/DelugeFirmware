@@ -18,7 +18,7 @@
 #pragma once
 
 #include "gui/l10n/strings.h"               // deluge::l10n::String
-#include "model/iterance/iterance.h"        // Iterance
+#include "sequence/iterance.h"              // Iterance
 #include "util/lookuptables/lookuptables.h" // NUM_PRESET_REVERBS, MAX_CHORD_TYPES
 #include <array>
 

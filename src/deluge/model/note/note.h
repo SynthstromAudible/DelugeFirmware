@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "model/iterance/iterance.h"
 #include "model/positionable.h"
+#include "sequence/iterance.h"
 #include <cstdint>
 
 class Note : public Positionable {
