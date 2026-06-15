@@ -38,11 +38,12 @@ namespace deluge::dsp::fixed {
 /// a rewritten (faster) increment while their band-limiting must still target the perceived pitch;
 /// the four-argument constructor decouples the two (see @p selection_increment).
 class [[gnu::hot]] BandLimitedTableOscillator : public Generator<BandLimitedTableOscillator, q31> {
+	const BandlimitedTable* bands_; ///< the wave's band set, retained so the band can be re-selected per block
 	TableOscillator oscillator_;
 
 public:
 	BandLimitedTableOscillator(const BandlimitedTable& bands, uint32_t phase, uint32_t increment)
-	    : oscillator_{bands.select(increment), phase, increment} {}
+	    : bands_{&bands}, oscillator_{bands.select(increment), phase, increment} {}
 
 	/// @param selection_increment the pitch used to pick the band, when it differs from the render
 	/// increment (pulse-width waves: the band tracks the note, the phase advances at the pulse rate).
@@ -55,9 +56,26 @@ public:
 	/// correct but audibly changes every PW patch, so it must wait for a deliberate re-baseline.
 	BandLimitedTableOscillator(const BandlimitedTable& bands, uint32_t phase, uint32_t increment,
 	                           uint32_t selection_increment)
-	    : oscillator_{bands.select(selection_increment), phase, increment} {}
+	    : bands_{&bands}, oscillator_{bands.select(selection_increment), phase, increment} {}
 
 	void seek(uint32_t phase) { oscillator_.seek(phase); }
+
+	/// The live phase — for persisting/reading a persistent oscillator's phase across blocks.
+	[[nodiscard]] uint32_t phase() const { return oscillator_.phase(); }
+
+	/// Set the per-block pitch, **re-selecting the band** for the new increment (bit-identical to constructing a
+	/// fresh oscillator at that increment). Keeps the accumulated phase.
+	void setIncrement(uint32_t increment) {
+		oscillator_.setIncrement(increment);
+		oscillator_.setTable(bands_->select(increment));
+	}
+
+	/// As above but with a separate band-selection pitch (pulse-width waves render faster than the note they
+	/// band-limit for; see the four-argument constructor).
+	void setIncrement(uint32_t increment, uint32_t selection_increment) {
+		oscillator_.setIncrement(increment);
+		oscillator_.setTable(bands_->select(selection_increment));
+	}
 
 	[[gnu::always_inline]] Argon<q31> render() { return oscillator_.render(); }
 };

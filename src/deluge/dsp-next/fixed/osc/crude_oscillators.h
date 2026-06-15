@@ -47,6 +47,13 @@ public:
 	explicit CrudeSaw(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
+	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
+	/// the audible + resetter increments), keeping the accumulated phase.
+	template <typename... Increments>
+	void setIncrement(Increments... increments) {
+		phasor_.setIncrement(increments...);
+	}
+
 	void renderBlock(Buffer output) override {
 		for (q31& sample : output) {
 			sample = static_cast<int32_t>(phasor_.advance());
@@ -67,6 +74,13 @@ public:
 	CrudeSquare(Phase phasor, uint32_t pulse_width) : phasor_{phasor}, pulse_width_{pulse_width} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
+	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
+	/// the audible + resetter increments), keeping the accumulated phase.
+	template <typename... Increments>
+	void setIncrement(Increments... increments) {
+		phasor_.setIncrement(increments...);
+	}
+
 	void renderBlock(Buffer output) override {
 		for (q31& sample : output) {
 			sample = square(phasor_.advance(), pulse_width_);
@@ -84,6 +98,13 @@ class [[gnu::hot]] CrudeTriangle : public BlockGenerator<q31> {
 public:
 	explicit CrudeTriangle(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+
+	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
+	/// the audible + resetter increments), keeping the accumulated phase.
+	template <typename... Increments>
+	void setIncrement(Increments... increments) {
+		phasor_.setIncrement(increments...);
+	}
 
 	void renderBlock(Buffer output) override {
 		for (q31& sample : output) {
@@ -103,6 +124,13 @@ class [[gnu::hot]] CrudeSine : public BlockGenerator<q31> {
 public:
 	explicit CrudeSine(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+
+	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
+	/// the audible + resetter increments), keeping the accumulated phase.
+	template <typename... Increments>
+	void setIncrement(Increments... increments) {
+		phasor_.setIncrement(increments...);
+	}
 
 	void renderBlock(Buffer output) override {
 		for (q31& sample : output) {

@@ -39,6 +39,10 @@ FetchContent_MakeAvailable(argon)
 # dsp-next is header-light, so building the few sources directly is simpler than
 # pulling in the whole library target here).
 set(sine_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/osc/sine.cpp)
+# The stateful-oscillator spec drives the band-limited saw + square bands (BandLimitedTableOscillator / pulse).
+set(stateful_oscillator_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/saw.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/square.cpp)
 # SyncedOscillator + SyncWindower seam crossfades + CrudeSine read sine_table, which reads the sineWaveSmall LUT.
 set(synced_oscillator_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 set(sync_windower_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)

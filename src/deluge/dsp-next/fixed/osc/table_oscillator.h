@@ -46,6 +46,20 @@ public:
 	/// Jump the phase (e.g. a hard-sync reset between windows). See @ref deluge::dsp::Phasor::seek.
 	void seek(uint32_t phase) { phasor_.seek(phase); }
 
+	/// The live phase — lets a persistent oscillator's phase be read back (e.g. to persist per voice or feed a
+	/// hard-sync master) instead of the caller owning it.
+	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+
+	/// Change the per-sample phase step for the next block (pitch change), keeping the accumulated phase.
+	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+
+	/// Swap the band/table this reads, keeping the accumulated phase — the band-limited oscillator uses this to
+	/// re-select its band when the pitch changes between blocks.
+	void setTable(Table table) {
+		samples_ = table.samples.data();
+		magnitude_ = table.magnitude;
+	}
+
 	[[gnu::always_inline]] Argon<q31> render() {
 		// Per lane: the high bits of the phase pick a table entry, the next bits are the
 		// interpolation fraction. `value_pair` packs {entry, next entry} into one 32-bit word.

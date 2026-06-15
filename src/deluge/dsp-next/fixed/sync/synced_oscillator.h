@@ -62,6 +62,14 @@ public:
 	/// The audible phase after rendering — what the voice stores back to continue next block.
 	[[nodiscard]] uint32_t phase() const { return phase_; }
 
+	/// Set the per-block pitch: the audible increment and the master (resetter) increment, forwarding the audible
+	/// increment to the wrapped oscillator (which re-selects its band if it is band-limited). Keeps both phases.
+	void setIncrement(uint32_t phase_increment, uint32_t resetter_increment) {
+		phase_increment_ = phase_increment;
+		resetter_.phase_increment = resetter_increment;
+		oscillator_.setIncrement(phase_increment);
+	}
+
 	void renderBlock(Buffer output) override {
 		// Each sync window is just the wrapped oscillator restarted at the window's phase; the
 		// shared windower owns the split + seam crossfade. The wrapped oscillator carries no

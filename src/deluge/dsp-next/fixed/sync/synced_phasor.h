@@ -63,6 +63,15 @@ public:
 
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 	void seek(uint32_t phase) { phasor_.seek(phase); }
+
+	/// Set the per-block pitch: the audible increment and the master (resetter) increment, recomputing the
+	/// resetter reciprocal. Keeps both accumulated phases. (Two increments because a hard-synced oscillator has
+	/// two pitches — its own and the master's.)
+	void setIncrement(uint32_t phasor_increment, uint32_t resetter_increment) {
+		phasor_.setIncrement(phasor_increment);
+		resetter_.setIncrement(resetter_increment);
+		resetter_divide_ = resetter_reciprocal(resetter_increment);
+	}
 };
 
 } // namespace deluge::dsp::fixed

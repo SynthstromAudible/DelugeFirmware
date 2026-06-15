@@ -52,6 +52,12 @@ public:
 	/// Jump the phase (e.g. a hard-sync reset between windows). See @ref deluge::dsp::Phasor::seek.
 	void seek(uint32_t phase) { phasor_.seek(phase); }
 
+	/// The live phase — for reading back a persistent oscillator's phase across blocks.
+	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+
+	/// Change the per-sample phase step for the next block (pitch change), keeping the accumulated phase.
+	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
+
 	[[gnu::always_inline]] Argon<q31> render() {
 		const uint32_t phase = phasor_.phase();
 		const uint32_t increment = phasor_.increment();
