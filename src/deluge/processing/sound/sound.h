@@ -94,20 +94,13 @@ public:
 
 	bool invertReversed{}; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
-	// December 3, 2024
-	// @todo
-	// Commit 6534979986d465a0acf01018e066e1d7ca1d170e
-	// From PR #2004 (LFO: cleanups in preparation for LFO2 sync support)
-	// (https://github.com/SynthstromAudible/DelugeFirmware/pull/2004)
-	// Removed four uint8_t lfo variables from this section and replaced them with the LFOConfig
-	// definition above. This unknowingly introduced a "release" bug which changed the sound of the
-	// Deluge synth engine compared to 1.1 as reported in issue #2660:
-	// (https://github.com/SynthstromAudible/DelugeFirmware/issues/2660)
-	// As a solution modKnobs is aligned to 8 bytes. I don't know why this fixes the problem but it seems to work even
-	// with other changes to the class. We think the issue relates to the use of "offsetof" in the
-	// param and patcher system (related to the paramFinalValues / globalSourceValues definitions above)
-
-	alignas(8) ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
+	// modKnobs was historically force-aligned (alignas(8), and before that a 0xDEADBEEF padding word) to mask
+	// issue #2660 — a "release" bug from PR #2004, when four uint8_t LFO fields became LFOConfig and shifted
+	// Sound's layout. The cause was the offsetof-indexed param/patcher plumbing, since replaced by std::span
+	// over the ParamPlane POD (no offsetof; no layout-sensitive param access). The band-aid is therefore
+	// vestigial — removed here, gated on the golden masters not moving (x86 + ARM) + a #2660-repro hardware
+	// ear-check. https://github.com/SynthstromAudible/DelugeFirmware/issues/2660
+	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
 	int32_t sideChainSendLevel = 0;
 

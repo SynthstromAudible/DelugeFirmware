@@ -209,10 +209,17 @@ phase boundaries.
    > via `util/functions.h`. A direct-include lint can't see those; cutting them (a
    > lean `util/param_functions.h`; lightening `PatchedParamSet`/`PatchCableSet`) is
    > the prerequisite for both the namespace wrap and a true standalone lib.
-7. **Retire the #2660 `alignas(8)` workaround.** Remove it; confirm the goldens
-   do not move on x86 **and** ARM (the alignment bug, if it were still live,
-   would re-voice the synth — so this is the gated proof it's dead). If anything
-   moves, stop and investigate rather than re-baseline.
+7. **Retire the #2660 `alignas(8)` workaround — DONE.** Removed `alignas(8)` from
+   `Sound::modKnobs` (sound.h) + the stale 12-line comment. Confirmed vestigial:
+   the suspected root cause (offsetof in the param/patcher plumbing) is gone — the
+   patcher reads the data plane via `std::span` over `ParamPlane` (scalar access,
+   no offsetof, no aligned-NEON load); the only remaining `offsetof` is in unrelated
+   intrusive containers; `modKnobs` is accessed only via `[k][w]` + JSON; `Sound` is
+   placement-`new`'d, never raw-serialized. Removing it drops `alignof(Sound)` 8→4.
+   The gate — a non-move — held: a **byte-identical dual-arch FULL golden A/B**
+   (x86 333/333 **and** ARM/qemu 333/333 unchanged), both host-sims clean. Because a
+   NEON-alignment class is under-tested by qemu, the definitive gate is a hardware
+   #2660-repro ear-check (release-heavy / FM / env2 presets).
 
 Steps 2/3 are independent and small; 4 is the crux; 5–7 follow once the back-refs
 are severed.
