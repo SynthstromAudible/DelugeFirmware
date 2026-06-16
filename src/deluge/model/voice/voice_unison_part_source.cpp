@@ -79,11 +79,12 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	}
 	else {
 		const OscType oscType = source->oscType;
-		// Virtual-analog waves (subtractive mode, for now) hold their phase in the persistent engine rather than
+		// Virtual-analog waves (subtractive + ring-mod) hold their phase in the persistent engine rather than
 		// oscPos. Build/reseed it following the legacy oscPos rule: a retrigger seeds init+retrigger; a free-run
 		// oscillator on a new voice takes the random phase randomizeOscPhases left in oscPos; a free-run oscillator
 		// on a reused voice (same Sound ⇒ same wave) keeps the engine's continuing phase.
-		if (synthMode == SynthMode::SUBTRACTIVE && deluge::dsp::isVirtualAnalog(oscType)) {
+		if ((synthMode == SynthMode::SUBTRACTIVE || synthMode == SynthMode::RINGMOD)
+		    && deluge::dsp::isVirtualAnalog(oscType)) {
 			const deluge::synth::va_shape::Wave wave = deluge::dsp::vaWaveFor(oscType);
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
 				vaEngine.emplace(wave, deluge::dsp::Phasor{getOscInitialPhaseForZero(oscType) + oscRetriggerPhase, 0});

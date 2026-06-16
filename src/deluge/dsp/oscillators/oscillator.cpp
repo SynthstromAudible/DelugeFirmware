@@ -16,15 +16,11 @@
  */
 #include "oscillator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/core/ramp.h"
-#include "dsp-next/fixed/bandlimited/band_limited_table.h" // getTableNumber
 #include "dsp-next/fixed/vca/amplitude.h"
-#include "processing/engines/audio_engine.h"
 #include "storage/wave_table/wave_table.h"
-#include "synth/source/virtual_analog_engine.h" // the L1 VA engine + BlockControls
 #include "util/fixedpoint.h"
+#include "util/misc.h" // util::to_underlying
 #include "wavetable_oscillator.h"
-#include <optional>
 
 namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
@@ -116,27 +112,9 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 		return;
 	}
 
-	// Every remaining (virtual-analog) wave is rendered by the L1 engine, which now owns its full per-block
-	// derivation: the adapter hands it the *original* (unrewritten) phase + increment and the *raw* controls
-	// (raw pulse width, real osc sync only, raw retrigger), and each shape applies its own pulse-as-sync /
-	// retrigger / band-select / analog-saw downgrade internally. Phase persistence: the original-domain advance
-	// above is what carries over, except on a real hard-sync block, where the engine's post-render phase (the
-	// synced oscillator's advanced phase) replaces it — exactly the legacy maybeStorePhase rule, which for any
-	// real-sync block always stores (pulse-as-sync, the only case it skipped, can't co-occur with real sync).
-	synth::VirtualAnalogEngine engine{vaWaveFor(type), Phasor{phase, phaseIncrement}};
-	synth::BlockControls controls{
-	    .amplitude = Ramp{amplitude, amplitudeIncrement},
-	    .apply_amplitude = applyAmplitude,
-	    .pulse_width = pulseWidth,
-	    .retrigger_phase = retriggerPhase,
-	    .sync = doOscSync ? std::optional<Phasor>{Phasor{resetterPhase, resetterPhaseIncrement}} : std::nullopt,
-	    .cpu_direness = AudioEngine::cpuDireness,
-	};
-	engine.renderBlock(controls, fixed::Buffer{bufferStart, static_cast<size_t>(numSamples)},
-	                   fixed::Buffer{oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-	if (doOscSync) {
-		*startPhase = engine.phase();
-	}
+	// The six virtual-analog waves no longer reach here — Voice renders them through the persistent
+	// synth::VirtualAnalogEngine (which owns its phase across blocks). renderOsc is now the wavetable-only adapter
+	// (wavetable still lives app-side, behind storage/). Anything else is handled by its own path in Voice.
 }
 void Oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
                                               int32_t* outputBufferPos, int32_t* inputBuferPos) {

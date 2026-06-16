@@ -1385,11 +1385,20 @@ cantBeDoingOscSyncForFirstOsc:
 					                           ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile)
 					                           : nullptr;
 
-					dsp::Oscillator::renderOsc(
-					    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples, numSamples,
-					    phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
-					    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
-					    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s], waveTable);
+					// Virtual-analog waves render through the persistent per-source engine; wavetable stays on
+					// renderOsc with its oscPos. (Ring-mod renders the raw wave: applyAmplitude=false, amplitude 0.)
+					if (unisonParts[u].sources[s].vaEngine.has_value()) {
+						renderVaSource(*unisonParts[u].sources[s].vaEngine, 0, 0, spareRenderingBuffer[s + 2],
+						               numSamples, phaseIncrements[s], pulseWidth, false, doingOscSyncThisOscillator,
+						               oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s]);
+					}
+					else {
+						dsp::Oscillator::renderOsc(
+						    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples,
+						    numSamples, phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
+						    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
+						    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s], waveTable);
+					}
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
 					// we need to compensate
