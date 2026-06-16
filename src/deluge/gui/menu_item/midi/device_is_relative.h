@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Sean Ditny
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,14 +14,20 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
+#include "gui/menu_item/toggle.h"
+#include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
 
-#include "definitions_cxx.hpp"
-#include "modulation/knob.h"
-#include "modulation/params/param_set.h"
-
-namespace MidiTakeover {
-int32_t calculateKnobPos(MIDICable& cable, int32_t knobPos, int32_t ccValue, MIDIKnob* knob = nullptr,
-                         bool doingMidiFollow = false, int32_t ccNumber = MIDI_CC_NONE, bool isStepEditing = false);
-} // namespace MidiTakeover
+namespace deluge::gui::menu_item::midi {
+class IsRelative final : public Toggle {
+public:
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->is_relative); }
+	void writeCurrentValue() override {
+		soundEditor.currentMIDICable->is_relative = this->getValue();
+		MIDIDeviceManager::anyChangesToSave = true;
+	}
+};
+} // namespace deluge::gui::menu_item::midi

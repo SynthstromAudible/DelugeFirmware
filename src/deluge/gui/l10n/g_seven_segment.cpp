@@ -113,6 +113,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_CLOCK, "CLK"},
         {STRING_FOR_CLOCK_OUT, "CLKO"},
         {STRING_FOR_CLOCK_IN, "CLKI"},
+        {STRING_FOR_IS_RELATIVE, "REL"},
         {STRING_FOR_RUN_SIGNAL, "RUN"},
         {STRING_FOR_GATE_MODE_TITLE, ""},
         {STRING_FOR_GATE_OUTPUT_1, "OUT1"},

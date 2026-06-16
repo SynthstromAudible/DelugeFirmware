@@ -1112,7 +1112,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 
 				// calculate new knob position based on value received and deluge current value
 				newKnobPos =
-				    MidiTakeover::calculateKnobPos(knobPos, value, &knob, false, CC_NUMBER_NONE, isStepEditing);
+				    MidiTakeover::calculateKnobPos(cable, knobPos, value, &knob, false, CC_NUMBER_NONE, isStepEditing);
 
 				// is the cc being received for the same value as the current knob pos? If so, do nothing
 				if (newKnobPos == knobPos) {
@@ -1202,7 +1202,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 
 				// calculate new knob position based on value received and deluge current value
 				newKnobPos =
-				    MidiTakeover::calculateKnobPos(knobPos, value, &knob, false, CC_NUMBER_NONE, isStepEditing);
+				    MidiTakeover::calculateKnobPos(cable, knobPos, value, &knob, false, CC_NUMBER_NONE, isStepEditing);
 
 				// is the cc being received for the same value as the current knob pos? If so, do nothing
 				if (newKnobPos == knobPos) {

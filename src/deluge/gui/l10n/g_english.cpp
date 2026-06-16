@@ -218,6 +218,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CLOCK, "Clock"},
         {STRING_FOR_CLOCK_OUT, "Clock Out"},
         {STRING_FOR_CLOCK_IN, "Clock In"},
+        {STRING_FOR_IS_RELATIVE, "Use Relative CC"},
         {STRING_FOR_RUN_SIGNAL, "Run signal"},
         {STRING_FOR_GATE_MODE_TITLE, "Gate out* mode"},
         {STRING_FOR_GATE_OUTPUT_1, "Gate output 1"},

@@ -78,7 +78,8 @@ public:
 	void sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation = false);
 	void sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos);
 
-	void handleReceivedCC(ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber, int32_t ccValue);
+	void handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber,
+	                      int32_t ccValue);
 
 private:
 	// initialize
