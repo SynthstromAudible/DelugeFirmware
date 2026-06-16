@@ -99,6 +99,7 @@ class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	bool shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) override;
 	bool shouldRecordUnautomatedParamChange(ModelStackWithParamId const* modelStack) override;
