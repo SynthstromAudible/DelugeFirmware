@@ -21,6 +21,7 @@
 #include "dsp/dx/dx7_engine.h"
 #include "dsp/oscillators/wavetable_engine.h"
 #include "model/sample/sample.h"
+#include "model/voice/sample_engine.h"
 #include "processing/live/input_engine.h"
 #include "synth/source/virtual_analog_engine.h"
 #include <optional>
@@ -29,7 +30,6 @@ class TimeStretcher;
 class VoiceSamplePlaybackGuide;
 class Source;
 class Voice;
-class VoiceSample;
 
 class VoiceUnisonPartSource {
 public:
@@ -37,9 +37,6 @@ public:
 	bool noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t samplesLate,
 	            uint32_t oscPhase, bool resetEverything, SynthMode synthMode, uint8_t velocity);
 	void unassign(bool deletingSong);
-	bool getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t* phaseIncrement,
-	                            uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples);
-	uint32_t getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
 
 	uint32_t oscPos{}; // FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including
 	                   // wavetable. Retired for virtual-analog waves — their phase now lives in vaEngine (below).
@@ -78,7 +75,7 @@ public:
 	uint32_t phaseIncrementStoredValue{};
 	int32_t carrierFeedback{};
 	bool active{};
-	VoiceSample* voiceSample = nullptr;
+	SampleEngine sampleEngine;        // the SAMPLE source's pooled VoiceSample + render/lifecycle.
 	deluge::dsp::DX7Engine dx7Engine; // the DX7 source's pooled DxVoice + render (no-op when oscType != DX7).
 	InputEngine inputEngine;          // the INPUT_L/R/STEREO source's live-input render + pitch-shifter lifecycle.
 };

@@ -661,8 +661,7 @@ void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage
 				for (int32_t u = 0; u < sound.numUnison; u++) {
 					if (unisonParts[u].sources[s].active) {
 
-						bool success =
-						    unisonParts[u].sources[s].voiceSample->noteOffWhenLoopEndPointExists(this, &guides[s]);
+						bool success = unisonParts[u].sources[s].sampleEngine.noteOffAtLoopEnd(this, &guides[s]);
 
 						if (!success) {
 							unisonParts[u].sources[s].unassign(false);
@@ -715,7 +714,7 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(
+			bool stillActive = voiceUnisonPartSource->sampleEngine.zoneChanged(
 			    &guides[s], sample, source.sampleControls.isCurrentlyReversed(), markerType, loopingType,
 			    getPriorityRating());
 			if (!stillActive) {
@@ -965,11 +964,8 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 						continue;
 					}
 
-					VoiceSample* voiceSample = voiceUnisonPartSource->voiceSample;
-
 					Sample* sample = (Sample*)guides[s].audioFileHolder->audioFile;
-					Cluster* cluster = voiceSample->clusters[0];
-					int32_t bytePos = voiceSample->getPlayByteLowLevel(sample, &guides[s]);
+					int32_t bytePos = voiceUnisonPartSource->sampleEngine.getPlayByteLowLevel(sample, &guides[s]);
 
 					int32_t bytesLeft =
 					    (int32_t)((uint32_t)guides[s].endPlaybackAtByte - (uint32_t)bytePos) * guides[s].playDirection;
@@ -2095,227 +2091,15 @@ pitchTooHigh:
 
 		// If sample...
 		if (sound.sources[s].oscType == OscType::SAMPLE) {
-
-			Sample* sample = (Sample*)guides[s].audioFileHolder->audioFile;
-			VoiceSample* voiceSample = voiceUnisonPartSource->voiceSample;
-
-			int32_t numChannels = (sample->numChannels == 2) ? 2 : 1;
-
-#ifdef TEST_SAMPLE_LOOP_POINTS
-			if (!(getNoise() >> 19)) {
-				// D_PRINTLN("random change");
-
-				int32_t r = getRandom255();
-
-				if (r < 128) {
-					sound.guides[s].timeStretchAmount = (getRandom255() % 24) - 12;
-				}
-
-				else {
-					if ((guides[s].audioFileHolder->transpose || guides[s].audioFileHolder->cents)
-					    && getRandom255() < 128) {
-						guides[s].audioFileHolder->transpose = 0;
-						guides[s].audioFileHolder->setCents(0);
-					}
-
-					else {
-						guides[s].audioFileHolder->transpose = (int32_t)(getRandom255() % 24) - 12;
-						guides[s].audioFileHolder->setCents((int32_t)(getRandom255() % 100) - 50);
-					}
-
-					sound.recalculateAllVoicePhaseIncrements(paramManager);
-				}
-
-				// D_PRINTLN("end random change");
-			}
-#endif
-
-			// First figure out the time-stretching amount
-
-			int32_t pitchAdjustNeutralValue = ((SampleHolder*)guides[s].audioFileHolder)->neutralPhaseIncrement;
-			uint32_t timeStretchRatio;
-			uint32_t noteLengthInSamples;
-
-			bool stillOk = voiceUnisonPartSource->getPitchAndSpeedParams(&sound.sources[s], &guides[s], &phaseIncrement,
-			                                                             &timeStretchRatio, &noteLengthInSamples);
-			if (!stillOk) {
+			SampleEngine::RenderResult result = voiceUnisonPartSource->sampleEngine.render(
+			    *this, sound, paramManager, s, oscBuffer, numSamples, stereoBuffer, sourceAmplitude, amplitudeIncrement,
+			    phaseIncrement, voiceUnisonPartSource->phaseIncrementStoredValue, stereoUnison, amplitudeL, amplitudeR,
+			    spareRenderingBuffer[2]);
+			if (result == SampleEngine::RenderResult::UNASSIGN) {
 				goto instantUnassign;
 			}
-
-			// If user unmuted mid-note...
-			bool tryToStartMidNote = voiceSample->pendingSamplesLate;
-			if (tryToStartMidNote) [[unlikely]] {
-
-				int32_t rawSamplesLate;
-
-				// Synced / STRETCH - it's super easy.
-				if (sound.sources[s].repeatMode == SampleRepeatMode::STRETCH) {
-					rawSamplesLate = guides[s].getSyncedNumSamplesIn();
-				}
-
-				// Or, normal - it needs a bit more explanation.
-				else {
-					// We have to ignore any pitch modulation, aka the "patched" value for phaseIncrement: we have to
-					// use phaseIncrementStoredValue instead, which is the pre-modulation/patching value. But we also
-					// have to forget about the timeStretchRatio we calculated above with the call to
-					// getPitchAndSpeedParams(), and instead calculate a special version of this with this call to
-					// getSpeedParamForNoSyncing(), which is what getPitchAndSpeedParams() itself calls when not in
-					// STRETCH mode, which we've already determined we're not in, and crucially pass it the not-patched
-					// voiceUnisonPartSource->phaseIncrementStoredValue. This fix was done in September 2020 after bug
-					// report from Clyde.
-					uint32_t timeStretchRatioWithoutModulation = voiceUnisonPartSource->getSpeedParamForNoSyncing(
-					    &sound.sources[s], voiceUnisonPartSource->phaseIncrementStoredValue,
-					    ((SampleHolder*)guides[s].audioFileHolder)->neutralPhaseIncrement);
-
-					// Cool, so now we've got phaseIncrement and timeStretchRatio equivalent values which will indicate
-					// our correct play position into the sample regardless of pitch modulation (almost always vibrato).
-					rawSamplesLate =
-					    ((((uint64_t)voiceSample->pendingSamplesLate * voiceUnisonPartSource->phaseIncrementStoredValue)
-					      >> 24)
-					     * timeStretchRatioWithoutModulation)
-					    >> 24;
-				}
-
-				LateStartAttemptStatus result =
-				    voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate, numSamples);
-
-				if (result == LateStartAttemptStatus::FAILURE) {
-					goto instantUnassign;
-				}
-				else if (result == LateStartAttemptStatus::WAIT) {
-					continue;
-				}
-				// Otherwise, it started fine!
-			}
-
-			LoopType loopingType = guides[s].getLoopingType(sound.sources[s]);
-
-			int32_t interpolationBufferSize;
-
-			// If pitch adjustment...
-			if (phaseIncrement != kMaxSampleValue) {
-
-				// Work out what quality we're going to do that at
-				interpolationBufferSize = sound.sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement);
-
-				// And if first render, and other conditions met, see if we can use cache.
-				// It may seem like it'd be a good idea to try and set this up on note-on, rather than here in the
-				// rendering routine, but I tried that and the fact is that it means a bunch of extra computation has to
-				// happen to work out pitch and timestretch there as well as here (where it'll be worked out anyway),
-				// including checking the result of patching / modulation (and we *do* allow caching where, say,
-				// velocity or note is affecting pitch), and stretch-syncing.
-				if (!voiceSample->doneFirstRenderYet && !tryToStartMidNote
-				    && portaEnvelopePos == 0xFFFFFFFF) { // No porta
-
-					// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good /
-					// accurate
-					if (loopingType != LoopType::NONE) {
-						SampleHolderForVoice* holder = (SampleHolderForVoice*)guides[s].audioFileHolder;
-						int32_t loopStart = holder->loopStartPos ? holder->loopStartPos : holder->startPos;
-						int32_t loopEnd = holder->loopEndPos ? holder->loopEndPos : holder->endPos;
-
-						int32_t loopLength = loopEnd - loopStart;
-						loopLength = std::abs(loopLength);
-						uint64_t phaseIncrementTimesTimeStretchRatio =
-						    ((uint64_t)(uint32_t)phaseIncrement * (uint32_t)timeStretchRatio) >> 24;
-						int32_t loopLengthCached =
-						    ((uint64_t)(uint32_t)loopLength << 24) / phaseIncrementTimesTimeStretchRatio;
-						if (loopLengthCached < 2205) {
-							goto dontUseCache; // Limit is 50mS i.e. 20hZ
-						}
-					}
-
-					// If no changeable sources patched to pitch...
-					for (int32_t c = 0; c < paramManager->getPatchCableSet()->numUsablePatchCables; c++) {
-						PatchCable* cable = &paramManager->getPatchCableSet()->patchCables[c];
-
-						// If it's going to pitch...
-						if (cable->destinationParamDescriptor.isSetToParamWithNoSource(params::LOCAL_PITCH_ADJUST)
-						    || cable->destinationParamDescriptor.isSetToParamWithNoSource(
-						        params::LOCAL_OSC_A_PITCH_ADJUST + s)) {
-
-							// And if it's an envelope or LFO or random...
-							if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
-							    || cable->from == PatchSource::LFO_GLOBAL_1 || cable->from == PatchSource::LFO_LOCAL_1
-							    || cable->from == PatchSource::LFO_GLOBAL_2 || cable->from == PatchSource::LFO_LOCAL_2
-							    || cable->from == PatchSource::RANDOM) {
-								goto dontUseCache;
-							}
-
-							else if (cable->from == PatchSource::AFTERTOUCH) {
-								if (params.sourceValues[util::to_underlying(PatchSource::AFTERTOUCH)]) {
-									goto dontUseCache;
-								}
-							}
-
-							// TODO: probably need to check for X and Y modulation sources here too...
-
-							else if (cable->from == PatchSource::SIDECHAIN) {
-								if (sound.params.sourceValues[util::to_underlying(PatchSource::SIDECHAIN)]) {
-									goto dontUseCache;
-								}
-							}
-						}
-					}
-
-					{
-						// If still here, we can use cache
-						bool everythingOk = voiceSample->possiblySetUpCache(
-						    &sound.sources[s].sampleControls, &guides[s], phaseIncrement, timeStretchRatio,
-						    getPriorityRating(), loopingType);
-						if (!everythingOk) {
-							goto instantUnassign;
-						}
-					}
-
-dontUseCache: {}
-				}
-			}
-
-			int32_t* renderBuffer = oscBuffer;
-
-			if (stereoUnison) [[unlikely]] {
-				// TODO: I first wanted to integrate this with voiceSample->render()'s own
-				// amplitude control but it is just too complex - multiple copies of
-				// the amp logic depending if caching is used or not, timestretching or not,
-				// for now settle for "don't pay what you don't use", i e no extra copies/maths
-				// if you don't use unison stereo on a sample - bfredl
-				renderBuffer = spareRenderingBuffer[2]; // note: 2 and 3 are used
-				memset(renderBuffer, 0, 2 * SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
-			}
-
-			// We no longer do caching when there's just time stretching with no pitch adjustment, because the time
-			// stretching algorithm is so efficient, playing back the cache is hardly any faster than just doing the
-			// time stretching (once perc info has been cached) - and, crucially, creating / writing to the cache in the
-			// first place is quite inefficient when time stretching, because when we're not writing to the cache, that
-			// allows us to do a special optimization not otherwise available (that is, combining the amplitude
-			// increments for the hop crossfades with the overall voice ones, and having multiple crossfading hops write
-			// directly to the osc buffer).
-
-			bool stillActive = voiceSample->render(
-			    &guides[s], renderBuffer, numSamples, sample, numChannels, loopingType, phaseIncrement,
-			    timeStretchRatio, sourceAmplitude, amplitudeIncrement, interpolationBufferSize,
-			    sound.sources[s].sampleControls.interpolationMode, getPriorityRating());
-
-			if (stereoUnison) {
-				if (numChannels == 2) {
-					// TODO: society if renderBasicSource() took a StereoSample[] buffer already
-					for (int32_t i = 0; i < numSamples; i++) {
-						oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[(i << 1)], amplitudeL) << 2;
-						oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[(i << 1) + 1], amplitudeR) << 2;
-					}
-				}
-				else {
-					// TODO: if render buffer was typed we could use addPannedMono()
-					for (int32_t i = 0; i < numSamples; i++) {
-						oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
-						oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
-					}
-				}
-			}
-
-			if (!stillActive) {
-				goto instantUnassign;
+			if (result == SampleEngine::RenderResult::SKIP) {
+				continue;
 			}
 		}
 
