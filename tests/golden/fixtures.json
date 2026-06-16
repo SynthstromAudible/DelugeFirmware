@@ -1799,6 +1799,24 @@
   "peak": 8663,
   "rms_db": -18.0
  },
+ "input_mono": {
+  "sha256": "de8c3be2c61c4740bec45fd4b76d97f467160a66c3e33c8a8d06487ad66792e7",
+  "frames": 88200,
+  "peak": 3742,
+  "rms_db": -23.14
+ },
+ "input_pitchshift": {
+  "sha256": "458a585def0a2c1201f90e5b2c80bc5151ceeab00b7a6870267a33dfcc3b9985",
+  "frames": 88200,
+  "peak": 3742,
+  "rms_db": -23.15
+ },
+ "input_stereo": {
+  "sha256": "f12cd351a8c9c292fec2cf23e7f1be2ec9de02042dc0f7bacf15c9e8ae7f616a",
+  "frames": 88200,
+  "peak": 3742,
+  "rms_db": -24.73
+ },
  "lfo_vibrato": {
   "sha256": "72ae42ba894324a3427bbbfc40e43f3e99c21941f995175db57a91b0391a2830",
   "frames": 88200,

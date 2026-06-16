@@ -47,6 +47,15 @@ SECONDS = {
     "env_shape": 3.0,
 }
 
+# Cases that need a deterministic live-input signal fed into the host-sim's input ring (DELUGE_HOST_INPUT),
+# so the INPUT_L/R/STEREO sources render something verifiable. Value = the generator mode ("1" = the standard
+# deterministic stereo test signal). Cases not listed run silence-in, exactly as before.
+INPUT = {
+    "input_mono": "1",
+    "input_stereo": "1",
+    "input_pitchshift": "1",
+}
+
 CARD_BYTES = 64 * 1024 * 1024
 RUN_TIMEOUT = 600  # seconds of wall clock per case; a render is ~2s of CPU
 
@@ -64,7 +73,11 @@ def stage_preset(preset_xml, tmp):
     text = preset_xml.read_text()
     if "inputMidiChannel" not in text:
         open_tag_end = text.index(">", text.index("<sound")) + 1
-        text = text[:open_tag_end] + "\n\t<inputMidiChannel>0</inputMidiChannel>" + text[open_tag_end:]
+        text = (
+            text[:open_tag_end]
+            + "\n\t<inputMidiChannel>0</inputMidiChannel>"
+            + text[open_tag_end:]
+        )
     staged = tmp / "PRESET.XML"
     staged.write_text(text)
     return staged
@@ -73,19 +86,29 @@ def stage_preset(preset_xml, tmp):
 def build_card_image(path, staged_preset, sample_wavs=()):
     with open(path, "wb") as f:
         f.truncate(CARD_BYTES)
-    subprocess.run(["mformat", "-i", str(path), "-F", "::"], check=True, capture_output=True)
-    subprocess.run(["mmd", "-i", str(path), "::/SYNTHS"], check=True, capture_output=True)
     subprocess.run(
-        ["mcopy", "-i", str(path), str(staged_preset), "::/SYNTHS/PRESET.XML"], check=True, capture_output=True
+        ["mformat", "-i", str(path), "-F", "::"], check=True, capture_output=True
+    )
+    subprocess.run(
+        ["mmd", "-i", str(path), "::/SYNTHS"], check=True, capture_output=True
+    )
+    subprocess.run(
+        ["mcopy", "-i", str(path), str(staged_preset), "::/SYNTHS/PRESET.XML"],
+        check=True,
+        capture_output=True,
     )
     # A case may carry samples (e.g. a wavetable/sample osc): a sibling <name>.wav is staged to
     # SAMPLES/WT.WAV and an optional <name>.2.wav to SAMPLES/WT2.WAV (a second wavetable osc), which
     # its preset references by those paths.
     if sample_wavs:
-        subprocess.run(["mmd", "-i", str(path), "::/SAMPLES"], check=True, capture_output=True)
+        subprocess.run(
+            ["mmd", "-i", str(path), "::/SAMPLES"], check=True, capture_output=True
+        )
         for sample_wav, dest in zip(sample_wavs, ("WT.WAV", "WT2.WAV")):
             subprocess.run(
-                ["mcopy", "-i", str(path), str(sample_wav), f"::/SAMPLES/{dest}"], check=True, capture_output=True
+                ["mcopy", "-i", str(path), str(sample_wav), f"::/SAMPLES/{dest}"],
+                check=True,
+                capture_output=True,
             )
 
 
@@ -154,11 +177,13 @@ def run_case_inner(name, binary, setarch_prefix, keep_dir):
         env = dict(os.environ)
         env.update(
             DELUGE_HOST_DETERMINISTIC="1",
-            DELUGE_HOST_CARD_IMAGE=str(image),
+            DELUGE_SD_IMAGE=str(image),
             DELUGE_HOST_MIDI_SCRIPT=str(notes),
             DELUGE_HOST_CAPTURE_SECONDS=str(seconds),
             DELUGE_HOST_WAV=str(wav),
         )
+        if name in INPUT:
+            env["DELUGE_HOST_INPUT"] = INPUT[name]
         proc = subprocess.run(
             setarch_prefix + [str(binary)],
             env=env,
@@ -167,7 +192,11 @@ def run_case_inner(name, binary, setarch_prefix, keep_dir):
             timeout=RUN_TIMEOUT,
         )
         if not wav.exists():
-            return name, None, f"no WAV produced (exit {proc.returncode})\n{proc.stderr[-2000:]}"
+            return (
+                name,
+                None,
+                f"no WAV produced (exit {proc.returncode})\n{proc.stderr[-2000:]}",
+            )
 
         pcm, frames = read_wav_pcm(wav)
         expected_frames = int(seconds * 44100)
@@ -179,25 +208,49 @@ def run_case_inner(name, binary, setarch_prefix, keep_dir):
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(wav, dest)
 
-        result = {"sha256": hashlib.sha256(pcm).hexdigest(), "frames": frames, **pcm_stats(pcm)}
+        result = {
+            "sha256": hashlib.sha256(pcm).hexdigest(),
+            "frames": frames,
+            **pcm_stats(pcm),
+        }
         # A silent render almost always means the preset failed to load (the
         # fallback default synth is not MIDI-learned) — fail loudly rather than
         # baselining silence.
         if result["peak"] < 16:
-            return name, None, f"silent render (peak {result['peak']}) — preset load failure?"
+            return (
+                name,
+                None,
+                f"silent render (peak {result['peak']}) — preset load failure?",
+            )
         return name, result, None
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--binary", default=str(HERE / "../../build-sim/deluge_host"))
     parser.add_argument(
-        "--filter", default="", help="comma-separated substrings; run cases whose name contains any of them"
+        "--filter",
+        default="",
+        help="comma-separated substrings; run cases whose name contains any of them",
     )
-    parser.add_argument("--update", action="store_true", help="re-baseline fixtures.json with current output")
-    parser.add_argument("--keep", default=None, help="directory to copy rendered WAVs into (for listening)")
-    parser.add_argument("--jobs", type=int, default=os.cpu_count() or 4,
-                        help="parallel cases (default: all cores)")
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        help="re-baseline fixtures.json with current output",
+    )
+    parser.add_argument(
+        "--keep",
+        default=None,
+        help="directory to copy rendered WAVs into (for listening)",
+    )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=os.cpu_count() or 4,
+        help="parallel cases (default: all cores)",
+    )
     parser.add_argument(
         "--wrapper",
         default=None,
@@ -209,8 +262,10 @@ def main():
 
     binary = pathlib.Path(args.binary).resolve()
     if not binary.exists():
-        sys.exit(f"host-sim binary not found: {binary}\nbuild it: cmake -B build-sim -S sim -G Ninja && "
-                 "cmake --build build-sim --target deluge_host")
+        sys.exit(
+            f"host-sim binary not found: {binary}\nbuild it: cmake -B build-sim -S sim -G Ninja && "
+            "cmake --build build-sim --target deluge_host"
+        )
     for tool in ("mformat", "mmd", "mcopy"):
         if not shutil.which(tool):
             sys.exit(f"missing required tool: {tool} (install mtools)")
@@ -248,7 +303,9 @@ def main():
 
     results, failures = {}, []
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        futures = {pool.submit(run_case, c, binary, setarch_prefix, keep_dir): c for c in cases}
+        futures = {
+            pool.submit(run_case, c, binary, setarch_prefix, keep_dir): c for c in cases
+        }
         for future in concurrent.futures.as_completed(futures):
             name, result, error = future.result()
             if error:
@@ -257,7 +314,9 @@ def main():
                 continue
             results[name] = result
             if args.update:
-                print(f"  baselined {name}: {result['sha256'][:16]} peak={result['peak']} rms={result['rms_db']}dB")
+                print(
+                    f"  baselined {name}: {result['sha256'][:16]} peak={result['peak']} rms={result['rms_db']}dB"
+                )
             elif name not in fixtures:
                 failures.append((name, "no fixture (run with --update to baseline)"))
                 print(f"  NEW {name}: no fixture")

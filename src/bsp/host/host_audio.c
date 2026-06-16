@@ -47,9 +47,14 @@
 // pegged direness; 32 mirrors the small windows the hardware DMA pacing produces.
 #define HOST_AUDIO_BLOCK_FRAMES 32u
 
-// Silence in, rendered audio out. Both app-visible only through deluge_app_render.
+// Audio in / rendered audio out — both app-visible only through deluge_app_render. host_input_block is silence by
+// default (DELUGE_HOST_INPUT unset); set DELUGE_HOST_INPUT=1 to feed a deterministic test signal (for golden
+// coverage of the INPUT_L/R/STEREO sources, which read the live-input ring the BSP fills here on hardware).
 static DelugeStereoSample host_input_block[HOST_AUDIO_BLOCK_FRAMES];
 static DelugeStereoSample host_render_block[HOST_AUDIO_BLOCK_FRAMES];
+
+// 0 = silence (default, byte-identical to the historical behaviour); 1 = deterministic test signal.
+static int host_input_mode;
 
 static FILE* wav_file;
 static uint32_t wav_frames_written;
@@ -111,6 +116,9 @@ static void capture_init(void) {
 		seconds = 2.0;
 	}
 	wav_frames_target = (uint32_t)(seconds * HOST_AUDIO_SAMPLE_RATE);
+
+	const char* input = getenv("DELUGE_HOST_INPUT");
+	host_input_mode = (input && input[0] != '\0' && input[0] != '0') ? 1 : 0;
 
 	wav_file = fopen(path, "wb");
 	if (!wav_file) {
@@ -216,6 +224,18 @@ static uint32_t host_audio_drive_live(void) {
 	return 1;
 }
 
+// Deterministic stereo test input — a pure integer function of the absolute frame index, so the captured output
+// is reproducible and identical across the x86 and arm-linux builds. Distinct L/R sawtooths (different periods,
+// full q31 scale via uint32 wrap) so fixtures exercise channel routing + the INPUT_STEREO condense, not an L==R
+// signal. On hardware this block is the SSI RX DMA's data; here we synthesise it.
+static void fill_test_input(uint32_t base_frame, uint32_t frames) {
+	for (uint32_t i = 0; i < frames; i++) {
+		uint32_t n = base_frame + i;
+		host_input_block[i].l = (int32_t)(n * 0x02000000u); // sawtooth, 128-frame period
+		host_input_block[i].r = (int32_t)(n * 0x01000000u); // sawtooth, 256-frame period (distinct from L)
+	}
+}
+
 // Offline render driver. Renders one block per call and appends it to the WAV;
 // finalises + exits once the target duration is captured. Returns the number of
 // render passes (1 while capturing, 0 once done) per the audio_io.h contract.
@@ -260,6 +280,9 @@ uint32_t deluge_audio_drive(void) {
 		return 0;
 	}
 
+	if (host_input_mode) {
+		fill_test_input(host_rendered_frames, frames);
+	}
 	deluge_app_render(host_input_block, host_render_block, frames);
 	host_rendered_frames += frames;
 
