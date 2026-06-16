@@ -67,15 +67,10 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		// oscPos = 0;
 	}
 	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
-		if (dxVoice == nullptr) { // We might actually already have one, and just be restarting this voice
-			dxVoice = getDxEngine()->solicitDxVoice();
-			if (dxVoice == nullptr) {
-				return false;
-			}
-		}
-
 		DxPatch* patch = source->ensureDxPatch();
-		dxVoice->init(*patch, voice->noteCodeAfterArpeggiation, velocity);
+		if (!dx7Engine.noteOn(*patch, voice->noteCodeAfterArpeggiation, velocity)) {
+			return false;
+		}
 	}
 	else {
 		const OscType oscType = source->oscType;
@@ -131,10 +126,7 @@ void VoiceUnisonPartSource::unassign(bool deletingSong) {
 		voiceSample = nullptr;
 	}
 
-	if (dxVoice != nullptr) {
-		dxEngine->dxVoiceUnassigned(dxVoice);
-		dxVoice = nullptr;
-	}
+	dx7Engine.unassign();
 
 	if (livePitchShifter != nullptr) {
 		delugeDealloc(livePitchShifter);

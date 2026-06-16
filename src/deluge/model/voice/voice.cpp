@@ -672,9 +672,7 @@ void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage
 			}
 			else if (sound.sources[s].oscType == OscType::DX7) {
 				for (int u = 0; u < sound.numUnison; u++) {
-					if (unisonParts[u].sources[s].dxVoice) {
-						unisonParts[u].sources[s].dxVoice->keyup();
-					}
+					unisonParts[u].sources[s].dx7Engine.keyup();
 				}
 			}
 		}
@@ -2487,20 +2485,12 @@ dontUseCache: {}
 			static int32_t uniBuf[DX_MAX_N] __attribute__((aligned(CACHE_LINE_SIZE)));
 			memset(uniBuf, 0, sizeof uniBuf);
 
-			// TODO: 1. use existing int log function?
-			//       2. going from phase to logs (and then let MSFA turn those logs into phase again) is sus af
-			//         rework MSFA to use our phase incerements directly?
-			int logpitch = (int)(log2f(phaseIncrement) * (1 << 24));
-			int adjpitch = logpitch - 278023814;
-
-			DxPatch* patch = sound.sources[s].ensureDxPatch();
-			DxVoiceCtrl ctrl{};
-			ctrl.ampmod = params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s] >> 13;
-			// ctrl.ratemod = params.paramFinalValues[params::LOCAL_CARRIER_0_FEEDBACK + s] >> 16;
-			if (sound.sources[s].dxPatchChanged) {
-				unisonParts[u].sources[s].dxVoice->update(*patch, noteCodeAfterArpeggiation);
-			}
-			bool active = unisonParts[u].sources[s].dxVoice->compute(uniBuf, numSamples, adjpitch, patch, &ctrl);
+			// The DX7 (FM) source renders through its engine — pooled DxVoice + the pitch/control derivation. The
+			// engine adds into uniBuf; the bespoke amplitude+sum below stays here (Voice's buffer layout).
+			bool active = unisonParts[u].sources[s].dx7Engine.render(
+			    uniBuf, numSamples, phaseIncrement, *sound.sources[s].ensureDxPatch(),
+			    params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s], sound.sources[s].dxPatchChanged,
+			    noteCodeAfterArpeggiation);
 			if (!active) {
 				goto instantUnassign;
 			}

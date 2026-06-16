@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/dx/dx7_engine.h"
 #include "dsp/oscillators/wavetable_engine.h"
 #include "model/sample/sample.h"
 #include "synth/source/virtual_analog_engine.h"
@@ -29,7 +30,6 @@ class Source;
 class Voice;
 class VoiceSample;
 class LivePitchShifter;
-class DxVoice;
 
 class VoiceUnisonPartSource {
 public:
@@ -80,5 +80,5 @@ public:
 	bool active{};
 	VoiceSample* voiceSample = nullptr;
 	LivePitchShifter* livePitchShifter = nullptr;
-	DxVoice* dxVoice = nullptr;
+	deluge::dsp::DX7Engine dx7Engine; // the DX7 source's pooled DxVoice + render (no-op when oscType != DX7).
 };
