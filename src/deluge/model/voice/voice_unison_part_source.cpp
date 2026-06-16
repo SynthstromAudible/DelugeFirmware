@@ -16,8 +16,10 @@
  */
 
 #include "model/voice/voice_unison_part_source.h"
+#include "dsp-next/core/phasor.h"
 #include "dsp/dx/dx7note.h"
 #include "dsp/dx/engine.h"
+#include "dsp/oscillators/oscillator.h" // isVirtualAnalog / vaWaveFor
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample_cache.h"
 #include "model/song/song.h"
@@ -76,8 +78,26 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		dxVoice->init(*patch, voice->noteCodeAfterArpeggiation, velocity);
 	}
 	else {
-		if (oscRetriggerPhase != 0xFFFFFFFF) {
-			oscPos = getOscInitialPhaseForZero(source->oscType) + oscRetriggerPhase;
+		const OscType oscType = source->oscType;
+		// Virtual-analog waves (subtractive mode, for now) hold their phase in the persistent engine rather than
+		// oscPos. Build/reseed it following the legacy oscPos rule: a retrigger seeds init+retrigger; a free-run
+		// oscillator on a new voice takes the random phase randomizeOscPhases left in oscPos; a free-run oscillator
+		// on a reused voice (same Sound ⇒ same wave) keeps the engine's continuing phase.
+		if (synthMode == SynthMode::SUBTRACTIVE && deluge::dsp::isVirtualAnalog(oscType)) {
+			const deluge::synth::va_shape::Wave wave = deluge::dsp::vaWaveFor(oscType);
+			if (oscRetriggerPhase != 0xFFFFFFFF) {
+				vaEngine.emplace(wave, deluge::dsp::Phasor{getOscInitialPhaseForZero(oscType) + oscRetriggerPhase, 0});
+			}
+			else if (resetEverything || !vaEngine.has_value()) {
+				vaEngine.emplace(wave, deluge::dsp::Phasor{oscPos, 0});
+			}
+			// else (free-run, reused voice): keep vaEngine's phase.
+		}
+		else {
+			vaEngine.reset(); // non-VA (wavetable/noise/FM) keeps oscPos; drop any engine left from a prior note.
+			if (oscRetriggerPhase != 0xFFFFFFFF) {
+				oscPos = getOscInitialPhaseForZero(oscType) + oscRetriggerPhase;
+			}
 		}
 	}
 

@@ -130,6 +130,36 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 		}
 	});
 
+	// Persistence: the engine owns its phase across blocks. With no real sync it advances the original-domain
+	// phase by increment·numSamples per block, so a second block equals a fresh engine seeded at the advanced
+	// phase — this is what lets Voice retire oscPos and hold the engine across render blocks.
+	it("phase persists across blocks (== reseed each block)", _ {
+		VirtualAnalogEngine persistent{Wave::Saw, Phasor{kPhase, kInc}};
+		std::array<int32_t, kN> out1{};
+		std::array<int32_t, kN> scratch1{};
+		persistent.renderBlock(standalone(7), Buffer{out1}, Buffer{scratch1});
+		expect(persistent.phase()).to_equal(kPhase + kInc * kN); // original-domain self-advance
+
+		std::array<int32_t, kN> out2{};
+		std::array<int32_t, kN> scratch2{};
+		persistent.renderBlock(standalone(7), Buffer{out2}, Buffer{scratch2});
+
+		auto fresh = renderEngine(Wave::Saw, kPhase + kInc * kN, kInc, standalone(7));
+		for (std::size_t i = 0; i < kN; ++i) {
+			expect(out2[i]).to_equal(fresh[i]);
+		}
+	});
+
+	it("setIncrement sets the per-block pitch (and the self-advance follows it)", _ {
+		VirtualAnalogEngine engine{Wave::Saw, Phasor{kPhase, 0}};
+		engine.setIncrement(kInc);
+		expect(engine.increment()).to_equal(kInc);
+		std::array<int32_t, kN> out{};
+		std::array<int32_t, kN> scratch{};
+		engine.renderBlock(standalone(7), Buffer{out}, Buffer{scratch});
+		expect(engine.phase()).to_equal(kPhase + kInc * kN);
+	});
+
 	it("hard-synced crude SAW matches the synced kernel and reports its phase", _ {
 		constexpr uint32_t kResetPhase = 0x40000000u;
 		constexpr uint32_t kResetInc = 0x01000000u;

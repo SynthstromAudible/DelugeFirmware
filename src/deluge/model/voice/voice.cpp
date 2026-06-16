@@ -52,6 +52,7 @@
 #include "util/misc.h"
 #include <cstring>
 #include <new>
+#include <optional>
 
 using namespace deluge;
 using deluge::dsp::fixed::getDecay4;
@@ -59,6 +60,29 @@ namespace params = deluge::modulation::params;
 
 PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
     __attribute__((aligned(CACHE_LINE_SIZE)));
+
+namespace {
+// Render one block of a virtual-analog source through its persistent engine — the per-voice replacement for
+// renderOsc on the six VA waves (the engine owns its phase across blocks, so there is no oscPos to thread). The
+// raw control values mirror what renderOsc's VA branch built; the engine derives pulse/sync/retrigger/band
+// internally. Shared by the subtractive and ring-mod render sites.
+void renderVaSource(synth::VirtualAnalogEngine& engine, int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
+                    int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
+                    bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase) {
+	synth::BlockControls controls{
+	    .amplitude = dsp::Ramp{amplitude, amplitudeIncrement},
+	    .apply_amplitude = applyAmplitude,
+	    .pulse_width = pulseWidth,
+	    .retrigger_phase = retriggerPhase,
+	    .sync =
+	        doOscSync ? std::optional<dsp::Phasor>{dsp::Phasor{resetterPhase, resetterPhaseIncrement}} : std::nullopt,
+	    .cpu_direness = AudioEngine::cpuDireness,
+	};
+	engine.setIncrement(phaseIncrement);
+	engine.renderBlock(controls, dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
+	                   dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+}
+} // namespace
 
 // Hopefully I could make this use the spareRenderingBuffer instead...
 
@@ -1114,10 +1138,12 @@ skipAutoRelease: {}
 	uint32_t oscSyncPos[kMaxNumVoicesUnison];
 	bool doingOscSync = sound.renderingOscillatorSyncCurrently(paramManager);
 
-	// Oscillator sync
+	// Oscillator sync: capture the master (source 0) phase at block start. For a virtual-analog master the phase
+	// lives in its persistent engine; otherwise in oscPos.
 	if (doingOscSync) {
 		for (int32_t u = 0; u < sound.numUnison; u++) {
-			oscSyncPos[u] = unisonParts[u].sources[0].oscPos;
+			VoiceUnisonPartSource& master = unisonParts[u].sources[0];
+			oscSyncPos[u] = master.vaEngine.has_value() ? master.vaEngine->phase() : master.oscPos;
 		}
 	}
 
@@ -2025,7 +2051,14 @@ pitchTooHigh:
 			getPhaseIncrements[u] = phaseIncrement;
 
 			if (getOutAfterPhaseIncrements) {
-				voiceUnisonPartSource->oscPos += phaseIncrement * numSamples;
+				// Skipped source still advances its phase (it's the osc-sync master). VA phase lives in the engine.
+				if (voiceUnisonPartSource->vaEngine.has_value()) {
+					voiceUnisonPartSource->vaEngine->seek(voiceUnisonPartSource->vaEngine->phase()
+					                                      + phaseIncrement * numSamples);
+				}
+				else {
+					voiceUnisonPartSource->oscPos += phaseIncrement * numSamples;
+				}
 				continue;
 			}
 		}
@@ -2502,11 +2535,20 @@ dontUseCache: {}
 			WaveTable* waveTable = guides[s].audioFileHolder != nullptr
 			                           ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile)
 			                           : nullptr;
-			dsp::Oscillator::renderOsc(sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd,
-			                           numSamples, phaseIncrement, pulseWidth, &unisonParts[u].sources[s].oscPos, true,
-			                           amplitudeIncrement, doOscSync, oscSyncPosThisUnison,
-			                           oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,
-			                           sourceWaveIndexesLastTime[s], waveTable);
+			// Virtual-analog waves render through the persistent per-source engine (which owns the phase across
+			// blocks); everything else (wavetable) stays on renderOsc with its oscPos.
+			if (unisonParts[u].sources[s].vaEngine.has_value()) {
+				renderVaSource(*unisonParts[u].sources[s].vaEngine, sourceAmplitude, amplitudeIncrement, renderBuffer,
+				               numSamples, phaseIncrement, pulseWidth, true, doOscSync, oscSyncPosThisUnison,
+				               oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
+			}
+			else {
+				dsp::Oscillator::renderOsc(sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd,
+				                           numSamples, phaseIncrement, pulseWidth, &unisonParts[u].sources[s].oscPos,
+				                           true, amplitudeIncrement, doOscSync, oscSyncPosThisUnison,
+				                           oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,
+				                           sourceWaveIndexesLastTime[s], waveTable);
+			}
 
 			if (stereoBuffer) {
 				// TODO: if render buffer was typed we could use addPannedMono()

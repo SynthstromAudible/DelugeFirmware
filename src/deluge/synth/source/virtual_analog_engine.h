@@ -41,14 +41,39 @@ public:
 	/// @param seed the engine's phase state, seeded with the block's render phase + increment (UQ0.32).
 	VirtualAnalogEngine(va_shape::Wave wave, deluge::dsp::Phasor seed);
 
-	/// The phase after rendering — the adapter reads it to persist per-voice phase (meaningful on hard-sync blocks).
+	/// The engine's current oscillator phase (UQ0.32). Persists across blocks — Voice reads it to seed osc-sync
+	/// from the master and to advance a skipped source.
 	[[nodiscard]] uint32_t phase() const {
 		return std::visit([](const auto& shape) { return shape.phase(); }, shape_);
 	}
 
+	/// The current phase increment (UQ0.32). The *original* note pitch — pulse waves rewrite a local render rate
+	/// per block but never touch this.
+	[[nodiscard]] uint32_t increment() const {
+		return std::visit([](const auto& shape) { return shape.increment(); }, shape_);
+	}
+
+	/// Set the per-block pitch (UQ0.32). Voice calls this each block before @ref renderBlock (pitch modulation).
+	void setIncrement(uint32_t increment) {
+		std::visit([&](auto& shape) { shape.setIncrement(increment); }, shape_);
+	}
+
+	/// Jump the phase (e.g. a skipped source still advances, or an external reseed). Leaves the increment.
+	void seek(uint32_t phase) {
+		std::visit([&](auto& shape) { shape.seek(phase); }, shape_);
+	}
+
 	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
 	                 deluge::dsp::fixed::Buffer scratch) override {
+		// The engine owns its phase across blocks. The shape advances/seeks its phasor only meaningfully on a real
+		// hard-sync block (where it lands on the synced phase); otherwise we advance the original-domain phase by
+		// the block length here — exactly the legacy "phase += increment * numSamples, real-sync overrides" rule.
+		const uint32_t start = phase();
+		const uint32_t inc = increment();
 		std::visit([&](auto& shape) { shape.renderBlock(controls, output, scratch); }, shape_);
+		if (!controls.sync) {
+			seek(start + inc * static_cast<uint32_t>(output.size()));
+		}
 	}
 
 private:

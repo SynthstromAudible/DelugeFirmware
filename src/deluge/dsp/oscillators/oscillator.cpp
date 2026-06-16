@@ -30,9 +30,12 @@ namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
-namespace {
-// The adapter's open OscType → the VA engine's closed wave set. Only the (post-downgrade) VA waves reach this
-// path — WAVETABLE is handled above and SAMPLE/DX7/INPUT never enter renderOsc.
+bool isVirtualAnalog(OscType type) {
+	// The six VA waves are the first OscType entries, up to ANALOG_SAW_2; WAVETABLE and above are not.
+	return util::to_underlying(type) <= util::to_underlying(OscType::ANALOG_SAW_2);
+}
+
+// The app's open OscType → the VA engine's closed wave set.
 synth::va_shape::Wave vaWaveFor(OscType type) {
 	switch (type) {
 	case OscType::TRIANGLE:
@@ -49,7 +52,6 @@ synth::va_shape::Wave vaWaveFor(OscType type) {
 		return synth::va_shape::Wave::Sine;
 	}
 }
-} // namespace
 __attribute__((optimize("unroll-loops"))) void
 Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
                       uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,

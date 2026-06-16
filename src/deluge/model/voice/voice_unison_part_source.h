@@ -19,6 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
+#include "synth/source/virtual_analog_engine.h"
+#include <optional>
 
 class TimeStretcher;
 class VoiceSamplePlaybackGuide;
@@ -38,8 +40,12 @@ public:
 	                            uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples);
 	uint32_t getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
 
-	uint32_t oscPos{}; // FKA phase. No longer used for Sample playback / rate conversion position. Only waves,
-	                   // including wavetable.
+	uint32_t oscPos{}; // FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including
+	                   // wavetable. Retired for virtual-analog waves — their phase now lives in vaEngine (below).
+	// The persistent VA oscillator for this source: present iff the oscType is a virtual-analog wave in an
+	// engine-eligible synth mode. It owns the phase across render blocks (replacing oscPos for those waves), built
+	// at note-on and kept across notes for free-running oscillators (so it is NOT reset in unassign).
+	std::optional<deluge::synth::VirtualAnalogEngine> vaEngine;
 	uint32_t phaseIncrementStoredValue{};
 	int32_t carrierFeedback{};
 	bool active{};
