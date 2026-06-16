@@ -342,6 +342,12 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 ### MIDI
 
+#### <ins>Devices</ins>
+
+- Added new `Use Relative CC` toggle within the configuration of each MIDI device in the `Settings > Defaults > MIDI > Devices` menu.
+ - When enabled, regular (e.g. non expression) midi CC's received from this are processed as relative cc's, overriding the current MIDI takeover setting.
+ - Note: the controller must be actually sending relative value changes (127 for down and 1 for up) in order for this to work.
+
 #### <ins>Learn</ins>
 
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
@@ -365,6 +371,8 @@ A `Favourites` feature has been added to the browser for most file types. The `F
     - If used together with `SHIFT`, it will trigger instant mute.
 - Added new default CC 90 to toggle solo of the active clip in a specific track.
   - Toggle solo: CC Value > 0 (Send a CC Value greater than 0 to toggle mute for the active clip in a specific track)
+- You can now use relative cc's together with non-relative cc's for different devices on the same MIDI follow channel.
+  - See the `Devices` section above for information on the per MIDI device `Use Relative CC` configuration.
 
 ### SD CARD
 
