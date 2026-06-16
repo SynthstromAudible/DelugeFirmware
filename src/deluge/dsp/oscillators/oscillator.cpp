@@ -15,12 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "oscillator.h"
-#include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/vca/amplitude.h"
-#include "storage/wave_table/wave_table.h"
-#include "util/fixedpoint.h"
 #include "util/misc.h" // util::to_underlying
-#include "wavetable_oscillator.h"
 
 namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
@@ -46,91 +41,6 @@ synth::va_shape::Wave vaWaveFor(OscType type) {
 		return synth::va_shape::Wave::AnalogSquare;
 	default: // SINE
 		return synth::va_shape::Wave::Sine;
-	}
-}
-__attribute__((optimize("unroll-loops"))) void
-Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-                      uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
-                      int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
-                      uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-                      int sourceWaveIndexLastTime, WaveTable* waveTable) {
-
-	// We save a decent bit of processing power by grabbing a local copy of the phase to work with, and just
-	// incrementing the startPhase once
-	uint32_t phase = *startPhase;
-	*startPhase += phaseIncrement * numSamples;
-
-	if (type == OscType::WAVETABLE) {
-		// The wavetable engine still lives app-side (it depends on storage/), so the shared pulse-width-as-sync
-		// preamble stays here for it. The very same derivation now also lives in the VA shapes; the two copies
-		// converge when the wavetable becomes a SourceEngine. Wavetable is never SINE/SAW/SQUARE, so it takes
-		// none of the per-wave retrigger/resetter tweaks — only the plain multiply rewrite.
-		bool doPulseWave = (pulseWidth && !doOscSync);
-		if (doPulseWave) {
-			doOscSync = true;
-
-			uint32_t pulseWidthAbsolute = ((int32_t)pulseWidth >= 0) ? pulseWidth : -pulseWidth;
-			resetterPhase = phase;
-			resetterPhaseIncrement = phaseIncrement;
-
-			int32_t resetterPhaseToMultiply = resetterPhase >> 1;
-			if ((uint32_t)(resetterPhase) >= (uint32_t)-(resetterPhaseIncrement >> 1)) {
-				resetterPhaseToMultiply -= ((uint32_t)1 << 31); // Count the last little bit of the cycle as
-				                                                // actually a negative-number bit of the next one.
-			}
-
-			phase = (uint32_t)multiply_32x32_rshift32_rounded((pulseWidthAbsolute >> 1) + 1073741824,
-			                                                  resetterPhaseToMultiply)
-			        << 3;
-			phaseIncrement = ((uint32_t)multiply_32x32_rshift32_rounded((pulseWidthAbsolute >> 1) + 1073741824,
-			                                                            (uint32_t)phaseIncrement >> 1)
-			                  << 3);
-			phase += retriggerPhase;
-		}
-
-		int32_t waveIndex = sourceWaveIndexLastTime + 1073741824;
-
-		int32_t* wavetableRenderingBuffer = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
-
-		// The sample-backed wavetable engine, behind the dsp-next block-generator interface (it depends on
-		// storage/, so it stays app-side rather than becoming a synth/source SourceEngine for now).
-		WavetableOscillator osc{waveTable,         Phasor{phase, phaseIncrement},
-		                        doOscSync,         Phasor{resetterPhase, resetterPhaseIncrement},
-		                        retriggerPhase,    waveIndex,
-		                        waveIndexIncrement};
-		osc.renderBlock(fixed::Buffer{wavetableRenderingBuffer, static_cast<size_t>(numSamples)});
-		phase = osc.phase();
-
-		amplitude <<= 3;
-		amplitudeIncrement <<= 3;
-		if (applyAmplitude) { // change from original code but if we don't render into the osc sync buffer this is just
-			                  // a very long useless operation
-			applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
-			                             oscSyncRenderingBuffer);
-		}
-		maybeStorePhase(type, startPhase, phase, doPulseWave);
-		return;
-	}
-
-	// The six virtual-analog waves no longer reach here — Voice renders them through the persistent
-	// synth::VirtualAnalogEngine (which owns its phase across blocks). renderOsc is now the wavetable-only adapter
-	// (wavetable still lives app-side, behind storage/). Anything else is handled by its own path in Voice.
-}
-void Oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
-                                              int32_t* outputBufferPos, int32_t* inputBuferPos) {
-	// Delegates to the dsp-next Amplitude mixer: out = (raw * amplitude) + mix, with the
-	// same vqdmulhq + accumulate and the same ramped amplitude vector — the VCA arithmetic
-	// now lives in one component. Bit-exact with the former inline loop (the masked tail
-	// also drops that loop's harmless 4-sample overshoot). Call sites switch to the mixer
-	// directly in a later step, retiring this shim.
-	fixed::Amplitude vca{amplitude, amplitudeIncrement};
-	vca.renderBlock(fixed::Signal{inputBuferPos, static_cast<size_t>(numSamples)},
-	                fixed::Signal{outputBufferPos, static_cast<size_t>(numSamples)},
-	                fixed::Buffer{outputBufferPos, static_cast<size_t>(numSamples)});
-}
-void Oscillator::maybeStorePhase(const OscType& type, uint32_t* startPhase, uint32_t phase, bool doPulseWave) {
-	if (!(doPulseWave && type != OscType::SQUARE)) {
-		*startPhase = phase;
 	}
 }
 

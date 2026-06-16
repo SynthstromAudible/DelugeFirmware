@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/oscillators/wavetable_engine.h"
 #include "model/sample/sample.h"
 #include "synth/source/virtual_analog_engine.h"
 #include <optional>
@@ -42,10 +43,38 @@ public:
 
 	uint32_t oscPos{}; // FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including
 	                   // wavetable. Retired for virtual-analog waves — their phase now lives in vaEngine (below).
-	// The persistent VA oscillator for this source: present iff the oscType is a virtual-analog wave in an
-	// engine-eligible synth mode. It owns the phase across render blocks (replacing oscPos for those waves), built
-	// at note-on and kept across notes for free-running oscillators (so it is NOT reset in unassign).
+	// The persistent oscillator engine for this source, when its oscType is one the engines cover (mutually
+	// exclusive). Each owns the phase across render blocks (replacing oscPos for those waves), built at note-on
+	// and kept across notes for free-running oscillators (so neither is reset in unassign). vaEngine: the six
+	// virtual-analog waves (subtractive + ring-mod). wavetableEngine: OscType::WAVETABLE. FM/NOISE/SAMPLE/INPUT
+	// keep oscPos.
 	std::optional<deluge::synth::VirtualAnalogEngine> vaEngine;
+	std::optional<deluge::dsp::WavetableEngine> wavetableEngine;
+
+	/// The source's current oscillator phase — from whichever engine owns it, else oscPos. (Read by osc-sync to
+	/// seed the slave from the master at block start.)
+	[[nodiscard]] uint32_t currentOscPhase() const {
+		if (vaEngine.has_value()) {
+			return vaEngine->phase();
+		}
+		if (wavetableEngine.has_value()) {
+			return wavetableEngine->phase();
+		}
+		return oscPos;
+	}
+	/// Advance the source's oscillator phase by @p delta (a skipped osc-sync master still progresses).
+	void advanceOscPhase(uint32_t delta) {
+		if (vaEngine.has_value()) {
+			vaEngine->seek(vaEngine->phase() + delta);
+		}
+		else if (wavetableEngine.has_value()) {
+			wavetableEngine->seek(wavetableEngine->phase() + delta);
+		}
+		else {
+			oscPos += delta;
+		}
+	}
+
 	uint32_t phaseIncrementStoredValue{};
 	int32_t carrierFeedback{};
 	bool active{};

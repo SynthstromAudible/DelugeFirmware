@@ -79,25 +79,39 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	}
 	else {
 		const OscType oscType = source->oscType;
-		// Virtual-analog waves (subtractive + ring-mod) hold their phase in the persistent engine rather than
-		// oscPos. Build/reseed it following the legacy oscPos rule: a retrigger seeds init+retrigger; a free-run
-		// oscillator on a new voice takes the random phase randomizeOscPhases left in oscPos; a free-run oscillator
-		// on a reused voice (same Sound ⇒ same wave) keeps the engine's continuing phase.
-		if ((synthMode == SynthMode::SUBTRACTIVE || synthMode == SynthMode::RINGMOD)
-		    && deluge::dsp::isVirtualAnalog(oscType)) {
+		// Virtual-analog + wavetable waves (subtractive + ring-mod) hold their phase in a persistent engine rather
+		// than oscPos. Build/reseed it following the legacy oscPos rule: a retrigger seeds init+retrigger; a
+		// free-run oscillator on a new voice takes the random phase randomizeOscPhases left in oscPos; a free-run
+		// oscillator on a reused voice (same Sound ⇒ same wave) keeps the engine's continuing phase. The two
+		// engines are mutually exclusive — reset the other (a pooled voice slot may carry one from a prior sound).
+		const bool engineMode = (synthMode == SynthMode::SUBTRACTIVE || synthMode == SynthMode::RINGMOD);
+		const uint32_t seedPhase = getOscInitialPhaseForZero(oscType) + oscRetriggerPhase;
+		if (engineMode && deluge::dsp::isVirtualAnalog(oscType)) {
+			wavetableEngine.reset();
 			const deluge::synth::va_shape::Wave wave = deluge::dsp::vaWaveFor(oscType);
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
-				vaEngine.emplace(wave, deluge::dsp::Phasor{getOscInitialPhaseForZero(oscType) + oscRetriggerPhase, 0});
+				vaEngine.emplace(wave, deluge::dsp::Phasor{seedPhase, 0});
 			}
 			else if (resetEverything || !vaEngine.has_value()) {
 				vaEngine.emplace(wave, deluge::dsp::Phasor{oscPos, 0});
 			}
 			// else (free-run, reused voice): keep vaEngine's phase.
 		}
-		else {
-			vaEngine.reset(); // non-VA (wavetable/noise/FM) keeps oscPos; drop any engine left from a prior note.
+		else if (engineMode && oscType == OscType::WAVETABLE) {
+			vaEngine.reset();
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
-				oscPos = getOscInitialPhaseForZero(oscType) + oscRetriggerPhase;
+				wavetableEngine.emplace(deluge::dsp::Phasor{seedPhase, 0});
+			}
+			else if (resetEverything || !wavetableEngine.has_value()) {
+				wavetableEngine.emplace(deluge::dsp::Phasor{oscPos, 0});
+			}
+			// else (free-run, reused voice): keep wavetableEngine's phase.
+		}
+		else {
+			vaEngine.reset(); // non-engine (noise/FM/…) keeps oscPos; drop any engine left from a prior note.
+			wavetableEngine.reset();
+			if (oscRetriggerPhase != 0xFFFFFFFF) {
+				oscPos = seedPhase;
 			}
 		}
 	}

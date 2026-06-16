@@ -62,14 +62,12 @@ PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
 namespace {
-// Render one block of a virtual-analog source through its persistent engine — the per-voice replacement for
-// renderOsc on the six VA waves (the engine owns its phase across blocks, so there is no oscPos to thread). The
-// raw control values mirror what renderOsc's VA branch built; the engine derives pulse/sync/retrigger/band
-// internally. Shared by the subtractive and ring-mod render sites.
-void renderVaSource(synth::VirtualAnalogEngine& engine, int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
-                    int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
-                    bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase) {
-	synth::BlockControls controls{
+// The already-modulated per-block controls handed to a source engine — the raw values renderOsc's VA branch
+// used to build (the engine derives pulse/sync/retrigger/band/scale internally).
+synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncrement, uint32_t pulseWidth,
+                                       bool applyAmplitude, bool doOscSync, uint32_t resetterPhase,
+                                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase) {
+	return synth::BlockControls{
 	    .amplitude = dsp::Ramp{amplitude, amplitudeIncrement},
 	    .apply_amplitude = applyAmplitude,
 	    .pulse_width = pulseWidth,
@@ -78,7 +76,34 @@ void renderVaSource(synth::VirtualAnalogEngine& engine, int32_t amplitude, int32
 	        doOscSync ? std::optional<dsp::Phasor>{dsp::Phasor{resetterPhase, resetterPhaseIncrement}} : std::nullopt,
 	    .cpu_direness = AudioEngine::cpuDireness,
 	};
+}
+
+// Render one block of a virtual-analog source through its persistent engine — the per-voice replacement for
+// renderOsc on the six VA waves (the engine owns its phase across blocks, so there is no oscPos to thread).
+// Shared by the subtractive and ring-mod render sites.
+void renderVaSource(synth::VirtualAnalogEngine& engine, int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
+                    int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
+                    bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase) {
+	synth::BlockControls controls = makeBlockControls(amplitude, amplitudeIncrement, pulseWidth, applyAmplitude,
+	                                                  doOscSync, resetterPhase, resetterPhaseIncrement, retriggerPhase);
 	engine.setIncrement(phaseIncrement);
+	engine.renderBlock(controls, dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
+	                   dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+}
+
+// Render one block of the wavetable source through its persistent engine — the per-voice replacement for
+// renderOsc's WAVETABLE body (the engine owns the pulse-as-sync preamble, the <<3 amplitude VCA and phase
+// persistence). The wavetable-specific inputs (table + morph index) are set on the engine before renderBlock.
+void renderWavetableSource(dsp::WavetableEngine& engine, WaveTable* waveTable, int32_t sourceWaveIndexLastTime,
+                           int32_t waveIndexIncrement, int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
+                           int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
+                           bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
+                           uint32_t retriggerPhase) {
+	synth::BlockControls controls = makeBlockControls(amplitude, amplitudeIncrement, pulseWidth, applyAmplitude,
+	                                                  doOscSync, resetterPhase, resetterPhaseIncrement, retriggerPhase);
+	engine.setWaveTable(waveTable);
+	engine.setIncrement(phaseIncrement);
+	engine.setWaveIndex(sourceWaveIndexLastTime, waveIndexIncrement);
 	engine.renderBlock(controls, dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
 	                   dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
 }
@@ -1138,12 +1163,11 @@ skipAutoRelease: {}
 	uint32_t oscSyncPos[kMaxNumVoicesUnison];
 	bool doingOscSync = sound.renderingOscillatorSyncCurrently(paramManager);
 
-	// Oscillator sync: capture the master (source 0) phase at block start. For a virtual-analog master the phase
-	// lives in its persistent engine; otherwise in oscPos.
+	// Oscillator sync: capture the master (source 0) phase at block start — from whichever persistent engine owns
+	// it (virtual-analog / wavetable), else oscPos.
 	if (doingOscSync) {
 		for (int32_t u = 0; u < sound.numUnison; u++) {
-			VoiceUnisonPartSource& master = unisonParts[u].sources[0];
-			oscSyncPos[u] = master.vaEngine.has_value() ? master.vaEngine->phase() : master.oscPos;
+			oscSyncPos[u] = unisonParts[u].sources[0].currentOscPhase();
 		}
 	}
 
@@ -1385,19 +1409,19 @@ cantBeDoingOscSyncForFirstOsc:
 					                           ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile)
 					                           : nullptr;
 
-					// Virtual-analog waves render through the persistent per-source engine; wavetable stays on
-					// renderOsc with its oscPos. (Ring-mod renders the raw wave: applyAmplitude=false, amplitude 0.)
+					// Both ring-moddable wave families now render through their persistent per-source engine (VA or
+					// wavetable). Ring-mod renders the raw wave: applyAmplitude=false, amplitude 0.
 					if (unisonParts[u].sources[s].vaEngine.has_value()) {
 						renderVaSource(*unisonParts[u].sources[s].vaEngine, 0, 0, spareRenderingBuffer[s + 2],
 						               numSamples, phaseIncrements[s], pulseWidth, false, doingOscSyncThisOscillator,
 						               oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s]);
 					}
 					else {
-						dsp::Oscillator::renderOsc(
-						    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples,
-						    numSamples, phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
-						    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
-						    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s], waveTable);
+						renderWavetableSource(*unisonParts[u].sources[s].wavetableEngine, waveTable,
+						                      sourceWaveIndexesLastTime[s], sourceWaveIndexIncrements[s], 0, 0,
+						                      spareRenderingBuffer[s + 2], numSamples, phaseIncrements[s], pulseWidth,
+						                      false, doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0],
+						                      sound.oscRetriggerPhase[s]);
 					}
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
@@ -2060,14 +2084,8 @@ pitchTooHigh:
 			getPhaseIncrements[u] = phaseIncrement;
 
 			if (getOutAfterPhaseIncrements) {
-				// Skipped source still advances its phase (it's the osc-sync master). VA phase lives in the engine.
-				if (voiceUnisonPartSource->vaEngine.has_value()) {
-					voiceUnisonPartSource->vaEngine->seek(voiceUnisonPartSource->vaEngine->phase()
-					                                      + phaseIncrement * numSamples);
-				}
-				else {
-					voiceUnisonPartSource->oscPos += phaseIncrement * numSamples;
-				}
+				// Skipped source still advances its phase (it's the osc-sync master) — in whichever engine owns it.
+				voiceUnisonPartSource->advanceOscPhase(phaseIncrement * numSamples);
 				continue;
 			}
 		}
@@ -2544,19 +2562,20 @@ dontUseCache: {}
 			WaveTable* waveTable = guides[s].audioFileHolder != nullptr
 			                           ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile)
 			                           : nullptr;
-			// Virtual-analog waves render through the persistent per-source engine (which owns the phase across
-			// blocks); everything else (wavetable) stays on renderOsc with its oscPos.
+			// Both wave families now render through their persistent per-source engine (which owns the phase across
+			// blocks): virtual-analog → vaEngine, wavetable → wavetableEngine. SAMPLE/INPUT/DX7 took earlier
+			// branches, so this regular-wave path only ever sees one of those two.
 			if (unisonParts[u].sources[s].vaEngine.has_value()) {
 				renderVaSource(*unisonParts[u].sources[s].vaEngine, sourceAmplitude, amplitudeIncrement, renderBuffer,
 				               numSamples, phaseIncrement, pulseWidth, true, doOscSync, oscSyncPosThisUnison,
 				               oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
 			}
 			else {
-				dsp::Oscillator::renderOsc(sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd,
-				                           numSamples, phaseIncrement, pulseWidth, &unisonParts[u].sources[s].oscPos,
-				                           true, amplitudeIncrement, doOscSync, oscSyncPosThisUnison,
-				                           oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,
-				                           sourceWaveIndexesLastTime[s], waveTable);
+				renderWavetableSource(*unisonParts[u].sources[s].wavetableEngine, waveTable,
+				                      sourceWaveIndexesLastTime[s], waveIndexIncrement, sourceAmplitude,
+				                      amplitudeIncrement, renderBuffer, numSamples, phaseIncrement, pulseWidth, true,
+				                      doOscSync, oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison,
+				                      oscRetriggerPhase);
 			}
 
 			if (stereoBuffer) {
