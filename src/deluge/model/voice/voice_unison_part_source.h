@@ -21,6 +21,7 @@
 #include "dsp/dx/dx7_engine.h"
 #include "dsp/oscillators/wavetable_engine.h"
 #include "model/sample/sample.h"
+#include "processing/live/input_engine.h"
 #include "synth/source/virtual_analog_engine.h"
 #include <optional>
 
@@ -29,7 +30,6 @@ class VoiceSamplePlaybackGuide;
 class Source;
 class Voice;
 class VoiceSample;
-class LivePitchShifter;
 
 class VoiceUnisonPartSource {
 public:
@@ -79,6 +79,6 @@ public:
 	int32_t carrierFeedback{};
 	bool active{};
 	VoiceSample* voiceSample = nullptr;
-	LivePitchShifter* livePitchShifter = nullptr;
 	deluge::dsp::DX7Engine dx7Engine; // the DX7 source's pooled DxVoice + render (no-op when oscType != DX7).
+	InputEngine inputEngine;          // the INPUT_L/R/STEREO source's live-input render + pitch-shifter lifecycle.
 };

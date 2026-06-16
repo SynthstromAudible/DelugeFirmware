@@ -127,11 +127,7 @@ void VoiceUnisonPartSource::unassign(bool deletingSong) {
 	}
 
 	dx7Engine.unassign();
-
-	if (livePitchShifter != nullptr) {
-		delugeDealloc(livePitchShifter);
-		livePitchShifter = nullptr;
-	}
+	inputEngine.unassign();
 }
 
 bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* guide,
