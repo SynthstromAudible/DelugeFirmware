@@ -53,4 +53,6 @@ struct VoiceConfig {
 	uint8_t numUnison;                                  ///< Sound::numUnison
 	uint8_t unisonStereoSpread;                         ///< Sound::unisonStereoSpread
 	std::array<int32_t, kMaxNumVoicesUnison> unisonPan; ///< Sound::unisonPan (copied)
+
+	std::array<uint32_t, kNumSources> oscRetriggerPhase; ///< Sound::oscRetriggerPhase (4294967295 == off)
 };

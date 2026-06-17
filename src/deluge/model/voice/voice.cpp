@@ -1277,7 +1277,7 @@ skipAutoRelease: {}
 					    .waveIndexLast = sourceWaveIndexesLastTime[s],
 					    .waveIndexIncrement = sourceWaveIndexIncrements[s],
 					    .oscType = oscType,
-					    .retriggerPhase = sound.oscRetriggerPhase[s],
+					    .retriggerPhase = cfg.oscRetriggerPhase[s],
 					};
 				}
 
@@ -1757,7 +1757,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerFor
                              int32_t* oscBuffer, int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
                              int32_t amplitudeIncrement, uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
                              uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
-                             int32_t amplitudeL, int32_t amplitudeR) {
+                             int32_t amplitudeL, int32_t amplitudeR, const VoiceConfig& cfg) {
 	using deluge::voice::SourceRenderResult;
 	VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
@@ -1817,7 +1817,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerFor
 	// Or regular wave (virtual-analog / wavetable)
 	uint32_t oscSyncPosThisUnison;
 	uint32_t oscSyncPhaseIncrementsThisUnison;
-	uint32_t oscRetriggerPhase = sound.oscRetriggerPhase[s]; // Yes we might need this even if not doing osc sync.
+	uint32_t oscRetriggerPhase = cfg.oscRetriggerPhase[s]; // Yes we might need this even if not doing osc sync.
 
 	// If doing osc sync
 	if (doOscSync) {
@@ -1936,7 +1936,7 @@ pitchTooHigh:
 		auto result =
 		    renderSourceComponent(u, s, sound, paramManager, oscBuffer, numSamples, stereoBuffer, sourceAmplitude,
 		                          amplitudeIncrement, phaseIncrement, doOscSync, oscSyncPos, oscSyncPhaseIncrements,
-		                          waveIndexIncrement, stereoUnison, amplitudeL, amplitudeR);
+		                          waveIndexIncrement, stereoUnison, amplitudeL, amplitudeR, cfg);
 		if (result == deluge::voice::SourceRenderResult::UNASSIGN) {
 			goto instantUnassign;
 		}

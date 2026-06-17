@@ -184,7 +184,7 @@ private:
 	                      int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
 	                      uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
 	                      uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
-	                      int32_t amplitudeL, int32_t amplitudeR);
+	                      int32_t amplitudeL, int32_t amplitudeR, const VoiceConfig& cfg);
 	static bool adjustPitch(uint32_t& phaseIncrement, int32_t adjustment);
 
 	void renderSineWaveWithFeedback(int32_t* thisSample, int32_t numSamples, uint32_t* phase, int32_t amplitude,

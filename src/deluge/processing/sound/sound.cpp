@@ -2531,6 +2531,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .numUnison = numUnison,
 		    .unisonStereoSpread = unisonStereoSpread,
 		    .unisonPan = std::to_array(unisonPan),
+		    .oscRetriggerPhase = oscRetriggerPhase,
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {
