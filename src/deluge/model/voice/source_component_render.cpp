@@ -41,14 +41,15 @@ synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncre
 	};
 }
 
-void renderVaSource(synth::VirtualAnalogEngine& engine, int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
-                    int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
-                    bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase) {
+synth::SourceRenderResult renderVaSource(synth::VirtualAnalogEngine& engine, int32_t amplitude,
+                                         int32_t amplitudeIncrement, int32_t* output, int32_t numSamples,
+                                         uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
+                                         bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
+                                         uint32_t retriggerPhase) {
 	synth::BlockControls controls = makeBlockControls(amplitude, amplitudeIncrement, pulseWidth, applyAmplitude,
 	                                                  doOscSync, resetterPhase, resetterPhaseIncrement, retriggerPhase);
-	engine.setIncrement(phaseIncrement);
-	engine.renderBlock(controls, dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
-	                   dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+	return engine.renderSource(controls, phaseIncrement, dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
+	                           dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
 }
 
 void renderWavetableSource(dsp::WavetableEngine& engine, WaveTable* waveTable, int32_t sourceWaveIndexLastTime,

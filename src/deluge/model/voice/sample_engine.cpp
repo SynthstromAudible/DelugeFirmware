@@ -105,7 +105,7 @@ int32_t SampleEngine::getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGui
 	return voiceSample_->getPlayByteLowLevel(sample, guide);
 }
 
-deluge::voice::SourceRenderResult
+deluge::synth::SourceRenderResult
 SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_t s, int32_t* __restrict__ oscBuffer,
                      int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
                      uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue, bool stereoUnison, int32_t amplitudeL,
@@ -154,7 +154,7 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 	bool stillOk = getPitchAndSpeedParams(&voice.sound.sources[s], &voice.guides[s], &phaseIncrement, &timeStretchRatio,
 	                                      &noteLengthInSamples);
 	if (!stillOk) {
-		return deluge::voice::SourceRenderResult::UNASSIGN;
+		return deluge::synth::SourceRenderResult::UNASSIGN;
 	}
 
 	// If user unmuted mid-note...
@@ -193,10 +193,10 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 		    voiceSample->attemptLateSampleStart(&voice.guides[s], sample, rawSamplesLate, numSamples);
 
 		if (result == LateStartAttemptStatus::FAILURE) {
-			return deluge::voice::SourceRenderResult::UNASSIGN;
+			return deluge::synth::SourceRenderResult::UNASSIGN;
 		}
 		else if (result == LateStartAttemptStatus::WAIT) {
-			return deluge::voice::SourceRenderResult::SKIP;
+			return deluge::synth::SourceRenderResult::SKIP;
 		}
 		// Otherwise, it started fine!
 	}
@@ -276,7 +276,7 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 				                                                    &voice.guides[s], phaseIncrement, timeStretchRatio,
 				                                                    voice.getPriorityRating(), loopingType);
 				if (!everythingOk) {
-					return deluge::voice::SourceRenderResult::UNASSIGN;
+					return deluge::synth::SourceRenderResult::UNASSIGN;
 				}
 			}
 
@@ -327,9 +327,9 @@ dontUseCache: {}
 	}
 
 	if (!stillActive) {
-		return deluge::voice::SourceRenderResult::UNASSIGN;
+		return deluge::synth::SourceRenderResult::UNASSIGN;
 	}
-	return deluge::voice::SourceRenderResult::ACTIVE;
+	return deluge::synth::SourceRenderResult::ACTIVE;
 }
 
 bool SampleEngine::getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* guide, uint32_t* phaseIncrement,

@@ -80,6 +80,16 @@ public:
 		}
 	}
 
+	/// Render one block as a @ref Source, reporting the per-source lifecycle outcome. A virtual-analog source
+	/// never dies, so this is always ACTIVE; the uniform return type is the seam the per-source dispatch folds
+	/// onto. Sets the per-block pitch from @p phaseIncrement, then renders into @p output using @p scratch.
+	SourceRenderResult renderSource(const BlockControls& controls, uint32_t phaseIncrement,
+	                                deluge::dsp::fixed::Buffer output, deluge::dsp::fixed::Buffer scratch) {
+		setIncrement(phaseIncrement);
+		renderBlock(controls, output, scratch);
+		return SourceRenderResult::ACTIVE;
+	}
+
 private:
 	using Shape = std::variant<va_shape::Sine, va_shape::Triangle, va_shape::Square, va_shape::Saw, va_shape::AnalogSaw,
 	                           va_shape::AnalogSquare>;

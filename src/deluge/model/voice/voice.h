@@ -21,7 +21,7 @@
 #include "dsp/filter/filter_set.h"
 #include "model/voice/fm_engine.h"
 #include "model/voice/ringmod_engine.h"
-#include "model/voice/source_component_render.h" // deluge::voice::SourceRenderResult
+#include "model/voice/source_component_render.h" // deluge::synth::SourceRenderResult
 #include "model/voice/subtractive_engine.h"
 #include "model/voice/voice_config.h"
 #include "model/voice/voice_sample_playback_guide.h"
@@ -179,7 +179,7 @@ private:
 	// dx7 / virtual-analog / wavetable) and folding their outcomes into one uniform result. The single dispatch
 	// seam a SourceComponent interface + the engine registry will build on. Called from renderBasicSource's
 	// per-unison loop after the shared pitch/pan/sync setup.
-	deluge::voice::SourceRenderResult
+	deluge::synth::SourceRenderResult
 	renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
 	                      int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
 	                      uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,

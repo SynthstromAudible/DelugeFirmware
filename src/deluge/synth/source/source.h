@@ -58,6 +58,13 @@ struct BlockControls {
 	                      ///< choice (and the analog-saw downgrade) without the engine reaching into processing/
 };
 
+/// @brief The uniform outcome of rendering one @ref Source for one unison part, folding the per-engine return
+/// conventions (sample's status / DX7's active-bool / the void oscillator paths) into one: keep sounding
+/// (ACTIVE), unassign this source now (UNASSIGN), or skip this unison part without unassigning (SKIP — the
+/// sample late-start "wait" + the osc-sync freq-too-high cases). The single uniform seam the per-source dispatch
+/// folds onto.
+enum class SourceRenderResult { ACTIVE, UNASSIGN, SKIP };
+
 /// @brief Renders one block of one sound source. Stateful: per-source state lives in the concrete source and
 /// persists across @ref renderBlock calls.
 class Source {

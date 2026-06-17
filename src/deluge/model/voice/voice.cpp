@@ -1736,13 +1736,13 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 // per-engine outcomes into one uniform SourceRenderResult. The single uniform dispatch seam a SourceComponent
 // interface + the engine registry will build on. (Still a Voice method using public state — this is the seam,
 // not yet the de-coupling.)
-deluge::voice::SourceRenderResult
+deluge::synth::SourceRenderResult
 Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
                              int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
                              uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
                              uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
                              int32_t amplitudeL, int32_t amplitudeR, const VoiceConfig& cfg) {
-	using deluge::voice::SourceRenderResult;
+	using deluge::synth::SourceRenderResult;
 	VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 	// If sample...
@@ -1830,10 +1830,12 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    guides[s].audioFileHolder != nullptr ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile) : nullptr;
 	// Both wave families render through their persistent per-source engine (which owns the phase across blocks):
 	// virtual-analog → vaEngine, wavetable → wavetableEngine. SAMPLE/INPUT/DX7 took earlier branches.
+	// VA reports its own (always-ACTIVE) outcome through the synth::Source seam; wavetable keeps the default.
+	SourceRenderResult result = SourceRenderResult::ACTIVE;
 	if (unisonParts[u].sources[s].vaEngine.has_value()) {
-		renderVaSource(*unisonParts[u].sources[s].vaEngine, sourceAmplitude, amplitudeIncrement, renderBuffer,
-		               numSamples, phaseIncrement, pulseWidth, true, doOscSync, oscSyncPosThisUnison,
-		               oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
+		result = renderVaSource(*unisonParts[u].sources[s].vaEngine, sourceAmplitude, amplitudeIncrement, renderBuffer,
+		                        numSamples, phaseIncrement, pulseWidth, true, doOscSync, oscSyncPosThisUnison,
+		                        oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
 	}
 	else {
 		renderWavetableSource(*unisonParts[u].sources[s].wavetableEngine, waveTable, sourceWaveIndexesLastTime[s],
@@ -1849,7 +1851,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 			oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
 		}
 	}
-	return SourceRenderResult::ACTIVE;
+	return result;
 }
 
 void Voice::renderBasicSource(ParamManagerForTimeline* paramManager, int32_t s, int32_t* __restrict__ oscBuffer,
@@ -1919,10 +1921,10 @@ pitchTooHigh:
 		    renderSourceComponent(u, s, paramManager, oscBuffer, numSamples, stereoBuffer, sourceAmplitude,
 		                          amplitudeIncrement, phaseIncrement, doOscSync, oscSyncPos, oscSyncPhaseIncrements,
 		                          waveIndexIncrement, stereoUnison, amplitudeL, amplitudeR, cfg);
-		if (result == deluge::voice::SourceRenderResult::UNASSIGN) {
+		if (result == deluge::synth::SourceRenderResult::UNASSIGN) {
 			goto instantUnassign;
 		}
-		if (result == deluge::voice::SourceRenderResult::SKIP) {
+		if (result == deluge::synth::SourceRenderResult::SKIP) {
 			continue;
 		}
 	}

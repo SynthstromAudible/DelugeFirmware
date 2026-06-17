@@ -30,13 +30,6 @@ class WaveTable;
 /// (`docs/dev/synth_l1_engine_architecture.md`).
 namespace deluge::voice {
 
-/// The uniform outcome of rendering one source component for one unison part, folding the per-engine return
-/// conventions (sample's status / DX7's active-bool / the void oscillator paths) into one: keep sounding
-/// (ACTIVE), unassign this source now (UNASSIGN), or skip this unison part without unassigning (SKIP — the
-/// sample late-start "wait" + the osc-sync freq-too-high cases). The single seam a SourceComponent interface +
-/// the engine registry will build on.
-enum class SourceRenderResult { ACTIVE, UNASSIGN, SKIP };
-
 /// Build the already-modulated per-block controls a source component renders from (the raw values renderOsc's VA
 /// branch used to build; the component derives pulse/sync/retrigger/band/scale internally).
 synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncrement, uint32_t pulseWidth,
@@ -45,9 +38,11 @@ synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncre
 
 /// Render one block of a virtual-analog source component into @p output (the engine owns its phase across blocks,
 /// so there is no oscPos to thread).
-void renderVaSource(synth::VirtualAnalogEngine& engine, int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
-                    int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
-                    bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase);
+synth::SourceRenderResult renderVaSource(synth::VirtualAnalogEngine& engine, int32_t amplitude,
+                                         int32_t amplitudeIncrement, int32_t* output, int32_t numSamples,
+                                         uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
+                                         bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
+                                         uint32_t retriggerPhase);
 
 /// Render one block of the wavetable source component into @p output. The wavetable-specific inputs (table +
 /// morph index) are set on the engine before the render.
