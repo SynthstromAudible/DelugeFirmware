@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
 #include "model/voice/ringmod_engine.h"
+#include "model/voice/subtractive_engine.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part.h"
 #include "modulation/params/param.h"
@@ -35,6 +36,10 @@ class StereoSample;
 class ModelStackWithSoundFlags;
 using namespace deluge;
 class Voice final {
+	// Transitional: SubtractiveEngine owns the subtractive driver but still delegates the per-source render to
+	// the private renderBasicSource (and reads areAllUnisonPartsInactive). See synth_l1_engine_architecture.md.
+	friend class SubtractiveEngine;
+
 public:
 	Voice(Sound& sound);
 	~Voice() { setAsUnassigned(nullptr); }
@@ -74,6 +79,10 @@ public:
 	// The ring-mod synth engine: owns the cross-source ring-mod relationship (renders both sources + combines).
 	// Stateless for now — the VA/wavetable components stay owned per-source on the VoiceUnisonParts.
 	RingModEngine ringModEngine;
+
+	// The subtractive synth engine: owns the per-source render loop + osc-sync + stereo dance. Transitional —
+	// it delegates the per-source render back to renderBasicSource (hence the friend declaration below).
+	SubtractiveEngine subtractiveEngine;
 
 	// Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
 	std::array<int32_t, 2> inputCharacteristics{};

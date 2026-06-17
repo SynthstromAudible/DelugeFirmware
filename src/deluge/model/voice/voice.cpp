@@ -1179,104 +1179,14 @@ skipAutoRelease: {}
 		             && shouldDoPanning(params.paramFinalValues[params::LOCAL_PAN], &amplitudeL, &amplitudeR));
 	}
 
-	uint32_t sourcesToRenderInStereo = 0;
-
-	// Normal mode: subtractive / samples. We do each source first, for all unison
+	// Normal mode: subtractive / samples. The engine owns the per-source render loop + osc-sync + the stereo
+	// buffer dance + the unison-inactive→unassign decision (it delegates each source's render back to
+	// renderBasicSource for now).
 	if (synthMode == SynthMode::SUBTRACTIVE) {
-		bool unisonPartBecameInactive = false;
-
-		uint32_t oscSyncPhaseIncrement[kMaxNumVoicesUnison];
-
-		// First, render any mono sources, and note whether there are any stereo ones
-		for (int32_t s = 0; s < kNumSources; s++) {
-
-			uint32_t* getPhaseIncrements = nullptr;
-			bool getOutAfterGettingPhaseIncrements = false;
-
-			// If we're doing osc sync and this is osc A...
-			if ((s == 0) && doingOscSync) {
-				getPhaseIncrements = oscSyncPhaseIncrement;
-			}
-
-			// This this source isn't active...
-			if (!sound.isSourceActiveCurrently(s, paramManager)) {
-
-				// If we're doing osc sync...
-				if (getPhaseIncrements) {
-					getOutAfterGettingPhaseIncrements = true;
-
-					// Otherwise, skip it
-				}
-				else {
-					continue;
-				}
-			}
-
-			if (!sound.sources[s].renderInStereo(&sound, (SampleHolder*)guides[s].audioFileHolder)) {
-				renderBasicSource(sound, paramManager, s, oscBuffer, numSamples, false, sourceAmplitudesNow[s],
-				                  &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync, oscSyncPos,
-				                  oscSyncPhaseIncrement, sourceAmplitudeIncrements[s], getPhaseIncrements,
-				                  getOutAfterGettingPhaseIncrements, sourceWaveIndexIncrements[s]);
-				anythingInOscBuffer = true;
-			}
-			else {
-				sourcesToRenderInStereo |= (1 << s);
-			}
-		}
-
-		// If any sources need rendering in stereo
-		if (sourcesToRenderInStereo) {
-
-			// If we've already got something mono in the buffer, copy that to the right-channel buffer
-			if (anythingInOscBuffer) {
-				for (int32_t i = numSamples - 1; i >= 0; i--) {
-					oscBuffer[(i << 1) + 1] = oscBuffer[i];
-					oscBuffer[(i << 1)] = oscBuffer[i];
-				}
-			}
-
-			// Otherwise, make it blank
-			else {
-				memset(&oscBuffer[numSamples], 0, numSamples * sizeof(int32_t));
-			}
-
-			// Render each source that's stereo. Osc sync must still be applied here: with stereo unison spread, both
-			// sources get deferred into this path (see Source::renderInStereo()), so we have to capture osc A's phase
-			// increments and sync osc B to them just like the mono path above does.
-			for (int32_t s = 0; s < kNumSources; s++) {
-				if (sourcesToRenderInStereo & (1 << s)) {
-
-					uint32_t* getPhaseIncrements = ((s == 0) && doingOscSync) ? oscSyncPhaseIncrement : nullptr;
-					bool getOutAfterGettingPhaseIncrements =
-					    getPhaseIncrements && !sound.isSourceActiveCurrently(s, paramManager);
-
-					renderBasicSource(sound, paramManager, s, oscBuffer, numSamples, true, sourceAmplitudesNow[s],
-					                  &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync,
-					                  oscSyncPos, oscSyncPhaseIncrement, sourceAmplitudeIncrements[s],
-					                  getPhaseIncrements, getOutAfterGettingPhaseIncrements,
-					                  sourceWaveIndexIncrements[s]);
-				}
-			}
-
-			didStereoTempBuffer = true;
-		}
-
-		// If any unison part became inactive (for either source), and no noise-source, then it might be time to
-		// unassign the voice...
-		if (unisonPartBecameInactive && areAllUnisonPartsInactive(*modelStack)) {
-
-			// If no filters, we can just unassign
-			if (!filterSet.isOn()) {
-				unassignVoiceAfter = true;
-			}
-
-			// Otherwise, must do a fast-release to avoid a click
-			else {
-				if (envelopes[0].stage() < Envelope::Stage::FAST_RELEASE) {
-					envelopes[0].unconditionalRelease(Envelope::Stage::FAST_RELEASE);
-				}
-			}
-		}
+		subtractiveEngine.render(*this, sound, paramManager, *modelStack, oscBuffer, numSamples, doingOscSync,
+		                         oscSyncPos, overallPitchAdjust, sourceAmplitudesNow, sourceAmplitudeIncrements,
+		                         sourceWaveIndexIncrements, anythingInOscBuffer, didStereoTempBuffer,
+		                         unassignVoiceAfter);
 	}
 
 	// Otherwise (FM and ringmod) we go through each unison first, and for each one we render both sources together
