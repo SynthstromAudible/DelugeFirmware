@@ -828,7 +828,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	// Patch all the sources to their parameters
 	if (sourcesChanged) {
 		for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
-			params.sourceValues[s] = sound.params.sourceValues[s];
+			params.sourceValues[s] = cfg.globalSourceValues[s];
 		}
 		patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager));
 	}

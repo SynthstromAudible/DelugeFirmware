@@ -16,9 +16,10 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp"                            // SynthMode, kNumExpressionDimensions
+#include "definitions_cxx.hpp"                            // SynthMode, kNumExpressionDimensions, kFirstLocalSource
 #include "model/mod_controllable/filters/filter_config.h" // FilterMode, FilterRoute
 #include "synth/lfo.h"                                    // LFOConfig
+#include "util/misc.h"                                    // util::to_underlying
 #include <array>
 #include <bitset>
 #include <cstdint>
@@ -57,4 +58,9 @@ struct VoiceConfig {
 	std::array<uint32_t, kNumSources> oscRetriggerPhase; ///< Sound::oscRetriggerPhase (4294967295 == off)
 
 	std::array<OscType, kNumSources> oscType; ///< Sound::sources[s].oscType — drives the per-source render dispatch
+
+	/// Sound::params.sourceValues — the *global* (non-local) patch-source values, copied into the voice's local
+	/// data plane before per-block patching. Settled before the voice loop (sound-level patching precedes it),
+	/// so a once-per-block snapshot is bit-exact.
+	std::array<int32_t, util::to_underlying(kFirstLocalSource)> globalSourceValues;
 };
