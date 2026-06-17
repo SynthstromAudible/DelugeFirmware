@@ -1902,7 +1902,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 			else {
 justSwitchOff:
-				voice->noteOff(modelStack);
+				voice->noteOff((ParamManagerForTimeline*)modelStack->paramManager, allowNoteTails(modelStack, true));
 			}
 		}
 	}
@@ -2558,9 +2558,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
-			bool stillGoing = voice->render(modelStackWithSoundFlags, paramManager, sound_mono.data(),
-			                                sound_mono.size(), voice_rendered_in_stereo, applyingPanAtVoiceLevel,
-			                                sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig);
+			bool stillGoing =
+			    voice->render(paramManager, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
+			                  applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig);
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);

@@ -587,17 +587,16 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	}
 }
 
-void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage) {
+void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed, bool allowReleaseStage) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		guides[s].noteOffReceived = true;
 	}
 
-	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
-	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
+	Sound& sound = this->sound;
 
 	// Only do it if note-offs are meant to be processed for this sound. Otherwise ignore it.
-	if (sound.allowNoteTails(modelStack, true)) {
+	if (noteTailsAllowed) {
 
 		// If no release-stage, we'll stop as soon as we can
 		if (!allowReleaseStage || !hasReleaseStage()) {
@@ -728,10 +727,9 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
 
 // Returns false if became inactive and needs unassigning
-[[gnu::hot]] bool Voice::render(ModelStackWithSoundFlags* modelStack, ParamManagerForTimeline* paramManager,
-                                int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
-                                bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF, bool doHPF,
-                                int32_t externalPitchAdjust, const VoiceConfig& cfg) {
+[[gnu::hot]] bool Voice::render(ParamManagerForTimeline* paramManager, int32_t* soundBuffer, int32_t numSamples,
+                                bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
+                                bool doLPF, bool doHPF, int32_t externalPitchAdjust, const VoiceConfig& cfg) {
 	// we spread out over a render cycle - allocating and starting the voice takes more time than rendering it so this
 	// avoids the cpu spike at note on
 	if (justCreated == false) {
@@ -747,7 +745,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	// If we've previously ignored a note-off, we need to check that the user hasn't changed the preset so that we're
 	// now waiting for a note-off again
 	if (previouslyIgnoredNoteOff && cfg.noteTailsAllowed) {
-		noteOff(modelStack);
+		noteOff(paramManager, cfg.noteTailsAllowed);
 	}
 
 	// Do envelopes - if they're patched to something (always do the first one though)
