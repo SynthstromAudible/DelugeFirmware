@@ -88,8 +88,7 @@ const Patcher::Config kPatcherConfigForVoice = {
     .globality = GLOBALITY_LOCAL,
 };
 
-int32_t Voice::combineExpressionValues(const Sound& sound, int32_t expressionDimension) const {
-	int32_t synthLevelValue = sound.monophonicExpressionValues[expressionDimension];
+int32_t Voice::combineExpressionValues(int32_t synthLevelValue, int32_t expressionDimension) const {
 	int32_t voiceLevelValue = this->localExpressionSourceValuesBeforeSmoothing[expressionDimension];
 	int32_t combinedValue = (synthLevelValue >> 1) + (voiceLevelValue >> 1);
 	return lshiftAndSaturate<1>(combinedValue);
@@ -179,7 +178,8 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		localExpressionSourceValuesBeforeSmoothing[m] = mpeValues[m] << 16;
-		params.sourceValues[util::to_underlying(PatchSource::X) + m] = combineExpressionValues(sound, m);
+		params.sourceValues[util::to_underlying(PatchSource::X) + m] =
+		    combineExpressionValues(sound.monophonicExpressionValues[m], m);
 	}
 
 	if (resetEnvelopes) {
@@ -362,7 +362,8 @@ void Voice::expressionEventImmediate(const Sound& sound, int32_t voiceLevelValue
 	localExpressionSourceValuesBeforeSmoothing[expressionDimension] = voiceLevelValue;
 	expressionSourcesFinalValueChanged[expressionDimension] = true;
 
-	params.sourceValues[s] = combineExpressionValues(sound, expressionDimension);
+	params.sourceValues[s] =
+	    combineExpressionValues(sound.monophonicExpressionValues[expressionDimension], expressionDimension);
 }
 
 void Voice::expressionEventSmooth(int32_t newValue, int32_t s) {
@@ -739,8 +740,6 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	}
 	checkStack("Voice::render");
 
-	Sound& sound = this->sound;
-
 	bool didStereoTempBuffer = false;
 
 	// If we've previously ignored a note-off, we need to check that the user hasn't changed the preset so that we're
@@ -801,7 +800,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 			if (expressionSourcesCurrentlySmoothing[i]) {
 
-				int32_t targetValue = combineExpressionValues(sound, i);
+				int32_t targetValue = combineExpressionValues(cfg.monophonicExpressionValues[i], i);
 
 				int32_t diff = (targetValue >> 8) - (params.sourceValues[i + util::to_underlying(PatchSource::X)] >> 8);
 

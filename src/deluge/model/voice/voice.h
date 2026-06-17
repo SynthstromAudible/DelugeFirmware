@@ -197,5 +197,5 @@ private:
 	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
 	bool areAllUnisonPartsInactive(const VoiceConfig& cfg) const;
 	void setupPorta(const Sound& sound);
-	int32_t combineExpressionValues(const Sound& sound, int32_t expressionDimension) const;
+	int32_t combineExpressionValues(int32_t synthLevelValue, int32_t expressionDimension) const;
 };
