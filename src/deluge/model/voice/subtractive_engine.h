@@ -22,6 +22,7 @@ class Voice;
 class Sound;
 class ParamManagerForTimeline;
 class ModelStackWithSoundFlags;
+struct VoiceConfig;
 
 /// @brief The subtractive synth engine: the cross-source *driver* for `SynthMode::SUBTRACTIVE` (per the L1
 /// reframe, `docs/dev/synth_l1_engine_architecture.md`). It owns the per-source render loop, the osc-sync
@@ -42,5 +43,5 @@ public:
 	            int32_t* oscBuffer, int32_t numSamples, bool doingOscSync, uint32_t* oscSyncPos,
 	            int32_t overallPitchAdjust, const int32_t* sourceAmplitudesNow,
 	            const int32_t* sourceAmplitudeIncrements, const int32_t* sourceWaveIndexIncrements,
-	            bool& anythingInOscBuffer, bool& didStereoTempBuffer, bool& unassignVoiceAfter);
+	            bool& anythingInOscBuffer, bool& didStereoTempBuffer, bool& unassignVoiceAfter, const VoiceConfig& cfg);
 };

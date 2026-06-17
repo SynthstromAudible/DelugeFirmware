@@ -927,7 +927,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 
 					// This Source needs an auto release applied. Calculate for the last unison, because that'll have
 					// the higher pitch, so will be ending soonest
-					VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[sound.numUnison - 1].sources[s];
+					VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[cfg.numUnison - 1].sources[s];
 					if (!voiceUnisonPartSource->active) {
 						continue;
 					}
@@ -1128,13 +1128,13 @@ skipAutoRelease: {}
 	// Oscillator sync: capture the master (source 0) phase at block start — from whichever persistent engine owns
 	// it (virtual-analog / wavetable), else oscPos.
 	if (doingOscSync) {
-		for (int32_t u = 0; u < sound.numUnison; u++) {
+		for (int32_t u = 0; u < cfg.numUnison; u++) {
 			oscSyncPos[u] = unisonParts[u].sources[0].currentOscPhase();
 		}
 	}
 
 	// whether stereo unison actually is active. if stereo is being vetoed from higher up, don't do it.
-	bool stereoUnison = sound.unisonStereoSpread && sound.numUnison > 1 && soundRenderingInStereo;
+	bool stereoUnison = cfg.unisonStereoSpread && cfg.numUnison > 1 && soundRenderingInStereo;
 
 	int32_t* oscBuffer;
 	bool anythingInOscBuffer = false;
@@ -1199,7 +1199,7 @@ skipAutoRelease: {}
 		subtractiveEngine.render(*this, sound, paramManager, *modelStack, oscBuffer, numSamples, doingOscSync,
 		                         oscSyncPos, overallPitchAdjust, sourceAmplitudesNow, sourceAmplitudeIncrements,
 		                         sourceWaveIndexIncrements, anythingInOscBuffer, didStereoTempBuffer,
-		                         unassignVoiceAfter);
+		                         unassignVoiceAfter, cfg);
 	}
 
 	// Otherwise (FM and ringmod) we go through each unison first, and for each one we render both sources together
@@ -1210,10 +1210,10 @@ skipAutoRelease: {}
 		}
 
 		// For each unison part
-		for (int32_t u = 0; u < sound.numUnison; u++) {
+		for (int32_t u = 0; u < cfg.numUnison; u++) {
 
 			int32_t unisonAmplitudeL, unisonAmplitudeR;
-			shouldDoPanning((stereoUnison ? sound.unisonPan[u] : 0), &unisonAmplitudeL, &unisonAmplitudeR);
+			shouldDoPanning((stereoUnison ? cfg.unisonPan[u] : 0), &unisonAmplitudeL, &unisonAmplitudeR);
 
 			// Work out the phase increments of the two sources. If these are too high, sourceAmplitudes[s] is set to 0.
 			// Yes this will affect all unison parts, which seems like it's not what we want, but since we're traversing
@@ -1875,12 +1875,12 @@ void Voice::renderBasicSource(Sound& sound, ParamManagerForTimeline* paramManage
                               int32_t overallPitchAdjust, bool doOscSync, uint32_t* __restrict__ oscSyncPos,
                               uint32_t* __restrict__ oscSyncPhaseIncrements, int32_t amplitudeIncrement,
                               uint32_t* __restrict__ getPhaseIncrements, bool getOutAfterPhaseIncrements,
-                              int32_t waveIndexIncrement) {
+                              int32_t waveIndexIncrement, const VoiceConfig& cfg) {
 
 	checkStack("Voice::renderBasicSource");
 
 	// For each unison part
-	for (int32_t u = 0; u < sound.numUnison; u++) {
+	for (int32_t u = 0; u < cfg.numUnison; u++) {
 
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
@@ -1928,9 +1928,9 @@ pitchTooHigh:
 			}
 		}
 
-		bool stereoUnison = sound.unisonStereoSpread && sound.numUnison > 1 && stereoBuffer;
+		bool stereoUnison = cfg.unisonStereoSpread && cfg.numUnison > 1 && stereoBuffer;
 		int32_t amplitudeL, amplitudeR;
-		shouldDoPanning((stereoUnison ? sound.unisonPan[u] : 0), &amplitudeL, &amplitudeR);
+		shouldDoPanning((stereoUnison ? cfg.unisonPan[u] : 0), &amplitudeL, &amplitudeR);
 		// used if mono source but stereoUnison active
 
 		auto result =

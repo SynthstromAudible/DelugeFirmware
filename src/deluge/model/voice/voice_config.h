@@ -49,4 +49,8 @@ struct VoiceConfig {
 	uint8_t clippingAmount; ///< Sound::clippingAmount — gates + drives the output-stage saturation
 
 	bool doingOscSync; ///< Sound::renderingOscillatorSyncCurrently(paramManager) (sound-level, same for all voices)
+
+	uint8_t numUnison;                                  ///< Sound::numUnison
+	uint8_t unisonStereoSpread;                         ///< Sound::unisonStereoSpread
+	std::array<int32_t, kMaxNumVoicesUnison> unisonPan; ///< Sound::unisonPan (copied)
 };

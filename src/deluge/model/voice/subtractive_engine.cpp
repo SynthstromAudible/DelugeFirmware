@@ -29,7 +29,7 @@ void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeli
                                bool doingOscSync, uint32_t* oscSyncPos, int32_t overallPitchAdjust,
                                const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
                                const int32_t* sourceWaveIndexIncrements, bool& anythingInOscBuffer,
-                               bool& didStereoTempBuffer, bool& unassignVoiceAfter) {
+                               bool& didStereoTempBuffer, bool& unassignVoiceAfter, const VoiceConfig& cfg) {
 
 	bool unisonPartBecameInactive = false;
 
@@ -65,7 +65,7 @@ void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeli
 			voice.renderBasicSource(sound, paramManager, s, oscBuffer, numSamples, false, sourceAmplitudesNow[s],
 			                        &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync, oscSyncPos,
 			                        oscSyncPhaseIncrement, sourceAmplitudeIncrements[s], getPhaseIncrements,
-			                        getOutAfterGettingPhaseIncrements, sourceWaveIndexIncrements[s]);
+			                        getOutAfterGettingPhaseIncrements, sourceWaveIndexIncrements[s], cfg);
 			anythingInOscBuffer = true;
 		}
 		else {
@@ -103,7 +103,7 @@ void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeli
 				                        &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync,
 				                        oscSyncPos, oscSyncPhaseIncrement, sourceAmplitudeIncrements[s],
 				                        getPhaseIncrements, getOutAfterGettingPhaseIncrements,
-				                        sourceWaveIndexIncrements[s]);
+				                        sourceWaveIndexIncrements[s], cfg);
 			}
 		}
 
