@@ -31,7 +31,7 @@ the patcher input) and `ParamPlane`/`VoiceParams` (`synth/param_plane.h`, the pe
 | # | Reach (current) | Disposition |
 |---|---|---|
 | ~~L-i~~ ✅ | patcher input `sound.patchControlBlock(*paramManager)` (`voice.cpp:826`) | **DONE (slice 25)** — `ControlBlock` built at the adapter, passed into `Voice::render` as a `const ControlBlock&` param |
-| **L-ii** | `combineExpressionValues(sound, i)` (~`voice.cpp:802`, MPE bend/expression smoothing) | snapshot / pass what it reads off `sound` |
+| ~~L-ii~~ ✅ | `combineExpressionValues(sound, i)` (~`voice.cpp:802`, MPE bend/expression smoothing) | **DONE (slice 26)** — takes the `synthLevelValue` (= `cfg.monophonicExpressionValues[i]`) instead of `Sound&`; the dead `Sound&` render-body local removed → **`Voice::render`'s body is `sound`-free** |
 | **L-iii** | `getLocalLFOPhaseIncrement` (`voice.cpp:718`) → `sound.lfoConfig[id]` + `sound.getSyncedLFOPhaseIncrement(config)` | pass **transport-synced LFO increments** in per block (roadmap sub-slice d) |
 | **L-iv** | `AudioEngine::renderInStereo` (`voice.cpp:1173`), `AudioEngine::cpuDireness` (sample interpolation), `AudioEngine::nextVoiceState` (envelope-stage stamp) | inject / pass per block (a small "render context") |
 | **L-v** | file-scope `spareRenderingBuffer[0/2/3]` | injected scratch buffers |
