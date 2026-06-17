@@ -30,6 +30,13 @@ class WaveTable;
 /// (`docs/dev/synth_l1_engine_architecture.md`).
 namespace deluge::voice {
 
+/// The uniform outcome of rendering one source component for one unison part, folding the per-engine return
+/// conventions (sample's status / DX7's active-bool / the void oscillator paths) into one: keep sounding
+/// (ACTIVE), unassign this source now (UNASSIGN), or skip this unison part without unassigning (SKIP — the
+/// sample late-start "wait" + the osc-sync freq-too-high cases). The single seam a SourceComponent interface +
+/// the engine registry will build on.
+enum class SourceRenderResult { ACTIVE, UNASSIGN, SKIP };
+
 /// Build the already-modulated per-block controls a source component renders from (the raw values renderOsc's VA
 /// branch used to build; the component derives pulse/sync/retrigger/band/scale internally).
 synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncrement, uint32_t pulseWidth,

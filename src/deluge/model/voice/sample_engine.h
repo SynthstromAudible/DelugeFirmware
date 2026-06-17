@@ -16,7 +16,8 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp" // LoopType / MarkerType
+#include "definitions_cxx.hpp"                   // LoopType / MarkerType
+#include "model/voice/source_component_render.h" // deluge::voice::SourceRenderResult
 #include <cstdint>
 
 class Sample;
@@ -42,11 +43,6 @@ class ParamManagerForTimeline;
 /// rides the engine-forming slices (likely behind the `SampleSource` port).
 class SampleEngine {
 public:
-	/// Render outcome, distinguishing the legacy control-flow exits the SAMPLE branch had inside Voice's
-	/// per-unison loop: keep sounding (ACTIVE), stop this source now (UNASSIGN ⇒ instantUnassign), or skip this
-	/// block without unassigning (SKIP ⇒ the late-start "WAIT" case).
-	enum class RenderResult { ACTIVE, UNASSIGN, SKIP };
-
 	/// Note-on for the SAMPLE source: solicit (or restart in place) the pooled VoiceSample and set up its
 	/// clusters for initial play. Returns false only on a hard failure that should silence the whole Voice (out
 	/// of VoiceSamples / cluster setup failed); true otherwise — including the "unplayable / no file" and
@@ -59,10 +55,12 @@ public:
 	/// late-start maths). @p stereoUnisonScratch is the caller's spare buffer used only when @p stereoUnison.
 	/// Reaches back into @p voice / @p sound / @p paramManager for the guide, params and caching policy — the
 	/// app-coupling this engine deliberately localises.
-	RenderResult render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager, int32_t s,
-	                    int32_t* __restrict__ oscBuffer, int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
-	                    int32_t amplitudeIncrement, uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue,
-	                    bool stereoUnison, int32_t amplitudeL, int32_t amplitudeR, int32_t* stereoUnisonScratch);
+	deluge::voice::SourceRenderResult render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager,
+	                                         int32_t s, int32_t* __restrict__ oscBuffer, int32_t numSamples,
+	                                         bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
+	                                         uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue,
+	                                         bool stereoUnison, int32_t amplitudeL, int32_t amplitudeR,
+	                                         int32_t* stereoUnisonScratch);
 
 	/// Free the pooled VoiceSample back to AudioEngine (no-op if none held).
 	void unassign(bool deletingSong);

@@ -1735,6 +1735,127 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 // require an additional copying(summing) step, 		and we might as well just apply amplitude while that's
 // happening, which is exactly how it is currently.
 
+// Render one unison part of one source, dispatching by oscType to the per-source component and folding the
+// per-engine outcomes into one uniform SourceRenderResult. The single uniform dispatch seam a SourceComponent
+// interface + the engine registry will build on. (Still a Voice method using public state — this is the seam,
+// not yet the de-coupling.)
+deluge::voice::SourceRenderResult
+Voice::renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerForTimeline* paramManager,
+                             int32_t* oscBuffer, int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
+                             int32_t amplitudeIncrement, uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
+                             uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
+                             int32_t amplitudeL, int32_t amplitudeR) {
+	using deluge::voice::SourceRenderResult;
+	VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
+
+	// If sample...
+	if (sound.sources[s].oscType == OscType::SAMPLE) {
+		return voiceUnisonPartSource->sampleEngine.render(
+		    *this, sound, paramManager, s, oscBuffer, numSamples, stereoBuffer, sourceAmplitude, amplitudeIncrement,
+		    phaseIncrement, voiceUnisonPartSource->phaseIncrementStoredValue, stereoUnison, amplitudeL, amplitudeR,
+		    spareRenderingBuffer[2]);
+	}
+
+	// Or echoing input
+	if (sound.sources[s].oscType == OscType::INPUT_L || sound.sources[s].oscType == OscType::INPUT_R
+	    || sound.sources[s].oscType == OscType::INPUT_STEREO) {
+		// Live input renders through its per-source engine (which owns the LivePitchShifter lifecycle + the
+		// live-input-ring read). The interpolation buffer size is a Sound-side value the engine doesn't reach;
+		// stereoUnison + amplitudeL/R carry the unison stereo-spread panning into the engine.
+		unisonParts[u].sources[s].inputEngine.render(
+		    sound.sources[s].oscType, oscBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement,
+		    stereoBuffer, stereoUnison, amplitudeL, amplitudeR,
+		    sound.sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement));
+		return SourceRenderResult::ACTIVE;
+	}
+
+	if (sound.sources[s].oscType == OscType::DX7) {
+		static int32_t uniBuf[DX_MAX_N] __attribute__((aligned(CACHE_LINE_SIZE)));
+		memset(uniBuf, 0, sizeof uniBuf);
+
+		// The DX7 (FM) source renders through its engine — pooled DxVoice + the pitch/control derivation. The
+		// engine adds into uniBuf; the bespoke amplitude+sum below stays here (Voice's buffer layout).
+		bool active = unisonParts[u].sources[s].dx7Engine.render(
+		    uniBuf, numSamples, phaseIncrement, *sound.sources[s].ensureDxPatch(),
+		    params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s], sound.sources[s].dxPatchChanged,
+		    noteCodeAfterArpeggiation);
+		if (!active) {
+			return SourceRenderResult::UNASSIGN;
+		}
+
+		int32_t sourceAmplitudeNow = sourceAmplitude;
+		if (stereoUnison) {
+			for (int i = 0; i < numSamples; i++) {
+				sourceAmplitudeNow += amplitudeIncrement;
+				int amplified = multiply_32x32_rshift32(uniBuf[i], sourceAmplitudeNow) << 6;
+				oscBuffer[(i << 1)] += multiply_32x32_rshift32(amplified, amplitudeL) << 2;
+				oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, amplitudeR) << 2;
+			}
+		}
+		else {
+			for (int i = 0; i < numSamples; i++) {
+				sourceAmplitudeNow += amplitudeIncrement;
+				oscBuffer[i] += multiply_32x32_rshift32(uniBuf[i], sourceAmplitudeNow) << 6;
+			}
+		}
+		return SourceRenderResult::ACTIVE;
+	}
+
+	// Or regular wave (virtual-analog / wavetable)
+	uint32_t oscSyncPosThisUnison;
+	uint32_t oscSyncPhaseIncrementsThisUnison;
+	uint32_t oscRetriggerPhase = sound.oscRetriggerPhase[s]; // Yes we might need this even if not doing osc sync.
+
+	// If doing osc sync
+	if (doOscSync) {
+
+		// If freq too high...
+		if (!oscSyncPhaseIncrements[u]) {
+			return SourceRenderResult::SKIP;
+		}
+
+		oscSyncPosThisUnison = oscSyncPos[u];
+		oscSyncPhaseIncrementsThisUnison = oscSyncPhaseIncrements[u];
+	}
+
+	int32_t* renderBuffer = oscBuffer;
+
+	if (stereoBuffer) {
+		renderBuffer = spareRenderingBuffer[2];
+		memset(renderBuffer, 0, SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
+	}
+
+	// Work out pulse width
+	uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
+
+	// The wave table is only consumed when oscType == WAVETABLE. Basic oscillators (SAW/SQUARE/SINE/...) have no
+	// audio file, so audioFileHolder is null — don't dereference it.
+	WaveTable* waveTable =
+	    guides[s].audioFileHolder != nullptr ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile) : nullptr;
+	// Both wave families render through their persistent per-source engine (which owns the phase across blocks):
+	// virtual-analog → vaEngine, wavetable → wavetableEngine. SAMPLE/INPUT/DX7 took earlier branches.
+	if (unisonParts[u].sources[s].vaEngine.has_value()) {
+		renderVaSource(*unisonParts[u].sources[s].vaEngine, sourceAmplitude, amplitudeIncrement, renderBuffer,
+		               numSamples, phaseIncrement, pulseWidth, true, doOscSync, oscSyncPosThisUnison,
+		               oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
+	}
+	else {
+		renderWavetableSource(*unisonParts[u].sources[s].wavetableEngine, waveTable, sourceWaveIndexesLastTime[s],
+		                      waveIndexIncrement, sourceAmplitude, amplitudeIncrement, renderBuffer, numSamples,
+		                      phaseIncrement, pulseWidth, true, doOscSync, oscSyncPosThisUnison,
+		                      oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
+	}
+
+	if (stereoBuffer) {
+		// TODO: if render buffer was typed we could use addPannedMono()
+		for (int32_t i = 0; i < numSamples; i++) {
+			oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
+			oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
+		}
+	}
+	return SourceRenderResult::ACTIVE;
+}
+
 void Voice::renderBasicSource(Sound& sound, ParamManagerForTimeline* paramManager, int32_t s,
                               int32_t* __restrict__ oscBuffer, int32_t numSamples, bool stereoBuffer,
                               int32_t sourceAmplitude, bool* __restrict__ unisonPartBecameInactive,
@@ -1799,125 +1920,15 @@ pitchTooHigh:
 		shouldDoPanning((stereoUnison ? sound.unisonPan[u] : 0), &amplitudeL, &amplitudeR);
 		// used if mono source but stereoUnison active
 
-		// If sample...
-		if (sound.sources[s].oscType == OscType::SAMPLE) {
-			SampleEngine::RenderResult result = voiceUnisonPartSource->sampleEngine.render(
-			    *this, sound, paramManager, s, oscBuffer, numSamples, stereoBuffer, sourceAmplitude, amplitudeIncrement,
-			    phaseIncrement, voiceUnisonPartSource->phaseIncrementStoredValue, stereoUnison, amplitudeL, amplitudeR,
-			    spareRenderingBuffer[2]);
-			if (result == SampleEngine::RenderResult::UNASSIGN) {
-				goto instantUnassign;
-			}
-			if (result == SampleEngine::RenderResult::SKIP) {
-				continue;
-			}
+		auto result =
+		    renderSourceComponent(u, s, sound, paramManager, oscBuffer, numSamples, stereoBuffer, sourceAmplitude,
+		                          amplitudeIncrement, phaseIncrement, doOscSync, oscSyncPos, oscSyncPhaseIncrements,
+		                          waveIndexIncrement, stereoUnison, amplitudeL, amplitudeR);
+		if (result == deluge::voice::SourceRenderResult::UNASSIGN) {
+			goto instantUnassign;
 		}
-
-		// Or echoing input
-		else if (sound.sources[s].oscType == OscType::INPUT_L || sound.sources[s].oscType == OscType::INPUT_R
-		         || sound.sources[s].oscType == OscType::INPUT_STEREO) {
-			// Live input renders through its per-source engine (which owns the LivePitchShifter lifecycle + the
-			// live-input-ring read). The interpolation buffer size is a Sound-side value the engine doesn't reach;
-			// stereoUnison + amplitudeL/R carry the unison stereo-spread panning into the engine.
-			unisonParts[u].sources[s].inputEngine.render(
-			    sound.sources[s].oscType, oscBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement,
-			    stereoBuffer, stereoUnison, amplitudeL, amplitudeR,
-			    sound.sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement));
-		}
-		else if (sound.sources[s].oscType == OscType::DX7) {
-			static int32_t uniBuf[DX_MAX_N] __attribute__((aligned(CACHE_LINE_SIZE)));
-			memset(uniBuf, 0, sizeof uniBuf);
-
-			// The DX7 (FM) source renders through its engine — pooled DxVoice + the pitch/control derivation. The
-			// engine adds into uniBuf; the bespoke amplitude+sum below stays here (Voice's buffer layout).
-			bool active = unisonParts[u].sources[s].dx7Engine.render(
-			    uniBuf, numSamples, phaseIncrement, *sound.sources[s].ensureDxPatch(),
-			    params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s], sound.sources[s].dxPatchChanged,
-			    noteCodeAfterArpeggiation);
-			if (!active) {
-				goto instantUnassign;
-			}
-
-			int32_t sourceAmplitudeNow = sourceAmplitude;
-			if (stereoUnison) {
-				for (int i = 0; i < numSamples; i++) {
-					sourceAmplitudeNow += amplitudeIncrement;
-					int amplified = multiply_32x32_rshift32(uniBuf[i], sourceAmplitudeNow) << 6;
-					oscBuffer[(i << 1)] += multiply_32x32_rshift32(amplified, amplitudeL) << 2;
-					oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, amplitudeR) << 2;
-				}
-			}
-			else {
-				for (int i = 0; i < numSamples; i++) {
-					sourceAmplitudeNow += amplitudeIncrement;
-					oscBuffer[i] += multiply_32x32_rshift32(uniBuf[i], sourceAmplitudeNow) << 6;
-				}
-			}
-
-			// Or regular wave
-		}
-		else [[likely]] {
-			uint32_t oscSyncPosThisUnison;
-			uint32_t oscSyncPhaseIncrementsThisUnison;
-			uint32_t oscRetriggerPhase =
-			    sound.oscRetriggerPhase[s]; // Yes we might need this even if not doing osc sync.
-
-			// If doing osc sync
-			if (doOscSync) {
-
-				// If freq too high...
-				if (!oscSyncPhaseIncrements[u]) {
-					continue;
-				}
-
-				oscSyncPosThisUnison = oscSyncPos[u];
-				oscSyncPhaseIncrementsThisUnison = oscSyncPhaseIncrements[u];
-			}
-
-			int32_t* renderBuffer = oscBuffer;
-
-			if (stereoBuffer) {
-				renderBuffer = spareRenderingBuffer[2];
-				memset(renderBuffer, 0, SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
-			}
-
-			int32_t* oscBufferEnd =
-			    renderBuffer + numSamples; // TODO: we don't really want to be calculating this so early do we?
-
-			// Work out pulse width
-			uint32_t pulseWidth =
-			    (uint32_t)lshiftAndSaturate<1>(params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
-
-			// The wave table is only consumed by renderOsc when oscType == WAVETABLE. Basic
-			// oscillators (SAW/SQUARE/SINE/...) have no audio file, so audioFileHolder is null — don't
-			// dereference it. (On hardware the null read landed in mapped low memory and the value was
-			// ignored for non-wavetable types; the host faults on the unmapped read.)
-			WaveTable* waveTable = guides[s].audioFileHolder != nullptr
-			                           ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile)
-			                           : nullptr;
-			// Both wave families now render through their persistent per-source engine (which owns the phase across
-			// blocks): virtual-analog → vaEngine, wavetable → wavetableEngine. SAMPLE/INPUT/DX7 took earlier
-			// branches, so this regular-wave path only ever sees one of those two.
-			if (unisonParts[u].sources[s].vaEngine.has_value()) {
-				renderVaSource(*unisonParts[u].sources[s].vaEngine, sourceAmplitude, amplitudeIncrement, renderBuffer,
-				               numSamples, phaseIncrement, pulseWidth, true, doOscSync, oscSyncPosThisUnison,
-				               oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
-			}
-			else {
-				renderWavetableSource(*unisonParts[u].sources[s].wavetableEngine, waveTable,
-				                      sourceWaveIndexesLastTime[s], waveIndexIncrement, sourceAmplitude,
-				                      amplitudeIncrement, renderBuffer, numSamples, phaseIncrement, pulseWidth, true,
-				                      doOscSync, oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison,
-				                      oscRetriggerPhase);
-			}
-
-			if (stereoBuffer) {
-				// TODO: if render buffer was typed we could use addPannedMono()
-				for (int32_t i = 0; i < numSamples; i++) {
-					oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
-					oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
-				}
-			}
+		if (result == deluge::voice::SourceRenderResult::SKIP) {
+			continue;
 		}
 	}
 }

@@ -105,12 +105,11 @@ int32_t SampleEngine::getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGui
 	return voiceSample_->getPlayByteLowLevel(sample, guide);
 }
 
-SampleEngine::RenderResult SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager,
-                                                int32_t s, int32_t* __restrict__ oscBuffer, int32_t numSamples,
-                                                bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
-                                                uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue,
-                                                bool stereoUnison, int32_t amplitudeL, int32_t amplitudeR,
-                                                int32_t* stereoUnisonScratch) {
+deluge::voice::SourceRenderResult
+SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager, int32_t s,
+                     int32_t* __restrict__ oscBuffer, int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
+                     int32_t amplitudeIncrement, uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue,
+                     bool stereoUnison, int32_t amplitudeL, int32_t amplitudeR, int32_t* stereoUnisonScratch) {
 
 	Sample* sample = (Sample*)voice.guides[s].audioFileHolder->audioFile;
 	VoiceSample* voiceSample = voiceSample_;
@@ -155,7 +154,7 @@ SampleEngine::RenderResult SampleEngine::render(Voice& voice, Sound& sound, Para
 	bool stillOk = getPitchAndSpeedParams(&sound.sources[s], &voice.guides[s], &phaseIncrement, &timeStretchRatio,
 	                                      &noteLengthInSamples);
 	if (!stillOk) {
-		return RenderResult::UNASSIGN;
+		return deluge::voice::SourceRenderResult::UNASSIGN;
 	}
 
 	// If user unmuted mid-note...
@@ -194,10 +193,10 @@ SampleEngine::RenderResult SampleEngine::render(Voice& voice, Sound& sound, Para
 		    voiceSample->attemptLateSampleStart(&voice.guides[s], sample, rawSamplesLate, numSamples);
 
 		if (result == LateStartAttemptStatus::FAILURE) {
-			return RenderResult::UNASSIGN;
+			return deluge::voice::SourceRenderResult::UNASSIGN;
 		}
 		else if (result == LateStartAttemptStatus::WAIT) {
-			return RenderResult::SKIP;
+			return deluge::voice::SourceRenderResult::SKIP;
 		}
 		// Otherwise, it started fine!
 	}
@@ -277,7 +276,7 @@ SampleEngine::RenderResult SampleEngine::render(Voice& voice, Sound& sound, Para
 				    voiceSample->possiblySetUpCache(&sound.sources[s].sampleControls, &voice.guides[s], phaseIncrement,
 				                                    timeStretchRatio, voice.getPriorityRating(), loopingType);
 				if (!everythingOk) {
-					return RenderResult::UNASSIGN;
+					return deluge::voice::SourceRenderResult::UNASSIGN;
 				}
 			}
 
@@ -328,9 +327,9 @@ dontUseCache: {}
 	}
 
 	if (!stillActive) {
-		return RenderResult::UNASSIGN;
+		return deluge::voice::SourceRenderResult::UNASSIGN;
 	}
-	return RenderResult::ACTIVE;
+	return deluge::voice::SourceRenderResult::ACTIVE;
 }
 
 bool SampleEngine::getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* guide, uint32_t* phaseIncrement,

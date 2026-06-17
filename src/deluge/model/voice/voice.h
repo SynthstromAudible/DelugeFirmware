@@ -21,6 +21,7 @@
 #include "dsp/filter/filter_set.h"
 #include "model/voice/fm_engine.h"
 #include "model/voice/ringmod_engine.h"
+#include "model/voice/source_component_render.h" // deluge::voice::SourceRenderResult
 #include "model/voice/subtractive_engine.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part.h"
@@ -172,6 +173,16 @@ private:
 	                       bool* unisonPartBecameInactive, int32_t overallPitchAdjust, bool doOscSync,
 	                       uint32_t* oscSyncPos, uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement,
 	                       uint32_t* getPhaseIncrements, bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement);
+	// Render one unison part of one source, dispatching by oscType to the per-source component (sample / input /
+	// dx7 / virtual-analog / wavetable) and folding their outcomes into one uniform result. The single dispatch
+	// seam a SourceComponent interface + the engine registry will build on. Called from renderBasicSource's
+	// per-unison loop after the shared pitch/pan/sync setup.
+	deluge::voice::SourceRenderResult
+	renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
+	                      int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
+	                      uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
+	                      uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
+	                      int32_t amplitudeL, int32_t amplitudeR);
 	static bool adjustPitch(uint32_t& phaseIncrement, int32_t adjustment);
 
 	void renderSineWaveWithFeedback(int32_t* thisSample, int32_t numSamples, uint32_t* phase, int32_t amplitude,
