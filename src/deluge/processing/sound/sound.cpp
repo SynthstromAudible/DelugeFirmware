@@ -2558,9 +2558,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
-			bool stillGoing =
-			    voice->render(modelStackWithSoundFlags, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
-			                  applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig);
+			bool stillGoing = voice->render(modelStackWithSoundFlags, paramManager, sound_mono.data(),
+			                                sound_mono.size(), voice_rendered_in_stereo, applyingPanAtVoiceLevel,
+			                                sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig);
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
