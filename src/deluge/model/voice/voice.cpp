@@ -840,15 +840,9 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	}
 
 	// Pitch adjust via MIDI pitch bend and MPE
-	uint8_t const* bendRanges = FlashStorage::defaultBendRange;
-	ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-	if (expressionParams) {
-		bendRanges = expressionParams->bendRanges;
-	}
-
 	int32_t totalBendAmount = // Comes out as a 32-bit number representing a range of +-192 semitones
-	    (cfg.monophonicExpressionValues[0] / 192) * bendRanges[BEND_RANGE_MAIN]
-	    + (localExpressionSourceValuesBeforeSmoothing[0] / 192) * bendRanges[BEND_RANGE_FINGER_LEVEL];
+	    (cfg.monophonicExpressionValues[0] / 192) * cfg.bendRanges[BEND_RANGE_MAIN]
+	    + (localExpressionSourceValuesBeforeSmoothing[0] / 192) * cfg.bendRanges[BEND_RANGE_FINGER_LEVEL];
 
 	overallPitchAdjust = getExp(overallPitchAdjust, totalBendAmount >> 1);
 
@@ -865,9 +859,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		overallPitchAdjust = a << 8;
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
-		int32_t envelopeSpeed = lookupReleaseRate(cableToExpParamShortcut(
-		                            paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO)))
-		                        >> 13;
+		int32_t envelopeSpeed = lookupReleaseRate(cableToExpParamShortcut(cfg.portamento)) >> 13;
 		portaEnvelopePos += envelopeSpeed * numSamples;
 	}
 

@@ -2527,6 +2527,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			dxPatchChangeds[s] = sources[s].dxPatchChanged;
 			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 		}
+		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
+		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
 		const VoiceConfig voiceConfig{
 		    .lpfMode = lpfMode,
 		    .hpfMode = hpfMode,
@@ -2555,6 +2557,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		        paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648),
 		    .localSourcesPatchedToAnything =
 		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
+		    .bendRanges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
+		    .portamento = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO),
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {

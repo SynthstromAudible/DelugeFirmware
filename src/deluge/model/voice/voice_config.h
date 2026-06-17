@@ -83,4 +83,11 @@ struct VoiceConfig {
 	/// paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL] — bitmask of which local patch
 	/// sources are wired (the local envelope/LFO render gates on it). Set by setupPatching, loop-stable.
 	uint32_t localSourcesPatchedToAnything;
+
+	/// The resolved MPE bend ranges ([BEND_RANGE_MAIN], [BEND_RANGE_FINGER_LEVEL]) — the sound's
+	/// ExpressionParamSet::bendRanges, or FlashStorage::defaultBendRange when there's no expression set.
+	std::array<uint8_t, 2> bendRanges;
+	/// paramManager->getUnpatchedParamSet()->getValue(UNPATCHED_PORTAMENTO) — raw porta param (the
+	/// cableToExpParamShortcut/lookupReleaseRate transform stays in the render).
+	int32_t portamento;
 };
