@@ -16,9 +16,11 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp"                            // SynthMode
+#include "definitions_cxx.hpp"                            // SynthMode, kNumExpressionDimensions
 #include "model/mod_controllable/filters/filter_config.h" // FilterMode, FilterRoute
 #include "synth/lfo.h"                                    // LFOConfig
+#include <array>
+#include <bitset>
 #include <cstdint>
 
 /// @brief A per-sound snapshot of the render config the voice kernel consumes — built by the adapter
@@ -40,4 +42,7 @@ struct VoiceConfig {
 	LFOConfig lfo4Config; ///< Sound::lfoConfig[LFO4_ID]
 
 	bool hasFilters; ///< Sound::hasFilters()
+
+	std::bitset<kNumExpressionDimensions> expressionSourcesChangedAtSynthLevel; ///< Sound:: (same name)
+	std::array<int32_t, kNumExpressionDimensions> monophonicExpressionValues;   ///< Sound:: (same name)
 };

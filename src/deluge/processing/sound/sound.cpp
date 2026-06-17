@@ -2524,6 +2524,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .lfo2Config = lfoConfig[LFO2_ID],
 		    .lfo4Config = lfoConfig[LFO4_ID],
 		    .hasFilters = thisHasFilters,
+		    .expressionSourcesChangedAtSynthLevel = expressionSourcesChangedAtSynthLevel,
+		    .monophonicExpressionValues = monophonicExpressionValues,
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {

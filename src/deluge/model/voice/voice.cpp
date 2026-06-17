@@ -785,7 +785,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 
 	// MPE params
 
-	expressionSourcesCurrentlySmoothing |= sound.expressionSourcesChangedAtSynthLevel;
+	expressionSourcesCurrentlySmoothing |= cfg.expressionSourcesChangedAtSynthLevel;
 
 	if (expressionSourcesCurrentlySmoothing.any()) {
 		expressionSourcesFinalValueChanged |= expressionSourcesCurrentlySmoothing;
@@ -840,7 +840,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	}
 
 	int32_t totalBendAmount = // Comes out as a 32-bit number representing a range of +-192 semitones
-	    (sound.monophonicExpressionValues[0] / 192) * bendRanges[BEND_RANGE_MAIN]
+	    (cfg.monophonicExpressionValues[0] / 192) * bendRanges[BEND_RANGE_MAIN]
 	    + (localExpressionSourceValuesBeforeSmoothing[0] / 192) * bendRanges[BEND_RANGE_FINGER_LEVEL];
 
 	overallPitchAdjust = getExp(overallPitchAdjust, totalBendAmount >> 1);
