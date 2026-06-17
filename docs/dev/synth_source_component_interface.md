@@ -1,10 +1,13 @@
 # Phase 4 L-vi — the `SourceComponent` interface + source ports
 
-> Status: **design / roadmap.** Concretizes the L1-doc source-component contract (`synth_l1_engine_architecture.md`)
-> into an actual interface, for the L-vi port arc of the `synth::Voice` lift (`synth_voice_lift.md`). Strategy
-> (Kate): the **full abstract interface** — the per-source engines become impls behind a `SourceComponent` base,
-> the app-coupled ones reaching `model`/`processing`/`storage` only through **injected ports** (impls app-side), so
-> the kernel passes `check_synth_boundary`. Each step lands bit-exact + golden-gated.
+> Status: **REFINED — see `synth_source_ownership.md`.** This doc sketched a `SourceComponent` interface as
+> dispatch-polymorphism *over the legacy flat param plane*. That conflated three separable concerns (dispatch
+> boundary / param ownership / dsp-next residence). The reframe: **the lift (L-vi) needs only the ports** — the
+> oscType switch doesn't trip the boundary; the app reaches inside the sample/input engines do. So **L-vi = the
+> `SampleSource` + live-input ports + the `Source::renderInStereo` `AudioEngine` globals**, keeping the oscType
+> dispatch. The **polymorphic, param-owning `SourceComponent`** moves to the OO Source phase (`synth_source_ownership.md`,
+> phase A) — designed *with* typed per-component params, not over `LOCAL_* + s`. The `SourceComponent` contract +
+> port sketches below remain useful inputs for that phase. Each step bit-exact + golden-gated.
 
 ## Why
 
