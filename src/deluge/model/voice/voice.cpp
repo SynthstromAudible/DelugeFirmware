@@ -1123,7 +1123,7 @@ skipAutoRelease: {}
 	doneFirstRender = true;
 
 	uint32_t oscSyncPos[kMaxNumVoicesUnison];
-	bool doingOscSync = sound.renderingOscillatorSyncCurrently(paramManager);
+	bool doingOscSync = cfg.doingOscSync;
 
 	// Oscillator sync: capture the master (source 0) phase at block start — from whichever persistent engine owns
 	// it (virtual-analog / wavetable), else oscPos.

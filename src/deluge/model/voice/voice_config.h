@@ -47,4 +47,6 @@ struct VoiceConfig {
 	std::array<int32_t, kNumExpressionDimensions> monophonicExpressionValues;   ///< Sound:: (same name)
 
 	uint8_t clippingAmount; ///< Sound::clippingAmount — gates + drives the output-stage saturation
+
+	bool doingOscSync; ///< Sound::renderingOscillatorSyncCurrently(paramManager) (sound-level, same for all voices)
 };

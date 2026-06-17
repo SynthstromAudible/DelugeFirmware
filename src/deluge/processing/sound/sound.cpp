@@ -2527,6 +2527,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .expressionSourcesChangedAtSynthLevel = expressionSourcesChangedAtSynthLevel,
 		    .monophonicExpressionValues = monophonicExpressionValues,
 		    .clippingAmount = clippingAmount,
+		    .doingOscSync = renderingOscillatorSyncCurrently(paramManager),
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {
