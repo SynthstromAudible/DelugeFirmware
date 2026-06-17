@@ -169,12 +169,11 @@ private:
 	// phaseShift);
 	bool delete_this_voice_{false};
 
-	void renderBasicSource(Sound& sound, ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer,
-	                       int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
-	                       bool* unisonPartBecameInactive, int32_t overallPitchAdjust, bool doOscSync,
-	                       uint32_t* oscSyncPos, uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement,
-	                       uint32_t* getPhaseIncrements, bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement,
-	                       const VoiceConfig& cfg);
+	void renderBasicSource(ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer, int32_t numSamples,
+	                       bool stereoBuffer, int32_t sourceAmplitude, bool* unisonPartBecameInactive,
+	                       int32_t overallPitchAdjust, bool doOscSync, uint32_t* oscSyncPos,
+	                       uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement, uint32_t* getPhaseIncrements,
+	                       bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement, const VoiceConfig& cfg);
 	// Render one unison part of one source, dispatching by oscType to the per-source component (sample / input /
 	// dx7 / virtual-analog / wavetable) and folding their outcomes into one uniform result. The single dispatch
 	// seam a SourceComponent interface + the engine registry will build on. Called from renderBasicSource's

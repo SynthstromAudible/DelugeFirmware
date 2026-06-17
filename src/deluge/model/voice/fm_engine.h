@@ -38,8 +38,8 @@ public:
 	/// per-unison amplitudes are computed by Voice and passed in. @p modulatorsActive is **mutable** — entries
 	/// are knocked to false on pitch-too-high and (faithful to the inline code) that persists across unison
 	/// parts. @p modulatorScratch / @p carrierScratch are the caller's spare buffers (spareRenderingBuffer[2]/[3]).
-	void render(Voice& voice, Sound& sound, int32_t u, int32_t numSamples, int32_t overallPitchAdjust,
-	            bool stereoUnison, int32_t unisonAmplitudeL, int32_t unisonAmplitudeR, const uint32_t* phaseIncrements,
+	void render(Voice& voice, int32_t u, int32_t numSamples, int32_t overallPitchAdjust, bool stereoUnison,
+	            int32_t unisonAmplitudeL, int32_t unisonAmplitudeR, const uint32_t* phaseIncrements,
 	            const int32_t* sourceAmplitudes, const int32_t* sourceAmplitudesNow,
 	            const int32_t* sourceAmplitudeIncrements, bool* modulatorsActive,
 	            const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer, int32_t* modulatorScratch,

@@ -26,12 +26,12 @@
 using namespace deluge;
 namespace params = deluge::modulation::params;
 
-void FMEngine::render(Voice& voice, Sound& sound, int32_t u, int32_t numSamples, int32_t overallPitchAdjust,
-                      bool stereoUnison, int32_t unisonAmplitudeL, int32_t unisonAmplitudeR,
-                      const uint32_t* phaseIncrements, const int32_t* sourceAmplitudes,
-                      const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
-                      bool* modulatorsActive, const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer,
-                      int32_t* modulatorScratch, int32_t* carrierScratch, const VoiceConfig& cfg) {
+void FMEngine::render(Voice& voice, int32_t u, int32_t numSamples, int32_t overallPitchAdjust, bool stereoUnison,
+                      int32_t unisonAmplitudeL, int32_t unisonAmplitudeR, const uint32_t* phaseIncrements,
+                      const int32_t* sourceAmplitudes, const int32_t* sourceAmplitudesNow,
+                      const int32_t* sourceAmplitudeIncrements, bool* modulatorsActive,
+                      const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer, int32_t* modulatorScratch,
+                      int32_t* carrierScratch, const VoiceConfig& cfg) {
 
 	// If overall pitch adjusted, adjust modulator pitches
 	uint32_t phaseIncrementModulator[kNumModulators];

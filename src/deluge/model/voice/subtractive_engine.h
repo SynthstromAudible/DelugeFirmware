@@ -38,9 +38,8 @@ public:
 	/// in place). The per-source amplitude/wave-index arrays and the osc-sync master phases are computed by Voice
 	/// and passed in; @p anythingInOscBuffer / @p didStereoTempBuffer / @p unassignVoiceAfter are updated exactly
 	/// as the inline driver did.
-	void render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
-	            int32_t numSamples, bool doingOscSync, uint32_t* oscSyncPos, int32_t overallPitchAdjust,
-	            const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
-	            const int32_t* sourceWaveIndexIncrements, bool& anythingInOscBuffer, bool& didStereoTempBuffer,
-	            bool& unassignVoiceAfter, const VoiceConfig& cfg);
+	void render(Voice& voice, ParamManagerForTimeline* paramManager, int32_t* oscBuffer, int32_t numSamples,
+	            bool doingOscSync, uint32_t* oscSyncPos, int32_t overallPitchAdjust, const int32_t* sourceAmplitudesNow,
+	            const int32_t* sourceAmplitudeIncrements, const int32_t* sourceWaveIndexIncrements,
+	            bool& anythingInOscBuffer, bool& didStereoTempBuffer, bool& unassignVoiceAfter, const VoiceConfig& cfg);
 };

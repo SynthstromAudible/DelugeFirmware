@@ -1179,7 +1179,7 @@ skipAutoRelease: {}
 	// buffer dance + the unison-inactive→unassign decision (it delegates each source's render back to
 	// renderBasicSource for now).
 	if (synthMode == SynthMode::SUBTRACTIVE) {
-		subtractiveEngine.render(*this, sound, paramManager, oscBuffer, numSamples, doingOscSync, oscSyncPos,
+		subtractiveEngine.render(*this, paramManager, oscBuffer, numSamples, doingOscSync, oscSyncPos,
 		                         overallPitchAdjust, sourceAmplitudesNow, sourceAmplitudeIncrements,
 		                         sourceWaveIndexIncrements, anythingInOscBuffer, didStereoTempBuffer,
 		                         unassignVoiceAfter, cfg);
@@ -1271,7 +1271,7 @@ skipAutoRelease: {}
 
 			// Or if FM
 			else {
-				fmEngine.render(*this, sound, u, numSamples, overallPitchAdjust, stereoUnison, unisonAmplitudeL,
+				fmEngine.render(*this, u, numSamples, overallPitchAdjust, stereoUnison, unisonAmplitudeL,
 				                unisonAmplitudeR, phaseIncrements, sourceAmplitudes, sourceAmplitudesNow,
 				                sourceAmplitudeIncrements, modulatorsActive, modulatorAmplitudeIncrements, oscBuffer,
 				                spareRenderingBuffer[2], spareRenderingBuffer[3], cfg);
@@ -1850,13 +1850,12 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	return SourceRenderResult::ACTIVE;
 }
 
-void Voice::renderBasicSource(Sound& sound, ParamManagerForTimeline* paramManager, int32_t s,
-                              int32_t* __restrict__ oscBuffer, int32_t numSamples, bool stereoBuffer,
-                              int32_t sourceAmplitude, bool* __restrict__ unisonPartBecameInactive,
-                              int32_t overallPitchAdjust, bool doOscSync, uint32_t* __restrict__ oscSyncPos,
-                              uint32_t* __restrict__ oscSyncPhaseIncrements, int32_t amplitudeIncrement,
-                              uint32_t* __restrict__ getPhaseIncrements, bool getOutAfterPhaseIncrements,
-                              int32_t waveIndexIncrement, const VoiceConfig& cfg) {
+void Voice::renderBasicSource(ParamManagerForTimeline* paramManager, int32_t s, int32_t* __restrict__ oscBuffer,
+                              int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
+                              bool* __restrict__ unisonPartBecameInactive, int32_t overallPitchAdjust, bool doOscSync,
+                              uint32_t* __restrict__ oscSyncPos, uint32_t* __restrict__ oscSyncPhaseIncrements,
+                              int32_t amplitudeIncrement, uint32_t* __restrict__ getPhaseIncrements,
+                              bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement, const VoiceConfig& cfg) {
 
 	checkStack("Voice::renderBasicSource");
 

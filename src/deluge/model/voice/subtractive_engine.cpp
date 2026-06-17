@@ -24,7 +24,7 @@
 #include "processing/source.h"
 #include <cstring>
 
-void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
+void SubtractiveEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
                                int32_t numSamples, bool doingOscSync, uint32_t* oscSyncPos, int32_t overallPitchAdjust,
                                const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
                                const int32_t* sourceWaveIndexIncrements, bool& anythingInOscBuffer,
@@ -62,7 +62,7 @@ void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeli
 
 		if (!Source::renderInStereo(cfg.oscType[s], cfg.unisonStereoSpread, cfg.numUnison,
 		                            (SampleHolder*)voice.guides[s].audioFileHolder)) {
-			voice.renderBasicSource(sound, paramManager, s, oscBuffer, numSamples, false, sourceAmplitudesNow[s],
+			voice.renderBasicSource(paramManager, s, oscBuffer, numSamples, false, sourceAmplitudesNow[s],
 			                        &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync, oscSyncPos,
 			                        oscSyncPhaseIncrement, sourceAmplitudeIncrements[s], getPhaseIncrements,
 			                        getOutAfterGettingPhaseIncrements, sourceWaveIndexIncrements[s], cfg);
@@ -96,10 +96,9 @@ void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeli
 			if (sourcesToRenderInStereo & (1 << s)) {
 
 				uint32_t* getPhaseIncrements = ((s == 0) && doingOscSync) ? oscSyncPhaseIncrement : nullptr;
-				bool getOutAfterGettingPhaseIncrements =
-				    getPhaseIncrements && !sound.isSourceActiveCurrently(s, paramManager);
+				bool getOutAfterGettingPhaseIncrements = getPhaseIncrements && !cfg.sourceActiveCurrently[s];
 
-				voice.renderBasicSource(sound, paramManager, s, oscBuffer, numSamples, true, sourceAmplitudesNow[s],
+				voice.renderBasicSource(paramManager, s, oscBuffer, numSamples, true, sourceAmplitudesNow[s],
 				                        &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync,
 				                        oscSyncPos, oscSyncPhaseIncrement, sourceAmplitudeIncrements[s],
 				                        getPhaseIncrements, getOutAfterGettingPhaseIncrements,
