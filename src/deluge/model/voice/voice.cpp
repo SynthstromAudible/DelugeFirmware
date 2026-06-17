@@ -1330,20 +1330,10 @@ skipAutoRelease: {}
 			// If ringmod
 			if (synthMode == SynthMode::RINGMOD) [[unlikely]] {
 
-				int32_t amplitudeForRingMod = 1 << 27;
-
-				if (sound.hasFilters()) {
-					amplitudeForRingMod = multiply_32x32_rshift32_rounded(amplitudeForRingMod, filterGain) << 4;
-				}
-
-				bool doingOscSyncThisOscillator = false;
-				int32_t s = 0;
-				goto cantBeDoingOscSyncForFirstOsc;
-
-				for (; s < 2; s++) {
-					doingOscSyncThisOscillator = doingOscSync;
-
-cantBeDoingOscSyncForFirstOsc:
+				// Build the per-source render context; the engine owns the cross-source ring-mod relationship
+				// (render both sources raw with source 0 the hard-sync master, then multiply + pan).
+				RingModEngine::Source ringModSources[kNumSources];
+				for (int32_t s = 0; s < kNumSources; s++) {
 					// Work out pulse width, from parameter. This has no effect if we're not actually using square
 					// waves, but just do it anyway, it's a simple calculation
 					int32_t pulseWidth =
@@ -1351,62 +1341,26 @@ cantBeDoingOscSyncForFirstOsc:
 
 					OscType oscType = sound.sources[s].oscType;
 
-					// Non-wavetable sources have no audioFileHolder; renderOsc only reads the
-					// WaveTable for OscType::WAVETABLE, but the unconditional dereference here
-					// was a null-pointer read (benign on target where address 0 is mapped).
+					// Non-wavetable sources have no audioFileHolder; only OscType::WAVETABLE reads the table.
 					WaveTable* waveTable = (oscType == OscType::WAVETABLE)
 					                           ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile)
 					                           : nullptr;
 
-					// Both ring-moddable wave families now render through their persistent per-source engine (VA or
-					// wavetable). Ring-mod renders the raw wave: applyAmplitude=false, amplitude 0.
-					if (unisonParts[u].sources[s].vaEngine.has_value()) {
-						renderVaSource(*unisonParts[u].sources[s].vaEngine, 0, 0, spareRenderingBuffer[s + 2],
-						               numSamples, phaseIncrements[s], pulseWidth, false, doingOscSyncThisOscillator,
-						               oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s]);
-					}
-					else {
-						renderWavetableSource(*unisonParts[u].sources[s].wavetableEngine, waveTable,
-						                      sourceWaveIndexesLastTime[s], sourceWaveIndexIncrements[s], 0, 0,
-						                      spareRenderingBuffer[s + 2], numSamples, phaseIncrements[s], pulseWidth,
-						                      false, doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0],
-						                      sound.oscRetriggerPhase[s]);
-					}
-
-					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
-					// we need to compensate
-					if (oscType == OscType::SAW || oscType == OscType::ANALOG_SAW_2) {
-						amplitudeForRingMod <<= 1;
-					}
-					else if (oscType == OscType::WAVETABLE) {
-						amplitudeForRingMod <<= 2;
-					}
+					ringModSources[s] = RingModEngine::Source{
+					    .part = &unisonParts[u].sources[s],
+					    .phaseIncrement = phaseIncrements[s],
+					    .pulseWidth = pulseWidth,
+					    .waveTable = waveTable,
+					    .waveIndexLast = sourceWaveIndexesLastTime[s],
+					    .waveIndexIncrement = sourceWaveIndexIncrements[s],
+					    .oscType = oscType,
+					    .retriggerPhase = sound.oscRetriggerPhase[s],
+					};
 				}
 
-				int32_t* __restrict__ output = oscBuffer;
-				int32_t* __restrict__ input0 = spareRenderingBuffer[2];
-				int32_t* __restrict__ input1 = spareRenderingBuffer[3];
-
-				if (stereoUnison) {
-					int32_t const* const oscBufferEnd = oscBuffer + 2 * numSamples;
-					do {
-						int32_t out = multiply_32x32_rshift32_rounded(multiply_32x32_rshift32(*input0, *input1),
-						                                              amplitudeForRingMod);
-						*output++ += multiply_32x32_rshift32(out, unisonAmplitudeL) << 2;
-						*output++ += multiply_32x32_rshift32(out, unisonAmplitudeR) << 2;
-						input0++;
-						input1++;
-					} while (output != oscBufferEnd);
-				}
-				else {
-					int32_t const* const oscBufferEnd = oscBuffer + numSamples;
-					do {
-						*output += multiply_32x32_rshift32_rounded(multiply_32x32_rshift32(*input0, *input1),
-						                                           amplitudeForRingMod);
-						input0++;
-						input1++;
-					} while (++output != oscBufferEnd);
-				}
+				ringModEngine.render(ringModSources[0], ringModSources[1], doingOscSync, oscSyncPos[u],
+				                     sound.hasFilters(), filterGain, unisonAmplitudeL, unisonAmplitudeR, stereoUnison,
+				                     oscBuffer, numSamples, spareRenderingBuffer[2], spareRenderingBuffer[3]);
 			}
 
 			// Or if FM

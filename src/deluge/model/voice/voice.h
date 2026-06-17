@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
+#include "model/voice/ringmod_engine.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part.h"
 #include "modulation/params/param.h"
@@ -69,6 +70,10 @@ public:
 	LFO lfo4;
 
 	dsp::filter::FilterSet filterSet;
+
+	// The ring-mod synth engine: owns the cross-source ring-mod relationship (renders both sources + combines).
+	// Stateless for now — the VA/wavetable components stay owned per-source on the VoiceUnisonParts.
+	RingModEngine ringModEngine;
 
 	// Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
 	std::array<int32_t, 2> inputCharacteristics{};
