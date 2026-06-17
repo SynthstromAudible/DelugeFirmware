@@ -71,4 +71,8 @@ struct VoiceConfig {
 	/// Sound::allowNoteTails(modelStack, /*disregardSampleLoop=*/true) — the note-tail re-check for a voice that
 	/// previously ignored a note-off (e.g. preset changed mid-note). Sound/clip-level, identical for all voices.
 	bool noteTailsAllowed;
+
+	/// ModelStackWithSoundFlags::checkSourceEverActive(s) — the per-source "ever active" soundFlags. Sound/
+	/// paramManager-derived, computed once on the shared per-render modelStack, so identical for all voices.
+	std::array<bool, kNumSources> sourceEverActive;
 };

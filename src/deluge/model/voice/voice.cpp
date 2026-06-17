@@ -740,7 +740,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	checkStack("Voice::render");
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
-	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
+	Sound& sound = this->sound;
 
 	bool didStereoTempBuffer = false;
 
@@ -891,7 +891,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		// For each source...
 		for (int32_t s = 0; s < kNumSources; s++) {
 			// If this source isn't enabled, skip it
-			if (!modelStack->checkSourceEverActive(s)) {
+			if (!cfg.sourceEverActive[s]) {
 				continue;
 			}
 
