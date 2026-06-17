@@ -60,7 +60,8 @@ void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeli
 			}
 		}
 
-		if (!sound.sources[s].renderInStereo(&sound, (SampleHolder*)voice.guides[s].audioFileHolder)) {
+		if (!Source::renderInStereo(cfg.oscType[s], cfg.unisonStereoSpread, cfg.numUnison,
+		                            (SampleHolder*)voice.guides[s].audioFileHolder)) {
 			voice.renderBasicSource(sound, paramManager, s, oscBuffer, numSamples, false, sourceAmplitudesNow[s],
 			                        &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync, oscSyncPos,
 			                        oscSyncPhaseIncrement, sourceAmplitudeIncrements[s], getPhaseIncrements,
