@@ -38,4 +38,6 @@ struct VoiceConfig {
 	SynthMode synthMode;  ///< Sound::getSynthMode() — drives the subtractive/ring-mod/FM dispatch
 	LFOConfig lfo2Config; ///< Sound::lfoConfig[LFO2_ID]
 	LFOConfig lfo4Config; ///< Sound::lfoConfig[LFO4_ID]
+
+	bool hasFilters; ///< Sound::hasFilters()
 };

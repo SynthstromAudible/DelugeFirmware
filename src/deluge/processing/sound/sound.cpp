@@ -2523,6 +2523,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .synthMode = getSynthMode(),
 		    .lfo2Config = lfoConfig[LFO2_ID],
 		    .lfo4Config = lfoConfig[LFO4_ID],
+		    .hasFilters = thisHasFilters,
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {

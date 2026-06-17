@@ -1049,7 +1049,7 @@ skipAutoRelease: {}
 
 		// Or if subtractive, we don't do that, because we do want to apply the overall amplitude *after* the filter
 		else {
-			if (sound.hasFilters()) {
+			if (cfg.hasFilters) {
 				sourceAmplitudes[0] =
 				    multiply_32x32_rshift32_rounded(params.paramFinalValues[params::LOCAL_OSC_A_VOLUME], filterGain);
 				sourceAmplitudes[1] =
@@ -1148,7 +1148,7 @@ skipAutoRelease: {}
 		// So now I really need to make it so that sounds made before V2.0 halve their noise volume... (Hey, did I
 		// ever do this? Who knows...)
 		int32_t n = params.paramFinalValues[params::LOCAL_NOISE_VOLUME] >> 1;
-		if (sound.hasFilters()) {
+		if (cfg.hasFilters) {
 			n = multiply_32x32_rshift32(n, filterGain) << 4;
 		}
 
@@ -1268,9 +1268,9 @@ skipAutoRelease: {}
 					};
 				}
 
-				ringModEngine.render(ringModSources[0], ringModSources[1], doingOscSync, oscSyncPos[u],
-				                     sound.hasFilters(), filterGain, unisonAmplitudeL, unisonAmplitudeR, stereoUnison,
-				                     oscBuffer, numSamples, spareRenderingBuffer[2], spareRenderingBuffer[3]);
+				ringModEngine.render(ringModSources[0], ringModSources[1], doingOscSync, oscSyncPos[u], cfg.hasFilters,
+				                     filterGain, unisonAmplitudeL, unisonAmplitudeR, stereoUnison, oscBuffer,
+				                     numSamples, spareRenderingBuffer[2], spareRenderingBuffer[3]);
 			}
 
 			// Or if FM
