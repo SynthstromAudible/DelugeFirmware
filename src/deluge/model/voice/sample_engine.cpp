@@ -106,10 +106,10 @@ int32_t SampleEngine::getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGui
 }
 
 deluge::voice::SourceRenderResult
-SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager, int32_t s,
-                     int32_t* __restrict__ oscBuffer, int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
-                     int32_t amplitudeIncrement, uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue,
-                     bool stereoUnison, int32_t amplitudeL, int32_t amplitudeR, int32_t* stereoUnisonScratch) {
+SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_t s, int32_t* __restrict__ oscBuffer,
+                     int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
+                     uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue, bool stereoUnison, int32_t amplitudeL,
+                     int32_t amplitudeR, int32_t* stereoUnisonScratch) {
 
 	Sample* sample = (Sample*)voice.guides[s].audioFileHolder->audioFile;
 	VoiceSample* voiceSample = voiceSample_;
@@ -123,7 +123,7 @@ SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramM
 		int32_t r = getRandom255();
 
 		if (r < 128) {
-			sound.guides[s].timeStretchAmount = (getRandom255() % 24) - 12;
+			voice.sound.guides[s].timeStretchAmount = (getRandom255() % 24) - 12;
 		}
 
 		else {
@@ -138,7 +138,7 @@ SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramM
 				voice.guides[s].audioFileHolder->setCents((int32_t)(getRandom255() % 100) - 50);
 			}
 
-			sound.recalculateAllVoicePhaseIncrements(paramManager);
+			voice.sound.recalculateAllVoicePhaseIncrements(paramManager);
 		}
 
 		// D_PRINTLN("end random change");
@@ -151,7 +151,7 @@ SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramM
 	uint32_t timeStretchRatio;
 	uint32_t noteLengthInSamples;
 
-	bool stillOk = getPitchAndSpeedParams(&sound.sources[s], &voice.guides[s], &phaseIncrement, &timeStretchRatio,
+	bool stillOk = getPitchAndSpeedParams(&voice.sound.sources[s], &voice.guides[s], &phaseIncrement, &timeStretchRatio,
 	                                      &noteLengthInSamples);
 	if (!stillOk) {
 		return deluge::voice::SourceRenderResult::UNASSIGN;
@@ -164,7 +164,7 @@ SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramM
 		int32_t rawSamplesLate;
 
 		// Synced / STRETCH - it's super easy.
-		if (sound.sources[s].repeatMode == SampleRepeatMode::STRETCH) {
+		if (voice.sound.sources[s].repeatMode == SampleRepeatMode::STRETCH) {
 			rawSamplesLate = voice.guides[s].getSyncedNumSamplesIn();
 		}
 
@@ -179,7 +179,7 @@ SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramM
 			// phaseIncrementStoredValue. This fix was done in September 2020 after bug
 			// report from Clyde.
 			uint32_t timeStretchRatioWithoutModulation =
-			    getSpeedParamForNoSyncing(&sound.sources[s], phaseIncrementStoredValue,
+			    getSpeedParamForNoSyncing(&voice.sound.sources[s], phaseIncrementStoredValue,
 			                              ((SampleHolder*)voice.guides[s].audioFileHolder)->neutralPhaseIncrement);
 
 			// Cool, so now we've got phaseIncrement and timeStretchRatio equivalent values which will indicate
@@ -201,7 +201,7 @@ SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramM
 		// Otherwise, it started fine!
 	}
 
-	LoopType loopingType = voice.guides[s].getLoopingType(sound.sources[s]);
+	LoopType loopingType = voice.guides[s].getLoopingType(voice.sound.sources[s]);
 
 	int32_t interpolationBufferSize;
 
@@ -209,7 +209,7 @@ SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramM
 	if (phaseIncrement != kMaxSampleValue) {
 
 		// Work out what quality we're going to do that at
-		interpolationBufferSize = sound.sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement);
+		interpolationBufferSize = voice.sound.sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement);
 
 		// And if first render, and other conditions met, see if we can use cache.
 		// It may seem like it'd be a good idea to try and set this up on note-on, rather than here in the
@@ -263,7 +263,7 @@ SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramM
 					// TODO: probably need to check for X and Y modulation sources here too...
 
 					else if (cable->from == PatchSource::SIDECHAIN) {
-						if (sound.params.sourceValues[util::to_underlying(PatchSource::SIDECHAIN)]) {
+						if (voice.sound.params.sourceValues[util::to_underlying(PatchSource::SIDECHAIN)]) {
 							goto dontUseCache;
 						}
 					}
@@ -272,9 +272,9 @@ SampleEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramM
 
 			{
 				// If still here, we can use cache
-				bool everythingOk =
-				    voiceSample->possiblySetUpCache(&sound.sources[s].sampleControls, &voice.guides[s], phaseIncrement,
-				                                    timeStretchRatio, voice.getPriorityRating(), loopingType);
+				bool everythingOk = voiceSample->possiblySetUpCache(&voice.sound.sources[s].sampleControls,
+				                                                    &voice.guides[s], phaseIncrement, timeStretchRatio,
+				                                                    voice.getPriorityRating(), loopingType);
 				if (!everythingOk) {
 					return deluge::voice::SourceRenderResult::UNASSIGN;
 				}
@@ -304,10 +304,10 @@ dontUseCache: {}
 	// increments for the hop crossfades with the overall voice ones, and having multiple crossfading hops write
 	// directly to the osc buffer).
 
-	bool stillActive = voiceSample->render(&voice.guides[s], renderBuffer, numSamples, sample, numChannels, loopingType,
-	                                       phaseIncrement, timeStretchRatio, sourceAmplitude, amplitudeIncrement,
-	                                       interpolationBufferSize, sound.sources[s].sampleControls.interpolationMode,
-	                                       voice.getPriorityRating());
+	bool stillActive = voiceSample->render(
+	    &voice.guides[s], renderBuffer, numSamples, sample, numChannels, loopingType, phaseIncrement, timeStretchRatio,
+	    sourceAmplitude, amplitudeIncrement, interpolationBufferSize,
+	    voice.sound.sources[s].sampleControls.interpolationMode, voice.getPriorityRating());
 
 	if (stereoUnison) {
 		if (numChannels == 2) {

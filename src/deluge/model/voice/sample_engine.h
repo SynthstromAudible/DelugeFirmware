@@ -53,11 +53,11 @@ public:
 	/// Render one block of sample playback, adding into @p oscBuffer. @p phaseIncrement is the already
 	/// pitch-adjusted read rate; @p phaseIncrementStoredValue is the pre-modulation value (needed by the
 	/// late-start maths). @p stereoUnisonScratch is the caller's spare buffer used only when @p stereoUnison.
-	/// Reaches back into @p voice / @p sound / @p paramManager for the guide, params and caching policy — the
-	/// app-coupling this engine deliberately localises.
-	deluge::voice::SourceRenderResult render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager,
-	                                         int32_t s, int32_t* __restrict__ oscBuffer, int32_t numSamples,
-	                                         bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
+	/// Reaches back into @p voice (and its owning `voice.sound`) / @p paramManager for the guide, sources config,
+	/// params and caching policy — the app-coupling this engine deliberately localises.
+	deluge::voice::SourceRenderResult render(Voice& voice, ParamManagerForTimeline* paramManager, int32_t s,
+	                                         int32_t* __restrict__ oscBuffer, int32_t numSamples, bool stereoBuffer,
+	                                         int32_t sourceAmplitude, int32_t amplitudeIncrement,
 	                                         uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue,
 	                                         bool stereoUnison, int32_t amplitudeL, int32_t amplitudeR,
 	                                         int32_t* stereoUnisonScratch);

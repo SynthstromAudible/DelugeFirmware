@@ -1750,9 +1750,9 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 // interface + the engine registry will build on. (Still a Voice method using public state — this is the seam,
 // not yet the de-coupling.)
 deluge::voice::SourceRenderResult
-Voice::renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerForTimeline* paramManager,
-                             int32_t* oscBuffer, int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
-                             int32_t amplitudeIncrement, uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
+Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
+                             int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
+                             uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
                              uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
                              int32_t amplitudeL, int32_t amplitudeR, const VoiceConfig& cfg) {
 	using deluge::voice::SourceRenderResult;
@@ -1761,7 +1761,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerFor
 	// If sample...
 	if (cfg.oscType[s] == OscType::SAMPLE) {
 		return voiceUnisonPartSource->sampleEngine.render(
-		    *this, sound, paramManager, s, oscBuffer, numSamples, stereoBuffer, sourceAmplitude, amplitudeIncrement,
+		    *this, paramManager, s, oscBuffer, numSamples, stereoBuffer, sourceAmplitude, amplitudeIncrement,
 		    phaseIncrement, voiceUnisonPartSource->phaseIncrementStoredValue, stereoUnison, amplitudeL, amplitudeR,
 		    spareRenderingBuffer[2]);
 	}
@@ -1930,7 +1930,7 @@ pitchTooHigh:
 		// used if mono source but stereoUnison active
 
 		auto result =
-		    renderSourceComponent(u, s, sound, paramManager, oscBuffer, numSamples, stereoBuffer, sourceAmplitude,
+		    renderSourceComponent(u, s, paramManager, oscBuffer, numSamples, stereoBuffer, sourceAmplitude,
 		                          amplitudeIncrement, phaseIncrement, doOscSync, oscSyncPos, oscSyncPhaseIncrements,
 		                          waveIndexIncrement, stereoUnison, amplitudeL, amplitudeR, cfg);
 		if (result == deluge::voice::SourceRenderResult::UNASSIGN) {

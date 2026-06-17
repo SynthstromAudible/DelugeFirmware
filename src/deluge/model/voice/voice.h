@@ -180,7 +180,7 @@ private:
 	// seam a SourceComponent interface + the engine registry will build on. Called from renderBasicSource's
 	// per-unison loop after the shared pitch/pan/sync setup.
 	deluge::voice::SourceRenderResult
-	renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
+	renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
 	                      int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
 	                      uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
 	                      uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
