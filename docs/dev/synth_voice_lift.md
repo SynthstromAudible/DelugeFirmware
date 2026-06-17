@@ -30,7 +30,7 @@ the patcher input) and `ParamPlane`/`VoiceParams` (`synth/param_plane.h`, the pe
 
 | # | Reach (current) | Disposition |
 |---|---|---|
-| **L-i** | patcher input `sound.patchControlBlock(*paramManager)` (`voice.cpp:826`) | **build `ControlBlock` at the adapter, pass it in** — the first slice (see below) |
+| ~~L-i~~ ✅ | patcher input `sound.patchControlBlock(*paramManager)` (`voice.cpp:826`) | **DONE (slice 25)** — `ControlBlock` built at the adapter, passed into `Voice::render` as a `const ControlBlock&` param |
 | **L-ii** | `combineExpressionValues(sound, i)` (~`voice.cpp:802`, MPE bend/expression smoothing) | snapshot / pass what it reads off `sound` |
 | **L-iii** | `getLocalLFOPhaseIncrement` (`voice.cpp:718`) → `sound.lfoConfig[id]` + `sound.getSyncedLFOPhaseIncrement(config)` | pass **transport-synced LFO increments** in per block (roadmap sub-slice d) |
 | **L-iv** | `AudioEngine::renderInStereo` (`voice.cpp:1173`), `AudioEngine::cpuDireness` (sample interpolation), `AudioEngine::nextVoiceState` (envelope-stage stamp) | inject / pass per block (a small "render context") |
@@ -62,7 +62,7 @@ consumer (the patcher input + `noteOff` + `renderBasicSource`/engines) is rerout
 
 Prime directive throughout: **bit-exact** (full x86 golden byte-identical + targeted ARM/qemu per slice).
 
-## First slice (L-i) — pass the patcher `ControlBlock` in
+## L-i (DONE, slice 25) — pass the patcher `ControlBlock` in
 
 `patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager))` (`voice.cpp:826`) is the only
 per-voice patcher-input build. `ControlBlock` is a tiny POD — `{patched_params, patch_cable_set, paramLPF.p,
