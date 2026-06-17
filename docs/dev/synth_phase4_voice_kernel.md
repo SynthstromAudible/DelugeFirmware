@@ -1,8 +1,10 @@
 # Phase 4 — the L2 voice kernel
 
-> Status: **roadmap / design** (no code yet). Expands Phase 4 of `synth_untangling_plan.md` into an executable
-> plan. Builds on `synth_l1_engine_architecture.md` (the engines/components the kernel composes) and the Phase-2
-> data plane (`ControlBlock`, `VoiceParams`). Each sub-slice below lands as its own bit-exact, golden-gated commit.
+> Status: **in progress — 20 bit-exact slices landed** (see Progress). `Voice::render`'s *signature* is now free of
+> `Sound&` and `ModelStackWithSoundFlags*`; the remaining work is decoupling the render *body/helpers* and the lift
+> itself. Expands Phase 4 of `synth_untangling_plan.md`; builds on `synth_l1_engine_architecture.md` (the
+> engines/components the kernel composes) and the Phase-2 data plane (`ControlBlock`, `VoiceParams`). Each slice
+> lands as its own bit-exact, golden-gated commit (x86 byte-identical + targeted ARM/qemu).
 
 ## Goal
 
@@ -17,6 +19,30 @@ on host with zero firmware scaffolding, and is the body that L3 (the CLAP-shaped
 render path is upward-ref-free, lifting it into `synth::Voice` is near-mechanical. Golden-gated throughout — no
 two-implementation window. (This mirrors the relocate-in-place discipline of every Phase-3 slice.)
 
+## Progress (slices 1–20, all bit-exact / golden-gated)
+
+The strangler-fig is well advanced. `Voice::render` now takes
+`render(ParamManagerForTimeline* paramManager, int32_t* soundBuffer, …flags…, int32_t externalPitchAdjust, const
+VoiceConfig& cfg)` — **no `Sound&`, no `ModelStackWithSoundFlags*`**. A new app-side `VoiceConfig`
+(`model/voice/voice_config.h`), built once at the adapter edge (`Sound::render`), carries the snapshotted config.
+
+- **Config-snapshot arc — DONE** (slices 1–13): filter set, synthMode + LFO config, `hasFilters`, MPE expression
+  state, saturation/`clippingAmount` (DSP relocated into `voice.cpp` file-local helpers), `doingOscSync`, unison
+  (numUnison/spread/pan — first engine-threaded), `oscRetriggerPhase`, and the per-source enums `oscType` /
+  `repeatMode` / `interpolationMode` (the INPUT branch went fully `sound.sources`-free).
+- **Source-component port arc — DONE (mechanically)** (slices 14–15): `renderSourceComponent` is **fully
+  `Sound&`-free** (all five source branches decoupled). DX7 patch is injected at note-on (`DX7Engine` caches it,
+  render takes no `DxPatch&`); the sample engine reads `voice.sound` internally and `Voice::renderSourceComponent`
+  dropped its `Sound&` param. *The abstract `SampleSource`/`SourceComponent` interface (sub-slice e) is deferred to
+  the lift* — see below.
+- **modelStack-drop arc — DONE** (slices 16–19): `sound` deref → `this->sound`; source-active flags, the
+  noise-source predicate, and `numUnison` snapshotted so `areAllUnisonPartsInactive` + `SubtractiveEngine::render`
+  are `modelStack`-free; `paramManager` passed explicitly; `Voice::noteOff` reworked to take
+  `(paramManager, noteTailsAllowed)` — after which the `ModelStackWithSoundFlags*` parameter was removed from
+  `Voice::render`.
+- **Shrink-`paramManager` arc — STARTED** (slice 20): the local patched-sources bitmask snapshotted; the
+  auto-release noise read reuses the snapshot.
+
 ## The L2 boundary
 
 **Voice-rendering state (belongs in the kernel):** the per-source engines/components
@@ -27,16 +53,22 @@ envelopes, `lfo2`/`lfo4`, `filterSet`, oscillator phase/feedback, and the `Voice
 **App state (must NOT be reached from render):** preset config (`Sound`), automation/patch source
 (`ParamManager`), scheduling/voice-pool policy, transport, and storage (sample/wavetable/live-input).
 
-**Already done (Phase 2):** the patcher runs off a `ControlBlock` (`synth/control_block.h`) produced by
-`Sound::patchControlBlock(paramManager)` (`processing/sound/sound.h:272`); `Voice::render` invokes it at
-`voice.cpp:819` (`patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager))`). So the render
-is **largely data-plane-driven already** (it reads `params.paramFinalValues`). The remaining gap is the ~40
-`sound.*` config reads + a handful of `modelStack` hooks.
+**Already done (Phase 2 + slices 1–20):** the patcher runs off a `ControlBlock` (`synth/control_block.h`) produced
+by `Sound::patchControlBlock(paramManager)` (`processing/sound/sound.h:272`); `Voice::render` still invokes it
+inline (`patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager))`). The render was
+**largely data-plane-driven already** (it reads `params.paramFinalValues`); the ~40 `sound.*` config reads + the
+`modelStack` hooks listed below have now been **routed through `VoiceConfig` / explicit params** (slices 1–20), so
+`Voice::render`'s signature no longer carries `Sound&` or `modelStack`. What's left is the render *body/helpers*
+still reaching `this->sound` + a few live `paramManager` reads, and the relocation.
 
 ## Coupling inventory (the work)
 
-`Voice::render` is `voice.cpp:717`; it pulls `paramManager` + `sound` off `modelStack` at `728`–`729`. The
-upward references, categorised:
+> **Historical map** — this is the *original* inventory that drove slices 1–20; the line numbers predate the work
+> and most rows are now resolved (see the per-row disposition + the Progress section). Kept as the categorisation
+> of the coupling.
+
+`Voice::render` was `voice.cpp:717` (now `729`); it pulled `paramManager` + `sound` off `modelStack`. The upward
+references, categorised:
 
 | Category | Examples (current) | Phase-4 disposition |
 |---|---|---|
@@ -56,27 +88,35 @@ Note: most of the heaviest `sound.*` / `modelStack->` coupling lives in **note-o
 > which `render` reads pervasively (the patcher + ~40 `sound.*` reads), so `modelStack` cannot leave `render`
 > until those config uses are routed through a snapshot first.
 
-a. **Snapshot preset/voice config into a `VoiceConfig` (+ the existing `ControlBlock`)** — the bulk, done in
-   grouped bite-sized slices (filters first; then unison; synth-mode + osc-retrigger; LFO config;
-   saturation/clipping — relocating `Sound::saturate`'s DSP into the kernel; modulator routing). Each replaces a
-   cluster of `sound.*` reads with config-struct reads; the adapter (`Sound::render`) populates it. **`VoiceConfig`
-   starts app-side (`model/voice/`)** — its filter-enum fields live under `model/` and `synth/` may not include
-   `model/`; it relocates to `synth/` once numeric-agnostic.
-b. **Drop `modelStack` from the render hot path** — once config no longer needs it, pass `Sound&` / `ParamManager`
-   (or `ControlBlock`) + precomputed source-active flags explicitly; keep `modelStack` only at the adapter edge
-   (`sound.cpp:2520`, the `voice->render(...)` call site). Make `areAllUnisonPartsInactive` kernel-internal (note
-   `checkSourceEverActive` caches `soundFlags` on the modelStack across setup + render).
-c. **Move scheduling / note-tail / voice-pool reads behind app-side hooks** — the kernel emits signals; the app
-   (Sound/voice-pool) owns `allowNoteTails`/`noteOff`/`voiceUnassigned`/priority/culling.
-d. **Pass transport-synced LFO increments in** — sever `getSyncedLFOPhaseIncrement`.
-e. **Formalise the `SourceComponent` interface + sample/input ports** — turn `renderSourceComponent`'s uniform
-   seam (`voice.cpp`, returns `deluge::voice::SourceRenderResult`) into a real per-source-component interface, and
-   inject sample/input via ports so the source dispatch is no longer app-reached. **This dissolves the
-   Subtractive/FM `friend`-couplings.** Largest, deepest slice (the storage boundary).
-f. **Lift to `synth::Voice`** — once the render path has no upward refs, move it into a portable `synth::Voice`
-   (+ a host unit test constructing it with zero `Song`/`ModelStack`/`AudioEngine`). Old `Voice`/`Sound::render`
-   become the adapter (build `ControlBlock`/`VoiceConfig` from ParamManager-world). DX7-as-engine (additive, keep
-   the source) and the engine **registry** can land here.
+a. ✅ **DONE — Snapshot preset/voice config into a `VoiceConfig`** (slices 1–13). Done in grouped bite-sized
+   slices (filters, synth-mode, LFO config, hasFilters, expression, saturation/clipping — `Sound::saturate`'s DSP
+   relocated to `voice.cpp` file-local helpers, doingOscSync, unison, oscRetriggerPhase, oscType/repeatMode/
+   interpolationMode). `VoiceConfig` lives **app-side (`model/voice/voice_config.h`)** — its filter-enum fields are
+   under `model/`; it relocates to `synth/` at the lift once numeric-agnostic.
+b. ✅ **DONE — Drop `modelStack` from the render hot path** (slices 16–19). Source-active flags + the
+   noise-source predicate snapshotted; `paramManager` passed explicitly; `areAllUnisonPartsInactive` +
+   `SubtractiveEngine::render` made `modelStack`-free; `Voice::noteOff` reworked to `(paramManager,
+   noteTailsAllowed, …)`. The `ModelStackWithSoundFlags*` parameter is **removed** from `Voice::render`; the
+   adapter (`Sound::render`) no longer passes it.
+c. ◐ **PARTIAL — Note-tail / scheduling hooks.** `allowNoteTails` is snapshotted (`cfg.noteTailsAllowed`) and the
+   deferred note-off no longer needs `modelStack`. `voiceUnassigned`/priority/culling/`getPriorityRating` **stay
+   app-side** (the adapter) by design. `Voice::noteOff` still reaches `this->sound` internally — revisited at the
+   lift.
+d. ☐ **TODO — Pass transport-synced LFO increments in** — sever `getSyncedLFOPhaseIncrement` (still reached via
+   `getLocalLFOPhaseIncrement` → `sound.getSyncedLFOPhaseIncrement`).
+e. ◐ **RESCOPED — source dispatch decoupled mechanically (slices 14–15); abstract interface deferred to (f).**
+   `renderSourceComponent` is fully `Sound&`-free and returns `deluge::voice::SourceRenderResult`, but it is not
+   yet a real injected `SourceComponent` interface — the sample/input/DX7 engines still reach `voice.sound` /
+   storage in place. Kate's call (slice 15): do the mechanical `Sound&`-drop now, build the abstract `SampleSource`
+   / `SourceComponent` interface **at the lift**, where the engines also shed `Voice&` — avoids premature
+   abstraction. **This is where the Subtractive/FM `friend`-couplings dissolve.** Largest, deepest slice (storage
+   boundary).
+f. ☐ **TODO — Lift to `synth::Voice`** (the endgame). Prerequisites remaining first: finish the
+   **shrink-`paramManager` arc** (the render body's live reads — patcher `ControlBlock` @830, `getExpressionParamSet`
+   @847, `getUnpatchedParamSet` porta @872, the engine pass @1193 — plus `AudioEngine::renderInStereo` @1185 and
+   `cpuDireness`), and wean `renderBasicSource` + the engines off `this->sound`. Then move the render path into a
+   portable `synth::Voice` (+ a host unit test with zero `Song`/`ModelStack`/`AudioEngine`); old `Voice`/
+   `Sound::render` become the adapter. DX7-as-engine + the engine **registry** can land here.
 
 ## What stays app-side (out of the kernel)
 
