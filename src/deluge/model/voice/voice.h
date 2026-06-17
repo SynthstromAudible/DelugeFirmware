@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
+#include "model/voice/fm_engine.h"
 #include "model/voice/ringmod_engine.h"
 #include "model/voice/subtractive_engine.h"
 #include "model/voice/voice_sample_playback_guide.h"
@@ -36,9 +37,10 @@ class StereoSample;
 class ModelStackWithSoundFlags;
 using namespace deluge;
 class Voice final {
-	// Transitional: SubtractiveEngine owns the subtractive driver but still delegates the per-source render to
-	// the private renderBasicSource (and reads areAllUnisonPartsInactive). See synth_l1_engine_architecture.md.
+	// Transitional: the subtractive/FM engines own their drivers but still delegate the per-source render +
+	// pitch/feedback math back to Voice's private methods. See synth_l1_engine_architecture.md.
 	friend class SubtractiveEngine;
+	friend class FMEngine;
 
 public:
 	Voice(Sound& sound);
@@ -83,6 +85,10 @@ public:
 	// The subtractive synth engine: owns the per-source render loop + osc-sync + stereo dance. Transitional —
 	// it delegates the per-source render back to renderBasicSource (hence the friend declaration below).
 	SubtractiveEngine subtractiveEngine;
+
+	// The FM synth engine: owns one unison part's FM topology (modulators + carriers + feedback). Transitional —
+	// it delegates the sine/FM-with-feedback renders + adjustPitch back to Voice (hence the friend below).
+	FMEngine fmEngine;
 
 	// Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
 	std::array<int32_t, 2> inputCharacteristics{};
