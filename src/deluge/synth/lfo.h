@@ -162,7 +162,7 @@ public:
 	void setLocalInitialPhase(const LFOConfig& config);
 	void setGlobalInitialPhase(const LFOConfig& config);
 
-	[[gnu::always_inline]] int32_t render(int32_t num_samples, LFOConfig& config, uint32_t phase_increment) {
+	[[gnu::always_inline]] int32_t render(int32_t num_samples, const LFOConfig& config, uint32_t phase_increment) {
 		return render(num_samples, config.waveType, phase_increment);
 	}
 

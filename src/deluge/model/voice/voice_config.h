@@ -16,7 +16,9 @@
  */
 #pragma once
 
+#include "definitions_cxx.hpp"                            // SynthMode
 #include "model/mod_controllable/filters/filter_config.h" // FilterMode, FilterRoute
+#include "synth/lfo.h"                                    // LFOConfig
 #include <cstdint>
 
 /// @brief A per-sound snapshot of the render config the voice kernel consumes — built by the adapter
@@ -32,4 +34,8 @@ struct VoiceConfig {
 	FilterMode hpfMode;                  ///< Sound::hpfMode (gated with doHPF)
 	FilterRoute filterRoute;             ///< Sound::filterRoute
 	int32_t volumeNeutralValueForUnison; ///< Sound::volumeNeutralValueForUnison
+
+	SynthMode synthMode;  ///< Sound::getSynthMode() — drives the subtractive/ring-mod/FM dispatch
+	LFOConfig lfo2Config; ///< Sound::lfoConfig[LFO2_ID]
+	LFOConfig lfo4Config; ///< Sound::lfoConfig[LFO4_ID]
 };

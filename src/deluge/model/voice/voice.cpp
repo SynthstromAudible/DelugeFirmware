@@ -767,8 +767,8 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		int32_t old = params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
-		params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(
-		    numSamples, sound.lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement(LFO2_ID, params::LOCAL_LFO_LOCAL_FREQ_1));
+		params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
+		    lfo2.render(numSamples, cfg.lfo2Config, getLocalLFOPhaseIncrement(LFO2_ID, params::LOCAL_LFO_LOCAL_FREQ_1));
 		uint32_t anyChange = (old != params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_1);
 	}
@@ -777,8 +777,8 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		int32_t old = params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
-		params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(
-		    numSamples, sound.lfoConfig[LFO4_ID], getLocalLFOPhaseIncrement(LFO4_ID, params::LOCAL_LFO_LOCAL_FREQ_2));
+		params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
+		    lfo4.render(numSamples, cfg.lfo4Config, getLocalLFOPhaseIncrement(LFO4_ID, params::LOCAL_LFO_LOCAL_FREQ_2));
 		uint32_t anyChange = (old != params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_2);
 	}
@@ -869,7 +869,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 
 	// If not already releasing and some release is set, and no noise-source...
 	//@todo - cache this, it never changes
-	if (sound.getSynthMode() != SynthMode::FM && envelopes[0].stage() < Envelope::Stage::RELEASE && hasReleaseStage()
+	if (cfg.synthMode != SynthMode::FM && envelopes[0].stage() < Envelope::Stage::RELEASE && hasReleaseStage()
 	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
 
 		uint32_t whichSourcesNeedAttention = 0;
@@ -1008,7 +1008,7 @@ skipAutoRelease: {}
 	    hpfMode, params.paramFinalValues[params::LOCAL_HPF_MORPH], cfg.volumeNeutralValueForUnison << 1,
 	    cfg.filterRoute, false, nullptr); // Level adjustment for unison now happens *before* the filter!
 
-	SynthMode synthMode = sound.getSynthMode();
+	SynthMode synthMode = cfg.synthMode;
 
 	int32_t sourceAmplitudes[kNumSources];
 	int32_t sourceAmplitudeIncrements[kNumSources];

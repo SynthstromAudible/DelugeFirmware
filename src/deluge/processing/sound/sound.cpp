@@ -2520,6 +2520,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .hpfMode = hpfMode,
 		    .filterRoute = filterRoute,
 		    .volumeNeutralValueForUnison = volumeNeutralValueForUnison,
+		    .synthMode = getSynthMode(),
+		    .lfo2Config = lfoConfig[LFO2_ID],
+		    .lfo4Config = lfoConfig[LFO4_ID],
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {
