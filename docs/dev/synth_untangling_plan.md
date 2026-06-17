@@ -381,6 +381,13 @@ constructible in a unit test with zero Song/ModelStack/AudioEngine. Old
 into ControlBlocks. Scheduling policies (`justCreated` spread, `cpuDireness`
 culling, render-skipping) stay app-side behind explicit hooks.
 
+> **Roadmap: `synth_phase4_voice_kernel.md`.** Approach: **in-place decouple,
+> lift to `synth::Voice` last** — sever `Voice::render`'s remaining `Sound&` /
+> `ModelStack` / `ParamManager` reads one bit-exact slice at a time (route
+> config through an expanded `ControlBlock`/`VoiceConfig` + precomputed flags),
+> then lift the upward-ref-free render into the kernel as a mechanical final
+> move. That doc has the coupling inventory + sub-slice sequence.
+
 ### Phase 5 — L3 boundary + first foreign engine
 
 Define the CLAP-shaped C-ABI `process()`; move voice allocation inside the
