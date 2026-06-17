@@ -2538,6 +2538,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .oscRetriggerPhase = oscRetriggerPhase,
 		    .oscType = oscTypes,
 		    .globalSourceValues = params.sourceValues,
+		    .noteTailsAllowed = allowNoteTails(modelStackWithSoundFlags, true),
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {

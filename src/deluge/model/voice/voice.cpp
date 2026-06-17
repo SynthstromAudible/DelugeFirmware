@@ -746,7 +746,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 
 	// If we've previously ignored a note-off, we need to check that the user hasn't changed the preset so that we're
 	// now waiting for a note-off again
-	if (previouslyIgnoredNoteOff && sound.allowNoteTails(modelStack, true)) {
+	if (previouslyIgnoredNoteOff && cfg.noteTailsAllowed) {
 		noteOff(modelStack);
 	}
 

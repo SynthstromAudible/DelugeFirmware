@@ -63,4 +63,8 @@ struct VoiceConfig {
 	/// data plane before per-block patching. Settled before the voice loop (sound-level patching precedes it),
 	/// so a once-per-block snapshot is bit-exact.
 	std::array<int32_t, util::to_underlying(kFirstLocalSource)> globalSourceValues;
+
+	/// Sound::allowNoteTails(modelStack, /*disregardSampleLoop=*/true) — the note-tail re-check for a voice that
+	/// previously ignored a note-off (e.g. preset changed mid-note). Sound/clip-level, identical for all voices.
+	bool noteTailsAllowed;
 };
