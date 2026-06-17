@@ -717,7 +717,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 // Returns false if became inactive and needs unassigning
 [[gnu::hot]] bool Voice::render(ModelStackWithSoundFlags* modelStack, int32_t* soundBuffer, int32_t numSamples,
                                 bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
-                                bool doLPF, bool doHPF, int32_t externalPitchAdjust) {
+                                bool doLPF, bool doHPF, int32_t externalPitchAdjust, const VoiceConfig& cfg) {
 	// we spread out over a render cycle - allocating and starting the voice takes more time than rendering it so this
 	// avoids the cpu spike at note on
 	if (justCreated == false) {
@@ -998,15 +998,15 @@ skipAutoRelease: {}
 
 	// Prepare the filters
 	// Checking if filters should run now happens within the filterset
-	FilterMode lpfMode = doLPF ? sound.lpfMode : FilterMode::OFF;
-	FilterMode hpfMode = doHPF ? sound.hpfMode : FilterMode::OFF;
+	FilterMode lpfMode = doLPF ? cfg.lpfMode : FilterMode::OFF;
+	FilterMode hpfMode = doHPF ? cfg.hpfMode : FilterMode::OFF;
 	filterGain = filterSet.setConfig(
 	    params.paramFinalValues[params::LOCAL_LPF_FREQ], params.paramFinalValues[params::LOCAL_LPF_RESONANCE], lpfMode,
 	    params.paramFinalValues[params::LOCAL_LPF_MORPH], params.paramFinalValues[params::LOCAL_HPF_FREQ],
 	    (params
 	         .paramFinalValues[params::LOCAL_HPF_RESONANCE]), // >> StorageManager::devVarA) << StorageManager::devVarA,
-	    hpfMode, params.paramFinalValues[params::LOCAL_HPF_MORPH], sound.volumeNeutralValueForUnison << 1,
-	    sound.filterRoute, false, nullptr); // Level adjustment for unison now happens *before* the filter!
+	    hpfMode, params.paramFinalValues[params::LOCAL_HPF_MORPH], cfg.volumeNeutralValueForUnison << 1,
+	    cfg.filterRoute, false, nullptr); // Level adjustment for unison now happens *before* the filter!
 
 	SynthMode synthMode = sound.getSynthMode();
 
@@ -1033,8 +1033,8 @@ skipAutoRelease: {}
 		if (synthMode == SynthMode::FM) {
 
 			// Apply compensation for unison
-			overallOscAmplitude =
-			    multiply_32x32_rshift32_rounded(overallOscAmplitude, sound.volumeNeutralValueForUnison) << 3;
+			overallOscAmplitude = multiply_32x32_rshift32_rounded(overallOscAmplitude, cfg.volumeNeutralValueForUnison)
+			                      << 3;
 
 			int32_t a =
 			    multiply_32x32_rshift32(params.paramFinalValues[params::LOCAL_OSC_A_VOLUME], overallOscAmplitude);

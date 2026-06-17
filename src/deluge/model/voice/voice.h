@@ -23,6 +23,7 @@
 #include "model/voice/ringmod_engine.h"
 #include "model/voice/source_component_render.h" // deluge::voice::SourceRenderResult
 #include "model/voice/subtractive_engine.h"
+#include "model/voice/voice_config.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part.h"
 #include "modulation/params/param.h"
@@ -119,7 +120,7 @@ public:
 	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);
 	bool render(ModelStackWithSoundFlags* modelStack, int32_t* soundBuffer, int32_t numSamples,
 	            bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF,
-	            bool doHPF, int32_t externalPitchAdjust);
+	            bool doHPF, int32_t externalPitchAdjust, const VoiceConfig& cfg);
 
 	void calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack);
 	bool sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType);

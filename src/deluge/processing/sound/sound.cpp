@@ -2513,12 +2513,21 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    thisHasFilters
 		    && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
 		        || (hpfFreq != std::numeric_limits<q31_t>::min()) || (hpfMorph > std::numeric_limits<q31_t>::min()));
+		// Snapshot the per-sound render config the voice kernel consumes (Phase 4 — the adapter edge that
+		// feeds Voice::render its Sound config instead of it reaching back into `sound`).
+		const VoiceConfig voiceConfig{
+		    .lpfMode = lpfMode,
+		    .hpfMode = hpfMode,
+		    .filterRoute = filterRoute,
+		    .volumeNeutralValueForUnison = volumeNeutralValueForUnison,
+		};
+
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
 			bool stillGoing =
 			    voice->render(modelStackWithSoundFlags, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
-			                  applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust);
+			                  applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig);
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
