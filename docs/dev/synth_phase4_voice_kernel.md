@@ -40,8 +40,10 @@ VoiceConfig& cfg)` — **no `Sound&`, no `ModelStackWithSoundFlags*`**. A new ap
   are `modelStack`-free; `paramManager` passed explicitly; `Voice::noteOff` reworked to take
   `(paramManager, noteTailsAllowed)` — after which the `ModelStackWithSoundFlags*` parameter was removed from
   `Voice::render`.
-- **Shrink-`paramManager` arc — STARTED** (slice 20): the local patched-sources bitmask snapshotted; the
-  auto-release noise read reuses the snapshot.
+- **Shrink-`paramManager` arc — easy-snapshot phase DONE** (slices 20–21): the local patched-sources bitmask, the
+  auto-release noise read (reuses the snapshot), MPE bend ranges, and portamento are all snapshotted. The render
+  body's only remaining `paramManager` reads are the two data-plane ones — the patcher `ControlBlock` (@830) and
+  the `paramManager` passed to the engines (@1193) — which resolve at the lift.
 
 ## The L2 boundary
 
