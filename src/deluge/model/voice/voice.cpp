@@ -1775,7 +1775,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerFor
 		unisonParts[u].sources[s].inputEngine.render(
 		    cfg.oscType[s], oscBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement, stereoBuffer,
 		    stereoUnison, amplitudeL, amplitudeR,
-		    sound.sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement));
+		    SampleControls::getInterpolationBufferSize(cfg.interpolationMode[s], phaseIncrement));
 		return SourceRenderResult::ACTIVE;
 	}
 

@@ -59,6 +59,8 @@ struct VoiceConfig {
 
 	std::array<OscType, kNumSources> oscType; ///< Sound::sources[s].oscType — drives the per-source render dispatch
 	std::array<SampleRepeatMode, kNumSources> repeatMode; ///< Sound::sources[s].repeatMode (play-once auto-release)
+	std::array<InterpolationMode, kNumSources>
+	    interpolationMode; ///< Sound::sources[s].sampleControls.interpolationMode
 
 	/// Sound::params.sourceValues — the *global* (non-local) patch-source values, copied into the voice's local
 	/// data plane before per-block patching. Settled before the voice loop (sound-level patching precedes it),

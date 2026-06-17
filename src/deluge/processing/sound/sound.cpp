@@ -2517,9 +2517,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// feeds Voice::render its Sound config instead of it reaching back into `sound`).
 		std::array<OscType, kNumSources> oscTypes;
 		std::array<SampleRepeatMode, kNumSources> repeatModes;
+		std::array<InterpolationMode, kNumSources> interpolationModes;
 		for (int32_t s = 0; s < kNumSources; s++) {
 			oscTypes[s] = sources[s].oscType;
 			repeatModes[s] = sources[s].repeatMode;
+			interpolationModes[s] = sources[s].sampleControls.interpolationMode;
 		}
 		const VoiceConfig voiceConfig{
 		    .lpfMode = lpfMode,
@@ -2540,6 +2542,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .oscRetriggerPhase = oscRetriggerPhase,
 		    .oscType = oscTypes,
 		    .repeatMode = repeatModes,
+		    .interpolationMode = interpolationModes,
 		    .globalSourceValues = params.sourceValues,
 		    .noteTailsAllowed = allowNoteTails(modelStackWithSoundFlags, true),
 		};

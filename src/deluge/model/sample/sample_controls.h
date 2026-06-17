@@ -23,6 +23,9 @@ class SampleControls {
 public:
 	SampleControls();
 	int32_t getInterpolationBufferSize(int32_t phaseIncrement);
+	/// As above but for a caller that holds only the interpolation mode (e.g. the voice kernel reading it off a
+	/// per-block config snapshot rather than the SampleControls instance). Same machine behaviour.
+	static int32_t getInterpolationBufferSize(InterpolationMode interpolationMode, int32_t phaseIncrement);
 
 	InterpolationMode interpolationMode;
 	bool pitchAndSpeedAreIndependent;
