@@ -35,7 +35,7 @@ the patcher input) and `ParamPlane`/`VoiceParams` (`synth/param_plane.h`, the pe
 | ~~L-iii~~ ✅ | `getLocalLFOPhaseIncrement` (`voice.cpp:718`) → `sound.lfoConfig[id]` + `sound.getSyncedLFOPhaseIncrement(config)` | **DONE (slice 27)** — synced increments snapshotted into `cfg`; the helper takes `(LFOConfig, param, syncedIncrement)`, no `sound` reach |
 | ◐ L-iv | `AudioEngine::renderInStereo` (`voice.cpp:1173`), `AudioEngine::cpuDireness` (sample interpolation), `AudioEngine::nextVoiceState` (envelope-stage stamp) | **render-body `renderInStereo` DONE (slice 28)** → `cfg.engineRenderingInStereo`. Remaining: `nextVoiceState` (scheduling — stays app-side) + `cpuDireness`/mic/lineIn (engine-internal → L-vi) |
 | **L-v** | file-scope `spareRenderingBuffer[0/2/3]` | injected scratch buffers |
-| **L-vi** | the storage-reaching engines (sample / input / DX7) + `getPriorityRating` (`sound.voicePriority` / `numActiveVoices`, used by the sample engine for caching priority) | the deferred **`SourceComponent` / `SampleSource` port** — the largest arc |
+| **L-vi** | the storage-reaching engines (sample / input) + `Source::renderInStereo` `AudioEngine` globals + `getPriorityRating` (`sound.voicePriority` / `numActiveVoices`) | **`SourceComponent` interface + `SampleSource`/live-input ports** — strategy = full abstract interface; concrete design in `docs/dev/synth_source_component_interface.md`. (DX7/VA/wavetable already L0 — no port.) The largest arc; dissolves the Subtractive/FM friend-couplings |
 | **L-vii** | `Voice::noteOff`'s internal `this->sound` (the deferred-note-off edge) | note-policy hook |
 | **L-viii** | relocate `Voice` → `synth::Voice` under `synth/` (behind `check_synth_boundary.py`) + a host unit test | the move itself |
 
