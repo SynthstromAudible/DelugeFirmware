@@ -16,9 +16,9 @@
  */
 #pragma once
 
-#include "dsp-next/core/phasor.h"       // deluge::dsp::Phasor
-#include "synth/source/source_engine.h" // SourceEngine, BlockControls
-#include "synth/source/va_shapes.h"     // the shape vocabulary + va_shape::Wave
+#include "dsp-next/core/phasor.h"   // deluge::dsp::Phasor
+#include "synth/source/source.h"    // Source, BlockControls
+#include "synth/source/va_shapes.h" // the shape vocabulary + va_shape::Wave
 #include <cstdint>
 #include <variant>
 
@@ -39,7 +39,7 @@ namespace deluge::synth {
 /// @note Per the L1 reframe this is a **source component**, not a swappable engine — see
 /// `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename rides the
 /// engine-forming slices.
-class VirtualAnalogEngine : public SourceEngine {
+class VirtualAnalogEngine : public Source {
 public:
 	/// @param wave the VA wave to render — selects the variant alternative.
 	/// @param seed the engine's phase state, seeded with the block's render phase + increment (UQ0.32).

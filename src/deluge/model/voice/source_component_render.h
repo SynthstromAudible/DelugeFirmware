@@ -17,7 +17,7 @@
 #pragma once
 
 #include "dsp/oscillators/wavetable_engine.h"   // deluge::dsp::WavetableEngine
-#include "synth/source/source_engine.h"         // deluge::synth::BlockControls
+#include "synth/source/source.h"                // deluge::synth::BlockControls
 #include "synth/source/virtual_analog_engine.h" // deluge::synth::VirtualAnalogEngine
 #include <cstdint>
 

@@ -35,7 +35,7 @@ class ParamManagerForTimeline;
 /// late-start, caching decision, the VoiceSample::render call and stereo-unison mix-down), and teardown. Like
 /// @ref deluge::dsp::DX7Engine and @ref InputEngine it is a *foreign*, app-coupled engine (it reaches storage/,
 /// model/sample, AudioEngine, the allocator and ParamManager), so it is a standalone class, not a
-/// synth::SourceEngine. Ownership of the pooled VoiceSample is **explicit** (released in @ref unassign, never in
+/// synth::Source. Ownership of the pooled VoiceSample is **explicit** (released in @ref unassign, never in
 /// a destructor) — the per-source objects are pooled and reused in place.
 ///
 /// @note Per the L1 reframe this is a **source component** (usable inside Subtractive/RingMod), not a swappable

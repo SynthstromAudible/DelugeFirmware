@@ -17,13 +17,13 @@
 #pragma once
 
 #include "dsp-next/core/phasor.h"
-#include "synth/source/source_engine.h" // SourceEngine + BlockControls
-#include "wavetable_oscillator.h"       // WavetableOscillator (+ storage/wave_table.h)
+#include "synth/source/source.h"  // Source + BlockControls
+#include "wavetable_oscillator.h" // WavetableOscillator (+ storage/wave_table.h)
 #include <cstdint>
 
 namespace deluge::dsp {
 
-/// @brief The wavetable source engine: a persistent per-voice-source @ref synth::SourceEngine wrapping the
+/// @brief The wavetable source engine: a persistent per-voice-source @ref synth::Source wrapping the
 /// sample-backed @ref WavetableOscillator.
 ///
 /// Unlike the virtual-analog waves, the wavetable loads its band data from SD, so it depends on `storage/` and
@@ -40,7 +40,7 @@ namespace deluge::dsp {
 /// @note Per the L1 reframe this is a **source component**, not a swappable engine — see
 /// `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename rides the
 /// engine-forming slices.
-class WavetableEngine : public synth::SourceEngine {
+class WavetableEngine : public synth::Source {
 	Phasor phasor_; ///< the original-domain render phase, persistent across blocks
 	WaveTable* table_ = nullptr;
 	int32_t wave_index_last_ = 0;

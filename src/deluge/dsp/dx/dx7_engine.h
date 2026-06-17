@@ -27,7 +27,7 @@ namespace deluge::dsp {
 ///
 /// Unlike the oscillator engines, DX7 is a *foreign* synthesis engine: no phasor, a pooled @ref DxVoice owning
 /// the six-operator FM state, its log-pitch + control derived from a @ref DxPatch, a voice-death signal, and a
-/// bespoke amplitude sum (kept in Voice). So it is a standalone engine, not a @ref synth::SourceEngine — it
+/// bespoke amplitude sum (kept in Voice). So it is a standalone engine, not a @ref synth::Source — it
 /// defines the shape a foreign engine takes; the uniform L1 interface (and the note-on registry that deletes the
 /// renderBasicSource dispatch) is a later step.
 ///

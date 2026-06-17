@@ -25,14 +25,15 @@
 namespace deluge::synth {
 
 /// @file
-/// @brief The L1 source-engine contract: one engine renders one voice's worth of a single sound source
-/// (an oscillator, the wavetable, FM, a sample, …) into a block, given the already-modulated control values
-/// for that block. This is the seam that replaces the legacy `OscType` megaswitch (`dsp/oscillators/
-/// oscillator.cpp`) with composable, host-constructible objects — the Plaits "engine" idea at the right
-/// altitude. Per-source state (phase, feedback, sample position) lives *in the concrete engine* (e.g. a
+/// @brief The L1 **Source** contract (the per-source render tier of Phasor → Osc → Source → Engine → Voice →
+/// Instrument): one @ref Source renders one voice's worth of a single sound source (an oscillator, the wavetable,
+/// FM, a sample, …) into a block, given the already-modulated control values for that block. This is the seam that
+/// replaces the legacy `OscType` megaswitch (`dsp/oscillators/oscillator.cpp`) with composable, host-constructible
+/// objects — the Plaits "engine" idea at the right altitude ("Engine" itself is reserved for the *coordinator*
+/// tier above). Per-source state (phase, feedback, sample position) lives *in the concrete source* (e.g. a
 /// @ref deluge::dsp::Phasor member); the app hands down only the modulated numbers, never references upward.
 
-/// @brief The already-modulated per-block control values handed to a @ref SourceEngine.
+/// @brief The already-modulated per-block control values handed to a @ref Source.
 ///
 /// Plain values only — no engine state, and nothing reaching into model/processing/storage (so an engine can
 /// be built and unit-tested with zero firmware scaffolding). Pitch/phase is engine state, set when the engine
@@ -57,11 +58,11 @@ struct BlockControls {
 	                      ///< choice (and the analog-saw downgrade) without the engine reaching into processing/
 };
 
-/// @brief Renders one block of one sound source. Stateful: per-source state lives in the concrete engine and
+/// @brief Renders one block of one sound source. Stateful: per-source state lives in the concrete source and
 /// persists across @ref renderBlock calls.
-class SourceEngine {
+class Source {
 public:
-	virtual ~SourceEngine() = default;
+	virtual ~Source() = default;
 
 	/// @brief Render @c output.size() samples.
 	/// @param controls the already-modulated values for this block.

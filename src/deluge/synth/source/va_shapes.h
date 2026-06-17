@@ -16,9 +16,9 @@
  */
 #pragma once
 
-#include "dsp-next/core/phasor.h"       // deluge::dsp::Phasor
-#include "dsp-next/core/types.h"        // deluge::dsp::fixed::Buffer
-#include "synth/source/source_engine.h" // BlockControls
+#include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
+#include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
+#include "synth/source/source.h"  // BlockControls
 #include <cstdint>
 
 namespace deluge::synth::va_shape {
