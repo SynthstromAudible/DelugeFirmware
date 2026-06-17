@@ -20,6 +20,7 @@
 
 class Voice;
 class Sound;
+struct VoiceConfig;
 
 /// @brief The FM synth engine: the cross-source driver for `SynthMode::FM` (per the L1 reframe,
 /// `docs/dev/synth_l1_engine_architecture.md`). It owns one unison part's FM topology — modulator pitch
@@ -42,5 +43,5 @@ public:
 	            const int32_t* sourceAmplitudes, const int32_t* sourceAmplitudesNow,
 	            const int32_t* sourceAmplitudeIncrements, bool* modulatorsActive,
 	            const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer, int32_t* modulatorScratch,
-	            int32_t* carrierScratch);
+	            int32_t* carrierScratch, const VoiceConfig& cfg);
 };

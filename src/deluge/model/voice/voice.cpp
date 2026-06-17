@@ -1274,7 +1274,7 @@ skipAutoRelease: {}
 				fmEngine.render(*this, sound, u, numSamples, overallPitchAdjust, stereoUnison, unisonAmplitudeL,
 				                unisonAmplitudeR, phaseIncrements, sourceAmplitudes, sourceAmplitudesNow,
 				                sourceAmplitudeIncrements, modulatorsActive, modulatorAmplitudeIncrements, oscBuffer,
-				                spareRenderingBuffer[2], spareRenderingBuffer[3]);
+				                spareRenderingBuffer[2], spareRenderingBuffer[3], cfg);
 			}
 		}
 

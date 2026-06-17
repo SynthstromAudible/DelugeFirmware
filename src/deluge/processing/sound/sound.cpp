@@ -2520,12 +2520,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		std::array<InterpolationMode, kNumSources> interpolationModes;
 		std::array<bool, kNumSources> dxPatchChangeds;
 		std::array<bool, kNumSources> sourceEverActives;
+		std::array<bool, kNumSources> sourceActiveCurrentlys;
 		for (int32_t s = 0; s < kNumSources; s++) {
 			oscTypes[s] = sources[s].oscType;
 			repeatModes[s] = sources[s].repeatMode;
 			interpolationModes[s] = sources[s].sampleControls.interpolationMode;
 			dxPatchChangeds[s] = sources[s].dxPatchChanged;
 			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
+			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
 		}
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
@@ -2559,6 +2561,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
 		    .bendRanges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
 		    .portamento = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO),
+		    .modulator1ToModulator0 = modulator1ToModulator0,
+		    .sourceActiveCurrently = sourceActiveCurrentlys,
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {

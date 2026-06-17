@@ -90,4 +90,10 @@ struct VoiceConfig {
 	/// paramManager->getUnpatchedParamSet()->getValue(UNPATCHED_PORTAMENTO) — raw porta param (the
 	/// cableToExpParamShortcut/lookupReleaseRate transform stays in the render).
 	int32_t portamento;
+
+	/// Sound::modulator1ToModulator0 — FM modulator-routing flag (whether mod1 modulates mod0).
+	bool modulator1ToModulator0;
+	/// Sound::isSourceActiveCurrently(s, paramManager) per source — sound-level (paramManager + source config),
+	/// loop-stable; the subtractive engine's per-source render gate.
+	std::array<bool, kNumSources> sourceActiveCurrently;
 };

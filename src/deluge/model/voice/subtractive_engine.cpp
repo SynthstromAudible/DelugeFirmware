@@ -47,7 +47,7 @@ void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeli
 		}
 
 		// This this source isn't active...
-		if (!sound.isSourceActiveCurrently(s, paramManager)) {
+		if (!cfg.sourceActiveCurrently[s]) {
 
 			// If we're doing osc sync...
 			if (getPhaseIncrements) {

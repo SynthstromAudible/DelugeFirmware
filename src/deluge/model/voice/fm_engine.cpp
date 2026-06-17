@@ -31,7 +31,7 @@ void FMEngine::render(Voice& voice, Sound& sound, int32_t u, int32_t numSamples,
                       const uint32_t* phaseIncrements, const int32_t* sourceAmplitudes,
                       const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
                       bool* modulatorsActive, const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer,
-                      int32_t* modulatorScratch, int32_t* carrierScratch) {
+                      int32_t* modulatorScratch, int32_t* carrierScratch, const VoiceConfig& cfg) {
 
 	// If overall pitch adjusted, adjust modulator pitches
 	uint32_t phaseIncrementModulator[kNumModulators];
@@ -73,7 +73,7 @@ void FMEngine::render(Voice& voice, Sound& sound, int32_t u, int32_t numSamples,
 	if (modulatorsActive[1]) {
 
 		// If special case where mod1 is modulating mod0 but mod0 is inactive, go away...
-		if (sound.modulator1ToModulator0 && !modulatorsActive[0]) {
+		if (cfg.modulator1ToModulator0 && !modulatorsActive[0]) {
 			goto noModulatorsActive;
 		}
 
@@ -84,7 +84,7 @@ void FMEngine::render(Voice& voice, Sound& sound, int32_t u, int32_t numSamples,
 		    &voice.unisonParts[u].modulatorFeedback[1], false, modulatorAmplitudeIncrements[1]);
 
 		// If mod1 is modulating mod0...
-		if (sound.modulator1ToModulator0) {
+		if (cfg.modulator1ToModulator0) {
 			// .. render modulator0, receiving the FM from mod1
 			voice.renderFMWithFeedback(modulatorScratch, numSamples, nullptr, &voice.unisonParts[u].modulatorPhase[0],
 			                           voice.modulatorAmplitudeLastTime[0], phaseIncrementModulator[0],
