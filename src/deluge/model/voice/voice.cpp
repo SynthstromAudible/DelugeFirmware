@@ -50,6 +50,7 @@
 #include "storage/wave_table/wave_table.h"
 
 #include "dsp/oscillators/oscillator.h"
+#include "util/functions.h" // getTanHAntialiased (output-stage saturation)
 #include "util/misc.h"
 #include <cstring>
 #include <new>
@@ -63,6 +64,18 @@ PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
 using namespace deluge::voice;
+
+namespace {
+// Output-stage tanh clipping/saturation — the body of the former Sound::saturate + getShiftAmountForSaturation,
+// relocated here as the voice render decouples from Sound (Phase 4). Driven by the snapshotted clippingAmount.
+[[gnu::always_inline]] inline int32_t shiftForSaturation(uint8_t clippingAmount) {
+	return (clippingAmount >= 2) ? (clippingAmount - 2) : 0;
+}
+[[gnu::always_inline]] inline void saturateSample(int32_t* data, uint32_t* workingValue, int32_t shiftAmount,
+                                                  uint8_t clippingAmount) {
+	*data = getTanHAntialiased(*data, workingValue, 5 + clippingAmount) << shiftAmount;
+}
+} // namespace
 
 // Hopefully I could make this use the spareRenderingBuffer instead...
 
@@ -1295,7 +1308,7 @@ skipUnisonPart: {}
 		filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
 
 		// No clipping
-		if (!sound.clippingAmount) {
+		if (!cfg.clippingAmount) {
 
 			int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 			StereoSample* __restrict__ outputSample = (StereoSample*)soundBuffer;
@@ -1329,7 +1342,7 @@ skipUnisonPart: {}
 			int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 			StereoSample* __restrict__ outputSample = (StereoSample*)soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
-			int32_t shiftAmount = sound.getShiftAmountForSaturation();
+			int32_t shiftAmount = shiftForSaturation(cfg.clippingAmount);
 
 			do {
 				int32_t outputSampleL = *(oscBufferPos++);
@@ -1341,8 +1354,8 @@ skipUnisonPart: {}
 					outputSampleR = multiply_32x32_rshift32_rounded(outputSampleR, overallOscAmplitudeNow) << 1;
 				}
 
-				sound.saturate(&outputSampleL, &lastSaturationTanHWorkingValue[0], shiftAmount);
-				sound.saturate(&outputSampleR, &lastSaturationTanHWorkingValue[1], shiftAmount);
+				saturateSample(&outputSampleL, &lastSaturationTanHWorkingValue[0], shiftAmount, cfg.clippingAmount);
+				saturateSample(&outputSampleR, &lastSaturationTanHWorkingValue[1], shiftAmount, cfg.clippingAmount);
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
@@ -1379,7 +1392,7 @@ skipUnisonPart: {}
 		filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
 
 		// No clipping
-		if (!sound.clippingAmount) {
+		if (!cfg.clippingAmount) {
 			int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 			int32_t* __restrict__ outputSample = soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
@@ -1414,7 +1427,7 @@ skipUnisonPart: {}
 			int32_t* __restrict__ outputSample = soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
 
-			auto clippingAmount = sound.getShiftAmountForSaturation();
+			int32_t shiftAmount = shiftForSaturation(cfg.clippingAmount);
 			do {
 				int32_t output = *oscBufferPos;
 
@@ -1423,7 +1436,7 @@ skipUnisonPart: {}
 					output = multiply_32x32_rshift32_rounded(output, overallOscAmplitudeNow) << 1;
 				}
 
-				sound.saturate(&output, &lastSaturationTanHWorkingValue[0], clippingAmount);
+				saturateSample(&output, &lastSaturationTanHWorkingValue[0], shiftAmount, cfg.clippingAmount);
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {

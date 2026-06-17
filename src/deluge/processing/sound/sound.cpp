@@ -2526,6 +2526,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .hasFilters = thisHasFilters,
 		    .expressionSourcesChangedAtSynthLevel = expressionSourcesChangedAtSynthLevel,
 		    .monophonicExpressionValues = monophonicExpressionValues,
+		    .clippingAmount = clippingAmount,
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {

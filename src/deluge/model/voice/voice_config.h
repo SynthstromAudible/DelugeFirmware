@@ -45,4 +45,6 @@ struct VoiceConfig {
 
 	std::bitset<kNumExpressionDimensions> expressionSourcesChangedAtSynthLevel; ///< Sound:: (same name)
 	std::array<int32_t, kNumExpressionDimensions> monophonicExpressionValues;   ///< Sound:: (same name)
+
+	uint8_t clippingAmount; ///< Sound::clippingAmount — gates + drives the output-stage saturation
 };
