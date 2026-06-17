@@ -727,9 +727,10 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
 
 // Returns false if became inactive and needs unassigning
-[[gnu::hot]] bool Voice::render(ParamManagerForTimeline* paramManager, int32_t* soundBuffer, int32_t numSamples,
-                                bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
-                                bool doLPF, bool doHPF, int32_t externalPitchAdjust, const VoiceConfig& cfg) {
+[[gnu::hot]] bool Voice::render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock,
+                                int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
+                                bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF, bool doHPF,
+                                int32_t externalPitchAdjust, const VoiceConfig& cfg) {
 	// we spread out over a render cycle - allocating and starting the voice takes more time than rendering it so this
 	// avoids the cpu spike at note on
 	if (justCreated == false) {
@@ -824,7 +825,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 			params.sourceValues[s] = cfg.globalSourceValues[s];
 		}
-		patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager));
+		patcher.performPatching(sourcesChanged, controlBlock);
 	}
 
 	// Sort out pitch

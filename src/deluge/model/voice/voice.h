@@ -118,9 +118,9 @@ public:
 
 	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);
 	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);
-	bool render(ParamManagerForTimeline* paramManager, int32_t* soundBuffer, int32_t numSamples,
-	            bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF,
-	            bool doHPF, int32_t externalPitchAdjust, const VoiceConfig& cfg);
+	bool render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock, int32_t* soundBuffer,
+	            int32_t numSamples, bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
+	            bool doLPF, bool doHPF, int32_t externalPitchAdjust, const VoiceConfig& cfg);
 
 	void calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack);
 	bool sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType);

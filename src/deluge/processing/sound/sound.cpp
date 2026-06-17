@@ -2565,12 +2565,16 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .sourceActiveCurrently = sourceActiveCurrentlys,
 		};
 
+		// The patcher's per-block input. Sound-level + stable across the voice loop (the param sets are fixed and
+		// paramLPF is only mutated after the loop), so build it once here rather than per voice.
+		const ControlBlock controlBlock = patchControlBlock(*paramManager);
+
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
-			bool stillGoing =
-			    voice->render(paramManager, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
-			                  applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig);
+			bool stillGoing = voice->render(paramManager, controlBlock, sound_mono.data(), sound_mono.size(),
+			                                voice_rendered_in_stereo, applyingPanAtVoiceLevel, sourcesChanged, doLPF,
+			                                doHPF, pitchAdjust, voiceConfig);
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
