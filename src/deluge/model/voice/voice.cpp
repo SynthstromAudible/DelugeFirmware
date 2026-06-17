@@ -1193,8 +1193,8 @@ skipAutoRelease: {}
 	// buffer dance + the unison-inactive→unassign decision (it delegates each source's render back to
 	// renderBasicSource for now).
 	if (synthMode == SynthMode::SUBTRACTIVE) {
-		subtractiveEngine.render(*this, sound, paramManager, *modelStack, oscBuffer, numSamples, doingOscSync,
-		                         oscSyncPos, overallPitchAdjust, sourceAmplitudesNow, sourceAmplitudeIncrements,
+		subtractiveEngine.render(*this, sound, paramManager, oscBuffer, numSamples, doingOscSync, oscSyncPos,
+		                         overallPitchAdjust, sourceAmplitudesNow, sourceAmplitudeIncrements,
 		                         sourceWaveIndexIncrements, anythingInOscBuffer, didStereoTempBuffer,
 		                         unassignVoiceAfter, cfg);
 	}
@@ -1466,17 +1466,16 @@ renderingDone:
 	return !unassignVoiceAfter;
 }
 
-bool Voice::areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) const {
+bool Voice::areAllUnisonPartsInactive(const VoiceConfig& cfg) const {
 	// If no noise-source, then it might be time to unassign the voice...
-	if (!modelStack.paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	        -2147483648)) {
+	if (!cfg.noiseVolumeContainsSomething) {
 
 		// See if all unison parts are now inactive
 		for (int32_t s = 0; s < kNumSources; s++) {
-			if (!modelStack.checkSourceEverActive(s)) {
+			if (!cfg.sourceEverActive[s]) {
 				continue;
 			}
-			for (int32_t u = 0; u < ((Sound*)modelStack.modControllable)->numUnison; u++) {
+			for (int32_t u = 0; u < cfg.numUnison; u++) {
 				if (unisonParts[u].sources[s].active) {
 					return false;
 				}

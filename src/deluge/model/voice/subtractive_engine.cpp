@@ -24,9 +24,8 @@
 #include "processing/source.h"
 #include <cstring>
 
-void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager,
-                               ModelStackWithSoundFlags& modelStack, int32_t* oscBuffer, int32_t numSamples,
-                               bool doingOscSync, uint32_t* oscSyncPos, int32_t overallPitchAdjust,
+void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeline* paramManager, int32_t* oscBuffer,
+                               int32_t numSamples, bool doingOscSync, uint32_t* oscSyncPos, int32_t overallPitchAdjust,
                                const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
                                const int32_t* sourceWaveIndexIncrements, bool& anythingInOscBuffer,
                                bool& didStereoTempBuffer, bool& unassignVoiceAfter, const VoiceConfig& cfg) {
@@ -112,7 +111,7 @@ void SubtractiveEngine::render(Voice& voice, Sound& sound, ParamManagerForTimeli
 
 	// If any unison part became inactive (for either source), and no noise-source, then it might be time to
 	// unassign the voice...
-	if (unisonPartBecameInactive && voice.areAllUnisonPartsInactive(modelStack)) {
+	if (unisonPartBecameInactive && voice.areAllUnisonPartsInactive(cfg)) {
 
 		// If no filters, we can just unassign
 		if (!voice.filterSet.isOn()) {

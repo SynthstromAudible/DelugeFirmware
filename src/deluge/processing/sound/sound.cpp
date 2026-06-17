@@ -2551,6 +2551,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .globalSourceValues = params.sourceValues,
 		    .noteTailsAllowed = allowNoteTails(modelStackWithSoundFlags, true),
 		    .sourceEverActive = sourceEverActives,
+		    .noiseVolumeContainsSomething =
+		        paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648),
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {

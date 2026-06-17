@@ -75,4 +75,8 @@ struct VoiceConfig {
 	/// ModelStackWithSoundFlags::checkSourceEverActive(s) — the per-source "ever active" soundFlags. Sound/
 	/// paramManager-derived, computed once on the shared per-render modelStack, so identical for all voices.
 	std::array<bool, kNumSources> sourceEverActive;
+
+	/// paramManager->getPatchedParamSet()->params[LOCAL_NOISE_VOLUME].containsSomething(INT32_MIN) — whether a
+	/// noise source is in play. The predicate areAllUnisonPartsInactive gates on (sound-level, loop-stable).
+	bool noiseVolumeContainsSomething;
 };
