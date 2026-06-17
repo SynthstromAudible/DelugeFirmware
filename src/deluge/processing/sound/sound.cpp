@@ -2516,8 +2516,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// Snapshot the per-sound render config the voice kernel consumes (Phase 4 — the adapter edge that
 		// feeds Voice::render its Sound config instead of it reaching back into `sound`).
 		std::array<OscType, kNumSources> oscTypes;
+		std::array<SampleRepeatMode, kNumSources> repeatModes;
 		for (int32_t s = 0; s < kNumSources; s++) {
 			oscTypes[s] = sources[s].oscType;
+			repeatModes[s] = sources[s].repeatMode;
 		}
 		const VoiceConfig voiceConfig{
 		    .lpfMode = lpfMode,
@@ -2537,6 +2539,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .unisonPan = std::to_array(unisonPan),
 		    .oscRetriggerPhase = oscRetriggerPhase,
 		    .oscType = oscTypes,
+		    .repeatMode = repeatModes,
 		    .globalSourceValues = params.sourceValues,
 		    .noteTailsAllowed = allowNoteTails(modelStackWithSoundFlags, true),
 		};

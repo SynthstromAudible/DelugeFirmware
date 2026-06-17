@@ -890,8 +890,6 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		// We only want to do this if all active sources are play-once samples
 		// For each source...
 		for (int32_t s = 0; s < kNumSources; s++) {
-			Source* source = &sound.sources[s];
-
 			// If this source isn't enabled, skip it
 			if (!modelStack->checkSourceEverActive(s)) {
 				continue;
@@ -900,7 +898,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 			// If it's not a sample, or it's not a play-once, or it has a loop-end point but we haven't received the
 			// note-off, then we don't want the auto-release feature for it
 			if (cfg.oscType[s] != OscType::SAMPLE
-			    || source->repeatMode
+			    || cfg.repeatMode[s]
 			           != SampleRepeatMode::ONCE // Don't do it for anything else. STRETCH is too hard to calculate
 			    || !guides[s].audioFileHolder
 			    || (((SampleHolderForVoice*)guides[s].audioFileHolder)->loopEndPos && !guides[s].noteOffReceived)) {
@@ -938,7 +936,6 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 					int32_t bytesLeft =
 					    (int32_t)((uint32_t)guides[s].endPlaybackAtByte - (uint32_t)bytePos) * guides[s].playDirection;
 
-					Source* source = &sound.sources[s];
 					int32_t bytesPerSample = sample->byteDepth * sample->numChannels;
 
 					int32_t releaseStageLengthBytes = releaseStageLengthSamples * bytesPerSample;
