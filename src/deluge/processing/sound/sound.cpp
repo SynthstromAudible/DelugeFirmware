@@ -2515,6 +2515,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		        || (hpfFreq != std::numeric_limits<q31_t>::min()) || (hpfMorph > std::numeric_limits<q31_t>::min()));
 		// Snapshot the per-sound render config the voice kernel consumes (Phase 4 — the adapter edge that
 		// feeds Voice::render its Sound config instead of it reaching back into `sound`).
+		std::array<OscType, kNumSources> oscTypes;
+		for (int32_t s = 0; s < kNumSources; s++) {
+			oscTypes[s] = sources[s].oscType;
+		}
 		const VoiceConfig voiceConfig{
 		    .lpfMode = lpfMode,
 		    .hpfMode = hpfMode,
@@ -2532,6 +2536,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .unisonStereoSpread = unisonStereoSpread,
 		    .unisonPan = std::to_array(unisonPan),
 		    .oscRetriggerPhase = oscRetriggerPhase,
+		    .oscType = oscTypes,
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {

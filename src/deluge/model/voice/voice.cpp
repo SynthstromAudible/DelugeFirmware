@@ -899,7 +899,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 
 			// If it's not a sample, or it's not a play-once, or it has a loop-end point but we haven't received the
 			// note-off, then we don't want the auto-release feature for it
-			if (source->oscType != OscType::SAMPLE
+			if (cfg.oscType[s] != OscType::SAMPLE
 			    || source->repeatMode
 			           != SampleRepeatMode::ONCE // Don't do it for anything else. STRETCH is too hard to calculate
 			    || !guides[s].audioFileHolder
@@ -1262,7 +1262,7 @@ skipAutoRelease: {}
 					int32_t pulseWidth =
 					    (uint32_t)lshiftAndSaturate<1>(params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
-					OscType oscType = sound.sources[s].oscType;
+					OscType oscType = cfg.oscType[s];
 
 					// Non-wavetable sources have no audioFileHolder; only OscType::WAVETABLE reads the table.
 					WaveTable* waveTable = (oscType == OscType::WAVETABLE)
@@ -1762,7 +1762,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerFor
 	VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 	// If sample...
-	if (sound.sources[s].oscType == OscType::SAMPLE) {
+	if (cfg.oscType[s] == OscType::SAMPLE) {
 		return voiceUnisonPartSource->sampleEngine.render(
 		    *this, sound, paramManager, s, oscBuffer, numSamples, stereoBuffer, sourceAmplitude, amplitudeIncrement,
 		    phaseIncrement, voiceUnisonPartSource->phaseIncrementStoredValue, stereoUnison, amplitudeL, amplitudeR,
@@ -1770,19 +1770,19 @@ Voice::renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerFor
 	}
 
 	// Or echoing input
-	if (sound.sources[s].oscType == OscType::INPUT_L || sound.sources[s].oscType == OscType::INPUT_R
-	    || sound.sources[s].oscType == OscType::INPUT_STEREO) {
+	if (cfg.oscType[s] == OscType::INPUT_L || cfg.oscType[s] == OscType::INPUT_R
+	    || cfg.oscType[s] == OscType::INPUT_STEREO) {
 		// Live input renders through its per-source engine (which owns the LivePitchShifter lifecycle + the
 		// live-input-ring read). The interpolation buffer size is a Sound-side value the engine doesn't reach;
 		// stereoUnison + amplitudeL/R carry the unison stereo-spread panning into the engine.
 		unisonParts[u].sources[s].inputEngine.render(
-		    sound.sources[s].oscType, oscBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement,
-		    stereoBuffer, stereoUnison, amplitudeL, amplitudeR,
+		    cfg.oscType[s], oscBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement, stereoBuffer,
+		    stereoUnison, amplitudeL, amplitudeR,
 		    sound.sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement));
 		return SourceRenderResult::ACTIVE;
 	}
 
-	if (sound.sources[s].oscType == OscType::DX7) {
+	if (cfg.oscType[s] == OscType::DX7) {
 		static int32_t uniBuf[DX_MAX_N] __attribute__((aligned(CACHE_LINE_SIZE)));
 		memset(uniBuf, 0, sizeof uniBuf);
 

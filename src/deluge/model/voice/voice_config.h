@@ -55,4 +55,6 @@ struct VoiceConfig {
 	std::array<int32_t, kMaxNumVoicesUnison> unisonPan; ///< Sound::unisonPan (copied)
 
 	std::array<uint32_t, kNumSources> oscRetriggerPhase; ///< Sound::oscRetriggerPhase (4294967295 == off)
+
+	std::array<OscType, kNumSources> oscType; ///< Sound::sources[s].oscType — drives the per-source render dispatch
 };
