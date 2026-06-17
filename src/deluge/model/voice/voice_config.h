@@ -79,4 +79,8 @@ struct VoiceConfig {
 	/// paramManager->getPatchedParamSet()->params[LOCAL_NOISE_VOLUME].containsSomething(INT32_MIN) — whether a
 	/// noise source is in play. The predicate areAllUnisonPartsInactive gates on (sound-level, loop-stable).
 	bool noiseVolumeContainsSomething;
+
+	/// paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL] — bitmask of which local patch
+	/// sources are wired (the local envelope/LFO render gates on it). Set by setupPatching, loop-stable.
+	uint32_t localSourcesPatchedToAnything;
 };

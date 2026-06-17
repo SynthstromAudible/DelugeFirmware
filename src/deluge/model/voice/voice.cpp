@@ -750,9 +750,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 
 	// Do envelopes - if they're patched to something (always do the first one though)
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
-		if (e == 0
-		    || (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
-		        & (1 << (util::to_underlying(PatchSource::ENVELOPE_0) + e)))) {
+		if (e == 0 || (cfg.localSourcesPatchedToAnything & (1 << (util::to_underlying(PatchSource::ENVELOPE_0) + e)))) {
 			int32_t old = params.sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e];
 			int32_t release = params.paramFinalValues[params::LOCAL_ENV_0_RELEASE + e];
 			if (e == 0 && overrideAmplitudeEnvelopeReleaseRate) {
@@ -773,8 +771,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	                              && params.sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)]
 	                                     == std::numeric_limits<int32_t>::min());
 	// Local LFO
-	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
-	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL_1))) {
+	if (cfg.localSourcesPatchedToAnything & (1 << util::to_underlying(PatchSource::LFO_LOCAL_1))) {
 		int32_t old = params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
@@ -783,8 +780,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		uint32_t anyChange = (old != params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_1);
 	}
-	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
-	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL_2))) {
+	if (cfg.localSourcesPatchedToAnything & (1 << util::to_underlying(PatchSource::LFO_LOCAL_2))) {
 		int32_t old = params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
@@ -881,7 +877,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	// If not already releasing and some release is set, and no noise-source...
 	//@todo - cache this, it never changes
 	if (cfg.synthMode != SynthMode::FM && envelopes[0].stage() < Envelope::Stage::RELEASE && hasReleaseStage()
-	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
+	    && !cfg.noiseVolumeContainsSomething) {
 
 		uint32_t whichSourcesNeedAttention = 0;
 

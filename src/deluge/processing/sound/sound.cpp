@@ -2553,6 +2553,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .sourceEverActive = sourceEverActives,
 		    .noiseVolumeContainsSomething =
 		        paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648),
+		    .localSourcesPatchedToAnything =
+		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
 		};
 
 		for (auto it = voices_.begin(); it != voices_.end();) {
