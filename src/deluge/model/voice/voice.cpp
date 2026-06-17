@@ -1786,9 +1786,8 @@ Voice::renderSourceComponent(int32_t u, int32_t s, Sound& sound, ParamManagerFor
 		// The DX7 (FM) source renders through its engine — pooled DxVoice + the pitch/control derivation. The
 		// engine adds into uniBuf; the bespoke amplitude+sum below stays here (Voice's buffer layout).
 		bool active = unisonParts[u].sources[s].dx7Engine.render(
-		    uniBuf, numSamples, phaseIncrement, *sound.sources[s].ensureDxPatch(),
-		    params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s], sound.sources[s].dxPatchChanged,
-		    noteCodeAfterArpeggiation);
+		    uniBuf, numSamples, phaseIncrement, params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s],
+		    cfg.dxPatchChanged[s], noteCodeAfterArpeggiation);
 		if (!active) {
 			return SourceRenderResult::UNASSIGN;
 		}

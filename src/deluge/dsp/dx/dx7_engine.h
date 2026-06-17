@@ -38,10 +38,16 @@ namespace deluge::dsp {
 /// double-free.
 class DX7Engine {
 	DxVoice* voice_ = nullptr;
+	/// The patch this engine renders from, injected at note-on (the adapter domain). Stable for a Source's
+	/// lifetime (`Source::ensureDxPatch` creates it once, never replaces), so caching it here keeps the render
+	/// path free of any `Sound&`/`Source` reach. Contents may be UI-edited mid-note — `render`'s `patchChanged`
+	/// arg signals the re-derive.
+	DxPatch* patch_ = nullptr;
 
 public:
 	/// Solicit a pooled DxVoice if we don't already hold one (reused across a restart), then initialise it for the
-	/// note. @return false if the pool is empty (the voice should fail to start).
+	/// note, caching @p patch for subsequent renders. @return false if the pool is empty (the voice should fail to
+	/// start).
 	bool noteOn(DxPatch& patch, int midinote, int velocity);
 
 	/// Return the pooled DxVoice to the pool (no-op if none held).
@@ -52,9 +58,10 @@ public:
 
 	/// Render @p numSamples of the FM voice, *adding* into @p buf (DxVoice::compute accumulates). Derives the
 	/// log-pitch from @p phaseIncrement and the amplitude-mod control from @p ampModParam, re-deriving the patch
-	/// state first when @p patchChanged. @return whether the voice is still active (false ⇒ the note has ended).
-	bool render(int32_t* buf, int32_t numSamples, uint32_t phaseIncrement, DxPatch& patch, int32_t ampModParam,
-	            bool patchChanged, int midinote);
+	/// state first when @p patchChanged. Renders from the patch cached at note-on. @return whether the voice is
+	/// still active (false ⇒ the note has ended).
+	bool render(int32_t* buf, int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam, bool patchChanged,
+	            int midinote);
 };
 
 } // namespace deluge::dsp

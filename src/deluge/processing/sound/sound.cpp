@@ -2518,10 +2518,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		std::array<OscType, kNumSources> oscTypes;
 		std::array<SampleRepeatMode, kNumSources> repeatModes;
 		std::array<InterpolationMode, kNumSources> interpolationModes;
+		std::array<bool, kNumSources> dxPatchChangeds;
 		for (int32_t s = 0; s < kNumSources; s++) {
 			oscTypes[s] = sources[s].oscType;
 			repeatModes[s] = sources[s].repeatMode;
 			interpolationModes[s] = sources[s].sampleControls.interpolationMode;
+			dxPatchChangeds[s] = sources[s].dxPatchChanged;
 		}
 		const VoiceConfig voiceConfig{
 		    .lpfMode = lpfMode,
@@ -2543,6 +2545,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .oscType = oscTypes,
 		    .repeatMode = repeatModes,
 		    .interpolationMode = interpolationModes,
+		    .dxPatchChanged = dxPatchChangeds,
 		    .globalSourceValues = params.sourceValues,
 		    .noteTailsAllowed = allowNoteTails(modelStackWithSoundFlags, true),
 		};

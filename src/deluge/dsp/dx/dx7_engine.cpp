@@ -28,6 +28,7 @@ bool DX7Engine::noteOn(DxPatch& patch, int midinote, int velocity) {
 			return false;
 		}
 	}
+	patch_ = &patch;
 	voice_->init(patch, midinote, velocity);
 	return true;
 }
@@ -37,6 +38,7 @@ void DX7Engine::unassign() {
 		getDxEngine()->dxVoiceUnassigned(voice_);
 		voice_ = nullptr;
 	}
+	patch_ = nullptr;
 }
 
 void DX7Engine::keyup() {
@@ -45,7 +47,7 @@ void DX7Engine::keyup() {
 	}
 }
 
-bool DX7Engine::render(int32_t* buf, int32_t numSamples, uint32_t phaseIncrement, DxPatch& patch, int32_t ampModParam,
+bool DX7Engine::render(int32_t* buf, int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
                        bool patchChanged, int midinote) {
 	// TODO: 1. use existing int log function?
 	//       2. going from phase to logs (and then let MSFA turn those logs into phase again) is sus af
@@ -57,9 +59,9 @@ bool DX7Engine::render(int32_t* buf, int32_t numSamples, uint32_t phaseIncrement
 	ctrl.ampmod = ampModParam >> 13;
 	// ctrl.ratemod = params.paramFinalValues[params::LOCAL_CARRIER_0_FEEDBACK + s] >> 16;
 	if (patchChanged) {
-		voice_->update(patch, midinote);
+		voice_->update(*patch_, midinote);
 	}
-	return voice_->compute(buf, numSamples, adjpitch, &patch, &ctrl);
+	return voice_->compute(buf, numSamples, adjpitch, patch_, &ctrl);
 }
 
 } // namespace deluge::dsp
