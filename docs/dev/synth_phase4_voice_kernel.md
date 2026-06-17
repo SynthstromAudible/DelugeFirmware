@@ -44,6 +44,12 @@ VoiceConfig& cfg)` — **no `Sound&`, no `ModelStackWithSoundFlags*`**. A new ap
   auto-release noise read (reuses the snapshot), MPE bend ranges, and portamento are all snapshotted. The render
   body's only remaining `paramManager` reads are the two data-plane ones — the patcher `ControlBlock` (@830) and
   the `paramManager` passed to the engines (@1193) — which resolve at the lift.
+- **Engine-weaning arc — DONE** (slices 22–24): the render helpers/engines no longer reach `Sound&`. FM
+  `modulator1ToModulator0` + subtractive `isSourceActiveCurrently` snapshotted into `VoiceConfig`;
+  `Source::renderInStereo` became a static `Source`/`Sound`-free predicate; then the now-dead `Sound&` params were
+  dropped from `renderBasicSource` / `SubtractiveEngine::render` / `FMEngine::render`. **No render helper/engine
+  carries or reads `Sound&`.** The render path's only `this->sound` contact is the patcher `ControlBlock`
+  (`sound.patchControlBlock(*paramManager)` @830).
 
 ## The L2 boundary
 
