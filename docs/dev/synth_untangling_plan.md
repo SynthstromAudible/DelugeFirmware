@@ -202,6 +202,14 @@ waves (VA), wavetable, FM (modulators + feedback), noise, ring-mod pairing,
 DX7 (re-homed properly). `SampleSource` is the port behind which the existing
 sample path hides. An engine registry replaces the `OscType` megaswitch.
 
+> **Refinement (see `synth_l1_engine_architecture.md`).** The swappable unit is
+> drawn *above* the single-oscillator level: an **engine** is a complete
+> per-voice timbre generator (Subtractive / RingMod / FM / DX7 / sample / input
+> / future Plaits), and hard-sync / ring-mod / FM-topology are its *private
+> composition*, not contract surface. The Phase-3 `*Engine` objects (VA,
+> wavetable) are really *source components* one layer below. The registry
+> dispatches engines, not oscillators.
+
 **L2 — Voice kernel.** The heart of the untangling. A `synth::Voice` (voice
 pool, patcher, envelopes, LFOs, filters, unison, expression smoothing) that
 owns **no preset storage** and holds **no references upward**. Inputs per
@@ -217,6 +225,54 @@ the shape survives to L3.
 allocation lives inside the instrument; the app keeps culling/steal *policy*
 via explicit hooks. External `.clap` loading and Deluge-synth-as-plugin both
 attach here.
+
+### Extensibility model — two plug-in boundaries
+
+Foreign / third-party code attaches at two different altitudes. They are
+**complementary, not alternatives**: L3 is just the L2 voice kernel + L1
+engines wrapped in a C-ABI, so building the stack once yields both, and they
+*nest* rather than compete. The boundary you draw decides what the newcomer
+inherits from the Deluge and what it must bring itself.
+
+- **Engine API (L1) — "bring a source, inherit the Deluge."** A foreign source
+  engine (a Plaits macro-osc, a physical model, a new wavetable engine) slots in
+  where VA/FM/sample sources live and *still flows through* the Deluge's
+  envelopes, LFOs, patch matrix, MPE/aftertouch-as-patch-sources, unison,
+  filters and FX. This is the Deluge-native path: it makes a new timbre *feel
+  like a Deluge instrument* and inherits the whole sound-design language. It is
+  what the DX7 integration already is. The contract is narrow and opinionated
+  (per-voice, q31-block, allocator-injected, hard-sync master/slave, the
+  amplitude/VCA convention, pitch-as-phase-increment, `cpuDireness` fallback) —
+  that opinionation is the cost of the inheritance. **The engine _registry_
+  (replacing the `OscType` switch) is the substrate for this boundary:** a
+  closed `switch` is fine for the built-in set, but a registry earns its keep
+  the moment engines register at runtime.
+
+- **Instrument API (L3) — "bring a whole synth, inherit the sequencer."** A
+  whole CLAP instrument (Vital/Serum-class) drops in at the instrument boundary
+  and the Deluge becomes its *host*: it gets the song / sequencer / automation
+  and whatever params and note-expressions are bridged, but brings its **own**
+  voices, modulation and filters — the Deluge mod matrix does not reach inside
+  it. This maximises ecosystem compatibility (any `.clap`) at the price of the
+  Deluge's voice/mod character. The built-in Deluge synth, expressed as the
+  first such plugin, is the forcing function that proves the L2 kernel is
+  decoupled.
+
+**Two consequences that constrain the design:**
+
+- **CLAP belongs at L3 only; L1 must stay a lean native C++ interface** (a
+  C-ABI later, for Rust/foreign engines). The Deluge is per-voice
+  (Voice / unison / pooling): an L1 engine is instantiated and pooled *per
+  voice* and must be cheap and allocator-injected, whereas a CLAP instrument
+  owns its own polyphony and is not designed to be spun up per voice.
+- **The L1 engine API is gated on the L2 extraction (Phase 4).** Thin foreign
+  integrations are possible now (DX7-style), but a real third-party engine API
+  needs the surrounding voice processing (env / LFO / filter / patcher) to be a
+  clean *host*, not tangled into `Voice` / `Sound`.
+
+A third, orthogonal boundary — **CLAP _effects_ on the Sound-level FX chain** —
+is deliberately out of scope here (see below); keep it distinct from both the
+source-engine and whole-instrument plug points so the layering stays clean.
 
 ### Cross-cutting rules
 
@@ -307,6 +363,15 @@ Define `SourceEngine` (init-with-allocator / render-block). Re-home the
 `OscType` megaswitch bodies as engines; finish the DX7 integration properly;
 `SAMPLE`/`INPUT_*` leave the enum, with sample playback behind the
 `SampleSource` port wrapping the existing `voice_sample` path in place.
+
+*Status:* the **extraction** is done — every `OscType` render body now lives in
+an engine (VA, wavetable, DX7, input, sample), and `renderBasicSource` is pure
+dispatch. The remaining **unification** — a uniform engine interface across the
+foreign engines, `SAMPLE`/`INPUT_*` leaving the enum, and the registry
+replacing the `switch` — is the substrate for the **Engine API (L1)** plug-in
+boundary (see *Extensibility model* above). A closed `switch` is adequate until
+that boundary is committed to, so this unification is worth doing precisely
+when runtime-pluggable engines become a goal, not before.
 
 ### Phase 4 — Assemble the L2 voice kernel
 

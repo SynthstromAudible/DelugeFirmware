@@ -35,6 +35,10 @@ namespace deluge::synth {
 /// increment and the *raw* @ref BlockControls, and reads @ref phase() back only to persist a real hard-sync's
 /// advanced phase. (The engine is currently rebuilt per block by that adapter; making it persistent in Voice is
 /// the following stage.)
+///
+/// @note Per the L1 reframe this is a **source component**, not a swappable engine — see
+/// `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename rides the
+/// engine-forming slices.
 class VirtualAnalogEngine : public SourceEngine {
 public:
 	/// @param wave the VA wave to render — selects the variant alternative.

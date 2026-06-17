@@ -36,6 +36,10 @@ class ParamManagerForTimeline;
 /// model/sample, AudioEngine, the allocator and ParamManager), so it is a standalone class, not a
 /// synth::SourceEngine. Ownership of the pooled VoiceSample is **explicit** (released in @ref unassign, never in
 /// a destructor) — the per-source objects are pooled and reused in place.
+///
+/// @note Per the L1 reframe this is a **source component** (usable inside Subtractive/RingMod), not a swappable
+/// engine — see `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename
+/// rides the engine-forming slices (likely behind the `SampleSource` port).
 class SampleEngine {
 public:
 	/// Render outcome, distinguishing the legacy control-flow exits the SAMPLE branch had inside Voice's

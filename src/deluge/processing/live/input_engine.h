@@ -28,6 +28,10 @@ class LivePitchShifter;
 /// deluge::dsp::DX7Engine it is a *foreign*, app-coupled engine (it reaches AudioEngine + the allocator), so it is
 /// a standalone class, not a synth::SourceEngine. It owns the pooled pitch-shifter; ownership is **explicit**
 /// (freed in @ref unassign, never in a destructor) — the per-source objects are pooled and reused in place.
+///
+/// @note Per the L1 reframe this is a **source component** (usable inside Subtractive/RingMod), not a swappable
+/// engine — see `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename
+/// rides the engine-forming slices (likely behind a live-input port).
 class InputEngine {
 	LivePitchShifter* livePitchShifter_ = nullptr;
 

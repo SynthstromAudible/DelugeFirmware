@@ -36,6 +36,10 @@ namespace deluge::dsp {
 /// The storage dependency is deliberately confined to the single @ref table_ member + @ref setWaveTable, so the
 /// eventual dsp-next storage port (`WaveTable::render` → a band-data view) swaps one seam without touching this
 /// engine's logic — at which point the engine could itself move into the library.
+///
+/// @note Per the L1 reframe this is a **source component**, not a swappable engine — see
+/// `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename rides the
+/// engine-forming slices.
 class WavetableEngine : public synth::SourceEngine {
 	Phasor phasor_; ///< the original-domain render phase, persistent across blocks
 	WaveTable* table_ = nullptr;

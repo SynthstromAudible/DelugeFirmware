@@ -34,6 +34,7 @@
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
+#include "model/voice/source_component_render.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -61,53 +62,7 @@ namespace params = deluge::modulation::params;
 PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
-namespace {
-// The already-modulated per-block controls handed to a source engine — the raw values renderOsc's VA branch
-// used to build (the engine derives pulse/sync/retrigger/band/scale internally).
-synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncrement, uint32_t pulseWidth,
-                                       bool applyAmplitude, bool doOscSync, uint32_t resetterPhase,
-                                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase) {
-	return synth::BlockControls{
-	    .amplitude = dsp::Ramp{amplitude, amplitudeIncrement},
-	    .apply_amplitude = applyAmplitude,
-	    .pulse_width = pulseWidth,
-	    .retrigger_phase = retriggerPhase,
-	    .sync =
-	        doOscSync ? std::optional<dsp::Phasor>{dsp::Phasor{resetterPhase, resetterPhaseIncrement}} : std::nullopt,
-	    .cpu_direness = AudioEngine::cpuDireness,
-	};
-}
-
-// Render one block of a virtual-analog source through its persistent engine — the per-voice replacement for
-// renderOsc on the six VA waves (the engine owns its phase across blocks, so there is no oscPos to thread).
-// Shared by the subtractive and ring-mod render sites.
-void renderVaSource(synth::VirtualAnalogEngine& engine, int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
-                    int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
-                    bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase) {
-	synth::BlockControls controls = makeBlockControls(amplitude, amplitudeIncrement, pulseWidth, applyAmplitude,
-	                                                  doOscSync, resetterPhase, resetterPhaseIncrement, retriggerPhase);
-	engine.setIncrement(phaseIncrement);
-	engine.renderBlock(controls, dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
-	                   dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-}
-
-// Render one block of the wavetable source through its persistent engine — the per-voice replacement for
-// renderOsc's WAVETABLE body (the engine owns the pulse-as-sync preamble, the <<3 amplitude VCA and phase
-// persistence). The wavetable-specific inputs (table + morph index) are set on the engine before renderBlock.
-void renderWavetableSource(dsp::WavetableEngine& engine, WaveTable* waveTable, int32_t sourceWaveIndexLastTime,
-                           int32_t waveIndexIncrement, int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
-                           int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
-                           bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
-                           uint32_t retriggerPhase) {
-	synth::BlockControls controls = makeBlockControls(amplitude, amplitudeIncrement, pulseWidth, applyAmplitude,
-	                                                  doOscSync, resetterPhase, resetterPhaseIncrement, retriggerPhase);
-	engine.setWaveTable(waveTable);
-	engine.setIncrement(phaseIncrement);
-	engine.setWaveIndex(sourceWaveIndexLastTime, waveIndexIncrement);
-	engine.renderBlock(controls, dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
-	                   dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-}
-} // namespace
+using namespace deluge::voice;
 
 // Hopefully I could make this use the spareRenderingBuffer instead...
 
