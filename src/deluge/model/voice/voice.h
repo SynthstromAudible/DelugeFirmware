@@ -116,7 +116,8 @@ public:
 
 	bool justCreated{false};
 
-	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);
+	uint32_t getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modulation::params::Local param,
+	                                   uint32_t syncedPhaseIncrement);
 	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);
 	bool render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock, int32_t* soundBuffer,
 	            int32_t numSamples, bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,

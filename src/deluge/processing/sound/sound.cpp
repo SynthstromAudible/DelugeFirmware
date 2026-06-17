@@ -2539,6 +2539,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .synthMode = getSynthMode(),
 		    .lfo2Config = lfoConfig[LFO2_ID],
 		    .lfo4Config = lfoConfig[LFO4_ID],
+		    .lfo2SyncedPhaseIncrement =
+		        (lfoConfig[LFO2_ID].syncLevel == SYNC_LEVEL_NONE) ? 0 : getSyncedLFOPhaseIncrement(lfoConfig[LFO2_ID]),
+		    .lfo4SyncedPhaseIncrement =
+		        (lfoConfig[LFO4_ID].syncLevel == SYNC_LEVEL_NONE) ? 0 : getSyncedLFOPhaseIncrement(lfoConfig[LFO4_ID]),
 		    .hasFilters = thisHasFilters,
 		    .expressionSourcesChangedAtSynthLevel = expressionSourcesChangedAtSynthLevel,
 		    .monophonicExpressionValues = monophonicExpressionValues,

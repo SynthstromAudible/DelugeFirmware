@@ -717,12 +717,12 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 	return true;
 }
 
-uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param) {
-	LFOConfig& config = sound.lfoConfig[lfoId];
+uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modulation::params::Local param,
+                                          uint32_t syncedPhaseIncrement) {
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
 		return params.paramFinalValues[param];
 	}
-	return sound.getSyncedLFOPhaseIncrement(config);
+	return syncedPhaseIncrement;
 }
 
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
@@ -775,8 +775,9 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		int32_t old = params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
-		params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
-		    lfo2.render(numSamples, cfg.lfo2Config, getLocalLFOPhaseIncrement(LFO2_ID, params::LOCAL_LFO_LOCAL_FREQ_1));
+		params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(
+		    numSamples, cfg.lfo2Config,
+		    getLocalLFOPhaseIncrement(cfg.lfo2Config, params::LOCAL_LFO_LOCAL_FREQ_1, cfg.lfo2SyncedPhaseIncrement));
 		uint32_t anyChange = (old != params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_1);
 	}
@@ -784,8 +785,9 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		int32_t old = params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
-		params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
-		    lfo4.render(numSamples, cfg.lfo4Config, getLocalLFOPhaseIncrement(LFO4_ID, params::LOCAL_LFO_LOCAL_FREQ_2));
+		params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(
+		    numSamples, cfg.lfo4Config,
+		    getLocalLFOPhaseIncrement(cfg.lfo4Config, params::LOCAL_LFO_LOCAL_FREQ_2, cfg.lfo4SyncedPhaseIncrement));
 		uint32_t anyChange = (old != params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_2);
 	}

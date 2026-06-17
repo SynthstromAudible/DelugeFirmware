@@ -41,6 +41,10 @@ struct VoiceConfig {
 	SynthMode synthMode;  ///< Sound::getSynthMode() — drives the subtractive/ring-mod/FM dispatch
 	LFOConfig lfo2Config; ///< Sound::lfoConfig[LFO2_ID]
 	LFOConfig lfo4Config; ///< Sound::lfoConfig[LFO4_ID]
+	/// Sound::getSyncedLFOPhaseIncrement(lfoConfig[LFO2_ID/LFO4_ID]) — transport-synced increment, valid only when
+	/// the LFO's syncLevel != NONE (0 otherwise, unused). Sound/transport-level, identical for all voices.
+	uint32_t lfo2SyncedPhaseIncrement;
+	uint32_t lfo4SyncedPhaseIncrement;
 
 	bool hasFilters; ///< Sound::hasFilters()
 
