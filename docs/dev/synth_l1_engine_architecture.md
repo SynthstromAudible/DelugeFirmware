@@ -163,18 +163,25 @@ High level only; each gets its own per-slice plan:
   | Layer | Suffix | Examples |
   |---|---|---|
   | dsp-next kernels (L0) | `*Oscillator` (exists) | `TableOscillator`, `PulseOscillator` — keep |
-  | source components | `*Source` | `VirtualAnalogSource`, `WavetableSource`, `SampleSource`†, `InputSource`; base `SourceComponent` (was `SourceEngine`) |
-  | engines (swap) | `*Engine` | `SubtractiveEngine`, `RingModEngine`, `FMEngine`, `DX7Engine`; base `Engine` |
+  | source (per-source renderer) | `*Source` | `VirtualAnalogSource`, `WavetableSource`, `SampleSource`†, `InputSource`; **base `synth::Source`** (was `SourceEngine`, **folding in** the `SourceRenderResult` outcome) |
+  | engines (coordinator / swap) | `*Engine` | `SubtractiveEngine`, `RingModEngine`, `FMEngine`, `DX7Engine`; base `Engine` |
 
-  It reuses the Deluge's own word (osc A/B are already "sources"). **Collisions to resolve when slice 1 designs
-  the port:** (a) `WavetableOscillator` already exists *twice* (`dsp/oscillators/wavetable_oscillator.h` +
-  `dsp-next/fixed/wavetable/wavetable_oscillator.h`) and dsp-next owns the whole `*Oscillator` building-block
-  vocabulary; (b) †`SampleSource` is also the reserved **port** name in `synth_untangling_plan.md`; (c) `*Source`
-  brushes against the existing `class Source` (preset-side config, `processing/source.h`). So the component
-  suffix may need to be `*Source` *or* something collision-free (e.g. `*Generator` — though dsp-next uses
-  `Generator`/`BlockGenerator` as CRTP bases). **Recommendation: defer the mechanical rename to the structural
-  slices** (these files get rewritten then anyway); lock the scheme here, rename atomically with the structure so
-  each commit stays coherent and golden-gated. Blast radius is small today (4–11 refs each).
+  It reuses the Deluge's own word (osc A/B are already "sources"). **Collisions:** (a) `WavetableOscillator`
+  already exists *twice* (`dsp/oscillators/wavetable_oscillator.h` + `dsp-next/fixed/wavetable/wavetable_oscillator.h`)
+  and dsp-next owns the whole `*Oscillator` building-block vocabulary; (b) †`SampleSource` is also the reserved
+  **port** name in `synth_untangling_plan.md`; (c) the base `Source` brushes against the existing global
+  `class Source` (preset-side config, `processing/source.h`) — resolved by the namespace: the new base is
+  `deluge::synth::Source`, distinct from the global `::Source`.
+
+  **Decision (2026-06-17): rename now, base-first, not deferred.** The base interface `synth::SourceEngine`
+  becomes **`synth::Source`** and *folds in* the `SourceRenderResult` outcome (the per-source renderer reports
+  its own lifecycle, replacing the separate `renderSourceComponent` dispatch) — this is the Source tier of the
+  `Phasor → Osc → Source → Engine → Voice → Instrument` stack (`synth_untangling_plan.md`), with "Engine"
+  reserved for the *coordinator* tier above. **Slice 1 does the base rename + the fold for the VA source only**
+  (VA already implements the interface; smallest bit-exact proof), routing just the VA branch of
+  `renderSourceComponent` through `synth::Source`. The concrete-class renames (`VirtualAnalogEngine →
+  VirtualAnalogSource`, etc.) and the other sources follow in later slices, atomically with their structure.
+  Blast radius of the base rename is small today (4–11 refs).
 - **Does sync apply to non-oscillator components?** Today sync is phase-reset; it's only meaningful for
   oscillator components. Define whether a sample/input component can be a sync slave (likely no).
 - **Where `BlockControls` lives.** Split: the amplitude/`apply_amplitude`/`cpu_direness` part stays a

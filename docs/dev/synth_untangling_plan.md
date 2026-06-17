@@ -226,6 +226,29 @@ allocation lives inside the instrument; the app keeps culling/steal *policy*
 via explicit hooks. External `.clap` loading and Deluge-synth-as-plugin both
 attach here.
 
+### The vertical stack (composition tiers)
+
+The L0–L3 *layers* above decompose vertically into six **composition tiers** —
+each tier is built from the one below and is independently testable:
+
+**Phasor → Osc → Source → Engine → Voice → Instrument**
+
+| Tier | Owns / does | Layer | Today |
+|---|---|---|---|
+| **Phasor** | phase accumulation (UQ0.32) | L0 | `deluge::dsp::Phasor` |
+| **Osc** | one waveform = phasor + shape; pure DSP, owns phase | L0 | the `va_shapes` variant *inside* `VirtualAnalogEngine` |
+| **Source** | one voice source (osc / wavetable / sample / live-input / FM-op) + its per-source amplitude · sync-as-phase · pulse-width; reports a lifecycle outcome (`ACTIVE`/`UNASSIGN`/`SKIP`) | L1 | `synth::SourceEngine::renderBlock` **+** the `SourceRenderResult` dispatch (`renderSourceComponent`) — **to be folded into one `synth::Source`** |
+| **Engine** | *coordinates* multiple Sources: hard-sync master/slave, ring-mod pairing, the 4-op FM matrix | L1 | the cross-source orchestration still inside `Voice::render` + `RingModEngine` (no first-class engine objects yet) |
+| **Voice** | the per-voice chain *wrapping* one Engine: VCA + filter + envelopes + LFOs + unison + MPE smoothing | L2 | the rest of `Voice::render` → the `synth::Voice` lift |
+| **Instrument** | the whole synth: + mod-FX chain, arpeggiator, preset/serialization (the Vital/Serum/Massive/Pigments altitude) | L3 | `Sound` + `ModControllableAudio` |
+
+Key boundary: **an Engine _coordinates_ Sources; a Voice _wraps_ an Engine with
+the VCA/filter/envelope chain.** That Source↔Engine↔Voice split is precisely the
+L1/L2 cut the Phase-4 lift is making. "Engine" is reserved for the *coordinator*
+tier — so the Phase-3 `synth::SourceEngine` (a single-source renderer) is
+mis-named and becomes **`synth::Source`** (folding in the `SourceRenderResult`
+outcome). See `synth_l1_engine_architecture.md` for the Source/Engine contracts.
+
 ### Extensibility model — two plug-in boundaries
 
 Foreign / third-party code attaches at two different altitudes. They are

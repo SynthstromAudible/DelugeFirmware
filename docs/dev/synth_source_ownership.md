@@ -72,13 +72,22 @@ pure dsp-next** (no Voice / param-plane / `LOCAL_*` coupling). The dsp-next trac
 `[[dsp-next-fixed-layout]]`) reworks each primitive to own its bits + consume typed params; this OO model is the L1
 seam that sits above them.
 
-## Relationship to the lift (important)
+## Relationship to the lift (updated 2026-06-17)
 
-**The lift does NOT need param ownership or the polymorphic interface.** The oscType switch reads `cfg.oscType[s]`
-(already snapshotted) — it doesn't trip the boundary. What trips `check_synth_boundary` is the app reaches inside
-the sample/input engines. So **L-vi = the ports only** (`SampleSource` + live-input + the `renderInStereo`
-globals), keeping the oscType dispatch; that makes `synth::Voice` portable + bit-exact. Building the param-owning
-`SourceComponent` over the flat plane during the lift would be premature (reshaped when ownership lands).
+Separate the **dispatch boundary** from **param ownership** (the two top concerns above):
+
+- **Dispatch boundary — built in the lift.** The per-source renderer is unified into one `synth::Source` interface
+  (the Source tier of `Phasor → Osc → Source → Engine → Voice → Instrument`): the Phase-3 `synth::SourceEngine`
+  is renamed `synth::Source` and *folds in* the `SourceRenderResult` outcome, so the heterogeneous sources
+  (VA / wavetable / sample / input / DX7) dispatch through one polymorphic call. App-coupled sources reach their
+  **ports** (`SampleSource` + live-input + the `renderInStereo` globals) from *inside* their `synth::Source` impl.
+  Ports + the polymorphic boundary are the *same* arc, not a fork. (`synth_l1_engine_architecture.md`.)
+- **Param ownership — still deferred.** The folded `synth::Source` initially still reads its modulated values from
+  the flat `paramFinalValues[LOCAL_* + s]` plane (bit-exact, unchanged). Giving each source **typed, owned params**
+  is the later OO phase below — premature to retrofit during the lift (it reshapes when ownership lands).
+
+So the lift builds the `synth::Source` *boundary* (dispatch + ports) over the *existing* flat plane; ownership is
+the next phase.
 
 ## Proposed phase ordering (each bit-exact, golden-gated)
 

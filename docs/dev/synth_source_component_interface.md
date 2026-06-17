@@ -1,5 +1,12 @@
 # Phase 4 L-vi — the `SourceComponent` interface + source ports
 
+> **Superseded naming (2026-06-17):** the per-source contract this doc calls `SourceComponent` is now the
+> **`synth::Source`** tier — the Phase-3 `synth::SourceEngine` renamed and *folding in* the `SourceRenderResult`
+> outcome (the Source tier of `Phasor → Osc → Source → Engine → Voice → Instrument`). The dispatch boundary is
+> built *in* the lift (VA-first), with ports reached from inside each `synth::Source` impl; only *param ownership*
+> is deferred. See `synth_untangling_plan.md` (the stack) and `synth_l1_engine_architecture.md` (the rename
+> decision). The contract/port sketches below remain useful inputs.
+>
 > Status: **REFINED — see `synth_source_ownership.md`.** This doc sketched a `SourceComponent` interface as
 > dispatch-polymorphism *over the legacy flat param plane*. That conflated three separable concerns (dispatch
 > boundary / param ownership / dsp-next residence). The reframe: **the lift (L-vi) needs only the ports** — the
