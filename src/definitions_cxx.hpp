@@ -355,15 +355,6 @@ enum class PerformanceEditingMode : uint8_t {
 	PARAM,
 };
 
-// Midi Follow Mode Feedback Automation Modes
-
-enum class MIDIFollowFeedbackAutomationMode : uint8_t {
-	DISABLED,
-	LOW,
-	MEDIUM,
-	HIGH,
-};
-
 enum class OscType : uint8_t {
 	SINE,
 	TRIANGLE,
@@ -603,6 +594,7 @@ enum class GlobalMIDICommand {
 	FILL,
 	TRANSPOSE,
 	NEXT_SONG,
+	SHIFT,
 	LAST, // Keep as boundary
 };
 constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
@@ -619,9 +611,46 @@ enum class MIDIFollowChannelType : uint8_t {
 	A,
 	B,
 	C,
+	Track,
 	NONE,
+	Track1,
+	Track2,
+	Track3,
+	Track4,
+	Track5,
+	Track6,
+	Track7,
+	Track8,
+	Track9,
+	Track10,
+	Track11,
+	Track12,
+	Track13,
+	Track14,
+	Track15,
+	Track16,
+	INVALID,
 };
-constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::NONE);
+constexpr MIDIFollowChannelType kLastValidMIDIFollowChannelType = MIDIFollowChannelType::Track16; // 20
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::Track1);   // 5
+constexpr auto kNumMIDIFollowChannelTypesIncludingTracks =
+    util::to_underlying(kLastValidMIDIFollowChannelType) + 1; // 21
+constexpr int32_t kNumMIDIFollowChannelTrackTypes =
+    kNumMIDIFollowChannelTypesIncludingTracks - kNumMIDIFollowChannelTypes; // 21 - 5 = 16
+
+// Midi Follow Mode Feedback Automation Modes
+enum class MIDIFollowFeedbackAutomationMode : uint8_t {
+	DISABLED,
+	LOW,
+	MEDIUM,
+	HIGH,
+	INVALID,
+};
+
+constexpr MIDIFollowFeedbackAutomationMode kLastValidMIDIFollowFeedbackAutomationMode =
+    MIDIFollowFeedbackAutomationMode::HIGH; // 3
+constexpr int32_t kNumMIDIFollowFeedbackAutomationModes =
+    util::to_underlying(kLastValidMIDIFollowFeedbackAutomationMode) + 1; // 4;
 
 enum class MIDITransposeControlMethod : uint8_t {
 	INKEY,

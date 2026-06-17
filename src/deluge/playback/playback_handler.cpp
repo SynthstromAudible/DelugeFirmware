@@ -2836,6 +2836,11 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 				currentSong->loadNextSong();
 				break;
 
+			case GlobalMIDICommand::SHIFT:
+				Buttons::commandToggleShift(true);
+				indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
+				break;
+
 			// case GlobalMIDICommand::TAP:
 			default:
 				if (getCurrentUI() == getRootUI()) {
@@ -2870,16 +2875,20 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDICable& cable, int32_t channel
 
 	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].equalsChannelOrZone(&cable,
 	                                                                                                         channel)) {
-		foundAnything = true;
 		MIDITranspose::doTranspose(false, note);
+		foundAnything = true;
 	}
-	else {
-		// Check for FILL command at index [8]
-		if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(&cable, channel,
-		                                                                                               note)) {
-			currentSong->changeFillMode(false);
-			foundAnything = true;
-		}
+	// Check for FILL command at index [8]
+	else if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(&cable, channel,
+	                                                                                                    note)) {
+		currentSong->changeFillMode(false);
+		foundAnything = true;
+	}
+	else if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::SHIFT)].equalsNoteOrCC(
+	             &cable, channel, note)) {
+		Buttons::commandToggleShift(false);
+		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
+		foundAnything = true;
 	}
 
 	return foundAnything;
