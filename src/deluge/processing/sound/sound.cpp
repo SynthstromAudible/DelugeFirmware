@@ -2548,6 +2548,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .monophonicExpressionValues = monophonicExpressionValues,
 		    .clippingAmount = clippingAmount,
 		    .doingOscSync = renderingOscillatorSyncCurrently(paramManager),
+		    .engineRenderingInStereo = AudioEngine::renderInStereo,
 		    .numUnison = numUnison,
 		    .unisonStereoSpread = unisonStereoSpread,
 		    .unisonPan = std::to_array(unisonPan),

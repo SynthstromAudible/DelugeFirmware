@@ -1173,7 +1173,7 @@ skipAutoRelease: {}
 	}
 	else {
 		// Set up panning
-		doPanning = (AudioEngine::renderInStereo
+		doPanning = (cfg.engineRenderingInStereo
 		             && shouldDoPanning(params.paramFinalValues[params::LOCAL_PAN], &amplitudeL, &amplitudeR));
 	}
 
