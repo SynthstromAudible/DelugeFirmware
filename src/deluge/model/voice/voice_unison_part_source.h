@@ -18,11 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/dx/dx7_source.h"
 #include "dsp/dx/dx_voice_adapter.h"
 #include "model/sample/sample.h"
 #include "model/voice/sample_source.h"
 #include "processing/live/input_source.h"
+#include "synth/source/dx7_source.h"
 #include "synth/source/virtual_analog_source.h"
 #include "synth/source/wavetable_source.h"
 #include <optional>

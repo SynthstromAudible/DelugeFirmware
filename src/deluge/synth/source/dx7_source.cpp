@@ -14,8 +14,8 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "dsp/dx/dx7_source.h"
-#include "util/functions.h" // multiply_32x32_rshift32
+#include "synth/source/dx7_source.h"
+#include "util/fixedpoint.h" // multiply_32x32_rshift32
 #include <span>
 
 namespace deluge::dsp {
