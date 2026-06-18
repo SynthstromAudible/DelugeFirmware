@@ -16,6 +16,10 @@ def install_rtmidi():
     )
 
 
+def install_pyserial():
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pyserial==3.5"])
+
+
 def run(args, redirect_input: bool = True, redirect_output: bool = True):
     # start child process
     process = subprocess.run(
