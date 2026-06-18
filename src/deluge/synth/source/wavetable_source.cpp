@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "wavetable_source.h"
+#include "synth/source/wavetable_source.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "util/fixedpoint.h" // multiply_32x32_rshift32_rounded
 

@@ -19,11 +19,11 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/dx/dx7_source.h"
-#include "dsp/oscillators/wavetable_source.h"
 #include "model/sample/sample.h"
 #include "model/voice/sample_source.h"
 #include "processing/live/input_source.h"
 #include "synth/source/virtual_analog_source.h"
+#include "synth/source/wavetable_source.h"
 #include <optional>
 
 class TimeStretcher;
