@@ -1,5 +1,10 @@
 # Phase 4 — the `synth::Voice` lift
 
+> **Update (2026-06-18):** L-vi is done — all five sources are polymorphic `synth::Source`s (the dispatch seam).
+> The L-vi "ports" are now their own design: **`synth_source_ports.md`** (invert each source's App dependency so it
+> becomes library-resident; the kernel ownership + this relocation **fall out** once the sources are App-free). The
+> ports are the path from "decoupled" to actually "separated."
+>
 > Status: **roadmap / in progress.** The Phase-4 endgame (sub-slice **f** of `synth_phase4_voice_kernel.md`).
 > Slices 1–24 made `Voice::render`'s *signature* free of `Sound&` and `ModelStackWithSoundFlags*`, and removed
 > every `Sound&` read from the render helpers/engines. This doc frames the remaining work: severing the render
