@@ -17,32 +17,27 @@
 #pragma once
 
 #include "dsp-next/core/phasor.h"
+#include "dsp-next/fixed/wavetable/wave_table_data.h"           // fixed::WaveTableData (storage-independent band view)
+#include "dsp-next/fixed/wavetable/wavetable_oscillator.h"      // fixed::WavetableOscillator (non-sync)
+#include "dsp-next/fixed/wavetable/wavetable_sync_oscillator.h" // fixed::WavetableSyncOscillator (+ fixed::Resetter)
 #include "synth/source/oscillator_source.h" // synth::OscillatorSource (+ Source, SourceRenderContext, BlockControls)
-#include "wavetable_oscillator.h"           // WavetableOscillator (+ storage/wave_table.h)
 #include <cstdint>
 
 namespace deluge::dsp {
 
-/// @brief The wavetable source engine: a persistent per-voice-source @ref synth::Source wrapping the
-/// sample-backed @ref WavetableOscillator.
+/// @brief The wavetable source: a persistent per-voice-source @ref synth::Source over a storage-independent
+/// band-data view.
 ///
-/// Unlike the virtual-analog waves, the wavetable loads its band data from SD, so it depends on `storage/` and
-/// cannot live in the freestanding synth/ library — it stays **app-side** as the port-boundary adapter (the same
-/// shape the plan prescribes for SAMPLE: "wrap the existing path in place"). It owns the wavetable's render phase
-/// across blocks (replacing @c oscPos for wavetable sources, as @ref synth::VirtualAnalogSource did for the VA
-/// waves), the pulse-width-as-sync preamble, the per-block @ref WavetableOscillator, the `<<3` amplitude VCA, and
-/// the phase-persistence rule.
-///
-/// The storage dependency is deliberately confined to the single @ref table_ member + @ref setWaveTable, so the
-/// eventual dsp-next storage port (`WaveTable::render` → a band-data view) swaps one seam without touching this
-/// engine's logic — at which point the engine could itself move into the library.
-///
-/// @note Per the L1 reframe this is a **source component**, not a swappable engine — see
-/// `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename rides the
-/// engine-forming slices.
+/// It renders through the dsp-next view-based @ref deluge::dsp::fixed::WavetableOscillator (non-sync) /
+/// @ref deluge::dsp::fixed::WavetableSyncOscillator (hard-sync), built from a @ref fixed::WaveTableData the app
+/// supplies per block. It owns the wavetable's render phase across blocks (replacing @c oscPos for wavetable
+/// sources, as @ref synth::VirtualAnalogSource did for the VA waves), the pulse-width-as-sync preamble, the `<<3`
+/// amplitude VCA, and the phase-persistence rule. The storage `WaveTable` (SD loading / `AudioFile` refcounting /
+/// stealable memory) stays app-side and builds the view (`WaveTable::view()`) — the source no longer reaches it,
+/// so it is App-free and library-resident (the band-data port, `docs/dev/synth_source_ports.md`).
 class WavetableSource : public synth::OscillatorSource {
-	Phasor phasor_; ///< the original-domain render phase, persistent across blocks
-	WaveTable* table_ = nullptr;
+	Phasor phasor_;              ///< the original-domain render phase, persistent across blocks
+	fixed::WaveTableData table_; ///< the band-data view (default = null/empty); set per block by the app edge
 	int32_t wave_index_last_ = 0;
 	int32_t wave_index_increment_ = 0;
 
@@ -57,9 +52,9 @@ public:
 	/// Set the per-block pitch (UQ0.32). Voice calls this each block before @ref renderBlock.
 	void setIncrement(uint32_t increment) { phasor_.setIncrement(increment); }
 
-	/// The wavetable to render (from the source's loaded `AudioFile`) — set per block by Voice. The only storage
-	/// seam.
-	void setWaveTable(WaveTable* table) { table_ = table; }
+	/// The wavetable band-data **view** to render (built app-side from the source's loaded `WaveTable`) — set per
+	/// block by Voice. The storage seam is now this view, not a `WaveTable` pointer, so the source is App-free.
+	void setWaveData(const fixed::WaveTableData& data) { table_ = data; }
 	/// The per-block wave-index (morph) inputs: @p last_index is the previous block's index, @p increment its
 	/// per-sample slope. The engine applies the legacy `+2^30` centering itself.
 	void setWaveIndex(int32_t last_index, int32_t increment) {
@@ -72,9 +67,9 @@ public:
 	/// Render one block into @p output (sets the wavetable + per-block pitch + wave-index/morph inputs first), VCA
 	/// per @p controls. The public block-render API used by @ref RingModEngine (raw render) and by
 	/// @ref renderOscBlock. The engine owns its phase across blocks.
-	void renderInto(const synth::BlockControls& controls, WaveTable* table, int32_t lastWaveIndex,
+	void renderInto(const synth::BlockControls& controls, const fixed::WaveTableData& table, int32_t lastWaveIndex,
 	                int32_t waveIndexIncrement, uint32_t phaseIncrement, fixed::Buffer output, fixed::Buffer scratch) {
-		setWaveTable(table);
+		setWaveData(table);
 		setIncrement(phaseIncrement);
 		setWaveIndex(lastWaveIndex, waveIndexIncrement);
 		renderBlock(controls, output, scratch);
@@ -83,7 +78,7 @@ public:
 protected:
 	void renderOscBlock(const synth::BlockControls& controls, const synth::SourceRenderContext& ctx,
 	                    fixed::Buffer out) override {
-		renderInto(controls, ctx.waveTable, ctx.waveIndexLast, ctx.waveIndexIncrement, ctx.phaseIncrement, out,
+		renderInto(controls, ctx.waveTableData, ctx.waveIndexLast, ctx.waveIndexIncrement, ctx.phaseIncrement, out,
 		           fixed::Buffer{ctx.syncScratch, static_cast<size_t>(ctx.numSamples)});
 	}
 };

@@ -20,6 +20,7 @@
 #include "dsp/oscillators/oscillator.h"          // deluge::dsp::oscSyncRenderingBuffer
 #include "model/voice/source_component_render.h" // voice::makeBlockControls
 #include "model/voice/voice_unison_part_source.h"
+#include "storage/wave_table/wave_table.h" // WaveTable::view() (band-data view for the wavetable source)
 #include "util/fixedpoint.h"
 
 using namespace deluge;
@@ -54,7 +55,7 @@ void RingModEngine::render(const Source& src0, const Source& src1, bool doOscSyn
 			source.part->vaSource->renderInto(controls, source.phaseIncrement, out, syncScratch);
 		}
 		else {
-			source.part->wavetableSource->renderInto(controls, source.waveTable, source.waveIndexLast,
+			source.part->wavetableSource->renderInto(controls, source.waveTable->view(), source.waveIndexLast,
 			                                         source.waveIndexIncrement, source.phaseIncrement, out,
 			                                         syncScratch);
 		}

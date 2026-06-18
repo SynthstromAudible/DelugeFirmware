@@ -59,14 +59,25 @@ void WavetableSource::renderBlock(const synth::BlockControls& controls, fixed::B
 	const int32_t waveIndex = wave_index_last_ + 1073741824;
 	int32_t* dst = controls.apply_amplitude ? scratch.data() : output.data();
 
-	WavetableOscillator osc{table_,
-	                        Phasor{renderPhase, renderInc},
-	                        doOscSync,
-	                        Phasor{resetterPhase, resetterInc},
-	                        controls.retrigger_phase,
-	                        waveIndex,
-	                        wave_index_increment_};
-	osc.renderBlock(fixed::Buffer{dst, output.size()});
+	// Render through the dsp-next view-based oscillator — the same non-sync/sync dispatch WaveTable::render does,
+	// now driven directly over our band-data view (no storage reach).
+	uint32_t renderedPhase;
+	if (!doOscSync) {
+		fixed::WavetableOscillator osc{table_, renderPhase, renderInc, waveIndex, wave_index_increment_};
+		osc.renderBlock(fixed::Buffer{dst, output.size()});
+		renderedPhase = osc.phase();
+	}
+	else {
+		fixed::WavetableSyncOscillator osc{table_,
+		                                   renderPhase,
+		                                   renderInc,
+		                                   fixed::Resetter{resetterPhase, resetterInc},
+		                                   controls.retrigger_phase,
+		                                   waveIndex,
+		                                   wave_index_increment_};
+		osc.renderBlock(fixed::Buffer{dst, output.size()});
+		renderedPhase = osc.phase();
+	}
 
 	if (controls.apply_amplitude) {
 		// The wavetable's amplitude is pre-shifted <<3 (as the legacy renderOsc did); out = scratch*amp + out.
@@ -80,7 +91,7 @@ void WavetableSource::renderBlock(const synth::BlockControls& controls, fixed::B
 		phasor_.seek(origPhase + origInc * static_cast<uint32_t>(output.size()));
 	}
 	else {
-		phasor_.seek(osc.phase());
+		phasor_.seek(renderedPhase);
 	}
 }
 

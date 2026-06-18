@@ -48,6 +48,10 @@ struct WaveTableBand {
 /// touches isn't exercised by the offline golden.)
 class WaveTableData {
 public:
+	/// A null/empty view (`num_bands() == 0`) — for the context slots of non-wavetable sources, which build the
+	/// shared @ref deluge::synth::SourceRenderContext but never read the view.
+	WaveTableData() = default;
+
 	WaveTableData(int32_t num_cycles, int32_t num_cycle_transitions_magnitude, int32_t wave_index_multiplier,
 	              const void* bands_base, std::size_t band_stride, int32_t num_bands)
 	    : num_cycles_{num_cycles}, num_cycle_transitions_magnitude_{num_cycle_transitions_magnitude},
@@ -83,12 +87,12 @@ public:
 	}
 
 private:
-	int32_t num_cycles_;
-	int32_t num_cycle_transitions_magnitude_;
-	int32_t wave_index_multiplier_;
-	const void* bands_base_;
-	std::size_t band_stride_;
-	int32_t num_bands_;
+	int32_t num_cycles_ = 0;
+	int32_t num_cycle_transitions_magnitude_ = 0;
+	int32_t wave_index_multiplier_ = 0;
+	const void* bands_base_ = nullptr;
+	std::size_t band_stride_ = 0;
+	int32_t num_bands_ = 0;
 };
 
 } // namespace deluge::dsp::fixed

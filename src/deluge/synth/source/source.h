@@ -16,14 +16,13 @@
  */
 #pragma once
 
-#include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
-#include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
-#include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
+#include "dsp-next/core/phasor.h"                     // deluge::dsp::Phasor
+#include "dsp-next/core/ramp.h"                       // deluge::dsp::Ramp
+#include "dsp-next/core/types.h"                      // deluge::dsp::fixed::Buffer
+#include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
 #include <cstdint>
 #include <optional>
 
-class WaveTable; // opaque (storage-side); a @ref deluge::synth::SourceRenderContext carries it as a pass-through
-                 // pointer only, so synth/ never reaches into storage/. Removed by the later band-data port.
 enum class OscType : uint8_t; // opaque (definitions_cxx.hpp); the context carries it only to select the live-input
                               // L/R/stereo routing — no definitions include needed in synth/.
 
@@ -72,7 +71,8 @@ enum class SourceRenderResult { ACTIVE, UNASSIGN, SKIP };
 
 /// @brief Everything a @ref Source needs to render one unison part of one source for this block — a synth-safe
 /// transport of *already-computed* values (no engine state, no model/processing/storage reach). Built once at the
-/// app-side adapter (`Voice::renderSourceComponent`); `WaveTable*` is a pass-through pointer only, and
+/// app-side adapter (`Voice::renderSourceComponent`); the wavetable arrives as a storage-independent
+/// @ref deluge::dsp::fixed::WaveTableData view (the app builds it from its `WaveTable`), and
 /// @ref BlockControls::cpu_direness is baked in there so the AudioEngine global never enters synth/. Each concrete
 /// source reads only the subset it needs; unused fields are harmless.
 struct SourceRenderContext {
@@ -83,13 +83,14 @@ struct SourceRenderContext {
 	int32_t amplitudeL;      ///< unison pan-fold left gain (q31)
 	int32_t amplitudeR;      ///< unison pan-fold right gain (q31)
 	int32_t sourceAmplitude; ///< per-block start VCA amplitude (DX7's bespoke sum; oscillators get it via @c controls)
-	int32_t amplitudeIncrement;         ///< per-sample VCA increment
-	uint32_t phaseIncrement;            ///< per-block pitch (UQ0.32)
-	bool doOscSync;                     ///< hard-sync this block to source 0 (oscillators only)
-	uint32_t oscSyncPos;                ///< the master's phase for this unison part (when @c doOscSync)
-	uint32_t oscSyncPhaseIncrement;     ///< the master's increment for this unison part; 0 ⇒ freq too high ⇒ SKIP
-	BlockControls controls;             ///< the already-built oscillator controls (amplitude/pulse/sync/cpu_direness)
-	WaveTable* waveTable;               ///< wavetable source only (pass-through; null for basic oscillators)
+	int32_t amplitudeIncrement;     ///< per-sample VCA increment
+	uint32_t phaseIncrement;        ///< per-block pitch (UQ0.32)
+	bool doOscSync;                 ///< hard-sync this block to source 0 (oscillators only)
+	uint32_t oscSyncPos;            ///< the master's phase for this unison part (when @c doOscSync)
+	uint32_t oscSyncPhaseIncrement; ///< the master's increment for this unison part; 0 ⇒ freq too high ⇒ SKIP
+	BlockControls controls;         ///< the already-built oscillator controls (amplitude/pulse/sync/cpu_direness)
+	deluge::dsp::fixed::WaveTableData
+	    waveTableData;                  ///< wavetable source only (storage-independent band view; null else)
 	int32_t waveIndexLast;              ///< wavetable morph: previous block's index
 	int32_t waveIndexIncrement;         ///< wavetable morph: per-sample slope
 	int32_t* stereoScratch;             ///< mono work buffer used when @c stereoBuffer (= the voice's spare buffer)

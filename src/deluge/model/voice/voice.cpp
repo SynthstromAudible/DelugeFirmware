@@ -1802,7 +1802,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .controls =
 	        makeBlockControls(sourceAmplitude, amplitudeIncrement, pulseWidth, /*applyAmplitude=*/true, doOscSync,
 	                          oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase),
-	    .waveTable = waveTable,
+	    .waveTableData = (waveTable != nullptr) ? waveTable->view() : deluge::dsp::fixed::WaveTableData{},
 	    .waveIndexLast = sourceWaveIndexesLastTime[s],
 	    .waveIndexIncrement = waveIndexIncrement,
 	    .stereoScratch = spareRenderingBuffer[2],
