@@ -43,12 +43,12 @@ class ParamManagerForTimeline;
 /// rides the engine-forming slices (likely behind the `SampleSource` port).
 class SampleEngine {
 public:
-	/// Note-on for the SAMPLE source: solicit (or restart in place) the pooled VoiceSample and set up its
-	/// clusters for initial play. Returns false only on a hard failure that should silence the whole Voice (out
-	/// of VoiceSamples / cluster setup failed); true otherwise — including the "unplayable / no file" and
-	/// "samples-late" early-outs, which keep the Voice sounding. Mirrors the legacy
-	/// VoiceUnisonPartSource::noteOn SAMPLE block exactly.
-	bool noteOn(VoiceSamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
+	/// Note-on for the SAMPLE source: cache the per-note @p source + @p guide (stable for the note, like DX7's
+	/// patch), then solicit (or restart in place) the pooled VoiceSample and set up its clusters for initial play.
+	/// Returns false only on a hard failure that should silence the whole Voice (out of VoiceSamples / cluster
+	/// setup failed); true otherwise — including the "unplayable / no file" and "samples-late" early-outs, which
+	/// keep the Voice sounding. Mirrors the legacy VoiceUnisonPartSource::noteOn SAMPLE block exactly.
+	bool noteOn(Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
 
 	/// Render one block of sample playback, adding into @p oscBuffer. @p phaseIncrement is the already
 	/// pitch-adjusted read rate; @p phaseIncrementStoredValue is the pre-modulation value (needed by the
@@ -92,4 +92,9 @@ private:
 	uint32_t getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
 
 	VoiceSample* voiceSample_ = nullptr;
+	/// The per-note source config + playback guide, cached at note-on (stable for the note — `sound.sources[s]` /
+	/// `voice.guides[s]` are fixed members; mirrors DX7's `patch_`). Lets `render` shed its `Voice&` reach. Cleared
+	/// in @ref unassign.
+	Source* source_ = nullptr;
+	VoiceSamplePlaybackGuide* guide_ = nullptr;
 };

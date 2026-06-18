@@ -41,7 +41,12 @@
 using namespace deluge;
 namespace params = deluge::modulation::params;
 
-bool SampleEngine::noteOn(VoiceSamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating) {
+bool SampleEngine::noteOn(Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
+                          int32_t priorityRating) {
+
+	// Cache the per-note source config + guide (stable for the note); render reads these instead of reaching Voice&.
+	source_ = source;
+	guide_ = guide;
 
 	if ((guide->audioFileHolder == nullptr) || (guide->audioFileHolder->audioFile == nullptr)
 	    || ((Sample*)guide->audioFileHolder->audioFile)->unplayable) {
@@ -74,6 +79,8 @@ void SampleEngine::unassign(bool deletingSong) {
 		AudioEngine::voiceSampleUnassigned(voiceSample_);
 		voiceSample_ = nullptr;
 	}
+	source_ = nullptr;
+	guide_ = nullptr;
 }
 
 bool SampleEngine::cloneVoiceSampleFrom(const SampleEngine& from) {
@@ -111,7 +118,7 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
                      uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue, bool stereoUnison, int32_t amplitudeL,
                      int32_t amplitudeR, int32_t* stereoUnisonScratch) {
 
-	Sample* sample = (Sample*)voice.guides[s].audioFileHolder->audioFile;
+	Sample* sample = (Sample*)guide_->audioFileHolder->audioFile;
 	VoiceSample* voiceSample = voiceSample_;
 
 	int32_t numChannels = (sample->numChannels == 2) ? 2 : 1;
@@ -147,12 +154,11 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 
 	// First figure out the time-stretching amount
 
-	int32_t pitchAdjustNeutralValue = ((SampleHolder*)voice.guides[s].audioFileHolder)->neutralPhaseIncrement;
+	int32_t pitchAdjustNeutralValue = ((SampleHolder*)guide_->audioFileHolder)->neutralPhaseIncrement;
 	uint32_t timeStretchRatio;
 	uint32_t noteLengthInSamples;
 
-	bool stillOk = getPitchAndSpeedParams(&voice.sound.sources[s], &voice.guides[s], &phaseIncrement, &timeStretchRatio,
-	                                      &noteLengthInSamples);
+	bool stillOk = getPitchAndSpeedParams(source_, guide_, &phaseIncrement, &timeStretchRatio, &noteLengthInSamples);
 	if (!stillOk) {
 		return deluge::synth::SourceRenderResult::UNASSIGN;
 	}
@@ -164,8 +170,8 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 		int32_t rawSamplesLate;
 
 		// Synced / STRETCH - it's super easy.
-		if (voice.sound.sources[s].repeatMode == SampleRepeatMode::STRETCH) {
-			rawSamplesLate = voice.guides[s].getSyncedNumSamplesIn();
+		if (source_->repeatMode == SampleRepeatMode::STRETCH) {
+			rawSamplesLate = guide_->getSyncedNumSamplesIn();
 		}
 
 		// Or, normal - it needs a bit more explanation.
@@ -178,9 +184,8 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 			// STRETCH mode, which we've already determined we're not in, and crucially pass it the not-patched
 			// phaseIncrementStoredValue. This fix was done in September 2020 after bug
 			// report from Clyde.
-			uint32_t timeStretchRatioWithoutModulation =
-			    getSpeedParamForNoSyncing(&voice.sound.sources[s], phaseIncrementStoredValue,
-			                              ((SampleHolder*)voice.guides[s].audioFileHolder)->neutralPhaseIncrement);
+			uint32_t timeStretchRatioWithoutModulation = getSpeedParamForNoSyncing(
+			    source_, phaseIncrementStoredValue, ((SampleHolder*)guide_->audioFileHolder)->neutralPhaseIncrement);
 
 			// Cool, so now we've got phaseIncrement and timeStretchRatio equivalent values which will indicate
 			// our correct play position into the sample regardless of pitch modulation (almost always vibrato).
@@ -189,8 +194,7 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 			                 >> 24;
 		}
 
-		LateStartAttemptStatus result =
-		    voiceSample->attemptLateSampleStart(&voice.guides[s], sample, rawSamplesLate, numSamples);
+		LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(guide_, sample, rawSamplesLate, numSamples);
 
 		if (result == LateStartAttemptStatus::FAILURE) {
 			return deluge::synth::SourceRenderResult::UNASSIGN;
@@ -201,7 +205,7 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 		// Otherwise, it started fine!
 	}
 
-	LoopType loopingType = voice.guides[s].getLoopingType(voice.sound.sources[s]);
+	LoopType loopingType = guide_->getLoopingType(*source_);
 
 	int32_t interpolationBufferSize;
 
@@ -209,7 +213,7 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 	if (phaseIncrement != kMaxSampleValue) {
 
 		// Work out what quality we're going to do that at
-		interpolationBufferSize = voice.sound.sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement);
+		interpolationBufferSize = source_->sampleControls.getInterpolationBufferSize(phaseIncrement);
 
 		// And if first render, and other conditions met, see if we can use cache.
 		// It may seem like it'd be a good idea to try and set this up on note-on, rather than here in the
@@ -223,7 +227,7 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 			// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good /
 			// accurate
 			if (loopingType != LoopType::NONE) {
-				SampleHolderForVoice* holder = (SampleHolderForVoice*)voice.guides[s].audioFileHolder;
+				SampleHolderForVoice* holder = (SampleHolderForVoice*)guide_->audioFileHolder;
 				int32_t loopStart = holder->loopStartPos ? holder->loopStartPos : holder->startPos;
 				int32_t loopEnd = holder->loopEndPos ? holder->loopEndPos : holder->endPos;
 
@@ -272,9 +276,9 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 
 			{
 				// If still here, we can use cache
-				bool everythingOk = voiceSample->possiblySetUpCache(&voice.sound.sources[s].sampleControls,
-				                                                    &voice.guides[s], phaseIncrement, timeStretchRatio,
-				                                                    voice.getPriorityRating(), loopingType);
+				bool everythingOk =
+				    voiceSample->possiblySetUpCache(&source_->sampleControls, guide_, phaseIncrement, timeStretchRatio,
+				                                    voice.getPriorityRating(), loopingType);
 				if (!everythingOk) {
 					return deluge::synth::SourceRenderResult::UNASSIGN;
 				}
@@ -304,10 +308,10 @@ dontUseCache: {}
 	// increments for the hop crossfades with the overall voice ones, and having multiple crossfading hops write
 	// directly to the osc buffer).
 
-	bool stillActive = voiceSample->render(
-	    &voice.guides[s], renderBuffer, numSamples, sample, numChannels, loopingType, phaseIncrement, timeStretchRatio,
-	    sourceAmplitude, amplitudeIncrement, interpolationBufferSize,
-	    voice.sound.sources[s].sampleControls.interpolationMode, voice.getPriorityRating());
+	bool stillActive =
+	    voiceSample->render(guide_, renderBuffer, numSamples, sample, numChannels, loopingType, phaseIncrement,
+	                        timeStretchRatio, sourceAmplitude, amplitudeIncrement, interpolationBufferSize,
+	                        source_->sampleControls.interpolationMode, voice.getPriorityRating());
 
 	if (stereoUnison) {
 		if (numChannels == 2) {

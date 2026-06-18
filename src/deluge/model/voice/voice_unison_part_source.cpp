@@ -35,7 +35,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
                                    uint8_t velocity) {
 
 	if (synthMode != SynthMode::FM && source->oscType == OscType::SAMPLE) {
-		return sampleEngine.noteOn(guide, samplesLate, voice->getPriorityRating());
+		return sampleEngine.noteOn(source, guide, samplesLate, voice->getPriorityRating());
 	}
 
 	if (synthMode != SynthMode::FM
