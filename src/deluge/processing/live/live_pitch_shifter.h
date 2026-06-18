@@ -22,6 +22,10 @@
 
 class LiveInputBuffer;
 
+namespace deluge::synth {
+class AudioInputPort;
+}
+
 class LivePitchShifter {
 public:
 	LivePitchShifter(OscType newInputType, int32_t phaseIncrement);
@@ -32,7 +36,8 @@ public:
 	/// @return the number of time-stretch hops performed this call. The caller folds this into the host's
 	/// per-routine hop accounting (CPU-load spreading) — the pitch-shifter itself stays free of that global.
 	[[nodiscard]] int32_t render(int32_t* outputBuffer, int32_t numSamplesThisFunctionCall, int32_t phaseIncrement,
-	                             int32_t amplitude, int32_t amplitudeIncrement, int32_t interpolationBufferSize);
+	                             int32_t amplitude, int32_t amplitudeIncrement, int32_t interpolationBufferSize,
+	                             deluge::synth::AudioInputPort& port);
 
 	bool mayBeRemovedWithoutClick();
 

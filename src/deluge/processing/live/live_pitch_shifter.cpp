@@ -19,9 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
-#include "memory/general_memory_allocator.h"
-#include "processing/engines/audio_engine.h"
 #include "processing/live/live_input_buffer.h"
+#include "synth/source/audio_input_port.h"
 #include "util/functions.h"
 #include <cstdlib>
 
@@ -68,14 +67,14 @@ LivePitchShifter::~LivePitchShifter() {
 
 int32_t LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSamplesThisFunctionCall,
                                  int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
-                                 int32_t interpolationBufferSize) {
+                                 int32_t interpolationBufferSize, deluge::synth::AudioInputPort& port) {
 
-	LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputType, false);
+	LiveInputBuffer* liveInputBuffer = port.bufferForChannel(inputType, false);
 	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) {
 		FREEZE_WITH_ERROR("E165");
 	}
 
-	liveInputBuffer->giveInput(numSamplesThisFunctionCall, AudioEngine::audioSampleTimer, inputType);
+	liveInputBuffer->giveInput(numSamplesThisFunctionCall, port, inputType);
 
 	int32_t whichKernel = getWhichKernel(phaseIncrement);
 

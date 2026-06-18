@@ -22,18 +22,24 @@
 
 class LivePitchShifter;
 
+namespace deluge::synth {
+class AudioInputPort;
+}
+
 /// @brief The live-input source (INPUT_L / INPUT_R / INPUT_STEREO) for one voice-source — a @ref synth::Source.
 ///
-/// Reads AudioEngine's live-input ring and sums it into the voice's oscBuffer, pitch-shifting through a
-/// lazily-created @ref LivePitchShifter when the played note is off the input's natural rate. It is a *foreign*,
-/// app-coupled source (it reaches AudioEngine + the allocator), so — like @ref deluge::dsp::DX7Source — it stays
-/// app-side and keeps those reaches **internal**, behind the @ref synth::Source the voice sees; there is no
-/// separate live-input port. It owns the pooled pitch-shifter; ownership is **explicit** (freed in @ref unassign,
-/// never in a destructor) — the per-source objects are pooled and reused in place.
+/// Reads the host's live-input ring (through the injected @ref deluge::synth::AudioInputPort — the ring + frame
+/// clock + plug-state + the shared per-channel @ref LiveInputBuffer pool) and sums it into the voice's oscBuffer,
+/// pitch-shifting through a lazily-created @ref LivePitchShifter when the played note is off the input's natural
+/// rate. The port keeps the source free of `AudioEngine`. It owns the pooled pitch-shifter; ownership is
+/// **explicit** (freed in @ref unassign, never in a destructor) — the per-source objects are pooled and reused.
 class InputSource : public deluge::synth::Source {
+	deluge::synth::AudioInputPort* in_;
 	LivePitchShifter* livePitchShifter_ = nullptr;
 
 public:
+	explicit InputSource(deluge::synth::AudioInputPort* in) : in_(in) {}
+
 	/// Render this live-input source's contribution into @c ctx.oscBuffer (always ACTIVE — live input never
 	/// self-unassigns). The @ref deluge::synth::Source seam; the channel-routing/pitch-shift render is the private
 	/// @ref render below.

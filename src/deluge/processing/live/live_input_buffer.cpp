@@ -16,8 +16,9 @@
  */
 
 #include "processing/live/live_input_buffer.h"
+#include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
 #include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
+#include "synth/source/audio_input_port.h"
 #include "util/functions.h"
 #include <string.h>
 
@@ -26,7 +27,9 @@ LiveInputBuffer::LiveInputBuffer() {
 	numRawSamplesProcessed = 0;
 }
 
-void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscType inputType) {
+void LiveInputBuffer::giveInput(int32_t numSamples, deluge::synth::AudioInputPort& port, OscType inputType) {
+
+	uint32_t currentTime = port.sampleTime();
 
 	if (upToTime == (uint32_t)(currentTime + numSamples)) {
 		return; // It's already been done
@@ -40,7 +43,8 @@ void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscTyp
 		memset(angleLPFMem, 0, sizeof(angleLPFMem));
 	}
 
-	int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::inputRingPos;
+	int32_t const* __restrict__ inputReadPos = port.ringReadPos();
+	int32_t const* const inputRingEnd = port.ringEnd();
 
 	uint32_t endNumRawSamplesProcessed = numRawSamplesProcessed + numSamples;
 
@@ -92,7 +96,7 @@ void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscTyp
 		lastAngle = angle;
 
 		inputReadPos += NUM_MONO_INPUT_CHANNELS;
-		if (inputReadPos >= AudioEngine::inputRingEnd()) {
+		if (inputReadPos >= inputRingEnd) {
 			inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 		}
 

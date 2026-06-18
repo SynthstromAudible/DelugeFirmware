@@ -15,13 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "processing/live/input_source.h"
+#include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
-#include "processing/engines/audio_engine.h"
 #include "processing/live/live_input_buffer.h"
 #include "processing/live/live_pitch_shifter.h"
+#include "synth/source/audio_input_port.h"
 #include "util/fixedpoint.h"
+#include <cstring>
 #include <new>
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
@@ -35,11 +37,11 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 
 		if (!livePitchShifter_) {
 
-			if (inputTypeNow == OscType::INPUT_STEREO && !AudioEngine::lineInPluggedIn && !AudioEngine::micPluggedIn) {
+			if (inputTypeNow == OscType::INPUT_STEREO && !in_->stereoInputAvailable()) {
 				inputTypeNow = OscType::INPUT_L;
 			}
 
-			LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputTypeNow, true);
+			LiveInputBuffer* liveInputBuffer = in_->bufferForChannel(inputTypeNow, true);
 
 			if (liveInputBuffer) {
 
@@ -68,13 +70,13 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 		// With unison stereo spread, oscBuffer is an interleaved stereo buffer. A mono input must be rendered
 		// to a temporary mono buffer first and then panned across it, otherwise the mono render would write
 		// into the interleaved buffer as if it were mono and produce noise. Either way the shifter reports the
-		// hops it performed; fold them into the host's per-routine CPU-load accounting.
+		// hops it performed; the port folds them into the host's CPU-load accounting.
 		if (stereoUnison && livePitchShifter_->numChannels == 1) {
 			int32_t* renderBuffer = spareRenderingBuffer[2];
 			memset(renderBuffer, 0, numSamples * sizeof(int32_t));
 
-			AudioEngine::numHopsEndedThisRoutineCall += livePitchShifter_->render(
-			    renderBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement, interpolationBufferSize);
+			in_->reportHops(livePitchShifter_->render(renderBuffer, numSamples, phaseIncrement, sourceAmplitude,
+			                                          amplitudeIncrement, interpolationBufferSize, *in_));
 
 			for (int32_t i = 0; i < numSamples; i++) {
 				oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
@@ -82,8 +84,8 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 			}
 		}
 		else {
-			AudioEngine::numHopsEndedThisRoutineCall += livePitchShifter_->render(
-			    oscBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement, interpolationBufferSize);
+			in_->reportHops(livePitchShifter_->render(oscBuffer, numSamples, phaseIncrement, sourceAmplitude,
+			                                          amplitudeIncrement, interpolationBufferSize, *in_));
 		}
 	}
 
@@ -91,15 +93,16 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 	else {
 
 		int32_t* __restrict__ oscBufferPos = oscBuffer;
-		int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::inputRingPos;
+		int32_t const* __restrict__ inputReadPos = in_->ringReadPos();
+		int32_t const* const inputRingEnd = in_->ringEnd();
 		int32_t sourceAmplitudeThisUnison = sourceAmplitude;
 
 		// Just left, or just right, or if (stereo but there's only the internal, mono mic)
-		if (oscType != OscType::INPUT_STEREO || (!AudioEngine::lineInPluggedIn && !AudioEngine::micPluggedIn)) {
+		if (oscType != OscType::INPUT_STEREO || !in_->stereoInputAvailable()) {
 
 			int32_t channelOffset;
 			// If right, but not internal mic
-			if (oscType == OscType::INPUT_R && (AudioEngine::lineInPluggedIn || AudioEngine::micPluggedIn)) {
+			if (oscType == OscType::INPUT_R && in_->stereoInputAvailable()) {
 				channelOffset = 1;
 
 				// Or if left or using internal mic
@@ -122,7 +125,7 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 					*(oscBufferPos++) += multiply_32x32_rshift32(sample, amplitudeR) << 2;
 
 					inputReadPos += NUM_MONO_INPUT_CHANNELS;
-					if (inputReadPos >= AudioEngine::inputRingEnd()) {
+					if (inputReadPos >= inputRingEnd) {
 						inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 					}
 				} while (oscBufferPos != oscBufferEnd);
@@ -136,7 +139,7 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 					*(oscBufferPos++) += multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow) << 4;
 
 					inputReadPos += NUM_MONO_INPUT_CHANNELS;
-					if (inputReadPos >= AudioEngine::inputRingEnd()) {
+					if (inputReadPos >= inputRingEnd) {
 						inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 					}
 				} while (oscBufferPos != oscBufferEnd);
@@ -171,7 +174,7 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 				}
 
 				inputReadPos += NUM_MONO_INPUT_CHANNELS;
-				if (inputReadPos >= AudioEngine::inputRingEnd()) {
+				if (inputReadPos >= inputRingEnd) {
 					inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 				}
 			} while (oscBufferPos != oscBufferEnd);
