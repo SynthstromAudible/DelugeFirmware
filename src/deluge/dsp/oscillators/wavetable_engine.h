@@ -68,6 +68,19 @@ public:
 	}
 
 	void renderBlock(const synth::BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) override;
+
+	/// Render one block as a @ref synth::Source, reporting the per-source lifecycle outcome. A wavetable source
+	/// never dies, so this is always ACTIVE; the uniform return type is the seam the per-source dispatch folds
+	/// onto. Sets the wavetable + per-block pitch + wave-index (morph) inputs, then renders into @p output.
+	synth::SourceRenderResult renderSource(const synth::BlockControls& controls, WaveTable* table,
+	                                       int32_t lastWaveIndex, int32_t waveIndexIncrement, uint32_t phaseIncrement,
+	                                       fixed::Buffer output, fixed::Buffer scratch) {
+		setWaveTable(table);
+		setIncrement(phaseIncrement);
+		setWaveIndex(lastWaveIndex, waveIndexIncrement);
+		renderBlock(controls, output, scratch);
+		return synth::SourceRenderResult::ACTIVE;
+	}
 };
 
 } // namespace deluge::dsp

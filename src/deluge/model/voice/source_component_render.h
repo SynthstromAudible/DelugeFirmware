@@ -46,10 +46,11 @@ synth::SourceRenderResult renderVaSource(synth::VirtualAnalogEngine& engine, int
 
 /// Render one block of the wavetable source component into @p output. The wavetable-specific inputs (table +
 /// morph index) are set on the engine before the render.
-void renderWavetableSource(dsp::WavetableEngine& engine, WaveTable* waveTable, int32_t sourceWaveIndexLastTime,
-                           int32_t waveIndexIncrement, int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
-                           int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
-                           bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
-                           uint32_t retriggerPhase);
+synth::SourceRenderResult renderWavetableSource(dsp::WavetableEngine& engine, WaveTable* waveTable,
+                                                int32_t sourceWaveIndexLastTime, int32_t waveIndexIncrement,
+                                                int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
+                                                int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth,
+                                                bool applyAmplitude, bool doOscSync, uint32_t resetterPhase,
+                                                uint32_t resetterPhaseIncrement, uint32_t retriggerPhase);
 
 } // namespace deluge::voice

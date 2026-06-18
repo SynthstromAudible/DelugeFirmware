@@ -52,18 +52,17 @@ synth::SourceRenderResult renderVaSource(synth::VirtualAnalogEngine& engine, int
 	                           dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
 }
 
-void renderWavetableSource(dsp::WavetableEngine& engine, WaveTable* waveTable, int32_t sourceWaveIndexLastTime,
-                           int32_t waveIndexIncrement, int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
-                           int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
-                           bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
-                           uint32_t retriggerPhase) {
+synth::SourceRenderResult renderWavetableSource(dsp::WavetableEngine& engine, WaveTable* waveTable,
+                                                int32_t sourceWaveIndexLastTime, int32_t waveIndexIncrement,
+                                                int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
+                                                int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth,
+                                                bool applyAmplitude, bool doOscSync, uint32_t resetterPhase,
+                                                uint32_t resetterPhaseIncrement, uint32_t retriggerPhase) {
 	synth::BlockControls controls = makeBlockControls(amplitude, amplitudeIncrement, pulseWidth, applyAmplitude,
 	                                                  doOscSync, resetterPhase, resetterPhaseIncrement, retriggerPhase);
-	engine.setWaveTable(waveTable);
-	engine.setIncrement(phaseIncrement);
-	engine.setWaveIndex(sourceWaveIndexLastTime, waveIndexIncrement);
-	engine.renderBlock(controls, dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
-	                   dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
+	return engine.renderSource(controls, waveTable, sourceWaveIndexLastTime, waveIndexIncrement, phaseIncrement,
+	                           dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
+	                           dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
 }
 
 } // namespace deluge::voice

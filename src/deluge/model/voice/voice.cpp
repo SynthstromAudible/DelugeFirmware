@@ -1838,10 +1838,10 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 		                        oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
 	}
 	else {
-		renderWavetableSource(*unisonParts[u].sources[s].wavetableEngine, waveTable, sourceWaveIndexesLastTime[s],
-		                      waveIndexIncrement, sourceAmplitude, amplitudeIncrement, renderBuffer, numSamples,
-		                      phaseIncrement, pulseWidth, true, doOscSync, oscSyncPosThisUnison,
-		                      oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
+		result = renderWavetableSource(
+		    *unisonParts[u].sources[s].wavetableEngine, waveTable, sourceWaveIndexesLastTime[s], waveIndexIncrement,
+		    sourceAmplitude, amplitudeIncrement, renderBuffer, numSamples, phaseIncrement, pulseWidth, true, doOscSync,
+		    oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
 	}
 
 	if (stereoBuffer) {
