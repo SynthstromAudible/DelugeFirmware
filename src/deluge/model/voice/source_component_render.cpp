@@ -16,10 +16,8 @@
  */
 
 #include "model/voice/source_component_render.h"
-#include "dsp-next/core/phasor.h"
-#include "dsp-next/core/ramp.h"
-#include "dsp-next/core/types.h"
-#include "dsp/oscillators/oscillator.h"      // deluge::dsp::oscSyncRenderingBuffer
+#include "dsp-next/core/phasor.h"            // deluge::dsp::Phasor
+#include "dsp-next/core/ramp.h"              // deluge::dsp::Ramp
 #include "processing/engines/audio_engine.h" // AudioEngine::cpuDireness
 #include <optional>
 
@@ -39,30 +37,6 @@ synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncre
 	        doOscSync ? std::optional<dsp::Phasor>{dsp::Phasor{resetterPhase, resetterPhaseIncrement}} : std::nullopt,
 	    .cpu_direness = AudioEngine::cpuDireness,
 	};
-}
-
-synth::SourceRenderResult renderVaSource(synth::VirtualAnalogEngine& engine, int32_t amplitude,
-                                         int32_t amplitudeIncrement, int32_t* output, int32_t numSamples,
-                                         uint32_t phaseIncrement, uint32_t pulseWidth, bool applyAmplitude,
-                                         bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
-                                         uint32_t retriggerPhase) {
-	synth::BlockControls controls = makeBlockControls(amplitude, amplitudeIncrement, pulseWidth, applyAmplitude,
-	                                                  doOscSync, resetterPhase, resetterPhaseIncrement, retriggerPhase);
-	return engine.renderSource(controls, phaseIncrement, dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
-	                           dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
-}
-
-synth::SourceRenderResult renderWavetableSource(dsp::WavetableEngine& engine, WaveTable* waveTable,
-                                                int32_t sourceWaveIndexLastTime, int32_t waveIndexIncrement,
-                                                int32_t amplitude, int32_t amplitudeIncrement, int32_t* output,
-                                                int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth,
-                                                bool applyAmplitude, bool doOscSync, uint32_t resetterPhase,
-                                                uint32_t resetterPhaseIncrement, uint32_t retriggerPhase) {
-	synth::BlockControls controls = makeBlockControls(amplitude, amplitudeIncrement, pulseWidth, applyAmplitude,
-	                                                  doOscSync, resetterPhase, resetterPhaseIncrement, retriggerPhase);
-	return engine.renderSource(controls, waveTable, sourceWaveIndexLastTime, waveIndexIncrement, phaseIncrement,
-	                           dsp::fixed::Buffer{output, static_cast<size_t>(numSamples)},
-	                           dsp::fixed::Buffer{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)});
 }
 
 } // namespace deluge::voice

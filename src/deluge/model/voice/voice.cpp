@@ -1797,29 +1797,12 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 		return SourceRenderResult::ACTIVE;
 	}
 
-	// Or regular wave (virtual-analog / wavetable)
-	uint32_t oscSyncPosThisUnison;
-	uint32_t oscSyncPhaseIncrementsThisUnison;
+	// Or regular wave (virtual-analog / wavetable) — both render through the polymorphic synth::Source seam, which
+	// owns the osc-sync freq-too-high SKIP, the mono-scratch/stereo-fold, and the per-engine block render. The
+	// app-side adapter just gathers the already-modulated per-block values into the SourceRenderContext.
 	uint32_t oscRetriggerPhase = cfg.oscRetriggerPhase[s]; // Yes we might need this even if not doing osc sync.
-
-	// If doing osc sync
-	if (doOscSync) {
-
-		// If freq too high...
-		if (!oscSyncPhaseIncrements[u]) {
-			return SourceRenderResult::SKIP;
-		}
-
-		oscSyncPosThisUnison = oscSyncPos[u];
-		oscSyncPhaseIncrementsThisUnison = oscSyncPhaseIncrements[u];
-	}
-
-	int32_t* renderBuffer = oscBuffer;
-
-	if (stereoBuffer) {
-		renderBuffer = spareRenderingBuffer[2];
-		memset(renderBuffer, 0, SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
-	}
+	uint32_t oscSyncPosThisUnison = doOscSync ? oscSyncPos[u] : 0;
+	uint32_t oscSyncPhaseIncrementsThisUnison = doOscSync ? oscSyncPhaseIncrements[u] : 0;
 
 	// Work out pulse width
 	uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
@@ -1828,30 +1811,44 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	// audio file, so audioFileHolder is null — don't dereference it.
 	WaveTable* waveTable =
 	    guides[s].audioFileHolder != nullptr ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile) : nullptr;
-	// Both wave families render through their persistent per-source engine (which owns the phase across blocks):
-	// virtual-analog → vaEngine, wavetable → wavetableEngine. SAMPLE/INPUT/DX7 took earlier branches.
-	// VA reports its own (always-ACTIVE) outcome through the synth::Source seam; wavetable keeps the default.
-	SourceRenderResult result = SourceRenderResult::ACTIVE;
+
+	synth::SourceRenderContext ctx{
+	    .oscBuffer = oscBuffer,
+	    .numSamples = numSamples,
+	    .stereoBuffer = stereoBuffer,
+	    .stereoUnison = stereoUnison,
+	    .amplitudeL = amplitudeL,
+	    .amplitudeR = amplitudeR,
+	    .sourceAmplitude = sourceAmplitude,
+	    .amplitudeIncrement = amplitudeIncrement,
+	    .phaseIncrement = phaseIncrement,
+	    .doOscSync = doOscSync,
+	    .oscSyncPos = oscSyncPosThisUnison,
+	    .oscSyncPhaseIncrement = oscSyncPhaseIncrementsThisUnison,
+	    .controls =
+	        makeBlockControls(sourceAmplitude, amplitudeIncrement, pulseWidth, /*applyAmplitude=*/true, doOscSync,
+	                          oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase),
+	    .waveTable = waveTable,
+	    .waveIndexLast = sourceWaveIndexesLastTime[s],
+	    .waveIndexIncrement = waveIndexIncrement,
+	    .stereoScratch = spareRenderingBuffer[2],
+	    .stereoScratchClearSamples = SSI_TX_BUFFER_NUM_SAMPLES,
+	    .syncScratch = deluge::dsp::oscSyncRenderingBuffer,
+	    .ampModParam = 0, // DX7 only (DX7 took an earlier branch)
+	    .patchChanged = false,
+	    .midinote = 0,
+	};
+
+	// virtual-analog → vaEngine, wavetable → wavetableEngine (both persistent synth::Source%s owning their phase).
+	// SAMPLE/INPUT/DX7 took earlier branches.
+	synth::Source* component;
 	if (unisonParts[u].sources[s].vaEngine.has_value()) {
-		result = renderVaSource(*unisonParts[u].sources[s].vaEngine, sourceAmplitude, amplitudeIncrement, renderBuffer,
-		                        numSamples, phaseIncrement, pulseWidth, true, doOscSync, oscSyncPosThisUnison,
-		                        oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
+		component = &*unisonParts[u].sources[s].vaEngine;
 	}
 	else {
-		result = renderWavetableSource(
-		    *unisonParts[u].sources[s].wavetableEngine, waveTable, sourceWaveIndexesLastTime[s], waveIndexIncrement,
-		    sourceAmplitude, amplitudeIncrement, renderBuffer, numSamples, phaseIncrement, pulseWidth, true, doOscSync,
-		    oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase);
+		component = &*unisonParts[u].sources[s].wavetableEngine;
 	}
-
-	if (stereoBuffer) {
-		// TODO: if render buffer was typed we could use addPannedMono()
-		for (int32_t i = 0; i < numSamples; i++) {
-			oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
-			oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
-		}
-	}
-	return result;
+	return component->renderSource(ctx);
 }
 
 void Voice::renderBasicSource(ParamManagerForTimeline* paramManager, int32_t s, int32_t* __restrict__ oscBuffer,

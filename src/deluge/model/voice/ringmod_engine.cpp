@@ -16,7 +16,9 @@
  */
 
 #include "model/voice/ringmod_engine.h"
-#include "model/voice/source_component_render.h"
+#include "dsp-next/core/types.h"                 // deluge::dsp::fixed::Buffer
+#include "dsp/oscillators/oscillator.h"          // deluge::dsp::oscSyncRenderingBuffer
+#include "model/voice/source_component_render.h" // voice::makeBlockControls
 #include "model/voice/voice_unison_part_source.h"
 #include "util/fixedpoint.h"
 
@@ -41,18 +43,20 @@ void RingModEngine::render(const Source& src0, const Source& src1, bool doOscSyn
 		const Source& source = *sources[s];
 
 		// Both ring-moddable wave families now render through their persistent per-source engine (VA or
-		// wavetable). Ring-mod renders the raw wave: applyAmplitude=false, amplitude 0. The hard-sync master is
-		// source 0 (phase oscSyncPos, increment src0.phaseIncrement).
+		// wavetable) via the engine's public renderInto. Ring-mod renders the raw wave: applyAmplitude=false,
+		// amplitude 0. The hard-sync master is source 0 (phase oscSyncPos, increment src0.phaseIncrement).
+		const synth::BlockControls controls =
+		    voice::makeBlockControls(0, 0, source.pulseWidth, /*applyAmplitude=*/false, doingOscSyncThisOscillator,
+		                             oscSyncPos, src0.phaseIncrement, source.retriggerPhase);
+		const dsp::fixed::Buffer out{scratch[s], static_cast<size_t>(numSamples)};
+		const dsp::fixed::Buffer syncScratch{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)};
 		if (source.part->vaEngine.has_value()) {
-			voice::renderVaSource(*source.part->vaEngine, 0, 0, scratch[s], numSamples, source.phaseIncrement,
-			                      source.pulseWidth, false, doingOscSyncThisOscillator, oscSyncPos, src0.phaseIncrement,
-			                      source.retriggerPhase);
+			source.part->vaEngine->renderInto(controls, source.phaseIncrement, out, syncScratch);
 		}
 		else {
-			voice::renderWavetableSource(*source.part->wavetableEngine, source.waveTable, source.waveIndexLast,
-			                             source.waveIndexIncrement, 0, 0, scratch[s], numSamples, source.phaseIncrement,
-			                             source.pulseWidth, false, doingOscSyncThisOscillator, oscSyncPos,
-			                             src0.phaseIncrement, source.retriggerPhase);
+			source.part->wavetableEngine->renderInto(controls, source.waveTable, source.waveIndexLast,
+			                                         source.waveIndexIncrement, source.phaseIncrement, out,
+			                                         syncScratch);
 		}
 
 		// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so we

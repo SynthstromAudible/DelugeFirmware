@@ -22,6 +22,9 @@
 #include <cstdint>
 #include <optional>
 
+class WaveTable; // opaque (storage-side); a @ref deluge::synth::SourceRenderContext carries it as a pass-through
+                 // pointer only, so synth/ never reaches into storage/. Removed by the later band-data port.
+
 namespace deluge::synth {
 
 /// @file
@@ -65,20 +68,47 @@ struct BlockControls {
 /// folds onto.
 enum class SourceRenderResult { ACTIVE, UNASSIGN, SKIP };
 
-/// @brief Renders one block of one sound source. Stateful: per-source state lives in the concrete source and
-/// persists across @ref renderBlock calls.
+/// @brief Everything a @ref Source needs to render one unison part of one source for this block — a synth-safe
+/// transport of *already-computed* values (no engine state, no model/processing/storage reach). Built once at the
+/// app-side adapter (`Voice::renderSourceComponent`); `WaveTable*` is a pass-through pointer only, and
+/// @ref BlockControls::cpu_direness is baked in there so the AudioEngine global never enters synth/. Each concrete
+/// source reads only the subset it needs; unused fields are harmless.
+struct SourceRenderContext {
+	int32_t* oscBuffer;      ///< destination; the source folds/sums its contribution into this (interleaved if stereo)
+	int32_t numSamples;      ///< samples to render this block
+	bool stereoBuffer;       ///< @c oscBuffer is interleaved stereo → render mono into scratch then pan-fold
+	bool stereoUnison;       ///< this unison part is panned (drives the per-engine stereo sum)
+	int32_t amplitudeL;      ///< unison pan-fold left gain (q31)
+	int32_t amplitudeR;      ///< unison pan-fold right gain (q31)
+	int32_t sourceAmplitude; ///< per-block start VCA amplitude (DX7's bespoke sum; oscillators get it via @c controls)
+	int32_t amplitudeIncrement;        ///< per-sample VCA increment
+	uint32_t phaseIncrement;           ///< per-block pitch (UQ0.32)
+	bool doOscSync;                    ///< hard-sync this block to source 0 (oscillators only)
+	uint32_t oscSyncPos;               ///< the master's phase for this unison part (when @c doOscSync)
+	uint32_t oscSyncPhaseIncrement;    ///< the master's increment for this unison part; 0 ⇒ freq too high ⇒ SKIP
+	BlockControls controls;            ///< the already-built oscillator controls (amplitude/pulse/sync/cpu_direness)
+	WaveTable* waveTable;              ///< wavetable source only (pass-through; null for basic oscillators)
+	int32_t waveIndexLast;             ///< wavetable morph: previous block's index
+	int32_t waveIndexIncrement;        ///< wavetable morph: per-sample slope
+	int32_t* stereoScratch;            ///< mono work buffer used when @c stereoBuffer (= the voice's spare buffer)
+	int32_t stereoScratchClearSamples; ///< how many samples of @c stereoScratch to zero before rendering into it
+	int32_t* syncScratch;              ///< the oscillator hard-sync work buffer (passed in; synth/ can't reach dsp/)
+	int32_t ampModParam;               ///< DX7 amplitude-mod control (raw param value)
+	bool patchChanged;                 ///< DX7: re-derive the patch state this block
+	int32_t midinote;                  ///< DX7: the (post-arp) note code
+};
+
+/// @brief The L1 **Source** contract: render one unison part of one source's full contribution for this block,
+/// reporting its lifecycle outcome. Stateful — per-source state (phase, feedback, sample position) lives in the
+/// concrete source and persists across calls. This is the polymorphic seam `Voice::renderSourceComponent`
+/// dispatches on (the oscillator block render is an implementation detail of the oscillator sources, not part of
+/// this contract).
 class Source {
 public:
 	virtual ~Source() = default;
 
-	/// @brief Render @c output.size() samples.
-	/// @param controls the already-modulated values for this block.
-	/// @param output destination; when @ref BlockControls::apply_amplitude the wave is VCA-mixed *into* its
-	///        prior contents, otherwise overwritten with the raw standalone wave.
-	/// @param scratch caller-provided work buffer, at least as long as @p output (the engine owns no scratch /
-	///        no allocator — buffers are injected, per the dsp-next convention).
-	virtual void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                         deluge::dsp::fixed::Buffer scratch) = 0;
+	/// Render this source's contribution for @p ctx into @c ctx.oscBuffer; @return the per-source outcome.
+	virtual SourceRenderResult renderSource(const SourceRenderContext& ctx) = 0;
 };
 
 } // namespace deluge::synth

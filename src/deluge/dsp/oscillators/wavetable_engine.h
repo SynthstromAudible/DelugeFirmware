@@ -17,8 +17,8 @@
 #pragma once
 
 #include "dsp-next/core/phasor.h"
-#include "synth/source/source.h"  // Source + BlockControls
-#include "wavetable_oscillator.h" // WavetableOscillator (+ storage/wave_table.h)
+#include "synth/source/oscillator_source.h" // synth::OscillatorSource (+ Source, SourceRenderContext, BlockControls)
+#include "wavetable_oscillator.h"           // WavetableOscillator (+ storage/wave_table.h)
 #include <cstdint>
 
 namespace deluge::dsp {
@@ -40,7 +40,7 @@ namespace deluge::dsp {
 /// @note Per the L1 reframe this is a **source component**, not a swappable engine — see
 /// `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename rides the
 /// engine-forming slices.
-class WavetableEngine : public synth::Source {
+class WavetableEngine : public synth::OscillatorSource {
 	Phasor phasor_; ///< the original-domain render phase, persistent across blocks
 	WaveTable* table_ = nullptr;
 	int32_t wave_index_last_ = 0;
@@ -67,19 +67,24 @@ public:
 		wave_index_increment_ = increment;
 	}
 
-	void renderBlock(const synth::BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) override;
+	void renderBlock(const synth::BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch);
 
-	/// Render one block as a @ref synth::Source, reporting the per-source lifecycle outcome. A wavetable source
-	/// never dies, so this is always ACTIVE; the uniform return type is the seam the per-source dispatch folds
-	/// onto. Sets the wavetable + per-block pitch + wave-index (morph) inputs, then renders into @p output.
-	synth::SourceRenderResult renderSource(const synth::BlockControls& controls, WaveTable* table,
-	                                       int32_t lastWaveIndex, int32_t waveIndexIncrement, uint32_t phaseIncrement,
-	                                       fixed::Buffer output, fixed::Buffer scratch) {
+	/// Render one block into @p output (sets the wavetable + per-block pitch + wave-index/morph inputs first), VCA
+	/// per @p controls. The public block-render API used by @ref RingModEngine (raw render) and by
+	/// @ref renderOscBlock. The engine owns its phase across blocks.
+	void renderInto(const synth::BlockControls& controls, WaveTable* table, int32_t lastWaveIndex,
+	                int32_t waveIndexIncrement, uint32_t phaseIncrement, fixed::Buffer output, fixed::Buffer scratch) {
 		setWaveTable(table);
 		setIncrement(phaseIncrement);
 		setWaveIndex(lastWaveIndex, waveIndexIncrement);
 		renderBlock(controls, output, scratch);
-		return synth::SourceRenderResult::ACTIVE;
+	}
+
+protected:
+	void renderOscBlock(const synth::BlockControls& controls, const synth::SourceRenderContext& ctx,
+	                    fixed::Buffer out) override {
+		renderInto(controls, ctx.waveTable, ctx.waveIndexLast, ctx.waveIndexIncrement, ctx.phaseIncrement, out,
+		           fixed::Buffer{ctx.syncScratch, static_cast<size_t>(ctx.numSamples)});
 	}
 };
 

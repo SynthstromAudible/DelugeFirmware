@@ -16,9 +16,9 @@
  */
 #pragma once
 
-#include "dsp-next/core/phasor.h"   // deluge::dsp::Phasor
-#include "synth/source/source.h"    // Source, BlockControls
-#include "synth/source/va_shapes.h" // the shape vocabulary + va_shape::Wave
+#include "dsp-next/core/phasor.h"           // deluge::dsp::Phasor
+#include "synth/source/oscillator_source.h" // OscillatorSource (+ Source, SourceRenderContext, BlockControls)
+#include "synth/source/va_shapes.h"         // the shape vocabulary + va_shape::Wave
 #include <cstdint>
 #include <variant>
 
@@ -39,7 +39,7 @@ namespace deluge::synth {
 /// @note Per the L1 reframe this is a **source component**, not a swappable engine — see
 /// `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename rides the
 /// engine-forming slices.
-class VirtualAnalogEngine : public Source {
+class VirtualAnalogEngine : public OscillatorSource {
 public:
 	/// @param wave the VA wave to render — selects the variant alternative.
 	/// @param seed the engine's phase state, seeded with the block's render phase + increment (UQ0.32).
@@ -68,7 +68,7 @@ public:
 	}
 
 	void renderBlock(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch) override {
+	                 deluge::dsp::fixed::Buffer scratch) {
 		// The engine owns its phase across blocks. The shape advances/seeks its phasor only meaningfully on a real
 		// hard-sync block (where it lands on the synced phase); otherwise we advance the original-domain phase by
 		// the block length here — exactly the legacy "phase += increment * numSamples, real-sync overrides" rule.
@@ -80,14 +80,20 @@ public:
 		}
 	}
 
-	/// Render one block as a @ref Source, reporting the per-source lifecycle outcome. A virtual-analog source
-	/// never dies, so this is always ACTIVE; the uniform return type is the seam the per-source dispatch folds
-	/// onto. Sets the per-block pitch from @p phaseIncrement, then renders into @p output using @p scratch.
-	SourceRenderResult renderSource(const BlockControls& controls, uint32_t phaseIncrement,
-	                                deluge::dsp::fixed::Buffer output, deluge::dsp::fixed::Buffer scratch) {
+	/// Render one block into @p output (sets the per-block pitch first), VCA per @p controls. The public
+	/// block-render API used by @ref RingModEngine (raw render) and by @ref renderOscBlock. The engine owns its
+	/// phase across blocks.
+	void renderInto(const BlockControls& controls, uint32_t phaseIncrement, deluge::dsp::fixed::Buffer output,
+	                deluge::dsp::fixed::Buffer scratch) {
 		setIncrement(phaseIncrement);
 		renderBlock(controls, output, scratch);
-		return SourceRenderResult::ACTIVE;
+	}
+
+protected:
+	void renderOscBlock(const BlockControls& controls, const SourceRenderContext& ctx,
+	                    deluge::dsp::fixed::Buffer out) override {
+		renderInto(controls, ctx.phaseIncrement, out,
+		           deluge::dsp::fixed::Buffer{ctx.syncScratch, static_cast<size_t>(ctx.numSamples)});
 	}
 
 private:
