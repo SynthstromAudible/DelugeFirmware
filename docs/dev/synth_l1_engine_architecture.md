@@ -179,9 +179,11 @@ High level only; each gets its own per-slice plan:
   `Phasor → Osc → Source → Engine → Voice → Instrument` stack (`synth_untangling_plan.md`), with "Engine"
   reserved for the *coordinator* tier above. **Slice 1 does the base rename + the fold for the VA source only**
   (VA already implements the interface; smallest bit-exact proof), routing just the VA branch of
-  `renderSourceComponent` through `synth::Source`. The concrete-class renames (`VirtualAnalogEngine →
-  VirtualAnalogSource`, etc.) and the other sources follow in later slices, atomically with their structure.
-  Blast radius of the base rename is small today (4–11 refs).
+  `renderSourceComponent` through `synth::Source`. **DONE — the scheme is fully realised:** the base became
+  `synth::Source`, all five sources implement it (L-vi), and the concrete-class renames landed (2026-06-17, commit
+  7f0c8fd6) — `VirtualAnalogEngine→VirtualAnalogSource`, `WavetableEngine→WavetableSource`,
+  `SampleEngine→SampleSource`, `DX7Engine→DX7Source`, `InputEngine→InputSource`. `*Engine` is now reserved for the
+  coordinator tier (`SubtractiveEngine`/`RingModEngine`/`FMEngine`).
 - **Does sync apply to non-oscillator components?** Today sync is phase-reset; it's only meaningful for
   oscillator components. Define whether a sample/input component can be a sync slave (likely no).
 - **Where `BlockControls` lives.** Split: the amplitude/`apply_amplitude`/`cpu_direness` part stays a
