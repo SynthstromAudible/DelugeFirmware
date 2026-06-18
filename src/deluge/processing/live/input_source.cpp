@@ -67,13 +67,14 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 	if (livePitchShifter_) {
 		// With unison stereo spread, oscBuffer is an interleaved stereo buffer. A mono input must be rendered
 		// to a temporary mono buffer first and then panned across it, otherwise the mono render would write
-		// into the interleaved buffer as if it were mono and produce noise.
+		// into the interleaved buffer as if it were mono and produce noise. Either way the shifter reports the
+		// hops it performed; fold them into the host's per-routine CPU-load accounting.
 		if (stereoUnison && livePitchShifter_->numChannels == 1) {
 			int32_t* renderBuffer = spareRenderingBuffer[2];
 			memset(renderBuffer, 0, numSamples * sizeof(int32_t));
 
-			livePitchShifter_->render(renderBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement,
-			                          interpolationBufferSize);
+			AudioEngine::numHopsEndedThisRoutineCall += livePitchShifter_->render(
+			    renderBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement, interpolationBufferSize);
 
 			for (int32_t i = 0; i < numSamples; i++) {
 				oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
@@ -81,8 +82,8 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 			}
 		}
 		else {
-			livePitchShifter_->render(oscBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement,
-			                          interpolationBufferSize);
+			AudioEngine::numHopsEndedThisRoutineCall += livePitchShifter_->render(
+			    oscBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement, interpolationBufferSize);
 		}
 	}
 

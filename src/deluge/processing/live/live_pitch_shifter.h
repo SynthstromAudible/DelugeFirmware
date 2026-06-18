@@ -27,8 +27,12 @@ public:
 	LivePitchShifter(OscType newInputType, int32_t phaseIncrement);
 	~LivePitchShifter();
 	void giveInput(int32_t numSamples, int32_t inputType, int32_t phaseIncrement);
-	void render(int32_t* outputBuffer, int32_t numSamplesThisFunctionCall, int32_t phaseIncrement, int32_t amplitude,
-	            int32_t amplitudeIncrement, int32_t interpolationBufferSize);
+
+	/// Render @p numSamplesThisFunctionCall of pitch-shifted output, summed into @p outputBuffer.
+	/// @return the number of time-stretch hops performed this call. The caller folds this into the host's
+	/// per-routine hop accounting (CPU-load spreading) — the pitch-shifter itself stays free of that global.
+	[[nodiscard]] int32_t render(int32_t* outputBuffer, int32_t numSamplesThisFunctionCall, int32_t phaseIncrement,
+	                             int32_t amplitude, int32_t amplitudeIncrement, int32_t interpolationBufferSize);
 
 	bool mayBeRemovedWithoutClick();
 

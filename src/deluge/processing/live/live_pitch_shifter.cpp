@@ -66,9 +66,9 @@ LivePitchShifter::~LivePitchShifter() {
 #endif
 }
 
-void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSamplesThisFunctionCall,
-                              int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
-                              int32_t interpolationBufferSize) {
+int32_t LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSamplesThisFunctionCall,
+                                 int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
+                                 int32_t interpolationBufferSize) {
 
 	LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputType, false);
 	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) {
@@ -120,6 +120,7 @@ void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSam
 #endif
 
 	bool justDidHop = false;
+	int32_t hopsEnded = 0;
 
 startRenderAgain:
 
@@ -221,6 +222,7 @@ startRenderAgain:
 
 	if (!samplesTilHopEnd) {
 		hopEnd(phaseIncrement, liveInputBuffer, numRawSamplesProcessedAtStart, liveInputBuffer->numRawSamplesProcessed);
+		++hopsEnded;
 		justDidHop = true;
 		goto startRenderAgain;
 	}
@@ -301,6 +303,8 @@ startRenderAgain:
 
 		goto startRenderAgain;
 	}
+
+	return hopsEnded;
 }
 
 const int16_t minSearchFine[] = {
@@ -357,8 +361,6 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 #if MEASURE_HOP_END_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;
 #endif
-
-	AudioEngine::numHopsEndedThisRoutineCall++;
 
 	// int32_t numChannelsNow = numChannels;
 
