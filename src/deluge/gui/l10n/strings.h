@@ -218,6 +218,7 @@ enum class String : size_t {
 	STRING_FOR_CLOCK,
 	STRING_FOR_CLOCK_OUT,
 	STRING_FOR_CLOCK_IN,
+	STRING_FOR_IS_RELATIVE,
 	STRING_FOR_RUN_SIGNAL,
 
 	// gui/menu_item/gate/selection.h

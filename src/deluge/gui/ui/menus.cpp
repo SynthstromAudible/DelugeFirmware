@@ -96,6 +96,7 @@
 #include "gui/menu_item/midi/device.h"
 #include "gui/menu_item/midi/device_definition/linked.h"
 #include "gui/menu_item/midi/device_definition/submenu.h"
+#include "gui/menu_item/midi/device_is_relative.h"
 #include "gui/menu_item/midi/device_receive_clock.h"
 #include "gui/menu_item/midi/device_send_clock.h"
 #include "gui/menu_item/midi/devices.h"
@@ -1125,6 +1126,7 @@ Submenu midiCommandsMenu{
 midi::DefaultVelocityToLevel defaultVelocityToLevelMenu{STRING_FOR_VELOCITY};
 midi::SendClock sendClockMenu{STRING_FOR_CLOCK_OUT};
 midi::ReceiveClock receiveClockMenu{STRING_FOR_CLOCK_IN};
+midi::IsRelative is_relative_menu{STRING_FOR_IS_RELATIVE};
 midi::Device midiDeviceMenu{
     EMPTY_STRING,
     {
@@ -1132,6 +1134,7 @@ midi::Device midiDeviceMenu{
         &defaultVelocityToLevelMenu,
         &sendClockMenu,
         &receiveClockMenu,
+        &is_relative_menu,
     },
 };
 

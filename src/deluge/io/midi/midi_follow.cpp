@@ -912,7 +912,7 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 
 					if (modelStackWithTimelineCounter) {
 						// See if it's learned to a parameter
-						handleReceivedCC(*modelStackWithTimelineCounter, clip, ccNumber, ccValue);
+						handleReceivedCC(cable, *modelStackWithTimelineCounter, clip, ccNumber, ccValue);
 					}
 				}
 			}
@@ -990,7 +990,7 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 
 						if (modelStackWithTimelineCounter) {
 							// See if it's learned to a parameter
-							handleReceivedCC(*modelStackWithTimelineCounter, clip, ccNumber, ccValue);
+							handleReceivedCC(cable, *modelStackWithTimelineCounter, clip, ccNumber, ccValue);
 						}
 					}
 				}
@@ -1018,8 +1018,8 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 /// if the cc has been learned, it sets the new value for that parameter
 /// this function works by first checking the active context to see if there is an active clip
 /// to determine if the cc intends to control a song level or clip level parameter
-void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithTimelineCounter, Clip* clip,
-                                  int32_t ccNumber, int32_t ccValue) {
+void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounter& modelStackWithTimelineCounter,
+                                  Clip* clip, int32_t ccNumber, int32_t ccValue) {
 
 	int32_t modPos = 0;
 	int32_t modLength = 0;
@@ -1065,7 +1065,8 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 		int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
 
 		// calculate new knob position based on cc value received and deluge current value
-		int32_t newKnobPos = MidiTakeover::calculateKnobPos(knobPos, ccValue, nullptr, true, ccNumber, isStepEditing);
+		int32_t newKnobPos =
+		    MidiTakeover::calculateKnobPos(cable, knobPos, ccValue, nullptr, true, ccNumber, isStepEditing);
 
 		// is the cc being received for the same value as the current knob pos? If so, do nothing
 		if (newKnobPos != knobPos) {
