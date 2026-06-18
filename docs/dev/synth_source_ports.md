@@ -104,8 +104,12 @@ this design as follows — and the headline is: **Engines need no ports of their
 
 ## Sequence (each port is its own multi-slice, golden-gated arc)
 
-1. **Wavetable band-data view** — resumes `[[wavetable-storage-port]]`; `WavetableSource` → `synth/`.
-2. **DX7 pool port** — inject the `DxVoice` pool; relocate `DX7Source`; decide `DxPatch`'s home.
+1. **Wavetable band-data view — ✅ DONE (2026-06-18, commits `bc13012e`/`6a810c78`/`eb78dec5`).** `WavetableSource`
+   now depends on a `fixed::WaveTableData` view (not `WaveTable*`), renders through the dsp-next view-based
+   oscillators, and lives in `synth/source/` (boundary-clean). The dead app-side `WaveTableOscillator` +
+   `WaveTable::render` were retired; `WaveTable` keeps loading + `view()` only. **2 of 5 sources now library-
+   resident (VA + wavetable).** (Validates the port pattern end-to-end.)
+2. **DX7 pool port (next)** — inject the `DxVoice` pool; relocate `DX7Source`; decide `DxPatch`'s home.
 3. **Live-input port** — `InputSource` → `synth/`; `LivePitchShifter`/`LiveInputBuffer` become the adapter.
 4. **Sample-playback port** — wrap `VoiceSample`; `SampleSource` → `synth/`. The largest arc.
 5. **Kernel relocation** (`Voice` → `synth::Voice`) — now unblocked; owns all five library-resident sources + L-v
