@@ -178,6 +178,13 @@ void InputEngine::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 	}
 }
 
+deluge::synth::SourceRenderResult InputEngine::renderSource(const deluge::synth::SourceRenderContext& ctx) {
+	// Live input never self-unassigns; the channel-routing/pitch-shift render is unchanged (see render()).
+	render(ctx.oscType, ctx.oscBuffer, ctx.numSamples, ctx.phaseIncrement, ctx.sourceAmplitude, ctx.amplitudeIncrement,
+	       ctx.stereoBuffer, ctx.stereoUnison, ctx.amplitudeL, ctx.amplitudeR, ctx.interpolationBufferSize);
+	return deluge::synth::SourceRenderResult::ACTIVE;
+}
+
 void InputEngine::unassign() {
 	// Matches the legacy VoiceUnisonPartSource::unassign exactly: a dealloc without the destructor (the
 	// render-stop path above does call ~LivePitchShifter()). A pre-existing inconsistency — preserved here, not

@@ -1753,20 +1753,8 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 		    spareRenderingBuffer[2]);
 	}
 
-	// Or echoing input
-	if (cfg.oscType[s] == OscType::INPUT_L || cfg.oscType[s] == OscType::INPUT_R
-	    || cfg.oscType[s] == OscType::INPUT_STEREO) {
-		// Live input renders through its per-source engine (which owns the LivePitchShifter lifecycle + the
-		// live-input-ring read). The interpolation buffer size is a Sound-side value the engine doesn't reach;
-		// stereoUnison + amplitudeL/R carry the unison stereo-spread panning into the engine.
-		unisonParts[u].sources[s].inputEngine.render(
-		    cfg.oscType[s], oscBuffer, numSamples, phaseIncrement, sourceAmplitude, amplitudeIncrement, stereoBuffer,
-		    stereoUnison, amplitudeL, amplitudeR,
-		    SampleControls::getInterpolationBufferSize(cfg.interpolationMode[s], phaseIncrement));
-		return SourceRenderResult::ACTIVE;
-	}
-
-	// Regular wave (virtual-analog / wavetable) + DX7 — all render through the polymorphic synth::Source seam, which
+	// Regular wave (virtual-analog / wavetable) + DX7 + live input — all render through the polymorphic synth::Source
+	// seam, which
 	// owns the osc-sync freq-too-high SKIP, the mono-scratch/stereo-fold, and the per-engine block render. The
 	// app-side adapter just gathers the already-modulated per-block values into the SourceRenderContext.
 	uint32_t oscRetriggerPhase = cfg.oscRetriggerPhase[s]; // Yes we might need this even if not doing osc sync.
@@ -1806,13 +1794,21 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .ampModParam = params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s], // DX7 amplitude-mod control
 	    .patchChanged = cfg.dxPatchChanged[s],                                       // DX7
 	    .midinote = noteCodeAfterArpeggiation,                                       // DX7
+	    .oscType = cfg.oscType[s],                                                   // live input: L/R/stereo routing
+	    .interpolationBufferSize =
+	        SampleControls::getInterpolationBufferSize(cfg.interpolationMode[s], phaseIncrement), // live input
 	};
 
-	// virtual-analog → vaEngine, wavetable → wavetableEngine, DX7 → dx7Engine — all persistent synth::Source%s.
-	// SAMPLE/INPUT took earlier branches (they reach AudioEngine/storage and aren't yet behind synth::Source).
+	// virtual-analog → vaEngine, wavetable → wavetableEngine, DX7 → dx7Engine, INPUT_* → inputEngine — all persistent
+	// synth::Source%s. Only SAMPLE took an earlier branch (it reaches Voice&/storage and isn't yet behind
+	// synth::Source).
 	synth::Source* component;
 	if (cfg.oscType[s] == OscType::DX7) {
 		component = &unisonParts[u].sources[s].dx7Engine;
+	}
+	else if (cfg.oscType[s] == OscType::INPUT_L || cfg.oscType[s] == OscType::INPUT_R
+	         || cfg.oscType[s] == OscType::INPUT_STEREO) {
+		component = &unisonParts[u].sources[s].inputEngine;
 	}
 	else if (unisonParts[u].sources[s].vaEngine.has_value()) {
 		component = &*unisonParts[u].sources[s].vaEngine;

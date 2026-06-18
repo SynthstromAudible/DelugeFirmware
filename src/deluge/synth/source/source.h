@@ -24,6 +24,8 @@
 
 class WaveTable; // opaque (storage-side); a @ref deluge::synth::SourceRenderContext carries it as a pass-through
                  // pointer only, so synth/ never reaches into storage/. Removed by the later band-data port.
+enum class OscType : uint8_t; // opaque (definitions_cxx.hpp); the context carries it only to select the live-input
+                              // L/R/stereo routing — no definitions include needed in synth/.
 
 namespace deluge::synth {
 
@@ -96,6 +98,8 @@ struct SourceRenderContext {
 	int32_t ampModParam;               ///< DX7 amplitude-mod control (raw param value)
 	bool patchChanged;                 ///< DX7: re-derive the patch state this block
 	int32_t midinote;                  ///< DX7: the (post-arp) note code
+	OscType oscType;                   ///< live-input only: selects L / R / stereo channel routing
+	int32_t interpolationBufferSize;   ///< live-input only: precomputed interp size for the pitch-shift arm
 };
 
 /// @brief The L1 **Source** contract: render one unison part of one source's full contribution for this block,

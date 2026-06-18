@@ -16,26 +16,33 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp" // OscType
+#include "definitions_cxx.hpp"   // OscType
+#include "synth/source/source.h" // synth::Source, SourceRenderContext, SourceRenderResult
 #include <cstdint>
 
 class LivePitchShifter;
 
-/// @brief The live-input source engine (INPUT_L / INPUT_R / INPUT_STEREO) for one voice-source.
+/// @brief The live-input source (INPUT_L / INPUT_R / INPUT_STEREO) for one voice-source — a @ref synth::Source.
 ///
 /// Reads AudioEngine's live-input ring and sums it into the voice's oscBuffer, pitch-shifting through a
-/// lazily-created @ref LivePitchShifter when the played note is off the input's natural rate. Like @ref
-/// deluge::dsp::DX7Engine it is a *foreign*, app-coupled engine (it reaches AudioEngine + the allocator), so it is
-/// a standalone class, not a synth::Source. It owns the pooled pitch-shifter; ownership is **explicit**
-/// (freed in @ref unassign, never in a destructor) — the per-source objects are pooled and reused in place.
-///
-/// @note Per the L1 reframe this is a **source component** (usable inside Subtractive/RingMod), not a swappable
-/// engine — see `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename
-/// rides the engine-forming slices (likely behind a live-input port).
-class InputEngine {
+/// lazily-created @ref LivePitchShifter when the played note is off the input's natural rate. It is a *foreign*,
+/// app-coupled source (it reaches AudioEngine + the allocator), so — like @ref deluge::dsp::DX7Engine — it stays
+/// app-side and keeps those reaches **internal**, behind the @ref synth::Source the voice sees; there is no
+/// separate live-input port. It owns the pooled pitch-shifter; ownership is **explicit** (freed in @ref unassign,
+/// never in a destructor) — the per-source objects are pooled and reused in place.
+class InputEngine : public deluge::synth::Source {
 	LivePitchShifter* livePitchShifter_ = nullptr;
 
 public:
+	/// Render this live-input source's contribution into @c ctx.oscBuffer (always ACTIVE — live input never
+	/// self-unassigns). The @ref deluge::synth::Source seam; the channel-routing/pitch-shift render is the private
+	/// @ref render below.
+	deluge::synth::SourceRenderResult renderSource(const deluge::synth::SourceRenderContext& ctx) override;
+
+	/// Free the pooled pitch-shifter (no-op if none held).
+	void unassign();
+
+private:
 	/// Render one block, *summing* the live input into @p oscBuffer. @p oscType selects channel routing
 	/// (L / R / stereo, with the internal-mic + condense rules); @p phaseIncrement != unity engages the
 	/// pitch-shifter. @p interpolationBufferSize is precomputed by Voice (only used on the pitch-shift arm).
@@ -44,7 +51,4 @@ public:
 	void render(OscType oscType, int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement,
 	            int32_t sourceAmplitude, int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison,
 	            int32_t amplitudeL, int32_t amplitudeR, int32_t interpolationBufferSize);
-
-	/// Free the pooled pitch-shifter (no-op if none held).
-	void unassign();
 };
