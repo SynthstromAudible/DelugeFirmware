@@ -676,6 +676,34 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	Output* output = clip->output;
 	OutputType outputType = output->type;
 
+	// setup to check if context is valid for rendering
+	bool is_affect_entire_context = getAffectEntire();
+	bool is_kit = outputType == OutputType::KIT;
+	Drum* kit_selected_drum = (is_kit && !is_affect_entire_context) ? ((Kit*)output)->selectedDrum : nullptr;
+
+	// if we're not in arranger view
+	// and we're in a kit, with affect entire disabled
+	// and there is no drum selected
+	// then we have no valid automation context, clear pads and return
+	bool is_invalid_context = !onArrangerView && is_kit && !is_affect_entire_context && !kit_selected_drum;
+	if (is_invalid_context) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			PadLEDs::clearColumnWithoutSending(xDisplay);
+		}
+		return;
+	}
+
+	// check if we're editing a kit's midi or cv drum
+	bool isMIDICVDrum = false;
+	if (is_kit && !is_affect_entire_context) {
+		DrumType kit_selected_drum_type = kit_selected_drum->type;
+		isMIDICVDrum = (kit_selected_drum_type == DrumType::MIDI) || (kit_selected_drum_type == DrumType::GATE);
+	}
+
+	// don't render automation editor if you've selected a MIDI or CV drum
+	bool render_automation_editor = inAutomationEditor() && !isMIDICVDrum;
+	bool render_note_editor = inNoteEditor();
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
@@ -683,16 +711,34 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	ModelStackWithNoteRow* modelStackWithNoteRow = nullptr;
 	int32_t effectiveLength = 0;
 	SquareInfo rowSquareInfo[kDisplayWidth];
+	params::Kind kind = params::Kind::NONE;
+	bool isBipolar = false;
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+		if (render_automation_editor) {
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+			if (!modelStackWithParam || !modelStackWithParam->autoParam) {
+				return;
+			}
+			kind = modelStackWithParam->paramCollection->getParamKind();
+			isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+			effectiveLength = getEffectiveLength(nullptr);
+		}
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
-		if (inNoteEditor()) {
+		if (render_automation_editor) {
+			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+			if (!modelStackWithParam || !modelStackWithParam->autoParam) {
+				return;
+			}
+			kind = modelStackWithParam->paramCollection->getParamKind();
+			isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+			effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
+		}
+		else if (render_note_editor) {
 			modelStackWithNoteRow = ((InstrumentClip*)clip)
 			                            ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 			                                                 modelStackWithTimelineCounter); // don't create
@@ -704,59 +750,33 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 		}
 	}
 
-	if (!inNoteEditor()) {
-		effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
-	}
+	// ok we've setup all the necessary model stacks, now we'll take care of rendering the automation editor, note
+	// editor, or automation overview
 
-	params::Kind kind = params::Kind::NONE;
-	bool isBipolar = false;
-
-	// if we have a valid model stack with param
-	// get the param Kind and param bipolar status
-	// so that it can be passed through the automation editor rendering
-	// calls below
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		kind = modelStackWithParam->paramCollection->getParamKind();
-		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
-	}
-
+	// only render if:
+	// you're on arranger view
+	// you're not in a kit where you haven't selected a drum and you haven't selected affect entire either
+	// you're not in a kit where no sound drum has been selected and you're not editing velocity
+	// you're in a kit where midi or CV sound drum has been selected and you're editing velocity
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		// only render if:
-		// you're on arranger view
-		// you're not in a CV clip type
-		// you're not in a kit where you haven't selected a drum and you haven't selected affect entire either
-		// you're not in a kit where no sound drum has been selected and you're not editing velocity
-		// you're in a kit where midi or CV sound drum has been selected and you're editing velocity
-		if (onArrangerView || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
-			bool isMIDICVDrum = false;
-			if (outputType == OutputType::KIT && !getAffectEntire()) {
-				isMIDICVDrum = (((Kit*)output)->selectedDrum
-				                && ((((Kit*)output)->selectedDrum->type == DrumType::MIDI)
-				                    || (((Kit*)output)->selectedDrum->type == DrumType::GATE)));
-			}
-
-			// if parameter has been selected, show Automation Editor
-			if (inAutomationEditor() && !isMIDICVDrum) {
-				automationEditorLayoutModControllable.renderAutomationEditor(
-				    modelStackWithParam, clip, image, occupancyMask, renderWidth, xScroll, xZoom, effectiveLength,
-				    xDisplay, drawUndefinedArea, kind, isBipolar);
-			}
-
-			// if note parameter has been selected, show Note Editor
-			else if (inNoteEditor()) {
-				automationEditorLayoutNote.renderNoteEditor(modelStackWithNoteRow, (InstrumentClip*)clip, image,
-				                                            occupancyMask, renderWidth, xScroll, xZoom, effectiveLength,
-				                                            xDisplay, drawUndefinedArea, rowSquareInfo[xDisplay]);
-			}
-
-			// if not editing a parameter, show Automation Overview
-			else {
-				renderAutomationOverview(modelStackWithTimelineCounter, modelStackWithThreeMainThings, clip, outputType,
-				                         image, occupancyMask, xDisplay, isMIDICVDrum);
-			}
+		// if parameter has been selected, show Automation Editor
+		if (render_automation_editor) {
+			automationEditorLayoutModControllable.renderAutomationEditor(
+			    modelStackWithParam, clip, image, occupancyMask, renderWidth, xScroll, xZoom, effectiveLength, xDisplay,
+			    drawUndefinedArea, kind, isBipolar);
 		}
+
+		// if note parameter has been selected, show Note Editor
+		else if (render_note_editor) {
+			automationEditorLayoutNote.renderNoteEditor(modelStackWithNoteRow, (InstrumentClip*)clip, image,
+			                                            occupancyMask, renderWidth, xScroll, xZoom, effectiveLength,
+			                                            xDisplay, drawUndefinedArea, rowSquareInfo[xDisplay]);
+		}
+
+		// if not editing a parameter, show Automation Overview
 		else {
-			PadLEDs::clearColumnWithoutSending(xDisplay);
+			renderAutomationOverview(modelStackWithTimelineCounter, modelStackWithThreeMainThings, clip, outputType,
+			                         image, occupancyMask, xDisplay, isMIDICVDrum);
 		}
 	}
 }
