@@ -19,7 +19,7 @@
 
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
-#include "dsp/interpolate/interpolate.h"
+#include "dsp-next/fixed/interpolation/interpolator.h"
 #include <array>
 
 class LivePitchShifter;
@@ -55,7 +55,7 @@ struct LivePitchShifterPlayHead {
 	int32_t rawBufferReadPos = 0;
 	uint32_t oscPos = 0;
 
-	deluge::dsp::Interpolator interpolator_;
+	deluge::dsp::fixed::Interpolator interpolator_;
 
 	uint32_t percPos = 0;
 };

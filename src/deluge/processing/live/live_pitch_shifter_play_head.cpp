@@ -16,7 +16,7 @@
  */
 
 #include "processing/live/live_pitch_shifter_play_head.h"
-#include "dsp/interpolate/interpolate.h"
+#include "dsp-next/fixed/interpolation/interpolator.h"
 #include "processing/live/live_input_buffer.h"
 #include "processing/live/live_pitch_shifter.h"
 #include "util/fixedpoint.h"
@@ -91,9 +91,9 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 
 			amplitude += amplitudeIncrement;
 
-			StereoSample sampleRead = (interpolationBufferSize > 2)
-			                              ? interpolator_.interpolate(numChannels, whichKernel, oscPos)
-			                              : interpolator_.interpolateLinear(numChannels, oscPos);
+			deluge::dsp::StereoSample sampleRead = (interpolationBufferSize > 2)
+			                                           ? interpolator_.interpolate(numChannels, whichKernel, oscPos)
+			                                           : interpolator_.interpolateLinear(numChannels, oscPos);
 
 			*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead.l, amplitude) << 5;
 			outputBuffer++;

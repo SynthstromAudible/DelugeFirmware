@@ -1,31 +1,41 @@
-#include "interpolate.h"
+/*
+ * Copyright © 2020-2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+#include "dsp-next/fixed/interpolation/interpolator.h"
 #include "definitions_cxx.hpp"
-#include "deluge/dsp/stereo_sample.h"
 #include "dsp-next/fixed/interpolation/sinc_interpolation.h"   // SincWindow, blend_sinc_kernel, windowed_sinc_dot
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h" // windowed_sinc_kernel
 #include <argon.hpp>
 #include <cstdint>
 #include <limits>
 
-namespace deluge::dsp {
+namespace deluge::dsp::fixed {
 
-using deluge::dsp::fixed::blend_sinc_kernel;
-using deluge::dsp::fixed::kSincKernelTaps;
-using deluge::dsp::fixed::kSincWindowVectors;
-using deluge::dsp::fixed::SincWindow;
-using deluge::dsp::fixed::windowed_sinc_dot;
-using deluge::dsp::fixed::windowed_sinc_kernel;
-
-// The window into a state buffer (buffer_l / buffer_r), as the int16 vectors windowed_sinc_dot wants.
-[[gnu::always_inline]] static inline SincWindow loadWindow(const int16_t* buffer) {
+namespace {
+/// Load one tap window (a @ref Interpolator channel buffer) into the int16 argon vectors @ref windowed_sinc_dot wants.
+[[gnu::always_inline]] inline SincWindow loadWindow(const int16_t* buffer) {
 	SincWindow window;
 	for (size_t i = 0; i < kSincWindowVectors; ++i) {
 		window[i] = Argon<int16_t>::Load(&buffer[i * Argon<int16_t>::lanes]);
 	}
 	return window;
 }
+} // namespace
 
-StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uint32_t oscPos) {
+StereoSample Interpolator::interpolate(std::size_t channels, int32_t whichKernel, uint32_t oscPos) {
 	constexpr size_t numBitsInTableSize = 8;
 	constexpr size_t rshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize + 1);
 
@@ -40,8 +50,7 @@ StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uin
 	int16_t strength2 = rshifted & std::numeric_limits<int16_t>::max();
 	int32_t progressSmall = oscPos >> (24 + kInterpolationMaxNumSamplesMagnitude - numBitsInTableSize);
 
-	// Position the (shared) kernel to sub-sample accuracy once, then weight each channel's window
-	// with it. whichKernel is the getWhichKernel-selected oversampling variant.
+	// Position the (shared) kernel to sub-sample accuracy once, then weight each channel's window with it.
 	const int16_t* kernelRow = windowed_sinc_kernel.variant(whichKernel) + progressSmall * kSincKernelTaps;
 	SincWindow kernel = blend_sinc_kernel(kernelRow, strength2);
 
@@ -53,7 +62,7 @@ StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uin
 	return output;
 }
 
-StereoSample Interpolator::interpolateLinear(size_t channels, uint32_t phase) {
+StereoSample Interpolator::interpolateLinear(std::size_t channels, uint32_t phase) {
 	StereoSample output;
 	int16_t strength2 = phase >> 9;
 	int16_t strength1 = std::numeric_limits<int16_t>::max() - strength2; // inverse
@@ -64,4 +73,5 @@ StereoSample Interpolator::interpolateLinear(size_t channels, uint32_t phase) {
 	}
 	return output;
 }
-} // namespace deluge::dsp
+
+} // namespace deluge::dsp::fixed
