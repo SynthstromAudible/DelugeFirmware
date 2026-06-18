@@ -50,11 +50,11 @@ void RingModEngine::render(const Source& src0, const Source& src1, bool doOscSyn
 		                             oscSyncPos, src0.phaseIncrement, source.retriggerPhase);
 		const dsp::fixed::Buffer out{scratch[s], static_cast<size_t>(numSamples)};
 		const dsp::fixed::Buffer syncScratch{dsp::oscSyncRenderingBuffer, static_cast<size_t>(numSamples)};
-		if (source.part->vaEngine.has_value()) {
-			source.part->vaEngine->renderInto(controls, source.phaseIncrement, out, syncScratch);
+		if (source.part->vaSource.has_value()) {
+			source.part->vaSource->renderInto(controls, source.phaseIncrement, out, syncScratch);
 		}
 		else {
-			source.part->wavetableEngine->renderInto(controls, source.waveTable, source.waveIndexLast,
+			source.part->wavetableSource->renderInto(controls, source.waveTable, source.waveIndexLast,
 			                                         source.waveIndexIncrement, source.phaseIncrement, out,
 			                                         syncScratch);
 		}

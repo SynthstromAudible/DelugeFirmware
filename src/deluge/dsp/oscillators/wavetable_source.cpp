@@ -14,13 +14,13 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "wavetable_engine.h"
+#include "wavetable_source.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "util/fixedpoint.h" // multiply_32x32_rshift32_rounded
 
 namespace deluge::dsp {
 
-void WavetableEngine::renderBlock(const synth::BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
+void WavetableSource::renderBlock(const synth::BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
 	const uint32_t origPhase = phasor_.phase();
 	const uint32_t origInc = phasor_.increment();
 

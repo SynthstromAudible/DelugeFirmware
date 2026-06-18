@@ -629,7 +629,7 @@ void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed
 				for (int32_t u = 0; u < sound.numUnison; u++) {
 					if (unisonParts[u].sources[s].active) {
 
-						bool success = unisonParts[u].sources[s].sampleEngine.noteOffAtLoopEnd(this, &guides[s]);
+						bool success = unisonParts[u].sources[s].sampleSource.noteOffAtLoopEnd(this, &guides[s]);
 
 						if (!success) {
 							unisonParts[u].sources[s].unassign(false);
@@ -639,7 +639,7 @@ void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed
 			}
 			else if (sound.sources[s].oscType == OscType::DX7) {
 				for (int u = 0; u < sound.numUnison; u++) {
-					unisonParts[u].sources[s].dx7Engine.keyup();
+					unisonParts[u].sources[s].dx7Source.keyup();
 				}
 			}
 		}
@@ -682,7 +682,7 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive = voiceUnisonPartSource->sampleEngine.zoneChanged(
+			bool stillActive = voiceUnisonPartSource->sampleSource.zoneChanged(
 			    &guides[s], sample, source.sampleControls.isCurrentlyReversed(), markerType, loopingType,
 			    getPriorityRating());
 			if (!stillActive) {
@@ -919,7 +919,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 					}
 
 					Sample* sample = (Sample*)guides[s].audioFileHolder->audioFile;
-					int32_t bytePos = voiceUnisonPartSource->sampleEngine.getPlayByteLowLevel(sample, &guides[s]);
+					int32_t bytePos = voiceUnisonPartSource->sampleSource.getPlayByteLowLevel(sample, &guides[s]);
 
 					int32_t bytesLeft =
 					    (int32_t)((uint32_t)guides[s].endPlaybackAtByte - (uint32_t)bytePos) * guides[s].playDirection;
@@ -1745,7 +1745,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	using deluge::synth::SourceRenderResult;
 	VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
-	// SAMPLE caching policy, hoisted out of SampleEngine::renderSource so it needn't reach paramManager / the param
+	// SAMPLE caching policy, hoisted out of SampleSource::renderSource so it needn't reach paramManager / the param
 	// planes: does any patch cable modulate pitch with a *changeable* source? Bit-exact with the legacy inline scan
 	// (`cable->from` is a single source ⇒ the OR equals the if/else-if chain; only consumed on a sample's first
 	// render). Computed only for SAMPLE — the cable scan would be wasted for the other sources.
@@ -1820,24 +1820,24 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .pitchModDisallowsCache = pitchModDisallowsCache,                              // sample caching policy
 	};
 
-	// sample → sampleEngine, DX7 → dx7Engine, INPUT_* → inputEngine, wavetable → wavetableEngine, else virtual-analog
-	// → vaEngine — every source is now a persistent synth::Source; the legacy oscType megaswitch is gone.
+	// sample → sampleSource, DX7 → dx7Source, INPUT_* → inputSource, wavetable → wavetableSource, else virtual-analog
+	// → vaSource — every source is now a persistent synth::Source; the legacy oscType megaswitch is gone.
 	synth::Source* component;
 	if (cfg.oscType[s] == OscType::SAMPLE) {
-		component = &unisonParts[u].sources[s].sampleEngine;
+		component = &unisonParts[u].sources[s].sampleSource;
 	}
 	else if (cfg.oscType[s] == OscType::DX7) {
-		component = &unisonParts[u].sources[s].dx7Engine;
+		component = &unisonParts[u].sources[s].dx7Source;
 	}
 	else if (cfg.oscType[s] == OscType::INPUT_L || cfg.oscType[s] == OscType::INPUT_R
 	         || cfg.oscType[s] == OscType::INPUT_STEREO) {
-		component = &unisonParts[u].sources[s].inputEngine;
+		component = &unisonParts[u].sources[s].inputSource;
 	}
-	else if (unisonParts[u].sources[s].vaEngine.has_value()) {
-		component = &*unisonParts[u].sources[s].vaEngine;
+	else if (unisonParts[u].sources[s].vaSource.has_value()) {
+		component = &*unisonParts[u].sources[s].vaSource;
 	}
 	else {
-		component = &*unisonParts[u].sources[s].wavetableEngine;
+		component = &*unisonParts[u].sources[s].wavetableSource;
 	}
 	return component->renderSource(ctx);
 }

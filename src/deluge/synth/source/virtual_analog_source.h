@@ -39,11 +39,11 @@ namespace deluge::synth {
 /// @note Per the L1 reframe this is a **source component**, not a swappable engine — see
 /// `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename rides the
 /// engine-forming slices.
-class VirtualAnalogEngine : public OscillatorSource {
+class VirtualAnalogSource : public OscillatorSource {
 public:
 	/// @param wave the VA wave to render — selects the variant alternative.
 	/// @param seed the engine's phase state, seeded with the block's render phase + increment (UQ0.32).
-	VirtualAnalogEngine(va_shape::Wave wave, deluge::dsp::Phasor seed);
+	VirtualAnalogSource(va_shape::Wave wave, deluge::dsp::Phasor seed);
 
 	/// The engine's current oscillator phase (UQ0.32). Persists across blocks — Voice reads it to seed osc-sync
 	/// from the master and to advance a skipped source.

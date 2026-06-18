@@ -26,11 +26,11 @@ class LivePitchShifter;
 ///
 /// Reads AudioEngine's live-input ring and sums it into the voice's oscBuffer, pitch-shifting through a
 /// lazily-created @ref LivePitchShifter when the played note is off the input's natural rate. It is a *foreign*,
-/// app-coupled source (it reaches AudioEngine + the allocator), so — like @ref deluge::dsp::DX7Engine — it stays
+/// app-coupled source (it reaches AudioEngine + the allocator), so — like @ref deluge::dsp::DX7Source — it stays
 /// app-side and keeps those reaches **internal**, behind the @ref synth::Source the voice sees; there is no
 /// separate live-input port. It owns the pooled pitch-shifter; ownership is **explicit** (freed in @ref unassign,
 /// never in a destructor) — the per-source objects are pooled and reused in place.
-class InputEngine : public deluge::synth::Source {
+class InputSource : public deluge::synth::Source {
 	LivePitchShifter* livePitchShifter_ = nullptr;
 
 public:

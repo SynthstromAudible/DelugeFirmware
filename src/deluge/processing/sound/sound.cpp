@@ -3172,12 +3172,12 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 							newPart->phaseIncrementStoredValue = oldPart->phaseIncrementStoredValue;
 							newPart->carrierFeedback = oldPart->carrierFeedback;
 
-							if (!newPart->sampleEngine.cloneVoiceSampleFrom(oldPart->sampleEngine)) {
+							if (!newPart->sampleSource.cloneVoiceSampleFrom(oldPart->sampleSource)) {
 								newPart->active = false;
 								continue;
 							}
 
-							VoiceSample& newVoiceSample = *newPart->sampleEngine.voiceSample();
+							VoiceSample& newVoiceSample = *newPart->sampleSource.voiceSample();
 
 							// Don't do any caching for new part. Old parts will stop using their cache anyway
 							// because their pitch will have changed

@@ -25,7 +25,7 @@ namespace deluge::dsp {
 /// per-block scratch when Voice drives them directly.
 extern int32_t oscSyncRenderingBuffer[];
 
-/// Whether @p type is one of the six virtual-analog waves rendered by @ref synth::VirtualAnalogEngine (the first
+/// Whether @p type is one of the six virtual-analog waves rendered by @ref synth::VirtualAnalogSource (the first
 /// OscType entries, up to ANALOG_SAW_2). WAVETABLE/SAMPLE/DX7/INPUT_* are not. This is the app-side boundary
 /// predicate that decides whether a source's phase lives in the engine or in @c oscPos.
 [[nodiscard]] bool isVirtualAnalog(OscType type);

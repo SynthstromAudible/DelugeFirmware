@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Behavioural spec for the L1 deluge::synth::VirtualAnalogEngine, run on x86 (SIMDe) and ARM/QEMU via CTest.
+// Behavioural spec for the L1 deluge::synth::VirtualAnalogSource, run on x86 (SIMDe) and ARM/QEMU via CTest.
 // Bit-exact equivalence with the legacy renderOsc on real presets is the golden harness's job; here we pin that
 // the engine composes the right dsp-next oscillator and applies the right standalone scale per wave. We drive it
 // with apply_amplitude=false (the raw "standalone" wave) and cross-check against the dsp-next kernel built
 // directly. cpu_direness is set high to force the crude (non-band-limited) arms for deterministic comparison.
 
-#include "synth/source/virtual_analog_engine.h"
+#include "synth/source/virtual_analog_source.h"
 
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/analog_saw.h"
@@ -38,7 +38,7 @@ namespace {
 using deluge::dsp::Phasor;
 using deluge::dsp::Ramp;
 using deluge::synth::BlockControls;
-using deluge::synth::VirtualAnalogEngine;
+using deluge::synth::VirtualAnalogSource;
 using Wave = deluge::synth::va_shape::Wave;
 using Buffer = deluge::dsp::fixed::Buffer;
 
@@ -63,7 +63,7 @@ std::array<int32_t, kN> renderKernel(Osc osc) {
 }
 
 std::array<int32_t, kN> renderEngine(Wave wave, uint32_t phase, uint32_t increment, const BlockControls& controls) {
-	VirtualAnalogEngine engine{wave, Phasor{phase, increment}};
+	VirtualAnalogSource engine{wave, Phasor{phase, increment}};
 	std::array<int32_t, kN> out{};
 	std::array<int32_t, kN> scratch{};
 	engine.renderBlock(controls, Buffer{out}, Buffer{scratch});
@@ -72,7 +72,7 @@ std::array<int32_t, kN> renderEngine(Wave wave, uint32_t phase, uint32_t increme
 } // namespace
 
 // clang-format off
-describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
+describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 	constexpr uint32_t kPhase = 0x12340000u;
 	constexpr uint32_t kInc = 0x02000000u; // low pitch ⇒ low table number ⇒ crude arms (with cpu_direness 7)
 
@@ -134,7 +134,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	// phase by increment·numSamples per block, so a second block equals a fresh engine seeded at the advanced
 	// phase — this is what lets Voice retire oscPos and hold the engine across render blocks.
 	it("phase persists across blocks (== reseed each block)", _ {
-		VirtualAnalogEngine persistent{Wave::Saw, Phasor{kPhase, kInc}};
+		VirtualAnalogSource persistent{Wave::Saw, Phasor{kPhase, kInc}};
 		std::array<int32_t, kN> out1{};
 		std::array<int32_t, kN> scratch1{};
 		persistent.renderBlock(standalone(7), Buffer{out1}, Buffer{scratch1});
@@ -151,7 +151,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 	});
 
 	it("setIncrement sets the per-block pitch (and the self-advance follows it)", _ {
-		VirtualAnalogEngine engine{Wave::Saw, Phasor{kPhase, 0}};
+		VirtualAnalogSource engine{Wave::Saw, Phasor{kPhase, 0}};
 		engine.setIncrement(kInc);
 		expect(engine.increment()).to_equal(kInc);
 		std::array<int32_t, kN> out{};
@@ -165,7 +165,7 @@ describe vae_spec("deluge::synth::VirtualAnalogEngine", ${
 		constexpr uint32_t kResetInc = 0x01000000u;
 		auto controls = standalone(7, 0, Phasor{kResetPhase, kResetInc});
 
-		VirtualAnalogEngine engine{Wave::Saw, Phasor{kPhase, kInc}};
+		VirtualAnalogSource engine{Wave::Saw, Phasor{kPhase, kInc}};
 		std::array<int32_t, kN> out{};
 		std::array<int32_t, kN> scratch{};
 		engine.renderBlock(controls, Buffer{out}, Buffer{scratch});

@@ -35,7 +35,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
                                    uint8_t velocity) {
 
 	if (synthMode != SynthMode::FM && source->oscType == OscType::SAMPLE) {
-		return sampleEngine.noteOn(source, guide, samplesLate, voice->getPriorityRating());
+		return sampleSource.noteOn(source, guide, samplesLate, voice->getPriorityRating());
 	}
 
 	if (synthMode != SynthMode::FM
@@ -45,7 +45,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	}
 	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
 		DxPatch* patch = source->ensureDxPatch();
-		if (!dx7Engine.noteOn(*patch, voice->noteCodeAfterArpeggiation, velocity)) {
+		if (!dx7Source.noteOn(*patch, voice->noteCodeAfterArpeggiation, velocity)) {
 			return false;
 		}
 	}
@@ -59,29 +59,29 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		const bool engineMode = (synthMode == SynthMode::SUBTRACTIVE || synthMode == SynthMode::RINGMOD);
 		const uint32_t seedPhase = getOscInitialPhaseForZero(oscType) + oscRetriggerPhase;
 		if (engineMode && deluge::dsp::isVirtualAnalog(oscType)) {
-			wavetableEngine.reset();
+			wavetableSource.reset();
 			const deluge::synth::va_shape::Wave wave = deluge::dsp::vaWaveFor(oscType);
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
-				vaEngine.emplace(wave, deluge::dsp::Phasor{seedPhase, 0});
+				vaSource.emplace(wave, deluge::dsp::Phasor{seedPhase, 0});
 			}
-			else if (resetEverything || !vaEngine.has_value()) {
-				vaEngine.emplace(wave, deluge::dsp::Phasor{oscPos, 0});
+			else if (resetEverything || !vaSource.has_value()) {
+				vaSource.emplace(wave, deluge::dsp::Phasor{oscPos, 0});
 			}
-			// else (free-run, reused voice): keep vaEngine's phase.
+			// else (free-run, reused voice): keep vaSource's phase.
 		}
 		else if (engineMode && oscType == OscType::WAVETABLE) {
-			vaEngine.reset();
+			vaSource.reset();
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
-				wavetableEngine.emplace(deluge::dsp::Phasor{seedPhase, 0});
+				wavetableSource.emplace(deluge::dsp::Phasor{seedPhase, 0});
 			}
-			else if (resetEverything || !wavetableEngine.has_value()) {
-				wavetableEngine.emplace(deluge::dsp::Phasor{oscPos, 0});
+			else if (resetEverything || !wavetableSource.has_value()) {
+				wavetableSource.emplace(deluge::dsp::Phasor{oscPos, 0});
 			}
-			// else (free-run, reused voice): keep wavetableEngine's phase.
+			// else (free-run, reused voice): keep wavetableSource's phase.
 		}
 		else {
-			vaEngine.reset(); // non-engine (noise/FM/…) keeps oscPos; drop any engine left from a prior note.
-			wavetableEngine.reset();
+			vaSource.reset(); // non-engine (noise/FM/…) keeps oscPos; drop any engine left from a prior note.
+			wavetableSource.reset();
 			if (oscRetriggerPhase != 0xFFFFFFFF) {
 				oscPos = seedPhase;
 			}
@@ -97,7 +97,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 
 void VoiceUnisonPartSource::unassign(bool deletingSong) {
 	active = false;
-	sampleEngine.unassign(deletingSong);
-	dx7Engine.unassign();
-	inputEngine.unassign();
+	sampleSource.unassign(deletingSong);
+	dx7Source.unassign();
+	inputSource.unassign();
 }

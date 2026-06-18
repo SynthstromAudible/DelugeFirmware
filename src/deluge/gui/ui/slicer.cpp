@@ -180,7 +180,7 @@ void Slicer::graphicsRoutine() {
 
 			VoiceUnisonPartSource* part = &voice->unisonParts[drum->numUnison >> 1].sources[0];
 			if (part != nullptr && part->active) {
-				voiceSample = part->sampleEngine.voiceSample();
+				voiceSample = part->sampleSource.voiceSample();
 				guide = &voice->guides[soundEditor.currentSourceIndex];
 			}
 		}
@@ -521,7 +521,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 
 					VoiceUnisonPartSource* part = &assigned_voice->unisonParts[drum->numUnison >> 1].sources[0];
 					if (part != nullptr && part->active) {
-						voiceSample = part->sampleEngine.voiceSample();
+						voiceSample = part->sampleSource.voiceSample();
 						guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
 					}
 				}

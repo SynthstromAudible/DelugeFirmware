@@ -29,7 +29,7 @@ namespace deluge::dsp {
 /// Unlike the virtual-analog waves, the wavetable loads its band data from SD, so it depends on `storage/` and
 /// cannot live in the freestanding synth/ library — it stays **app-side** as the port-boundary adapter (the same
 /// shape the plan prescribes for SAMPLE: "wrap the existing path in place"). It owns the wavetable's render phase
-/// across blocks (replacing @c oscPos for wavetable sources, as @ref synth::VirtualAnalogEngine did for the VA
+/// across blocks (replacing @c oscPos for wavetable sources, as @ref synth::VirtualAnalogSource did for the VA
 /// waves), the pulse-width-as-sync preamble, the per-block @ref WavetableOscillator, the `<<3` amplitude VCA, and
 /// the phase-persistence rule.
 ///
@@ -40,7 +40,7 @@ namespace deluge::dsp {
 /// @note Per the L1 reframe this is a **source component**, not a swappable engine — see
 /// `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename rides the
 /// engine-forming slices.
-class WavetableEngine : public synth::OscillatorSource {
+class WavetableSource : public synth::OscillatorSource {
 	Phasor phasor_; ///< the original-domain render phase, persistent across blocks
 	WaveTable* table_ = nullptr;
 	int32_t wave_index_last_ = 0;
@@ -48,7 +48,7 @@ class WavetableEngine : public synth::OscillatorSource {
 
 public:
 	/// @param seed the engine's phase state (increment set per block via @ref setIncrement).
-	explicit WavetableEngine(Phasor seed) : phasor_{seed} {}
+	explicit WavetableSource(Phasor seed) : phasor_{seed} {}
 
 	/// The current render phase (UQ0.32). Persists across blocks — Voice reads it for osc-sync / skip.
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }

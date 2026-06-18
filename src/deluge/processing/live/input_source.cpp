@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "processing/live/input_engine.h"
+#include "processing/live/input_source.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
@@ -26,7 +26,7 @@
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
-void InputEngine::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement,
+void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement,
                          int32_t sourceAmplitude, int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison,
                          int32_t amplitudeL, int32_t amplitudeR, int32_t interpolationBufferSize) {
 	OscType inputTypeNow = oscType;
@@ -178,14 +178,14 @@ void InputEngine::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 	}
 }
 
-deluge::synth::SourceRenderResult InputEngine::renderSource(const deluge::synth::SourceRenderContext& ctx) {
+deluge::synth::SourceRenderResult InputSource::renderSource(const deluge::synth::SourceRenderContext& ctx) {
 	// Live input never self-unassigns; the channel-routing/pitch-shift render is unchanged (see render()).
 	render(ctx.oscType, ctx.oscBuffer, ctx.numSamples, ctx.phaseIncrement, ctx.sourceAmplitude, ctx.amplitudeIncrement,
 	       ctx.stereoBuffer, ctx.stereoUnison, ctx.amplitudeL, ctx.amplitudeR, ctx.interpolationBufferSize);
 	return deluge::synth::SourceRenderResult::ACTIVE;
 }
 
-void InputEngine::unassign() {
+void InputSource::unassign() {
 	// Matches the legacy VoiceUnisonPartSource::unassign exactly: a dealloc without the destructor (the
 	// render-stop path above does call ~LivePitchShifter()). A pre-existing inconsistency — preserved here, not
 	// "fixed", since the offline golden does not exercise the lifecycle and the behaviour change is unverified.

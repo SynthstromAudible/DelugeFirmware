@@ -47,9 +47,9 @@ set(stateful_oscillator_spec_DEPS
 set(synced_oscillator_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 set(sync_windower_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 set(crude_oscillators_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
-# The L1 VirtualAnalogEngine composes every band-limited wave table + the sine band (sineWaveSmall).
-set(virtual_analog_engine_spec_DEPS
-  ${_repo_root}/src/deluge/synth/source/virtual_analog_engine.cpp
+# The L1 VirtualAnalogSource composes every band-limited wave table + the sine band (sineWaveSmall).
+set(virtual_analog_source_spec_DEPS
+  ${_repo_root}/src/deluge/synth/source/virtual_analog_source.cpp
   ${_repo_root}/src/deluge/synth/source/va_shapes.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/saw.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/square.cpp

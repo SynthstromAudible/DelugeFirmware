@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "dsp/dx/dx7_engine.h"
+#include "dsp/dx/dx7_source.h"
 #include "board_config.h" // CACHE_LINE_SIZE
 #include "dsp/dx/dx7note.h"
 #include "dsp/dx/engine.h"
@@ -24,7 +24,7 @@
 
 namespace deluge::dsp {
 
-bool DX7Engine::noteOn(DxPatch& patch, int midinote, int velocity) {
+bool DX7Source::noteOn(DxPatch& patch, int midinote, int velocity) {
 	if (voice_ == nullptr) { // We might actually already have one, and just be restarting this voice
 		voice_ = getDxEngine()->solicitDxVoice();
 		if (voice_ == nullptr) {
@@ -36,7 +36,7 @@ bool DX7Engine::noteOn(DxPatch& patch, int midinote, int velocity) {
 	return true;
 }
 
-void DX7Engine::unassign() {
+void DX7Source::unassign() {
 	if (voice_ != nullptr) {
 		getDxEngine()->dxVoiceUnassigned(voice_);
 		voice_ = nullptr;
@@ -44,13 +44,13 @@ void DX7Engine::unassign() {
 	patch_ = nullptr;
 }
 
-void DX7Engine::keyup() {
+void DX7Source::keyup() {
 	if (voice_ != nullptr) {
 		voice_->keyup();
 	}
 }
 
-bool DX7Engine::render(int32_t* buf, int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
+bool DX7Source::render(int32_t* buf, int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
                        bool patchChanged, int midinote) {
 	// TODO: 1. use existing int log function?
 	//       2. going from phase to logs (and then let MSFA turn those logs into phase again) is sus af
@@ -67,7 +67,7 @@ bool DX7Engine::render(int32_t* buf, int32_t numSamples, uint32_t phaseIncrement
 	return voice_->compute(buf, numSamples, adjpitch, patch_, &ctrl);
 }
 
-synth::SourceRenderResult DX7Engine::renderSource(const synth::SourceRenderContext& ctx) {
+synth::SourceRenderResult DX7Source::renderSource(const synth::SourceRenderContext& ctx) {
 	static int32_t uniBuf[DX_MAX_N] __attribute__((aligned(CACHE_LINE_SIZE)));
 	memset(uniBuf, 0, sizeof uniBuf);
 

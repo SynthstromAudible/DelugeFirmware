@@ -33,7 +33,7 @@ class ParamManagerForTimeline;
 /// Wraps a pooled @ref VoiceSample — the low-level resampling/time-stretch/cache reader — and owns the SAMPLE
 /// arm of the voice lifecycle: solicit/restart at note-on, the per-block render (pitch+speed derivation,
 /// late-start, caching decision, the VoiceSample::render call and stereo-unison mix-down), and teardown. Like
-/// @ref deluge::dsp::DX7Engine and @ref InputEngine it is a *foreign*, app-coupled engine (it reaches storage/,
+/// @ref deluge::dsp::DX7Source and @ref InputSource it is a *foreign*, app-coupled engine (it reaches storage/,
 /// model/sample, AudioEngine, the allocator and ParamManager), so it is a standalone class, not a
 /// synth::Source. Ownership of the pooled VoiceSample is **explicit** (released in @ref unassign, never in
 /// a destructor) — the per-source objects are pooled and reused in place.
@@ -41,7 +41,7 @@ class ParamManagerForTimeline;
 /// @note Per the L1 reframe this is a **source component** (usable inside Subtractive/RingMod), not a swappable
 /// engine — see `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename
 /// rides the engine-forming slices (likely behind the `SampleSource` port).
-class SampleEngine : public deluge::synth::Source {
+class SampleSource : public deluge::synth::Source {
 public:
 	/// Note-on for the SAMPLE source: cache the per-note @p source + @p guide (stable for the note, like DX7's
 	/// patch), then solicit (or restart in place) the pooled VoiceSample and set up its clusters for initial play.
@@ -78,7 +78,7 @@ public:
 	/// Unison-count increase: solicit a fresh VoiceSample for this (new) part and clone @p from's low-level
 	/// reader state into it. Returns false if none could be solicited. Mirrors the legacy Sound::setNumUnison
 	/// clone (the caller still does the per-part stopUsingCache afterwards).
-	bool cloneVoiceSampleFrom(const SampleEngine& from);
+	bool cloneVoiceSampleFrom(const SampleSource& from);
 
 private:
 	// NB ::Source is the global preset-side class; the unqualified `Source` here is this class's injected

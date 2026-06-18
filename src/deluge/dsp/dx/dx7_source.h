@@ -37,7 +37,7 @@ namespace deluge::dsp {
 /// derivation + render. Ownership of the pooled voice is **explicit** (freed only in @ref unassign, never in a
 /// destructor) — Voice's per-source objects are pooled and reused in place, so an owning dtor would risk a
 /// double-free.
-class DX7Engine : public synth::Source {
+class DX7Source : public synth::Source {
 	DxVoice* voice_ = nullptr;
 	/// The patch this engine renders from, injected at note-on (the adapter domain). Stable for a Source's
 	/// lifetime (`Source::ensureDxPatch` creates it once, never replaces), so caching it here keeps the render

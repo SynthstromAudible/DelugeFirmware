@@ -31,7 +31,7 @@ enum class Wave : uint8_t { Sine, Triangle, Square, Saw, AnalogSaw, AnalogSquare
 /// @file
 /// @brief The virtual-analog engine's shape vocabulary: one encapsulated stateful oscillator per wave. Each owns
 /// its phase (a @ref deluge::dsp::Phasor) and renders a block, encapsulating that wave's crude↔band-limited
-/// choice, hard sync, pulse, standalone scale, and VCA. @ref VirtualAnalogEngine holds the active shape in a
+/// choice, hard sync, pulse, standalone scale, and VCA. @ref VirtualAnalogSource holds the active shape in a
 /// `std::variant` (the wave is fixed at note-on), replacing the old per-block decode + `switch` dispatch.
 ///
 /// Shapes split two ways: the plain band-limited waves (@ref Sine, @ref AnalogSaw, @ref AnalogSquare — one

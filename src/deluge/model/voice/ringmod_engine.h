@@ -35,7 +35,7 @@ class RingModEngine {
 public:
 	/// One ring-moddable source for this unison part (RINGMOD only ever uses the VA / wavetable components).
 	struct Source {
-		VoiceUnisonPartSource* part; ///< holds the persistent vaEngine / wavetableEngine component
+		VoiceUnisonPartSource* part; ///< holds the persistent vaSource / wavetableSource component
 		uint32_t phaseIncrement;     ///< already pitch-adjusted (UQ0.32)
 		int32_t pulseWidth;          ///< LOCAL_OSC_*_PHASE_WIDTH, pre-shifted (no-op unless square)
 		WaveTable* waveTable;        ///< the loaded table (wavetable component only), else nullptr

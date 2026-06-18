@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/sample_engine.h"
+#include "model/voice/sample_source.h"
 #include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
@@ -41,7 +41,7 @@
 using namespace deluge;
 namespace params = deluge::modulation::params;
 
-bool SampleEngine::noteOn(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
+bool SampleSource::noteOn(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
                           int32_t priorityRating) {
 
 	// Cache the per-note source config + guide (stable for the note); render reads these instead of reaching Voice&.
@@ -73,7 +73,7 @@ bool SampleEngine::noteOn(::Source* source, VoiceSamplePlaybackGuide* guide, uin
 	return voiceSample_->setupClusersForInitialPlay(guide, (Sample*)guide->audioFileHolder->audioFile, 0, false, 1);
 }
 
-void SampleEngine::unassign(bool deletingSong) {
+void SampleSource::unassign(bool deletingSong) {
 	if (voiceSample_ != nullptr) {
 		voiceSample_->beenUnassigned(deletingSong);
 		AudioEngine::voiceSampleUnassigned(voiceSample_);
@@ -83,7 +83,7 @@ void SampleEngine::unassign(bool deletingSong) {
 	guide_ = nullptr;
 }
 
-bool SampleEngine::cloneVoiceSampleFrom(const SampleEngine& from) {
+bool SampleSource::cloneVoiceSampleFrom(const SampleSource& from) {
 	voiceSample_ = AudioEngine::solicitVoiceSample();
 	if (voiceSample_ == nullptr) {
 		return false;
@@ -99,20 +99,20 @@ bool SampleEngine::cloneVoiceSampleFrom(const SampleEngine& from) {
 	return true;
 }
 
-bool SampleEngine::noteOffAtLoopEnd(Voice* voice, VoiceSamplePlaybackGuide* guide) {
+bool SampleSource::noteOffAtLoopEnd(Voice* voice, VoiceSamplePlaybackGuide* guide) {
 	return voiceSample_->noteOffWhenLoopEndPointExists(voice, guide);
 }
 
-bool SampleEngine::zoneChanged(VoiceSamplePlaybackGuide* guide, Sample* sample, bool reversed, MarkerType markerType,
+bool SampleSource::zoneChanged(VoiceSamplePlaybackGuide* guide, Sample* sample, bool reversed, MarkerType markerType,
                                LoopType loopingType, int32_t priorityRating) {
 	return voiceSample_->sampleZoneChanged(guide, sample, reversed, markerType, loopingType, priorityRating);
 }
 
-int32_t SampleEngine::getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGuide* guide) {
+int32_t SampleSource::getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGuide* guide) {
 	return voiceSample_->getPlayByteLowLevel(sample, guide);
 }
 
-deluge::synth::SourceRenderResult SampleEngine::renderSource(const deluge::synth::SourceRenderContext& ctx) {
+deluge::synth::SourceRenderResult SampleSource::renderSource(const deluge::synth::SourceRenderContext& ctx) {
 	int32_t* __restrict__ oscBuffer = ctx.oscBuffer;
 	const int32_t numSamples = ctx.numSamples;
 	const bool stereoBuffer = ctx.stereoBuffer;
@@ -290,7 +290,7 @@ dontUseCache: {}
 	return deluge::synth::SourceRenderResult::ACTIVE;
 }
 
-bool SampleEngine::getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t* phaseIncrement,
+bool SampleSource::getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t* phaseIncrement,
                                           uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples) {
 
 	int32_t pitchAdjustNeutralValue = ((SampleHolder*)guide->audioFileHolder)->neutralPhaseIncrement;
@@ -370,7 +370,7 @@ bool SampleEngine::getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackG
 // This normally only gets called from the getPitchAndSpeedParams() function, above, but occasionally we'll also call it
 // from render() when doing a "late start" on a Sample and we need to disregard any pitch modulation, so send this the
 // non-modulated phaseIncrement.
-uint32_t SampleEngine::getSpeedParamForNoSyncing(::Source* source, int32_t phaseIncrement,
+uint32_t SampleSource::getSpeedParamForNoSyncing(::Source* source, int32_t phaseIncrement,
                                                  int32_t pitchAdjustNeutralValue) {
 
 	uint32_t timeStretchRatio = kMaxSampleValue;

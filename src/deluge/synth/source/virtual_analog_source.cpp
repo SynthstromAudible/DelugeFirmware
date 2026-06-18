@@ -14,14 +14,14 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "synth/source/virtual_analog_engine.h"
+#include "synth/source/virtual_analog_source.h"
 
 namespace deluge::synth {
 
 // The one note-on dispatch: build the variant alternative for the wave (replaces the legacy per-block OscType
 // megaswitch). Rendering + the per-block crude/BL/pulse/sync choice all live inside the shape. The switch is
 // exhaustive over the closed va_shape::Wave — no default, so -Wswitch flags any future wave that isn't handled.
-VirtualAnalogEngine::Shape VirtualAnalogEngine::makeShape(va_shape::Wave wave, deluge::dsp::Phasor seed) {
+VirtualAnalogSource::Shape VirtualAnalogSource::makeShape(va_shape::Wave wave, deluge::dsp::Phasor seed) {
 	switch (wave) {
 	case va_shape::Wave::Sine:
 		return va_shape::Sine{seed};
@@ -39,7 +39,7 @@ VirtualAnalogEngine::Shape VirtualAnalogEngine::makeShape(va_shape::Wave wave, d
 	return va_shape::Sine{seed}; // unreachable: Wave is closed (the switch above is exhaustive).
 }
 
-VirtualAnalogEngine::VirtualAnalogEngine(va_shape::Wave wave, deluge::dsp::Phasor seed)
+VirtualAnalogSource::VirtualAnalogSource(va_shape::Wave wave, deluge::dsp::Phasor seed)
     : shape_{makeShape(wave, seed)} {
 }
 
