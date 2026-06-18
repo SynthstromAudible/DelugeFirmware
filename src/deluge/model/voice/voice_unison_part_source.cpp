@@ -45,7 +45,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	}
 	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
 		DxPatch* patch = source->ensureDxPatch();
-		if (!dx7Source.noteOn(*patch, voice->noteCodeAfterArpeggiation, velocity)) {
+		if (!dx7Source.noteOn(patch, voice->noteCodeAfterArpeggiation, velocity)) { // opaque patch handle → the port
 			return false;
 		}
 	}
