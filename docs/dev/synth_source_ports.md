@@ -72,6 +72,36 @@ without naming a concrete source.
 **Stays App-side (the adapter / firmware):** the port adapters themselves, note-on engine *selection*, the
 unison-count clone (`sound.cpp`), the GUI play-cursor reads, voice scheduling/culling, transport, storage.
 
+## Interaction with the Engine tier
+
+When the coordinator Engines (Subtractive / RingMod / FM) are themselves moved out of the App, they interact with
+this design as follows — and the headline is: **Engines need no ports of their own.**
+
+- **Engines couple to the *kernel*, not the *App*.** `RingModEngine`/`SubtractiveEngine`/`FMEngine` reach only
+  voice-kernel state (the param plane, scratch buffers, unison, osc-sync, `carrierFeedback`) — never
+  `AudioEngine`/storage/the allocator. Their job is pure cross-source *coordination DSP* (A→B hard-sync, the
+  ring-mod multiply, the FM operator graph + feedback). So moving an Engine out is the **same kind of move as the
+  L2 kernel relocation** — pure DSP over per-block inputs — and needs **zero ports**. Ports are strictly a
+  Source-layer concern (sources are the only things doing hardware/storage IO).
+- **The nesting:** `Instrument (L3) → owns Voices (L2) → own Engines → own Sources → depend on Ports ◀ firmware
+  adapters`. The port adapters are injected from the firmware **down through** Voice→Engine→Source.
+- **Ownership of the sources migrates Voice → Engine.** Today the Voice owns the sources and plays the
+  coordinator inline (`renderBasicSource` does the unison loop + A→B sync; `FMEngine` is a `friend` of `Voice`).
+  The end state (per `synth_l1_engine_architecture.md`) is that **each Engine owns its sources as private
+  composition** (Subtractive its 2 slots, RingMod its pair, FM its carriers/modulators). So "the kernel owns the
+  ported sources" above is the **interim** truth; the eventual owner is the Engine. **Ports are orthogonal to this**
+  — a port abstracts a source's IO regardless of whether the Voice (now) or an Engine (later) owns the source.
+- **The source seams here *are* the Engine↔Source seams.** The `hasOscPhase`/`oscPhase`/`seekOscPhase` facet is
+  exactly what a `SubtractiveEngine`/`RingModEngine` uses for its *internal* A→B sync; and `SourceRenderContext` is
+  the Engine↔Source contract — extracting an Engine means lifting the ctx-building + sync coordination (today smeared
+  in `renderBasicSource`) *into* the Engine object. So this work is forward-compatible with the engine extraction.
+- **Ordering is flexible** (`synth::Source` decouples them): an Engine can be extracted to coordinate
+  `synth::Source*` whether or not the concrete impls are ported, and a source can be ported under either owner.
+  Natural order: **source ports first** (the genuinely hard IO separation), then the **engine extraction** (pure
+  DSP lift out of `Voice`, dissolving FM's `friend`-coupling) — converging when library Engines own library Sources
+  that depend on ports backed by firmware adapters. The engine extraction is its own arc
+  (`synth_l1_engine_architecture.md`), not part of these source ports.
+
 ## Sequence (each port is its own multi-slice, golden-gated arc)
 
 1. **Wavetable band-data view** — resumes `[[wavetable-storage-port]]`; `WavetableSource` → `synth/`.
