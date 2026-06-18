@@ -2478,8 +2478,30 @@ followOnAction:
 	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
-// used to copy paste automation or to delete automation of the current selected parameter
+// used to change gold knob parameter, copy paste automation or to delete automation of the current selected parameter
 void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+
+	// if we're in automation overview or note editor
+	// then we want to allow toggling with mod encoder buttons to change
+	// mod encoder selections or copy / paste
+	if (!inAutomationEditor()) {
+		instrumentClipView.modEncoderButtonAction(whichModEncoder, on);
+		uiNeedsRendering(&automationView);
+		return;
+	}
+
+	// if we're not trying to copy / paste (holding learn) and not trying to delete (holding shift), return
+	// if we're releasing mod encoder button action, return (we don't do anything on release)
+	bool is_learn_pressed = Buttons::isButtonPressed(hid::button::LEARN);
+	bool is_shift_pressed = Buttons::isShiftButtonPressed();
+	bool is_copy_action = is_learn_pressed && !is_shift_pressed;
+	bool is_paste_action = is_learn_pressed && is_shift_pressed;
+	bool is_delete_action = !is_learn_pressed & is_shift_pressed;
+	if (!on || (!is_copy_action && !is_paste_action && !is_delete_action)) {
+		return;
+	}
+
+	// if we got here then we're in automation editor and we want to copy / paste or delete automation
 
 	Clip* clip = getCurrentClip();
 	OutputType outputType = clip->output->type;
@@ -2498,64 +2520,40 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
+
+	// if we don't have an auto param, then no automation to copy / paste or delete, so return
+	if (!modelStackWithParam || !modelStackWithParam->autoParam) {
+		return;
+	}
+
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
 	int32_t xScroll = currentSong->xScroll[navSysId];
 	int32_t xZoom = currentSong->xZoom[navSysId];
 
-	// If they want to copy or paste automation...
-	if (Buttons::isButtonPressed(hid::button::LEARN)) {
-		if (on) {
-			if (Buttons::isShiftButtonPressed()) {
-				// paste within Automation Editor
-				if (inAutomationEditor()) {
-					automationEditorLayoutModControllable.pasteAutomation(modelStackWithParam, clip, effectiveLength,
-					                                                      xScroll, xZoom);
-				}
-				// paste on Automation Overview / Note Editor
-				else {
-					instrumentClipView.pasteAutomation(whichModEncoder, navSysId);
-				}
-			}
-			else {
-				// copy within Automation Editor
-				if (inAutomationEditor()) {
-					automationEditorLayoutModControllable.copyAutomation(modelStackWithParam, clip, xScroll, xZoom);
-				}
-				// copy on Automation Overview / Note Editor
-				else {
-					instrumentClipView.copyAutomation(whichModEncoder, navSysId);
-				}
-			}
-		}
+	// if they want to copy automation...
+	if (is_copy_action) {
+		automationEditorLayoutModControllable.copyAutomation(modelStackWithParam, clip, xScroll, xZoom);
+	}
+	// if they want to paste automation
+	else if (is_paste_action) {
+		automationEditorLayoutModControllable.pasteAutomation(modelStackWithParam, clip, effectiveLength,
+				                                                    xScroll, xZoom);
+	}
+	// if they want to delete automation
+	else if (is_delete_action) {
+		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
+		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
+
+		displayAutomation(padSelectionOn, !display->have7SEG());
 	}
 
-	// delete automation of current parameter selected
-	else if (Buttons::isShiftButtonPressed() && inAutomationEditor()) {
-		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
-
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
-
-			displayAutomation(padSelectionOn, !display->have7SEG());
-		}
-	}
-
-	// if we're in automation overview or note editor
-	// then we want to allow toggling with mod encoder buttons to change
-	// mod encoder selections
-	else if (!inAutomationEditor()) {
-		goto followOnAction;
-	}
-
+	// refresh automation editor grid to show copy / pasted automation or deleted automation
 	uiNeedsRendering(&automationView);
+
 	return;
-
-followOnAction: // it will come here when you are on the automation overview / in note editor iscreen
-
-	view.modEncoderButtonAction(whichModEncoder, on);
-	uiNeedsRendering(&automationView);
 }
 
 // select encoder action
