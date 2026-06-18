@@ -62,9 +62,6 @@ public:
 
 	[[nodiscard]] size_t allocatedSize() const override { return sizeof(WaveTable); }
 
-	uint32_t render(int32_t* outputBuffer, int32_t numSamples, uint32_t phaseIncrementNow, uint32_t phase,
-	                bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase,
-	                int32_t waveIndex, int32_t waveIndexIncrement);
 	// Build this WaveTable from an already-in-memory Sample (the Sample→WaveTable conversion). Reads the
 	// Sample's cluster data; takes its cycle size / channels / byte depth from the Sample.
 	Error setupFromSample(Sample& sample);
