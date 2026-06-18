@@ -191,7 +191,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	globalEffectable.compressor.setBaseGain(0.85);
 
 	// initialize automation arranger view variables
-	lastSelectedParamID = kNoSelection;
+	lastSelectedParamID = params::kNoParamID;
 	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
@@ -1179,7 +1179,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("affectEntire", affectEntire);
 	writer.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
-	if (lastSelectedParamID != kNoSelection) {
+	if (lastSelectedParamID != params::kNoParamID) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);

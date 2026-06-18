@@ -61,7 +61,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 
 	// initialize automation clip view variables
 	onAutomationClipView = false;
-	lastSelectedParamID = kNoSelection;
+	lastSelectedParamID = params::kNoParamID;
 	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
