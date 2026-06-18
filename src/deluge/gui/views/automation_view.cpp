@@ -2425,6 +2425,18 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 // used to record live automations in
 void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
+	// if we're in automation overview or note editor
+	// then we want to changing the value of the parameter assigned to the mod encoder
+	if (!inAutomationEditor()) {
+		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+		return;
+	}
+
+	// ok we're on the automation editor, so both mod encoders will edit the currently selected parameter
+	// we have two possible actions: step editing or editing current value
+
+	// now we need to setup the model stack with param for the selected parameter in the selected context
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
@@ -2440,42 +2452,39 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		Clip* clip = getCurrentClip();
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
+
+	// if we don't have a model stack or auto param, then no parameter to edit, so return early
+	if (!modelStackWithParam || !modelStackWithParam->autoParam) {
+		return;
+	}
+
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
-	// if user holding a node down, we'll adjust the value of the selected parameter being automated
-	if (isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) {
-		if (inAutomationEditor()
-		    && ((instrumentClipView.numEditPadPresses > 0
-		         && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0))
-		        || padSelectionOn)) {
+	// if user holding a node down, or we're in pad selection mode
+	// we'll adjust the value of the selected parameter being automated at the step selected
+	bool is_step_editing = isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn;
+
+	if (is_step_editing) {
+		if ((instrumentClipView.numEditPadPresses > 0
+		     && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0))
+		    || padSelectionOn) {
 
 			if (automationEditorLayoutModControllable.automationModEncoderActionForSelectedPad(
 			        modelStackWithParam, whichModEncoder, offset, effectiveLength)) {
 				return;
 			}
 		}
-		else if (inNoteEditor()) {
-			goto followOnAction;
-		}
 	}
 	// if playback is enabled and you are recording, you will be able to record in live automations for
 	// the selected parameter this code is also executed if you're just changing the current value of
 	// the parameter at the current mod position
 	else {
-		if (inAutomationEditor()) {
-			automationEditorLayoutModControllable.automationModEncoderActionForUnselectedPad(
-			    modelStackWithParam, whichModEncoder, offset, effectiveLength);
-		}
-		else {
-			goto followOnAction;
-		}
+		automationEditorLayoutModControllable.automationModEncoderActionForUnselectedPad(
+		    modelStackWithParam, whichModEncoder, offset, effectiveLength);
 	}
 
 	uiNeedsRendering(&automationView);
 	return;
-
-followOnAction:
-	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
 // used to change gold knob parameter, copy paste automation or to delete automation of the current selected parameter
@@ -2503,6 +2512,8 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// if we got here then we're in automation editor and we want to copy / paste or delete automation
 
+	// now we need to setup the model stack with param for the selected parameter in the selected context
+
 	Clip* clip = getCurrentClip();
 	OutputType outputType = clip->output->type;
 
@@ -2521,7 +2532,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 
-	// if we don't have an auto param, then no automation to copy / paste or delete, so return
+	// if we don't have a model stack with param or auto param, then no automation to copy / paste or delete, so return
 	if (!modelStackWithParam || !modelStackWithParam->autoParam) {
 		return;
 	}
@@ -2537,8 +2548,8 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 	// if they want to paste automation
 	else if (is_paste_action) {
-		automationEditorLayoutModControllable.pasteAutomation(modelStackWithParam, clip, effectiveLength,
-				                                                    xScroll, xZoom);
+		automationEditorLayoutModControllable.pasteAutomation(modelStackWithParam, clip, effectiveLength, xScroll,
+		                                                      xZoom);
 	}
 	// if they want to delete automation
 	else if (is_delete_action) {
