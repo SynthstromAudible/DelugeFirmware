@@ -21,7 +21,10 @@
 #include <cstdint>
 #include <span>
 
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 
 class Metronome {
 public:

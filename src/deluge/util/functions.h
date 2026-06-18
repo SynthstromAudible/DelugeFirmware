@@ -155,7 +155,10 @@ int32_t cableToLinearParamShortcut(int32_t sourceValue);
 int32_t cableToExpParamShortcut(int32_t sourceValue);
 
 class Sound;
+namespace deluge::dsp {
 struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 
 char const* getSourceDisplayNameForOLED(PatchSource s);
 

@@ -31,7 +31,10 @@ class InstrumentClip;
 class Instrument;
 class ModControllable;
 class Drum;
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class ParamManagerForTimeline;
 class Sound;
 class Note;

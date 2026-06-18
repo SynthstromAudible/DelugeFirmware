@@ -23,7 +23,10 @@
 #include <expected>
 #include <optional>
 
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 
 constexpr ptrdiff_t delaySpaceBetweenReadAndWrite = 20;
 

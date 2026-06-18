@@ -20,7 +20,10 @@
 #include <cstdint>
 
 class Song;
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class InstrumentClip;
 class ArrangementRow;
 class Output;

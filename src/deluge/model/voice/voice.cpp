@@ -1311,10 +1311,10 @@ skipUnisonPart: {}
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
-					outputSample->addPannedStereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
+					*outputSample += deluge::dsp::pannedStereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
 				}
 				else {
-					outputSample->addStereo(outputSampleL, outputSampleR);
+					*outputSample += StereoSample{.l = outputSampleL, .r = outputSampleR};
 				}
 
 				outputSample++;
@@ -1344,10 +1344,10 @@ skipUnisonPart: {}
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
-					outputSample->addPannedStereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
+					*outputSample += deluge::dsp::pannedStereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
 				}
 				else {
-					outputSample->addStereo(outputSampleL, outputSampleR);
+					*outputSample += StereoSample{.l = outputSampleL, .r = outputSampleR};
 				}
 
 				outputSample++;
@@ -1392,10 +1392,10 @@ skipUnisonPart: {}
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {
-						((StereoSample*)outputSample)->addPannedMono(output, amplitudeL, amplitudeR);
+						*((StereoSample*)outputSample) += deluge::dsp::pannedMono(output, amplitudeL, amplitudeR);
 					}
 					else {
-						((StereoSample*)outputSample)->addMono(output);
+						*((StereoSample*)outputSample) += StereoSample::fromMono(output);
 					}
 					outputSample += 2;
 				}
@@ -1425,10 +1425,10 @@ skipUnisonPart: {}
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {
-						((StereoSample*)outputSample)->addPannedMono(output, amplitudeL, amplitudeR);
+						*((StereoSample*)outputSample) += deluge::dsp::pannedMono(output, amplitudeL, amplitudeR);
 					}
 					else {
-						((StereoSample*)outputSample)->addMono(output);
+						*((StereoSample*)outputSample) += StereoSample::fromMono(output);
 					}
 					outputSample += 2;
 				}

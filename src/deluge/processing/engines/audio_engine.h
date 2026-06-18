@@ -33,7 +33,10 @@ extern "C" {
 }
 
 class Song;
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class Instrument;
 class Sound;
 class ParamManagerForTimeline;

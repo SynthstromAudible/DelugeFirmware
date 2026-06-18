@@ -37,7 +37,10 @@
 #include <memory>
 
 struct CableGroup;
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class Voice;
 class Kit;
 class ParamManagerForTimeline;

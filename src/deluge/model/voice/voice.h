@@ -35,7 +35,10 @@
 #include <compare>
 #include <memory>
 
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class ModelStackWithSoundFlags;
 using namespace deluge;
 class Voice final {
