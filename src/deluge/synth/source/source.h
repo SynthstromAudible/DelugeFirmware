@@ -83,23 +83,27 @@ struct SourceRenderContext {
 	int32_t amplitudeL;      ///< unison pan-fold left gain (q31)
 	int32_t amplitudeR;      ///< unison pan-fold right gain (q31)
 	int32_t sourceAmplitude; ///< per-block start VCA amplitude (DX7's bespoke sum; oscillators get it via @c controls)
-	int32_t amplitudeIncrement;        ///< per-sample VCA increment
-	uint32_t phaseIncrement;           ///< per-block pitch (UQ0.32)
-	bool doOscSync;                    ///< hard-sync this block to source 0 (oscillators only)
-	uint32_t oscSyncPos;               ///< the master's phase for this unison part (when @c doOscSync)
-	uint32_t oscSyncPhaseIncrement;    ///< the master's increment for this unison part; 0 ⇒ freq too high ⇒ SKIP
-	BlockControls controls;            ///< the already-built oscillator controls (amplitude/pulse/sync/cpu_direness)
-	WaveTable* waveTable;              ///< wavetable source only (pass-through; null for basic oscillators)
-	int32_t waveIndexLast;             ///< wavetable morph: previous block's index
-	int32_t waveIndexIncrement;        ///< wavetable morph: per-sample slope
-	int32_t* stereoScratch;            ///< mono work buffer used when @c stereoBuffer (= the voice's spare buffer)
-	int32_t stereoScratchClearSamples; ///< how many samples of @c stereoScratch to zero before rendering into it
-	int32_t* syncScratch;              ///< the oscillator hard-sync work buffer (passed in; synth/ can't reach dsp/)
-	int32_t ampModParam;               ///< DX7 amplitude-mod control (raw param value)
-	bool patchChanged;                 ///< DX7: re-derive the patch state this block
-	int32_t midinote;                  ///< DX7: the (post-arp) note code
-	OscType oscType;                   ///< live-input only: selects L / R / stereo channel routing
-	int32_t interpolationBufferSize;   ///< live-input only: precomputed interp size for the pitch-shift arm
+	int32_t amplitudeIncrement;         ///< per-sample VCA increment
+	uint32_t phaseIncrement;            ///< per-block pitch (UQ0.32)
+	bool doOscSync;                     ///< hard-sync this block to source 0 (oscillators only)
+	uint32_t oscSyncPos;                ///< the master's phase for this unison part (when @c doOscSync)
+	uint32_t oscSyncPhaseIncrement;     ///< the master's increment for this unison part; 0 ⇒ freq too high ⇒ SKIP
+	BlockControls controls;             ///< the already-built oscillator controls (amplitude/pulse/sync/cpu_direness)
+	WaveTable* waveTable;               ///< wavetable source only (pass-through; null for basic oscillators)
+	int32_t waveIndexLast;              ///< wavetable morph: previous block's index
+	int32_t waveIndexIncrement;         ///< wavetable morph: per-sample slope
+	int32_t* stereoScratch;             ///< mono work buffer used when @c stereoBuffer (= the voice's spare buffer)
+	int32_t stereoScratchClearSamples;  ///< how many samples of @c stereoScratch to zero before rendering into it
+	int32_t* syncScratch;               ///< the oscillator hard-sync work buffer (passed in; synth/ can't reach dsp/)
+	int32_t ampModParam;                ///< DX7 amplitude-mod control (raw param value)
+	bool patchChanged;                  ///< DX7: re-derive the patch state this block
+	int32_t midinote;                   ///< DX7: the (post-arp) note code
+	OscType oscType;                    ///< live-input only: selects L / R / stereo channel routing
+	int32_t interpolationBufferSize;    ///< live-input only: precomputed interp size for the pitch-shift arm
+	uint32_t portaEnvelopePos;          ///< sample only: voice porta position (0xFFFFFFFF ⇒ no porta ⇒ caching ok)
+	int32_t priorityRating;             ///< sample only: voice-cull priority (caching + the VoiceSample render)
+	uint32_t phaseIncrementStoredValue; ///< sample only: pre-modulation phase increment (the late-start maths)
+	bool pitchModDisallowsCache;        ///< sample only: a changeable patch source modulates pitch ⇒ skip caching
 };
 
 /// @brief The L1 **Source** contract: render one unison part of one source's full contribution for this block,

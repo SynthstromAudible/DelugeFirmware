@@ -1745,18 +1745,35 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	using deluge::synth::SourceRenderResult;
 	VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
-	// If sample...
+	// SAMPLE caching policy, hoisted out of SampleEngine::renderSource so it needn't reach paramManager / the param
+	// planes: does any patch cable modulate pitch with a *changeable* source? Bit-exact with the legacy inline scan
+	// (`cable->from` is a single source ⇒ the OR equals the if/else-if chain; only consumed on a sample's first
+	// render). Computed only for SAMPLE — the cable scan would be wasted for the other sources.
+	bool pitchModDisallowsCache = false;
 	if (cfg.oscType[s] == OscType::SAMPLE) {
-		return voiceUnisonPartSource->sampleEngine.render(
-		    *this, paramManager, s, oscBuffer, numSamples, stereoBuffer, sourceAmplitude, amplitudeIncrement,
-		    phaseIncrement, voiceUnisonPartSource->phaseIncrementStoredValue, stereoUnison, amplitudeL, amplitudeR,
-		    spareRenderingBuffer[2]);
+		PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
+		for (int32_t c = 0; c < patchCableSet->numUsablePatchCables; c++) {
+			PatchCable* cable = &patchCableSet->patchCables[c];
+			if (cable->destinationParamDescriptor.isSetToParamWithNoSource(params::LOCAL_PITCH_ADJUST)
+			    || cable->destinationParamDescriptor.isSetToParamWithNoSource(params::LOCAL_OSC_A_PITCH_ADJUST + s)) {
+				if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
+				    || cable->from == PatchSource::LFO_GLOBAL_1 || cable->from == PatchSource::LFO_LOCAL_1
+				    || cable->from == PatchSource::LFO_GLOBAL_2 || cable->from == PatchSource::LFO_LOCAL_2
+				    || cable->from == PatchSource::RANDOM
+				    || (cable->from == PatchSource::AFTERTOUCH
+				        && params.sourceValues[util::to_underlying(PatchSource::AFTERTOUCH)])
+				    || (cable->from == PatchSource::SIDECHAIN
+				        && cfg.globalSourceValues[util::to_underlying(PatchSource::SIDECHAIN)])) {
+					pitchModDisallowsCache = true;
+					break;
+				}
+			}
+		}
 	}
 
-	// Regular wave (virtual-analog / wavetable) + DX7 + live input — all render through the polymorphic synth::Source
-	// seam, which
-	// owns the osc-sync freq-too-high SKIP, the mono-scratch/stereo-fold, and the per-engine block render. The
-	// app-side adapter just gathers the already-modulated per-block values into the SourceRenderContext.
+	// All five sources render through the polymorphic synth::Source seam, which owns (for oscillators) the osc-sync
+	// freq-too-high SKIP + mono-scratch/stereo-fold, and (per engine) the block render. The app-side adapter just
+	// gathers the already-modulated per-block values into the SourceRenderContext.
 	uint32_t oscRetriggerPhase = cfg.oscRetriggerPhase[s]; // Yes we might need this even if not doing osc sync.
 	uint32_t oscSyncPosThisUnison = doOscSync ? oscSyncPos[u] : 0;
 	uint32_t oscSyncPhaseIncrementsThisUnison = doOscSync ? oscSyncPhaseIncrements[u] : 0;
@@ -1797,13 +1814,19 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .oscType = cfg.oscType[s],                                                   // live input: L/R/stereo routing
 	    .interpolationBufferSize =
 	        SampleControls::getInterpolationBufferSize(cfg.interpolationMode[s], phaseIncrement), // live input
+	    .portaEnvelopePos = portaEnvelopePos,                                                     // sample
+	    .priorityRating = getPriorityRating(),                                         // sample (snapshot once)
+	    .phaseIncrementStoredValue = voiceUnisonPartSource->phaseIncrementStoredValue, // sample late-start
+	    .pitchModDisallowsCache = pitchModDisallowsCache,                              // sample caching policy
 	};
 
-	// virtual-analog → vaEngine, wavetable → wavetableEngine, DX7 → dx7Engine, INPUT_* → inputEngine — all persistent
-	// synth::Source%s. Only SAMPLE took an earlier branch (it reaches Voice&/storage and isn't yet behind
-	// synth::Source).
+	// sample → sampleEngine, DX7 → dx7Engine, INPUT_* → inputEngine, wavetable → wavetableEngine, else virtual-analog
+	// → vaEngine — every source is now a persistent synth::Source; the legacy oscType megaswitch is gone.
 	synth::Source* component;
-	if (cfg.oscType[s] == OscType::DX7) {
+	if (cfg.oscType[s] == OscType::SAMPLE) {
+		component = &unisonParts[u].sources[s].sampleEngine;
+	}
+	else if (cfg.oscType[s] == OscType::DX7) {
 		component = &unisonParts[u].sources[s].dx7Engine;
 	}
 	else if (cfg.oscType[s] == OscType::INPUT_L || cfg.oscType[s] == OscType::INPUT_R

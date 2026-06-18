@@ -16,8 +16,8 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp"                   // LoopType / MarkerType
-#include "model/voice/source_component_render.h" // deluge::synth::SourceRenderResult
+#include "definitions_cxx.hpp"   // LoopType / MarkerType
+#include "synth/source/source.h" // deluge::synth::Source, SourceRenderContext, SourceRenderResult
 #include <cstdint>
 
 class Sample;
@@ -41,26 +41,20 @@ class ParamManagerForTimeline;
 /// @note Per the L1 reframe this is a **source component** (usable inside Subtractive/RingMod), not a swappable
 /// engine — see `docs/dev/synth_l1_engine_architecture.md`. The `*Engine` name predates that doc; the rename
 /// rides the engine-forming slices (likely behind the `SampleSource` port).
-class SampleEngine {
+class SampleEngine : public deluge::synth::Source {
 public:
 	/// Note-on for the SAMPLE source: cache the per-note @p source + @p guide (stable for the note, like DX7's
 	/// patch), then solicit (or restart in place) the pooled VoiceSample and set up its clusters for initial play.
 	/// Returns false only on a hard failure that should silence the whole Voice (out of VoiceSamples / cluster
 	/// setup failed); true otherwise — including the "unplayable / no file" and "samples-late" early-outs, which
 	/// keep the Voice sounding. Mirrors the legacy VoiceUnisonPartSource::noteOn SAMPLE block exactly.
-	bool noteOn(Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
+	bool noteOn(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
 
-	/// Render one block of sample playback, adding into @p oscBuffer. @p phaseIncrement is the already
-	/// pitch-adjusted read rate; @p phaseIncrementStoredValue is the pre-modulation value (needed by the
-	/// late-start maths). @p stereoUnisonScratch is the caller's spare buffer used only when @p stereoUnison.
-	/// Reaches back into @p voice (and its owning `voice.sound`) / @p paramManager for the guide, sources config,
-	/// params and caching policy — the app-coupling this engine deliberately localises.
-	deluge::synth::SourceRenderResult render(Voice& voice, ParamManagerForTimeline* paramManager, int32_t s,
-	                                         int32_t* __restrict__ oscBuffer, int32_t numSamples, bool stereoBuffer,
-	                                         int32_t sourceAmplitude, int32_t amplitudeIncrement,
-	                                         uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue,
-	                                         bool stereoUnison, int32_t amplitudeL, int32_t amplitudeR,
-	                                         int32_t* stereoUnisonScratch);
+	/// Render one block of sample playback into @c ctx.oscBuffer (the @ref deluge::synth::Source seam). Reads the
+	/// per-note source/guide cached at note-on + the per-block voice values in @p ctx (porta, priority,
+	/// pre-modulation phaseIncrementStoredValue, the hoisted caching pitch-mod flag); the VoiceSample
+	/// resampling/time-stretch/cache machinery + stereo-unison mix-down are unchanged. No @c Voice& reach.
+	deluge::synth::SourceRenderResult renderSource(const deluge::synth::SourceRenderContext& ctx) override;
 
 	/// Free the pooled VoiceSample back to AudioEngine (no-op if none held).
 	void unassign(bool deletingSong);
@@ -87,14 +81,16 @@ public:
 	bool cloneVoiceSampleFrom(const SampleEngine& from);
 
 private:
-	bool getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* guide, uint32_t* phaseIncrement,
+	// NB ::Source is the global preset-side class; the unqualified `Source` here is this class's injected
+	// base-class name (deluge::synth::Source), so the preset type must be written ::Source throughout.
+	bool getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t* phaseIncrement,
 	                            uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples);
-	uint32_t getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
+	uint32_t getSpeedParamForNoSyncing(::Source* source, int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
 
 	VoiceSample* voiceSample_ = nullptr;
 	/// The per-note source config + playback guide, cached at note-on (stable for the note — `sound.sources[s]` /
 	/// `voice.guides[s]` are fixed members; mirrors DX7's `patch_`). Lets `render` shed its `Voice&` reach. Cleared
 	/// in @ref unassign.
-	Source* source_ = nullptr;
+	::Source* source_ = nullptr;
 	VoiceSamplePlaybackGuide* guide_ = nullptr;
 };

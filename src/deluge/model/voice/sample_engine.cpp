@@ -41,7 +41,7 @@
 using namespace deluge;
 namespace params = deluge::modulation::params;
 
-bool SampleEngine::noteOn(Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
+bool SampleEngine::noteOn(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
                           int32_t priorityRating) {
 
 	// Cache the per-note source config + guide (stable for the note); render reads these instead of reaching Voice&.
@@ -112,45 +112,27 @@ int32_t SampleEngine::getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGui
 	return voiceSample_->getPlayByteLowLevel(sample, guide);
 }
 
-deluge::synth::SourceRenderResult
-SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_t s, int32_t* __restrict__ oscBuffer,
-                     int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, int32_t amplitudeIncrement,
-                     uint32_t phaseIncrement, uint32_t phaseIncrementStoredValue, bool stereoUnison, int32_t amplitudeL,
-                     int32_t amplitudeR, int32_t* stereoUnisonScratch) {
+deluge::synth::SourceRenderResult SampleEngine::renderSource(const deluge::synth::SourceRenderContext& ctx) {
+	int32_t* __restrict__ oscBuffer = ctx.oscBuffer;
+	const int32_t numSamples = ctx.numSamples;
+	const bool stereoBuffer = ctx.stereoBuffer;
+	const int32_t sourceAmplitude = ctx.sourceAmplitude;
+	const int32_t amplitudeIncrement = ctx.amplitudeIncrement;
+	uint32_t phaseIncrement = ctx.phaseIncrement; // mutated below by getPitchAndSpeedParams (taken by address)
+	const uint32_t phaseIncrementStoredValue = ctx.phaseIncrementStoredValue;
+	const bool stereoUnison = ctx.stereoUnison;
+	const int32_t amplitudeL = ctx.amplitudeL;
+	const int32_t amplitudeR = ctx.amplitudeR;
+	int32_t* stereoUnisonScratch = ctx.stereoScratch;
 
 	Sample* sample = (Sample*)guide_->audioFileHolder->audioFile;
 	VoiceSample* voiceSample = voiceSample_;
 
 	int32_t numChannels = (sample->numChannels == 2) ? 2 : 1;
 
-#ifdef TEST_SAMPLE_LOOP_POINTS
-	if (!(getNoise() >> 19)) {
-		// D_PRINTLN("random change");
-
-		int32_t r = getRandom255();
-
-		if (r < 128) {
-			voice.sound.guides[s].timeStretchAmount = (getRandom255() % 24) - 12;
-		}
-
-		else {
-			if ((voice.guides[s].audioFileHolder->transpose || voice.guides[s].audioFileHolder->cents)
-			    && getRandom255() < 128) {
-				voice.guides[s].audioFileHolder->transpose = 0;
-				voice.guides[s].audioFileHolder->setCents(0);
-			}
-
-			else {
-				voice.guides[s].audioFileHolder->transpose = (int32_t)(getRandom255() % 24) - 12;
-				voice.guides[s].audioFileHolder->setCents((int32_t)(getRandom255() % 100) - 50);
-			}
-
-			voice.sound.recalculateAllVoicePhaseIncrements(paramManager);
-		}
-
-		// D_PRINTLN("end random change");
-	}
-#endif
+	// (The legacy TEST_SAMPLE_LOOP_POINTS fuzzing block was removed here: it mutated voice/sound state via
+	// Voice&/paramManager, incompatible with the synth::Source contract. A debug-only #ifdef, never in normal or
+	// golden builds; reintroduce app-side if wanted.)
 
 	// First figure out the time-stretching amount
 
@@ -221,8 +203,7 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 		// happen to work out pitch and timestretch there as well as here (where it'll be worked out anyway),
 		// including checking the result of patching / modulation (and we *do* allow caching where, say,
 		// velocity or note is affecting pitch), and stretch-syncing.
-		if (!voiceSample->doneFirstRenderYet && !tryToStartMidNote
-		    && voice.portaEnvelopePos == 0xFFFFFFFF) { // No porta
+		if (!voiceSample->doneFirstRenderYet && !tryToStartMidNote && ctx.portaEnvelopePos == 0xFFFFFFFF) { // No porta
 
 			// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good /
 			// accurate
@@ -241,44 +222,17 @@ SampleEngine::render(Voice& voice, ParamManagerForTimeline* paramManager, int32_
 				}
 			}
 
-			// If no changeable sources patched to pitch...
-			for (int32_t c = 0; c < paramManager->getPatchCableSet()->numUsablePatchCables; c++) {
-				PatchCable* cable = &paramManager->getPatchCableSet()->patchCables[c];
-
-				// If it's going to pitch...
-				if (cable->destinationParamDescriptor.isSetToParamWithNoSource(params::LOCAL_PITCH_ADJUST)
-				    || cable->destinationParamDescriptor.isSetToParamWithNoSource(params::LOCAL_OSC_A_PITCH_ADJUST
-				                                                                  + s)) {
-
-					// And if it's an envelope or LFO or random...
-					if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
-					    || cable->from == PatchSource::LFO_GLOBAL_1 || cable->from == PatchSource::LFO_LOCAL_1
-					    || cable->from == PatchSource::LFO_GLOBAL_2 || cable->from == PatchSource::LFO_LOCAL_2
-					    || cable->from == PatchSource::RANDOM) {
-						goto dontUseCache;
-					}
-
-					else if (cable->from == PatchSource::AFTERTOUCH) {
-						if (voice.params.sourceValues[util::to_underlying(PatchSource::AFTERTOUCH)]) {
-							goto dontUseCache;
-						}
-					}
-
-					// TODO: probably need to check for X and Y modulation sources here too...
-
-					else if (cable->from == PatchSource::SIDECHAIN) {
-						if (voice.sound.params.sourceValues[util::to_underlying(PatchSource::SIDECHAIN)]) {
-							goto dontUseCache;
-						}
-					}
-				}
+			// If a changeable source is patched to pitch, don't cache. This scan was hoisted app-side into
+			// ctx.pitchModDisallowsCache (it reaches the patch cables + the aftertouch/sidechain source values),
+			// so render needn't reach paramManager / the param planes.
+			if (ctx.pitchModDisallowsCache) {
+				goto dontUseCache;
 			}
 
 			{
 				// If still here, we can use cache
-				bool everythingOk =
-				    voiceSample->possiblySetUpCache(&source_->sampleControls, guide_, phaseIncrement, timeStretchRatio,
-				                                    voice.getPriorityRating(), loopingType);
+				bool everythingOk = voiceSample->possiblySetUpCache(&source_->sampleControls, guide_, phaseIncrement,
+				                                                    timeStretchRatio, ctx.priorityRating, loopingType);
 				if (!everythingOk) {
 					return deluge::synth::SourceRenderResult::UNASSIGN;
 				}
@@ -311,7 +265,7 @@ dontUseCache: {}
 	bool stillActive =
 	    voiceSample->render(guide_, renderBuffer, numSamples, sample, numChannels, loopingType, phaseIncrement,
 	                        timeStretchRatio, sourceAmplitude, amplitudeIncrement, interpolationBufferSize,
-	                        source_->sampleControls.interpolationMode, voice.getPriorityRating());
+	                        source_->sampleControls.interpolationMode, ctx.priorityRating);
 
 	if (stereoUnison) {
 		if (numChannels == 2) {
@@ -336,7 +290,7 @@ dontUseCache: {}
 	return deluge::synth::SourceRenderResult::ACTIVE;
 }
 
-bool SampleEngine::getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* guide, uint32_t* phaseIncrement,
+bool SampleEngine::getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t* phaseIncrement,
                                           uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples) {
 
 	int32_t pitchAdjustNeutralValue = ((SampleHolder*)guide->audioFileHolder)->neutralPhaseIncrement;
@@ -416,7 +370,7 @@ bool SampleEngine::getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGui
 // This normally only gets called from the getPitchAndSpeedParams() function, above, but occasionally we'll also call it
 // from render() when doing a "late start" on a Sample and we need to disregard any pitch modulation, so send this the
 // non-modulated phaseIncrement.
-uint32_t SampleEngine::getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement,
+uint32_t SampleEngine::getSpeedParamForNoSyncing(::Source* source, int32_t phaseIncrement,
                                                  int32_t pitchAdjustNeutralValue) {
 
 	uint32_t timeStretchRatio = kMaxSampleValue;
