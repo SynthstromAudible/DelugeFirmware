@@ -15,9 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dsp/dx/dx7_engine.h"
+#include "board_config.h" // CACHE_LINE_SIZE
 #include "dsp/dx/dx7note.h"
 #include "dsp/dx/engine.h"
+#include "util/functions.h" // multiply_32x32_rshift32
 #include <cmath>
+#include <cstring> // memset
 
 namespace deluge::dsp {
 
@@ -62,6 +65,33 @@ bool DX7Engine::render(int32_t* buf, int32_t numSamples, uint32_t phaseIncrement
 		voice_->update(*patch_, midinote);
 	}
 	return voice_->compute(buf, numSamples, adjpitch, patch_, &ctrl);
+}
+
+synth::SourceRenderResult DX7Engine::renderSource(const synth::SourceRenderContext& ctx) {
+	static int32_t uniBuf[DX_MAX_N] __attribute__((aligned(CACHE_LINE_SIZE)));
+	memset(uniBuf, 0, sizeof uniBuf);
+
+	// The pooled DxVoice adds into uniBuf; the bespoke per-unison amplitude+sum below is Voice's buffer layout.
+	if (!render(uniBuf, ctx.numSamples, ctx.phaseIncrement, ctx.ampModParam, ctx.patchChanged, ctx.midinote)) {
+		return synth::SourceRenderResult::UNASSIGN;
+	}
+
+	int32_t sourceAmplitudeNow = ctx.sourceAmplitude;
+	if (ctx.stereoUnison) {
+		for (int i = 0; i < ctx.numSamples; i++) {
+			sourceAmplitudeNow += ctx.amplitudeIncrement;
+			int amplified = multiply_32x32_rshift32(uniBuf[i], sourceAmplitudeNow) << 6;
+			ctx.oscBuffer[(i << 1)] += multiply_32x32_rshift32(amplified, ctx.amplitudeL) << 2;
+			ctx.oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, ctx.amplitudeR) << 2;
+		}
+	}
+	else {
+		for (int i = 0; i < ctx.numSamples; i++) {
+			sourceAmplitudeNow += ctx.amplitudeIncrement;
+			ctx.oscBuffer[i] += multiply_32x32_rshift32(uniBuf[i], sourceAmplitudeNow) << 6;
+		}
+	}
+	return synth::SourceRenderResult::ACTIVE;
 }
 
 } // namespace deluge::dsp

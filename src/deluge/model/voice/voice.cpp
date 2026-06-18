@@ -1766,38 +1766,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 		return SourceRenderResult::ACTIVE;
 	}
 
-	if (cfg.oscType[s] == OscType::DX7) {
-		static int32_t uniBuf[DX_MAX_N] __attribute__((aligned(CACHE_LINE_SIZE)));
-		memset(uniBuf, 0, sizeof uniBuf);
-
-		// The DX7 (FM) source renders through its engine — pooled DxVoice + the pitch/control derivation. The
-		// engine adds into uniBuf; the bespoke amplitude+sum below stays here (Voice's buffer layout).
-		bool active = unisonParts[u].sources[s].dx7Engine.render(
-		    uniBuf, numSamples, phaseIncrement, params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s],
-		    cfg.dxPatchChanged[s], noteCodeAfterArpeggiation);
-		if (!active) {
-			return SourceRenderResult::UNASSIGN;
-		}
-
-		int32_t sourceAmplitudeNow = sourceAmplitude;
-		if (stereoUnison) {
-			for (int i = 0; i < numSamples; i++) {
-				sourceAmplitudeNow += amplitudeIncrement;
-				int amplified = multiply_32x32_rshift32(uniBuf[i], sourceAmplitudeNow) << 6;
-				oscBuffer[(i << 1)] += multiply_32x32_rshift32(amplified, amplitudeL) << 2;
-				oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, amplitudeR) << 2;
-			}
-		}
-		else {
-			for (int i = 0; i < numSamples; i++) {
-				sourceAmplitudeNow += amplitudeIncrement;
-				oscBuffer[i] += multiply_32x32_rshift32(uniBuf[i], sourceAmplitudeNow) << 6;
-			}
-		}
-		return SourceRenderResult::ACTIVE;
-	}
-
-	// Or regular wave (virtual-analog / wavetable) — both render through the polymorphic synth::Source seam, which
+	// Regular wave (virtual-analog / wavetable) + DX7 — all render through the polymorphic synth::Source seam, which
 	// owns the osc-sync freq-too-high SKIP, the mono-scratch/stereo-fold, and the per-engine block render. The
 	// app-side adapter just gathers the already-modulated per-block values into the SourceRenderContext.
 	uint32_t oscRetriggerPhase = cfg.oscRetriggerPhase[s]; // Yes we might need this even if not doing osc sync.
@@ -1834,15 +1803,18 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .stereoScratch = spareRenderingBuffer[2],
 	    .stereoScratchClearSamples = SSI_TX_BUFFER_NUM_SAMPLES,
 	    .syncScratch = deluge::dsp::oscSyncRenderingBuffer,
-	    .ampModParam = 0, // DX7 only (DX7 took an earlier branch)
-	    .patchChanged = false,
-	    .midinote = 0,
+	    .ampModParam = params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s], // DX7 amplitude-mod control
+	    .patchChanged = cfg.dxPatchChanged[s],                                       // DX7
+	    .midinote = noteCodeAfterArpeggiation,                                       // DX7
 	};
 
-	// virtual-analog → vaEngine, wavetable → wavetableEngine (both persistent synth::Source%s owning their phase).
-	// SAMPLE/INPUT/DX7 took earlier branches.
+	// virtual-analog → vaEngine, wavetable → wavetableEngine, DX7 → dx7Engine — all persistent synth::Source%s.
+	// SAMPLE/INPUT took earlier branches (they reach AudioEngine/storage and aren't yet behind synth::Source).
 	synth::Source* component;
-	if (unisonParts[u].sources[s].vaEngine.has_value()) {
+	if (cfg.oscType[s] == OscType::DX7) {
+		component = &unisonParts[u].sources[s].dx7Engine;
+	}
+	else if (unisonParts[u].sources[s].vaEngine.has_value()) {
 		component = &*unisonParts[u].sources[s].vaEngine;
 	}
 	else {

@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "synth/source/source.h" // synth::Source, SourceRenderContext, SourceRenderResult
 #include <cstdint>
 
 class DxPatch;
@@ -36,7 +37,7 @@ namespace deluge::dsp {
 /// derivation + render. Ownership of the pooled voice is **explicit** (freed only in @ref unassign, never in a
 /// destructor) — Voice's per-source objects are pooled and reused in place, so an owning dtor would risk a
 /// double-free.
-class DX7Engine {
+class DX7Engine : public synth::Source {
 	DxVoice* voice_ = nullptr;
 	/// The patch this engine renders from, injected at note-on (the adapter domain). Stable for a Source's
 	/// lifetime (`Source::ensureDxPatch` creates it once, never replaces), so caching it here keeps the render
@@ -56,6 +57,12 @@ public:
 	/// Note-off: begin the release of all operators (no-op if no voice is held).
 	void keyup();
 
+	/// Render this DX7 source's contribution into @c ctx.oscBuffer (the bespoke per-unison amplitude/stereo sum),
+	/// reporting the lifecycle outcome — UNASSIGN once the FM voice has ended. The @ref synth::Source seam; the FM
+	/// render itself is the private @ref render below.
+	synth::SourceRenderResult renderSource(const synth::SourceRenderContext& ctx) override;
+
+private:
 	/// Render @p numSamples of the FM voice, *adding* into @p buf (DxVoice::compute accumulates). Derives the
 	/// log-pitch from @p phaseIncrement and the amplitude-mod control from @p ampModParam, re-deriving the patch
 	/// state first when @p patchChanged. Renders from the patch cached at note-on. @return whether the voice is
