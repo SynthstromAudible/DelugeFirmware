@@ -74,15 +74,21 @@ the existing `deluge::string::fromInt/fromFloat/fromSlot/fromNoteCode`
 Separate branch (`stringbuf-etl-migration`), staged into bisectable, build-green waves:
 
 1. [x] Foundation: `etl_string.h` helpers; proof conversion (`decimal.cpp` local buffers).
-2. [ ] `std::string`-return conversions (helpers that build + hand back a short value).
-3. [ ] Output-param virtual surface (`MenuItem::getColumnLabel` / `getNotificationValue` and
-   overrides) `StringBuf&` → `etl::istring&`. (All-or-nothing across menu items.)
-4. [ ] Remaining locals: popups / status / paths / display builders → `etl::string<N>`.
-5. [ ] `std::string_view` for the read-only consumer; then delete `StringBuf`,
+2. [x] Self-contained popup/status local buffers (not passed to a `StringBuf&` helper):
+   `global_effectable.cpp`, `mod_controllable_audio.cpp`, `song.cpp`, `stem_export.cpp`.
+3. [ ] `std::string`-return conversions (helpers that build + hand back a short value).
+4. [ ] **Output-parameter surface** — the coupled bulk. Functions taking `StringBuf&`
+   (`MenuItem::getColumnLabel` / `getNotificationValue` and all overrides;
+   `Song::getNoteLengthName` / `getCurrentRootNoteAndScaleName`;
+   `View::displayCurrentRootNoteAndScaleName`; etc.) → `etl::istring&`, **together with**
+   their local-buffer callers. These cannot move independently: a local buffer passed to such
+   a helper must change type when the helper does. Largest wave; mostly mechanical.
+5. [ ] Remaining standalone locals → `etl::string<N>`.
+6. [ ] `std::string_view` for the read-only consumer; then delete `StringBuf`,
    `DEF_STACK_STRING_BUF`, and `d_stringbuf.{h,cpp}`.
 
 Build ARM hardware per wave (and the host-sim, on branches where it is present); the
 `operator new` routing differs between unit tests (`IN_UNIT_TESTS`) and hardware.
 ```
-ARM debug elf .text size: 1689892 (baseline) → 1690516 (after wave 1, +624 B).
+ARM debug elf .text size: 1689892 (baseline) → 1690464 (after waves 1–2).
 ```
