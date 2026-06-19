@@ -334,7 +334,8 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 	}
 
 	int32_t greyStart =
-	    instrumentClipView.getSquareFromPos(clipLength - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP]) + 1;
+	    instrumentClipView.getSquareFromPos(clipLength - 1, NULL, currentSong->persistentView.xScroll[NAVIGATION_CLIP])
+	    + 1;
 	int32_t xEnd = std::min(kDisplayWidth, greyStart);
 
 	int32_t greyTop, greyBottom;
@@ -375,7 +376,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			}
 
 			// Or if it's greyed out cos of triplets...
-			if (!instrumentClipView.isSquareDefined(col, currentSong->xScroll[NAVIGATION_CLIP])) {
+			if (!instrumentClipView.isSquareDefined(col, currentSong->persistentView.xScroll[NAVIGATION_CLIP])) {
 				for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
 					PadLEDs::image[yDisplay][col] = gui::colours::grey;
 				}
@@ -449,8 +450,9 @@ void renderAudioClipCollapseAnimation(int32_t progress) {
 	memset(image, 0, sizeof(image));
 
 	int32_t endSquareDisplay = divide_round_negative(
-	    clipLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
-	    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
+	    clipLength - currentSong->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+	    currentSong->persistentView
+	        .xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
 	int32_t greyStart = endSquareDisplay + 1;
 	int32_t xEnd = std::min(kDisplayWidth, greyStart);
 

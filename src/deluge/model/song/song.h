@@ -193,9 +193,6 @@ public:
 	// null Clip (if any) sorts first. Node-based so ParamManagers never move in memory.
 	deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> backedUpParamManagers;
 
-	uint32_t xZoom[2]{};  // Set default zoom at max zoom-out;
-	int32_t xScroll[2]{}; // Leave this as signed
-
 	// View/UI state that IS serialized to the song file (scroll/zoom/layout/triplets/etc.).
 	PersistentViewState persistentView;
 

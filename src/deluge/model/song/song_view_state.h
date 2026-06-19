@@ -29,6 +29,8 @@ class Clip;
 /// saved with the document but distinct from project data. Serialization keeps the same XML tags
 /// (see Song::writeToFile / readFromFile), so the on-disk format is unchanged.
 struct PersistentViewState {
+	uint32_t xZoom[2]{};  // per-navigation zoom (CLIP / ARRANGEMENT); ctor sets the max-zoom-out default
+	int32_t xScroll[2]{}; // per-navigation scroll (signed)
 	int32_t xScrollForReturnToSongView{0};
 	int32_t xZoomForReturnToSongView{0};
 	bool tripletsOn{false};

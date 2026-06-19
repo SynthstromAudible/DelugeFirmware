@@ -146,13 +146,14 @@ Song::Song() {
 	slot = 32767;
 	subSlot = -1;
 
-	xScroll[NAVIGATION_CLIP] = 0;
-	xScroll[NAVIGATION_ARRANGEMENT] = 0;
+	persistentView.xScroll[NAVIGATION_CLIP] = 0;
+	persistentView.xScroll[NAVIGATION_ARRANGEMENT] = 0;
 	persistentView.xScrollForReturnToSongView = 0;
 
-	xZoom[NAVIGATION_CLIP] = increaseMagnitude(kDefaultClipLength, insideWorldTickMagnitude - kDisplayWidthMagnitude);
-	xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << insideWorldTickMagnitude;
-	persistentView.xZoomForReturnToSongView = xZoom[NAVIGATION_CLIP];
+	persistentView.xZoom[NAVIGATION_CLIP] =
+	    increaseMagnitude(kDefaultClipLength, insideWorldTickMagnitude - kDisplayWidthMagnitude);
+	persistentView.xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << insideWorldTickMagnitude;
+	persistentView.xZoomForReturnToSongView = persistentView.xZoom[NAVIGATION_CLIP];
 
 	persistentView.tripletsOn = false;
 
@@ -1107,12 +1108,12 @@ weAreInArrangementEditorOrInClipInstance:
 
 	writer.writeAttribute("arrangementAutoScrollOn", persistentView.arrangerAutoScrollModeActive);
 
-	writer.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
-	writer.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
+	writer.writeAttribute("xScroll", persistentView.xScroll[NAVIGATION_CLIP]);
+	writer.writeAttribute("xZoom", persistentView.xZoom[NAVIGATION_CLIP]);
 	writer.writeAttribute("yScrollSongView", persistentView.songViewYScroll);
 	writer.writeAttribute("yScrollArrangementView", persistentView.arrangementYScroll);
-	writer.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
-	writer.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
+	writer.writeAttribute("xScrollArrangementView", persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
+	writer.writeAttribute("xZoomArrangementView", persistentView.xZoom[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("timePerTimerTick", timePerTimerTickBig >> 32);
 	writer.writeAttribute("timerTickFraction", (uint32_t)timePerTimerTickBig);
 	writer.writeAttribute("rootNote", key.rootNote);
@@ -1443,8 +1444,8 @@ Error Song::readFromFile(Deserializer& reader) {
 
 			// "oll\x00" ->xScroll
 			case 0x006c6c6f:
-				xScroll[NAVIGATION_CLIP] = reader.readTagOrAttributeValueInt();
-				xScroll[NAVIGATION_CLIP] = std::max((int32_t)0, xScroll[NAVIGATION_CLIP]);
+				persistentView.xScroll[NAVIGATION_CLIP] = reader.readTagOrAttributeValueInt();
+				persistentView.xScroll[NAVIGATION_CLIP] = std::max((int32_t)0, persistentView.xScroll[NAVIGATION_CLIP]);
 				break;
 
 			// "ollS" -> xScrollSongView
@@ -1462,7 +1463,7 @@ Error Song::readFromFile(Deserializer& reader) {
 			// "ollA" -> xScrollArrangementView"
 			case 0x416c6c6f:
 				if (!strcmp(tagName, "xScrollArrangementView")) {
-					xScroll[NAVIGATION_ARRANGEMENT] = reader.readTagOrAttributeValueInt();
+					persistentView.xScroll[NAVIGATION_ARRANGEMENT] = reader.readTagOrAttributeValueInt();
 					break;
 				}
 				else {
@@ -1487,8 +1488,8 @@ Error Song::readFromFile(Deserializer& reader) {
 
 			// "xZoom"
 			else if (!strcmp(tagName, "xZoom")) {
-				xZoom[NAVIGATION_CLIP] = reader.readTagOrAttributeValueInt();
-				xZoom[NAVIGATION_CLIP] = std::max((uint32_t)1, xZoom[NAVIGATION_CLIP]);
+				persistentView.xZoom[NAVIGATION_CLIP] = reader.readTagOrAttributeValueInt();
+				persistentView.xZoom[NAVIGATION_CLIP] = std::max((uint32_t)1, persistentView.xZoom[NAVIGATION_CLIP]);
 			}
 			else {
 				goto unknownTag;
@@ -1556,7 +1557,7 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "xZoomArrangementView")) {
-				xZoom[NAVIGATION_ARRANGEMENT] = reader.readTagOrAttributeValueInt();
+				persistentView.xZoom[NAVIGATION_ARRANGEMENT] = reader.readTagOrAttributeValueInt();
 				reader.exitTag("xZoomArrangementView");
 			}
 

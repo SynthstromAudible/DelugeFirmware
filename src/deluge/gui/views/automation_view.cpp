@@ -654,8 +654,9 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	// erase current occupancy mask as it will be refreshed
 	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
-	performActualRender(image, occupancyMask, currentSong->xScroll[navSysId], currentSong->xZoom[navSysId],
-	                    kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
+	performActualRender(image, occupancyMask, currentSong->persistentView.xScroll[navSysId],
+	                    currentSong->persistentView.xZoom[navSysId], kDisplayWidth, kDisplayWidth + kSideBarWidth,
+	                    drawUndefinedArea);
 
 	PadLEDs::renderingLock = false;
 
@@ -1376,7 +1377,7 @@ void AutomationView::handleCrossScreenButtonAction(bool on) {
 						clip->wrapEditing = false;
 					}
 					else {
-						clip->wrapEditLevel = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
+						clip->wrapEditLevel = currentSong->persistentView.xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 						// Ensure that there are actually multiple screens to edit across
 						if (clip->wrapEditLevel < clip->loopLength) {
 							clip->wrapEditing = true;
@@ -1473,8 +1474,8 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 			}
 			int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
-			int32_t xScroll = currentSong->xScroll[navSysId];
-			int32_t xZoom = currentSong->xZoom[navSysId];
+			int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+			int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 
 			if (Buttons::isShiftButtonPressed()) {
 				// paste within Automation Editor
@@ -1771,8 +1772,8 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 		return ActionResult::DEALT_WITH;
 	}
 
-	int32_t xScroll = currentSong->xScroll[navSysId];
-	int32_t xZoom = currentSong->xZoom[navSysId];
+	int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+	int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 
 	// if the user wants to change the parameter they are editing using Shift + Pad shortcut
 	// or change the parameter they are editing by press on a shortcut pad on automation overview
@@ -2239,8 +2240,8 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	        || (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)))) {
 
 		if (inAutomationEditor()) {
-			int32_t xScroll = currentSong->xScroll[navSysId];
-			int32_t xZoom = currentSong->xZoom[navSysId];
+			int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+			int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 			int32_t squareSize = getPosFromSquare(1, xScroll, xZoom) - getPosFromSquare(0, xScroll, xZoom);
 			int32_t shiftAmount = offset * squareSize;
 
@@ -2498,8 +2499,8 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
-	int32_t xScroll = currentSong->xScroll[navSysId];
-	int32_t xZoom = currentSong->xZoom[navSysId];
+	int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+	int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 
 	// If they want to copy or paste automation...
 	if (Buttons::isButtonPressed(hid::button::LEARN)) {
@@ -2650,8 +2651,8 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 		}
 		int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
-		int32_t xScroll = currentSong->xScroll[navSysId];
-		int32_t xZoom = currentSong->xZoom[navSysId];
+		int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+		int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 		automationEditorLayoutModControllable.renderAutomationDisplayForMultiPadPress(modelStackWithParam, clip,
 		                                                                              effectiveLength, xScroll, xZoom);
 	}

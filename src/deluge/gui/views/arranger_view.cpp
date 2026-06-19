@@ -185,8 +185,8 @@ void ArrangerView::moveClipToSession() {
 }
 
 void ArrangerView::goToSongView() {
-	currentSong->xScroll[NAVIGATION_CLIP] = currentSong->persistentView.xScrollForReturnToSongView;
-	currentSong->xZoom[NAVIGATION_CLIP] = currentSong->persistentView.xZoomForReturnToSongView;
+	currentSong->persistentView.xScroll[NAVIGATION_CLIP] = currentSong->persistentView.xScrollForReturnToSongView;
+	currentSong->persistentView.xZoom[NAVIGATION_CLIP] = currentSong->persistentView.xZoomForReturnToSongView;
 	changeRootUI(&sessionView);
 }
 
@@ -1256,7 +1256,7 @@ void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipIns
 
 void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 	Output* output = outputsOnScreen[y];
-	uint32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+	uint32_t xScroll = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 
 	// Shift button pressed - clone ClipInstance to white / unique
 	if (Buttons::isShiftButtonPressed() && (currentUIMode == UI_MODE_NONE)) {
@@ -1804,20 +1804,20 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	currentSong->persistentView.lastClipInstanceEnteredStartPos = clipInstance->pos;
 
-	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	uint32_t xZoom = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 	while ((xZoom >> 1) * kDisplayWidth >= clip->loopLength) {
 		xZoom >>= 1;
 	}
-	currentSong->xZoom[NAVIGATION_CLIP] = xZoom;
+	currentSong->persistentView.xZoom[NAVIGATION_CLIP] = xZoom;
 
 	// If can see whole Clip at zoom level, set scroll to 0
 	if (xZoom * kDisplayWidth >= clip->loopLength) {
-		currentSong->xScroll[NAVIGATION_CLIP] = 0;
+		currentSong->persistentView.xScroll[NAVIGATION_CLIP] = 0;
 	}
 
 	// Otherwise...
 	else {
-		int32_t newScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT] - clipInstance->pos;
+		int32_t newScroll = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] - clipInstance->pos;
 		if (newScroll < 0) {
 			newScroll = 0;
 		}
@@ -1826,7 +1826,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			newScroll = (uint32_t)newScroll / (xZoom * kDisplayWidth) * (xZoom * kDisplayWidth);
 		}
 
-		currentSong->xScroll[NAVIGATION_CLIP] = newScroll;
+		currentSong->persistentView.xScroll[NAVIGATION_CLIP] = newScroll;
 	}
 
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
@@ -1859,8 +1859,9 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			int64_t xZoomSamples;
 
 			((AudioClip*)clip)
-			    ->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
-			                                &xScrollSamples, &xZoomSamples);
+			    ->getScrollAndZoomInSamples(currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+			                                currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples,
+			                                &xZoomSamples);
 
 			waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
 			                                 xZoomSamples, &((AudioClip*)clip)->renderData);
@@ -1892,7 +1893,8 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	int64_t xStartBig = getSquareFromPos(clipInstance->pos + start) << 16;
 
-	int64_t clipLengthBig = ((uint64_t)clip->loopLength << 16) / currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	int64_t clipLengthBig =
+	    ((uint64_t)clip->loopLength << 16) / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 	if (clipLengthBig) {
 		while (true) {
@@ -1905,7 +1907,8 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	}
 
 	PadLEDs::explodeAnimationXStartBig = xStartBig;
-	PadLEDs::explodeAnimationXWidthBig = ((uint32_t)(end - start) / currentSong->xZoom[NAVIGATION_ARRANGEMENT]) << 16;
+	PadLEDs::explodeAnimationXWidthBig =
+	    ((uint32_t)(end - start) / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT]) << 16;
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = 1;
@@ -1973,7 +1976,8 @@ bool ArrangerView::transitionToArrangementEditor() {
 		PadLEDs::explodeAnimationYOriginBig = yDisplay << 16;
 	}
 
-	int64_t clipLengthBig = ((uint64_t)getCurrentClip()->loopLength << 16) / currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	int64_t clipLengthBig =
+	    ((uint64_t)getCurrentClip()->loopLength << 16) / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 	int64_t xStartBig = getSquareFromPos(clipInstance->pos + start) << 16;
 
 	int64_t potentialMidClip = xStartBig + (clipLengthBig >> 1);
@@ -2006,7 +2010,8 @@ bool ArrangerView::transitionToArrangementEditor() {
 	}
 
 	PadLEDs::explodeAnimationXStartBig = xStartBig;
-	PadLEDs::explodeAnimationXWidthBig = ((end - start) / currentSong->xZoom[NAVIGATION_ARRANGEMENT]) << 16;
+	PadLEDs::explodeAnimationXWidthBig = ((end - start) / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT])
+	                                     << 16;
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
@@ -2031,7 +2036,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 // Seems to return whether it managed to put it in a new, valid position.
 bool ArrangerView::putDraggedClipInstanceInNewPosition(Output* newOutputToDragInto) {
 
-	uint32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+	uint32_t xScroll = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 	int32_t xMovement = xScroll - pressedClipInstanceXScrollWhenLastInValidPosition;
 
 	ClipInstance* clipInstance = &pressedClipInstanceOutput->clipInstances[pressedClipInstanceIndex];
@@ -2203,11 +2208,13 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth 
 	PadLEDs::renderingLock = true;
 
 	uint32_t whichRowsCouldntBeRendered =
-	    doActualRender(currentSong->xScroll[NAVIGATION_ARRANGEMENT], currentSong->xZoom[NAVIGATION_ARRANGEMENT],
-	                   whichRows, &image[0][0], occupancyMask, kDisplayWidth, kDisplayWidth + kSideBarWidth);
+	    doActualRender(currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT],
+	                   currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT], whichRows, &image[0][0],
+	                   occupancyMask, kDisplayWidth, kDisplayWidth + kSideBarWidth);
 
 	// Add negative region indicator when dragging clip instances left to the start
-	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
+	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)
+	    && currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] < 0) {
 
 		// Light up all columns that represent negative time positions with standard dim grey
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -2265,7 +2272,7 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 	if (drawGhostClipInstanceHere) {
 
 		int32_t xMovement =
-		    currentSong->xScroll[NAVIGATION_ARRANGEMENT] - pressedClipInstanceXScrollWhenLastInValidPosition;
+		    currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] - pressedClipInstanceXScrollWhenLastInValidPosition;
 		ClipInstance* clipInstance = &pressedClipInstanceOutput->clipInstances[pressedClipInstanceIndex];
 		int32_t newStartPos = clipInstance->pos + xMovement;
 		int32_t newEndPos = newStartPos + clipInstance->length;
@@ -2715,7 +2722,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 		if (!Buttons::isShiftButtonPressed()) {
 
-			int32_t oldXZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+			int32_t oldXZoom = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 			int32_t zoomMagnitude = -offset;
 
@@ -2724,19 +2731,19 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 				if (oldXZoom <= 3) {
 					return ActionResult::DEALT_WITH;
 				}
-				currentSong->xZoom[NAVIGATION_ARRANGEMENT] >>= 1;
+				currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT] >>= 1;
 			}
 			else {
 				if (oldXZoom >= getMaxZoom()) {
 					return ActionResult::DEALT_WITH;
 				}
-				currentSong->xZoom[NAVIGATION_ARRANGEMENT] <<= 1;
+				currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT] <<= 1;
 			}
 
-			int32_t oldScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+			int32_t oldScroll = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 
 			int32_t newScroll;
-			uint32_t newZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+			uint32_t newZoom = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 			if (arrangement.hasPlaybackActive() && doingAutoScrollNow) {
 				int32_t actualCurrentPos = arrangement.getLivePos();
@@ -2773,7 +2780,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 			}
 			else {
 
-				int32_t scroll_amount = offset * currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+				int32_t scroll_amount = offset * currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 				// If expanding, make sure we don't exceed length limit
 				if (offset >= 0 && static_cast<int32_t>(getMaxLength()) > kMaxSequenceLength - scroll_amount) {
@@ -2786,8 +2793,9 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 				Action* action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
 
 				if (action
-				    && (action->xScrollArranger[BEFORE] != currentSong->xScroll[NAVIGATION_ARRANGEMENT]
-				        || action->xZoomArranger[BEFORE] != currentSong->xZoom[NAVIGATION_ARRANGEMENT])) {
+				    && (action->xScrollArranger[BEFORE] != currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]
+				        || action->xZoomArranger[BEFORE]
+				               != currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT])) {
 					action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 				}
 
@@ -2816,12 +2824,12 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 			ClipInstance* pressed_instance =
 			    (ClipInstance*)&pressedClipInstanceOutput->clipInstances[pressedClipInstanceIndex];
 			int32_t xMovement =
-			    currentSong->xScroll[NAVIGATION_ARRANGEMENT] - pressedClipInstanceXScrollWhenLastInValidPosition;
+			    currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] - pressedClipInstanceXScrollWhenLastInValidPosition;
 			int32_t dragged_clip_position = pressed_instance->pos + xMovement;
 			can_drag_clip_instance = (dragged_clip_position > 0);
 		}
 
-		if (can_drag_clip_instance || currentSong->xScroll[NAVIGATION_ARRANGEMENT] > 0 || offset > 0) {
+		if (can_drag_clip_instance || currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] > 0 || offset > 0) {
 			// Allow movement left if we are above zero when either dragging or scrolling.
 			// This will always stop scrolling at zero, but dragging might let the clip instance go one
 			// square below zero if it is for example at a half step offset. But it will blink and then snap back to
@@ -2848,26 +2856,26 @@ void ArrangerView::shiftAutomationHorizontally(int32_t offset, int32_t scroll_am
 	if (offset >= 0) {
 		void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceArrangerParamsTimeInserted));
 		if (consMemory) {
-			ConsequenceArrangerParamsTimeInserted* consequence = new (consMemory)
-			    ConsequenceArrangerParamsTimeInserted(currentSong->xScroll[NAVIGATION_ARRANGEMENT], scroll_amount);
+			ConsequenceArrangerParamsTimeInserted* consequence = new (consMemory) ConsequenceArrangerParamsTimeInserted(
+			    currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT], scroll_amount);
 			action->addConsequence(consequence);
 		}
-		unpatchedParams->insertTime(modelStackWithUnpatchedParams, currentSong->xScroll[NAVIGATION_ARRANGEMENT],
-		                            scroll_amount);
+		unpatchedParams->insertTime(modelStackWithUnpatchedParams,
+		                            currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT], scroll_amount);
 	}
 	else {
 		if (action) {
 			unpatchedParams->backUpAllAutomatedParamsToAction(action, modelStackWithUnpatchedParams);
 		}
-		unpatchedParams->deleteTime(modelStackWithUnpatchedParams, currentSong->xScroll[NAVIGATION_ARRANGEMENT],
-		                            -scroll_amount);
+		unpatchedParams->deleteTime(modelStackWithUnpatchedParams,
+		                            currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT], -scroll_amount);
 	}
 }
 
 // This function will shift clips horizontally at a specific point in time by inserting / deleting time
 void ArrangerView::shiftClipsHorizontally(int32_t offset, int32_t scroll_amount, Action* action) {
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		int32_t i = thisOutput->clipInstances.firstAtOrAfter(currentSong->xScroll[NAVIGATION_ARRANGEMENT]);
+		int32_t i = thisOutput->clipInstances.firstAtOrAfter(currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
 
 		bool movedOneYet = false;
 
@@ -2876,7 +2884,8 @@ void ArrangerView::shiftClipsHorizontally(int32_t offset, int32_t scroll_amount,
 			ClipInstance* instance = &thisOutput->clipInstances[i];
 
 			// If contracting time and this bit has to be deleted...
-			if (offset < 0 && instance->pos + scroll_amount < currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
+			if (offset < 0
+			    && instance->pos + scroll_amount < currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]) {
 				deleteClipInstance(thisOutput, i, instance, action);
 				// Don't increment i, because we deleted an element
 			}
@@ -2911,7 +2920,7 @@ void ArrangerView::shiftClipsHorizontally(int32_t offset, int32_t scroll_amount,
 ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 	actionOnDepress = false;
 
-	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	uint32_t xZoom = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 	int32_t scroll_amount = direction * static_cast<int32_t>(xZoom);
 
@@ -2920,7 +2929,7 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 	// Only apply normal scroll constraints when not dragging to allow temporary negative
 	// window position so that clip instances can be dragged all the way to the start
 	if (!dragging_clip_instance) {
-		scroll_amount = std::max(scroll_amount, -currentSong->xScroll[NAVIGATION_ARRANGEMENT]);
+		scroll_amount = std::max(scroll_amount, -currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
 	}
 
 	// Calculate max scroll bounds
@@ -2928,20 +2937,20 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 	int32_t screen_width = static_cast<int32_t>(xZoom) << kDisplayWidthMagnitude;
 	max_scroll = std::clamp(max_scroll, int32_t{0}, kMaxSequenceLength - screen_width);
 
-	int32_t new_x_scroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT] + scroll_amount;
+	int32_t new_x_scroll = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] + scroll_amount;
 
 	// Apply maximum scroll limit
 	if (new_x_scroll > max_scroll) {
 		new_x_scroll = (max_scroll / static_cast<int32_t>(xZoom)) * static_cast<int32_t>(xZoom);
 	}
 
-	if (new_x_scroll != currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
+	if (new_x_scroll != currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]) {
 
 		if (dragging_clip_instance && isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = new_x_scroll;
+		currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] = new_x_scroll;
 
 		if (dragging_clip_instance) {
 			// might have to get shifted left or right to a valid position
@@ -2953,7 +2962,7 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 	}
 
 	// Display scroll position, but handle potential negative scroll values during dragging
-	if (dragging_clip_instance && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
+	if (dragging_clip_instance && currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] < 0) {
 		// It can't handle negative values, so just display the 0 position (1:1:1)
 		displayNumberOfBarsAndBeats(0, kDisplayWidth, true, "");
 	}
@@ -3091,8 +3100,9 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 
 void ArrangerView::setNoSubMode() {
 	// If we were dragging a clip instance left and have a negative scroll position, snap back to 0
-	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
-		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+	    && currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] < 0) {
+		currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] = 0;
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 
@@ -3134,18 +3144,18 @@ void ArrangerView::graphicsRoutine() {
 			// If doing auto scroll...
 			if (doingAutoScrollNow && isUIModeWithinRange(autoScrollUIModes)) {
 
-				int32_t newScrollPos =
-				    (actualCurrentPos / currentSong->xZoom[NAVIGATION_ARRANGEMENT] - autoScrollNumSquaresBehind)
-				    * currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+				int32_t newScrollPos = (actualCurrentPos / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT]
+				                        - autoScrollNumSquaresBehind)
+				                       * currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 				// If now is the time to scroll to a different position (usually one square)...
-				if (newScrollPos != currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
+				if (newScrollPos != currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]) {
 					bool wasLessThanZero = (newScrollPos < 0);
 					if (wasLessThanZero) {
 						newScrollPos = 0;
 					}
 
-					currentSong->xScroll[NAVIGATION_ARRANGEMENT] = newScrollPos;
+					currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] = newScrollPos;
 					if (wasLessThanZero) {
 						autoScrollNumSquaresBehind = getSquareFromPos(actualCurrentPos);
 					}
@@ -3216,7 +3226,7 @@ void ArrangerView::autoScrollOnPlaybackEnd() {
 	    && !Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		// Don't do it if they're instantly restarting playback again
 
-		uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+		uint32_t xZoom = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 		int32_t newScrollPos =
 		    ((uint32_t)(arrangement.playbackStartedAtPos + (xZoom >> 1)) / xZoom - autoScrollNumSquaresBehind) * xZoom;
 
@@ -3235,7 +3245,7 @@ void ArrangerView::autoScrollOnPlaybackEnd() {
 			newScrollPos = xScrollWhenPlaybackStarted;
 		}
 
-		int32_t scrollDifference = newScrollPos - currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+		int32_t scrollDifference = newScrollPos - currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 
 		if (scrollDifference) {
 
@@ -3250,7 +3260,7 @@ void ArrangerView::autoScrollOnPlaybackEnd() {
 			// Otherwise, just jump sharply
 			else {
 sharpJump:
-				currentSong->xScroll[NAVIGATION_ARRANGEMENT] = newScrollPos;
+				currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] = newScrollPos;
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
 		}
@@ -3259,11 +3269,11 @@ sharpJump:
 
 // Returns false if too few squares to bother with animation
 bool ArrangerView::initiateXScroll(int32_t newScrollPos) {
-	int32_t distanceToScroll = newScrollPos - currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+	int32_t distanceToScroll = newScrollPos - currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 	if (distanceToScroll < 0) {
 		distanceToScroll = -distanceToScroll;
 	}
-	int32_t squaresToScroll = distanceToScroll / currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	int32_t squaresToScroll = distanceToScroll / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 	if (squaresToScroll <= 1) {
 		return false;
 	}

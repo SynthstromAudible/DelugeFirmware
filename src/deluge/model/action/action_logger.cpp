@@ -177,12 +177,12 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 
 		// And fill out all the snapshot stuff that the Action captures at a song-wide level
 		newAction->yScrollSongView[BEFORE] = currentSong->getYScrollSongViewWithoutPendingOverdubs();
-		newAction->xScrollClip[BEFORE] = currentSong->xScroll[NAVIGATION_CLIP];
-		newAction->xZoomClip[BEFORE] = currentSong->xZoom[NAVIGATION_CLIP];
+		newAction->xScrollClip[BEFORE] = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
+		newAction->xZoomClip[BEFORE] = currentSong->persistentView.xZoom[NAVIGATION_CLIP];
 
 		newAction->yScrollArranger[BEFORE] = currentSong->persistentView.arrangementYScroll;
-		newAction->xScrollArranger[BEFORE] = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
-		newAction->xZoomArranger[BEFORE] = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+		newAction->xScrollArranger[BEFORE] = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
+		newAction->xZoomArranger[BEFORE] = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 		newAction->modeNotes[BEFORE] = currentSong->key.modeNotes;
 
@@ -226,12 +226,12 @@ void ActionLogger::updateAction(Action* newAction) {
 	}
 
 	newAction->yScrollSongView[AFTER] = currentSong->getYScrollSongViewWithoutPendingOverdubs();
-	newAction->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
-	newAction->xZoomClip[AFTER] = currentSong->xZoom[NAVIGATION_CLIP];
+	newAction->xScrollClip[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
+	newAction->xZoomClip[AFTER] = currentSong->persistentView.xZoom[NAVIGATION_CLIP];
 
 	newAction->yScrollArranger[AFTER] = currentSong->persistentView.arrangementYScroll;
-	newAction->xScrollArranger[AFTER] = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
-	newAction->xZoomArranger[AFTER] = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	newAction->xScrollArranger[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
+	newAction->xZoomArranger[AFTER] = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 	newAction->modeNotes[AFTER] = currentSong->key.modeNotes;
 }
@@ -370,8 +370,8 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 	currentSong->deletePendingOverdubs();
 
 	Animation whichAnimation = Animation::NONE;
-	uint32_t songZoomBeforeTransition = currentSong->xZoom[NAVIGATION_CLIP];
-	uint32_t arrangerZoomBeforeTransition = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	uint32_t songZoomBeforeTransition = currentSong->persistentView.xZoom[NAVIGATION_CLIP];
+	uint32_t arrangerZoomBeforeTransition = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 	if (doNavigation) {
 
@@ -384,7 +384,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 				// If in arranger view, don't go scrolling anywhere - that'd just visually confuse things
 				if (getCurrentUI() == &arrangerView) {
-					action->xScrollArranger[time] = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+					action->xScrollArranger[time] = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 				}
 			}
 		}
@@ -444,21 +444,22 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 				if (getCurrentUI() != &keyboardScreen) {
 
 					if (getCurrentUI() == &arrangerView) {
-						if (currentSong->xZoom[NAVIGATION_ARRANGEMENT] != action->xZoomArranger[time]) {
+						if (currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT] != action->xZoomArranger[time]) {
 							whichAnimation = Animation::ZOOM;
 						}
 
-						else if (currentSong->xScroll[NAVIGATION_ARRANGEMENT] != action->xScrollArranger[time]) {
+						else if (currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]
+						         != action->xScrollArranger[time]) {
 							whichAnimation = Animation::SCROLL;
 						}
 					}
 
 					else {
-						if (currentSong->xZoom[NAVIGATION_CLIP] != action->xZoomClip[time]) {
+						if (currentSong->persistentView.xZoom[NAVIGATION_CLIP] != action->xZoomClip[time]) {
 							whichAnimation = Animation::ZOOM;
 						}
 
-						else if (currentSong->xScroll[NAVIGATION_CLIP] != action->xScrollClip[time]) {
+						else if (currentSong->persistentView.xScroll[NAVIGATION_CLIP] != action->xScrollClip[time]) {
 							whichAnimation = Animation::SCROLL;
 						}
 					}
@@ -467,8 +468,8 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 		}
 
 		// Change some stuff that'll need to get changed in any case
-		currentSong->xZoom[NAVIGATION_CLIP] = action->xZoomClip[time];
-		currentSong->xZoom[NAVIGATION_ARRANGEMENT] = action->xZoomArranger[time];
+		currentSong->persistentView.xZoom[NAVIGATION_CLIP] = action->xZoomClip[time];
+		currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT] = action->xZoomArranger[time];
 
 		// Restore states of each Clip
 		if (action->numClipStates) {
@@ -538,7 +539,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 		else {
 otherOption:
 			if (getCurrentUI() != &arrangerView || whichAnimation != Animation::ZOOM) {
-				currentSong->xScroll[NAVIGATION_ARRANGEMENT] =
+				currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] =
 				    action->xScrollArranger[time]; // Have to do this if we didn't do the actual scroll animation yet
 				                                   // some scrolling happened
 			}
@@ -548,7 +549,7 @@ otherOption:
 			((TimelineView*)getCurrentUI())->initiateXScroll(action->xScrollClip[time]);
 		}
 		else if (getCurrentUI() == &arrangerView || whichAnimation != Animation::ZOOM) {
-			currentSong->xScroll[NAVIGATION_CLIP] =
+			currentSong->persistentView.xScroll[NAVIGATION_CLIP] =
 			    action->xScrollClip[time]; // Have to do this if we didn't do the actual scroll animation yet some
 			                               // scrolling happened
 		}

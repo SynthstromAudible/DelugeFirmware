@@ -109,7 +109,7 @@ void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDu
 	uint32_t newLength = existingClip->loopLength;
 
 	if (newOverdubNature != OverDubType::ContinuousLayering) {
-		uint32_t currentScreenLength = currentSong->xZoom[NAVIGATION_CLIP] << kDisplayWidthMagnitude;
+		uint32_t currentScreenLength = currentSong->persistentView.xZoom[NAVIGATION_CLIP] << kDisplayWidthMagnitude;
 
 		// If new length is a multiple of screen length, just use screen length
 		if ((newLength % currentScreenLength) == 0) {

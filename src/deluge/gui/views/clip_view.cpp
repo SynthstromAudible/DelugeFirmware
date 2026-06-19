@@ -172,10 +172,10 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		uint32_t newLength = changeClipLength(offset, oldLength, action);
 
-		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+		displayNumberOfBarsAndBeats(newLength, currentSong->persistentView.xZoom[NAVIGATION_CLIP], false, "LONG");
 
 		if (action) {
-			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+			action->xScrollClip[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 		}
 		return ActionResult::DEALT_WITH;
 	}
@@ -319,7 +319,7 @@ int32_t ClipView::getLengthChopAmount(int32_t square) {
 		square--;
 	}
 
-	uint32_t xZoom = currentSong->xZoom[getNavSysId()];
+	uint32_t xZoom = currentSong->persistentView.xZoom[getNavSysId()];
 
 	if (inTripletsView()) {
 		if (xZoom < currentSong->persistentView.tripletsLevel) {
@@ -338,7 +338,7 @@ int32_t ClipView::getLengthExtendAmount(int32_t square) {
 		square++;
 	}
 
-	uint32_t xZoom = currentSong->xZoom[getNavSysId()];
+	uint32_t xZoom = currentSong->persistentView.xZoom[getNavSysId()];
 
 	if (inTripletsView()) {
 		if (xZoom < currentSong->persistentView.tripletsLevel) {
@@ -363,11 +363,12 @@ int32_t ClipView::getTickSquare() {
 		    (getCurrentClip()->armState == ArmState::OFF || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
 
 			if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1) {
-				xScrollBeforeFollowingAutoExtendingLinearRecording = currentSong->xScroll[NAVIGATION_CLIP];
+				xScrollBeforeFollowingAutoExtendingLinearRecording =
+				    currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 			}
 
-			int32_t newXScroll =
-			    currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
+			int32_t newXScroll = currentSong->persistentView.xScroll[NAVIGATION_CLIP]
+			                     + currentSong->persistentView.xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 
 			horizontalScrollForLinearRecording(newXScroll);
 		}
@@ -379,7 +380,7 @@ int32_t ClipView::getTickSquare() {
 			int32_t newXScroll = xScrollBeforeFollowingAutoExtendingLinearRecording;
 			xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 
-			if (newXScroll != currentSong->xZoom[NAVIGATION_CLIP]) {
+			if (newXScroll != currentSong->persistentView.xZoom[NAVIGATION_CLIP]) {
 				horizontalScrollForLinearRecording(newXScroll);
 			}
 		}

@@ -250,7 +250,8 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					Action* action =
 					    actionLogger.getNewAction(ActionType::ARRANGEMENT_RECORD, ActionAddition::NOT_ALLOWED);
 
-					arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+					arrangerView.xScrollWhenPlaybackStarted =
+					    currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 					if (action) {
 						action->posToClearArrangementFrom = arrangerView.xScrollWhenPlaybackStarted;
 					}
@@ -306,9 +307,9 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					if (otherInstance->pos + otherInstance->length > proposedStartPos) {
 moveAfterClipInstance:
 						proposedStartPos = ((otherInstance->pos + otherInstance->length - 1)
-						                        / currentSong->xZoom[NAVIGATION_ARRANGEMENT]
+						                        / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT]
 						                    + 1)
-						                   * currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+						                   * currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 					}
 				}
 
@@ -352,7 +353,7 @@ moveAfterClipInstance:
 				arrangerView.originallyPressedClipActualLength = clip->loopLength;
 				arrangerView.pressedClipInstanceIndex = i;
 				arrangerView.pressedClipInstanceXScrollWhenLastInValidPosition =
-				    currentSong->xScroll[NAVIGATION_ARRANGEMENT] + howMuchLater;
+				    currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] + howMuchLater;
 				arrangerView.pressedClipInstanceOutput = clip->output;
 				arrangerView.pressedClipInstanceIsInValidPosition = true;
 
@@ -678,8 +679,8 @@ notDealtWith:
 }
 
 void SessionView::goToArrangementEditor() {
-	currentSong->persistentView.xZoomForReturnToSongView = currentSong->xZoom[NAVIGATION_CLIP];
-	currentSong->persistentView.xScrollForReturnToSongView = currentSong->xScroll[NAVIGATION_CLIP];
+	currentSong->persistentView.xZoomForReturnToSongView = currentSong->persistentView.xZoom[NAVIGATION_CLIP];
+	currentSong->persistentView.xScrollForReturnToSongView = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 	changeRootUI(&arrangerView);
 }
 
@@ -2235,8 +2236,8 @@ void SessionView::graphicsRoutine() {
 			}
 		}
 		else {
-			int32_t localScroll =
-			    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
+			int32_t localScroll = getClipLocalScroll(clip, currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+			                                         currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 			Clip* clipToRecordTo = clip->getClipToRecordTo();
 			int32_t livePos = clipToRecordTo->getLivePos();
 
@@ -2304,11 +2305,12 @@ void SessionView::graphicsRoutine() {
 			if (!currentUIMode && getCurrentUI() == this) {
 
 				if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1) {
-					xScrollBeforeFollowingAutoExtendingLinearRecording = currentSong->xScroll[NAVIGATION_CLIP];
+					xScrollBeforeFollowingAutoExtendingLinearRecording =
+					    currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 				}
 
-				int32_t newXScroll =
-				    currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
+				int32_t newXScroll = currentSong->persistentView.xScroll[NAVIGATION_CLIP]
+				                     + currentSong->persistentView.xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 				horizontalScrollForLinearRecording(newXScroll);
 			}
 		}
@@ -2319,7 +2321,7 @@ void SessionView::graphicsRoutine() {
 				int32_t newXScroll = xScrollBeforeFollowingAutoExtendingLinearRecording;
 				xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 
-				if (newXScroll != currentSong->xZoom[NAVIGATION_CLIP]) {
+				if (newXScroll != currentSong->persistentView.xZoom[NAVIGATION_CLIP]) {
 					horizontalScrollForLinearRecording(newXScroll);
 				}
 			}
@@ -2506,7 +2508,7 @@ bool SessionView::setupScroll(uint32_t oldScroll) {
 	// actually checks for that. Should be ok-ish though...
 	pendingUIRenderingLock = true;
 
-	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
+	uint32_t xZoom = currentSong->persistentView.xZoom[NAVIGATION_CLIP];
 
 	bool anyMoved = false;
 
@@ -2519,7 +2521,8 @@ bool SessionView::setupScroll(uint32_t oldScroll) {
 
 		if (clip && clip->currentlyScrollableAndZoomable()) {
 
-			uint32_t newLocalPos = getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], xZoom);
+			uint32_t newLocalPos =
+			    getClipLocalScroll(clip, currentSong->persistentView.xScroll[NAVIGATION_CLIP], xZoom);
 			uint32_t oldLocalPos = getClipLocalScroll(clip, oldScroll, xZoom);
 			bool moved = (newLocalPos != oldLocalPos);
 			if (moved) {
@@ -2690,11 +2693,12 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 			else {
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-				success = clip->renderAsSingleRow(modelStackWithTimelineCounter, this,
-				                                  getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP],
-				                                                     currentSong->xZoom[NAVIGATION_CLIP]),
-				                                  currentSong->xZoom[NAVIGATION_CLIP], thisImage, thisOccupancyMask,
-				                                  drawUndefinedArea);
+				success = clip->renderAsSingleRow(
+				    modelStackWithTimelineCounter, this,
+				    getClipLocalScroll(clip, currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+				                       currentSong->persistentView.xZoom[NAVIGATION_CLIP]),
+				    currentSong->persistentView.xZoom[NAVIGATION_CLIP], thisImage, thisOccupancyMask,
+				    drawUndefinedArea);
 			}
 
 			if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
@@ -2733,8 +2737,8 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 	int32_t clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1_i32, kDisplayHeight);
 
-	currentSong->xScroll[NAVIGATION_CLIP] =
-	    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
+	currentSong->persistentView.xScroll[NAVIGATION_CLIP] = getClipLocalScroll(
+	    clip, currentSong->persistentView.xScroll[NAVIGATION_CLIP], currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
 	if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		gridTransitionToViewForClip(clip);
@@ -3572,7 +3576,7 @@ void SessionView::setupNewClip(Clip* newClip) {
 		newClip->activeIfNoSolo = false;
 	}
 	else {
-		uint32_t currentDisplayLength = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
+		uint32_t currentDisplayLength = currentSong->persistentView.xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 		uint32_t oneBar = currentSong->getBarLength();
 
 		// Default Clip length. Default to current zoom, minimum 1 bar
@@ -4603,8 +4607,9 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 			int64_t xZoomSamples;
 
 			((AudioClip*)clip)
-			    ->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
-			                                &xScrollSamples, &xZoomSamples);
+			    ->getScrollAndZoomInSamples(currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+			                                currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples,
+			                                &xZoomSamples);
 
 			waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
 			                                 xZoomSamples, &((AudioClip*)clip)->renderData);

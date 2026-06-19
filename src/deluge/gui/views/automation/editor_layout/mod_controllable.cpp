@@ -735,8 +735,8 @@ bool AutomationEditorLayoutModControllable::automationModEncoderActionForSelecte
 
 		uint32_t squareStart = 0;
 
-		int32_t xScroll = currentSong->xScroll[getNavSysId()];
-		int32_t xZoom = currentSong->xZoom[getNavSysId()];
+		int32_t xScroll = currentSong->persistentView.xScroll[getNavSysId()];
+		int32_t xZoom = currentSong->persistentView.xZoom[getNavSysId()];
 
 		// for the second pad pressed in a long press, the square start position is set to the very last
 		// nodes position

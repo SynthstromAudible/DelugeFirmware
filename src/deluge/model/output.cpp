@@ -494,7 +494,7 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 		activeClip->expectNoFurtherTicks(song);
 		activeClip->activeIfNoSolo = false;
 
-		uint32_t xZoom = song->xZoom[NAVIGATION_ARRANGEMENT];
+		uint32_t xZoom = song->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 		int32_t alternativeLongerLength = 0;
 

@@ -228,7 +228,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					arrangementPosToStartAtOnSwitch = arrangerView.lastInteractedArrangementPos;
 				}
 				else {
-					arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+					arrangementPosToStartAtOnSwitch = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 				}
 				session.armForSwitchToArrangement();
 				if (display->haveOLED()) {
@@ -401,7 +401,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	// next is <> + play / cross screen + play, or recording into arranger - start from the current left edge scroll
 	// position this is good even for cross screen playback since the last cursor position isn't visible
 	else if (startFromCurrentScreen) {
-		newPos = currentSong->xScroll[navSys];
+		newPos = currentSong->persistentView.xScroll[navSys];
 	}
 
 	// See if we're gonna do a tempoless record

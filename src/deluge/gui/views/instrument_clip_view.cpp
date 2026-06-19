@@ -326,7 +326,8 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 					getCurrentInstrumentClip()->wrapEditing = false;
 				}
 				else {
-					getCurrentInstrumentClip()->wrapEditLevel = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
+					getCurrentInstrumentClip()->wrapEditLevel =
+					    currentSong->persistentView.xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 					// Ensure that there are actually multiple screens to edit across
 					if (getCurrentInstrumentClip()->wrapEditLevel < getCurrentClip()->loopLength) {
 						getCurrentInstrumentClip()->wrapEditing = true;
@@ -1051,8 +1052,8 @@ void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 }
 
 void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysId) {
-	int32_t xScroll = currentSong->xScroll[navSysId];
-	int32_t xZoom = currentSong->xZoom[navSysId];
+	int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+	int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 
 	if (copiedParamAutomation.nodes) {
 		delugeDealloc(copiedParamAutomation.nodes);
@@ -1286,8 +1287,8 @@ void InstrumentClipView::deleteCopiedNoteRows() {
 }
 
 void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSysId) {
-	int32_t xScroll = currentSong->xScroll[navSysId];
-	int32_t xZoom = currentSong->xZoom[navSysId];
+	int32_t xScroll = currentSong->persistentView.xScroll[navSysId];
+	int32_t xZoom = currentSong->persistentView.xZoom[navSysId];
 
 	if (!copiedParamAutomation.nodes) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AUTOMATION_TO_PASTE));
@@ -1487,12 +1488,12 @@ getOut:
 	recalculateColours();
 	uiNeedsRendering(this);
 	if (previewOnly) {
-		if (copiedScreenWidth / 16 != currentSong->xZoom[getNavSysId()]) {
+		if (copiedScreenWidth / 16 != currentSong->persistentView.xZoom[getNavSysId()]) {
 			char buffer[(display->haveOLED()) ? 29 : 5];
 			etl::string<30> from;
 			etl::string<30> to;
 			currentSong->getNoteLengthName(from, copiedScreenWidth / 16, "-notes", true);
-			currentSong->getNoteLengthName(to, currentSong->xZoom[getNavSysId()], "-notes", true);
+			currentSong->getNoteLengthName(to, currentSong->persistentView.xZoom[getNavSysId()], "-notes", true);
 			if (display->haveOLED()) {
 				snprintf(buffer, sizeof(buffer), "%s -> %s", from.data(), to.data());
 			}
@@ -1696,8 +1697,8 @@ void InstrumentClipView::doubleClipLengthAction() {
 	zoomToMax(false);
 
 	if (action) {
-		action->xZoomClip[AFTER] = currentSong->xZoom[NAVIGATION_CLIP];
-		action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		action->xZoomClip[AFTER] = currentSong->persistentView.xZoom[NAVIGATION_CLIP];
+		action->xScrollClip[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 	}
 
 	displayZoomLevel();
@@ -1883,7 +1884,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 		else {
 doRegularEditPadActionProbably:
 			if (isUIModeWithinRange(editPadActionUIModes)) {
-				editPadAction(velocity, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+				editPadAction(velocity, y, x, currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 			}
 		}
 	}
@@ -3488,7 +3489,8 @@ bool InstrumentClipView::enterNoteEditor() {
 void InstrumentClipView::exitNoteEditor() {
 	if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
 		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-			editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
+			editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay,
+			              currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 		}
 		gridSquareInfo[lastSelectedNoteYDisplay][lastSelectedNoteXDisplay].isValid = false;
 		lastSelectedNoteXDisplay = kNoSelection;
@@ -3523,7 +3525,7 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 					exitNoteEditor();
 
 					// now make new press for new note selection
-					editPadAction(1, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+					editPadAction(1, y, x, currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 					dontDeleteNotesOnDepress();
 
 					// update menu selection
@@ -3690,7 +3692,7 @@ bool InstrumentClipView::handleNoteRowEditorPadAction(int32_t x, int32_t y, int3
 bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on) {
 	bool wasntHoldingNote = !isUIModeActive(UI_MODE_NOTES_PRESSED);
 
-	editPadAction(on, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+	editPadAction(on, y, x, currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
 	bool nowHoldingNote = isUIModeActive(UI_MODE_NOTES_PRESSED);
 
@@ -5692,8 +5694,9 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 				thisNoteRow->renderRow(
 				    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
-				    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-				    currentSong->xZoom[NAVIGATION_CLIP]);
+				    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth,
+				    currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+				    currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 				drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
 				PadLEDs::numAnimatedRows++;
@@ -5792,8 +5795,9 @@ void InstrumentClipView::exitScaleMode() {
 				thisNoteRow->renderRow(
 				    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
-				    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-				    currentSong->xZoom[NAVIGATION_CLIP]);
+				    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth,
+				    currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+				    currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 				drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
 				PadLEDs::numAnimatedRows++;
@@ -6144,8 +6148,8 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	// Calculate horizontal bounds of current screen
-	int32_t xScroll = currentSong->xScroll[NAVIGATION_CLIP];
-	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
+	int32_t xScroll = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
+	uint32_t xZoom = currentSong->persistentView.xZoom[NAVIGATION_CLIP];
 	int32_t screenStartPos = xScroll;
 	int32_t screenEndPos = xScroll + (xZoom * kDisplayWidth);
 
@@ -7087,8 +7091,8 @@ void InstrumentClipView::graphicsRoutine() {
 
 void InstrumentClipView::fillOffScreenImageStores() {
 
-	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
-	uint32_t xScroll = currentSong->xScroll[NAVIGATION_CLIP];
+	uint32_t xZoom = currentSong->persistentView.xZoom[NAVIGATION_CLIP];
+	uint32_t xScroll = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 
 	// We're also going to fill up an extra, currently-offscreen imageStore row, with all notes currently offscreen
 
@@ -7195,9 +7199,9 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	}
 
 	PadLEDs::renderingLock = true;
-	performActualRender(whichRows, image[0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
-	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
-	                    drawUndefinedArea);
+	performActualRender(whichRows, image[0], occupancyMask, currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+	                    currentSong->persistentView.xZoom[NAVIGATION_CLIP], kDisplayWidth,
+	                    kDisplayWidth + kSideBarWidth, drawUndefinedArea);
 	PadLEDs::renderingLock = false;
 
 	return true;

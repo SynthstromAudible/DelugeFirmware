@@ -121,7 +121,7 @@ ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inC
 
 void TimelineView::displayZoomLevel(bool justPopup) {
 	etl::string<30> text;
-	currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], "-notes", true);
+	currentSong->getNoteLengthName(text, currentSong->persistentView.xZoom[getNavSysId()], "-notes", true);
 
 	display->displayPopup(text.data(), justPopup ? 3 : 0, true);
 }
@@ -158,7 +158,7 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
 		// in note row editor we are holding horizontal encoder + auditioning to zoom
 		if (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) || inNoteRowEditor) {
-			int32_t oldXZoom = currentSong->xZoom[navSysId];
+			int32_t oldXZoom = currentSong->persistentView.xZoom[navSysId];
 			int32_t zoomMagnitude = -offset;
 			uint32_t newZoom = zoomMagnitude == -1 ? oldXZoom >> 1 : oldXZoom << 1;
 			uint32_t clipLengthMaxZoom = getMaxZoom();
@@ -187,8 +187,9 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 				goto getOut;
 			}
 
-			currentSong->xZoom[navSysId] = newZoom;
-			int32_t newScroll = currentSong->xScroll[navSysId] / (newZoom * kDisplayWidth) * (newZoom * kDisplayWidth);
+			currentSong->persistentView.xZoom[navSysId] = newZoom;
+			int32_t newScroll =
+			    currentSong->persistentView.xScroll[navSysId] / (newZoom * kDisplayWidth) * (newZoom * kDisplayWidth);
 
 			initiateXZoom(zoomMagnitude, newScroll, oldXZoom);
 			displayZoomLevel();
@@ -201,7 +202,8 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 		// or it's pressed and you're in note row editor
 		if (!Buttons::isShiftButtonPressed() || inNoteRowEditor) {
 
-			int32_t newXScroll = currentSong->xScroll[navSysId] + offset * currentSong->xZoom[navSysId] * kDisplayWidth;
+			int32_t newXScroll = currentSong->persistentView.xScroll[navSysId]
+			                     + offset * currentSong->persistentView.xZoom[navSysId] * kDisplayWidth;
 
 			// Make sure we don't scroll too far left
 			if (newXScroll < 0) {
@@ -210,7 +212,7 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
 			// Make sure we don't scroll too far right
 			if (newXScroll < getMaxLength() || offset < 0) {
-				if (newXScroll != currentSong->xScroll[navSysId]) {
+				if (newXScroll != currentSong->persistentView.xScroll[navSysId]) {
 					initiateXScroll(newXScroll);
 				}
 			}
@@ -226,12 +228,12 @@ getOut:
 void TimelineView::displayScrollPos() {
 
 	int32_t navSysId = getNavSysId();
-	uint32_t quantization = currentSong->xZoom[navSysId];
+	uint32_t quantization = currentSong->persistentView.xZoom[navSysId];
 	if (navSysId == NAVIGATION_CLIP) {
 		quantization *= kDisplayWidth;
 	}
 
-	displayNumberOfBarsAndBeats(currentSong->xScroll[navSysId], quantization, true, "FAR");
+	displayNumberOfBarsAndBeats(currentSong->persistentView.xScroll[navSysId], quantization, true, "FAR");
 }
 
 void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne,
@@ -306,11 +308,11 @@ putBeatCountOnFarRight:
 // Changes the actual xScroll.
 void TimelineView::initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScroll) {
 
-	uint32_t oldXScroll = currentSong->xScroll[getNavSysId()];
+	uint32_t oldXScroll = currentSong->persistentView.xScroll[getNavSysId()];
 
-	int32_t scrollDirection = (newXScroll > currentSong->xScroll[getNavSysId()]) ? 1 : -1;
+	int32_t scrollDirection = (newXScroll > currentSong->persistentView.xScroll[getNavSysId()]) ? 1 : -1;
 
-	currentSong->xScroll[getNavSysId()] = newXScroll;
+	currentSong->persistentView.xScroll[getNavSysId()] = newXScroll;
 
 	bool anyAnimationToDo = setupScroll(oldXScroll);
 
@@ -324,13 +326,14 @@ void TimelineView::initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScro
 // Returns whether any zooming took place - I think?
 bool TimelineView::zoomToMax(bool inOnly) {
 	uint32_t maxZoom = getMaxZoom();
-	uint32_t oldZoom = currentSong->xZoom[getNavSysId()];
+	uint32_t oldZoom = currentSong->persistentView.xZoom[getNavSysId()];
 	if (maxZoom != oldZoom && (!inOnly || maxZoom < oldZoom)) {
 
 		// Zoom to view what's new
-		currentSong->xZoom[getNavSysId()] = maxZoom;
+		currentSong->persistentView.xZoom[getNavSysId()] = maxZoom;
 
-		int32_t newScroll = currentSong->xScroll[getNavSysId()] / (maxZoom * kDisplayWidth) * (maxZoom * kDisplayWidth);
+		int32_t newScroll =
+		    currentSong->persistentView.xScroll[getNavSysId()] / (maxZoom * kDisplayWidth) * (maxZoom * kDisplayWidth);
 
 		initiateXZoom(howMuchMoreMagnitude(maxZoom, oldZoom), newScroll, oldZoom);
 		return true;
@@ -346,11 +349,12 @@ void TimelineView::initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint3
 	memcpy(PadLEDs::imageStore[(zoomMagnitude < 0) ? kDisplayHeight : 0], PadLEDs::image,
 	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 
-	uint32_t oldScroll = currentSong->xScroll[getNavSysId()];
+	uint32_t oldScroll = currentSong->persistentView.xScroll[getNavSysId()];
 
-	currentSong->xScroll[getNavSysId()] = newScroll;
-	bool anyToAnimate = calculateZoomPinSquares(oldScroll, newScroll, currentSong->xZoom[getNavSysId()], oldZoom)
-	                    && getCurrentUI() != &loadPatternUI;
+	currentSong->persistentView.xScroll[getNavSysId()] = newScroll;
+	bool anyToAnimate =
+	    calculateZoomPinSquares(oldScroll, newScroll, currentSong->persistentView.xZoom[getNavSysId()], oldZoom)
+	    && getCurrentUI() != &loadPatternUI;
 
 	if (anyToAnimate) {
 
@@ -372,7 +376,7 @@ bool TimelineView::scrollRightToEndOfLengthIfNecessary(int32_t maxLength) {
 	// If we're not scrolled all the way to the right, go there now
 	if (getPosFromSquare(kDisplayWidth) < maxLength) {
 
-		uint32_t displayLength = currentSong->xZoom[getNavSysId()] * kDisplayWidth;
+		uint32_t displayLength = currentSong->persistentView.xZoom[getNavSysId()] * kDisplayWidth;
 
 		initiateXScroll((maxLength - 1) / displayLength * displayLength);
 		// displayScrollPos();
@@ -384,7 +388,8 @@ bool TimelineView::scrollRightToEndOfLengthIfNecessary(int32_t maxLength) {
 bool TimelineView::scrollLeftIfTooFarRight(int32_t maxLength) {
 
 	if (getPosFromSquare(0) >= maxLength) {
-		initiateXScroll(currentSong->xScroll[getNavSysId()] - currentSong->xZoom[getNavSysId()] * kDisplayWidth);
+		initiateXScroll(currentSong->persistentView.xScroll[getNavSysId()]
+		                - currentSong->persistentView.xZoom[getNavSysId()] * kDisplayWidth);
 		// displayScrollPos();
 		return true;
 	}
@@ -395,7 +400,7 @@ void TimelineView::tripletsButtonPressed() {
 
 	currentSong->persistentView.tripletsOn = !currentSong->persistentView.tripletsOn;
 	if (currentSong->persistentView.tripletsOn) {
-		currentSong->persistentView.tripletsLevel = currentSong->xZoom[getNavSysId()] * 4 / 3;
+		currentSong->persistentView.tripletsLevel = currentSong->persistentView.xZoom[getNavSysId()] * 4 / 3;
 	}
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	setTripletsLEDState();
@@ -442,10 +447,10 @@ int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll) const {
 	int32_t navSys = getNavSysId();
 
 	if (xScroll == -1) {
-		xScroll = currentSong->xScroll[navSys]; // Sets default
+		xScroll = currentSong->persistentView.xScroll[navSys]; // Sets default
 	}
 
-	uint32_t xZoom = currentSong->xZoom[navSys];
+	uint32_t xZoom = currentSong->persistentView.xZoom[navSys];
 
 	return getPosFromSquare(square, xScroll, xZoom);
 }
@@ -506,10 +511,10 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 	int32_t navSys = getNavSysId();
 
 	if (xScroll == -1) {
-		xScroll = currentSong->xScroll[navSys]; // Defaults to main currentSong->xScroll
+		xScroll = currentSong->persistentView.xScroll[navSys]; // Defaults to main currentSong->persistentView.xScroll
 	}
 
-	uint32_t xZoom = currentSong->xZoom[navSys];
+	uint32_t xZoom = currentSong->persistentView.xZoom[navSys];
 
 	return getSquareFromPos(pos, rightOnSquare, xScroll, xZoom);
 }
@@ -539,7 +544,7 @@ bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll) {
 		return true;
 	}
 	else {
-		if (currentSong->xZoom[getNavSysId()] > currentSong->persistentView.tripletsLevel) {
+		if (currentSong->persistentView.xZoom[getNavSysId()] > currentSong->persistentView.tripletsLevel) {
 			return true;
 		}
 		return (getPosFromSquare(square + 1, xScroll) > getPosFromSquare(square, xScroll));

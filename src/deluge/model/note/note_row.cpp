@@ -248,8 +248,8 @@ void NoteRow::getRowSquareInfo(int32_t effectiveLength, SquareInfo rowSquareInfo
 		int32_t lastNoteSquareEndPos = std::min(instrumentClipView.getPosFromSquare(kDisplayWidth), effectiveLength);
 
 		// find the last square that we will iterate from
-		int32_t lastSquare =
-		    instrumentClipView.getSquareFromPos(lastNoteSquareEndPos - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP]);
+		int32_t lastSquare = instrumentClipView.getSquareFromPos(lastNoteSquareEndPos - 1, NULL,
+		                                                         currentSong->persistentView.xScroll[NAVIGATION_CLIP]);
 
 		// Start by finding the last note to begin *before the right-edge* of the note row displayed
 		int32_t i = notes.firstAtOrAfter(lastNoteSquareEndPos) - 1;
@@ -4069,8 +4069,8 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 
 		Note* noteSource = &copiedNoteRow->notes[n];
 
-		int32_t newPos =
-		    modelStack->song->xScroll[NAVIGATION_CLIP] + (int32_t)roundf((float)noteSource->pos * scaleFactor);
+		int32_t newPos = modelStack->song->persistentView.xScroll[NAVIGATION_CLIP]
+		                 + (int32_t)roundf((float)noteSource->pos * scaleFactor);
 
 		// Make sure that with dividing and rounding, we're not overlapping the previous note - or past the end
 		// of the screen / Clip

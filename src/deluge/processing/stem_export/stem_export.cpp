@@ -461,7 +461,7 @@ int32_t StemExport::disarmAllClipsForStemExport() {
 	// when we begin stem export, we haven't exported any clips yet, so initialize these variables
 	numStemsExported = 0;
 	totalNumStemsToExport = 0;
-	currentSong->xScroll[NAVIGATION_CLIP] = 0;
+	currentSong->persistentView.xScroll[NAVIGATION_CLIP] = 0;
 
 	// when we trigger stem export, we don't know how many clips there are yet
 	// so get the number and store it so we only need to ping getNumElements once
@@ -600,7 +600,7 @@ int32_t StemExport::disarmAllDrumsForStemExport() {
 	// when we begin stem export, we haven't exported any drums yet, so initialize these variables
 	numStemsExported = 0;
 	totalNumStemsToExport = 0;
-	currentSong->xScroll[NAVIGATION_CLIP] = 0;
+	currentSong->persistentView.xScroll[NAVIGATION_CLIP] = 0;
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	OutputType outputType = clip->output->type;
@@ -809,13 +809,13 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 	}
 	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::MIXDOWN) {
 		// reset arranger view scrolling so we're back at the top left of the arrangement
-		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
+		currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] = 0;
 		currentSong->persistentView.arrangementYScroll = indexNumber - kDisplayHeight;
 		arrangerView.repopulateOutputsOnScreen(false);
 	}
 	else if (stemExportType == StemExportType::DRUM) {
 		// reset clip view scrolling so we're back at the top left of the kit
-		currentSong->xScroll[NAVIGATION_CLIP] = 0;
+		currentSong->persistentView.xScroll[NAVIGATION_CLIP] = 0;
 		getCurrentInstrumentClip()->yScroll = indexNumber - kDisplayHeight;
 	}
 }

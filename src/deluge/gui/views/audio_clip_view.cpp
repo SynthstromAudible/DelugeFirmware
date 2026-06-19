@@ -127,17 +127,18 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	SampleRecorder* recorder = clip.recorder;
 
 	// end marker column
-	int32_t endSquareDisplay = divide_round_negative(clip.loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
-	                                                 currentSong->xZoom[NAVIGATION_CLIP]);
+	int32_t endSquareDisplay =
+	    divide_round_negative(clip.loopLength - currentSong->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+	                          currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
 	// start marker column
-	int32_t startSquareDisplay =
-	    divide_round_negative(0 - currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
+	int32_t startSquareDisplay = divide_round_negative(0 - currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+	                                                   currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
 	int64_t xScrollSamples;
 	int64_t xZoomSamples;
-	clip.getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
-	                               &xScrollSamples, &xZoomSamples);
+	clip.getScrollAndZoomInSamples(currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+	                               currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples, &xZoomSamples);
 
 	RGB rgb = clip.getColour();
 
@@ -500,11 +501,12 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				AudioClip& clipRef = *clip;
 
 				int32_t endSquareDisplay =
-				    divide_round_negative(clipRef.loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
-				                          currentSong->xZoom[NAVIGATION_CLIP]);
+				    divide_round_negative(clipRef.loopLength - currentSong->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+				                          currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
-				int32_t startSquareDisplay = divide_round_negative(0 - currentSong->xScroll[NAVIGATION_CLIP],
-				                                                   currentSong->xZoom[NAVIGATION_CLIP]);
+				int32_t startSquareDisplay =
+				    divide_round_negative(0 - currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+				                          currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
 				// =========== Handling END marker =============
 				if (endMarkerVisible) {
@@ -517,8 +519,8 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 					else {
 						Sample* sample = getSample();
 						if (sample) {
-							int32_t newLength =
-							    (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
+							int32_t newLength = (x + 1) * currentSong->persistentView.xZoom[NAVIGATION_CLIP]
+							                    + currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 							int32_t oldLength = clipRef.loopLength;
 							uint64_t oldLengthSamples = clipRef.sampleHolder.getDurationInSamples(true);
 							changeUnderlyingSampleLength(clipRef, sample, newLength, oldLength, oldLengthSamples);
@@ -536,8 +538,8 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 					else {
 						Sample* sample = getSample();
 						if (sample) {
-							int32_t newStartTicks =
-							    x * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
+							int32_t newStartTicks = x * currentSong->persistentView.xZoom[NAVIGATION_CLIP]
+							                        + currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 							int32_t oldLength = clipRef.loopLength;
 							uint64_t oldLengthSamples = clipRef.sampleHolder.getDurationInSamples(true);
 							changeUnderlyingSampleStart(clipRef, sample, newStartTicks, oldLength, oldLengthSamples);
@@ -703,7 +705,7 @@ void AudioClipView::clipNeedsReRendering(Clip* c) {
 	if (c == getCurrentAudioClip()) {
 		// Scroll back left if we need to - it's possible that the length just reverted, if recording got aborted.
 		// Ok, coming back to this, it seems it was a bit hacky that I put this in this function...
-		if (currentSong->xScroll[NAVIGATION_CLIP] >= c->loopLength) {
+		if (currentSong->persistentView.xScroll[NAVIGATION_CLIP] >= c->loopLength) {
 			horizontalScrollForLinearRecording(0);
 		}
 		else {
@@ -772,9 +774,9 @@ doReRender:
 			}
 		}
 
-		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+		displayNumberOfBarsAndBeats(newLength, currentSong->persistentView.xZoom[NAVIGATION_CLIP], false, "LONG");
 		if (action) {
-			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+			action->xScrollClip[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 		}
 	}
 }
@@ -822,9 +824,9 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 		}
 	}
 
-	displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+	displayNumberOfBarsAndBeats(newLength, currentSong->persistentView.xZoom[NAVIGATION_CLIP], false, "LONG");
 	if (action) {
-		action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		action->xScrollClip[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 	}
 	return ActionResult::DEALT_WITH;
 }

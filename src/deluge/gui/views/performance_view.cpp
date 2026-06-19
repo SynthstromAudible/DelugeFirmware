@@ -766,7 +766,8 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 
 					Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_RECORD);
 
-					arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+					arrangerView.xScrollWhenPlaybackStarted =
+					    currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 					if (action) {
 						action->posToClearArrangementFrom = arrangerView.xScrollWhenPlaybackStarted;
 					}

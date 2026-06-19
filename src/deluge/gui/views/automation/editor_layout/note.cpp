@@ -162,7 +162,7 @@ void AutomationEditorLayoutNote::noteEditPadAction(ModelStackWithNoteRow* modelS
 // call instrument clip view edit pad action function to process pad press actions
 void AutomationEditorLayoutNote::recordNoteEditPadAction(int32_t x, int32_t velocity) {
 	instrumentClipView.editPadAction(velocity, instrumentClipView.lastAuditionedYDisplay, x,
-	                                 currentSong->xZoom[NAVIGATION_CLIP]);
+	                                 currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 }
 
 // }; // namespace deluge::gui::views::automation::editor_layout
