@@ -728,14 +728,14 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 	else if (!strcmp(tagName, "beingEdited")) {
 		if (reader.readTagOrAttributeValueInt()) {
 			song->setCurrentClip(this);
-			song->inClipMinderViewOnLoad = true;
+			song->runtimeView.inClipMinderViewOnLoad = true;
 		}
 	}
 
 	else if (!strcmp(tagName, "selected")) {
 		if (reader.readTagOrAttributeValueInt()) {
 			song->setCurrentClip(this);
-			song->inClipMinderViewOnLoad = false;
+			song->runtimeView.inClipMinderViewOnLoad = false;
 		}
 	}
 

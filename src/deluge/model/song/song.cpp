@@ -142,7 +142,7 @@ Song::Song() {
 	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	insideWorldTickMagnitudeOffsetFromBPM = 0;
 	syncScalingClip = nullptr;
-	currentClip = nullptr;
+	runtimeView.currentClip = nullptr;
 	slot = 32767;
 	subSlot = -1;
 
@@ -158,7 +158,7 @@ Song::Song() {
 
 	affectEntire = false;
 
-	fillModeActive = false;
+	runtimeView.fillModeActive = false;
 
 	key.modeNotes = presetScaleNotes[MAJOR_SCALE];
 	disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
@@ -180,7 +180,7 @@ Song::Song() {
 	lastClipInstanceEnteredStartPos = -1;
 	arrangerAutoScrollModeActive = false;
 
-	paramsInAutomationMode = false;
+	runtimeView.paramsInAutomationMode = false;
 
 	// Setup reverb temp variables
 	reverbRoomSize = (float)30 / 50;
@@ -253,12 +253,12 @@ extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
 
 Clip* Song::getCurrentClip() {
-	return currentClip;
+	return runtimeView.currentClip;
 }
 
 // It's not super clear to me why this isn't done as part of the constructor.
 void Song::setupDefault() {
-	inClipMinderViewOnLoad = true;
+	runtimeView.inClipMinderViewOnLoad = true;
 
 	seedRandom();
 
@@ -399,7 +399,7 @@ couldntLoad:
 	// TODO: error checking?
 	addOutput(newInstrument);
 
-	currentClip = firstClip;
+	runtimeView.currentClip = firstClip;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -861,7 +861,7 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 bool allowResyncingDuringClipLengthChange = true;
 
 void Song::changeFillMode(bool on) {
-	fillModeActive = on;
+	runtimeView.fillModeActive = on;
 	// we peek fill notes when fill is held so need to re render rows
 	uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
@@ -1186,7 +1186,7 @@ weAreInArrangementEditorOrInClipInstance:
 
 	globalEffectable.writeTagsToFile(writer, NULL, false);
 
-	int32_t* valuesForOverride = paramsInAutomationMode ? unautomatedParamValues : NULL;
+	int32_t* valuesForOverride = runtimeView.paramsInAutomationMode ? unautomatedParamValues : NULL;
 
 	writer.writeOpeningTagBeginning("songParams");
 	GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, valuesForOverride);
@@ -2194,8 +2194,8 @@ skipInstance:
 #if ALPHA_OR_BETA_VERSION
 			display->displayPopup("E043");
 #endif
-			if (currentClip == clip) {
-				currentClip = nullptr;
+			if (runtimeView.currentClip == clip) {
+				runtimeView.currentClip = nullptr;
 			}
 			if (syncScalingClip == clip) {
 				syncScalingClip = nullptr;
@@ -4465,11 +4465,11 @@ bool Song::arrangementHasAnyClipInstances() {
 
 void Song::setParamsInAutomationMode(bool newState) {
 
-	if (paramsInAutomationMode == newState) {
+	if (runtimeView.paramsInAutomationMode == newState) {
 		return;
 	}
 
-	paramsInAutomationMode = newState;
+	runtimeView.paramsInAutomationMode = newState;
 
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
@@ -5072,8 +5072,8 @@ gotAnInstrument:
 void Song::removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAboveToMoveVertically) {
 
 	// If this is the current Clip for the ClipView...
-	if (currentClip == clip) {
-		currentClip = nullptr;
+	if (runtimeView.currentClip == clip) {
+		runtimeView.currentClip = nullptr;
 	}
 
 	// Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip
@@ -5358,8 +5358,8 @@ void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 		syncScalingClip = newClip;
 	}
 
-	if (oldClip == currentClip) {
-		currentClip = newClip;
+	if (oldClip == runtimeView.currentClip) {
+		runtimeView.currentClip = newClip;
 	}
 
 	deleteClipObject(oldClip);
@@ -5747,7 +5747,7 @@ ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(vo
 }
 
 ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory) {
-	return setupModelStackWithTimelineCounter(memory, this, currentClip);
+	return setupModelStackWithTimelineCounter(memory, this, runtimeView.currentClip);
 }
 
 ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {

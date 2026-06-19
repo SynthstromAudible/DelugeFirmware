@@ -328,7 +328,7 @@ void setUIForLoadedSong(Song* song) {
 	UI* newUI;
 	Clip* currentClip = song->getCurrentClip();
 	// If in a Clip-minder view
-	if (currentClip && song->inClipMinderViewOnLoad) {
+	if (currentClip && song->runtimeView.inClipMinderViewOnLoad) {
 		if (currentClip->onAutomationClipView) {
 			newUI = &automationView;
 		}

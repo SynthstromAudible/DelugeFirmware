@@ -30,6 +30,7 @@
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
 #include "model/scale/scale_mapper.h"
+#include "model/song/song_view_state.h"
 #include "model/sync.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
@@ -246,9 +247,8 @@ public:
 	bool outputClipInstanceListIsCurrentlyInvalid; // Set to true during scenarios like replaceInstrument(), to warn
 	                                               // other functions not to look at Output::clipInstances
 
-	bool paramsInAutomationMode;
-
-	bool inClipMinderViewOnLoad{}; // Temp variable only valid while loading Song
+	// View/UI state used at runtime but never serialized (selection, transient flags).
+	RuntimeViewState runtimeView;
 
 	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams]{};
 
@@ -259,15 +259,15 @@ public:
 	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();
 	void setCurrentClip(Clip* clip) {
-		if (currentClip != nullptr) {
-			previousClip = currentClip;
+		if (runtimeView.currentClip != nullptr) {
+			runtimeView.previousClip = runtimeView.currentClip;
 		}
-		currentClip = clip;
+		runtimeView.currentClip = clip;
 	}
 	uint32_t getInputTickScale();
 	Clip* getSyncScalingClip();
 	void setInputTickScaleClip(Clip* clip);
-	inline bool isFillModeActive() { return fillModeActive; }
+	inline bool isFillModeActive() { return runtimeView.fillModeActive; }
 	void changeFillMode(bool on);
 	void loadNextSong();
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
@@ -463,9 +463,6 @@ public:
 private:
 	ScaleMapper scaleMapper;
 	NoteSet userScaleNotes;
-	bool fillModeActive;
-	Clip* currentClip = nullptr;
-	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	Error readClipsFromFile(Deserializer& reader, ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);
