@@ -21,10 +21,10 @@
 #include "dsp/dx/dx_voice_adapter.h"
 #include "model/sample/sample.h"
 #include "model/voice/sample_playback_adapter.h"
-#include "model/voice/sample_source.h"
 #include "processing/live/audio_input_adapter.h"
 #include "synth/source/dx7_source.h"
 #include "synth/source/input_source.h"
+#include "synth/source/sample_source.h"
 #include "synth/source/virtual_analog_source.h"
 #include "synth/source/wavetable_source.h"
 #include <optional>

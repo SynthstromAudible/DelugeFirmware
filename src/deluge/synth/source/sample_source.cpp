@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/sample_source.h"
+#include "synth/source/sample_source.h"
 #include "definitions_cxx.hpp"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h" // timeStretchAdjustTable
