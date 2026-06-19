@@ -1197,49 +1197,12 @@ skipAutoRelease: {}
 		                     spareBuffers_[3], cfg);
 	}
 
-	// Otherwise (FM) we go through each unison first, and for each one we render both sources together
+	// FM: the engine owns the whole per-voice render (unison loop + per-source carrier pitch math + the modulator/
+	// carrier topology), mirroring SubtractiveEngine / RingModEngine. The per-voice pre-roll is passed in.
 	else {
-		if (stereoUnison) {
-			// oscBuffer is always a stereo temp buffer
-			didStereoTempBuffer = true;
-		}
-
-		// For each unison part
-		for (int32_t u = 0; u < cfg.numUnison; u++) {
-
-			int32_t unisonAmplitudeL, unisonAmplitudeR;
-			shouldDoPanning((stereoUnison ? cfg.unisonPan[u] : 0), &unisonAmplitudeL, &unisonAmplitudeR);
-
-			// Work out the phase increments of the two sources. If these are too high, sourceAmplitudes[s] is set to 0.
-			// Yes this will affect all unison parts, which seems like it's not what we want, but since we're traversing
-			// the unison parts in ascending frequency, it's fine!
-
-			uint32_t phaseIncrements[kNumSources];
-			for (int32_t s = 0; s < kNumSources; s++) {
-				phaseIncrements[s] = unisonParts[u].sources[s].phaseIncrementStoredValue;
-			}
-
-			// If overall pitch adjusted...
-			if (overallPitchAdjust != kMaxSampleValue) {
-				for (int32_t s = 0; s < kNumSources; s++) {
-					if (!adjustPitch(phaseIncrements[s], overallPitchAdjust)) {
-						sourceAmplitudes[s] = 0; // For FM
-					}
-				}
-			}
-
-			// If individual source pitch adjusted...
-			for (int32_t s = 0; s < kNumSources; s++) {
-				if (!adjustPitch(phaseIncrements[s], params.paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
-					sourceAmplitudes[s] = 0; // For FM
-				}
-			}
-
-			fmEngine.render(*this, u, numSamples, overallPitchAdjust, stereoUnison, unisonAmplitudeL, unisonAmplitudeR,
-			                phaseIncrements, sourceAmplitudes, sourceAmplitudesNow, sourceAmplitudeIncrements,
-			                modulatorsActive, modulatorAmplitudeIncrements, oscBuffer, spareBuffers_[2],
-			                spareBuffers_[3], cfg);
-		}
+		fmEngine.render(*this, numSamples, overallPitchAdjust, stereoUnison, sourceAmplitudes, sourceAmplitudesNow,
+		                sourceAmplitudeIncrements, modulatorsActive, modulatorAmplitudeIncrements, oscBuffer,
+		                spareBuffers_[2], spareBuffers_[3], didStereoTempBuffer, cfg);
 	}
 
 	if (didStereoTempBuffer) {

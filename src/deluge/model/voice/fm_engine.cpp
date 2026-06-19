@@ -23,17 +23,68 @@
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 #include "util/fixedpoint.h"
+#include "util/functions.h" // shouldDoPanning
 #include <cstring>
 
 using namespace deluge;
 namespace params = deluge::modulation::params;
 
-void FMEngine::render(Voice& voice, int32_t u, int32_t numSamples, int32_t overallPitchAdjust, bool stereoUnison,
-                      int32_t unisonAmplitudeL, int32_t unisonAmplitudeR, const uint32_t* phaseIncrements,
-                      const int32_t* sourceAmplitudes, const int32_t* sourceAmplitudesNow,
+void FMEngine::render(Voice& voice, int32_t numSamples, int32_t overallPitchAdjust, bool stereoUnison,
+                      int32_t* sourceAmplitudes, const int32_t* sourceAmplitudesNow,
                       const int32_t* sourceAmplitudeIncrements, bool* modulatorsActive,
                       const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer, int32_t* modulatorScratch,
-                      int32_t* carrierScratch, const VoiceConfig& cfg) {
+                      int32_t* carrierScratch, bool& didStereoTempBuffer, const VoiceConfig& cfg) {
+
+	if (stereoUnison) {
+		// oscBuffer is always a stereo temp buffer
+		didStereoTempBuffer = true;
+	}
+
+	// For each unison part
+	for (int32_t u = 0; u < cfg.numUnison; u++) {
+
+		int32_t unisonAmplitudeL, unisonAmplitudeR;
+		shouldDoPanning((stereoUnison ? cfg.unisonPan[u] : 0), &unisonAmplitudeL, &unisonAmplitudeR);
+
+		// Work out the phase increments of the two sources. If these are too high, sourceAmplitudes[s] is set to 0.
+		// Yes this will affect all unison parts, which seems like it's not what we want, but since we're traversing
+		// the unison parts in ascending frequency, it's fine!
+
+		uint32_t phaseIncrements[kNumSources];
+		for (int32_t s = 0; s < kNumSources; s++) {
+			phaseIncrements[s] = voice.unisonParts[u].sources[s].phaseIncrementStoredValue;
+		}
+
+		// If overall pitch adjusted...
+		if (overallPitchAdjust != kMaxSampleValue) {
+			for (int32_t s = 0; s < kNumSources; s++) {
+				if (!Voice::adjustPitch(phaseIncrements[s], overallPitchAdjust)) {
+					sourceAmplitudes[s] = 0;
+				}
+			}
+		}
+
+		// If individual source pitch adjusted...
+		for (int32_t s = 0; s < kNumSources; s++) {
+			if (!Voice::adjustPitch(phaseIncrements[s],
+			                        voice.params.paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
+				sourceAmplitudes[s] = 0;
+			}
+		}
+
+		renderUnisonPart(voice, u, numSamples, overallPitchAdjust, stereoUnison, unisonAmplitudeL, unisonAmplitudeR,
+		                 phaseIncrements, sourceAmplitudes, sourceAmplitudesNow, sourceAmplitudeIncrements,
+		                 modulatorsActive, modulatorAmplitudeIncrements, oscBuffer, modulatorScratch, carrierScratch,
+		                 cfg);
+	}
+}
+
+void FMEngine::renderUnisonPart(Voice& voice, int32_t u, int32_t numSamples, int32_t overallPitchAdjust,
+                                bool stereoUnison, int32_t unisonAmplitudeL, int32_t unisonAmplitudeR,
+                                const uint32_t* phaseIncrements, const int32_t* sourceAmplitudes,
+                                const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
+                                bool* modulatorsActive, const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer,
+                                int32_t* modulatorScratch, int32_t* carrierScratch, const VoiceConfig& cfg) {
 
 	// If overall pitch adjusted, adjust modulator pitches
 	uint32_t phaseIncrementModulator[kNumModulators];
