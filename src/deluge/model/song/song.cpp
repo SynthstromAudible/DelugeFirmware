@@ -1664,7 +1664,6 @@ unknownTag:
 				// both until the end. Also, in firmware pre V3.1.0-alpha, all "sync" values were stored as plain
 				// old ints, to be read irrespective of insideWorldTickMagnitude
 				swingInterval = reader.readTagOrAttributeValueInt();
-				swingInterval = std::min(swingInterval, (uint8_t)9);
 				reader.exitTag("swingInterval");
 			}
 
@@ -2081,6 +2080,7 @@ loadOutput:
 		// know we have enough info to do the conversion
 		swingInterval = convertSyncLevelFromFileValueToInternalValue(swingInterval);
 	}
+	swingInterval = std::min(swingInterval, (uint8_t)9);
 
 	setTimePerTimerTick(newTimePerTimerTick);
 
