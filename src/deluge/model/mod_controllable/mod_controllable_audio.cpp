@@ -41,6 +41,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
+#include "util/etl_string.h"
 #include <algorithm>
 
 namespace params = deluge::modulation::params;
@@ -1549,7 +1550,7 @@ bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* s
 void ModControllableAudio::displayFilterSettings(bool on, FilterType currentFilterType) {
 	if (display->haveOLED()) {
 		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 40);
+			etl::string<40> popupMsg;
 			popupMsg.append(getFilterTypeDisplayName(currentFilterType));
 			if (currentFilterType != FilterType::EQ) {
 				popupMsg.append("\n");
@@ -1574,7 +1575,7 @@ void ModControllableAudio::displayFilterSettings(bool on, FilterType currentFilt
 void ModControllableAudio::displayDelaySettings(bool on) {
 	if (display->haveOLED()) {
 		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
+			etl::string<100> popupMsg;
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 			    == RuntimeFeatureStateToggle::On) {
 				popupMsg.append("Type: ");
@@ -1635,7 +1636,7 @@ void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 	// Sidechain
 	if (display->haveOLED()) {
 		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
+			etl::string<100> popupMsg;
 			// Sidechain
 			popupMsg.append("Sidechain: ");
 			popupMsg.append(getSidechainDisplayName());
@@ -1695,7 +1696,7 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	- after mod button is released: display parameter assigned to bottom gold knob
 	*/
 
-	DEF_STACK_STRING_BUF(popupMsg, 100);
+	etl::string<100> popupMsg;
 	// if we have an OLED display
 	// or a 7SEG display and mod button is pressed
 	// then we will display the top gold knob parameter

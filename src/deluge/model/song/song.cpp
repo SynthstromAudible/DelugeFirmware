@@ -61,6 +61,7 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/string.h"
 #include "util/try.h"
@@ -5907,7 +5908,7 @@ void Song::adjustMasterTransposeInterval(int32_t interval) {
 }
 
 void Song::displayMasterTransposeInterval() {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
+	etl::string<40> popupMsg;
 
 	if (display->haveOLED()) {
 		popupMsg.append("Transpose Interval: \n");
@@ -5915,7 +5916,7 @@ void Song::displayMasterTransposeInterval() {
 			popupMsg.append("Encoder");
 		}
 		else {
-			popupMsg.appendInt(masterTransposeInterval);
+			deluge::string::appendInt(popupMsg, masterTransposeInterval);
 			popupMsg.append(" Semitones");
 		}
 	}
@@ -5924,7 +5925,7 @@ void Song::displayMasterTransposeInterval() {
 			popupMsg.append("ENC");
 		}
 		else {
-			popupMsg.appendInt(masterTransposeInterval);
+			deluge::string::appendInt(popupMsg, masterTransposeInterval);
 		}
 	}
 	display->displayPopup(popupMsg.c_str());
@@ -5983,7 +5984,7 @@ void Song::changeThresholdRecordingMode(int8_t offset) {
 }
 
 void Song::displayThresholdRecordingMode() {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
+	etl::string<40> popupMsg;
 	if (display->haveOLED()) {
 		popupMsg.append("Threshold: ");
 	}
