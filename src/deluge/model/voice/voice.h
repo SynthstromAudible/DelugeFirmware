@@ -42,11 +42,6 @@ using StereoSample = deluge::dsp::StereoSample;
 class ModelStackWithSoundFlags;
 using namespace deluge;
 class Voice final {
-	// Transitional: the subtractive engine still delegates the per-source render back to Voice's private
-	// renderBasicSource. See synth_l1_engine_architecture.md. (FMEngine no longer needs friend access — it owns its
-	// operator renders and calls the public static adjustPitch.)
-	friend class SubtractiveEngine;
-
 public:
 	Voice(Sound& sound);
 	~Voice() { setAsUnassigned(nullptr); }
@@ -173,6 +168,16 @@ public:
 		return this->getPriorityRating() <=> other.getPriorityRating();
 	}
 
+	// The per-source render driver + the unison-inactive predicate. Public (not private) so SubtractiveEngine can
+	// drive them without being a friend of Voice. Transitional — the per-source loop relocates into the engine
+	// layer at the synth::Voice lift; renderSourceComponent (the dispatch it calls) stays private.
+	void renderBasicSource(ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer, int32_t numSamples,
+	                       bool stereoBuffer, int32_t sourceAmplitude, bool* unisonPartBecameInactive,
+	                       int32_t overallPitchAdjust, bool doOscSync, uint32_t* oscSyncPos,
+	                       uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement, uint32_t* getPhaseIncrements,
+	                       bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement, const VoiceConfig& cfg);
+	[[nodiscard]] bool areAllUnisonPartsInactive(const VoiceConfig& cfg) const;
+
 private:
 	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t
 	// phaseShift);
@@ -183,11 +188,6 @@ private:
 	// so the kernel names no engine-wide global. Each entry is SSI_TX_BUFFER_NUM_SAMPLES wide.
 	std::array<int32_t*, 4> spareBuffers_{};
 
-	void renderBasicSource(ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer, int32_t numSamples,
-	                       bool stereoBuffer, int32_t sourceAmplitude, bool* unisonPartBecameInactive,
-	                       int32_t overallPitchAdjust, bool doOscSync, uint32_t* oscSyncPos,
-	                       uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement, uint32_t* getPhaseIncrements,
-	                       bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement, const VoiceConfig& cfg);
 	// Render one unison part of one source, dispatching by oscType to the per-source component (sample / input /
 	// dx7 / virtual-analog / wavetable) and folding their outcomes into one uniform result. The single dispatch
 	// seam a SourceComponent interface + the engine registry will build on. Called from renderBasicSource's
@@ -198,7 +198,6 @@ private:
 	                      uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
 	                      uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
 	                      int32_t amplitudeL, int32_t amplitudeR, const VoiceConfig& cfg);
-	bool areAllUnisonPartsInactive(const VoiceConfig& cfg) const;
 	void setupPorta(const Sound& sound);
 	int32_t combineExpressionValues(int32_t synthLevelValue, int32_t expressionDimension) const;
 };
