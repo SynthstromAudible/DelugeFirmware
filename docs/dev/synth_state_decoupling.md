@@ -182,15 +182,17 @@ Subtractive. The dispatch (`voice.cpp:1181–1285`) then collapses to a clean 3-
 
 ### Slice sequence (each bit-exact)
 
-1. **Make RingMod & FM own their unison loop (mirroring Subtractive).** Two sub-slices, smallest-first per the L1
-   doc's migration sketch:
-   - **1a — `RingModEngine` owns its unison loop.** Pull the RINGMOD path out of `voice.cpp`'s loop into a
-     whole-voice `RingModEngine::render(...)` that iterates unison internally (the pitch setup + the combine). FM
-     stays in the Voice loop for now (they're mutually exclusive synthModes, so the duplicated pitch setup never
-     runs simultaneously). Smallest cross-source engine; good first proof.
-   - **1b — `FMEngine` owns its unison loop.** Same move for the FM path. After 1b, Voice's else-branch loop is
-     empty and the dispatch becomes the clean 3-way `switch(synthMode){ engine.render(...) }`.
-   No state moves yet — still `Voice&`-borrowed. Behaviour-only.
+1. ✅ **DONE — Make RingMod & FM own their unison loop (mirroring Subtractive).** Two sub-slices, smallest-first per
+   the L1 doc's migration sketch:
+   - **1a — `RingModEngine` owns its unison loop** (commit `f1ee3341`). Pulled the RINGMOD path out of `voice.cpp`'s
+     loop into a whole-voice `RingModEngine::render(...)` that iterates unison internally (pitch setup + combine);
+     the old per-unison render became private `renderUnisonPart`. `goto skipUnisonPart` → `return` (faithful).
+   - **1b — `FMEngine` owns its unison loop** (commit `5fc6d214`). Same move for FM; `sourceAmplitudes` stays mutable
+     (a too-high carrier zeroes the source, persisting across ascending-frequency unison parts). `Voice::render`'s
+     dispatch is now the clean 3-way `SUBTRACTIVE → engine, RINGMOD → engine, FM → engine` — **no cross-source
+     orchestration remains in the Voice-side render.**
+   Behaviour-only — no state moved; engines still borrow per-source state via `Voice&`. Each bit-exact (x86 336/336
+   byte-identical + ARM/qemu oracle on ringmod/FM families; boundary lints green).
 2. **Give engines ownership of their Sources + FM grid (the `VoiceUnisonPart` restructure).** Re-home
    `VoiceUnisonPart.modulatorPhase[]/modulatorFeedback[]` into `FMEngine`, and the `VoiceUnisonPartSource` Sources
    into the engines, so each unison part holds **one Engine instance**. This is the deepest state-relocation; do it
