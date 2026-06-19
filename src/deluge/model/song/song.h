@@ -195,10 +195,9 @@ public:
 
 	uint32_t xZoom[2]{};  // Set default zoom at max zoom-out;
 	int32_t xScroll[2]{}; // Leave this as signed
-	int32_t xScrollForReturnToSongView;
-	int32_t xZoomForReturnToSongView;
-	bool tripletsOn;
-	uint32_t tripletsLevel{}; // The number of ticks in one of the three triplets
+
+	// View/UI state that IS serialized to the song file (scroll/zoom/layout/triplets/etc.).
+	PersistentViewState persistentView;
 
 	uint64_t timePerTimerTickBig{};
 	int32_t divideByTimePerTimerTick{};
@@ -226,21 +225,9 @@ public:
 	int8_t subSlot;
 	std::string name{};
 
-	bool affectEntire;
-
-	SessionLayoutType sessionLayout = FlashStorage::defaultSessionLayout;
-	int32_t songGridScrollX = 0;
-	int32_t songGridScrollY = 0;
-	int32_t songViewYScroll;
-	int32_t arrangementYScroll;
-
 	uint8_t sectionToReturnToAfterSongEnd{};
 
 	bool wasLastInArrangementEditor{};
-	int32_t lastClipInstanceEnteredStartPos; // -1 means we are not "inside" an arrangement. While we're in the
-	                                         // ArrangementEditor, it's 0
-
-	bool arrangerAutoScrollModeActive;
 
 	MIDIInstrument* hibernatingMIDIInstrument;
 

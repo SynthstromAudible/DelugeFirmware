@@ -141,7 +141,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	if (numRepetitions <= -1) {
 		numRepetitions = currentSong->sections[oldSection].numRepetitions;
 	}
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+	if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 		if (currentSong->sessionClips[0]->section != oldSection) {
 
 			int32_t newSection = SECTION_OUT_OF_RANGE;
@@ -160,7 +160,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 		}
 	}
 	// grid mode - just go to the next section, no need to worry about what order they're in
-	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	else if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		if (oldSection < kMaxNumSections) {
 			int32_t newSection = SECTION_OUT_OF_RANGE;
 			for (int32_t c = oldSection + 1; c <= kMaxNumSections; ++c) {

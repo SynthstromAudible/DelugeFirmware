@@ -17,7 +17,31 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
+#include "storage/flash_storage.h"
+#include <cstdint>
+
 class Clip;
+
+/// View/UI state that the Song carries and which **is** serialized to the song file (today inline
+/// in the song XML). This is the "persistent view state" bucket of the project-model separation
+/// (docs/dev/project_model_extraction.md): where the user was looking / how they were editing,
+/// saved with the document but distinct from project data. Serialization keeps the same XML tags
+/// (see Song::writeToFile / readFromFile), so the on-disk format is unchanged.
+struct PersistentViewState {
+	int32_t xScrollForReturnToSongView{0};
+	int32_t xZoomForReturnToSongView{0};
+	bool tripletsOn{false};
+	uint32_t tripletsLevel{0}; // The number of ticks in one of the three triplets
+	bool affectEntire{false};
+	SessionLayoutType sessionLayout = FlashStorage::defaultSessionLayout;
+	int32_t songGridScrollX{0};
+	int32_t songGridScrollY{0};
+	int32_t songViewYScroll{0};
+	int32_t arrangementYScroll{0};
+	int32_t lastClipInstanceEnteredStartPos{-1}; // -1 means we are not "inside" an arrangement
+	bool arrangerAutoScrollModeActive{false};
+};
 
 /// View/UI state that the Song carries but which is **never** serialized to the song file.
 /// This is the "runtime view state" bucket of the project-model separation

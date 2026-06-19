@@ -203,9 +203,10 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 
 		RootUI* rootUI = getRootUI();
 
-		bool isArrangerView = rootUI == &arrangerView
-		                      || (rootUI == &performanceView && currentSong->lastClipInstanceEnteredStartPos != -1)
-		                      || (rootUI == &automationView && automationView.onArrangerView);
+		bool isArrangerView =
+		    rootUI == &arrangerView
+		    || (rootUI == &performanceView && currentSong->persistentView.lastClipInstanceEnteredStartPos != -1)
+		    || (rootUI == &automationView && automationView.onArrangerView);
 
 		bool isRestartShortcutPressed =
 		    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
@@ -338,9 +339,10 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	// if we're restarting playback from beginning, do that
 	if (!restartingPlaybackAtBeginning) {
-		bool isArrangerView = (rootUI == &arrangerView)
-		                      || (rootUI == &performanceView && currentSong->lastClipInstanceEnteredStartPos != -1)
-		                      || (rootUI == &automationView && automationView.onArrangerView);
+		bool isArrangerView =
+		    (rootUI == &arrangerView)
+		    || (rootUI == &performanceView && currentSong->persistentView.lastClipInstanceEnteredStartPos != -1)
+		    || (rootUI == &automationView && automationView.onArrangerView);
 
 		// second priority - if we're holding pad in arranger, play from that pad
 		isArrangementPadPressed = isArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
@@ -363,7 +365,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 				    == RuntimeFeatureStateToggle::On;
 
 				bool recordingToArranger = isArrangerView && (recording == RecordingMode::NORMAL);
-				bool inArrangerCrossScreen = isArrangerView && currentSong->arrangerAutoScrollModeActive;
+				bool inArrangerCrossScreen = isArrangerView && currentSong->persistentView.arrangerAutoScrollModeActive;
 
 				// start from current screen if:
 				// 1) restart shortcut is pressed and alternativePlaybackStartBehaviour is disabled
@@ -483,16 +485,17 @@ void PlaybackHandler::tapTempoAutoSwitchOff() {
 void PlaybackHandler::decideOnCurrentPlaybackMode() {
 	// If in arranger...
 	if (getRootUI() == &arrangerView
-	    || (!getRootUI() && currentSong && currentSong->lastClipInstanceEnteredStartPos != -1)) {
+	    || (!getRootUI() && currentSong && currentSong->persistentView.lastClipInstanceEnteredStartPos != -1)) {
 		goto useArranger;
 	}
 
-	if (!rootUIIsClipMinderScreen() && currentSong->lastClipInstanceEnteredStartPos != -1) {
+	if (!rootUIIsClipMinderScreen() && currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 		goto useArranger;
 	}
 
 	if (rootUIIsClipMinderScreen()
-	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip())) {
+	    && (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1
+	        || getCurrentClip()->isArrangementOnlyClip())) {
 useArranger:
 		currentPlaybackMode = &arrangement;
 	}
@@ -509,7 +512,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	actionLogger.closeAction(ActionType::RECORD);
 
 	if (shouldShiftAccordingToClipInstance && currentPlaybackMode == &arrangement && rootUIIsClipMinderScreen()) {
-		playFromPos += currentSong->lastClipInstanceEnteredStartPos;
+		playFromPos += currentSong->persistentView.lastClipInstanceEnteredStartPos;
 	}
 
 	ignoringMidiClockInput = false;
@@ -1458,7 +1461,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 		// If beginning in arranger, not allowed to preserve play position (the caller never actually tries to do
 		// this anyway)
-		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+		if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 			preservePlayPosition = false;
 		}
 
@@ -1482,10 +1485,10 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 		// And now, if switching to arranger (in which case, remember, we definitely didn't preserve play position),
 		// do that
-		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+		if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 			currentPlaybackMode = &arrangement;
 			arrangement.setupPlayback();
-			arrangement.resetPlayPos(currentSong->lastClipInstanceEnteredStartPos);
+			arrangement.resetPlayPos(currentSong->persistentView.lastClipInstanceEnteredStartPos);
 		}
 
 		// Or if we weren't switching to the arranger, the equivalent of that would get called from

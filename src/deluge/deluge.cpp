@@ -347,7 +347,7 @@ void setUIForLoadedSong(Song* song) {
 
 	// Otherwise we're in session or arranger view
 	else {
-		if (song->lastClipInstanceEnteredStartPos != -1) {
+		if (song->persistentView.lastClipInstanceEnteredStartPos != -1) {
 			newUI = &arrangerView;
 		}
 		else {

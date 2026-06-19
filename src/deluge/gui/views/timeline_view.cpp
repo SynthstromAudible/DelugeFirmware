@@ -393,9 +393,9 @@ bool TimelineView::scrollLeftIfTooFarRight(int32_t maxLength) {
 
 void TimelineView::tripletsButtonPressed() {
 
-	currentSong->tripletsOn = !currentSong->tripletsOn;
-	if (currentSong->tripletsOn) {
-		currentSong->tripletsLevel = currentSong->xZoom[getNavSysId()] * 4 / 3;
+	currentSong->persistentView.tripletsOn = !currentSong->persistentView.tripletsOn;
+	if (currentSong->persistentView.tripletsOn) {
+		currentSong->persistentView.tripletsLevel = currentSong->xZoom[getNavSysId()] * 4 / 3;
 	}
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	setTripletsLEDState();
@@ -409,27 +409,28 @@ int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t
 
 	if (inTripletsView()) {
 		// If zoomed in just a normal amount...
-		if (xZoom < currentSong->tripletsLevel) {
-			int32_t prevBlockStart = xScroll / (currentSong->tripletsLevel * 3) * (currentSong->tripletsLevel * 3);
+		if (xZoom < currentSong->persistentView.tripletsLevel) {
+			int32_t prevBlockStart = xScroll / (currentSong->persistentView.tripletsLevel * 3)
+			                         * (currentSong->persistentView.tripletsLevel * 3);
 			int32_t blockStartRelativeToScroll = (prevBlockStart - xScroll) / 3 * 4; // Negative or 0
 
 			int32_t posRelativeToBlock =
 			    ((int32_t)square) * (xZoom * 4 / 3) - blockStartRelativeToScroll; // Relative to block start pos
-			uint32_t numBlocksIn = posRelativeToBlock / (currentSong->tripletsLevel * 4);
+			uint32_t numBlocksIn = posRelativeToBlock / (currentSong->persistentView.tripletsLevel * 4);
 
 			// These two lines affect the resulting "pos" of cols which are "undefined" so they can be detected as such
-			uint32_t numTripletsIn = posRelativeToBlock / currentSong->tripletsLevel;
+			uint32_t numTripletsIn = posRelativeToBlock / currentSong->persistentView.tripletsLevel;
 			if (numTripletsIn % 4 == 3) {
-				posRelativeToBlock = (numBlocksIn + 1) * currentSong->tripletsLevel * 3;
+				posRelativeToBlock = (numBlocksIn + 1) * currentSong->persistentView.tripletsLevel * 3;
 			}
 			else {
-				posRelativeToBlock -= numBlocksIn * currentSong->tripletsLevel;
+				posRelativeToBlock -= numBlocksIn * currentSong->persistentView.tripletsLevel;
 			}
 
 			return posRelativeToBlock + prevBlockStart;
 		}
-		else if (xZoom < currentSong->tripletsLevel * 2) {
-			return xScroll + square * xZoom + (square % 2) * currentSong->tripletsLevel / 2;
+		else if (xZoom < currentSong->persistentView.tripletsLevel * 2) {
+			return xScroll + square * xZoom + (square % 2) * currentSong->persistentView.tripletsLevel / 2;
 		}
 	}
 
@@ -454,8 +455,9 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 	int32_t posRelativeToScroll = pos - xScroll;
 
 	if (inTripletsView()) {
-		if (xZoom < currentSong->tripletsLevel) {
-			int32_t blockStartPos = xScroll / (currentSong->tripletsLevel * 3) * (currentSong->tripletsLevel * 3);
+		if (xZoom < currentSong->persistentView.tripletsLevel) {
+			int32_t blockStartPos = xScroll / (currentSong->persistentView.tripletsLevel * 3)
+			                        * (currentSong->persistentView.tripletsLevel * 3);
 			int32_t blockStartRelativeToScroll = blockStartPos - xScroll; // Will be negative or 0
 			int32_t posRelativeToBlockStart = pos - blockStartPos;
 
@@ -464,25 +466,26 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 				    (posRelativeToBlockStart % (xZoom * 4 / 3) == 0); // Will the % be ok if it's negative? No! :O
 			}
 
-			int32_t numBlocksIn =
-			    divide_round_negative(posRelativeToBlockStart,
-			                          currentSong->tripletsLevel * 3); // Keep as separate step, for rounding purposes
+			int32_t numBlocksIn = divide_round_negative(posRelativeToBlockStart,
+			                                            currentSong->persistentView.tripletsLevel
+			                                                * 3); // Keep as separate step, for rounding purposes
 
-			int32_t semiFinal =
-			    posRelativeToBlockStart + blockStartRelativeToScroll * 4 / 3 + numBlocksIn * currentSong->tripletsLevel;
+			int32_t semiFinal = posRelativeToBlockStart + blockStartRelativeToScroll * 4 / 3
+			                    + numBlocksIn * currentSong->persistentView.tripletsLevel;
 			int32_t final = divide_round_negative(semiFinal, xZoom * 4 / 3);
 			return final;
 		}
-		else if (xZoom < currentSong->tripletsLevel * 2) {
+		else if (xZoom < currentSong->persistentView.tripletsLevel * 2) {
 			int32_t posRelativeToTripletsStart =
-			    posRelativeToScroll % (currentSong->tripletsLevel * 3); // Will the % be ok if it's negative? No! :O
+			    posRelativeToScroll
+			    % (currentSong->persistentView.tripletsLevel * 3); // Will the % be ok if it's negative? No! :O
 			if (rightOnSquare) {
-				*rightOnSquare =
-				    (posRelativeToTripletsStart == 0 || posRelativeToTripletsStart == currentSong->tripletsLevel * 2);
+				*rightOnSquare = (posRelativeToTripletsStart == 0
+				                  || posRelativeToTripletsStart == currentSong->persistentView.tripletsLevel * 2);
 			}
 
-			if (posRelativeToTripletsStart >= currentSong->tripletsLevel * 2) {
-				posRelativeToTripletsStart -= currentSong->tripletsLevel * 2;
+			if (posRelativeToTripletsStart >= currentSong->persistentView.tripletsLevel * 2) {
+				posRelativeToTripletsStart -= currentSong->persistentView.tripletsLevel * 2;
 			}
 			return divide_round_negative(posRelativeToScroll - posRelativeToTripletsStart, xZoom);
 		}
@@ -524,7 +527,7 @@ bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZo
 	if (!inTripletsView()) {
 		return true;
 	}
-	if (xZoom > currentSong->tripletsLevel) {
+	if (xZoom > currentSong->persistentView.tripletsLevel) {
 		return true;
 	}
 	return (getPosFromSquare(square + 1, xScroll, xZoom) > getPosFromSquare(square, xScroll, xZoom));
@@ -536,7 +539,7 @@ bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll) {
 		return true;
 	}
 	else {
-		if (currentSong->xZoom[getNavSysId()] > currentSong->tripletsLevel) {
+		if (currentSong->xZoom[getNavSysId()] > currentSong->persistentView.tripletsLevel) {
 			return true;
 		}
 		return (getPosFromSquare(square + 1, xScroll) > getPosFromSquare(square, xScroll));
@@ -544,7 +547,7 @@ bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll) {
 }
 
 bool TimelineView::inTripletsView() const {
-	return (supportsTriplets() && currentSong->tripletsOn);
+	return (supportsTriplets() && currentSong->persistentView.tripletsOn);
 }
 
 void TimelineView::midiLearnFlash() {

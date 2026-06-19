@@ -148,15 +148,15 @@ Song::Song() {
 
 	xScroll[NAVIGATION_CLIP] = 0;
 	xScroll[NAVIGATION_ARRANGEMENT] = 0;
-	xScrollForReturnToSongView = 0;
+	persistentView.xScrollForReturnToSongView = 0;
 
 	xZoom[NAVIGATION_CLIP] = increaseMagnitude(kDefaultClipLength, insideWorldTickMagnitude - kDisplayWidthMagnitude);
 	xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << insideWorldTickMagnitude;
-	xZoomForReturnToSongView = xZoom[NAVIGATION_CLIP];
+	persistentView.xZoomForReturnToSongView = xZoom[NAVIGATION_CLIP];
 
-	tripletsOn = false;
+	persistentView.tripletsOn = false;
 
-	affectEntire = false;
+	persistentView.affectEntire = false;
 
 	runtimeView.fillModeActive = false;
 
@@ -167,8 +167,8 @@ Song::Song() {
 
 	swingInterval = FlashStorage::defaultSwingInterval;
 
-	songViewYScroll = 1 - kDisplayHeight;
-	arrangementYScroll = -kDisplayHeight;
+	persistentView.songViewYScroll = 1 - kDisplayHeight;
+	persistentView.arrangementYScroll = -kDisplayHeight;
 
 	anyClipsSoloing = false;
 	anyOutputsSoloingInArrangement = false;
@@ -177,8 +177,8 @@ Song::Song() {
 	firstHibernatingInstrument = nullptr;
 	hibernatingMIDIInstrument = nullptr;
 
-	lastClipInstanceEnteredStartPos = -1;
-	arrangerAutoScrollModeActive = false;
+	persistentView.lastClipInstanceEnteredStartPos = -1;
+	persistentView.arrangerAutoScrollModeActive = false;
 
 	runtimeView.paramsInAutomationMode = false;
 
@@ -1097,20 +1097,20 @@ void Song::writeToFile() {
 		goto weAreInArrangementEditorOrInClipInstance;
 	}
 
-	if (lastClipInstanceEnteredStartPos != -1) {
-		writer.writeAttribute("currentTrackInstanceArrangementPos", lastClipInstanceEnteredStartPos);
+	if (persistentView.lastClipInstanceEnteredStartPos != -1) {
+		writer.writeAttribute("currentTrackInstanceArrangementPos", persistentView.lastClipInstanceEnteredStartPos);
 
 weAreInArrangementEditorOrInClipInstance:
-		writer.writeAttribute("xScrollSongView", xScrollForReturnToSongView);
-		writer.writeAttribute("xZoomSongView", xZoomForReturnToSongView);
+		writer.writeAttribute("xScrollSongView", persistentView.xScrollForReturnToSongView);
+		writer.writeAttribute("xZoomSongView", persistentView.xZoomForReturnToSongView);
 	}
 
-	writer.writeAttribute("arrangementAutoScrollOn", arrangerAutoScrollModeActive);
+	writer.writeAttribute("arrangementAutoScrollOn", persistentView.arrangerAutoScrollModeActive);
 
 	writer.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
 	writer.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
-	writer.writeAttribute("yScrollSongView", songViewYScroll);
-	writer.writeAttribute("yScrollArrangementView", arrangementYScroll);
+	writer.writeAttribute("yScrollSongView", persistentView.songViewYScroll);
+	writer.writeAttribute("yScrollArrangementView", persistentView.arrangementYScroll);
 	writer.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("timePerTimerTick", timePerTimerTickBig >> 32);
@@ -1120,11 +1120,11 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("swingAmount", swingAmount);
 	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval, true);
 
-	if (tripletsOn) {
-		writer.writeAttribute("tripletsLevel", tripletsLevel);
+	if (persistentView.tripletsOn) {
+		writer.writeAttribute("tripletsLevel", persistentView.tripletsLevel);
 	}
 
-	writer.writeAttribute("affectEntire", affectEntire);
+	writer.writeAttribute("affectEntire", persistentView.affectEntire);
 	writer.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
 	if (lastSelectedParamID != kNoSelection) {
@@ -1138,9 +1138,9 @@ weAreInArrangementEditorOrInClipInstance:
 	globalEffectable.writeAttributesToFile(writer, false);
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("songGridScrollX", songGridScrollX);
-	writer.writeAttribute("songGridScrollY", songGridScrollY);
-	writer.writeAttribute("sessionLayout", sessionLayout);
+	writer.writeAttribute("songGridScrollX", persistentView.songGridScrollX);
+	writer.writeAttribute("songGridScrollY", persistentView.songGridScrollY);
+	writer.writeAttribute("sessionLayout", persistentView.sessionLayout);
 
 	writer.writeOpeningTagEnd();
 	// Attributes end
@@ -1450,8 +1450,9 @@ Error Song::readFromFile(Deserializer& reader) {
 			// "ollS" -> xScrollSongView
 			case 0x536c6c6f:
 				if (!strcmp(tagName, "xScrollSongView")) {
-					xScrollForReturnToSongView = reader.readTagOrAttributeValueInt();
-					xScrollForReturnToSongView = std::max((int32_t)0, xScrollForReturnToSongView);
+					persistentView.xScrollForReturnToSongView = reader.readTagOrAttributeValueInt();
+					persistentView.xScrollForReturnToSongView =
+					    std::max((int32_t)0, persistentView.xScrollForReturnToSongView);
 					break;
 				}
 				else {
@@ -1480,8 +1481,8 @@ Error Song::readFromFile(Deserializer& reader) {
 
 			// "xZoomSongView"
 			if (!strcmp(tagName, "xZoomSongView")) {
-				xZoomForReturnToSongView = reader.readTagOrAttributeValueInt();
-				xZoomForReturnToSongView = std::max((int32_t)1, xZoomForReturnToSongView);
+				persistentView.xZoomForReturnToSongView = reader.readTagOrAttributeValueInt();
+				persistentView.xZoomForReturnToSongView = std::max((int32_t)1, persistentView.xZoomForReturnToSongView);
 			}
 
 			// "xZoom"
@@ -1504,8 +1505,8 @@ Error Song::readFromFile(Deserializer& reader) {
 			// "ollS" -> yScrollSongView"
 			case 0x536c6c6f:
 				if (!strcmp(tagName, "yScrollSongView")) {
-					songViewYScroll = reader.readTagOrAttributeValueInt();
-					songViewYScroll = std::max(1 - kDisplayHeight, songViewYScroll);
+					persistentView.songViewYScroll = reader.readTagOrAttributeValueInt();
+					persistentView.songViewYScroll = std::max(1 - kDisplayHeight, persistentView.songViewYScroll);
 					break;
 				}
 				else {
@@ -1515,8 +1516,8 @@ Error Song::readFromFile(Deserializer& reader) {
 			// "yScrollArrangementView"
 			case 0x416c6c6f:
 				if (!strcmp(tagName, "yScrollArrangementView")) {
-					arrangementYScroll = reader.readTagOrAttributeValueInt();
-					arrangementYScroll = std::max(1 - kDisplayHeight, arrangementYScroll);
+					persistentView.arrangementYScroll = reader.readTagOrAttributeValueInt();
+					persistentView.arrangementYScroll = std::max(1 - kDisplayHeight, persistentView.arrangementYScroll);
 					break;
 				}
 				else {
@@ -1540,17 +1541,17 @@ unknownTag:
 				reader.exitTag(tagName);
 			}
 			else if (!strcmp(tagName, "sessionLayout")) {
-				sessionLayout = (SessionLayoutType)reader.readTagOrAttributeValueInt();
+				persistentView.sessionLayout = (SessionLayoutType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("sessionLayout");
 			}
 
 			else if (!strcmp(tagName, "songGridScrollX")) {
-				songGridScrollX = reader.readTagOrAttributeValueInt();
+				persistentView.songGridScrollX = reader.readTagOrAttributeValueInt();
 				reader.exitTag("songGridScrollX");
 			}
 
 			else if (!strcmp(tagName, "songGridScrollY")) {
-				songGridScrollY = reader.readTagOrAttributeValueInt();
+				persistentView.songGridScrollY = reader.readTagOrAttributeValueInt();
 				reader.exitTag("songGridScrollY");
 			}
 
@@ -1562,17 +1563,17 @@ unknownTag:
 			else if (!strcmp(tagName,
 			                 "inArrangementView")) { // For V2.0 pre-beta songs. There'd be another way to detect
 				                                     // this...
-				lastClipInstanceEnteredStartPos = 0;
+				persistentView.lastClipInstanceEnteredStartPos = 0;
 				reader.exitTag("inArrangementView");
 			}
 
 			else if (!strcmp(tagName, "currentTrackInstanceArrangementPos")) {
-				lastClipInstanceEnteredStartPos = reader.readTagOrAttributeValueInt();
+				persistentView.lastClipInstanceEnteredStartPos = reader.readTagOrAttributeValueInt();
 				reader.exitTag("currentTrackInstanceArrangementPos");
 			}
 
 			else if (!strcmp(tagName, "arrangementAutoScrollOn")) {
-				arrangerAutoScrollModeActive = reader.readTagOrAttributeValueInt();
+				persistentView.arrangerAutoScrollModeActive = reader.readTagOrAttributeValueInt();
 				reader.exitTag("arrangementAutoScrollOn");
 			}
 
@@ -1616,9 +1617,9 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "tripletsLevel")) {
-				tripletsLevel = reader.readTagOrAttributeValueInt();
+				persistentView.tripletsLevel = reader.readTagOrAttributeValueInt();
 				reader.exitTag("tripletsLevel");
-				tripletsOn = true;
+				persistentView.tripletsOn = true;
 			}
 
 			else if (!strcmp(tagName, "activeModFunction")) {
@@ -1628,7 +1629,7 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "affectEntire")) {
-				affectEntire = reader.readTagOrAttributeValueInt();
+				persistentView.affectEntire = reader.readTagOrAttributeValueInt();
 				reader.exitTag("affectEntire");
 			}
 
@@ -2234,7 +2235,8 @@ skipInstance:
 
 	AudioEngine::routineWithClusterLoading();
 
-	int32_t playbackWillStartInArrangerAtPos = playbackHandler.playbackState ? lastClipInstanceEnteredStartPos : -1;
+	int32_t playbackWillStartInArrangerAtPos =
+	    playbackHandler.playbackState ? persistentView.lastClipInstanceEnteredStartPos : -1;
 
 	AudioEngine::logAction("aaa5.1");
 	sortOutWhichClipsAreActiveWithoutSendingPGMs(modelStack, playbackWillStartInArrangerAtPos);
@@ -3192,7 +3194,7 @@ void Song::addOutput(Output* output, bool atStart) {
 		output->next = firstOutput;
 		firstOutput = output;
 
-		arrangementYScroll++;
+		persistentView.arrangementYScroll++;
 	}
 	else {
 		Output** prevPointer = &firstOutput;
@@ -3260,16 +3262,16 @@ int32_t Song::removeOutputFromMainList(
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 
-	int32_t bottomYDisplay = -arrangementYScroll;
+	int32_t bottomYDisplay = -persistentView.arrangementYScroll;
 	int32_t topYDisplay = bottomYDisplay + getNumOutputs();
 
 	bottomYDisplay = std::max(0_i32, bottomYDisplay);
 	topYDisplay = std::min(kDisplayHeight - 1, topYDisplay);
 
-	int32_t yDisplay = outputIndex - arrangementYScroll;
+	int32_t yDisplay = outputIndex - persistentView.arrangementYScroll;
 
 	if (yDisplay - bottomYDisplay < topYDisplay - yDisplay) {
-		arrangementYScroll--;
+		persistentView.arrangementYScroll--;
 	}
 
 	// If the removed Output was soloing, and we haven't yet seen any other soloing Outputs, we'd better check out
@@ -5135,8 +5137,8 @@ lookAtNextOne:
 		}
 	}
 
-	int32_t clipYDisplay = clipIndex - songViewYScroll;
-	int32_t bottomYDisplay = -songViewYScroll;
+	int32_t clipYDisplay = clipIndex - persistentView.songViewYScroll;
+	int32_t bottomYDisplay = -persistentView.songViewYScroll;
 	int32_t topYDisplay = bottomYDisplay + std::ssize(sessionClips) - 1;
 	bottomYDisplay = std::max(bottomYDisplay, 0_i32);
 	topYDisplay = std::min(topYDisplay, kDisplayHeight - 1);
@@ -5159,7 +5161,7 @@ lookAtNextOne:
 	}
 
 	if (forceClipsAboveToMoveVertically || amountOfStuffAbove > amountOfStuffBelow) {
-		songViewYScroll--;
+		persistentView.songViewYScroll--;
 	}
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender =
@@ -5222,9 +5224,9 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 }
 
 int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
-	int32_t numToSearch = std::min<int32_t>(std::ssize(sessionClips), songViewYScroll + kDisplayHeight);
+	int32_t numToSearch = std::min<int32_t>(std::ssize(sessionClips), persistentView.songViewYScroll + kDisplayHeight);
 
-	int32_t outputValue = songViewYScroll;
+	int32_t outputValue = persistentView.songViewYScroll;
 
 	for (int32_t i = 0; i < numToSearch; i++) {
 		Clip* clip = sessionClips[i];
@@ -5272,7 +5274,7 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 		return nullptr;
 	}
 	// if we're in rows or the clip can't support in place overdub then use the traditional deluge cloning looper
-	if (sessionLayout == SessionLayoutType::SessionLayoutTypeRows || clip->shouldCloneForOverdubs()) {
+	if (persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeRows || clip->shouldCloneForOverdubs()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
@@ -5283,8 +5285,8 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 		if (newClip && newClip != clip) {
 			newClip->overdubNature = newOverdubNature;
 			(void)sessionClips.insertClipAt(newClip, clipIndex);
-			if (clipIndex != songViewYScroll) {
-				songViewYScroll++;
+			if (clipIndex != persistentView.songViewYScroll) {
+				persistentView.songViewYScroll++;
 			}
 
 			// use root UI in case this is called from performance view
@@ -5488,7 +5490,7 @@ int32_t Song::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* 
 }
 
 void Song::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
-	if (affectEntire) {
+	if (persistentView.affectEntire) {
 		modelStack->setTimelineCounter(this);
 		modelStack->addOtherTwoThingsButNoNoteRow(&globalEffectable, &paramManager);
 	}

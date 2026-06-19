@@ -180,16 +180,16 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		newAction->xScrollClip[BEFORE] = currentSong->xScroll[NAVIGATION_CLIP];
 		newAction->xZoomClip[BEFORE] = currentSong->xZoom[NAVIGATION_CLIP];
 
-		newAction->yScrollArranger[BEFORE] = currentSong->arrangementYScroll;
+		newAction->yScrollArranger[BEFORE] = currentSong->persistentView.arrangementYScroll;
 		newAction->xScrollArranger[BEFORE] = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 		newAction->xZoomArranger[BEFORE] = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
 		newAction->modeNotes[BEFORE] = currentSong->key.modeNotes;
 
-		newAction->tripletsOn = currentSong->tripletsOn;
-		newAction->tripletsLevel = currentSong->tripletsLevel;
+		newAction->tripletsOn = currentSong->persistentView.tripletsOn;
+		newAction->tripletsLevel = currentSong->persistentView.tripletsLevel;
 		// newAction->modKnobModeSongView = currentSong->modKnobMode;
-		newAction->affectEntireSongView = currentSong->affectEntire;
+		newAction->affectEntireSongView = currentSong->persistentView.affectEntire;
 
 		newAction->view = getCurrentUI();
 		newAction->currentClip = getCurrentClip();
@@ -229,7 +229,7 @@ void ActionLogger::updateAction(Action* newAction) {
 	newAction->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
 	newAction->xZoomClip[AFTER] = currentSong->xZoom[NAVIGATION_CLIP];
 
-	newAction->yScrollArranger[AFTER] = currentSong->arrangementYScroll;
+	newAction->yScrollArranger[AFTER] = currentSong->persistentView.arrangementYScroll;
 	newAction->xScrollArranger[AFTER] = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 	newAction->xZoomArranger[AFTER] = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
@@ -514,17 +514,17 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 		}
 
 		// Vertical scroll
-		currentSong->songViewYScroll = action->yScrollSongView[time];
-		currentSong->arrangementYScroll = action->yScrollArranger[time];
+		currentSong->persistentView.songViewYScroll = action->yScrollSongView[time];
+		currentSong->persistentView.arrangementYScroll = action->yScrollArranger[time];
 
 		// Musical Scale
 		currentSong->key.modeNotes = action->modeNotes[time];
 
 		// Other stuff
 		// currentSong->modKnobMode = action->modKnobModeSongView;
-		currentSong->affectEntire = action->affectEntireSongView;
-		currentSong->tripletsOn = action->tripletsOn;
-		currentSong->tripletsLevel = action->tripletsLevel;
+		currentSong->persistentView.affectEntire = action->affectEntireSongView;
+		currentSong->persistentView.tripletsOn = action->tripletsOn;
+		currentSong->persistentView.tripletsLevel = action->tripletsLevel;
 
 		// Now do the animation we decided on - for animations which we prefer to set up before reverting the actual
 		// action

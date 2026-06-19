@@ -1470,7 +1470,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	}
 	if (addUndefinedArea) {
 		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen,
-		                  currentSong->tripletsOn);
+		                  currentSong->persistentView.tripletsOn);
 	}
 
 	return true;
@@ -4392,7 +4392,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 		if (FlashStorage::recordQuantizeLevel) {
 			// If triplets are currently enabled in the song
-			uint32_t baseThing = modelStack->song->tripletsOn ? 4 : 3;
+			uint32_t baseThing = modelStack->song->persistentView.tripletsOn ? 4 : 3;
 			// Number of sequencer ticks we're quantizing to.
 			//
 			// If this is larger than 0x7fffffff we have significant problems down the line, so just cast here so we're

@@ -44,7 +44,7 @@ void AutomationEditorLayoutNote::renderNoteEditor(ModelStackWithNoteRow* modelSt
 	}
 	if (drawUndefinedArea) {
 		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth,
-		                    getAutomationView()->toTimelineView(), currentSong->tripletsOn, xDisplay);
+		                    getAutomationView()->toTimelineView(), currentSong->persistentView.tripletsOn, xDisplay);
 	}
 }
 

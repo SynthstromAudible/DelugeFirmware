@@ -557,7 +557,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	else if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			exitCompletely();
-			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+			if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 				changeRootUI(&arrangerView);
 			}
 			else {

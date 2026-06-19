@@ -469,7 +469,7 @@ void AutomationView::focusRegained() {
 	if (onArrangerView) {
 		indicator_leds::setLedState(IndicatorLED::BACK, false);
 		indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
-		currentSong->affectEntire = true;
+		currentSong->persistentView.affectEntire = true;
 		view.focusRegained();
 		view.setActiveModControllableTimelineCounter(currentSong);
 	}
@@ -1357,10 +1357,12 @@ void AutomationView::handleCrossScreenButtonAction(bool on) {
 		// if another button wasn't pressed while cross screen was held
 		if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
 			if (onArrangerView) {
-				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
+				currentSong->persistentView.arrangerAutoScrollModeActive =
+				    !currentSong->persistentView.arrangerAutoScrollModeActive;
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT,
+				                            currentSong->persistentView.arrangerAutoScrollModeActive);
 
-				if (currentSong->arrangerAutoScrollModeActive) {
+				if (currentSong->persistentView.arrangerAutoScrollModeActive) {
 					arrangerView.reassessWhetherDoingAutoScroll();
 				}
 				else {

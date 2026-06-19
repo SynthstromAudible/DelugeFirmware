@@ -211,7 +211,7 @@ PerformanceView::PerformanceView() {
 }
 
 int32_t PerformanceView::getNavSysId() const {
-	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+	if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 		return NAVIGATION_ARRANGEMENT;
 	}
 	else {
@@ -276,7 +276,7 @@ bool PerformanceView::opened() {
 }
 
 void PerformanceView::focusRegained() {
-	currentSong->affectEntire = true;
+	currentSong->persistentView.affectEntire = true;
 
 	ClipNavigationTimelineView::focusRegained();
 	view.focusRegained();
@@ -300,7 +300,7 @@ void PerformanceView::focusRegained() {
 
 UIType PerformanceView::getUIContextType() {
 	// if performanceView was entered from arranger
-	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+	if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 		return UIType::ARRANGER;
 	}
 	else {
@@ -312,7 +312,7 @@ void PerformanceView::graphicsRoutine() {
 	sessionView.potentiallyUpdateCompressorLEDs();
 
 	// if we're not currently selecting a clip
-	if (!((currentSong->lastClipInstanceEnteredStartPos != -1) && arrangerView.getClipForSelection())) {
+	if (!((currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) && arrangerView.getClipForSelection())) {
 		if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 			PadLEDs::sendOutSidebarColours();
 		}
@@ -320,8 +320,8 @@ void PerformanceView::graphicsRoutine() {
 
 	bool reallyNoTickSquare =
 	    (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
-	     || currentUIMode == UI_MODE_IMPLODE_ANIMATION || currentSong->lastClipInstanceEnteredStartPos != -1
-	     || !session.launchEventAtSwungTickCount);
+	     || currentUIMode == UI_MODE_IMPLODE_ANIMATION
+	     || currentSong->persistentView.lastClipInstanceEnteredStartPos != -1 || !session.launchEventAtSwungTickCount);
 
 	int32_t sixteenthNotesRemaining = 0;
 
@@ -335,7 +335,7 @@ void PerformanceView::graphicsRoutine() {
 }
 
 ActionResult PerformanceView::timerCallback() {
-	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+	if (currentSong->persistentView.lastClipInstanceEnteredStartPos == -1) {
 		sessionView.timerCallback();
 	}
 	else {
@@ -451,7 +451,7 @@ bool PerformanceView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 		return true;
 	}
 
-	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+	if (currentSong->persistentView.lastClipInstanceEnteredStartPos == -1) {
 		sessionView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	else {
@@ -733,7 +733,7 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			}
 			releaseViewOnExit(modelStack);
 			// only allow transitioning from performance view to clip in session view
-			if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+			if (currentSong->persistentView.lastClipInstanceEnteredStartPos == -1) {
 				sessionView.transitionToViewForClip(); // May fail if no currentClip
 			}
 		}
@@ -922,7 +922,7 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			}
 			else {
 				releaseViewOnExit(modelStack);
-				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+				if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 					if (automationView.onArrangerView) {
 						changeRootUI(&automationView);
 					}
@@ -940,7 +940,7 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			// switch back to arranger or session view (it just peeks performance view)
 			if (((AudioEngine::audioSampleTimer - timeKeyboardShortcutPress) >= FlashStorage::holdTime)) {
 				releaseViewOnExit(modelStack);
-				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+				if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 					if (automationView.onArrangerView) {
 						changeRootUI(&automationView);
 					}
@@ -1029,7 +1029,7 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 				return ActionResult::DEALT_WITH;
 			}
 			// if in arranger view
-			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+			if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 				// pressing the first column in sidebar to trigger sections / clips
 				if (xDisplay == kDisplayWidth) {
 					arrangerView.handleStatusPadAction(yDisplay, on, this);
@@ -1046,7 +1046,7 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 			// if in session view
 			else {
 				// if in row mode
-				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+				if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 					sessionView.padAction(xDisplay, yDisplay, on);
 				}
 				// if in grid mode
@@ -1529,7 +1529,7 @@ void PerformanceView::selectEncoderAction(int8_t offset) {
 		}
 		return;
 	}
-	else if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+	else if (currentSong->persistentView.lastClipInstanceEnteredStartPos == -1) {
 		sessionView.selectEncoderAction(offset);
 	}
 	else {
@@ -1569,7 +1569,7 @@ ActionResult PerformanceView::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult PerformanceView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+	if (currentSong->persistentView.lastClipInstanceEnteredStartPos == -1) {
 		return sessionView.verticalEncoderAction(offset, inCardRoutine);
 	}
 	else {

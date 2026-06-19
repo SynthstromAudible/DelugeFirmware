@@ -7245,8 +7245,9 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 			if (drawUndefinedArea) {
 				int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
 
-				clip->drawUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMaskOfRow, renderWidth, this,
-				                        currentSong->tripletsOn); // Sends image pointer for just the one row
+				clip->drawUndefinedArea(
+				    xScroll, xZoom, effectiveLength, image, occupancyMaskOfRow, renderWidth, this,
+				    currentSong->persistentView.tripletsOn); // Sends image pointer for just the one row
 			}
 		}
 

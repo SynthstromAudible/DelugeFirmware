@@ -27,7 +27,8 @@ ActionResult ClipMinder::buttonAction(deluge::hid::Button b, bool on) {
 /// Called by button action of active clip view when b == SESSION_VIEW
 void ClipMinder::transitionToArrangerOrSession() {
 	// should we transition to Arranger View?
-	if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
+	if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1
+	    || getCurrentClip()->isArrangementOnlyClip()) {
 		// try to transition to Arranger View
 		if (arrangerView.transitionToArrangementEditor()) {
 			// successfully transitioned

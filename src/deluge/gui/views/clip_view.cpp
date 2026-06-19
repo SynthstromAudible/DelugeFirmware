@@ -322,10 +322,10 @@ int32_t ClipView::getLengthChopAmount(int32_t square) {
 	uint32_t xZoom = currentSong->xZoom[getNavSysId()];
 
 	if (inTripletsView()) {
-		if (xZoom < currentSong->tripletsLevel) {
+		if (xZoom < currentSong->persistentView.tripletsLevel) {
 			return xZoom * 4 / 3;
 		}
-		else if (xZoom < currentSong->tripletsLevel * 2) {
+		else if (xZoom < currentSong->persistentView.tripletsLevel * 2) {
 			return xZoom * 2 / 3 * (((square + 1) % 2) + 1);
 		}
 	}
@@ -341,10 +341,10 @@ int32_t ClipView::getLengthExtendAmount(int32_t square) {
 	uint32_t xZoom = currentSong->xZoom[getNavSysId()];
 
 	if (inTripletsView()) {
-		if (xZoom < currentSong->tripletsLevel) {
+		if (xZoom < currentSong->persistentView.tripletsLevel) {
 			return xZoom * 4 / 3;
 		}
-		else if (xZoom < currentSong->tripletsLevel * 2) {
+		else if (xZoom < currentSong->persistentView.tripletsLevel * 2) {
 			return xZoom * 2 / 3 * (((square + 1) % 2) + 1);
 		}
 	}

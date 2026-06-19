@@ -135,20 +135,20 @@ void ArrangerView::moveClipToSession() {
 		// Clip already exists in session - just go to it
 		if (!clip->isArrangementOnlyClip()) {
 			int32_t index = currentSong->sessionClips.getIndexForClip(clip);
-			currentSong->songViewYScroll = index - yPressedEffective;
+			currentSong->persistentView.songViewYScroll = index - yPressedEffective;
 		}
 
 		// Or, arrangement-only Clip needs moving to session
 		else {
-			int32_t intendedIndex = currentSong->songViewYScroll + yPressedEffective;
+			int32_t intendedIndex = currentSong->persistentView.songViewYScroll + yPressedEffective;
 
 			if (intendedIndex < 0) {
-				currentSong->songViewYScroll -= intendedIndex;
+				currentSong->persistentView.songViewYScroll -= intendedIndex;
 				intendedIndex = 0;
 			}
 
 			else if (intendedIndex > std::ssize(currentSong->sessionClips)) {
-				currentSong->songViewYScroll -= intendedIndex - std::ssize(currentSong->sessionClips);
+				currentSong->persistentView.songViewYScroll -= intendedIndex - std::ssize(currentSong->sessionClips);
 				intendedIndex = std::ssize(currentSong->sessionClips);
 			}
 
@@ -169,7 +169,7 @@ void ArrangerView::moveClipToSession() {
 
 		goToSongView();
 
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+		if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 			sessionView.selectedClipYDisplay = yPressedEffective;
 			sessionView.selectedClipPressYDisplay = yPressedActual;
@@ -185,8 +185,8 @@ void ArrangerView::moveClipToSession() {
 }
 
 void ArrangerView::goToSongView() {
-	currentSong->xScroll[NAVIGATION_CLIP] = currentSong->xScrollForReturnToSongView;
-	currentSong->xZoom[NAVIGATION_CLIP] = currentSong->xZoomForReturnToSongView;
+	currentSong->xScroll[NAVIGATION_CLIP] = currentSong->persistentView.xScrollForReturnToSongView;
+	currentSong->xZoom[NAVIGATION_CLIP] = currentSong->persistentView.xZoomForReturnToSongView;
 	changeRootUI(&sessionView);
 }
 
@@ -235,7 +235,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			currentSong->affectEntire = !currentSong->affectEntire;
+			currentSong->persistentView.affectEntire = !currentSong->persistentView.affectEntire;
 			// setLedStates();
 			view.setActiveModControllableTimelineCounter(currentSong);
 		}
@@ -246,10 +246,12 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 		if (!on && currentUIMode == UI_MODE_NONE) {
 			// if another button wasn't pressed while cross screen was held
 			if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
-				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
+				currentSong->persistentView.arrangerAutoScrollModeActive =
+				    !currentSong->persistentView.arrangerAutoScrollModeActive;
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT,
+				                            currentSong->persistentView.arrangerAutoScrollModeActive);
 
-				if (currentSong->arrangerAutoScrollModeActive) {
+				if (currentSong->persistentView.arrangerAutoScrollModeActive) {
 					reassessWhetherDoingAutoScroll();
 				}
 				else {
@@ -535,7 +537,8 @@ void ArrangerView::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT,
+	                            currentSong->persistentView.arrangerAutoScrollModeActive);
 
 #ifdef currentClipStatusButtonX
 	view.switchOffCurrentClipPad();
@@ -559,7 +562,7 @@ void ArrangerView::focusRegained() {
 
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 
-	currentSong->lastClipInstanceEnteredStartPos = 0;
+	currentSong->persistentView.lastClipInstanceEnteredStartPos = 0;
 
 	if (!doingAutoScrollNow) {
 		reassessWhetherDoingAutoScroll(); // Can start, but can't stop
@@ -571,7 +574,7 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 	memset(outputsOnScreen, 0, sizeof(outputsOnScreen));
 
 	Output* output = currentSong->firstOutput;
-	int32_t row = 0 - currentSong->arrangementYScroll;
+	int32_t row = 0 - currentSong->persistentView.arrangementYScroll;
 	while (output) {
 		if (row >= kDisplayHeight) {
 			break;
@@ -891,8 +894,8 @@ doNewPress:
 			// If nothing on this row yet, we'll add a brand new Instrument
 			if (!output) {
 
-				int32_t minY = -currentSong->arrangementYScroll - 1;
-				int32_t maxY = -currentSong->arrangementYScroll + currentSong->getNumOutputs();
+				int32_t minY = -currentSong->persistentView.arrangementYScroll - 1;
+				int32_t maxY = -currentSong->persistentView.arrangementYScroll + currentSong->getNumOutputs();
 
 				yPressedEffective = std::max((int32_t)yPressedEffective, minY);
 				yPressedEffective = std::min((int32_t)yPressedEffective, maxY);
@@ -907,7 +910,8 @@ doNewPress:
 				if (!instrumentAlreadyInSong) {
 					currentSong->addOutput(
 					    output,
-					    (yPressedEffective == -currentSong->arrangementYScroll - 1)); // This should always be triggered
+					    (yPressedEffective
+					     == -currentSong->persistentView.arrangementYScroll - 1)); // This should always be triggered
 				}
 
 				outputsOnScreen[yPressedEffective] = output;
@@ -1244,7 +1248,7 @@ void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, Cl
 }
 
 void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance) {
-	lastInteractedOutputIndex = yDisplay + currentSong->arrangementYScroll;
+	lastInteractedOutputIndex = yDisplay + currentSong->persistentView.arrangementYScroll;
 	lastInteractedPos = clipInstance->pos;
 	lastInteractedSection = clipInstance->clip ? clipInstance->clip->section : 255;
 	lastInteractedClipInstance = clipInstance;
@@ -1798,7 +1802,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	// it should already be this clip, but if it ever isn't it would be a disaster
 	currentSong->setCurrentClip(clip);
 
-	currentSong->lastClipInstanceEnteredStartPos = clipInstance->pos;
+	currentSong->persistentView.lastClipInstanceEnteredStartPos = clipInstance->pos;
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 	while ((xZoom >> 1) * kDisplayWidth >= clip->loopLength) {
@@ -1932,7 +1936,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	}
 
 	Output* output = getCurrentOutput();
-	int32_t i = output->clipInstances.firstAtOrAfter(currentSong->lastClipInstanceEnteredStartPos);
+	int32_t i = output->clipInstances.firstAtOrAfter(currentSong->persistentView.lastClipInstanceEnteredStartPos);
 	ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 	if (!clipInstance || clipInstance->clip != getCurrentClip()) {
 		return false;
@@ -1950,13 +1954,13 @@ bool ArrangerView::transitionToArrangementEditor() {
 	}
 
 	int32_t outputIndex = currentSong->getOutputIndex(output);
-	int32_t yDisplay = outputIndex - currentSong->arrangementYScroll;
+	int32_t yDisplay = outputIndex - currentSong->persistentView.arrangementYScroll;
 	if (yDisplay < 0) {
-		currentSong->arrangementYScroll += yDisplay;
+		currentSong->persistentView.arrangementYScroll += yDisplay;
 		yDisplay = 0;
 	}
 	else if (yDisplay >= kDisplayHeight) {
-		currentSong->arrangementYScroll += (yDisplay - kDisplayHeight + 1);
+		currentSong->persistentView.arrangementYScroll += (yDisplay - kDisplayHeight + 1);
 		yDisplay = kDisplayHeight - 1;
 	}
 
@@ -2673,7 +2677,7 @@ cant:
 		}
 
 		newOutput = (AudioOutput*)newClip->output;
-		currentSong->arrangementYScroll--;
+		currentSong->persistentView.arrangementYScroll--;
 	}
 
 	// Or if no old Clip, we just simply make a new Output here and don't worry about Clips
@@ -2965,7 +2969,7 @@ void ArrangerView::reassessWhetherDoingAutoScroll(int32_t pos) {
 
 	doingAutoScrollNow = false;
 
-	if (!currentSong->arrangerAutoScrollModeActive || !arrangement.hasPlaybackActive()) {
+	if (!currentSong->persistentView.arrangerAutoScrollModeActive || !arrangement.hasPlaybackActive()) {
 		return;
 	}
 
@@ -2981,12 +2985,12 @@ void ArrangerView::reassessWhetherDoingAutoScroll(int32_t pos) {
 
 ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 	if (direction >= 0) { // Up
-		if (currentSong->arrangementYScroll >= currentSong->getNumOutputs() - 1) {
+		if (currentSong->persistentView.arrangementYScroll >= currentSong->getNumOutputs() - 1) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
 	else { // Down
-		if (currentSong->arrangementYScroll <= 1 - kDisplayHeight) {
+		if (currentSong->persistentView.arrangementYScroll <= 1 - kDisplayHeight) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -3024,7 +3028,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 
 		actionLogger.deleteAllLogs();
 
-		currentSong->arrangementYScroll += direction;
+		currentSong->persistentView.arrangementYScroll += direction;
 
 		// Drag selected output against the scroll
 		// Shift Output up
@@ -3052,7 +3056,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 		}
 	}
 	else {
-		currentSong->arrangementYScroll += direction;
+		currentSong->persistentView.arrangementYScroll += direction;
 	}
 
 	repopulateOutputsOnScreen();

@@ -62,7 +62,7 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	using namespace deluge::hid::button;
 
 	bool clipMinder = rootUIIsClipMinderScreen();
-	bool arrangerView = !clipMinder && (currentSong->lastClipInstanceEnteredStartPos != -1);
+	bool arrangerView = !clipMinder && (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1);
 	RootUI* rootUI = getRootUI();
 
 	// Clip or Song button

@@ -803,14 +803,14 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType, int32_t 
 void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t indexNumber) {
 	if (stemExportType == StemExportType::CLIP) {
 		// if we're in song row view, we'll reset the y scroll so we're back at the top
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-			currentSong->songViewYScroll = indexNumber - kDisplayHeight;
+		if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+			currentSong->persistentView.songViewYScroll = indexNumber - kDisplayHeight;
 		}
 	}
 	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::MIXDOWN) {
 		// reset arranger view scrolling so we're back at the top left of the arrangement
 		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
-		currentSong->arrangementYScroll = indexNumber - kDisplayHeight;
+		currentSong->persistentView.arrangementYScroll = indexNumber - kDisplayHeight;
 		arrangerView.repopulateOutputsOnScreen(false);
 	}
 	else if (stemExportType == StemExportType::DRUM) {
