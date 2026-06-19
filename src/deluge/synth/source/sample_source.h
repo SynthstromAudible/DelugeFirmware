@@ -16,14 +16,14 @@
  */
 #pragma once
 
-#include "synth/source/sample_playback_port.h" // deluge::synth::SamplePlaybackPort
+#include "synth/source/sample_playback_port.h" // SamplePlaybackPort
 #include "synth/source/source.h"               // deluge::synth::Source, SourceRenderContext, SourceRenderResult
 #include <cstdint>
 
 /// @brief The sample-playback source (OscType::SAMPLE) for one voice-source — the library-resident render
 /// orchestration of @ref deluge::synth::Source.
 ///
-/// Drives one pooled voice-sample reader through a @ref deluge::synth::SamplePlaybackPort: derives this block's
+/// Drives one pooled voice-sample reader through a @ref SamplePlaybackPort: derives this block's
 /// pitch + time-stretch (incl. sequence-sync), decides + sets up the resampling cache, handles the mid-note late
 /// start, calls the port's render, and folds the result into the voice's oscBuffer (incl. the stereo-unison
 /// mix-down). All the app-coupled machinery — the `VoiceSample` reader, the SD cluster cache, time-stretch, the
@@ -32,15 +32,17 @@
 ///
 /// @note Per the L1 reframe this is a **source component** (usable inside Subtractive/RingMod), not a swappable
 /// engine — see `docs/dev/synth_l1_engine_architecture.md`.
-class SampleSource : public deluge::synth::Source {
+namespace deluge::synth {
+
+class SampleSource : public Source {
 public:
-	explicit SampleSource(deluge::synth::SamplePlaybackPort* port) : port_(port) {}
+	explicit SampleSource(SamplePlaybackPort* port) : port_(port) {}
 
 	/// Render one block of sample playback into @c ctx.oscBuffer (the @ref deluge::synth::Source seam). Reads the
 	/// per-block voice values in @p ctx (porta, priority, pre-modulation phaseIncrementStoredValue, the hoisted
 	/// caching pitch-mod flag); the resampling/time-stretch/cache machinery + the per-note source/guide live behind
 	/// the port. No @c Voice& reach.
-	deluge::synth::SourceRenderResult renderSource(const deluge::synth::SourceRenderContext& ctx) override;
+	SourceRenderResult renderSource(const SourceRenderContext& ctx) override;
 
 private:
 	/// Derive this block's pitch (@p phaseIncrement, mutated in place) + @p timeStretchRatio (+ @p noteLengthInSamples
@@ -50,5 +52,7 @@ private:
 	/// time-stretch amount. Also used for the late-start position (with the non-modulated phaseIncrement).
 	uint32_t getSpeedParamForNoSyncing(int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
 
-	deluge::synth::SamplePlaybackPort* port_;
+	SamplePlaybackPort* port_;
 };
+
+} // namespace deluge::synth

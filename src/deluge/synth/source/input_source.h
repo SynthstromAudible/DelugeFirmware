@@ -24,25 +24,25 @@
 class LivePitchShifter;
 
 namespace deluge::synth {
+
 class AudioInputPort;
-}
 
 /// @brief The live-input source (INPUT_L / INPUT_R / INPUT_STEREO) for one voice-source — a @ref synth::Source.
 ///
-/// Reads the host's live-input ring (through the injected @ref deluge::synth::AudioInputPort — the ring + frame
+/// Reads the host's live-input ring (through the injected @ref AudioInputPort — the ring + frame
 /// clock + plug-state + the shared per-channel @ref LiveInputBuffer pool) and sums it into the voice's oscBuffer,
 /// pitch-shifting through a lazily-created @ref LivePitchShifter when the played note is off the input's natural
 /// rate. The port keeps the source free of `AudioEngine`. It owns the pooled pitch-shifter; ownership is
 /// **explicit** (freed in @ref unassign, never in a destructor) — the per-source objects are pooled and reused.
-class InputSource : public deluge::synth::Source {
-	deluge::synth::AudioInputPort* in_;
+class InputSource : public Source {
+	AudioInputPort* in_;
 	LivePitchShifter* livePitchShifter_ = nullptr;
 	/// Which input channel this source plays — latched once at note-on (see @ref prepareForNoteOn), so the per-block
 	/// render context need not carry it.
-	deluge::synth::InputChannel channel_ = deluge::synth::InputChannel::LEFT;
+	InputChannel channel_ = InputChannel::LEFT;
 
 public:
-	explicit InputSource(deluge::synth::AudioInputPort* in) : in_(in) {}
+	explicit InputSource(AudioInputPort* in) : in_(in) {}
 
 	/// Latch the configured input channel for the note about to start (from the source's `OscType`).
 	void prepareForNoteOn(OscType inputType);
@@ -50,7 +50,7 @@ public:
 	/// Render this live-input source's contribution into @c ctx.oscBuffer (always ACTIVE — live input never
 	/// self-unassigns). The @ref deluge::synth::Source seam; the channel-routing/pitch-shift render is the private
 	/// @ref render below.
-	deluge::synth::SourceRenderResult renderSource(const deluge::synth::SourceRenderContext& ctx) override;
+	SourceRenderResult renderSource(const SourceRenderContext& ctx) override;
 
 	/// Free the pooled pitch-shifter (no-op if none held).
 	void unassign();
@@ -65,3 +65,5 @@ private:
 	            int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison, int32_t amplitudeL,
 	            int32_t amplitudeR, int32_t interpolationBufferSize);
 };
+
+} // namespace deluge::synth

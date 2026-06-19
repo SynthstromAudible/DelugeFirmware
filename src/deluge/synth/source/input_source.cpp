@@ -53,6 +53,8 @@ OscType oscTypeForChannel(InputChannel channel) {
 }
 } // namespace
 
+namespace deluge::synth {
+
 void InputSource::prepareForNoteOn(OscType inputType) {
 	channel_ = channelFromOscType(inputType);
 }
@@ -211,7 +213,7 @@ void InputSource::render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseI
 	}
 }
 
-deluge::synth::SourceRenderResult InputSource::renderSource(const deluge::synth::SourceRenderContext& ctx) {
+SourceRenderResult InputSource::renderSource(const SourceRenderContext& ctx) {
 	// Live input never self-unassigns; channel routing follows the channel latched at note-on (see render()).
 	render(ctx.oscBuffer, ctx.numSamples, ctx.phaseIncrement, ctx.sourceAmplitude, ctx.amplitudeIncrement,
 	       ctx.stereoBuffer, ctx.stereoUnison, ctx.amplitudeL, ctx.amplitudeR, ctx.interpolationBufferSize);
@@ -227,3 +229,5 @@ void InputSource::unassign() {
 		livePitchShifter_ = nullptr;
 	}
 }
+
+} // namespace deluge::synth

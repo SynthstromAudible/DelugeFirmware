@@ -23,10 +23,9 @@
 #include <cstdlib> // std::abs
 #include <cstring> // memset
 
-using deluge::synth::SamplePlaybackPort;
-using deluge::synth::SourceRenderResult;
+namespace deluge::synth {
 
-SourceRenderResult SampleSource::renderSource(const deluge::synth::SourceRenderContext& ctx) {
+SourceRenderResult SampleSource::renderSource(const SourceRenderContext& ctx) {
 	int32_t* __restrict__ oscBuffer = ctx.oscBuffer;
 	const int32_t numSamples = ctx.numSamples;
 	const int32_t sourceAmplitude = ctx.sourceAmplitude;
@@ -290,3 +289,5 @@ uint32_t SampleSource::getSpeedParamForNoSyncing(int32_t phaseIncrement, int32_t
 
 	return timeStretchRatio;
 }
+
+} // namespace deluge::synth
