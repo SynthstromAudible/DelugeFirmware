@@ -1189,7 +1189,15 @@ skipAutoRelease: {}
 		                         unassignVoiceAfter, cfg);
 	}
 
-	// Otherwise (FM and ringmod) we go through each unison first, and for each one we render both sources together
+	// Ring-mod: the engine owns the whole per-voice render (unison loop + per-source pitch math + the combine),
+	// mirroring SubtractiveEngine. The per-voice pre-roll is passed in.
+	else if (synthMode == SynthMode::RINGMOD) {
+		ringModEngine.render(*this, oscBuffer, numSamples, doingOscSync, oscSyncPos, overallPitchAdjust,
+		                     sourceWaveIndexIncrements, stereoUnison, filterGain, didStereoTempBuffer, spareBuffers_[2],
+		                     spareBuffers_[3], cfg);
+	}
+
+	// Otherwise (FM) we go through each unison first, and for each one we render both sources together
 	else {
 		if (stereoUnison) {
 			// oscBuffer is always a stereo temp buffer
@@ -1215,12 +1223,7 @@ skipAutoRelease: {}
 			if (overallPitchAdjust != kMaxSampleValue) {
 				for (int32_t s = 0; s < kNumSources; s++) {
 					if (!adjustPitch(phaseIncrements[s], overallPitchAdjust)) {
-						if (synthMode == SynthMode::RINGMOD) {
-							goto skipUnisonPart;
-						}
-						else {
-							sourceAmplitudes[s] = 0; // For FM
-						}
+						sourceAmplitudes[s] = 0; // For FM
 					}
 				}
 			}
@@ -1228,61 +1231,15 @@ skipAutoRelease: {}
 			// If individual source pitch adjusted...
 			for (int32_t s = 0; s < kNumSources; s++) {
 				if (!adjustPitch(phaseIncrements[s], params.paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
-					if (synthMode == SynthMode::RINGMOD) {
-						goto skipUnisonPart;
-					}
-					else {
-						sourceAmplitudes[s] = 0; // For FM
-					}
+					sourceAmplitudes[s] = 0; // For FM
 				}
 			}
 
-			// If ringmod
-			if (synthMode == SynthMode::RINGMOD) [[unlikely]] {
-
-				// Build the per-source render context; the engine owns the cross-source ring-mod relationship
-				// (render both sources raw with source 0 the hard-sync master, then multiply + pan).
-				RingModEngine::Source ringModSources[kNumSources];
-				for (int32_t s = 0; s < kNumSources; s++) {
-					// Work out pulse width, from parameter. This has no effect if we're not actually using square
-					// waves, but just do it anyway, it's a simple calculation
-					int32_t pulseWidth =
-					    (uint32_t)lshiftAndSaturate<1>(params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
-
-					OscType oscType = cfg.oscType[s];
-
-					// Non-wavetable sources have no audioFileHolder; only OscType::WAVETABLE reads the table.
-					WaveTable* waveTable = (oscType == OscType::WAVETABLE)
-					                           ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile)
-					                           : nullptr;
-
-					ringModSources[s] = RingModEngine::Source{
-					    .part = &unisonParts[u].sources[s],
-					    .phaseIncrement = phaseIncrements[s],
-					    .pulseWidth = pulseWidth,
-					    .waveTable = waveTable,
-					    .waveIndexLast = sourceWaveIndexesLastTime[s],
-					    .waveIndexIncrement = sourceWaveIndexIncrements[s],
-					    .oscType = oscType,
-					    .retriggerPhase = cfg.oscRetriggerPhase[s],
-					};
-				}
-
-				ringModEngine.render(ringModSources[0], ringModSources[1], doingOscSync, oscSyncPos[u], cfg.hasFilters,
-				                     filterGain, unisonAmplitudeL, unisonAmplitudeR, stereoUnison, oscBuffer,
-				                     numSamples, spareBuffers_[2], spareBuffers_[3]);
-			}
-
-			// Or if FM
-			else {
-				fmEngine.render(*this, u, numSamples, overallPitchAdjust, stereoUnison, unisonAmplitudeL,
-				                unisonAmplitudeR, phaseIncrements, sourceAmplitudes, sourceAmplitudesNow,
-				                sourceAmplitudeIncrements, modulatorsActive, modulatorAmplitudeIncrements, oscBuffer,
-				                spareBuffers_[2], spareBuffers_[3], cfg);
-			}
+			fmEngine.render(*this, u, numSamples, overallPitchAdjust, stereoUnison, unisonAmplitudeL, unisonAmplitudeR,
+			                phaseIncrements, sourceAmplitudes, sourceAmplitudesNow, sourceAmplitudeIncrements,
+			                modulatorsActive, modulatorAmplitudeIncrements, oscBuffer, spareBuffers_[2],
+			                spareBuffers_[3], cfg);
 		}
-
-skipUnisonPart: {}
 	}
 
 	if (didStereoTempBuffer) {
