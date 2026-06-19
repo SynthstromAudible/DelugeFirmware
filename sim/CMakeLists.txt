@@ -274,7 +274,23 @@ if(RT_LIB)
     target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
 endif()
 
+# Phase-0 song round-trip driver (load -> save -> reload -> save fixed point).
+# See tests/golden/songs_run.py and docs/dev/project_model_extraction.md.
+add_executable(song_roundtrip
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/tests/golden/song_roundtrip.cpp
+)
+target_include_directories(song_roundtrip PRIVATE ${HOST_INCLUDE_DIRS})
+target_link_libraries(song_roundtrip PRIVATE deluge_app deluge_scheduler)
+if(RT_LIB)
+    target_link_libraries(song_roundtrip PRIVATE ${RT_LIB})
+endif()
+
 # ---------------------------------------------------------------------------
+enable_testing()
+
 # Layout-invariance guard (CTest). Render each fixture at two heap-pad layouts
 # (DELUGE_SIM_HEAP_PAD via scripts/golden_mixdown.sh padsweep) and assert the
 # outputs are bit-identical — proving no render depends on allocation addresses.
@@ -284,7 +300,6 @@ endif()
 # (DELUGE_BACKUP), so each test SKIPs (exit 77) when its fixture is absent — a
 # fixtureless CI runner skips rather than fails. Slow (two full renders each);
 # build deluge_render first, then opt in with `ctest -L padsweep`.
-enable_testing()
 foreach(fixture cordae highsiderr icoustic)
     add_test(
         NAME padsweep_${fixture}
@@ -298,3 +313,14 @@ foreach(fixture cordae highsiderr icoustic)
         TIMEOUT 1200
     )
 endforeach()
+
+# CTest gate: serialization round-trip must match committed fixtures.
+# The song corpus is bring-your-own (out-of-repo); set DELUGE_SONG_CORPUS to a
+# songs dir to run it. Without a corpus the runner exits 77 -> SKIPPED, so CI
+# without songs stays green.
+add_test(
+    NAME song_roundtrip
+    COMMAND ${Python_EXECUTABLE} ${REPO_ROOT}/tests/golden/songs_run.py
+            --binary $<TARGET_FILE:song_roundtrip>
+)
+set_tests_properties(song_roundtrip PROPERTIES SKIP_RETURN_CODE 77)
