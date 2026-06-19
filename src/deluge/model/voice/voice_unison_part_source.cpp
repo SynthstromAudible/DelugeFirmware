@@ -35,7 +35,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
                                    uint8_t velocity) {
 
 	if (synthMode != SynthMode::FM && source->oscType == OscType::SAMPLE) {
-		return sampleSource.noteOn(source, guide, samplesLate, voice->getPriorityRating());
+		return sampleVoiceAdapter.noteOn(source, guide, samplesLate, voice->getPriorityRating());
 	}
 
 	if (synthMode != SynthMode::FM
@@ -100,7 +100,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 
 void VoiceUnisonPartSource::unassign(bool deletingSong) {
 	active = false;
-	sampleSource.unassign(deletingSong);
+	sampleVoiceAdapter.unassign(deletingSong);
 	dx7Source.unassign();
 	inputSource.unassign();
 }

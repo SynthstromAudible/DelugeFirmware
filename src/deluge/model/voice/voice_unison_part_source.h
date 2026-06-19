@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/dx/dx_voice_adapter.h"
 #include "model/sample/sample.h"
+#include "model/voice/sample_playback_adapter.h"
 #include "model/voice/sample_source.h"
 #include "processing/live/audio_input_adapter.h"
 #include "synth/source/dx7_source.h"
@@ -77,7 +78,9 @@ public:
 	uint32_t phaseIncrementStoredValue{};
 	int32_t carrierFeedback{};
 	bool active{};
-	SampleSource sampleSource;                  // the SAMPLE source's pooled VoiceSample + render/lifecycle.
+	SamplePlaybackAdapter
+	    sampleVoiceAdapter; // the firmware's VoiceSample pool + reader behind synth::SamplePlaybackPort
+	SampleSource sampleSource{&sampleVoiceAdapter}; // the SAMPLE source (drives the reader through the port).
 	deluge::dsp::DxVoiceAdapter dxVoiceAdapter; // the firmware's MSFA DxVoice-pool adapter behind synth::DxVoicePort
 	deluge::dsp::DX7Source dx7Source{&dxVoiceAdapter}; // the DX7 source (forwards FM to the adapter port).
 	AudioInputAdapter audioInputAdapter;         // the firmware's AudioEngine-backed live-input port (ring/clock/pool).

@@ -629,7 +629,7 @@ void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed
 				for (int32_t u = 0; u < sound.numUnison; u++) {
 					if (unisonParts[u].sources[s].active) {
 
-						bool success = unisonParts[u].sources[s].sampleSource.noteOffAtLoopEnd(this, &guides[s]);
+						bool success = unisonParts[u].sources[s].sampleVoiceAdapter.noteOffAtLoopEnd(this, &guides[s]);
 
 						if (!success) {
 							unisonParts[u].sources[s].unassign(false);
@@ -682,7 +682,7 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive = voiceUnisonPartSource->sampleSource.zoneChanged(
+			bool stillActive = voiceUnisonPartSource->sampleVoiceAdapter.zoneChanged(
 			    &guides[s], sample, source.sampleControls.isCurrentlyReversed(), markerType, loopingType,
 			    getPriorityRating());
 			if (!stillActive) {
@@ -919,7 +919,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 					}
 
 					Sample* sample = (Sample*)guides[s].audioFileHolder->audioFile;
-					int32_t bytePos = voiceUnisonPartSource->sampleSource.getPlayByteLowLevel(sample, &guides[s]);
+					int32_t bytePos = voiceUnisonPartSource->sampleVoiceAdapter.getPlayByteLowLevel(sample, &guides[s]);
 
 					int32_t bytesLeft =
 					    (int32_t)((uint32_t)guides[s].endPlaybackAtByte - (uint32_t)bytePos) * guides[s].playDirection;

@@ -17,105 +17,18 @@
 
 #include "model/voice/sample_source.h"
 #include "definitions_cxx.hpp"
-#include "model/sample/sample.h"
-#include "model/sample/sample_cache.h"
-#include "model/sample/sample_holder_for_voice.h"
-#include "model/song/song.h"
-#include "model/voice/voice.h"
-#include "model/voice/voice_sample.h"
-#include "model/voice/voice_sample_playback_guide.h"
-#include "modulation/params/param_set.h"
-#include "modulation/patch/patch_cable_set.h"
-#include "playback/playback_handler.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
-#include "processing/source.h"
-#include "storage/multi_range/multisample_range.h"
 #include "util/fixedpoint.h"
-#include "util/lookuptables/lookuptables.h"
-#include "util/misc.h"
+#include "util/lookuptables/lookuptables.h" // timeStretchAdjustTable
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
+#include <cstdlib> // std::abs
+#include <cstring> // memset
 
-using namespace deluge;
-namespace params = deluge::modulation::params;
+using deluge::synth::SamplePlaybackPort;
+using deluge::synth::SourceRenderResult;
 
-bool SampleSource::noteOn(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
-                          int32_t priorityRating) {
-
-	// Cache the per-note source config + guide (stable for the note); render reads these instead of reaching Voice&.
-	source_ = source;
-	guide_ = guide;
-
-	if ((guide->audioFileHolder == nullptr) || (guide->audioFileHolder->audioFile == nullptr)
-	    || ((Sample*)guide->audioFileHolder->audioFile)->unplayable) {
-		return true; // We didn't succeed, but don't want to stop the whole Voice from sounding necessarily
-	}
-
-	if (voiceSample_ == nullptr) { // We might actually already have one, and just be restarting this voice
-		voiceSample_ = AudioEngine::solicitVoiceSample();
-		if (voiceSample_ == nullptr) [[unlikely]] {
-			return false;
-		}
-	}
-	else {
-		// if we're restarting a voice we need to clear it's reasons,
-		// otherwise we'll increase now but only reduce by one at note off
-		// not quite thread safe - if the sample is shorter than 64k
-		// an allocation before setupClustersForInitialPlay could steal it
-		voiceSample_->beenUnassigned(false);
-	}
-	voiceSample_->noteOn(guide, samplesLate, priorityRating);
-	if (samplesLate != 0u) {
-		return true; // We're finished in this case
-	}
-	return voiceSample_->setupClusersForInitialPlay(guide, (Sample*)guide->audioFileHolder->audioFile, 0, false, 1);
-}
-
-void SampleSource::unassign(bool deletingSong) {
-	if (voiceSample_ != nullptr) {
-		voiceSample_->beenUnassigned(deletingSong);
-		AudioEngine::voiceSampleUnassigned(voiceSample_);
-		voiceSample_ = nullptr;
-	}
-	source_ = nullptr;
-	guide_ = nullptr;
-}
-
-bool SampleSource::cloneVoiceSampleFrom(const SampleSource& from) {
-	voiceSample_ = AudioEngine::solicitVoiceSample();
-	if (voiceSample_ == nullptr) {
-		return false;
-	}
-
-	VoiceSample& newVoiceSample = *voiceSample_;
-	VoiceSample& oldVoiceSample = *from.voiceSample_;
-
-	// Just clones the SampleLowLevelReader stuff
-	newVoiceSample = SampleLowLevelReader(oldVoiceSample);
-	newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
-	newVoiceSample.doneFirstRenderYet = true;
-	return true;
-}
-
-bool SampleSource::noteOffAtLoopEnd(Voice* voice, VoiceSamplePlaybackGuide* guide) {
-	return voiceSample_->noteOffWhenLoopEndPointExists(voice, guide);
-}
-
-bool SampleSource::zoneChanged(VoiceSamplePlaybackGuide* guide, Sample* sample, bool reversed, MarkerType markerType,
-                               LoopType loopingType, int32_t priorityRating) {
-	return voiceSample_->sampleZoneChanged(guide, sample, reversed, markerType, loopingType, priorityRating);
-}
-
-int32_t SampleSource::getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGuide* guide) {
-	return voiceSample_->getPlayByteLowLevel(sample, guide);
-}
-
-deluge::synth::SourceRenderResult SampleSource::renderSource(const deluge::synth::SourceRenderContext& ctx) {
+SourceRenderResult SampleSource::renderSource(const deluge::synth::SourceRenderContext& ctx) {
 	int32_t* __restrict__ oscBuffer = ctx.oscBuffer;
 	const int32_t numSamples = ctx.numSamples;
-	const bool stereoBuffer = ctx.stereoBuffer;
 	const int32_t sourceAmplitude = ctx.sourceAmplitude;
 	const int32_t amplitudeIncrement = ctx.amplitudeIncrement;
 	uint32_t phaseIncrement = ctx.phaseIncrement; // mutated below by getPitchAndSpeedParams (taken by address)
@@ -125,35 +38,30 @@ deluge::synth::SourceRenderResult SampleSource::renderSource(const deluge::synth
 	const int32_t amplitudeR = ctx.amplitudeR;
 	int32_t* stereoUnisonScratch = ctx.stereoScratch;
 
-	Sample* sample = (Sample*)guide_->audioFileHolder->audioFile;
-	VoiceSample* voiceSample = voiceSample_;
-
-	int32_t numChannels = (sample->numChannels == 2) ? 2 : 1;
+	const int32_t numChannels = port_->numChannels();
 
 	// (The legacy TEST_SAMPLE_LOOP_POINTS fuzzing block was removed here: it mutated voice/sound state via
 	// Voice&/paramManager, incompatible with the synth::Source contract. A debug-only #ifdef, never in normal or
 	// golden builds; reintroduce app-side if wanted.)
 
-	// First figure out the time-stretching amount
-
-	int32_t pitchAdjustNeutralValue = ((SampleHolder*)guide_->audioFileHolder)->neutralPhaseIncrement;
+	// First figure out the time-stretching amount.
 	uint32_t timeStretchRatio;
 	uint32_t noteLengthInSamples;
 
-	bool stillOk = getPitchAndSpeedParams(source_, guide_, &phaseIncrement, &timeStretchRatio, &noteLengthInSamples);
+	bool stillOk = getPitchAndSpeedParams(&phaseIncrement, &timeStretchRatio, &noteLengthInSamples);
 	if (!stillOk) {
-		return deluge::synth::SourceRenderResult::UNASSIGN;
+		return SourceRenderResult::UNASSIGN;
 	}
 
 	// If user unmuted mid-note...
-	bool tryToStartMidNote = voiceSample->pendingSamplesLate;
+	bool tryToStartMidNote = port_->pendingSamplesLate();
 	if (tryToStartMidNote) [[unlikely]] {
 
 		int32_t rawSamplesLate;
 
 		// Synced / STRETCH - it's super easy.
-		if (source_->repeatMode == SampleRepeatMode::STRETCH) {
-			rawSamplesLate = guide_->getSyncedNumSamplesIn();
+		if (port_->isStretchRepeatMode()) {
+			rawSamplesLate = port_->syncedNumSamplesIn();
 		}
 
 		// Or, normal - it needs a bit more explanation.
@@ -166,28 +74,27 @@ deluge::synth::SourceRenderResult SampleSource::renderSource(const deluge::synth
 			// STRETCH mode, which we've already determined we're not in, and crucially pass it the not-patched
 			// phaseIncrementStoredValue. This fix was done in September 2020 after bug
 			// report from Clyde.
-			uint32_t timeStretchRatioWithoutModulation = getSpeedParamForNoSyncing(
-			    source_, phaseIncrementStoredValue, ((SampleHolder*)guide_->audioFileHolder)->neutralPhaseIncrement);
+			uint32_t timeStretchRatioWithoutModulation =
+			    getSpeedParamForNoSyncing(phaseIncrementStoredValue, port_->neutralPhaseIncrement());
 
 			// Cool, so now we've got phaseIncrement and timeStretchRatio equivalent values which will indicate
 			// our correct play position into the sample regardless of pitch modulation (almost always vibrato).
-			rawSamplesLate = ((((uint64_t)voiceSample->pendingSamplesLate * phaseIncrementStoredValue) >> 24)
+			rawSamplesLate = ((((uint64_t)port_->pendingSamplesLate() * phaseIncrementStoredValue) >> 24)
 			                  * timeStretchRatioWithoutModulation)
 			                 >> 24;
 		}
 
-		LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(guide_, sample, rawSamplesLate, numSamples);
-
-		if (result == LateStartAttemptStatus::FAILURE) {
-			return deluge::synth::SourceRenderResult::UNASSIGN;
+		switch (port_->attemptLateStart(rawSamplesLate, numSamples)) {
+		case SamplePlaybackPort::LateStartOutcome::FAILURE:
+			return SourceRenderResult::UNASSIGN;
+		case SamplePlaybackPort::LateStartOutcome::WAIT:
+			return SourceRenderResult::SKIP;
+		case SamplePlaybackPort::LateStartOutcome::OK:
+			break; // it started fine!
 		}
-		else if (result == LateStartAttemptStatus::WAIT) {
-			return deluge::synth::SourceRenderResult::SKIP;
-		}
-		// Otherwise, it started fine!
 	}
 
-	LoopType loopingType = guide_->getLoopingType(*source_);
+	LoopType loopingType = port_->loopingType();
 
 	int32_t interpolationBufferSize;
 
@@ -195,7 +102,7 @@ deluge::synth::SourceRenderResult SampleSource::renderSource(const deluge::synth
 	if (phaseIncrement != kMaxSampleValue) {
 
 		// Work out what quality we're going to do that at
-		interpolationBufferSize = source_->sampleControls.getInterpolationBufferSize(phaseIncrement);
+		interpolationBufferSize = port_->interpolationBufferSize(phaseIncrement);
 
 		// And if first render, and other conditions met, see if we can use cache.
 		// It may seem like it'd be a good idea to try and set this up on note-on, rather than here in the
@@ -203,16 +110,14 @@ deluge::synth::SourceRenderResult SampleSource::renderSource(const deluge::synth
 		// happen to work out pitch and timestretch there as well as here (where it'll be worked out anyway),
 		// including checking the result of patching / modulation (and we *do* allow caching where, say,
 		// velocity or note is affecting pitch), and stretch-syncing.
-		if (!voiceSample->doneFirstRenderYet && !tryToStartMidNote && ctx.portaEnvelopePos == 0xFFFFFFFF) { // No porta
+		if (!port_->doneFirstRenderYet() && !tryToStartMidNote && ctx.portaEnvelopePos == 0xFFFFFFFF) { // No porta
 
 			// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good /
 			// accurate
 			if (loopingType != LoopType::NONE) {
-				SampleHolderForVoice* holder = (SampleHolderForVoice*)guide_->audioFileHolder;
-				int32_t loopStart = holder->loopStartPos ? holder->loopStartPos : holder->startPos;
-				int32_t loopEnd = holder->loopEndPos ? holder->loopEndPos : holder->endPos;
+				SamplePlaybackPort::LoopPoints loop = port_->loopPoints();
 
-				int32_t loopLength = loopEnd - loopStart;
+				int32_t loopLength = loop.end - loop.start;
 				loopLength = std::abs(loopLength);
 				uint64_t phaseIncrementTimesTimeStretchRatio =
 				    ((uint64_t)(uint32_t)phaseIncrement * (uint32_t)timeStretchRatio) >> 24;
@@ -231,10 +136,10 @@ deluge::synth::SourceRenderResult SampleSource::renderSource(const deluge::synth
 
 			{
 				// If still here, we can use cache
-				bool everythingOk = voiceSample->possiblySetUpCache(&source_->sampleControls, guide_, phaseIncrement,
-				                                                    timeStretchRatio, ctx.priorityRating, loopingType);
+				bool everythingOk =
+				    port_->possiblySetUpCache(phaseIncrement, timeStretchRatio, ctx.priorityRating, loopingType);
 				if (!everythingOk) {
-					return deluge::synth::SourceRenderResult::UNASSIGN;
+					return SourceRenderResult::UNASSIGN;
 				}
 			}
 
@@ -262,10 +167,8 @@ dontUseCache: {}
 	// increments for the hop crossfades with the overall voice ones, and having multiple crossfading hops write
 	// directly to the osc buffer).
 
-	bool stillActive =
-	    voiceSample->render(guide_, renderBuffer, numSamples, sample, numChannels, loopingType, phaseIncrement,
-	                        timeStretchRatio, sourceAmplitude, amplitudeIncrement, interpolationBufferSize,
-	                        source_->sampleControls.interpolationMode, ctx.priorityRating);
+	bool stillActive = port_->render(renderBuffer, numSamples, loopingType, phaseIncrement, timeStretchRatio,
+	                                 sourceAmplitude, amplitudeIncrement, interpolationBufferSize, ctx.priorityRating);
 
 	if (stereoUnison) {
 		if (numChannels == 2) {
@@ -285,26 +188,25 @@ dontUseCache: {}
 	}
 
 	if (!stillActive) {
-		return deluge::synth::SourceRenderResult::UNASSIGN;
+		return SourceRenderResult::UNASSIGN;
 	}
-	return deluge::synth::SourceRenderResult::ACTIVE;
+	return SourceRenderResult::ACTIVE;
 }
 
-bool SampleSource::getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t* phaseIncrement,
-                                          uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples) {
+bool SampleSource::getPitchAndSpeedParams(uint32_t* phaseIncrement, uint32_t* timeStretchRatio,
+                                          uint32_t* noteLengthInSamples) {
 
-	int32_t pitchAdjustNeutralValue = ((SampleHolder*)guide->audioFileHolder)->neutralPhaseIncrement;
+	int32_t pitchAdjustNeutralValue = port_->neutralPhaseIncrement();
 
 	// If syncing...
-	if (guide->sequenceSyncLengthTicks) {
+	if (port_->sequenceSyncLengthTicks()) {
 
 		*timeStretchRatio = kMaxSampleValue;
 
 		// That is, after converted to 44.1kHz
-		uint32_t sampleLengthInSamples =
-		    ((SampleHolder*)guide->audioFileHolder)->getLengthInSamplesAtSystemSampleRate(true);
-		*noteLengthInSamples = (playbackHandler.getTimePerInternalTickBig() * guide->sequenceSyncLengthTicks)
-		                       >> 32; // No rounding. Should be fine?
+		uint32_t sampleLengthInSamples = port_->sampleLengthAtSystemSampleRate();
+		*noteLengthInSamples =
+		    (port_->timePerInternalTickBig() * port_->sequenceSyncLengthTicks()) >> 32; // No rounding. Should be fine?
 
 		// To stop things getting insane, limit to 32x speed
 		if ((sampleLengthInSamples >> 5) > *noteLengthInSamples) {
@@ -312,7 +214,7 @@ bool SampleSource::getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackG
 		}
 
 		// If time stretch, achieve syncing that way
-		if (source->sampleControls.pitchAndSpeedAreIndependent) {
+		if (port_->pitchAndSpeedIndependent()) {
 			*timeStretchRatio = (uint64_t)kMaxSampleValue * (uint64_t)sampleLengthInSamples / *noteLengthInSamples;
 
 			// And if pitch was manually adjusted too, that's fine - counteract that by adjusting the time-stretch
@@ -328,10 +230,10 @@ bool SampleSource::getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackG
 				if (*timeStretchRatio >= 15653696 && *timeStretchRatio < 17981375) {
 
 					// And if we're less than 7.8mS out of sync...
-					int32_t numSamplesLaggingBehindSync = guide->getNumSamplesLaggingBehindSync(voiceSample_);
+					int32_t numSamplesLaggingBehindSync = port_->numSamplesLaggingBehindSync();
 					int32_t numSamplesDrift = std::abs(numSamplesLaggingBehindSync);
 
-					if (numSamplesDrift < (((Sample*)guide->audioFileHolder->audioFile)->sampleRate >> 7)) {
+					if (numSamplesDrift < (port_->sampleRate() >> 7)) {
 
 						// We can just not time-stretch... for now
 						*timeStretchRatio = kMaxSampleValue;
@@ -353,7 +255,7 @@ bool SampleSource::getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackG
 
 			// If we're not time stretching / pitch shifting
 			if (!furtherPitchShifting) {
-				*phaseIncrement = guide->adjustPitchToCorrectDriftFromSync(voiceSample_, *phaseIncrement);
+				*phaseIncrement = port_->adjustPitchToCorrectDriftFromSync(*phaseIncrement);
 			}
 		}
 	}
@@ -361,7 +263,7 @@ bool SampleSource::getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackG
 	// Or if no syncing...
 	else {
 
-		*timeStretchRatio = getSpeedParamForNoSyncing(source, *phaseIncrement, pitchAdjustNeutralValue);
+		*timeStretchRatio = getSpeedParamForNoSyncing(*phaseIncrement, pitchAdjustNeutralValue);
 	}
 
 	return true;
@@ -370,21 +272,20 @@ bool SampleSource::getPitchAndSpeedParams(::Source* source, VoiceSamplePlaybackG
 // This normally only gets called from the getPitchAndSpeedParams() function, above, but occasionally we'll also call it
 // from render() when doing a "late start" on a Sample and we need to disregard any pitch modulation, so send this the
 // non-modulated phaseIncrement.
-uint32_t SampleSource::getSpeedParamForNoSyncing(::Source* source, int32_t phaseIncrement,
-                                                 int32_t pitchAdjustNeutralValue) {
+uint32_t SampleSource::getSpeedParamForNoSyncing(int32_t phaseIncrement, int32_t pitchAdjustNeutralValue) {
 
 	uint32_t timeStretchRatio = kMaxSampleValue;
 
 	// If pitch and time being treated independently, then achieve this by adjusting stretch to counteract pitch
-	if (source->sampleControls.pitchAndSpeedAreIndependent) {
+	if (port_->pitchAndSpeedIndependent()) {
 		if (phaseIncrement != pitchAdjustNeutralValue) {
 			timeStretchRatio = ((uint64_t)pitchAdjustNeutralValue << 24) / (uint32_t)phaseIncrement;
 		}
 	}
 
 	// And whether or not that was the case, if there's a manual adjustment to time-stretch, apply that now
-	if (source->timeStretchAmount != 0) {
-		timeStretchRatio = ((uint64_t)timeStretchRatio * timeStretchAdjustTable[source->timeStretchAmount + 48]) >> 24;
+	if (port_->timeStretchAmount() != 0) {
+		timeStretchRatio = ((uint64_t)timeStretchRatio * timeStretchAdjustTable[port_->timeStretchAmount() + 48]) >> 24;
 	}
 
 	return timeStretchRatio;
