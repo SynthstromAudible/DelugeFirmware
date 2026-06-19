@@ -265,6 +265,7 @@ useDefaultFolder:
 
 	drawKeys();
 	favouritesManager.setCategory(defaultDir);
+	favouritesVisible = true;
 	favouritesChanged();
 
 	if (showingAuditionPads()) {

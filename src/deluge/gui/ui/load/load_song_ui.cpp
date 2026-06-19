@@ -74,6 +74,7 @@ bool LoadSongUI::opened() {
 	qwertyCurrentlyDrawnOnscreen = false;
 
 	favouritesManager.setCategory("SONG");
+	favouritesVisible = true;
 	favouritesChanged();
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);

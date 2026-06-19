@@ -100,6 +100,7 @@ bool SampleBrowser::opened() {
 	qwertyAlwaysVisible = false;
 
 	favouritesManager.setCategory("SAMPLES");
+	favouritesVisible = true;
 	favouritesChanged();
 	actionLogger.deleteAllLogs();
 
