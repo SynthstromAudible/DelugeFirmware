@@ -40,6 +40,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
 
@@ -49,6 +50,36 @@ using deluge::dsp::fixed::sine_table;
 #include "libdeluge/control_surface.h"
 
 using namespace deluge;
+
+namespace {
+/// Composite @p squareColour (at @p intensity, out of 65536) into a grid square already holding @p square, updating
+/// its @p occupancyMask (out of 64): the new colour marginalises the old, which is constrained to the remaining
+/// space. Moved here from util/functions.h — it's a pad-LED rendering helper, the grid's only user. @return the
+/// blended square colour.
+[[nodiscard]] inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& square,
+                                    uint8_t* occupancyMask) {
+	int32_t modifiedIntensity = intensity;
+
+	// Make new colour being drawn into this square marginalise the colour already in the square
+	int32_t colourRemainingAmount = 65536;
+
+	// We know how much colour we want to add to this square, so constrain any existing colour to the remaining "space"
+	// that it may still occupy
+	int32_t maxOldOccupancy = (65536 - modifiedIntensity) >> 10;
+
+	// If the square has more colour in it than it's allowed to retain, then plan to reduce it
+	if (*occupancyMask > maxOldOccupancy) {
+		colourRemainingAmount = (maxOldOccupancy << 16) / *occupancyMask; // out of 65536
+	}
+
+	// Add the new colour, reducing the old if that's what we're doing
+	int32_t newOccupancyMaskValue =
+	    rshift_round(*occupancyMask * colourRemainingAmount, 16) + rshift_round(modifiedIntensity, 10);
+	*occupancyMask = std::min<int32_t>(64, newOccupancyMaskValue);
+
+	return RGB::blend2(square, squareColour, colourRemainingAmount, modifiedIntensity);
+}
+} // namespace
 
 namespace PadLEDs {
 RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                      // 255 = full brightness
@@ -416,13 +447,13 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			if (newRowPosition1Array[i] >= 0 && newRowPosition1Array[i] < kDisplayHeight) {
 				PadLEDs::image[newRowPosition1Array[i]][col] =
 				    drawSquare(squareColours, intensity1, PadLEDs::image[newRowPosition1Array[i]][col],
-				               &occupancyMask[newRowPosition1Array[i]][col], occupancyMaskStore[i][col]);
+				               &occupancyMask[newRowPosition1Array[i]][col]);
 			}
 
 			if (newRowPosition1Array[i] >= -1 && newRowPosition1Array[i] < kDisplayHeight - 1) {
 				PadLEDs::image[newRowPosition1Array[i] + 1][col] =
 				    drawSquare(squareColours, intensity2, PadLEDs::image[newRowPosition1Array[i] + 1][col],
-				               &occupancyMask[newRowPosition1Array[i] + 1][col], occupancyMaskStore[i][col]);
+				               &occupancyMask[newRowPosition1Array[i] + 1][col]);
 			}
 		}
 	}
@@ -627,9 +658,8 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 						}
 
 						uint32_t intensityNow = (yIntensity[yOffset] * xIntensityArray[xSource][xOffset]) >> 16;
-						PadLEDs::image[yNow][xNow] =
-						    drawSquare(imageStore[ySource + 1][xSource], intensityNow, PadLEDs::image[yNow][xNow],
-						               &occupancyMask[yNow][xNow], occupancyMaskStore[ySource + 1][xSource]);
+						PadLEDs::image[yNow][xNow] = drawSquare(imageStore[ySource + 1][xSource], intensityNow,
+						                                        PadLEDs::image[yNow][xNow], &occupancyMask[yNow][xNow]);
 					}
 				}
 			}

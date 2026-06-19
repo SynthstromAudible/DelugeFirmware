@@ -17,9 +17,12 @@
 
 #include "io/midi/midi_takeover.h"
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h" // namespace gui (was reached transitively via util/functions.h)
 #include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include <algorithm> // std::min / std::max / std::clamp
+#include <cmath>     // std::round
 
 using namespace deluge;
 using namespace gui;

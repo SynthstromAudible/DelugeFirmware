@@ -22,6 +22,7 @@
 #include "processing/live/live_input_buffer.h"
 #include "synth/source/audio_input_port.h"
 #include "util/functions.h"
+#include <algorithm> // std::min / std::max / std::clamp
 #include <cstdlib>
 
 // #define MEASURE_HOP_END_PERFORMANCE 1

@@ -20,7 +20,6 @@
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
-#include "gui/colour/colour.h"         // IWYU pragma: export todo: this probably shouldn't be exported from here
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
 #include "util/cfunctions.h" // IWYU pragma: export - minimal set of functions which need c linkage
@@ -265,33 +264,6 @@ int32_t fastPythag(int32_t x, int32_t y);
 int32_t strcmpspecial(char const* first, char const* second);
 int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
 int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
-
-// intensity is out of 65536 now
-// occupancyMask is out of 64 now
-inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& square, uint8_t* occupancyMask,
-                      int32_t occupancyFromWhichColourCame) {
-
-	int32_t modifiedIntensity = intensity; //(intensity * occupancyFromWhichColourCame) >> 6; // Out of 65536
-
-	// Make new colour being drawn into this square marginalise the colour already in the square
-	int32_t colourRemainingAmount = 65536;
-
-	// We know how much colour we want to add to this square, so constrain any existing colour to the remaining "space"
-	// that it may still occupy
-	int32_t maxOldOccupancy = (65536 - modifiedIntensity) >> 10;
-
-	// If the square has more colour in it than it's allowed to retain, then plan to reduce it
-	if (*occupancyMask > maxOldOccupancy) {
-		colourRemainingAmount = (maxOldOccupancy << 16) / *occupancyMask; // out of 65536
-	}
-
-	// Add the new colour, reducing the old if that's what we're doing
-	int32_t newOccupancyMaskValue =
-	    rshift_round(*occupancyMask * colourRemainingAmount, 16) + rshift_round(modifiedIntensity, 10);
-	*occupancyMask = std::min<int32_t>(64, newOccupancyMaskValue);
-
-	return RGB::blend2(square, squareColour, colourRemainingAmount, modifiedIntensity);
-}
 
 [[gnu::always_inline]] inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
 	if (magnitude >= 0) {
