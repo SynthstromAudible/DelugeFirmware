@@ -786,7 +786,7 @@ removeLoadingAnimationAndGetOut:
 		// load sample with time stretching
 		uint64_t lengthInSamplesAt44 = (uint64_t)clip->sampleHolder.getDurationInSamples(true) * kSampleRate
 		                               / ((Sample*)clip->sampleHolder.audioFile)->sampleRate;
-		uint32_t sampleLengthInTicks = (lengthInSamplesAt44 << 32) / currentSong->timePerTimerTickBig;
+		uint32_t sampleLengthInTicks = (lengthInSamplesAt44 << 32) / currentSong->project.transport.timePerTimerTickBig;
 
 		int32_t newLength = 3;
 		while (newLength * 1.41 < sampleLengthInTicks) {

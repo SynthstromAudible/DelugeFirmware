@@ -39,7 +39,9 @@ SideChain::SideChain() {
 		song = currentSong;
 	}
 	if (song) {
-		syncLevel = (SyncLevel)(7 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
+		syncLevel = (SyncLevel)(7
+		                        - (song->project.transport.insideWorldTickMagnitude
+		                           + song->project.transport.insideWorldTickMagnitudeOffsetFromBPM));
 	}
 	else {
 		syncLevel = (SyncLevel)(7 - FlashStorage::defaultMagnitude);

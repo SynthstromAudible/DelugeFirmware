@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/groove.h"
+#include "deluge-project/transport.h"
 
 namespace deluge::project {
 
@@ -34,6 +35,7 @@ public:
 	Song();
 
 	Groove groove;
+	Transport transport;
 };
 
 } // namespace deluge::project

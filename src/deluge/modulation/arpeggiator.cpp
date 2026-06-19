@@ -48,7 +48,9 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 		song = currentSong;
 	}
 	if (song) {
-		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
+		syncLevel = (SyncLevel)(8
+		                        - (song->project.transport.insideWorldTickMagnitude
+		                           + song->project.transport.insideWorldTickMagnitudeOffsetFromBPM));
 	}
 	else {
 		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);

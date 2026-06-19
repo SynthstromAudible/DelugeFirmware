@@ -76,7 +76,9 @@ ModControllableAudio::ModControllableAudio() {
 		song = currentSong;
 	}
 	if (song) {
-		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
+		syncLevel = (SyncLevel)(8
+		                        - (song->project.transport.insideWorldTickMagnitude
+		                           + song->project.transport.insideWorldTickMagnitudeOffsetFromBPM));
 	}
 	else {
 		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
@@ -1666,8 +1668,8 @@ void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 char const* ModControllableAudio::getSidechainDisplayName() {
 	int32_t insideWorldTickMagnitude;
 	if (currentSong) { // Bit of a hack just referring to currentSong in here...
-		insideWorldTickMagnitude =
-		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+		insideWorldTickMagnitude = (currentSong->project.transport.insideWorldTickMagnitude
+		                            + currentSong->project.transport.insideWorldTickMagnitudeOffsetFromBPM);
 	}
 	else {
 		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;

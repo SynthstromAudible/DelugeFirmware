@@ -139,8 +139,8 @@ using namespace deluge;
 
 Song::Song() {
 	outputClipInstanceListIsCurrentlyInvalid = false;
-	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
-	insideWorldTickMagnitudeOffsetFromBPM = 0;
+	project.transport.insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
+	project.transport.insideWorldTickMagnitudeOffsetFromBPM = 0;
 	syncScalingClip = nullptr;
 	runtimeView.currentClip = nullptr;
 	slot = 32767;
@@ -151,8 +151,8 @@ Song::Song() {
 	persistentView.xScrollForReturnToSongView = 0;
 
 	persistentView.xZoom[NAVIGATION_CLIP] =
-	    increaseMagnitude(kDefaultClipLength, insideWorldTickMagnitude - kDisplayWidthMagnitude);
-	persistentView.xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << insideWorldTickMagnitude;
+	    increaseMagnitude(kDefaultClipLength, project.transport.insideWorldTickMagnitude - kDisplayWidthMagnitude);
+	persistentView.xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << project.transport.insideWorldTickMagnitude;
 	persistentView.xZoomForReturnToSongView = persistentView.xZoom[NAVIGATION_CLIP];
 
 	persistentView.tripletsOn = false;
@@ -330,7 +330,7 @@ void Song::deleteAllBackedUpParamManagersWithClips() {
 }
 
 bool Song::mayDoubleTempo() {
-	return ((timePerTimerTickBig >> 33) > kMinTimePerTimerTick);
+	return ((project.transport.timePerTimerTickBig >> 33) > kMinTimePerTimerTick);
 }
 
 // Returns true if a Clip created
@@ -345,7 +345,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 
 	(void)sessionClips.insertClipAt(firstClip, 0); // OOM impossible-in-practice this early; ignored as before
 
-	firstClip->loopLength = kDefaultClipLength << insideWorldTickMagnitude;
+	firstClip->loopLength = kDefaultClipLength << project.transport.insideWorldTickMagnitude;
 
 	ParamManager newParamManager; // Deliberate don't set up.
 
@@ -820,7 +820,7 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 	if ((float)newScale * 1.41 < oldScale) {
 		do {
 			newScale *= 2;
-			insideWorldTickMagnitude++;
+			project.transport.insideWorldTickMagnitude++;
 			// insideWorldTickMagnitudeOffsetFromBPM--;
 		} while ((float)newScale * 1.41 < oldScale);
 	}
@@ -828,7 +828,7 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 	else {
 		while ((float)oldScale * 1.41 < newScale) {
 			oldScale *= 2;
-			insideWorldTickMagnitude--;
+			project.transport.insideWorldTickMagnitude--;
 			// insideWorldTickMagnitudeOffsetFromBPM++;
 		}
 	}
@@ -838,13 +838,13 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 
 	oldScale = 3;
 	newScale = getInputTickScale();
-	insideWorldTickMagnitudeOffsetFromBPM = 0;
+	project.transport.insideWorldTickMagnitudeOffsetFromBPM = 0;
 
 	if ((float)newScale * 1.41 < oldScale) {
 		do {
 			newScale *= 2;
 			// insideWorldTickMagnitude++;
-			insideWorldTickMagnitudeOffsetFromBPM--;
+			project.transport.insideWorldTickMagnitudeOffsetFromBPM--;
 		} while ((float)newScale * 1.41 < oldScale);
 	}
 
@@ -852,7 +852,7 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 		while ((float)oldScale * 1.41 < newScale) {
 			oldScale *= 2;
 			// insideWorldTickMagnitude--;
-			insideWorldTickMagnitudeOffsetFromBPM++;
+			project.transport.insideWorldTickMagnitudeOffsetFromBPM++;
 		}
 	}
 }
@@ -1114,8 +1114,8 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("yScrollArrangementView", persistentView.arrangementYScroll);
 	writer.writeAttribute("xScrollArrangementView", persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("xZoomArrangementView", persistentView.xZoom[NAVIGATION_ARRANGEMENT]);
-	writer.writeAttribute("timePerTimerTick", timePerTimerTickBig >> 32);
-	writer.writeAttribute("timerTickFraction", (uint32_t)timePerTimerTickBig);
+	writer.writeAttribute("timePerTimerTick", project.transport.timePerTimerTickBig >> 32);
+	writer.writeAttribute("timerTickFraction", (uint32_t)project.transport.timePerTimerTickBig);
 	writer.writeAttribute("rootNote", key.rootNote);
 	writer.writeAttribute("inputTickMagnitude", getInputTickMagnitude());
 	writer.writeAttribute("swingAmount", project.groove.swingAmount);
@@ -1591,7 +1591,7 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "inputTickMagnitude")) {
-				insideWorldTickMagnitude = reader.readTagOrAttributeValueInt();
+				project.transport.insideWorldTickMagnitude = reader.readTagOrAttributeValueInt();
 				reader.exitTag("inputTickMagnitude");
 			}
 
@@ -2474,7 +2474,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 
 	if (shouldLogAction) {
-		actionLogger.recordTempoChange(timePerTimerTickBig, newTimeBig);
+		actionLogger.recordTempoChange(project.transport.timePerTimerTickBig, newTimeBig);
 	}
 
 	// Alter timing of next and last timer ticks
@@ -2484,7 +2484,7 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 
 		// Using intermediary float here is best: newTimeBig might be a huge number, and below about 2bpm (so not
 		// that low), multiplying it by timeSinceLastTimerTick can overflow a uint64_t
-		timeSinceLastTimerTick = (float)timeSinceLastTimerTick * newTimeBig / timePerTimerTickBig;
+		timeSinceLastTimerTick = (float)timeSinceLastTimerTick * newTimeBig / project.transport.timePerTimerTickBig;
 
 		playbackHandler.timeLastTimerTickBig =
 		    (uint64_t)(uint32_t)(AudioEngine::audioSampleTimer - timeSinceLastTimerTick) << 32;
@@ -2494,14 +2494,14 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 
 		// Using intermediary float here is best: newTimeBig might be a huge number, and below about 2bpm (so not
 		// that low), multiplying it by timeSinceLastTimerTick can overflow a uint64_t
-		timeTilNextTimerTick = (float)timeTilNextTimerTick * newTimeBig / timePerTimerTickBig;
+		timeTilNextTimerTick = (float)timeTilNextTimerTick * newTimeBig / project.transport.timePerTimerTickBig;
 
 		playbackHandler.timeNextTimerTickBig = (uint64_t)(AudioEngine::audioSampleTimer + timeTilNextTimerTick) << 32;
 	}
 
-	timePerTimerTickBig = newTimeBig;
+	project.transport.timePerTimerTickBig = newTimeBig;
 
-	divideByTimePerTimerTick = ((uint64_t)1 << 63) / ((newTimeBig * 3) >> 1);
+	project.transport.divideByTimePerTimerTick = ((uint64_t)1 << 63) / ((newTimeBig * 3) >> 1);
 
 	// Reschedule upcoming swung, MIDI and trigger clock out ticks
 	if (currentSong == this && playbackHandler.isInternalClockActive()) {
@@ -3042,12 +3042,12 @@ void Song::clearTempoAutomation() {
 }
 
 void Song::setBPMInner(float tempoBPM, bool shouldLogAction) {
-	if (insideWorldTickMagnitude > 0) {
-		tempoBPM *= ((uint32_t)1 << (insideWorldTickMagnitude));
+	if (project.transport.insideWorldTickMagnitude > 0) {
+		tempoBPM *= ((uint32_t)1 << (project.transport.insideWorldTickMagnitude));
 	}
 	double timePerTimerTick = (double)110250 / tempoBPM;
-	if (insideWorldTickMagnitude < 0) {
-		timePerTimerTick *= ((uint32_t)1 << (-insideWorldTickMagnitude));
+	if (project.transport.insideWorldTickMagnitude < 0) {
+		timePerTimerTick *= ((uint32_t)1 << (-project.transport.insideWorldTickMagnitude));
 	}
 	setTempoFromNumSamples(timePerTimerTick, shouldLogAction);
 }
@@ -3183,11 +3183,12 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 }
 
 float Song::getTimePerTimerTickFloat() {
-	return (float)timePerTimerTickBig / 4294967296;
+	return (float)project.transport.timePerTimerTickBig / 4294967296;
 }
 
 uint32_t Song::getTimePerTimerTickRounded() {
-	return (uint64_t)((uint64_t)timePerTimerTickBig + (uint64_t)(uint32_t)2147483648uL) >> 32; // Rounds
+	return (uint64_t)((uint64_t)project.transport.timePerTimerTickBig + (uint64_t)(uint32_t)2147483648uL)
+	       >> 32; // Rounds
 }
 
 void Song::addOutput(Output* output, bool atStart) {

@@ -179,7 +179,9 @@ public:
 	int32_t convertSyncLevelFromInternalValueToFileValue(int32_t internalValue);
 	std::string getSongFullPath();
 	void setSongFullPath(const char* fullPath);
-	int32_t getInputTickMagnitude() const { return insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM; }
+	int32_t getInputTickMagnitude() const {
+		return project.transport.insideWorldTickMagnitude + project.transport.insideWorldTickMagnitudeOffsetFromBPM;
+	}
 
 	// The project model (deluge::project::Song). Project data migrates into this group by group
 	// (docs/dev/project_model_extraction.md); ::Song is the controller that owns it. Empty for now.
@@ -202,19 +204,14 @@ public:
 	// View/UI state that IS serialized to the song file (scroll/zoom/layout/triplets/etc.).
 	PersistentViewState persistentView;
 
-	uint64_t timePerTimerTickBig{};
-	int32_t divideByTimePerTimerTick{};
-
 	// How many orders of magnitude faster internal ticks are going than input ticks. Used in combination with
 	// inputTickScale, which is usually 1, but is different if there's an inputTickScaleClip. So, e.g. if
 	// insideWorldTickMagnitude is 1, this means the inside world is spinning twice as fast as the external world, so
 	// MIDI sync coming in representing an 8th-note would be interpreted internally as a quarter-note (because two
 	// internal 8th-notes would have happened, twice as fast, making a quarter-note)
-	int32_t insideWorldTickMagnitude;
 
 	// Sometimes, we'll do weird stuff to insideWorldTickMagnitude for sync-scaling, which would make BPM values look
 	// weird. So, we keep insideWorldTickMagnitudeOffsetFromBPM
-	int32_t insideWorldTickMagnitudeOffsetFromBPM;
 
 	Section sections[kMaxNumSections];
 
@@ -430,12 +427,12 @@ public:
 	}
 	float calculateBPM(float timePerTimerTick) {
 
-		if (insideWorldTickMagnitude > 0) {
-			timePerTimerTick *= ((uint32_t)1 << (insideWorldTickMagnitude));
+		if (project.transport.insideWorldTickMagnitude > 0) {
+			timePerTimerTick *= ((uint32_t)1 << (project.transport.insideWorldTickMagnitude));
 		}
 		float tempoBPM = (float)110250 / timePerTimerTick;
-		if (insideWorldTickMagnitude < 0) {
-			tempoBPM *= ((uint32_t)1 << (-insideWorldTickMagnitude));
+		if (project.transport.insideWorldTickMagnitude < 0) {
+			tempoBPM *= ((uint32_t)1 << (-project.transport.insideWorldTickMagnitude));
 		}
 		return tempoBPM;
 	}

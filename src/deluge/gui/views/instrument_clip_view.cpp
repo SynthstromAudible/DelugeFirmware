@@ -2442,7 +2442,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					uint32_t sampleLength = sound->hasAnyTimeStretchSyncing(paramManager, true, yNote);
 					if (sampleLength) {
 						uint32_t sampleLengthInTicks =
-						    ((uint64_t)sampleLength << 32) / currentSong->timePerTimerTickBig;
+						    ((uint64_t)sampleLength << 32) / currentSong->project.transport.timePerTimerTickBig;
 
 						// Previously I was having it always jump to a "square" number, but as James Meharry pointed
 						// out, what if the Clip is deliberately a non-square length?
@@ -2479,7 +2479,8 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 							// If sample loops, we want to cut out before we get to the loop-point
 							if (anyLooping) {
-								desiredNoteLength = ((uint64_t)sampleLength << 32) / currentSong->timePerTimerTickBig;
+								desiredNoteLength =
+								    ((uint64_t)sampleLength << 32) / currentSong->project.transport.timePerTimerTickBig;
 							}
 
 							// Or if sample doesn't loop, we want to extend just past the end point

@@ -1473,7 +1473,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 		clipInstance->length = clipInstance->clip->loopLength;
 	}
 	else {
-		clipInstance->length = kDefaultClipLength << currentSong->insideWorldTickMagnitude;
+		clipInstance->length = kDefaultClipLength << currentSong->project.transport.insideWorldTickMagnitude;
 	}
 
 	if (clipInstance->length < 1) {
@@ -3311,8 +3311,9 @@ uint32_t ArrangerView::getMaxLength() {
 uint32_t ArrangerView::getMaxZoom() {
 	uint32_t max_length = getMaxLength();
 
-	if (max_length < (kDefaultArrangerZoom << currentSong->insideWorldTickMagnitude) * kDisplayWidth) {
-		return (kDefaultArrangerZoom << currentSong->insideWorldTickMagnitude);
+	if (max_length
+	    < (kDefaultArrangerZoom << currentSong->project.transport.insideWorldTickMagnitude) * kDisplayWidth) {
+		return (kDefaultArrangerZoom << currentSong->project.transport.insideWorldTickMagnitude);
 	}
 
 	uint32_t this_length = kDisplayWidth * 3;
