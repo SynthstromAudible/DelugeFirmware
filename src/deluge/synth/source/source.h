@@ -23,9 +23,6 @@
 #include <cstdint>
 #include <optional>
 
-enum class OscType : uint8_t; // opaque (definitions_cxx.hpp); the context carries it only to select the live-input
-                              // L/R/stereo routing — no definitions include needed in synth/.
-
 namespace deluge::synth {
 
 /// @file
@@ -99,7 +96,6 @@ struct SourceRenderContext {
 	int32_t ampModParam;                ///< DX7 amplitude-mod control (raw param value)
 	bool patchChanged;                  ///< DX7: re-derive the patch state this block
 	int32_t midinote;                   ///< DX7: the (post-arp) note code
-	OscType oscType;                    ///< live-input only: selects L / R / stereo channel routing
 	int32_t interpolationBufferSize;    ///< live-input only: precomputed interp size for the pitch-shift arm
 	uint32_t portaEnvelopePos;          ///< sample only: voice porta position (0xFFFFFFFF ⇒ no porta ⇒ caching ok)
 	int32_t priorityRating;             ///< sample only: voice-cull priority (caching + the VoiceSample render)

@@ -42,6 +42,9 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
 	        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
 		// oscPos = 0;
+		if (source->oscType != OscType::SAMPLE) { // (SAMPLE already returned above) — latch the live-input channel
+			inputSource.prepareForNoteOn(source->oscType);
+		}
 	}
 	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
 		DxPatch* patch = source->ensureDxPatch();

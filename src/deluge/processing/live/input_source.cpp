@@ -15,10 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "processing/live/input_source.h"
-#include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
-#include "io/debug/log.h"
-#include "memory/general_memory_allocator.h"
-#include "memory/heaps.h"
+#include "board_config.h"                      // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
+#include "memory/memory_allocator_interface.h" // allocMaxSpeed / delugeDealloc (the thin allocator seam)
 #include "synth/source/audio_input_port.h"
 #include "synth/source/live/live_input_buffer.h"
 #include "synth/source/live/live_pitch_shifter.h"
@@ -28,28 +26,60 @@
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
-void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement,
-                         int32_t sourceAmplitude, int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison,
-                         int32_t amplitudeL, int32_t amplitudeR, int32_t interpolationBufferSize) {
-	OscType inputTypeNow = oscType;
+using deluge::synth::InputChannel;
+
+namespace {
+/// The configured channel (latched at note-on) ⇆ the `OscType` the live-input port + pitch-shifter still speak.
+/// Keeps the `OscType` coupling local to this translation unit; the rest of the synth source is `InputChannel`.
+InputChannel channelFromOscType(OscType inputType) {
+	switch (inputType) {
+	case OscType::INPUT_R:
+		return InputChannel::RIGHT;
+	case OscType::INPUT_STEREO:
+		return InputChannel::STEREO;
+	default:
+		return InputChannel::LEFT;
+	}
+}
+OscType oscTypeForChannel(InputChannel channel) {
+	switch (channel) {
+	case InputChannel::RIGHT:
+		return OscType::INPUT_R;
+	case InputChannel::STEREO:
+		return OscType::INPUT_STEREO;
+	default:
+		return OscType::INPUT_L;
+	}
+}
+} // namespace
+
+void InputSource::prepareForNoteOn(OscType inputType) {
+	channel_ = channelFromOscType(inputType);
+}
+
+void InputSource::render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement, int32_t sourceAmplitude,
+                         int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison, int32_t amplitudeL,
+                         int32_t amplitudeR, int32_t interpolationBufferSize) {
 	// If pitch shifting and we weren't previously...
 	if (phaseIncrement != kMaxSampleValue) {
 
 		if (!livePitchShifter_) {
 
-			if (inputTypeNow == OscType::INPUT_STEREO && !in_->stereoInputAvailable()) {
-				inputTypeNow = OscType::INPUT_L;
+			// A configured-stereo channel folds to the left channel when the host has no stereo input.
+			InputChannel channelNow = channel_;
+			if (channelNow == InputChannel::STEREO && !in_->stereoInputAvailable()) {
+				channelNow = InputChannel::LEFT;
 			}
+			OscType inputTypeNow = oscTypeForChannel(channelNow);
 
 			LiveInputBuffer* liveInputBuffer = in_->bufferForChannel(inputTypeNow, true);
 
 			if (liveInputBuffer) {
 
-				void* memory = deluge::memory::alloc_fast(sizeof(LivePitchShifter));
+				void* memory = allocMaxSpeed(sizeof(LivePitchShifter));
 
 				if (memory) {
 					livePitchShifter_ = new (memory) LivePitchShifter(inputTypeNow, phaseIncrement);
-					D_PRINTLN("start pitch shifting");
 				}
 			}
 		}
@@ -58,7 +88,6 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 	// If not pitch shifting and we were previously...
 	else {
 		if (livePitchShifter_ && livePitchShifter_->mayBeRemovedWithoutClick()) {
-			D_PRINTLN("stop pitch shifting");
 			livePitchShifter_->~LivePitchShifter();
 			delugeDealloc(livePitchShifter_);
 			livePitchShifter_ = nullptr;
@@ -98,11 +127,11 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 		int32_t sourceAmplitudeThisUnison = sourceAmplitude;
 
 		// Just left, or just right, or if (stereo but there's only the internal, mono mic)
-		if (oscType != OscType::INPUT_STEREO || !in_->stereoInputAvailable()) {
+		if (channel_ != InputChannel::STEREO || !in_->stereoInputAvailable()) {
 
 			int32_t channelOffset;
 			// If right, but not internal mic
-			if (oscType == OscType::INPUT_R && in_->stereoInputAvailable()) {
+			if (channel_ == InputChannel::RIGHT && in_->stereoInputAvailable()) {
 				channelOffset = 1;
 
 				// Or if left or using internal mic
@@ -183,8 +212,8 @@ void InputSource::render(OscType oscType, int32_t* oscBuffer, int32_t numSamples
 }
 
 deluge::synth::SourceRenderResult InputSource::renderSource(const deluge::synth::SourceRenderContext& ctx) {
-	// Live input never self-unassigns; the channel-routing/pitch-shift render is unchanged (see render()).
-	render(ctx.oscType, ctx.oscBuffer, ctx.numSamples, ctx.phaseIncrement, ctx.sourceAmplitude, ctx.amplitudeIncrement,
+	// Live input never self-unassigns; channel routing follows the channel latched at note-on (see render()).
+	render(ctx.oscBuffer, ctx.numSamples, ctx.phaseIncrement, ctx.sourceAmplitude, ctx.amplitudeIncrement,
 	       ctx.stereoBuffer, ctx.stereoUnison, ctx.amplitudeL, ctx.amplitudeR, ctx.interpolationBufferSize);
 	return deluge::synth::SourceRenderResult::ACTIVE;
 }

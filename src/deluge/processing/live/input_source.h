@@ -16,8 +16,9 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp"   // OscType
-#include "synth/source/source.h" // synth::Source, SourceRenderContext, SourceRenderResult
+#include "definitions_cxx.hpp"          // OscType
+#include "synth/source/input_channel.h" // synth::InputChannel
+#include "synth/source/source.h"        // synth::Source, SourceRenderContext, SourceRenderResult
 #include <cstdint>
 
 class LivePitchShifter;
@@ -36,9 +37,15 @@ class AudioInputPort;
 class InputSource : public deluge::synth::Source {
 	deluge::synth::AudioInputPort* in_;
 	LivePitchShifter* livePitchShifter_ = nullptr;
+	/// Which input channel this source plays — latched once at note-on (see @ref prepareForNoteOn), so the per-block
+	/// render context need not carry it.
+	deluge::synth::InputChannel channel_ = deluge::synth::InputChannel::LEFT;
 
 public:
 	explicit InputSource(deluge::synth::AudioInputPort* in) : in_(in) {}
+
+	/// Latch the configured input channel for the note about to start (from the source's `OscType`).
+	void prepareForNoteOn(OscType inputType);
 
 	/// Render this live-input source's contribution into @c ctx.oscBuffer (always ACTIVE — live input never
 	/// self-unassigns). The @ref deluge::synth::Source seam; the channel-routing/pitch-shift render is the private
@@ -49,12 +56,12 @@ public:
 	void unassign();
 
 private:
-	/// Render one block, *summing* the live input into @p oscBuffer. @p oscType selects channel routing
-	/// (L / R / stereo, with the internal-mic + condense rules); @p phaseIncrement != unity engages the
-	/// pitch-shifter. @p interpolationBufferSize is precomputed by Voice (only used on the pitch-shift arm).
-	/// When @p stereoUnison is set, oscBuffer is an interleaved stereo buffer and this unison part's
-	/// mono input is panned across it with @p amplitudeL / @p amplitudeR (the stereo-unison-spread fix).
-	void render(OscType oscType, int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement,
-	            int32_t sourceAmplitude, int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison,
-	            int32_t amplitudeL, int32_t amplitudeR, int32_t interpolationBufferSize);
+	/// Render one block, *summing* the live input into @p oscBuffer. Channel routing follows the latched
+	/// @ref channel_ (L / R / stereo, with the internal-mic + condense rules); @p phaseIncrement != unity engages
+	/// the pitch-shifter. @p interpolationBufferSize is precomputed by Voice (only used on the pitch-shift arm).
+	/// When @p stereoUnison is set, oscBuffer is an interleaved stereo buffer and this unison part's mono input
+	/// is panned across it with @p amplitudeL / @p amplitudeR (the stereo-unison-spread fix).
+	void render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement, int32_t sourceAmplitude,
+	            int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison, int32_t amplitudeL,
+	            int32_t amplitudeR, int32_t interpolationBufferSize);
 };

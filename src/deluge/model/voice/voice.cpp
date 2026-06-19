@@ -1811,7 +1811,6 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .ampModParam = params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s], // DX7 amplitude-mod control
 	    .patchChanged = cfg.dxPatchChanged[s],                                       // DX7
 	    .midinote = noteCodeAfterArpeggiation,                                       // DX7
-	    .oscType = cfg.oscType[s],                                                   // live input: L/R/stereo routing
 	    .interpolationBufferSize =
 	        SampleControls::getInterpolationBufferSize(cfg.interpolationMode[s], phaseIncrement), // live input
 	    .portaEnvelopePos = portaEnvelopePos,                                                     // sample
