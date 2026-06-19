@@ -40,7 +40,9 @@ using StereoSample = deluge::dsp::StereoSample;
 class Instrument;
 class Sound;
 class ParamManagerForTimeline;
+namespace deluge::synth {
 class LiveInputBuffer;
+}
 class SampleRecorder;
 class Voice;
 class VoiceSample;
@@ -163,7 +165,7 @@ void voiceSampleUnassigned(VoiceSample* voiceSample);
 TimeStretcher* solicitTimeStretcher();
 void timeStretcherUnassigned(TimeStretcher* timeStretcher);
 
-LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate);
+deluge::synth::LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate);
 void slowRoutine();
 void doRecorderCardRoutines();
 

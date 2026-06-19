@@ -21,15 +21,15 @@
 #include <cstdint>
 
 namespace deluge::synth {
+
 class AudioInputPort;
-}
 
 class LiveInputBuffer {
 public:
 	LiveInputBuffer();
 	~LiveInputBuffer() = default;
 	/// Ingest @p numSamples of fresh input (via @p port — the ring + frame clock) and run the angle/perc analysis.
-	void giveInput(int32_t numSamples, deluge::synth::AudioInputPort& port, OscType inputType);
+	void giveInput(int32_t numSamples, AudioInputPort& port, OscType inputType);
 	bool getAveragesForCrossfade(int32_t* totals, int32_t startPos, int32_t lengthToAverageEach, int32_t numChannels);
 
 	uint32_t upToTime;
@@ -45,3 +45,5 @@ public:
 	// Must be last!!! Cos we're gonna allocate and access it double-length for stereo
 	int32_t rawBuffer[kInputRawBufferSize]{};
 };
+
+} // namespace deluge::synth

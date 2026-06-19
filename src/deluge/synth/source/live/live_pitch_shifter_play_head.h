@@ -22,6 +22,8 @@
 #include "dsp-next/fixed/interpolation/interpolator.h"
 #include <array>
 
+namespace deluge::synth {
+
 class LivePitchShifter;
 class LiveInputBuffer;
 
@@ -59,3 +61,5 @@ struct LivePitchShifterPlayHead {
 
 	uint32_t percPos = 0;
 };
+
+} // namespace deluge::synth

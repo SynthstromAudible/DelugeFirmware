@@ -20,11 +20,10 @@
 #include "definitions_cxx.hpp"
 #include "synth/source/live/live_pitch_shifter_play_head.h"
 
-class LiveInputBuffer;
-
 namespace deluge::synth {
+
+class LiveInputBuffer;
 class AudioInputPort;
-}
 
 class LivePitchShifter {
 public:
@@ -37,7 +36,7 @@ public:
 	/// per-routine hop accounting (CPU-load spreading) — the pitch-shifter itself stays free of that global.
 	[[nodiscard]] int32_t render(int32_t* outputBuffer, int32_t numSamplesThisFunctionCall, int32_t phaseIncrement,
 	                             int32_t amplitude, int32_t amplitudeIncrement, int32_t interpolationBufferSize,
-	                             deluge::synth::AudioInputPort& port);
+	                             AudioInputPort& port);
 
 	bool mayBeRemovedWithoutClick();
 
@@ -72,3 +71,5 @@ private:
 	void considerRepitchedBuffer(int32_t phaseIncrement);
 	bool olderPlayHeadIsCurrentlySounding();
 };
+
+} // namespace deluge::synth

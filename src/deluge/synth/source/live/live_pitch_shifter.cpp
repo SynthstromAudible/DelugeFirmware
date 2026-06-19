@@ -27,9 +27,11 @@
 
 // #define MEASURE_HOP_END_PERFORMANCE 1
 
-LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement)
-    : numChannels((newInputType == OscType::INPUT_STEREO) ? 2 : 1), inputType(newInputType),
-      crossfadeProgress(kMaxSampleValue), crossfadeIncrement(0), samplesIntoHop(0), percThresholdForCut(0) {
+namespace deluge::synth {
+
+LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement) {
+	inputType = newInputType;
+	numChannels = (newInputType == OscType::INPUT_STEREO) ? 2 : 1;
 
 	if (phaseIncrement < kMaxSampleValue) {
 		nextCrossfadeLength = samplesTilHopEnd = kInterpolationMaxNumSamples * 2;
@@ -43,6 +45,9 @@ LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement)
 	else {
 		nextCrossfadeLength = samplesTilHopEnd = 256;
 	}
+
+	crossfadeProgress = kMaxSampleValue;
+	samplesIntoHop = 0;
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	stillWritingToRepitchedBuffer = false;
@@ -68,7 +73,7 @@ LivePitchShifter::~LivePitchShifter() {
 
 int32_t LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSamplesThisFunctionCall,
                                  int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
-                                 int32_t interpolationBufferSize, deluge::synth::AudioInputPort& port) {
+                                 int32_t interpolationBufferSize, AudioInputPort& port) {
 
 	LiveInputBuffer* liveInputBuffer = port.bufferForChannel(inputType, false);
 	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) {
@@ -867,3 +872,5 @@ bool LivePitchShifter::olderPlayHeadIsCurrentlySounding() {
 bool LivePitchShifter::mayBeRemovedWithoutClick() {
 	return (!olderPlayHeadIsCurrentlySounding() && playHeads[PLAY_HEAD_NEWER].mode == PlayHeadMode::RAW_DIRECT);
 }
+
+} // namespace deluge::synth

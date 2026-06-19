@@ -33,7 +33,7 @@ const int32_t* AudioInputAdapter::ringEnd() const {
 	return AudioEngine::inputRingEnd();
 }
 
-LiveInputBuffer* AudioInputAdapter::bufferForChannel(OscType inputType, bool mayCreate) {
+deluge::synth::LiveInputBuffer* AudioInputAdapter::bufferForChannel(OscType inputType, bool mayCreate) {
 	return AudioEngine::getOrCreateLiveInputBuffer(inputType, mayCreate);
 }
 

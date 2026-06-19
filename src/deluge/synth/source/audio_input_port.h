@@ -19,9 +19,10 @@
 #include <cstdint>
 
 enum class OscType : uint8_t; // opaque (definitions_cxx.hpp); only INPUT_L/INPUT_R/INPUT_STEREO reach the port
-class LiveInputBuffer;        // the per-channel ingest+analysis buffer; host-pooled (relocates into the library later)
 
 namespace deluge::synth {
+
+class LiveInputBuffer; // the per-channel ingest+analysis buffer; host-pooled
 
 /// @brief The port through which the live-input source reads the host's audio input — the dependency-inversion seam
 /// that lets the live-input DSP (the pitch-shifter, the ingest/analysis buffer) live in the library without naming

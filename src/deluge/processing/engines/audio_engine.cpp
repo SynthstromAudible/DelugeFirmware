@@ -79,6 +79,7 @@
 namespace params = deluge::modulation::params;
 
 using namespace deluge;
+using deluge::synth::LiveInputBuffer;
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
@@ -1422,7 +1423,7 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 }
 
 // TODO: delete unused ones
-LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
+deluge::synth::LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 	const auto idx = util::to_underlying(inputType) - util::to_underlying(OscType::INPUT_L);
 	if (!liveInputBuffers[idx]) {
 		if (!mayCreate) {

@@ -30,6 +30,8 @@
 
 #include "arm_neon_shim.h"
 
+namespace deluge::synth {
+
 void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, int32_t numChannels,
                                       int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
                                       int32_t* repitchedBuffer, int32_t* rawBuffer, int32_t whichKernel,
@@ -192,3 +194,5 @@ void LivePitchShifterPlayHead::fillInterpolationBuffer(LiveInputBuffer* liveInpu
 		}
 	}
 }
+
+} // namespace deluge::synth

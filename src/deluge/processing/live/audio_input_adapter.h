@@ -27,6 +27,6 @@ public:
 	[[nodiscard]] bool stereoInputAvailable() const override;
 	[[nodiscard]] const int32_t* ringReadPos() const override;
 	[[nodiscard]] const int32_t* ringEnd() const override;
-	[[nodiscard]] LiveInputBuffer* bufferForChannel(OscType inputType, bool mayCreate) override;
+	[[nodiscard]] deluge::synth::LiveInputBuffer* bufferForChannel(OscType inputType, bool mayCreate) override;
 	void reportHops(int32_t hopsEnded) override;
 };

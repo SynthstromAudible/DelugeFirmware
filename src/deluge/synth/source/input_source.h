@@ -21,11 +21,10 @@
 #include "synth/source/source.h"        // synth::Source, SourceRenderContext, SourceRenderResult
 #include <cstdint>
 
-class LivePitchShifter;
-
 namespace deluge::synth {
 
 class AudioInputPort;
+class LivePitchShifter;
 
 /// @brief The live-input source (INPUT_L / INPUT_R / INPUT_STEREO) for one voice-source — a @ref synth::Source.
 ///

@@ -22,12 +22,14 @@
 #include "util/functions.h"
 #include <string.h>
 
+namespace deluge::synth {
+
 LiveInputBuffer::LiveInputBuffer() {
 	upToTime = 0;
 	numRawSamplesProcessed = 0;
 }
 
-void LiveInputBuffer::giveInput(int32_t numSamples, deluge::synth::AudioInputPort& port, OscType inputType) {
+void LiveInputBuffer::giveInput(int32_t numSamples, AudioInputPort& port, OscType inputType) {
 
 	uint32_t currentTime = port.sampleTime();
 
@@ -128,3 +130,5 @@ bool LiveInputBuffer::getAveragesForCrossfade(int32_t* totals, int32_t startPos,
 
 	return true;
 }
+
+} // namespace deluge::synth
