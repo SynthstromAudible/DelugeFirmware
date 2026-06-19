@@ -42,10 +42,10 @@ using StereoSample = deluge::dsp::StereoSample;
 class ModelStackWithSoundFlags;
 using namespace deluge;
 class Voice final {
-	// Transitional: the subtractive/FM engines own their drivers but still delegate the per-source render +
-	// pitch/feedback math back to Voice's private methods. See synth_l1_engine_architecture.md.
+	// Transitional: the subtractive engine still delegates the per-source render back to Voice's private
+	// renderBasicSource. See synth_l1_engine_architecture.md. (FMEngine no longer needs friend access — it owns its
+	// operator renders and calls the public static adjustPitch.)
 	friend class SubtractiveEngine;
-	friend class FMEngine;
 
 public:
 	Voice(Sound& sound);
@@ -122,6 +122,10 @@ public:
 	uint32_t getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modulation::params::Local param,
 	                                   uint32_t syncedPhaseIncrement);
 	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);
+	/// Scale @p phaseIncrement by @p adjustment (a pitch-adjust patch value); @return false if it overflows (the
+	/// note frequency is too high and the source/modulator should be dropped). Pure — used by Voice's per-source
+	/// pitch math and by FMEngine for its modulators.
+	static bool adjustPitch(uint32_t& phaseIncrement, int32_t adjustment);
 	bool render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock, int32_t* soundBuffer,
 	            int32_t numSamples, bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
 	            bool doLPF, bool doHPF, int32_t externalPitchAdjust, const VoiceConfig& cfg,
@@ -194,17 +198,6 @@ private:
 	                      uint32_t phaseIncrement, bool doOscSync, uint32_t* oscSyncPos,
 	                      uint32_t* oscSyncPhaseIncrements, int32_t waveIndexIncrement, bool stereoUnison,
 	                      int32_t amplitudeL, int32_t amplitudeR, const VoiceConfig& cfg);
-	static bool adjustPitch(uint32_t& phaseIncrement, int32_t adjustment);
-
-	void renderSineWaveWithFeedback(int32_t* thisSample, int32_t numSamples, uint32_t* phase, int32_t amplitude,
-	                                uint32_t phaseIncrement, int32_t feedbackAmount, int32_t* lastFeedbackValue,
-	                                bool add, int32_t amplitudeIncrement);
-	void renderFMWithFeedback(int32_t* thisSample, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
-	                          int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
-	                          int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
-	void renderFMWithFeedbackAdd(int32_t* thisSample, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
-	                             int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
-	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
 	bool areAllUnisonPartsInactive(const VoiceConfig& cfg) const;
 	void setupPorta(const Sound& sound);
 	int32_t combineExpressionValues(int32_t synthLevelValue, int32_t expressionDimension) const;

@@ -27,10 +27,10 @@ struct VoiceConfig;
 /// derivation, the modulators (with the `modulator1ToModulator0` routing and the carriers-only fallback when no
 /// modulators are active), the carriers (FM'd by the modulators, with feedback), and the stereo-unison fold.
 ///
-/// **Transitional shape** (like @ref SubtractiveEngine): the per-operator sine/FM-with-feedback renders and the
-/// pitch math still live in Voice (`renderSineWaveWithFeedback` / `renderFMWithFeedback` /
-/// `renderFMWithFeedbackAdd` / `adjustPitch`, all private), so the engine **delegates** to them via the passed-in
-/// `Voice&` and is a `friend` of Voice. Stateless for now; the modulator/carrier phase + feedback state stays on
+/// The engine owns the per-operator sine/FM-with-feedback renders (the FM DSP — `renderSineWaveWithFeedback` /
+/// `renderFMWithFeedback` / `renderFMWithFeedbackAdd`, below); the shared pitch helper `Voice::adjustPitch` is a
+/// public static it calls. It reads the per-unison phase/feedback state through the passed-in `Voice&` (public
+/// members only — no `friend` needed). Stateless for now; the modulator/carrier phase + feedback state stays on
 /// the VoiceUnisonParts.
 class FMEngine {
 public:
@@ -44,4 +44,17 @@ public:
 	            const int32_t* sourceAmplitudeIncrements, bool* modulatorsActive,
 	            const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer, int32_t* modulatorScratch,
 	            int32_t* carrierScratch, const VoiceConfig& cfg);
+
+private:
+	// The FM operator renders (pure DSP over the passed buffers/phases). Moved here from Voice — they read no
+	// Voice state, so the engine no longer needs to be a friend of Voice.
+	static void renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples, uint32_t* phase, int32_t amplitude,
+	                                       uint32_t phaseIncrement, int32_t feedbackAmount, int32_t* lastFeedbackValue,
+	                                       bool add, int32_t amplitudeIncrement);
+	static void renderFMWithFeedback(int32_t* bufferStart, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
+	                                 int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
+	                                 int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
+	static void renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
+	                                    int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
+	                                    int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
 };
