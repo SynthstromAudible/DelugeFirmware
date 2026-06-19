@@ -204,10 +204,16 @@ Subtractive. The dispatch (`voice.cpp:1181–1285`) then collapses to a clean 3-
    `oscPos`/`carrierFeedback` stay on `VoiceUnisonPartSource` (Source-tier, mode-shared); the grid *setup* logic
    stays in `Voice` (writes `fmEngine`'s public arrays) until the kernel lift. (`setSynthMode` kills voices first, so
    the relocation is reinit-neutral.) Bit-exact: x86 336/336 + ARM/qemu FM families; lints green.
-3. **Promote DX7 Source→Engine.** `OscType::DX7` becomes an Engine selection rather than a Source oscType (it is
-   already a complete 6-op voice; `dx7_source.{h,cpp}` → `DX7Engine`).
-4. **Introduce the `EngineRegistry`.** Replace the `SynthMode`/`OscType` dispatch with engine selection — the L1 plug
-   point. A closed registry over the built-in set first; runtime registration when foreign engines become a goal.
+3. ~~Promote DX7 Source→Engine~~ **Dropped (2026-06-19): DX7 stays a `DX7Source`.** Verified DX7 is a *composable
+   per-source* oscType (osc A = DX7, osc B = saw, mixed; `voice.cpp:1523`, `processing/source.h:38,47`), so an
+   engine-only promotion would break compat. Its 6-op FM graph is private Source composition (like a wavetable
+   source's phasor+table). A whole-voice DX7 *engine* is a deferred *additional* end-state ("DX7 as both") — partly
+   redundant with osc-A-only DX7 and a UX/product call — not a near-term slice. (Decision: Kate.) See
+   `synth_l1_engine_architecture.md` "Mapping the current Deluge."
+4. **Introduce the `EngineRegistry`** (the next engine-tier slice). Replace the `SynthMode`/`OscType` dispatch with
+   engine selection — the L1 plug point. A closed registry over the coordinators (Subtractive/RingMod/FM) first,
+   with the contract left open to a future self-contained whole-voice engine (DX7/Plaits); runtime registration when
+   foreign engines become a goal.
 5. **Move the Engine tier to `synth/`** behind `check_synth_boundary.py`. Co-lands with step 1's typed-param bridge
    where the engines feed their owned Sources (`synth_source_ownership.md` Stage A) so no `LOCAL_*`/`model/` leak
    crosses the boundary.
