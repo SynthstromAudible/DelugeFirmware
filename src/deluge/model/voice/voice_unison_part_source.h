@@ -22,8 +22,8 @@
 #include "model/sample/sample.h"
 #include "model/voice/sample_source.h"
 #include "processing/live/audio_input_adapter.h"
-#include "processing/live/input_source.h"
 #include "synth/source/dx7_source.h"
+#include "synth/source/input_source.h"
 #include "synth/source/virtual_analog_source.h"
 #include "synth/source/wavetable_source.h"
 #include <optional>
