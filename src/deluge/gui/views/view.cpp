@@ -332,7 +332,25 @@ doEndMidiLearnPressSession:
 	else if (b == SYNC_SCALING) {
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-			currentSong->changeFillMode(on);
+
+			// If notes pressed, adjust note fill
+			if (on && (currentUIMode == UI_MODE_NOTES_PRESSED || instrumentClipView.numEditPadPresses > 0)) {
+				currentSong->changeFillMode(on);
+				instrumentClipView.adjustNoteFillWithOffset(1);
+				return ActionResult::DEALT_WITH;
+			}
+			else if (on && (currentUIMode == UI_MODE_AUDITIONING)) {
+				currentSong->changeFillMode(on);
+				instrumentClipView.setNoteRowFillWithOffset(1);
+				return ActionResult::DEALT_WITH;
+			}
+			else if (!on && (currentUIMode == UI_MODE_NOTES_PRESSED || instrumentClipView.numEditPadPresses > 0)) {
+				currentSong->changeFillMode(on);
+				return ActionResult::DEALT_WITH;
+			}
+			else {
+				currentSong->changeFillMode(on);
+			}
 		}
 		else if (on && currentUIMode == UI_MODE_NONE) {
 

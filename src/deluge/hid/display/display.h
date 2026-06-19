@@ -23,6 +23,8 @@ enum class PopupType {
 	PROBABILITY,
 	/// Popup shown when editing note or row iterance.
 	ITERANCE,
+	/// Popup shown when editing note or row fill.
+	FILL,
 	/// Swing amount and interval
 	SWING,
 	/// Tempo
