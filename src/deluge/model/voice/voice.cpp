@@ -40,7 +40,6 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/live/live_pitch_shifter.h"
 #include "processing/sound/sound.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -48,6 +47,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
+#include "synth/source/live/live_pitch_shifter.h"
 
 #include "dsp/oscillators/oscillator.h"
 #include "util/functions.h" // getTanHAntialiased (output-stage saturation)

@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/live/live_pitch_shifter.h"
+#include "synth/source/live/live_pitch_shifter.h"
 #include "definitions_cxx.hpp"                    // TimeStretch::Crossfade constants
 #include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
 #include "foundation/panic.h"                     // FREEZE_WITH_ERROR
-#include "processing/live/live_input_buffer.h"
 #include "synth/source/audio_input_port.h"
+#include "synth/source/live/live_input_buffer.h"
 #include "util/functions.h"
 #include <algorithm> // std::min / std::max / std::clamp
 #include <cstdlib>

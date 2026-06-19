@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/live/live_input_buffer.h"
+#include "synth/source/live/live_input_buffer.h"
 #include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
 #include "definitions_cxx.hpp"
 #include "synth/source/audio_input_port.h"

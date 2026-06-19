@@ -52,7 +52,6 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
-#include "processing/live/live_input_buffer.h"
 #include "processing/metronome/metronome.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -64,6 +63,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "synth/envelope.h"
+#include "synth/source/live/live_input_buffer.h"
 #include "util/functions.h"
 #include "util/misc.h"
 #include <algorithm>

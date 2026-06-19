@@ -19,9 +19,9 @@
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
-#include "processing/live/live_input_buffer.h"
-#include "processing/live/live_pitch_shifter.h"
 #include "synth/source/audio_input_port.h"
+#include "synth/source/live/live_input_buffer.h"
+#include "synth/source/live/live_pitch_shifter.h"
 #include "util/fixedpoint.h"
 #include <cstring>
 #include <new>
