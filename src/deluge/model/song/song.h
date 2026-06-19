@@ -215,10 +215,6 @@ public:
 
 	Section sections[kMaxNumSections];
 
-	uint16_t slot;
-	int8_t subSlot;
-	std::string name{};
-
 	uint8_t sectionToReturnToAfterSongEnd{};
 
 	bool wasLastInArrangementEditor{};
@@ -232,8 +228,6 @@ public:
 	RuntimeViewState runtimeView;
 
 	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams]{};
-
-	std::string dirPath{};
 
 	std::array<SessionMacro, 8> sessionMacros{};
 

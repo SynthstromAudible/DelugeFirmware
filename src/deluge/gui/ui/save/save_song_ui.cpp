@@ -69,7 +69,7 @@ doReturnFalse:
 	Error error;
 
 	std::string searchFilename;
-	searchFilename = currentSong->name;
+	searchFilename = currentSong->project.metadata.name;
 	if (!searchFilename.empty()) {
 		if (writeJsonFlag) {
 			searchFilename.append(".Json");
@@ -87,7 +87,7 @@ gotError:
 	}
 	currentFolderIsEmpty = false;
 
-	currentDir = currentSong->dirPath;
+	currentDir = currentSong->project.metadata.dirPath;
 
 	error = arrivedInNewFolder(0, searchFilename.c_str(), "SONGS");
 	if (error != Error::NONE) {
@@ -210,8 +210,8 @@ gotError:
 				// If saving as *same* song name/slot, collecting samples, and it already came from alt location, no
 				// need to do it again
 				if (collectingSamples && !audioFile->loadedFromAlternatePath.empty()) {
-					if (deluge::string::caselessEquals(currentDir, currentSong->dirPath)) {
-						if (deluge::string::caselessEquals(enteredText, currentSong->name)) {
+					if (deluge::string::caselessEquals(currentDir, currentSong->project.metadata.dirPath)) {
+						if (deluge::string::caselessEquals(enteredText, currentSong->project.metadata.name)) {
 							return true;
 						}
 					}
@@ -494,8 +494,8 @@ cardError:
 	                          ? (deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_MOVING_TEMP_FILES))
 	                          : (deluge::l10n::get(deluge::l10n::String::STRING_FOR_SONG_SAVED));
 	// Update all of these
-	currentSong->name = enteredText;
-	currentSong->dirPath = currentDir;
+	currentSong->project.metadata.name = enteredText;
+	currentSong->project.metadata.dirPath = currentDir;
 
 	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
 		runtimeFeatureSettings.writeSettingsToFile();

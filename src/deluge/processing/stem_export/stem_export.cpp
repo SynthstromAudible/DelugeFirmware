@@ -934,12 +934,12 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 	tempPath.append("/");
 
 	// tempPath = SAMPLES/EXPORTS/*INSERT SONG NAME*
-	if (currentSong->name.empty()) { // if you have saved song yet
+	if (currentSong->project.metadata.name.empty()) { // if you have not saved song yet
 		tempPath.append("UNSAVED");
 		error = Error::NONE;
 	}
 	else {
-		tempPath.append(currentSong->name.c_str());
+		tempPath.append(currentSong->project.metadata.name);
 		error = Error::NONE;
 	}
 	if (error != Error::NONE) {

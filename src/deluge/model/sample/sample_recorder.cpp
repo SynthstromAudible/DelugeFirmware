@@ -451,7 +451,8 @@ aborted:
 					name = inputChannelToString(mode);
 				}
 				error = audioFileManager.getUnusedAudioRecordingFilePath(filePath, &tempFilePathForRecording, folderID,
-				                                                         &audioFileNumber, name, &currentSong->name);
+				                                                         &audioFileNumber, name,
+				                                                         &currentSong->project.metadata.name);
 			}
 			if (status == RecorderStatus::ABORTED) {
 				goto aborted; // In case aborted during

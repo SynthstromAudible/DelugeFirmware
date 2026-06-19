@@ -143,8 +143,8 @@ Song::Song() {
 	project.transport.insideWorldTickMagnitudeOffsetFromBPM = 0;
 	syncScalingClip = nullptr;
 	runtimeView.currentClip = nullptr;
-	slot = 32767;
-	subSlot = -1;
+	project.metadata.slot = 32767;
+	project.metadata.subSlot = -1;
 
 	persistentView.xScroll[NAVIGATION_CLIP] = 0;
 	persistentView.xScroll[NAVIGATION_ARRANGEMENT] = 0;
@@ -208,7 +208,7 @@ Song::Song() {
 
 	masterTransposeInterval = 0;
 
-	dirPath = "SONGS";
+	project.metadata.dirPath = "SONGS";
 
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
@@ -1054,7 +1054,7 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 }
 
 void Song::writeTemplateSong(const char* templatePath) {
-	name = "DEFAULT";
+	project.metadata.name = "DEFAULT";
 	Error error = StorageManager::createXMLFile(templatePath, smSerializer, false, false);
 	if (error != Error::NONE) {
 		return;
@@ -5589,9 +5589,9 @@ int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue
 
 std::string Song::getSongFullPath() {
 	std::string fullPath;
-	fullPath.append(dirPath);
+	fullPath.append(project.metadata.dirPath);
 	fullPath.append("/");
-	fullPath.append(name);
+	fullPath.append(project.metadata.name);
 	fullPath.append(".XML");
 	return fullPath;
 }
@@ -5606,11 +5606,11 @@ void Song::setSongFullPath(const char* fullPath) {
 		memset(dir, 0, sizeof(char) * fullPathLength + 1);
 		strncpy(dir, fullPath, fullPathLength - strlen(filename));
 
-		dirPath = dir;
-		name = ++filename;
+		project.metadata.dirPath = dir;
+		project.metadata.name = ++filename;
 	}
 	else {
-		name = fullPath;
+		project.metadata.name = fullPath;
 	}
 }
 #pragma GCC diagnostic pop

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/groove.h"
+#include "deluge-project/metadata.h"
 #include "deluge-project/reverb_settings.h"
 #include "deluge-project/scale_settings.h"
 #include "deluge-project/transport.h"
@@ -36,6 +37,7 @@ class Song {
 public:
 	Song();
 
+	Metadata metadata;
 	Groove groove;
 	Transport transport;
 	ScaleSettings scale;

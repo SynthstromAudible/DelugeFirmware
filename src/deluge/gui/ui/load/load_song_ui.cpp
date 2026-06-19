@@ -74,7 +74,7 @@ bool LoadSongUI::opened() {
 	favouritesManager.setCategory("SONG");
 	favouritesChanged();
 	outputTypeToLoad = OutputType::NONE;
-	currentDir = currentSong->dirPath;
+	currentDir = currentSong->project.metadata.dirPath;
 
 	Error error = beginSlotSession(false, true);
 	if (error != Error::NONE) {
@@ -96,7 +96,7 @@ gotError:
 	PadLEDs::clearTickSquares();
 
 	std::string searchFilename;
-	searchFilename = currentSong->name;
+	searchFilename = currentSong->project.metadata.name;
 
 	if (!searchFilename.empty() && !searchFilename.contains(".XML")) {
 		searchFilename.append(".XML");
@@ -271,7 +271,7 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 // This method actually executes the loading of next song (by offset)
 void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	outputTypeToLoad = OutputType::NONE;
-	currentDir = currentSong->dirPath;
+	currentDir = currentSong->project.metadata.dirPath;
 
 	int32_t currentFileIndexSelected = fileIndexSelected;
 
@@ -417,7 +417,7 @@ fail:
 			goto fail;
 		}
 
-		preLoadedSong->dirPath = currentDir;
+		preLoadedSong->project.metadata.dirPath = currentDir;
 
 		std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
 
@@ -476,7 +476,7 @@ gotErrorAfterCreatingSong:
 		goto fail;
 	}
 
-	preLoadedSong->dirPath = currentDir;
+	preLoadedSong->project.metadata.dirPath = currentDir;
 
 	std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
 
@@ -504,7 +504,7 @@ gotErrorAfterCreatingSong:
 	// Ensure all AudioFile Clusters needed for new song are loaded
 	yieldWithTimeout([]() { return !(audioFileManager.loadingQueueHasAnyLowestPriorityElements()); }, 5);
 
-	preLoadedSong->name = enteredText;
+	preLoadedSong->project.metadata.name = enteredText;
 
 	Song* toDelete = currentSong;
 

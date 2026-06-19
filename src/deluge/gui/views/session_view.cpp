@@ -2046,11 +2046,11 @@ void SessionView::renderViewDisplay() {
 #endif
 
 	char const* name;
-	if (currentSong->name.empty()) {
+	if (currentSong->project.metadata.name.empty()) {
 		name = "UNSAVED";
 	}
 	else {
-		name = currentSong->name.c_str();
+		name = currentSong->project.metadata.name.c_str();
 	}
 
 	int32_t stringLengthPixels = canvas.getStringWidthInPixels(name, kTextTitleSizeY);

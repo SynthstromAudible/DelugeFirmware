@@ -460,7 +460,7 @@ void setupStartupSong() {
 			loadSongUI.performLoad();
 			if (startupSongMode == StartupSongMode::TEMPLATE) {
 				// Wipe the name so the Save action asks you for a new song
-				currentSong->name.clear();
+				currentSong->project.metadata.name.clear();
 			}
 		}
 		else {
