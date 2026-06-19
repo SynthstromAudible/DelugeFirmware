@@ -772,7 +772,7 @@ void ArrangerView::beginAudition(Output* output) {
 			}
 		}
 		else {
-			int32_t note = (currentSong->key.rootNote + 120) % 12;
+			int32_t note = (currentSong->project.scale.key.rootNote + 120) % 12;
 			note += 60;
 			((MelodicInstrument*)instrument)
 			    ->beginAuditioningForNote(modelStack, note, instrument->defaultVelocity, zeroMPEValues);
@@ -813,7 +813,7 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 			}
 		}
 		else {
-			int32_t note = (currentSong->key.rootNote + 120) % 12;
+			int32_t note = (currentSong->project.scale.key.rootNote + 120) % 12;
 			note += 60;
 			((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, note);
 		}
@@ -863,7 +863,7 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 
 void ArrangerView::auditionPadAction(bool on, int32_t y, UI* ui) {
 
-	int32_t note = (currentSong->key.rootNote + 120) % 12;
+	int32_t note = (currentSong->project.scale.key.rootNote + 120) % 12;
 	note += 60;
 
 	// Press on

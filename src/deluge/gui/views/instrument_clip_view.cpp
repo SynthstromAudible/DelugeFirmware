@@ -4878,10 +4878,10 @@ int32_t InstrumentClipView::getYVisualFromYDisplay(int32_t yDisplay) {
 
 int32_t InstrumentClipView::getYVisualWithinOctaveFromYDisplay(int32_t yDisplay) {
 	int32_t yVisual = getYVisualFromYDisplay(yDisplay);
-	int32_t yVisualRelativeToRoot = yVisual - currentSong->key.rootNote;
-	int32_t yVisualWithinOctave = yVisualRelativeToRoot % currentSong->key.modeNotes.count();
+	int32_t yVisualRelativeToRoot = yVisual - currentSong->project.scale.key.rootNote;
+	int32_t yVisualWithinOctave = yVisualRelativeToRoot % currentSong->project.scale.key.modeNotes.count();
 	if (yVisualWithinOctave < 0) {
-		yVisualWithinOctave += currentSong->key.modeNotes.count();
+		yVisualWithinOctave += currentSong->project.scale.key.modeNotes.count();
 	}
 	return yVisualWithinOctave;
 }
@@ -5741,7 +5741,7 @@ int32_t InstrumentClipView::setupForExitingScaleMode() {
 	bool foundRootNoteOnScreen = false;
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(i, currentSong);
-		if (isSameNote(currentSong->key.rootNote, yNote)) {
+		if (isSameNote(currentSong->project.scale.key.rootNote, yNote)) {
 			scrollAdjust = yNote - i - getCurrentInstrumentClip()->yScroll;
 			foundRootNoteOnScreen = true;
 			break;
@@ -6016,7 +6016,7 @@ drawNormally:
 				{
 					// If this is the root note, indicate
 					int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-					if (isSameNote(yNote, currentSong->key.rootNote)) {
+					if (isSameNote(yNote, currentSong->project.scale.key.rootNote)) {
 						thisColour = rowColour[yDisplay];
 					}
 					else {

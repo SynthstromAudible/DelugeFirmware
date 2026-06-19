@@ -582,12 +582,13 @@ bool InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 void InstrumentClipMinder::calculateDefaultRootNote() {
 	// If there are any other Clips in scale-mode, we use their root note
 	if (currentSong->anyScaleModeClips()) {
-		defaultRootNote = currentSong->key.rootNote;
+		defaultRootNote = currentSong->project.scale.key.rootNote;
 
 		// Otherwise, intelligently guess the root note
 	}
 	else {
-		defaultRootNote = getCurrentInstrumentClip()->guessRootNote(currentSong, currentSong->key.rootNote);
+		defaultRootNote =
+		    getCurrentInstrumentClip()->guessRootNote(currentSong, currentSong->project.scale.key.rootNote);
 	}
 }
 

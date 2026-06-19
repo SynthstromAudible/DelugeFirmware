@@ -184,7 +184,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		newAction->xScrollArranger[BEFORE] = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 		newAction->xZoomArranger[BEFORE] = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
-		newAction->modeNotes[BEFORE] = currentSong->key.modeNotes;
+		newAction->modeNotes[BEFORE] = currentSong->project.scale.key.modeNotes;
 
 		newAction->tripletsOn = currentSong->persistentView.tripletsOn;
 		newAction->tripletsLevel = currentSong->persistentView.tripletsLevel;
@@ -233,7 +233,7 @@ void ActionLogger::updateAction(Action* newAction) {
 	newAction->xScrollArranger[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 	newAction->xZoomArranger[AFTER] = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
-	newAction->modeNotes[AFTER] = currentSong->key.modeNotes;
+	newAction->modeNotes[AFTER] = currentSong->project.scale.key.modeNotes;
 }
 
 void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, ActionType actionType) {
@@ -519,7 +519,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 		currentSong->persistentView.arrangementYScroll = action->yScrollArranger[time];
 
 		// Musical Scale
-		currentSong->key.modeNotes = action->modeNotes[time];
+		currentSong->project.scale.key.modeNotes = action->modeNotes[time];
 
 		// Other stuff
 		// currentSong->modKnobMode = action->modKnobModeSongView;

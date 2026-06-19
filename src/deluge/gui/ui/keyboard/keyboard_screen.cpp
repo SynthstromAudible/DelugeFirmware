@@ -699,7 +699,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 		    layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->requiredScaleMode();
 		if (requiredScaleMode == RequiredScaleMode::Enabled && !getCurrentInstrumentClip()->inScaleMode) {
 			getCurrentInstrumentClip()->yScroll =
-			    instrumentClipView.setupForEnteringScaleMode(currentSong->key.rootNote);
+			    instrumentClipView.setupForEnteringScaleMode(currentSong->project.scale.key.rootNote);
 			setLedStates();
 		}
 		else if (requiredScaleMode == RequiredScaleMode::Disabled) {
@@ -728,7 +728,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 
 		bool useSharps = FlashStorage::defaultUseSharps;
 		toggleScaleModeOnButtonRelease = false;
-		int32_t newRootNote = ((currentSong->key.rootNote + kOctaveSize) + offset) % kOctaveSize;
+		int32_t newRootNote = ((currentSong->project.scale.key.rootNote + kOctaveSize) + offset) % kOctaveSize;
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
 		char noteName[3] = {0};

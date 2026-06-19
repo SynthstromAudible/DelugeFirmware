@@ -84,11 +84,11 @@ public:
 protected:
 	inline bool isKit() { return getCurrentOutputType() == OutputType::KIT; }
 	/// Song root note can be in any octave, layouts get the normalized one
-	inline int16_t getRootNote() { return (currentSong->key.rootNote % kOctaveSize); }
+	inline int16_t getRootNote() { return (currentSong->project.scale.key.rootNote % kOctaveSize); }
 	inline bool getScaleModeEnabled() { return getCurrentInstrumentClip()->inScaleMode; }
-	inline uint8_t getScaleNoteCount() { return currentSong->key.modeNotes.count(); }
+	inline uint8_t getScaleNoteCount() { return currentSong->project.scale.key.modeNotes.count(); }
 
-	inline NoteSet& getScaleNotes() { return currentSong->key.modeNotes; }
+	inline NoteSet& getScaleNotes() { return currentSong->project.scale.key.modeNotes; }
 
 	inline uint8_t getDefaultVelocity() { return getCurrentInstrument()->defaultVelocity; }
 

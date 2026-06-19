@@ -21,9 +21,9 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 	if (on) {
 		if (!currentSong->hasBeenTransposed) {
 			/* First transpose event in a new song snaps to nearest octave */
-			currentSong->transposeOffset = (currentSong->key.rootNote - newNoteOrCC) / 12;
-			if (currentSong->key.rootNote < newNoteOrCC) {
-				if (abs((currentSong->key.rootNote - newNoteOrCC) % 12) > 6) {
+			currentSong->transposeOffset = (currentSong->project.scale.key.rootNote - newNoteOrCC) / 12;
+			if (currentSong->project.scale.key.rootNote < newNoteOrCC) {
+				if (abs((currentSong->project.scale.key.rootNote - newNoteOrCC) % 12) > 6) {
 					currentSong->transposeOffset -= 1;
 				}
 			}
@@ -32,11 +32,11 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 		}
 
 		int32_t semitones;
-		semitones = (newNoteOrCC + currentSong->transposeOffset) - currentSong->key.rootNote;
+		semitones = (newNoteOrCC + currentSong->transposeOffset) - currentSong->project.scale.key.rootNote;
 
 		if (controlMethod == MIDITransposeControlMethod::INKEY) {
 
-			int8_t degree = currentSong->key.degreeOf(newNoteOrCC);
+			int8_t degree = currentSong->project.scale.key.degreeOf(newNoteOrCC);
 			if (degree >= 0) {
 				int8_t octaves;
 				if (semitones < 0) {
@@ -45,7 +45,7 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 				else {
 					octaves = (semitones / 12);
 				}
-				int32_t steps = octaves * currentSong->key.modeNotes.count() + degree;
+				int32_t steps = octaves * currentSong->project.scale.key.modeNotes.count() + degree;
 
 				currentSong->transposeAllScaleModeClips(steps, false);
 
@@ -85,9 +85,9 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 	UI* currentUI = getCurrentUI();
 	bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
 	if (isOLEDSessionView) {
-		if (currentSong->key.rootNote != sessionView.lastDisplayedRootNote) {
+		if (currentSong->project.scale.key.rootNote != sessionView.lastDisplayedRootNote) {
 			currentSong->displayCurrentRootNoteAndScaleName();
-			sessionView.lastDisplayedRootNote = currentSong->key.rootNote;
+			sessionView.lastDisplayedRootNote = currentSong->project.scale.key.rootNote;
 		}
 	}
 }

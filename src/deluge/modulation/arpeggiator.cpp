@@ -1359,7 +1359,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		arpNote->noteCodeOnPostArp[0] = note; // This is the main note, whether we play chord or not
 		arpNote->noteStatus[0] = ArpNoteStatus::PENDING;
 		// Now get additional notes to be played
-		const MusicalKey musical_key = currentSong->key;
+		const MusicalKey musical_key = currentSong->project.scale.key;
 		const int8_t degree = musical_key.degreeOf(note);
 		if (shouldPlayChordNote && degree >= 0 && musical_key.modeNotes.count() >= 5) {
 			// Play chord!

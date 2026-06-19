@@ -161,8 +161,8 @@ Song::Song() {
 
 	runtimeView.fillModeActive = false;
 
-	key.modeNotes = presetScaleNotes[MAJOR_SCALE];
-	disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
+	project.scale.key.modeNotes = presetScaleNotes[MAJOR_SCALE];
+	project.scale.disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
 
 	project.groove.swingAmount = 0;
 
@@ -265,16 +265,16 @@ void Song::setupDefault() {
 
 	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
 	project.groove.swingAmount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
-	key.rootNote = defaultKeyMenu.getRandomValueInRange();
+	project.scale.key.rootNote = defaultKeyMenu.getRandomValueInRange();
 
 	// Do scale
-	disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
-	ensureNotAllPresetScalesDisabled(disabledPresetScales);
+	project.scale.disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
+	ensureNotAllPresetScalesDisabled(project.scale.disabledPresetScales);
 	Scale whichScale = flashStorageCodeToScale(FlashStorage::defaultScale);
 	if (whichScale == RANDOM_SCALE) {
 		do {
 			whichScale = static_cast<Scale>(random(LAST_PRESET_SCALE));
-		} while (disabledPresetScales[whichScale]);
+		} while (project.scale.disabledPresetScales[whichScale]);
 	}
 	else if (whichScale > LAST_PRESET_SCALE) {
 		// Both USER_SCALE and NO_SCALE, and any bogus values. Same handling for different reasons.
@@ -289,9 +289,9 @@ void Song::setupDefault() {
 	}
 
 	// Whichever scale we ended up with, make sure it's enabled.
-	disabledPresetScales[whichScale] = false;
+	project.scale.disabledPresetScales[whichScale] = false;
 
-	key.modeNotes = presetScaleNotes[whichScale];
+	project.scale.key.modeNotes = presetScaleNotes[whichScale];
 
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
@@ -426,8 +426,8 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 	if (!chromatic) {
 		int8_t octaves;
 		int8_t rootIndex;
-		MusicalKey oldKey = key;
-		uint8_t noteCount = key.modeNotes.count();
+		MusicalKey oldKey = project.scale.key;
+		uint8_t noteCount = project.scale.key.modeNotes.count();
 
 		if (offset < 0) {
 			octaves = ((offset + 1) / noteCount) - 1;
@@ -437,7 +437,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 			octaves = (offset / noteCount);
 			rootIndex = offset % noteCount;
 		}
-		int8_t newModeRoot = key.modeNotes[rootIndex];
+		int8_t newModeRoot = project.scale.key.modeNotes[rootIndex];
 
 		semitones = 12 * octaves + newModeRoot;
 		rotateMusicalMode(offset);
@@ -445,7 +445,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
-		MusicalKey newKey = key;
+		MusicalKey newKey = project.scale.key;
 		newKey.rootNote += semitones;
 
 		ClipArray* clipArray = &sessionClips;
@@ -481,7 +481,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 				}
 			}
 		}
-		key = newKey;
+		project.scale.key = newKey;
 	}
 	else {
 		semitones = offset;
@@ -506,7 +506,7 @@ void Song::transposeAllScaleModeClips(int32_t interval) {
 		}
 	}
 
-	key.rootNote += interval;
+	project.scale.key.rootNote += interval;
 }
 
 bool Song::anyScaleModeClips() {
@@ -522,7 +522,7 @@ NoteSet Song::notesInScaleModeClips() {
 	NoteSet notes;
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
 		if (instrumentClip->isScaleModeClip()) {
-			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key);
+			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, project.scale.key);
 		}
 	}
 	return notes;
@@ -531,33 +531,33 @@ NoteSet Song::notesInScaleModeClips() {
 void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
 	// Setting the new root affects interpretation of existing notes done by notesInScaleModeClips(),
 	// so we need to do it before anything else.
-	int32_t oldRootNote = key.rootNote;
-	key.rootNote = newRootNote;
+	int32_t oldRootNote = project.scale.key.rootNote;
+	project.scale.key.rootNote = newRootNote;
 
-	int32_t oldNumModeNotes = key.modeNotes.count();
+	int32_t oldNumModeNotes = project.scale.key.modeNotes.count();
 	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
 
 	// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale.
 	// Check if the previously set scale could fit the notes present in the clips
 	// If so, we need no check at all, we can directly go back to previous scale safely
 	bool previousScaleFits =
-	    getCurrentScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
+	    getCurrentScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(project.scale.key.modeNotes);
 	if (!previousScaleFits) {
-		key.modeNotes = notesWithinOctavePresent.toImpliedScale();
+		project.scale.key.modeNotes = notesWithinOctavePresent.toImpliedScale();
 		// If this is not a preset, save as the current user scale.
-		if (isUserScale(key.modeNotes)) {
-			userScaleNotes = key.modeNotes;
+		if (isUserScale(project.scale.key.modeNotes)) {
+			userScaleNotes = project.scale.key.modeNotes;
 		}
 	}
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed
 	// in enterScaleMode();
-	int32_t numMoreNotes = (int32_t)key.modeNotes.count() - oldNumModeNotes;
+	int32_t numMoreNotes = (int32_t)project.scale.key.modeNotes.count() - oldNumModeNotes;
 
 	// Compensation for the change in root note itself
-	int32_t rootNoteChange = key.rootNote - oldRootNote;
+	int32_t rootNoteChange = project.scale.key.rootNote - oldRootNote;
 	int32_t rootNoteChangeEffect =
-	    rootNoteChange * (12 - key.modeNotes.count())
+	    rootNoteChange * (12 - project.scale.key.modeNotes.count())
 	    / 12; // I wasn't quite sure whether this should use key.modeNotes.count() or oldNumModeNotes
 
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
@@ -582,14 +582,14 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 void Song::rotateMusicalMode(int8_t change) {
 	int8_t j;
 	int16_t newRoot;
-	uint8_t noteCount = key.modeNotes.count();
+	uint8_t noteCount = project.scale.key.modeNotes.count();
 	ScaleChange changes;
-	changes.source = key.modeNotes;
+	changes.source = project.scale.key.modeNotes;
 
 	int8_t steps = (change % noteCount + noteCount) % noteCount;
-	newRoot = key.modeNotes[steps];
+	newRoot = project.scale.key.modeNotes[steps];
 	for (int8_t i = 0; i < noteCount; i++) {
-		changes[i] = (key.modeNotes[(i + steps) % noteCount] - newRoot) - key.modeNotes[i];
+		changes[i] = (project.scale.key.modeNotes[(i + steps) % noteCount] - newRoot) - project.scale.key.modeNotes[i];
 		if (i >= noteCount - steps) {
 			changes[i] += 12;
 		}
@@ -617,14 +617,14 @@ void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspo
 		instrumentClip->replaceMusicalMode(changes, modelStackWithTimelineCounter);
 	}
 
-	key.modeNotes = changes.applyTo(key.modeNotes);
+	project.scale.key.modeNotes = changes.applyTo(project.scale.key.modeNotes);
 }
 
 // Flattens or sharpens a given note-within-octave in the current scale
 void Song::changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change) {
 
 	ScaleChange changes;
-	changes.source = key.modeNotes;
+	changes.source = project.scale.key.modeNotes;
 	changes[yVisualWithinOctave] += change;
 	changes.target = changes.applyTo(changes.source);
 
@@ -635,11 +635,11 @@ bool Song::isYNoteAllowed(int32_t yNote, bool inKeyMode) {
 	if (!inKeyMode) {
 		return true;
 	}
-	return key.modeNotes.has(key.intervalOf(yNote));
+	return project.scale.key.modeNotes.has(project.scale.key.intervalOf(yNote));
 }
 
 int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode) {
-	return getYVisualFromYNote(yNote, inKeyMode, key);
+	return getYVisualFromYNote(yNote, inKeyMode, project.scale.key);
 }
 
 int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key) {
@@ -659,7 +659,7 @@ int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKe
 }
 
 int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave) const {
-	return incrementYNoteInKey(yNote, increment, inOctave, key);
+	return incrementYNoteInKey(yNote, increment, inOctave, project.scale.key);
 }
 
 int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key) {
@@ -705,7 +705,7 @@ int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctav
 }
 
 int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode) {
-	return getYNoteFromYVisual(yVisual, inKeyMode, key);
+	return getYNoteFromYVisual(yVisual, inKeyMode, project.scale.key);
 }
 
 int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key) {
@@ -727,23 +727,26 @@ int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const Musical
 bool Song::mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) {
 	// If it's the root note and moving down, special criteria
 	if (yVisualWithinOctave == 0 && newOffset == -1) {
-		return (key.modeNotes[key.modeNotes.count() - 1]
+		return (project.scale.key.modeNotes[project.scale.key.modeNotes.count() - 1]
 		        < 11); // May ony move down if the top note in scale isn't directly below (at semitone 11)
 	}
 
 	else {
-		return ((newOffset == 1 &&                          // We're moving up and
-		         key.modeNotes[yVisualWithinOctave] < 11 && // We're not already at the top of the scale and
-		         (yVisualWithinOctave == key.modeNotes.count() - 1
+		return ((newOffset == 1 && // We're moving up and
+		         project.scale.key.modeNotes[yVisualWithinOctave] < 11
+		         && // We're not already at the top of the scale and
+		         (yVisualWithinOctave == project.scale.key.modeNotes.count() - 1
 		          || // Either we're the top note, so don't need to check for a higher neighbour
-		          key.modeNotes[yVisualWithinOctave + 1]
-		              > key.modeNotes[yVisualWithinOctave] + 1) // Or the next note up has left us space to move up
+		          project.scale.key.modeNotes[yVisualWithinOctave + 1]
+		              > project.scale.key.modeNotes[yVisualWithinOctave]
+		                    + 1) // Or the next note up has left us space to move up
 		         )
 		        || (newOffset == -1 && // We're moving down and
-		            key.modeNotes[yVisualWithinOctave] > 1
+		            project.scale.key.modeNotes[yVisualWithinOctave] > 1
 		            && // We're not already at the bottom of the scale (apart from the root note) and
-		            key.modeNotes[yVisualWithinOctave - 1]
-		                < key.modeNotes[yVisualWithinOctave] - 1 // The next note down has left us space to move down
+		            project.scale.key.modeNotes[yVisualWithinOctave - 1]
+		                < project.scale.key.modeNotes[yVisualWithinOctave]
+		                      - 1 // The next note down has left us space to move down
 		            ));
 	}
 }
@@ -1116,7 +1119,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("xZoomArrangementView", persistentView.xZoom[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("timePerTimerTick", project.transport.timePerTimerTickBig >> 32);
 	writer.writeAttribute("timerTickFraction", (uint32_t)project.transport.timePerTimerTickBig);
-	writer.writeAttribute("rootNote", key.rootNote);
+	writer.writeAttribute("rootNote", project.scale.key.rootNote);
 	writer.writeAttribute("inputTickMagnitude", getInputTickMagnitude());
 	writer.writeAttribute("swingAmount", project.groove.swingAmount);
 	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)project.groove.swingInterval, true);
@@ -1147,8 +1150,8 @@ weAreInArrangementEditorOrInClipInstance:
 	// Attributes end
 
 	writer.writeArrayStart("modeNotes");
-	for (int32_t i = 0; i < key.modeNotes.count(); i++) {
-		writer.writeTag("modeNote", key.modeNotes[i], true);
+	for (int32_t i = 0; i < project.scale.key.modeNotes.count(); i++) {
+		writer.writeTag("modeNote", project.scale.key.modeNotes[i], true);
 	}
 	writer.writeArrayEnding("modeNotes");
 
@@ -1323,7 +1326,7 @@ weAreInArrangementEditorOrInClipInstance:
 	// Scale stuff
 	writer.writeOpeningTag("scales");
 	writer.writeTag("userScale", userScaleNotes.toBits());
-	writer.writeTag("disabledPresetScales", disabledPresetScales.to_ulong());
+	writer.writeTag("disabledPresetScales", project.scale.disabledPresetScales.to_ulong());
 	writer.writeClosingTag("scales");
 
 	writer.writeClosingTag("song", true, true);
@@ -1596,7 +1599,7 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "rootNote")) {
-				key.rootNote = reader.readTagOrAttributeValueInt();
+				project.scale.key.rootNote = reader.readTagOrAttributeValueInt();
 				reader.exitTag("rootNote");
 			}
 
@@ -1696,12 +1699,12 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "modeNotes")) {
-				key.modeNotes.clear();
+				project.scale.key.modeNotes.clear();
 				reader.match('[');
 				// Read in all the modeNotes
 				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "modeNote")) {
-						key.modeNotes.addUntrusted(reader.readTagOrAttributeValueInt());
+						project.scale.key.modeNotes.addUntrusted(reader.readTagOrAttributeValueInt());
 						reader.exitTag("modeNote", true);
 					}
 					else {
@@ -1826,7 +1829,8 @@ unknownTag:
 						userScaleNotes = NoteSet(reader.readTagOrAttributeValueInt());
 					}
 					else if (!strcmp(tagName, "disabledPresetScales")) {
-						disabledPresetScales = std::bitset<NUM_PRESET_SCALES>(reader.readTagOrAttributeValueInt());
+						project.scale.disabledPresetScales =
+						    std::bitset<NUM_PRESET_SCALES>(reader.readTagOrAttributeValueInt());
 					}
 					reader.exitTag(tagName);
 				}
@@ -2929,7 +2933,7 @@ Scale Song::cycleThroughScales() {
 	// NUM_PRESET_SCALES stands for the user scale.
 	do {
 		newScale = static_cast<Scale>(mod(newScale + 1, NUM_PRESET_SCALES + 1));
-		if (newScale == USER_SCALE || !disabledPresetScales[newScale]) {
+		if (newScale == USER_SCALE || !project.scale.disabledPresetScales[newScale]) {
 			currentScale = setScale(newScale);
 		}
 	} while (newScale != currentScale && newScale != startScale);
@@ -2967,11 +2971,11 @@ bool Song::setScaleNotes(NoteSet newScaleNotes) {
 	}
 
 	ScaleChange changes;
-	scaleMapper.computeChangeFrom(notesWithinOctavePresent, key.modeNotes, newScaleNotes, changes);
+	scaleMapper.computeChangeFrom(notesWithinOctavePresent, project.scale.key.modeNotes, newScaleNotes, changes);
 
 	replaceMusicalMode(changes, true);
 
-	key.modeNotes = newScaleNotes;
+	project.scale.key.modeNotes = newScaleNotes;
 
 	// Save possible user scale
 	if (isUserScale(newScaleNotes)) {
@@ -2986,7 +2990,7 @@ bool Song::hasUserScale() {
 }
 
 Scale Song::getCurrentScale() {
-	return getScale(key.modeNotes);
+	return getScale(project.scale.key.modeNotes);
 }
 
 // What does this do exactly, again?
@@ -5668,7 +5672,7 @@ doHibernatingInstruments:
 void Song::getCurrentRootNoteAndScaleName(etl::istring& buffer) {
 	char noteName[5];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
+	noteCodeToString(currentSong->project.scale.key.rootNote, noteName, &isNatural);
 
 	buffer.append(noteName);
 	if (display->haveOLED()) {

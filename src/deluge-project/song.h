@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/groove.h"
+#include "deluge-project/scale_settings.h"
 #include "deluge-project/transport.h"
 
 namespace deluge::project {
@@ -36,6 +37,7 @@ public:
 
 	Groove groove;
 	Transport transport;
+	ScaleSettings scale;
 };
 
 } // namespace deluge::project

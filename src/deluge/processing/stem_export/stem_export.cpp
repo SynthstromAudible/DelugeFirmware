@@ -1114,7 +1114,7 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 	// get song root note
 	char noteName[5];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
+	noteCodeToString(currentSong->project.scale.key.rootNote, noteName, &isNatural);
 
 	// get song scale
 	const char* scaleName = getScaleName(currentSong->getCurrentScale());
