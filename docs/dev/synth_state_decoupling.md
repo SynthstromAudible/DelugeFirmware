@@ -193,11 +193,17 @@ Subtractive. The dispatch (`voice.cpp:1181–1285`) then collapses to a clean 3-
      orchestration remains in the Voice-side render.**
    Behaviour-only — no state moved; engines still borrow per-source state via `Voice&`. Each bit-exact (x86 336/336
    byte-identical + ARM/qemu oracle on ringmod/FM families; boundary lints green).
-2. **Give engines ownership of their Sources + FM grid (the `VoiceUnisonPart` restructure).** Re-home
-   `VoiceUnisonPart.modulatorPhase[]/modulatorFeedback[]` into `FMEngine`, and the `VoiceUnisonPartSource` Sources
-   into the engines, so each unison part holds **one Engine instance**. This is the deepest state-relocation; do it
-   per engine, smallest first (**RingMod → Subtractive → FM**, matching the L1 doc's migration sketch). Unison
-   detune/pan stay above the engine (Voice concern).
+2. ✅ **DONE — `FMEngine` owns the FM modulator grid (first stateful engine)** (commit pending). **Scope narrowed
+   from the original "all three engines own their Sources" framing** by the state-lifecycle audit: exploration found
+   **only FM has mode-exclusive per-voice state.** The modulator grid (`modulatorPhase`/`modulatorPhaseIncrement`/
+   `modulatorFeedback` per unison + `modulatorAmplitudeLastTime`) is written only under `synthMode==FM` gates and read
+   only in `fm_engine.cpp`; it moved into `FMEngine` (`std::array[unison][modulator]`), and `VoiceUnisonPart` became
+   a pure source container. **RingMod and Subtractive have no mode-exclusive state** — they compose the *shared*
+   per-source components on `VoiceUnisonPartSource` (used by all modes), so their "Source ownership" is the
+   typed-param / Source-tier concern (step 3, `synth_source_ownership.md`), **not** a state move. The carrier
+   `oscPos`/`carrierFeedback` stay on `VoiceUnisonPartSource` (Source-tier, mode-shared); the grid *setup* logic
+   stays in `Voice` (writes `fmEngine`'s public arrays) until the kernel lift. (`setSynthMode` kills voices first, so
+   the relocation is reinit-neutral.) Bit-exact: x86 336/336 + ARM/qemu FM families; lints green.
 3. **Promote DX7 Source→Engine.** `OscType::DX7` becomes an Engine selection rather than a Source oscType (it is
    already a complete 6-op voice; `dx7_source.{h,cpp}` → `DX7Engine`).
 4. **Introduce the `EngineRegistry`.** Replace the `SynthMode`/`OscType` dispatch with engine selection — the L1 plug

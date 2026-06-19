@@ -89,7 +89,7 @@ void FMEngine::renderUnisonPart(Voice& voice, int32_t u, int32_t numSamples, int
 	// If overall pitch adjusted, adjust modulator pitches
 	uint32_t phaseIncrementModulator[kNumModulators];
 	for (int32_t m = 0; m < kNumModulators; m++) {
-		phaseIncrementModulator[m] = voice.unisonParts[u].modulatorPhaseIncrement[m];
+		phaseIncrementModulator[m] = modulatorPhaseIncrement[u][m];
 		if (phaseIncrementModulator[m] == 0xFFFFFFFF) {
 			modulatorsActive[m] = false; // If frequency marked as too high
 		}
@@ -131,36 +131,34 @@ void FMEngine::renderUnisonPart(Voice& voice, int32_t u, int32_t numSamples, int
 		}
 
 		// Render mod1
-		renderSineWaveWithFeedback(modulatorScratch, numSamples, &voice.unisonParts[u].modulatorPhase[1],
-		                           voice.modulatorAmplitudeLastTime[1], phaseIncrementModulator[1],
+		renderSineWaveWithFeedback(modulatorScratch, numSamples, &modulatorPhase[u][1], modulatorAmplitudeLastTime[1],
+		                           phaseIncrementModulator[1],
 		                           voice.params.paramFinalValues[params::LOCAL_MODULATOR_1_FEEDBACK],
-		                           &voice.unisonParts[u].modulatorFeedback[1], false, modulatorAmplitudeIncrements[1]);
+		                           &modulatorFeedback[u][1], false, modulatorAmplitudeIncrements[1]);
 
 		// If mod1 is modulating mod0...
 		if (cfg.modulator1ToModulator0) {
 			// .. render modulator0, receiving the FM from mod1
-			renderFMWithFeedback(modulatorScratch, numSamples, nullptr, &voice.unisonParts[u].modulatorPhase[0],
-			                     voice.modulatorAmplitudeLastTime[0], phaseIncrementModulator[0],
+			renderFMWithFeedback(modulatorScratch, numSamples, nullptr, &modulatorPhase[u][0],
+			                     modulatorAmplitudeLastTime[0], phaseIncrementModulator[0],
 			                     voice.params.paramFinalValues[params::LOCAL_MODULATOR_0_FEEDBACK],
-			                     &voice.unisonParts[u].modulatorFeedback[0], modulatorAmplitudeIncrements[0]);
+			                     &modulatorFeedback[u][0], modulatorAmplitudeIncrements[0]);
 		}
 
 		// Otherwise, so long as modulator0 is in fact active, render it separately and add it
 		else if (modulatorsActive[0]) {
-			renderSineWaveWithFeedback(modulatorScratch, numSamples, &voice.unisonParts[u].modulatorPhase[0],
-			                           voice.modulatorAmplitudeLastTime[0], phaseIncrementModulator[0],
+			renderSineWaveWithFeedback(modulatorScratch, numSamples, &modulatorPhase[u][0],
+			                           modulatorAmplitudeLastTime[0], phaseIncrementModulator[0],
 			                           voice.params.paramFinalValues[params::LOCAL_MODULATOR_0_FEEDBACK],
-			                           &voice.unisonParts[u].modulatorFeedback[0], true,
-			                           modulatorAmplitudeIncrements[0]);
+			                           &modulatorFeedback[u][0], true, modulatorAmplitudeIncrements[0]);
 		}
 	}
 	else {
 		if (modulatorsActive[0]) {
-			renderSineWaveWithFeedback(modulatorScratch, numSamples, &voice.unisonParts[u].modulatorPhase[0],
-			                           voice.modulatorAmplitudeLastTime[0], phaseIncrementModulator[0],
+			renderSineWaveWithFeedback(modulatorScratch, numSamples, &modulatorPhase[u][0],
+			                           modulatorAmplitudeLastTime[0], phaseIncrementModulator[0],
 			                           voice.params.paramFinalValues[params::LOCAL_MODULATOR_0_FEEDBACK],
-			                           &voice.unisonParts[u].modulatorFeedback[0], false,
-			                           modulatorAmplitudeIncrements[0]);
+			                           &modulatorFeedback[u][0], false, modulatorAmplitudeIncrements[0]);
 		}
 		else {
 noModulatorsActive:

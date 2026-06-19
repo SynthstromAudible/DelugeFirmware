@@ -16,6 +16,8 @@
  */
 #pragma once
 
+#include "definitions_cxx.hpp" // kNumModulators, kMaxNumVoicesUnison
+#include <array>
 #include <cstdint>
 
 class Voice;
@@ -30,12 +32,23 @@ struct VoiceConfig;
 /// The engine owns the full per-voice FM render — the unison loop, the per-source carrier pitch math, and (per
 /// unison part) the modulator/carrier topology — plus the per-operator sine/FM-with-feedback renders (the FM DSP —
 /// `renderSineWaveWithFeedback` / `renderFMWithFeedback` / `renderFMWithFeedbackAdd`, below); the shared pitch
-/// helper `Voice::adjustPitch` is a public static it calls. It reads the per-unison phase/feedback state through
-/// the passed-in `Voice&` (public members only — no `friend` needed), mirroring @ref SubtractiveEngine /
-/// @ref RingModEngine. Stateless for now; the modulator/carrier phase + feedback state stays on the
-/// VoiceUnisonParts.
+/// helper `Voice::adjustPitch` is a public static it calls. The **first stateful engine**: it now owns the
+/// FM-exclusive per-voice state (the modulator grid + amplitude smoothing, below) — written only under FM mode and
+/// read only here. The carriers still render over the *shared* per-source `oscPos`/`carrierFeedback` on the
+/// VoiceUnisonPartSources (Source-tier state used by all modes), reached via the passed-in `Voice&` (public members
+/// only — no `friend`), mirroring @ref SubtractiveEngine / @ref RingModEngine.
 class FMEngine {
 public:
+	// The FM-exclusive per-voice state, relocated here from VoiceUnisonPart / Voice (only FM touches it; mode never
+	// changes on a live voice — setSynthMode kills voices first). Indexed [unison part][modulator]. The setup that
+	// writes these (note-on phase seed + per-unison pitch derivation) still lives in Voice for now — it relocates
+	// into the engine at the kernel lift — so these stay public, as the VoiceUnisonPart fields were.
+	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison> modulatorPhase;
+	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison>
+	    modulatorPhaseIncrement; // 0xFFFFFFFF = inactive
+	std::array<std::array<int32_t, kNumModulators>, kMaxNumVoicesUnison> modulatorFeedback;
+	std::array<int32_t, kNumModulators> modulatorAmplitudeLastTime; // the modulator-volume de-zipper (voice-level)
+
 	/// Render all of @p voice's FM unison parts, accumulating into @p oscBuffer. Owns the unison loop (ascending
 	/// frequency) + the per-source carrier pitch adjust (a too-high carrier zeroes that source's amplitude, which —
 	/// faithful to the inline code — persists across unison parts). The pre-roll source/modulator amplitude arrays

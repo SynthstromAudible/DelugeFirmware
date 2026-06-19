@@ -184,7 +184,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 
 	if (resetEnvelopes) {
 		sourceAmplitudesLastTime.fill(0);
-		modulatorAmplitudeLastTime.fill(0);
+		fmEngine.modulatorAmplitudeLastTime.fill(0);
 		overallOscAmplitudeLastTime = 0;
 		doneFirstRender = false;
 
@@ -341,10 +341,10 @@ activenessDetermined:
 		for (int32_t u = 0; u < sound.numUnison; u++) {
 			for (int32_t m = 0; m < kNumModulators; m++) {
 				if (sound.modulatorRetriggerPhase[m] != 0xFFFFFFFF) {
-					unisonParts[u].modulatorPhase[m] = initialPhase + sound.modulatorRetriggerPhase[m];
+					fmEngine.modulatorPhase[u][m] = initialPhase + sound.modulatorRetriggerPhase[m];
 				}
 				if (resetEnvelopes) {
-					unisonParts[u].modulatorFeedback[m] = 0;
+					fmEngine.modulatorFeedback[u][m] = 0;
 				}
 			}
 		}
@@ -425,7 +425,7 @@ void Voice::randomizeOscPhases(const Sound& sound) {
 		}
 		if (sound.getSynthMode() == SynthMode::FM) {
 			for (int32_t m = 0; m < kNumModulators; m++) {
-				unisonParts[u].modulatorPhase[m] = getNoise();
+				fmEngine.modulatorPhase[u][m] = getNoise();
 			}
 		}
 	}
@@ -565,7 +565,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			else {
 				// Frequency too high to render! (Higher than 22.05kHz)
 				for (int32_t u = 0; u < sound.numUnison; u++) {
-					unisonParts[u].modulatorPhaseIncrement[m] = 0xFFFFFFFF; // Means "inactive"
+					fmEngine.modulatorPhaseIncrement[u][m] = 0xFFFFFFFF; // Means "inactive"
 				}
 				continue;
 			}
@@ -575,13 +575,13 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 			// If only one unison
 			if (sound.numUnison == 1) {
-				unisonParts[0].modulatorPhaseIncrement[m] = phaseIncrement;
+				fmEngine.modulatorPhaseIncrement[0][m] = phaseIncrement;
 			}
 
 			// Or if multiple unison
 			else {
 				for (int32_t u = 0; u < sound.numUnison; u++) {
-					unisonParts[u].modulatorPhaseIncrement[m] = sound.unisonDetuners[u].detune(phaseIncrement);
+					fmEngine.modulatorPhaseIncrement[u][m] = sound.unisonDetuners[u].detune(phaseIncrement);
 				}
 			}
 		}
@@ -982,7 +982,7 @@ skipAutoRelease: {}
 
 	if (!doneFirstRender && params.paramFinalValues[params::LOCAL_ENV_0_ATTACK] > 245632) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
-			modulatorAmplitudeLastTime[m] = params.paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m];
+			fmEngine.modulatorAmplitudeLastTime[m] = params.paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m];
 		}
 	}
 
@@ -1080,12 +1080,12 @@ skipAutoRelease: {}
 		if (synthMode == SynthMode::FM) {
 			for (int32_t m = 0; m < kNumModulators; m++) {
 				modulatorsActive[m] = (params.paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m] != 0
-				                       || modulatorAmplitudeLastTime[m] != 0);
+				                       || fmEngine.modulatorAmplitudeLastTime[m] != 0);
 
 				if (modulatorsActive[m]) {
 					modulatorAmplitudeIncrements[m] =
 					    (int32_t)(params.paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m]
-					              - modulatorAmplitudeLastTime[m])
+					              - fmEngine.modulatorAmplitudeLastTime[m])
 					    / numSamples;
 				}
 			}
@@ -1369,7 +1369,7 @@ renderingDone:
 		sourceWaveIndexesLastTime[s] = params.paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s];
 	}
 	for (int32_t m = 0; m < kNumModulators; m++) {
-		modulatorAmplitudeLastTime[m] = params.paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m];
+		fmEngine.modulatorAmplitudeLastTime[m] = params.paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m];
 	}
 	overallOscAmplitudeLastTime = overallOscAmplitude;
 

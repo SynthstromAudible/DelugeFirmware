@@ -101,7 +101,7 @@ public:
 
 	int32_t overallOscAmplitudeLastTime{};
 	std::array<int32_t, kNumSources> sourceAmplitudesLastTime{};
-	std::array<int32_t, kNumModulators> modulatorAmplitudeLastTime{};
+	// modulatorAmplitudeLastTime moved to FMEngine (FM-exclusive de-zipper state) — see model/voice/fm_engine.h.
 	std::array<uint32_t, kNumSources> sourceWaveIndexesLastTime{};
 
 	int32_t filterGainLastTime{};
