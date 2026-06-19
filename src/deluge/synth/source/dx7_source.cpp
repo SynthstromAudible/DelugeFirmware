@@ -18,15 +18,15 @@
 #include "util/fixedpoint.h" // multiply_32x32_rshift32
 #include <span>
 
-namespace deluge::dsp {
+namespace deluge::synth {
 
-synth::SourceRenderResult DX7Source::renderSource(const synth::SourceRenderContext& ctx) {
+SourceRenderResult DX7Source::renderSource(const SourceRenderContext& ctx) {
 	// The port renders the FM block (pooled DxVoice + log-pitch/control derivation); the bespoke per-unison
 	// amplitude+sum below is Voice's buffer layout. An empty span means the voice has ended.
 	std::span<const int32_t> fm =
 	    dx_->render(ctx.numSamples, ctx.phaseIncrement, ctx.ampModParam, ctx.patchChanged, ctx.midinote);
 	if (fm.empty()) {
-		return synth::SourceRenderResult::UNASSIGN;
+		return SourceRenderResult::UNASSIGN;
 	}
 
 	int32_t sourceAmplitudeNow = ctx.sourceAmplitude;
@@ -44,7 +44,7 @@ synth::SourceRenderResult DX7Source::renderSource(const synth::SourceRenderConte
 			ctx.oscBuffer[i] += multiply_32x32_rshift32(fm[i], sourceAmplitudeNow) << 6;
 		}
 	}
-	return synth::SourceRenderResult::ACTIVE;
+	return SourceRenderResult::ACTIVE;
 }
 
-} // namespace deluge::dsp
+} // namespace deluge::synth

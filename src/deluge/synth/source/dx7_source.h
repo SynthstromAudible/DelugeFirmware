@@ -16,24 +16,24 @@
  */
 #pragma once
 
-#include "synth/source/dx_voice_port.h" // synth::DxVoicePort
+#include "synth/source/dx_voice_port.h" // DxVoicePort
 #include "synth/source/source.h"        // synth::Source, SourceRenderContext, SourceRenderResult
 #include <cstdint>
 
-namespace deluge::dsp {
+namespace deluge::synth {
 
 /// @brief The DX7 (MSFA FM) source for one voice-source — a @ref synth::Source over an injected
-/// @ref synth::DxVoicePort.
+/// @ref DxVoicePort.
 ///
 /// App-free: it holds only the port (the firmware's pooled `DxVoice` adapter lives behind it) and contributes the
 /// bespoke per-unison amplitude/stereo sum in @ref renderSource; the FM compute + the pooled-voice lifecycle are
 /// the port's job. The preset patch flows through @ref noteOn as an opaque handle (never dereferenced here). See
 /// `docs/dev/synth_source_ports.md`.
-class DX7Source : public synth::Source {
-	synth::DxVoicePort* dx_; ///< the injected FM-voice port (a firmware adapter); not owned
+class DX7Source : public Source {
+	DxVoicePort* dx_; ///< the injected FM-voice port (a firmware adapter); not owned
 
 public:
-	explicit DX7Source(synth::DxVoicePort* dx) : dx_{dx} {}
+	explicit DX7Source(DxVoicePort* dx) : dx_{dx} {}
 
 	/// Solicit + init the FM voice for this note, caching @p patch (opaque preset handle). @return false if the
 	/// pool is empty.
@@ -47,7 +47,7 @@ public:
 
 	/// Render this DX7 source's contribution into @c ctx.oscBuffer (the bespoke per-unison amplitude/stereo sum
 	/// over the port's FM block), reporting UNASSIGN once the FM voice has ended.
-	synth::SourceRenderResult renderSource(const synth::SourceRenderContext& ctx) override;
+	SourceRenderResult renderSource(const SourceRenderContext& ctx) override;
 };
 
-} // namespace deluge::dsp
+} // namespace deluge::synth
