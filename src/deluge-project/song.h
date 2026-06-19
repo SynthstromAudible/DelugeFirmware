@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/groove.h"
+#include "deluge-project/reverb_settings.h"
 #include "deluge-project/scale_settings.h"
 #include "deluge-project/transport.h"
 
@@ -38,6 +39,7 @@ public:
 	Groove groove;
 	Transport transport;
 	ScaleSettings scale;
+	ReverbSettings reverb;
 };
 
 } // namespace deluge::project

@@ -27,4 +27,6 @@ set_target_properties(deluge_project
         CXX_EXTENSIONS ON
 )
 
+target_link_libraries(deluge_project PRIVATE etl::etl)
+
 target_compile_options(deluge_project PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})

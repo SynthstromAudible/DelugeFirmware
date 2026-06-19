@@ -184,15 +184,15 @@ Song::Song() {
 	runtimeView.paramsInAutomationMode = false;
 
 	// Setup reverb temp variables
-	reverbRoomSize = (float)30 / 50;
-	reverbDamp = (float)36 / 50;
-	reverbHPF = 0;
-	reverbLPF = (float)50 / 50;
-	reverbWidth = 1;
-	reverbPan = 0;
-	reverbSidechainVolume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
-	reverbSidechainShape = -601295438;
-	reverbSidechainSync = SYNC_LEVEL_8TH;
+	project.reverb.reverbRoomSize = (float)30 / 50;
+	project.reverb.reverbDamp = (float)36 / 50;
+	project.reverb.reverbHPF = 0;
+	project.reverb.reverbLPF = (float)50 / 50;
+	project.reverb.reverbWidth = 1;
+	project.reverb.reverbPan = 0;
+	project.reverb.reverbSidechainVolume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
+	project.reverb.reverbSidechainShape = -601295438;
+	project.reverb.reverbSidechainSync = SYNC_LEVEL_8TH;
 	model = deluge::dsp::Reverb::Model::MUTABLE;
 
 	// setup base compressor gain to match 1.0
@@ -1371,11 +1371,11 @@ Error Song::readFromFile(Deserializer& reader) {
 						reader.exitTag("model");
 					}
 					else if (!strcmp(tagName, "roomSize")) {
-						reverbRoomSize = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
+						project.reverb.reverbRoomSize = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
 						reader.exitTag("roomSize");
 					}
 					else if (!strcmp(tagName, "dampening")) {
-						reverbDamp = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
+						project.reverb.reverbDamp = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
 						reader.exitTag("dampening");
 					}
 					else if (!strcmp(tagName, "width")) {
@@ -1384,44 +1384,46 @@ Error Song::readFromFile(Deserializer& reader) {
 							widthInt = 2147483647; // Was being saved incorrectly in V2.1.0-beta1 and alphas, so we fix
 							                       // it on read here!
 						}
-						reverbWidth = (float)widthInt / 2147483648u;
+						project.reverb.reverbWidth = (float)widthInt / 2147483648u;
 						reader.exitTag("width");
 					}
 					else if (!strcmp(tagName, "hpf")) {
-						reverbHPF = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
+						project.reverb.reverbHPF = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
 						reader.exitTag("hpf");
 					}
 					else if (!strcmp(tagName, "lpf")) {
-						reverbLPF = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
+						project.reverb.reverbLPF = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
 						reader.exitTag("lpf");
 					}
 					else if (!strcmp(tagName, "pan")) {
-						reverbPan = reader.readTagOrAttributeValueInt();
+						project.reverb.reverbPan = reader.readTagOrAttributeValueInt();
 						reader.exitTag("pan");
 					}
 					else if (!strcmp(tagName, "compressor")) {
 						reader.match('{');
 						while (*(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "attack")) {
-								reverbSidechainAttack = reader.readTagOrAttributeValueInt();
+								project.reverb.reverbSidechainAttack = reader.readTagOrAttributeValueInt();
 								reader.exitTag("attack");
 							}
 							else if (!strcmp(tagName, "release")) {
-								reverbSidechainRelease = reader.readTagOrAttributeValueInt();
+								project.reverb.reverbSidechainRelease = reader.readTagOrAttributeValueInt();
 								reader.exitTag("release");
 							}
 							else if (!strcmp(tagName, "volume")) {
-								reverbSidechainVolume = reader.readTagOrAttributeValueInt();
+								project.reverb.reverbSidechainVolume = reader.readTagOrAttributeValueInt();
 								reader.exitTag("volume");
 							}
 							else if (!strcmp(tagName, "shape")) {
-								reverbSidechainShape = reader.readTagOrAttributeValueInt();
+								project.reverb.reverbSidechainShape = reader.readTagOrAttributeValueInt();
 								reader.exitTag("shape");
 							}
 							else if (!strcmp(tagName, "syncLevel")) {
-								reverbSidechainSync = (SyncLevel)convertSyncLevelFromFileValueToInternalValue(
-								    reader.readTagOrAttributeValueInt());
-								reverbSidechainSync = (SyncLevel)std::min((uint8_t)reverbSidechainSync, (uint8_t)9);
+								project.reverb.reverbSidechainSync =
+								    (SyncLevel)convertSyncLevelFromFileValueToInternalValue(
+								        reader.readTagOrAttributeValueInt());
+								project.reverb.reverbSidechainSync =
+								    (SyncLevel)std::min((uint8_t)project.reverb.reverbSidechainSync, (uint8_t)9);
 								reader.exitTag("syncLevel");
 							}
 							else {

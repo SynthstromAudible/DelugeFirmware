@@ -376,17 +376,6 @@ public:
 
 	// Reverb params to be stored here between loading and song being made the active one
 	dsp::Reverb::Model model;
-	float reverbRoomSize;
-	float reverbHPF;
-	float reverbLPF;
-	float reverbDamp;
-	float reverbWidth;
-	int32_t reverbPan;
-	int32_t reverbSidechainVolume;
-	int32_t reverbSidechainShape;
-	int32_t reverbSidechainAttack{};
-	int32_t reverbSidechainRelease{};
-	SyncLevel reverbSidechainSync;
 
 	// START ~ new Automation Arranger View Variables
 	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View

@@ -1382,16 +1382,16 @@ void stopAnyPreviewing() {
 
 void getReverbParamsFromSong(Song* song) {
 	reverb.setModel(song->model);
-	reverb.setRoomSize(song->reverbRoomSize);
-	reverb.setLPF(song->reverbLPF);
-	reverb.setDamping(song->reverbDamp);
-	reverb.setWidth(song->reverbWidth);
-	reverbPan = song->reverbPan;
-	reverbSidechainVolume = song->reverbSidechainVolume;
-	reverbSidechainShape = song->reverbSidechainShape;
-	reverbSidechain.attack = song->reverbSidechainAttack;
-	reverbSidechain.release = song->reverbSidechainRelease;
-	reverbSidechain.syncLevel = song->reverbSidechainSync;
+	reverb.setRoomSize(song->project.reverb.reverbRoomSize);
+	reverb.setLPF(song->project.reverb.reverbLPF);
+	reverb.setDamping(song->project.reverb.reverbDamp);
+	reverb.setWidth(song->project.reverb.reverbWidth);
+	reverbPan = song->project.reverb.reverbPan;
+	reverbSidechainVolume = song->project.reverb.reverbSidechainVolume;
+	reverbSidechainShape = song->project.reverb.reverbSidechainShape;
+	reverbSidechain.attack = song->project.reverb.reverbSidechainAttack;
+	reverbSidechain.release = song->project.reverb.reverbSidechainRelease;
+	reverbSidechain.syncLevel = song->project.reverb.reverbSidechainSync;
 }
 
 bool allowedToStartVoice() {
