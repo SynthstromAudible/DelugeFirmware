@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/groove.h"
+#include "deluge-project/media_pool.h"
 #include "deluge-project/metadata.h"
 #include "deluge-project/reverb_settings.h"
 #include "deluge-project/scale_settings.h"
@@ -38,6 +39,7 @@ public:
 	Song();
 
 	Metadata metadata;
+	MediaPool media;
 	Groove groove;
 	Transport transport;
 	ScaleSettings scale;

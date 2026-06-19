@@ -256,7 +256,7 @@ void killAllVoices(bool deletingSong) {
 	// But if there's no currentSong, that's fine - it's already been deleted, and this has already been called for it
 	// before then.
 	if (currentSong != nullptr) {
-		for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+		for (Output* output = currentSong->project.media.firstOutput; output != nullptr; output = output->next) {
 			if (output->type == OutputType::AUDIO) {
 				static_cast<AudioOutput*>(output)->cutAllSound();
 			}
@@ -1293,7 +1293,7 @@ void updateReverbParams() {
 		int32_t highestReverbAmountFound =
 		    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
 
-		for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		for (Output* thisOutput = currentSong->project.media.firstOutput; thisOutput; thisOutput = thisOutput->next) {
 			thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb,
 			                                   &globalEffectableWithMostReverb, &highestReverbAmountFound);
 		}

@@ -193,10 +193,6 @@ public:
 	ClipArray sessionClips;
 	ClipArray arrangementOnlyClips;
 
-	Output* firstOutput;
-	Instrument*
-	    firstHibernatingInstrument; // All Instruments have inValidState set to false when they're added to this list
-
 	// Backed-up ParamManagers, keyed by (ModControllable, Clip). For a given ModControllable, the entry with a
 	// null Clip (if any) sorts first. Node-based so ParamManagers never move in memory.
 	deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> backedUpParamManagers;
@@ -218,8 +214,6 @@ public:
 	uint8_t sectionToReturnToAfterSongEnd{};
 
 	bool wasLastInArrangementEditor{};
-
-	MIDIInstrument* hibernatingMIDIInstrument;
 
 	bool outputClipInstanceListIsCurrentlyInvalid; // Set to true during scenarios like replaceInstrument(), to warn
 	                                               // other functions not to look at Output::clipInstances

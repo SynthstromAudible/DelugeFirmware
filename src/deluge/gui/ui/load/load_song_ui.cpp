@@ -591,7 +591,7 @@ swapDone:
 	display->removeWorkingAnimation();
 
 	// for the song we just loaded, let's check if there's any midi labels we should load
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->project.media.firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput && thisOutput->type == OutputType::MIDI_OUT) {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)thisOutput;
 			if (midiInstrument->loadDeviceDefinitionFile) {

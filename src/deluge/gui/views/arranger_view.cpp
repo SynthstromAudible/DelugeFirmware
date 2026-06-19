@@ -502,7 +502,7 @@ void ArrangerView::clearArrangement() {
 	// improve on because the deletion of the Clips themselves, where there are arrangement-only ones, causes the
 	// calling of output->pickAnActiveClipIfPossible. So we have to ensure that extra ClipInstances don't exist at any
 	// instant in time, or else it'll look at those to pick the new activeClip, which might not exist anymore.
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->project.media.firstOutput; output; output = output->next) {
 		for (int32_t i = std::ssize(output->clipInstances) - 1; i >= 0; i--) {
 			deleteClipInstance(output, i, &output->clipInstances[i], action, false);
 		}
@@ -573,7 +573,7 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 	// First, clear out the Outputs onscreen
 	memset(outputsOnScreen, 0, sizeof(outputsOnScreen));
 
-	Output* output = currentSong->firstOutput;
+	Output* output = currentSong->project.media.firstOutput;
 	int32_t row = 0 - currentSong->persistentView.arrangementYScroll;
 	while (output) {
 		if (row >= kDisplayHeight) {
@@ -1050,7 +1050,8 @@ ActionResult ArrangerView::handleStatusPadAction(int32_t y, int32_t velocity, UI
 				// If we're the first Instrument to be soloing, need to tell others they've been inadvertedly
 				// deactivated
 				if (!currentSong->getAnyOutputsSoloingInArrangement()) {
-					for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+					for (Output* thisOutput = currentSong->project.media.firstOutput; thisOutput;
+					     thisOutput = thisOutput->next) {
 						if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
 							outputDeactivated(thisOutput);
 						}
@@ -1086,7 +1087,8 @@ doUnsolo:
 
 					// If no other Instruments still soloing, re-activate all the other ones
 					if (!currentSong->getAnyOutputsSoloingInArrangement()) {
-						for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+						for (Output* thisOutput = currentSong->project.media.firstOutput; thisOutput;
+						     thisOutput = thisOutput->next) {
 							if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
 								outputActivated(thisOutput);
 							}
@@ -2874,7 +2876,7 @@ void ArrangerView::shiftAutomationHorizontally(int32_t offset, int32_t scroll_am
 
 // This function will shift clips horizontally at a specific point in time by inserting / deleting time
 void ArrangerView::shiftClipsHorizontally(int32_t offset, int32_t scroll_amount, Action* action) {
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->project.media.firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		int32_t i = thisOutput->clipInstances.firstAtOrAfter(currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
 
 		bool movedOneYet = false;
@@ -3026,7 +3028,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 			}
 		}
 		else { // Down
-			if (currentSong->firstOutput == output) {
+			if (currentSong->project.media.firstOutput == output) {
 				return ActionResult::DEALT_WITH;
 			}
 		}
@@ -3042,7 +3044,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 		// Drag selected output against the scroll
 		// Shift Output up
 		if (direction >= 0) {
-			Output** prevPointer = &currentSong->firstOutput;
+			Output** prevPointer = &currentSong->project.media.firstOutput;
 			while (*prevPointer != output) {
 				prevPointer = &((*prevPointer)->next);
 			}
@@ -3054,7 +3056,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 
 		// Shift Output down
 		else {
-			Output** prevPointer = &currentSong->firstOutput;
+			Output** prevPointer = &currentSong->project.media.firstOutput;
 			while ((*prevPointer)->next != output) {
 				prevPointer = &((*prevPointer)->next);
 			}
@@ -3288,7 +3290,7 @@ bool ArrangerView::initiateXScroll(int32_t newScrollPos) {
 uint32_t ArrangerView::getMaxLength() {
 
 	uint32_t maxEndPos = 0;
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->project.media.firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
 		if (thisOutput->recordingInArrangement) {
 			int32_t livePos = arrangement.getLivePos();
