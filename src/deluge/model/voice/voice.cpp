@@ -731,7 +731,9 @@ uint32_t Voice::getLocalLFOPhaseIncrement(const LFOConfig& config, deluge::modul
 [[gnu::hot]] bool Voice::render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock,
                                 int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
                                 bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF, bool doHPF,
-                                int32_t externalPitchAdjust, const VoiceConfig& cfg) {
+                                int32_t externalPitchAdjust, const VoiceConfig& cfg,
+                                std::array<int32_t*, 4> spareBuffers) {
+	spareBuffers_ = spareBuffers; // the render helpers read these instead of the file-scope spareRenderingBuffer
 	// we spread out over a render cycle - allocating and starting the voice takes more time than rendering it so this
 	// avoids the cpu spike at note on
 	if (justCreated == false) {
@@ -1132,7 +1134,7 @@ skipAutoRelease: {}
 	bool doPanning;
 
 	// two first indicies are reserved in case we need stereo for unison spread
-	oscBuffer = spareRenderingBuffer[0];
+	oscBuffer = spareBuffers_[0];
 	int32_t channels = stereoUnison ? 2 : 1;
 
 	int32_t const* const oscBufferEnd = oscBuffer + numSamples * channels;
@@ -1268,7 +1270,7 @@ skipAutoRelease: {}
 
 				ringModEngine.render(ringModSources[0], ringModSources[1], doingOscSync, oscSyncPos[u], cfg.hasFilters,
 				                     filterGain, unisonAmplitudeL, unisonAmplitudeR, stereoUnison, oscBuffer,
-				                     numSamples, spareRenderingBuffer[2], spareRenderingBuffer[3]);
+				                     numSamples, spareBuffers_[2], spareBuffers_[3]);
 			}
 
 			// Or if FM
@@ -1276,7 +1278,7 @@ skipAutoRelease: {}
 				fmEngine.render(*this, u, numSamples, overallPitchAdjust, stereoUnison, unisonAmplitudeL,
 				                unisonAmplitudeR, phaseIncrements, sourceAmplitudes, sourceAmplitudesNow,
 				                sourceAmplitudeIncrements, modulatorsActive, modulatorAmplitudeIncrements, oscBuffer,
-				                spareRenderingBuffer[2], spareRenderingBuffer[3], cfg);
+				                spareBuffers_[2], spareBuffers_[3], cfg);
 			}
 		}
 
@@ -1805,7 +1807,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .waveTableData = (waveTable != nullptr) ? waveTable->view() : deluge::dsp::fixed::WaveTableData{},
 	    .waveIndexLast = sourceWaveIndexesLastTime[s],
 	    .waveIndexIncrement = waveIndexIncrement,
-	    .stereoScratch = spareRenderingBuffer[2],
+	    .stereoScratch = spareBuffers_[2],
 	    .stereoScratchClearSamples = SSI_TX_BUFFER_NUM_SAMPLES,
 	    .syncScratch = deluge::dsp::oscSyncRenderingBuffer,
 	    .ampModParam = params.paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s], // DX7 amplitude-mod control

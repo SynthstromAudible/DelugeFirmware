@@ -124,7 +124,8 @@ public:
 	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);
 	bool render(ParamManagerForTimeline* paramManager, const ControlBlock& controlBlock, int32_t* soundBuffer,
 	            int32_t numSamples, bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
-	            bool doLPF, bool doHPF, int32_t externalPitchAdjust, const VoiceConfig& cfg);
+	            bool doLPF, bool doHPF, int32_t externalPitchAdjust, const VoiceConfig& cfg,
+	            std::array<int32_t*, 4> spareBuffers);
 
 	void calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack);
 	bool sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType);
@@ -172,6 +173,11 @@ private:
 	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t
 	// phaseShift);
 	bool delete_this_voice_{false};
+
+	// The shared per-render scratch buffers, injected by the adapter (Sound::render passes the file-scope
+	// spareRenderingBuffer). Set at the top of render(); the render helpers read it instead of reaching the global,
+	// so the kernel names no engine-wide global. Each entry is SSI_TX_BUFFER_NUM_SAMPLES wide.
+	std::array<int32_t*, 4> spareBuffers_{};
 
 	void renderBasicSource(ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer, int32_t numSamples,
 	                       bool stereoBuffer, int32_t sourceAmplitude, bool* unisonPartBecameInactive,

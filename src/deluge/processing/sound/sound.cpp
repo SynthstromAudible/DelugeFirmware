@@ -70,6 +70,10 @@
 
 namespace params = deluge::modulation::params;
 
+// Defined in voice.cpp; the per-render scratch shared engine-wide. Injected into Voice::render (the kernel no
+// longer reaches it as a global).
+extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
+
 constexpr Patcher::Config kPatcherConfigForSound = {
     .firstParam = params::FIRST_GLOBAL,
     .firstNonVolumeParam = params::FIRST_GLOBAL_NON_VOLUME,
@@ -2577,9 +2581,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
-			bool stillGoing = voice->render(paramManager, controlBlock, sound_mono.data(), sound_mono.size(),
-			                                voice_rendered_in_stereo, applyingPanAtVoiceLevel, sourcesChanged, doLPF,
-			                                doHPF, pitchAdjust, voiceConfig);
+			bool stillGoing = voice->render(
+			    paramManager, controlBlock, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
+			    applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig,
+			    {spareRenderingBuffer[0], spareRenderingBuffer[1], spareRenderingBuffer[2], spareRenderingBuffer[3]});
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
