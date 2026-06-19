@@ -58,7 +58,7 @@ Error ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelS
 			}
 
 doToggle:
-			int32_t clipIndex = modelStack->song->sessionClips.getIndexForClip(clip);
+			int32_t clipIndex = modelStack->song->project.clips.sessionClips.getIndexForClip(clip);
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
 		}
 	}

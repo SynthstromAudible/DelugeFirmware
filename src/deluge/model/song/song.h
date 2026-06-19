@@ -190,9 +190,6 @@ public:
 
 	GlobalEffectableForSong globalEffectable;
 
-	ClipArray sessionClips;
-	ClipArray arrangementOnlyClips;
-
 	// Backed-up ParamManagers, keyed by (ModControllable, Clip). For a given ModControllable, the entry with a
 	// null Clip (if any) sorts first. Node-based so ParamManagers never move in memory.
 	deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> backedUpParamManagers;

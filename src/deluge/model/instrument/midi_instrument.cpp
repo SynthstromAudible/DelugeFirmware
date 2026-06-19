@@ -725,14 +725,14 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whic
 
 	// Need to pick a new cc which is blank on all Clips' ParamManagers with this Instrument
 	// For each Clip in session and arranger for specific Output (that Output is "this")
-	int32_t numElements = std::ssize(modelStack->song->sessionClips);
+	int32_t numElements = std::ssize(modelStack->song->project.clips.sessionClips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = modelStack->song->sessionClips[c];
+			clip = modelStack->song->project.clips.sessionClips[c];
 			if (clip->output != this) {
 				continue;
 			}
@@ -761,13 +761,13 @@ traverseClips:
 
 	// And then tell all Clips' ParamManagers with this Instrument to change that CC
 	// For each Clip in session and arranger for specific Output (that Output is "this")
-	numElements = std::ssize(modelStack->song->sessionClips);
+	numElements = std::ssize(modelStack->song->project.clips.sessionClips);
 	doingArrangementClips = false;
 traverseClips2:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = modelStack->song->sessionClips[c];
+			clip = modelStack->song->project.clips.sessionClips[c];
 			if (clip->output != this) {
 				continue;
 			}

@@ -400,7 +400,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 			*newOutputCreated = cloneOutput(modelStack);
 
 			if (action != nullptr) {
-				action->recordClipExistenceChange(modelStack->song, &modelStack->song->sessionClips, this,
+				action->recordClipExistenceChange(modelStack->song, &modelStack->song->project.clips.sessionClips, this,
 				                                  ExistenceChangeType::CREATE);
 
 				if (*newOutputCreated) {
@@ -1060,7 +1060,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 		else {
 
-			if (!modelStack->song->arrangementOnlyClips.reserveExtra(1)) {
+			if (!modelStack->song->project.clips.arrangementOnlyClips.reserveExtra(1)) {
 				return false;
 			}
 
@@ -1121,7 +1121,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			}
 
 			// Add to Song
-			(void)modelStack->song->arrangementOnlyClips.insertClipAt(newClip, 0); // Can't fail
+			(void)modelStack->song->project.clips.arrangementOnlyClips.insertClipAt(newClip, 0); // Can't fail
 
 			expectNoFurtherTicks(modelStack->song, false); // Don't sound
 

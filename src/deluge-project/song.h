@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/clips.h"
 #include "deluge-project/groove.h"
 #include "deluge-project/media_pool.h"
 #include "deluge-project/metadata.h"
@@ -40,6 +41,7 @@ public:
 
 	Metadata metadata;
 	MediaPool media;
+	Clips clips;
 	Groove groove;
 	Transport transport;
 	ScaleSettings scale;
