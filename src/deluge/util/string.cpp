@@ -1,13 +1,20 @@
 #include "util/string.h"
 #include "printf.h"
+#include "util/d_stringbuf.h" // intToHex
+#include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/try.h"
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <expected>
 #include <string>
 #include <system_error>
+
+extern "C" {
+#include "util/cfunctions.h" // intToString, floatToString
+}
 
 namespace deluge {
 std::expected<char*, std::errc> to_chars(char* first, char* last, float value, int precision) {
@@ -90,6 +97,24 @@ bool caselessEquals(std::string_view a, std::string_view b) {
 		return false;
 	}
 	return strncasecmp(a.data(), b.data(), n) == 0;
+}
+
+void appendInt(etl::istring& out, int32_t number, int32_t minDigits) {
+	char buf[16]; // int32 is at most 11 chars (sign + 10 digits) + null; minDigits padding is bounded by callers.
+	intToString(number, buf, minDigits);
+	out.append(buf, std::strlen(buf));
+}
+
+void appendHex(etl::istring& out, uint32_t number, int32_t minDigits) {
+	char buf[16]; // up to 8 hex digits + null.
+	intToHex(number, buf, minDigits);
+	out.append(buf, std::strlen(buf));
+}
+
+void appendFloat(etl::istring& out, float number, int32_t minDecimals, int32_t maxDecimals) {
+	char buf[32]; // integer part + '.' + fractional digits, or "inf"/"-...".
+	floatToString(number, buf, minDecimals, maxDecimals);
+	out.append(buf, std::strlen(buf));
 }
 
 } // namespace deluge::string
