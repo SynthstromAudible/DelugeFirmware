@@ -66,11 +66,17 @@ XMLDeserializer::XMLDeserializer() {
 	reset();
 }
 
+XMLDeserializer::XMLDeserializer(uint8_t* inbuf, size_t buflen) : FileDeserializer(inbuf, buflen) {
+	reset();
+}
+
 void XMLDeserializer::reset() {
 	resetReader();
-	// Prep to read first Cluster shortly
-	fileReadBufferCurrentPos = Cluster::size;
-	currentReadBufferEndPos = Cluster::size;
+	if (!memoryBased) {
+		// Prep to read first Cluster shortly
+		fileReadBufferCurrentPos = Cluster::size;
+		currentReadBufferEndPos = Cluster::size;
+	}
 
 	song_firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
 

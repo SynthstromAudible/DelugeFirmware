@@ -384,6 +384,14 @@ int32_t getNumVoices() {
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	logAction("AudioDriver::routineWithClusterLoading");
 
+	// In-memory deserialization (FileReader::callRoutines == false) opts out of the cooperative
+	// audio yield: there is no SD cluster stream to service and no engine to pump. File-backed
+	// reads keep callRoutines == true, so firmware load behaviour is unchanged. This also lets a
+	// headless host harness load a Song without standing up the audio engine.
+	if (activeDeserializer != nullptr && !activeDeserializer->shouldCallRoutines()) {
+		return;
+	}
+
 	routineBeenCalled = false;
 
 	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);

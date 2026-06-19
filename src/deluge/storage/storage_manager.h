@@ -69,6 +69,10 @@ public:
 	uint32_t bytesRemainingInBuffer() { return currentReadBufferEndPos - fileReadBufferCurrentPos; }
 	char* GetCurrentAddressInBuffer() { return fileClusterBuffer + fileReadBufferCurrentPos; }
 
+	/// Whether long reads may interleave the cooperative audio/SD routine. True for file-backed
+	/// reads (firmware default); false for in-memory reads, which must not pump the audio engine.
+	bool shouldCallRoutines() const { return callRoutines; }
+
 protected:
 	bool callRoutines = true;
 	bool readFileCluster();
@@ -102,6 +106,14 @@ public:
 	void setMemoryBased() {
 		memoryBased = true;
 		callRoutines = false;
+	}
+
+	/// Redirect writes into a caller-owned buffer (for in-memory serialization, e.g. a host
+	/// round-trip harness). Writes truncate at `len`, so size it to the largest expected output.
+	void setMemoryBuffer(char* buf, uint32_t len) {
+		writeClusterBuffer = buf;
+		bufferSize = len;
+		setMemoryBased();
 	}
 
 protected:
@@ -213,6 +225,7 @@ public:
 class XMLDeserializer : public FileDeserializer {
 public:
 	XMLDeserializer();
+	XMLDeserializer(uint8_t* inbuf, size_t buflen);
 	~XMLDeserializer() override = default;
 
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
