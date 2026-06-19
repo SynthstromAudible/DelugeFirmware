@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "deluge-project/groove.h"
+
 namespace deluge::project {
 
 /// The project model: the persistent musical document — clips, instruments, tempo, scale,
@@ -30,6 +32,8 @@ namespace deluge::project {
 class Song {
 public:
 	Song();
+
+	Groove groove;
 };
 
 } // namespace deluge::project

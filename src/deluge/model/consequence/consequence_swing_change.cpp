@@ -25,7 +25,7 @@ ConsequenceSwingChange::ConsequenceSwingChange(int8_t newSwingBefore, int8_t new
 }
 
 Error ConsequenceSwingChange::revert(TimeType time, ModelStack* modelStack) {
-	modelStack->song->swingAmount = swing[time];
+	modelStack->song->project.groove.swingAmount = swing[time];
 
 	return Error::NONE;
 }

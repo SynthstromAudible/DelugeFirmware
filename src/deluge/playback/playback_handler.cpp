@@ -713,7 +713,7 @@ void PlaybackHandler::actionTimerTick() {
 void PlaybackHandler::actionTimerTickPart2() {
 
 	// Schedule next timer tick. Normal case is two swing intervals away.
-	int32_t leftShift = 10 - currentSong->swingInterval;
+	int32_t leftShift = 10 - currentSong->project.groove.swingInterval;
 	leftShift = std::max(leftShift, 0_i32);
 	uint32_t timeTilNextTimerTick = 3 << (leftShift); // That's doubleSwingInterval
 
@@ -1062,14 +1062,14 @@ void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 		uint32_t swungTicksIntoTimerBit = nextSwungTick - lastTimerTickActioned;
 
 		if (currentSong->hasAnySwing()) {
-			int32_t leftShift = 9 - currentSong->swingInterval;
+			int32_t leftShift = 9 - currentSong->project.groove.swingInterval;
 			leftShift = std::max(leftShift, 0_i32);
 			uint32_t swingInterval = 3 << (leftShift);
 
 			// Before swing mid-point
 			if (swungTicksIntoTimerBit <= swingInterval) {
 				uint64_t timeInBig = currentSong->timePerTimerTickBig * swungTicksIntoTimerBit
-				                     * (uint32_t)(50 + currentSong->swingAmount) / 50;
+				                     * (uint32_t)(50 + currentSong->project.groove.swingAmount) / 50;
 				scheduledSwungTickTime = (uint64_t)(timeLastTimerTickBig + timeInBig) >> 32;
 			}
 
@@ -1077,7 +1077,7 @@ void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 			else {
 				uint32_t swungTicksTilEnd = (swingInterval << 1) - swungTicksIntoTimerBit;
 				uint64_t timeTilEndBig = currentSong->timePerTimerTickBig * swungTicksTilEnd
-				                         * (uint32_t)(50 - currentSong->swingAmount) / 50;
+				                         * (uint32_t)(50 - currentSong->project.groove.swingAmount) / 50;
 				scheduledSwungTickTime = (uint64_t)(timeNextTimerTickBig - timeTilEndBig) >> 32;
 			}
 		}
@@ -1110,12 +1110,13 @@ int32_t PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRema
 			*timeRemainder = 0; // To be improved
 		}
 
-		int32_t leftShift = 9 - currentSong->swingInterval;
+		int32_t leftShift = 9 - currentSong->project.groove.swingInterval;
 		leftShift = std::max(leftShift, 0_i32);
 		uint32_t swingInterval = 3 << (leftShift);
 
 		// First, see if we're in the first half still
-		uint32_t timePassedFiddledWith = (uint32_t)(timePassed * 50) / (uint32_t)(50 + currentSong->swingAmount);
+		uint32_t timePassedFiddledWith =
+		    (uint32_t)(timePassed * 50) / (uint32_t)(50 + currentSong->project.groove.swingAmount);
 		uint32_t ticksIn = timePassedFiddledWith / timePerTimerTick;
 		if (ticksIn < swingInterval) {
 			return ticksIn;
@@ -1124,7 +1125,7 @@ int32_t PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRema
 		// Or if we're still here, it's in the second half
 		uint32_t timeTilNextTimerTick = (uint32_t)(timeNextTimerTickBig >> 32) - AudioEngine::audioSampleTimer;
 		uint32_t timeTilNextFiddledWith =
-		    (uint32_t)(timeTilNextTimerTick * 50) / (uint32_t)(50 - currentSong->swingAmount);
+		    (uint32_t)(timeTilNextTimerTick * 50) / (uint32_t)(50 - currentSong->project.groove.swingAmount);
 		if (!timeTilNextFiddledWith) {
 			return 1; // Otherwise we'd get a negative number when subtracting 1 below
 		}
@@ -1187,7 +1188,7 @@ int64_t PlaybackHandler::getActualSwungTickCount(uint32_t* timeRemainder) {
 		// Yes swing
 		else {
 
-			int32_t leftShift = 9 - currentSong->swingInterval;
+			int32_t leftShift = 9 - currentSong->project.groove.swingInterval;
 			leftShift = std::max(leftShift, 0_i32);
 			uint32_t swingInterval = 3 << (leftShift);
 			uint32_t doubleSwingInterval = swingInterval << 1;
@@ -1196,7 +1197,8 @@ int64_t PlaybackHandler::getActualSwungTickCount(uint32_t* timeRemainder) {
 			float posWithinSwingBlock = currentInternalTick - startOfSwingBlock;
 
 			// First, see if we're in the first half still
-			float swungTicksIn = (uint32_t)(posWithinSwingBlock * 50) / (uint32_t)(50 + currentSong->swingAmount);
+			float swungTicksIn =
+			    (uint32_t)(posWithinSwingBlock * 50) / (uint32_t)(50 + currentSong->project.groove.swingAmount);
 			if (swungTicksIn < swingInterval) {
 				actualSwungTick = startOfSwingBlock + swungTicksIn;
 			}
@@ -1205,7 +1207,7 @@ int64_t PlaybackHandler::getActualSwungTickCount(uint32_t* timeRemainder) {
 			else {
 				float posTilEndOfSwingBlock = (float)doubleSwingInterval - posWithinSwingBlock;
 				float swungTicksTilEnd =
-				    (uint32_t)(posTilEndOfSwingBlock * 50) / (uint32_t)(50 - currentSong->swingAmount);
+				    (uint32_t)(posTilEndOfSwingBlock * 50) / (uint32_t)(50 - currentSong->project.groove.swingAmount);
 				actualSwungTick = startOfSwingBlock + doubleSwingInterval - (swungTicksTilEnd + 1); // Round that bit up
 			}
 		}
@@ -1715,7 +1717,7 @@ void PlaybackHandler::scheduleSwungTickFromExternalClock() {
 	}
 	else {
 
-		int32_t leftShift = 10 - currentSong->swingInterval;
+		int32_t leftShift = 10 - currentSong->project.groove.swingInterval;
 		leftShift = std::max(leftShift, 0_i32);
 		uint32_t doubleSwingInterval = 3 << (leftShift);
 
@@ -1726,14 +1728,15 @@ void PlaybackHandler::scheduleSwungTickFromExternalClock() {
 
 		// If in first half of interval
 		if (swungTickWithinInterval <= (doubleSwingInterval >> 1)) {
-			internalTickWithinIntervalTimes50 = swungTickWithinInterval * (50 + currentSong->swingAmount);
+			internalTickWithinIntervalTimes50 =
+			    swungTickWithinInterval * (50 + currentSong->project.groove.swingAmount);
 		}
 
 		// Or if in second half of interval
 		else {
 			int32_t ticksTilEnd = doubleSwingInterval - swungTickWithinInterval;
 			internalTickWithinIntervalTimes50 =
-			    doubleSwingInterval * 50 - ticksTilEnd * (50 - currentSong->swingAmount);
+			    doubleSwingInterval * 50 - ticksTilEnd * (50 - currentSong->project.groove.swingAmount);
 		}
 
 		internalTickPositionForNextSwungTickTimes50 = internalTickWithinIntervalTimes50 + (startOfSwingInterval * 50);
@@ -2042,15 +2045,15 @@ void PlaybackHandler::commandDisplaySwingInterval() {
 	etl::string<30> text;
 	if (display->haveOLED()) {
 		text.append("Swing: ");
-		if (currentSong->swingAmount == 0) {
+		if (currentSong->project.groove.swingAmount == 0) {
 			text.append("off");
 		}
 		else {
-			deluge::string::appendInt(text, currentSong->swingAmount + 50);
+			deluge::string::appendInt(text, currentSong->project.groove.swingAmount + 50);
 		}
 		text.append("\n");
 	}
-	syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
+	syncValueToString(currentSong->project.groove.swingInterval, text, currentSong->getInputTickMagnitude());
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
@@ -2063,36 +2066,36 @@ void PlaybackHandler::commandDisplaySwingAmount() {
 	etl::string<30> text;
 	if (display->haveOLED()) {
 		text.append("Swing: ");
-		if (currentSong->swingAmount == 0) {
+		if (currentSong->project.groove.swingAmount == 0) {
 			text.append("off");
 		}
 		else {
-			deluge::string::appendInt(text, currentSong->swingAmount + 50);
+			deluge::string::appendInt(text, currentSong->project.groove.swingAmount + 50);
 		}
 		text.append("\n");
-		syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
+		syncValueToString(currentSong->project.groove.swingInterval, text, currentSong->getInputTickMagnitude());
 	}
 	else {
-		if (currentSong->swingAmount == 0) {
+		if (currentSong->project.groove.swingAmount == 0) {
 			text.append("OFF");
 		}
 		else {
-			deluge::string::appendInt(text, currentSong->swingAmount + 50);
+			deluge::string::appendInt(text, currentSong->project.groove.swingAmount + 50);
 		}
 	}
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
 void PlaybackHandler::commandEditSwingInterval(int8_t offset) {
-	currentSong->changeSwingInterval(wrapSwingIntervalSyncLevel(currentSong->swingInterval + offset));
+	currentSong->changeSwingInterval(wrapSwingIntervalSyncLevel(currentSong->project.groove.swingInterval + offset));
 	commandDisplaySwingInterval();
 }
 
 void PlaybackHandler::commandEditSwingAmount(int8_t offset) {
-	int32_t newSwingAmount = std::clamp(currentSong->swingAmount + offset, -49, 49);
-	if (newSwingAmount != currentSong->swingAmount) {
-		actionLogger.recordSwingChange(currentSong->swingAmount, newSwingAmount);
-		currentSong->swingAmount = newSwingAmount;
+	int32_t newSwingAmount = std::clamp(currentSong->project.groove.swingAmount + offset, -49, 49);
+	if (newSwingAmount != currentSong->project.groove.swingAmount) {
+		actionLogger.recordSwingChange(currentSong->project.groove.swingAmount, newSwingAmount);
+		currentSong->project.groove.swingAmount = newSwingAmount;
 	}
 	commandDisplaySwingAmount();
 }

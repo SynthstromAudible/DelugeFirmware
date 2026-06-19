@@ -216,9 +216,6 @@ public:
 	// weird. So, we keep insideWorldTickMagnitudeOffsetFromBPM
 	int32_t insideWorldTickMagnitudeOffsetFromBPM;
 
-	int8_t swingAmount;
-	uint8_t swingInterval;
-
 	Section sections[kMaxNumSections];
 
 	MusicalKey key;

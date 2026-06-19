@@ -84,18 +84,55 @@ the engine never depends on the concrete model type.
   (`tests/golden`) to *project files*: load → save → compare across a corpus of
   real songs spanning firmware versions; assert x86 ≡ ARM. Use Rust `deluge-xml`
   as a differential oracle. Nothing below is safe without this.
-- **Phase 1 — Carve out view/UI state.** Move `xScroll`/`xZoom`/`*ForReturnToSong`/
-  `arrangementYScroll`/`affectEntire`/`currentClip` etc. off `Song` into a
-  `SessionView`/`UIState`. Mechanical, in-tree, stays green.
-- **Phase 2 — Sever execution coupling.** Eliminate the ~94 direct
-  `playbackHandler`/`view`/`sessionView` reaches in `song.cpp`; define the
-  data/engine seam.
-- **Phase 3 — `ProjectReader` interface.** Introduce a read-only interface the
-  playback/scheduling code uses instead of touching `Song`/data directly.
-- **Phase 4 — Native C++ `ProjectModel` library.** Extract `domain/` value types
-  + `project/` data and mutation ops into a standalone target with **zero**
-  firmware/UI/DSP dependencies, fully host-unit-testable. `Song` becomes a thin
-  owner/wrapper of one `ProjectModel`.
+- **Phase 1 — Carve out view/UI state. ✅ DONE** (3 bisectable commits,
+  golden-green x86≡ARM). Split into three buckets per the
+  project/persistent-view/runtime-view distinction: never-serialized fields →
+  `RuntimeViewState` (`currentClip`, `previousClip`, `paramsInAutomationMode`,
+  `fillModeActive`, `inClipMinderViewOnLoad`); serialized fields →
+  `PersistentViewState` (`xScroll`/`xZoom`, `*ForReturnToSongView`, triplets,
+  `affectEntire`, `sessionLayout`, song-grid/Y scrolls, arranger auto-scroll,
+  arrangement-instance pos). Both are `Song` members
+  (`model/song/song_view_state.h`); serialization unchanged (same XML tags).
+  ~440 call sites updated compiler-guided. `wasLastInArrangementEditor` /
+  `sectionToReturnToAfterSongEnd` left on `Song` (not serialized, ambiguous).
+  Remaining pre-merge: arm-none-eabi firmware build + hardware test.
+- **Phase 2 — Extract the project model into a new `deluge_project` library.**
+  ⏳ IN PROGRESS. Create `src/deluge-project/` (target `deluge_project`,
+  namespace `deluge::project`) — the boundary for the modern, idiomatic, OO
+  C++23 project model, mirroring the synth work's clean library (`deluge_dsp` is
+  the structural precedent). The serialized project data **is** the model: move
+  it off the legacy `::Song` god-object into `deluge::project::Song`. `::Song`
+  becomes the controller (keeps `runtimeView`, playback/UI methods and their
+  coupling) and owns the model as the `project` member; data access becomes
+  `currentSong->project.<…>`. Serialization keeps the same XML tags, so the
+  golden round-trip net verifies every step (byte-identical).
+
+  **Decomposed into components NOW (split-now), not flat-then-split.** Each
+  field group lands directly in a component sub-object of `deluge::project::Song`
+  (`Groove`, `Transport`, `ScaleSettings`, `Arrangement`, `MediaPool`/outputs,
+  `Clips`, …), mirroring `spark-project`'s domain decomposition (`groove`,
+  `transport`/`tempo_ops`, `scene_ops`, `clip_ops`, `track_ops`, `media_pool`,
+  …). **Rationale:** the expensive, risky part is the ~500-site external
+  call-site sweep; migrating flat and splitting later would sweep those sites
+  **twice** (`->field` → `->project.field` → `->project.groove.field`).
+  Split-now sweeps once, to the final address. Component *internals* (methods,
+  encapsulation, value semantics — the idiomatic polish) are refined **later,
+  inside the library, with zero external churn**. Genuinely cross-cutting/
+  ambiguous fields are parked at the `project::Song` root and placed later.
+
+  Method (per group, golden-gated): add the component + its fields to
+  `deluge::project::Song`, remove the fields from `::Song`, build `-k 0`,
+  compiler-guided string-safe carve of flagged `…->field` →
+  `…->project.<component>.field`, fix collisions/local-shadows/dup-error
+  cascades, rebuild to zero, golden green. (Same machinery as Phase 1's sweep.)
+  Group order: swing→`Groove`, tempo/timing→`Transport`, scale/`key`, sections,
+  outputs, clips (largest), reverb/misc.
+- **Phase 3 — Idiomatic refinement + remaining decoupling.** Polish the
+  component internals inside `deluge_project` (modern C++23, encapsulation,
+  value types), and sever the controller's residual UI/playback coupling (the
+  `display->`/`view.` reaches and the `playbackHandler` transport reads — a
+  read-seam) — deferred from here because it decouples the *controller*, is not
+  golden-covered, and is tangential to extracting the data.
 - **Phase 5 — Serialization into the library.** Move load/save behind a narrow
   interface, still C++, reusing the existing multi-version parsers; no firmware
   deps; host unit tests. Keep the interface narrow enough that a Rust

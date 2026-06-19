@@ -24,7 +24,7 @@ class Interval : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
 
-	void readCurrentValue() override { this->setValue(currentSong->swingInterval); }
+	void readCurrentValue() override { this->setValue(currentSong->project.groove.swingInterval); }
 	void writeCurrentValue() override { currentSong->changeSwingInterval(this->getValue()); }
 	// triplet/dotted not yet supported
 	size_t size() override { return NUM_SWING_INTERVALS; }
