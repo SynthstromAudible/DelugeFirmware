@@ -16,8 +16,8 @@
  */
 
 #include "processing/live/live_pitch_shifter.h"
-#include "definitions_cxx.hpp"
-#include "dsp/timestretch/time_stretcher.h"
+#include "definitions_cxx.hpp"                    // TimeStretch::Crossfade constants
+#include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
 #include "io/debug/log.h"
 #include "processing/live/live_input_buffer.h"
 #include "synth/source/audio_input_port.h"
@@ -618,10 +618,10 @@ stopPercSearch:
 		liveInputBuffer->getAveragesForCrossfade(newHeadTotals, averagesStartPosNewHead, lengthPerMovingAverage,
 		                                         numChannels);
 
-		int32_t bestDifferenceAbs = getTotalDifferenceAbs(oldHeadTotals, newHeadTotals);
+		int32_t bestDifferenceAbs = deluge::dsp::fixed::totalDifferenceAbs(oldHeadTotals, newHeadTotals);
 		int32_t timesSignFlipped = 0;
 
-		int32_t initialTotalChange = getTotalChange(oldHeadTotals, newHeadTotals);
+		int32_t initialTotalChange = deluge::dsp::fixed::totalChange(oldHeadTotals, newHeadTotals);
 
 startSearch:
 		int32_t lastTotalChange = initialTotalChange;
@@ -688,7 +688,7 @@ startSearch:
 				}
 			}
 
-			int32_t differenceAbs = getTotalDifferenceAbs(oldHeadTotals, newHeadRunningTotals);
+			int32_t differenceAbs = deluge::dsp::fixed::totalDifferenceAbs(oldHeadTotals, newHeadRunningTotals);
 
 			// If our very first read is worse, let's switch search direction right now - that'll improve our odds
 			if (offsetNow == 0 && searchDirection == 1 && !numFullDirectionsSearched
@@ -706,7 +706,7 @@ startSearch:
 				bestOffset = newOffsetNow;
 			}
 
-			int32_t thisTotalChange = getTotalChange(oldHeadTotals, newHeadRunningTotals);
+			int32_t thisTotalChange = deluge::dsp::fixed::totalChange(oldHeadTotals, newHeadRunningTotals);
 
 			// If sign just flipped...
 			if ((thisTotalChange >= 0) != (lastTotalChange >= 0)) {

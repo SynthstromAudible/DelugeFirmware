@@ -18,6 +18,7 @@
 #include "dsp/timestretch/time_stretcher.h"
 #include "definitions_cxx.hpp"
 #include "deluge/model/sample/sample_low_level_reader.h"
+#include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
 #include "io/debug/log.h"
 #include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"
@@ -630,10 +631,10 @@ skipPercStuff:
 			goto skipSearch;
 		}
 
-		int32_t bestDifferenceAbs = getTotalDifferenceAbs(oldHeadTotals, newHeadTotals);
+		int32_t bestDifferenceAbs = deluge::dsp::fixed::totalDifferenceAbs(oldHeadTotals, newHeadTotals);
 		int32_t bestOffset = 0;
 
-		int32_t initialTotalChange = getTotalChange(oldHeadTotals, newHeadTotals);
+		int32_t initialTotalChange = deluge::dsp::fixed::totalChange(oldHeadTotals, newHeadTotals);
 
 		int32_t searchDirection = playDirection;
 
@@ -771,7 +772,7 @@ entryPoint:
 					}
 				}
 
-				int32_t differenceAbs = getTotalDifferenceAbs(oldHeadTotals, newHeadRunningTotals);
+				int32_t differenceAbs = deluge::dsp::fixed::totalDifferenceAbs(oldHeadTotals, newHeadRunningTotals);
 
 				// If our very first read is worse, let's switch search direction right now - that'll improve our odds
 				if (offsetNow == 0 && searchDirectionRelativeToPlayDirection == 1 && !numFullDirectionsSearched
@@ -788,7 +789,7 @@ entryPoint:
 					bestOffset = offsetNow;
 				}
 
-				int32_t thisTotalChange = getTotalChange(oldHeadTotals, newHeadRunningTotals);
+				int32_t thisTotalChange = deluge::dsp::fixed::totalChange(oldHeadTotals, newHeadRunningTotals);
 
 				// If sign just flipped...
 				if (((uint32_t)thisTotalChange >> 31) != ((uint32_t)lastTotalChange >> 31)) {

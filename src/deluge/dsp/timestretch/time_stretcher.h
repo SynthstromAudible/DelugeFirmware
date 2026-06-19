@@ -103,25 +103,5 @@ private:
 	                      int32_t additionalOscPos, int32_t priorityRating, LoopType loopingType);
 };
 
-inline int32_t getTotalDifferenceAbs(int32_t* totals1, int32_t* totals2) {
-	int32_t totalDifferenceAbs = 0;
-	for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
-		int32_t differenceAbsHere = totals2[i] - totals1[i];
-		if (differenceAbsHere < 0)
-			differenceAbsHere = -differenceAbsHere;
-		totalDifferenceAbs += differenceAbsHere;
-	}
-	return totalDifferenceAbs;
-}
-
-inline int32_t getTotalChange(int32_t* totals1, int32_t* totals2) {
-	int32_t totalChange = 0;
-	for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
-		totalChange += totals2[i];
-	}
-
-	for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
-		totalChange -= totals1[i];
-	}
-	return totalChange;
-}
+// The crossfade window-match helpers (getTotalDifferenceAbs / getTotalChange) moved to
+// dsp-next/fixed/timestretch/crossfade.h as deluge::dsp::fixed::totalDifferenceAbs / totalChange.
