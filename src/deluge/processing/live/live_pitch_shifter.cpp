@@ -18,7 +18,7 @@
 #include "processing/live/live_pitch_shifter.h"
 #include "definitions_cxx.hpp"                    // TimeStretch::Crossfade constants
 #include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
-#include "io/debug/log.h"
+#include "foundation/panic.h"                     // FREEZE_WITH_ERROR
 #include "processing/live/live_input_buffer.h"
 #include "synth/source/audio_input_port.h"
 #include "util/functions.h"
@@ -831,7 +831,6 @@ thatsDone:
 #if MEASURE_HOP_END_PERFORMANCE
 	uint16_t endTime = MTU2.TCNT_0;
 	uint16_t timeTaken = endTime - startTime;
-	D_PRINTLN("hop end time:  %d", timeTaken);
 #endif
 }
 
@@ -868,11 +867,3 @@ bool LivePitchShifter::olderPlayHeadIsCurrentlySounding() {
 bool LivePitchShifter::mayBeRemovedWithoutClick() {
 	return (!olderPlayHeadIsCurrentlySounding() && playHeads[PLAY_HEAD_NEWER].mode == PlayHeadMode::RAW_DIRECT);
 }
-
-#if INPUT_ENABLE_REPITCHED_BUFFER
-// TODO: this is identical to in SampleLowLevelReader - combine
-void LivePitchShifter::interpolate(int32_t* sampleRead, int32_t interpolationBufferSize, int32_t numChannelsNow,
-                                   int32_t whichKernel) {
-#include "dsp/interpolation/interpolate.h"
-}
-#endif

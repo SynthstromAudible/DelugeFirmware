@@ -42,7 +42,6 @@ public:
 	bool mayBeRemovedWithoutClick();
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
-	void interpolate(int32_t* sampleRead, int32_t interpolationBufferSize, int32_t numChannelsNow, int32_t whichKernel);
 	int32_t* repitchedBuffer;
 	int32_t repitchedBufferWritePos;
 	uint64_t repitchedBufferNumSamplesWritten;
