@@ -55,6 +55,7 @@ target_link_libraries(deluge_app PUBLIC
     etl::etl
     deluge_foundation
     deluge_midi
+    deluge_project   # the project model (deluge::project::Song)
 )
 
 target_compile_definitions(deluge_app PUBLIC

@@ -4,6 +4,7 @@ target_sources(deluge PUBLIC main.c resetprg.c c_lib_alternatives.S malloc.c ter
 
 add_subdirectory(foundation) # bottom of the stack; the layers below link it
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
+add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
 add_subdirectory(bsp)

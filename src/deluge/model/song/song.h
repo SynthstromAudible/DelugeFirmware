@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/song.h"
 #include "gui/menu_item/reverb/model.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
@@ -179,6 +180,11 @@ public:
 	std::string getSongFullPath();
 	void setSongFullPath(const char* fullPath);
 	int32_t getInputTickMagnitude() const { return insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM; }
+
+	// The project model (deluge::project::Song). Project data migrates into this group by group
+	// (docs/dev/project_model_extraction.md); ::Song is the controller that owns it. Empty for now.
+	// (Named `project` rather than `model` — `model` is already the reverb-model enum member.)
+	deluge::project::Song project;
 
 	GlobalEffectableForSong globalEffectable;
 
