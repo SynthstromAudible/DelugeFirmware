@@ -1,0 +1,5 @@
+# Match deluge-sdk's pinned toolchain (nightly + rust-src for build-std).
+[toolchain]
+channel = "nightly"
+targets = ["armv7a-none-eabihf"]
+components = ["rust-src", "llvm-tools-preview"]

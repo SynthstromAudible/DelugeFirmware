@@ -1,0 +1,46 @@
+# deluge-bsp-rust: the Rust/Embassy firmware image (Cargo-top). Implements the
+# <libdeluge/...> C-ABI boundary for the Synthstrom Deluge (Renesas RZ/A1L) on
+# top of the sibling deluge-sdk HAL+BSP, OWNS reset/main/_start + the Embassy
+# executor, and links the portable C++ application (built by CMake into
+# libdeluge_app.a) — running deluge_main() in one Embassy task.
+#
+# Standalone crate (NOT a workspace member). The path deps below sit inside the
+# deluge-sdk Cargo workspace, so their `workspace = true` embassy pins resolve
+# against that workspace and stay version-locked.
+[package]
+name = "deluge-bsp-rust"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+[[bin]]
+name = "deluge-rust"
+path = "src/main.rs"
+test = false
+
+[dependencies]
+# Sibling deluge-sdk HAL + BSP (DelugeFirmware and deluge-sdk cloned side by side).
+deluge-bsp = { path = "../../../../deluge-sdk/crates/deluge-bsp" }
+rza1l-hal = { path = "../../../../deluge-sdk/crates/rza1l-hal" }
+
+# Embassy runtime — versions match deluge-sdk's workspace pins.
+embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread"] }
+embassy-time = { version = "0.5.1", features = ["tick-hz-1_000_000"] }
+embassy-sync = "0.8.0"
+embassy-futures = "0.1.2"
+
+cortex-ar = "0.3"
+critical-section = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+debug = true
+panic = "abort"
+
+[profile.dev]
+opt-level = 1
+debug = true
+panic = "abort"

@@ -1,0 +1,22 @@
+# Standalone build config for the Rust BSP staticlib. Not inherited from the
+# deluge-sdk workspace (.cargo/config is resolved relative to the invocation
+# dir), so the target triple, Cortex-A9/NEON flags, build-std and the embassy
+# USB interface budget are replicated here.
+[build]
+target = "armv7a-none-eabihf"
+
+[target.armv7a-none-eabihf]
+rustflags = [
+  "-C", "target-cpu=cortex-a9",
+  "-C", "target-feature=+neon",
+]
+
+# This crate is bare-metal only (no host target), so build-std can live in
+# [unstable] directly — a plain `cargo build` works without the deluge-sdk
+# aliases, which keeps the CMake invocation simple.
+[unstable]
+build-std = ["core"]
+build-std-features = ["compiler-builtins-mem"]
+
+[env]
+EMBASSY_USB_MAX_INTERFACE_COUNT = "8"
