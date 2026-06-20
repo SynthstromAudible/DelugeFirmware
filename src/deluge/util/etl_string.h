@@ -33,4 +33,7 @@ void appendHex(etl::istring& out, uint32_t number, int32_t minDigits = 1);
 /// zeros trimmed down to `minDecimals`). Matches `StringBuf::appendFloat` / `floatToString`.
 void appendFloat(etl::istring& out, float number, int32_t minDecimals, int32_t maxDecimals);
 
+/// Remove all whitespace characters from `s`, in place. Matches `StringBuf::removeSpaces`.
+void removeSpaces(etl::istring& s);
+
 } // namespace deluge::string

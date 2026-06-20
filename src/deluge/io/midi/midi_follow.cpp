@@ -42,6 +42,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
+#include "util/etl_string.h"
 #include <cstdlib>
 
 using namespace deluge;
@@ -617,7 +618,7 @@ void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalPa
 
 	if (paramID != PARAM_ID_NONE) {
 		if (display->haveOLED()) {
-			DEF_STACK_STRING_BUF(popupMsg, 40);
+			etl::string<40> popupMsg;
 
 			const char* name = getParamDisplayName(paramKind, paramID);
 			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {

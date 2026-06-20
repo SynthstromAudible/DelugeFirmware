@@ -1,10 +1,11 @@
 #include "util/string.h"
 #include "printf.h"
-#include "util/d_stringbuf.h" // intToHex
+#include "util/d_string.h" // intToHex
 #include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/try.h"
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -115,6 +116,16 @@ void appendFloat(etl::istring& out, float number, int32_t minDecimals, int32_t m
 	char buf[32]; // integer part + '.' + fractional digits, or "inf"/"-...".
 	floatToString(number, buf, minDecimals, maxDecimals);
 	out.append(buf, std::strlen(buf));
+}
+
+void removeSpaces(etl::istring& s) {
+	size_t write = 0;
+	for (size_t read = 0; read < s.size(); ++read) {
+		if (std::isspace(static_cast<unsigned char>(s[read])) == 0) {
+			s[write++] = s[read];
+		}
+	}
+	s.resize(write);
 }
 
 } // namespace deluge::string

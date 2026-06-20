@@ -273,9 +273,9 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	display->setText(buffer, true, 3 - numDecimalPlaces);
 }
 
-void DecimalWithoutScrolling::getNotificationValue(StringBuf& value) {
+void DecimalWithoutScrolling::getNotificationValue(etl::istring& value) {
 	const int32_t numDecimalPlaces = this->getNumDecimalPlaces();
-	value.appendFloat(this->getDisplayValue(), numDecimalPlaces, numDecimalPlaces);
+	deluge::string::appendFloat(value, this->getDisplayValue(), numDecimalPlaces, numDecimalPlaces);
 	value.append(getUnit());
 }
 

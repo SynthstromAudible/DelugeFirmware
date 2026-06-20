@@ -116,9 +116,9 @@ private:
 		}
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
+	void getNotificationValue(etl::istring& valueBuf) override {
 		const auto value = Selection::getValue();
-		valueBuf.append(getOptions(OptType::SHORT)[value]);
+		deluge::string::append(valueBuf, getOptions(OptType::SHORT)[value]);
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {

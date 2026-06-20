@@ -44,15 +44,15 @@ void Enumeration::drawValue() {
 	}
 }
 
-void Enumeration::getShortOption(StringBuf& opt) {
-	opt.appendInt(getValue());
+void Enumeration::getShortOption(etl::istring& opt) {
+	deluge::string::appendInt(opt, getValue());
 }
 
 void Enumeration::renderInHorizontalMenu(const SlotPosition& slot) {
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	// Render current value
-	DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
+	etl::string<kShortStringBufferSize> shortOpt;
 	getShortOption(shortOpt);
 
 	image.drawStringCentered(shortOpt, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,

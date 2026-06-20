@@ -173,8 +173,8 @@ void HorizontalMenu::renderPageCounters(const Paging& paging) {
 	int32_t x = OLED_MAIN_WIDTH_PIXELS - kTextSpacingX - 1;
 
 	// Draw total count
-	DEF_STACK_STRING_BUF(currentPageNum, 2);
-	currentPageNum.appendInt(paging.totalPages);
+	etl::string<2> currentPageNum;
+	deluge::string::appendInt(currentPageNum, paging.totalPages);
 	image.drawString(currentPageNum.c_str(), x, y, kTextSpacingX, kTextSpacingY);
 	x -= kTextSpacingX - 1;
 
@@ -184,7 +184,7 @@ void HorizontalMenu::renderPageCounters(const Paging& paging) {
 
 	// Draw the current page
 	currentPageNum.clear();
-	currentPageNum.appendInt(paging.visiblePageNumber + 1);
+	deluge::string::appendInt(currentPageNum, paging.visiblePageNumber + 1);
 	image.drawString(currentPageNum.c_str(), x, y, kTextSpacingX, kTextSpacingY);
 }
 
@@ -319,7 +319,7 @@ void HorizontalMenu::displayNotification(MenuItem* menuItem) {
 		return;
 	}
 
-	DEF_STACK_STRING_BUF(notificationValueBuf, kShortStringBufferSize);
+	etl::string<kShortStringBufferSize> notificationValueBuf;
 	menuItem->getNotificationValue(notificationValueBuf);
 	display->displayNotification(menuItem->getName(), notificationValueBuf.data());
 }
@@ -576,15 +576,15 @@ void HorizontalMenu::renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32
                                        bool isSelected) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	DEF_STACK_STRING_BUF(label, kShortStringBufferSize);
+	etl::string<kShortStringBufferSize> label;
 	menuItem->getColumnLabel(label);
-	label.removeSpaces();
+	deluge::string::removeSpaces(label);
 
 	// If the name fits as-is, we'll squeeze it in. Otherwise, we chop off letters until
 	// we have some padding between columns.
 	int32_t label_width;
 	while ((label_width = image.getStringWidthInPixels(label.c_str(), kTextSpacingY)) + 4 >= slotWidth) {
-		label.truncate(label.size() - 1);
+		label.resize(label.size() - 1);
 	}
 
 	// Draw centered label

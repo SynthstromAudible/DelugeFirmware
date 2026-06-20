@@ -70,9 +70,9 @@ void Rate::renderInHorizontalMenu(const SlotPosition& slot) {
 	                                            kTextSpacingX, kTextSpacingY, slot.width);
 }
 
-void Rate::getNotificationValue(StringBuf& valueBuf) {
+void Rate::getNotificationValue(etl::istring& valueBuf) {
 	if (!isStutterQuantized()) {
-		return valueBuf.appendInt(getValue());
+		return deluge::string::appendInt(valueBuf, getValue());
 	}
 	valueBuf.append(getQuantizedOptionLabel());
 }

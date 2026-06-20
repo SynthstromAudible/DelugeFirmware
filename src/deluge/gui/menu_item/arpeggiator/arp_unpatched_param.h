@@ -30,7 +30,7 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
 
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		label.append(deluge::l10n::get(l10n::built_in::seven_segment, this->name));
 	}
 

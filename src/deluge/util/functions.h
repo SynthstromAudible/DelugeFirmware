@@ -23,6 +23,7 @@
 #include "gui/colour/colour.h" // IWYU pragma: export todo: this probably shouldn't be exported from here
 #include "util/cfunctions.h"   // IWYU pragma: export - minimal set of functions which need c linkage
 #include "util/d_string.h"
+#include "util/etl_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/waves.h"
@@ -430,7 +431,7 @@ bool charCaseEqual(char firstChar, char secondChar);
 bool shouldAbortLoading();
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude);
 /// buffer must have at least 5 characters on 7seg, or 30 for OLED
-void getNoteLengthNameFromMagnitude(StringBuf& buf, int32_t magnitude, char const* durrationSuffix = "-notes",
+void getNoteLengthNameFromMagnitude(etl::istring& buf, int32_t magnitude, char const* durrationSuffix = "-notes",
                                     bool clarifyPerColumn = false);
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength);
 Error fresultToDelugeErrorCode(FRESULT result);

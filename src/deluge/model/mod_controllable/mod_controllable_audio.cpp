@@ -1381,7 +1381,7 @@ void ModControllableAudio::switchDelaySyncLevel() {
 void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
-	StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
+	etl::string<kShortStringBufferSize> buffer;
 	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
 	strncpy(displayName, buffer.data(), 29);
 }

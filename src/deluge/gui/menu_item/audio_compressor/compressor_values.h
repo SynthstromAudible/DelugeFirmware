@@ -63,7 +63,9 @@ public:
 	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override { compressor->setAttack(value); }
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return ATTACK; }
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_ATTACK_SHORT)); }
+	void getColumnLabel(etl::istring& label) override {
+		label.append(l10n::get(l10n::String::STRING_FOR_ATTACK_SHORT));
+	}
 };
 class Release final : public CompressorValue {
 public:
@@ -76,7 +78,9 @@ public:
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 1; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RELEASE; }
 
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT)); }
+	void getColumnLabel(etl::istring& label) override {
+		label.append(l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT));
+	}
 };
 class Ratio final : public CompressorValue {
 public:

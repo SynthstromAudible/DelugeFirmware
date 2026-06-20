@@ -37,6 +37,7 @@
 #include "storage/flash_storage.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/d_string.h"
+#include "util/etl_string.h"
 
 class MidiCommand;
 class Clip;
@@ -127,7 +128,7 @@ public:
 	void grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForDrum(MIDICable& cable, SoundDrum* drum,
 	                                                                                Kit* kit);
 	void grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICable& cable);
-	void getCurrentRootNoteAndScaleName(StringBuf& buffer);
+	void getCurrentRootNoteAndScaleName(etl::istring& buffer);
 	void displayCurrentRootNoteAndScaleName();
 
 	// Scale-related methods
@@ -353,7 +354,7 @@ public:
 	AudioOutput* getFirstAudioOutput();
 	AudioOutput* createNewAudioOutput(Output* replaceOutput = nullptr);
 	/// buffer must have at least 5 characters on 7seg, or 30 for OLED
-	void getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* notesString = "-notes",
+	void getNoteLengthName(etl::istring& buffer, uint32_t noteLength, char const* notesString = "-notes",
 	                       bool clarifyPerColumn = false) const;
 	void replaceOutputLowLevel(Output* newOutput, Output* oldOutput);
 	void removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAboveToMoveVertically = false);

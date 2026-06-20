@@ -41,7 +41,7 @@ public:
 	}
 	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
 
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		using enum l10n::String;
 		switch (AudioEngine::reverb.getModel()) {
 		case dsp::Reverb::Model::DIGITAL:

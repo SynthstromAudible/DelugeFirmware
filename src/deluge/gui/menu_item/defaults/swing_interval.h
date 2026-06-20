@@ -34,7 +34,7 @@ public:
 	}
 
 protected:
-	void getNoteLengthName(StringBuf& buffer) override {
+	void getNoteLengthName(etl::istring& buffer) override {
 		syncValueToString(this->getValue(), buffer, FlashStorage::defaultMagnitude);
 	}
 };

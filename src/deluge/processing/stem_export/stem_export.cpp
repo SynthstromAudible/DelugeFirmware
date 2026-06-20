@@ -213,12 +213,12 @@ bool StemExport::checkForLoopEnd() {
 		    playbackHandler.lastSwungTickActioned + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
 		/* For debugging in case this stops working
-		    DEF_STACK_STRING_BUF(popupMsg, 40);
+		    etl::string<40> popupMsg;
 		    popupMsg.append("Current Pos: ");
-		    popupMsg.appendInt(currentPos);
+		    deluge::string::appendInt(popupMsg, currentPos);
 		    popupMsg.append("/n");
 		    popupMsg.append("Length: ");
-		    popupMsg.appendInt(loopLength);
+		    deluge::string::appendInt(popupMsg, loopLength);
 		    display->displayPopup(popupMsg.c_str());
 		*/
 

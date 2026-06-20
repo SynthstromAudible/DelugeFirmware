@@ -54,7 +54,7 @@ enum SyncLevel syncValueToSyncLevel(int32_t option) {
 	}
 }
 
-void syncValueToString(uint32_t value, StringBuf& buffer, int32_t tickMagnitude) {
+void syncValueToString(uint32_t value, etl::istring& buffer, int32_t tickMagnitude) {
 	char const* typeStr = nullptr;
 	enum SyncType type { syncValueToSyncType(value) };
 	enum SyncLevel level { syncValueToSyncLevel(value) };
@@ -88,7 +88,7 @@ void syncValueToString(uint32_t value, StringBuf& buffer, int32_t tickMagnitude)
 	}
 }
 
-void syncValueToStringForHorzMenuLabel(SyncType type, SyncLevel level, StringBuf& buffer, int32_t tickMagnitude) {
+void syncValueToStringForHorzMenuLabel(SyncType type, SyncLevel level, etl::istring& buffer, int32_t tickMagnitude) {
 	uint32_t shift = SYNC_LEVEL_256TH - level;
 	uint32_t noteLength = uint32_t{3} << shift;
 

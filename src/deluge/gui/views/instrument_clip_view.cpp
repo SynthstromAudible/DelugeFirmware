@@ -90,6 +90,7 @@
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
+#include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/try.h"
@@ -1489,8 +1490,8 @@ getOut:
 	if (previewOnly) {
 		if (copiedScreenWidth / 16 != currentSong->xZoom[getNavSysId()]) {
 			char buffer[(display->haveOLED()) ? 29 : 5];
-			DEF_STACK_STRING_BUF(from, 30);
-			DEF_STACK_STRING_BUF(to, 30);
+			etl::string<30> from;
+			etl::string<30> to;
 			currentSong->getNoteLengthName(from, copiedScreenWidth / 16, "-notes", true);
 			currentSong->getNoteLengthName(to, currentSong->xZoom[getNavSysId()], "-notes", true);
 			if (display->haveOLED()) {
@@ -6434,7 +6435,7 @@ void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPre
 	}
 }
 
-void appendQuantizeMode(StringBuf& text, int8_t direction, NudgeMode mode) {
+void appendQuantizeMode(etl::istring& text, int8_t direction, NudgeMode mode) {
 	switch (mode) {
 	case NudgeMode::QUANTIZE:
 		if (direction >= 0) {
@@ -6460,7 +6461,7 @@ void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
 	reassessAllAuditionStatus();
 	enterUIMode(UI_MODE_QUANTIZE);
 	quantizeAmount = 0;
-	DEF_STACK_STRING_BUF(text, 30);
+	etl::string<30> text;
 	appendQuantizeMode(text, offset, mode);
 	display->popupText(text.c_str(), PopupType::QUANTIZE);
 }
@@ -6511,20 +6512,20 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 	}
 
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(text, 24);
+		etl::string<24> text;
 		appendQuantizeMode(text, quantizeAmount, nudgeMode);
 		text.append(" ");
-		text.appendInt(abs(quantizeAmount * 10));
+		deluge::string::appendInt(text, abs(quantizeAmount * 10));
 		text.append("%");
 		display->popupText(text.c_str(), PopupType::QUANTIZE);
 	}
 	else {
-		DEF_STACK_STRING_BUF(text, 6);
+		etl::string<6> text;
 		// Put A in front for QUANTIZE ALL if there's space for it.
 		if (nudgeMode == NudgeMode::QUANTIZE_ALL && quantizeAmount > -10) {
 			text.append("A");
 		}
-		text.appendInt(quantizeAmount * 10); // Negative means humanize
+		deluge::string::appendInt(text, quantizeAmount * 10); // Negative means humanize
 		display->popupText(text.c_str(), PopupType::QUANTIZE);
 	}
 

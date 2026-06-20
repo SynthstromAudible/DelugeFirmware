@@ -22,8 +22,8 @@ protected:
 	/// Subclasses should implement this to provide a string suitable for using in a horizontal menu.
 	/// Writes to a buffer instead of returning a value, since some subclasses (SyncLevel) must generate
 	/// their option names. Default implementation renders the current value as number.
-	virtual void getShortOption(StringBuf&);
-	void getNotificationValue(StringBuf& value) override { getShortOption(value); }
+	virtual void getShortOption(etl::istring&);
+	void getNotificationValue(etl::istring& value) override { getShortOption(value); }
 };
 
 } // namespace deluge::gui::menu_item

@@ -71,7 +71,7 @@ public:
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
-		DEF_STACK_STRING_BUF(paramValue, 5);
+		etl::string<5> paramValue;
 		int32_t size_x, size_y;
 		if (this->getValue() == 128) {
 			paramValue.append(l10n::get(l10n::String::STRING_FOR_NONE));
@@ -79,7 +79,7 @@ public:
 			size_y = kTextSpacingY;
 		}
 		else {
-			paramValue.appendInt(getValue());
+			deluge::string::appendInt(paramValue, getValue());
 			size_x = kTextTitleSpacingX;
 			size_y = kTextTitleSizeY;
 		}

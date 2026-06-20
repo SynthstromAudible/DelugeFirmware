@@ -44,7 +44,9 @@ public:
 	}
 	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
 
-	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
+	void getColumnLabel(etl::istring& label) override {
+		deluge::string::append(label, info.getMorphNameOr(Integer::getName(), true));
+	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		if (info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()) {
@@ -85,7 +87,9 @@ public:
 	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return info.isOn();
 	}
-	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
+	void getColumnLabel(etl::istring& label) override {
+		deluge::string::append(label, info.getMorphNameOr(Integer::getName(), true));
+	}
 	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {

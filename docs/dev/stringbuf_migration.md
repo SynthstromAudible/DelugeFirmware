@@ -90,18 +90,25 @@ Separate branch (`stringbuf-etl-migration`), staged into bisectable, build-green
      `getCurrentRootNoteAndScaleName`) are `virtual` or feed the surface, and most display
      names exceed SSO (so `etl::string` is the right type, not a heap `std::string`). They
      are folded into the surface wave below rather than done separately.
-4. [ ] **Output-parameter surface** — the coupled bulk. Functions taking `StringBuf&`
-   (`MenuItem::getColumnLabel` / `getNotificationValue` and all overrides;
-   `Song::getNoteLengthName` / `getCurrentRootNoteAndScaleName`;
-   `View::displayCurrentRootNoteAndScaleName`; etc.) → `etl::istring&`, **together with**
-   their local-buffer callers. These cannot move independently: a local buffer passed to such
-   a helper must change type when the helper does. Largest wave; mostly mechanical.
-5. [ ] Remaining standalone locals → `etl::string<N>`.
-6. [ ] `std::string_view` for the read-only consumer; then delete `StringBuf`,
-   `DEF_STACK_STRING_BUF`, and `d_stringbuf.{h,cpp}`.
+4. [x] **Output-parameter surface** — the coupled bulk. All ~92 `StringBuf&` signatures
+   (`MenuItem::getColumnLabel` / `getNotificationValue` + overrides; `Song::getNoteLengthName`
+   / `getCurrentRootNoteAndScaleName`; `View::displayCurrentRootNoteAndScaleName`; the
+   `sync.cpp` / `functions.cpp` note-length & tempo helpers; etc.) → `etl::istring&`,
+   together with every `DEF_STACK_STRING_BUF` local and the two `StringBuf{global,…}` ctors →
+   `etl::string<N>`. Done as a compiler-driven sweep (perl for `appendInt/Hex/Float`→free
+   functions, `truncate`→`resize`, `StringBuf&`→`etl::istring&`, the macro→`etl::string<N>`),
+   then per-error fixups for the `append(std::string_view)` bridge and the `return
+   buf.append(...)`-in-`void` cases (etl's `append` returns a reference, StringBuf's was
+   `void`). Two runtime-capacity locals (`session_view` `newName`, `view` `info`) → owned
+   `std::string` (built from a `std::string` clip name; `+= deluge::string::fromInt(...)`).
+5. [x] `removeSpaces` ported to `deluge::string::removeSpaces(etl::istring&)`.
+6. [x] **Deleted `StringBuf`, `DEF_STACK_STRING_BUF`, and `d_stringbuf.{h,cpp}`.** The hex
+   helpers that had lived in `d_stringbuf.{h,cpp}` (`intToHex`, `hexToInt`,
+   `hexToIntFixedLength`, `halfByteToHexChar`) moved to `d_string.{h,cpp}`.
 
 Build ARM hardware per wave (and the host-sim, on branches where it is present); the
 `operator new` routing differs between unit tests (`IN_UNIT_TESTS`) and hardware.
 ```
-ARM debug elf .text size: 1689892 (baseline) → 1690608 (after waves 1–3).
+ARM debug elf .text size: 1689892 (baseline) → 1689464 (StringBuf fully removed; net
+-428 B vs baseline — the StringBuf class + DEF_STACK macro overhead outweighed etl).
 ```

@@ -34,7 +34,7 @@ public:
 
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
-	void getColumnLabel(StringBuf& label) override;
+	void getColumnLabel(etl::istring& label) override;
 
 private:
 	uint8_t sourceId_;

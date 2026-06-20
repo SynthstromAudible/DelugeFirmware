@@ -75,6 +75,7 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/cfunctions.h"
+#include "util/etl_string.h"
 #include "util/functions.h"
 #include <math.h>
 #include <new>
@@ -2034,14 +2035,14 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 
 /** On OLED displayes both Swing amount and interval, on 7seg only the interval. */
 void PlaybackHandler::commandDisplaySwingInterval() {
-	DEF_STACK_STRING_BUF(text, 30);
+	etl::string<30> text;
 	if (display->haveOLED()) {
 		text.append("Swing: ");
 		if (currentSong->swingAmount == 0) {
 			text.append("off");
 		}
 		else {
-			text.appendInt(currentSong->swingAmount + 50);
+			deluge::string::appendInt(text, currentSong->swingAmount + 50);
 		}
 		text.append("\n");
 	}
@@ -2055,14 +2056,14 @@ void PlaybackHandler::commandClearTempoAutomation() {
 
 /** On OLED displayes both Swing amount and interval, on 7seg only the amount. */
 void PlaybackHandler::commandDisplaySwingAmount() {
-	DEF_STACK_STRING_BUF(text, 30);
+	etl::string<30> text;
 	if (display->haveOLED()) {
 		text.append("Swing: ");
 		if (currentSong->swingAmount == 0) {
 			text.append("off");
 		}
 		else {
-			text.appendInt(currentSong->swingAmount + 50);
+			deluge::string::appendInt(text, currentSong->swingAmount + 50);
 		}
 		text.append("\n");
 		syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
@@ -2072,7 +2073,7 @@ void PlaybackHandler::commandDisplaySwingAmount() {
 			text.append("OFF");
 		}
 		else {
-			text.appendInt(currentSong->swingAmount + 50);
+			deluge::string::appendInt(text, currentSong->swingAmount + 50);
 		}
 	}
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
@@ -2402,19 +2403,19 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 	return currentSong->calculateBPM(timePerInternalTick);
 }
 
-void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
+void PlaybackHandler::getTempoStringForOLED(float tempoBPM, etl::istring& buffer) {
 	if (tempoBPM >= 9999.5) {
 		buffer.append("FAST");
 	}
 	else {
 		int32_t numDecimalPlaces = (tempoBPM >= 1000 || isExternalClockActive()) ? 0 : 2;
-		buffer.appendFloat(tempoBPM, 0, numDecimalPlaces);
+		deluge::string::appendFloat(buffer, tempoBPM, 0, numDecimalPlaces);
 	}
 }
 
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	// The 7-seg needs to work so much harder there's no point trying to share the code.
-	DEF_STACK_STRING_BUF(text, 27);
+	etl::string<27> text;
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
 		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
@@ -2481,11 +2482,11 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 
 		// If perfect and integer...
 		if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
-			text.appendInt(roundedTempoBPM);
+			deluge::string::appendInt(text, roundedTempoBPM);
 			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 		}
 		else {
-			text.appendInt(roundedBigger, 4);
+			deluge::string::appendInt(text, roundedBigger, 4);
 			// This is what popupTextTemporary() does, except for passing in the dotMask
 			display->displayPopup(text.c_str(), 3, false, dotMask, 1, PopupType::TEMPO);
 		}

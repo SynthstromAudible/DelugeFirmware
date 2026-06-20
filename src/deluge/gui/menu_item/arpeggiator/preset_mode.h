@@ -120,7 +120,7 @@ public:
 
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_MODE)); }
+	void getColumnLabel(etl::istring& label) override { label.append(l10n::get(l10n::String::STRING_FOR_MODE)); }
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;

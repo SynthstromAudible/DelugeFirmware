@@ -78,6 +78,7 @@
 #include "storage/storage_manager.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"
+#include "util/etl_string.h"
 #include "util/finally.h"
 #include "util/functions.h"
 #include "util/try.h"
@@ -2029,7 +2030,7 @@ void SessionView::renderViewDisplay() {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-	DEF_STACK_STRING_BUF(tempoBPM, 10);
+	etl::string<10> tempoBPM;
 	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
 	displayTempoBPM(canvas, tempoBPM, false);
@@ -2061,14 +2062,14 @@ void SessionView::renderViewDisplay() {
 
 	yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
-	DEF_STACK_STRING_BUF(rootNoteAndScaleName, 40);
+	etl::string<40> rootNoteAndScaleName;
 	currentSong->getCurrentRootNoteAndScaleName(rootNoteAndScaleName);
 	displayCurrentRootNoteAndScaleName(canvas, rootNoteAndScaleName, false);
 
 	deluge::hid::display::OLED::markChanged();
 }
 
-void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM,
+void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, etl::istring& tempoBPM,
                                   bool clearArea) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 
@@ -2087,7 +2088,7 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                     StringBuf& rootNoteAndScaleName, bool clearArea) {
+                                                     etl::istring& rootNoteAndScaleName, bool clearArea) {
 
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
@@ -2356,7 +2357,7 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 		float diff = std::abs(tempo - lastDisplayedTempo);
 		// always catch manual adjustments, limit rate of others
 		if (diff > 0.5) {
-			DEF_STACK_STRING_BUF(tempoBPM, 10);
+			etl::string<10> tempoBPM;
 			playbackHandler.getTempoStringForOLED(tempo, tempoBPM);
 			displayTempoBPM(deluge::hid::display::OLED::main, tempoBPM, true);
 			deluge::hid::display::OLED::markChanged();
@@ -2371,20 +2372,20 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 	// only show pop-up if you're not in any other UI mode
 	if (currentUIMode == UI_MODE_NONE) {
 		if (sixteenthNotesRemaining > 0) {
-			DEF_STACK_STRING_BUF(popupMsg, 40);
+			etl::string<40> popupMsg;
 			if (sixteenthNotesRemaining > 16) {
 				int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
 				if (display->haveOLED()) {
 					popupMsg.append("Bars Remaining: ");
 				}
-				popupMsg.appendInt(barsRemaining);
+				deluge::string::appendInt(popupMsg, barsRemaining);
 			}
 			else {
 				int32_t quarterNotesRemaining = ((sixteenthNotesRemaining - 1) / 4) + 1;
 				if (display->haveOLED()) {
 					popupMsg.append("Beats Remaining: ");
 				}
-				popupMsg.appendInt(quarterNotesRemaining);
+				deluge::string::appendInt(popupMsg, quarterNotesRemaining);
 			}
 			if (display->haveOLED() && !ephemeral) {
 				deluge::hid::display::OLED::clearMainImage();
@@ -3607,7 +3608,7 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 	}
 	// Start from the original clip name. We have max 12 sections, so being able to append
 	// a two digit number is enough.
-	DEF_STACK_STRING_BUF(newName, source->name.size() + 2);
+	std::string newName;
 	newName.append(source->name.c_str());
 	// If the name already exists on the target output, we'll append a number. We start from 2,
 	// because "BRIDGE" & "BRIDGE2" make more sense than "BRIDGE" & "BRIDGE1".
@@ -3625,8 +3626,8 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 	std::string newNameString;
 	newNameString = newName.data();
 	while (targetOutput->getClipFromName(newNameString.c_str()) != nullptr) {
-		newName.truncate(end);
-		newName.appendInt(counter++);
+		newName.resize(end);
+		newName += deluge::string::fromInt(counter++);
 		newNameString = newName.data();
 	}
 	target->name = newName.data();

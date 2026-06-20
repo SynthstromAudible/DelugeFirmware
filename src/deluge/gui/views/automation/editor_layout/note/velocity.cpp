@@ -20,6 +20,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note.h"
+#include "util/etl_string.h"
 
 // namespace deluge::gui::views::automation::editor_layout::note {
 
@@ -198,9 +199,9 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 						}
 					}
 
-					//	DEF_STACK_STRING_BUF(numSquare, 50);
+					//	etl::string<50> numSquare;
 					//	numSquare.append("Squares: ");
-					//	numSquare.appendInt(numSquares);
+					//	deluge::string::appendInt(numSquare, numSquares);
 					//	numSquare.append("\n");
 
 					// calculate start and end velocity for long press
@@ -221,9 +222,9 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 					}
 
 					//	numSquare.append("L: ");
-					//	numSquare.appendInt(leftPadSelectedVelocity);
+					//	deluge::string::appendInt(numSquare, leftPadSelectedVelocity);
 					//	numSquare.append(" R: ");
-					//	numSquare.appendInt(rightPadSelectedVelocity);
+					//	deluge::string::appendInt(numSquare, rightPadSelectedVelocity);
 					//	numSquare.append("\n");
 
 					// calculate increment from first pad to last pad
@@ -237,7 +238,7 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 					}
 
 					//	numSquare.append("Inc: ");
-					//	numSquare.appendInt(multiPadPressVelocityIncrement);
+					//	deluge::string::appendInt(numSquare, multiPadPressVelocityIncrement);
 					//	display->displayPopup(numSquare.c_str());
 
 					// update multi pad press selection indicator
