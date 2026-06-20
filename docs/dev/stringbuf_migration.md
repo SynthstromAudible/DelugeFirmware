@@ -104,11 +104,24 @@ Separate branch (`stringbuf-etl-migration`), staged into bisectable, build-green
 5. [x] `removeSpaces` ported to `deluge::string::removeSpaces(etl::istring&)`.
 6. [x] **Deleted `StringBuf`, `DEF_STACK_STRING_BUF`, and `d_stringbuf.{h,cpp}`.** The hex
    helpers that had lived in `d_stringbuf.{h,cpp}` (`intToHex`, `hexToInt`,
-   `hexToIntFixedLength`, `halfByteToHexChar`) moved to `d_string.{h,cpp}`.
+   `hexToIntFixedLength`, `halfByteToHexChar`) moved to `d_string.{h,cpp}`, which was then
+   renamed **`d_string.{h,cpp}` → `c_string.{h,cpp}`** ("C-style strings") so the three
+   string headers read by buffer type: `c_string.h` (`char*`), `etl_string.h`
+   (`etl::istring`), `string.h` (`std::string`).
+7. [x] Test builds: ETL declared once in the parent `tests/CMakeLists.txt` and
+   `link_libraries(etl::etl)` applied to all test targets (`functions.h` now needs the
+   `etl::istring` type); `c_string.cpp` added to the `spec` sources; the `unit` LFO list and
+   the `song`/`functions` mocks updated (`StringBuf&` → `etl::istring&`). All 7 suites pass.
 
 Build ARM hardware per wave (and the host-sim, on branches where it is present); the
 `operator new` routing differs between unit tests (`IN_UNIT_TESTS`) and hardware.
 ```
-ARM debug elf .text size: 1689892 (baseline) → 1689464 (StringBuf fully removed; net
--428 B vs baseline — the StringBuf class + DEF_STACK macro overhead outweighed etl).
+ARM debug elf .text size: 1689892 (baseline) → 1689448 (StringBuf fully removed; net
+-444 B vs baseline — the StringBuf class + DEF_STACK macro overhead outweighed etl).
 ```
+
+## Status: COMPLETE
+
+`StringBuf` is gone. Display/builder buffers use `etl::string<N>` / `etl::istring&`
+(non-allocating, bounds-checked); a few sole-output paths that build from a `std::string`
+return an owned `std::string`. ARM debug + the unit/spec test suites are green.
