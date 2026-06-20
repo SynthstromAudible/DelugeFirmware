@@ -77,6 +77,7 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::LOAD_INSTRUMENT_PRESET; }
+	bool canDisplayFavourites() override { return true; }
 
 protected:
 	void enterKeyPress() override;
