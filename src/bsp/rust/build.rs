@@ -47,14 +47,19 @@ fn main() {
     } else {
         ("memory.x", "rza1l.x")
     };
-    fs::copy(manifest_dir.join(memory_src), out_dir.join("memory.x")).unwrap();
+    // Linker sources live under linker/ (NOT the crate root): the cross linker
+    // resolves `INCLUDE memory.x` from its CWD (the crate root) before the -L
+    // search path, so a memory.x in the root would shadow this generated one.
+    let linker_src = manifest_dir.join("linker");
+    fs::copy(linker_src.join(memory_src), out_dir.join("memory.x")).unwrap();
     // Supplementary fragment that places the app's SDRAM sections + symbols.
-    fs::copy(manifest_dir.join("sdram_sections.x"), out_dir.join("sdram_sections.x")).unwrap();
+    fs::copy(linker_src.join("sdram_sections.x"), out_dir.join("sdram_sections.x")).unwrap();
     println!("cargo:rustc-link-search={}", out_dir.display());
     println!("cargo:rustc-link-arg=-Wl,-T,{linker_script}");
     println!("cargo:rustc-link-arg=-Wl,-T,sdram_sections.x");
-    println!("cargo:rerun-if-changed=memory.x");
-    println!("cargo:rerun-if-changed=sdram_sections.x");
+    println!("cargo:rerun-if-changed=linker/memory.x");
+    println!("cargo:rerun-if-changed=linker/memory_rtt.x");
+    println!("cargo:rerun-if-changed=linker/sdram_sections.x");
 
     // ---------------------------------------------------------------------
     // Link the portable C++ application (built by CMake into the `build/` dir).

@@ -258,6 +258,8 @@ dependencies = [
  "embassy-futures",
  "embassy-sync",
  "embassy-time",
+ "log",
+ "rtt-target",
  "rza1l-hal",
 ]
 
@@ -732,6 +734,10 @@ name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
+dependencies = [
+ "critical-section",
+ "portable-atomic",
+]
 
 [[package]]
 name = "pin-project-lite"
@@ -803,6 +809,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
+name = "rtt-target"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7afed1f4302eeba88c601636cf2c554c45e1cbb464bab44c6012bab0e71473c"
+dependencies = [
+ "critical-section",
+ "log",
+ "once_cell",
+ "portable-atomic",
+ "ufmt-write",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -830,6 +849,7 @@ dependencies = [
  "embedded-io-async 0.7.0",
  "linked_list_allocator",
  "log",
+ "rtt-target",
 ]
 
 [[package]]
@@ -1016,6 +1036,12 @@ dependencies = [
  "tracing-core",
  "tracing-log",
 ]
+
+[[package]]
+name = "ufmt-write"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e87a2ed6b42ec5e28cc3b94c09982969e9227600b2e3dcbc1db927a84c06bd69"
 
 [[package]]
 name = "unicode-ident"

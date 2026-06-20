@@ -40,18 +40,6 @@ pub extern "C" fn deluge_board_init_storage() {}
 pub extern "C" fn deluge_board_unlock_data_cache() {}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_clock_now() -> u64 { 0 }
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_clock_monotonic() -> u64 { 0 }
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_clock_delay_us(us: u32) {}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_clock_delay_ms(ms: u32) {}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_read_boot_info(out: *mut DelugeBootInfo) {}
 
 #[unsafe(no_mangle)]
@@ -197,18 +185,6 @@ pub extern "C" fn deluge_midi_poll_usb_host_event() -> DelugeUsbHostEvent { 0 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_system_quiesce() {}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_log(text: *const ::core::ffi::c_char) {}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_in_interrupt() -> bool { false }
-
-#[unsafe(no_mangle)]
-pub extern "C" fn ENTER_CRITICAL_SECTION() {}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn EXIT_CRITICAL_SECTION() {}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_signal_write(signal: DelugeSignal, on: bool) {}

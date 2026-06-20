@@ -31,6 +31,8 @@ mod sys {
 mod ffi;
 /// Non-header app/BSP symbols (USB-host globals, FatFS glue, NE10, runtime shims).
 mod ffi_extra;
+/// Real impls of the simplest services (system.h, clock.h).
+mod services;
 
 unsafe extern "C" {
     /// Start of the free SRAM heap region (set by the linker script).
@@ -46,6 +48,8 @@ unsafe extern "C" {
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     // `extern "C"` boundary: never unwind (panic = "abort" is also set).
+    #[cfg(feature = "rtt")]
+    log::error!("PANIC: {}", _info);
     loop {
         core::hint::spin_loop();
     }
@@ -57,6 +61,19 @@ static mut EXECUTOR: MaybeUninit<Executor> = MaybeUninit::uninit();
 /// `bl main`; control lands here with caches/MMU off and stacks set up.
 #[unsafe(no_mangle)]
 pub extern "C" fn main() -> ! {
+    // RTT logger first, so every boot step is visible over the probe. The ring
+    // buffer + control block live in uncached SRAM (.rtt_buffer / rza1l_rtt.x).
+    #[cfg(feature = "rtt")]
+    {
+        let channels = rtt_target::rtt_init! {
+            up: { 0: { size: 16384, name: "Terminal", section: ".rtt_buffer" } }
+            section_cb: ".rtt_buffer"
+        };
+        rtt_target::set_print_channel(channels.up.0);
+        rtt_target::init_logger_with_level(log::LevelFilter::Debug);
+    }
+    log::info!("deluge-rust: boot — Rust/Embassy BSP for RZ/A1L");
+
     // Initialise the SRAM heap before any allocation from internal RAM.
     unsafe {
         let start = core::ptr::addr_of!(__sram_heap_start) as *mut u8;
@@ -67,8 +84,11 @@ pub extern "C" fn main() -> ! {
     // CPG/PLL, MMU, L1+L2 caches, SDRAM controller, GIC, and the embassy-time
     // (OSTM) driver — the whole platform bring-up, owned by the BSP.
     unsafe { deluge_bsp::system::init_clocks() };
+    log::info!("deluge-rust: clocks/MMU/cache/SDRAM/GIC up");
 
     // Big external SDRAM heap (bulk audio buffers, samples).
+    // M1b TODO: base must move past __sdram_bss_end (linker-placed app SDRAM
+    // sections live at 0x0C000000); using the full range collides with them.
     unsafe { allocator::SDRAM.init(0x0C00_0000 as *mut u8, 64 * 1024 * 1024) };
 
     // M1+ setup window (IRQs still masked): GIC source registration goes here.
@@ -86,12 +106,33 @@ pub extern "C" fn main() -> ! {
     });
 }
 
-/// Stage 1 "superloop in a task": run the portable C++ application's boot +
-/// `mainLoop()` inside one Embassy task. `deluge_main()` never returns.
+/// Stage 1 "superloop in a task": prove the platform is alive (M1a — RTT banner
+/// + sync-LED blink, exercising Embassy, the OSTM time driver and GPIO), then run
+/// the portable C++ application's boot + `mainLoop()`.
 #[embassy_executor::task]
 async fn app_task() {
-    // M1 TODO: run C++ global constructors (__libc_init_array over .init_array)
-    // before this — the app has many global objects. M0 only proves the link.
+    use embassy_time::Timer;
+    use rza1l_hal::gpio;
+
+    // M1a sign-of-life: blink the SYNC LED (P6.7). Visible on the panel and
+    // proves the executor, time driver and GPIO all work end-to-end.
+    const SYNC_LED_PORT: u8 = 6;
+    const SYNC_LED_BIT: u8 = 7;
+    // SAFETY: we own this pin; GPIO clocks are up after init_clocks.
+    unsafe { gpio::set_as_output(SYNC_LED_PORT, SYNC_LED_BIT) };
+    for i in 0..6 {
+        unsafe { gpio::write(SYNC_LED_PORT, SYNC_LED_BIT, true) };
+        Timer::after_millis(120).await;
+        unsafe { gpio::write(SYNC_LED_PORT, SYNC_LED_BIT, false) };
+        Timer::after_millis(120).await;
+        log::info!("deluge-rust: alive ({})", i);
+    }
+
+    // M1b TODO: before deluge_main() the C++ memory model must be set up — zero
+    // the SDRAM .bss, copy .sdram_data from its LMA, and run global constructors
+    // (__libc_init_array). Until then deluge_main() will fault; the blink above
+    // is the M1a verification.
+    log::info!("deluge-rust: entering deluge_main()");
     unsafe { deluge_main() };
     // deluge_main() ends in mainLoop()'s while(1); never reached.
     loop {

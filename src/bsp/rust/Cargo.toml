@@ -32,6 +32,14 @@ embassy-futures = "0.1.2"
 
 cortex-ar = "0.3"
 critical-section = "1"
+log = "0.4"
+rtt-target = { version = "0.6", features = ["log"], optional = true }
+
+[features]
+default = ["rtt"]
+## RTT (SEGGER Real-Time Transfer) logging over a debug probe. Selects the
+## rza1l_rtt.x linker script (via build.rs) + registers the log logger.
+rtt = ["dep:rtt-target", "rza1l-hal/rtt"]
 
 [build-dependencies]
 # Generate Rust signatures + POD types from the canonical libdeluge C headers so
