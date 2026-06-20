@@ -1181,9 +1181,13 @@ readTimestretched:
 
 						// Check this again, cos newer play-head can become inactive in hopEnd(). This probably isn't
 						// really crucial. Added June 2019
+						// hopEnd() can also end time-stretching outright (endTimeStretching() nulls timeStretcher);
+						// that's equally a reason to stop here. The deref of a null timeStretcher read mapped-but-stale
+						// memory on the MCU but faults on the host.
 						if (!cache && loopingType == LoopType::NONE
-						    && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
-						    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
+						    && (timeStretcher == nullptr
+						        || (!timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+						            && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]))) {
 							return false;
 						}
 					}
