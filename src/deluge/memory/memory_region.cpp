@@ -33,9 +33,18 @@ MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin,
                          uint32_t regionEnd, CacheManager* cacheManager) {
 	emptySpaces.setStaticMemory(emptySpacesMemory, emptySpacesMemorySize);
-	// bit of a hack - the allocations start with a 4 byte type+size header, this ensures the
-	// resulting allocations are still aligned to 16 bytes (which should generally be fine for anything?)
-	regionBegin = (regionBegin & 0xFFFFFFF0) + 16;
+	// Make every user pointer 16-byte aligned (required by over-aligned SSE/NEON types such as
+	// TimeStretcher; x86 movaps faults on an 8-aligned object). Each block has a 4-byte header
+	// before its data and a 4-byte footer after, and padSize() makes every allocatedSize ≡ 8
+	// (mod 16), so the block stride (allocatedSize + 8) is a 16-multiple and alignment propagates
+	// across splits. Two seed parities are needed for that to hold through merges as well:
+	//   - first user pointer (regionBegin + 8) 16-aligned  → regionBegin ≡ 8 (mod 16)
+	//   - every empty-space length ≡ 8 (mod 16), so merge-left (address -= leftLength + 8) keeps
+	//     alignment; the initial length is (regionEnd - regionBegin - 16), so regionEnd ≡ 0 (mod 16).
+	// floor-to-16 + 24 puts regionBegin at (16k+8) while staying strictly above the raw value;
+	// flooring regionEnd wastes at most 15 bytes at the top of the region.
+	regionBegin = (regionBegin & 0xFFFFFFF0) + 24;
+	regionEnd = regionEnd & 0xFFFFFFF0;
 
 	start = regionBegin;
 	// this is actually the location of the footer but that's better anyway
@@ -75,6 +84,12 @@ uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
 		}
 		requiredSize += extraSize;
 	}
+	// Round the block size (user data + 8 bytes of header/footer) up to a multiple of 16 so the
+	// returned user size is ≡ 8 (mod 16). The power-of-two rounding above only lands on a 16-multiple
+	// when the remainder after the maxAlign chunking is itself ≥ 16 — sizes just over a maxAlign
+	// boundary (e.g. 4090) otherwise leave a tiny 1/2/4/8-byte remainder. A 16-multiple block stride
+	// is what keeps every user pointer 16-byte aligned across splits (see setup()).
+	requiredSize = (requiredSize + 15u) & ~15u;
 	return requiredSize - 8;
 }
 
