@@ -631,7 +631,9 @@ extern "C" int32_t deluge_main(void) {
 	makeTestRecording();
 #endif
 
-	encoders::init();
+	// encoders::init() is deferred until after registerTasks() below: it hands the encoder
+	// edge source the scheduler id of the encoder task to wake on movement (the task blocks
+	// itself between rotations), and that id isn't assigned until the task is registered.
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
@@ -781,8 +783,10 @@ extern "C" int32_t deluge_main(void) {
 
 #ifdef USE_TASK_MANAGER
 	registerTasks();
+	encoders::init(); // after registerTasks(): the encoder edge source needs the (now-assigned) encoder task id to wake
 	startTaskManager();
 #else
+	encoders::init(); // mainLoop() reads encoders inline, so the wake id is unused, but the IO still needs init
 	mainLoop();
 #endif
 	return 0;

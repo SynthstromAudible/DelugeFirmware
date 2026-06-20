@@ -43,7 +43,10 @@
 #include "libdeluge/signals.h"
 #include "libdeluge/system.h"
 
+#include "OSLikeStuff/scheduler_api.h" // unblockTask — wake the encoder task on inbound rotation
+
 #include "host_link.h" // emulator transport (display/LED out, input in)
+#include "host_midi.h" // serial (DIN) MIDI bridge
 
 #include <stdint.h>
 #include <stdio.h>
@@ -403,6 +406,12 @@ static int8_t encoder_edges[6];
 // spark encoder id (0=SCROLL_X,1=TEMPO,2=MOD_0,3=MOD_1,4=SCROLL_Y,5=SELECT) → firmware index.
 static const uint8_t kSparkEncoderToFwIndex[6] = {1, 2, 5, 4, 0, 3};
 
+// The scheduler task that interprets encoder motion. On hardware the encoder ISR unblocks it
+// (see src/bsp/rza1/encoder_io.c); the task blocks itself after each run (interpretEncodersTask),
+// so without a wake it runs exactly once and all further rotations are ignored. We record the id
+// in deluge_encoder_io_init() and unblock it whenever an inbound rotation arrives.
+static TaskID encoder_wake_task = -1;
+
 // Drain all currently-available inbound frames. Cheap to call every poll.
 static void host_input_pump(void) {
 	if (!host_link_active()) {
@@ -440,7 +449,11 @@ static void host_input_pump(void) {
 		case HOST_LINK_MSG_ENCODER_ROTATED: // [encoder_id][delta:i8]
 			if (len >= 2 && data[0] < 6) {
 				int8_t* slot = &encoder_edges[kSparkEncoderToFwIndex[data[0]]];
-				int32_t acc = (int32_t)*slot + (int8_t)data[1];
+				// The wire delta is one *detent* (one GUI scroll tick); the firmware's encoder
+				// model wants quadrature *edges*, and on hardware every detent is 2 edges (the
+				// DetentedEncoder divides edges by 2 per click; the gold ContinuousEncoders take
+				// edges raw, matching 2 units/detent on hardware). So scale detents → edges by 2.
+				int32_t acc = (int32_t)*slot + 2 * (int8_t)data[1];
 				if (acc > 127) {
 					acc = 127;
 				}
@@ -448,6 +461,9 @@ static void host_input_pump(void) {
 					acc = -128;
 				}
 				*slot = (int8_t)acc;
+				// Wake the (self-blocked) encoder task so it actually drains these edges; on
+				// hardware the encoder ISR does this. Without it, rotations are silently dropped.
+				unblockTask(encoder_wake_task);
 			}
 			break;
 		default:
@@ -647,7 +663,8 @@ void deluge_trigger_clock_set_handler(DelugeTriggerClockHandler handler) {
 // ===========================================================================
 
 void deluge_encoder_io_init(int8_t wake_task) {
-	(void)wake_task;
+	// Remember the task to wake when inbound encoder rotations arrive (see host_input_pump).
+	encoder_wake_task = wake_task;
 }
 int8_t deluge_encoder_take_edges(uint8_t encoder) {
 	// `encoder` is the firmware's own index (0=scrollY … 5=mod0). Return and clear the
@@ -707,6 +724,7 @@ void deluge_midi_gate_timer_arm(uint32_t samples_from_now) {
 // ===========================================================================
 
 void deluge_midi_init(void) {
+	host_midi_open();
 }
 uint8_t deluge_midi_port_count(void) {
 	return 1; // DIN only on the host stub
@@ -734,9 +752,11 @@ uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max,
 	return 0;
 }
 uint32_t deluge_midi_write(DelugeMidiPort port, const uint8_t* src, uint32_t len) {
-	(void)port;
-	(void)src;
-	return len; // accept and drop
+	// The host stub exposes one port (DIN); route its output to the host MIDI bridge.
+	if (deluge_midi_port_kind(port) == DELUGE_MIDI_DIN) {
+		host_midi_write(src, len);
+	}
+	return len; // always "accept" — anything not bridged is dropped
 }
 uint32_t deluge_midi_write_space(DelugeMidiPort port) {
 	(void)port;
@@ -772,6 +792,22 @@ static void host_din_init(void) {
 }
 
 bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_ticks) {
+	// Live host MIDI bridge (snd-virmidi / FIFO / PTY) takes priority — a real DIN input.
+	if (host_midi_have_input()) {
+		uint8_t b;
+		if (host_midi_read_byte(&b)) {
+			if (byte) {
+				*byte = b;
+			}
+			if (arrival_ticks) {
+				*arrival_ticks = (uint32_t)deluge_clock_monotonic();
+			}
+			return true;
+		}
+		return false;
+	}
+
+	// Headless fallback: the scripted single note-on (offline harness).
 	if (!host_din_inited) {
 		host_din_init();
 	}
