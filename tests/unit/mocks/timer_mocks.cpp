@@ -17,7 +17,7 @@
 #include <chrono>
 #include <time.h>
 extern "C" {
-#include "OSLikeStuff/timers_interrupts/clock_type.h"
+#include "OSLikeStuff/task_scheduler/clock_type.h"
 #include "RZA1/ostm/ostm.h"
 /* clock_t, clock, CLOCKS_PER_SEC */
 #define clockConversion DELUGE_CLOCKS_PER / CLOCKS_PER_SEC;
@@ -64,5 +64,12 @@ uint32_t getTimerValue(int timerNo) {
 		return mockTimers[timerNo];
 	}
 	return DELUGE_CLOCKS_PER * ((std::chrono::duration<double>(now - timers[0]).count()));
+}
+
+// The scheduler's monotonic clock (libdeluge/clock.h). Present the same mocked
+// "deluge ticks" the timer mock advances via passMockTime(), so the scheduler's
+// getSecondsFromStart() stays consistent with getTimerValue() in tests.
+uint64_t deluge_clock_monotonic(void) {
+	return getTimerValue(0);
 }
 }

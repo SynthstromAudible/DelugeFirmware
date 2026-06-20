@@ -5,7 +5,11 @@
 #ifndef DELUGE_TIMER_MOCKS_H
 #define DELUGE_TIMER_MOCKS_H
 
-#endif // DELUGE_TIMER_MOCKS_H
+#include <cstdint>
+
 extern "C" {
 void passMockTime(double seconds);
+uint32_t getTimerValue(int timerNo);
 }
+
+#endif // DELUGE_TIMER_MOCKS_H

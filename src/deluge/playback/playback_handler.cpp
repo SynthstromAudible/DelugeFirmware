@@ -2831,6 +2831,11 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 				currentSong->loadNextSong();
 				break;
 
+			case GlobalMIDICommand::SHIFT:
+				Buttons::commandToggleShift(true);
+				indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
+				break;
+
 			// case GlobalMIDICommand::TAP:
 			default:
 				if (getCurrentUI() == getRootUI()) {
@@ -2865,16 +2870,20 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDICable& cable, int32_t channel
 
 	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].equalsChannelOrZone(&cable,
 	                                                                                                         channel)) {
-		foundAnything = true;
 		MIDITranspose::doTranspose(false, note);
+		foundAnything = true;
 	}
-	else {
-		// Check for FILL command at index [8]
-		if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(&cable, channel,
-		                                                                                               note)) {
-			currentSong->changeFillMode(false);
-			foundAnything = true;
-		}
+	// Check for FILL command at index [8]
+	else if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(&cable, channel,
+	                                                                                                    note)) {
+		currentSong->changeFillMode(false);
+		foundAnything = true;
+	}
+	else if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::SHIFT)].equalsNoteOrCC(
+	             &cable, channel, note)) {
+		Buttons::commandToggleShift(false);
+		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
+		foundAnything = true;
 	}
 
 	return foundAnything;
@@ -3118,10 +3127,8 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 	else {
 		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 		// If the SoundEditor is the active UI, give it first dibs on the message
-		if (getCurrentUI() == &soundEditor) {
-			if (soundEditor.midiCCReceived(cable, channelOrZone, ccNumber, value)) {
-				return;
-			}
+		if (getCurrentUI() == &soundEditor && soundEditor.midiCCReceived(cable, channelOrZone, ccNumber, value)) {
+			return;
 		}
 		// then midi learn is second priority
 		else if (currentUIMode == UI_MODE_MIDI_LEARN) {

@@ -47,18 +47,18 @@ void sleep_2ms() {
 	passMockTime(0.002);
 }
 
-Time started;
+double started;
 void yield_2ms() {
 	mock().actualCall("yield_2ms");
-	started = getTimerValueSeconds(0);
-	yield([]() { return getTimerValueSeconds(0) > started + Time(0.002); });
+	started = getSystemTime();
+	yield([]() { return getSystemTime() > started + 0.002; });
 }
 
 void yield_2ms_with_lock() {
 	mock().actualCall("yield_2ms");
-	started = getTimerValueSeconds(0);
+	started = getSystemTime();
 	usbLock = true;
-	yield([]() { return getTimerValueSeconds(0) > started + Time(0.002); });
+	yield([]() { return getSystemTime() > started + 0.002; });
 	usbLock = false;
 }
 
@@ -135,7 +135,7 @@ TEST(Scheduler, backOffTime) {
 TEST(Scheduler, scheduleOnceWithRepeating) {
 	mock().clear();
 	// loses 1 call while sleep_2ms is running
-	mock().expectNCalls(0.01 / 0.001 - 2, "sleep_50ns");
+	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
 	mock().expectNCalls(1, "sleep_2ms");
 	// every 1ms sleep for 50ns and 10ns
 	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep_50ns", RESOURCE_NONE);

@@ -33,6 +33,7 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "menus.h"
 #include "model/action/action_logger.h"
@@ -687,6 +688,7 @@ ActionResult SoundEditor::exitCompletely() {
 		FlashStorage::writeSettings();
 		MIDIDeviceManager::writeDevicesToFile();
 		runtimeFeatureSettings.writeSettingsToFile();
+		midiFollow.writeDefaultsToFile();
 		display->removeWorkingAnimation();
 	}
 	else if (inNoteEditor()) {

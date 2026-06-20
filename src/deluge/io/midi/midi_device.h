@@ -156,6 +156,7 @@ public:
 	uint8_t connectionFlags;
 	bool sendClock;    // whether to send clocks to this device
 	bool receiveClock; // whether to receive clocks from this device
+	bool is_relative;  // whether this device receive's relative cc's (used with midi takeover)
 	uint8_t incomingSysexBuffer[1024];
 	int32_t incomingSysexPos = 0;
 

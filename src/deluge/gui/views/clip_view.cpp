@@ -267,7 +267,7 @@ uint32_t ClipView::changeClipLength(int32_t offset, uint32_t oldLength, Action*&
 	int32_t endSquare = getSquareFromPos(oldLength, &rightOnSquare);
 
 	// Lengthening
-	if (offset == 1) {
+	if (offset > 0) {
 
 		newLength = getPosFromSquare(endSquare) + getLengthExtendAmount(endSquare);
 

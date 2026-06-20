@@ -1,20 +1,26 @@
-#include "hid/encoder.h"
+#include "hid/encoder_input.h"
 #include "hid/encoders.h"
 #include "mock_defines.h"
-#include "util/misc.h"
 
 namespace deluge::hid::encoders {
 
-Encoder encoders[NUM_ENCODERS] = {};
-uint32_t timeModEncoderLastTurned[2];
-int8_t modEncoderInitialTurnDirection[2];
+DetentedEncoder scrollY;
+DetentedEncoder scrollX;
+DetentedEncoder tempo;
+DetentedEncoder select;
+ContinuousEncoder mod0;
+ContinuousEncoder mod1;
 
-uint32_t timeNextSDTestAction = 0;
-int32_t nextSDTestDirection = 1;
-
-uint32_t encodersWaitingForCardRoutineEnd;
-
-Encoder& getEncoder(EncoderName which) {
-	return encoders[util::to_underlying(which)];
+DetentedEncoder& functionEncoderAt(size_t i) {
+	static DetentedEncoder* const table[] = {&scrollY, &scrollX, &tempo, &select};
+	return *table[i];
 }
+
+ContinuousEncoder& modEncoderAt(size_t i) {
+	static ContinuousEncoder* const table[] = {&mod0, &mod1};
+	return *table[i];
+}
+
+uint32_t timeModEncoderLastTurned[2];
+
 } // namespace deluge::hid::encoders

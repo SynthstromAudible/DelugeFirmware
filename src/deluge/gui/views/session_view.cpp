@@ -1340,7 +1340,7 @@ void SessionView::commandChangeCurrentSectionRepeats(int8_t offset) {
 		if (session.launchEventAtSwungTickCount) {
 			editNumRepeatsTilLaunch(offset);
 		}
-		else if (offset == 1) {
+		else if (offset > 0) {
 			session.userWantsToArmNextSection(1);
 		}
 	}
@@ -4281,7 +4281,7 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 	if (immediate) {
 		if (horizontalEncoderPressed) {
-			session.soloClipAction(clip, kInternalButtonPressLatency);
+			session.soloClipAction(clip, immediate, kInternalButtonPressLatency);
 		}
 		else {
 			gridToggleClipPlay(clip, true);
@@ -4289,7 +4289,7 @@ void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 	}
 	else {
 		if (horizontalEncoderPressed) {
-			session.soloClipAction(clip, kInternalButtonPressLatency);
+			session.soloClipAction(clip, immediate, kInternalButtonPressLatency);
 		}
 		else if (viewingRecordArmingActive) {
 			// Here I removed the overdubbing settings

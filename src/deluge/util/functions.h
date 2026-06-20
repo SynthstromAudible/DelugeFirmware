@@ -116,13 +116,22 @@ template <uint8_t lshift>
 	return (static_cast<uint16_t>(a)) | (static_cast<uint16_t>(b) << 8);
 }
 /**
- * replace asterix with a digit
- * Only works for single digits
+ * replace single asterix with a single digit
+ * single asterix works for single digits only
+ * replace double asterix with a double digit
+ * double asterix works with single and double digits only
  */
 [[gnu::always_inline]] constexpr void asterixToInt(char* str, int32_t i) {
 	while (*str != 0) {
-		if (*str == '*') {
+		// if double asterix (two digits)
+		if (*str == '*' && *(str + 1) == '*') {
+			intToString(i, str, 2);
+			break;
+		}
+		// if single asterix (single digit)
+		else if (*str == '*') {
 			*str = (char)('0' + i);
+			break;
 		}
 		str++;
 	}

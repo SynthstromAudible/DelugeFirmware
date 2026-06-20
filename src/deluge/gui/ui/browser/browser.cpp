@@ -1201,7 +1201,8 @@ searchFromOneEnd:
 	}
 
 	displayText();
-	currentFileChanged(offset);
+	// currentFileChanged uses the value as a scroll-animation direction, so give it only the sign.
+	currentFileChanged(offset > 0 ? 1 : (offset < 0 ? -1 : 0));
 }
 
 bool Browser::predictExtendedText() {

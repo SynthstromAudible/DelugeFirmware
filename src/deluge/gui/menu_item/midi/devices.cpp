@@ -25,6 +25,7 @@
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include <algorithm>
 #include <etl/vector.h>
 #include <string_view>
 
@@ -52,7 +53,7 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.currentMIDICable = getCable(this->getValue());
 	if (display->haveOLED()) {
-		currentScroll = this->getValue();
+		current_scroll_ = this->getValue();
 	}
 	else {
 		drawValue();
@@ -86,16 +87,14 @@ void Devices::selectEncoderAction(int32_t offset) {
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 	if (display->haveOLED()) {
-		if (this->getValue() < currentScroll) {
-			currentScroll = this->getValue();
-		}
+		current_scroll_ = std::min(this->getValue(), current_scroll_);
 		//
 		if (offset >= 0) {
 			int32_t d = this->getValue();
 			int32_t numSeen = 1;
 			while (d > lowestDeviceNum) {
 				d--;
-				if (d == currentScroll) {
+				if (d == current_scroll_) {
 					break;
 				}
 				auto device = getCable(d);
@@ -104,7 +103,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 				}
 				numSeen++;
 				if (numSeen >= kOLEDMenuNumOptionsVisible) {
-					currentScroll = d;
+					current_scroll_ = d;
 					break;
 				}
 			}
@@ -154,7 +153,7 @@ void Devices::drawPixelsForOled() {
 
 	int32_t selectedRow = -1;
 
-	int32_t device_idx = currentScroll;
+	int32_t device_idx = current_scroll_;
 	size_t row = 0;
 	while (row < kOLEDMenuNumOptionsVisible && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		MIDICable* cable = getCable(device_idx);

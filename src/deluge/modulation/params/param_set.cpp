@@ -445,6 +445,10 @@ bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* 
 	return (modelStack->paramId != params::UNPATCHED_STUTTER_RATE);
 }
 
+bool UnpatchedParamSet::shouldRecordUnautomatedParamChange(ModelStackWithParamId const* modelStack) {
+	return (modelStack->paramId != params::UNPATCHED_TEMPO);
+}
+
 // PatchedParamSet --------------------------------------------------------------------------------------------
 
 PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(sizeof(PatchedParamSet), summary) {

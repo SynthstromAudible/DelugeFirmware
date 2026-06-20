@@ -32,7 +32,7 @@ public:
 	void drawPixelsForOled();
 
 private:
-	size_t currentScroll;
+	int32_t current_scroll_ = 0;
 };
 
 extern Devices devicesMenu;

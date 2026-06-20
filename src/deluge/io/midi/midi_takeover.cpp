@@ -34,8 +34,8 @@ int32_t getPreviousKnobPos(int32_t knobPos, MIDIKnob* knob = nullptr, bool doing
 /// based on the midi takeover default setting of RELATIVE, JUMP, PICKUP, or SCALE
 /// this function will calculate the knob position that the deluge parameter that the midi cc
 /// received is learned to should be set at based on the midi cc value received
-int32_t MidiTakeover::calculateKnobPos(int32_t knobPos, int32_t ccValue, MIDIKnob* knob, bool doingMidiFollow,
-                                       int32_t ccNumber, bool isStepEditing) {
+int32_t MidiTakeover::calculateKnobPos(MIDICable& cable, int32_t knobPos, int32_t ccValue, MIDIKnob* knob,
+                                       bool doingMidiFollow, int32_t ccNumber, bool isStepEditing) {
 	/*
 
 	Step #1: Convert Midi Controller's CC Value to Deluge Knob Position Value
@@ -63,7 +63,8 @@ int32_t MidiTakeover::calculateKnobPos(int32_t knobPos, int32_t ccValue, MIDIKno
 	bool isRecording = playbackHandler.isEitherClockActive() && (playbackHandler.recording != RecordingMode::OFF);
 
 	// for controller's sending relative values
-	if (((knob != nullptr) && (knob->relative)) || (midiEngine.midiTakeover == MIDITakeoverMode::RELATIVE)) {
+	if (cable.is_relative || ((knob != nullptr) && (knob->relative))
+	    || (midiEngine.midiTakeover == MIDITakeoverMode::RELATIVE)) {
 		int32_t offset = ccValue;
 		if (offset >= 64) {
 			offset -= 128;

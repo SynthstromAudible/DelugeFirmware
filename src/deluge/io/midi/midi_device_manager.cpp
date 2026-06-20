@@ -442,16 +442,6 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 	}
 }
 
-void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory) {
-	midiEngine.midiFollowChannelType[util::to_underlying(whichType)].cable = readCableFromFlash(memory);
-}
-
-void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory) {
-	if (midiEngine.midiFollowChannelType[util::to_underlying(whichType)].cable) {
-		midiEngine.midiFollowChannelType[util::to_underlying(whichType)].cable->writeToFlash(memory);
-	}
-}
-
 void writeDevicesToFile() {
 	if (!anyChangesToSave) {
 		return;
@@ -638,6 +628,32 @@ checkDevice:
 
 			if (device) {
 				device->sendClock = reader.readTagOrAttributeValueInt();
+			}
+		}
+		else if (!strcmp(tagName, "receiveClock")) {
+			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
+			if (!device) {
+				if (!name.isEmpty() || vendorId) {
+					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
+					                                                productId); // Will return NULL if error.
+				}
+			}
+
+			if (device) {
+				device->receiveClock = reader.readTagOrAttributeValueInt();
+			}
+		}
+		else if (!strcmp(tagName, "is_relative")) {
+			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
+			if (!device) {
+				if (!name.isEmpty() || vendorId) {
+					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
+					                                                productId); // Will return NULL if error.
+				}
+			}
+
+			if (device) {
+				device->is_relative = reader.readTagOrAttributeValueInt();
 			}
 		}
 
