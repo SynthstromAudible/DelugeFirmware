@@ -26,17 +26,25 @@
 /// DELUGE_HOST_CAPTURE_SECONDS (default 2.0). This is the substrate for the
 /// audio WAV-diff regression harness.
 
+#define _POSIX_C_SOURCE 199309L // clock_gettime, nanosleep, CLOCK_MONOTONIC
+
 #include "libdeluge/app.h"      // deluge_app_render
 #include "libdeluge/audio_io.h" // the boundary we implement
 #include "libdeluge/types.h"    // DelugeStereoSample
+
+#include "host_link.h" // live-mode detection (emulator vs offline harness)
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define HOST_AUDIO_SAMPLE_RATE 44100u
-#define HOST_AUDIO_BLOCK_FRAMES 128u
+// Keep the render window below AudioEngine's direnessThreshold (50): windows >= 50 drive
+// cpuDireness up (degraded DSP paths + voice culling + starved UI/console rendering). 128
+// pegged direness; 32 mirrors the small windows the hardware DMA pacing produces.
+#define HOST_AUDIO_BLOCK_FRAMES 32u
 
 // Silence in, rendered audio out. Both app-visible only through deluge_app_render.
 static DelugeStereoSample host_input_block[HOST_AUDIO_BLOCK_FRAMES];
@@ -147,10 +155,50 @@ uint32_t deluge_audio_output_latency_frames(void) {
 	return HOST_AUDIO_BLOCK_FRAMES;
 }
 
+// ---- live (emulator) render driver ----------------------------------------
+//
+// When the GUI link is up we render in real time instead of capturing to WAV: one
+// block per call, paced against the monotonic clock so the cooperative scheduler
+// runs at 1× (on hardware the audio DMA paces the whole loop the same way). Audio
+// output itself is muted this milestone — we only render so the engine's audio
+// clock, sequencer, and UI advance at a faithful rate.
+
+static uint64_t now_ns(void) {
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
+}
+
+static uint64_t live_anchor_ns; // wall-clock origin of the live audio timeline
+static uint32_t live_frames;    // frames rendered since the anchor
+
+static uint32_t host_audio_drive_live(void) {
+	if (live_anchor_ns == 0) {
+		live_anchor_ns = now_ns();
+	}
+	uint32_t frames = HOST_AUDIO_BLOCK_FRAMES;
+	deluge_app_render(host_input_block, host_render_block, frames);
+	host_rendered_frames += frames;
+	live_frames += frames;
+
+	// Sleep until this block's worth of audio "should" have played.
+	uint64_t target = live_anchor_ns + (uint64_t)live_frames * 1000000000ull / HOST_AUDIO_SAMPLE_RATE;
+	uint64_t t = now_ns();
+	if (target > t) {
+		uint64_t diff = target - t;
+		struct timespec req = {(time_t)(diff / 1000000000ull), (long)(diff % 1000000000ull)};
+		nanosleep(&req, NULL);
+	}
+	return 1;
+}
+
 // Offline render driver. Renders one block per call and appends it to the WAV;
 // finalises + exits once the target duration is captured. Returns the number of
 // render passes (1 while capturing, 0 once done) per the audio_io.h contract.
 uint32_t deluge_audio_drive(void) {
+	if (host_link_active()) {
+		return host_audio_drive_live();
+	}
 	if (capture_done) {
 		return 0;
 	}

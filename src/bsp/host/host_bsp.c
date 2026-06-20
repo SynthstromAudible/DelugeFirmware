@@ -43,6 +43,9 @@
 #include "libdeluge/signals.h"
 #include "libdeluge/system.h"
 
+#include "host_link.h" // emulator transport (display/LED out, input in)
+
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +56,10 @@
 // ===========================================================================
 
 DelugeStatus deluge_platform_init(void) {
+	// Bring up the emulator transport. When DELUGE_HOST_LINK is set this blocks until the
+	// spark GUI attaches; when unset it is a no-op and the build runs headless (offline
+	// WAV-capture harness). Either way the app boots identically.
+	host_link_init();
 	return DELUGE_OK;
 }
 
@@ -324,9 +331,13 @@ DelugeCardEvent deluge_block_poll_card_event(uint8_t unit) {
 // ===========================================================================
 
 DelugeStatus deluge_display_blit_oled(const uint8_t* pixels, uint16_t width, uint16_t height) {
-	(void)pixels;
-	(void)width;
-	(void)height;
+	// The firmware hands us oledCurrentImage: already the SSD1309 page-major hardware
+	// buffer ((height/8) pages × width bytes, bit b of byte[page*width+col] = panel row
+	// page*8+b) — exactly what spark's update_display_from_buffer expects. Emit it verbatim.
+	if (host_link_active()) {
+		uint16_t bytes = (uint16_t)((height >> 3) * width); // 48/8 × 128 = 768
+		host_link_send(HOST_LINK_MSG_UPDATE_DISPLAY, pixels, bytes);
+	}
 	return DELUGE_OK;
 }
 bool deluge_display_busy(void) {
@@ -359,12 +370,99 @@ void deluge_control_read_boot_info(DelugeBootInfo* out) {
 		memset(out, 0, sizeof(*out));
 	}
 }
-// Pad press injection (host harness). DELUGE_HOST_PAD="x,y" presses+holds a grid pad. To audition
-// the active synth in a clip, press the rightmost (audition) column: x = kDisplayWidth+kSideBarWidth-1
-// = 17, y = 0..7. Fired once the audio clock (host_rendered_frames) passes a frame threshold — keying
-// off rendered frames rather than wall-clock poll counts makes the onset deterministic and identical
-// across the x86 and arm-linux builds (so their captures are diffable). Held (no release) afterwards,
-// so the note sustains for the rest of the capture. DELUGE_HOST_PAD_AT_FRAME overrides the threshold.
+// --- Live input bridge (spark GUI → firmware) ------------------------------------
+//
+// Inbound frames from the GUI are pumped here and split into two destinations:
+//  - pad/button presses become DelugeInputEvents drained by deluge_control_poll_event()
+//  - encoder rotations accumulate into per-encoder edge counts taken by
+//    deluge_encoder_take_edges()
+// matching the two distinct paths the firmware reads input through.
+
+// Pad/button event ring. Power-of-two size; one producer (pump) one consumer (poll).
+#define HOST_EVENT_QUEUE_CAP 256u
+static DelugeInputEvent ev_queue[HOST_EVENT_QUEUE_CAP];
+static uint32_t ev_head; // next write
+static uint32_t ev_tail; // next read
+
+static void ev_push(DelugeInputEventKind kind, uint8_t x, uint8_t y, int16_t value) {
+	uint32_t next = (ev_head + 1u) & (HOST_EVENT_QUEUE_CAP - 1u);
+	if (next == ev_tail) {
+		return; // full — drop (UI back-pressure; should never happen at human rates)
+	}
+	ev_queue[ev_head].kind = kind;
+	ev_queue[ev_head].x = x;
+	ev_queue[ev_head].y = y;
+	ev_queue[ev_head].value = value;
+	ev_head = next;
+}
+
+// Accumulated encoder edges, indexed by the firmware's deluge_encoder_take_edges() index
+// (0=scrollY, 1=scrollX, 2=tempo, 3=select, 4=mod1, 5=mod0 — see encoder_input.cpp).
+static int8_t encoder_edges[6];
+
+// spark encoder id (0=SCROLL_X,1=TEMPO,2=MOD_0,3=MOD_1,4=SCROLL_Y,5=SELECT) → firmware index.
+static const uint8_t kSparkEncoderToFwIndex[6] = {1, 2, 5, 4, 0, 3};
+
+// Drain all currently-available inbound frames. Cheap to call every poll.
+static void host_input_pump(void) {
+	if (!host_link_active()) {
+		return;
+	}
+	uint8_t type;
+	uint8_t data[8];
+	uint16_t len;
+	for (;;) {
+		len = sizeof(data);
+		if (!host_link_recv(&type, data, &len)) {
+			break;
+		}
+		switch (type) {
+		case HOST_LINK_MSG_PAD_PRESSED: // [col][row]
+			if (len >= 2) {
+				ev_push(DELUGE_EVENT_PAD, data[0], data[1], 255);
+			}
+			break;
+		case HOST_LINK_MSG_PAD_RELEASED: // [col][row]
+			if (len >= 2) {
+				ev_push(DELUGE_EVENT_PAD, data[0], data[1], 0);
+			}
+			break;
+		case HOST_LINK_MSG_BUTTON_PRESSED:  // [button_id], id = 9*(y+16)+x
+		case HOST_LINK_MSG_BUTTON_RELEASED: // (encoder pushes are buttons too — decode uniformly)
+			if (len >= 1 && data[0] >= 144) {
+				uint8_t k = (uint8_t)(data[0] - 144);
+				uint8_t x = (uint8_t)(k % 9);
+				uint8_t y = (uint8_t)(k / 9);
+				int16_t value = (type == HOST_LINK_MSG_BUTTON_PRESSED) ? 255 : 0;
+				ev_push(DELUGE_EVENT_BUTTON, x, y, value);
+			}
+			break;
+		case HOST_LINK_MSG_ENCODER_ROTATED: // [encoder_id][delta:i8]
+			if (len >= 2 && data[0] < 6) {
+				int8_t* slot = &encoder_edges[kSparkEncoderToFwIndex[data[0]]];
+				int32_t acc = (int32_t)*slot + (int8_t)data[1];
+				if (acc > 127) {
+					acc = 127;
+				}
+				else if (acc < -128) {
+					acc = -128;
+				}
+				*slot = (int8_t)acc;
+			}
+			break;
+		default:
+			break; // ignore unknown / response types
+		}
+	}
+}
+
+// Pad press injection (offline harness, used only when no GUI link is active).
+// DELUGE_HOST_PAD="x,y" presses+holds a grid pad. To audition the active synth in a clip, press the
+// rightmost (audition) column: x = kDisplayWidth+kSideBarWidth-1 = 17, y = 0..7. Fired once the audio
+// clock (host_rendered_frames) passes a frame threshold — keying off rendered frames rather than
+// wall-clock poll counts makes the onset deterministic and identical across the x86 and arm-linux
+// builds (so their captures are diffable). Held (no release) afterwards, so the note sustains for the
+// rest of the capture. DELUGE_HOST_PAD_AT_FRAME overrides the threshold.
 extern uint32_t host_rendered_frames; // host_audio.c
 static int host_pad_inited;
 static int host_pad_x = -1;
@@ -389,6 +487,18 @@ static void host_pad_init(void) {
 }
 
 bool deluge_control_poll_event(DelugeInputEvent* out) {
+	// Live GUI link: drain decoded events from the wire.
+	if (host_link_active()) {
+		host_input_pump();
+		if (ev_tail != ev_head) {
+			*out = ev_queue[ev_tail];
+			ev_tail = (ev_tail + 1u) & (HOST_EVENT_QUEUE_CAP - 1u);
+			return true;
+		}
+		return false;
+	}
+
+	// Headless fallback: the scripted offline pad injection.
 	if (!host_pad_inited) {
 		host_pad_init();
 	}
@@ -405,18 +515,26 @@ bool deluge_control_poll_event(DelugeInputEvent* out) {
 	return false;
 }
 void deluge_control_set_pad(uint8_t x, uint8_t y, DelugeColour colour) {
-	(void)x;
-	(void)y;
-	(void)colour;
+	if (host_link_active()) {
+		uint8_t d[5] = {x, y, colour.r, colour.g, colour.b};
+		host_link_send(HOST_LINK_MSG_SET_PAD_RGB, d, sizeof(d));
+	}
 }
 void deluge_control_set_led(uint8_t led, bool on) {
-	(void)led;
-	(void)on;
+	if (host_link_active()) {
+		uint8_t d[2] = {led, (uint8_t)(on ? 1 : 0)};
+		host_link_send(HOST_LINK_MSG_SET_LED, d, sizeof(d));
+	}
 }
 void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t count) {
-	(void)which;
-	(void)levels;
-	(void)count;
+	// spark's SetKnobIndicator carries exactly 4 segment levels; pad/truncate to match.
+	if (host_link_active()) {
+		uint8_t d[5] = {which, 0, 0, 0, 0};
+		for (uint8_t i = 0; i < count && i < 4; i++) {
+			d[1 + i] = levels[i];
+		}
+		host_link_send(HOST_LINK_MSG_SET_KNOB_INDICATOR, d, sizeof(d));
+	}
 }
 void deluge_control_flush(void) {
 }
@@ -432,12 +550,25 @@ bool deluge_control_poll_resume(void) {
 	return false;
 }
 uint32_t deluge_control_pad_output_space(void) {
-	return 256;
+	// On hardware this is the free space in the PIC's bulk pad-output UART buffer; the
+	// app gates UI redraws on it (doAnyPendingUIRendering bails when it's low). The host
+	// link has no such bottleneck, so always report ample room — otherwise a too-small
+	// value permanently suppresses *all* UI rendering (pads and OLED alike).
+	return 65535;
 }
 void deluge_control_set_pad_columns(uint8_t idx, const DelugeColour* colours, uint8_t count) {
-	(void)idx;
-	(void)colours;
-	(void)count;
+	// The surface drives main pads as 16-LED column pairs: colours[0..7] = column idx*2
+	// rows 0..7, colours[8..15] = column idx*2+1 rows 0..7 (see pad_leds.cpp sortLedsForCol).
+	// Fan out to per-pad SetPadRGB frames the GUI renders directly.
+	if (!host_link_active()) {
+		return;
+	}
+	for (uint8_t i = 0; i < count; i++) {
+		uint8_t col = (uint8_t)(idx * 2u + (i >> 3)); // first 8 → idx*2, next 8 → idx*2+1
+		uint8_t row = (uint8_t)(i & 7u);
+		uint8_t d[5] = {col, row, colours[i].r, colours[i].g, colours[i].b};
+		host_link_send(HOST_LINK_MSG_SET_PAD_RGB, d, sizeof(d));
+	}
 }
 void deluge_control_flash_pad(uint8_t idx) {
 	(void)idx;
@@ -499,8 +630,14 @@ void deluge_encoder_io_init(int8_t wake_task) {
 	(void)wake_task;
 }
 int8_t deluge_encoder_take_edges(uint8_t encoder) {
-	(void)encoder;
-	return 0;
+	// `encoder` is the firmware's own index (0=scrollY … 5=mod0). Return and clear the
+	// edges the input pump accumulated from inbound EncoderRotated frames.
+	if (encoder >= 6) {
+		return 0;
+	}
+	int8_t edges = encoder_edges[encoder];
+	encoder_edges[encoder] = 0;
+	return edges;
 }
 
 // ===========================================================================

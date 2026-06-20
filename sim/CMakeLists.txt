@@ -176,6 +176,7 @@ add_executable(deluge_host
     ${REPO_ROOT}/src/bsp/host/host_bsp.c
     ${REPO_ROOT}/src/bsp/host/host_platform.c
     ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
     ${REPO_ROOT}/src/bsp/host/host_main.c
 )
 target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS})

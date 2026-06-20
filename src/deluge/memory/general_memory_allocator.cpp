@@ -84,6 +84,17 @@ int32_t closestDistance = 2147483647;
 void GeneralMemoryAllocator::checkStack(char const* caller) {
 #if ALPHA_OR_BETA_VERSION
 
+	// The stack-collision guard measures headroom between the live stack pointer and
+	// `program_stack_start` — valid only where the stack sits in a known region just past
+	// the heap (the SoC's SRAM layout). A build whose BSP can't describe such a region
+	// leaves `program_stack_end == program_stack_start` (e.g. the host sim, which runs on
+	// the OS-managed native stack — an unrelated, far-away address). There the subtraction
+	// underflows to a huge bogus "distance" and would false-trigger E338; the OS guard page
+	// already protects that build, so skip.
+	if (&program_stack_start == &program_stack_end) {
+		return;
+	}
+
 	char a;
 
 	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
