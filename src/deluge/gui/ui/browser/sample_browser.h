@@ -71,6 +71,7 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::SAMPLE_BROWSER; }
+	bool canDisplayFavourites() override { return true; }
 
 protected:
 	void enterKeyPress() override;

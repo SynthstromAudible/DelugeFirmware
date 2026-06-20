@@ -107,6 +107,8 @@ public:
 		exitAction();
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
+	bool isFavouritesVisible() override;
+	bool isBanksVisible() override;
 
 protected:
 	Error setEnteredTextFromCurrentFilename();

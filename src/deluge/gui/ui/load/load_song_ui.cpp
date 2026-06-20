@@ -230,7 +230,6 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
 		qwertyVisible = qwertyAlwaysVisible;
 		if (qwertyVisible) {
-			favouritesVisible = true;
 			drawKeys();
 			qwertyCurrentlyDrawnOnscreen = true;
 		}
@@ -747,7 +746,6 @@ void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 
 	if (movementDirection && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
-		favouritesVisible = false;
 		qwertyCurrentlyDrawnOnscreen = false;
 
 		// Start horizontal scrolling
@@ -973,7 +971,6 @@ ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			qwertyVisible = true;
-			favouritesVisible = true;
 			displayText(false); // This will also draw the QWERTY keys
 
 			// Process first press only if its not a favourite row press to prevent blind keypresses
