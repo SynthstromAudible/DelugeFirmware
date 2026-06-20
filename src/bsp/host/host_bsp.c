@@ -469,6 +469,8 @@ static int host_pad_x = -1;
 static int host_pad_y;
 static uint32_t host_pad_at_frame = 4410; // ~0.1 s at 44.1 kHz
 static int host_pad_done;
+static uint32_t host_pad_release_at; // 0 = press-and-hold; else release at this frame
+static int host_pad_released;
 
 static void host_pad_init(void) {
 	host_pad_inited = 1;
@@ -483,6 +485,13 @@ static void host_pad_init(void) {
 	const char* at = getenv("DELUGE_HOST_PAD_AT_FRAME");
 	if (at) {
 		host_pad_at_frame = (uint32_t)strtoul(at, NULL, 10);
+	}
+	// DELUGE_HOST_PAD_RELEASE_FRAME makes the scripted pad RELEASE at that frame (instead of
+	// holding) — a deterministic, socket-free note-on→note-off for reproducing release-path
+	// bugs under gdb.
+	const char* rel = getenv("DELUGE_HOST_PAD_RELEASE_FRAME");
+	if (rel) {
+		host_pad_release_at = (uint32_t)strtoul(rel, NULL, 10);
 	}
 }
 
@@ -508,7 +517,18 @@ bool deluge_control_poll_event(DelugeInputEvent* out) {
 		out->y = (uint8_t)host_pad_y;
 		out->value = 255; // default-on velocity
 		host_pad_done = 1;
-		fprintf(stderr, "[host-pad] pad press+hold (x=%d, y=%d) at frame %u\n", host_pad_x, host_pad_y,
+		fprintf(stderr, "[host-pad] pad press (x=%d, y=%d) at frame %u\n", host_pad_x, host_pad_y,
+		        host_rendered_frames);
+		return true;
+	}
+	// Deterministic release (note-off) once requested and reached.
+	if (host_pad_done && host_pad_release_at && !host_pad_released && host_rendered_frames >= host_pad_release_at) {
+		out->kind = DELUGE_EVENT_PAD;
+		out->x = (uint8_t)host_pad_x;
+		out->y = (uint8_t)host_pad_y;
+		out->value = 0; // release
+		host_pad_released = 1;
+		fprintf(stderr, "[host-pad] pad release (x=%d, y=%d) at frame %u\n", host_pad_x, host_pad_y,
 		        host_rendered_frames);
 		return true;
 	}

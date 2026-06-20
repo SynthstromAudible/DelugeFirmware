@@ -103,6 +103,14 @@ add_compile_definitions(_GLIBCXX_USE_TBB_PAR_BACKEND=0)
 # and doesn't pump the scheduler (so MIDI/playback/UI tasks never run). Matching the firmware
 # execution model is both more faithful and what makes input (e.g. MIDI) reach the engine.
 add_compile_definitions(USE_TASK_MANAGER)
+
+# Zero every block at allocation / pool-reuse / operator new (see memory/general_memory_allocator.cpp,
+# object_pool.h, operators.cpp). On the SoC, SDRAM is never cleared, so the firmware's many
+# read-before-write paths resolve to whatever the previous occupant left — values that vary with the
+# allocation layout. Off-target that non-determinism makes latent uninitialised-read bugs flaky (and
+# the golden WAV captures layout-dependent). Zeroing makes the host run deterministic and turns those
+# latent reads into a defined 0. Firmware builds leave this off (the guards inline away).
+add_compile_definitions(DELUGE_DETERMINISTIC_ALLOC)
 if(DELUGE_SIM_ARM)
     # Real NEON: the cross toolchain provides <arm_neon.h>; argon's <arm/neon.h> is unused.
     include_directories(BEFORE ${REPO_ROOT}/include)
@@ -177,6 +185,7 @@ add_executable(deluge_host
     ${REPO_ROOT}/src/bsp/host/host_platform.c
     ${REPO_ROOT}/src/bsp/host/host_audio.c
     ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
     ${REPO_ROOT}/src/bsp/host/host_main.c
 )
 target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS})

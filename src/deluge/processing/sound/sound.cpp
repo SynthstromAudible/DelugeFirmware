@@ -2563,8 +2563,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		}
 
 		if (!voice_rendered_in_stereo) {
-			// Clear the non-overlapping portion of the stereo buffer (yes this is janky)
-			memset(&sound_mono[sound_mono.size()], 0, sound_stereo.size_bytes() - sound_mono.size_bytes());
+			// Clear the non-overlapping portion of the stereo buffer (yes this is janky).
+			// Use data()+size() for the past-the-end pointer, not &sound_mono[size()] — the latter
+			// calls span::operator[] with an out-of-bounds index (UB; the hardened host build asserts).
+			memset(sound_mono.data() + sound_mono.size(), 0, sound_stereo.size_bytes() - sound_mono.size_bytes());
 		}
 	}
 

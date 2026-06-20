@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include <cstring>
 #include <gsl/gsl>
 #include <memory>
 #include <stack>
@@ -104,6 +105,13 @@ public:
 			obj = objects_.top();
 			objects_.pop();
 		}
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+		// A recycled slot still holds the previous occupant's bytes (recycle() runs the destructor but doesn't
+		// clear), so zero it before reconstruction — the pool-reuse analogue of the allocator's zero-on-alloc, so a
+		// read-before-write in T resolves to a defined 0 regardless of what was pooled here before. Sim/golden
+		// builds only (see sim/CMakeLists DELUGE_DETERMINISTIC_ALLOC); firmware leaves it off.
+		memset(static_cast<void*>(obj), 0, sizeof(T));
+#endif
 		return {new (obj) T(std::forward<Args>(args)...), &recycle};
 	}
 

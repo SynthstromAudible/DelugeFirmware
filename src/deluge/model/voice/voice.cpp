@@ -583,8 +583,11 @@ void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage
 		else {
 			envelopes[0].noteOff(0, &sound, paramManager);
 
-			// Only start releasing envelope 2 if release wasn't at max value
-			if (sound.paramFinalValues[params::LOCAL_ENV_1_RELEASE] >= 9) {
+			// Only start releasing envelope 2 if release wasn't at max value. LOCAL_ENV_1_RELEASE is a
+			// *local* param, so read the voice's own paramFinalValues (sized LOCAL_LAST) — not
+			// sound.paramFinalValues, which holds *global* params only (indexing it here was an
+			// out-of-bounds read of adjacent Sound memory; the hardened host build's bounds check caught it).
+			if (paramFinalValues[params::LOCAL_ENV_1_RELEASE] >= 9) {
 				envelopes[1].noteOff(1, &sound, paramManager);
 			}
 		}

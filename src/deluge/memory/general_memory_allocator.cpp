@@ -22,6 +22,24 @@
 #include "io/debug/log.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
+#include <cstring>
+
+namespace {
+// Under DELUGE_DETERMINISTIC_ALLOC (the off-target sim / golden builds only) every block is zeroed before it's
+// handed out, so any read-before-write resolves to a defined 0 instead of recycled-block content. This makes the
+// offline golden render independent of the GMA's allocation *layout*: a refactor that shifts what lands where can
+// no longer flip a fixture through a latent uninitialised read. Firmware builds leave this off — the no-op inlines
+// away, preserving their exact behaviour and allocation-time performance.
+[[gnu::always_inline]] inline void* finalizeAlloc([[maybe_unused]] void* address,
+                                                  [[maybe_unused]] uint32_t requiredSize) {
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	if (address != nullptr) {
+		memset(address, 0, requiredSize);
+	}
+#endif
+	return address;
+}
+} // namespace
 
 // these are never used directly, they're just reserving raw memory for use in the allocator  and clang tidy is unhappy
 // NOLINTBEGIN
@@ -195,7 +213,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 			address = allocInternal(requiredSize);
 
 			if (address != nullptr) {
-				return address;
+				return finalizeAlloc(address, requiredSize);
 			}
 
 			AudioEngine::logAction("internal allocation failed");
@@ -205,7 +223,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		address = allocExternal(requiredSize);
 
 		if (address) {
-			return address;
+			return finalizeAlloc(address, requiredSize);
 		}
 
 		AudioEngine::logAction("external allocation failed");
@@ -223,7 +241,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	lock = true;
 	address = regions[MEMORY_REGION_STEALABLE].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 	lock = false;
-	return address;
+	return finalizeAlloc(address, requiredSize);
 }
 
 uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
