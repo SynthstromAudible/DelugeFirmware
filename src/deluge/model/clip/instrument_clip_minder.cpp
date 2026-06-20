@@ -51,6 +51,7 @@
 #include "playback/mode/arrangement.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 #include <string.h>
@@ -125,7 +126,7 @@ void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas&
 #pragma GCC diagnostic ignored "-Wstack-usage="
 void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
-	DEF_STACK_STRING_BUF(buffer, 30);
+	etl::string<30> buffer;
 
 	bool doScroll = false;
 
@@ -160,7 +161,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		if (!appendedName) {
 			if (display->haveOLED()) {
 				buffer.append("CC ");
-				buffer.appendInt(controlNumber);
+				deluge::string::appendInt(buffer, controlNumber);
 			}
 			else {
 				if (controlNumber < 100) {
@@ -169,7 +170,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 				else {
 					buffer.append("C");
 				}
-				buffer.appendInt(controlNumber);
+				deluge::string::appendInt(buffer, controlNumber);
 			}
 		}
 	}

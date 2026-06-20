@@ -18,6 +18,7 @@
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 #include "hid/display/display.h"
 #include "model/instrument/kit.h"
+#include "util/etl_string.h"
 #include "util/functions.h"
 #include <hid/buttons.h>
 #include <stdint.h>
@@ -102,11 +103,11 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 		else
 			return;
 
-		DEF_STACK_STRING_BUF(buffer, 16);
+		etl::string<16> buffer;
 		if (display->haveOLED()) {
 			buffer.append("Zoom Level: ");
 		}
-		buffer.appendInt(state.zoom_level + 1);
+		deluge::string::appendInt(buffer, state.zoom_level + 1);
 		display->displayPopup(buffer.c_str());
 
 		offset = 0; // Since the offset variable can be used for scrolling or zooming,

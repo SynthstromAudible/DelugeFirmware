@@ -56,14 +56,19 @@ short names. `etl::string` never allocates, so it is preferred for per-frame dis
 | `DEF_STACK_STRING_BUF(s, N)` | `etl::string<N> s;` |
 | `void f(StringBuf&)` | `void f(etl::istring&)` |
 | `s.append(cstr)` / `s.append("lit")` | unchanged (etl accepts `const char*`) |
+| `s.append(char c)` | `s.push_back(c)` — **etl has no single-arg `append(char)`** |
 | `s.append(std::string_view sv)` | `deluge::string::append(s, sv)` |
 | `s.appendInt(i, m)` | `deluge::string::appendInt(s, i, m)` |
 | `s.appendHex(i, m)` | `deluge::string::appendHex(s, i, m)` |
 | `s.appendFloat(f, mn, mx)` | `deluge::string::appendFloat(s, f, mn, mx)` |
 | `s.clear()` / `s.empty()` / `s.size()` / `s.c_str()` | unchanged |
 | `s.truncate(n)` | `s.resize(n)` (call sites only ever shrink) |
-| `s.data()` passed to a `char const*` sink | `s.c_str()` |
-| implicit `operator std::string_view()` | `std::string_view{s.c_str(), s.size()}` |
+| `s.data()` passed to a `char const*` sink | unchanged (etl `data()`/`c_str()` are NUL-terminated) |
+| implicit `operator std::string_view()` | `std::string_view{s.c_str(), s.size()}` (etl has no implicit conversion) |
+
+A TU that only needs the `etl::string<N>` type (no `appendInt/Hex/Float`, no
+`std::string_view` append) can include just `"etl/string.h"` instead of `"util/etl_string.h"`
+— preferred for files in the unit-test build, to avoid pulling the formatter declarations.
 
 When a helper merely builds a short value and returns it, prefer a `std::string` return via
 the existing `deluge::string::fromInt/fromFloat/fromSlot/fromNoteCode`
@@ -76,7 +81,15 @@ Separate branch (`stringbuf-etl-migration`), staged into bisectable, build-green
 1. [x] Foundation: `etl_string.h` helpers; proof conversion (`decimal.cpp` local buffers).
 2. [x] Self-contained popup/status local buffers (not passed to a `StringBuf&` helper):
    `global_effectable.cpp`, `mod_controllable_audio.cpp`, `song.cpp`, `stem_export.cpp`.
-3. [ ] `std::string`-return conversions (helpers that build + hand back a short value).
+3. [x] Remaining self-contained locals (filled inline, consumed via `c_str()`/`data()`,
+   never passed to a `StringBuf&` helper): `sync.cpp` (`tempBuf`), `storage_manager.cpp`
+   (`s_container`), `velocity_drums.cpp`, `oled.cpp` (`displayNotification` title),
+   `instrument_clip_minder.cpp`.
+   - Note: the remaining standalone `std::string`-**return** opportunities turned out to be
+     entangled — the sole-output helpers (`getShortOption`, `getNoteLengthName`,
+     `getCurrentRootNoteAndScaleName`) are `virtual` or feed the surface, and most display
+     names exceed SSO (so `etl::string` is the right type, not a heap `std::string`). They
+     are folded into the surface wave below rather than done separately.
 4. [ ] **Output-parameter surface** — the coupled bulk. Functions taking `StringBuf&`
    (`MenuItem::getColumnLabel` / `getNotificationValue` and all overrides;
    `Song::getNoteLengthName` / `getCurrentRootNoteAndScaleName`;
@@ -90,5 +103,5 @@ Separate branch (`stringbuf-etl-migration`), staged into bisectable, build-green
 Build ARM hardware per wave (and the host-sim, on branches where it is present); the
 `operator new` routing differs between unit tests (`IN_UNIT_TESTS`) and hardware.
 ```
-ARM debug elf .text size: 1689892 (baseline) → 1690464 (after waves 1–2).
+ARM debug elf .text size: 1689892 (baseline) → 1690608 (after waves 1–3).
 ```
