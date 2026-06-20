@@ -242,7 +242,6 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 	// Can start scrolling right now, while next preview loads
 	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible) && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
-		favouritesVisible = false;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
@@ -490,7 +489,6 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
 		qwertyVisible = qwertyAlwaysVisible;
 		if (qwertyVisible) {
-			favouritesVisible = true;
 			qwertyCurrentlyDrawnOnscreen = true;
 			drawKeys();
 		}
@@ -714,7 +712,6 @@ possiblyExit:
 				}
 
 				qwertyVisible = true;
-				favouritesVisible = true;
 
 				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 				PadLEDs::reassessGreyout(true);
@@ -2080,7 +2077,6 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	}
 	else {
 		qwertyVisible = true;
-		favouritesVisible = true;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		PadLEDs::reassessGreyout(true);
