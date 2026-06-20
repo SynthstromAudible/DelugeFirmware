@@ -1,4 +1,4 @@
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 /**********************************************************************************************************************\
  * Hexadecimal formatting and parsing helpers

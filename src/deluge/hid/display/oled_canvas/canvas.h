@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions.h"
-#include "deluge/util/d_string.h"
+#include "deluge/util/c_string.h"
 #include "util/etl_string.h"
 #include <cstring>
 #include <functional>

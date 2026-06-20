@@ -13,6 +13,7 @@ add_library(deluge_spec STATIC
 # intToString/floatToString moved out of util/cfunctions.c into the dep-free
 # foundation library; cfunctions.c now only holds the clock-coupled delays.
 ../../src/foundation/string_format.c
+../../src/deluge/util/c_string.cpp
 ../../src/deluge/util/lookuptables/lookuptables.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp

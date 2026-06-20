@@ -17,7 +17,7 @@
 
 #include "canvas.h"
 #include "definitions_cxx.hpp"
-#include "deluge/util/d_string.h"
+#include "deluge/util/c_string.h"
 #include "gui/fonts/fonts.h"
 #include "storage/flash_storage.h"
 #include "util/etl_string.h"

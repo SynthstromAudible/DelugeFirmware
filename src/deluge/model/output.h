@@ -22,7 +22,7 @@
 #include "model/clip/clip_instance_vector.h"
 #include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include <cstdint>
 
 class InstrumentClip;

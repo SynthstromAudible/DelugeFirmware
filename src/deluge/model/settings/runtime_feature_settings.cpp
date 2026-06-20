@@ -20,7 +20,7 @@
 #include "hid/display/display.h"
 #include "model/song/song.h"
 #include "storage/storage_manager.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include <cstring>
 #include <string_view>
 

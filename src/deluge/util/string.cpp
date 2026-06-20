@@ -1,6 +1,6 @@
 #include "util/string.h"
 #include "printf.h"
-#include "util/d_string.h" // intToHex
+#include "util/c_string.h" // intToHex
 #include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/try.h"

@@ -35,8 +35,8 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "storage/flash_storage.h"
+#include "util/c_string.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
-#include "util/d_string.h"
 #include "util/etl_string.h"
 
 class MidiCommand;

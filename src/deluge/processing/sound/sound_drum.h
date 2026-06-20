@@ -21,7 +21,7 @@
 #include "model/drum/drum.h"
 #include "modulation/arpeggiator.h"
 #include "processing/sound/sound.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include <string>
 
 class ModelStackWithTimelineCounter;

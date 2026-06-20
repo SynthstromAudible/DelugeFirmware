@@ -19,7 +19,7 @@
 
 #include "gui/ui/ui.h"
 #include "model/favourite/favourite_manager.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include <cstdint>
 
 class QwertyUI : public UI {

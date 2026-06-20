@@ -26,7 +26,7 @@
 #include "model/sample/sample_playback_guide.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 class VoiceSample;
 class SampleRecorder;

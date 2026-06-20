@@ -3,7 +3,7 @@
 #include "util/etl_string.h"
 #include <cstdint>
 
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 // SyncType values correspond to the index of the first option of the specific
 // type in the selection menu. There are 9 different levels for each type (see

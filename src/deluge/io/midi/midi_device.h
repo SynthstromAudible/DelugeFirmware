@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "midi/message.h"
 #include "model/model_stack.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include <array>
 
 // These numbers are what get stored just in the internal Deluge flash memory to represent things.
