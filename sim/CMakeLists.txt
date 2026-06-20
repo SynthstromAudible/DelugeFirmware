@@ -194,3 +194,23 @@ target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler)
 if(RT_LIB)
     target_link_libraries(deluge_host PRIVATE ${RT_LIB})
 endif()
+
+# deluge_render: the headless "project -> stems" utility. Same app + host BSP as
+# deluge_host, but its own main()/render-driver (host_render_main.cpp) instead of
+# host_main.c, and it drives the existing offline StemExport engine against a FAT
+# disk image (the shared host_platform.c diskio backend). Requires mtools at runtime
+# (--project packing). See host_render_main.cpp for usage.
+add_executable(deluge_render
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_render_main.cpp
+)
+target_include_directories(deluge_render PRIVATE ${HOST_INCLUDE_DIRS})
+target_link_libraries(deluge_render PRIVATE deluge_app deluge_scheduler)
+if(RT_LIB)
+    target_link_libraries(deluge_render PRIVATE ${RT_LIB})
+endif()

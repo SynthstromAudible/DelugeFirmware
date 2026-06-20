@@ -3656,14 +3656,18 @@ FRESULT f_mount (
 	int vol;
 	FRESULT res;
 	const TCHAR *rp = path;
-        /* Pointer to fs object */
-        cfs = FatFs[vol];
-        if (cfs && opt==0) {
-          return FR_OK; //this is a dirty hack, only works because we're never doing a delayed mount over a different filesystem
-        }
+
 	/* Get logical drive number */
 	vol = get_ldnumber(&rp);
 	if (vol < 0) return FR_INVALID_DRIVE;
+
+	/* Pointer to fs object — must come AFTER vol is computed (was read with an
+	   uninitialized vol, which only worked on target by luck of stack contents;
+	   on host it indexed FatFs[] out of bounds and segfaulted). */
+	cfs = FatFs[vol];
+	if (cfs && opt==0) {
+	  return FR_OK; //this is a dirty hack, only works because we're never doing a delayed mount over a different filesystem
+	}
 
 	if (cfs) {
 #if FF_FS_LOCK != 0

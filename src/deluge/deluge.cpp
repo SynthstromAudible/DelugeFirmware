@@ -476,6 +476,12 @@ void setupStartupSong() {
 	}
 }
 
+// Which conditional task fires once the SD card is ready. Normally the startup-song
+// loader above; the headless stem-render utility (src/bsp/host/host_render_main.cpp)
+// overrides this with its own driver before deluge_main() runs. A plain firmware or
+// interactive-host build never touches it, so behaviour is unchanged on-device.
+TaskHandle startupConditionalTask = setupStartupSong;
+
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);
 
@@ -709,7 +715,7 @@ extern "C" int32_t deluge_main(void) {
 	midiFollow.readDefaultsFromFile();
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
-	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song", RESOURCE_SD | RESOURCE_SD_ROUTINE);
+	addConditionalTask(startupConditionalTask, 100, isCardReady, "startup/render", RESOURCE_SD | RESOURCE_SD_ROUTINE);
 
 #ifdef TEST_VECTOR
 	NoteVector noteVector;
