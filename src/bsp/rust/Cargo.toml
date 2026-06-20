@@ -33,6 +33,11 @@ embassy-futures = "0.1.2"
 cortex-ar = "0.3"
 critical-section = "1"
 
+[build-dependencies]
+# Generate Rust signatures + POD types from the canonical libdeluge C headers so
+# the boundary can't drift (type mismatch = compile error).
+bindgen = "0.70"
+
 [profile.release]
 opt-level = "s"
 lto = true

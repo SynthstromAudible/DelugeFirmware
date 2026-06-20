@@ -20,11 +20,27 @@ use core::panic::PanicInfo;
 use embassy_executor::{Executor, Spawner};
 use rza1l_hal::allocator;
 
+/// libdeluge POD types generated from include/libdeluge/*.h (types only; the
+/// service functions are defined in [`ffi`]).
+#[allow(non_camel_case_types, non_upper_case_globals, dead_code)]
+mod sys {
+    include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
+}
+
+/// The libdeluge C-ABI service implementations the C++ app calls (M0: stubs).
+mod ffi;
+/// Non-header app/BSP symbols (USB-host globals, FatFS glue, NE10, runtime shims).
+mod ffi_extra;
+
 unsafe extern "C" {
     /// Start of the free SRAM heap region (set by the linker script).
     static __sram_heap_start: u8;
     /// End of the free SRAM heap region (start of stack/RTT reservation).
     static __sram_heap_end: u8;
+
+    /// The portable C++ application's boot + `mainLoop()` superloop (deluge.cpp),
+    /// resolved from libdeluge_app.a. Never returns.
+    fn deluge_main() -> i32;
 }
 
 #[panic_handler]
@@ -74,9 +90,11 @@ pub extern "C" fn main() -> ! {
 /// `mainLoop()` inside one Embassy task. `deluge_main()` never returns.
 #[embassy_executor::task]
 async fn app_task() {
-    // M0a: stub until libdeluge_app.a is wired in build.rs (M0b), at which point
-    // this calls the C++ `deluge_main()` resolved from the archive.
+    // M1 TODO: run C++ global constructors (__libc_init_array over .init_array)
+    // before this — the app has many global objects. M0 only proves the link.
+    unsafe { deluge_main() };
+    // deluge_main() ends in mainLoop()'s while(1); never reached.
     loop {
-        embassy_time::Timer::after_millis(1000).await;
+        core::hint::spin_loop();
     }
 }
