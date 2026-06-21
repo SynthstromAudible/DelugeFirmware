@@ -512,13 +512,13 @@ bool Clip::deleteSoundsWhichWontSound(Song* song) {
 
 void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 
-	int32_t clipInstanceI = output->clipInstances.getNumElements();
+	int32_t clipInstanceI = std::ssize(output->clipInstances);
 	ClipInstance* clipInstance;
 
 	// If there's a previous instance, make sure it doesn't cut into the new one. This is only actually necessary if
 	// doing a "late start"
 	if (clipInstanceI) {
-		clipInstance = output->clipInstances.getElement(clipInstanceI - 1);
+		clipInstance = &output->clipInstances[clipInstanceI - 1];
 		int32_t maxLength = arrangementRecordPos - clipInstance->pos;
 
 		if (maxLength <= 0) { // Shouldn't normally go below 0...
@@ -533,8 +533,8 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 		}
 	}
 
-	if (output->clipInstances.insertAtIndex(clipInstanceI) == Error::NONE) {
-		clipInstance = output->clipInstances.getElement(clipInstanceI);
+	if (output->clipInstances.insertAt(clipInstanceI)) {
+		clipInstance = &output->clipInstances[clipInstanceI];
 setupClipInstance:
 		clipInstance->clip = this;
 		clipInstance->length = loopLength;
@@ -543,9 +543,9 @@ setupClipInstance:
 }
 
 void Clip::endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip) {
-	int32_t clipInstanceI = output->clipInstances.search(arrangementRecordPos, LESS);
+	int32_t clipInstanceI = output->clipInstances.firstAtOrAfter(arrangementRecordPos) - 1;
 	if (clipInstanceI >= 0) {
-		ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
+		ClipInstance* clipInstance = &output->clipInstances[clipInstanceI];
 
 		// evenIfOtherClip is an emergency hung over New Year's Day 2019 fix to the problem where this could get called
 		// on the wrong Clip (same Instrument though) because getClipToRecordTo() returns wrong Clip because activeClip
@@ -1061,13 +1061,13 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 		else {
 
-			if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+			if (!modelStack->song->arrangementOnlyClips.reserveExtra(1)) {
 				return false;
 			}
 
 			// Find the ClipInstance which we expect to have already been created
 			int32_t clipInstanceI =
-			    output->clipInstances.search(playbackHandler.getActualArrangementRecordPos() + 1, LESS);
+			    output->clipInstances.firstAtOrAfter(playbackHandler.getActualArrangementRecordPos() + 1) - 1;
 
 			// If it can't be found (should be impossible), we'll just get out and leave everything the same, so at
 			// least nothing will crash
@@ -1075,7 +1075,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				return false;
 			}
 
-			ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
+			ClipInstance* clipInstance = &output->clipInstances[clipInstanceI];
 
 			if (type == ClipType::AUDIO) {
 
@@ -1092,12 +1092,12 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					// automation on
 					clipInstanceI++;
 
-					Error error = output->clipInstances.insertAtIndex(clipInstanceI);
+					Error error = output->clipInstances.insertAt(clipInstanceI).error_or(Error::NONE);
 					if (error != Error::NONE) {
 						return false;
 					}
 
-					clipInstance = output->clipInstances.getElement(clipInstanceI);
+					clipInstance = &output->clipInstances[clipInstanceI];
 
 					clipInstance->pos = oldClipInstancePos + repeatCount * loopLength;
 				}
@@ -1122,7 +1122,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			}
 
 			// Add to Song
-			modelStack->song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Can't fail
+			(void)modelStack->song->arrangementOnlyClips.insertClipAt(newClip, 0); // Can't fail
 
 			expectNoFurtherTicks(modelStack->song, false); // Don't sound
 

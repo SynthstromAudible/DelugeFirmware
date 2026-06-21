@@ -17,16 +17,113 @@
 
 #pragma once
 
-#include "util/container/array/ordered_resizeable_array.h"
+#include "storage/multi_range/multi_wave_table_range.h"
+#include "storage/multi_range/multisample_range.h"
+#include "util/containers.h"
+#include <algorithm>
+#include <expected>
+#include <variant>
 
-class MultisampleRange;
-class MultiWaveTableRange;
-class MultiRange;
-
-class MultiRangeArray final : public OrderedResizeableArray {
+/// A Source's key ranges, sorted ascending by topNote. At any one time all elements are the same alternative
+/// (sample or wavetable) - changeType() converts the lot, which mirrors the old implementation where the whole
+/// array's element size was switched.
+class MultiRangeArray final {
 public:
-	MultiRangeArray();
-	MultiRange* getElement(int32_t i);
-	MultiRange* insertMultiRange(int32_t i);
-	Error changeType(int32_t newSize);
+	using RangeVariant = std::variant<MultisampleRange, MultiWaveTableRange>;
+
+	static MultiRange* variantToRange(RangeVariant& variant) {
+		return std::visit([](auto& range) -> MultiRange* { return &range; }, variant);
+	}
+
+	auto begin() { return ranges_.begin(); }
+	auto end() { return ranges_.end(); }
+	MultiRange* getElement(int32_t i) { return variantToRange(ranges_[i]); }
+
+	/// The size of the elements currently stored, as a stand-in for a type tag (mirrors the old elementSize field)
+	[[nodiscard]] int32_t currentElementSize() const {
+		return holdsWaveTableRanges_ ? sizeof(MultiWaveTableRange) : sizeof(MultisampleRange);
+	}
+
+	/// Inserts a new, empty range of the current type at index i. Returns nullptr on OOM.
+	MultiRange* insertMultiRange(int32_t i) {
+		try {
+			if (holdsWaveTableRanges_) {
+				ranges_.emplace(ranges_.begin() + i, std::in_place_type<MultiWaveTableRange>);
+			}
+			else {
+				ranges_.emplace(ranges_.begin() + i, std::in_place_type<MultisampleRange>);
+			}
+		} catch (deluge::exception&) {
+			return nullptr;
+		}
+		return getElement(i);
+	}
+
+	/// Inserts a pre-built range at index i. It must match the current type.
+	Error insertVariant(int32_t i, RangeVariant&& variant) {
+		try {
+			ranges_.insert(ranges_.begin() + i, std::move(variant));
+		} catch (deluge::exception&) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		return Error::NONE;
+	}
+
+	/// Converts all elements to the type indicated by newSize (a sizeof token, like the old API), preserving
+	/// their topNotes only.
+	Error changeType(int32_t newSize) {
+		bool toWaveTable = (newSize == sizeof(MultiWaveTableRange));
+		if (ranges_.empty()) {
+			holdsWaveTableRanges_ = toWaveTable;
+			return Error::NONE;
+		}
+
+		deluge::fast_vector<RangeVariant> newRanges;
+		try {
+			newRanges.reserve(ranges_.size());
+			for (RangeVariant& old : ranges_) {
+				int16_t topNote = variantToRange(old)->topNote;
+				if (toWaveTable) {
+					newRanges.emplace_back(std::in_place_type<MultiWaveTableRange>);
+				}
+				else {
+					newRanges.emplace_back(std::in_place_type<MultisampleRange>);
+				}
+				variantToRange(newRanges.back())->topNote = topNote;
+			}
+		} catch (deluge::exception&) {
+			return Error::INSUFFICIENT_RAM;
+		}
+
+		ranges_ = std::move(newRanges);
+		holdsWaveTableRanges_ = toWaveTable;
+		return Error::NONE;
+	}
+
+	auto erase(deluge::fast_vector<RangeVariant>::iterator at) { return ranges_.erase(at); }
+
+	[[nodiscard]] size_t size() const { return ranges_.size(); }
+	[[nodiscard]] bool empty() const { return ranges_.empty(); }
+	void clear() { ranges_.clear(); }
+
+	std::expected<void, Error> reserveExtra(int32_t numAdditionalElementsNeeded) {
+		try {
+			ranges_.reserve(ranges_.size() + numAdditionalElementsNeeded);
+		} catch (deluge::exception&) {
+			return std::unexpected(Error::INSUFFICIENT_RAM);
+		}
+		return {};
+	}
+
+	/// Index of the first range whose topNote is >= the given key (size() if none)
+	[[nodiscard]] int32_t firstAtOrAfter(int32_t key) const {
+		auto it = std::ranges::lower_bound(ranges_, key, {}, [](RangeVariant const& variant) {
+			return std::visit([](auto const& r) { return (int32_t)r.topNote; }, variant);
+		});
+		return static_cast<int32_t>(it - ranges_.begin());
+	}
+
+private:
+	deluge::fast_vector<RangeVariant> ranges_;
+	bool holdsWaveTableRanges_ = false;
 };

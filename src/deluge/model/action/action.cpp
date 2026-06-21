@@ -38,6 +38,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "util/functions.h"
 #include <cstdint>
+#include <iterator>
 #include <new>
 
 Action::Action(ActionType newActionType) {
@@ -167,7 +168,7 @@ void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam co
 		// Except, if we were planning to steal the data, well we'd better pretend we've just done that by deleting it
 		// instead.
 		if (stealData) {
-			modelStack->autoParam->nodes.empty();
+			modelStack->autoParam->nodes.clear();
 		}
 		return;
 	}
@@ -315,8 +316,7 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 		return;
 	}
 
-	if (numClipStates
-	    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
+	if (numClipStates != std::ssize(currentSong->sessionClips) + std::ssize(currentSong->arrangementOnlyClips)) {
 		numClipStates = 0;
 		delugeDealloc(clipStates);
 		clipStates = nullptr;

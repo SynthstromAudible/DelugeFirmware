@@ -20,6 +20,7 @@
 #include "storage/audio/audio_file_vector.h"
 #include "storage/cluster/cluster.h"
 #include "storage/cluster/cluster_priority_queue.h"
+#include "util/c_string.h"
 #include <array>
 #include <cstdint>
 

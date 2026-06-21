@@ -17,12 +17,25 @@
 
 #pragma once
 
-#include "util/container/vector/named_thing_vector.h"
+#include "definitions_cxx.hpp"
+#include "util/containers.h"
+#include <expected>
 
 class AudioFile;
 
-class AudioFileVector final : public NamedThingVector {
+/// Pointers to all loaded AudioFiles, sorted case-insensitively by filePath. A Sample and a WaveTable may share
+/// the same path, so equal keys can appear as neighbours. Lives on the external (non-stealable) region so that
+/// growing it can never steal an AudioFile, which would erase from this same vector mid-insertion.
+class AudioFileVector final : public deluge::vector<AudioFile*> {
 public:
-	AudioFileVector();
-	int32_t searchForExactObject(AudioFile* audioFile);
+	/// Mirrors NamedThingVector::search(..., GREATER_OR_EQUAL): returns the index of a name match, or the
+	/// insertion point if there is none.
+	int32_t search(char const* searchString, bool* foundExact = nullptr) const;
+
+	/// Returns -1 if not found. All times this is called, it actually should get found - but some bugs remain, and
+	/// the caller must deal with these.
+	int32_t searchForExactObject(AudioFile* audioFile) const;
+
+	/// Inserts at the sorted position for the file's path.
+	std::expected<void, Error> insertElement(AudioFile* audioFile);
 };

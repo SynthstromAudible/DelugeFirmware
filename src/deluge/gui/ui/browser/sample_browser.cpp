@@ -20,6 +20,7 @@
 #include "hid/button.h"
 #include "model/sample/sample.h"
 #include "util/try.h"
+#include <iterator>
 #include <ranges>
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
@@ -212,7 +213,7 @@ void SampleBrowser::focusRegained() {
 void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 
 	// If just one file, there's no prefix.
-	if (fileItems.getNumElements() <= 1) {
+	if (static_cast<int32_t>(fileItems.size()) <= 1) {
 		numCharsInPrefix = 0;
 	}
 
@@ -222,8 +223,8 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 
 		char const* currentFilenameChars = currentFileItem->filename.c_str();
 
-		for (int32_t f = 0; numCharsInPrefix && f < fileItems.getNumElements(); f++) {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
+		for (int32_t f = 0; numCharsInPrefix && f < static_cast<int32_t>(fileItems.size()); f++) {
+			FileItem* fileItem = &fileItems[f];
 
 			for (int32_t i = 0; i < numCharsInPrefix; i++) {
 				char const* thisFileName = fileItem->filename.c_str();
@@ -500,7 +501,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 
 bool SampleBrowser::canImportWholeKit() {
 	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0
-	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows.getElement(0)->drum == soundEditor.currentSound
+	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows[0].drum == soundEditor.currentSound
 	        && (!getCurrentKit()->firstDrum->next));
 }
 
@@ -582,7 +583,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		*/
 
 		// If the Sample at least loaded, even if we didn't sound it, then try to render its waveform.
-		if (AudioEngine::sampleForPreview->sources[0].ranges.getNumElements() >= 1) {
+		if (std::ssize(AudioEngine::sampleForPreview->sources[0].ranges) >= 1) {
 			AudioFile* sample = ((MultisampleRange*)AudioEngine::sampleForPreview->sources[0].ranges.getElement(0))
 			                        ->sampleHolder.audioFile;
 
@@ -827,7 +828,7 @@ doLoadAsWaveTable:
 
 			/*
 			// If multiple Ranges, then forbid the changing from Sample to WaveTable.
-			if (soundEditor.currentSource->ranges.getNumElements() > 1
+			if (std::ssize(soundEditor.currentSource->ranges) > 1
 			        && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 #if ALPHA_OR_BETA_VERSION
 			    if (mayDoWaveTable == 2) FREEZE_WITH_ERROR("E425");
@@ -895,7 +896,7 @@ doLoadAsSample:
 
 			/*
 			// If multiple Ranges, then forbid the changing from WaveTable to Sample.
-			if (soundEditor.currentSource->ranges.getNumElements() > 1
+			if (std::ssize(soundEditor.currentSource->ranges) > 1
 			        && soundEditor.currentSource->oscType == OscType::WAVETABLE) {
 #if ALPHA_OR_BETA_VERSION
 			    if (!mayDoWaveTable) FREEZE_WITH_ERROR("E426");
@@ -1007,7 +1008,7 @@ doLoadAsSample:
 
 				// Detect pitch
 				if (mayDoPitchDetection) {
-					bool shouldMinimizeOctaves = (soundEditor.currentSource->ranges.getNumElements() == 1);
+					bool shouldMinimizeOctaves = (std::ssize(soundEditor.currentSource->ranges) == 1);
 
 					((MultisampleRange*)soundEditor.currentMultiRange)
 					    ->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves, doingSingleCycleNow);
@@ -1048,7 +1049,7 @@ doLoadAsSample:
 		getCurrentInstrument()->beenEdited();
 
 		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).
-		if (soundEditor.currentSource->ranges.getNumElements() <= 1 && soundEditor.navigationDepth
+		if (std::ssize(soundEditor.currentSource->ranges) <= 1 && soundEditor.navigationDepth
 		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &menu_item::multiRangeMenu) {
 			soundEditor.navigationDepth--;
 		}
@@ -1215,9 +1216,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
-
+		for (AudioFile* audioFile : audioFileManager.audioFiles) {
 			if (audioFile->type == AudioFileType::SAMPLE) {
 				Sample* thisSample = (Sample*)audioFile;
 
@@ -1343,9 +1342,7 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int32_t sampleI = 0;
-	for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
-
+	for (AudioFile* audioFile : audioFileManager.audioFiles) {
 		if (audioFile->type == AudioFileType::SAMPLE) {
 
 			Sample* thisSample = (Sample*)audioFile;
@@ -1639,7 +1636,7 @@ doReturnFalse:
 	AudioEngine::routineWithClusterLoading();
 
 	// Delete all but first pre-existing range
-	int32_t oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
+	int32_t oldNumRanges = std::ssize(soundEditor.currentSource->ranges);
 	for (int32_t i = oldNumRanges - 1; i >= 1; i--) {
 		soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex, i);
 	}
@@ -1649,7 +1646,7 @@ doReturnFalse:
 	if (numSamples > 1) {
 		soundEditor.currentSound->killAllVoices();
 		AudioEngine::audioRoutineLocked = true;
-		bool success = soundEditor.currentSource->ranges.ensureEnoughSpaceAllocated(numSamples - 1);
+		bool success = soundEditor.currentSource->ranges.reserveExtra(numSamples - 1).has_value();
 		AudioEngine::audioRoutineLocked = false;
 
 		if (!success) {
@@ -1772,7 +1769,7 @@ skipOctaveCorrection:
 		}
 		else {
 #if ALPHA_OR_BETA_VERSION
-			if (soundEditor.currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
+			if (soundEditor.currentSource->ranges.currentElementSize() != sizeof(MultisampleRange)) {
 				FREEZE_WITH_ERROR("E431");
 			}
 #endif

@@ -36,8 +36,9 @@
 #include "modulation/params/param_manager.h"
 #include "storage/flash_storage.h"
 #include "util/c_string.h"
-#include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
+#include "util/containers.h"
 #include "util/etl_string.h"
+#include <utility>
 
 class MidiCommand;
 class Clip;
@@ -53,7 +54,6 @@ class SoundInstrument;
 class SoundDrum;
 class Action;
 class ArrangementRow;
-class BackedUpParamManager;
 class ArpeggiatorSettings;
 class Kit;
 class MIDIInstrument;
@@ -76,12 +76,6 @@ public:
 	int16_t numRepetitions;
 
 	Section() { numRepetitions = 0; }
-};
-
-struct BackedUpParamManager {
-	ModControllableAudio* modControllable;
-	Clip* clip;
-	ParamManager paramManager;
 };
 
 #define MAX_NOTES_CHORD_MEM 10
@@ -194,7 +188,9 @@ public:
 	Instrument*
 	    firstHibernatingInstrument; // All Instruments have inValidState set to false when they're added to this list
 
-	OrderedResizeableArrayWithMultiWordKey backedUpParamManagers;
+	// Backed-up ParamManagers, keyed by (ModControllable, Clip). For a given ModControllable, the entry with a
+	// null Clip (if any) sorts first. Node-based so ParamManagers never move in memory.
+	deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> backedUpParamManagers;
 
 	uint32_t xZoom[2];  // Set default zoom at max zoom-out;
 	int32_t xScroll[2]; // Leave this as signed
@@ -473,7 +469,7 @@ private:
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	Error readClipsFromFile(Deserializer& reader, ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);
-	void deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector = true);
+	void deleteAllBackedUpParamManagers();
 	void deleteAllBackedUpParamManagersWithClips();
 	void deleteAllOutputs(Output** prevPointer);
 	void setupClipIndexesForSaving();

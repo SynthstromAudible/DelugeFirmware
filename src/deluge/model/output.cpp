@@ -94,8 +94,8 @@ void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessi
 	if (!activeClip) {
 
 		// First, search ClipInstances in this Output.
-		for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
-			ClipInstance* instance = clipInstances.getElement(i);
+		for (int32_t i = 0; i < std::ssize(clipInstances); i++) {
+			ClipInstance* instance = &clipInstances[i];
 			if (instance->clip) {
 				setActiveClip(modelStack->addTimelineCounter(instance->clip), maySendMIDIPGMs);
 				return;
@@ -122,8 +122,8 @@ void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int32_t a
                                                PgmChangeSend maySendMIDIPGMs) {
 
 	// First, see if there's an earlier-starting ClipInstance that's still going at this pos
-	int32_t i = clipInstances.search(arrangementPos + 1, LESS);
-	ClipInstance* instance = clipInstances.getElement(i);
+	int32_t i = clipInstances.firstAtOrAfter(arrangementPos + 1) - 1;
+	ClipInstance* instance = clipInstances.tryGet(i);
 	if (instance && instance->clip && instance->pos + instance->length > arrangementPos) {
 		instance->clip->activeIfNoSolo = true;
 yesSetActiveClip:
@@ -134,7 +134,7 @@ yesSetActiveClip:
 	else {
 		while (true) {
 			i++;
-			instance = clipInstances.getElement(i);
+			instance = clipInstances.tryGet(i);
 			if (!instance) {
 				break;
 			}
@@ -152,8 +152,8 @@ yesSetActiveClip:
 }
 
 bool Output::clipHasInstance(Clip* clip) {
-	for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
-		ClipInstance* instance = clipInstances.getElement(i);
+	for (int32_t i = 0; i < std::ssize(clipInstances); i++) {
+		ClipInstance* instance = &clipInstances[i];
 		if (instance->clip == clip) {
 			return true;
 		}
@@ -168,8 +168,8 @@ bool Output::clipHasInstance(Clip* clip) {
 // some have notes / audio files
 bool Output::isEmpty(bool displayPopup) {
 	// loop through the output selected to see if any of the clips in arranger are not empty
-	for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
-		Clip* clip = clipInstances.getElement(i)->clip;
+	for (int32_t i = 0; i < std::ssize(clipInstances); i++) {
+		Clip* clip = clipInstances[i].clip;
 		if (clip && !clip->isEmpty(displayPopup)) {
 			return false;
 		}
@@ -187,14 +187,14 @@ bool Output::isEmpty(bool displayPopup) {
 }
 
 void Output::clipLengthChanged(Clip* clip, int32_t oldLength) {
-	for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
-		ClipInstance* instance = clipInstances.getElement(i);
+	for (int32_t i = 0; i < std::ssize(clipInstances); i++) {
+		ClipInstance* instance = &clipInstances[i];
 		if (instance->clip == clip) {
 			if (instance->length == oldLength) {
 
 				int32_t newLength = clip->loopLength;
 
-				ClipInstance* nextInstance = clipInstances.getElement(i + 1);
+				ClipInstance* nextInstance = clipInstances.tryGet(i + 1);
 				if (nextInstance) {
 					int32_t maxLength = nextInstance->pos - instance->pos;
 					if (newLength > maxLength) {
@@ -256,14 +256,14 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 		writer.writeAttribute("isArmedForRecording", armedForRecording);
 		writer.writeAttribute("activeModFunction", modKnobMode);
 
-		if (clipInstances.getNumElements()) {
+		if (!clipInstances.empty()) {
 			writer.insertCommaIfNeeded();
 			writer.write("\n");
 			writer.printIndents();
 			writer.writeTagNameAndSeperator("clipInstances");
 			writer.write("\"0x");
-			for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
-				ClipInstance* thisInstance = clipInstances.getElement(i);
+			for (int32_t i = 0; i < std::ssize(clipInstances); i++) {
+				ClipInstance* thisInstance = &clipInstances[i];
 
 				char buffer[9];
 
@@ -366,8 +366,8 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
 					// this check again
 					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 24 + 1;
-					clipInstances.ensureEnoughSpaceAllocated(
-					    numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
+					clipInstances.reserveExtra(numElementsToAllocateFor)
+					    .has_value(); // If it returns false... oh well. We'll fail later
 				}
 			}
 
@@ -388,11 +388,11 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 			minPos = pos + length;
 
 			// Ok, make the clipInstance
-			int32_t i = clipInstances.insertAtKey(pos, true);
+			int32_t i = clipInstances.insertSorted(pos, true).value_or(-1);
 			if (i == -1) {
 				return true; // Error::INSUFFICIENT_RAM;
 			}
-			ClipInstance* newInstance = clipInstances.getElement(i);
+			ClipInstance* newInstance = &clipInstances[i];
 			newInstance->length = length;
 			newInstance->clip = (Clip*)clipCode; // Sneaky - disguising int32_t as Clip*
 
@@ -415,11 +415,11 @@ getOut:
 
 Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
-	if (!song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+	if (!song->arrangementOnlyClips.reserveExtra(1)) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	if (!clipInstances.ensureEnoughSpaceAllocated(1)) {
+	if (!clipInstances.reserveExtra(1)) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
@@ -433,18 +433,18 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	// We can only insert the ClipInstance after the call to createNewClipForArrangementRecording(), because that ends
 	// up calling Song::getClipWithOutput(), which searches through ClipInstances for this Output!
-	int32_t i = clipInstances.insertAtKey(newPos); // Can't fail, we checked above.
+	int32_t i = clipInstances.insertSorted(newPos).value_or(-1); // Can't fail, we checked above.
 	if (i == -1) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	ClipInstance* clipInstance = clipInstances.getElement(i);
+	ClipInstance* clipInstance = &clipInstances[i];
 
 	clipInstance->clip = newClip;
 	newClip->section = 255;
 	newClip->loopLength = kMaxSequenceLength;
 
-	song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Will succeed - we checked above
+	(void)song->arrangementOnlyClips.insertClipAt(newClip, 0); // Will succeed - we checked above
 
 	// Set the ClipInstance's length to just 1, which kinda is how long it logically "is" at this point in time before
 	// recording has started. This leaves space directly after it, which the user might choose to suddenly to create
@@ -474,8 +474,8 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 
 	if (recordingInArrangement) {
 
-		int32_t i = clipInstances.search(actualEndPosInternalTicks, LESS);
-		ClipInstance* clipInstance = clipInstances.getElement(i);
+		int32_t i = clipInstances.firstAtOrAfter(actualEndPosInternalTicks) - 1;
+		ClipInstance* clipInstance = clipInstances.tryGet(i);
 		if (ALPHA_OR_BETA_VERSION && !clipInstance) {
 			FREEZE_WITH_ERROR("E261");
 		}
@@ -510,7 +510,7 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 		}
 
 		// But if we're not overlapping the next ClipInstance...
-		ClipInstance* nextClipInstance = clipInstances.getElement(i + 1);
+		ClipInstance* nextClipInstance = clipInstances.tryGet(i + 1);
 		if (nextClipInstance) {
 			if (nextClipInstance->pos < quantizedEndPos) {
 
@@ -567,8 +567,8 @@ void Output::endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t t
 	if (!recordingInArrangement) {
 
 		// See if a ClipInstance was already playing
-		int32_t i = clipInstances.search(actualEndPos, LESS);
-		ClipInstance* clipInstance = clipInstances.getElement(i);
+		int32_t i = clipInstances.firstAtOrAfter(actualEndPos) - 1;
+		ClipInstance* clipInstance = clipInstances.tryGet(i);
 		if (clipInstance && clipInstance->clip) {
 			int32_t endPos = clipInstance->pos + clipInstance->length;
 			if (endPos > actualEndPos) {
@@ -585,6 +585,6 @@ Clip* Output::getActiveClip() const {
 }
 
 /*
-for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
-    ClipInstance* thisInstance = clipInstances.getElement(i);
+for (int32_t i = 0; i < std::ssize(clipInstances); i++) {
+    ClipInstance* thisInstance = &clipInstances[i];
 */

@@ -515,9 +515,10 @@ bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
 		return false;
 	}
 
-	// If we were stolen, sampleManager.audioFiles would get an entry deleted from it, and that's not allowed while it's
-	// being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
-	return (thingNotToStealFrom != &audioFileManager.audioFiles);
+	// Being stolen erases an entry from audioFileManager.audioFiles. That used to be forbidden while inserting
+	// into that same vector, but it now lives on the external (non-stealable) region, so its growth can never
+	// trigger stealing.
+	return true;
 	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as
 	// we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
 }
@@ -532,7 +533,7 @@ void AudioFile::steal(char const* errorCode) {
 #endif
 	}
 	else {
-		audioFileManager.audioFiles.removeElement(i);
+		audioFileManager.audioFiles.erase(audioFileManager.audioFiles.begin() + i);
 	}
 }
 

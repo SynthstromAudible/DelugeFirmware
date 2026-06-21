@@ -178,8 +178,8 @@ yesTickParamManagerForClip:
 		}
 
 		// Do the ParamManagers of each NoteRow, too
-		for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
+		for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
+			NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[0];
 			bool result = false;
@@ -347,17 +347,17 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue,
 	// values.
 	int32_t n, nEnd;
 	if (whichCharacteristic == MIDICharacteristic::NOTE) {
-		n = arpeggiator.notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
-		if (n < arpeggiator.notes.getNumElements()) {
+		n = searchArpNotes(arpeggiator.notes, channelOrNoteNumber);
+		if (n < static_cast<int32_t>(arpeggiator.notes.size())) {
 			nEnd = 0;
 			goto lookAtArpNote;
 		}
 		return;
 	}
-	nEnd = arpeggiator.notes.getNumElements();
+	nEnd = static_cast<int32_t>(arpeggiator.notes.size());
 	for (n = 0; n < nEnd; n++) {
 lookAtArpNote:
-		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+		ArpNote* arpNote = &arpeggiator.notes[n];
 		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 			arpNote->mpeValues[expressionDimension] = newValue >> 16;
 		}
@@ -475,11 +475,11 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 	if (arpSettings != nullptr
 	    && (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
 	        || polyphonic == PolyphonyMode::MONO)) {
-		int32_t n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
-		if (n >= arpeggiator.notes.getNumElements()) {
+		int32_t n = searchArpNotes(arpeggiator.notes, noteCode);
+		if (n >= static_cast<int32_t>(arpeggiator.notes.size())) {
 			return false;
 		}
-		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+		ArpNote* arpNote = &arpeggiator.notes[n];
 		return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
 	}
 

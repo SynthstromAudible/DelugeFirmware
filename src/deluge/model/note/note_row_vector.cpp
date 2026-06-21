@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -16,40 +16,22 @@
  */
 
 #include "model/note/note_row_vector.h"
-#include "model/note/note_row.h"
-#include "processing/engines/audio_engine.h"
+#include <cstring>
 #include <new>
 
-NoteRowVector::NoteRowVector() : OrderedResizeableArray(sizeof(NoteRow), 16, 0, 16, 7) {
-}
-
-NoteRowVector::~NoteRowVector() {
-	for (int32_t i = 0; i < numElements; i++) {
-		AudioEngine::routineWithClusterLoading();
-
-		getElement(i)->~NoteRow();
-	}
-}
-
 NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
-	Error error = insertAtIndex(index);
-	if (error != Error::NONE) {
+	if (!insertAt(index)) {
 		return nullptr;
 	}
-	void* memory = getElementAddress(index);
-
-	return new (memory) NoteRow();
+	return &(*this)[index];
 }
 
 void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete) {
-	for (int32_t i = startIndex; i < startIndex + numToDelete; i++) {
-		getElement(i)->~NoteRow();
-	}
-	deleteAtIndex(startIndex, numToDelete);
+	erase(begin() + startIndex, begin() + startIndex + numToDelete); // Runs the NoteRows' destructors
 }
 
 NoteRow* NoteRowVector::insertNoteRowAtY(int32_t y, int32_t* getIndex) {
-	int32_t i = search(y, GREATER_OR_EQUAL);
+	int32_t i = firstAtOrAfter(y);
 	NoteRow* noteRow = insertNoteRowAtIndex(i);
 	if (noteRow) {
 		if (getIndex) {
@@ -60,7 +42,17 @@ NoteRow* NoteRowVector::insertNoteRowAtY(int32_t y, int32_t* getIndex) {
 	return noteRow;
 }
 
-// Function could theoretically be gotten rid of
-NoteRow* NoteRowVector::getElement(int32_t index) {
-	return (NoteRow*)getElementAddress(index);
+bool NoteRowVector::cloneFrom(NoteRowVector const* other) {
+	clear();
+	int32_t numToClone = static_cast<int32_t>(other->size());
+	if (!reserveExtra(numToClone)) {
+		return false;
+	}
+	for (int32_t i = 0; i < numToClone; i++) {
+		(void)insertAt(static_cast<int32_t>(size())); // Can't fail; space reserved above
+		// Byte-copy over the freshly default-constructed row. The default row owns nothing, so nothing leaks;
+		// the copy aliases the source row's guts until beenCloned() gives it its own.
+		std::memcpy(static_cast<void*>(&(*this)[i]), static_cast<void const*>(&(*other)[i]), sizeof(NoteRow));
+	}
+	return true;
 }

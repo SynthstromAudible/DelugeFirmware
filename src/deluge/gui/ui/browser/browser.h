@@ -23,7 +23,7 @@
 #include "io/debug/log.h"
 #include "model/favourite/favourite_manager.h"
 #include "storage/file_item.h"
-#include "util/container/array/c_string_array.h"
+#include "util/containers.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -93,7 +93,10 @@ public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	static std::string currentDir;
-	static CStringArray fileItems;
+	static deluge::vector<FileItem> fileItems; // Sorted by displayName per strcmpspecial (see sortFileItems())
+	/// Mirrors CStringArray::search(): binary search by displayName using strcmpspecial; returns the matching
+	/// index, or the insertion point if not found. Set shouldInterpretNoteNames and octaveStartsFromA first.
+	static int32_t searchFileItems(char const* searchString, bool* foundExact = nullptr);
 	static int32_t numFileItemsDeletedAtStart;
 	static int32_t numFileItemsDeletedAtEnd;
 	static char const* firstFileItemRemaining;
@@ -159,9 +162,8 @@ inline void printInstrumentFileList(const char* where) {
 	D_PRINT("\n");
 	D_PRINT(where);
 	D_PRINT(" List: \n");
-	for (uint32_t idx = 0; idx < Browser::fileItems.getNumElements(); ++idx) {
-		FileItem* fileItem = (FileItem*)Browser::fileItems.getElementAddress(idx);
-		D_PRINTLN(" - %s (%lu)", fileItem->displayName, fileItem->filePointer.sclust);
+	for (FileItem const& fileItem : Browser::fileItems) {
+		D_PRINTLN(" - %s (%lu)", fileItem.displayName, fileItem.filePointer.sclust);
 	}
 	D_PRINT("\n");
 }

@@ -43,30 +43,23 @@ MIDIParamCollection::~MIDIParamCollection() {
 }
 
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
-
-		if (action) {
-			midiParam->param.deleteAutomationBasicForSetup();
+	if (action) {
+		for (MIDIParam& midiParam : params) {
+			midiParam.param.deleteAutomationBasicForSetup();
 		}
-		midiParam->~MIDIParam();
 	}
-
-	if (deleteStorageToo) {
-		params.empty();
-	}
+	params.clear(); // Destructs the params (the deleteStorageToo distinction is moot now this does both)
 }
 
 void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelStack) {
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
-		AutoParam* param = &midiParam->param;
+	for (MIDIParam& midiParam : params) {
+		AutoParam* param = &midiParam.param;
 
 		if (param->valueIncrementPerHalfTick != 0) {
 			int32_t oldValue = param->getCurrentValue();
 			bool shouldNotify = param->tickTicks(numTicks);
 			if (shouldNotify) { // Should always actually be true...
-				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
+				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
 				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
 			}
 		}
@@ -77,8 +70,8 @@ void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirecti
 	params.beenCloned(); // Copies memory for all of params
 
 	// And now, copy the memory for the automation data that each member of params references
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		params.getElement(i)->param.beenCloned(copyAutomation, reverseDirectionWithLength);
+	for (MIDIParam& midiParam : params) {
+		midiParam.param.beenCloned(copyAutomation, reverseDirectionWithLength);
 	}
 }
 
@@ -87,10 +80,9 @@ void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection
 	// Bend param is the only one which is actually gonna maybe want to set up some interpolation -
 	// but for the other ones we still need to initialize them and crucially make sure automation overriding is
 	// switched off
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
-		AutoParam* param = &midiParam->param;
-		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
+	for (MIDIParam& midiParam : params) {
+		AutoParam* param = &midiParam.param;
+		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
 
 		param->setPlayPos(pos, modelStackWithAutoParam, reversed);
 	}
@@ -100,9 +92,8 @@ void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection
 
 void MIDIParamCollection::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength,
                                           uint32_t newLength, bool shouldPingpong) {
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
-		midiParam->param.generateRepeats(oldLength, newLength, shouldPingpong);
+	for (MIDIParam& midiParam : params) {
+		midiParam.param.generateRepeats(oldLength, newLength, shouldPingpong);
 	}
 }
 
@@ -111,15 +102,11 @@ void MIDIParamCollection::appendParamCollection(ModelStackWithParamCollection* m
                                                 int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
 
 	MIDIParamCollection* otherMIDIParamCollection = (MIDIParamCollection*)otherModelStack->paramCollection;
-	for (int32_t i = 0; i < otherMIDIParamCollection->params.getNumElements(); i++) {
-		MIDIParam* otherMidiParam = otherMIDIParamCollection->params.getElement(i);
-
+	for (MIDIParam& otherMidiParam : otherMIDIParamCollection->params) {
 		// Find param in *this* collection for the same CC. There should be one
-		int32_t j = params.searchExact(otherMidiParam->cc);
-
-		if (j != -1) {
-			MIDIParam* midiParam = params.getElement(j);
-			midiParam->param.appendParam(&otherMidiParam->param, oldLength, reverseThisRepeatWithLength,
+		MIDIParam* midiParam = params.getParamFromCC(otherMidiParam.cc);
+		if (midiParam != nullptr) {
+			midiParam->param.appendParam(&otherMidiParam.param, oldLength, reverseThisRepeatWithLength,
 			                             pingpongingGenerally);
 		}
 	}
@@ -129,10 +116,9 @@ void MIDIParamCollection::appendParamCollection(ModelStackWithParamCollection* m
 
 void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
                                        bool maySetupPatching) {
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
-		AutoParam* param = &midiParam->param;
-		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
+	for (MIDIParam& midiParam : params) {
+		AutoParam* param = &midiParam.param;
+		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
 
 		param->trimToLength(newLength, action, modelStackWithAutoParam);
 	}
@@ -141,9 +127,8 @@ void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCo
 
 void MIDIParamCollection::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                             int32_t effectiveLength) {
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
-		midiParam->param.shiftHorizontally(amount, effectiveLength);
+	for (MIDIParam& midiParam : params) {
+		midiParam.param.shiftHorizontally(amount, effectiveLength);
 	}
 }
 
@@ -156,10 +141,9 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 
 		ticksTilNextEvent = 2147483647;
 
-		for (int32_t i = 0; i < params.getNumElements(); i++) {
-			MIDIParam* midiParam = params.getElement(i);
-			AutoParam* param = &midiParam->param;
-			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
+		for (MIDIParam& midiParam : params) {
+			AutoParam* param = &midiParam.param;
+			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
 
 			int32_t ticksTilNextEventThisParam = param->processCurrentPos(modelStackWithAutoParam, reversed,
 			                                                              didPingpong, false, true); // No interpolating
@@ -188,12 +172,11 @@ void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelSta
 
 void MIDIParamCollection::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
 
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
+	for (MIDIParam& midiParam : params) {
 
-		if (midiParam->param.isAutomated()) {
-			ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(midiParam->cc, &midiParam->param);
-			midiParam->param.deleteAutomation(action, modelStackWithParam, false);
+		if (midiParam.param.isAutomated()) {
+			ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(midiParam.cc, &midiParam.param);
+			midiParam.param.deleteAutomation(action, modelStackWithParam, false);
 		}
 	}
 }
@@ -231,13 +214,12 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
 // Returns error code
 Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
+	for (MIDIParam& midiParam : params) {
 
-		if (midiParam->cc >= 120) {
+		if (midiParam.cc >= 120) {
 			return Error::NONE;
 		}
-		Error error = midiParam->param.makeInterpolationGoodAgain(clipLength, 25);
+		Error error = midiParam.param.makeInterpolationGoodAgain(clipLength, 25);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -247,17 +229,16 @@ Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 }
 
 void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) {
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
+	for (MIDIParam& midiParam : params) {
 
-		AutoParam* param = &midiParam->param;
+		AutoParam* param = &midiParam.param;
 
 		// With MIDI, we only want to send these out if the param is actually automated and the value is
 		// actually different
 		if (param->isAutomated()) {
 
 			int32_t oldValue = param->getCurrentValue();
-			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
+			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
 			bool shouldSend = param->grabValueFromPos(pos, modelStackWithAutoParam);
 
 			if (shouldSend) {
@@ -270,10 +251,9 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 void MIDIParamCollection::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop,
                                                           Action* action, ModelStackWithParamCollection* modelStack) {
 
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
-		AutoParam* param = &midiParam->param;
-		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
+	for (MIDIParam& midiParam : params) {
+		AutoParam* param = &midiParam.param;
+		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
 
 		param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithAutoParam);
 	}
@@ -311,20 +291,18 @@ int32_t MIDIParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWith
 void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) {
 	ParamCollection::notifyPingpongOccurred(modelStack);
 
-	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
-		midiParam->param.notifyPingpongOccurred();
+	for (MIDIParam& midiParam : params) {
+		midiParam.param.notifyPingpongOccurred();
 	}
 }
 
 void MIDIParamCollection::writeToFile(Serializer& writer) {
-	if (params.getNumElements()) {
+	if (!params.empty()) {
 
 		writer.writeOpeningTag("midiParams");
 
-		for (int32_t i = 0; i < params.getNumElements(); i++) {
-			MIDIParam* midiParam = params.getElement(i);
-			int32_t cc = midiParam->cc;
+		for (MIDIParam& midiParam : params) {
+			int32_t cc = midiParam.cc;
 
 			writer.writeOpeningTag("param");
 			if (cc == CC_NUMBER_NONE) { // Why would I have put this in here?
@@ -335,7 +313,7 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 			}
 
 			writer.writeOpeningTag("value", false);
-			midiParam->param.writeToFile(writer, true);
+			midiParam.param.writeToFile(writer, true);
 			writer.writeClosingTag("value", false);
 
 			writer.writeClosingTag("param");

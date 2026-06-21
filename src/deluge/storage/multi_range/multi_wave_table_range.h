@@ -23,6 +23,8 @@
 class MultiWaveTableRange final : public MultiRange {
 public:
 	MultiWaveTableRange();
+	MultiWaveTableRange(MultiWaveTableRange&&) noexcept = default;
+	MultiWaveTableRange& operator=(MultiWaveTableRange&&) noexcept = default;
 	AudioFileHolder* getAudioFileHolder() override;
 
 	WaveTableHolder waveTableHolder;

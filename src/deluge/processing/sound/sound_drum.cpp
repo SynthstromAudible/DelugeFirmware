@@ -167,10 +167,10 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 void SoundDrum::setSkippingRendering(bool newSkipping) {
 	if (kit != nullptr && newSkipping != skippingRendering) {
 		if (newSkipping) {
-			kit->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)this);
+			kit->drumsWithRenderingActive.erase(this);
 		}
 		else {
-			kit->drumsWithRenderingActive.insertAtKey((int32_t)(Drum*)this);
+			kit->drumsWithRenderingActive.insert(this);
 		}
 	}
 

@@ -854,19 +854,19 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		D_PRINTLN("");
 		D_PRINTLN("AudioClip::posReachedEnd, at pos:  %d", playbackHandler.getActualArrangementRecordPos());
 
-		if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+		if (!modelStack->song->arrangementOnlyClips.reserveExtra(1)) {
 			return;
 		}
-		if (!output->clipInstances.ensureEnoughSpaceAllocated(1)) {
+		if (!output->clipInstances.reserveExtra(1)) {
 			return;
 		}
 
 		int32_t arrangementRecordPos = playbackHandler.getActualArrangementRecordPos();
 
 		// Get that current clipInstance being recorded to
-		int32_t clipInstanceI = output->clipInstances.search(arrangementRecordPos, LESS);
+		int32_t clipInstanceI = output->clipInstances.firstAtOrAfter(arrangementRecordPos) - 1;
 		if (clipInstanceI >= 0) {
-			ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
+			ClipInstance* clipInstance = &output->clipInstances[clipInstanceI];
 
 			// Close it off
 			clipInstance->length = arrangementRecordPos - clipInstance->pos;
@@ -884,16 +884,16 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 		newClip->section = 255;
 
-		modelStack->song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Can't fail - checked above
+		(void)modelStack->song->arrangementOnlyClips.insertClipAt(newClip, 0); // Can't fail - checked above
 
 		clipInstanceI++;
 
-		error = output->clipInstances.insertAtIndex(clipInstanceI); // Shouldn't be able to fail...
+		error = output->clipInstances.insertAt(clipInstanceI).error_or(Error::NONE); // Shouldn't be able to fail...
 		if (error != Error::NONE) {
 			return;
 		}
 
-		ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
+		ClipInstance* clipInstance = &output->clipInstances[clipInstanceI];
 		clipInstance->clip = newClip;
 		clipInstance->pos = arrangementRecordPos;
 		clipInstance->length = loopLength;

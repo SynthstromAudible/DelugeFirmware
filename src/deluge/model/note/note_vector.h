@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,18 +17,7 @@
 
 #pragma once
 
-#include <cstdint>
+#include "model/note/note.h"
+#include "util/container/ordered_pos_vector.h"
 
-#include "util/container/array/ordered_resizeable_array.h"
-
-class Note;
-
-class NoteVector : public OrderedResizeableArrayWith32bitKey {
-public:
-	NoteVector();
-
-	Note* getElement(int32_t index);
-	Note* getLast();
-
-private:
-};
+using NoteVector = deluge::OrderedPosVector<Note>;

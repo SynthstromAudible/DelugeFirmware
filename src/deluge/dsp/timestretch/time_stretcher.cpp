@@ -715,7 +715,7 @@ startSearch:
 				}
 
 				int32_t whichCluster = readByte[i] >> Cluster::size_magnitude;
-				Cluster* cluster = sample->clusters.getElement(whichCluster)->cluster;
+				Cluster* cluster = sample->clusters[whichCluster].cluster;
 				if (!cluster || !cluster->loaded) {
 					goto skipSearch;
 				}
@@ -1123,7 +1123,7 @@ void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sour
 				break; // If no more Clusters
 			}
 			clustersForPercLookahead[l] =
-			    sample->clusters.getElement(nextClusterIndex)->getCluster(sample, nextClusterIndex, CLUSTER_ENQUEUE);
+			    sample->clusters[nextClusterIndex].getCluster(sample, nextClusterIndex, CLUSTER_ENQUEUE);
 			if (!clustersForPercLookahead[l]) {
 				break;
 			}

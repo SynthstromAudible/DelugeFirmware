@@ -24,4 +24,6 @@ class WaveTable;
 class WaveTableHolder final : public AudioFileHolder {
 public:
 	WaveTableHolder();
+	WaveTableHolder(WaveTableHolder&&) noexcept = default;
+	WaveTableHolder& operator=(WaveTableHolder&&) noexcept = default;
 };

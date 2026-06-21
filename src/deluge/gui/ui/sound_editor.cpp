@@ -53,6 +53,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/comparison.h"
+#include <iterator>
 
 using namespace deluge;
 using namespace deluge::gui;
@@ -205,7 +206,7 @@ void SoundEditor::setCurrentSource(int32_t sourceIndex) {
 	currentSourceIndex = sourceIndex;
 	currentSampleControls = &currentSource->sampleControls;
 
-	if (currentMultiRange == nullptr && currentSource->ranges.getNumElements()) {
+	if (currentMultiRange == nullptr && std::ssize(currentSource->ranges)) {
 		currentMultiRange = static_cast<MultisampleRange*>(currentSource->ranges.getElement(0));
 	}
 }
@@ -1808,7 +1809,7 @@ doMIDIOrCV:
 		currentPriority = &currentSound->voicePriority;
 
 		if (result == MenuPermission::YES && currentMultiRange == nullptr) {
-			if (currentSource->ranges.getNumElements()) {
+			if (!currentSource->ranges.empty()) {
 				currentMultiRange = (MultisampleRange*)currentSource->ranges.getElement(0); // Is this good?
 			}
 		}
@@ -1900,7 +1901,7 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
-	return (soundEditor.currentSource->ranges.getNumElements() > 1
+	return (std::ssize(soundEditor.currentSource->ranges) > 1
 	        && soundEditor.currentSource->getRange(noteCode + soundEditor.currentSound->transpose)
 	               == soundEditor.currentMultiRange);
 }
@@ -1927,7 +1928,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 	// Since there was only one option to select, and there was no available reasoning for these exceptions,
 	// that parameter was removed in 2024-08. If there's new weirdness with FileSelector or AudioRecorder,
 	// then we've discovered the reason for the exceptions... and if not, then the UX is slightly smoother.
-	if (soundEditor.editingKit() || (source->ranges.getNumElements() == 1)) {
+	if (soundEditor.editingKit() || (std::ssize(source->ranges) == 1)) {
 		*previouslySelectedRange = firstRange;
 		return MenuPermission::YES;
 	}

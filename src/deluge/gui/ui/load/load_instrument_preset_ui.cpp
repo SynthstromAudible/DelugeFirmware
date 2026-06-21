@@ -704,12 +704,12 @@ doSlotNumber:
 
 				buffer[3] = 'A' + subSlot;
 
-				int32_t i = fileItems.search(buffer);
-				if (i >= fileItems.getNumElements()) {
+				int32_t i = searchFileItems(buffer);
+				if (i >= static_cast<int32_t>(fileItems.size())) {
 					break;
 				}
 
-				FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
+				FileItem* fileItem = &fileItems[i];
 				char const* fileItemNameChars = fileItem->filename.c_str();
 				if (!memcasecmp(buffer, fileItemNameChars, 4)) {
 					if (fileItemNameChars[4] == 0) {
@@ -732,12 +732,12 @@ tryWholeNewSlotNumbers:
 					}
 					intToString(slotNumber, buffer, 3);
 
-					int32_t i = fileItems.search(buffer);
-					if (i >= fileItems.getNumElements()) {
+					int32_t i = searchFileItems(buffer);
+					if (i >= static_cast<int32_t>(fileItems.size())) {
 						break;
 					}
 
-					FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
+					FileItem* fileItem = &fileItems[i];
 					char const* fileItemNameChars = fileItem->filename.c_str();
 					if (!memcasecmp(buffer, fileItemNameChars, 4)) {
 						if (fileItemNameChars[4] == 0) {
@@ -812,12 +812,12 @@ addNumber:
 			(*newName).append(deluge::string::fromInt(oldNumber + 1));
 			char const* newNameChars = newName->c_str();
 
-			int32_t i = fileItems.search(newNameChars);
-			if (i >= fileItems.getNumElements()) {
+			int32_t i = searchFileItems(newNameChars);
+			if (i >= static_cast<int32_t>(fileItems.size())) {
 				break;
 			}
 
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
+			FileItem* fileItem = &fileItems[i];
 			char const* fileItemNameChars = fileItem->filename.c_str();
 			int32_t newNameLength = strlen(newNameChars);
 			if (!memcasecmp(newNameChars, fileItemNameChars, newNameLength)) {
@@ -988,8 +988,8 @@ giveUsedError:
 	// Check if old Instrument has been deleted, in which case need to update the appropriate FileItem.
 	if (!isInstrumentInList(instrumentToReplace, currentSong->firstOutput)
 	    && !isInstrumentInList(instrumentToReplace, currentSong->firstHibernatingInstrument)) {
-		for (int32_t f = fileItems.getNumElements() - 1; f >= 0; f--) {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
+		for (int32_t f = static_cast<int32_t>(fileItems.size()) - 1; f >= 0; f--) {
+			FileItem* fileItem = &fileItems[f];
 			if (fileItem->instrument == instrumentToReplace) {
 				fileItem->instrument = nullptr;
 				break;
@@ -1057,7 +1057,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 	// make sure the drum isn't currently in use
 	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
-	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
+	kitToLoadFor->drumsWithRenderingActive.erase(soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
 	// swaps out the drum pointed to by soundDrumToReplace
@@ -1206,7 +1206,7 @@ goAgain:
 	sortFileItems();
 
 	// If that folder-read gave us no files, that's gotta mean we got to the end of the folder.
-	if (!fileItems.getNumElements()) {
+	if (!static_cast<int32_t>(fileItems.size())) {
 
 		// If we weren't yet looking at subfolders, do that now, going back to the start of this folder's contents.
 		if (!doingSubfolders) {
@@ -1224,7 +1224,7 @@ startDoingFolders:
 
 	// Store rightmost display name before filtering, for later.
 	std::string lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
+	auto* rightmostFileItemBeforeFiltering = &fileItems[fileItems.size() - 1];
 	lastFileItemDisplayNameBeforeFiltering = rightmostFileItemBeforeFiltering->displayName;
 
 	deleteFolderAndDuplicateItems(availabilityRequirement);
@@ -1233,8 +1233,8 @@ startDoingFolders:
 	if (!doingSubfolders) {
 
 		// Look through our list of FileItems, for a preset.
-		for (int32_t i = 0; i < fileItems.getNumElements(); i++) {
-			auto* fileItem = (FileItem*)fileItems.getElementAddress(i);
+		for (int32_t i = 0; i < static_cast<int32_t>(fileItems.size()); i++) {
+			auto* fileItem = &fileItems[i];
 			if (!fileItem->isFolder) {
 				return fileItem; // We found a preset / file.
 			}
@@ -1259,8 +1259,8 @@ startDoingFolders:
 	// Ok, do folders now.
 	int32_t i;
 	FileItem* fileItem;
-	for (i = 0; i < fileItems.getNumElements(); i++) {
-		fileItem = (FileItem*)fileItems.getElementAddress(i);
+	for (i = 0; i < static_cast<int32_t>(fileItems.size()); i++) {
+		fileItem = &fileItems[i];
 		if (fileItem->isFolder) {
 			goto doThisFolder;
 		}
@@ -1275,7 +1275,7 @@ startDoingFolders:
 
 	if (false) {
 doThisFolder:
-		bool anyMoreForLater = numFileItemsDeletedAtEnd || (i < (fileItems.getNumElements() - 1));
+		bool anyMoreForLater = numFileItemsDeletedAtEnd || (i < (static_cast<int32_t>(fileItems.size()) - 1));
 		searchNameLocalCopy = fileItem->displayName;
 
 		currentDir.append("/");
@@ -1327,7 +1327,7 @@ doReadFiles:
 	}
 
 	sortFileItems();
-	if (!fileItems.getNumElements()) {
+	if (!static_cast<int32_t>(fileItems.size())) {
 		if (shouldJustGrabLeftmost) {
 			return justGetAnyPreset();
 		}
@@ -1345,14 +1345,14 @@ needToGrabLeftmostButHaveToReadFirst:
 
 	// Store rightmost display name before filtering, for later.
 	std::string lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
+	auto* rightmostFileItemBeforeFiltering = &fileItems[fileItems.size() - 1];
 	lastFileItemDisplayNameBeforeFiltering = rightmostFileItemBeforeFiltering->displayName;
 
 	deleteFolderAndDuplicateItems(availabilityRequirement);
 
 	// If we've shot off the end of the list, that means our searched-for preset didn't exist or wasn't available, and
 	// any subsequent ones which at first made it onto the (possibly truncated) list also weren't available.
-	if (!fileItems.getNumElements()) {
+	if (!static_cast<int32_t>(fileItems.size())) {
 		if (numFileItemsDeletedAtEnd) { // Probably couldn'g happen anymore...
 			// We have to read more FileItems, further to the right.
 			searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering; // Can't fail.
@@ -1373,14 +1373,14 @@ needToGrabLeftmostButHaveToReadFirst:
 			// Or, if we've actually managed to fit the whole folder contents into our fileItems...
 			else {
 				// Well, if there's still nothing in that, then we really need to give up.
-				if (!fileItems.getNumElements()) {
+				if (!static_cast<int32_t>(fileItems.size())) {
 					return justGetAnyPreset();
 				}
 				// Otherwise, everything's fine and we can just take the first element.
 			}
 		}
 	}
-	return (FileItem*)fileItems.getElementAddress(0);
+	return &fileItems[0];
 }
 
 /// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned
@@ -1433,7 +1433,7 @@ emptyFileItemsAndReturn:
 	AudioEngine::logAction("doPresetNavigation5");
 
 	// Now that we've deleted duplicates etc...
-	if (!fileItems.getNumElements()) {
+	if (!static_cast<int32_t>(fileItems.size())) {
 reachedEnd:
 		// If we've reached one end, try going again from the far other end.
 		if (!oldNameString.empty()) {
@@ -1447,25 +1447,24 @@ noErrorButGetOut:
 			return toReturn;
 		}
 	}
-	else if (fileItems.getNumElements() == 1
-	         && ((FileItem*)fileItems.getElementAddress(0))->instrument == oldInstrument) {
+	else if (static_cast<int32_t>(fileItems.size()) == 1 && (&fileItems[0])->instrument == oldInstrument) {
 		goto reachedEnd;
 	}
 
-	int32_t i = (offset >= 0) ? 0 : (fileItems.getNumElements() - 1);
+	int32_t i = (offset >= 0) ? 0 : (static_cast<int32_t>(fileItems.size()) - 1);
 	/*
-	if (i >= fileItems.getNumElements()) { // If not found *and* we'd be past the end of the list...
+	if (i >= static_cast<int32_t>(fileItems.size())) { // If not found *and* we'd be past the end of the list...
 	    if (offset >= 0) i = 0;
-	    else i = fileItems.getNumElements() - 1;
+	    else i = static_cast<int32_t>(fileItems.size()) - 1;
 	    goto doneMoving;
 	}
 	else {
 	    int32_t oldNameLength = strlen(oldNameChars);
-	    FileItem* searchResultItem = (FileItem*)fileItems.getElementAddress(i);
+	    FileItem* searchResultItem = &fileItems[i];
 	    if (memcasecmp(oldNameChars, searchResultItem->displayName, oldNameLength)) {
 notFound:	if (offset < 0) {
 	            i--;
-	            if (i < 0) i += fileItems.getNumElements();
+	            if (i < 0) i += static_cast<int32_t>(fileItems.size());
 	        }
 	        goto doneMoving;
 	    }
@@ -1499,13 +1498,13 @@ searchFromOneEnd:
 				goto readAgain;
 			}
 			else {
-				i = fileItems.getNumElements() - 1;
+				i = static_cast<int32_t>(fileItems.size()) - 1;
 			}
 		}
 	}
 
 	// Or if moved right off the end of the list...
-	else if (i >= fileItems.getNumElements()) {
+	else if (i >= static_cast<int32_t>(fileItems.size())) {
 		if (numFileItemsDeletedAtEnd) {
 			goto readAgain;
 		}
@@ -1521,7 +1520,7 @@ searchFromOneEnd:
 	}
 
 doneMoving:
-	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
+	toReturn.fileItem = &fileItems[i];
 
 	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
 	// wrapped is here to prevent an infinite loop

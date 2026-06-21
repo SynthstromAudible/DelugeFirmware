@@ -46,17 +46,17 @@ Error ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
 
 	if (time == util::to_underlying(type)) {
 		// Delete a note now
-		int32_t i = noteRow->notes.search(pos, GREATER_OR_EQUAL);
-		if (i < 0 || i >= noteRow->notes.getNumElements() || noteRow->notes.getElement(i)->pos != pos) {
+		int32_t i = noteRow->notes.firstAtOrAfter(pos);
+		if (i < 0 || i >= std::ssize(noteRow->notes) || noteRow->notes[i].pos != pos) {
 			return Error::NONE; // This can happen, and is fine, when redoing a "Clip multiply" action with notes with
 			                    // iteration dependence
 		}
-		noteRow->notes.deleteAtIndex(i);
+		noteRow->notes.erase(noteRow->notes.begin() + i);
 	}
 	else {
 		// Create a note now
-		int32_t i = noteRow->notes.insertAtKey(pos);
-		Note* note = noteRow->notes.getElement(i);
+		int32_t i = noteRow->notes.insertSorted(pos).value_or(-1);
+		Note* note = noteRow->notes.tryGet(i);
 		if (!note) {
 			return Error::INSUFFICIENT_RAM;
 		}

@@ -33,8 +33,9 @@
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
-#include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
+#include <algorithm>
+#include <strings.h>
 
 #pragma GCC diagnostic push
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
@@ -47,7 +48,12 @@ PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[DELUGE_USB_NUM_CO
 
 namespace MIDIDeviceManager {
 
-NamedThingVector hostedMIDIDevices{__builtin_offsetof(MIDICableUSBHosted, name)};
+deluge::fast_vector<MIDICableUSBHosted*> hostedMIDIDevices;
+
+/// Comparator maintaining hostedMIDIDevices' case-insensitive sort by name
+static bool cableNameLess(MIDICableUSBHosted* cable, char const* name) {
+	return strcasecmp(cable->name.c_str(), name) < 0;
+}
 
 bool differentiatingInputsByDevice = true;
 
@@ -115,8 +121,7 @@ void slowRoutine() {
 	upstreamUSBMIDICable2.sendMCMsNowIfNeeded();
 	// port3 is not used for channel data
 
-	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-		MIDICableUSBHosted* device = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
+	for (MIDICableUSBHosted* device : hostedMIDIDevices) {
 		device->sendMCMsNowIfNeeded();
 
 		// This routine placed here because for whatever reason we can't send sysex from hostedDeviceConfigured
@@ -142,16 +147,14 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 	// Do we know any details about this device already?
 
 	bool gotAName = (name && !name->empty());
-	int32_t i = 0; // Need default value for below if we skip first bit because !gotAName
 
 	if (gotAName) {
 		// Search by name first
-		bool foundExact;
-		i = hostedMIDIDevices.search(name->c_str(), GREATER_OR_EQUAL, &foundExact);
+		auto it = std::lower_bound(hostedMIDIDevices.begin(), hostedMIDIDevices.end(), name->c_str(), cableNameLess);
 
 		// If we'd already seen it before...
-		if (foundExact) {
-			auto* device = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
+		if (it != hostedMIDIDevices.end() && strcasecmp((*it)->name.c_str(), name->c_str()) == 0) {
+			MIDICableUSBHosted* device = *it;
 
 			// Update vendor and product id, if we have those
 			if (vendorId) {
@@ -164,20 +167,23 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 	}
 
 	// Ok, try searching by vendor / product id
-	for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
-		auto* candidate = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
-
+	for (MIDICableUSBHosted* candidate : hostedMIDIDevices) {
 		if (candidate->vendorId == vendorId && candidate->productId == productId) {
 			// Update its name - if we got one and it's different
 			if (gotAName && !(candidate->name == *name)) {
-				hostedMIDIDevices.renameMember(i, *name);
+				std::erase(hostedMIDIDevices, candidate);
+				candidate->name = *name; // Can't fail
+				hostedMIDIDevices.insert(std::lower_bound(hostedMIDIDevices.begin(), hostedMIDIDevices.end(),
+				                                          candidate->name.c_str(), cableNameLess),
+				                         candidate);
 			}
 			return candidate;
 		}
 	}
 
-	bool success = hostedMIDIDevices.ensureEnoughSpaceAllocated(1);
-	if (!success) {
+	try {
+		hostedMIDIDevices.reserve(hostedMIDIDevices.size() + 1);
+	} catch (deluge::exception&) {
 		return nullptr;
 	}
 
@@ -209,13 +215,10 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 	device->vendorId = vendorId;
 	device->productId = productId;
 
-	// Store record of this device
-	Error error = hostedMIDIDevices.insertElement(device, i); // We made sure, above, that there's space
-#if ALPHA_OR_BETA_VERSION
-	if (error != Error::NONE) {
-		FREEZE_WITH_ERROR("E405");
-	}
-#endif
+	// Store record of this device. We reserved space above, so this can't throw.
+	hostedMIDIDevices.insert(
+	    std::lower_bound(hostedMIDIDevices.begin(), hostedMIDIDevices.end(), device->name.c_str(), cableNameLess),
+	    device);
 
 	return device;
 }
@@ -250,8 +253,7 @@ void recountSmallestMPEZones() {
 	recountSmallestMPEZonesForCable(upstreamUSBMIDICable2);
 	recountSmallestMPEZonesForCable(dinMIDIPorts);
 
-	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-		MIDICableUSBHosted* cable = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
+	for (MIDICableUSBHosted* cable : hostedMIDIDevices) {
 		recountSmallestMPEZonesForCable(*cable);
 	}
 }
@@ -452,8 +454,7 @@ void writeDevicesToFile() {
 	bool anyWorthWritting = dinMIDIPorts.worthWritingToFile() || upstreamUSBMIDICable1.worthWritingToFile()
 	                        || upstreamUSBMIDICable2.worthWritingToFile();
 	if (!anyWorthWritting) {
-		for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-			MIDICableUSBHosted* device = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
+		for (MIDICableUSBHosted* device : hostedMIDIDevices) {
 			if (device->worthWritingToFile()) {
 				anyWorthWritting = true;
 				break;
@@ -488,8 +489,7 @@ void writeDevicesToFile() {
 		upstreamUSBMIDICable2.writeToFile(writer, "upstreamUSBDevice2");
 	}
 
-	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-		MIDICableUSBHosted* device = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
+	for (MIDICableUSBHosted* device : hostedMIDIDevices) {
 		if (device->worthWritingToFile()) {
 			device->writeToFile(writer, "hostedUSBDevice");
 		}

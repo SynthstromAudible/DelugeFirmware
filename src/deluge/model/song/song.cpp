@@ -67,6 +67,7 @@
 #include "util/try.h"
 #include <cstring>
 #include <hid/buttons.h>
+#include <iterator>
 #include <new>
 #include <stdint.h>
 
@@ -136,7 +137,7 @@ OutputType getCurrentOutputType() {
 
 using namespace deluge;
 
-Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
+Song::Song() {
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	insideWorldTickMagnitudeOffsetFromBPM = 0;
@@ -214,30 +215,29 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 Song::~Song() {
 
 	// Delete existing Clips, if any
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
 		if (!(c & 31)) { // Rohan: Exact number here not fine-tuned
 			AudioEngine::routineWithClusterLoading();
 		}
 
-		Clip* clip = sessionClips.getClipAtIndex(c);
+		Clip* clip = sessionClips[c];
 		deleteClipObject(clip, true, InstrumentRemoval::NONE);
 	}
 
-	for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
+	for (int32_t c = 0; c < std::ssize(arrangementOnlyClips); c++) {
 		if (!(c & 31)) { // Rohan: Exact number here not fine-tuned
 			AudioEngine::routineWithClusterLoading();
 		}
 
-		Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
+		Clip* clip = arrangementOnlyClips[c];
 		deleteClipObject(clip, true, InstrumentRemoval::NONE);
 	}
 
 	AudioEngine::logAction("s4");
 	AudioEngine::routineWithClusterLoading();
 
-	// Free all ParamManagers which are backed up. The actual vector memory containing all the BackedUpParamManager
-	// objects will be freed by the Vector destructor
-	deleteAllBackedUpParamManagers(false); // Don't empty vector - its destructor will do that
+	// Free all ParamManagers which are backed up
+	deleteAllBackedUpParamManagers();
 
 	deleteAllOutputs(&firstOutput);
 	deleteAllOutputs((Output**)&firstHibernatingInstrument);
@@ -309,68 +309,22 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 	}
 }
 
-void Song::deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector) {
-	for (int32_t i = 0; i < backedUpParamManagers.getNumElements(); i++) {
+void Song::deleteAllBackedUpParamManagers() {
+	while (!backedUpParamManagers.empty()) {
 		AudioEngine::routineWithClusterLoading();
-		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
-
-		backedUp->~BackedUpParamManager();
-	}
-	if (shouldAlsoEmptyVector) {
-		backedUpParamManagers.empty();
+		backedUpParamManagers.erase(backedUpParamManagers.begin());
 	}
 }
 
 void Song::deleteAllBackedUpParamManagersWithClips() {
-
-	// We'll aim to repeatedly find the longest runs possible of ones with Clips, to delete all in one go
-
-	for (int32_t i = 0; i < backedUpParamManagers.getNumElements(); i++) {
-		BackedUpParamManager* firstBackedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
-
-		// If no Clip, just go onto the next
-		if (!firstBackedUp->clip) {
-			continue;
-		}
-
-		ModControllableAudio* modControllable = firstBackedUp->modControllable;
-		int32_t searchedUpToAndIncluding = i;
-
-keepSearchingForward:
-
-		// If still here, this is the first one with a Clip for this ModControllable. Find the end of this
-		// ModControllable's ones
-		int32_t endIThisModControllable =
-		    backedUpParamManagers.search((uint32_t)modControllable + 4, GREATER_OR_EQUAL,
-		                                 searchedUpToAndIncluding + 1); // Search just by first word
-
-		// But if that next one, for the next ModControllable, also has a Clip, we can just keep looking forwards
-		// til we find one with no Clip
-		if (endIThisModControllable < backedUpParamManagers.getNumElements()) {
-			BackedUpParamManager* thisNextBackedUp =
-			    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(endIThisModControllable);
-			if (thisNextBackedUp->clip) {
-				modControllable = thisNextBackedUp->modControllable;
-				searchedUpToAndIncluding = endIThisModControllable;
-				goto keepSearchingForward;
-			}
-		}
-
-		// Cool, we've found a big long run. Delete them
-		for (int32_t j = i; j < endIThisModControllable; j++) {
-			BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(j);
-
+	for (auto it = backedUpParamManagers.begin(); it != backedUpParamManagers.end();) {
+		if (it->first.second != nullptr) {
 			AudioEngine::routineWithClusterLoading();
-
-			backedUp->~BackedUpParamManager();
+			it = backedUpParamManagers.erase(it);
 		}
-
-		int32_t numToDelete = endIThisModControllable - i;
-
-		backedUpParamManagers.deleteAtIndex(i, numToDelete);
-
-		// i will increment, which is fine, cos we've already determined that the next element (if there is one) has
-		// no Clip, so we can skip it
+		else {
+			++it;
+		}
 	}
 }
 
@@ -381,14 +335,14 @@ bool Song::mayDoubleTempo() {
 // Returns true if a Clip created
 bool Song::ensureAtLeastOneSessionClip() {
 	// If no Clips added, make just one blank one - we can't have none!
-	if (sessionClips.getNumElements()) {
+	if (!sessionClips.empty()) {
 		return false;
 	}
 
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
-	sessionClips.insertClipAtIndex(firstClip, 0);
+	(void)sessionClips.insertClipAt(firstClip, 0); // OOM impossible-in-practice this early; ignored as before
 
 	firstClip->loopLength = kDefaultClipLength << insideWorldTickMagnitude;
 
@@ -498,8 +452,8 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 			if (iClipTypes == 1) {
 				clipArray = &arrangementOnlyClips;
 			}
-			for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-				Clip* clip = clipArray->getClipAtIndex(c);
+			for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
+				Clip* clip = (*clipArray)[c];
 				if (clip->type != ClipType::INSTRUMENT) {
 					continue;
 				}
@@ -826,8 +780,8 @@ bool Song::areAllClipsInSectionPlaying(int32_t section) {
 		return false;
 	}
 
-	for (int32_t l = 0; l < sessionClips.getNumElements(); l++) {
-		Clip* clip = sessionClips.getClipAtIndex(l);
+	for (int32_t l = 0; l < std::ssize(sessionClips); l++) {
+		Clip* clip = sessionClips[l];
 		if (clip->section == section && !isClipActive(clip)) {
 			return false;
 		}
@@ -992,7 +946,7 @@ void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
 Clip* Song::getClipWithOutput(Output* output, bool mustBeActive, Clip* excludeClip) {
 
 	// For each clip in session and arranger for specific Output
-	int32_t numElements = sessionClips.getNumElements();
+	int32_t numElements = std::ssize(sessionClips);
 	bool doingArrangementClips = false;
 	// TODO: This should be rewritten with AllClips as well, but it's less obvious
 	// so leaving or later.
@@ -1000,13 +954,13 @@ traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = sessionClips.getClipAtIndex(c);
+			clip = sessionClips[c];
 			if (clip->output != output) {
 				continue;
 			}
 		}
 		else {
-			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &output->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -1027,7 +981,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = output->clipInstances.getNumElements();
+		numElements = std::ssize(output->clipInstances);
 		goto traverseClips;
 	}
 
@@ -1038,8 +992,8 @@ Clip* Song::getSessionClipWithOutput(Output* output, int32_t requireSection, Cli
                                      bool excludePendingOverdubs) {
 
 	// For each clip in session
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 
 		if (clip->output == output) {
 			if (clip == excludeClip) {
@@ -1075,7 +1029,7 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 		if (offset < 0) {
 			// use the highest available index
 			// NOTE: resulting index is one-based
-			oldIndex = sessionClips.getNumElements();
+			oldIndex = std::ssize(sessionClips);
 		}
 	}
 
@@ -1084,11 +1038,11 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 		// iterate index according to select knob direction
 		newIndex += offset;
 		// index out of bounds on either side returns NULL
-		if (newIndex == -1 || newIndex == sessionClips.getNumElements()) {
+		if (newIndex == -1 || newIndex == std::ssize(sessionClips)) {
 			return nullptr;
 		}
 		// retrieve clip and return
-		Clip* clip = sessionClips.getClipAtIndex(newIndex);
+		Clip* clip = sessionClips[newIndex];
 		if (clip->output == output) {
 			return clip;
 		}
@@ -1271,17 +1225,17 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeArrayEnding("sections");
 
 	writer.writeArrayStart("sessionClips");
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 		clip->writeToFile(writer, this);
 	}
 	writer.writeArrayEnding("sessionClips");
 
-	if (arrangementOnlyClips.getNumElements()) {
+	if (!arrangementOnlyClips.empty()) {
 
 		writer.writeArrayStart("arrangementOnlyTracks");
-		for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
-			Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
+		for (int32_t c = 0; c < std::ssize(arrangementOnlyClips); c++) {
+			Clip* clip = arrangementOnlyClips[c];
 			if (!clip->output->clipHasInstance(clip)) {
 				continue; // Get rid of any redundant Clips. There shouldn't be any, but occasionally they somehow
 				          // get left over.
@@ -1827,8 +1781,8 @@ unknownTag:
 							}
 							else if (!strcmp(tagName, "clip")) {
 								int32_t index = reader.readTagOrAttributeValueInt();
-								if (index >= 0 && index < sessionClips.getNumElements()) {
-									m.clip = sessionClips.getClipAtIndex(index);
+								if (index >= 0 && index < std::ssize(sessionClips)) {
+									m.clip = sessionClips[index];
 								}
 							}
 							else if (!strcmp(tagName, "output")) {
@@ -2079,8 +2033,8 @@ loadOutput:
 	setBPM(calculateBPM(), false);
 
 	// Ensure all arranger-only Clips have their section as 255
-	for (int32_t t = 0; t < arrangementOnlyClips.getNumElements(); t++) {
-		Clip* clip = arrangementOnlyClips.getClipAtIndex(t);
+	for (int32_t t = 0; t < std::ssize(arrangementOnlyClips); t++) {
+		Clip* clip = arrangementOnlyClips[t];
 
 		clip->section = 255;
 		clip->gotInstanceYet = false;
@@ -2098,8 +2052,8 @@ loadOutput:
 	    &arrangementOnlyClips,
 	};
 	for (ClipArray* clipArray : arrays) {
-		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-			Clip* thisClip = clipArray->getClipAtIndex(c); // TODO: deal with other Clips too!
+		for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
+			Clip* thisClip = (*clipArray)[c]; // TODO: deal with other Clips too!
 
 			if (!(count & 31)) {
 				AudioEngine::routineWithClusterLoading();
@@ -2143,7 +2097,7 @@ loadOutput:
 			anyOutputsSoloingInArrangement = true;
 		}
 
-		if (thisOutput->clipInstances.getNumElements() == 0
+		if (thisOutput->clipInstances.empty()
 		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
 		    && thisOutput->type == OutputType::AUDIO) {
 			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
@@ -2156,8 +2110,8 @@ loadOutput:
 			this->backUpParamManager((ModControllableAudio*)thisOutput->toModControllable(), nullptr, &paramManager);
 		}
 
-		for (int32_t i = 0; i < thisOutput->clipInstances.getNumElements(); i++) {
-			ClipInstance* thisInstance = thisOutput->clipInstances.getElement(i);
+		for (int32_t i = 0; i < std::ssize(thisOutput->clipInstances); i++) {
+			ClipInstance* thisInstance = &thisOutput->clipInstances[i];
 
 			// Grab out the encoded Clip reference and turn it into an actual Clip*
 			uint32_t clipCode = (uint32_t)thisInstance->clip;
@@ -2173,17 +2127,17 @@ loadOutput:
 
 				ClipArray* clips = isArrangementClip ? &arrangementOnlyClips : &sessionClips;
 
-				if (lookingForIndex >= clips->getNumElements()) {
+				if (lookingForIndex >= static_cast<int32_t>(clips->size())) {
 #if ALPHA_OR_BETA_VERSION
 					display->displayPopup("E248");
 #endif
 skipInstance:
-					thisOutput->clipInstances.deleteAtIndex(i);
+					thisOutput->clipInstances.erase(thisOutput->clipInstances.begin() + i);
 					i--;
 					continue;
 				}
 
-				thisInstance->clip = clips->getClipAtIndex(lookingForIndex);
+				thisInstance->clip = (*clips)[lookingForIndex];
 
 				// If Instrument mismatch somehow...
 				if (thisInstance->clip->output != thisOutput) {
@@ -2233,8 +2187,8 @@ skipInstance:
 
 	// Ensure no arrangement-only Clips with no ClipInstance
 	// For each Clip in arrangement
-	for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
-		Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(arrangementOnlyClips); c++) {
+		Clip* clip = arrangementOnlyClips[c];
 
 		if (!clip->gotInstanceYet) {
 #if ALPHA_OR_BETA_VERSION
@@ -2247,7 +2201,7 @@ skipInstance:
 				syncScalingClip = nullptr;
 			}
 
-			arrangementOnlyClips.deleteAtIndex(c);
+			arrangementOnlyClips.erase(arrangementOnlyClips.begin() + c);
 			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			c--;
 		}
@@ -2256,7 +2210,7 @@ skipInstance:
 	// Pre V1.2...
 	if (song_firmware_version < FirmwareVersion::official({1, 2, 0})) {
 
-		deleteAllBackedUpParamManagers(true); // Before V1.2, lots of extras of these could be created during loading
+		deleteAllBackedUpParamManagers(); // Before V1.2, lots of extras of these could be created during loading
 		globalEffectable.compensateVolumeForResonance(&paramManager);
 	}
 
@@ -2304,7 +2258,7 @@ Error Song::readClipsFromFile(Deserializer& reader, ClipArray* clipArray) {
 			clipType = ClipType::INSTRUMENT;
 
 readClip:
-			if (!clipArray->ensureEnoughSpaceAllocated(1)) {
+			if (!clipArray->reserveExtra(1)) {
 				return Error::INSUFFICIENT_RAM;
 			}
 
@@ -2328,7 +2282,7 @@ readClip:
 				return error;
 			}
 
-			clipArray->insertClipAtIndex(newClip, clipArray->getNumElements()); // We made sure enough space, above
+			(void)clipArray->insertClipAt(newClip, std::ssize(*clipArray)); // We made sure enough space, above
 
 			reader.exitTag(nullptr, true); // exit value object
 			reader.match('}');             // exit box.
@@ -2422,7 +2376,7 @@ void Song::deleteSoundsWhichWontSound() {
 	}
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->clipInstances.empty();
+		thisOutput->clipInstances.clear();
 	}
 
 	deleteAllOutputs((Output**)&firstHibernatingInstrument);
@@ -2581,13 +2535,13 @@ NoteRow* Song::findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtCli
 	ClipArray* clipArray = &sessionClips;
 	bool doingClipsProvidedByOutput = false;
 decideNumElements:
-	int32_t numElements = clipArray->getNumElements();
+	int32_t numElements = std::ssize(*clipArray);
 	// TODO: Should use AllClips(), but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		InstrumentClip* instrumentClip;
 		if (!doingClipsProvidedByOutput) {
-			Clip* clip = clipArray->getClipAtIndex(c);
+			Clip* clip = (*clipArray)[c];
 			if (clip == stopTraversalAtClip) {
 				return nullptr;
 			}
@@ -2597,7 +2551,7 @@ traverseClips:
 			instrumentClip = (InstrumentClip*)clip;
 		}
 		else {
-			ClipInstance* clipInstance = kit->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &kit->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -2619,7 +2573,7 @@ traverseClips:
 		}
 		else {
 			doingClipsProvidedByOutput = true;
-			numElements = kit->clipInstances.getNumElements();
+			numElements = std::ssize(kit->clipInstances);
 			goto traverseClips;
 		}
 	}
@@ -2651,13 +2605,13 @@ void Song::setupPatchingForAllParamManagersForDrum(SoundDrum* drum) {
 	ClipArray* clipArray = &sessionClips;
 	bool doingClipsProvidedByOutput = false;
 decideNumElements:
-	int32_t numElements = clipArray->getNumElements();
+	int32_t numElements = std::ssize(*clipArray);
 	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		InstrumentClip* instrumentClip;
 		if (!doingClipsProvidedByOutput) {
-			Clip* clip = clipArray->getClipAtIndex(c);
+			Clip* clip = (*clipArray)[c];
 
 			if (output) {
 				if (clip->output != output) {
@@ -2673,7 +2627,7 @@ traverseClips:
 			instrumentClip = (InstrumentClip*)clip;
 		}
 		else {
-			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &output->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -2719,7 +2673,7 @@ traverseClips:
 		// Clips directly from it
 		else {
 			doingClipsProvidedByOutput = true;
-			numElements = output->clipInstances.getNumElements();
+			numElements = std::ssize(output->clipInstances);
 			goto traverseClips;
 		}
 	}
@@ -2736,20 +2690,20 @@ void Song::setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound)
 	                                                ->addModControllableButNoNoteRow(sound);
 
 	// For each Clip in session and arranger for specific Output
-	int32_t numElements = sessionClips.getNumElements();
+	int32_t numElements = std::ssize(sessionClips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = sessionClips.getClipAtIndex(c);
+			clip = sessionClips[c];
 			if (clip->output != sound) {
 				continue;
 			}
 		}
 		else {
-			ClipInstance* clipInstance = sound->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &sound->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -2768,7 +2722,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = sound->clipInstances.getNumElements();
+		numElements = std::ssize(sound->clipInstances);
 		goto traverseClips;
 	}
 }
@@ -2791,20 +2745,20 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersFo
 	                                                ->addModControllableButNoNoteRow(instrument);
 
 	// For each Clip in session and arranger for specific Output
-	int32_t numElements = sessionClips.getNumElements();
+	int32_t numElements = std::ssize(sessionClips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = sessionClips.getClipAtIndex(c);
+			clip = sessionClips[c];
 			if (clip->output != instrument) {
 				continue;
 			}
 		}
 		else {
-			ClipInstance* clipInstance = instrument->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &instrument->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -2826,7 +2780,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = instrument->clipInstances.getNumElements();
+		numElements = std::ssize(instrument->clipInstances);
 		goto traverseClips;
 	}
 }
@@ -2848,20 +2802,20 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersFo
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	// For each Clip in session and arranger for specific Output
-	int32_t numElements = sessionClips.getNumElements();
+	int32_t numElements = std::ssize(sessionClips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips but less obvious, so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = sessionClips.getClipAtIndex(c);
+			clip = sessionClips[c];
 			if (clip->output != kit) {
 				continue;
 			}
 		}
 		else {
-			ClipInstance* clipInstance = kit->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &kit->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -2893,7 +2847,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = kit->clipInstances.getNumElements();
+		numElements = std::ssize(kit->clipInstances);
 		goto traverseClips;
 	}
 }
@@ -3180,8 +3134,8 @@ void Song::reassessWhetherAnyClipsSoloing() {
 	anyClipsSoloing = false;
 
 	// For each Clip in session
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 
 		if (clip->soloingInSessionMode) {
 			anyClipsSoloing = true;
@@ -3195,8 +3149,8 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 		if (getRidOfArmingToo) {
 
 			// Just get rid of arming
-			for (int32_t l = 0; l < sessionClips.getNumElements(); l++) {
-				Clip* loopable = sessionClips.getClipAtIndex(l);
+			for (int32_t l = 0; l < std::ssize(sessionClips); l++) {
+				Clip* loopable = sessionClips[l];
 				if (loopable->launchStyle == LaunchStyle::DEFAULT
 				    && currentSong->sections[loopable->section].numRepetitions != -2) {
 					loopable->armState = ArmState::OFF;
@@ -3208,8 +3162,8 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 
 	// Stop all other playing-but-not-soloing Clips, and turn all soloing Clip into playing Clip!
 	// For each Clip in session
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 
 		clip->activeIfNoSolo = clip->soloingInSessionMode;
 		clip->soloingInSessionMode = false;
@@ -3399,20 +3353,20 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 
 	// Tell all the Clips to change their Instrument.
 	// For each Clip in session and arranger for specific Output...
-	int32_t numElements = sessionClips.getNumElements();
+	int32_t numElements = std::ssize(sessionClips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = sessionClips.getClipAtIndex(c);
+			clip = sessionClips[c];
 			if (clip->output != oldOutput) {
 				continue;
 			}
 		}
 		else {
-			ClipInstance* clipInstance = oldOutput->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &oldOutput->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -3442,12 +3396,12 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = oldOutput->clipInstances.getNumElements();
+		numElements = std::ssize(oldOutput->clipInstances);
 		goto traverseClips;
 	}
 
 	// Migrate all ClipInstances from oldInstrument to newInstrument
-	newOutput->clipInstances.swapStateWith(&oldOutput->clipInstances);
+	newOutput->clipInstances.swap(oldOutput->clipInstances);
 
 	outputClipInstanceListIsCurrentlyInvalid = false;
 
@@ -3715,29 +3669,19 @@ void Song::setupPatchingForAllParamManagers() {
 ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* modControllable, Clip* clip,
                                                         ParamManager* stealInto) {
 
-	uint32_t keyWords[2];
-	keyWords[0] = (uint32_t)modControllable;
-	keyWords[1] = (uint32_t)clip;
-
-	int32_t iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords);
-
-	if (iCorrectClip == -1) {
+	auto itCorrectClip = backedUpParamManagers.find({modControllable, clip});
+	if (itCorrectClip == backedUpParamManagers.end()) {
 		return nullptr;
 	}
 
-	BackedUpParamManager* elementCorrectClip =
-	    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
-
 	if (stealInto) {
 		stealInto->stealParamCollectionsFrom(
-		    &elementCorrectClip->paramManager,
+		    &itCorrectClip->second,
 		    true); // Steal expression params too - if they're here (slightly rare case).
-		backedUpParamManagers.deleteAtIndex(iCorrectClip);
+		backedUpParamManagers.erase(itCorrectClip);
 		return stealInto;
 	}
-	else {
-		return &elementCorrectClip->paramManager;
-	}
+	return &itCorrectClip->second;
 }
 
 // If none for the correct Clip, return one for a different Clip - prioritizing NULL Clip.
@@ -3746,45 +3690,28 @@ ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* mo
 ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAudio* modControllable, Clip* clip,
                                                               ParamManager* stealInto) {
 
-	int32_t iAnyClip =
-	    backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL); // Search just by first word
-	if (iAnyClip >= backedUpParamManagers.getNumElements()) {
-		return nullptr;
-	}
-	BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
-	if (elementAnyClip->modControllable != modControllable) {
+	// The entry with a null Clip (if any) sorts first for each ModControllable, so this finds it preferentially.
+	auto itAnyClip = backedUpParamManagers.lower_bound({modControllable, static_cast<Clip*>(nullptr)});
+	if (itAnyClip == backedUpParamManagers.end() || itAnyClip->first.first != modControllable) {
 		return nullptr; // If nothing with even the correct modControllable at all, get out
 	}
 
-	int32_t iCorrectClip;
-	BackedUpParamManager* elementCorrectClip;
-
-	if (!clip || elementAnyClip->clip == clip) {
-returnFirstForModControllableEvenIfNotRightClip:
-		iCorrectClip = iAnyClip;
-		elementCorrectClip = elementAnyClip;
-	}
-	else {
-		uint32_t keyWords[2];
-		keyWords[0] = (uint32_t)modControllable;
-		keyWords[1] = (uint32_t)clip;
-		iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords, nullptr, iAnyClip + 1);
-		if (iCorrectClip == -1) {
-			goto returnFirstForModControllableEvenIfNotRightClip;
+	auto itCorrectClip = itAnyClip;
+	if (clip && itAnyClip->first.second != clip) {
+		auto itExact = backedUpParamManagers.find({modControllable, clip});
+		if (itExact != backedUpParamManagers.end()) {
+			itCorrectClip = itExact;
 		}
-		elementCorrectClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
 	}
 
 	if (stealInto) {
 		stealInto->stealParamCollectionsFrom(
-		    &elementCorrectClip->paramManager,
+		    &itCorrectClip->second,
 		    true); // Steal expression params too - if they're here (slightly rare case).
-		backedUpParamManagers.deleteAtIndex(iCorrectClip);
+		backedUpParamManagers.erase(itCorrectClip);
 		return stealInto;
 	}
-	else {
-		return &elementCorrectClip->paramManager;
-	}
+	return &itCorrectClip->second;
 }
 
 // Steals stuff.
@@ -3797,47 +3724,23 @@ void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip,
 		return;
 	}
 
-	uint32_t keyWords[2];
-	keyWords[0] = (uint32_t)modControllable;
-	keyWords[1] = (uint32_t)clip;
-
-	int32_t indexToInsertAt;
-
-	int32_t i = backedUpParamManagers.searchMultiWordExact(keyWords, &indexToInsertAt);
-
-	BackedUpParamManager* element;
+	auto it = backedUpParamManagers.find({modControllable, clip});
 
 	// If one already existed...
-	if (i != -1) {
-		element = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
-
-		// Let's destroy it...
-		element->paramManager.destructAndForgetParamCollections();
-
-		// ...and replace it
-doStealing:
-		element->paramManager.stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
+	if (it != backedUpParamManagers.end()) {
+		// Let's destroy its contents and replace them
+		it->second.destructAndForgetParamCollections();
+		it->second.stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
 	}
 
 	// Otherwise, insert one
 	else {
-		i = indexToInsertAt;
-		Error error = backedUpParamManagers.insertAtIndex(i);
-
-		// If RAM error...
-		if (error != Error::NONE) {
-
-			// Destroy paramManager
+		try {
+			auto [itNew, inserted] = backedUpParamManagers.try_emplace({modControllable, clip});
+			itNew->second.stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
+		} catch (deluge::exception&) {
+			// If RAM error, destroy paramManager
 			paramManager->destructAndForgetParamCollections();
-		}
-
-		// Or if that went fine...
-		else {
-			element = new (backedUpParamManagers.getElementAddress(i)) BackedUpParamManager();
-
-			element->modControllable = modControllable;
-			element->clip = clip;
-			goto doStealing;
 		}
 	}
 }
@@ -3846,131 +3749,39 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 	AudioEngine::logAction("Song::deleteBackedUpParamManagersForClip");
 
-	// Ok, this is the one sticky one where we actually do have to go through every element
-	int32_t i = 0;
-
-	while (i < backedUpParamManagers.getNumElements()) {
-
-		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
-		if (backedUp->clip == clip) {
-
-			AudioEngine::routineWithClusterLoading();
-
-			// We ideally want to just set the Clip to NULL. We can just do this if the previous element didn't have
-			// the same ModControllable
-			if (i == 0
-			    || ((BackedUpParamManager*)backedUpParamManagers.getElementAddress(i - 1))->modControllable
-			           != backedUp->modControllable) {
-				backedUp->clip = nullptr;
-				i++;
-			}
-
-			// Othwerwise...
-			else {
-
-				ParamManagerForTimeline paramManager;
-				paramManager.stealParamCollectionsFrom(&backedUp->paramManager);
-				ModControllableAudio* modControllable = backedUp->modControllable;
-
-				// We have to delete that element...
-				backedUpParamManagers.deleteAtIndex(i);
-
-				// ...and then go find the first one that had this ModControllable
-				int32_t j = backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL, 0,
-				                                         i); // Search by first word only
-				BackedUpParamManager* firstElementWithModControllable =
-				    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(j);
-
-				// If it already had a NULL Clip, we have to replace its ParamManager
-				if (!firstElementWithModControllable->clip) {
-					firstElementWithModControllable->paramManager.destructAndForgetParamCollections();
-
-					firstElementWithModControllable->paramManager.stealParamCollectionsFrom(&paramManager);
-
-					// Don't increment i, as we've deleted an element instead
-				}
-
-				// Otherwise, we insert before it
-				else {
-					Error error = backedUpParamManagers.insertAtIndex(j);
-
-					// If RAM error (surely would never happen since we just deleted an element)...
-					if (error != Error::NONE) {
-						// Don't increment i, as we've deleted an element instead
-					}
-
-					// Or if that went fine...
-					else {
-						BackedUpParamManager* newElement =
-						    new (backedUpParamManagers.getElementAddress(j)) BackedUpParamManager();
-
-						newElement->modControllable = modControllable;
-						newElement->clip = nullptr;
-						newElement->paramManager.stealParamCollectionsFrom(&paramManager);
-						i++; // We deleted an element, but inserted one too
-					}
-				}
-			}
+	for (auto it = backedUpParamManagers.begin(); it != backedUpParamManagers.end();) {
+		if (it->first.second != clip) {
+			++it;
+			continue;
 		}
+
+		AudioEngine::routineWithClusterLoading();
+		ModControllableAudio* modControllable = it->first.first;
+
+		auto itNull = backedUpParamManagers.find({modControllable, static_cast<Clip*>(nullptr)});
+
+		// If a no-Clip backup already exists for this ModControllable, replace its contents with this one's
+		if (itNull != backedUpParamManagers.end()) {
+			itNull->second.destructAndForgetParamCollections();
+			itNull->second.stealParamCollectionsFrom(&it->second);
+			it = backedUpParamManagers.erase(it);
+		}
+
+		// Otherwise, just re-key this entry to the null Clip. extract() re-links the node without moving the
+		// ParamManager, and the re-inserted entry sorts before the current position, so it won't be revisited.
 		else {
-			i++;
+			auto node = backedUpParamManagers.extract(it++);
+			node.key().second = nullptr;
+			backedUpParamManagers.insert(std::move(node));
 		}
 	}
-
-	// Test that everything's still in order
-
-#if ALPHA_OR_BETA_VERSION
-	AudioEngine::routineWithClusterLoading();
-
-	Clip* lastClip;
-	ModControllableAudio* lastModControllable;
-
-	for (int32_t i = 0; i < backedUpParamManagers.getNumElements(); i++) {
-
-		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
-
-		if (i >= 1) {
-
-			if (backedUp->modControllable < lastModControllable) {
-				FREEZE_WITH_ERROR("E053");
-			}
-
-			else if (backedUp->modControllable == lastModControllable) {
-				if (backedUp->clip < lastClip) {
-					FREEZE_WITH_ERROR("E054");
-				}
-				else if (backedUp->clip == lastClip) {
-					FREEZE_WITH_ERROR("E055");
-				}
-			}
-		}
-
-		lastClip = backedUp->clip;
-		lastModControllable = backedUp->modControllable;
-	}
-
-#endif
 }
 
 void Song::deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable) {
 
-	int32_t iAnyClip =
-	    backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL); // Search by first word only
-
-	while (true) {
-		if (iAnyClip >= backedUpParamManagers.getNumElements()) {
-			return;
-		}
-		BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
-		if (elementAnyClip->modControllable != modControllable) {
-			return;
-		}
-
-		// Destruct paramManager
-		elementAnyClip->~BackedUpParamManager();
-
-		// Delete from Vector
-		backedUpParamManagers.deleteAtIndex(iAnyClip);
+	auto it = backedUpParamManagers.lower_bound({modControllable, static_cast<Clip*>(nullptr)});
+	while (it != backedUpParamManagers.end() && it->first.first == modControllable) {
+		it = backedUpParamManagers.erase(it);
 	}
 }
 
@@ -4031,8 +3842,8 @@ bool Song::doesOutputHaveAnyClips(Output* output) {
 	// Check arranger ones first via clipInstances
 	// TODO: why is this better than arrangerOnlyClips? Is this just a performance
 	// consideration?
-	for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
-		ClipInstance* thisInstance = output->clipInstances.getElement(i);
+	for (int32_t i = 0; i < std::ssize(output->clipInstances); i++) {
+		ClipInstance* thisInstance = &output->clipInstances[i];
 		if (thisInstance->clip) {
 			return true;
 		}
@@ -4051,8 +3862,8 @@ bool Song::doesOutputHaveAnyClips(Output* output) {
 void Song::restoreClipStatesBeforeArrangementPlay() {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 
 		clip->activeIfNoSolo = clip->wasActiveBefore;
 		clip->soloingInSessionMode = false;
@@ -4068,8 +3879,8 @@ int32_t Song::getLowestSectionWithNoSessionClipForOutput(Output* output) {
 	bool* sectionRepresented = (bool*)shortStringBuffer;
 	memset(sectionRepresented, 0, kMaxNumSections);
 
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 		if (clip->output == output && clip->section < kMaxNumSections) {
 			sectionRepresented[clip->section] = true;
 		}
@@ -4094,20 +3905,20 @@ void Song::assertActiveness(ModelStackWithTimelineCounter* modelStack, int32_t e
 
 	// Stop any Clips with same Output
 	// For each Clip in session and arranger for specific Output
-	int32_t numElements = sessionClips.getNumElements();
+	int32_t numElements = std::ssize(sessionClips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips(), but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = sessionClips.getClipAtIndex(c);
+			clip = sessionClips[c];
 			if (clip->output != output) {
 				continue;
 			}
 		}
 		else {
-			ClipInstance* clipInstance = output->clipInstances.getElement(c);
+			ClipInstance* clipInstance = &output->clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -4137,7 +3948,7 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = output->clipInstances.getNumElements();
+		numElements = std::ssize(output->clipInstances);
 		goto traverseClips;
 	}
 
@@ -4186,8 +3997,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 
 		int32_t count = 0;
 
-		for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-			Clip* clip = sessionClips.getClipAtIndex(c);
+		for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+			Clip* clip = sessionClips[c];
 
 			if (!(count & 3)) {
 				AudioEngine::routineWithClusterLoading();
@@ -4231,8 +4042,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 	int32_t count = 0;
 
 	// And finally, go through session Clips again, giving any more to Instruments that can be given
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 		if (!(count & 7)) {
 			AudioEngine::routineWithClusterLoading();
 			AudioEngine::logAction("aaa5.125");
@@ -4487,17 +4298,17 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 
 		if (isClipActive(clip)) {
-			int32_t clipInstanceI = clip->output->clipInstances.getNumElements();
-			Error error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
+			int32_t clipInstanceI = std::ssize(clip->output->clipInstances);
+			Error error = clip->output->clipInstances.insertAt(clipInstanceI).error_or(Error::NONE);
 			if (error != Error::NONE) {
 				return error;
 			}
 
-			ClipInstance* clipInstance = clip->output->clipInstances.getElement(clipInstanceI);
+			ClipInstance* clipInstance = &clip->output->clipInstances[clipInstanceI];
 			clipInstance->clip = clip;
 			clipInstance->length = clip->loopLength;
 			clipInstance->pos = pos;
@@ -4513,8 +4324,8 @@ Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 void Song::endInstancesOfActiveClips(int32_t pos, bool detachClipsToo) {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 
 		if (isClipActive(clip)) {
 
@@ -4524,13 +4335,13 @@ void Song::endInstancesOfActiveClips(int32_t pos, bool detachClipsToo) {
 				clipNow->beingRecordedFromClip = nullptr;
 			}
 
-			int32_t clipInstanceI = clip->output->clipInstances.search(pos + 1, LESS);
+			int32_t clipInstanceI = clip->output->clipInstances.firstAtOrAfter(pos + 1) - 1;
 			if (clipInstanceI >= 0) {
-				ClipInstance* clipInstance = clip->output->clipInstances.getElement(clipInstanceI);
+				ClipInstance* clipInstance = &clip->output->clipInstances[clipInstanceI];
 				if (clipInstance->clip == clipNow) {
 					int32_t newLength = pos - clipInstance->pos;
 					if (newLength == 0) {
-						clip->output->clipInstances.deleteAtIndex(clipInstanceI);
+						clip->output->clipInstances.erase(clip->output->clipInstances.begin() + clipInstanceI);
 					}
 					else {
 						clipInstance->length = newLength;
@@ -4550,8 +4361,8 @@ void Song::resumeClipsClonedForArrangementRecording() {
 	ModelStack* modelStackOriginal = setupModelStackWithSong(modelStackMemoryOriginal, this);
 
 	// For each Clip in session
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* originalClip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* originalClip = sessionClips[c];
 
 		Clip* clonedClip = originalClip->output->getActiveClip();
 		if (clonedClip && clonedClip->beingRecordedFromClip == originalClip) {
@@ -4572,20 +4383,20 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 	paramManager.trimToLength(pos, modelStack, action, false);
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		int32_t i = thisOutput->clipInstances.search(pos, GREATER_OR_EQUAL);
+		int32_t i = thisOutput->clipInstances.firstAtOrAfter(pos);
 
 		// We go through deleting the ClipInstances one by one. This is actually quite inefficient, but complicated
 		// to improve on because the deletion of the Clips themselves, where there are arrangement-only ones, causes
 		// the calling of output->pickAnActiveClipIfPossible. So we have to ensure that extra ClipInstances don't
 		// exist at any instant in time, or else it'll look at those to pick the new activeClip, which might not
 		// exist anymore.
-		for (int32_t j = thisOutput->clipInstances.getNumElements() - 1; j >= i; j--) {
-			ClipInstance* clipInstance = thisOutput->clipInstances.getElement(j);
+		for (int32_t j = std::ssize(thisOutput->clipInstances) - 1; j >= i; j--) {
+			ClipInstance* clipInstance = &thisOutput->clipInstances[j];
 			if (action) {
 				action->recordClipInstanceExistenceChange(thisOutput, clipInstance, ExistenceChangeType::DELETE);
 			}
 			Clip* clip = clipInstance->clip;
-			thisOutput->clipInstances.deleteAtIndex(j);
+			thisOutput->clipInstances.erase(thisOutput->clipInstances.begin() + j);
 
 			deletingClipInstanceForClip(thisOutput, clip, action,
 			                            true); // Could be bad that this calls the audio routine before we've
@@ -4593,9 +4404,9 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 		}
 
 		// Shorten the previous one if need be
-		int32_t numElements = thisOutput->clipInstances.getNumElements();
+		int32_t numElements = std::ssize(thisOutput->clipInstances);
 		if (numElements) {
-			ClipInstance* clipInstance = thisOutput->clipInstances.getElement(numElements - 1);
+			ClipInstance* clipInstance = &thisOutput->clipInstances[numElements - 1];
 			int32_t maxLength = pos - clipInstance->pos;
 			if (clipInstance->length > maxLength) {
 				clipInstance->change(action, thisOutput, clipInstance->pos, maxLength, clipInstance->clip);
@@ -4629,7 +4440,8 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 			// first
 			int32_t index = arrangementOnlyClips.getIndexForClip(clip);
 			if (index != -1) {
-				arrangementOnlyClips.deleteAtIndex(index); // Shouldn't actually ever not be found
+				arrangementOnlyClips.erase(arrangementOnlyClips.begin()
+				                           + index); // Shouldn't actually ever not be found
 			}
 			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			if (shouldPickNewActiveClip) {
@@ -4644,7 +4456,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 
 bool Song::arrangementHasAnyClipInstances() {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->clipInstances.getNumElements()) {
+		if (!thisOutput->clipInstances.empty()) {
 			return true;
 		}
 	}
@@ -4862,12 +4674,12 @@ void Song::instrumentSwapped(Instrument* newInstrument) {
 
 	// If we're playing, in this arrangement mode... (TODO: what if it just switched on while we were loading?)
 	if (arrangement.hasPlaybackActive()) {
-		int32_t i = newInstrument->clipInstances.search(arrangement.getLivePos() + 1, LESS);
+		int32_t i = newInstrument->clipInstances.firstAtOrAfter(arrangement.getLivePos() + 1) - 1;
 
 tryAgain:
 		if (i >= 0) {
 
-			ClipInstance* clipInstance = newInstrument->clipInstances.getElement(i);
+			ClipInstance* clipInstance = &newInstrument->clipInstances[i];
 
 			// If it didn't have an actual Clip, look further back in time
 			if (!clipInstance->clip) {
@@ -5173,7 +4985,7 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	*prevPointer = newOutput;
 
 	// Migrate all ClipInstances from oldInstrument to newInstrument
-	newOutput->clipInstances.swapStateWith(&oldOutput->clipInstances);
+	newOutput->clipInstances.swap(oldOutput->clipInstances);
 
 	newOutput->colour = oldOutput->colour;
 	oldOutput->colour = 0;
@@ -5273,8 +5085,8 @@ void Song::removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAbove
 	bool foundAtLeastOneInstanceInArranger = false;
 	Output* output = clip->output;
 
-	for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
-		ClipInstance* clipInstance = output->clipInstances.getElement(i);
+	for (int32_t i = 0; i < std::ssize(output->clipInstances); i++) {
+		ClipInstance* clipInstance = &output->clipInstances[i];
 		if (clipInstance->clip == clip) {
 
 			int32_t lengthGotUpTo = clipInstance->length;
@@ -5283,11 +5095,10 @@ void Song::removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAbove
 			bool deletedAnyElements = false;
 
 lookAtNextOne:
-			if (i + 1 < output->clipInstances.getNumElements() && (lengthGotUpTo % clip->loopLength) == 0) {
+			if (i + 1 < std::ssize(output->clipInstances) && (lengthGotUpTo % clip->loopLength) == 0) {
 
 				// See if next ClipInstance has the same Clip and lines up as a repeat...
-				ClipInstance* nextClipInstance =
-				    output->clipInstances.getElement(i + 1); // We already checked that this exists
+				ClipInstance* nextClipInstance = &output->clipInstances[i + 1]; // We already checked that this exists
 				if (nextClipInstance->clip == clip && startPos + lengthGotUpTo == nextClipInstance->pos) {
 
 					lengthGotUpTo += nextClipInstance->length;
@@ -5295,14 +5106,14 @@ lookAtNextOne:
 					// Delete that later ClipInstance
 					arrangement.rowEdited(output, nextClipInstance->pos,
 					                      nextClipInstance->pos + nextClipInstance->length, clip, nullptr);
-					output->clipInstances.deleteAtIndex(i + 1);
+					output->clipInstances.erase(output->clipInstances.begin() + i + 1);
 					deletedAnyElements = true;
 					goto lookAtNextOne;
 				}
 			}
 
 			if (deletedAnyElements) {
-				clipInstance = output->clipInstances.getElement(i); // Gotta re-get, since storage has changed
+				clipInstance = &output->clipInstances[i]; // Gotta re-get, since storage has changed
 			}
 
 			// If we'd already found one, we'll have to create a clone for this one - and possibly extend it
@@ -5326,7 +5137,7 @@ lookAtNextOne:
 
 	int32_t clipYDisplay = clipIndex - songViewYScroll;
 	int32_t bottomYDisplay = -songViewYScroll;
-	int32_t topYDisplay = bottomYDisplay + sessionClips.getNumElements() - 1;
+	int32_t topYDisplay = bottomYDisplay + std::ssize(sessionClips) - 1;
 	bottomYDisplay = std::max(bottomYDisplay, 0_i32);
 	topYDisplay = std::min(topYDisplay, kDisplayHeight - 1);
 	int32_t amountOfStuffAbove = topYDisplay - clipYDisplay;
@@ -5338,7 +5149,7 @@ lookAtNextOne:
 	// stop it playing!
 	if (foundAtLeastOneInstanceInArranger) {
 
-		arrangementOnlyClips.insertClipAtIndex((InstrumentClip*)clip, 0);
+		(void)arrangementOnlyClips.insertClipAt((InstrumentClip*)clip, 0);
 		clip->section = 255;
 	}
 
@@ -5370,7 +5181,7 @@ void Song::removeSessionClipLowLevel(Clip* clip, int32_t clipIndex) {
 		}
 	}
 
-	sessionClips.deleteAtIndex(clipIndex);
+	sessionClips.erase(sessionClips.begin() + clipIndex);
 }
 
 // originalClipIndex is optional
@@ -5388,8 +5199,8 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 	bool anyDeleted = false;
 
 	// For each Clip in session
-	for (int32_t c = sessionClips.getNumElements() - 1; c >= 0; c--) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = std::ssize(sessionClips) - 1; c >= 0; c--) {
+		Clip* clip = sessionClips[c];
 
 		if (clip->isPendingOverdub && (!onlyWithOutput || clip->output == onlyWithOutput)) {
 			removeSessionClip(clip, c, true);
@@ -5411,12 +5222,12 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 }
 
 int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
-	int32_t numToSearch = std::min(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight);
+	int32_t numToSearch = std::min<int32_t>(std::ssize(sessionClips), songViewYScroll + kDisplayHeight);
 
 	int32_t outputValue = songViewYScroll;
 
 	for (int32_t i = 0; i < numToSearch; i++) {
-		Clip* clip = sessionClips.getClipAtIndex(i);
+		Clip* clip = sessionClips[i];
 		if (clip->isPendingOverdub) {
 			outputValue--;
 		}
@@ -5428,8 +5239,8 @@ int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
 Clip* Song::getPendingOverdubWithOutput(Output* output) {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 
 		if (clip->isPendingOverdub && clip->output == output) {
 			return clip;
@@ -5442,8 +5253,8 @@ Clip* Song::getPendingOverdubWithOutput(Output* output) {
 Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 
 		if (clip->output == output && clip->armState != ArmState::OFF && !isClipActive(clip)
 		    && clip->wantsToBeginLinearRecording(this)) {
@@ -5471,7 +5282,7 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 
 		if (newClip && newClip != clip) {
 			newClip->overdubNature = newOverdubNature;
-			sessionClips.insertClipAtIndex(newClip, clipIndex);
+			(void)sessionClips.insertClipAt(newClip, clipIndex);
 			if (clipIndex != songViewYScroll) {
 				songViewYScroll++;
 			}
@@ -5490,8 +5301,8 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 bool Song::hasAnyPendingNextOverdubs() {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		Clip* clip = sessionClips.getClipAtIndex(c);
+	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+		Clip* clip = sessionClips[c];
 
 		if (clip->isPendingOverdub) {
 			return true;
@@ -5541,7 +5352,7 @@ void Song::cullAudioClipVoice() {
 }
 
 void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
-	sessionClips.setPointerAtIndex(newClip, clipIndex);
+	sessionClips[clipIndex] = newClip;
 
 	if (oldClip == getSyncScalingClip()) {
 		syncScalingClip = newClip;
@@ -5584,8 +5395,8 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 	if (defaultAudioClipOverdubOutputCloning == -1) {
 		defaultAudioClipOverdubOutputCloning = 1;
 		// For each Clip in session
-		for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-			Clip* clip = sessionClips.getClipAtIndex(c);
+		for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+			Clip* clip = sessionClips[c];
 
 			if (clip->type == ClipType::AUDIO && clip->armedForRecording) {
 				defaultAudioClipOverdubOutputCloning = ((AudioClip*)clip)->overdubsShouldCloneOutput;
@@ -6017,8 +5828,8 @@ void Song::displayThresholdRecordingMode() {
     // For each Clip in session and arranger
     ClipArray* clipArray = &sessionClips;
 traverseClips:
-    for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-        Clip* clip = clipArray->getClipAtIndex(c);
+    for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
+        Clip* clip = (*clipArray)[c];
 
     }
     if (clipArray != &arrangementOnlyClips) { clipArray = &arrangementOnlyClips; goto traverseClips; }
@@ -6028,8 +5839,8 @@ traverseClips:
     // For each InstrumentClip in session and arranger
     ClipArray* clipArray = &sessionClips;
 traverseClips:
-    for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-        Clip* clip = clipArray->getClipAtIndex(c);
+    for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
+        Clip* clip = (*clipArray)[c];
         if (clip->type != ClipType::INSTRUMENT) continue;
         Clip* instrumentClip = (Clip*)clip;
 
@@ -6039,32 +5850,32 @@ traverseClips:
 
 
     // For each Clip in session
-    for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-        Clip* clip = sessionClips.getClipAtIndex(c);
+    for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
+        Clip* clip = sessionClips[c];
 
     }
 
 
     // For each Clip in arrangement
-    for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
-        Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
+    for (int32_t c = 0; c < std::ssize(arrangementOnlyClips); c++) {
+        Clip* clip = arrangementOnlyClips[c];
 
     }
 
 
 
     // For each Clip in session and arranger for specific Output
-    int32_t numElements = sessionClips.getNumElements();
+    int32_t numElements = std::ssize(sessionClips);
     bool doingArrangementClips = false;
 traverseClips:
     for (int32_t c = 0; c < numElements; c++) {
         Clip* clip;
         if (!doingArrangementClips) {
-            clip = sessionClips.getClipAtIndex(c);
+            clip = sessionClips[c];
             if (clip->output != output) continue;
         }
         else {
-            ClipInstance* clipInstance = output->clipInstances.getElement(c);
+            ClipInstance* clipInstance = &output->clipInstances[c];
             if (!clipInstance->clip) continue;
             if (!clipInstance->clip->isArrangementOnlyClip()) continue;
             clip = clipInstance->clip;
@@ -6072,7 +5883,7 @@ traverseClips:
 
     }
     if (!doingArrangementClips) { doingArrangementClips = true; numElements =
-output->clipInstances.getNumElements(); goto traverseClips; }
+std::ssize(output->clipInstances); goto traverseClips; }
 
 
 
@@ -6080,12 +5891,12 @@ output->clipInstances.getNumElements(); goto traverseClips; }
 
     // For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master
 list for arranger Clips ClipArray* clipArray = &sessionClips; bool doingClipsProvidedByOutput = false;
-decideNumElements: int32_t numElements = clipArray->getNumElements(); traverseClips: for (int32_t c = 0; c <
-numElements; c++) { Clip* clip; if (!doingClipsProvidedByOutput) { clip = clipArray->getClipAtIndex(c); if
+decideNumElements: int32_t numElements = std::ssize(*clipArray); traverseClips: for (int32_t c = 0; c <
+numElements; c++) { Clip* clip; if (!doingClipsProvidedByOutput) { clip = (*clipArray)[c]; if
 (clip->output != output) continue;
         }
         else {
-            ClipInstance* clipInstance = output->clipInstances.getElement(c);
+            ClipInstance* clipInstance = &output->clipInstances[c];
             if (!clipInstance->clip) continue;
             if (!clipInstance->clip->isArrangementOnlyClip()) continue;
             clip = clipInstance->clip;
@@ -6094,7 +5905,7 @@ numElements; c++) { Clip* clip; if (!doingClipsProvidedByOutput) { clip = clipAr
     }
     if (!doingClipsProvidedByOutput && clipArray == &sessionClips) {
         if (currentlySwappingInstrument) { clipArray = &arrangementOnlyClips; goto decideNumElements; }
-        else { doingClipsProvidedByOutput = true; numElements = output->clipInstances.getNumElements(); goto
+        else { doingClipsProvidedByOutput = true; numElements = std::ssize(output->clipInstances); goto
 traverseClips; }
     }
  */

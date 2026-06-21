@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
@@ -96,10 +98,40 @@ constexpr int32_t kQuantizationPrecision = 10;
 /// strictly less than the start location of the next note. The length of the last note in the row can exceed the loop
 /// length of this NoteRow (either loopLengthIfIndependent if that value is nonzero, or the loop length of the clip
 /// containing this NoteRow).
+/// Owning head of a NoteRow's legacy DrumName list. Moving transfers ownership, so a moved-from NoteRow's
+/// destructor won't free the list out from under the new owner.
+class OldDrumNameHead {
+public:
+	OldDrumNameHead() = default;
+	OldDrumNameHead(OldDrumNameHead&& other) noexcept : first_(std::exchange(other.first_, nullptr)) {}
+	OldDrumNameHead& operator=(OldDrumNameHead&& other) noexcept {
+		std::swap(first_, other.first_);
+		return *this;
+	}
+	OldDrumNameHead(OldDrumNameHead const&) = delete;
+	OldDrumNameHead& operator=(OldDrumNameHead const&) = delete;
+	OldDrumNameHead& operator=(DrumName* newFirst) {
+		first_ = newFirst;
+		return *this;
+	}
+	operator DrumName*() const { return first_; }
+	DrumName** ptr() { return &first_; }
+
+private:
+	DrumName* first_ = nullptr;
+};
+
 class NoteRow {
 public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
+
+	// Movable (so NoteRowVector can shuffle rows) but not copyable - cloning goes through the explicit
+	// byte-copy + beenCloned() idiom. The destructor frees the old-drum-name list, so moves null it out.
+	NoteRow(NoteRow&& other) noexcept = default;
+	NoteRow& operator=(NoteRow&& other) noexcept = default;
+	NoteRow(NoteRow const&) = delete;
+	NoteRow& operator=(NoteRow const&) = delete;
 	void renderRow(TimelineView* editorScreen, RGB, RGB, RGB, RGB* image, uint8_t[], bool, uint32_t,
 	               bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
 	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
@@ -142,7 +174,7 @@ public:
 
 	ParamManagerForTimeline paramManager;
 	Drum* drum;
-	DrumName* firstOldDrumName;
+	OldDrumNameHead firstOldDrumName;
 	NoteVector notes;
 	// values for whole row
 	uint8_t probabilityValue;

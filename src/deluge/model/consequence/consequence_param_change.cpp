@@ -31,7 +31,7 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 
 	// Either steal the data...
 	if (stealData) {
-		state.nodes.swapStateWith(&modelStack->autoParam->nodes);
+		state.nodes.swap(modelStack->autoParam->nodes);
 	}
 
 	// Or clone it...

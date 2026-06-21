@@ -18,14 +18,59 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "util/container/array/resizeable_pointer_array.h"
+#include "util/containers.h"
+#include <algorithm>
+#include <expected>
 
 class Clip;
 
-class ClipArray final : public ResizeablePointerArray {
+/// The ordered list of Clips in a Song section. Legacy method names are kept from the old
+/// ResizeablePointerArray-based implementation; modernise call sites incrementally.
+class ClipArray final {
 public:
 	ClipArray() = default;
-	Error insertClipAtIndex(Clip* clip, int32_t index);
-	Clip* getClipAtIndex(int32_t index);
-	int32_t getIndexForClip(Clip* clip);
+
+	Clip** getElementAddress(int32_t index) { return &clips_[index]; }
+
+	std::expected<void, Error> insertClipAt(Clip* clip, int32_t index) {
+		try {
+			clips_.insert(clips_.begin() + index, clip);
+		} catch (deluge::exception&) {
+			return std::unexpected(Error::INSUFFICIENT_RAM);
+		}
+		return {};
+	}
+
+	std::expected<void, Error> reserveExtra(int32_t numAdditionalElementsNeeded) {
+		try {
+			clips_.reserve(clips_.size() + numAdditionalElementsNeeded);
+		} catch (deluge::exception&) {
+			return std::unexpected(Error::INSUFFICIENT_RAM);
+		}
+		return {};
+	}
+
+	auto erase(deluge::fast_vector<Clip*>::iterator first, deluge::fast_vector<Clip*>::iterator last) {
+		return clips_.erase(first, last);
+	}
+	auto erase(deluge::fast_vector<Clip*>::iterator at) { return clips_.erase(at); }
+
+	int32_t getIndexForClip(Clip* clip) const {
+		auto it = std::ranges::find(clips_, clip);
+		return (it != clips_.end()) ? static_cast<int32_t>(it - clips_.begin()) : -1;
+	}
+
+	// Standard container surface
+	[[nodiscard]] size_t size() const { return clips_.size(); }
+	[[nodiscard]] bool empty() const { return clips_.empty(); }
+	void clear() { clips_.clear(); }
+	Clip*& operator[](size_t i) { return clips_[i]; }
+	Clip* const& operator[](size_t i) const { return clips_[i]; }
+	auto begin() { return clips_.begin(); }
+	auto end() { return clips_.end(); }
+	auto begin() const { return clips_.begin(); }
+	auto end() const { return clips_.end(); }
+
+private:
+	deluge::fast_vector<Clip*> clips_;
 };

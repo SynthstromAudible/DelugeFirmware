@@ -46,18 +46,15 @@
 	{}
 #endif
 
-struct SampleCacheElement {
-	int32_t phaseIncrement;
-	int32_t timeStretchRatio;
-	int32_t skipSamplesAtStart;
-	uint32_t reversed; // Bool would be fine, but got to make it 32-bit for OrderedResizeableArrayWithMultiWordKey
-	SampleCache* cache;
-};
+// Mirrors OrderedResizeableArray::search(): returns the index of the first zone whose startPos >= key,
+// plus `comparison` (GREATER_OR_EQUAL = 0 or LESS = -1).
+static int32_t searchPercCacheZones(deluge::vector<SamplePercCacheZone> const& zones, int32_t key, int32_t comparison) {
+	auto it = std::lower_bound(zones.begin(), zones.end(), key,
+	                           [](SamplePercCacheZone const& zone, int32_t k) { return zone.startPos < k; });
+	return static_cast<int32_t>(it - zones.begin()) + comparison;
+}
 
-Sample::Sample()
-    : percCacheZones{OrderedResizeableArrayWith32bitKey(sizeof(SamplePercCacheZone)),
-                     OrderedResizeableArrayWith32bitKey(sizeof(SamplePercCacheZone))},
-      caches(sizeof(SampleCacheElement), 4), AudioFile(AudioFileType::SAMPLE) {
+Sample::Sample() : AudioFile(AudioFileType::SAMPLE) {
 	audioDataLengthBytes = 0;
 	audioDataStartPosBytes = 0;
 	lengthInSamples = 0;
@@ -94,20 +91,20 @@ Error Sample::initialize(int32_t newNumClusters) {
 	waveTableCycleSize = 2048; // Default
 	fileExplicitlySpecifiesSelfAsWaveTable = false;
 
-	return clusters.insertSampleClustersAtEnd(newNumClusters);
+	try {
+		clusters.resize(clusters.size() + newNumClusters);
+	} catch (deluge::exception&) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	return Error::NONE;
 }
 
 Sample::~Sample() {
-	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
-		clusters.getElement(c)->~SampleCluster();
-	}
-
 	deletePercCache(true);
 
-	for (int32_t i = 0; i < caches.getNumElements(); i++) {
-		SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
-		element->cache->~SampleCache();
-		delugeDealloc(element->cache);
+	for (SampleCacheElement& element : caches) {
+		element.cache->~SampleCache();
+		delugeDealloc(element.cache);
 	}
 }
 
@@ -144,7 +141,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 		}
 
 		if (!beingDestructed) {
-			percCacheZones[reversed].empty();
+			percCacheZones[reversed].clear();
 		}
 	}
 }
@@ -157,8 +154,8 @@ void Sample::markAsUnloadable() {
 	unloadable = true;
 
 	// If any Clusters in the load-queue, remove them from there
-	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
-		Cluster* cluster = clusters.getElement(c)->cluster;
+	for (int32_t c = 0; c < static_cast<int32_t>(clusters.size()); c++) {
+		Cluster* cluster = clusters[c].cluster;
 		if (cluster != nullptr) {
 			cluster->unloadable = true;
 			audioFileManager.loadingQueue.erase(cluster);
@@ -177,18 +174,17 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 		skipSamplesAtStart = lengthInSamples - sampleHolder->getEndPos(false);
 	}
 
-	uint32_t keyWords[4];
-	keyWords[0] = phaseIncrement;
-	keyWords[1] = timeStretchRatio;
-	keyWords[2] = skipSamplesAtStart;
-	keyWords[3] = reversed;
-	int32_t i = caches.searchMultiWordExact(keyWords);
+	std::array<uint32_t, 4> keyWords = {static_cast<uint32_t>(phaseIncrement), static_cast<uint32_t>(timeStretchRatio),
+	                                    static_cast<uint32_t>(skipSamplesAtStart), static_cast<uint32_t>(reversed)};
+	auto cacheKeyLess = [](SampleCacheElement const& element, std::array<uint32_t, 4> const& key) {
+		return element.key() < key;
+	};
+	auto it = std::lower_bound(caches.begin(), caches.end(), keyWords, cacheKeyLess);
 
 	// If it already existed...
-	if (i != -1) {
+	if (it != caches.end() && it->key() == keyWords) {
 		*created = false;
-		SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
-		return element->cache;
+		return it->cache;
 	}
 
 	// Or if still here, it didn't already exist.
@@ -223,21 +219,19 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 		return nullptr;
 	}
 
-	i = caches.insertAtKeyMultiWord(keyWords);
-	if (i == -1) { // If error
-		delugeDealloc(memory);
-		return nullptr;
-	}
-
 	auto* samplePitchAdjustment = new (memory) SampleCache(this, numClusters, lengthInBytesCached, phaseIncrement,
 	                                                       timeStretchRatio, skipSamplesAtStart, reversed);
 
-	SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
-	element->phaseIncrement = phaseIncrement;
-	element->timeStretchRatio = timeStretchRatio;
-	element->cache = samplePitchAdjustment;
-	element->skipSamplesAtStart = skipSamplesAtStart;
-	element->reversed = reversed;
+	try {
+		// Re-search: the cache-memory allocation above may have run other code, so don't trust the old iterator.
+		it = std::lower_bound(caches.begin(), caches.end(), keyWords, cacheKeyLess);
+		caches.insert(it, SampleCacheElement{phaseIncrement, timeStretchRatio, skipSamplesAtStart,
+		                                     static_cast<bool>(reversed), samplePitchAdjustment});
+	} catch (deluge::exception&) {
+		samplePitchAdjustment->~SampleCache();
+		delugeDealloc(memory);
+		return nullptr;
+	}
 
 	*created = true;
 	return samplePitchAdjustment;
@@ -330,16 +324,16 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 
 	int32_t i;
 	if (!reversed) {
-		i = percCacheZones[reversed].search(startPosSamples + 1, LESS);
+		i = searchPercCacheZones(percCacheZones[reversed], startPosSamples + 1, LESS);
 	}
 	else {
-		i = percCacheZones[reversed].search(startPosSamples, GREATER_OR_EQUAL);
+		i = searchPercCacheZones(percCacheZones[reversed], startPosSamples, GREATER_OR_EQUAL);
 	}
 
 	Error error = Error::NONE;
 	SamplePercCacheZone* percCacheZone;
-	if (i >= 0 && i < percCacheZones[reversed].getNumElements()) {
-		percCacheZone = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(i);
+	if (i >= 0 && i < static_cast<int32_t>(percCacheZones[reversed].size())) {
+		percCacheZone = &percCacheZones[reversed][i];
 
 		// Primarily, we check here whether this zone ends after our start-pos. However, we also test positive if the
 		// zone's end is *almost* as far along as our start-pos but not quite. In such a case, it still makes sense to
@@ -450,17 +444,17 @@ doReturnNoError:
 		i++;
 	}
 
-	error = percCacheZones[reversed].insertAtIndex(
-	    i, 1,
-	    this); // Tell it not to steal other perc cache zones from this Sample, which would result in modification of
-	           // the same array during operation.
-	// Fortunately it also has a lock to alert if that actually somehow happened, too.
-	if (error != Error::NONE) {
+	// The zone arrays live on the external (non-stealable) region, so this growth can never steal this
+	// Sample's own perc cache Clusters and re-enter the array. There's also still a lock to alert if
+	// reentrant modification somehow happens anyway.
+	try {
+		percCacheZones[reversed].insert(percCacheZones[reversed].begin() + i, SamplePercCacheZone(startPosSamples));
+	} catch (deluge::exception&) {
 		LOCK_EXIT
-		return error;
+		return Error::INSUFFICIENT_RAM;
 	}
 
-	percCacheZone = new (percCacheZones[reversed].getElementAddress(i)) SamplePercCacheZone(startPosSamples);
+	percCacheZone = &percCacheZones[reversed][i];
 
 doLoading:
 
@@ -492,8 +486,8 @@ doLoading:
 	bool willHitNextElement = false;
 	int32_t endPosSamplesLimit;
 	SamplePercCacheZone* nextPercCacheZone;
-	if (iNext >= 0 && iNext < percCacheZones[reversed].getNumElements()) {
-		nextPercCacheZone = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(iNext);
+	if (iNext >= 0 && iNext < static_cast<int32_t>(percCacheZones[reversed].size())) {
+		nextPercCacheZone = &percCacheZones[reversed][iNext];
 		if ((endPosSamples - nextPercCacheZone->startPos) * playDirection >= 0) {
 			willHitNextElement = true;
 
@@ -568,9 +562,8 @@ doLoading:
 			percCacheNow = percCacheMemory[reversed];
 		}
 
-		Cluster* cluster =
-		    clusters.getElement(sourceClusterIndex)
-		        ->cluster; // Don't call getcluster() - that would add a reason, and potentially do loading and stuff.
+		// Don't call getCluster() - that would add a reason, and potentially do loading and stuff.
+		Cluster* cluster = clusters[sourceClusterIndex].cluster;
 		if (!cluster || !cluster->loaded) {
 			goto getOut;
 		}
@@ -679,7 +672,8 @@ doLoading:
 		if ((endPosSamples - endPosSamplesLimit) * playDirection >= 0) {
 			nextPercCacheZone->startPos = percCacheZone->startPos;
 			nextPercCacheZone->samplesAtStartWhichShouldBeReplaced = percCacheZone->samplesAtStartWhichShouldBeReplaced;
-			percCacheZones[reversed].deleteAtIndex(i);
+			percCacheZones[reversed].erase(percCacheZones[reversed].begin() + i);
+			percCacheZone = &percCacheZones[reversed][i]; // Now the merged (formerly next) zone
 		}
 
 		// Or if not...
@@ -705,7 +699,7 @@ getOut:
 	// If we failed to do the loading we wanted to, e.g. because of insufficient RAM, we need to make sure we didn't
 	// leave a 0-length zone, cos that's invalid.
 	if (percCacheZone->endPos == percCacheZone->startPos) {
-		percCacheZones[reversed].deleteAtIndex(i);
+		percCacheZones[reversed].erase(percCacheZones[reversed].begin() + i);
 	}
 
 	// Unlock now that we've finished dealing with the percCacheZones array. If the below call to
@@ -788,7 +782,7 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 				FREEZE_WITH_ERROR("EEEE");
 			}
 
-			Cluster* cluster = clusters.getElement(whichCluster)->cluster;
+			Cluster* cluster = clusters[whichCluster].cluster;
 			if (!cluster || !cluster->loaded) {
 				return false;
 			}
@@ -834,12 +828,13 @@ uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirec
 	int32_t reversed = (playDirection == 1) ? 0 : 1;
 
 	int32_t realPos = (pixellatedPos << kPercBufferReductionMagnitude) + (kPercBufferReductionSize >> 1);
-	int32_t i = percCacheZones[reversed].search(realPos + 1 - reversed, reversed ? GREATER_OR_EQUAL : LESS);
-	if (i < 0 || i >= percCacheZones[reversed].getNumElements()) {
+	int32_t i =
+	    searchPercCacheZones(percCacheZones[reversed], realPos + 1 - reversed, reversed ? GREATER_OR_EQUAL : LESS);
+	if (i < 0 || i >= static_cast<int32_t>(percCacheZones[reversed].size())) {
 		return nullptr;
 	}
 
-	SamplePercCacheZone* zone = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(i);
+	SamplePercCacheZone* zone = &percCacheZones[reversed][i];
 	if ((zone->endPos - realPos) * playDirection <= 0) {
 		return nullptr;
 	}
@@ -924,9 +919,9 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 
 	// Trim anything earlier
 	int32_t iEarlier;
-	iEarlier = percCacheZones[reversed].search(earlierBorder + reversed, comparison);
-	if (iEarlier >= 0 && iEarlier < percCacheZones[reversed].getNumElements()) {
-		SamplePercCacheZone* zoneEarlier = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(iEarlier);
+	iEarlier = searchPercCacheZones(percCacheZones[reversed], earlierBorder + reversed, comparison);
+	if (iEarlier >= 0 && iEarlier < static_cast<int32_t>(percCacheZones[reversed].size())) {
+		SamplePercCacheZone* zoneEarlier = &percCacheZones[reversed][iEarlier];
 
 		// If this zone eats into the deleted Cluster...
 		if ((zoneEarlier->endPos - earlierBorder) * playDirection > 0) {
@@ -943,20 +938,14 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 				// This is reasonably likely to fail, cos it might want to allocate new memory, but that's not allowed
 				// if it's currently allocating a Cluster, which it will be if this Cluster got stolen, which is why
 				// we're here. Oh well
-				Error error = percCacheZones[reversed].insertAtIndex(
-				    iNew, 1,
-				    this); // Also specify not to steal perc cache Clusters from this Sample. Could that actually even
-				           // happen given the above comment? Not sure.
-				if (error != Error::NONE) {
+				SamplePercCacheZone newZone(oldStartPos);
+				newZone.samplesAtStartWhichShouldBeReplaced = oldSamplesAtStartWhichShouldBeReplaced;
+				newZone.endPos = earlierBorder;
+				try {
+					percCacheZones[reversed].insert(percCacheZones[reversed].begin() + iNew, newZone);
+				} catch (deluge::exception&) {
 					D_PRINTLN("insert fail");
-					LOCK_EXIT
-					return;
 				}
-
-				SamplePercCacheZone* newZone =
-				    new (percCacheZones[reversed].getElementAddress(iNew)) SamplePercCacheZone(oldStartPos);
-				newZone->samplesAtStartWhichShouldBeReplaced = oldSamplesAtStartWhichShouldBeReplaced;
-				newZone->endPos = earlierBorder;
 				LOCK_EXIT
 				return;
 			}
@@ -970,10 +959,10 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 
 	// Trim anything later
 	int32_t iLater;
-	iLater = percCacheZones[reversed].search(laterBorder + reversed, comparison);
+	iLater = searchPercCacheZones(percCacheZones[reversed], laterBorder + reversed, comparison);
 	if ((iLater - iEarlier) * playDirection > 0) {
 
-		SamplePercCacheZone* zoneLater = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(iLater);
+		SamplePercCacheZone* zoneLater = &percCacheZones[reversed][iLater];
 
 		if ((zoneLater->endPos - laterBorder) * playDirection > 0) {
 			zoneLater->samplesAtStartWhichShouldBeReplaced =
@@ -993,7 +982,8 @@ deleteThatOneToo:
 	int32_t numToDelete = (iLater - iEarlier) * playDirection - 1;
 	if (numToDelete) {
 		int32_t deleteFrom = reversed ? (iLater + 1) : (iEarlier + 1);
-		percCacheZones[reversed].deleteAtIndex(deleteFrom, numToDelete);
+		percCacheZones[reversed].erase(percCacheZones[reversed].begin() + deleteFrom,
+		                               percCacheZones[reversed].begin() + deleteFrom + numToDelete);
 	}
 
 	LOCK_EXIT
@@ -1006,8 +996,8 @@ int32_t Sample::getFirstClusterIndexWithAudioData() {
 int32_t Sample::getFirstClusterIndexWithNoAudioData() {
 	uint32_t clusterIndex =
 	    ((audioDataStartPosBytes + audioDataLengthBytes - 1) >> Cluster::size_magnitude) + 1; // Rounds up
-	if (clusterIndex > clusters.getNumElements()) {
-		clusterIndex = clusters.getNumElements();
+	if (clusterIndex > static_cast<int32_t>(clusters.size())) {
+		clusterIndex = static_cast<int32_t>(clusters.size());
 	}
 	return clusterIndex;
 }
@@ -1329,8 +1319,7 @@ startAgain:
 	uint32_t currentClusterIndex = currentOffset >> Cluster::size_magnitude;
 	int32_t writeIndex = 0;
 
-	Cluster* cluster =
-	    clusters.getElement(currentClusterIndex)->getCluster(this, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
+	Cluster* cluster = clusters[currentClusterIndex].getCluster(this, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
 	if (!cluster) {
 		D_PRINTLN("failed to load first");
 getOut:
@@ -1355,8 +1344,8 @@ getOut:
 continueWhileLoop:
 		// If there's no "next" Cluster, load it now
 		if (!nextCluster && currentClusterIndex + 1 < getFirstClusterIndexWithNoAudioData()) {
-			nextCluster = clusters.getElement(currentClusterIndex + 1)
-			                  ->getCluster(this, currentClusterIndex + 1, CLUSTER_LOAD_IMMEDIATELY);
+			nextCluster =
+			    clusters[currentClusterIndex + 1].getCluster(this, currentClusterIndex + 1, CLUSTER_LOAD_IMMEDIATELY);
 			if (!nextCluster) {
 				audioFileManager.removeReasonFromCluster(*cluster, "imcwn4o");
 				D_PRINTLN("failed to load next");
@@ -1677,7 +1666,7 @@ doneReading:
 void Sample::convertDataOnAnyClustersIfNecessary() {
 	if (rawDataFormat != RawDataFormat::NATIVE) {
 		for (int32_t c = getFirstClusterIndexWithAudioData(); c < getFirstClusterIndexWithNoAudioData(); c++) {
-			Cluster* cluster = clusters.getElement(c)->cluster;
+			Cluster* cluster = clusters[c].cluster;
 			if (cluster != nullptr) {
 
 				// Add reason in case it would get stolen
@@ -1732,9 +1721,9 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 
 	// Count up the individual reasons, as a bug check
 	int32_t numClusterReasons = 0;
-	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
+	for (int32_t c = 0; c < static_cast<int32_t>(clusters.size()); c++) {
 
-		Cluster* cluster = clusters.getElement(c)->cluster;
+		Cluster* cluster = clusters[c].cluster;
 		if (cluster) {
 
 			if (cluster->clusterIndex != c) {
@@ -1757,9 +1746,9 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 
 	if (numClusterReasons) {
 		D_PRINTLN("reason dump---");
-		for (int32_t c = 0; c < clusters.getNumElements(); c++) {
+		for (int32_t c = 0; c < static_cast<int32_t>(clusters.size()); c++) {
 
-			Cluster* cluster = clusters.getElement(c)->cluster;
+			Cluster* cluster = clusters[c].cluster;
 			if (cluster) {
 				D_PRINT("cluster->numReasonsToBeLoaded[%d]", cluster->numReasonsToBeLoaded);
 

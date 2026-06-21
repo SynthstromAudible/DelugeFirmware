@@ -17,31 +17,34 @@
 
 #include "storage/audio/audio_file_vector.h"
 #include "storage/audio/audio_file.h"
+#include <algorithm>
+#include <strings.h>
 
-#pragma GCC diagnostic push
-// This is supported by GCC and other compilers should error (not warn), so turn off for this file
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
-
-AudioFileVector::AudioFileVector() : NamedThingVector(__builtin_offsetof(AudioFile, filePath)) {
+int32_t AudioFileVector::search(char const* searchString, bool* foundExact) const {
+	auto it = std::ranges::lower_bound(
+	    *this, searchString, [](char const* a, char const* b) { return strcasecmp(a, b) < 0; },
+	    [](AudioFile const* file) { return file->filePath.c_str(); });
+	if (foundExact != nullptr) {
+		*foundExact = (it != end() && strcasecmp((*it)->filePath.c_str(), searchString) == 0);
+	}
+	return static_cast<int32_t>(it - begin());
 }
 
-// Returns -1 if not found. All times this is called, it actually should get found - but some bugs remain, and the
-// caller must deal with these.
-int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
+int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) const {
 	bool foundExactName;
-	int32_t i = search(audioFile->filePath.c_str(), GREATER_OR_EQUAL, &foundExactName);
+	int32_t i = search(audioFile->filePath.c_str(), &foundExactName);
 	if (!foundExactName) {
 		return -1;
 	}
 
-	AudioFile* foundAudioFile = (AudioFile*)getElement(i);
+	AudioFile* foundAudioFile = (*this)[i];
 
 	// If object doesn't match, then we were looking for a Sample and got a Wavetable, or vice versa. So check
 	// neighbours.
 	if (foundAudioFile != audioFile) {
 		if (i > 0) {
 			i--;
-			foundAudioFile = (AudioFile*)getElement(i);
+			foundAudioFile = (*this)[i];
 			if (foundAudioFile == audioFile) {
 				goto gotIt;
 			}
@@ -49,10 +52,10 @@ int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 		}
 		i++; // Increment it (again). It's gotta be there... Except, some bugs?
 
-		if (i >= getNumElements()) {
+		if (i >= static_cast<int32_t>(size())) {
 			return -1;
 		}
-		foundAudioFile = (AudioFile*)getElement(i);
+		foundAudioFile = (*this)[i];
 		if (foundAudioFile != audioFile) {
 			return -1;
 		}
@@ -61,4 +64,13 @@ int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 gotIt:
 	return i;
 }
-#pragma GCC diagnostic pop
+
+std::expected<void, Error> AudioFileVector::insertElement(AudioFile* audioFile) {
+	int32_t i = search(audioFile->filePath.c_str());
+	try {
+		insert(begin() + i, audioFile);
+	} catch (deluge::exception&) {
+		return std::unexpected(Error::INSUFFICIENT_RAM);
+	}
+	return {};
+}

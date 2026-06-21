@@ -148,8 +148,8 @@ clusterSizeChangedButItsOk:
 		D_PRINTLN("cluster size changed, and smaller than original so it's ok");
 		AudioEngine::killAllVoices(); // Will also stop synth voices - too bad.
 
-		for (int32_t e = 0; e < audioFiles.getNumElements(); e++) {
-			AudioFile* thisAudioFile = (AudioFile*)audioFiles.getElement(e);
+		for (int32_t e = 0; e < static_cast<int32_t>(audioFiles.size()); e++) {
+			AudioFile* thisAudioFile = audioFiles[e];
 
 			// If AudioFile isn't used currently, take this opportunity to remove it from memory
 			if (!thisAudioFile->numReasonsToBeLoaded) {
@@ -172,9 +172,9 @@ clusterSizeChangedButItsOk:
 	// Or if cluster size stayed the same...
 	else {
 		// Go through every Sample in memory
-		for (int32_t e = 0; e < audioFiles.getNumElements(); e++) {
+		for (int32_t e = 0; e < static_cast<int32_t>(audioFiles.size()); e++) {
 
-			AudioFile* thisAudioFile = (AudioFile*)audioFiles.getElement(e);
+			AudioFile* thisAudioFile = audioFiles[e];
 
 			// If Sample isn't used currently, take this opportunity to remove it from memory
 			if (!thisAudioFile->numReasonsToBeLoaded) {
@@ -205,7 +205,7 @@ clusterSizeChangedButItsOk:
 
 					// If address of first sector remained unchanged, we can be sure enough that the file hasn't been
 					// changed
-					if (firstSector == ((Sample*)thisAudioFile)->clusters.getElement(0)->sdAddress) {}
+					if (firstSector == ((Sample*)thisAudioFile)->clusters[0].sdAddress) {}
 
 					// Otherwise
 					else {
@@ -235,8 +235,8 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 	// SampleRecorder::cardRoutine() gets called first to "detach" the Sample from the recorder. So, do this:
 	AudioEngine::doRecorderCardRoutines();
 
-	for (int32_t e = 0; e < audioFiles.getNumElements(); e++) {
-		AudioFile* audioFile = (AudioFile*)audioFiles.getElement(e);
+	for (int32_t e = 0; e < static_cast<int32_t>(audioFiles.size()); e++) {
+		AudioFile* audioFile = audioFiles[e];
 
 		if (audioFile->type == AudioFileType::SAMPLE) {
 			// If it's a temp-recorded one
@@ -383,13 +383,13 @@ bool AudioFileManager::tryToDeleteAudioFileFromMemoryIfItExists(char const* file
 
 	for (int32_t t = 0; t < 2; t++) { // Got to do this twice, just in case there's a Sample and a WaveTable.
 
-		int32_t i = audioFiles.search(filePath, GREATER_OR_EQUAL, &foundExact);
+		int32_t i = audioFiles.search(filePath, &foundExact);
 		if (!foundExact) {
 			return true; // We're fine, it didn't exist
 		}
 
 		// Ok, it's in memory. Can we delete it - is it unused?
-		AudioFile* audioFile = (AudioFile*)audioFiles.getElement(i);
+		AudioFile* audioFile = audioFiles[i];
 		if (audioFile->numReasonsToBeLoaded) {
 			return false; // Alert - not only is it in memory, but it also can't be deleted
 		}
@@ -415,7 +415,7 @@ void AudioFileManager::deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile& au
 void AudioFileManager::deleteUnusedAudioFileFromMemory(AudioFile& audioFile, int32_t i) {
 
 	// Remove AudioFile from memory
-	audioFiles.removeElement(i);
+	audioFiles.erase(audioFiles.begin() + i);
 	// audioFile->remove(); // Remove from the unused AudioFiles list, where this already must have been. Actually
 	// no, the destructor does this anyway.
 	audioFile.~AudioFile();
@@ -423,8 +423,12 @@ void AudioFileManager::deleteUnusedAudioFileFromMemory(AudioFile& audioFile, int
 }
 
 bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
-
-	return audioFiles.ensureEnoughSpaceAllocated(1);
+	try {
+		audioFiles.reserve(audioFiles.size() + 1);
+		return true;
+	} catch (deluge::exception&) {
+		return false;
+	}
 }
 
 Error AudioFileManager::setupAlternateAudioFileDir(std::string& newPath, char const* rootDir,
@@ -473,12 +477,12 @@ AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, boo
 
 	// See if it's already in memory.
 	bool foundExact;
-	int32_t audioFileI = audioFiles.search(filePath.c_str(), GREATER_OR_EQUAL, &foundExact);
+	int32_t audioFileI = audioFiles.search(filePath.c_str(), &foundExact);
 
 	// If that basic search by the file's "normal" path already found it, then great.
 	if (foundExact) {
 successfullyFoundInMemory:
-		AudioFile* foundAudioFile = (AudioFile*)audioFiles.getElement(audioFileI);
+		AudioFile* foundAudioFile = audioFiles[audioFileI];
 
 		// If correct type...
 		if (foundAudioFile->type == type) {
@@ -490,14 +494,14 @@ successfullyFoundInMemory:
 
 		if (audioFileI >= 1) {
 doTryOffset:
-			AudioFile* foundAudioFile2 = (AudioFile*)audioFiles.getElement(audioFileI + tryOffset);
+			AudioFile* foundAudioFile2 = audioFiles[audioFileI + tryOffset];
 
 			if (foundAudioFile2->type == type && !strcasecmp(filePath.c_str(), foundAudioFile2->filePath.c_str())) {
 				return foundAudioFile2;
 			}
 		}
 
-		if (tryOffset == -1 && audioFileI < audioFiles.getNumElements() - 1) {
+		if (tryOffset == -1 && audioFileI < static_cast<int32_t>(audioFiles.size()) - 1) {
 			tryOffset = 1;
 			goto doTryOffset;
 		}
@@ -551,12 +555,13 @@ waveTableCloneError:
 				return NULL;
 			}
 
-			*error = audioFiles.insertElement(newWaveTable);
+			auto inserted = audioFiles.insertElement(newWaveTable);
+			*error = inserted ? Error::NONE : inserted.error();
 
 			newWaveTable->removeReason("E397");
 			foundAudioFile->removeReason("E398");
 
-			if (*error != Error::NONE) {
+			if (!inserted) {
 				goto waveTableCloneError;
 			}
 
@@ -594,7 +599,7 @@ waveTableCloneError:
 					goto tryLoadingFromCard;
 				}
 
-				audioFileI = audioFiles.search(searchPath.c_str(), GREATER_OR_EQUAL, &foundExact);
+				audioFileI = audioFiles.search(searchPath.c_str(), &foundExact);
 				if (foundExact) {
 					// Tiny bit cheeky, but we're going to update the file path actually stored in the AudioFile to
 					// reflect this alternate location, which will no longer be considered alternate.
@@ -820,8 +825,7 @@ ramError:
 
 		while (true) {
 
-			((Sample*)audioFile)->clusters.getElement(currentClusterIndex)->sdAddress =
-			    clst2sect(&fileSystem, currentSDCluster);
+			((Sample*)audioFile)->clusters[currentClusterIndex].sdAddress = clst2sect(&fileSystem, currentSDCluster);
 
 			currentClusterIndex++;
 			if (currentClusterIndex >= numClusters) {
@@ -883,8 +887,9 @@ audioFileError:
 		return NULL;
 	}
 
-	*error = audioFiles.insertElement(audioFile);
-	if (*error != Error::NONE) {
+	auto insertedFile = audioFiles.insertElement(audioFile);
+	if (!insertedFile) {
+		*error = insertedFile.error();
 		goto audioFileError;
 	}
 
@@ -987,7 +992,7 @@ getOutEarly:
 
 	DRESULT result =
 	    disk_read_without_streaming_first(deluge_block_sd_unit(), (BYTE*)cluster.data,
-	                                      sample->clusters.getElement(cluster.clusterIndex)->sdAddress, numSectors);
+	                                      sample->clusters[cluster.clusterIndex].sdAddress, numSectors);
 
 #if REPORT_LOAD_TIME
 	uint16_t endTime = MTU2.TCNT_0;
@@ -1028,7 +1033,7 @@ getOutEarly:
 
 	// Give extra bytes to previous Cluster
 	if (clusterIndex > 0) {
-		Cluster* prevCluster = sample->clusters.getElement(cluster.clusterIndex - 1)->cluster;
+		Cluster* prevCluster = sample->clusters[cluster.clusterIndex - 1].cluster;
 
 		if (prevCluster && prevCluster->loaded) {
 
@@ -1094,8 +1099,8 @@ getOutEarly:
 	}
 
 	// Grab extra bytes from next Cluster
-	if (clusterIndex < sample->clusters.getNumElements() - 1) {
-		Cluster* nextCluster = sample->clusters.getElement(cluster.clusterIndex + 1)->cluster;
+	if (clusterIndex < static_cast<int32_t>(sample->clusters.size()) - 1) {
+		Cluster* nextCluster = sample->clusters[cluster.clusterIndex + 1].cluster;
 
 		if (nextCluster && nextCluster->loaded) {
 
@@ -1214,7 +1219,7 @@ copy7ToMe:
 	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter) {
 		FREEZE_WITH_ERROR("i037");
 	}
-	if (cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster != &cluster) {
+	if (cluster.sample->clusters[cluster.clusterIndex].cluster != &cluster) {
 		FREEZE_WITH_ERROR("E438");
 	}
 #endif
@@ -1381,7 +1386,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 		if (loadingQueue.erase(&cluster) || deletingSong) {
 
 			// Tell its Cluster to forget it exists
-			cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster = NULL;
+			cluster.sample->clusters[cluster.clusterIndex].cluster = NULL;
 
 			delete &cluster; // It contains nothing, so completely recycle it
 		}

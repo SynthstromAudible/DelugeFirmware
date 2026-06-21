@@ -161,12 +161,13 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			bool shouldInterpolateRegionStart = false;
 
 			if (!reversed
-			    && nodes.getNumElements()) { // Yeah turns out we just don't need the result from this if we're
-				                             // reversed. RIP the work I put into making this code reverse-compatible.
-				int32_t prevNodeI = nodes.search(livePos + (int32_t)reversed, reversed ? GREATER_OR_EQUAL : LESS);
-				if (prevNodeI >= 0 && prevNodeI < nodes.getNumElements()) { // If there was a Node before livePos...
+			    && std::ssize(nodes)) { // Yeah turns out we just don't need the result from this if we're
+				                        // reversed. RIP the work I put into making this code reverse-compatible.
+				// The old GREATER_OR_EQUAL/LESS comparison arg was literally an offset added to the lower bound
+				int32_t prevNodeI = nodes.firstAtOrAfter(livePos + (int32_t)reversed) - (reversed ? 0 : 1);
+				if (prevNodeI >= 0 && prevNodeI < std::ssize(nodes)) { // If there was a Node before livePos...
 investigatePrevNode:
-					ParamNode* prevNode = (ParamNode*)nodes.getElementAddress(prevNodeI);
+					ParamNode* prevNode = (ParamNode*)&nodes[prevNodeI];
 					int32_t ticksAgo = livePos - prevNode->pos;
 					if (reversed) {
 						ticksAgo = -ticksAgo;
@@ -186,7 +187,7 @@ investigatePrevNode:
 					// If livePos was close enough to 0 that we need to look at wrapped Nodes back around on the
 					// right...
 					if (timeSinceLoopPoint * timePerInternalTick < TIME_TO_INTERPOLATE_WITHIN) {
-						prevNodeI = reversed ? 0 : (nodes.getNumElements() - 1);
+						prevNodeI = reversed ? 0 : (std::ssize(nodes) - 1);
 						goto investigatePrevNode;
 					}
 				}
@@ -226,13 +227,13 @@ investigatePrevNode:
 
 				if (reversed) {
 					int32_t iFurtherRight = leftI + 2;
-					if (iFurtherRight >= nodes.getNumElements()) {
-						iFurtherRight -= nodes.getNumElements();
+					if (iFurtherRight >= std::ssize(nodes)) {
+						iFurtherRight -= std::ssize(nodes);
 					}
-					if (iFurtherRight >= nodes.getNumElements()) {
-						iFurtherRight -= nodes.getNumElements();
+					if (iFurtherRight >= std::ssize(nodes)) {
+						iFurtherRight -= std::ssize(nodes);
 					}
-					ParamNode* nodeFurtherRight = nodes.getElement(iFurtherRight);
+					ParamNode* nodeFurtherRight = &nodes[iFurtherRight];
 					nodeFurtherRight->interpolated = true; // Imperfect, but sorta have to.
 				}
 			}
@@ -240,8 +241,7 @@ investigatePrevNode:
 			// Now that we've definitely left any previous nodes alone, see if they form a linear run and we can delete
 			// some of them? We'll just not bother with this if reversed, for now... or ever...
 			if (mayDeleteNodesInLinearRun && !reversed
-			    && modelStack->paramCollection->mayParamInterpolate(modelStack->paramId)
-			    && nodes.getNumElements() >= 3) {
+			    && modelStack->paramCollection->mayParamInterpolate(modelStack->paramId) && std::ssize(nodes) >= 3) {
 				bool backtrackingCouldLoopBackToEnd =
 				    modelStack->getTimelineCounter()
 				        ->backtrackingCouldLoopBackToEnd(); // Wait, I can no longer see why this matters...
@@ -250,7 +250,7 @@ investigatePrevNode:
 					if (!backtrackingCouldLoopBackToEnd) {
 						goto skipThat;
 					}
-					prevI = nodes.getNumElements() - 1;
+					prevI = std::ssize(nodes) - 1;
 				}
 				deleteRedundantNodeInLinearRun(prevI, effectiveLength, backtrackingCouldLoopBackToEnd);
 
@@ -267,8 +267,8 @@ skipThat: {}
 			automationChanged = true;
 
 #if ALPHA_OR_BETA_VERSION
-			if (nodes.getNumElements()) {
-				ParamNode* rightmostNode = nodes.getElement(nodes.getNumElements() - 1);
+			if (!nodes.empty()) {
+				ParamNode* rightmostNode = &nodes[std::ssize(nodes) - 1];
 				if (rightmostNode->pos >= effectiveLength) {
 					FREEZE_WITH_ERROR("llll");
 				}
@@ -278,7 +278,7 @@ skipThat: {}
 
 		// Or if not recording...
 		else {
-			if (nodes.getNumElements()) {
+			if (!nodes.empty()) {
 				renewedOverridingAtTime = AudioEngine::audioSampleTimer;
 				if (renewedOverridingAtTime <= 1) {
 					renewedOverridingAtTime = 0xFFFFFFFF;
@@ -288,7 +288,7 @@ skipThat: {}
 	}
 
 	// If still unautomated (or not currently playing), record value change
-	if (!nodes.getNumElements() || !isPlaying) {
+	if (nodes.empty() || !isPlaying) {
 		if (value != currentValue) {
 			actionLogger.recordUnautomatedParamChange(modelStack);
 		}
@@ -304,11 +304,11 @@ getOut:
 bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
                                                bool mayLoopAroundBackToEnd) {
 
-	if (nodes.getNumElements() < 3) {
+	if (std::ssize(nodes) < 3) {
 		return false;
 	}
 
-	ParamNode* lastNodeInRun = nodes.getElement(lastNodeInRunI);
+	ParamNode* lastNodeInRun = &nodes[lastNodeInRunI];
 
 	// But first, now that we've moved on from prevNode, see if prevNode concluded a linear run of nodes for which we
 	// can now delete the middle node
@@ -317,9 +317,9 @@ bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t e
 		if (!mayLoopAroundBackToEnd) {
 			return false;
 		}
-		middleNodeInRunI = nodes.getNumElements() - 1;
+		middleNodeInRunI = std::ssize(nodes) - 1;
 	}
-	ParamNode* middleNodeInRun = nodes.getElement(middleNodeInRunI);
+	ParamNode* middleNodeInRun = &nodes[middleNodeInRunI];
 
 	if (lastNodeInRun->interpolated || !middleNodeInRun->interpolated) {
 
@@ -328,14 +328,14 @@ bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t e
 			if (!mayLoopAroundBackToEnd) {
 				return false;
 			}
-			firstNodeInRunI = nodes.getNumElements() - 1;
+			firstNodeInRunI = std::ssize(nodes) - 1;
 		}
-		ParamNode* firstNodeInRun = nodes.getElement(firstNodeInRunI);
+		ParamNode* firstNodeInRun = &nodes[firstNodeInRunI];
 
 		if (middleNodeInRun->value == firstNodeInRun->value
 		    && (middleNodeInRun->value == lastNodeInRun->value || !middleNodeInRun->interpolated)) {
 removeMiddleNodeInRun:
-			nodes.deleteAtIndex(middleNodeInRunI);
+			nodes.erase(nodes.begin() + middleNodeInRunI);
 			return true;
 		}
 
@@ -376,7 +376,7 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 	}
 
 	else {
-		nodes.empty();
+		nodes.clear();
 	}
 
 	valueIncrementPerHalfTick = 0;
@@ -390,7 +390,7 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 // Beware. As this will do no notifying, the caller must ensure that any required notification is done.
 // I.e. a ParamSet must be notified if automation is deleted.
 void AutoParam::deleteAutomationBasicForSetup() {
-	nodes.empty();
+	nodes.clear();
 	valueIncrementPerHalfTick = 0;
 	renewedOverridingAtTime = 0;
 }
@@ -401,7 +401,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
                                      bool mayInterpolate, bool mustUpdateValueAtEveryNode) {
 
 	// If no automation...
-	if (!nodes.getNumElements()) {
+	if (nodes.empty()) {
 		return 2147483647;
 	}
 
@@ -409,17 +409,18 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
 	// Find next node - here or further along in our direction
+	// The search "direction" is an offset on the lower-bound index: -1 when reversed (the old LESS), else 0
 	int32_t searchDirection = -(int32_t)reversed;
 	int32_t searchPos = currentPos + (int32_t)reversed;
-	int32_t iJustReached = nodes.search(searchPos, searchDirection);
+	int32_t iJustReached = nodes.firstAtOrAfter(searchPos) + searchDirection;
 	if (iJustReached < 0) {
-		iJustReached += nodes.getNumElements();
+		iJustReached += std::ssize(nodes);
 	}
-	else if (iJustReached >= nodes.getNumElements()) {
+	else if (iJustReached >= std::ssize(nodes)) {
 		iJustReached = 0;
 	}
 
-	ParamNode* nodeJustReached = nodes.getElement(iJustReached);
+	ParamNode* nodeJustReached = &nodes[iJustReached];
 	int32_t howFarUntilThisNode = nodeJustReached->pos - currentPos;
 
 	// If we haven't reached the next node yet...
@@ -455,7 +456,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 
 	// Now start thinking about the *next* node, which we'll get to in a while
 	int32_t iRight = iJustReached + 1;
-	if (iRight >= nodes.getNumElements()) {
+	if (iRight >= std::ssize(nodes)) {
 		iRight = 0;
 	}
 
@@ -464,9 +465,9 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	if (reversed) {
 		int32_t iLeft = iJustReached - 1;
 		if (iLeft < 0) {
-			iLeft += nodes.getNumElements();
+			iLeft += std::ssize(nodes);
 		}
-		ParamNode* nodeToLeft = nodes.getElement(iLeft);
+		ParamNode* nodeToLeft = &nodes[iLeft];
 
 		if (!noNeedToJumpToValue) {
 			valueJustReached = nodeToLeft->value; // At the time of this condition, weInterpolatedHere still means the
@@ -479,7 +480,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		nextNodeInOurDirection = nodeToLeft;
 	}
 	else {
-		ParamNode* nodeToRight = nodes.getElement(iRight);
+		ParamNode* nodeToRight = &nodes[iRight];
 		nextNodeInOurDirection = nodeToRight;
 	}
 
@@ -591,7 +592,7 @@ recordOverNodeJustReached:
 					    && modelStack->getTimelineCounter() == modelStack->song) {
 
 						// If there's already a node at 0, we don't need to do anything
-						if (nodes.search(1, LESS) >= 0) {
+						if (nodes.firstAtOrAfter(1) - 1 >= 0) {
 							insertingNodeAtEndOfClearing = false; // Set this to false, but that doesn't mean we want to
 							                                      // do the "else" condition below, so skip past it
 							goto adjustNodeJustReached;
@@ -686,11 +687,11 @@ adjustNodeJustReached:
 				}
 
 				if (insertingNodeAtEndOfClearing) {
-					int32_t iNew = nodes.insertAtKey(
-					    posOverridingEnds); // Can only do this now, after updating nodeJustReached, above
+					int32_t iNew = nodes.insertSorted(posOverridingEnds)
+					                   .value_or(-1); // Can only do this now, after updating nodeJustReached, above
 					if (iNew != -1) {
 						iRight = iNew;
-						nextNodeInOurDirection = nodes.getElement(iRight);
+						nextNodeInOurDirection = &nodes[iRight];
 						nextNodeInOurDirection->value = valueOverridingEnds;
 						nextNodeInOurDirection->interpolated = newNodeShouldBeInterpolated;
 
@@ -710,11 +711,11 @@ adjustNodeJustReached:
 				// Figure out what's the next node, again - because we just possibly deleted a node, and that's possibly
 				// changed the storage
 				if (needToReGetNextNode) { // Not doing this if reversed.
-					iRight = nodes.search(currentPos + 1, GREATER_OR_EQUAL);
-					if (iRight == nodes.getNumElements()) {
+					iRight = nodes.firstAtOrAfter(currentPos + 1);
+					if (iRight == std::ssize(nodes)) {
 						iRight = 0;
 					}
-					nextNodeInOurDirection = nodes.getElement(iRight);
+					nextNodeInOurDirection = &nodes[iRight];
 				}
 
 #if ENABLE_SEQUENTIALITY_TESTS
@@ -759,11 +760,11 @@ getOut:
 	// Ok, no node should be at or past the effectiveLength. Sometimes somehow this is still happening - see
 	// https://forums.synthstrom.com/discussion/4499/v4-0-0-beta8-freeze-while-recording-long-mpe-clips-jjjj I'm so
 	// sorry, but I'm going to just make it manually fix itself, here.
-	if (nodes.getNumElements()) {
-		int32_t i = nodes.getNumElements() - 1;
-		ParamNode* rightmostNode = nodes.getElement(i);
+	if (!nodes.empty()) {
+		int32_t i = std::ssize(nodes) - 1;
+		ParamNode* rightmostNode = &nodes[i];
 		if (rightmostNode->pos >= effectiveLength) {
-			nodes.deleteAtIndex(i);
+			nodes.erase(nodes.begin() + i);
 			// FREEZE_WITH_ERROR("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
 		}
 	}
@@ -907,18 +908,18 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 
 		if (wrapping) {
 			if (resultingIndexes[0]) {
-				nodes.deleteAtIndex(0, resultingIndexes[0]);
+				nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + resultingIndexes[0]);
 			}
-			int32_t numAtEnd = nodes.getNumElements() - resultingIndexes[1];
+			int32_t numAtEnd = std::ssize(nodes) - resultingIndexes[1];
 			if (numAtEnd) {
-				nodes.deleteAtIndex(resultingIndexes[1], numAtEnd);
+				nodes.erase(nodes.begin() + resultingIndexes[1], nodes.begin() + resultingIndexes[1] + numAtEnd);
 			}
 		}
 
 		else {
 			int32_t numToDelete = resultingIndexes[1] - resultingIndexes[0];
 			if (numToDelete) {
-				nodes.deleteAtIndex(resultingIndexes[0], numToDelete);
+				nodes.erase(nodes.begin() + resultingIndexes[0], nodes.begin() + resultingIndexes[0] + numToDelete);
 			}
 		}
 
@@ -931,24 +932,24 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 }
 
 int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
-	int32_t i = nodes.search(pos, GREATER_OR_EQUAL);
+	int32_t i = nodes.firstAtOrAfter(pos);
 	ParamNode* ourNode;
 
 	// Check there's not already a node there
-	if (i < nodes.getNumElements()) {
-		ourNode = nodes.getElement(i);
+	if (i < std::ssize(nodes)) {
+		ourNode = &nodes[i];
 		if (ourNode->pos == pos) {
 			goto setupNode;
 		}
 	}
 
 	{
-		Error error = nodes.insertAtIndex(i);
+		Error error = nodes.insertAt(i).error_or(Error::NONE);
 		if (error != Error::NONE) {
 			return -1;
 		}
 	}
-	ourNode = nodes.getElement(i);
+	ourNode = &nodes[i];
 	ourNode->pos = pos;
 setupNode:
 	ourNode->value = value;
@@ -1026,9 +1027,9 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		}
 
 		// If we're in the region right now...
-		mostRecentI = nodes.search(modelStack->getLivePos() + !modelStack->isCurrentlyPlayingReversed(), LESS);
+		mostRecentI = nodes.firstAtOrAfter(modelStack->getLivePos() + !modelStack->isCurrentlyPlayingReversed()) - 1;
 		if (mostRecentI == -1) {
-			mostRecentI = nodes.getNumElements() - 1;
+			mostRecentI = std::ssize(nodes) - 1;
 		}
 		if (mostRecentI == firstI) {
 			valueIncrementPerHalfTick = 0;
@@ -1065,7 +1066,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	//	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
 	// #endif
 
-	if (nodes.getNumElements() && nodes.getFirst()->pos < 0) {
+	if (std::ssize(nodes) && nodes.tryGet(0)->pos < 0) {
 		FREEZE_WITH_ERROR("E436");
 	}
 	// Should probably also check that stuff doesn't exist too far right - but that's a bit more complicated.
@@ -1176,8 +1177,8 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	edgeNodes[REGION_EDGE_RIGHT] = nullptr;
 
 	for (int32_t i = 0; i < 2; i++) {
-		if (edgeIndexes[i] < nodes.getNumElements()) {
-			ParamNode* potentialEdgeNode = nodes.getElement(edgeIndexes[i]);
+		if (edgeIndexes[i] < std::ssize(nodes)) {
+			ParamNode* potentialEdgeNode = &nodes[edgeIndexes[i]];
 			if (potentialEdgeNode->pos == edgePositions[i]) {
 				edgeNodes[i] = potentialEdgeNode;
 			}
@@ -1210,7 +1211,7 @@ getValueNormalWay:
 
 		// Otherwise, insert one
 		else {
-			Error error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]);
+			Error error = nodes.insertAt(edgeIndexes[REGION_EDGE_RIGHT]).error_or(Error::NONE);
 			if (error != Error::NONE) {
 				return -1;
 			}
@@ -1219,7 +1220,7 @@ getValueNormalWay:
 			// it again anyway.
 		}
 
-		edgeNodes[REGION_EDGE_RIGHT] = nodes.getElement(edgeIndexes[REGION_EDGE_RIGHT]);
+		edgeNodes[REGION_EDGE_RIGHT] = &nodes[edgeIndexes[REGION_EDGE_RIGHT]];
 		edgeNodes[REGION_EDGE_RIGHT]->pos = edgePositions[REGION_EDGE_RIGHT];
 	}
 	edgeNodes[REGION_EDGE_RIGHT]->value = reversed ? startValue : valueAtLateEdge;
@@ -1230,13 +1231,13 @@ getValueNormalWay:
 
 		// If there's a further-right node we can just grab and repurpose...
 		if (edgeIndexes[REGION_EDGE_RIGHT] != edgeIndexes[REGION_EDGE_LEFT]
-		    && edgeIndexes[REGION_EDGE_LEFT] < nodes.getNumElements()) {
+		    && edgeIndexes[REGION_EDGE_LEFT] < std::ssize(nodes)) {
 			// Cool, we can just update the "pos" of that node.
 		}
 
 		// Otherwise, insert one
 		else {
-			Error error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]);
+			Error error = nodes.insertAt(edgeIndexes[REGION_EDGE_LEFT]).error_or(Error::NONE);
 			if (error != Error::NONE) {
 				return -1;
 			}
@@ -1245,7 +1246,7 @@ getValueNormalWay:
 			// it again anyway.
 		}
 
-		edgeNodes[REGION_EDGE_LEFT] = nodes.getElement(edgeIndexes[REGION_EDGE_LEFT]);
+		edgeNodes[REGION_EDGE_LEFT] = &nodes[edgeIndexes[REGION_EDGE_LEFT]];
 		edgeNodes[REGION_EDGE_LEFT]->pos = edgePositions[REGION_EDGE_LEFT];
 	}
 	edgeNodes[REGION_EDGE_LEFT]->value = reversed ? valueAtLateEdge : startValue;
@@ -1254,17 +1255,17 @@ getValueNormalWay:
 	// Now delete extra nodes. This first bit will delete all of them if no wrap, or the before-wrap bit if there is a
 	// wrap.
 	int32_t indexToDeleteFrom = edgeIndexes[REGION_EDGE_LEFT] + 1;
-	int32_t indexToDeleteTo = anyWrap ? nodes.getNumElements() : edgeIndexes[REGION_EDGE_RIGHT];
+	int32_t indexToDeleteTo = anyWrap ? std::ssize(nodes) : edgeIndexes[REGION_EDGE_RIGHT];
 	int32_t numToDelete = indexToDeleteTo - indexToDeleteFrom;
 	if (numToDelete) {
-		nodes.deleteAtIndex(indexToDeleteFrom, numToDelete);
+		nodes.erase(nodes.begin() + indexToDeleteFrom, nodes.begin() + indexToDeleteFrom + numToDelete);
 		// Theoretically we'd decrease edgeIndexes[REGION_EDGE_RIGHT] if no wrap, but it never gets used again in that
 		// case of no-wrap.
 	}
 
 	// And now delete the nodes after the wrap if necessary.
 	if (anyWrap && edgeIndexes[REGION_EDGE_RIGHT]) {
-		nodes.deleteAtIndex(0, edgeIndexes[REGION_EDGE_RIGHT]);
+		nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + edgeIndexes[REGION_EDGE_RIGHT]);
 		edgeIndexes[REGION_EDGE_LEFT] -= edgeIndexes[REGION_EDGE_RIGHT];
 	}
 
@@ -1273,8 +1274,8 @@ getValueNormalWay:
 	    "E433"); // Was "GGGG". Leo got. Sven got. (Probably now solved). (Nope, Michael got on V4.1.0-alpha10 (OLED)!)
 #endif
 #if ALPHA_OR_BETA_VERSION
-	if (nodes.getNumElements()) {
-		ParamNode* rightmostNode = nodes.getElement(nodes.getNumElements() - 1);
+	if (!nodes.empty()) {
+		ParamNode* rightmostNode = &nodes[std::ssize(nodes) - 1];
 		if (rightmostNode->pos >= effectiveLength) {
 			FREEZE_WITH_ERROR("iiii");
 		}
@@ -1289,18 +1290,18 @@ void AutoParam::homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int3
 
 	nodes.testSequentiality("E317");
 
-	int32_t startI = nodes.search(pos, GREATER_OR_EQUAL);
-	int32_t endI = nodes.search(regionEnd, GREATER_OR_EQUAL);
+	int32_t startI = nodes.firstAtOrAfter(pos);
+	int32_t endI = nodes.firstAtOrAfter(regionEnd);
 
-	if (endI == startI + 1 || (endI == 0 && startI == nodes.getNumElements() - 1)) {
+	if (endI == startI + 1 || (endI == 0 && startI == std::ssize(nodes) - 1)) {
 		// Fine
 	}
 	else {
 		FREEZE_WITH_ERROR("E119");
 	}
 
-	ParamNode* startNode = nodes.getElement(startI);
-	ParamNode* endNode = nodes.getElement(endI);
+	ParamNode* startNode = nodes.tryGet(startI);
+	ParamNode* endNode = nodes.tryGet(endI);
 
 	if (!startNode || !endNode) {
 		FREEZE_WITH_ERROR("E118");
@@ -1331,21 +1332,21 @@ int32_t AutoParam::getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* m
 // going.
 int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
 
-	if (!nodes.getNumElements()) {
+	if (nodes.empty()) {
 		return currentValue;
 	}
 
-	int32_t rightI = nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
-	if (rightI >= nodes.getNumElements()) {
+	int32_t rightI = nodes.firstAtOrAfter(pos + (int32_t)!reversed);
+	if (rightI >= std::ssize(nodes)) {
 		rightI = 0;
 	}
-	ParamNode* rightNode = nodes.getElement(rightI);
+	ParamNode* rightNode = &nodes[rightI];
 
 	int32_t leftI = rightI - 1;
 	if (leftI < 0) {
-		leftI += nodes.getNumElements();
+		leftI += std::ssize(nodes);
 	}
-	ParamNode* leftNode = nodes.getElement(leftI);
+	ParamNode* leftNode = &nodes[leftI];
 	if (!rightNode->interpolated) {
 returnLeftNodeValue:
 		return leftNode->value;
@@ -1381,7 +1382,7 @@ returnLeftNodeValue:
 
 // Returns whether a change was made to currentValue
 bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack) {
-	if (!nodes.getNumElements()) {
+	if (nodes.empty()) {
 		return false;
 	}
 
@@ -1394,27 +1395,27 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 
 	valueIncrementPerHalfTick = 0; // We may calculate this, below
 	renewedOverridingAtTime = 0;
-	if (nodes.getNumElements()) {
+	if (!nodes.empty()) {
 		int32_t oldValue = currentValue;
 		currentValue = getValueAtPos(pos, modelStack, reversed);
 
 		// Get next node
-		int32_t rightI = nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
-		if (rightI == nodes.getNumElements()) {
+		int32_t rightI = nodes.firstAtOrAfter(pos + (int32_t)!reversed);
+		if (rightI == std::ssize(nodes)) {
 			rightI = 0;
 		}
 		ParamNode* nextNodeOurDirection =
-		    nodes.getElement(rightI); // This will initially point to the node to the right, regardless of direction;
-		                              // it'll be corrected to left if we're reversed below.
+		    &nodes[rightI]; // This will initially point to the node to the right, regardless of direction;
+		                    // it'll be corrected to left if we're reversed below.
 
 		if (nextNodeOurDirection->interpolated) {
 
 			if (reversed) {
 				int32_t leftI = rightI - 1;
 				if (leftI < 0) {
-					leftI += nodes.getNumElements();
+					leftI += std::ssize(nodes);
 				}
-				nextNodeOurDirection = nodes.getElement(leftI);
+				nextNodeOurDirection = &nodes[leftI];
 			}
 
 			// Setup interpolation from the pos we're at now
@@ -1431,20 +1432,21 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 
 	if (copyAutomation) {
 
-		int32_t numNodes = nodes.getNumElements();
+		int32_t numNodes = std::ssize(nodes);
 
 		if (reverseDirectionWithLength && numNodes) {
-			// Sneakily and temporarily clone this - still pointing to the old AutoParam's nodes' memory.
-			ParamNodeVector oldNodes = nodes;
-			nodes.init();
-
-			error = nodes.insertAtIndex(0, numNodes);
+			// 'nodes' is currently a byte-copy aliasing the old AutoParam's buffer. Deep-copy the data out
+			// (reading through the alias is safe), then detach and rebuild reversed.
+			ParamNodeVector oldNodes;
+			bool cloned = oldNodes.cloneFrom(&nodes);
+			nodes.init(); // Detach from the old AutoParam's buffer, which it still owns
+			error = cloned ? nodes.insertAt(0, numNodes).error_or(Error::NONE) : Error::INSUFFICIENT_RAM;
 
 			if (error == Error::NONE) {
-				ParamNode* rightmostNode = (ParamNode*)oldNodes.getElementAddress(numNodes - 1);
+				ParamNode* rightmostNode = &oldNodes[numNodes - 1];
 				int32_t oldNodeToLeftValue = rightmostNode->value;
 
-				ParamNode* leftmostNode = (ParamNode*)oldNodes.getElementAddress(0);
+				ParamNode* leftmostNode = &oldNodes[0];
 				bool anythingAtZero = !leftmostNode->pos;
 
 				for (int32_t iOld = 0; iOld < numNodes; iOld++) {
@@ -1453,14 +1455,14 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 						iNew += numNodes;
 					}
 
-					ParamNode* oldNode = (ParamNode*)oldNodes.getElementAddress(iOld);
-					ParamNode* newNode = (ParamNode*)nodes.getElementAddress(iNew);
+					ParamNode* oldNode = &oldNodes[iOld];
+					ParamNode* newNode = (ParamNode*)&nodes[iNew];
 
 					int32_t iOldToRight = iOld + 1;
 					if (iOldToRight == numNodes) {
 						iOldToRight = 0;
 					}
-					ParamNode* oldNodeToRight = (ParamNode*)oldNodes.getElementAddress(iOldToRight);
+					ParamNode* oldNodeToRight = &oldNodes[iOldToRight];
 
 					int32_t newPos = -oldNode->pos;
 					if (newPos < 0) {
@@ -1477,9 +1479,7 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 				}
 			}
 
-			// Because this is about to get destructed, we need to stop it pointing to the old
-			// AutoParam's nodes' memory, cos we don't want that getting deallocated.
-			oldNodes.init();
+			// oldNodes owns a real deep copy now and frees it on destruction.
 		}
 
 		else {
@@ -1497,19 +1497,19 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 // Wait, surely this should be undoable?
 void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong) {
 
-	if (!nodes.getNumElements()) {
+	if (nodes.empty()) {
 		return;
 	}
 
 	// When recording session to arranger, you may occasionally end up with nodes beyond the Clip's length. These need
 	// to be removed now
-	ParamNode* firstNode = nodes.getFirst();
+	ParamNode* firstNode = nodes.tryGet(0);
 	deleteNodesBeyondPos(oldLength + firstNode->pos);
 
 	// If pingponging, we have to do our own complicated thing.
 	if (shouldPingpong) {
 
-		ParamNode* nodeAfterWrap = (ParamNode*)nodes.getElementAddress(0);
+		ParamNode* nodeAfterWrap = (ParamNode*)&nodes[0];
 		bool nothingAtZero = nodeAfterWrap->pos;
 
 		// We may have to create a new node at pos 0 to represent the fact that a pingpong would suddenly occur in the
@@ -1519,7 +1519,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 
 			// This block is a quick simple alternative to calling getValueAtPos(), which would also require a
 			// modelStack and check for a bunch of unnecessary stuff.
-			ParamNode* nodeBeforeWrap = (ParamNode*)nodes.getElementAddress(nodes.getNumElements() - 1);
+			ParamNode* nodeBeforeWrap = (ParamNode*)&nodes[std::ssize(nodes) - 1];
 
 			bool nodeAfterWrapIsInterpolated =
 			    nodeAfterWrap->interpolated; // Make copy, cos we need this even after our pointer is no longer valid,
@@ -1537,12 +1537,12 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 				valueAtZero = nodeBeforeWrap->value;
 			}
 
-			Error error = nodes.insertAtIndex(0);
+			Error error = nodes.insertAt(0).error_or(Error::NONE);
 			if (error != Error::NONE) {
 				return;
 			}
 
-			ParamNode* zeroNode = (ParamNode*)nodes.getElementAddress(0);
+			ParamNode* zeroNode = (ParamNode*)&nodes[0];
 			zeroNode->pos = 0;
 			zeroNode->value = valueAtZero;
 			zeroNode->interpolated = nodeAfterWrapIsInterpolated;
@@ -1553,11 +1553,11 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 		int32_t numRepeats =
 		    (uint32_t)(newLength - 1) / oldLength + 1; // Rounded up. Including first "repeat", which already exists.
 
-		int32_t numNodesBefore = nodes.getNumElements();
+		int32_t numNodesBefore = std::ssize(nodes);
 
 		int32_t numToInsert = (numRepeats - 1) * numNodesBefore;
 		if (numToInsert) { // Should always be true?
-			Error error = nodes.insertAtIndex(numNodesBefore, numToInsert);
+			Error error = nodes.insertAt(numNodesBefore, numToInsert).error_or(Error::NONE);
 			if (error != Error::NONE) {
 				return;
 			}
@@ -1577,7 +1577,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 					}
 				}
 
-				ParamNode* oldNode = (ParamNode*)nodes.getElementAddress(iOld);
+				ParamNode* oldNode = (ParamNode*)&nodes[iOld];
 				int32_t newPos = oldNode->pos;
 
 				if (r & 1) {
@@ -1603,7 +1603,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 						if (iOldToLeft < 0) {
 							iOldToLeft += numNodesBefore;
 						}
-						ParamNode* oldNodeToLeft = (ParamNode*)nodes.getElementAddress(iOldToLeft);
+						ParamNode* oldNodeToLeft = (ParamNode*)&nodes[iOldToLeft];
 						newValue = oldNodeToLeft->value;
 					}
 
@@ -1611,12 +1611,12 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 					if (iOldToRight >= numNodesBefore) {
 						iOldToRight = 0;
 					}
-					ParamNode* oldNodeToRight = (ParamNode*)nodes.getElementAddress(iOldToRight);
+					ParamNode* oldNodeToRight = (ParamNode*)&nodes[iOldToRight];
 					newInterpolated = oldNodeToRight->interpolated;
 				}
 
 				int32_t iNew = iNewWithinRepeat + numNodesBefore * r;
-				ParamNode* newNode = (ParamNode*)nodes.getElementAddress(iNew);
+				ParamNode* newNode = (ParamNode*)&nodes[iNew];
 
 				newNode->pos = newPos;
 				newNode->value = newValue;
@@ -1627,9 +1627,9 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 		}
 
 		int32_t newNumNodes = highestNodeIndex + 1;
-		int32_t numToDelete = nodes.getNumElements() - newNumNodes;
+		int32_t numToDelete = std::ssize(nodes) - newNumNodes;
 		if (numToDelete) {
-			nodes.deleteAtIndex(newNumNodes, numToDelete);
+			nodes.erase(nodes.begin() + newNumNodes, nodes.begin() + newNumNodes + numToDelete);
 		}
 	}
 
@@ -1642,17 +1642,17 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t reverseThisRepeatWithLength,
                             bool pingpongingGenerally) {
 
-	int32_t numToInsert = otherParam->nodes.getNumElements();
+	int32_t numToInsert = std::ssize(otherParam->nodes);
 	if (!numToInsert) {
 		return;
 	}
 
 	// When recording session to arranger, you may occasionally end up with nodes beyond the Clip's length. These need
 	// to be removed now
-	ParamNode* firstNode = otherParam->nodes.getFirst();
+	ParamNode* firstNode = otherParam->nodes.tryGet(0);
 	deleteNodesBeyondPos(oldLength + firstNode->pos);
 
-	ParamNode* nodeAfterWrap = (ParamNode*)otherParam->nodes.getElementAddress(0);
+	ParamNode* nodeAfterWrap = &otherParam->nodes[0];
 	bool nothingAtZero = nodeAfterWrap->pos;
 
 	// We may have to create a new node at pos 0 (of the new repeat) to represent the fact that a pingpong would
@@ -1662,20 +1662,20 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 
 		// This block is a quick simple alternative to calling getValueAtPos(), which would also require a modelStack
 		// and check for a bunch of unnecessary stuff.
-		ParamNode* nodeBeforeWrap = (ParamNode*)otherParam->nodes.getElementAddress(numToInsert - 1);
+		ParamNode* nodeBeforeWrap = &otherParam->nodes[numToInsert - 1];
 		int64_t valueDistance = (int64_t)nodeAfterWrap->value - (int64_t)nodeBeforeWrap->value;
 		int32_t ticksSinceLeftNode = oldLength - nodeBeforeWrap->pos;
 		int32_t ticksBetweenNodes = ticksSinceLeftNode + nodeAfterWrap->pos;
 		int32_t valueAtZero = nodeBeforeWrap->value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes);
 
-		int32_t newZeroNodeI = nodes.getNumElements();
+		int32_t newZeroNodeI = std::ssize(nodes);
 
-		Error error = nodes.insertAtIndex(newZeroNodeI);
+		Error error = nodes.insertAt(newZeroNodeI).error_or(Error::NONE);
 		if (error != Error::NONE) {
 			return;
 		}
 
-		ParamNode* zeroNode = (ParamNode*)nodes.getElementAddress(newZeroNodeI);
+		ParamNode* zeroNode = (ParamNode*)&nodes[newZeroNodeI];
 		zeroNode->pos = oldLength;
 		zeroNode->value = valueAtZero;
 		zeroNode->interpolated = true;
@@ -1684,8 +1684,8 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 		// array that represents our source material.
 	}
 
-	int32_t oldNumNodes = nodes.getNumElements();
-	Error error = nodes.insertAtIndex(oldNumNodes, numToInsert);
+	int32_t oldNumNodes = std::ssize(nodes);
+	Error error = nodes.insertAt(oldNumNodes, numToInsert).error_or(Error::NONE);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -1698,7 +1698,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 				iOld += numToInsert;
 			}
 
-			ParamNode* oldNode = (ParamNode*)otherParam->nodes.getElementAddress(iOld);
+			ParamNode* oldNode = &otherParam->nodes[iOld];
 			int32_t newPos = oldNode->pos;
 
 			newPos = -newPos;
@@ -1716,7 +1716,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 				if (iOldToLeft < 0) {
 					iOldToLeft += numToInsert;
 				}
-				ParamNode* oldNodeToLeft = (ParamNode*)otherParam->nodes.getElementAddress(iOldToLeft);
+				ParamNode* oldNodeToLeft = &otherParam->nodes[iOldToLeft];
 				newValue = oldNodeToLeft->value;
 			}
 
@@ -1724,11 +1724,11 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 			if (iOldToRight >= numToInsert) {
 				iOldToRight = 0;
 			}
-			ParamNode* oldNodeToRight = (ParamNode*)otherParam->nodes.getElementAddress(iOldToRight);
+			ParamNode* oldNodeToRight = &otherParam->nodes[iOldToRight];
 			newInterpolated = oldNodeToRight->interpolated;
 
 			int32_t iNew = iNewWithinRepeat + oldNumNodes;
-			ParamNode* newNode = (ParamNode*)nodes.getElementAddress(iNew);
+			ParamNode* newNode = (ParamNode*)&nodes[iNew];
 
 			newNode->pos = newPos;
 			newNode->value = newValue;
@@ -1739,8 +1739,8 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 	else {
 
 		for (int32_t i = 0; i < numToInsert; i++) {
-			ParamNode* oldNode = otherParam->nodes.getElement(i);
-			ParamNode* newNode = nodes.getElement(oldNumNodes + i);
+			ParamNode* oldNode = &otherParam->nodes[i];
+			ParamNode* newNode = &nodes[oldNumNodes + i];
 			newNode->pos = oldNode->pos + oldLength;
 			newNode->interpolated = oldNode->interpolated;
 			newNode->value = oldNode->value;
@@ -1749,22 +1749,22 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 }
 
 void AutoParam::deleteNodesBeyondPos(int32_t pos) {
-	int32_t i = nodes.search(pos, GREATER_OR_EQUAL);
-	int32_t numToDelete = nodes.getNumElements() - i;
+	int32_t i = nodes.firstAtOrAfter(pos);
+	int32_t numToDelete = std::ssize(nodes) - i;
 	if (numToDelete) {
-		nodes.deleteAtIndex(i, numToDelete);
+		nodes.erase(nodes.begin() + i, nodes.begin() + i + numToDelete);
 	}
 }
 
 void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack) {
 
 	// If no nodes, nothing to do
-	if (!nodes.getNumElements()) {
+	if (nodes.empty()) {
 		return;
 	}
 
 	// If final node is within new length, also nothing to do
-	ParamNode* lastNode = nodes.getLast();
+	ParamNode* lastNode = nodes.tryGetLast();
 	if (lastNode) { // Should always be one...
 		if (lastNode->pos < newLength) {
 			return;
@@ -1773,16 +1773,16 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 
 	// To ensure that the effective value at pos 0 remains the same even after earlier nodes deleted, we might need to
 	// add a new, non-interpolating node there.
-	bool needNewNodeAt0 = nodes.getFirst()->pos; // Deactivated for now, but I'm going to enable in the ModelStacks
-	                                             // branch, where we have a TimelineCounter here.
+	bool needNewNodeAt0 = nodes.tryGet(0)->pos; // Deactivated for now, but I'm going to enable in the ModelStacks
+	                                            // branch, where we have a TimelineCounter here.
 	int32_t oldValueAt0;
 	if (needNewNodeAt0) {
 		oldValueAt0 = getValueAtPos(0, modelStack);
 	}
 
-	int32_t newNumNodes = nodes.search(newLength, GREATER_OR_EQUAL);
+	int32_t newNumNodes = nodes.firstAtOrAfter(newLength);
 
-	if (ALPHA_OR_BETA_VERSION && newNumNodes >= nodes.getNumElements()) {
+	if (ALPHA_OR_BETA_VERSION && newNumNodes >= std::ssize(nodes)) {
 		FREEZE_WITH_ERROR("E315");
 	}
 
@@ -1793,15 +1793,15 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 		// If no action, just basic trim
 		if (!action) {
 basicTrim: {
-	int32_t numToDelete = nodes.getNumElements() - newNumNodes; // Will always be >= 1
-	nodes.deleteAtIndex(newNumNodes, numToDelete);
+	int32_t numToDelete = std::ssize(nodes) - newNumNodes; // Will always be >= 1
+	nodes.erase(nodes.begin() + newNumNodes, nodes.begin() + newNumNodes + numToDelete);
 }
 
 addNewNodeAt0IfNecessary:
 			if (needNewNodeAt0) {
-				Error error = nodes.insertAtIndex(0);
+				Error error = nodes.insertAt(0).error_or(Error::NONE);
 				if (error == Error::NONE) { // Should be fine cos we just deleted some, so some free RAM
-					ParamNode* newNode = nodes.getElement(0);
+					ParamNode* newNode = &nodes[0];
 					newNode->pos = 0;
 					newNode->value = oldValueAt0;
 					newNode->interpolated = false;
@@ -1820,14 +1820,14 @@ addNewNodeAt0IfNecessary:
 			}
 			else {
 				ParamNodeVector newNodes;
-				Error error = newNodes.insertAtIndex(0, newNumNodes);
+				Error error = newNodes.insertAt(0, newNumNodes).error_or(Error::NONE);
 				if (error != Error::NONE) {
 					goto basicTrim;
 				}
 
 				for (int32_t i = 0; i < newNumNodes; i++) {
-					ParamNode* __restrict__ sourceNode = nodes.getElement(i);
-					ParamNode* __restrict__ destNode = newNodes.getElement(i);
+					ParamNode* __restrict__ sourceNode = &nodes[i];
+					ParamNode* __restrict__ destNode = &newNodes[i];
 
 					*destNode = *sourceNode;
 				}
@@ -1836,7 +1836,7 @@ addNewNodeAt0IfNecessary:
 				action->recordParamChangeDefinitely(modelStack, true); // Steal
 
 				// And, need to swap the new Nodes in
-				nodes.swapStateWith(&newNodes);
+				nodes.swap(newNodes);
 
 				goto addNewNodeAt0IfNecessary;
 			}
@@ -1848,7 +1848,7 @@ addNewNodeAt0IfNecessary:
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true); // Steal
 		}
-		nodes.empty();                 // Delete them - either if no action, or if the above chose not to steal them.
+		nodes.clear();                 // Delete them - either if no action, or if the above chose not to steal them.
 		valueIncrementPerHalfTick = 0; // In case we were interpolating.
 	}
 }
@@ -1865,8 +1865,8 @@ void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* v
 
 	if (writeAutomation) {
 
-		for (int32_t i = 0; i < nodes.getNumElements(); i++) {
-			ParamNode* thisNode = nodes.getElement(i);
+		for (int32_t i = 0; i < std::ssize(nodes); i++) {
+			ParamNode* thisNode = &nodes[i];
 			intToHex(thisNode->value, buffer);
 			writer.write(buffer);
 
@@ -1939,8 +1939,7 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
 					// this check again
 					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 16 + 1;
-					nodes.ensureEnoughSpaceAllocated(
-					    numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
+					(void)nodes.reserveExtra(numElementsToAllocateFor); // If this fails... oh well. We'll fail later
 				}
 			}
 
@@ -1968,13 +1967,13 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 				// If there's a node actually right on the end-point - well, firmware <= 3.1.5 sometimes put one there
 				// when it should have been at pos 0. So, reinterpret that data to make it right.
 				if (pos == readAutomationUpToPos) {
-					ParamNode* firstNode = nodes.getElement(0);
+					ParamNode* firstNode = nodes.tryGet(0);
 					if (!firstNode || firstNode->pos) {
-						Error error = nodes.insertAtIndex(0);
+						Error error = nodes.insertAt(0).error_or(Error::NONE);
 						if (error != Error::NONE) {
 							return error;
 						}
-						firstNode = nodes.getElement(0);
+						firstNode = &nodes[0];
 						firstNode->pos = 0;
 						firstNode->value = value;
 						firstNode->interpolated = interpolated;
@@ -1985,11 +1984,11 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 
 			prevPos = pos;
 
-			int32_t nodeI = nodes.insertAtKey(pos, true);
+			int32_t nodeI = nodes.insertSorted(pos, true).value_or(-1);
 			if (nodeI == -1) {
 				return Error::INSUFFICIENT_RAM;
 			}
-			ParamNode* node = nodes.getElement(nodeI);
+			ParamNode* node = &nodes[nodeI];
 			node->value = value;
 			node->interpolated = interpolated;
 
@@ -2024,8 +2023,8 @@ void AutoParam::shiftValues(int32_t offset) {
 		currentValue = newValue;
 	}
 
-	for (int32_t i = 0; i < nodes.getNumElements(); i++) {
-		ParamNode* thisNode = nodes.getElement(i);
+	for (int32_t i = 0; i < std::ssize(nodes); i++) {
+		ParamNode* thisNode = &nodes[i];
 		int64_t newValue = (int64_t)thisNode->value + offset;
 		if (newValue >= (int64_t)2147483648u) {
 			thisNode->value = 2147483647;
@@ -2042,8 +2041,8 @@ void AutoParam::shiftValues(int32_t offset) {
 void AutoParam::shiftParamVolumeByDB(float offset) {
 	currentValue = shiftVolumeByDB(currentValue, offset);
 
-	for (int32_t i = 0; i < nodes.getNumElements(); i++) {
-		ParamNode* thisNode = nodes.getElement(i);
+	for (int32_t i = 0; i < std::ssize(nodes); i++) {
+		ParamNode* thisNode = &nodes[i];
 		thisNode->value = shiftVolumeByDB(thisNode->value, offset);
 	}
 }
@@ -2058,7 +2057,7 @@ void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* 
 	int32_t oldValueHere = currentValue;
 	currentValue = state->value;
 	state->value = oldValueHere;
-	nodes.swapStateWith(&state->nodes);
+	nodes.swap(state->nodes);
 
 	bool automatedNow = isAutomated();
 
@@ -2085,11 +2084,11 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 	int32_t endValue = getValueAtPos(wrappedEndPos, modelStack);
 
 	// Clear out any nodes that already exiset in the region we're pasting in to
-	int32_t iDeleteBegin = nodes.search(startPos, GREATER_OR_EQUAL);
-	int32_t iDeleteEnd = nodes.search(endPos, GREATER_OR_EQUAL);
+	int32_t iDeleteBegin = nodes.firstAtOrAfter(startPos);
+	int32_t iDeleteEnd = nodes.firstAtOrAfter(endPos);
 	int32_t numToDelete = iDeleteEnd - iDeleteBegin;
 	if (numToDelete > 0) {
-		nodes.deleteAtIndex(iDeleteBegin, numToDelete);
+		nodes.erase(nodes.begin() + iDeleteBegin, nodes.begin() + iDeleteBegin + numToDelete);
 	}
 
 	// Make sure that automation data before the paste region starts and after it ends aligns with what we're about to
@@ -2101,17 +2100,17 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 			int32_t ticksBeforeStart = 1;
 			int32_t resetPos = (ticksBeforeStart > startPos) ? (effectiveLength + startPos) - ticksBeforeStart
 			                                                 : (startPos - ticksBeforeStart);
-			int32_t resetI = nodes.search(resetPos, GREATER_OR_EQUAL);
-			ParamNode* resetNode = nodes.getElement(resetI);
+			int32_t resetI = nodes.firstAtOrAfter(resetPos);
+			ParamNode* resetNode = nodes.tryGet(resetI);
 
 			if (resetNode == nullptr || resetNode->pos != resetPos) {
 				bool previousNodeInterpolated = resetNode != nullptr ? resetNode->interpolated : true;
-				auto error = nodes.insertAtIndex(resetI);
+				auto error = nodes.insertAt(resetI).error_or(Error::NONE);
 				if (error != Error::NONE) {
 					return;
 				}
 
-				resetNode = nodes.getElement(resetI);
+				resetNode = &nodes[resetI];
 				resetNode->pos = resetPos;
 				resetNode->interpolated = previousNodeInterpolated;
 			}
@@ -2133,16 +2132,16 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 				resetPos = wrappedEndPos;
 			}
 
-			int32_t resetI = nodes.search(resetPos, GREATER_OR_EQUAL);
-			ParamNode* resetNode = nodes.getElement(resetI);
+			int32_t resetI = nodes.firstAtOrAfter(resetPos);
+			ParamNode* resetNode = nodes.tryGet(resetI);
 
 			if (!resetNode || resetNode->pos != resetPos) {
-				auto error = nodes.insertAtIndex(resetI);
+				auto error = nodes.insertAt(resetI).error_or(Error::NONE);
 				if (error != Error::NONE) {
 					return;
 				}
 
-				resetNode = nodes.getElement(resetI);
+				resetNode = &nodes[resetI];
 				resetNode->pos = resetPos;
 				resetNode->interpolated = finalNode.interpolated;
 			}
@@ -2168,8 +2167,8 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 			continue;
 		}
 
-		int32_t nodeDestI = nodes.insertAtKey(newPos);
-		ParamNode* nodeDest = nodes.getElement(nodeDestI);
+		int32_t nodeDestI = nodes.insertSorted(newPos).value_or(-1);
+		ParamNode* nodeDest = nodes.tryGet(nodeDestI);
 		if (!nodeDest) {
 			return;
 		}
@@ -2196,8 +2195,8 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
                      ModelStackWithAutoParam const* modelStack) {
 
 	// And if any of them are in the right zone...
-	int32_t startI = nodes.search(startPos, GREATER_OR_EQUAL);
-	int32_t endI = nodes.search(endPos, GREATER_OR_EQUAL);
+	int32_t startI = nodes.firstAtOrAfter(startPos);
+	int32_t endI = nodes.firstAtOrAfter(endPos);
 
 	copiedParamAutomation->width = endPos - startPos;
 
@@ -2206,7 +2205,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 	bool insertingExtraNodeAtStart = false;
 
 	if (copiedParamAutomation->numNodes) {
-		ParamNode* firstNode = nodes.getElement(startI);
+		ParamNode* firstNode = &nodes[startI];
 		if (firstNode->pos != startPos) {
 			insertingExtraNodeAtStart = true;
 			copiedParamAutomation->numNodes++;
@@ -2247,7 +2246,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 		int32_t readingNodeI = startI;
 
 		for (; n < copiedParamAutomation->numNodes; n++) {
-			ParamNode* nodeToCopy = nodes.getElement(readingNodeI);
+			ParamNode* nodeToCopy = &nodes[readingNodeI];
 			ParamNode* newNode = &copiedParamAutomation->nodes[n];
 
 			*newNode = *nodeToCopy;
@@ -2269,21 +2268,21 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 // Or it'd ideally be 18 for 14-bit pitch bend data, but that'd be a bit overkill.
 Error AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift) {
 
-	if (nodes.getNumElements() <= 1) {
+	if (std::ssize(nodes) <= 1) {
 		return Error::NONE;
 	}
 
-	int32_t stopAtElement = nodes.getNumElements();
+	int32_t stopAtElement = std::ssize(nodes);
 
 	for (int32_t i = 0; i < stopAtElement; i++) {
-		ParamNode* thisNode = nodes.getElement(i);
+		ParamNode* thisNode = &nodes[i];
 
 		if (thisNode->interpolated) {
 			int32_t prevI = i - 1;
 			if (prevI == -1) {
-				prevI = nodes.getNumElements() - 1;
+				prevI = std::ssize(nodes) - 1;
 			}
-			ParamNode* prevNode = nodes.getElement(prevI);
+			ParamNode* prevNode = &nodes[prevI];
 
 			// This function deals with "small" values, which for CCs will be between -64 and 64. Yup, they're
 			// bidirectional.
@@ -2333,7 +2332,7 @@ Error AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantiza
 					thisPos -= clipLength;
 				}
 
-				int32_t newNodeI = nodes.insertAtKey(thisPos);
+				int32_t newNodeI = nodes.insertSorted(thisPos).value_or(-1);
 				if (newNodeI == -1) {
 					return Error::INSUFFICIENT_RAM;
 				}
@@ -2341,7 +2340,7 @@ Error AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantiza
 					i++;
 					stopAtElement++;
 				}
-				ParamNode* newNode = nodes.getElement(newNodeI);
+				ParamNode* newNode = &nodes[newNodeI];
 				newNode->interpolated = true;
 
 				int32_t newBigValue;
@@ -2363,8 +2362,8 @@ Error AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantiza
 }
 
 void AutoParam::transposeCCValuesToChannelPressureValues() {
-	for (int32_t i = 0; i < nodes.getNumElements(); i++) {
-		ParamNode* thisNode = nodes.getElement(i);
+	for (int32_t i = 0; i < std::ssize(nodes); i++) {
+		ParamNode* thisNode = &nodes[i];
 		thisNode->value = (thisNode->value >> 1) + (1 << 30);
 	}
 
@@ -2379,8 +2378,8 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 
 	int32_t endPos = startPos + lengthToDelete;
 
-	int32_t start = nodes.search(startPos, GREATER_OR_EQUAL);
-	int32_t end = nodes.search(endPos, GREATER_OR_EQUAL);
+	int32_t start = nodes.firstAtOrAfter(startPos);
+	int32_t end = nodes.firstAtOrAfter(endPos);
 
 	int32_t numToDelete = end - start;
 	if (numToDelete > 0) {
@@ -2391,8 +2390,8 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 		int32_t oldValue;
 
 		// If we're chopping off the final node, we'll want to put one at pos 0 if none there
-		if (end >= nodes.getNumElements()) {
-			shouldAddNodeAtPos0 = nodes.getFirst()->pos;
+		if (end >= std::ssize(nodes)) {
+			shouldAddNodeAtPos0 = nodes.tryGet(0)->pos;
 			if (shouldAddNodeAtPos0) {
 				oldValue = getValueAtPos(0, modelStack);
 			}
@@ -2400,10 +2399,10 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 
 		// Or, if we're not chopping off the final node, we'll want to put one at end of deleted region (which becomes
 		// the same as the start), if none there
-		else if (nodes.getElement(end)->pos > endPos) {
+		else if (nodes[end].pos > endPos) {
 
 			// We'll use the first node we were going to delete as the new one
-			ParamNode* cutNode = nodes.getElement(start);
+			ParamNode* cutNode = &nodes[start];
 			cutNode->value = getValueAtPos(endPos, modelStack);
 			cutNode->pos = startPos;
 			cutNode->interpolated = false;
@@ -2416,13 +2415,12 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 			}
 		}
 
-		nodes.deleteAtIndex(start, numToDelete, !shouldAddNodeAtPos0);
+		nodes.erase(nodes.begin() + start, nodes.begin() + start + numToDelete);
 
 		if (shouldAddNodeAtPos0) {
-			Error error =
-			    nodes.insertAtIndex(0); // Shouldn't ever fail as we told it not to shorten its memory previously
-			if (error == Error::NONE) {
-				ParamNode* newNode = nodes.getElement(0);
+			// Shouldn't ever fail, as erase never shrinks the capacity we just freed up
+			if (nodes.insertAt(0)) {
+				ParamNode* newNode = &nodes[0];
 				newNode->value = oldValue;
 				newNode->pos = 0;
 				newNode->interpolated = false;
@@ -2432,24 +2430,24 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 	}
 
 allDeleted:
-	for (int32_t i = start; i < nodes.getNumElements(); i++) {
-		ParamNode* node = nodes.getElement(i);
+	for (int32_t i = start; i < std::ssize(nodes); i++) {
+		ParamNode* node = &nodes[i];
 		node->pos -= lengthToDelete;
 	}
 
 	// If only one node left, that's not allowed, so delete that too. Actually it is allowed now, but let's keep this
 	// safe
-	if (nodes.getNumElements() == 1) {
-		nodes.deleteAtIndex(0);
+	if (std::ssize(nodes) == 1) {
+		nodes.erase(nodes.begin() + 0);
 	}
 }
 
 /// this is used in arranger view to insert time between automation nodes (shift + <>)
 void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
-	int32_t start = nodes.search(pos, GREATER_OR_EQUAL);
+	int32_t start = nodes.firstAtOrAfter(pos);
 
-	for (int32_t i = start; i < nodes.getNumElements(); i++) {
-		ParamNode* node = nodes.getElement(i);
+	for (int32_t i = start; i < std::ssize(nodes); i++) {
+		ParamNode* node = &nodes[i];
 		node->pos += lengthToInsert;
 	}
 }
@@ -2458,7 +2456,7 @@ void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
 void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length,
                                        int32_t offset, int32_t lengthBeforeLoop, Action* action) {
 
-	if (!nodes.getNumElements()) {
+	if (nodes.empty()) {
 		return;
 	}
 
@@ -2495,25 +2493,25 @@ justShiftEverything:
 			if (resultingIndexes[0]) {
 				// If rightmost node collides with endPos, delete it
 				int32_t rightMostIndex = resultingIndexes[0] - 1;
-				ParamNode* rightMost = nodes.getElement(rightMostIndex);
+				ParamNode* rightMost = &nodes[rightMostIndex];
 				if (rightMost->pos >= endPos - 1) {
-					nodes.deleteAtIndex(rightMostIndex);
+					nodes.erase(nodes.begin() + rightMostIndex);
 					resultingIndexes[0]--;
 					resultingIndexes[1]--;
 				}
 			}
 
 			// And if anything before wrap...
-			if (resultingIndexes[1] < nodes.getNumElements()) {
-				int32_t indexBeforeWrap = nodes.getNumElements() - 1;
-				ParamNode* nodeBeforeWrap = nodes.getElement(indexBeforeWrap);
+			if (resultingIndexes[1] < std::ssize(nodes)) {
+				int32_t indexBeforeWrap = std::ssize(nodes) - 1;
+				ParamNode* nodeBeforeWrap = &nodes[indexBeforeWrap];
 
 				// If that needs to move right and wrap around...
 				if (nodeBeforeWrap->pos >= lengthBeforeLoop - 1) {
 					ParamNode tempNode = *nodeBeforeWrap;
-					nodes.deleteAtIndex(indexBeforeWrap, 1, false);
-					nodes.insertAtIndex(0); // Shouldn't be able to fail....
-					ParamNode* nodeAfterWrap = nodes.getElement(0);
+					nodes.erase(nodes.begin() + indexBeforeWrap, nodes.begin() + indexBeforeWrap + 1);
+					(void)nodes.insertAt(0); // Shouldn't be able to fail....
+					ParamNode* nodeAfterWrap = &nodes[0];
 					*nodeAfterWrap = tempNode;
 					nodeAfterWrap->pos = -1; // It'll get incremented below
 					resultingIndexes[0]++;
@@ -2522,10 +2520,10 @@ justShiftEverything:
 			}
 
 			for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
-				nodes.getElement(i)->pos++;
+				nodes[i].pos++;
 			}
-			for (int32_t i = resultingIndexes[1]; i < nodes.getNumElements(); i++) { // Before wrap
-				nodes.getElement(i)->pos++;
+			for (int32_t i = resultingIndexes[1]; i < std::ssize(nodes); i++) { // Before wrap
+				nodes[i].pos++;
 			}
 		}
 
@@ -2533,14 +2531,14 @@ justShiftEverything:
 		else {
 			// If there's anything after the wrap...
 			if (resultingIndexes[0]) {
-				ParamNode* nodeAfterWrap = nodes.getElement(0);
+				ParamNode* nodeAfterWrap = &nodes[0];
 				// If we need to wrap it around to the end...
 				if (nodeAfterWrap->pos == 0) {
 					ParamNode tempNode = *nodeAfterWrap;
-					int32_t rightMostIndex = nodes.getNumElements() - 1;
-					nodes.deleteAtIndex(0, 1, false);
-					nodes.insertAtIndex(rightMostIndex); // Surely can't fail
-					ParamNode* rightMostNode = nodes.getElement(rightMostIndex);
+					int32_t rightMostIndex = std::ssize(nodes) - 1;
+					nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + 1);
+					(void)nodes.insertAt(rightMostIndex); // Surely can't fail
+					ParamNode* rightMostNode = &nodes[rightMostIndex];
 					*rightMostNode = tempNode;
 					rightMostNode->pos = lengthBeforeLoop; // It'll get decremented below.
 					resultingIndexes[0]--;
@@ -2549,21 +2547,21 @@ justShiftEverything:
 			}
 
 			// And now if our left edge is going to eat into anything...
-			if (resultingIndexes[1] && resultingIndexes[1] < nodes.getNumElements()) {
+			if (resultingIndexes[1] && resultingIndexes[1] < std::ssize(nodes)) {
 				int32_t prevNodeIndex = resultingIndexes[1] - 1;
-				ParamNode* prevNode = nodes.getElement(prevNodeIndex);
+				ParamNode* prevNode = &nodes[prevNodeIndex];
 				if (prevNode->pos >= pos - 1) {
-					nodes.deleteAtIndex(prevNodeIndex);
+					nodes.erase(nodes.begin() + prevNodeIndex);
 					resultingIndexes[1]--;
 				}
 			}
 		}
 
 		for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
-			nodes.getElement(i)->pos--;
+			nodes[i].pos--;
 		}
-		for (int32_t i = resultingIndexes[1]; i < nodes.getNumElements(); i++) { // Before wrap
-			nodes.getElement(i)->pos--;
+		for (int32_t i = resultingIndexes[1]; i < std::ssize(nodes); i++) { // Before wrap
+			nodes[i].pos--;
 		}
 	}
 
@@ -2576,7 +2574,7 @@ justShiftEverything:
 			nodes.searchDual(searchTerms, resultingIndexes);
 		}
 
-		if (!resultingIndexes[0] && resultingIndexes[1] == nodes.getNumElements()) {
+		if (!resultingIndexes[0] && resultingIndexes[1] == std::ssize(nodes)) {
 			goto justShiftEverything;
 		}
 
@@ -2588,14 +2586,14 @@ justShiftEverything:
 
 				// If rightmost node collides with endPos, delete it
 				int32_t rightMostIndex = resultingIndexes[1] - 1;
-				ParamNode* rightMost = nodes.getElement(rightMostIndex);
+				ParamNode* rightMost = &nodes[rightMostIndex];
 				if (rightMost->pos >= endPos - 1) {
-					nodes.deleteAtIndex(rightMostIndex);
+					nodes.erase(nodes.begin() + rightMostIndex);
 					resultingIndexes[1]--;
 				}
 
 				for (int32_t i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
-					nodes.getElement(i)->pos++;
+					nodes[i].pos++;
 				}
 			}
 
@@ -2606,9 +2604,9 @@ justShiftEverything:
 				if (resultingIndexes[0] > 0) {
 
 					int32_t prevNodeIndex = resultingIndexes[0] - 1;
-					ParamNode* prevNode = nodes.getElement(prevNodeIndex);
+					ParamNode* prevNode = &nodes[prevNodeIndex];
 					if (prevNode->pos >= pos - 1) {
-						nodes.deleteAtIndex(prevNodeIndex);
+						nodes.erase(nodes.begin() + prevNodeIndex);
 						resultingIndexes[0]--;
 						resultingIndexes[1]--;
 					}
@@ -2616,13 +2614,13 @@ justShiftEverything:
 
 				// Or if we don't have space to the left...
 				else {
-					ParamNode* leftMostNode = nodes.getElement(resultingIndexes[0]);
+					ParamNode* leftMostNode = &nodes[resultingIndexes[0]];
 					if (leftMostNode->pos) {} // All good - it can go left
 					else {
 						// Ok, we have to wrap it.
 						// Delete any node at the far right of the loop
-						int32_t lastNodeIndex = nodes.getNumElements() - 1;
-						ParamNode* lastNode = nodes.getElement(lastNodeIndex);
+						int32_t lastNodeIndex = std::ssize(nodes) - 1;
+						ParamNode* lastNode = &nodes[lastNodeIndex];
 
 						// Well actually, if it's right there, we'll just reuse it and delete our old one
 						if (lastNode->pos == lengthBeforeLoop - 1) {
@@ -2632,10 +2630,10 @@ justShiftEverything:
 						// Otherwise, have to delete our old one and put a new one at the end.
 						else {
 							ParamNode tempNode = *leftMostNode;
-							nodes.deleteAtIndex(0, 1, false);
-							nodes.insertAtIndex(lastNodeIndex); // Yes, lastNodeIndex is still correct. And, this really
-							                                    // shouldn't be able to give an error...
-							lastNode = nodes.getElement(lastNodeIndex);
+							nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + 1);
+							(void)nodes.insertAt(lastNodeIndex); // Yes, lastNodeIndex is still correct. And, this
+							                                     // really shouldn't be able to give an error...
+							lastNode = &nodes[lastNodeIndex];
 							*lastNode = tempNode;
 						}
 
@@ -2645,7 +2643,7 @@ justShiftEverything:
 				}
 
 				for (int32_t i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
-					nodes.getElement(i)->pos--;
+					nodes[i].pos--;
 				}
 			}
 		}
@@ -2654,14 +2652,15 @@ justShiftEverything:
 
 void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
                                                 ModelStackWithAutoParam const* modelStack) {
-	int32_t nodeI = nodes.searchExact(pos);
-	if (nodeI != -1) {
+	auto nodeIt = nodes.find_key(pos);
+	if (nodeIt != nodes.end()) {
+		int32_t nodeI = static_cast<int32_t>(nodeIt - nodes.begin());
 
 		if (action) {
 			action->recordParamChangeDefinitely(modelStack, false);
 		}
 
-		ParamNode* node = (ParamNode*)nodes.getElementAddress(nodeI);
+		ParamNode* node = (ParamNode*)&nodes[nodeI];
 		if (!node->interpolated) {
 
 			int32_t newNodePos = pos + offset;
@@ -2670,20 +2669,20 @@ void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int
 			// If that's caused wrapping left...
 			if (newNodePos < 0) {
 				newNodePos += lengthBeforeLoop;
-				nextNodeI = nodes.getNumElements() - 2; // Subtract 2 instead of the normal 1 cos we're about to delete
-				                                        // one element before doing anything with this index number
+				nextNodeI = std::ssize(nodes) - 2; // Subtract 2 instead of the normal 1 cos we're about to delete
+				                                   // one element before doing anything with this index number
 
 doWrap:
 				// There should never be just one node
-				if (ALPHA_OR_BETA_VERSION && nodes.getNumElements() == 1) {
+				if (ALPHA_OR_BETA_VERSION && std::ssize(nodes) == 1) {
 					FREEZE_WITH_ERROR("E335");
 				}
 				int32_t ourValue = node->value; // Grab this before deleting stuff
 
 				// Delete the old node
-				nodes.deleteAtIndex(nodeI);
+				nodes.erase(nodes.begin() + nodeI);
 
-				ParamNode* nextNode = (ParamNode*)nodes.getElementAddress(nextNodeI);
+				ParamNode* nextNode = (ParamNode*)&nodes[nextNodeI];
 
 				// If that next node is at the pos we're wanting to nudge to, and would hence get deleted, we can just
 				// copy to it
@@ -2691,8 +2690,8 @@ doWrap:
 
 					// But if that would all mean that we'd actually end up with only 1 node, well that's not allowed.
 					// (Actually it is now, but let's be safe.)
-					if (nodes.getNumElements() == 1) {
-						nodes.empty();
+					if (std::ssize(nodes) == 1) {
+						nodes.clear();
 					}
 
 					// But yeah normally that'll be fine - just go copy to that node we've collided with
@@ -2703,16 +2702,16 @@ doWrap:
 
 				// Otherwise, create a new node
 				else {
-					nextNodeI = nodes.getNumElements();
+					nextNodeI = std::ssize(nodes);
 					{
-						Error error = nodes.insertAtIndex(
-						    nextNodeI); // This shouldn't be able to fail, cos we just deleted a node
+						Error error = nodes.insertAt(nextNodeI).error_or(
+						    Error::NONE); // This shouldn't be able to fail, cos we just deleted a node
 						if (ALPHA_OR_BETA_VERSION && error != Error::NONE) {
 							FREEZE_WITH_ERROR("E333");
 						}
 					}
 
-					nextNode = (ParamNode*)nodes.getElementAddress(nextNodeI);
+					nextNode = (ParamNode*)&nodes[nextNodeI];
 					nextNode->pos = newNodePos;
 
 setNodeValue:
@@ -2736,20 +2735,20 @@ setNodeValue:
 				node->pos = newNodePos;
 
 				// If no previously existing nodes further in that direction at all, that's easy
-				if (nextNodeI < 0 || nextNodeI >= nodes.getNumElements()) {}
+				if (nextNodeI < 0 || nextNodeI >= std::ssize(nodes)) {}
 
 				// Or if some node, have a look at it, and delete it if it's been collided with
 				else {
-					ParamNode* nextNode = (ParamNode*)nodes.getElementAddress(nextNodeI);
+					ParamNode* nextNode = (ParamNode*)&nodes[nextNodeI];
 					if (nextNode->pos == newNodePos) {
-						nodes.deleteAtIndex(nextNodeI);
+						nodes.erase(nodes.begin() + nextNodeI);
 					}
 				}
 			}
 		}
 	}
 
-	if (!nodes.getNumElements()) {
+	if (nodes.empty()) {
 		valueIncrementPerHalfTick = 0; // In case we were interpolating.
 	}
 
@@ -2778,7 +2777,7 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 	int32_t numNodesToStealAfterWrap = 0;
 
 	if (durationAfterWrap > 0) {
-		numNodesToStealAfterWrap = nodes.search(durationAfterWrap, GREATER_OR_EQUAL);
+		numNodesToStealAfterWrap = nodes.firstAtOrAfter(durationAfterWrap);
 	}
 
 	if (stolenNodeRecord) {
@@ -2802,8 +2801,8 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 
 goAgain:
 				while (sourceI < stopAtI) {
-					memcpy(&stolenNodes[destI], nodes.getElementAddress(sourceI), sizeof(ParamNode));
-					// stolenNodes[destI] = *(ParamNode*)nodes.getElementAddress(sourceI);
+					memcpy(&stolenNodes[destI], &nodes[sourceI], sizeof(ParamNode));
+					// stolenNodes[destI] = *(ParamNode*)&nodes[sourceI];
 
 					stolenNodes[destI].pos -= pos;
 					if (stolenNodes[destI].pos < 0) {
@@ -2825,11 +2824,12 @@ goAgain:
 
 	// Now actually delete the source Nodes
 	if (numNodesToStealBeforeWrap) {
-		nodes.deleteAtIndex(resultingIndexes[0], numNodesToStealBeforeWrap);
+		nodes.erase(nodes.begin() + resultingIndexes[0],
+		            nodes.begin() + resultingIndexes[0] + numNodesToStealBeforeWrap);
 	}
 
 	if (numNodesToStealAfterWrap) {
-		nodes.deleteAtIndex(0, numNodesToStealAfterWrap);
+		nodes.erase(nodes.begin() + 0, nodes.begin() + 0 + numNodesToStealAfterWrap);
 	}
 
 	nodes.testSequentiality("E424");
@@ -2858,11 +2858,11 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 			destPos -= loopLength;
 		}
 
-		int32_t destI = nodes.insertAtKey(destPos);
+		int32_t destI = nodes.insertSorted(destPos).value_or(-1);
 		if (destI == -1) {
 			break;
 		}
-		ParamNode* destNode = (ParamNode*)nodes.getElementAddress(destI);
+		ParamNode* destNode = (ParamNode*)&nodes[destI];
 
 		memcpy(destNode, stolenNode, sizeof(ParamNode));
 		//*destNode = *stolenNode;
@@ -2881,19 +2881,19 @@ int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelSta
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
-	if (!nodes.getNumElements()) {
+	if (nodes.empty()) {
 		return effectiveLength;
 	}
 
-	int32_t i = nodes.search(pos + !reversed, GREATER_OR_EQUAL) - reversed;
+	int32_t i = nodes.firstAtOrAfter(pos + !reversed) - reversed;
 	if (i == -1) {
-		i = nodes.getNumElements() - 1;
+		i = std::ssize(nodes) - 1;
 	}
-	else if (i == nodes.getNumElements()) {
+	else if (i == std::ssize(nodes)) {
 		i = 0;
 	}
 
-	ParamNode* node = (ParamNode*)nodes.getElementAddress(i);
+	ParamNode* node = (ParamNode*)&nodes[i];
 
 	int32_t distance = node->pos - pos;
 	if (reversed) {
@@ -2907,8 +2907,8 @@ int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelSta
 }
 
 /*
-    for (int32_t i = 0; i < nodes.getNumElements(); i++) {
-        ParamNode* thisNode = nodes.getElement(i);
+    for (int32_t i = 0; i < std::ssize(nodes); i++) {
+        ParamNode* thisNode = &nodes[i];
 
     }
  */

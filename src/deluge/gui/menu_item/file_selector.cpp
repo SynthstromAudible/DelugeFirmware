@@ -29,6 +29,7 @@
 #include "processing/sound/sound.h"
 #include "storage/audio/audio_file.h"
 #include "storage/multi_range/multi_range.h"
+#include <iterator>
 
 namespace deluge::gui::menu_item {
 
@@ -103,7 +104,7 @@ void FileSelector::getColumnLabel(etl::istring& label) {
 		return MenuItem::getColumnLabel(label);
 	}
 
-	if (source.ranges.getNumElements() > 1) {
+	if (std::ssize(source.ranges) > 1) {
 		label.append("Mult");
 		return;
 	}

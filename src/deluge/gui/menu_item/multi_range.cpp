@@ -30,6 +30,7 @@
 #include "util/functions.h"
 #include <cstring>
 #include <etl/vector.h>
+#include <iterator>
 
 namespace deluge::gui::menu_item {
 
@@ -42,7 +43,7 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 		soundEditor.currentSource->defaultRangeI = soundEditor.currentMultiRangeIndex;
 	}
 
-	int32_t numRanges = soundEditor.currentSource->ranges.getNumElements();
+	int32_t numRanges = std::ssize(soundEditor.currentSource->ranges);
 	if (soundEditor.currentSource->defaultRangeI < 0
 	    || soundEditor.currentSource->defaultRangeI >= numRanges) { // If default is invalid, work it out afresh
 		soundEditor.currentSource->defaultRangeI = numRanges >> 1;
@@ -82,7 +83,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			// Raising
 			if (offset >= 0) {
 				int32_t maximum;
-				if (this->getValue() < soundEditor.currentSource->ranges.getNumElements() - 1) {
+				if (this->getValue() < std::ssize(soundEditor.currentSource->ranges) - 1) {
 					::MultiRange* currentRange = soundEditor.currentSource->ranges.getElement(this->getValue());
 					maximum = currentRange->topNote - 1;
 				}
@@ -120,7 +121,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			// Raising
 			if (offset >= 0) {
 				int32_t maximum;
-				if (this->getValue() < soundEditor.currentSource->ranges.getNumElements() - 2) {
+				if (this->getValue() < std::ssize(soundEditor.currentSource->ranges) - 2) {
 					::MultiRange* higherRange = soundEditor.currentSource->ranges.getElement(this->getValue() + 1);
 					maximum = higherRange->topNote - 1;
 				}
@@ -176,7 +177,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			}
 
 			int32_t currentRangeTop;
-			if (this->getValue() == soundEditor.currentSource->ranges.getNumElements() - 1) {
+			if (this->getValue() == std::ssize(soundEditor.currentSource->ranges) - 1) {
 				currentRangeTop = currentRangeBottom + 1;
 				if (currentRangeTop < 127) {
 					currentRangeTop = 127;
@@ -245,7 +246,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 		else {
 			// Stay within bounds
 			int32_t newValue = this->getValue() + offset;
-			if (newValue < 0 || newValue >= soundEditor.currentSource->ranges.getNumElements()) {
+			if (newValue < 0 || newValue >= std::ssize(soundEditor.currentSource->ranges)) {
 				return;
 			}
 
@@ -288,7 +289,7 @@ void MultiRange::deletePress() {
 		return;
 	}
 
-	int32_t oldNum = soundEditor.currentSource->ranges.getNumElements();
+	int32_t oldNum = std::ssize(soundEditor.currentSource->ranges);
 
 	// Want to delete the current range
 	if (oldNum <= 1) {
@@ -362,7 +363,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 	}
 
 	// Upper end
-	if (this->getValue() == soundEditor.currentSource->ranges.getNumElements() - 1) {
+	if (this->getValue() == std::ssize(soundEditor.currentSource->ranges) - 1) {
 		*(bufferPos++) = '-';
 		if (display->haveOLED()) {
 			*(bufferPos++) = ' ';
@@ -421,7 +422,7 @@ bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 	if (whichEdge == RangeEdit::LEFT) {
 		return (this->getValue() != 0);
 	}
-	return (this->getValue() != soundEditor.currentSource->ranges.getNumElements() - 1);
+	return (this->getValue() != std::ssize(soundEditor.currentSource->ranges) - 1);
 }
 
 void MultiRange::drawPixelsForOled() {
@@ -432,7 +433,7 @@ void MultiRange::drawPixelsForOled() {
 	this->setValue(currentScroll);
 	size_t idx = 0;
 	for (idx = 0; idx < kOLEDMenuNumOptionsVisible; idx++) {
-		if (this->getValue() >= soundEditor.currentSource->ranges.getNumElements()) {
+		if (this->getValue() >= std::ssize(soundEditor.currentSource->ranges)) {
 			break;
 		}
 		getText(nameBuffers[idx], nullptr, nullptr, false);

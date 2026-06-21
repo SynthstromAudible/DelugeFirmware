@@ -22,6 +22,7 @@
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
+#include "util/containers.h"
 class InstrumentClip;
 class Drum;
 class Sound;
@@ -148,7 +149,7 @@ public:
 	Drum* firstDrum;
 	Drum* selectedDrum;
 
-	OrderedResizeableArrayWith32bitKey drumsWithRenderingActive;
+	deluge::fast_set<Drum*> drumsWithRenderingActive;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

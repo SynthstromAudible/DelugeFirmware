@@ -32,8 +32,8 @@ ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, 
 }
 
 Error ConsequenceClipInstanceChange::revert(TimeType time, ModelStack* modelStack) {
-	int32_t i = output->clipInstances.search(pos[1 - time], GREATER_OR_EQUAL);
-	ClipInstance* clipInstance = output->clipInstances.getElement(i);
+	int32_t i = output->clipInstances.firstAtOrAfter(pos[1 - time]);
+	ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 	if (!clipInstance) {
 		return Error::BUG;
 	}

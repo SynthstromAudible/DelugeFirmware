@@ -17,14 +17,11 @@
 
 #pragma once
 
-#include "util/container/array/ordered_resizeable_array.h"
+#include "modulation/midi/midi_param.h"
+#include "util/container/ordered_pos_vector.h"
 
-class MIDIParam;
-
-class MIDIParamVector : public OrderedResizeableArray {
+class MIDIParamVector : public deluge::OrderedPosVector<MIDIParam, &MIDIParam::cc> {
 public:
-	MIDIParamVector();
-	MIDIParam* getElement(int32_t i);
 	MIDIParam* getParamFromCC(int32_t cc);
 	MIDIParam* insertParam(int32_t i);
 	MIDIParam* getOrCreateParamFromCC(int32_t cc, int32_t defaultValue = 0, bool allowCreation = true);

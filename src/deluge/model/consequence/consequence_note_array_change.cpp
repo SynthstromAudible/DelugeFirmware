@@ -28,7 +28,7 @@ ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, 
 
 	// Either steal the data...
 	if (stealData) {
-		backedUpNoteVector.swapStateWith(newNoteVector);
+		backedUpNoteVector.swap(*newNoteVector);
 	}
 
 	// Or clone it...
@@ -44,7 +44,7 @@ Error ConsequenceNoteArrayChange::revert(TimeType time, ModelStack* modelStack) 
 		return Error::BUG;
 	}
 
-	noteRow->notes.swapStateWith(&backedUpNoteVector);
+	noteRow->notes.swap(backedUpNoteVector);
 
 	return Error::NONE;
 }
