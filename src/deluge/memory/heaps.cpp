@@ -44,8 +44,14 @@ void init_heaps() {
 		if (r.kind == DELUGE_MEM_FAST_INTERNAL && g_sram == nullptr) {
 			g_sram = deluge_heap_create(r.base, r.size);
 		}
-		// The SDRAM (DELUGE_MEM_LARGE_EXTERNAL) heap is created during the SDRAM
-		// strangle, once MemoryRegion no longer manages that region.
+		// One unified SDRAM heap over the whole LARGE_EXTERNAL region (which on both
+		// BSPs is exactly [__sdram_bss_end, external_end) — the post-BSS usable SDRAM
+		// the GMA used to split into stealable/external/external_small). Collapsing
+		// the partitions is the redesign's unified pool. The reclaim hook (cache
+		// eviction) is registered by the GeneralMemoryAllocator.
+		if (r.kind == DELUGE_MEM_LARGE_EXTERNAL && g_sdram == nullptr) {
+			g_sdram = deluge_heap_create(r.base, r.size);
+		}
 	}
 }
 

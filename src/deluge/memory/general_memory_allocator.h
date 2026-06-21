@@ -104,14 +104,24 @@ public:
 	bool lock;
 
 #if DELUGE_USE_RUST_ALLOC
+	// thingNotToStealFrom for the in-flight SDRAM allocation, read by the reclaim
+	// hook (whose C ABI signature has no such parameter). Single-threaded, so a
+	// member set around each sdram alloc is sufficient.
+	void* currentDontStealFrom_{nullptr};
+
 	// The Rust heap owning `address`, or nullptr if it belongs to a MemoryRegion.
 	// Heaps are owned by deluge::memory (heaps.h), not the GMA; this only maps an
-	// address-range to the right heap for dispatch. Call sites are #if-guarded too,
-	// so a gate-off build has zero references to the Rust C ABI at any -O level.
+	// address-range to the right heap for dispatch. The whole SDRAM range is held
+	// under MEMORY_REGION_STEALABLE (the three SDRAM carves are one Rust heap now).
+	// Call sites are #if-guarded too, so a gate-off build has zero references to the
+	// Rust C ABI at any -O level.
 	DelugeHeap* rustHeapFor(void* address) {
 		auto v = reinterpret_cast<uint32_t>(address);
 		if (v >= regions[MEMORY_REGION_INTERNAL].start && v < regions[MEMORY_REGION_INTERNAL].end) {
 			return deluge::memory::sram_heap();
+		}
+		if (v >= regions[MEMORY_REGION_STEALABLE].start && v < regions[MEMORY_REGION_STEALABLE].end) {
+			return deluge::memory::sdram_heap();
 		}
 		return nullptr;
 	}

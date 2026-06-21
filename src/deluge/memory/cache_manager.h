@@ -37,6 +37,14 @@ public:
 	uint32_t reclaim(MemoryRegion& region, int32_t totalSizeNeeded, void* thingNotToStealFrom,
 	                 int32_t* __restrict__ foundSpaceSize) override;
 
+	// Rust-heap reclaim (the deluge_alloc reclaim-hook path). Pick the coldest
+	// unpinned stealable across the priority queues, steal() + destroy it, and
+	// return its memory for the caller to hand back to the heap (deluge_free).
+	// Returns nullptr if nothing is evictable. Unlike reclaim(), there is no
+	// neighbour-grab / run-length / size machinery — the TLSF heap owns
+	// contiguity, and deluge_alloc's retry loop drives this one victim at a time.
+	void* reclaimOne(void* thingNotToStealFrom);
+
 private:
 	std::array<BidirectionalLinkedList, kNumStealableQueue> reclamation_queue_;
 

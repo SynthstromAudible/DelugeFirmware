@@ -58,6 +58,22 @@ extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
 // NOLINTEND
+#if DELUGE_USE_RUST_ALLOC
+// Reclaim hook for the SDRAM heap: when a live allocation can't fit, evict the
+// coldest unpinned stealable (CacheManager priority policy) and return its block
+// to the heap, so deluge_alloc can retry. `ctx` is the GeneralMemoryAllocator.
+extern "C" bool gmaSdramReclaim(void* ctx, size_t bytesNeeded) {
+	(void)bytesNeeded; // free one victim at a time; the alloc retry loop drives us
+	auto* gma = static_cast<GeneralMemoryAllocator*>(ctx);
+	void* victim = gma->cacheManager.reclaimOne(gma->currentDontStealFrom_);
+	if (victim == nullptr) {
+		return false;
+	}
+	deluge_free(deluge::memory::sdram_heap(), victim);
+	return true;
+}
+#endif
+
 GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
 	uint32_t external_small_end = deluge_memory_external_end();
 	uint32_t external_small_start = external_small_end - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
@@ -93,6 +109,29 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
 	regions[MEMORY_REGION_EXTERNAL_SMALL].name = "small external";
 	regions[MEMORY_REGION_INTERNAL_SMALL].name = "small internal";
 
+#if DELUGE_USE_RUST_ALLOC
+	// Strangle step 4: collapse the three SDRAM carves (stealable/external/
+	// external_small) into ONE Rust heap — deluge::memory::sdram_heap(), built over
+	// the LARGE_EXTERNAL region (== [__sdram_bss_end, external_end) on every BSP) —
+	// and the fast SRAM region into sram_heap(). We only record bounds here so
+	// rustHeapFor() can map a pointer to the right heap (the whole SDRAM range lives
+	// under MEMORY_REGION_STEALABLE); the MemoryRegion free-lists are unused. The
+	// reclaim hook drives cache eviction (CacheManager priority policy) when a live
+	// alloc can't fit — the unified pool, now over TLSF.
+	deluge::memory::init_heaps();
+	regions[MEMORY_REGION_STEALABLE].start = stealable_start;
+	regions[MEMORY_REGION_STEALABLE].end = external_small_end;
+	regions[MEMORY_REGION_INTERNAL].start = internal_start;
+	regions[MEMORY_REGION_INTERNAL].end = internal_end;
+	// EXTERNAL/EXTERNAL_SMALL are folded into the one SDRAM heap (above); zero their
+	// bounds so getRegion() — reached only for INTERNAL_SMALL/frunk pointers now —
+	// can't false-match their uninitialised ranges.
+	regions[MEMORY_REGION_EXTERNAL].start = 0;
+	regions[MEMORY_REGION_EXTERNAL].end = 0;
+	regions[MEMORY_REGION_EXTERNAL_SMALL].start = 0;
+	regions[MEMORY_REGION_EXTERNAL_SMALL].end = 0;
+	deluge_heap_register_reclaim(deluge::memory::sdram_heap(), gmaSdramReclaim, this);
+#else
 	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), stealable_start, stealable_end,
 	                                       &cacheManager);
 	regions[MEMORY_REGION_EXTERNAL].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral), external_start,
@@ -101,15 +140,6 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
 	                                            external_small_start, external_small_end, nullptr);
 	regions[MEMORY_REGION_EXTERNAL_SMALL].minAlign_ = 16;
 	regions[MEMORY_REGION_EXTERNAL_SMALL].pivot_ = 64;
-#if DELUGE_USE_RUST_ALLOC
-	// Strangle step 2: the internal (fast SRAM) region is served by the Rust TLSF
-	// core via deluge::memory::sram_heap() (owned by heaps.cpp, built from the same
-	// FAST_INTERNAL region). We only record the bounds here so rustHeapFor() can map
-	// an internal pointer to that heap; the MemoryRegion free-list slot is unused.
-	deluge::memory::init_heaps();
-	regions[MEMORY_REGION_INTERNAL].start = internal_start;
-	regions[MEMORY_REGION_INTERNAL].end = internal_end;
-#else
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal), internal_start,
 	                                      internal_end, nullptr);
 #endif
@@ -168,7 +198,12 @@ extern "C" void delugeDealloc(void* address) {
 #endif
 }
 void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
-
+#if DELUGE_USE_RUST_ALLOC
+	// General SDRAM allocation: any cold stealable may yield (no protection). The
+	// heap's reclaim hook (gmaSdramReclaim) handles eviction + reentrancy (depth-1).
+	currentDontStealFrom_ = nullptr;
+	return deluge_alloc(deluge::memory::sdram_heap(), requiredSize, 16);
+#else
 	if (lock) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
 		                // could extend the stack an unspecified amount
@@ -189,6 +224,7 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 		return nullptr;
 	}
 	return address;
+#endif
 }
 
 void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
@@ -218,6 +254,12 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 	return address;
 }
 void GeneralMemoryAllocator::deallocExternal(void* address) {
+#if DELUGE_USE_RUST_ALLOC
+	if (DelugeHeap* h = rustHeapFor(address)) {
+		deluge_free(h, address);
+		return;
+	}
+#endif
 	regions[getRegion(address)].dealloc(address);
 }
 
@@ -266,9 +308,19 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	}
 #endif
 
+#if DELUGE_USE_RUST_ALLOC
+	// Stealable allocation = a normal SDRAM block; its "stealable" nature is its
+	// CacheManager queue membership (the owner queues it when reasons hit 0, as
+	// before). thingNotToStealFrom protects the in-flight cluster from the reclaim
+	// hook that may fire during this very alloc.
+	currentDontStealFrom_ = thingNotToStealFrom;
+	address = deluge_alloc(deluge::memory::sdram_heap(), requiredSize, 16);
+	currentDontStealFrom_ = nullptr;
+#else
 	lock = true;
 	address = regions[MEMORY_REGION_STEALABLE].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 	lock = false;
+#endif
 	return finalizeAlloc(address, requiredSize);
 }
 
