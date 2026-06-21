@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 // The application's allocator heaps, built over the BSP's memory regions
 // (deluge_memory_region) and backed by the Rust deluge_alloc core. These free
 // functions are the clean way to reach a heap — the typed C++ allocators
@@ -44,5 +46,23 @@ DelugeHeap* sram_heap();
 /// Large external SDRAM heap (DELUGE_MEM_LARGE_EXTERNAL region). nullptr until the
 /// SDRAM strangle wires it (and off without DELUGE_USE_RUST_ALLOC).
 DelugeHeap* sdram_heap();
+
+// Allocation helpers — the clean surface the typed C++ allocators (fast/sdram/
+// external_allocator) call, so they need neither GeneralMemoryAllocator::get()
+// nor libdeluge/alloc.h. The DELUGE_USE_RUST_ALLOC gate lives in heaps.cpp: ON →
+// deluge_alloc over the heaps; OFF → the legacy GeneralMemoryAllocator/MemoryRegion
+// path (identical behaviour). `align` is honored on the Rust path (the C++ path
+// gives its usual 16-byte alignment). Return nullptr on OOM.
+
+/// SRAM-preferred with SDRAM fallback (== the old allocMaxSpeed).
+void* alloc_fast(std::size_t size, std::size_t align);
+/// General SDRAM (== the old allocLowSpeed).
+void* alloc_sdram(std::size_t size, std::size_t align);
+/// Non-stealable external SDRAM (== the old allocExternal; one heap now).
+void* alloc_external(std::size_t size, std::size_t align);
+/// Free a pointer from any of the above; routes to the owning heap by address.
+void dealloc(void* ptr);
+/// Usable bytes at `ptr` (routes by address).
+std::size_t usable_size(void* ptr);
 
 } // namespace deluge::memory

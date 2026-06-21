@@ -19,6 +19,9 @@
 #if DELUGE_USE_RUST_ALLOC
 #include "libdeluge/alloc.h"
 #include "libdeluge/memory.h"
+#include <cstdint>
+#else
+#include "memory/general_memory_allocator.h"
 #endif
 
 namespace deluge::memory {
@@ -28,7 +31,21 @@ namespace deluge::memory {
 namespace {
 DelugeHeap* g_sram = nullptr;
 DelugeHeap* g_sdram = nullptr;
+uintptr_t g_sram_lo = 0, g_sram_hi = 0;
+uintptr_t g_sdram_lo = 0, g_sdram_hi = 0;
 bool g_built = false;
+
+// The heap a (typed-allocator) pointer belongs to, by address range.
+DelugeHeap* heap_for(void* p) {
+	auto v = reinterpret_cast<uintptr_t>(p);
+	if (v >= g_sram_lo && v < g_sram_hi) {
+		return g_sram;
+	}
+	if (v >= g_sdram_lo && v < g_sdram_hi) {
+		return g_sdram;
+	}
+	return nullptr;
+}
 } // namespace
 
 void init_heaps() {
@@ -43,6 +60,8 @@ void init_heaps() {
 		}
 		if (r.kind == DELUGE_MEM_FAST_INTERNAL && g_sram == nullptr) {
 			g_sram = deluge_heap_create(r.base, r.size);
+			g_sram_lo = reinterpret_cast<uintptr_t>(r.base);
+			g_sram_hi = g_sram_lo + r.size;
 		}
 		// One unified SDRAM heap over the whole LARGE_EXTERNAL region (which on both
 		// BSPs is exactly [__sdram_bss_end, external_end) — the post-BSS usable SDRAM
@@ -51,6 +70,8 @@ void init_heaps() {
 		// eviction) is registered by the GeneralMemoryAllocator.
 		if (r.kind == DELUGE_MEM_LARGE_EXTERNAL && g_sdram == nullptr) {
 			g_sdram = deluge_heap_create(r.base, r.size);
+			g_sdram_lo = reinterpret_cast<uintptr_t>(r.base);
+			g_sdram_hi = g_sdram_lo + r.size;
 		}
 	}
 }
@@ -65,7 +86,30 @@ DelugeHeap* sdram_heap() {
 	return g_sdram;
 }
 
-#else // !DELUGE_USE_RUST_ALLOC — legacy MemoryRegion path; no Rust heaps.
+void* alloc_fast(std::size_t size, std::size_t align) {
+	init_heaps();
+	void* p = deluge_alloc(g_sram, size, align); // SRAM first
+	if (p == nullptr) {
+		p = deluge_alloc(g_sdram, size, align); // fall back to SDRAM (== allocMaxSpeed)
+	}
+	return p;
+}
+void* alloc_sdram(std::size_t size, std::size_t align) {
+	init_heaps();
+	return deluge_alloc(g_sdram, size, align);
+}
+void* alloc_external(std::size_t size, std::size_t align) {
+	init_heaps();
+	return deluge_alloc(g_sdram, size, align); // external collapsed into the one SDRAM heap
+}
+void dealloc(void* ptr) {
+	deluge_free(heap_for(ptr), ptr); // deluge_free tolerates a null heap (no-op)
+}
+std::size_t usable_size(void* ptr) {
+	return deluge_usable_size(heap_for(ptr), ptr);
+}
+
+#else // !DELUGE_USE_RUST_ALLOC — legacy GeneralMemoryAllocator/MemoryRegion path.
 
 void init_heaps() {
 }
@@ -74,6 +118,21 @@ DelugeHeap* sram_heap() {
 }
 DelugeHeap* sdram_heap() {
 	return nullptr;
+}
+void* alloc_fast(std::size_t size, std::size_t /*align*/) {
+	return GeneralMemoryAllocator::get().allocMaxSpeed(size);
+}
+void* alloc_sdram(std::size_t size, std::size_t /*align*/) {
+	return GeneralMemoryAllocator::get().allocLowSpeed(size);
+}
+void* alloc_external(std::size_t size, std::size_t /*align*/) {
+	return GeneralMemoryAllocator::get().allocExternal(size);
+}
+void dealloc(void* ptr) {
+	GeneralMemoryAllocator::get().dealloc(ptr);
+}
+std::size_t usable_size(void* ptr) {
+	return GeneralMemoryAllocator::get().getAllocatedSize(ptr);
 }
 
 #endif

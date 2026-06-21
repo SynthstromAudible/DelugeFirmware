@@ -1,15 +1,14 @@
 #pragma once
-#include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "util/exceptions.h"
 #include <cstddef>
-extern "C" {
-void abort(void); // this is defined in reset_handler.S
-}
 namespace deluge::memory {
 
 /**
- * @brief A simple GMA wrapper that conforms to the C++ Allocator trait spec
- * (see: https://en.cppreference.com/w/cpp/named_req/Allocator)
+ * @brief A C++ Allocator-trait wrapper over the fast (SRAM-preferred) heap.
+ * (see: https://en.cppreference.com/w/cpp/named_req/Allocator). Routes through
+ * deluge::memory::alloc_fast — the Rust deluge_alloc core (or, gate-off, the
+ * legacy GeneralMemoryAllocator) — without reaching GeneralMemoryAllocator::get().
  *
  * @tparam T The type to allocate for
  */
@@ -27,14 +26,14 @@ public:
 		if (n == 0) {
 			return nullptr;
 		}
-		void* addr = GeneralMemoryAllocator::get().allocMaxSpeed(n * sizeof(T));
+		void* addr = deluge::memory::alloc_fast(n * sizeof(T), alignof(T));
 		if (addr == nullptr) [[unlikely]] {
 			throw deluge::exception::BAD_ALLOC;
 		}
 		return static_cast<T*>(addr);
 	}
 
-	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().dealloc(p); }
+	void deallocate(T* p, std::size_t n) { deluge::memory::dealloc(p); }
 
 	template <typename U>
 	bool operator==(const fast_allocator<U>& o) {

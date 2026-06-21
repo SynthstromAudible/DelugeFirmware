@@ -17,6 +17,7 @@
 
 #include "storage/cluster/cluster.h"
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "processing/engines/audio_engine.h"

@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
+#include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/live/live_input_buffer.h"
 #include "util/functions.h"

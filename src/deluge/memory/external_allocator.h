@@ -1,10 +1,7 @@
 #pragma once
-#include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "util/exceptions.h"
 #include <cstddef>
-extern "C" {
-void abort(void); // this is defined in reset_handler.S
-}
 namespace deluge::memory {
 
 /**
@@ -28,14 +25,14 @@ public:
 		if (n == 0) {
 			return nullptr;
 		}
-		void* addr = GeneralMemoryAllocator::get().allocExternal(n * sizeof(T));
+		void* addr = deluge::memory::alloc_external(n * sizeof(T), alignof(T));
 		if (addr == nullptr) [[unlikely]] {
 			throw deluge::exception::BAD_ALLOC;
 		}
 		return static_cast<T*>(addr);
 	}
 
-	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().deallocExternal(p); }
+	void deallocate(T* p, std::size_t n) { deluge::memory::dealloc(p); }
 
 	template <typename U>
 	bool operator==(const deluge::memory::external_allocator<U>& o) {
