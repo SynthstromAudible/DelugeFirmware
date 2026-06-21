@@ -111,6 +111,12 @@ add_compile_definitions(USE_TASK_MANAGER)
 # the golden WAV captures layout-dependent). Zeroing makes the host run deterministic and turns those
 # latent reads into a defined 0. Firmware builds leave this off (the guards inline away).
 add_compile_definitions(DELUGE_DETERMINISTIC_ALLOC)
+
+# Compile-time marker for host-only code paths (the CMake `DELUGE_HOST` variable above is
+# build-system only). Used e.g. to drop the FATFS sector-buffer cache-line over-alignment,
+# which has no meaning without DMA and which the host allocator (8-byte aligned) can't honour.
+add_compile_definitions(DELUGE_HOST)
+
 if(DELUGE_SIM_ARM)
     # Real NEON: the cross toolchain provides <arm_neon.h>; argon's <arm/neon.h> is unused.
     include_directories(BEFORE ${REPO_ROOT}/include)
@@ -193,4 +199,24 @@ target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS})
 target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler)
 if(RT_LIB)
     target_link_libraries(deluge_host PRIVATE ${RT_LIB})
+endif()
+
+# deluge_render: the headless "project -> stems" utility. Same app + host BSP as
+# deluge_host, but its own main()/render-driver (host_render_main.cpp) instead of
+# host_main.c, and it drives the existing offline StemExport engine against a FAT
+# disk image (the shared host_platform.c diskio backend). Requires mtools at runtime
+# (--project packing). See host_render_main.cpp for usage.
+add_executable(deluge_render
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_render_main.cpp
+)
+target_include_directories(deluge_render PRIVATE ${HOST_INCLUDE_DIRS})
+target_link_libraries(deluge_render PRIVATE deluge_app deluge_scheduler)
+if(RT_LIB)
+    target_link_libraries(deluge_render PRIVATE ${RT_LIB})
 endif()

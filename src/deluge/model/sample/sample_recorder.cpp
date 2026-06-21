@@ -54,7 +54,12 @@ SampleRecorder::~SampleRecorder() {
 	if (sample != nullptr) {
 		detachSample();
 	}
-	outputRecordingFrom->removeRecorder();
+	// Only SPECIFIC_OUTPUT recorders track a source Output; MIX/OFFLINE_OUTPUT stem
+	// recorders leave outputRecordingFrom null. The deref was benign on the MCU (addr 0
+	// mapped) but faults on the host.
+	if (outputRecordingFrom != nullptr) {
+		outputRecordingFrom->removeRecorder();
+	}
 }
 
 // This can be called when this SampleRecorder is destructed routinely - or earlier if we've aborted and the sample file

@@ -223,6 +223,23 @@ uint32_t deluge_audio_drive(void) {
 	if (host_link_active()) {
 		return host_audio_drive_live();
 	}
+
+	// Render mode (deluge_render): the stem-export engine writes the real per-stem
+	// WAVs via SampleRecorder; the master output here is only the 0/1 keep-alive.
+	// So skip the master capture entirely — just render a block to advance
+	// host_rendered_frames (the deterministic clock the offline loop ticks on) and
+	// return. The render-driver task owns the process exit.
+	static int render_mode = -1;
+	if (render_mode < 0) {
+		const char* r = getenv("DELUGE_RENDER");
+		render_mode = (r && r[0] && r[0] != '0') ? 1 : 0;
+	}
+	if (render_mode) {
+		deluge_app_render(host_input_block, host_render_block, HOST_AUDIO_BLOCK_FRAMES);
+		host_rendered_frames += HOST_AUDIO_BLOCK_FRAMES;
+		return 1;
+	}
+
 	if (capture_done) {
 		return 0;
 	}

@@ -41,6 +41,30 @@
 #include "drivers/oled/oled.h"               // oledDMAInit
 #include "drivers/ssi/ssi.h"                 // ssiInit
 
+// Static capability descriptor for the RZ/A1L Deluge (144-pad, OLED). Mirrors the
+// values reported by the Rust BSP (src/bsp/rust/src/board.rs) and the compile-time
+// hardware knowledge in RZA1/cpu_specific.h (grid sizes, CV/gate counts).
+static const DelugeBoard rza1_board = {
+    .name = "Synthstrom Deluge (144-pad, OLED)",
+    .pad_grid_width = 16,
+    .pad_grid_height = 8,
+    .button_rows = 4, // NUM_BUTTON_ROWS
+    .button_cols = 9, // NUM_BUTTON_COLS
+    .encoder_count = 6,
+    .cv_channels = 2,   // NUM_PHYSICAL_CV_CHANNELS
+    .gate_channels = 4, // NUM_GATE_CHANNELS
+    .display_kind = DELUGE_DISPLAY_OLED,
+    .display_width = 128, // OLED_MAIN_WIDTH_PIXELS
+    .display_height = 48, // OLED_MAIN_HEIGHT_PIXELS
+    .audio_sample_rate_hz = 44100,
+    .audio_in_channels = 2,
+    .audio_out_channels = 2,
+};
+
+const DelugeBoard* deluge_board(void) {
+	return &rza1_board;
+}
+
 bool deluge_board_probe_oled(void) {
 	// Piggyback off of the bootloader's DMA setup: if the OLED SPI DMA channel is
 	// configured the way the bootloader leaves it, an OLED panel is fitted.

@@ -1062,9 +1062,12 @@ void routine() {
 				// Drains the just-rendered block to any OUTPUT-mode recorder
 				// and keeps the DAC fed (deluge_app_render's offline path).
 				deluge_audio_drive();
-				// gross and hacky way to make sure the audio recorder writes all of its data so it can't be stolen
-				while (audioRecorder.recorder->firstUnwrittenClusterIndex
-				       < audioRecorder.recorder->currentRecordClusterIndex) {
+				// gross and hacky way to make sure the audio recorder writes all of its data so it can't be stolen.
+				// The recorder doesn't exist yet during the playback-setup pre-roll (doOneLastAudioRoutineCall),
+				// so guard the access — nothing to drain until recording has actually begun.
+				while (audioRecorder.recorder
+				       && audioRecorder.recorder->firstUnwrittenClusterIndex
+				              < audioRecorder.recorder->currentRecordClusterIndex) {
 					doRecorderCardRoutines();
 				}
 

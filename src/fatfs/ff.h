@@ -127,6 +127,18 @@ extern const char* VolumeStr[FF_VOLUMES];	/* User defied volume ID */
 
 
 
+/* Cache-line alignment for the sector buffers, so DMA-targeted reads/writes don't
+   share a cache line with neighbouring data on the SoC. The host-sim has no DMA, and
+   its general allocator only guarantees 8-byte alignment — over-aligning FIL/FATFS to
+   32 there makes the compiler assume that alignment on any embedding object (e.g.
+   SampleRecorder, which is heap-allocated) and emit aligned SSE that the 8-byte
+   allocation can't satisfy, faulting on x86. So make it a no-op on the host. */
+#ifdef DELUGE_HOST
+#define FF_CACHE_ALIGN
+#else
+#define FF_CACHE_ALIGN __attribute((aligned(32)))
+#endif
+
 /* Filesystem object structure (FATFS) */
 
 typedef struct {
@@ -172,7 +184,7 @@ typedef struct {
 	LBA_t	bitbase;		/* Allocation bitmap base sector */
 #endif
 	LBA_t	winsect;		/* Current sector appearing in the win[] */
-	BYTE	dummy[32] __attribute((aligned(32))); // Inserted by Rohan. This is the cache line size
+	BYTE	dummy[32] FF_CACHE_ALIGN; // Inserted by Rohan. This is the cache line size
 	BYTE	win[FF_MAX_SS];	/* Disk access window for Directory, FAT (and file data at tiny cfg) */
 	BYTE	dummy2[32]; // Inserted by Rohan. This somehow stops occasional intermittent errors
 } FATFS;
@@ -219,7 +231,7 @@ typedef struct {
 	DWORD*	cltbl;			/* Pointer to the cluster link map table (nulled on open, set by application) */
 #endif
 #if !FF_FS_TINY
-	BYTE	buf[FF_MAX_SS] __attribute((aligned(32)));	/* File private data read/write window */
+	BYTE	buf[FF_MAX_SS] FF_CACHE_ALIGN;	/* File private data read/write window */
 #endif
 } FIL;
 

@@ -72,9 +72,13 @@ extern "C" {}
 
 namespace params = deluge::modulation::params;
 
-/// Do not call in static/global constructors, song won't exist yet
+/// Do not call in static/global constructors, song won't exist yet.
+/// Tolerates a null currentSong: during deleteOldSongBeforeLoadingNew() the global is
+/// nulled before ~Song() tears down its clips, and ~Clip() calls back in here. On the
+/// MCU the null deref read mapped-but-garbage memory (branch harmlessly not taken); on
+/// the host 0x0 is unmapped and faults, so return nullptr for the same observable result.
 Clip* getCurrentClip() {
-	return currentSong->getCurrentClip();
+	return currentSong ? currentSong->getCurrentClip() : nullptr;
 }
 
 /// Do not call in static/global constructors, song won't exist yet

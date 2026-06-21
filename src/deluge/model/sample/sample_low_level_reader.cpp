@@ -954,7 +954,10 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 
 	int32_t* __restrict__ oscBufferPosNow = *oscBufferPos;
 
-	char* __restrict__ cacheWritePosNow = (char*)*cacheWritePos;
+	// cacheWritePos is null unless writingCache; the value is only consumed under writingCache
+	// below (and written back under the same `if (cacheWritePos)` guard at the end). Dereferencing
+	// it unconditionally read mapped-but-unused garbage on the MCU but faults on the host.
+	char* __restrict__ cacheWritePosNow = cacheWritePos ? (char*)*cacheWritePos : nullptr;
 
 	int32_t const* const oscBufferEnd = oscBufferPosNow + numSamplesTotal * numChannelsAfterCondensing;
 

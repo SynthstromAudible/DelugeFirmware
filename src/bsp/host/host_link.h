@@ -17,9 +17,8 @@
 
 /// host_link — the emulator's I/O transport.
 ///
-/// Frames spark's length-prefixed front-panel protocol (see
-/// docs/dev/host_emulator.md and spark's apps/deluge/core/src/interface/protocol.rs)
-/// over an AF_UNIX socket. `deluge_host` plays the *brain*: it emits the display/LED
+/// Frames spark's length-prefixed front-panel protocol (see docs/dev/host_emulator.md)
+/// over an AF_UNIX socket or TCP loopback. `deluge_host` plays the *brain*: it emits the display/LED
 /// `MessageToDeluge` frames and consumes the `MessageFromDeluge` input frames — the
 /// inverse of spark's normal daemon→device direction, because here the real firmware
 /// is the device that owns the UI.
