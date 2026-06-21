@@ -18,6 +18,8 @@ if (UNIX AND NOT APPLE)
     add_subdirectory(32bit_unit_tests)
     # Allocator conformance specs need -m32 (MemoryRegion assumes 32-bit addresses).
     add_subdirectory(spec_memory)
+    # Rust TLSF core conformance: i686 staticlib linked into a -m32 CppSpec driver.
+    add_subdirectory(spec_alloc)
 endif ()
 add_subdirectory(spec)
 add_subdirectory(unit)

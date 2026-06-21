@@ -1,0 +1,8 @@
+# Convenience alias for the bare-metal device build (RZ/A1L, Cortex-A9). Uses an
+# alias rather than a global [unstable] build-std so host builds (cargo test, the
+# i686 conformance staticlib) are unaffected. Requires a nightly toolchain.
+#
+#   cargo build-device          # debug
+#   cargo build-device --release
+[alias]
+build-device = "build --target armv7a-none-eabihf -Z build-std=core -Z build-std-features=compiler-builtins-mem"

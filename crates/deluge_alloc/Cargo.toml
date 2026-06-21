@@ -1,0 +1,40 @@
+# deluge_alloc — the from-scratch TLSF + slab allocator core for the Deluge,
+# behind a stable C ABI (libdeluge/alloc.h). Phase 3 of
+# docs/dev/allocator_implementation_plan.md. Replaces the C++ MemoryRegion/GMA
+# internals; validated bit-for-bit by the conformance suite in tests/spec_alloc
+# (which is the same AllocatorUnderTest suite the C++ MemoryRegion passes).
+#
+# `no_std` core. Built as a staticlib for the host (x86_64-unknown-linux-gnu) for
+# conformance testing now, and cross-compiled for the device (armv7a) later.
+[package]
+name = "deluge_alloc"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[features]
+# Exposes the host-only `testing` invariant harness to external consumers (the
+# fuzz crate). Unit tests get it via cfg(test) without this feature.
+fuzzing = []
+
+[lib]
+name = "deluge_alloc"
+# staticlib: linked into the C++ conformance test / firmware.
+# rlib: so the crate's own `cargo test` (host) can exercise the Rust API directly.
+crate-type = ["staticlib", "rlib"]
+
+[dev-dependencies]
+# Property-based testing with shrinking — generates op sequences and minimises any
+# failing case. Complements the fixed-seed churn tests and the cargo-fuzz target;
+# all three drive the same testing::Harness.
+proptest = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+# panic=abort: no unwinding in the no_std staticlib (links into the C++ firmware /
+# conformance binary, which provides libc abort). The release lib is what gets
+# linked; `cargo test` uses the default (unwinding) profile so the test harness works.
+panic = "abort"
