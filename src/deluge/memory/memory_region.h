@@ -17,15 +17,11 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
+#include "memory/empty_space_vector.h"
 #include "memory/reclaimer.h"
-#include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 
 #include <util/exceptions.h>
-
-struct EmptySpaceRecord {
-	uint32_t length;
-	uint32_t address;
-};
 
 struct NeighbouringMemoryGrabAttemptResult {
 	uint32_t address; // 0 means didn't grab / not found.
@@ -43,7 +39,7 @@ constexpr size_t min_align_big = 64;
 constexpr size_t pivot_big = 512;
 class MemoryRegion {
 public:
-	MemoryRegion();
+	MemoryRegion() = default;
 	void setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd,
 	           Reclaimer* reclaimer);
 	void* alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom);
@@ -62,7 +58,7 @@ public:
 #if ALPHA_OR_BETA_VERSION
 	char const* name; // For debugging messages only.
 #endif
-	OrderedResizeableArrayWithMultiWordKey emptySpaces;
+	EmptySpaceVector emptySpaces;
 
 private:
 	friend class CacheManager;
