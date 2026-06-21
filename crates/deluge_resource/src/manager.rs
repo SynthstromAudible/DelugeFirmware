@@ -20,6 +20,7 @@ use crate::value::evict_rank;
 use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr;
+use deluge_alloc::slab::{deluge_slab_acquire, deluge_slab_release, DelugeSlab};
 use deluge_alloc::{deluge_alloc, deluge_free, deluge_heap_register_reclaim, DelugeHeap};
 
 const NONE: u32 = u32::MAX;
@@ -98,11 +99,12 @@ impl ChunkSlot {
 }
 
 pub struct Manager {
-    // Raw, but only ever *passed* to the (unsafe) deluge_alloc/free calls — never
-    // dereferenced by the manager itself. The cluster slab (if any) backs uniform
-    // chunks; null until the slab path is wired (then BACKING_SLAB assets use it).
+    // Raw, but only ever *passed* to the (unsafe) deluge_alloc/slab calls — never
+    // dereferenced by the manager itself. The cluster slab (if set via
+    // deluge_resource_set_slab) backs uniform BACKING_SLAB assets; null ⇒ all assets
+    // use the heap.
     heap: *mut DelugeHeap,
-    slab: *mut c_void, // *mut DelugeSlab; opaque here (passed to deluge_slab_* in the slab-wiring step)
+    slab: Cell<*mut DelugeSlab>,
     assets: &'static [Cell<AssetSlot>],
     chunks: &'static [Cell<ChunkSlot>],
     tick: Cell<u64>,
@@ -129,17 +131,41 @@ impl Manager {
         self.chunks.iter().position(|c| c.get().backing.is_null())
     }
 
+    /// Does this asset want slab backing, and is a slab configured?
+    #[inline]
+    fn slab_for(&self, asset: u32) -> *mut DelugeSlab {
+        let slab = self.slab.get();
+        if !slab.is_null() && self.assets[asset as usize].get().source.backing == BACKING_SLAB {
+            slab
+        } else {
+            ptr::null_mut()
+        }
+    }
+
     /// Free a chunk's backing — slab-release for slab-backed assets, else heap-free.
     fn free_backing(&self, backing: *mut u8, asset: u32) {
-        let _ = asset; // (slab routing wired in the slab step; heap-only for now)
-                       // SAFETY: `backing` was returned by deluge_alloc on this heap and is live.
+        let slab = self.slab_for(asset);
+        if !slab.is_null() {
+            // SAFETY: `backing` is a slot of this slab. Returns false only if it's not
+            // owned here, in which case fall through to a plain heap free.
+            if unsafe { deluge_slab_release(slab, backing) } {
+                return;
+            }
+        }
+        // SAFETY: `backing` was returned by deluge_alloc on this heap and is live.
         unsafe { deluge_free(self.heap, backing) };
     }
 
-    /// Allocate a chunk's backing — from the slab for slab-backed assets, else heap.
+    /// Allocate a chunk's backing — a uniform slot from the slab for slab-backed
+    /// assets, else `size` bytes from the heap.
     fn alloc_backing(&self, size: usize, asset: u32) -> *mut u8 {
-        let _ = asset; // (slab routing wired in the slab step)
-                       // SAFETY: `self.heap` is a live heap handle (checked at create).
+        let slab = self.slab_for(asset);
+        if !slab.is_null() {
+            // SAFETY: `slab` is a live unmanaged slab over the same heap; uniform slot
+            // size, so `size` is implicit. owner is unused (no slab self-eviction).
+            return unsafe { deluge_slab_acquire(slab, ptr::null_mut()) };
+        }
+        // SAFETY: `self.heap` is a live heap handle (checked at create).
         unsafe { deluge_alloc(self.heap, size, 16) }
     }
 
@@ -275,6 +301,10 @@ impl Manager {
         NONE
     }
 
+    fn set_slab(&self, slab: *mut DelugeSlab) {
+        self.slab.set(slab);
+    }
+
     fn reference(&self, asset: u32, delta: i32) {
         let ai = asset as usize;
         if ai >= self.assets.len() {
@@ -360,7 +390,7 @@ pub unsafe extern "C" fn deluge_resource_create(
         m,
         Manager {
             heap,
-            slab: ptr::null_mut(),
+            slab: Cell::new(ptr::null_mut()),
             assets,
             chunks,
             tick: Cell::new(0),
@@ -368,6 +398,19 @@ pub unsafe extern "C" fn deluge_resource_create(
     );
     deluge_heap_register_reclaim(heap, resource_reclaim, m as *mut c_void);
     m as *mut DelugeResource
+}
+
+/// Configure the slab that backs BACKING_SLAB assets (uniform clusters). Until set,
+/// all assets use the heap. Create it with `deluge_slab_create_unmanaged` over the
+/// same heap so eviction stays with this manager (the slab self-evicts nothing).
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_set_slab(
+    handle: *mut DelugeResource,
+    slab: *mut DelugeSlab,
+) {
+    if !handle.is_null() {
+        mgr(handle).set_slab(slab);
+    }
 }
 
 /// Define an asset: an opaque `owner` token + its reconstruction `Source`. Returns

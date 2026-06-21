@@ -78,6 +78,12 @@ typedef void (*DelugeResourceEvictFn)(void* ctx, void* owner, uint32_t index);
 /// the limiter). Returns NULL on OOM.
 DelugeResource* deluge_resource_create(DelugeHeap* heap, size_t asset_capacity, size_t chunk_capacity);
 
+/// Configure the slab that backs `BACKING_SLAB` assets (uniform clusters). Until
+/// set, every asset uses the heap. Create it with `deluge_slab_create_unmanaged`
+/// (alloc.h) over the same heap, so eviction stays with this manager (the slab
+/// self-evicts nothing — the manager's reclaim hook releases its slots).
+void deluge_resource_set_slab(DelugeResource* mgr, DelugeSlab* slab);
+
 /// Define an asset: an opaque `owner` token + its reconstruction `Source`
 /// (`materialize` + optional `on_evict` + `ctx` + `cost` + `backing`). Returns the
 /// asset id, or DELUGE_RESOURCE_NO_ASSET if the asset table is full. `backing` is

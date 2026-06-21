@@ -100,14 +100,15 @@ mod tests {
         EVICTS.with(|c| c.set(c.get() + 1));
     }
 
-    // Build a heap over a leaked, 16-aligned buffer (Vec<u128>) so it stays valid
-    // for the test AND honors the TLSF's 16-aligned headers — real BSP regions are
-    // page-aligned; miri tracks the allocation's declared alignment, so an under-
-    // aligned Vec<u8> arena would (correctly) flag the headers as misaligned.
-    fn heap(bytes: usize) -> *mut deluge_alloc::DelugeHeap {
+    // Build a heap over a 16-aligned buffer (Vec<u128>) — real BSP regions are
+    // page-aligned, and miri tracks an allocation's declared alignment (a Vec<u8>
+    // arena would flag the TLSF's 16-aligned headers as misaligned). Returns the
+    // buffer so the caller keeps it alive (not leaked → miri-leak-clean).
+    fn arena(bytes: usize) -> (Vec<u128>, *mut deluge_alloc::DelugeHeap) {
         let words = bytes.div_ceil(16);
-        let buf: &'static mut [u128] = vec![0u128; words].leak();
-        unsafe { deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) }
+        let mut buf = vec![0u128; words];
+        let h = unsafe { deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
+        (buf, h)
     }
 
     fn check_pattern(p: *mut u8, owner: *mut c_void, index: u32, len: usize) {
@@ -123,7 +124,7 @@ mod tests {
 
     #[test]
     fn acquire_materializes_and_caches() {
-        let h = heap(1 << 20);
+        let (_buf, h) = arena(1 << 20);
         let mgr = unsafe { deluge_resource_create(h, 16, 64) };
         assert!(!mgr.is_null());
         let a = unsafe {
@@ -150,7 +151,7 @@ mod tests {
     fn leased_chunk_is_never_evicted() {
         // Small heap, 64 KB chunks: hold one leased, then hammer acquisitions that
         // force reclaim — the leased chunk must survive and keep its bytes.
-        let h = heap(256 * 1024);
+        let (_buf, h) = arena(256 * 1024);
         let mgr = unsafe { deluge_resource_create(h, 16, 64) };
         let a = unsafe {
             deluge_resource_define_asset(
@@ -176,7 +177,7 @@ mod tests {
 
     #[test]
     fn eviction_reloads_correct_bytes() {
-        let h = heap(256 * 1024);
+        let (_buf, h) = arena(256 * 1024);
         let mgr = unsafe { deluge_resource_create(h, 16, 64) };
         let a = unsafe {
             deluge_resource_define_asset(
@@ -208,7 +209,7 @@ mod tests {
 
     #[test]
     fn dirty_chunk_is_never_evicted() {
-        let h = heap(256 * 1024);
+        let (_buf, h) = arena(256 * 1024);
         let mgr = unsafe { deluge_resource_create(h, 16, 64) };
         let a = unsafe {
             deluge_resource_define_asset(
@@ -239,7 +240,7 @@ mod tests {
     fn soft_reference_raises_priority() {
         // Two assets; the referenced one's chunk must outlast the unreferenced one's
         // under eviction pressure.
-        let h = heap(192 * 1024);
+        let (_buf, h) = arena(192 * 1024);
         let mgr = unsafe { deluge_resource_create(h, 16, 64) };
         let cold = unsafe {
             deluge_resource_define_asset(
@@ -279,7 +280,7 @@ mod tests {
 
     #[test]
     fn all_leased_means_graceful_oom() {
-        let h = heap(192 * 1024);
+        let (_buf, h) = arena(192 * 1024);
         let mgr = unsafe { deluge_resource_create(h, 16, 64) };
         let a = unsafe {
             deluge_resource_define_asset(
@@ -325,8 +326,50 @@ mod tests {
     }
 
     #[test]
+    fn slab_backed_asset_acquires_evicts_reloads() {
+        // A BACKING_SLAB asset's chunks come from an unmanaged slab over the same heap;
+        // the manager (not the slab) drives eviction via its reclaim hook → slab_release.
+        let (_buf, h) = arena(256 * 1024);
+        let slot = 16 * 1024;
+        let slab = unsafe { deluge_alloc::slab::deluge_slab_create_unmanaged(h, slot, 64) };
+        assert!(!slab.is_null());
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        unsafe { deluge_resource_set_slab(mgr, slab) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(4),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_SLAB,
+            )
+        };
+        let p0 = unsafe { deluge_resource_acquire(mgr, a, 0, slot) };
+        assert!(!p0.is_null());
+        assert_eq!(p0 as usize % 16, 0);
+        check_pattern(p0, owner(4), 0, slot);
+        unsafe { deluge_resource_release(mgr, p0) };
+        reset_evicts();
+        for n in 1..40u32 {
+            let p = unsafe { deluge_resource_acquire(mgr, a, n, slot) };
+            if !p.is_null() {
+                unsafe { deluge_resource_release(mgr, p) };
+            }
+        }
+        assert!(
+            evicts() >= 1,
+            "slab-backed pressure should evict (via the manager hook)"
+        );
+        let again = unsafe { deluge_resource_acquire(mgr, a, 0, slot) };
+        assert!(!again.is_null());
+        check_pattern(again, owner(4), 0, slot);
+    }
+
+    #[test]
     fn reconstruction_failure_returns_null() {
-        let h = heap(1 << 20);
+        let (_buf, h) = arena(1 << 20);
         let mgr = unsafe { deluge_resource_create(h, 16, 64) };
         let a = unsafe {
             deluge_resource_define_asset(
