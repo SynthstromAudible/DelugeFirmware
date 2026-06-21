@@ -21,18 +21,18 @@
 #include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
 #include "util/fixedpoint.h"
+#include <algorithm>
 #include <cstring>
+#include <span>
 
 #ifdef DO_AUDIO_LOG
 #include "processing/engines/audio_engine.h"
 #endif
 
-MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
-}
-
 void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin,
                          uint32_t regionEnd, CacheManager* cacheManager) {
-	emptySpaces.setStaticMemory(emptySpacesMemory, emptySpacesMemorySize);
+	emptySpaces.reset({static_cast<EmptySpaceRecord*>(emptySpacesMemory),
+	                   static_cast<size_t>(emptySpacesMemorySize) / sizeof(EmptySpaceRecord)});
 	// Make every user pointer 16-byte aligned (required by over-aligned SSE/NEON types such as
 	// TimeStretcher; x86 movaps faults on an 8-aligned object). Each block has a 4-byte header
 	// before its data and a 4-byte footer after, and padSize() makes every allocatedSize ≡ 8
@@ -57,10 +57,7 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 	*(uint32_t*)(regionEnd - 8) = SPACE_HEADER_EMPTY | memorySizeWithoutHeaders;
 	*(uint32_t*)(regionEnd - 4) = SPACE_HEADER_ALLOCATED;
 
-	emptySpaces.insertAtIndex(0);
-	EmptySpaceRecord* firstRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(0);
-	firstRecord->length = memorySizeWithoutHeaders;
-	firstRecord->address = regionBegin + 8;
+	emptySpaces.insert({memorySizeWithoutHeaders, regionBegin + 8});
 	cache_manager_ = cacheManager;
 	D_PRINTLN("%x to %x: Memory region %s", start, end, name);
 }
@@ -97,9 +94,8 @@ bool seenYet = false;
 
 void MemoryRegion::sanityCheck() {
 	int32_t count = 0;
-	for (int32_t j = 0; j < emptySpaces.getNumElements(); j++) {
-		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(j);
-		if (emptySpaceRecord->address == (uint32_t)0xc0080bc) {
+	for (auto const& emptySpaceRecord : emptySpaces) {
+		if (emptySpaceRecord.address == (uint32_t)0xc0080bc) {
 			count++;
 		}
 	}
@@ -117,19 +113,18 @@ void MemoryRegion::sanityCheck() {
 }
 
 void MemoryRegion::verifyMemoryNotFree(void* address, uint32_t spaceSize) {
-	for (int32_t i = 0; i < emptySpaces.getNumElements(); i++) {
-		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
-		if (emptySpaceRecord->address == (uint32_t)address) {
+	for (auto const& emptySpaceRecord : emptySpaces) {
+		if (emptySpaceRecord.address == (uint32_t)address) {
 			D_PRINTLN("Exact address free!");
 			FREEZE_WITH_ERROR("dddffffd");
 		}
-		else if (emptySpaceRecord->address <= (uint32_t)address
-		         && (emptySpaceRecord->address + emptySpaceRecord->length > (uint32_t)address)) {
+		else if (emptySpaceRecord.address <= (uint32_t)address
+		         && (emptySpaceRecord.address + emptySpaceRecord.length > (uint32_t)address)) {
 			FREEZE_WITH_ERROR("dddd");
 			D_PRINTLN("free mem overlap on left!");
 		}
-		else if ((uint32_t)address <= (uint32_t)emptySpaceRecord->address
-		         && ((uint32_t)address + spaceSize > emptySpaceRecord->address)) {
+		else if ((uint32_t)address <= (uint32_t)emptySpaceRecord.address
+		         && ((uint32_t)address + spaceSize > emptySpaceRecord.address)) {
 			FREEZE_WITH_ERROR("eeee");
 			D_PRINTLN("free mem overlap on right!");
 		}
@@ -151,7 +146,6 @@ inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize,
 		return;
 	}
 	int32_t biggerRecordSearchFromIndex = 0;
-	int32_t insertRangeBegin;
 
 	// Can we merge left?
 	if (mayLookLeft) {
@@ -194,18 +188,17 @@ inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize,
 			}
 			// Otherwise, do the opposite - delete the "right" space's record. That default was set back up above.
 
-			int32_t nextIndex;
-			biggerRecordSearchFromIndex = emptySpaces.searchMultiWordExact((uint32_t*)recordToDelete, &nextIndex);
+			auto del = emptySpaces.lower_bound(*recordToDelete);
+			biggerRecordSearchFromIndex = (int32_t)(del - emptySpaces.begin());
 
 			// It might not have been found if array got full so there was no record for this empty space.
-			if (biggerRecordSearchFromIndex == -1) {
-				biggerRecordSearchFromIndex = nextIndex;
-			}
-			else {
+			if (del != emptySpaces.end() && *del == *recordToDelete) {
 				// TODO: Ideally we like to combine this deletion with the below reorganisation of records. But this is
 				// actually very complicated, and maybe not even worth it.
-				emptySpaces.deleteAtIndex(biggerRecordSearchFromIndex);
+				emptySpaces.erase(del);
 			}
+			// recordToMergeWith is the "bigger" of the two, so it sits at or after recordToDelete's slot; the search
+			// below begins from biggerRecordSearchFromIndex.
 			goto goingToReplaceOldRecord;
 		}
 	}
@@ -226,20 +219,19 @@ inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize,
 
 	// If we're still here, we're not merging with anything, so just...
 	{
-		insertRangeBegin = 0;
 justInsertRecord:
 		// Add the new empty space record.
 		EmptySpaceRecord newRecord;
 		newRecord.length = spaceSize;
 		newRecord.address = address;
-		int32_t i = emptySpaces.searchMultiWordExact((uint32_t*)&newRecord);
-		if (i != -1) {
+		if (emptySpaces.find(newRecord) != emptySpaces.end()) {
 			FREEZE_WITH_ERROR("M123");
 		}
-		i = emptySpaces.insertAtKeyMultiWord((uint32_t*)&newRecord, insertRangeBegin);
+		auto [it, inserted] = emptySpaces.insert(newRecord);
 #if ALPHA_OR_BETA_VERSION
-		if (i == -1) { // Array might have gotten full. This has to be coped with. Perhaps in a perfect world we should
-			           // opt to throw away the smallest empty space to make space for this one if this one is bigger?
+		if (!inserted) { // Array might have gotten full. This has to be coped with. Perhaps in a perfect world we
+			             // should opt to throw away the smallest empty space to make space for this one if this one is
+			             // bigger?
 			D_PRINTLN("Lost track of empty space in region:  %s", name);
 		}
 #endif
@@ -248,19 +240,21 @@ justInsertRecord:
 	if (false) {
 
 goingToReplaceOldRecord:
-		int32_t i = emptySpaces.searchMultiWordExact((uint32_t*)recordToMergeWith, &insertRangeBegin,
-		                                             biggerRecordSearchFromIndex);
-		if (i == -1) { // The record might not exist because there wasn't room to insert it when the empty space was
-			           // created.
+		// recordToMergeWith is at or after biggerRecordSearchFromIndex; find it within that subrange.
+		auto mergeIt = std::ranges::lower_bound(emptySpaces.begin() + biggerRecordSearchFromIndex, emptySpaces.end(),
+		                                        *recordToMergeWith);
+		if (mergeIt == emptySpaces.end() || *mergeIt != *recordToMergeWith) {
+			// The record might not exist because there wasn't room to insert it when the empty space was created.
 #if ALPHA_OR_BETA_VERSION
 			D_PRINTLN("Found orphaned empty space in region:  %s", name);
 #endif
 			goto justInsertRecord;
 		}
+		int32_t i = (int32_t)(mergeIt - emptySpaces.begin());
 
 		// If there is a "bigger" record, to the right in the array...
-		if (i < emptySpaces.getNumElements() - 1) {
-			EmptySpaceRecord* nextBiggerRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i + 1);
+		if (i < (int32_t)emptySpaces.size() - 1) {
+			EmptySpaceRecord* nextBiggerRecord = &emptySpaces[i + 1];
 			int32_t howMuchBigger = nextBiggerRecord->length - spaceSize;
 
 			// If that next "bigger" record to the right in the array is actually smaller than our new space, we'll have
@@ -271,14 +265,17 @@ goingToReplaceOldRecord:
 				newRecordPreview.length = spaceSize;
 				newRecordPreview.address = address;
 
-				int32_t insertBefore =
-				    emptySpaces.searchMultiWord((uint32_t*)&newRecordPreview, GREATER_OR_EQUAL, i + 2);
-				emptySpaces.moveElementsLeft(i + 1, insertBefore, 1);
+				int32_t insertBefore = (int32_t)(std::ranges::lower_bound(emptySpaces.begin() + (i + 2),
+				                                                          emptySpaces.end(), newRecordPreview)
+				                                 - emptySpaces.begin());
+				// Slide the just-grown record at i rightwards to insertBefore-1, closing the gap (== old
+				// moveElementsLeft(i+1, insertBefore, 1)).
+				std::rotate(emptySpaces.begin() + i, emptySpaces.begin() + i + 1, emptySpaces.begin() + insertBefore);
 				i = insertBefore - 1;
 			}
 		}
 
-		EmptySpaceRecord* recordToUpdate = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
+		EmptySpaceRecord* recordToUpdate = &emptySpaces[i];
 		recordToUpdate->length = spaceSize;
 		recordToUpdate->address = address;
 	}
@@ -290,7 +287,11 @@ goingToReplaceOldRecord:
 	uint32_t headerData = SPACE_HEADER_EMPTY | spaceSize;
 	*header = headerData;
 	*footer = headerData;
-	emptySpaces.testSequentiality("M005");
+#if ENABLE_SEQUENTIALITY_TESTS
+	if (!std::ranges::is_sorted(emptySpaces)) {
+		FREEZE_WITH_ERROR("M005");
+	}
+#endif
 }
 
 void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom) {
@@ -301,21 +302,21 @@ void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thing
 	uint32_t allocatedAddress = 0;
 	int32_t i;
 
-	if (!emptySpaces.getNumElements()) {
+	if (emptySpaces.empty()) {
 		goto noEmptySpace;
 	}
 
 	// Here we're doing a search just on one 32-bit word of the key (that's "length of empty space").
-	i = emptySpaces.search(requiredSize, GREATER_OR_EQUAL);
+	i = (int32_t)(emptySpaces.lower_bound_by_length(requiredSize) - emptySpaces.begin());
 
 	// If found an empty space big enough...
-	if (i < emptySpaces.getNumElements()
+	if (i < (int32_t)emptySpaces.size()
 #if 0 && EST_GENERAL_MEMORY_ALLOCATION
 			&& getRandom255() >= 10
 #endif
 	) {
 gotEmptySpace:
-		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
+		EmptySpaceRecord* emptySpaceRecord = &emptySpaces[i];
 
 		allocatedSize = emptySpaceRecord->length;
 		allocatedAddress = emptySpaceRecord->address;
@@ -330,7 +331,7 @@ gotEmptySpace:
 		}
 		else {
 			if (extraSpaceSizeWithoutItsHeaders <= minAlign_) {
-				emptySpaces.deleteAtIndex(i);
+				emptySpaces.erase(emptySpaces.begin() + i);
 			}
 			else {
 
@@ -366,7 +367,7 @@ gotEmptySpace:
 				{
 					// Or even if it wasn't the leftmost record, we might still be able to just simply update - if our
 					// new value is still bigger than the record to the left.
-					EmptySpaceRecord* nextSmallerRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i - 1);
+					EmptySpaceRecord* nextSmallerRecord = &emptySpaces[i - 1];
 					int32_t howMuchBiggerStill = extraSpaceSizeWithoutItsHeaders - nextSmallerRecord->length;
 					if (howMuchBiggerStill > 0
 					    || (!howMuchBiggerStill && extraSpaceAddress > nextSmallerRecord->address)) {
@@ -378,11 +379,15 @@ gotEmptySpace:
 					EmptySpaceRecord searchThing;
 					searchThing.length = extraSpaceSizeWithoutItsHeaders;
 					searchThing.address = extraSpaceAddress;
-					int32_t insertAt = emptySpaces.searchMultiWord((uint32_t*)&searchThing, GREATER_OR_EQUAL, 0, i);
+					int32_t insertAt =
+					    (int32_t)(std::ranges::lower_bound(emptySpaces.begin(), emptySpaces.begin() + i, searchThing)
+					              - emptySpaces.begin());
 
-					emptySpaces.moveElementsRight(insertAt, i, 1);
+					// Slide the just-shrunk record at i leftwards to insertAt, closing the gap
+					// (== old moveElementsRight(insertAt, i, 1)).
+					std::rotate(emptySpaces.begin() + insertAt, emptySpaces.begin() + i, emptySpaces.begin() + i + 1);
 
-					emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(insertAt);
+					emptySpaceRecord = &emptySpaces[insertAt];
 				}
 justUpdateRecord:
 				emptySpaceRecord->length = extraSpaceSizeWithoutItsHeaders;
@@ -562,7 +567,7 @@ uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
 		EmptySpaceRecord oldEmptySpace;
 		oldEmptySpace.address = spaceHereAddress;
 		oldEmptySpace.length = emptySpaceHereSizeWithoutHeaders;
-		emptySpaces.deleteAtKeyMultiWord((uint32_t*)&oldEmptySpace);
+		emptySpaces.erase(oldEmptySpace);
 	}
 
 	else {
@@ -671,7 +676,7 @@ tryNotStealingFirst:
 							EmptySpaceRecord oldEmptySpace;
 							oldEmptySpace.address = spaceHereAddress;
 							oldEmptySpace.length = emptySpaceHereSizeWithoutHeaders;
-							bool success = emptySpaces.deleteAtKeyMultiWord((uint32_t*)&oldEmptySpace);
+							bool success = emptySpaces.erase(oldEmptySpace) != 0;
 #if TEST_GENERAL_MEMORY_ALLOCATION
 							if (!success) {
 								// TODO: actually, this is basically ok - it should be allowed to not find the key,

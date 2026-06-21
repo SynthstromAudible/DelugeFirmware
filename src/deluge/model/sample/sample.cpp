@@ -46,6 +46,11 @@
 	{}
 #endif
 
+// Comparison offsets for searchPercCacheZones(), formerly provided by the now-deleted ResizeableArray
+// hierarchy: GREATER_OR_EQUAL yields the lower bound itself, LESS the element just before it.
+constexpr int32_t GREATER_OR_EQUAL = 0;
+constexpr int32_t LESS = -1;
+
 // Mirrors OrderedResizeableArray::search(): returns the index of the first zone whose startPos >= key,
 // plus `comparison` (GREATER_OR_EQUAL = 0 or LESS = -1).
 static int32_t searchPercCacheZones(deluge::vector<SamplePercCacheZone> const& zones, int32_t key, int32_t comparison) {

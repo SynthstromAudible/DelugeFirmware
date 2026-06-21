@@ -231,10 +231,10 @@ TEST(MemoryAllocation, allocationSizes) {
 		average_packing_factor += (float(totalSize) / float(mem_size));
 
 		// we should have one empty space left, and it should be the size of the memory minus headers
-		CHECK(memreg.emptySpaces.getNumElements() == 1);
+		CHECK(memreg.emptySpaces.size() == 1);
 		// The region start/end are rounded so user pointers are 16-byte aligned (regionBegin to
 		// 16k+8, regionEnd floored to 16), which costs up to ~24 bytes of unusable slack at the edges.
-		int sizeDiff = (mem_size - 16 - memreg.emptySpaces.getKeyAtIndex(0));
+		int sizeDiff = (mem_size - 16 - memreg.emptySpaces[0].length);
 		CHECK(sizeDiff <= 32);
 	}
 	// un modified GMA gets .999311
