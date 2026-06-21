@@ -16,6 +16,8 @@ if (UNIX AND NOT APPLE)
     add_compile_options(-m32 -Og -ggdb3)
     add_link_options(-m32)
     add_subdirectory(32bit_unit_tests)
+    # Allocator conformance specs need -m32 (MemoryRegion assumes 32-bit addresses).
+    add_subdirectory(spec_memory)
 endif ()
 add_subdirectory(spec)
 add_subdirectory(unit)
