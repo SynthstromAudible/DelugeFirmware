@@ -1,0 +1,8 @@
+# Nightly is required for -Z build-std (the bare-metal armv7a target has no
+# prebuilt std/core), and `rust-src` is the component build-std compiles from.
+# The host targets back the unit/proptest/fuzz tests and the i686 conformance
+# staticlib; the device target backs the firmware link (via corrosion).
+[toolchain]
+channel = "nightly"
+components = ["rust-src", "clippy", "rustfmt"]
+targets = ["armv7a-none-eabihf", "i686-unknown-linux-gnu"]
