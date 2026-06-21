@@ -303,7 +303,7 @@ gotError2:
 	int32_t currentCycleMemorySize = std::max(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
 	// Internal RAM is good, and it's only temporary
 	int32_t* __restrict__ currentCycleInt32 =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(currentCycleMemorySize * sizeof(int32_t));
+	    (int32_t*)deluge::memory::alloc_fast(currentCycleMemorySize * sizeof(int32_t));
 	if (!currentCycleInt32) {
 		error = Error::INSUFFICIENT_RAM;
 		goto gotError2;
@@ -312,9 +312,8 @@ gotError2:
 	// And temporary FFT output (frequency domain) buffer. The same sizing considerations as above are needed, and we
 	// use that same decision here
 	// - except for frequency-domain complex numbers, we only need to store half of it, plus one.
-	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData =
-	    (ne10_fft_cpx_int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(((currentCycleMemorySize >> 1) + 1)
-	                                                                       * sizeof(ne10_fft_cpx_int32_t));
+	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData = (ne10_fft_cpx_int32_t*)deluge::memory::alloc_fast(
+	    ((currentCycleMemorySize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t));
 	if (!frequencyDomainData) {
 		error = Error::INSUFFICIENT_RAM;
 gotError4:
@@ -791,7 +790,7 @@ transformBandToTimeDomain:
 				                      * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
 				                      * sizeof(int16_t)
 				                  + sizeof(WaveTableBandData);
-				GeneralMemoryAllocator::get().shortenRight(band->data, newSize);
+				deluge::memory::shrink(band->data, newSize);
 			}
 
 			// Left-hand side
@@ -799,7 +798,7 @@ transformBandToTimeDomain:
 				uint32_t idealAmountToShorten =
 				    band->fromCycleNumber
 				    * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * sizeof(int16_t);
-				uint32_t amountShortened = GeneralMemoryAllocator::get().shortenLeft(
+				uint32_t amountShortened = deluge::memory::shrink_left(
 				    band->data, idealAmountToShorten,
 				    sizeof(WaveTableBandData)); // Tell it to move the WaveTableBandData "header" forward
 				band->data = (WaveTableBandData*)((uint32_t)band->data + amountShortened);

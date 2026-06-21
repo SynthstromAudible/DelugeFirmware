@@ -175,7 +175,7 @@ void SevenSegment::innerSetText(std::string_view newText, bool alignRight, std::
                                 bool doBlink, uint8_t* newBlinkMask, bool blinkImmediately, bool shouldBlinkFast,
                                 int32_t scrollPos, uint8_t* encodedAddition, bool justReplaceBottomLayer) {
 	// Paul: Render time could be lower putting this into internal
-	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerBasicText));
+	void* layerSpace = deluge::memory::alloc_sdram(sizeof(NumericLayerBasicText));
 	if (!layerSpace) {
 		return;
 	}
@@ -224,7 +224,7 @@ void SevenSegment::innerSetText(std::string_view newText, bool alignRight, std::
 NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, int32_t startAtTextPos,
                                                           int32_t initialDelay, int count, uint8_t fixedDot) {
 	// Paul: Render time could be lower putting this into internal
-	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollingText));
+	void* layerSpace = deluge::memory::alloc_sdram(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
 		return nullptr;
 	}
@@ -279,7 +279,7 @@ void SevenSegment::transitionToNewLayer(NumericLayer* newLayer) {
 	if (!popupActive && nextTransitionDirection != 0 && topLayer != nullptr) {
 
 		// Paul: Render time could be lower putting this into internal
-		void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollTransition));
+		void* layerSpace = deluge::memory::alloc_sdram(sizeof(NumericLayerScrollTransition));
 
 		if (layerSpace) {
 			scrollTransition = new (layerSpace) NumericLayerScrollTransition();
@@ -675,7 +675,7 @@ void SevenSegment::render() {
 // Call this to make the loading animation happen
 void SevenSegment::displayLoadingAnimation(bool delayed, bool transparent) {
 	// Paul: Render time could be lower putting this into internal
-	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerLoadingAnimation));
+	void* layerSpace = deluge::memory::alloc_sdram(sizeof(NumericLayerLoadingAnimation));
 	if (!layerSpace) {
 		return;
 	}

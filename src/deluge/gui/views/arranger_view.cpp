@@ -1653,7 +1653,7 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 
 	int32_t size = (output->type == OutputType::AUDIO) ? sizeof(AudioClip) : sizeof(InstrumentClip);
 
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
+	void* memory = deluge::memory::alloc_fast(size);
 	if (!memory) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return exitSubModeWithoutAction();
@@ -2842,7 +2842,7 @@ void ArrangerView::shiftAutomationHorizontally(int32_t offset, int32_t scroll_am
 	        ->addParamCollection(unpatchedParams, unpatchedParamsSummary);
 
 	if (offset >= 0) {
-		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceArrangerParamsTimeInserted));
+		void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceArrangerParamsTimeInserted));
 		if (consMemory) {
 			ConsequenceArrangerParamsTimeInserted* consequence = new (consMemory)
 			    ConsequenceArrangerParamsTimeInserted(currentSong->xScroll[NAVIGATION_ARRANGEMENT], scroll_amount);

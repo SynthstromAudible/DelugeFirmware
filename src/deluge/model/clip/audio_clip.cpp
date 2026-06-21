@@ -77,7 +77,7 @@ AudioClip::~AudioClip() {
 // Will replace the Clip in the modelStack, if success.
 Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
-	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
+	void* clipMemory = deluge::memory::alloc_fast(sizeof(AudioClip));
 	if (!clipMemory) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -247,7 +247,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
 	// Allocate memory for audio clip
-	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
+	void* clipMemory = deluge::memory::alloc_fast(sizeof(AudioClip));
 	if (!clipMemory) {
 ramError:
 		display->displayError(Error::INSUFFICIENT_RAM);

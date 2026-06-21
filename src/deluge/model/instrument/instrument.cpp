@@ -146,7 +146,7 @@ bool Instrument::readTagFromFile(Deserializer& reader, char const* tagName) {
 Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	// Allocate memory for Clip
-	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
+	void* clipMemory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	if (!clipMemory) {
 		return nullptr;
 	}

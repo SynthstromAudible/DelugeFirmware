@@ -43,11 +43,6 @@ namespace {
 }
 } // namespace
 
-// NOLINTBEGIN — addresses are only meaningful via &symbol; program_stack_* feed checkStack()'s guard.
-extern uint32_t program_stack_start;
-extern uint32_t program_stack_end;
-// NOLINTEND
-
 // Reclaim hook for the SDRAM heap: when a live allocation can't fit, evict the
 // coldest unpinned stealable (CacheManager priority policy) and return its block
 // to the heap, so deluge_alloc can retry. `ctx` is the GeneralMemoryAllocator.
@@ -105,43 +100,12 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
 	deluge::memory::init_heaps();
 	deluge_heap_register_reclaim(deluge::memory::sdram_heap(), gmaSdramReclaim, this);
 }
-constexpr size_t kInternalSwitchSize = 128;
-int32_t closestDistance = 2147483647;
-
-void GeneralMemoryAllocator::checkStack(char const* caller) {
-#if ALPHA_OR_BETA_VERSION
-
-	// The stack-collision guard measures headroom between the live stack pointer and
-	// `program_stack_start` — valid only where the stack sits in a known region just past
-	// the heap (the SoC's SRAM layout). A build whose BSP can't describe such a region
-	// leaves `program_stack_end == program_stack_start` (e.g. the host sim, which runs on
-	// the OS-managed native stack — an unrelated, far-away address). There the subtraction
-	// underflows to a huge bogus "distance" and would false-trigger E338; the OS guard page
-	// already protects that build, so skip.
-	if (&program_stack_start == &program_stack_end) {
-		return;
-	}
-
-	char a;
-
-	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
-	if (distance < closestDistance) {
-		closestDistance = distance;
-
-		D_PRINTLN("%d bytes in stack %d free bytes in stack at %s", (uint32_t)&program_stack_end - (int32_t)&a,
-		          distance, caller);
-		if (distance < 200) {
-			FREEZE_WITH_ERROR("E338");
-			D_PRINTLN("COLLISION");
-		}
-	}
-#endif
-}
-
 #if TEST_GENERAL_MEMORY_ALLOCATION
 uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
+constexpr size_t kInternalSwitchSize = 128; // tiny internal allocs go to the frunk heap (allocInternal)
+
 extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
 	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr);
 }
@@ -171,9 +135,6 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 		address = deluge_alloc(deluge::memory::sram_heap(), requiredSize, 16);
 	}
 	return address;
-}
-void GeneralMemoryAllocator::deallocExternal(void* address) {
-	deluge::memory::dealloc(address);
 }
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code
@@ -229,42 +190,6 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	address = deluge_alloc(deluge::memory::sdram_heap(), requiredSize, 16);
 	currentDontStealFrom_ = nullptr;
 	return finalizeAlloc(address, requiredSize);
-}
-
-uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
-	return deluge::memory::usable_size(address);
-}
-
-// Returns new size
-uint32_t GeneralMemoryAllocator::shortenRight(void* address, uint32_t newSize) {
-	DelugeHeap* h = deluge::memory::owning_heap(address);
-	deluge_realloc(h, address, newSize, 16); // in-place shrink, pointer stable
-	return deluge_usable_size(h, address);
-}
-
-// Returns how much it was shortened by
-uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToShorten,
-                                             uint32_t numBytesToMoveRightIfSuccessful) {
-	(void)address;
-	(void)amountToShorten;
-	(void)numBytesToMoveRightIfSuccessful;
-	return 0; // no left-shorten on the Rust heap; internal allocs don't use it
-}
-
-void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
-                                    uint32_t* __restrict__ getAmountExtendedLeft,
-                                    uint32_t* __restrict__ getAmountExtendedRight, void* thingNotToStealFrom) {
-	(void)address;
-	(void)minAmountToExtend;
-	(void)idealAmountToExtend;
-	(void)thingNotToStealFrom;
-	// No in-place extend on the Rust heap (amounts stay 0; the caller reallocs).
-	*getAmountExtendedLeft = 0;
-	*getAmountExtendedRight = 0;
-}
-
-uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address) {
-	return deluge::memory::usable_size(address); // no easy extension; current size
 }
 
 void GeneralMemoryAllocator::dealloc(void* address) {

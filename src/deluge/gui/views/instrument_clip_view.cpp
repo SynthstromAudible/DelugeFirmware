@@ -1169,7 +1169,7 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 
 			if (numNotes > 0) {
 				// Paul: Might make sense to put these into Internal?
-				void* copiedNoteRowMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(CopiedNoteRow));
+				void* copiedNoteRowMemory = deluge::memory::alloc_sdram(sizeof(CopiedNoteRow));
 				if (!copiedNoteRowMemory) {
 ramError:
 					deleteCopiedNoteRows();
@@ -1186,7 +1186,7 @@ ramError:
 
 				// Allocate some memory for the notes
 				// Paul: Might make sense to put these into Internal?
-				newCopiedNoteRow->notes = (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
+				newCopiedNoteRow->notes = (Note*)deluge::memory::alloc_sdram(sizeof(Note) * numNotes);
 
 				if (!newCopiedNoteRow->notes) {
 					goto ramError;
@@ -1569,7 +1569,7 @@ ramError:
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "noteRow")) {
 
-					void* copiedNoteRowMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(CopiedNoteRow));
+					void* copiedNoteRowMemory = deluge::memory::alloc_sdram(sizeof(CopiedNoteRow));
 					if (!copiedNoteRowMemory) {
 						deleteCopiedNoteRows();
 						display->displayError(Error::INSUFFICIENT_RAM);
@@ -1592,8 +1592,7 @@ ramError:
 
 							newCopiedNoteRow->numNotes = numNotes;
 
-							newCopiedNoteRow->notes =
-							    (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
+							newCopiedNoteRow->notes = (Note*)deluge::memory::alloc_sdram(sizeof(Note) * numNotes);
 
 							currentNote = 0;
 						}
@@ -1683,7 +1682,7 @@ void InstrumentClipView::doubleClipLengthAction() {
 	// note changes and deletions, because when redoing, those have to happen after (and they'll have no effect at all,
 	// but who cares)
 	if (action) {
-		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceInstrumentClipMultiply));
+		void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceInstrumentClipMultiply));
 
 		if (consMemory) {
 			ConsequenceInstrumentClipMultiply* newConsequence = new (consMemory) ConsequenceInstrumentClipMultiply();
@@ -5407,7 +5406,7 @@ doDisplayError:
 		return;
 	}
 
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
+	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (!memory) {
 		error = Error::INSUFFICIENT_RAM;
 		goto doDisplayError;
@@ -7586,8 +7585,7 @@ getNewAction:
 			action = actionLogger.getNewAction(ActionType::NOTEROW_HORIZONTAL_SHIFT, ActionAddition::NOT_ALLOWED);
 			if (action) {
 addConsequenceToAction:
-				void* consMemory =
-				    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteRowHorizontalShift));
+				void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceNoteRowHorizontalShift));
 
 				if (consMemory) {
 					ConsequenceNoteRowHorizontalShift* newConsequence =
@@ -7705,7 +7703,7 @@ ramError:
 			return;
 		}
 
-		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteRowLength));
+		void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceNoteRowLength));
 		if (!consMemory) {
 			goto ramError;
 		}

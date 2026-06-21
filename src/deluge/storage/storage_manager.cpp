@@ -583,7 +583,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 		void* toDealloc = static_cast<void*>(newDrum);
 		newDrum->~SoundDrum();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		deluge::memory::dealloc(toDealloc);
 		return error;
 
 		if (!fileSuccess) {
@@ -597,7 +597,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 		(*getInstrument)->wontBeRenderedForAWhile();
 		void* toDealloc = static_cast<void*>(*getInstrument);
 		(*getInstrument)->~SoundDrum();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		deluge::memory::dealloc(toDealloc);
 	}
 
 	*getInstrument = newDrum;
@@ -622,7 +622,7 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 		instrumentSize = sizeof(Kit);
 	}
 
-	void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(instrumentSize);
+	void* instrumentMemory = deluge::memory::alloc_fast(instrumentSize);
 	if (!instrumentMemory) {
 		return nullptr;
 	}
@@ -668,7 +668,7 @@ paramManagerSetupError:
 Instrument* StorageManager::createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot) {
 	int32_t size = (outputType == OutputType::MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
 	// Paul: Might make sense to put these into Internal?
-	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeed(size);
+	void* instrumentMemory = deluge::memory::alloc_sdram(size);
 	if (!instrumentMemory) { // RAM fail
 		return nullptr;
 	}
@@ -699,7 +699,7 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 		memorySize = sizeof(GateDrum);
 	}
 
-	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
+	void* drumMemory = deluge::memory::alloc_fast(memorySize);
 	if (!drumMemory) {
 		return nullptr;
 	}
@@ -795,7 +795,7 @@ bool StorageManager::buildPathToFile(const char* fileName) {
 }
 
 FileReader::FileReader() {
-	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
+	void* temp = deluge::memory::alloc_sdram(32768 + CACHE_LINE_SIZE * 2);
 	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 }
 
@@ -811,7 +811,7 @@ FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
 
 FileReader::~FileReader() {
 	if (!memoryBased)
-		GeneralMemoryAllocator::get().dealloc(fileClusterBuffer);
+		deluge::memory::dealloc(fileClusterBuffer);
 }
 
 void FileReader::resetReader() {
@@ -932,7 +932,7 @@ FRESULT FileReader::closeWriter() {
 
 FileWriter::FileWriter() {
 	bufferSize = 32768;
-	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(bufferSize + CACHE_LINE_SIZE * 2);
+	void* temp = deluge::memory::alloc_sdram(bufferSize + CACHE_LINE_SIZE * 2);
 	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 }
 
@@ -941,7 +941,7 @@ FileWriter::FileWriter(bool inMem) : FileWriter() {
 }
 
 FileWriter::~FileWriter() {
-	GeneralMemoryAllocator::get().dealloc(writeClusterBuffer);
+	deluge::memory::dealloc(writeClusterBuffer);
 }
 
 int32_t FileWriter::bytesWritten() {

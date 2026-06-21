@@ -218,8 +218,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 
 	int32_t numClusters = ((lengthInBytesCached - 1) >> Cluster::size_magnitude) + 1;
 
-	void* memory =
-	    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
+	void* memory = deluge::memory::alloc_sdram(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
 	if (memory == nullptr) {
 		return nullptr;
 	}
@@ -299,7 +298,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 			numPercCacheClusters = ((lengthInSamplesAfterReduction - 1) >> Cluster::size_magnitude)
 			                       + 1; // Stores this number for the future too
 			int32_t memorySize = numPercCacheClusters * sizeof(Cluster*);
-			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
+			percCacheClusters[reversed] = (Cluster**)deluge::memory::alloc_fast(memorySize);
 			if (!percCacheClusters[reversed]) {
 				LOCK_EXIT
 				return Error::INSUFFICIENT_RAM;
@@ -314,7 +313,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 		if (!percCacheMemory[reversed]) {
 			int32_t percCacheSize = lengthInSamplesAfterReduction;
 
-			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(percCacheSize);
+			percCacheMemory[reversed] = (uint8_t*)deluge::memory::alloc_sdram(percCacheSize);
 			if (!percCacheMemory[reversed]) {
 				LOCK_EXIT
 				return Error::INSUFFICIENT_RAM;
@@ -1275,8 +1274,7 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 	int32_t fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
 	int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
 	int32_t floatIndexTableSize = (kPitchDetectWindowSize >> 2) * sizeof(float);
-	int32_t* fftInput =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(fftInputSize + fftOutputSize + floatIndexTableSize);
+	int32_t* fftInput = (int32_t*)deluge::memory::alloc_fast(fftInputSize + fftOutputSize + floatIndexTableSize);
 	if (!fftInput) {
 		return 0;
 	}

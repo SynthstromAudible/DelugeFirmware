@@ -21,6 +21,7 @@
 #include "io/debug/log.h"
 #include "libdeluge/memory.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/stack_guard.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "model/voice/voice.h"
@@ -1156,7 +1157,7 @@ readTimestretched:
 			int32_t numSamplesThisTimestretchedRead = numSamplesThisUncachedRead;
 
 			// Now, perform the actual time stretching on the contents of the bands
-			GeneralMemoryAllocator::get().checkStack("timestretch");
+			checkStack("timestretch");
 
 			if (timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 

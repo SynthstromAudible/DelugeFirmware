@@ -191,7 +191,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 
 	SpecificMidiDeviceType devType = getSpecificMidiDeviceType(vendorId, productId);
 	if (devType == SpecificMidiDeviceType::LUMI_KEYS) {
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceLumiKeys));
+		void* memory = deluge::memory::alloc_fast(sizeof(MIDIDeviceLumiKeys));
 		if (!memory) {
 			return nullptr;
 		}
@@ -200,7 +200,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 		device = instDevice;
 	}
 	else {
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDICableUSBHosted));
+		void* memory = deluge::memory::alloc_fast(sizeof(MIDICableUSBHosted));
 		if (!memory) {
 			return nullptr;
 		}

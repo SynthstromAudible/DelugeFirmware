@@ -56,19 +56,29 @@ DelugeHeap* owning_heap(void* ptr);
 std::size_t sram_size();
 std::size_t sdram_size();
 
-// Allocation helpers — the clean surface the typed C++ allocators (fast/sdram/
-// external_allocator) call, so they need neither GeneralMemoryAllocator::get()
-// nor libdeluge/alloc.h. They allocate from the deluge_alloc heaps above; `align`
-// is honored. Return nullptr on OOM.
+// Allocation helpers — the clean surface app code allocates from, so it needs
+// neither GeneralMemoryAllocator::get() nor libdeluge/alloc.h. They allocate from
+// the deluge_alloc heaps above; `align` is honored (default 16, the SIMD floor).
+// Return nullptr on OOM. Under DELUGE_DETERMINISTIC_ALLOC (sim/golden only) the
+// block is zeroed before return, matching the old GMA alloc path.
 
-/// SRAM-preferred with SDRAM fallback (== the old allocMaxSpeed).
-void* alloc_fast(std::size_t size, std::size_t align);
-/// General SDRAM (== the old allocLowSpeed).
-void* alloc_sdram(std::size_t size, std::size_t align);
+/// SRAM-preferred (small allocs to the frunk heap) with SDRAM fallback (== the old
+/// allocMaxSpeed).
+void* alloc_fast(std::size_t size, std::size_t align = 16);
+/// General SDRAM (== the old allocLowSpeed / allocExternal).
+void* alloc_sdram(std::size_t size, std::size_t align = 16);
 /// Non-stealable external SDRAM (== the old allocExternal; one heap now).
-void* alloc_external(std::size_t size, std::size_t align);
+void* alloc_external(std::size_t size, std::size_t align = 16);
 /// Free a pointer from any of the above; routes to the owning heap by address.
 void dealloc(void* ptr);
+/// Shrink a block in place, preserving the leading bytes; returns the new usable
+/// size (== the old GeneralMemoryAllocator::shortenRight).
+std::size_t shrink(void* ptr, std::size_t new_size);
+/// Left-shrink is unsupported on the deluge_alloc heaps (realloc can't move the
+/// payload left), so this is a no-op returning 0 — the amount actually shortened
+/// (== the old GeneralMemoryAllocator::shortenLeft on the Rust heap). Kept so call
+/// sites needn't special-case it.
+std::size_t shrink_left(void* ptr, std::size_t amount_to_shorten, std::size_t num_bytes_to_move_right);
 /// Usable bytes at `ptr` (routes by address).
 std::size_t usable_size(void* ptr);
 

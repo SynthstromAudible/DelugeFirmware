@@ -42,6 +42,7 @@
 #include "libdeluge/signals.h"
 #include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/stack_guard.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
@@ -561,7 +562,7 @@ extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSamp
 
 	// At this point, there may be MIDI, including clocks, waiting to be sent.
 
-	GeneralMemoryAllocator::get().checkStack("AudioDriver::routine");
+	checkStack("AudioDriver::routine");
 
 	fillInputRing(in, frames);
 
@@ -1411,7 +1412,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 			size += kInputRawBufferSize * sizeof(int32_t);
 		}
 
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
+		void* memory = deluge::memory::alloc_fast(size);
 		if (!memory) {
 			return nullptr;
 		}
@@ -1499,7 +1500,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
                                bool shouldNormalize, Output* outputRecordingFrom) {
 	Error error;
 
-	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
+	void* recorderMemory = deluge::memory::alloc_fast(sizeof(SampleRecorder));
 	if (!recorderMemory) {
 		return nullptr;
 	}

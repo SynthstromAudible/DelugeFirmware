@@ -86,7 +86,7 @@ bool ClearSong::acceptCurrentOption() {
 		AudioEngine::songSwapAboutToHappen();
 	}
 
-	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song)); // TODO: error checking
+	void* songMemory = deluge::memory::alloc_fast(sizeof(Song)); // TODO: error checking
 	preLoadedSong = new (songMemory) Song();
 	preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
 	GlobalEffectable::initParams(&preLoadedSong->paramManager);

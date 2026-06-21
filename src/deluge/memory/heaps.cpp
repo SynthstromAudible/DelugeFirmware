@@ -19,6 +19,7 @@
 #include "libdeluge/alloc.h"
 #include "libdeluge/memory.h"
 #include <cstdint>
+#include <cstring>
 
 // Linker-defined small-internal ("frunk") SRAM region — a reserved slack area that
 // is NOT a deluge_memory_region, so its heap is built from these symbols here.
@@ -30,6 +31,10 @@ extern uint32_t __frunk_slack_end;
 // NOLINTEND
 
 namespace deluge::memory {
+
+// Tiny internal allocations go to the small-internal ("frunk") heap (matches the
+// old GeneralMemoryAllocator::kInternalSwitchSize).
+constexpr std::size_t kInternalSwitchSize = 128;
 
 namespace {
 DelugeHeap* g_sram = nullptr;
@@ -118,27 +123,56 @@ std::size_t sdram_size() {
 	return static_cast<std::size_t>(g_sdram_hi - g_sdram_lo);
 }
 
+namespace {
+// Under DELUGE_DETERMINISTIC_ALLOC (the off-target sim / golden builds only) every block is zeroed before
+// it's handed out, so any read-before-write resolves to a defined 0 — the offline golden render becomes
+// independent of allocation layout. Firmware leaves it off; the no-op inlines away. (Mirrors the old
+// GeneralMemoryAllocator::finalizeAlloc, now that these helpers are the primary allocation surface.)
+[[gnu::always_inline]] inline void* finalize([[maybe_unused]] void* p, [[maybe_unused]] std::size_t size) {
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	if (p != nullptr) {
+		std::memset(p, 0, size);
+	}
+#endif
+	return p;
+}
+} // namespace
+
 void* alloc_fast(std::size_t size, std::size_t align) {
 	init_heaps();
-	void* p = deluge_alloc(g_sram, size, align); // SRAM first
+	void* p = nullptr;
+	if (size < kInternalSwitchSize) {
+		p = deluge_alloc(g_frunk, size, align); // tiny: small-internal heap
+	}
+	if (p == nullptr) {
+		p = deluge_alloc(g_sram, size, align); // fast internal SRAM
+	}
 	if (p == nullptr) {
 		p = deluge_alloc(g_sdram, size, align); // fall back to SDRAM (== allocMaxSpeed)
 	}
-	return p;
+	return finalize(p, size);
 }
 void* alloc_sdram(std::size_t size, std::size_t align) {
 	init_heaps();
-	return deluge_alloc(g_sdram, size, align);
+	return finalize(deluge_alloc(g_sdram, size, align), size);
 }
 void* alloc_external(std::size_t size, std::size_t align) {
 	init_heaps();
-	return deluge_alloc(g_sdram, size, align); // external collapsed into the one SDRAM heap
+	return finalize(deluge_alloc(g_sdram, size, align), size); // external collapsed into the one SDRAM heap
 }
 void dealloc(void* ptr) {
 	deluge_free(owning_heap(ptr), ptr); // deluge_free tolerates a null heap (no-op)
 }
 std::size_t usable_size(void* ptr) {
 	return deluge_usable_size(owning_heap(ptr), ptr);
+}
+std::size_t shrink(void* ptr, std::size_t new_size) {
+	DelugeHeap* h = owning_heap(ptr);
+	deluge_realloc(h, ptr, new_size, 16); // in-place shrink, pointer stable
+	return deluge_usable_size(h, ptr);
+}
+std::size_t shrink_left(void* /*ptr*/, std::size_t /*amount_to_shorten*/, std::size_t /*num_bytes_to_move_right*/) {
+	return 0; // unsupported on the deluge_alloc heaps (no payload move-left)
 }
 
 } // namespace deluge::memory

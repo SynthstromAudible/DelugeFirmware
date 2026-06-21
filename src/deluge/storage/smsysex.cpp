@@ -540,7 +540,7 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 	uint8_t* srcAddr = (uint8_t*)addr;
 	if (errCode == FRESULT::FR_OK) {
 		if (!readBlockBuffer && fp) {
-			readBlockBuffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(blockBufferMax);
+			readBlockBuffer = (uint8_t*)deluge::memory::alloc_sdram(blockBufferMax);
 		}
 
 		if (readBlockBuffer && fp) {
@@ -621,7 +621,7 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 		}
 	}
 	if (!writeBlockBuffer) {
-		writeBlockBuffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(blockBufferMax);
+		writeBlockBuffer = (uint8_t*)deluge::memory::alloc_sdram(blockBufferMax);
 	}
 	reader.match('}');
 	reader.match('}'); // skip box too.
@@ -916,7 +916,7 @@ retry_copy:
 			// Copy file contents
 			uint8_t* copyBuffer = nullptr;
 			if (!readBlockBuffer) {
-				readBlockBuffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(blockBufferMax);
+				readBlockBuffer = (uint8_t*)deluge::memory::alloc_sdram(blockBufferMax);
 			}
 			copyBuffer = readBlockBuffer;
 

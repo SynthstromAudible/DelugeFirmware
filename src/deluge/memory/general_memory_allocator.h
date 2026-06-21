@@ -57,14 +57,10 @@ struct DelugeSlab; // libdeluge/alloc.h — opaque here; full C ABI included in 
 class GeneralMemoryAllocator {
 public:
 	GeneralMemoryAllocator();
-	[[gnu::always_inline]] void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
-		return alloc(requiredSize, true, false, thingNotToStealFrom);
-	}
 
-	[[gnu::always_inline]] void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
-		return alloc(requiredSize, false, false, thingNotToStealFrom);
-	}
-
+	// Stealable SDRAM allocation — the one alloc entry that still needs the coordinator: it threads
+	// thingNotToStealFrom through to the reclaim hook (currentDontStealFrom_) that may fire during the
+	// allocation. Non-stealable/typed allocation goes through deluge::memory (heaps.h) directly now.
 	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
 		return alloc(requiredSize, false, true, thingNotToStealFrom);
 	}
@@ -73,15 +69,7 @@ public:
 	void dealloc(void* address);
 	void* allocExternal(uint32_t requiredSize);
 	void* allocInternal(uint32_t requiredSize);
-	void deallocExternal(void* address);
-	uint32_t shortenRight(void* address, uint32_t newSize);
-	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
-	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
-	            uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom = nullptr);
-	uint32_t extendRightAsMuchAsEasilyPossible(void* address);
 	void test();
-	uint32_t getAllocatedSize(void* address);
-	void checkStack(char const* caller);
 	void testShorten(int32_t i);
 	void testMemoryDeallocated(void* address);
 

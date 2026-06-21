@@ -143,7 +143,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		}
 
 		// And make a new one
-		void* actionMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Action));
+		void* actionMemory = deluge::memory::alloc_sdram(sizeof(Action));
 
 		if (!actionMemory) {
 			D_PRINTLN("no ram to create new Action");
@@ -153,8 +153,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		// Store states of every Clip in existence
 		int32_t numClips = std::ssize(currentSong->sessionClips) + std::ssize(currentSong->arrangementOnlyClips);
 
-		ActionClipState* clipStates =
-		    (ActionClipState*)GeneralMemoryAllocator::get().allocLowSpeed(numClips * sizeof(ActionClipState));
+		ActionClipState* clipStates = (ActionClipState*)deluge::memory::alloc_sdram(numClips * sizeof(ActionClipState));
 
 		if (!clipStates) {
 			delugeDealloc(actionMemory);
@@ -265,7 +264,7 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 		consequence->swing[AFTER] = swingAfter;
 	}
 	else {
-		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceSwingChange));
+		void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceSwingChange));
 
 		if (consMemory) {
 			ConsequenceSwingChange* newConsequence = new (consMemory) ConsequenceSwingChange(swingBefore, swingAfter);
@@ -288,7 +287,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 	}
 	else {
 
-		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
+		void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -308,7 +307,7 @@ void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDispl
 		return;
 	}
 
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequencePerformanceViewPress));
+	void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequencePerformanceViewPress));
 
 	if (consMemory) {
 		ConsequencePerformanceViewPress* newConsequence =
