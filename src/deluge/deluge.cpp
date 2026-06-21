@@ -47,6 +47,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
+#include "libdeluge/app.h"
 #include "libdeluge/board.h"
 #include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
@@ -560,45 +561,57 @@ void registerTasks() {
 	// addRepeatingTask([]() { AudioEngine::routineWithClusterLoading(true); }, 0, 1 / 44100., 16 / 44100., 32 / 44100.,
 	// true); addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
 }
-void mainLoop() {
-	while (1) {
+// One cooperative slice of the run loop. The libdeluge platform calls this
+// repeatedly (app.h: deluge_app_tick) — under Embassy it runs inside a task that
+// yields between ticks, so the BSP's async tasks can run. mainLoop() below is the
+// equivalent bare-metal superloop (host / task-manager-free builds).
+extern "C" void deluge_app_tick(void) {
+	uiTimerManager.routine();
 
-		uiTimerManager.routine();
+	// Flush stuff - we just have to do this, regularly
+	if (hid::display::have_oled_screen) {
+		deluge_display_service();
+	}
+	deluge_control_flush();
 
-		// Flush stuff - we just have to do this, regularly
-		if (hid::display::have_oled_screen) {
-			deluge_display_service();
-		}
-		deluge_control_flush();
+	AudioEngine::routineWithClusterLoading(true);
 
-		AudioEngine::routineWithClusterLoading(true);
-
-		int32_t count = 0;
-		while (readButtonsAndPads() && count < 16) {
-			if (!(count & 3)) {
-				AudioEngine::routineWithClusterLoading(true);
-			}
-			count++;
-		}
-
-		bool anything = encoders::interpretEncoders();
-		if (anything) {
+	int32_t count = 0;
+	while (readButtonsAndPads() && count < 16) {
+		if (!(count & 3)) {
 			AudioEngine::routineWithClusterLoading(true);
 		}
+		count++;
+	}
 
-		doAnyPendingUIRendering();
-
+	bool anything = encoders::interpretEncoders();
+	if (anything) {
 		AudioEngine::routineWithClusterLoading(true);
+	}
 
-		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets
-		// called in card routine
-		audioFileManager.slowRoutine();
-		AudioEngine::slowRoutine();
+	doAnyPendingUIRendering();
 
-		audioRecorder.slowRoutine();
+	AudioEngine::routineWithClusterLoading(true);
+
+	// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets
+	// called in card routine
+	audioFileManager.slowRoutine();
+	AudioEngine::slowRoutine();
+
+	audioRecorder.slowRoutine();
+}
+
+void mainLoop() {
+	while (1) {
+		deluge_app_tick();
 	}
 }
-extern "C" int32_t deluge_main(void) {
+// Shared one-time bring-up: everything up to (but not including) starting the
+// run loop / task manager. Factored out so both the bare-metal entry
+// (deluge_main, below) and the libdeluge cooperative entry (deluge_app_init)
+// reuse it without duplicating boot or reordering encoder init.
+static void deluge_boot(const DelugeBoard* board) {
+	(void)board;
 	bool have_oled = deluge_board_probe_oled();
 
 	// Give the control surface its startup configuration.
@@ -786,7 +799,23 @@ extern "C" int32_t deluge_main(void) {
 	D_PRINTLN("going into main loop");
 	deluge_board_unlock_data_cache();
 	// (The SD-routine reentrancy flag is scheduler-owned and starts clear; no reset needed here.)
+}
 
+// libdeluge cooperative entry (app.h). The platform (e.g. the Embassy BSP) calls
+// deluge_app_init() once, then deluge_app_tick() repeatedly from a task that
+// yields between ticks so the BSP's async tasks can run. This is the inline
+// run-loop model (no OSLikeStuff task manager): encoders are read inline by
+// deluge_app_tick(), so the encoder wake id is unused here.
+extern "C" void deluge_app_init(const DelugeBoard* board) {
+	deluge_boot(board);
+	encoders::init();
+}
+
+// Bare-metal / host entry: boot once, then run forever — either under the
+// OSLikeStuff task manager or the inline superloop. (The Embassy BSP uses
+// deluge_app_init()/deluge_app_tick() above instead of this.)
+extern "C" int32_t deluge_main(void) {
+	deluge_boot(deluge_board());
 #ifdef USE_TASK_MANAGER
 	registerTasks();
 	encoders::init(); // after registerTasks(): the encoder edge source needs the (now-assigned) encoder task id to wake

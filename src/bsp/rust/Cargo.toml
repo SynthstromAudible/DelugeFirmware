@@ -20,8 +20,11 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
-# Sibling deluge-sdk HAL + BSP (DelugeFirmware and deluge-sdk cloned side by side).
+# Sibling deluge-sdk HAL + BSP + allocators (DelugeFirmware and deluge-sdk cloned
+# side by side). The HAL is memory-map facts only; the general-purpose Rust heaps
+# now live in deluge-alloc.
 deluge-bsp = { path = "../../../../deluge-sdk/crates/deluge-bsp" }
+deluge-alloc = { path = "../../../../deluge-sdk/crates/deluge-alloc" }
 rza1l-hal = { path = "../../../../deluge-sdk/crates/rza1l-hal" }
 
 # Embassy runtime — versions match deluge-sdk's workspace pins.
@@ -29,6 +32,8 @@ embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex
 embassy-time = { version = "0.5.1", features = ["tick-hz-1_000_000"] }
 embassy-sync = "0.8.0"
 embassy-futures = "0.1.2"
+embassy-usb = "0.6.0"
+embassy-usb-driver = "0.2.2"
 
 cortex-ar = "0.3"
 critical-section = "1"

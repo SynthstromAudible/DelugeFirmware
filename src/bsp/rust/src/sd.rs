@@ -1,0 +1,187 @@
+//! block_device.h + FatFS diskio — SD card over `deluge_bsp::sd`.
+//!
+//! The app's FatFS layer calls the BSP-provided `disk_*_without_streaming_first`
+//! (its `disk_read`/`disk_write` shims live in audio_file_manager.cpp), plus
+//! `disk_initialize`/`disk_status`/`disk_ioctl`/`get_fattime`. We back those with
+//! deluge_bsp::sd's async SDHI+DMA driver via `block_on` — SD ops complete on the
+//! SDHI/DMA-completion IRQ, so `block_on` drives them to completion without
+//! needing another task to run.
+//!
+//! NOTE: `block_on` stalls the executor (and the app tick → audio) for the
+//! duration of a transfer. Fine for bring-up (loads aren't real-time); audio-
+//! during-storage yielding (storage_wait.h / scheduler) is a later refinement.
+#![allow(non_upper_case_globals)]
+
+use core::sync::atomic::{AtomicBool, Ordering};
+
+use deluge_bsp::sd;
+use embassy_futures::block_on;
+
+use crate::sys::{
+    DelugeCardEvent, DelugeCardEvent_DELUGE_CARD_EVENT_EJECTED as CARD_EJECTED,
+    DelugeCardEvent_DELUGE_CARD_EVENT_INSERTED as CARD_INSERTED,
+    DelugeCardEvent_DELUGE_CARD_EVENT_NONE as CARD_NONE,
+};
+
+// FatFS diskio status/result codes (src/fatfs/diskio.h).
+const STA_NOINIT: u8 = 0x01;
+const STA_NODISK: u8 = 0x02;
+const STA_PROTECT: u8 = 0x04;
+const RES_OK: i32 = 0;
+const RES_ERROR: i32 = 1;
+const RES_WRPRT: i32 = 2;
+const RES_NOTRDY: i32 = 3;
+const RES_PARERR: i32 = 4;
+const CTRL_SYNC: u8 = 0;
+const GET_SECTOR_COUNT: u8 = 1;
+const GET_SECTOR_SIZE: u8 = 2;
+const GET_BLOCK_SIZE: u8 = 3;
+const SECTOR_SIZE: usize = 512;
+
+/// FatFS DSTATUS bits for the current card state.
+fn status_bits() -> u8 {
+    if !sd::is_ready() {
+        return STA_NOINIT | if sd::is_inserted() { 0 } else { STA_NODISK };
+    }
+    if sd::is_write_protected() {
+        STA_PROTECT
+    } else {
+        0
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn disk_initialize(pdrv: u8) -> u8 {
+    if pdrv != 0 {
+        return STA_NOINIT;
+    }
+    match block_on(sd::init()) {
+        Ok(()) => status_bits(),
+        Err(_) => STA_NOINIT | if sd::is_inserted() { 0 } else { STA_NODISK },
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn disk_status(pdrv: u8) -> u8 {
+    if pdrv != 0 {
+        return STA_NOINIT;
+    }
+    status_bits()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) -> i32 {
+    if pdrv != 0 {
+        return RES_NOTRDY;
+    }
+    match cmd {
+        // Writes complete synchronously (block_on), so nothing is pending.
+        CTRL_SYNC => RES_OK,
+        GET_SECTOR_COUNT => {
+            if buff.is_null() {
+                return RES_PARERR;
+            }
+            unsafe { *(buff as *mut u32) = sd::total_sectors() };
+            RES_OK
+        }
+        GET_SECTOR_SIZE => {
+            if buff.is_null() {
+                return RES_PARERR;
+            }
+            unsafe { *(buff as *mut u16) = SECTOR_SIZE as u16 };
+            RES_OK
+        }
+        GET_BLOCK_SIZE => {
+            if buff.is_null() {
+                return RES_PARERR;
+            }
+            unsafe { *(buff as *mut u32) = 1 };
+            RES_OK
+        }
+        _ => RES_PARERR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn disk_read_without_streaming_first(
+    pdrv: u8,
+    buff: *mut u8,
+    sector: u32,
+    count: u32,
+) -> i32 {
+    if pdrv != 0 || !sd::is_ready() {
+        return RES_NOTRDY;
+    }
+    let len = count as usize * SECTOR_SIZE;
+    // SAFETY: FatFS guarantees `buff` holds `count` sectors.
+    let dst = unsafe { core::slice::from_raw_parts_mut(buff, len) };
+    match block_on(sd::read_sectors(sector, count, dst)) {
+        Ok(()) => RES_OK,
+        Err(_) => RES_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn disk_write_without_streaming_first(
+    pdrv: u8,
+    buff: *const u8,
+    sector: u32,
+    count: u32,
+) -> i32 {
+    if pdrv != 0 || !sd::is_ready() {
+        return RES_NOTRDY;
+    }
+    if sd::is_write_protected() {
+        return RES_WRPRT;
+    }
+    let len = count as usize * SECTOR_SIZE;
+    // SAFETY: FatFS guarantees `buff` holds `count` sectors.
+    let src = unsafe { core::slice::from_raw_parts(buff, len) };
+    match block_on(sd::write_sectors(sector, count, src)) {
+        Ok(()) => RES_OK,
+        Err(_) => RES_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn disk_timerproc() {
+    // SD is fully event-driven (SDHI/DMA IRQs); no periodic timer work needed.
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn get_fattime() -> u32 {
+    // 2024-01-01 00:00:00, FAT-packed. No RTC on this BSP yet.
+    ((2024u32 - 1980) << 25) | (1 << 21) | (1 << 16)
+}
+
+// ── block_device.h: SD unit + card-detect ─────────────────────────────────────
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_block_sd_unit() -> u8 {
+    0
+}
+
+/// Pull-based card-detect: report INSERTED/EJECTED edges of the card-present
+/// state. The first poll just latches the boot state (no spurious event), so the
+/// app's initial card read isn't double-triggered (mirrors the rza1 latch).
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_block_poll_card_event(unit: u8) -> DelugeCardEvent {
+    if unit != 0 {
+        return CARD_NONE;
+    }
+    static INITIALISED: AtomicBool = AtomicBool::new(false);
+    static LAST_INSERTED: AtomicBool = AtomicBool::new(false);
+    let now = sd::is_inserted();
+    if !INITIALISED.swap(true, Ordering::Relaxed) {
+        LAST_INSERTED.store(now, Ordering::Relaxed);
+        return CARD_NONE;
+    }
+    let was = LAST_INSERTED.swap(now, Ordering::Relaxed);
+    if now == was {
+        CARD_NONE
+    } else if now {
+        CARD_INSERTED
+    } else {
+        CARD_EJECTED
+    }
+}

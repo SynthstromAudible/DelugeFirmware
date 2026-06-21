@@ -1,1 +1,2 @@
 - [] remove TEST_VECTOR*
+- [] sample accurate midi/usb note-on from embassy

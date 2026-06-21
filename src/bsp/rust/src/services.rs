@@ -98,3 +98,26 @@ pub extern "C" fn deluge_clock_ticks_per_second() -> u64 {
 pub extern "C" fn deluge_clock_monotonic_hz() -> u64 {
     1_000_000
 }
+
+// ── memory.h ────────────────────────────────────────────────────────────────
+
+/// One past the application-usable external (SDRAM) region. Capped below the
+/// Rust allocator's reserved slice so the app's heap and the Rust SDRAM heap
+/// don't overlap. [task] [audio] [isr]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_memory_external_end() -> usize {
+    crate::boot_mem::RUST_SDRAM_BASE
+}
+
+/// Base of the fast internal (on-chip SRAM) region. [task] [audio] [isr]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_memory_internal_begin() -> usize {
+    0x2000_0000
+}
+
+/// A writable scratch address whose contents are never read. [task] [audio] [isr]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_memory_scratch() -> *mut core::ffi::c_void {
+    static mut SCRATCH: [u8; 256] = [0; 256];
+    core::ptr::addr_of_mut!(SCRATCH) as *mut core::ffi::c_void
+}
