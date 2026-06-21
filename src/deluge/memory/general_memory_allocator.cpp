@@ -53,7 +53,6 @@ extern uint32_t __frunk_bss_end;
 extern uint32_t __frunk_slack_end;
 extern uint32_t __sdram_bss_start;
 extern uint32_t __sdram_bss_end;
-extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
@@ -70,9 +69,23 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
 
 	auto internal_small_start = (uint32_t)&__frunk_bss_end;
 	auto internal_small_end = (uint32_t)&__frunk_slack_end;
-	auto internal_start = (uint32_t)&__heap_start;
-	auto internal_end = (uint32_t)&program_stack_start;
 	// NOLINTEND
+
+	// Internal (fast SRAM) heap bounds come from the BSP's region descriptor
+	// (libdeluge/memory.h), not raw linker symbols: the BSP knows its own layout
+	// (e.g. the Rust BSP places per-mode exception stacks between the heap and the
+	// program stack, so &program_stack_start is NOT the heap top there). The
+	// program_stack_start symbol stays reserved for checkStack()'s stack guard.
+	DelugeMemoryRegion internalRegion = {nullptr, 0, DELUGE_MEM_FAST_INTERNAL};
+	for (uint8_t i = 0, n = deluge_memory_region_count(); i < n; ++i) {
+		DelugeMemoryRegion r;
+		if (deluge_memory_region(i, &r) == DELUGE_OK && r.kind == DELUGE_MEM_FAST_INTERNAL) {
+			internalRegion = r;
+			break;
+		}
+	}
+	auto internal_start = (uint32_t)internalRegion.base;
+	auto internal_end = internal_start + internalRegion.size;
 	regions[MEMORY_REGION_STEALABLE].name = "stealable";
 	regions[MEMORY_REGION_INTERNAL].name = "internal";
 	regions[MEMORY_REGION_EXTERNAL].name = "external";
