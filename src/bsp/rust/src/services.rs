@@ -5,6 +5,20 @@
 
 use core::sync::atomic::{AtomicU32, Ordering};
 
+use crate::sys::{
+    DelugeMemoryKind_DELUGE_MEM_FAST_INTERNAL as KIND_INTERNAL,
+    DelugeMemoryKind_DELUGE_MEM_LARGE_EXTERNAL as KIND_EXTERNAL, DelugeMemoryRegion, DelugeStatus,
+    DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM, DelugeStatus_DELUGE_OK as DELUGE_OK,
+};
+
+// Linker boundary symbols (rza1l.x): the internal SRAM heap and the end of the
+// SDRAM .bss. Used to describe the allocatable regions to the app.
+unsafe extern "C" {
+    static __sram_heap_start: u8;
+    static __sram_heap_end: u8;
+    static __sdram_bss_end: u8;
+}
+
 // ── system.h ────────────────────────────────────────────────────────────────
 
 /// Nesting depth for ENTER/EXIT_CRITICAL_SECTION — only the outermost pair
@@ -113,6 +127,40 @@ pub extern "C" fn deluge_memory_external_end() -> usize {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_memory_internal_begin() -> usize {
     0x2000_0000
+}
+
+/// Number of allocatable memory regions the board provides. [task]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_memory_region_count() -> u8 {
+    2
+}
+
+/// Describe region `index`: 0 = large external (SDRAM, below the Rust allocator's
+/// reserved slice), 1 = fast internal (the SRAM heap `[__sram_heap_start,
+/// __sram_heap_end)`). The app sources its internal-heap bounds from this instead
+/// of reading raw linker symbols, whose meaning differs in this BSP's layout
+/// (per-mode exception stacks sit between the heap and the program stack). [task]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_memory_region(index: u8, out: *mut DelugeMemoryRegion) -> DelugeStatus {
+    let (base, size, kind) = match index {
+        0 => {
+            let b = core::ptr::addr_of!(__sdram_bss_end) as usize;
+            (b, crate::boot_mem::RUST_SDRAM_BASE - b, KIND_EXTERNAL)
+        }
+        1 => {
+            let b = core::ptr::addr_of!(__sram_heap_start) as usize;
+            let e = core::ptr::addr_of!(__sram_heap_end) as usize;
+            (b, e - b, KIND_INTERNAL)
+        }
+        _ => return DELUGE_ERR_PARAM,
+    };
+    // SAFETY: the app passes a valid DelugeMemoryRegion out-pointer.
+    unsafe {
+        (*out).base = base as *mut core::ffi::c_void;
+        (*out).size = size as u32;
+        (*out).kind = kind;
+    }
+    DELUGE_OK
 }
 
 /// A writable scratch address whose contents are never read. [task] [audio] [isr]
