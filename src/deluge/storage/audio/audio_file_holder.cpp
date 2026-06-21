@@ -40,7 +40,7 @@ Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayAc
 		return Error::NONE;
 	}
 
-	if (filePath.isEmpty()) {
+	if (filePath.empty()) {
 		return Error::NONE; // This could happen if the filename tag wasn't present in the file
 	}
 

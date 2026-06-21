@@ -91,19 +91,16 @@ Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 
 	enteredText.clear();
 
-	String searchFilename;
+	std::string searchFilename;
 
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 
 	// is empty we just start with nothing. currentSlot etc remain set to "zero" from before
-	if (midiInstrument->deviceDefinitionFileName.isEmpty()) {
-		Error error = currentDir.set(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
-		if (error != Error::NONE) {
-			return error;
-		}
+	if (midiInstrument->deviceDefinitionFileName.empty()) {
+		currentDir = MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER;
 	}
 	else {
-		char const* fullPath = midiInstrument->deviceDefinitionFileName.get();
+		char const* fullPath = midiInstrument->deviceDefinitionFileName.c_str();
 
 		// locate last occurence of "/" in string
 		char* filename = strrchr((char*)fullPath, '/');
@@ -117,18 +114,15 @@ Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 		memset(dir, 0, sizeof(char) * fullPathLength + 1);
 		strncpy(dir, fullPath, fullPathLength - strlen(filename));
 
-		currentDir.set(dir);
-		searchFilename.set(++filename);
+		currentDir = dir;
+		searchFilename = ++filename;
 	}
 
-	if (!searchFilename.isEmpty()) {
-		Error error = searchFilename.concatenate(".XML");
-		if (error != Error::NONE) {
-			return error;
-		}
+	if (!searchFilename.empty()) {
+		searchFilename.append(".XML");
 	}
 
-	Error error = arrivedInNewFolder(0, searchFilename.get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+	Error error = arrivedInNewFolder(0, searchFilename.c_str(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -158,7 +152,7 @@ void LoadMidiDeviceDefinitionUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
 
-		Error error = goIntoFolder(currentFileItem->filename.get());
+		Error error = goIntoFolder(currentFileItem->filename.c_str());
 
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -192,7 +186,7 @@ ActionResult LoadMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, boo
 	else {
 		if (on && b == BACK) {
 			// don't allow navigation backwards if we're in the default folder
-			if (!strcmp(currentDir.get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER)) {
+			if (!strcmp(currentDir.c_str(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER)) {
 				close();
 				return ActionResult::DEALT_WITH;
 			}
@@ -225,11 +219,11 @@ Error LoadMidiDeviceDefinitionUI::performLoad(bool doClone) {
 		return Error::NONE;
 	}
 
-	String fileName;
-	fileName.set(currentDir.get());
-	fileName.concatenate("/");
-	fileName.concatenate(enteredText.get());
-	fileName.concatenate(".XML");
+	std::string fileName;
+	fileName = currentDir.c_str();
+	fileName.append("/");
+	fileName.append(enteredText.c_str());
+	fileName.append(".XML");
 
 	Error error = StorageManager::loadMidiDeviceDefinitionFile((MIDIInstrument*)getCurrentOutput(),
 	                                                           &currentFileItem->filePointer, &fileName);

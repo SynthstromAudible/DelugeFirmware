@@ -66,7 +66,7 @@ public:
 	Browser();
 
 	void close();
-	virtual Error getCurrentFilePath(String* path) = 0;
+	virtual std::string getCurrentFilePath() = 0;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
@@ -85,14 +85,14 @@ public:
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
-	Error getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
+	Error getUnusedSlot(OutputType outputType, std::string* newName, char const* thingName);
 	bool opened() override;
 	void cullSomeFileItems();
 	bool checkFP();
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
-	static String currentDir;
+	static std::string currentDir;
 	static CStringArray fileItems;
 	static int32_t numFileItemsDeletedAtStart;
 	static int32_t numFileItemsDeletedAtEnd;

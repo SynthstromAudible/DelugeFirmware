@@ -82,7 +82,7 @@ public:
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 	ArpeggiatorBase* getArp() override;
 	char const* getXMLTag() override { return "sound"; }
-	const char* getName() override { return name.get(); }
+	const char* getName() override { return name.c_str(); }
 
 	ArpeggiatorSettings defaultArpSettings;
 };

@@ -101,7 +101,7 @@ public:
 
 	SamplePlaybackGuide guide;
 
-	String outputNameWhileLoading; // Only valid while loading
+	std::string outputNameWhileLoading; // Only valid while loading
 
 	WaveformRenderData renderData;
 	// TODO: For looping without monitoring we'll need a second recorder plus maybe a second sample player?

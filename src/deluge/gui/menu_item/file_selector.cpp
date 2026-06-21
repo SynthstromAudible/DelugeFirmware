@@ -110,8 +110,8 @@ void FileSelector::getColumnLabel(StringBuf& label) {
 	label.append(getLastFolderFromPath(path));
 }
 
-std::string FileSelector::getLastFolderFromPath(String& path) {
-	const char* str = path.get();
+std::string FileSelector::getLastFolderFromPath(std::string& path) {
+	const char* str = path.c_str();
 	const char* lastSlash = strrchr(str, '/');
 	if (!lastSlash || lastSlash == str)
 		return "";

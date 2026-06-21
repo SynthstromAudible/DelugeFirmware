@@ -73,7 +73,7 @@ void SaveUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		Error error = goIntoFolder(currentFileItem->filename.get());
+		Error error = goIntoFolder(currentFileItem->filename.c_str());
 
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -82,7 +82,7 @@ void SaveUI::enterKeyPress() {
 		}
 	}
 
-	else if (enteredText.isEmpty()) {} // Previously had &&currentFolderIsEmpty ... why?
+	else if (enteredText.empty()) {} // Previously had &&currentFolderIsEmpty ... why?
 
 	else {
 		SlotBrowser::enterKeyPress();

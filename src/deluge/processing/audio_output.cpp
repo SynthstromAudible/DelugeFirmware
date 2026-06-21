@@ -289,7 +289,7 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
 // be NULL
 bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
-	writer.writeAttribute("name", name.get());
+	writer.writeAttribute("name", name.c_str());
 
 	writer.writeAttribute("mode", aoModeToString(mode));
 

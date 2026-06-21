@@ -73,7 +73,7 @@ bool LoadSongUI::opened() {
 	favouritesManager.setCategory("SONG");
 	favouritesChanged();
 	outputTypeToLoad = OutputType::NONE;
-	currentDir.set(&currentSong->dirPath);
+	currentDir = currentSong->dirPath;
 
 	Error error = beginSlotSession(false, true);
 	if (error != Error::NONE) {
@@ -94,17 +94,14 @@ gotError:
 
 	PadLEDs::clearTickSquares();
 
-	String searchFilename;
-	searchFilename.set(&currentSong->name);
+	std::string searchFilename;
+	searchFilename = currentSong->name;
 
-	if (!searchFilename.isEmpty() && !searchFilename.contains(".XML")) {
-		error = searchFilename.concatenate(".XML");
-		if (error != Error::NONE) {
-			goto gotError;
-		}
+	if (!searchFilename.empty() && !searchFilename.contains(".XML")) {
+		searchFilename.append(".XML");
 	}
 
-	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
+	error = arrivedInNewFolder(0, searchFilename.c_str(), "SONGS");
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -151,7 +148,7 @@ void LoadSongUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		Error error = goIntoFolder(currentFileItem->filename.get());
+		Error error = goIntoFolder(currentFileItem->filename.c_str());
 
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -264,7 +261,7 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 // This method actually executes the loading of next song (by offset)
 void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	outputTypeToLoad = OutputType::NONE;
-	currentDir.set(&currentSong->dirPath);
+	currentDir = currentSong->dirPath;
 
 	int32_t currentFileIndexSelected = fileIndexSelected;
 
@@ -402,16 +399,12 @@ fail:
 			goto fail;
 		}
 
-		preLoadedSong->dirPath.set(&currentDir);
+		preLoadedSong->dirPath = currentDir;
 
-		String currentFilenameWithoutExtension;
-		error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
+		std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
 
-		error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
-		                                                    currentDir.get(), currentFilenameWithoutExtension.get());
+		error = audioFileManager.setupAlternateAudioFileDir(
+		    audioFileManager.alternateAudioFileLoadPath, currentDir.c_str(), currentFilenameWithoutExtension.c_str());
 		if (error != Error::NONE) {
 			goto gotErrorAfterCreatingSong;
 		}
@@ -465,16 +458,12 @@ gotErrorAfterCreatingSong:
 		goto fail;
 	}
 
-	preLoadedSong->dirPath.set(&currentDir);
+	preLoadedSong->dirPath = currentDir;
 
-	String currentFilenameWithoutExtension;
-	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-	if (error != Error::NONE) {
-		goto gotErrorAfterCreatingSong;
-	}
+	std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
 
-	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
-	                                                    currentFilenameWithoutExtension.get());
+	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.c_str(),
+	                                                    currentFilenameWithoutExtension.c_str());
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
@@ -497,7 +486,7 @@ gotErrorAfterCreatingSong:
 	// Ensure all AudioFile Clusters needed for new song are loaded
 	yieldWithTimeout([]() { return !(audioFileManager.loadingQueueHasAnyLowestPriorityElements()); }, 5);
 
-	preLoadedSong->name.set(&enteredText);
+	preLoadedSong->name = enteredText;
 
 	Song* toDelete = currentSong;
 
@@ -589,7 +578,7 @@ swapDone:
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)thisOutput;
 			if (midiInstrument->loadDeviceDefinitionFile) {
 				FilePointer tempfp;
-				bool fileExists = StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.get(), &tempfp);
+				bool fileExists = StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.c_str(), &tempfp);
 				if (fileExists) {
 					StorageManager::loadMidiDeviceDefinitionFile(midiInstrument, &tempfp,
 					                                             &midiInstrument->deviceDefinitionFileName, false);
@@ -673,7 +662,7 @@ int32_t LoadSongUI::findNextFile(int32_t offset) {
     int8_t subSlotToSearchFrom = currentSubSlot;
     char const* nameToSearchFrom = enteredText.get();
 
-    String newName;
+    std::string newName;
     bool doingSecondTry = false;
 
 doSearch:

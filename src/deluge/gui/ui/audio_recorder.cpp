@@ -73,21 +73,17 @@ bool AudioRecorder::opened() {
 	if (getCurrentOutputType() == OutputType::KIT) {
 		Kit* kit = getCurrentKit();
 		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
-		String newName;
+		std::string newName;
 
-		Error error = newName.set("REC");
+		newName = "REC";
+
+		Error error = kit->makeDrumNameUnique(&newName, 1);
 		if (error != Error::NONE) {
-gotError:
 			display->displayError(error);
 			return false;
 		}
 
-		error = kit->makeDrumNameUnique(&newName, 1);
-		if (error != Error::NONE) {
-			goto gotError;
-		}
-
-		drum->drumName = newName.get();
+		drum->drumName = newName.c_str();
 	}
 
 	PadLEDs::clearTickSquares(true);
@@ -205,7 +201,7 @@ void AudioRecorder::process() {
 				// We want to attach that Sample to a Source right away...
 				soundEditor.currentSound->killAllVoices();
 				soundEditor.currentSource->setOscType(OscType::SAMPLE);
-				soundEditor.currentMultiRange->getAudioFileHolder()->filePath.set(&recorder->sample->filePath);
+				soundEditor.currentMultiRange->getAudioFileHolder()->filePath = recorder->sample->filePath;
 				soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
 				    recorder->sample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
 			}

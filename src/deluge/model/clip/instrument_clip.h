@@ -22,6 +22,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
+#include <string>
 
 class Song;
 
@@ -124,8 +125,8 @@ public:
 	// These *only* store a valid preset number for the instrument-types that the Clip is not currently on
 	int8_t backedUpInstrumentSlot[4]{};
 	int8_t backedUpInstrumentSubSlot[4]{};
-	String backedUpInstrumentName[2];
-	String backedUpInstrumentDirPath[2];
+	std::string backedUpInstrumentName[2];
+	std::string backedUpInstrumentDirPath[2];
 
 	bool affectEntire;
 

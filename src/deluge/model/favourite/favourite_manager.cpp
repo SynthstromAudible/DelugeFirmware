@@ -59,8 +59,8 @@ void FavouritesManager::loadFavouritesBank() {
 		// create emtpy File
 		saveFavouriteBank();
 	}
-	String path;
-	path.set(filePath.c_str());
+	std::string path;
+	path = filePath.c_str();
 	Error error = StorageManager::loadFavouriteFile(&fileToLoad, &path);
 }
 
@@ -68,7 +68,7 @@ Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 	reader.match('{');
 	char const* tagName;
 	uint8_t i = 0;
-	String fileName;
+	std::string fileName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "favourite")) {
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -80,8 +80,8 @@ Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 					favourites[i].colour = reader.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName, "instrumentPresetFolder")) {
-					reader.readTagOrAttributeValueString(&fileName);
-					favourites[i].filename = fileName.get();
+					reader.readTagOrAttributeValueString(fileName);
+					favourites[i].filename = fileName.c_str();
 				}
 			}
 		}

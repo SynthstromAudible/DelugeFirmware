@@ -390,8 +390,8 @@ void setupStartupSong() {
 	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
 	auto filename =
 	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
-	String failSafePath;
-	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
+	std::string failSafePath;
+	failSafePath.append("SONGS/__STARTUP_OFF_CHECK_");
 	auto size = strlen(filename) + 1;
 	// The messages we show to the user are mostly plain language, but
 	// for non-user facing errors we use codes. All messages are < 20 chars.
@@ -402,9 +402,9 @@ void setupStartupSong() {
 
 	char replaced[sizeof(char) * strlen(filename) + 1]; // +1 for NULL terminator
 	replace_char(replaced, filename, '/', '_');
-	failSafePath.concatenate(replaced);
+	failSafePath.append(replaced);
 
-	if (StorageManager::fileExists(failSafePath.get())) {
+	if (StorageManager::fileExists(failSafePath.c_str())) {
 		// canary exists, previous boot failed?
 		display->consoleText("Startup fault F1");
 		return; // no cleanup, keep canary!
@@ -422,7 +422,7 @@ void setupStartupSong() {
 	case StartupSongMode::LASTSAVED: {
 		// Create canary
 		FIL f;
-		if (f_open(&f, failSafePath.get(), FA_CREATE_ALWAYS | FA_WRITE) == FR_OK) {
+		if (f_open(&f, failSafePath.c_str(), FA_CREATE_ALWAYS | FA_WRITE) == FR_OK) {
 			f_close(&f);
 		}
 		else {
@@ -437,7 +437,7 @@ void setupStartupSong() {
 				// we tried to create it earlier, but didn't happen?
 				display->consoleText("Startup fault F3");
 				// cleanup, this wasn't a crash
-				f_unlink(failSafePath.get());
+				f_unlink(failSafePath.c_str());
 				return;
 			}
 			display->consoleText("Song missing");
@@ -449,7 +449,7 @@ void setupStartupSong() {
 			}
 			else {
 				// cleanup, this wasn't a crash
-				f_unlink(failSafePath.get());
+				f_unlink(failSafePath.c_str());
 				return;
 			}
 		}
@@ -468,7 +468,7 @@ void setupStartupSong() {
 			display->consoleText("Startup fault F4");
 		}
 		// ...but we got this far, cleanup
-		f_unlink(failSafePath.get());
+		f_unlink(failSafePath.c_str());
 	} break;
 	case StartupSongMode::BLANK:
 		[[fallthrough]];

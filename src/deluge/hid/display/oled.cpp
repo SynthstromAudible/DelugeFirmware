@@ -878,7 +878,7 @@ struct SideScroller {
 	int32_t boxLengthPixels;
 	bool finished;
 	bool doHighlight;
-	String string_;
+	std::string string_;
 };
 
 #define NUM_SIDE_SCROLLERS 2
@@ -906,8 +906,8 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 		return;
 	}
 
-	scroller->string_.set(text.data(), static_cast<int32_t>(text.size()));
-	scroller->text = scroller->string_.get();
+	scroller->string_.assign(text.data(), static_cast<int32_t>(text.size()));
+	scroller->text = scroller->string_.c_str();
 	scroller->pos = 0;
 	scroller->startX = startX;
 	scroller->endX = endX;

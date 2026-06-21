@@ -227,7 +227,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	// 	ao->mode = AudioOutputMode::player;
 	// }
 	originalLength = loopLength;
-	sampleHolder.filePath.set(&recorder->sample->filePath);
+	sampleHolder.filePath = recorder->sample->filePath;
 	sampleHolder.setAudioFile(recorder->sample, sampleControls.isCurrentlyReversed(), true,
 	                          CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after
 	                                              // endSyncedRecording(), which puts some final values in the Sample
@@ -242,7 +242,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 	recorder = nullptr;
 
-	name.set(sampleHolder.filePath.get());
+	name = sampleHolder.filePath.c_str();
 }
 
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
@@ -1048,10 +1048,10 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
-	writer.writeAttribute("trackName", output->name.get());
+	writer.writeAttribute("trackName", output->name.c_str());
 
-	writer.writeAttribute("filePath", sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get()
-	                                                         : sampleHolder.filePath.get());
+	writer.writeAttribute("filePath", sampleHolder.audioFile ? sampleHolder.audioFile->filePath.c_str()
+	                                                         : sampleHolder.filePath.c_str());
 	writer.writeAttribute("startSamplePos", sampleHolder.startPos);
 	writer.writeAttribute("endSamplePos", sampleHolder.endPos);
 	writer.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
@@ -1118,11 +1118,11 @@ someError:
 		// D_PRINTLN(tagName); delayMS(30);
 
 		if (!strcmp(tagName, "trackName")) {
-			reader.readTagOrAttributeValueString(&outputNameWhileLoading);
+			reader.readTagOrAttributeValueString(outputNameWhileLoading);
 		}
 
 		else if (!strcmp(tagName, "filePath")) {
-			reader.readTagOrAttributeValueString(&sampleHolder.filePath);
+			reader.readTagOrAttributeValueString(sampleHolder.filePath);
 		}
 
 		else if (!strcmp(tagName, "overdubsShouldCloneAudioTrack")) {
@@ -1209,7 +1209,7 @@ someError:
 
 Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
-	output = modelStack->song->getAudioOutputFromName(outputNameWhileLoading.get());
+	output = modelStack->song->getAudioOutputFromName(outputNameWhileLoading.c_str());
 
 	if (!output) {
 		return Error::FILE_CORRUPTED;
@@ -1220,7 +1220,7 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
 	Error error = sampleHolder.loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFile);
-	name.set(sampleHolder.filePath.get());
+	name = sampleHolder.filePath.c_str();
 	if (error != Error::NONE) {
 		display->displayError(error);
 	}
@@ -1298,7 +1298,7 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 
 			sampleHolder.filePath.clear();
 			sampleHolder.setAudioFile(nullptr);
-			name.set("");
+			name = "";
 		}
 
 		renderData.xScroll = -1;

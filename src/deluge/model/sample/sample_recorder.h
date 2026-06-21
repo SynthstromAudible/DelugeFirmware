@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <gsl/gsl>
 #include <optional>
+#include <string>
 
 enum class MonitoringAction {
 	NONE = 0,
@@ -95,7 +96,7 @@ public:
 	// When this gets set, we add the Sample to the master list. This is stored here in addition to in the Sample,
 	// so we can delete an aborted file even after the Sample has been detached / destructed.
 	// This will be the temp file path if there is one.
-	String filePathCreated;
+	std::string filePathCreated;
 
 	RecorderStatus status = RecorderStatus::CAPTURING_DATA;
 	AudioInputChannel mode;

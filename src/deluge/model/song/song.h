@@ -180,7 +180,7 @@ public:
 	void changeSwingInterval(int32_t newValue);
 	int32_t convertSyncLevelFromFileValueToInternalValue(int32_t fileValue);
 	int32_t convertSyncLevelFromInternalValueToFileValue(int32_t internalValue);
-	String getSongFullPath();
+	std::string getSongFullPath();
 	void setSongFullPath(const char* fullPath);
 	int32_t getInputTickMagnitude() const { return insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM; }
 
@@ -226,7 +226,7 @@ public:
 
 	uint16_t slot;
 	int8_t subSlot;
-	String name;
+	std::string name;
 
 	bool affectEntire;
 
@@ -255,7 +255,7 @@ public:
 
 	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams];
 
-	String dirPath;
+	std::string dirPath;
 
 	std::array<SessionMacro, 8> sessionMacros{};
 

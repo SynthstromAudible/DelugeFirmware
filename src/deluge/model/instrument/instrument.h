@@ -48,7 +48,7 @@ public:
 	// This needs to be initialized / defaulted to "SYNTHS" or "KITS" (for those Instrument types). The constructor does
 	// not do this, partly because I don't want it doing memory allocation, and also because in many cases, the function
 	// creating the object hard-sets this anyway.
-	String dirPath;
+	std::string dirPath;
 
 	bool editedByUser = false;
 	bool mightExistOnCard = false;
@@ -59,7 +59,7 @@ public:
 		if (type == otherType) {
 
 			if (otherType == OutputType::SYNTH || otherType == OutputType::KIT) {
-				match = !strcasecmp(otherName, name.get()) && !strcasecmp(otherPath, dirPath.get());
+				match = !strcasecmp(otherName, name.c_str()) && !strcasecmp(otherPath, dirPath.c_str());
 			}
 		}
 		return match;

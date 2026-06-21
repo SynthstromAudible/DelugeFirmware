@@ -48,7 +48,7 @@ SampleCluster::~SampleCluster() {
 void SampleCluster::ensureNoReason(Sample* sample) {
 	if (cluster) {
 		if (cluster->numReasonsToBeLoaded) {
-			D_PRINTLN("Cluster has reason!  %d %d", cluster->numReasonsToBeLoaded, sample->filePath.get());
+			D_PRINTLN("Cluster has reason!  %d %d", cluster->numReasonsToBeLoaded, sample->filePath.c_str());
 
 			if (cluster->numReasonsToBeLoaded >= 0) {
 				FREEZE_WITH_ERROR("E068");

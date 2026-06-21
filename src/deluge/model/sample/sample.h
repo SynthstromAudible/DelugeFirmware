@@ -105,7 +105,7 @@ public:
 		return value;
 	}
 
-	String tempFilePathForRecording;
+	std::string tempFilePathForRecording;
 	uint8_t byteDepth{0};
 	uint32_t sampleRate{44100};
 	uint32_t audioDataStartPosBytes; // That is, the offset from the start of the WAV file

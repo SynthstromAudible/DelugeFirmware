@@ -664,7 +664,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			return Error::INSUFFICIENT_RAM;
 		}
 
-		range->getAudioFileHolder()->filePath.set(reader.readTagOrAttributeValue());
+		range->getAudioFileHolder()->filePath = reader.readTagOrAttributeValue();
 		sources[0].oscType = OscType::SAMPLE;
 		paramManager->getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
 		    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 0));
@@ -3401,7 +3401,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				return Error::INSUFFICIENT_RAM;
 			}
 
-			reader.readTagOrAttributeValueString(&range->getAudioFileHolder()->filePath);
+			reader.readTagOrAttributeValueString(range->getAudioFileHolder()->filePath);
 
 			reader.exitTag("fileName");
 		}
@@ -3482,7 +3482,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 					while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 						if (!strcmp(tagName, "fileName")) {
-							reader.readTagOrAttributeValueString(&holder->filePath);
+							reader.readTagOrAttributeValueString(holder->filePath);
 							reader.exitTag("fileName");
 						}
 						else if (!strcmp(tagName, "rangeTopNote")) {
@@ -3617,8 +3617,8 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			}
 
 			writer.writeAttribute("fileName", range->sampleHolder.audioFile
-			                                      ? range->sampleHolder.audioFile->filePath.get()
-			                                      : range->sampleHolder.filePath.get());
+			                                      ? range->sampleHolder.audioFile->filePath.c_str()
+			                                      : range->sampleHolder.filePath.c_str());
 			if (range->sampleHolder.transpose) {
 				writer.writeAttribute("transpose", range->sampleHolder.transpose);
 			}
@@ -3685,8 +3685,8 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 				}
 
 				writer.writeAttribute("fileName", range->sampleHolder.audioFile
-				                                      ? range->sampleHolder.audioFile->filePath.get()
-				                                      : range->sampleHolder.filePath.get());
+				                                      ? range->sampleHolder.audioFile->filePath.c_str()
+				                                      : range->sampleHolder.filePath.c_str());
 
 				if (numRanges > 1) {
 					writer.closeTag(true);

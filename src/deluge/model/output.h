@@ -87,10 +87,10 @@ public:
 
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;
-	String name; // Contains the display name as the user sees it.
-	             // E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
-	             // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
-	             // Definitely does not contain the ".XML" on the end.
+	std::string name; // Contains the display name as the user sees it.
+	                  // E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
+	                  // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
+	                  // Definitely does not contain the ".XML" on the end.
 	Output* next;
 	const OutputType type;
 	bool mutedInArrangementMode;

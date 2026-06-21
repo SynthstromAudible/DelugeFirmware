@@ -1988,7 +1988,7 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 		channel = static_cast<int32_t>(((AudioOutput*)output)->mode);
 	}
 
-	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), output->name.isEmpty(),
+	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.c_str(), output->name.empty(),
 	                          editedByUser, doBlink, clip);
 	deluge::hid::display::OLED::markChanged();
 }
@@ -2099,15 +2099,15 @@ oledDrawString:
 
 			if (clip) {
 				// "SECTION NN" is 10, "NN: " is 3 => 10 over current name is always enough.
-				DEF_STACK_STRING_BUF(info, clip->name.getLength() + 10);
-				if (clip->name.isEmpty()) {
+				DEF_STACK_STRING_BUF(info, clip->name.size() + 10);
+				if (clip->name.empty()) {
 					info.append("Section ");
 					info.appendInt(clip->section + 1);
 				}
 				else {
 					info.appendInt(clip->section + 1);
 					info.append(": ");
-					info.append(clip->name.get());
+					info.append(clip->name.c_str());
 				}
 				yPos = yPos + 14;
 				canvas.drawStringCentred(info.data(), yPos, kTextSpacingX, kTextSpacingY);
@@ -2469,7 +2469,7 @@ gotAnInstrument:
 
 		// Special case: when it is a saved MIDI preset (with a name), then we need to show the channel in a popup, as
 		// the name will print over the midi channel and we can't see it while changing it
-		if (outputType == OutputType::MIDI_OUT && newInstrument->name.getLength() > 0) {
+		if (outputType == OutputType::MIDI_OUT && newInstrument->name.size() > 0) {
 			char buffer[12];
 			if (newChannel < 16) {
 				slotToString(newChannel + 1, newChannelSuffix, buffer, 1);

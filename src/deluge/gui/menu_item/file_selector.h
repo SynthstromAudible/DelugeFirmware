@@ -38,7 +38,7 @@ public:
 
 private:
 	uint8_t sourceId_;
-	static std::string getLastFolderFromPath(String& path);
+	static std::string getLastFolderFromPath(std::string& path);
 };
 
 extern FileSelector file0SelectorMenu;

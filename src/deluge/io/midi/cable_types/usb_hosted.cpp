@@ -19,7 +19,7 @@
 #include "storage/storage_manager.h"
 
 void MIDICableUSBHosted::writeReferenceAttributesToFile(Serializer& writer) {
-	writer.writeAttribute("name", name.get());
+	writer.writeAttribute("name", name.c_str());
 	writer.writeAttributeHex("vendorId", vendorId, 4);
 	writer.writeAttributeHex("productId", productId, 4);
 }
@@ -30,7 +30,7 @@ void MIDICableUSBHosted::writeToFlash(uint8_t* memory) {
 }
 
 char const* MIDICableUSBHosted::getDisplayName() {
-	return name.get();
+	return name.c_str();
 }
 
 void MIDICableUSBHosted::callHook(Hook hook) {

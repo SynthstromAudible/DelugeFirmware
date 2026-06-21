@@ -18,7 +18,7 @@
 #pragma once
 
 #include "model/consequence/consequence.h"
-#include "util/d_string.h"
+#include <string>
 
 class AudioClip;
 
@@ -28,6 +28,6 @@ public:
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	AudioClip* clip;
-	String filePathToRevertTo;
+	std::string filePathToRevertTo;
 	uint64_t endPosToRevertTo;
 };

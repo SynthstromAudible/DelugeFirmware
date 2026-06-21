@@ -450,9 +450,9 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		drum->drumName = "1";
 		drum->sources[0].repeatMode = SampleRepeatMode::ONCE;
 
-		if (!waveformBasicNavigator.sample->filePath.equals(&range->sampleHolder.filePath)) {
+		if (!(waveformBasicNavigator.sample->filePath == range->sampleHolder.filePath)) {
 			stopAnyPreviewing();
-			range->sampleHolder.filePath.set(waveformBasicNavigator.sample->filePath.get());
+			range->sampleHolder.filePath = waveformBasicNavigator.sample->filePath.c_str();
 			range->sampleHolder.loadFile(false, true, true);
 		}
 		range->sampleHolder.startPos = startPoint;
@@ -692,7 +692,7 @@ ramError2:
 			newDrum->sources[0].repeatMode =
 			    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
 
-			range->sampleHolder.filePath.set(&sample->filePath);
+			range->sampleHolder.filePath = sample->filePath;
 			range->sampleHolder.loadFile(false, false, true);
 
 			if (doEnvelopes) {

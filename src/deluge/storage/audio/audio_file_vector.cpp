@@ -29,7 +29,7 @@ AudioFileVector::AudioFileVector() : NamedThingVector(__builtin_offsetof(AudioFi
 // caller must deal with these.
 int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 	bool foundExactName;
-	int32_t i = search(audioFile->filePath.get(), GREATER_OR_EQUAL, &foundExactName);
+	int32_t i = search(audioFile->filePath.c_str(), GREATER_OR_EQUAL, &foundExactName);
 	if (!foundExactName) {
 		return -1;
 	}

@@ -36,13 +36,14 @@
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include "util/string.h"
 #include "util/try.h"
 #include <cstring>
 #include <new>
 
 using namespace deluge;
 
-String Browser::currentDir{};
+std::string Browser::currentDir{};
 bool Browser::qwertyVisible;
 
 CStringArray Browser::fileItems{sizeof(FileItem)};
@@ -93,15 +94,10 @@ bool Browser::opened() {
 // returns true if the FP for the filepath is correct
 bool Browser::checkFP() {
 	FileItem* currentFileItem = getCurrentFileItem();
-	String filePath;
-	Error error = getCurrentFilePath(&filePath);
-	if (error != Error::NONE) {
-		D_PRINTLN("couldn't get filepath");
-		return false;
-	}
+	std::string filePath = getCurrentFilePath();
 
 	FilePointer tempfp;
-	bool fileExists = StorageManager::fileExists(filePath.get(), &tempfp);
+	bool fileExists = StorageManager::fileExists(filePath.c_str(), &tempfp);
 	if (!fileExists) {
 		D_PRINTLN("couldn't get filepath");
 		return false;
@@ -272,7 +268,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	}
 
 	staticDIR =
-	    D_TRY_CATCH(FatFS::Directory::open(currentDir.get()), error, { return fatfsErrorToDelugeError(error); });
+	    D_TRY_CATCH(FatFS::Directory::open(currentDir.c_str()), error, { return fatfsErrorToDelugeError(error); });
 
 	numFileItemsDeletedAtStart = 0;
 	numFileItemsDeletedAtEnd = 0;
@@ -333,14 +329,11 @@ extensionNotSupported:
 			error = Error::INSUFFICIENT_RAM;
 			break;
 		}
-		error = thisItem->filename.set(staticFNO.fname);
-		if (error != Error::NONE) {
-			break;
-		}
+		thisItem->filename = staticFNO.fname;
 		thisItem->isFolder = isFolder;
 		thisItem->filePointer = thisFilePointer;
 
-		char const* storedFilenameChars = thisItem->filename.get();
+		char const* storedFilenameChars = thisItem->filename.c_str();
 		if (display->have7SEG()) {
 			if (filePrefixHere) {
 				if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength)) {
@@ -404,9 +397,9 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 			// If we're a folder, and the next item is a file of the same name, delete this item.
 			if (readItem->isFolder) {
 				if (!nextItem->isFolder) {
-					int32_t nameLength = readItem->filename.getLength();
-					char const* nextItemFilename = nextItem->filename.get();
-					if (!memcasecmp(readItem->filename.get(), nextItemFilename, nameLength)) {
+					int32_t nameLength = readItem->filename.size();
+					char const* nextItemFilename = nextItem->filename.c_str();
+					if (!memcasecmp(readItem->filename.c_str(), nextItemFilename, nameLength)) {
 						if (nextItemFilename[nameLength] == '.' && !strchr(&nextItemFilename[nameLength + 1], '.')) {
 							goto deleteThisItem;
 						}
@@ -492,7 +485,7 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 	}
 
 	const char* fileName = getFileNameFromEndOfPath(fullPath);
-	currentDir.set(getPathFromFullPath(fullPath));
+	currentDir = getPathFromFullPath(fullPath);
 
 	// Change to the File Folder
 	Error error = arrivedInNewFolder(0, fileName);
@@ -534,12 +527,9 @@ tryReadingItems:
 		if (error == Error::FOLDER_DOESNT_EXIST) {
 			if (defaultDirToAlsoTry) {
 				// ... only if we haven't already tried the alternative folder.
-				if (!currentDir.equalsCaseIrrespective(defaultDirToAlsoTry)) {
+				if (!deluge::string::caselessEquals(currentDir, defaultDirToAlsoTry)) {
 					filenameToStartAt = NULL;
-					Error error = currentDir.set(defaultDirToAlsoTry);
-					if (error != Error::NONE) {
-						return error;
-					}
+					currentDir = defaultDirToAlsoTry;
 					goto tryReadingItems;
 				}
 
@@ -679,7 +669,7 @@ useFoundFile:
 			goto gotErrorAfterAllocating;
 		}
 		// `#if 1 || !OLED` macro was here
-		char const* enteredTextChars = enteredText.get();
+		char const* enteredTextChars = enteredText.c_str();
 		if (!memcasecmp(enteredTextChars, "SONG", 4)) {
 			Slot thisSlot = getSlot(&enteredTextChars[4]);
 			if (thisSlot.slot < 0) {
@@ -720,10 +710,7 @@ useFoundFile:
 				}
 			}
 			*(subSlotPos + 1) = 0; // Removes ".XML"
-			error = enteredText.set(nameBuffer);
-			if (error != Error::NONE) {
-				goto gotErrorAfterAllocating;
-			}
+			enteredText = nameBuffer;
 		}
 		/* This was originally never accessible as the `else` branch of a `#if 1 || !OLED` macro
 		int32_t length = enteredText.getLength();
@@ -746,13 +733,13 @@ useFoundFile:
 */
 		else {
 doNormal: // FileItem* currentFile = (FileItem*)fileItems.getElementAddress(fileIndexSelected);
-			String endSearchString;
+			std::string endSearchString;
 			// error = currentFile->getFilenameWithoutExtension(&endSearchString);		if (error != Error::NONE) goto
 			// gotErrorAfterAllocating;
-			endSearchString.set(&enteredText);
+			endSearchString = enteredText;
 
 			// Did it already have an underscore at the end with a positive integer after it?
-			char const* endSearchStringChars = endSearchString.get();
+			char const* endSearchStringChars = endSearchString.c_str();
 			char delimeterChar = '_';
 tryAgain:
 			char const* delimeterAddress = strrchr(endSearchStringChars, delimeterChar);
@@ -767,11 +754,8 @@ tryAgain:
 				}
 
 				numberStartPos = underscorePos + 1;
-				error = endSearchString.concatenateAtPos(":", numberStartPos);
-				if (error != Error::NONE) {
-					goto gotErrorAfterAllocating; // Colon is the next character after the ascii digits, so searching
-					                              // for this will get us past the final number present.
-				}
+				endSearchString.resize(numberStartPos);
+				endSearchString.append(":");
 			}
 			else {
 noNumberYet:
@@ -779,14 +763,11 @@ noNumberYet:
 					delimeterChar = ' ';
 					goto tryAgain;
 				}
-				numberStartPos = endSearchString.getLength() + 1;
-				error = endSearchString.concatenate(display->haveOLED() ? " :" : "_:");
-				if (error != Error::NONE) {
-					goto gotErrorAfterAllocating; // See above comment.
-				}
+				numberStartPos = endSearchString.size() + 1;
+				endSearchString.append(display->haveOLED() ? " :" : "_:");
 			}
 
-			int32_t searchResult = fileItems.search(endSearchString.get());
+			int32_t searchResult = fileItems.search(endSearchString.c_str());
 #if ALPHA_OR_BETA_VERSION
 			if (searchResult <= 0) {
 				FREEZE_WITH_ERROR("E448");
@@ -795,14 +776,10 @@ noNumberYet:
 			}
 #endif
 			FileItem* prevFile = (FileItem*)fileItems.getElementAddress(searchResult - 1);
-			String prevFilename;
-			error = prevFile->getFilenameWithoutExtension(&prevFilename);
-			if (error != Error::NONE) {
-				goto gotErrorAfterAllocating;
-			}
-			char const* prevFilenameChars = prevFilename.get();
+			std::string prevFilename = prevFile->getFilenameWithoutExtension();
+			char const* prevFilenameChars = prevFilename.c_str();
 			int32_t number;
-			if (prevFilename.getLength() > numberStartPos) {
+			if (prevFilename.size() > numberStartPos) {
 				number = stringToUIntOrError(&prevFilenameChars[numberStartPos]);
 				if (number < 0) {
 					number = 1;
@@ -813,17 +790,11 @@ noNumberYet:
 			}
 
 			number++;
-			enteredText.set(&endSearchString);
-			error = enteredText.shorten(numberStartPos);
-			if (error != Error::NONE) {
-				goto gotErrorAfterAllocating;
-			}
-			error = enteredText.concatenateInt(number);
-			if (error != Error::NONE) {
-				goto gotErrorAfterAllocating;
-			}
+			enteredText = endSearchString;
+			enteredText.resize(numberStartPos);
+			enteredText.append(deluge::string::fromInt(number));
 
-			enteredTextEditPos = enteredText.getLength();
+			enteredTextEditPos = enteredText.size();
 		}
 	}
 
@@ -832,7 +803,7 @@ noNumberYet:
 		// Can we just pick a brand new name?
 		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
-			if (enteredText.isEmpty()) {
+			if (enteredText.empty()) {
 				error = getUnusedSlot(OutputType::NONE, &enteredText, filePrefix);
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating;
@@ -840,8 +811,8 @@ pickBrandNewNameIfNoneNominated:
 				// Note - this is only hit if we're saving the first song created on boot (because the default name
 				// won't match anything) Because that will have cleared out all the FileItems, we need to get them
 				// again. Actually there would kinda be a way around doing this...
-				error = readFileItemsFromFolderAndMemory(currentSong, OutputType::NONE, "SONG", enteredText.get(), NULL,
-				                                         true, Availability::ANY, CATALOG_SEARCH_BOTH);
+				error = readFileItemsFromFolderAndMemory(currentSong, OutputType::NONE, "SONG", enteredText.c_str(),
+				                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating;
 				}
@@ -866,7 +837,7 @@ everythingFinalized:
 }
 
 // You must set currentDir before calling this.
-Error Browser::getUnusedSlot(OutputType outputType, String* newName, char const* thingName) {
+Error Browser::getUnusedSlot(OutputType outputType, std::string* newName, char const* thingName) {
 
 	Error error;
 	if (display->haveOLED()) {
@@ -894,12 +865,8 @@ doReturn:
 		int32_t minNumDigits = 1;
 		if (fileItems.getNumElements()) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-			String displayName;
-			error = fileItem->getDisplayNameWithoutExtension(&displayName);
-			if (error != Error::NONE) {
-				goto emptyFileItemsAndReturn;
-			}
-			char const* readingChar = &displayName.get()[strlen(thingName)];
+			std::string displayName = fileItem->getDisplayNameWithoutExtension();
+			char const* readingChar = &displayName.c_str()[strlen(thingName)];
 			freeSlotNumber = 0;
 			minNumDigits = 0;
 			while (*readingChar >= '0' && *readingChar <= '9') {
@@ -911,11 +878,9 @@ doReturn:
 			freeSlotNumber++;
 		}
 
-		error = newName->set(thingName);
-		if (error != Error::NONE) {
-			goto emptyFileItemsAndReturn;
-		}
-		error = newName->concatenateInt(freeSlotNumber, minNumDigits);
+		(*newName) = thingName;
+		(*newName).append(deluge::string::fromInt(freeSlotNumber, minNumDigits));
+		error = Error::NONE;
 	}
 	else {
 		int32_t nextHigherSlotFound = kNumSongSlots; // I think the use of this is a bit deprecated...
@@ -936,12 +901,8 @@ noMoreToLookAt:
 		}
 		else {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-			String displayName;
-			error = fileItem->getDisplayNameWithoutExtension(&displayName);
-			if (error != Error::NONE) {
-				goto emptyFileItemsAndReturn;
-			}
-			char const* displayNameChars = displayName.get();
+			std::string displayName = fileItem->getDisplayNameWithoutExtension();
+			char const* displayNameChars = displayName.c_str();
 			if (displayNameChars[0] < '0') {
 				goto noMoreToLookAt;
 			}
@@ -959,7 +920,8 @@ noMoreToLookAt:
 		}
 
 		// If still here, we found an unused slot.
-		error = newName->setInt(freeSlotNumber);
+		(*newName) = deluge::string::fromInt(freeSlotNumber);
+		error = Error::NONE;
 	}
 
 emptyFileItemsAndReturn:
@@ -984,7 +946,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
-		newFileIndex = fileItems.search(enteredText.get());
+		newFileIndex = fileItems.search(enteredText.c_str());
 		if (offset < 0) {
 			newFileIndex--;
 		}
@@ -1000,7 +962,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 			}
 
 			if (numberEditPosNow != -1) {
-				Slot thisSlot = getSlot(enteredText.get());
+				Slot thisSlot = getSlot(enteredText.c_str());
 				if (thisSlot.slot < 0) {
 					goto nonNumeric;
 				}
@@ -1045,7 +1007,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 		else {
 			if (filePrefix && Buttons::isShiftButtonPressed()) {
 				int32_t filePrefixLength = strlen(filePrefix);
-				char const* enteredTextChars = enteredText.get();
+				char const* enteredTextChars = enteredText.c_str();
 				if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength)) {
 					goto nonNumeric;
 				}
@@ -1089,8 +1051,8 @@ nonNumeric:
 
 tryReadingItems:
 			D_PRINTLN("reloading");
-			error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.get(), NULL,
-			                                         true, Availability::ANY, CATALOG_SEARCH_BOTH);
+			error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.c_str(),
+			                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
 			if (error != Error::NONE) {
 gotErrorAfterAllocating:
 				D_PRINTLN("error while reloading, emptying file items");
@@ -1099,7 +1061,7 @@ gotErrorAfterAllocating:
 				// TODO - need to close UI or something?
 			}
 
-			newFileIndex = fileItems.search(enteredText.get()) + offset;
+			newFileIndex = fileItems.search(enteredText.c_str()) + offset;
 			D_PRINTLN("new file Index is %d", newFileIndex);
 		}
 
@@ -1172,7 +1134,7 @@ searchFromOneEnd:
 		scrollPosHorizontal = 0;
 	}
 	else {
-		char const* oldCharAddress = enteredText.get();
+		char const* oldCharAddress = enteredText.c_str();
 		char const* newCharAddress = getCurrentFileItem()->displayName; // Will have file extension, so beware...
 		while (true) {
 			char oldChar = *oldCharAddress;
@@ -1217,11 +1179,13 @@ bool Browser::predictExtendedText() {
 		oldClust = oldFileItem->filePointer.sclust;
 	}
 
-	String searchString;
-	searchString.set(&enteredText);
+	std::string searchString;
+	searchString = enteredText;
 	bool doneNewRead = false;
-	error = searchString.shorten(enteredTextEditPos);
-	if (error != Error::NONE) {
+	searchString.resize(enteredTextEditPos);
+
+	// Reachable only via `goto gotError` from the error paths below.
+	if (false) {
 gotError:
 		display->displayError(error);
 		return false;
@@ -1237,7 +1201,7 @@ gotError:
 	// because 2 is the closest number to 1 that comes after 1. So now we just search for the string as is. The major
 	// impact is this now returns the first match instead of the last match.
 doSearch:
-	int32_t i = fileItems.search(searchString.get());
+	int32_t i = fileItems.search(searchString.c_str());
 
 	// If that search takes us off the right-hand end of the list...
 	if (i >= fileItems.getNumElements()) {
@@ -1247,7 +1211,7 @@ doSearch:
 doNewRead:
 			doneNewRead = true;
 			error = readFileItemsFromFolderAndMemory(
-			    currentSong, outputTypeToLoad, filePrefix, searchString.get(), NULL, true, Availability::ANY,
+			    currentSong, outputTypeToLoad, filePrefix, searchString.c_str(), NULL, true, Availability::ANY,
 			    CATALOG_SEARCH_BOTH); // This could probably actually be made to work with searching left only...
 			if (error != Error::NONE) {
 gotErrorAfterAllocating:
@@ -1277,14 +1241,12 @@ notFound:
 	FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
 
 	// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
-	if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos)) {
+	if (memcasecmp(fileItem->displayName, enteredText.c_str(), enteredTextEditPos)) {
 		// this code is original but I don't know what it does. Slot browser maybe?
 		// Just updated to append to the string instead of replacing the tilde
 		if (numExtraZeroesAdded < 4) {
-			error = searchString.concatenateAtPos("0", searchString.getLength(), 1);
-			if (error != Error::NONE) {
-				goto gotError;
-			}
+			searchString.resize(searchString.size());
+			searchString.append("0", 1);
 			numExtraZeroesAdded++;
 			doneNewRead = false;
 			goto doSearch;
@@ -1361,7 +1323,7 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	// If we're currently typing a filename which doesn't (yet?) have a file...
 	if (fileIndexSelected == -1) {
-		displayName = enteredText.get();
+		displayName = enteredText.c_str();
 		o = OLED_HEIGHT_CHARS; // Make sure below loop doesn't keep looping.
 		goto drawAFile;
 	}
@@ -1377,7 +1339,7 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 				FileItem* thisFile = (FileItem*)fileItems.getElementAddress(i);
 				isFolder = thisFile->isFolder;
-				displayName = thisFile->filename.get();
+				displayName = thisFile->filename.c_str();
 				isSelectedIndex = (i == fileIndexSelected);
 			}
 drawAFile:
@@ -1403,7 +1365,7 @@ searchForChar:
 			if (isSelectedIndex) {
 				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars, canvas);
 				if (!enteredTextEditPos) {
-					deluge::hid::display::OLED::setupSideScroller(0, enteredText.get(), textStartX,
+					deluge::hid::display::OLED::setupSideScroller(0, enteredText.c_str(), textStartX,
 					                                              OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
 					                                              kTextSpacingX, kTextSpacingY, true);
 				}
@@ -1496,14 +1458,14 @@ void Browser::displayText(bool blinkImmediately) {
 			QwertyUI::displayText(blinkImmediately);
 		}
 		else {
-			if (enteredText.isEmpty() && fileIndexSelected == -1) {
+			if (enteredText.empty() && fileIndexSelected == -1) {
 				display->setText("----");
 			}
 			else {
 
 				if (filePrefix) {
 
-					Slot thisSlot = getSlot(enteredText.get());
+					Slot thisSlot = getSlot(enteredText.c_str());
 					if (thisSlot.slot >= 0) {
 						display->setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
 						                       numberEditPos, blinkImmediately);
@@ -1521,7 +1483,7 @@ void Browser::displayText(bool blinkImmediately) {
 					scrollStart = enteredTextEditPos - 2;
 				}
 
-				scrollingText = display->setScrollingText(enteredText.get(), scrollStart);
+				scrollingText = display->setScrollingText(enteredText.c_str(), scrollStart);
 			}
 		}
 	}
@@ -1582,14 +1544,10 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (Buttons::isShiftButtonPressed()) {
-			String filePath;
-			Error error = getCurrentFilePath(&filePath);
-			if (error != Error::NONE) {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
-			}
+			std::string filePath = getCurrentFilePath();
 			if (favouritesManager.isEmpty(x)) {
 				if (!getCurrentFileItem()->isFolder) {
-					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
+					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.c_str());
 					favouritesChanged();
 				}
 			}
@@ -1699,21 +1657,15 @@ void Browser::goIntoDeleteFileContextMenu() {
 Error Browser::setEnteredTextFromCurrentFilename() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	Error error = enteredText.set(currentFileItem->displayName);
-	if (error != Error::NONE) {
-		return error;
-	}
+	enteredText = currentFileItem->displayName;
 
 	// Cut off the file extension
 	if (!currentFileItem->isFolder) {
-		char const* enteredTextChars = enteredText.get();
+		char const* enteredTextChars = enteredText.c_str();
 		char const* dotAddress = strrchr(enteredTextChars, '.');
 		if (dotAddress) {
 			int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)enteredTextChars;
-			error = enteredText.shorten(dotPos);
-			if (error != Error::NONE) {
-				return error;
-			}
+			enteredText.resize(dotPos);
 		}
 	}
 
@@ -1723,17 +1675,11 @@ Error Browser::setEnteredTextFromCurrentFilename() {
 Error Browser::goIntoFolder(char const* folderName) {
 	Error error;
 
-	if (!currentDir.isEmpty()) {
-		error = currentDir.concatenate("/");
-		if (error != Error::NONE) {
-			return error;
-		}
+	if (!currentDir.empty()) {
+		currentDir.append("/");
 	}
 
-	error = currentDir.concatenate(folderName);
-	if (error != Error::NONE) {
-		return error;
-	}
+	currentDir.append(folderName);
 
 	enteredText.clear();
 	enteredTextEditPos = 0;
@@ -1751,25 +1697,19 @@ Error Browser::goIntoFolder(char const* folderName) {
 
 Error Browser::goUpOneDirectoryLevel() {
 
-	char const* currentDirChars = currentDir.get();
+	char const* currentDirChars = currentDir.c_str();
 	char const* slashAddress = strrchr(currentDirChars, '/');
 	if (!slashAddress || slashAddress == currentDirChars) {
 		return Error::NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP;
 	}
 
 	int32_t slashPos = (uintptr_t)slashAddress - (uintptr_t)currentDirChars;
-	Error error = enteredText.set(slashAddress + 1);
-	if (error != Error::NONE) {
-		return error;
-	}
-	currentDir.shorten(slashPos);
-	if (error != Error::NONE) {
-		return error;
-	}
+	enteredText = slashAddress + 1;
+	currentDir.resize(slashPos);
 	enteredTextEditPos = 0;
 
 	display->setNextTransitionDirection(-1);
-	error = arrivedInNewFolder(-1, enteredText.get());
+	Error error = arrivedInNewFolder(-1, enteredText.c_str());
 	if (display->haveOLED()) {
 		if (error == Error::NONE) {
 			renderUIsForOled();
@@ -1781,28 +1721,22 @@ Error Browser::goUpOneDirectoryLevel() {
 Error Browser::createFolder() {
 	displayText();
 
-	String newDirPath;
+	std::string newDirPath;
 	Error error;
 
-	newDirPath.set(&currentDir);
-	if (!newDirPath.isEmpty()) {
-		error = newDirPath.concatenate("/");
-		if (error != Error::NONE) {
-			return error;
-		}
+	newDirPath = currentDir;
+	if (!newDirPath.empty()) {
+		newDirPath.append("/");
 	}
 
-	error = newDirPath.concatenate(&enteredText);
-	if (error != Error::NONE) {
-		return error;
-	}
+	newDirPath.append(enteredText);
 
-	FRESULT result = f_mkdir(newDirPath.get());
+	FRESULT result = f_mkdir(newDirPath.c_str());
 	if (result) {
 		return Error::SD_CARD;
 	}
 
-	error = goIntoFolder(enteredText.get());
+	error = goIntoFolder(enteredText.c_str());
 
 	return error;
 }

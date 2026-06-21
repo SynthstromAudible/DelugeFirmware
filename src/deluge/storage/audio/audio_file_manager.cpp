@@ -35,6 +35,7 @@
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 #include "storage/wave_table/wave_table_reader.h"
+#include "util/string.h"
 #include "util/try.h"
 
 #include <new>
@@ -186,9 +187,9 @@ clusterSizeChangedButItsOk:
 				if (thisAudioFile->type == AudioFileType::SAMPLE) {
 					// Check the Sample's file still exists
 					FIL sampleFile;
-					char const* filePath = ((Sample*)thisAudioFile)->tempFilePathForRecording.get();
+					char const* filePath = ((Sample*)thisAudioFile)->tempFilePathForRecording.c_str();
 					if (!*filePath) {
-						filePath = thisAudioFile->filePath.get();
+						filePath = thisAudioFile->filePath.c_str();
 					}
 
 					FRESULT result = f_open(&sampleFile, filePath, FA_READ);
@@ -239,7 +240,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 
 		if (audioFile->type == AudioFileType::SAMPLE) {
 			// If it's a temp-recorded one
-			if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
+			if (!((Sample*)audioFile)->tempFilePathForRecording.empty()) {
 
 				// if (ALPHA_OR_BETA_VERSION && audioFile->numReasons) FREEZE_WITH_ERROR("E281"); // It definitely
 				// shouldn't still have any reasons
@@ -266,9 +267,9 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 
 // Oi, don't even think about modifying this to take a Sample* pointer - cos the whole Sample could get deleted during
 // the card access.
-Error AudioFileManager::getUnusedAudioRecordingFilePath(String& filePath, String* tempFilePathForRecording,
+Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, std::string* tempFilePathForRecording,
                                                         AudioRecordingFolder folder, uint32_t* getNumber,
-                                                        const char* channelName, String* songName) {
+                                                        const char* channelName, std::string* songName) {
 	const auto folderID = util::to_underlying(folder);
 
 	Error error = StorageManager::initSD();
@@ -318,43 +319,22 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String& filePath, String
 
 	D_PRINTLN("new file: --------------  %d", highestUsedAudioRecordingNumber[folderID]);
 
-	error = filePath.set(audioRecordingFolderNames[folderID]);
-	if (error != Error::NONE) {
-		return error;
-	}
+	filePath = audioRecordingFolderNames[folderID];
 
 	bool doingTempFolder = (folder == AudioRecordingFolder::CLIPS);
 	if (doingTempFolder) {
-		error = tempFilePathForRecording->set(audioRecordingFolderNames[folderID]);
-		if (error != Error::NONE) {
-			return error;
-		}
-		error = tempFilePathForRecording->concatenate("/TEMP");
-		if (error != Error::NONE) {
-			return error;
-		}
+		(*tempFilePathForRecording) = audioRecordingFolderNames[folderID];
+		(*tempFilePathForRecording).append("/TEMP");
 	}
 
 	// default to putting it in the main folder if the song isn't named
-	if (songName->isEmpty()) {
-		error = filePath.concatenate("/REC");
-		if (error != Error::NONE) {
-			return error;
-		}
-		error = filePath.concatenateInt(highestUsedAudioRecordingNumber[folderID], 5);
-		if (error != Error::NONE) {
-			return error;
-		}
-		error = filePath.concatenate(".WAV");
-		if (error != Error::NONE) {
-			return error;
-		}
+	if (songName->empty()) {
+		filePath.append("/REC");
+		filePath.append(deluge::string::fromInt(highestUsedAudioRecordingNumber[folderID], 5));
+		filePath.append(".WAV");
 
 		if (doingTempFolder) {
-			error = tempFilePathForRecording->concatenate(&filePath.get()[strlen(audioRecordingFolderNames[folderID])]);
-			if (error != Error::NONE) {
-				return error;
-			}
+			(*tempFilePathForRecording).append(&filePath.c_str()[strlen(audioRecordingFolderNames[folderID])]);
 		}
 	}
 	// otherwise file it under the song name
@@ -366,35 +346,29 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String& filePath, String
 		// iterate through the main and temp folders until we find a path that's free in both
 		while (changed) {
 			changed = false;
-			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath.get(), songName->get(), channelName,
-			         i);
+			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath.c_str(), songName->c_str(),
+			         channelName, i);
 			while (StorageManager::fileExists(namedPath)) {
-				snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath.get(), songName->get(),
+				snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath.c_str(), songName->c_str(),
 				         channelName, i);
 				i++;
 				changed = true;
 			}
 			if (doingTempFolder) {
-				snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->get(),
-				         songName->get(), channelName, i);
+				snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->c_str(),
+				         songName->c_str(), channelName, i);
 
 				while (StorageManager::fileExists(tempPath)) {
-					snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->get(),
-					         songName->get(), channelName, i);
+					snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->c_str(),
+					         songName->c_str(), channelName, i);
 					i++;
 					changed = true;
 				}
 			}
 		}
-		error = filePath.set(namedPath);
-		if (error != Error::NONE) {
-			return error;
-		}
+		filePath = namedPath;
 		if (doingTempFolder) {
-			error = tempFilePathForRecording->set(tempPath);
-			if (error != Error::NONE) {
-				return error;
-			}
+			(*tempFilePathForRecording) = tempPath;
 		}
 	}
 
@@ -453,29 +427,22 @@ bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
 	return audioFiles.ensureEnoughSpaceAllocated(1);
 }
 
-Error AudioFileManager::setupAlternateAudioFileDir(String& newPath, char const* rootDir,
+Error AudioFileManager::setupAlternateAudioFileDir(std::string& newPath, char const* rootDir,
                                                    const char* songFilenameWithoutExtension) {
 
-	Error error = newPath.set(rootDir);
-	if (error != Error::NONE) {
-		return error;
-	}
+	newPath = rootDir;
 
-	error = newPath.concatenate("/");
-	if (error != Error::NONE) {
-		return error;
-	}
+	newPath.append("/");
 
-	error = newPath.concatenate(songFilenameWithoutExtension);
-	if (error != Error::NONE) {
-		return error;
-	}
+	newPath.append(songFilenameWithoutExtension);
 
 	return Error::NONE;
 }
 
-Error AudioFileManager::setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath) {
-	Error error = newPath.concatenateAtPos(&oldPath.get()[8], dirPathLength); // The [8] skips us past "SAMPLES/"
+Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength, std::string& oldPath) {
+	newPath.resize(dirPathLength);
+	newPath.append(&oldPath.c_str()[8]);
+	Error error = Error::NONE; // The [8] skips us past "SAMPLES/"
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -483,33 +450,30 @@ Error AudioFileManager::setupAlternateAudioFilePath(String& newPath, int32_t dir
 	int32_t pos = dirPathLength;
 
 	while (true) {
-		char const* newPathChars = newPath.get();
+		char const* newPathChars = newPath.c_str();
 		char const* slashAddress = strchr(&newPathChars[pos], '/');
 		if (!slashAddress) {
 			break;
 		}
 		int32_t slashPos = (uint32_t)slashAddress - (uint32_t)newPathChars;
-		Error error = newPath.setChar('_', slashPos);
-		if (error != Error::NONE) {
-			return error;
-		}
+		newPath[slashPos] = '_';
 		pos = slashPos + 1;
 	}
 
 	return Error::NONE;
 }
 
-AudioFile* AudioFileManager::getAudioFileFromFilename(String& filePath, bool mayReadCard, Error* error,
+AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, bool mayReadCard, Error* error,
                                                       FilePointer* suppliedFilePointer, AudioFileType type,
                                                       bool makeWaveTableWorkAtAllCosts) {
 
 	*error = Error::NONE;
 
-	String backedUpFilePath;
+	std::string backedUpFilePath;
 
 	// See if it's already in memory.
 	bool foundExact;
-	int32_t audioFileI = audioFiles.search(filePath.get(), GREATER_OR_EQUAL, &foundExact);
+	int32_t audioFileI = audioFiles.search(filePath.c_str(), GREATER_OR_EQUAL, &foundExact);
 
 	// If that basic search by the file's "normal" path already found it, then great.
 	if (foundExact) {
@@ -528,7 +492,7 @@ successfullyFoundInMemory:
 doTryOffset:
 			AudioFile* foundAudioFile2 = (AudioFile*)audioFiles.getElement(audioFileI + tryOffset);
 
-			if (foundAudioFile2->type == type && !strcasecmp(filePath.get(), foundAudioFile2->filePath.get())) {
+			if (foundAudioFile2->type == type && !strcasecmp(filePath.c_str(), foundAudioFile2->filePath.c_str())) {
 				return foundAudioFile2;
 			}
 		}
@@ -553,7 +517,7 @@ doTryOffset:
 			// And if the user isn't insisting, then some other signs show that we probably don't want to load this
 			// as a WaveTable
 			if (!makeWaveTableWorkAtAllCosts) {
-				if (isAiffFilename(foundAudioFile->filePath.get())) {
+				if (isAiffFilename(foundAudioFile->filePath.c_str())) {
 notLoadableAsWaveTable:
 					*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
 					return NULL;
@@ -602,8 +566,8 @@ waveTableCloneError:
 		// Or if we want Sample but got Wavetable, can't convert, so we'll have to load from file after all. Reset
 		// filePath if needed (pretty unlikely scenario).
 		else {
-			if (!backedUpFilePath.isEmpty()) {
-				filePath.set(&backedUpFilePath);
+			if (!backedUpFilePath.empty()) {
+				filePath = backedUpFilePath;
 			}
 		}
 	}
@@ -616,24 +580,26 @@ waveTableCloneError:
 		if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
 		    || alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
 			if (thingTypeBeingLoaded != ThingType::SONG) {
-				String searchPath;
-				searchPath.set(&alternateAudioFileLoadPath);
-				*error = searchPath.concatenate("/");
+				std::string searchPath;
+				searchPath = alternateAudioFileLoadPath;
+				searchPath.append("/");
+				*error = Error::NONE;
 				if (*error != Error::NONE) {
 					goto tryLoadingFromCard;
 				}
-				char const* fileName = getFileNameFromEndOfPath(filePath.get());
-				*error = searchPath.concatenate(fileName);
+				char const* fileName = getFileNameFromEndOfPath(filePath.c_str());
+				searchPath.append(fileName);
+				*error = Error::NONE;
 				if (*error != Error::NONE) {
 					goto tryLoadingFromCard;
 				}
 
-				audioFileI = audioFiles.search(searchPath.get(), GREATER_OR_EQUAL, &foundExact);
+				audioFileI = audioFiles.search(searchPath.c_str(), GREATER_OR_EQUAL, &foundExact);
 				if (foundExact) {
 					// Tiny bit cheeky, but we're going to update the file path actually stored in the AudioFile to
 					// reflect this alternate location, which will no longer be considered alternate.
-					backedUpFilePath.set(&filePath); // First we back up the original filePath.
-					filePath.set(&searchPath);
+					backedUpFilePath = filePath; // First we back up the original filePath.
+					filePath = searchPath;
 					goto successfullyFoundInMemory;
 				}
 			}
@@ -659,7 +625,7 @@ tryLoadingFromCard:
 	}
 	*/
 
-	String usingAlternateLocation;
+	std::string usingAlternateLocation;
 
 	FilePointer effectiveFilePointer;
 
@@ -679,14 +645,14 @@ tryLoadingFromCard:
 		if (alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
 
 tryAlternateDoesExist:
-			String proposedFileName;
+			std::string proposedFileName;
 			char const* proposedFileNamePointer;
 			bool alreadyTriedSecondAlternate;
 
 			// We'll first try the long file name, which contains all the folder names from the original path. This
 			// is how collect-media saves look - for Songs. But, if that original path didn't begin with "SAMPLES/",
 			// we can't do that.
-			if (memcasecmp(filePath.get(), "SAMPLES/", 8)) {
+			if (memcasecmp(filePath.c_str(), "SAMPLES/", 8)) {
 				goto tryNextAlternate;
 			}
 
@@ -699,7 +665,7 @@ tryAlternateDoesExist:
 			alreadyTriedSecondAlternate = false;
 
 tryAnAlternate:
-			proposedFileNamePointer = proposedFileName.get();
+			proposedFileNamePointer = proposedFileName.c_str();
 			result = create_name(&alternateLoadDir, &proposedFileNamePointer);
 			if (result != FR_OK) {
 				goto alternateFailed; // Can only fail if filename too weird.
@@ -715,8 +681,9 @@ tryNextAlternate:
 					// folder names. This allows users to copy files into folders for instruments more easily, and
 					// have them load.
 					alreadyTriedSecondAlternate = true;
-					char const* fileName = getFileNameFromEndOfPath(filePath.get());
-					*error = proposedFileName.set(fileName);
+					char const* fileName = getFileNameFromEndOfPath(filePath.c_str());
+					proposedFileName = fileName;
+					*error = Error::NONE;
 					if (*error != Error::NONE) {
 						return NULL;
 					}
@@ -734,12 +701,14 @@ tryNextAlternate:
 			effectiveFilePointer.sclust = ld_clust(&fileSystem, alternateLoadDir.dir);
 			effectiveFilePointer.objsize = ld_dword(alternateLoadDir.dir + DIR_FileSize);
 
-			usingAlternateLocation.set(&alternateAudioFileLoadPath);
-			*error = usingAlternateLocation.concatenate("/");
+			usingAlternateLocation = alternateAudioFileLoadPath;
+			usingAlternateLocation.append("/");
+			*error = Error::NONE;
 			if (*error != Error::NONE) {
 				return NULL;
 			}
-			*error = usingAlternateLocation.concatenate(&proposedFileName);
+			usingAlternateLocation.append(proposedFileName);
+			*error = Error::NONE;
 			if (*error != Error::NONE) {
 				return NULL;
 			}
@@ -748,7 +717,7 @@ tryNextAlternate:
 				// Special rule for loading presets with files in their dedicated "alternate" folder: must update
 				// the AudioFile's filePath to point to that alternate location - and then treat them as normal (not
 				// alternate).
-				filePath.set(&usingAlternateLocation);
+				filePath = usingAlternateLocation;
 				usingAlternateLocation.clear();
 			}
 		}
@@ -756,14 +725,14 @@ tryNextAlternate:
 		// Otherwise, try the regular file path
 		else {
 tryRegular:
-			result = f_open(&smDeserializer.readFIL, filePath.get(), FA_READ);
+			result = f_open(&smDeserializer.readFIL, filePath.c_str(), FA_READ);
 
 			// If that didn't work, try the alternate load directory, if we didn't already and it potentially exists
 			if (result != FR_OK) {
 
 				if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
 
-					result = f_opendir(&alternateLoadDir, alternateAudioFileLoadPath.get());
+					result = f_opendir(&alternateLoadDir, alternateAudioFileLoadPath.c_str());
 					if (result != FR_OK) {
 						alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
 						goto notFound;
@@ -833,8 +802,8 @@ ramError:
 		reader = new (readerMemory) WaveTableReader;
 	}
 
-	audioFile->filePath.set(&filePath);
-	audioFile->loadedFromAlternatePath.set(&usingAlternateLocation);
+	audioFile->filePath = filePath;
+	audioFile->loadedFromAlternatePath = usingAlternateLocation;
 
 	reader->currentClusterIndex = -1;
 	reader->audioFile = audioFile;
@@ -1428,7 +1397,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 	else if (cluster.numReasonsToBeLoaded < 0) {
 #if ALPHA_OR_BETA_VERSION
 		if (cluster.sample != nullptr) { // "Should" always be true...
-			D_PRINTLN("reason remains on cluster of sample:  %d", cluster.sample->filePath.get());
+			D_PRINTLN("reason remains on cluster of sample:  %d", cluster.sample->filePath.c_str());
 		}
 		FREEZE_WITH_ERROR(errorCode);
 #else

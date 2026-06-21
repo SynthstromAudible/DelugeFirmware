@@ -49,7 +49,7 @@ bool DxSyxBrowser::opened() {
 	if (error != Error::NONE)
 		goto sdError;
 
-	currentDir.set("DX7");
+	currentDir = "DX7";
 
 	// TODO: fill in last used name!
 	error = arrivedInNewFolder(1, "", "DX7");
@@ -63,27 +63,17 @@ sdError:
 }
 
 // TODO: this is identical to SampleBrowser, move to parent class?
-Error DxSyxBrowser::getCurrentFilePath(String* path) {
-	Error error;
-
-	path->set(&currentDir);
-	int oldLength = path->getLength();
-	if (oldLength) {
-		error = path->concatenateAtPos("/", oldLength);
-		if (error != Error::NONE) {
-gotError:
-			path->clear();
-			return error;
-		}
+std::string DxSyxBrowser::getCurrentFilePath() {
+	std::string path = currentDir;
+	if (!path.empty()) {
+		path.append("/");
 	}
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	error = path->concatenate(&currentFileItem->filename);
-	if (error != Error::NONE)
-		goto gotError;
+	path.append(currentFileItem->filename);
 
-	return Error::NONE;
+	return path;
 }
 
 void DxSyxBrowser::enterKeyPress() {
@@ -96,8 +86,8 @@ void DxSyxBrowser::enterKeyPress() {
 		// [SIC]
 		char const* filenameChars =
 		    currentFileItem->filename
-		        .get(); // Extremely weirdly, if we try to just put this inside the parentheses in the next line,
-		                // it returns an empty string (&nothing). Surely this is a compiler error??
+		        .c_str(); // Extremely weirdly, if we try to just put this inside the parentheses in the next line,
+		                  // it returns an empty string (&nothing). Surely this is a compiler error??
 
 		Error error = goIntoFolder(filenameChars);
 		if (error != Error::NONE) {
@@ -108,12 +98,11 @@ void DxSyxBrowser::enterKeyPress() {
 	}
 	else {
 		// TODO: c.f. slotbrowser, we might just be able to pass a file pointer to the FAT loader
-		String path;
-		getCurrentFilePath(&path);
+		std::string path = getCurrentFilePath();
 		close();
 
-		if (!path.isEmpty()) {
-			if (menu_item::dxCartridge.tryLoad(path.get())) {
+		if (!path.empty()) {
+			if (menu_item::dxCartridge.tryLoad(path.c_str())) {
 				soundEditor.enterSubmenu(&menu_item::dxCartridge);
 			}
 		}

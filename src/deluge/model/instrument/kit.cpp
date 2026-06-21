@@ -924,21 +924,19 @@ ModControllable* Kit::toModControllable() {
 }
 
 // newName must be allowed to be edited by this function
-Error Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
+Error Kit::makeDrumNameUnique(std::string* name, int32_t startAtNumber) {
 
 	D_PRINTLN("making unique newName:");
 
-	int32_t originalLength = name->getLength();
+	int32_t originalLength = name->size();
 
 	do {
 		char numberString[12];
 		intToString(startAtNumber, numberString);
-		Error error = name->concatenateAtPos(numberString, originalLength);
-		if (error != Error::NONE) {
-			return error;
-		}
+		(*name).resize(originalLength);
+		(*name).append(numberString);
 		startAtNumber++;
-	} while (getDrumFromName(name->get()));
+	} while (getDrumFromName(name->c_str()));
 
 	return Error::NONE;
 }

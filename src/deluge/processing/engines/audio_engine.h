@@ -42,7 +42,7 @@ class SampleRecorder;
 class Voice;
 class VoiceSample;
 class TimeStretcher;
-class String;
+#include <string>
 class SideChain;
 class VoiceVector;
 class Freeverb;
@@ -145,7 +145,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 void runRoutine();
 
 void init();
-void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
+void previewSample(std::string_view path, FilePointer* filePointer, bool shouldActuallySound);
 void stopAnyPreviewing();
 
 void songSwapAboutToHappen();

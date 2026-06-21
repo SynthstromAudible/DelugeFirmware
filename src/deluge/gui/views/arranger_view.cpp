@@ -818,11 +818,7 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 
 // Loads from file, etc - doesn't truly "create"
 Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong) {
-	Error error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return nullptr;
-	}
+	Browser::currentDir = getInstrumentFolder(newOutputType);
 
 	FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
 	                                     currentSong, newOutputType, Availability::INSTRUMENT_UNUSED),
@@ -835,9 +831,9 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 	bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
 	*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
 
+	Error error = Error::NONE;
 	if (!newInstrument) {
-		String newPresetName;
-		fileItem->getDisplayNameWithoutExtension(&newPresetName);
+		std::string newPresetName = fileItem->getDisplayNameWithoutExtension();
 		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, newOutputType, false, &newInstrument,
 		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}

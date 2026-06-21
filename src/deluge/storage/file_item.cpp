@@ -21,68 +21,49 @@
 #include <cstring>
 
 Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
-	filename.set(&newInstrument->name);
-	Error error = filename.concatenate(".XML");
-	if (error != Error::NONE) {
-		return error;
-	}
+	filename = newInstrument->name.c_str();
+	filename += ".XML";
 	filenameIncludesExtension = true;
 	instrument = newInstrument;
 	isFolder = false;
 	instrumentAlreadyInSong = !hibernating;
-	displayName = filename.get();
+	displayName = filename.c_str();
 	maybeExistsOnCard = newInstrument->mightExistOnCard;
 
 	return Error::NONE;
 }
 
-Error FileItem::getFilenameWithExtension(String* filenameWithExtension) {
-	filenameWithExtension->set(&filename);
+std::string FileItem::getFilenameWithExtension() const {
+	std::string result = filename;
 	if (!filenameIncludesExtension) {
-		Error error = filenameWithExtension->concatenate(".XML");
-		if (error != Error::NONE) {
-			return error;
-		}
+		result.append(".XML");
 	}
-	return Error::NONE;
+	return result;
 }
 
-Error FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
-	filenameWithoutExtension->set(&filename);
+std::string FileItem::getFilenameWithoutExtension() const {
+	std::string result = filename;
 	if (filenameIncludesExtension) {
-		char const* chars = filenameWithoutExtension->get();
-		char const* dotAddress = strrchr(chars, '.');
-		if (dotAddress) {
-			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			Error error = filenameWithoutExtension->shorten(newLength);
-			if (error != Error::NONE) {
-				return error;
-			}
+		size_t dotPos = result.rfind('.');
+		if (dotPos != std::string::npos) {
+			result.resize(dotPos);
 		}
 	}
-	return Error::NONE;
+	return result;
 }
 
-Error FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension) {
+std::string FileItem::getDisplayNameWithoutExtension() const {
 	if (display->haveOLED()) {
-		return getFilenameWithoutExtension(displayNameWithoutExtension);
+		return getFilenameWithoutExtension();
 	}
 
 	// 7SEG...
-	Error error = displayNameWithoutExtension->set(displayName);
-	if (error != Error::NONE) {
-		return error;
-	}
+	std::string result = displayName;
 	if (filenameIncludesExtension) {
-		char const* chars = displayNameWithoutExtension->get();
-		char const* dotAddress = strrchr(chars, '.');
-		if (dotAddress) {
-			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			error = displayNameWithoutExtension->shorten(newLength);
-			if (error != Error::NONE) {
-				return error;
-			}
+		size_t dotPos = result.rfind('.');
+		if (dotPos != std::string::npos) {
+			result.resize(dotPos);
 		}
 	}
-	return Error::NONE;
+	return result;
 }

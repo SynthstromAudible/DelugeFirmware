@@ -62,6 +62,7 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/string.h"
 #include "util/try.h"
 #include <cstring>
 #include <hid/buttons.h>
@@ -204,7 +205,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	masterTransposeInterval = 0;
 
-	dirPath.set("SONGS");
+	dirPath = "SONGS";
 
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
@@ -402,16 +403,12 @@ bool Song::ensureAtLeastOneSessionClip() {
 		goto couldntLoad;
 	}
 
-	error = Browser::currentDir.set("SYNTHS");
-	if (error != Error::NONE) {
-		goto couldntLoad;
-	}
+	Browser::currentDir = "SYNTHS";
 
 	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(nullptr, OutputType::SYNTH,
 	                                                                                Availability::ANY);
 	if (result) {
-		String newPresetName;
-		result.value()->getDisplayNameWithoutExtension(&newPresetName);
+		std::string newPresetName = result.value()->getDisplayNameWithoutExtension();
 		error =
 		    StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false, &newInstrument,
 		                                           &result.value()->filePointer, &newPresetName, &Browser::currentDir);
@@ -433,17 +430,9 @@ couldntLoad:
 			while (1) {}
 		}
 
-		error = newInstrument->dirPath.set("SYNTHS");
-		if (error != Error::NONE) {
-			display->displayError(error);
-			while (1) {}
-		}
+		newInstrument->dirPath = "SYNTHS";
 
-		error = newInstrument->name.set("0");
-		if (error != Error::NONE) {
-			display->displayError(error);
-			while (1) {}
-		}
+		newInstrument->name = "0";
 
 		((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
 		display->displayError(error); // E.g. show the CARD error.
@@ -1106,7 +1095,7 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 }
 
 void Song::writeTemplateSong(const char* templatePath) {
-	name.set("DEFAULT");
+	name = "DEFAULT";
 	Error error = StorageManager::createXMLFile(templatePath, smSerializer, false, false);
 	if (error != Error::NONE) {
 		return;
@@ -1976,13 +1965,7 @@ unknownTag:
 						defaultDirPath = "SYNTHS";
 
 setDirPathFirst:
-						error = ((Instrument*)newOutput)->dirPath.set(defaultDirPath);
-						if (error != Error::NONE) {
-gotError:
-							newOutput->~Output();
-							delugeDealloc(memory);
-							return error;
-						}
+						((Instrument*)newOutput)->dirPath = defaultDirPath;
 
 loadOutput:
 						error = newOutput->readFromFile(
@@ -1990,7 +1973,9 @@ loadOutput:
 						    0); // If it finds any default params, it'll make a ParamManager and "back it up"
 
 						if (error != Error::NONE) {
-							goto gotError;
+							newOutput->~Output();
+							delugeDealloc(memory);
+							return error;
 						}
 						((Instrument*)newOutput)->mightExistOnCard = true;
 						*lastPointer = newOutput;
@@ -3598,7 +3583,7 @@ void Song::deleteHibernatingInstrumentWithSlot(OutputType outputType, char const
 
 		if (instrument->type == outputType) {
 
-			if (!strcasecmp(name, instrument->name.get())) {
+			if (!strcasecmp(name, instrument->name.c_str())) {
 				*prevPointer = (Instrument*)instrument->next;
 
 				deleteOutput(instrument);
@@ -3628,7 +3613,7 @@ void Song::markAllInstrumentsAsEdited() {
 AudioOutput* Song::getAudioOutputFromName(std::string_view name) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->type == OutputType::AUDIO) {
-			if (deluge::string::caselessEquals(thisOutput->name.get(), name)) {
+			if (deluge::string::caselessEquals(thisOutput->name.c_str(), name)) {
 				return (AudioOutput*)thisOutput;
 			}
 		}
@@ -4974,11 +4959,7 @@ gotAnInstrument: {}
 
 	// Synth or Kit
 	else {
-		Error error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return nullptr;
-		}
+		Browser::currentDir = getInstrumentFolder(newOutputType);
 
 		FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
 		                                     this, newOutputType, Availability::INSTRUMENT_UNUSED),
@@ -4990,9 +4971,9 @@ gotAnInstrument: {}
 		newInstrument = fileItem->instrument;
 		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
 
+		Error error = Error::NONE;
 		if (!newInstrument) {
-			String newPresetName;
-			fileItem->getDisplayNameWithoutExtension(&newPresetName);
+			std::string newPresetName = fileItem->getDisplayNameWithoutExtension();
 			error =
 			    StorageManager::loadInstrumentFromFile(this, nullptr, newOutputType, false, &newInstrument,
 			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);
@@ -5061,7 +5042,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	// Find highest number existent so far
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
-			char const* nameChars = output->name.get();
+			char const* nameChars = output->name.c_str();
 			if (memcasecmp(nameChars, "AUDIO", 5)) {
 				continue;
 			}
@@ -5082,19 +5063,13 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 		}
 	}
 
-	String newName;
-	Error error = newName.set("AUDIO");
-	if (error != Error::NONE) {
-		return nullptr;
-	}
+	std::string newName;
+	newName = "AUDIO";
 
-	error = newName.concatenateInt(highestNumber + 1);
-	if (error != Error::NONE) {
-		return nullptr;
-	}
+	newName.append(deluge::string::fromInt(highestNumber + 1));
 
 	ParamManagerForTimeline newParamManager;
-	error = newParamManager.setupUnpatched();
+	Error error = newParamManager.setupUnpatched();
 	if (error != Error::NONE) {
 		return nullptr;
 	}
@@ -5105,7 +5080,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	}
 
 	auto* newOutput = new (outputMemory) AudioOutput();
-	newOutput->name.set(&newName);
+	newOutput->name = newName;
 
 	// Set input channel to previously used one. If none selected, see what's in Song
 	if (defaultAudioOutputInputChannel == AudioInputChannel::UNSET) {
@@ -5789,12 +5764,12 @@ int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue
 	return fileValue;
 }
 
-String Song::getSongFullPath() {
-	String fullPath;
-	fullPath.concatenate(&dirPath);
-	fullPath.concatenate("/");
-	fullPath.concatenate(&name);
-	fullPath.concatenate(".XML");
+std::string Song::getSongFullPath() {
+	std::string fullPath;
+	fullPath.append(dirPath);
+	fullPath.append("/");
+	fullPath.append(name);
+	fullPath.append(".XML");
 	return fullPath;
 }
 
@@ -5808,11 +5783,11 @@ void Song::setSongFullPath(const char* fullPath) {
 		memset(dir, 0, sizeof(char) * fullPathLength + 1);
 		strncpy(dir, fullPath, fullPathLength - strlen(filename));
 
-		dirPath.set(dir);
-		name.set(++filename);
+		dirPath = dir;
+		name = ++filename;
 	}
 	else {
-		name.set(fullPath);
+		name = fullPath;
 	}
 }
 #pragma GCC diagnostic pop
@@ -5849,7 +5824,7 @@ doHibernatingInstruments:
 		Instrument* thisInstrument = (Instrument*)thisOutput;
 
 		// If different path, it's not relevant.
-		if (!thisInstrument->dirPath.equals(&Browser::currentDir)) {
+		if (!(thisInstrument->dirPath == Browser::currentDir)) {
 			continue;
 		}
 
