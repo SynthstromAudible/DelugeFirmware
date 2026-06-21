@@ -102,12 +102,11 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
 	regions[MEMORY_REGION_EXTERNAL_SMALL].minAlign_ = 16;
 	regions[MEMORY_REGION_EXTERNAL_SMALL].pivot_ = 64;
 #if DELUGE_USE_RUST_ALLOC
-	// Strangle step 2: the internal (fast SRAM) region is now backed by the Rust
-	// TLSF core (crates/deluge_alloc) instead of MemoryRegion. The control block
-	// lives at the front of the region. We still record the region bounds so
-	// getRegion()/dispatch can recognise an internal pointer; the MemoryRegion
-	// free-list for this slot is left unused (no setup()).
-	internalHeap_ = deluge_heap_create((void*)internal_start, internal_end - internal_start);
+	// Strangle step 2: the internal (fast SRAM) region is served by the Rust TLSF
+	// core via deluge::memory::sram_heap() (owned by heaps.cpp, built from the same
+	// FAST_INTERNAL region). We only record the bounds here so rustHeapFor() can map
+	// an internal pointer to that heap; the MemoryRegion free-list slot is unused.
+	deluge::memory::init_heaps();
 	regions[MEMORY_REGION_INTERNAL].start = internal_start;
 	regions[MEMORY_REGION_INTERNAL].end = internal_end;
 #else
@@ -207,7 +206,7 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 	// if it's a large object or the small object allocator was full stick it in the big one
 	if (address == nullptr) {
 #if DELUGE_USE_RUST_ALLOC
-		address = deluge_alloc(internalHeap_, requiredSize, 16);
+		address = deluge_alloc(deluge::memory::sram_heap(), requiredSize, 16);
 #else
 		address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, false, NULL);
 #endif
@@ -274,9 +273,11 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 }
 
 uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
+#if DELUGE_USE_RUST_ALLOC
 	if (DelugeHeap* h = rustHeapFor(address)) {
 		return deluge_usable_size(h, address);
 	}
+#endif
 	uint32_t* header = (uint32_t*)((uint32_t)address - 4);
 	return (*header & SPACE_SIZE_MASK);
 }
@@ -307,19 +308,23 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 
 // Returns new size
 uint32_t GeneralMemoryAllocator::shortenRight(void* address, uint32_t newSize) {
+#if DELUGE_USE_RUST_ALLOC
 	if (DelugeHeap* h = rustHeapFor(address)) {
 		deluge_realloc(h, address, newSize, 16); // in-place shrink, pointer stable
 		return deluge_usable_size(h, address);
 	}
+#endif
 	return regions[getRegion(address)].shortenRight(address, newSize);
 }
 
 // Returns how much it was shortened by
 uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToShorten,
                                              uint32_t numBytesToMoveRightIfSuccessful) {
+#if DELUGE_USE_RUST_ALLOC
 	if (rustHeapFor(address)) {
 		return 0; // no left-shorten on the Rust heap; internal allocs don't use it
 	}
+#endif
 	return regions[getRegion(address)].shortenLeft(address, amountToShorten, numBytesToMoveRightIfSuccessful);
 }
 
@@ -334,9 +339,11 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 		return;
 	}
 
+#if DELUGE_USE_RUST_ALLOC
 	if (rustHeapFor(address)) {
 		return; // no in-place extend on the Rust heap (amounts stay 0; caller reallocs)
 	}
+#endif
 
 	lock = true;
 	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,
@@ -345,9 +352,11 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 }
 
 uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address) {
+#if DELUGE_USE_RUST_ALLOC
 	if (DelugeHeap* h = rustHeapFor(address)) {
 		return deluge_usable_size(h, address); // no easy extension; current size
 	}
+#endif
 	return regions[getRegion(address)].extendRightAsMuchAsEasilyPossible(address);
 }
 
@@ -355,10 +364,12 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 	if (address == nullptr) [[unlikely]] {
 		return;
 	}
+#if DELUGE_USE_RUST_ALLOC
 	if (DelugeHeap* h = rustHeapFor(address)) {
 		deluge_free(h, address);
 		return;
 	}
+#endif
 	regions[getRegion(address)].dealloc(address);
 }
 

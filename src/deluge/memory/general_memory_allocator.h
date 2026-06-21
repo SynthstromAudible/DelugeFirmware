@@ -19,12 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "memory/cache_manager.h"
+#include "memory/heaps.h" // deluge::memory::sram_heap()/sdram_heap() (+ opaque DelugeHeap)
 #include "memory/memory_region.h"
-
-// Opaque Rust allocator handle (full C ABI in libdeluge/alloc.h, included by the
-// .cpp). Only a pointer is needed here, so forward-declare to avoid forcing the
-// include/ path onto every consumer of this header.
-struct DelugeHeap;
 
 #define MEMORY_REGION_STEALABLE 0
 #define MEMORY_REGION_INTERNAL 1
@@ -107,25 +103,19 @@ public:
 	CacheManager cacheManager;
 	bool lock;
 
-	// Strangle step 2: when DELUGE_USE_RUST_ALLOC, the internal (fast SRAM) region
-	// is served by the Rust TLSF core instead of regions[MEMORY_REGION_INTERNAL].
-	// nullptr otherwise. Pointers in that region route to deluge_alloc via
-	// rustHeapForInternal().
-	DelugeHeap* internalHeap_{nullptr};
-
-	// The Rust heap owning `address`, or nullptr if it belongs to a MemoryRegion.
-	DelugeHeap* rustHeapFor(void* address) {
 #if DELUGE_USE_RUST_ALLOC
+	// The Rust heap owning `address`, or nullptr if it belongs to a MemoryRegion.
+	// Heaps are owned by deluge::memory (heaps.h), not the GMA; this only maps an
+	// address-range to the right heap for dispatch. Call sites are #if-guarded too,
+	// so a gate-off build has zero references to the Rust C ABI at any -O level.
+	DelugeHeap* rustHeapFor(void* address) {
 		auto v = reinterpret_cast<uint32_t>(address);
-		if (internalHeap_ != nullptr && v >= regions[MEMORY_REGION_INTERNAL].start
-		    && v < regions[MEMORY_REGION_INTERNAL].end) {
-			return internalHeap_;
+		if (v >= regions[MEMORY_REGION_INTERNAL].start && v < regions[MEMORY_REGION_INTERNAL].end) {
+			return deluge::memory::sram_heap();
 		}
-#else
-		(void)address;
-#endif
 		return nullptr;
 	}
+#endif
 
 	// The resource layer that owns stealable eviction policy. App code (Cluster,
 	// SampleCache, ...) queues reclaimable blocks here directly, rather than
