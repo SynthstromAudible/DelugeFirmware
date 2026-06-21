@@ -19,18 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "memory/cache_manager.h"
-#include "memory/heaps.h" // deluge::memory::sram_heap()/sdram_heap() (+ opaque DelugeHeap)
-#include "memory/memory_region.h"
+#include "memory/heaps.h" // deluge::memory heaps (+ opaque DelugeHeap)
 
-#define MEMORY_REGION_STEALABLE 0
-#define MEMORY_REGION_INTERNAL 1
-#define MEMORY_REGION_EXTERNAL 2
-#define MEMORY_REGION_EXTERNAL_SMALL 3
-#define MEMORY_REGION_INTERNAL_SMALL 4
-#define NUM_MEMORY_REGIONS 5
-constexpr uint32_t RESERVED_EXTERNAL_ALLOCATOR = 0x00200000;       // 2 MiB
-constexpr uint32_t RESERVED_EXTERNAL_SMALL_ALLOCATOR = 0x00020000; // 200k
-constexpr uint32_t RESERVED_INTERNAL_SMALL = 0x00010000;           // 200k
 class Stealable;
 struct DelugeSlab; // libdeluge/alloc.h — opaque here; full C ABI included in the .cpp
 
@@ -93,18 +83,15 @@ public:
 	uint32_t getAllocatedSize(void* address);
 	void checkStack(char const* caller);
 	void testShorten(int32_t i);
-	int32_t getRegion(void* address);
 	void testMemoryDeallocated(void* address);
 
 	void putStealableInQueue(Stealable* stealable, StealableQueue q);
 	void putStealableInAppropriateQueue(Stealable* stealable);
 
-	MemoryRegion regions[NUM_MEMORY_REGIONS];
 	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)
 	CacheManager cacheManager;
 	bool lock;
 
-#if DELUGE_USE_RUST_ALLOC
 	// thingNotToStealFrom for the in-flight SDRAM allocation, read by the reclaim
 	// hook (whose C ABI signature has no such parameter). Single-threaded, so a
 	// member set around each sdram alloc is sufficient.
@@ -127,24 +114,6 @@ public:
 	// Free an SDRAM block: if it's a cluster slot, release it through the slab
 	// (clearing the table entry too); otherwise free it from the heap directly.
 	void freeSdram(void* address);
-
-	// The Rust heap owning `address`, or nullptr if it belongs to a MemoryRegion.
-	// Heaps are owned by deluge::memory (heaps.h), not the GMA; this only maps an
-	// address-range to the right heap for dispatch. The whole SDRAM range is held
-	// under MEMORY_REGION_STEALABLE (the three SDRAM carves are one Rust heap now).
-	// Call sites are #if-guarded too, so a gate-off build has zero references to the
-	// Rust C ABI at any -O level.
-	DelugeHeap* rustHeapFor(void* address) {
-		auto v = reinterpret_cast<uint32_t>(address);
-		if (v >= regions[MEMORY_REGION_INTERNAL].start && v < regions[MEMORY_REGION_INTERNAL].end) {
-			return deluge::memory::sram_heap();
-		}
-		if (v >= regions[MEMORY_REGION_STEALABLE].start && v < regions[MEMORY_REGION_STEALABLE].end) {
-			return deluge::memory::sdram_heap();
-		}
-		return nullptr;
-	}
-#endif
 
 	// The resource layer that owns stealable eviction policy. App code (Cluster,
 	// SampleCache, ...) queues reclaimable blocks here directly, rather than

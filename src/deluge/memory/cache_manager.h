@@ -1,24 +1,23 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "memory/reclaimer.h"
 #include "memory/stealable.h"
 #include "util/container/list/bidirectional_linked_list.h"
 #include "util/misc.h"
 #include <array>
 #include <cstddef>
 
-class MemoryRegion;
-
-class CacheManager : public Reclaimer {
+// Owns the stealable-eviction policy for the unified SDRAM heap: the priority
+// queues of reclaimable blocks (clusters + other caches) and the victim selection
+// that the Rust heap's reclaim hook drives. The allocator (deluge_alloc / the
+// GeneralMemoryAllocator coordinator) owns *mechanism*; this owns *policy*.
+class CacheManager {
 public:
 	CacheManager() = default;
 
 	BidirectionalLinkedList& queue(StealableQueue destination) {
 		return reclamation_queue_.at(util::to_underlying(destination));
 	}
-
-	uint32_t& longest_runs(size_t idx) { return longest_runs_.at(idx); }
 
 	/// add a stealable to end of given queue
 	void QueueForReclamation(StealableQueue queue, Stealable* stealable) {
@@ -31,25 +30,16 @@ public:
 		/// in the remainder of the song, so if there's not enough memory pressure for all stealable clusters to get
 		/// reclaimed the same few just get put on and off the list repeatedly
 		reclamation_queue_[q].addToEnd(stealable);
-		longest_runs_[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
 	}
 
-	uint32_t reclaim(MemoryRegion& region, int32_t totalSizeNeeded, void* thingNotToStealFrom,
-	                 int32_t* __restrict__ foundSpaceSize) override;
-
-	// Rust-heap reclaim (the deluge_alloc reclaim-hook path). Pick the coldest
-	// unpinned stealable across the priority queues, steal() + destroy it, and
-	// return its memory for the caller to hand back to the heap (deluge_free).
-	// Returns nullptr if nothing is evictable. Unlike reclaim(), there is no
-	// neighbour-grab / run-length / size machinery — the TLSF heap owns
-	// contiguity, and deluge_alloc's retry loop drives this one victim at a time.
+	// The deluge_alloc reclaim-hook path: pick the coldest unpinned stealable across
+	// the priority queues, steal() + destroy it, and return its memory for the caller
+	// to hand back to the heap (deluge_free / the slab). Returns nullptr if nothing is
+	// evictable. The TLSF heap owns contiguity, so there is no neighbour-grab /
+	// run-length / size machinery — deluge_alloc's retry loop drives this one victim
+	// at a time.
 	void* reclaimOne(void* thingNotToStealFrom);
 
 private:
 	std::array<BidirectionalLinkedList, kNumStealableQueue> reclamation_queue_;
-
-	// Keeps track, semi-accurately, of biggest runs of memory that could be stolen. In a perfect world, we'd have a
-	// second index on stealableClusterQueues[q], for run length. Although even that wouldn't automatically reflect
-	// changes to run lengths as neighbouring memory is allocated.
-	std::array<uint32_t, kNumStealableQueue> longest_runs_;
 };

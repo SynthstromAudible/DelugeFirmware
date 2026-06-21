@@ -182,14 +182,11 @@ add_subdirectory(${REPO_ROOT}/src/fatfs      ${CMAKE_BINARY_DIR}/fatfs)      # f
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 
-# --- Rust allocator core (Phase 4 strangle verification) ---------------------
+# --- Rust allocator core -----------------------------------------------------
 # Build crates/deluge_alloc as a host staticlib matching the sim's word size and
-# route the GeneralMemoryAllocator through it (DELUGE_USE_RUST_ALLOC). This is the
-# only way to exercise the Rust allocator at runtime inside the real deluge_app
-# without hardware — run deluge_render / deluge_host on the Rust heap.
-# Toggle off (-DSIM_RUST_ALLOC=OFF) for the C++ MemoryRegion baseline (A/B diff).
-option(SIM_RUST_ALLOC "Route the host-sim GeneralMemoryAllocator through the Rust deluge_alloc core" ON)
-if(SIM_RUST_ALLOC)
+# link it into the sim executables. The deluge_app allocator (heaps + the
+# GeneralMemoryAllocator coordinator) is unconditionally backed by it now — the
+# legacy C++ MemoryRegion path has been retired.
 if(DELUGE_SIM_X64)
     set(SIM_ALLOC_TARGET x86_64-unknown-linux-gnu)
 else()
@@ -213,12 +210,8 @@ add_custom_target(sim_deluge_alloc_build DEPENDS ${SIM_ALLOC_LIB})
 add_library(deluge_alloc_sim STATIC IMPORTED GLOBAL)
 set_target_properties(deluge_alloc_sim PROPERTIES IMPORTED_LOCATION ${SIM_ALLOC_LIB})
 add_dependencies(deluge_alloc_sim sim_deluge_alloc_build)
-target_compile_definitions(deluge_app PUBLIC DELUGE_USE_RUST_ALLOC=1)
 # Libs the host Rust std staticlib references; linked into the sim executables below.
 set(SIM_ALLOC_LINK deluge_alloc_sim pthread dl m)
-else()
-set(SIM_ALLOC_LINK "")
-endif()
 
 # The host executable: the portable app + the host BSP + the scheduler. deluge_app
 # is an OBJECT lib (its objects embed here); deluge_scheduler is STATIC (resolves

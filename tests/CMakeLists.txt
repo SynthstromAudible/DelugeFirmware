@@ -23,14 +23,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(etl)
 link_libraries(etl::etl)
 
-#needs to support -m32 since the memory tests assume a 32 bit architecture
+#needs to support -m32 since the allocator conformance assumes a 32 bit architecture
 if (UNIX AND NOT APPLE)
     add_compile_options(-m32 -Og -ggdb3)
     add_link_options(-m32)
-    add_subdirectory(32bit_unit_tests)
-    # Allocator conformance specs need -m32 (MemoryRegion assumes 32-bit addresses).
-    add_subdirectory(spec_memory)
     # Rust TLSF core conformance: i686 staticlib linked into a -m32 CppSpec driver.
+    # (The legacy C++ MemoryRegion + its MemoryManagerTests / memory_specs targets were
+    # retired with the allocator; the shared conformance headers live in spec_memory/,
+    # and the reusable mocks in 32bit_unit_tests/mocks/ are pulled in directly by spec/.)
     add_subdirectory(spec_alloc)
 endif ()
 add_subdirectory(spec)

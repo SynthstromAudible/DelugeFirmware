@@ -16,36 +16,29 @@
  */
 
 #include "memory/heaps.h"
-#if DELUGE_USE_RUST_ALLOC
 #include "libdeluge/alloc.h"
 #include "libdeluge/memory.h"
 #include <cstdint>
-#else
-#include "memory/general_memory_allocator.h"
-#endif
+
+// Linker-defined small-internal ("frunk") SRAM region — a reserved slack area that
+// is NOT a deluge_memory_region, so its heap is built from these symbols here.
+// (The Rust deluge_alloc crate stays linker-symbol-free; this app-layer file may
+// reference them, as the GeneralMemoryAllocator historically did.)
+// NOLINTBEGIN — addresses are only meaningful via &symbol
+extern uint32_t __frunk_bss_end;
+extern uint32_t __frunk_slack_end;
+// NOLINTEND
 
 namespace deluge::memory {
-
-#if DELUGE_USE_RUST_ALLOC
 
 namespace {
 DelugeHeap* g_sram = nullptr;
 DelugeHeap* g_sdram = nullptr;
+DelugeHeap* g_frunk = nullptr;
 uintptr_t g_sram_lo = 0, g_sram_hi = 0;
 uintptr_t g_sdram_lo = 0, g_sdram_hi = 0;
+uintptr_t g_frunk_lo = 0, g_frunk_hi = 0;
 bool g_built = false;
-
-// The heap a (typed-allocator) pointer belongs to, by address range.
-DelugeHeap* heap_for(void* p) {
-	auto v = reinterpret_cast<uintptr_t>(p);
-	if (v >= g_sram_lo && v < g_sram_hi) {
-		return g_sram;
-	}
-	if (v >= g_sdram_lo && v < g_sdram_hi) {
-		return g_sdram;
-	}
-	return nullptr;
-}
 } // namespace
 
 void init_heaps() {
@@ -74,6 +67,15 @@ void init_heaps() {
 			g_sdram_hi = g_sdram_lo + r.size;
 		}
 	}
+	// Small-internal ("frunk") heap from the linker symbols (empty on a board that
+	// doesn't reserve the region → deluge_heap_create not called, g_frunk stays null).
+	auto frunk_lo = reinterpret_cast<uintptr_t>(&__frunk_bss_end);
+	auto frunk_hi = reinterpret_cast<uintptr_t>(&__frunk_slack_end);
+	if (frunk_hi > frunk_lo) {
+		g_frunk = deluge_heap_create(reinterpret_cast<void*>(frunk_lo), frunk_hi - frunk_lo);
+		g_frunk_lo = frunk_lo;
+		g_frunk_hi = frunk_hi;
+	}
 }
 
 DelugeHeap* sram_heap() {
@@ -84,6 +86,31 @@ DelugeHeap* sram_heap() {
 DelugeHeap* sdram_heap() {
 	init_heaps();
 	return g_sdram;
+}
+
+DelugeHeap* frunk_heap() {
+	init_heaps();
+	return g_frunk;
+}
+
+DelugeHeap* owning_heap(void* ptr) {
+	init_heaps();
+	auto v = reinterpret_cast<uintptr_t>(ptr);
+	if (v >= g_sram_lo && v < g_sram_hi) {
+		return g_sram;
+	}
+	if (v >= g_frunk_lo && v < g_frunk_hi) {
+		return g_frunk;
+	}
+	if (v >= g_sdram_lo && v < g_sdram_hi) {
+		return g_sdram;
+	}
+	return nullptr;
+}
+
+std::size_t sram_size() {
+	init_heaps();
+	return static_cast<std::size_t>(g_sram_hi - g_sram_lo);
 }
 
 std::size_t sdram_size() {
@@ -108,38 +135,10 @@ void* alloc_external(std::size_t size, std::size_t align) {
 	return deluge_alloc(g_sdram, size, align); // external collapsed into the one SDRAM heap
 }
 void dealloc(void* ptr) {
-	deluge_free(heap_for(ptr), ptr); // deluge_free tolerates a null heap (no-op)
+	deluge_free(owning_heap(ptr), ptr); // deluge_free tolerates a null heap (no-op)
 }
 std::size_t usable_size(void* ptr) {
-	return deluge_usable_size(heap_for(ptr), ptr);
+	return deluge_usable_size(owning_heap(ptr), ptr);
 }
-
-#else // !DELUGE_USE_RUST_ALLOC — legacy GeneralMemoryAllocator/MemoryRegion path.
-
-void init_heaps() {
-}
-DelugeHeap* sram_heap() {
-	return nullptr;
-}
-DelugeHeap* sdram_heap() {
-	return nullptr;
-}
-void* alloc_fast(std::size_t size, std::size_t /*align*/) {
-	return GeneralMemoryAllocator::get().allocMaxSpeed(size);
-}
-void* alloc_sdram(std::size_t size, std::size_t /*align*/) {
-	return GeneralMemoryAllocator::get().allocLowSpeed(size);
-}
-void* alloc_external(std::size_t size, std::size_t /*align*/) {
-	return GeneralMemoryAllocator::get().allocExternal(size);
-}
-void dealloc(void* ptr) {
-	GeneralMemoryAllocator::get().dealloc(ptr);
-}
-std::size_t usable_size(void* ptr) {
-	return GeneralMemoryAllocator::get().getAllocatedSize(ptr);
-}
-
-#endif
 
 } // namespace deluge::memory
