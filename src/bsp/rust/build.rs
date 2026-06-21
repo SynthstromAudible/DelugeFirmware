@@ -26,7 +26,19 @@ fn main() {
         .allowlist_type("Deluge.*")
         .allowlist_type("RunCondition")
         .use_core()
-        // Host vs armv7a layout is identical for these PODs; skip the asserts.
+        // CRITICAL: the C++ app is built arm-none-eabi, whose EABI default makes
+        // enums the smallest type that fits (`-fshort-enums`) — e.g.
+        // DelugeInputEventKind (0..3) is 1 byte, so DelugeInputEvent is
+        // {kind@0, x@1, y@2, value@4}. bindgen runs under the *host* clang, which
+        // sizes enums as 4-byte `int` by default; without this flag every
+        // enum-bearing POD (DelugeInputEvent, DelugeBoard, MIDI/card events, …)
+        // is laid out differently on the two sides and fields read as garbage
+        // across the ABI. Point libclang at the actual armv7a EABI target so it
+        // computes the same layout as the app; -fshort-enums alone is ignored
+        // when libclang targets the host (x86_64 mandates 4-byte int enums).
+        .clang_arg("--target=armv7a-none-eabihf")
+        .clang_arg("-fshort-enums")
+        // Layouts now match the armv7a app; the asserts would run host-side anyway.
         .layout_tests(false)
         .generate()
         .expect("bindgen failed on libdeluge headers");
@@ -95,6 +107,12 @@ fn main() {
     let mut objs = Vec::new();
     collect_objs(&app_objs_dir, &mut objs);
     objs.sort();
+    // Re-run (re-archive) when any object's CONTENT changes — a dir rerun-if-changed
+    // only fires on add/remove, so editing a .cpp + rebuilding deluge_app wouldn't
+    // otherwise re-archive, leaving a stale link.
+    for o in &objs {
+        println!("cargo:rerun-if-changed={}", o.display());
+    }
     let app_objs_archive = out_dir.join("libdeluge_app_objs.a");
     let _ = fs::remove_file(&app_objs_archive);
     let status = Command::new(&ar)
@@ -137,15 +155,29 @@ fn main() {
     }
     println!("cargo:rustc-link-arg=-Wl,--end-group");
 
-    // ARM EH index bounds: the app references these but rza1l.x emits no
-    // .ARM.exidx span symbols. M0: define empty (no unwind tables). The SDRAM
-    // section-boundary symbols (__heap_start, __frunk_*, __sdram_bss_end,
-    // program_stack_end) are PROVIDEd by sdram_sections.x instead.
-    for sym in ["__exidx_start", "__exidx_end"] {
-        println!("cargo:rustc-link-arg=-Wl,--defsym,{sym}=0");
-    }
+    // __exidx_start/__exidx_end are now defined by rza1l.x's .ARM.exidx section
+    // (kept, not discarded) so C++ exception unwinding works.
 
     println!("cargo:rerun-if-changed={}", app_objs_dir.display());
+
+    // Self-clearing nag for the temporary rza1l.x stack/heap-overlap workaround
+    // (program_stack_start retargeted to __sram_heap_end so the C++ app's
+    // GeneralMemoryAllocator can't overrun the mode stacks). Warns on every build
+    // while the HACK tag is present in the sibling deluge-sdk linker scripts;
+    // goes silent automatically once the proper fix (app sources heap bounds via
+    // libdeluge/memory.h) removes it.
+    let sdk = manifest_dir.join("../../../../deluge-sdk/crates/rza1l-hal");
+    for s in ["rza1l.x", "rza1l_rtt.x"] {
+        let p = sdk.join(s);
+        println!("cargo:rerun-if-changed={}", p.display());
+        if fs::read_to_string(&p).is_ok_and(|c| c.contains("DELUGE_APP_HEAP_HACK")) {
+            println!(
+                "cargo:warning=TEMP HACK active in deluge-sdk {s}: program_stack_start \
+                 retargeted to __sram_heap_end for the C++ app heap. Remove once the app \
+                 sources heap bounds via libdeluge/memory.h (deluge_memory_*)."
+            );
+        }
+    }
 }
 
 fn collect_objs(dir: &std::path::Path, out: &mut Vec<PathBuf>) {

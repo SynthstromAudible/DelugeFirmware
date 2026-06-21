@@ -230,6 +230,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "deluge-alloc"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "linked_list_allocator",
+]
+
+[[package]]
 name = "deluge-bsp"
 version = "0.1.0"
 dependencies = [
@@ -253,11 +261,14 @@ dependencies = [
  "bindgen",
  "cortex-ar",
  "critical-section",
+ "deluge-alloc",
  "deluge-bsp",
  "embassy-executor",
  "embassy-futures",
  "embassy-sync",
  "embassy-time",
+ "embassy-usb",
+ "embassy-usb-driver",
  "log",
  "rtt-target",
  "rza1l-hal",
@@ -847,7 +858,6 @@ dependencies = [
  "embedded-hal 1.0.0",
  "embedded-hal-async",
  "embedded-io-async 0.7.0",
- "linked_list_allocator",
  "log",
  "rtt-target",
 ]

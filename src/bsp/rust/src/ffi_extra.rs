@@ -4,6 +4,32 @@
 //! a couple of C-runtime/linker shims. Replaced with real impls per milestone.
 #![allow(non_upper_case_globals, unused_variables)]
 
+use core::sync::atomic::{AtomicUsize, Ordering};
+
+// --- newlib heap for malloc -------------------------------------------------
+// libgcc's emulated TLS (__emutls_get_address → emutls_alloc) and other newlib
+// internals call malloc, which needs _sbrk. -lnosys's _sbrk just fails, so any
+// thread_local access (notably the C++ exception runtime's per-thread
+// __cxa_eh_globals) aborts. Provide a real _sbrk over a dedicated heap in SDRAM
+// (don't eat the tight SRAM heap; zeroed by boot_mem via .sdram_bss).
+#[unsafe(link_section = ".sdram_bss")]
+static mut NEWLIB_HEAP: [u8; 1024 * 1024] = [0; 1024 * 1024];
+static NEWLIB_BRK: AtomicUsize = AtomicUsize::new(0);
+
+/// newlib heap break. Returns the previous break, or (void*)-1 on exhaustion.
+#[unsafe(no_mangle)]
+pub extern "C" fn _sbrk(incr: isize) -> *mut core::ffi::c_void {
+    let base = core::ptr::addr_of_mut!(NEWLIB_HEAP) as *mut u8 as usize;
+    let len = 1024 * 1024usize;
+    let old = NEWLIB_BRK.load(Ordering::Relaxed);
+    let new = old as isize + incr;
+    if new < 0 || new as usize > len {
+        return usize::MAX as *mut core::ffi::c_void; // (void*)-1 → ENOMEM
+    }
+    NEWLIB_BRK.store(new as usize, Ordering::Relaxed);
+    (base + old) as *mut core::ffi::c_void
+}
+
 // --- BSP globals the app reads (cf. src/bsp/{host,rza1}) ---
 #[unsafe(no_mangle)]
 pub static mut anythingInitiallyAttachedAsUSBHost: u8 = 0;
@@ -25,43 +51,8 @@ pub extern "C" fn closeUSBHost() {}
 #[unsafe(no_mangle)]
 pub extern "C" fn openUSBPeripheral() {}
 
-// --- FatFS diskio glue (maps to deluge_block_* in a real BSP) ---
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_initialize(pdrv: u8) -> u8 {
-    0
-}
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_status(pdrv: u8) -> u8 {
-    0
-}
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) -> i32 {
-    0
-}
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_read_without_streaming_first(
-    pdrv: u8,
-    buff: *mut u8,
-    sector: u32,
-    count: u32,
-) -> i32 {
-    0
-}
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_write_without_streaming_first(
-    pdrv: u8,
-    buff: *const u8,
-    sector: u32,
-    count: u32,
-) -> i32 {
-    0
-}
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_timerproc() {}
-#[unsafe(no_mangle)]
-pub extern "C" fn get_fattime() -> u32 {
-    0
-}
+// FatFS diskio glue (disk_initialize/status/ioctl/read/write/timerproc,
+// get_fattime) is implemented in `sd` (SD card over deluge_bsp::sd).
 
 // --- The app's FREEZE_WITH_ERROR macro calls this BSP fault reporter. ---
 #[unsafe(no_mangle)]
