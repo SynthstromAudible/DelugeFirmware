@@ -20,7 +20,7 @@
 #include "hid/display/oled.h"
 #include "model/sync.h"
 #include "storage/flash_storage.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 namespace deluge::gui::menu_item::defaults {
 class Magnitude final : public Enumeration {

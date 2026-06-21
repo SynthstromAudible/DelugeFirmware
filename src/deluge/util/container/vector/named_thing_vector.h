@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "util/container/array/resizeable_array.h"
 
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 class NamedThingVectorElement {
 public:

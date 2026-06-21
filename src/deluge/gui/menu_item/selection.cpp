@@ -70,11 +70,11 @@ void Selection::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	}
 }
 
-void Selection::getShortOption(StringBuf& opt) {
+void Selection::getShortOption(etl::istring& opt) {
 	opt.append(getOptions(OptType::SHORT)[this->getValue()].data());
 }
 
-void Selection::getNotificationValue(StringBuf& value) {
+void Selection::getNotificationValue(etl::istring& value) {
 	value.append(getOptions()[this->getValue()].data());
 }
 

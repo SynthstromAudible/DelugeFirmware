@@ -41,6 +41,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 
+#include "etl/string.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/try.h"
@@ -763,7 +764,7 @@ Error StorageManager::openDelugeFile(FileItem* currentFileItem, char const* firs
 bool StorageManager::buildPathToFile(const char* fileName) {
 
 	FRESULT res;
-	DEF_STACK_STRING_BUF(s_container, 255);
+	etl::string<255> s_container;
 	s_container.append(fileName);
 	char* s = s_container.data();
 	int i = strlen(s);

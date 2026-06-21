@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 extern "C" {
 #include "fatfs/ff.h"

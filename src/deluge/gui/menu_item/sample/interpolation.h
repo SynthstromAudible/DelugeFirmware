@@ -70,7 +70,7 @@ public:
 		           || source.oscType == OscType::INPUT_STEREO);
 	}
 
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		label.append(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_SHORT));
 	}
 

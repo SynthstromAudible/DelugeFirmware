@@ -38,4 +38,7 @@ bool stringIsNumericChars(std::string_view str);
 void byteToHex(uint8_t number, char* buffer);
 uint8_t hexToByte(char const* firstChar);
 
-#include "d_stringbuf.h"
+char halfByteToHexChar(uint8_t thisHalfByte);
+void intToHex(uint32_t number, char* output, int32_t numChars = 8);
+uint32_t hexToInt(char const* string);
+uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length);

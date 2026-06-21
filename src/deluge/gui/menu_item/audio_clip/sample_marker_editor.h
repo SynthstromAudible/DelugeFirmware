@@ -33,7 +33,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
-	void getColumnLabel(StringBuf& label) override;
+	void getColumnLabel(etl::istring& label) override;
 
 	MarkerType whichMarker;
 };

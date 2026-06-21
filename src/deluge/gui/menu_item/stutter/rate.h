@@ -30,9 +30,11 @@ public:
 	void drawValue() override;
 	void drawPixelsForOled() override;
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
-	void getNotificationValue(StringBuf& valueBuf) override;
+	void getNotificationValue(etl::istring& valueBuf) override;
 
-	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::get(l10n::String::STRING_FOR_RATE)); }
+	void getColumnLabel(etl::istring& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_RATE));
+	}
 
 private:
 	int32_t getClosestQuantizedOptionIndex(int32_t value) const;

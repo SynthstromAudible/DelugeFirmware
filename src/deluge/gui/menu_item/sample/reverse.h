@@ -73,9 +73,9 @@ public:
 		                            reversed);
 	}
 
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }
+	void getColumnLabel(etl::istring& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }
 
-	void getNotificationValue(StringBuf& valueBuf) override {
+	void getNotificationValue(etl::istring& valueBuf) override {
 		valueBuf.append(l10n::get(getValue() ? l10n::String::STRING_FOR_ON : l10n::String::STRING_FOR_OFF));
 	}
 

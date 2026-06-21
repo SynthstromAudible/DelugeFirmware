@@ -69,7 +69,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include "util/functions.h"
 #include "util/string.h"
 #include <cstring>

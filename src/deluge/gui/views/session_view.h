@@ -22,6 +22,7 @@
 #include "hid/button.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
+#include "util/etl_string.h"
 
 class Editor;
 class InstrumentClip;
@@ -147,12 +148,12 @@ public:
 
 	// display tempo
 	void displayPotentialTempoChange(UI* ui);
-	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM, bool clearArea);
+	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, etl::istring& tempoBPM, bool clearArea);
 	float lastDisplayedTempo = 0;
 
 	// display root note and scale name
 	void displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
-	                                        StringBuf& rootNoteAndScaleName, bool clearArea);
+	                                        etl::istring& rootNoteAndScaleName, bool clearArea);
 	int16_t lastDisplayedRootNote = 0;
 
 	// convert instrument clip to audio clip

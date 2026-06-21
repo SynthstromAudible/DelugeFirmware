@@ -38,6 +38,7 @@
 #include "processing/engines/audio_engine.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
+#include "util/etl_string.h"
 #include "util/string.h"
 #include <new>
 #include <string.h>
@@ -212,12 +213,12 @@ bool StemExport::checkForLoopEnd() {
 		    playbackHandler.lastSwungTickActioned + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
 		/* For debugging in case this stops working
-		    DEF_STACK_STRING_BUF(popupMsg, 40);
+		    etl::string<40> popupMsg;
 		    popupMsg.append("Current Pos: ");
-		    popupMsg.appendInt(currentPos);
+		    deluge::string::appendInt(popupMsg, currentPos);
 		    popupMsg.append("/n");
 		    popupMsg.append("Length: ");
-		    popupMsg.appendInt(loopLength);
+		    deluge::string::appendInt(popupMsg, loopLength);
 		    display->displayPopup(popupMsg.c_str());
 		*/
 
@@ -788,11 +789,11 @@ void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
 		return;
 	}
 	hid::display::OLED::clearMainImage();
-	DEF_STACK_STRING_BUF(exportStatus, 50);
+	etl::string<50> exportStatus;
 	exportStatus.append("Exported ");
-	exportStatus.appendInt(numStemsExported);
+	deluge::string::appendInt(exportStatus, numStemsExported);
 	exportStatus.append(" of ");
-	exportStatus.appendInt(totalNumStemsToExport);
+	deluge::string::appendInt(exportStatus, totalNumStemsToExport);
 	if (stemExportType == StemExportType::CLIP) {
 		exportStatus.append(" clips");
 	}
@@ -811,8 +812,8 @@ void StemExport::displayStemExportProgress7SEG() {
 	if (inContextMenu()) {
 		return;
 	}
-	DEF_STACK_STRING_BUF(exportStatus, 50);
-	exportStatus.appendInt(totalNumStemsToExport - numStemsExported);
+	etl::string<50> exportStatus;
+	deluge::string::appendInt(exportStatus, totalNumStemsToExport - numStemsExported);
 	display->setText(exportStatus.c_str(), true, 255, false);
 }
 

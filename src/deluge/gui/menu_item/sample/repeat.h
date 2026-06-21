@@ -131,7 +131,9 @@ public:
 		OLED::main.drawIcon(icon, slot.start_x + 4, slot.start_y + kHorizontalMenuSlotYOffset - 4);
 	}
 
-	void getColumnLabel(StringBuf& label) override { label.append(getOptions(OptType::SHORT)[getValue()]); }
+	void getColumnLabel(etl::istring& label) override {
+		deluge::string::append(label, getOptions(OptType::SHORT)[getValue()]);
+	}
 
 private:
 	uint8_t source_id_;

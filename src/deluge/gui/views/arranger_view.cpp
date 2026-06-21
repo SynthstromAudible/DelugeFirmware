@@ -74,7 +74,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include "util/functions.h"
 #include "util/try.h"
 #include <algorithm>

@@ -28,7 +28,7 @@
 #include "model/sample/sample_playback_guide.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include <cstdint>
 
 class Song;

@@ -37,7 +37,7 @@ public:
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		label.append(modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::DEPTH, true));
 	}
 };

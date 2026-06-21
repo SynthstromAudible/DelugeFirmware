@@ -1,19 +1,7 @@
-#include "d_stringbuf.h"
-
-// NOLINTBEGIN (*-suspicious-stringview-data-usage)
-// this is fine, the second parameter in the min is the max we can safely copy and the first is to avoid using
-// strcopy on a non null terminated string view
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overflow="
-void StringBuf::append(std::string_view str) {
-
-	::strncat(buf_, str.data(), std::min(capacity_ - size() - 1, str.length()));
-}
-#pragma GCC diagnostic pop
-// NOLINTEND
+#include "util/c_string.h"
 
 /**********************************************************************************************************************\
- * String formatting and parsing functions
+ * Hexadecimal formatting and parsing helpers
 \**********************************************************************************************************************/
 
 char halfByteToHexChar(uint8_t thisHalfByte) {
@@ -25,7 +13,7 @@ char halfByteToHexChar(uint8_t thisHalfByte) {
 	}
 }
 
-char hexCharToHalfByte(unsigned char hexChar) {
+static char hexCharToHalfByte(unsigned char hexChar) {
 	if (hexChar >= 65) {
 		return hexChar - 55;
 	}

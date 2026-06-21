@@ -33,12 +33,12 @@ public:
 		ArpUnpatchedParam::renderInHorizontalMenu(slot);
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
+	void getNotificationValue(etl::istring& valueBuf) override {
 		if (const auto value = getValue(); value == 0) {
 			valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
 		}
 		else {
-			valueBuf.appendInt(value);
+			deluge::string::appendInt(valueBuf, value);
 		}
 	}
 };

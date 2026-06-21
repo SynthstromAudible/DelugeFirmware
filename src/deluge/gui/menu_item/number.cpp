@@ -97,8 +97,8 @@ void Number::renderInHorizontalMenu(const SlotPosition& slot) {
 	case SIDECHAIN_DUCKING:
 		return drawSidechainDucking(slot);
 	default:
-		DEF_STACK_STRING_BUF(paramValue, 10);
-		paramValue.appendInt(getValue());
+		etl::string<10> paramValue;
+		deluge::string::appendInt(paramValue, getValue());
 		return OLED::main.drawStringCentered(paramValue, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
 		                                     kTextTitleSpacingX, kTextTitleSizeY, slot.width);
 	}
@@ -107,8 +107,8 @@ void Number::renderInHorizontalMenu(const SlotPosition& slot) {
 void Number::drawPercent(const SlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	DEF_STACK_STRING_BUF(valueString, 12);
-	valueString.appendInt(getValue() * 2);
+	etl::string<12> valueString;
+	deluge::string::appendInt(valueString, getValue() * 2);
 
 	constexpr char percent_char = '%';
 	const int32_t value_width = image.getStringWidthInPixels(valueString.c_str(), kTextSpacingY);
@@ -426,8 +426,8 @@ void Number::drawSidechainDucking(const SlotPosition& slot) {
 	image.drawHorizontalLine(y1, max_x - offset_right, max_x);
 }
 
-void Number::getNotificationValue(StringBuf& value) {
-	value.appendInt(getRenderingStyle() == PERCENT ? getValue() * 2 : getValue());
+void Number::getNotificationValue(etl::istring& value) {
+	deluge::string::appendInt(value, getRenderingStyle() == PERCENT ? getValue() * 2 : getValue());
 }
 
 } // namespace deluge::gui::menu_item

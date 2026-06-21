@@ -64,16 +64,16 @@ public:
 		}
 	}
 
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		label.append(deluge::l10n::get(l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
+	void getNotificationValue(etl::istring& valueBuf) override {
 		if (const int32_t value = getValue(); value < 0) {
 			valueBuf.append(l10n::get(l10n::String::STRING_FOR_AUTO));
 		}
 		else {
-			valueBuf.appendInt(value);
+			deluge::string::appendInt(valueBuf, value);
 		}
 	}
 };

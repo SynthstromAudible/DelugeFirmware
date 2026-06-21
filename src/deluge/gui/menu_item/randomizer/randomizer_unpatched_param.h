@@ -41,7 +41,7 @@ public:
 		return isGlobal || soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
 
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 
@@ -58,7 +58,7 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKitAffectEntire()
 		       && !soundEditor.editingNonAudioDrumRow() && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
 	}
 };
@@ -74,7 +74,7 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit()
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }

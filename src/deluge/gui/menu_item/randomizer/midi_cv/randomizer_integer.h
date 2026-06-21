@@ -28,7 +28,7 @@ public:
 		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow())
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 };

@@ -1,8 +1,9 @@
 #pragma once
 
+#include "util/etl_string.h"
 #include <cstdint>
 
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 // SyncType values correspond to the index of the first option of the specific
 // type in the selection menu. There are 9 different levels for each type (see
@@ -39,8 +40,8 @@ enum SyncLevel syncValueToSyncLevel(int32_t option);
 
 enum SyncType syncValueToSyncType(int32_t value);
 
-void syncValueToString(uint32_t value, StringBuf& buffer, int32_t tickMagnitude);
-void syncValueToStringForHorzMenuLabel(SyncType type, SyncLevel level, StringBuf& buffer, int32_t tickMagnitude);
+void syncValueToString(uint32_t value, etl::istring& buffer, int32_t tickMagnitude);
+void syncValueToStringForHorzMenuLabel(SyncType type, SyncLevel level, etl::istring& buffer, int32_t tickMagnitude);
 
 /** Modulus of value as a non-zero SyncLevel valid for Swing interval. */
 int32_t wrapSwingIntervalSyncLevel(int32_t value);

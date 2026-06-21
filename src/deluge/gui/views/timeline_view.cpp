@@ -29,6 +29,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "util/etl_string.h"
 #include <algorithm>
 #include <string.h>
 
@@ -119,7 +120,7 @@ ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inC
 }
 
 void TimelineView::displayZoomLevel(bool justPopup) {
-	DEF_STACK_STRING_BUF(text, 30);
+	etl::string<30> text;
 	currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], "-notes", true);
 
 	display->displayPopup(text.data(), justPopup ? 3 : 0, true);

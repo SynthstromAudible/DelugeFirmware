@@ -89,13 +89,14 @@ void LoopPoint::renderInHorizontalMenu(const SlotPosition& slot) {
 	image.drawIcon(icon, icon_x, icon_y, !is_start_marker);
 }
 
-void LoopPoint::getColumnLabel(StringBuf& label) {
+void LoopPoint::getColumnLabel(etl::istring& label) {
 	if (markerType == MarkerType::START) {
-		return label.append(l10n::get(l10n::String::STRING_FOR_START_POINT_SHORT));
+		label.append(l10n::get(l10n::String::STRING_FOR_START_POINT_SHORT));
+		return;
 	}
 
-	label.append(getName());
-	label.truncate(3);
+	deluge::string::append(label, getName());
+	label.resize(3);
 }
 
 } // namespace deluge::gui::menu_item::sample

@@ -20,6 +20,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "util/etl_string.h"
 
 // namespace deluge::gui::views::automation::editor_layout {
 
@@ -51,7 +52,7 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
                                                              InstrumentClip* clip, OutputType outputType,
                                                              int32_t knobPosLeft, int32_t knobPosRight) {
 	// display note parameter name
-	DEF_STACK_STRING_BUF(parameterName, 30);
+	etl::string<30> parameterName;
 	if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
 		parameterName.append("Velocity");
 	}

@@ -22,6 +22,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "util/etl_string.h"
 #include <span>
 
 enum class MenuPermission {
@@ -290,7 +291,7 @@ public:
 	/// @brief Get the name for use on Horizontal menus.
 	///
 	/// By default this redirects to getName(), but can be overridden.
-	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
+	virtual void getColumnLabel(etl::istring& label) { label.append(getName().data()); }
 
 	/// @brief Show a label for the parameter in Horizontal menu
 	///
@@ -315,7 +316,7 @@ public:
 	/// @brief Get the parameter value string to show in the popup
 	///
 	/// Needs to be overridden
-	virtual void getNotificationValue(StringBuf& valueBuf) {}
+	virtual void getNotificationValue(etl::istring& valueBuf) {}
 
 	virtual void renderInHorizontalMenu(const SlotPosition& slot) {};
 

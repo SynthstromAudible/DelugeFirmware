@@ -122,14 +122,15 @@ public:
 		return Decimal::renderInHorizontalMenu(slot);
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
+	void getNotificationValue(etl::istring& valueBuf) override {
 		if (this->getValue() < 0) {
-			return valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
+			valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
+			return;
 		}
-		valueBuf.appendInt(getValue());
+		deluge::string::appendInt(valueBuf, getValue());
 	}
 
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		label.append(l10n::get(l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT));
 	}
 

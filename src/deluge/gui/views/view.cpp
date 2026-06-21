@@ -87,6 +87,7 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/etl_string.h"
 
 namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
@@ -1004,7 +1005,7 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 				source2 = paramDescriptor.getTopLevelSource();
 			}
 
-			DEF_STACK_STRING_BUF(paramDisplayName, 30);
+			etl::string<30> paramDisplayName;
 			if (source2 == PatchSource::NONE) {
 				paramDisplayName.append(getSourceDisplayNameForOLED(source1));
 			}
@@ -1089,8 +1090,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 
 	uint32_t current_time = AudioEngine::audioSampleTimer;
 
-	DEF_STACK_STRING_BUF(parameter_name, 40);
-	DEF_STACK_STRING_BUF(parameter_value, 40);
+	etl::string<40> parameter_name;
+	etl::string<40> parameter_value;
 
 	// On OLED, display the name of the parameter on the first line of the popup
 	if (display->haveOLED()) {
@@ -1124,7 +1125,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 				}
 				else {
 					parameter_name.append("CC ");
-					parameter_name.appendInt(paramID);
+					deluge::string::appendInt(parameter_name, paramID);
 				}
 			}
 		}
@@ -1179,7 +1180,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	}
 	else {
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
-		parameter_value.appendInt(current_display_value);
+		deluge::string::appendInt(parameter_value, current_display_value);
 	}
 
 	// Check if we need to update the notification (avoid excessive updates)
@@ -2099,13 +2100,13 @@ oledDrawString:
 
 			if (clip) {
 				// "SECTION NN" is 10, "NN: " is 3 => 10 over current name is always enough.
-				DEF_STACK_STRING_BUF(info, clip->name.size() + 10);
+				std::string info;
 				if (clip->name.empty()) {
 					info.append("Section ");
-					info.appendInt(clip->section + 1);
+					info += deluge::string::fromInt(clip->section + 1);
 				}
 				else {
-					info.appendInt(clip->section + 1);
+					info += deluge::string::fromInt(clip->section + 1);
 					info.append(": ");
 					info.append(clip->name.c_str());
 				}

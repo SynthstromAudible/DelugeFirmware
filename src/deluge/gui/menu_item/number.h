@@ -61,7 +61,7 @@ protected:
 	void drawAttack(const SlotPosition& slot);
 	void drawRelease(const SlotPosition& slot);
 	void drawSidechainDucking(const SlotPosition& slot);
-	void getNotificationValue(StringBuf& value) override;
+	void getNotificationValue(etl::istring& value) override;
 };
 
 } // namespace deluge::gui::menu_item

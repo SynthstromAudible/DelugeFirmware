@@ -34,6 +34,7 @@
 #include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
+#include "util/etl_string.h"
 #include "util/firmware_version.h"
 
 using namespace deluge;
@@ -133,7 +134,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	if (display->haveOLED()) {
 		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
+			etl::string<100> popupMsg;
 			popupMsg.append("Comp Mode: ");
 			popupMsg.append(getCompressorModeDisplayName());
 			popupMsg.append("\n");
@@ -181,7 +182,7 @@ char const* GlobalEffectable::getCompressorParamDisplayName() {
 void GlobalEffectable::displayModFXSettings(bool on) {
 	if (display->haveOLED()) {
 		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
+			etl::string<100> popupMsg;
 			popupMsg.append("Type: ");
 			popupMsg.append(getModFXTypeDisplayName());
 
@@ -508,8 +509,8 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
                                                                    ModelStackWithAutoParam* modelStack) {
 	if (*getModKnobMode() == 4) {
-		DEF_STACK_STRING_BUF(parameterName, 40);
-		DEF_STACK_STRING_BUF(parameterValue, 40);
+		etl::string<40> parameterName;
+		etl::string<40> parameterValue;
 		int current;
 		int displayLevel;
 		int ledLevel;
@@ -603,7 +604,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
 		}
 
-		parameterValue.appendInt(displayLevel);
+		deluge::string::appendInt(parameterValue, displayLevel);
 		if (display->haveOLED()) {
 			parameterValue.append(unit);
 			display->displayNotification(parameterName.c_str(), parameterValue.c_str());

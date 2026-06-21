@@ -89,10 +89,11 @@ void FileSelector::renderInHorizontalMenu(const SlotPosition& slot) {
 	OLED::main.drawIconCentered(OLED::folderIconBig, slot.start_x, slot.width, slot.start_y - 1);
 }
 
-void FileSelector::getColumnLabel(StringBuf& label) {
+void FileSelector::getColumnLabel(etl::istring& label) {
 	if (const auto audioClip = getCurrentAudioClip(); audioClip != nullptr) {
 		if (const auto audioFile = audioClip->sampleHolder.audioFile; audioFile != nullptr) {
-			return label.append(getLastFolderFromPath(audioFile->filePath));
+			deluge::string::append(label, getLastFolderFromPath(audioFile->filePath));
+			return;
 		}
 		return MenuItem::getColumnLabel(label);
 	}
@@ -103,11 +104,12 @@ void FileSelector::getColumnLabel(StringBuf& label) {
 	}
 
 	if (source.ranges.getNumElements() > 1) {
-		return label.append("Mult");
+		label.append("Mult");
+		return;
 	}
 
 	auto path = source.ranges.getElement(0)->getAudioFileHolder()->filePath;
-	label.append(getLastFolderFromPath(path));
+	deluge::string::append(label, getLastFolderFromPath(path));
 }
 
 std::string FileSelector::getLastFolderFromPath(std::string& path) {

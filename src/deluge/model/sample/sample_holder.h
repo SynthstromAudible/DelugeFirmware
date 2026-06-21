@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_playback_guide.h"
 #include "storage/audio/audio_file_holder.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 extern "C" {
 #include "fatfs/ff.h"

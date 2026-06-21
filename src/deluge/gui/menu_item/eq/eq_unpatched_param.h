@@ -25,7 +25,9 @@ public:
 	    : UnpatchedParam(name, newP), columnLabel_{columnLabel} {}
 	EqUnpatchedParam(l10n::String name, int32_t newP) : UnpatchedParam(name, newP), columnLabel_{name} {}
 
-	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::getView(columnLabel_)); }
+	void getColumnLabel(etl::istring& label) override {
+		deluge::string::append(label, deluge::l10n::getView(columnLabel_));
+	}
 
 private:
 	l10n::String columnLabel_;

@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "processing/sound/sound_drum.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include <cstdint>
 #include <string>
 

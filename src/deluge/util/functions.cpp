@@ -2077,14 +2077,14 @@ int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitu
 	return noteMagnitude;
 }
 
-void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude, char const* const notesString,
+void getNoteLengthNameFromMagnitude(etl::istring& noteLengthBuf, int32_t magnitude, char const* const notesString,
                                     bool clarifyPerColumn) {
 	// Positive magnitudes are bars, negative magnitudes are divisions of bars.
 	uint32_t division = (uint32_t)1 << (0 - magnitude);
 
 	if (display->haveOLED()) {
 		if (magnitude < 0) {
-			noteLengthBuf.appendInt(division);
+			deluge::string::appendInt(noteLengthBuf, division);
 			// this is not fully general but since division are always a power of 2, it works out in practice (no need
 			// for "rd")
 			char const* suffix = ((division % 10) == 2) ? "nd" : "th";
@@ -2095,7 +2095,7 @@ void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude,
 		}
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
-			noteLengthBuf.appendInt(numBars);
+			deluge::string::appendInt(noteLengthBuf, numBars);
 			if (clarifyPerColumn) {
 				if (numBars == 1) {
 					noteLengthBuf.append(" bar (per column)");
@@ -2112,7 +2112,7 @@ void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude,
 	else {
 		if (magnitude < 0) {
 			if (division <= 9999) {
-				noteLengthBuf.appendInt(division);
+				deluge::string::appendInt(noteLengthBuf, division);
 				if (division == 2 || division == 32) {
 					noteLengthBuf.append("ND");
 				}
@@ -2130,7 +2130,7 @@ void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude,
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
 			if (numBars <= 9999) {
-				noteLengthBuf.appendInt(numBars);
+				deluge::string::appendInt(noteLengthBuf, numBars);
 				auto size = noteLengthBuf.size();
 				if (size == 1) {
 					noteLengthBuf.append("BAR");

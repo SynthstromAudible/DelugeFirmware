@@ -18,7 +18,7 @@
 #pragma once
 
 #include "storage/storage_manager.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include <cstdint>
 #include <string>
 

@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "memory/stealable.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 class AudioFileReader;
 
