@@ -232,9 +232,10 @@ TEST(MemoryAllocation, allocationSizes) {
 
 		// we should have one empty space left, and it should be the size of the memory minus headers
 		CHECK(memreg.emptySpaces.getNumElements() == 1);
-		// we might have needed to align the region start to 16 after setting the headers
+		// The region start/end are rounded so user pointers are 16-byte aligned (regionBegin to
+		// 16k+8, regionEnd floored to 16), which costs up to ~24 bytes of unusable slack at the edges.
 		int sizeDiff = (mem_size - 16 - memreg.emptySpaces.getKeyAtIndex(0));
-		CHECK(sizeDiff <= 16);
+		CHECK(sizeDiff <= 32);
 	}
 	// un modified GMA gets .999311
 	// current with extra padding gets .9939
@@ -298,10 +299,54 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 	};
 	// for regression - unmodified GMA scores 0.60
 	// with power of 2 alignment GMA scores 0.689
+	// guaranteeing 16-byte user-pointer alignment (block sizes rounded up to ≡ 8 mod 16) costs a
+	// little packing efficiency: ~0.680
 	// a perfect allocator with no fragmentation would tend towards 0.75
 	std::cout << "Average efficiency: " << (float(averageSize / numRepeats) / float(mem_size)) << std::endl;
-	CHECK(averageSize / numRepeats > 0.685 * mem_size);
+	CHECK(averageSize / numRepeats > 0.675 * mem_size);
 };
+
+// Every user pointer the allocator returns must be 16-byte aligned. Over-aligned SIMD types
+// (e.g. alignof(TimeStretcher) == 16) are placement-new'd into allocator memory and x86 emits
+// aligned SSE stores (movaps) that fault on an 8-aligned object. Churn both the small (< pivot)
+// and large (> pivot) carve paths plus frees (to drive coalescing), and assert alignment holds.
+TEST(MemoryAllocation, Alignment16) {
+	srand(2);
+	const int slots = 2000;
+	void* allocs[slots] = {0};
+	int misaligned = 0;
+	int checked = 0;
+	int misSmall = 0, misLarge = 0;
+	for (int iter = 0; iter < 60000; iter++) {
+		int slot = rand() % slots;
+		if (allocs[slot]) {
+			memreg.dealloc(allocs[slot]);
+			allocs[slot] = nullptr;
+		}
+		else {
+			// mix small (< pivot 512) and large (> pivot) to exercise both carve paths
+			bool small = (rand() % 2);
+			int size = small ? (rand() % 480 + 1) : (rand() % 8000 + 512);
+			void* p = memreg.alloc(size, false, NULL);
+			if (p) {
+				checked++;
+				if (((uint32_t)p & 15u) != 0) {
+					misaligned++;
+					if (small) {
+						misSmall++;
+					}
+					else {
+						misLarge++;
+					}
+				}
+				allocs[slot] = p;
+			}
+		}
+	}
+	std::cout << "Alignment16: checked " << checked << " allocations, " << misaligned
+	          << " misaligned (small=" << misSmall << " large=" << misLarge << ")" << std::endl;
+	CHECK_EQUAL(0, misaligned);
+}
 
 // allocate 512 1m stealables
 TEST(MemoryAllocation, stealableAllocations) {

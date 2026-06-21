@@ -25,8 +25,37 @@
 
 #include "RZA1/cpu_specific.h" // EXTERNAL_MEMORY_END, INTERNAL_MEMORY_BEGIN, UNUSED_MEMORY_SPACE_ADDRESS
 
+// Linker boundary symbols: the allocatable external region runs from the end of
+// the SDRAM .bss to EXTERNAL_MEMORY_END; the internal heap from the end of the
+// image (__heap_start) to the base of the program stack. (program_stack_start
+// stays the program stack base in this single-stack layout, so it doubles as the
+// internal heap top.)
+extern uint32_t __sdram_bss_end;
+extern uint32_t __heap_start;
+extern uint32_t program_stack_start;
+
 uintptr_t deluge_memory_external_end(void) {
 	return EXTERNAL_MEMORY_END;
+}
+
+uint8_t deluge_memory_region_count(void) {
+	return 2;
+}
+
+DelugeStatus deluge_memory_region(uint8_t index, DelugeMemoryRegion* out) {
+	if (index == 0) {
+		out->base = &__sdram_bss_end;
+		out->size = EXTERNAL_MEMORY_END - (uintptr_t)&__sdram_bss_end;
+		out->kind = DELUGE_MEM_LARGE_EXTERNAL;
+		return DELUGE_OK;
+	}
+	if (index == 1) {
+		out->base = &__heap_start;
+		out->size = (uintptr_t)&program_stack_start - (uintptr_t)&__heap_start;
+		out->kind = DELUGE_MEM_FAST_INTERNAL;
+		return DELUGE_OK;
+	}
+	return DELUGE_ERR_PARAM;
 }
 
 uintptr_t deluge_memory_internal_begin(void) {

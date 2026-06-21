@@ -15,14 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// host_link — AF_UNIX transport for the host emulator. See host_link.h.
+/// host_link — AF_UNIX / TCP-loopback transport for the host emulator. See host_link.h.
 
 #define _POSIX_C_SOURCE 200809L
 
 #include "host_link.h"
 
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,9 +39,10 @@
 // traffic, so keep it small but comfortably above the largest legal inbound frame.
 #define HOST_LINK_RX_CAP 1024u
 
-static int link_listen_fd = -1; // listening AF_UNIX socket (server)
-static int link_conn_fd = -1;   // accepted client (the GUI)
-static char link_path[108];     // bound path, so we can unlink() on teardown
+static int link_listen_fd = -1;  // listening socket (server)
+static int link_conn_fd = -1;    // accepted client (the GUI)
+static char link_path[108];      // bound AF_UNIX path, so we can unlink() on teardown
+static bool link_is_tcp = false; // transport: TCP loopback vs. AF_UNIX
 static bool link_inited = false;
 
 // Inbound byte accumulator: bytes arrive in arbitrary chunks; we parse whole frames.
@@ -56,21 +60,79 @@ bool host_link_active(void) {
 	return link_conn_fd >= 0;
 }
 
-bool host_link_init(void) {
-	if (link_inited) {
-		return host_link_active();
+// Classify a DELUGE_HOST_LINK target the way the Rust simulator's `Target::parse` does: a
+// `host:port`, `:port`, or `tcp://host:port` target is TCP loopback, anything else is an
+// AF_UNIX path. The host part is ignored — we always bind loopback — so on a TCP target
+// only the port matters. Returns true and writes *out_port for TCP; false for a path.
+static bool link_parse_tcp(const char* target, uint16_t* out_port) {
+	const char* s = target;
+	bool forced = false;
+	if (strncmp(s, "tcp://", 6) == 0) {
+		s += 6;
+		forced = true;
 	}
-	link_inited = true;
 
-	const char* path = getenv("DELUGE_HOST_LINK");
-	if (!path || !path[0]) {
-		return false; // headless: no link, offline harness behaviour
+	// The port is whatever follows the last ':' (or a bare leading ':').
+	const char* port_str;
+	if (s[0] == ':') {
+		port_str = s + 1;
+	}
+	else {
+		const char* colon = strrchr(s, ':');
+		if (!colon) {
+			return false; // no ':' at all — an AF_UNIX path (or malformed tcp://)
+		}
+		port_str = colon + 1;
 	}
 
-	link_listen_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (link_listen_fd < 0) {
-		perror("host_link: socket");
+	if (!port_str[0]) {
 		return false;
+	}
+	char* end = NULL;
+	long val = strtol(port_str, &end, 10);
+	if (*end != '\0' || val <= 0 || val > 65535) {
+		return false; // trailing component isn't a port number — treat as a path
+	}
+	(void)forced; // tcp:// only affects how we'd spell the address; the rule is the same
+	*out_port = (uint16_t)val;
+	return true;
+}
+
+// Bind+listen a TCP loopback server on `port`. Returns the listening fd, or -1.
+static int link_listen_tcp(uint16_t port) {
+	int fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (fd < 0) {
+		perror("host_link: socket");
+		return -1;
+	}
+	int one = 1;
+	// Avoid TIME_WAIT keeping the port busy across quick restarts of the brain.
+	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+
+	struct sockaddr_in addr;
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // loopback only — never exposed
+	addr.sin_port = htons(port);
+	if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+		perror("host_link: bind");
+		close(fd);
+		return -1;
+	}
+	if (listen(fd, 1) < 0) {
+		perror("host_link: listen");
+		close(fd);
+		return -1;
+	}
+	return fd;
+}
+
+// Bind+listen an AF_UNIX server on `path`. Returns the listening fd, or -1.
+static int link_listen_unix(const char* path) {
+	int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (fd < 0) {
+		perror("host_link: socket");
+		return -1;
 	}
 
 	struct sockaddr_un addr;
@@ -80,20 +142,38 @@ bool host_link_init(void) {
 	strncpy(link_path, path, sizeof(link_path) - 1);
 
 	unlink(path); // a stale socket file would make bind() fail with EADDRINUSE
-	if (bind(link_listen_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+	if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
 		perror("host_link: bind");
-		close(link_listen_fd);
-		link_listen_fd = -1;
-		return false;
+		close(fd);
+		return -1;
 	}
-	if (listen(link_listen_fd, 1) < 0) {
+	if (listen(fd, 1) < 0) {
 		perror("host_link: listen");
-		close(link_listen_fd);
-		link_listen_fd = -1;
+		close(fd);
+		return -1;
+	}
+	return fd;
+}
+
+bool host_link_init(void) {
+	if (link_inited) {
+		return host_link_active();
+	}
+	link_inited = true;
+
+	const char* target = getenv("DELUGE_HOST_LINK");
+	if (!target || !target[0]) {
+		return false; // headless: no link, offline harness behaviour
+	}
+
+	uint16_t port = 0;
+	link_is_tcp = link_parse_tcp(target, &port);
+	link_listen_fd = link_is_tcp ? link_listen_tcp(port) : link_listen_unix(target);
+	if (link_listen_fd < 0) {
 		return false;
 	}
 
-	fprintf(stderr, "host_link: waiting for spark GUI on %s ...\n", path);
+	fprintf(stderr, "host_link: waiting for spark GUI on %s ...\n", target);
 	link_conn_fd = accept(link_listen_fd, NULL, NULL); // block until the GUI attaches
 	if (link_conn_fd < 0) {
 		perror("host_link: accept");
@@ -104,6 +184,12 @@ bool host_link_init(void) {
 	int flags = fcntl(link_conn_fd, F_GETFL, 0);
 	if (flags >= 0) {
 		fcntl(link_conn_fd, F_SETFL, flags | O_NONBLOCK);
+	}
+	// Frames are tiny and latency-sensitive: disable Nagle so input/display don't stall
+	// waiting to coalesce. (No-op for AF_UNIX, which has no Nagle.)
+	if (link_is_tcp) {
+		int one = 1;
+		setsockopt(link_conn_fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
 	}
 	// A GUI that quits mid-frame would otherwise SIGPIPE the firmware; ignore it so
 	// writes fail with EPIPE and we can downgrade to headless instead of dying.

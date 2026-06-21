@@ -1,0 +1,64 @@
+# deluge-bsp-rust: the Rust/Embassy firmware image (Cargo-top). Implements the
+# <libdeluge/...> C-ABI boundary for the Synthstrom Deluge (Renesas RZ/A1L) on
+# top of the sibling deluge-sdk HAL+BSP, OWNS reset/main/_start + the Embassy
+# executor, and links the portable C++ application (built by CMake into
+# libdeluge_app.a) — running deluge_main() in one Embassy task.
+#
+# Standalone crate (NOT a workspace member). The path deps below sit inside the
+# deluge-sdk Cargo workspace, so their `workspace = true` embassy pins resolve
+# against that workspace and stay version-locked.
+[package]
+name = "deluge-bsp-rust"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+[[bin]]
+name = "deluge-rust"
+path = "src/main.rs"
+test = false
+
+[dependencies]
+# Sibling deluge-sdk HAL + BSP + allocators (DelugeFirmware and deluge-sdk cloned
+# side by side). The HAL is memory-map facts only; the general-purpose Rust heaps
+# now live in deluge-alloc.
+deluge-bsp = { path = "../../../../deluge-sdk/crates/deluge-bsp" }
+deluge-alloc = { path = "../../../../deluge-sdk/crates/deluge-alloc" }
+rza1l-hal = { path = "../../../../deluge-sdk/crates/rza1l-hal" }
+
+# Embassy runtime — versions match deluge-sdk's workspace pins.
+embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread"] }
+embassy-time = { version = "0.5.1", features = ["tick-hz-1_000_000"] }
+embassy-sync = "0.8.0"
+embassy-futures = "0.1.2"
+embassy-usb = "0.6.0"
+embassy-usb-driver = "0.2.2"
+
+cortex-ar = "0.3"
+critical-section = "1"
+log = "0.4"
+rtt-target = { version = "0.6", features = ["log"], optional = true }
+
+[features]
+default = ["rtt"]
+## RTT (SEGGER Real-Time Transfer) logging over a debug probe. Selects the
+## rza1l_rtt.x linker script (via build.rs) + registers the log logger.
+rtt = ["dep:rtt-target", "rza1l-hal/rtt"]
+
+[build-dependencies]
+# Generate Rust signatures + POD types from the canonical libdeluge C headers so
+# the boundary can't drift (type mismatch = compile error).
+bindgen = "0.70"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+debug = true
+panic = "abort"
+
+[profile.dev]
+opt-level = 1
+debug = true
+panic = "abort"

@@ -22,57 +22,172 @@
 /// headless (no SD card, no USB). The memory-map boundary symbols live in
 /// host_bsp.c alongside the rest of memory.h.
 
+// 64-bit file offsets even under -m32, so disk images >2GB work (pread64/pwrite64).
+// Must precede the first system header include.
+#define _FILE_OFFSET_BITS 64
+
 #include "board_config.h" // TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED
 #include "diskio.h"       // FatFS DSTATUS/DRESULT/STA_*/RES_*
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 // ===========================================================================
-// FatFS disk backend (RZA1/diskio.c on target). The host has no SD card, so the
-// media layer reports "no disk" and all access is not-ready. The app already
-// handles a missing card gracefully.
+// FatFS disk backend (RZA1/diskio.c on target). On host the "SD card" is a FAT
+// disk-IMAGE file named by env DELUGE_SD_IMAGE: the five porting callbacks read/
+// write 512-byte sectors against it, so the app sees a normal FAT volume (song
+// load, on-demand sample-cluster streaming, stem writes — all unchanged). When
+// the env is unset we keep the historical no-disk behaviour, so a plain run
+// still boots the default no-SD patch. The app provides disk_read/disk_write
+// (the LBA_t-facing wrappers, audio_file_manager.cpp); they call the
+// _without_streaming_first variants below, which do the real I/O.
 // ===========================================================================
 
-// Set while the SD routine is mid-access on target; nothing toggles it on host,
-// but it is read app-wide (playback, scheduler ResourceChecker, save UI, ...).
+#define HOST_SECTOR_SIZE 512u
+
+static int host_img_fd = -1;
+static uint32_t host_img_sectors = 0;
+static int host_img_writable = 0;
+static int host_img_tried = 0; // open attempted (success or failure) — don't retry
+
+// Lazily open the image on the first disk_initialize/disk_status. Returns the
+// DSTATUS bits to report.
+static DSTATUS host_sd_open(void) {
+	if (host_img_fd >= 0) {
+		return host_img_writable ? 0 : STA_PROTECT;
+	}
+	if (host_img_tried) {
+		return STA_NODISK | STA_NOINIT; // no image configured, or open failed
+	}
+	host_img_tried = 1;
+
+	const char* path = getenv("DELUGE_SD_IMAGE");
+	if (path == NULL || path[0] == '\0') {
+		return STA_NODISK | STA_NOINIT;
+	}
+
+	int writable = 1;
+	int fd = open(path, O_RDWR);
+	if (fd < 0) {
+		fd = open(path, O_RDONLY);
+		writable = 0;
+	}
+	if (fd < 0) {
+		fprintf(stderr, "[host-sd] cannot open DELUGE_SD_IMAGE '%s'\n", path);
+		return STA_NODISK | STA_NOINIT;
+	}
+
+	struct stat st;
+	if (fstat(fd, &st) != 0 || st.st_size < (off_t)HOST_SECTOR_SIZE) {
+		fprintf(stderr, "[host-sd] not a usable image: '%s'\n", path);
+		close(fd);
+		return STA_NODISK | STA_NOINIT;
+	}
+
+	host_img_fd = fd;
+	host_img_writable = writable;
+	host_img_sectors = (uint32_t)(st.st_size / HOST_SECTOR_SIZE);
+	fprintf(stderr, "[host-sd] mounted '%s' (%u sectors, %s)\n", path, host_img_sectors, writable ? "rw" : "ro");
+	return host_img_writable ? 0 : STA_PROTECT;
+}
+
+// Set while the SD routine is mid-access on target; nothing toggles it on host
+// (synchronous I/O, no reentrancy), but it is read app-wide.
 uint8_t currentlyAccessingCard = 0;
 
 DSTATUS disk_initialize(BYTE pdrv) {
-	(void)pdrv;
-	return STA_NODISK | STA_NOINIT;
+	if (pdrv != 0) {
+		return STA_NOINIT;
+	}
+	return host_sd_open();
 }
 
 DSTATUS disk_status(BYTE pdrv) {
-	(void)pdrv;
-	return STA_NODISK | STA_NOINIT;
+	if (pdrv != 0) {
+		return STA_NOINIT;
+	}
+	if (host_img_fd >= 0) {
+		return host_img_writable ? 0 : STA_PROTECT;
+	}
+	return host_sd_open();
 }
 
 DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void* buff) {
 	(void)pdrv;
-	(void)cmd;
-	(void)buff;
-	return RES_NOTRDY;
+	if (host_img_fd < 0) {
+		return RES_NOTRDY;
+	}
+	switch (cmd) {
+	case CTRL_SYNC:
+		fsync(host_img_fd);
+		return RES_OK;
+	case GET_SECTOR_COUNT:
+		*(LBA_t*)buff = host_img_sectors;
+		return RES_OK;
+	case GET_SECTOR_SIZE:
+		*(WORD*)buff = (WORD)HOST_SECTOR_SIZE;
+		return RES_OK;
+	case GET_BLOCK_SIZE:
+		*(DWORD*)buff = 1; // erase block size unknown / irrelevant for an image
+		return RES_OK;
+	default:
+		return RES_PARERR;
+	}
 }
 
 void disk_timerproc(UINT msPassed) {
 	(void)msPassed;
 }
 
-// App-side cluster-streaming wrappers (declared in audio_file_manager.cpp).
+// App-side cluster-streaming wrappers (declared in audio_file_manager.cpp). These
+// do the real sector I/O against the image; FatFS's disk_read/disk_write and the
+// sample streamer both funnel here.
 DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, DWORD sector, UINT count) {
 	(void)pdrv;
-	(void)buff;
-	(void)sector;
-	(void)count;
-	return RES_NOTRDY;
+	if (host_img_fd < 0) {
+		return RES_NOTRDY;
+	}
+	if ((uint64_t)sector + count > host_img_sectors) {
+		return RES_PARERR;
+	}
+	size_t total = (size_t)count * HOST_SECTOR_SIZE;
+	off_t base = (off_t)sector * HOST_SECTOR_SIZE;
+	size_t done = 0;
+	while (done < total) {
+		ssize_t n = pread(host_img_fd, buff + done, total - done, base + (off_t)done);
+		if (n <= 0) {
+			return RES_ERROR;
+		}
+		done += (size_t)n;
+	}
+	return RES_OK;
 }
 
 DRESULT disk_write_without_streaming_first(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count) {
 	(void)pdrv;
-	(void)buff;
-	(void)sector;
-	(void)count;
-	return RES_NOTRDY;
+	if (host_img_fd < 0) {
+		return RES_NOTRDY;
+	}
+	if (!host_img_writable) {
+		return RES_WRPRT;
+	}
+	if ((uint64_t)sector + count > host_img_sectors) {
+		return RES_PARERR;
+	}
+	size_t total = (size_t)count * HOST_SECTOR_SIZE;
+	off_t base = (off_t)sector * HOST_SECTOR_SIZE;
+	size_t done = 0;
+	while (done < total) {
+		ssize_t n = pwrite(host_img_fd, buff + done, total - done, base + (off_t)done);
+		if (n <= 0) {
+			return RES_ERROR;
+		}
+		done += (size_t)n;
+	}
+	return RES_OK;
 }
 
 // Fixed timestamp (2024-01-01 00:00:00) in FatFS packed form. No RTC on host.
