@@ -24,6 +24,9 @@
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
 #include <cstring>
+#if DELUGE_USE_RUST_ALLOC
+#include "storage/cluster/cluster.h" // sizeof(Cluster) + Cluster::size for the slab slot
+#endif
 
 namespace {
 // Under DELUGE_DETERMINISTIC_ALLOC (the off-target sim / golden builds only) every block is zeroed before it's
@@ -69,8 +72,42 @@ extern "C" bool gmaSdramReclaim(void* ctx, size_t bytesNeeded) {
 	if (victim == nullptr) {
 		return false;
 	}
-	deluge_free(deluge::memory::sdram_heap(), victim);
+	// Clusters live in the slab (release clears their table entry too); everything
+	// else (GrainBuffer, WaveTableBandData, ...) is a plain heap block.
+	gma->freeSdram(victim);
 	return true;
+}
+
+void* GeneralMemoryAllocator::acquireCluster(void* dontStealFromThing) {
+	if (clusterSlab_ == nullptr) {
+		// Lazily create on the first cluster alloc, when Cluster::size has been finalized
+		// to the session maximum (AudioFileManager reads the card before any cluster is
+		// made, and the firmware never raises cluster size after boot — see
+		// cardReinserted). Uniform slots of that size accommodate every cluster for the
+		// session; a smaller reinserted card simply under-fills its slots. Backing-only:
+		// the slab registers no reclaim hook, so gmaSdramReclaim (already registered) stays
+		// the SDRAM heap's hook and drives eviction via the CacheManager queues.
+		size_t slot = sizeof(Cluster) + Cluster::size;
+		size_t capacity = (deluge::memory::sdram_size() / slot) + 1; // table never the limiter
+		clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, capacity);
+		if (clusterSlab_ == nullptr) {
+			return nullptr;
+		}
+	}
+	currentDontStealFrom_ = dontStealFromThing;
+	void* p = deluge_slab_acquire(clusterSlab_, nullptr); // owner unused (no on_evict)
+	currentDontStealFrom_ = nullptr;
+	return p;
+}
+
+void GeneralMemoryAllocator::freeSdram(void* address) {
+	// A cluster pointer must be released through the slab so its table entry is cleared
+	// (a bare deluge_free would leave a dangling slot). deluge_slab_release returns false
+	// for non-slab pointers, so fall through to a direct heap free for those.
+	if (clusterSlab_ != nullptr && deluge_slab_release(clusterSlab_, address)) {
+		return;
+	}
+	deluge_free(deluge::memory::sdram_heap(), address);
 }
 #endif
 

@@ -47,6 +47,10 @@ DelugeHeap* sram_heap();
 /// SDRAM strangle wires it (and off without DELUGE_USE_RUST_ALLOC).
 DelugeHeap* sdram_heap();
 
+/// Byte span of the SDRAM region backing sdram_heap() (0 if not built / gate off).
+/// Used to size the cluster slab's table so it's never the limiting factor.
+std::size_t sdram_size();
+
 // Allocation helpers — the clean surface the typed C++ allocators (fast/sdram/
 // external_allocator) call, so they need neither GeneralMemoryAllocator::get()
 // nor libdeluge/alloc.h. The DELUGE_USE_RUST_ALLOC gate lives in heaps.cpp: ON →

@@ -86,6 +86,11 @@ DelugeHeap* sdram_heap() {
 	return g_sdram;
 }
 
+std::size_t sdram_size() {
+	init_heaps();
+	return static_cast<std::size_t>(g_sdram_hi - g_sdram_lo);
+}
+
 void* alloc_fast(std::size_t size, std::size_t align) {
 	init_heaps();
 	void* p = deluge_alloc(g_sram, size, align); // SRAM first

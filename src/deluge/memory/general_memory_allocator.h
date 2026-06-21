@@ -32,6 +32,7 @@ constexpr uint32_t RESERVED_EXTERNAL_ALLOCATOR = 0x00200000;       // 2 MiB
 constexpr uint32_t RESERVED_EXTERNAL_SMALL_ALLOCATOR = 0x00020000; // 200k
 constexpr uint32_t RESERVED_INTERNAL_SMALL = 0x00010000;           // 200k
 class Stealable;
+struct DelugeSlab; // libdeluge/alloc.h — opaque here; full C ABI included in the .cpp
 
 /*
  * ======================= MEMORY ALLOCATION ========================
@@ -108,6 +109,24 @@ public:
 	// hook (whose C ABI signature has no such parameter). Single-threaded, so a
 	// member set around each sdram alloc is sufficient.
 	void* currentDontStealFrom_{nullptr};
+
+	// Backing-only slab for the uniform Cluster blocks (slab-izing isolates the
+	// high-churn cluster traffic from mixed general SDRAM allocs so it can't
+	// fragment the unified pool). Eviction policy stays in cacheManager — the slab
+	// registers no reclaim hook; gmaSdramReclaim drives it. Created lazily on the
+	// first Cluster::create, when Cluster::size is finalized to the session maximum
+	// (the firmware never raises cluster size after boot). nullptr until then.
+	DelugeSlab* clusterSlab_{nullptr};
+
+	// Acquire a uniform Cluster-sized slot (creating the slab on first use), with
+	// `dontStealFromThing` protected from the reclaim hook during the allocation.
+	// Returns the slot payload (where the caller placement-news the Cluster), or
+	// nullptr on OOM. Defined in the .cpp (needs the alloc.h C ABI + Cluster size).
+	void* acquireCluster(void* dontStealFromThing);
+
+	// Free an SDRAM block: if it's a cluster slot, release it through the slab
+	// (clearing the table entry too); otherwise free it from the heap directly.
+	void freeSdram(void* address);
 
 	// The Rust heap owning `address`, or nullptr if it belongs to a MemoryRegion.
 	// Heaps are owned by deluge::memory (heaps.h), not the GMA; this only maps an

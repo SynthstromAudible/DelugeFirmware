@@ -40,7 +40,15 @@ void Cluster::setSize(size_t size) {
 
 Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontStealFromThing) {
 	audioFileManager.setCardRead(); // even if it hasn't been we're now commited to the cluster size
+#if DELUGE_USE_RUST_ALLOC
+	// Uniform Cluster blocks come from a backing-only slab (fragmentation isolation);
+	// their "stealable" nature is still their CacheManager queue membership, and the
+	// reclaim hook (gmaSdramReclaim) drives eviction. dontStealFromThing protects the
+	// in-flight cluster from that hook firing during this very allocation.
+	void* memory = GeneralMemoryAllocator::get().acquireCluster(dontStealFromThing);
+#else
 	void* memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Cluster) + Cluster::size, dontStealFromThing);
+#endif
 	if (memory == nullptr) {
 		return nullptr;
 	}
@@ -58,7 +66,13 @@ Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontSt
 
 void Cluster::destroy() {
 	this->~Cluster(); // Removes reasons, and / or from stealable list
+#if DELUGE_USE_RUST_ALLOC
+	// Release back to the slab so its table entry is cleared (a bare deluge_free /
+	// delugeDealloc would leave a dangling slot pointing at freed memory).
+	GeneralMemoryAllocator::get().freeSdram(this);
+#else
 	delugeDealloc(this);
+#endif
 }
 
 /**

@@ -66,6 +66,9 @@ private:
 	                  int32_t* postFXVolume, float timePerInternalTick);
 	StereoSample processOneGrainSample(StereoSample currentSample);
 	void getBuffer();
+	/// Free the grain buffer (if any), null the pointer, and reset write state. Owner-initiated release —
+	/// distinct from steal()/grainBufferStolen(), which only nulls because the CacheManager frees the block.
+	void releaseBuffer();
 	void setWrapsToShutdown();
 	void setupGrainsIfNeeded(int32_t writeIndex);
 	// parameters

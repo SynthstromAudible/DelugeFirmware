@@ -82,9 +82,18 @@ typedef struct DelugeSlab DelugeSlab;
 /// Stealable::steal() — the owner must drop its reference). May be NULL.
 typedef void (*DelugeEvictFn)(void* owner);
 
-/// Create a pool of `capacity` uniform `slot_size`-byte slots over `heap` and
-/// register it as the heap's reclaim hook. Returns NULL on OOM.
+/// Create a *managed* pool of `capacity` uniform `slot_size`-byte slots over `heap`
+/// and register it as the heap's reclaim hook (the pool self-evicts its coldest
+/// unpinned slot). Returns NULL on OOM.
 DelugeSlab* deluge_slab_create(DelugeHeap* heap, size_t slot_size, size_t capacity, DelugeEvictFn on_evict);
+
+/// Create a *backing-only* pool: uniform `slot_size`-byte slots over `heap`, but
+/// with eviction owned by an external coordinator. It registers no reclaim hook and
+/// never self-evicts — the heap's hook (registered by the caller) must free slots via
+/// deluge_slab_release. `capacity` must be >= the most slots that can fit in `heap`,
+/// so the table is never the limiting factor. Used for the cluster pool, whose
+/// eviction policy lives in the C++ CacheManager. Returns NULL on OOM.
+DelugeSlab* deluge_slab_create_unmanaged(DelugeHeap* heap, size_t slot_size, size_t capacity);
 
 /// Acquire a slot for `owner` (may evict a cold slot). Returns the slot payload,
 /// or NULL if exhausted and nothing is evictable.
@@ -98,8 +107,10 @@ void deluge_slab_unpin(DelugeSlab* slab, void* slot);
 /// Mark a slot most-recently-used (call on access so LRU reflects real usage).
 void deluge_slab_touch(DelugeSlab* slab, void* slot);
 
-/// Explicitly release a slot back to the heap (no eviction callback).
-void deluge_slab_release(DelugeSlab* slab, void* slot);
+/// Explicitly release a slot back to the heap (no eviction callback). Returns true
+/// if `slot` was one of this pool's slots (and was freed), false if not owned here —
+/// letting an external reclaim coordinator do "slab-release else heap-free".
+bool deluge_slab_release(DelugeSlab* slab, void* slot);
 
 #ifdef __cplusplus
 }

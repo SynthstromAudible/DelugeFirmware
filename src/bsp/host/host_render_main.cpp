@@ -210,7 +210,7 @@ void deluge_render_driver(void) {
 	stemExport.exportMixdown = (mode == StemExportType::MIXDOWN);
 	stemExport.startStemExportProcess(mode); // runs the whole export synchronously
 
-	const char* folder = stemExport.lastFolderNameForStemExport.get();
+	const char* folder = stemExport.lastFolderNameForStemExport.c_str();
 	fprintf(stderr, "[render] export complete; stems at image:/%s\n", (folder && folder[0]) ? folder : "(none)");
 	if (out_dir != nullptr && out_dir[0] != '\0' && folder != nullptr && folder[0] != '\0') {
 		copy_stems_out(folder, out_dir);
