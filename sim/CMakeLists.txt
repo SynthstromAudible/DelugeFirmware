@@ -182,36 +182,37 @@ add_subdirectory(${REPO_ROOT}/src/fatfs      ${CMAKE_BINARY_DIR}/fatfs)      # f
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 
-# --- Rust allocator core -----------------------------------------------------
-# Build crates/deluge_alloc as a host staticlib matching the sim's word size and
-# link it into the sim executables. The deluge_app allocator (heaps + the
-# GeneralMemoryAllocator coordinator) is unconditionally backed by it now — the
-# legacy C++ MemoryRegion path has been retired.
+# --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource) -
+# Build the umbrella as a host staticlib matching the sim's word size and link it
+# into the sim executables. The deluge_app allocator (heaps + the GMA coordinator)
+# is unconditionally backed by it; the legacy C++ MemoryRegion path has been retired.
 if(DELUGE_SIM_X64)
-    set(SIM_ALLOC_TARGET x86_64-unknown-linux-gnu)
+    set(SIM_RUST_TARGET x86_64-unknown-linux-gnu)
 else()
-    set(SIM_ALLOC_TARGET i686-unknown-linux-gnu) # matches the default -m32 sim
+    set(SIM_RUST_TARGET i686-unknown-linux-gnu) # matches the default -m32 sim
 endif()
-set(SIM_ALLOC_CRATE ${REPO_ROOT}/crates/deluge_alloc)
-set(SIM_ALLOC_LIB ${SIM_ALLOC_CRATE}/target/${SIM_ALLOC_TARGET}/release/libdeluge_alloc.a)
+set(SIM_RUST_WS ${REPO_ROOT}/crates)
+set(SIM_RUST_LIB ${SIM_RUST_WS}/target/${SIM_RUST_TARGET}/release/libdeluge_rust.a)
+file(GLOB_RECURSE SIM_RUST_SOURCES
+    ${SIM_RUST_WS}/deluge_alloc/src/*.rs
+    ${SIM_RUST_WS}/deluge_resource/src/*.rs
+    ${SIM_RUST_WS}/deluge_rust/src/*.rs)
 add_custom_command(
-    OUTPUT ${SIM_ALLOC_LIB}
-    COMMAND cargo build --release --target ${SIM_ALLOC_TARGET}
-    WORKING_DIRECTORY ${SIM_ALLOC_CRATE}
-    DEPENDS
-        ${SIM_ALLOC_CRATE}/src/lib.rs
-        ${SIM_ALLOC_CRATE}/src/tlsf.rs
-        ${SIM_ALLOC_CRATE}/src/slab.rs
-        ${SIM_ALLOC_CRATE}/Cargo.toml
-    COMMENT "Building Rust deluge_alloc staticlib (${SIM_ALLOC_TARGET})"
+    OUTPUT ${SIM_RUST_LIB}
+    COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET}
+    WORKING_DIRECTORY ${SIM_RUST_WS}
+    DEPENDS ${SIM_RUST_SOURCES}
+        ${SIM_RUST_WS}/Cargo.toml ${SIM_RUST_WS}/deluge_alloc/Cargo.toml
+        ${SIM_RUST_WS}/deluge_resource/Cargo.toml ${SIM_RUST_WS}/deluge_rust/Cargo.toml
+    COMMENT "Building Rust deluge_rust staticlib (${SIM_RUST_TARGET})"
     VERBATIM
 )
-add_custom_target(sim_deluge_alloc_build DEPENDS ${SIM_ALLOC_LIB})
-add_library(deluge_alloc_sim STATIC IMPORTED GLOBAL)
-set_target_properties(deluge_alloc_sim PROPERTIES IMPORTED_LOCATION ${SIM_ALLOC_LIB})
-add_dependencies(deluge_alloc_sim sim_deluge_alloc_build)
+add_custom_target(sim_deluge_rust_build DEPENDS ${SIM_RUST_LIB})
+add_library(deluge_rust_sim STATIC IMPORTED GLOBAL)
+set_target_properties(deluge_rust_sim PROPERTIES IMPORTED_LOCATION ${SIM_RUST_LIB})
+add_dependencies(deluge_rust_sim sim_deluge_rust_build)
 # Libs the host Rust std staticlib references; linked into the sim executables below.
-set(SIM_ALLOC_LINK deluge_alloc_sim pthread dl m)
+set(SIM_ALLOC_LINK deluge_rust_sim pthread dl m)
 
 # The host executable: the portable app + the host BSP + the scheduler. deluge_app
 # is an OBJECT lib (its objects embed here); deluge_scheduler is STATIC (resolves

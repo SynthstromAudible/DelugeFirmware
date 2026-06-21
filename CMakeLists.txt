@@ -203,39 +203,44 @@ target_link_libraries(deluge PUBLIC
         deluge_midi       # MIDI protocol library (message + USB-MIDI event spec)
 )
 
-# --- Rust allocator core (Phase 4 "strangle": crates/deluge_alloc) ------------
-# Build the TLSF+slab core as an armv7a no_std staticlib and link it into the
-# device image via corrosion. Only for the cross build; the host-sim and unit
-# tests link their own (i686/x86_64) variants of the same crate. cpu/fpu/float-abi
-# are matched in crates/deluge_alloc/.cargo/config.toml; build-std uses the
-# nightly + rust-src pinned by crates/deluge_alloc/rust-toolchain.toml.
+# --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource) -
+# Build the umbrella as an armv7a no_std staticlib and link it into the device
+# image. Only for the cross build; the host-sim and unit tests link their own
+# (i686/x86_64) variant of the same workspace. cpu/fpu/float-abi are matched in
+# crates/.cargo/config.toml; build-std uses the nightly + rust-src pinned by
+# crates/rust-toolchain.toml. The umbrella owns the single panic handler and
+# re-exports the deluge_alloc + deluge_resource C ABIs.
 if (CMAKE_CROSSCOMPILING)
-    set(DELUGE_ALLOC_CRATE ${CMAKE_CURRENT_SOURCE_DIR}/crates/deluge_alloc)
-    set(DELUGE_ALLOC_TARGET armv7a-none-eabihf)
-    set(DELUGE_ALLOC_CARGO_LIB
-        ${DELUGE_ALLOC_CRATE}/target/${DELUGE_ALLOC_TARGET}/release/libdeluge_alloc.a)
+    set(DELUGE_RUST_WS ${CMAKE_CURRENT_SOURCE_DIR}/crates)
+    set(DELUGE_RUST_TARGET armv7a-none-eabihf)
+    set(DELUGE_RUST_CARGO_LIB
+        ${DELUGE_RUST_WS}/target/${DELUGE_RUST_TARGET}/release/libdeluge_rust.a)
     # Stage the staticlib into a per-config path so Ninja Multi-Config doesn't emit
-    # colliding rules for one shared output (the snag corrosion hit here). The
-    # release build is config-independent; cargo no-ops after the first config.
-    # nightly + rust-src + build-std come from crates/deluge_alloc/rust-toolchain.toml.
-    set(DELUGE_ALLOC_STAGED ${CMAKE_BINARY_DIR}/$<CONFIG>/libdeluge_alloc.a)
+    # colliding rules for one shared output. The release build is config-independent;
+    # cargo no-ops after the first config.
+    set(DELUGE_RUST_STAGED ${CMAKE_BINARY_DIR}/$<CONFIG>/libdeluge_rust.a)
+    file(GLOB_RECURSE DELUGE_RUST_SOURCES
+        ${DELUGE_RUST_WS}/deluge_alloc/src/*.rs
+        ${DELUGE_RUST_WS}/deluge_resource/src/*.rs
+        ${DELUGE_RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
-        OUTPUT ${DELUGE_ALLOC_STAGED}
-        COMMAND cargo build --release --target ${DELUGE_ALLOC_TARGET}
+        OUTPUT ${DELUGE_RUST_STAGED}
+        COMMAND cargo build -p deluge_rust --release --target ${DELUGE_RUST_TARGET}
                 -Z build-std=core -Z build-std-features=compiler-builtins-mem
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${DELUGE_ALLOC_CARGO_LIB} ${DELUGE_ALLOC_STAGED}
-        WORKING_DIRECTORY ${DELUGE_ALLOC_CRATE}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${DELUGE_RUST_CARGO_LIB} ${DELUGE_RUST_STAGED}
+        WORKING_DIRECTORY ${DELUGE_RUST_WS}
         DEPENDS
-            ${DELUGE_ALLOC_CRATE}/src/lib.rs
-            ${DELUGE_ALLOC_CRATE}/src/tlsf.rs
-            ${DELUGE_ALLOC_CRATE}/src/slab.rs
-            ${DELUGE_ALLOC_CRATE}/Cargo.toml
-        COMMENT "Building Rust deluge_alloc staticlib (${DELUGE_ALLOC_TARGET})"
+            ${DELUGE_RUST_SOURCES}
+            ${DELUGE_RUST_WS}/Cargo.toml
+            ${DELUGE_RUST_WS}/deluge_alloc/Cargo.toml
+            ${DELUGE_RUST_WS}/deluge_resource/Cargo.toml
+            ${DELUGE_RUST_WS}/deluge_rust/Cargo.toml
+        COMMENT "Building Rust deluge_rust staticlib (${DELUGE_RUST_TARGET})"
         VERBATIM
     )
-    add_custom_target(deluge_alloc_rs DEPENDS ${DELUGE_ALLOC_STAGED})
-    add_dependencies(deluge deluge_alloc_rs)
-    target_link_libraries(deluge PUBLIC ${DELUGE_ALLOC_STAGED})
+    add_custom_target(deluge_rust_rs DEPENDS ${DELUGE_RUST_STAGED})
+    add_dependencies(deluge deluge_rust_rs)
+    target_link_libraries(deluge PUBLIC ${DELUGE_RUST_STAGED})
 endif ()
 
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)

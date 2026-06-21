@@ -5,7 +5,7 @@
 #   cargo build-device          # debug
 #   cargo build-device --release
 [alias]
-build-device = "build --target armv7a-none-eabihf -Z build-std=core -Z build-std-features=compiler-builtins-mem"
+build-device = "build -p deluge_rust --target armv7a-none-eabihf -Z build-std=core -Z build-std-features=compiler-builtins-mem"
 
 # Match the firmware's codegen/ABI (scripts/cmake/CMakeToolchainDeluge.cmake:
 # -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard) so the staticlib links cleanly

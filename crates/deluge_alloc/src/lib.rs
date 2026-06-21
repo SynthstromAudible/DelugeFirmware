@@ -30,15 +30,9 @@ use tlsf::ALIGN;
 #[cfg(any(test, feature = "fuzzing"))]
 pub mod testing;
 
-// Bare-metal panic handler (device only); the host build uses std's.
-#[cfg(target_os = "none")]
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
-    extern "C" {
-        fn abort() -> !;
-    }
-    unsafe { abort() }
-}
+// No `#[panic_handler]` here: this is a library rlib, not the final artifact. The
+// `deluge_rust` umbrella staticlib that links into the firmware provides the one
+// panic handler for the whole dependency graph. (On the host, std provides it.)
 
 /// Opaque heap handle (a `Tlsf` control block living at the front of the arena).
 #[repr(C)]
@@ -224,11 +218,19 @@ mod tests {
         }
     }
 
+    // 16-aligned arena (Vec<u128>) — real BSP regions are page-aligned; miri tracks
+    // an allocation's declared alignment, so a Vec<u8> arena would (correctly) flag
+    // the TLSF's 16-aligned headers as misaligned. Keep the returned buffer alive.
+    fn aligned_arena(bytes: usize) -> (Vec<u128>, *mut DelugeHeap) {
+        let words = bytes / 16 + 1;
+        let mut buf = vec![0u128; words];
+        let h = unsafe { deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
+        (buf, h)
+    }
+
     #[test]
     fn basic_alignment_and_usable() {
-        let a_bytes = 1 << 20;
-        let mut buf = vec![0u8; a_bytes];
-        let h = unsafe { deluge_heap_create(buf.as_mut_ptr(), a_bytes) };
+        let (buf, h) = aligned_arena(1 << 20);
         assert!(!h.is_null());
         for s in [1usize, 7, 16, 100, 513, 4096, 30000] {
             let p = unsafe { deluge_alloc(h, s, 16) };
@@ -242,9 +244,7 @@ mod tests {
 
     #[test]
     fn over_aligned_requests() {
-        let a_bytes = 1 << 20;
-        let mut buf = vec![0u8; a_bytes];
-        let h = unsafe { deluge_heap_create(buf.as_mut_ptr(), a_bytes) };
+        let (buf, h) = aligned_arena(1 << 20);
         for &align in &[32usize, 64, 128, 256, 1024, 4096] {
             let p = unsafe { deluge_alloc(h, 1000, align) };
             assert!(!p.is_null(), "alloc align {align} failed");
@@ -256,9 +256,7 @@ mod tests {
 
     #[test]
     fn realloc_shrinks_in_place() {
-        let bytes = 1 << 20;
-        let mut buf = vec![0u8; bytes];
-        let h = unsafe { deluge_heap_create(buf.as_mut_ptr(), bytes) };
+        let (buf, h) = aligned_arena(1 << 20);
         unsafe {
             let p = deluge_alloc(h, 4000, 16);
             for i in 0..4000 {
@@ -286,9 +284,7 @@ mod tests {
     #[test]
     fn global_alloc_routes_to_heap() {
         use core::alloc::{GlobalAlloc, Layout};
-        let bytes = 1 << 20;
-        let mut buf = vec![0u8; bytes];
-        let h = unsafe { deluge_heap_create(buf.as_mut_ptr(), bytes) };
+        let (buf, h) = aligned_arena(1 << 20);
         let ga = DelugeGlobalAlloc::new();
         ga.init(h);
         unsafe {

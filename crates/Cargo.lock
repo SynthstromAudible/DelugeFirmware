@@ -43,6 +43,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "deluge_resource"
+version = "0.1.0"
+dependencies = [
+ "deluge_alloc",
+ "proptest",
+]
+
+[[package]]
+name = "deluge_rust"
+version = "0.1.0"
+dependencies = [
+ "deluge_alloc",
+ "deluge_resource",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

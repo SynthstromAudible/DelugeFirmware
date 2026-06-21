@@ -33,9 +33,15 @@ const BLOCK_PREV_FREE: usize = 1 << 1;
 const FLAG_MASK: usize = BLOCK_FREE | BLOCK_PREV_FREE;
 const SIZE_MASK: usize = !FLAG_MASK;
 
-/// Per-block boundary tag. Padded to 16 bytes so payloads (which start
-/// immediately after) are 16-aligned on every arch. The free-list links live in
-/// the payload itself and are only valid while the block is free.
+/// Per-block boundary tag — *exactly* `HEADER_SIZE` (16) bytes. Padded to 16 so
+/// payloads (which start immediately after) are 16-aligned on every arch. The
+/// doubly-linked free-list links are NOT struct fields: while a block is free they
+/// live in the first two words of its *payload* (see `link_next`/`link_prev`). This
+/// matters for soundness — keeping the struct at 16 bytes means a `&BlockHeader` (or
+/// any `&self`/`&mut self` method) never spans more than the 16 bytes actually
+/// reserved for a header, so forming one for the end sentinel (which has only a
+/// header, no payload) stays in-bounds. (A 32-byte struct made the sentinel's
+/// reference run past the arena — UB, caught by miri.)
 #[repr(C, align(16))]
 struct BlockHeader {
     /// Physical-predecessor block; valid only when this block's PREV_FREE is set.
@@ -43,9 +49,6 @@ struct BlockHeader {
     /// Payload size in bytes (multiple of ALIGN) in the high bits; low 2 bits are
     /// the BLOCK_FREE / BLOCK_PREV_FREE flags.
     size_and_flags: usize,
-    // While free, the payload's first two words are these links:
-    next_free: *mut BlockHeader,
-    prev_free: *mut BlockHeader,
 }
 
 const HEADER_SIZE: usize = 16; // align(16) padding guarantees this on 32- and 64-bit.
@@ -107,6 +110,27 @@ unsafe fn block_of(payload: *mut u8) -> *mut BlockHeader {
 #[inline]
 unsafe fn next_phys(block: *mut BlockHeader) -> *mut BlockHeader {
     (payload_of(block)).add((*block).size()) as *mut BlockHeader
+}
+
+// Doubly-linked free-list links, stored in the payload of a *free* block (which is
+// always >= MIN_BLOCK_SIZE = two pointers). Kept out of `BlockHeader` so the struct
+// stays exactly HEADER_SIZE; only ever touched on free blocks, so the payload bytes
+// they occupy are always in-bounds.
+#[inline]
+unsafe fn link_next(block: *mut BlockHeader) -> *mut BlockHeader {
+    (payload_of(block) as *mut *mut BlockHeader).read()
+}
+#[inline]
+unsafe fn set_link_next(block: *mut BlockHeader, v: *mut BlockHeader) {
+    (payload_of(block) as *mut *mut BlockHeader).write(v);
+}
+#[inline]
+unsafe fn link_prev(block: *mut BlockHeader) -> *mut BlockHeader {
+    (payload_of(block) as *mut *mut BlockHeader).add(1).read()
+}
+#[inline]
+unsafe fn set_link_prev(block: *mut BlockHeader, v: *mut BlockHeader) {
+    (payload_of(block) as *mut *mut BlockHeader).add(1).write(v);
 }
 
 /// (first-level, second-level) index for a block of `size`, rounded *down*
@@ -183,10 +207,10 @@ impl Tlsf {
     unsafe fn insert_free_block(&mut self, block: *mut BlockHeader) {
         let (fl, sl) = mapping_insert((*block).size());
         let head = self.blocks[fl][sl];
-        (*block).next_free = head;
-        (*block).prev_free = Self::null();
+        set_link_next(block, head);
+        set_link_prev(block, Self::null());
         if !head.is_null() {
-            (*head).prev_free = block;
+            set_link_prev(head, block);
         }
         self.blocks[fl][sl] = block;
         self.fl_bitmap |= 1u32 << fl;
@@ -195,13 +219,13 @@ impl Tlsf {
 
     unsafe fn remove_free_block(&mut self, block: *mut BlockHeader) {
         let (fl, sl) = mapping_insert((*block).size());
-        let prev = (*block).prev_free;
-        let next = (*block).next_free;
+        let prev = link_prev(block);
+        let next = link_next(block);
         if !next.is_null() {
-            (*next).prev_free = prev;
+            set_link_prev(next, prev);
         }
         if !prev.is_null() {
-            (*prev).next_free = next;
+            set_link_next(prev, next);
         }
         if self.blocks[fl][sl] == block {
             self.blocks[fl][sl] = next;

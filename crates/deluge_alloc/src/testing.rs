@@ -37,7 +37,7 @@ struct Live {
 /// A heap over an owned arena plus a model of what's live, validating invariants
 /// after every operation. Any violation returns `Err(reason)`.
 pub struct Harness {
-    arena: Vec<u8>,
+    arena: Vec<u128>, // 16-aligned arena (real BSP regions are page-aligned; see lib.rs aligned_arena)
     h: *mut DelugeHeap,
     slots: Vec<Option<Live>>,
     counter: u8,
@@ -45,8 +45,9 @@ pub struct Harness {
 
 impl Harness {
     pub fn new(arena_bytes: usize, num_slots: usize) -> Self {
-        let mut arena = vec![0u8; arena_bytes];
-        let h = unsafe { deluge_heap_create(arena.as_mut_ptr(), arena_bytes) };
+        let words = arena_bytes / 16 + 1;
+        let mut arena = vec![0u128; words];
+        let h = unsafe { deluge_heap_create(arena.as_mut_ptr() as *mut u8, words * 16) };
         assert!(!h.is_null(), "heap_create failed for {arena_bytes} bytes");
         let mut slots = Vec::with_capacity(num_slots);
         slots.resize_with(num_slots, || None);
@@ -279,7 +280,7 @@ struct General {
 pub struct SlabModel {
     // Owns the backing memory for the heap's lifetime (read only via lo/hi).
     #[allow(dead_code)]
-    arena: Vec<u8>,
+    arena: Vec<u128>, // 16-aligned arena (real BSP regions are page-aligned; see lib.rs aligned_arena)
     heap: *mut DelugeHeap,
     slab: *mut DelugeSlab,
     slot_size: usize,
@@ -293,10 +294,11 @@ pub struct SlabModel {
 
 impl SlabModel {
     pub fn new(arena_bytes: usize, slot_size: usize, capacity: usize) -> Self {
-        let mut arena = vec![0u8; arena_bytes];
+        let words = arena_bytes / 16 + 1;
+        let mut arena = vec![0u128; words];
         let lo = arena.as_ptr() as usize;
-        let hi = lo + arena_bytes;
-        let heap = unsafe { deluge_heap_create(arena.as_mut_ptr(), arena_bytes) };
+        let hi = lo + words * 16;
+        let heap = unsafe { deluge_heap_create(arena.as_mut_ptr() as *mut u8, words * 16) };
         assert!(!heap.is_null());
         EVICTED.with(|e| e.borrow_mut().clear());
         let slab = unsafe { deluge_slab_create(heap, slot_size, capacity, Some(on_evict)) };
