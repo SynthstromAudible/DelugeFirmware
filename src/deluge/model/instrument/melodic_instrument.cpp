@@ -562,7 +562,11 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity) {
 
 	notesAuditioned.erase(note);
-	earlyNotes[note].still_active = false; // set no longer active
+	// if this note was recorded as an early note, then set no longer active
+	if (earlyNotes.contains(note)) {
+		earlyNotes[note].still_active = false;
+	}
+
 	if (!activeClip) {
 		return;
 	}
