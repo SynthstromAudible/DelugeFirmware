@@ -17,10 +17,12 @@
 
 #pragma once
 
+#include <utility>
+
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_playback_guide.h"
 #include "storage/audio/audio_file_holder.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -32,6 +34,27 @@ class Cluster;
 class SampleHolder : public AudioFileHolder {
 public:
 	SampleHolder();
+
+	SampleHolder(SampleHolder&& other) noexcept
+	    : AudioFileHolder(std::move(other)), startPos(other.startPos), endPos(other.endPos),
+	      waveformViewScroll(other.waveformViewScroll), waveformViewZoom(other.waveformViewZoom),
+	      neutralPhaseIncrement(other.neutralPhaseIncrement) {
+		for (size_t i = 0; i < kNumClustersLoadedAhead; i++) {
+			clustersForStart[i] = std::exchange(other.clustersForStart[i], nullptr);
+		}
+	}
+	SampleHolder& operator=(SampleHolder&& other) noexcept {
+		AudioFileHolder::operator=(std::move(other));
+		startPos = other.startPos;
+		endPos = other.endPos;
+		waveformViewScroll = other.waveformViewScroll;
+		waveformViewZoom = other.waveformViewZoom;
+		neutralPhaseIncrement = other.neutralPhaseIncrement;
+		for (size_t i = 0; i < kNumClustersLoadedAhead; i++) {
+			clustersForStart[i] = std::exchange(other.clustersForStart[i], nullptr);
+		}
+		return *this;
+	}
 	~SampleHolder() override;
 	void unassignAllClusterReasons(bool beingDestructed = false) override;
 	int64_t getEndPos(bool forTimeStretching = false);

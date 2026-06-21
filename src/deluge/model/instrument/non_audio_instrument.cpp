@@ -144,19 +144,19 @@ void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newVal
 
 	// If for note, we can search right to it.
 	if (whichCharacteristic == MIDICharacteristic::NOTE) {
-		n = arpeggiator.notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
-		if (n < arpeggiator.notes.getNumElements()) {
+		n = searchArpNotes(arpeggiator.notes, channelOrNoteNumber);
+		if (n < static_cast<int32_t>(arpeggiator.notes.size())) {
 			nEnd = 0;
 			goto lookAtArpNote;
 		}
 		return;
 	}
 
-	nEnd = arpeggiator.notes.getNumElements();
+	nEnd = static_cast<int32_t>(arpeggiator.notes.size());
 
 	for (n = 0; n < nEnd; n++) {
 lookAtArpNote:
-		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+		ArpNote* arpNote = &arpeggiator.notes[n];
 		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 
 			// Update the MPE value in the ArpNote. If arpeggiating, it'll get read from there the next time there's a

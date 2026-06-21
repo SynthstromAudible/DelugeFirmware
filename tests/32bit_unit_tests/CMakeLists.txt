@@ -81,44 +81,7 @@ target_compile_options(MemoryManagerTests PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
 )
 
-#
-# Build tests for all the code that assumes 32-bit pointers.
-#
-add_executable(SmallPointerTests
-        RunAllTests.cpp
-        container/open_addressing_hash_table.cpp
-)
-
-add_test(NAME SmallPointerTests COMMAND SmallPointerTests)
-target_sources(SmallPointerTests PRIVATE
-        ${deluge_SOURCES}
-        ${mock_SOURCES}
-        ./mock_memory_manager.cpp)
-target_include_directories(SmallPointerTests PRIVATE
-        # include the non test project source
-        mocks
-        ../../src/deluge
-        ../../src/OSLikeStuff # libdeluge/scheduler.h forwards to scheduler_api.h here
-        ../../src/NE10/inc
-        ../../src/lib
-        ../../src
-        ../../include    # libdeluge/* boundary headers
-        ../../src/bsp/rza1 # relocated drivers/* headers
-)
-
-set_target_properties(SmallPointerTests
-        PROPERTIES
-        C_STANDARD 23
-        C_STANDARD_REQUIRED ON
-        CXX_STANDARD 23
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS ON
-        LINK_FLAGS -m32
-)
-
-target_link_libraries(SmallPointerTests CppUTest CppUTestExt)
-
-# strchr is seemingly different in x86
-target_compile_options(SmallPointerTests PUBLIC
-        $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
-)
+# The SmallPointerTests target (tests for code assuming 32-bit pointers) was
+# removed when its only suite, the OpenAddressingHashTable tests, went away
+# with the container itself. Reinstate it from git history if new 32-bit-only
+# container tests are needed.

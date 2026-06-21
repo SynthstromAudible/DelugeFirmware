@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 class DrumName {
 public:
 	DrumName(std::string_view newName);
 	virtual ~DrumName();
 
-	String name;
+	std::string name;
 	DrumName* next;
 };

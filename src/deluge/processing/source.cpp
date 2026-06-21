@@ -30,6 +30,7 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/functions.h"
 #include <cstring>
+#include <iterator>
 
 Source::Source() {
 
@@ -47,17 +48,6 @@ Source::Source() {
 }
 
 Source::~Source() {
-	destructAllMultiRanges();
-}
-
-// Destructs the actual MultiRanges, but doesn't actually deallocate the memory, aka calling empty() on the Array - the
-// caller must do this.
-void Source::destructAllMultiRanges() {
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
-		AudioEngine::logAction("destructAllMultiRanges()");
-		AudioEngine::routineWithClusterLoading();
-		ranges.getElement(e)->~MultiRange();
-	}
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
@@ -94,7 +84,7 @@ bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 }
 
 void Source::detachAllAudioFiles() {
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		if (!(e & 7)) { // 7 works, 15 occasionally drops voices - for multisampled synths
 			AudioEngine::routineWithClusterLoading();
 		}
@@ -103,7 +93,7 @@ void Source::detachAllAudioFiles() {
 }
 
 Error Source::loadAllSamples(bool mayActuallyReadFiles) {
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
 		if (!(e & 3)) { // 3 works, 7 occasionally drops voices - for multisampled synths
 			AudioEngine::routineWithClusterLoading();
@@ -121,7 +111,7 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 // Only to be called if already determined that oscType == OscType::SAMPLE
 void Source::setReversed(bool newReversed) {
 	sampleControls.reversed = newReversed;
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
 		Sample* sample = (Sample*)holder->audioFile;
@@ -135,15 +125,15 @@ void Source::setReversed(bool newReversed) {
 }
 
 MultiRange* Source::getRange(int32_t note) {
-	if (ranges.getNumElements() == 1) {
+	if (std::ssize(ranges) == 1) {
 		return ranges.getElement(0);
 	}
-	else if (ranges.getNumElements() == 0) {
+	else if (ranges.empty()) {
 		return nullptr;
 	}
 	else {
-		defaultRangeI = ranges.search(note, GREATER_OR_EQUAL);
-		if (defaultRangeI == ranges.getNumElements()) {
+		defaultRangeI = ranges.firstAtOrAfter(note);
+		if (defaultRangeI == std::ssize(ranges)) {
 			defaultRangeI--;
 		}
 		return ranges.getElement(defaultRangeI);
@@ -151,12 +141,12 @@ MultiRange* Source::getRange(int32_t note) {
 }
 
 int32_t Source::getRangeIndex(int32_t note) {
-	if (ranges.getNumElements() <= 1) {
+	if (std::ssize(ranges) <= 1) {
 		return 0;
 	}
 	else {
-		int32_t e = ranges.search(note, GREATER_OR_EQUAL);
-		if (e == ranges.getNumElements()) {
+		int32_t e = ranges.firstAtOrAfter(note);
+		if (e == std::ssize(ranges)) {
 			e--;
 		}
 		return e;
@@ -164,7 +154,7 @@ int32_t Source::getRangeIndex(int32_t note) {
 }
 
 MultiRange* Source::getOrCreateFirstRange() {
-	if (!ranges.getNumElements()) {
+	if (ranges.empty()) {
 		MultiRange* newRange = ranges.insertMultiRange(
 		    0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up
 		        // before oscType is switched over to SAMPLE - but this can't happen for WAVETABLE so that's ok
@@ -182,7 +172,7 @@ MultiRange* Source::getOrCreateFirstRange() {
 }
 
 bool Source::hasAtLeastOneAudioFileLoaded() {
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		if (ranges.getElement(e)->getAudioFileHolder()->audioFile) {
 			return true;
 		}
@@ -204,7 +194,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 	bool isActualSampleOscillator = (synthMode != SynthMode::FM && oscType == OscType::SAMPLE);
 
 	if (oscType == OscType::SAMPLE) {
-		for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+		for (int32_t e = 0; e < std::ssize(ranges); e++) {
 			MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
 			if (isActualSampleOscillator) {
 				range->sampleHolder.transpose += transpose;
@@ -228,7 +218,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
 bool Source::hasAnyLoopEndPoint() {
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
 		if (range->sampleHolder.loopEndPos) {
 			return true;
@@ -250,21 +240,12 @@ void Source::setOscType(OscType newType) {
 	if (newType == OscType::SAMPLE) {
 		multiRangeSize = sizeof(MultisampleRange);
 possiblyDeleteRanges:
-		if (ranges.elementSize != multiRangeSize) {
-
-			/*
-			if (ranges.anyRangeHasAudioFile()) {
-
-			}
-
-			destructAllMultiRanges();
-			*/
+		if (ranges.currentElementSize() != multiRangeSize) {
 
 doChangeType:
 			Error error = ranges.changeType(multiRangeSize);
 			if (error != Error::NONE) {
-				destructAllMultiRanges();
-				ranges.empty();
+				ranges.clear();
 				soundEditor.currentMultiRangeIndex = 0;
 				goto doChangeType; // Can't fail now it's empty.
 			}
@@ -274,10 +255,8 @@ doChangeType:
 			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
 			                         // something, we're screwed.
 
-			if (soundEditor.currentMultiRangeIndex >= 0
-			    && soundEditor.currentMultiRangeIndex < ranges.getNumElements()) {
-				soundEditor.currentMultiRange =
-				    (MultiRange*)ranges.getElementAddress(soundEditor.currentMultiRangeIndex);
+			if (soundEditor.currentMultiRangeIndex >= 0 && soundEditor.currentMultiRangeIndex < std::ssize(ranges)) {
+				soundEditor.currentMultiRange = ranges.getElement(soundEditor.currentMultiRangeIndex);
 			}
 		}
 	}
@@ -300,7 +279,7 @@ DxPatch* Source::ensureDxPatch() {
 };
 
 /*
-    for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+    for (int32_t e = 0; e < std::ssize(ranges); e++) {
         ranges.getElement(e)->
     }
 

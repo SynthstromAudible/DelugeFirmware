@@ -73,40 +73,35 @@ ArpeggiatorForDrum::ArpeggiatorForDrum() {
 	active_note.velocity = 0;
 }
 
-Arpeggiator::Arpeggiator()
-    : notes(sizeof(ArpNote), 16, 0, 8, 8), notesAsPlayed(sizeof(ArpJustNoteCode), 8, 8),
-      notesByPattern(sizeof(ArpJustNoteCode), 8, 8) {
-	notes.emptyingShouldFreeMemory = false;
-	notesAsPlayed.emptyingShouldFreeMemory = false;
-	notesByPattern.emptyingShouldFreeMemory = false;
+Arpeggiator::Arpeggiator() {
 }
 
 void ArpeggiatorForKit::removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_t drumIndex) {
-	int32_t n = notes.search(drumIndex, GREATER_OR_EQUAL);
-	int32_t numNotes = notes.getNumElements();
+	int32_t n = searchArpNotes(notes, drumIndex);
+	int32_t numNotes = static_cast<int32_t>(notes.size());
 	if (n < numNotes) {
 		// Delete drumIndex from notes array
-		notes.deleteAtIndex(n);
-		numNotes = notesAsPlayed.getNumElements();
+		notes.erase(notes.begin() + n);
+		numNotes = static_cast<int32_t>(notesAsPlayed.size());
 		int32_t nAsPlayed = 0;
 		for (int32_t i = 0; i < numNotes; i++) {
-			ArpJustNoteCode* arpAsPlayedNote = (ArpJustNoteCode*)notesAsPlayed.getElementAddress(i);
+			ArpJustNoteCode* arpAsPlayedNote = &notesAsPlayed[i];
 			if (arpAsPlayedNote->noteCode == drumIndex) {
 				nAsPlayed = i;
-				notesAsPlayed.deleteAtIndex(i);
+				notesAsPlayed.erase(notesAsPlayed.begin() + i);
 				break;
 			}
 		}
 		// Now shift all the arpeggiator drumIndexes by 1
-		numNotes = notes.getNumElements();
+		numNotes = static_cast<int32_t>(notes.size());
 		for (int32_t i = n; i < numNotes; i++) {
-			ArpNote* arpNote = (ArpNote*)notes.getElementAddress(i);
+			ArpNote* arpNote = &notes[i];
 			arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] =
 			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] - 1;
 		}
-		numNotes = notesAsPlayed.getNumElements();
+		numNotes = static_cast<int32_t>(notesAsPlayed.size());
 		for (int32_t i = 0; i < numNotes; i++) {
-			ArpJustNoteCode* arpAsPlayedNote = (ArpJustNoteCode*)notesAsPlayed.getElementAddress(i);
+			ArpJustNoteCode* arpAsPlayedNote = &notesAsPlayed[i];
 			if (arpAsPlayedNote->noteCode > drumIndex) {
 				arpAsPlayedNote->noteCode = arpAsPlayedNote->noteCode - 1;
 			}
@@ -117,9 +112,9 @@ void ArpeggiatorForKit::removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_
 }
 
 void Arpeggiator::reset() {
-	notes.empty();
-	notesAsPlayed.empty();
-	notesByPattern.empty();
+	notes.clear();
+	notesAsPlayed.clear();
+	notesByPattern.clear();
 }
 
 // Surely this shouldn't be quite necessary?
@@ -263,9 +258,9 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 
 	ArpNote* arp_note = nullptr;
 
-	int32_t notes_key = notes.search(noteCode, GREATER_OR_EQUAL);
-	if (notes_key < notes.getNumElements()) [[unlikely]] {
-		arp_note = (ArpNote*)notes.getElementAddress(notes_key);
+	int32_t notes_key = searchArpNotes(notes, noteCode);
+	if (notes_key < static_cast<int32_t>(notes.size())) [[unlikely]] {
+		arp_note = &notes[notes_key];
 		if (arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode) {
 			note_exists = true;
 		}
@@ -284,12 +279,12 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// ORDERED NOTES
 
 		// Insert it in notes array
-		Error error = notes.insertAtIndex(notes_key);
-		if (error != Error::NONE) {
+		try {
+			notes.insert(notes.begin() + notes_key, ArpNote{});
+		} catch (deluge::exception&) {
 			return;
 		}
-		// Save arpNote
-		arp_note = static_cast<ArpNote*>(notes.getElementAddress(notes_key));
+		arp_note = &notes[notes_key];
 		arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
 		arp_note->baseVelocity = originalVelocity;
 		arp_note->velocity = originalVelocity;
@@ -307,16 +302,12 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 
 		// "PLAYED ORDER" NOTES
 
-		// Insert it in notesAsPlayed array
-		int32_t notes_as_played_index = notesAsPlayed.getNumElements();
-		error = notesAsPlayed.insertAtIndex(notes_as_played_index); // always insert at the end or the array
-		if (error != Error::NONE) {
+		// Insert it at the end of the notesAsPlayed array
+		try {
+			notesAsPlayed.push_back(ArpJustNoteCode{static_cast<int16_t>(noteCode)});
+		} catch (deluge::exception&) {
 			return;
 		}
-		// Save arpNote
-		auto* arp_as_played_note =
-		    static_cast<ArpJustNoteCode*>(notesAsPlayed.getElementAddress(notes_as_played_index));
-		arp_as_played_note->noteCode = noteCode;
 
 		// "PATTERN" NOTES
 
@@ -331,7 +322,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
 
 		// If this was the first note-on and we want to sound a note right now...
-		if (notes.getNumElements() == 1) {
+		if (static_cast<int32_t>(notes.size()) == 1) {
 			playedFirstArpeggiatedNoteYet = false;
 			gateCurrentlyActive = false;
 
@@ -376,10 +367,10 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 }
 
 void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) {
-	int32_t notesKey = notes.search(noteCodePreArp, GREATER_OR_EQUAL);
-	if (notesKey < notes.getNumElements()) {
+	int32_t notesKey = searchArpNotes(notes, noteCodePreArp);
+	if (notesKey < static_cast<int32_t>(notes.size())) {
 
-		ArpNote* arpNote = (ArpNote*)notes.getElementAddress(notesKey);
+		ArpNote* arpNote = &notes[notesKey];
 		if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCodePreArp) {
 			bool arpOff = (settings == nullptr) || settings->mode == ArpMode::OFF;
 			// If no arpeggiation...
@@ -419,21 +410,21 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 					}
 				}
 			}
-			notes.deleteAtIndex(notesKey);
+			notes.erase(notes.begin() + notesKey);
 
 			// We must also search and delete from notesAsPlayed
-			int numNotes = notesAsPlayed.getNumElements();
+			int numNotes = static_cast<int32_t>(notesAsPlayed.size());
 			for (int32_t i = 0; i < numNotes; i++) {
-				ArpJustNoteCode* arpAsPlayedNote = (ArpJustNoteCode*)notesAsPlayed.getElementAddress(i);
+				ArpJustNoteCode* arpAsPlayedNote = &notesAsPlayed[i];
 				if (arpAsPlayedNote->noteCode == noteCodePreArp) {
-					notesAsPlayed.deleteAtIndex(i);
+					notesAsPlayed.erase(notesAsPlayed.begin() + i);
 					if (arpOff && i == numNotes - 1 && i > 0) {
 						// if we're not arpeggiating then pass the second last note back - cv instruments will snap back
 						// to it (like playing a normal mono synth)
-						ArpJustNoteCode* lastArpAsPlayedNote = (ArpJustNoteCode*)notesAsPlayed.getElementAddress(i - 1);
-						int32_t newNotesKey = notes.search(lastArpAsPlayedNote->noteCode, GREATER_OR_EQUAL);
-						if (newNotesKey < notes.getNumElements()) [[likely]] {
-							ArpNote* lastArpNote = (ArpNote*)notes.getElementAddress(newNotesKey);
+						ArpJustNoteCode* lastArpAsPlayedNote = &notesAsPlayed[i - 1];
+						int32_t newNotesKey = searchArpNotes(notes, lastArpAsPlayedNote->noteCode);
+						if (newNotesKey < static_cast<int32_t>(notes.size())) [[likely]] {
+							ArpNote* lastArpNote = &notes[newNotesKey];
 							lastArpNote->noteCodeOnPostArp[0] =
 							    lastArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 							for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
@@ -466,7 +457,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 		}
 	}
 
-	if (notes.getNumElements() == 0) {
+	if (static_cast<int32_t>(notes.size()) == 0) {
 		// Playback was stopped, or, at least, all notes have been released
 		// so we can reset the ratchet temp values and the rhythm temp values
 		resetBase();
@@ -477,9 +468,8 @@ bool Arpeggiator::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnIns
 	if ((settings != nullptr) && settings->mode == ArpMode::OFF) {
 		// if off make sure there aren't any notes waiting to start
 		if (anyPending) {
-			for (int i = 0; i < notes.getNumElements(); i++) {
-				if (auto* arp_note = static_cast<ArpNote*>(notes.getElementAddress(i));
-				    arp_note->noteStatus[0] == ArpNoteStatus::PENDING) {
+			for (int i = 0; i < static_cast<int32_t>(notes.size()); i++) {
+				if (auto* arp_note = &notes[i]; arp_note->noteStatus[0] == ArpNoteStatus::PENDING) {
 					if (arp_note->noteCodeOnPostArp[0] == ARP_NOTE_NONE) {
 						arp_note->noteStatus[0] = ArpNoteStatus::OFF;
 					}
@@ -1227,22 +1217,19 @@ void ArpeggiatorBase::setInitialNoteAndOctave(ArpeggiatorSettings* settings, uin
 
 void Arpeggiator::rearrangePatterntArpNotes(ArpeggiatorSettings* settings) {
 	// Wipe the array
-	notesByPattern.empty();
+	notesByPattern.clear();
 	// Add again the note codes in the order dictated by the pattern
-	Error error;
 	uint32_t notesByPatternIndex;
-	int32_t numNotes = notes.getNumElements();
+	uint32_t numNotes = notes.size();
 	for (uint32_t i = 0; i < numNotes; i++) {
 		notesByPatternIndex = std::min((uint32_t)settings->notePattern[std::min(i, PATTERN_MAX_BUFFER_SIZE - 1)], i);
 		// insert at the position in the array indicated by the pattern
-		error = notesByPattern.insertAtIndex(notesByPatternIndex);
-		if (error != Error::NONE) {
+		ArpJustNoteCode justNoteCode{notes[i].inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)]};
+		try {
+			notesByPattern.insert(notesByPattern.begin() + notesByPatternIndex, justNoteCode);
+		} catch (deluge::exception&) {
 			continue;
 		}
-		// Save arpNote
-		ArpNote* arpNote = (ArpNote*)notes.getElementAddress(i);
-		ArpJustNoteCode* arpByPatternNote = (ArpJustNoteCode*)notesByPattern.getElementAddress(notesByPatternIndex);
-		arpByPatternNote->noteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 	}
 }
 void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) {
@@ -1259,52 +1246,51 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	bool shouldPlayChordNote;
 
 	// Execute all the step calculations
-	uint8_t numActiveNotes = (uint8_t)notes.getNumElements();
+	uint8_t numActiveNotes = (uint8_t)static_cast<int32_t>(notes.size());
 	executeArpStep(settings, numActiveNotes, isRatchet, maxSequenceLength, rhythm, &shouldCarryOnRhythmNote,
 	               &shouldPlayNote, &shouldPlayBassNote, &shouldPlayRandomStep, &shouldPlayReverseNote,
 	               &shouldPlayChordNote);
 
 	// Clamp the index to real range
-	whichNoteCurrentlyOnPostArp = std::clamp<int16_t>(whichNoteCurrentlyOnPostArp, 0, notes.getNumElements() - 1);
+	whichNoteCurrentlyOnPostArp =
+	    std::clamp<int16_t>(whichNoteCurrentlyOnPostArp, 0, static_cast<int32_t>(notes.size()) - 1);
 
 	ArpNote* arpNote;
 	if (shouldPlayBassNote) {
 		// Bass note
-		arpNote = (ArpNote*)notes.getElementAddress(0);
+		arpNote = &notes[0];
 	}
 	else if (shouldPlayRandomStep) {
 		// Random step
-		arpNote = (ArpNote*)notes.getElementAddress(getRandom255() % numActiveNotes);
+		arpNote = &notes[getRandom255() % numActiveNotes];
 	}
 	else if (settings->noteMode == ArpNoteMode::AS_PLAYED) {
 		// As played
-		ArpJustNoteCode* arpAsPlayedNote =
-		    (ArpJustNoteCode*)notesAsPlayed.getElementAddress(whichNoteCurrentlyOnPostArp);
-		int32_t notesKey = notes.search(arpAsPlayedNote->noteCode, GREATER_OR_EQUAL);
-		if (notesKey < notes.getNumElements()) [[likely]] {
-			arpNote = (ArpNote*)notes.getElementAddress(notesKey);
+		ArpJustNoteCode* arpAsPlayedNote = &notesAsPlayed[whichNoteCurrentlyOnPostArp];
+		int32_t notesKey = searchArpNotes(notes, arpAsPlayedNote->noteCode);
+		if (notesKey < static_cast<int32_t>(notes.size())) [[likely]] {
+			arpNote = &notes[notesKey];
 		}
 		else {
 			// Very unlikely, but just in case
-			arpNote = (ArpNote*)notes.getElementAddress(0);
+			arpNote = &notes[0];
 		}
 	}
 	else if (settings->noteMode == ArpNoteMode::PATTERN) {
 		// Defined-pattern step
-		ArpJustNoteCode* arpByPatternNote =
-		    (ArpJustNoteCode*)notesByPattern.getElementAddress(whichNoteCurrentlyOnPostArp);
-		int32_t notesKey = notes.search(arpByPatternNote->noteCode, GREATER_OR_EQUAL);
-		if (notesKey < notes.getNumElements()) [[likely]] {
-			arpNote = (ArpNote*)notes.getElementAddress(notesKey);
+		ArpJustNoteCode* arpByPatternNote = &notesByPattern[whichNoteCurrentlyOnPostArp];
+		int32_t notesKey = searchArpNotes(notes, arpByPatternNote->noteCode);
+		if (notesKey < static_cast<int32_t>(notes.size())) [[likely]] {
+			arpNote = &notes[notesKey];
 		}
 		else {
 			// Very unlikely, but just in case
-			arpNote = (ArpNote*)notes.getElementAddress(0);
+			arpNote = &notes[0];
 		}
 	}
 	else {
 		// Normal pattern step
-		arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
+		arpNote = &notes[whichNoteCurrentlyOnPostArp];
 	}
 	if (shouldCarryOnRhythmNote && shouldPlayNote) {
 		// Set Gate as active
@@ -1426,7 +1412,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 }
 
 bool Arpeggiator::hasAnyInputNotesActive() {
-	return notes.getNumElements();
+	return static_cast<int32_t>(notes.size());
 }
 
 bool ArpeggiatorForDrum::hasAnyInputNotesActive() {

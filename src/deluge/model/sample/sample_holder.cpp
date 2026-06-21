@@ -53,7 +53,7 @@ SampleHolder::~SampleHolder() {
 }
 
 void SampleHolder::beenClonedFrom(SampleHolder const* other, bool reversed) {
-	filePath.set(&other->filePath);
+	filePath = other->filePath;
 	if (other->audioFile) {
 		setAudioFile(other->audioFile, reversed);
 	}
@@ -116,8 +116,8 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 
 	if (audioFile) {
 
-		if (manuallySelected && ((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
-			sampleBrowser.lastFilePathLoaded.set(&filePath);
+		if (manuallySelected && ((Sample*)audioFile)->tempFilePathForRecording.empty()) {
+			sampleBrowser.lastFilePathLoaded = filePath;
 		}
 
 		uint32_t lengthInSamples = ((Sample*)audioFile)->lengthInSamples;
@@ -215,7 +215,7 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		}
 		*/
 
-		SampleCluster* sampleCluster = ((Sample*)audioFile)->clusters.getElement(clusterIndex);
+		SampleCluster* sampleCluster = &((Sample*)audioFile)->clusters[clusterIndex];
 
 		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
 

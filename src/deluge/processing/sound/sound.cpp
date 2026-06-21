@@ -64,6 +64,7 @@
 #include <algorithm>
 #include <array>
 #include <bits/ranges_algo.h>
+#include <iterator>
 #include <limits>
 #include <ranges>
 
@@ -664,7 +665,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			return Error::INSUFFICIENT_RAM;
 		}
 
-		range->getAudioFileHolder()->filePath.set(reader.readTagOrAttributeValue());
+		range->getAudioFileHolder()->filePath = reader.readTagOrAttributeValue();
 		sources[0].oscType = OscType::SAMPLE;
 		paramManager->getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
 		    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 0));
@@ -1735,9 +1736,9 @@ void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t e
 			// This is a sound instrument (synth)
 			Arpeggiator* arpeggiator = (Arpeggiator*)getArp();
 			// Search for the note
-			int32_t i = arpeggiator->notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
-			if (i < arpeggiator->notes.getNumElements()) {
-				ArpNote* arpNote = (ArpNote*)arpeggiator->notes.getElementAddress(i);
+			int32_t i = searchArpNotes(arpeggiator->notes, channelOrNoteNumber);
+			if (i < static_cast<int32_t>(arpeggiator->notes.size())) {
+				ArpNote* arpNote = &arpeggiator->notes[i];
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (arpNote->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
@@ -1871,8 +1872,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 				// might not be active anymore, cos we were keeping track of them for MPE purposes.
 				Arpeggiator* arpeggiator = &((SoundInstrument*)this)->arpeggiator;
 				if (arpeggiator->hasAnyInputNotesActive()) {
-					ArpNote* arpNote =
-					    (ArpNote*)arpeggiator->notes.getElementAddress(arpeggiator->notes.getNumElements() - 1);
+					ArpNote* arpNote = &arpeggiator->notes.back();
 					int32_t newNoteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 
 					if (polyphonic == PolyphonyMode::LEGATO) {
@@ -2836,29 +2836,19 @@ bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t
 void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 
 	// We gotta do this for any backedUpParamManagers too!
-	int32_t i = song->backedUpParamManagers.search((uint32_t)(ModControllableAudio*)this,
-	                                               GREATER_OR_EQUAL); // Search by first word only.
-
-	while (true) {
-		if (i >= song->backedUpParamManagers.getNumElements()) {
-			break;
-		}
-		BackedUpParamManager* backedUp = (BackedUpParamManager*)song->backedUpParamManagers.getElementAddress(i);
-		if (backedUp->modControllable != this) {
-			break;
-		}
-
-		if (backedUp->clip) {
+	for (auto it = song->backedUpParamManagers.lower_bound(
+	         {static_cast<ModControllableAudio*>(this), static_cast<Clip*>(nullptr)});
+	     it != song->backedUpParamManagers.end() && it->first.first == this; ++it) {
+		Clip* clip = it->first.second;
+		if (clip) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, this, backedUp->clip,
-			                                                   &backedUp->paramManager);
+			    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, this, clip, &it->second);
 			ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
 		}
 		else {
-			ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&backedUp->paramManager);
+			ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&it->second);
 		}
-		i++;
 	}
 
 	song->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this); // What does this do exactly, again?
@@ -3401,7 +3391,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				return Error::INSUFFICIENT_RAM;
 			}
 
-			reader.readTagOrAttributeValueString(&range->getAudioFileHolder()->filePath);
+			reader.readTagOrAttributeValueString(range->getAudioFileHolder()->filePath);
 
 			reader.exitTag("fileName");
 		}
@@ -3467,22 +3457,18 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				if (!strcmp(tagName, "sampleRange") || !strcmp(tagName, "wavetableRange")) {
 					// is a sampleRange or wavetableRange
 
-					char tempMemory[source->ranges.elementSize];
-
-					MultiRange* tempRange;
-					if (source->oscType == OscType::WAVETABLE) {
-						tempRange = new (tempMemory) MultiWaveTableRange();
-					}
-					else {
-						tempRange = new (tempMemory) MultisampleRange();
-					}
+					MultiRangeArray::RangeVariant tempVariant =
+					    (source->oscType == OscType::WAVETABLE)
+					        ? MultiRangeArray::RangeVariant(std::in_place_type<MultiWaveTableRange>)
+					        : MultiRangeArray::RangeVariant(std::in_place_type<MultisampleRange>);
+					MultiRange* tempRange = MultiRangeArray::variantToRange(tempVariant);
 
 					AudioFileHolder* holder = tempRange->getAudioFileHolder();
 					reader.match('{');
 					while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 						if (!strcmp(tagName, "fileName")) {
-							reader.readTagOrAttributeValueString(&holder->filePath);
+							reader.readTagOrAttributeValueString(holder->filePath);
 							reader.exitTag("fileName");
 						}
 						else if (!strcmp(tagName, "rangeTopNote")) {
@@ -3536,27 +3522,17 @@ justExitTag:
 						}
 					}
 
-					int32_t i = source->ranges.search(tempRange->topNote, GREATER_OR_EQUAL);
-					Error error;
+					int32_t i = source->ranges.firstAtOrAfter(tempRange->topNote);
 
 					// Ensure no duplicate topNote.
-					if (i < source->ranges.getNumElements()) {
-						MultisampleRange* existingRange = (MultisampleRange*)source->ranges.getElementAddress(i);
-						if (existingRange->topNote == tempRange->topNote) {
-							error = Error::FILE_CORRUPTED;
-							goto gotError;
-						}
+					if (i < std::ssize(source->ranges) && source->ranges.getElement(i)->topNote == tempRange->topNote) {
+						return Error::FILE_CORRUPTED;
 					}
 
-					error = source->ranges.insertAtIndex(i);
+					Error error = source->ranges.insertVariant(i, std::move(tempVariant));
 					if (error != Error::NONE) {
-gotError:
-						tempRange->~MultiRange();
 						return error;
 					}
-
-					void* destinationRange = (MultisampleRange*)source->ranges.getElementAddress(i);
-					memcpy(destinationRange, tempRange, source->ranges.elementSize);
 					reader.match('}');          // exit value object
 					reader.exitTag(NULL, true); // exit box.
 				}
@@ -3598,7 +3574,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			writer.writeAttribute("linearInterpolation", 1);
 		}
 
-		int32_t numRanges = source->ranges.getNumElements();
+		int32_t numRanges = std::ssize(source->ranges);
 
 		if (numRanges > 1) {
 			writer.writeOpeningTagEnd();
@@ -3617,8 +3593,8 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			}
 
 			writer.writeAttribute("fileName", range->sampleHolder.audioFile
-			                                      ? range->sampleHolder.audioFile->filePath.get()
-			                                      : range->sampleHolder.filePath.get());
+			                                      ? range->sampleHolder.audioFile->filePath.c_str()
+			                                      : range->sampleHolder.filePath.c_str());
 			if (range->sampleHolder.transpose) {
 				writer.writeAttribute("transpose", range->sampleHolder.transpose);
 			}
@@ -3666,7 +3642,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		// Sub-option for (multi)wavetable
 		if (source->oscType == OscType::WAVETABLE && synthMode != SynthMode::FM) {
 
-			int32_t numRanges = source->ranges.getNumElements();
+			int32_t numRanges = std::ssize(source->ranges);
 
 			if (numRanges > 1) {
 				writer.writeOpeningTagEnd();
@@ -3685,8 +3661,8 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 				}
 
 				writer.writeAttribute("fileName", range->sampleHolder.audioFile
-				                                      ? range->sampleHolder.audioFile->filePath.get()
-				                                      : range->sampleHolder.filePath.get());
+				                                      ? range->sampleHolder.audioFile->filePath.c_str()
+				                                      : range->sampleHolder.filePath.c_str());
 
 				if (numRanges > 1) {
 					writer.closeTag(true);
@@ -4739,8 +4715,7 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	// during memory allocation
 	killAllVoices();
 	AudioEngine::audioRoutineLocked = true;
-	sources[s].ranges.getElement(r)->~MultiRange();
-	sources[s].ranges.deleteAtIndex(r);
+	sources[s].ranges.erase(sources[s].ranges.begin() + r); // Destructs the range
 	AudioEngine::audioRoutineLocked = false;
 }
 
@@ -4782,7 +4757,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 		if (source->oscType == OscType::SAMPLE) { // Just SAMPLE, because WAVETABLEs can't be stereo.
 
-			int32_t numRanges = source->ranges.getNumElements();
+			int32_t numRanges = std::ssize(source->ranges);
 
 			// If multiple ranges, we have to come back and examine Voices to see which are in use
 			if (numRanges > 1) {

@@ -90,8 +90,8 @@ public:
 		image.drawString("rec", start_x + circle_radius * 2 + 5, start_y, kTextSpacingX, kTextSpacingY);
 
 		// Draw the source number
-		DEF_STACK_STRING_BUF(buf, kShortStringBufferSize);
-		buf.appendInt(source_id_ + 1);
+		etl::string<kShortStringBufferSize> buf;
+		deluge::string::appendInt(buf, source_id_ + 1);
 		uint8_t source_x = slot.start_x + slot.width - kTextBigSpacingX - 7;
 		uint8_t source_y = slot.start_y + kHorizontalMenuSlotYOffset + 4;
 

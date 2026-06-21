@@ -34,7 +34,7 @@ public:
 	}
 	[[nodiscard]] virtual std::string_view getTitle() const { return getName(); }
 
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		label.append(
 		    modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK, true));
 	}

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/views/automation/editor_layout.h"
+#include "util/etl_string.h"
 
 // namespace deluge::gui::views::automation::editor_layout {
 
@@ -74,7 +75,7 @@ public:
 	                                             int32_t xDisplay = kNoSelection, bool modEncoderAction = false);
 
 private:
-	void getAutomationParameterName(Clip* clip, OutputType outputType, StringBuf& parameterName);
+	void getAutomationParameterName(Clip* clip, OutputType outputType, etl::istring& parameterName);
 
 public:
 	// Mod Encoder Action

@@ -91,7 +91,7 @@ bool LoadPatternUI::opened() {
 	}
 
 	favouritesChanged();
-	currentDir.set(defaultDir.c_str());
+	currentDir = defaultDir.c_str();
 
 	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error != Error::NONE) {
@@ -155,21 +155,15 @@ Error LoadPatternUI::setupForLoadingPattern() {
 		fileIconPt2Width = 1;
 	}
 
-	String searchFilename;
+	std::string searchFilename;
 
-	Error error = currentDir.set(defaultDir.c_str());
-	if (error != Error::NONE) {
-		return error;
+	currentDir = defaultDir.c_str();
+
+	if (!searchFilename.empty()) {
+		searchFilename.append(".XML");
 	}
 
-	if (!searchFilename.isEmpty()) {
-		Error error = searchFilename.concatenate(".XML");
-		if (error != Error::NONE) {
-			return error;
-		}
-	}
-
-	error = arrivedInNewFolder(0, searchFilename.get(), defaultDir.c_str());
+	Error error = arrivedInNewFolder(0, searchFilename.c_str(), defaultDir.c_str());
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -197,7 +191,7 @@ void LoadPatternUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
 
-		Error error = goIntoFolder(currentFileItem->filename.get());
+		Error error = goIntoFolder(currentFileItem->filename.c_str());
 
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -242,7 +236,7 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	else {
 		if (on && b == BACK) {
 			// don't allow navigation backwards if we're in the default folder
-			if (!strcmp(currentDir.get(), defaultDir.c_str())) {
+			if (!strcmp(currentDir.c_str(), defaultDir.c_str())) {
 				// Undo all Changes made during Pattern Preview
 				if (actionLogger.firstAction[BEFORE]
 				    && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
@@ -287,11 +281,11 @@ Error LoadPatternUI::performLoad() {
 		actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	}
 
-	String fileName;
-	fileName.set(currentDir.get());
-	fileName.concatenate("/");
-	fileName.concatenate(enteredText.get());
-	fileName.concatenate(".XML");
+	std::string fileName;
+	fileName = currentDir.c_str();
+	fileName.append("/");
+	fileName.append(enteredText.c_str());
+	fileName.append(".XML");
 
 	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExisting,
 	                                              noScaling, previewOnly, selectedDrumOnly);

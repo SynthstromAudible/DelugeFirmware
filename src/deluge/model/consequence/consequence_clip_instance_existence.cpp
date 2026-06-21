@@ -34,16 +34,16 @@ ConsequenceClipInstanceExistence::ConsequenceClipInstanceExistence(Output* newOu
 Error ConsequenceClipInstanceExistence::revert(TimeType time, ModelStack* modelStack) {
 
 	if (time == util::to_underlying(type)) { // (Re-)delete
-		int32_t i = output->clipInstances.search(pos, GREATER_OR_EQUAL);
-		if (i < 0 || i >= output->clipInstances.getNumElements()) {
+		int32_t i = output->clipInstances.firstAtOrAfter(pos);
+		if (i < 0 || i >= std::ssize(output->clipInstances)) {
 			return Error::BUG;
 		}
-		output->clipInstances.deleteAtIndex(i);
+		output->clipInstances.erase(output->clipInstances.begin() + i);
 	}
 
 	else { // (Re-)create
-		int32_t i = output->clipInstances.insertAtKey(pos);
-		ClipInstance* clipInstance = output->clipInstances.getElement(i);
+		int32_t i = output->clipInstances.insertSorted(pos).value_or(-1);
+		ClipInstance* clipInstance = output->clipInstances.tryGet(i);
 		if (!clipInstance) {
 			return Error::INSUFFICIENT_RAM;
 		}

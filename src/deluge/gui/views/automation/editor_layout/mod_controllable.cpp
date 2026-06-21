@@ -27,6 +27,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
+#include "util/etl_string.h"
 
 // namespace deluge::gui::views::automation::editor_layout {
 
@@ -252,7 +253,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
     deluge::hid::display::oled_canvas::Canvas& canvas, Clip* clip, OutputType outputType, int32_t knobPosLeft,
     int32_t knobPosRight) {
 	// display parameter name
-	DEF_STACK_STRING_BUF(parameterName, 30);
+	etl::string<30> parameterName;
 	getAutomationParameterName(clip, outputType, parameterName);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
@@ -382,7 +383,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Cl
 	}
 	// display parameter name
 	else if (knobPosLeft == kNoSelection) {
-		DEF_STACK_STRING_BUF(parameterName, 30);
+		etl::string<30> parameterName;
 		getAutomationParameterName(clip, outputType, parameterName);
 		// if playback is running and there is automation, the screen will display the
 		// current automation value at the playhead position
@@ -400,7 +401,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Cl
 
 // get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* clip, OutputType outputType,
-                                                                       StringBuf& parameterName) {
+                                                                       etl::istring& parameterName) {
 	if (getOnArrangerView() || outputType != OutputType::MIDI_OUT) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
@@ -472,7 +473,7 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			if (!appendedName) {
 				if (display->haveOLED()) {
 					parameterName.append("CC ");
-					parameterName.appendInt(clip->lastSelectedParamID);
+					deluge::string::appendInt(parameterName, clip->lastSelectedParamID);
 				}
 				else {
 					if (clip->lastSelectedParamID < 100) {
@@ -481,7 +482,7 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 					else {
 						parameterName.append("C");
 					}
-					parameterName.appendInt(clip->lastSelectedParamID);
+					deluge::string::appendInt(parameterName, clip->lastSelectedParamID);
 				}
 			}
 		}
@@ -953,21 +954,21 @@ int32_t AutomationEditorLayoutModControllable::getAutomationParameterKnobPos(Mod
 bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack,
                                                                            int32_t pos, bool reversed) {
 
-	if (!modelStack->autoParam->nodes.getNumElements()) {
+	if (modelStack->autoParam->nodes.empty()) {
 		return false;
 	}
 
-	int32_t rightI = modelStack->autoParam->nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
-	if (rightI >= modelStack->autoParam->nodes.getNumElements()) {
+	int32_t rightI = modelStack->autoParam->nodes.firstAtOrAfter(pos + (int32_t)!reversed);
+	if (rightI >= std::ssize(modelStack->autoParam->nodes)) {
 		rightI = 0;
 	}
-	ParamNode* rightNode = modelStack->autoParam->nodes.getElement(rightI);
+	ParamNode* rightNode = &modelStack->autoParam->nodes[rightI];
 
 	int32_t leftI = rightI - 1;
 	if (leftI < 0) {
-		leftI += modelStack->autoParam->nodes.getNumElements();
+		leftI += std::ssize(modelStack->autoParam->nodes);
 	}
-	ParamNode* leftNode = modelStack->autoParam->nodes.getElement(leftI);
+	ParamNode* leftNode = &modelStack->autoParam->nodes[leftI];
 
 	if (reversed) {
 		return leftNode->interpolated;

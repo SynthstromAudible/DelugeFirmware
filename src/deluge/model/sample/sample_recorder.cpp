@@ -68,11 +68,12 @@ void SampleRecorder::detachSample() {
 
 	// If we were holding onto the reasons for the first couple of Clusters, release them now
 	if (keepingReasonsForFirstClusters) {
-		int32_t numClustersToRemoveFor = std::min(kNumClustersLoadedAhead, sample->clusters.getNumElements());
+		int32_t numClustersToRemoveFor =
+		    std::min(kNumClustersLoadedAhead, static_cast<int32_t>(sample->clusters.size()));
 		numClustersToRemoveFor = std::min(numClustersToRemoveFor, firstUnwrittenClusterIndex);
 
 		for (int32_t l = 0; l < numClustersToRemoveFor; l++) {
-			Cluster* cluster = sample->clusters.getElement(l)->cluster;
+			Cluster* cluster = sample->clusters[l].cluster;
 
 			// Some bug-hunting
 			if (!cluster->numReasonsHeldBySampleRecorder) {
@@ -91,7 +92,7 @@ void SampleRecorder::detachSample() {
 	}
 
 	while (firstUnwrittenClusterIndex < removeForClustersUntilIndex) {
-		Cluster* cluster = sample->clusters.getElement(firstUnwrittenClusterIndex)->cluster;
+		Cluster* cluster = sample->clusters[firstUnwrittenClusterIndex].cluster;
 
 		if (!cluster) {
 			FREEZE_WITH_ERROR("E363");
@@ -135,8 +136,7 @@ gotError:
 		return error;
 	}
 
-	currentRecordCluster =
-	    sample->clusters.getElement(0)->getCluster(sample, 0, CLUSTER_DONT_LOAD); // Adds a "reason" to it, too
+	currentRecordCluster = sample->clusters[0].getCluster(sample, 0, CLUSTER_DONT_LOAD); // Adds a "reason" to it, too
 	if (!currentRecordCluster) {
 		error = Error::INSUFFICIENT_RAM;
 		goto gotError;
@@ -373,9 +373,9 @@ aborted:
 		}
 
 		// Delete the file if one was created
-		if (!filePathCreated.isEmpty()) {
+		if (!filePathCreated.empty()) {
 
-			FRESULT result = f_unlink(filePathCreated.get());
+			FRESULT result = f_unlink(filePathCreated.c_str());
 
 			// If this was the most recent recording in this category, tick the counter backwards - so long as
 			// either the delete was successful or it was for an AudioClip, which means the file is in the TEMP folder
@@ -408,7 +408,7 @@ aborted:
 	if (!hadCardError) {
 
 		// If file not created yet, do that
-		if (filePathCreated.isEmpty()) {
+		if (filePathCreated.empty()) {
 
 			error = StorageManager::initSD();
 			if (error != Error::NONE) {
@@ -421,8 +421,8 @@ aborted:
 				goto gotError;
 			}
 
-			String filePath;
-			String tempFilePathForRecording;
+			std::string filePath;
+			std::string tempFilePathForRecording;
 
 			// Note: we couldn't pass the actual Sample pointer into this function, cos the Sample might get destructed
 			// during the card access! (Though probably not anymore right?)
@@ -442,7 +442,7 @@ aborted:
 				}
 				else if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {
 					if (outputRecordingFrom) {
-						name = outputRecordingFrom->name.get();
+						name = outputRecordingFrom->name.c_str();
 					}
 				}
 				else {
@@ -461,16 +461,16 @@ aborted:
 			bool mayOverwrite = true;
 
 			// Now store our own copy of the actually (possibly temp) filename
-			if (!tempFilePathForRecording.isEmpty()) {
-				filePathCreated.set(&tempFilePathForRecording); // Can't fail!
+			if (!tempFilePathForRecording.empty()) {
+				filePathCreated = tempFilePathForRecording.c_str(); // Can't fail!
 			}
 			else {
-				filePathCreated.set(&filePath); // Can't fail!
+				filePathCreated = filePath.c_str(); // Can't fail!
 				mayOverwrite = false;
 			}
 
 			// Recording could finish or abort during this!
-			auto created = StorageManager::createFile(filePathCreated.get(), mayOverwrite);
+			auto created = StorageManager::createFile(filePathCreated.c_str(), mayOverwrite);
 			if (!created) {
 				filePathCreated.clear();
 				goto gotError;
@@ -484,11 +484,12 @@ aborted:
 			}
 
 			// Ok, the Sample still exists.
-			sample->filePath.set(&filePath);                                 // Can't fail!
-			sample->tempFilePathForRecording.set(&tempFilePathForRecording); // Can't fail!
+			sample->filePath = filePath;                                 // Can't fail!
+			sample->tempFilePathForRecording = tempFilePathForRecording; // Can't fail!
 
-			error = audioFileManager.audioFiles.insertElement(sample);
-			if (error != Error::NONE) {
+			auto inserted = audioFileManager.audioFiles.insertElement(sample);
+			if (!inserted) {
+				error = inserted.error();
 				goto gotError;
 			}
 
@@ -561,7 +562,7 @@ Error SampleRecorder::writeOneCompletedCluster() {
 
 #if ALPHA_OR_BETA_VERSION
 	// Trying to pin down E347 which Leo got, below
-	Cluster* cluster = sample->clusters.getElement(writingClusterIndex)->cluster;
+	Cluster* cluster = sample->clusters[writingClusterIndex].cluster;
 	if (!cluster->numReasonsHeldBySampleRecorder) {
 		FREEZE_WITH_ERROR("E374");
 	}
@@ -575,7 +576,7 @@ Error SampleRecorder::writeOneCompletedCluster() {
 
 	// We no longer have a reason to require this Cluster to be kept in memory
 	if (!keepingReasonsForFirstClusters || writingClusterIndex >= kNumClustersLoadedAhead) {
-		Cluster* cluster = sample->clusters.getElement(writingClusterIndex)->cluster;
+		Cluster* cluster = sample->clusters[writingClusterIndex].cluster;
 
 		// Some bug-hunting
 		if (!cluster->numReasonsHeldBySampleRecorder) {
@@ -741,7 +742,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 		    || (recordingExtraMargins && sample->fileLoopEndSamples != loopEndSampleAsWrittenToFile)) {
 
 			// Update data length as written in first cluster
-			SampleCluster* firstSampleCluster = sample->clusters.getElement(0);
+			SampleCluster* firstSampleCluster = &sample->clusters[0];
 			Cluster* cluster =
 			    firstSampleCluster->getCluster(sample, 0, CLUSTER_LOAD_IMMEDIATELY); // Remember, this adds a "reason"
 			if (cluster) {
@@ -784,8 +785,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 	    * (sample->byteDepth
 	       * sample->numChannels); // Ensure whole number of samples (surely it already would be though?)
 
-	if (sample->tempFilePathForRecording.isEmpty()) {
-		sampleBrowser.lastFilePathLoaded.set(&sample->filePath);
+	if (sample->tempFilePathForRecording.empty()) {
+		sampleBrowser.lastFilePathLoaded = sample->filePath;
 	}
 
 	return Error::NONE;
@@ -812,7 +813,7 @@ extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes) {
 	// D_PRINTLN("writeCluster");
 
-	SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
+	SampleCluster* sampleCluster = &sample->clusters[clusterIndex];
 
 	auto written = file->write({(std::byte*)sampleCluster->cluster->data, numBytes});
 	if (!written || numBytes != written.value()) {
@@ -821,7 +822,7 @@ Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes) {
 
 	// MUST re-get this - while writing above, the audio routine is being called, and that could
 	// allocate new SampleClusters and move them around!
-	sampleCluster = sample->clusters.getElement(clusterIndex);
+	sampleCluster = &sample->clusters[clusterIndex];
 
 	// Grab the SD address, for later
 	sampleCluster->sdAddress = clst2sect(&fileSystem, file->inner().clust);
@@ -856,13 +857,14 @@ Error SampleRecorder::createNextCluster() {
 	}
 
 	// We need to allocate our next Cluster
-	Error error = sample->clusters.insertSampleClustersAtEnd(1);
-	if (error != Error::NONE) {
-		return error;
+	try {
+		sample->clusters.resize(sample->clusters.size() + 1);
+	} catch (deluge::exception&) {
+		return Error::INSUFFICIENT_RAM;
 	}
 
-	currentRecordCluster = sample->clusters.getElement(currentRecordClusterIndex)
-	                           ->getCluster(sample, currentRecordClusterIndex, CLUSTER_DONT_LOAD);
+	currentRecordCluster =
+	    sample->clusters[currentRecordClusterIndex].getCluster(sample, currentRecordClusterIndex, CLUSTER_DONT_LOAD);
 
 	// If couldn't allocate cluster (would normally only happen if no SD card present so recording only to RAM)
 	if (!currentRecordCluster) {
@@ -1137,7 +1139,7 @@ void SampleRecorder::totalSampleLengthNowKnown(uint32_t totalLengthSamples, uint
 
 	// If we haven't written the first cluster yet, quick - update it with the actual length
 	if (firstUnwrittenClusterIndex == 0) {
-		SampleCluster* firstSampleCluster = sample->clusters.getElement(0);
+		SampleCluster* firstSampleCluster = &sample->clusters[0];
 		Cluster* cluster =
 		    firstSampleCluster->cluster; // It should still be there, cos it hasn't been written to card yet
 		if (ALPHA_OR_BETA_VERSION && !cluster) {
@@ -1165,7 +1167,7 @@ void SampleRecorder::setExtraBytesOnPreviousCluster(Cluster* currentCluster, int
 		return;
 	}
 
-	Cluster* prevCluster = sample->clusters.getElement(currentClusterIndex - 1)->cluster;
+	Cluster* prevCluster = sample->clusters[currentClusterIndex - 1].cluster;
 
 	// It might have since been deallocated, which is just fine. But if not...
 	if (prevCluster) {
@@ -1180,8 +1182,8 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 	int32_t currentReadClusterIndex = 0;
 	int32_t currentWriteClusterIndex = 0;
 
-	Cluster* currentReadCluster = sample->clusters.getElement(0)->getCluster(
-	    sample, 0, CLUSTER_LOAD_IMMEDIATELY); // Remember, this adds a "reason"
+	Cluster* currentReadCluster =
+	    sample->clusters[0].getCluster(sample, 0, CLUSTER_LOAD_IMMEDIATELY); // Remember, this adds a "reason"
 	if (!currentReadCluster) {
 		return Error::SD_CARD;
 	}
@@ -1190,15 +1192,15 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 	currentReadCluster->numReasonsHeldBySampleRecorder++;
 
 	int32_t numClustersBeforeAction = ((idealFileSizeBeforeAction - 1) >> Cluster::size_magnitude) + 1; // Rounds up
-	if (ALPHA_OR_BETA_VERSION && numClustersBeforeAction > sample->clusters.getNumElements()) {
+	if (ALPHA_OR_BETA_VERSION && numClustersBeforeAction > static_cast<int32_t>(sample->clusters.size())) {
 		FREEZE_WITH_ERROR("E286");
 	}
 
 	Cluster* nextReadCluster = nullptr;
 
 	if (numClustersBeforeAction >= 2) {
-		nextReadCluster = sample->clusters.getElement(1)->getCluster(
-		    sample, 1, CLUSTER_LOAD_IMMEDIATELY); // Remember, this adds a "reason"
+		nextReadCluster =
+		    sample->clusters[1].getCluster(sample, 1, CLUSTER_LOAD_IMMEDIATELY); // Remember, this adds a "reason"
 		if (!nextReadCluster) {
 
 			// Some bug-hunting
@@ -1216,7 +1218,7 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 	}
 
 	Cluster* currentWriteCluster =
-	    sample->clusters.getElement(0)->getCluster(sample, 0, CLUSTER_DONT_LOAD); // Remember, this adds a "reason"
+	    sample->clusters[0].getCluster(sample, 0, CLUSTER_DONT_LOAD); // Remember, this adds a "reason"
 	// That one can't fail, fortunately, cos we already grabbed Cluster 0 above, so it exists
 
 	// Bug hunting - newly gotten Cluster
@@ -1302,7 +1304,7 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 
 			currentWriteCluster->loaded = true; // I don't think this is necessary anymore
 
-			uint32_t sdAddress = sample->clusters.getElement(currentWriteClusterIndex)->sdAddress;
+			uint32_t sdAddress = sample->clusters[currentWriteClusterIndex].sdAddress;
 
 			// Do a last-ditch check that the SD address doesn't look invalid
 			if (sdAddress == 0) {
@@ -1365,9 +1367,8 @@ writeFailed:
 
 			// Get the new / next Cluster, but don't insist on actually reading from the card, cos we're gonna
 			// overwrite it with new data anyway
-			currentWriteCluster = sample->clusters.getElement(currentWriteClusterIndex)
-			                          ->getCluster(sample, currentWriteClusterIndex,
-			                                       CLUSTER_DONT_LOAD); // Remember, this adds a "reason"
+			currentWriteCluster = sample->clusters[currentWriteClusterIndex].getCluster(
+			    sample, currentWriteClusterIndex, CLUSTER_DONT_LOAD); // Remember, this adds a "reason"
 
 			// That could only fail if no RAM, but juuuust in case...
 			if (!currentWriteCluster) {
@@ -1414,9 +1415,8 @@ writeFailed:
 
 			// If there are further read Clusters...
 			if (currentReadClusterIndex < numClustersBeforeAction - 1) {
-				nextReadCluster = sample->clusters.getElement(currentReadClusterIndex + 1)
-				                      ->getCluster(sample, currentReadClusterIndex + 1,
-				                                   CLUSTER_LOAD_IMMEDIATELY); // Remember, this adds a "reason"
+				nextReadCluster = sample->clusters[currentReadClusterIndex + 1].getCluster(
+				    sample, currentReadClusterIndex + 1, CLUSTER_LOAD_IMMEDIATELY); // Remember, this adds a "reason"
 
 				// If that failed, remove other reasons and get out
 				if (!nextReadCluster) {
@@ -1476,7 +1476,7 @@ writeFailed:
 			FREEZE_WITH_ERROR("E239");
 		}
 
-		uint32_t sdAddress = sample->clusters.getElement(currentWriteClusterIndex)->sdAddress;
+		uint32_t sdAddress = sample->clusters[currentWriteClusterIndex].sdAddress;
 
 		// Do a last-ditch check that the SD address doesn't look invalid
 		if (sdAddress == 0) {
@@ -1504,7 +1504,7 @@ writeFailed:
 
 		if (action != MonitoringAction::NONE || capturedTooMuch) {
 
-			auto opened = this->file->open(sample->filePath.get(), FA_WRITE);
+			auto opened = this->file->open(sample->filePath.c_str(), FA_WRITE);
 
 			if (!opened) {
 				return Error::SD_CARD;
@@ -1544,12 +1544,8 @@ Error SampleRecorder::truncateFileDownToSize(uint32_t newFileSize) {
 
 	uint64_t numClustersAfterAction = ((newFileSize - 1) >> Cluster::size_magnitude) + 1;
 
-	int32_t numToDelete = sample->clusters.getNumElements() - numClustersAfterAction;
-	if (numToDelete > 0) {
-		for (int32_t i = numClustersAfterAction; i < sample->clusters.getNumElements(); i++) {
-			sample->clusters.getElement(i)->~SampleCluster();
-		}
-		sample->clusters.deleteAtIndex(numClustersAfterAction, numToDelete);
+	if (numClustersAfterAction < sample->clusters.size()) {
+		sample->clusters.erase(sample->clusters.begin() + numClustersAfterAction, sample->clusters.end());
 	}
 
 	// Truncate file size

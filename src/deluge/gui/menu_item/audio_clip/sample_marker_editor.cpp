@@ -62,9 +62,9 @@ void SampleMarkerEditor::renderInHorizontalMenu(const SlotPosition& slot) {
 	image.drawIcon(OLED::loopPointIcon, slot.start_x + 5, slot.start_y + kHorizontalMenuSlotYOffset, true);
 }
 
-void SampleMarkerEditor::getColumnLabel(StringBuf& label) {
+void SampleMarkerEditor::getColumnLabel(etl::istring& label) {
 	label.append(l10n::get(l10n::String::STRING_FOR_END_POINT));
-	label.truncate(3);
+	label.resize(3);
 }
 
 } // namespace deluge::gui::menu_item::audio_clip

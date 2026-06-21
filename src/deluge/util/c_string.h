@@ -1,5 +1,5 @@
 /*
- * Copyright © 2022-2023 Synthstrom Audible Limited
+ * Copyright © 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,16 +17,28 @@
 
 #pragma once
 
-#include "util/container/array/resizeable_array.h"
+#include "definitions_cxx.hpp"
+#include <cctype>
 #include <cstdint>
+#include <cstring>
+#include <string>
+#include <string_view>
 
-class CStringArray : public ResizeableArray {
-public:
-	CStringArray(int32_t newElementSize) : ResizeableArray(newElementSize) {}
-	void sortForStrings();
-	int32_t search(char const* searchString, bool* foundExact = nullptr);
+extern "C" {
+#include "util/cfunctions.h"
+}
 
-private:
-	int32_t partitionForStrings(int32_t low, int32_t high);
-	void quickSortForStrings(int32_t low, int32_t high);
-};
+[[gnu::always_inline]] static inline void intToString(int32_t number, char* buffer) {
+	intToString(number, buffer, 1);
+}
+
+bool memIsNumericChars(char const* mem, int32_t size);
+bool stringIsNumericChars(std::string_view str);
+
+void byteToHex(uint8_t number, char* buffer);
+uint8_t hexToByte(char const* firstChar);
+
+char halfByteToHexChar(uint8_t thisHalfByte);
+void intToHex(uint32_t number, char* output, int32_t numChars = 8);
+uint32_t hexToInt(char const* string);
+uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length);

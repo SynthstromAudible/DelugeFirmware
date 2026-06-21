@@ -25,7 +25,7 @@
 #include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 class InstrumentClip;
 class NoteRow;

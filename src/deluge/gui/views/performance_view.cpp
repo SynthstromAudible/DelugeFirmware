@@ -44,7 +44,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include "util/functions.h"
 
 extern "C" {}

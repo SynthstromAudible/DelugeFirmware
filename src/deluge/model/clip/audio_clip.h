@@ -26,7 +26,7 @@
 #include "model/sample/sample_playback_guide.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 class VoiceSample;
 class SampleRecorder;
@@ -101,7 +101,7 @@ public:
 
 	SamplePlaybackGuide guide;
 
-	String outputNameWhileLoading; // Only valid while loading
+	std::string outputNameWhileLoading; // Only valid while loading
 
 	WaveformRenderData renderData;
 	// TODO: For looping without monitoring we'll need a second recorder plus maybe a second sample player?

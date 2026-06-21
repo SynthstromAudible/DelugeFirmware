@@ -28,8 +28,9 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
+#include "util/c_string.h"
 #include "util/cfunctions.h"
-#include "util/d_string.h"
+#include "util/etl_string.h"
 #include <string.h>
 #include <string_view>
 
@@ -712,8 +713,8 @@ void OLED::removeWorkingAnimation() {
 }
 
 void OLED::displayNotification(std::string_view param_title, std::optional<std::string_view> param_value) {
-	DEF_STACK_STRING_BUF(titleBuf, 25);
-	titleBuf.append(param_title);
+	etl::string<25> titleBuf;
+	deluge::string::append(titleBuf, param_title);
 
 	constexpr uint8_t start_x = 0;
 	constexpr uint8_t end_x = OLED_MAIN_WIDTH_PIXELS - 1;
@@ -730,7 +731,7 @@ void OLED::displayNotification(std::string_view param_title, std::optional<std::
 	if (value_width > 0) {
 		// Truncate the title string until we have space to display the value
 		while (title_width + padding_left + value_width > OLED_MAIN_WIDTH_PIXELS - 7) {
-			titleBuf.truncate(titleBuf.size() - 1);
+			titleBuf.resize(titleBuf.size() - 1);
 			title_width = popup.getStringWidthInPixels(titleBuf.data(), kTextSpacingY);
 		}
 	}
@@ -878,7 +879,7 @@ struct SideScroller {
 	int32_t boxLengthPixels;
 	bool finished;
 	bool doHighlight;
-	String string_;
+	std::string string_;
 };
 
 #define NUM_SIDE_SCROLLERS 2
@@ -906,8 +907,8 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 		return;
 	}
 
-	scroller->string_.set(text.data(), static_cast<int32_t>(text.size()));
-	scroller->text = scroller->string_.get();
+	scroller->string_.assign(text.data(), static_cast<int32_t>(text.size()));
+	scroller->text = scroller->string_.c_str();
 	scroller->pos = 0;
 	scroller->startX = startX;
 	scroller->endX = endX;

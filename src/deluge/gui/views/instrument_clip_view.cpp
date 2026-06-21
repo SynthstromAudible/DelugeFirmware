@@ -90,6 +90,7 @@
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
+#include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/try.h"
@@ -598,13 +599,12 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 					int32_t noteRowIndex = yDisplay + clip->yScroll;
 
-					if (ALPHA_OR_BETA_VERSION
-					    && (noteRowIndex < 0 || noteRowIndex >= clip->noteRows.getNumElements())) {
+					if (ALPHA_OR_BETA_VERSION && (noteRowIndex < 0 || noteRowIndex >= std::ssize(clip->noteRows))) {
 						FREEZE_WITH_ERROR("E323");
 					}
 
 					if (clip->isActiveOnOutput()) {
-						NoteRow* noteRow = clip->noteRows.getElement(noteRowIndex);
+						NoteRow* noteRow = &clip->noteRows[noteRowIndex];
 						if (noteRow->drum) {
 							noteRow->drum->drumWontBeRenderedForAWhile();
 						}
@@ -620,14 +620,14 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 					// If NoteRow was bottom half of screen...
 					if (yDisplay < (kDisplayHeight >> 1)) {
-						if (!noteRowIndex || clip->noteRows.getNumElements() >= (kDisplayHeight >> 1)) {
+						if (!noteRowIndex || std::ssize(clip->noteRows) >= (kDisplayHeight >> 1)) {
 							clip->yScroll--;
 						}
 					}
 
 					// Or top half of screen...
 					else {
-						if (!noteRowIndex && clip->noteRows.getNumElements() < (kDisplayHeight >> 1)) {
+						if (!noteRowIndex && std::ssize(clip->noteRows) < (kDisplayHeight >> 1)) {
 							clip->yScroll--;
 						}
 					}
@@ -674,9 +674,9 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 				int32_t i;
-				for (i = clip->noteRows.getNumElements() - 1; i >= 0; i--) {
-					NoteRow* noteRow = clip->noteRows.getElement(i);
-					if (noteRow->hasNoNotes() && clip->noteRows.getNumElements() > 1) {
+				for (i = std::ssize(clip->noteRows) - 1; i >= 0; i--) {
+					NoteRow* noteRow = &clip->noteRows[i];
+					if (noteRow->hasNoNotes() && std::ssize(clip->noteRows) > 1) {
 						// If the row has not notes and is not the last one
 						clip->deleteNoteRow(modelStack, i);
 					}
@@ -1131,8 +1131,8 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	uint8_t isFilteredCopy = getNumNoteRowsAuditioning() > 0; // any note rows pesseed
 
-	for (int32_t i = 0; i < getCurrentInstrumentClip()->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = getCurrentInstrumentClip()->noteRows.getElement(i);
+	for (int32_t i = 0; i < std::ssize(getCurrentInstrumentClip()->noteRows); i++) {
+		NoteRow* thisNoteRow = &getCurrentInstrumentClip()->noteRows[i];
 		/* this is a little hacky, ideally we could get the yDisplay
 		   of thisNoteRow efficiently, but the one we calculate will have to do now
 
@@ -1162,8 +1162,8 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 		if (!thisNoteRow->hasNoNotes()) {
 
 			// And if any of them are in the right zone...
-			int32_t startI = thisNoteRow->notes.search(startPos, GREATER_OR_EQUAL);
-			int32_t endI = thisNoteRow->notes.search(endPos, GREATER_OR_EQUAL);
+			int32_t startI = thisNoteRow->notes.firstAtOrAfter(startPos);
+			int32_t endI = thisNoteRow->notes.firstAtOrAfter(endPos);
 
 			int32_t numNotes = endI - startI;
 
@@ -1212,7 +1212,7 @@ ramError:
 
 				// Fill in all the Notes' details
 				for (int32_t n = 0; n < numNotes; n++) {
-					Note* noteToCopy = thisNoteRow->notes.getElement(n + startI);
+					Note* noteToCopy = &thisNoteRow->notes[n + startI];
 					Note* newNote = &newCopiedNoteRow->notes[n];
 					newNote->pos = noteToCopy->pos - startPos;
 					newNote->length = std::min(noteToCopy->length,
@@ -1427,14 +1427,14 @@ ramError:
 			if (noteRowId < 0) {
 				continue;
 			}
-			if (noteRowId >= getCurrentInstrumentClip()->noteRows.getNumElements()) {
+			if (noteRowId >= std::ssize(getCurrentInstrumentClip()->noteRows)) {
 				break;
 			}
 			if (selectedDrumOnly) {
 				noteRowId = getCurrentKit()->getDrumIndex(getCurrentKit()->selectedDrum);
 			}
 
-			NoteRow* thisNoteRow = getCurrentInstrumentClip()->noteRows.getElement(noteRowId);
+			NoteRow* thisNoteRow = &getCurrentInstrumentClip()->noteRows[noteRowId];
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
 
@@ -1489,8 +1489,8 @@ getOut:
 	if (previewOnly) {
 		if (copiedScreenWidth / 16 != currentSong->xZoom[getNavSysId()]) {
 			char buffer[(display->haveOLED()) ? 29 : 5];
-			DEF_STACK_STRING_BUF(from, 30);
-			DEF_STACK_STRING_BUF(to, 30);
+			etl::string<30> from;
+			etl::string<30> to;
 			currentSong->getNoteLengthName(from, copiedScreenWidth / 16, "-notes", true);
 			currentSong->getNoteLengthName(to, currentSong->xZoom[getNavSysId()], "-notes", true);
 			if (display->haveOLED()) {
@@ -1537,7 +1537,7 @@ ramError:
 
 	int32_t pastedScreenWidth = endPos - startPos;
 	float scaleFactor = 0;
-	String patternVersion;
+	std::string patternVersion;
 
 	if (pastedScreenWidth == 0) {
 		return Error::NONE;
@@ -1548,8 +1548,8 @@ ramError:
 		if (!strcmp(tagName, "attributes")) {
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "patternVersion")) {
-					reader.readTagOrAttributeValueString(&patternVersion);
-					if (!patternVersion.equals(PATTERN_FILE_VERSION)) {
+					reader.readTagOrAttributeValueString(patternVersion);
+					if (!(patternVersion == PATTERN_FILE_VERSION)) {
 						display->displayError(Error::INVALID_PATTERN_VERSION);
 						return Error::INVALID_PATTERN_VERSION;
 					}
@@ -1717,7 +1717,7 @@ bool InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_d
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-			NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(0);
+			NoteRow* noteRow = &getCurrentInstrumentClip()->noteRows[0];
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, noteRow);
 
@@ -1989,7 +1989,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 		exitUIMode(UI_MODE_HOLDING_LOAD_BUTTON);
 	}
 
-	char chosenFilename[256] = "Nothing to randomize"; // not using "String" to avoid malloc etc. in hot loop
+	char chosenFilename[256] = "Nothing to randomize"; // not using "std::string" to avoid malloc etc. in hot loop
 
 	InstrumentClip* instrumentClip = getCurrentInstrumentClip();
 
@@ -1998,7 +1998,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 	int32_t nRows = 8;
 	int32_t rowsRandomized = 0;
 	if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {
-		nRows = instrumentClip->noteRows.getNumElements();
+		nRows = std::ssize(instrumentClip->noteRows);
 		randomizeAll = true;
 	}
 
@@ -2011,7 +2011,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 			if (randomizeAll || auditionPadIsPressed[i]) {
 				NoteRow* thisNoteRow;
 				if (randomizeAll) {
-					thisNoteRow = instrumentClip->noteRows.getElement(i);
+					thisNoteRow = &instrumentClip->noteRows[i];
 					if (thisNoteRow->muted || thisNoteRow->hasNoNotes()) {
 						continue;
 					}
@@ -2079,12 +2079,12 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 	if (afh == nullptr) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
-	char const* path = afh->filePath.get();
-	if (path == &nothing) {
+	if (afh->filePath.empty()) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
+	char const* path = afh->filePath.c_str();
 	// Deliberately mutated below (temporarily truncated at the slash, then restored) — the backing
-	// String buffer is mutable. const_cast is needed because glibc's strrchr is const-correct (returns
+	// std::string buffer is mutable. const_cast is needed because glibc's strrchr is const-correct (returns
 	// const char* for a const char* arg) whereas newlib's returns char*.
 	char* slashAddress = const_cast<char*>(strrchr(path, '/'));
 	if (slashAddress == nullptr) {
@@ -2120,10 +2120,10 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 		afh->setAudioFile(nullptr);
 		// set the slash to 0 again
 		*slashAddress = 0;
-		afh->filePath.set(path);
+		afh->filePath = path;
 
-		afh->filePath.concatenate("/");
-		afh->filePath.concatenate(chosenFilename);
+		afh->filePath.append("/");
+		afh->filePath.append(chosenFilename);
 		afh->loadFile(false, true, true, 1, nullptr, false);
 
 		char* dot = strrchr(chosenFilename, '.');
@@ -2336,8 +2336,8 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 				// If multiple notes, pick the last one
 				if (editPadPresses[i].isBlurredSquare) {
-					int32_t noteI = noteRow->notes.search(squareStart + squareWidth, LESS);
-					Note* note = noteRow->notes.getElement(noteI);
+					int32_t noteI = noteRow->notes.firstAtOrAfter(squareStart + squareWidth) - 1;
+					Note* note = noteRow->notes.tryGet(noteI);
 					if (note) {
 						oldLength = note->getLength();
 						noteStartPos = note->pos;
@@ -2773,8 +2773,8 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 				uint32_t velocitySumThisSquare = 0;
 				uint32_t numNotesThisSquare = 0;
 
-				int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-				Note* note = noteRow->notes.getElement(noteI);
+				int32_t noteI = noteRow->notes.firstAtOrAfter(editPadPresses[i].intendedPos);
+				Note* note = &noteRow->notes[noteI];
 				while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
 					// Sean: check for pop-up so that you don't change encoder turn (cause you may just want to see the
 					// value) in automation view we change it right away because you see the value on the display when
@@ -2790,7 +2790,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 					velocitySumThisSquare += note->getVelocity();
 
 					noteI++;
-					note = noteRow->notes.getElement(noteI);
+					note = &noteRow->notes[noteI];
 				}
 
 				// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to audition
@@ -3166,8 +3166,8 @@ multiplePresses:
 				if (editPadPresses[i].isBlurredSquare) {
 					NoteRow* noteRow =
 					    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong);
-					int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-					Note* note = noteRow->notes.getElement(noteI);
+					int32_t noteI = noteRow->notes.firstAtOrAfter(editPadPresses[i].intendedPos);
+					Note* note = noteRow->notes.tryGet(noteI);
 					if (note) {
 						// re-get parameters as they might not have been grabbed properly initially
 						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
@@ -3331,8 +3331,8 @@ multiplePresses:
 					// "blurred square" with multiple notes
 					if (editPadPresses[i].isBlurredSquare) {
 
-						int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-						Note* note = noteRow->notes.getElement(noteI);
+						int32_t noteI = noteRow->notes.firstAtOrAfter(editPadPresses[i].intendedPos);
+						Note* note = &noteRow->notes[noteI];
 						while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
 							int32_t changeValue = parameterValueForMultipleNotes;
 							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
@@ -3347,7 +3347,7 @@ multiplePresses:
 							                                     changeValue);
 
 							noteI++;
-							note = noteRow->notes.getElement(noteI);
+							note = &noteRow->notes[noteI];
 						}
 					}
 					// Or, just 1 note in square
@@ -4014,9 +4014,9 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			}
 		}
 
-		uint32_t numNotes = noteRow->notes.getNumElements();
+		uint32_t numNotes = std::ssize(noteRow->notes);
 		for (int i = 0; i < numNotes; i++) {
-			Note* note = noteRow->notes.getElement(i);
+			Note* note = &noteRow->notes[i];
 			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 				note->setProbability(parameter_value);
 			}
@@ -4312,12 +4312,12 @@ ActionResult InstrumentClipView::scrollVertical_limit(int32_t scrollAmount, bool
 		// Limit how far we can shift a NoteRow
 		if (draggingNoteRow) {
 			noteRowToShiftI = lastAuditionedYDisplay + clip->yScroll;
-			if (noteRowToShiftI < 0 || noteRowToShiftI >= clip->noteRows.getNumElements()) {
+			if (noteRowToShiftI < 0 || noteRowToShiftI >= std::ssize(clip->noteRows)) {
 				return ActionResult::DEALT_WITH;
 			}
 
 			if (scrollAmount >= 0) {
-				if (noteRowToShiftI >= clip->noteRows.getNumElements() - 1) {
+				if (noteRowToShiftI >= std::ssize(clip->noteRows) - 1) {
 					return ActionResult::DEALT_WITH;
 				}
 				noteRowToSwapWithI = noteRowToShiftI + 1;
@@ -4424,15 +4424,15 @@ void InstrumentClipView::scrollVertical_dragSelectedNoteRow(InstrumentClip* clip
                                                             int32_t noteRowToShiftI, int32_t noteRowToSwapWithI) {
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
-	clip->noteRows.getElement(noteRowToShiftI)->y = -32768; // Need to remember not to try and use the yNote value
-	                                                        // of this NoteRow if we switch back out of Kit mode
-	clip->noteRows.swapElements(noteRowToShiftI, noteRowToSwapWithI);
+	clip->noteRows[noteRowToShiftI].y = -32768; // Need to remember not to try and use the yNote value
+	                                            // of this NoteRow if we switch back out of Kit mode
+	std::swap(clip->noteRows[noteRowToShiftI], clip->noteRows[noteRowToSwapWithI]);
 
 	// If the Kit arpeggiator is active and playback is stopped, we must reset it so notes are reassigned
 	// If playback is active, the rendering will take care of it
 	if (isKit && !playbackHandler.isEitherClockActive()) {
-		clip->noteRows.getElement(noteRowToShiftI)->drum->arpeggiator.reset();
-		clip->noteRows.getElement(noteRowToSwapWithI)->drum->arpeggiator.reset();
+		clip->noteRows[noteRowToShiftI].drum->arpeggiator.reset();
+		clip->noteRows[noteRowToSwapWithI].drum->arpeggiator.reset();
 		((Kit*)output)->arpeggiator.reset();
 	}
 }
@@ -5386,7 +5386,7 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	D_PRINTLN("enterDrumCreator");
 
 	char const* prefix;
-	String soundName;
+	std::string soundName;
 
 	if (doRecording) {
 		prefix = "TEM"; // Means "temp". Actual "REC" name is set in audioRecorder
@@ -5395,7 +5395,7 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 		prefix = "U";
 	}
 
-	soundName.set(prefix);
+	soundName = prefix;
 
 	// safe since we can't get here without being in a kit
 	Kit* kit = getCurrentKit();
@@ -5426,7 +5426,7 @@ doDisplayError:
 
 	modelStack->song->backUpParamManager(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
 
-	newDrum->drumName = soundName.get();
+	newDrum->drumName = soundName.c_str();
 	newDrum->nameIsDiscardable = true;
 
 	kit->addDrum(newDrum);
@@ -5672,8 +5672,8 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 	if (currentUI == this) {
 		// See which NoteRows need to animate
 		PadLEDs::numAnimatedRows = 0;
-		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
+		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+			NoteRow* thisNoteRow = &clip->noteRows[i];
 			int32_t yVisualTo = clip->getYVisualFromYNote(thisNoteRow->y, currentSong);
 			int32_t yDisplayTo = yVisualTo - newScroll;
 			int32_t yDisplayFrom = thisNoteRow->y - clip->yScroll;
@@ -5772,8 +5772,8 @@ void InstrumentClipView::exitScaleMode() {
 	if (currentUI == this) {
 		// See which NoteRows need to animate
 		PadLEDs::numAnimatedRows = 0;
-		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
+		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+			NoteRow* thisNoteRow = &clip->noteRows[i];
 			int32_t yDisplayTo = thisNoteRow->y - (clip->yScroll + scrollAdjust);
 			clip->inScaleMode = true;
 			int32_t yDisplayFrom = clip->getYVisualFromYNote(thisNoteRow->y, currentSong) - clip->yScroll;
@@ -6172,7 +6172,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 
 	auto num_note_rows = clip->getNumNoteRows();
 	for (int32_t index = 0; index < num_note_rows; index++) {
-		NoteRow* noteRow = clip->noteRows.getElement(index);
+		NoteRow* noteRow = clip->noteRows.tryGet(index);
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRow->y, noteRow);
 
 		if (noteRow && !noteRow->hasNoNotes()) {
@@ -6186,8 +6186,8 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 			}
 
 			// Collect only notes that are within the current horizontal screen position
-			for (int32_t i = 0; i < noteRow->notes.getNumElements(); i++) {
-				Note* note = noteRow->notes.getElement(i);
+			for (int32_t i = 0; i < std::ssize(noteRow->notes); i++) {
+				Note* note = &noteRow->notes[i];
 
 				// Check if note is within screen bounds
 				if (note->pos >= screenStartPos && note->pos < screenEndPos) {
@@ -6434,7 +6434,7 @@ void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPre
 	}
 }
 
-void appendQuantizeMode(StringBuf& text, int8_t direction, NudgeMode mode) {
+void appendQuantizeMode(etl::istring& text, int8_t direction, NudgeMode mode) {
 	switch (mode) {
 	case NudgeMode::QUANTIZE:
 		if (direction >= 0) {
@@ -6460,7 +6460,7 @@ void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
 	reassessAllAuditionStatus();
 	enterUIMode(UI_MODE_QUANTIZE);
 	quantizeAmount = 0;
-	DEF_STACK_STRING_BUF(text, 30);
+	etl::string<30> text;
 	appendQuantizeMode(text, offset, mode);
 	display->popupText(text.c_str(), PopupType::QUANTIZE);
 }
@@ -6511,20 +6511,20 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 	}
 
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(text, 24);
+		etl::string<24> text;
 		appendQuantizeMode(text, quantizeAmount, nudgeMode);
 		text.append(" ");
-		text.appendInt(abs(quantizeAmount * 10));
+		deluge::string::appendInt(text, abs(quantizeAmount * 10));
 		text.append("%");
 		display->popupText(text.c_str(), PopupType::QUANTIZE);
 	}
 	else {
-		DEF_STACK_STRING_BUF(text, 6);
+		etl::string<6> text;
 		// Put A in front for QUANTIZE ALL if there's space for it.
 		if (nudgeMode == NudgeMode::QUANTIZE_ALL && quantizeAmount > -10) {
 			text.append("A");
 		}
-		text.appendInt(quantizeAmount * 10); // Negative means humanize
+		deluge::string::appendInt(text, quantizeAmount * 10); // Negative means humanize
 		display->popupText(text.c_str(), PopupType::QUANTIZE);
 	}
 
@@ -6556,7 +6556,7 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 		quantizeAll = false;
 		break;
 	case NudgeMode::QUANTIZE_ALL:
-		nRows = currentClip->noteRows.getNumElements();
+		nRows = std::ssize(currentClip->noteRows);
 		quantizeAll = true;
 		break;
 	default:
@@ -6569,7 +6569,7 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 		ModelStackWithNoteRow* modelStackWithNoteRow;
 		NoteRow* thisNoteRow{nullptr};
 		if (quantizeAll) {
-			thisNoteRow = currentClip->noteRows.getElement(i);
+			thisNoteRow = currentClip->noteRows.tryGet(i);
 			if (thisNoteRow == nullptr) {
 				// Note row missing
 				continue;
@@ -6799,11 +6799,11 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 					}
 					else {
 						searchBoundary = newPos;
-						searchDirection = GREATER_OR_EQUAL;
+						searchDirection = 0; // The old GREATER_OR_EQUAL: the lower bound itself
 doSearch:
-						n = noteRow->notes.search(searchBoundary, searchDirection);
+						n = noteRow->notes.firstAtOrAfter(searchBoundary) + searchDirection;
 doCompareNote:
-						Note* note = noteRow->notes.getElement(n);
+						Note* note = noteRow->notes.tryGet(n);
 						if (note && note->pos == newPos) {
 							newPos = editPadPresses[i].intendedPos; // Make it so the below code just displays the
 							                                        // already existing offset
@@ -6813,12 +6813,12 @@ doCompareNote:
 				}
 				else { // Nudging left
 					if (editPadPresses[i].intendedPos == 0) {
-						n = noteRow->notes.getNumElements();
+						n = std::ssize(noteRow->notes);
 						goto doCompareNote;
 					}
 					else {
 						searchBoundary = editPadPresses[i].intendedPos;
-						searchDirection = LESS;
+						searchDirection = -1; // The old LESS: one left of the lower bound
 						goto doSearch;
 					}
 				}
@@ -6989,8 +6989,8 @@ abandonModRegion:
 	// Otherwise, update it for what they actually intend
 	else {
 
-		int32_t i = noteRow->notes.search(newPos, GREATER_OR_EQUAL);
-		Note* note = noteRow->notes.getElement(i);
+		int32_t i = noteRow->notes.firstAtOrAfter(newPos);
+		Note* note = noteRow->notes.tryGet(i);
 		if (!note || note->pos != newPos) {
 			goto abandonModRegion;
 		}
@@ -7099,10 +7099,10 @@ void InstrumentClipView::fillOffScreenImageStores() {
 		noteRowIndexTop = getCurrentInstrumentClip()->yScroll + kDisplayHeight;
 	}
 	else {
-		noteRowIndexBottom = getCurrentInstrumentClip()->noteRows.search(
-		    getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong), GREATER_OR_EQUAL);
-		noteRowIndexTop = getCurrentInstrumentClip()->noteRows.search(
-		    getCurrentInstrumentClip()->getYNoteFromYDisplay(kDisplayHeight, currentSong), GREATER_OR_EQUAL);
+		noteRowIndexBottom = getCurrentInstrumentClip()->noteRows.firstAtOrAfter(
+		    getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong));
+		noteRowIndexTop = getCurrentInstrumentClip()->noteRows.firstAtOrAfter(
+		    getCurrentInstrumentClip()->getYNoteFromYDisplay(kDisplayHeight, currentSong));
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -7380,7 +7380,7 @@ void InstrumentClipView::editNumEuclideanEvents(ModelStackWithNoteRow* modelStac
 	{
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-		int32_t oldNumNotes = noteRow->notes.getNumElements();
+		int32_t oldNumNotes = std::ssize(noteRow->notes);
 		newNumNotes = oldNumNotes;
 
 		if (offset) { // Or if offset is 0, we'll just display the current number, below, without changing anything
@@ -7425,7 +7425,8 @@ justDisplayOldNumNotes:
 					// Make new NoteVector for the new Notes, since ActionLogger should be "stealing" the old data
 					NoteVector newNotes;
 					if (newNumNotes) {
-						Error error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
+						Error error =
+						    newNotes.insertAt(0, newNumNotes).error_or(Error::NONE); // Pre-allocate, so no errors later
 						if (error != Error::NONE) {
 							display->displayError(error);
 							return;
@@ -7441,7 +7442,7 @@ justDisplayOldNumNotes:
 
 					// Create the Notes
 					for (int32_t n = 0; n < newNumNotes; n++) {
-						Note* note = newNotes.getElement(n);
+						Note* note = &newNotes[n];
 						note->pos = (uint32_t)(n * numStepsAvailable) / (uint32_t)newNumNotes * squareWidth;
 						note->length = squareWidth;
 						note->probability = noteRow->getDefaultProbability();
@@ -7453,7 +7454,7 @@ justDisplayOldNumNotes:
 
 					// Just make sure final note isn't too long
 					if (newNumNotes) {
-						Note* note = newNotes.getElement(newNumNotes - 1);
+						Note* note = &newNotes[newNumNotes - 1];
 						int32_t maxLength = effectiveLength - note->pos;
 						if (note->length > maxLength) {
 							note->length = maxLength;
@@ -7480,7 +7481,7 @@ justDisplayOldNumNotes:
 					}
 
 					// Swap the new temporary note data into the permanent place
-					noteRow->notes.swapStateWith(&newNotes);
+					noteRow->notes.swap(newNotes);
 
 #if ENABLE_SEQUENTIALITY_TESTS
 					noteRow->notes.testSequentiality("E376");

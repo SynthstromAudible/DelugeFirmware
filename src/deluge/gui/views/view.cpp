@@ -87,6 +87,8 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/etl_string.h"
+#include <iterator>
 
 namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
@@ -1004,7 +1006,7 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 				source2 = paramDescriptor.getTopLevelSource();
 			}
 
-			DEF_STACK_STRING_BUF(paramDisplayName, 30);
+			etl::string<30> paramDisplayName;
 			if (source2 == PatchSource::NONE) {
 				paramDisplayName.append(getSourceDisplayNameForOLED(source1));
 			}
@@ -1089,8 +1091,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 
 	uint32_t current_time = AudioEngine::audioSampleTimer;
 
-	DEF_STACK_STRING_BUF(parameter_name, 40);
-	DEF_STACK_STRING_BUF(parameter_value, 40);
+	etl::string<40> parameter_name;
+	etl::string<40> parameter_value;
 
 	// On OLED, display the name of the parameter on the first line of the popup
 	if (display->haveOLED()) {
@@ -1124,7 +1126,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 				}
 				else {
 					parameter_name.append("CC ");
-					parameter_name.appendInt(paramID);
+					deluge::string::appendInt(parameter_name, paramID);
 				}
 			}
 		}
@@ -1179,7 +1181,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	}
 	else {
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
-		parameter_value.appendInt(current_display_value);
+		deluge::string::appendInt(parameter_value, current_display_value);
 	}
 
 	// Check if we need to update the notification (avoid excessive updates)
@@ -1988,7 +1990,7 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 		channel = static_cast<int32_t>(((AudioOutput*)output)->mode);
 	}
 
-	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), output->name.isEmpty(),
+	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.c_str(), output->name.empty(),
 	                          editedByUser, doBlink, clip);
 	deluge::hid::display::OLED::markChanged();
 }
@@ -2099,15 +2101,15 @@ oledDrawString:
 
 			if (clip) {
 				// "SECTION NN" is 10, "NN: " is 3 => 10 over current name is always enough.
-				DEF_STACK_STRING_BUF(info, clip->name.getLength() + 10);
-				if (clip->name.isEmpty()) {
+				std::string info;
+				if (clip->name.empty()) {
 					info.append("Section ");
-					info.appendInt(clip->section + 1);
+					info += deluge::string::fromInt(clip->section + 1);
 				}
 				else {
-					info.appendInt(clip->section + 1);
+					info += deluge::string::fromInt(clip->section + 1);
 					info.append(": ");
-					info.append(clip->name.get());
+					info.append(clip->name.c_str());
 				}
 				yPos = yPos + 14;
 				canvas.drawStringCentred(info.data(), yPos, kTextSpacingX, kTextSpacingY);
@@ -2469,7 +2471,7 @@ gotAnInstrument:
 
 		// Special case: when it is a saved MIDI preset (with a name), then we need to show the channel in a popup, as
 		// the name will print over the midi channel and we can't see it while changing it
-		if (outputType == OutputType::MIDI_OUT && newInstrument->name.getLength() > 0) {
+		if (outputType == OutputType::MIDI_OUT && newInstrument->name.size() > 0) {
 			char buffer[12];
 			if (newChannel < 16) {
 				slotToString(newChannel + 1, newChannelSuffix, buffer, 1);
@@ -2899,8 +2901,8 @@ void View::activateMacro(uint32_t y) {
 
 Clip* View::findNextClipForOutput(Output* output) {
 	int last_active = -1;
-	for (int i = 0; i < currentSong->sessionClips.getNumElements(); i++) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(i);
+	for (int i = 0; i < std::ssize(currentSong->sessionClips); i++) {
+		Clip* clip = currentSong->sessionClips[i];
 		if (clip->output == output) {
 			if (last_active == -1) {
 				if (clip->activeIfNoSolo) {
@@ -2914,12 +2916,12 @@ Clip* View::findNextClipForOutput(Output* output) {
 	}
 
 	if (last_active == -1) {
-		last_active = currentSong->sessionClips.getNumElements();
+		last_active = std::ssize(currentSong->sessionClips);
 	}
 
 	// might need to cycle around to find the next clip
 	for (int i = 0; i < last_active; i++) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(i);
+		Clip* clip = currentSong->sessionClips[i];
 		if (clip->output == output) {
 			return clip;
 		}

@@ -69,7 +69,9 @@ public:
 
 protected:
 	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
-	void getNotificationValue(StringBuf& valueBuf) override { return valueBuf.appendFloat(getValue() / 100.0f, 2, 2); }
+	void getNotificationValue(etl::istring& valueBuf) override {
+		return deluge::string::appendFloat(valueBuf, getValue() / 100.0f, 2, 2);
+	}
 
 private:
 	bool isInHorizontalMenu() const;

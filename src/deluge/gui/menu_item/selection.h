@@ -83,7 +83,7 @@ public:
 	}
 
 protected:
-	void getShortOption(StringBuf&) override;
-	void getNotificationValue(StringBuf&) override;
+	void getShortOption(etl::istring&) override;
+	void getNotificationValue(etl::istring&) override;
 };
 } // namespace deluge::gui::menu_item

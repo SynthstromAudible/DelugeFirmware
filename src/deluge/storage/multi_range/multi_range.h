@@ -24,6 +24,8 @@ class MultiRange {
 public:
 	MultiRange();
 	virtual ~MultiRange();
+	MultiRange(MultiRange&&) noexcept = default;
+	MultiRange& operator=(MultiRange&&) noexcept = default;
 
 	virtual AudioFileHolder* getAudioFileHolder() = 0;
 

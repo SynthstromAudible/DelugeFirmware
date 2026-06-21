@@ -107,7 +107,7 @@ void DxCartridge::readValueAgain() {
 		char name[11];
 		pd->getProgramName(currentValue, name);
 		if (name[0] != 0) {
-			instrument->name.set(name);
+			instrument->name = name;
 		}
 	}
 }

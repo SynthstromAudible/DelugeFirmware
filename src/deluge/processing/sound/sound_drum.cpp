@@ -33,7 +33,7 @@
 
 bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 	if (!strcmp(tagName, "path")) {
-		reader.readTagOrAttributeValueString(&path);
+		reader.readTagOrAttributeValueString(path);
 		reader.exitTag("path");
 	}
 	else if (readDrumTagFromFile(reader, tagName)) {
@@ -132,7 +132,7 @@ void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* p
 	writer.writeOpeningTagBeginning("sound", true);
 	writeDrumTagsToFile(writer);
 
-	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.get());
+	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.c_str());
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile(writer);
@@ -167,10 +167,10 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 void SoundDrum::setSkippingRendering(bool newSkipping) {
 	if (kit != nullptr && newSkipping != skippingRendering) {
 		if (newSkipping) {
-			kit->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)this);
+			kit->drumsWithRenderingActive.erase(this);
 		}
 		else {
-			kit->drumsWithRenderingActive.insertAtKey((int32_t)(Drum*)this);
+			kit->drumsWithRenderingActive.insert(this);
 		}
 	}
 

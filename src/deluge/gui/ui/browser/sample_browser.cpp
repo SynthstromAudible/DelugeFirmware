@@ -20,6 +20,7 @@
 #include "hid/button.h"
 #include "model/sample/sample.h"
 #include "util/try.h"
+#include <iterator>
 #include <ranges>
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
@@ -69,8 +70,9 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include "util/functions.h"
+#include "util/string.h"
 #include <cstring>
 
 namespace params = deluge::modulation::params;
@@ -129,19 +131,19 @@ sdError:
 		return false;
 	}
 
-	String currentPath;
-	currentPath.set(&soundEditor.getCurrentAudioFileHolder()->filePath);
+	std::string currentPath;
+	currentPath = soundEditor.getCurrentAudioFileHolder()->filePath;
 
 	char const* searchFilename;
 
 	// If currentPath is blank, or is somewhere outside of the SAMPLES folder, then default to previously manually
 	// loaded sample
-	if (currentPath.isEmpty() || memcasecmp(currentPath.get(), "SAMPLES/", 8)) {
-		currentPath.set(&lastFilePathLoaded);
+	if (currentPath.empty() || memcasecmp(currentPath.c_str(), "SAMPLES/", 8)) {
+		currentPath = lastFilePathLoaded;
 
 		// If that's blank too, then default to SAMPLES folder.
-		if (currentPath.isEmpty()) {
-			currentDir.set("SAMPLES");
+		if (currentPath.empty()) {
+			currentDir = "SAMPLES";
 			searchFilename = NULL;
 			goto dissectionDone;
 		}
@@ -149,7 +151,7 @@ sdError:
 
 	{
 		// Must dissect
-		char const* currentPathChars = currentPath.get();
+		char const* currentPathChars = currentPath.c_str();
 		char const* slashAddress = strrchr(currentPathChars, '/');
 		if (!slashAddress) {
 			searchFilename = currentPathChars;
@@ -159,8 +161,8 @@ sdError:
 			int32_t slashPos = (uintptr_t)slashAddress - (uintptr_t)currentPathChars;
 			searchFilename = &currentPathChars[slashPos + 1];
 
-			currentDir.set(currentPathChars);
-			currentDir.shorten(slashPos);
+			currentDir = currentPathChars;
+			currentDir.resize(slashPos);
 		}
 	}
 
@@ -211,7 +213,7 @@ void SampleBrowser::focusRegained() {
 void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 
 	// If just one file, there's no prefix.
-	if (fileItems.getNumElements() <= 1) {
+	if (static_cast<int32_t>(fileItems.size()) <= 1) {
 		numCharsInPrefix = 0;
 	}
 
@@ -219,13 +221,13 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 		numCharsInPrefix = 65535;
 		FileItem* currentFileItem = getCurrentFileItem();
 
-		char const* currentFilenameChars = currentFileItem->filename.get();
+		char const* currentFilenameChars = currentFileItem->filename.c_str();
 
-		for (int32_t f = 0; numCharsInPrefix && f < fileItems.getNumElements(); f++) {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
+		for (int32_t f = 0; numCharsInPrefix && f < static_cast<int32_t>(fileItems.size()); f++) {
+			FileItem* fileItem = &fileItems[f];
 
 			for (int32_t i = 0; i < numCharsInPrefix; i++) {
-				char const* thisFileName = fileItem->filename.get();
+				char const* thisFileName = fileItem->filename.c_str();
 				if (!thisFileName[i] || thisFileName[i] != currentFilenameChars[i]) {
 					numCharsInPrefix = i;
 					break;
@@ -270,7 +272,7 @@ void SampleBrowser::exitAction() {
 		// If no file was selected, the user wanted to get out of creating this Drum.
 		// Only if some unassigned Drums
 		if (soundEditor.editingKit() && getCurrentKit()->getFirstUnassignedDrum(getCurrentInstrumentClip())
-		    && soundEditor.getCurrentAudioFileHolder()->filePath.isEmpty()) {
+		    && soundEditor.getCurrentAudioFileHolder()->filePath.empty()) {
 			instrumentClipView.deleteDrum((SoundDrum*)soundEditor.currentSound);
 			redrawUI = &instrumentClipView;
 		}
@@ -355,15 +357,15 @@ void SampleBrowser::enterKeyPress() {
 	if (currentFileItem->isFolder) {
 
 		// Don't allow user to go into TEMP clips folder
-		if (currentFileItem->filename.equalsCaseIrrespective("TEMP")
-		    && currentDir.equalsCaseIrrespective("SAMPLES/CLIPS")) {
+		if (deluge::string::caselessEquals(currentFileItem->filename, "TEMP")
+		    && deluge::string::caselessEquals(currentDir, "SAMPLES/CLIPS")) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED));
 			return;
 		}
 
 		// Extremely weirdly, if we try to just put this inside the parentheses in the next line,
 		// it returns an empty string (&nothing). Surely this is a compiler error??
-		char const* filenameChars = currentFileItem->filename.get();
+		char const* filenameChars = currentFileItem->filename.c_str();
 
 		Error error = goIntoFolder(filenameChars);
 
@@ -423,14 +425,9 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 					}
 
 					// Ensure sample isn't used in current song
-					String filePath;
-					Error error = getCurrentFilePath(&filePath);
-					if (error != Error::NONE) {
-						display->displayError(error);
-						return ActionResult::DEALT_WITH;
-					}
+					std::string filePath = getCurrentFilePath();
 
-					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
+					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.c_str());
 
 					if (!allFine) {
 						display->displayPopup(
@@ -504,32 +501,21 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 
 bool SampleBrowser::canImportWholeKit() {
 	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0
-	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows.getElement(0)->drum == soundEditor.currentSound
+	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows[0].drum == soundEditor.currentSound
 	        && (!getCurrentKit()->firstDrum->next));
 }
 
-Error SampleBrowser::getCurrentFilePath(String* path) {
-	Error error;
-
-	path->set(&currentDir);
-	int32_t oldLength = path->getLength();
-	if (oldLength) {
-		error = path->concatenateAtPos("/", oldLength);
-		if (error != Error::NONE) {
-gotError:
-			path->clear();
-			return error;
-		}
+std::string SampleBrowser::getCurrentFilePath() {
+	std::string path = currentDir;
+	if (!path.empty()) {
+		path.append("/");
 	}
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	error = path->concatenate(&currentFileItem->filename);
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	path.append(currentFileItem->filename);
 
-	return Error::NONE;
+	return path;
 }
 
 bool SampleBrowser::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -560,15 +546,10 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	// Preview the WAV file, if we're allowed
 	if (currentFileItem && !currentFileItem->isFolder) {
 
-		String filePath;
-		Error error = getCurrentFilePath(&filePath);
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return;
-		}
+		std::string filePath = getCurrentFilePath();
 
 		// This more formally does the thing that actually was happening accidentally for ages, as found by Michael B.
-		lastFilePathLoaded.set(&filePath);
+		lastFilePathLoaded = filePath;
 
 		bool shouldActuallySound = false;
 
@@ -587,7 +568,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 			}
 		}
 
-		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
+		AudioEngine::previewSample(filePath, &currentFileItem->filePointer, shouldActuallySound);
 
 		if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
 			// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
@@ -602,7 +583,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		*/
 
 		// If the Sample at least loaded, even if we didn't sound it, then try to render its waveform.
-		if (AudioEngine::sampleForPreview->sources[0].ranges.getNumElements() >= 1) {
+		if (std::ssize(AudioEngine::sampleForPreview->sources[0].ranges) >= 1) {
 			AudioFile* sample = ((MultisampleRange*)AudioEngine::sampleForPreview->sources[0].ranges.getElement(0))
 			                        ->sampleHolder.audioFile;
 
@@ -749,10 +730,7 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(nullptr);
-	Error error = getCurrentFilePath(&holder->filePath);
-	if (error != Error::NONE) {
-		return error;
-	}
+	holder->filePath = getCurrentFilePath();
 
 	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
 	                        CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
@@ -763,13 +741,10 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(nullptr);
-	Error error = getCurrentFilePath(&holder->filePath);
-	if (error != Error::NONE) {
-		return error;
-	}
+	holder->filePath = getCurrentFilePath();
 
 	bool reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
-	error = holder->loadFile(reversed, true, true);
+	Error error = holder->loadFile(reversed, true, true);
 
 	// If there's a pre-margin, we want to set an attack-time
 	if (error == Error::NONE && ((SampleHolder*)holder)->startPos) {
@@ -853,7 +828,7 @@ doLoadAsWaveTable:
 
 			/*
 			// If multiple Ranges, then forbid the changing from Sample to WaveTable.
-			if (soundEditor.currentSource->ranges.getNumElements() > 1
+			if (std::ssize(soundEditor.currentSource->ranges) > 1
 			        && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 #if ALPHA_OR_BETA_VERSION
 			    if (mayDoWaveTable == 2) FREEZE_WITH_ERROR("E425");
@@ -921,7 +896,7 @@ doLoadAsSample:
 
 			/*
 			// If multiple Ranges, then forbid the changing from WaveTable to Sample.
-			if (soundEditor.currentSource->ranges.getNumElements() > 1
+			if (std::ssize(soundEditor.currentSource->ranges) > 1
 			        && soundEditor.currentSource->oscType == OscType::WAVETABLE) {
 #if ALPHA_OR_BETA_VERSION
 			    if (!mayDoWaveTable) FREEZE_WITH_ERROR("E426");
@@ -1001,26 +976,23 @@ doLoadAsSample:
 
 				SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 
-				autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.get());
+				autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.c_str());
 
 				// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
 				drum->drumName.clear();
 
-				String newName;
+				std::string newName;
 				if (!numCharsInPrefix || display->haveOLED()) {
-					newName.set(&enteredText);
+					newName = enteredText;
 				}
 				else {
-					error = newName.set(&enteredText.get()[numCharsInPrefix]);
-					if (error != Error::NONE) {
-						goto removeLoadingAnimationAndGetOut;
-					}
+					newName = &enteredText.c_str()[numCharsInPrefix];
 				}
 
 				Kit* kit = getCurrentKit();
 
 				// Ensure Drum name isn't a duplicate, and if need be, make a new name from the fileNamePostPrefix.
-				if (kit->getDrumFromName(newName.get())) {
+				if (kit->getDrumFromName(newName.c_str())) {
 
 					error = kit->makeDrumNameUnique(&newName, 2);
 					if (error != Error::NONE) {
@@ -1028,7 +1000,7 @@ doLoadAsSample:
 					}
 				}
 
-				drum->drumName = newName.get();
+				drum->drumName = newName.c_str();
 			}
 
 			// If a synth...
@@ -1036,7 +1008,7 @@ doLoadAsSample:
 
 				// Detect pitch
 				if (mayDoPitchDetection) {
-					bool shouldMinimizeOctaves = (soundEditor.currentSource->ranges.getNumElements() == 1);
+					bool shouldMinimizeOctaves = (std::ssize(soundEditor.currentSource->ranges) == 1);
 
 					((MultisampleRange*)soundEditor.currentMultiRange)
 					    ->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves, doingSingleCycleNow);
@@ -1077,7 +1049,7 @@ doLoadAsSample:
 		getCurrentInstrument()->beenEdited();
 
 		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).
-		if (soundEditor.currentSource->ranges.getNumElements() <= 1 && soundEditor.navigationDepth
+		if (std::ssize(soundEditor.currentSource->ranges) <= 1 && soundEditor.navigationDepth
 		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &menu_item::multiRangeMenu) {
 			soundEditor.navigationDepth--;
 		}
@@ -1143,13 +1115,13 @@ bool pitchGreaterOrEqual(Sample* a, Sample* b) {
 bool filenameGreaterOrEqual(Sample* a, Sample* b) {
 	shouldInterpretNoteNames = true;
 	octaveStartsFromA = false;
-	return (strcmpspecial(a->filePath.get(), b->filePath.get()) >= 0);
+	return (strcmpspecial(a->filePath.c_str(), b->filePath.c_str()) >= 0);
 }
 
 bool filenameGreaterOrEqualOctaveStartingFromA(Sample* a, Sample* b) {
 	shouldInterpretNoteNames = true;
 	octaveStartsFromA = true;
-	return (strcmpspecial(a->filePath.get(), b->filePath.get()) >= 0);
+	return (strcmpspecial(a->filePath.c_str(), b->filePath.c_str()) >= 0);
 }
 
 void sortSamples(bool (*sortFunction)(Sample*, Sample*), int32_t numSamples, Sample*** sortAreas, int32_t* readArea,
@@ -1215,7 +1187,7 @@ int32_t getNumTimesIncorrectSampleOrderSeen(int32_t numSamples, Sample** samples
 bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
                                            bool* getDoingSingleCycle, int32_t* getPrefixAndDirLength) {
 
-	String dirToLoad;
+	std::string dirToLoad;
 	Error error;
 
 	FileItem* currentFileItem = getCurrentFileItem();
@@ -1223,18 +1195,14 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	char const* previouslyViewedFilename = "";
 
 	if (currentFileItem->isFolder) {
-		error = getCurrentFilePath(&dirToLoad);
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return false;
-		}
+		dirToLoad = getCurrentFilePath();
 	}
 	else {
-		dirToLoad.set(&currentDir);
-		previouslyViewedFilename = currentFileItem->filename.get();
+		dirToLoad = currentDir;
+		previouslyViewedFilename = currentFileItem->filename.c_str();
 	}
 
-	staticDIR = D_TRY_CATCH(FatFS::Directory::open(dirToLoad.get()), error, {
+	staticDIR = D_TRY_CATCH(FatFS::Directory::open(dirToLoad.c_str()), error, {
 		display->displayError(Error::SD_CARD);
 		return false;
 	});
@@ -1248,9 +1216,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
-
+		for (AudioFile* audioFile : audioFileManager.audioFiles) {
 			if (audioFile->type == AudioFileType::SAMPLE) {
 				Sample* thisSample = (Sample*)audioFile;
 
@@ -1275,11 +1241,11 @@ removeReasonsFromSamplesAndGetOut:
 
 	int32_t numCharsInPrefixForFolderLoad = 65535;
 
-	String filePath;
-	filePath.set(&dirToLoad);
-	int32_t dirWithSlashLength = filePath.getLength();
+	std::string filePath;
+	filePath = dirToLoad;
+	int32_t dirWithSlashLength = filePath.size();
 	if (dirWithSlashLength) {
-		filePath.concatenateAtPos("/", dirWithSlashLength);
+		filePath.resize(dirWithSlashLength), filePath.append("/");
 		dirWithSlashLength++;
 	}
 
@@ -1320,7 +1286,7 @@ removeReasonsFromSamplesAndGetOut:
 			}
 		}
 
-		filePath.concatenateAtPos(staticFNO.fname, dirWithSlashLength);
+		filePath.resize(dirWithSlashLength), filePath.append(staticFNO.fname);
 
 		// We really want to be able to pass a file pointer in here
 		auto* newSample = static_cast<Sample*>(
@@ -1376,9 +1342,7 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int32_t sampleI = 0;
-	for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
-
+	for (AudioFile* audioFile : audioFileManager.audioFiles) {
 		if (audioFile->type == AudioFileType::SAMPLE) {
 
 			Sample* thisSample = (Sample*)audioFile;
@@ -1672,7 +1636,7 @@ doReturnFalse:
 	AudioEngine::routineWithClusterLoading();
 
 	// Delete all but first pre-existing range
-	int32_t oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
+	int32_t oldNumRanges = std::ssize(soundEditor.currentSource->ranges);
 	for (int32_t i = oldNumRanges - 1; i >= 1; i--) {
 		soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex, i);
 	}
@@ -1682,7 +1646,7 @@ doReturnFalse:
 	if (numSamples > 1) {
 		soundEditor.currentSound->killAllVoices();
 		AudioEngine::audioRoutineLocked = true;
-		bool success = soundEditor.currentSource->ranges.ensureEnoughSpaceAllocated(numSamples - 1);
+		bool success = soundEditor.currentSource->ranges.reserveExtra(numSamples - 1).has_value();
 		AudioEngine::audioRoutineLocked = false;
 
 		if (!success) {
@@ -1805,7 +1769,7 @@ skipOctaveCorrection:
 		}
 		else {
 #if ALPHA_OR_BETA_VERSION
-			if (soundEditor.currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
+			if (soundEditor.currentSource->ranges.currentElementSize() != sizeof(MultisampleRange)) {
 				FREEZE_WITH_ERROR("E431");
 			}
 #endif
@@ -1817,7 +1781,7 @@ skipOctaveCorrection:
 
 		range->topNote = topNote;
 
-		range->sampleHolder.filePath.set(&thisSample->filePath);
+		range->sampleHolder.filePath = thisSample->filePath;
 		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
 		                                 true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
@@ -1991,30 +1955,31 @@ getOut:
 
 			AudioFileHolder* holder = range->getAudioFileHolder();
 			holder->setAudioFile(nullptr);
-			holder->filePath.set(&thisSample->filePath);
+			holder->filePath = thisSample->filePath;
 			holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true);
 
-			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
+			autoDetectSideChainSending(drum, source, thisSample->filePath.c_str());
 
-			String newName;
-			Error error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
+			std::string newName;
+			newName = &thisSample->filePath.c_str()[prefixAndDirLength];
+			Error error = Error::NONE;
 			if (error == Error::NONE) {
 
-				char const* newNameChars = newName.get();
+				char const* newNameChars = newName.c_str();
 				char const* dotAddress = strrchr(newNameChars, '.');
 				if (dotAddress) {
 					int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)newNameChars;
-					newName.shorten(dotPos);
+					newName.resize(dotPos);
 				}
 
-				if (kit->getDrumFromName(newName.get())) {
+				if (kit->getDrumFromName(newName.c_str())) {
 					error = kit->makeDrumNameUnique(&newName, 2);
 					if (error != Error::NONE) {
 						goto skipNameStuff;
 					}
 				}
 
-				drum->drumName = newName.get();
+				drum->drumName = newName.c_str();
 			}
 skipNameStuff:
 

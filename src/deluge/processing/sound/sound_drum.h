@@ -21,13 +21,14 @@
 #include "model/drum/drum.h"
 #include "modulation/arpeggiator.h"
 #include "processing/sound/sound.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
+#include <string>
 
 class ModelStackWithTimelineCounter;
 
 class SoundDrum final : public Sound, public Drum {
 public:
-	String path;
+	std::string path;
 	bool nameIsDiscardable = false;
 
 	SoundDrum() : Drum(DrumType::SOUND) {}

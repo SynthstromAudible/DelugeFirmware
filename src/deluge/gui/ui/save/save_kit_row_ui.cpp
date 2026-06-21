@@ -58,16 +58,16 @@ doReturnFalse:
 		return false;
 	}
 
-	enteredText.set(soundDrumToSave->drumName);
-	enteredTextEditPos = enteredText.getLength();
+	enteredText = soundDrumToSave->drumName;
+	enteredTextEditPos = enteredText.size();
 	currentFolderIsEmpty = false;
 
 	char const* defaultDir = getInstrumentFolder(outputTypeToLoad);
 
-	currentDir.set(&soundDrumToSave->path);
-	if (currentDir.isEmpty()) { // Would this even be able to happen?
+	currentDir = soundDrumToSave->path;
+	if (currentDir.empty()) { // Would this even be able to happen?
 tryDefaultDir:
-		currentDir.set(defaultDir);
+		currentDir = defaultDir;
 	}
 
 	if (display->haveOLED()) {
@@ -77,7 +77,7 @@ tryDefaultDir:
 
 	filePrefix = "SYNT";
 
-	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
+	Error error = arrivedInNewFolder(0, enteredText.c_str(), defaultDir);
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -96,7 +96,8 @@ bool SaveKitRowUI::performSave(bool mayOverwrite) {
 	}
 
 	// We can't save into this slot if another Instrument in this Song already uses it
-	if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.get(), currentDir.get(), false)) {
+	if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.c_str(), currentDir.c_str(),
+	                                             false)) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
 		display->removeWorkingAnimation();
 		return false;
@@ -104,17 +105,17 @@ bool SaveKitRowUI::performSave(bool mayOverwrite) {
 
 	// Alright, we know the new slot isn't used by an Instrument in the Song, but there may be an Instrument lurking
 	// in memory with that slot, which we need to just delete
-	currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.get());
+	currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.c_str());
 
-	String filePath;
-	Error error = getCurrentFilePath(&filePath);
+	std::string filePath = getCurrentFilePath();
+	Error error = Error::NONE;
 	if (error != Error::NONE) {
 fail:
 		display->displayError(error);
 		return false;
 	}
 
-	error = StorageManager::createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
+	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
@@ -144,7 +145,7 @@ fail:
 
 	char const* endString = "\n</sound>\n";
 
-	error = GetSerializer().closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+	error = GetSerializer().closeFileAfterWriting(filePath.c_str(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
 	                                              endString);
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
@@ -152,8 +153,8 @@ fail:
 	}
 
 	// Give the Instrument in memory its new slot
-	soundDrumToSave->drumName = enteredText.get();
-	soundDrumToSave->path.set(&currentDir);
+	soundDrumToSave->drumName = enteredText.c_str();
+	soundDrumToSave->path = currentDir.c_str();
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the
 	// user to select such a slot

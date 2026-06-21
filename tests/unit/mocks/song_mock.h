@@ -1,6 +1,7 @@
 #pragma once
 
-#include "util/d_string.h"
+#include "etl/string.h"
+#include "util/c_string.h"
 
 #include "clip_mocks.h"
 
@@ -15,7 +16,7 @@ public:
 		sessionClips.clear();
 		arrangementOnlyClips.clear();
 	}
-	void getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* notesString = "-notes",
+	void getNoteLengthName(etl::istring& buffer, uint32_t noteLength, char const* notesString = "-notes",
 	                       bool clarifyPerColumn = false) const {
 		// TODO: extract getNoteLengthName() from Song, so we can test
 		// note length naming logic

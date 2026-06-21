@@ -34,11 +34,11 @@ public:
 
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
-	void getColumnLabel(StringBuf& label) override;
+	void getColumnLabel(etl::istring& label) override;
 
 private:
 	uint8_t sourceId_;
-	static std::string getLastFolderFromPath(String& path);
+	static std::string getLastFolderFromPath(std::string& path);
 };
 
 extern FileSelector file0SelectorMenu;

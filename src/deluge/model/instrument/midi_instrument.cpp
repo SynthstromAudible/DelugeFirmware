@@ -33,6 +33,7 @@
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 #include <cstring>
+#include <iterator>
 #include <string_view>
 
 int16_t lastNoteOffOrder = 1;
@@ -361,11 +362,11 @@ void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFil
 
 void MIDIInstrument::writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer) {
 	writer.writeOpeningTagBeginning("definitionFile");
-	if (deviceDefinitionFileName.isEmpty()) {
+	if (deviceDefinitionFileName.empty()) {
 		writer.writeAttribute("name", "");
 	}
 	else {
-		writer.writeAttribute("name", deviceDefinitionFileName.get());
+		writer.writeAttribute("name", deviceDefinitionFileName.c_str());
 	}
 	writer.closeTag();
 }
@@ -494,7 +495,7 @@ Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader, bool readFr
 			readDeviceDefinitionFileNameFromPresetOrSong(reader);
 			// only flag definition file for loading if we aren't reading from preset or song
 			// and definition file name isn't blank
-			if (!deviceDefinitionFileName.isEmpty() && !readFromPresetOrSong) {
+			if (!deviceDefinitionFileName.empty() && !readFromPresetOrSong) {
 				loadDeviceDefinitionFile = true;
 			}
 		}
@@ -517,7 +518,7 @@ void MIDIInstrument::readDeviceDefinitionFileNameFromPresetOrSong(Deserializer& 
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "name")) {
-			reader.readTagOrAttributeValueString(&deviceDefinitionFileName);
+			reader.readTagOrAttributeValueString(deviceDefinitionFileName);
 		}
 		reader.exitTag();
 	}
@@ -724,20 +725,20 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whic
 
 	// Need to pick a new cc which is blank on all Clips' ParamManagers with this Instrument
 	// For each Clip in session and arranger for specific Output (that Output is "this")
-	int32_t numElements = modelStack->song->sessionClips.getNumElements();
+	int32_t numElements = std::ssize(modelStack->song->sessionClips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = modelStack->song->sessionClips.getClipAtIndex(c);
+			clip = modelStack->song->sessionClips[c];
 			if (clip->output != this) {
 				continue;
 			}
 		}
 		else {
-			ClipInstance* clipInstance = clipInstances.getElement(c);
+			ClipInstance* clipInstance = &clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -754,25 +755,25 @@ traverseClips:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = clipInstances.getNumElements();
+		numElements = std::ssize(clipInstances);
 		goto traverseClips;
 	}
 
 	// And then tell all Clips' ParamManagers with this Instrument to change that CC
 	// For each Clip in session and arranger for specific Output (that Output is "this")
-	numElements = modelStack->song->sessionClips.getNumElements();
+	numElements = std::ssize(modelStack->song->sessionClips);
 	doingArrangementClips = false;
 traverseClips2:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = modelStack->song->sessionClips.getClipAtIndex(c);
+			clip = modelStack->song->sessionClips[c];
 			if (clip->output != this) {
 				continue;
 			}
 		}
 		else {
-			ClipInstance* clipInstance = clipInstances.getElement(c);
+			ClipInstance* clipInstance = &clipInstances[c];
 			if (!clipInstance->clip) {
 				continue;
 			}
@@ -786,7 +787,7 @@ traverseClips2:
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
-		numElements = clipInstances.getNumElements();
+		numElements = std::ssize(clipInstances);
 		goto traverseClips2;
 	}
 
@@ -849,8 +850,8 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 			// Count up notes per member channel. This traversal will *not* find the new note that we're switching on,
 			// which will have had its toMIDIChannel set to MIDI_CHANNEL_NONE (255) by Arpeggiator (we'll decide and set
 			// it below).
-			for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
-				ArpNote* thisArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+			for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size()); n++) {
+				ArpNote* thisArpNote = &arpeggiator.notes[n];
 				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
 					if (thisArpNote->outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
 						break;
@@ -916,9 +917,9 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 			                                                // container, so no overflowing
 			memset(mpeValuesSum, 0, sizeof(mpeValuesSum));
 
-			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
+			for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size());
 			     n++) { // This traversal will include the original note, which will get counted up too
-				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+				ArpNote* lookingAtArpNote = &arpeggiator.notes[n];
 				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
 					if (lookingAtArpNote->outputMemberChannel[i] == outputMemberChannel) {
 						numNotesFound++;
@@ -1017,9 +1018,9 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		                                                // no overflowing
 		memset(mpeValuesSum, 0, sizeof(mpeValuesSum));
 
-		for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
+		for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size());
 		     n++) { // This traversal will not include the original note, which has already been deleted from the array.
-			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+			ArpNote* lookingAtArpNote = &arpeggiator.notes[n];
 			for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
 				if (lookingAtArpNote->outputMemberChannel[i] == oldOutputMemberChannel) {
 					numNotesFound++;
@@ -1107,9 +1108,9 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			int32_t numNotesFound = 0;
 			int32_t mpeValuesSum = 0; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
 
-			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
+			for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size());
 			     n++) { // This traversal will include the original note, which will get counted up too
-				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+				ArpNote* lookingAtArpNote = &arpeggiator.notes[n];
 				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
 					if (lookingAtArpNote->outputMemberChannel[i] == memberChannel) {
 						numNotesFound++;
@@ -1185,8 +1186,8 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimensi
 		int32_t mpeValuesSum = 0; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
 		int32_t mpeValuesMax = -ONE_Q31;
 		// This traversal will include the original note, which will get counted up too
-		for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
-			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+		for (int32_t n = 0; n < static_cast<int32_t>(arpeggiator.notes.size()); n++) {
+			ArpNote* lookingAtArpNote = &arpeggiator.notes[n];
 
 			numNotesFound++;
 

@@ -27,6 +27,7 @@
 #include "hid/led/indicator_leds.h"
 #include "horizontal_menu.h"
 #include "util/cfunctions.h"
+#include "util/etl_string.h"
 #include "util/functions.h"
 
 namespace deluge::gui::menu_item {
@@ -214,8 +215,8 @@ int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
 	if (remaining == 0) {
 		return 0;
 	}
-	DEF_STACK_STRING_BUF(remainingBuf, 8);
-	remainingBuf.appendFloat(remaining, 0, 2);
+	etl::string<8> remainingBuf;
+	deluge::string::appendFloat(remainingBuf, remaining, 0, 2);
 	return remainingBuf.size() - 2;
 }
 
@@ -224,14 +225,14 @@ void Decimal::renderInHorizontalMenu(const SlotPosition& slot) {
 		return Number::renderInHorizontalMenu(slot);
 	}
 
-	DEF_STACK_STRING_BUF(valueBuf, 10);
+	etl::string<10> valueBuf;
 	const int32_t value = getValue();
-	valueBuf.appendFloat(value / 100.f, 2, 2);
+	deluge::string::appendFloat(valueBuf, value / 100.f, 2, 2);
 	if (value <= -1000) {
-		valueBuf.truncate(3);
+		valueBuf.resize(3);
 	}
 
-	return hid::display::OLED::main.drawStringCentered(valueBuf.data(), slot.start_x,
+	return hid::display::OLED::main.drawStringCentered(valueBuf.c_str(), slot.start_x,
 	                                                   slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
 	                                                   kTextSpacingY, slot.width);
 }
@@ -272,9 +273,9 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	display->setText(buffer, true, 3 - numDecimalPlaces);
 }
 
-void DecimalWithoutScrolling::getNotificationValue(StringBuf& value) {
+void DecimalWithoutScrolling::getNotificationValue(etl::istring& value) {
 	const int32_t numDecimalPlaces = this->getNumDecimalPlaces();
-	value.appendFloat(this->getDisplayValue(), numDecimalPlaces, numDecimalPlaces);
+	deluge::string::appendFloat(value, this->getDisplayValue(), numDecimalPlaces, numDecimalPlaces);
 	value.append(getUnit());
 }
 

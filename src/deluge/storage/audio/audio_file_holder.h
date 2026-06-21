@@ -17,8 +17,10 @@
 
 #pragma once
 
+#include <utility>
+
 #include "definitions_cxx.hpp"
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -31,6 +33,20 @@ class AudioFileHolder {
 public:
 	AudioFileHolder();
 	virtual ~AudioFileHolder();
+
+	// Moves transfer the audioFile pointer (and any reasons subclasses hold on it), so the moved-from holder's
+	// destructor releases nothing. Copying must stay explicit, as reason counting makes it non-trivial.
+	AudioFileHolder(AudioFileHolder&& other) noexcept
+	    : filePath(other.filePath), audioFile(std::exchange(other.audioFile, nullptr)),
+	      audioFileType(other.audioFileType) {}
+	AudioFileHolder& operator=(AudioFileHolder&& other) noexcept {
+		filePath = other.filePath;
+		audioFile = std::exchange(other.audioFile, nullptr);
+		audioFileType = other.audioFileType;
+		return *this;
+	}
+	AudioFileHolder(AudioFileHolder const&) = delete;
+	AudioFileHolder& operator=(AudioFileHolder const&) = delete;
 	virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
 	                          int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 	Error loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
@@ -38,7 +54,7 @@ public:
 	               bool makeWaveTableWorkAtAllCosts = false);
 	virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
 
-	String filePath;
+	std::string filePath;
 	AudioFile* audioFile;
 	AudioFileType audioFileType;
 };

@@ -95,7 +95,9 @@ public:
 		display->setText(value);
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override { valueBuf.append(getIteranceDisplayValue("%d of %d")); }
+	void getNotificationValue(etl::istring& valueBuf) override {
+		deluge::string::append(valueBuf, getIteranceDisplayValue("%d of %d"));
+	}
 
 	void writeCurrentValue() override { ; }
 

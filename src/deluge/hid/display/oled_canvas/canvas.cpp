@@ -17,9 +17,10 @@
 
 #include "canvas.h"
 #include "definitions_cxx.hpp"
-#include "deluge/util/d_string.h"
+#include "deluge/util/c_string.h"
 #include "gui/fonts/fonts.h"
 #include "storage/flash_storage.h"
+#include "util/etl_string.h"
 
 #include <hid/display/oled.h>
 #include <math.h>
@@ -318,18 +319,18 @@ void Canvas::drawStringCentred(char const* string, int32_t pixelY, int32_t textW
 
 void Canvas::drawStringCentered(char const* string, int32_t pixelX, int32_t pixelY, int32_t textSpacingX,
                                 int32_t textSpacingY, int32_t totalWidth) {
-	DEF_STACK_STRING_BUF(stringBuf, 24);
+	etl::string<24> stringBuf;
 	stringBuf.append(string);
 	drawStringCentered(stringBuf, pixelX, pixelY, textSpacingX, textSpacingY, totalWidth);
 }
 
-void Canvas::drawStringCentered(StringBuf& stringBuf, int32_t pixelX, int32_t pixelY, int32_t textSpacingX,
+void Canvas::drawStringCentered(etl::istring& stringBuf, int32_t pixelX, int32_t pixelY, int32_t textSpacingX,
                                 int32_t textSpacingY, int32_t totalWidth) {
 	int32_t stringWidth;
 
 	// Trim characters from the end until it fits.
 	while ((stringWidth = getStringWidthInPixels(stringBuf.c_str(), textSpacingY)) >= totalWidth - 3) {
-		stringBuf.truncate(stringBuf.size() - 1);
+		stringBuf.resize(stringBuf.size() - 1);
 	}
 
 	// Padding to center the string

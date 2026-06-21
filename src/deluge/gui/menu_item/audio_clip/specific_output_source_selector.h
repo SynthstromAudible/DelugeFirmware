@@ -80,7 +80,7 @@ public:
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 28;
 
 		// draw the track name
-		char const* name = audioOutputBeingEdited->getOutputRecordingFrom()->name.get();
+		char const* name = audioOutputBeingEdited->getOutputRecordingFrom()->name.c_str();
 
 		int32_t stringLengthPixels = canvas.getStringWidthInPixels(name, kTextTitleSizeY);
 
@@ -96,7 +96,7 @@ public:
 	}
 
 	void drawFor7seg() {
-		char const* text = audioOutputBeingEdited->getOutputRecordingFrom()->name.get();
+		char const* text = audioOutputBeingEdited->getOutputRecordingFrom()->name.c_str();
 		display->setScrollingText(text, 0);
 	}
 

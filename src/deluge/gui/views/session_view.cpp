@@ -76,13 +76,15 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
+#include "util/c_string.h"
 #include "util/cfunctions.h"
-#include "util/d_string.h"
+#include "util/etl_string.h"
 #include "util/finally.h"
 #include "util/functions.h"
 #include "util/try.h"
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <new>
 
 using namespace deluge;
@@ -297,8 +299,8 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				int32_t posPressed = arrangerView.getPosFromSquare(selectedClipPressXDisplay);
 				int32_t proposedStartPos = posPressed;
 
-				int32_t i = output->clipInstances.search(proposedStartPos, LESS);
-				ClipInstance* otherInstance = output->clipInstances.getElement(i);
+				int32_t i = output->clipInstances.firstAtOrAfter(proposedStartPos) - 1;
+				ClipInstance* otherInstance = output->clipInstances.tryGet(i);
 				if (otherInstance) {
 					if (otherInstance->pos + otherInstance->length > proposedStartPos) {
 moveAfterClipInstance:
@@ -311,7 +313,7 @@ moveAfterClipInstance:
 
 				// Look at the next ClipInstance
 				i++;
-				otherInstance = output->clipInstances.getElement(i);
+				otherInstance = output->clipInstances.tryGet(i);
 				if (otherInstance) {
 					if (otherInstance->pos < proposedStartPos + clip->loopLength) {
 						goto moveAfterClipInstance;
@@ -326,13 +328,13 @@ moveAfterClipInstance:
 				}
 
 				// If we're here, we're ok!
-				Error error = output->clipInstances.insertAtIndex(i);
+				Error error = output->clipInstances.insertAt(i).error_or(Error::NONE);
 				if (error != Error::NONE) {
 					display->displayError(error);
 					return ActionResult::DEALT_WITH;
 				}
 
-				ClipInstance* newInstance = output->clipInstances.getElement(i);
+				ClipInstance* newInstance = &output->clipInstances[i];
 				newInstance->pos = proposedStartPos;
 				newInstance->clip = clip;
 				newInstance->length = clip->loopLength;
@@ -857,7 +859,7 @@ startHoldingDown:
 					lastTypeCreated = clip->output->type;
 					createClip = true;
 
-					int32_t numClips = currentSong->sessionClips.getNumElements();
+					int32_t numClips = std::ssize(currentSong->sessionClips);
 					if (clipIndex < 0) {
 						clipIndex = 0;
 					}
@@ -1143,8 +1145,8 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				bool sectionUsed[kMaxNumSections];
 				memset(sectionUsed, 0, sizeof(sectionUsed));
 
-				for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
-					Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
+				for (int32_t c = 0; c < std::ssize(currentSong->sessionClips); c++) {
+					Clip* thisClip = currentSong->sessionClips[c];
 
 					if (thisClip->section < kMaxNumSections) {
 						sectionUsed[thisClip->section] = true;
@@ -1453,7 +1455,7 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 
 	if (direction == 1) {
-		if (currentSong->songViewYScroll >= currentSong->sessionClips.getNumElements() - 1) {
+		if (currentSong->songViewYScroll >= std::ssize(currentSong->sessionClips) - 1) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1477,7 +1479,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		int32_t oldIndex = selectedClipYDisplay + currentSong->songViewYScroll;
 
 		if (direction == 1) {
-			if (oldIndex >= currentSong->sessionClips.getNumElements() - 1) {
+			if (oldIndex >= std::ssize(currentSong->sessionClips) - 1) {
 				return ActionResult::DEALT_WITH;
 			}
 		}
@@ -1494,7 +1496,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		actionLogger.deleteAllLogs();
 
 		int32_t newIndex = oldIndex + direction;
-		currentSong->sessionClips.swapElements(newIndex, oldIndex);
+		std::swap(currentSong->sessionClips[newIndex], currentSong->sessionClips[oldIndex]);
 	}
 
 	currentSong->songViewYScroll += direction;
@@ -1574,10 +1576,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 // Will now look in subfolders too if need be.
 Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
                                    bool copyDrumsFromClip = true) {
-	Error error = Browser::currentDir.set(getInstrumentFolder(outputType));
-	if (error != Error::NONE) {
-		return error;
-	}
+	Browser::currentDir = getInstrumentFolder(outputType);
 
 	FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
 	                                     currentSong, outputType, Availability::INSTRUMENT_UNUSED),
@@ -1587,9 +1586,9 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 	bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
 	*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
 
+	Error error = Error::NONE;
 	if (!newInstrument) {
-		String newPresetName;
-		fileItem->getDisplayNameWithoutExtension(&newPresetName);
+		std::string newPresetName = fileItem->getDisplayNameWithoutExtension();
 		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &newInstrument,
 		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
@@ -1749,15 +1748,14 @@ bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	int32_t index = yDisplay + currentSong->songViewYScroll;
 	if (index <= 0) {
 		index = 0;
-		newClip->section = currentSong->sessionClips.getClipAtIndex(0)->section;
+		newClip->section = currentSong->sessionClips[0]->section;
 		currentSong->songViewYScroll++;
 	}
-	else if (index >= currentSong->sessionClips.getNumElements()) {
-		index = currentSong->sessionClips.getNumElements();
-		newClip->section =
-		    currentSong->sessionClips.getClipAtIndex(currentSong->sessionClips.getNumElements() - 1)->section;
+	else if (index >= std::ssize(currentSong->sessionClips)) {
+		index = std::ssize(currentSong->sessionClips);
+		newClip->section = currentSong->sessionClips[std::ssize(currentSong->sessionClips) - 1]->section;
 	}
-	if (currentSong->sessionClips.insertClipAtIndex(newClip, index) != Error::NONE) {
+	if (!currentSong->sessionClips.insertClipAt(newClip, index)) {
 		return false;
 	}
 
@@ -1825,7 +1823,7 @@ void SessionView::removeClip(Clip* clip) {
 	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
 	// If last session Clip left, just don't allow. Easiest
-	if (currentSong->sessionClips.getNumElements() == 1) {
+	if (std::ssize(currentSong->sessionClips) == 1) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_REMOVE_FINAL_CLIP));
 		return;
 	}
@@ -1862,11 +1860,11 @@ Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
 
 	int32_t index = yDisplay + currentSong->songViewYScroll;
 
-	if (index < 0 || index >= currentSong->sessionClips.getNumElements()) {
+	if (index < 0 || index >= std::ssize(currentSong->sessionClips)) {
 		return nullptr;
 	}
 
-	return currentSong->sessionClips.getClipAtIndex(index);
+	return currentSong->sessionClips[index];
 }
 
 void SessionView::redrawClipsOnScreen(bool doRender) {
@@ -2032,7 +2030,7 @@ void SessionView::renderViewDisplay() {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-	DEF_STACK_STRING_BUF(tempoBPM, 10);
+	etl::string<10> tempoBPM;
 	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
 	displayTempoBPM(canvas, tempoBPM, false);
@@ -2044,11 +2042,11 @@ void SessionView::renderViewDisplay() {
 #endif
 
 	char const* name;
-	if (currentSong->name.isEmpty()) {
+	if (currentSong->name.empty()) {
 		name = "UNSAVED";
 	}
 	else {
-		name = currentSong->name.get();
+		name = currentSong->name.c_str();
 	}
 
 	int32_t stringLengthPixels = canvas.getStringWidthInPixels(name, kTextTitleSizeY);
@@ -2064,14 +2062,14 @@ void SessionView::renderViewDisplay() {
 
 	yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
-	DEF_STACK_STRING_BUF(rootNoteAndScaleName, 40);
+	etl::string<40> rootNoteAndScaleName;
 	currentSong->getCurrentRootNoteAndScaleName(rootNoteAndScaleName);
 	displayCurrentRootNoteAndScaleName(canvas, rootNoteAndScaleName, false);
 
 	deluge::hid::display::OLED::markChanged();
 }
 
-void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM,
+void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, etl::istring& tempoBPM,
                                   bool clearArea) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 
@@ -2090,7 +2088,7 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                     StringBuf& rootNoteAndScaleName, bool clearArea) {
+                                                     etl::istring& rootNoteAndScaleName, bool clearArea) {
 
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
@@ -2132,7 +2130,7 @@ void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 		return;
 	}
 
-	bool enoughSpace = currentSong->sessionClips.ensureEnoughSpaceAllocated(1);
+	bool enoughSpace = currentSong->sessionClips.reserveExtra(1).has_value();
 	if (!enoughSpace) {
 ramError:
 		display->displayError(Error::INSUFFICIENT_RAM);
@@ -2163,12 +2161,12 @@ ramError:
 	if (newIndex < 0) {
 		newIndex = 0;
 	}
-	else if (newIndex > currentSong->sessionClips.getNumElements()) {
-		newIndex = currentSong->sessionClips.getNumElements();
+	else if (newIndex > std::ssize(currentSong->sessionClips)) {
+		newIndex = std::ssize(currentSong->sessionClips);
 	}
 
-	currentSong->sessionClips.insertClipAtIndex(newClip,
-	                                            newIndex); // Can't fail - we ensured enough space in advance
+	(void)currentSong->sessionClips.insertClipAt(newClip,
+	                                             newIndex); // Can't fail - we ensured enough space in advance
 
 	redrawClipsOnScreen();
 }
@@ -2359,7 +2357,7 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 		float diff = std::abs(tempo - lastDisplayedTempo);
 		// always catch manual adjustments, limit rate of others
 		if (diff > 0.5) {
-			DEF_STACK_STRING_BUF(tempoBPM, 10);
+			etl::string<10> tempoBPM;
 			playbackHandler.getTempoStringForOLED(tempo, tempoBPM);
 			displayTempoBPM(deluge::hid::display::OLED::main, tempoBPM, true);
 			deluge::hid::display::OLED::markChanged();
@@ -2374,20 +2372,20 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 	// only show pop-up if you're not in any other UI mode
 	if (currentUIMode == UI_MODE_NONE) {
 		if (sixteenthNotesRemaining > 0) {
-			DEF_STACK_STRING_BUF(popupMsg, 40);
+			etl::string<40> popupMsg;
 			if (sixteenthNotesRemaining > 16) {
 				int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
 				if (display->haveOLED()) {
 					popupMsg.append("Bars Remaining: ");
 				}
-				popupMsg.appendInt(barsRemaining);
+				deluge::string::appendInt(popupMsg, barsRemaining);
 			}
 			else {
 				int32_t quarterNotesRemaining = ((sixteenthNotesRemaining - 1) / 4) + 1;
 				if (display->haveOLED()) {
 					popupMsg.append("Beats Remaining: ");
 				}
-				popupMsg.appendInt(quarterNotesRemaining);
+				deluge::string::appendInt(popupMsg, quarterNotesRemaining);
 			}
 			if (display->haveOLED() && !ephemeral) {
 				deluge::hid::display::OLED::clearMainImage();
@@ -2566,8 +2564,8 @@ void SessionView::flashPlayRoutine() {
 	}
 	case SessionLayoutType::SessionLayoutTypeGrid: {
 		bool renderFlashing = false;
-		for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+		for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->sessionClips); ++idxClip) {
+			Clip* clip = currentSong->sessionClips[idxClip];
 			if (clip->armState != ArmState::OFF) {
 				renderFlashing = true;
 				break;
@@ -2968,10 +2966,10 @@ void SessionView::clipNeedsReRendering(Clip* clip) {
 	int32_t topIndex = bottomIndex + kDisplayHeight;
 
 	bottomIndex = std::max(bottomIndex, 0_i32);
-	topIndex = std::min(topIndex, currentSong->sessionClips.getNumElements());
+	topIndex = std::min<int32_t>(topIndex, std::ssize(currentSong->sessionClips));
 
 	for (int32_t c = bottomIndex; c < topIndex; c++) {
-		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
+		Clip* thisClip = currentSong->sessionClips[c];
 		if (thisClip == clip) {
 			int32_t yDisplay = c - currentSong->songViewYScroll;
 			requestRendering(this, (1 << yDisplay), 0);
@@ -2990,10 +2988,10 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 	int32_t topIndex = bottomIndex + kDisplayHeight;
 
 	bottomIndex = std::max(bottomIndex, 0_i32);
-	topIndex = std::min(topIndex, currentSong->sessionClips.getNumElements());
+	topIndex = std::min<int32_t>(topIndex, std::ssize(currentSong->sessionClips));
 
 	for (int32_t c = bottomIndex; c < topIndex; c++) {
-		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
+		Clip* thisClip = currentSong->sessionClips[c];
 		if (thisClip->type == ClipType::AUDIO && ((AudioClip*)thisClip)->sampleHolder.audioFile == sample) {
 			int32_t yDisplay = c - currentSong->songViewYScroll;
 			requestRendering(this, (1 << yDisplay), 0);
@@ -3110,7 +3108,7 @@ void SessionView::renderLayoutChange(bool displayPopup) {
 			display->displayPopup("Rows");
 		}
 		selectedClipYDisplay = 255;
-		currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
+		currentSong->songViewYScroll = (std::ssize(currentSong->sessionClips) - kDisplayHeight);
 	}
 	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		if (displayPopup) {
@@ -3269,8 +3267,8 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 
 	PadLEDs::renderingLock = true;
 
-	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->sessionClips); ++idxClip) {
+		Clip* clip = currentSong->sessionClips[idxClip];
 		auto trackIndex = gridTrackIndexFromTrack(clip->output, trackCount);
 		if (trackIndex < 0) {
 			D_PRINTLN("Global output list mismatch");
@@ -3421,8 +3419,8 @@ Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 
 Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	Clip* sourceClip = nullptr;
-	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->sessionClips); ++idxClip) {
+		Clip* clip = currentSong->sessionClips[idxClip];
 		if (clip->output == targetOutput) {
 			sourceClip = clip;
 			break;
@@ -3589,8 +3587,8 @@ void SessionView::setupNewClip(Clip* newClip) {
 		if (currentSong->defaultAudioClipOverdubOutputCloning == -1) {
 			currentSong->defaultAudioClipOverdubOutputCloning = 1;
 			// For each Clip in session
-			for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
-				Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
+			for (int32_t c = 0; c < std::ssize(currentSong->sessionClips); c++) {
+				Clip* clip = currentSong->sessionClips[c];
 
 				if (clip->type == ClipType::AUDIO && clip->armedForRecording) {
 					currentSong->defaultAudioClipOverdubOutputCloning = ((AudioClip*)clip)->overdubsShouldCloneOutput;
@@ -3605,13 +3603,13 @@ void SessionView::setupNewClip(Clip* newClip) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstack-usage="
 void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput) {
-	if (source->name.isEmpty()) {
+	if (source->name.empty()) {
 		return;
 	}
 	// Start from the original clip name. We have max 12 sections, so being able to append
 	// a two digit number is enough.
-	DEF_STACK_STRING_BUF(newName, source->name.getLength() + 2);
-	newName.append(source->name.get());
+	std::string newName;
+	newName.append(source->name.c_str());
 	// If the name already exists on the target output, we'll append a number. We start from 2,
 	// because "BRIDGE" & "BRIDGE2" make more sense than "BRIDGE" & "BRIDGE1".
 	int32_t counter = 2;
@@ -3625,14 +3623,14 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 		counter = atoi(newName.data() + end);
 	}
 	// Keep trying until we have a name that's unique on the output.
-	String newNameString;
-	newNameString.set(newName.data());
-	while (targetOutput->getClipFromName(newNameString.get()) != nullptr) {
-		newName.truncate(end);
-		newName.appendInt(counter++);
-		newNameString.set(newName.data());
+	std::string newNameString;
+	newNameString = newName.data();
+	while (targetOutput->getClipFromName(newNameString.c_str()) != nullptr) {
+		newName.resize(end);
+		newName += deluge::string::fromInt(counter++);
+		newNameString = newName.data();
 	}
-	target->name.set(newName.data());
+	target->name = newName.data();
 }
 #pragma GCC diagnostic pop
 
@@ -3711,7 +3709,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		((InstrumentClip*)newClip)->onKeyboardScreen = false;
 	}
 
-	if (currentSong->sessionClips.insertClipAtIndex(newClip, 0) != Error::NONE) {
+	if (!currentSong->sessionClips.insertClipAt(newClip, 0)) {
 		newClip->~Clip();
 		delugeDealloc(newClip);
 		display->displayError(Error::INSUFFICIENT_RAM);
@@ -3726,7 +3724,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			// Create a new track for the clip
 			if (targetOutput == nullptr) {
 				if (!createNewTrackForInstrumentClip(sourceClip->output->type, newInstrumentClip, false)) {
-					currentSong->sessionClips.deleteAtIndex(0);
+					currentSong->sessionClips.erase(currentSong->sessionClips.begin() + 0);
 					newClip->~Clip();
 					delugeDealloc(newClip);
 					return nullptr;
@@ -3808,8 +3806,8 @@ void SessionView::gridStartSection(uint32_t section, bool instant) {
 	if (instant) {
 		currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions > -1);
 
-		for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+		for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->sessionClips); ++idxClip) {
+			Clip* clip = currentSong->sessionClips[idxClip];
 
 			if ((clip->section == section && !clip->activeIfNoSolo)
 			    || (clip->section != section && clip->activeIfNoSolo)) {
@@ -4138,8 +4136,8 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				auto maxTrack = gridTrackCount();
 				Output* track = gridTrackFromX(x, maxTrack);
 				if (track != nullptr) {
-					for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-						Clip* sessionClip = currentSong->sessionClips.getClipAtIndex(idxClip);
+					for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->sessionClips); ++idxClip) {
+						Clip* sessionClip = currentSong->sessionClips[idxClip];
 						if (sessionClip->output == track) {
 							if (sessionClip->activeIfNoSolo) {
 								gridToggleClipPlay(sessionClip, Buttons::isShiftButtonPressed());
@@ -4583,8 +4581,8 @@ const size_t SessionView::gridTrackCount() const {
 
 uint32_t SessionView::gridClipCountForTrack(Output* track) {
 	uint32_t count = 0;
-	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->sessionClips); ++idxClip) {
+		Clip* clip = currentSong->sessionClips[idxClip];
 		if (clip->output == track) {
 			++count;
 		}
@@ -4689,8 +4687,8 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 		return nullptr;
 	}
 
-	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->sessionClips); ++idxClip) {
+		Clip* clip = currentSong->sessionClips[idxClip];
 		if (clip->output == track && clip->section == section) {
 			return clip;
 		}
@@ -4712,8 +4710,8 @@ int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
 		return -1;
 	}
 
-	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->sessionClips); ++idxClip) {
+		Clip* clip = currentSong->sessionClips[idxClip];
 		if (clip->output == track && clip->section == section) {
 			return idxClip;
 		}

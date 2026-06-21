@@ -82,7 +82,7 @@ public:
 		}
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
+	void getNotificationValue(etl::istring& valueBuf) override {
 		valueBuf.append(instrumentClipView.getFillString(this->getValue()));
 	}
 

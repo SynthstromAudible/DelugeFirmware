@@ -238,7 +238,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 	int32_t endClusters;
 	if (recorder) {
 		numValidSamples = recorder->numSamplesCaptured;
-		endClusters = sample->clusters.getNumElements();
+		endClusters = static_cast<int32_t>(sample->clusters.size());
 	}
 	else {
 		numValidSamples = sample->lengthInSamples;
@@ -379,7 +379,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			}
 		}
 
-		SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndexToDo);
+		SampleCluster* sampleCluster = &sample->clusters[clusterIndexToDo];
 
 		if (sampleCluster->cluster && sampleCluster->cluster->numReasonsToBeLoaded < 0) {
 			FREEZE_WITH_ERROR("E449"); // Trying to catch errer before i028, which users have gotten.
@@ -433,7 +433,7 @@ cantReadData:
 			Cluster* nextCluster = nullptr;
 			if (endByteWithinCluster <= startByteWithinCluster && clusterIndexToDo < endClusters - 1) {
 				endByteWithinCluster += overshoot;
-				SampleCluster* nextSampleCluster = sample->clusters.getElement(clusterIndexToDo + 1);
+				SampleCluster* nextSampleCluster = &sample->clusters[clusterIndexToDo + 1];
 				if ((nextSampleCluster->cluster != nullptr) && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
 					FREEZE_WITH_ERROR("E450"); // Trying to catch errer before i028, which users have gotten.
 				}

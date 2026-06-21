@@ -20,6 +20,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note.h"
+#include "util/etl_string.h"
 
 // namespace deluge::gui::views::automation::editor_layout::note {
 
@@ -198,9 +199,9 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 						}
 					}
 
-					//	DEF_STACK_STRING_BUF(numSquare, 50);
+					//	etl::string<50> numSquare;
 					//	numSquare.append("Squares: ");
-					//	numSquare.appendInt(numSquares);
+					//	deluge::string::appendInt(numSquare, numSquares);
 					//	numSquare.append("\n");
 
 					// calculate start and end velocity for long press
@@ -221,9 +222,9 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 					}
 
 					//	numSquare.append("L: ");
-					//	numSquare.appendInt(leftPadSelectedVelocity);
+					//	deluge::string::appendInt(numSquare, leftPadSelectedVelocity);
 					//	numSquare.append(" R: ");
-					//	numSquare.appendInt(rightPadSelectedVelocity);
+					//	deluge::string::appendInt(numSquare, rightPadSelectedVelocity);
 					//	numSquare.append("\n");
 
 					// calculate increment from first pad to last pad
@@ -237,7 +238,7 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 					}
 
 					//	numSquare.append("Inc: ");
-					//	numSquare.appendInt(multiPadPressVelocityIncrement);
+					//	deluge::string::appendInt(numSquare, multiPadPressVelocityIncrement);
 					//	display->displayPopup(numSquare.c_str());
 
 					// update multi pad press selection indicator
@@ -387,9 +388,8 @@ void AutomationEditorLayoutNoteVelocity::setVelocity(ModelStackWithNoteRow* mode
 				uint32_t velocitySumThisSquare = 0;
 				uint32_t numNotesThisSquare = 0;
 
-				int32_t noteI =
-				    noteRow->notes.search(instrumentClipView.editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-				Note* note = noteRow->notes.getElement(noteI);
+				int32_t noteI = noteRow->notes.firstAtOrAfter(instrumentClipView.editPadPresses[i].intendedPos);
+				Note* note = &noteRow->notes[noteI];
 				while (note
 				       && note->pos - instrumentClipView.editPadPresses[i].intendedPos
 				              < instrumentClipView.editPadPresses[i].intendedLength) {
@@ -402,7 +402,7 @@ void AutomationEditorLayoutNoteVelocity::setVelocity(ModelStackWithNoteRow* mode
 					velocitySumThisSquare += note->getVelocity();
 
 					noteI++;
-					note = noteRow->notes.getElement(noteI);
+					note = &noteRow->notes[noteI];
 				}
 
 				// Rohan: Get the average. Ideally we'd have done this when first selecting the note too, but I
@@ -457,9 +457,9 @@ void AutomationEditorLayoutNoteVelocity::setVelocityRamp(ModelStackWithNoteRow* 
 			if (rowSquareInfo[i].numNotes > 1) {
 				int32_t intendedLength = rowSquareInfo[i].squareEndPos - intendedPos;
 
-				int32_t noteI = noteRow->notes.search(intendedPos, GREATER_OR_EQUAL);
+				int32_t noteI = noteRow->notes.firstAtOrAfter(intendedPos);
 
-				Note* note = noteRow->notes.getElement(noteI);
+				Note* note = &noteRow->notes[noteI];
 
 				while (note && note->pos - intendedPos < intendedLength) {
 					int32_t intendedVelocity =
@@ -470,7 +470,7 @@ void AutomationEditorLayoutNoteVelocity::setVelocityRamp(ModelStackWithNoteRow* 
 
 					noteI++;
 
-					note = noteRow->notes.getElement(noteI);
+					note = &noteRow->notes[noteI];
 				}
 			}
 			// one note in square

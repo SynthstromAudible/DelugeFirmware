@@ -22,6 +22,7 @@
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
+#include "util/containers.h"
 class InstrumentClip;
 class Drum;
 class Sound;
@@ -110,7 +111,7 @@ public:
 	void removeDrum(Drum* drum);
 	ModControllable* toModControllable() override;
 	Drum* getDrumFromName(std::string_view name, bool onlyIfNoNoteRow = false);
-	Error makeDrumNameUnique(String* name, int32_t startAtNumber);
+	Error makeDrumNameUnique(std::string* name, int32_t startAtNumber);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	void setupPatching(ModelStackWithTimelineCounter* modelStack) override;
 	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
@@ -148,7 +149,7 @@ public:
 	Drum* firstDrum;
 	Drum* selectedDrum;
 
-	OrderedResizeableArrayWith32bitKey drumsWithRenderingActive;
+	deluge::fast_set<Drum*> drumsWithRenderingActive;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

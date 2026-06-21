@@ -33,8 +33,9 @@
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
-#include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
+#include <algorithm>
+#include <strings.h>
 
 #pragma GCC diagnostic push
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
@@ -47,12 +48,17 @@ PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[DELUGE_USB_NUM_CO
 
 namespace MIDIDeviceManager {
 
-NamedThingVector hostedMIDIDevices{__builtin_offsetof(MIDICableUSBHosted, name)};
+deluge::fast_vector<MIDICableUSBHosted*> hostedMIDIDevices;
+
+/// Comparator maintaining hostedMIDIDevices' case-insensitive sort by name
+static bool cableNameLess(MIDICableUSBHosted* cable, char const* name) {
+	return strcasecmp(cable->name.c_str(), name) < 0;
+}
 
 bool differentiatingInputsByDevice = true;
 
 struct USBDev {
-	String name{};
+	std::string name{};
 	uint16_t vendorId;
 	uint16_t productId;
 };
@@ -115,8 +121,7 @@ void slowRoutine() {
 	upstreamUSBMIDICable2.sendMCMsNowIfNeeded();
 	// port3 is not used for channel data
 
-	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-		MIDICableUSBHosted* device = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
+	for (MIDICableUSBHosted* device : hostedMIDIDevices) {
 		device->sendMCMsNowIfNeeded();
 
 		// This routine placed here because for whatever reason we can't send sysex from hostedDeviceConfigured
@@ -129,29 +134,27 @@ void slowRoutine() {
 
 extern "C" void giveDetailsOfDeviceBeingSetUp(int32_t ip, char const* name, uint16_t vendorId, uint16_t productId) {
 
-	usbDeviceCurrentlyBeingSetUp[ip].name.set(name); // If that fails, it'll just have a 0-length name
+	usbDeviceCurrentlyBeingSetUp[ip].name = name; // If that fails, it'll just have a 0-length name
 	usbDeviceCurrentlyBeingSetUp[ip].vendorId = vendorId;
 	usbDeviceCurrentlyBeingSetUp[ip].productId = productId;
 
 	D_PRINTLN("name: %s  vendor: %d  product: %d", name, vendorId, productId);
 }
 
-// name can be NULL, or an empty String
-MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_t vendorId, uint16_t productId) {
+// name can be NULL, or an empty std::string
+MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, uint16_t vendorId, uint16_t productId) {
 
 	// Do we know any details about this device already?
 
-	bool gotAName = (name && !name->isEmpty());
-	int32_t i = 0; // Need default value for below if we skip first bit because !gotAName
+	bool gotAName = (name && !name->empty());
 
 	if (gotAName) {
 		// Search by name first
-		bool foundExact;
-		i = hostedMIDIDevices.search(name->get(), GREATER_OR_EQUAL, &foundExact);
+		auto it = std::lower_bound(hostedMIDIDevices.begin(), hostedMIDIDevices.end(), name->c_str(), cableNameLess);
 
 		// If we'd already seen it before...
-		if (foundExact) {
-			auto* device = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
+		if (it != hostedMIDIDevices.end() && strcasecmp((*it)->name.c_str(), name->c_str()) == 0) {
+			MIDICableUSBHosted* device = *it;
 
 			// Update vendor and product id, if we have those
 			if (vendorId) {
@@ -164,20 +167,23 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 	}
 
 	// Ok, try searching by vendor / product id
-	for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
-		auto* candidate = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
-
+	for (MIDICableUSBHosted* candidate : hostedMIDIDevices) {
 		if (candidate->vendorId == vendorId && candidate->productId == productId) {
 			// Update its name - if we got one and it's different
-			if (gotAName && !candidate->name.equals(name)) {
-				hostedMIDIDevices.renameMember(i, name);
+			if (gotAName && !(candidate->name == *name)) {
+				std::erase(hostedMIDIDevices, candidate);
+				candidate->name = *name; // Can't fail
+				hostedMIDIDevices.insert(std::lower_bound(hostedMIDIDevices.begin(), hostedMIDIDevices.end(),
+				                                          candidate->name.c_str(), cableNameLess),
+				                         candidate);
 			}
 			return candidate;
 		}
 	}
 
-	bool success = hostedMIDIDevices.ensureEnoughSpaceAllocated(1);
-	if (!success) {
+	try {
+		hostedMIDIDevices.reserve(hostedMIDIDevices.size() + 1);
+	} catch (deluge::exception&) {
 		return nullptr;
 	}
 
@@ -204,18 +210,15 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 	}
 
 	if (gotAName) {
-		device->name.set(name);
+		device->name = *name;
 	}
 	device->vendorId = vendorId;
 	device->productId = productId;
 
-	// Store record of this device
-	Error error = hostedMIDIDevices.insertElement(device, i); // We made sure, above, that there's space
-#if ALPHA_OR_BETA_VERSION
-	if (error != Error::NONE) {
-		FREEZE_WITH_ERROR("E405");
-	}
-#endif
+	// Store record of this device. We reserved space above, so this can't throw.
+	hostedMIDIDevices.insert(
+	    std::lower_bound(hostedMIDIDevices.begin(), hostedMIDIDevices.end(), device->name.c_str(), cableNameLess),
+	    device);
 
 	return device;
 }
@@ -250,8 +253,7 @@ void recountSmallestMPEZones() {
 	recountSmallestMPEZonesForCable(upstreamUSBMIDICable2);
 	recountSmallestMPEZonesForCable(dinMIDIPorts);
 
-	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-		MIDICableUSBHosted* cable = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
+	for (MIDICableUSBHosted* cable : hostedMIDIDevices) {
 		recountSmallestMPEZonesForCable(*cable);
 	}
 }
@@ -280,8 +282,8 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	// App policy, from the device's name. (The transport's own per-slot state —
 	// sequence bit, counters, connected flag — is reset below the boundary, from
 	// the HAL enumeration path.)
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
+	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.c_str(), "Synthstrom MIDI Foot Controller");
+	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.c_str(), "LUMI Keys BLOCK");
 
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
@@ -289,11 +291,12 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	device->freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
 	if (display->haveOLED()) {
-		String text;
-		text.set(&device->name);
-		Error error = text.concatenate(" attached");
+		std::string text;
+		text = device->name;
+		text.append(" attached");
+		Error error = Error::NONE;
 		if (error == Error::NONE) {
-			consoleTextIfAllBootedUp(text.get());
+			consoleTextIfAllBootedUp(text.c_str());
 		}
 	}
 	else {
@@ -359,7 +362,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 
 	uint16_t vendorId = 0;
 	uint16_t productId = 0;
-	String name;
+	std::string name;
 	MIDICable* device = nullptr;
 
 	char const* tagName;
@@ -371,7 +374,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 			productId = reader.readTagOrAttributeValueHex(0);
 		}
 		else if (!strcmp(tagName, "name")) {
-			reader.readTagOrAttributeValueString(&name);
+			reader.readTagOrAttributeValueString(name);
 		}
 		else if (!strcmp(tagName, "port")) {
 			char const* port = reader.readTagOrAttributeValue();
@@ -397,7 +400,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 	}
 
 	// If we got something, go use it
-	if (!name.isEmpty() || vendorId) {
+	if (!name.empty() || vendorId) {
 		return getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId, productId); // Will return NULL if error.
 	}
 
@@ -451,8 +454,7 @@ void writeDevicesToFile() {
 	bool anyWorthWritting = dinMIDIPorts.worthWritingToFile() || upstreamUSBMIDICable1.worthWritingToFile()
 	                        || upstreamUSBMIDICable2.worthWritingToFile();
 	if (!anyWorthWritting) {
-		for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-			MIDICableUSBHosted* device = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
+		for (MIDICableUSBHosted* device : hostedMIDIDevices) {
 			if (device->worthWritingToFile()) {
 				anyWorthWritting = true;
 				break;
@@ -487,8 +489,7 @@ void writeDevicesToFile() {
 		upstreamUSBMIDICable2.writeToFile(writer, "upstreamUSBDevice2");
 	}
 
-	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-		MIDICableUSBHosted* device = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
+	for (MIDICableUSBHosted* device : hostedMIDIDevices) {
 		if (device->worthWritingToFile()) {
 			device->writeToFile(writer, "hostedUSBDevice");
 		}
@@ -566,7 +567,7 @@ void readDevicesFromFile() {
 void readAHostedDeviceFromFile(Deserializer& reader) {
 	MIDICableUSBHosted* device = nullptr;
 
-	String name;
+	std::string name;
 	uint16_t vendorId;
 	uint16_t productId;
 
@@ -582,13 +583,13 @@ void readAHostedDeviceFromFile(Deserializer& reader) {
 			productId = reader.readTagOrAttributeValueHex(0);
 		}
 		else if (!strcmp(tagName, "name")) {
-			reader.readTagOrAttributeValueString(&name);
+			reader.readTagOrAttributeValueString(name);
 		}
 		else if (!strcmp(tagName, "input")) {
 			whichPort = MIDI_DIRECTION_INPUT_TO_DELUGE;
 checkDevice:
 			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+				if (!name.empty() || vendorId) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
@@ -607,7 +608,7 @@ checkDevice:
 
 			// Sorry, I cloned this code from above.
 			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+				if (!name.empty() || vendorId) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
@@ -620,7 +621,7 @@ checkDevice:
 		else if (!strcmp(tagName, "sendClock")) {
 			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
 			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+				if (!name.empty() || vendorId) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
@@ -633,7 +634,7 @@ checkDevice:
 		else if (!strcmp(tagName, "receiveClock")) {
 			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
 			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+				if (!name.empty() || vendorId) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
@@ -646,7 +647,7 @@ checkDevice:
 		else if (!strcmp(tagName, "is_relative")) {
 			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
 			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+				if (!name.empty() || vendorId) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}

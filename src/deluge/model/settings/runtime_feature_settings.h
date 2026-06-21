@@ -18,11 +18,10 @@
 #pragma once
 
 #include "gui/l10n/strings.h"
-#include "util/container/array/resizeable_array.h"
 #include "util/containers.h"
-#include "util/d_string.h"
 #include <array>
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -69,6 +68,12 @@ enum RuntimeFeatureSettingType : uint32_t {
 	MaxElement // Keep as boundary
 };
 
+/// Setting read from the settings file that no current setting matches, kept for writing back
+struct UnknownSetting {
+	std::string name;
+	uint32_t value;
+};
+
 /// Definition for selectable options
 struct RuntimeFeatureSettingOption {
 	std::string_view displayName;
@@ -103,17 +108,17 @@ public:
 	 */
 	inline void set(RuntimeFeatureSettingType type, uint32_t value) { settings[type].value = value; }
 
-	inline const char* getStartupSong() { return startupSong.get(); }
+	inline const char* getStartupSong() { return startupSong.c_str(); }
 	void init();
 	void readSettingsFromFile();
 	void writeSettingsToFile();
 
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};
-	String startupSong;
+	std::string startupSong;
 
 private:
-	ResizeableArray unknownSettings;
+	deluge::vector<UnknownSetting> unknownSettings;
 
 public:
 	friend class deluge::gui::menu_item::runtime_feature::Setting;

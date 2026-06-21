@@ -31,7 +31,9 @@
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table_reader.h"
 #include "util/fixedpoint.h"
+#include <algorithm>
 #include <new>
+#include <ranges>
 
 extern int32_t oscSyncRenderingBuffer[];
 
@@ -42,7 +44,7 @@ WaveTableBand::~WaveTableBand() {
 	}
 }
 
-WaveTable::WaveTable() : bands(sizeof(WaveTableBand)), AudioFile(AudioFileType::WAVETABLE) {
+WaveTable::WaveTable() : AudioFile(AudioFileType::WAVETABLE) {
 }
 
 WaveTable::~WaveTable() {
@@ -50,20 +52,13 @@ WaveTable::~WaveTable() {
 }
 
 void WaveTable::deleteAllBandsAndData() {
-	for (int32_t b = 0; b < bands.getNumElements(); b++) {
-		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
-		band->~WaveTableBand();
-	}
-	bands.empty();
+	bands.clear(); // Destructors release each band's data
 }
 
 void WaveTable::bandDataBeingStolen(WaveTableBandData* bandData) {
-	for (int32_t b = 0; b < bands.getNumElements(); b++) {
-		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
-		if (band->data == bandData) {
-			band->data = nullptr;
-			break;
-		}
+	auto it = std::ranges::find(bands, bandData, &WaveTableBand::data);
+	if (it != bands.end()) {
+		it->data = nullptr;
 	}
 }
 
@@ -144,8 +139,8 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 	uint32_t originalSampleLengthInSamples;
 
 	if (sample) {
-		filePath.set(&sample->filePath);
-		loadedFromAlternatePath.set(&sample->loadedFromAlternatePath);
+		filePath = sample->filePath;
+		loadedFromAlternatePath = sample->loadedFromAlternatePath;
 
 		rawFileCycleSize = sample->waveTableCycleSize;
 		numChannels = sample->numChannels;
@@ -239,7 +234,11 @@ tryGettingFFTConfig:
 		    fftCFGForInitialBand ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
 
 		// Don't refer to numBands after this! (Why? Because we might end up using less after all?)
-		error = bands.insertAtIndex(0, numBands);
+		try {
+			bands.resize(numBands);
+		} catch (deluge::exception&) {
+			error = Error::INSUFFICIENT_RAM;
+		}
 	}
 	if (error != Error::NONE) {
 gotError:
@@ -259,7 +258,7 @@ gotError2:
 	                                          // didn't profile very closely.
 	AudioEngine::logAction("about to set up bands");
 
-	for (int32_t b = 0; b < bands.getNumElements(); b++) {
+	for (int32_t b = 0; b < static_cast<int32_t>(bands.size()); b++) {
 		int32_t cycleSizeNoDuplicates = initialBandCycleSizeNoDuplicates >> (b * NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS);
 
 		int32_t bandSizeSamplesWithDuplicates =
@@ -270,13 +269,13 @@ gotError2:
 		    GeneralMemoryAllocator::get().allocStealable(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
 		if (!bandDataMemory) {
 			error = Error::INSUFFICIENT_RAM;
-			// All bands from this one onwards still have undefined data, so gotta get rid of them before anything else
+			// All bands from this one onwards still have no data, so get rid of them before anything else
 			// tries to do anything with them.
-			bands.deleteAtIndex(b, bands.getNumElements() - b);
+			bands.erase(bands.begin() + b, bands.end());
 			goto gotError2;
 		}
 
-		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
+		WaveTableBand* band = &bands[b];
 		band->data = new (bandDataMemory) WaveTableBandData(this);
 
 		band->dataAccessAddress = (int16_t*)(band->data + 1);
@@ -333,7 +332,7 @@ gotError5:
 	AudioEngine::routineWithClusterLoading();
 	AudioEngine::logAction("finalizing vars");
 
-	WaveTableBand* initialBand = (WaveTableBand*)bands.getElementAddress(0);
+	WaveTableBand* initialBand = &bands[0];
 	// Even for non-power-of-two cycle size files, we'll still write the data in here even though it's not needed and
 	// will be overwritten, just since we're using the same code as for power-of-two.
 	int16_t* __restrict__ initialBandWritePos = initialBand->dataAccessAddress;
@@ -393,8 +392,8 @@ gotError5:
 						audioFileManager.removeReasonFromCluster(*cluster, "E385");
 					}
 
-					cluster = sample->clusters.getElement(clusterIndex)
-					              ->getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY, 0, &error);
+					cluster = sample->clusters[clusterIndex].getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY,
+					                                                    0, &error);
 					if (!cluster) {
 						goto gotError5;
 					}
@@ -571,7 +570,7 @@ gotError5:
 
 			// In fact, if there are no further bands (usually won't happen unless out of RAM), we can get out as
 			// there's nothing more to do.
-			if (bands.getNumElements() <= 1) {
+			if (static_cast<int32_t>(bands.size()) <= 1) {
 				continue;
 			}
 
@@ -634,10 +633,10 @@ gotError5:
 		// one.
 
 		// For each band "higher" up (smaller cycle; less high harmonics), do all the stuff for it - for this cycle.
-		for (b = 1; b < bands.getNumElements(); b++) {
+		for (b = 1; b < static_cast<int32_t>(bands.size()); b++) {
 
 			{
-				band = (WaveTableBand*)bands.getElementAddress(b);
+				band = &bands[b];
 
 				// If we've already chopped off the previous highest significant harmonic, search for a new one.
 				if (highestSignificantHarmonicIndex > (band->cycleSizeNoDuplicates >> 1)) {
@@ -698,8 +697,7 @@ transformBandToTimeDomain:
 					FREEZE_WITH_ERROR("E390");
 				}
 #endif
-				band->~WaveTableBand();
-				bands.deleteAtIndex(b);
+				bands.erase(bands.begin() + b);
 				b--;
 				continue;
 			}
@@ -734,7 +732,7 @@ transformBandToTimeDomain:
 	AudioEngine::routineWithClusterLoading();
 	AudioEngine::logAction("finalizing wavetable");
 
-	D_PRINTLN("initial num bands:  %d", bands.getNumElements());
+	D_PRINTLN("initial num bands:  %d", static_cast<int32_t>(bands.size()));
 
 	// Ok, we've now processed all Cycles.
 
@@ -763,21 +761,20 @@ transformBandToTimeDomain:
 	          (initialBand->toCycleNumber - initialBand->fromCycleNumber)
 	              * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
 	int32_t total = 0;
-	for (int32_t b = 1; b < bands.getNumElements(); b++) {
-		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
-		total += (band->toCycleNumber - band->fromCycleNumber)
-		         * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2;
+	for (WaveTableBand const& band : bands | std::views::drop(1)) {
+		total += (band.toCycleNumber - band.fromCycleNumber)
+		         * (band.cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2;
 	}
 	D_PRINTLN("other bands total size after trimming:  %d", total);
 
 	// Dispose of bands that didn't end up getting used, or such portions of their memory.
-	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) { // Traverse backwards because we might delete elements.
-		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
+	for (int32_t b = static_cast<int32_t>(bands.size()) - 1; b >= 0;
+	     b--) { // Traverse backwards because we might delete elements.
+		WaveTableBand* band = &bands[b];
 
 		// Delete whole band if no data needed
 		if (band->fromCycleNumber >= band->toCycleNumber) {
-			band->~WaveTableBand();
-			bands.deleteAtIndex(b);
+			bands.erase(bands.begin() + b);
 			D_PRINTLN("deleted whole band -  %d", b);
 		}
 
@@ -1056,11 +1053,14 @@ uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSample
                            uint32_t retriggerPhase, int32_t waveIndex, int32_t waveIndexIncrement) {
 
 	// Decide on ideal band
-	int32_t bHere = bands.search(phaseIncrement, GREATER_OR_EQUAL);
-	if (bHere >= bands.getNumElements()) {
+	int32_t bHere = static_cast<int32_t>(
+	    std::lower_bound(bands.begin(), bands.end(), phaseIncrement,
+	                     [](WaveTableBand const& band, uint32_t key) { return band.maxPhaseIncrement < key; })
+	    - bands.begin());
+	if (bHere >= static_cast<int32_t>(bands.size())) {
 		bHere--;
 	}
-	WaveTableBand* bandHere = (WaveTableBand*)bands.getElementAddress(bHere);
+	WaveTableBand* bandHere = &bands[bHere];
 
 	// If we're an actual wave table with more than one cycle...
 	if (numCycles > 1) [[likely]] {
@@ -1113,11 +1113,11 @@ startRenderingACycle:
 		while (bandHere->fromCycleNumber > firstCycleNumber || bandHere->toCycleNumber <= firstCycleNumber + 1) {
 
 			bHere++;
-			if (bHere == bands.getNumElements()) {
+			if (bHere == static_cast<int32_t>(bands.size())) {
 				goto doneRenderingACycle;
 			}
 
-			bandHere = (WaveTableBand*)bands.getElementAddress(bHere);
+			bandHere = &bands[bHere];
 		}
 
 		{
@@ -1184,10 +1184,9 @@ doneRenderingACycle:
 void WaveTable::numReasonsIncreasedFromZero() {
 
 	// Remove all bands' data from Stealable-queue, as it may no longer be stolen.
-	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
-		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
-		if (band->data) {
-			band->data->remove();
+	for (WaveTableBand& band : bands) {
+		if (band.data != nullptr) {
+			band.data->remove();
 		}
 	}
 }
@@ -1195,22 +1194,21 @@ void WaveTable::numReasonsIncreasedFromZero() {
 void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 
 	// Put all bands' data in queue to be stolen.
-	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
-		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
-		if (band->data) {
+	for (WaveTableBand& band : bands) {
+		if (band.data != nullptr) {
 #if ALPHA_OR_BETA_VERSION
-			if (band->data->list) {
+			if (band.data->list) {
 				FREEZE_WITH_ERROR("E388");
 			}
 #endif
-			GeneralMemoryAllocator::get().putStealableInQueue(band->data, StealableQueue::NO_SONG_WAVETABLE_BAND_DATA);
+			GeneralMemoryAllocator::get().putStealableInQueue(band.data, StealableQueue::NO_SONG_WAVETABLE_BAND_DATA);
 		}
 	}
 }
 
 /*
-    for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
-        WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
+    for (int32_t b = static_cast<int32_t>(bands.size()) - 1; b >= 0; b--) {
+        WaveTableBand* band = &bands[b];
 
     }
  */

@@ -42,6 +42,7 @@
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include "util/string.h"
 #include "util/try.h"
 
 using namespace deluge;
@@ -66,20 +67,20 @@ bool LoadInstrumentPresetUI::opened() {
 	}
 	if (instrumentToReplace) {
 		initialOutputType = instrumentToReplace->type;
-		initialName.set(&instrumentToReplace->name);
-		initialDirPath.set(&instrumentToReplace->dirPath);
+		initialName = instrumentToReplace->name;
+		initialDirPath = instrumentToReplace->dirPath;
 	}
 
 	if (loadingSynthToKitRow) {
 		initialOutputType = outputTypeToLoad = OutputType::SYNTH;
 		if (soundDrumToReplace) {
-			initialName.set(soundDrumToReplace->drumName);
+			initialName = soundDrumToReplace->drumName;
 		}
 		else {
-			initialName.set("");
+			initialName = "";
 		}
 
-		initialDirPath.set("SYNTHS");
+		initialDirPath = "SYNTHS";
 	}
 
 	switch (instrumentToReplace->type) {
@@ -187,7 +188,7 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 
 	char const* defaultDir = getInstrumentFolder(outputTypeToLoad);
 
-	String searchFilename;
+	std::string searchFilename;
 
 	// I don't have this calling arrivedInNewFolder(), because as you can see below, we want to either just display the
 	// existing preset, or call confirmPresetOrNextUnlaunchedOne() to skip any which aren't "available".
@@ -196,10 +197,10 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	if (instrumentToReplace && instrumentToReplace->type == outputTypeToLoad) {
 
 		// Then we can start by just looking at the existing Instrument, cos they're the same type...
-		currentDir.set(&instrumentToReplace->dirPath);
-		searchFilename.set(&instrumentToReplace->name);
+		currentDir = instrumentToReplace->dirPath;
+		searchFilename = instrumentToReplace->name;
 
-		if (currentDir.isEmpty()) {
+		if (currentDir.empty()) {
 			goto useDefaultFolder;
 		}
 	}
@@ -209,13 +210,13 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		if (loadingSynthToKitRow && soundDrumToReplace) {
 
 			if (!soundDrumToReplace->drumName.empty()) {
-				enteredText.set(soundDrumToReplace->drumName);
-				searchFilename.set(soundDrumToReplace->drumName);
+				enteredText = soundDrumToReplace->drumName;
+				searchFilename = soundDrumToReplace->drumName;
 			}
 
 			if (&soundDrumToReplace->path) {
-				currentDir.set(&soundDrumToReplace->path);
-				if (currentDir.isEmpty()) {
+				currentDir = soundDrumToReplace->path;
+				if (currentDir.empty()) {
 					goto useDefaultFolder;
 				}
 			}
@@ -227,11 +228,11 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		// If we've got a Clip, we can see if it used to use another Instrument of this new type...
 		else if (instrumentClipToLoadFor && outputTypeToLoad != OutputType::MIDI_OUT) {
 			const size_t outputTypeToLoadAsIdx = static_cast<size_t>(outputTypeToLoad);
-			String* backedUpName = &instrumentClipToLoadFor->backedUpInstrumentName[outputTypeToLoadAsIdx];
-			enteredText.set(backedUpName);
-			searchFilename.set(backedUpName);
-			currentDir.set(&instrumentClipToLoadFor->backedUpInstrumentDirPath[outputTypeToLoadAsIdx]);
-			if (currentDir.isEmpty()) {
+			const std::string& backedUpName = instrumentClipToLoadFor->backedUpInstrumentName[outputTypeToLoadAsIdx];
+			enteredText = backedUpName;
+			searchFilename = backedUpName;
+			currentDir = instrumentClipToLoadFor->backedUpInstrumentDirPath[outputTypeToLoadAsIdx];
+			if (currentDir.empty()) {
 				goto useDefaultFolder;
 			}
 		}
@@ -239,21 +240,15 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		// Otherwise we just start with nothing. currentSlot etc remain set to "zero" from before
 		else {
 useDefaultFolder:
-			Error error = currentDir.set(defaultDir);
-			if (error != Error::NONE) {
-				return error;
-			}
+			currentDir = defaultDir;
 		}
 	}
 
-	if (!searchFilename.isEmpty()) {
-		Error error = searchFilename.concatenate(".XML");
-		if (error != Error::NONE) {
-			return error;
-		}
+	if (!searchFilename.empty()) {
+		searchFilename.append(".XML");
 	}
 
-	Error error = arrivedInNewFolder(0, searchFilename.get(), defaultDir);
+	Error error = arrivedInNewFolder(0, searchFilename.c_str(), defaultDir);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -308,7 +303,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
 
-		Error error = goIntoFolder(currentFileItem->filename.get());
+		Error error = goIntoFolder(currentFileItem->filename.c_str());
 
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -412,14 +407,9 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		// We want to open the context menu to choose to reload the original file for the currently selected preset in
 		// some way. So first up, make sure there is a file, and that we've got its pointer
-		String filePath;
-		Error error = getCurrentFilePath(&filePath);
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return ActionResult::DEALT_WITH;
-		}
+		std::string filePath = getCurrentFilePath();
 
-		bool fileExists = StorageManager::fileExists(filePath.get(), &currentFileItem->filePointer);
+		bool fileExists = StorageManager::fileExists(filePath.c_str(), &currentFileItem->filePointer);
 		if (!fileExists) {
 			display->displayError(Error::FILE_NOT_FOUND);
 			return ActionResult::DEALT_WITH;
@@ -547,8 +537,9 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 	Instrument* initialInstrument = nullptr;
 
 	// Search main, non-hibernating Instruments
-	initialInstrument = currentSong->getInstrumentFromPresetSlot(
-	    initialOutputType, initialChannel, initialChannelSuffix, initialName.get(), initialDirPath.get(), false, true);
+	initialInstrument =
+	    currentSong->getInstrumentFromPresetSlot(initialOutputType, initialChannel, initialChannelSuffix,
+	                                             initialName.c_str(), initialDirPath.c_str(), false, true);
 
 	// If we found it already as a non-hibernating one...
 	if (initialInstrument) {
@@ -593,8 +584,8 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 		else {
 
 			// Search hibernating Instruments
-			initialInstrument = currentSong->getInstrumentFromPresetSlot(initialOutputType, 0, 0, initialName.get(),
-			                                                             initialDirPath.get(), true, false);
+			initialInstrument = currentSong->getInstrumentFromPresetSlot(initialOutputType, 0, 0, initialName.c_str(),
+			                                                             initialDirPath.c_str(), true, false);
 
 			// If found hibernating synth or kit...
 			if (initialInstrument) {
@@ -608,26 +599,22 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 				// Set this stuff so that getCurrentFilePath() will return what we want. This is just ok because we're
 				// exiting anyway
 				outputTypeToLoad = initialOutputType;
-				enteredText.set(&initialName);
-				currentDir.set(&initialDirPath);
+				enteredText = initialName;
+				currentDir = initialDirPath;
 
 				// Try getting from file
-				String filePath;
-				Error error = getCurrentFilePath(&filePath);
-				if (error != Error::NONE) {
-					return;
-				}
+				std::string filePath = getCurrentFilePath();
 
 				FilePointer tempFilePointer;
 
-				bool success = StorageManager::fileExists(filePath.get(), &tempFilePointer);
+				bool success = StorageManager::fileExists(filePath.c_str(), &tempFilePointer);
 				if (!success) {
 					return;
 				}
 
-				error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType,
-				                                               false, &initialInstrument, &tempFilePointer,
-				                                               &initialName, &initialDirPath);
+				Error error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor,
+				                                                     initialOutputType, false, &initialInstrument,
+				                                                     &tempFilePointer, &initialName, &initialDirPath);
 				if (error != Error::NONE) {
 					return;
 				}
@@ -683,11 +670,11 @@ bool LoadInstrumentPresetUI::isInstrumentInList(Instrument* searchInstrument, Ou
 }
 
 // Returns whether it was in fact an unused one that it was able to return
-bool LoadInstrumentPresetUI::findUnusedSlotVariation(String* oldName, String* newName) {
+bool LoadInstrumentPresetUI::findUnusedSlotVariation(std::string* oldName, std::string* newName) {
 
 	shouldInterpretNoteNames = false;
 
-	char const* oldNameChars = oldName->get();
+	char const* oldNameChars = oldName->c_str();
 	int32_t oldNameLength = strlen(oldNameChars);
 
 	if (display->have7SEG()) {
@@ -717,13 +704,13 @@ doSlotNumber:
 
 				buffer[3] = 'A' + subSlot;
 
-				int32_t i = fileItems.search(buffer);
-				if (i >= fileItems.getNumElements()) {
+				int32_t i = searchFileItems(buffer);
+				if (i >= static_cast<int32_t>(fileItems.size())) {
 					break;
 				}
 
-				FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-				char const* fileItemNameChars = fileItem->filename.get();
+				FileItem* fileItem = &fileItems[i];
+				char const* fileItemNameChars = fileItem->filename.c_str();
 				if (!memcasecmp(buffer, fileItemNameChars, 4)) {
 					if (fileItemNameChars[4] == 0) {
 						continue;
@@ -740,18 +727,18 @@ tryWholeNewSlotNumbers:
 				while (true) {
 					slotNumber++;
 					if (slotNumber >= kNumSongSlots) {
-						newName->set(oldName);
+						(*newName) = *oldName;
 						return false;
 					}
 					intToString(slotNumber, buffer, 3);
 
-					int32_t i = fileItems.search(buffer);
-					if (i >= fileItems.getNumElements()) {
+					int32_t i = searchFileItems(buffer);
+					if (i >= static_cast<int32_t>(fileItems.size())) {
 						break;
 					}
 
-					FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-					char const* fileItemNameChars = fileItem->filename.get();
+					FileItem* fileItem = &fileItems[i];
+					char const* fileItemNameChars = fileItem->filename.c_str();
 					if (!memcasecmp(buffer, fileItemNameChars, 4)) {
 						if (fileItemNameChars[4] == 0) {
 							continue;
@@ -764,7 +751,7 @@ tryWholeNewSlotNumbers:
 				}
 			}
 
-			newName->set(buffer);
+			(*newName) = buffer;
 		}
 		else if (oldNameLength == 4) {
 			char subSlotChar = oldNameChars[3];
@@ -790,7 +777,7 @@ tryWholeNewSlotNumbers:
 	{
 nonNumeric:
 		int32_t oldNumber = 1;
-		newName->set(oldName);
+		(*newName) = *oldName;
 
 		int32_t numberStartPos;
 
@@ -804,7 +791,7 @@ lookAtSuffixNumber:
 				int32_t numberHere = stringToUIntOrError(&oldNameChars[numberStartPos]);
 				if (numberHere >= 0) { // If it actually was a number, as opposed to other chars
 					oldNumber = numberHere;
-					newName->shorten(numberStartPos);
+					(*newName).resize(numberStartPos);
 					goto addNumber;
 				}
 			}
@@ -817,21 +804,21 @@ lookAtSuffixNumber:
 		}
 
 		numberStartPos = oldNameLength + 1;
-		newName->concatenate(" ");
+		(*newName).append(" ");
 
 addNumber:
 		for (;; oldNumber++) {
-			newName->shorten(numberStartPos);
-			newName->concatenateInt(oldNumber + 1);
-			char const* newNameChars = newName->get();
+			(*newName).resize(numberStartPos);
+			(*newName).append(deluge::string::fromInt(oldNumber + 1));
+			char const* newNameChars = newName->c_str();
 
-			int32_t i = fileItems.search(newNameChars);
-			if (i >= fileItems.getNumElements()) {
+			int32_t i = searchFileItems(newNameChars);
+			if (i >= static_cast<int32_t>(fileItems.size())) {
 				break;
 			}
 
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-			char const* fileItemNameChars = fileItem->filename.get();
+			FileItem* fileItem = &fileItems[i];
+			char const* fileItemNameChars = fileItem->filename.c_str();
 			int32_t newNameLength = strlen(newNameChars);
 			if (!memcasecmp(newNameChars, fileItemNameChars, newNameLength)) {
 				if (fileItemNameChars[newNameLength] == 0) {
@@ -917,7 +904,7 @@ giveUsedError:
 	// Or, if we need to load from file - perhaps forcibly because the user manually chose to clone...
 	else {
 
-		String clonedName;
+		std::string clonedName;
 
 		if (doClone) {
 			bool success = findUnusedSlotVariation(&enteredText, &clonedName);
@@ -943,7 +930,7 @@ giveUsedError:
 		loadedFromFile = true;
 
 		if (doClone) {
-			newInstrument->name.set(&clonedName);
+			newInstrument->name = clonedName;
 			newInstrument->editedByUser = true;
 		}
 	}
@@ -1001,8 +988,8 @@ giveUsedError:
 	// Check if old Instrument has been deleted, in which case need to update the appropriate FileItem.
 	if (!isInstrumentInList(instrumentToReplace, currentSong->firstOutput)
 	    && !isInstrumentInList(instrumentToReplace, currentSong->firstHibernatingInstrument)) {
-		for (int32_t f = fileItems.getNumElements() - 1; f >= 0; f--) {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
+		for (int32_t f = static_cast<int32_t>(fileItems.size()) - 1; f >= 0; f--) {
+			FileItem* fileItem = &fileItems[f];
 			if (fileItem->instrument == instrumentToReplace) {
 				fileItem->instrument = nullptr;
 				break;
@@ -1034,7 +1021,7 @@ giveUsedError:
 		MIDIInstrument* midiInstrument = (MIDIInstrument*)newInstrument;
 		if (midiInstrument->loadDeviceDefinitionFile) {
 			FilePointer tempfp;
-			bool fileExists = StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.get(), &tempfp);
+			bool fileExists = StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.c_str(), &tempfp);
 			if (fileExists) {
 				StorageManager::loadMidiDeviceDefinitionFile(midiInstrument, &tempfp,
 				                                             &midiInstrument->deviceDefinitionFileName, false);
@@ -1070,7 +1057,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 	// make sure the drum isn't currently in use
 	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
-	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
+	kitToLoadFor->drumsWithRenderingActive.erase(soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
 	// swaps out the drum pointed to by soundDrumToReplace
@@ -1085,7 +1072,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	// soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
 	soundDrumToReplace->drumName = getCurrentFilenameWithoutExtension();
-	soundDrumToReplace->path.set(&currentDir);
+	soundDrumToReplace->path = currentDir.c_str();
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {
@@ -1183,8 +1170,8 @@ bool LoadInstrumentPresetUI::showingAuditionPads() {
 }
 
 void LoadInstrumentPresetUI::instrumentEdited(Instrument* instrument) {
-	if (instrument == currentInstrument && currentInstrumentLoadError == Error::NONE && enteredText.isEmpty()) {
-		enteredText.set(&instrument->name);
+	if (instrument == currentInstrument && currentInstrumentLoadError == Error::NONE && enteredText.empty()) {
+		enteredText = instrument->name;
 		// TODO: update the FileItem too?
 		displayText(false);
 	}
@@ -1201,16 +1188,16 @@ LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* so
 	AudioEngine::logAction("findAnUnlaunchedPresetIncludingWithinSubfolders");
 	allowedFileExtensions = allowedFileExtensionsXML;
 
-	int32_t initialDirLength = currentDir.getLength();
+	int32_t initialDirLength = currentDir.size();
 
 	int32_t folderIndex = -1;
 	bool doingSubfolders = false;
-	String searchNameLocalCopy;
+	std::string searchNameLocalCopy;
 
 goAgain:
 
 	Error error = readFileItemsFromFolderAndMemory(song, outputType, getThingName(outputType),
-	                                               searchNameLocalCopy.get(), nullptr, true);
+	                                               searchNameLocalCopy.c_str(), nullptr, true);
 	if (error != Error::NONE) {
 		emptyFileItems();
 		return std::unexpected{error};
@@ -1219,7 +1206,7 @@ goAgain:
 	sortFileItems();
 
 	// If that folder-read gave us no files, that's gotta mean we got to the end of the folder.
-	if (!fileItems.getNumElements()) {
+	if (!static_cast<int32_t>(fileItems.size())) {
 
 		// If we weren't yet looking at subfolders, do that now, going back to the start of this folder's contents.
 		if (!doingSubfolders) {
@@ -1236,12 +1223,9 @@ startDoingFolders:
 	}
 
 	// Store rightmost display name before filtering, for later.
-	String lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-	error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
-	if (error != Error::NONE) {
-		return std::unexpected{error};
-	}
+	std::string lastFileItemDisplayNameBeforeFiltering;
+	auto* rightmostFileItemBeforeFiltering = &fileItems[fileItems.size() - 1];
+	lastFileItemDisplayNameBeforeFiltering = rightmostFileItemBeforeFiltering->displayName;
 
 	deleteFolderAndDuplicateItems(availabilityRequirement);
 
@@ -1249,8 +1233,8 @@ startDoingFolders:
 	if (!doingSubfolders) {
 
 		// Look through our list of FileItems, for a preset.
-		for (int32_t i = 0; i < fileItems.getNumElements(); i++) {
-			auto* fileItem = (FileItem*)fileItems.getElementAddress(i);
+		for (int32_t i = 0; i < static_cast<int32_t>(fileItems.size()); i++) {
+			auto* fileItem = &fileItems[i];
 			if (!fileItem->isFolder) {
 				return fileItem; // We found a preset / file.
 			}
@@ -1259,7 +1243,7 @@ startDoingFolders:
 		// Ok, we found none. Should we do some more reading of the folder contents, to get more files, or are there no
 		// more?
 		if (numFileItemsDeletedAtEnd) {
-			searchNameLocalCopy.set(&lastFileItemDisplayNameBeforeFiltering); // Can't fail.
+			searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering; // Can't fail.
 			goto goAgain;
 		}
 
@@ -1275,14 +1259,14 @@ startDoingFolders:
 	// Ok, do folders now.
 	int32_t i;
 	FileItem* fileItem;
-	for (i = 0; i < fileItems.getNumElements(); i++) {
-		fileItem = (FileItem*)fileItems.getElementAddress(i);
+	for (i = 0; i < static_cast<int32_t>(fileItems.size()); i++) {
+		fileItem = &fileItems[i];
 		if (fileItem->isFolder) {
 			goto doThisFolder;
 		}
 	}
 	if (numFileItemsDeletedAtEnd) {
-		searchNameLocalCopy.set(&lastFileItemDisplayNameBeforeFiltering);
+		searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering;
 		goto goAgain;
 	}
 	else {
@@ -1291,26 +1275,18 @@ startDoingFolders:
 
 	if (false) {
 doThisFolder:
-		bool anyMoreForLater = numFileItemsDeletedAtEnd || (i < (fileItems.getNumElements() - 1));
-		searchNameLocalCopy.set(fileItem->displayName);
+		bool anyMoreForLater = numFileItemsDeletedAtEnd || (i < (static_cast<int32_t>(fileItems.size()) - 1));
+		searchNameLocalCopy = fileItem->displayName;
 
-		Error error = currentDir.concatenate("/");
-		if (error != Error::NONE) {
-			emptyFileItems();
-			return std::unexpected{error};
-		}
-		error = currentDir.concatenate(&fileItem->filename);
-		if (error != Error::NONE) {
-			emptyFileItems();
-			return std::unexpected{error};
-		}
+		currentDir.append("/");
+		currentDir.append(fileItem->filename);
 
 		// Call self
 		return D_TRY_CATCH(findAnUnlaunchedPresetIncludingWithinSubfolders(song, outputType, availabilityRequirement),
 		                   error, {
 			                   if (error == Error::NO_FURTHER_FILES_THIS_DIRECTION) {
 				                   if (anyMoreForLater) {
-					                   currentDir.shorten(initialDirLength);
+					                   currentDir.resize(initialDirLength);
 					                   goto goAgain;
 				                   }
 				                   return result;
@@ -1324,24 +1300,22 @@ doThisFolder:
 // Caller must call emptyFileItems() at some point after calling this function.
 // And, set currentDir, before this is called.
 std::expected<FileItem*, Error>
-LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, String* searchName,
+LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, std::string* searchName,
                                                          Availability availabilityRequirement) {
-	String searchNameLocalCopy;
-	searchNameLocalCopy.set(searchName); // Can't fail.
+	std::string searchNameLocalCopy;
+	searchNameLocalCopy = *searchName; // Can't fail.
 	bool shouldJustGrabLeftmost = false;
 
 	// This does *not* favour the currentDir, so you should exhaust all avenues before calling this.
 	auto justGetAnyPreset = [&]() -> std::expected<FileItem*, Error> {
-		Error error = currentDir.set(getInstrumentFolder(outputType));
-		if (error != Error::NONE) {
-			return std::unexpected{error};
-		}
+		currentDir = getInstrumentFolder(outputType);
 		return findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, outputType, availabilityRequirement);
 	};
 
 doReadFiles:
-	Error error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType),
-	                                               searchNameLocalCopy.get(), nullptr, false, availabilityRequirement);
+	Error error =
+	    readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), searchNameLocalCopy.c_str(),
+	                                     nullptr, false, availabilityRequirement);
 
 	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
 
@@ -1353,7 +1327,7 @@ doReadFiles:
 	}
 
 	sortFileItems();
-	if (!fileItems.getNumElements()) {
+	if (!static_cast<int32_t>(fileItems.size())) {
 		if (shouldJustGrabLeftmost) {
 			return justGetAnyPreset();
 		}
@@ -1370,21 +1344,18 @@ needToGrabLeftmostButHaveToReadFirst:
 	}
 
 	// Store rightmost display name before filtering, for later.
-	String lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-	error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
-	if (error != Error::NONE) {
-		return std::unexpected{error};
-	}
+	std::string lastFileItemDisplayNameBeforeFiltering;
+	auto* rightmostFileItemBeforeFiltering = &fileItems[fileItems.size() - 1];
+	lastFileItemDisplayNameBeforeFiltering = rightmostFileItemBeforeFiltering->displayName;
 
 	deleteFolderAndDuplicateItems(availabilityRequirement);
 
 	// If we've shot off the end of the list, that means our searched-for preset didn't exist or wasn't available, and
 	// any subsequent ones which at first made it onto the (possibly truncated) list also weren't available.
-	if (!fileItems.getNumElements()) {
+	if (!static_cast<int32_t>(fileItems.size())) {
 		if (numFileItemsDeletedAtEnd) { // Probably couldn'g happen anymore...
 			// We have to read more FileItems, further to the right.
-			searchNameLocalCopy.set(&lastFileItemDisplayNameBeforeFiltering); // Can't fail.
+			searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering; // Can't fail.
 			goto doReadFiles;
 		}
 		else {
@@ -1402,14 +1373,14 @@ needToGrabLeftmostButHaveToReadFirst:
 			// Or, if we've actually managed to fit the whole folder contents into our fileItems...
 			else {
 				// Well, if there's still nothing in that, then we really need to give up.
-				if (!fileItems.getNumElements()) {
+				if (!static_cast<int32_t>(fileItems.size())) {
 					return justGetAnyPreset();
 				}
 				// Otherwise, everything's fine and we can just take the first element.
 			}
 		}
 	}
-	return (FileItem*)fileItems.getElementAddress(0);
+	return &fileItems[0];
 }
 
 /// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned
@@ -1419,16 +1390,17 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 
 	AudioEngine::logAction("doPresetNavigation");
 
-	currentDir.set(&oldInstrument->dirPath);
+	currentDir = oldInstrument->dirPath;
 	OutputType outputType = oldInstrument->type;
 
 	PresetNavigationResult toReturn;
 
-	String oldNameString; // We only might use this later for temporary storage
-	String newName;
+	std::string oldNameString; // We only might use this later for temporary storage
+	std::string newName;
 
-	oldNameString.set(&oldInstrument->name);
-	toReturn.error = oldNameString.concatenate(".XML");
+	oldNameString = oldInstrument->name;
+	oldNameString.append(".XML");
+	toReturn.error = Error::NONE;
 	if (toReturn.error != Error::NONE) {
 		return toReturn;
 	}
@@ -1437,7 +1409,7 @@ readAgain:
 	int32_t newCatalogSearchDirection = (offset >= 0) ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
 readAgainWithSameOffset:
 	toReturn.error =
-	    readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, oldNameString.get(),
+	    readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, oldNameString.c_str(),
 	                           FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, newCatalogSearchDirection);
 
 	if (toReturn.error != Error::NONE) {
@@ -1461,10 +1433,10 @@ emptyFileItemsAndReturn:
 	AudioEngine::logAction("doPresetNavigation5");
 
 	// Now that we've deleted duplicates etc...
-	if (!fileItems.getNumElements()) {
+	if (!static_cast<int32_t>(fileItems.size())) {
 reachedEnd:
 		// If we've reached one end, try going again from the far other end.
-		if (!oldNameString.isEmpty()) {
+		if (!oldNameString.empty()) {
 			oldNameString.clear();
 			goto readAgainWithSameOffset;
 		}
@@ -1475,25 +1447,24 @@ noErrorButGetOut:
 			return toReturn;
 		}
 	}
-	else if (fileItems.getNumElements() == 1
-	         && ((FileItem*)fileItems.getElementAddress(0))->instrument == oldInstrument) {
+	else if (static_cast<int32_t>(fileItems.size()) == 1 && (&fileItems[0])->instrument == oldInstrument) {
 		goto reachedEnd;
 	}
 
-	int32_t i = (offset >= 0) ? 0 : (fileItems.getNumElements() - 1);
+	int32_t i = (offset >= 0) ? 0 : (static_cast<int32_t>(fileItems.size()) - 1);
 	/*
-	if (i >= fileItems.getNumElements()) { // If not found *and* we'd be past the end of the list...
+	if (i >= static_cast<int32_t>(fileItems.size())) { // If not found *and* we'd be past the end of the list...
 	    if (offset >= 0) i = 0;
-	    else i = fileItems.getNumElements() - 1;
+	    else i = static_cast<int32_t>(fileItems.size()) - 1;
 	    goto doneMoving;
 	}
 	else {
 	    int32_t oldNameLength = strlen(oldNameChars);
-	    FileItem* searchResultItem = (FileItem*)fileItems.getElementAddress(i);
+	    FileItem* searchResultItem = &fileItems[i];
 	    if (memcasecmp(oldNameChars, searchResultItem->displayName, oldNameLength)) {
 notFound:	if (offset < 0) {
 	            i--;
-	            if (i < 0) i += fileItems.getNumElements();
+	            if (i < 0) i += static_cast<int32_t>(fileItems.size());
 	        }
 	        goto doneMoving;
 	    }
@@ -1527,13 +1498,13 @@ searchFromOneEnd:
 				goto readAgain;
 			}
 			else {
-				i = fileItems.getNumElements() - 1;
+				i = static_cast<int32_t>(fileItems.size()) - 1;
 			}
 		}
 	}
 
 	// Or if moved right off the end of the list...
-	else if (i >= fileItems.getNumElements()) {
+	else if (i >= static_cast<int32_t>(fileItems.size())) {
 		if (numFileItemsDeletedAtEnd) {
 			goto readAgain;
 		}
@@ -1549,7 +1520,7 @@ searchFromOneEnd:
 	}
 
 doneMoving:
-	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
+	toReturn.fileItem = &fileItems[i];
 
 	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
 	// wrapped is here to prevent an infinite loop
@@ -1564,17 +1535,14 @@ doneMoving:
 		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
 	}
 	else {
-		toReturn.error = toReturn.fileItem->getDisplayNameWithoutExtension(&newName);
+		newName = toReturn.fileItem->getDisplayNameWithoutExtension();
+		oldNameString = toReturn.fileItem->displayName;
+		toReturn.error = Error::NONE;
 		if (toReturn.error != Error::NONE) {
 			emptyFileItems();
 			return toReturn;
 		}
-		toReturn.error = oldNameString.set(toReturn.fileItem->displayName);
-		if (toReturn.error != Error::NONE) {
-			emptyFileItems();
-			return toReturn;
-		}
-		view.drawOutputNameFromDetails(outputType, 0, 0, newName.get(), newName.isEmpty(), false, doBlink);
+		view.drawOutputNameFromDetails(outputType, 0, 0, newName.c_str(), newName.empty(), false, doBlink);
 	}
 
 	if (display->haveOLED()) {

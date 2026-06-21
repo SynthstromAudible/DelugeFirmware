@@ -41,6 +41,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
+#include "util/etl_string.h"
 #include <algorithm>
 
 namespace params = deluge::modulation::params;
@@ -1024,11 +1025,11 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 	if (noteRowIndex != -1) {
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 #if ALPHA_OR_BETA_VERSION
-		if (noteRowIndex >= clip->noteRows.getNumElements()) {
+		if (noteRowIndex >= std::ssize(clip->noteRows)) {
 			FREEZE_WITH_ERROR("E406");
 		}
 #endif
-		noteRow = clip->noteRows.getElement(noteRowIndex);
+		noteRow = &clip->noteRows[noteRowIndex];
 		noteRowId = clip->getNoteRowId(noteRow, noteRowIndex);
 		paramManager = &noteRow->paramManager;
 	}
@@ -1380,7 +1381,7 @@ void ModControllableAudio::switchDelaySyncLevel() {
 void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
-	StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
+	etl::string<kShortStringBufferSize> buffer;
 	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
 	strncpy(displayName, buffer.data(), 29);
 }
@@ -1549,7 +1550,7 @@ bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* s
 void ModControllableAudio::displayFilterSettings(bool on, FilterType currentFilterType) {
 	if (display->haveOLED()) {
 		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 40);
+			etl::string<40> popupMsg;
 			popupMsg.append(getFilterTypeDisplayName(currentFilterType));
 			if (currentFilterType != FilterType::EQ) {
 				popupMsg.append("\n");
@@ -1574,7 +1575,7 @@ void ModControllableAudio::displayFilterSettings(bool on, FilterType currentFilt
 void ModControllableAudio::displayDelaySettings(bool on) {
 	if (display->haveOLED()) {
 		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
+			etl::string<100> popupMsg;
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 			    == RuntimeFeatureStateToggle::On) {
 				popupMsg.append("Type: ");
@@ -1635,7 +1636,7 @@ void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 	// Sidechain
 	if (display->haveOLED()) {
 		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
+			etl::string<100> popupMsg;
 			// Sidechain
 			popupMsg.append("Sidechain: ");
 			popupMsg.append(getSidechainDisplayName());
@@ -1695,7 +1696,7 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	- after mod button is released: display parameter assigned to bottom gold knob
 	*/
 
-	DEF_STACK_STRING_BUF(popupMsg, 100);
+	etl::string<100> popupMsg;
 	// if we have an OLED display
 	// or a 7SEG display and mod button is pressed
 	// then we will display the top gold knob parameter

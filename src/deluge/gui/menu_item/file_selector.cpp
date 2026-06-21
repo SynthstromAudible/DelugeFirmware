@@ -29,6 +29,7 @@
 #include "processing/sound/sound.h"
 #include "storage/audio/audio_file.h"
 #include "storage/multi_range/multi_range.h"
+#include <iterator>
 
 namespace deluge::gui::menu_item {
 
@@ -89,10 +90,11 @@ void FileSelector::renderInHorizontalMenu(const SlotPosition& slot) {
 	OLED::main.drawIconCentered(OLED::folderIconBig, slot.start_x, slot.width, slot.start_y - 1);
 }
 
-void FileSelector::getColumnLabel(StringBuf& label) {
+void FileSelector::getColumnLabel(etl::istring& label) {
 	if (const auto audioClip = getCurrentAudioClip(); audioClip != nullptr) {
 		if (const auto audioFile = audioClip->sampleHolder.audioFile; audioFile != nullptr) {
-			return label.append(getLastFolderFromPath(audioFile->filePath));
+			deluge::string::append(label, getLastFolderFromPath(audioFile->filePath));
+			return;
 		}
 		return MenuItem::getColumnLabel(label);
 	}
@@ -102,16 +104,17 @@ void FileSelector::getColumnLabel(StringBuf& label) {
 		return MenuItem::getColumnLabel(label);
 	}
 
-	if (source.ranges.getNumElements() > 1) {
-		return label.append("Mult");
+	if (std::ssize(source.ranges) > 1) {
+		label.append("Mult");
+		return;
 	}
 
 	auto path = source.ranges.getElement(0)->getAudioFileHolder()->filePath;
-	label.append(getLastFolderFromPath(path));
+	deluge::string::append(label, getLastFolderFromPath(path));
 }
 
-std::string FileSelector::getLastFolderFromPath(String& path) {
-	const char* str = path.get();
+std::string FileSelector::getLastFolderFromPath(std::string& path) {
+	const char* str = path.c_str();
 	const char* lastSlash = strrchr(str, '/');
 	if (!lastSlash || lastSlash == str)
 		return "";

@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "memory/stealable.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 
 class AudioFileReader;
 
@@ -41,14 +41,14 @@ public:
 	void steal(char const* errorCode) final;
 	StealableQueue getAppropriateQueue() override;
 
-	String filePath;
+	std::string filePath;
 
 	const AudioFileType type;
 	uint8_t numChannels{};
-	String loadedFromAlternatePath; // We now need to store this, since "alternate" files can now just have the same
-	                                // filename (in special folder) as the original. So we need to remember which format
-	                                // the name took.
-	int32_t numReasonsToBeLoaded{}; // This functionality should probably be merged between AudioFile and Cluster.
+	std::string loadedFromAlternatePath; // We now need to store this, since "alternate" files can now just have the
+	                                     // same filename (in special folder) as the original. So we need to remember
+	                                     // which format the name took.
+	int32_t numReasonsToBeLoaded{};      // This functionality should probably be merged between AudioFile and Cluster.
 
 	constexpr static bool isSample(const AudioFile* file) { return file->type == AudioFileType::SAMPLE; }
 	constexpr static bool isWaveTable(const AudioFile* file) { return file->type == AudioFileType::WAVETABLE; }

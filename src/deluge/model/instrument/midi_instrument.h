@@ -61,7 +61,7 @@ public:
 	std::string_view getNameFromCC(int32_t cc);
 	void setNameForCC(int32_t cc, std::string_view name);
 	/// definition file
-	String deviceDefinitionFileName;
+	std::string deviceDefinitionFileName;
 	bool loadDeviceDefinitionFile = false;
 
 	void sendMIDIPGM() override;

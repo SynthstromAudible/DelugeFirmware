@@ -28,19 +28,19 @@ void SyncLevel::drawValue() {
 		display->setText(l10n::get(l10n::String::STRING_FOR_OFF));
 	}
 	else {
-		StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
+		etl::string<kShortStringBufferSize> buffer;
 		getNoteLengthName(buffer);
 		display->setScrollingText(buffer.data(), 0);
 	}
 }
 
-void SyncLevel::getNoteLengthName(StringBuf& buffer) {
+void SyncLevel::getNoteLengthName(etl::istring& buffer) {
 	syncValueToString(this->getValue(), buffer, currentSong->getInputTickMagnitude());
 }
 
 void SyncLevel::drawPixelsForOled() {
 	char const* text = l10n::get(l10n::String::STRING_FOR_OFF);
-	DEF_STACK_STRING_BUF(buffer, 30);
+	etl::string<30> buffer;
 	if (this->getValue() != 0) {
 		text = buffer.data();
 		getNoteLengthName(buffer);
@@ -48,7 +48,7 @@ void SyncLevel::drawPixelsForOled() {
 	hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX, kTextBigSizeY);
 }
 
-void SyncLevel::getColumnLabel(StringBuf& label) {
+void SyncLevel::getColumnLabel(etl::istring& label) {
 	const int32_t value = getValue();
 	const ::SyncLevel level = syncValueToSyncLevel(value);
 
@@ -91,7 +91,7 @@ int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel lev
 	return static_cast<int32_t>(type) + (static_cast<int32_t>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
 }
 
-void SyncLevel::getShortOption(StringBuf& opt) {
+void SyncLevel::getShortOption(etl::istring& opt) {
 	// Note length name trimmed to fit, or OFF
 	if (this->getValue() != 0) {
 		getNoteLengthName(opt);

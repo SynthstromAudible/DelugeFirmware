@@ -70,6 +70,7 @@
 #include <cstdint>
 #include <cstring>
 #include <execution>
+#include <iterator>
 #include <new>
 #include <numeric>
 #include <ranges>
@@ -1318,13 +1319,13 @@ void registerSideChainHit(int32_t strength) {
 	sideChainHitPending = combineHitStrengths(strength, sideChainHitPending);
 }
 
-void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound) {
+void previewSample(std::string_view path, FilePointer* filePointer, bool shouldActuallySound) {
 	stopAnyPreviewing();
 	MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
 	if (!range) {
 		return;
 	}
-	range->sampleHolder.filePath.set(path);
+	range->sampleHolder.filePath.assign(path);
 	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
 	if (error != Error::NONE) {
@@ -1343,7 +1344,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 
 void stopAnyPreviewing() {
 	sampleForPreview->killAllVoices();
-	if (sampleForPreview->sources[0].ranges.getNumElements()) {
+	if (std::ssize(sampleForPreview->sources[0].ranges)) {
 		MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
 	}

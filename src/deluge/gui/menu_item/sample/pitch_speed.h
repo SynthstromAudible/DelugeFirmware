@@ -72,7 +72,7 @@ public:
 		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(etl::istring& label) override {
 		const auto option = getOptions(OptType::SHORT)[getValue()].data();
 		label.append(option);
 	}

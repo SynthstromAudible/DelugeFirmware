@@ -23,7 +23,7 @@
 #include "io/debug/log.h"
 #include "model/favourite/favourite_manager.h"
 #include "storage/file_item.h"
-#include "util/container/array/c_string_array.h"
+#include "util/containers.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -66,7 +66,7 @@ public:
 	Browser();
 
 	void close();
-	virtual Error getCurrentFilePath(String* path) = 0;
+	virtual std::string getCurrentFilePath() = 0;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
@@ -85,15 +85,18 @@ public:
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
-	Error getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
+	Error getUnusedSlot(OutputType outputType, std::string* newName, char const* thingName);
 	bool opened() override;
 	void cullSomeFileItems();
 	bool checkFP();
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
-	static String currentDir;
-	static CStringArray fileItems;
+	static std::string currentDir;
+	static deluge::vector<FileItem> fileItems; // Sorted by displayName per strcmpspecial (see sortFileItems())
+	/// Mirrors CStringArray::search(): binary search by displayName using strcmpspecial; returns the matching
+	/// index, or the insertion point if not found. Set shouldInterpretNoteNames and octaveStartsFromA first.
+	static int32_t searchFileItems(char const* searchString, bool* foundExact = nullptr);
 	static int32_t numFileItemsDeletedAtStart;
 	static int32_t numFileItemsDeletedAtEnd;
 	static char const* firstFileItemRemaining;
@@ -159,9 +162,8 @@ inline void printInstrumentFileList(const char* where) {
 	D_PRINT("\n");
 	D_PRINT(where);
 	D_PRINT(" List: \n");
-	for (uint32_t idx = 0; idx < Browser::fileItems.getNumElements(); ++idx) {
-		FileItem* fileItem = (FileItem*)Browser::fileItems.getElementAddress(idx);
-		D_PRINTLN(" - %s (%lu)", fileItem->displayName, fileItem->filePointer.sclust);
+	for (FileItem const& fileItem : Browser::fileItems) {
+		D_PRINTLN(" - %s (%lu)", fileItem.displayName, fileItem.filePointer.sclust);
 	}
 	D_PRINT("\n");
 }

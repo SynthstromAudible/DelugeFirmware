@@ -30,7 +30,7 @@ public:
 	void focusRegained() override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 
-	Error getCurrentFilePath(String* path) override;
+	std::string getCurrentFilePath() override;
 
 protected:
 	Error beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);

@@ -82,7 +82,7 @@ bool SaveSongOrInstrument::isCurrentOptionAvailable() {
 		return (isUIOpen(&saveSongUI)) && (!currentFileItem || !currentFileItem->isFolder);
 
 	case 1: // Create folder
-		return (!QwertyUI::enteredText.isEmpty() && !currentFileItem);
+		return (!QwertyUI::enteredText.empty() && !currentFileItem);
 
 	case 2: // Delete file
 		return (currentFileItem && !currentFileItem->isFolder);

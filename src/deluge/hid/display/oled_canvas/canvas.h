@@ -18,7 +18,8 @@
 #pragma once
 
 #include "definitions.h"
-#include "deluge/util/d_string.h"
+#include "deluge/util/c_string.h"
+#include "util/etl_string.h"
 #include <cstring>
 #include <functional>
 #include <optional>
@@ -175,7 +176,7 @@ public:
 	/// @param textSpacingX Base width in pixels of each character
 	/// @param textSpacingY Height in pixels of each character
 	/// @param totalWidth Total width for center calculation
-	void drawStringCentered(StringBuf& stringBuf, int32_t startX, int32_t startY, int32_t textSpacingX,
+	void drawStringCentered(etl::istring& stringBuf, int32_t startX, int32_t startY, int32_t textSpacingX,
 	                        int32_t textSpacingY, int32_t totalWidth);
 
 	/// Draw a string, reducing its height so the string fits within the specified width

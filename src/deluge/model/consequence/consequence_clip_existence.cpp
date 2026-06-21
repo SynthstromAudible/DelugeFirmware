@@ -61,7 +61,7 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 
 	if (time != util::to_underlying(type)) { // (Re-)create
 
-		if (!clipArray->ensureEnoughSpaceAllocated(1)) {
+		if (!clipArray->reserveExtra(1)) {
 			return Error::INSUFFICIENT_RAM;
 		}
 
@@ -79,7 +79,7 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 		}
 #endif
 
-		clipArray->insertClipAtIndex(clip, clipIndex);
+		(void)clipArray->insertClipAt(clip, clipIndex); // Can't fail; space reserved above
 
 		clip->activeIfNoSolo = false;   // So we can toggle it back on, below
 		clip->armState = ArmState::OFF; // In case was left on before
@@ -131,7 +131,8 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 			modelStackWithTimelineCounter->song->removeSessionClipLowLevel(clip, clipIndex);
 		}
 		else {
-			clipArray->deleteAtIndex(clipIndex); // Deletes the array's pointer to the Clip - not the Clip itself.
+			clipArray->erase(clipArray->begin()
+			                 + clipIndex); // Deletes the array's pointer to the Clip - not the Clip itself.
 		}
 
 		// This next call will back up all ParamManagers, including for Drums.

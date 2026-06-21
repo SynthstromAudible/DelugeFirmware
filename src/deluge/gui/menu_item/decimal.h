@@ -28,7 +28,9 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 	void horizontalEncoderAction(int32_t offset) override;
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
-	void getNotificationValue(StringBuf& valueBuf) override { valueBuf.appendFloat(getValue() / 100.f, 2, 2); }
+	void getNotificationValue(etl::istring& valueBuf) override {
+		deluge::string::appendFloat(valueBuf, getValue() / 100.f, 2, 2);
+	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 protected:
@@ -57,7 +59,7 @@ public:
 
 protected:
 	virtual float getDisplayValue() { return this->getValue(); }
-	void getNotificationValue(StringBuf& value) override;
+	void getNotificationValue(etl::istring& value) override;
 	virtual const char* getUnit() { return ""; }
 	void drawPixelsForOled() override;
 	void drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel);

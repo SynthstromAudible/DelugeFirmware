@@ -28,7 +28,7 @@
 #include "model/sample/sample_playback_guide.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
-#include "util/d_string.h"
+#include "util/c_string.h"
 #include <cstdint>
 
 class Song;
@@ -217,7 +217,7 @@ public:
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 	// Setup the name per clip on session/song/grid view and to be selectable on the arranger
-	String name;
+	std::string name;
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the

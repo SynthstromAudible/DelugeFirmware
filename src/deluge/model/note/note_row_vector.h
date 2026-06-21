@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,17 +17,17 @@
 
 #pragma once
 
-#include "util/container/array/ordered_resizeable_array.h"
+#include "model/note/note_row.h"
+#include "util/container/ordered_pos_vector.h"
 
-class NoteRow;
-
-class NoteRowVector final : public OrderedResizeableArray {
+class NoteRowVector final : public deluge::OrderedPosVector<NoteRow, &NoteRow::y> {
 public:
-	NoteRowVector();
-	~NoteRowVector();
-
-	NoteRow* getElement(int32_t index);
 	NoteRow* insertNoteRowAtIndex(int32_t index);
 	NoteRow* insertNoteRowAtY(int32_t y, int32_t* getIndex = nullptr);
 	void deleteNoteRowAtIndex(int32_t index, int32_t numToDelete = 1);
+
+	/// Legacy clone idiom (shadows the base implementation): fills this vector with *byte-copies* of the other
+	/// vector's rows. The copies alias the source rows' notes/automation until NoteRow::beenCloned() is called
+	/// on each one, which the caller must do.
+	bool cloneFrom(NoteRowVector const* other);
 };

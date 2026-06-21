@@ -36,9 +36,9 @@ public:
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(getName());
-		label.truncate(4);
+	void getColumnLabel(etl::istring& label) override {
+		deluge::string::append(label, getName());
+		label.resize(4);
 	}
 };
 } // namespace deluge::gui::menu_item::osc::source

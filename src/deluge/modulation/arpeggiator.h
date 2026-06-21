@@ -21,8 +21,8 @@
 #include "definitions_cxx.hpp"
 #include "model/sync.h"
 #include "storage/storage_manager.h"
-#include "util/container/array/ordered_resizeable_array.h"
-#include "util/container/array/resizeable_array.h"
+#include "util/containers.h"
+#include <algorithm>
 
 #include <algorithm>
 #include <array>
@@ -181,6 +181,15 @@ struct ArpNote {
 struct ArpJustNoteCode {
 	int16_t noteCode; // Before arpeggiation
 };
+
+/// Mirrors OrderedResizeableArray::search(noteCode, GREATER_OR_EQUAL) on the old sorted arp notes array:
+/// returns the index of the first note whose noteCode is >= the one given.
+inline int32_t searchArpNotes(deluge::fast_vector<ArpNote> const& notes, int32_t noteCode) {
+	auto it = std::lower_bound(notes.begin(), notes.end(), noteCode, [](ArpNote const& note, int32_t code) {
+		return note.inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] < code;
+	});
+	return static_cast<int32_t>(it - notes.begin());
+}
 
 class ArpReturnInstruction {
 public:
@@ -360,12 +369,12 @@ public:
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
 	bool handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) override;
 	bool hasAnyInputNotesActive() override;
-	// This array tracks the notes ordered by noteCode
-	OrderedResizeableArray notes;
+	// This array tracks the notes ordered (ascending) by noteCode
+	deluge::fast_vector<ArpNote> notes;
 	// This array tracks the notes as they were played by the user
-	ResizeableArray notesAsPlayed;
+	deluge::fast_vector<ArpJustNoteCode> notesAsPlayed;
 	// This array tracks the notes as ordered by the Pattern note mode
-	ResizeableArray notesByPattern;
+	deluge::fast_vector<ArpJustNoteCode> notesByPattern;
 
 protected:
 	void rearrangePatterntArpNotes(ArpeggiatorSettings* settings);

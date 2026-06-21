@@ -87,9 +87,9 @@ public:
 		display->setText(buffer, true, latching ? 3 : 255);
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
+	void getNotificationValue(etl::istring& valueBuf) override {
 		bool latching = false;
-		valueBuf.appendInt(getProbabilityValue(latching));
+		deluge::string::appendInt(valueBuf, getProbabilityValue(latching));
 		valueBuf.append("%");
 
 		if (latching) {

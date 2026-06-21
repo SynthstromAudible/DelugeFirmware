@@ -63,23 +63,23 @@ doReturnFalse:
 
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 
-	enteredText.set(&midiInstrument->deviceDefinitionFileName);
-	enteredTextEditPos = enteredText.getLength();
+	enteredText = midiInstrument->deviceDefinitionFileName;
+	enteredTextEditPos = enteredText.size();
 	currentFolderIsEmpty = false;
 
 	// is empty we just start with nothing. currentSlot etc remain set to "zero" from before
-	if (enteredText.isEmpty()) {
-		currentDir.set(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+	if (enteredText.empty()) {
+		currentDir = MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER;
 	}
 	else {
-		char const* fullPath = enteredText.get();
+		char const* fullPath = enteredText.c_str();
 
 		// locate last occurence of "/" in string
 		char const* slash = strrchr(fullPath, '/');
 
 		if (!slash) {
 			// No directory in stored string -> use default folder, and keep the text as-is
-			currentDir.set(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+			currentDir = MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER;
 		}
 		else {
 			// Directory = everything before last slash
@@ -90,23 +90,23 @@ doReturnFalse:
 			memcpy(dir, fullPath, dirLen);
 			dir[dirLen] = 0;
 
-			currentDir.set(dir);
+			currentDir = dir;
 
 			// Filename = everything after last slash
-			enteredText.set(slash + 1);
+			enteredText = slash + 1;
 		}
 
 		// Strip ".xml" from enteredText if SaveUI appends it
-		char const* name = enteredText.get();
+		char const* name = enteredText.c_str();
 		size_t nameLen = strlen(name);
 		if (nameLen > 4 && !strcmp(name + nameLen - 4, ".XML")) {
 			char base[nameLen - 4 + 1];
 			memcpy(base, name, nameLen - 4);
 			base[nameLen - 4] = 0;
-			enteredText.set(base);
+			enteredText = base;
 		}
 
-		enteredTextEditPos = enteredText.getLength();
+		enteredTextEditPos = enteredText.size();
 	}
 
 	title = "Save midi device";
@@ -114,7 +114,7 @@ doReturnFalse:
 	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 	fileIconPt2Width = 1;
 
-	error = arrivedInNewFolder(0, enteredText.get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+	error = arrivedInNewFolder(0, enteredText.c_str(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -134,15 +134,15 @@ bool SaveMidiDeviceDefinitionUI::performSave(bool mayOverwrite) {
 
 	MIDIInstrument* midiInstrumentToSave = (MIDIInstrument*)getCurrentInstrument();
 
-	String filePath;
-	Error error = getCurrentFilePath(&filePath);
+	std::string filePath = getCurrentFilePath();
+	Error error = Error::NONE;
 	if (error != Error::NONE) {
 fail:
 		display->displayError(error);
 		return false;
 	}
 
-	error = StorageManager::createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
+	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
@@ -180,7 +180,7 @@ fail:
 	}
 
 	// Link the instrument with the definition file saved
-	midiInstrumentToSave->deviceDefinitionFileName.set(filePath.get());
+	midiInstrumentToSave->deviceDefinitionFileName = filePath.c_str();
 
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_SAVED));
 	close();
@@ -198,7 +198,7 @@ ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, boo
 	else {
 		if (on && b == BACK) {
 			// don't allow navigation backwards if we're in the default folder
-			if (!strcmp(currentDir.get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER)) {
+			if (!strcmp(currentDir.c_str(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER)) {
 				close();
 				return ActionResult::DEALT_WITH;
 			}

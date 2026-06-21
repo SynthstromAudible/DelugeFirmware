@@ -11,6 +11,18 @@ set(DELUGE_C_STANDARD 23)
 set(DELUGE_CXX_STANDARD 23)
 
 enable_testing()
+
+# ETL (etl::string) is used by util/string helpers pulled in transitively via functions.h,
+# so make it available to every test target (32bit_unit_tests, spec, unit).
+include(FetchContent)
+FetchContent_Declare(
+        etl
+        GIT_REPOSITORY https://github.com/ETLCPP/etl
+        GIT_TAG 20.39.4
+)
+FetchContent_MakeAvailable(etl)
+link_libraries(etl::etl)
+
 #needs to support -m32 since the memory tests assume a 32 bit architecture
 if (UNIX AND NOT APPLE)
     add_compile_options(-m32 -Og -ggdb3)
