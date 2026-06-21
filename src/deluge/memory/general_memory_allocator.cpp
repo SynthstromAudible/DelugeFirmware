@@ -326,8 +326,10 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 }
 
 void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, StealableQueue q) {
-	MemoryRegion& region = regions[getRegion(stealable)];
-	region.cache_manager().QueueForReclamation(q, stealable);
+	// Stealables only ever live in the stealable region, which is paired with this
+	// single CacheManager — go straight to the resource layer instead of reaching
+	// through the allocator region (the allocator no longer exposes it).
+	cacheManager.QueueForReclamation(q, stealable);
 }
 
 void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {

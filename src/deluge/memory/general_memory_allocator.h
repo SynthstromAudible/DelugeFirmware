@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "memory/cache_manager.h"
 #include "memory/memory_region.h"
 
 #define MEMORY_REGION_STEALABLE 0
@@ -100,6 +101,11 @@ public:
 	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)
 	CacheManager cacheManager;
 	bool lock;
+
+	// The resource layer that owns stealable eviction policy. App code (Cluster,
+	// SampleCache, ...) queues reclaimable blocks here directly, rather than
+	// reaching through a memory region (the allocator is now CacheManager-agnostic).
+	CacheManager& getCacheManager() { return cacheManager; }
 
 	static GeneralMemoryAllocator& get() {
 		static GeneralMemoryAllocator generalMemoryAllocator;

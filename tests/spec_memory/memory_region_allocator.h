@@ -77,6 +77,7 @@ public:
 
 	// Exposed for the allocator-specific (stealable) spec section.
 	MemoryRegion& region() { return region_; }
+	CacheManager& cacheManager() { return cm_; }
 
 private:
 	static constexpr size_t kDefaultArena = 10000000;

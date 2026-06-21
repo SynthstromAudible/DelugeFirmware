@@ -31,7 +31,7 @@ MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 }
 
 void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin,
-                         uint32_t regionEnd, CacheManager* cacheManager) {
+                         uint32_t regionEnd, Reclaimer* reclaimer) {
 	emptySpaces.setStaticMemory(emptySpacesMemory, emptySpacesMemorySize);
 	// Make every user pointer 16-byte aligned (required by over-aligned SSE/NEON types such as
 	// TimeStretcher; x86 movaps faults on an 8-aligned object). Each block has a 4-byte header
@@ -61,7 +61,7 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 	EmptySpaceRecord* firstRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(0);
 	firstRecord->length = memorySizeWithoutHeaders;
 	firstRecord->address = regionBegin + 8;
-	cache_manager_ = cacheManager;
+	reclaimer_ = reclaimer;
 	D_PRINTLN("%x to %x: Memory region %s", start, end, name);
 }
 
@@ -394,8 +394,8 @@ justUpdateRecord:
 	// Or if no empty space big enough, try stealing some memory
 	else {
 noEmptySpace:
-		if (cache_manager_) {
-			allocatedAddress = cache_manager_->ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
+		if (reclaimer_) {
+			allocatedAddress = reclaimer_->reclaim(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
 		}
 		if (allocatedAddress == 0u) {
 #if ALPHA_OR_BETA_VERSION

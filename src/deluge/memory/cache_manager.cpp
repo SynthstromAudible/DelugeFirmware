@@ -10,8 +10,8 @@ extern bool skipConsistencyCheck;
 uint32_t currentTraversalNo = 0;
 
 // Size 0 means don't care, just get any memory.
-uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeeded, void* thingNotToStealFrom,
-                                     int32_t* __restrict__ foundSpaceSize) {
+uint32_t CacheManager::reclaim(MemoryRegion& region, int32_t totalSizeNeeded, void* thingNotToStealFrom,
+                               int32_t* __restrict__ foundSpaceSize) {
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	skipConsistencyCheck = true; // Things will not be in an inspectable state during this function call

@@ -185,7 +185,7 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 	// First Cluster
 	if (clusterIndex == 0) {
 		const auto q = StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
-		CacheManager& cache_manager = GeneralMemoryAllocator::get().regions[MEMORY_REGION_STEALABLE].cache_manager();
+		CacheManager& cache_manager = GeneralMemoryAllocator::get().getCacheManager();
 		Cluster* cluster = clusters[clusterIndex];
 		if (cluster->list != &cache_manager.queue(q) || !cluster->isLast()) {
 			cluster->remove(); // Remove from old list, if it was already in one (might not have been).
@@ -206,7 +206,7 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 		// hasn't actually been added to a queue at all yet, because this functions serves the additional purpose of
 		// being what puts Clusters in their queue in the first place.
 		if (clusters[clusterIndex]->list
-		        != &GeneralMemoryAllocator::get().regions[MEMORY_REGION_STEALABLE].cache_manager().queue(
+		        != &GeneralMemoryAllocator::get().getCacheManager().queue(
 		            StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE)
 		    || clusters[clusterIndex]->next != clusters[clusterIndex - 1]) {
 

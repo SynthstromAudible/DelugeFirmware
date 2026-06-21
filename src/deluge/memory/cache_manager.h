@@ -1,6 +1,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "memory/reclaimer.h"
 #include "memory/stealable.h"
 #include "util/container/list/bidirectional_linked_list.h"
 #include "util/misc.h"
@@ -9,7 +10,7 @@
 
 class MemoryRegion;
 
-class CacheManager {
+class CacheManager : public Reclaimer {
 public:
 	CacheManager() = default;
 
@@ -33,8 +34,8 @@ public:
 		longest_runs_[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
 	}
 
-	uint32_t ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeeded, void* thingNotToStealFrom,
-	                       int32_t* __restrict__ foundSpaceSize);
+	uint32_t reclaim(MemoryRegion& region, int32_t totalSizeNeeded, void* thingNotToStealFrom,
+	                 int32_t* __restrict__ foundSpaceSize) override;
 
 private:
 	std::array<BidirectionalLinkedList, kNumStealableQueue> reclamation_queue_;

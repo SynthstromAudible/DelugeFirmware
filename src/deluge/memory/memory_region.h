@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "memory/cache_manager.h"
+#include "memory/reclaimer.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 
 #include <util/exceptions.h>
@@ -45,7 +45,7 @@ class MemoryRegion {
 public:
 	MemoryRegion();
 	void setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd,
-	           CacheManager* cacheManager);
+	           Reclaimer* reclaimer);
 	void* alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom);
 	size_t nallocx(size_t size) { return padSize(size); }
 	uint32_t shortenRight(void* address, uint32_t newSize);
@@ -59,13 +59,6 @@ public:
 	uint32_t start;
 	uint32_t end;
 
-	CacheManager& cache_manager() {
-		if (cache_manager_) {
-			return *cache_manager_;
-		}
-		throw deluge::exception::NO_CACHE_FOR_REGION;
-	}
-
 #if ALPHA_OR_BETA_VERSION
 	char const* name; // For debugging messages only.
 #endif
@@ -74,8 +67,9 @@ public:
 private:
 	friend class CacheManager;
 	friend class GeneralMemoryAllocator;
-	// manages "stealables" for a memory region, only used in external stealable region
-	CacheManager* cache_manager_;
+	// Reclamation hook for this region (the resource layer that owns eviction
+	// policy). Only the stealable region has one; others are nullptr.
+	Reclaimer* reclaimer_;
 	uint32_t numAllocations_{0};
 	uint32_t pivot_{pivot_big}; // items smaller than pivot allocate to left, larger to right
 	size_t maxAlign_ = max_align_big;

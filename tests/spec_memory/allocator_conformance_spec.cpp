@@ -90,7 +90,7 @@ describe allocator_conformance("allocator conformance (MemoryRegion)", $ {
 				expect(p != nullptr).to_be_true();
 				totalAllocated += size;
 				auto* stealable = new (p) StealableTest();
-				a.region().cache_manager().QueueForReclamation(StealableQueue{0}, stealable);
+				a.cacheManager().QueueForReclamation(StealableQueue{0}, stealable);
 				vtableAddress = *reinterpret_cast<uint32_t*>(p);
 				uint32_t actual = allocatedSizeOf(p);
 				expect((*(reinterpret_cast<uint32_t*>(p) - 1) & SPACE_TYPE_MASK) == SPACE_HEADER_STEALABLE)
