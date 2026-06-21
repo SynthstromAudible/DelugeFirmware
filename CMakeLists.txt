@@ -367,6 +367,13 @@ set_target_properties(deluge
 # Deluge sources
 add_subdirectory(src)
 
+# Strangle step 2: route the GeneralMemoryAllocator's internal (fast SRAM) region
+# through the Rust deluge_alloc core. Firmware (cross) build only — the host-sim
+# and unit tests keep MemoryRegion (they don't link the staticlib).
+if (CMAKE_CROSSCOMPILING)
+    target_compile_definitions(deluge_app PUBLIC DELUGE_USE_RUST_ALLOC=1)
+endif ()
+
 # find_program(PRETTYSIZE_CMD prettysize prettysize.py)
 
 # if(NOT PRETTYSIZE_CMD STREQUAL "PRETTYSIZE_CMD-NOTFOUND")

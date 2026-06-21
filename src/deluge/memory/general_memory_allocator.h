@@ -21,6 +21,11 @@
 #include "memory/cache_manager.h"
 #include "memory/memory_region.h"
 
+// Opaque Rust allocator handle (full C ABI in libdeluge/alloc.h, included by the
+// .cpp). Only a pointer is needed here, so forward-declare to avoid forcing the
+// include/ path onto every consumer of this header.
+struct DelugeHeap;
+
 #define MEMORY_REGION_STEALABLE 0
 #define MEMORY_REGION_INTERNAL 1
 #define MEMORY_REGION_EXTERNAL 2
@@ -101,6 +106,26 @@ public:
 	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)
 	CacheManager cacheManager;
 	bool lock;
+
+	// Strangle step 2: when DELUGE_USE_RUST_ALLOC, the internal (fast SRAM) region
+	// is served by the Rust TLSF core instead of regions[MEMORY_REGION_INTERNAL].
+	// nullptr otherwise. Pointers in that region route to deluge_alloc via
+	// rustHeapForInternal().
+	DelugeHeap* internalHeap_{nullptr};
+
+	// The Rust heap owning `address`, or nullptr if it belongs to a MemoryRegion.
+	DelugeHeap* rustHeapFor(void* address) {
+#if DELUGE_USE_RUST_ALLOC
+		auto v = reinterpret_cast<uint32_t>(address);
+		if (internalHeap_ != nullptr && v >= regions[MEMORY_REGION_INTERNAL].start
+		    && v < regions[MEMORY_REGION_INTERNAL].end) {
+			return internalHeap_;
+		}
+#else
+		(void)address;
+#endif
+		return nullptr;
+	}
 
 	// The resource layer that owns stealable eviction policy. App code (Cluster,
 	// SampleCache, ...) queues reclaimable blocks here directly, rather than

@@ -16,6 +16,7 @@
  */
 
 #include "memory/general_memory_allocator.h"
+#include "libdeluge/alloc.h"
 #include "libdeluge/memory.h"
 
 #include "definitions_cxx.hpp"
@@ -100,8 +101,19 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
 	                                            external_small_start, external_small_end, nullptr);
 	regions[MEMORY_REGION_EXTERNAL_SMALL].minAlign_ = 16;
 	regions[MEMORY_REGION_EXTERNAL_SMALL].pivot_ = 64;
+#if DELUGE_USE_RUST_ALLOC
+	// Strangle step 2: the internal (fast SRAM) region is now backed by the Rust
+	// TLSF core (crates/deluge_alloc) instead of MemoryRegion. The control block
+	// lives at the front of the region. We still record the region bounds so
+	// getRegion()/dispatch can recognise an internal pointer; the MemoryRegion
+	// free-list for this slot is left unused (no setup()).
+	internalHeap_ = deluge_heap_create((void*)internal_start, internal_end - internal_start);
+	regions[MEMORY_REGION_INTERNAL].start = internal_start;
+	regions[MEMORY_REGION_INTERNAL].end = internal_end;
+#else
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal), internal_start,
 	                                      internal_end, nullptr);
+#endif
 
 	regions[MEMORY_REGION_INTERNAL_SMALL].setup(emptySpacesMemoryInternalSmall, sizeof(emptySpacesMemoryInternalSmall),
 	                                            internal_small_start, internal_small_end, nullptr);
@@ -194,7 +206,11 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 	}
 	// if it's a large object or the small object allocator was full stick it in the big one
 	if (address == nullptr) {
+#if DELUGE_USE_RUST_ALLOC
+		address = deluge_alloc(internalHeap_, requiredSize, 16);
+#else
 		address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, false, NULL);
+#endif
 	}
 	lock = false;
 	if (address == nullptr) {
@@ -258,6 +274,9 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 }
 
 uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
+	if (DelugeHeap* h = rustHeapFor(address)) {
+		return deluge_usable_size(h, address);
+	}
 	uint32_t* header = (uint32_t*)((uint32_t)address - 4);
 	return (*header & SPACE_SIZE_MASK);
 }
@@ -288,12 +307,19 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 
 // Returns new size
 uint32_t GeneralMemoryAllocator::shortenRight(void* address, uint32_t newSize) {
+	if (DelugeHeap* h = rustHeapFor(address)) {
+		deluge_realloc(h, address, newSize, 16); // in-place shrink, pointer stable
+		return deluge_usable_size(h, address);
+	}
 	return regions[getRegion(address)].shortenRight(address, newSize);
 }
 
 // Returns how much it was shortened by
 uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToShorten,
                                              uint32_t numBytesToMoveRightIfSuccessful) {
+	if (rustHeapFor(address)) {
+		return 0; // no left-shorten on the Rust heap; internal allocs don't use it
+	}
 	return regions[getRegion(address)].shortenLeft(address, amountToShorten, numBytesToMoveRightIfSuccessful);
 }
 
@@ -308,6 +334,10 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 		return;
 	}
 
+	if (rustHeapFor(address)) {
+		return; // no in-place extend on the Rust heap (amounts stay 0; caller reallocs)
+	}
+
 	lock = true;
 	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,
 	                                   getAmountExtendedRight, thingNotToStealFrom);
@@ -315,11 +345,18 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 }
 
 uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address) {
+	if (DelugeHeap* h = rustHeapFor(address)) {
+		return deluge_usable_size(h, address); // no easy extension; current size
+	}
 	return regions[getRegion(address)].extendRightAsMuchAsEasilyPossible(address);
 }
 
 void GeneralMemoryAllocator::dealloc(void* address) {
 	if (address == nullptr) [[unlikely]] {
+		return;
+	}
+	if (DelugeHeap* h = rustHeapFor(address)) {
+		deluge_free(h, address);
 		return;
 	}
 	regions[getRegion(address)].dealloc(address);
