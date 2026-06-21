@@ -255,6 +255,35 @@ mod tests {
     }
 
     #[test]
+    fn realloc_shrinks_in_place() {
+        let bytes = 1 << 20;
+        let mut buf = vec![0u8; bytes];
+        let h = unsafe { deluge_heap_create(buf.as_mut_ptr(), bytes) };
+        unsafe {
+            let p = deluge_alloc(h, 4000, 16);
+            for i in 0..4000 {
+                *p.add(i) = (i & 0xFF) as u8;
+            }
+            // Shrink: pointer-stable, no copy, data preserved (the wave_table /
+            // patch_cable_set trim pattern).
+            let s = deluge_realloc(h, p, 1000, 16);
+            assert_eq!(s, p, "shrink should be in-place (pointer stable)");
+            for i in 0..1000 {
+                assert_eq!(*s.add(i), (i & 0xFF) as u8);
+            }
+            // Grow has no in-place consumer, so it may move — only data fidelity
+            // is guaranteed.
+            let g = deluge_realloc(h, s, 8000, 16);
+            assert!(!g.is_null());
+            for i in 0..1000 {
+                assert_eq!(*g.add(i), (i & 0xFF) as u8, "grow lost byte {i}");
+            }
+            deluge_free(h, g);
+        }
+        let _ = &buf;
+    }
+
+    #[test]
     fn global_alloc_routes_to_heap() {
         use core::alloc::{GlobalAlloc, Layout};
         let bytes = 1 << 20;

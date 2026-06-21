@@ -405,6 +405,28 @@ impl Tlsf {
         (*block_of(payload)).size()
     }
 
+    /// Split `block` (which is USED) down to `want` payload bytes, freeing the
+    /// tail, when the excess is large enough to be its own block. Pointer-stable.
+    unsafe fn shrink_in_place(&mut self, block: *mut BlockHeader, want: usize) {
+        let cur = (*block).size();
+        if cur < want + HEADER_SIZE + MIN_BLOCK_SIZE {
+            return; // not enough excess to carve a free block; keep as-is
+        }
+        let tail_size = cur - want - HEADER_SIZE;
+        (*block).set_size(want);
+        let tail = next_phys(block);
+        (*tail).prev_phys = block;
+        (*tail).size_and_flags = tail_size; // used + prev_used; freed below
+        self.free_block(tail); // marks free, coalesces with the following block, inserts
+    }
+
+    /// Resize, preserving the leading min(old, new) bytes. A **shrink** is done in
+    /// place (split the tail, pointer-stable, no copy — and no worse for
+    /// fragmentation than moving, since the freed tail still coalesces with any
+    /// following free block). This covers the only remaining in-place-resize
+    /// callers (wave_table / patch_cable_set trims), which all shrink. A **grow**
+    /// has no in-place consumer (ResizeableArray, the lone `extend` user, is gone),
+    /// so it just moves (alloc + copy + free) — correct, only unoptimized.
     pub unsafe fn realloc(&mut self, payload: *mut u8, new_size: usize, align: usize) -> *mut u8 {
         if payload.is_null() {
             return self.malloc(new_size, align);
@@ -413,12 +435,22 @@ impl Tlsf {
             self.free(payload);
             return ptr::null_mut();
         }
-        let old = self.usable_size(payload);
+        let block = block_of(payload);
+        let cur = (*block).size();
+        let want = Self::adjust_size(new_size);
+        let need_align = align.max(ALIGN);
+        let aligned_ok = (payload as usize) & (need_align - 1) == 0;
+
+        // Shrink in place (pointer-stable). Growth falls through to a move.
+        if aligned_ok && want <= cur {
+            self.shrink_in_place(block, want);
+            return payload;
+        }
         let np = self.malloc(new_size, align);
         if np.is_null() {
             return ptr::null_mut(); // original left intact
         }
-        ptr::copy_nonoverlapping(payload, np, old.min(new_size));
+        ptr::copy_nonoverlapping(payload, np, cur.min(new_size));
         self.free(payload);
         np
     }
