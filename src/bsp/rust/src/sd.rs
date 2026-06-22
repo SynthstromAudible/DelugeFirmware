@@ -103,10 +103,12 @@ pub extern "C" fn disk_initialize(pdrv: u8) -> u8 {
     if pdrv != 0 {
         return STA_NOINIT;
     }
-    // sd::init() can't run here: it needs an async task (its embassy-time Timers
-    // panic under block_on with the integrated timer queue). It's driven from
-    // app_task (boot_init), *after* deluge_app_init — running it at boot races the
-    // PIC/pad bring-up and corrupts the pads. Until that runs, report current status.
+    // sd::init() can't run here: its embassy-time Timers panic under `block_on`
+    // (integrated timer queue — see `boot_init`). It runs eagerly from `app_task`
+    // (boot_init) after the PIC baud handshake (pic::wait_ready) and before
+    // deluge_app_init — waiting for the PIC first avoids the handshake race that
+    // corrupted the pads. So the card is ready by the time the app first calls this;
+    // if somehow not, just report status (never block_on(init) here).
     if !sd::is_ready() {
         log::warn!("sd: disk_initialize before async init done");
     }
