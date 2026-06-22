@@ -9,7 +9,7 @@
 //! (`uart::init_pic` / `encoder::irq_init`), with IRQs masked.
 #![allow(non_snake_case)]
 
-use core::sync::atomic::{AtomicBool, AtomicU16, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicI8, AtomicU16, Ordering};
 
 use deluge_bsp::{encoder, pic};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
@@ -328,12 +328,55 @@ pub extern "C" fn deluge_control_flush() {
     }
 }
 
+/// Scheduler task id of the app's encoder task (`interpretEncodersTask`), captured
+/// from [`deluge_encoder_io_init`]. -1 until `encoders::init()` runs. The
+/// [`encoder_wake_pump`] task uses it to unblock the encoder task on movement.
+static ENCODER_WAKE_TASK: AtomicI8 = AtomicI8::new(-1);
+
 /// Set up encoder GPIO/IRQs. The actual GPIO+GIC bring-up runs in `main`'s
 /// pre-executor window (encoder::irq_init, which must precede interrupt enable),
-/// so this boundary call — invoked later from encoders::init() — is just a
-/// confirmation log. The `wake_task` scheduler id is unused (the app polls edges
-/// each tick rather than being woken).
+/// so this boundary call — invoked later from encoders::init() — just records the
+/// `wake_task` id so [`encoder_wake_pump`] can wake the app's encoder task.
+///
+/// The app's `interpretEncodersTask` self-blocks (`blockTask`) after each run and
+/// relies on the board to `unblockTask` it when an encoder moves (the original
+/// rza1 TaskManager contract). Without that wake the task runs once and parks
+/// forever — i.e. the encoders go dead. (On the legacy `deluge_app_tick` superloop
+/// this was masked by a per-tick `interpretEncoders()` call; the decomposed
+/// scheduler has no such loop, so the wake must be delivered here.)
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_encoder_io_init(_wake_task: i8) {
-    log::info!("deluge-rust: deluge_encoder_io_init reached (IRQs set up pre-executor)");
+pub extern "C" fn deluge_encoder_io_init(wake_task: i8) {
+    ENCODER_WAKE_TASK.store(wake_task, Ordering::Relaxed);
+    log::info!("deluge-rust: deluge_encoder_io_init (encoder wake task id={wake_task})");
+}
+
+/// Bridge the board's encoder edge ISRs to the scheduler: the quadrature ISRs
+/// accumulate into `encoder::ENCODER_DELTAS` and fire `encoder::ENCODER_WAKER`;
+/// this task waits on that waker and `unblockTask`s the app's self-blocked encoder
+/// task so it drains the edges (and re-blocks). Without this, encoder input never
+/// reaches the app on the decomposed scheduler. Spawned by `main`.
+#[embassy_executor::task]
+pub async fn encoder_wake_pump() {
+    loop {
+        // Park until an edge ISR signals movement. Register the waker *before*
+        // checking the deltas so an ISR landing in the gap can't be missed.
+        core::future::poll_fn(|cx| {
+            encoder::ENCODER_WAKER.register(cx.waker());
+            if encoder::ENCODER_DELTAS.iter().any(|d| d.load(Ordering::Relaxed) != 0) {
+                core::task::Poll::Ready(())
+            } else {
+                core::task::Poll::Pending
+            }
+        })
+        .await;
+
+        let id = ENCODER_WAKE_TASK.load(Ordering::Relaxed);
+        if id >= 0 {
+            crate::scheduler::unblockTask(id);
+        }
+        // Bound the unblock rate (and let the encoder task drain the deltas before
+        // we re-check, else we'd spin until it runs). ~1 ms matches the app's
+        // former encoder-task cadence — imperceptible for knob turns.
+        embassy_time::Timer::after(embassy_time::Duration::from_millis(1)).await;
+    }
 }

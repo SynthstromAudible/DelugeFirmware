@@ -218,6 +218,9 @@ pub extern "C" fn main() -> ! {
         // The PIC pump decodes pad/button input concurrently with the app's tick
         // loop (which yields each tick, letting these tasks make progress).
         spawner.spawn(control::pic_pump().unwrap());
+        // Bridges the encoder edge ISRs to the scheduler: unblocks the app's
+        // self-blocking encoder task on movement (else encoders stay dead).
+        spawner.spawn(control::encoder_wake_pump().unwrap());
         // The sole PIC transmitter: drains the LED/pad output queue.
         spawner.spawn(control::pad_render().unwrap());
         // The OLED render task: SSD1309 init + frame streaming over RSPI0.
