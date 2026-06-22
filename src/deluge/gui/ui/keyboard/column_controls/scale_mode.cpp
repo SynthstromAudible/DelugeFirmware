@@ -33,7 +33,8 @@ void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], i
 			// fill currentScalePad with the current matching scale if not set yet
 			currentScalePad = y;
 		}
-		uint8_t mode_available = y < NUM_PRESET_SCALES ? 0x7f : 0;
+		bool mode_supported = y < NUM_PRESET_SCALES && layout->supportsScale(scaleModes[y]);
+		uint8_t mode_available = mode_supported ? 0x7f : 0;
 		otherChannels = mode_selected ? 0xf0 : 0;
 		uint8_t base = mode_selected ? 0xff : mode_available;
 		image[y][column] = {base, base, otherChannels};
@@ -89,6 +90,10 @@ void ScaleModeColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelSt
 void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                                 KeyboardLayout* layout) {
 	if (pad.active) {
+		// Don't let the user select a scale the active layout can't handle (e.g. the chord keyboard)
+		if (!layout->supportsScale(scaleModes[pad.y])) {
+			return;
+		}
 		previousScale = currentSong->getCurrentScale();
 		if (keyboardScreen.setScale(scaleModes[pad.y])) {
 			currentScalePad = pad.y;
@@ -96,6 +101,9 @@ void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTim
 	}
 	else if (!pad.padPressHeld) {
 		// Pad released after short press
+		if (!layout->supportsScale(scaleModes[pad.y])) {
+			return;
+		}
 		if (keyboardScreen.setScale(scaleModes[pad.y])) {
 			previousScale = scaleModes[pad.y];
 			currentScalePad = pad.y;
