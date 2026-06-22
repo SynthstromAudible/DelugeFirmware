@@ -17,7 +17,7 @@
 use core::mem::MaybeUninit;
 use core::panic::PanicInfo;
 
-use embassy_executor::{Executor, Spawner};
+use embassy_executor::{Executor, InterruptExecutor, Spawner};
 // General-purpose Rust heaps (for BSP/Embassy/our boot). The C++ app keeps its
 // own GeneralMemoryAllocator over the region we hand it; the Rust app allocator
 // (TLSF/slab, docs/dev/allocator_redesign.md) is a later, separately-gated step.
@@ -88,6 +88,29 @@ fn panic(_info: &PanicInfo) -> ! {
 
 static mut EXECUTOR: MaybeUninit<Executor> = MaybeUninit::uninit();
 
+/// Preemptive Embassy executor for audio (Phase 3 audio lift). Runs the audio
+/// render task in a GIC SGI handler at a priority above thread mode but below the
+/// µs hard-RT ISRs, so it preempts the cooperative thread executor (a storage
+/// `yield()` spin can no longer starve audio) yet is itself preempted by
+/// OSTM/MTU2-gate/MIDI. The scheduler routes the priority-0 task here.
+static AUDIO_EXEC: InterruptExecutor = InterruptExecutor::new();
+
+/// GIC Software-Generated Interrupt id driving [`AUDIO_EXEC`] (0..=15; SMP-free
+/// board, so SGIs are otherwise unused).
+const AUDIO_SGI: u8 = 8;
+/// Audio SGI GIC priority. Numerically ABOVE the hard-RT IRQs (OSTM=14, UART/MIDI
+/// =10, DMAC=13) so they preempt the render, and below PMR (31) so it is
+/// forwarded. (Lower number = more urgent.)
+const AUDIO_SGI_PRIORITY: u8 = 20;
+
+/// GIC handler for [`AUDIO_SGI`]: drive the audio interrupt executor. Registered
+/// in the HAL dispatch (`gic::register`), which already acks (GICC_IAR) before and
+/// EOIs (GICC_EOIR) after, with IRQs re-enabled for nesting.
+fn audio_sgi_handler() {
+    // SAFETY: only called from the SGI handler, after AUDIO_EXEC.start().
+    unsafe { AUDIO_EXEC.on_interrupt() };
+}
+
 /// Firmware entry. The HAL reset handler (`_reset_handler` in rza1l-hal) ends in
 /// `bl main`; control lands here with caches/MMU off and stacks set up.
 #[unsafe(no_mangle)]
@@ -157,8 +180,22 @@ pub extern "C" fn main() -> ! {
     // device.run() starts.
     let usb_midi = unsafe { usb::build() };
 
+    // Audio interrupt-executor: register the SGI handler, set its priority (below
+    // the hard-RT IRQs, above thread mode) and enable it in the GIC. The HAL's GIC
+    // is already initialised (other IRQs fire), so we only add this source.
+    unsafe {
+        rza1l_hal::gic::register(AUDIO_SGI as u16, audio_sgi_handler);
+        rza1l_hal::gic::set_priority(AUDIO_SGI as u16, AUDIO_SGI_PRIORITY);
+        rza1l_hal::gic::enable(AUDIO_SGI as u16);
+    }
+
     // Unmask IRQs so the time driver and peripheral ISRs fire.
     unsafe { cortex_ar::interrupt::enable() };
+
+    // Start the audio interrupt-executor and stash its SendSpawner so the scheduler
+    // can spawn the priority-0 (audio) task onto it. Must precede deluge_app_init
+    // (in app_task), which calls registerTasks() → addRepeatingTask(priority 0).
+    scheduler::set_audio_spawner(AUDIO_EXEC.start(AUDIO_SGI));
 
     let executor: &'static mut Executor = unsafe {
         let p = core::ptr::addr_of_mut!(EXECUTOR);

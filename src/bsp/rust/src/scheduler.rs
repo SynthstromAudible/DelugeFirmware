@@ -26,7 +26,7 @@
 
 use core::sync::atomic::{AtomicBool, AtomicI8, AtomicU64, AtomicUsize, Ordering};
 
-use embassy_executor::Spawner;
+use embassy_executor::{SendSpawner, Spawner};
 use embassy_futures::select::{select, Either};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
@@ -204,6 +204,11 @@ static SD_ROUTINE_ACTIVE: AtomicBool = AtomicBool::new(false);
 // ---------------------------------------------------------------------------
 static mut SPAWNER: Option<Spawner> = None;
 
+/// Spawner for the preemptive audio interrupt-executor (`AUDIO_EXEC` in main).
+/// `SendSpawner` because that executor runs in a different context (the SGI). The
+/// priority-0 (audio) task is routed here so it preempts the thread executor.
+static mut AUDIO_SPAWNER: Option<SendSpawner> = None;
+
 /// Stash the executor's spawner so the C-ABI `add*Task` functions can spawn task
 /// runners. Call once, from inside `executor.run(|spawner| ...)`, before
 /// `deluge_app_init`.
@@ -213,9 +218,21 @@ pub fn set_spawner(spawner: Spawner) {
     unsafe { *core::ptr::addr_of_mut!(SPAWNER) = Some(spawner) };
 }
 
+/// Stash the audio interrupt-executor's spawner (from `InterruptExecutor::start`).
+/// Call once at startup, before `deluge_app_init`.
+pub fn set_audio_spawner(spawner: SendSpawner) {
+    // SAFETY: set once at startup before any task runs.
+    unsafe { *core::ptr::addr_of_mut!(AUDIO_SPAWNER) = Some(spawner) };
+}
+
 fn spawner() -> Option<Spawner> {
     // SAFETY: see `set_spawner`; reads happen only on the executor thread.
     unsafe { *core::ptr::addr_of!(SPAWNER) }
+}
+
+fn audio_spawner() -> Option<SendSpawner> {
+    // SAFETY: set once at startup; SendSpawner is Copy + Send.
+    unsafe { *core::ptr::addr_of!(AUDIO_SPAWNER) }
 }
 
 /// Claim a free slot, populate it, and spawn its runner. Returns the slot index as
@@ -228,10 +245,15 @@ fn claim(
     resource: ResourceID,
     once: bool,
     enabled: bool,
+    on_audio: bool,
 ) -> TaskID {
-    let Some(spawner) = spawner() else {
+    // Route the audio task to the preemptive audio interrupt-executor when it's
+    // available; everything else (and audio, if that executor isn't up) runs on
+    // the cooperative thread executor.
+    let use_audio = on_audio && audio_spawner().is_some();
+    if !use_audio && spawner().is_none() {
         return -1;
-    };
+    }
     for (i, slot) in SLOTS.iter().enumerate() {
         if slot
             .used
@@ -253,7 +275,12 @@ fn claim(
                 slot.used.store(false, Ordering::Release);
                 return -1;
             };
-            spawner.spawn(token);
+            if use_audio {
+                // SendSpawner: the audio executor runs in the SGI context.
+                audio_spawner().unwrap().spawn(token);
+            } else {
+                spawner().unwrap().spawn(token);
+            }
             return i as TaskID;
         }
     }
@@ -326,11 +353,16 @@ async fn task_runner(slot: &'static TaskSlot) {
         // Resource gate (Phase 5: embassy-sync mutexes; today a no-op).
         let _gate = acquire_resource(slot.resource.load(Ordering::Relaxed) as ResourceID).await;
 
-        CURRENT.store(SLOTS.iter().position(|s| core::ptr::eq(s, slot)).unwrap() as TaskID, Ordering::Relaxed);
+        // Set CURRENT for the *ForCurrentTask C-ABI calls, saving/restoring the
+        // previous value: the audio interrupt-executor can preempt a thread-mode
+        // task_runner mid-handle, and must leave CURRENT as it found it so the
+        // preempted task's id is intact when it resumes.
+        let idx = SLOTS.iter().position(|s| core::ptr::eq(s, slot)).unwrap() as TaskID;
+        let prev = CURRENT.swap(idx, Ordering::Relaxed);
         let t0 = Instant::now();
         (slot.handle_fn())();
         let run_us = t0.elapsed().as_micros();
-        CURRENT.store(-1, Ordering::Relaxed);
+        CURRENT.store(prev, Ordering::Relaxed);
         slot.record(run_us);
 
         if slot.once.load(Ordering::Relaxed) {
@@ -375,13 +407,17 @@ fn us_to_secs(us: u64) -> f64 {
 #[unsafe(no_mangle)]
 pub extern "C" fn addRepeatingTask(
     task: TaskHandle,
-    _priority: u8,
+    priority: u8,
     backOffTime: f64,
     targetTimeBetweenCalls: f64,
     _maxTimeBetweenCalls: f64,
     _name: *const core::ffi::c_char,
     resource: ResourceID,
 ) -> TaskID {
+    // Priority 0 is the audio routine: route it to the preemptive audio
+    // interrupt-executor (see AUDIO_EXEC in main) so a thread-mode storage spin
+    // can't starve it. All other priorities run cooperatively in thread mode.
+    let on_audio = priority == 0;
     claim(
         task,
         None,
@@ -390,6 +426,7 @@ pub extern "C" fn addRepeatingTask(
         resource,
         false,
         true,
+        on_audio,
     )
 }
 
@@ -401,7 +438,7 @@ pub extern "C" fn addOnceTask(
     _name: *const core::ffi::c_char,
     resource: ResourceID,
 ) -> TaskID {
-    claim(task, None, secs_to_us(timeToWait), 0, resource, true, true)
+    claim(task, None, secs_to_us(timeToWait), 0, resource, true, true, false)
 }
 
 #[unsafe(no_mangle)]
@@ -412,7 +449,7 @@ pub extern "C" fn addConditionalTask(
     _name: *const core::ffi::c_char,
     resource: ResourceID,
 ) -> TaskID {
-    claim(task, condition, 0, 0, resource, true, true)
+    claim(task, condition, 0, 0, resource, true, true, false)
 }
 
 #[unsafe(no_mangle)]
@@ -522,16 +559,12 @@ fn spin_until(until: RunCondition, timeout_us: Option<u64>) -> bool {
                 return false;
             }
         }
-        // INTERIM (Phase 3 pump): a synchronous C++ callee can't `.await`, so on
-        // this single-threaded executor a busy-wait would otherwise starve every
-        // task — including audio — for the length of the wait (e.g. a whole SD
-        // song load). Pump the audio render here so audio survives, faithful to
-        // the old C++ cooperative `yield()` (which ran the audio task on the
-        // nested stack). `deluge_audio_drive` is self-pacing (caps renders/call,
-        // returns early when the TX ring is full). The UI still freezes during
-        // the wait — acceptable until the real Phase 3 lifts audio onto a
-        // preemptive InterruptExecutor and this whole spin becomes an `.await`.
-        crate::audio::deluge_audio_drive();
+        // Pure busy-wait: audio now runs on the preemptive audio interrupt-executor
+        // (it preempts this thread-mode spin), so we must NOT pump deluge_audio_drive
+        // here — that would race the audio executor on the audio.rs ring cursors.
+        // The UI/thread tasks still freeze for the wait's duration; Phase 6 turns
+        // this into a real async `.await` (async SD request/response).
+        core::hint::spin_loop();
     }
     true
 }

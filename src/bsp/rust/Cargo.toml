@@ -28,7 +28,7 @@ deluge-alloc = { path = "../../../../deluge-sdk/crates/deluge-alloc" }
 rza1l-hal = { path = "../../../../deluge-sdk/crates/rza1l-hal" }
 
 # Embassy runtime — versions match deluge-sdk's workspace pins.
-embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread"] }
+embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread", "executor-interrupt"] }
 embassy-time = { version = "0.5.1", features = ["tick-hz-1_000_000"] }
 embassy-sync = "0.8.0"
 embassy-futures = "0.1.2"
