@@ -1250,16 +1250,48 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 			last_display_update_time = current_time;
 			last_actual_display_time = current_time; // Track when we actually updated the display
+
+			// Latest value is now on screen, so there's nothing left to flush.
+			modEncoderPopupPending = false;
 		}
-		// Even if no display update needed, refresh timer if same parameter is being adjusted
-		else if (current_param_owns_display && display->hasPopupOfType(PopupType::NOTIFICATION)) {
-			uiTimerManager.setTimer(TimerName::DISPLAY, 2000);
-			last_display_update_time = current_time;
+		else {
+			// We wanted to show a new value but were blocked only by the throttle interval. Remember it and arm a
+			// trailing-edge timer so the final value still gets drawn once the interval elapses. Without this, a fast
+			// burst that stops (as MIDI follow produces) leaves its last value dropped, so the popup lags behind the
+			// real parameter value.
+			if (has_param_info_changed && can_take_display_ownership && !has_min_time_elapsed) {
+				modEncoderPopupPending = true;
+				modEncoderPopupKind = kind;
+				modEncoderPopupParamId = paramID;
+				modEncoderPopupKnobPos = newKnobPos;
+				modEncoderPopupSource1 = source1;
+				modEncoderPopupSource2 = source2;
+
+				int32_t time_until_next_update = MIN_UPDATE_INTERVAL - (current_time - last_actual_display_time);
+				uiTimerManager.setTimerSamples(TimerName::MOD_ENCODER_POPUP_TRAILING, time_until_next_update);
+			}
+
+			// Even if no display update happened, refresh timer if same parameter is being adjusted
+			if (current_param_owns_display && display->hasPopupOfType(PopupType::NOTIFICATION)) {
+				uiTimerManager.setTimer(TimerName::DISPLAY, 2000);
+				last_display_update_time = current_time;
+			}
 		}
 	}
 	else {
 		display->displayPopup(parameter_value.c_str());
 	}
+}
+
+void View::flushPendingModEncoderValuePopup() {
+	if (!modEncoderPopupPending) {
+		return;
+	}
+	modEncoderPopupPending = false;
+	// Re-run the normal path; the throttle interval has now elapsed, so the latest value gets drawn (or skipped
+	// harmlessly if a newer update already showed it).
+	displayModEncoderValuePopup(modEncoderPopupKind, modEncoderPopupParamId, modEncoderPopupKnobPos,
+	                            modEncoderPopupSource1, modEncoderPopupSource2);
 }
 
 // convert deluge internal knobPos range to same range as used by menu's.

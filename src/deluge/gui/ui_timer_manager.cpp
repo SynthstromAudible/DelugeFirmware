@@ -139,6 +139,10 @@ void UITimerManager::routine() {
 					sessionView.gridPulseSelectedClip();
 					break;
 
+				case TimerName::MOD_ENCODER_POPUP_TRAILING:
+					view.flushPendingModEncoderValuePopup();
+					break;
+
 				case TimerName::MATRIX_DRIVER:
 					PadLEDs::timerRoutine();
 					break;

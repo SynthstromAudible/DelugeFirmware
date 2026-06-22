@@ -137,6 +137,9 @@ public:
 	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
 	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
 	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE);
+	// Re-render the most recent value that displayModEncoderValuePopup suppressed for throttling, so the final
+	// value of a fast burst (e.g. MIDI follow) is always shown. Called by TimerName::MOD_ENCODER_POPUP_TRAILING.
+	void flushPendingModEncoderValuePopup();
 	void potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
 	                                       int32_t newKnobPos);
 	void sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam = nullptr, int32_t knobPos = kNoSelection,
@@ -179,6 +182,15 @@ private:
 	static constexpr uint32_t MIN_DISPLAY_OWNERSHIP_TIME = kSampleRate; // 1 second (minimum juggling time)
 	static constexpr uint32_t DISPLAY_TIMEOUT = kSampleRate / 4;        // 0.25 seconds (ball drop timeout)
 	static constexpr uint32_t MIN_UPDATE_INTERVAL = kSampleRate / 22;   // ~45ms (minimum perceptible update frequency)
+
+	// Trailing-edge state for displayModEncoderValuePopup: the most recent value that was suppressed by the
+	// MIN_UPDATE_INTERVAL throttle, re-rendered via flushPendingModEncoderValuePopup() once the interval elapses.
+	bool modEncoderPopupPending = false;
+	deluge::modulation::params::Kind modEncoderPopupKind = deluge::modulation::params::Kind::NONE;
+	int32_t modEncoderPopupParamId = -1;
+	int32_t modEncoderPopupKnobPos = 0;
+	PatchSource modEncoderPopupSource1 = PatchSource::NONE;
+	PatchSource modEncoderPopupSource2 = PatchSource::NONE;
 };
 
 extern View view;
