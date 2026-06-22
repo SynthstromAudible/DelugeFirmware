@@ -209,6 +209,15 @@ async fn app_task() {
         log::info!("deluge-rust: alive ({})", i);
     }
 
+    // Bring SD up BEFORE deluge_app_init so the app's boot settings read finds the
+    // card ready (no "SD CARD ERROR" popup). But first wait for the PIC's baud-rate
+    // handshake (31250→200000, run by pic_pump) to finish: sd::init() racing that
+    // handshake corrupts it → garbled pads. With the PIC already ready, sd::init has
+    // nothing to race. Must be async — sd::init's embassy-time Timers can't run under
+    // block_on (integrated timer queue).
+    deluge_bsp::pic::wait_ready().await;
+    crate::sd::boot_init().await;
+
     log::info!("deluge-rust: deluge_app_init()");
     unsafe { deluge_app_init(board::deluge_board()) };
     log::info!("deluge-rust: entering tick loop");
