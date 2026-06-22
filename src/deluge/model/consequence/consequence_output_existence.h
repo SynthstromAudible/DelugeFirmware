@@ -28,6 +28,6 @@ public:
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	Output* output;
-	int32_t outputIndex;
+	int32_t outputIndex{};
 	ExistenceChangeType type;
 };

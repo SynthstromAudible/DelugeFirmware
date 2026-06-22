@@ -94,60 +94,60 @@ public:
 	void scheduleNextTimerTick(uint32_t doubleSwingInterval);
 
 	// MIDI-clock-out ticks
-	bool midiClockOutTickScheduled;
-	uint32_t timeNextMIDIClockOutTick;
-	int64_t lastMIDIClockOutTickDone;
+	bool midiClockOutTickScheduled{};
+	uint32_t timeNextMIDIClockOutTick{};
+	int64_t lastMIDIClockOutTickDone{};
 
 	// Playback
 	uint8_t playbackState;
-	bool usingAnalogClockInput; // Value is only valid if usingInternalClock is false
+	bool usingAnalogClockInput{}; // Value is only valid if usingInternalClock is false
 	RecordingMode recording;
-	bool ignoringMidiClockInput;
+	bool ignoringMidiClockInput{};
 
 	int32_t posToNextContinuePlaybackFrom; // This will then have 1 subtracted from it when actually physically set
 	uint32_t timeLastMIDIStartOrContinueMessageSent;
 
 	// Timer ticks
-	int64_t lastTimerTickActioned;  // Not valid while playback being set up
-	int64_t nextTimerTickScheduled; // *Yes* valid while (internal clock) playback being set up. Will be zero during
-	                                // that time
-	uint64_t timeNextTimerTickBig;  // Not valid while playback being set up
-	uint64_t timeLastTimerTickBig;  // Not valid while playback being set up
+	int64_t lastTimerTickActioned{};  // Not valid while playback being set up
+	int64_t nextTimerTickScheduled{}; // *Yes* valid while (internal clock) playback being set up. Will be zero during
+	                                  // that time
+	uint64_t timeNextTimerTickBig{};  // Not valid while playback being set up
+	uint64_t timeLastTimerTickBig{};  // Not valid while playback being set up
 
 	// Input ticks
-	uint32_t timeLastInputTicks[kNumInputTicksForMovingAverage];
-	uint32_t timePerInputTickMovingAverage; // 0 means that a default will be set the first time it's used
-	uint8_t numInputTickTimesCounted;
+	uint32_t timeLastInputTicks[kNumInputTicksForMovingAverage]{};
+	uint32_t timePerInputTickMovingAverage{}; // 0 means that a default will be set the first time it's used
+	uint8_t numInputTickTimesCounted{};
 
-	bool tempoMagnitudeMatchingActiveNow;
+	bool tempoMagnitudeMatchingActiveNow{};
 	// unsigned long timeFirstInputTick; // First tick received for current tally
 	unsigned long
-	    timeVeryFirstInputTick; // Very first tick received in playback. Only used for tempo magnitude matching
-	int64_t lastInputTickReceived;
-	unsigned long targetedTimePerInputTick;
+	    timeVeryFirstInputTick{}; // Very first tick received in playback. Only used for tempo magnitude matching
+	int64_t lastInputTickReceived{};
+	unsigned long targetedTimePerInputTick{};
 
 	// Swung ticks
-	bool swungTickScheduled;
-	uint32_t scheduledSwungTickTime;
+	bool swungTickScheduled{};
+	uint32_t scheduledSwungTickTime{};
 	// Now, swung ticks are only "actioned" in the following circumstances:
 	// - A note starts or ends
 	// - Automation event
 	// - A clip loops
 	// - A "launch" event
 	// - Start of playback, including if count-in ends
-	int64_t lastSwungTickActioned; // Will be set to a phony-ish "0" while playback being set up
+	int64_t lastSwungTickActioned{}; // Will be set to a phony-ish "0" while playback being set up
 
 	// Trigger-clock-out ticks
-	bool triggerClockOutTickScheduled;
-	uint32_t timeNextTriggerClockOutTick;
-	int64_t lastTriggerClockOutTickDone;
+	bool triggerClockOutTickScheduled{};
+	uint32_t timeNextTriggerClockOutTick{};
+	int64_t lastTriggerClockOutTickDone{};
 
 	uint32_t analogOutTicksPPQN; // Relative to the "external world", which also means relative to the displayed tempo
 	uint32_t analogInTicksPPQN;
-	uint32_t timeLastAnalogClockInputRisingEdge;
+	uint32_t timeLastAnalogClockInputRisingEdge{};
 	bool analogClockInputAutoStart;
 
-	bool songSwapShouldPreserveTempo;
+	bool songSwapShouldPreserveTempo{};
 
 	// User options
 	bool metronomeOn;
@@ -156,12 +156,12 @@ public:
 	bool tempoMagnitudeMatchingEnabled;
 	uint8_t countInBars;
 
-	int32_t swungTicksTilNextEvent;
+	int32_t swungTicksTilNextEvent{};
 
-	int32_t ticksLeftInCountIn;
+	int32_t ticksLeftInCountIn{};
 	int32_t currentVisualCountForCountIn;
 
-	int32_t metronomeOffset;
+	int32_t metronomeOffset{};
 
 	void setLedStates();
 	void tapTempoAutoSwitchOff();
@@ -201,7 +201,7 @@ public:
 	void finishTempolessRecording(bool startPlaybackAgain, int32_t buttonLatencyForTempolessRecord,
 	                              bool shouldExitRecordMode = true);
 
-	int32_t arrangementPosToStartAtOnSwitch;
+	int32_t arrangementPosToStartAtOnSwitch{};
 
 	bool stopOutputRecordingAtLoopEnd;
 
@@ -237,18 +237,18 @@ private:
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);
 
 	// These are all only relevant while playing synced.
-	uint32_t timePerInternalTickMovingAverage;        // Recalculated every ~24 clocks
-	uint32_t veryCurrentTimePerInternalTickInverse;   // Recalculated at every received clock message
-	uint32_t stickyCurrentTimePerInternalTickInverse; // Moving average kinda thing
-	uint32_t lowpassedTimePerInternalTick;
-	uint32_t slowpassedTimePerInternalTick;
-	uint32_t stickyTimePerInternalTick;
+	uint32_t timePerInternalTickMovingAverage{};        // Recalculated every ~24 clocks
+	uint32_t veryCurrentTimePerInternalTickInverse{};   // Recalculated at every received clock message
+	uint32_t stickyCurrentTimePerInternalTickInverse{}; // Moving average kinda thing
+	uint32_t lowpassedTimePerInternalTick{};
+	uint32_t slowpassedTimePerInternalTick{};
+	uint32_t stickyTimePerInternalTick{};
 
 	uint16_t tapTempoNumPresses;
-	uint32_t tapTempoFirstPressTime;
+	uint32_t tapTempoFirstPressTime{};
 
-	int32_t numOutputClocksWaitingToBeSent;
-	int32_t numInputTicksToSkip;
+	int32_t numOutputClocksWaitingToBeSent{};
+	int32_t numInputTicksToSkip{};
 	uint32_t skipAnalogClocks;
 	uint32_t skipMidiClocks;
 

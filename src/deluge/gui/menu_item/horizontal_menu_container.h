@@ -31,7 +31,7 @@ public:
 	virtual void render(const SlotPosition& slots, const MenuItem* selected_item, HorizontalMenu* parent) {}
 
 protected:
-	deluge::vector<MenuItem*> items_;
+	deluge::vector<MenuItem*> items_{};
 };
 
 } // namespace deluge::gui::menu_item

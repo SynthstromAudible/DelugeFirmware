@@ -44,7 +44,7 @@ private:
 		return getState().isomorphic.scrollOffset + x + y * getState().isomorphic.rowInterval;
 	}
 
-	RGB noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth];
+	RGB noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth]{};
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

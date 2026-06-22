@@ -28,5 +28,5 @@ public:
 	void isNowOnTop() override;
 
 	int8_t loadingAnimationPos;
-	bool animationIsTransparent;
+	bool animationIsTransparent{};
 };

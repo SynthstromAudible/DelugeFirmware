@@ -39,7 +39,7 @@ protected:
 	ClipArray* array;
 	ClipArray* nextArray;
 	int32_t index;
-	std::optional<ClipType> clipType;
+	std::optional<ClipType> clipType{};
 };
 
 template <typename ClipClass>

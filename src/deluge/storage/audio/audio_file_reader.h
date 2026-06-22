@@ -35,8 +35,8 @@ public:
 	Error advanceClustersIfNecessary();
 	virtual Error readNewCluster() = 0;
 
-	int32_t currentClusterIndex;
-	int32_t byteIndexWithinCluster;
-	uint32_t fileSize;
-	AudioFile* audioFile;
+	int32_t currentClusterIndex{};
+	int32_t byteIndexWithinCluster{};
+	uint32_t fileSize{};
+	AudioFile* audioFile{};
 };

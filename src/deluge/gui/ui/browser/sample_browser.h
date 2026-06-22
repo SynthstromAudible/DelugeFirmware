@@ -63,7 +63,7 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void exitAndNeverDeleteDrum();
 
-	std::string lastFilePathLoaded;
+	std::string lastFilePathLoaded{};
 
 	// menus to open when a sample file is selected
 	deluge::gui::menu_item::HorizontalMenu* parentMenuHeadingTo{nullptr};
@@ -91,9 +91,9 @@ private:
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	void possiblySetUpBlinking();
 
-	bool autoLoadEnabled;
+	bool autoLoadEnabled{};
 
-	bool currentlyShowingSamplePreview;
+	bool currentlyShowingSamplePreview{};
 
 	bool qwertyCurrentlyDrawnOnscreen; // This will linger as true even when qwertyVisible has been set to false
 };

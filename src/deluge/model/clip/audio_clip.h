@@ -92,7 +92,7 @@ public:
 	Error readFromFile(Deserializer& reader, Song* song) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;
 	char const* getXMLTag() override { return "audioClip"; }
-	int32_t nextSampleRestartPos;
+	int32_t nextSampleRestartPos{};
 	SampleControls sampleControls;
 
 	SampleHolderForClip sampleHolder;
@@ -101,7 +101,7 @@ public:
 
 	SamplePlaybackGuide guide;
 
-	std::string outputNameWhileLoading; // Only valid while loading
+	std::string outputNameWhileLoading{}; // Only valid while loading
 
 	WaveformRenderData renderData;
 	// TODO: For looping without monitoring we'll need a second recorder plus maybe a second sample player?
@@ -111,8 +111,8 @@ public:
 
 	VoicePriority voicePriority;
 
-	bool doingLateStart;
-	bool maySetupCache;
+	bool doingLateStart{};
+	bool maySetupCache{};
 
 	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
@@ -127,7 +127,7 @@ protected:
 	bool cloneOutput(ModelStackWithTimelineCounter* modelStack) override;
 
 private:
-	AudioClip* nextClipInSection;
+	AudioClip* nextClipInSection{};
 	void removeClipFromSection(AudioClip* clip);
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
 	LoopType getLoopingType(ModelStackWithTimelineCounter const* modelStack);

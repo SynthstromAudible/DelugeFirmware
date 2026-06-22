@@ -39,54 +39,54 @@ public:
 	Patcher patcher;
 
 	// Stores all oscillator positions and stuff, for each Source within each Unison too
-	std::array<VoiceUnisonPart, kMaxNumVoicesUnison> unisonParts;
+	std::array<VoiceUnisonPart, kMaxNumVoicesUnison> unisonParts{};
 
 	// Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with
 	// this Voice right now.
-	std::array<VoiceSamplePlaybackGuide, kNumSources> guides;
+	std::array<VoiceSamplePlaybackGuide, kNumSources> guides{};
 
 	Sound& sound; // This is a reference to the Sound that owns this Voice
 
 	///
 	/// This is just for the *local* params, specific to this Voice only
 	///
-	std::array<int32_t, deluge::modulation::params::LOCAL_LAST> paramFinalValues;
+	std::array<int32_t, deluge::modulation::params::LOCAL_LAST> paramFinalValues{};
 
 	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and
 	// choose where the Patcher looks for them
-	std::array<int32_t, kNumPatchSources> sourceValues;
+	std::array<int32_t, kNumPatchSources> sourceValues{};
 
-	std::bitset<kNumExpressionDimensions> expressionSourcesCurrentlySmoothing;
-	std::bitset<kNumExpressionDimensions> expressionSourcesFinalValueChanged;
-	std::array<int32_t, kNumExpressionDimensions> localExpressionSourceValuesBeforeSmoothing;
+	std::bitset<kNumExpressionDimensions> expressionSourcesCurrentlySmoothing{};
+	std::bitset<kNumExpressionDimensions> expressionSourcesFinalValueChanged{};
+	std::array<int32_t, kNumExpressionDimensions> localExpressionSourceValuesBeforeSmoothing{};
 
-	std::array<Envelope, kNumEnvelopes> envelopes;
+	std::array<Envelope, kNumEnvelopes> envelopes{};
 	LFO lfo2;
 	LFO lfo4;
 
 	dsp::filter::FilterSet filterSet;
 
 	// Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
-	std::array<int32_t, 2> inputCharacteristics;
-	int32_t noteCodeAfterArpeggiation;
+	std::array<int32_t, 2> inputCharacteristics{};
+	int32_t noteCodeAfterArpeggiation{};
 
-	uint32_t portaEnvelopePos;
-	int32_t portaEnvelopeMaxAmplitude;
+	uint32_t portaEnvelopePos{};
+	int32_t portaEnvelopeMaxAmplitude{};
 
-	std::array<uint32_t, 2> lastSaturationTanHWorkingValue;
+	std::array<uint32_t, 2> lastSaturationTanHWorkingValue{};
 
-	int32_t overallOscAmplitudeLastTime;
-	std::array<int32_t, kNumSources> sourceAmplitudesLastTime;
-	std::array<int32_t, kNumModulators> modulatorAmplitudeLastTime;
-	std::array<uint32_t, kNumSources> sourceWaveIndexesLastTime;
+	int32_t overallOscAmplitudeLastTime{};
+	std::array<int32_t, kNumSources> sourceAmplitudesLastTime{};
+	std::array<int32_t, kNumModulators> modulatorAmplitudeLastTime{};
+	std::array<uint32_t, kNumSources> sourceWaveIndexesLastTime{};
 
-	int32_t filterGainLastTime;
-	bool doneFirstRender;
-	bool previouslyIgnoredNoteOff;
+	int32_t filterGainLastTime{};
+	bool doneFirstRender{};
+	bool previouslyIgnoredNoteOff{};
 
-	uint32_t orderSounded;
+	uint32_t orderSounded{};
 
-	int32_t overrideAmplitudeEnvelopeReleaseRate;
+	int32_t overrideAmplitudeEnvelopeReleaseRate{};
 
 	bool justCreated{false};
 

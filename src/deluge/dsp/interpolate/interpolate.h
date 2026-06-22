@@ -38,7 +38,7 @@ struct [[gnu::hot]] Interpolator {
 	}
 
 	// These are the state buffers (quadword alignment for NEON)
-	alignas(sizeof(int32_t) * 4) std::array<int16_t, kInterpolationMaxNumSamples> buffer_l;
-	alignas(sizeof(int32_t) * 4) std::array<int16_t, kInterpolationMaxNumSamples> buffer_r;
+	alignas(sizeof(int32_t) * 4) std::array<int16_t, kInterpolationMaxNumSamples> buffer_l{};
+	alignas(sizeof(int32_t) * 4) std::array<int16_t, kInterpolationMaxNumSamples> buffer_r{};
 };
 } // namespace deluge::dsp

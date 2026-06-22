@@ -88,9 +88,9 @@ public:
 
 	Envelope envelope;
 
-	int32_t amplitudeLastTime;
+	int32_t amplitudeLastTime{};
 
-	int32_t overrideAmplitudeEnvelopeReleaseRate;
+	int32_t overrideAmplitudeEnvelopeReleaseRate{};
 
 	/// Audio channel used for recording and monitoring.
 	AudioInputChannel inputChannel{AudioInputChannel::UNSET};

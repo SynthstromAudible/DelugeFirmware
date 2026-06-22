@@ -91,7 +91,7 @@ private:
 	void exitScaleMode();
 	void drawNoteCode(int32_t noteCode);
 
-	PressedPad pressedPads[kMaxNumKeyboardPadPresses];
+	PressedPad pressedPads[kMaxNumKeyboardPadPresses]{};
 	NotesState lastNotesState;
 	NotesState currentNotesState;
 

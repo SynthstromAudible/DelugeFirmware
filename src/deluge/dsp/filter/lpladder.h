@@ -37,7 +37,7 @@ public:
 
 private:
 	struct LpLadderState {
-		q31_t noiseLastValue;
+		q31_t noiseLastValue{};
 		BasicFilterComponent lpfLPF1;
 		BasicFilterComponent lpfLPF2;
 		BasicFilterComponent lpfLPF3;
@@ -80,19 +80,19 @@ private:
 	LpLadderState r;
 
 	// configuration
-	q31_t processedResonance;
-	q31_t divideByTotalMoveabilityAndProcessedResonance;
+	q31_t processedResonance{};
+	q31_t divideByTotalMoveabilityAndProcessedResonance{};
 
 	// moveability is tan(f)/(1+tan(f))
-	q31_t moveability;
+	q31_t moveability{};
 
-	q31_t morph;
+	q31_t morph{};
 
 	// All feedbacks have 1 represented as 1073741824
-	q31_t lpf1Feedback;
-	q31_t lpf2Feedback;
-	q31_t lpf3Feedback;
+	q31_t lpf1Feedback{};
+	q31_t lpf2Feedback{};
+	q31_t lpf3Feedback{};
 
-	bool doOversampling;
+	bool doOversampling{};
 };
 } // namespace deluge::dsp::filter

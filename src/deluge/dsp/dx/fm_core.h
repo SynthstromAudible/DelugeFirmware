@@ -59,5 +59,5 @@ public:
 	bool neon = false;
 
 protected:
-	AlignedBuf<int32_t, DX_MAX_N> buf_[2];
+	AlignedBuf<int32_t, DX_MAX_N> buf_[2]{};
 };

@@ -55,11 +55,11 @@ protected:
 	void enterKeyPress() override;
 
 private:
-	bool selectedDrumOnly;
-	bool previewOnly;
-	bool overwriteExisting;
-	bool noScaling;
-	std::string defaultDir;
+	bool selectedDrumOnly{};
+	bool previewOnly{};
+	bool overwriteExisting{};
+	bool noScaling{};
+	std::string defaultDir{};
 	Error setupForLoadingPattern();
 	Error currentLabelLoadError = Error::NONE;
 };

@@ -31,7 +31,7 @@ public:
 	~CopiedParamAutomation() = default;
 
 	/// Width in sequencer ticks
-	int32_t width;
+	int32_t width{};
 
 	/// Copied nodes.
 	///

@@ -56,8 +56,8 @@ constexpr uint8_t kHighestKeyboardNote = kOctaveSize * 12;
 struct NotesState {
 	using NoteArray = std::array<NoteState, kMaxNumActiveNotes>;
 
-	std::bitset<kHighestKeyboardNote> states;
-	NoteArray notes;
+	std::bitset<kHighestKeyboardNote> states{};
+	NoteArray notes{};
 	uint8_t count = 0;
 
 	[[nodiscard]] NoteArray::iterator begin() { return notes.begin(); }

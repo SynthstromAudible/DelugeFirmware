@@ -221,7 +221,7 @@ inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize,
 	{
 justInsertRecord:
 		// Add the new empty space record.
-		EmptySpaceRecord newRecord;
+		EmptySpaceRecord newRecord{};
 		newRecord.length = spaceSize;
 		newRecord.address = address;
 		if (emptySpaces.find(newRecord) != emptySpaces.end()) {
@@ -261,7 +261,7 @@ goingToReplaceOldRecord:
 			// to rearrange some elements.
 			if (howMuchBigger <= 0 && !(!howMuchBigger && nextBiggerRecord->address > address)) {
 
-				EmptySpaceRecord newRecordPreview;
+				EmptySpaceRecord newRecordPreview{};
 				newRecordPreview.length = spaceSize;
 				newRecordPreview.address = address;
 
@@ -376,7 +376,7 @@ gotEmptySpace:
 
 					// Okay, if we're here, we have to rearrange some records.
 					// Find the best empty space
-					EmptySpaceRecord searchThing;
+					EmptySpaceRecord searchThing{};
 					searchThing.length = extraSpaceSizeWithoutItsHeaders;
 					searchThing.address = extraSpaceAddress;
 					int32_t insertAt =
@@ -564,7 +564,7 @@ uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
 	}
 
 	else if (spaceType == SPACE_HEADER_EMPTY) {
-		EmptySpaceRecord oldEmptySpace;
+		EmptySpaceRecord oldEmptySpace{};
 		oldEmptySpace.address = spaceHereAddress;
 		oldEmptySpace.length = emptySpaceHereSizeWithoutHeaders;
 		emptySpaces.erase(oldEmptySpace);
@@ -596,7 +596,7 @@ NeighbouringMemoryGrabAttemptResult MemoryRegion::attemptToGrabNeighbouringMemor
     void* originalSpaceAddress, int32_t originalSpaceSize, int32_t minAmountToExtend, int32_t idealAmountToExtend,
     void* thingNotToStealFrom, uint32_t markWithTraversalNo, bool originalSpaceNeedsStealing) {
 
-	NeighbouringMemoryGrabAttemptResult toReturn;
+	NeighbouringMemoryGrabAttemptResult toReturn{};
 
 	toReturn.address = (uint32_t)originalSpaceAddress;
 
@@ -673,7 +673,7 @@ tryNotStealingFirst:
 
 						// If empty space...
 						if (spaceType == SPACE_HEADER_EMPTY) {
-							EmptySpaceRecord oldEmptySpace;
+							EmptySpaceRecord oldEmptySpace{};
 							oldEmptySpace.address = spaceHereAddress;
 							oldEmptySpace.length = emptySpaceHereSizeWithoutHeaders;
 							bool success = emptySpaces.erase(oldEmptySpace) != 0;

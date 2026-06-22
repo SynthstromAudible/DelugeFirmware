@@ -53,8 +53,8 @@ private:
 	inline uint8_t noteFromCoords(int32_t x) { return getState().chordLibrary.noteOffset + x; }
 	inline int32_t getChordNo(int32_t y) { return getState().chordLibrary.chordList.chordRowOffset + y; }
 
-	std::array<RGB, kOctaveSize> noteColours;
-	std::array<RGB, kVerticalPages> pageColours;
+	std::array<RGB, kOctaveSize> noteColours{};
+	std::array<RGB, kVerticalPages> pageColours{};
 	bool initializedNoteOffset = false;
 };
 

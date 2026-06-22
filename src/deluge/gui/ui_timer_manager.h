@@ -53,8 +53,8 @@ enum class TimerName {
 };
 
 struct Timer {
-	bool active;
-	uint32_t triggerTime;
+	bool active{};
+	uint32_t triggerTime{};
 };
 
 class UITimerManager {
@@ -70,8 +70,8 @@ public:
 	void setTimerByOtherTimer(TimerName which, TimerName fromTimer);
 
 private:
-	uint32_t timeNextEvent;
-	std::array<Timer, util::to_underlying(TimerName::NUM_TIMERS)> timers_;
+	uint32_t timeNextEvent{};
+	std::array<Timer, util::to_underlying(TimerName::NUM_TIMERS)> timers_{};
 	void workOutNextEventTime();
 
 public:

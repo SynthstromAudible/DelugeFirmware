@@ -25,5 +25,5 @@ public:
 	ConsequenceSwingChange(int8_t newSwingBefore, int8_t newSwingAfter);
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
-	int8_t swing[2];
+	int8_t swing[2]{};
 };

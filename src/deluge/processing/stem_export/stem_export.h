@@ -95,10 +95,10 @@ public:
 	Error getUnusedStemRecordingFilePath(std::string* filePath, AudioRecordingFolder folder);
 	Error getUnusedStemRecordingFolderPath(std::string* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
-	std::string lastFolderNameForStemExport;
+	std::string lastFolderNameForStemExport{};
 	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,
 	                                 SoundDrum* drum = nullptr);
-	std::string wavFileNameForStemExport;
+	std::string wavFileNameForStemExport{};
 	bool wavFileNameForStemExportSet;
 
 	// check if we're in context menu

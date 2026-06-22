@@ -65,11 +65,11 @@ public:
 	}
 
 private:
-	int32_t feedback_;
+	int32_t feedback_{};
 	int32_t filterstore_{0};
-	int32_t damp1_;
-	int32_t damp2_;
-	std::span<int32_t> buffer_;
+	int32_t damp1_{};
+	int32_t damp2_{};
+	std::span<int32_t> buffer_{};
 	int32_t bufidx_{0};
 };
 } // namespace freeverb

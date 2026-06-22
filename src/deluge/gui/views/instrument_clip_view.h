@@ -46,20 +46,20 @@ class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 
 struct EditPadPress {
-	bool isActive;
-	uint8_t yDisplay;
-	uint8_t xDisplay;
-	bool deleteOnDepress; // Can also mean to delete tail
-	uint8_t intendedVelocity;
-	uint8_t intendedProbability;
+	bool isActive{};
+	uint8_t yDisplay{};
+	uint8_t xDisplay{};
+	bool deleteOnDepress{}; // Can also mean to delete tail
+	uint8_t intendedVelocity{};
+	uint8_t intendedProbability{};
 	Iterance intendedIterance;
-	uint8_t intendedFill;
-	bool deleteOnScroll;
-	bool isBlurredSquare;
-	bool mpeCachedYet;
-	StolenParamNodes stolenMPE[kNumExpressionDimensions];
-	uint32_t intendedPos;    // For "blurred squares", means start of square
-	uint32_t intendedLength; // For "blurred squares", means length of square
+	uint8_t intendedFill{};
+	bool deleteOnScroll{};
+	bool isBlurredSquare{};
+	bool mpeCachedYet{};
+	StolenParamNodes stolenMPE[kNumExpressionDimensions]{};
+	uint32_t intendedPos{};    // For "blurred squares", means start of square
+	uint32_t intendedLength{}; // For "blurred squares", means length of square
 };
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
@@ -363,9 +363,9 @@ private:
 	int32_t quantizeAmount{};
 	uint32_t timeSongButtonPressed{};
 
-	std::array<RGB, kDisplayHeight> rowColour;
-	std::array<RGB, kDisplayHeight> rowTailColour;
-	std::array<RGB, kDisplayHeight> rowBlurColour;
+	std::array<RGB, kDisplayHeight> rowColour{};
+	std::array<RGB, kDisplayHeight> rowTailColour{};
+	std::array<RGB, kDisplayHeight> rowBlurColour{};
 
 	// note functions
 	void nudgeNotes(int32_t offset);

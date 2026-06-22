@@ -24,7 +24,7 @@
 class RenameClipUI final : public RenameUI {
 public:
 	RenameClipUI(const char* title_) : RenameUI(title_) {};
-	Clip* clip;
+	Clip* clip{};
 
 protected:
 	bool trySetName(std::string_view) override;

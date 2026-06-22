@@ -40,8 +40,8 @@ public:
 	UIType getUIType() override { return UIType::SAVE_PATTERN; }
 
 private:
-	bool selectedDrumOnly;
-	std::string defaultDir;
+	bool selectedDrumOnly{};
+	std::string defaultDir{};
 };
 
 extern SavePatternUI savePatternUI;

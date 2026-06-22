@@ -62,7 +62,7 @@ public:
 	}
 	// Phaser
 	StereoSample phaserMemory{0, 0};
-	StereoSample allpassMemory[kNumAllpassFiltersPhaser];
+	StereoSample allpassMemory[kNumAllpassFiltersPhaser]{};
 	StereoSample* modFXBuffer{nullptr};
 	uint16_t modFXBufferWriteIndex{0};
 	LFO modFXLFO;

@@ -120,7 +120,7 @@ private:
 	float room_size_;
 	float damping_;
 	float width_;
-	float hpf_;
+	float hpf_{};
 	float lpf_;
 };
 } // namespace deluge::dsp

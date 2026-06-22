@@ -27,11 +27,11 @@ public:
 	bool callBack() override;
 	void isNowOnTop() override;
 
-	uint8_t text[256];
-	uint16_t length;
+	uint8_t text[256]{};
+	uint16_t length{};
 	int8_t currentDirection;
 	int8_t currentPos;
-	int16_t initialDelay;
+	int16_t initialDelay{};
 
 	int scrollsCount = -1;
 };

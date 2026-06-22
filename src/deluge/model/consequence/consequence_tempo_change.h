@@ -25,5 +25,5 @@ public:
 	ConsequenceTempoChange(uint64_t newTimePerBigBefore, uint64_t newTimePerBigAfter);
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
-	uint64_t timePerBig[2];
+	uint64_t timePerBig[2]{};
 };

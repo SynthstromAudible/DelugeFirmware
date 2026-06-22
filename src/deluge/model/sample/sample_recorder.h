@@ -68,15 +68,15 @@ public:
 	};
 	void abort();
 
-	SampleRecorder* next;
+	SampleRecorder* next{};
 
-	gsl::owner<Sample*> sample;
+	gsl::owner<Sample*> sample{};
 
-	int32_t numSamplesToRunBeforeBeginningCapturing;
-	uint32_t numSamplesBeenRunning;
-	uint32_t numSamplesCaptured;
+	int32_t numSamplesToRunBeforeBeginningCapturing{};
+	uint32_t numSamplesBeenRunning{};
+	uint32_t numSamplesCaptured{};
 
-	uint32_t numSamplesExtraToCaptureAtEndSyncingWise;
+	uint32_t numSamplesExtraToCaptureAtEndSyncingWise{};
 
 	int32_t firstUnwrittenClusterIndex = 0;
 
@@ -87,20 +87,20 @@ public:
 	// some error or max file size reached)
 	Cluster* currentRecordCluster = nullptr;
 
-	uint32_t audioFileNumber;
+	uint32_t audioFileNumber{};
 	AudioRecordingFolder folderID;
 
-	char* writePos;
-	char* clusterEndPos;
+	char* writePos{};
+	char* clusterEndPos{};
 
 	// When this gets set, we add the Sample to the master list. This is stored here in addition to in the Sample,
 	// so we can delete an aborted file even after the Sample has been detached / destructed.
 	// This will be the temp file path if there is one.
-	std::string filePathCreated;
+	std::string filePathCreated{};
 
 	RecorderStatus status = RecorderStatus::CAPTURING_DATA;
 	AudioInputChannel mode;
-	Output* outputRecordingFrom; // for when recording from a specific output
+	Output* outputRecordingFrom{}; // for when recording from a specific output
 
 	// Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's
 	// there... but this is nice.
@@ -109,8 +109,8 @@ public:
 	bool allowFileAlterationAfter = false;
 	bool allowNormalization = true;
 	bool autoDeleteWhenDone = false;
-	bool keepingReasonsForFirstClusters;
-	uint8_t recordingNumChannels;
+	bool keepingReasonsForFirstClusters{};
+	uint8_t recordingNumChannels{};
 	bool hadCardError = false;
 	bool reachedMaxFileSize = false;
 	bool recordingExtraMargins = false;
@@ -119,26 +119,26 @@ public:
 	bool thresholdRecording = false;
 
 	// Most of these are not captured in the case of BALANCED input for AudioClips
-	bool recordingClippedRecently;
-	int32_t recordPeakL;
-	int32_t recordPeakR;
-	int32_t recordPeakLMinusR;
-	uint64_t recordSumL;
-	uint64_t recordSumR;
-	uint64_t recordSumLPlusR;  // L and R are halved before these two are calculated
-	uint64_t recordSumLMinusR; // --------
+	bool recordingClippedRecently{};
+	int32_t recordPeakL{};
+	int32_t recordPeakR{};
+	int32_t recordPeakLMinusR{};
+	uint64_t recordSumL{};
+	uint64_t recordSumR{};
+	uint64_t recordSumLPlusR{};  // L and R are halved before these two are calculated
+	uint64_t recordSumLMinusR{}; // --------
 
-	int32_t recordMax;
-	int32_t recordMin;
+	int32_t recordMax{};
+	int32_t recordMin{};
 
-	uint32_t audioDataLengthBytesAsWrittenToFile;
-	uint32_t loopEndSampleAsWrittenToFile;
+	uint32_t audioDataLengthBytesAsWrittenToFile{};
+	uint32_t loopEndSampleAsWrittenToFile{};
 
-	float startValueThreshold;
+	float startValueThreshold{};
 
-	int32_t* sourcePos;
+	int32_t* sourcePos{};
 
-	std::optional<FatFS::File> file;
+	std::optional<FatFS::File> file{};
 
 private:
 	void setExtraBytesOnPreviousCluster(Cluster* currentCluster, int32_t currentClusterIndex);

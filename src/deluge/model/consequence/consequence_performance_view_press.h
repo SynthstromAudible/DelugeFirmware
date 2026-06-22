@@ -27,5 +27,5 @@ public:
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	int32_t xDisplayChanged = kNoSelection;
-	FXColumnPress fxPress[2];
+	FXColumnPress fxPress[2]{};
 };

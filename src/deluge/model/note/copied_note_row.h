@@ -25,9 +25,9 @@ public:
 	CopiedNoteRow();
 	virtual ~CopiedNoteRow();
 
-	int16_t yDisplay;
-	int32_t numNotes;
+	int16_t yDisplay{};
+	int32_t numNotes{};
 	Note* notes;
 	CopiedNoteRow* next;
-	int16_t yNote;
+	int16_t yNote{};
 };

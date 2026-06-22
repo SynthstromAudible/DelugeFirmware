@@ -34,7 +34,7 @@ public:
 
 	void noPressesHappening(bool inCardRoutine);
 
-	bool padStates[kDisplayWidth + kSideBarWidth][kDisplayHeight];
+	bool padStates[kDisplayWidth + kSideBarWidth][kDisplayHeight]{};
 };
 
 extern char* matrixDriverDisplayWritePos;

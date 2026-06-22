@@ -124,6 +124,6 @@ public:
 	}
 
 private:
-	deluge::fast_vector<RangeVariant> ranges_;
+	deluge::fast_vector<RangeVariant> ranges_{};
 	bool holdsWaveTableRanges_ = false;
 };

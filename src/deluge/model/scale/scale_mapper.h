@@ -31,7 +31,7 @@ private:
 	 * Note: we include 12 tone scales both for simplicity, and in order to support 12-tone scales with
 	 * bent notes.
 	 */
-	NoteSet transitionScaleStore[kMaxScaleSize];
+	NoteSet transitionScaleStore[kMaxScaleSize]{};
 	NoteSet initialTransitionScale(NoteSet sourceScale);
 	void computeInitialChanges(NoteSet sourceScale, NoteSet initialScale, ScaleChange& changes);
 	void flushTransitionScaleStore(NoteSet initialScale);

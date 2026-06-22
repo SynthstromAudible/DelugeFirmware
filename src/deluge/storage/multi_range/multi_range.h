@@ -29,5 +29,5 @@ public:
 
 	virtual AudioFileHolder* getAudioFileHolder() = 0;
 
-	int16_t topNote;
+	int16_t topNote{};
 };

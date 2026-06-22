@@ -32,7 +32,7 @@ public:
 
 	Clip* clip;
 	ClipArray* clipArray;
-	int32_t clipIndex;
+	int32_t clipIndex{};
 	ExistenceChangeType type;
-	bool shouldBeActiveWhileExistent;
+	bool shouldBeActiveWhileExistent{};
 };

@@ -52,7 +52,7 @@ private:
 		PLAYING,
 	};
 	int32_t getStutterRate(ParamManager* paramManager, int32_t magnitude, uint32_t timePerTickInverse);
-	bool currentReverse;
+	bool currentReverse{};
 	DelayBuffer buffer;
 	Status status = Status::OFF;
 	// TODO: This is currently unused! It's set to 7 initially, and never modified. Either we should set it depending

@@ -37,7 +37,7 @@ public:
 	void drawValue();
 
 	int32_t currentValue = 0;
-	DxPatch* patch;
+	DxPatch* patch{};
 };
 
 extern DxEngineSelect dxEngineSelect;

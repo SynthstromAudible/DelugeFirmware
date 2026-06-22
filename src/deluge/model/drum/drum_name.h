@@ -24,6 +24,6 @@ public:
 	DrumName(std::string_view newName);
 	virtual ~DrumName();
 
-	std::string name;
+	std::string name{};
 	DrumName* next;
 };

@@ -8,13 +8,13 @@
  */
 struct SemVer {
 	/// Major version
-	uint8_t major;
+	uint8_t major{};
 
 	/// Minor version
-	uint8_t minor;
+	uint8_t minor{};
 
 	/// Patch version
-	uint8_t patch;
+	uint8_t patch{};
 
 	/// Pre-release string
 	std::string_view pre_release{};
@@ -58,7 +58,7 @@ struct SemVer {
 		std::expected<SemVer, Error> parse();
 
 	private:
-		std::string_view input_;
+		std::string_view input_{};
 		size_t index_ = 0;
 
 		/**

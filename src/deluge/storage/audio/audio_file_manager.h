@@ -119,22 +119,22 @@ public:
 
 	ClusterPriorityQueue loadingQueue;
 
-	Cluster* clusterBeingLoaded;
-	int32_t minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug
-	                                            // hunting only.
+	Cluster* clusterBeingLoaded{};
+	int32_t minNumReasonsForClusterBeingLoaded{}; // Only valid when clusterBeingLoaded is set. And this exists for bug
+	                                              // hunting only.
 
-	std::string alternateAudioFileLoadPath;
+	std::string alternateAudioFileLoadPath{};
 	AlternateLoadDirStatus alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	ThingType thingTypeBeingLoaded = ThingType::NONE;
-	DIR alternateLoadDir;
+	DIR alternateLoadDir{};
 
-	std::array<int32_t, kNumAudioRecordingFolders> highestUsedAudioRecordingNumber;
-	std::bitset<kNumAudioRecordingFolders> highestUsedAudioRecordingNumberNeedsReChecking;
+	std::array<int32_t, kNumAudioRecordingFolders> highestUsedAudioRecordingNumber{};
+	std::bitset<kNumAudioRecordingFolders> highestUsedAudioRecordingNumberNeedsReChecking{};
 	void firstCardRead();
 
 private:
 	bool cardReadOnce{false};
-	bool cardEjected;
+	bool cardEjected{};
 	bool cardDisabled = false;
 
 	uint32_t clusterSizeAtBoot{0};

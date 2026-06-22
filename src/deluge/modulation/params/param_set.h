@@ -109,7 +109,7 @@ public:
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
 
 private:
-	std::array<AutoParam, deluge::modulation::params::kMaxNumUnpatchedParams> params_;
+	std::array<AutoParam, deluge::modulation::params::kMaxNumUnpatchedParams> params_{};
 };
 
 class PatchedParamSet final : public ParamSet {
@@ -124,7 +124,7 @@ public:
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCHED; }
 
 private:
-	std::array<AutoParam, deluge::modulation::params::kNumParams> params_;
+	std::array<AutoParam, deluge::modulation::params::kNumParams> params_{};
 };
 
 class ExpressionParamSet final : public ParamSet {
@@ -150,8 +150,8 @@ public:
 	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't
 	// "stolen" or "backed up" - unless the last Clip is being deleted, in which case they do move to the
 	// backedUpParamManager. This is exactly the persistence we want for bendRanges too.
-	uint8_t bendRanges[2];
+	uint8_t bendRanges[2]{};
 
 private:
-	std::array<AutoParam, kNumExpressionDimensions> params_;
+	std::array<AutoParam, kNumExpressionDimensions> params_{};
 };

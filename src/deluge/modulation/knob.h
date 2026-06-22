@@ -38,9 +38,9 @@ public:
 	bool is14Bit() override { return (midiInput.noteOrCC == 128); }
 	bool topValueIs127() override { return (midiInput.noteOrCC < 128 && !relative); }
 	LearnedMIDI midiInput;
-	bool relative;
-	bool previousPositionSaved;
-	int32_t previousPosition;
+	bool relative{};
+	bool previousPositionSaved{};
+	int32_t previousPosition{};
 };
 
 class ModKnob : public Knob {

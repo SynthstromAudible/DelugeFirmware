@@ -44,5 +44,5 @@ public:
 	                                              MIDICharacteristic whichCharacteristic) override;
 
 	uint8_t note;
-	int8_t noteEncoderCurrentOffset;
+	int8_t noteEncoderCurrentOffset{};
 };

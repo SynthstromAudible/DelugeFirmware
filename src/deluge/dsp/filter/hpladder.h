@@ -40,7 +40,7 @@ private:
 		BasicFilterComponent hpfHPF1;
 		BasicFilterComponent hpfLPF1;
 		BasicFilterComponent hpfHPF3;
-		uint32_t hpfLastWorkingValue;
+		uint32_t hpfLastWorkingValue{};
 		void reset() {
 			hpfHPF1.reset();
 			hpfLPF1.reset();
@@ -49,23 +49,23 @@ private:
 	};
 	[[gnu::always_inline]] inline q31_t doHPF(q31_t input, HPLadderState& state);
 
-	bool hpfDoingAntialiasingNow;
-	int32_t hpfDivideByTotalMoveabilityLastTime;
-	int32_t hpfDivideByProcessedResonanceLastTime;
+	bool hpfDoingAntialiasingNow{};
+	int32_t hpfDivideByTotalMoveabilityLastTime{};
+	int32_t hpfDivideByProcessedResonanceLastTime{};
 
 	// All feedbacks have 1 represented as 1073741824
-	q31_t hpfLPF1Feedback;
-	q31_t hpfHPF3Feedback;
+	q31_t hpfLPF1Feedback{};
+	q31_t hpfHPF3Feedback{};
 
-	q31_t hpfProcessedResonance; // 1 represented as 1073741824
-	bool hpfDoAntialiasing;
-	q31_t hpfDivideByProcessedResonance;
+	q31_t hpfProcessedResonance{}; // 1 represented as 1073741824
+	bool hpfDoAntialiasing{};
+	q31_t hpfDivideByProcessedResonance{};
 
-	q31_t divideByTotalMoveability; // 1 represented as 268435456
+	q31_t divideByTotalMoveability{}; // 1 represented as 268435456
 
-	q31_t alteredHpfMomentumMultiplier;
-	q31_t thisHpfResonance;
-	q31_t morph_;
+	q31_t alteredHpfMomentumMultiplier{};
+	q31_t thisHpfResonance{};
+	q31_t morph_{};
 	HPLadderState l;
 	HPLadderState r;
 };

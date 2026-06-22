@@ -63,7 +63,7 @@ public:
 	virtual void stop(const char* stopLabel);
 	virtual void stop(int number);
 
-	uint32_t startTime;
+	uint32_t startTime{};
 	const char* m_label;
 	bool stopped;
 };
@@ -77,9 +77,9 @@ public:
 	void setN(uint32_t numRepeats);
 
 	const char* m_label;
-	int64_t accumulator;
-	uint32_t N;
-	uint32_t c;
+	int64_t accumulator{};
+	uint32_t N{};
+	uint32_t c{};
 };
 
 class OneOfN {
@@ -93,8 +93,8 @@ public:
 	void setN(uint32_t numRepeats);
 
 	bool active;
-	uint32_t N;
-	uint32_t c;
+	uint32_t N{};
+	uint32_t c{};
 	RTimer myRTimer;
 };
 
@@ -108,8 +108,8 @@ public:
 	void split(const char* splitLabel);
 
 	bool active;
-	uint32_t timeBase;
-	uint32_t t0;
+	uint32_t timeBase{};
+	uint32_t t0{};
 	RTimer myRTimer;
 };
 
@@ -119,10 +119,10 @@ public:
 	void bump(uint32_t by = 1);
 	void clear();
 	const char* label;
-	uint32_t timeBase;
+	uint32_t timeBase{};
 	bool active;
-	uint32_t count;
-	uint32_t t0;
+	uint32_t count{};
+	uint32_t t0{};
 };
 
 class AverageDT {
@@ -132,13 +132,13 @@ public:
 	void note();
 	void clear();
 	const char* label;
-	uint32_t timeBase;
+	uint32_t timeBase{};
 	bool active;
-	uint32_t scaling;
-	int64_t accumulator;
-	uint32_t count;
-	uint32_t t0;
-	uint32_t tnm1;
+	uint32_t scaling{};
+	int64_t accumulator{};
+	uint32_t count{};
+	uint32_t t0{};
+	uint32_t tnm1{};
 };
 
 class AverageVOT {
@@ -146,11 +146,11 @@ class AverageVOT {
 	void note(uint32_t value);
 	void clear();
 	const char* label;
-	uint32_t timeBase;
+	uint32_t timeBase{};
 	bool active;
-	int64_t accumulator;
-	uint32_t count;
-	uint32_t t0;
+	int64_t accumulator{};
+	uint32_t count{};
+	uint32_t t0{};
 };
 
 extern MIDICable* midiDebugCable;

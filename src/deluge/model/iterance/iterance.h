@@ -21,8 +21,8 @@
 #include <cstdint>
 
 struct Iterance {
-	uint8_t divisor;
-	std::bitset<8> iteranceStep;
+	uint8_t divisor{};
+	std::bitset<8> iteranceStep{};
 
 	bool operator==(Iterance const& other) const {
 		return other.divisor == divisor && other.iteranceStep == iteranceStep;

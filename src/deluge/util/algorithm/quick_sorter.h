@@ -31,7 +31,7 @@ private:
 	void swap(int32_t i, int32_t j);
 	void* getElementAddress(int32_t i);
 
-	const int32_t elementSize;
-	const uint32_t keyMask;
+	const int32_t elementSize{};
+	const uint32_t keyMask{};
 	void* const memory;
 };

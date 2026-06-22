@@ -48,7 +48,7 @@ public:
 	GateChannel() { on = false; }
 	bool on; // Means either on now, or "awaiting" switch-on
 	GateType mode;
-	uint32_t timeLastSwitchedOff;
+	uint32_t timeLastSwitchedOff{};
 };
 
 class CVEngine {

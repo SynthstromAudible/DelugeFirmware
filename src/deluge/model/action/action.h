@@ -101,31 +101,31 @@ public:
 
 	// A bunch of snapshot-things here store their state both before or after the action - because the action could have
 	// changed these
-	int32_t xScrollClip[2];
-	int32_t yScrollSongView[2];
-	int32_t xZoomClip[2];
+	int32_t xScrollClip[2]{};
+	int32_t yScrollSongView[2]{};
+	int32_t xZoomClip[2]{};
 
-	int32_t xScrollArranger[2];
-	int32_t yScrollArranger[2];
-	int32_t xZoomArranger[2];
+	int32_t xScrollArranger[2]{};
+	int32_t yScrollArranger[2]{};
+	int32_t xZoomArranger[2]{};
 
 	NoteSet modeNotes[2];
 
 	// And a few more snapshot-things here only store one state - at the time of the action, because the action could
 	// not change these things
-	uint8_t modKnobModeSongView;
-	bool affectEntireSongView;
+	uint8_t modKnobModeSongView{};
+	bool affectEntireSongView{};
 
-	bool tripletsOn;
-	uint32_t tripletsLevel;
+	bool tripletsOn{};
+	uint32_t tripletsLevel{};
 
 	// bool inKeyboardView;
 
-	UI* view;
+	UI* view{};
 
-	Clip* currentClip; // Watch out - this might get set to NULL
+	Clip* currentClip{}; // Watch out - this might get set to NULL
 
-	int32_t posToClearArrangementFrom;
+	int32_t posToClearArrangementFrom{};
 
 	Action* nextAction;
 	Consequence* firstConsequence;
@@ -133,7 +133,7 @@ public:
 	// We store these kinds of consequences separately because we need to be able to search through them fast, when
 	// there may be a large number of other kinds of consequences. Also, these don't need re-ordering each time we
 	// revert
-	ConsequenceParamChange* firstParamConsequence;
+	ConsequenceParamChange* firstParamConsequence{};
 
 	ActionClipState* clipStates;
 

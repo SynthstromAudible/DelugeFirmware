@@ -116,13 +116,13 @@ public:
 
 	uint32_t lowSampleRatePos{};
 	uint32_t highSampleRatePos{};
-	StereoSample lastSample;
-	StereoSample grabbedSample;
-	StereoSample lastGrabbedSample;
+	StereoSample lastSample{};
+	StereoSample grabbedSample{};
+	StereoSample lastGrabbedSample{};
 
 	SideChain sidechain; // Song doesn't use this, despite extending this class
 
-	deluge::fast_vector<MIDIKnob> midi_knobs;
+	deluge::fast_vector<MIDIKnob> midi_knobs{};
 	int32_t postReverbVolumeLastTime{};
 
 protected:

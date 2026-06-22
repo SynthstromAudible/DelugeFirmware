@@ -36,7 +36,7 @@ public:
 	void displayLoopsRemainingPopup();
 	bool isLoadingSong();
 
-	bool deletedPartsOfOldSong;
+	bool deletedPartsOfOldSong{};
 
 	// ui
 	UIType getUIType() override { return UIType::LOAD_SONG; }
@@ -53,7 +53,7 @@ private:
 	void displayArmedPopup();
 
 	bool performingLoad;
-	bool scrollingIntoSlot;
+	bool scrollingIntoSlot{};
 	bool qwertyCurrentlyDrawnOnscreen;
 	void doQueueLoadNextSongIfAvailable(int8_t offset);
 	// int32_t findNextFile(int32_t offset);
