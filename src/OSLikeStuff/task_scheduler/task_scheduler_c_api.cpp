@@ -19,6 +19,7 @@
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
 #include "libdeluge/storage_wait.h"
 #include "libdeluge/system.h" // deluge_in_interrupt — the ISR guard, via the boundary
+#include "libdeluge/worker.h" // deluge_worker_run — cooperative default (Embassy BSP overrides)
 #include "resource_checker.h"
 
 extern TaskManager taskManager;
@@ -79,6 +80,15 @@ bool yieldWithTimeout(RunCondition until, double timeout) {
 
 bool yieldToIdle(RunCondition until) {
 	return taskManager.yield(until, 0, true);
+}
+
+// libdeluge/worker.h — cooperative default. On the non-Embassy BSPs there is no
+// worker fiber: the operation runs inline on the caller's stack, and its internal
+// yield()s drive the cooperative task manager exactly as before. The Embassy BSP
+// supplies its own deluge_worker_run (Rust, runs the op on a stackful fiber); that
+// definition wins at link time and this object is not pulled from the archive.
+void deluge_worker_run(void (*fn)(void*), void* ctx) {
+	fn(ctx);
 }
 
 // Cooperative yield hooks for slow-storage busy-waits (the <libdeluge/storage_wait.h>

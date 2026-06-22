@@ -4,13 +4,13 @@ version = 4
 
 [[package]]
 name = "aarch32-cpu"
-version = "0.1.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5db6700cf01549520abec199376115e1ceb6fde1d1de30064f0f230be8a0c305"
+checksum = "61a1c6b820a21052085271d8d3ef4bd0379894b525212b45405af905a2aae415"
 dependencies = [
  "arbitrary-int 2.1.1",
  "arm-targets 0.4.2",
- "bitbybit",
+ "bitbybit 2.0.0",
  "num_enum",
  "thiserror",
 ]
@@ -117,6 +117,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitbybit"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71d2a3353d70ac1091a33cbf31fc7e77b19091538a7e306e3740712af19807ca"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.118",
+]
+
+[[package]]
 name = "bitfield"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -194,7 +205,7 @@ checksum = "b4ea2a354642e242870bc43b57a517359b0be6e96d302b2811cd0644c979c54e"
 dependencies = [
  "arbitrary-int 2.1.1",
  "arm-targets 0.3.0",
- "bitbybit",
+ "bitbybit 1.4.0",
  "critical-section",
  "num_enum",
  "thiserror",
@@ -304,8 +315,7 @@ checksum = "91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e"
 [[package]]
 name = "embassy-executor"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d0d3b15c9d7dc4fec1d8cb77112472fb008b3b28c51ad23838d83587a6d2f1e"
+source = "git+https://github.com/stellar-aria/embassy?branch=feat%2Fexecutor-interrupt-a9#8df3f4e1583322a21acd4b0253aeaa5c30963ea1"
 dependencies = [
  "aarch32-cpu",
  "arm-targets 0.4.2",
@@ -319,8 +329,7 @@ dependencies = [
 [[package]]
 name = "embassy-executor-macros"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d11a246f53de5f97a387f40ac24726817cd0b6f833e7603baac784f29d6ff276"
+source = "git+https://github.com/stellar-aria/embassy?branch=feat%2Fexecutor-interrupt-a9#8df3f4e1583322a21acd4b0253aeaa5c30963ea1"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -331,8 +340,7 @@ dependencies = [
 [[package]]
 name = "embassy-executor-timer-queue"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fc328bf943af66b80b98755db9106bf7e7471b0cf47dc8559cd9a6be504cc9c"
+source = "git+https://github.com/stellar-aria/embassy?branch=feat%2Fexecutor-interrupt-a9#8df3f4e1583322a21acd4b0253aeaa5c30963ea1"
 
 [[package]]
 name = "embassy-futures"
@@ -399,8 +407,7 @@ dependencies = [
 [[package]]
 name = "embassy-time-queue-utils"
 version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "168297bf80aaf114b3c9ad589bf38b01b3009b9af7f97cd18086c5bbf96f5693"
+source = "git+https://github.com/stellar-aria/embassy?branch=feat%2Fexecutor-interrupt-a9#8df3f4e1583322a21acd4b0253aeaa5c30963ea1"
 dependencies = [
  "embassy-executor-timer-queue",
  "heapless 0.9.3",

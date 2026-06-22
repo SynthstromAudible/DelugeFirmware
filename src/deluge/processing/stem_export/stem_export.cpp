@@ -27,6 +27,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
+#include "libdeluge/worker.h" // deluge_worker_run — run the export on the worker fiber
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -80,6 +81,17 @@ StemExport::StemExport() {
 /// starts stem export process which includes setting up UI mode, timer, and preparing
 /// instruments / clips / kit rows for exporting
 void StemExport::startStemExportProcess(StemExportType stemExportType) {
+	// The export runs for a long time and yields per element (waiting for each
+	// stem's recording to finish). On the decomposed Embassy BSP a synchronous
+	// yield can't hand the CPU back, so run the whole export on the worker fiber;
+	// the launching menu/button handler returns immediately. The export type is
+	// carried in the ctx word (no capture needed).
+	deluge_worker_run(
+	    [](void* p) { stemExport.runStemExportProcess(static_cast<StemExportType>(reinterpret_cast<uintptr_t>(p))); },
+	    reinterpret_cast<void*>(static_cast<uintptr_t>(stemExportType)));
+}
+
+void StemExport::runStemExportProcess(StemExportType stemExportType) {
 	// in case playback is active when you start stem export, stop it.
 	stopPlayback();
 

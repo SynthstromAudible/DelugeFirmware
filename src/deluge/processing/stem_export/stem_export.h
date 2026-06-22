@@ -33,6 +33,9 @@ public:
 
 	// start & stop process
 	void startStemExportProcess(StemExportType stemExportType);
+	// The actual export work, run on the worker fiber (it yields per element). Public
+	// only so the worker dispatch lambda in startStemExportProcess can reach it.
+	void runStemExportProcess(StemExportType stemExportType);
 	void stopStemExportProcess();
 	void startOutputRecordingUntilLoopEndAndSilence();
 	void stopPlayback();

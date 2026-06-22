@@ -103,10 +103,12 @@ pub extern "C" fn disk_initialize(pdrv: u8) -> u8 {
     if pdrv != 0 {
         return STA_NOINIT;
     }
-    // sd::init() can't run here: it needs an async task (its embassy-time Timers
-    // panic under block_on with the integrated timer queue). It's driven from
-    // app_task (boot_init), *after* deluge_app_init — running it at boot races the
-    // PIC/pad bring-up and corrupts the pads. Until that runs, report current status.
+    // sd::init() can't run here: its embassy-time Timers panic under `block_on`
+    // (integrated timer queue — see `boot_init`). It runs eagerly from `app_task`
+    // (boot_init) after the PIC baud handshake (pic::wait_ready) and before
+    // deluge_app_init — waiting for the PIC first avoids the handshake race that
+    // corrupted the pads. So the card is ready by the time the app first calls this;
+    // if somehow not, just report status (never block_on(init) here).
     if !sd::is_ready() {
         log::warn!("sd: disk_initialize before async init done");
     }
@@ -154,6 +156,14 @@ pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) ->
     }
 }
 
+// NOTE (Phase 7 revert): SD I/O must use `block_on` (which parks the executor for
+// the transfer), NOT a fiber-yielding drive. FatFS is not re-entrant and the app's
+// SD-reentrancy guard (`currentlyAccessingCard`) is only set by the legacy C diskio
+// (src/RZA1/diskio.c), which this BSP does not link — so on this BSP it is always 0.
+// Parking during the transfer is what serializes SD access; yielding mid-transfer
+// (block_on_fiber) let other tasks re-enter FatFS and corrupted it (manifested as
+// "NO MORE PRESETS FOUND" on track create, and would also break song/sample loads).
+// Re-introducing fiber-aware SD requires first serializing all SD access on this BSP.
 #[unsafe(no_mangle)]
 pub extern "C" fn disk_read_without_streaming_first(
     pdrv: u8,

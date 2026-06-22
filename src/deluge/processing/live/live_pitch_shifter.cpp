@@ -362,9 +362,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	// int32_t numChannelsNow = numChannels;
 
 	// D_PRINTLN("");
-	D_PRINTLN("hop at  %d", numRawSamplesProcessedAtNowTime);
 	if (crossfadeProgress < kMaxSampleValue) {
-		D_PRINTLN("last crossfade not finished");
 		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("FADE");
 	}
 	// D_PRINTLN(phaseIncrement);
@@ -779,7 +777,6 @@ stopSearch:
 	if (phaseIncrement == kMaxSampleValue) {
 		playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_DIRECT;
 		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = numRawSamplesProcessedAtNowTime & (kInputRawBufferSize - 1);
-		D_PRINTLN("raw hop");
 	}
 
 	else {
@@ -789,8 +786,6 @@ stopSearch:
 		// sizeof(playHeads[PLAY_HEAD_NEWER].interpolationBuffer));
 		playHeads[PLAY_HEAD_NEWER].fillInterpolationBuffer(liveInputBuffer, numChannels);
 		playHeads[PLAY_HEAD_NEWER].oscPos = additionalOscPos;
-
-		D_PRINTLN("playing from:  %d", playHeads[PLAY_HEAD_NEWER].rawBufferReadPos);
 	}
 
 thatsDone:
@@ -804,8 +799,6 @@ thatsDone:
 	else {
 		crossfadeProgress = kMaxSampleValue;
 	}
-
-	D_PRINTLN("crossfade length:  %d", thisCrossfadeLength);
 
 	/*
 	if (phaseIncrement > kMaxSampleValue) {

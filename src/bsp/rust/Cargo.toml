@@ -28,7 +28,7 @@ deluge-alloc = { path = "../../../../deluge-sdk/crates/deluge-alloc" }
 rza1l-hal = { path = "../../../../deluge-sdk/crates/rza1l-hal" }
 
 # Embassy runtime — versions match deluge-sdk's workspace pins.
-embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread"] }
+embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread", "executor-interrupt"] }
 embassy-time = { version = "0.5.1", features = ["tick-hz-1_000_000"] }
 embassy-sync = "0.8.0"
 embassy-futures = "0.1.2"
@@ -50,6 +50,27 @@ rtt = ["dep:rtt-target", "rza1l-hal/rtt"]
 # Generate Rust signatures + POD types from the canonical libdeluge C headers so
 # the boundary can't drift (type mismatch = compile error).
 bindgen = "0.70"
+
+# Redirect embassy-executor to the local fork that ports the InterruptExecutor to
+# platform-cortex-ar (GIC SGI pender). Same version (0.10.0), so this patch applies
+# across the whole graph (this crate + the deluge-sdk path-deps), keeping the
+# Executor/Spawner types identical everywhere.
+#
+# The integrated timer queue is *intrusive*: embassy-executor stores a
+# `TimerQueueItem` in each task header (via embassy-executor-timer-queue), and
+# embassy-time-queue-utils reads it back through `TimerQueueItem::from_embassy_waker`.
+# `embassy-executor-timer-queue` carries no `links` key, so without these extra
+# patches Cargo silently links TWO copies — the fork's (writing the task header,
+# pulled in by the forked embassy-executor) and crates.io's (reading it, pulled in
+# by the unpatched embassy-time-queue-utils the HAL driver uses). The two item
+# types don't match, so `schedule_wake` reads a garbage item, thinks the task is
+# already queued, and returns false → the hardware alarm is never armed → every
+# `Timer::await` hangs forever. Patch the whole intrusive timer-queue pair to the
+# fork so a single, consistent `TimerQueueItem` type is used on both sides.
+[patch.crates-io]
+embassy-executor = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
+embassy-executor-timer-queue = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
+embassy-time-queue-utils = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
 
 [profile.release]
 opt-level = "s"

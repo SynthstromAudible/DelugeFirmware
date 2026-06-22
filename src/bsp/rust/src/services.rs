@@ -78,6 +78,10 @@ pub extern "C" fn deluge_log(text: *const core::ffi::c_char) {
 // ── clock.h ─────────────────────────────────────────────────────────────────
 
 /// Busy-wait `us` microseconds via the OSTM-backed embassy-time driver. [task]
+///
+/// NOTE (Phase 7 revert): kept as `block_for`, NOT a fiber-yield. A delay can be
+/// called mid-operation (incl. inside SD/FatFS sequences); yielding the fiber there
+/// would let other tasks re-enter non-reentrant state. See sd.rs.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_clock_delay_us(us: u32) {
     embassy_time::block_for(embassy_time::Duration::from_micros(us as u64));

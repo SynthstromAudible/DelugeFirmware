@@ -30,6 +30,7 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "libdeluge/worker.h" // deluge_worker_run — run the load on the worker fiber
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/instrument/midi_instrument.h"
@@ -159,10 +160,19 @@ void LoadSongUI::enterKeyPress() {
 
 	else {
 		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
-		performLoad();           // May fail
-		if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-			runtimeFeatureSettings.writeSettingsToFile();
-		}
+		// Run the load on the worker fiber: performLoad() yields mid-load (waiting for
+		// clusters, or for the LOAD-button release while playing), and that must suspend
+		// the *operation*, not this button handler — otherwise the executor (and PIC
+		// input) freezes and the load hangs. Post-load work goes in the job too, since
+		// this handler returns immediately.
+		deluge_worker_run(
+		    [](void*) {
+			    loadSongUI.performLoad(); // May fail
+			    if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+				    runtimeFeatureSettings.writeSettingsToFile();
+			    }
+		    },
+		    nullptr);
 	}
 }
 
@@ -289,10 +299,18 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 				// if is a file, select it
 				songFound = true;
 				AudioEngine::logAction("performLoad");
-				performLoad();
-				if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-					runtimeFeatureSettings.writeSettingsToFile();
-				}
+				// Run the load on the worker fiber (see enterKeyPress); the job owns the
+				// post-load settings write AND the UI-mode reset below, so return now.
+				deluge_worker_run(
+				    [](void*) {
+					    loadSongUI.performLoad();
+					    if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+						    runtimeFeatureSettings.writeSettingsToFile();
+					    }
+					    currentUIMode = UI_MODE_NONE;
+				    },
+				    nullptr);
+				return;
 			}
 		}
 	} while (currentFileIndexSelected != fileIndexSelected && !songFound);
