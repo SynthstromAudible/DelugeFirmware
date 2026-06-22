@@ -28,5 +28,5 @@ public:
 	Error readBytesPassedErrorChecking(char* outputBuffer, int32_t num) override;
 	Error readNewCluster() override;
 
-	Cluster* currentCluster;
+	Cluster* currentCluster{};
 };

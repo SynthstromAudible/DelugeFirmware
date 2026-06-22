@@ -30,7 +30,7 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 	int32_t getRandomValueInRange();
 
-	int32_t lower, upper;
+	int32_t lower{}, upper{};
 
 	int32_t minValue, maxValue;
 };

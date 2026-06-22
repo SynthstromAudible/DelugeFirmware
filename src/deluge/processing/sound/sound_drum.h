@@ -28,7 +28,7 @@ class ModelStackWithTimelineCounter;
 
 class SoundDrum final : public Sound, public Drum {
 public:
-	std::string path;
+	std::string path{};
 	bool nameIsDiscardable = false;
 
 	SoundDrum() : Drum(DrumType::SOUND) {}

@@ -38,10 +38,58 @@ const GET_SECTOR_SIZE: u8 = 2;
 const GET_BLOCK_SIZE: u8 = 3;
 const SECTOR_SIZE: usize = 512;
 
+/// Set once `disk_initialize` has driven `sd::init()` at least once. Until then,
+/// the controller has never muxed `SD_CD` (P7_0 → SDHI fn 3) or started `SD_CLK`,
+/// so `sd::is_inserted()` reads a meaningless card-detect line. We must NOT report
+/// `STA_NODISK` from that pre-init read: FatFS skips `disk_initialize` whenever the
+/// disk looks absent, and `disk_initialize` is the only path that brings the detect
+/// circuit to life — detection would be gated on init, and init on detection
+/// (deadlock). Report "not initialized, presence unknown" instead so FatFS attempts
+/// the init that makes card-detect valid.
+static CONTROLLER_UP: AtomicBool = AtomicBool::new(false);
+
+/// Bring the SD controller up from an async (Embassy task) context, once at boot.
+///
+/// `sd::init()` sequences card power-up with `embassy_time::Timer` delays. This BSP
+/// uses the *integrated* (intrusive) timer queue, so a `Timer` only resolves when
+/// polled by a real Embassy task — `embassy_futures::block_on`'s synthetic waker
+/// makes `Timer` panic (`from_embassy_waker`). The sync FatFS `disk_initialize`
+/// path can therefore never run `init()`. Instead we init here, from `app_task`,
+/// before `deluge_app_init` drives the first C++ storage access: afterwards the card
+/// reports ready, FatFS skips `disk_initialize`, and reads/writes stay on `block_on`
+/// (pure SDHI/DMA-IRQ futures — no timers). Re-runnable for card-swap from async.
+pub async fn boot_init() {
+    let r = sd::init().await;
+    // The pin mux + SDHI bring-up has run, so card-detect is meaningful now.
+    CONTROLLER_UP.store(true, Ordering::Release);
+    log::info!(
+        "sd: boot_init — init={:?} inserted={} wp={}",
+        r.is_ok(),
+        sd::is_inserted(),
+        sd::is_write_protected(),
+    );
+}
+
 /// FatFS DSTATUS bits for the current card state.
 fn status_bits() -> u8 {
+    // DIAG (SD bring-up): log the raw card-detect/ready state the first few times
+    // status is queried, so "No SD card present" can be traced to is_inserted()
+    // vs. is_ready() vs. init failure.
+    {
+        static DIAG_LEFT: AtomicBool = AtomicBool::new(true);
+        if DIAG_LEFT.swap(false, Ordering::Relaxed) {
+            log::info!(
+                "DIAG sd: status_bits — inserted={} ready={} wp={}",
+                sd::is_inserted(),
+                sd::is_ready(),
+                sd::is_write_protected(),
+            );
+        }
+    }
     if !sd::is_ready() {
-        return STA_NOINIT | if sd::is_inserted() { 0 } else { STA_NODISK };
+        // Only trust the card-detect read once the controller has been brought up.
+        let absent = CONTROLLER_UP.load(Ordering::Acquire) && !sd::is_inserted();
+        return STA_NOINIT | if absent { STA_NODISK } else { 0 };
     }
     if sd::is_write_protected() {
         STA_PROTECT
@@ -55,10 +103,16 @@ pub extern "C" fn disk_initialize(pdrv: u8) -> u8 {
     if pdrv != 0 {
         return STA_NOINIT;
     }
-    match block_on(sd::init()) {
-        Ok(()) => status_bits(),
-        Err(_) => STA_NOINIT | if sd::is_inserted() { 0 } else { STA_NODISK },
+    // sd::init() can't run here: its embassy-time Timers panic under `block_on`
+    // (integrated timer queue — see `boot_init`). It runs eagerly from `app_task`
+    // (boot_init) after the PIC baud handshake (pic::wait_ready) and before
+    // deluge_app_init — waiting for the PIC first avoids the handshake race that
+    // corrupted the pads. So the card is ready by the time the app first calls this;
+    // if somehow not, just report status (never block_on(init) here).
+    if !sd::is_ready() {
+        log::warn!("sd: disk_initialize before async init done");
     }
+    status_bits()
 }
 
 #[unsafe(no_mangle)]
@@ -102,6 +156,14 @@ pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) ->
     }
 }
 
+// NOTE (Phase 7 revert): SD I/O must use `block_on` (which parks the executor for
+// the transfer), NOT a fiber-yielding drive. FatFS is not re-entrant and the app's
+// SD-reentrancy guard (`currentlyAccessingCard`) is only set by the legacy C diskio
+// (src/RZA1/diskio.c), which this BSP does not link — so on this BSP it is always 0.
+// Parking during the transfer is what serializes SD access; yielding mid-transfer
+// (block_on_fiber) let other tasks re-enter FatFS and corrupted it (manifested as
+// "NO MORE PRESETS FOUND" on track create, and would also break song/sample loads).
+// Re-introducing fiber-aware SD requires first serializing all SD access on this BSP.
 #[unsafe(no_mangle)]
 pub extern "C" fn disk_read_without_streaming_first(
     pdrv: u8,
@@ -139,7 +201,12 @@ pub extern "C" fn disk_write_without_streaming_first(
     let src = unsafe { core::slice::from_raw_parts(buff, len) };
     match block_on(sd::write_sectors(sector, count, src)) {
         Ok(()) => RES_OK,
-        Err(_) => RES_ERROR,
+        Err(e) => {
+            // Surface the precise SdError (the C++ side only logs a generic "SD card
+            // write error"). Helps diagnose the first-exercised write path.
+            log::warn!("disk_write err {e:?} (sector={sector} count={count})");
+            RES_ERROR
+        }
     }
 }
 

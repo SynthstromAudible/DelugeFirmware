@@ -53,8 +53,8 @@ public:
 	int32_t getLivePos(uint32_t* timeRemainder = nullptr);
 	void endAnyLinearRecording();
 
-	int32_t lastProcessedPos;
-	int32_t playbackStartedAtPos;
+	int32_t lastProcessedPos{};
+	int32_t playbackStartedAtPos{};
 };
 
 extern Arrangement arrangement;

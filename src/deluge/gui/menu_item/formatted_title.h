@@ -25,7 +25,7 @@ public:
 
 private:
 	l10n::String format_str_;
-	mutable std::string title_;
-	mutable std::optional<uint8_t> arg_;
+	mutable std::string title_{};
+	mutable std::optional<uint8_t> arg_{};
 };
 } // namespace deluge::gui::menu_item

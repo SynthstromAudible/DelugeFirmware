@@ -57,7 +57,7 @@ public:
 	bool allowedToDoReversion();
 	void notifyClipRecordingAborted(Clip* clip);
 
-	Action* firstAction[2];
+	Action* firstAction[2]{};
 
 private:
 	void revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time);

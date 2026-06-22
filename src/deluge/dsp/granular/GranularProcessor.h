@@ -119,5 +119,9 @@ public:
 
 private:
 	GranularProcessor* owner;
-	StereoSample sampleBuffer[kModFXGrainBufferSize];
+	// Intentionally NOT zero-initialized: this is a large granular FX buffer and
+	// zeroing it on every construction is prohibitively expensive. The grain engine
+	// writes before it reads, so stale contents are fine here. NOLINT keeps the
+	// member-init auto-fix from re-adding `{}` on future audit passes.
+	StereoSample sampleBuffer[kModFXGrainBufferSize]; // NOLINT(cppcoreguidelines-pro-type-member-init)
 };

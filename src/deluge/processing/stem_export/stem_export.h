@@ -33,6 +33,9 @@ public:
 
 	// start & stop process
 	void startStemExportProcess(StemExportType stemExportType);
+	// The actual export work, run on the worker fiber (it yields per element). Public
+	// only so the worker dispatch lambda in startStemExportProcess can reach it.
+	void runStemExportProcess(StemExportType stemExportType);
 	void stopStemExportProcess();
 	void startOutputRecordingUntilLoopEndAndSilence();
 	void stopPlayback();
@@ -95,10 +98,10 @@ public:
 	Error getUnusedStemRecordingFilePath(std::string* filePath, AudioRecordingFolder folder);
 	Error getUnusedStemRecordingFolderPath(std::string* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
-	std::string lastFolderNameForStemExport;
+	std::string lastFolderNameForStemExport{};
 	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,
 	                                 SoundDrum* drum = nullptr);
-	std::string wavFileNameForStemExport;
+	std::string wavFileNameForStemExport{};
 	bool wavFileNameForStemExportSet;
 
 	// check if we're in context menu

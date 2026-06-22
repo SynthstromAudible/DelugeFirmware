@@ -28,9 +28,9 @@
 class FavouritesManager {
 public:
 	struct Favorite {
-		int position;
-		std::optional<uint8_t> colour;
-		std::string filename;
+		int position{};
+		std::optional<uint8_t> colour{};
+		std::string filename{};
 	};
 
 public:
@@ -49,8 +49,8 @@ public:
 	const std::string& getFavoriteFilename(uint8_t position);
 	static constexpr uint8_t favouriteDefaultColor = 4;
 
-	uint8_t currentBankNumber;
-	std::optional<uint8_t> currentFavouriteNumber;
+	uint8_t currentBankNumber{};
+	std::optional<uint8_t> currentFavouriteNumber{};
 
 private:
 	void loadFavouritesBank();
@@ -59,8 +59,8 @@ private:
 	std::string getFilenameForSave() const;
 	mutable bool unsavedChanges = false;
 
-	std::string currentCategory;
-	std::vector<Favorite> favourites;
+	std::string currentCategory{};
+	std::vector<Favorite> favourites{};
 };
 
 extern FavouritesManager favouritesManager;

@@ -48,7 +48,7 @@ public:
 	[[nodiscard]] constexpr const Language& fallback() const { return *fallback_; }
 
 private:
-	std::string name_;
+	std::string name_{};
 	map_type map_{};
 	const Language* fallback_ = nullptr;
 };

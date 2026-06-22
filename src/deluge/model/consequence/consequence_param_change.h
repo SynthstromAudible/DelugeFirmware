@@ -28,7 +28,7 @@ public:
 	Error revert(TimeType time, ModelStack* modelStackWithSong) override;
 
 	union {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		char modelStackMemory[MODEL_STACK_MAX_SIZE]{};
 		ModelStackWithParamId modelStack; // TODO: yikes, is this safe? What about NoteRow pointers etc?
 	};
 	AutoParamState state;

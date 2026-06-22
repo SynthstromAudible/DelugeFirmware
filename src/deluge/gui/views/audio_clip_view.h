@@ -64,14 +64,14 @@ public:
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 
 private:
-	uint32_t timeSongButtonPressed;
+	uint32_t timeSongButtonPressed{};
 	void needsRenderingDependingOnSubMode();
-	int32_t lastTickSquare;
-	bool mustRedrawTickSquares;
+	int32_t lastTickSquare{};
+	bool mustRedrawTickSquares{};
 
-	bool endMarkerVisible;   // True if user is currently adjusting the clip's end
-	bool startMarkerVisible; // True if user is currently adjusting the clip's start
-	bool blinkOn;
+	bool endMarkerVisible{};   // True if user is currently adjusting the clip's end
+	bool startMarkerVisible{}; // True if user is currently adjusting the clip's start
+	bool blinkOn{};
 
 	void changeUnderlyingSampleLength(AudioClip& clip, const Sample* sample, int32_t newLength, int32_t oldLength,
 	                                  uint64_t oldLengthSamples) const;

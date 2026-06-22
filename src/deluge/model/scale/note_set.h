@@ -98,7 +98,7 @@ public:
 	static const int8_t size = 12;
 
 private:
-	uint16_t bits;
+	uint16_t bits{};
 };
 
 const uint8_t kMaxScaleSize = NoteSet::size;

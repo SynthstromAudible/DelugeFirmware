@@ -192,15 +192,15 @@ public:
 	// null Clip (if any) sorts first. Node-based so ParamManagers never move in memory.
 	deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> backedUpParamManagers;
 
-	uint32_t xZoom[2];  // Set default zoom at max zoom-out;
-	int32_t xScroll[2]; // Leave this as signed
+	uint32_t xZoom[2]{};  // Set default zoom at max zoom-out;
+	int32_t xScroll[2]{}; // Leave this as signed
 	int32_t xScrollForReturnToSongView;
 	int32_t xZoomForReturnToSongView;
 	bool tripletsOn;
-	uint32_t tripletsLevel; // The number of ticks in one of the three triplets
+	uint32_t tripletsLevel{}; // The number of ticks in one of the three triplets
 
-	uint64_t timePerTimerTickBig;
-	int32_t divideByTimePerTimerTick;
+	uint64_t timePerTimerTickBig{};
+	int32_t divideByTimePerTimerTick{};
 
 	// How many orders of magnitude faster internal ticks are going than input ticks. Used in combination with
 	// inputTickScale, which is usually 1, but is different if there's an inputTickScaleClip. So, e.g. if
@@ -219,11 +219,11 @@ public:
 	Section sections[kMaxNumSections];
 
 	MusicalKey key;
-	std::bitset<NUM_PRESET_SCALES> disabledPresetScales;
+	std::bitset<NUM_PRESET_SCALES> disabledPresetScales{};
 
 	uint16_t slot;
 	int8_t subSlot;
-	std::string name;
+	std::string name{};
 
 	bool affectEntire;
 
@@ -233,9 +233,9 @@ public:
 	int32_t songViewYScroll;
 	int32_t arrangementYScroll;
 
-	uint8_t sectionToReturnToAfterSongEnd;
+	uint8_t sectionToReturnToAfterSongEnd{};
 
-	bool wasLastInArrangementEditor;
+	bool wasLastInArrangementEditor{};
 	int32_t lastClipInstanceEnteredStartPos; // -1 means we are not "inside" an arrangement. While we're in the
 	                                         // ArrangementEditor, it's 0
 
@@ -248,11 +248,11 @@ public:
 
 	bool paramsInAutomationMode;
 
-	bool inClipMinderViewOnLoad; // Temp variable only valid while loading Song
+	bool inClipMinderViewOnLoad{}; // Temp variable only valid while loading Song
 
-	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams];
+	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams]{};
 
-	std::string dirPath;
+	std::string dirPath{};
 
 	std::array<SessionMacro, 8> sessionMacros{};
 
@@ -403,8 +403,8 @@ public:
 	int32_t reverbPan;
 	int32_t reverbSidechainVolume;
 	int32_t reverbSidechainShape;
-	int32_t reverbSidechainAttack;
-	int32_t reverbSidechainRelease;
+	int32_t reverbSidechainAttack{};
+	int32_t reverbSidechainRelease{};
 	SyncLevel reverbSidechainSync;
 
 	// START ~ new Automation Arranger View Variables

@@ -280,10 +280,10 @@ public:
 
 	// TODO (Kate): Make it so the ModControllableFX stuff isn't touching these.
 	// That behavior should either be contained in this class or Delay or a new Stutterer class
-	uint32_t longPos;
-	uint8_t lastShortPos;
+	uint32_t longPos{};
+	uint8_t lastShortPos{};
 
-	size_t sizeIncludingExtra;
+	size_t sizeIncludingExtra{};
 
 private:
 	struct ResampleConfig {
@@ -299,10 +299,10 @@ private:
 	uint32_t native_rate_ = 0;
 
 	StereoSample* start_ = nullptr;
-	StereoSample* end_;
-	StereoSample* current_;
+	StereoSample* end_{};
+	StereoSample* current_{};
 
-	size_t size_;
+	size_t size_{};
 
 public:
 	std::optional<ResampleConfig> resample_config_{};

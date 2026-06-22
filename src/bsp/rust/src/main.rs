@@ -17,7 +17,7 @@
 use core::mem::MaybeUninit;
 use core::panic::PanicInfo;
 
-use embassy_executor::{Executor, Spawner};
+use embassy_executor::{Executor, InterruptExecutor, Spawner};
 // General-purpose Rust heaps (for BSP/Embassy/our boot). The C++ app keeps its
 // own GeneralMemoryAllocator over the region we hand it; the Rust app allocator
 // (TLSF/slab, docs/dev/allocator_redesign.md) is a later, separately-gated step.
@@ -58,14 +58,19 @@ mod usb;
 mod signals;
 /// C++ memory-model bring-up (SDRAM bss/data, global ctors).
 mod boot_mem;
+/// scheduler.h / OSLikeStuff scheduler_api.h — the cooperative task scheduler,
+/// implemented on the Embassy executor (one task per registered Deluge task).
+mod scheduler;
+/// The worker fiber: a stackful coroutine for the long synchronous C++ operations
+/// that pause via `yield()` (Phase 6). This module is the context-switch primitive.
+mod fiber;
 
 unsafe extern "C" {
-    /// One-time C++ application bring-up (deluge.cpp / app.h). Called once before
-    /// the first tick. `board` is the descriptor from [`board::deluge_board`].
+    /// One-time C++ application bring-up (deluge.cpp / app.h). On this BSP it also
+    /// runs `registerTasks()`, which spawns one Embassy task per registered Deluge
+    /// task through the `scheduler_api.h` C ABI in [`scheduler`]. After this returns
+    /// the spawned runners drive the app — there is no `deluge_app_tick` loop.
     fn deluge_app_init(board: *const sys::DelugeBoard);
-    /// One cooperative slice of the C++ run loop (deluge.cpp / app.h). We call
-    /// this repeatedly and yield between calls so the BSP's async tasks can run.
-    fn deluge_app_tick();
 }
 
 /// Rust-side SRAM heap pool. The C++ app's GeneralMemoryAllocator owns the rest
@@ -85,6 +90,29 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 static mut EXECUTOR: MaybeUninit<Executor> = MaybeUninit::uninit();
+
+/// Preemptive Embassy executor for audio (Phase 3 audio lift). Runs the audio
+/// render task in a GIC SGI handler at a priority above thread mode but below the
+/// µs hard-RT ISRs, so it preempts the cooperative thread executor (a storage
+/// `yield()` spin can no longer starve audio) yet is itself preempted by
+/// OSTM/MTU2-gate/MIDI. The scheduler routes the priority-0 task here.
+static AUDIO_EXEC: InterruptExecutor = InterruptExecutor::new();
+
+/// GIC Software-Generated Interrupt id driving [`AUDIO_EXEC`] (0..=15; SMP-free
+/// board, so SGIs are otherwise unused).
+const AUDIO_SGI: u8 = 8;
+/// Audio SGI GIC priority. Numerically ABOVE the hard-RT IRQs (OSTM=14, UART/MIDI
+/// =10, DMAC=13) so they preempt the render, and below PMR (31) so it is
+/// forwarded. (Lower number = more urgent.)
+const AUDIO_SGI_PRIORITY: u8 = 20;
+
+/// GIC handler for [`AUDIO_SGI`]: drive the audio interrupt executor. Registered
+/// in the HAL dispatch (`gic::register`), which already acks (GICC_IAR) before and
+/// EOIs (GICC_EOIR) after, with IRQs re-enabled for nesting.
+fn audio_sgi_handler() {
+    // SAFETY: only called from the SGI handler, after AUDIO_EXEC.start().
+    unsafe { AUDIO_EXEC.on_interrupt() };
+}
 
 /// Firmware entry. The HAL reset handler (`_reset_handler` in rza1l-hal) ends in
 /// `bl main`; control lands here with caches/MMU off and stacks set up.
@@ -155,8 +183,36 @@ pub extern "C" fn main() -> ! {
     // device.run() starts.
     let usb_midi = unsafe { usb::build() };
 
+    // Audio interrupt-executor: register the SGI handler and set its priority
+    // (below the hard-RT IRQs, above thread mode). The GIC line is *enabled* only
+    // after AUDIO_EXEC.start() below, so audio_sgi_handler can never run before the
+    // executor it drives is initialised.
+    unsafe {
+        rza1l_hal::gic::register(AUDIO_SGI as u16, audio_sgi_handler);
+        rza1l_hal::gic::set_priority(AUDIO_SGI as u16, AUDIO_SGI_PRIORITY);
+    }
+
+    // Verify the worker-fiber context switch in isolation before it drives real
+    // operations (Phase 6 bring-up). Pure + synchronous; logs PASS/FAIL over RTT.
+    fiber::selftest();
+
     // Unmask IRQs so the time driver and peripheral ISRs fire.
     unsafe { cortex_ar::interrupt::enable() };
+
+    // Tell the interrupt-executor SGI pender where the GIC Distributor actually
+    // is. The pender otherwise derives it from CBAR/PERIPHBASE, which is only
+    // valid on Cortex-A MPCore parts; on this single-core RZ/A1L CBAR reads
+    // 0xF000_0000 while the Renesas-integrated GIC Distributor is fixed at
+    // 0xE820_1000. Without this the pender writes GICD_SGIR to a bogus address
+    // and the audio SGI never fires (silent audio). Must precede AUDIO_EXEC use.
+    embassy_executor::set_gicd_base(0xE820_1000);
+
+    // Start the audio interrupt-executor and stash its SendSpawner so the scheduler
+    // can spawn the priority-0 (audio) task onto it. Must precede deluge_app_init
+    // (in app_task), which calls registerTasks() → addRepeatingTask(priority 0).
+    // Enable the SGI in the GIC only now that the executor is initialised.
+    scheduler::set_audio_spawner(AUDIO_EXEC.start(AUDIO_SGI));
+    unsafe { rza1l_hal::gic::enable(AUDIO_SGI as u16) };
 
     let executor: &'static mut Executor = unsafe {
         let p = core::ptr::addr_of_mut!(EXECUTOR);
@@ -164,9 +220,15 @@ pub extern "C" fn main() -> ! {
         (*p).assume_init_mut()
     };
     executor.run(move |spawner: Spawner| {
+        // Stash the spawner so the scheduler's add*Task C-ABI entry points (called
+        // synchronously by the C++ app during registerTasks) can spawn task runners.
+        scheduler::set_spawner(spawner);
         // The PIC pump decodes pad/button input concurrently with the app's tick
         // loop (which yields each tick, letting these tasks make progress).
         spawner.spawn(control::pic_pump().unwrap());
+        // Bridges the encoder edge ISRs to the scheduler: unblocks the app's
+        // self-blocking encoder task on movement (else encoders stay dead).
+        spawner.spawn(control::encoder_wake_pump().unwrap());
         // The sole PIC transmitter: drains the LED/pad output queue.
         spawner.spawn(control::pad_render().unwrap());
         // The OLED render task: SSD1309 init + frame streaming over RSPI0.
@@ -185,11 +247,12 @@ pub extern "C" fn main() -> ! {
     });
 }
 
-/// The application task: cooperative "superloop in a task", but YIELDING. We run
-/// the C++ app's one-time init, then call its run-loop one slice at a time,
-/// `yield_now().await`ing between slices. The yield is what lets the executor poll
-/// the BSP's async tasks (PIC pump, encoder, OLED render, audio) concurrently —
-/// the libdeluge boundary stays synchronous; the concurrency lives behind it.
+/// The application bring-up task. Runs the C++ app's one-time init, which on this
+/// BSP also calls `registerTasks()` → spawns one Embassy task per registered
+/// Deluge task via the [`scheduler`] C ABI. Those runners (plus the BSP's async
+/// I/O tasks) then drive everything cooperatively, so this task has nothing left
+/// to do and parks forever. The decomposed scheduler replaces the old yielding
+/// `deluge_app_tick` superloop.
 #[embassy_executor::task]
 async fn app_task() {
     use embassy_time::Timer;
@@ -209,15 +272,42 @@ async fn app_task() {
         log::info!("deluge-rust: alive ({})", i);
     }
 
-    log::info!("deluge-rust: deluge_app_init()");
-    unsafe { deluge_app_init(board::deluge_board()) };
-    log::info!("deluge-rust: entering tick loop");
+    // Bring SD up BEFORE deluge_app_init so the app's boot settings read finds the
+    // card ready (no "SD CARD ERROR" popup). But first wait for the PIC's baud-rate
+    // handshake (31250→200000, run by pic_pump) to finish: sd::init() racing that
+    // handshake corrupts it → garbled pads. With the PIC already ready, sd::init has
+    // nothing to race. Must be async — sd::init's embassy-time Timers can't run under
+    // block_on (integrated timer queue).
+    deluge_bsp::pic::wait_ready().await;
+    crate::sd::boot_init().await;
 
-    // The yielding run loop. deluge_app_tick() runs one cooperative slice of the
-    // C++ app (UI/housekeeping/audio pump); yield_now() then hands the executor
-    // back so the BSP's async tasks get polled before the next slice.
+    log::info!("deluge-rust: deluge_app_init() (registers + spawns task runners)");
+    // deluge_app_init → registerTasks() spawns the per-task runners onto this
+    // executor via scheduler::set_spawner's stashed spawner. They begin running as
+    // soon as we yield below.
+    unsafe { deluge_app_init(board::deluge_board()) };
+    log::info!("deluge-rust: scheduler running; pumping async worker");
+
+    // The scheduler's task runners own the periodic app work. This task now pumps
+    // the worker fiber ([`fiber`]): it drives the long user-initiated operations
+    // (song load, stem export, grid clip create) that `yield()` instead of
+    // busy-waiting. Each pass starts/resumes a ready operation; between passes the
+    // executor runs every other task + I/O, so the awaited work makes progress
+    // (this is what lets song-load-while-playing complete instead of hanging on a
+    // frozen executor).
+    //
+    // Wake-driven: sleep on WORKER_WAKE rather than polling on a fixed tick. While
+    // an op is suspended a coarse fallback timer also re-checks (covers predicate
+    // flips that aren't signalled — most are, via deluge_worker_run, the task
+    // runners, and the SD waker); when idle we sleep until an op is submitted.
+    use embassy_futures::select::select;
     loop {
-        unsafe { deluge_app_tick() };
-        embassy_futures::yield_now().await;
+        let busy = fiber::worker_poll();
+        if busy {
+            let _ = select(fiber::WORKER_WAKE.wait(), embassy_time::Timer::after_millis(8)).await;
+        }
+        else {
+            fiber::WORKER_WAKE.wait().await;
+        }
     }
 }

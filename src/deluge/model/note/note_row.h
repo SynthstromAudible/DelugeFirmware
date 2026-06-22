@@ -59,32 +59,32 @@ class ModelStackWithNoteRow;
 class ParamManagerForTimeline;
 
 struct SquareInfo {
-	Note* firstNote;
-	int32_t squareStartPos;
-	int32_t squareEndPos;
-	int32_t numNotes;
-	uint8_t squareType;
-	int32_t averageVelocity;
-	int32_t probability;
+	Note* firstNote{};
+	int32_t squareStartPos{};
+	int32_t squareEndPos{};
+	int32_t numNotes{};
+	uint8_t squareType{};
+	int32_t averageVelocity{};
+	int32_t probability{};
 	Iterance iterance;
-	int32_t fill;
+	int32_t fill{};
 	bool isValid{false};
 };
 
 struct PendingNoteOn {
-	NoteRow* noteRow;
-	int32_t noteRowId;
-	uint32_t sampleSyncLength;
-	int32_t ticksLate;
-	uint8_t probability;
-	uint8_t velocity;
+	NoteRow* noteRow{};
+	int32_t noteRowId{};
+	uint32_t sampleSyncLength{};
+	int32_t ticksLate{};
+	uint8_t probability{};
+	uint8_t velocity{};
 	Iterance iterance;
-	uint8_t fill;
+	uint8_t fill{};
 };
 
 struct PendingNoteOnList {
 	PendingNoteOn pendingNoteOns[kMaxNumNoteOnsPending];
-	uint8_t count;
+	uint8_t count{};
 };
 
 constexpr int32_t kQuantizationPrecision = 10;
@@ -158,15 +158,15 @@ public:
 
 	int16_t y; // This has to be at the top
 	bool muted;
-	bool mutedBeforeStemExport; // Used by stem export to restore previous state
-	bool exportStem;            // Used by stem export to flag if this note row should be exported
+	bool mutedBeforeStemExport{}; // Used by stem export to restore previous state
+	bool exportStem;              // Used by stem export to flag if this note row should be exported
 
 	int32_t loopLengthIfIndependent; // 0 means obeying parent
-	int32_t lastProcessedPosIfIndependent;
-	int32_t repeatCountIfIndependent;
+	int32_t lastProcessedPosIfIndependent{};
+	int32_t repeatCountIfIndependent{};
 
 	// Valid only if not obeying parent, or if obeyed parent is pingponging and we have independent length
-	bool currentlyPlayingReversedIfIndependent;
+	bool currentlyPlayingReversedIfIndependent{};
 
 	SequenceDirection sequenceDirectionMode;
 	uint32_t getLivePos(ModelStackWithNoteRow const* modelStack);
@@ -175,7 +175,7 @@ public:
 	ParamManagerForTimeline paramManager;
 	Drum* drum;
 	OldDrumNameHead firstOldDrumName;
-	NoteVector notes;
+	NoteVector notes{};
 	// values for whole row
 	uint8_t probabilityValue;
 	Iterance iteranceValue;

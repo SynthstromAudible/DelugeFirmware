@@ -4,7 +4,7 @@
 
 class Pad {
 public:
-	int32_t x, y;
+	int32_t x{}, y{};
 
 	Pad(int32_t x_, int32_t y_);
 	Pad(uint8_t value);

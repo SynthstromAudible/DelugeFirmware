@@ -1646,7 +1646,7 @@ struct ComparativeNoteNumber {
 // noteChar has been made lowercase, which is why we can't just take it from the string.
 ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char noteChar, bool octaveStartsFromA) {
 	char const* stringStart = string;
-	ComparativeNoteNumber toReturn;
+	ComparativeNoteNumber toReturn{};
 
 	toReturn.noteNumber = noteChar - 'a';
 
@@ -1800,7 +1800,7 @@ int32_t strcmpspecial(char const* first, char const* second) {
 
 			// If we're doing note ordering...
 			if (shouldInterpretNoteNames) {
-				ComparativeNoteNumber firstResult, secondResult;
+				ComparativeNoteNumber firstResult{}, secondResult{};
 				firstResult.noteNumber = 100000;
 				firstResult.stringLength = 0;
 				secondResult.noteNumber = 100000;

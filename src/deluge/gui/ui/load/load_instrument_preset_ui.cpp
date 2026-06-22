@@ -1393,7 +1393,7 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 	currentDir = oldInstrument->dirPath;
 	OutputType outputType = oldInstrument->type;
 
-	PresetNavigationResult toReturn;
+	PresetNavigationResult toReturn{};
 
 	std::string oldNameString; // We only might use this later for temporary storage
 	std::string newName;

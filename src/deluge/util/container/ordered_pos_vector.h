@@ -298,7 +298,7 @@ public:
 	}
 
 protected:
-	fast_vector<T> elements_;
+	fast_vector<T> elements_{};
 };
 
 } // namespace deluge

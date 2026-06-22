@@ -41,5 +41,5 @@ public:
 	void* reclaimOne(void* thingNotToStealFrom);
 
 private:
-	std::array<BidirectionalLinkedList, kNumStealableQueue> reclamation_queue_;
+	std::array<BidirectionalLinkedList, kNumStealableQueue> reclamation_queue_{};
 };

@@ -58,7 +58,7 @@ public:
 	bool findPeaksPerCol(Sample* sample, int64_t xScroll, uint64_t xZoom, WaveformRenderData* data,
 	                     SampleRecorder* recorder = nullptr, int32_t xStart = 0, int32_t xEnd = kDisplayWidth);
 
-	int8_t collapseAnimationToWhichRow;
+	int8_t collapseAnimationToWhichRow{};
 
 private:
 	int32_t getColBrightnessForSingleRow(int32_t xDisplay, int32_t maxPeakFromZero, WaveformRenderData* data);

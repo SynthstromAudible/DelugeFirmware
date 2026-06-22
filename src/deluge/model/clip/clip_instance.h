@@ -32,6 +32,6 @@ public:
 	RGB getColour();
 	void change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip);
 
-	int32_t length;
-	Clip* clip;
+	int32_t length{};
+	Clip* clip{};
 };

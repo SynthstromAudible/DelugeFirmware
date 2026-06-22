@@ -1377,7 +1377,7 @@ Slot Browser::getSlot(char const* displayName) {
 
 	int32_t numDigitsFound = charPos - displayName;
 
-	Slot toReturn;
+	Slot toReturn{};
 
 	if (!numDigitsFound) { // We are required to have found at least 1 digit.
 nonNumeric:

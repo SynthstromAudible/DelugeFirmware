@@ -43,14 +43,19 @@ struct LivePitchShifterPlayHead {
 
 	void fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int32_t numChannels);
 
-	PlayHeadMode mode;
+	// Default member initializers: this class has no constructor and the OLDER play
+	// head is never explicitly initialized by LivePitchShifter, so on hardware its
+	// fields would be stale heap bytes (the sim/golden builds zero them, masking it —
+	// render() reads `mode` / play positions, so garbage here corrupts the pitch
+	// shift). Zero matches the sim behaviour (`mode == REPITCHED_BUFFER`).
+	PlayHeadMode mode = PlayHeadMode::REPITCHED_BUFFER;
 #if INPUT_ENABLE_REPITCHED_BUFFER
-	int32_t repitchedBufferReadPos;
+	int32_t repitchedBufferReadPos = 0;
 #endif
-	int32_t rawBufferReadPos;
-	uint32_t oscPos;
+	int32_t rawBufferReadPos = 0;
+	uint32_t oscPos = 0;
 
 	deluge::dsp::Interpolator interpolator_;
 
-	uint32_t percPos;
+	uint32_t percPos = 0;
 };

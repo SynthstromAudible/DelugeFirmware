@@ -19,8 +19,9 @@ macro_rules! stub_log {
 // deluge_block_sd_unit / deluge_block_poll_card_event + the FatFS disk_* diskio
 // are implemented in `sd` (SD card over deluge_bsp::sd).
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_read_boot_info(out: *mut DelugeBootInfo) { stub_log!("deluge_control_read_boot_info"); }
+// deluge_control_read_boot_info is implemented in `control` (latches the PIC
+// firmware-version byte; factory_reset_requested is definitively false). The old
+// stub left the out-struct UNINITIALIZED → garbage factory_reset → spurious resets.
 
 // deluge_control_poll_event is implemented in `control` (PIC pump + event queue).
 

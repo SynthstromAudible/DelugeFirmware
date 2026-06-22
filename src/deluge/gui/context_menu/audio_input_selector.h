@@ -32,7 +32,7 @@ public:
 	bool setupAndCheckAvailability() override;
 	bool canSeeViewUnderneath() override { return true; }
 	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
-	AudioOutput* audioOutput;
+	AudioOutput* audioOutput{};
 
 	/// Title
 	char const* getTitle() override;

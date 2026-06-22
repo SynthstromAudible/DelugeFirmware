@@ -37,7 +37,7 @@ private:
 	uint32_t modMin = 0 << kVelModShift;
 	uint32_t modStep = (modMax - modMin) / 7;
 	uint32_t storedMod = 0 << kVelModShift;
-	uint32_t modDisplay;
+	uint32_t modDisplay{};
 };
 
 } // namespace deluge::gui::ui::keyboard::controls

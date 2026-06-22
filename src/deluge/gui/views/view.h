@@ -108,26 +108,26 @@ public:
 	MidiLearn thingPressedForMidiLearn = MidiLearn::NONE;
 	bool deleteMidiCommandOnRelease;
 	bool midiLearnFlashOn;
-	bool shouldSaveSettingsAfterMidiLearn;
+	bool shouldSaveSettingsAfterMidiLearn{};
 
 	LearnedMIDI* learnedThing;
-	Instrument* instrumentPressedForMIDILearn;
-	Drum* drumPressedForMIDILearn;
+	Instrument* instrumentPressedForMIDILearn{};
+	Drum* drumPressedForMIDILearn{};
 
 	// deceivingly this is used only while learning drums
-	Kit* kitPressedForMIDILearn;
+	Kit* kitPressedForMIDILearn{};
 
-	ModelStackWithThreeMainThings activeModControllableModelStack;
-	uint8_t dummy[MODEL_STACK_MAX_SIZE - sizeof(ModelStackWithThreeMainThings)];
+	ModelStackWithThreeMainThings activeModControllableModelStack{};
+	uint8_t dummy[MODEL_STACK_MAX_SIZE - sizeof(ModelStackWithThreeMainThings)]{};
 
-	bool pendingParamAutomationUpdatesModLevels;
+	bool pendingParamAutomationUpdatesModLevels{};
 
 	bool clipArmFlashOn;
-	bool blinkOn;
+	bool blinkOn{};
 
-	uint32_t timeSaveButtonPressed;
+	uint32_t timeSaveButtonPressed{};
 
-	int32_t modNoteRowId;
+	int32_t modNoteRowId{};
 	uint32_t modPos;
 	// 0 if not currently editing a region / step / holding a note. If you're gonna refer to this, you absolutely have
 	// to first check that the TimelineCounter you're thinking of setting some automation on

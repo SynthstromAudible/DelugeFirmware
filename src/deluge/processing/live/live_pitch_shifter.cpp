@@ -27,9 +27,9 @@
 
 // #define MEASURE_HOP_END_PERFORMANCE 1
 
-LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement) {
-	inputType = newInputType;
-	numChannels = (newInputType == OscType::INPUT_STEREO) ? 2 : 1;
+LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement)
+    : numChannels((newInputType == OscType::INPUT_STEREO) ? 2 : 1), inputType(newInputType),
+      crossfadeProgress(kMaxSampleValue), crossfadeIncrement(0), samplesIntoHop(0), percThresholdForCut(0) {
 
 	if (phaseIncrement < kMaxSampleValue) {
 		nextCrossfadeLength = samplesTilHopEnd = kInterpolationMaxNumSamples * 2;
@@ -43,9 +43,6 @@ LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement)
 	else {
 		nextCrossfadeLength = samplesTilHopEnd = 256;
 	}
-
-	crossfadeProgress = kMaxSampleValue;
-	samplesIntoHop = 0;
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	stillWritingToRepitchedBuffer = false;
@@ -366,9 +363,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	// int32_t numChannelsNow = numChannels;
 
 	// D_PRINTLN("");
-	D_PRINTLN("hop at  %d", numRawSamplesProcessedAtNowTime);
 	if (crossfadeProgress < kMaxSampleValue) {
-		D_PRINTLN("last crossfade not finished");
 		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("FADE");
 	}
 	// D_PRINTLN(phaseIncrement);
@@ -658,8 +653,12 @@ startSearch:
 			}
 		}
 		else {
+			// readPos is sized [kNumMovingAverages + 1] and filled [0..kNumMovingAverages]
+			// (above); indexing [kNumMovingAverages + 1] read one past the end — adjacent
+			// stack garbage → wrong search boundary. The furthest filled read position is
+			// readPos[kNumMovingAverages].
 			searchSizeBoundary =
-			    (uint32_t)(numRawSamplesProcessedLatest - readPos[TimeStretch::Crossfade::kNumMovingAverages + 1])
+			    (uint32_t)(numRawSamplesProcessedLatest - readPos[TimeStretch::Crossfade::kNumMovingAverages])
 			    & (kInputRawBufferSize - 1);
 		}
 
@@ -779,7 +778,6 @@ stopSearch:
 	if (phaseIncrement == kMaxSampleValue) {
 		playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_DIRECT;
 		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = numRawSamplesProcessedAtNowTime & (kInputRawBufferSize - 1);
-		D_PRINTLN("raw hop");
 	}
 
 	else {
@@ -789,8 +787,6 @@ stopSearch:
 		// sizeof(playHeads[PLAY_HEAD_NEWER].interpolationBuffer));
 		playHeads[PLAY_HEAD_NEWER].fillInterpolationBuffer(liveInputBuffer, numChannels);
 		playHeads[PLAY_HEAD_NEWER].oscPos = additionalOscPos;
-
-		D_PRINTLN("playing from:  %d", playHeads[PLAY_HEAD_NEWER].rawBufferReadPos);
 	}
 
 thatsDone:
@@ -804,8 +800,6 @@ thatsDone:
 	else {
 		crossfadeProgress = kMaxSampleValue;
 	}
-
-	D_PRINTLN("crossfade length:  %d", thisCrossfadeLength);
 
 	/*
 	if (phaseIncrement > kMaxSampleValue) {

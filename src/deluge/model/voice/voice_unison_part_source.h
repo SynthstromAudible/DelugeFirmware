@@ -38,11 +38,11 @@ public:
 	                            uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples);
 	uint32_t getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
 
-	uint32_t oscPos; // FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including
-	                 // wavetable.
-	uint32_t phaseIncrementStoredValue;
-	int32_t carrierFeedback;
-	bool active;
+	uint32_t oscPos{}; // FKA phase. No longer used for Sample playback / rate conversion position. Only waves,
+	                   // including wavetable.
+	uint32_t phaseIncrementStoredValue{};
+	int32_t carrierFeedback{};
+	bool active{};
 	VoiceSample* voiceSample = nullptr;
 	LivePitchShifter* livePitchShifter = nullptr;
 	DxVoice* dxVoice = nullptr;

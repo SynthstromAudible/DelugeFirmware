@@ -23,6 +23,6 @@ class MIDIParam {
 public:
 	MIDIParam();
 
-	uint8_t cc;
+	uint8_t cc{};
 	AutoParam param;
 };

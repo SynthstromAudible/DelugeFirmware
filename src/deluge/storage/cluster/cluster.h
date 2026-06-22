@@ -73,10 +73,10 @@ public:
 	Sample* sample = nullptr;
 	SampleCache* sampleCache = nullptr;
 
-	char firstThreeBytesPreDataConversion[3];
+	char firstThreeBytesPreDataConversion[3]{};
 	bool loaded = false;
 
 	// MUST BE THE LAST TWO MEMBERS
-	alignas(4) char dummy[CACHE_LINE_SIZE];
-	alignas(4) char data[CACHE_LINE_SIZE];
+	alignas(4) char dummy[CACHE_LINE_SIZE]{};
+	alignas(4) char data[CACHE_LINE_SIZE]{};
 };

@@ -47,7 +47,7 @@ protected:
 	// This may be called in card routine so long as either !currentFileExists (which is always the case in a
 	// processBackspace()), or we are not LoadSongUI
 
-	char const* title;
+	char const* title{};
 	void drawTextForOLEDEditing(int32_t textStartX, int32_t xPixelMax, int32_t yPixel, int32_t maxChars,
 	                            deluge::hid::display::oled_canvas::Canvas& canvas);
 

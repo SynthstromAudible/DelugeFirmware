@@ -134,11 +134,11 @@ public:
 		divideBy1PlusTannedFrequency = (q31_t)(288230376151711744.0 / (double)(ONE_Q16 + (tannedFrequency >> 1)));
 		fc = multiply_32x32_rshift32_rounded(tannedFrequency, divideBy1PlusTannedFrequency) << 4;
 	}
-	q31_t fc;
+	q31_t fc{};
 	float dryFade = 1;
 	q31_t wetLevel = ONE_Q31;
-	q31_t tannedFrequency;
-	q31_t divideBy1PlusTannedFrequency;
+	q31_t tannedFrequency{};
+	q31_t divideBy1PlusTannedFrequency{};
 };
 
 } // namespace deluge::dsp::filter

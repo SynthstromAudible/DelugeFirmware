@@ -45,6 +45,20 @@ void checkStack(char const* caller) {
 
 	char a;
 
+	// The collision guard measures headroom against `program_stack_start`, which is
+	// valid ONLY while running on the main program stack. On the Rust/Embassy BSP the
+	// audio render also runs from the audio interrupt-executor, which executes in SYS
+	// mode on the *preempted* context's stack — e.g. the worker fiber's SDRAM stack
+	// during a song load. There `&a` lies far outside [program_stack_start,
+	// program_stack_end], so the distance is meaningless and would false-trigger E338
+	// every render (logged as a huge/negative "bytes in stack" + COLLISION, then a
+	// freezeWithError blit from interrupt context that corrupts the display). Only run
+	// the guard when the live SP is actually on the main stack.
+	uintptr_t sp = (uintptr_t)&a;
+	if (sp < (uintptr_t)&program_stack_start || sp > (uintptr_t)&program_stack_end) {
+		return;
+	}
+
 	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
 	if (distance < closestDistance) {
 		closestDistance = distance;

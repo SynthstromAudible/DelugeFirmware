@@ -105,13 +105,13 @@ public:
 
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCH_CABLE; }
 
-	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
+	uint32_t sourcesPatchedToAnything[2]{}; // Only valid after setupPatching()
 
 	PatchCable patchCables[kMaxNumPatchCables]; // TODO: store these in dynamic memory.
 	uint8_t numUsablePatchCables;
 	uint8_t numPatchCables;
 
-	Destination* destinations[2];
+	Destination* destinations[2]{};
 
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override { return true; };
 

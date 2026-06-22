@@ -1,0 +1,207 @@
+[2026-06-22T21:53:11.202Z, +000251ms] SEGGER J-Link V9.50 - Real time terminal output
+[2026-06-22T21:53:11.202Z, +000251ms] SEGGER J-Link (unknown) V1.0, SN=801033226
+[2026-06-22T21:53:11.202Z, +000251ms] Process: JLinkGDBServerCLExe
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [deluge_rust] deluge-rust: boot — Rust/Embassy BSP for RZ/A1L
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::stb] stb: enabling module clocks
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::stb] stb: done (STBCR2-12 written)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::gic] gic: init (587 IRQ sources)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::gic] gic: distributor + CPU interface enabled
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::mmu] mmu: building TTB (4096 entries) at 0x20054000
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::mmu] mmu: enabled (SCTLR.M set)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::cache] cache: enabling L1 I+D, branch prediction, D-prefetch
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::cache] cache: L1 enabled
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::cache] cache: initialising L2 (PL310)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [deluge_bsp::sdram] sdram: init
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [deluge_bsp::sdram] sdram: pin-mux done, configuring BSC
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [deluge_bsp::sdram] sdram: BSC configured, sending MRS
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [deluge_bsp::sdram] sdram: ready
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [deluge_rust] deluge-rust: clocks/MMU/cache/SDRAM/GIC up
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [deluge_rust] deluge-rust: SDRAM memory image ready
+[2026-06-22T21:53:21.736Z, +010784ms] 0.0002: memory_region.cpp:62: c1237b8 to f5dfff8: Memory region stealable
+[2026-06-22T21:53:21.736Z, +010784ms] 0.0002: memory_region.cpp:62: f5e0018 to f7dfff8: Memory region external
+[2026-06-22T21:53:21.736Z, +010784ms] 0.0002: memory_region.cpp:62: f7e0018 to f7ffff8: Memory region small external
+[2026-06-22T21:53:21.736Z, +010784ms] 0.0003: memory_region.cpp:62: 20280018 to 202afff8: Memory region internal
+[2026-06-22T21:53:21.736Z, +010784ms] 0.0003: memory_region.cpp:62: 20093f48 to 2009bf28: Memory region small internal
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [deluge_rust] deluge-rust: C++ global constructors done
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [deluge_bsp::uart] bsp uart: PIC SCIF1 @ 31250 bps (DMA RX ch12, DMA TX ch10)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::uart] uart: ch1 init at 31250 bps (SCBRR=131)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::uart] uart: ch1 ready
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::uart] uart: ch1 DMA RX active (dma_ch=12, dmars=0x0066, buf=0x20051080)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::dmac] dmac: ch10 register-mode init, chcfg=0x0020026a, dst=0xe800780c, dmars=0x0065
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [rza1l_hal::uart] uart: ch1 DMA TX active (dma_ch=10, dmars=0x0065, ftdr=0xe800780c)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [deluge_bsp::uart] bsp uart: MIDI SCIF0 @ 31250 bps (DMA RX ch13)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::uart] uart: ch0 init at 31250 bps (SCBRR=131)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::uart] uart: ch0 ready
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::uart] uart: ch0 DMA RX active (dma_ch=13, dmars=0x0062, buf=0x20050f80)
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [deluge_bsp::encoder] encoder: interrupt-driven init complete (IRQ0/1/2/3/4/7 → GIC 32–36, 39)
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [deluge_bsp::trigger_clock] trigger_clock: P1_14 → IRQ6 (GIC 38, falling-edge) ready
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::usb::driver] usb0: start (ctrl mps=64)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::usb::driver] usb0: SYSCFG0=0x0083 (DPRPU off — connect deferred to VBUS/enable)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::usb::driver] usb0: post-init INTSTS0=0x0080 VBSTS=true
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::usb::driver] usb0: VBUS already present — synthesising PowerDetected
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [deluge_rust::fiber] fiber selftest: starting
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [deluge_rust::fiber] fiber selftest: on fiber stack (stage 1), yielding
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [deluge_rust::fiber] fiber selftest: resumed (stage 2), returning
+[2026-06-22T21:53:21.736Z, +010784ms] INFO  [deluge_rust::fiber] fiber selftest: PASSED (round trip + yield/resume OK)
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::usb::driver] usb0: Bus::poll → PowerDetected
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [rza1l_hal::usb::driver] usb0: Bus::enable — waiting 30 ms for module settle
+[2026-06-22T21:53:21.736Z, +010784ms] DEBUG [deluge_bsp::pic] pic: init at 31250 bps, will switch to 200000 bps
+[2026-06-22T21:53:21.748Z, +010797ms] DEBUG [rza1l_hal::usb::driver] usb0: INTENB0=0x9d00 verified (attempt 0)
+[2026-06-22T21:53:21.748Z, +010797ms] DEBUG [rza1l_hal::usb::pipe] pipe 3 ep=0x01 OUT BULK: buf blocks [7, 8) (1 blk x1buf, mps=64)
+[2026-06-22T21:53:21.748Z, +010797ms] DEBUG [rza1l_hal::usb::pipe] pipe 4 ep=0x81 IN  BULK: buf blocks [8, 12) (4 blk x1buf, mps=64)
+[2026-06-22T21:53:21.748Z, +010797ms] DEBUG [rza1l_hal::usb::pipe] pipe 5 ep=0x02 OUT BULK: buf blocks [12, 20) (8 blk x1buf, mps=512)
+[2026-06-22T21:53:21.748Z, +010797ms] DEBUG [rza1l_hal::usb::pipe] pipe 9 ep=0x82 IN  BULK: buf blocks [20, 28) (8 blk x1buf, mps=512)
+[2026-06-22T21:53:21.748Z, +010797ms] DEBUG [rza1l_hal::usb::driver] usb0: DPRPU set — D+ pull-up active (connected), SYSCFG0=0x0093
+[2026-06-22T21:53:21.748Z, +010797ms] DEBUG [rza1l_hal::usb::driver] usb0: Bus::enable done
+[2026-06-22T21:53:21.822Z, +010871ms] DEBUG [deluge_bsp::pic] pic: ready at 200000 bps
+[2026-06-22T21:53:21.822Z, +010871ms] INFO  [deluge_rust::control] deluge-rust: PIC initialised, pumping input events
+[2026-06-22T21:53:21.822Z, +010871ms] INFO  [rza1l_hal::uart] uart: ch1 dma_rx first call: dma_ch=12 crda=0x20051083 read_ptr=0x20051080 buf_base=0x20051080 SCSCR=0x00f0
+[2026-06-22T21:53:21.822Z, +010871ms] INFO  [deluge_rust::control] deluge-rust: PIC firmware v1 (oled=true)
+[2026-06-22T21:53:21.822Z, +010871ms] DEBUG [deluge_bsp::oled] oled: init
+[2026-06-22T21:53:21.822Z, +010871ms] DEBUG [rza1l_hal::dmac] dmac: ch4 register-mode init, chcfg=0x0020026c, dst=0xe800c804, dmars=0x0121
+[2026-06-22T21:53:21.822Z, +010871ms] DEBUG [deluge_bsp::oled] oled: dc_high sent
+[2026-06-22T21:53:21.822Z, +010871ms] DEBUG [deluge_bsp::oled] oled: ready
+[2026-06-22T21:53:21.822Z, +010871ms] INFO  [deluge_rust::display] deluge-rust: OLED initialised
+[2026-06-22T21:53:21.957Z, +011006ms] INFO  [deluge_rust] deluge-rust: alive (0)
+[2026-06-22T21:53:22.203Z, +011252ms] INFO  [deluge_rust] deluge-rust: alive (1)
+[2026-06-22T21:53:22.434Z, +011483ms] INFO  [deluge_rust] deluge-rust: alive (2)
+[2026-06-22T21:53:22.690Z, +011739ms] INFO  [deluge_rust] deluge-rust: alive (3)
+[2026-06-22T21:53:22.915Z, +011963ms] INFO  [deluge_rust] deluge-rust: alive (4)
+[2026-06-22T21:53:23.164Z, +012213ms] INFO  [deluge_rust] deluge-rust: alive (5)
+[2026-06-22T21:53:23.164Z, +012213ms] DEBUG [deluge_bsp::sd] sd: init port 1
+[2026-06-22T21:53:23.184Z, +012233ms] DEBUG [deluge_bsp::sd] sd: cmd8_ok=true ocr=0x80ff8000 hcs=false -> hc=false
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [deluge_bsp::sd] sd: CSD=00260032 5f5983c8 befbcfff 92404000 struct=0 -> 1984000 sectors
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [deluge_bsp::sd] sd: card ready on attempt 1/16 (HC=false)
+[2026-06-22T21:53:23.194Z, +012243ms] INFO  [deluge_rust::sd] sd: boot_init — init=true inserted=true wp=false
+[2026-06-22T21:53:23.194Z, +012243ms] INFO  [deluge_rust] deluge-rust: deluge_app_init() (registers + spawns task runners)
+[2026-06-22T21:53:23.194Z, +012243ms] INFO  [deluge_rust::ffi] stub: deluge_control_enable_oled
+[2026-06-22T21:53:23.194Z, +012243ms] INFO  [deluge_rust::ffi] stub: deluge_control_init
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [deluge_bsp::cv_gate] cv_gate: init
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [deluge_bsp::cv_gate] cv_gate: pin-mux ok
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [deluge_bsp::cv_gate] cv_gate: gate GPIOs ok
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [deluge_bsp::cv_gate] cv_gate: RSPI0 init at 10000000 Hz ok
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [deluge_bsp::cv_gate] cv_gate: MAX5136 LIN=1
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [rza1l_hal::rspi] rspi: ch0 blocking send 0x05420000, SPSR=0x60
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPTEF ok
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPDR written, waiting TEND
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [rza1l_hal::rspi] rspi: ch0 TEND ok
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [deluge_bsp::cv_gate] cv_gate: MAX5136 LIN=1 sent
+[2026-06-22T21:53:23.194Z, +012243ms] DEBUG [deluge_bsp::cv_gate] cv_gate: LIN delay start
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [deluge_bsp::cv_gate] cv_gate: LIN delay done
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 blocking send 0x05400000, SPSR=0x60
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPTEF ok
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPDR written, waiting TEND
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 TEND ok
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [deluge_bsp::cv_gate] cv_gate: MAX5136 linearity init done
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 blocking send 0x31000000, SPSR=0x60
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPTEF ok
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPDR written, waiting TEND
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 TEND ok
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 blocking send 0x32000000, SPSR=0x60
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPTEF ok
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPDR written, waiting TEND
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::rspi] rspi: ch0 TEND ok
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [deluge_bsp::cv_gate] cv_gate: CV outputs zeroed
+[2026-06-22T21:53:23.210Z, +012259ms] INFO  [deluge_rust::display] deluge-rust: deluge_display_init (OLED init runs in oled_render task)
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [deluge_bsp::audio] audio: pin-mux SSI0 (direct, no SCUX)
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::ssi] ssi: init SSI0 (44.1 kHz I²S, DMA ch6/7)
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::ssi] ssi: DMA TX ch6 + RX ch7 started
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::ssi] ssi: TX+RX enabled, streaming
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [deluge_bsp::audio] audio: CODEC_POWER asserted (direct SSI path)
+[2026-06-22T21:53:23.210Z, +012259ms] INFO  [deluge_rust::ffi] stub: deluge_control_wait_for_flush
+[2026-06-22T21:53:23.210Z, +012259ms] INFO  [deluge_rust::ffi] stub: deluge_control_setup_for_pads
+[2026-06-22T21:53:23.210Z, +012259ms] INFO  [deluge_rust::sd] DIAG sd: status_bits — inserted=true ready=true wp=false
+[2026-06-22T21:53:23.210Z, +012259ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] 131.3900: audio_file_manager.cpp:110: Cluster::size  4096 clusterSizeMagnitude  12
+[2026-06-22T21:53:23.229Z, +012278ms] 131.3901: audio_file_manager.cpp:110: Cluster::size  4096 clusterSizeMagnitude  12
+[2026-06-22T21:53:23.229Z, +012278ms] 131.3901: deluge.cpp:689: PIC firmware version reported: 1
+[2026-06-22T21:53:23.229Z, +012278ms] 131.3902: deluge.cpp:718: switching from host to peripheral
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] 131.3911: storage_manager.cpp:287: openFilePointer
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] 131.3924: general_memory_allocator.cpp:149: 1169 bytes in stack 31599 free bytes in stack at AudioDriver::routine
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] 131.3947: storage_manager.cpp:287: openFilePointer
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] 131.3961: audio_engine.cpp:558: Audio routine latency high: 3.316ms
+[2026-06-22T21:53:23.229Z, +012278ms] INFO  [deluge_rust::ffi] stub: deluge_control_set_dimmer_interval
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] 131.3990: deluge.cpp:799: going into main loop
+[2026-06-22T21:53:23.229Z, +012278ms] INFO  [deluge_rust::control] deluge-rust: deluge_encoder_io_init (encoder wake task id=3)
+[2026-06-22T21:53:23.229Z, +012278ms] INFO  [deluge_rust] deluge-rust: scheduler running; pumping async worker
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 blocking send 0x31000000, SPSR=0x60
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPTEF ok
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPDR written, waiting TEND
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 TEND ok
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 blocking send 0x31000000, SPSR=0x60
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPTEF ok
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPDR written, waiting TEND
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 TEND ok
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 blocking send 0x32000000, SPSR=0x60
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPTEF ok
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPDR written, waiting TEND
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 TEND ok
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 blocking send 0x32000000, SPSR=0x60
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPTEF ok
+[2026-06-22T21:53:23.229Z, +012278ms] 131.4005: general_memory_allocator.cpp:149: 1481 bytes in stack 31287 free bytes in stack at AudioDriver::routine
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 SPDR written, waiting TEND
+[2026-06-22T21:53:23.229Z, +012278ms] DEBUG [rza1l_hal::rspi] rspi: ch0 TEND ok
+[2026-06-22T21:53:23.229Z, +012278ms] INFO  [deluge_rust::ffi] stub: deluge_display_consume_transfer_ack
+[2026-06-22T21:53:23.240Z, +012288ms] 131.4112: general_memory_allocator.cpp:149: 1513 bytes in stack 31255 free bytes in stack at AudioDriver::routine
+[2026-06-22T21:53:23.525Z, +012574ms] 131.7051: general_memory_allocator.cpp:149: 1617 bytes in stack 31151 free bytes in stack at AudioDriver::routine
+[2026-06-22T21:53:28.415Z, +017463ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:28.415Z, +017463ms] 136.5918: general_memory_allocator.cpp:149: 2969 bytes in stack 29799 free bytes in stack at AudioDriver::routine
+[2026-06-22T21:53:28.415Z, +017463ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:28.415Z, +017463ms] 136.5925: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:31.077Z, +020125ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:31.077Z, +020125ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:31.077Z, +020125ms] 139.2628: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:39.958Z, +029007ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:39.958Z, +029007ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:39.958Z, +029007ms] 148.1401: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:42.719Z, +031768ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:42.719Z, +031768ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:42.719Z, +031768ms] 150.8889: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:44.099Z, +033148ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:44.099Z, +033148ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:44.099Z, +033148ms] 152.2800: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:45.058Z, +034107ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:45.058Z, +034107ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:45.058Z, +034107ms] 153.2368: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:51.692Z, +040741ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:51.692Z, +040741ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:51.692Z, +040741ms] 159.8771: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:54.185Z, +043233ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:54.185Z, +043233ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:54.185Z, +043233ms] 162.3556: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:55.171Z, +044220ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:55.181Z, +044230ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:55.181Z, +044230ms] 163.3549: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:55.790Z, +044838ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:55.790Z, +044838ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:55.790Z, +044838ms] 163.9692: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:55.965Z, +045014ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:55.975Z, +045024ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:55.975Z, +045024ms] 164.1507: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:56.150Z, +045199ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:56.150Z, +045199ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:56.150Z, +045199ms] 164.3323: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:58.009Z, +047058ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:58.009Z, +047058ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:58.009Z, +047058ms] 166.1860: oled.cpp:1193: No more presets found
+[2026-06-22T21:53:59.582Z, +048631ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:59.582Z, +048631ms] DEBUG [rza1l_hal::dmac] dmac: ch14 register-mode-rx init, chcfg=0x00122266, src=0xe804e830, dmars=0x00c6
+[2026-06-22T21:53:59.582Z, +048631ms] 167.7576: oled.cpp:1193: No more presets found

@@ -35,7 +35,7 @@ constexpr std::size_t kSysexSize = 4104;
 constexpr std::size_t kSmallSysexSize = 163;
 
 class DX7Cartridge {
-	std::array<std::byte, kSysexSize> voiceData;
+	std::array<std::byte, kSysexSize> voiceData{};
 
 	void setHeader() {
 		std::ranges::copy(kSysexHeader, voiceData.begin());

@@ -30,8 +30,8 @@ public:
 	void insertOtherNodeBefore(BidirectionalLinkedListNode* otherNode);
 	bool isLast();
 
-	BidirectionalLinkedListNode* next;         // Only valid if list is not NULL, contains jibberish otherwise.
-	BidirectionalLinkedListNode** prevPointer; // Only valid if list is not NULL, contains jibberish otherwise.
+	BidirectionalLinkedListNode* next{};         // Only valid if list is not NULL, contains jibberish otherwise.
+	BidirectionalLinkedListNode** prevPointer{}; // Only valid if list is not NULL, contains jibberish otherwise.
 	BidirectionalLinkedList* list;
 };
 

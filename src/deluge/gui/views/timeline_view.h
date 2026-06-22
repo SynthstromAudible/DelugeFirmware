@@ -75,5 +75,5 @@ private:
 	uint32_t delayHorizontalZoomUntil = 0;
 	/// Horizontal scroll is only delayed in the direction that clip's max zoom was crossed in.
 	/// This is the direction (-1 or +1).
-	int8_t delayHorizontalZoomMagnitude;
+	int8_t delayHorizontalZoomMagnitude{};
 };

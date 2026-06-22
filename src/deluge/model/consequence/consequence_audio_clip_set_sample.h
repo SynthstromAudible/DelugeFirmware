@@ -28,6 +28,6 @@ public:
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	AudioClip* clip;
-	std::string filePathToRevertTo;
+	std::string filePathToRevertTo{};
 	uint64_t endPosToRevertTo;
 };

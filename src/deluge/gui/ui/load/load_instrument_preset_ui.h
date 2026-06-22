@@ -92,25 +92,25 @@ private:
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(std::string* oldName, std::string* newName);
 
-	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
-	Instrument* instrumentToReplace; // The Instrument that's actually successfully loaded and assigned to the Clip.
+	InstrumentClip* instrumentClipToLoadFor{}; // Can be NULL - if called from Arranger.
+	Instrument* instrumentToReplace{}; // The Instrument that's actually successfully loaded and assigned to the Clip.
 
 	// these are all necessary to setup a sound drum
-	bool loadingSynthToKitRow;
-	SoundDrum* soundDrumToReplace;
-	int32_t noteRowIndex;
-	NoteRow* noteRow;
+	bool loadingSynthToKitRow{};
+	SoundDrum* soundDrumToReplace{};
+	int32_t noteRowIndex{};
+	NoteRow* noteRow{};
 	Error currentInstrumentLoadError;
 
-	int16_t initialChannel;
-	int8_t initialChannelSuffix;
+	int16_t initialChannel{};
+	int8_t initialChannelSuffix{};
 	OutputType initialOutputType;
 
-	bool changedInstrumentForClip;
-	bool replacedWholeInstrument;
+	bool changedInstrumentForClip{};
+	bool replacedWholeInstrument{};
 
-	std::string initialName;
-	std::string initialDirPath;
+	std::string initialName{};
+	std::string initialDirPath{};
 };
 
 extern LoadInstrumentPresetUI loadInstrumentPresetUI;

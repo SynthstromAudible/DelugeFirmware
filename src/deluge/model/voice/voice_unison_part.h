@@ -21,8 +21,8 @@
 #include "model/voice/voice_unison_part_source.h"
 
 struct VoiceUnisonPart {
-	uint32_t modulatorPhase[kNumModulators];
-	uint32_t modulatorPhaseIncrement[kNumModulators];
-	int32_t modulatorFeedback[kNumModulators];
+	uint32_t modulatorPhase[kNumModulators]{};
+	uint32_t modulatorPhaseIncrement[kNumModulators]{};
+	int32_t modulatorFeedback[kNumModulators]{};
 	VoiceUnisonPartSource sources[kNumSources];
 };

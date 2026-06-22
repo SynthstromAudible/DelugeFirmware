@@ -172,31 +172,31 @@ public:
 	bool activeIfNoSoloBeforeStemExport; // Used by stem export to restore previous state
 	bool exportStem;                     // Used by stem export to flag if this note row should be exported
 	bool wasActiveBefore;                // A temporary thing used by Song::doLaunch()
-	bool gotInstanceYet;                 // For use only while loading song
+	bool gotInstanceYet{};               // For use only while loading song
 
 	bool isPendingOverdub;
 	bool isUnfinishedAutoOverdub;
-	bool wasWantingToDoLinearRecordingBeforeCountIn; // Only valid during a count-in
+	bool wasWantingToDoLinearRecordingBeforeCountIn{}; // Only valid during a count-in
 	OverDubType overdubNature;
 
 	LearnedMIDI muteMIDICommand;
 
-	int32_t loopLength;
+	int32_t loopLength{};
 
 	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
 	int32_t originalLength;
 
-	int32_t lastProcessedPos;
+	int32_t lastProcessedPos{};
 
 	Clip* beingRecordedFromClip;
 
-	int32_t repeatCount;
+	int32_t repeatCount{};
 
-	uint32_t indexForSaving; // For use only while saving song
+	uint32_t indexForSaving{}; // For use only while saving song
 
 	LaunchStyle launchStyle;
 	int64_t fillEventAtTickCount;
-	bool overdubsShouldCloneOutput;
+	bool overdubsShouldCloneOutput{};
 
 	// START ~ new Automation Clip View Variables
 	bool onAutomationClipView; // new to save the view that you are currently in
@@ -217,7 +217,7 @@ public:
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 	// Setup the name per clip on session/song/grid view and to be selectable on the arranger
-	std::string name;
+	std::string name{};
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the

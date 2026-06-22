@@ -59,8 +59,8 @@ bool differentiatingInputsByDevice = true;
 
 struct USBDev {
 	std::string name{};
-	uint16_t vendorId;
-	uint16_t productId;
+	uint16_t vendorId{};
+	uint16_t productId{};
 };
 std::array<USBDev, DELUGE_USB_NUM_CONTROLLERS> usbDeviceCurrentlyBeingSetUp{};
 

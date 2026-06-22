@@ -55,7 +55,7 @@ const int MaxSysExLength = 1024;
 struct SysExDataEntry {
 	MIDICable& cable;
 	int32_t len;
-	uint8_t data[sysexBufferMax];
+	uint8_t data[sysexBufferMax]{};
 
 	SysExDataEntry(MIDICable& forCable, int32_t newLen) : cable{forCable}, len{newLen} {}
 };

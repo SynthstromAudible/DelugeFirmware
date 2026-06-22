@@ -111,19 +111,19 @@ public:
 	uint32_t lastLockedSpreadOctaveParameterValue{0};
 
 	// Pre-calculated randomized values for each parameter
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedNoteProbabilityValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedBassProbabilityValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSwapProbabilityValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedGlideProbabilityValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedReverseProbabilityValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedChordProbabilityValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedRatchetProbabilityValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadVelocityValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadGateValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadOctaveValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedNoteProbabilityValues{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedBassProbabilityValues{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSwapProbabilityValues{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedGlideProbabilityValues{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedReverseProbabilityValues{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedChordProbabilityValues{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedRatchetProbabilityValues{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadVelocityValues{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadGateValues{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadOctaveValues{};
 
 	// Order for the pattern note mode
-	std::array<int8_t, PATTERN_MAX_BUFFER_SIZE> notePattern;
+	std::array<int8_t, PATTERN_MAX_BUFFER_SIZE> notePattern{};
 
 	// Temporary flags
 	bool flagForceArpRestart{false};
@@ -215,10 +215,10 @@ public:
 	ArpNote* arpNoteOn;
 
 	// And these are only valid if doing a note-off
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelOff; // For MPE
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOffPostArp;
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> glideOutputMIDIChannelOff; // For MPE
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeOffPostArp;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelOff{}; // For MPE
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOffPostArp{};
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> glideOutputMIDIChannelOff{}; // For MPE
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeOffPostArp{};
 };
 
 class ArpeggiatorBase {
@@ -245,8 +245,8 @@ public:
 	virtual ArpType getArpType() = 0;
 	ArpNote active_note; // For the currently active note.
 
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp;
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForGlideNoteCurrentlyOnPostArp;
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp{};
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForGlideNoteCurrentlyOnPostArp{};
 	uint32_t gatePos = 0;
 	uint8_t lastVelocity = 0;
 
@@ -285,7 +285,7 @@ protected:
 	uint32_t randomNotesPlayedFromOctave = 0;
 
 	// Sequence state
-	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
+	int16_t whichNoteCurrentlyOnPostArp{}; // As in, the index within our list
 	int8_t currentOctave = 0;
 	int8_t currentDirection = 1;
 	int8_t currentOctaveDirection = 1;
@@ -370,11 +370,11 @@ public:
 	bool handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) override;
 	bool hasAnyInputNotesActive() override;
 	// This array tracks the notes ordered (ascending) by noteCode
-	deluge::fast_vector<ArpNote> notes;
+	deluge::fast_vector<ArpNote> notes{};
 	// This array tracks the notes as they were played by the user
-	deluge::fast_vector<ArpJustNoteCode> notesAsPlayed;
+	deluge::fast_vector<ArpJustNoteCode> notesAsPlayed{};
 	// This array tracks the notes as ordered by the Pattern note mode
-	deluge::fast_vector<ArpJustNoteCode> notesByPattern;
+	deluge::fast_vector<ArpJustNoteCode> notesByPattern{};
 
 protected:
 	void rearrangePatterntArpNotes(ArpeggiatorSettings* settings);

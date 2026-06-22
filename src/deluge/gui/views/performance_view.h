@@ -112,14 +112,14 @@ public:
 	void updateLayoutChangeStatus();
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	bool defaultEditingMode;
-	bool editingParam; // if you're not editing a param, you're editing a value
+	bool editingParam{}; // if you're not editing a param, you're editing a value
 	bool justExitedSoundEditor;
 
 	// public so Action Logger can access it
-	FXColumnPress fxPress[kDisplayWidth];
+	FXColumnPress fxPress[kDisplayWidth]{};
 
 	// public so view.modEncoderAction and midi follow can access it
-	PadPress lastPadPress;
+	PadPress lastPadPress{};
 	void renderFXDisplay(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
 
@@ -179,17 +179,17 @@ private:
 	/// backup loaded layout (what's currently in XML file)
 	/// backup the last loaded/last saved changes, so you can compare and let user know if any changes
 	/// need to be saved
-	FXColumnPress backupXMLDefaultFXPress[kDisplayWidth];
-	ParamsForPerformance backupXMLDefaultLayoutForPerformance[kDisplayWidth];
-	int32_t backupXMLDefaultFXValues[kDisplayWidth][kDisplayHeight];
+	FXColumnPress backupXMLDefaultFXPress[kDisplayWidth]{};
+	ParamsForPerformance backupXMLDefaultLayoutForPerformance[kDisplayWidth]{};
+	int32_t backupXMLDefaultFXValues[kDisplayWidth][kDisplayHeight]{};
 
 	int32_t getKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
 
-	PadPress firstPadPress;
-	ParamsForPerformance layoutForPerformance[kDisplayWidth];
-	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
-	int32_t layoutBank;    // A or B (assign a layout to the bank for cross fader action)
+	PadPress firstPadPress{};
+	ParamsForPerformance layoutForPerformance[kDisplayWidth]{};
+	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight]{};
+	int32_t layoutBank{};  // A or B (assign a layout to the bank for cross fader action)
 	int32_t layoutVariant; // 1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
 
 	// backup current layout
@@ -199,7 +199,7 @@ private:
 	void restorePreviousHoldPress(int32_t xDisplay);
 	void logPerformanceViewPress(int32_t xDisplay, bool closeAction = true);
 	bool anyChangesToLog();
-	FXColumnPress backupFXPress[kDisplayWidth];
+	FXColumnPress backupFXPress[kDisplayWidth]{};
 
 	// Members regarding rendering different layouts
 private:

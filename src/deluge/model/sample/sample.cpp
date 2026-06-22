@@ -651,7 +651,10 @@ doLoading:
 					difference = -difference;
 				}
 
-				int32_t percussiveness = ((uint64_t)difference * 262144 / angle) >> 1;
+				// angle is 0 over a perfectly flat region (silence / DC / a held constant value). On the
+				// ARM target an integer divide-by-zero yields 0 and playback carries on; x86 (the host
+				// renderer) traps with SIGFPE instead, so guard explicitly to keep host/hardware parity.
+				int32_t percussiveness = (angle != 0) ? (((uint64_t)difference * 262144 / angle) >> 1) : 0;
 
 				percussiveness = getTanH<23>(percussiveness);
 
