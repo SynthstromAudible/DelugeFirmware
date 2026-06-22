@@ -29,6 +29,7 @@ use core::sync::atomic::{AtomicBool, AtomicI8, AtomicU64, AtomicUsize, Ordering}
 use embassy_executor::{SendSpawner, Spawner};
 use embassy_futures::select::{select, Either};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Instant, Timer};
 
@@ -50,6 +51,14 @@ type TaskID = i8;
 type ResourceID = u32;
 
 const RESOURCE_NONE: ResourceID = 0;
+/// Slow-storage (SD/MMC, SPI flash) — `scheduler_api.h` RESOURCE_SD.
+const RESOURCE_SD: ResourceID = 1;
+/// USB transport — `scheduler_api.h` RESOURCE_USB.
+const RESOURCE_USB: ResourceID = 2;
+/// "Must not run inside an SD routine" — `scheduler_api.h` RESOURCE_SD_ROUTINE.
+/// Approximated here by gating on the SD mutex (held across any SD task's handle),
+/// which is the only SD_ROUTINE user (the one-shot startup-song task) needs.
+const RESOURCE_SD_ROUTINE: ResourceID = 4;
 
 // ABI guard: these must match scheduler_api.h's `typedef`s exactly, or the C++
 // side reads/writes ids and resources at the wrong width across the boundary.
@@ -195,6 +204,15 @@ static CURRENT: AtomicI8 = AtomicI8::new(-1);
 /// True while a slow-storage busy-wait is yielding (the `isSDRoutineActive` flag /
 /// `yieldingRoutine*ForSD` reentrancy guard).
 static SD_ROUTINE_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// Resource gates (RESOURCE_SD / RESOURCE_USB). A task holding one of these in its
+/// schedule acquires the corresponding gate for the duration of its (synchronous)
+/// handle, so two same-resource tasks can't run concurrently. Inert in the current
+/// run-to-completion model (handles never overlap) but correct once Phase 6 makes
+/// storage waits truly async. Audio (RESOURCE_NONE) never touches these, so the
+/// audio interrupt-executor never blocks on them.
+static SD_GATE: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
+static USB_GATE: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 
 // ---------------------------------------------------------------------------
 // Spawner stash. The executor closure in `main` calls [`set_spawner`] before the
@@ -350,19 +368,35 @@ async fn task_runner(slot: &'static TaskSlot) {
             continue;
         }
 
-        // Resource gate (Phase 5: embassy-sync mutexes; today a no-op).
-        let _gate = acquire_resource(slot.resource.load(Ordering::Relaxed) as ResourceID).await;
+        // Acquire the resource gates the schedule asks for, held across the
+        // (synchronous) handle so same-resource tasks can't overlap. Consistent
+        // order — SD before USB — avoids deadlock with a task holding both.
+        let resource = slot.resource.load(Ordering::Relaxed) as ResourceID;
+        let run_us = {
+            let _sd = if resource & (RESOURCE_SD | RESOURCE_SD_ROUTINE) != 0 {
+                Some(SD_GATE.lock().await)
+            } else {
+                None
+            };
+            let _usb = if resource & RESOURCE_USB != 0 {
+                Some(USB_GATE.lock().await)
+            } else {
+                None
+            };
 
-        // Set CURRENT for the *ForCurrentTask C-ABI calls, saving/restoring the
-        // previous value: the audio interrupt-executor can preempt a thread-mode
-        // task_runner mid-handle, and must leave CURRENT as it found it so the
-        // preempted task's id is intact when it resumes.
-        let idx = SLOTS.iter().position(|s| core::ptr::eq(s, slot)).unwrap() as TaskID;
-        let prev = CURRENT.swap(idx, Ordering::Relaxed);
-        let t0 = Instant::now();
-        (slot.handle_fn())();
-        let run_us = t0.elapsed().as_micros();
-        CURRENT.store(prev, Ordering::Relaxed);
+            // Set CURRENT for the *ForCurrentTask C-ABI calls, saving/restoring the
+            // previous value: the audio interrupt-executor can preempt a thread-mode
+            // task_runner mid-handle, and must leave CURRENT as it found it so the
+            // preempted task's id is intact when it resumes.
+            let idx = SLOTS.iter().position(|s| core::ptr::eq(s, slot)).unwrap() as TaskID;
+            let prev = CURRENT.swap(idx, Ordering::Relaxed);
+            let t0 = Instant::now();
+            (slot.handle_fn())();
+            let run_us = t0.elapsed().as_micros();
+            CURRENT.store(prev, Ordering::Relaxed);
+            run_us
+            // _sd / _usb gates released here, before the once-check and back-off.
+        };
         slot.record(run_us);
 
         if slot.once.load(Ordering::Relaxed) {
@@ -378,10 +412,6 @@ async fn task_runner(slot: &'static TaskSlot) {
 
     slot.used.store(false, Ordering::Release);
 }
-
-/// Resource gate. Phase 5 replaces this with `embassy_sync::mutex::Mutex` guards
-/// keyed by the RESOURCE_* bits; until then every resource is freely available.
-async fn acquire_resource(_resource: ResourceID) {}
 
 // ---------------------------------------------------------------------------
 // Helpers for the seconds<->microseconds C ABI (the API speaks `double` seconds).

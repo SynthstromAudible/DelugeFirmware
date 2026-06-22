@@ -51,6 +51,13 @@ rtt = ["dep:rtt-target", "rza1l-hal/rtt"]
 # the boundary can't drift (type mismatch = compile error).
 bindgen = "0.70"
 
+# Redirect embassy-executor to the local fork that ports the InterruptExecutor to
+# platform-cortex-ar (GIC SGI pender). Same version (0.10.0), so this patch applies
+# across the whole graph (this crate + the deluge-sdk path-deps), keeping the
+# Executor/Spawner types identical everywhere.
+[patch.crates-io]
+embassy-executor = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
+
 [profile.release]
 opt-level = "s"
 lto = true

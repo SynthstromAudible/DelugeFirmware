@@ -315,6 +315,7 @@ checksum = "91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e"
 [[package]]
 name = "embassy-executor"
 version = "0.10.0"
+source = "git+https://github.com/stellar-aria/embassy?branch=feat%2Fexecutor-interrupt-a9#fb00054db30f08eb09a310924e412316da9d7d93"
 dependencies = [
  "aarch32-cpu",
  "arm-targets 0.4.2",
@@ -322,12 +323,13 @@ dependencies = [
  "critical-section",
  "document-features",
  "embassy-executor-macros",
- "embassy-executor-timer-queue 0.1.0",
+ "embassy-executor-timer-queue 0.1.0 (git+https://github.com/stellar-aria/embassy?branch=feat%2Fexecutor-interrupt-a9)",
 ]
 
 [[package]]
 name = "embassy-executor-macros"
 version = "0.8.0"
+source = "git+https://github.com/stellar-aria/embassy?branch=feat%2Fexecutor-interrupt-a9#fb00054db30f08eb09a310924e412316da9d7d93"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -338,12 +340,13 @@ dependencies = [
 [[package]]
 name = "embassy-executor-timer-queue"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fc328bf943af66b80b98755db9106bf7e7471b0cf47dc8559cd9a6be504cc9c"
 
 [[package]]
 name = "embassy-executor-timer-queue"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fc328bf943af66b80b98755db9106bf7e7471b0cf47dc8559cd9a6be504cc9c"
+source = "git+https://github.com/stellar-aria/embassy?branch=feat%2Fexecutor-interrupt-a9#fb00054db30f08eb09a310924e412316da9d7d93"
 
 [[package]]
 name = "embassy-futures"
