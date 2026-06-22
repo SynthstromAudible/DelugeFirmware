@@ -199,6 +199,14 @@ pub extern "C" fn main() -> ! {
     // Unmask IRQs so the time driver and peripheral ISRs fire.
     unsafe { cortex_ar::interrupt::enable() };
 
+    // Tell the interrupt-executor SGI pender where the GIC Distributor actually
+    // is. The pender otherwise derives it from CBAR/PERIPHBASE, which is only
+    // valid on Cortex-A MPCore parts; on this single-core RZ/A1L CBAR reads
+    // 0xF000_0000 while the Renesas-integrated GIC Distributor is fixed at
+    // 0xE820_1000. Without this the pender writes GICD_SGIR to a bogus address
+    // and the audio SGI never fires (silent audio). Must precede AUDIO_EXEC use.
+    embassy_executor::set_gicd_base(0xE820_1000);
+
     // Start the audio interrupt-executor and stash its SendSpawner so the scheduler
     // can spawn the priority-0 (audio) task onto it. Must precede deluge_app_init
     // (in app_task), which calls registerTasks() → addRepeatingTask(priority 0).
