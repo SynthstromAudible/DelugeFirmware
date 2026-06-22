@@ -801,13 +801,17 @@ static void deluge_boot(const DelugeBoard* board) {
 	// (The SD-routine reentrancy flag is scheduler-owned and starts clear; no reset needed here.)
 }
 
-// libdeluge cooperative entry (app.h). The platform (e.g. the Embassy BSP) calls
-// deluge_app_init() once, then deluge_app_tick() repeatedly from a task that
-// yields between ticks so the BSP's async tasks can run. This is the inline
-// run-loop model (no OSLikeStuff task manager): encoders are read inline by
-// deluge_app_tick(), so the encoder wake id is unused here.
+// libdeluge cooperative entry (app.h), Embassy BSP only (host / bare-metal use
+// deluge_main below). The platform calls deluge_app_init() once at startup; on
+// the Embassy BSP the scheduler_api.h C ABI is backed by the Embassy executor
+// (one task per registered task — see src/bsp/rust/src/scheduler.rs), so we
+// registerTasks() here and the runners drive the app. There is no inline
+// deluge_app_tick() loop: addRepeatingTask spawns an Embassy task immediately.
+// registerTasks() must precede encoders::init() — the encoder edge source needs
+// the (now-assigned) encoder task id to wake the self-blocking encoder task.
 extern "C" void deluge_app_init(const DelugeBoard* board) {
 	deluge_boot(board);
+	registerTasks();
 	encoders::init();
 }
 

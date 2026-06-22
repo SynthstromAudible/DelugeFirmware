@@ -522,7 +522,16 @@ fn spin_until(until: RunCondition, timeout_us: Option<u64>) -> bool {
                 return false;
             }
         }
-        core::hint::spin_loop();
+        // INTERIM (Phase 3 pump): a synchronous C++ callee can't `.await`, so on
+        // this single-threaded executor a busy-wait would otherwise starve every
+        // task — including audio — for the length of the wait (e.g. a whole SD
+        // song load). Pump the audio render here so audio survives, faithful to
+        // the old C++ cooperative `yield()` (which ran the audio task on the
+        // nested stack). `deluge_audio_drive` is self-pacing (caps renders/call,
+        // returns early when the TX ring is full). The UI still freezes during
+        // the wait — acceptable until the real Phase 3 lifts audio onto a
+        // preemptive InterruptExecutor and this whole spin becomes an `.await`.
+        crate::audio::deluge_audio_drive();
     }
     true
 }

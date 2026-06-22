@@ -63,12 +63,11 @@ mod boot_mem;
 mod scheduler;
 
 unsafe extern "C" {
-    /// One-time C++ application bring-up (deluge.cpp / app.h). Called once before
-    /// the first tick. `board` is the descriptor from [`board::deluge_board`].
+    /// One-time C++ application bring-up (deluge.cpp / app.h). On this BSP it also
+    /// runs `registerTasks()`, which spawns one Embassy task per registered Deluge
+    /// task through the `scheduler_api.h` C ABI in [`scheduler`]. After this returns
+    /// the spawned runners drive the app — there is no `deluge_app_tick` loop.
     fn deluge_app_init(board: *const sys::DelugeBoard);
-    /// One cooperative slice of the C++ run loop (deluge.cpp / app.h). We call
-    /// this repeatedly and yield between calls so the BSP's async tasks can run.
-    fn deluge_app_tick();
 }
 
 /// Rust-side SRAM heap pool. The C++ app's GeneralMemoryAllocator owns the rest
@@ -191,11 +190,12 @@ pub extern "C" fn main() -> ! {
     });
 }
 
-/// The application task: cooperative "superloop in a task", but YIELDING. We run
-/// the C++ app's one-time init, then call its run-loop one slice at a time,
-/// `yield_now().await`ing between slices. The yield is what lets the executor poll
-/// the BSP's async tasks (PIC pump, encoder, OLED render, audio) concurrently —
-/// the libdeluge boundary stays synchronous; the concurrency lives behind it.
+/// The application bring-up task. Runs the C++ app's one-time init, which on this
+/// BSP also calls `registerTasks()` → spawns one Embassy task per registered
+/// Deluge task via the [`scheduler`] C ABI. Those runners (plus the BSP's async
+/// I/O tasks) then drive everything cooperatively, so this task has nothing left
+/// to do and parks forever. The decomposed scheduler replaces the old yielding
+/// `deluge_app_tick` superloop.
 #[embassy_executor::task]
 async fn app_task() {
     use embassy_time::Timer;
@@ -224,15 +224,13 @@ async fn app_task() {
     deluge_bsp::pic::wait_ready().await;
     crate::sd::boot_init().await;
 
-    log::info!("deluge-rust: deluge_app_init()");
+    log::info!("deluge-rust: deluge_app_init() (registers + spawns task runners)");
+    // deluge_app_init → registerTasks() spawns the per-task runners onto this
+    // executor via scheduler::set_spawner's stashed spawner. They begin running as
+    // soon as we yield below.
     unsafe { deluge_app_init(board::deluge_board()) };
-    log::info!("deluge-rust: entering tick loop");
+    log::info!("deluge-rust: scheduler running; app_task idle");
 
-    // The yielding run loop. deluge_app_tick() runs one cooperative slice of the
-    // C++ app (UI/housekeeping/audio pump); yield_now() then hands the executor
-    // back so the BSP's async tasks get polled before the next slice.
-    loop {
-        unsafe { deluge_app_tick() };
-        embassy_futures::yield_now().await;
-    }
+    // The scheduler's task runners now own the app. Nothing more to do here.
+    core::future::pending::<()>().await;
 }
