@@ -32,6 +32,10 @@ public:
 	void drawPixelsForOled();
 
 private:
+	// Top-of-viewport scroll index that keeps the given selected device visible without scrolling past the
+	// first device (which would leave blank rows at the bottom and hide devices above the selection).
+	int32_t computeScrollForSelected(int32_t selected);
+
 	int32_t current_scroll_ = 0;
 };
 
