@@ -37,12 +37,29 @@ void setupSPIInterrupts()
     setupAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
 }
 
+// Priority CV channel: CV words bypass the OLED frame queue so gate timing isn't held
+// hostage by OLED refreshes on the shared SPI bus. A single latest-wins slot matches the queue's
+// previous coalescing of unsent CV words.
+volatile bool cvPriorityPending  = false;
+volatile uint32_t cvPriorityData = 0;
+
+void sendCVWord(uint32_t message);
+bool sendPriorityCVIfPending();
+
 void enqueueCVMessage(int channel, uint32_t message)
 {
-    union SpiTransferData m = {
-        .cvData = message,
-    };
-    enqueueSPITransfer(OLED_CODE_FOR_CV, m);
+    ENTER_CRITICAL_SECTION();
+    // Latest value wins (matches the queue's old coalescing of unsent CV words).
+    cvPriorityData    = message;
+    cvPriorityPending = true;
+    // If the bus is idle, kick it off now; otherwise it gets drained at the next inter-transfer
+    // boundary, ahead of any queued OLED frames.
+    if (!spiTransferQueueCurrentlySending)
+    {
+        spiTransferQueueCurrentlySending = true;
+        sendPriorityCVIfPending();
+    }
+    EXIT_CRITICAL_SECTION();
 }
 
 int oledWaitingForMessage    = OLED_MESSAGE_NONE; // 256 means none.
@@ -107,14 +124,11 @@ void oledSelectingComplete()
 
 int spiDestinationSendingTo;
 
-void sendCVTransfer()
+// Physically pushes one CV word onto the shared SPI peripheral: 32-bit mode, select the DAC, enable the
+// RX-complete interrupt, then write the word (which kicks off the transfer). Used by both the queue
+// fallback path and the priority path.
+void sendCVWord(uint32_t message)
 {
-#if ALPHA_OR_BETA_VERSION
-    if (spiTransferQueue[spiTransferQueueReadPos].destinationId != SPI_DESTINATION_CV)
-    {
-        FREEZE_WITH_ERROR("SPI transfer destination is not CV");
-    }
-#endif
     setOutputState(6, 1, false); // Select CV DAC
 
     RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR  = 0x60u;              // 32-bit
@@ -124,14 +138,40 @@ void sendCVTransfer()
 
     RSPI(SPI_CHANNEL_OLED_MAIN).SPCR |= 1 << 7; // Receive interrupt enable
 
+    RSPI(SPI_CHANNEL_CV).SPDR.LONG = message;
+}
+
+void sendCVTransfer()
+{
+#if ALPHA_OR_BETA_VERSION
+    if (spiTransferQueue[spiTransferQueueReadPos].destinationId != SPI_DESTINATION_CV)
+    {
+        FREEZE_WITH_ERROR("SPI transfer destination is not CV");
+    }
+#endif
     uint32_t message                                        = spiTransferQueue[spiTransferQueueReadPos].cvData;
     spiTransferQueue[spiTransferQueueReadPos].destinationId = SPI_DESTINATION_NONE;
 
-    spiTransferQueueReadPos =
-        (spiTransferQueueReadPos + 1)
-        & (SPI_TRANSFER_QUEUE_SIZE - 1); // Must do this before actually sending SPI, cos the interrupt could come
-                                         // before we do this otherwise. True story.
-    RSPI(SPI_CHANNEL_CV).SPDR.LONG = message;
+    // Must do this before actually sending SPI, cos the interrupt could come
+    // before we do this otherwise. True story.
+    spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+    sendCVWord(message);
+}
+
+// Drains the priority CV slot if one is waiting. Must only be called at an inter-transfer boundary
+// (nothing currently on the bus). Returns true if a CV word was sent. Mirrors the sendCVTransfer();
+// cvSent(); pairing so any gate waiting on this CV is released on schedule.
+bool sendPriorityCVIfPending()
+{
+    if (!cvPriorityPending)
+    {
+        return false;
+    }
+    cvPriorityPending = false;
+    cv_sending        = true;
+    sendCVWord(cvPriorityData);
+    cvSent();
+    return true;
 }
 
 void initiateSelectingOled()
@@ -150,14 +190,20 @@ void initiateSelectingOled()
 
 void sendSPITransferFromQueue()
 {
-#if ALPHA_OR_BETA_VERSION
+    spiTransferQueueCurrentlySending = true;
+
+    // A waiting CV word jumps ahead of any queued OLED frames.
+    if (sendPriorityCVIfPending())
+    {
+        return;
+    }
     spiDestinationSendingTo = spiTransferQueue[spiTransferQueueReadPos].destinationId;
+#if ALPHA_OR_BETA_VERSION
     if (spiDestinationSendingTo == SPI_DESTINATION_NONE)
     {
         FREEZE_WITH_ERROR("SPI transfer destination is NONE");
     }
 #endif
-    spiTransferQueueCurrentlySending = true;
 
     // If it's OLED data...
     if (spiDestinationSendingTo == 0)
@@ -178,8 +224,9 @@ void sendSPITransferFromQueue()
 void oledTransferComplete(uint32_t int_sense)
 {
 
-    // If anything else to send, and it's to the OLED again, then just go ahead.
-    if (spiTransferQueueWritePos != spiTransferQueueReadPos
+    // If anything else to send, and it's to the OLED again, then just go ahead - unless a CV word is
+    // waiting, in which case we deselect so the CV can slip in ahead of the next frame.
+    if (!cvPriorityPending && spiTransferQueueWritePos != spiTransferQueueReadPos
         && spiTransferQueue[spiTransferQueueReadPos].destinationId == 0 && last_message_sent == OLED_MESSAGE_SELECT)
     {
         oledSelectingComplete();
@@ -205,6 +252,13 @@ void cvSPITransferComplete(uint32_t sense)
 
     RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE |=
         1 << 6; // Reset RX buffer. Slightly weird that we have to do it here, after the transfer? Or not weird?
+
+    // Another CV word turned up while this one was sending? Send it before returning to OLED frames
+    //.
+    if (sendPriorityCVIfPending())
+    {
+        return;
+    }
 
     // If anything else to send, and it's to the CV DAC again, then just go ahead.
     if (spiTransferQueueWritePos != spiTransferQueueReadPos
@@ -239,6 +293,13 @@ void oledDeselectionComplete()
     oledWaitingForMessage            = OLED_MESSAGE_NONE;
     spiTransferQueueCurrentlySending = false;
     oled_sending                     = false;
+    // A waiting CV word goes out before any more OLED frames.
+    if (cvPriorityPending)
+    {
+        spiTransferQueueCurrentlySending = true;
+        sendPriorityCVIfPending();
+        return;
+    }
     // There might be something more to send now...
     if (spiTransferQueueWritePos != spiTransferQueueReadPos)
     {
