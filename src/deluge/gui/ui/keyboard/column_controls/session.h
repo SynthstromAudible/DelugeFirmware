@@ -37,6 +37,9 @@ public:
 	Clip* findNextClipForOutput(SessionMacro& m, PressedPad pad);
 
 private:
+	// Pad currently held down, or -1 if none. Used to brighten the pressed macro from its dimmed
+	// resting colour to its full colour, giving visual feedback that the press registered.
+	int8_t heldMacro = -1;
 };
 
 } // namespace deluge::gui::ui::keyboard::controls

@@ -30,6 +30,11 @@ void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int
 	bool armed = false;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		armed |= view.renderMacros(column, y, -1, image, nullptr);
+		// Dim macros at rest so that pressing one visibly brightens it to its full colour, giving
+		// feedback that the press registered (issue #3244).
+		if (y != heldMacro) {
+			image[y][column] = image[y][column].dim(2);
+		}
 	}
 	if (armed) {
 		view.flashPlayEnable();
@@ -71,13 +76,19 @@ bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 };
 
 void SessionColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                        KeyboardLayout* layout) {};
+                                        KeyboardLayout* layout) {
+	heldMacro = -1;
+};
 
 void SessionColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                               KeyboardLayout* layout) {
 
-	if (pad.active) {}
+	if (pad.active) {
+		// Brighten the held pad to its full colour as feedback that the press registered.
+		heldMacro = pad.y;
+	}
 	else {
+		heldMacro = -1;
 		view.activateMacro(pad.y);
 	}
 	view.flashPlayEnable();
