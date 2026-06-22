@@ -30,7 +30,7 @@ public:
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	Output* output;
-	int32_t pos[2];
-	int32_t length[2];
-	Clip* clip[2];
+	int32_t pos[2]{};
+	int32_t length[2]{};
+	Clip* clip[2]{};
 };

@@ -61,7 +61,7 @@ public:
 	std::string_view getNameFromCC(int32_t cc);
 	void setNameForCC(int32_t cc, std::string_view name);
 	/// definition file
-	std::string deviceDefinitionFileName;
+	std::string deviceDefinitionFileName{};
 	bool loadDeviceDefinitionFile = false;
 
 	void sendMIDIPGM() override;
@@ -108,9 +108,9 @@ public:
 	bool collapseAftertouch{false};
 	bool collapseMPE{true};
 	CCNumber outputMPEY{CC_EXTERNAL_MPE_Y};
-	float ratio; // for combining per finger and global bend
+	float ratio{}; // for combining per finger and global bend
 
-	std::array<int8_t, kNumModButtons * kNumPhysicalModKnobs> modKnobCCAssignments;
+	std::array<int8_t, kNumModButtons * kNumPhysicalModKnobs> modKnobCCAssignments{};
 
 	// Numbers 0 to 15 can all be an MPE member depending on configuration
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];
@@ -153,5 +153,5 @@ private:
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = nullptr);
 
-	deluge::fast_map<uint8_t, std::string> labels;
+	deluge::fast_map<uint8_t, std::string> labels{};
 };

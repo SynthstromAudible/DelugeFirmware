@@ -18,5 +18,5 @@ public:
 	int8_t degreeOf(int32_t nodeCode) const;
 	// TODO: make these private later, and maybe rename modeNotes
 	NoteSet modeNotes;
-	int16_t rootNote;
+	int16_t rootNote{};
 };

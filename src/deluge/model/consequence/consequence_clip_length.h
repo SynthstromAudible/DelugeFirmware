@@ -31,5 +31,5 @@ public:
 	int32_t lengthToRevertTo;
 
 	uint64_t* pointerToMarkerValue;
-	uint64_t markerValueToRevertTo;
+	uint64_t markerValueToRevertTo{};
 };

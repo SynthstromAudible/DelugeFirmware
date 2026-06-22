@@ -125,8 +125,8 @@ public:
 	// These *only* store a valid preset number for the instrument-types that the Clip is not currently on
 	int8_t backedUpInstrumentSlot[4]{};
 	int8_t backedUpInstrumentSubSlot[4]{};
-	std::string backedUpInstrumentName[2];
-	std::string backedUpInstrumentDirPath[2];
+	std::string backedUpInstrumentName[2]{};
+	std::string backedUpInstrumentDirPath[2]{};
 
 	bool affectEntire;
 

@@ -48,5 +48,5 @@ public:
 	}
 
 private:
-	std::array<StereoSample, IR_BUFFER_SIZE> buffer_;
+	std::array<StereoSample, IR_BUFFER_SIZE> buffer_{};
 };

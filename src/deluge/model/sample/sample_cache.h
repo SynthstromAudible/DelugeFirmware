@@ -49,5 +49,5 @@ private:
 	void prioritizeNotStealingCluster(int32_t clusterIndex);
 
 	// This has to be last!!!
-	Cluster* clusters[1]; // These are not initialized, and are only "valid" as far as writeBytePos dictates
+	Cluster* clusters[1]{}; // These are not initialized, and are only "valid" as far as writeBytePos dictates
 };

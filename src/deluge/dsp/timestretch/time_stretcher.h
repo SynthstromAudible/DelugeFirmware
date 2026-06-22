@@ -67,22 +67,22 @@ public:
 	                                      int32_t newBufferFillingMode, int32_t numChannels);
 #endif
 
-	int64_t samplePosBig; // In whole samples including both channels. From audioDataStart. <<'d by 24
+	int64_t samplePosBig{}; // In whole samples including both channels. From audioDataStart. <<'d by 24
 
-	uint32_t crossfadeProgress; // Out of kMaxSampleValue
-	uint32_t crossfadeIncrement;
+	uint32_t crossfadeProgress{}; // Out of kMaxSampleValue
+	uint32_t crossfadeIncrement{};
 
-	int32_t samplesTilHopEnd;
+	int32_t samplesTilHopEnd{};
 
 	SampleLowLevelReader olderPartReader;
 
-	int32_t* buffer;
-	bool olderHeadReadingFromBuffer;
-	bool hasLoopedBackIntoPreMargin;
-	bool playHeadStillActive[2];
-	uint8_t numTimesMissedHop;
+	int32_t* buffer{};
+	bool olderHeadReadingFromBuffer{};
+	bool hasLoopedBackIntoPreMargin{};
+	bool playHeadStillActive[2]{};
+	uint8_t numTimesMissedHop{};
 
-	int32_t olderBufferReadPos; // In whole samples including both channels
+	int32_t olderBufferReadPos{}; // In whole samples including both channels
 
 #if TIME_STRETCH_ENABLE_BUFFER
 	bool newerHeadReadingFromBuffer;
@@ -93,10 +93,10 @@ public:
 	uint64_t bufferSamplesWritten; // Hopefully we can do away with the need for this
 #endif
 
-	Cluster* clustersForPercLookahead[kNumClustersLoadedAhead];
+	Cluster* clustersForPercLookahead[kNumClustersLoadedAhead]{};
 
-	Cluster* percCacheClustersNearby[2]; // Remembers and acts as a "reason" for the two most recently needed / accessed
-	                                     // Clusters, basically
+	Cluster* percCacheClustersNearby[2]{}; // Remembers and acts as a "reason" for the two most recently needed /
+	                                       // accessed Clusters, basically
 
 private:
 	bool setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int32_t newHeadBytePos,

@@ -36,19 +36,19 @@ public:
 
 private:
 	struct SVFState {
-		q31_t low;
-		q31_t band;
+		q31_t low{};
+		q31_t band{};
 	};
 	[[gnu::always_inline]] inline q31_t doSVF(q31_t input, SVFState& state);
-	SVFState l;
-	SVFState r;
+	SVFState l{};
+	SVFState r{};
 
-	q31_t q;
-	q31_t in;
-	q31_t c_low;
-	q31_t c_band;
-	q31_t c_notch;
-	q31_t c_high;
-	bool band_mode;
+	q31_t q{};
+	q31_t in{};
+	q31_t c_low{};
+	q31_t c_band{};
+	q31_t c_notch{};
+	q31_t c_high{};
+	bool band_mode{};
 };
 } // namespace deluge::dsp::filter

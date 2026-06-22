@@ -88,12 +88,12 @@ public:
 	Arpeggiator arpeggiator;
 
 	struct EarlyNoteInfo {
-		uint8_t velocity;
+		uint8_t velocity{};
 		bool still_active = false;
 	};
 
-	deluge::fast_map<int16_t, EarlyNoteInfo> earlyNotes; // note value, velocity, still_active
-	deluge::fast_map<int16_t, EarlyNoteInfo> notesAuditioned;
+	deluge::fast_map<int16_t, EarlyNoteInfo> earlyNotes{}; // note value, velocity, still_active
+	deluge::fast_map<int16_t, EarlyNoteInfo> notesAuditioned{};
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

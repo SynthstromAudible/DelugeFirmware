@@ -46,20 +46,20 @@ class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 
 struct EditPadPress {
-	bool isActive;
-	uint8_t yDisplay;
-	uint8_t xDisplay;
-	bool deleteOnDepress; // Can also mean to delete tail
-	uint8_t intendedVelocity;
-	uint8_t intendedProbability;
+	bool isActive{};
+	uint8_t yDisplay{};
+	uint8_t xDisplay{};
+	bool deleteOnDepress{}; // Can also mean to delete tail
+	uint8_t intendedVelocity{};
+	uint8_t intendedProbability{};
 	Iterance intendedIterance;
-	uint8_t intendedFill;
-	bool deleteOnScroll;
-	bool isBlurredSquare;
-	bool mpeCachedYet;
-	StolenParamNodes stolenMPE[kNumExpressionDimensions];
-	uint32_t intendedPos;    // For "blurred squares", means start of square
-	uint32_t intendedLength; // For "blurred squares", means length of square
+	uint8_t intendedFill{};
+	bool deleteOnScroll{};
+	bool isBlurredSquare{};
+	bool mpeCachedYet{};
+	StolenParamNodes stolenMPE[kNumExpressionDimensions]{};
+	uint32_t intendedPos{};    // For "blurred squares", means start of square
+	uint32_t intendedLength{}; // For "blurred squares", means length of square
 };
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3

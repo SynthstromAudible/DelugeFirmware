@@ -32,5 +32,5 @@ public:
 	InstrumentClip* clip;
 	int32_t noteRowId;
 
-	NoteVector backedUpNoteVector;
+	NoteVector backedUpNoteVector{};
 };

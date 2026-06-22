@@ -149,7 +149,7 @@ public:
 	Drum* firstDrum;
 	Drum* selectedDrum;
 
-	deluge::fast_set<Drum*> drumsWithRenderingActive;
+	deluge::fast_set<Drum*> drumsWithRenderingActive{};
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

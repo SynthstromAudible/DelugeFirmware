@@ -215,10 +215,10 @@ public:
 	ArpNote* arpNoteOn;
 
 	// And these are only valid if doing a note-off
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelOff; // For MPE
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOffPostArp;
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> glideOutputMIDIChannelOff; // For MPE
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeOffPostArp;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelOff{}; // For MPE
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOffPostArp{};
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> glideOutputMIDIChannelOff{}; // For MPE
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeOffPostArp{};
 };
 
 class ArpeggiatorBase {
@@ -245,8 +245,8 @@ public:
 	virtual ArpType getArpType() = 0;
 	ArpNote active_note; // For the currently active note.
 
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp;
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForGlideNoteCurrentlyOnPostArp;
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp{};
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForGlideNoteCurrentlyOnPostArp{};
 	uint32_t gatePos = 0;
 	uint8_t lastVelocity = 0;
 
@@ -285,7 +285,7 @@ protected:
 	uint32_t randomNotesPlayedFromOctave = 0;
 
 	// Sequence state
-	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
+	int16_t whichNoteCurrentlyOnPostArp{}; // As in, the index within our list
 	int8_t currentOctave = 0;
 	int8_t currentDirection = 1;
 	int8_t currentOctaveDirection = 1;

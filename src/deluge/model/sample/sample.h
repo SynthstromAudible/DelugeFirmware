@@ -119,7 +119,7 @@ public:
 		return value;
 	}
 
-	std::string tempFilePathForRecording;
+	std::string tempFilePathForRecording{};
 	uint8_t byteDepth{0};
 	uint32_t sampleRate{44100};
 	uint32_t audioDataStartPosBytes; // That is, the offset from the start of the WAV file
@@ -153,13 +153,13 @@ public:
 	int32_t minValueFound;
 	int32_t maxValueFound;
 
-	deluge::fast_vector<SampleCacheElement> caches; // Sorted ascending by SampleCacheElement::key()
+	deluge::fast_vector<SampleCacheElement> caches{}; // Sorted ascending by SampleCacheElement::key()
 
 	uint8_t* percCacheMemory[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	// One for each play-direction: 0=forwards; 1=reversed. Sorted ascending by startPos. On the external
 	// (non-stealable) region so that growing a zone list can never steal this sample's own perc-cache clusters,
 	// which would re-enter these arrays mid-modification.
-	deluge::vector<SamplePercCacheZone> percCacheZones[2];
+	deluge::vector<SamplePercCacheZone> percCacheZones[2]{};
 
 	Cluster** percCacheClusters[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	int32_t numPercCacheClusters{};
@@ -169,7 +169,7 @@ public:
 
 	uint32_t waveTableCycleSize{0}; // In case this later gets used for a WaveTable
 
-	deluge::fast_vector<SampleCluster> clusters;
+	deluge::fast_vector<SampleCluster> clusters{};
 
 protected:
 #if ALPHA_OR_BETA_VERSION

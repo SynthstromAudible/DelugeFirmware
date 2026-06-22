@@ -37,10 +37,10 @@ public:
 	                       int32_t* __restrict__ foundSpaceSize);
 
 private:
-	std::array<BidirectionalLinkedList, kNumStealableQueue> reclamation_queue_;
+	std::array<BidirectionalLinkedList, kNumStealableQueue> reclamation_queue_{};
 
 	// Keeps track, semi-accurately, of biggest runs of memory that could be stolen. In a perfect world, we'd have a
 	// second index on stealableClusterQueues[q], for run length. Although even that wouldn't automatically reflect
 	// changes to run lengths as neighbouring memory is allocated.
-	std::array<uint32_t, kNumStealableQueue> longest_runs_;
+	std::array<uint32_t, kNumStealableQueue> longest_runs_{};
 };

@@ -77,7 +77,7 @@ private:
 	LowPass lpfilter;
 	HighPass hpfilter;
 
-	bool LPFOn;
-	bool HPFOn;
+	bool LPFOn{};
+	bool HPFOn{};
 };
 } // namespace deluge::dsp::filter

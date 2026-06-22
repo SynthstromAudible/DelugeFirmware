@@ -28,9 +28,9 @@
 class Delay {
 public:
 	struct State {
-		bool doDelay;
-		int32_t userDelayRate;
-		int32_t delayFeedbackAmount;
+		bool doDelay{};
+		int32_t userDelayRate{};
+		int32_t delayFeedbackAmount{};
 		int32_t analog_saturation = 8;
 	};
 
@@ -60,8 +60,8 @@ public:
 	DelayBuffer secondaryBuffer;
 	ImpulseResponseProcessor ir_processor;
 
-	uint32_t countCyclesWithoutChange;
-	int32_t userRateLastTime;
+	uint32_t countCyclesWithoutChange{};
+	int32_t userRateLastTime{};
 	bool pingPong = true;
 	bool analog = false;
 
@@ -70,10 +70,10 @@ public:
 	// Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed).
 	SyncLevel syncLevel = SYNC_LEVEL_16TH;
 
-	int32_t sizeLeftUntilBufferSwap;
+	int32_t sizeLeftUntilBufferSwap{};
 
-	int32_t postLPFL;
-	int32_t postLPFR;
+	int32_t postLPFL{};
+	int32_t postLPFR{};
 
 	int32_t prevFeedback = 0;
 

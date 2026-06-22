@@ -72,5 +72,5 @@ public:
 	auto end() const { return clips_.end(); }
 
 private:
-	deluge::fast_vector<Clip*> clips_;
+	deluge::fast_vector<Clip*> clips_{};
 };

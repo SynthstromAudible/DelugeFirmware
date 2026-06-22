@@ -58,7 +58,7 @@ struct SemVer {
 		std::expected<SemVer, Error> parse();
 
 	private:
-		std::string_view input_;
+		std::string_view input_{};
 		size_t index_ = 0;
 
 		/**

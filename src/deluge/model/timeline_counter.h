@@ -51,6 +51,6 @@ public:
 	ParamManagerForTimeline paramManager;
 	bool armedForRecording{true};
 
-	bool currentlyPlayingReversed;
+	bool currentlyPlayingReversed{};
 	SequenceDirection sequenceDirectionMode;
 };

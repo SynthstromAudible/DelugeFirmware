@@ -67,6 +67,6 @@ private:
 	                               int32_t cable_strength);
 
 	const Config& config;
-	std::span<int32_t> source_values_;
-	std::span<int32_t> param_final_values_;
+	std::span<int32_t> source_values_{};
+	std::span<int32_t> param_final_values_{};
 };

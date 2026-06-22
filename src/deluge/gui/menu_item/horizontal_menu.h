@@ -32,10 +32,10 @@ public:
 	enum Layout { FIXED, DYNAMIC };
 
 	struct Paging {
-		uint8_t visiblePageNumber;
-		std::span<MenuItem*> visiblePageItems;
-		uint8_t selectedItemPositionOnPage;
-		uint8_t totalPages;
+		uint8_t visiblePageNumber{};
+		std::span<MenuItem*> visiblePageItems{};
+		uint8_t selectedItemPositionOnPage{};
+		uint8_t totalPages{};
 	};
 
 	using Submenu::Submenu;

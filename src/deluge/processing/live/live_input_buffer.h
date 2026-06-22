@@ -31,12 +31,12 @@ public:
 
 	uint32_t numRawSamplesProcessed;
 
-	int32_t lastSampleRead;
-	int32_t lastAngle;
-	int32_t angleLPFMem[kDifferenceLPFPoles];
+	int32_t lastSampleRead{};
+	int32_t lastAngle{};
+	int32_t angleLPFMem[kDifferenceLPFPoles]{};
 
-	uint8_t percBuffer[kInputPercBufferSize];
+	uint8_t percBuffer[kInputPercBufferSize]{};
 
 	// Must be last!!! Cos we're gonna allocate and access it double-length for stereo
-	int32_t rawBuffer[kInputRawBufferSize];
+	int32_t rawBuffer[kInputRawBufferSize]{};
 };

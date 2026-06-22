@@ -72,10 +72,10 @@ public:
 
 private:
 	int32_t write_ptr_ = 0;
-	std::span<float> buffer_;
-	DualCosineOscillator lfo_;
+	std::span<float> buffer_{};
+	DualCosineOscillator lfo_; // its own ctor initializes it; {} doesn't compile here
 
-	size_t mask;
+	size_t mask{};
 
 public: /******************** INNER CLASSES ****************/
 	class Context {

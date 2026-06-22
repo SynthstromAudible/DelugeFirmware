@@ -39,9 +39,9 @@ public:
 		return loopEndPlaybackAtByte ? loopEndPlaybackAtByte : endPlaybackAtByte;
 	}
 
-	uint32_t loopStartPlaybackAtByte; // If no loop-start point defined, this will be the same as startPlaybackAtByte,
-	                                  // so it can just be referred to when looping happens
-	uint32_t loopEndPlaybackAtByte;   // 0 means disabled
+	uint32_t loopStartPlaybackAtByte{}; // If no loop-start point defined, this will be the same as startPlaybackAtByte,
+	                                    // so it can just be referred to when looping happens
+	uint32_t loopEndPlaybackAtByte{};   // 0 means disabled
 
-	bool noteOffReceived;
+	bool noteOffReceived{};
 };

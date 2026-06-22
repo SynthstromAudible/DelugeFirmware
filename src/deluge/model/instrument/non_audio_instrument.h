@@ -58,7 +58,7 @@ public:
 	virtual void setChannel(int newChannel) { channel = newChannel; }
 	inline int32_t getChannel() const { return channel; }
 	// Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
-	uint8_t cachedBendRanges[2];
+	uint8_t cachedBendRanges[2]{};
 	bool needsEarlyPlayback() const override;
 
 protected:

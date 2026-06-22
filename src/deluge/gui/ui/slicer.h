@@ -48,14 +48,14 @@ public:
 	void stopAnyPreviewing();
 	void preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on);
 
-	int32_t numManualSlice;
-	int32_t currentSlice;
-	int32_t slicerMode;
-	SliceItem manualSlicePoints[MAX_MANUAL_SLICES];
+	int32_t numManualSlice{};
+	int32_t currentSlice{};
+	int32_t slicerMode{};
+	SliceItem manualSlicePoints[MAX_MANUAL_SLICES]{};
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
-	int16_t numClips;
+	int16_t numClips{};
 
 	// ui
 	UIType getUIType() override { return UIType::SLICER; }

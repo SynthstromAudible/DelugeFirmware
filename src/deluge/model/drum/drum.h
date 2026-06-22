@@ -46,18 +46,18 @@ public:
 	Drum(DrumType newType);
 	~Drum() override = default;
 
-	std::string drumName;
+	std::string drumName{};
 	Kit* kit;
 
 	const DrumType type;
-	bool noteRowAssignedTemp;
+	bool noteRowAssignedTemp{};
 	uint8_t earlyNoteVelocity; // If 0, then there's none
 	bool earlyNoteStillActive;
 
 	bool auditioned;
 	uint8_t lastMIDIChannelAuditioned; // Primarily for MPE purposes
 
-	int8_t lastExpressionInputsReceived[2][kNumExpressionDimensions];
+	int8_t lastExpressionInputsReceived[2][kNumExpressionDimensions]{};
 
 	Drum* next;
 

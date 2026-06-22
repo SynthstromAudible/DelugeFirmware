@@ -54,7 +54,7 @@ public:
 	               bool makeWaveTableWorkAtAllCosts = false);
 	virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
 
-	std::string filePath;
-	AudioFile* audioFile;
+	std::string filePath{};
+	AudioFile* audioFile{};
 	AudioFileType audioFileType;
 };

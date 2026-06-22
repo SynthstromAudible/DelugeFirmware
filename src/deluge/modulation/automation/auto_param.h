@@ -35,8 +35,8 @@ class ModelStackWithAutoParam;
 // For backing up a snapshot
 class AutoParamState {
 public:
-	ParamNodeVector nodes;
-	int32_t value;
+	ParamNodeVector nodes{};
+	int32_t value{};
 };
 
 struct StolenParamNodes;

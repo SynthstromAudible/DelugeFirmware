@@ -51,8 +51,8 @@ public:
 	void dealloc(void* address);
 	void verifyMemoryNotFree(void* address, uint32_t spaceSize);
 
-	uint32_t start;
-	uint32_t end;
+	uint32_t start{};
+	uint32_t end{};
 
 	CacheManager& cache_manager() {
 		if (cache_manager_) {
@@ -62,7 +62,7 @@ public:
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	char const* name; // For debugging messages only.
+	char const* name{}; // For debugging messages only.
 #endif
 	EmptySpaceVector emptySpaces;
 
@@ -70,7 +70,7 @@ private:
 	friend class CacheManager;
 	friend class GeneralMemoryAllocator;
 	// manages "stealables" for a memory region, only used in external stealable region
-	CacheManager* cache_manager_;
+	CacheManager* cache_manager_{};
 	uint32_t numAllocations_{0};
 	uint32_t pivot_{pivot_big}; // items smaller than pivot allocate to left, larger to right
 	size_t maxAlign_ = max_align_big;

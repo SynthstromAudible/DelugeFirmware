@@ -70,12 +70,12 @@ public:
 	uint64_t startPos;
 	uint64_t endPos; // Don't access this directly. Call getPos(). This variable may be beyond the end of the sample
 
-	int32_t waveformViewScroll;
+	int32_t waveformViewScroll{};
 	int32_t waveformViewZoom; // 0 means neither of these vars set up yet
 
-	int32_t neutralPhaseIncrement;
+	int32_t neutralPhaseIncrement{};
 
-	Cluster* clustersForStart[kNumClustersLoadedAhead];
+	Cluster* clustersForStart[kNumClustersLoadedAhead]{};
 
 protected:
 	void claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int32_t playDirection,

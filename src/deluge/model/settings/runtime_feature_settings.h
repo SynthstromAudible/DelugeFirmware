@@ -70,23 +70,23 @@ enum RuntimeFeatureSettingType : uint32_t {
 
 /// Setting read from the settings file that no current setting matches, kept for writing back
 struct UnknownSetting {
-	std::string name;
-	uint32_t value;
+	std::string name{};
+	uint32_t value{};
 };
 
 /// Definition for selectable options
 struct RuntimeFeatureSettingOption {
-	std::string_view displayName;
-	uint32_t value; // Value to be defined as typed Enum above
+	std::string_view displayName{};
+	uint32_t value{}; // Value to be defined as typed Enum above
 };
 
 /// Every setting keeps its metadata and value in here
 struct RuntimeFeatureSetting {
 	deluge::l10n::String displayName;
-	std::string_view xmlName;
-	uint32_t value;
+	std::string_view xmlName{};
+	uint32_t value{};
 	// Limited to safe memory
-	deluge::vector<RuntimeFeatureSettingOption> options;
+	deluge::vector<RuntimeFeatureSettingOption> options{};
 };
 
 class Serializer;
@@ -115,10 +115,10 @@ public:
 
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};
-	std::string startupSong;
+	std::string startupSong{};
 
 private:
-	deluge::vector<UnknownSetting> unknownSettings;
+	deluge::vector<UnknownSetting> unknownSettings{};
 
 public:
 	friend class deluge::gui::menu_item::runtime_feature::Setting;

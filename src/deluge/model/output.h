@@ -85,12 +85,12 @@ public:
 	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
 	                           char const* dirPath) = 0;
 
-	ClipInstanceVector clipInstances;
+	ClipInstanceVector clipInstances{};
 	[[nodiscard]] Clip* getActiveClip() const;
-	std::string name; // Contains the display name as the user sees it.
-	                  // E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
-	                  // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
-	                  // Definitely does not contain the ".XML" on the end.
+	std::string name{}; // Contains the display name as the user sees it.
+	                    // E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
+	                    // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
+	                    // Definitely does not contain the ".XML" on the end.
 	Output* next;
 	const OutputType type;
 	bool mutedInArrangementMode;
@@ -105,10 +105,10 @@ public:
 	uint8_t modKnobMode;
 
 	// Temp stuff for doLaunch()
-	bool alreadyGotItsNewClip;
-	bool isGettingSoloingClip;
+	bool alreadyGotItsNewClip{};
+	bool isGettingSoloingClip{};
 
-	bool nextClipFoundShouldGetArmed; // Temp thing for Session::armClipsToStartOrSoloWithQuantization
+	bool nextClipFoundShouldGetArmed{}; // Temp thing for Session::armClipsToStartOrSoloWithQuantization
 
 	// reverbAmountAdjust has "1" as 67108864
 	// Only gets called if there's an activeClip

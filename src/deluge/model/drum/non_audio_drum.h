@@ -43,9 +43,9 @@ public:
 
 	ModControllable* toModControllable() override { return this; }
 
-	uint8_t lastVelocity;
+	uint8_t lastVelocity{};
 
-	uint8_t channel;
+	uint8_t channel{};
 	int8_t channelEncoderCurrentOffset = 0;
 
 	ArpeggiatorBase* getArp() { return &arpeggiator; }

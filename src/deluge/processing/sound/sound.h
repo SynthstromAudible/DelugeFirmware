@@ -355,7 +355,7 @@ private:
 	// O(n) lookup is fine when most of the time we're iterating over all voices anyways.
 	// Went with a vector instead of a list so that we don't need to always allocate if
 	// we're constantly cycling between a minimum and maximum number of voices.
-	deluge::fast_vector<ActiveVoice> voices_;
+	deluge::fast_vector<ActiveVoice> voices_{};
 
 	/// @brief Acquire a voice for use by a note
 	/// Internally this will either acquire a new voice or steal an existing one
