@@ -58,6 +58,9 @@ mod usb;
 mod signals;
 /// C++ memory-model bring-up (SDRAM bss/data, global ctors).
 mod boot_mem;
+/// scheduler.h / OSLikeStuff scheduler_api.h — the cooperative task scheduler,
+/// implemented on the Embassy executor (one task per registered Deluge task).
+mod scheduler;
 
 unsafe extern "C" {
     /// One-time C++ application bring-up (deluge.cpp / app.h). Called once before
@@ -164,6 +167,9 @@ pub extern "C" fn main() -> ! {
         (*p).assume_init_mut()
     };
     executor.run(move |spawner: Spawner| {
+        // Stash the spawner so the scheduler's add*Task C-ABI entry points (called
+        // synchronously by the C++ app during registerTasks) can spawn task runners.
+        scheduler::set_spawner(spawner);
         // The PIC pump decodes pad/button input concurrently with the app's tick
         // loop (which yields each tick, letting these tasks make progress).
         spawner.spawn(control::pic_pump().unwrap());
