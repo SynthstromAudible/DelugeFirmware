@@ -156,20 +156,14 @@ pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) ->
     }
 }
 
-/// Drive an SD transfer future to completion. On the worker fiber (e.g. a song
-/// load), suspend the fiber while the transfer runs so the executor keeps UI/MIDI
-/// alive — it resumes the instant the SD-completion IRQ fires (its waker raises
-/// WORKER_WAKE). Off the fiber (e.g. the cluster-loader task), `block_on` parks the
-/// executor for the (short, DMA) transfer.
-fn drive<F: core::future::Future>(fut: F) -> F::Output {
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(fut)
-    }
-    else {
-        block_on(fut)
-    }
-}
-
+// NOTE (Phase 7 revert): SD I/O must use `block_on` (which parks the executor for
+// the transfer), NOT a fiber-yielding drive. FatFS is not re-entrant and the app's
+// SD-reentrancy guard (`currentlyAccessingCard`) is only set by the legacy C diskio
+// (src/RZA1/diskio.c), which this BSP does not link — so on this BSP it is always 0.
+// Parking during the transfer is what serializes SD access; yielding mid-transfer
+// (block_on_fiber) let other tasks re-enter FatFS and corrupted it (manifested as
+// "NO MORE PRESETS FOUND" on track create, and would also break song/sample loads).
+// Re-introducing fiber-aware SD requires first serializing all SD access on this BSP.
 #[unsafe(no_mangle)]
 pub extern "C" fn disk_read_without_streaming_first(
     pdrv: u8,
@@ -183,7 +177,7 @@ pub extern "C" fn disk_read_without_streaming_first(
     let len = count as usize * SECTOR_SIZE;
     // SAFETY: FatFS guarantees `buff` holds `count` sectors.
     let dst = unsafe { core::slice::from_raw_parts_mut(buff, len) };
-    match drive(sd::read_sectors(sector, count, dst)) {
+    match block_on(sd::read_sectors(sector, count, dst)) {
         Ok(()) => RES_OK,
         Err(_) => RES_ERROR,
     }
@@ -205,7 +199,7 @@ pub extern "C" fn disk_write_without_streaming_first(
     let len = count as usize * SECTOR_SIZE;
     // SAFETY: FatFS guarantees `buff` holds `count` sectors.
     let src = unsafe { core::slice::from_raw_parts(buff, len) };
-    match drive(sd::write_sectors(sector, count, src)) {
+    match block_on(sd::write_sectors(sector, count, src)) {
         Ok(()) => RES_OK,
         Err(e) => {
             // Surface the precise SdError (the C++ side only logs a generic "SD card

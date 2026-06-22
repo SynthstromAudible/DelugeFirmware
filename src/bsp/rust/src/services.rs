@@ -77,30 +77,20 @@ pub extern "C" fn deluge_log(text: *const core::ffi::c_char) {
 
 // ── clock.h ─────────────────────────────────────────────────────────────────
 
-/// Delay `us` microseconds. On the worker fiber, yield the fiber for the duration
-/// (the executor keeps running); off the fiber, busy-wait via the OSTM-backed
-/// embassy-time driver. [task]
+/// Busy-wait `us` microseconds via the OSTM-backed embassy-time driver. [task]
+///
+/// NOTE (Phase 7 revert): kept as `block_for`, NOT a fiber-yield. A delay can be
+/// called mid-operation (incl. inside SD/FatFS sequences); yielding the fiber there
+/// would let other tasks re-enter non-reentrant state. See sd.rs.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_clock_delay_us(us: u32) {
-    let dur = embassy_time::Duration::from_micros(us as u64);
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(embassy_time::Timer::after(dur));
-    }
-    else {
-        embassy_time::block_for(dur);
-    }
+    embassy_time::block_for(embassy_time::Duration::from_micros(us as u64));
 }
 
-/// Delay `ms` milliseconds (yields the worker fiber when on it; see above). [task]
+/// Busy-wait `ms` milliseconds. [task]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_clock_delay_ms(ms: u32) {
-    let dur = embassy_time::Duration::from_millis(ms as u64);
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(embassy_time::Timer::after(dur));
-    }
-    else {
-        embassy_time::block_for(dur);
-    }
+    embassy_time::block_for(embassy_time::Duration::from_millis(ms as u64));
 }
 
 /// Monotonic high-resolution counter, in microseconds (1 µs ticks). [task] [isr]
