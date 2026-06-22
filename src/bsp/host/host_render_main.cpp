@@ -208,9 +208,17 @@ void deluge_render_driver(void) {
 	stemExport.renderOffline = true;
 	stemExport.exportToSilence = true;
 	stemExport.exportMixdown = (mode == StemExportType::MIXDOWN);
+	// A MIXDOWN is the full master output, so it must include the song-level FX. This also matters
+	// mechanically: the offline render path (AudioEngine::renderAudioForStemExport) only feeds a
+	// recorder whose channel is OFFLINE_OUTPUT, and that channel is selected only when includeSongFX
+	// is set (see StemExport::startOutputRecordingUntilLoopEndAndSilence). Without it the mixdown
+	// records the plain MIX channel, which nothing feeds offline — yielding a 0-byte WAV.
+	if (mode == StemExportType::MIXDOWN) {
+		stemExport.includeSongFX = true;
+	}
 	stemExport.startStemExportProcess(mode); // runs the whole export synchronously
 
-	const char* folder = stemExport.lastFolderNameForStemExport.get();
+	const char* folder = stemExport.lastFolderNameForStemExport.c_str();
 	fprintf(stderr, "[render] export complete; stems at image:/%s\n", (folder && folder[0]) ? folder : "(none)");
 	if (out_dir != nullptr && out_dir[0] != '\0' && folder != nullptr && folder[0] != '\0') {
 		copy_stems_out(folder, out_dir);
@@ -339,6 +347,12 @@ int main(int argc, char** argv) {
 	setenv("DELUGE_RENDER_OUT", out, 1);
 	if (getenv("DELUGE_HOST_DETERMINISTIC") == nullptr) {
 		setenv("DELUGE_HOST_DETERMINISTIC", "1", 1); // sample-accurate, faster-than-realtime
+	}
+	// A headless render writes its output to the SD image, not to a speaker; forking a realtime
+	// audio player (the default) only back-pressures the faster-than-realtime export. Default it
+	// off, but let an explicit DELUGE_HOST_AUDIO override win (e.g. for debugging by ear).
+	if (getenv("DELUGE_HOST_AUDIO") == nullptr) {
+		setenv("DELUGE_HOST_AUDIO", "off", 1);
 	}
 
 	startupConditionalTask = deluge_render_driver; // override before deluge_main registers it
