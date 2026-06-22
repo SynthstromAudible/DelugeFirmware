@@ -52,6 +52,7 @@
 #include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_follow.h"
+#include "libdeluge/worker.h" // deluge_worker_run — run the yielding new-track clip create on the worker fiber
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -3802,6 +3803,64 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 	display->popupTextTemporary("COPIED");
 }
 
+// Worker-fiber jobs for the new-track grid gesture. gridCreateClip() opens the
+// clip-type picker and yields until the user chooses; on the decomposed BSP that
+// yield runs cooperatively only on the worker fiber, so these run there (dispatched
+// from the pad handlers via deluge_worker_run). Each mirrors its call site's
+// post-create logic; press x/y are unpacked from the packed arg (y<<16 | x).
+
+void SessionView::gridNewTrackClipAndEnter(uint32_t packedXY) {
+	int32_t x = static_cast<int32_t>(packedXY & 0xFFFF);
+	int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
+	Clip* clip = gridCreateClip(gridSectionFromY(y), nullptr, nullptr); // yields for the picker
+	if (clip == nullptr) {
+		return;
+	}
+	// New track: start it playing immediately.
+	gridToggleClipPlay(clip, true);
+	// If the pad was released during selection (press coords no longer current), just
+	// select + transition; otherwise treat it as a held clip press.
+	if (x != gridFirstPressedX || y != gridFirstPressedY) {
+		gridSelectClipForPulsing(*clip);
+		currentSong->setCurrentClip(clip);
+		transitionToViewForClip(clip);
+		return;
+	}
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::removePopup();
+	}
+	view.displayOutputName(clip->output, true, clip);
+	gridSelectClipForPulsing(*clip);
+	currentSong->setCurrentClip(clip);
+	currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+	performActionOnPadRelease = true;
+	selectedClipTimePressed = AudioEngine::audioSampleTimer;
+	view.setActiveModControllableTimelineCounter(clip);
+}
+
+void SessionView::gridNewTrackClipAndSelect(uint32_t packedXY) {
+	int32_t x = static_cast<int32_t>(packedXY & 0xFFFF);
+	int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
+	Clip* clip = gridCreateClip(gridSectionFromY(y), nullptr, nullptr); // yields for the picker
+	if (clip == nullptr) {
+		return;
+	}
+	// If playing and Rec enabled, an empty-pad create can start it playing.
+	if (playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL
+	    && FlashStorage::gridEmptyPadsCreateRec) {
+		gridToggleClipPlay(clip, Buttons::isShiftButtonPressed());
+	}
+	gridSelectClipForPulsing(*clip);
+	currentSong->setCurrentClip(clip);
+	// Allow clip control (selection) if still holding the original pad.
+	if (x == gridFirstPressedX && y == gridFirstPressedY) {
+		currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+		view.displayOutputName(clip->output, true, clip);
+		display->cancelPopup();
+		view.setActiveModControllableTimelineCounter(clip);
+	}
+}
+
 void SessionView::gridStartSection(uint32_t section, bool instant) {
 	if (instant) {
 		currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions > -1);
@@ -3973,12 +4032,23 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 				// Create clip if it does not exist
 				if ((x + currentSong->songGridScrollX) <= trackCount) {
 					Output* track = gridTrackFromX(x, trackCount);
-					clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
-					// Immediately start playing it for new tracks
-					if (clip != nullptr && track == nullptr) {
-						gridToggleClipPlay(clip, true);
+					if (track == nullptr) {
+						// New track: gridCreateClip() opens the clip-type picker and yields
+						// until the user chooses (type button / pad release). A synchronous
+						// yield can't run on this BSP, so run the create + this site's
+						// post-logic on the worker fiber (gridNewTrackClipAndEnter) and
+						// return a provisional result; the work finishes after the choice.
+						deluge_worker_run(
+						    [](void* p) {
+							    sessionView.gridNewTrackClipAndEnter(
+							        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p)));
+						    },
+						    reinterpret_cast<void*>(static_cast<uintptr_t>((static_cast<uint32_t>(y) << 16)
+						                                                   | (static_cast<uint32_t>(x) & 0xFFFF))));
+						return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 					}
-					// if the pad has already been released while we yielded just get out of here
+					// Existing track: gridCreateClip() does not yield here.
+					clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
 					// don't update clip selection if we didn't create a clip
 					if (clip != nullptr && (x != gridFirstPressedX || y != gridFirstPressedY)) {
 						gridSelectClipForPulsing(*clip);
@@ -4155,6 +4225,20 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 			else if (currentUIMode == UI_MODE_NONE) {
 				gridFirstPressedX = x;
 				gridFirstPressedY = y;
+				if (track == nullptr) {
+					// New track: gridCreateClip() yields for the clip-type picker — run the
+					// create + this site's post-logic on the worker fiber (see gridHandlePads),
+					// returning a provisional result; it finishes after the choice.
+					deluge_worker_run(
+					    [](void* p) {
+						    sessionView.gridNewTrackClipAndSelect(
+						        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p)));
+					    },
+					    reinterpret_cast<void*>(static_cast<uintptr_t>((static_cast<uint32_t>(y) << 16)
+					                                                   | (static_cast<uint32_t>(x) & 0xFFFF))));
+					return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+				}
+				// Existing track: gridCreateClip() does not yield here.
 				// will create the track if it doesn't exist
 				clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
 				// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing

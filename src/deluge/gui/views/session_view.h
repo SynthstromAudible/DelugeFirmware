@@ -251,6 +251,12 @@ private:
 	AudioClip* gridCreateAudioClipWithNewTrack();
 	InstrumentClip* gridCreateInstrumentClipWithNewTrack(OutputType type);
 	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
+	// Worker-fiber jobs for the new-track grid gesture: gridCreateClip() yields for the
+	// interactive clip-type picker, which can't run synchronously on this BSP, so the
+	// create + the call site's post-logic run on the fiber. Press x/y are packed into
+	// the single arg (y<<16 | x). One per call site (their post-logic differs).
+	void gridNewTrackClipAndEnter(uint32_t packedXY);  // from gridHandlePads
+	void gridNewTrackClipAndSelect(uint32_t packedXY); // from the UI_MODE_NONE empty-pad press
 	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
 	void setupNewClip(Clip* newClip);
 
