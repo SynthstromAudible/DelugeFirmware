@@ -2308,7 +2308,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	if (onAutomationClipView) {
 		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
-	if (lastSelectedParamID != kNoSelection) {
+	if (lastSelectedParamID != params::kNoParamID) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
