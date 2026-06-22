@@ -518,6 +518,8 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	lastSwungTickActioned = 0;
 	lastTriggerClockOutTickDone = -1;
 	lastMIDIClockOutTickDone = -1;
+	timeLastMIDIClockOutTickSent = 0;
+	timeLastTriggerClockOutTickSent = 0;
 
 	swungTickScheduled = false;
 	triggerClockOutTickScheduled = false;
@@ -780,6 +782,7 @@ void PlaybackHandler::actionTimerTickPart2() {
 void PlaybackHandler::doTriggerClockOutTick() {
 	triggerClockOutTickScheduled = false;
 	lastTriggerClockOutTickDone++;
+	timeLastTriggerClockOutTickSent = AudioEngine::audioSampleTimer;
 	if (skipAnalogClocks) {
 		skipAnalogClocks--;
 	}
@@ -829,6 +832,23 @@ void PlaybackHandler::scheduleTriggerClockOutTickFromExternalClock() {
 	auto result = computeExternalClockSchedule(lastTriggerClockOutTickDone, lastInputTickReceived, internalTicksPer,
 	                                           analogOutTicksPer, inputTicksPer, internalTicksPerInput,
 	                                           timePerInputTickMovingAverage, timeLastInputTicks[0]);
+
+	// Burst guard (issue #3587), mirroring scheduleMIDIClockOutTickFromExternalClock(). After a blocking song
+	// load/save, buffered input clocks are drained in a tight loop and would each emit an output tick immediately,
+	// bursting the analog clock and desyncing followers. If we'd emit sooner than is physically possible at the
+	// current tempo, we're draining a backlog: skip the emit and realign instead, collapsing it to a single tick.
+	bool wouldEmit =
+	    (result.action == ClockScheduleAction::EmitAndSchedule || result.action == ClockScheduleAction::EmitAndResync);
+	if (wouldEmit && timePerInputTickMovingAverage != 0) {
+		// Real time we'd expect between successive analog out ticks at the current tempo.
+		uint64_t timePerAnalogOutTick = (uint64_t)timePerInputTickMovingAverage * internalTicksPer * inputTicksPer
+		                                / ((uint64_t)analogOutTicksPer * internalTicksPerInput);
+		uint32_t timeSinceLastSent = AudioEngine::audioSampleTimer - timeLastTriggerClockOutTickSent;
+		if (timeSinceLastSent < (timePerAnalogOutTick >> 1)) {
+			resyncAnalogOutTicksToInternalTicks();
+			return;
+		}
+	}
 
 	switch (result.action) {
 	case ClockScheduleAction::EmitAndResync:
@@ -889,6 +909,26 @@ void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
 	                                           midiClockOutTicksPer, inputTicksPer, internalTicksPerInput,
 	                                           timePerInputTickMovingAverage, timeLastInputTicks[0]);
 
+	// Burst guard (issue #3587). A blocking operation such as a song load or save stalls MIDI servicing, so incoming
+	// clocks pile up in the input buffer and are then drained in a tight loop, each one wanting to emit an output
+	// clock immediately. The emit-one-then-resync logic in computeExternalClockSchedule() can't catch this because
+	// each backlog tick only puts us one tick behind. The result is a burst of clocks at a single instant that stalls
+	// or desyncs followers. So if we'd emit a clock sooner than is physically possible at the current tempo, we know
+	// we're draining a backlog: skip the emit and just realign the output counter, collapsing the backlog to a single
+	// clock instead of a burst.
+	bool wouldEmit =
+	    (result.action == ClockScheduleAction::EmitAndSchedule || result.action == ClockScheduleAction::EmitAndResync);
+	if (wouldEmit && timePerInputTickMovingAverage != 0) {
+		// Real time we'd expect between successive output clocks at the current tempo.
+		uint64_t timePerMIDIOutTick = (uint64_t)timePerInputTickMovingAverage * internalTicksPer * inputTicksPer
+		                              / ((uint64_t)midiClockOutTicksPer * internalTicksPerInput);
+		uint32_t timeSinceLastSent = AudioEngine::audioSampleTimer - timeLastMIDIClockOutTickSent;
+		if (timeSinceLastSent < (timePerMIDIOutTick >> 1)) {
+			resyncMIDIClockOutTicksToInternalTicks();
+			return;
+		}
+	}
+
 	switch (result.action) {
 	case ClockScheduleAction::EmitAndResync:
 		doMIDIClockOutTick();
@@ -918,6 +958,7 @@ void PlaybackHandler::doMIDIClockOutTick() {
 	}
 	midiClockOutTickScheduled = false;
 	lastMIDIClockOutTickDone++;
+	timeLastMIDIClockOutTickSent = AudioEngine::audioSampleTimer;
 	if (skipMidiClocks) {
 		skipMidiClocks--;
 	}

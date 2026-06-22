@@ -96,6 +96,9 @@ public:
 	bool midiClockOutTickScheduled;
 	uint32_t timeNextMIDIClockOutTick;
 	int64_t lastMIDIClockOutTickDone;
+	// audioSampleTimer when we last actually sent a MIDI clock out tick. Used to rate-limit emission under external
+	// clock so a backlog of buffered input clocks (e.g. drained after a blocking song load/save) can't burst out.
+	uint32_t timeLastMIDIClockOutTickSent;
 
 	// Playback
 	uint8_t playbackState;
@@ -140,6 +143,10 @@ public:
 	bool triggerClockOutTickScheduled;
 	uint32_t timeNextTriggerClockOutTick;
 	int64_t lastTriggerClockOutTickDone;
+	// audioSampleTimer when we last actually sent an analog/trigger clock out tick. Used to rate-limit emission under
+	// external clock so a backlog of buffered input clocks (e.g. drained after a blocking song load/save) can't burst
+	// out. See timeLastMIDIClockOutTickSent and issue #3587.
+	uint32_t timeLastTriggerClockOutTickSent;
 
 	uint32_t analogOutTicksPPQN; // Relative to the "external world", which also means relative to the displayed tempo
 	uint32_t analogInTicksPPQN;
