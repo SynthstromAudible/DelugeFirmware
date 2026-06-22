@@ -9,17 +9,27 @@
 //! (`uart::init_pic` / `encoder::irq_init`), with IRQs masked.
 #![allow(non_snake_case)]
 
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 
 use deluge_bsp::{encoder, pic};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 
 use crate::sys::{
-    DelugeColour, DelugeInputEvent, DelugeInputEventKind_DELUGE_EVENT_BUTTON as KIND_BUTTON,
+    DelugeBootInfo, DelugeColour, DelugeInputEvent,
+    DelugeInputEventKind_DELUGE_EVENT_BUTTON as KIND_BUTTON,
     DelugeInputEventKind_DELUGE_EVENT_NO_PRESSES as KIND_NO_PRESSES,
     DelugeInputEventKind_DELUGE_EVENT_PAD as KIND_PAD,
 };
+
+/// Latched PIC boot info for [`deluge_control_read_boot_info`]. 0 = not yet
+/// received; otherwise the raw firmware-version byte OR-ed with [`BOOT_FW_RECEIVED`].
+/// The pic_pump captures it from the `FirmwareVersion` event during boot (the byte
+/// arrives in response to `pic::init`'s REQUEST_FIRMWARE_VERSION, and the app yields
+/// to the pump — via `sd::boot_init().await` — before `deluge_app_init` reads it).
+static BOOT_FW: AtomicU16 = AtomicU16::new(0);
+/// "Received" sentinel bit OR-ed into [`BOOT_FW`] (raw byte is only 8 bits).
+const BOOT_FW_RECEIVED: u16 = 0x100;
 
 // ABI guard: the C++ app is built arm-none-eabi (`-fshort-enums`), so
 // DelugeInputEventKind is 1 byte and DelugeInputEvent is {kind@0, x@1, y@2,
@@ -81,7 +91,11 @@ pub async fn pic_pump() {
                 None
             }
             pic::Event::FirmwareVersion(v) => {
-                log::info!("deluge-rust: PIC firmware v{v}");
+                // Latch the raw version byte for `deluge_control_read_boot_info`.
+                // High bit (0x80) = OLED present; low 7 bits = version (mirrors the
+                // rza1 BSP's control_surface.cpp decode). Mark "received" with 0x100.
+                BOOT_FW.store((v as u16) | BOOT_FW_RECEIVED, Ordering::Relaxed);
+                log::info!("deluge-rust: PIC firmware v{} (oled={})", v & 0x7f, (v & 0x80) != 0);
                 None
             }
             // pic::Event is #[non_exhaustive]; ignore any future variants.
@@ -113,6 +127,35 @@ fn button_event(id: u8, value: i16) -> DelugeInputEvent {
         x: id % 9,
         y: id / 9,
         value,
+    }
+}
+
+/// Report PIC boot info to the app's one-time boot sequence (deluge.cpp): PIC
+/// firmware version, OLED-present, and whether the user held the reset control at
+/// power-on. Mirrors the rza1 BSP's `control_surface.cpp` decode of the version
+/// byte (low 7 bits = version, high bit = OLED present).
+///
+/// `factory_reset_requested` is ALWAYS false here: the embassy PIC parser does not
+/// decode the boot reset-burst, so there is no genuine signal — and the previous
+/// STUB left this (and the whole struct) UNINITIALIZED, so the app read stack
+/// garbage and triggered a spurious "FACTORY RESET" (clobbering settings) on most
+/// boots. Returning a definite false is both correct and what stops that.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_control_read_boot_info(out: *mut DelugeBootInfo) {
+    let fw = BOOT_FW.load(Ordering::Relaxed);
+    let (version, oled_present) = if fw & BOOT_FW_RECEIVED != 0 {
+        ((fw & 0x7f) as u8, (fw & 0x80) != 0)
+    } else {
+        // Version byte not captured in time (boot race): the app targets the OLED
+        // panel on this BSP, so default present. Strictly better than the prior
+        // garbage; `factory_reset_requested` below is the load-bearing fix.
+        (0, true)
+    };
+    // SAFETY: the app passes a valid DelugeBootInfo out-pointer (sync boot call).
+    unsafe {
+        (*out).pic_firmware_version = version;
+        (*out).oled_present = oled_present;
+        (*out).factory_reset_requested = false;
     }
 }
 
