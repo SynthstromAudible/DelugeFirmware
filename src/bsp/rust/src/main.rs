@@ -183,13 +183,13 @@ pub extern "C" fn main() -> ! {
     // device.run() starts.
     let usb_midi = unsafe { usb::build() };
 
-    // Audio interrupt-executor: register the SGI handler, set its priority (below
-    // the hard-RT IRQs, above thread mode) and enable it in the GIC. The HAL's GIC
-    // is already initialised (other IRQs fire), so we only add this source.
+    // Audio interrupt-executor: register the SGI handler and set its priority
+    // (below the hard-RT IRQs, above thread mode). The GIC line is *enabled* only
+    // after AUDIO_EXEC.start() below, so audio_sgi_handler can never run before the
+    // executor it drives is initialised.
     unsafe {
         rza1l_hal::gic::register(AUDIO_SGI as u16, audio_sgi_handler);
         rza1l_hal::gic::set_priority(AUDIO_SGI as u16, AUDIO_SGI_PRIORITY);
-        rza1l_hal::gic::enable(AUDIO_SGI as u16);
     }
 
     // Verify the worker-fiber context switch in isolation before it drives real
@@ -202,7 +202,9 @@ pub extern "C" fn main() -> ! {
     // Start the audio interrupt-executor and stash its SendSpawner so the scheduler
     // can spawn the priority-0 (audio) task onto it. Must precede deluge_app_init
     // (in app_task), which calls registerTasks() → addRepeatingTask(priority 0).
+    // Enable the SGI in the GIC only now that the executor is initialised.
     scheduler::set_audio_spawner(AUDIO_EXEC.start(AUDIO_SGI));
+    unsafe { rza1l_hal::gic::enable(AUDIO_SGI as u16) };
 
     let executor: &'static mut Executor = unsafe {
         let p = core::ptr::addr_of_mut!(EXECUTOR);

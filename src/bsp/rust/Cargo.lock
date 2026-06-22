@@ -323,7 +323,7 @@ dependencies = [
  "critical-section",
  "document-features",
  "embassy-executor-macros",
- "embassy-executor-timer-queue 0.1.0 (git+https://github.com/stellar-aria/embassy?branch=feat%2Fexecutor-interrupt-a9)",
+ "embassy-executor-timer-queue",
 ]
 
 [[package]]
@@ -336,12 +336,6 @@ dependencies = [
  "quote",
  "syn 2.0.118",
 ]
-
-[[package]]
-name = "embassy-executor-timer-queue"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fc328bf943af66b80b98755db9106bf7e7471b0cf47dc8559cd9a6be504cc9c"
 
 [[package]]
 name = "embassy-executor-timer-queue"
@@ -413,10 +407,9 @@ dependencies = [
 [[package]]
 name = "embassy-time-queue-utils"
 version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "168297bf80aaf114b3c9ad589bf38b01b3009b9af7f97cd18086c5bbf96f5693"
+source = "git+https://github.com/stellar-aria/embassy?branch=feat%2Fexecutor-interrupt-a9#fb00054db30f08eb09a310924e412316da9d7d93"
 dependencies = [
- "embassy-executor-timer-queue 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embassy-executor-timer-queue",
  "heapless 0.9.3",
 ]
 
