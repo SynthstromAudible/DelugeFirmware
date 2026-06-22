@@ -201,10 +201,6 @@ static SLOTS: [TaskSlot; MAX_TASKS] = [const { TaskSlot::new() }; MAX_TASKS];
 /// `*ForCurrentTask` C-ABI calls. -1 when no handle is running.
 static CURRENT: AtomicI8 = AtomicI8::new(-1);
 
-/// True while a slow-storage busy-wait is yielding (the `isSDRoutineActive` flag /
-/// `yieldingRoutine*ForSD` reentrancy guard).
-static SD_ROUTINE_ACTIVE: AtomicBool = AtomicBool::new(false);
-
 /// Resource gates (RESOURCE_SD / RESOURCE_USB). A task holding one of these in its
 /// schedule acquires the corresponding gate for the duration of its (synchronous)
 /// handle, so two same-resource tasks can't run concurrently. Inert in the current
@@ -553,7 +549,12 @@ pub extern "C" fn getSystemTime() -> f64 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn isSDRoutineActive() -> bool {
-    SD_ROUTINE_ACTIVE.load(Ordering::Relaxed)
+    // The app reads this to avoid actions that can't run inside a slow-storage
+    // busy-wait. On this BSP there is no such busy-wait: SD goes through the async
+    // driver under `block_on` (which parks the executor, so nothing else runs during
+    // a transfer anyway) and the legacy `yieldingRoutine*ForSD` hooks aren't linked.
+    // So it's always false here.
+    false
 }
 
 /// On the Embassy BSP the executor *is* the task manager loop, so there is no
@@ -563,50 +564,32 @@ pub extern "C" fn isSDRoutineActive() -> bool {
 pub extern "C" fn startTaskManager() {}
 
 // ---------------------------------------------------------------------------
-// Cooperative yield + slow-storage wait hooks (scheduler_api.h yield* and
-// storage_wait.h yieldingRoutine*ForSD).
+// Cooperative yield (scheduler_api.h yield / yieldWithTimeout / yieldToIdle).
 //
-// A synchronous C++ callee cannot `.await`, so on the single-threaded executor it
-// cannot hand control back to other tasks. The interim implementation busy-waits
-// on the predicate: the storage transfer it is waiting on completes via DMA/IRQ
-// regardless, and audio is driven from an ISR (Phase 3), so it survives. This
-// matches the pre-existing behaviour on this BSP (the dormant TaskManager's yield
-// also degenerated to a busy-wait with no registered tasks). Phase 6 replaces
-// these with an async SD request/response so no synchronous spin remains.
+// The yielding operations (song load, stem export, grid clip create) run on the
+// worker fiber (see fiber.rs), so `yield()` suspends the fiber and the executor
+// runs everything else until the predicate holds. There is no off-fiber yield on
+// this BSP — all yielding ops are dispatched to the worker via deluge_worker_run —
+// so the off-fiber path is a defensive no-wait (it never busy-waits and never
+// hangs). The legacy `storage_wait.h` hooks (yieldingRoutine*ForSD) are gone here:
+// their only callers live in the legacy C HAL (src/RZA1 / src/bsp/rza1), which the
+// Embassy BSP does not link — SD goes through the async driver (sd.rs).
 // ---------------------------------------------------------------------------
 
-fn spin_until(until: RunCondition, timeout_us: Option<u64>) -> bool {
-    // A null predicate has nothing to wait for.
-    let Some(cond) = until else {
-        return true;
-    };
-    let start = Instant::now();
-    // SAFETY: `cond` is the C++ app/BSP predicate describing the hardware state
-    // being waited on; calling it is side-effect-free polling.
-    while !unsafe { cond() } {
-        if let Some(t) = timeout_us {
-            if start.elapsed().as_micros() >= t {
-                return false;
-            }
-        }
-        // Pure busy-wait: audio now runs on the preemptive audio interrupt-executor
-        // (it preempts this thread-mode spin), so we must NOT pump deluge_audio_drive
-        // here — that would race the audio executor on the audio.rs ring cursors.
-        // The UI/thread tasks still freeze for the wait's duration; Phase 6 turns
-        // this into a real async `.await` (async SD request/response).
-        core::hint::spin_loop();
-    }
-    true
+/// Defensive fallback when a `yield*` is somehow reached off the worker fiber
+/// (shouldn't happen — every yielding op is dispatched to the worker). Evaluates
+/// the predicate once and returns it; never waits, never hangs.
+fn off_fiber_yield(until: RunCondition) -> bool {
+    // SAFETY: `until` is the C++ caller's predicate; calling it is benign polling.
+    until.map_or(true, |p| unsafe { p() })
 }
 
 #[unsafe(export_name = "yield")]
 pub extern "C" fn r#yield(until: RunCondition) {
-    // On the worker fiber, suspend cooperatively (the executor runs everything else
-    // until `until` holds). Off the fiber (legacy C-HAL storage waits), busy-wait.
     if crate::fiber::on_fiber() {
         crate::fiber::yield_until(until, None);
     } else {
-        spin_until(until, None);
+        off_fiber_yield(until);
     }
 }
 
@@ -615,7 +598,7 @@ pub extern "C" fn yieldWithTimeout(until: RunCondition, timeout: f64) -> bool {
     if crate::fiber::on_fiber() {
         crate::fiber::yield_until(until, Some(secs_to_us(timeout)))
     } else {
-        spin_until(until, Some(secs_to_us(timeout)))
+        off_fiber_yield(until)
     }
 }
 
@@ -624,36 +607,6 @@ pub extern "C" fn yieldToIdle(until: RunCondition) -> bool {
     if crate::fiber::on_fiber() {
         crate::fiber::yield_until(until, None)
     } else {
-        // Off the fiber there is no "scheduler idle" early-out; behaves as yield().
-        spin_until(until, None)
+        off_fiber_yield(until)
     }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn yieldingRoutineForSD(until: RunCondition) {
-    if crate::services::deluge_in_interrupt() {
-        return;
-    }
-    if SD_ROUTINE_ACTIVE.load(Ordering::Relaxed) {
-        spin_until(until, None);
-        return;
-    }
-    SD_ROUTINE_ACTIVE.store(true, Ordering::Relaxed);
-    spin_until(until, None);
-    SD_ROUTINE_ACTIVE.store(false, Ordering::Relaxed);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn yieldingRoutineWithTimeoutForSD(until: RunCondition, timeoutSeconds: f64) -> bool {
-    if crate::services::deluge_in_interrupt() {
-        return false;
-    }
-    let timeout = Some(secs_to_us(timeoutSeconds));
-    if SD_ROUTINE_ACTIVE.load(Ordering::Relaxed) {
-        return spin_until(until, timeout);
-    }
-    SD_ROUTINE_ACTIVE.store(true, Ordering::Relaxed);
-    let ret = spin_until(until, timeout);
-    SD_ROUTINE_ACTIVE.store(false, Ordering::Relaxed);
-    ret
 }
