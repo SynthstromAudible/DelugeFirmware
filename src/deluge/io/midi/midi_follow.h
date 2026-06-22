@@ -64,14 +64,14 @@ public:
 	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
 	bool isGlobalEffectableContext();
 
-	std::array<uint8_t, kMaxMIDIValue + 1> ccToSoundParam;
-	std::array<uint8_t, kMaxMIDIValue + 1> ccToGlobalParam;
-	std::array<uint8_t, params::UNPATCHED_START + params::UNPATCHED_SOUND_MAX_NUM> soundParamToCC;
-	std::array<uint8_t, params::UNPATCHED_GLOBAL_MAX_NUM> globalParamToCC;
+	std::array<uint8_t, kMaxMIDIValue + 1> ccToSoundParam{};
+	std::array<uint8_t, kMaxMIDIValue + 1> ccToGlobalParam{};
+	std::array<uint8_t, params::UNPATCHED_START + params::UNPATCHED_SOUND_MAX_NUM> soundParamToCC{};
+	std::array<uint8_t, params::UNPATCHED_GLOBAL_MAX_NUM> globalParamToCC{};
 
-	int32_t previousKnobPos[kMaxMIDIValue + 1];
-	uint32_t timeLastCCSent[kMaxMIDIValue + 1];
-	uint32_t timeAutomationFeedbackLastSent;
+	int32_t previousKnobPos[kMaxMIDIValue + 1]{};
+	uint32_t timeLastCCSent[kMaxMIDIValue + 1]{};
+	uint32_t timeAutomationFeedbackLastSent{};
 
 	// public so it can be called from View::sendMidiFollowFeedback
 	MIDIFollowChannelType getChannelTypeForFeedback();
@@ -156,7 +156,7 @@ private:
 	void writeDisplayParamSettingToFile(Serializer& writer);
 
 	// Loading
-	bool successfullyReadDefaultsFromFile;
+	bool successfullyReadDefaultsFromFile{};
 
 	// CC Mappings
 	void readDefaultMappingsFromFile(Deserializer& reader);

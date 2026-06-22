@@ -85,5 +85,5 @@ public:
 	virtual deluge::modulation::params::Kind getParamKind() = 0;
 
 	const int32_t objectSize;
-	int32_t ticksTilNextEvent;
+	int32_t ticksTilNextEvent{};
 };

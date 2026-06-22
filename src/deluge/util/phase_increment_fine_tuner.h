@@ -27,5 +27,5 @@ public:
 	void setNoDetune();
 
 private:
-	int32_t multiplier;
+	int32_t multiplier{};
 };

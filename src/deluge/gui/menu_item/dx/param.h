@@ -50,7 +50,7 @@ public:
 	int param = 0;
 	int upper_limit = 0;
 	int32_t displayValue = 0;
-	DxPatch* patch;
+	DxPatch* patch{};
 
 	int flash_row = -1;
 	bool blink_next = false;

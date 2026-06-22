@@ -28,12 +28,12 @@ class Envelope {
 public:
 	Envelope();
 
-	uint32_t pos;
+	uint32_t pos{};
 	EnvelopeStage state; // You may not set this directly, even from this class. Call setState()
-	int32_t lastValue;
-	int32_t lastValuePreCurrentStage;
-	uint32_t timeEnteredState;
-	bool ignoredNoteOff;
+	int32_t lastValue{};
+	int32_t lastValuePreCurrentStage{};
+	uint32_t timeEnteredState{};
+	bool ignoredNoteOff{};
 	uint32_t fastReleaseIncrement{1024};
 	int32_t noteOn(bool directlyToDecay);
 	int32_t noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice);

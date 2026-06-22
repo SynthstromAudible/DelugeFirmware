@@ -92,7 +92,7 @@ private:
 	// 	// return octave * kOctaveSize + getRootNote() + getScaleNotes()[octaveNoteIndex];
 	// }
 
-	RGB noteColours[kDisplayHeight * kMaxInKeyRowInterval + kDisplayWidth];
+	RGB noteColours[kDisplayHeight * kMaxInKeyRowInterval + kDisplayWidth]{};
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

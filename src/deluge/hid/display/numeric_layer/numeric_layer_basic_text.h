@@ -29,12 +29,12 @@ public:
 	bool callBack() override;
 	void isNowOnTop() override;
 
-	uint8_t segments[kNumericDisplayLength];
-	uint8_t blinkedSegments[kNumericDisplayLength];
+	uint8_t segments[kNumericDisplayLength]{};
+	uint8_t blinkedSegments[kNumericDisplayLength]{};
 
-	bool currentlyBlanked;
+	bool currentlyBlanked{};
 
-	int8_t blinkCount;
+	int8_t blinkCount{};
 
-	int8_t blinkSpeed;
+	int8_t blinkSpeed{};
 };

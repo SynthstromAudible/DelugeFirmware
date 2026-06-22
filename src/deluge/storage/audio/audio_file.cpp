@@ -66,7 +66,7 @@ Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTab
 		struct {
 			uint32_t name;
 			uint32_t length;
-		} thisChunk;
+		} thisChunk{};
 
 		error = reader->readBytes((char*)&thisChunk, 4 * 2);
 		if (error != Error::NONE) {

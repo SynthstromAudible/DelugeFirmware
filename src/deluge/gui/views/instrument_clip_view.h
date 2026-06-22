@@ -363,9 +363,9 @@ private:
 	int32_t quantizeAmount{};
 	uint32_t timeSongButtonPressed{};
 
-	std::array<RGB, kDisplayHeight> rowColour;
-	std::array<RGB, kDisplayHeight> rowTailColour;
-	std::array<RGB, kDisplayHeight> rowBlurColour;
+	std::array<RGB, kDisplayHeight> rowColour{};
+	std::array<RGB, kDisplayHeight> rowTailColour{};
+	std::array<RGB, kDisplayHeight> rowBlurColour{};
 
 	// note functions
 	void nudgeNotes(int32_t offset);

@@ -43,7 +43,7 @@ struct MIDICableUSB;
  */
 class ConnectedUSBMIDIDevice {
 public:
-	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
+	MIDICableUSB* cable[4]{}; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
 	// Queue a pre-packed USB-MIDI event word for this device (one 4-byte event
 	// packet written to its boundary port).

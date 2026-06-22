@@ -97,22 +97,22 @@ public:
 	bool anythingInOutputBuffer();
 
 	// If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
-	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands];
+	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands]{};
 
 	bool midiThru;
-	LearnedMIDI midiFollowChannelType[kNumMIDIFollowChannelTypesIncludingTracks]; // A, B, C, Track, NONE, Track 1-16
-	MIDIFollowChannelType midiFollowFeedbackChannelType;                          // A, B, C, Track, NONE
+	LearnedMIDI midiFollowChannelType[kNumMIDIFollowChannelTypesIncludingTracks]{}; // A, B, C, Track, NONE, Track 1-16
+	MIDIFollowChannelType midiFollowFeedbackChannelType;                            // A, B, C, Track, NONE
 	uint8_t midiFollowKitRootNote;
 	bool midiFollowDisplayParam;
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation;
 	bool midiFollowFeedbackFilter;
 	MIDITakeoverMode midiTakeover;
 	bool midiSelectKitRow;
-	TaskID routine_task_id;
+	TaskID routine_task_id{};
 
 	// shared buffer for formatting sysex messages.
 	// Not safe for use in interrupts.
-	uint8_t sysex_fmt_buffer[1024];
+	uint8_t sysex_fmt_buffer[1024]{};
 
 	/// Inject a MIDI message for processing into the event stream
 	///
@@ -134,7 +134,7 @@ public:
 	void midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len);
 
 private:
-	uint8_t serialMidiInput[3];
+	uint8_t serialMidiInput[3]{};
 	uint8_t numSerialMidiInput;
 
 	bool currentlyReceivingSysExSerial;
@@ -142,9 +142,9 @@ private:
 	using EventStackStorage = std::array<MIDISource, 16>;
 	/// Storage for the stack of currently being processed MIDI events. When a new event is received, this is searched
 	/// to make sure it wasn't generated in a loop.
-	EventStackStorage eventStack_;
+	EventStackStorage eventStack_{};
 	/// Top of the event stack. If this is equal to eventStack_.begin(), the stack is empty.
-	EventStackStorage::iterator eventStackTop_;
+	EventStackStorage::iterator eventStackTop_{};
 
 	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
 };

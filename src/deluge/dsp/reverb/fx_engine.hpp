@@ -73,7 +73,7 @@ public:
 private:
 	int32_t write_ptr_ = 0;
 	std::span<float> buffer_{};
-	DualCosineOscillator lfo_; // its own ctor initializes it; {} doesn't compile here
+	DualCosineOscillator lfo_; // NOLINT(cppcoreguidelines-pro-type-member-init): own ctor inits it; {} doesn't compile
 
 	size_t mask{};
 

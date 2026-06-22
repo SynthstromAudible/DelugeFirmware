@@ -28,7 +28,7 @@ public:
 	void focusRegained() override;
 	// void selectEncoderAction(int8_t offset);
 	bool performSave(bool mayOverwrite = false) override;
-	bool collectingSamples;
+	bool collectingSamples{};
 	// ui
 	UIType getUIType() override { return UIType::SAVE_SONG; }
 

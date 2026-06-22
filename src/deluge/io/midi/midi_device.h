@@ -145,7 +145,7 @@ public:
 	// Originally done to ease integration to the midi device setting menu
 	MIDIPort ports[2];
 
-	uint8_t mpeZoneBendRanges[2][2]; // 0 means none set. It's [zone][whichBendRange].
+	uint8_t mpeZoneBendRanges[2][2]{}; // 0 means none set. It's [zone][whichBendRange].
 
 	MIDIInputChannel inputChannels[16];
 
@@ -157,7 +157,7 @@ public:
 	bool sendClock;    // whether to send clocks to this device
 	bool receiveClock; // whether to receive clocks from this device
 	bool is_relative;  // whether this device receive's relative cc's (used with midi takeover)
-	uint8_t incomingSysexBuffer[1024];
+	uint8_t incomingSysexBuffer[1024]{};
 	int32_t incomingSysexPos = 0;
 
 protected:

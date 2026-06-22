@@ -539,7 +539,7 @@ findNextStringSplitPoint:
 }
 
 void OLED::drawPermanentPopupLookingText(char const* text) {
-	TextLineBreakdown textLineBreakdown;
+	TextLineBreakdown textLineBreakdown{};
 	textLineBreakdown.maxCharsPerLine = 19;
 
 	int32_t doubleMargin = 12;
@@ -575,7 +575,7 @@ void OLED::drawPermanentPopupLookingText(char const* text) {
 
 void OLED::popupText(char const* text, bool persistent, PopupType type) {
 
-	TextLineBreakdown textLineBreakdown;
+	TextLineBreakdown textLineBreakdown{};
 	textLineBreakdown.maxCharsPerLine = 19;
 
 	int32_t doubleMargin = 12;
@@ -806,7 +806,7 @@ void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& 
 #define CONSOLE_ANIMATION_FRAME_TIME_SAMPLES (6 * 44) // 6
 
 void OLED::consoleText(char const* text) {
-	TextLineBreakdown textLineBreakdown;
+	TextLineBreakdown textLineBreakdown{};
 	textLineBreakdown.maxCharsPerLine = 19;
 
 	int32_t textPixelX = 8;

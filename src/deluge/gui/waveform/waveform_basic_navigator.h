@@ -41,10 +41,10 @@ public:
 	bool scroll(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = nullptr);
 	void potentiallyAdjustScrollPosition(bool shouldAllowExtraScrollRight = false);
 
-	Sample* sample;
+	Sample* sample{};
 
-	int64_t xZoom;
-	int64_t xScroll;
+	int64_t xZoom{};
+	int64_t xScroll{};
 
 	WaveformRenderData renderData;
 };

@@ -54,7 +54,7 @@ public:
 
 private:
 	uint8_t source_id_;
-	mutable std::string name_or_title_;
+	mutable std::string name_or_title_{};
 
 	std::string_view getNameOrTitle(l10n::String l10n) const {
 		std::string result = l10n::get(l10n);

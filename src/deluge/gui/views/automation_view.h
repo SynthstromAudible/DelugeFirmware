@@ -148,7 +148,7 @@ public:
 
 	// public so menu and editor layouts can access it
 	bool onMenuView;
-	UI* previousUI; // previous UI so you can swap back UI after exiting menu
+	UI* previousUI{}; // previous UI so you can swap back UI after exiting menu
 	int32_t getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
 	                                      int32_t knobPosRight);
@@ -165,7 +165,7 @@ public:
 
 	bool padSelectionOn;
 	bool multiPadPressActive;
-	bool middlePadPressSelected;
+	bool middlePadPressSelected{};
 	int32_t leftPadSelectedX;
 	int32_t leftPadSelectedY;
 	int32_t rightPadSelectedX;
@@ -249,7 +249,7 @@ private:
 
 	// grid sized array to assign midi cc values to each pad on the grid
 	void initMIDICCShortcutsForAutomation();
-	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
+	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight]{};
 	bool midiCCShortcutsLoaded;
 
 	bool probabilityChanged;

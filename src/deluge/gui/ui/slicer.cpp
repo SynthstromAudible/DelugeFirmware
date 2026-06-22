@@ -535,7 +535,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 					numManualSlice++;
 					display->cancelPopup();
 
-					SliceItem tmp;
+					SliceItem tmp{};
 					for (int32_t i = 0; i < (numManualSlice - 1); i++) {
 						for (int32_t j = (numManualSlice - 1); j > i; j--) {
 							if (manualSlicePoints[j].startPos < manualSlicePoints[j - 1].startPos) {

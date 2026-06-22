@@ -61,10 +61,10 @@ public:
 
 	MarkerType markerType;
 
-	int8_t blinkPhase;
+	int8_t blinkPhase{};
 
-	int8_t pressX;
-	int8_t pressY;
+	int8_t pressX{};
+	int8_t pressY{};
 
 	// ui
 	UIType getUIType() override { return UIType::SAMPLE_MARKER_EDITOR; }

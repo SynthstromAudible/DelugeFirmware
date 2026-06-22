@@ -78,13 +78,13 @@ public:
 	void deleteAllBandsAndData();
 	void bandDataBeingStolen(WaveTableBandData* bandData);
 
-	int32_t numCycles;
-	int32_t numCyclesMagnitude;
+	int32_t numCycles{};
+	int32_t numCyclesMagnitude{};
 
-	int32_t numCycleTransitionsNextPowerOf2;
-	int32_t numCycleTransitionsNextPowerOf2Magnitude;
-	int32_t waveIndexMultiplier;
-	deluge::fast_vector<WaveTableBand> bands; // Sorted ascending by maxPhaseIncrement
+	int32_t numCycleTransitionsNextPowerOf2{};
+	int32_t numCycleTransitionsNextPowerOf2Magnitude{};
+	int32_t waveIndexMultiplier{};
+	deluge::fast_vector<WaveTableBand> bands{}; // Sorted ascending by maxPhaseIncrement
 
 protected:
 	void numReasonsIncreasedFromZero() override;

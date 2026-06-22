@@ -114,7 +114,7 @@ public:
 	}
 
 private:
-	int32_t selected_x_, selected_y_;
+	int32_t selected_x_{}, selected_y_{};
 
 	struct EqualizerValues {
 		float bass{0.f};

@@ -125,7 +125,7 @@ public:
 	}
 
 	/// The nodes that make up this parameter. If empty, \ref currentValue should be used.
-	ParamNodeVector nodes;
+	ParamNodeVector nodes{};
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;

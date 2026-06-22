@@ -97,7 +97,7 @@ public:
 	}
 
 private:
-	int32_t selected_x_, selected_y_;
+	int32_t selected_x_{}, selected_y_{};
 
 	void drawTransitionIndicator(const float center_x, const float center_y, const bool is_selected) {
 		oled_canvas::Canvas& image = OLED::main;

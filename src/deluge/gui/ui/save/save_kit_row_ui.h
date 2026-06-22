@@ -44,8 +44,8 @@ public:
 	UIType getUIType() override { return UIType::SAVE_KIT_ROW; }
 
 protected:
-	SoundDrum* soundDrumToSave;
-	ParamManagerForTimeline* paramManagerToSave;
+	SoundDrum* soundDrumToSave{};
+	ParamManagerForTimeline* paramManagerToSave{};
 	// int32_t arrivedInNewFolder(int32_t direction);
 };
 

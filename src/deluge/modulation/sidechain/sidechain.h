@@ -34,8 +34,8 @@ public:
 	int32_t lastValue;
 	int32_t pendingHitStrength;
 
-	int32_t envelopeOffset;
-	int32_t envelopeHeight;
+	int32_t envelopeOffset{};
+	int32_t envelopeHeight{};
 
 	int32_t attack;
 	int32_t release;

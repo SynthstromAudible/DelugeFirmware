@@ -57,10 +57,10 @@ public:
 	FileReader(char* memBuffer, uint32_t bufLen);
 	virtual ~FileReader();
 
-	FIL readFIL;
+	FIL readFIL{};
 	char* fileClusterBuffer;
-	UINT currentReadBufferEndPos;
-	int32_t fileReadBufferCurrentPos;
+	UINT currentReadBufferEndPos{};
+	int32_t fileReadBufferCurrentPos{};
 
 	FRESULT closeWriter();
 
@@ -77,14 +77,14 @@ protected:
 	void readDone();
 
 	bool memoryBased = false;
-	int32_t readCount; // Used for multitask interleaving.
-	bool reachedBufferEnd;
+	int32_t readCount{}; // Used for multitask interleaving.
+	bool reachedBufferEnd{};
 	void resetReader();
 };
 
 class FileWriter {
 public:
-	FIL writeFIL;
+	FIL writeFIL{};
 	FileWriter();
 	FileWriter(bool inMem);
 
@@ -109,12 +109,12 @@ protected:
 	Error writeBufferToFile();
 	bool memoryBased = false;
 	bool callRoutines = true;
-	uint8_t indentAmount;
+	uint8_t indentAmount{};
 	char* writeClusterBuffer;
 	uint32_t bufferSize;
-	int32_t fileWriteBufferCurrentPos;
-	int32_t fileTotalBytesWritten;
-	bool fileAccessFailedDuringWrite;
+	int32_t fileWriteBufferCurrentPos{};
+	int32_t fileTotalBytesWritten{};
+	bool fileAccessFailedDuringWrite{};
 };
 
 class Serializer {
@@ -180,7 +180,7 @@ public:
 	void reset() override;
 
 private:
-	uint8_t indentAmount;
+	uint8_t indentAmount{};
 };
 
 class Deserializer {
@@ -238,14 +238,14 @@ public:
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) override;
 
 private:
-	char charAtEndOfValue;
-	uint8_t xmlArea; // state variable for tokenizer
+	char charAtEndOfValue{};
+	uint8_t xmlArea{}; // state variable for tokenizer
 
-	int32_t tagDepthCaller; // How deeply indented in XML the main Deluge classes think we are, as data being read.
-	int32_t tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way
-	                      // to finding next useful data.
+	int32_t tagDepthCaller{}; // How deeply indented in XML the main Deluge classes think we are, as data being read.
+	int32_t tagDepthFile{};   // Will temporarily be different to the above as unwanted / unused XML tags parsed on the
+	                          // way to finding next useful data.
 
-	char stringBuffer[kFilenameBufferSize];
+	char stringBuffer[kFilenameBufferSize]{};
 
 	void skipUntilChar(char endChar);
 
@@ -290,7 +290,7 @@ public:
 	// Begin Json-only API
 
 private:
-	uint8_t indentAmount;
+	uint8_t indentAmount{};
 	bool firstItemHasBeenWritten = false;
 };
 
@@ -325,13 +325,13 @@ public:
 
 private:
 	uint8_t replySeqNum = 0;
-	int32_t objectDepth;
-	int32_t arrayDepth;
+	int32_t objectDepth{};
+	int32_t arrayDepth{};
 
 	enum JsonState { NewFile, KeyRead, ValueRead, ReadError };
 	JsonState readState = NewFile;
 
-	char stringBuffer[kFilenameBufferSize];
+	char stringBuffer[kFilenameBufferSize]{};
 
 	void skipUntilChar(char endChar);
 	char unescape(char inchar);

@@ -96,12 +96,12 @@ public:
 	bool wantsToDoTempolessRecord(int32_t newPos) override;
 
 	uint8_t lastSectionArmed; // 255 means none. 254 means the action was switch-off-all-sections
-	uint32_t timeLastSectionPlayed;
+	uint32_t timeLastSectionPlayed{};
 
-	int64_t launchEventAtSwungTickCount;
-	int16_t numRepeatsTilLaunch;
-	int32_t currentArmedLaunchLengthForOneRepeat;
-	bool switchToArrangementAtLaunchEvent;
+	int64_t launchEventAtSwungTickCount{};
+	int16_t numRepeatsTilLaunch{};
+	int32_t currentArmedLaunchLengthForOneRepeat{};
+	bool switchToArrangementAtLaunchEvent{};
 
 private:
 	bool giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clipIndex, int32_t buttonPressLatency);

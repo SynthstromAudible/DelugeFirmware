@@ -10,8 +10,8 @@ const uint32_t MAX_PATH_NAME_LEN = 255;
 
 // Helper structure for file operation parameters
 struct FileOpParams {
-	std::string fromName;
-	std::string toName;
+	std::string fromName{};
+	std::string toName{};
 	uint32_t date = 0;
 	uint32_t time = 0;
 
