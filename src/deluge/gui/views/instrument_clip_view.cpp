@@ -4914,10 +4914,12 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 	}
 
 	if (shouldRedrawStuff) {
-		// make sure we're dealing with the same clip that this kit is a part of
+		// make sure the clip we're displaying actually belongs to this kit
 		// if you selected a clip and then sent a midi note to a kit that is part of a different clip, well
-		// we don't need to do anything here because we're in a different clip
-		if (clip == kit->getActiveClip()) {
+		// we don't need to do anything here because we're in a different clip.
+		// Note: don't gate on the kit's *active* clip - when editing a clip that isn't the one currently
+		// playing, the displayed clip still needs its sidebar redrawn so stale audition squares clear (#2897).
+		if (clip->output == kit) {
 			// let's make sure that that the output type for that clip is a kit
 			//(if for some strange reason you changed the drum selection for a hibernated instrument...)
 			if (clip->output->type == OutputType::KIT) {
