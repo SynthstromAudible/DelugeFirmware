@@ -291,13 +291,23 @@ async fn app_task() {
     // The scheduler's task runners own the periodic app work. This task now pumps
     // the worker fiber ([`fiber`]): it drives the long user-initiated operations
     // (song load, stem export, grid clip create) that `yield()` instead of
-    // busy-waiting. Each tick starts/resumes a ready operation; between ticks the
+    // busy-waiting. Each pass starts/resumes a ready operation; between passes the
     // executor runs every other task + I/O, so the awaited work makes progress
     // (this is what lets song-load-while-playing complete instead of hanging on a
-    // frozen executor). ~1 ms cadence — imperceptible for these ops.
-    let mut ticker = embassy_time::Ticker::every(embassy_time::Duration::from_millis(1));
+    // frozen executor).
+    //
+    // Wake-driven: sleep on WORKER_WAKE rather than polling on a fixed tick. While
+    // an op is suspended a coarse fallback timer also re-checks (covers predicate
+    // flips that aren't signalled — most are, via deluge_worker_run, the task
+    // runners, and the SD waker); when idle we sleep until an op is submitted.
+    use embassy_futures::select::select;
     loop {
-        fiber::worker_poll();
-        ticker.next().await;
+        let busy = fiber::worker_poll();
+        if busy {
+            let _ = select(fiber::WORKER_WAKE.wait(), embassy_time::Timer::after_millis(8)).await;
+        }
+        else {
+            fiber::WORKER_WAKE.wait().await;
+        }
     }
 }

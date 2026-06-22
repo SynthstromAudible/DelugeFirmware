@@ -395,6 +395,11 @@ async fn task_runner(slot: &'static TaskSlot) {
         };
         slot.record(run_us);
 
+        // This task just made progress; if a worker-fiber op is suspended on a
+        // predicate that depends on it (cluster drain, button release, playback
+        // stop, ...), wake the pump to re-check. No-op when the worker is idle.
+        crate::fiber::wake_if_busy();
+
         if slot.once.load(Ordering::Relaxed) {
             break;
         }

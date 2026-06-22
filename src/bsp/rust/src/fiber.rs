@@ -18,7 +18,13 @@
 #![allow(dead_code)] // the driver that calls start/resume/yield lands in the next step
 
 use core::ffi::c_void;
+use core::future::Future;
+use core::pin::pin;
 use core::sync::atomic::{AtomicBool, Ordering};
+use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
+
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::signal::Signal;
 
 /// Saved callee-saved register context for a cooperative switch. A cooperative
 /// switch happens at a function-call boundary, so only callee-saved state must be
@@ -184,6 +190,26 @@ static mut Q_COUNT: usize = 0;
 /// An operation is on the fiber (running or suspended) — distinct from idle.
 static FIBER_BUSY: AtomicBool = AtomicBool::new(false);
 
+/// Wakes the worker pump (`app_task`). Raised when an op is submitted, when a task
+/// runner makes progress while an op is suspended (so its predicate is re-checked),
+/// and by the [`block_on_fiber`] waker when an awaited future (e.g. an SD transfer)
+/// completes. Lets `app_task` sleep instead of polling on a fixed tick.
+pub static WORKER_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+
+/// Wake the worker unconditionally (e.g. a new op was submitted).
+pub fn wake() {
+    WORKER_WAKE.signal(());
+}
+
+/// Wake the worker only if an op is currently on the fiber — i.e. something might
+/// be waiting on the progress the caller just made. Called by task runners after
+/// running a handle; a no-op (no spurious wake) when the worker is idle.
+pub fn wake_if_busy() {
+    if FIBER_BUSY.load(Ordering::Relaxed) {
+        WORKER_WAKE.signal(());
+    }
+}
+
 /// What the suspended op is waiting on. `WAIT_PRED` is a `RunCondition` as a usize
 /// (0 = no predicate => ready next poll). `WAIT_MET` is handed back to `yield_until`
 /// on resume (predicate met vs. timed out).
@@ -208,6 +234,8 @@ pub extern "C" fn deluge_worker_run(f: extern "C" fn(*mut c_void), ctx: *mut c_v
         }
         // else: queue full (should not happen for user actions) — drop.
     }
+    // Wake the pump so the op starts promptly (it may be idle-asleep).
+    wake();
 }
 
 fn dequeue() -> Option<Job> {
@@ -278,6 +306,48 @@ pub fn yield_until(until: RunCondition, timeout_us: Option<u64>) -> bool {
     }
     yield_now(); // switch to the worker; returns here when poll resumes us
     unsafe { core::ptr::addr_of!(WAIT_MET).read() }
+}
+
+// A Waker whose wake raises WORKER_WAKE. Used by `block_on_fiber` so an awaited
+// future's completion (e.g. the SD-transfer IRQ) wakes the pump, which re-polls
+// the suspended fiber. Data-less: all state is the global signal + a static vtable.
+static WORKER_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
+    |_| RawWaker::new(core::ptr::null(), &WORKER_WAKER_VTABLE), // clone
+    |_| WORKER_WAKE.signal(()),                                 // wake
+    |_| WORKER_WAKE.signal(()),                                 // wake_by_ref
+    |_| {},                                                     // drop
+);
+
+fn worker_waker() -> Waker {
+    // SAFETY: the vtable is 'static and its fns only touch the 'static WORKER_WAKE.
+    unsafe { Waker::from_raw(RawWaker::new(core::ptr::null(), &WORKER_WAKER_VTABLE)) }
+}
+
+/// Drive `fut` to completion on the worker fiber WITHOUT parking the executor:
+/// poll it, and on `Pending` suspend the fiber (`yield_now`) so the executor runs
+/// everything else; `worker_poll` resumes us — promptly when the future's waker
+/// fires WORKER_WAKE (its completion IRQ), or on the pump's coarse fallback. The
+/// fiber-aware analogue of `embassy_futures::block_on`, for I/O reached from a
+/// worker op (SD transfers, `Timer` delays). Only valid while [`on_fiber`].
+pub fn block_on_fiber<F: Future>(fut: F) -> F::Output {
+    let mut fut = pin!(fut);
+    let waker = worker_waker();
+    let mut cx = Context::from_waker(&waker);
+    loop {
+        match fut.as_mut().poll(&mut cx) {
+            Poll::Ready(v) => return v,
+            Poll::Pending => {
+                // No predicate: worker_poll resumes us on the next wake, and we
+                // re-poll (the future re-checks its own readiness).
+                // SAFETY: on the fiber; written here, read by worker_poll.
+                unsafe {
+                    core::ptr::addr_of_mut!(WAIT_PRED).write(0);
+                    core::ptr::addr_of_mut!(WAIT_DEADLINE_US).write(0);
+                }
+                yield_now();
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

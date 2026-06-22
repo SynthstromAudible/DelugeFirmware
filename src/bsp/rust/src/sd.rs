@@ -156,6 +156,20 @@ pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) ->
     }
 }
 
+/// Drive an SD transfer future to completion. On the worker fiber (e.g. a song
+/// load), suspend the fiber while the transfer runs so the executor keeps UI/MIDI
+/// alive — it resumes the instant the SD-completion IRQ fires (its waker raises
+/// WORKER_WAKE). Off the fiber (e.g. the cluster-loader task), `block_on` parks the
+/// executor for the (short, DMA) transfer.
+fn drive<F: core::future::Future>(fut: F) -> F::Output {
+    if crate::fiber::on_fiber() {
+        crate::fiber::block_on_fiber(fut)
+    }
+    else {
+        block_on(fut)
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn disk_read_without_streaming_first(
     pdrv: u8,
@@ -169,7 +183,7 @@ pub extern "C" fn disk_read_without_streaming_first(
     let len = count as usize * SECTOR_SIZE;
     // SAFETY: FatFS guarantees `buff` holds `count` sectors.
     let dst = unsafe { core::slice::from_raw_parts_mut(buff, len) };
-    match block_on(sd::read_sectors(sector, count, dst)) {
+    match drive(sd::read_sectors(sector, count, dst)) {
         Ok(()) => RES_OK,
         Err(_) => RES_ERROR,
     }
@@ -191,7 +205,7 @@ pub extern "C" fn disk_write_without_streaming_first(
     let len = count as usize * SECTOR_SIZE;
     // SAFETY: FatFS guarantees `buff` holds `count` sectors.
     let src = unsafe { core::slice::from_raw_parts(buff, len) };
-    match block_on(sd::write_sectors(sector, count, src)) {
+    match drive(sd::write_sectors(sector, count, src)) {
         Ok(()) => RES_OK,
         Err(e) => {
             // Surface the precise SdError (the C++ side only logs a generic "SD card
