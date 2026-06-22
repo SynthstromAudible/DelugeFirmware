@@ -61,6 +61,9 @@ mod boot_mem;
 /// scheduler.h / OSLikeStuff scheduler_api.h — the cooperative task scheduler,
 /// implemented on the Embassy executor (one task per registered Deluge task).
 mod scheduler;
+/// The worker fiber: a stackful coroutine for the long synchronous C++ operations
+/// that pause via `yield()` (Phase 6). This module is the context-switch primitive.
+mod fiber;
 
 unsafe extern "C" {
     /// One-time C++ application bring-up (deluge.cpp / app.h). On this BSP it also
@@ -189,6 +192,10 @@ pub extern "C" fn main() -> ! {
         rza1l_hal::gic::enable(AUDIO_SGI as u16);
     }
 
+    // Verify the worker-fiber context switch in isolation before it drives real
+    // operations (Phase 6 bring-up). Pure + synchronous; logs PASS/FAIL over RTT.
+    fiber::selftest();
+
     // Unmask IRQs so the time driver and peripheral ISRs fire.
     unsafe { cortex_ar::interrupt::enable() };
 
@@ -266,8 +273,18 @@ async fn app_task() {
     // executor via scheduler::set_spawner's stashed spawner. They begin running as
     // soon as we yield below.
     unsafe { deluge_app_init(board::deluge_board()) };
-    log::info!("deluge-rust: scheduler running; app_task idle");
+    log::info!("deluge-rust: scheduler running; pumping async worker");
 
-    // The scheduler's task runners now own the app. Nothing more to do here.
-    core::future::pending::<()>().await;
+    // The scheduler's task runners own the periodic app work. This task now pumps
+    // the worker fiber ([`fiber`]): it drives the long user-initiated operations
+    // (song load, stem export, grid clip create) that `yield()` instead of
+    // busy-waiting. Each tick starts/resumes a ready operation; between ticks the
+    // executor runs every other task + I/O, so the awaited work makes progress
+    // (this is what lets song-load-while-playing complete instead of hanging on a
+    // frozen executor). ~1 ms cadence — imperceptible for these ops.
+    let mut ticker = embassy_time::Ticker::every(embassy_time::Duration::from_millis(1));
+    loop {
+        fiber::worker_poll();
+        ticker.next().await;
+    }
 }

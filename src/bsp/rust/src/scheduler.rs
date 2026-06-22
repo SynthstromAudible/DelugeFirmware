@@ -601,18 +601,32 @@ fn spin_until(until: RunCondition, timeout_us: Option<u64>) -> bool {
 
 #[unsafe(export_name = "yield")]
 pub extern "C" fn r#yield(until: RunCondition) {
-    spin_until(until, None);
+    // On the worker fiber, suspend cooperatively (the executor runs everything else
+    // until `until` holds). Off the fiber (legacy C-HAL storage waits), busy-wait.
+    if crate::fiber::on_fiber() {
+        crate::fiber::yield_until(until, None);
+    } else {
+        spin_until(until, None);
+    }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn yieldWithTimeout(until: RunCondition, timeout: f64) -> bool {
-    spin_until(until, Some(secs_to_us(timeout)))
+    if crate::fiber::on_fiber() {
+        crate::fiber::yield_until(until, Some(secs_to_us(timeout)))
+    } else {
+        spin_until(until, Some(secs_to_us(timeout)))
+    }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn yieldToIdle(until: RunCondition) -> bool {
-    // On a busy-wait there is no "scheduler idle" early-out; behaves as yield().
-    spin_until(until, None)
+    if crate::fiber::on_fiber() {
+        crate::fiber::yield_until(until, None)
+    } else {
+        // Off the fiber there is no "scheduler idle" early-out; behaves as yield().
+        spin_until(until, None)
+    }
 }
 
 #[unsafe(no_mangle)]
