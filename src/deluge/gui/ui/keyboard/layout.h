@@ -76,6 +76,10 @@ public:
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
 	virtual RequiredScaleMode requiredScaleMode() { return RequiredScaleMode::Undefined; }
+	/// Whether this layout can operate with the given scale. Layouts that only support certain scales
+	/// (e.g. the chord keyboard) override this so the scale-mode sidebar can avoid selecting a scale
+	/// the layout can't handle.
+	virtual bool supportsScale(Scale scale) { return true; }
 
 	virtual NotesState& getNotesState() { return currentNotesState; }
 
