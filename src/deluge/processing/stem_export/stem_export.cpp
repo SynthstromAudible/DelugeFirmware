@@ -213,6 +213,12 @@ void StemExport::renderWait(RunCondition until) {
 	if (renderOffline) {
 		while (!until()) {
 			AudioEngine::routine();
+			// Pump the cluster loader HERE, between audio routines, where audioRoutineLocked is
+			// false — loadAnyEnqueuedClusters() bails immediately while it's set, and the offline
+			// AudioEngine::routine() holds it for its whole body, so the in-routine pump (and any
+			// async prefetch) would otherwise never load anything (the headless-render streaming
+			// starvation). On-device the scheduler runs this between audio routines for the same reason.
+			audioFileManager.loadAnyEnqueuedClusters(128, false);
 			AudioEngine::slowRoutine();
 			audioRecorder.slowRoutine();
 		}

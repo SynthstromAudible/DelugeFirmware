@@ -1338,7 +1338,19 @@ performActionsAndGetOut:
 		}
 
 		allowSomeUserActionsEvenWhenInCardRoutine = true; // Sorry!!
-		bool success = loadCluster(*cluster);
+		bool success;
+		if (cluster->type == Cluster::Type::SAMPLE && cluster->sample != nullptr
+		    && cluster->sample->resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+			// Manager-owned cluster: it's already constructed + leased (via request), so just do the
+			// read directly. NOT loadCluster — its addReason/removeReason would desync the manager
+			// lease, and its `audioRoutineLocked` guard would refuse to load during the offline render
+			// (the headless-render streaming starvation we're fixing). The lease persists; the read
+			// just flips loaded=true (or fails, handled below as for legacy).
+			success = readClusterData(*cluster, 0);
+		}
+		else {
+			success = loadCluster(*cluster);
+		}
 		allowSomeUserActionsEvenWhenInCardRoutine = false;
 
 		// If that didn't work, presumably because the SD card got ejected...

@@ -87,17 +87,37 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 	}
 
 	if (asset != DELUGE_RESOURCE_NO_ASSET) {
-		// Manager-owned read streaming: deluge_resource_acquire materializes the cluster on a
-		// miss (placement-new + readClusterData, via the Source), or just leases it on a hit
-		// (pointer stable). ENQUEUE collapses to a synchronous load here — prefetch returns
-		// through the manager in Step 3, so priorityRating is unused for now. The manager owns
-		// residency + eviction for these clusters; numReasonsToBeLoaded is a lease mirror.
-		bool wasResident = (cluster != nullptr); // non-null <=> manager-resident (on_evict nulls it)
+		// Manager-owned read streaming. The manager owns residency + eviction for these clusters;
+		// numReasonsToBeLoaded is a lease mirror (++ on a cache hit; a miss sets it to 1 in
+		// construct/materialize). non-null `cluster` <=> manager-resident (on_evict nulls it).
 		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		bool wasResident = (cluster != nullptr);
+
+		if (loadInstruction == CLUSTER_ENQUEUE) {
+			// Async prefetch: construct + lease now (NO I/O), then schedule the read on the loader
+			// (the existing loadingQueue, pumped off the audio thread) so the audio thread never
+			// blocks on SD. Returns the cluster (loaded==false until the loader reads it).
+			void* p = deluge_resource_request(mgr, asset, clusterIndex, sizeof(Cluster) + Cluster::size);
+			if (p == nullptr) {
+				if (error != nullptr) {
+					*error = sample->unloadable ? Error::FILE_NOT_FOUND : Error::INSUFFICIENT_RAM;
+				}
+				return nullptr;
+			}
+			cluster = reinterpret_cast<Cluster*>(p);
+			if (wasResident) {
+				cluster->numReasonsToBeLoaded++;
+			}
+			if (!cluster->loaded) {
+				audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating);
+			}
+			return cluster;
+		}
+
+		// CLUSTER_LOAD_IMMEDIATELY / _OR_ENQUEUE: must have it loaded now → acquire (full
+		// materialize on a miss; this may block on I/O, which is the must-load-now contract).
 		void* p = deluge_resource_acquire(mgr, asset, clusterIndex, sizeof(Cluster) + Cluster::size);
 		if (p == nullptr) {
-			// Not resident and materialize failed (source vanished) or OOM. On a materialize
-			// failure clusterMaterialize leaves clusters[i].cluster null, so `cluster` is null.
 			if (error != nullptr) {
 				*error = sample->unloadable ? Error::FILE_NOT_FOUND : Error::UNSPECIFIED;
 			}
@@ -105,7 +125,23 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		}
 		cluster = reinterpret_cast<Cluster*>(p);
 		if (wasResident) {
-			cluster->numReasonsToBeLoaded++; // hit: mirror the extra lease (a miss set it to 1 in materialize)
+			cluster->numReasonsToBeLoaded++;
+		}
+		// Hit on a cluster that was prefetch-constructed but not yet read → read it now.
+		if (!cluster->loaded) {
+			bool ok = audioFileManager.readClusterData(*cluster, 0);
+			audioFileManager.loadingQueue.erase(cluster); // it no longer needs the loader
+			if (!ok) {
+				if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE) {
+					audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating); // fall back to async
+				}
+				else {
+					if (error != nullptr) {
+						*error = Error::UNSPECIFIED;
+					}
+					return nullptr; // must-load-now failed; cluster stays resident+leased, caller may retry
+				}
+			}
 		}
 		return cluster;
 	}

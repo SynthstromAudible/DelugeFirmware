@@ -134,11 +134,29 @@ static bool clusterMaterialize(void* /*ctx*/, void* owner, uint32_t index, void*
 	return ok;
 }
 
+// Async construct (the manager's `request`/prefetch path): init the Cluster object but do
+// NOT read the data — an external loader (loadAnyEnqueuedClusters → readClusterData) fills it
+// later, so the audio thread never blocks on I/O. Mirror of clusterMaterialize minus the read;
+// the Sample's pointer is set immediately so the requester holds a valid (loaded==false) Cluster.
+static void clusterConstruct(void* /*ctx*/, void* owner, uint32_t index, void* dest) {
+	auto* sample = static_cast<Sample*>(owner);
+	auto* cluster = new (dest) Cluster();
+	cluster->type = Cluster::Type::SAMPLE;
+	cluster->sample = sample;
+	cluster->clusterIndex = index;
+	cluster->numReasonsToBeLoaded = 1; // mirror the lease `request` took
+	// cluster->loaded stays false — the loader reads it.
+	sample->clusters[index].cluster = cluster;
+}
+
 static void clusterEvict(void* /*ctx*/, void* owner, uint32_t index) {
 	auto* sample = static_cast<Sample*>(owner);
 	Cluster* cluster = sample->clusters[index].cluster;
 	sample->clusters[index].cluster = nullptr;
 	if (cluster != nullptr) {
+		// A constructed-but-not-yet-loaded chunk may still be in the loader queue — drop it so
+		// the queue can't dangle onto freed memory.
+		audioFileManager.loadingQueue.erase(cluster);
 		cluster->numReasonsToBeLoaded = 0; // manager owns eviction; clear the mirror for a clean ~Cluster
 		cluster->~Cluster();               // manager frees the slab slot
 	}
@@ -157,6 +175,10 @@ uint32_t Sample::ensureResourceAsset() {
 	}
 	resourceAssetId = deluge_resource_define_asset(mgr, this, clusterMaterialize, clusterEvict, nullptr,
 	                                               DELUGE_RESOURCE_COST_IO, DELUGE_RESOURCE_BACKING_SLAB);
+	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+		// Attach the async-prefetch path so CLUSTER_ENQUEUE can request (construct now, load later).
+		deluge_resource_set_construct(mgr, resourceAssetId, clusterConstruct);
+	}
 	return resourceAssetId; // may be NO_ASSET if the table is full -> caller keeps the legacy path
 }
 
