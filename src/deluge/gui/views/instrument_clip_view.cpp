@@ -5266,8 +5266,12 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 	                                                  // "silent" audition, so pad lights up etc.
 
 	if (noteRowOnActiveClip != nullptr) {
-		// Ensure our auditioning doesn't override a note playing in the sequence
-		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->sequenced) {
+		// Ensure our auditioning doesn't override a note playing in the sequence. As well as a note that is currently
+		// "on" in the sequence, this also covers a row whose audio is still ringing out after its note ended - e.g. a
+		// long "cut" mode sample in a kit row whose clip is longer than the sample. Sounding an audition note in that
+		// window would cut the still-playing voice (issue #3448), so audition silently instead.
+		bool ringingOutFromSequence = drum != nullptr && !noteRowOnActiveClip->hasNoNotes() && drum->hasActiveVoices();
+		if (playbackHandler.isEitherClockActive() && (noteRowOnActiveClip->sequenced || ringingOutFromSequence)) {
 			doSilentAudition = true;
 		}
 	}
@@ -5280,7 +5284,9 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 		doSilentAudition = true;
 	}
 	else {
-		if (!auditioningSilently) {
+		// Don't sound the audition note if we've decided to audition silently - otherwise it would override / cut a
+		// note the sequence is currently making sound for this row.
+		if (!auditioningSilently && !doSilentAudition) {
 			fileBrowserShouldNotPreview = false;
 
 			sendAuditionNote(true, yDisplay, velocityToSound, 0);
