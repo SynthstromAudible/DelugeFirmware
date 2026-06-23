@@ -168,8 +168,27 @@ void LoadSongUI::enterKeyPress() {
 	}
 
 	else {
+		// Load-guard: don't let an accidental load (e.g. a double-LOAD) wipe unsaved work. A first LOAD
+		// over an unsaved song just arms and warns; you press LOAD again to actually load. Covers a
+		// never-saved jam and an edited existing song (same dirty flag). Navigating away or BACK resets
+		// the arm (see currentFileChanged/exitAction), and it never forces a save: a second LOAD just
+		// discards the unwanted song. performLoad stays on its normal lifecycle below.
+		if (songNeedsRecoverySave && !confirmedLoadOverUnsaved) {
+			confirmedLoadOverUnsaved = true;
+			display->displayPopup("Unsaved - press LOAD again to load over");
+			return;
+		}
+		confirmedLoadOverUnsaved = false;
+
 		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
 		performLoad();           // May fail
+
+		// Loading a different song abandons the previous song's unsaved work, by the user's choice, so
+		// clear the recovery file. This keeps "RECOVER exists if and only if there's unsaved work" true
+		// on load-away (without it you'd get re-recovered every boot). The new song re-creates RECOVER
+		// once it's edited.
+		StorageManager::clearRecoveryFile();
+
 		if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
 			runtimeFeatureSettings.writeSettingsToFile();
 		}
@@ -751,6 +770,9 @@ ignoring the file extension.
 
 void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 
+	// Selection moved, so re-confirm a load-over-unsaved (can't load the wrong song on a stale arm).
+	confirmedLoadOverUnsaved = false;
+
 	if (movementDirection && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
 		favouritesVisible = false;
@@ -860,6 +882,8 @@ ActionResult LoadSongUI::verticalEncoderAction(int32_t offset, bool inCardRoutin
 }
 
 void LoadSongUI::exitAction() {
+
+	confirmedLoadOverUnsaved = false; // leaving the load browser cancels any armed load-over
 
 	// If parts of the old song have been deleted, sorry, there's no way we can exit without loading a new song
 	if (deletedPartsOfOldSong) {

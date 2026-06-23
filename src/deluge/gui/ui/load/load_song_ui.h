@@ -55,6 +55,9 @@ private:
 	bool performingLoad;
 	bool scrollingIntoSlot;
 	bool qwertyCurrentlyDrawnOnscreen;
+	// Load-guard: armed by a first LOAD over unsaved work; a second LOAD confirms. Reset on
+	// navigation/exit so a stale arm can't load the wrong song. (See enterKeyPress.)
+	bool confirmedLoadOverUnsaved = false;
 	void doQueueLoadNextSongIfAvailable(int8_t offset);
 	// int32_t findNextFile(int32_t offset);
 	void exitThisUI();

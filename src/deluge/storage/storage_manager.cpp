@@ -70,6 +70,10 @@ FileDeserializer* activeDeserializer = &smDeserializer;
 
 const bool writeJsonFlag = false;
 
+// Autosave/recovery dirty flag (see storage_manager.h). Set on a structural change, consumed by the
+// card-safe autosave task in registerTasks().
+bool songNeedsRecoverySave = false;
+
 Serializer& GetSerializer() {
 	if (writeJsonFlag) {
 		return smJsonSerializer;
@@ -218,6 +222,42 @@ bool StorageManager::fileExists(char const* pathName) {
 
 	FRESULT result = f_stat(pathName, &staticFNO);
 	return (result == FR_OK);
+}
+
+// Reserved recovery paths. Kept out of SONGS/ on purpose: the song browser only scans SONGS/, so these
+// never show up in the song list and can't collide with a song someone actually named "Recovery".
+char const* const kRecoveryFinalPath = "SYSTEM/RECOVER.XML";
+char const* const kRecoveryTempPath = "SYSTEM/RECOVER.TMP";
+
+// Autosave: write the current song to SYSTEM/RECOVER.XML via a temp file + atomic rename, so a power
+// loss mid-write can't corrupt the recovery copy. Same write/verify sequence as a normal save, but no
+// UI and no named-save side effects. The caller has to make sure the card is free first.
+Error StorageManager::writeRecoveryFile() {
+	if (currentSong == nullptr) {
+		return Error::NONE;
+	}
+	Error error = createXMLFile(kRecoveryTempPath, smSerializer, true, false); // mayOverwrite, no error popups
+	if (error != Error::NONE) {
+		return error;
+	}
+	currentSong->writeToFile();
+	error = GetSerializer().closeFileAfterWriting(kRecoveryTempPath,
+	                                              "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
+	if (error != Error::NONE) {
+		return error;
+	}
+	f_unlink(kRecoveryFinalPath);                    // harmless if it doesn't exist yet
+	f_rename(kRecoveryTempPath, kRecoveryFinalPath); // atomic swap into place
+	return Error::NONE;
+}
+
+// Clear the recovery file and the dirty flag. Called after a manual Save (work is safe now) and on
+// load-away. This is the invariant that makes presence-at-boot mean "unsaved work was lost": RECOVER
+// exists if and only if there is unsaved work. Save is the "work is safe" event that clears it.
+void StorageManager::clearRecoveryFile() {
+	songNeedsRecoverySave = false; // so the autosave task won't immediately re-create it
+	f_unlink(kRecoveryFinalPath);  // harmless if it doesn't exist
+	f_unlink(kRecoveryTempPath);
 }
 
 // Lets you get the FilePointer for the file.

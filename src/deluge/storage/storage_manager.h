@@ -356,9 +356,19 @@ extern JsonDeserializer smJsonDeserializer;
 extern Serializer& GetSerializer();
 extern FileDeserializer* activeDeserializer;
 
+// Autosave/recovery: a structural change sets this; a low-priority card-safe task writes the recovery
+// file when transport is stopped and the card is free. See writeRecoveryFile().
+extern bool songNeedsRecoverySave;
+
 namespace StorageManager {
 
 std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
+// Serialize the current song to SYSTEM/RECOVER.XML (temp + atomic rename). UI-free; does not touch the
+// user's named-save state. Caller must ensure the card is free (not currentlyAccessingCard).
+Error writeRecoveryFile();
+// Delete the recovery file + clear the dirty flag. Call after a manual Save / on load-away. This is what
+// makes "RECOVER exists if and only if there is unsaved work" hold without a clean-shutdown signal.
+void clearRecoveryFile();
 Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false, bool displayErrors = true);
 Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverwrite = false,
                      bool displayErrors = true);
