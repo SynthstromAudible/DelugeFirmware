@@ -40,6 +40,12 @@ pub type MaterializeFn = unsafe extern "C" fn(
 /// evicted — it must drop any cached pointer (the `Stealable::steal()` analogue).
 pub type EvictFn = unsafe extern "C" fn(ctx: *mut c_void, owner: *mut c_void, index: u32);
 
+/// Initialize a chunk's backing *without* doing the (slow) I/O to fill it — the
+/// async counterpart to `materialize`, used by `request` (prefetch). For a sample
+/// cluster: placement-new the `Cluster` object and set its fields, leaving the data
+/// to be read later by an external loader. Cannot fail (no I/O).
+pub type ConstructFn = unsafe extern "C" fn(ctx: *mut c_void, owner: *mut c_void, index: u32, dest: *mut u8);
+
 /// Where a chunk's backing comes from — uniform clusters use the slab, variable
 /// assets use the heap directly. Plain `u32` to cross the C ABI (no C enum).
 pub const BACKING_HEAP: u32 = 0;
@@ -49,6 +55,10 @@ pub const BACKING_SLAB: u32 = 1;
 pub struct Source {
     pub materialize: Option<MaterializeFn>,
     pub on_evict: Option<EvictFn>,
+    /// Optional async path: init a chunk without I/O (for `request`/prefetch). Set via
+    /// `deluge_resource_set_construct` after `define_asset`; None ⇒ the asset isn't
+    /// requestable (only `acquire`, which materializes synchronously).
+    pub construct: Option<ConstructFn>,
     pub ctx: *mut c_void,
     pub cost: u32,
     pub backing: u32, // BACKING_HEAP | BACKING_SLAB
@@ -68,6 +78,7 @@ impl AssetSlot {
         source: Source {
             materialize: None,
             on_evict: None,
+            construct: None,
             ctx: ptr::null_mut(),
             cost: 0,
             backing: BACKING_HEAP,
@@ -268,6 +279,67 @@ impl Manager {
             s.recency = self.bump();
             self.chunks[c].set(s);
         }
+    }
+
+    /// Reserve + construct (but do NOT load) chunk `index` of `asset` under a hard
+    /// lease: allocate backing and run the `construct` callback (init the object, no
+    /// I/O), leaving the data for an external loader to fill. The async counterpart to
+    /// `acquire` — for prefetch, so the audio thread never blocks on I/O. A cache hit
+    /// just leases (like `acquire`). Returns the backing pointer, or null on OOM, a
+    /// full table with nothing evictable, or no `construct` callback on the asset.
+    fn request(&self, asset: u32, index: u32, size: usize) -> *mut u8 {
+        let ai = asset as usize;
+        if ai >= self.assets.len() || !self.assets[ai].get().in_use {
+            return ptr::null_mut();
+        }
+        if self.assets[ai].get().source.construct.is_none() {
+            return ptr::null_mut(); // not a requestable asset
+        }
+        // Cache hit (already resident — constructed, maybe also loaded): just lease.
+        if let Some(c) = self.find_resident(asset, index) {
+            let mut s = self.chunks[c].get();
+            s.leases += 1;
+            s.recency = self.bump();
+            self.chunks[c].set(s);
+            return s.backing;
+        }
+        let idx = match self.find_free_chunk() {
+            Some(i) => i,
+            None => {
+                if !self.evict_lowest() {
+                    return ptr::null_mut();
+                }
+                self.find_free_chunk().expect("slot freed by eviction")
+            }
+        };
+        let p = self.alloc_backing(size, asset);
+        if p.is_null() {
+            return ptr::null_mut();
+        }
+        // Lease before constructing (mirrors acquire: a reentrant eviction can't steal it).
+        self.chunks[idx].set(ChunkSlot {
+            backing: p,
+            asset,
+            index,
+            leases: 1,
+            dirty: false,
+            recency: self.bump(),
+        });
+        let a = self.assets[ai].get();
+        // SAFETY: owner/ctx/dest come from this asset + the slot we just allocated.
+        // construct does no I/O and cannot fail (checked non-None above).
+        unsafe { (a.source.construct.unwrap())(a.source.ctx, a.owner, index, p) };
+        p
+    }
+
+    fn set_construct(&self, asset: u32, construct: Option<ConstructFn>) {
+        let ai = asset as usize;
+        if ai >= self.assets.len() {
+            return;
+        }
+        let mut a = self.assets[ai].get();
+        a.source.construct = construct;
+        self.assets[ai].set(a);
     }
 
     fn release(&self, p: *mut u8) {
@@ -507,6 +579,7 @@ pub unsafe extern "C" fn deluge_resource_define_asset(
         Source {
             materialize,
             on_evict,
+            construct: None, // attach later via deluge_resource_set_construct if requestable
             ctx,
             cost,
             backing,
@@ -522,6 +595,36 @@ pub unsafe extern "C" fn deluge_resource_release_asset(handle: *mut DelugeResour
     if !handle.is_null() {
         mgr(handle).release_asset(asset);
     }
+}
+
+/// Attach (or clear) the async `construct` callback on an asset, making it requestable.
+/// Call after `deluge_resource_define_asset`. Pass NULL to clear.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_set_construct(
+    handle: *mut DelugeResource,
+    asset: u32,
+    construct: Option<ConstructFn>,
+) {
+    if !handle.is_null() {
+        mgr(handle).set_construct(asset, construct);
+    }
+}
+
+/// Reserve + construct chunk `index` of `asset` under a hard lease *without* loading it
+/// (runs the asset's `construct` callback, no I/O). The async/prefetch counterpart to
+/// `acquire`: an external loader fills the data afterwards. A cache hit just leases.
+/// Returns the backing pointer, or null on OOM / no `construct` callback.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_request(
+    handle: *mut DelugeResource,
+    asset: u32,
+    index: u32,
+    size: usize,
+) -> *mut u8 {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    mgr(handle).request(asset, index, size)
 }
 
 /// Acquire chunk `index` of `asset` under a hard lease (materializing if needed).

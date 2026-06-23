@@ -400,6 +400,56 @@ mod tests {
         assert!(!q.is_null());
     }
 
+    thread_local! {
+        static CONSTRUCTS: Cell<usize> = const { Cell::new(0) };
+    }
+    // Async construct: stamp a marker byte (0xC0) so a test can tell "constructed but not
+    // yet loaded" from a full materialize (which writes the (owner,index) pattern).
+    unsafe extern "C" fn mock_construct(_ctx: *mut c_void, _owner: *mut c_void, _index: u32, dest: *mut u8) {
+        CONSTRUCTS.with(|c| c.set(c.get() + 1));
+        *dest = 0xC0; // just touch it; the "load" happens separately
+    }
+
+    #[test]
+    fn request_constructs_without_loading_then_leases() {
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(8),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        // Not requestable until a construct callback is attached.
+        assert!(unsafe { deluge_resource_request(mgr, a, 0, 64 * 1024) }.is_null());
+        unsafe { deluge_resource_set_construct(mgr, a, Some(mock_construct)) };
+        CONSTRUCTS.with(|c| c.set(0));
+        let p = unsafe { deluge_resource_request(mgr, a, 0, 64 * 1024) };
+        assert!(!p.is_null());
+        assert_eq!(CONSTRUCTS.with(|c| c.get()), 1, "construct ran once");
+        assert_eq!(unsafe { *p }, 0xC0, "constructed, not materialized");
+        // A second request is a cache hit: leases again, no re-construct.
+        let p2 = unsafe { deluge_resource_request(mgr, a, 0, 64 * 1024) };
+        assert_eq!(p, p2);
+        assert_eq!(CONSTRUCTS.with(|c| c.get()), 1, "cache hit must not re-construct");
+        // Held by two leases now; release both → evictable.
+        unsafe { deluge_resource_release(mgr, p) };
+        unsafe { deluge_resource_release(mgr, p) };
+        reset_evicts();
+        for n in 1..20u32 {
+            let q = unsafe { deluge_resource_acquire(mgr, a, n, 64 * 1024) };
+            if !q.is_null() {
+                unsafe { deluge_resource_release(mgr, q) };
+            }
+        }
+        assert!(evicts() >= 1, "released constructed chunk is evictable");
+    }
+
     #[test]
     fn add_lease_pins_a_held_chunk() {
         // add_lease bumps the lease of an already-resident chunk (C++ Cluster::addReason on

@@ -72,6 +72,12 @@ typedef bool (*DelugeResourceMaterializeFn)(void* ctx, void* owner, uint32_t ind
 /// the owner + chunk index.)
 typedef void (*DelugeResourceEvictFn)(void* ctx, void* owner, uint32_t index);
 
+/// Initialize a chunk's backing *without* the (slow) I/O to fill it — the async
+/// counterpart to materialize, used by deluge_resource_request (prefetch). For a sample
+/// cluster: placement-new the Cluster + set its fields, leaving the data for an external
+/// loader to read. Cannot fail (no I/O).
+typedef void (*DelugeResourceConstructFn)(void* ctx, void* owner, uint32_t index, void* dest);
+
 /// Build a manager over `heap` with fixed-capacity asset/chunk tables (allocated
 /// once from the heap) and register it as the heap's reclaim hook. `chunk_capacity`
 /// must exceed the most chunks that can be resident at once (so the table is never
@@ -106,6 +112,16 @@ uint32_t deluge_resource_define_asset(DelugeResource* mgr, void* owner, DelugeRe
 /// reuse. Call when the owner is destroyed (e.g. a Sample unloads) so the
 /// fixed-capacity asset table can't exhaust across song loads. No-op on an unused id.
 void deluge_resource_release_asset(DelugeResource* mgr, uint32_t asset);
+
+/// Attach (or clear, with NULL) the async `construct` callback on an asset, making it
+/// requestable via deluge_resource_request. Call after deluge_resource_define_asset.
+void deluge_resource_set_construct(DelugeResource* mgr, uint32_t asset, DelugeResourceConstructFn construct);
+
+/// Reserve + construct chunk `index` of `asset` under a hard lease *without* loading it
+/// (runs the asset's `construct` callback — no I/O), for prefetch: an external loader
+/// fills the data afterwards. The async counterpart to acquire; a cache hit just leases.
+/// Returns the backing pointer (16-byte aligned), or NULL on OOM / no construct callback.
+void* deluge_resource_request(DelugeResource* mgr, uint32_t asset, uint32_t index, size_t size);
 
 /// Acquire chunk `index` of `asset` under a hard lease, materializing it if not
 /// resident. Returns the backing pointer (16-byte aligned), or NULL on OOM /
