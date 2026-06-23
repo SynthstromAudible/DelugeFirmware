@@ -469,6 +469,16 @@ void setupStartupSong() {
 	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
 	auto filename =
 	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
+
+	// Recovery: if an unsaved song was left behind (power loss), load it INSTEAD of the normal startup
+	// song, through this exact same proven path so it inherits the crash-protection canary below.
+	// Presence of the file means unsaved work existed (a Save deletes it).
+	bool recoveringUnsavedSong = StorageManager::fileExists("SYSTEM/RECOVER.XML");
+	if (recoveringUnsavedSong) {
+		filename = "SYSTEM/RECOVER.XML";
+		startupSongMode = StartupSongMode::LASTOPENED; // force the load path (not TEMPLATE/BLANK)
+	}
+
 	String failSafePath;
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
 	auto size = strlen(filename) + 1;
@@ -540,6 +550,16 @@ void setupStartupSong() {
 			if (startupSongMode == StartupSongMode::TEMPLATE) {
 				// Wipe the name so the Save action asks you for a new song
 				currentSong->name.clear();
+			}
+			if (recoveringUnsavedSong) {
+				// Tell the user, don't do it silently. (Keep the file: it stays until a Save clears it,
+				// so a second power flip before saving still recovers.)
+				display->consoleText("Recovered unsaved song");
+				// The song was loaded from SYSTEM/RECOVER.XML, so the Deluge would otherwise name it
+				// "RECOVER" and save it into SYSTEM/. Clear the name (so Save asks for a real name) and
+				// point it at SONGS/, so the recovered jam saves like any normal song, no "RECOVER" dupes.
+				currentSong->name.clear();
+				currentSong->dirPath.set("SONGS");
 			}
 		}
 		else {
@@ -643,6 +663,17 @@ void registerTasks() {
 	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
 	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "playback slow routine",
 	                 RESOURCE_SD);
+	// Autosave/recovery: if the song changed, the card is free, and we're NOT playing, write the
+	// recovery file. Card-safe (RESOURCE_SD_ROUTINE) and never during playback, so it can't glitch
+	// live audio.
+	addRepeatingTask(
+	    []() {
+		    if (songNeedsRecoverySave && !currentlyAccessingCard && !playbackHandler.isEitherClockActive()) {
+			    songNeedsRecoverySave = false;
+			    StorageManager::writeRecoveryFile();
+		    }
+	    },
+	    p++, 0.5, 2.0, 10.0, "autosave recovery", RESOURCE_SD_ROUTINE);
 	// 31-39: Idle priority (40 for dyn tasks)
 	p = 31;
 	addRepeatingTask(&(PIC::flush), p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);

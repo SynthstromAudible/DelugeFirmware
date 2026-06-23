@@ -1765,6 +1765,9 @@ bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 		return false;
 	}
 
+	// Song structure changed, so flag an autosave (the card-safe task writes RECOVER.XML when stopped).
+	songNeedsRecoverySave = true;
+
 	// resync new clip play pos
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
