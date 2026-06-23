@@ -204,10 +204,17 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 /// already does the whole per-block job (sequencer tick via tickSongFinalizeWindows,
 /// render, output drive, recorder drain, cluster load), so this is behaviour-identical
 /// to the scheduler running that same task — just without the per-block scheduling cost.
+///
+/// The scheduler also normally runs the recorder's card + finalize routines, so the bypass
+/// must drive those too or the per-stem WAV never finishes writing (the recorder reaches
+/// COMPLETE only via doRecorderCardRoutines, and recordingSource is cleared back to NONE —
+/// the `until` condition — only by audioRecorder.slowRoutine()'s finishRecording()).
 void StemExport::renderWait(RunCondition until) {
 	if (renderOffline) {
 		while (!until()) {
 			AudioEngine::routine();
+			AudioEngine::slowRoutine();
+			audioRecorder.slowRoutine();
 		}
 	}
 	else {
