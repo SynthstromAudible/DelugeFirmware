@@ -191,6 +191,135 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	return ActionResult::DEALT_WITH;
 }
 
+// Retrospective MIDI capture.
+// A background buffer of notes played in keyboard view, even when not recording. SHIFT+RECORD dumps it
+// into the current clip's piano roll. Cleared on track / layout / keyboard-view change. Timing is kept in
+// audio samples and converted to ticks at dump time, so it works while stopped (no transport needed).
+namespace {
+struct CapturedNote {
+	int32_t note;
+	uint8_t velocity;
+	uint32_t onSamples;
+	uint32_t offSamples;
+	bool sounding;
+};
+constexpr int32_t kCaptureMax = 128;
+CapturedNote g_capture[kCaptureMax];
+int32_t g_captureCount = 0;
+uint32_t g_captureFirst = 0;
+
+void captureNoteOn(int32_t note, uint8_t velocity) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::RetrospectiveCapture) != RuntimeFeatureStateToggle::On) {
+		return; // feature off, don't buffer
+	}
+	if (g_captureCount >= kCaptureMax) {
+		return; // buffer full; keep the earliest take rather than overwrite
+	}
+	uint32_t now = AudioEngine::audioSampleTimer;
+	if (g_captureCount == 0) {
+		g_captureFirst = now;
+	}
+	g_capture[g_captureCount++] = {note, velocity, now, now, true};
+}
+void captureNoteOff(int32_t note) {
+	uint32_t now = AudioEngine::audioSampleTimer;
+	for (int32_t i = g_captureCount - 1; i >= 0; --i) {
+		if (g_capture[i].sounding && g_capture[i].note == note) {
+			g_capture[i].offSamples = now;
+			g_capture[i].sounding = false;
+			break;
+		}
+	}
+}
+void captureClear() {
+	g_captureCount = 0;
+}
+} // namespace
+
+// Dump the captured noodle into the current clip (melodic only). Mirrors the live-record path
+// (getOrCreateNoteRowForYNote + attemptNoteAdd) but with positions computed from elapsed time.
+static void captureDumpToCurrentClip() {
+	if (g_captureCount == 0) {
+		display->displayPopup("NONE");
+		return;
+	}
+	if (getCurrentOutputType() == OutputType::KIT) {
+		display->displayPopup("MELODIC ONLY");
+		return;
+	}
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip) {
+		return;
+	}
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* mstc = modelStack->addTimelineCounter(clip);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
+
+	uint32_t samplesPerTick = playbackHandler.getTimePerInternalTick();
+	if (samplesPerTick == 0) {
+		samplesPerTick = 1;
+	}
+	// Measure how long the noodle actually was (ticks) and grow the clip to fit, rounded to whole bars
+	// (multiples of the clip's current length). So 2 bars played over a 1-bar loop becomes a real 2-bar
+	// clip instead of folding bar 2 back onto bar 1.
+	int32_t curLen = clip->loopLength;
+	int32_t spanTicks = 1;
+	for (int32_t i = 0; i < g_captureCount; ++i) {
+		uint32_t endS = g_capture[i].sounding ? AudioEngine::audioSampleTimer : g_capture[i].offSamples;
+		int32_t e = (int32_t)((endS - g_captureFirst) / samplesPerTick);
+		if (e > spanTicks) {
+			spanTicks = e;
+		}
+	}
+	int32_t target = (curLen > 0) ? curLen : spanTicks;
+	if (curLen > 0) {
+		int32_t bars = (spanTicks + curLen / 2) / curLen; // round to nearest whole bar
+		if (bars < 1) {
+			bars = 1;
+		}
+		target = bars * curLen;
+	}
+	if (target > clip->loopLength) {
+		int32_t oldLength = clip->loopLength;
+		clip->loopLength = target;
+		clip->lengthChanged(mstc, oldLength, action); // extend the clip to hold the full phrase
+	}
+
+	int32_t added = 0;
+	bool scaleAltered = false;
+	for (int32_t i = 0; i < g_captureCount; ++i) {
+		CapturedNote& cn = g_capture[i];
+		uint32_t endS = cn.sounding ? AudioEngine::audioSampleTimer : cn.offSamples;
+		int32_t pos = (int32_t)((cn.onSamples - g_captureFirst) / samplesPerTick);
+		int32_t len = (int32_t)((endS - cn.onSamples) / samplesPerTick);
+		if (len < 1) {
+			len = 1;
+		}
+		if (target > 0) {
+			pos %= target;
+			if (len > target) {
+				len = target;
+			}
+		}
+		bool altered = false;
+		ModelStackWithNoteRow* mnr = clip->getOrCreateNoteRowForYNote(cn.note, mstc, action, &altered);
+		scaleAltered = scaleAltered || altered;
+		NoteRow* nr = mnr->getNoteRowAllowNull();
+		if (nr) {
+			nr->attemptNoteAdd(pos, len, cn.velocity, nr->getDefaultProbability(), nr->getDefaultIterance(),
+			                   nr->getDefaultFill(mnr), mnr, action);
+			added++;
+		}
+	}
+	if (action && scaleAltered) {
+		action->updateYScrollClipViewAfter();
+	}
+	captureClear();
+	display->displayPopup((uint8_t)added); // show how many notes landed
+	uiNeedsRendering(&instrumentClipView);
+}
+
 void KeyboardScreen::evaluateActiveNotes() {
 	lastNotesState = currentNotesState;
 	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->evaluatePads(pressedPads);
@@ -303,6 +432,8 @@ void KeyboardScreen::updateActiveNotes() {
 
 		// Post sound logic for non-retrigger events
 		if (currentToLastIdx[idx] == -1) {
+			// Retrospective MIDI capture: stash every newly played note (even when not recording).
+			captureNoteOn(newNote, currentNotesState.notes[idx].velocity);
 			if (!currentNotesState.notes[idx].generatedNote) {
 				drawNoteCode(newNote);
 			}
@@ -392,6 +523,8 @@ void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrumen
 	else {
 		(static_cast<MelodicInstrument*>(&activeInstrument))->endAuditioningForNote(&modelStack, note);
 	}
+
+	captureNoteOff(note); // Retrospective MIDI capture: close out this note's length in the buffer.
 
 	// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
 	if (activeInstrument.type != OutputType::KIT && clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
@@ -487,6 +620,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		if (currentUIMode == UI_MODE_NONE && !keyboardButtonActive
 		    && !keyboardButtonUsed) { // Leave if key up and not used
 
+			captureClear(); // leaving keyboard view, drop the retrospective-capture buffer
 			instrumentClipView.recalculateColours();
 			if (getCurrentClip()->onAutomationClipView) {
 				changeRootUI(&automationView);
@@ -501,6 +635,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Song view button
 	else if (b == SESSION_VIEW && on && currentUIMode == UI_MODE_NONE) {
+		captureClear(); // leaving keyboard view, drop the retrospective-capture buffer
 		ClipMinder::transitionToArrangerOrSession();
 	}
 
@@ -597,6 +732,17 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		}
 	}
 
+	// Retrospective MIDI capture: SHIFT + RECORD dumps the background noodle buffer into this clip.
+	else if (b == RECORD && on && Buttons::isShiftButtonPressed()
+	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::RetrospectiveCapture)
+	                == RuntimeFeatureStateToggle::On) {
+		if (inCardRoutine) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		captureDumpToCurrentClip();
+		Buttons::recordButtonPressUsedUp = true; // don't also arm recording on release
+	}
+
 	else {
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
 		if (result != ActionResult::NOT_DEALT_WITH) {
@@ -690,6 +836,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 
 	getCurrentInstrumentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentInstrumentClip()->keyboardState.currentLayout != lastLayout) {
+		captureClear(); // changing layout is a fresh context, drop the retrospective-capture buffer
 		display->displayPopup(l10n::get(layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->name()));
 	}
 
