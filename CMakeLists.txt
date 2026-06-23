@@ -236,6 +236,28 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
 
 target_compile_options(deluge PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})
 
+# Freestanding UndefinedBehaviorSanitizer layer (see src/deluge/io/debug/ubsan_handlers.cpp). Off by default; enable
+# with -DDELUGE_UBSAN=ON. We compile with -fsanitize=undefined but do NOT add it to link options - there is no libubsan
+# on bare metal, the __ubsan_handle_* hooks are provided in-tree. `alignment` is excluded because the custom allocator
+# performs intentional unaligned boundary-tag reads; the vptr check is already off because RTTI is disabled.
+#
+# Instrumenting the *whole* firmware roughly doubles .text and overflows the internal-RAM region, so UBSAN is scoped to
+# a configurable set of source subdirectories (the corruption-prone allocator and container code by default). Point
+# DELUGE_UBSAN_SOURCE_DIRS at whichever modules you are hunting in.
+option(DELUGE_UBSAN "Enable the freestanding UndefinedBehaviorSanitizer layer" OFF)
+set(DELUGE_UBSAN_SOURCE_DIRS "memory;util/container"
+    CACHE STRING "Semicolon-separated subdirs under src/deluge to instrument when DELUGE_UBSAN is ON")
+if(DELUGE_UBSAN)
+    target_compile_definitions(deluge PUBLIC DELUGE_UBSAN=1)
+    foreach(_ubsan_dir ${DELUGE_UBSAN_SOURCE_DIRS})
+        file(GLOB_RECURSE _ubsan_srcs CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/deluge/${_ubsan_dir}/*.cpp)
+        if(_ubsan_srcs)
+            set_source_files_properties(${_ubsan_srcs} TARGET_DIRECTORY deluge
+                PROPERTIES COMPILE_OPTIONS "-fsanitize=undefined;-fno-sanitize=alignment")
+        endif()
+    endforeach()
+endif()
+
 set_target_properties(deluge
     PROPERTIES
         C_STANDARD ${DELUGE_C_STANDARD}

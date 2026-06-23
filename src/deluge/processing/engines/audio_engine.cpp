@@ -1019,6 +1019,17 @@ void routine() {
 
 	audioRoutineLocked = true;
 
+#if MEM_GUARD
+	// Periodically validate the whole heap from a safe point. audioRoutineLocked guards against re-entry, and
+	// checkEverythingOk additionally bails if an alloc/dealloc is in flight (lock held), so the boundary tags are
+	// stable while we walk.
+	static uint32_t memGuardWalkCountdown = MEM_GUARD_WALK_INTERVAL;
+	if (--memGuardWalkCountdown == 0) {
+		memGuardWalkCountdown = MEM_GUARD_WALK_INTERVAL;
+		GeneralMemoryAllocator::get().checkEverythingOk("periodic walk");
+	}
+#endif
+
 	numRoutines = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		while (doSomeOutputting() && numRoutines < 2) {

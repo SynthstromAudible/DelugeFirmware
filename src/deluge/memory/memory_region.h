@@ -54,7 +54,13 @@ public:
 	            uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom);
 	uint32_t extendRightAsMuchAsEasilyPossible(void* spaceAddress);
 	void dealloc(void* address);
-	void verifyMemoryNotFree(void* address, uint32_t spaceSize);
+
+#if MEM_GUARD
+	// Walks every block in this region from start to end, validating boundary tags (header == footer), block types,
+	// sizes, and that the blocks exactly tile the region. Freezes with a diagnostic on the first inconsistency. Must
+	// only be called from a safe point (not mid-alloc/dealloc). Returns true if the region is intact.
+	bool checkIntegrity(char const* reason);
+#endif
 
 	uint32_t start;
 	uint32_t end;
@@ -88,6 +94,5 @@ private:
 	                                uint32_t markWithTraversalNo = 0, bool originalSpaceNeedsStealing = false);
 
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
-	void sanityCheck();
 	uint32_t padSize(uint32_t requiredSize);
 };

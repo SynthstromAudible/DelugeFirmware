@@ -96,6 +96,12 @@ public:
 	void putStealableInQueue(Stealable* stealable, StealableQueue q);
 	void putStealableInAppropriateQueue(Stealable* stealable);
 
+#if MEM_GUARD
+	// Walks and validates every memory region's boundary tags. Call only from a safe point (not while `lock` is held /
+	// not mid-alloc). Returns true if all regions are intact. `reason` is logged on failure for context.
+	bool checkEverythingOk(char const* reason);
+#endif
+
 	MemoryRegion regions[NUM_MEMORY_REGIONS];
 	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)
 	CacheManager cacheManager;
@@ -105,9 +111,6 @@ public:
 		static GeneralMemoryAllocator generalMemoryAllocator;
 		return generalMemoryAllocator;
 	}
-
-private:
-	void checkEverythingOk(char const* errorString);
 };
 
 extern "C" {

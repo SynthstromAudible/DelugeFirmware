@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
+#include "memory/alloc_metadata.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
 
@@ -113,6 +114,22 @@ extern "C" void delugeDealloc(void* address) {
 	GeneralMemoryAllocator::get().dealloc(address);
 #endif
 }
+#if MEM_GUARD
+namespace {
+// Drop an allocation's side-table entry when it is freed. If the block looks ALLOCATED (not a Stealable, and not
+// already EMPTY - the latter is the M000 double-free path) but has no record, we either freed something never tracked
+// or freed it twice; warn rather than freeze, since untracked-but-legitimate paths are possible.
+void forgetAlloc(void* address) {
+	uint32_t header = *(uint32_t*)((uint32_t)address - 4);
+	bool wasTracked = mem_guard::removeAlloc(address);
+	if (!wasTracked && (header & SPACE_TYPE_MASK) == SPACE_HEADER_ALLOCATED) {
+		D_PRINTLN("MEM_GUARD free of untracked block %x (header %x) - possible wild/double free", (uint32_t)address,
+		          header);
+	}
+}
+} // namespace
+#endif
+
 void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 
 	if (lock) {
@@ -134,6 +151,11 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 		// FREEZE_WITH_ERROR("M998");
 		return nullptr;
 	}
+#if MEM_GUARD
+	// Attribute to the caller of allocExternal. If we were reached via alloc(), alloc() re-records with the truer
+	// outer caller afterwards (last writer wins).
+	mem_guard::recordAlloc(address, requiredSize, __builtin_return_address(0));
+#endif
 	return address;
 }
 
@@ -160,6 +182,9 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 	return address;
 }
 void GeneralMemoryAllocator::deallocExternal(void* address) {
+#if MEM_GUARD
+	forgetAlloc(address);
+#endif
 	regions[getRegion(address)].dealloc(address);
 }
 
@@ -176,6 +201,13 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 
 	void* address = nullptr;
 
+#if MEM_GUARD
+	// The true caller of alloc() (allocMaxSpeed/allocLowSpeed/allocStealable are always-inlined, so this resolves past
+	// them to the user code). Recorded against whichever block we hand back, overwriting any inner allocInternal/
+	// allocExternal attribution.
+	void* caller = __builtin_return_address(0);
+#endif
+
 	// Only allow allocating stealables in stelable region
 	if (!makeStealable) {
 		// If internal is allowed, try that first
@@ -183,6 +215,9 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 			address = allocInternal(requiredSize);
 
 			if (address != nullptr) {
+#if MEM_GUARD
+				mem_guard::recordAlloc(address, requiredSize, caller);
+#endif
 				return address;
 			}
 
@@ -193,6 +228,9 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		address = allocExternal(requiredSize);
 
 		if (address) {
+#if MEM_GUARD
+			mem_guard::recordAlloc(address, requiredSize, caller);
+#endif
 			return address;
 		}
 
@@ -211,6 +249,13 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	lock = true;
 	address = regions[MEMORY_REGION_STEALABLE].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 	lock = false;
+#if MEM_GUARD
+	// Track non-stealable blocks that fell through to the stealable region (dire-memory fallback). Genuine stealables
+	// have their own steal/destruct lifecycle and are intentionally left untracked.
+	if (address && !makeStealable) {
+		mem_guard::recordAlloc(address, requiredSize, caller);
+	}
+#endif
 	return address;
 }
 
@@ -245,13 +290,29 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 
 // Returns new size
 uint32_t GeneralMemoryAllocator::shortenRight(void* address, uint32_t newSize) {
-	return regions[getRegion(address)].shortenRight(address, newSize);
+	uint32_t result = regions[getRegion(address)].shortenRight(address, newSize);
+#if MEM_GUARD
+	// Address unchanged, size shrank. Refresh the recorded size to the new allocated size (= no redzone slack to
+	// track).
+	mem_guard::updateAllocKey(address, address, getAllocatedSize(address));
+#endif
+	return result;
 }
 
 // Returns how much it was shortened by
 uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToShorten,
                                              uint32_t numBytesToMoveRightIfSuccessful) {
-	return regions[getRegion(address)].shortenLeft(address, amountToShorten, numBytesToMoveRightIfSuccessful);
+	uint32_t amountShortened =
+	    regions[getRegion(address)].shortenLeft(address, amountToShorten, numBytesToMoveRightIfSuccessful);
+#if MEM_GUARD
+	// shortenLeft moves the user-address right by the amount shortened. Re-key so attribution and the free-time lookup
+	// still find this block at its new address.
+	if (amountShortened) {
+		void* newAddress = (void*)((uint32_t)address + amountShortened);
+		mem_guard::updateAllocKey(address, newAddress, getAllocatedSize(newAddress));
+	}
+#endif
+	return amountShortened;
 }
 
 void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
@@ -269,6 +330,13 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,
 	                                   getAmountExtendedRight, thingNotToStealFrom);
 	lock = false;
+#if MEM_GUARD
+	// extend can grow the block leftwards, moving the user-address down by the amount extended left. Re-key to follow.
+	if (*getAmountExtendedLeft) {
+		void* newAddress = (void*)((uint32_t)address - *getAmountExtendedLeft);
+		mem_guard::updateAllocKey(address, newAddress, getAllocatedSize(newAddress));
+	}
+#endif
 }
 
 uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address) {
@@ -279,8 +347,27 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 	if (address == nullptr) [[unlikely]] {
 		return;
 	}
+#if MEM_GUARD
+	forgetAlloc(address);
+#endif
 	regions[getRegion(address)].dealloc(address);
 }
+
+#if MEM_GUARD
+bool GeneralMemoryAllocator::checkEverythingOk(char const* reason) {
+	// Must not run while an alloc/dealloc is in flight - the boundary tags are transiently inconsistent during a steal
+	// or a coalesce. Callers gate on the safe point; this is a cheap backstop.
+	if (lock) {
+		return true;
+	}
+	for (auto& region : regions) {
+		if (!region.checkIntegrity(reason)) {
+			return false;
+		}
+	}
+	return true;
+}
+#endif
 
 void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, StealableQueue q) {
 	MemoryRegion& region = regions[getRegion(stealable)];

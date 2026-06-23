@@ -18,6 +18,7 @@
 #include "memory/memory_region.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
+#include "memory/alloc_metadata.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
 #include "util/fixedpoint.h"
@@ -25,6 +26,47 @@
 
 #ifdef DO_AUDIO_LOG
 #include "processing/engines/audio_engine.h"
+#endif
+
+#if MEM_GUARD
+namespace {
+// Fills a just-freed block's body with the free poison. Block sizes are 4-aligned, so a word-at-a-time fill covers the
+// whole body; any trailing bytes are below the footer and irrelevant. Cost is the block size - normal frees are small;
+// the occasional large free (e.g. an audio Cluster) is a sub-millisecond memset, which is fine.
+void memGuardPoisonBody(uint32_t address, uint32_t size) {
+	uint32_t* p = (uint32_t*)address;
+	for (uint32_t i = 0, words = size >> 2; i < words; i++) {
+		p[i] = MEM_GUARD_FREE_POISON;
+	}
+}
+
+// Validates that an empty (or about-to-be-reused) block body is clean: every word is either the free poison (block was
+// freed at some point) or zero (never allocated - startup clears SDRAM/bss). A use-after-free or stray write that
+// deposited anything else is caught here. Returns the first bad word address, or 0 if clean.
+uint32_t memGuardFindDirtyWord(uint32_t address, uint32_t size) {
+	uint32_t* p = (uint32_t*)address;
+	for (uint32_t i = 0, words = size >> 2; i < words; i++) {
+		if (p[i] != MEM_GUARD_FREE_POISON && p[i] != 0u) {
+			return (uint32_t)&p[i];
+		}
+	}
+	return 0;
+}
+
+// Logs the allocation call-site for a block, if we have one. `label` distinguishes e.g. the corrupted block from the
+// neighbour that likely overran into it. The printed call-site resolves to a source line via:
+//   arm-none-eabi-addr2line -e build/Debug/deluge.elf <callsite>
+void memGuardReportOwner(char const* label, uint32_t address) {
+	mem_guard::AllocInfo info;
+	if (mem_guard::lookupAlloc((void*)address, &info)) {
+		D_PRINTLN("  %s block %x allocated from %x (requested %x bytes)", label, address, info.callsite,
+		          info.requestedSize);
+	}
+	else {
+		D_PRINTLN("  %s block %x: no allocation record (free/stealable/untracked)", label, address);
+	}
+}
+} // namespace
 #endif
 
 MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
@@ -78,48 +120,86 @@ uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
 	return requiredSize - 8;
 }
 
-bool seenYet = false;
+#if MEM_GUARD
+bool MemoryRegion::checkIntegrity(char const* reason) {
+	// Blocks are laid out contiguously and boundary-tagged: a block at user-address A has a 4-byte header at (A - 4)
+	// and a matching 4-byte footer at (A + size), both holding the same type+size word. The next block's user-address
+	// is therefore (A + size + 8). The first block sits at (start + 8) - the word at `start` itself is a permanent left
+	// guard - and the final block's footer lands exactly on `end`, so the walk should finish at (end + 8). A buffer
+	// overrun into a neighbour corrupts that neighbour's header/footer, so a header != footer mismatch (or a
+	// nonsensical size/type) pinpoints the damage.
+	uint32_t address = start + 8;
+	uint32_t prevAddress = 0; // the block immediately to the left - the usual culprit when a header gets clobbered
+	while (address <= end) {
+		uint32_t* header = (uint32_t*)(address - 4);
+		uint32_t headerData = *header;
+		uint32_t spaceType = headerData & SPACE_TYPE_MASK;
+		uint32_t spaceSize = headerData & SPACE_SIZE_MASK;
 
-void MemoryRegion::sanityCheck() {
-	int32_t count = 0;
-	for (int32_t j = 0; j < emptySpaces.getNumElements(); j++) {
-		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(j);
-		if (emptySpaceRecord->address == (uint32_t)0xc0080bc) {
-			count++;
+		// Type must be one of the three legal values.
+		if (spaceType != SPACE_HEADER_EMPTY && spaceType != SPACE_HEADER_STEALABLE
+		    && spaceType != SPACE_HEADER_ALLOCATED) {
+			D_PRINTLN("MEM_GUARD bad block type %x at %x in region %s (%s)", spaceType, address, name, reason);
+			if (prevAddress) {
+				memGuardReportOwner("overrun candidate (left neighbour)", prevAddress);
+			}
+			FREEZE_WITH_ERROR("MG02");
+			return false;
 		}
+
+		// Size must be sane: nonzero, 4-aligned, and not running our footer past the end of the region.
+		if (spaceSize == 0 || (spaceSize & 3u) != 0 || address + spaceSize > end) {
+			D_PRINTLN("MEM_GUARD bad block size %x at %x in region %s (%s)", spaceSize, address, name, reason);
+			if (prevAddress) {
+				memGuardReportOwner("overrun candidate (left neighbour)", prevAddress);
+			}
+			FREEZE_WITH_ERROR("MG02");
+			return false;
+		}
+
+		// Header and footer must agree - the core boundary-tag corruption check.
+		uint32_t* footer = (uint32_t*)(address + spaceSize);
+		if (*footer != headerData) {
+			D_PRINTLN("MEM_GUARD header/footer mismatch at %x (header %x footer %x) region %s (%s)", address,
+			          headerData, *footer, name, reason);
+			memGuardReportOwner("corrupted", address);
+			memGuardReportOwner("right neighbour (overran into footer)", address + spaceSize + 8);
+			FREEZE_WITH_ERROR("MG02");
+			return false;
+		}
+
+		// An EMPTY block's body must still be clean poison/zero. A stray write into freed memory (use-after-free, or an
+		// overrun that landed in a free block's body rather than its tags) is caught here.
+		if (spaceType == SPACE_HEADER_EMPTY) {
+			uint32_t dirty = memGuardFindDirtyWord(address, spaceSize);
+			if (dirty) {
+				D_PRINTLN("MEM_GUARD dirty free block: word %x (=%x) in empty block %x size %x region %s (%s)", dirty,
+				          *(uint32_t*)dirty, address, spaceSize, name, reason);
+				if (prevAddress) {
+					memGuardReportOwner("overrun candidate (left neighbour)", prevAddress);
+				}
+				FREEZE_WITH_ERROR("MG03");
+				return false;
+			}
+		}
+
+		// Step to the next block: skip this block's body, its footer (4) and the next block's header (4).
+		prevAddress = address;
+		address += spaceSize + 8;
 	}
 
-	if (count > 1) {
-		FREEZE_WITH_ERROR("BBBB");
-		D_PRINTLN("multiple 0xc0080bc!!!!");
+	// The walk must finish exactly at (end + 8): the last block's footer is at `end`, so its successor address is
+	// end + 8. Anything else means a size somewhere was wrong in a way that still kept individual tags self-consistent.
+	if (address != end + 8) {
+		D_PRINTLN("MEM_GUARD block walk misaligned in region %s: landed at %x expected %x (%s)", name, address, end + 8,
+		          reason);
+		FREEZE_WITH_ERROR("MG02");
+		return false;
 	}
-	else if (count == 1) {
-		if (!seenYet) {
-			seenYet = true;
-			D_PRINTLN("seen 0xc0080bc");
-		}
-	}
+
+	return true;
 }
-
-void MemoryRegion::verifyMemoryNotFree(void* address, uint32_t spaceSize) {
-	for (int32_t i = 0; i < emptySpaces.getNumElements(); i++) {
-		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
-		if (emptySpaceRecord->address == (uint32_t)address) {
-			D_PRINTLN("Exact address free!");
-			FREEZE_WITH_ERROR("dddffffd");
-		}
-		else if (emptySpaceRecord->address <= (uint32_t)address
-		         && (emptySpaceRecord->address + emptySpaceRecord->length > (uint32_t)address)) {
-			FREEZE_WITH_ERROR("dddd");
-			D_PRINTLN("free mem overlap on left!");
-		}
-		else if ((uint32_t)address <= (uint32_t)emptySpaceRecord->address
-		         && ((uint32_t)address + spaceSize > emptySpaceRecord->address)) {
-			FREEZE_WITH_ERROR("eeee");
-			D_PRINTLN("free mem overlap on right!");
-		}
-	}
-}
+#endif
 
 // Okay this is me being experimental and trying something you're not supposed to do - using static variables in place
 // of stack ones within a function. It seemed to give a slight speed up, but it's probably quite circumstantial, and I
@@ -275,6 +355,14 @@ goingToReplaceOldRecord:
 	uint32_t headerData = SPACE_HEADER_EMPTY | spaceSize;
 	*header = headerData;
 	*footer = headerData;
+
+#if MEM_GUARD
+	// Poison the whole freed body (now at its final, fully-merged extent). Any later read shows the poison pattern, and
+	// any later write is caught by verify-on-realloc or the periodic walk. Overwrites the interior tags of any blocks
+	// just merged in, which is correct - they're now part of this one empty block's body.
+	memGuardPoisonBody(address, spaceSize);
+#endif
+
 	emptySpaces.testSequentiality("M005");
 }
 
@@ -285,6 +373,11 @@ void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thing
 	int32_t allocatedSize = 0;
 	uint32_t allocatedAddress = 0;
 	int32_t i;
+#if MEM_GUARD
+	// Whether this allocation came from previously-empty space (poison/zero, so safe to verify) rather than from
+	// stealing a live Stealable (whose memory is not poisoned). Declared before any goto so the jumps are well-formed.
+	bool fromEmptySpace = false;
+#endif
 
 	if (!emptySpaces.getNumElements()) {
 		goto noEmptySpace;
@@ -300,6 +393,9 @@ void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thing
 #endif
 	) {
 gotEmptySpace:
+#if MEM_GUARD
+		fromEmptySpace = true;
+#endif
 		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
 
 		allocatedSize = emptySpaceRecord->length;
@@ -429,6 +525,22 @@ noEmptySpace:
 		// trying to allocate outside our region
 		D_PRINTLN("Memory region out of bounds at %x, start is %x and end is %x", allocatedAddress, start, end);
 		FREEZE_WITH_ERROR("M002");
+	}
+#endif
+
+#if MEM_GUARD
+	// Verify-on-realloc: a block carved from previously-empty space must still hold the free poison (or zero). Anything
+	// else means something wrote to this memory while it was free - a use-after-free. The body is still untouched here:
+	// the header/footer writes above sit outside [allocatedAddress, allocatedAddress + allocatedSize), and any leftover
+	// splinter created by the split was placed beyond those bounds too.
+	if (fromEmptySpace) {
+		uint32_t dirty = memGuardFindDirtyWord(allocatedAddress, allocatedSize);
+		if (dirty) {
+			D_PRINTLN("MEM_GUARD use-after-free: dirty word %x (=%x) in block %x size %x region %s", dirty,
+			          *(uint32_t*)dirty, allocatedAddress, (uint32_t)allocatedSize, name);
+			memGuardReportOwner("most-recent owner of reused address", allocatedAddress);
+			FREEZE_WITH_ERROR("MG03");
+		}
 	}
 #endif
 	return (void*)allocatedAddress;
@@ -841,6 +953,19 @@ void MemoryRegion::dealloc(void* address) {
 	if ((*header & SPACE_TYPE_MASK) == SPACE_HEADER_EMPTY) {
 		// double free
 		FREEZE_WITH_ERROR("M000");
+	}
+#endif
+
+#if MEM_GUARD
+	// Boundary-tag check: if this block was overrun (or its neighbour overran into our footer), the footer will no
+	// longer match the header. Catches the corruption at free time, pinpointing the offending block.
+	uint32_t* footer = (uint32_t*)((uint32_t)address + spaceSize);
+	if (*footer != *header) {
+		D_PRINTLN("MEM_GUARD header/footer mismatch on free at %x (header %x footer %x) region %s", (uint32_t)address,
+		          *header, *footer, name);
+		memGuardReportOwner("corrupted", (uint32_t)address);
+		memGuardReportOwner("right neighbour (overran into footer)", (uint32_t)address + spaceSize + 8);
+		FREEZE_WITH_ERROR("MG01");
 	}
 #endif
 
