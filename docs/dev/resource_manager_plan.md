@@ -129,12 +129,51 @@ the local inits so the backward gotos don't cross them). **Verified:** golden MI
 materialize Source uses.
 
 ### Step 2 — manager owns raw-cluster residency
-`Sample` = Asset (define on creation; `owner=Sample*`, `materialize` = the Step-1 reader,
-`on_evict` = `~Cluster` + null `sample->clusters[i].cluster`, `cost=COST_IO`,
-`backing=BACKING_SLAB`; store the asset id on `Sample`). `SampleCluster::getCluster` not-resident
-→ `acquire`; resident → lease (`acquire` cache-hit). `addReason`/`removeReasonFromCluster` →
-lease/unlease (`numReasonsToBeLoaded` becomes a lease mirror, then dissolves). Eviction + `on_evict`
-replace `steal` + the CacheManager queue for raw clusters. Golden bit-exact.
+
+**Step 2.0 — asset-lifecycle ABI ✅ DONE (2026-06-23).** Added
+`deluge_resource_release_asset(mgr, asset)` (evicts the asset's resident chunks via `on_evict`,
+then frees the slot) so the fixed-capacity asset table can't exhaust as Samples come and go.
+Rust-tested; no C++ caller yet → golden bit-exact.
+
+**Step 2.1a — stand up the Sample→Asset lifecycle ✅ DONE (2026-06-23, golden bit-exact).**
+A `Sample` lazily defines its Asset (`Sample::ensureResourceAsset`): `owner=Sample*`,
+`materialize` = placement-new `Cluster` + the Step-1 reader, `on_evict` = drop `clusters[i].cluster`
++ `~Cluster`, `cost=COST_IO`, `backing=BACKING_SLAB`; retired in `~Sample` via
+`deluge_resource_release_asset`. GMA gained `resourceManager()` + an extracted
+`ensureClusterSystem()`. `getCluster` defines the Asset on first stream but does **not** yet route
+through `acquire` — defining an unacquired Asset is a no-op, so behaviour-neutral. Proved the
+define-on-stream / release-on-destroy lifecycle in the live render (no asset-table overflow).
+
+**Step 2.1b — flip residency (THE atomic change, OPEN).** Route `SampleCluster::getCluster` through
+`deluge_resource_acquire` (not-resident → materialize; resident → lease cache-hit), make
+`removeReasonFromCluster` an `unlease`, and **sever** manager-owned SAMPLE clusters from the
+CacheManager stealable queue (the sever is localized: `removeReasonFromCluster` must skip
+`putStealableInAppropriateQueue` for a manager-owned cluster — the manager keeps it resident +
+evictable instead; `addReason`'s `remove()` is harmless when not queued). `numReasonsToBeLoaded`
+stays a **lease mirror**. Two evictors on one cluster = the 6960-node corruption, so a given
+cluster must belong to exactly one system.
+
+**Hazards found mapping the callers (these scope 2.1b):**
+- **Recorder (hard special case).** `sample_recorder.cpp` calls `getCluster` with `CLUSTER_DONT_LOAD`
+  (writing) *and* `CLUSTER_LOAD_IMMEDIATELY` (reading back) on the **same** Sample, and holds
+  `numReasonsHeldBySampleRecorder`. A recording cluster is **written incrementally, not
+  reconstructable from the card** — `readClusterData` (the materialize Source) would read garbage.
+  Recording clusters must stay legacy (same shape as the P3 caches). ⇒ A Sample that is being
+  recorded must NOT be manager-owned.
+- **`CLUSTER_DONT_LOAD`** (recorder + `audio_clip.cpp:232`) = allocate-without-loading; the manager's
+  `acquire` always materializes. ⇒ DONT_LOAD stays on legacy `Cluster::create`.
+- **Async `loadingQueue` (`CLUSTER_ENQUEUE`)** vs the manager's **synchronous** `acquire`. Step 3
+  relocates prefetch via the manager's own `request`/`mark_ready`. For 2.1b, ENQUEUE on a
+  manager-owned Sample collapses to a synchronous `acquire` (load-on-demand). Golden stays bit-exact
+  (bytes are identical regardless of *when*/*whether* a cluster is resident — any evicted cluster
+  reloads identical bytes), but on-hardware audio-thread loads become synchronous **until Step 3**.
+- **Per-Sample coexistence boundary.** Cleanest: a Sample is manager-owned iff it has a valid Asset
+  *and* is a pure-read stream (not recording, no DONT_LOAD); otherwise it stays fully legacy
+  (`acquire` returns the cluster, legacy keeps `Cluster::create` + the stealable queue). The
+  read-vs-record split is per-Sample, not per-cluster, to avoid one Sample's clusters spanning both
+  evictors.
+
+Each landed sub-step verified golden bit-exact (`scripts/golden_mixdown.sh check`).
 
 ### Step 3 — relocate prefetch
 The `loadingQueue` / `clusterBeingLoaded` async loader → the manager's read-ahead
