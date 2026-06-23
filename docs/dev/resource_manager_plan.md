@@ -144,7 +144,27 @@ A `Sample` lazily defines its Asset (`Sample::ensureResourceAsset`): `owner=Samp
 through `acquire` — defining an unacquired Asset is a no-op, so behaviour-neutral. Proved the
 define-on-stream / release-on-destroy lifecycle in the live render (no asset-table overflow).
 
-**Step 2.1b — flip residency (THE atomic change, OPEN).** Route `SampleCluster::getCluster` through
+**Step 2.1b — flip residency ✅ DONE (2026-06-23, A/B ear-confirmed improvement).** Route
+`SampleCluster::getCluster` through `deluge_resource_acquire` (miss → materialize, hit → lease);
+`removeReasonFromCluster` → lease drop; `Cluster::addReason` → lease bump (new
+`deluge_resource_add_lease`, hit-only). Manager-owned SAMPLE clusters severed from the CacheManager
+queue; `numReasonsToBeLoaded` is a mirror. Per-Sample latch: `CLUSTER_DONT_LOAD` (recording) and any
+read that can't get an Asset keep the Sample fully legacy (recorder stays legacy end-to-end). ENQUEUE
+collapses to synchronous acquire (prefetch returns in Step 3).
+
+**KEY FINDING — the bit-exact golden was invalidated by this flip (and that's good).** The headless
+`deluge_render` bypasses the scheduler that pumps the async `loadingQueue`, so the **legacy** path
+*starves*: streamed voices drop out (Cordae vocal stem silent 2–8s + ~17% partial dropouts). The
+manager loads synchronously in `acquire`, so it renders the **complete** mix — confirmed correct by
+ear (A/B: legacy was missing the vocals, manager is right). So legacy-in-the-headless-sim was never a
+valid reference for streaming behaviour; the golden was **re-baselined to the manager render**
+(determinism re-verified). Lesson: bit-exact A/B only gates the *pure refactors* (Steps 1, 2.0, 2.1a);
+behaviour-changing steps need an ear-check / hardware, not byte-equality. True gate stays
+**NEEDS-HARDWARE**.
+
+<details><summary>Original 2.1b design notes (superseded by the above)</summary>
+
+Route `SampleCluster::getCluster` through
 `deluge_resource_acquire` (not-resident → materialize; resident → lease cache-hit), make
 `removeReasonFromCluster` an `unlease`, and **sever** manager-owned SAMPLE clusters from the
 CacheManager stealable queue (the sever is localized: `removeReasonFromCluster` must skip
@@ -173,12 +193,14 @@ cluster must belong to exactly one system.
   read-vs-record split is per-Sample, not per-cluster, to avoid one Sample's clusters spanning both
   evictors.
 
-Each landed sub-step verified golden bit-exact (`scripts/golden_mixdown.sh check`).
+</details>
 
-### Step 3 — relocate prefetch
+### Step 3 — relocate prefetch (NEXT)
 The `loadingQueue` / `clusterBeingLoaded` async loader → the manager's read-ahead
 (`request`/`mark_ready`/`try_acquire` + `Loading` state), unlocking embassy + the RT
-allocation-free contract.
+allocation-free contract. This also un-does the 2.1b synchronous-acquire collapse (restoring
+read-ahead instead of load-on-demand) — though note the headless render has no scheduler to pump it,
+so the sim will keep loading synchronously regardless; the async path matters on hardware.
 
 ### Step 4 — retire
 `Stealable` / `CacheManager` / `numReasonsToBeLoaded` / `getAppropriateQueue`; the GMA
