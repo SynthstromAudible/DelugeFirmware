@@ -70,6 +70,15 @@ struct AssetSlot {
     owner: *mut c_void,
     source: Source,
     soft_refs: u32,
+    /// Prefix-dependent asset (e.g. a SampleCache, whose `on_evict` discards all
+    /// higher-index chunks): only the highest-index resident chunk may be evicted, so
+    /// `on_evict` never cascades into a sibling the manager still tracks. See `evict_lowest`.
+    evict_tail_first: bool,
+    /// Self-protect during own allocation (the `dontStealFromThing` port): while this asset
+    /// is in `request`/`acquire`, its own chunks are not eviction candidates. For unleased
+    /// caches (which would otherwise let `request(N+1)` evict the just-written `N`); leased
+    /// assets (sample clusters) don't need it and must stay able to evict their own old chunks.
+    self_protect: bool,
 }
 impl AssetSlot {
     const EMPTY: AssetSlot = AssetSlot {
@@ -84,6 +93,8 @@ impl AssetSlot {
             backing: BACKING_HEAP,
         },
         soft_refs: 0,
+        evict_tail_first: false,
+        self_protect: false,
     };
 }
 
@@ -117,6 +128,23 @@ pub struct Manager {
     assets: &'static [Cell<AssetSlot>],
     chunks: &'static [Cell<ChunkSlot>],
     tick: Cell<u64>,
+    /// Transient self-protection (the `dontStealFromThing` port): while an asset is
+    /// allocating a chunk (`request`/`acquire`), its own chunks are not eviction
+    /// candidates — so allocating cluster N+1 can't steal the just-written N. `NONE`
+    /// outside such a call. Set via the `ProtectGuard` RAII helper.
+    protect: Cell<u32>,
+}
+
+/// Restores `Manager::protect` on drop — so every early return from `request`/`acquire`
+/// clears the self-protection.
+struct ProtectGuard<'a> {
+    mgr: &'a Manager,
+    prev: u32,
+}
+impl Drop for ProtectGuard<'_> {
+    fn drop(&mut self) {
+        self.mgr.protect.set(self.prev);
+    }
 }
 
 impl Manager {
@@ -138,6 +166,22 @@ impl Manager {
     }
     fn find_free_chunk(&self) -> Option<usize> {
         self.chunks.iter().position(|c| c.get().backing.is_null())
+    }
+
+    /// Is `index` the highest-index resident chunk of `asset`? (No resident chunk of the
+    /// asset has a greater index.) Used to gate tail-first eviction.
+    fn is_highest_resident(&self, asset: u32, index: u32) -> bool {
+        !self.chunks.iter().any(|c| {
+            let s = c.get();
+            !s.backing.is_null() && s.asset == asset && s.index > index
+        })
+    }
+
+    /// Set the transient self-protection to `asset`, restoring the previous value on drop.
+    fn protect_asset(&self, asset: u32) -> ProtectGuard<'_> {
+        let prev = self.protect.get();
+        self.protect.set(asset);
+        ProtectGuard { mgr: self, prev }
     }
 
     /// Does this asset want slab backing, and is a slab configured?
@@ -184,12 +228,22 @@ impl Manager {
     fn evict_lowest(&self) -> bool {
         let mut best: Option<usize> = None;
         let mut best_rank = (u8::MAX, u32::MAX, u64::MAX);
+        let protect = self.protect.get();
         for (i, c) in self.chunks.iter().enumerate() {
             let s = c.get();
             if s.backing.is_null() || s.leases != 0 || s.dirty {
                 continue;
             }
+            // Self-protection: don't evict the asset currently allocating a chunk.
+            if s.asset == protect {
+                continue;
+            }
             let a = self.assets[s.asset as usize].get();
+            // Prefix-dependent assets: only the highest-index resident chunk is a candidate,
+            // so `on_evict` never discards a sibling chunk the manager still tracks.
+            if a.evict_tail_first && !self.is_highest_resident(s.asset, s.index) {
+                continue;
+            }
             let rank = evict_rank(a.soft_refs, a.source.cost, s.recency);
             if rank < best_rank {
                 best_rank = rank;
@@ -219,6 +273,11 @@ impl Manager {
         if ai >= self.assets.len() || !self.assets[ai].get().in_use {
             return ptr::null_mut();
         }
+        // Protect this asset's existing chunks from eviction for the duration (incl. the
+        // reentrant reclaim hook during alloc_backing) — the dontStealFromThing port. Only
+        // for opted-in (cache) assets; leased assets must stay able to evict their own old.
+        let prot = if self.assets[ai].get().self_protect { asset } else { NONE };
+        let _g = self.protect_asset(prot);
         // Cache hit.
         if let Some(c) = self.find_resident(asset, index) {
             let mut s = self.chunks[c].get();
@@ -295,6 +354,11 @@ impl Manager {
         if self.assets[ai].get().source.construct.is_none() {
             return ptr::null_mut(); // not a requestable asset
         }
+        // Protect this asset's existing chunks from eviction while we allocate (the
+        // dontStealFromThing port) — a cache writing cluster N+1 mustn't evict cluster N.
+        // Only for opted-in (cache) assets.
+        let prot = if self.assets[ai].get().self_protect { asset } else { NONE };
+        let _g = self.protect_asset(prot);
         // Cache hit (already resident — constructed, maybe also loaded): just lease.
         if let Some(c) = self.find_resident(asset, index) {
             let mut s = self.chunks[c].get();
@@ -339,6 +403,26 @@ impl Manager {
         }
         let mut a = self.assets[ai].get();
         a.source.construct = construct;
+        self.assets[ai].set(a);
+    }
+
+    fn set_evict_tail_first(&self, asset: u32, on: bool) {
+        let ai = asset as usize;
+        if ai >= self.assets.len() {
+            return;
+        }
+        let mut a = self.assets[ai].get();
+        a.evict_tail_first = on;
+        self.assets[ai].set(a);
+    }
+
+    fn set_self_protect(&self, asset: u32, on: bool) {
+        let ai = asset as usize;
+        if ai >= self.assets.len() {
+            return;
+        }
+        let mut a = self.assets[ai].get();
+        a.self_protect = on;
         self.assets[ai].set(a);
     }
 
@@ -537,6 +621,7 @@ unsafe fn create_inner(
             assets,
             chunks,
             tick: Cell::new(0),
+            protect: Cell::new(NONE),
         },
     );
     if register_hook {
@@ -607,6 +692,35 @@ pub unsafe extern "C" fn deluge_resource_set_construct(
 ) {
     if !handle.is_null() {
         mgr(handle).set_construct(asset, construct);
+    }
+}
+
+/// Mark an asset as prefix-dependent: its `on_evict` discards all higher-index chunks
+/// (e.g. a SampleCache), so the manager only ever evicts the asset's *highest-index*
+/// resident chunk — `on_evict` then never discards a chunk the manager still tracks.
+/// Call after `define_asset`.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_set_evict_tail_first(
+    handle: *mut DelugeResource,
+    asset: u32,
+    on: bool,
+) {
+    if !handle.is_null() {
+        mgr(handle).set_evict_tail_first(asset, on);
+    }
+}
+
+/// Mark an asset self-protecting: while it is allocating a chunk (`request`/`acquire`), its
+/// own chunks are not eviction candidates (the `dontStealFromThing` port). For unleased
+/// caches whose `request(N+1)` must not evict the just-written `N`. Call after define_asset.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_set_self_protect(
+    handle: *mut DelugeResource,
+    asset: u32,
+    on: bool,
+) {
+    if !handle.is_null() {
+        mgr(handle).set_self_protect(asset, on);
     }
 }
 

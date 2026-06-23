@@ -117,6 +117,16 @@ void deluge_resource_release_asset(DelugeResource* mgr, uint32_t asset);
 /// requestable via deluge_resource_request. Call after deluge_resource_define_asset.
 void deluge_resource_set_construct(DelugeResource* mgr, uint32_t asset, DelugeResourceConstructFn construct);
 
+/// Mark an asset prefix-dependent: its `on_evict` discards all higher-index chunks (e.g. a
+/// SampleCache), so the manager only ever evicts the asset's *highest-index* resident chunk
+/// (so `on_evict` never discards a chunk the manager still tracks). Call after define_asset.
+void deluge_resource_set_evict_tail_first(DelugeResource* mgr, uint32_t asset, bool on);
+
+/// Mark an asset self-protecting: while it allocates a chunk (request/acquire), its own chunks
+/// aren't eviction candidates (the dontStealFromThing port — for unleased caches whose
+/// request(N+1) must not evict the just-written N). Call after define_asset.
+void deluge_resource_set_self_protect(DelugeResource* mgr, uint32_t asset, bool on);
+
 /// Reserve + construct chunk `index` of `asset` under a hard lease *without* loading it
 /// (runs the asset's `construct` callback — no I/O), for prefetch: an external loader
 /// fills the data afterwards. The async counterpart to acquire; a cache hit just leases.

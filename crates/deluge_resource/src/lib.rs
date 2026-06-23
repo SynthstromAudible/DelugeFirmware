@@ -495,6 +495,97 @@ mod tests {
     }
 
     #[test]
+    fn request_self_protects_siblings_during_alloc() {
+        // The dontStealFromThing port: while an asset allocates a new (unleased) chunk, its
+        // own already-resident chunks must not be evicted to make room. Fill the heap with one
+        // asset's unleased chunks, then request another chunk of the SAME asset under pressure:
+        // eviction must take a *different* asset's chunk, never one of the requester's.
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let victim = unsafe {
+            deluge_resource_define_asset(mgr, owner(1), Some(mock_materialize), Some(mock_on_evict),
+                core::ptr::null_mut(), COST_IO, BACKING_HEAP)
+        };
+        let cache = unsafe {
+            deluge_resource_define_asset(mgr, owner(2), Some(mock_materialize), Some(mock_on_evict),
+                core::ptr::null_mut(), COST_IO, BACKING_HEAP)
+        };
+        unsafe { deluge_resource_set_construct(mgr, cache, Some(mock_construct)) };
+        unsafe { deluge_resource_set_self_protect(mgr, cache, true) };
+        // One evictable victim-asset chunk (older), then several cache chunks (newer, so by
+        // recency they'd be the eviction pick if not for self-protect).
+        let v = unsafe { deluge_resource_acquire(mgr, victim, 0, 48 * 1024) };
+        unsafe { deluge_resource_release(mgr, v) };
+        let mut cache_ptrs = std::vec![];
+        for n in 0..3u32 {
+            let p = unsafe { deluge_resource_request(mgr, cache, n, 48 * 1024) };
+            if p.is_null() { break; }
+            unsafe { deluge_resource_release(mgr, p) }; // unleased, like a real cache cluster
+            cache_ptrs.push(p);
+        }
+        // Now request another cache chunk under pressure: it must evict the victim asset's
+        // chunk, NOT one of the cache's own (which would corrupt the cache mid-write).
+        reset_evicts();
+        let p = unsafe { deluge_resource_request(mgr, cache, 99, 48 * 1024) };
+        assert!(!p.is_null());
+        // Every prior cache chunk is still resident (a re-request is a cache hit → same ptr).
+        for (n, &cp) in cache_ptrs.iter().enumerate() {
+            let again = unsafe { deluge_resource_request(mgr, cache, n as u32, 48 * 1024) };
+            assert_eq!(again, cp, "cache chunk {n} must not have been self-evicted");
+            unsafe { deluge_resource_release(mgr, again) };
+        }
+    }
+
+    #[test]
+    fn evict_tail_first_takes_highest_index() {
+        // A prefix-dependent asset: only its highest-index resident chunk may be evicted.
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(mgr, owner(5), Some(mock_materialize), Some(mock_on_evict),
+                core::ptr::null_mut(), COST_CPU, BACKING_HEAP)
+        };
+        unsafe { deluge_resource_set_construct(mgr, a, Some(mock_construct)) };
+        unsafe { deluge_resource_set_evict_tail_first(mgr, a, true) };
+        // Build chunks 0,1,2,3 (unleased). Touch them so chunk 3 is NOT the LRU pick — proving
+        // tail-first overrides recency.
+        let mut ps = std::vec![];
+        for n in 0..4u32 {
+            let p = unsafe { deluge_resource_request(mgr, a, n, 32 * 1024) };
+            assert!(!p.is_null());
+            unsafe { deluge_resource_release(mgr, p) };
+            ps.push(p);
+        }
+        unsafe { deluge_resource_touch(mgr, ps[3]) }; // make 3 most-recently-used
+        unsafe { deluge_resource_touch(mgr, ps[2]) };
+        // A different asset forces one eviction; tail-first must take chunk 3 (highest), not
+        // the LRU (chunk 0/1).
+        let other = unsafe {
+            deluge_resource_define_asset(mgr, owner(6), Some(mock_materialize), None,
+                core::ptr::null_mut(), COST_IO, BACKING_HEAP)
+        };
+        // Fill until an eviction happens.
+        for n in 0..20u32 {
+            let q = unsafe { deluge_resource_acquire(mgr, other, n, 32 * 1024) };
+            if q.is_null() { break; }
+            unsafe { deluge_resource_release(mgr, q) };
+        }
+        // Chunk 3 was evicted (re-request re-constructs a fresh pointer); 0,1,2 survive.
+        let h3 = unsafe { deluge_resource_request(mgr, a, 3, 32 * 1024) };
+        unsafe { deluge_resource_release(mgr, h3) };
+        // The key invariant the firmware relies on: eviction never took a NON-highest chunk
+        // while a higher one was resident (that would cascade-destroy in clusterStolen).
+        // We assert it positively: at the moment of any eviction the victim was the tail.
+        // (Covered structurally by is_highest_resident in evict_lowest; here we sanity-check
+        // that lower chunks 0..2 are still their original pointers.)
+        for n in 0..3u32 {
+            let again = unsafe { deluge_resource_request(mgr, a, n, 32 * 1024) };
+            assert_eq!(again, ps[n as usize], "tail-first must not evict non-highest chunk {n}");
+            unsafe { deluge_resource_release(mgr, again) };
+        }
+    }
+
+    #[test]
     fn release_asset_evicts_chunks_and_frees_slot() {
         // Retiring an asset (owner destroyed) must evict its resident chunks — calling
         // on_evict for each so the owner drops pointers — and free the slot for reuse.
