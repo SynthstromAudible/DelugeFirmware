@@ -195,12 +195,28 @@ cluster must belong to exactly one system.
 
 </details>
 
-### Step 3 — relocate prefetch (NEXT)
-The `loadingQueue` / `clusterBeingLoaded` async loader → the manager's read-ahead
-(`request`/`mark_ready`/`try_acquire` + `Loading` state), unlocking embassy + the RT
-allocation-free contract. This also un-does the 2.1b synchronous-acquire collapse (restoring
-read-ahead instead of load-on-demand) — though note the headless render has no scheduler to pump it,
-so the sim will keep loading synchronously regardless; the async path matters on hardware.
+### Step 3 — relocate prefetch ✅ DONE (2026-06-23, golden bit-exact 5174c4e6)
+Async prefetch restored for the manager path, so the audio thread never blocks on SD (2.1b's
+synchronous `acquire` was fine offline but a hardware regression). Done by a **construct/load split**
+rather than a brand-new pending-queue/embassy ABI:
+- Rust foundation: a `construct` Source callback (init the chunk object, no I/O) + `deluge_resource_request`
+  (reserve + construct + lease, no materialize) + `deluge_resource_set_construct`. `acquire` stays the
+  synchronous full path (LOAD_IMMEDIATELY). Unit-tested.
+- C++: `getCluster(CLUSTER_ENQUEUE)` → `request` + enqueue on the **existing** `loadingQueue` (returns the
+  cluster `loaded==false`); the loader fills it via `readClusterData` off the audio thread.
+  `LOAD_IMMEDIATELY` → `acquire` (+ force-read a prefetch-constructed hit). `loadAnyEnqueuedClusters` reads
+  manager clusters via `readClusterData` directly (NOT `loadCluster` — its reasons would desync the lease,
+  its `audioRoutineLocked` guard refuses to load). `clusterConstruct` = async init; `clusterEvict` erases
+  from `loadingQueue`.
+- **Real bug fixed:** `StemExport::renderWait` (the offline render loop) never pumped the loader —
+  `loadAnyEnqueuedClusters` bails while `audioRoutineLocked`, which the offline `AudioEngine::routine()`
+  holds for its whole body, so the in-routine pump (line 1081) is a no-op. (This *was* legacy's dropout
+  root cause; 2.1b only worked by loading synchronously.) Now pumped between routines (lock clear), as the
+  on-device scheduler does. With it, async streaming renders the complete mix **bit-exact with the golden**.
+
+The manager's own `mark_ready`/`try_acquire` + `Loading`-state ABI (fully replacing the C++ `loadingQueue`)
+still lands with the embassy/RT-prefetcher move; this step reuses the existing queue, so only the pump task
+changes then.
 
 ### Step 4 — retire
 `Stealable` / `CacheManager` / `numReasonsToBeLoaded` / `getAppropriateQueue`; the GMA
