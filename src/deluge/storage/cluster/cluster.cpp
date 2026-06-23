@@ -267,11 +267,24 @@ bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
 	return true;
 }
 
+uint32_t Cluster::resourceLeaseAssetId() const {
+	switch (type) {
+	case Type::SAMPLE:
+		return (sample != nullptr) ? sample->resourceAssetId : DELUGE_RESOURCE_NO_ASSET;
+	case Type::PERC_CACHE_FORWARDS:
+		return (sample != nullptr) ? sample->percCacheAssetId[0] : DELUGE_RESOURCE_NO_ASSET;
+	case Type::PERC_CACHE_REVERSED:
+		return (sample != nullptr) ? sample->percCacheAssetId[1] : DELUGE_RESOURCE_NO_ASSET;
+	default:
+		return DELUGE_RESOURCE_NO_ASSET; // SAMPLE_CACHE is unleased; everything else is legacy
+	}
+}
+
 void Cluster::addReason() {
-	// Manager-owned SAMPLE clusters are pinned by a resource-manager lease, not by leaving
-	// the stealable queue (they're never on it). Take a lease so the manager won't evict a
-	// cluster the caller still holds, and keep numReasonsToBeLoaded as a mirror.
-	if (type == Type::SAMPLE && sample != nullptr && sample->resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+	// Manager-owned leased clusters (SAMPLE / PERC) are pinned by a resource-manager lease, not
+	// by leaving the stealable queue (they're never on it). Take a lease so the manager won't
+	// evict a cluster the caller still holds, and keep numReasonsToBeLoaded as a mirror.
+	if (resourceLeaseAssetId() != DELUGE_RESOURCE_NO_ASSET) {
 		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 		if (mgr != nullptr) {
 			deluge_resource_add_lease(mgr, this); // hit-only lease bump on this resident chunk

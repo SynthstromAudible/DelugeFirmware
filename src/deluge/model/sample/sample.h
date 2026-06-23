@@ -168,6 +168,9 @@ public:
 
 	Cluster** percCacheClusters[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	int32_t numPercCacheClusters{};
+	// Resource-manager Asset id per play-direction for the perc-cache clusters (construct-only,
+	// leased-while-nearby by the TimeStretcher). DELUGE_RESOURCE_NO_ASSET (0xFFFFFFFF) = legacy.
+	uint32_t percCacheAssetId[2]{0xFFFFFFFFu, 0xFFFFFFFFu};
 
 	int32_t beginningOffsetForPitchDetection;
 	bool beginningOffsetForPitchDetectionFound;

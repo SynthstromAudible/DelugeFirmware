@@ -162,6 +162,31 @@ static void clusterEvict(void* /*ctx*/, void* owner, uint32_t index) {
 	}
 }
 
+// === Resource-manager Source for the perc cache (per play-direction) =========
+// Perc clusters are written incrementally by the time-stretcher (no materialize), and
+// leased-while-nearby (TimeStretcher addReason/removeReason via resourceLeaseAssetId).
+// ctx carries the play-direction (0=forwards, 1=reversed). Per-cluster independent (no
+// tail-first); self_protect so the fill can't evict its own just-written cluster.
+static void percCacheConstruct(void* ctx, void* owner, uint32_t index, void* dest) {
+	auto* sample = static_cast<Sample*>(owner);
+	int32_t reversed = static_cast<int32_t>(reinterpret_cast<intptr_t>(ctx));
+	auto* cluster = new (dest) Cluster();
+	cluster->type = reversed ? Cluster::Type::PERC_CACHE_REVERSED : Cluster::Type::PERC_CACHE_FORWARDS;
+	cluster->sample = sample;
+	cluster->clusterIndex = index;
+	sample->percCacheClusters[reversed][index] = cluster;
+}
+
+static void percCacheEvict(void* ctx, void* owner, uint32_t index) {
+	auto* sample = static_cast<Sample*>(owner);
+	int32_t reversed = static_cast<int32_t>(reinterpret_cast<intptr_t>(ctx));
+	Cluster* cluster = sample->percCacheClusters[reversed][index];
+	if (cluster != nullptr) {
+		sample->percCacheClusterStolen(cluster); // nulls percCacheClusters[reversed][index] + trims zones
+		cluster->~Cluster();                     // manager frees the slab slot
+	}
+}
+
 uint32_t Sample::ensureResourceAsset() {
 	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
 		return resourceAssetId;
@@ -211,6 +236,17 @@ void Sample::deletePercCache(bool beingDestructed) {
 			if (!beingDestructed) {
 				percCacheMemory[reversed] = nullptr;
 			}
+		}
+
+		// Manager-owned: retire the Asset — the manager frees all this direction's resident perc
+		// clusters (via percCacheEvict, which nulls percCacheClusters[reversed][c] as it goes), so
+		// the legacy destroy loop below finds nothing to do.
+		if (percCacheAssetId[reversed] != DELUGE_RESOURCE_NO_ASSET) {
+			DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+			if (mgr != nullptr) {
+				deluge_resource_release_asset(mgr, percCacheAssetId[reversed]);
+			}
+			percCacheAssetId[reversed] = DELUGE_RESOURCE_NO_ASSET;
 		}
 
 		if (percCacheClusters[reversed]) {
@@ -395,6 +431,21 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 			}
 
 			memset(percCacheClusters[reversed], 0, memorySize);
+
+			// Define this direction's perc-cache Asset (construct-only; the manager owns residency
+			// + eviction for its clusters). NO_ASSET (no manager / table full) → legacy CacheManager.
+			DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+			if (mgr != nullptr) {
+				percCacheAssetId[reversed] =
+				    deluge_resource_define_asset(mgr, this, nullptr /*materialize: never*/, percCacheEvict,
+				                                 reinterpret_cast<void*>(static_cast<intptr_t>(reversed)),
+				                                 DELUGE_RESOURCE_COST_CPU, DELUGE_RESOURCE_BACKING_SLAB);
+				if (percCacheAssetId[reversed] != DELUGE_RESOURCE_NO_ASSET) {
+					deluge_resource_set_construct(mgr, percCacheAssetId[reversed], percCacheConstruct);
+					deluge_resource_set_self_protect(mgr, percCacheAssetId[reversed], true);
+					// per-cluster independent (percCacheClusterStolen trims one slot) → NOT evict_tail_first
+				}
+			}
 		}
 	}
 
@@ -625,17 +676,32 @@ doLoading:
 				//  We tell it not to steal any other per cache Cluster from this Sample - not because those Clusters
 				//  are definitely a high priority to keep, but because doing so would probably alter our
 				//  percCacheZones, which we're currently working with, which could really muck things up. Scenario only
-				//  discovered Jan 2021.
-				percCacheClusters[reversed][percClusterIndex] = Cluster::create(
-				    reversed ? Cluster::Type::PERC_CACHE_REVERSED : Cluster::Type::PERC_CACHE_FORWARDS, false,
-				    this); // Doesn't add reason. Call to rememberPercCacheCluster() below will
-				if (!percCacheClusters[reversed][percClusterIndex]) {
-					error = Error::INSUFFICIENT_RAM;
-					goto getOut;
+				//  discovered Jan 2021. (Manager path: the asset's self_protect provides the same guarantee.)
+				if (percCacheAssetId[reversed] != DELUGE_RESOURCE_NO_ASSET) {
+					// Manager-owned: request constructs the Cluster (percCacheConstruct sets
+					// type/sample/index + percCacheClusters[reversed][index]) + leases; release so it's
+					// resident-but-unleased (the TimeStretcher re-leases the nearby ones via addReason).
+					DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+					void* p = deluge_resource_request(mgr, percCacheAssetId[reversed], percClusterIndex,
+					                                  sizeof(Cluster) + Cluster::size);
+					if (p == nullptr) {
+						error = Error::INSUFFICIENT_RAM;
+						goto getOut;
+					}
+					deluge_resource_release(mgr, p);
 				}
+				else {
+					percCacheClusters[reversed][percClusterIndex] = Cluster::create(
+					    reversed ? Cluster::Type::PERC_CACHE_REVERSED : Cluster::Type::PERC_CACHE_FORWARDS, false,
+					    this); // Doesn't add reason. Call to rememberPercCacheCluster() below will
+					if (!percCacheClusters[reversed][percClusterIndex]) {
+						error = Error::INSUFFICIENT_RAM;
+						goto getOut;
+					}
 
-				percCacheClusters[reversed][percClusterIndex]->sample = this;
-				percCacheClusters[reversed][percClusterIndex]->clusterIndex = percClusterIndex;
+					percCacheClusters[reversed][percClusterIndex]->sample = this;
+					percCacheClusters[reversed][percClusterIndex]->clusterIndex = percClusterIndex;
+				}
 			}
 
 			timeStretcher->rememberPercCacheCluster(percCacheClusters[reversed][percClusterIndex]);

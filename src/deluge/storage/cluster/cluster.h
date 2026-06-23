@@ -69,6 +69,13 @@ public:
 	StealableQueue getAppropriateQueue() override;
 	void addReason();
 
+	// The resource-manager Asset that owns this cluster's residency for the *leased* (reason-
+	// tracked) kinds — SAMPLE (the sample's asset) and PERC_CACHE_* (the sample's per-direction
+	// perc asset) — or DELUGE_RESOURCE_NO_ASSET if it's on the legacy CacheManager path. Used by
+	// addReason / removeReasonFromCluster to route a reason to a manager lease. SAMPLE_CACHE
+	// clusters are unleased (never reasoned), so they're excluded here and managed separately.
+	uint32_t resourceLeaseAssetId() const;
+
 	Cluster::Type type;
 	uint32_t clusterIndex = 0;
 

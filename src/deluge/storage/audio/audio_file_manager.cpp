@@ -1391,12 +1391,11 @@ performActionsAndGetOut:
 }
 
 void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong) {
-	// Manager-owned SAMPLE clusters (their Sample has a defined Asset): the resource manager
-	// owns residency + eviction, so a removed reason is just a lease drop — it stays resident
-	// (cached, evictable under pressure), never enqueued/destroyed here. numReasonsToBeLoaded
-	// is kept as a mirror of the manager's lease count.
-	if (cluster.type == Cluster::Type::SAMPLE && cluster.sample != nullptr
-	    && cluster.sample->resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+	// Manager-owned leased clusters (SAMPLE / PERC, their owner has a defined Asset): the
+	// resource manager owns residency + eviction, so a removed reason is just a lease drop — it
+	// stays resident (cached, evictable under pressure), never enqueued/destroyed here.
+	// numReasonsToBeLoaded is kept as a mirror of the manager's lease count.
+	if (cluster.resourceLeaseAssetId() != DELUGE_RESOURCE_NO_ASSET) {
 		cluster.numReasonsToBeLoaded--;
 		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 		if (mgr != nullptr) {
