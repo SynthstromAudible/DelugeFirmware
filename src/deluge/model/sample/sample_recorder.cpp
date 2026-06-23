@@ -121,18 +121,18 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 	folderID = newFolderID;
 
 	// Didn't seem to make a difference forcing this into local RAM
-	void* sample_memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Sample));
+	void* sample_memory = deluge::memory::alloc_external(sizeof(Sample), 16);
 	if (sample_memory == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	sample = new (sample_memory) Sample;
+	audioFileManager.adoptAudioFileObject(sample); // resource-manager evictable object (before addReason)
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
 	Error error = sample->initialize(1);
 	if (error != Error::NONE) {
 gotError:
-		sample->~Sample();
-		delugeDealloc(sample_memory);
+		audioFileManager.destroyAudioFileObject(*sample); // ~Sample + free (routed through the manager if adopted)
 		return error;
 	}
 

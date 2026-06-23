@@ -265,8 +265,10 @@ gotError2:
 		    numCycles * (cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE);
 		int32_t bandSizeBytesWithDuplicates = bandSizeSamplesWithDuplicates << 1; // All bands contain just 16-bit data.
 		// Ironically we'll even do that if the source file was just 8-bit, but that's really uncommon.
+		// Plain SDRAM, not allocStealable: bands are no longer independent stealables — they're
+		// owned by the WaveTable and freed by ~WaveTable when the (adopt-mode) object is evicted.
 		void* bandDataMemory =
-		    GeneralMemoryAllocator::get().allocStealable(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
+		    deluge::memory::alloc_external(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData), 16);
 		if (!bandDataMemory) {
 			error = Error::INSUFFICIENT_RAM;
 			// All bands from this one onwards still have no data, so get rid of them before anything else
@@ -1181,28 +1183,14 @@ doneRenderingACycle:
 }
 
 void WaveTable::numReasonsIncreasedFromZero() {
-
-	// Remove all bands' data from Stealable-queue, as it may no longer be stolen.
-	for (WaveTableBand& band : bands) {
-		if (band.data != nullptr) {
-			band.data->remove();
-		}
-	}
+	// Bands are no longer independent stealables — the WaveTable *object* is the manager-evictable
+	// unit (adopt), and its dtor frees the bands. So there is no per-band queue to manage here.
 }
 
 void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
-
-	// Put all bands' data in queue to be stolen.
-	for (WaveTableBand& band : bands) {
-		if (band.data != nullptr) {
-#if ALPHA_OR_BETA_VERSION
-			if (band.data->list) {
-				FREEZE_WITH_ERROR("E388");
-			}
-#endif
-			GeneralMemoryAllocator::get().putStealableInQueue(band.data, StealableQueue::NO_SONG_WAVETABLE_BAND_DATA);
-		}
-	}
+	// Bands are no longer independent stealables. When this WaveTable's reasons hit 0 the *object*
+	// becomes unleased ⇒ evictable by the manager (adopt), which on eviction destructs it and frees
+	// the bands. So there is nothing to enqueue here.
 }
 
 /*

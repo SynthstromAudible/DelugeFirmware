@@ -22,13 +22,12 @@
 
 class WaveTable;
 
-class WaveTableBandData final : public Stealable {
+// A WaveTable's per-band data. No longer a Stealable: bands aren't independently reclaimable — the
+// WaveTable *object* is the resource-manager-evictable unit (adopt mode), and ~WaveTable frees its
+// bands. So this is a plain heap-owned struct.
+class WaveTableBandData {
 public:
 	WaveTableBandData(WaveTable* newWaveTable) : waveTable(newWaveTable) {};
-
-	bool mayBeStolen(void* thingNotToStealFrom = nullptr) override;
-	void steal(char const* errorCode) override;
-	StealableQueue getAppropriateQueue() override;
 
 	WaveTable* waveTable;
 };

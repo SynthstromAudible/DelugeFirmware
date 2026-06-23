@@ -50,6 +50,11 @@ public:
 	                                       // which format the name took.
 	int32_t numReasonsToBeLoaded{}; // This functionality should probably be merged between AudioFile and Cluster.
 
+	// True once this object has been adopted by the resource manager (the unified SDRAM reclaim
+	// coordinator): reasons then route to manager leases (add_lease/release) and eviction is the
+	// manager's value-scored job, not the CacheManager stealable queue. False ⇒ legacy queue path.
+	bool resourceAdopted_{false};
+
 	constexpr static bool isSample(const AudioFile* file) { return file->type == AudioFileType::SAMPLE; }
 	constexpr static bool isWaveTable(const AudioFile* file) { return file->type == AudioFileType::WAVETABLE; }
 

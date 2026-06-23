@@ -87,6 +87,47 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count) {
 
 AudioFileManager audioFileManager{};
 
+// === Resource-manager adopt for AudioFile objects (the unified SDRAM reclaim coordinator) =====
+// An AudioFile (Sample/WaveTable) object is adopted as an evictable block: its reasons are manager
+// leases (AudioFile::add/removeReason), and when unleased the manager may reclaim it under memory
+// pressure via audioFileEvict — erasing it from `audioFiles` and destructing it, which frees its
+// clusters (Sample → release_asset) and its wavetable bands (~WaveTable). Replaces the CacheManager
+// NO_SONG_AUDIO_FILE_OBJECTS queue. (Note: more correct than the legacy steal path, which freed the
+// object's raw memory without ~AudioFile — leaking clusters/bands.)
+namespace {
+void audioFileEvict(void* /*ctx*/, void* ptr) {
+	auto* audioFile = static_cast<AudioFile*>(ptr);
+	int32_t i = audioFileManager.audioFiles.searchForExactObject(audioFile);
+	if (i >= 0) {
+		audioFileManager.audioFiles.erase(audioFileManager.audioFiles.begin() + i);
+	}
+	audioFile->~AudioFile(); // the manager frees the object's backing right after this
+}
+} // namespace
+
+// Adopt a freshly placement-new'd AudioFile (call before its first addReason). Creates the manager
+// if needed; no-op only if that fails, leaving the object on the legacy CacheManager-queue path.
+void AudioFileManager::adoptAudioFileObject(AudioFile* audioFile) {
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr != nullptr
+	    && deluge_resource_adopt(mgr, audioFile, DELUGE_RESOURCE_COST_IO, nullptr, audioFileEvict) != nullptr) {
+		audioFile->resourceAdopted_ = true;
+	}
+}
+
+// Destruct + free an AudioFile object (caller has already removed it from `audioFiles` if present).
+// Routes the free through the manager (un-adopt) if adopted, else the legacy heap free.
+void AudioFileManager::destroyAudioFileObject(AudioFile& audioFile) {
+	bool adopted = audioFile.resourceAdopted_;
+	audioFile.~AudioFile();
+	if (adopted) {
+		deluge_resource_evict_chunk(GeneralMemoryAllocator::get().resourceManager(), &audioFile);
+	}
+	else {
+		delugeDealloc(&audioFile);
+	}
+}
+
 AudioFileManager::AudioFileManager() {
 	highestUsedAudioRecordingNumber.fill(-1);
 	highestUsedAudioRecordingNumberNeedsReChecking.set();
@@ -420,8 +461,7 @@ void AudioFileManager::deleteUnusedAudioFileFromMemory(AudioFile& audioFile, int
 	audioFiles.erase(audioFiles.begin() + i);
 	// audioFile->remove(); // Remove from the unused AudioFiles list, where this already must have been. Actually
 	// no, the destructor does this anyway.
-	audioFile.~AudioFile();
-	delugeDealloc(&audioFile);
+	destroyAudioFileObject(audioFile); // ~AudioFile + free, routed through the manager if adopted
 }
 
 bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
@@ -538,7 +578,7 @@ notLoadableAsWaveTable:
 				}
 			}
 
-			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(WaveTable));
+			void* waveTableMemory = deluge::memory::alloc_external(sizeof(WaveTable), 16);
 			if (!waveTableMemory) {
 				*error = Error::INSUFFICIENT_RAM;
 				return NULL;
@@ -546,14 +586,14 @@ notLoadableAsWaveTable:
 
 			WaveTable* newWaveTable = new (waveTableMemory) WaveTable;
 
-			newWaveTable->addReason(); // So it's protected while setting up.
+			adoptAudioFileObject(newWaveTable); // resource-manager evictable object (before addReason)
+			newWaveTable->addReason();          // So it's protected while setting up.
 			foundAudioFile->addReason();
 
 			*error = newWaveTable->setup((Sample*)foundAudioFile);
 			if (*error != Error::NONE) {
 waveTableCloneError:
-				newWaveTable->~WaveTable();
-				delugeDealloc(waveTableMemory);
+				destroyAudioFileObject(*newWaveTable);
 				return NULL;
 			}
 
@@ -780,7 +820,7 @@ cantLoadFile:
 
 	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
-	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealable(memorySizeNeeded);
+	void* audioFileMemory = deluge::memory::alloc_external(memorySizeNeeded, 16);
 	if (!audioFileMemory) {
 ramError:
 		*error = Error::INSUFFICIENT_RAM;
@@ -793,11 +833,11 @@ ramError:
 	AudioFile* audioFile;
 	if (type == AudioFileType::SAMPLE) {
 		audioFile = new (audioFileMemory) Sample;
+		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
 		audioFile->addReason(); // So it's protected while setting up. Must do this before calling initialize().
 		*error = ((Sample*)audioFile)->initialize(numClusters);
 		if (*error != Error::NONE) { // Very rare, only if not enough RAM
-			audioFile->~AudioFile();
-			delugeDealloc(audioFileMemory);
+			destroyAudioFileObject(*audioFile);
 			goto cantLoadFile;
 		}
 
@@ -805,7 +845,8 @@ ramError:
 	}
 	else {
 		audioFile = new (audioFileMemory) WaveTable;
-		audioFile->addReason(); // So it's protected while setting up.
+		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
+		audioFile->addReason();          // So it's protected while setting up.
 		reader = new (readerMemory) WaveTableReader;
 	}
 
@@ -883,9 +924,9 @@ ensureSafeThenCheckError:
 
 	if (*error != Error::NONE) {
 audioFileError:
-		audioFile->~AudioFile(); // Have to call this! This removes the pointers back to the Sample / SampleClusters
-		                         // from any Clusters.
-		delugeDealloc(audioFileMemory);
+		// ~AudioFile removes the pointers back to the Sample / SampleClusters from any Clusters;
+		// destroyAudioFileObject also un-adopts + frees (through the manager if adopted).
+		destroyAudioFileObject(*audioFile);
 		return NULL;
 	}
 

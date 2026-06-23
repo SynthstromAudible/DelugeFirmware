@@ -25,6 +25,8 @@
 #include "storage/audio/audio_file_reader.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/misc.h"
+
+#include "deluge_resource.h" // resource manager: adopted AudioFile objects route reasons to leases
 #include <cstring>
 
 #include <algorithm>
@@ -482,6 +484,20 @@ finishedWhileLoop:
 }
 
 void AudioFile::addReason() {
+	if (resourceAdopted_) {
+		// Manager-owned: each reason is a hard lease (reason 0 ⇒ unleased ⇒ evictable). The
+		// manager owns eviction, so there's no stealable queue to leave. Mirror the count.
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_add_lease(mgr, this);
+		}
+		if (!numReasonsToBeLoaded) {
+			numReasonsIncreasedFromZero();
+		}
+		numReasonsToBeLoaded++;
+		return;
+	}
+
 	// If it was zero before, it's no longer unused
 	if (!numReasonsToBeLoaded) {
 		remove();
@@ -494,6 +510,25 @@ void AudioFile::addReason() {
 void AudioFile::removeReason(char const* errorCode) {
 
 	numReasonsToBeLoaded--;
+
+	if (resourceAdopted_) {
+		// Manager-owned: drop the lease. At reason 0 it's unleased ⇒ evictable under pressure
+		// (the manager value-scores it), no queue. Keep the numReasons mirror in sync.
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_release(mgr, this);
+		}
+		if (numReasonsToBeLoaded == 0) {
+			numReasonsDecreasedToZero(errorCode);
+		}
+		else if (numReasonsToBeLoaded < 0) {
+#if ALPHA_OR_BETA_VERSION
+			FREEZE_WITH_ERROR("E004");
+#endif
+			numReasonsToBeLoaded = 0;
+		}
+		return;
+	}
 
 	// If it's now zero, it's become unused
 	if (numReasonsToBeLoaded == 0) {

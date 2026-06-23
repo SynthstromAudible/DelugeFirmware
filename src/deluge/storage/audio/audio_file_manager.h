@@ -115,6 +115,12 @@ public:
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile& audioFile);
 	bool tryToDeleteAudioFileFromMemoryIfItExists(char const* filePath);
 
+	// Resource-manager (adopt-mode) object lifecycle: register a freshly placement-new'd AudioFile
+	// as a manager-evictable block (call before its first addReason); destruct + free one (routed
+	// through the manager if adopted, else the legacy heap). Also used by SampleRecorder.
+	void adoptAudioFileObject(AudioFile* audioFile);
+	void destroyAudioFileObject(AudioFile& audioFile);
+
 	void thingBeginningLoading(ThingType newThingType);
 	void thingFinishedLoading();
 
