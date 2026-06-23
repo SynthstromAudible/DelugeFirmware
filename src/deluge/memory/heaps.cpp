@@ -19,6 +19,7 @@
 #include "libdeluge/alloc.h"
 #include "libdeluge/memory.h"
 #include <cstdint>
+#include <cstdlib> // DELUGE_SIM_SDRAM_MB (sim/golden eviction testing)
 #include <cstring>
 
 // Linker-defined small-internal ("frunk") SRAM region — a reserved slack area that
@@ -67,9 +68,23 @@ void init_heaps() {
 		// the partitions is the redesign's unified pool. The reclaim hook (cache
 		// eviction) is registered by the GeneralMemoryAllocator.
 		if (r.kind == DELUGE_MEM_LARGE_EXTERNAL && g_sdram == nullptr) {
-			g_sdram = deluge_heap_create(r.base, r.size);
+			size_t sdram_size = r.size;
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+			// Sim/golden only: DELUGE_SIM_SDRAM_MB clamps the usable SDRAM (the region array is
+			// still full-size; we just build a smaller heap over its front) to force memory
+			// pressure / eviction in headless renders — exercises the resource manager's
+			// evict+recompute path. Done HERE, not in the BSP, so the binary layout is unchanged
+			// (existing goldens stay valid; only the heap size differs). Firmware compiles this out.
+			if (const char* mb = std::getenv("DELUGE_SIM_SDRAM_MB")) {
+				long v = std::atol(mb);
+				if (v > 0 && static_cast<size_t>(v) * 1024u * 1024u < sdram_size) {
+					sdram_size = static_cast<size_t>(v) * 1024u * 1024u;
+				}
+			}
+#endif
+			g_sdram = deluge_heap_create(r.base, sdram_size);
 			g_sdram_lo = reinterpret_cast<uintptr_t>(r.base);
-			g_sdram_hi = g_sdram_lo + r.size;
+			g_sdram_hi = g_sdram_lo + sdram_size;
 		}
 	}
 	// Small-internal ("frunk") heap from the linker symbols (empty on a board that

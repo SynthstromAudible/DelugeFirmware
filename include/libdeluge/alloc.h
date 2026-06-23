@@ -95,6 +95,11 @@ DelugeSlab* deluge_slab_create(DelugeHeap* heap, size_t slot_size, size_t capaci
 /// eviction policy lives in the C++ CacheManager. Returns NULL on OOM.
 DelugeSlab* deluge_slab_create_unmanaged(DelugeHeap* heap, size_t slot_size, size_t capacity);
 
+/// Zero every slot's bytes on acquire (off by default). For the sim/golden build
+/// (DELUGE_DETERMINISTIC_ALLOC) so a read-before-write of slot memory resolves to a
+/// defined 0 instead of layout-dependent recycled heap content. Leave off in firmware.
+void deluge_slab_set_zero_on_acquire(DelugeSlab* slab, bool on);
+
 /// Acquire a slot for `owner` (may evict a cold slot). Returns the slot payload,
 /// or NULL if exhausted and nothing is evictable.
 void* deluge_slab_acquire(DelugeSlab* slab, void* owner);

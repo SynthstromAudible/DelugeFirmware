@@ -43,6 +43,12 @@ pub struct SlabPool {
     /// backing-only — it never registers a hook and never self-evicts. The cluster
     /// pool is unmanaged (docs/dev/allocator_sdram_strangle.md, step 7).
     self_reclaim: bool,
+    /// Zero each slot's bytes on acquire. Off by default (firmware: leave recycled content
+    /// for speed). The sim/golden build turns it on (DELUGE_DETERMINISTIC_ALLOC) so a
+    /// read-before-write of slot memory — e.g. a SampleCache reading interpolation-overhang
+    /// bytes past its write position — resolves to a defined 0 instead of layout-dependent
+    /// recycled content, keeping the offline render independent of heap layout.
+    zero_on_acquire: bool,
 }
 
 impl SlabPool {
@@ -129,6 +135,9 @@ impl SlabPool {
         if p.is_null() {
             return ptr::null_mut();
         }
+        if (*this).zero_on_acquire {
+            ptr::write_bytes(p, 0, (*this).slot_size);
+        }
         // 3. Populate the reserved entry.
         Self::populate(this, idx, p, owner);
         p
@@ -145,6 +154,9 @@ impl SlabPool {
         let p = deluge_alloc((*this).heap, (*this).slot_size, ALIGN);
         if p.is_null() {
             return ptr::null_mut();
+        }
+        if (*this).zero_on_acquire {
+            ptr::write_bytes(p, 0, (*this).slot_size);
         }
         match Self::find_free(this) {
             Some(idx) => {
@@ -210,6 +222,7 @@ unsafe fn create_pool(
             tick: 0,
             on_evict,
             self_reclaim,
+            zero_on_acquire: false,
         },
     );
     for i in 0..capacity {
@@ -256,6 +269,16 @@ pub unsafe extern "C" fn deluge_slab_create_unmanaged(
     capacity: usize,
 ) -> *mut DelugeSlab {
     create_pool(heap, slot_size, capacity, None, false)
+}
+
+/// Zero every slot's bytes on acquire (off by default). For the sim/golden build
+/// (DELUGE_DETERMINISTIC_ALLOC) so a read-before-write of slot memory resolves to a
+/// defined 0 instead of layout-dependent recycled heap content. Leave off in firmware.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_slab_set_zero_on_acquire(slab: *mut DelugeSlab, on: bool) {
+    if !slab.is_null() {
+        (*(slab as *mut SlabPool)).zero_on_acquire = on;
+    }
 }
 
 #[no_mangle]

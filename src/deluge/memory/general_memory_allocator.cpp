@@ -85,6 +85,13 @@ bool GeneralMemoryAllocator::ensureClusterSystem() {
 	if (clusterSlab_ == nullptr) {
 		return false;
 	}
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	// Sim/golden only: zero each cluster slot on acquire so a read-before-write of slot
+	// memory (e.g. a SampleCache reading interpolation-overhang bytes past its write
+	// position) is a defined 0, not layout-dependent recycled content — keeps the offline
+	// render independent of heap layout. Firmware leaves it off (speed; behaviour unchanged).
+	deluge_slab_set_zero_on_acquire(clusterSlab_, true);
+#endif
 	// Stand up the resource manager alongside (coexistence): it shares the cluster
 	// slab and owns raw SAMPLE-cluster residency. Created *unhooked* — gmaSdramReclaim
 	// stays the heap's reclaim hook and drives both coordinators.
