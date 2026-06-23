@@ -67,6 +67,12 @@ void Cluster::destroy() {
 	GeneralMemoryAllocator::get().freeSdram(this);
 }
 
+// Safety net (see the header): release through the slab so the table entry is cleared.
+// freeSdram() falls back to a plain heap free for any non-slab pointer.
+void Cluster::operator delete(void* ptr) {
+	GeneralMemoryAllocator::get().freeSdram(ptr);
+}
+
 /**
  * @brief This function goes through the contents of the cluster,
  *        and converts them to the Deluge's native PCM 24-bit format if needed

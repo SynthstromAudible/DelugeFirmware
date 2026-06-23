@@ -48,6 +48,14 @@ public:
 	                       void* dontStealFromThing = nullptr);
 	void destroy();
 
+	// Clusters are allocated from the backing slab (create() -> acquireCluster()), so their
+	// memory MUST be released through the slab (GMA::freeSdram -> slab_release) to clear the
+	// slab's table entry. The normal recycle path is destroy(); this class operator delete
+	// is a safety net so a stray `delete someCluster` routes to freeSdram too instead of the
+	// global operator delete (which frees the heap block but leaks the slab slot — exhausting
+	// the slab table and breaking later allocations).
+	static void operator delete(void* ptr);
+
 	static size_t size;
 	static size_t size_magnitude;
 	static void setSize(size_t size);

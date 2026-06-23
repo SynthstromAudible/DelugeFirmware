@@ -990,9 +990,8 @@ getOutEarly:
 	}
 #endif
 
-	DRESULT result =
-	    disk_read_without_streaming_first(deluge_block_sd_unit(), (BYTE*)cluster.data,
-	                                      sample->clusters[cluster.clusterIndex].sdAddress, numSectors);
+	DRESULT result = disk_read_without_streaming_first(deluge_block_sd_unit(), (BYTE*)cluster.data,
+	                                                   sample->clusters[cluster.clusterIndex].sdAddress, numSectors);
 
 #if REPORT_LOAD_TIME
 	uint16_t endTime = MTU2.TCNT_0;
@@ -1388,7 +1387,12 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 			// Tell its Cluster to forget it exists
 			cluster.sample->clusters[cluster.clusterIndex].cluster = NULL;
 
-			delete &cluster; // It contains nothing, so completely recycle it
+			// Must go through Cluster::destroy() (the counterpart to Cluster::create()), NOT a
+			// bare `delete`: clusters are allocated from the backing slab, so freeing them via
+			// operator delete frees the heap block but leaks the slab's table entry. After enough
+			// such frees the slab table fills, acquireCluster() returns null, and recording/streaming
+			// fail to allocate (e.g. the 2nd+ stem of a multi-track export aborted mid-capture).
+			cluster.destroy(); // It contains nothing, so completely recycle it
 		}
 
 		else {
