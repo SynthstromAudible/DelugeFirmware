@@ -28,9 +28,17 @@ public:
 	            int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart, bool newReversed);
 	~SampleCache();
 	void clusterStolen(int32_t clusterIndex);
+	// Resource-manager on_evict for this cache's clusters: ~Cluster the evicted slot (the
+	// manager frees its backing) then run clusterStolen's truncation. Only the highest-index
+	// cluster is ever evicted (the asset is evict_tail_first), so nothing cascades.
+	void onCacheEvict(int32_t clusterIndex);
 	bool setupNewCluster(int32_t cachedClusterIndex);
 	Cluster* getCluster(int32_t clusterIndex);
 	void setWriteBytePos(int32_t newWriteBytePos);
+
+	// Resource-manager Asset id for this cache's SAMPLE_CACHE clusters (DELUGE_RESOURCE_NO_ASSET
+	// if no manager / table full → legacy CacheManager path). 0xFFFFFFFF == DELUGE_RESOURCE_NO_ASSET.
+	uint32_t resourceAssetId{0xFFFFFFFFu};
 
 	int32_t writeBytePos;
 #if ALPHA_OR_BETA_VERSION

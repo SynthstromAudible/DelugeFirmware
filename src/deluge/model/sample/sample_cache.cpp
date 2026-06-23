@@ -22,6 +22,28 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "util/misc.h"
+#include <new>
+
+#include "deluge_resource.h" // resource manager: cache clusters are a construct-only Asset
+
+// === Resource-manager Source for a SampleCache's clusters =====================
+// A cache cluster is written incrementally during playback (not read from disk), so the
+// asset has NO materialize — only `construct` (init the Cluster object; the cache fills the
+// data) and `on_evict` (drop + ~Cluster). cost=CPU; the asset is self_protect (unleased
+// cache clusters mustn't be self-evicted mid-write) + evict_tail_first (clusterStolen
+// discards higher-index siblings, so only the highest may be evicted).
+static void sampleCacheConstruct(void* /*ctx*/, void* owner, uint32_t index, void* dest) {
+	auto* sampleCache = static_cast<SampleCache*>(owner);
+	auto* cluster = new (dest) Cluster();
+	cluster->type = Cluster::Type::SAMPLE_CACHE;
+	cluster->sampleCache = sampleCache;
+	cluster->clusterIndex = index;
+	// numReasonsToBeLoaded stays 0 — cache clusters are unleased.
+}
+
+static void sampleCacheEvict(void* /*ctx*/, void* owner, uint32_t index) {
+	static_cast<SampleCache*>(owner)->onCacheEvict(index);
+}
 
 SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newWaveformLengthBytes,
                          int32_t newPhaseIncrement, int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart,
@@ -42,9 +64,32 @@ SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newW
 	"valid"
 	}
 	*/
+
+	// Define this cache's resource-manager Asset (construct-only; the manager owns residency
+	// + eviction for its clusters). NO_ASSET (no manager / table full) → legacy CacheManager.
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr != nullptr) {
+		resourceAssetId = deluge_resource_define_asset(mgr, this, nullptr /*materialize: never*/, sampleCacheEvict,
+		                                               nullptr, DELUGE_RESOURCE_COST_CPU, DELUGE_RESOURCE_BACKING_SLAB);
+		if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+			deluge_resource_set_construct(mgr, resourceAssetId, sampleCacheConstruct);
+			deluge_resource_set_self_protect(mgr, resourceAssetId, true);
+			deluge_resource_set_evict_tail_first(mgr, resourceAssetId, true);
+		}
+	}
 }
 
 SampleCache::~SampleCache() {
+	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+		// Retire the Asset: the manager frees all our resident clusters highest-index-first
+		// (via onCacheEvict, which nulls clusters[] as it goes). No legacy unlinkClusters.
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_release_asset(mgr, resourceAssetId);
+		}
+		resourceAssetId = DELUGE_RESOURCE_NO_ASSET;
+		return;
+	}
 	unlinkClusters(0, true);
 }
 
@@ -90,18 +135,42 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 #endif
 }
 
+// Resource-manager on_evict: the manager has chosen this cluster (always the highest-index,
+// since the asset is evict_tail_first) and will free its backing slab slot right after we
+// return. Destruct the Cluster object + drop our pointer, then run clusterStolen's truncation
+// (no higher siblings to discard, so it doesn't cascade).
+void SampleCache::onCacheEvict(int32_t clusterIndex) {
+	Cluster* cluster = clusters[clusterIndex];
+	clusters[clusterIndex] = nullptr;
+	if (cluster != nullptr) {
+		cluster->~Cluster(); // manager frees the slot
+	}
+	clusterStolen(clusterIndex); // truncate writeBytePos (clusters[clusterIndex] already null)
+}
+
 void SampleCache::unlinkClusters(int32_t startAtIndex, bool beingDestructed) {
 	// And there's now no point in having any further Clusters
 	int32_t numExistentClusters = getNumExistentClusters(writeBytePos);
+	DelugeResource* mgr =
+	    (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) ? GeneralMemoryAllocator::get().resourceManager() : nullptr;
 	for (int32_t i = startAtIndex; i < numExistentClusters; i++) {
 		if (ALPHA_OR_BETA_VERSION && !clusters[i]) {
 			FREEZE_WITH_ERROR("E167");
 		}
 
-		clusters[i]->destroy();
-
-		if (ALPHA_OR_BETA_VERSION && !beingDestructed) {
+		if (mgr != nullptr) {
+			// Manager-owned: this is an owner-driven drop (truncation), so destruct the object
+			// and drop the chunk directly (no on_evict — we're managing our own pointer here).
+			Cluster* cluster = clusters[i];
 			clusters[i] = nullptr;
+			cluster->~Cluster();
+			deluge_resource_evict_chunk(mgr, cluster);
+		}
+		else {
+			clusters[i]->destroy();
+			if (ALPHA_OR_BETA_VERSION && !beingDestructed) {
+				clusters[i] = nullptr;
+			}
 		}
 	}
 }
@@ -149,6 +218,21 @@ bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 		FREEZE_WITH_ERROR("E293");
 	}
 #endif
+
+	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+		// Manager-owned: request constructs the Cluster (sampleCacheConstruct sets type/cache/index)
+		// + leases it; release immediately so it's resident-but-unleased (evictable from birth,
+		// like the legacy shouldAddReasons=false). The cache writes into it; reads check the pointer.
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		void* p = deluge_resource_request(mgr, resourceAssetId, clusterIndex, sizeof(Cluster) + Cluster::size);
+		if (p == nullptr) {
+			D_PRINTLN("allocation fail");
+			return false;
+		}
+		deluge_resource_release(mgr, p);
+		clusters[clusterIndex] = reinterpret_cast<Cluster*>(p);
+		return true;
+	}
 
 	// Do not add reasons, and don't steal from this SampleCache
 	clusters[clusterIndex] = Cluster::create(Cluster::Type::SAMPLE_CACHE, false, this);
@@ -218,6 +302,14 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 }
 
 Cluster* SampleCache::getCluster(int32_t clusterIndex) {
+	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+		// Manager-owned: recency (not the manual queue reorder) keeps later clusters first to
+		// evict; tail-first ordering enforces the prefix dependency. Just mark it used.
+		if (clusters[clusterIndex] != nullptr) {
+			deluge_resource_touch(GeneralMemoryAllocator::get().resourceManager(), clusters[clusterIndex]);
+		}
+		return clusters[clusterIndex];
+	}
 	prioritizeNotStealingCluster(clusterIndex);
 	return clusters[clusterIndex];
 }
