@@ -78,6 +78,12 @@ typedef void (*DelugeResourceEvictFn)(void* ctx, void* owner, uint32_t index);
 /// loader to read. Cannot fail (no I/O).
 typedef void (*DelugeResourceConstructFn)(void* ctx, void* owner, uint32_t index, void* dest);
 
+/// Evict callback for an *adopted* (object-lifecycle) chunk — the manager chose this
+/// externally-allocated block for eviction and frees it right after. Gets the block pointer
+/// directly (no owner/index). The owner drops references + tears the object down. See
+/// deluge_resource_adopt.
+typedef void (*DelugeResourceAdoptEvictFn)(void* ctx, void* ptr);
+
 /// Build a manager over `heap` with fixed-capacity asset/chunk tables (allocated
 /// once from the heap) and register it as the heap's reclaim hook. `chunk_capacity`
 /// must exceed the most chunks that can be resident at once (so the table is never
@@ -137,6 +143,14 @@ void* deluge_resource_request(DelugeResource* mgr, uint32_t asset, uint32_t inde
 /// resident. Returns the backing pointer (16-byte aligned), or NULL on OOM /
 /// reconstruction failure. A cache hit just adds a lease (pointer stable, no copy).
 void* deluge_resource_acquire(DelugeResource* mgr, uint32_t asset, uint32_t index, size_t size);
+
+/// Adopt an externally-allocated heap block as a manager-evictable (object-lifecycle) chunk:
+/// the owner allocated + built it; the manager owns only its eviction (value-scored by `cost`
+/// + recency). On eviction it calls `on_evict(ctx, ptr)` then frees `ptr`. Registered unleased
+/// (pin via deluge_resource_add_lease). Returns `ptr`, or NULL if the chunk table is full and
+/// nothing is evictable. The adopt counterpart to define_asset+acquire (the Source mode).
+void* deluge_resource_adopt(DelugeResource* mgr, void* ptr, uint32_t cost, void* ctx,
+                            DelugeResourceAdoptEvictFn on_evict);
 
 /// Add a hard lease to an already-resident chunk by its backing pointer (no
 /// re-materialize) — the pointer-keyed counterpart to a cache-hit acquire, for a caller

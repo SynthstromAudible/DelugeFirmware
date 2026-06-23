@@ -459,6 +459,48 @@ mod tests {
         assert!(evicts() >= 1, "released constructed chunk is evictable");
     }
 
+    thread_local! {
+        static ADOPT_EVICTED: Cell<*mut u8> = const { Cell::new(core::ptr::null_mut()) };
+    }
+    unsafe extern "C" fn mock_adopt_evict(_ctx: *mut c_void, ptr: *mut u8) {
+        ADOPT_EVICTED.with(|c| c.set(ptr));
+    }
+
+    #[test]
+    fn adopt_object_is_value_evicted_and_leases_pin() {
+        // Object-lifecycle adopt: an externally-allocated block the manager evicts by value
+        // (its own cost/recency), calling on_evict(ptr); a lease pins it. Coexists with Source
+        // (acquire) chunks in one reclaim sweep.
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        // A Source asset to coexist with the adopted blocks.
+        let a = unsafe {
+            deluge_resource_define_asset(mgr, owner(1), Some(mock_materialize), Some(mock_on_evict),
+                core::ptr::null_mut(), COST_IO, BACKING_HEAP)
+        };
+        // Adopt a pinned (leased) block + an unpinned one (both heap blocks we "own").
+        let pinned = unsafe { deluge_alloc::deluge_alloc(h, 32 * 1024, 16) };
+        let cold = unsafe { deluge_alloc::deluge_alloc(h, 32 * 1024, 16) };
+        assert!(!pinned.is_null() && !cold.is_null());
+        assert_eq!(unsafe { deluge_resource_adopt(mgr, pinned, COST_CPU, core::ptr::null_mut(), Some(mock_adopt_evict)) }, pinned);
+        unsafe { deluge_resource_add_lease(mgr, pinned) }; // pin it
+        assert_eq!(unsafe { deluge_resource_adopt(mgr, cold, COST_FREE, core::ptr::null_mut(), Some(mock_adopt_evict)) }, cold);
+        // Pressure: acquire+release Source chunks until eviction fires. The cold adopted block
+        // (COST_FREE = cheapest to lose) should be the victim; the leased one must survive.
+        ADOPT_EVICTED.with(|c| c.set(core::ptr::null_mut()));
+        for n in 0..20u32 {
+            let p = unsafe { deluge_resource_acquire(mgr, a, n, 32 * 1024) };
+            if !p.is_null() {
+                unsafe { deluge_resource_release(mgr, p) };
+            }
+        }
+        assert_eq!(ADOPT_EVICTED.with(|c| c.get()), cold, "the cold adopted block must be the evicted one");
+        // The pinned adopted block was never evicted; release it so the heap block can be reclaimed
+        // (the manager freed `cold`; we still own `pinned`'s lifetime here).
+        unsafe { deluge_resource_release(mgr, pinned) };
+        unsafe { deluge_alloc::deluge_free(h, pinned) };
+    }
+
     #[test]
     fn evict_chunk_drops_one_without_on_evict() {
         // Owner-driven drop of a specific resident chunk: frees it, no on_evict, slot reusable.

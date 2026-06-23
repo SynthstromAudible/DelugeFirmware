@@ -47,6 +47,12 @@ pub type EvictFn = unsafe extern "C" fn(ctx: *mut c_void, owner: *mut c_void, in
 pub type ConstructFn =
     unsafe extern "C" fn(ctx: *mut c_void, owner: *mut c_void, index: u32, dest: *mut u8);
 
+/// Evict callback for an **adopted** (object-lifecycle) chunk: the manager has chosen this
+/// externally-allocated block for eviction and will free it right after. The owner drops any
+/// reference + runs the object's teardown (e.g. erase + destruct). Gets the block pointer
+/// directly (no owner/index), so a shared evictor can identify the object. See `adopt`.
+pub type AdoptEvictFn = unsafe extern "C" fn(ctx: *mut c_void, ptr: *mut u8);
+
 /// Where a chunk's backing comes from — uniform clusters use the slab, variable
 /// assets use the heap directly. Plain `u32` to cross the C ABI (no C enum).
 pub const BACKING_HEAP: u32 = 0;
@@ -102,11 +108,17 @@ impl AssetSlot {
 #[derive(Clone, Copy)]
 struct ChunkSlot {
     backing: *mut u8, // null => free slot
-    asset: u32,       // index into the asset table
-    index: u32,       // chunk index within the asset
+    asset: u32,       // index into the asset table; NONE => an adopted (object-lifecycle) chunk
+    index: u32,       // chunk index within the asset (unused for adopted chunks)
     leases: u32,      // hard leases; > 0 ⇒ never evicted
     dirty: bool,      // unsaved (e.g. a recording) ⇒ never evicted
     recency: u64,
+    // Adopt mode (asset == NONE): the chunk carries its own cost + evict callback, because
+    // an adopted block is an externally-allocated object, not a chunk of a Source asset.
+    // The owner allocated it; the manager only owns its eviction. (Unused when asset != NONE.)
+    cost: u32,
+    adopt_evict: Option<AdoptEvictFn>,
+    adopt_ctx: *mut c_void,
 }
 impl ChunkSlot {
     const EMPTY: ChunkSlot = ChunkSlot {
@@ -116,6 +128,9 @@ impl ChunkSlot {
         leases: 0,
         dirty: false,
         recency: 0,
+        cost: 0,
+        adopt_evict: None,
+        adopt_ctx: ptr::null_mut(),
     };
 }
 
@@ -185,11 +200,15 @@ impl Manager {
         ProtectGuard { mgr: self, prev }
     }
 
-    /// Does this asset want slab backing, and is a slab configured?
+    /// Does this asset want slab backing, and is a slab configured? `NONE` (an adopted
+    /// chunk) is always heap-backed (the owner allocated it from the heap).
     #[inline]
     fn slab_for(&self, asset: u32) -> *mut DelugeSlab {
         let slab = self.slab.get();
-        if !slab.is_null() && self.assets[asset as usize].get().source.backing == BACKING_SLAB {
+        if asset != NONE
+            && !slab.is_null()
+            && self.assets[asset as usize].get().source.backing == BACKING_SLAB
+        {
             slab
         } else {
             ptr::null_mut()
@@ -235,17 +254,24 @@ impl Manager {
             if s.backing.is_null() || s.leases != 0 || s.dirty {
                 continue;
             }
-            // Self-protection: don't evict the asset currently allocating a chunk.
-            if s.asset == protect {
+            // Self-protection: don't evict the asset currently allocating a chunk. Only when a
+            // real asset is protected (NONE = no protection; NONE is also the adopted marker).
+            if protect != NONE && s.asset == protect {
                 continue;
             }
-            let a = self.assets[s.asset as usize].get();
-            // Prefix-dependent assets: only the highest-index resident chunk is a candidate,
-            // so `on_evict` never discards a sibling chunk the manager still tracks.
-            if a.evict_tail_first && !self.is_highest_resident(s.asset, s.index) {
-                continue;
-            }
-            let rank = evict_rank(a.soft_refs, a.source.cost, s.recency);
+            // Cost + soft-refs come from the asset (Source chunks) or the chunk itself (adopted).
+            let (cost, soft_refs) = if s.asset == NONE {
+                (s.cost, 0)
+            } else {
+                let a = self.assets[s.asset as usize].get();
+                // Prefix-dependent assets: only the highest-index resident chunk is a candidate,
+                // so `on_evict` never discards a sibling chunk the manager still tracks.
+                if a.evict_tail_first && !self.is_highest_resident(s.asset, s.index) {
+                    continue;
+                }
+                (a.source.cost, a.soft_refs)
+            };
+            let rank = evict_rank(soft_refs, cost, s.recency);
             if rank < best_rank {
                 best_rank = rank;
                 best = Some(i);
@@ -253,14 +279,22 @@ impl Manager {
         }
         let Some(i) = best else { return false };
         let s = self.chunks[i].get();
-        let a = self.assets[s.asset as usize].get();
         // Clear the slot *before* the callbacks so a reentrant acquire/evict sees a
         // consistent table (sequenced steal).
         self.chunks[i].set(ChunkSlot::EMPTY);
-        if let Some(cb) = a.source.on_evict {
-            // SAFETY: owner/ctx come from the asset that owns this chunk; the C side
-            // promises the callback is valid for the manager's lifetime.
-            unsafe { cb(a.source.ctx, a.owner, s.index) };
+        if s.asset == NONE {
+            // Adopted chunk: its own evict callback, given the block pointer directly.
+            if let Some(cb) = s.adopt_evict {
+                // SAFETY: ctx/ptr were supplied at adopt; valid for the manager's lifetime.
+                unsafe { cb(s.adopt_ctx, s.backing) };
+            }
+        } else {
+            let a = self.assets[s.asset as usize].get();
+            if let Some(cb) = a.source.on_evict {
+                // SAFETY: owner/ctx come from the asset that owns this chunk; the C side
+                // promises the callback is valid for the manager's lifetime.
+                unsafe { cb(a.source.ctx, a.owner, s.index) };
+            }
         }
         self.free_backing(s.backing, s.asset);
         true
@@ -316,6 +350,7 @@ impl Manager {
             leases: 1,
             dirty: false,
             recency: self.bump(),
+            ..ChunkSlot::EMPTY
         });
         let a = self.assets[ai].get();
         let ok = match a.source.materialize {
@@ -397,6 +432,7 @@ impl Manager {
             leases: 1,
             dirty: false,
             recency: self.bump(),
+            ..ChunkSlot::EMPTY
         });
         let a = self.assets[ai].get();
         // SAFETY: owner/ctx/dest come from this asset + the slot we just allocated.
@@ -455,6 +491,38 @@ impl Manager {
                 self.chunks[c].set(s);
             }
         }
+    }
+
+    /// Adopt an externally-allocated heap block `ptr` as a resident, **unleased** chunk the
+    /// manager may evict (value-scored by `cost` + recency). On eviction it calls
+    /// `on_evict(ctx, ptr)` then frees `ptr`. For object-lifecycle blocks (AudioFile objects,
+    /// GrainBuffer) the owner builds — `asset = NONE`, the chunk carries its own cost/evict.
+    /// Returns `ptr` on success, or null if the chunk table is full and nothing is evictable.
+    fn adopt(&self, ptr: *mut u8, cost: u32, ctx: *mut c_void, on_evict: Option<AdoptEvictFn>) -> *mut u8 {
+        if ptr.is_null() {
+            return ptr::null_mut();
+        }
+        let idx = match self.find_free_chunk() {
+            Some(i) => i,
+            None => {
+                if !self.evict_lowest() {
+                    return ptr::null_mut();
+                }
+                self.find_free_chunk().expect("slot freed by eviction")
+            }
+        };
+        self.chunks[idx].set(ChunkSlot {
+            backing: ptr,
+            asset: NONE,
+            index: 0,
+            leases: 0,
+            dirty: false,
+            recency: self.bump(),
+            cost,
+            adopt_evict: on_evict,
+            adopt_ctx: ctx,
+        });
+        ptr
     }
 
     fn touch(&self, p: *mut u8) {
@@ -808,6 +876,25 @@ pub unsafe extern "C" fn deluge_resource_evict_chunk(handle: *mut DelugeResource
     if !handle.is_null() {
         mgr(handle).evict_chunk(ptr);
     }
+}
+
+/// Adopt an externally-allocated heap block as a manager-evictable (object-lifecycle) chunk:
+/// the owner allocated + built it; the manager owns only its eviction (value-scored by `cost`
+/// + recency). On eviction it calls `on_evict(ctx, ptr)` then frees `ptr`. Registered unleased
+/// (pin via `deluge_resource_add_lease`). Returns `ptr`, or null if the chunk table is full and
+/// nothing is evictable. The adopt counterpart to define_asset+acquire (Source mode).
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_adopt(
+    handle: *mut DelugeResource,
+    ptr: *mut u8,
+    cost: u32,
+    ctx: *mut c_void,
+    on_evict: Option<AdoptEvictFn>,
+) -> *mut u8 {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    mgr(handle).adopt(ptr, cost, ctx, on_evict)
 }
 
 /// Add a hard lease to an already-resident chunk by its backing pointer (no
