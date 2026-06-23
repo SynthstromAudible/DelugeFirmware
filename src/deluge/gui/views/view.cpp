@@ -2859,6 +2859,11 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 		occupancyMask[y][column] = true;
 	}
 
+	// Dim macros at rest so that pressing one visibly brightens it to its full colour, giving
+	// feedback that the press registered (issue #3244).
+	bool held_macro = matrixDriver.isPadPressed(column, y);
+	image[y][column] = image[y][column].adjust(255, (held_macro ? 1 : 8));
+
 	return armed;
 }
 

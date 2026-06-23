@@ -2219,8 +2219,12 @@ ActionResult InstrumentClipView::commandActivateSongMacro(int32_t y, int32_t vel
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	if (!velocity) {
-		// TODO: long press..
+	// render that you're holding the macro
+	if (velocity) {
+		uiNeedsRendering(this, 0, 0xFFFFFFFF);
+	}
+	// activate macro on release
+	else {
 		view.activateMacro(y);
 	}
 	return ActionResult::DEALT_WITH;
