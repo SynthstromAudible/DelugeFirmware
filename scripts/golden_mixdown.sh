@@ -29,31 +29,43 @@ BUILD_DIR="${BUILD_DIR:-$REPO/build-sim-cpp}"
 GOLDEN_DIR="${DELUGE_GOLDEN_DIR:-$HOME/.cache/deluge-golden}"
 BACKUP="${DELUGE_BACKUP:-$HOME/Deluge Backup}"
 MODE="${MODE:-MIXDOWN}"
-SONG="${SONG:-SONGS/Cordae.XML}"
 CMD="${1:-check}"
 
-PROJ="$GOLDEN_DIR/cordae_proj"
-GOLDEN="$GOLDEN_DIR/cordae_${MODE}.golden.wav"
+# Fixture = which backup song to render. Cordae is the default (no cache use — the
+# raw-cluster A/B); the others exercise the derived caches (P3): `highsiderr` makes
+# ~94 SampleCache (repitch) clusters, `icoustic` exercises the perc (time-stretch) cache.
+FIXTURE="${FIXTURE:-cordae}"
+case "$FIXTURE" in
+cordae)     SONG_DIR="$BACKUP/SONGS/problem_songs/Cordae";                 SONG_XML="Cordae.XML" ;;
+highsiderr) SONG_DIR="$BACKUP/SONGS/problem_songs/highsiderr_drum_stealing"; SONG_XML="06 Ilove Techno Song_Final_2.XML" ;;
+icoustic)   SONG_DIR="$BACKUP/SONGS/problem_songs/IcousticFeb19";          SONG_XML="Grunnmur 58 Nobass 14 Comm-Test.XML" ;;
+*) echo "unknown FIXTURE='$FIXTURE' (cordae|highsiderr|icoustic)"; exit 2 ;;
+esac
+SONG="${SONG:-SONGS/$SONG_XML}"
+
+PROJ="$GOLDEN_DIR/${FIXTURE}_proj"
+GOLDEN="$GOLDEN_DIR/${FIXTURE}_${MODE}.golden.wav"
 RENDER="$BUILD_DIR/deluge_render"
 
 # Rebuild the Cordae project tree from the backup. The backup stores the song's samples in a
 # flat folder next to the song, with '/' replaced by '_' in the names (e.g. SAMPLES/DRUMS/Kick/
 # Kick 21.wav -> Cordae/DRUMS_Kick_Kick 21.wav); reverse that into a normal SD-card tree.
 reconstruct_project() {
-	local cordae="$BACKUP/SONGS/problem_songs/Cordae"
-	[ -f "$cordae/Cordae.XML" ] || { echo "ERROR: '$cordae/Cordae.XML' not found (set DELUGE_BACKUP)"; exit 2; }
-	echo "reconstructing project from '$cordae' -> $PROJ"
+	[ -f "$SONG_DIR/$SONG_XML" ] || { echo "ERROR: '$SONG_DIR/$SONG_XML' not found (set DELUGE_BACKUP/FIXTURE)"; exit 2; }
+	# Collected samples live in the single subfolder next to the song (mangled '/'->'_' names).
+	local sub; sub="$(find "$SONG_DIR" -mindepth 1 -maxdepth 1 -type d | head -1)"
+	echo "reconstructing project from '$SONG_DIR' -> $PROJ"
 	rm -rf "$PROJ"; mkdir -p "$PROJ/SONGS"
-	cp "$cordae/Cordae.XML" "$PROJ/SONGS/Cordae.XML"
+	cp "$SONG_DIR/$SONG_XML" "$PROJ/SONGS/$SONG_XML"
 	local ref rel mangled src ok=0 miss=0
 	while IFS= read -r ref; do
-		rel="${ref#SAMPLES/}"; mangled="${rel//\//_}"; src="$cordae/Cordae/$mangled"
+		rel="${ref#SAMPLES/}"; mangled="${rel//\//_}"; src="$sub/$mangled"
 		if [ -f "$src" ]; then
 			mkdir -p "$PROJ/$(dirname "$ref")"; cp "$src" "$PROJ/$ref"; ok=$((ok+1))
 		else
 			echo "  WARN missing sample: $src"; miss=$((miss+1))
 		fi
-	done < <(grep -ho 'fileName="[^"]*"' "$cordae/Cordae.XML" | sed 's/fileName="//;s/"$//' | sort -u)
+	done < <(grep -ho 'fileName="[^"]*"' "$SONG_DIR/$SONG_XML" | sed 's/fileName="//;s/"$//' | sort -u)
 	echo "  samples: $ok copied, $miss missing"
 }
 
