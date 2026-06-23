@@ -68,34 +68,47 @@ extern "C" bool gmaSdramReclaim(void* ctx, size_t bytesNeeded) {
 	return true;
 }
 
-void* GeneralMemoryAllocator::acquireCluster(void* dontStealFromThing) {
+bool GeneralMemoryAllocator::ensureClusterSystem() {
+	if (clusterSlab_ != nullptr) {
+		return true;
+	}
+	// Lazily create on the first cluster use, when Cluster::size has been finalized
+	// to the session maximum (AudioFileManager reads the card before any cluster is
+	// made, and the firmware never raises cluster size after boot — see
+	// cardReinserted). Uniform slots of that size accommodate every cluster for the
+	// session; a smaller reinserted card simply under-fills its slots. Backing-only:
+	// the slab registers no reclaim hook, so gmaSdramReclaim (already registered) stays
+	// the SDRAM heap's hook and drives eviction (manager first, then CacheManager).
+	size_t slot = sizeof(Cluster) + Cluster::size;
+	size_t capacity = (deluge::memory::sdram_size() / slot) + 1; // table never the limiter
+	clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, capacity);
 	if (clusterSlab_ == nullptr) {
-		// Lazily create on the first cluster alloc, when Cluster::size has been finalized
-		// to the session maximum (AudioFileManager reads the card before any cluster is
-		// made, and the firmware never raises cluster size after boot — see
-		// cardReinserted). Uniform slots of that size accommodate every cluster for the
-		// session; a smaller reinserted card simply under-fills its slots. Backing-only:
-		// the slab registers no reclaim hook, so gmaSdramReclaim (already registered) stays
-		// the SDRAM heap's hook and drives eviction via the CacheManager queues.
-		size_t slot = sizeof(Cluster) + Cluster::size;
-		size_t capacity = (deluge::memory::sdram_size() / slot) + 1; // table never the limiter
-		clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, capacity);
-		if (clusterSlab_ == nullptr) {
-			return nullptr;
-		}
-		// Stand up the resource manager alongside (coexistence): it shares the cluster
-		// slab and will own raw sample-cluster residency. Created *unhooked* —
-		// gmaSdramReclaim stays the heap's reclaim hook and drives both coordinators.
-		constexpr size_t kAssetCap = 512; // max distinct samples resident at once
-		resourceManager_ = deluge_resource_create_unhooked(deluge::memory::sdram_heap(), kAssetCap, capacity);
-		if (resourceManager_ != nullptr) {
-			deluge_resource_set_slab(resourceManager_, clusterSlab_);
-		}
+		return false;
+	}
+	// Stand up the resource manager alongside (coexistence): it shares the cluster
+	// slab and owns raw SAMPLE-cluster residency. Created *unhooked* — gmaSdramReclaim
+	// stays the heap's reclaim hook and drives both coordinators.
+	constexpr size_t kAssetCap = 512; // max distinct samples resident at once
+	resourceManager_ = deluge_resource_create_unhooked(deluge::memory::sdram_heap(), kAssetCap, capacity);
+	if (resourceManager_ != nullptr) {
+		deluge_resource_set_slab(resourceManager_, clusterSlab_);
+	}
+	return true;
+}
+
+void* GeneralMemoryAllocator::acquireCluster(void* dontStealFromThing) {
+	if (!ensureClusterSystem()) {
+		return nullptr;
 	}
 	currentDontStealFrom_ = dontStealFromThing;
 	void* p = deluge_slab_acquire(clusterSlab_, nullptr); // owner unused (no on_evict)
 	currentDontStealFrom_ = nullptr;
 	return p;
+}
+
+DelugeResource* GeneralMemoryAllocator::resourceManager() {
+	ensureClusterSystem(); // creates the slab + manager if needed; leaves resourceManager_ set (or null on OOM)
+	return resourceManager_;
 }
 
 void GeneralMemoryAllocator::freeSdram(void* address) {

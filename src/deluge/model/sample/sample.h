@@ -86,6 +86,11 @@ public:
 	bool getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
 	                             int32_t playDirection, int32_t lengthToAverageEach);
 	void convertDataOnAnyClustersIfNecessary();
+	/// Lazily define this Sample's resource-manager Asset (its SAMPLE clusters are the
+	/// Asset's Chunks: materialize = readClusterData, on_evict = drop + ~Cluster). Returns
+	/// the asset id, or DELUGE_RESOURCE_NO_ASSET (0xFFFFFFFF) if there's no manager or the
+	/// asset table is full — in which case the caller keeps the legacy Cluster::create path.
+	uint32_t ensureResourceAsset();
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
 	int32_t getValueSpan();
@@ -170,6 +175,12 @@ public:
 	uint32_t waveTableCycleSize{0}; // In case this later gets used for a WaveTable
 
 	deluge::fast_vector<SampleCluster> clusters{};
+
+	// Resource-manager Asset id for this Sample's SAMPLE clusters (DELUGE_RESOURCE_NO_ASSET
+	// until defined on first stream). Owns raw-cluster residency once routed through the
+	// manager; released in ~Sample. 0xFFFFFFFF == DELUGE_RESOURCE_NO_ASSET (kept as a literal
+	// here so the widely-included header needn't pull in deluge_resource.h).
+	uint32_t resourceAssetId{0xFFFFFFFFu};
 
 protected:
 #if ALPHA_OR_BETA_VERSION

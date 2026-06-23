@@ -106,6 +106,13 @@ public:
 	// nullptr on OOM. Defined in the .cpp (needs the alloc.h C ABI + Cluster size).
 	void* acquireCluster(void* dontStealFromThing);
 
+	// The resource manager that owns raw SAMPLE-cluster residency (creating the cluster
+	// slab + manager on first use, same as acquireCluster). A Sample defines its Asset
+	// against this; the manager allocates slab slots and drives eviction. May return
+	// nullptr if the slab/manager couldn't be created (OOM) — callers then fall back to
+	// the legacy Cluster::create / CacheManager path.
+	DelugeResource* resourceManager();
+
 	// Free an SDRAM block: if it's a cluster slot, release it through the slab
 	// (clearing the table entry too); otherwise free it from the heap directly.
 	void freeSdram(void* address);
@@ -122,6 +129,10 @@ public:
 
 private:
 	void checkEverythingOk(char const* errorString);
+	// Lazily stand up the cluster slab + resource manager (idempotent). Both share the
+	// uniform Cluster slot size, finalized to the session maximum by boot. Returns true
+	// if the slab exists afterwards.
+	bool ensureClusterSystem();
 };
 
 extern "C" {

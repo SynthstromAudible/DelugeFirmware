@@ -70,6 +70,11 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		*error = Error::NONE;
 	}
 
+	// Define this Sample's resource-manager Asset on first stream (the manager will own raw
+	// SAMPLE-cluster residency). Harmless until getCluster routes through deluge_resource_acquire
+	// (next step): defining an Asset that is never acquired has no effect, and ~Sample retires it.
+	sample->ensureResourceAsset();
+
 	// If the Cluster hasn't been created yet
 	if (!cluster) {
 

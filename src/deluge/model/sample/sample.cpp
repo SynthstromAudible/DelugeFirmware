@@ -32,6 +32,8 @@
 #include <cstring>
 #include <new>
 
+#include "deluge_resource.h" // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
+
 #if SAMPLE_DO_LOCKS
 #define LOCK_ENTRY                                                                                                     \
 	if (lock) {                                                                                                        \
@@ -104,7 +106,70 @@ Error Sample::initialize(int32_t newNumClusters) {
 	return Error::NONE;
 }
 
+// === Resource-manager Source for SAMPLE clusters =============================
+// These are the materialize / on_evict callbacks the manager calls for a Sample's
+// Asset. A Chunk's backing is a uniform slab slot; materialize placement-news a
+// Cluster into it and fills it via the Step-1 reader; on_evict drops the Sample's
+// pointer and destructs the Cluster (the manager frees the slot). The manager owns
+// residency/eviction for these clusters, so they are NOT on a CacheManager stealable
+// queue; numReasonsToBeLoaded is kept as a mirror of the manager's lease so the
+// reader's ALPHA invariants (which expect >= 1 reason mid-load) still hold.
+
+static bool clusterMaterialize(void* /*ctx*/, void* owner, uint32_t index, void* dest, size_t /*len*/) {
+	auto* sample = static_cast<Sample*>(owner);
+	auto* cluster = new (dest) Cluster();
+	cluster->type = Cluster::Type::SAMPLE;
+	cluster->sample = sample;
+	cluster->clusterIndex = index;
+	cluster->numReasonsToBeLoaded = 1; // mirror the manager's lease (reader asserts >= 1)
+
+	bool ok = audioFileManager.readClusterData(*cluster, 0);
+	if (ok) {
+		sample->clusters[index].cluster = cluster;
+	}
+	else {
+		cluster->numReasonsToBeLoaded = 0;
+		cluster->~Cluster(); // manager frees the slab slot
+	}
+	return ok;
+}
+
+static void clusterEvict(void* /*ctx*/, void* owner, uint32_t index) {
+	auto* sample = static_cast<Sample*>(owner);
+	Cluster* cluster = sample->clusters[index].cluster;
+	sample->clusters[index].cluster = nullptr;
+	if (cluster != nullptr) {
+		cluster->numReasonsToBeLoaded = 0; // manager owns eviction; clear the mirror for a clean ~Cluster
+		cluster->~Cluster();               // manager frees the slab slot
+	}
+}
+
+uint32_t Sample::ensureResourceAsset() {
+	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+		return resourceAssetId;
+	}
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr == nullptr) {
+		return DELUGE_RESOURCE_NO_ASSET;
+	}
+	resourceAssetId = deluge_resource_define_asset(mgr, this, clusterMaterialize, clusterEvict, nullptr,
+	                                               DELUGE_RESOURCE_COST_IO, DELUGE_RESOURCE_BACKING_SLAB);
+	return resourceAssetId; // may be NO_ASSET if the table is full -> caller keeps the legacy path
+}
+
 Sample::~Sample() {
+	// Retire our Asset first (frees any clusters the manager still has resident, via
+	// clusterEvict, which nulls our clusters[] entries) so the SampleCluster destructors
+	// below see nothing to free. No-op if we never defined one. The manager must exist if
+	// the id is set (ensureResourceAsset created it), so this never stands one up here.
+	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_release_asset(mgr, resourceAssetId);
+		}
+		resourceAssetId = DELUGE_RESOURCE_NO_ASSET;
+	}
+
 	deletePercCache(true);
 
 	for (SampleCacheElement& element : caches) {
