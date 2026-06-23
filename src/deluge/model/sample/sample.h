@@ -182,6 +182,13 @@ public:
 	// here so the widely-included header needn't pull in deluge_resource.h).
 	uint32_t resourceAssetId{0xFFFFFFFFu};
 
+	// Latched the first time a non-reconstructable cluster is requested (CLUSTER_DONT_LOAD =
+	// recording), or when a read can't get an Asset: this Sample then stays fully on the legacy
+	// Cluster::create / CacheManager path for life, so its clusters never straddle both evictors.
+	// ensureResourceAsset() refuses to define an Asset once this is set.
+	bool clustersLegacyLatched_{false};
+	void latchClustersLegacy() { clustersLegacyLatched_ = true; }
+
 protected:
 #if ALPHA_OR_BETA_VERSION
 	void numReasonsDecreasedToZero(char const* errorCode) override;

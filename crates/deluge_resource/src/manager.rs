@@ -257,6 +257,19 @@ impl Manager {
         p
     }
 
+    /// Add a hard lease to an already-resident chunk by its backing pointer (no
+    /// materialize). The pointer-keyed counterpart to a cache-hit `acquire`, for callers
+    /// that already hold the chunk and just want to pin it harder (C++ `Cluster::addReason`).
+    /// No-op if the pointer isn't a resident chunk.
+    fn add_lease(&self, p: *mut u8) {
+        if let Some(c) = self.find_by_ptr(p) {
+            let mut s = self.chunks[c].get();
+            s.leases += 1;
+            s.recency = self.bump();
+            self.chunks[c].set(s);
+        }
+    }
+
     fn release(&self, p: *mut u8) {
         if let Some(c) = self.find_by_ptr(p) {
             let mut s = self.chunks[c].get();
@@ -524,6 +537,17 @@ pub unsafe extern "C" fn deluge_resource_acquire(
         return ptr::null_mut();
     }
     mgr(handle).acquire(asset, index, size)
+}
+
+/// Add a hard lease to an already-resident chunk by its backing pointer (no
+/// re-materialize) — the pointer-keyed counterpart to a cache-hit `acquire`, for a
+/// caller that already holds the chunk and wants to pin it harder. No-op if `ptr` is
+/// not a resident chunk.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_add_lease(handle: *mut DelugeResource, ptr: *mut u8) {
+    if !handle.is_null() {
+        mgr(handle).add_lease(ptr);
+    }
 }
 
 /// Drop one hard lease on the chunk at `ptr` (it stays resident/cached until evicted).

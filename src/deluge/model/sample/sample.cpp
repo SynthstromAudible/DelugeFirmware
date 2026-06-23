@@ -148,6 +148,9 @@ uint32_t Sample::ensureResourceAsset() {
 	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
 		return resourceAssetId;
 	}
+	if (clustersLegacyLatched_) {
+		return DELUGE_RESOURCE_NO_ASSET; // committed to the legacy path (recording / no-manager)
+	}
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	if (mgr == nullptr) {
 		return DELUGE_RESOURCE_NO_ASSET;

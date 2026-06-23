@@ -23,6 +23,8 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/misc.h"
+
+#include "deluge_resource.h" // resource manager: manager-owned clusters lease instead of queueing
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
@@ -266,6 +268,18 @@ bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
 }
 
 void Cluster::addReason() {
+	// Manager-owned SAMPLE clusters are pinned by a resource-manager lease, not by leaving
+	// the stealable queue (they're never on it). Take a lease so the manager won't evict a
+	// cluster the caller still holds, and keep numReasonsToBeLoaded as a mirror.
+	if (type == Type::SAMPLE && sample != nullptr && sample->resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_add_lease(mgr, this); // hit-only lease bump on this resident chunk
+		}
+		this->numReasonsToBeLoaded++;
+		return;
+	}
+
 	// If it's going to cease to be zero, it's become unavailable,
 	// so remove it from the stealables queue
 	if (this->numReasonsToBeLoaded == 0) {

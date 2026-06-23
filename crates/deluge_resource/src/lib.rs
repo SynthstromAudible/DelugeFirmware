@@ -401,6 +401,50 @@ mod tests {
     }
 
     #[test]
+    fn add_lease_pins_a_held_chunk() {
+        // add_lease bumps the lease of an already-resident chunk (C++ Cluster::addReason on
+        // a manager cluster). A chunk leased via acquire(1) + add_lease(2) needs two releases
+        // to become evictable — proving the lease count, not just a flag.
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(2),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let p = unsafe { deluge_resource_acquire(mgr, a, 0, 64 * 1024) }; // leases = 1
+        assert!(!p.is_null());
+        unsafe { deluge_resource_add_lease(mgr, p) }; // leases = 2
+        // Drop one lease; still pinned. Churn must not evict it.
+        unsafe { deluge_resource_release(mgr, p) }; // leases = 1
+        for n in 1..20u32 {
+            let q = unsafe { deluge_resource_acquire(mgr, a, n, 64 * 1024) };
+            if !q.is_null() {
+                unsafe { deluge_resource_release(mgr, q) };
+            }
+        }
+        check_pattern(p, owner(2), 0, 64 * 1024); // survived (1 lease still held)
+        // Drop the last lease → now evictable; reload reproduces the bytes.
+        unsafe { deluge_resource_release(mgr, p) }; // leases = 0
+        reset_evicts();
+        for n in 20..60u32 {
+            let q = unsafe { deluge_resource_acquire(mgr, a, n, 64 * 1024) };
+            if !q.is_null() {
+                unsafe { deluge_resource_release(mgr, q) };
+            }
+        }
+        assert!(evicts() >= 1, "unleased chunk should now be evictable");
+        // add_lease on a non-resident pointer is a harmless no-op.
+        unsafe { deluge_resource_add_lease(mgr, 0xdead_beef as *mut u8) };
+    }
+
+    #[test]
     fn release_asset_evicts_chunks_and_frees_slot() {
         // Retiring an asset (owner destroyed) must evict its resident chunks — calling
         // on_evict for each so the owner drops pointers — and free the slot for reuse.

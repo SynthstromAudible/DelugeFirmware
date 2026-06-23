@@ -26,6 +26,8 @@
 #include "libdeluge/block_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
+
+#include "deluge_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_reader.h"
 #include "model/song/song.h"
@@ -1377,6 +1379,23 @@ performActionsAndGetOut:
 }
 
 void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong) {
+	// Manager-owned SAMPLE clusters (their Sample has a defined Asset): the resource manager
+	// owns residency + eviction, so a removed reason is just a lease drop — it stays resident
+	// (cached, evictable under pressure), never enqueued/destroyed here. numReasonsToBeLoaded
+	// is kept as a mirror of the manager's lease count.
+	if (cluster.type == Cluster::Type::SAMPLE && cluster.sample != nullptr
+	    && cluster.sample->resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+		cluster.numReasonsToBeLoaded--;
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_release(mgr, &cluster); // unlease (backing ptr == the Cluster slot)
+		}
+		if (ALPHA_OR_BETA_VERSION && cluster.numReasonsToBeLoaded < 0) {
+			FREEZE_WITH_ERROR(errorCode);
+		}
+		return;
+	}
+
 	cluster.numReasonsToBeLoaded--;
 
 	if (&cluster == clusterBeingLoaded && cluster.numReasonsToBeLoaded < minNumReasonsForClusterBeingLoaded) {

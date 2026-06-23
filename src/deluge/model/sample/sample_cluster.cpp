@@ -24,6 +24,8 @@
 #include "storage/cluster/cluster.h"
 #include <cstddef>
 
+#include "deluge_resource.h" // resource manager: route raw SAMPLE-cluster residency through it
+
 SampleCluster::~SampleCluster() {
 	if (cluster) {
 
@@ -70,10 +72,45 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		*error = Error::NONE;
 	}
 
-	// Define this Sample's resource-manager Asset on first stream (the manager will own raw
-	// SAMPLE-cluster residency). Harmless until getCluster routes through deluge_resource_acquire
-	// (next step): defining an Asset that is never acquired has no effect, and ~Sample retires it.
-	sample->ensureResourceAsset();
+	// --- Resource-manager ownership decision (latches per Sample) ----------------
+	// CLUSTER_DONT_LOAD means "allocate but don't read from the card" — recording, whose
+	// clusters are written, not reconstructable — so it can't be a manager materialize and
+	// such a Sample is latched legacy for life. Any read instruction makes the Sample
+	// manager-owned if an Asset is available; if not, latch legacy so its clusters never
+	// straddle both evictors (manager + CacheManager).
+	if (loadInstruction == CLUSTER_DONT_LOAD) {
+		sample->latchClustersLegacy();
+	}
+	uint32_t asset = (loadInstruction == CLUSTER_DONT_LOAD) ? DELUGE_RESOURCE_NO_ASSET : sample->ensureResourceAsset();
+	if (loadInstruction != CLUSTER_DONT_LOAD && asset == DELUGE_RESOURCE_NO_ASSET) {
+		sample->latchClustersLegacy();
+	}
+
+	if (asset != DELUGE_RESOURCE_NO_ASSET) {
+		// Manager-owned read streaming: deluge_resource_acquire materializes the cluster on a
+		// miss (placement-new + readClusterData, via the Source), or just leases it on a hit
+		// (pointer stable). ENQUEUE collapses to a synchronous load here — prefetch returns
+		// through the manager in Step 3, so priorityRating is unused for now. The manager owns
+		// residency + eviction for these clusters; numReasonsToBeLoaded is a lease mirror.
+		bool wasResident = (cluster != nullptr); // non-null <=> manager-resident (on_evict nulls it)
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		void* p = deluge_resource_acquire(mgr, asset, clusterIndex, sizeof(Cluster) + Cluster::size);
+		if (p == nullptr) {
+			// Not resident and materialize failed (source vanished) or OOM. On a materialize
+			// failure clusterMaterialize leaves clusters[i].cluster null, so `cluster` is null.
+			if (error != nullptr) {
+				*error = sample->unloadable ? Error::FILE_NOT_FOUND : Error::UNSPECIFIED;
+			}
+			return nullptr;
+		}
+		cluster = reinterpret_cast<Cluster*>(p);
+		if (wasResident) {
+			cluster->numReasonsToBeLoaded++; // hit: mirror the extra lease (a miss set it to 1 in materialize)
+		}
+		return cluster;
+	}
+
+	// --- Legacy path (recording / CLUSTER_DONT_LOAD / no manager available) ------
 
 	// If the Cluster hasn't been created yet
 	if (!cluster) {

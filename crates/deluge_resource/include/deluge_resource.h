@@ -112,6 +112,12 @@ void deluge_resource_release_asset(DelugeResource* mgr, uint32_t asset);
 /// reconstruction failure. A cache hit just adds a lease (pointer stable, no copy).
 void* deluge_resource_acquire(DelugeResource* mgr, uint32_t asset, uint32_t index, size_t size);
 
+/// Add a hard lease to an already-resident chunk by its backing pointer (no
+/// re-materialize) — the pointer-keyed counterpart to a cache-hit acquire, for a caller
+/// that already holds the chunk and just wants to pin it harder. No-op if `ptr` is not a
+/// resident chunk.
+void deluge_resource_add_lease(DelugeResource* mgr, void* ptr);
+
 /// Drop one hard lease on the chunk at `ptr` (it stays resident/cached until
 /// evicted under pressure).
 void deluge_resource_release(DelugeResource* mgr, void* ptr);
