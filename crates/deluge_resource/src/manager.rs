@@ -298,6 +298,35 @@ impl Manager {
         NONE
     }
 
+    /// Retire an asset: free any chunks of it still resident (notifying the owner via
+    /// `on_evict`, as if each were evicted — so the owner drops its cached pointers),
+    /// then mark the asset slot free for reuse. Called when the owner is destroyed
+    /// (e.g. a `Sample` unloads). Leased chunks are freed too — at owner teardown there
+    /// should be none, but we must not leak the backing or the slot.
+    fn release_asset(&self, asset: u32) {
+        let ai = asset as usize;
+        if ai >= self.assets.len() || !self.assets[ai].get().in_use {
+            return;
+        }
+        let a = self.assets[ai].get();
+        for i in 0..self.chunks.len() {
+            let s = self.chunks[i].get();
+            if s.backing.is_null() || s.asset != asset {
+                continue;
+            }
+            // Clear the slot before the callback (consistent table for any reentrancy),
+            // and free the backing *before* clearing the asset slot (free_backing reads
+            // the asset's backing kind to route slab-vs-heap).
+            self.chunks[i].set(ChunkSlot::EMPTY);
+            if let Some(cb) = a.source.on_evict {
+                // SAFETY: owner/ctx come from this asset; valid for the manager lifetime.
+                unsafe { cb(a.source.ctx, a.owner, s.index) };
+            }
+            self.free_backing(s.backing, asset);
+        }
+        self.assets[ai].set(AssetSlot::EMPTY);
+    }
+
     fn set_slab(&self, slab: *mut DelugeSlab) {
         self.slab.set(slab);
     }
@@ -470,6 +499,16 @@ pub unsafe extern "C" fn deluge_resource_define_asset(
             backing,
         },
     )
+}
+
+/// Retire an asset (free its resident chunks via `on_evict`, then free the slot for
+/// reuse). Call when the owner is destroyed so the fixed-capacity asset table can't
+/// exhaust over a long session. No-op on a null handle or an unused asset id.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_release_asset(handle: *mut DelugeResource, asset: u32) {
+    if !handle.is_null() {
+        mgr(handle).release_asset(asset);
+    }
 }
 
 /// Acquire chunk `index` of `asset` under a hard lease (materializing if needed).

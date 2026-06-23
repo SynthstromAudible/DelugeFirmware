@@ -101,6 +101,12 @@ void deluge_resource_set_slab(DelugeResource* mgr, DelugeSlab* slab);
 uint32_t deluge_resource_define_asset(DelugeResource* mgr, void* owner, DelugeResourceMaterializeFn materialize,
                                       DelugeResourceEvictFn on_evict, void* ctx, uint32_t cost, uint32_t backing);
 
+/// Retire an asset: free any of its chunks still resident (notifying the owner via
+/// the asset's `on_evict`, so it drops cached pointers), then free the asset slot for
+/// reuse. Call when the owner is destroyed (e.g. a Sample unloads) so the
+/// fixed-capacity asset table can't exhaust across song loads. No-op on an unused id.
+void deluge_resource_release_asset(DelugeResource* mgr, uint32_t asset);
+
 /// Acquire chunk `index` of `asset` under a hard lease, materializing it if not
 /// resident. Returns the backing pointer (16-byte aligned), or NULL on OOM /
 /// reconstruction failure. A cache hit just adds a lease (pointer stable, no copy).
