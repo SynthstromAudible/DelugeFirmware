@@ -683,10 +683,15 @@ void renderAudioForStemExport(size_t numSamples) {
 		renderSongFX(numSamples);
 	}
 
-	// If we're recording final output for offline stem export with song FX
-	// Check if we have a recorder
+	// Feed the just-rendered block to the offline stem recorder. Two recorder channels
+	// reach the offline path: OFFLINE_OUTPUT (a MIXDOWN with song FX — post-FX master)
+	// and MIX (per-instrument TRACK / FX-less export — the pre-song-FX mix, which here is
+	// just the one un-muted instrument). Both want `renderingBuffer`; only the FX stage
+	// above differs. Without feeding the MIX recorder, a TRACK export's recorder never
+	// reaches its loop-end, never finalises (recordingSource stays MIX), and the export
+	// loops forever rendering silence past the arrangement end.
 	SampleRecorder* recorder = audioRecorder.recorder;
-	if (recorder && recorder->mode == AudioInputChannel::OFFLINE_OUTPUT) {
+	if (recorder && (recorder->mode == AudioInputChannel::OFFLINE_OUTPUT || recorder->mode == AudioInputChannel::MIX)) {
 		// continue feeding audio if we're not finished recording
 		if (recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 			recorder->feedAudio(renderingBuffer, true);
