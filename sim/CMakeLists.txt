@@ -119,17 +119,19 @@ add_compile_definitions(DELUGE_HOST)
 
 if(DELUGE_SIM_ARM)
     # Real NEON: the cross toolchain provides <arm_neon.h>; argon's <arm/neon.h> is unused.
-    include_directories(BEFORE ${REPO_ROOT}/include)
-    set(HOST_INCLUDE_DIRS ${REPO_ROOT}/include ${REPO_ROOT}/src)
+    include_directories(BEFORE ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include)
+    set(HOST_INCLUDE_DIRS ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include ${REPO_ROOT}/src)
 else()
     include_directories(BEFORE
         ${CMAKE_CURRENT_LIST_DIR}/compat # <arm_neon.h> -> SIMDe shim
         ${REPO_ROOT}/include             # <libdeluge/...> boundary
+        ${REPO_ROOT}/crates/deluge_resource/include # deluge_resource.h
         ${SIMDE_INCLUDE_DIR}/simde        # argon's <arm/neon.h> -> SIMDe
     )
     set(HOST_INCLUDE_DIRS
         ${CMAKE_CURRENT_LIST_DIR}/compat # arm_neon.h -> SIMDe shim
         ${REPO_ROOT}/include             # <libdeluge/...> boundary
+        ${REPO_ROOT}/crates/deluge_resource/include # deluge_resource.h (Rust resource manager C ABI)
         ${REPO_ROOT}/src                 # SHARED_INCLUDE
     )
 endif()

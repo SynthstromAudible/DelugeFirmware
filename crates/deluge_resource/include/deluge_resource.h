@@ -78,6 +78,16 @@ typedef void (*DelugeResourceEvictFn)(void* ctx, void* owner, uint32_t index);
 /// the limiter). Returns NULL on OOM.
 DelugeResource* deluge_resource_create(DelugeHeap* heap, size_t asset_capacity, size_t chunk_capacity);
 
+/// Like deluge_resource_create but does NOT register the heap reclaim hook — for
+/// coexistence with another reclaim coordinator (the C++ CacheManager during the
+/// raw-cluster migration). The caller's own hook drives eviction by calling
+/// deluge_resource_try_evict first, then the other coordinator.
+DelugeResource* deluge_resource_create_unhooked(DelugeHeap* heap, size_t asset_capacity, size_t chunk_capacity);
+
+/// Evict the single lowest-value evictable chunk (the reclaim-hook body, exposed for
+/// an external coordinator). Returns true if it freed something.
+bool deluge_resource_try_evict(DelugeResource* mgr);
+
 /// Configure the slab that backs `BACKING_SLAB` assets (uniform clusters). Until
 /// set, every asset uses the heap. Create it with `deluge_slab_create_unmanaged`
 /// (alloc.h) over the same heap, so eviction stays with this manager (the slab

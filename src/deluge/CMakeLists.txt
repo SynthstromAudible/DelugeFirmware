@@ -42,6 +42,7 @@ target_include_directories(deluge_app PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
     ${SHARED_INCLUDE}
     ${CMAKE_SOURCE_DIR}/include # <libdeluge/...> boundary headers
+    ${CMAKE_SOURCE_DIR}/crates/deluge_resource/include # deluge_resource.h (Rust resource manager C ABI)
 )
 
 target_link_libraries(deluge_app PUBLIC

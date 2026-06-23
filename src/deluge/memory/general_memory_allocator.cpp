@@ -20,6 +20,7 @@
 #include "libdeluge/memory.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge_resource.h" // resource manager (coexistence: raw-cluster residency)
 #include "io/debug/log.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
@@ -49,6 +50,14 @@ namespace {
 extern "C" bool gmaSdramReclaim(void* ctx, size_t bytesNeeded) {
 	(void)bytesNeeded; // free one victim at a time; the alloc retry loop drives us
 	auto* gma = static_cast<GeneralMemoryAllocator*>(ctx);
+	// Coexistence (raw-cluster migration): the resource manager owns raw sample-cluster
+	// residency; the CacheManager still owns everything else (caches, grain, wavetable).
+	// Try the manager first, then fall back to the legacy stealable queues. (Until raw
+	// clusters are routed through it, the manager is empty and try_evict returns false,
+	// so this is behaviour-identical to the CacheManager-only path.)
+	if (gma->resourceManager_ != nullptr && deluge_resource_try_evict(gma->resourceManager_)) {
+		return true;
+	}
 	void* victim = gma->cacheManager.reclaimOne(gma->currentDontStealFrom_);
 	if (victim == nullptr) {
 		return false;
@@ -73,6 +82,14 @@ void* GeneralMemoryAllocator::acquireCluster(void* dontStealFromThing) {
 		clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, capacity);
 		if (clusterSlab_ == nullptr) {
 			return nullptr;
+		}
+		// Stand up the resource manager alongside (coexistence): it shares the cluster
+		// slab and will own raw sample-cluster residency. Created *unhooked* —
+		// gmaSdramReclaim stays the heap's reclaim hook and drives both coordinators.
+		constexpr size_t kAssetCap = 512; // max distinct samples resident at once
+		resourceManager_ = deluge_resource_create_unhooked(deluge::memory::sdram_heap(), kAssetCap, capacity);
+		if (resourceManager_ != nullptr) {
+			deluge_resource_set_slab(resourceManager_, clusterSlab_);
 		}
 	}
 	currentDontStealFrom_ = dontStealFromThing;

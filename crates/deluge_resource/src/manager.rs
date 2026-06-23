@@ -81,9 +81,8 @@ struct ChunkSlot {
     backing: *mut u8, // null => free slot
     asset: u32,       // index into the asset table
     index: u32,       // chunk index within the asset
-    size: usize,
-    leases: u32, // hard leases; > 0 ⇒ never evicted
-    dirty: bool, // unsaved (e.g. a recording) ⇒ never evicted
+    leases: u32,      // hard leases; > 0 ⇒ never evicted
+    dirty: bool,      // unsaved (e.g. a recording) ⇒ never evicted
     recency: u64,
 }
 impl ChunkSlot {
@@ -91,7 +90,6 @@ impl ChunkSlot {
         backing: ptr::null_mut(),
         asset: NONE,
         index: 0,
-        size: 0,
         leases: 0,
         dirty: false,
         recency: 0,
@@ -240,7 +238,6 @@ impl Manager {
             backing: p,
             asset,
             index,
-            size,
             leases: 1,
             dirty: false,
             recency: self.bump(),
@@ -352,6 +349,38 @@ pub unsafe extern "C" fn deluge_resource_create(
     asset_cap: usize,
     chunk_cap: usize,
 ) -> *mut DelugeResource {
+    create_inner(heap, asset_cap, chunk_cap, true)
+}
+
+/// Like `deluge_resource_create` but does NOT register the heap reclaim hook — for
+/// coexistence with another reclaim coordinator (the C++ CacheManager during the
+/// raw-cluster migration), where the caller's own hook drives eviction by calling
+/// `deluge_resource_try_evict` and then the other coordinator.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_create_unhooked(
+    heap: *mut DelugeHeap,
+    asset_cap: usize,
+    chunk_cap: usize,
+) -> *mut DelugeResource {
+    create_inner(heap, asset_cap, chunk_cap, false)
+}
+
+/// Evict the single lowest-value evictable chunk (the reclaim-hook body, exposed so
+/// an external coordinator can drive it). Returns true if something was freed.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_try_evict(handle: *mut DelugeResource) -> bool {
+    if handle.is_null() {
+        return false;
+    }
+    mgr(handle).evict_lowest()
+}
+
+unsafe fn create_inner(
+    heap: *mut DelugeHeap,
+    asset_cap: usize,
+    chunk_cap: usize,
+    register_hook: bool,
+) -> *mut DelugeResource {
     if heap.is_null() || asset_cap == 0 || chunk_cap == 0 {
         return ptr::null_mut();
     }
@@ -396,7 +425,9 @@ pub unsafe extern "C" fn deluge_resource_create(
             tick: Cell::new(0),
         },
     );
-    deluge_heap_register_reclaim(heap, resource_reclaim, m as *mut c_void);
+    if register_hook {
+        deluge_heap_register_reclaim(heap, resource_reclaim, m as *mut c_void);
+    }
     m as *mut DelugeResource
 }
 

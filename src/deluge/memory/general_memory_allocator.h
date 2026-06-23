@@ -22,7 +22,8 @@
 #include "memory/heaps.h" // deluge::memory heaps (+ opaque DelugeHeap)
 
 class Stealable;
-struct DelugeSlab; // libdeluge/alloc.h — opaque here; full C ABI included in the .cpp
+struct DelugeSlab;     // libdeluge/alloc.h — opaque here; full C ABI included in the .cpp
+struct DelugeResource; // deluge_resource.h — the resource manager handle (opaque here)
 
 /*
  * ======================= MEMORY ALLOCATION ========================
@@ -92,6 +93,12 @@ public:
 	// first Cluster::create, when Cluster::size is finalized to the session maximum
 	// (the firmware never raises cluster size after boot). nullptr until then.
 	DelugeSlab* clusterSlab_{nullptr};
+
+	// The Rust resource manager (coexistence, raw-cluster migration): created unhooked
+	// alongside the cluster slab, it will own raw sample-cluster residency while the
+	// CacheManager keeps the rest. gmaSdramReclaim drives both. nullptr until the first
+	// Cluster::create (created lazily with the slab).
+	DelugeResource* resourceManager_{nullptr};
 
 	// Acquire a uniform Cluster-sized slot (creating the slab on first use), with
 	// `dontStealFromThing` protected from the reclaim hook during the allocation.
