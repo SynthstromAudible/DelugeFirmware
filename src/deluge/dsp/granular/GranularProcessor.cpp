@@ -319,7 +319,11 @@ void GranularProcessor::releaseBuffer() {
 }
 void GranularProcessor::getBuffer() {
 	if (grainBuffer == nullptr) {
-		void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GrainBuffer));
+		// Plain SDRAM allocation, NOT allocStealable: the grain buffer is never actually stolen
+		// (it is never enqueued for reclamation, and inUse stays true) — it is held while the FX
+		// runs and released outright on idle (releaseBuffer). So it doesn't belong on the resource
+		// manager / CacheManager at all; this is just a normal buffer the FX owns + frees.
+		void* grainBufferMemory = deluge::memory::alloc_external(sizeof(GrainBuffer), alignof(GrainBuffer));
 		if (grainBufferMemory) {
 			grainBuffer = new (grainBufferMemory) GrainBuffer(this);
 		}
