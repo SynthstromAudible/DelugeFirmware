@@ -200,6 +200,13 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Retrospective MIDI Capture: background-buffer notes played in a keyboard layout, even when not
+	// recording; SHIFT+RECORD dumps them into the clip. Catches an idea you only realise you liked after
+	// you played it.
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RetrospectiveCapture],
+	                  STRING_FOR_COMMUNITY_FEATURE_RETROSPECTIVE_CAPTURE, "retrospectiveCapture",
+	                  RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
