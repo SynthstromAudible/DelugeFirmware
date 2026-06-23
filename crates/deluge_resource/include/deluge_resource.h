@@ -144,6 +144,11 @@ void* deluge_resource_acquire(DelugeResource* mgr, uint32_t asset, uint32_t inde
 /// resident chunk.
 void deluge_resource_add_lease(DelugeResource* mgr, void* ptr);
 
+/// Drop a specific resident chunk by its backing pointer (clear slot + free backing),
+/// *without* calling its on_evict — for an owner deliberately discarding a chunk it
+/// manages (e.g. a SampleCache truncating its tail). No-op if `ptr` isn't resident.
+void deluge_resource_evict_chunk(DelugeResource* mgr, void* ptr);
+
 /// Drop one hard lease on the chunk at `ptr` (it stays resident/cached until
 /// evicted under pressure).
 void deluge_resource_release(DelugeResource* mgr, void* ptr);

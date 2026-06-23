@@ -44,7 +44,8 @@ pub type EvictFn = unsafe extern "C" fn(ctx: *mut c_void, owner: *mut c_void, in
 /// async counterpart to `materialize`, used by `request` (prefetch). For a sample
 /// cluster: placement-new the `Cluster` object and set its fields, leaving the data
 /// to be read later by an external loader. Cannot fail (no I/O).
-pub type ConstructFn = unsafe extern "C" fn(ctx: *mut c_void, owner: *mut c_void, index: u32, dest: *mut u8);
+pub type ConstructFn =
+    unsafe extern "C" fn(ctx: *mut c_void, owner: *mut c_void, index: u32, dest: *mut u8);
 
 /// Where a chunk's backing comes from — uniform clusters use the slab, variable
 /// assets use the heap directly. Plain `u32` to cross the C ABI (no C enum).
@@ -276,7 +277,11 @@ impl Manager {
         // Protect this asset's existing chunks from eviction for the duration (incl. the
         // reentrant reclaim hook during alloc_backing) — the dontStealFromThing port. Only
         // for opted-in (cache) assets; leased assets must stay able to evict their own old.
-        let prot = if self.assets[ai].get().self_protect { asset } else { NONE };
+        let prot = if self.assets[ai].get().self_protect {
+            asset
+        } else {
+            NONE
+        };
         let _g = self.protect_asset(prot);
         // Cache hit.
         if let Some(c) = self.find_resident(asset, index) {
@@ -357,7 +362,11 @@ impl Manager {
         // Protect this asset's existing chunks from eviction while we allocate (the
         // dontStealFromThing port) — a cache writing cluster N+1 mustn't evict cluster N.
         // Only for opted-in (cache) assets.
-        let prot = if self.assets[ai].get().self_protect { asset } else { NONE };
+        let prot = if self.assets[ai].get().self_protect {
+            asset
+        } else {
+            NONE
+        };
         let _g = self.protect_asset(prot);
         // Cache hit (already resident — constructed, maybe also loaded): just lease.
         if let Some(c) = self.find_resident(asset, index) {
@@ -426,6 +435,18 @@ impl Manager {
         self.assets[ai].set(a);
     }
 
+    /// Drop a specific resident chunk by its backing pointer: clear its slot and free the
+    /// backing, *without* calling `on_evict` (the owner is deliberately discarding it — e.g.
+    /// a SampleCache truncating its tail — so it manages its own pointer/state). No-op if
+    /// `p` isn't resident. Distinct from `release` (which only drops a lease).
+    fn evict_chunk(&self, p: *mut u8) {
+        if let Some(c) = self.find_by_ptr(p) {
+            let s = self.chunks[c].get();
+            self.chunks[c].set(ChunkSlot::EMPTY);
+            self.free_backing(s.backing, s.asset);
+        }
+    }
+
     fn release(&self, p: *mut u8) {
         if let Some(c) = self.find_by_ptr(p) {
             let mut s = self.chunks[c].get();
@@ -478,11 +499,9 @@ impl Manager {
             return;
         }
         let a = self.assets[ai].get();
-        for i in 0..self.chunks.len() {
+        // Helper: clear slot, fire on_evict, free backing for chunk at table-index `i`.
+        let drop_chunk = |i: usize| {
             let s = self.chunks[i].get();
-            if s.backing.is_null() || s.asset != asset {
-                continue;
-            }
             // Clear the slot before the callback (consistent table for any reentrancy),
             // and free the backing *before* clearing the asset slot (free_backing reads
             // the asset's backing kind to route slab-vs-heap).
@@ -492,6 +511,31 @@ impl Manager {
                 unsafe { cb(a.source.ctx, a.owner, s.index) };
             }
             self.free_backing(s.backing, asset);
+        };
+        if a.evict_tail_first {
+            // Prefix-dependent: free highest-index first so a cascading on_evict (which
+            // discards higher-index siblings) never hits a chunk we still track.
+            loop {
+                let mut hi: Option<usize> = None;
+                let mut hidx = 0u32;
+                for (i, c) in self.chunks.iter().enumerate() {
+                    let s = c.get();
+                    if !s.backing.is_null() && s.asset == asset && (hi.is_none() || s.index >= hidx)
+                    {
+                        hi = Some(i);
+                        hidx = s.index;
+                    }
+                }
+                let Some(i) = hi else { break };
+                drop_chunk(i);
+            }
+        } else {
+            for i in 0..self.chunks.len() {
+                let s = self.chunks[i].get();
+                if !s.backing.is_null() && s.asset == asset {
+                    drop_chunk(i);
+                }
+            }
         }
         self.assets[ai].set(AssetSlot::EMPTY);
     }
@@ -754,6 +798,16 @@ pub unsafe extern "C" fn deluge_resource_acquire(
         return ptr::null_mut();
     }
     mgr(handle).acquire(asset, index, size)
+}
+
+/// Drop a specific resident chunk by its backing pointer (clear slot + free backing),
+/// *without* calling its `on_evict` — for an owner deliberately discarding a chunk it
+/// manages (e.g. a SampleCache truncating its tail). No-op if `ptr` isn't resident.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_evict_chunk(handle: *mut DelugeResource, ptr: *mut u8) {
+    if !handle.is_null() {
+        mgr(handle).evict_chunk(ptr);
+    }
 }
 
 /// Add a hard lease to an already-resident chunk by its backing pointer (no
