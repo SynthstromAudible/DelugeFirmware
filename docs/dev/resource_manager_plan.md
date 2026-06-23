@@ -103,34 +103,49 @@ One heap reclaim hook must drive *both* coordinators during migration.
 - Build: add `crates/deluge_resource/include` to the firmware (`src/deluge/CMakeLists.txt`) and
   sim (`include_directories` + `HOST_INCLUDE_DIRS`) include paths.
 
-## P1.2b — route raw SAMPLE clusters through the manager (coexist with caches)
+## P1.2 — route raw SAMPLE clusters through the manager (REVISED 2026-06-23)
 
-Only `Cluster::Type::SAMPLE` (raw sample data) moves to the manager; `SAMPLE_CACHE` /
-`PERC_CACHE_*` stay on `CacheManager`.
+**The naive "materialize = `loadCluster`" model is infeasible.** `loadCluster` is deeply
+coupled: it asserts/mutates `numReasonsToBeLoaded`, internally `addReason()`s + `removeReason`s,
+gates on card state (`currentlyAccessingCard` / `clusterBeingLoaded` / `audioRoutineLocked`),
+feeds the async `loadingQueue`, and is ~250 lines of intricate **inter-cluster boundary
+byte-conversion** (it fixes up the *previous* and *next* clusters' boundary bytes). It cannot be
+a clean materialize callback. So the long-term path **decouples I/O from residency**, in order;
+each step is behaviour-preserving and **verified bit-exact against the Cordae golden**
+(`scripts/golden_mixdown.sh check`).
 
-- **Asset per Sample:** define on Sample creation — `owner=Sample*`,
-  `materialize` = read cluster *i* from the card (the `AudioFileManager::loadCluster` read +
-  the placement-`new Cluster` + 24-bit conversion), `on_evict` = `~Cluster` + null
-  `sample->clusters[i].cluster` (replaces `Cluster::steal`), `cost=COST_IO`,
-  `backing=BACKING_SLAB`. Store the asset id on the Sample.
-- **`SampleCluster::getCluster` (sample_cluster.cpp):** the not-resident branch becomes
-  `manager.acquire(asset, clusterIndex, slot)` → backing (materialize loads); the
-  already-resident branch's `addReason` becomes a lease (`acquire` cache-hit).
-- **Leases:** `Cluster::addReason` / `AudioFileManager::removeReasonFromCluster` →
-  `deluge_resource_acquire` (lease++) / `deluge_resource_release` (lease--). At 0 leases the
-  chunk stays cached + evictable (replaces the CacheManager queue for raw clusters); the
-  manager's eviction + `on_evict` replace `removeReasonFromCluster`'s queue/delete logic.
-- **Async enqueue** (`CLUSTER_ENQUEUE` → `loadingQueue` → `loadAnyEnqueuedClusters`): the
-  manager's `acquire`/`materialize` is synchronous. For P1 keep the immediate-load path through
-  `acquire` and leave the async prefetch as-is, OR map enqueue onto the deferred
-  request/ready ABI — **decide during impl** (the async request/ready surface is deferred; see
-  resource_manager.md). The sim render drives loads synchronously, so A/B works either way.
-- **`Cluster::size`** is finalized at boot (never raised — `cardReinserted`), so the slab slot +
-  asset materialize size are fixed for the session.
-- **Verify:** A/B bit-exact; sim render works; no eviction/reload corruption; `dbt build Debug`
-  + ctest green. NEEDS-HARDWARE before merge.
+Only `Cluster::Type::SAMPLE` moves to the manager; `SAMPLE_CACHE` / `PERC_CACHE_*` stay on
+`CacheManager` (coexistence via the manager-then-CacheManager reclaim hook).
 
-## After 2b
+### Step 1 — extract a clean cluster reader ("ClusterSource")  ✅ DONE (2026-06-23, golden bit-exact)
+Split `loadCluster` (audio_file_manager.cpp): the **data work** — `numSectors`, `disk_read`,
+`convertDataIfNecessary`, and the prev/next inter-cluster boundary fixups — is now
+`AudioFileManager::readClusterData(Cluster&, minNumReasonsAfter) -> bool`; `loadCluster` is thin
+**orchestration** over it (guards, `clusterBeingLoaded`, the loading `addReason`/`removeReason`,
+and the success/getOutEarly cleanup unified as `removeReasonFromCluster(ok ? "E034" : "E033")`).
+The 250-line body was re-bracketed, not retyped (the `getOutEarly: return false` label sits above
+the local inits so the backward gotos don't cross them). **Verified:** golden MIXDOWN bit-exact
+(`a3b48a0a`), sim + `dbt build Debug` link, clang-format clean. This is the seam Step 2's
+materialize Source uses.
+
+### Step 2 — manager owns raw-cluster residency
+`Sample` = Asset (define on creation; `owner=Sample*`, `materialize` = the Step-1 reader,
+`on_evict` = `~Cluster` + null `sample->clusters[i].cluster`, `cost=COST_IO`,
+`backing=BACKING_SLAB`; store the asset id on `Sample`). `SampleCluster::getCluster` not-resident
+→ `acquire`; resident → lease (`acquire` cache-hit). `addReason`/`removeReasonFromCluster` →
+lease/unlease (`numReasonsToBeLoaded` becomes a lease mirror, then dissolves). Eviction + `on_evict`
+replace `steal` + the CacheManager queue for raw clusters. Golden bit-exact.
+
+### Step 3 — relocate prefetch
+The `loadingQueue` / `clusterBeingLoaded` async loader → the manager's read-ahead
+(`request`/`mark_ready`/`try_acquire` + `Loading` state), unlocking embassy + the RT
+allocation-free contract.
+
+### Step 4 — retire
+`Stealable` / `CacheManager` / `numReasonsToBeLoaded` / `getAppropriateQueue`; the GMA
+coordinator dissolves.
+
+## After P1.2
 
 - **P2 — soft references from the project** (`deluge_resource_reference`): the song marks the
   assets it uses, so eviction prefers current-song clusters last. Shim until `project_model`

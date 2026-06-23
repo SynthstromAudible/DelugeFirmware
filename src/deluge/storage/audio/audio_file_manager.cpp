@@ -942,14 +942,39 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 	// cos then it might get deallocated.
 	cluster.addReason();
 
+	bool ok = readClusterData(cluster, minNumReasonsAfter);
+
+	clusterBeingLoaded = nullptr;
+	removeReasonFromCluster(cluster, ok ? "E034" : "E033");
+
+#if ALPHA_OR_BETA_VERSION
+	if (ok) {
+		if (cluster.numReasonsToBeLoaded < minNumReasonsAfter) {
+			FREEZE_WITH_ERROR("i037");
+		}
+		if (cluster.sample->clusters[cluster.clusterIndex].cluster != &cluster) {
+			FREEZE_WITH_ERROR("E438");
+		}
+	}
+#endif
+
+	return ok;
+}
+
+// The cluster data reader extracted from loadCluster (Step 1 of the resource-manager
+// integration): the pure data work — sector count, read from the card, conversion, and the
+// inter-cluster boundary fixups. No orchestration (the card-state guards, clusterBeingLoaded,
+// the loading "reason", and the loadingQueue stay in loadCluster). This is the seam the resource
+// manager will use as a materialize Source. `minNumReasonsAfter` only feeds the ALPHA sanity checks.
+bool AudioFileManager::readClusterData(Cluster& cluster, [[maybe_unused]] int32_t minNumReasonsAfter) {
+	Sample* sample = cluster.sample;
+	int32_t clusterIndex = cluster.clusterIndex;
+
+	// Failure exits jump here (kept above the local inits so the backward gotos don't cross them).
 	if (false) {
 getOutEarly:
-		clusterBeingLoaded = nullptr;
-		removeReasonFromCluster(cluster, "E033");
 		return false;
 	}
-
-	int32_t clusterIndex = cluster.clusterIndex;
 
 	int32_t numSectors = Cluster::size >> 9;
 
@@ -1210,19 +1235,6 @@ copy7ToMe:
 	}
 
 	cluster.loaded = true;
-
-	clusterBeingLoaded = NULL;
-	removeReasonFromCluster(cluster, "E034");
-
-#if ALPHA_OR_BETA_VERSION
-	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter) {
-		FREEZE_WITH_ERROR("i037");
-	}
-	if (cluster.sample->clusters[cluster.clusterIndex].cluster != &cluster) {
-		FREEZE_WITH_ERROR("E438");
-	}
-#endif
-
 	return true;
 }
 
