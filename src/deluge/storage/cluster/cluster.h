@@ -73,10 +73,18 @@ public:
 	// unleased (never reasoned), so they're excluded here and managed via the cache's Asset.
 	uint32_t resourceLeaseAssetId() const;
 
+	// Hard-lease ("reason") count for this cluster — the single source of truth lives in the resource
+	// manager's chunk slot, read O(1) via `resourceSlot` (the slot handle, set at creation). Replaces
+	// the old `numReasonsToBeLoaded` mirror field. 0 if the cluster isn't a manager chunk yet.
+	[[nodiscard]] uint32_t leaseCount() const;
+
 	Cluster::Type type;
 	uint32_t clusterIndex = 0;
 
-	int32_t numReasonsToBeLoaded = 0;
+	// Handle to this cluster's chunk slot in the resource manager (set at creation via
+	// deluge_resource_slot_of). 0xFFFFFFFF == DELUGE_RESOURCE_NO_SLOT (literal here so this widely-
+	// included header needn't pull in deluge_resource.h).
+	uint32_t resourceSlot = 0xFFFFFFFF;
 	int8_t numReasonsHeldBySampleRecorder = 0;
 	bool unloadable = false;
 	bool extraBytesAtStartConverted = false;

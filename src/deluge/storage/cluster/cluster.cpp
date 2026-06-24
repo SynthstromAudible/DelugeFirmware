@@ -172,10 +172,14 @@ uint32_t Cluster::resourceLeaseAssetId() const {
 void Cluster::addReason() {
 	// Manager-owned leased clusters (SAMPLE / PERC) are pinned by a resource-manager lease (they're
 	// never on a stealable queue). Take a lease so the manager won't evict a cluster the caller still
-	// holds, and keep numReasonsToBeLoaded as a mirror.
+	// holds. The lease count lives in the manager's chunk slot (read via leaseCount()).
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	if (mgr != nullptr) {
 		deluge_resource_add_lease(mgr, this); // hit-only lease bump on this resident chunk
 	}
-	this->numReasonsToBeLoaded++;
+}
+
+uint32_t Cluster::leaseCount() const {
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	return (mgr != nullptr) ? deluge_resource_lease_count_by_slot(mgr, resourceSlot) : 0;
 }

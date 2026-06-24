@@ -484,33 +484,36 @@ finishedWhileLoop:
 }
 
 void AudioFile::addReason() {
-	// Adopted object: each reason is a hard lease (reason 0 ⇒ unleased ⇒ evictable). The manager
-	// owns eviction, so there's no stealable queue to leave. Mirror the count.
+	// Adopted object: each reason is a hard lease (reason 0 ⇒ unleased ⇒ evictable). The lease count
+	// lives in the manager's chunk slot (read via leaseCount()). The 0→1 transition makes the object
+	// project-relevant (numReasonsIncreasedFromZero → soft-reference its assets, for a Sample).
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	if (mgr != nullptr) {
 		deluge_resource_add_lease(mgr, this);
 	}
-	if (!numReasonsToBeLoaded) {
+	if (leaseCount() == 1) {
 		numReasonsIncreasedFromZero();
 	}
-	numReasonsToBeLoaded++;
 }
 
 void AudioFile::removeReason(char const* errorCode) {
-	numReasonsToBeLoaded--;
 	// Adopted object: drop the lease. At reason 0 it's unleased ⇒ evictable under pressure (the
-	// manager value-scores it), no queue. Keep the numReasons mirror in sync.
+	// manager value-scores it). The 1→0 transition drops project-relevance. release saturates at 0,
+	// so there is no underflow to guard.
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	if (mgr != nullptr) {
 		deluge_resource_release(mgr, this);
 	}
-	if (numReasonsToBeLoaded == 0) {
+	if (leaseCount() == 0) {
 		numReasonsDecreasedToZero(errorCode);
 	}
-	else if (numReasonsToBeLoaded < 0) {
-#if ALPHA_OR_BETA_VERSION
-		FREEZE_WITH_ERROR("E004"); // Luc got this! And Paolo. (Must have been years ago :D)
-#endif
-		numReasonsToBeLoaded = 0; // Save it from crashing
-	}
+}
+
+uint32_t AudioFile::leaseCount() const {
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	return (mgr != nullptr) ? deluge_resource_lease_count_by_slot(mgr, resourceSlot) : 0;
+}
+
+bool AudioFile::isProjectReferenced() const {
+	return leaseCount() > 0;
 }

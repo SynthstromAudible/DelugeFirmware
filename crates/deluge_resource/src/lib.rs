@@ -533,6 +533,44 @@ mod tests {
         assert_eq!(q, p, "acquire()'d chunk is ready for try_acquire");
     }
 
+    #[test]
+    fn slot_handle_round_trips_and_tracks_leases() {
+        // The C++ side caches slot_of(ptr) at creation, then reads the lease count O(1) by slot.
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(11),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let p = unsafe { deluge_resource_acquire(mgr, a, 0, 64 * 1024) };
+        assert!(!p.is_null());
+        let slot = unsafe { deluge_resource_slot_of(mgr, p) };
+        assert_ne!(slot, u32::MAX, "resident ptr → a real slot");
+        assert_eq!(unsafe { deluge_resource_lease_count_by_slot(mgr, slot) }, 1);
+
+        unsafe { deluge_resource_add_lease(mgr, p) };
+        assert_eq!(unsafe { deluge_resource_lease_count_by_slot(mgr, slot) }, 2, "by-slot tracks add_lease");
+        unsafe { deluge_resource_release(mgr, p) };
+        unsafe { deluge_resource_release(mgr, p) };
+        assert_eq!(
+            unsafe { deluge_resource_lease_count_by_slot(mgr, slot) },
+            0,
+            "unleased but still resident → 0"
+        );
+
+        // Edge cases: bogus ptr → NO_SLOT; out-of-range / NO_SLOT slot → 0 leases.
+        assert_eq!(unsafe { deluge_resource_slot_of(mgr, 0xdead_beef as *mut u8) }, u32::MAX);
+        assert_eq!(unsafe { deluge_resource_lease_count_by_slot(mgr, 9999) }, 0);
+        assert_eq!(unsafe { deluge_resource_lease_count_by_slot(mgr, u32::MAX) }, 0);
+    }
+
     thread_local! {
         static ADOPT_EVICTED: Cell<*mut u8> = const { Cell::new(core::ptr::null_mut()) };
     }

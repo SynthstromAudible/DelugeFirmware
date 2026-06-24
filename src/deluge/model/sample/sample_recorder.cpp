@@ -362,7 +362,7 @@ aborted:
 			// It should be impossible that anyone else still holds a "reason" to this Sample, as we can only be
 			// "aborted" before AudioClip::finishLinearRecording() is called, and it's only then at the AudioClip
 			// becomes a "reason".
-			if (sample->numReasonsToBeLoaded) {
+			if (sample->isProjectReferenced()) {
 				FREEZE_WITH_ERROR("E282");
 			}
 #endif

@@ -181,7 +181,7 @@ gotError:
 	// Go through each AudioFile we have a record of in RAM.
 	auto saveAudioFile = [&](AudioFile* audioFile) {
 		// If this AudioFile is used in this Song...
-		if (audioFile->numReasonsToBeLoaded) {
+		if (audioFile->isProjectReferenced()) {
 
 			if (audioFile->type == AudioFileType::SAMPLE) {
 				Sample& sample = *static_cast<Sample*>(audioFile);

@@ -110,10 +110,9 @@ Error Sample::initialize(int32_t newNumClusters) {
 // These are the materialize / on_evict callbacks the manager calls for a Sample's
 // Asset. A Chunk's backing is a uniform slab slot; materialize placement-news a
 // Cluster into it and fills it via the Step-1 reader; on_evict drops the Sample's
-// pointer and destructs the Cluster (the manager frees the slot). The manager owns
-// residency/eviction for these clusters, so they are NOT on a CacheManager stealable
-// queue; numReasonsToBeLoaded is kept as a mirror of the manager's lease so the
-// reader's ALPHA invariants (which expect >= 1 reason mid-load) still hold.
+// pointer and destructs the Cluster (the manager frees the slot). The Cluster records its
+// chunk-slot handle (resourceSlot) here — the manager already leased the slot before calling us
+// (leases >= 1), so slot_of(dest) is valid and leaseCount() reports the reason count immediately.
 
 static bool clusterMaterialize(void* /*ctx*/, void* owner, uint32_t index, void* dest, size_t /*len*/) {
 	auto* sample = static_cast<Sample*>(owner);
@@ -121,14 +120,13 @@ static bool clusterMaterialize(void* /*ctx*/, void* owner, uint32_t index, void*
 	cluster->type = Cluster::Type::SAMPLE;
 	cluster->sample = sample;
 	cluster->clusterIndex = index;
-	cluster->numReasonsToBeLoaded = 1; // mirror the manager's lease (reader asserts >= 1)
+	cluster->resourceSlot = deluge_resource_slot_of(GeneralMemoryAllocator::get().resourceManager(), dest);
 
 	bool ok = audioFileManager.readClusterData(*cluster, 0);
 	if (ok) {
 		sample->clusters[index].cluster = cluster;
 	}
 	else {
-		cluster->numReasonsToBeLoaded = 0;
 		cluster->~Cluster(); // manager frees the slab slot
 	}
 	return ok;
@@ -144,7 +142,7 @@ static void clusterConstruct(void* /*ctx*/, void* owner, uint32_t index, void* d
 	cluster->type = Cluster::Type::SAMPLE;
 	cluster->sample = sample;
 	cluster->clusterIndex = index;
-	cluster->numReasonsToBeLoaded = 1; // mirror the lease `request` took
+	cluster->resourceSlot = deluge_resource_slot_of(GeneralMemoryAllocator::get().resourceManager(), dest);
 	// cluster->loaded stays false — the loader reads it.
 	sample->clusters[index].cluster = cluster;
 }
@@ -157,8 +155,7 @@ static void clusterEvict(void* /*ctx*/, void* owner, uint32_t index) {
 		// A constructed-but-not-yet-loaded chunk may still be in the loader queue — drop it so
 		// the queue can't dangle onto freed memory.
 		audioFileManager.loadingQueue.erase(cluster);
-		cluster->numReasonsToBeLoaded = 0; // manager owns eviction; clear the mirror for a clean ~Cluster
-		cluster->~Cluster();               // manager frees the slab slot
+		cluster->~Cluster(); // manager frees the slab slot
 	}
 }
 
@@ -174,6 +171,7 @@ static void percCacheConstruct(void* ctx, void* owner, uint32_t index, void* des
 	cluster->type = reversed ? Cluster::Type::PERC_CACHE_REVERSED : Cluster::Type::PERC_CACHE_FORWARDS;
 	cluster->sample = sample;
 	cluster->clusterIndex = index;
+	cluster->resourceSlot = deluge_resource_slot_of(GeneralMemoryAllocator::get().resourceManager(), dest);
 	sample->percCacheClusters[reversed][index] = cluster;
 }
 
@@ -1048,7 +1046,7 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 	if (!percCacheClusters[reversed][cluster->clusterIndex]) {
 		FREEZE_WITH_ERROR("i034"); // Trying to track down Steven G's E133 (Feb 2021).
 	}
-	if (percCacheClusters[reversed][cluster->clusterIndex]->numReasonsToBeLoaded) {
+	if (percCacheClusters[reversed][cluster->clusterIndex]->leaseCount()) {
 		FREEZE_WITH_ERROR("i035"); // Trying to track down Steven G's E133 (Feb 2021).
 	}
 #endif
@@ -1914,11 +1912,7 @@ void Sample::numReasonsDecreasedToZero([[maybe_unused]] char const* errorCode) {
 				FREEZE_WITH_ERROR(errorCode);
 			}
 
-			if (cluster->numReasonsToBeLoaded < 0) {
-				FREEZE_WITH_ERROR("E076");
-			}
-
-			numClusterReasons += cluster->numReasonsToBeLoaded;
+			numClusterReasons += static_cast<int32_t>(cluster->leaseCount());
 
 			if (cluster == audioFileManager.clusterBeingLoaded) {
 				numClusterReasons--;
@@ -1933,7 +1927,7 @@ void Sample::numReasonsDecreasedToZero([[maybe_unused]] char const* errorCode) {
 
 			Cluster* cluster = clusters[c].cluster;
 			if (cluster) {
-				D_PRINT("cluster->numReasonsToBeLoaded[%d]", cluster->numReasonsToBeLoaded);
+				D_PRINT("cluster->leaseCount[%d]", cluster->leaseCount());
 
 				if (cluster == audioFileManager.clusterBeingLoaded) {
 					D_PRINTLN(" (loading)");

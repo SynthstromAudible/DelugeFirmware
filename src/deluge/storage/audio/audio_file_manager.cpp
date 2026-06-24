@@ -110,10 +110,13 @@ void audioFileEvict(void* /*ctx*/, void* ptr) {
 // (no legacy fallback). On eviction the manager runs `audioFileEvict` + frees the backing.
 void AudioFileManager::adoptAudioFileObject(AudioFile* audioFile) {
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
-	if (mgr == nullptr
-	    || deluge_resource_adopt(mgr, audioFile, DELUGE_RESOURCE_COST_IO, nullptr, audioFileEvict) == nullptr) {
+	void* p = (mgr != nullptr) ? deluge_resource_adopt(mgr, audioFile, DELUGE_RESOURCE_COST_IO, nullptr, audioFileEvict)
+	                           : nullptr;
+	if (p == nullptr) {
 		FREEZE_WITH_ERROR("RAF1"); // resource chunk table exhausted adopting an AudioFile object
 	}
+	// Record the slot handle so the object's reason count (leaseCount / isProjectReferenced) is O(1).
+	audioFile->resourceSlot = deluge_resource_slot_of(mgr, p);
 }
 
 // Destruct + free an AudioFile object (caller has already removed it from `audioFiles` if present).
@@ -190,7 +193,7 @@ clusterSizeChangedButItsOk:
 			AudioFile* thisAudioFile = audioFiles[e];
 
 			// If AudioFile isn't used currently, take this opportunity to remove it from memory
-			if (!thisAudioFile->numReasonsToBeLoaded) {
+			if (!thisAudioFile->isProjectReferenced()) {
 				deleteUnusedAudioFileFromMemory(*thisAudioFile, e);
 				e--;
 			}
@@ -215,7 +218,7 @@ clusterSizeChangedButItsOk:
 			AudioFile* thisAudioFile = audioFiles[e];
 
 			// If Sample isn't used currently, take this opportunity to remove it from memory
-			if (!thisAudioFile->numReasonsToBeLoaded) {
+			if (!thisAudioFile->isProjectReferenced()) {
 				deleteUnusedAudioFileFromMemory(*thisAudioFile, e);
 				e--;
 			}
@@ -428,7 +431,7 @@ bool AudioFileManager::tryToDeleteAudioFileFromMemoryIfItExists(char const* file
 
 		// Ok, it's in memory. Can we delete it - is it unused?
 		AudioFile* audioFile = audioFiles[i];
-		if (audioFile->numReasonsToBeLoaded) {
+		if (audioFile->isProjectReferenced()) {
 			return false; // Alert - not only is it in memory, but it also can't be deleted
 		}
 
@@ -966,7 +969,7 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster.numReasonsToBeLoaded <= 0) {
+	if (cluster.leaseCount() == 0) {
 		// Ok, I think we know there's at least 1 reason at the point this function's called, because
 		FREEZE_WITH_ERROR("E204");
 	}
@@ -987,7 +990,7 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 
 #if ALPHA_OR_BETA_VERSION
 	if (ok) {
-		if (cluster.numReasonsToBeLoaded < minNumReasonsAfter) {
+		if (static_cast<int32_t>(cluster.leaseCount()) < minNumReasonsAfter) {
 			FREEZE_WITH_ERROR("i037");
 		}
 		if (cluster.sample->clusters[cluster.clusterIndex].cluster != &cluster) {
@@ -1048,7 +1051,7 @@ getOutEarly:
 		FREEZE_WITH_ERROR("i023"); // Happened to me while thrash testing with reduced RAM
 	}
 
-	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
+	if (static_cast<int32_t>(cluster.leaseCount()) < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i039"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
@@ -1073,7 +1076,7 @@ getOutEarly:
 		FREEZE_WITH_ERROR("E208");
 	}
 
-	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
+	if (static_cast<int32_t>(cluster.leaseCount()) < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i038"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
@@ -1086,7 +1089,7 @@ getOutEarly:
 	cluster.convertDataIfNecessary();
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
+	if (static_cast<int32_t>(cluster.leaseCount()) < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i040"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
@@ -1404,7 +1407,7 @@ performActionsAndGetOut:
 
 			// If the Cluster is now down to 0 reasons (i.e. it lost a reason while being loaded), then it's already
 			// been made "available" and we don't have a problem
-			if (!cluster->numReasonsToBeLoaded) {}
+			if (!cluster->leaseCount()) {}
 
 			// Otherwise, there are still "reasons" waiting for this Cluster to become loaded, so we need to put it
 			// back in the loading queue. Presumably it won't actually get loaded for a while - only when the user
@@ -1435,19 +1438,19 @@ performActionsAndGetOut:
 #endif
 }
 
-void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong) {
+void AudioFileManager::removeReasonFromCluster(Cluster& cluster, [[maybe_unused]] char const* errorCode,
+                                               bool deletingSong) {
 	(void)deletingSong;
 	// Every cluster is a manager-owned chunk — SAMPLE / PERC leased via the owner's Asset, SAMPLE_CACHE
 	// resident via the cache's Asset (and leased by the low-level reader while it streams it). A removed
-	// reason is just a manager lease drop by backing pointer: the cluster stays resident (cached,
-	// evictable under pressure), never enqueued/destroyed here. numReasonsToBeLoaded is a mirror.
-	cluster.numReasonsToBeLoaded--;
+	// reason is just a manager lease drop: the cluster stays resident (cached, evictable under pressure),
+	// never enqueued/destroyed here. The lease count lives in the manager's chunk slot (leaseCount()).
+	if (ALPHA_OR_BETA_VERSION && cluster.leaseCount() == 0) {
+		FREEZE_WITH_ERROR(errorCode); // removing a reason that was never there
+	}
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	if (mgr != nullptr) {
 		deluge_resource_release(mgr, &cluster); // unlease (backing ptr == the Cluster slot)
-	}
-	if (ALPHA_OR_BETA_VERSION && cluster.numReasonsToBeLoaded < 0) {
-		FREEZE_WITH_ERROR(errorCode);
 	}
 }
 

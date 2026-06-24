@@ -50,6 +50,10 @@ typedef struct DelugeResource DelugeResource;
 /// Invalid asset id (returned when the asset table is full).
 #define DELUGE_RESOURCE_NO_ASSET 0xFFFFFFFFu
 
+/// Invalid chunk-slot index — a C++ object's slot handle before its chunk is created, or
+/// `deluge_resource_slot_of` on a non-resident pointer.
+#define DELUGE_RESOURCE_NO_SLOT 0xFFFFFFFFu
+
 /// Reconstruction cost classes (higher = dearer to rebuild = kept resident longer).
 /// Plain ints, not a C enum, to keep the ABI fixed-width.
 #define DELUGE_RESOURCE_COST_FREE 0u /* zero-fill / scratch */
@@ -152,6 +156,14 @@ void* deluge_resource_try_acquire(DelugeResource* mgr, uint32_t asset, uint32_t 
 /// Mark a `request`ed (Loading) chunk ready — called when its read completes (the C++ loader after
 /// readClusterData, or an embassy storage task after its async DMA). No-op if `ptr` isn't resident.
 void deluge_resource_mark_ready(DelugeResource* mgr, void* ptr);
+
+/// The chunk-table slot index backing `ptr`, or DELUGE_RESOURCE_NO_SLOT if `ptr` isn't resident. O(n);
+/// callers cache the result at chunk creation so later lease reads go through lease_count_by_slot.
+uint32_t deluge_resource_slot_of(DelugeResource* mgr, void* ptr);
+
+/// O(1) hard-lease count of the chunk at `slot` — 0 if `slot` is NO_SLOT / out of range / free. The
+/// single source of truth for a cluster's reason count, read via the C++ slot handle (no scan).
+uint32_t deluge_resource_lease_count_by_slot(DelugeResource* mgr, uint32_t slot);
 
 /// Adopt an externally-allocated heap block as a manager-evictable (object-lifecycle) chunk:
 /// the owner allocated + built it; the manager owns only its eviction (value-scored by `cost`

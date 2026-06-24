@@ -30,13 +30,13 @@ SampleCluster::~SampleCluster() {
 	if (cluster) {
 
 #if ALPHA_OR_BETA_VERSION
-		int32_t numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
-		if (cluster == audioFileManager.clusterBeingLoaded) {
-			numReasonsToBeLoaded--;
+		uint32_t reasons = cluster->leaseCount();
+		if (cluster == audioFileManager.clusterBeingLoaded && reasons > 0) {
+			reasons--;
 		}
 
-		if (numReasonsToBeLoaded) {
-			D_PRINTLN("uh oh, some reasons left...  %d", numReasonsToBeLoaded);
+		if (reasons) {
+			D_PRINTLN("uh oh, some reasons left...  %d", reasons);
 
 			// Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to
 			// happen though.
@@ -49,15 +49,9 @@ SampleCluster::~SampleCluster() {
 
 void SampleCluster::ensureNoReason(Sample* sample) {
 	if (cluster) {
-		if (cluster->numReasonsToBeLoaded) {
-			D_PRINTLN("Cluster has reason!  %d %d", cluster->numReasonsToBeLoaded, sample->filePath.c_str());
-
-			if (cluster->numReasonsToBeLoaded >= 0) {
-				FREEZE_WITH_ERROR("E068");
-			}
-			else {
-				FREEZE_WITH_ERROR("E069");
-			}
+		if (cluster->leaseCount()) {
+			D_PRINTLN("Cluster has reason!  %d %d", cluster->leaseCount(), sample->filePath.c_str());
+			FREEZE_WITH_ERROR("E068");
 			delayMS(50);
 		}
 	}
@@ -74,8 +68,9 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 
 	// Manager-owned residency. The manager is the sole SDRAM evictor: every Sample (playback or
 	// recording) is manager-owned (ensureResourceAsset FREEZEs if the asset table is exhausted — no
-	// legacy fallback). numReasonsToBeLoaded is a lease mirror (++ on a cache hit; a miss sets it to
-	// 1 in construct/materialize). non-null `cluster` <=> manager-resident (on_evict nulls it).
+	// legacy fallback). The hard-lease count lives in the manager's chunk slot (the construct/
+	// materialize callback records the slot handle); add_lease/request take the lease. non-null
+	// `cluster` <=> manager-resident (on_evict nulls it).
 	uint32_t asset = sample->ensureResourceAsset();
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	bool wasResident = (cluster != nullptr);
@@ -87,7 +82,6 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		// which it is reconstructable like any sample cluster.
 		if (wasResident) {
 			deluge_resource_add_lease(mgr, cluster);
-			cluster->numReasonsToBeLoaded++;
 		}
 		else {
 			void* p = deluge_resource_request(mgr, asset, clusterIndex, sizeof(Cluster) + Cluster::size);
@@ -115,9 +109,6 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 			return nullptr;
 		}
 		cluster = reinterpret_cast<Cluster*>(p);
-		if (wasResident) {
-			cluster->numReasonsToBeLoaded++;
-		}
 		if (!cluster->loaded) {
 			audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating);
 		}
@@ -134,9 +125,6 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		return nullptr;
 	}
 	cluster = reinterpret_cast<Cluster*>(p);
-	if (wasResident) {
-		cluster->numReasonsToBeLoaded++;
-	}
 	// Hit on a cluster that was prefetch-constructed but not yet read → read it now.
 	if (!cluster->loaded) {
 		bool ok = audioFileManager.readClusterData(*cluster, 0);

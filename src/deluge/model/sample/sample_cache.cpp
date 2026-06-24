@@ -38,7 +38,8 @@ static void sampleCacheConstruct(void* /*ctx*/, void* owner, uint32_t index, voi
 	cluster->type = Cluster::Type::SAMPLE_CACHE;
 	cluster->sampleCache = sampleCache;
 	cluster->clusterIndex = index;
-	// numReasonsToBeLoaded stays 0 — cache clusters are unleased.
+	cluster->resourceSlot = deluge_resource_slot_of(GeneralMemoryAllocator::get().resourceManager(), dest);
+	// cache clusters are unleased (leaseCount() == 0) until the reader pins one.
 }
 
 static void sampleCacheEvict(void* /*ctx*/, void* owner, uint32_t index) {

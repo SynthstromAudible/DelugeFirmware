@@ -248,7 +248,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 #if ALPHA_OR_BETA_VERSION
 	// Trying to track down Steven's E133 - percCacheClusterNearby pointing to things with no reasons left
 	for (int32_t l = 0; l < 2; l++) {
-		if (percCacheClustersNearby[l] && !percCacheClustersNearby[l]->numReasonsToBeLoaded) {
+		if (percCacheClustersNearby[l] && !percCacheClustersNearby[l]->leaseCount()) {
 			FREEZE_WITH_ERROR("i036");
 		}
 	}

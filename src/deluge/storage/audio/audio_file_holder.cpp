@@ -64,7 +64,7 @@ void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool 
 	if (audioFile) {
 		unassignAllClusterReasons();
 #if ALPHA_OR_BETA_VERSION
-		if (audioFile->numReasonsToBeLoaded <= 0) {
+		if (!audioFile->isProjectReferenced()) {
 			FREEZE_WITH_ERROR("E220"); // I put this here to try and catch an E004 Luc got
 		}
 #endif

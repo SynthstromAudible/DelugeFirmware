@@ -24,6 +24,9 @@ use deluge_alloc::slab::{deluge_slab_acquire, deluge_slab_release, DelugeSlab};
 use deluge_alloc::{deluge_alloc, deluge_free, deluge_heap_register_reclaim, DelugeHeap};
 
 const NONE: u32 = u32::MAX;
+/// Invalid chunk-slot index (the C ABI's `DELUGE_RESOURCE_NO_SLOT`): a C++ object's slot handle before
+/// its chunk is created, or `slot_of` on a non-resident pointer.
+const NO_SLOT: u32 = u32::MAX;
 
 /// Reconstruct chunk `index` of `owner` into `dest[..len]`. Returns false if it
 /// can't be rebuilt right now (e.g. the backing store vanished). The public
@@ -188,6 +191,30 @@ impl Manager {
     }
     fn find_free_chunk(&self) -> Option<usize> {
         self.chunks.iter().position(|c| c.get().backing.is_null())
+    }
+
+    /// The chunk-table slot index backing `p`, or `NO_SLOT` if `p` isn't resident. O(n); the C++ side
+    /// caches the result at chunk creation so subsequent lease reads go through `lease_count_by_slot`.
+    fn slot_of(&self, p: *mut u8) -> u32 {
+        match self.find_by_ptr(p) {
+            Some(i) => i as u32,
+            None => NO_SLOT,
+        }
+    }
+
+    /// O(1) hard-lease count of the chunk at `slot` — 0 if `slot` is out of range or the slot is free.
+    /// The C++ object holds its slot index (a handle), so the loading queue / invariant checks read the
+    /// lease count without an O(n) `find_by_ptr` scan.
+    fn lease_count_by_slot(&self, slot: u32) -> u32 {
+        let i = slot as usize;
+        if i >= self.chunks.len() {
+            return 0;
+        }
+        let s = self.chunks[i].get();
+        if s.backing.is_null() {
+            return 0;
+        }
+        s.leases
     }
 
     /// Is `index` the highest-index resident chunk of `asset`? (No resident chunk of the
@@ -927,6 +954,26 @@ pub unsafe extern "C" fn deluge_resource_mark_ready(handle: *mut DelugeResource,
     if !handle.is_null() {
         mgr(handle).mark_ready(ptr);
     }
+}
+
+/// The chunk-table slot index backing `ptr`, or `DELUGE_RESOURCE_NO_SLOT` if `ptr` isn't resident.
+/// O(n); the caller caches the result at chunk creation so later lease reads use `lease_count_by_slot`.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_slot_of(handle: *mut DelugeResource, ptr: *mut u8) -> u32 {
+    if handle.is_null() {
+        return NO_SLOT;
+    }
+    mgr(handle).slot_of(ptr)
+}
+
+/// O(1) hard-lease count of the chunk at `slot` — 0 if `slot` is `NO_SLOT` / out of range / free. The
+/// single source of truth for "how many reasons does this cluster have", read via the C++ slot handle.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_lease_count_by_slot(handle: *mut DelugeResource, slot: u32) -> u32 {
+    if handle.is_null() {
+        return 0;
+    }
+    mgr(handle).lease_count_by_slot(slot)
 }
 
 /// Drop a specific resident chunk by its backing pointer (clear slot + free backing),

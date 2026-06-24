@@ -45,8 +45,8 @@ public:
 			cluster = this->front();
 			this->pop();
 			if (cluster != nullptr) {
-				// if this cluster is still wanted then we'll return it
-				if ((!cluster->unloadable) && cluster->numReasonsToBeLoaded > 0) {
+				// if this cluster is still wanted then we'll return it (O(1) lease read via the slot handle)
+				if ((!cluster->unloadable) && cluster->leaseCount() > 0) {
 					return cluster;
 				}
 				// otherwise get rid of it and continue to the next one
