@@ -221,7 +221,7 @@ For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MI
     - Open again the "Deluge Midi Follow" project and click the pencil to edit the UI, and drag a rectangle selection all the page.
       Copy it, open your own project and in an empy page, paste it. Do the same with the other page with Stepped Dials.
 
-<img alt="image" src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/community/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
+<img alt="image" src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/main/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
 
 ## Appendix C - Touch OSC Template for Deluge MIDI Follow Mode
 
@@ -246,8 +246,8 @@ For users of the Electra One, you will find a MIDI Follow template in the Electr
 For users of Melbourne Instruments' Roto-Control, you will find MIDI Follow templates in this folder: [MIDI Follow Mode Roto-Control Templates]
 
 
-[MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
-[MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
+[MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/main/contrib/midi_follow/loopy_pro
+[MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/main/contrib/midi_follow/touch_osc
 [MIDI Follow Mode Electra One Preset]:
 https://app.electra.one/preset/vZ6WBYb4xDpMGcpChejY
 [MIDI Follow Mode Roto-Control Templates]: ../../contrib/midi_follow/roto_control/
