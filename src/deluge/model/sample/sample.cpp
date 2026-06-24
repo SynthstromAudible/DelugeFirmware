@@ -203,6 +203,11 @@ uint32_t Sample::ensureResourceAsset() {
 	}
 	// Attach the async-prefetch path so CLUSTER_ENQUEUE can request (construct now, load later).
 	deluge_resource_set_construct(mgr, resourceAssetId, clusterConstruct);
+	// If the sample is already project-relevant (a holder gained it before its first stream), apply the
+	// soft-reference now — numReasonsIncreasedFromZero fired before the asset existed, so it was a no-op.
+	if (isProjectReferenced()) {
+		deluge_resource_reference(mgr, resourceAssetId);
+	}
 	return resourceAssetId;
 }
 
@@ -434,6 +439,10 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 			deluge_resource_set_construct(mgr, percCacheAssetId[reversed], percCacheConstruct);
 			deluge_resource_set_self_protect(mgr, percCacheAssetId[reversed], true);
 			// per-cluster independent (percCacheClusterStolen trims one slot) → NOT evict_tail_first
+			// Inherit this sample's project relevance (applyProjectReference toggles it thereafter).
+			if (isProjectReferenced()) {
+				deluge_resource_reference(mgr, percCacheAssetId[reversed]);
+			}
 		}
 	}
 
@@ -1852,9 +1861,47 @@ void Sample::finalizeAfterLoad(uint32_t fileSize) {
 	workOutBitMask();
 }
 
-#if ALPHA_OR_BETA_VERSION
-void Sample::numReasonsDecreasedToZero(char const* errorCode) {
+// Soft-reference (on) / un-reference (off) every resource asset this sample owns: its cluster asset
+// plus each derived cache (the two perc-cache directions + the repitch caches). The manager's value
+// function keeps soft-referenced (current-song) chunks resident over un-referenced (no-song) ones.
+// unreference saturates at 0, so the toggle is robust even if an asset was created/retired mid-window.
+void Sample::applyProjectReference(bool on) {
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr == nullptr) {
+		return;
+	}
+	auto toggle = [&](uint32_t asset) {
+		if (asset == DELUGE_RESOURCE_NO_ASSET) {
+			return;
+		}
+		if (on) {
+			deluge_resource_reference(mgr, asset);
+		}
+		else {
+			deluge_resource_unreference(mgr, asset);
+		}
+	};
+	toggle(resourceAssetId);
+	toggle(percCacheAssetId[0]);
+	toggle(percCacheAssetId[1]);
+	for (SampleCacheElement& element : caches) {
+		if (element.cache != nullptr) {
+			toggle(element.cache->resourceAssetId);
+		}
+	}
+}
 
+void Sample::numReasonsIncreasedFromZero() {
+	// Became project-relevant (first hard lease on the object) → soft-reference our resource assets.
+	applyProjectReference(true);
+}
+
+void Sample::numReasonsDecreasedToZero([[maybe_unused]] char const* errorCode) {
+	// No longer project-relevant → drop the soft-references (assets stay resident but now evict before
+	// current-song data under pressure).
+	applyProjectReference(false);
+
+#if ALPHA_OR_BETA_VERSION
 	// Count up the individual reasons, as a bug check
 	int32_t numClusterReasons = 0;
 	for (int32_t c = 0; c < static_cast<int32_t>(clusters.size()); c++) {
@@ -1908,5 +1955,5 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 		// https://forums.synthstrom.com/discussion/4106/v4-0-beta2-e078-crash-when-recording-audio-clip
 		FREEZE_WITH_ERROR("E078");
 	}
-}
 #endif
+}

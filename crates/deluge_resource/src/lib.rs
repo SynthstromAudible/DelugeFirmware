@@ -459,6 +459,80 @@ mod tests {
         assert!(evicts() >= 1, "released constructed chunk is evictable");
     }
 
+    #[test]
+    fn try_acquire_gates_on_ready() {
+        // The async path: request() reserves a chunk in the Loading state (not ready). try_acquire
+        // must return null until mark_ready, then return the leased ptr. acquire() (sync materialize)
+        // is ready immediately.
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(9),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        unsafe { deluge_resource_set_construct(mgr, a, Some(mock_construct)) };
+
+        // request → Loading: try_acquire must refuse it.
+        let p = unsafe { deluge_resource_request(mgr, a, 0, 64 * 1024) };
+        assert!(!p.is_null());
+        assert!(
+            unsafe { deluge_resource_try_acquire(mgr, a, 0) }.is_null(),
+            "try_acquire must not hand out a Loading (not-ready) chunk"
+        );
+
+        // mark_ready → now try_acquire returns the same backing and takes a lease.
+        unsafe { deluge_resource_mark_ready(mgr, p) };
+        let q = unsafe { deluge_resource_try_acquire(mgr, a, 0) };
+        assert_eq!(q, p, "ready chunk is returned by try_acquire");
+
+        // try_acquire on a never-requested index is a plain miss (no alloc/materialize).
+        assert!(
+            unsafe { deluge_resource_try_acquire(mgr, a, 5) }.is_null(),
+            "try_acquire never materializes"
+        );
+
+        // It leased twice (request + try_acquire); release both → evictable.
+        unsafe { deluge_resource_release(mgr, p) };
+        unsafe { deluge_resource_release(mgr, p) };
+        reset_evicts();
+        for n in 1..20u32 {
+            let r = unsafe { deluge_resource_acquire(mgr, a, n, 64 * 1024) };
+            if !r.is_null() {
+                unsafe { deluge_resource_release(mgr, r) };
+            }
+        }
+        assert!(evicts() >= 1, "released chunk is evictable after try_acquire leases drop");
+    }
+
+    #[test]
+    fn acquire_is_ready_immediately() {
+        // A synchronously-materialized chunk is ready without a separate mark_ready.
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(10),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let p = unsafe { deluge_resource_acquire(mgr, a, 0, 64 * 1024) };
+        assert!(!p.is_null());
+        let q = unsafe { deluge_resource_try_acquire(mgr, a, 0) };
+        assert_eq!(q, p, "acquire()'d chunk is ready for try_acquire");
+    }
+
     thread_local! {
         static ADOPT_EVICTED: Cell<*mut u8> = const { Cell::new(core::ptr::null_mut()) };
     }

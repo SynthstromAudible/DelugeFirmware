@@ -186,10 +186,18 @@ public:
 	uint32_t resourceAssetId{0xFFFFFFFFu};
 
 protected:
-#if ALPHA_OR_BETA_VERSION
+	// Project-relevance hooks (the object's hard-lease 0↔1 transitions): toggle the soft-reference on
+	// this sample's resource assets so current-song data is kept resident over no-song data under
+	// memory pressure. Present in all builds (the bug-check inside DecreasedToZero is ALPHA-only).
+	void numReasonsIncreasedFromZero() override;
 	void numReasonsDecreasedToZero(char const* errorCode) override;
-#endif
 
+private:
+	// Soft-reference (on=true) / un-reference (on=false) this sample's cluster asset + every derived
+	// cache (repitch caches + the two perc-cache directions) that is currently defined.
+	void applyProjectReference(bool on);
+
+protected:
 private:
 	int32_t investigateFundamentalPitch(int32_t fundamentalIndexProvided, int32_t tableSize, int32_t* heightTable,
 	                                    uint64_t* sumTable, float* floatIndexTable, float* getFreq,

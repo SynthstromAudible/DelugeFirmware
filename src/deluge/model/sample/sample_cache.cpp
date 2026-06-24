@@ -79,6 +79,11 @@ SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newW
 	deluge_resource_set_construct(mgr, resourceAssetId, sampleCacheConstruct);
 	deluge_resource_set_self_protect(mgr, resourceAssetId, true);
 	deluge_resource_set_evict_tail_first(mgr, resourceAssetId, true);
+	// Inherit the source sample's project relevance: a current-song sample's caches should outlive
+	// no-song data too (Sample::applyProjectReference toggles this asset thereafter).
+	if (sample->isProjectReferenced()) {
+		deluge_resource_reference(mgr, resourceAssetId);
+	}
 }
 
 SampleCache::~SampleCache() {

@@ -112,6 +112,11 @@ struct ChunkSlot {
     index: u32,       // chunk index within the asset (unused for adopted chunks)
     leases: u32,      // hard leases; > 0 ⇒ never evicted
     dirty: bool,      // unsaved (e.g. a recording) ⇒ never evicted
+    // Loaded/ready: false between `request` (slot reserved + constructed, no data yet — the `Loading`
+    // state) and `mark_ready` (the loader/embassy task signalled the read complete). `acquire` (which
+    // materializes synchronously) and `adopt` (owner-built) leave it true. `try_acquire` only returns a
+    // chunk that is `ready`, so the RT/async path never reads half-loaded data.
+    ready: bool,
     recency: u64,
     // Adopt mode (asset == NONE): the chunk carries its own cost + evict callback, because
     // an adopted block is an externally-allocated object, not a chunk of a Source asset.
@@ -127,6 +132,7 @@ impl ChunkSlot {
         index: 0,
         leases: 0,
         dirty: false,
+        ready: false,
         recency: 0,
         cost: 0,
         adopt_evict: None,
@@ -349,6 +355,7 @@ impl Manager {
             index,
             leases: 1,
             dirty: false,
+            ready: true, // acquire materializes synchronously below, before anyone else can run
             recency: self.bump(),
             ..ChunkSlot::EMPTY
         });
@@ -517,6 +524,7 @@ impl Manager {
             index: 0,
             leases: 0,
             dirty: false,
+            ready: true, // owner-built object, usable immediately
             recency: self.bump(),
             cost,
             adopt_evict: on_evict,
@@ -538,6 +546,35 @@ impl Manager {
             let mut s = self.chunks[c].get();
             s.dirty = dirty;
             self.chunks[c].set(s);
+        }
+    }
+
+    /// Mark a `request`ed (Loading) chunk ready — the loader / embassy storage task signals the read
+    /// completed. No-op if `p` isn't a resident chunk.
+    fn mark_ready(&self, p: *mut u8) {
+        if let Some(c) = self.find_by_ptr(p) {
+            let mut s = self.chunks[c].get();
+            s.ready = true;
+            self.chunks[c].set(s);
+        }
+    }
+
+    /// RT-safe acquire: take a hard lease + return the backing only if the chunk is resident **and**
+    /// ready (never allocates, never materializes, never blocks). Returns null otherwise — the caller
+    /// (RT render / embassy path) must cope with a miss. Touches recency on a hit.
+    fn try_acquire(&self, asset: u32, index: u32) -> *mut u8 {
+        match self.find_resident(asset, index) {
+            Some(c) => {
+                let mut s = self.chunks[c].get();
+                if !s.ready {
+                    return ptr::null_mut();
+                }
+                s.leases += 1;
+                s.recency = self.bump();
+                self.chunks[c].set(s);
+                s.backing
+            }
+            None => ptr::null_mut(),
         }
     }
 
@@ -866,6 +903,30 @@ pub unsafe extern "C" fn deluge_resource_acquire(
         return ptr::null_mut();
     }
     mgr(handle).acquire(asset, index, size)
+}
+
+/// RT-safe acquire: take a hard lease + return chunk `index` of `asset` only if it is resident **and**
+/// ready (loaded). Never allocates, materializes, or blocks; returns null on a miss. The seam for the
+/// RT render / embassy storage path — a `request`ed-but-not-yet-`mark_ready`'d chunk returns null.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_try_acquire(
+    handle: *mut DelugeResource,
+    asset: u32,
+    index: u32,
+) -> *mut u8 {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    mgr(handle).try_acquire(asset, index)
+}
+
+/// Mark a `request`ed (Loading) chunk ready — called when the read completes (the C++ loader after
+/// `readClusterData`, or an embassy storage task after its DMA `.await`). No-op if `ptr` isn't resident.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_mark_ready(handle: *mut DelugeResource, ptr: *mut u8) {
+    if !handle.is_null() {
+        mgr(handle).mark_ready(ptr);
+    }
 }
 
 /// Drop a specific resident chunk by its backing pointer (clear slot + free backing),

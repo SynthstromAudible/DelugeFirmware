@@ -144,6 +144,15 @@ void* deluge_resource_request(DelugeResource* mgr, uint32_t asset, uint32_t inde
 /// reconstruction failure. A cache hit just adds a lease (pointer stable, no copy).
 void* deluge_resource_acquire(DelugeResource* mgr, uint32_t asset, uint32_t index, size_t size);
 
+/// RT-safe acquire: take a hard lease + return chunk `index` of `asset` only if it is resident **and**
+/// ready (loaded). Never allocates, materializes, or blocks — returns NULL on a miss (incl. a chunk
+/// that is `request`ed but not yet `mark_ready`'d). The seam for the RT render / embassy storage path.
+void* deluge_resource_try_acquire(DelugeResource* mgr, uint32_t asset, uint32_t index);
+
+/// Mark a `request`ed (Loading) chunk ready — called when its read completes (the C++ loader after
+/// readClusterData, or an embassy storage task after its async DMA). No-op if `ptr` isn't resident.
+void deluge_resource_mark_ready(DelugeResource* mgr, void* ptr);
+
 /// Adopt an externally-allocated heap block as a manager-evictable (object-lifecycle) chunk:
 /// the owner allocated + built it; the manager owns only its eviction (value-scored by `cost`
 /// + recency). On eviction it calls `on_evict(ctx, ptr)` then frees `ptr`. Registered unleased

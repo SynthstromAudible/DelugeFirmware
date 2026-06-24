@@ -47,6 +47,12 @@ public:
 	                                       // which format the name took.
 	int32_t numReasonsToBeLoaded{}; // This functionality should probably be merged between AudioFile and Cluster.
 
+	// "Is the project/song using this right now" — true while any hard lease is held (a clip/voice/
+	// preview/recorder holds the object). This is the soft-reference / relevance signal (the old
+	// CURRENT_SONG vs NO_SONG distinction, which getAppropriateQueue derived the same way): a Sample
+	// soft-references its resource assets while this holds, so current-song data outlives no-song data.
+	[[nodiscard]] bool isProjectReferenced() const { return numReasonsToBeLoaded > 0; }
+
 	constexpr static bool isSample(const AudioFile* file) { return file->type == AudioFileType::SAMPLE; }
 	constexpr static bool isWaveTable(const AudioFile* file) { return file->type == AudioFileType::WAVETABLE; }
 

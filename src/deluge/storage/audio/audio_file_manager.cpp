@@ -1273,6 +1273,15 @@ copy7ToMe:
 	}
 
 	cluster.loaded = true;
+	// Manager-owned readiness: a chunk fetched via `request` (CLUSTER_ENQUEUE prefetch) was reserved in
+	// the Loading state; now its data is read, signal the manager so the async/RT `try_acquire` path
+	// sees it ready. `cluster.loaded` stays the C++ sync-path field; this keeps the manager in sync.
+	{
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_mark_ready(mgr, &cluster);
+		}
+	}
 	return true;
 }
 
