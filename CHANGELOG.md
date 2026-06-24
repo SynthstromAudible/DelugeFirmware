@@ -2,7 +2,7 @@
 
 > To find a detailed list of how to use each feature, check here: [Community Features](docs/community_features.md)
 
-## c1.3.0
+## c1.3.0 Derbyshire
 
 ### Sound Engine
 - Added a Warbler fx and a warble LFO to synths/kits/kit rows/song/audio clips
