@@ -118,6 +118,22 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
 
+	// Kit MIDI output: preset default. When saving as a preset, capture the current clip's
+	// per-clip override so the preset "remembers" the user's intent.
+	{
+		uint8_t channelToWrite = outputMidiChannel;
+		uint8_t baseNoteToWrite = outputMidiBaseNote;
+		if (clipForSavingOutputOnly && clipForSavingOutputOnly->type == ClipType::INSTRUMENT) {
+			auto* ic = static_cast<InstrumentClip*>(clipForSavingOutputOnly);
+			channelToWrite = ic->kitMidiOutChannel;
+			baseNoteToWrite = ic->kitMidiOutBaseNote;
+		}
+		if (channelToWrite != MIDI_CHANNEL_NONE) {
+			writer.writeAttribute("kitOutputMidiChannel", channelToWrite);
+			writer.writeAttribute("kitOutputMidiBaseNote", baseNoteToWrite);
+		}
+	}
+
 	writer.writeOpeningTagEnd();
 	// Attributes end
 
@@ -306,6 +322,14 @@ doReadDrum:
 		}
 		else if (!strcmp(tagName, "MIDIInput")) {
 			midiInput.readNoteFromFile(reader);
+			reader.exitTag();
+		}
+		else if (!strcmp(tagName, "kitOutputMidiChannel")) {
+			outputMidiChannel = reader.readTagOrAttributeValueInt();
+			reader.exitTag();
+		}
+		else if (!strcmp(tagName, "kitOutputMidiBaseNote")) {
+			outputMidiBaseNote = reader.readTagOrAttributeValueInt();
 			reader.exitTag();
 		}
 		else {
@@ -1294,6 +1318,18 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 	}
 	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
 	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
+		// Kit-level MIDI output: per-clip current value (InstrumentClip), preset default (Kit::outputMidiChannel).
+		{
+			auto* clip = static_cast<InstrumentClip*>(activeClip);
+			if (clip->kitMidiOutChannel != MIDI_CHANNEL_NONE) {
+				int32_t midiNote = clip->kitMidiOutBaseNote + drumIndex;
+				if (midiNote >= 0 && midiNote <= 127) {
+					midiEngine.sendNote(MIDISource{}, true, midiNote, velocity, clip->kitMidiOutChannel,
+					                    kMIDIOutputFilterNoMPE);
+				}
+			}
+		}
+
 		// Check if kit arp is bypassed
 		if (!thisNoteRow->drum->arpSettings.includeInKitArp) {
 			thisNoteRow->drum->noteOn(modelStack, velocity, mpeValues, fromMIDIChannel, sampleSyncLength, ticksLate,
@@ -1335,6 +1371,18 @@ void Kit::noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum
 	}
 	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
 	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
+		// Kit-level MIDI note-off to match the note-on sent in noteOnPreKitArp
+		{
+			auto* clip = static_cast<InstrumentClip*>(activeClip);
+			if (clip->kitMidiOutChannel != MIDI_CHANNEL_NONE) {
+				int32_t midiNote = clip->kitMidiOutBaseNote + drumIndex;
+				if (midiNote >= 0 && midiNote <= 127) {
+					midiEngine.sendNote(MIDISource{}, false, midiNote, kDefaultNoteOffVelocity, clip->kitMidiOutChannel,
+					                    kMIDIOutputFilterNoMPE);
+				}
+			}
+		}
+
 		// Check if kit arp is bypassed
 		if (!thisNoteRow->drum->arpSettings.includeInKitArp) {
 			// Forced to be excluded from kit arp

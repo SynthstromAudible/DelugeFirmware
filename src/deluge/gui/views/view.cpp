@@ -711,6 +711,26 @@ isMPEZone:
 			learnedThing->noteOrCC = note;                    // used for low note in kits
 			instrumentPressedForMIDILearn->beenEdited(false); // Why again?
 
+			// Sync kit MIDI-OUT base note to the MIDI-learned input base note so output rows land on
+			// the same notes the user just learned for input. Writes the preset default on the Kit
+			// and updates every InstrumentClip using this Kit so the change is visible immediately.
+			if (instrumentPressedForMIDILearn->type == OutputType::KIT) {
+				auto* kit = static_cast<Kit*>(instrumentPressedForMIDILearn);
+				kit->outputMidiBaseNote = note;
+				for (int32_t i = 0; i < currentSong->sessionClips.getNumElements(); ++i) {
+					Clip* c = currentSong->sessionClips.getClipAtIndex(i);
+					if (c->output == kit && c->type == ClipType::INSTRUMENT) {
+						static_cast<InstrumentClip*>(c)->kitMidiOutBaseNote = note;
+					}
+				}
+				for (int32_t i = 0; i < currentSong->arrangementOnlyClips.getNumElements(); ++i) {
+					Clip* c = currentSong->arrangementOnlyClips.getClipAtIndex(i);
+					if (c->output == kit && c->type == ClipType::INSTRUMENT) {
+						static_cast<InstrumentClip*>(c)->kitMidiOutBaseNote = note;
+					}
+				}
+			}
+
 			if (instrumentPressedForMIDILearn->type == OutputType::SYNTH) {
 				currentSong->grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForInstrument(
 				    cable, (SoundInstrument*)instrumentPressedForMIDILearn);

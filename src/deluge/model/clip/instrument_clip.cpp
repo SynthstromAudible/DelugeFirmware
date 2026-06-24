@@ -123,6 +123,8 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	midiBank = otherInstrumentClip->midiBank;
 	midiSub = otherInstrumentClip->midiSub;
 	midiPGM = otherInstrumentClip->midiPGM;
+	kitMidiOutChannel = otherInstrumentClip->kitMidiOutChannel;
+	kitMidiOutBaseNote = otherInstrumentClip->kitMidiOutBaseNote;
 
 	onKeyboardScreen = otherInstrumentClip->onKeyboardScreen;
 	inScaleMode = otherInstrumentClip->inScaleMode;
@@ -2343,6 +2345,12 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			writer.writeAttribute("midiPGM", midiPGM);
 		}
 	}
+	else if (output->type == OutputType::KIT) {
+		if (kitMidiOutChannel != MIDI_CHANNEL_NONE) {
+			writer.writeAttribute("kitMidiOutChannel", kitMidiOutChannel);
+			writer.writeAttribute("kitMidiOutBaseNote", kitMidiOutBaseNote);
+		}
+	}
 	else if (output->type == OutputType::CV) {
 		writer.writeAttribute("cvChannel", ((CVInstrument*)instrument)->getChannel());
 	}
@@ -2530,6 +2538,14 @@ someError:
 
 		else if (!strcmp(tagName, "midiPGM")) {
 			midiPGM = reader.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "kitMidiOutChannel")) {
+			kitMidiOutChannel = reader.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "kitMidiOutBaseNote")) {
+			kitMidiOutBaseNote = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScroll")) {
@@ -3816,7 +3832,11 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		int32_t maxScroll = (int32_t)getNumNoteRows() - kDisplayHeight;
 		maxScroll = std::max(0_i32, maxScroll);
 		yScroll = std::min(yScroll, maxScroll);
-		((Kit*)newInstrument)->selectedDrum = nullptr;
+		auto* kit = static_cast<Kit*>(newInstrument);
+		kit->selectedDrum = nullptr;
+		// Hybrid kit MIDI-out storage: adopt the Kit's preset defaults onto this clip.
+		kitMidiOutChannel = kit->outputMidiChannel;
+		kitMidiOutBaseNote = kit->outputMidiBaseNote;
 	}
 
 	outputChanged(modelStack, newInstrument);
