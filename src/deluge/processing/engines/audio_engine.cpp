@@ -294,7 +294,10 @@ void killOneVoice(size_t num_samples) {
 	auto lowest_priority_voices = sounds //<
 	                              | std::views::filter(&Sound::hasActiveVoices)
 	                              | std::views::transform(&Sound::getLowestPriorityVoice);
-	auto it = std::ranges::max_element(lowest_priority_voices);
+	// Compare by Voice priority, not by the ActiveVoice (unique_ptr) pointer value — a bare max_element
+	// orders by address, picking a heap-layout-dependent (and semantically arbitrary) voice to cull. See
+	// Sound::getLowestPriorityVoice and docs/dev/overread_hunt.md.
+	auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) { return *a < *b; });
 	if (it == lowest_priority_voices.end()) {
 		return;
 	}
