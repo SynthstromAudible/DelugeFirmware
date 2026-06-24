@@ -42,8 +42,10 @@
 #include "model/song/song.h"
 #include "processing/stem_export/stem_export.h"
 
-#include "OSLikeStuff/scheduler_api.h" // TaskHandle
+#include "OSLikeStuff/scheduler_api.h"       // TaskHandle
+#include "memory/general_memory_allocator.h" // resource manager handle (stats dump)
 
+#include "deluge_resource.h"  // deluge_resource_stats (optional render-stats dump)
 #include "fatfs/ff.h"         // f_opendir/f_readdir/f_open/f_read (copy-out)
 #include "libdeluge/system.h" // deluge_platform_init
 
@@ -217,6 +219,28 @@ void deluge_render_driver(void) {
 		stemExport.includeSongFX = true;
 	}
 	stemExport.startStemExportProcess(mode); // runs the whole export synchronously
+
+	// Optional: dump the resource-manager counters for this render (cache/eviction analysis,
+	// e.g. comparing eviction policies). Gated by an env var so the default render is unchanged.
+	if (std::getenv("DELUGE_RESOURCE_STATS") != nullptr) {
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			DelugeResourceStats st{};
+			deluge_resource_stats(mgr, &st);
+			using ull = unsigned long long;
+			fprintf(stderr,
+			        "[resource-stats] acquires=%llu hits=%llu (%.1f%%) requests=%llu materializes=%llu "
+			        "evictions=%llu allocfail=%llu adopts=%llu\n",
+			        (ull)st.acquires, (ull)st.acquire_hits,
+			        st.acquires ? 100.0 * (double)st.acquire_hits / (double)st.acquires : 0.0, (ull)st.requests,
+			        (ull)st.materializes, (ull)st.evictions, (ull)st.alloc_failures, (ull)st.adopts);
+			fprintf(stderr, "[resource-stats] evictions_by_cost:");
+			for (int i = 0; i < DELUGE_RESOURCE_COST_BUCKETS; i++) {
+				fprintf(stderr, " [%d]=%llu", i, (ull)st.evictions_by_cost[i]);
+			}
+			fprintf(stderr, "\n");
+		}
+	}
 
 	const char* folder = stemExport.lastFolderNameForStemExport.c_str();
 	fprintf(stderr, "[render] export complete; stems at image:/%s\n", (folder && folder[0]) ? folder : "(none)");

@@ -5,18 +5,26 @@
 //!
 //! Inputs (replacing the old 10 `StealableQueue`s):
 //!   - **relevance** — is the asset soft-referenced by the project? (kept last)
-//!   - **reconstruction cost** — free < I/O < CPU; cheaper to rebuild dies first
+//!   - **reconstruction cost** — cheaper-to-rebuild dies first (the ladder below)
 //!   - **recency** — least-recently-used dies first (tiebreak)
 //!
 //! Leased / dirty chunks are never candidates — that's enforced by the caller, so
 //! it isn't part of the rank.
 
-/// Reconstruction cost classes. Plain `u32` so it crosses the C ABI without a C
-/// `enum` (avoids the `-fshort-enums` ABI trap). Higher = more expensive to
-/// rebuild = more valuable to keep resident.
-pub const COST_FREE: u32 = 0; // zero-fill / scratch (e.g. a grain buffer)
-pub const COST_IO: u32 = 1; // re-read from storage (a sample cluster)
-pub const COST_CPU: u32 = 2; // DSP recompute (a repitched/perc cache, a wavetable band)
+/// Reconstruction-cost ladder — ascending = dearer to rebuild = kept resident longer (evicted later).
+/// Plain `u32` so it crosses the C ABI without a C `enum` (avoids the `-fshort-enums` ABI trap). A
+/// computed score replacing the old hand-assigned 10 `StealableQueue`s; the value function only
+/// compares it numerically, so the ladder is just a sensible ordering of real rebuild expense.
+pub const COST_FREE: u32 = 0; // zero-fill / scratch (cheapest; e.g. a grain buffer)
+pub const COST_IO: u32 = 1; // native sample cluster — one storage read
+pub const COST_IO_CONVERTED: u32 = 2; // sample cluster needing format conversion — read + re-convert
+pub const COST_CPU: u32 = 3; // DSP recompute — a repitch cache / wavetable band
+pub const COST_CPU_PERC: u32 = 4; // perc cache — the heavier time-stretch recompute
+pub const COST_OBJECT: u32 = 5; // an AudioFile object — tiny (freeing it reclaims ~nothing) yet a full
+                                // file re-scan to rebuild, and its big clusters/caches are evictable
+                                // individually first, so reclaim the descriptor last. NB: a *held* object
+                                // is hard-leased (never a candidate); this cost only orders DEAD (unleased)
+                                // objects vs other dead chunks — relevance is handled by the lease, not here.
 
 /// Lexicographic evict rank; smaller is evicted first.
 /// `(referenced, cost, recency)` → evict un-referenced before referenced, then

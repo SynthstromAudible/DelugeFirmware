@@ -19,7 +19,7 @@ pub mod value;
 pub mod testing;
 
 pub use manager::*;
-pub use value::{COST_CPU, COST_FREE, COST_IO};
+pub use value::{COST_CPU, COST_CPU_PERC, COST_FREE, COST_IO, COST_IO_CONVERTED, COST_OBJECT};
 
 #[cfg(test)]
 mod proptests {
@@ -569,6 +569,106 @@ mod tests {
         assert_eq!(unsafe { deluge_resource_slot_of(mgr, 0xdead_beef as *mut u8) }, u32::MAX);
         assert_eq!(unsafe { deluge_resource_lease_count_by_slot(mgr, 9999) }, 0);
         assert_eq!(unsafe { deluge_resource_lease_count_by_slot(mgr, u32::MAX) }, 0);
+    }
+
+    #[test]
+    fn loader_queue_orders_by_priority_skips_unleased_and_de_queues() {
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(12),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let acq = |i: u32| unsafe { deluge_resource_acquire(mgr, a, i, 64 * 1024) };
+        let (p0, p1, p2) = (acq(0), acq(1), acq(2));
+        let slot = |p| unsafe { deluge_resource_slot_of(mgr, p) };
+        let (s0, s1, s2) = (slot(p0), slot(p1), slot(p2));
+
+        // Enqueue at priorities 30/10/20 → loader_next pops lowest-first: p1, p2, p0, then null.
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, 30) };
+        unsafe { deluge_resource_loader_enqueue(mgr, s1, 10) };
+        unsafe { deluge_resource_loader_enqueue(mgr, s2, 20) };
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p1);
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p2);
+        assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p0);
+        assert!(unsafe { deluge_resource_loader_next(mgr) }.is_null(), "queue drained");
+
+        // remove de-queues.
+        unsafe { deluge_resource_loader_enqueue(mgr, s0, 5) };
+        unsafe { deluge_resource_loader_remove(mgr, s0) };
+        assert!(unsafe { deluge_resource_loader_next(mgr) }.is_null(), "removed entry not returned");
+
+        // An unleased queued chunk is skipped (left queued + resident for normal value-based eviction;
+        // loader_next never evicts).
+        unsafe { deluge_resource_release(mgr, p1) }; // s1 now unleased (was leased once by acq)
+        unsafe { deluge_resource_loader_enqueue(mgr, s1, 1) };
+        assert!(unsafe { deluge_resource_loader_next(mgr) }.is_null(), "unleased queued chunk skipped");
+
+        // has_lowest: only true for a queued+leased chunk at u32::MAX.
+        unsafe { deluge_resource_loader_enqueue(mgr, s2, u32::MAX) };
+        assert!(unsafe { deluge_resource_loader_has_lowest(mgr) });
+        unsafe { deluge_resource_loader_remove(mgr, s2) };
+        assert!(!unsafe { deluge_resource_loader_has_lowest(mgr) });
+    }
+
+    #[test]
+    fn stats_track_acquires_hits_materializes_evictions() {
+        let (_buf, h) = arena(256 * 1024);
+        let mgr = unsafe { deluge_resource_create(h, 16, 8) }; // small chunk table → forces eviction
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(13),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        let stats = || {
+            let mut s = Stats::default();
+            unsafe { deluge_resource_stats(mgr, &mut s) };
+            s
+        };
+
+        // Miss → one acquire + one materialize; release so it's evictable.
+        unsafe { deluge_resource_release(mgr, deluge_resource_acquire(mgr, a, 0, 16 * 1024)) };
+        let s = stats();
+        assert_eq!((s.acquires, s.acquire_hits, s.materializes), (1, 0, 1));
+
+        // Hit on the resident chunk → acquire_hit, no new materialize.
+        unsafe { deluge_resource_release(mgr, deluge_resource_acquire(mgr, a, 0, 16 * 1024)) };
+        let s = stats();
+        assert_eq!((s.acquires, s.acquire_hits, s.materializes), (2, 1, 1));
+
+        // Churn distinct indices through the small table → evictions.
+        for i in 1..30u32 {
+            let q = unsafe { deluge_resource_acquire(mgr, a, i, 16 * 1024) };
+            if !q.is_null() {
+                unsafe { deluge_resource_release(mgr, q) };
+            }
+        }
+        let s = stats();
+        assert!(s.evictions >= 1, "small table forced evictions");
+        assert_eq!(
+            s.evictions,
+            s.evictions_by_cost.iter().sum::<u64>(),
+            "by-cost buckets sum to the total"
+        );
+        assert!(s.evictions_by_cost[COST_IO as usize] >= 1, "IO-cost chunks were evicted");
+
+        // reset zeroes everything.
+        unsafe { deluge_resource_stats_reset(mgr) };
+        let s = stats();
+        assert_eq!((s.acquires, s.evictions), (0, 0));
     }
 
     thread_local! {

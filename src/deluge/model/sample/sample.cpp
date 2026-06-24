@@ -152,9 +152,9 @@ static void clusterEvict(void* /*ctx*/, void* owner, uint32_t index) {
 	Cluster* cluster = sample->clusters[index].cluster;
 	sample->clusters[index].cluster = nullptr;
 	if (cluster != nullptr) {
-		// A constructed-but-not-yet-loaded chunk may still be in the loader queue — drop it so
-		// the queue can't dangle onto freed memory.
-		audioFileManager.loadingQueue.erase(cluster);
+		// A constructed-but-not-yet-loaded chunk may still be in the loader queue — de-queue it so the
+		// queue can't dangle onto freed memory. (Eviction also resets the slot, but be explicit.)
+		deluge_resource_loader_remove(GeneralMemoryAllocator::get().resourceManager(), cluster->resourceSlot);
 		cluster->~Cluster(); // manager frees the slab slot
 	}
 }
@@ -191,10 +191,14 @@ uint32_t Sample::ensureResourceAsset() {
 	}
 	// The manager is the sole SDRAM evictor now, so every Sample (playback or recording) is
 	// manager-owned. A missing manager / full asset table is fatal — no legacy fallback.
+	// Cost reflects rebuild expense: a converted sample (float / wrong-endian) costs a read PLUS a
+	// format re-conversion, so it's kept resident longer than a native one (one plain read).
+	uint32_t clusterCost =
+	    (rawDataFormat != RawDataFormat::NATIVE) ? DELUGE_RESOURCE_COST_IO_CONVERTED : DELUGE_RESOURCE_COST_IO;
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	resourceAssetId = (mgr != nullptr)
 	                      ? deluge_resource_define_asset(mgr, this, clusterMaterialize, clusterEvict, nullptr,
-	                                                     DELUGE_RESOURCE_COST_IO, DELUGE_RESOURCE_BACKING_SLAB)
+	                                                     clusterCost, DELUGE_RESOURCE_BACKING_SLAB)
 	                      : DELUGE_RESOURCE_NO_ASSET;
 	if (resourceAssetId == DELUGE_RESOURCE_NO_ASSET) {
 		FREEZE_WITH_ERROR("RSA1"); // resource asset table exhausted (raise kAssetCap)
@@ -274,11 +278,12 @@ void Sample::markAsUnloadable() {
 	unloadable = true;
 
 	// If any Clusters in the load-queue, remove them from there
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	for (int32_t c = 0; c < static_cast<int32_t>(clusters.size()); c++) {
 		Cluster* cluster = clusters[c].cluster;
 		if (cluster != nullptr) {
 			cluster->unloadable = true;
-			audioFileManager.loadingQueue.erase(cluster);
+			deluge_resource_loader_remove(mgr, cluster->resourceSlot);
 		}
 	}
 }
@@ -429,7 +434,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 			    (mgr != nullptr)
 			        ? deluge_resource_define_asset(mgr, this, nullptr /*materialize: never*/, percCacheEvict,
 			                                       reinterpret_cast<void*>(static_cast<intptr_t>(reversed)),
-			                                       DELUGE_RESOURCE_COST_CPU, DELUGE_RESOURCE_BACKING_SLAB)
+			                                       DELUGE_RESOURCE_COST_CPU_PERC, DELUGE_RESOURCE_BACKING_SLAB)
 			        : DELUGE_RESOURCE_NO_ASSET;
 			if (percCacheAssetId[reversed] == DELUGE_RESOURCE_NO_ASSET) {
 				FREEZE_WITH_ERROR("RPC1"); // resource asset table exhausted (raise kAssetCap)

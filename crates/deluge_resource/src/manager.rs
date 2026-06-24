@@ -121,6 +121,12 @@ struct ChunkSlot {
     // chunk that is `ready`, so the RT/async path never reads half-loaded data.
     ready: bool,
     recency: u64,
+    // The cluster load queue lives *as per-slot state* (no separate heap): `queued` ⇒ this chunk is
+    // waiting to be read by the loader, ordered by `queue_priority` (lower = more urgent, the C++
+    // Voice::getPriorityRating). `loader_next` picks the lowest-priority queued+leased slot. Eviction
+    // resets the slot to EMPTY, which auto-de-queues — no dangling queue entry. See the loader_* fns.
+    queued: bool,
+    queue_priority: u32,
     // Adopt mode (asset == NONE): the chunk carries its own cost + evict callback, because
     // an adopted block is an externally-allocated object, not a chunk of a Source asset.
     // The owner allocated it; the manager only owns its eviction. (Unused when asset != NONE.)
@@ -137,10 +143,31 @@ impl ChunkSlot {
         dirty: false,
         ready: false,
         recency: 0,
+        queued: false,
+        queue_priority: 0,
         cost: 0,
         adopt_evict: None,
         adopt_ctx: ptr::null_mut(),
     };
+}
+
+/// Number of cost classes the eviction stats bucket by (`evictions_by_cost[min(cost, COST_BUCKETS-1)]`).
+pub const COST_BUCKETS: usize = 8;
+
+/// Cumulative manager counters — pure instrumentation (never affects behaviour), for cache/eviction
+/// analysis, profiling, and on-device debug. C-ABI POD; read via `deluge_resource_stats`, zero via
+/// `deluge_resource_stats_reset`. All events are chunk-granular (off the per-sample audio path).
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct Stats {
+    pub acquires: u64,      // acquire() calls
+    pub acquire_hits: u64,  // ... that hit a resident chunk (no alloc/materialize)
+    pub requests: u64,      // request() (prefetch-construct) calls
+    pub materializes: u64,  // asset materialize() invocations (sync storage reloads)
+    pub evictions: u64,     // chunks evicted under pressure / to free a slot
+    pub alloc_failures: u64, // alloc_backing returned null (pool exhausted after reclaim)
+    pub adopts: u64,        // objects adopted
+    pub evictions_by_cost: [u64; COST_BUCKETS], // evicted-chunk breakdown by cost class
 }
 
 pub struct Manager {
@@ -158,6 +185,8 @@ pub struct Manager {
     /// candidates — so allocating cluster N+1 can't steal the just-written N. `NONE`
     /// outside such a call. Set via the `ProtectGuard` RAII helper.
     protect: Cell<u32>,
+    /// Cumulative instrumentation counters (see `Stats`).
+    stats: Cell<Stats>,
 }
 
 /// Restores `Manager::protect` on drop — so every early return from `request`/`acquire`
@@ -178,6 +207,14 @@ impl Manager {
         let t = self.tick.get() + 1;
         self.tick.set(t);
         t
+    }
+
+    /// Mutate the instrumentation counters (get/modify/set — single-threaded; events are
+    /// chunk-granular so the whole-struct copy is negligible). Pure bookkeeping, never gates behaviour.
+    fn stat(&self, f: impl FnOnce(&mut Stats)) {
+        let mut s = self.stats.get();
+        f(&mut s);
+        self.stats.set(s);
     }
 
     fn find_resident(&self, asset: u32, index: u32) -> Option<usize> {
@@ -215,6 +252,76 @@ impl Manager {
             return 0;
         }
         s.leases
+    }
+
+    // ---- cluster load queue (per-slot state; see the `queued`/`queue_priority` fields) ----------
+
+    /// Enqueue the chunk at `slot` for loading at `priority` (lower = more urgent). Re-enqueue just
+    /// updates the priority. No-op if `slot` is out of range / free.
+    fn loader_enqueue(&self, slot: u32, priority: u32) {
+        let i = slot as usize;
+        if i >= self.chunks.len() {
+            return;
+        }
+        let mut s = self.chunks[i].get();
+        if s.backing.is_null() {
+            return;
+        }
+        s.queued = true;
+        s.queue_priority = priority;
+        self.chunks[i].set(s);
+    }
+
+    /// Remove the chunk at `slot` from the load queue (the C++ `erase`). No-op if not queued.
+    fn loader_remove(&self, slot: u32) {
+        let i = slot as usize;
+        if i >= self.chunks.len() {
+            return;
+        }
+        let mut s = self.chunks[i].get();
+        if s.queued {
+            s.queued = false;
+            self.chunks[i].set(s);
+        }
+    }
+
+    /// Pop the most-urgent (lowest `queue_priority`) queued chunk that is still leased; clear its
+    /// `queued` and return its backing. Queued-but-unleased chunks (abandoned prefetch) are silently
+    /// de-queued and left resident (the manager evicts them normally — they are NOT destroyed here, so
+    /// the owner pointer is only ever nulled via the proper on_evict path). Returns null if none.
+    /// O(n) scan, consistent with `evict_lowest`.
+    fn loader_next(&self) -> *mut u8 {
+        // Pure read-priority selector: return the most-urgent (lowest queue_priority) queued + still-
+        // leased chunk (de-queuing it), else null. Abandoned (unleased) queued chunks are left in
+        // place — they carry no data (culled before loading) and are reclaimed by the manager's normal
+        // value-scored eviction (which clears `queued` when it frees the slot) or reused if the owner
+        // re-leases them. loader_next never evicts: the manager stays the single eviction authority.
+        let mut best: Option<usize> = None;
+        let mut best_pri = u32::MAX;
+        for (i, c) in self.chunks.iter().enumerate() {
+            let s = c.get();
+            if !s.queued || s.backing.is_null() || s.leases == 0 {
+                continue;
+            }
+            if best.is_none() || s.queue_priority < best_pri {
+                best = Some(i);
+                best_pri = s.queue_priority;
+            }
+        }
+        let Some(i) = best else { return ptr::null_mut() };
+        let mut s = self.chunks[i].get();
+        s.queued = false;
+        self.chunks[i].set(s);
+        s.backing
+    }
+
+    /// Any queued + leased chunk at the lowest priority value (u32::MAX) — the `load_song_ui` yield
+    /// predicate ("is there still lowest-priority background load work").
+    fn loader_has_lowest(&self) -> bool {
+        self.chunks.iter().any(|c| {
+            let s = c.get();
+            s.queued && !s.backing.is_null() && s.leases > 0 && s.queue_priority == u32::MAX
+        })
     }
 
     /// Is `index` the highest-index resident chunk of `asset`? (No resident chunk of the
@@ -266,13 +373,18 @@ impl Manager {
     /// assets, else `size` bytes from the heap.
     fn alloc_backing(&self, size: usize, asset: u32) -> *mut u8 {
         let slab = self.slab_for(asset);
-        if !slab.is_null() {
+        let p = if !slab.is_null() {
             // SAFETY: `slab` is a live unmanaged slab over the same heap; uniform slot
             // size, so `size` is implicit. owner is unused (no slab self-eviction).
-            return unsafe { deluge_slab_acquire(slab, ptr::null_mut()) };
+            unsafe { deluge_slab_acquire(slab, ptr::null_mut()) }
+        } else {
+            // SAFETY: `self.heap` is a live heap handle (checked at create).
+            unsafe { deluge_alloc(self.heap, size, 16) }
+        };
+        if p.is_null() {
+            self.stat(|s| s.alloc_failures += 1);
         }
-        // SAFETY: `self.heap` is a live heap handle (checked at create).
-        unsafe { deluge_alloc(self.heap, size, 16) }
+        p
     }
 
     /// Evict the lowest-value evictable (unleased, non-dirty) chunk: notify its
@@ -311,9 +423,27 @@ impl Manager {
             }
         }
         let Some(i) = best else { return false };
+        self.evict_slot(i);
+        true
+    }
+
+    /// Evict the chunk at slot `i`: clear the slot (before the callback, so a reentrant acquire/evict
+    /// sees a consistent table — sequenced steal), run its `on_evict` (owner drops its pointer), then
+    /// free the backing. Caller must have already decided it's evictable.
+    fn evict_slot(&self, i: usize) {
         let s = self.chunks[i].get();
-        // Clear the slot *before* the callbacks so a reentrant acquire/evict sees a
-        // consistent table (sequenced steal).
+        // Stats: count the eviction, bucketed by the chunk's reconstruction cost (the direct signal
+        // for eviction-policy quality — dearer-to-rebuild chunks evicted = worse).
+        let cost = if s.asset == NONE {
+            s.cost
+        } else {
+            self.assets[s.asset as usize].get().source.cost
+        };
+        let bucket = (cost as usize).min(COST_BUCKETS - 1);
+        self.stat(|st| {
+            st.evictions += 1;
+            st.evictions_by_cost[bucket] += 1;
+        });
         self.chunks[i].set(ChunkSlot::EMPTY);
         if s.asset == NONE {
             // Adopted chunk: its own evict callback, given the block pointer directly.
@@ -330,7 +460,6 @@ impl Manager {
             }
         }
         self.free_backing(s.backing, s.asset);
-        true
     }
 
     /// Acquire chunk `index` of `asset` under a hard lease, materializing it if not
@@ -341,6 +470,7 @@ impl Manager {
         if ai >= self.assets.len() || !self.assets[ai].get().in_use {
             return ptr::null_mut();
         }
+        self.stat(|s| s.acquires += 1);
         // Protect this asset's existing chunks from eviction for the duration (incl. the
         // reentrant reclaim hook during alloc_backing) — the dontStealFromThing port. Only
         // for opted-in (cache) assets; leased assets must stay able to evict their own old.
@@ -352,6 +482,7 @@ impl Manager {
         let _g = self.protect_asset(prot);
         // Cache hit.
         if let Some(c) = self.find_resident(asset, index) {
+            self.stat(|s| s.acquire_hits += 1);
             let mut s = self.chunks[c].get();
             s.leases += 1;
             s.recency = self.bump();
@@ -389,7 +520,10 @@ impl Manager {
         let a = self.assets[ai].get();
         let ok = match a.source.materialize {
             // SAFETY: owner/ctx/dest come from this asset + the slot we just allocated.
-            Some(f) => unsafe { f(a.source.ctx, a.owner, index, p, size) },
+            Some(f) => {
+                self.stat(|s| s.materializes += 1);
+                unsafe { f(a.source.ctx, a.owner, index, p, size) }
+            }
             None => true,
         };
         if !ok {
@@ -428,6 +562,7 @@ impl Manager {
         if self.assets[ai].get().source.construct.is_none() {
             return ptr::null_mut(); // not a requestable asset
         }
+        self.stat(|s| s.requests += 1);
         // Protect this asset's existing chunks from eviction while we allocate (the
         // dontStealFromThing port) — a cache writing cluster N+1 mustn't evict cluster N.
         // Only for opted-in (cache) assets.
@@ -556,7 +691,9 @@ impl Manager {
             cost,
             adopt_evict: on_evict,
             adopt_ctx: ctx,
+            ..ChunkSlot::EMPTY
         });
+        self.stat(|s| s.adopts += 1);
         ptr
     }
 
@@ -798,6 +935,7 @@ unsafe fn create_inner(
             chunks,
             tick: Cell::new(0),
             protect: Cell::new(NONE),
+            stats: Cell::new(Stats::default()),
         },
     );
     if register_hook {
@@ -974,6 +1112,59 @@ pub unsafe extern "C" fn deluge_resource_lease_count_by_slot(handle: *mut Deluge
         return 0;
     }
     mgr(handle).lease_count_by_slot(slot)
+}
+
+// ---- cluster load queue (per-slot; the C++ ClusterPriorityQueue moved into the manager) -----------
+
+/// Enqueue the chunk at `slot` for loading at `priority` (lower = more urgent; re-enqueue updates it).
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_loader_enqueue(handle: *mut DelugeResource, slot: u32, priority: u32) {
+    if !handle.is_null() {
+        mgr(handle).loader_enqueue(slot, priority);
+    }
+}
+
+/// Remove the chunk at `slot` from the load queue (the C++ `erase`).
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_loader_remove(handle: *mut DelugeResource, slot: u32) {
+    if !handle.is_null() {
+        mgr(handle).loader_remove(slot);
+    }
+}
+
+/// Pop the most-urgent queued + still-leased chunk's backing ptr (clearing its queued flag), or null.
+/// Queued-but-unleased chunks are de-queued + left for normal eviction (not destroyed here).
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_loader_next(handle: *mut DelugeResource) -> *mut u8 {
+    if handle.is_null() {
+        return ptr::null_mut();
+    }
+    mgr(handle).loader_next()
+}
+
+/// Whether any queued + leased chunk sits at the lowest priority (u32::MAX) — the load-song yield gate.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_loader_has_lowest(handle: *mut DelugeResource) -> bool {
+    !handle.is_null() && mgr(handle).loader_has_lowest()
+}
+
+/// Copy the manager's cumulative instrumentation counters into `*out` (see `Stats` /
+/// `DelugeResourceStats`). No-op if either pointer is null.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_stats(handle: *mut DelugeResource, out: *mut Stats) {
+    if handle.is_null() || out.is_null() {
+        return;
+    }
+    // SAFETY: `out` is a caller-provided DelugeResourceStats (layout matches Stats).
+    unsafe { *out = mgr(handle).stats.get() };
+}
+
+/// Zero the manager's instrumentation counters (e.g. to measure a single render in isolation).
+#[no_mangle]
+pub unsafe extern "C" fn deluge_resource_stats_reset(handle: *mut DelugeResource) {
+    if !handle.is_null() {
+        mgr(handle).stats.set(Stats::default());
+    }
 }
 
 /// Drop a specific resident chunk by its backing pointer (clear slot + free backing),

@@ -110,8 +110,11 @@ void audioFileEvict(void* /*ctx*/, void* ptr) {
 // (no legacy fallback). On eviction the manager runs `audioFileEvict` + frees the backing.
 void AudioFileManager::adoptAudioFileObject(AudioFile* audioFile) {
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
-	void* p = (mgr != nullptr) ? deluge_resource_adopt(mgr, audioFile, DELUGE_RESOURCE_COST_IO, nullptr, audioFileEvict)
-	                           : nullptr;
+	// Cost OBJECT (dearest tier): evicting an AudioFile object discards all its clusters/bands + its
+	// metadata, so it's kept resident longer than any individual cluster.
+	void* p = (mgr != nullptr)
+	              ? deluge_resource_adopt(mgr, audioFile, DELUGE_RESOURCE_COST_OBJECT, nullptr, audioFileEvict)
+	              : nullptr;
 	if (p == nullptr) {
 		FREEZE_WITH_ERROR("RAF1"); // resource chunk table exhausted adopting an AudioFile object
 	}
@@ -1369,13 +1372,21 @@ performActionsAndGetOut:
 			playbackHandler.slowRoutine();
 		}
 
-		// pop clusters until we get one that has reasonsToBeLoaded
-		// this prevents loading clusters that have been quickly culled after they were enqueued
-		Cluster* cluster = loadingQueue.getNext();
+		// Pop the most-urgent queued + still-leased cluster's backing (the manager skips/de-queues
+		// abandoned-unleased ones). This prevents loading clusters quickly culled after enqueue.
+		void* p = deluge_resource_loader_next(GeneralMemoryAllocator::get().resourceManager());
 
 		// no more clusters to load, so exit
-		if (cluster == nullptr) {
+		if (p == nullptr) {
 			return;
+		}
+		Cluster* cluster = reinterpret_cast<Cluster*>(p);
+
+		// The unloadable domain-filter stays here (the manager doesn't know it). markAsUnloadable
+		// already de-queues, so this is the safety net — loader_next has cleared its queued flag, so
+		// skipping won't loop.
+		if (cluster->unloadable) {
+			continue;
 		}
 
 		// cluster has at least 1 "reason". If it didn't, it would have been removed from the load-queue
@@ -1419,7 +1430,8 @@ performActionsAndGetOut:
 				}
 
 				// TODO: If that fails, it'll just get awkwardly forgotten about
-				loadingQueue.enqueueCluster(*cluster, 0xFFFFFFFF); // lowest priority
+				deluge_resource_loader_enqueue(GeneralMemoryAllocator::get().resourceManager(), cluster->resourceSlot,
+				                               0xFFFFFFFF); // lowest priority
 
 				// Also, return now. Normally we stay here til there's nothing left in the load-queue, but now that
 				// would leave us in an infinite loop!
@@ -1455,7 +1467,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, [[maybe_unused]
 }
 
 bool AudioFileManager::loadingQueueHasAnyLowestPriorityElements() {
-	return loadingQueue.hasAnyLowestPriority();
+	return deluge_resource_loader_has_lowest(GeneralMemoryAllocator::get().resourceManager());
 }
 
 // Caller must also set alternateAudioFileLoadPath.

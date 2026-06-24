@@ -54,11 +54,14 @@ typedef struct DelugeResource DelugeResource;
 /// `deluge_resource_slot_of` on a non-resident pointer.
 #define DELUGE_RESOURCE_NO_SLOT 0xFFFFFFFFu
 
-/// Reconstruction cost classes (higher = dearer to rebuild = kept resident longer).
-/// Plain ints, not a C enum, to keep the ABI fixed-width.
-#define DELUGE_RESOURCE_COST_FREE 0u /* zero-fill / scratch */
-#define DELUGE_RESOURCE_COST_IO 1u   /* re-read from storage (a sample cluster) */
-#define DELUGE_RESOURCE_COST_CPU 2u  /* DSP recompute (a cache / wavetable band) */
+/// Reconstruction-cost ladder (ascending = dearer to rebuild = kept resident longer / evicted later).
+/// Plain ints, not a C enum, to keep the ABI fixed-width. The value function only compares numerically.
+#define DELUGE_RESOURCE_COST_FREE 0u         /* zero-fill / scratch (cheapest) */
+#define DELUGE_RESOURCE_COST_IO 1u           /* native sample cluster — one storage read */
+#define DELUGE_RESOURCE_COST_IO_CONVERTED 2u /* sample cluster needing format conversion (read + re-convert) */
+#define DELUGE_RESOURCE_COST_CPU 3u          /* DSP recompute — repitch cache / wavetable band */
+#define DELUGE_RESOURCE_COST_CPU_PERC 4u     /* perc cache — heavier time-stretch recompute */
+#define DELUGE_RESOURCE_COST_OBJECT 5u       /* AudioFile object — losing it drops all its chunks + metadata */
 
 /// Where a chunk's backing memory comes from. Uniform clusters use the slab; a
 /// variable-size asset (e.g. a wavetable band) allocates from the TLSF heap.
@@ -164,6 +167,38 @@ uint32_t deluge_resource_slot_of(DelugeResource* mgr, void* ptr);
 /// O(1) hard-lease count of the chunk at `slot` — 0 if `slot` is NO_SLOT / out of range / free. The
 /// single source of truth for a cluster's reason count, read via the C++ slot handle (no scan).
 uint32_t deluge_resource_lease_count_by_slot(DelugeResource* mgr, uint32_t slot);
+
+/// Cluster load queue (per-slot state inside the manager; replaces the C++ ClusterPriorityQueue). The
+/// priority is the caller's audio-domain rating — lower = more urgent.
+/// enqueue the chunk at `slot` (re-enqueue updates the priority); remove de-queues it.
+void deluge_resource_loader_enqueue(DelugeResource* mgr, uint32_t slot, uint32_t priority);
+void deluge_resource_loader_remove(DelugeResource* mgr, uint32_t slot);
+/// Pop the most-urgent queued + still-leased chunk's backing ptr (clears its queued flag), else NULL.
+/// Queued-but-unleased chunks are de-queued and left resident for normal eviction (not freed here).
+void* deluge_resource_loader_next(DelugeResource* mgr);
+/// Whether any queued + leased chunk sits at the lowest priority (0xFFFFFFFF) — the load-song yield gate.
+bool deluge_resource_loader_has_lowest(DelugeResource* mgr);
+
+/// Number of cost classes `evictions_by_cost` buckets by (must match the Rust COST_BUCKETS).
+#define DELUGE_RESOURCE_COST_BUCKETS 8
+
+/// Cumulative manager instrumentation counters — pure stats (never affect behaviour), for cache /
+/// eviction analysis, profiling, on-device debug. Layout must match `Stats` in manager.rs.
+typedef struct DelugeResourceStats {
+	uint64_t acquires;       // acquire() calls
+	uint64_t acquire_hits;   // ... that hit a resident chunk (no alloc/materialize)
+	uint64_t requests;       // request() (prefetch-construct) calls
+	uint64_t materializes;   // asset materialize() invocations (sync storage reloads)
+	uint64_t evictions;      // chunks evicted under pressure / to free a slot
+	uint64_t alloc_failures; // alloc_backing returned null (pool exhausted after reclaim)
+	uint64_t adopts;         // objects adopted
+	uint64_t evictions_by_cost[DELUGE_RESOURCE_COST_BUCKETS]; // evicted-chunk breakdown by cost class
+} DelugeResourceStats;
+
+/// Copy the manager's cumulative counters into `*out`. No-op if either pointer is null.
+void deluge_resource_stats(DelugeResource* mgr, DelugeResourceStats* out);
+/// Zero the counters (e.g. to measure one render in isolation).
+void deluge_resource_stats_reset(DelugeResource* mgr);
 
 /// Adopt an externally-allocated heap block as a manager-evictable (object-lifecycle) chunk:
 /// the owner allocated + built it; the manager owns only its eviction (value-scored by `cost`

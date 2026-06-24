@@ -110,7 +110,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		}
 		cluster = reinterpret_cast<Cluster*>(p);
 		if (!cluster->loaded) {
-			audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating);
+			deluge_resource_loader_enqueue(mgr, cluster->resourceSlot, priorityRating);
 		}
 		return cluster;
 	}
@@ -128,10 +128,10 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 	// Hit on a cluster that was prefetch-constructed but not yet read → read it now.
 	if (!cluster->loaded) {
 		bool ok = audioFileManager.readClusterData(*cluster, 0);
-		audioFileManager.loadingQueue.erase(cluster); // it no longer needs the loader
+		deluge_resource_loader_remove(mgr, cluster->resourceSlot); // it no longer needs the loader
 		if (!ok) {
 			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE) {
-				audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating); // fall back to async
+				deluge_resource_loader_enqueue(mgr, cluster->resourceSlot, priorityRating); // fall back to async
 			}
 			else {
 				if (error != nullptr) {

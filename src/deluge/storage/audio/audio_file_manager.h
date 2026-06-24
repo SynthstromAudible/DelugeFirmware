@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_vector.h"
 #include "storage/cluster/cluster.h"
-#include "storage/cluster/cluster_priority_queue.h"
 #include "util/c_string.h"
 #include <array>
 #include <cstdint>
@@ -126,8 +125,6 @@ public:
 
 	void setCardRead() { cardReadOnce = true; }
 	void setCardEjected() { cardEjected = true; }
-
-	ClusterPriorityQueue loadingQueue;
 
 	Cluster* clusterBeingLoaded{};
 	int32_t minNumReasonsForClusterBeingLoaded{}; // Only valid when clusterBeingLoaded is set. And this exists for bug
