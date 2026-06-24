@@ -1,5 +1,87 @@
 # Hunting the layout-dependent sample overread
 
+## RESOLUTION (2026-06-24): FIXED — it was NOT an overread, but shared-PRNG coupling
+
+**Root cause: the master output dither drew from the synth-wide PRNG.** `AudioEngine::outputStage` added
+`getNoise()` (the global `jcong`/`CONG` stream, also used by every synth's RANDOM source / noise oscillator
+/ time-stretch hop randomization) to *every output sample*. The output stage runs once per output sample —
+**including a layout-/timing-dependent number of keep-alive "silence" samples rendered during song load**
+(the scheduler keeps audio alive while loading; how many blocks it renders depends on load duration measured
+by the deterministic clock, which is layout-sensitive). So a heap-layout change shifted the count of
+load-phase dither draws (+128 at `DELUGE_SIM_HEAP_PAD=64`), which advanced the shared PRNG to a different
+position before the real render began → every synth random draw diverged → the whole render diverged. It was
+never an overread (hence guard pages never faulted); the `cost: u8` band-aid only worked by keeping the chunk
+table the same size so load timing — and thus that draw count — happened to land the same.
+
+**The fix (this change):**
+1. **Decouple the dither PRNG** — `outputStage` now uses a private `outputDither()` LCG stream, so dithering
+   can never perturb synth randomness (and the offline render no longer depends on output-sample count).
+   This alone makes every fixture pad-invariant across the full `DELUGE_SIM_HEAP_PAD` sweep (0…4096).
+2. **Voice-cull by priority, not pointer** — `Sound::getLowestPriorityVoice` / `AudioEngine::killOneVoice`
+   compared `ActiveVoice == std::unique_ptr<Voice>` by *address*, never dereferencing to use
+   `Voice::operator<=>` (`getPriorityRating`). A real correctness bug (culls an arbitrary voice, the literal
+   "drum_stealing" path) that was also heap-layout-dependent. Now compares `*a < *b`.
+
+With these, the `cost: u8` band-aid is reverted to `u32` (48-byte `ChunkSlot`) and highsiderr stays
+pad-invariant — i.e. struct size no longer matters, the plan's completion oracle.
+
+**Caveat:** both fixes change render output (different dither sequence; different voice culled), so all sim
+goldens must be **re-baselined + ear-checked**, and the change alters synth-random behaviour on hardware too
+(more correct: musical randomness no longer coupled to output-sample count). Add a pad-sweep CI guard
+(render each fixture under two `DELUGE_SIM_HEAP_PAD` values, assert bit-exact) so this can't silently regress.
+
+---
+
+### How it was diagnosed (each from a sim-only diagnostic toggle, all since reverted)
+
+- **Tunable reproducer.** A leaked `DELUGE_SIM_HEAP_PAD` byte-pad at SDRAM-heap init reproduces the exact
+  struct-growth signature (rms 159180, first MIXDOWN diff at byte 192) with the 44-byte struct, for pad
+  **≥ 64** (16/32/48 pass). Struct-size-independent oracle. Run-to-run determinism confirmed (pad0 == pad0).
+- **Technique A (guard pages) — no fault.** Backing every SDRAM allocation with its own mmap + a trailing
+  `PROT_NONE` guard page, *even right-abutted with alignment ignored* (`DELUGE_SIM_GUARD_TIGHT`), never
+  faults. So there is **no out-of-bounds read at all** — over *or* under end. (Cluster reads are already
+  guarded: `Cluster` has a 32-byte zero-init `dummy[]` *before* `data[]` and a declared `data[CACHE_LINE_SIZE]`
+  acting as a trailing guard, absorbing the interpolation misalignment.)
+- **Technique B (free-poison) — clean.** 0xA5-on-free changes nothing → not a read of freed memory.
+- **Content is irrelevant.** Zeroing the rounded-up TLSF slack (`DELUGE_SIM_ZERO_USABLE`) *and* zeroing
+  every `deluge_alloc` return to its full usable size (`DELUGE_SIM_ZERO_ALLOC`) both fail to make it
+  pad-invariant — proven cleanly in fixed-length **TRACK** mode (no tail-silence confound), all tracks
+  still differ. So the divergence is **not** any memory-content read.
+- **It is the PRNG.** Forcing `getNoise`/`getRandom255` to a constant (`DELUGE_SIM_CONST_NOISE`) makes the
+  render **bit-identical across pads, every track**. Pinning only the *seed* (`DELUGE_SIM_FIXED_SEED`)
+  does *not* — so it is the PRNG **call count / sequence position** that diverges, not the seed.
+- **Localized to load-phase.** A `getNoise` call counter shows the counts already diverge *before export*
+  (pad0 122272 vs pad64 122400, **+128**) — i.e. in the audio the scheduler renders *during* song load.
+  Because the PRNG is global and shared (master dither consumes 2/sample, plus voice noise/RANDOM source,
+  time-stretch hop randomization), any layout-dependent extra/fewer consumption shifts *every* later draw.
+- **Not cluster eviction** (`evictions=0` at both pads, via `DELUGE_RESOURCE_STATS`). **Not CPU-load voice
+  culling** either: no-op'ing `cullVoices` (`DELUGE_SIM_NO_CULL`) does not restore pad-invariance. The
+  residual consumer(s) remain unpinned — a deeper systemic issue (multiple layout-sensitive paths feed the
+  one global RNG). `requests` differs slightly (12678 vs 12694) — a *downstream* symptom (cache build extent).
+
+### Real bug found & fixed along the way (committed in this change)
+`Sound::getLowestPriorityVoice()` and `AudioEngine::killOneVoice()` selected a voice with
+`std::ranges::max_element(voices_)` where `voices_` holds `ActiveVoice == std::unique_ptr<Voice>` — so it
+ordered by **pointer address**, never dereferencing to use `Voice::operator<=>` (which compares
+`getPriorityRating()`). The names (`getLowestPriorityVoice`, `lowest_priority_voices`) were a lie: culling
+selected the highest-*addressed* voice, which is both semantically wrong on hardware (culls an arbitrary
+voice, not the lowest-priority one) and heap-layout-dependent. Fixed both to compare `*a < *b`. This is a
+genuine correctness fix but **changes render output → all sim goldens need re-baselining + an ear-check**,
+and it is *not* sufficient on its own (the +128 load-phase divergence persists from another RNG consumer).
+
+### Recommended next step
+Find the remaining layout-dependent RNG consumer in the load-phase render: instrument the `getNoise` call
+count per render routine (or bisect by `const`-ing individual consumers) to locate the address-gated branch
+/ loop that draws a layout-dependent number of times. Candidate vectors to rule in/out: voice
+acquisition/pool ordering, time-stretch hop setup count, any per-object loop bounded by a pointer-derived
+count. Once pinned, the principled fix is likely to make the affected draw layout-invariant (or give that
+subsystem its own PRNG stream). Then re-baseline goldens and add a pad-sweep CI guard (render each fixture
+under two `DELUGE_SIM_HEAP_PAD` values, assert bit-exactness).
+
+---
+
+## (original plan below — retained for the technique catalogue; hypothesis since disproven)
+
 ## Goal
 
 Find (and then fix) the latent **overread** in the sample read/interpolation path that makes the offline

@@ -134,10 +134,7 @@ struct ChunkSlot {
     // Adopt mode (asset == NONE): the chunk carries its own cost + evict callback, because
     // an adopted block is an externally-allocated object, not a chunk of a Source asset.
     // The owner allocated it; the manager only owns its eviction. (Unused when asset != NONE.)
-    // `u8` (cost is the small 0..=COST_OBJECT ladder) so adding `size` above doesn't grow the slot —
-    // keeps the chunk table footprint (and thus heap layout) stable, which the address-sensitive
-    // sim golden depends on.
-    cost: u8,
+    cost: u32,
     adopt_evict: Option<AdoptEvictFn>,
     adopt_ctx: *mut c_void,
 }
@@ -414,7 +411,7 @@ impl Manager {
             }
             // Cost + soft-refs come from the asset (Source chunks) or the chunk itself (adopted).
             let (cost, soft_refs) = if s.asset == NONE {
-                (s.cost as u32, 0)
+                (s.cost, 0)
             } else {
                 let a = self.assets[s.asset as usize].get();
                 // Prefix-dependent assets: only the highest-index resident chunk is a candidate,
@@ -443,7 +440,7 @@ impl Manager {
         // Stats: count the eviction, bucketed by the chunk's reconstruction cost (the direct signal
         // for eviction-policy quality — dearer-to-rebuild chunks evicted = worse).
         let cost: u32 = if s.asset == NONE {
-            s.cost as u32
+            s.cost
         } else {
             self.assets[s.asset as usize].get().source.cost
         };
@@ -706,7 +703,7 @@ impl Manager {
             ready: true, // owner-built object, usable immediately
             recency: self.bump(),
             size: size as u32,
-            cost: cost as u8,
+            cost,
             adopt_evict: on_evict,
             adopt_ctx: ctx,
             ..ChunkSlot::EMPTY
