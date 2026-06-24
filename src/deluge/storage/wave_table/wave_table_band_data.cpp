@@ -16,31 +16,7 @@
  */
 
 #include "storage/wave_table/wave_table_band_data.h"
-#include "definitions_cxx.hpp"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/wave_table/wave_table.h"
 
-bool WaveTableBandData::mayBeStolen(void* thingNotToStealFrom) {
-	// Because stealing us would mean the WaveTable being deleted too, we
-	// have to abide by this rule as found in WaveTable::mayBeStolen().
-	return waveTable != nullptr && (waveTable->numReasonsToBeLoaded == 0)
-	       && thingNotToStealFrom != &audioFileManager.audioFiles;
-}
-
-void WaveTableBandData::steal(char const* errorCode) {
-#if ALPHA_OR_BETA_VERSION
-	if (!waveTable || waveTable->numReasonsToBeLoaded) {
-		FREEZE_WITH_ERROR("E387");
-	}
-#endif
-
-	// Tell the WaveTable that we're the BandData being stolen, so it won't deallocate us - our caller will do that.
-	waveTable->bandDataBeingStolen(this);
-
-	// Delete the WaveTable from memory - deallocating all other BandDatas and everything.
-	audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(*waveTable);
-}
-
-StealableQueue WaveTableBandData::getAppropriateQueue() {
-	return StealableQueue::NO_SONG_WAVETABLE_BAND_DATA;
-}
+// WaveTableBandData is no longer a Stealable — the WaveTable object is the resource-manager-evictable
+// unit (adopt mode), and ~WaveTable frees its bands. The former mayBeStolen/steal/getAppropriateQueue
+// (steal deleted the whole WaveTable) are gone; that teardown now happens via the object's on_evict.

@@ -32,6 +32,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_takeover.h"
 #include "mem_functions.h"
+#include "memory/heaps.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
@@ -1743,7 +1744,12 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 bool ModControllableAudio::enableGrain() {
 
 	if (grainFX == nullptr) {
-		void* grainMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GranularProcessor));
+		// Plain SDRAM allocation via the typed-allocator surface (NOT allocStealable,
+		// and not GeneralMemoryAllocator::get()): GranularProcessor is not a Stealable
+		// (only its GrainBuffer member is), so marking its block stealable was a latent
+		// hazard — the neighbour-grab could cast it to Stealable* and call steal() on a
+		// non-Stealable. (Strangle taxonomy cleanup, step 1; clean-API call site.)
+		void* grainMemory = deluge::memory::alloc_external(sizeof(GranularProcessor), alignof(GranularProcessor));
 		if (grainMemory) {
 			grainFX = new (grainMemory) GranularProcessor;
 			return true;

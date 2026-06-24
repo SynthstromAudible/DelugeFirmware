@@ -42,6 +42,7 @@
 #include "libdeluge/signals.h"
 #include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/stack_guard.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
@@ -293,7 +294,10 @@ void killOneVoice(size_t num_samples) {
 	auto lowest_priority_voices = sounds //<
 	                              | std::views::filter(&Sound::hasActiveVoices)
 	                              | std::views::transform(&Sound::getLowestPriorityVoice);
-	auto it = std::ranges::max_element(lowest_priority_voices);
+	// Compare by Voice priority, not by the ActiveVoice (unique_ptr) pointer value — a bare max_element
+	// orders by address, picking a heap-layout-dependent (and semantically arbitrary) voice to cull. See
+	// Sound::getLowestPriorityVoice and docs/dev/overread_hunt.md.
+	auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) { return *a < *b; });
 	if (it == lowest_priority_voices.end()) {
 		return;
 	}
@@ -561,7 +565,7 @@ extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSamp
 
 	// At this point, there may be MIDI, including clocks, waiting to be sent.
 
-	GeneralMemoryAllocator::get().checkStack("AudioDriver::routine");
+	checkStack("AudioDriver::routine");
 
 	fillInputRing(in, frames);
 
@@ -682,10 +686,15 @@ void renderAudioForStemExport(size_t numSamples) {
 		renderSongFX(numSamples);
 	}
 
-	// If we're recording final output for offline stem export with song FX
-	// Check if we have a recorder
+	// Feed the just-rendered block to the offline stem recorder. Two recorder channels
+	// reach the offline path: OFFLINE_OUTPUT (a MIXDOWN with song FX — post-FX master)
+	// and MIX (per-instrument TRACK / FX-less export — the pre-song-FX mix, which here is
+	// just the one un-muted instrument). Both want `renderingBuffer`; only the FX stage
+	// above differs. Without feeding the MIX recorder, a TRACK export's recorder never
+	// reaches its loop-end, never finalises (recordingSource stays MIX), and the export
+	// loops forever rendering silence past the arrangement end.
 	SampleRecorder* recorder = audioRecorder.recorder;
-	if (recorder && recorder->mode == AudioInputChannel::OFFLINE_OUTPUT) {
+	if (recorder && (recorder->mode == AudioInputChannel::OFFLINE_OUTPUT || recorder->mode == AudioInputChannel::MIX)) {
 		// continue feeding audio if we're not finished recording
 		if (recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 			recorder->feedAudio(renderingBuffer, true);
@@ -1084,6 +1093,15 @@ int32_t getNumSamplesLeftToOutputFromPreviousRender() {
 	return ((uint32_t)renderingBufferOutputEnd - (uint32_t)renderingBufferOutputPos) >> 3;
 }
 
+// Independent white-noise PRNG for the master output dither — deliberately separate from the synth-wide
+// getNoise()/jcong stream (see the dither call site below). Same LCG recurrence as CONG, so the dither's
+// statistics are unchanged; only its state is private, so dithering can't perturb synth randomness.
+[[gnu::always_inline]] inline int32_t outputDither() {
+	static uint32_t state = 380116160;
+	state = 69069 * state + 1234567;
+	return (int32_t)state;
+}
+
 // Drain up to `frames - produced` already-rendered samples through the output
 // stage — master volume + dither (+ input monitoring) — into the BSP's `out`
 // block at `produced`, feeding SampleRecorders along the way and advancing the
@@ -1107,11 +1125,15 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 
 		// Here we're going to do something equivalent to a multiply_32x32_rshift32(), but add dithering.
 		// Because dithering is good, and also because the annoying codec chip freaks out if it sees the same 0s for
-		// too long.
+		// too long. The dither draws from its OWN PRNG stream (outputDither), NOT the synth-wide getNoise()/jcong:
+		// the output stage runs once per output sample — including a load-/timing-dependent number of keep-alive
+		// samples — so sharing the stream let that count perturb every synth random draw, making the offline render
+		// depend on heap layout (and coupling musical randomness to output-sample count). See
+		// docs/dev/overread_hunt.md.
 		int64_t lAdjustedBig =
-		    (int64_t)renderingBufferOutputPosNow->l * (int64_t)masterVolumeAdjustmentL + (int64_t)getNoise();
+		    (int64_t)renderingBufferOutputPosNow->l * (int64_t)masterVolumeAdjustmentL + (int64_t)outputDither();
 		int64_t rAdjustedBig =
-		    (int64_t)renderingBufferOutputPosNow->r * (int64_t)masterVolumeAdjustmentR + (int64_t)getNoise();
+		    (int64_t)renderingBufferOutputPosNow->r * (int64_t)masterVolumeAdjustmentR + (int64_t)outputDither();
 
 		int32_t lAdjusted = lAdjustedBig >> 32;
 		int32_t rAdjusted = rAdjustedBig >> 32;
@@ -1411,7 +1433,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 			size += kInputRawBufferSize * sizeof(int32_t);
 		}
 
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
+		void* memory = deluge::memory::alloc_fast(size);
 		if (!memory) {
 			return nullptr;
 		}
@@ -1499,7 +1521,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
                                bool shouldNormalize, Output* outputRecordingFrom) {
 	Error error;
 
-	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
+	void* recorderMemory = deluge::memory::alloc_fast(sizeof(SampleRecorder));
 	if (!recorderMemory) {
 		return nullptr;
 	}

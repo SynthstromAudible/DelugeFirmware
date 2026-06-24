@@ -137,8 +137,7 @@ void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStac
 
 	// Allocate new memory - max size we might need
 	for (int32_t g = 0; g < 2; g++) {
-		destinations[g] =
-		    (Destination*)GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Destination) * (kMaxNumPatchCables + 1));
+		destinations[g] = (Destination*)deluge::memory::alloc_fast(sizeof(Destination) * (kMaxNumPatchCables + 1));
 
 		// If couldn't...
 		if (!destinations[g]) {
@@ -262,8 +261,7 @@ goAgainWithoutIncrement:
 
 			// Probably shorten memory, from max size which we allocated
 			if (numDestinations[globality] < kMaxNumPatchCables) {
-				GeneralMemoryAllocator::get().shortenRight(destinations[globality],
-				                                           sizeof(Destination) * (numDestinations[globality] + 1));
+				deluge::memory::shrink(destinations[globality], sizeof(Destination) * (numDestinations[globality] + 1));
 			}
 
 			// Write the "end of list" marker
@@ -769,8 +767,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 		}
 
 		// TODO: this is more than we'll soon realise we need - we should really shorten it again afterwards.
-		newDestinations[g] =
-		    (Destination*)GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Destination) * (kMaxNumPatchCables + 1));
+		newDestinations[g] = (Destination*)deluge::memory::alloc_fast(sizeof(Destination) * (kMaxNumPatchCables + 1));
 
 		// If couldn't...
 		if (!newDestinations[g]) {

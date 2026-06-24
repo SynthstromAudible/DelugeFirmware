@@ -339,7 +339,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 		return false;
 	}
 
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
+	void* memory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
 	(void)sessionClips.insertClipAt(firstClip, 0); // OOM impossible-in-practice this early; ignored as before
@@ -1901,7 +1901,7 @@ unknownTag:
 					Error error;
 
 					if (!strcmp(tagName, "audioTrack")) {
-						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
+						memory = deluge::memory::alloc_fast(sizeof(AudioOutput));
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
@@ -1911,7 +1911,7 @@ unknownTag:
 					}
 
 					else if (!strcmp(tagName, "sound")) {
-						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundInstrument));
+						memory = deluge::memory::alloc_fast(sizeof(SoundInstrument));
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
@@ -1939,7 +1939,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "kit")) {
-						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Kit));
+						memory = deluge::memory::alloc_fast(sizeof(Kit));
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
@@ -1952,7 +1952,7 @@ loadOutput:
 					// used. The distinction is later in a different tag which can be "midiChannel" or "zone"
 					else if (!strcmp(tagName, "midi") || !strcmp(tagName, "midiChannel")
 					         || !strcmp(tagName, "mpeZone")) {
-						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIInstrument));
+						memory = deluge::memory::alloc_fast(sizeof(MIDIInstrument));
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
@@ -1961,7 +1961,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "cvChannel")) {
-						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(CVInstrument));
+						memory = deluge::memory::alloc_fast(sizeof(CVInstrument));
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
@@ -2262,7 +2262,7 @@ readClip:
 				return Error::INSUFFICIENT_RAM;
 			}
 
-			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(allocationSize);
+			void* memory = deluge::memory::alloc_fast(allocationSize);
 			if (!memory) {
 				return Error::INSUFFICIENT_RAM;
 			}
@@ -4887,7 +4887,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 		return nullptr;
 	}
 
-	void* outputMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
+	void* outputMemory = deluge::memory::alloc_fast(sizeof(AudioOutput));
 	if (!outputMemory) {
 		return nullptr;
 	}
@@ -5368,7 +5368,7 @@ void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex) {
 
 	// Allocate memory for audio clip
-	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
+	void* clipMemory = deluge::memory::alloc_fast(sizeof(AudioClip));
 	if (!clipMemory) {
 		return nullptr;
 	}

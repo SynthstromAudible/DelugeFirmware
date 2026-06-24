@@ -119,17 +119,19 @@ add_compile_definitions(DELUGE_HOST)
 
 if(DELUGE_SIM_ARM)
     # Real NEON: the cross toolchain provides <arm_neon.h>; argon's <arm/neon.h> is unused.
-    include_directories(BEFORE ${REPO_ROOT}/include)
-    set(HOST_INCLUDE_DIRS ${REPO_ROOT}/include ${REPO_ROOT}/src)
+    include_directories(BEFORE ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include)
+    set(HOST_INCLUDE_DIRS ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include ${REPO_ROOT}/src)
 else()
     include_directories(BEFORE
         ${CMAKE_CURRENT_LIST_DIR}/compat # <arm_neon.h> -> SIMDe shim
         ${REPO_ROOT}/include             # <libdeluge/...> boundary
+        ${REPO_ROOT}/crates/deluge_resource/include # deluge_resource.h
         ${SIMDE_INCLUDE_DIR}/simde        # argon's <arm/neon.h> -> SIMDe
     )
     set(HOST_INCLUDE_DIRS
         ${CMAKE_CURRENT_LIST_DIR}/compat # arm_neon.h -> SIMDe shim
         ${REPO_ROOT}/include             # <libdeluge/...> boundary
+        ${REPO_ROOT}/crates/deluge_resource/include # deluge_resource.h (Rust resource manager C ABI)
         ${REPO_ROOT}/src                 # SHARED_INCLUDE
     )
 endif()
@@ -182,6 +184,38 @@ add_subdirectory(${REPO_ROOT}/src/fatfs      ${CMAKE_BINARY_DIR}/fatfs)      # f
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 
+# --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource) -
+# Build the umbrella as a host staticlib matching the sim's word size and link it
+# into the sim executables. The deluge_app allocator (heaps + the GMA coordinator)
+# is unconditionally backed by it; the legacy C++ MemoryRegion path has been retired.
+if(DELUGE_SIM_X64)
+    set(SIM_RUST_TARGET x86_64-unknown-linux-gnu)
+else()
+    set(SIM_RUST_TARGET i686-unknown-linux-gnu) # matches the default -m32 sim
+endif()
+set(SIM_RUST_WS ${REPO_ROOT}/crates)
+set(SIM_RUST_LIB ${SIM_RUST_WS}/target/${SIM_RUST_TARGET}/release/libdeluge_rust.a)
+file(GLOB_RECURSE SIM_RUST_SOURCES
+    ${SIM_RUST_WS}/deluge_alloc/src/*.rs
+    ${SIM_RUST_WS}/deluge_resource/src/*.rs
+    ${SIM_RUST_WS}/deluge_rust/src/*.rs)
+add_custom_command(
+    OUTPUT ${SIM_RUST_LIB}
+    COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET}
+    WORKING_DIRECTORY ${SIM_RUST_WS}
+    DEPENDS ${SIM_RUST_SOURCES}
+        ${SIM_RUST_WS}/Cargo.toml ${SIM_RUST_WS}/deluge_alloc/Cargo.toml
+        ${SIM_RUST_WS}/deluge_resource/Cargo.toml ${SIM_RUST_WS}/deluge_rust/Cargo.toml
+    COMMENT "Building Rust deluge_rust staticlib (${SIM_RUST_TARGET})"
+    VERBATIM
+)
+add_custom_target(sim_deluge_rust_build DEPENDS ${SIM_RUST_LIB})
+add_library(deluge_rust_sim STATIC IMPORTED GLOBAL)
+set_target_properties(deluge_rust_sim PROPERTIES IMPORTED_LOCATION ${SIM_RUST_LIB})
+add_dependencies(deluge_rust_sim sim_deluge_rust_build)
+# Libs the host Rust std staticlib references; linked into the sim executables below.
+set(SIM_ALLOC_LINK deluge_rust_sim pthread dl m)
+
 # The host executable: the portable app + the host BSP + the scheduler. deluge_app
 # is an OBJECT lib (its objects embed here); deluge_scheduler is STATIC (resolves
 # against them). host_main drives the boundary for now; it becomes the host runtime
@@ -196,7 +230,7 @@ add_executable(deluge_host
     ${REPO_ROOT}/src/bsp/host/host_main.c
 )
 target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS})
-target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler)
+target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_host PRIVATE ${RT_LIB})
 endif()
@@ -216,7 +250,32 @@ add_executable(deluge_render
     ${REPO_ROOT}/src/bsp/host/host_render_main.cpp
 )
 target_include_directories(deluge_render PRIVATE ${HOST_INCLUDE_DIRS})
-target_link_libraries(deluge_render PRIVATE deluge_app deluge_scheduler)
+target_link_libraries(deluge_render PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_render PRIVATE ${RT_LIB})
 endif()
+
+# ---------------------------------------------------------------------------
+# Layout-invariance guard (CTest). Render each fixture at two heap-pad layouts
+# (DELUGE_SIM_HEAP_PAD via scripts/golden_mixdown.sh padsweep) and assert the
+# outputs are bit-identical — proving no render depends on allocation addresses.
+# This is the regression net for the shared-PRNG / overread class of layout-
+# coupled bug (a passing `golden check` does NOT prove this; it's pinned to one
+# layout). The real backup songs live only on the developer's machine
+# (DELUGE_BACKUP), so each test SKIPs (exit 77) when its fixture is absent — a
+# fixtureless CI runner skips rather than fails. Slow (two full renders each);
+# build deluge_render first, then opt in with `ctest -L padsweep`.
+enable_testing()
+foreach(fixture cordae highsiderr icoustic)
+    add_test(
+        NAME padsweep_${fixture}
+        COMMAND ${CMAKE_COMMAND} -E env
+                FIXTURE=${fixture} PADS=64 NO_BUILD=1 BUILD_DIR=${CMAKE_BINARY_DIR}
+                bash ${REPO_ROOT}/scripts/golden_mixdown.sh padsweep
+    )
+    set_tests_properties(padsweep_${fixture} PROPERTIES
+        SKIP_RETURN_CODE 77
+        LABELS padsweep
+        TIMEOUT 1200
+    )
+endforeach()

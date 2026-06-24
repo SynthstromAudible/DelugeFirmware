@@ -194,6 +194,40 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 	}
 }
 
+/// Wait until `until()` is satisfied while the export keeps rendering.
+///
+/// On-device export goes through the cooperative scheduler (yield) so the UI, MIDI,
+/// encoders, etc. keep running. An offline (faster-than-realtime) render has nothing
+/// else to service, and routing each audio block back through the scheduler makes
+/// chooseBestTask's busy-wait the dominant cost (it caps throughput at ~realtime). So
+/// offline we drive the audio routine directly: AudioEngine::routine()'s offline branch
+/// already does the whole per-block job (sequencer tick via tickSongFinalizeWindows,
+/// render, output drive, recorder drain, cluster load), so this is behaviour-identical
+/// to the scheduler running that same task — just without the per-block scheduling cost.
+///
+/// The scheduler also normally runs the recorder's card + finalize routines, so the bypass
+/// must drive those too or the per-stem WAV never finishes writing (the recorder reaches
+/// COMPLETE only via doRecorderCardRoutines, and recordingSource is cleared back to NONE —
+/// the `until` condition — only by audioRecorder.slowRoutine()'s finishRecording()).
+void StemExport::renderWait(RunCondition until) {
+	if (renderOffline) {
+		while (!until()) {
+			AudioEngine::routine();
+			// Pump the cluster loader HERE, between audio routines, where audioRoutineLocked is
+			// false — loadAnyEnqueuedClusters() bails immediately while it's set, and the offline
+			// AudioEngine::routine() holds it for its whole body, so the in-routine pump (and any
+			// async prefetch) would otherwise never load anything (the headless-render streaming
+			// starvation). On-device the scheduler runs this between audio routines for the same reason.
+			audioFileManager.loadAnyEnqueuedClusters(128, false);
+			AudioEngine::slowRoutine();
+			audioRecorder.slowRoutine();
+		}
+	}
+	else {
+		yield(until);
+	}
+}
+
 /// simulate pressing play
 void StemExport::stopPlayback() {
 	if (playbackHandler.isEitherClockActive()) {
@@ -361,7 +395,7 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 				}
 
 				// wait until recording is done and playback is turned off
-				yield([]() {
+				renderWait([]() {
 					if (stemExport.stopRecording) {
 						stemExport.stopOutputRecording();
 					}
@@ -406,7 +440,7 @@ int32_t StemExport::exportMixdownStem(StemExportType stemExportType) {
 		displayStemExportProgress(stemExportType);
 
 		// wait until recording is done and playback is turned off
-		yield([]() {
+		renderWait([]() {
 			if (stemExport.stopRecording) {
 				stemExport.stopOutputRecording();
 			}
@@ -534,7 +568,7 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 				}
 
 				// wait until recording is done and playback is turned off
-				yield([]() {
+				renderWait([]() {
 					// if you haven't found silence yet and playback has stopped
 					// check for silence so you can stop recording
 					if (stemExport.stopRecording) {
@@ -652,7 +686,7 @@ int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
 				}
 
 				// wait until recording is done and playback is turned off
-				yield([]() {
+				renderWait([]() {
 					// if you haven't found silence yet and playback has stopped
 					// check for silence so you can stop recording
 					if (stemExport.stopRecording) {

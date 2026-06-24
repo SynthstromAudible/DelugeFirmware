@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright © 2015-2025 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,18 +17,8 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "util/container/list/bidirectional_linked_list.h"
-
-// Please see explanation of memory allocation and "stealing" at the top of GeneralMemoryAllocator.h
-
-class Stealable : public BidirectionalLinkedListNode {
-public:
-	Stealable() = default;
-
-	virtual bool mayBeStolen(void* thingNotToStealFrom) = 0;
-	virtual void steal(char const* errorCode) = 0; // You gotta also call the destructor after this.
-	virtual StealableQueue getAppropriateQueue() = 0;
-
-	uint32_t lastTraversalNo = 0xFFFFFFFF;
-};
+/// Stack-overflow guard: compares the live stack pointer against `program_stack_start` and FREEZEs (E338)
+/// if headroom drops below a threshold, logging the closest approach seen. ALPHA/BETA only; a no-op
+/// otherwise (and on BSPs that don't describe a stack region, e.g. the host sim). This is a runtime/stack
+/// concern, not an allocator one — it lived on the GeneralMemoryAllocator historically; it stands alone now.
+void checkStack(char const* caller);

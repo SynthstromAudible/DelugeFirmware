@@ -32,6 +32,8 @@
 #include <cstring>
 #include <new>
 
+#include "deluge_resource.h" // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
+
 #if SAMPLE_DO_LOCKS
 #define LOCK_ENTRY                                                                                                     \
 	if (lock) {                                                                                                        \
@@ -104,7 +106,126 @@ Error Sample::initialize(int32_t newNumClusters) {
 	return Error::NONE;
 }
 
+// === Resource-manager Source for SAMPLE clusters =============================
+// These are the materialize / on_evict callbacks the manager calls for a Sample's
+// Asset. A Chunk's backing is a uniform slab slot; materialize placement-news a
+// Cluster into it and fills it via the Step-1 reader; on_evict drops the Sample's
+// pointer and destructs the Cluster (the manager frees the slot). The Cluster records its
+// chunk-slot handle (resourceSlot) here — the manager already leased the slot before calling us
+// (leases >= 1), so slot_of(dest) is valid and leaseCount() reports the reason count immediately.
+
+static bool clusterMaterialize(void* /*ctx*/, void* owner, uint32_t index, void* dest, size_t /*len*/) {
+	auto* sample = static_cast<Sample*>(owner);
+	auto* cluster = new (dest) Cluster();
+	cluster->type = Cluster::Type::SAMPLE;
+	cluster->sample = sample;
+	cluster->clusterIndex = index;
+	cluster->resourceSlot = deluge_resource_slot_of(GeneralMemoryAllocator::get().resourceManager(), dest);
+
+	bool ok = audioFileManager.readClusterData(*cluster, 0);
+	if (ok) {
+		sample->clusters[index].cluster = cluster;
+	}
+	else {
+		cluster->~Cluster(); // manager frees the slab slot
+	}
+	return ok;
+}
+
+// Async construct (the manager's `request`/prefetch path): init the Cluster object but do
+// NOT read the data — an external loader (loadAnyEnqueuedClusters → readClusterData) fills it
+// later, so the audio thread never blocks on I/O. Mirror of clusterMaterialize minus the read;
+// the Sample's pointer is set immediately so the requester holds a valid (loaded==false) Cluster.
+static void clusterConstruct(void* /*ctx*/, void* owner, uint32_t index, void* dest) {
+	auto* sample = static_cast<Sample*>(owner);
+	auto* cluster = new (dest) Cluster();
+	cluster->type = Cluster::Type::SAMPLE;
+	cluster->sample = sample;
+	cluster->clusterIndex = index;
+	cluster->resourceSlot = deluge_resource_slot_of(GeneralMemoryAllocator::get().resourceManager(), dest);
+	// cluster->loaded stays false — the loader reads it.
+	sample->clusters[index].cluster = cluster;
+}
+
+static void clusterEvict(void* /*ctx*/, void* owner, uint32_t index) {
+	auto* sample = static_cast<Sample*>(owner);
+	Cluster* cluster = sample->clusters[index].cluster;
+	sample->clusters[index].cluster = nullptr;
+	if (cluster != nullptr) {
+		// A constructed-but-not-yet-loaded chunk may still be in the loader queue — de-queue it so the
+		// queue can't dangle onto freed memory. (Eviction also resets the slot, but be explicit.)
+		deluge_resource_loader_remove(GeneralMemoryAllocator::get().resourceManager(), cluster->resourceSlot);
+		cluster->~Cluster(); // manager frees the slab slot
+	}
+}
+
+// === Resource-manager Source for the perc cache (per play-direction) =========
+// Perc clusters are written incrementally by the time-stretcher (no materialize), and
+// leased-while-nearby (TimeStretcher addReason/removeReason via resourceLeaseAssetId).
+// ctx carries the play-direction (0=forwards, 1=reversed). Per-cluster independent (no
+// tail-first); self_protect so the fill can't evict its own just-written cluster.
+static void percCacheConstruct(void* ctx, void* owner, uint32_t index, void* dest) {
+	auto* sample = static_cast<Sample*>(owner);
+	int32_t reversed = static_cast<int32_t>(reinterpret_cast<intptr_t>(ctx));
+	auto* cluster = new (dest) Cluster();
+	cluster->type = reversed ? Cluster::Type::PERC_CACHE_REVERSED : Cluster::Type::PERC_CACHE_FORWARDS;
+	cluster->sample = sample;
+	cluster->clusterIndex = index;
+	cluster->resourceSlot = deluge_resource_slot_of(GeneralMemoryAllocator::get().resourceManager(), dest);
+	sample->percCacheClusters[reversed][index] = cluster;
+}
+
+static void percCacheEvict(void* ctx, void* owner, uint32_t index) {
+	auto* sample = static_cast<Sample*>(owner);
+	int32_t reversed = static_cast<int32_t>(reinterpret_cast<intptr_t>(ctx));
+	Cluster* cluster = sample->percCacheClusters[reversed][index];
+	if (cluster != nullptr) {
+		sample->percCacheClusterStolen(cluster); // nulls percCacheClusters[reversed][index] + trims zones
+		cluster->~Cluster();                     // manager frees the slab slot
+	}
+}
+
+uint32_t Sample::ensureResourceAsset() {
+	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+		return resourceAssetId;
+	}
+	// The manager is the sole SDRAM evictor now, so every Sample (playback or recording) is
+	// manager-owned. A missing manager / full asset table is fatal — no legacy fallback.
+	// Cost reflects rebuild expense: a converted sample (float / wrong-endian) costs a read PLUS a
+	// format re-conversion, so it's kept resident longer than a native one (one plain read).
+	uint32_t clusterCost =
+	    (rawDataFormat != RawDataFormat::NATIVE) ? DELUGE_RESOURCE_COST_IO_CONVERTED : DELUGE_RESOURCE_COST_IO;
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	resourceAssetId = (mgr != nullptr)
+	                      ? deluge_resource_define_asset(mgr, this, clusterMaterialize, clusterEvict, nullptr,
+	                                                     clusterCost, DELUGE_RESOURCE_BACKING_SLAB)
+	                      : DELUGE_RESOURCE_NO_ASSET;
+	if (resourceAssetId == DELUGE_RESOURCE_NO_ASSET) {
+		FREEZE_WITH_ERROR("RSA1"); // resource asset table exhausted (raise kAssetCap)
+	}
+	// Attach the async-prefetch path so CLUSTER_ENQUEUE can request (construct now, load later).
+	deluge_resource_set_construct(mgr, resourceAssetId, clusterConstruct);
+	// If the sample is already project-relevant (a holder gained it before its first stream), apply the
+	// soft-reference now — numReasonsIncreasedFromZero fired before the asset existed, so it was a no-op.
+	if (isProjectReferenced()) {
+		deluge_resource_reference(mgr, resourceAssetId);
+	}
+	return resourceAssetId;
+}
+
 Sample::~Sample() {
+	// Retire our Asset first (frees any clusters the manager still has resident, via
+	// clusterEvict, which nulls our clusters[] entries) so the SampleCluster destructors
+	// below see nothing to free. No-op if we never defined one. The manager must exist if
+	// the id is set (ensureResourceAsset created it), so this never stands one up here.
+	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_release_asset(mgr, resourceAssetId);
+		}
+		resourceAssetId = DELUGE_RESOURCE_NO_ASSET;
+	}
+
 	deletePercCache(true);
 
 	for (SampleCacheElement& element : caches) {
@@ -123,22 +244,20 @@ void Sample::deletePercCache(bool beingDestructed) {
 			}
 		}
 
-		if (percCacheClusters[reversed]) {
-
-			for (int32_t c = 0; c < numPercCacheClusters; c++) {
-				if (percCacheClusters[reversed][c]) {
-
-					// If any of them still has a "reason", well, it shouldn't
-					if (ALPHA_OR_BETA_VERSION && percCacheClusters[reversed][c]->numReasonsToBeLoaded) {
-						FREEZE_WITH_ERROR("E137");
-					}
-
-					percCacheClusters[reversed][c]->destroy();
-					// Don't bother actually setting our pointer to NULL, cos we're about to deallocate that memory
-					// anyway
-				}
+		// Retire the Asset — the manager frees all this direction's resident perc clusters (via
+		// percCacheEvict, which nulls percCacheClusters[reversed][c] as it goes). NO_ASSET here just
+		// means this direction's cache was never filled.
+		if (percCacheAssetId[reversed] != DELUGE_RESOURCE_NO_ASSET) {
+			DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+			if (mgr != nullptr) {
+				deluge_resource_release_asset(mgr, percCacheAssetId[reversed]);
 			}
+			percCacheAssetId[reversed] = DELUGE_RESOURCE_NO_ASSET;
+		}
 
+		if (percCacheClusters[reversed]) {
+			// The Asset retire above has already freed + nulled every resident perc cluster, so
+			// there's nothing to destruct here — just free the pointer array.
 			delugeDealloc(percCacheClusters[reversed]);
 			if (!beingDestructed) {
 				percCacheClusters[reversed] = nullptr;
@@ -159,11 +278,12 @@ void Sample::markAsUnloadable() {
 	unloadable = true;
 
 	// If any Clusters in the load-queue, remove them from there
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	for (int32_t c = 0; c < static_cast<int32_t>(clusters.size()); c++) {
 		Cluster* cluster = clusters[c].cluster;
 		if (cluster != nullptr) {
 			cluster->unloadable = true;
-			audioFileManager.loadingQueue.erase(cluster);
+			deluge_resource_loader_remove(mgr, cluster->resourceSlot);
 		}
 	}
 }
@@ -218,8 +338,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 
 	int32_t numClusters = ((lengthInBytesCached - 1) >> Cluster::size_magnitude) + 1;
 
-	void* memory =
-	    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
+	void* memory = deluge::memory::alloc_sdram(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
 	if (memory == nullptr) {
 		return nullptr;
 	}
@@ -299,13 +418,34 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 			numPercCacheClusters = ((lengthInSamplesAfterReduction - 1) >> Cluster::size_magnitude)
 			                       + 1; // Stores this number for the future too
 			int32_t memorySize = numPercCacheClusters * sizeof(Cluster*);
-			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
+			percCacheClusters[reversed] = (Cluster**)deluge::memory::alloc_fast(memorySize);
 			if (!percCacheClusters[reversed]) {
 				LOCK_EXIT
 				return Error::INSUFFICIENT_RAM;
 			}
 
 			memset(percCacheClusters[reversed], 0, memorySize);
+
+			// Define this direction's perc-cache Asset (construct-only; the manager owns residency
+			// + eviction for its clusters). The manager is the sole SDRAM evictor, so a missing
+			// manager / full asset table is fatal (no legacy fallback) — size the asset cap for it.
+			DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+			percCacheAssetId[reversed] =
+			    (mgr != nullptr)
+			        ? deluge_resource_define_asset(mgr, this, nullptr /*materialize: never*/, percCacheEvict,
+			                                       reinterpret_cast<void*>(static_cast<intptr_t>(reversed)),
+			                                       DELUGE_RESOURCE_COST_CPU_PERC, DELUGE_RESOURCE_BACKING_SLAB)
+			        : DELUGE_RESOURCE_NO_ASSET;
+			if (percCacheAssetId[reversed] == DELUGE_RESOURCE_NO_ASSET) {
+				FREEZE_WITH_ERROR("RPC1"); // resource asset table exhausted (raise kAssetCap)
+			}
+			deluge_resource_set_construct(mgr, percCacheAssetId[reversed], percCacheConstruct);
+			deluge_resource_set_self_protect(mgr, percCacheAssetId[reversed], true);
+			// per-cluster independent (percCacheClusterStolen trims one slot) → NOT evict_tail_first
+			// Inherit this sample's project relevance (applyProjectReference toggles it thereafter).
+			if (isProjectReferenced()) {
+				deluge_resource_reference(mgr, percCacheAssetId[reversed]);
+			}
 		}
 	}
 
@@ -314,7 +454,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 		if (!percCacheMemory[reversed]) {
 			int32_t percCacheSize = lengthInSamplesAfterReduction;
 
-			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(percCacheSize);
+			percCacheMemory[reversed] = (uint8_t*)deluge::memory::alloc_sdram(percCacheSize);
 			if (!percCacheMemory[reversed]) {
 				LOCK_EXIT
 				return Error::INSUFFICIENT_RAM;
@@ -536,17 +676,18 @@ doLoading:
 				//  We tell it not to steal any other per cache Cluster from this Sample - not because those Clusters
 				//  are definitely a high priority to keep, but because doing so would probably alter our
 				//  percCacheZones, which we're currently working with, which could really muck things up. Scenario only
-				//  discovered Jan 2021.
-				percCacheClusters[reversed][percClusterIndex] = Cluster::create(
-				    reversed ? Cluster::Type::PERC_CACHE_REVERSED : Cluster::Type::PERC_CACHE_FORWARDS, false,
-				    this); // Doesn't add reason. Call to rememberPercCacheCluster() below will
-				if (!percCacheClusters[reversed][percClusterIndex]) {
+				//  discovered Jan 2021. (Manager path: the asset's self_protect provides the same guarantee.)
+				// Manager-owned: request constructs the Cluster (percCacheConstruct sets
+				// type/sample/index + percCacheClusters[reversed][index]) + leases; release so it's
+				// resident-but-unleased (the TimeStretcher re-leases the nearby ones via addReason).
+				DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+				void* p = deluge_resource_request(mgr, percCacheAssetId[reversed], percClusterIndex,
+				                                  sizeof(Cluster) + Cluster::size);
+				if (p == nullptr) {
 					error = Error::INSUFFICIENT_RAM;
 					goto getOut;
 				}
-
-				percCacheClusters[reversed][percClusterIndex]->sample = this;
-				percCacheClusters[reversed][percClusterIndex]->clusterIndex = percClusterIndex;
+				deluge_resource_release(mgr, p);
 			}
 
 			timeStretcher->rememberPercCacheCluster(percCacheClusters[reversed][percClusterIndex]);
@@ -910,7 +1051,7 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 	if (!percCacheClusters[reversed][cluster->clusterIndex]) {
 		FREEZE_WITH_ERROR("i034"); // Trying to track down Steven G's E133 (Feb 2021).
 	}
-	if (percCacheClusters[reversed][cluster->clusterIndex]->numReasonsToBeLoaded) {
+	if (percCacheClusters[reversed][cluster->clusterIndex]->leaseCount()) {
 		FREEZE_WITH_ERROR("i035"); // Trying to track down Steven G's E133 (Feb 2021).
 	}
 #endif
@@ -1278,8 +1419,7 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 	int32_t fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
 	int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
 	int32_t floatIndexTableSize = (kPitchDetectWindowSize >> 2) * sizeof(float);
-	int32_t* fftInput =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(fftInputSize + fftOutputSize + floatIndexTableSize);
+	int32_t* fftInput = (int32_t*)deluge::memory::alloc_fast(fftInputSize + fftOutputSize + floatIndexTableSize);
 	if (!fftInput) {
 		return 0;
 	}
@@ -1724,9 +1864,47 @@ void Sample::finalizeAfterLoad(uint32_t fileSize) {
 	workOutBitMask();
 }
 
-#if ALPHA_OR_BETA_VERSION
-void Sample::numReasonsDecreasedToZero(char const* errorCode) {
+// Soft-reference (on) / un-reference (off) every resource asset this sample owns: its cluster asset
+// plus each derived cache (the two perc-cache directions + the repitch caches). The manager's value
+// function keeps soft-referenced (current-song) chunks resident over un-referenced (no-song) ones.
+// unreference saturates at 0, so the toggle is robust even if an asset was created/retired mid-window.
+void Sample::applyProjectReference(bool on) {
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr == nullptr) {
+		return;
+	}
+	auto toggle = [&](uint32_t asset) {
+		if (asset == DELUGE_RESOURCE_NO_ASSET) {
+			return;
+		}
+		if (on) {
+			deluge_resource_reference(mgr, asset);
+		}
+		else {
+			deluge_resource_unreference(mgr, asset);
+		}
+	};
+	toggle(resourceAssetId);
+	toggle(percCacheAssetId[0]);
+	toggle(percCacheAssetId[1]);
+	for (SampleCacheElement& element : caches) {
+		if (element.cache != nullptr) {
+			toggle(element.cache->resourceAssetId);
+		}
+	}
+}
 
+void Sample::numReasonsIncreasedFromZero() {
+	// Became project-relevant (first hard lease on the object) → soft-reference our resource assets.
+	applyProjectReference(true);
+}
+
+void Sample::numReasonsDecreasedToZero([[maybe_unused]] char const* errorCode) {
+	// No longer project-relevant → drop the soft-references (assets stay resident but now evict before
+	// current-song data under pressure).
+	applyProjectReference(false);
+
+#if ALPHA_OR_BETA_VERSION
 	// Count up the individual reasons, as a bug check
 	int32_t numClusterReasons = 0;
 	for (int32_t c = 0; c < static_cast<int32_t>(clusters.size()); c++) {
@@ -1739,11 +1917,7 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 				FREEZE_WITH_ERROR(errorCode);
 			}
 
-			if (cluster->numReasonsToBeLoaded < 0) {
-				FREEZE_WITH_ERROR("E076");
-			}
-
-			numClusterReasons += cluster->numReasonsToBeLoaded;
+			numClusterReasons += static_cast<int32_t>(cluster->leaseCount());
 
 			if (cluster == audioFileManager.clusterBeingLoaded) {
 				numClusterReasons--;
@@ -1758,7 +1932,7 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 
 			Cluster* cluster = clusters[c].cluster;
 			if (cluster) {
-				D_PRINT("cluster->numReasonsToBeLoaded[%d]", cluster->numReasonsToBeLoaded);
+				D_PRINT("cluster->leaseCount[%d]", cluster->leaseCount());
 
 				if (cluster == audioFileManager.clusterBeingLoaded) {
 					D_PRINTLN(" (loading)");
@@ -1780,5 +1954,5 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 		// https://forums.synthstrom.com/discussion/4106/v4-0-beta2-e078-crash-when-recording-audio-clip
 		FREEZE_WITH_ERROR("E078");
 	}
-}
 #endif
+}

@@ -36,6 +36,8 @@
 #include <algorithm>
 #include <new>
 
+#include "deluge_resource.h" // mark_dirty: hold recording clusters un-evictable until flushed
+
 extern "C" {
 #include "fatfs/diskio.h"
 
@@ -121,18 +123,18 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 	folderID = newFolderID;
 
 	// Didn't seem to make a difference forcing this into local RAM
-	void* sample_memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Sample));
+	void* sample_memory = deluge::memory::alloc_external(sizeof(Sample), 16);
 	if (sample_memory == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	sample = new (sample_memory) Sample;
+	audioFileManager.adoptAudioFileObject(sample); // resource-manager evictable object (before addReason)
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
 	Error error = sample->initialize(1);
 	if (error != Error::NONE) {
 gotError:
-		sample->~Sample();
-		delugeDealloc(sample_memory);
+		audioFileManager.destroyAudioFileObject(*sample); // ~Sample + free (routed through the manager if adopted)
 		return error;
 	}
 
@@ -360,7 +362,7 @@ aborted:
 			// It should be impossible that anyone else still holds a "reason" to this Sample, as we can only be
 			// "aborted" before AudioClip::finishLinearRecording() is called, and it's only then at the AudioClip
 			// becomes a "reason".
-			if (sample->numReasonsToBeLoaded) {
+			if (sample->isProjectReferenced()) {
 				FREEZE_WITH_ERROR("E282");
 			}
 #endif
@@ -826,6 +828,16 @@ Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes) {
 
 	// Grab the SD address, for later
 	sampleCluster->sdAddress = clst2sect(&fileSystem, file->inner().clust);
+
+	// Now flushed to the card with its sdAddress recorded, this cluster is reconstructable like any
+	// sample cluster (materialize re-reads it) — so clear dirty, letting the manager evict + reload
+	// it under pressure. (Until now it was held dirty so the unflushed audio could not be evicted.)
+	if (sampleCluster->cluster != nullptr) {
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_mark_dirty(mgr, sampleCluster->cluster, false);
+		}
+	}
 	return Error::NONE;
 }
 

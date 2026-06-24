@@ -40,6 +40,12 @@ public:
 	void startOutputRecordingUntilLoopEndAndSilence();
 	void stopPlayback();
 	void stopOutputRecording();
+	// Wait until `until` is satisfied while the export renders. On-device this is a
+	// cooperative scheduler yield() (UI/MIDI/etc must keep running); for an offline
+	// (faster-than-realtime) render it drives AudioEngine::routine() directly in a tight
+	// loop, bypassing the scheduler — whose chooseBestTask busy-wait otherwise caps the
+	// headless export at ~realtime. `until` matches yield()'s RunCondition (bool(*)()).
+	void renderWait(bool (*until)());
 	bool checkForLoopEnd();
 	bool checkForSilence();
 	bool processStarted;

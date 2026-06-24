@@ -1,0 +1,34 @@
+# deluge_alloc — the from-scratch TLSF + slab allocator core for the Deluge,
+# behind a stable C ABI (libdeluge/alloc.h). Phase 3 of
+# docs/dev/allocator_implementation_plan.md. Replaces the C++ MemoryRegion/GMA
+# internals; validated bit-for-bit by the conformance suite in tests/spec_alloc
+# (which is the same AllocatorUnderTest suite the C++ MemoryRegion passes).
+#
+# `no_std` core. Built as a staticlib for the host (x86_64-unknown-linux-gnu) for
+# conformance testing now, and cross-compiled for the device (armv7a) later.
+[package]
+name = "deluge_alloc"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[features]
+# Exposes the host-only `testing` invariant harness to external consumers (the
+# fuzz crate). Unit tests get it via cfg(test) without this feature.
+fuzzing = []
+
+[lib]
+name = "deluge_alloc"
+# A plain rlib library now: the `deluge_rust` umbrella crate is the staticlib that
+# links into the firmware/sim/tests (and owns the single panic handler). `cargo
+# test` (host) exercises the Rust API directly via the rlib.
+crate-type = ["rlib"]
+
+[dev-dependencies]
+# Property-based testing with shrinking — generates op sequences and minimises any
+# failing case. Complements the fixed-seed churn tests and the cargo-fuzz target;
+# all three drive the same testing::Harness.
+proptest = "1"
+
+# [profile.*] lives in the workspace root (crates/Cargo.toml) — cargo ignores it here.

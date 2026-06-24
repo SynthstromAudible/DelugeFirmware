@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
+#include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/live/live_input_buffer.h"
 #include "util/functions.h"
@@ -838,8 +839,8 @@ void LivePitchShifter::considerRepitchedBuffer(int32_t phaseIncrement) {
 	if (phaseIncrement > kMaxSampleValue) {
 		if (!repitchedBuffer) {
 
-			repitchedBuffer = (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(INPUT_REPITCHED_BUFFER_SIZE
-			                                                                        * sizeof(int32_t) * numChannels);
+			repitchedBuffer =
+			    (int32_t*)deluge::memory::alloc_fast(INPUT_REPITCHED_BUFFER_SIZE * sizeof(int32_t) * numChannels);
 			if (repitchedBuffer) {
 				repitchedBufferWritePos = 0;
 				oscPos = 0;

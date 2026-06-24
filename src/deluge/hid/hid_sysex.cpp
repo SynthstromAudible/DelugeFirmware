@@ -59,7 +59,7 @@ void HIDSysex::requestOLEDDisplay(MIDICable& cable, uint8_t* data, int32_t len) 
 			}
 
 			if (oledDeltaImage == nullptr) {
-				oledDeltaImage = (uint8_t*)GeneralMemoryAllocator::get().allocMaxSpeed(
+				oledDeltaImage = (uint8_t*)deluge::memory::alloc_fast(
 				    sizeof(uint8_t[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS]));
 			}
 		}

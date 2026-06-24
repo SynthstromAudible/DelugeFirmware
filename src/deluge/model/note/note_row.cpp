@@ -542,8 +542,7 @@ Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, 
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and
 	// resultingIndexes
-	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreensToAddNoteOn * sizeof(int32_t));
+	int32_t* __restrict__ searchTerms = (int32_t*)deluge::memory::alloc_fast(numScreensToAddNoteOn * sizeof(int32_t));
 	if (!searchTerms) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -856,8 +855,7 @@ Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNot
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and
 	// resultingIndexes
-	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
+	int32_t* __restrict__ searchTerms = (int32_t*)deluge::memory::alloc_fast(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -1160,8 +1158,7 @@ Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWid
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and
 	// resultingIndexes
-	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
+	int32_t* __restrict__ searchTerms = (int32_t*)deluge::memory::alloc_fast(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -1360,8 +1357,7 @@ Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and
 	// resultingIndexes
-	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
+	int32_t* __restrict__ searchTerms = (int32_t*)deluge::memory::alloc_fast(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -1764,8 +1760,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and
 	// resultingIndexes
-	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * sizeof(int32_t));
+	int32_t* __restrict__ searchTerms = (int32_t*)deluge::memory::alloc_fast(numScreens * sizeof(int32_t));
 	if (!searchTerms) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -3872,7 +3867,7 @@ void NoteRow::rememberDrumName() {
 
 		// If we're here, we're at the end of the list, didn't find an instance of the name, and want to add it
 		// to the end of the list now Paul: Might make sense to put these into Internal?
-		void* drumNameMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(DrumName));
+		void* drumNameMemory = deluge::memory::alloc_sdram(sizeof(DrumName));
 		if (drumNameMemory) {
 			*prevPointer = new (drumNameMemory) DrumName(soundDrum->drumName);
 		}

@@ -18,28 +18,25 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "memory/stealable.h"
 #include "util/c_string.h"
+#include <string>
 
 class AudioFileReader;
 
-class AudioFile : public Stealable {
+// An AudioFile (Sample / WaveTable) is a resource-manager *adopted* object: the owner allocates +
+// builds it, the manager owns only its eviction (value-scored). `addReason`/`removeReason` route to
+// manager leases (add_lease/release); eviction runs `audioFileEvict` (erase from `audioFiles` +
+// destruct). See AudioFileManager::adoptAudioFileObject.
+class AudioFile {
 public:
 	AudioFile(AudioFileType newType) : type(newType) {}
-	~AudioFile() override = default;
+	virtual ~AudioFile() = default;
 
 	Error loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
 	virtual void finalizeAfterLoad(uint32_t fileSize) {}
 
 	void addReason();
 	void removeReason(char const* errorCode);
-
-	// Stealable implementation (partial)
-	// Also implemented by children (WaveTable/Sample)
-	// Stealable implementation
-	bool mayBeStolen(void* thingNotToStealFrom = NULL) final;
-	void steal(char const* errorCode) final;
-	StealableQueue getAppropriateQueue() override;
 
 	std::string filePath{};
 
@@ -48,7 +45,26 @@ public:
 	std::string loadedFromAlternatePath{}; // We now need to store this, since "alternate" files can now just have the
 	                                       // same filename (in special folder) as the original. So we need to remember
 	                                       // which format the name took.
-	int32_t numReasonsToBeLoaded{}; // This functionality should probably be merged between AudioFile and Cluster.
+	// Handle to this object's chunk slot in the resource manager (an AudioFile is an *adopted* chunk;
+	// set at adoption via deluge_resource_slot_of). The object's hard-lease ("reason") count lives in
+	// that slot — read O(1) via leaseCount(). 0xFFFFFFFF == DELUGE_RESOURCE_NO_SLOT (literal here so
+	// this widely-included header needn't pull in deluge_resource.h).
+	uint32_t resourceSlot{0xFFFFFFFFu};
+
+	// Hard-lease ("reason") count for this object — the single source of truth lives in the manager's
+	// chunk slot (read via resourceSlot). Replaces the old numReasonsToBeLoaded mirror field.
+	[[nodiscard]] uint32_t leaseCount() const;
+
+	// "Is the project/song using this right now" — true while any hard lease is held (a clip/voice/
+	// preview/recorder holds the object). This is the soft-reference / relevance signal (the old
+	// CURRENT_SONG vs NO_SONG distinction, which getAppropriateQueue derived the same way): a Sample
+	// soft-references its resource assets while this holds, so current-song data outlives no-song data.
+	[[nodiscard]] bool isProjectReferenced() const;
+
+	// Size in bytes of the block this object was allocated in (sizeof the concrete subclass). Passed to
+	// deluge_resource_adopt so the manager's cost-per-byte eviction knows how little memory freeing the
+	// object reclaims — keeping the tiny descriptor resident over the fat clusters it owns.
+	[[nodiscard]] virtual size_t allocatedSize() const = 0;
 
 	constexpr static bool isSample(const AudioFile* file) { return file->type == AudioFileType::SAMPLE; }
 	constexpr static bool isWaveTable(const AudioFile* file) { return file->type == AudioFileType::WAVETABLE; }

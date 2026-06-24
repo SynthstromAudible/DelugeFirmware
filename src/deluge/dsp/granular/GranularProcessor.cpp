@@ -48,14 +48,17 @@ void GranularProcessor::processGrainFX(std::span<StereoSample> buffer, int32_t g
                                        int32_t grainDensity, int32_t pitchRandomness, int32_t* postFXVolume,
                                        bool anySoundComingIn, float tempoBPM, q31_t reverbAmount) {
 	if (anySoundComingIn || wrapsToShutdown >= 0) {
-		if (anySoundComingIn) {
-			setWrapsToShutdown();
-		}
+		// (Re)acquire the buffer first: it is allocated lazily and may have been released on idle or
+		// stolen under memory pressure, in which case setWrapsToShutdown() below would otherwise
+		// dereference a null grainBuffer.
 		if (grainBuffer == nullptr) {
-			getBuffer(); // in case it was stolen
+			getBuffer();
 			if (grainBuffer == nullptr) {
 				return;
 			}
+		}
+		if (anySoundComingIn) {
+			setWrapsToShutdown();
 		}
 		setupGrainFX(grainRate, grainMix, grainDensity, pitchRandomness, postFXVolume, tempoBPM);
 		int i = 0;
@@ -78,7 +81,9 @@ void GranularProcessor::processGrainFX(std::span<StereoSample> buffer, int32_t g
 		}
 
 		if (wrapsToShutdown < 0) {
-			grainBuffer->inUse = false;
+			// Fully decayed and silent: release the ~512 KB buffer outright rather than merely marking it
+			// stealable, so an idle granular FX stops holding SDRAM until something else forces a reclaim.
+			releaseBuffer();
 		}
 	}
 	if (bufferWriteIndex > kModFXGrainBufferSize / 2) {
@@ -300,11 +305,25 @@ GranularProcessor::GranularProcessor() {
 	grainLastTickCountIsZero = true;
 	grainInitialized = false;
 	grainBuffer = nullptr;
-	getBuffer();
+	// The ~512 KB buffer is allocated lazily on first render (processGrainFX), so an enabled-but-silent
+	// granular FX doesn't reserve SDRAM up front.
+}
+void GranularProcessor::releaseBuffer() {
+	if (grainBuffer != nullptr) {
+		grainBuffer->~GrainBuffer();
+		delugeDealloc(grainBuffer);
+		grainBuffer = nullptr;
+	}
+	bufferFull = false;
+	bufferWriteIndex = 0;
 }
 void GranularProcessor::getBuffer() {
 	if (grainBuffer == nullptr) {
-		void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GrainBuffer));
+		// Plain SDRAM allocation, NOT allocStealable: the grain buffer is never actually stolen
+		// (it is never enqueued for reclamation, and inUse stays true) — it is held while the FX
+		// runs and released outright on idle (releaseBuffer). So it doesn't belong on the resource
+		// manager / CacheManager at all; this is just a normal buffer the FX owns + frees.
+		void* grainBufferMemory = deluge::memory::alloc_external(sizeof(GrainBuffer), alignof(GrainBuffer));
 		if (grainBufferMemory) {
 			grainBuffer = new (grainBufferMemory) GrainBuffer(this);
 		}
@@ -318,10 +337,7 @@ void GranularProcessor::getBuffer() {
 	bufferWriteIndex = 0;
 }
 GranularProcessor::~GranularProcessor() {
-	if (grainBuffer) {
-		grainBuffer->~GrainBuffer();
-		delugeDealloc(grainBuffer);
-	}
+	releaseBuffer();
 }
 GranularProcessor::GranularProcessor(const GranularProcessor& other) {
 	wrapsToShutdown = other.wrapsToShutdown;
@@ -338,10 +354,10 @@ GranularProcessor::GranularProcessor(const GranularProcessor& other) {
 	_pitchRandomness = other._pitchRandomness;
 	grainLastTickCountIsZero = true;
 	grainInitialized = false;
-	getBuffer();
+	// Lazily allocate on first render (see default ctor).
+	grainBuffer = nullptr;
 }
 void GranularProcessor::startSkippingRendering() {
-	if (grainBuffer) {
-		grainBuffer->inUse = false;
-	}
+	// The instrument has gone idle — release the buffer outright instead of leaving it allocated-but-stealable.
+	releaseBuffer();
 }

@@ -24,17 +24,19 @@
 #include "storage/cluster/cluster.h"
 #include <cstddef>
 
+#include "deluge_resource.h" // resource manager: route raw SAMPLE-cluster residency through it
+
 SampleCluster::~SampleCluster() {
 	if (cluster) {
 
 #if ALPHA_OR_BETA_VERSION
-		int32_t numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
-		if (cluster == audioFileManager.clusterBeingLoaded) {
-			numReasonsToBeLoaded--;
+		uint32_t reasons = cluster->leaseCount();
+		if (cluster == audioFileManager.clusterBeingLoaded && reasons > 0) {
+			reasons--;
 		}
 
-		if (numReasonsToBeLoaded) {
-			D_PRINTLN("uh oh, some reasons left...  %d", numReasonsToBeLoaded);
+		if (reasons) {
+			D_PRINTLN("uh oh, some reasons left...  %d", reasons);
 
 			// Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to
 			// happen though.
@@ -47,15 +49,9 @@ SampleCluster::~SampleCluster() {
 
 void SampleCluster::ensureNoReason(Sample* sample) {
 	if (cluster) {
-		if (cluster->numReasonsToBeLoaded) {
-			D_PRINTLN("Cluster has reason!  %d %d", cluster->numReasonsToBeLoaded, sample->filePath.c_str());
-
-			if (cluster->numReasonsToBeLoaded >= 0) {
-				FREEZE_WITH_ERROR("E068");
-			}
-			else {
-				FREEZE_WITH_ERROR("E069");
-			}
+		if (cluster->leaseCount()) {
+			D_PRINTLN("Cluster has reason!  %d %d", cluster->leaseCount(), sample->filePath.c_str());
+			FREEZE_WITH_ERROR("E068");
 			delayMS(50);
 		}
 	}
@@ -70,142 +66,80 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		*error = Error::NONE;
 	}
 
-	// If the Cluster hasn't been created yet
-	if (!cluster) {
+	// Manager-owned residency. The manager is the sole SDRAM evictor: every Sample (playback or
+	// recording) is manager-owned (ensureResourceAsset FREEZEs if the asset table is exhausted — no
+	// legacy fallback). The hard-lease count lives in the manager's chunk slot (the construct/
+	// materialize callback records the slot handle); add_lease/request take the lease. non-null
+	// `cluster` <=> manager-resident (on_evict nulls it).
+	uint32_t asset = sample->ensureResourceAsset();
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	bool wasResident = (cluster != nullptr);
 
-		// If the file can no longer be found on the card, we're in trouble
-		if (sample->unloadable) {
-			D_PRINTLN("unloadable");
-			if (error != nullptr) {
-				*error = Error::FILE_NOT_FOUND;
-			}
-			return nullptr;
+	if (loadInstruction == CLUSTER_DONT_LOAD) {
+		// "Allocate but don't read from the card" — recording / convert write target. Resident ⇒ just
+		// pin (lease); not-resident ⇒ construct an empty cluster (no I/O). Held *dirty* so the manager
+		// never evicts the unflushed data; writeCluster clears dirty once it is on the card, after
+		// which it is reconstructable like any sample cluster.
+		if (wasResident) {
+			deluge_resource_add_lease(mgr, cluster);
 		}
-
-		// D_PRINTLN("loading");
-		cluster = Cluster::create(); // Adds 1 reason
-
-		if (!cluster) {
-			D_PRINTLN("couldn't allocate");
-			if (error != nullptr) {
-				*error = Error::INSUFFICIENT_RAM;
-			}
-			return nullptr;
-		}
-
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-		if (cluster->numReasonsToBeLoaded != 1) {
-			FREEZE_WITH_ERROR("i005"); // Diversifying Qui's E341. It should actually be exactly 1
-		}
-		if (cluster->type != Cluster::Type::SAMPLE) {
-			FREEZE_WITH_ERROR("E256"); // Cos I got E236
-		}
-#endif
-
-		cluster->sample = sample;
-		cluster->clusterIndex = clusterIndex;
-
-		// Sometimes we don't actually want to load at all - if we're re-processing a WAV file and want to overwrite a
-		// whole Cluster
-		if (loadInstruction == CLUSTER_DONT_LOAD) {
-			return cluster;
-		}
-
-		// If loading later...
-		if (loadInstruction == CLUSTER_ENQUEUE) {
-justEnqueue:
-
-			if (ALPHA_OR_BETA_VERSION && cluster->type != Cluster::Type::SAMPLE) {
-				FREEZE_WITH_ERROR("E236"); // Cos Chris F got an E205
-			}
-
-			// TODO: If that fails, it'll just get awkwardly forgotten about
-			audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating);
-
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
-				FREEZE_WITH_ERROR("i027"); // Diversifying Ron R's i004, which was diversifying Qui's E341
-			}
-#endif
-		}
-
-		// Or if want to try to load now...
-		else { // CLUSTER_LOAD_IMMEDIATELY or CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE
-
-			// cluster has (at least?) one reason - added above
-
-			if (ALPHA_OR_BETA_VERSION && cluster->type != Cluster::Type::SAMPLE) {
-				FREEZE_WITH_ERROR("E234"); // Cos Chris F got an E205
-			}
-			bool result = audioFileManager.loadCluster(*cluster, 1);
-
-			// If that didn't work...
-			if (!result) {
-
-				// If also an acceptable option, then just enqueue it, and we'll keep the "reason" and return the
-				// pointer
-				if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE) {
-					goto justEnqueue;
-				}
-
-				// Or if it was a must-load-now...
-				// Free and remove our link to the unloaded Cluster - otherwise the next time we try to load it, it'd
-				// still exist but never get enqueued for loading
-				cluster->destroy(); // This removes the 1 reason that it'd still have
-
+		else {
+			void* p = deluge_resource_request(mgr, asset, clusterIndex, sizeof(Cluster) + Cluster::size);
+			if (p == nullptr) {
 				if (error != nullptr) {
-					// TODO: get actual error. Although sometimes it'd just be a "can't do it now
-					// cos card's being accessed, and that's fine, thanks for checking."
-					*error = Error::UNSPECIFIED;
-				}
-				cluster = nullptr;
-			}
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
-				FREEZE_WITH_ERROR("i026"); // Michael B got - insane.
-			}
-#endif
-		}
-	}
-
-	// Or if it had previously been created...
-	else {
-
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.1.3 have been getting E341.
-		if (cluster && cluster->numReasonsToBeLoaded < 0) {
-			FREEZE_WITH_ERROR("i028"); // bnhrsch got this!!
-		}
-#endif
-
-		// If they'd prefer it loaded immediately and it's not loaded, try speeding loading along
-		if ((loadInstruction == CLUSTER_LOAD_IMMEDIATELY || loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE)
-		    && !cluster->loaded) {
-			audioFileManager.loadAnyEnqueuedClusters();
-
-			// If it's still not loaded and it was a must-load-now...
-			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY && !cluster->loaded) {
-				D_PRINTLN("hurrying loading along failed for index:  %d", clusterIndex);
-				if (error != nullptr) {
-					*error = Error::UNSPECIFIED; // TODO: get actual error
+					*error = sample->unloadable ? Error::FILE_NOT_FOUND : Error::INSUFFICIENT_RAM;
 				}
 				return nullptr;
 			}
+			cluster = reinterpret_cast<Cluster*>(p);
 		}
-
-		cluster->addReason();
-
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
-		if (cluster && cluster->numReasonsToBeLoaded <= 0) {
-			FREEZE_WITH_ERROR("i025"); // Diversifying Ron R's i004, which was diversifying Qui's E341
-		}
-#endif
+		deluge_resource_mark_dirty(mgr, cluster, true);
+		return cluster;
 	}
 
-#if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
-	if (cluster && cluster->numReasonsToBeLoaded <= 0) {
-		FREEZE_WITH_ERROR("i004"); // Ron R got this! Diversifying Qui's E341
+	if (loadInstruction == CLUSTER_ENQUEUE) {
+		// Async prefetch: construct + lease now (NO I/O), then schedule the read on the loader
+		// (the existing loadingQueue, pumped off the audio thread) so the audio thread never
+		// blocks on SD. Returns the cluster (loaded==false until the loader reads it).
+		void* p = deluge_resource_request(mgr, asset, clusterIndex, sizeof(Cluster) + Cluster::size);
+		if (p == nullptr) {
+			if (error != nullptr) {
+				*error = sample->unloadable ? Error::FILE_NOT_FOUND : Error::INSUFFICIENT_RAM;
+			}
+			return nullptr;
+		}
+		cluster = reinterpret_cast<Cluster*>(p);
+		if (!cluster->loaded) {
+			deluge_resource_loader_enqueue(mgr, cluster->resourceSlot, priorityRating);
+		}
+		return cluster;
 	}
-#endif
 
+	// CLUSTER_LOAD_IMMEDIATELY / _OR_ENQUEUE: must have it loaded now → acquire (full
+	// materialize on a miss; this may block on I/O, which is the must-load-now contract).
+	void* p = deluge_resource_acquire(mgr, asset, clusterIndex, sizeof(Cluster) + Cluster::size);
+	if (p == nullptr) {
+		if (error != nullptr) {
+			*error = sample->unloadable ? Error::FILE_NOT_FOUND : Error::UNSPECIFIED;
+		}
+		return nullptr;
+	}
+	cluster = reinterpret_cast<Cluster*>(p);
+	// Hit on a cluster that was prefetch-constructed but not yet read → read it now.
+	if (!cluster->loaded) {
+		bool ok = audioFileManager.readClusterData(*cluster, 0);
+		deluge_resource_loader_remove(mgr, cluster->resourceSlot); // it no longer needs the loader
+		if (!ok) {
+			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE) {
+				deluge_resource_loader_enqueue(mgr, cluster->resourceSlot, priorityRating); // fall back to async
+			}
+			else {
+				if (error != nullptr) {
+					*error = Error::UNSPECIFIED;
+				}
+				return nullptr; // must-load-now failed; cluster stays resident+leased, caller may retry
+			}
+		}
+	}
 	return cluster;
 }

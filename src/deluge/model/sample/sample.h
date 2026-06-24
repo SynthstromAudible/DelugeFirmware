@@ -66,6 +66,8 @@ public:
 	Sample();
 	~Sample() override;
 
+	[[nodiscard]] size_t allocatedSize() const override { return sizeof(Sample); }
+
 	void workOutBitMask();
 	Error initialize(int32_t numClusters);
 	void markAsUnloadable();
@@ -86,6 +88,11 @@ public:
 	bool getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
 	                             int32_t playDirection, int32_t lengthToAverageEach);
 	void convertDataOnAnyClustersIfNecessary();
+	/// Lazily define this Sample's resource-manager Asset (its SAMPLE clusters are the Asset's
+	/// Chunks: materialize = readClusterData, on_evict = drop + ~Cluster). Returns the asset id. The
+	/// manager is the sole SDRAM evictor, so this never returns NO_ASSET — a missing manager / full
+	/// asset table is fatal (FREEZE), no legacy fallback.
+	uint32_t ensureResourceAsset();
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
 	int32_t getValueSpan();
@@ -163,6 +170,9 @@ public:
 
 	Cluster** percCacheClusters[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	int32_t numPercCacheClusters{};
+	// Resource-manager Asset id per play-direction for the perc-cache clusters (construct-only,
+	// leased-while-nearby by the TimeStretcher). DELUGE_RESOURCE_NO_ASSET (0xFFFFFFFF) = legacy.
+	uint32_t percCacheAssetId[2]{0xFFFFFFFFu, 0xFFFFFFFFu};
 
 	int32_t beginningOffsetForPitchDetection;
 	bool beginningOffsetForPitchDetectionFound;
@@ -171,11 +181,25 @@ public:
 
 	deluge::fast_vector<SampleCluster> clusters{};
 
-protected:
-#if ALPHA_OR_BETA_VERSION
-	void numReasonsDecreasedToZero(char const* errorCode) override;
-#endif
+	// Resource-manager Asset id for this Sample's SAMPLE clusters (DELUGE_RESOURCE_NO_ASSET
+	// until defined on first stream). Owns raw-cluster residency once routed through the
+	// manager; released in ~Sample. 0xFFFFFFFF == DELUGE_RESOURCE_NO_ASSET (kept as a literal
+	// here so the widely-included header needn't pull in deluge_resource.h).
+	uint32_t resourceAssetId{0xFFFFFFFFu};
 
+protected:
+	// Project-relevance hooks (the object's hard-lease 0↔1 transitions): toggle the soft-reference on
+	// this sample's resource assets so current-song data is kept resident over no-song data under
+	// memory pressure. Present in all builds (the bug-check inside DecreasedToZero is ALPHA-only).
+	void numReasonsIncreasedFromZero() override;
+	void numReasonsDecreasedToZero(char const* errorCode) override;
+
+private:
+	// Soft-reference (on=true) / un-reference (on=false) this sample's cluster asset + every derived
+	// cache (repitch caches + the two perc-cache directions) that is currently defined.
+	void applyProjectReference(bool on);
+
+protected:
 private:
 	int32_t investigateFundamentalPitch(int32_t fundamentalIndexProvided, int32_t tableSize, int32_t* heightTable,
 	                                    uint64_t* sumTable, float* floatIndexTable, float* getFreq,

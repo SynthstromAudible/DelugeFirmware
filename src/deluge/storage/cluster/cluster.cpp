@@ -17,11 +17,14 @@
 
 #include "storage/cluster/cluster.h"
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/misc.h"
+
+#include "deluge_resource.h" // resource manager: manager-owned clusters lease instead of queueing
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
@@ -37,27 +40,17 @@ void Cluster::setSize(size_t size) {
 	Cluster::size_magnitude = 32 - __builtin_clz(size) - 1;
 }
 
-Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontStealFromThing) {
-	audioFileManager.setCardRead(); // even if it hasn't been we're now commited to the cluster size
-	void* memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Cluster) + Cluster::size, dontStealFromThing);
-	if (memory == nullptr) {
-		return nullptr;
-	}
-
-	auto* cluster = new (memory) Cluster();
-
-	cluster->type = type;
-
-	if (shouldAddReasons) {
-		cluster->addReason();
-	}
-
-	return cluster;
+void Cluster::destroy() {
+	this->~Cluster();
+	// Release back to the slab so its table entry is cleared (a bare deluge_free /
+	// delugeDealloc would leave a dangling slot pointing at freed memory).
+	GeneralMemoryAllocator::get().freeSdram(this);
 }
 
-void Cluster::destroy() {
-	this->~Cluster(); // Removes reasons, and / or from stealable list
-	delugeDealloc(this);
+// Safety net (see the header): release through the slab so the table entry is cleared.
+// freeSdram() falls back to a plain heap free for any non-slab pointer.
+void Cluster::operator delete(void* ptr) {
+	GeneralMemoryAllocator::get().freeSdram(ptr);
 }
 
 /**
@@ -159,105 +152,34 @@ void Cluster::convertDataIfNecessary() {
 	}
 }
 
-StealableQueue Cluster::getAppropriateQueue() {
-	StealableQueue q;
-
-	// If it's a perc cache...
-	if (type == Type::PERC_CACHE_FORWARDS || type == Type::PERC_CACHE_REVERSED) {
-		q = sample->numReasonsToBeLoaded ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
-		                                 : StealableQueue::NO_SONG_SAMPLE_DATA_PERC_CACHE;
-	}
-
-	// If it's a regular repitched cache...
-	else if (sampleCache) {
-		q = (sampleCache->sample->numReasonsToBeLoaded) ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE
-		                                                : StealableQueue::NO_SONG_SAMPLE_DATA_REPITCHED_CACHE;
-	}
-
-	// Or, if it has a Sample...
-	else if (sample) {
-		q = sample->numReasonsToBeLoaded ? StealableQueue::CURRENT_SONG_SAMPLE_DATA
-		                                 : StealableQueue::NO_SONG_SAMPLE_DATA;
-
-		if (sample->rawDataFormat != RawDataFormat::NATIVE) {
-			q = static_cast<StealableQueue>(util::to_underlying(q) + 1); // next queue
-		}
-	}
-
-	return q;
-}
-
-void Cluster::steal(char const* errorCode) {
-
-	// Ok, we're now gonna decide what to do according to the actual "type" field for this Cluster.
+// The resource-manager Asset that owns this cluster's residency for the *leased* (reason-tracked)
+// kinds — SAMPLE (the sample's asset) and PERC_CACHE_* (the sample's per-direction perc asset).
+// SAMPLE_CACHE clusters are unleased (never reasoned), so they return NO_ASSET here and are managed
+// via their cache's own Asset instead.
+uint32_t Cluster::resourceLeaseAssetId() const {
 	switch (type) {
-
 	case Type::SAMPLE:
-		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
-			FREEZE_WITH_ERROR("E181");
-		}
-		sample->clusters[clusterIndex].cluster = nullptr;
-		break;
-
-	case Type::SAMPLE_CACHE:
-		if (ALPHA_OR_BETA_VERSION && sampleCache == nullptr) {
-			FREEZE_WITH_ERROR("E183");
-		}
-		sampleCache->clusterStolen(clusterIndex);
-
-		// If first Cluster, delete whole cache. Wait, no, something might still be pointing to the cache...
-		/*
-		if (!clusterIndex) {
-		    sampleCache->sample->deleteCache(sampleCache);
-		}
-		*/
-		break;
-
+		return (sample != nullptr) ? sample->resourceAssetId : DELUGE_RESOURCE_NO_ASSET;
 	case Type::PERC_CACHE_FORWARDS:
+		return (sample != nullptr) ? sample->percCacheAssetId[0] : DELUGE_RESOURCE_NO_ASSET;
 	case Type::PERC_CACHE_REVERSED:
-		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
-			FREEZE_WITH_ERROR("E184");
-		}
-		sample->percCacheClusterStolen(this);
-		break;
-
-	default: // Otherwise, nothing needs to happen
-		break;
+		return (sample != nullptr) ? sample->percCacheAssetId[1] : DELUGE_RESOURCE_NO_ASSET;
+	default:
+		return DELUGE_RESOURCE_NO_ASSET; // SAMPLE_CACHE is unleased
 	}
-}
-
-bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
-	if (numReasonsToBeLoaded) {
-		return false;
-	}
-
-	if (!thingNotToStealFrom) {
-		return true;
-	}
-
-	switch (type) {
-	case Type::SAMPLE_CACHE:
-		return (sampleCache != thingNotToStealFrom);
-
-	case Type::PERC_CACHE_FORWARDS:
-	case Type::PERC_CACHE_REVERSED:
-		return (sample != thingNotToStealFrom);
-
-	// explicit fallthrough cases
-	case Type::SAMPLE:
-	case Type::EMPTY:
-	case Type::GENERAL_MEMORY:
-	case Type::OTHER:;
-	}
-	return true;
 }
 
 void Cluster::addReason() {
-	// If it's going to cease to be zero, it's become unavailable,
-	// so remove it from the stealables queue
-	if (this->numReasonsToBeLoaded == 0) {
-		this->remove();
+	// Manager-owned leased clusters (SAMPLE / PERC) are pinned by a resource-manager lease (they're
+	// never on a stealable queue). Take a lease so the manager won't evict a cluster the caller still
+	// holds. The lease count lives in the manager's chunk slot (read via leaseCount()).
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr != nullptr) {
+		deluge_resource_add_lease(mgr, this); // hit-only lease bump on this resident chunk
 	}
+}
 
-	this->numReasonsToBeLoaded++;
+uint32_t Cluster::leaseCount() const {
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	return (mgr != nullptr) ? deluge_resource_lease_count_by_slot(mgr, resourceSlot) : 0;
 }

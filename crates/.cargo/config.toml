@@ -1,0 +1,14 @@
+# Convenience alias for the bare-metal device build (RZ/A1L, Cortex-A9). Uses an
+# alias rather than a global [unstable] build-std so host builds (cargo test, the
+# i686 conformance staticlib) are unaffected. Requires a nightly toolchain.
+#
+#   cargo build-device          # debug
+#   cargo build-device --release
+[alias]
+build-device = "build -p deluge_rust --target armv7a-none-eabihf -Z build-std=core -Z build-std-features=compiler-builtins-mem"
+
+# Match the firmware's codegen/ABI (scripts/cmake/CMakeToolchainDeluge.cmake:
+# -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard) so the staticlib links cleanly
+# into deluge.elf. Scoped to the device target — host (i686/x86_64) is unaffected.
+[target.armv7a-none-eabihf]
+rustflags = ["-C", "target-cpu=cortex-a9", "-C", "target-feature=+neon"]

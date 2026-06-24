@@ -1,0 +1,22 @@
+# deluge_rust — the umbrella staticlib for the Deluge Rust core. It links into the
+# firmware / sim / tests and re-exports the C ABIs of the member libraries:
+#   - deluge_alloc    : TLSF + slab allocator (libdeluge/alloc.h)
+#   - deluge_resource : cached-asset / resource manager (deluge_resource.h)
+# It owns the single `#[panic_handler]` for the whole no_std dependency graph, so
+# the member crates stay plain rlibs and compose without duplicate-symbol clashes.
+[package]
+name = "deluge_rust"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+name = "deluge_rust"
+# staticlib: the artifact linked into the C++ firmware / sim / conformance tests.
+# rlib: lets the umbrella participate in cargo test if ever needed.
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+deluge_alloc = { path = "../deluge_alloc" }
+deluge_resource = { path = "../deluge_resource" }

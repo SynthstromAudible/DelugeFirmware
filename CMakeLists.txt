@@ -203,6 +203,46 @@ target_link_libraries(deluge PUBLIC
         deluge_midi       # MIDI protocol library (message + USB-MIDI event spec)
 )
 
+# --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource) -
+# Build the umbrella as an armv7a no_std staticlib and link it into the device
+# image. Only for the cross build; the host-sim and unit tests link their own
+# (i686/x86_64) variant of the same workspace. cpu/fpu/float-abi are matched in
+# crates/.cargo/config.toml; build-std uses the nightly + rust-src pinned by
+# crates/rust-toolchain.toml. The umbrella owns the single panic handler and
+# re-exports the deluge_alloc + deluge_resource C ABIs.
+if (CMAKE_CROSSCOMPILING)
+    set(DELUGE_RUST_WS ${CMAKE_CURRENT_SOURCE_DIR}/crates)
+    set(DELUGE_RUST_TARGET armv7a-none-eabihf)
+    set(DELUGE_RUST_CARGO_LIB
+        ${DELUGE_RUST_WS}/target/${DELUGE_RUST_TARGET}/release/libdeluge_rust.a)
+    # Stage the staticlib into a per-config path so Ninja Multi-Config doesn't emit
+    # colliding rules for one shared output. The release build is config-independent;
+    # cargo no-ops after the first config.
+    set(DELUGE_RUST_STAGED ${CMAKE_BINARY_DIR}/$<CONFIG>/libdeluge_rust.a)
+    file(GLOB_RECURSE DELUGE_RUST_SOURCES
+        ${DELUGE_RUST_WS}/deluge_alloc/src/*.rs
+        ${DELUGE_RUST_WS}/deluge_resource/src/*.rs
+        ${DELUGE_RUST_WS}/deluge_rust/src/*.rs)
+    add_custom_command(
+        OUTPUT ${DELUGE_RUST_STAGED}
+        COMMAND cargo build -p deluge_rust --release --target ${DELUGE_RUST_TARGET}
+                -Z build-std=core -Z build-std-features=compiler-builtins-mem
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${DELUGE_RUST_CARGO_LIB} ${DELUGE_RUST_STAGED}
+        WORKING_DIRECTORY ${DELUGE_RUST_WS}
+        DEPENDS
+            ${DELUGE_RUST_SOURCES}
+            ${DELUGE_RUST_WS}/Cargo.toml
+            ${DELUGE_RUST_WS}/deluge_alloc/Cargo.toml
+            ${DELUGE_RUST_WS}/deluge_resource/Cargo.toml
+            ${DELUGE_RUST_WS}/deluge_rust/Cargo.toml
+        COMMENT "Building Rust deluge_rust staticlib (${DELUGE_RUST_TARGET})"
+        VERBATIM
+    )
+    add_custom_target(deluge_rust_rs DEPENDS ${DELUGE_RUST_STAGED})
+    add_dependencies(deluge deluge_rust_rs)
+    target_link_libraries(deluge PUBLIC ${DELUGE_RUST_STAGED})
+endif ()
+
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
 
 # Project-only compile options (warnings, etc.)

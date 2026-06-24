@@ -18,18 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "memory/memory_region.h"
+#include "memory/heaps.h" // deluge::memory heaps (+ opaque DelugeHeap)
 
-#define MEMORY_REGION_STEALABLE 0
-#define MEMORY_REGION_INTERNAL 1
-#define MEMORY_REGION_EXTERNAL 2
-#define MEMORY_REGION_EXTERNAL_SMALL 3
-#define MEMORY_REGION_INTERNAL_SMALL 4
-#define NUM_MEMORY_REGIONS 5
-constexpr uint32_t RESERVED_EXTERNAL_ALLOCATOR = 0x00200000;       // 2 MiB
-constexpr uint32_t RESERVED_EXTERNAL_SMALL_ALLOCATOR = 0x00020000; // 200k
-constexpr uint32_t RESERVED_INTERNAL_SMALL = 0x00010000;           // 200k
-class Stealable;
+struct DelugeSlab;     // libdeluge/alloc.h — opaque here; full C ABI included in the .cpp
+struct DelugeResource; // deluge_resource.h — the resource manager handle (opaque here)
 
 /*
  * ======================= MEMORY ALLOCATION ========================
@@ -44,62 +36,47 @@ class Stealable;
  * preventing potentially thousands of small objects which need to be accessed all the time
  * from being placed in that fast internal RAM.
  *
- * Various objects or pieces of data remain loaded (cached) in RAM even when they are no longer necessarily needed.
- * The main example of this is audio data in Clusters, discussed above. The base class for all such
- * objects is Stealable, and as the name suggests, their memory may usually be “stolen” when needed.
- *
- * Most Stealables store a “numReasonsToBeLoaded”, which counts how many “things” are requiring
- * that object to be retained in RAM. E.g. a Cluster of audio data would have a “reason” to
- * remain loaded in RAM if it is currently being played back. If that numReasons goes down to 0,
- * then that Stealable object is usually free to have its memory stolen.
- *
- * Stealables which in fact are eligible to be stolen at a given moment are stored in a queue which
- * prioritises stealing of the audio data which is less likely to be needed, e.g. if it belongs to a
- * Song that’s no longer loaded. But, to avoid overcomplication, this queue is not adhered to in the
- * case where a neighbouring region of memory is chosen for allocation (or itself being stolen) when
- * the allocation requires that the object in question have its memory stolen too in order to make
- * up a large enough allocation.
+ * Various objects or pieces of data remain loaded (cached) in RAM even when they are no longer
+ * strictly needed (the main example being audio Clusters). Eviction of these is owned entirely by
+ * the Rust resource manager (deluge_resource.h), layered on the TLSF heap + cluster slab: it is the
+ * SDRAM heap's sole reclaim hook. The GMA is now just thin forwarding to deluge::memory (heaps.h)
+ * plus lazy creation of the cluster slab + resource manager.
  */
 
 class GeneralMemoryAllocator {
 public:
 	GeneralMemoryAllocator();
-	[[gnu::always_inline]] void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
-		return alloc(requiredSize, true, false, thingNotToStealFrom);
-	}
 
-	[[gnu::always_inline]] void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
-		return alloc(requiredSize, false, false, thingNotToStealFrom);
-	}
-
-	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
-		return alloc(requiredSize, false, true, thingNotToStealFrom);
-	}
-
-	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom);
+	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam = true);
 	void dealloc(void* address);
 	void* allocExternal(uint32_t requiredSize);
 	void* allocInternal(uint32_t requiredSize);
-	void deallocExternal(void* address);
-	uint32_t shortenRight(void* address, uint32_t newSize);
-	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
-	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
-	            uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom = nullptr);
-	uint32_t extendRightAsMuchAsEasilyPossible(void* address);
 	void test();
-	uint32_t getAllocatedSize(void* address);
-	void checkStack(char const* caller);
 	void testShorten(int32_t i);
-	int32_t getRegion(void* address);
 	void testMemoryDeallocated(void* address);
 
-	void putStealableInQueue(Stealable* stealable, StealableQueue q);
-	void putStealableInAppropriateQueue(Stealable* stealable);
-
-	MemoryRegion regions[NUM_MEMORY_REGIONS];
-	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)
-	CacheManager cacheManager;
 	bool lock;
+
+	// Backing-only slab for the uniform Cluster blocks (slab-izing isolates the high-churn cluster
+	// traffic from mixed general SDRAM allocs so it can't fragment the unified pool). The resource
+	// manager allocates its slots and drives eviction (the slab registers no reclaim hook of its
+	// own). Created lazily alongside the manager when Cluster::size is finalized to the session
+	// maximum (the firmware never raises cluster size after boot). nullptr until then.
+	DelugeSlab* clusterSlab_{nullptr};
+
+	// The Rust resource manager: the sole SDRAM reclaim coordinator. Owns cluster residency (SAMPLE
+	// / cache / perc) + adopted AudioFile objects + wavetable bands, value-scoring eviction. Created
+	// lazily with the cluster slab (hooked as the heap's reclaim callback). nullptr until then.
+	DelugeResource* resourceManager_{nullptr};
+
+	// The resource manager that owns SDRAM eviction (creating the cluster slab + manager on first
+	// use). A Sample / SampleCache defines its Asset against this; the manager allocates slab slots
+	// and drives eviction. Returns nullptr only if the slab/manager couldn't be created (OOM).
+	DelugeResource* resourceManager();
+
+	// Free an SDRAM block: if it's a cluster slot, release it through the slab
+	// (clearing the table entry too); otherwise free it from the heap directly.
+	void freeSdram(void* address);
 
 	static GeneralMemoryAllocator& get() {
 		static GeneralMemoryAllocator generalMemoryAllocator;
@@ -108,6 +85,10 @@ public:
 
 private:
 	void checkEverythingOk(char const* errorString);
+	// Lazily stand up the cluster slab + resource manager (idempotent). Both share the
+	// uniform Cluster slot size, finalized to the session maximum by boot. Returns true
+	// if the slab exists afterwards.
+	bool ensureClusterSystem();
 };
 
 extern "C" {

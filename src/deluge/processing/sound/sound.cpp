@@ -4872,7 +4872,12 @@ void Sound::killAllVoices() {
 }
 
 const Sound::ActiveVoice& Sound::getLowestPriorityVoice() const {
-	return *std::ranges::max_element(voices_);
+	// Compare by Voice priority (Voice::operator<=> on getPriorityRating()), NOT by the unique_ptr's
+	// pointer value. `voices_` holds ActiveVoice == std::unique_ptr<Voice>, whose default ordering is by
+	// address — so a bare max_element(voices_) selects the highest-addressed voice, which is both
+	// semantically wrong (culls an arbitrary voice, not the lowest-priority one) and heap-layout-dependent
+	// (it made the offline golden render depend on allocation addresses — see docs/dev/overread_hunt.md).
+	return *std::ranges::max_element(voices_, [](const auto& a, const auto& b) { return *a < *b; });
 }
 
 const Sound::ActiveVoice& Sound::stealOneActiveVoice() {

@@ -662,7 +662,7 @@ getOut:
 				goto getOut;
 			}
 
-			void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
+			void* drumMemory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 			if (!drumMemory) {
 ramError:
 				error = Error::INSUFFICIENT_RAM;

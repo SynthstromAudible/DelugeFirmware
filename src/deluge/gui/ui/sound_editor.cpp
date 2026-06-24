@@ -1438,8 +1438,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 			// Read available internal memory
 			if (x == 15) {
-				auto& region = GeneralMemoryAllocator::get().regions[MEMORY_REGION_INTERNAL];
-				intToString(region.end - region.start, buffer);
+				intToString(static_cast<int32_t>(deluge::memory::sram_size()), buffer);
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;
 			}

@@ -404,7 +404,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 				                                  ExistenceChangeType::CREATE);
 
 				if (*newOutputCreated) {
-					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceOutputExistence));
+					void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceOutputExistence));
 					if (consMemory != nullptr) {
 						auto* cons = new (consMemory) ConsequenceOutputExistence(output, ExistenceChangeType::CREATE);
 						action->addConsequence(cons);
@@ -414,8 +414,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 		}
 		else {
 			if (action != nullptr) {
-				void* consMemory =
-				    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipBeginLinearRecord));
+				void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceClipBeginLinearRecord));
 				if (consMemory != nullptr) {
 					auto* cons = new (consMemory) ConsequenceClipBeginLinearRecord(this);
 					action->addConsequence(cons);

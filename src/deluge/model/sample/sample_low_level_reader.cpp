@@ -776,8 +776,13 @@ doZeroes:
 			else {
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
-				if (ALPHA_OR_BETA_VERSION && bytesLeftWhichMayBeRead < 0) {
-					FREEZE_WITH_ERROR("E148");
+				// Overshoot guard: currentPlayPos can legitimately land just past reassessmentLocation
+				// (negative length). Without clamping, the (uint16_t) cast below wraps it into a huge
+				// value, inflating *numSamples into a window far larger than the output buffer → overrun.
+				// Treat an overshoot as "no bytes left this window" so we shorten to a 1-sample window and
+				// reassess on the next pass.
+				if (bytesLeftWhichMayBeRead < 0) {
+					bytesLeftWhichMayBeRead = 0;
 				}
 
 				int32_t bytesWeWantToRead = samplesWeWantToReadThisWindow * bytesPerSample;
@@ -840,6 +845,12 @@ doZeroes:
 		// If the end is coming in this window, deal with it
 		int32_t bytesLeftWhichMayBeRead =
 		    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
+
+		// Overshoot guard (mirrors the interp path): clamp a negative length so the (uint32_t) cast
+		// below can't wrap it into a window larger than the output buffer.
+		if (bytesLeftWhichMayBeRead < 0) {
+			bytesLeftWhichMayBeRead = 0;
+		}
 
 		if (ALPHA_OR_BETA_VERSION && bytesLeftWhichMayBeRead <= 0) {
 			FREEZE_WITH_ERROR("E001");

@@ -58,7 +58,7 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 #endif
 
 Error ParamManager::setupMIDI() {
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));
+	void* memory = deluge::memory::alloc_fast(sizeof(MIDIParamCollection));
 	if (!memory) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -71,7 +71,7 @@ Error ParamManager::setupMIDI() {
 }
 
 Error ParamManager::setupUnpatched() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
+	void* memoryUnpatched = deluge::memory::alloc_fast(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -83,19 +83,19 @@ Error ParamManager::setupUnpatched() {
 }
 
 Error ParamManager::setupWithPatching() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
+	void* memoryUnpatched = deluge::memory::alloc_fast(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchedParamSet));
+	void* memoryPatched = deluge::memory::alloc_fast(sizeof(PatchedParamSet));
 	if (!memoryPatched) {
 ramError2:
 		delugeDealloc(memoryUnpatched);
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatchCables = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchCableSet));
+	void* memoryPatchCables = deluge::memory::alloc_fast(sizeof(PatchCableSet));
 	if (!memoryPatchCables) {
 		delugeDealloc(memoryPatched);
 		goto ramError2;
@@ -190,7 +190,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 	while (otherSummary != otherStopAt) {
 		// To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
 		newSummary->paramCollection =
-		    (ParamCollection*)GeneralMemoryAllocator::get().allocMaxSpeed(otherSummary->paramCollection->objectSize);
+		    (ParamCollection*)deluge::memory::alloc_fast(otherSummary->paramCollection->objectSize);
 
 		// If that failed, deallocate all the previous memories
 		if (!newSummary->paramCollection) {
@@ -290,7 +290,7 @@ bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	int32_t offset = getExpressionParamSetOffset();
 	if (!summaries[offset].paramCollection) {
 
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(ExpressionParamSet));
+		void* memory = deluge::memory::alloc_fast(sizeof(ExpressionParamSet));
 		if (!memory) {
 			return false;
 		}

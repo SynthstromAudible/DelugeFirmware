@@ -26,6 +26,8 @@
 #include "libdeluge/block_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
+
+#include "deluge_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_reader.h"
 #include "model/song/song.h"
@@ -84,6 +86,48 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count) {
 }
 
 AudioFileManager audioFileManager{};
+
+// === Resource-manager adopt for AudioFile objects (the unified SDRAM reclaim coordinator) =====
+// An AudioFile (Sample/WaveTable) object is adopted as an evictable block: its reasons are manager
+// leases (AudioFile::add/removeReason), and when unleased the manager may reclaim it under memory
+// pressure via audioFileEvict — erasing it from `audioFiles` and destructing it, which frees its
+// clusters (Sample → release_asset) and its wavetable bands (~WaveTable). Replaces the CacheManager
+// NO_SONG_AUDIO_FILE_OBJECTS queue. (Note: more correct than the legacy steal path, which freed the
+// object's raw memory without ~AudioFile — leaking clusters/bands.)
+namespace {
+void audioFileEvict(void* /*ctx*/, void* ptr) {
+	auto* audioFile = static_cast<AudioFile*>(ptr);
+	int32_t i = audioFileManager.audioFiles.searchForExactObject(audioFile);
+	if (i >= 0) {
+		audioFileManager.audioFiles.erase(audioFileManager.audioFiles.begin() + i);
+	}
+	audioFile->~AudioFile(); // the manager frees the object's backing right after this
+}
+} // namespace
+
+// Adopt a freshly placement-new'd AudioFile (call before its first addReason). The manager is the
+// sole SDRAM evictor, so adoption must succeed — a missing manager / exhausted chunk table is fatal
+// (no legacy fallback). On eviction the manager runs `audioFileEvict` + frees the backing.
+void AudioFileManager::adoptAudioFileObject(AudioFile* audioFile) {
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	// Cost OBJECT is modest (a re-scan), but the object is tiny — so the manager's cost-per-byte
+	// eviction keeps the descriptor resident over the fat clusters it owns. Pass its allocated size.
+	void* p = (mgr != nullptr) ? deluge_resource_adopt(mgr, audioFile, audioFile->allocatedSize(),
+	                                                   DELUGE_RESOURCE_COST_OBJECT, nullptr, audioFileEvict)
+	                           : nullptr;
+	if (p == nullptr) {
+		FREEZE_WITH_ERROR("RAF1"); // resource chunk table exhausted adopting an AudioFile object
+	}
+	// Record the slot handle so the object's reason count (leaseCount / isProjectReferenced) is O(1).
+	audioFile->resourceSlot = deluge_resource_slot_of(mgr, p);
+}
+
+// Destruct + free an AudioFile object (caller has already removed it from `audioFiles` if present).
+// Every AudioFile is manager-adopted, so the free routes through the manager (un-adopt).
+void AudioFileManager::destroyAudioFileObject(AudioFile& audioFile) {
+	audioFile.~AudioFile();
+	deluge_resource_evict_chunk(GeneralMemoryAllocator::get().resourceManager(), &audioFile);
+}
 
 AudioFileManager::AudioFileManager() {
 	highestUsedAudioRecordingNumber.fill(-1);
@@ -152,7 +196,7 @@ clusterSizeChangedButItsOk:
 			AudioFile* thisAudioFile = audioFiles[e];
 
 			// If AudioFile isn't used currently, take this opportunity to remove it from memory
-			if (!thisAudioFile->numReasonsToBeLoaded) {
+			if (!thisAudioFile->isProjectReferenced()) {
 				deleteUnusedAudioFileFromMemory(*thisAudioFile, e);
 				e--;
 			}
@@ -177,7 +221,7 @@ clusterSizeChangedButItsOk:
 			AudioFile* thisAudioFile = audioFiles[e];
 
 			// If Sample isn't used currently, take this opportunity to remove it from memory
-			if (!thisAudioFile->numReasonsToBeLoaded) {
+			if (!thisAudioFile->isProjectReferenced()) {
 				deleteUnusedAudioFileFromMemory(*thisAudioFile, e);
 				e--;
 			}
@@ -390,7 +434,7 @@ bool AudioFileManager::tryToDeleteAudioFileFromMemoryIfItExists(char const* file
 
 		// Ok, it's in memory. Can we delete it - is it unused?
 		AudioFile* audioFile = audioFiles[i];
-		if (audioFile->numReasonsToBeLoaded) {
+		if (audioFile->isProjectReferenced()) {
 			return false; // Alert - not only is it in memory, but it also can't be deleted
 		}
 
@@ -418,8 +462,7 @@ void AudioFileManager::deleteUnusedAudioFileFromMemory(AudioFile& audioFile, int
 	audioFiles.erase(audioFiles.begin() + i);
 	// audioFile->remove(); // Remove from the unused AudioFiles list, where this already must have been. Actually
 	// no, the destructor does this anyway.
-	audioFile.~AudioFile();
-	delugeDealloc(&audioFile);
+	destroyAudioFileObject(audioFile); // ~AudioFile + free, routed through the manager if adopted
 }
 
 bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
@@ -536,7 +579,7 @@ notLoadableAsWaveTable:
 				}
 			}
 
-			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(WaveTable));
+			void* waveTableMemory = deluge::memory::alloc_external(sizeof(WaveTable), 16);
 			if (!waveTableMemory) {
 				*error = Error::INSUFFICIENT_RAM;
 				return NULL;
@@ -544,14 +587,14 @@ notLoadableAsWaveTable:
 
 			WaveTable* newWaveTable = new (waveTableMemory) WaveTable;
 
-			newWaveTable->addReason(); // So it's protected while setting up.
+			adoptAudioFileObject(newWaveTable); // resource-manager evictable object (before addReason)
+			newWaveTable->addReason();          // So it's protected while setting up.
 			foundAudioFile->addReason();
 
 			*error = newWaveTable->setup((Sample*)foundAudioFile);
 			if (*error != Error::NONE) {
 waveTableCloneError:
-				newWaveTable->~WaveTable();
-				delugeDealloc(waveTableMemory);
+				destroyAudioFileObject(*newWaveTable);
 				return NULL;
 			}
 
@@ -778,7 +821,7 @@ cantLoadFile:
 
 	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
-	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealable(memorySizeNeeded);
+	void* audioFileMemory = deluge::memory::alloc_external(memorySizeNeeded, 16);
 	if (!audioFileMemory) {
 ramError:
 		*error = Error::INSUFFICIENT_RAM;
@@ -791,11 +834,11 @@ ramError:
 	AudioFile* audioFile;
 	if (type == AudioFileType::SAMPLE) {
 		audioFile = new (audioFileMemory) Sample;
+		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
 		audioFile->addReason(); // So it's protected while setting up. Must do this before calling initialize().
 		*error = ((Sample*)audioFile)->initialize(numClusters);
 		if (*error != Error::NONE) { // Very rare, only if not enough RAM
-			audioFile->~AudioFile();
-			delugeDealloc(audioFileMemory);
+			destroyAudioFileObject(*audioFile);
 			goto cantLoadFile;
 		}
 
@@ -803,7 +846,8 @@ ramError:
 	}
 	else {
 		audioFile = new (audioFileMemory) WaveTable;
-		audioFile->addReason(); // So it's protected while setting up.
+		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
+		audioFile->addReason();          // So it's protected while setting up.
 		reader = new (readerMemory) WaveTableReader;
 	}
 
@@ -881,9 +925,9 @@ ensureSafeThenCheckError:
 
 	if (*error != Error::NONE) {
 audioFileError:
-		audioFile->~AudioFile(); // Have to call this! This removes the pointers back to the Sample / SampleClusters
-		                         // from any Clusters.
-		delugeDealloc(audioFileMemory);
+		// ~AudioFile removes the pointers back to the Sample / SampleClusters from any Clusters;
+		// destroyAudioFileObject also un-adopts + frees (through the manager if adopted).
+		destroyAudioFileObject(*audioFile);
 		return NULL;
 	}
 
@@ -928,7 +972,7 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster.numReasonsToBeLoaded <= 0) {
+	if (cluster.leaseCount() == 0) {
 		// Ok, I think we know there's at least 1 reason at the point this function's called, because
 		FREEZE_WITH_ERROR("E204");
 	}
@@ -942,14 +986,39 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 	// cos then it might get deallocated.
 	cluster.addReason();
 
+	bool ok = readClusterData(cluster, minNumReasonsAfter);
+
+	clusterBeingLoaded = nullptr;
+	removeReasonFromCluster(cluster, ok ? "E034" : "E033");
+
+#if ALPHA_OR_BETA_VERSION
+	if (ok) {
+		if (static_cast<int32_t>(cluster.leaseCount()) < minNumReasonsAfter) {
+			FREEZE_WITH_ERROR("i037");
+		}
+		if (cluster.sample->clusters[cluster.clusterIndex].cluster != &cluster) {
+			FREEZE_WITH_ERROR("E438");
+		}
+	}
+#endif
+
+	return ok;
+}
+
+// The cluster data reader extracted from loadCluster (Step 1 of the resource-manager
+// integration): the pure data work — sector count, read from the card, conversion, and the
+// inter-cluster boundary fixups. No orchestration (the card-state guards, clusterBeingLoaded,
+// the loading "reason", and the loadingQueue stay in loadCluster). This is the seam the resource
+// manager will use as a materialize Source. `minNumReasonsAfter` only feeds the ALPHA sanity checks.
+bool AudioFileManager::readClusterData(Cluster& cluster, [[maybe_unused]] int32_t minNumReasonsAfter) {
+	Sample* sample = cluster.sample;
+	int32_t clusterIndex = cluster.clusterIndex;
+
+	// Failure exits jump here (kept above the local inits so the backward gotos don't cross them).
 	if (false) {
 getOutEarly:
-		clusterBeingLoaded = nullptr;
-		removeReasonFromCluster(cluster, "E033");
 		return false;
 	}
-
-	int32_t clusterIndex = cluster.clusterIndex;
 
 	int32_t numSectors = Cluster::size >> 9;
 
@@ -985,14 +1054,13 @@ getOutEarly:
 		FREEZE_WITH_ERROR("i023"); // Happened to me while thrash testing with reduced RAM
 	}
 
-	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
+	if (static_cast<int32_t>(cluster.leaseCount()) < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i039"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
 
-	DRESULT result =
-	    disk_read_without_streaming_first(deluge_block_sd_unit(), (BYTE*)cluster.data,
-	                                      sample->clusters[cluster.clusterIndex].sdAddress, numSectors);
+	DRESULT result = disk_read_without_streaming_first(deluge_block_sd_unit(), (BYTE*)cluster.data,
+	                                                   sample->clusters[cluster.clusterIndex].sdAddress, numSectors);
 
 #if REPORT_LOAD_TIME
 	uint16_t endTime = MTU2.TCNT_0;
@@ -1011,7 +1079,7 @@ getOutEarly:
 		FREEZE_WITH_ERROR("E208");
 	}
 
-	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
+	if (static_cast<int32_t>(cluster.leaseCount()) < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i038"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
@@ -1024,7 +1092,7 @@ getOutEarly:
 	cluster.convertDataIfNecessary();
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
+	if (static_cast<int32_t>(cluster.leaseCount()) < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i040"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
@@ -1211,19 +1279,15 @@ copy7ToMe:
 	}
 
 	cluster.loaded = true;
-
-	clusterBeingLoaded = NULL;
-	removeReasonFromCluster(cluster, "E034");
-
-#if ALPHA_OR_BETA_VERSION
-	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter) {
-		FREEZE_WITH_ERROR("i037");
+	// Manager-owned readiness: a chunk fetched via `request` (CLUSTER_ENQUEUE prefetch) was reserved in
+	// the Loading state; now its data is read, signal the manager so the async/RT `try_acquire` path
+	// sees it ready. `cluster.loaded` stays the C++ sync-path field; this keeps the manager in sync.
+	{
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_mark_ready(mgr, &cluster);
+		}
 	}
-	if (cluster.sample->clusters[cluster.clusterIndex].cluster != &cluster) {
-		FREEZE_WITH_ERROR("E438");
-	}
-#endif
-
 	return true;
 }
 
@@ -1308,13 +1372,21 @@ performActionsAndGetOut:
 			playbackHandler.slowRoutine();
 		}
 
-		// pop clusters until we get one that has reasonsToBeLoaded
-		// this prevents loading clusters that have been quickly culled after they were enqueued
-		Cluster* cluster = loadingQueue.getNext();
+		// Pop the most-urgent queued + still-leased cluster's backing (the manager skips/de-queues
+		// abandoned-unleased ones). This prevents loading clusters quickly culled after enqueue.
+		void* p = deluge_resource_loader_next(GeneralMemoryAllocator::get().resourceManager());
 
 		// no more clusters to load, so exit
-		if (cluster == nullptr) {
+		if (p == nullptr) {
 			return;
+		}
+		Cluster* cluster = reinterpret_cast<Cluster*>(p);
+
+		// The unloadable domain-filter stays here (the manager doesn't know it). markAsUnloadable
+		// already de-queues, so this is the safety net — loader_next has cleared its queued flag, so
+		// skipping won't loop.
+		if (cluster->unloadable) {
+			continue;
 		}
 
 		// cluster has at least 1 "reason". If it didn't, it would have been removed from the load-queue
@@ -1325,7 +1397,19 @@ performActionsAndGetOut:
 		}
 
 		allowSomeUserActionsEvenWhenInCardRoutine = true; // Sorry!!
-		bool success = loadCluster(*cluster);
+		bool success;
+		if (cluster->type == Cluster::Type::SAMPLE && cluster->sample != nullptr
+		    && cluster->sample->resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
+			// Manager-owned cluster: it's already constructed + leased (via request), so just do the
+			// read directly. NOT loadCluster — its addReason/removeReason would desync the manager
+			// lease, and its `audioRoutineLocked` guard would refuse to load during the offline render
+			// (the headless-render streaming starvation we're fixing). The lease persists; the read
+			// just flips loaded=true (or fails, handled below as for legacy).
+			success = readClusterData(*cluster, 0);
+		}
+		else {
+			success = loadCluster(*cluster);
+		}
 		allowSomeUserActionsEvenWhenInCardRoutine = false;
 
 		// If that didn't work, presumably because the SD card got ejected...
@@ -1334,7 +1418,7 @@ performActionsAndGetOut:
 
 			// If the Cluster is now down to 0 reasons (i.e. it lost a reason while being loaded), then it's already
 			// been made "available" and we don't have a problem
-			if (!cluster->numReasonsToBeLoaded) {}
+			if (!cluster->leaseCount()) {}
 
 			// Otherwise, there are still "reasons" waiting for this Cluster to become loaded, so we need to put it
 			// back in the loading queue. Presumably it won't actually get loaded for a while - only when the user
@@ -1346,7 +1430,8 @@ performActionsAndGetOut:
 				}
 
 				// TODO: If that fails, it'll just get awkwardly forgotten about
-				loadingQueue.enqueueCluster(*cluster, 0xFFFFFFFF); // lowest priority
+				deluge_resource_loader_enqueue(GeneralMemoryAllocator::get().resourceManager(), cluster->resourceSlot,
+				                               0xFFFFFFFF); // lowest priority
 
 				// Also, return now. Normally we stay here til there's nothing left in the load-queue, but now that
 				// would leave us in an infinite loop!
@@ -1365,55 +1450,24 @@ performActionsAndGetOut:
 #endif
 }
 
-void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong) {
-	cluster.numReasonsToBeLoaded--;
-
-	if (&cluster == clusterBeingLoaded && cluster.numReasonsToBeLoaded < minNumReasonsForClusterBeingLoaded) {
-		FREEZE_WITH_ERROR("E041"); // Sven got this!
+void AudioFileManager::removeReasonFromCluster(Cluster& cluster, [[maybe_unused]] char const* errorCode,
+                                               bool deletingSong) {
+	(void)deletingSong;
+	// Every cluster is a manager-owned chunk — SAMPLE / PERC leased via the owner's Asset, SAMPLE_CACHE
+	// resident via the cache's Asset (and leased by the low-level reader while it streams it). A removed
+	// reason is just a manager lease drop: the cluster stays resident (cached, evictable under pressure),
+	// never enqueued/destroyed here. The lease count lives in the manager's chunk slot (leaseCount()).
+	if (ALPHA_OR_BETA_VERSION && cluster.leaseCount() == 0) {
+		FREEZE_WITH_ERROR(errorCode); // removing a reason that was never there
 	}
-
-	// If it's now zero, it's become available
-	if (cluster.numReasonsToBeLoaded == 0) {
-
-		// Bug hunting
-		if (ALPHA_OR_BETA_VERSION && cluster.numReasonsHeldBySampleRecorder) {
-			FREEZE_WITH_ERROR("E364");
-		}
-
-		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being
-		// loaded right now because that would have added a "reason", so we wouldn't be here.) also do this on song
-		// swap
-		if (loadingQueue.erase(&cluster) || deletingSong) {
-
-			// Tell its Cluster to forget it exists
-			cluster.sample->clusters[cluster.clusterIndex].cluster = NULL;
-
-			delete &cluster; // It contains nothing, so completely recycle it
-		}
-
-		else {
-			// It contains data we may want at some future point, so file it away
-			GeneralMemoryAllocator::get().putStealableInAppropriateQueue(&cluster);
-		}
-
-		//*cluster->getAnyReasonsPointer() = ANY_REASONS_NO;
-	}
-
-	else if (cluster.numReasonsToBeLoaded < 0) {
-#if ALPHA_OR_BETA_VERSION
-		if (cluster.sample != nullptr) { // "Should" always be true...
-			D_PRINTLN("reason remains on cluster of sample:  %d", cluster.sample->filePath.c_str());
-		}
-		FREEZE_WITH_ERROR(errorCode);
-#else
-		display->displayPopup(errorCode);  // For non testers, just display the error code without freezing
-		cluster->numReasonsToBeLoaded = 0; // Save it from crashing or anything
-#endif
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr != nullptr) {
+		deluge_resource_release(mgr, &cluster); // unlease (backing ptr == the Cluster slot)
 	}
 }
 
 bool AudioFileManager::loadingQueueHasAnyLowestPriorityElements() {
-	return loadingQueue.hasAnyLowestPriority();
+	return deluge_resource_loader_has_lowest(GeneralMemoryAllocator::get().resourceManager());
 }
 
 // Caller must also set alternateAudioFileLoadPath.

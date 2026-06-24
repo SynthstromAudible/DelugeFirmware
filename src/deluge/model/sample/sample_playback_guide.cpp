@@ -17,6 +17,7 @@
 
 #include "model/sample/sample_playback_guide.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/stack_guard.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder.h"
 #include "model/voice/voice_sample.h"
@@ -29,7 +30,7 @@ SamplePlaybackGuide::SamplePlaybackGuide() {
 
 int32_t SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte) {
 
-	GeneralMemoryAllocator::get().checkStack("SamplePlaybackGuide::getFinalClusterIndex");
+	checkStack("SamplePlaybackGuide::getFinalClusterIndex");
 
 	int32_t endPlaybackAtByteNow;
 	// If cache, go right to the end of the waveform

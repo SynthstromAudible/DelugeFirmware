@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_vector.h"
 #include "storage/cluster/cluster.h"
-#include "storage/cluster/cluster_priority_queue.h"
 #include "util/c_string.h"
 #include <array>
 #include <cstdint>
@@ -90,6 +89,10 @@ public:
 	AudioFile* getAudioFileFromFilename(std::string& fileName, bool mayReadCard, Error* error, FilePointer* filePointer,
 	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
 	bool loadCluster(Cluster& cluster, int32_t minNumReasonsAfter = 0);
+	// The pure data read extracted from loadCluster (the future resource-manager materialize Source):
+	// sector count + disk_read + conversion + inter-cluster boundary fixups, with no orchestration
+	// (card-state guards, clusterBeingLoaded, the loading reason, and the loadingQueue stay in loadCluster).
+	bool readClusterData(Cluster& cluster, [[maybe_unused]] int32_t minNumReasonsAfter);
 	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
 	void removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong = false);
 
@@ -111,13 +114,17 @@ public:
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile& audioFile);
 	bool tryToDeleteAudioFileFromMemoryIfItExists(char const* filePath);
 
+	// Resource-manager (adopt-mode) object lifecycle: register a freshly placement-new'd AudioFile
+	// as a manager-evictable block (call before its first addReason); destruct + free one (routed
+	// through the manager if adopted, else the legacy heap). Also used by SampleRecorder.
+	void adoptAudioFileObject(AudioFile* audioFile);
+	void destroyAudioFileObject(AudioFile& audioFile);
+
 	void thingBeginningLoading(ThingType newThingType);
 	void thingFinishedLoading();
 
 	void setCardRead() { cardReadOnce = true; }
 	void setCardEjected() { cardEjected = true; }
-
-	ClusterPriorityQueue loadingQueue;
 
 	Cluster* clusterBeingLoaded{};
 	int32_t minNumReasonsForClusterBeingLoaded{}; // Only valid when clusterBeingLoaded is set. And this exists for bug

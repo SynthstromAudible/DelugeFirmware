@@ -1,0 +1,22 @@
+# Workspace for the Deluge Rust core libraries. `deluge_rust` is the umbrella
+# staticlib that links into the firmware/sim/tests — it owns the single
+# `#[panic_handler]` and re-exports the C ABIs of `deluge_alloc` (TLSF + slab) and
+# `deluge_resource` (cached-asset manager). The two libraries are plain `no_std`
+# rlibs (no panic handler of their own — only the final artifact needs one), so
+# they compose cleanly into the one umbrella without duplicate-symbol collisions.
+[workspace]
+resolver = "2"
+members = ["deluge_alloc", "deluge_resource", "deluge_rust"]
+# cargo-fuzz crate has its own [profile] + is nightly/standalone — keep it out of
+# the workspace (it still path-deps deluge_alloc directly).
+exclude = ["deluge_alloc/fuzz"]
+
+# Profiles must live at the workspace root (cargo ignores [profile] in members).
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+# panic=abort: no unwinding in the no_std staticlib (links into the C++ firmware /
+# conformance binary, which provides libc abort). The release lib is what gets
+# linked; `cargo test` uses the default (unwinding) profile so the harness works.
+panic = "abort"

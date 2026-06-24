@@ -23,6 +23,7 @@
 #include <algorithm>
 #if !IN_UNIT_TESTS
 #include "memory/general_memory_allocator.h"
+#include "memory/stack_guard.h"
 #endif
 
 TaskManager taskManager;
@@ -278,7 +279,7 @@ bool TaskManager::yield(RunCondition until, Time timeout, bool returnOnIdle) {
 		startClock();
 	}
 #if !IN_UNIT_TESTS
-	GeneralMemoryAllocator::get().checkStack("ensure resizeable space");
+	checkStack("ensure resizeable space");
 #endif
 	Task* yielding_task = &list[currentID];
 	yielding_task->yielded = true;

@@ -25,6 +25,8 @@
 #include "storage/audio/audio_file_reader.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/misc.h"
+
+#include "deluge_resource.h" // resource manager: adopted AudioFile objects route reasons to leases
 #include <cstring>
 
 #include <algorithm>
@@ -482,61 +484,36 @@ finishedWhileLoop:
 }
 
 void AudioFile::addReason() {
-	// If it was zero before, it's no longer unused
-	if (!numReasonsToBeLoaded) {
-		remove();
+	// Adopted object: each reason is a hard lease (reason 0 ⇒ unleased ⇒ evictable). The lease count
+	// lives in the manager's chunk slot (read via leaseCount()). The 0→1 transition makes the object
+	// project-relevant (numReasonsIncreasedFromZero → soft-reference its assets, for a Sample).
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr != nullptr) {
+		deluge_resource_add_lease(mgr, this);
+	}
+	if (leaseCount() == 1) {
 		numReasonsIncreasedFromZero();
 	}
-
-	numReasonsToBeLoaded++;
 }
 
 void AudioFile::removeReason(char const* errorCode) {
-
-	numReasonsToBeLoaded--;
-
-	// If it's now zero, it's become unused
-	if (numReasonsToBeLoaded == 0) {
+	// Adopted object: drop the lease. At reason 0 it's unleased ⇒ evictable under pressure (the
+	// manager value-scores it). The 1→0 transition drops project-relevance. release saturates at 0,
+	// so there is no underflow to guard.
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr != nullptr) {
+		deluge_resource_release(mgr, this);
+	}
+	if (leaseCount() == 0) {
 		numReasonsDecreasedToZero(errorCode);
-		GeneralMemoryAllocator::get().putStealableInQueue(this, StealableQueue::NO_SONG_AUDIO_FILE_OBJECTS);
-	}
-
-	else if (numReasonsToBeLoaded < 0) {
-#if ALPHA_OR_BETA_VERSION
-		FREEZE_WITH_ERROR("E004"); // Luc got this! And Paolo. (Must have been years ago :D)
-#endif
-		numReasonsToBeLoaded = 0; // Save it from crashing
 	}
 }
 
-bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
-
-	if (numReasonsToBeLoaded) {
-		return false;
-	}
-
-	// Being stolen erases an entry from audioFileManager.audioFiles. That used to be forbidden while inserting
-	// into that same vector, but it now lives on the external (non-stealable) region, so its growth can never
-	// trigger stealing.
-	return true;
-	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as
-	// we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
+uint32_t AudioFile::leaseCount() const {
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	return (mgr != nullptr) ? deluge_resource_lease_count_by_slot(mgr, resourceSlot) : 0;
 }
 
-void AudioFile::steal(char const* errorCode) {
-	// The destructor is about to be called too, so we don't have to do too much.
-
-	int32_t i = audioFileManager.audioFiles.searchForExactObject(this);
-	if (i < 0) {
-#if ALPHA_OR_BETA_VERSION
-		display->displayPopup(errorCode); // Jensg still getting.
-#endif
-	}
-	else {
-		audioFileManager.audioFiles.erase(audioFileManager.audioFiles.begin() + i);
-	}
-}
-
-StealableQueue AudioFile::getAppropriateQueue() {
-	return StealableQueue::NO_SONG_AUDIO_FILE_OBJECTS;
+bool AudioFile::isProjectReferenced() const {
+	return leaseCount() > 0;
 }

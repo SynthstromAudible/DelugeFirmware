@@ -1224,7 +1224,7 @@ removeReasonsFromSamplesAndGetOut:
 				if (thisSample->partOfFolderBeingLoaded) {
 					thisSample->partOfFolderBeingLoaded = false;
 #if ALPHA_OR_BETA_VERSION
-					if (thisSample->numReasonsToBeLoaded <= 0) {
+					if (!thisSample->isProjectReferenced()) {
 						FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
 					}
 #endif
@@ -1332,7 +1332,7 @@ removeReasonsFromSamplesAndGetOut:
 	// If all samples were tagged with the same MIDI note, we get suspicious and delete them.
 	bool discardingMIDINoteFromFile = (numSamples > 1 && commonMIDINote >= 0);
 
-	Sample** sortArea = (Sample**)GeneralMemoryAllocator::get().allocMaxSpeed(numSamples * sizeof(Sample*) * 2);
+	Sample** sortArea = (Sample**)deluge::memory::alloc_fast(numSamples * sizeof(Sample*) * 2);
 	if (!sortArea) {
 		error = Error::INSUFFICIENT_RAM;
 		goto removeReasonsFromSamplesAndGetOut;
@@ -1654,7 +1654,7 @@ doReturnFalse:
 			for (int32_t s = 0; s < numSamples; s++) {
 				Sample* thisSample = sortArea[s];
 #if ALPHA_OR_BETA_VERSION
-				if (thisSample->numReasonsToBeLoaded <= 0) {
+				if (!thisSample->isProjectReferenced()) {
 					FREEZE_WITH_ERROR("E215"); // I put this here to try and catch an E004 Luc got
 				}
 #endif
@@ -1796,7 +1796,7 @@ skipOctaveCorrection:
 			numWithResultingLoopEndPoints++;
 		}
 
-		if (ALPHA_OR_BETA_VERSION && thisSample->numReasonsToBeLoaded <= 0) {
+		if (ALPHA_OR_BETA_VERSION && !thisSample->isProjectReferenced()) {
 			FREEZE_WITH_ERROR("E216"); // I put this here to try and catch an E004 Luc got
 		}
 		thisSample->removeReason("E394"); // Remove that temporary reason we added above
@@ -1930,7 +1930,7 @@ getOut:
 					goto getOut;
 				}
 
-				void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
+				void* drumMemory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 				if (!drumMemory) {
 					goto getOut;
 				}
@@ -1987,7 +1987,7 @@ skipNameStuff:
 			    (thisSample->getLengthInMSec() < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 
 #if ALPHA_OR_BETA_VERSION
-			if (thisSample->numReasonsToBeLoaded <= 0) {
+			if (!thisSample->isProjectReferenced()) {
 				FREEZE_WITH_ERROR("E217"); // I put this here to try and catch an E004 Luc got
 			}
 #endif

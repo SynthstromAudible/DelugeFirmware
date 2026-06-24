@@ -42,8 +42,10 @@
 #include "model/song/song.h"
 #include "processing/stem_export/stem_export.h"
 
-#include "OSLikeStuff/scheduler_api.h" // TaskHandle
+#include "OSLikeStuff/scheduler_api.h"       // TaskHandle
+#include "memory/general_memory_allocator.h" // resource manager handle (stats dump)
 
+#include "deluge_resource.h"  // deluge_resource_stats (optional render-stats dump)
 #include "fatfs/ff.h"         // f_opendir/f_readdir/f_open/f_read (copy-out)
 #include "libdeluge/system.h" // deluge_platform_init
 
@@ -218,6 +220,28 @@ void deluge_render_driver(void) {
 	}
 	stemExport.startStemExportProcess(mode); // runs the whole export synchronously
 
+	// Optional: dump the resource-manager counters for this render (cache/eviction analysis,
+	// e.g. comparing eviction policies). Gated by an env var so the default render is unchanged.
+	if (std::getenv("DELUGE_RESOURCE_STATS") != nullptr) {
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			DelugeResourceStats st{};
+			deluge_resource_stats(mgr, &st);
+			using ull = unsigned long long;
+			fprintf(stderr,
+			        "[resource-stats] acquires=%llu hits=%llu (%.1f%%) requests=%llu materializes=%llu "
+			        "evictions=%llu allocfail=%llu adopts=%llu\n",
+			        (ull)st.acquires, (ull)st.acquire_hits,
+			        st.acquires ? 100.0 * (double)st.acquire_hits / (double)st.acquires : 0.0, (ull)st.requests,
+			        (ull)st.materializes, (ull)st.evictions, (ull)st.alloc_failures, (ull)st.adopts);
+			fprintf(stderr, "[resource-stats] evictions_by_cost:");
+			for (int i = 0; i < DELUGE_RESOURCE_COST_BUCKETS; i++) {
+				fprintf(stderr, " [%d]=%llu", i, (ull)st.evictions_by_cost[i]);
+			}
+			fprintf(stderr, "\n");
+		}
+	}
+
 	const char* folder = stemExport.lastFolderNameForStemExport.c_str();
 	fprintf(stderr, "[render] export complete; stems at image:/%s\n", (folder && folder[0]) ? folder : "(none)");
 	if (out_dir != nullptr && out_dir[0] != '\0' && folder != nullptr && folder[0] != '\0') {
@@ -254,8 +278,18 @@ bool pack_image(const char* project, char* out_path, size_t out_size) {
 	close(fd);
 	snprintf(out_path, out_size, "%s", tmpl);
 
-	// Generous size: 2x the tree + 64MB headroom (FAT32 wants >= ~33MB), rounded to 512.
+	// Size the (sparse) image so it formats as a *valid* FAT32 with 32 KB clusters — the
+	// geometry the Deluge firmware expects (see the mformat call below). FAT32 requires
+	// >= 65525 clusters, so at 32 KB/cluster the volume must be >= ~2.1 GB; a smaller image
+	// with -c 64 produces a sub-FAT32 volume that the firmware's FatFS refuses to mount
+	// (initSD() fails → the render driver's isCardReady never becomes true → it hangs before
+	// loading). Real Deluge cards are >= 2 GB FAT32/32 KB. The file is sparse (truncate), so
+	// the large size costs almost nothing on disk — only the written samples occupy blocks.
 	long long bytes = dir_size_bytes(project) * 2 + (64LL << 20);
+	long long min_bytes = 2560LL << 20; // 2.5 GB → ~80k 32 KB clusters (comfortably valid FAT32)
+	if (bytes < min_bytes) {
+		bytes = min_bytes;
+	}
 	bytes = (bytes + 511) & ~511LL;
 
 	char cmd[2200];
@@ -264,7 +298,13 @@ bool pack_image(const char* project, char* out_path, size_t out_size) {
 		fprintf(stderr, "[render] truncate failed\n");
 		return false;
 	}
-	snprintf(cmd, sizeof cmd, "mformat -i '%s' -F ::", out_path);
+	// Format with 32 KB clusters (-c 64 = 64 × 512 B sectors), matching how a real
+	// Deluge SD card is formatted. mformat's size-based default would pick tiny 2 KB
+	// clusters here, which makes the firmware stream samples in 2 KB Clusters instead
+	// of 32 KB — 16× more Cluster objects, SD reads, and cache/eviction bookkeeping,
+	// which alone turns a sample-heavy render (e.g. Cordae) into a memory-thrashing
+	// crawl. Match the hardware geometry so streaming behaves like it does on-device.
+	snprintf(cmd, sizeof cmd, "mformat -i '%s' -F -c 64 ::", out_path);
 	if (system(cmd) != 0) {
 		fprintf(stderr, "[render] mformat failed (is mtools installed?)\n");
 		return false;

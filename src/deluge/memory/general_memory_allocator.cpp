@@ -16,12 +16,16 @@
  */
 
 #include "memory/general_memory_allocator.h"
+#include "libdeluge/alloc.h"
 #include "libdeluge/memory.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge_resource.h" // resource manager: the sole SDRAM reclaim coordinator
 #include "io/debug/log.h"
-#include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h" // setCardRead() — commit the cluster size before slab sizing
+#include "storage/cluster/cluster.h"          // sizeof(Cluster) + Cluster::size for the slab slot
+#include <cstdlib>                            // getenv/strtol for the sim-only DELUGE_SIM_HEAP_PAD knob
 #include <cstring>
 
 namespace {
@@ -41,127 +45,90 @@ namespace {
 }
 } // namespace
 
-// these are never used directly, they're just reserving raw memory for use in the allocator  and clang tidy is unhappy
-// NOLINTBEGIN
-// TODO: Check if these have the right size
-PLACE_INTERNAL_FRUNK char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
-PLACE_INTERNAL_FRUNK char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
-PLACE_INTERNAL_FRUNK char emptySpacesMemoryInternalSmall[sizeof(EmptySpaceRecord) * 256];
-PLACE_INTERNAL_FRUNK char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
-PLACE_INTERNAL_FRUNK char emptySpacesMemoryGeneralSmall[sizeof(EmptySpaceRecord) * 256];
-extern uint32_t __frunk_bss_end;
-extern uint32_t __frunk_slack_end;
-extern uint32_t __sdram_bss_start;
-extern uint32_t __sdram_bss_end;
-extern uint32_t __heap_end;
-extern uint32_t program_stack_start;
-extern uint32_t program_stack_end;
-// NOLINTEND
-GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
-	uint32_t external_small_end = deluge_memory_external_end();
-	uint32_t external_small_start = external_small_end - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
-	uint32_t external_end = external_small_start;
-	uint32_t external_start = external_small_start - RESERVED_EXTERNAL_ALLOCATOR;
-	uint32_t stealable_end = external_start;
-	// NOLINTBEGIN
-	// clang tidy hates both reinterpret and c style casts but linker output is only meaningful when taking address
-	auto stealable_start = (uint32_t)&__sdram_bss_end;
-
-	auto internal_small_start = (uint32_t)&__frunk_bss_end;
-	auto internal_small_end = (uint32_t)&__frunk_slack_end;
-	// NOLINTEND
-
-	// Internal (fast SRAM) heap bounds come from the BSP's region descriptor
-	// (libdeluge/memory.h), not raw linker symbols: the BSP knows its own layout
-	// (e.g. the Rust BSP places per-mode exception stacks between the heap and the
-	// program stack, so &program_stack_start is NOT the heap top there). The
-	// program_stack_start symbol stays reserved for checkStack()'s stack guard.
-	DelugeMemoryRegion internalRegion = {nullptr, 0, DELUGE_MEM_FAST_INTERNAL};
-	for (uint8_t i = 0, n = deluge_memory_region_count(); i < n; ++i) {
-		DelugeMemoryRegion r;
-		if (deluge_memory_region(i, &r) == DELUGE_OK && r.kind == DELUGE_MEM_FAST_INTERNAL) {
-			internalRegion = r;
-			break;
-		}
+bool GeneralMemoryAllocator::ensureClusterSystem() {
+	if (clusterSlab_ != nullptr) {
+		return true;
 	}
-	auto internal_start = (uint32_t)internalRegion.base;
-	auto internal_end = internal_start + internalRegion.size;
-	regions[MEMORY_REGION_STEALABLE].name = "stealable";
-	regions[MEMORY_REGION_INTERNAL].name = "internal";
-	regions[MEMORY_REGION_EXTERNAL].name = "external";
-	regions[MEMORY_REGION_EXTERNAL_SMALL].name = "small external";
-	regions[MEMORY_REGION_INTERNAL_SMALL].name = "small internal";
-
-	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), stealable_start, stealable_end,
-	                                       &cacheManager);
-	regions[MEMORY_REGION_EXTERNAL].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral), external_start,
-	                                      external_end, nullptr);
-	regions[MEMORY_REGION_EXTERNAL_SMALL].setup(emptySpacesMemoryGeneralSmall, sizeof(emptySpacesMemoryGeneralSmall),
-	                                            external_small_start, external_small_end, nullptr);
-	regions[MEMORY_REGION_EXTERNAL_SMALL].minAlign_ = 16;
-	regions[MEMORY_REGION_EXTERNAL_SMALL].pivot_ = 64;
-	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal), internal_start,
-	                                      internal_end, nullptr);
-
-	regions[MEMORY_REGION_INTERNAL_SMALL].setup(emptySpacesMemoryInternalSmall, sizeof(emptySpacesMemoryInternalSmall),
-	                                            internal_small_start, internal_small_end, nullptr);
-	regions[MEMORY_REGION_INTERNAL_SMALL].minAlign_ = 16;
-	regions[MEMORY_REGION_INTERNAL_SMALL].pivot_ = 64;
-}
-constexpr size_t kInternalSwitchSize = 128;
-constexpr size_t kExternalSwitchSize = 128;
-int32_t closestDistance = 2147483647;
-
-void GeneralMemoryAllocator::checkStack(char const* caller) {
-#if ALPHA_OR_BETA_VERSION
-
-	// The stack-collision guard measures headroom between the live stack pointer and
-	// `program_stack_start` — valid only where the stack sits in a known region just past
-	// the heap (the SoC's SRAM layout). A build whose BSP can't describe such a region
-	// leaves `program_stack_end == program_stack_start` (e.g. the host sim, which runs on
-	// the OS-managed native stack — an unrelated, far-away address). There the subtraction
-	// underflows to a huge bogus "distance" and would false-trigger E338; the OS guard page
-	// already protects that build, so skip.
-	if (&program_stack_start == &program_stack_end) {
-		return;
-	}
-
-	char a;
-
-	// The collision guard measures headroom against `program_stack_start`, which is
-	// valid ONLY while running on the main program stack. On the Rust/Embassy BSP the
-	// audio render also runs from the audio interrupt-executor, which executes in SYS
-	// mode on the *preempted* context's stack — e.g. the worker fiber's SDRAM stack
-	// during a song load. There `&a` lies far outside [program_stack_start,
-	// program_stack_end], so the distance is meaningless and would false-trigger E338
-	// every render (logged as a huge/negative "bytes in stack" + COLLISION, then a
-	// freezeWithError blit from interrupt context that corrupts the display). Only run
-	// the guard when the live SP is actually on the main stack.
-	uintptr_t sp = (uintptr_t)&a;
-	if (sp < (uintptr_t)&program_stack_start || sp > (uintptr_t)&program_stack_end) {
-		return;
-	}
-
-	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
-	if (distance < closestDistance) {
-		closestDistance = distance;
-
-		D_PRINTLN("%d bytes in stack %d free bytes in stack at %s", (uint32_t)&program_stack_end - (int32_t)&a,
-		          distance, caller);
-		if (distance < 200) {
-			FREEZE_WITH_ERROR("E338");
-			D_PRINTLN("COLLISION");
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	// Sim/golden only: a deliberate, leaked SDRAM pad to perturb allocation *layout*. Allocated here —
+	// before the slab, resource manager, and any cluster — so it shifts everything after it by
+	// DELUGE_SIM_HEAP_PAD bytes. The pad-sweep golden guard (scripts/golden_mixdown.sh padsweep) renders
+	// a fixture at two pad values and asserts the outputs are bit-identical, proving the render is
+	// layout-INVARIANT: no audio may depend on allocation addresses (no overread, no layout-coupled PRNG
+	// draw count — the class of bug that coupled master dither to load-phase sample count). A green
+	// golden alone does NOT prove this; the sweep does. Firmware never compiles this branch.
+	if (const char* pad = getenv("DELUGE_SIM_HEAP_PAD")) {
+		long n = strtol(pad, nullptr, 10);
+		if (n > 0) {
+			(void)deluge_alloc(deluge::memory::sdram_heap(), static_cast<size_t>(n), 16); // intentionally leaked
 		}
 	}
 #endif
+	// Lazily create on the first cluster / asset use, when Cluster::size has been finalized to the
+	// session maximum (AudioFileManager reads the card before any cluster is made, and the firmware
+	// never raises cluster size after boot — see cardReinserted). setCardRead() commits the size
+	// before we size the slab. Uniform slots of that size accommodate every cluster for the session;
+	// a smaller reinserted card simply under-fills its slots.
+	audioFileManager.setCardRead();
+	size_t slot = sizeof(Cluster) + Cluster::size;
+	size_t slabCapacity = (deluge::memory::sdram_size() / slot) + 1; // table never the limiter
+	clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, slabCapacity);
+	if (clusterSlab_ == nullptr) {
+		return false;
+	}
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	// Sim/golden only: zero each cluster slot on acquire so a read-before-write of slot
+	// memory (e.g. a SampleCache reading interpolation-overhang bytes past its write
+	// position) is a defined 0, not layout-dependent recycled content — keeps the offline
+	// render independent of heap layout. Firmware leaves it off (speed; behaviour unchanged).
+	deluge_slab_set_zero_on_acquire(clusterSlab_, true);
+#endif
+	// Stand up the resource manager alongside the slab and register it as the SDRAM heap's reclaim
+	// hook (it is the sole reclaim coordinator). It owns cluster residency + adopted objects.
+	//   asset_cap: one Asset per Sample + per SampleCache + 2 per perc cache — sized generously, as
+	//              exhaustion is fatal (no legacy fallback).
+	//   chunk_cap: every slab slot (clusters) PLUS one chunk per asset (adopted AudioFile objects),
+	//              so the chunk table is never the limiter.
+	constexpr size_t kAssetCap = 4096;
+	size_t chunkCapacity = slabCapacity + kAssetCap;
+	resourceManager_ = deluge_resource_create(deluge::memory::sdram_heap(), kAssetCap, chunkCapacity);
+	if (resourceManager_ != nullptr) {
+		deluge_resource_set_slab(resourceManager_, clusterSlab_);
+	}
+	return true;
 }
 
+DelugeResource* GeneralMemoryAllocator::resourceManager() {
+	ensureClusterSystem(); // creates the slab + manager if needed; leaves resourceManager_ set (or null on OOM)
+	return resourceManager_;
+}
+
+void GeneralMemoryAllocator::freeSdram(void* address) {
+	// A cluster pointer must be released through the slab so its table entry is cleared
+	// (a bare deluge_free would leave a dangling slot). deluge_slab_release returns false
+	// for non-slab pointers, so fall through to a direct heap free for those.
+	if (clusterSlab_ != nullptr && deluge_slab_release(clusterSlab_, address)) {
+		return;
+	}
+	deluge_free(deluge::memory::sdram_heap(), address);
+}
+
+GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
+	// Heaps (fast SRAM, unified SDRAM, small-internal frunk) are owned by deluge::memory and built
+	// from the BSP region descriptors + linker symbols. The GMA no longer registers a reclaim hook:
+	// the resource manager is the SDRAM heap's sole reclaim coordinator and registers itself when it
+	// is created (lazily, on first cluster / asset use — see ensureClusterSystem). Nothing evictable
+	// exists before then, so the heap needs no hook in the interim.
+	deluge::memory::init_heaps();
+}
 #if TEST_GENERAL_MEMORY_ALLOCATION
 uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
+constexpr size_t kInternalSwitchSize = 128; // tiny internal allocs go to the frunk heap (allocInternal)
+
 extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
-	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr);
+	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam);
 }
 extern "C" void delugeDealloc(void* address) {
 #ifdef IN_UNIT_TESTS
@@ -171,180 +138,58 @@ extern "C" void delugeDealloc(void* address) {
 #endif
 }
 void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
-
-	if (lock) {
-		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
-		                // could extend the stack an unspecified amount
-	}
-
-	lock = true;
-	void* address = nullptr;
-	if (requiredSize < kExternalSwitchSize) {
-		address = regions[MEMORY_REGION_EXTERNAL_SMALL].alloc(requiredSize, false, NULL);
-	}
-	// if it's a large object or the small object allocator was full stick it in the big one
-	if (address == nullptr) {
-		address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
-	}
-	lock = false;
-	if (!address) {
-		// FREEZE_WITH_ERROR("M998");
-		return nullptr;
-	}
-	return address;
+	// General SDRAM allocation. The heap's reclaim hook (the resource manager) frees the
+	// lowest-value evictable chunk + handles reentrancy if the pool is full.
+	return deluge_alloc(deluge::memory::sdram_heap(), requiredSize, 16);
 }
 
 void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
-
-	if (lock) {
-		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
-		                // could extend the stack an unspecified amount
-	}
-
-	lock = true;
+	// Tiny internal allocations go to the small-internal ("frunk") heap so they can't
+	// fragment / starve the main SRAM heap; larger ones (or if frunk is full/absent)
+	// fall through to the main SRAM heap.
 	void* address = nullptr;
 	if (requiredSize < kInternalSwitchSize) {
-		address = regions[MEMORY_REGION_INTERNAL_SMALL].alloc(requiredSize, false, NULL);
+		address = deluge_alloc(deluge::memory::frunk_heap(), requiredSize, 16);
 	}
-	// if it's a large object or the small object allocator was full stick it in the big one
 	if (address == nullptr) {
-		address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, false, NULL);
-	}
-	lock = false;
-	if (address == nullptr) {
-		// FREEZE_WITH_ERROR("M998");
+		address = deluge_alloc(deluge::memory::sram_heap(), requiredSize, 16);
 	}
 	return address;
 }
-void GeneralMemoryAllocator::deallocExternal(void* address) {
-	regions[getRegion(address)].dealloc(address);
-}
 
-// Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code
-// from there, thingNotToStealFrom could be interpreted as makeStealable! requiredSize 0 means get biggest allocation
-// available.
-void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
-                                    void* thingNotToStealFrom) {
+// requiredSize 0 means get biggest allocation available.
+void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam) {
 
 	if (lock) {
-		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
+		return nullptr; // Prevent any weird loops in the reclaim hook, which mostly would only be bad cos they
 		                // could extend the stack an unspecified amount
 	}
 
 	void* address = nullptr;
 
-	// Only allow allocating stealables in stelable region
-	if (!makeStealable) {
-		// If internal is allowed, try that first
-		if (mayUseOnChipRam) {
-			address = allocInternal(requiredSize);
+	// If internal is allowed, try that first
+	if (mayUseOnChipRam) {
+		address = allocInternal(requiredSize);
 
-			if (address != nullptr) {
-				return finalizeAlloc(address, requiredSize);
-			}
-
-			AudioEngine::logAction("internal allocation failed");
-		}
-
-		// Second try external region
-		address = allocExternal(requiredSize);
-
-		if (address) {
+		if (address != nullptr) {
 			return finalizeAlloc(address, requiredSize);
 		}
 
+		AudioEngine::logAction("internal allocation failed");
+	}
+
+	// Otherwise the external SDRAM pool (the resource manager evicts under pressure via the heap's
+	// reclaim hook).
+	address = allocExternal(requiredSize);
+	if (address == nullptr) {
 		AudioEngine::logAction("external allocation failed");
-
-		D_PRINTLN("Dire memory, resorting to stealable area");
 	}
-
-#if TEST_GENERAL_MEMORY_ALLOCATION
-	if (requiredSize < 1) {
-		D_PRINTLN("alloc too little a bit");
-		while (1) {}
-	}
-#endif
-
-	lock = true;
-	address = regions[MEMORY_REGION_STEALABLE].alloc(requiredSize, makeStealable, thingNotToStealFrom);
-	lock = false;
 	return finalizeAlloc(address, requiredSize);
-}
-
-uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
-	uint32_t* header = (uint32_t*)((uint32_t)address - 4);
-	return (*header & SPACE_SIZE_MASK);
-}
-
-int32_t GeneralMemoryAllocator::getRegion(void* address) {
-	uint32_t value = (uint32_t)address;
-	if (value >= regions[MEMORY_REGION_INTERNAL].start && value < regions[MEMORY_REGION_INTERNAL].end) {
-		return MEMORY_REGION_INTERNAL;
-	}
-	else if (value >= regions[MEMORY_REGION_STEALABLE].start && value < regions[MEMORY_REGION_STEALABLE].end) {
-		return MEMORY_REGION_STEALABLE;
-	}
-	else if (value >= regions[MEMORY_REGION_EXTERNAL].start && value < regions[MEMORY_REGION_EXTERNAL].end) {
-		return MEMORY_REGION_EXTERNAL;
-	}
-	else if (value >= regions[MEMORY_REGION_EXTERNAL_SMALL].start
-	         && value < regions[MEMORY_REGION_EXTERNAL_SMALL].end) {
-		return MEMORY_REGION_EXTERNAL_SMALL;
-	}
-	else if (value >= regions[MEMORY_REGION_INTERNAL_SMALL].start
-	         && value < regions[MEMORY_REGION_INTERNAL_SMALL].end) {
-		return MEMORY_REGION_INTERNAL_SMALL;
-	}
-
-	FREEZE_WITH_ERROR("E339");
-	return 0;
-}
-
-// Returns new size
-uint32_t GeneralMemoryAllocator::shortenRight(void* address, uint32_t newSize) {
-	return regions[getRegion(address)].shortenRight(address, newSize);
-}
-
-// Returns how much it was shortened by
-uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToShorten,
-                                             uint32_t numBytesToMoveRightIfSuccessful) {
-	return regions[getRegion(address)].shortenLeft(address, amountToShorten, numBytesToMoveRightIfSuccessful);
-}
-
-void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
-                                    uint32_t* __restrict__ getAmountExtendedLeft,
-                                    uint32_t* __restrict__ getAmountExtendedRight, void* thingNotToStealFrom) {
-
-	*getAmountExtendedLeft = 0;
-	*getAmountExtendedRight = 0;
-
-	if (lock) {
-		return;
-	}
-
-	lock = true;
-	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,
-	                                   getAmountExtendedRight, thingNotToStealFrom);
-	lock = false;
-}
-
-uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address) {
-	return regions[getRegion(address)].extendRightAsMuchAsEasilyPossible(address);
 }
 
 void GeneralMemoryAllocator::dealloc(void* address) {
 	if (address == nullptr) [[unlikely]] {
 		return;
 	}
-	regions[getRegion(address)].dealloc(address);
-}
-
-void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, StealableQueue q) {
-	MemoryRegion& region = regions[getRegion(stealable)];
-	region.cache_manager().QueueForReclamation(q, stealable);
-}
-
-void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {
-	StealableQueue q = stealable->getAppropriateQueue();
-	putStealableInQueue(stealable, q);
+	deluge::memory::dealloc(address);
 }
