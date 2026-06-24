@@ -36,8 +36,9 @@ public:
 	Cluster* getCluster(int32_t clusterIndex);
 	void setWriteBytePos(int32_t newWriteBytePos);
 
-	// Resource-manager Asset id for this cache's SAMPLE_CACHE clusters (DELUGE_RESOURCE_NO_ASSET
-	// if no manager / table full → legacy CacheManager path). 0xFFFFFFFF == DELUGE_RESOURCE_NO_ASSET.
+	// Resource-manager Asset id for this cache's SAMPLE_CACHE clusters. The manager is the sole
+	// SDRAM evictor, so this is always valid after construction (asset-table exhaustion is fatal).
+	// 0xFFFFFFFF == DELUGE_RESOURCE_NO_ASSET (the unset sentinel before construct / after retire).
 	uint32_t resourceAssetId{0xFFFFFFFFu};
 
 	int32_t writeBytePos;
@@ -54,7 +55,6 @@ public:
 private:
 	void unlinkClusters(int32_t startAtIndex, bool beingDestructed);
 	int32_t getNumExistentClusters(int32_t thisWriteBytePos);
-	void prioritizeNotStealingCluster(int32_t clusterIndex);
 
 	// This has to be last!!!
 	Cluster* clusters[1]{}; // These are not initialized, and are only "valid" as far as writeBytePos dictates

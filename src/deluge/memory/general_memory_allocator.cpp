@@ -20,11 +20,11 @@
 #include "libdeluge/memory.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge_resource.h" // resource manager (coexistence: raw-cluster residency)
+#include "deluge_resource.h" // resource manager: the sole SDRAM reclaim coordinator
 #include "io/debug/log.h"
-#include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
-#include "storage/cluster/cluster.h" // sizeof(Cluster) + Cluster::size for the slab slot
+#include "storage/audio/audio_file_manager.h" // setCardRead() — commit the cluster size before slab sizing
+#include "storage/cluster/cluster.h"          // sizeof(Cluster) + Cluster::size for the slab slot
 #include <cstring>
 
 namespace {
@@ -44,44 +44,19 @@ namespace {
 }
 } // namespace
 
-// Reclaim hook for the SDRAM heap: when a live allocation can't fit, evict the
-// coldest unpinned stealable (CacheManager priority policy) and return its block
-// to the heap, so deluge_alloc can retry. `ctx` is the GeneralMemoryAllocator.
-extern "C" bool gmaSdramReclaim(void* ctx, size_t bytesNeeded) {
-	(void)bytesNeeded; // free one victim at a time; the alloc retry loop drives us
-	auto* gma = static_cast<GeneralMemoryAllocator*>(ctx);
-	// Coexistence (raw-cluster migration): the resource manager owns raw sample-cluster
-	// residency; the CacheManager still owns everything else (caches, grain, wavetable).
-	// Try the manager first, then fall back to the legacy stealable queues. (Until raw
-	// clusters are routed through it, the manager is empty and try_evict returns false,
-	// so this is behaviour-identical to the CacheManager-only path.)
-	if (gma->resourceManager_ != nullptr && deluge_resource_try_evict(gma->resourceManager_)) {
-		return true;
-	}
-	void* victim = gma->cacheManager.reclaimOne(gma->currentDontStealFrom_);
-	if (victim == nullptr) {
-		return false;
-	}
-	// Clusters live in the slab (release clears their table entry too); everything
-	// else (GrainBuffer, WaveTableBandData, ...) is a plain heap block.
-	gma->freeSdram(victim);
-	return true;
-}
-
 bool GeneralMemoryAllocator::ensureClusterSystem() {
 	if (clusterSlab_ != nullptr) {
 		return true;
 	}
-	// Lazily create on the first cluster use, when Cluster::size has been finalized
-	// to the session maximum (AudioFileManager reads the card before any cluster is
-	// made, and the firmware never raises cluster size after boot — see
-	// cardReinserted). Uniform slots of that size accommodate every cluster for the
-	// session; a smaller reinserted card simply under-fills its slots. Backing-only:
-	// the slab registers no reclaim hook, so gmaSdramReclaim (already registered) stays
-	// the SDRAM heap's hook and drives eviction (manager first, then CacheManager).
+	// Lazily create on the first cluster / asset use, when Cluster::size has been finalized to the
+	// session maximum (AudioFileManager reads the card before any cluster is made, and the firmware
+	// never raises cluster size after boot — see cardReinserted). setCardRead() commits the size
+	// before we size the slab. Uniform slots of that size accommodate every cluster for the session;
+	// a smaller reinserted card simply under-fills its slots.
+	audioFileManager.setCardRead();
 	size_t slot = sizeof(Cluster) + Cluster::size;
-	size_t capacity = (deluge::memory::sdram_size() / slot) + 1; // table never the limiter
-	clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, capacity);
+	size_t slabCapacity = (deluge::memory::sdram_size() / slot) + 1; // table never the limiter
+	clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, slabCapacity);
 	if (clusterSlab_ == nullptr) {
 		return false;
 	}
@@ -92,25 +67,19 @@ bool GeneralMemoryAllocator::ensureClusterSystem() {
 	// render independent of heap layout. Firmware leaves it off (speed; behaviour unchanged).
 	deluge_slab_set_zero_on_acquire(clusterSlab_, true);
 #endif
-	// Stand up the resource manager alongside (coexistence): it shares the cluster
-	// slab and owns raw SAMPLE-cluster residency. Created *unhooked* — gmaSdramReclaim
-	// stays the heap's reclaim hook and drives both coordinators.
-	constexpr size_t kAssetCap = 512; // max distinct samples resident at once
-	resourceManager_ = deluge_resource_create_unhooked(deluge::memory::sdram_heap(), kAssetCap, capacity);
+	// Stand up the resource manager alongside the slab and register it as the SDRAM heap's reclaim
+	// hook (it is the sole reclaim coordinator). It owns cluster residency + adopted objects.
+	//   asset_cap: one Asset per Sample + per SampleCache + 2 per perc cache — sized generously, as
+	//              exhaustion is fatal (no legacy fallback).
+	//   chunk_cap: every slab slot (clusters) PLUS one chunk per asset (adopted AudioFile objects),
+	//              so the chunk table is never the limiter.
+	constexpr size_t kAssetCap = 4096;
+	size_t chunkCapacity = slabCapacity + kAssetCap;
+	resourceManager_ = deluge_resource_create(deluge::memory::sdram_heap(), kAssetCap, chunkCapacity);
 	if (resourceManager_ != nullptr) {
 		deluge_resource_set_slab(resourceManager_, clusterSlab_);
 	}
 	return true;
-}
-
-void* GeneralMemoryAllocator::acquireCluster(void* dontStealFromThing) {
-	if (!ensureClusterSystem()) {
-		return nullptr;
-	}
-	currentDontStealFrom_ = dontStealFromThing;
-	void* p = deluge_slab_acquire(clusterSlab_, nullptr); // owner unused (no on_evict)
-	currentDontStealFrom_ = nullptr;
-	return p;
 }
 
 DelugeResource* GeneralMemoryAllocator::resourceManager() {
@@ -129,13 +98,12 @@ void GeneralMemoryAllocator::freeSdram(void* address) {
 }
 
 GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
-	// Heaps (fast SRAM, unified SDRAM, small-internal frunk) are owned by
-	// deluge::memory and built from the BSP region descriptors + linker symbols.
-	// The GMA is just the stealable/reclaim coordinator now: it registers the SDRAM
-	// heap's reclaim hook, which evicts the coldest unpinned stealable (CacheManager
-	// priority policy) when a live allocation can't fit — the unified pool over TLSF.
+	// Heaps (fast SRAM, unified SDRAM, small-internal frunk) are owned by deluge::memory and built
+	// from the BSP region descriptors + linker symbols. The GMA no longer registers a reclaim hook:
+	// the resource manager is the SDRAM heap's sole reclaim coordinator and registers itself when it
+	// is created (lazily, on first cluster / asset use — see ensureClusterSystem). Nothing evictable
+	// exists before then, so the heap needs no hook in the interim.
 	deluge::memory::init_heaps();
-	deluge_heap_register_reclaim(deluge::memory::sdram_heap(), gmaSdramReclaim, this);
 }
 #if TEST_GENERAL_MEMORY_ALLOCATION
 uint32_t totalMallocTime = 0;
@@ -144,7 +112,7 @@ int32_t numMallocTimes = 0;
 constexpr size_t kInternalSwitchSize = 128; // tiny internal allocs go to the frunk heap (allocInternal)
 
 extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
-	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr);
+	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam);
 }
 extern "C" void delugeDealloc(void* address) {
 #ifdef IN_UNIT_TESTS
@@ -154,9 +122,8 @@ extern "C" void delugeDealloc(void* address) {
 #endif
 }
 void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
-	// General SDRAM allocation: any cold stealable may yield (no protection). The
-	// heap's reclaim hook (gmaSdramReclaim) handles eviction + reentrancy (depth-1).
-	currentDontStealFrom_ = nullptr;
+	// General SDRAM allocation. The heap's reclaim hook (the resource manager) frees the
+	// lowest-value evictable chunk + handles reentrancy if the pool is full.
 	return deluge_alloc(deluge::memory::sdram_heap(), requiredSize, 16);
 }
 
@@ -174,58 +141,33 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 	return address;
 }
 
-// Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code
-// from there, thingNotToStealFrom could be interpreted as makeStealable! requiredSize 0 means get biggest allocation
-// available.
-void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
-                                    void* thingNotToStealFrom) {
+// requiredSize 0 means get biggest allocation available.
+void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam) {
 
 	if (lock) {
-		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
+		return nullptr; // Prevent any weird loops in the reclaim hook, which mostly would only be bad cos they
 		                // could extend the stack an unspecified amount
 	}
 
 	void* address = nullptr;
 
-	// Only allow allocating stealables in stelable region
-	if (!makeStealable) {
-		// If internal is allowed, try that first
-		if (mayUseOnChipRam) {
-			address = allocInternal(requiredSize);
+	// If internal is allowed, try that first
+	if (mayUseOnChipRam) {
+		address = allocInternal(requiredSize);
 
-			if (address != nullptr) {
-				return finalizeAlloc(address, requiredSize);
-			}
-
-			AudioEngine::logAction("internal allocation failed");
-		}
-
-		// Second try external region
-		address = allocExternal(requiredSize);
-
-		if (address) {
+		if (address != nullptr) {
 			return finalizeAlloc(address, requiredSize);
 		}
 
+		AudioEngine::logAction("internal allocation failed");
+	}
+
+	// Otherwise the external SDRAM pool (the resource manager evicts under pressure via the heap's
+	// reclaim hook).
+	address = allocExternal(requiredSize);
+	if (address == nullptr) {
 		AudioEngine::logAction("external allocation failed");
-
-		D_PRINTLN("Dire memory, resorting to stealable area");
 	}
-
-#if TEST_GENERAL_MEMORY_ALLOCATION
-	if (requiredSize < 1) {
-		D_PRINTLN("alloc too little a bit");
-		while (1) {}
-	}
-#endif
-
-	// Stealable allocation = a normal SDRAM block; its "stealable" nature is its
-	// CacheManager queue membership (the owner queues it when reasons hit 0, as
-	// before). thingNotToStealFrom protects the in-flight cluster from the reclaim
-	// hook that may fire during this very alloc.
-	currentDontStealFrom_ = thingNotToStealFrom;
-	address = deluge_alloc(deluge::memory::sdram_heap(), requiredSize, 16);
-	currentDontStealFrom_ = nullptr;
 	return finalizeAlloc(address, requiredSize);
 }
 
@@ -234,16 +176,4 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 		return;
 	}
 	deluge::memory::dealloc(address);
-}
-
-void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, StealableQueue q) {
-	// Stealables only ever live in the stealable region, which is paired with this
-	// single CacheManager — go straight to the resource layer instead of reaching
-	// through the allocator region (the allocator no longer exposes it).
-	cacheManager.QueueForReclamation(q, stealable);
-}
-
-void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {
-	StealableQueue q = stealable->getAppropriateQueue();
-	putStealableInQueue(stealable, q);
 }

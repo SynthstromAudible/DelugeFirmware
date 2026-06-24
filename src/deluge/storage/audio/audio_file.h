@@ -18,28 +18,25 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "memory/stealable.h"
 #include "util/c_string.h"
+#include <string>
 
 class AudioFileReader;
 
-class AudioFile : public Stealable {
+// An AudioFile (Sample / WaveTable) is a resource-manager *adopted* object: the owner allocates +
+// builds it, the manager owns only its eviction (value-scored). `addReason`/`removeReason` route to
+// manager leases (add_lease/release); eviction runs `audioFileEvict` (erase from `audioFiles` +
+// destruct). See AudioFileManager::adoptAudioFileObject.
+class AudioFile {
 public:
 	AudioFile(AudioFileType newType) : type(newType) {}
-	~AudioFile() override = default;
+	virtual ~AudioFile() = default;
 
 	Error loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
 	virtual void finalizeAfterLoad(uint32_t fileSize) {}
 
 	void addReason();
 	void removeReason(char const* errorCode);
-
-	// Stealable implementation (partial)
-	// Also implemented by children (WaveTable/Sample)
-	// Stealable implementation
-	bool mayBeStolen(void* thingNotToStealFrom = NULL) final;
-	void steal(char const* errorCode) final;
-	StealableQueue getAppropriateQueue() override;
 
 	std::string filePath{};
 
@@ -49,11 +46,6 @@ public:
 	                                       // same filename (in special folder) as the original. So we need to remember
 	                                       // which format the name took.
 	int32_t numReasonsToBeLoaded{}; // This functionality should probably be merged between AudioFile and Cluster.
-
-	// True once this object has been adopted by the resource manager (the unified SDRAM reclaim
-	// coordinator): reasons then route to manager leases (add_lease/release) and eviction is the
-	// manager's value-scored job, not the CacheManager stealable queue. False ⇒ legacy queue path.
-	bool resourceAdopted_{false};
 
 	constexpr static bool isSample(const AudioFile* file) { return file->type == AudioFileType::SAMPLE; }
 	constexpr static bool isWaveTable(const AudioFile* file) { return file->type == AudioFileType::WAVETABLE; }

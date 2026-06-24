@@ -22,7 +22,6 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
 #include "dsp/stereo_sample.h"
-#include "memory/stealable.h"
 #include "modulation/lfo.h"
 #include <span>
 
@@ -59,15 +58,14 @@ public:
 	                    q31_t reverbAmount);
 
 	void clearGrainFXBuffer();
-	void grainBufferStolen() { grainBuffer = nullptr; }
 
 private:
 	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainDensity, int32_t pitchRandomness,
 	                  int32_t* postFXVolume, float timePerInternalTick);
 	StereoSample processOneGrainSample(StereoSample currentSample);
 	void getBuffer();
-	/// Free the grain buffer (if any), null the pointer, and reset write state. Owner-initiated release —
-	/// distinct from steal()/grainBufferStolen(), which only nulls because the CacheManager frees the block.
+	/// Free the grain buffer (if any), null the pointer, and reset write state. The grain buffer is a
+	/// plain owner-managed heap block (not resource-manager-owned), released outright here on idle.
 	void releaseBuffer();
 	void setWrapsToShutdown();
 	void setupGrainsIfNeeded(int32_t writeIndex);
@@ -97,22 +95,15 @@ private:
 	bool bufferFull{false};
 };
 
-class GrainBuffer : public Stealable {
+// A plain owner-managed heap block (NOT resource-manager-owned): the GranularProcessor allocates it
+// while the FX runs and frees it outright on idle (releaseBuffer). It's never evicted under memory
+// pressure, so it carries no Stealable / resource-manager hooks.
+class GrainBuffer {
 public:
 	GrainBuffer() = delete;
 	GrainBuffer(GrainBuffer& other) = delete;
 	GrainBuffer(const GrainBuffer& other) = delete;
 	explicit GrainBuffer(GranularProcessor* grainFX) { owner = grainFX; }
-	bool mayBeStolen(void* thingNotToStealFrom) override {
-		if (thingNotToStealFrom != this) {
-			return !inUse;
-		}
-		return false;
-	};
-	void steal(char const* errorCode) override { owner->grainBufferStolen(); };
-
-	// gives it  a high priority - these are huge so reallocating them can be slow
-	StealableQueue getAppropriateQueue() override { return StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE; };
 	StereoSample& operator[](int32_t i) { return sampleBuffer[i]; }
 	StereoSample operator[](int32_t i) const { return sampleBuffer[i]; }
 	bool inUse{true};

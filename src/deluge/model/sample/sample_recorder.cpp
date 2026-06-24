@@ -36,6 +36,8 @@
 #include <algorithm>
 #include <new>
 
+#include "deluge_resource.h" // mark_dirty: hold recording clusters un-evictable until flushed
+
 extern "C" {
 #include "fatfs/diskio.h"
 
@@ -826,6 +828,16 @@ Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes) {
 
 	// Grab the SD address, for later
 	sampleCluster->sdAddress = clst2sect(&fileSystem, file->inner().clust);
+
+	// Now flushed to the card with its sdAddress recorded, this cluster is reconstructable like any
+	// sample cluster (materialize re-reads it) — so clear dirty, letting the manager evict + reload
+	// it under pressure. (Until now it was held dirty so the unflushed audio could not be evicted.)
+	if (sampleCluster->cluster != nullptr) {
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_mark_dirty(mgr, sampleCluster->cluster, false);
+		}
+	}
 	return Error::NONE;
 }
 

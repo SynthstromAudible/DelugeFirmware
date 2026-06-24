@@ -18,10 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "memory/cache_manager.h"
 #include "memory/heaps.h" // deluge::memory heaps (+ opaque DelugeHeap)
 
-class Stealable;
 struct DelugeSlab;     // libdeluge/alloc.h — opaque here; full C ABI included in the .cpp
 struct DelugeResource; // deluge_resource.h — the resource manager handle (opaque here)
 
@@ -38,35 +36,18 @@ struct DelugeResource; // deluge_resource.h — the resource manager handle (opa
  * preventing potentially thousands of small objects which need to be accessed all the time
  * from being placed in that fast internal RAM.
  *
- * Various objects or pieces of data remain loaded (cached) in RAM even when they are no longer necessarily needed.
- * The main example of this is audio data in Clusters, discussed above. The base class for all such
- * objects is Stealable, and as the name suggests, their memory may usually be “stolen” when needed.
- *
- * Most Stealables store a “numReasonsToBeLoaded”, which counts how many “things” are requiring
- * that object to be retained in RAM. E.g. a Cluster of audio data would have a “reason” to
- * remain loaded in RAM if it is currently being played back. If that numReasons goes down to 0,
- * then that Stealable object is usually free to have its memory stolen.
- *
- * Stealables which in fact are eligible to be stolen at a given moment are stored in a queue which
- * prioritises stealing of the audio data which is less likely to be needed, e.g. if it belongs to a
- * Song that’s no longer loaded. But, to avoid overcomplication, this queue is not adhered to in the
- * case where a neighbouring region of memory is chosen for allocation (or itself being stolen) when
- * the allocation requires that the object in question have its memory stolen too in order to make
- * up a large enough allocation.
+ * Various objects or pieces of data remain loaded (cached) in RAM even when they are no longer
+ * strictly needed (the main example being audio Clusters). Eviction of these is owned entirely by
+ * the Rust resource manager (deluge_resource.h), layered on the TLSF heap + cluster slab: it is the
+ * SDRAM heap's sole reclaim hook. The GMA is now just thin forwarding to deluge::memory (heaps.h)
+ * plus lazy creation of the cluster slab + resource manager.
  */
 
 class GeneralMemoryAllocator {
 public:
 	GeneralMemoryAllocator();
 
-	// Stealable SDRAM allocation — the one alloc entry that still needs the coordinator: it threads
-	// thingNotToStealFrom through to the reclaim hook (currentDontStealFrom_) that may fire during the
-	// allocation. Non-stealable/typed allocation goes through deluge::memory (heaps.h) directly now.
-	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
-		return alloc(requiredSize, false, true, thingNotToStealFrom);
-	}
-
-	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom);
+	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam = true);
 	void dealloc(void* address);
 	void* allocExternal(uint32_t requiredSize);
 	void* allocInternal(uint32_t requiredSize);
@@ -74,53 +55,28 @@ public:
 	void testShorten(int32_t i);
 	void testMemoryDeallocated(void* address);
 
-	void putStealableInQueue(Stealable* stealable, StealableQueue q);
-	void putStealableInAppropriateQueue(Stealable* stealable);
-
-	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)
-	CacheManager cacheManager;
 	bool lock;
 
-	// thingNotToStealFrom for the in-flight SDRAM allocation, read by the reclaim
-	// hook (whose C ABI signature has no such parameter). Single-threaded, so a
-	// member set around each sdram alloc is sufficient.
-	void* currentDontStealFrom_{nullptr};
-
-	// Backing-only slab for the uniform Cluster blocks (slab-izing isolates the
-	// high-churn cluster traffic from mixed general SDRAM allocs so it can't
-	// fragment the unified pool). Eviction policy stays in cacheManager — the slab
-	// registers no reclaim hook; gmaSdramReclaim drives it. Created lazily on the
-	// first Cluster::create, when Cluster::size is finalized to the session maximum
-	// (the firmware never raises cluster size after boot). nullptr until then.
+	// Backing-only slab for the uniform Cluster blocks (slab-izing isolates the high-churn cluster
+	// traffic from mixed general SDRAM allocs so it can't fragment the unified pool). The resource
+	// manager allocates its slots and drives eviction (the slab registers no reclaim hook of its
+	// own). Created lazily alongside the manager when Cluster::size is finalized to the session
+	// maximum (the firmware never raises cluster size after boot). nullptr until then.
 	DelugeSlab* clusterSlab_{nullptr};
 
-	// The Rust resource manager (coexistence, raw-cluster migration): created unhooked
-	// alongside the cluster slab, it will own raw sample-cluster residency while the
-	// CacheManager keeps the rest. gmaSdramReclaim drives both. nullptr until the first
-	// Cluster::create (created lazily with the slab).
+	// The Rust resource manager: the sole SDRAM reclaim coordinator. Owns cluster residency (SAMPLE
+	// / cache / perc) + adopted AudioFile objects + wavetable bands, value-scoring eviction. Created
+	// lazily with the cluster slab (hooked as the heap's reclaim callback). nullptr until then.
 	DelugeResource* resourceManager_{nullptr};
 
-	// Acquire a uniform Cluster-sized slot (creating the slab on first use), with
-	// `dontStealFromThing` protected from the reclaim hook during the allocation.
-	// Returns the slot payload (where the caller placement-news the Cluster), or
-	// nullptr on OOM. Defined in the .cpp (needs the alloc.h C ABI + Cluster size).
-	void* acquireCluster(void* dontStealFromThing);
-
-	// The resource manager that owns raw SAMPLE-cluster residency (creating the cluster
-	// slab + manager on first use, same as acquireCluster). A Sample defines its Asset
-	// against this; the manager allocates slab slots and drives eviction. May return
-	// nullptr if the slab/manager couldn't be created (OOM) — callers then fall back to
-	// the legacy Cluster::create / CacheManager path.
+	// The resource manager that owns SDRAM eviction (creating the cluster slab + manager on first
+	// use). A Sample / SampleCache defines its Asset against this; the manager allocates slab slots
+	// and drives eviction. Returns nullptr only if the slab/manager couldn't be created (OOM).
 	DelugeResource* resourceManager();
 
 	// Free an SDRAM block: if it's a cluster slot, release it through the slab
 	// (clearing the table entry too); otherwise free it from the heap directly.
 	void freeSdram(void* address);
-
-	// The resource layer that owns stealable eviction policy. App code (Cluster,
-	// SampleCache, ...) queues reclaimable blocks here directly, rather than
-	// reaching through a memory region (the allocator is now CacheManager-agnostic).
-	CacheManager& getCacheManager() { return cacheManager; }
 
 	static GeneralMemoryAllocator& get() {
 		static GeneralMemoryAllocator generalMemoryAllocator;

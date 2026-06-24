@@ -105,27 +105,22 @@ void audioFileEvict(void* /*ctx*/, void* ptr) {
 }
 } // namespace
 
-// Adopt a freshly placement-new'd AudioFile (call before its first addReason). Creates the manager
-// if needed; no-op only if that fails, leaving the object on the legacy CacheManager-queue path.
+// Adopt a freshly placement-new'd AudioFile (call before its first addReason). The manager is the
+// sole SDRAM evictor, so adoption must succeed — a missing manager / exhausted chunk table is fatal
+// (no legacy fallback). On eviction the manager runs `audioFileEvict` + frees the backing.
 void AudioFileManager::adoptAudioFileObject(AudioFile* audioFile) {
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
-	if (mgr != nullptr
-	    && deluge_resource_adopt(mgr, audioFile, DELUGE_RESOURCE_COST_IO, nullptr, audioFileEvict) != nullptr) {
-		audioFile->resourceAdopted_ = true;
+	if (mgr == nullptr
+	    || deluge_resource_adopt(mgr, audioFile, DELUGE_RESOURCE_COST_IO, nullptr, audioFileEvict) == nullptr) {
+		FREEZE_WITH_ERROR("RAF1"); // resource chunk table exhausted adopting an AudioFile object
 	}
 }
 
 // Destruct + free an AudioFile object (caller has already removed it from `audioFiles` if present).
-// Routes the free through the manager (un-adopt) if adopted, else the legacy heap free.
+// Every AudioFile is manager-adopted, so the free routes through the manager (un-adopt).
 void AudioFileManager::destroyAudioFileObject(AudioFile& audioFile) {
-	bool adopted = audioFile.resourceAdopted_;
 	audioFile.~AudioFile();
-	if (adopted) {
-		deluge_resource_evict_chunk(GeneralMemoryAllocator::get().resourceManager(), &audioFile);
-	}
-	else {
-		delugeDealloc(&audioFile);
-	}
+	deluge_resource_evict_chunk(GeneralMemoryAllocator::get().resourceManager(), &audioFile);
 }
 
 AudioFileManager::AudioFileManager() {
@@ -1432,70 +1427,18 @@ performActionsAndGetOut:
 }
 
 void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong) {
-	// Manager-owned leased clusters (SAMPLE / PERC, their owner has a defined Asset): the
-	// resource manager owns residency + eviction, so a removed reason is just a lease drop — it
-	// stays resident (cached, evictable under pressure), never enqueued/destroyed here.
-	// numReasonsToBeLoaded is kept as a mirror of the manager's lease count.
-	if (cluster.resourceLeaseAssetId() != DELUGE_RESOURCE_NO_ASSET) {
-		cluster.numReasonsToBeLoaded--;
-		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
-		if (mgr != nullptr) {
-			deluge_resource_release(mgr, &cluster); // unlease (backing ptr == the Cluster slot)
-		}
-		if (ALPHA_OR_BETA_VERSION && cluster.numReasonsToBeLoaded < 0) {
-			FREEZE_WITH_ERROR(errorCode);
-		}
-		return;
-	}
-
+	(void)deletingSong;
+	// Every cluster is a manager-owned chunk — SAMPLE / PERC leased via the owner's Asset, SAMPLE_CACHE
+	// resident via the cache's Asset (and leased by the low-level reader while it streams it). A removed
+	// reason is just a manager lease drop by backing pointer: the cluster stays resident (cached,
+	// evictable under pressure), never enqueued/destroyed here. numReasonsToBeLoaded is a mirror.
 	cluster.numReasonsToBeLoaded--;
-
-	if (&cluster == clusterBeingLoaded && cluster.numReasonsToBeLoaded < minNumReasonsForClusterBeingLoaded) {
-		FREEZE_WITH_ERROR("E041"); // Sven got this!
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr != nullptr) {
+		deluge_resource_release(mgr, &cluster); // unlease (backing ptr == the Cluster slot)
 	}
-
-	// If it's now zero, it's become available
-	if (cluster.numReasonsToBeLoaded == 0) {
-
-		// Bug hunting
-		if (ALPHA_OR_BETA_VERSION && cluster.numReasonsHeldBySampleRecorder) {
-			FREEZE_WITH_ERROR("E364");
-		}
-
-		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being
-		// loaded right now because that would have added a "reason", so we wouldn't be here.) also do this on song
-		// swap
-		if (loadingQueue.erase(&cluster) || deletingSong) {
-
-			// Tell its Cluster to forget it exists
-			cluster.sample->clusters[cluster.clusterIndex].cluster = NULL;
-
-			// Must go through Cluster::destroy() (the counterpart to Cluster::create()), NOT a
-			// bare `delete`: clusters are allocated from the backing slab, so freeing them via
-			// operator delete frees the heap block but leaks the slab's table entry. After enough
-			// such frees the slab table fills, acquireCluster() returns null, and recording/streaming
-			// fail to allocate (e.g. the 2nd+ stem of a multi-track export aborted mid-capture).
-			cluster.destroy(); // It contains nothing, so completely recycle it
-		}
-
-		else {
-			// It contains data we may want at some future point, so file it away
-			GeneralMemoryAllocator::get().putStealableInAppropriateQueue(&cluster);
-		}
-
-		//*cluster->getAnyReasonsPointer() = ANY_REASONS_NO;
-	}
-
-	else if (cluster.numReasonsToBeLoaded < 0) {
-#if ALPHA_OR_BETA_VERSION
-		if (cluster.sample != nullptr) { // "Should" always be true...
-			D_PRINTLN("reason remains on cluster of sample:  %d", cluster.sample->filePath.c_str());
-		}
+	if (ALPHA_OR_BETA_VERSION && cluster.numReasonsToBeLoaded < 0) {
 		FREEZE_WITH_ERROR(errorCode);
-#else
-		display->displayPopup(errorCode);  // For non testers, just display the error code without freezing
-		cluster->numReasonsToBeLoaded = 0; // Save it from crashing or anything
-#endif
 	}
 }
 

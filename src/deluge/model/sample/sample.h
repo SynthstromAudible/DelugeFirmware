@@ -86,10 +86,10 @@ public:
 	bool getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
 	                             int32_t playDirection, int32_t lengthToAverageEach);
 	void convertDataOnAnyClustersIfNecessary();
-	/// Lazily define this Sample's resource-manager Asset (its SAMPLE clusters are the
-	/// Asset's Chunks: materialize = readClusterData, on_evict = drop + ~Cluster). Returns
-	/// the asset id, or DELUGE_RESOURCE_NO_ASSET (0xFFFFFFFF) if there's no manager or the
-	/// asset table is full — in which case the caller keeps the legacy Cluster::create path.
+	/// Lazily define this Sample's resource-manager Asset (its SAMPLE clusters are the Asset's
+	/// Chunks: materialize = readClusterData, on_evict = drop + ~Cluster). Returns the asset id. The
+	/// manager is the sole SDRAM evictor, so this never returns NO_ASSET — a missing manager / full
+	/// asset table is fatal (FREEZE), no legacy fallback.
 	uint32_t ensureResourceAsset();
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
@@ -184,13 +184,6 @@ public:
 	// manager; released in ~Sample. 0xFFFFFFFF == DELUGE_RESOURCE_NO_ASSET (kept as a literal
 	// here so the widely-included header needn't pull in deluge_resource.h).
 	uint32_t resourceAssetId{0xFFFFFFFFu};
-
-	// Latched the first time a non-reconstructable cluster is requested (CLUSTER_DONT_LOAD =
-	// recording), or when a read can't get an Asset: this Sample then stays fully on the legacy
-	// Cluster::create / CacheManager path for life, so its clusters never straddle both evictors.
-	// ensureResourceAsset() refuses to define an Asset once this is set.
-	bool clustersLegacyLatched_{false};
-	void latchClustersLegacy() { clustersLegacyLatched_ = true; }
 
 protected:
 #if ALPHA_OR_BETA_VERSION

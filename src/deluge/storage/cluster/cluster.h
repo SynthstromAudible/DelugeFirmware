@@ -20,7 +20,6 @@
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
-#include "memory/stealable.h"
 #include <array>
 #include <cstdint>
 
@@ -31,7 +30,11 @@ class SampleCache;
 /// Header data for a cluster. The actual cluster data is expected to be in the same allocation, after this class
 /// member. To correctly allocate an instance of this class, you must also allocate Cluster::size bytes with enough
 /// padding to safely absorb an offset of at least CACHE_LINE_SIZE.
-class Cluster final : public Stealable {
+// A Cluster's backing comes from the resource manager's uniform cluster slab; the manager owns its
+// residency + eviction (leased SAMPLE / PERC clusters via the owner's Asset; unleased SAMPLE_CACHE
+// clusters via the cache's Asset). Constructed via the asset materialize/construct callbacks (placement
+// `new` into a slab slot), not a self-allocating factory.
+class Cluster final {
 public:
 	constexpr static size_t kSizeFAT16Max = 32768;
 	enum class Type {
@@ -44,16 +47,13 @@ public:
 		OTHER,
 	};
 
-	static Cluster* create(Cluster::Type type = Cluster::Type::SAMPLE, bool shouldAddReasons = true,
-	                       void* dontStealFromThing = nullptr);
 	void destroy();
 
-	// Clusters are allocated from the backing slab (create() -> acquireCluster()), so their
-	// memory MUST be released through the slab (GMA::freeSdram -> slab_release) to clear the
-	// slab's table entry. The normal recycle path is destroy(); this class operator delete
-	// is a safety net so a stray `delete someCluster` routes to freeSdram too instead of the
-	// global operator delete (which frees the heap block but leaks the slab slot — exhausting
-	// the slab table and breaking later allocations).
+	// Clusters are allocated from the backing slab, so their memory MUST be released through the
+	// slab (GMA::freeSdram -> slab_release) to clear the slab's table entry. The normal recycle
+	// path is destroy(); this class operator delete is a safety net so a stray `delete someCluster`
+	// routes to freeSdram too instead of the global operator delete (which frees the heap block but
+	// leaks the slab slot — exhausting the slab table and breaking later allocations).
 	static void operator delete(void* ptr);
 
 	static size_t size;
@@ -64,16 +64,13 @@ public:
 	/// after allocating a region with the General Memory Allocator!
 	Cluster() = default;
 	void convertDataIfNecessary();
-	bool mayBeStolen(void* thingNotToStealFrom) override;
-	void steal(char const* errorCode) override;
-	StealableQueue getAppropriateQueue() override;
 	void addReason();
 
 	// The resource-manager Asset that owns this cluster's residency for the *leased* (reason-
 	// tracked) kinds — SAMPLE (the sample's asset) and PERC_CACHE_* (the sample's per-direction
-	// perc asset) — or DELUGE_RESOURCE_NO_ASSET if it's on the legacy CacheManager path. Used by
-	// addReason / removeReasonFromCluster to route a reason to a manager lease. SAMPLE_CACHE
-	// clusters are unleased (never reasoned), so they're excluded here and managed separately.
+	// perc asset) — or DELUGE_RESOURCE_NO_ASSET otherwise. Used by addReason /
+	// removeReasonFromCluster to route a reason to a manager lease. SAMPLE_CACHE clusters are
+	// unleased (never reasoned), so they're excluded here and managed via the cache's Asset.
 	uint32_t resourceLeaseAssetId() const;
 
 	Cluster::Type type;

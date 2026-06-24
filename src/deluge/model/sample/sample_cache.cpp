@@ -66,31 +66,29 @@ SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newW
 	*/
 
 	// Define this cache's resource-manager Asset (construct-only; the manager owns residency
-	// + eviction for its clusters). NO_ASSET (no manager / table full) → legacy CacheManager.
+	// + eviction for its clusters). The manager is the sole SDRAM evictor now, so a missing
+	// manager / full asset table is fatal (no legacy fallback) — size the asset cap for it.
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
-	if (mgr != nullptr) {
-		resourceAssetId = deluge_resource_define_asset(mgr, this, nullptr /*materialize: never*/, sampleCacheEvict,
-		                                               nullptr, DELUGE_RESOURCE_COST_CPU, DELUGE_RESOURCE_BACKING_SLAB);
-		if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
-			deluge_resource_set_construct(mgr, resourceAssetId, sampleCacheConstruct);
-			deluge_resource_set_self_protect(mgr, resourceAssetId, true);
-			deluge_resource_set_evict_tail_first(mgr, resourceAssetId, true);
-		}
+	resourceAssetId =
+	    (mgr != nullptr) ? deluge_resource_define_asset(mgr, this, nullptr /*materialize: never*/, sampleCacheEvict,
+	                                                    nullptr, DELUGE_RESOURCE_COST_CPU, DELUGE_RESOURCE_BACKING_SLAB)
+	                     : DELUGE_RESOURCE_NO_ASSET;
+	if (resourceAssetId == DELUGE_RESOURCE_NO_ASSET) {
+		FREEZE_WITH_ERROR("RSC1"); // resource asset table exhausted (raise kAssetCap)
 	}
+	deluge_resource_set_construct(mgr, resourceAssetId, sampleCacheConstruct);
+	deluge_resource_set_self_protect(mgr, resourceAssetId, true);
+	deluge_resource_set_evict_tail_first(mgr, resourceAssetId, true);
 }
 
 SampleCache::~SampleCache() {
-	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
-		// Retire the Asset: the manager frees all our resident clusters highest-index-first
-		// (via onCacheEvict, which nulls clusters[] as it goes). No legacy unlinkClusters.
-		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
-		if (mgr != nullptr) {
-			deluge_resource_release_asset(mgr, resourceAssetId);
-		}
-		resourceAssetId = DELUGE_RESOURCE_NO_ASSET;
-		return;
+	// Retire the Asset: the manager frees all our resident clusters highest-index-first
+	// (via onCacheEvict, which nulls clusters[] as it goes).
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	if (mgr != nullptr) {
+		deluge_resource_release_asset(mgr, resourceAssetId);
 	}
-	unlinkClusters(0, true);
+	resourceAssetId = DELUGE_RESOURCE_NO_ASSET;
 }
 
 void SampleCache::clusterStolen(int32_t clusterIndex) {
@@ -149,29 +147,21 @@ void SampleCache::onCacheEvict(int32_t clusterIndex) {
 }
 
 void SampleCache::unlinkClusters(int32_t startAtIndex, bool beingDestructed) {
+	(void)beingDestructed;
 	// And there's now no point in having any further Clusters
 	int32_t numExistentClusters = getNumExistentClusters(writeBytePos);
-	DelugeResource* mgr =
-	    (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) ? GeneralMemoryAllocator::get().resourceManager() : nullptr;
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	for (int32_t i = startAtIndex; i < numExistentClusters; i++) {
 		if (ALPHA_OR_BETA_VERSION && !clusters[i]) {
 			FREEZE_WITH_ERROR("E167");
 		}
 
-		if (mgr != nullptr) {
-			// Manager-owned: this is an owner-driven drop (truncation), so destruct the object
-			// and drop the chunk directly (no on_evict — we're managing our own pointer here).
-			Cluster* cluster = clusters[i];
-			clusters[i] = nullptr;
-			cluster->~Cluster();
-			deluge_resource_evict_chunk(mgr, cluster);
-		}
-		else {
-			clusters[i]->destroy();
-			if (ALPHA_OR_BETA_VERSION && !beingDestructed) {
-				clusters[i] = nullptr;
-			}
-		}
+		// Owner-driven drop (truncation): destruct the object and drop the chunk directly
+		// (no on_evict — we're managing our own pointer here).
+		Cluster* cluster = clusters[i];
+		clusters[i] = nullptr;
+		cluster->~Cluster();
+		deluge_resource_evict_chunk(mgr, cluster);
 	}
 }
 
@@ -219,98 +209,26 @@ bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 	}
 #endif
 
-	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
-		// Manager-owned: request constructs the Cluster (sampleCacheConstruct sets type/cache/index)
-		// + leases it; release immediately so it's resident-but-unleased (evictable from birth,
-		// like the legacy shouldAddReasons=false). The cache writes into it; reads check the pointer.
-		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
-		void* p = deluge_resource_request(mgr, resourceAssetId, clusterIndex, sizeof(Cluster) + Cluster::size);
-		if (p == nullptr) {
-			D_PRINTLN("allocation fail");
-			return false;
-		}
-		deluge_resource_release(mgr, p);
-		clusters[clusterIndex] = reinterpret_cast<Cluster*>(p);
-		return true;
-	}
-
-	// Do not add reasons, and don't steal from this SampleCache
-	clusters[clusterIndex] = Cluster::create(Cluster::Type::SAMPLE_CACHE, false, this);
-	if (!clusters[clusterIndex]) { // If that allocation failed...
+	// Manager-owned: request constructs the Cluster (sampleCacheConstruct sets type/cache/index)
+	// + leases it; release immediately so it's resident-but-unleased (evictable from birth).
+	// The cache writes into it; reads check the pointer.
+	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+	void* p = deluge_resource_request(mgr, resourceAssetId, clusterIndex, sizeof(Cluster) + Cluster::size);
+	if (p == nullptr) {
 		D_PRINTLN("allocation fail");
 		return false;
 	}
-
-	clusters[clusterIndex]->clusterIndex = clusterIndex;
-	clusters[clusterIndex]->sampleCache = this;
-
+	deluge_resource_release(mgr, p);
+	clusters[clusterIndex] = reinterpret_cast<Cluster*>(p);
 	return true;
 }
 
-void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
-
-	if (deluge::memory::owning_heap(clusters[clusterIndex]) != deluge::memory::sdram_heap()) {
-		// clusters not in external (SDRAM)
-		FREEZE_WITH_ERROR("C002");
-		return; // Sorta just have to do this
-	}
-
-	// This ensures, one Cluster at a time, that this Cache's Clusters are right at the far end of their queue (so won't
-	// be stolen for a while), but in reverse order so that the later-in-sample of those cache Clusters will be stolen
-	// first
-
-	// Remember, cache clusters never have "reasons", so we can assume these are already in one of the
-	// stealableClusterQueues, ready to be "stolen".
-#if ALPHA_OR_BETA_VERSION
-	if (clusters[clusterIndex]->numReasonsToBeLoaded != 0) {
-		FREEZE_WITH_ERROR("C003"); // let's just check to make sure
-	}
-#endif
-	// First Cluster
-	if (clusterIndex == 0) {
-		const auto q = StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
-		CacheManager& cache_manager = GeneralMemoryAllocator::get().getCacheManager();
-		Cluster* cluster = clusters[clusterIndex];
-		if (cluster->list != &cache_manager.queue(q) || !cluster->isLast()) {
-			cluster->remove(); // Remove from old list, if it was already in one (might not have been).
-			cache_manager.QueueForReclamation(q, cluster);
-		}
-	}
-
-	// Later Clusters
-	else {
-
-		if (deluge::memory::owning_heap(clusters[clusterIndex - 1]) != deluge::memory::sdram_heap()) {
-			// clusters not in external (SDRAM)
-			FREEZE_WITH_ERROR("C001");
-			return; // Sorta just have to do this
-		}
-
-		// In most cases, we'll want to do this thing to alter the ordering - including if the Cluster in question
-		// hasn't actually been added to a queue at all yet, because this functions serves the additional purpose of
-		// being what puts Clusters in their queue in the first place.
-		if (clusters[clusterIndex]->list
-		        != &GeneralMemoryAllocator::get().getCacheManager().queue(
-		            StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE)
-		    || clusters[clusterIndex]->next != clusters[clusterIndex - 1]) {
-
-			clusters[clusterIndex]->remove(); // Remove from old list, if it was already in one (might not have been).
-			clusters[clusterIndex - 1]->insertOtherNodeBefore(clusters[clusterIndex]);
-			// TODO: invalidate longest run length on new queue?
-		}
-	}
-}
-
 Cluster* SampleCache::getCluster(int32_t clusterIndex) {
-	if (resourceAssetId != DELUGE_RESOURCE_NO_ASSET) {
-		// Manager-owned: recency (not the manual queue reorder) keeps later clusters first to
-		// evict; tail-first ordering enforces the prefix dependency. Just mark it used.
-		if (clusters[clusterIndex] != nullptr) {
-			deluge_resource_touch(GeneralMemoryAllocator::get().resourceManager(), clusters[clusterIndex]);
-		}
-		return clusters[clusterIndex];
+	// Manager-owned: recency (not a manual queue reorder) keeps later clusters first to evict;
+	// tail-first ordering enforces the prefix dependency. Just mark it used.
+	if (clusters[clusterIndex] != nullptr) {
+		deluge_resource_touch(GeneralMemoryAllocator::get().resourceManager(), clusters[clusterIndex]);
 	}
-	prioritizeNotStealingCluster(clusterIndex);
 	return clusters[clusterIndex];
 }
 
