@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "storage/audio/audio_file_format.h" // RawDataFormat + AudioFileFormat (the format-decode boundary)
 #include "util/c_string.h"
 #include <string>
 

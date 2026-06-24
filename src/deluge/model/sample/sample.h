@@ -30,14 +30,8 @@
 
 #define SAMPLE_DO_LOCKS (ALPHA_OR_BETA_VERSION)
 
-enum class RawDataFormat : uint8_t {
-	NATIVE = 0,
-	FLOAT = 1,
-	UNSIGNED_8 = 2,
-	ENDIANNESS_WRONG_16 = 3,
-	ENDIANNESS_WRONG_24 = 4,
-	ENDIANNESS_WRONG_32 = 5,
-};
+// RawDataFormat now lives in storage/audio/audio_file_format.h (a file-format facet, not a Sample one);
+// it reaches here via sample.h's include of audio_file.h.
 
 const float MIDI_NOTE_UNSET = (-999);
 const float MIDI_NOTE_ERROR = (-1000);
