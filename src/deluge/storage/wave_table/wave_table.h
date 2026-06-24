@@ -67,6 +67,9 @@ class WaveTable final : public AudioFile {
 public:
 	WaveTable();
 	~WaveTable() override;
+
+	[[nodiscard]] size_t allocatedSize() const override { return sizeof(WaveTable); }
+
 	int32_t cloneFromSample(Sample* sample);
 	uint32_t render(int32_t* outputBuffer, int32_t numSamples, uint32_t phaseIncrementNow, uint32_t phase,
 	                bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,

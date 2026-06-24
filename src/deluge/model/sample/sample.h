@@ -66,6 +66,8 @@ public:
 	Sample();
 	~Sample() override;
 
+	[[nodiscard]] size_t allocatedSize() const override { return sizeof(Sample); }
+
 	void workOutBitMask();
 	Error initialize(int32_t numClusters);
 	void markAsUnloadable();

@@ -54,14 +54,17 @@ typedef struct DelugeResource DelugeResource;
 /// `deluge_resource_slot_of` on a non-resident pointer.
 #define DELUGE_RESOURCE_NO_SLOT 0xFFFFFFFFu
 
-/// Reconstruction-cost ladder (ascending = dearer to rebuild = kept resident longer / evicted later).
-/// Plain ints, not a C enum, to keep the ABI fixed-width. The value function only compares numerically.
+/// Reconstruction-cost ladder (ascending = dearer to *rebuild*). Pure rebuild-expense — how long a
+/// chunk stays resident is cost-per-byte (the value function divides by size), so memory-yield is NOT
+/// baked in here. Plain ints, not a C enum, to keep the ABI fixed-width; compared only numerically.
 #define DELUGE_RESOURCE_COST_FREE 0u         /* zero-fill / scratch (cheapest) */
 #define DELUGE_RESOURCE_COST_IO 1u           /* native sample cluster — one storage read */
 #define DELUGE_RESOURCE_COST_IO_CONVERTED 2u /* sample cluster needing format conversion (read + re-convert) */
 #define DELUGE_RESOURCE_COST_CPU 3u          /* DSP recompute — repitch cache / wavetable band */
 #define DELUGE_RESOURCE_COST_CPU_PERC 4u     /* perc cache — heavier time-stretch recompute */
-#define DELUGE_RESOURCE_COST_OBJECT 5u       /* AudioFile object — losing it drops all its chunks + metadata */
+#define DELUGE_RESOURCE_COST_OBJECT                                                                                    \
+	2u /* AudioFile object — re-scan header + recreate descriptor (read+parse); tiny, so the value function's size   \
+	      term keeps it resident, not an inflated cost */
 
 /// Where a chunk's backing memory comes from. Uniform clusters use the slab; a
 /// variable-size asset (e.g. a wavetable band) allocates from the TLSF heap.
@@ -201,11 +204,11 @@ void deluge_resource_stats(DelugeResource* mgr, DelugeResourceStats* out);
 void deluge_resource_stats_reset(DelugeResource* mgr);
 
 /// Adopt an externally-allocated heap block as a manager-evictable (object-lifecycle) chunk:
-/// the owner allocated + built it; the manager owns only its eviction (value-scored by `cost`
-/// + recency). On eviction it calls `on_evict(ctx, ptr)` then frees `ptr`. Registered unleased
-/// (pin via deluge_resource_add_lease). Returns `ptr`, or NULL if the chunk table is full and
-/// nothing is evictable. The adopt counterpart to define_asset+acquire (the Source mode).
-void* deluge_resource_adopt(DelugeResource* mgr, void* ptr, uint32_t cost, void* ctx,
+/// the owner allocated + built it; the manager owns only its eviction (value-scored by cost-per-byte
+/// + recency, so pass the block's `size` in bytes). On eviction it calls `on_evict(ctx, ptr)` then
+/// frees `ptr`. Registered unleased (pin via deluge_resource_add_lease). Returns `ptr`, or NULL if the
+/// chunk table is full and nothing is evictable. The adopt counterpart to define_asset+acquire.
+void* deluge_resource_adopt(DelugeResource* mgr, void* ptr, size_t size, uint32_t cost, void* ctx,
                             DelugeResourceAdoptEvictFn on_evict);
 
 /// Add a hard lease to an already-resident chunk by its backing pointer (no

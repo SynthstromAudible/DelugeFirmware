@@ -61,6 +61,11 @@ public:
 	// soft-references its resource assets while this holds, so current-song data outlives no-song data.
 	[[nodiscard]] bool isProjectReferenced() const;
 
+	// Size in bytes of the block this object was allocated in (sizeof the concrete subclass). Passed to
+	// deluge_resource_adopt so the manager's cost-per-byte eviction knows how little memory freeing the
+	// object reclaims — keeping the tiny descriptor resident over the fat clusters it owns.
+	[[nodiscard]] virtual size_t allocatedSize() const = 0;
+
 	constexpr static bool isSample(const AudioFile* file) { return file->type == AudioFileType::SAMPLE; }
 	constexpr static bool isWaveTable(const AudioFile* file) { return file->type == AudioFileType::WAVETABLE; }
 

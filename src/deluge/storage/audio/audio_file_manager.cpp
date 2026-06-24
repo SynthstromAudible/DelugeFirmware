@@ -110,11 +110,11 @@ void audioFileEvict(void* /*ctx*/, void* ptr) {
 // (no legacy fallback). On eviction the manager runs `audioFileEvict` + frees the backing.
 void AudioFileManager::adoptAudioFileObject(AudioFile* audioFile) {
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
-	// Cost OBJECT (dearest tier): evicting an AudioFile object discards all its clusters/bands + its
-	// metadata, so it's kept resident longer than any individual cluster.
-	void* p = (mgr != nullptr)
-	              ? deluge_resource_adopt(mgr, audioFile, DELUGE_RESOURCE_COST_OBJECT, nullptr, audioFileEvict)
-	              : nullptr;
+	// Cost OBJECT is modest (a re-scan), but the object is tiny — so the manager's cost-per-byte
+	// eviction keeps the descriptor resident over the fat clusters it owns. Pass its allocated size.
+	void* p = (mgr != nullptr) ? deluge_resource_adopt(mgr, audioFile, audioFile->allocatedSize(),
+	                                                   DELUGE_RESOURCE_COST_OBJECT, nullptr, audioFileEvict)
+	                           : nullptr;
 	if (p == nullptr) {
 		FREEZE_WITH_ERROR("RAF1"); // resource chunk table exhausted adopting an AudioFile object
 	}

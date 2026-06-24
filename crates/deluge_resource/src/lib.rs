@@ -694,9 +694,9 @@ mod tests {
         let pinned = unsafe { deluge_alloc::deluge_alloc(h, 32 * 1024, 16) };
         let cold = unsafe { deluge_alloc::deluge_alloc(h, 32 * 1024, 16) };
         assert!(!pinned.is_null() && !cold.is_null());
-        assert_eq!(unsafe { deluge_resource_adopt(mgr, pinned, COST_CPU, core::ptr::null_mut(), Some(mock_adopt_evict)) }, pinned);
+        assert_eq!(unsafe { deluge_resource_adopt(mgr, pinned, 32 * 1024, COST_CPU, core::ptr::null_mut(), Some(mock_adopt_evict)) }, pinned);
         unsafe { deluge_resource_add_lease(mgr, pinned) }; // pin it
-        assert_eq!(unsafe { deluge_resource_adopt(mgr, cold, COST_FREE, core::ptr::null_mut(), Some(mock_adopt_evict)) }, cold);
+        assert_eq!(unsafe { deluge_resource_adopt(mgr, cold, 32 * 1024, COST_FREE, core::ptr::null_mut(), Some(mock_adopt_evict)) }, cold);
         // Pressure: acquire+release Source chunks until eviction fires. The cold adopted block
         // (COST_FREE = cheapest to lose) should be the victim; the leased one must survive.
         ADOPT_EVICTED.with(|c| c.set(core::ptr::null_mut()));

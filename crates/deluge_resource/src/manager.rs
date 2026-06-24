@@ -121,6 +121,10 @@ struct ChunkSlot {
     // chunk that is `ready`, so the RT/async path never reads half-loaded data.
     ready: bool,
     recency: u64,
+    /// Backing size in bytes — the memory reclaimed by evicting this chunk. Feeds the value
+    /// function's cost-per-byte term (a big cheap chunk is preferred over a tiny dear one). Set at
+    /// alloc: the requested `size` for `acquire`/`request`, the owner-supplied block size for `adopt`.
+    size: u32,
     // The cluster load queue lives *as per-slot state* (no separate heap): `queued` ⇒ this chunk is
     // waiting to be read by the loader, ordered by `queue_priority` (lower = more urgent, the C++
     // Voice::getPriorityRating). `loader_next` picks the lowest-priority queued+leased slot. Eviction
@@ -130,7 +134,10 @@ struct ChunkSlot {
     // Adopt mode (asset == NONE): the chunk carries its own cost + evict callback, because
     // an adopted block is an externally-allocated object, not a chunk of a Source asset.
     // The owner allocated it; the manager only owns its eviction. (Unused when asset != NONE.)
-    cost: u32,
+    // `u8` (cost is the small 0..=COST_OBJECT ladder) so adding `size` above doesn't grow the slot —
+    // keeps the chunk table footprint (and thus heap layout) stable, which the address-sensitive
+    // sim golden depends on.
+    cost: u8,
     adopt_evict: Option<AdoptEvictFn>,
     adopt_ctx: *mut c_void,
 }
@@ -143,6 +150,7 @@ impl ChunkSlot {
         dirty: false,
         ready: false,
         recency: 0,
+        size: 0,
         queued: false,
         queue_priority: 0,
         cost: 0,
@@ -392,7 +400,7 @@ impl Manager {
     /// nothing is evictable. Used both as the heap reclaim hook and to free a slot.
     fn evict_lowest(&self) -> bool {
         let mut best: Option<usize> = None;
-        let mut best_rank = (u8::MAX, u32::MAX, u64::MAX);
+        let mut best_rank = (u8::MAX, u64::MAX, u64::MAX);
         let protect = self.protect.get();
         for (i, c) in self.chunks.iter().enumerate() {
             let s = c.get();
@@ -406,7 +414,7 @@ impl Manager {
             }
             // Cost + soft-refs come from the asset (Source chunks) or the chunk itself (adopted).
             let (cost, soft_refs) = if s.asset == NONE {
-                (s.cost, 0)
+                (s.cost as u32, 0)
             } else {
                 let a = self.assets[s.asset as usize].get();
                 // Prefix-dependent assets: only the highest-index resident chunk is a candidate,
@@ -416,7 +424,7 @@ impl Manager {
                 }
                 (a.source.cost, a.soft_refs)
             };
-            let rank = evict_rank(soft_refs, cost, s.recency);
+            let rank = evict_rank(soft_refs, cost, s.size, s.recency);
             if rank < best_rank {
                 best_rank = rank;
                 best = Some(i);
@@ -434,8 +442,8 @@ impl Manager {
         let s = self.chunks[i].get();
         // Stats: count the eviction, bucketed by the chunk's reconstruction cost (the direct signal
         // for eviction-policy quality — dearer-to-rebuild chunks evicted = worse).
-        let cost = if s.asset == NONE {
-            s.cost
+        let cost: u32 = if s.asset == NONE {
+            s.cost as u32
         } else {
             self.assets[s.asset as usize].get().source.cost
         };
@@ -515,6 +523,7 @@ impl Manager {
             dirty: false,
             ready: true, // acquire materializes synchronously below, before anyone else can run
             recency: self.bump(),
+            size: size as u32,
             ..ChunkSlot::EMPTY
         });
         let a = self.assets[ai].get();
@@ -601,6 +610,7 @@ impl Manager {
             leases: 1,
             dirty: false,
             recency: self.bump(),
+            size: size as u32,
             ..ChunkSlot::EMPTY
         });
         let a = self.assets[ai].get();
@@ -667,7 +677,14 @@ impl Manager {
     /// `on_evict(ctx, ptr)` then frees `ptr`. For object-lifecycle blocks (AudioFile objects,
     /// GrainBuffer) the owner builds — `asset = NONE`, the chunk carries its own cost/evict.
     /// Returns `ptr` on success, or null if the chunk table is full and nothing is evictable.
-    fn adopt(&self, ptr: *mut u8, cost: u32, ctx: *mut c_void, on_evict: Option<AdoptEvictFn>) -> *mut u8 {
+    fn adopt(
+        &self,
+        ptr: *mut u8,
+        size: usize,
+        cost: u32,
+        ctx: *mut c_void,
+        on_evict: Option<AdoptEvictFn>,
+    ) -> *mut u8 {
         if ptr.is_null() {
             return ptr::null_mut();
         }
@@ -688,7 +705,8 @@ impl Manager {
             dirty: false,
             ready: true, // owner-built object, usable immediately
             recency: self.bump(),
-            cost,
+            size: size as u32,
+            cost: cost as u8,
             adopt_evict: on_evict,
             adopt_ctx: ctx,
             ..ChunkSlot::EMPTY
@@ -1178,14 +1196,15 @@ pub unsafe extern "C" fn deluge_resource_evict_chunk(handle: *mut DelugeResource
 }
 
 /// Adopt an externally-allocated heap block as a manager-evictable (object-lifecycle) chunk:
-/// the owner allocated + built it; the manager owns only its eviction (value-scored by `cost`
-/// + recency). On eviction it calls `on_evict(ctx, ptr)` then frees `ptr`. Registered unleased
-/// (pin via `deluge_resource_add_lease`). Returns `ptr`, or null if the chunk table is full and
-/// nothing is evictable. The adopt counterpart to define_asset+acquire (Source mode).
+/// the owner allocated + built it; the manager owns only its eviction (value-scored by cost-per-byte
+/// + recency — so pass the block's `size` in bytes). On eviction it calls `on_evict(ctx, ptr)` then
+/// frees `ptr`. Registered unleased (pin via `deluge_resource_add_lease`). Returns `ptr`, or null if
+/// the chunk table is full and nothing is evictable. The adopt counterpart to define_asset+acquire.
 #[no_mangle]
 pub unsafe extern "C" fn deluge_resource_adopt(
     handle: *mut DelugeResource,
     ptr: *mut u8,
+    size: usize,
     cost: u32,
     ctx: *mut c_void,
     on_evict: Option<AdoptEvictFn>,
@@ -1193,7 +1212,7 @@ pub unsafe extern "C" fn deluge_resource_adopt(
     if handle.is_null() {
         return ptr::null_mut();
     }
-    mgr(handle).adopt(ptr, cost, ctx, on_evict)
+    mgr(handle).adopt(ptr, size, cost, ctx, on_evict)
 }
 
 /// Add a hard lease to an already-resident chunk by its backing pointer (no
