@@ -66,6 +66,9 @@ int oledWaitingForMessage    = OLED_MESSAGE_NONE; // 256 means none.
 int oledPendingMessageToSend = 0; // 0 means none. The purpose of this variable is to ensure thread safety.
 int last_message_sent        = 0;
 uint16_t oledMessageTimeoutTime;
+// Watchdog for a lost OLED DMA transfer-complete interrupt (see oledRoutine).
+uint16_t oledDmaWatchdogTime;
+bool oledDmaWatchdogArmed = false;
 // these get optimized out, set em to volatile if you need to keep them for debugging
 bool oled_sending = false;
 bool cv_sending   = false;
@@ -93,6 +96,45 @@ sendMessageToPIC:
             last_message_sent      = oledWaitingForMessage;
             bufferPICUart(oledWaitingForMessage);
         }
+    }
+
+    // The retries above only re-send the PIC UART SELECT/DESELECT handshake. Nothing re-drives a
+    // lost OLED DMA transfer-complete interrupt (oledTransferComplete, a priority-13 DMA IRQ).
+    // Under heavy CV-DAC interrupt traffic (priority 5) on the shared SPI bus that completion can
+    // be missed, leaving spiTransferQueueCurrentlySending stuck true forever: enqueueSPITransfer
+    // then dedups every identical frame and the physical OLED freezes while rendering/sysex keep
+    // running (issue #3670).
+    //
+    // oled_sending with waiting==NONE && pending==0 means an OLED DMA was kicked but hasn't
+    // completed (cv_sending is excluded so we never disturb an in-flight CV word). If that state
+    // persists far longer than any real transfer (sub-millisecond), treat the completion interrupt
+    // as lost and re-drive it.
+    else if (oled_sending && spiTransferQueueCurrentlySending && oledPendingMessageToSend == 0)
+    {
+        if (!oledDmaWatchdogArmed)
+        {
+            oledDmaWatchdogArmed = true;
+            oledDmaWatchdogTime  = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
+        }
+        else if ((int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - oledDmaWatchdogTime) >= 0)
+        {
+            oledDmaWatchdogArmed = false;
+            ENTER_CRITICAL_SECTION();
+            // Re-check under lock - the real interrupt may have landed in the meantime.
+            if (oled_sending && spiTransferQueueCurrentlySending && oledWaitingForMessage == OLED_MESSAGE_NONE
+                && oledPendingMessageToSend == 0)
+            {
+                // Clear the transfer-complete flag so a late/duplicate IRQ can't double-advance, then
+                // run the completion path the lost interrupt should have run.
+                DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |= DMAC_CHCTRL_0S_CLRTC;
+                oledTransferComplete(0);
+            }
+            EXIT_CRITICAL_SECTION();
+        }
+    }
+    else
+    {
+        oledDmaWatchdogArmed = false;
     }
 }
 
