@@ -254,3 +254,28 @@ target_link_libraries(deluge_render PRIVATE deluge_app deluge_scheduler ${SIM_AL
 if(RT_LIB)
     target_link_libraries(deluge_render PRIVATE ${RT_LIB})
 endif()
+
+# ---------------------------------------------------------------------------
+# Layout-invariance guard (CTest). Render each fixture at two heap-pad layouts
+# (DELUGE_SIM_HEAP_PAD via scripts/golden_mixdown.sh padsweep) and assert the
+# outputs are bit-identical — proving no render depends on allocation addresses.
+# This is the regression net for the shared-PRNG / overread class of layout-
+# coupled bug (a passing `golden check` does NOT prove this; it's pinned to one
+# layout). The real backup songs live only on the developer's machine
+# (DELUGE_BACKUP), so each test SKIPs (exit 77) when its fixture is absent — a
+# fixtureless CI runner skips rather than fails. Slow (two full renders each);
+# build deluge_render first, then opt in with `ctest -L padsweep`.
+enable_testing()
+foreach(fixture cordae highsiderr icoustic)
+    add_test(
+        NAME padsweep_${fixture}
+        COMMAND ${CMAKE_COMMAND} -E env
+                FIXTURE=${fixture} PADS=64 NO_BUILD=1 BUILD_DIR=${CMAKE_BINARY_DIR}
+                bash ${REPO_ROOT}/scripts/golden_mixdown.sh padsweep
+    )
+    set_tests_properties(padsweep_${fixture} PROPERTIES
+        SKIP_RETURN_CODE 77
+        LABELS padsweep
+        TIMEOUT 1200
+    )
+endforeach()

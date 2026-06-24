@@ -12,7 +12,13 @@
 # Usage:
 #   scripts/golden_mixdown.sh update        # render and save as the golden reference (the "A")
 #   scripts/golden_mixdown.sh check         # render and diff against the golden (the "B"); default
+#   scripts/golden_mixdown.sh padsweep      # render at several heap-pad layouts; assert all bit-identical
 #   scripts/golden_mixdown.sh reconstruct   # (re)build the Cordae project tree from the backup
+#
+# `padsweep` is the layout-invariance guard: it proves the render depends on no allocation address (no
+# overread, no layout-coupled PRNG draw count). It compares renders to EACH OTHER, so unlike `check` it
+# catches layout fragility even when the golden matches a fixed layout. Run it after any memory/allocator
+# or manager-struct change.
 #
 # Env overrides:
 #   DELUGE_GOLDEN_DIR   where the project + golden live   (default: ~/.cache/deluge-golden)
@@ -20,6 +26,8 @@
 #   BUILD_DIR           the sim build dir                  (default: <repo>/build-sim-cpp)
 #   MODE                MIXDOWN | TRACK | CLIP | DRUM      (default: MIXDOWN)
 #   SONG                song path within the project       (default: SONGS/Cordae.XML)
+#   PADS                pad sizes for `padsweep`           (default: "16 64 256 4096")
+#   PAD                 one-off DELUGE_SIM_HEAP_PAD value for check/update (default: 0)
 #   NO_BUILD=1          skip the deluge_render rebuild
 #
 set -euo pipefail
@@ -71,10 +79,12 @@ reconstruct_project() {
 
 build() { [ "${NO_BUILD:-0}" = 1 ] || cmake --build "$BUILD_DIR" --target deluge_render >/dev/null; }
 
-# Render into $1; echo the produced WAV path (empty on failure).
+# Render into $1; echo the produced WAV path (empty on failure). Honours PAD (the sim-only
+# DELUGE_SIM_HEAP_PAD knob — leaked SDRAM bytes that shift allocation layout; default 0 = off).
 render() {
 	local out="$1"; rm -rf "$out"
-	DELUGE_HOST_DETERMINISTIC=1 "$RENDER" --project "$PROJ" --song "$SONG" --mode "$MODE" --out "$out" \
+	DELUGE_HOST_DETERMINISTIC=1 DELUGE_SIM_HEAP_PAD="${PAD:-0}" \
+		"$RENDER" --project "$PROJ" --song "$SONG" --mode "$MODE" --out "$out" \
 		>"$out.log" 2>&1 || true
 	find "$out" -name '*.WAV' 2>/dev/null | sort | head -1
 }
@@ -142,6 +152,42 @@ check)
 	echo "  render kept for inspection: $wav"
 	exit 1
 	;;
+padsweep)
+	# Layout-invariance guard: render the fixture at several DELUGE_SIM_HEAP_PAD values and assert every
+	# output is byte-identical to the pad=0 render. This proves the render depends on NO allocation
+	# address — no overread, no layout-coupled PRNG draw count, etc. (the bug class behind the
+	# master-dither / shared-PRNG coupling). It is independent of the golden: it compares renders to each
+	# other, so it catches layout fragility even when the golden happens to match a fixed layout.
+	# Skip (exit 77 = CTest SKIP_RETURN_CODE) when the fixture song isn't available locally — the backup
+	# songs aren't in CI, so a fixtureless runner skips rather than fails.
+	if [ ! -d "$PROJ" ] && [ ! -f "$SONG_DIR/$SONG_XML" ]; then
+		echo "SKIP — fixture '$FIXTURE' unavailable (no '$SONG_DIR/$SONG_XML'; set DELUGE_BACKUP)"; exit 77
+	fi
+	[ -d "$PROJ" ] || reconstruct_project
+	build
+	pads="${PADS:-16 64 256 4096}"
+	ref="$GOLDEN_DIR/_padsweep_ref"
+	PAD=0 wav0="$(render "$ref")"
+	[ -n "$wav0" ] || { echo "FAIL — pad=0 render produced no WAV (see $ref.log)"; exit 1; }
+	fails=0
+	for p in $pads; do
+		PAD="$p" wavp="$(render "$GOLDEN_DIR/_padsweep_$p")"
+		if [ -z "$wavp" ]; then
+			echo "FAIL — pad=$p render produced no WAV (see $GOLDEN_DIR/_padsweep_$p.log)"; fails=$((fails+1)); continue
+		fi
+		if cmp -s "$wav0" "$wavp"; then
+			echo "PASS — $FIXTURE/$MODE pad=$p matches pad=0"
+			rm -rf "$GOLDEN_DIR/_padsweep_$p" "$GOLDEN_DIR/_padsweep_$p.log"
+		else
+			echo "FAIL — $FIXTURE/$MODE pad=$p DIFFERS from pad=0 (layout-dependent render)"
+			audio_diff "$wav0" "$wavp"
+			echo "  kept: $wavp"; fails=$((fails+1))
+		fi
+	done
+	rm -rf "$ref" "$ref.log"
+	[ "$fails" -eq 0 ] || { echo "padsweep: $fails/$(echo $pads | wc -w) pad(s) diverged"; exit 1; }
+	echo "padsweep: $FIXTURE/$MODE layout-invariant across pads [$pads]"
+	;;
 *)
-	echo "usage: $0 [check|update|reconstruct]   (MODE=$MODE)"; exit 2 ;;
+	echo "usage: $0 [check|update|reconstruct|padsweep]   (MODE=$MODE)"; exit 2 ;;
 esac

@@ -25,6 +25,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h" // setCardRead() — commit the cluster size before slab sizing
 #include "storage/cluster/cluster.h"          // sizeof(Cluster) + Cluster::size for the slab slot
+#include <cstdlib>                            // getenv/strtol for the sim-only DELUGE_SIM_HEAP_PAD knob
 #include <cstring>
 
 namespace {
@@ -48,6 +49,21 @@ bool GeneralMemoryAllocator::ensureClusterSystem() {
 	if (clusterSlab_ != nullptr) {
 		return true;
 	}
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	// Sim/golden only: a deliberate, leaked SDRAM pad to perturb allocation *layout*. Allocated here —
+	// before the slab, resource manager, and any cluster — so it shifts everything after it by
+	// DELUGE_SIM_HEAP_PAD bytes. The pad-sweep golden guard (scripts/golden_mixdown.sh padsweep) renders
+	// a fixture at two pad values and asserts the outputs are bit-identical, proving the render is
+	// layout-INVARIANT: no audio may depend on allocation addresses (no overread, no layout-coupled PRNG
+	// draw count — the class of bug that coupled master dither to load-phase sample count). A green
+	// golden alone does NOT prove this; the sweep does. Firmware never compiles this branch.
+	if (const char* pad = getenv("DELUGE_SIM_HEAP_PAD")) {
+		long n = strtol(pad, nullptr, 10);
+		if (n > 0) {
+			(void)deluge_alloc(deluge::memory::sdram_heap(), static_cast<size_t>(n), 16); // intentionally leaked
+		}
+	}
+#endif
 	// Lazily create on the first cluster / asset use, when Cluster::size has been finalized to the
 	// session maximum (AudioFileManager reads the card before any cluster is made, and the firmware
 	// never raises cluster size after boot — see cardReinserted). setCardRead() commits the size
