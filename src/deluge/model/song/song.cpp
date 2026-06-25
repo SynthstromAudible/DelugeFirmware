@@ -474,8 +474,8 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 						// stay exactly the same.
 						// Just have to scroll the clip so that the change in song root note
 						// does not visually move the notes on the grid.
-						yNoteOnBottomRow = getYNoteFromYVisual(instrumentClip->yScroll, true, oldKey);
-						instrumentClip->yScroll = getYVisualFromYNote(yNoteOnBottomRow, true, newKey);
+						yNoteOnBottomRow = oldKey.getYNoteFromYVisual(instrumentClip->yScroll, true);
+						instrumentClip->yScroll = newKey.getYVisualFromYNote(yNoteOnBottomRow, true);
 					}
 					else {
 						instrumentClip->transpose(semitones, modelStackWithTimelineCounter);
@@ -542,8 +542,8 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale.
 	// Check if the previously set scale could fit the notes present in the clips
 	// If so, we need no check at all, we can directly go back to previous scale safely
-	bool previousScaleFits =
-	    getCurrentScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(project.scale.key.modeNotes);
+	bool previousScaleFits = project.scale.key.getCurrentScale() < NUM_PRESET_SCALES
+	                         && notesWithinOctavePresent.isSubsetOf(project.scale.key.modeNotes);
 	if (!previousScaleFits) {
 		project.scale.key.modeNotes = notesWithinOctavePresent.toImpliedScale();
 		// If this is not a preset, save as the current user scale.
@@ -638,119 +638,6 @@ bool Song::isYNoteAllowed(int32_t yNote, bool inKeyMode) {
 		return true;
 	}
 	return project.scale.key.modeNotes.has(project.scale.key.intervalOf(yNote));
-}
-
-int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode) {
-	return getYVisualFromYNote(yNote, inKeyMode, project.scale.key);
-}
-
-int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key) {
-	if (!inKeyMode) {
-		return yNote;
-	}
-	int32_t yNoteRelativeToRoot = yNote - key.rootNote;
-	int32_t yNoteWithinOctave = (uint16_t)(yNoteRelativeToRoot + 120) % 12;
-
-	int32_t octave = (uint16_t)(yNoteRelativeToRoot + 120 - yNoteWithinOctave) / 12 - 10;
-
-	int32_t yVisualWithinOctave = 0;
-	for (int32_t i = 0; i < key.modeNotes.count() && key.modeNotes[i] <= yNoteWithinOctave; i++) {
-		yVisualWithinOctave = i;
-	}
-	return yVisualWithinOctave + octave * key.modeNotes.count() + key.rootNote;
-}
-
-int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave) const {
-	return incrementYNoteInKey(yNote, increment, inOctave, project.scale.key);
-}
-
-int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key) {
-	D_PRINTLN("Incrementing note %i by %i", yNote, increment);
-	auto inc = std::clamp<int32_t>(increment, -1, 1);
-	auto num_scale_notes = key.modeNotes.count();
-	int32_t y_note_relative_to_root = yNote - key.rootNote;
-	int32_t y_note_within_octave = (uint16_t)(y_note_relative_to_root + 120) % 12;
-
-	int32_t octave = ((uint16_t)(y_note_relative_to_root + 120 - y_note_within_octave) / 12) - 10;
-	auto old_octave = octave;
-	int32_t y_visual_within_octave = 0;
-	for (int32_t i = 0; i < num_scale_notes && key.modeNotes[i] <= y_note_within_octave; i++) {
-		y_visual_within_octave = i;
-	}
-	auto old_mode_note = y_visual_within_octave;
-	if (inOctave) {
-		y_visual_within_octave = (y_visual_within_octave + inc) % num_scale_notes;
-		if (y_visual_within_octave < 0) {
-			y_visual_within_octave = y_visual_within_octave + num_scale_notes;
-		}
-	}
-	else {
-		y_visual_within_octave = y_visual_within_octave + inc;
-		if (y_visual_within_octave >= num_scale_notes) {
-			y_visual_within_octave = y_visual_within_octave - num_scale_notes;
-			octave++;
-		}
-		else if (y_visual_within_octave < 0) {
-			y_visual_within_octave = y_visual_within_octave + num_scale_notes;
-			octave--;
-		}
-	}
-	auto new_note = key.modeNotes[y_visual_within_octave] + (octave * 12) + key.rootNote;
-	if (std::abs(new_note - yNote) > 2) {
-		D_PRINTLN("new note is too different");
-	}
-	D_PRINTLN("incremented from %i to %i", yNote, new_note);
-	D_PRINTLN("Octave %i, mode_note %i, old_octave %i, old mode note % i", octave, y_visual_within_octave, old_octave,
-	          old_mode_note);
-
-	return new_note;
-}
-
-int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode) {
-	return getYNoteFromYVisual(yVisual, inKeyMode, project.scale.key);
-}
-
-int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key) {
-	if (!inKeyMode) {
-		return yVisual;
-	}
-	int32_t yVisualRelativeToRoot = yVisual - key.rootNote;
-	int32_t yVisualWithinOctave = yVisualRelativeToRoot % key.modeNotes.count();
-	if (yVisualWithinOctave < 0) {
-		yVisualWithinOctave += key.modeNotes.count();
-	}
-
-	int32_t octave = (yVisualRelativeToRoot - yVisualWithinOctave) / key.modeNotes.count();
-
-	int32_t yNoteWithinOctave = key.modeNotes[yVisualWithinOctave];
-	return yNoteWithinOctave + octave * 12 + key.rootNote;
-}
-
-bool Song::mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) {
-	// If it's the root note and moving down, special criteria
-	if (yVisualWithinOctave == 0 && newOffset == -1) {
-		return (project.scale.key.modeNotes[project.scale.key.modeNotes.count() - 1]
-		        < 11); // May ony move down if the top note in scale isn't directly below (at semitone 11)
-	}
-
-	else {
-		return ((newOffset == 1 && // We're moving up and
-		         project.scale.key.modeNotes[yVisualWithinOctave] < 11
-		         && // We're not already at the top of the scale and
-		         (yVisualWithinOctave == project.scale.key.modeNotes.count() - 1
-		          || // Either we're the top note, so don't need to check for a higher neighbour
-		          project.scale.key.modeNotes[yVisualWithinOctave + 1]
-		              > project.scale.key.modeNotes[yVisualWithinOctave]
-		                    + 1) // Or the next note up has left us space to move up
-		         )
-		        || (newOffset == -1 && // We're moving down and
-		            project.scale.key.modeNotes[yVisualWithinOctave] > 1
-		            && // We're not already at the bottom of the scale (apart from the root note) and
-		            project.scale.key.modeNotes[yVisualWithinOctave - 1]
-		                < project.scale.key.modeNotes[yVisualWithinOctave]
-		                      - 1 // The next note down has left us space to move down
-		            ));
-	}
 }
 
 void Song::removeYNoteFromMode(int32_t yNoteWithinOctave) {
@@ -2939,7 +2826,7 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICab
 }
 
 Scale Song::cycleThroughScales() {
-	auto startScale = getCurrentScale();
+	auto startScale = project.scale.key.getCurrentScale();
 	auto currentScale = startScale;
 	auto newScale = currentScale;
 	// Try next scale until one works, or we've tried all.
@@ -2998,14 +2885,6 @@ bool Song::setScaleNotes(NoteSet newScaleNotes) {
 	}
 
 	return true;
-}
-
-bool Song::hasUserScale() {
-	return !project.scale.userScaleNotes.isEmpty();
-}
-
-Scale Song::getCurrentScale() {
-	return getScale(project.scale.key.modeNotes);
 }
 
 // What does this do exactly, again?
@@ -5605,7 +5484,7 @@ void Song::getCurrentRootNoteAndScaleName(etl::istring& buffer) {
 	buffer.append(noteName);
 	if (display->haveOLED()) {
 		buffer.append(" ");
-		buffer.append(getScaleName(getCurrentScale()));
+		buffer.append(getScaleName(project.scale.key.getCurrentScale()));
 	}
 }
 

@@ -1478,7 +1478,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 }
 
 int32_t InstrumentClip::getYVisualFromYNote(int32_t yNote, Song* song) { // TODO: this necessary?
-	return song->getYVisualFromYNote(yNote, inScaleMode);
+	return song->project.scale.key.getYVisualFromYNote(yNote, inScaleMode);
 }
 
 int32_t InstrumentClip::getYNoteFromYVisual(int32_t yVisual, Song* song) {
@@ -1486,7 +1486,7 @@ int32_t InstrumentClip::getYNoteFromYVisual(int32_t yVisual, Song* song) {
 		return yVisual;
 	}
 	else {
-		return song->getYNoteFromYVisual(yVisual, inScaleMode);
+		return song->project.scale.key.getYNoteFromYVisual(yVisual, inScaleMode);
 	}
 }
 
@@ -3169,12 +3169,13 @@ useRootNote:
 	}
 
 	// Now, give all the other NoteRows yNotes
-	int32_t chosenNoteRowYVisual = song->getYVisualFromYNote(chosenNoteRow->y, inScaleMode);
+	int32_t chosenNoteRowYVisual = song->project.scale.key.getYVisualFromYNote(chosenNoteRow->y, inScaleMode);
 
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
 		if (i != chosenNoteRowIndex) {
-			thisNoteRow->y = song->getYNoteFromYVisual(chosenNoteRowYVisual - chosenNoteRowIndex + i, inScaleMode);
+			thisNoteRow->y =
+			    song->project.scale.key.getYNoteFromYVisual(chosenNoteRowYVisual - chosenNoteRowIndex + i, inScaleMode);
 		}
 	}
 }

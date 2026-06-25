@@ -1144,7 +1144,8 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 			noteRowYDisplay = i - getCurrentInstrumentClip()->yScroll;
 		}
 		else { // Or for non-Kits
-			int32_t yVisual = currentSong->getYVisualFromYNote(thisNoteRow->y, getCurrentInstrumentClip()->inScaleMode);
+			int32_t yVisual = currentSong->project.scale.key.getYVisualFromYNote(
+			    thisNoteRow->y, getCurrentInstrumentClip()->inScaleMode);
 			noteRowYDisplay = yVisual - getCurrentInstrumentClip()->yScroll;
 		}
 		if (isFilteredCopy) {
@@ -4745,7 +4746,7 @@ void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {
 		yVisualWithinOctave = getYVisualWithinOctaveFromYDisplay(lastAuditionedYDisplay);
 
 		// If not allowed to move, blink the scale mode button to remind the user that that's why
-		if (!currentSong->mayMoveModeNote(yVisualWithinOctave, newOffset)) {
+		if (!currentSong->project.scale.key.mayMoveModeNote(yVisualWithinOctave, newOffset)) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::SCALE_MODE);
 			int32_t noteCode = getCurrentInstrumentClip()->getYNoteFromYDisplay(lastAuditionedYDisplay, currentSong);
 			drawActualNoteCode(noteCode); // Draw it again so that blinking stops temporarily
@@ -6181,7 +6182,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 
 		if (noteRow && !noteRow->hasNoNotes()) {
 			int32_t currentYNote = noteRow->y;
-			auto destYNote = currentSong->incrementYNoteInKey(currentYNote, offset, inOctave);
+			auto destYNote = currentSong->project.scale.key.incrementYNoteInKey(currentYNote, offset, inOctave);
 			D_PRINTLN("Moving note from row %i to %i", currentYNote, destYNote);
 
 			// Skip if note would stay in same row

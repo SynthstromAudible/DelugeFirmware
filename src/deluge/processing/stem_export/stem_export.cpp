@@ -1117,7 +1117,7 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 	noteCodeToString(currentSong->project.scale.key.rootNote, noteName, &isNatural);
 
 	// get song scale
-	const char* scaleName = getScaleName(currentSong->getCurrentScale());
+	const char* scaleName = getScaleName(currentSong->project.scale.key.getCurrentScale());
 
 	char fileName[300];
 

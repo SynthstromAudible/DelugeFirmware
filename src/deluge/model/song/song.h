@@ -86,13 +86,6 @@ public:
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
 	void rotateMusicalMode(int8_t change);
 	void replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose);
-	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
-	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key);
-	int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave) const;
-	static int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key);
-	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
-	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key);
-	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
 	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = nullptr);
 	void setupPatchingForAllParamManagersForDrum(SoundDrum* drum);
 	void setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound);
@@ -109,7 +102,6 @@ public:
 	/// Changes to next applicable scale.
 	Scale cycleThroughScales();
 	/// Returns current scale
-	Scale getCurrentScale();
 	/// Changes to requested scale, will return the scale if successfull, or NO_SCALE if change
 	/// could not be completed.
 	Scale setScale(Scale newScale);
@@ -118,7 +110,6 @@ public:
 	bool setScaleNotes(NoteSet newScale);
 	/// Learns a user scale from notes in scale mode clips.
 	/// Returns true if the song has a user scale.
-	bool hasUserScale();
 	/// Sets root note of key. If the previous scale no longer fits, changes to a new implied scale, which
 	/// can result in a new user scale being set.
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = nullptr);

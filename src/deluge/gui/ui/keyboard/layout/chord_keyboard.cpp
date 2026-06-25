@@ -152,7 +152,7 @@ void KeyboardLayoutChord::offsetPads(int32_t offset, bool shiftEnabled) {
 void KeyboardLayoutChord::precalculate() {
 	KeyboardStateChord& state = getState().chord;
 
-	Scale currentScale = currentSong->getCurrentScale();
+	Scale currentScale = currentSong->project.scale.key.getCurrentScale();
 	D_PRINTLN("Current scale: %d", currentScale);
 
 	if (!(acceptedScales.find(currentScale) != acceptedScales.end())) {

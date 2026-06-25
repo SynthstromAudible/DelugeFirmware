@@ -35,6 +35,9 @@ struct ScaleSettings {
 	NoteSet userScaleNotes;
 	/// Computes per-note remappings when the scale changes; effectively private state of that path.
 	ScaleMapper scaleMapper;
+
+	/// Whether a user scale is currently defined.
+	[[nodiscard]] bool hasUserScale() const { return !userScaleNotes.isEmpty(); }
 };
 
 } // namespace deluge::project

@@ -636,7 +636,7 @@ void InstrumentClipMinder::displayScaleName(Scale scale) {
 }
 
 void InstrumentClipMinder::displayCurrentScaleName() {
-	displayScaleName(currentSong->getCurrentScale());
+	displayScaleName(currentSong->project.scale.key.getCurrentScale());
 }
 
 // Returns whether currentClip is now active on Output / Instrument
