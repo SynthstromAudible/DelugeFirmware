@@ -284,7 +284,9 @@ void deluge_board_unlock_data_cache(void) {
 // audio_io.h is implemented in host_audio.c (the render-driver + WAV capture).
 
 // ===========================================================================
-// block_device.h  [stub — a file-backed card image goes here]
+// block_device.h  [stub — the file-backed card image is the FatFs disk_*
+// backend in host_platform.c (DELUGE_SD_IMAGE); the block_device boundary
+// itself is unused on host]
 // ===========================================================================
 
 uint8_t deluge_block_sd_unit(void) {
@@ -766,29 +768,104 @@ uint32_t deluge_midi_write_pending(DelugeMidiPort port) {
 	(void)port;
 	return 0;
 }
-// DIN MIDI note injection (host harness). DELUGE_HOST_MIDI_NOTE=<0..127> feeds a
-// single channel-1 note-on at startup so the default synth sounds (a blank song
-// otherwise renders silence). The note is held (no note-off) for the capture.
-static uint8_t host_din_seq[8];
-static uint32_t host_din_len;
-static uint32_t host_din_pos;
+// DIN MIDI injection (host harness). Two sources, merged into one frame-keyed
+// event list released against the offline audio clock (host_rendered_frames),
+// so injected MIDI lands on the same sample across runs and builds:
+//
+//   DELUGE_HOST_MIDI_NOTE=<0..127>     one channel-1 note-on at frame 0, held
+//                                      for the capture (legacy single-note form).
+//   DELUGE_HOST_MIDI_SCRIPT=<path>     scripted events: one per line,
+//                                      `<frame> <hex byte> [hex byte ...]`
+//                                      (raw DIN stream bytes; `#` comments).
+//                                      e.g. `0 90 3C 64` / `44100 80 3C 40`.
+//
+// Lines must be in nondecreasing frame order (rejected otherwise — keeps the
+// release logic trivially deterministic). This is the note-event source for the
+// golden-master audio harness (tests/golden/).
+#define HOST_DIN_MAX_EVENTS 512
+#define HOST_DIN_MAX_BYTES 4096
+
+static struct {
+	uint32_t frame;
+	uint16_t offset; // into host_din_bytes
+	uint16_t len;
+} host_din_events[HOST_DIN_MAX_EVENTS];
+static uint8_t host_din_bytes[HOST_DIN_MAX_BYTES];
+static uint32_t host_din_num_events;
+static uint32_t host_din_num_bytes;
+static uint32_t host_din_event_pos; // next event to release
+static uint32_t host_din_byte_pos;  // next byte within the current event
 static int host_din_inited;
+
+static void host_din_add_event(uint32_t frame, const uint8_t* bytes, uint32_t len) {
+	if (host_din_num_events >= HOST_DIN_MAX_EVENTS || host_din_num_bytes + len > HOST_DIN_MAX_BYTES) {
+		fprintf(stderr, "[host-midi] script too large; event dropped\n");
+		return;
+	}
+	if (host_din_num_events > 0 && frame < host_din_events[host_din_num_events - 1].frame) {
+		fprintf(stderr, "[host-midi] script frames not in order at frame %u; event dropped\n", frame);
+		return;
+	}
+	host_din_events[host_din_num_events].frame = frame;
+	host_din_events[host_din_num_events].offset = (uint16_t)host_din_num_bytes;
+	host_din_events[host_din_num_events].len = (uint16_t)len;
+	memcpy(&host_din_bytes[host_din_num_bytes], bytes, len);
+	host_din_num_bytes += len;
+	host_din_num_events++;
+}
+
+static void host_din_load_script(const char* path) {
+	FILE* f = fopen(path, "r");
+	if (!f) {
+		fprintf(stderr, "[host-midi] could not open script %s\n", path);
+		return;
+	}
+	char line[256];
+	while (fgets(line, sizeof line, f)) {
+		char* hash = strchr(line, '#');
+		if (hash) {
+			*hash = '\0';
+		}
+		char* cursor = line;
+		char* end;
+		unsigned long frame = strtoul(cursor, &end, 10);
+		if (end == cursor) {
+			continue; // blank / comment-only line
+		}
+		cursor = end;
+		uint8_t bytes[16];
+		uint32_t len = 0;
+		while (len < sizeof bytes) {
+			unsigned long b = strtoul(cursor, &end, 16);
+			if (end == cursor) {
+				break;
+			}
+			bytes[len++] = (uint8_t)b;
+			cursor = end;
+		}
+		if (len > 0) {
+			host_din_add_event((uint32_t)frame, bytes, len);
+		}
+	}
+	fclose(f);
+	fprintf(stderr, "[host-midi] loaded %u scripted DIN events (%u bytes)\n", host_din_num_events, host_din_num_bytes);
+}
 
 static void host_din_init(void) {
 	host_din_inited = 1;
 	const char* n = getenv("DELUGE_HOST_MIDI_NOTE");
-	if (!n) {
-		return;
+	if (n) {
+		int note = atoi(n);
+		if (note >= 0 && note <= 127) {
+			uint8_t seq[3] = {0x90, (uint8_t)note, 100}; // note-on, channel 1, vel 100
+			host_din_add_event(0, seq, sizeof seq);
+			fprintf(stderr, "[host-midi] injecting DIN note-on ch1 note=%d vel=100\n", note);
+		}
 	}
-	int note = atoi(n);
-	if (note < 0 || note > 127) {
-		return;
+	const char* script = getenv("DELUGE_HOST_MIDI_SCRIPT");
+	if (script && script[0]) {
+		host_din_load_script(script);
 	}
-	host_din_seq[0] = 0x90;          // note-on, channel 1
-	host_din_seq[1] = (uint8_t)note; //
-	host_din_seq[2] = 100;           // velocity
-	host_din_len = 3;
-	fprintf(stderr, "[host-midi] injecting DIN note-on ch1 note=%d vel=100\n", note);
 }
 
 bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_ticks) {
@@ -811,16 +888,24 @@ bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_ticks) {
 	if (!host_din_inited) {
 		host_din_init();
 	}
-	if (host_din_pos < host_din_len) {
-		if (byte) {
-			*byte = host_din_seq[host_din_pos++];
-		}
-		if (arrival_ticks) {
-			*arrival_ticks = (uint32_t)deluge_clock_monotonic();
-		}
-		return true;
+	if (host_din_event_pos >= host_din_num_events) {
+		return false;
 	}
-	return false;
+	if (host_rendered_frames < host_din_events[host_din_event_pos].frame) {
+		return false; // next event's time hasn't come yet
+	}
+	if (byte) {
+		*byte = host_din_bytes[host_din_events[host_din_event_pos].offset + host_din_byte_pos];
+	}
+	if (arrival_ticks) {
+		*arrival_ticks = (uint32_t)deluge_clock_monotonic();
+	}
+	host_din_byte_pos++;
+	if (host_din_byte_pos >= host_din_events[host_din_event_pos].len) {
+		host_din_byte_pos = 0;
+		host_din_event_pos++;
+	}
+	return true;
 }
 void deluge_midi_flush(DelugeMidiPort port) {
 	(void)port;
