@@ -166,10 +166,6 @@ private:
 	AudioFile* buildAudioFileFromCard(const std::string& filePath, const std::string& usingAlternateLocation,
 	                                  FilePointer& effectiveFilePointer, AudioFileType type,
 	                                  bool makeWaveTableWorkAtAllCosts, Error* error);
-	int32_t readBytes(char* buffer, int32_t num, int32_t* byteIndexWithinCluster, Cluster** currentCluster,
-	                  uint32_t* currentClusterIndex, uint32_t fileSize, Sample* sample);
-	int32_t loadAiff(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
-	int32_t loadWav(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
 };
 
 extern AudioFileManager audioFileManager;
