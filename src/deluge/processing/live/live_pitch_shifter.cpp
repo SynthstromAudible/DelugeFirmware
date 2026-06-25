@@ -657,8 +657,11 @@ startSearch:
 			}
 		}
 		else {
+			// readPos has kNumMovingAverages + 1 entries (indices 0..kNumMovingAverages); the leading edge of the
+			// last window is readPos[kNumMovingAverages]. The historical `+ 1` here indexed one past the array — a
+			// stack OOB read whose (arch-dependent) garbage perturbed the search bound.
 			searchSizeBoundary =
-			    (uint32_t)(numRawSamplesProcessedLatest - readPos[TimeStretch::Crossfade::kNumMovingAverages + 1])
+			    (uint32_t)(numRawSamplesProcessedLatest - readPos[TimeStretch::Crossfade::kNumMovingAverages])
 			    & (kInputRawBufferSize - 1);
 		}
 

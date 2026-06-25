@@ -37,8 +37,10 @@ struct [[gnu::hot]] Interpolator {
 		}
 	}
 
-	// These are the state buffers (quadword alignment for NEON)
-	alignas(sizeof(int32_t) * 4) std::array<int16_t, kInterpolationMaxNumSamples> buffer_l;
-	alignas(sizeof(int32_t) * 4) std::array<int16_t, kInterpolationMaxNumSamples> buffer_r;
+	// These are the state buffers (quadword alignment for NEON). Value-initialised: interpolate() reads the full
+	// kInterpolationMaxNumSamples-tap window via SIMD, so any tap not yet pushed must be a defined 0 rather than
+	// whatever the allocation left behind (the live-input pitch-shifter feeds these incrementally on warm-up).
+	alignas(sizeof(int32_t) * 4) std::array<int16_t, kInterpolationMaxNumSamples> buffer_l{};
+	alignas(sizeof(int32_t) * 4) std::array<int16_t, kInterpolationMaxNumSamples> buffer_r{};
 };
 } // namespace deluge::dsp

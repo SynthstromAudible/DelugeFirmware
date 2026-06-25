@@ -156,7 +156,7 @@ sdError:
 			currentDir.clear();
 		}
 		else {
-			int32_t slashPos = (uint32_t)slashAddress - (uint32_t)currentPathChars;
+			int32_t slashPos = (uintptr_t)slashAddress - (uintptr_t)currentPathChars;
 			searchFilename = &currentPathChars[slashPos + 1];
 
 			currentDir.set(currentPathChars);
@@ -2003,7 +2003,7 @@ getOut:
 				char const* newNameChars = newName.get();
 				char const* dotAddress = strrchr(newNameChars, '.');
 				if (dotAddress) {
-					int32_t dotPos = (uint32_t)dotAddress - (uint32_t)newNameChars;
+					int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)newNameChars;
 					newName.shorten(dotPos);
 				}
 

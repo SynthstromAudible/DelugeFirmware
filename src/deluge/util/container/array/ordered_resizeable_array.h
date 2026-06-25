@@ -51,12 +51,12 @@ public:
 
 protected:
 	inline int32_t getKeyAtMemoryLocation(void* address) {
-		int32_t keyBig = *(uint32_t*)((uint32_t)address + keyOffset) << keyShiftAmount;
+		int32_t keyBig = *(uint32_t*)((uintptr_t)address + keyOffset) << keyShiftAmount;
 		return keyBig >> keyShiftAmount; // We use shifting instead of a mask so negative numbers get treated directly.
 	}
 
 	inline void setKeyAtMemoryLocation(int32_t key, void* address) {
-		uint32_t offsetAddress = (uint32_t)address + keyOffset;
+		uintptr_t offsetAddress = (uintptr_t)address + keyOffset;
 		uint32_t prevContents = *(uint32_t*)offsetAddress;
 		*(uint32_t*)offsetAddress = (key & keyMask) | (prevContents & ~keyMask);
 	}

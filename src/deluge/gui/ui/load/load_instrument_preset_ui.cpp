@@ -797,7 +797,7 @@ nonNumeric:
 		char const* underscoreAddress = strrchr(oldNameChars, ' ');
 		if (underscoreAddress) {
 lookAtSuffixNumber:
-			int32_t underscorePos = (uint32_t)underscoreAddress - (uint32_t)oldNameChars;
+			int32_t underscorePos = (uintptr_t)underscoreAddress - (uintptr_t)oldNameChars;
 			numberStartPos = underscorePos + 1;
 			int32_t oldNumberLength = oldNameLength - numberStartPos;
 			if (oldNumberLength > 0) {

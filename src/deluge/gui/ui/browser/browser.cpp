@@ -352,7 +352,7 @@ extensionNotSupported:
 					goto nonNumericFile; // Shouldn't happen?
 				}
 
-				int32_t dotPos = (uint32_t)dotAddress - (uint32_t)storedFilenameChars;
+				int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)storedFilenameChars;
 				if (dotPos < filePrefixLength + 3) {
 					goto nonNumericFile;
 				}
@@ -1398,7 +1398,7 @@ searchForChar:
 				goto searchForChar;
 			}
 
-			int32_t displayStringLength = (uint32_t)finalCharAddress - (uint32_t)displayName;
+			int32_t displayStringLength = (uintptr_t)finalCharAddress - (uintptr_t)displayName;
 
 			if (isSelectedIndex) {
 				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars, canvas);
@@ -1709,7 +1709,7 @@ Error Browser::setEnteredTextFromCurrentFilename() {
 		char const* enteredTextChars = enteredText.get();
 		char const* dotAddress = strrchr(enteredTextChars, '.');
 		if (dotAddress) {
-			int32_t dotPos = (uint32_t)dotAddress - (uint32_t)enteredTextChars;
+			int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)enteredTextChars;
 			error = enteredText.shorten(dotPos);
 			if (error != Error::NONE) {
 				return error;
@@ -1757,7 +1757,7 @@ Error Browser::goUpOneDirectoryLevel() {
 		return Error::NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP;
 	}
 
-	int32_t slashPos = (uint32_t)slashAddress - (uint32_t)currentDirChars;
+	int32_t slashPos = (uintptr_t)slashAddress - (uintptr_t)currentDirChars;
 	Error error = enteredText.set(slashAddress + 1);
 	if (error != Error::NONE) {
 		return error;

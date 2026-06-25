@@ -12,7 +12,8 @@ public:
 	enum class Mode { APPROX, EXACT };
 
 	template <Mode mode = Mode::APPROX>
-	constexpr DualCosineOscillator(std::array<float, 2> frequencies) : frequencies_(frequencies) {
+	constexpr DualCosineOscillator(std::array<float, 2> frequencies)
+	    : frequencies_(ArgonHalf<float>::Load(frequencies.data())) {
 		Init<mode>();
 	}
 	~DualCosineOscillator() = default;
