@@ -19,6 +19,8 @@
 
 #include <cstdint>
 
+class Clip;
+
 namespace deluge::project {
 
 /// Tempo / internal-vs-external tick timing of a song. A component of deluge::project::Song.
@@ -28,6 +30,7 @@ struct Transport {
 	int32_t divideByTimePerTimerTick{0}; ///< reciprocal of the above (precomputed)
 	int32_t insideWorldTickMagnitude{0}; ///< orders of magnitude the internal clock runs faster than input ticks
 	int32_t insideWorldTickMagnitudeOffsetFromBPM{0}; ///< sync-scaling offset kept out of the BPM display
+	Clip* syncScalingClip{nullptr}; ///< clip whose loop length scales external input ticks (the sync master)
 };
 
 } // namespace deluge::project

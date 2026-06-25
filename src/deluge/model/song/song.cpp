@@ -141,7 +141,7 @@ Song::Song() {
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	project.transport.insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	project.transport.insideWorldTickMagnitudeOffsetFromBPM = 0;
-	syncScalingClip = nullptr;
+	project.transport.syncScalingClip = nullptr;
 	runtimeView.currentClip = nullptr;
 	project.metadata.slot = 32767;
 	project.metadata.subSlot = -1;
@@ -343,7 +343,8 @@ bool Song::ensureAtLeastOneSessionClip() {
 	void* memory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
-	(void)project.clips.sessionClips.insertClipAt(firstClip, 0); // OOM impossible-in-practice this early; ignored as before
+	(void)project.clips.sessionClips.insertClipAt(firstClip,
+	                                              0); // OOM impossible-in-practice this early; ignored as before
 
 	firstClip->loopLength = kDefaultClipLength << project.transport.insideWorldTickMagnitude;
 
@@ -795,10 +796,10 @@ bool Song::areAllClipsInSectionPlaying(int32_t section) {
 }
 
 uint32_t Song::getInputTickScale() {
-	if (!syncScalingClip) {
+	if (!project.transport.syncScalingClip) {
 		return 3;
 	}
-	uint32_t inputTickScale = syncScalingClip->loopLength;
+	uint32_t inputTickScale = project.transport.syncScalingClip->loopLength;
 	while (!(inputTickScale & 1)) {
 		inputTickScale >>= 1;
 	}
@@ -806,12 +807,12 @@ uint32_t Song::getInputTickScale() {
 }
 
 Clip* Song::getSyncScalingClip() {
-	return syncScalingClip;
+	return project.transport.syncScalingClip;
 }
 
 void Song::setInputTickScaleClip(Clip* clip) {
 	uint32_t oldScale = getInputTickScale();
-	syncScalingClip = clip;
+	project.transport.syncScalingClip = clip;
 	inputTickScalePotentiallyJustChanged(oldScale);
 }
 
@@ -883,7 +884,7 @@ void Song::loadNextSong() {
 void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip) {
 	uint32_t oldLength = clip->loopLength;
 
-	if (clip == syncScalingClip) {
+	if (clip == project.transport.syncScalingClip) {
 		uint32_t oldScale = getInputTickScale();
 		clip->loopLength = newLength;
 		inputTickScalePotentiallyJustChanged(oldScale);
@@ -936,7 +937,7 @@ void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
 	clip->increaseLengthWithRepeats(modelStack, oldLength << 1, IndependentNoteRowLengthIncrease::DOUBLE, false,
 	                                action);
 
-	if (clip == syncScalingClip) {
+	if (clip == project.transport.syncScalingClip) {
 		inputTickScalePotentiallyJustChanged(oldScale);
 	}
 
@@ -2208,8 +2209,8 @@ skipInstance:
 			if (runtimeView.currentClip == clip) {
 				runtimeView.currentClip = nullptr;
 			}
-			if (syncScalingClip == clip) {
-				syncScalingClip = nullptr;
+			if (project.transport.syncScalingClip == clip) {
+				project.transport.syncScalingClip = nullptr;
 			}
 
 			project.clips.arrangementOnlyClips.erase(project.clips.arrangementOnlyClips.begin() + c);
@@ -2225,9 +2226,10 @@ skipInstance:
 		globalEffectable.compensateVolumeForResonance(&paramManager);
 	}
 
-	if (syncScalingClip) {
-		Clip* newInputTickScaleClip = syncScalingClip;
-		syncScalingClip = nullptr; // We shouldn't have set this manually earlier, anyway - we just saved hassle
+	if (project.transport.syncScalingClip) {
+		Clip* newInputTickScaleClip = project.transport.syncScalingClip;
+		project.transport.syncScalingClip =
+		    nullptr; // We shouldn't have set this manually earlier, anyway - we just saved hassle
 		setInputTickScaleClip(newInputTickScaleClip);
 	}
 
@@ -4454,7 +4456,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 			int32_t index = project.clips.arrangementOnlyClips.getIndexForClip(clip);
 			if (index != -1) {
 				project.clips.arrangementOnlyClips.erase(project.clips.arrangementOnlyClips.begin()
-				                           + index); // Shouldn't actually ever not be found
+				                                         + index); // Shouldn't actually ever not be found
 			}
 			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			if (shouldPickNewActiveClip) {
@@ -5235,7 +5237,8 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 }
 
 int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
-	int32_t numToSearch = std::min<int32_t>(std::ssize(project.clips.sessionClips), persistentView.songViewYScroll + kDisplayHeight);
+	int32_t numToSearch =
+	    std::min<int32_t>(std::ssize(project.clips.sessionClips), persistentView.songViewYScroll + kDisplayHeight);
 
 	int32_t outputValue = persistentView.songViewYScroll;
 
@@ -5368,7 +5371,7 @@ void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 	project.clips.sessionClips[clipIndex] = newClip;
 
 	if (oldClip == getSyncScalingClip()) {
-		syncScalingClip = newClip;
+		project.transport.syncScalingClip = newClip;
 	}
 
 	if (oldClip == runtimeView.currentClip) {
