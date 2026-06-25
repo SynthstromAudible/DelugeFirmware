@@ -1,6 +1,9 @@
 # Project-Model Extraction (firmware)
 
-Status: **planning** — 2026-06-19
+Status: **Phases 0–2 done; Phase 3 active** — updated 2026-06-25
+(Phase 1 view-state carve-out + Phase 2 component extraction landed on branch
+`deluge-project`, host-sim + golden x86 green, arm-none-eabi firmware builds;
+hardware test pending before merge.)
 
 ## Goal
 
@@ -97,15 +100,35 @@ the engine never depends on the concrete model type.
   `sectionToReturnToAfterSongEnd` left on `Song` (not serialized, ambiguous).
   Remaining pre-merge: arm-none-eabi firmware build + hardware test.
 - **Phase 2 — Extract the project model into a new `deluge_project` library.**
-  ⏳ IN PROGRESS. Create `src/deluge-project/` (target `deluge_project`,
+  ✅ **DONE** (structural move complete; host-sim build + golden x86 corpus green
+  OK=15, arm-none-eabi firmware builds + links clean; hardware test pending
+  before merge). Created `src/deluge-project/` (target `deluge_project`,
   namespace `deluge::project`) — the boundary for the modern, idiomatic, OO
   C++23 project model, mirroring the synth work's clean library (`deluge_dsp` is
-  the structural precedent). The serialized project data **is** the model: move
-  it off the legacy `::Song` god-object into `deluge::project::Song`. `::Song`
-  becomes the controller (keeps `runtimeView`, playback/UI methods and their
-  coupling) and owns the model as the `project` member; data access becomes
-  `currentSong->project.<…>`. Serialization keeps the same XML tags, so the
-  golden round-trip net verifies every step (byte-identical).
+  the structural precedent). The serialized project data **is** the model: moved
+  off the legacy `::Song` god-object into `deluge::project::Song`. `::Song` is
+  now the controller (keeps `runtimeView`, execution flags, playback/UI methods
+  and their coupling) and owns the model as the `project` member (named `project`
+  rather than `model` — `model` is already the reverb-model enum); data access is
+  `currentSong->project.<component>.<field>`. Serialization keeps the same XML
+  tags, so the golden round-trip net verified every step (byte-identical).
+
+  **End state.** `deluge::project::Song` holds ten components — `metadata`,
+  `media` (`MediaPool`), `clips`, `groove`, `transport`, `scale`
+  (`ScaleSettings`), `reverb` (`ReverbSettings`), `globalFx` (`GlobalEffects`),
+  `arrangement` (`Section`/`SessionMacro` + macros), `paramBackup`. Every
+  serialized project field now lives in one of them; `::Song` retains only
+  runtime/view state and methods. `model` (the reverb-model enum) is the only
+  field deliberately left at the controller root (extreme name collision). Two
+  build-system notes from the migration: (a) once a heavyweight app type migrates
+  in **by value** (`GlobalEffectableForSong`, `ParamManager`), the lib must see
+  the app's full header environment — `deluge_project` therefore pulls
+  `$<TARGET_PROPERTY:deluge_app,INTERFACE_INCLUDE_DIRECTORIES>` (include dirs
+  only, no link dependency, so no cycle with `deluge_app` PUBLIC-linking
+  `deluge_project`); (b) types relocated into `deluge::project` (e.g. `Section`,
+  `SessionMacroKind`) keep **global `using`/`using enum` alias-shims** in `song.h`
+  so existing unqualified call sites compile unchanged — qualification is a
+  Phase-3 refinement.
 
   **Decomposed into components NOW (split-now), not flat-then-split.** Each
   field group lands directly in a component sub-object of `deluge::project::Song`
@@ -127,12 +150,34 @@ the engine never depends on the concrete model type.
   cascades, rebuild to zero, golden green. (Same machinery as Phase 1's sweep.)
   Group order: swing→`Groove`, tempo/timing→`Transport`, scale/`key`, sections,
   outputs, clips (largest), reverb/misc.
-- **Phase 3 — Idiomatic refinement + remaining decoupling.** Polish the
-  component internals inside `deluge_project` (modern C++23, encapsulation,
-  value types), and sever the controller's residual UI/playback coupling (the
-  `display->`/`view.` reaches and the `playbackHandler` transport reads — a
-  read-seam) — deferred from here because it decouples the *controller*, is not
-  golden-covered, and is tangential to extracting the data.
+- **Phase 3 — Idiomatic refinement + remaining decoupling.** ⏳ **ACTIVE** (Phase 2
+  established the boundary; Phase 3 makes what's inside it idiomatic, with zero
+  external churn since the address `currentSong->project.<component>.<field>` is
+  already final). Golden-gated throughout, same harness. Workstreams, roughly in
+  order of leverage:
+
+  1. **Pull the parked helpers into the library.** Several pure-data operations
+     still live on the `::Song` controller and forward into a component — move
+     them onto the component itself (member functions of the relevant struct).
+     Concretely: the seven `…BackedUpParamManager…` lookup/eviction methods →
+     `ParamBackup`; the section helpers (`areAllClipsInSectionPlaying`, the
+     `requireSection` selection in `getSessionClipWithOutput`,
+     `getLowestSectionWithNoSessionClipForOutput`) → `Arrangement`; the
+     user-scale helper/mapper → `ScaleSettings`. Each turns a forwarding stub
+     into a real method and shrinks the controller.
+  2. **Qualify the alias-shimmed types and retire the shims.** Replace the global
+     `using deluge::project::Section;` / `using enum SessionMacroKind;` (and the
+     rest) in `song.h` with fully-qualified `deluge::project::` names at the ~20
+     external call sites, then delete the shims. Mechanical, compiler-checked.
+  3. **Modernize component internals.** Value semantics, encapsulation
+     (`private` + accessors where it buys safety), modern C++23 types — e.g.
+     `Arrangement::sections` as `std::array`, replacing raw owning pointers with
+     clear ownership. Internal to the lib; serialization stays byte-identical.
+  4. **Sever the controller's residual UI/playback coupling.** The `display->` /
+     `view.` reaches and the `playbackHandler` transport reads — a read-seam
+     (`ProjectReader`-style, per the target architecture above). Deferred to here
+     because it decouples the *controller*, is not golden-covered, and is
+     tangential to extracting the data; do it last and behind its own tests.
 - **Phase 5 — Serialization into the library.** Move load/save behind a narrow
   interface, still C++, reusing the existing multi-version parsers; no firmware
   deps; host unit tests. Keep the interface narrow enough that a Rust
