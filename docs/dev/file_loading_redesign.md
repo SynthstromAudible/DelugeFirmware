@@ -127,14 +127,31 @@ if(*error!=NONE) goto` stubs).
 The full 296-preset render golden sweep (`feat/synth-golden-masters`) is the belt-and-suspenders, deferred
 to merge.
 
+### Gotos untangled
+
+The loader's control-flow gotos are gone: `getAudioFileFromFilename`'s `doTryOffset` neighbour search became a
+bounded for-loop and the `successfullyFoundInMemory` backward jump dissolved (the alternate in-memory search
+runs up front, both finds converge on one block); `resolveFilePointer`'s six-label alternate/regular state
+machine became two local lambdas (`tryAlternateName`, `tryRegularPath`) + explicit strategy ordering. No gotos
+remain in the load path.
+
+The one remaining in-scope goto cluster is **`WaveTable::setup`'s error-cleanup ladder** (`gotError` /
+`gotError2` / `gotError4` / `gotError5`) — the idiomatic C "free what's been allocated so far" pattern.
+Untangling it properly means RAII scope-guards, but `setup` deliberately frees its `alloc_fast` temp buffers
+mid-function (before a band-trimming tail), so a scope-exit guard would change internal-RAM free timing; and
+its error paths have no host-net coverage. Left as a separate, careful follow-up (ideally after adding
+alloc-failure coverage). `WaveTable::render`'s hot-loop gotos and the cluster-streaming / card gotos
+(`readClusterData`, `loadAnyEnqueuedClusters`, `cardReinserted`) are different subsystems, out of this scope.
+
 ## What's next
 
-1. **Layer 3 — collapse `getAudioFileFromFilename`** (resolution vs construction split, RAII reason guard,
-   delete dead code). Also the natural home for fully dissolving the `wtSource` seam: the WaveTable path's
-   source is *always* a `DeserializerByteSource`, so a dedicated `buildWaveTable` could split `setup` into
-   `setupFromSample` (in-memory) vs `setupFromFile(DeserializerByteSource&, …)` and drop the shared
-   `setup(Sample*, …, source)` overload's nullable-source soup.
-2. **(later, optional)** deliberate quirk fixes / dead AIFF-path removal — each its own change.
+1. **(optional) `WaveTable::setup` cleanup-ladder → RAII** — see "Gotos untangled" above; do it on its own,
+   preserving the early temp-buffer free, ideally with alloc-failure test coverage first.
+2. **(optional)** dissolve the `wtSource` seam: the WaveTable path's source is *always* a
+   `DeserializerByteSource`, so split `setup` into `setupFromSample` (in-memory) vs
+   `setupFromFile(DeserializerByteSource&, …)` and drop the shared overload's nullable-source soup.
+3. **(later, optional)** deliberate quirk fixes / dead AIFF-path removal — each its own change.
+4. **At merge:** the full 296-preset render golden sweep (`feat/synth-golden-masters`) as belt-and-suspenders.
 
 ## Key files
 
