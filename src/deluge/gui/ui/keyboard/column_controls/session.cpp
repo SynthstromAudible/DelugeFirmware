@@ -26,6 +26,9 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
+using deluge::project::SessionMacro;
+using deluge::project::SessionMacroKind;
+
 void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
 	bool armed = false;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
@@ -38,29 +41,29 @@ void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int
 
 bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	SessionMacro& m = currentSong->project.arrangement.sessionMacros[pad];
-	int kindIndex = (int32_t)m.kind + offset;
-	if (kindIndex >= SessionMacroKind::NUM_KINDS) {
+	int kindIndex = std::to_underlying(m.kind) + offset;
+	if (kindIndex >= std::to_underlying(SessionMacroKind::NUM_KINDS)) {
 		kindIndex = 0;
 	}
 	else if (kindIndex < 0) {
-		kindIndex = SessionMacroKind::NUM_KINDS - 1;
+		kindIndex = std::to_underlying(SessionMacroKind::NUM_KINDS) - 1;
 	}
 
-	m.kind = (SessionMacroKind)kindIndex;
+	m.kind = static_cast<SessionMacroKind>(kindIndex);
 	m.clip = nullptr;
 	m.output = nullptr;
 	m.section = 0;
 
 	switch (m.kind) {
-	case CLIP_LAUNCH:
+	case SessionMacroKind::CLIP_LAUNCH:
 		m.clip = getCurrentClip();
 		break;
 
-	case OUTPUT_CYCLE:
+	case SessionMacroKind::OUTPUT_CYCLE:
 		m.output = getCurrentOutput();
 		break;
 
-	case SECTION:
+	case SessionMacroKind::SECTION:
 		m.section = getCurrentClip()->section;
 
 	default:

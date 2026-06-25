@@ -94,6 +94,8 @@ namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
+using deluge::project::SessionMacro;
+using deluge::project::SessionMacroKind;
 
 View view{};
 
@@ -2829,7 +2831,7 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 
 	SessionMacro& m = currentSong->project.arrangement.sessionMacros[y];
 	switch (m.kind) {
-	case CLIP_LAUNCH:
+	case SessionMacroKind::CLIP_LAUNCH:
 		if (m.clip->activeIfNoSolo) {
 			image[y][column] = {0, light, 0};
 		}
@@ -2844,17 +2846,17 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 		}
 
 		break;
-	case OUTPUT_CYCLE:
+	case SessionMacroKind::OUTPUT_CYCLE:
 		image[y][column] = {0, 64, light};
 		break;
-	case SECTION:
+	case SessionMacroKind::SECTION:
 		image[y][column] = {light, 0, 128};
 		break;
-	case NO_MACRO:
+	case SessionMacroKind::NO_MACRO:
 		image[y][column] = {dark, dark, dark};
 		break;
 	// explicit fallthrough
-	case NUM_KINDS:;
+	case SessionMacroKind::NUM_KINDS:;
 	}
 
 	if (occupancyMask) {
@@ -2871,7 +2873,7 @@ void View::activateMacro(uint32_t y) {
 
 	SessionMacro& m = currentSong->project.arrangement.sessionMacros[y];
 	switch (m.kind) {
-	case CLIP_LAUNCH:
+	case SessionMacroKind::CLIP_LAUNCH:
 		if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {
 			if (getCurrentClip() != m.clip) {
 				sessionView.transitionToViewForClip(m.clip);
@@ -2882,7 +2884,7 @@ void View::activateMacro(uint32_t y) {
 		}
 		break;
 
-	case OUTPUT_CYCLE: {
+	case SessionMacroKind::OUTPUT_CYCLE: {
 		Clip* nextClip = findNextClipForOutput(m.output);
 		if (nextClip) {
 			session.toggleClipStatus(nextClip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
@@ -2890,7 +2892,7 @@ void View::activateMacro(uint32_t y) {
 		break;
 	}
 
-	case SECTION:
+	case SessionMacroKind::SECTION:
 		session.armSection(m.section, kInternalButtonPressLatency);
 		break;
 

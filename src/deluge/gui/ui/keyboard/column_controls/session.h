@@ -33,8 +33,8 @@ public:
 	void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
 	               KeyboardLayout* layout) override;
 
-	void handleOutput(SessionMacro& m, PressedPad pad);
-	Clip* findNextClipForOutput(SessionMacro& m, PressedPad pad);
+	void handleOutput(deluge::project::SessionMacro& m, PressedPad pad);
+	Clip* findNextClipForOutput(deluge::project::SessionMacro& m, PressedPad pad);
 
 private:
 };

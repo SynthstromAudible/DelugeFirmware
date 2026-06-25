@@ -90,6 +90,7 @@
 
 using namespace deluge;
 using namespace gui;
+using deluge::project::SessionMacroKind;
 
 PLACE_SDRAM_BSS SessionView sessionView{};
 
@@ -4442,11 +4443,11 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 			macro.section = clip->section;
 		}
 		else {
-			int kindIndex = (int32_t)macro.kind + 1;
-			if (kindIndex == SessionMacroKind::NUM_KINDS) {
+			int kindIndex = std::to_underlying(macro.kind) + 1;
+			if (kindIndex == std::to_underlying(SessionMacroKind::NUM_KINDS)) {
 				kindIndex = 0;
 			}
-			macro.kind = (SessionMacroKind)kindIndex;
+			macro.kind = static_cast<SessionMacroKind>(kindIndex);
 		}
 
 		if (display->haveOLED()) {

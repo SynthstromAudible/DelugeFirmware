@@ -140,7 +140,7 @@ public:
 	// Grid macros config mode
 	void enterMacrosConfigMode();
 	void exitMacrosConfigMode();
-	char const* getMacroKindString(SessionMacroKind kind);
+	char const* getMacroKindString(deluge::project::SessionMacroKind kind);
 
 	// Midi learn mode
 	void enterMidiLearnMode();

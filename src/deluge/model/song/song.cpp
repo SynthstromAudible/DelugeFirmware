@@ -136,6 +136,7 @@ OutputType getCurrentOutputType() {
 }
 
 using namespace deluge;
+using deluge::project::SessionMacroKind;
 
 Song::Song() {
 	outputClipInstanceListIsCurrentlyInvalid = false;
@@ -1291,7 +1292,7 @@ weAreInArrangementEditorOrInClipInstance:
 			auto& m = project.arrangement.sessionMacros[y];
 			writer.writeOpeningTagBeginning("macro", true);
 			switch (m.kind) {
-			case CLIP_LAUNCH: {
+			case SessionMacroKind::CLIP_LAUNCH: {
 				int32_t index = project.clips.sessionClips.getIndexForClip(m.clip);
 				if (index >= 0) {
 					writer.writeAttribute("kind", "clip_launch");
@@ -1299,7 +1300,7 @@ weAreInArrangementEditorOrInClipInstance:
 				}
 				break;
 			}
-			case OUTPUT_CYCLE: {
+			case SessionMacroKind::OUTPUT_CYCLE: {
 				int32_t i = 0;
 				Output* thisOutput;
 				for (thisOutput = project.media.firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -1314,14 +1315,14 @@ weAreInArrangementEditorOrInClipInstance:
 				}
 				break;
 			}
-			case SECTION:
+			case SessionMacroKind::SECTION:
 				writer.writeAttribute("kind", "section");
 				writer.writeAttribute("section", m.section);
 				break;
-			case NO_MACRO:
+			case SessionMacroKind::NO_MACRO:
 				break;
 			// explicit fallthrough cases
-			case NUM_KINDS:;
+			case SessionMacroKind::NUM_KINDS:;
 			}
 			writer.closeTag(true);
 		}
@@ -1351,7 +1352,7 @@ Error Song::readFromFile(Deserializer& reader) {
 		project.arrangement.sections[s].numRepetitions = 0;
 	}
 	for (int32_t y = 0; y < 8; y++) {
-		project.arrangement.sessionMacros[y].kind = NO_MACRO;
+		project.arrangement.sessionMacros[y].kind = SessionMacroKind::NO_MACRO;
 	}
 
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
@@ -1784,13 +1785,13 @@ unknownTag:
 							if (!strcmp(tagName, "kind")) {
 								const char* kind = reader.readTagOrAttributeValue();
 								if (!strcmp(kind, "clip_launch")) {
-									m.kind = CLIP_LAUNCH;
+									m.kind = SessionMacroKind::CLIP_LAUNCH;
 								}
 								else if (!strcmp(kind, "output_cycle")) {
-									m.kind = OUTPUT_CYCLE;
+									m.kind = SessionMacroKind::OUTPUT_CYCLE;
 								}
 								else if (!strcmp(kind, "section")) {
-									m.kind = SECTION;
+									m.kind = SessionMacroKind::SECTION;
 								}
 							}
 							else if (!strcmp(tagName, "clip")) {
@@ -1816,9 +1817,9 @@ unknownTag:
 							}
 						}
 
-						if ((m.kind == CLIP_LAUNCH && m.clip == nullptr)
-						    || (m.kind == OUTPUT_CYCLE && m.output == nullptr)) {
-							m.kind = NO_MACRO;
+						if ((m.kind == SessionMacroKind::CLIP_LAUNCH && m.clip == nullptr)
+						    || (m.kind == SessionMacroKind::OUTPUT_CYCLE && m.output == nullptr)) {
+							m.kind = SessionMacroKind::NO_MACRO;
 						}
 					}
 					else {
@@ -3489,8 +3490,8 @@ deleteIt:
 void Song::deleteOutput(Output* output) {
 	for (int y = 0; y < 8; y++) {
 		auto& m = project.arrangement.sessionMacros[y];
-		if (m.kind == OUTPUT_CYCLE && m.output == output) {
-			m.kind = NO_MACRO;
+		if (m.kind == SessionMacroKind::OUTPUT_CYCLE && m.output == output) {
+			m.kind = SessionMacroKind::NO_MACRO;
 		}
 	}
 
@@ -5198,8 +5199,8 @@ void Song::removeSessionClipLowLevel(Clip* clip, int32_t clipIndex) {
 
 	for (int y = 0; y < 8; y++) {
 		auto& m = project.arrangement.sessionMacros[y];
-		if (m.kind == CLIP_LAUNCH && m.clip == clip) {
-			m.kind = NO_MACRO;
+		if (m.kind == SessionMacroKind::CLIP_LAUNCH && m.clip == clip) {
+			m.kind = SessionMacroKind::NO_MACRO;
 		}
 	}
 

@@ -72,14 +72,6 @@ Kit* getCurrentKit();
 Instrument* getCurrentInstrument();
 OutputType getCurrentOutputType();
 
-// Section / SessionMacro / SessionMacroKind now live in deluge::project (deluge-project/arrangement.h).
-// Back-compat aliases keep existing unqualified call sites compiling during the migration; the
-// `using enum` re-exposes the macro-kind enumerators (NO_MACRO, CLIP_LAUNCH, …) as unscoped names.
-using deluge::project::Section;
-using deluge::project::SessionMacro;
-using deluge::project::SessionMacroKind;
-using enum deluge::project::SessionMacroKind;
-
 #define MAX_NOTES_CHORD_MEM 10
 
 class Song final : public TimelineCounter {

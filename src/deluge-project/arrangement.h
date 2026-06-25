@@ -35,7 +35,7 @@ public:
 };
 
 /// What one of the assignable session macros does when triggered.
-enum SessionMacroKind : int8_t {
+enum class SessionMacroKind : int8_t {
 	NO_MACRO = 0,
 	CLIP_LAUNCH,
 	OUTPUT_CYCLE,
@@ -45,7 +45,7 @@ enum SessionMacroKind : int8_t {
 
 /// One assignable session macro: its kind plus the clip/output/section it targets.
 struct SessionMacro {
-	SessionMacroKind kind{NO_MACRO};
+	SessionMacroKind kind{SessionMacroKind::NO_MACRO};
 	Clip* clip{nullptr};
 	Output* output{nullptr};
 	uint8_t section{0};
