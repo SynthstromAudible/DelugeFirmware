@@ -25,7 +25,7 @@ function(create_specs_driver driver_name spec_dir)
     ${CMAKE_CURRENT_LIST_DIR}/../../include   # libdeluge/alloc.h
   )
   set_target_properties(${driver_name} PROPERTIES
-    CXX_STANDARD 23
+    CXX_STANDARD 26
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS ON
   )
