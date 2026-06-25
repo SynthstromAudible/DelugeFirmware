@@ -43,14 +43,17 @@ struct LivePitchShifterPlayHead {
 
 	void fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int32_t numChannels);
 
-	PlayHeadMode mode;
+	// Default-initialised so a freshly-constructed play-head is fully defined: the OLDER head in particular is never
+	// touched by LivePitchShifter's constructor (it's only populated at the first hop, before it becomes audible),
+	// so without these its fields would be read-before-write garbage if ever inspected early.
+	PlayHeadMode mode{PlayHeadMode::RAW_DIRECT};
 #if INPUT_ENABLE_REPITCHED_BUFFER
-	int32_t repitchedBufferReadPos;
+	int32_t repitchedBufferReadPos{0};
 #endif
-	int32_t rawBufferReadPos;
-	uint32_t oscPos;
+	int32_t rawBufferReadPos{0};
+	uint32_t oscPos{0};
 
 	deluge::dsp::Interpolator interpolator_;
 
-	uint32_t percPos;
+	uint32_t percPos{0};
 };

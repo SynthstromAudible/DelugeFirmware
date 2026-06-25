@@ -46,12 +46,15 @@ public:
 	OscType inputType;
 
 	uint32_t crossfadeProgress; // Out of kMaxSampleValue
-	uint32_t crossfadeIncrement;
+	// crossfadeIncrement + percThresholdForCut are only set at the first hop (before the crossfade/perc logic that
+	// reads them becomes reachable), so default-initialise them — otherwise a freshly-allocated shifter carries
+	// read-before-write garbage in these fields.
+	uint32_t crossfadeIncrement{0};
 	int32_t nextCrossfadeLength;
 	int32_t samplesTilHopEnd;
 	int32_t samplesIntoHop;
 
-	int32_t percThresholdForCut;
+	int32_t percThresholdForCut{0};
 
 	LivePitchShifterPlayHead playHeads[2];
 
