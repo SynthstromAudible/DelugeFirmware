@@ -22,7 +22,8 @@
 #include "util/c_string.h"
 #include <string>
 
-class AudioFileReader;
+class AudioByteSource;
+class WaveTableReader;
 
 // An AudioFile (Sample / WaveTable) is a resource-manager *adopted* object: the owner allocates +
 // builds it, the manager owns only its eviction (value-scored). `addReason`/`removeReason` route to
@@ -33,7 +34,11 @@ public:
 	AudioFile(AudioFileType newType) : type(newType) {}
 	virtual ~AudioFile() = default;
 
-	Error loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
+	// Parse the header off `source` and apply it to this object (Sample: take the fields; WaveTable: hand
+	// them to WaveTable::setup). `wtReader` is the WaveTable file reader for setup's data read — only the
+	// WAVETABLE path uses it (transitional, until a DeserializerByteSource replaces it).
+	Error loadFile(AudioByteSource& source, bool isAiff, bool makeWaveTableWorkAtAllCosts,
+	               WaveTableReader* wtReader = nullptr);
 	virtual void finalizeAfterLoad(uint32_t fileSize) {}
 
 	void addReason();

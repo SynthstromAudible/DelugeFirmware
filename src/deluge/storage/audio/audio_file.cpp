@@ -19,19 +19,19 @@
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
+#include "storage/audio/audio_byte_source.h"
 #include "storage/audio/audio_file_format.h"
-#include "storage/audio/reader_byte_source.h" // adapts the AudioFileReader to the parser's AudioByteSource
 #include "storage/wave_table/wave_table.h"
-#include "storage/wave_table/wave_table_reader.h" // complete type for the static_cast<WaveTableReader*> dispatch
+#include "storage/wave_table/wave_table_reader.h" // complete type for WaveTable::setup's reader argument
 
 #include "deluge_resource.h" // resource manager: adopted AudioFile objects route reasons to leases
 
 // Decode the file header (storage/audio/audio_file_format) then apply the result to this object: a Sample
 // takes the parsed fields wholesale; a WaveTable hands them to WaveTable::setup. The chunk-by-chunk decode
 // lives in parseAudioFileHeader — this method is just the type-dispatch the old fake-polymorphic casts hid.
-Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
+Error AudioFile::loadFile(AudioByteSource& source, bool isAiff, bool makeWaveTableWorkAtAllCosts,
+                          WaveTableReader* wtReader) {
 	AudioFileFormat format{};
-	ReaderByteSource source{*reader};
 	if (const Error error = parseAudioFileHeader(source, type, makeWaveTableWorkAtAllCosts, isAiff, format);
 	    error != Error::NONE) {
 		return error;
@@ -42,7 +42,7 @@ Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTab
 	if (type == AudioFileType::WAVETABLE) {
 		return static_cast<WaveTable*>(this)->setup(nullptr, format.waveTableCycleSize, format.audioDataStartPosBytes,
 		                                            format.audioDataLengthBytes, format.byteDepth, format.rawDataFormat,
-		                                            static_cast<WaveTableReader*>(reader));
+		                                            wtReader);
 	}
 
 	auto& sample = static_cast<Sample&>(*this);

@@ -29,16 +29,18 @@
 
 #include "deluge_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
 #include "model/sample/sample_cache.h"
-#include "model/sample/sample_reader.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/cluster_byte_source.h"
+#include "storage/audio/reader_byte_source.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 #include "storage/wave_table/wave_table_reader.h"
 #include "util/string.h"
 #include "util/try.h"
+#include <cstddef>
 
 #include <new>
 #include <string.h>
@@ -510,6 +512,26 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 	return Error::NONE;
 }
 
+namespace {
+// Read the 12-byte top RIFF/FORM header off `source`, then hand the rest to the parser via
+// AudioFile::loadFile. `wtReader` is forwarded for the WAVETABLE data read (null for samples).
+Error readTopHeaderAndLoad(AudioFile& audioFile, AudioByteSource& source, WaveTableReader* wtReader,
+                           bool makeWaveTableWorkAtAllCosts) {
+	uint32_t topHeader[3];
+	if (const Error error = source.read({reinterpret_cast<std::byte*>(topHeader), sizeof(topHeader)});
+	    error != Error::NONE) {
+		return error;
+	}
+	if (topHeader[0] == 0x46464952 && topHeader[2] == 0x45564157) { // "RIFF" / "WAVE"
+		return audioFile.loadFile(source, false, makeWaveTableWorkAtAllCosts, wtReader);
+	}
+	if (topHeader[0] == 0x4D524F46 && topHeader[2] == 0x46464941) { // "FORM" / "AIFF"
+		return audioFile.loadFile(source, true, makeWaveTableWorkAtAllCosts, wtReader);
+	}
+	return Error::FILE_UNSUPPORTED;
+}
+} // namespace
+
 AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, bool mayReadCard, Error* error,
                                                       FilePointer* suppliedFilePointer, AudioFileType type,
                                                       bool makeWaveTableWorkAtAllCosts) {
@@ -828,9 +850,6 @@ ramError:
 		goto cantLoadFile;
 	}
 
-	char readerMemory[sizeof(SampleReader)];
-	AudioFileReader* reader;
-
 	AudioFile* audioFile;
 	if (type == AudioFileType::SAMPLE) {
 		audioFile = new (audioFileMemory) Sample;
@@ -842,85 +861,49 @@ ramError:
 			goto cantLoadFile;
 		}
 
-		reader = new (readerMemory) SampleReader;
-	}
-	else {
-		audioFile = new (audioFileMemory) WaveTable;
-		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
-		audioFile->addReason();          // So it's protected while setting up.
-		reader = new (readerMemory) WaveTableReader;
-	}
+		audioFile->filePath = filePath;
+		audioFile->loadedFromAlternatePath = usingAlternateLocation;
 
-	audioFile->filePath = filePath;
-	audioFile->loadedFromAlternatePath = usingAlternateLocation;
-
-	reader->currentClusterIndex = -1;
-	reader->audioFile = audioFile;
-	reader->fileSize = effectiveFilePointer.objsize;
-	reader->byteIndexWithinCluster = Cluster::size;
-
-	// If Sample, we go directly to god-mode and get the cluster addresses.
-	if (type == AudioFileType::SAMPLE) {
-
-		// Store the address of each of the file's clusters.
+		// Go directly to god-mode and store the address of each of the file's clusters.
 		uint32_t currentClusterIndex = 0;
-		uint32_t currentSDCluster =
-		    effectiveFilePointer.sclust; // Start with first cluster, whose address we already got.
-
+		uint32_t currentSDCluster = effectiveFilePointer.sclust; // First cluster, whose address we already got.
 		while (true) {
-
 			((Sample*)audioFile)->clusters[currentClusterIndex].sdAddress = clst2sect(&fileSystem, currentSDCluster);
 
 			currentClusterIndex++;
 			if (currentClusterIndex >= numClusters) {
 				break;
 			}
-
 			currentSDCluster = get_fat_from_fs(&fileSystem, currentSDCluster);
-
 			if (currentSDCluster == 0xFFFFFFFF || currentSDCluster < 2) {
 				break;
 			}
 		}
 
-		// if (!suppliedFilePointer) f_close(&fileSystemStuff.currentFile);
-
-		((SampleReader*)reader)->currentCluster = NULL;
+		// The byte source streams the clusters; its destructor releases the held cluster's reason.
+		ClusterByteSource source{static_cast<Sample&>(*audioFile), effectiveFilePointer.objsize};
+		*error = readTopHeaderAndLoad(*audioFile, source, nullptr, makeWaveTableWorkAtAllCosts);
 	}
-
-	// Or if WaveTable, we're going to read the file more normally through FatFS, so we want to "open" it.
 	else {
+		audioFile = new (audioFileMemory) WaveTable;
+		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
+		audioFile->addReason();          // So it's protected while setting up.
+
+		audioFile->filePath = filePath;
+		audioFile->loadedFromAlternatePath = usingAlternateLocation;
+
+		// WaveTable reads the file more normally through FatFS, so "open" it.
 		StorageManager::openFilePointer(&effectiveFilePointer, smDeserializer); // It never returns fail.
-	}
 
-	// Read top-level RIFF headers
-	uint32_t topHeader[3];
-	*error = reader->readBytes((char*)topHeader, 3 * 4);
-	if (*error != Error::NONE) {
-		goto ensureSafeThenCheckError;
-	}
-
-	if (topHeader[0] == 0x46464952       // "RIFF"
-	    && topHeader[2] == 0x45564157) { // "WAVE"
-		*error = audioFile->loadFile(reader, false, makeWaveTableWorkAtAllCosts);
-	}
-	else if (topHeader[0] == 0x4D524F46       // "FORM"
-	         && topHeader[2] == 0x46464941) { // "AIFF"
-		*error = audioFile->loadFile(reader, true, makeWaveTableWorkAtAllCosts);
-	}
-	else {
-		*error = Error::FILE_UNSUPPORTED;
-	}
-
-ensureSafeThenCheckError:
-	if (type == AudioFileType::SAMPLE) {
-		auto& sampleReader = static_cast<SampleReader&>(*reader);
-		if (sampleReader.currentCluster) {
-			removeReasonFromCluster(*sampleReader.currentCluster, "E030");
-		}
-	}
-	else {
-		// f_close(&fileSystemStuff.currentFile);
+		// TODO: replace this legacy reader (and the ReaderByteSource adapter) with a DeserializerByteSource
+		// once WaveTable::setup's zero-copy data read is reworked onto the byte-source interface.
+		WaveTableReader reader;
+		reader.currentClusterIndex = -1;
+		reader.audioFile = audioFile;
+		reader.fileSize = effectiveFilePointer.objsize;
+		reader.byteIndexWithinCluster = Cluster::size;
+		ReaderByteSource source{reader};
+		*error = readTopHeaderAndLoad(*audioFile, source, &reader, makeWaveTableWorkAtAllCosts);
 	}
 
 	if (*error != Error::NONE) {
