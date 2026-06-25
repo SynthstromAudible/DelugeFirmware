@@ -147,6 +147,13 @@ private:
 	uint32_t clusterSizeAtBoot{0};
 
 	void cardReinserted();
+	// Resolve a not-already-resident audio file to an on-card FilePointer: use `suppliedFilePointer` if given,
+	// else search the alternate load dir (long then short name) and/or the regular path via FatFS. Sets
+	// `effectiveFilePointer` (+ `usingAlternateLocation`, and may rewrite `filePath` for preset alternates) and
+	// returns true on success; returns false on not-found / card-unavailable (with `*error` set, except the
+	// !mayReadCard case which leaves it untouched, as before).
+	bool resolveFilePointer(std::string& filePath, FilePointer* suppliedFilePointer, bool mayReadCard,
+	                        std::string& usingAlternateLocation, FilePointer& effectiveFilePointer, Error* error);
 	// Convert an already-in-memory Sample into a WaveTable (the caller wanted a wavetable but only the Sample
 	// form is resident). Returns the new WaveTable (held by no reason), or nullptr with `*error` set if it
 	// can't be a wavetable (stereo, or not wavetable-looking unless insisted) or alloc/setup fails.

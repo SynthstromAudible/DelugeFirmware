@@ -511,6 +511,144 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 	return Error::NONE;
 }
 
+bool AudioFileManager::resolveFilePointer(std::string& filePath, FilePointer* suppliedFilePointer, bool mayReadCard,
+                                          std::string& usingAlternateLocation, FilePointer& effectiveFilePointer,
+                                          Error* error) {
+	// Try and load it in.
+	if (!mayReadCard) {
+		return false;
+	}
+
+	if (cardDisabled) {
+		*error = Error::SD_CARD;
+		return false;
+	}
+
+	// Deactivated this because it stuff up the sampleI we already found
+	/*
+	if (!ensureEnoughMemoryForOneMoreSample()) {
+	    *error = Error::INSUFFICIENT_RAM;
+	    return false;
+	}
+	*/
+
+	// If we got given a FilePointer, it's easy
+	if (suppliedFilePointer) {
+		effectiveFilePointer = *suppliedFilePointer;
+	}
+
+	// Otherwise go on the filePath
+	else {
+
+		bool alreadyTriedRegular = false;
+		FRESULT result;
+
+		// If we know the alternate load directory actually exists, then we should try that first, cos there's a
+		// high chance the file is in there
+		if (alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
+
+tryAlternateDoesExist:
+			std::string proposedFileName;
+			char const* proposedFileNamePointer;
+			bool alreadyTriedSecondAlternate;
+
+			// We'll first try the long file name, which contains all the folder names from the original path. This
+			// is how collect-media saves look - for Songs. But, if that original path didn't begin with "SAMPLES/",
+			// we can't do that.
+			if (memcasecmp(filePath.c_str(), "SAMPLES/", 8)) {
+				goto tryNextAlternate;
+			}
+
+			*error = setupAlternateAudioFilePath(proposedFileName, 0, filePath);
+			if (*error != Error::NONE) {
+				return false; // This is to generate just the name of the file - not an entire path with folders -
+				              // despite the function being called ...Path.
+			}
+
+			alreadyTriedSecondAlternate = false;
+
+tryAnAlternate:
+			proposedFileNamePointer = proposedFileName.c_str();
+			result = create_name(&alternateLoadDir, &proposedFileNamePointer);
+			if (result != FR_OK) {
+				goto alternateFailed; // Can only fail if filename too weird.
+			}
+
+			result = dir_find(&alternateLoadDir);
+
+			if (result != FR_OK) {
+alternateFailed:
+				if (!alreadyTriedSecondAlternate) {
+tryNextAlternate:
+					// Next up we'll try looking for just the filename that the original file had, without any added
+					// folder names. This allows users to copy files into folders for instruments more easily, and
+					// have them load.
+					alreadyTriedSecondAlternate = true;
+					char const* fileName = getFileNameFromEndOfPath(filePath.c_str());
+					proposedFileName = fileName;
+					goto tryAnAlternate;
+				}
+				if (alreadyTriedRegular) {
+					goto notFound;
+				}
+				else {
+					goto tryRegular;
+				}
+			}
+
+			// Ok, found file - in the alternate location.
+			effectiveFilePointer.sclust = ld_clust(&fileSystem, alternateLoadDir.dir);
+			effectiveFilePointer.objsize = ld_dword(alternateLoadDir.dir + DIR_FileSize);
+
+			usingAlternateLocation = alternateAudioFileLoadPath;
+			usingAlternateLocation.append("/");
+			usingAlternateLocation.append(proposedFileName);
+
+			if (thingTypeBeingLoaded == ThingType::SYNTH || thingTypeBeingLoaded == ThingType::KIT) {
+				// Special rule for loading presets with files in their dedicated "alternate" folder: must update
+				// the AudioFile's filePath to point to that alternate location - and then treat them as normal (not
+				// alternate).
+				filePath = usingAlternateLocation;
+				usingAlternateLocation.clear();
+			}
+		}
+
+		// Otherwise, try the regular file path
+		else {
+tryRegular:
+			result = f_open(&smDeserializer.readFIL, filePath.c_str(), FA_READ);
+
+			// If that didn't work, try the alternate load directory, if we didn't already and it potentially exists
+			if (result != FR_OK) {
+
+				if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
+
+					result = f_opendir(&alternateLoadDir, alternateAudioFileLoadPath.c_str());
+					if (result != FR_OK) {
+						alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
+						goto notFound;
+					}
+
+					alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+
+					alreadyTriedRegular = true;
+					goto tryAlternateDoesExist;
+				}
+
+notFound:
+				*error = Error::FILE_UNREADABLE;
+				return false;
+			}
+
+			// Ok, found file.
+			effectiveFilePointer.sclust = activeDeserializer->readFIL.obj.sclust;
+			effectiveFilePointer.objsize = activeDeserializer->readFIL.obj.objsize;
+		}
+	}
+
+	return true;
+}
+
 AudioFile* AudioFileManager::convertSampleToWaveTable(Sample& foundSample, bool makeWaveTableWorkAtAllCosts,
                                                       Error* error) {
 	// Stereo files can never be WaveTables.
@@ -645,141 +783,11 @@ doTryOffset:
 		}
 	}
 
-tryLoadingFromCard:
-	// Otherwise, try and load it in
-	if (!mayReadCard) {
-		return NULL;
-	}
-
-	if (cardDisabled) {
-		*error = Error::SD_CARD;
-		return NULL;
-	}
-
-	// Deactivated this because it stuff up the sampleI we already found
-	/*
-	if (!ensureEnoughMemoryForOneMoreSample()) {
-	    *error = Error::INSUFFICIENT_RAM;
-	    return NULL;
-	}
-	*/
-
-	std::string usingAlternateLocation;
-
 	FilePointer effectiveFilePointer;
-
-	// If we got given a FilePointer, it's easy
-	if (suppliedFilePointer) {
-		effectiveFilePointer = *suppliedFilePointer;
-	}
-
-	// Otherwise go on the filePath
-	else {
-
-		bool alreadyTriedRegular = false;
-		FRESULT result;
-
-		// If we know the alternate load directory actually exists, then we should try that first, cos there's a
-		// high chance the file is in there
-		if (alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
-
-tryAlternateDoesExist:
-			std::string proposedFileName;
-			char const* proposedFileNamePointer;
-			bool alreadyTriedSecondAlternate;
-
-			// We'll first try the long file name, which contains all the folder names from the original path. This
-			// is how collect-media saves look - for Songs. But, if that original path didn't begin with "SAMPLES/",
-			// we can't do that.
-			if (memcasecmp(filePath.c_str(), "SAMPLES/", 8)) {
-				goto tryNextAlternate;
-			}
-
-			*error = setupAlternateAudioFilePath(proposedFileName, 0, filePath);
-			if (*error != Error::NONE) {
-				return nullptr; // This is to generate just the name of the file - not an entire path with folders -
-				                // despite the function being called ...Path.
-			}
-
-			alreadyTriedSecondAlternate = false;
-
-tryAnAlternate:
-			proposedFileNamePointer = proposedFileName.c_str();
-			result = create_name(&alternateLoadDir, &proposedFileNamePointer);
-			if (result != FR_OK) {
-				goto alternateFailed; // Can only fail if filename too weird.
-			}
-
-			result = dir_find(&alternateLoadDir);
-
-			if (result != FR_OK) {
-alternateFailed:
-				if (!alreadyTriedSecondAlternate) {
-tryNextAlternate:
-					// Next up we'll try looking for just the filename that the original file had, without any added
-					// folder names. This allows users to copy files into folders for instruments more easily, and
-					// have them load.
-					alreadyTriedSecondAlternate = true;
-					char const* fileName = getFileNameFromEndOfPath(filePath.c_str());
-					proposedFileName = fileName;
-					goto tryAnAlternate;
-				}
-				if (alreadyTriedRegular) {
-					goto notFound;
-				}
-				else {
-					goto tryRegular;
-				}
-			}
-
-			// Ok, found file - in the alternate location.
-			effectiveFilePointer.sclust = ld_clust(&fileSystem, alternateLoadDir.dir);
-			effectiveFilePointer.objsize = ld_dword(alternateLoadDir.dir + DIR_FileSize);
-
-			usingAlternateLocation = alternateAudioFileLoadPath;
-			usingAlternateLocation.append("/");
-			usingAlternateLocation.append(proposedFileName);
-
-			if (thingTypeBeingLoaded == ThingType::SYNTH || thingTypeBeingLoaded == ThingType::KIT) {
-				// Special rule for loading presets with files in their dedicated "alternate" folder: must update
-				// the AudioFile's filePath to point to that alternate location - and then treat them as normal (not
-				// alternate).
-				filePath = usingAlternateLocation;
-				usingAlternateLocation.clear();
-			}
-		}
-
-		// Otherwise, try the regular file path
-		else {
-tryRegular:
-			result = f_open(&smDeserializer.readFIL, filePath.c_str(), FA_READ);
-
-			// If that didn't work, try the alternate load directory, if we didn't already and it potentially exists
-			if (result != FR_OK) {
-
-				if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
-
-					result = f_opendir(&alternateLoadDir, alternateAudioFileLoadPath.c_str());
-					if (result != FR_OK) {
-						alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
-						goto notFound;
-					}
-
-					alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
-
-					alreadyTriedRegular = true;
-					goto tryAlternateDoesExist;
-				}
-
-notFound:
-				*error = Error::FILE_UNREADABLE;
-				return NULL;
-			}
-
-			// Ok, found file.
-			effectiveFilePointer.sclust = activeDeserializer->readFIL.obj.sclust;
-			effectiveFilePointer.objsize = activeDeserializer->readFIL.obj.objsize;
-		}
+	std::string usingAlternateLocation;
+	if (!resolveFilePointer(filePath, suppliedFilePointer, mayReadCard, usingAlternateLocation, effectiveFilePointer,
+	                        error)) {
+		return nullptr;
 	}
 
 	return buildAudioFileFromCard(filePath, usingAlternateLocation, effectiveFilePointer, type,
