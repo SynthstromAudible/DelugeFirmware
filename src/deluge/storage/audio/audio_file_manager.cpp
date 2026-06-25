@@ -663,8 +663,10 @@ AudioFile* AudioFileManager::convertSampleToWaveTable(Sample& foundSample, bool 
 
 	*error = newWaveTable->setup(&foundSample);
 	if (*error != Error::NONE) {
-		// NB: faithfully preserves the legacy asymmetry — on setup failure foundSample keeps the reason added
-		// just above (only the success / insert-failure paths below remove it).
+		// Release the source Sample's protect-during-setup reason on this path too. The legacy goto
+		// (waveTableCloneError) jumped straight to destroy + return and skipped this, leaking a reason and
+		// pinning the Sample as project-referenced / non-evictable after a failed conversion.
+		foundSample.removeReason("E400");
 		destroyAudioFileObject(*newWaveTable);
 		return nullptr;
 	}
