@@ -1277,6 +1277,11 @@ notFound:
 
 	// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
 	if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos)) {
+		// If the search landed on the first cached item, the folder cache may be missing earlier entries.
+		if (i == 0 && !doneNewRead) {
+			goto doNewRead;
+		}
+
 		// this code is original but I don't know what it does. Slot browser maybe?
 		// Just updated to append to the string instead of replacing the tilde
 		if (numExtraZeroesAdded < 4) {
