@@ -3223,8 +3223,8 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		possiblySetupDefaultExpressionPatching(&paramManager);
 
 		// And, we file it with the Song
-		modelStack->song->backUpParamManager(this, (Clip*)modelStack->getTimelineCounterAllowNull(), &paramManager,
-		                                     true);
+		modelStack->song->project.paramBackup.backUp(this, (Clip*)modelStack->getTimelineCounterAllowNull(),
+		                                             &paramManager, true);
 	}
 
 	doneReadingFromFile();

@@ -884,7 +884,8 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 		newClip->section = 255;
 
-		(void)modelStack->song->project.clips.arrangementOnlyClips.insertClipAt(newClip, 0); // Can't fail - checked above
+		(void)modelStack->song->project.clips.arrangementOnlyClips.insertClipAt(newClip,
+		                                                                        0); // Can't fail - checked above
 
 		clipInstanceI++;
 
@@ -927,14 +928,14 @@ void AudioClip::detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOu
 	// Normal case, where we're leaving ParamManager behind with old Output
 	if (!shouldTakeParamManagerWith) {
 doNormal:
-		song->backUpParamManager((ModControllableAudio*)output->toModControllable(), this, &paramManager);
+		song->project.paramBackup.backUp((ModControllableAudio*)output->toModControllable(), this, &paramManager);
 	}
 
 	// Or, special case where we're keeping the ParamManager
 	else {
 
 		// If our ParamManager was the only one that the old Output had, we have to clone it
-		if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(), this)
+		if (!song->project.paramBackup.getPreferablyWithClip((ModControllableAudio*)output->toModControllable(), this)
 		    && !song->getClipWithOutput(output, false, this)) {
 
 			ParamManagerForTimeline newParamManager;
@@ -943,7 +944,8 @@ doNormal:
 				goto doNormal; // If out of RAM, leave ParamManager behind
 			}
 
-			song->backUpParamManager((ModControllableAudio*)output->toModControllable(), nullptr, &newParamManager);
+			song->project.paramBackup.backUp((ModControllableAudio*)output->toModControllable(), nullptr,
+			                                 &newParamManager);
 			// Obscure bug fixed, Oct 2022. Previously, we filed it away under not just the ModControllable, but also
 			// this Clip. Perhaps that's still theoretically what we'd like to do? But, it caused an E170 because when
 			// we do a song swap and call Song::deleteSoundsWhichWontSound(), that calls

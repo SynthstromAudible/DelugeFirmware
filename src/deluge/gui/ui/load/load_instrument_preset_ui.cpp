@@ -1075,7 +1075,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	soundDrumToReplace->drumName = getCurrentFilenameWithoutExtension();
 	soundDrumToReplace->path = currentDir.c_str();
 	ParamManager* paramManager =
-	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
+	    currentSong->project.paramBackup.getPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {
 		kitToLoadFor->addDrum(soundDrumToReplace);
 		// don't back up the param manager since we can't use the backup anyway

@@ -1950,7 +1950,7 @@ getOut:
 				kit->addDrum(drum);
 				drum->setupAsSample(&paramManager);
 				drum->nameIsDiscardable = true;
-				currentSong->backUpParamManager(drum, getCurrentClip(), &paramManager, true);
+				currentSong->project.paramBackup.backUp(drum, getCurrentClip(), &paramManager, true);
 			}
 
 			AudioFileHolder* holder = range->getAudioFileHolder();

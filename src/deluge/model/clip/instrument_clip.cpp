@@ -2120,8 +2120,9 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 			// link to) the paramManager
 			if (shouldRetainLinksToSounds) {
 				if (thisNoteRow->paramManager.containsAnyMainParamCollections()) {
-					modelStack->song->backUpParamManager((SoundDrum*)thisNoteRow->drum, this,
-					                                     &thisNoteRow->paramManager, shouldBackUpExpressionParamsToo);
+					modelStack->song->project.paramBackup.backUp((SoundDrum*)thisNoteRow->drum, this,
+					                                             &thisNoteRow->paramManager,
+					                                             shouldBackUpExpressionParamsToo);
 				}
 			}
 
@@ -2146,7 +2147,7 @@ Error InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimel
 		NoteRow* noteRow = &noteRows[i];
 		if (noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
 
-			bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)noteRow->drum, this,
+			bool success = modelStack->song->project.paramBackup.getPreferablyWithClip((SoundDrum*)noteRow->drum, this,
 			                                                                           &noteRow->paramManager);
 
 			if (!success) {
@@ -2223,8 +2224,8 @@ void InstrumentClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack,
 			                             shouldGrabMidiCommands, shouldBackUpExpressionParamsToo);
 		}
 
-		modelStack->song->backUpParamManager((ModControllableAudio*)output->toModControllable(), this, &paramManager,
-		                                     shouldBackUpExpressionParamsToo);
+		modelStack->song->project.paramBackup.backUp((ModControllableAudio*)output->toModControllable(), this,
+		                                             &paramManager, shouldBackUpExpressionParamsToo);
 	}
 
 	if (!shouldRetainLinksToOutput) {
@@ -2673,7 +2674,8 @@ someError:
 							error = Error::FILE_CORRUPTED;
 							goto someError;
 						}
-						instrumentWasLoadedByReferenceFromClip = (InstrumentClip*)song->project.clips.sessionClips[clipId];
+						instrumentWasLoadedByReferenceFromClip =
+						    (InstrumentClip*)song->project.clips.sessionClips[clipId];
 						output = instrumentWasLoadedByReferenceFromClip->output;
 						if (!output) {
 							error = Error::FILE_CORRUPTED;
@@ -2759,7 +2761,7 @@ createNewParamManager:
 			// Slight hack to fix crash with late-2016-ish songs
 			else {
 
-				ParamManager* otherParamManager = song->getBackedUpParamManagerPreferablyWithClip(
+				ParamManager* otherParamManager = song->project.paramBackup.getPreferablyWithClip(
 				    (ModControllableAudio*)output->toModControllable(), this);
 				if (!otherParamManager) {
 					goto createNewParamManager;
@@ -2906,7 +2908,7 @@ doReadBendRange:
 
 				// Try grabbing the Instrument's "backed up" one
 				ModControllable* modControllable = output->toModControllable();
-				bool success = song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)modControllable,
+				bool success = song->project.paramBackup.getPreferablyWithClip((ModControllableAudio*)modControllable,
 				                                                               this, &paramManager);
 				if (success) {
 					char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -3955,7 +3957,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 					modelStackWithNoteRow = modelStack->addNoteRow(i, thisNoteRow);
 
 					// Try grabbing the Drum's "backed up" one
-					success = modelStackWithNoteRow->song->getBackedUpParamManagerPreferablyWithClip(
+					success = modelStackWithNoteRow->song->project.paramBackup.getPreferablyWithClip(
 					    (SoundDrum*)thisNoteRow->drum, this, &thisNoteRow->paramManager);
 					if (success) {
 						thisNoteRow->trimParamManager(modelStackWithNoteRow);

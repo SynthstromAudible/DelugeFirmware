@@ -3235,7 +3235,7 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 
 				if (actualDrum) {
 					ParamManager* existingParamManager =
-					    song->getBackedUpParamManagerPreferablyWithClip(actualDrum, parentClip);
+					    song->project.paramBackup.getPreferablyWithClip(actualDrum, parentClip);
 					if (existingParamManager) {
 						Error error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
 						if (error != Error::NONE) {
@@ -3685,7 +3685,7 @@ int8_t NoteRow::getColourOffset(InstrumentClip* clip) {
 /*
 void NoteRow::setDrumToNull(ModelStackWithTimelineCounter const* modelStack) {
     if (paramManager.containsAnyParamCollections()) {
-        modelStack->song->backUpParamManager((SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(),
+        modelStack->song->project.paramBackup.backUp((SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(),
 &paramManager);
 
         paramManager.forgetParamCollections();
@@ -3703,7 +3703,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
                       bool backupOldParamManager) {
 
 	if (backupOldParamManager && paramManager.containsAnyMainParamCollections()) {
-		modelStack->song->backUpParamManager(
+		modelStack->song->project.paramBackup.backUp(
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
 	}
@@ -3743,7 +3743,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 				drum = soundDrum; // Better set this temporarily for this call. See comment above for why we
 				                  // can't set it permanently yet
-				bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
+				bool success = modelStack->song->project.paramBackup.getPreferablyWithClip(
 				    soundDrum, (Clip*)modelStack->getTimelineCounter(), &paramManager);
 				if (success) {
 					trimParamManager(modelStack);

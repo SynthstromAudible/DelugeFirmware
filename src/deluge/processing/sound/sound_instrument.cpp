@@ -58,7 +58,7 @@ bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOut
 		// If no activeClip, that means no Clip has this Output, so there should be a backedUpParamManager that we
 		// should use
 		if (!activeClip) {
-			paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+			paramManager = song->project.paramBackup.getPreferablyWithClip(this, NULL);
 		}
 		else {
 			paramManager = nullptr;
@@ -241,7 +241,7 @@ void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 	}
 	else {
 		paramManager =
-		    (ParamManagerForTimeline*)modelStack->song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+		    (ParamManagerForTimeline*)modelStack->song->project.paramBackup.getPreferablyWithClip(this, NULL);
 		ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(paramManager);
 	}
 
@@ -289,7 +289,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	setupPatching(modelStackWithTimelineCounter);
 
 	ParamManager* paramManager =
-	    modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+	    modelStackWithTimelineCounter->song->project.paramBackup.getPreferablyWithClip(this, NULL);
 	if (!paramManager) {
 		FREEZE_WITH_ERROR("E173");
 	}
@@ -313,7 +313,7 @@ void SoundInstrument::setupPatchingForAllParamManagers(Song* song) {
 }
 
 void SoundInstrument::deleteBackedUpParamManagers(Song* song) {
-	song->deleteBackedUpParamManagersForModControllable(this);
+	song->project.paramBackup.deleteForModControllable(this);
 }
 
 extern bool expressionValueChangesMustBeDoneSmoothly;

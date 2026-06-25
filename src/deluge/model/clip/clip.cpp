@@ -564,7 +564,7 @@ Error Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) 
 
 	ModControllable* modControllable = output->toModControllable();
 
-	bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)modControllable,
+	bool success = modelStack->song->project.paramBackup.getPreferablyWithClip((ModControllableAudio*)modControllable,
 	                                                                           this, &paramManager);
 
 	if (!success) {
@@ -926,7 +926,7 @@ Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip*
 
 			// Let's first just see if there already was a *perfect* backed-up one for this *exact* Clip, that we could
 			// just have. If so, great, we're done.
-			if (song->getBackedUpParamManagerForExactClip((ModControllableAudio*)modControllable, this,
+			if (song->project.paramBackup.getForExactClip((ModControllableAudio*)modControllable, this,
 			                                              &paramManager)) {
 trimFoundParamManager:
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -947,7 +947,7 @@ trimFoundParamManager:
 		// If there wasn't one...
 		if (!paramManager.containsAnyMainParamCollections()) {
 
-			bool success = song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)modControllable, this,
+			bool success = song->project.paramBackup.getPreferablyWithClip((ModControllableAudio*)modControllable, this,
 			                                                               &paramManager);
 
 			if (success) {

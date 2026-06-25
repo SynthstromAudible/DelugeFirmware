@@ -111,7 +111,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 		// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we
 		// should use
 		if (!activeClip) {
-			paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
+			paramManager = song->project.paramBackup.getPreferablyWithClip(this, NULL);
 		}
 	}
 
@@ -199,7 +199,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 			if (!activeClip) {
 				D_PRINTLN("nah, !activeClip");
 				if (thisDrum->type == DrumType::SOUND) {
-					paramManagerForDrum = song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)thisDrum, NULL);
+					paramManagerForDrum = song->project.paramBackup.getPreferablyWithClip((SoundDrum*)thisDrum, NULL);
 					if (!paramManagerForDrum) {
 						goto moveOn;
 					}
@@ -216,7 +216,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 					*prevPointer = thisDrum->next;
 
 					if (thisDrum->type == DrumType::SOUND) {
-						song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
+						song->project.paramBackup.deleteForModControllable((SoundDrum*)thisDrum);
 					}
 
 					drumRemoved(thisDrum);
@@ -333,7 +333,7 @@ doReadDrum:
 
 	if (paramManager.containsAnyMainParamCollections()) {
 		compensateInstrumentVolumeForResonance(&paramManager, song);
-		song->backUpParamManager(this, clip, &paramManager, true);
+		song->project.paramBackup.backUp(this, clip, &paramManager, true);
 	}
 
 	return Error::NONE;
@@ -566,7 +566,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		}
 
 		else {
-			drumParamManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL);
+			drumParamManager = modelStack->song->project.paramBackup.getPreferablyWithClip(soundDrum, NULL);
 		}
 
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -956,7 +956,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 
 			SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-			ParamManager* paramManager = modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(
+			ParamManager* paramManager = modelStackWithTimelineCounter->song->project.paramBackup.getPreferablyWithClip(
 			    (ModControllableAudio*)soundDrum, nullptr);
 			if (!paramManager) {
 				FREEZE_WITH_ERROR("E174");
@@ -1013,7 +1013,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-				ParamManager* paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
+				ParamManager* paramManager = modelStack->song->project.paramBackup.getPreferablyWithClip(
 				    (ModControllableAudio*)soundDrum, nullptr);
 				if (!paramManager) {
 					FREEZE_WITH_ERROR("E172");
@@ -1111,12 +1111,12 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 }
 
 void Kit::deleteBackedUpParamManagers(Song* song) {
-	song->deleteBackedUpParamManagersForModControllable(this);
+	song->project.paramBackup.deleteForModControllable(this);
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
 			AudioEngine::routineWithClusterLoading();
-			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
+			song->project.paramBackup.deleteForModControllable((SoundDrum*)thisDrum);
 		}
 	}
 }
@@ -1868,7 +1868,7 @@ void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t
 				}
 			}
 			else {
-				// ParamManager* paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(thisDrum,
+				// ParamManager* paramManager = modelStack->song->project.paramBackup.getPreferablyWithClip(thisDrum,
 				// NULL); // TODO...
 			}
 		}
@@ -1927,7 +1927,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	}
 	else {
 		if (drum->type == DrumType::SOUND) {
-			paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
+			paramManagerForDrum = modelStack->song->project.paramBackup.getPreferablyWithClip((SoundDrum*)drum, NULL);
 			if (!paramManagerForDrum) {
 				// Ron got this, June 2020, while "dragging" a row vertically in arranger
 				FREEZE_WITH_ERROR("E314");
@@ -1972,7 +1972,7 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 		}
 
 		// If still here, haven't found paramManager yet
-		paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
+		paramManagerForDrum = modelStack->song->project.paramBackup.getPreferablyWithClip((SoundDrum*)drum, NULL);
 		if (!paramManagerForDrum) {
 			FREEZE_WITH_ERROR("E312"); // Should make ALPHA_OR_BETA_VERSION after V3.0.0 release
 		}

@@ -225,12 +225,6 @@ public:
 	Clip* getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* prevClip);
 	bool anyClipsSoloing;
 
-	ParamManager* getBackedUpParamManagerForExactClip(ModControllableAudio* modControllable, Clip* clip,
-	                                                  ParamManager* stealInto = nullptr);
-	ParamManager* getBackedUpParamManagerPreferablyWithClip(ModControllableAudio* modControllable, Clip* clip,
-	                                                        ParamManager* stealInto = nullptr);
-	void backUpParamManager(ModControllableAudio* modControllable, Clip* clip, ParamManagerForTimeline* paramManager,
-	                        bool shouldStealExpressionParamsToo = false);
 	void moveInstrumentToHibernationList(Instrument* instrument);
 	void deleteOrHibernateOutputIfNoClips(Output* output);
 	void removeInstrumentFromHibernationList(Instrument* instrument);
@@ -239,7 +233,6 @@ public:
 	bool doesNonAudioSlotHaveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot);
 	bool doesOutputHaveAnyClips(Output* output);
 	void deleteBackedUpParamManagersForClip(Clip* clip);
-	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);
 	void deleteHibernatingInstrumentWithSlot(OutputType outputType, char const* name);
 	void loadCrucialSamplesOnly();
 	Clip* getSessionClipWithOutput(Output* output, int32_t requireSection = -1, Clip* excludeClip = nullptr,
