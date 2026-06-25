@@ -35,7 +35,7 @@
 // (code in *loadErr). `xml` must be writable (the reader null-terminates tokens
 // in place).
 static long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap, Error* loadErr) {
-	void* mem = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
 	GlobalEffectable::initParams(&song->paramManager);

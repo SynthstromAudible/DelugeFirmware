@@ -281,10 +281,13 @@ add_executable(song_roundtrip
     ${REPO_ROOT}/src/bsp/host/host_bsp.c
     ${REPO_ROOT}/src/bsp/host/host_platform.c
     ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
     ${REPO_ROOT}/tests/golden/song_roundtrip.cpp
 )
 target_include_directories(song_roundtrip PRIVATE ${HOST_INCLUDE_DIRS})
-target_link_libraries(song_roundtrip PRIVATE deluge_app deluge_scheduler)
+target_link_libraries(song_roundtrip PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(song_roundtrip PRIVATE ${RT_LIB})
 endif()
