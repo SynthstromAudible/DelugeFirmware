@@ -511,6 +511,58 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 	return Error::NONE;
 }
 
+AudioFile* AudioFileManager::convertSampleToWaveTable(Sample& foundSample, bool makeWaveTableWorkAtAllCosts,
+                                                      Error* error) {
+	// Stereo files can never be WaveTables.
+	if (foundSample.numChannels != 1) {
+		*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO;
+		return nullptr;
+	}
+
+	// If the user isn't insisting, some signs show we probably don't want to load this as a WaveTable: an
+	// AIFF, or a file that neither specifies itself as a wavetable nor has a wavetable-looking length.
+	if (!makeWaveTableWorkAtAllCosts) {
+		const bool looksLikeWaveTable =
+		    foundSample.fileExplicitlySpecifiesSelfAsWaveTable || (foundSample.lengthInSamples & 2047) == 0;
+		if (isAiffFilename(foundSample.filePath.c_str()) || !looksLikeWaveTable) {
+			*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
+			return nullptr;
+		}
+	}
+
+	void* waveTableMemory = deluge::memory::alloc_external(sizeof(WaveTable), 16);
+	if (waveTableMemory == nullptr) {
+		*error = Error::INSUFFICIENT_RAM;
+		return nullptr;
+	}
+
+	auto* newWaveTable = new (waveTableMemory) WaveTable;
+	adoptAudioFileObject(newWaveTable); // resource-manager evictable object (before addReason)
+	newWaveTable->addReason();          // So it's protected while setting up.
+	foundSample.addReason();
+
+	*error = newWaveTable->setup(&foundSample);
+	if (*error != Error::NONE) {
+		// NB: faithfully preserves the legacy asymmetry — on setup failure foundSample keeps the reason added
+		// just above (only the success / insert-failure paths below remove it).
+		destroyAudioFileObject(*newWaveTable);
+		return nullptr;
+	}
+
+	const auto inserted = audioFiles.insertElement(newWaveTable);
+	*error = inserted ? Error::NONE : inserted.error();
+
+	newWaveTable->removeReason("E397");
+	foundSample.removeReason("E398");
+
+	if (!inserted) {
+		destroyAudioFileObject(*newWaveTable);
+		return nullptr;
+	}
+
+	return newWaveTable;
+}
+
 AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, bool mayReadCard, Error* error,
                                                       FilePointer* suppliedFilePointer, AudioFileType type,
                                                       bool makeWaveTableWorkAtAllCosts) {
@@ -555,61 +607,7 @@ doTryOffset:
 
 		// If we want WaveTable but got Sample, we can convert. (Otherwise, we can't.)
 		if (type == AudioFileType::WAVETABLE) {
-
-			// Stereo files can never be WaveTables
-			if (((Sample*)foundAudioFile)->numChannels != 1) {
-				*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO;
-				return NULL;
-			}
-
-			// And if the user isn't insisting, then some other signs show that we probably don't want to load this
-			// as a WaveTable
-			if (!makeWaveTableWorkAtAllCosts) {
-				if (isAiffFilename(foundAudioFile->filePath.c_str())) {
-notLoadableAsWaveTable:
-					*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
-					return NULL;
-				}
-
-				// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and
-				// the user isn't insisting, then opt not to do it.
-				if (!((Sample*)foundAudioFile)->fileExplicitlySpecifiesSelfAsWaveTable) {
-					if (((Sample*)foundAudioFile)->lengthInSamples & 2047) {
-						goto notLoadableAsWaveTable;
-					}
-				}
-			}
-
-			void* waveTableMemory = deluge::memory::alloc_external(sizeof(WaveTable), 16);
-			if (!waveTableMemory) {
-				*error = Error::INSUFFICIENT_RAM;
-				return NULL;
-			}
-
-			WaveTable* newWaveTable = new (waveTableMemory) WaveTable;
-
-			adoptAudioFileObject(newWaveTable); // resource-manager evictable object (before addReason)
-			newWaveTable->addReason();          // So it's protected while setting up.
-			foundAudioFile->addReason();
-
-			*error = newWaveTable->setup((Sample*)foundAudioFile);
-			if (*error != Error::NONE) {
-waveTableCloneError:
-				destroyAudioFileObject(*newWaveTable);
-				return NULL;
-			}
-
-			auto inserted = audioFiles.insertElement(newWaveTable);
-			*error = inserted ? Error::NONE : inserted.error();
-
-			newWaveTable->removeReason("E397");
-			foundAudioFile->removeReason("E398");
-
-			if (!inserted) {
-				goto waveTableCloneError;
-			}
-
-			return newWaveTable;
+			return convertSampleToWaveTable(static_cast<Sample&>(*foundAudioFile), makeWaveTableWorkAtAllCosts, error);
 		}
 
 		// Or if we want Sample but got Wavetable, can't convert, so we'll have to load from file after all. Reset
