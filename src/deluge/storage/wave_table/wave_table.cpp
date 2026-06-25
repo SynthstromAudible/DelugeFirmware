@@ -27,9 +27,9 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/render_wave.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/audio/deserializer_byte_source.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
-#include "storage/wave_table/wave_table_reader.h"
 #include "util/fixedpoint.h"
 #include <algorithm>
 #include <new>
@@ -133,7 +133,7 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 
 Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
                        uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat,
-                       WaveTableReader* reader) {
+                       DeserializerByteSource* byteSource) {
 	AudioEngine::logAction("WaveTable::setup");
 
 	uint32_t originalSampleLengthInSamples;
@@ -342,12 +342,12 @@ gotError5:
 	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (Cluster::size - 1);
 
 	if (!sample) {
-		reader->jumpForwardToBytePos(audioDataStartPosBytes); // In case reader wasn't quite up to here yet! Can happen
-		                                                      // in AIFF files, with their "offset"
+		byteSource->seekForwardTo(audioDataStartPosBytes); // In case the source wasn't quite up to here yet! Can happen
+		                                                   // in AIFF files, with their "offset"
 	}
 
-	char const* sourceBuffer =
-	    smDeserializer.fileClusterBuffer; // This will get changed if we're converting an existing Sample in memory.
+	// For the file path the deserializer owns the cluster buffer; the in-memory path sets it per-cluster below.
+	char const* sourceBuffer = sample ? nullptr : byteSource->clusterBuffer();
 	uint32_t bytesOverlappingFromLastCluster;
 
 #define MAGNITUDE_REDUCTION_FOR_FFT 12
@@ -407,11 +407,11 @@ gotError5:
 			// Or, if reading data afresh from a file...
 			else {
 				if (byteIndexWithinCluster < 0) {
-					reader->byteIndexWithinCluster -=
+					byteSource->byteIndexWithinCluster() -=
 					    byteIndexWithinCluster; // Will put it right at the start of the next cluster, to force it to
 					                            // read from card
 				}
-				error = reader->advanceClustersIfNecessary();
+				error = byteSource->advanceClustersIfNecessary();
 				if (error != Error::NONE) {
 					goto gotError5;
 				}
@@ -463,7 +463,7 @@ gotError5:
 				CONVERT_AND_STORE_SAMPLE;
 
 				if (!sample) {
-					reader->byteIndexWithinCluster +=
+					byteSource->byteIndexWithinCluster() +=
 					    byteDepth + byteIndexWithinCluster; // +byteIndexWithinCluster because we already moved forward
 					                                        // an extra -byteIndexWithinCluster, above.
 				}
@@ -510,7 +510,7 @@ gotError5:
 			byteIndexWithinCluster += sourceBytesJustRead;
 
 			if (!sample) {
-				reader->byteIndexWithinCluster += sourceBytesJustRead; // Keep this up to date
+				byteSource->byteIndexWithinCluster() += sourceBytesJustRead; // Keep this up to date
 			}
 
 			// If we're less than one sample from the end of the cluster...

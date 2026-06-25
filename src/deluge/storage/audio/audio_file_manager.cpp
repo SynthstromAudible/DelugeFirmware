@@ -33,11 +33,10 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/cluster_byte_source.h"
-#include "storage/audio/reader_byte_source.h"
+#include "storage/audio/deserializer_byte_source.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
-#include "storage/wave_table/wave_table_reader.h"
 #include "util/string.h"
 #include "util/try.h"
 #include <cstddef>
@@ -514,8 +513,9 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 
 namespace {
 // Read the 12-byte top RIFF/FORM header off `source`, then hand the rest to the parser via
-// AudioFile::loadFile. `wtReader` is forwarded for the WAVETABLE data read (null for samples).
-Error readTopHeaderAndLoad(AudioFile& audioFile, AudioByteSource& source, WaveTableReader* wtReader,
+// AudioFile::loadFile. `wtSource` is forwarded for the WAVETABLE zero-copy data read (null for samples; for a
+// WaveTable it is the same object as `source`).
+Error readTopHeaderAndLoad(AudioFile& audioFile, AudioByteSource& source, DeserializerByteSource* wtSource,
                            bool makeWaveTableWorkAtAllCosts) {
 	uint32_t topHeader[3];
 	if (const Error error = source.read({reinterpret_cast<std::byte*>(topHeader), sizeof(topHeader)});
@@ -523,10 +523,10 @@ Error readTopHeaderAndLoad(AudioFile& audioFile, AudioByteSource& source, WaveTa
 		return error;
 	}
 	if (topHeader[0] == 0x46464952 && topHeader[2] == 0x45564157) { // "RIFF" / "WAVE"
-		return audioFile.loadFile(source, false, makeWaveTableWorkAtAllCosts, wtReader);
+		return audioFile.loadFile(source, false, makeWaveTableWorkAtAllCosts, wtSource);
 	}
 	if (topHeader[0] == 0x4D524F46 && topHeader[2] == 0x46464941) { // "FORM" / "AIFF"
-		return audioFile.loadFile(source, true, makeWaveTableWorkAtAllCosts, wtReader);
+		return audioFile.loadFile(source, true, makeWaveTableWorkAtAllCosts, wtSource);
 	}
 	return Error::FILE_UNSUPPORTED;
 }
@@ -895,15 +895,10 @@ ramError:
 		// WaveTable reads the file more normally through FatFS, so "open" it.
 		StorageManager::openFilePointer(&effectiveFilePointer, smDeserializer); // It never returns fail.
 
-		// TODO: replace this legacy reader (and the ReaderByteSource adapter) with a DeserializerByteSource
-		// once WaveTable::setup's zero-copy data read is reworked onto the byte-source interface.
-		WaveTableReader reader;
-		reader.currentClusterIndex = -1;
-		reader.audioFile = audioFile;
-		reader.fileSize = effectiveFilePointer.objsize;
-		reader.byteIndexWithinCluster = Cluster::size;
-		ReaderByteSource source{reader};
-		*error = readTopHeaderAndLoad(*audioFile, source, &reader, makeWaveTableWorkAtAllCosts);
+		// One deserializer-backed source serves both the header parse (via the AudioByteSource surface) and
+		// WaveTable::setup's zero-copy band read (via its cluster accessors) — hence passed both ways.
+		DeserializerByteSource source{static_cast<uint32_t>(effectiveFilePointer.objsize)};
+		*error = readTopHeaderAndLoad(*audioFile, source, &source, makeWaveTableWorkAtAllCosts);
 	}
 
 	if (*error != Error::NONE) {

@@ -1,8 +1,9 @@
 # Audio file-loading redesign
 
-Status: **in progress** on `feat/audio-file-parser`. The sample load path is redesigned, de-goto'd, and
-runtime-validated; the WaveTable byte-source rework and the typed-result / orchestration-collapse phases
-remain. Behaviour-preserving throughout (no intended change to what loads or how it sounds).
+Status: **in progress** on `feat/audio-file-parser`. Both load paths (Sample *and* WaveTable) are redesigned
+onto the byte-source abstraction, de-goto'd, and runtime-validated; the legacy `AudioFileReader` hierarchy is
+gone. The typed-result (Layer 2) and orchestration-collapse (Layer 3) phases remain. Behaviour-preserving
+throughout (no intended change to what loads or how it sounds).
 
 ## Why
 
@@ -58,11 +59,27 @@ if(*error!=NONE) goto` stubs).
 - **`ClusterByteSource`** (`storage/audio/cluster_byte_source.{h,cpp}`) — streams a Sample's clusters and
   releases the held cluster's reason in its **destructor** (RAII), replacing `SampleReader` + the loader's
   `ensureSafeThenCheckError` goto cleanup. `SampleReader` retired.
-- **`AudioFile::loadFile`** now takes `AudioByteSource&` (+ a transitional `WaveTableReader*` `wtReader`
-  seam used only by the WaveTable path). The sample branch of `getAudioFileFromFilename` lost the
-  `char readerMemory[sizeof(SampleReader)]` placement-new hack and the external reader field-poking.
+- **`DeserializerByteSource`** (`storage/audio/deserializer_byte_source.{h,cpp}`) — the WaveTable path. Pulls
+  the file in `Cluster::size` blocks via `f_read` into `smDeserializer.fileClusterBuffer`. It serves *two*
+  surfaces: the byte-stream `AudioByteSource` (header parse) and a lower-level cluster view
+  (`clusterBuffer()` / `byteIndexWithinCluster()` / `advanceClustersIfNecessary()`) that `WaveTable::setup`'s
+  **zero-copy** band-build loop reads misaligned 32-bit words out of directly. `WaveTable::setup`'s file
+  branch now drives that source instead of poking a `WaveTableReader`'s cluster cursor. Retired the whole
+  `AudioFileReader` hierarchy: `AudioFileReader`, `WaveTableReader`, and the transitional `ReaderByteSource`
+  adapter. (The in-memory `sample != nullptr` setup branch — convert an existing Sample → WaveTable — takes
+  no source and is unchanged.)
+- **`AudioFile::loadFile`** now takes `AudioByteSource&` (+ a `DeserializerByteSource*` `wtSource` seam used
+  only by the WaveTable path — the same object as `source`, passed concretely because the band loop needs the
+  cluster accessors). The sample branch of `getAudioFileFromFilename` lost the
+  `char readerMemory[sizeof(SampleReader)]` placement-new hack; the WaveTable branch lost the manual
+  `WaveTableReader` field-poking (`currentClusterIndex`/`byteIndexWithinCluster`/`fileSize` set-up).
 - **Latent UB fix:** `WaveTable::setup` declared `Error error;` uninitialised (only set in a `catch`); a
   successful `bands.resize` left it indeterminate before `if (error != Error::NONE)`. Now `= Error::NONE`.
+- **Latent OOB fix:** the `clm ` (Serum wavetable) parse formed its end pointer as `&data[7]` on a
+  `std::array<char,7>` — one past the end (UB; trips bounds-checked `operator[]`). Now `data.data() +
+  data.size()`. Behaviour-identical on hardware; was only reachable via an explicit-wavetable `clm` file
+  (the prior single-cycle fixture had no `clm` chunk, so the descriptor net's new multi-cluster fixture
+  surfaced it).
 
 ### Regression nets (run these before/after each subsequent change)
 - **Parser descriptor spec** — `tests/spec/audio_file_format_spec.cpp`: feeds hand-crafted WAV/AIFF byte
@@ -72,38 +89,39 @@ if(*error!=NONE) goto` stubs).
   80-bit IEEE-extended sample rate (the corpus's gap).
   Run: `cmake -B build-tests -S tests && cmake --build build-tests --target all_specs && ctest --test-dir build-tests -R audio_file_format_spec`
 - **`deluge_loadcheck`** (`src/bsp/host/host_loadcheck_main.cpp`) — Tier-2 host driver that loads files
-  through the *real* path (`getAudioFileFromFilename` → `ClusterByteSource` → parse → buildSample) off a
-  packed FAT image and prints each parsed descriptor. Validates the construction path end-to-end (FAT walk +
-  cluster streaming + parse). Needs `mtools`.
+  through the *real* path (`getAudioFileFromFilename` → `ClusterByteSource`/`DeserializerByteSource` → parse →
+  build) off a packed FAT image and prints each parsed descriptor. For a `--wavetable` it dumps the decoded
+  structure (`numCycles`, per-band `cycleSize`/`mag` + a **CRC32 of each band's data**) — a fingerprint of
+  `setup`'s read-then-FFT pipeline, so a regression in the cluster-streaming data read shows as a CRC diff.
+  Validates the construction path end-to-end (FAT walk + cluster streaming + parse). Needs `mtools`.
   Run: `cmake --build build-sim --target deluge_loadcheck && ./build-sim/deluge_loadcheck --project <dir-with-SAMPLES/> --file SAMPLES/X.WAV --wavetable SAMPLES/WT.WAV`
-  (16-bit mono/stereo + 8-bit mono samples and a single-cycle wavetable all verified loading correctly.)
+  Fixtures (not committed — regenerate into `<project>/SAMPLES/`): 16-bit mono/stereo + 8-bit mono samples; a
+  single-cycle wavetable; and a **multi-cluster** wavetable (mono 16-bit, `clm `=2048, 64 cycles ⇒ ~256 KB
+  ⇒ ~9 × 32 KB clusters) that exercises the cross-cluster `f_read` advance in the reworked `setup` loop.
+  Baseline (post-rework, x86): the 64-cycle fixture loads `numCycles=64 numBands=9`, band0 `crc=F88B7C76`
+  … band8 `crc=B1F07F28`; descriptors of the three samples are unchanged from the pre-rework run.
 
 The full 296-preset render golden sweep (`feat/synth-golden-masters`) is the belt-and-suspenders, deferred
 to merge.
 
 ## What's next
 
-1. **WaveTable byte-source rework (the gnarly one).** `WaveTable::setup`'s file branch (`wave_table.cpp`
-   ~340–520) keeps its own `clusterIndex` / `byteIndexWithinCluster`, pokes `reader->byteIndexWithinCluster`,
-   and does **zero-copy** reads straight out of the global `smDeserializer.fileClusterBuffer` (using the
-   reader only to trigger `f_read` via `advanceClustersIfNecessary`). Write a `DeserializerByteSource`, move
-   `setup`'s data read onto it, then retire `WaveTableReader`, the `ReaderByteSource` adapter
-   (`storage/audio/reader_byte_source.h`), and the `wtReader` seam in `AudioFile::loadFile`. Extend
-   `deluge_loadcheck` with wavetable fixtures and confirm green first. WaveTable currently loads correctly on
-   the legacy reader, so this is cleanup, not a correctness gap.
-2. **Layer 2 — typed parse result** (`SampleHeader` / `WaveTableHeader` + `std::expected`).
-3. **Layer 3 — collapse `getAudioFileFromFilename`** (resolution vs construction split, RAII reason guard,
-   delete dead code).
-4. **(later, optional)** deliberate quirk fixes / dead AIFF-path removal — each its own change.
+1. **Layer 2 — typed parse result** (`SampleHeader` / `WaveTableHeader` + `std::expected`).
+2. **Layer 3 — collapse `getAudioFileFromFilename`** (resolution vs construction split, RAII reason guard,
+   delete dead code). Also the natural home for fully dissolving the `wtSource` seam: the WaveTable path's
+   source is *always* a `DeserializerByteSource`, so a dedicated `buildWaveTable` could split `setup` into
+   `setupFromSample` (in-memory) vs `setupFromFile(DeserializerByteSource&, …)` and drop the shared
+   `setup(Sample*, …, source)` overload's nullable-source soup.
+3. **(later, optional)** deliberate quirk fixes / dead AIFF-path removal — each its own change.
 
 ## Key files
 
 - `src/deluge/storage/audio/audio_byte_source.h` — the interface.
 - `src/deluge/storage/audio/cluster_byte_source.{h,cpp}` — sample path (done).
-- `src/deluge/storage/audio/reader_byte_source.h` — transitional adapter (delete after the WaveTable rework).
+- `src/deluge/storage/audio/deserializer_byte_source.{h,cpp}` — wavetable path (done; byte stream + cluster view).
 - `src/deluge/storage/audio/audio_file_format.{h,cpp}` — `AudioFileFormat` descriptor + `parseAudioFileHeader`.
 - `src/deluge/storage/audio/audio_file.{h,cpp}` — `AudioFile::loadFile` (parse + apply dispatch).
 - `src/deluge/storage/audio/audio_file_manager.cpp` — `getAudioFileFromFilename` (Layer-3 target).
-- `src/deluge/storage/wave_table/wave_table.cpp` — `WaveTable::setup` (next-step target).
+- `src/deluge/storage/wave_table/wave_table.cpp` — `WaveTable::setup` (now reads via `DeserializerByteSource`).
 - `src/deluge/util/audio_format_helpers.{h,cpp}` — dep-free byte/format helpers.
 - Nets: `tests/spec/audio_file_format_spec.cpp`, `src/bsp/host/host_loadcheck_main.cpp` (+ `sim/CMakeLists.txt`).

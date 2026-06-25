@@ -25,7 +25,7 @@
 #include <utility>
 
 class Sample;
-class WaveTableReader;
+class DeserializerByteSource;
 
 class WaveTableBand {
 public:
@@ -77,7 +77,7 @@ public:
 	                int32_t waveIndexIncrement);
 	Error setup(Sample* sample, int32_t nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
 	            uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0,
-	            RawDataFormat rawDataFormat = RawDataFormat::NATIVE, WaveTableReader* reader = nullptr);
+	            RawDataFormat rawDataFormat = RawDataFormat::NATIVE, DeserializerByteSource* byteSource = nullptr);
 	void deleteAllBandsAndData();
 	void bandDataBeingStolen(WaveTableBandData* bandData);
 

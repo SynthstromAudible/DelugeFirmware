@@ -28,6 +28,7 @@
 
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/wave_table/wave_table.h"
 
 #include "OSLikeStuff/scheduler_api.h" // TaskHandle
 #include "libdeluge/system.h"          // deluge_platform_init
@@ -83,6 +84,36 @@ const char* errorName(Error e) {
 	}
 }
 
+// Plain CRC32 (IEEE 802.3, reflected) over a byte range — a cheap stable fingerprint of decoded band data.
+uint32_t crc32(const void* data, size_t len) {
+	const auto* p = static_cast<const uint8_t*>(data);
+	uint32_t crc = 0xFFFFFFFFu;
+	for (size_t i = 0; i < len; i++) {
+		crc ^= p[i];
+		for (int b = 0; b < 8; b++) {
+			crc = (crc >> 1) ^ (0xEDB88320u & (~(crc & 1u) + 1u));
+		}
+	}
+	return ~crc;
+}
+
+// Print a WaveTable's decoded structure + a fingerprint of each band's data. The fingerprint covers the
+// output of setup()'s read-then-FFT pipeline, so a regression in the cluster-streaming data read shows as a
+// CRC diff. Band data is numCycles cycles of cycleSizeNoDuplicates 16-bit samples (duplicates excluded so the
+// fingerprint doesn't depend on the WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE constant).
+void dumpWaveTable(const char* path, const WaveTable& wt) {
+	printf("LOADED %s | WAVETABLE channels=%u numCycles=%d numBands=%zu", path, wt.numChannels, wt.numCycles,
+	       static_cast<size_t>(wt.bands.size()));
+	for (size_t b = 0; b < wt.bands.size(); b++) {
+		const WaveTableBand& band = wt.bands[b];
+		const size_t numSamples = static_cast<size_t>(wt.numCycles) * band.cycleSizeNoDuplicates;
+		const uint32_t crc =
+		    band.dataAccessAddress != nullptr ? crc32(band.dataAccessAddress, numSamples * sizeof(int16_t)) : 0;
+		printf(" | band%zu cycleSize=%u mag=%u crc=%08X", b, band.cycleSizeNoDuplicates, band.cycleSizeMagnitude, crc);
+	}
+	printf("\n");
+}
+
 // Print one Sample's full parsed descriptor as a stable, greppable line.
 void dumpSample(const char* path, const Sample& s) {
 	printf("LOADED %s | channels=%u byteDepth=%u rawFormat=%u sampleRate=%u "
@@ -114,7 +145,7 @@ void deluge_loadcheck_driver() {
 			continue;
 		}
 		if (item.wavetable) {
-			printf("LOADED %s | WAVETABLE channels=%u\n", item.path.c_str(), audioFile->numChannels);
+			dumpWaveTable(item.path.c_str(), static_cast<WaveTable&>(*audioFile));
 		}
 		else {
 			dumpSample(item.path.c_str(), static_cast<Sample&>(*audioFile));

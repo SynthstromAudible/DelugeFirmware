@@ -22,7 +22,6 @@
 #include "storage/audio/audio_byte_source.h"
 #include "storage/audio/audio_file_format.h"
 #include "storage/wave_table/wave_table.h"
-#include "storage/wave_table/wave_table_reader.h" // complete type for WaveTable::setup's reader argument
 
 #include "deluge_resource.h" // resource manager: adopted AudioFile objects route reasons to leases
 
@@ -30,7 +29,7 @@
 // takes the parsed fields wholesale; a WaveTable hands them to WaveTable::setup. The chunk-by-chunk decode
 // lives in parseAudioFileHeader — this method is just the type-dispatch the old fake-polymorphic casts hid.
 Error AudioFile::loadFile(AudioByteSource& source, bool isAiff, bool makeWaveTableWorkAtAllCosts,
-                          WaveTableReader* wtReader) {
+                          DeserializerByteSource* wtSource) {
 	AudioFileFormat format{};
 	if (const Error error = parseAudioFileHeader(source, type, makeWaveTableWorkAtAllCosts, isAiff, format);
 	    error != Error::NONE) {
@@ -42,7 +41,7 @@ Error AudioFile::loadFile(AudioByteSource& source, bool isAiff, bool makeWaveTab
 	if (type == AudioFileType::WAVETABLE) {
 		return static_cast<WaveTable*>(this)->setup(nullptr, format.waveTableCycleSize, format.audioDataStartPosBytes,
 		                                            format.audioDataLengthBytes, format.byteDepth, format.rawDataFormat,
-		                                            wtReader);
+		                                            wtSource);
 	}
 
 	auto& sample = static_cast<Sample&>(*this);

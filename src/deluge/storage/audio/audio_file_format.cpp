@@ -239,7 +239,9 @@ Error parseAudioFileHeader(AudioByteSource& src, AudioFileType type, bool makeWa
 				if ((*reinterpret_cast<uint32_t*>(data.data()) & 0x00FFFFFF)
 				    == charsToIntegerConstant('<', '!', '>', 0)) {
 					out.fileExplicitlySpecifiesSelfAsWaveTable = true;
-					const int32_t number = memToUIntOrError(&data[3], &data[7]);
+					// The cycle-size digits follow the "<!>" marker. Use pointer arithmetic for the past-the-end
+					// bound — &data[7] would index one past a 7-element array (UB; trips bounds-checked operator[]).
+					const int32_t number = memToUIntOrError(data.data() + 3, data.data() + data.size());
 					if (number >= 1) {
 						out.waveTableCycleSize = number;
 						D_PRINTLN("clm tag num samples per cycle:  %d", out.waveTableCycleSize);
