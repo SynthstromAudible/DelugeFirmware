@@ -547,7 +547,7 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 		project.scale.key.modeNotes = notesWithinOctavePresent.toImpliedScale();
 		// If this is not a preset, save as the current user scale.
 		if (isUserScale(project.scale.key.modeNotes)) {
-			userScaleNotes = project.scale.key.modeNotes;
+			project.scale.userScaleNotes = project.scale.key.modeNotes;
 		}
 	}
 
@@ -1330,7 +1330,7 @@ weAreInArrangementEditorOrInClipInstance:
 
 	// Scale stuff
 	writer.writeOpeningTag("scales");
-	writer.writeTag("userScale", userScaleNotes.toBits());
+	writer.writeTag("userScale", project.scale.userScaleNotes.toBits());
 	writer.writeTag("disabledPresetScales", project.scale.disabledPresetScales.to_ulong());
 	writer.writeClosingTag("scales");
 
@@ -1835,7 +1835,7 @@ unknownTag:
 				reader.match('{');
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "userScale")) {
-						userScaleNotes = NoteSet(reader.readTagOrAttributeValueInt());
+						project.scale.userScaleNotes = NoteSet(reader.readTagOrAttributeValueInt());
 					}
 					else if (!strcmp(tagName, "disabledPresetScales")) {
 						project.scale.disabledPresetScales =
@@ -2957,7 +2957,8 @@ Scale Song::setScale(Scale newScale) {
 	if (0 <= newScale && newScale < NUM_PRESET_SCALES && setScaleNotes(presetScaleNotes[newScale])) {
 		return newScale;
 	}
-	else if (newScale == NUM_PRESET_SCALES && !userScaleNotes.isEmpty() && setScaleNotes(userScaleNotes)) {
+	else if (newScale == NUM_PRESET_SCALES && !project.scale.userScaleNotes.isEmpty()
+	         && setScaleNotes(project.scale.userScaleNotes)) {
 		return newScale;
 	}
 	else {
@@ -2982,7 +2983,8 @@ bool Song::setScaleNotes(NoteSet newScaleNotes) {
 	}
 
 	ScaleChange changes;
-	scaleMapper.computeChangeFrom(notesWithinOctavePresent, project.scale.key.modeNotes, newScaleNotes, changes);
+	project.scale.scaleMapper.computeChangeFrom(notesWithinOctavePresent, project.scale.key.modeNotes, newScaleNotes,
+	                                            changes);
 
 	replaceMusicalMode(changes, true);
 
@@ -2990,14 +2992,14 @@ bool Song::setScaleNotes(NoteSet newScaleNotes) {
 
 	// Save possible user scale
 	if (isUserScale(newScaleNotes)) {
-		userScaleNotes = newScaleNotes;
+		project.scale.userScaleNotes = newScaleNotes;
 	}
 
 	return true;
 }
 
 bool Song::hasUserScale() {
-	return !userScaleNotes.isEmpty();
+	return !project.scale.userScaleNotes.isEmpty();
 }
 
 Scale Song::getCurrentScale() {

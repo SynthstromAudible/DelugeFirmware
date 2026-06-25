@@ -125,7 +125,6 @@ public:
 	/// scale, defines the scale as the new user scale.
 	bool setScaleNotes(NoteSet newScale);
 	/// Learns a user scale from notes in scale mode clips.
-	void learnScaleFromCurrentNotes();
 	/// Returns true if the song has a user scale.
 	bool hasUserScale();
 	/// Sets root note of key. If the previous scale no longer fits, changes to a new implied scale, which
@@ -391,8 +390,6 @@ public:
 	ThresholdRecordingMode thresholdRecordingMode;
 
 private:
-	ScaleMapper scaleMapper;
-	NoteSet userScaleNotes;
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	Error readClipsFromFile(Deserializer& reader, ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);
