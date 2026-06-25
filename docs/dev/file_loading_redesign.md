@@ -1,10 +1,11 @@
 # Audio file-loading redesign
 
-Status: **in progress** on `feat/audio-file-parser`. Both load paths (Sample *and* WaveTable) are redesigned
-onto the byte-source abstraction (Layer 1) with a typed, sentinel-free `std::expected` parse result (Layer 2),
-de-goto'd, and runtime-validated; the legacy `AudioFileReader` hierarchy is gone. Only the orchestration
-collapse (Layer 3 — `getAudioFileFromFilename`) remains. Behaviour-preserving throughout (no intended change
-to what loads or how it sounds).
+Status: **structural redesign complete** on `feat/audio-file-parser`, pending the merge-time golden sweep.
+All three layers are done and runtime-validated: the byte-source abstraction (Layer 1, retiring the
+`AudioFileReader` hierarchy), the typed sentinel-free `std::expected` parse result (Layer 2), and the
+collapse of `getAudioFileFromFilename` into `resolveFilePointer` + `convertSampleToWaveTable` +
+`buildAudioFileFromCard` (Layer 3). Behaviour-preserving throughout (no intended change to what loads or how
+it sounds). Only deliberate quirk-fixes (optional) and the full render-golden sweep at merge remain.
 
 ## Why
 
@@ -92,6 +93,16 @@ if(*error!=NONE) goto` stubs).
   reading the 12-byte top header), so the manager's `readTopHeaderAndLoad` helper and the `isAiff` flag through
   `loadFile` are gone. The chunk walk stays single-sourced as a private `walkChunks` over a `HeaderFields`
   accumulator; the two public functions lower it. Net + loadfile descriptors/CRCs bit-identical.
+- **Layer 3 — collapse `getAudioFileFromFilename`** (4 bisectable commits): deleted the always-true
+  `*error=NONE; if(*error!=NONE) goto/return` stubs + the declaration-only `WaveTable::cloneFromSample`; then
+  extracted three private helpers — `buildAudioFileFromCard` (size checks, alloc+adopt, the Sample FAT-walk +
+  `ClusterByteSource` parse / the WaveTable `DeserializerByteSource` parse, insert, finalize, reason
+  lifecycle), `convertSampleToWaveTable` (the in-memory Sample→WaveTable branch), and `resolveFilePointer`
+  (the supplied-pointer / alternate-dir / regular-`f_open` resolution state machine). Each helper's local
+  gotos became early returns (`cantLoadFile`/`ramError`/`audioFileError`, and `notLoadableAsWaveTable`/
+  `waveTableCloneError`). `getAudioFileFromFilename` is now a linear lookup → resolve → build (~90 lines, down
+  from ~390). Behaviour-preserving — including the legacy reason asymmetry in the conversion's setup-error
+  path, now flagged with an NB comment. Descriptors/CRCs bit-identical.
 
 ### Regression nets (run these before/after each subsequent change)
 - **Parser descriptor spec** — `tests/spec/audio_file_format_spec.cpp`: feeds hand-crafted WAV/AIFF byte
