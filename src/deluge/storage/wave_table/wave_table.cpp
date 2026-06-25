@@ -27,15 +27,41 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/render_wave.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/audio/deserializer_byte_source.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
-#include "storage/wave_table/wave_table_reader.h"
 #include "util/fixedpoint.h"
 #include <algorithm>
 #include <new>
 #include <ranges>
 
 extern int32_t oscSyncRenderingBuffer[];
+
+namespace {
+// RAII cleanup for WaveTable::setup's working allocations. At scope exit it frees whichever of the two temp
+// FFT buffers are still non-null, and — unless the build `succeeded` — calls deleteAllBandsAndData() on the
+// partially-built bands (replacing setup's old gotError/gotError2/gotError4/gotError5 cleanup ladder). On the
+// success path setup frees the temp buffers early (its deliberate internal-RAM release before the band-trim
+// tail), nulls the pointers and sets `succeeded`, so this guard is then a no-op.
+struct SetupAllocGuard {
+	WaveTable& waveTable;
+	int32_t*& currentCycleInt32;
+	ne10_fft_cpx_int32_t*& frequencyDomainData;
+	bool succeeded = false;
+
+	~SetupAllocGuard() {
+		if (frequencyDomainData != nullptr) {
+			delugeDealloc(frequencyDomainData);
+		}
+		if (currentCycleInt32 != nullptr) {
+			delugeDealloc(currentCycleInt32);
+		}
+		if (!succeeded) {
+			waveTable.deleteAllBandsAndData();
+		}
+	}
+};
+} // namespace
 
 WaveTableBand::~WaveTableBand() {
 	if (data) { // It might be NULL if that BandData was just "stolen".
@@ -131,9 +157,20 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 #define WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE 7 // That's in samples - it'll be twice as many bytes.
 #define SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT 0
 
+Error WaveTable::setupFromSample(Sample& sample) {
+	// In-memory conversion: setup() takes cycle size / channels / byte depth / data offset from the Sample,
+	// so the remaining parameters are unused here.
+	return setup(&sample, 0, 0, 0, 0, RawDataFormat::NATIVE, nullptr);
+}
+
+Error WaveTable::setupFromFile(DeserializerByteSource& source, int32_t cycleSize, uint32_t audioDataStartPosBytes,
+                               uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat) {
+	return setup(nullptr, cycleSize, audioDataStartPosBytes, audioDataLengthBytes, byteDepth, rawDataFormat, &source);
+}
+
 Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
                        uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat,
-                       WaveTableReader* reader) {
+                       DeserializerByteSource* byteSource) {
 	AudioEngine::logAction("WaveTable::setup");
 
 	uint32_t originalSampleLengthInSamples;
@@ -225,7 +262,7 @@ tryGettingFFTConfig:
 	    1 << initialBandCycleMagnitude; // This will usually be the same as rawFileCycleSize, but not when that's not a
 	                                    // power of two.
 
-	Error error;
+	Error error = Error::NONE; // Only the `bands.resize` catch below sets it; a successful resize must leave it NONE.
 
 	// numBands is set such that the "smallest" band will have 8 samples per cycle. Not 4 - because NE10 can't do FFTs
 	// that small unless we enable its additional C code, which would take up program size for little advantage.
@@ -241,15 +278,17 @@ tryGettingFFTConfig:
 		}
 	}
 	if (error != Error::NONE) {
-gotError:
-		return error;
+		return error; // bands.resize failed: nothing else is allocated yet, so nothing to clean up.
 	}
 
-	if (false) {
-gotError2:
-		deleteAllBandsAndData();
-		goto gotError;
-	}
+	// From here on, working allocations are released by allocGuard on any early return (it replaces the old
+	// gotError2/gotError4/gotError5 ladder). The temp buffers are declared null up front so the guard can free
+	// whichever exist; on success setup frees them early and sets allocGuard.succeeded (see below).
+	// (No __restrict__: the guard binds references to these, and the qualifier is only an optimisation hint on
+	// these one-shot load-time buffers — it never affects the decoded output.)
+	int32_t* currentCycleInt32 = nullptr;
+	ne10_fft_cpx_int32_t* frequencyDomainData = nullptr;
+	SetupAllocGuard allocGuard{*this, currentCycleInt32, frequencyDomainData};
 
 	numCyclesMagnitude = getMagnitude(numCycles);
 
@@ -270,11 +309,10 @@ gotError2:
 		void* bandDataMemory =
 		    deluge::memory::alloc_external(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData), 16);
 		if (!bandDataMemory) {
-			error = Error::INSUFFICIENT_RAM;
 			// All bands from this one onwards still have no data, so get rid of them before anything else
-			// tries to do anything with them.
+			// tries to do anything with them; allocGuard frees the ones already built.
 			bands.erase(bands.begin() + b, bands.end());
-			goto gotError2;
+			return Error::INSUFFICIENT_RAM;
 		}
 
 		WaveTableBand* band = &bands[b];
@@ -304,29 +342,18 @@ gotError2:
 	// not a power-of-two).
 	int32_t currentCycleMemorySize = std::max(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
 	// Internal RAM is good, and it's only temporary
-	int32_t* __restrict__ currentCycleInt32 =
-	    (int32_t*)deluge::memory::alloc_fast(currentCycleMemorySize * sizeof(int32_t));
+	currentCycleInt32 = (int32_t*)deluge::memory::alloc_fast(currentCycleMemorySize * sizeof(int32_t));
 	if (!currentCycleInt32) {
-		error = Error::INSUFFICIENT_RAM;
-		goto gotError2;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	// And temporary FFT output (frequency domain) buffer. The same sizing considerations as above are needed, and we
 	// use that same decision here
 	// - except for frequency-domain complex numbers, we only need to store half of it, plus one.
-	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData = (ne10_fft_cpx_int32_t*)deluge::memory::alloc_fast(
-	    ((currentCycleMemorySize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t));
+	frequencyDomainData = (ne10_fft_cpx_int32_t*)deluge::memory::alloc_fast(((currentCycleMemorySize >> 1) + 1)
+	                                                                        * sizeof(ne10_fft_cpx_int32_t));
 	if (!frequencyDomainData) {
-		error = Error::INSUFFICIENT_RAM;
-gotError4:
-		delugeDealloc(currentCycleInt32);
-		goto gotError2;
-	}
-
-	if (false) {
-gotError5:
-		delugeDealloc(frequencyDomainData);
-		goto gotError4;
+		return Error::INSUFFICIENT_RAM; // allocGuard frees currentCycleInt32 + the bands.
 	}
 
 	AudioEngine::logAction("working memory allocated");
@@ -342,12 +369,12 @@ gotError5:
 	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (Cluster::size - 1);
 
 	if (!sample) {
-		reader->jumpForwardToBytePos(audioDataStartPosBytes); // In case reader wasn't quite up to here yet! Can happen
-		                                                      // in AIFF files, with their "offset"
+		byteSource->seekForwardTo(audioDataStartPosBytes); // In case the source wasn't quite up to here yet! Can happen
+		                                                   // in AIFF files, with their "offset"
 	}
 
-	char const* sourceBuffer =
-	    smDeserializer.fileClusterBuffer; // This will get changed if we're converting an existing Sample in memory.
+	// For the file path the deserializer owns the cluster buffer; the in-memory path sets it per-cluster below.
+	char const* sourceBuffer = sample ? nullptr : byteSource->clusterBuffer();
 	uint32_t bytesOverlappingFromLastCluster;
 
 #define MAGNITUDE_REDUCTION_FOR_FFT 12
@@ -396,7 +423,7 @@ gotError5:
 					cluster = sample->clusters[clusterIndex].getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY,
 					                                                    0, &error);
 					if (!cluster) {
-						goto gotError5;
+						return error; // allocGuard frees both temp buffers + the bands.
 					}
 
 					clusterIndexCurrentlyLoaded = clusterIndex;
@@ -407,13 +434,13 @@ gotError5:
 			// Or, if reading data afresh from a file...
 			else {
 				if (byteIndexWithinCluster < 0) {
-					reader->byteIndexWithinCluster -=
+					byteSource->byteIndexWithinCluster() -=
 					    byteIndexWithinCluster; // Will put it right at the start of the next cluster, to force it to
 					                            // read from card
 				}
-				error = reader->advanceClustersIfNecessary();
+				error = byteSource->advanceClustersIfNecessary();
 				if (error != Error::NONE) {
-					goto gotError5;
+					return error; // allocGuard frees both temp buffers + the bands.
 				}
 			}
 
@@ -463,7 +490,7 @@ gotError5:
 				CONVERT_AND_STORE_SAMPLE;
 
 				if (!sample) {
-					reader->byteIndexWithinCluster +=
+					byteSource->byteIndexWithinCluster() +=
 					    byteDepth + byteIndexWithinCluster; // +byteIndexWithinCluster because we already moved forward
 					                                        // an extra -byteIndexWithinCluster, above.
 				}
@@ -510,7 +537,7 @@ gotError5:
 			byteIndexWithinCluster += sourceBytesJustRead;
 
 			if (!sample) {
-				reader->byteIndexWithinCluster += sourceBytesJustRead; // Keep this up to date
+				byteSource->byteIndexWithinCluster() += sourceBytesJustRead; // Keep this up to date
 			}
 
 			// If we're less than one sample from the end of the cluster...
@@ -751,9 +778,13 @@ transformBandToTimeDomain:
 		waveIndexMultiplier = numCycleTransitions << (31 - numCycleTransitionsNextPowerOf2Magnitude);
 	}
 
-	// Dispose of temp memory
+	// Dispose of temp memory now — release this internal RAM before the band-trimming tail below (deliberate;
+	// see SetupAllocGuard). Null the pointers + mark success so the guard then frees nothing and keeps the bands.
 	delugeDealloc(currentCycleInt32);
+	currentCycleInt32 = nullptr;
 	delugeDealloc(frequencyDomainData);
+	frequencyDomainData = nullptr;
+	allocGuard.succeeded = true;
 
 	// Printout stats
 	D_PRINTLN("initial band size if all populated: %d",

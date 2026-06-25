@@ -147,10 +147,25 @@ private:
 	uint32_t clusterSizeAtBoot{0};
 
 	void cardReinserted();
-	int32_t readBytes(char* buffer, int32_t num, int32_t* byteIndexWithinCluster, Cluster** currentCluster,
-	                  uint32_t* currentClusterIndex, uint32_t fileSize, Sample* sample);
-	int32_t loadAiff(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
-	int32_t loadWav(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
+	// Resolve a not-already-resident audio file to an on-card FilePointer: use `suppliedFilePointer` if given,
+	// else search the alternate load dir (long then short name) and/or the regular path via FatFS. Sets
+	// `effectiveFilePointer` (+ `usingAlternateLocation`, and may rewrite `filePath` for preset alternates) and
+	// returns true on success; returns false on not-found / card-unavailable (with `*error` set, except the
+	// !mayReadCard case which leaves it untouched, as before).
+	bool resolveFilePointer(std::string& filePath, FilePointer* suppliedFilePointer, bool mayReadCard,
+	                        std::string& usingAlternateLocation, FilePointer& effectiveFilePointer, Error* error);
+	// Convert an already-in-memory Sample into a WaveTable (the caller wanted a wavetable but only the Sample
+	// form is resident). Returns the new WaveTable (held by no reason), or nullptr with `*error` set if it
+	// can't be a wavetable (stereo, or not wavetable-looking unless insisted) or alloc/setup fails.
+	AudioFile* convertSampleToWaveTable(Sample& foundSample, bool makeWaveTableWorkAtAllCosts, Error* error);
+	// Construct an AudioFile from a resolved file: alloc + adopt the object, build it (Sample: FAT-walk the
+	// cluster table + stream-parse via ClusterByteSource; WaveTable: parse + setup via DeserializerByteSource),
+	// insert into `audioFiles` and finalize. Returns the loaded object (held by no reason — the caller leases
+	// it), or nullptr with `*error` set. The file-resolution that produced `effectiveFilePointer` /
+	// `usingAlternateLocation` is the caller's job.
+	AudioFile* buildAudioFileFromCard(const std::string& filePath, const std::string& usingAlternateLocation,
+	                                  FilePointer& effectiveFilePointer, AudioFileType type,
+	                                  bool makeWaveTableWorkAtAllCosts, Error* error);
 };
 
 extern AudioFileManager audioFileManager;

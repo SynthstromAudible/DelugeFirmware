@@ -29,16 +29,17 @@
 
 #include "deluge_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
 #include "model/sample/sample_cache.h"
-#include "model/sample/sample_reader.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/cluster_byte_source.h"
+#include "storage/audio/deserializer_byte_source.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
-#include "storage/wave_table/wave_table_reader.h"
 #include "util/string.h"
 #include "util/try.h"
+#include <cstddef>
 
 #include <new>
 #include <string.h>
@@ -510,6 +511,180 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 	return Error::NONE;
 }
 
+bool AudioFileManager::resolveFilePointer(std::string& filePath, FilePointer* suppliedFilePointer, bool mayReadCard,
+                                          std::string& usingAlternateLocation, FilePointer& effectiveFilePointer,
+                                          Error* error) {
+	// Try and load it in.
+	if (!mayReadCard) {
+		return false; // NB: leaves *error untouched (caller initialised it to NONE) — a "silently absent" miss.
+	}
+
+	if (cardDisabled) {
+		*error = Error::SD_CARD;
+		return false;
+	}
+
+	// Deactivated this because it stuff up the sampleI we already found
+	/*
+	if (!ensureEnoughMemoryForOneMoreSample()) {
+	    *error = Error::INSUFFICIENT_RAM;
+	    return false;
+	}
+	*/
+
+	// If we got given a FilePointer, it's easy.
+	if (suppliedFilePointer != nullptr) {
+		effectiveFilePointer = *suppliedFilePointer;
+		return true;
+	}
+
+	// Look up one proposed name in the (already-open) alternate load dir; on a hit, fill effectiveFilePointer /
+	// usingAlternateLocation (and, for SYNTH/KIT presets, rewrite filePath to the now-non-alternate location).
+	const auto tryAlternateName = [&](const std::string& proposedFileName) -> bool {
+		const char* proposedFileNamePointer = proposedFileName.c_str();
+		if (create_name(&alternateLoadDir, &proposedFileNamePointer) != FR_OK) { // Can only fail if name too weird.
+			return false;
+		}
+		if (dir_find(&alternateLoadDir) != FR_OK) {
+			return false;
+		}
+		effectiveFilePointer.sclust = ld_clust(&fileSystem, alternateLoadDir.dir);
+		effectiveFilePointer.objsize = ld_dword(alternateLoadDir.dir + DIR_FileSize);
+		usingAlternateLocation = alternateAudioFileLoadPath;
+		usingAlternateLocation.append("/");
+		usingAlternateLocation.append(proposedFileName);
+		if (thingTypeBeingLoaded == ThingType::SYNTH || thingTypeBeingLoaded == ThingType::KIT) {
+			// Special rule for loading presets with files in their dedicated "alternate" folder: point the
+			// AudioFile's filePath at that location and then treat it as normal (not alternate).
+			filePath = usingAlternateLocation;
+			usingAlternateLocation.clear();
+		}
+		return true;
+	};
+
+	enum class AltResult { Found, NotFound, HardError };
+	// Search the (known-to-exist) alternate load dir: first the long collect-media name — the full original path,
+	// only if it's under "SAMPLES/" — then the bare filename (which lets users drop files into instrument folders).
+	const auto tryAlternateDir = [&]() -> AltResult {
+		if (memcasecmp(filePath.c_str(), "SAMPLES/", 8) == 0) {
+			std::string longName;
+			*error = setupAlternateAudioFilePath(longName, 0, filePath);
+			if (*error != Error::NONE) {
+				return AltResult::HardError;
+			}
+			if (tryAlternateName(longName)) {
+				return AltResult::Found;
+			}
+		}
+		return tryAlternateName(getFileNameFromEndOfPath(filePath.c_str())) ? AltResult::Found : AltResult::NotFound;
+	};
+
+	// Open the file at its regular path; on success fill effectiveFilePointer. Returns the FatFS result.
+	const auto tryRegularPath = [&]() -> FRESULT {
+		const FRESULT result = f_open(&smDeserializer.readFIL, filePath.c_str(), FA_READ);
+		if (result == FR_OK) {
+			effectiveFilePointer.sclust = activeDeserializer->readFIL.obj.sclust;
+			effectiveFilePointer.objsize = activeDeserializer->readFIL.obj.objsize;
+		}
+		return result;
+	};
+
+	// If we already know the alternate dir exists there's a high chance the file is in it, so try that first and
+	// fall back to the regular path. Otherwise try the regular path first, and only then discover/search the
+	// alternate dir. (`alreadyTriedRegular` in the old goto version just prevented looping between the two.)
+	if (alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
+		switch (tryAlternateDir()) {
+		case AltResult::Found:
+			return true;
+		case AltResult::HardError:
+			return false;
+		case AltResult::NotFound:
+			if (tryRegularPath() == FR_OK) {
+				return true;
+			}
+		}
+	}
+	else {
+		if (tryRegularPath() == FR_OK) {
+			return true;
+		}
+		// Regular path failed — if an alternate dir might exist, open it and search there.
+		if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
+			if (f_opendir(&alternateLoadDir, alternateAudioFileLoadPath.c_str()) != FR_OK) {
+				alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
+				*error = Error::FILE_UNREADABLE;
+				return false;
+			}
+			alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+			switch (tryAlternateDir()) {
+			case AltResult::Found:
+				return true;
+			case AltResult::HardError:
+				return false;
+			case AltResult::NotFound:
+				break;
+			}
+		}
+	}
+
+	*error = Error::FILE_UNREADABLE;
+	return false;
+}
+
+AudioFile* AudioFileManager::convertSampleToWaveTable(Sample& foundSample, bool makeWaveTableWorkAtAllCosts,
+                                                      Error* error) {
+	// Stereo files can never be WaveTables.
+	if (foundSample.numChannels != 1) {
+		*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO;
+		return nullptr;
+	}
+
+	// If the user isn't insisting, some signs show we probably don't want to load this as a WaveTable: an
+	// AIFF, or a file that neither specifies itself as a wavetable nor has a wavetable-looking length.
+	if (!makeWaveTableWorkAtAllCosts) {
+		const bool looksLikeWaveTable =
+		    foundSample.fileExplicitlySpecifiesSelfAsWaveTable || (foundSample.lengthInSamples & 2047) == 0;
+		if (isAiffFilename(foundSample.filePath.c_str()) || !looksLikeWaveTable) {
+			*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
+			return nullptr;
+		}
+	}
+
+	void* waveTableMemory = deluge::memory::alloc_external(sizeof(WaveTable), 16);
+	if (waveTableMemory == nullptr) {
+		*error = Error::INSUFFICIENT_RAM;
+		return nullptr;
+	}
+
+	auto* newWaveTable = new (waveTableMemory) WaveTable;
+	adoptAudioFileObject(newWaveTable); // resource-manager evictable object (before addReason)
+	newWaveTable->addReason();          // So it's protected while setting up.
+	foundSample.addReason();
+
+	*error = newWaveTable->setupFromSample(foundSample);
+	if (*error != Error::NONE) {
+		// Release the source Sample's protect-during-setup reason on this path too. The legacy goto
+		// (waveTableCloneError) jumped straight to destroy + return and skipped this, leaking a reason and
+		// pinning the Sample as project-referenced / non-evictable after a failed conversion.
+		foundSample.removeReason("E400");
+		destroyAudioFileObject(*newWaveTable);
+		return nullptr;
+	}
+
+	const auto inserted = audioFiles.insertElement(newWaveTable);
+	*error = inserted ? Error::NONE : inserted.error();
+
+	newWaveTable->removeReason("E397");
+	foundSample.removeReason("E398");
+
+	if (!inserted) {
+		destroyAudioFileObject(*newWaveTable);
+		return nullptr;
+	}
+
+	return newWaveTable;
+}
+
 AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, bool mayReadCard, Error* error,
                                                       FilePointer* suppliedFilePointer, AudioFileType type,
                                                       bool makeWaveTableWorkAtAllCosts) {
@@ -518,429 +693,165 @@ AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, boo
 
 	std::string backedUpFilePath;
 
-	// See if it's already in memory.
+	// See if it's already in memory — first by the file's "normal" path.
 	bool foundExact;
 	int32_t audioFileI = audioFiles.search(filePath.c_str(), &foundExact);
 
-	// If that basic search by the file's "normal" path already found it, then great.
+	// If that didn't find it and we're loading a preset (not a Song, not just browsing), also search in memory
+	// for the alternate path.
+	if (!foundExact
+	    && (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
+	        || alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST)
+	    && thingTypeBeingLoaded != ThingType::SONG) {
+		std::string searchPath = alternateAudioFileLoadPath;
+		searchPath.append("/");
+		searchPath.append(getFileNameFromEndOfPath(filePath.c_str()));
+
+		audioFileI = audioFiles.search(searchPath.c_str(), &foundExact);
+		if (foundExact) {
+			// Tiny bit cheeky, but we're going to update the file path actually stored in the AudioFile to
+			// reflect this alternate location, which will no longer be considered alternate.
+			backedUpFilePath = filePath; // First back up the original filePath, to restore it if we can't use this.
+			filePath = searchPath;
+		}
+	}
+
+	// If we found it resident (directly or in the alternate location)...
 	if (foundExact) {
-successfullyFoundInMemory:
 		AudioFile* foundAudioFile = audioFiles[audioFileI];
 
-		// If correct type...
+		// Correct type at the found index...
 		if (foundAudioFile->type == type) {
 			return foundAudioFile;
 		}
 
-		// Otherwise, see if a neighbouring one has the right type
-		int32_t tryOffset = -1;
-
-		if (audioFileI >= 1) {
-doTryOffset:
-			AudioFile* foundAudioFile2 = audioFiles[audioFileI + tryOffset];
-
-			if (foundAudioFile2->type == type && !strcasecmp(filePath.c_str(), foundAudioFile2->filePath.c_str())) {
-				return foundAudioFile2;
+		// ...or at an immediate same-path neighbour (the vector is sorted by path, so a Sample and a WaveTable of
+		// the same file sit adjacent). Try the one before, then the one after.
+		for (const int32_t neighbourI : {audioFileI - 1, audioFileI + 1}) {
+			if (neighbourI < 0 || neighbourI >= static_cast<int32_t>(audioFiles.size())) {
+				continue;
+			}
+			AudioFile* neighbour = audioFiles[neighbourI];
+			if (neighbour->type == type && strcasecmp(filePath.c_str(), neighbour->filePath.c_str()) == 0) {
+				return neighbour;
 			}
 		}
 
-		if (tryOffset == -1 && audioFileI < static_cast<int32_t>(audioFiles.size()) - 1) {
-			tryOffset = 1;
-			goto doTryOffset;
-		}
-
-		// If here, we didn't find the correct type, but we did find an AudioFile for the correct filePath, just the
-		// wrong type.
-
-		// If we want WaveTable but got Sample, we can convert. (Otherwise, we can't.)
+		// We found the path but not the wanted type. If we want a WaveTable but have the Sample, we can convert.
 		if (type == AudioFileType::WAVETABLE) {
-
-			// Stereo files can never be WaveTables
-			if (((Sample*)foundAudioFile)->numChannels != 1) {
-				*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO;
-				return NULL;
-			}
-
-			// And if the user isn't insisting, then some other signs show that we probably don't want to load this
-			// as a WaveTable
-			if (!makeWaveTableWorkAtAllCosts) {
-				if (isAiffFilename(foundAudioFile->filePath.c_str())) {
-notLoadableAsWaveTable:
-					*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
-					return NULL;
-				}
-
-				// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and
-				// the user isn't insisting, then opt not to do it.
-				if (!((Sample*)foundAudioFile)->fileExplicitlySpecifiesSelfAsWaveTable) {
-					if (((Sample*)foundAudioFile)->lengthInSamples & 2047) {
-						goto notLoadableAsWaveTable;
-					}
-				}
-			}
-
-			void* waveTableMemory = deluge::memory::alloc_external(sizeof(WaveTable), 16);
-			if (!waveTableMemory) {
-				*error = Error::INSUFFICIENT_RAM;
-				return NULL;
-			}
-
-			WaveTable* newWaveTable = new (waveTableMemory) WaveTable;
-
-			adoptAudioFileObject(newWaveTable); // resource-manager evictable object (before addReason)
-			newWaveTable->addReason();          // So it's protected while setting up.
-			foundAudioFile->addReason();
-
-			*error = newWaveTable->setup((Sample*)foundAudioFile);
-			if (*error != Error::NONE) {
-waveTableCloneError:
-				destroyAudioFileObject(*newWaveTable);
-				return NULL;
-			}
-
-			auto inserted = audioFiles.insertElement(newWaveTable);
-			*error = inserted ? Error::NONE : inserted.error();
-
-			newWaveTable->removeReason("E397");
-			foundAudioFile->removeReason("E398");
-
-			if (!inserted) {
-				goto waveTableCloneError;
-			}
-
-			return newWaveTable;
+			return convertSampleToWaveTable(static_cast<Sample&>(*foundAudioFile), makeWaveTableWorkAtAllCosts, error);
 		}
 
-		// Or if we want Sample but got Wavetable, can't convert, so we'll have to load from file after all. Reset
-		// filePath if needed (pretty unlikely scenario).
-		else {
-			if (!backedUpFilePath.empty()) {
-				filePath = backedUpFilePath;
-			}
+		// Otherwise (want Sample, have WaveTable) we can't convert, so load from card after all — restoring the
+		// original filePath if we'd switched to the alternate one (pretty unlikely scenario).
+		if (!backedUpFilePath.empty()) {
+			filePath = backedUpFilePath;
 		}
 	}
-
-	// Or, if that didn't find the audio file in memory...
-	else {
-
-		// If we're loading a preset (not a Song, and not just browsing audio files), we should search in memory for
-		// the alternate path
-		if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
-		    || alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
-			if (thingTypeBeingLoaded != ThingType::SONG) {
-				std::string searchPath;
-				searchPath = alternateAudioFileLoadPath;
-				searchPath.append("/");
-				*error = Error::NONE;
-				if (*error != Error::NONE) {
-					goto tryLoadingFromCard;
-				}
-				char const* fileName = getFileNameFromEndOfPath(filePath.c_str());
-				searchPath.append(fileName);
-				*error = Error::NONE;
-				if (*error != Error::NONE) {
-					goto tryLoadingFromCard;
-				}
-
-				audioFileI = audioFiles.search(searchPath.c_str(), &foundExact);
-				if (foundExact) {
-					// Tiny bit cheeky, but we're going to update the file path actually stored in the AudioFile to
-					// reflect this alternate location, which will no longer be considered alternate.
-					backedUpFilePath = filePath; // First we back up the original filePath.
-					filePath = searchPath;
-					goto successfullyFoundInMemory;
-				}
-			}
-		}
-	}
-
-tryLoadingFromCard:
-	// Otherwise, try and load it in
-	if (!mayReadCard) {
-		return NULL;
-	}
-
-	if (cardDisabled) {
-		*error = Error::SD_CARD;
-		return NULL;
-	}
-
-	// Deactivated this because it stuff up the sampleI we already found
-	/*
-	if (!ensureEnoughMemoryForOneMoreSample()) {
-	    *error = Error::INSUFFICIENT_RAM;
-	    return NULL;
-	}
-	*/
-
-	std::string usingAlternateLocation;
 
 	FilePointer effectiveFilePointer;
-
-	// If we got given a FilePointer, it's easy
-	if (suppliedFilePointer) {
-		effectiveFilePointer = *suppliedFilePointer;
+	std::string usingAlternateLocation;
+	if (!resolveFilePointer(filePath, suppliedFilePointer, mayReadCard, usingAlternateLocation, effectiveFilePointer,
+	                        error)) {
+		return nullptr;
 	}
 
-	// Otherwise go on the filePath
-	else {
+	return buildAudioFileFromCard(filePath, usingAlternateLocation, effectiveFilePointer, type,
+	                              makeWaveTableWorkAtAllCosts, error);
+}
 
-		bool alreadyTriedRegular = false;
-		FRESULT result;
-
-		// If we know the alternate load directory actually exists, then we should try that first, cos there's a
-		// high chance the file is in there
-		if (alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
-
-tryAlternateDoesExist:
-			std::string proposedFileName;
-			char const* proposedFileNamePointer;
-			bool alreadyTriedSecondAlternate;
-
-			// We'll first try the long file name, which contains all the folder names from the original path. This
-			// is how collect-media saves look - for Songs. But, if that original path didn't begin with "SAMPLES/",
-			// we can't do that.
-			if (memcasecmp(filePath.c_str(), "SAMPLES/", 8)) {
-				goto tryNextAlternate;
-			}
-
-			*error = setupAlternateAudioFilePath(proposedFileName, 0, filePath);
-			if (*error != Error::NONE) {
-				return nullptr; // This is to generate just the name of the file - not an entire path with folders -
-				                // despite the function being called ...Path.
-			}
-
-			alreadyTriedSecondAlternate = false;
-
-tryAnAlternate:
-			proposedFileNamePointer = proposedFileName.c_str();
-			result = create_name(&alternateLoadDir, &proposedFileNamePointer);
-			if (result != FR_OK) {
-				goto alternateFailed; // Can only fail if filename too weird.
-			}
-
-			result = dir_find(&alternateLoadDir);
-
-			if (result != FR_OK) {
-alternateFailed:
-				if (!alreadyTriedSecondAlternate) {
-tryNextAlternate:
-					// Next up we'll try looking for just the filename that the original file had, without any added
-					// folder names. This allows users to copy files into folders for instruments more easily, and
-					// have them load.
-					alreadyTriedSecondAlternate = true;
-					char const* fileName = getFileNameFromEndOfPath(filePath.c_str());
-					proposedFileName = fileName;
-					*error = Error::NONE;
-					if (*error != Error::NONE) {
-						return NULL;
-					}
-					goto tryAnAlternate;
-				}
-				if (alreadyTriedRegular) {
-					goto notFound;
-				}
-				else {
-					goto tryRegular;
-				}
-			}
-
-			// Ok, found file - in the alternate location.
-			effectiveFilePointer.sclust = ld_clust(&fileSystem, alternateLoadDir.dir);
-			effectiveFilePointer.objsize = ld_dword(alternateLoadDir.dir + DIR_FileSize);
-
-			usingAlternateLocation = alternateAudioFileLoadPath;
-			usingAlternateLocation.append("/");
-			*error = Error::NONE;
-			if (*error != Error::NONE) {
-				return NULL;
-			}
-			usingAlternateLocation.append(proposedFileName);
-			*error = Error::NONE;
-			if (*error != Error::NONE) {
-				return NULL;
-			}
-
-			if (thingTypeBeingLoaded == ThingType::SYNTH || thingTypeBeingLoaded == ThingType::KIT) {
-				// Special rule for loading presets with files in their dedicated "alternate" folder: must update
-				// the AudioFile's filePath to point to that alternate location - and then treat them as normal (not
-				// alternate).
-				filePath = usingAlternateLocation;
-				usingAlternateLocation.clear();
-			}
-		}
-
-		// Otherwise, try the regular file path
-		else {
-tryRegular:
-			result = f_open(&smDeserializer.readFIL, filePath.c_str(), FA_READ);
-
-			// If that didn't work, try the alternate load directory, if we didn't already and it potentially exists
-			if (result != FR_OK) {
-
-				if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
-
-					result = f_opendir(&alternateLoadDir, alternateAudioFileLoadPath.c_str());
-					if (result != FR_OK) {
-						alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
-						goto notFound;
-					}
-
-					alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
-
-					alreadyTriedRegular = true;
-					goto tryAlternateDoesExist;
-				}
-
-notFound:
-				*error = Error::FILE_UNREADABLE;
-				return NULL;
-			}
-
-			// Ok, found file.
-			effectiveFilePointer.sclust = activeDeserializer->readFIL.obj.sclust;
-			effectiveFilePointer.objsize = activeDeserializer->readFIL.obj.objsize;
-		}
-	}
-
+AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
+                                                    const std::string& usingAlternateLocation,
+                                                    FilePointer& effectiveFilePointer, AudioFileType type,
+                                                    bool makeWaveTableWorkAtAllCosts, Error* error) {
 	// 0-byte files not allowed.
-	if (!effectiveFilePointer.objsize) {
+	if (effectiveFilePointer.objsize == 0) {
 		*error = Error::FILE_CORRUPTED;
-cantLoadFile:
-		// if (!suppliedFilePointer) f_close(&fileSystemStuff.currentFile);
-		return NULL;
+		return nullptr;
 	}
-
-	// Files bigger than 1GB not allowed
-	else if (effectiveFilePointer.objsize > kMaxFileSize) {
+	// Files bigger than 1GB not allowed.
+	if (effectiveFilePointer.objsize > kMaxFileSize) {
 		*error = Error::FILE_TOO_BIG;
-		goto cantLoadFile;
+		return nullptr;
 	}
 
-	uint32_t numClusters = ((effectiveFilePointer.objsize - 1) >> Cluster::size_magnitude) + 1;
-
-	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
+	const uint32_t numClusters = ((effectiveFilePointer.objsize - 1) >> Cluster::size_magnitude) + 1;
+	const int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
 	void* audioFileMemory = deluge::memory::alloc_external(memorySizeNeeded, 16);
-	if (!audioFileMemory) {
-ramError:
+	if (audioFileMemory == nullptr) {
 		*error = Error::INSUFFICIENT_RAM;
-		goto cantLoadFile;
+		return nullptr;
 	}
-
-	char readerMemory[sizeof(SampleReader)];
-	AudioFileReader* reader;
 
 	AudioFile* audioFile;
 	if (type == AudioFileType::SAMPLE) {
 		audioFile = new (audioFileMemory) Sample;
 		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
 		audioFile->addReason(); // So it's protected while setting up. Must do this before calling initialize().
-		*error = ((Sample*)audioFile)->initialize(numClusters);
+		*error = static_cast<Sample*>(audioFile)->initialize(numClusters);
 		if (*error != Error::NONE) { // Very rare, only if not enough RAM
 			destroyAudioFileObject(*audioFile);
-			goto cantLoadFile;
+			return nullptr;
 		}
 
-		reader = new (readerMemory) SampleReader;
-	}
-	else {
-		audioFile = new (audioFileMemory) WaveTable;
-		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
-		audioFile->addReason();          // So it's protected while setting up.
-		reader = new (readerMemory) WaveTableReader;
-	}
+		audioFile->filePath = filePath;
+		audioFile->loadedFromAlternatePath = usingAlternateLocation;
 
-	audioFile->filePath = filePath;
-	audioFile->loadedFromAlternatePath = usingAlternateLocation;
-
-	reader->currentClusterIndex = -1;
-	reader->audioFile = audioFile;
-	reader->fileSize = effectiveFilePointer.objsize;
-	reader->byteIndexWithinCluster = Cluster::size;
-
-	// If Sample, we go directly to god-mode and get the cluster addresses.
-	if (type == AudioFileType::SAMPLE) {
-
-		// Store the address of each of the file's clusters.
+		// Go directly to god-mode and store the address of each of the file's clusters.
 		uint32_t currentClusterIndex = 0;
-		uint32_t currentSDCluster =
-		    effectiveFilePointer.sclust; // Start with first cluster, whose address we already got.
-
+		uint32_t currentSDCluster = effectiveFilePointer.sclust; // First cluster, whose address we already got.
 		while (true) {
-
-			((Sample*)audioFile)->clusters[currentClusterIndex].sdAddress = clst2sect(&fileSystem, currentSDCluster);
+			static_cast<Sample*>(audioFile)->clusters[currentClusterIndex].sdAddress =
+			    clst2sect(&fileSystem, currentSDCluster);
 
 			currentClusterIndex++;
 			if (currentClusterIndex >= numClusters) {
 				break;
 			}
-
 			currentSDCluster = get_fat_from_fs(&fileSystem, currentSDCluster);
-
 			if (currentSDCluster == 0xFFFFFFFF || currentSDCluster < 2) {
 				break;
 			}
 		}
 
-		// if (!suppliedFilePointer) f_close(&fileSystemStuff.currentFile);
-
-		((SampleReader*)reader)->currentCluster = NULL;
+		// The byte source streams the clusters; its destructor releases the held cluster's reason.
+		ClusterByteSource source{static_cast<Sample&>(*audioFile), effectiveFilePointer.objsize};
+		*error = audioFile->loadFile(source, makeWaveTableWorkAtAllCosts);
 	}
-
-	// Or if WaveTable, we're going to read the file more normally through FatFS, so we want to "open" it.
 	else {
+		audioFile = new (audioFileMemory) WaveTable;
+		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
+		audioFile->addReason();          // So it's protected while setting up.
+
+		audioFile->filePath = filePath;
+		audioFile->loadedFromAlternatePath = usingAlternateLocation;
+
+		// WaveTable reads the file more normally through FatFS, so "open" it.
 		StorageManager::openFilePointer(&effectiveFilePointer, smDeserializer); // It never returns fail.
-	}
 
-	// Read top-level RIFF headers
-	uint32_t topHeader[3];
-	*error = reader->readBytes((char*)topHeader, 3 * 4);
-	if (*error != Error::NONE) {
-		goto ensureSafeThenCheckError;
-	}
-
-	if (topHeader[0] == 0x46464952       // "RIFF"
-	    && topHeader[2] == 0x45564157) { // "WAVE"
-		*error = audioFile->loadFile(reader, false, makeWaveTableWorkAtAllCosts);
-	}
-	else if (topHeader[0] == 0x4D524F46       // "FORM"
-	         && topHeader[2] == 0x46464941) { // "AIFF"
-		*error = audioFile->loadFile(reader, true, makeWaveTableWorkAtAllCosts);
-	}
-	else {
-		*error = Error::FILE_UNSUPPORTED;
-	}
-
-ensureSafeThenCheckError:
-	if (type == AudioFileType::SAMPLE) {
-		auto& sampleReader = static_cast<SampleReader&>(*reader);
-		if (sampleReader.currentCluster) {
-			removeReasonFromCluster(*sampleReader.currentCluster, "E030");
-		}
-	}
-	else {
-		// f_close(&fileSystemStuff.currentFile);
+		// One deserializer-backed source serves both the header parse (via the AudioByteSource surface) and
+		// WaveTable::setup's zero-copy band read (via its cluster accessors) — hence passed both ways.
+		DeserializerByteSource source{static_cast<uint32_t>(effectiveFilePointer.objsize)};
+		*error = audioFile->loadFile(source, makeWaveTableWorkAtAllCosts, &source);
 	}
 
 	if (*error != Error::NONE) {
-audioFileError:
 		// ~AudioFile removes the pointers back to the Sample / SampleClusters from any Clusters;
 		// destroyAudioFileObject also un-adopts + frees (through the manager if adopted).
 		destroyAudioFileObject(*audioFile);
-		return NULL;
+		return nullptr;
 	}
 
-	auto insertedFile = audioFiles.insertElement(audioFile);
+	const auto insertedFile = audioFiles.insertElement(audioFile);
 	if (!insertedFile) {
 		*error = insertedFile.error();
-		goto audioFileError;
+		destroyAudioFileObject(*audioFile);
+		return nullptr;
 	}
 
 	audioFile->finalizeAfterLoad(effectiveFilePointer.objsize);
-
-	audioFile->removeReason("E399");
-
+	audioFile->removeReason("E399"); // Setup done; drop the protect-during-setup reason (the caller re-leases).
 	return audioFile;
 }
 

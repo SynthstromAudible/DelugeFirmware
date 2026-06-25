@@ -255,6 +255,25 @@ if(RT_LIB)
     target_link_libraries(deluge_render PRIVATE ${RT_LIB})
 endif()
 
+# deluge_loadcheck: headless "load these audio files, print their parsed descriptors" utility — the Tier-2
+# regression net for the file-loading redesign. Same app + host BSP as deluge_render, with its own
+# main()/driver (host_loadcheck_main.cpp) that drives AudioFileManager::getAudioFileFromFilename (and so
+# ClusterByteSource + the parser) against a FAT image. Requires mtools at runtime (--project packing).
+add_executable(deluge_loadcheck
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_loadcheck_main.cpp
+)
+target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS})
+target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
+endif()
+
 # ---------------------------------------------------------------------------
 # Layout-invariance guard (CTest). Render each fixture at two heap-pad layouts
 # (DELUGE_SIM_HEAP_PAD via scripts/golden_mixdown.sh padsweep) and assert the

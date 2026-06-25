@@ -700,19 +700,7 @@ int32_t stringToUIntOrError(char const* __restrict__ mem) {
 	return number;
 }
 
-int32_t memToUIntOrError(char const* __restrict__ mem, char const* const memEnd) {
-	uint32_t number = 0;
-	while (mem != memEnd) {
-		if (*mem < '0' || *mem > '9') {
-			return -1;
-		}
-		number *= 10;
-		number += (*mem - '0');
-		mem++;
-	}
-
-	return number;
-}
+// memToUIntOrError moved to util/audio_format_helpers.cpp (dep-free).
 
 void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, int8_t presetSubslotNumber,
                                  char* fileName) {
@@ -1965,40 +1953,7 @@ void seedRandom() {
 	jcong = deluge_clock_now();
 }
 
-#define UnsignedToFloat(u) (((double)((long)(u - 2147483647L - 1))) + 2147483648.0)
-
-double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */) {
-	double f;
-	int32_t expon;
-	unsigned long hiMant, loMant;
-
-	expon = ((bytes[0] & 0x7F) << 8) | (bytes[1] & 0xFF);
-	hiMant = ((unsigned long)(bytes[2] & 0xFF) << 24) | ((unsigned long)(bytes[3] & 0xFF) << 16)
-	         | ((unsigned long)(bytes[4] & 0xFF) << 8) | ((unsigned long)(bytes[5] & 0xFF));
-	loMant = ((unsigned long)(bytes[6] & 0xFF) << 24) | ((unsigned long)(bytes[7] & 0xFF) << 16)
-	         | ((unsigned long)(bytes[8] & 0xFF) << 8) | ((unsigned long)(bytes[9] & 0xFF));
-
-	if (expon == 0 && hiMant == 0 && loMant == 0) {
-		f = 0;
-	}
-	else {
-		if (expon == 0x7FFF) { /* Infinity or NaN */
-			f = HUGE_VAL;
-		}
-		else {
-			expon -= 16383;
-			f = ldexp(UnsignedToFloat(hiMant), expon -= 31);
-			f += ldexp(UnsignedToFloat(loMant), expon -= 32);
-		}
-	}
-
-	if (bytes[0] & 0x80) {
-		return -f;
-	}
-	else {
-		return f;
-	}
-}
+// ConvertFromIeeeExtended moved to util/audio_format_helpers.cpp (dep-free).
 
 // Divisor must be positive. Rounds towards negative infinity
 int32_t divide_round_negative(int32_t dividend, int32_t divisor) {
