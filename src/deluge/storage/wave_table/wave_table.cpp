@@ -225,7 +225,7 @@ tryGettingFFTConfig:
 	    1 << initialBandCycleMagnitude; // This will usually be the same as rawFileCycleSize, but not when that's not a
 	                                    // power of two.
 
-	Error error;
+	Error error = Error::NONE; // Only the `bands.resize` catch below sets it; a successful resize must leave it NONE.
 
 	// numBands is set such that the "smallest" band will have 8 samples per cycle. Not 4 - because NE10 can't do FFTs
 	// that small unless we enable its additional C code, which would take up program size for little advantage.
