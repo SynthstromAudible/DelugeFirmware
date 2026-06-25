@@ -135,23 +135,35 @@ runs up front, both finds converge on one block); `resolveFilePointer`'s six-lab
 machine became two local lambdas (`tryAlternateName`, `tryRegularPath`) + explicit strategy ordering. No gotos
 remain in the load path.
 
-The one remaining in-scope goto cluster is **`WaveTable::setup`'s error-cleanup ladder** (`gotError` /
-`gotError2` / `gotError4` / `gotError5`) — the idiomatic C "free what's been allocated so far" pattern.
-Untangling it properly means RAII scope-guards, but `setup` deliberately frees its `alloc_fast` temp buffers
-mid-function (before a band-trimming tail), so a scope-exit guard would change internal-RAM free timing; and
-its error paths have no host-net coverage. Left as a separate, careful follow-up (ideally after adding
-alloc-failure coverage). `WaveTable::render`'s hot-loop gotos and the cluster-streaming / card gotos
-(`readClusterData`, `loadAnyEnqueuedClusters`, `cardReinserted`) are different subsystems, out of this scope.
+**`WaveTable::setup`'s error-cleanup ladder is now also gone** (`gotError`/`gotError2`/`gotError4`/`gotError5`
+→ a single `SetupAllocGuard` RAII guard; each error site is a plain `return`). It faithfully preserves the
+deliberate early temp-buffer free, the eager band free on error, and the partial-band-alloc erase; validated
+by bit-identical success-path CRCs + a `DELUGE_SIM_SDRAM_MB=1` OOM spot-check (clean `INSUFFICIENT_RAM`, no
+crash/leak under the deterministic allocator). `WaveTable::render`'s hot-loop gotos and the cluster-streaming
+/ card gotos (`readClusterData`, `loadAnyEnqueuedClusters`, `cardReinserted`) are different subsystems and
+intentionally left.
+
+### Optional follow-ups — done
+
+All three optional cleanups the plan flagged are complete (each its own bisectable, behaviour-preserving
+commit; loadcheck descriptors + band CRCs bit-identical throughout):
+
+1. **Dead old-loader decls removed** — `readBytes`/`loadAiff`/`loadWav` declaration-only members on
+   `AudioFileManager` (no definitions) deleted. (This was the "dead AIFF-path removal".)
+2. **`WaveTable::setup` cleanup-ladder → RAII** — see above.
+3. **`setup` split into `setupFromSample` / `setupFromFile`** — two intent-revealing public entry points over
+   the now-private `setup()` impl; `loadFile` and `convertSampleToWaveTable` call sites no longer use the
+   nullable-everything overload. (`loadFile` still threads its `wtSource` to `setupFromFile` — inherent; the
+   win is API clarity. A deeper unification of the two read-loop branches behind one cluster-source
+   abstraction remains a *possible* future step, not done.)
 
 ## What's next
 
-1. **(optional) `WaveTable::setup` cleanup-ladder → RAII** — see "Gotos untangled" above; do it on its own,
-   preserving the early temp-buffer free, ideally with alloc-failure test coverage first.
-2. **(optional)** dissolve the `wtSource` seam: the WaveTable path's source is *always* a
-   `DeserializerByteSource`, so split `setup` into `setupFromSample` (in-memory) vs
-   `setupFromFile(DeserializerByteSource&, …)` and drop the shared overload's nullable-source soup.
-3. **(later, optional)** deliberate quirk fixes / dead AIFF-path removal — each its own change.
-4. **At merge:** the full 296-preset render golden sweep (`feat/synth-golden-masters`) as belt-and-suspenders.
+- **At merge (the only remaining gate):** the full 296-preset render golden sweep
+  (`feat/synth-golden-masters`) as belt-and-suspenders.
+- **Hardware / real-card verification** (not coverable by the host net): a real-card test of the alternate-dir
+  / collect-media resolution paths in `resolveFilePointer`, and a general hardware smoke test (WAV/AIFF
+  samples + a Serum wavetable).
 
 ## Key files
 
