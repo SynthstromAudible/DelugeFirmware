@@ -311,17 +311,17 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 }
 
 void Song::deleteAllBackedUpParamManagers() {
-	while (!backedUpParamManagers.empty()) {
+	while (!project.paramBackup.map.empty()) {
 		AudioEngine::routineWithClusterLoading();
-		backedUpParamManagers.erase(backedUpParamManagers.begin());
+		project.paramBackup.map.erase(project.paramBackup.map.begin());
 	}
 }
 
 void Song::deleteAllBackedUpParamManagersWithClips() {
-	for (auto it = backedUpParamManagers.begin(); it != backedUpParamManagers.end();) {
+	for (auto it = project.paramBackup.map.begin(); it != project.paramBackup.map.end();) {
 		if (it->first.second != nullptr) {
 			AudioEngine::routineWithClusterLoading();
-			it = backedUpParamManagers.erase(it);
+			it = project.paramBackup.map.erase(it);
 		}
 		else {
 			++it;
@@ -3689,8 +3689,8 @@ void Song::setupPatchingForAllParamManagers() {
 ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* modControllable, Clip* clip,
                                                         ParamManager* stealInto) {
 
-	auto itCorrectClip = backedUpParamManagers.find({modControllable, clip});
-	if (itCorrectClip == backedUpParamManagers.end()) {
+	auto itCorrectClip = project.paramBackup.map.find({modControllable, clip});
+	if (itCorrectClip == project.paramBackup.map.end()) {
 		return nullptr;
 	}
 
@@ -3698,7 +3698,7 @@ ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* mo
 		stealInto->stealParamCollectionsFrom(
 		    &itCorrectClip->second,
 		    true); // Steal expression params too - if they're here (slightly rare case).
-		backedUpParamManagers.erase(itCorrectClip);
+		project.paramBackup.map.erase(itCorrectClip);
 		return stealInto;
 	}
 	return &itCorrectClip->second;
@@ -3711,15 +3711,15 @@ ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAud
                                                               ParamManager* stealInto) {
 
 	// The entry with a null Clip (if any) sorts first for each ModControllable, so this finds it preferentially.
-	auto itAnyClip = backedUpParamManagers.lower_bound({modControllable, static_cast<Clip*>(nullptr)});
-	if (itAnyClip == backedUpParamManagers.end() || itAnyClip->first.first != modControllable) {
+	auto itAnyClip = project.paramBackup.map.lower_bound({modControllable, static_cast<Clip*>(nullptr)});
+	if (itAnyClip == project.paramBackup.map.end() || itAnyClip->first.first != modControllable) {
 		return nullptr; // If nothing with even the correct modControllable at all, get out
 	}
 
 	auto itCorrectClip = itAnyClip;
 	if (clip && itAnyClip->first.second != clip) {
-		auto itExact = backedUpParamManagers.find({modControllable, clip});
-		if (itExact != backedUpParamManagers.end()) {
+		auto itExact = project.paramBackup.map.find({modControllable, clip});
+		if (itExact != project.paramBackup.map.end()) {
 			itCorrectClip = itExact;
 		}
 	}
@@ -3728,7 +3728,7 @@ ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAud
 		stealInto->stealParamCollectionsFrom(
 		    &itCorrectClip->second,
 		    true); // Steal expression params too - if they're here (slightly rare case).
-		backedUpParamManagers.erase(itCorrectClip);
+		project.paramBackup.map.erase(itCorrectClip);
 		return stealInto;
 	}
 	return &itCorrectClip->second;
@@ -3744,10 +3744,10 @@ void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip,
 		return;
 	}
 
-	auto it = backedUpParamManagers.find({modControllable, clip});
+	auto it = project.paramBackup.map.find({modControllable, clip});
 
 	// If one already existed...
-	if (it != backedUpParamManagers.end()) {
+	if (it != project.paramBackup.map.end()) {
 		// Let's destroy its contents and replace them
 		it->second.destructAndForgetParamCollections();
 		it->second.stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
@@ -3756,7 +3756,7 @@ void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip,
 	// Otherwise, insert one
 	else {
 		try {
-			auto [itNew, inserted] = backedUpParamManagers.try_emplace({modControllable, clip});
+			auto [itNew, inserted] = project.paramBackup.map.try_emplace({modControllable, clip});
 			itNew->second.stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
 		} catch (deluge::exception&) {
 			// If RAM error, destroy paramManager
@@ -3769,7 +3769,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 	AudioEngine::logAction("Song::deleteBackedUpParamManagersForClip");
 
-	for (auto it = backedUpParamManagers.begin(); it != backedUpParamManagers.end();) {
+	for (auto it = project.paramBackup.map.begin(); it != project.paramBackup.map.end();) {
 		if (it->first.second != clip) {
 			++it;
 			continue;
@@ -3778,30 +3778,30 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		AudioEngine::routineWithClusterLoading();
 		ModControllableAudio* modControllable = it->first.first;
 
-		auto itNull = backedUpParamManagers.find({modControllable, static_cast<Clip*>(nullptr)});
+		auto itNull = project.paramBackup.map.find({modControllable, static_cast<Clip*>(nullptr)});
 
 		// If a no-Clip backup already exists for this ModControllable, replace its contents with this one's
-		if (itNull != backedUpParamManagers.end()) {
+		if (itNull != project.paramBackup.map.end()) {
 			itNull->second.destructAndForgetParamCollections();
 			itNull->second.stealParamCollectionsFrom(&it->second);
-			it = backedUpParamManagers.erase(it);
+			it = project.paramBackup.map.erase(it);
 		}
 
 		// Otherwise, just re-key this entry to the null Clip. extract() re-links the node without moving the
 		// ParamManager, and the re-inserted entry sorts before the current position, so it won't be revisited.
 		else {
-			auto node = backedUpParamManagers.extract(it++);
+			auto node = project.paramBackup.map.extract(it++);
 			node.key().second = nullptr;
-			backedUpParamManagers.insert(std::move(node));
+			project.paramBackup.map.insert(std::move(node));
 		}
 	}
 }
 
 void Song::deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable) {
 
-	auto it = backedUpParamManagers.lower_bound({modControllable, static_cast<Clip*>(nullptr)});
-	while (it != backedUpParamManagers.end() && it->first.first == modControllable) {
-		it = backedUpParamManagers.erase(it);
+	auto it = project.paramBackup.map.lower_bound({modControllable, static_cast<Clip*>(nullptr)});
+	while (it != project.paramBackup.map.end() && it->first.first == modControllable) {
+		it = project.paramBackup.map.erase(it);
 	}
 }
 

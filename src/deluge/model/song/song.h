@@ -175,7 +175,6 @@ public:
 
 	// Backed-up ParamManagers, keyed by (ModControllable, Clip). For a given ModControllable, the entry with a
 	// null Clip (if any) sorts first. Node-based so ParamManagers never move in memory.
-	deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> backedUpParamManagers;
 
 	// View/UI state that IS serialized to the song file (scroll/zoom/layout/triplets/etc.).
 	PersistentViewState persistentView;

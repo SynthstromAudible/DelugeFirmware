@@ -23,6 +23,7 @@
 #include "deluge-project/groove.h"
 #include "deluge-project/media_pool.h"
 #include "deluge-project/metadata.h"
+#include "deluge-project/param_backup.h"
 #include "deluge-project/reverb_settings.h"
 #include "deluge-project/scale_settings.h"
 #include "deluge-project/transport.h"
@@ -50,6 +51,7 @@ public:
 	ReverbSettings reverb;
 	GlobalEffects globalFx;
 	Arrangement arrangement;
+	ParamBackup paramBackup;
 };
 
 } // namespace deluge::project

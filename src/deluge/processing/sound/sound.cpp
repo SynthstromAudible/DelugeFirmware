@@ -2836,9 +2836,9 @@ bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t
 void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 
 	// We gotta do this for any backedUpParamManagers too!
-	for (auto it = song->backedUpParamManagers.lower_bound(
+	for (auto it = song->project.paramBackup.map.lower_bound(
 	         {static_cast<ModControllableAudio*>(this), static_cast<Clip*>(nullptr)});
-	     it != song->backedUpParamManagers.end() && it->first.first == this; ++it) {
+	     it != song->project.paramBackup.map.end() && it->first.first == this; ++it) {
 		Clip* clip = it->first.second;
 		if (clip) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
