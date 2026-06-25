@@ -99,8 +99,8 @@ void ConfigureSongMacros::renderOLED(deluge::hid::display::oled_canvas::Canvas& 
 	ContextMenu::renderOLED(canvas);
 
 	if (sessionView.selectedMacro != -1) {
-		const char* macroKind =
-		    sessionView.getMacroKindString(currentSong->sessionMacros[sessionView.selectedMacro].kind);
+		const char* macroKind = sessionView.getMacroKindString(
+		    currentSong->project.arrangement.sessionMacros[sessionView.selectedMacro].kind);
 		int32_t windowHeight = 40;
 		int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
 		int32_t textPixelY = windowMinY + 20 + kTextSpacingY;

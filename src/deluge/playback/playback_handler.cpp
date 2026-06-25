@@ -2933,7 +2933,7 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 
 	// Go through all sections
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		if (currentSong->sections[s].launchMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
+		if (currentSong->project.arrangement.sections[s].launchMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
 			if (on) {
 				if (arrangement.hasPlaybackActive()) {
 					switchToSession();

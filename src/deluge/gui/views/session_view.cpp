@@ -506,7 +506,7 @@ moveAfterClipInstance:
 					beginEditingSectionRepeatsNum();
 				}
 				else {
-					currentSong->sections[sectionPressed].numRepetitions = 0;
+					currentSong->project.arrangement.sections[sectionPressed].numRepetitions = 0;
 					drawSectionRepeatNumber();
 				}
 			}
@@ -1236,7 +1236,7 @@ ActionResult SessionView::timerCallback() {
 }
 
 void SessionView::drawSectionRepeatNumber() {
-	int32_t number = currentSong->sections[sectionPressed].numRepetitions;
+	int32_t number = currentSong->project.arrangement.sections[sectionPressed].numRepetitions;
 	char const* outputText;
 	if (display->haveOLED()) {
 		char buffer[21];
@@ -1285,7 +1285,7 @@ void SessionView::commandChangeSectionRepeats(int8_t offset) {
 		beginEditingSectionRepeatsNum();
 	}
 	else {
-		int16_t* numRepetitions = &currentSong->sections[sectionPressed].numRepetitions;
+		int16_t* numRepetitions = &currentSong->project.arrangement.sections[sectionPressed].numRepetitions;
 		*numRepetitions += offset;
 		if (*numRepetitions > 9999) {
 			*numRepetitions = 9999;
@@ -1560,7 +1560,8 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 		thisColour = colours::black;
 	}
 	else {
-		if (view.midiLearnFlashOn && currentSong->sections[clip->section].launchMIDICommand.containsSomething()) {
+		if (view.midiLearnFlashOn
+		    && currentSong->project.arrangement.sections[clip->section].launchMIDICommand.containsSomething()) {
 			thisColour = colours::midi_command;
 		}
 
@@ -1569,7 +1570,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 
 			// If user assigning MIDI controls and has this section selected, flash to half brightness
 			if (view.midiLearnFlashOn && currentSong
-			    && view.learnedThing == &currentSong->sections[clip->section].launchMIDICommand) {
+			    && view.learnedThing == &currentSong->project.arrangement.sections[clip->section].launchMIDICommand) {
 				thisColour = thisColour.dim();
 			}
 		}
@@ -3023,9 +3024,10 @@ void SessionView::midiLearnFlash() {
 
 			if (clip->muteMIDICommand.containsSomething()
 			    || (view.thingPressedForMidiLearn == MidiLearn::CLIP && &clip->muteMIDICommand == view.learnedThing)
-			    || currentSong->sections[clip->section].launchMIDICommand.containsSomething()
+			    || currentSong->project.arrangement.sections[clip->section].launchMIDICommand.containsSomething()
 			    || (view.thingPressedForMidiLearn == MidiLearn::SECTION
-			        && view.learnedThing == &currentSong->sections[clip->section].launchMIDICommand)) {
+			        && view.learnedThing
+			               == &currentSong->project.arrangement.sections[clip->section].launchMIDICommand)) {
 				sideRowsToRender |= (1 << yDisplay);
 			}
 
@@ -3196,13 +3198,14 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 
 			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
 				// MIDI colour if necessary
-				if (currentSong->sections[section].launchMIDICommand.containsSomething()) {
+				if (currentSong->project.arrangement.sections[section].launchMIDICommand.containsSomething()) {
 					ptrSectionColour = colours::midi_command;
 				}
 
 				else {
 					// If user assigning MIDI controls and has this section selected, flash to half brightness
-					if (currentSong && view.learnedThing == &currentSong->sections[section].launchMIDICommand) {
+					if (currentSong
+					    && view.learnedThing == &currentSong->project.arrangement.sections[section].launchMIDICommand) {
 						ptrSectionColour = ptrSectionColour.dim();
 					}
 				}
@@ -3376,7 +3379,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 
 	bool macroActive = false;
 	if (gridModeActive == SessionGridModeMacros && selectedMacro >= 0) {
-		auto& macro = currentSong->sessionMacros[selectedMacro];
+		auto& macro = currentSong->project.arrangement.sessionMacros[selectedMacro];
 		if (macro.kind == SessionMacroKind::CLIP_LAUNCH) {
 			macroActive = (macro.clip == clip);
 		}
@@ -3872,7 +3875,7 @@ void SessionView::gridNewTrackClipAndSelect(uint32_t packedXY) {
 
 void SessionView::gridStartSection(uint32_t section, bool instant) {
 	if (instant) {
-		currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions > -1);
+		currentSong->turnSoloingIntoJustPlaying(currentSong->project.arrangement.sections[section].numRepetitions > -1);
 
 		for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.sessionClips); ++idxClip) {
 			Clip* clip = currentSong->project.clips.sessionClips[idxClip];
@@ -4424,7 +4427,7 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 		if (selectedMacro == -1 || !on) {
 			return ActionResult::DEALT_WITH;
 		}
-		auto& macro = currentSong->sessionMacros[selectedMacro];
+		auto& macro = currentSong->project.arrangement.sessionMacros[selectedMacro];
 		if (gridFirstPressedX != x || gridFirstPressedY != y) {
 			if (clip == nullptr) {
 				// TODO: be smart and assign output or section if can be determined

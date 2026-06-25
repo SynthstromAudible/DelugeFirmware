@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/arrangement.h"
 #include "deluge-project/clips.h"
 #include "deluge-project/global_effects.h"
 #include "deluge-project/groove.h"
@@ -48,6 +49,7 @@ public:
 	ScaleSettings scale;
 	ReverbSettings reverb;
 	GlobalEffects globalFx;
+	Arrangement arrangement;
 };
 
 } // namespace deluge::project

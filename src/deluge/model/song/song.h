@@ -72,30 +72,15 @@ Kit* getCurrentKit();
 Instrument* getCurrentInstrument();
 OutputType getCurrentOutputType();
 
-class Section {
-public:
-	LearnedMIDI launchMIDICommand;
-	int16_t numRepetitions;
-
-	Section() { numRepetitions = 0; }
-};
+// Section / SessionMacro / SessionMacroKind now live in deluge::project (deluge-project/arrangement.h).
+// Back-compat aliases keep existing unqualified call sites compiling during the migration; the
+// `using enum` re-exposes the macro-kind enumerators (NO_MACRO, CLIP_LAUNCH, …) as unscoped names.
+using deluge::project::Section;
+using deluge::project::SessionMacro;
+using deluge::project::SessionMacroKind;
+using enum deluge::project::SessionMacroKind;
 
 #define MAX_NOTES_CHORD_MEM 10
-
-enum SessionMacroKind : int8_t {
-	NO_MACRO = 0,
-	CLIP_LAUNCH,
-	OUTPUT_CYCLE,
-	SECTION,
-	NUM_KINDS,
-};
-
-struct SessionMacro {
-	SessionMacroKind kind{NO_MACRO};
-	Clip* clip{nullptr};
-	Output* output{nullptr};
-	uint8_t section{0};
-};
 
 class Song final : public TimelineCounter {
 public:
@@ -204,8 +189,6 @@ public:
 	// Sometimes, we'll do weird stuff to insideWorldTickMagnitude for sync-scaling, which would make BPM values look
 	// weird. So, we keep insideWorldTickMagnitudeOffsetFromBPM
 
-	Section sections[kMaxNumSections];
-
 	uint8_t sectionToReturnToAfterSongEnd{};
 
 	bool wasLastInArrangementEditor{};
@@ -215,8 +198,6 @@ public:
 
 	// View/UI state used at runtime but never serialized (selection, transient flags).
 	RuntimeViewState runtimeView;
-
-	std::array<SessionMacro, 8> sessionMacros{};
 
 	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();

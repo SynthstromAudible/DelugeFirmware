@@ -1206,20 +1206,24 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeArrayEnding("instruments");
 	writer.writeArrayStart("sections");
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		if (true || sections[s].launchMIDICommand.containsSomething() || sections[s].numRepetitions) {
+		if (true || project.arrangement.sections[s].launchMIDICommand.containsSomething()
+		    || project.arrangement.sections[s].numRepetitions) {
 			writer.writeOpeningTagBeginning("section", true);
 			writer.writeAttribute("id", s, false);
-			if (true || sections[s].numRepetitions) {
-				writer.writeAttribute("numRepeats", sections[s].numRepetitions, false);
+			if (true || project.arrangement.sections[s].numRepetitions) {
+				writer.writeAttribute("numRepeats", project.arrangement.sections[s].numRepetitions, false);
 			}
-			if (sections[s].launchMIDICommand.containsSomething()) {
+			if (project.arrangement.sections[s].launchMIDICommand.containsSomething()) {
 				// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI
 				// class now uses.
-				writer.writeAttribute("midiCommandChannel", sections[s].launchMIDICommand.channelOrZone, false);
-				writer.writeAttribute("midiCommandNote", sections[s].launchMIDICommand.noteOrCC, false);
-				if (sections[s].launchMIDICommand.cable) {
+				writer.writeAttribute("midiCommandChannel",
+				                      project.arrangement.sections[s].launchMIDICommand.channelOrZone, false);
+				writer.writeAttribute("midiCommandNote", project.arrangement.sections[s].launchMIDICommand.noteOrCC,
+				                      false);
+				if (project.arrangement.sections[s].launchMIDICommand.cable) {
 					writer.writeOpeningTagEnd();
-					sections[s].launchMIDICommand.cable->writeReferenceToFile(writer, "midiCommandDevice");
+					project.arrangement.sections[s].launchMIDICommand.cable->writeReferenceToFile(writer,
+					                                                                              "midiCommandDevice");
 					writer.writeClosingTag("section", true, true);
 					continue; // We now don't need to close the tag.
 				}
@@ -1276,7 +1280,7 @@ weAreInArrangementEditorOrInClipInstance:
 	// macros
 	int maxSessionMacroToSave = 0;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		if (sessionMacros[y].kind != SessionMacroKind::NO_MACRO) {
+		if (project.arrangement.sessionMacros[y].kind != SessionMacroKind::NO_MACRO) {
 			maxSessionMacroToSave = y + 1;
 		}
 	}
@@ -1284,7 +1288,7 @@ weAreInArrangementEditorOrInClipInstance:
 		// some macros to save
 		writer.writeArrayStart("sessionMacros");
 		for (int32_t y = 0; y < maxSessionMacroToSave; y++) {
-			auto& m = sessionMacros[y];
+			auto& m = project.arrangement.sessionMacros[y];
 			writer.writeOpeningTagBeginning("macro", true);
 			switch (m.kind) {
 			case CLIP_LAUNCH: {
@@ -1344,10 +1348,10 @@ Error Song::readFromFile(Deserializer& reader) {
 	char const* tagName;
 
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		sections[s].numRepetitions = 0;
+		project.arrangement.sections[s].numRepetitions = 0;
 	}
 	for (int32_t y = 0; y < 8; y++) {
-		sessionMacros[y].kind = NO_MACRO;
+		project.arrangement.sessionMacros[y].kind = NO_MACRO;
 	}
 
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
@@ -1774,7 +1778,7 @@ unknownTag:
 							reader.exitTag("macro", true);
 							continue;
 						}
-						auto& m = sessionMacros[y];
+						auto& m = project.arrangement.sessionMacros[y];
 						reader.match('{'); // enter value object
 						while (*(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "kind")) {
@@ -1885,11 +1889,11 @@ unknownTag:
 
 						if (id < kMaxNumSections) {
 							if (channel < 16 && note < 128) {
-								sections[id].launchMIDICommand.cable = cable;
-								sections[id].launchMIDICommand.channelOrZone = channel;
-								sections[id].launchMIDICommand.noteOrCC = note;
+								project.arrangement.sections[id].launchMIDICommand.cable = cable;
+								project.arrangement.sections[id].launchMIDICommand.channelOrZone = channel;
+								project.arrangement.sections[id].launchMIDICommand.noteOrCC = note;
 							}
-							sections[id].numRepetitions = numRepeats;
+							project.arrangement.sections[id].numRepetitions = numRepeats;
 						}
 						reader.match('}');               // leave values object
 						reader.exitTag("section", true); // leave box.
@@ -3167,7 +3171,7 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			for (int32_t l = 0; l < std::ssize(project.clips.sessionClips); l++) {
 				Clip* loopable = project.clips.sessionClips[l];
 				if (loopable->launchStyle == LaunchStyle::DEFAULT
-				    && currentSong->sections[loopable->section].numRepetitions != -2) {
+				    && currentSong->project.arrangement.sections[loopable->section].numRepetitions != -2) {
 					loopable->armState = ArmState::OFF;
 				}
 			}
@@ -3482,7 +3486,7 @@ deleteIt:
 
 void Song::deleteOutput(Output* output) {
 	for (int y = 0; y < 8; y++) {
-		auto& m = sessionMacros[y];
+		auto& m = project.arrangement.sessionMacros[y];
 		if (m.kind == OUTPUT_CYCLE && m.output == output) {
 			m.kind = NO_MACRO;
 		}
@@ -5191,7 +5195,7 @@ void Song::removeSessionClipLowLevel(Clip* clip, int32_t clipIndex) {
 	}
 
 	for (int y = 0; y < 8; y++) {
-		auto& m = sessionMacros[y];
+		auto& m = project.arrangement.sessionMacros[y];
 		if (m.kind == CLIP_LAUNCH && m.clip == clip) {
 			m.kind = NO_MACRO;
 		}
