@@ -165,7 +165,7 @@ int32_t numConsoleItems = 0;
 // D001 and D002 are trying to catch the same problem, but after it happens.
 class ConsoleItemAccessor {
 public:
-	ConsoleItem& operator[](size_t index) {
+	ConsoleItem& operator[](int32_t index) {
 		if (index < 0 || MAX_NUM_CONSOLE_ITEMS <= index) [[unlikely]] {
 			FREEZE_WITH_ERROR("D003");
 		}
@@ -176,6 +176,9 @@ public:
 ConsoleItemAccessor consoleItems;
 
 void OLED::drawConsoleTopLine() {
+	if (numConsoleItems <= 0) {
+		return;
+	}
 	console.drawHorizontalLine(consoleItems[numConsoleItems - 1].minY - 1, consoleMinX + 1, consoleMaxX - 1);
 }
 
@@ -1057,13 +1060,18 @@ void OLED::consoleTimerEvent() {
 		bool anyRemoved = false;
 
 		// Get rid of any items which have hit the top of the screen
-		while (consoleItems[numConsoleItems - 1].minY < 2) {
+		while (numConsoleItems > 0 && consoleItems[numConsoleItems - 1].minY < 2) {
 			numConsoleItems--;
 			anyRemoved = true;
 		}
 
 		if (anyRemoved) {
 			drawConsoleTopLine(); // Yeah the line will get copied - it's fine
+		}
+
+		// If every item scrolled off the top, there's nothing left to animate.
+		if (numConsoleItems <= 0) {
+			return;
 		}
 
 		int32_t firstRow = (consoleItems[numConsoleItems - 1].minY - 2) >> 3;

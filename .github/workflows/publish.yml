@@ -36,7 +36,7 @@ jobs:
     steps:
       - name: Checkout branch #required to put the tag on the correct branch
         if: inputs.branch != null
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch }}
       - name: Download Build Artifact

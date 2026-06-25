@@ -972,7 +972,7 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 	// if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
 	if (inAutomationEditor() && (onArrangerView || outputType != OutputType::MIDI_OUT)) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
-		int32_t lastSelectedParamID = kNoSelection;
+		int32_t lastSelectedParamID = params::kNoParamID;
 		if (onArrangerView) {
 			lastSelectedParamKind = currentSong->lastSelectedParamKind;
 			lastSelectedParamID = currentSong->lastSelectedParamID;
@@ -3030,7 +3030,7 @@ void AutomationView::initParameterSelection(bool updateDisplay) {
 	initPadSelection();
 
 	if (onArrangerView) {
-		currentSong->lastSelectedParamID = kNoSelection;
+		currentSong->lastSelectedParamID = params::kNoParamID;
 		currentSong->lastSelectedParamKind = params::Kind::NONE;
 		currentSong->lastSelectedParamShortcutX = kNoSelection;
 		currentSong->lastSelectedParamShortcutY = kNoSelection;
@@ -3038,7 +3038,7 @@ void AutomationView::initParameterSelection(bool updateDisplay) {
 	}
 	else {
 		Clip* clip = getCurrentClip();
-		clip->lastSelectedParamID = kNoSelection;
+		clip->lastSelectedParamID = params::kNoParamID;
 		clip->lastSelectedParamKind = params::Kind::NONE;
 		clip->lastSelectedParamShortcutX = kNoSelection;
 		clip->lastSelectedParamShortcutY = kNoSelection;
@@ -3181,11 +3181,11 @@ bool AutomationView::onAutomationOverview() {
 
 bool AutomationView::inAutomationEditor() {
 	if (onArrangerView) {
-		if (currentSong->lastSelectedParamID == kNoSelection) {
+		if (currentSong->lastSelectedParamID == params::kNoParamID) {
 			return false;
 		}
 	}
-	else if (getCurrentClip()->lastSelectedParamID == kNoSelection) {
+	else if (getCurrentClip()->lastSelectedParamID == params::kNoParamID) {
 		return false;
 	}
 
