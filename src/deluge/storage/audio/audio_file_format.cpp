@@ -412,7 +412,9 @@ Error walkChunks(AudioByteSource& src, Container container, ParseMode mode, bool
 					const int8_t fineTune = data[1];
 					if ((midiNote || fineTune) && midiNote < 128) {
 						f.midiNote = static_cast<float>(midiNote) - static_cast<float>(fineTune) * 0.01;
-						D_PRINTLN("unshifted note:  %s", *f.midiNote);
+						// %d (int) not %f: this printf build has no float support, and the original "%s" with a
+						// float read the float's bits as a char* (UB). The integer note is the useful breadcrumb.
+						D_PRINTLN("unshifted note:  %d", static_cast<int>(*f.midiNote));
 					}
 
 					// Just read the sustain loop, which comes first.
