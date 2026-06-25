@@ -1756,7 +1756,8 @@ bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	}
 	else if (index >= std::ssize(currentSong->project.clips.sessionClips)) {
 		index = std::ssize(currentSong->project.clips.sessionClips);
-		newClip->section = currentSong->project.clips.sessionClips[std::ssize(currentSong->project.clips.sessionClips) - 1]->section;
+		newClip->section =
+		    currentSong->project.clips.sessionClips[std::ssize(currentSong->project.clips.sessionClips) - 1]->section;
 	}
 	if (!currentSong->project.clips.sessionClips.insertClipAt(newClip, index)) {
 		return false;
@@ -2169,8 +2170,9 @@ ramError:
 		newIndex = std::ssize(currentSong->project.clips.sessionClips);
 	}
 
-	(void)currentSong->project.clips.sessionClips.insertClipAt(newClip,
-	                                             newIndex); // Can't fail - we ensured enough space in advance
+	(void)currentSong->project.clips.sessionClips.insertClipAt(
+	    newClip,
+	    newIndex); // Can't fail - we ensured enough space in advance
 
 	redrawClipsOnScreen();
 }
@@ -2346,7 +2348,7 @@ void SessionView::potentiallyUpdateCompressorLEDs() {
 		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
-				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
+				uint8_t gr = currentSong->project.globalFx.globalEffectable.compressor.gainReduction;
 
 				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}
@@ -3115,7 +3117,8 @@ void SessionView::renderLayoutChange(bool displayPopup) {
 			display->displayPopup("Rows");
 		}
 		selectedClipYDisplay = 255;
-		currentSong->persistentView.songViewYScroll = (std::ssize(currentSong->project.clips.sessionClips) - kDisplayHeight);
+		currentSong->persistentView.songViewYScroll =
+		    (std::ssize(currentSong->project.clips.sessionClips) - kDisplayHeight);
 	}
 	else if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		if (displayPopup) {
@@ -4212,7 +4215,8 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				auto maxTrack = gridTrackCount();
 				Output* track = gridTrackFromX(x, maxTrack);
 				if (track != nullptr) {
-					for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.sessionClips); ++idxClip) {
+					for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.sessionClips);
+					     ++idxClip) {
 						Clip* sessionClip = currentSong->project.clips.sessionClips[idxClip];
 						if (sessionClip->output == track) {
 							if (sessionClip->activeIfNoSolo) {

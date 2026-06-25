@@ -16,6 +16,13 @@ add_library(deluge_project STATIC ${deluge_project_SOURCES})
 target_include_directories(deluge_project PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/../deluge
   ${SHARED_INCLUDE}
+  # As heavyweight app types migrate in by value (e.g. GlobalEffectableForSong), their headers reach
+  # across the app's include environment — generated firmware_version.h, the <libdeluge/...> boundary,
+  # OSLikeStuff (scheduler_api.h), the resource-manager C ABI. Compile against deluge_app's include
+  # directories so those all resolve. Include dirs only (no link dependency), so this is not a cycle
+  # with deluge_app PUBLIC-linking deluge_project; the generator expression resolves after both targets
+  # are defined.
+  $<TARGET_PROPERTY:deluge_app,INTERFACE_INCLUDE_DIRECTORIES>
 )
 # Consumers (deluge_app) name this library's headers as "deluge-project/...".
 target_include_directories(deluge_project PUBLIC ${SHARED_INCLUDE})

@@ -188,8 +188,6 @@ public:
 	// (Named `project` rather than `model` — `model` is already the reverb-model enum member.)
 	deluge::project::Song project;
 
-	GlobalEffectableForSong globalEffectable;
-
 	// Backed-up ParamManagers, keyed by (ModControllable, Clip). For a given ModControllable, the entry with a
 	// null Clip (if any) sorts first. Node-based so ParamManagers never move in memory.
 	deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> backedUpParamManagers;
@@ -217,8 +215,6 @@ public:
 
 	// View/UI state used at runtime but never serialized (selection, transient flags).
 	RuntimeViewState runtimeView;
-
-	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams]{};
 
 	std::array<SessionMacro, 8> sessionMacros{};
 

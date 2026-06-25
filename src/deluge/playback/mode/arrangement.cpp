@@ -123,7 +123,8 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 	if (songParamManagerMightContainAutomation) {
 		ModelStackWithThreeMainThings* modelStackStackWithThreeMainThing =
 		    modelStack->addTimelineCounter(modelStack->song)
-		        ->addOtherTwoThingsButNoNoteRow(&modelStack->song->globalEffectable, &modelStack->song->paramManager);
+		        ->addOtherTwoThingsButNoNoteRow(&modelStack->song->project.globalFx.globalEffectable,
+		                                        &modelStack->song->paramManager);
 
 		currentSong->paramManager.processCurrentPos(modelStackStackWithThreeMainThing, posIncrement, false);
 		currentSong->updateBPMFromAutomation();

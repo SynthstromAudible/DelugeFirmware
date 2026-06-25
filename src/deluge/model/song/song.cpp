@@ -196,7 +196,7 @@ Song::Song() {
 	model = deluge::dsp::Reverb::Model::MUTABLE;
 
 	// setup base compressor gain to match 1.0
-	globalEffectable.compressor.setBaseGain(0.85);
+	project.globalFx.globalEffectable.compressor.setBaseGain(0.85);
 
 	// initialize automation arranger view variables
 	lastSelectedParamID = kNoSelection;
@@ -1130,7 +1130,7 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	writer.writeAttribute("affectEntire", persistentView.affectEntire);
-	writer.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
+	writer.writeAttribute("activeModFunction", project.globalFx.globalEffectable.modKnobMode);
 
 	if (lastSelectedParamID != kNoSelection) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
@@ -1140,7 +1140,7 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
-	globalEffectable.writeAttributesToFile(writer, false);
+	project.globalFx.globalEffectable.writeAttributesToFile(writer, false);
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("songGridScrollX", persistentView.songGridScrollX);
@@ -1189,9 +1189,9 @@ weAreInArrangementEditorOrInClipInstance:
 
 	writer.writeClosingTag("reverb");
 
-	globalEffectable.writeTagsToFile(writer, NULL, false);
+	project.globalFx.globalEffectable.writeTagsToFile(writer, NULL, false);
 
-	int32_t* valuesForOverride = runtimeView.paramsInAutomationMode ? unautomatedParamValues : NULL;
+	int32_t* valuesForOverride = runtimeView.paramsInAutomationMode ? project.globalFx.unautomatedParamValues : NULL;
 
 	writer.writeOpeningTagBeginning("songParams");
 	GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, valuesForOverride);
@@ -1631,8 +1631,9 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "activeModFunction")) {
-				globalEffectable.modKnobMode = reader.readTagOrAttributeValueInt();
-				globalEffectable.modKnobMode = std::min(globalEffectable.modKnobMode, (uint8_t)(kNumModButtons - 1));
+				project.globalFx.globalEffectable.modKnobMode = reader.readTagOrAttributeValueInt();
+				project.globalFx.globalEffectable.modKnobMode =
+				    std::min(project.globalFx.globalEffectable.modKnobMode, (uint8_t)(kNumModButtons - 1));
 				reader.exitTag("activeModFunction");
 			}
 
@@ -1671,27 +1672,27 @@ unknownTag:
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) {
 						q31_t masterCompressorAttack = reader.readTagOrAttributeValueInt();
-						globalEffectable.compressor.setAttack(masterCompressorAttack);
+						project.globalFx.globalEffectable.compressor.setAttack(masterCompressorAttack);
 						reader.exitTag("attack");
 					}
 					else if (!strcmp(tagName, "release")) {
 						q31_t masterCompressorRelease = reader.readTagOrAttributeValueInt();
-						globalEffectable.compressor.setRelease(masterCompressorRelease);
+						project.globalFx.globalEffectable.compressor.setRelease(masterCompressorRelease);
 						reader.exitTag("release");
 					}
 					else if (!strcmp(tagName, "thresh")) {
 						q31_t masterCompressorThresh = reader.readTagOrAttributeValueInt();
-						globalEffectable.compressor.setThreshold(masterCompressorThresh);
+						project.globalFx.globalEffectable.compressor.setThreshold(masterCompressorThresh);
 						reader.exitTag("thresh");
 					}
 					else if (!strcmp(tagName, "ratio")) {
 						q31_t masterCompressorRatio = reader.readTagOrAttributeValueInt();
-						globalEffectable.compressor.setRatio(masterCompressorRatio);
+						project.globalFx.globalEffectable.compressor.setRatio(masterCompressorRatio);
 						reader.exitTag("ratio");
 					}
 					else if (!strcmp(tagName, "compHPF")) {
 						q31_t masterCompressorSidechain = reader.readTagOrAttributeValueInt();
-						globalEffectable.compressor.setSidechain(masterCompressorSidechain);
+						project.globalFx.globalEffectable.compressor.setSidechain(masterCompressorSidechain);
 						reader.exitTag("compHPF");
 					}
 					else {
@@ -2009,8 +2010,8 @@ loadOutput:
 			}
 
 			else {
-				Error result =
-				    globalEffectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, nullptr, this);
+				Error result = project.globalFx.globalEffectable.readTagFromFile(reader, tagName, &paramManager,
+				                                                                 2147483647, nullptr, this);
 				if (result == Error::NONE) {}
 				else if (result != Error::RESULT_TAG_UNUSED) {
 					return result;
@@ -2223,7 +2224,7 @@ skipInstance:
 	if (song_firmware_version < FirmwareVersion::official({1, 2, 0})) {
 
 		deleteAllBackedUpParamManagers(); // Before V1.2, lots of extras of these could be created during loading
-		globalEffectable.compensateVolumeForResonance(&paramManager);
+		project.globalFx.globalEffectable.compensateVolumeForResonance(&paramManager);
 	}
 
 	if (project.transport.syncScalingClip) {
@@ -2450,7 +2451,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	}
 	AudioEngine::logAction("done recorders");
 
-	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
+	Delay::State delayWorkingState = project.globalFx.globalEffectable.createDelayWorkingState(paramManager);
 
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
@@ -2460,11 +2461,11 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 
 	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
 	// don't need to
-	globalEffectable.processFXForGlobalEffectable(outputBuffer, &volumePostFX, &paramManager, delayWorkingState, true,
-	                                              reverbSendAmount >> 3);
+	project.globalFx.globalEffectable.processFXForGlobalEffectable(outputBuffer, &volumePostFX, &paramManager,
+	                                                               delayWorkingState, true, reverbSendAmount >> 3);
 
-	globalEffectable.processReverbSendAndVolume(outputBuffer, reverbBuffer, volumePostFX, postReverbVolume,
-	                                            reverbSendAmount >> 1);
+	project.globalFx.globalEffectable.processReverbSendAndVolume(outputBuffer, reverbBuffer, volumePostFX,
+	                                                             postReverbVolume, reverbSendAmount >> 1);
 	AudioEngine::logAction("done global effectables");
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
@@ -4493,7 +4494,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 
 		// Back up the unautomated values
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
-			unautomatedParamValues[p] = unpatchedParams->params[p].getCurrentValue();
+			project.globalFx.unautomatedParamValues[p] = unpatchedParams->params[p].getCurrentValue();
 		}
 	}
 
@@ -4503,7 +4504,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 		// Restore the unautomated values, where automation is present
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
 			if (unpatchedParams->params[p].isAutomated()) {
-				unpatchedParams->params[p].currentValue = unautomatedParamValues[p];
+				unpatchedParams->params[p].currentValue = project.globalFx.unautomatedParamValues[p];
 			}
 		}
 	}
@@ -5506,7 +5507,7 @@ int32_t Song::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* 
 void Song::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
 	if (persistentView.affectEntire) {
 		modelStack->setTimelineCounter(this);
-		modelStack->addOtherTwoThingsButNoNoteRow(&globalEffectable, &paramManager);
+		modelStack->addOtherTwoThingsButNoNoteRow(&project.globalFx.globalEffectable, &paramManager);
 	}
 	else {
 		modelStack->setTimelineCounter(nullptr);
@@ -5760,7 +5761,8 @@ void Song::displayMasterTransposeInterval() {
 }
 
 ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {
-	return setupModelStackWithThreeMainThingsButNoNoteRow(memory, this, &globalEffectable, this, &paramManager);
+	return setupModelStackWithThreeMainThingsButNoNoteRow(memory, this, &project.globalFx.globalEffectable, this,
+	                                                      &paramManager);
 }
 
 ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory) {
@@ -5768,7 +5770,8 @@ ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory
 }
 
 ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {
-	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&globalEffectable, &paramManager);
+	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&project.globalFx.globalEffectable,
+	                                                                           &paramManager);
 }
 
 ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID) {

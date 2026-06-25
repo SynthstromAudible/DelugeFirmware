@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/clips.h"
+#include "deluge-project/global_effects.h"
 #include "deluge-project/groove.h"
 #include "deluge-project/media_pool.h"
 #include "deluge-project/metadata.h"
@@ -46,6 +47,7 @@ public:
 	Transport transport;
 	ScaleSettings scale;
 	ReverbSettings reverb;
+	GlobalEffects globalFx;
 };
 
 } // namespace deluge::project

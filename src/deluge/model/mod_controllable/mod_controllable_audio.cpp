@@ -1307,7 +1307,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	if (Error::NONE
 	    == stutterer.beginStutter(
 	        this, paramManager,
-	        stutterConfig.useSongStutter ? currentSong->globalEffectable.stutterConfig : stutterConfig,
+	        stutterConfig.useSongStutter ? currentSong->project.globalFx.globalEffectable.stutterConfig : stutterConfig,
 	        currentSong->getInputTickMagnitude(), playbackHandler.getTimePerInternalTickInverse())) {
 		// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
 		view.notifyParamAutomationOccurred(paramManager);
