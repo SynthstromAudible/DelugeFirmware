@@ -20,7 +20,7 @@
         "-DHAVE_OLED=1"
       ],
       "cStandard": "gnu23",
-      "cppStandard": "gnu++23",
+      "cppStandard": "gnu++26",
       "intelliSenseMode": "gcc-arm",
       "defines": [
         "HAVE_OLED=1",
@@ -45,7 +45,7 @@
         "-DHAVE_OLED=1"
       ],
       "cStandard": "gnu23",
-      "cppStandard": "gnu++23",
+      "cppStandard": "gnu++26",
       "intelliSenseMode": "gcc-arm",
       "defines": [
         "HAVE_OLED=1",
@@ -70,7 +70,7 @@
           "-DHAVE_OLED=1"
         ],
         "cStandard": "gnu23",
-        "cppStandard": "gnu++23",
+        "cppStandard": "gnu++26",
         "intelliSenseMode": "gcc-arm",
         "defines": [
           "HAVE_OLED=1",

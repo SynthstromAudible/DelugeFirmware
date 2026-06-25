@@ -92,7 +92,7 @@ set_target_properties(UnitTests
         PROPERTIES
         C_STANDARD 23
         C_STANDARD_REQUIRED ON
-        CXX_STANDARD 23
+        CXX_STANDARD 26
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS ON
 )

@@ -247,7 +247,7 @@ option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
 
 # Project-only compile options (warnings, etc.)
 set(DELUGE_C_STANDARD 23)
-set(DELUGE_CXX_STANDARD 23)
+set(DELUGE_CXX_STANDARD 26)
 list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<AND:$<BOOL:${MAINTAINER_MODE}>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
 

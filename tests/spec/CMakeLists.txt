@@ -26,7 +26,7 @@ target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi)
 target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/)
 
 set_target_properties(deluge_spec PROPERTIES
-  CXX_STANDARD 23
+  CXX_STANDARD 26
   CXX_STANDARD_REQUIRED YES
 )
 
@@ -38,7 +38,7 @@ function(create_specs_driver driver_name spec_dir)
   add_executable(${driver_name} ${specs})
   target_link_libraries(${driver_name} PRIVATE c++spec)
   set_target_properties(${driver_name} PROPERTIES
-    CXX_STANDARD 23
+    CXX_STANDARD 26
     CXX_STANDARD_REQUIRED YES
   )
 
