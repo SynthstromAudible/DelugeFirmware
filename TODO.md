@@ -1,2 +1,3 @@
 - [] remove TEST_VECTOR*
 - [] sample accurate midi/usb note-on from embassy
+- [] encapsulate deluge::dsp::fixed::Interpolator's tap windows (buffer_l/buffer_r are public because sample_low_level_reader / live-input play_head / wave_table manage them directly for loop crossfades + jump-fills — lift that behind a richer feed/window API so they can go private)
