@@ -196,6 +196,8 @@ add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # d
 # is unconditionally backed by it; the legacy C++ MemoryRegion path has been retired.
 if(DELUGE_SIM_X64)
     set(SIM_RUST_TARGET x86_64-unknown-linux-gnu)
+elseif(DELUGE_SIM_ARM)
+    set(SIM_RUST_TARGET armv7-unknown-linux-gnueabihf) # arm-linux/NEON oracle (cortex-a9, hard-float)
 else()
     set(SIM_RUST_TARGET i686-unknown-linux-gnu) # matches the default -m32 sim
 endif()
