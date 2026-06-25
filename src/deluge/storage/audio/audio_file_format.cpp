@@ -17,10 +17,11 @@
 
 #include "storage/audio/audio_file_format.h"
 #include "io/debug/log.h"
-#include "storage/audio/audio_file_reader.h"
-#include "util/functions.h"
+#include "storage/audio/audio_byte_source.h"
+#include "util/audio_format_helpers.h" // charsToIntegerConstant, swapEndianness*, memToUIntOrError, ConvertFromIeeeExtended
 #include "util/misc.h"
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace {
@@ -30,17 +31,22 @@ constexpr int32_t kMaxNumMarkers = 8;
 // https://sites.google.com/site/musicgapi/technical-documents/wav-file-format#wavefilechunks
 } // namespace
 
-Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool makeWaveTableWorkAtAllCosts, bool isAiff,
+Error parseAudioFileHeader(AudioByteSource& src, AudioFileType type, bool makeWaveTableWorkAtAllCosts, bool isAiff,
                            AudioFileFormat& out) {
 	const bool isSample = (type == AudioFileType::SAMPLE);
 	const bool isWaveTable = (type == AudioFileType::WAVETABLE);
+
+	// Read `num` bytes into `dest` through the byte source (mirrors the old reader.readBytes shape).
+	const auto readBytes = [&](void* dest, int32_t num) {
+		return src.read({static_cast<std::byte*>(dest), static_cast<size_t>(num)});
+	};
 
 	// AIFF files will only be used for WaveTables if the user insists.
 	if (isWaveTable && !makeWaveTableWorkAtAllCosts && isAiff) {
 		return Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
 	}
 
-	uint32_t bytePos = reader.getBytePos();
+	uint32_t bytePos = src.pos();
 
 	Error error = Error::NONE;
 	bool foundDataChunk = false; // Also applies to an AIFF file's SSND chunk.
@@ -77,14 +83,14 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 
 	bool stop = false; // A mid-chunk read error abandons the scan and falls to the found-chunk check.
 
-	while (bytePos < reader.fileSize && !stop) {
+	while (bytePos < src.size() && !stop) {
 
 		struct {
 			uint32_t name;
 			uint32_t length;
 		} thisChunk{};
 
-		error = reader.readBytes(reinterpret_cast<char*>(&thisChunk), 4 * 2);
+		error = readBytes(reinterpret_cast<char*>(&thisChunk), 4 * 2);
 		if (error != Error::NONE) {
 			break;
 		}
@@ -97,7 +103,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 		// If the chunk size is odd, skip the trailing padding byte too (a RIFF requirement).
 		thisChunk.length = (thisChunk.length + 1) & ~static_cast<uint32_t>(1);
 
-		const uint32_t bytePosOfThisChunkData = reader.getBytePos();
+		const uint32_t bytePosOfThisChunkData = src.pos();
 		bytePos = bytePosOfThisChunkData + thisChunk.length; // Where the next RIFF chunk begins.
 
 		// ------ WAV ------
@@ -120,7 +126,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 				foundFmtChunk = true;
 
 				std::array<uint32_t, 4> header{};
-				error = reader.readBytes(reinterpret_cast<char*>(header.data()), 4 * 4);
+				error = readBytes(reinterpret_cast<char*>(header.data()), 4 * 4);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -171,7 +177,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 			case charsToIntegerConstant('s', 'm', 'p', 'l'): {
 				if (isSample) {
 					std::array<uint32_t, 9> data{};
-					error = reader.readBytes(reinterpret_cast<char*>(data.data()), 4 * 9);
+					error = readBytes(reinterpret_cast<char*>(data.data()), 4 * 9);
 					if (error != Error::NONE) {
 						break;
 					}
@@ -190,7 +196,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 							D_PRINTLN("loop  %d", l);
 
 							std::array<uint32_t, 6> loopData{};
-							error = reader.readBytes(reinterpret_cast<char*>(loopData.data()), 4 * 6);
+							error = readBytes(reinterpret_cast<char*>(loopData.data()), 4 * 6);
 							if (error != Error::NONE) {
 								stop = true;
 								break;
@@ -208,7 +214,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 			case charsToIntegerConstant('i', 'n', 's', 't'): {
 				if (isSample) {
 					std::array<uint8_t, 7> data{};
-					error = reader.readBytes(reinterpret_cast<char*>(data.data()), 7);
+					error = readBytes(reinterpret_cast<char*>(data.data()), 7);
 					if (error != Error::NONE) {
 						break;
 					}
@@ -225,7 +231,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 			// Serum wavetable chunk - "clm "
 			case charsToIntegerConstant('c', 'l', 'm', ' '): {
 				std::array<char, 7> data{};
-				error = reader.readBytes(data.data(), 7);
+				error = readBytes(data.data(), 7);
 				if (error != Error::NONE) {
 					break;
 				}
@@ -253,13 +259,13 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 				foundDataChunk = true;
 
 				uint32_t offset = 0;
-				error = reader.readBytes(reinterpret_cast<char*>(&offset), 4);
+				error = readBytes(reinterpret_cast<char*>(&offset), 4);
 				if (error != Error::NONE) {
 					return error;
 				}
 				offset = swapEndianness32(offset);
 				out.audioDataLengthBytes = bytesCurrentChunkNotRoundedUp - offset - 8;
-				out.audioDataStartPosBytes = reader.getBytePos() + 4 + offset;
+				out.audioDataStartPosBytes = src.pos() + 4 + offset;
 
 				if (isWaveTable) {
 					return finishWaveTable();
@@ -276,7 +282,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 				}
 
 				std::array<uint16_t, 9> header{};
-				error = reader.readBytes(reinterpret_cast<char*>(header.data()), 18);
+				error = readBytes(reinterpret_cast<char*>(header.data()), 18);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -311,7 +317,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 
 			// MARK
 			case charsToIntegerConstant('M', 'A', 'R', 'K'): {
-				error = reader.readBytes(reinterpret_cast<char*>(&numMarkers), 2);
+				error = readBytes(reinterpret_cast<char*>(&numMarkers), 2);
 				if (error != Error::NONE) {
 					break;
 				}
@@ -324,7 +330,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 
 				for (int32_t m = 0; m < numMarkers && !stop; m++) {
 					uint16_t markerId = 0;
-					error = reader.readBytes(reinterpret_cast<char*>(&markerId), 2);
+					error = readBytes(reinterpret_cast<char*>(&markerId), 2);
 					if (error != Error::NONE) {
 						stop = true;
 						break;
@@ -332,7 +338,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 					markerIDs[m] = swapEndianness2x16(markerId);
 
 					uint32_t markerPos = 0;
-					error = reader.readBytes(reinterpret_cast<char*>(&markerPos), 4);
+					error = readBytes(reinterpret_cast<char*>(&markerPos), 4);
 					if (error != Error::NONE) {
 						stop = true;
 						break;
@@ -340,7 +346,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 					markerPositions[m] = swapEndianness32(markerPos);
 
 					uint8_t stringLength = 0;
-					error = reader.readBytes(reinterpret_cast<char*>(&stringLength), 1);
+					error = readBytes(reinterpret_cast<char*>(&stringLength), 1);
 					if (error != Error::NONE) {
 						stop = true;
 						break;
@@ -348,8 +354,8 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 
 					const uint32_t stringLengthRoundedUpToBeEven =
 					    (static_cast<uint32_t>(stringLength) + 1) & ~static_cast<uint32_t>(1);
-					// Cluster boundaries will be checked at the next read.
-					reader.byteIndexWithinCluster += stringLengthRoundedUpToBeEven;
+					// Skip the (even-padded) marker-name string; the next read fetches from here.
+					src.seekForwardTo(src.pos() + stringLengthRoundedUpToBeEven);
 				}
 				break;
 			}
@@ -358,7 +364,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 			case charsToIntegerConstant('I', 'N', 'S', 'T'): {
 				if (isSample) {
 					std::array<uint8_t, 8> data{};
-					error = reader.readBytes(reinterpret_cast<char*>(data.data()), 8);
+					error = readBytes(reinterpret_cast<char*>(data.data()), 8);
 					if (error != Error::NONE) {
 						break;
 					}
@@ -372,7 +378,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 
 					// Just read the sustain loop, which comes first.
 					std::array<uint16_t, 3> loopData{};
-					error = reader.readBytes(reinterpret_cast<char*>(loopData.data()), 3 * 2);
+					error = readBytes(reinterpret_cast<char*>(loopData.data()), 3 * 2);
 					if (error != Error::NONE) {
 						break;
 					}
@@ -386,7 +392,7 @@ Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool mak
 		}
 
 		if (!stop) {
-			reader.jumpForwardToBytePos(bytePos);
+			src.seekForwardTo(bytePos);
 		}
 	}
 

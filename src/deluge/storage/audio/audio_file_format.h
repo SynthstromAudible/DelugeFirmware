@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 
-class AudioFileReader;
+class AudioByteSource;
 
 /// On-disk encoding of an audio file's raw sample words — how the bytes read off the card must be
 /// reinterpreted to reach native q31 (see Sample::convertToNative). A facet of the file format, so it
@@ -56,10 +56,10 @@ struct AudioFileFormat {
 	bool fileExplicitlySpecifiesSelfAsWaveTable = false;
 };
 
-/// Parse a WAV (`isAiff == false`) or AIFF (`isAiff == true`) header off `reader`, filling `out`. Reads
-/// only the header/metadata chunks — for a WAVETABLE it stops once the data chunk is located (the caller
-/// then runs WaveTable::setup); for a SAMPLE it scans every chunk and resolves AIFF loop markers. Pure
-/// decode: no AudioFile is mutated and no DSP runs. Returns Error::NONE on success, or the first decode
-/// error (corrupt/unsupported/not-loadable-as-wavetable).
-Error parseAudioFileHeader(AudioFileReader& reader, AudioFileType type, bool makeWaveTableWorkAtAllCosts, bool isAiff,
+/// Parse a WAV (`isAiff == false`) or AIFF (`isAiff == true`) header off `src`, filling `out`. Reads only
+/// the header/metadata chunks — for a WAVETABLE it stops once the data chunk is located (the caller then
+/// runs WaveTable::setup); for a SAMPLE it scans every chunk and resolves AIFF loop markers. Pure decode: no
+/// AudioFile is mutated and no DSP runs. Returns Error::NONE on success, or the first decode error
+/// (corrupt/unsupported/not-loadable-as-wavetable).
+Error parseAudioFileHeader(AudioByteSource& src, AudioFileType type, bool makeWaveTableWorkAtAllCosts, bool isAiff,
                            AudioFileFormat& out);

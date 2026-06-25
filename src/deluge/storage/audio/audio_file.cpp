@@ -20,7 +20,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_format.h"
-#include "storage/audio/audio_file_reader.h"
+#include "storage/audio/reader_byte_source.h" // adapts the AudioFileReader to the parser's AudioByteSource
 #include "storage/wave_table/wave_table.h"
 #include "storage/wave_table/wave_table_reader.h" // complete type for the static_cast<WaveTableReader*> dispatch
 
@@ -31,7 +31,8 @@
 // lives in parseAudioFileHeader — this method is just the type-dispatch the old fake-polymorphic casts hid.
 Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
 	AudioFileFormat format{};
-	if (const Error error = parseAudioFileHeader(*reader, type, makeWaveTableWorkAtAllCosts, isAiff, format);
+	ReaderByteSource source{*reader};
+	if (const Error error = parseAudioFileHeader(source, type, makeWaveTableWorkAtAllCosts, isAiff, format);
 	    error != Error::NONE) {
 		return error;
 	}

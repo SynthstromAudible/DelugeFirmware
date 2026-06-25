@@ -20,7 +20,8 @@
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
-#include "gui/colour/colour.h" // IWYU pragma: export todo: this probably shouldn't be exported from here
+#include "gui/colour/colour.h"         // IWYU pragma: export todo: this probably shouldn't be exported from here
+#include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
 #include "util/cfunctions.h" // IWYU pragma: export - minimal set of functions which need c linkage
 #include "util/etl_string.h"
@@ -108,14 +109,9 @@ template <uint8_t lshift>
 	return signed_saturate_operand_unknown(val, 32 - lshift) << lshift;
 }
 
-[[gnu::always_inline]] constexpr uint32_t charsToIntegerConstant(char a, char b, char c, char d) {
-	return (static_cast<uint32_t>(a)) | (static_cast<uint32_t>(b) << 8) | (static_cast<uint32_t>(c) << 16)
-	       | (static_cast<uint32_t>(d) << 24);
-}
+// charsToIntegerConstant / swapEndianness* / memToUIntOrError / ConvertFromIeeeExtended now live in
+// util/audio_format_helpers.h (included above), so the parser can depend on them without this heavy header.
 
-[[gnu::always_inline]] constexpr uint16_t charsToIntegerConstant(char a, char b) {
-	return (static_cast<uint16_t>(a)) | (static_cast<uint16_t>(b) << 8);
-}
 /**
  * replace single asterix with a single digit
  * single asterix works for single digits only
@@ -149,7 +145,6 @@ void replace_char(char* str, const char* in_str, char find, char replace);
 
 int32_t stringToInt(char const* string);
 int32_t stringToUIntOrError(char const* mem);
-int32_t memToUIntOrError(char const* mem, char const* const memEnd);
 void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, int8_t presetSubslotNumber,
                                  char* fileName);
 char const* oscTypeToString(OscType osctype);
@@ -386,29 +381,7 @@ int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = nullptr,
                       bool appendOctaveNo = true);
 void concatenateLines(const char* lines[], size_t numLines, char* resultString);
-double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);
-
-[[gnu::always_inline]] inline uint32_t swapEndianness32(uint32_t input) {
-#if defined(__arm__)
-	int32_t out;
-	asm("rev %0, %1" : "=r"(out) : "r"(input));
-	return out;
-#else
-	return __builtin_bswap32(input); // ARM `rev`: reverse all 4 bytes
-#endif
-}
-
-[[gnu::always_inline]] inline uint32_t swapEndianness2x16(uint32_t input) {
-#if defined(__arm__)
-	int32_t out;
-	asm("rev16 %0, %1" : "=r"(out) : "r"(input));
-	return out;
-#else
-	// ARM `rev16`: reverse byte order within each 16-bit halfword independently.
-	return ((input & 0x00FF00FFu) << 8) | ((input >> 8) & 0x00FF00FFu);
-#endif
-}
 
 [[gnu::always_inline]] inline int32_t getMagnitudeOld(uint32_t input) {
 	return 32 - clz(input);
