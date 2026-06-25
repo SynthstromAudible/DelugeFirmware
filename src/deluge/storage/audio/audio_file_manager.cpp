@@ -632,16 +632,8 @@ waveTableCloneError:
 				std::string searchPath;
 				searchPath = alternateAudioFileLoadPath;
 				searchPath.append("/");
-				*error = Error::NONE;
-				if (*error != Error::NONE) {
-					goto tryLoadingFromCard;
-				}
 				char const* fileName = getFileNameFromEndOfPath(filePath.c_str());
 				searchPath.append(fileName);
-				*error = Error::NONE;
-				if (*error != Error::NONE) {
-					goto tryLoadingFromCard;
-				}
 
 				audioFileI = audioFiles.search(searchPath.c_str(), &foundExact);
 				if (foundExact) {
@@ -732,10 +724,6 @@ tryNextAlternate:
 					alreadyTriedSecondAlternate = true;
 					char const* fileName = getFileNameFromEndOfPath(filePath.c_str());
 					proposedFileName = fileName;
-					*error = Error::NONE;
-					if (*error != Error::NONE) {
-						return NULL;
-					}
 					goto tryAnAlternate;
 				}
 				if (alreadyTriedRegular) {
@@ -752,15 +740,7 @@ tryNextAlternate:
 
 			usingAlternateLocation = alternateAudioFileLoadPath;
 			usingAlternateLocation.append("/");
-			*error = Error::NONE;
-			if (*error != Error::NONE) {
-				return NULL;
-			}
 			usingAlternateLocation.append(proposedFileName);
-			*error = Error::NONE;
-			if (*error != Error::NONE) {
-				return NULL;
-			}
 
 			if (thingTypeBeingLoaded == ThingType::SYNTH || thingTypeBeingLoaded == ThingType::KIT) {
 				// Special rule for loading presets with files in their dedicated "alternate" folder: must update
