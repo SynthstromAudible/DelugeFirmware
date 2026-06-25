@@ -147,6 +147,14 @@ private:
 	uint32_t clusterSizeAtBoot{0};
 
 	void cardReinserted();
+	// Construct an AudioFile from a resolved file: alloc + adopt the object, build it (Sample: FAT-walk the
+	// cluster table + stream-parse via ClusterByteSource; WaveTable: parse + setup via DeserializerByteSource),
+	// insert into `audioFiles` and finalize. Returns the loaded object (held by no reason — the caller leases
+	// it), or nullptr with `*error` set. The file-resolution that produced `effectiveFilePointer` /
+	// `usingAlternateLocation` is the caller's job.
+	AudioFile* buildAudioFileFromCard(const std::string& filePath, const std::string& usingAlternateLocation,
+	                                  FilePointer& effectiveFilePointer, AudioFileType type,
+	                                  bool makeWaveTableWorkAtAllCosts, Error* error);
 	int32_t readBytes(char* buffer, int32_t num, int32_t* byteIndexWithinCluster, Cluster** currentCluster,
 	                  uint32_t* currentClusterIndex, uint32_t fileSize, Sample* sample);
 	int32_t loadAiff(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);

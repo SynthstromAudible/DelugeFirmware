@@ -784,29 +784,32 @@ notFound:
 		}
 	}
 
+	return buildAudioFileFromCard(filePath, usingAlternateLocation, effectiveFilePointer, type,
+	                              makeWaveTableWorkAtAllCosts, error);
+}
+
+AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
+                                                    const std::string& usingAlternateLocation,
+                                                    FilePointer& effectiveFilePointer, AudioFileType type,
+                                                    bool makeWaveTableWorkAtAllCosts, Error* error) {
 	// 0-byte files not allowed.
-	if (!effectiveFilePointer.objsize) {
+	if (effectiveFilePointer.objsize == 0) {
 		*error = Error::FILE_CORRUPTED;
-cantLoadFile:
-		// if (!suppliedFilePointer) f_close(&fileSystemStuff.currentFile);
-		return NULL;
+		return nullptr;
 	}
-
-	// Files bigger than 1GB not allowed
-	else if (effectiveFilePointer.objsize > kMaxFileSize) {
+	// Files bigger than 1GB not allowed.
+	if (effectiveFilePointer.objsize > kMaxFileSize) {
 		*error = Error::FILE_TOO_BIG;
-		goto cantLoadFile;
+		return nullptr;
 	}
 
-	uint32_t numClusters = ((effectiveFilePointer.objsize - 1) >> Cluster::size_magnitude) + 1;
-
-	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
+	const uint32_t numClusters = ((effectiveFilePointer.objsize - 1) >> Cluster::size_magnitude) + 1;
+	const int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
 	void* audioFileMemory = deluge::memory::alloc_external(memorySizeNeeded, 16);
-	if (!audioFileMemory) {
-ramError:
+	if (audioFileMemory == nullptr) {
 		*error = Error::INSUFFICIENT_RAM;
-		goto cantLoadFile;
+		return nullptr;
 	}
 
 	AudioFile* audioFile;
@@ -814,10 +817,10 @@ ramError:
 		audioFile = new (audioFileMemory) Sample;
 		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
 		audioFile->addReason(); // So it's protected while setting up. Must do this before calling initialize().
-		*error = ((Sample*)audioFile)->initialize(numClusters);
+		*error = static_cast<Sample*>(audioFile)->initialize(numClusters);
 		if (*error != Error::NONE) { // Very rare, only if not enough RAM
 			destroyAudioFileObject(*audioFile);
-			goto cantLoadFile;
+			return nullptr;
 		}
 
 		audioFile->filePath = filePath;
@@ -827,7 +830,8 @@ ramError:
 		uint32_t currentClusterIndex = 0;
 		uint32_t currentSDCluster = effectiveFilePointer.sclust; // First cluster, whose address we already got.
 		while (true) {
-			((Sample*)audioFile)->clusters[currentClusterIndex].sdAddress = clst2sect(&fileSystem, currentSDCluster);
+			static_cast<Sample*>(audioFile)->clusters[currentClusterIndex].sdAddress =
+			    clst2sect(&fileSystem, currentSDCluster);
 
 			currentClusterIndex++;
 			if (currentClusterIndex >= numClusters) {
@@ -861,23 +865,21 @@ ramError:
 	}
 
 	if (*error != Error::NONE) {
-audioFileError:
 		// ~AudioFile removes the pointers back to the Sample / SampleClusters from any Clusters;
 		// destroyAudioFileObject also un-adopts + frees (through the manager if adopted).
 		destroyAudioFileObject(*audioFile);
-		return NULL;
+		return nullptr;
 	}
 
-	auto insertedFile = audioFiles.insertElement(audioFile);
+	const auto insertedFile = audioFiles.insertElement(audioFile);
 	if (!insertedFile) {
 		*error = insertedFile.error();
-		goto audioFileError;
+		destroyAudioFileObject(*audioFile);
+		return nullptr;
 	}
 
 	audioFile->finalizeAfterLoad(effectiveFilePointer.objsize);
-
-	audioFile->removeReason("E399");
-
+	audioFile->removeReason("E399"); // Setup done; drop the protect-during-setup reason (the caller re-leases).
 	return audioFile;
 }
 
