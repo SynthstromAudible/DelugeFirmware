@@ -511,27 +511,6 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 	return Error::NONE;
 }
 
-namespace {
-// Read the 12-byte top RIFF/FORM header off `source`, then hand the rest to the parser via
-// AudioFile::loadFile. `wtSource` is forwarded for the WAVETABLE zero-copy data read (null for samples; for a
-// WaveTable it is the same object as `source`).
-Error readTopHeaderAndLoad(AudioFile& audioFile, AudioByteSource& source, DeserializerByteSource* wtSource,
-                           bool makeWaveTableWorkAtAllCosts) {
-	uint32_t topHeader[3];
-	if (const Error error = source.read({reinterpret_cast<std::byte*>(topHeader), sizeof(topHeader)});
-	    error != Error::NONE) {
-		return error;
-	}
-	if (topHeader[0] == 0x46464952 && topHeader[2] == 0x45564157) { // "RIFF" / "WAVE"
-		return audioFile.loadFile(source, false, makeWaveTableWorkAtAllCosts, wtSource);
-	}
-	if (topHeader[0] == 0x4D524F46 && topHeader[2] == 0x46464941) { // "FORM" / "AIFF"
-		return audioFile.loadFile(source, true, makeWaveTableWorkAtAllCosts, wtSource);
-	}
-	return Error::FILE_UNSUPPORTED;
-}
-} // namespace
-
 AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, bool mayReadCard, Error* error,
                                                       FilePointer* suppliedFilePointer, AudioFileType type,
                                                       bool makeWaveTableWorkAtAllCosts) {
@@ -882,7 +861,7 @@ ramError:
 
 		// The byte source streams the clusters; its destructor releases the held cluster's reason.
 		ClusterByteSource source{static_cast<Sample&>(*audioFile), effectiveFilePointer.objsize};
-		*error = readTopHeaderAndLoad(*audioFile, source, nullptr, makeWaveTableWorkAtAllCosts);
+		*error = audioFile->loadFile(source, makeWaveTableWorkAtAllCosts);
 	}
 	else {
 		audioFile = new (audioFileMemory) WaveTable;
@@ -898,7 +877,7 @@ ramError:
 		// One deserializer-backed source serves both the header parse (via the AudioByteSource surface) and
 		// WaveTable::setup's zero-copy band read (via its cluster accessors) — hence passed both ways.
 		DeserializerByteSource source{static_cast<uint32_t>(effectiveFilePointer.objsize)};
-		*error = readTopHeaderAndLoad(*audioFile, source, &source, makeWaveTableWorkAtAllCosts);
+		*error = audioFile->loadFile(source, makeWaveTableWorkAtAllCosts, &source);
 	}
 
 	if (*error != Error::NONE) {

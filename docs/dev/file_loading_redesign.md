@@ -1,9 +1,10 @@
 # Audio file-loading redesign
 
 Status: **in progress** on `feat/audio-file-parser`. Both load paths (Sample *and* WaveTable) are redesigned
-onto the byte-source abstraction, de-goto'd, and runtime-validated; the legacy `AudioFileReader` hierarchy is
-gone. The typed-result (Layer 2) and orchestration-collapse (Layer 3) phases remain. Behaviour-preserving
-throughout (no intended change to what loads or how it sounds).
+onto the byte-source abstraction (Layer 1) with a typed, sentinel-free `std::expected` parse result (Layer 2),
+de-goto'd, and runtime-validated; the legacy `AudioFileReader` hierarchy is gone. Only the orchestration
+collapse (Layer 3 — `getAudioFileFromFilename`) remains. Behaviour-preserving throughout (no intended change
+to what loads or how it sounds).
 
 ## Why
 
@@ -38,10 +39,13 @@ construction in `getAudioFileFromFilename`.
 (`read` / `pos` / `seekForwardTo` / `size`) that hides *how* bytes are fetched and owns its own position +
 cleanup. Replaces `AudioFileReader` + its subclasses.
 
-**Layer 2 — typed parse result** (not yet done): split the `type`-flag parser into `parseSampleHeader` /
-`parseWaveTableHeader` returning `std::expected<…, Error>` with `std::optional` fields (no `255` / `-1`
-sentinels), container detection folded in; lower optionals to the legacy defaults at the apply site so
-behaviour is identical.
+**Layer 2 — typed parse result** (done): the `type`-flag `parseAudioFileHeader` is split into
+`parseSampleHeader` / `parseWaveTableHeader` returning `std::expected<SampleHeader / WaveTableHeader, Error>`
+with `std::optional` fields (the `255` byte-depth and `-1` midi-note sentinels are gone), and RIFF/FORM
+container detection folded in (the parser reads the 12-byte top header itself). A shared internal
+`walkChunks` over a private `HeaderFields` accumulator keeps the proven chunk logic single-sourced; the two
+public entry points lower it into the tight typed results. `AudioFile::loadFile` lowers the optionals to
+Sample's legacy defaults at the apply site, so behaviour is identical.
 
 **Layer 3 — collapse `getAudioFileFromFilename`** (not yet done): separate file-resolution (dedup lookup +
 alternate-dir search + `f_open`) from object construction (`buildSample` / `buildWaveTable`) under an RAII
@@ -80,13 +84,21 @@ if(*error!=NONE) goto` stubs).
   data.size()`. Behaviour-identical on hardware; was only reachable via an explicit-wavetable `clm` file
   (the prior single-cycle fixture had no `clm` chunk, so the descriptor net's new multi-cluster fixture
   surfaced it).
+- **Layer 2 — typed parse result:** `parseAudioFileHeader(src, type, atAllCosts, isAiff, out&)` → two typed
+  entry points `parseSampleHeader(src)` / `parseWaveTableHeader(src, atAllCosts)` returning
+  `std::expected<SampleHeader / WaveTableHeader, Error>`. Killed the `AudioFileFormat` POD and its sentinels
+  (`byteDepth == 255` → an internal `std::optional<uint8_t>`; `midiNoteFromFile == -1` → `std::optional<float>`
+  lowered to `-1` at the apply site). Folded RIFF/FORM container detection into the parser (a `detectContainer`
+  reading the 12-byte top header), so the manager's `readTopHeaderAndLoad` helper and the `isAiff` flag through
+  `loadFile` are gone. The chunk walk stays single-sourced as a private `walkChunks` over a `HeaderFields`
+  accumulator; the two public functions lower it. Net + loadfile descriptors/CRCs bit-identical.
 
 ### Regression nets (run these before/after each subsequent change)
 - **Parser descriptor spec** — `tests/spec/audio_file_format_spec.cpp`: feeds hand-crafted WAV/AIFF byte
-  buffers through an in-memory `AudioByteSource` to `parseAudioFileHeader` and asserts each descriptor field
-  against a first-principles value (independent of the implementation). Covers 8/16/24/32-bit, mono/stereo,
-  float, `smpl` loops, truncation, the `clm ` wavetable path, stereo-wavetable rejection, and AIFF with the
-  80-bit IEEE-extended sample rate (the corpus's gap).
+  buffers through an in-memory `AudioByteSource` to `parseSampleHeader` / `parseWaveTableHeader` and asserts
+  each header field against a first-principles value (independent of the implementation). Covers 8/16/24/32-bit,
+  mono/stereo, float, `smpl` loops, truncation, the `clm ` wavetable path, stereo-wavetable rejection, and AIFF
+  with the 80-bit IEEE-extended sample rate (the corpus's gap).
   Run: `cmake -B build-tests -S tests && cmake --build build-tests --target all_specs && ctest --test-dir build-tests -R audio_file_format_spec`
 - **`deluge_loadcheck`** (`src/bsp/host/host_loadcheck_main.cpp`) — Tier-2 host driver that loads files
   through the *real* path (`getAudioFileFromFilename` → `ClusterByteSource`/`DeserializerByteSource` → parse →
@@ -106,21 +118,20 @@ to merge.
 
 ## What's next
 
-1. **Layer 2 — typed parse result** (`SampleHeader` / `WaveTableHeader` + `std::expected`).
-2. **Layer 3 — collapse `getAudioFileFromFilename`** (resolution vs construction split, RAII reason guard,
+1. **Layer 3 — collapse `getAudioFileFromFilename`** (resolution vs construction split, RAII reason guard,
    delete dead code). Also the natural home for fully dissolving the `wtSource` seam: the WaveTable path's
    source is *always* a `DeserializerByteSource`, so a dedicated `buildWaveTable` could split `setup` into
    `setupFromSample` (in-memory) vs `setupFromFile(DeserializerByteSource&, …)` and drop the shared
    `setup(Sample*, …, source)` overload's nullable-source soup.
-3. **(later, optional)** deliberate quirk fixes / dead AIFF-path removal — each its own change.
+2. **(later, optional)** deliberate quirk fixes / dead AIFF-path removal — each its own change.
 
 ## Key files
 
 - `src/deluge/storage/audio/audio_byte_source.h` — the interface.
 - `src/deluge/storage/audio/cluster_byte_source.{h,cpp}` — sample path (done).
 - `src/deluge/storage/audio/deserializer_byte_source.{h,cpp}` — wavetable path (done; byte stream + cluster view).
-- `src/deluge/storage/audio/audio_file_format.{h,cpp}` — `AudioFileFormat` descriptor + `parseAudioFileHeader`.
-- `src/deluge/storage/audio/audio_file.{h,cpp}` — `AudioFile::loadFile` (parse + apply dispatch).
+- `src/deluge/storage/audio/audio_file_format.{h,cpp}` — `SampleHeader`/`WaveTableHeader` + `parseSampleHeader`/`parseWaveTableHeader`.
+- `src/deluge/storage/audio/audio_file.{h,cpp}` — `AudioFile::loadFile` (parse + apply dispatch; lowers optionals).
 - `src/deluge/storage/audio/audio_file_manager.cpp` — `getAudioFileFromFilename` (Layer-3 target).
 - `src/deluge/storage/wave_table/wave_table.cpp` — `WaveTable::setup` (now reads via `DeserializerByteSource`).
 - `src/deluge/util/audio_format_helpers.{h,cpp}` — dep-free byte/format helpers.

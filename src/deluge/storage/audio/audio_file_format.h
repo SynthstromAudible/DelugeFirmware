@@ -19,6 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include <cstdint>
+#include <expected>
+#include <optional>
 
 class AudioByteSource;
 
@@ -34,32 +36,44 @@ enum class RawDataFormat : uint8_t {
 	ENDIANNESS_WRONG_32 = 5,
 };
 
-/// The header facts a WAV/AIFF parse yields — a plain value the parser fills and the caller applies to a
-/// Sample (or feeds to WaveTable::setup). No behaviour, no ownership: this is the format-decode boundary,
-/// the unit slated to cross to Rust. Defaults mirror Sample's freshly-constructed state so a field the
-/// file never specifies leaves the Sample at its default when the descriptor is applied wholesale.
-struct AudioFileFormat {
-	/// `byteDepth == kByteDepthUnset` means no "fmt "/"COMM" chunk has been seen yet — doubles as the
-	/// "format known?" gate while parsing (matches the legacy `255` sentinel).
-	static constexpr uint8_t kByteDepthUnset = 255;
-
-	uint8_t numChannels = 0;
-	uint8_t byteDepth = kByteDepthUnset;
-	RawDataFormat rawDataFormat = RawDataFormat::NATIVE;
-	uint32_t sampleRate = 44100;
-	uint32_t audioDataStartPosBytes = 0; // Offset from the start of the file to the first audio byte.
-	uint32_t audioDataLengthBytes = 0;
-	uint32_t fileLoopStartSamples = 0;
-	uint32_t fileLoopEndSamples = 0;
-	float midiNoteFromFile = -1;        // -1 means the file specified none.
-	uint32_t waveTableCycleSize = 2048; // Samples per cycle if interpreted as a wavetable.
-	bool fileExplicitlySpecifiesSelfAsWaveTable = false;
+/// The header facts a WAV/AIFF parse yields when the file is loaded as a Sample. A plain value the caller
+/// applies to a Sample — no behaviour, no ownership: this is the format-decode boundary, the unit slated to
+/// cross to Rust. "Not specified by the file" is modelled with `std::optional` rather than a sentinel.
+struct SampleHeader {
+	uint8_t numChannels;
+	uint8_t byteDepth;
+	RawDataFormat rawDataFormat;
+	uint32_t sampleRate;
+	uint32_t audioDataStartPosBytes; // Offset from the start of the file to the first audio byte.
+	uint32_t audioDataLengthBytes;
+	// 0 == no loop. This is the WAV/AIFF format's own convention (a degenerate 0,0 range), not a parser
+	// sentinel, so it stays a plain value — and the AIFF marker resolution can set the two independently.
+	uint32_t fileLoopStartSamples;
+	uint32_t fileLoopEndSamples;
+	std::optional<float> midiNote; // empty == the file specified no root note (was the -1 sentinel).
+	// Carried so a later Sample→WaveTable conversion (makeWaveTableWorkAtAllCosts) has the file's hints.
+	uint32_t waveTableCycleSize;
+	bool fileExplicitlySpecifiesSelfAsWaveTable;
 };
 
-/// Parse a WAV (`isAiff == false`) or AIFF (`isAiff == true`) header off `src`, filling `out`. Reads only
-/// the header/metadata chunks — for a WAVETABLE it stops once the data chunk is located (the caller then
-/// runs WaveTable::setup); for a SAMPLE it scans every chunk and resolves AIFF loop markers. Pure decode: no
-/// AudioFile is mutated and no DSP runs. Returns Error::NONE on success, or the first decode error
-/// (corrupt/unsupported/not-loadable-as-wavetable).
-Error parseAudioFileHeader(AudioByteSource& src, AudioFileType type, bool makeWaveTableWorkAtAllCosts, bool isAiff,
-                           AudioFileFormat& out);
+/// The header facts needed to load a file as a WaveTable — a tight subset of SampleHeader (no sample rate,
+/// loops or root note). The parser has already validated mono + a known bit depth.
+struct WaveTableHeader {
+	uint8_t numChannels; // Validated == 1 (stereo can never be a wavetable).
+	uint8_t byteDepth;
+	RawDataFormat rawDataFormat;
+	uint32_t audioDataStartPosBytes;
+	uint32_t audioDataLengthBytes;
+	uint32_t cycleSize; // Samples per cycle.
+};
+
+/// Parse a WAV/AIFF header off `src` as a Sample. Reads the 12-byte RIFF/FORM container header itself, then
+/// scans every metadata chunk and resolves AIFF loop markers. Pure decode: no AudioFile is mutated and no DSP
+/// runs. Returns the decoded header, or the first decode error (corrupt/unsupported).
+std::expected<SampleHeader, Error> parseSampleHeader(AudioByteSource& src);
+
+/// Parse a WAV/AIFF header off `src` as a WaveTable. Reads the container header, then scans until the audio
+/// data chunk is located and validates it as a wavetable (mono, known bit depth, and — unless
+/// `makeWaveTableWorkAtAllCosts` — a wavetable-specifying `clm ` tag or a wavetable-looking length; AIFF is
+/// rejected outright unless insisted on). The caller then runs WaveTable::setup. Pure decode.
+std::expected<WaveTableHeader, Error> parseWaveTableHeader(AudioByteSource& src, bool makeWaveTableWorkAtAllCosts);

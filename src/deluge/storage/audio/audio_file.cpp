@@ -27,34 +27,38 @@
 
 // Decode the file header (storage/audio/audio_file_format) then apply the result to this object: a Sample
 // takes the parsed fields wholesale; a WaveTable hands them to WaveTable::setup. The chunk-by-chunk decode
-// lives in parseAudioFileHeader — this method is just the type-dispatch the old fake-polymorphic casts hid.
-Error AudioFile::loadFile(AudioByteSource& source, bool isAiff, bool makeWaveTableWorkAtAllCosts,
-                          DeserializerByteSource* wtSource) {
-	AudioFileFormat format{};
-	if (const Error error = parseAudioFileHeader(source, type, makeWaveTableWorkAtAllCosts, isAiff, format);
-	    error != Error::NONE) {
-		return error;
-	}
-
-	numChannels = format.numChannels;
-
+// (and RIFF/AIFF container detection) lives in parseSampleHeader / parseWaveTableHeader — this method is just
+// the type-dispatch the old fake-polymorphic casts hid, plus lowering the parser's optionals to Sample's
+// legacy defaults.
+Error AudioFile::loadFile(AudioByteSource& source, bool makeWaveTableWorkAtAllCosts, DeserializerByteSource* wtSource) {
 	if (type == AudioFileType::WAVETABLE) {
-		return static_cast<WaveTable*>(this)->setup(nullptr, format.waveTableCycleSize, format.audioDataStartPosBytes,
-		                                            format.audioDataLengthBytes, format.byteDepth, format.rawDataFormat,
-		                                            wtSource);
+		const std::expected<WaveTableHeader, Error> header = parseWaveTableHeader(source, makeWaveTableWorkAtAllCosts);
+		if (!header) {
+			return header.error();
+		}
+		numChannels = header->numChannels;
+		return static_cast<WaveTable*>(this)->setup(nullptr, header->cycleSize, header->audioDataStartPosBytes,
+		                                            header->audioDataLengthBytes, header->byteDepth,
+		                                            header->rawDataFormat, wtSource);
 	}
 
+	const std::expected<SampleHeader, Error> header = parseSampleHeader(source);
+	if (!header) {
+		return header.error();
+	}
+
+	numChannels = header->numChannels;
 	auto& sample = static_cast<Sample&>(*this);
-	sample.byteDepth = format.byteDepth;
-	sample.rawDataFormat = format.rawDataFormat;
-	sample.sampleRate = format.sampleRate;
-	sample.audioDataStartPosBytes = format.audioDataStartPosBytes;
-	sample.audioDataLengthBytes = format.audioDataLengthBytes;
-	sample.fileLoopStartSamples = format.fileLoopStartSamples;
-	sample.fileLoopEndSamples = format.fileLoopEndSamples;
-	sample.midiNoteFromFile = format.midiNoteFromFile;
-	sample.waveTableCycleSize = format.waveTableCycleSize;
-	sample.fileExplicitlySpecifiesSelfAsWaveTable = format.fileExplicitlySpecifiesSelfAsWaveTable;
+	sample.byteDepth = header->byteDepth;
+	sample.rawDataFormat = header->rawDataFormat;
+	sample.sampleRate = header->sampleRate;
+	sample.audioDataStartPosBytes = header->audioDataStartPosBytes;
+	sample.audioDataLengthBytes = header->audioDataLengthBytes;
+	sample.fileLoopStartSamples = header->fileLoopStartSamples;
+	sample.fileLoopEndSamples = header->fileLoopEndSamples;
+	sample.midiNoteFromFile = header->midiNote.value_or(-1.0f); // -1 == the file specified no root note.
+	sample.waveTableCycleSize = header->waveTableCycleSize;
+	sample.fileExplicitlySpecifiesSelfAsWaveTable = header->fileExplicitlySpecifiesSelfAsWaveTable;
 	return Error::NONE;
 }
 

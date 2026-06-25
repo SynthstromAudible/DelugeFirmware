@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Descriptor regression net for the WAV/AIFF header parser (parseAudioFileHeader). Feeds hand-crafted byte
-// buffers through an in-memory AudioByteSource and asserts each parsed AudioFileFormat field against a
-// value derived from first principles (the WAV/AIFF spec) — independent of the parser implementation, so it
+// Descriptor regression net for the WAV/AIFF header parser (parseSampleHeader / parseWaveTableHeader). Feeds
+// hand-crafted byte buffers through an in-memory AudioByteSource and asserts each parsed header field against
+// a value derived from first principles (the WAV/AIFF spec) — independent of the parser implementation, so it
 // holds across the file-loading redesign. The expected values encode the *current, correct* behavior.
 
 #include "storage/audio/audio_byte_source.h"
@@ -32,12 +32,12 @@
 
 namespace {
 
-// In-memory byte source mirroring the legacy reader contract: a forward cursor, a strict past-EOF check
-// (FILE_CORRUPTED), and an absolute forward seek. `startPos` models the 12-byte RIFF/FORM top header that
-// AudioFileManager::getAudioFileFromFilename consumes before invoking the parser.
+// In-memory byte source: a forward cursor, a strict past-EOF check (FILE_CORRUPTED), and an absolute forward
+// seek. The buffer includes the 12-byte RIFF/FORM container header, which the parser now reads itself, so the
+// cursor starts at 0.
 class MemoryByteSource final : public AudioByteSource {
 public:
-	explicit MemoryByteSource(std::span<const std::byte> data, uint32_t startPos) : data_(data), pos_(startPos) {}
+	explicit MemoryByteSource(std::span<const std::byte> data) : data_(data), pos_(0) {}
 
 	Error read(std::span<std::byte> dest) override {
 		if (static_cast<uint64_t>(pos_) + dest.size() > data_.size()) {
@@ -132,35 +132,37 @@ ByteWriter wavData(uint32_t len) {
 	return b;
 }
 
-constexpr uint32_t kTopHeader = 12; // RIFF/size/WAVE consumed before the parser runs
 constexpr int rawFmt(RawDataFormat f) {
 	return static_cast<int>(util::to_underlying(f));
 }
 
-AudioFileFormat parse(const std::vector<std::byte>& file, AudioFileType type, bool isAiff, Error& err,
-                      bool atAllCosts = false) {
-	MemoryByteSource src{file, kTopHeader};
-	AudioFileFormat out{};
-	err = parseAudioFileHeader(src, type, atAllCosts, isAiff, out);
-	return out;
+std::expected<SampleHeader, Error> parseSample(const std::vector<std::byte>& file) {
+	MemoryByteSource src{file};
+	return parseSampleHeader(src);
+}
+
+std::expected<WaveTableHeader, Error> parseWaveTable(const std::vector<std::byte>& file, bool atAllCosts = false) {
+	MemoryByteSource src{file};
+	return parseWaveTableHeader(src, atAllCosts);
 }
 
 } // namespace
 
 // clang-format off
-describe audio_file_format("parseAudioFileHeader", $ {
+describe audio_file_format("audio file header parser", $ {
 	context("WAV samples", _ {
 		it("decodes 16-bit stereo PCM", _ {
 			ByteWriter body; body.append(wavFmt(16, 2, 44100)); body.append(wavData(100));
-			Error err; AudioFileFormat f = parse(wrapWav(body), AudioFileType::SAMPLE, false, err);
-			expect(static_cast<int>(err)).to_equal(0);
+			auto r = parseSample(wrapWav(body));
+			expect(r.has_value()).to_equal(true);
+			const SampleHeader& f = *r;
 			expect(static_cast<int>(f.numChannels)).to_equal(2);
 			expect(static_cast<int>(f.byteDepth)).to_equal(2);
 			expect(rawFmt(f.rawDataFormat)).to_equal(rawFmt(RawDataFormat::NATIVE));
 			expect((int)f.sampleRate).to_equal(44100);
 			expect((int)f.audioDataStartPosBytes).to_equal(44); // 12 top +8 fmt hdr +16 fmt +8 data hdr
 			expect((int)f.audioDataLengthBytes).to_equal(100);
-			expect(f.midiNoteFromFile).to_equal(-1.0f);
+			expect(f.midiNote.has_value()).to_equal(false);
 			expect((int)f.fileLoopStartSamples).to_equal(0);
 			expect((int)f.waveTableCycleSize).to_equal(2048);
 			expect(f.fileExplicitlySpecifiesSelfAsWaveTable).to_equal(false);
@@ -168,8 +170,9 @@ describe audio_file_format("parseAudioFileHeader", $ {
 
 		it("decodes 8-bit mono as UNSIGNED_8", _ {
 			ByteWriter body; body.append(wavFmt(8, 1, 22050)); body.append(wavData(50));
-			Error err; AudioFileFormat f = parse(wrapWav(body), AudioFileType::SAMPLE, false, err);
-			expect(static_cast<int>(err)).to_equal(0);
+			auto r = parseSample(wrapWav(body));
+			expect(r.has_value()).to_equal(true);
+			const SampleHeader& f = *r;
 			expect(static_cast<int>(f.numChannels)).to_equal(1);
 			expect(static_cast<int>(f.byteDepth)).to_equal(1);
 			expect(rawFmt(f.rawDataFormat)).to_equal(rawFmt(RawDataFormat::UNSIGNED_8));
@@ -178,18 +181,18 @@ describe audio_file_format("parseAudioFileHeader", $ {
 
 		it("decodes 24-bit mono PCM", _ {
 			ByteWriter body; body.append(wavFmt(24, 1, 48000)); body.append(wavData(30));
-			Error err; AudioFileFormat f = parse(wrapWav(body), AudioFileType::SAMPLE, false, err);
-			expect(static_cast<int>(err)).to_equal(0);
-			expect(static_cast<int>(f.byteDepth)).to_equal(3);
-			expect(rawFmt(f.rawDataFormat)).to_equal(rawFmt(RawDataFormat::NATIVE));
+			auto r = parseSample(wrapWav(body));
+			expect(r.has_value()).to_equal(true);
+			expect(static_cast<int>(r->byteDepth)).to_equal(3);
+			expect(rawFmt(r->rawDataFormat)).to_equal(rawFmt(RawDataFormat::NATIVE));
 		});
 
 		it("decodes 32-bit float as FLOAT", _ {
 			ByteWriter body; body.append(wavFmt(32, 1, 44100, 3 /*IEEE float*/)); body.append(wavData(40));
-			Error err; AudioFileFormat f = parse(wrapWav(body), AudioFileType::SAMPLE, false, err);
-			expect(static_cast<int>(err)).to_equal(0);
-			expect(static_cast<int>(f.byteDepth)).to_equal(4);
-			expect(rawFmt(f.rawDataFormat)).to_equal(rawFmt(RawDataFormat::FLOAT));
+			auto r = parseSample(wrapWav(body));
+			expect(r.has_value()).to_equal(true);
+			expect(static_cast<int>(r->byteDepth)).to_equal(4);
+			expect(rawFmt(r->rawDataFormat)).to_equal(rawFmt(RawDataFormat::FLOAT));
 		});
 
 		it("reads root note + loop points from a smpl chunk", _ {
@@ -205,17 +208,19 @@ describe audio_file_format("parseAudioFileHeader", $ {
 			smpl.le32(2000);                                // [3] loop end
 			smpl.le32(0); smpl.le32(0);                     // fraction, playCount
 			ByteWriter body; body.append(wavFmt(16, 1, 44100)); body.append(smpl); body.append(wavData(8));
-			Error err; AudioFileFormat f = parse(wrapWav(body), AudioFileType::SAMPLE, false, err);
-			expect(static_cast<int>(err)).to_equal(0);
-			expect(f.midiNoteFromFile).to_equal(60.0f);
-			expect((int)f.fileLoopStartSamples).to_equal(1000);
-			expect((int)f.fileLoopEndSamples).to_equal(2000);
+			auto r = parseSample(wrapWav(body));
+			expect(r.has_value()).to_equal(true);
+			expect(r->midiNote.has_value()).to_equal(true);
+			expect(*r->midiNote).to_equal(60.0f);
+			expect((int)r->fileLoopStartSamples).to_equal(1000);
+			expect((int)r->fileLoopEndSamples).to_equal(2000);
 		});
 
 		it("returns FILE_CORRUPTED on a truncated fmt chunk", _ {
 			ByteWriter body; body.tag("fmt "); body.le32(16); body.le32(0); // claims 16, supplies 4
-			Error err; parse(wrapWav(body), AudioFileType::SAMPLE, false, err);
-			expect(static_cast<int>(err)).to_equal(static_cast<int>(Error::FILE_CORRUPTED));
+			auto r = parseSample(wrapWav(body));
+			expect(r.has_value()).to_equal(false);
+			expect(static_cast<int>(r.error())).to_equal(static_cast<int>(Error::FILE_CORRUPTED));
 		});
 	});
 
@@ -224,17 +229,17 @@ describe audio_file_format("parseAudioFileHeader", $ {
 			ByteWriter clm; clm.tag("clm "); clm.le32(7); clm.raw({'<','!','>','2','0','4','8'});
 			clm.u8(0); // RIFF pad byte: odd (7-byte) chunk is padded to an even boundary
 			ByteWriter body; body.append(wavFmt(16, 1, 44100)); body.append(clm); body.append(wavData(4096));
-			Error err; AudioFileFormat f = parse(wrapWav(body), AudioFileType::WAVETABLE, false, err);
-			expect(static_cast<int>(err)).to_equal(0);
-			expect(f.fileExplicitlySpecifiesSelfAsWaveTable).to_equal(true);
-			expect((int)f.waveTableCycleSize).to_equal(2048);
-			expect((int)f.audioDataLengthBytes).to_equal(4096);
+			auto r = parseWaveTable(wrapWav(body));
+			expect(r.has_value()).to_equal(true);
+			expect((int)r->cycleSize).to_equal(2048);
+			expect((int)r->audioDataLengthBytes).to_equal(4096);
 		});
 
 		it("rejects a stereo file as a wavetable", _ {
 			ByteWriter body; body.append(wavFmt(16, 2, 44100)); body.append(wavData(4096));
-			Error err; parse(wrapWav(body), AudioFileType::WAVETABLE, false, err);
-			expect(static_cast<int>(err))
+			auto r = parseWaveTable(wrapWav(body));
+			expect(r.has_value()).to_equal(false);
+			expect(static_cast<int>(r.error()))
 			    .to_equal(static_cast<int>(Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO));
 		});
 	});
@@ -249,8 +254,9 @@ describe audio_file_format("parseAudioFileHeader", $ {
 			ByteWriter ssnd; ssnd.tag("SSND"); ssnd.be32(8 + 64); ssnd.be32(0); ssnd.be32(0); ssnd.zeros(64);
 			ByteWriter w; w.tag("FORM"); w.be32(static_cast<uint32_t>(4 + comm.bytes.size() + ssnd.bytes.size()));
 			w.tag("AIFF"); w.append(comm); w.append(ssnd);
-			Error err; AudioFileFormat f = parse(w.bytes, AudioFileType::SAMPLE, true, err);
-			expect(static_cast<int>(err)).to_equal(0);
+			auto r = parseSample(w.bytes);
+			expect(r.has_value()).to_equal(true);
+			const SampleHeader& f = *r;
 			expect(static_cast<int>(f.numChannels)).to_equal(1);
 			expect(static_cast<int>(f.byteDepth)).to_equal(2);
 			expect(rawFmt(f.rawDataFormat)).to_equal(rawFmt(RawDataFormat::ENDIANNESS_WRONG_16));
