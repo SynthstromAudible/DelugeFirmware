@@ -74,9 +74,13 @@ public:
 	                bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
 	                int32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
 	                int32_t waveIndexIncrement);
-	Error setup(Sample* sample, int32_t nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
-	            uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0,
-	            RawDataFormat rawDataFormat = RawDataFormat::NATIVE, DeserializerByteSource* byteSource = nullptr);
+	// Build this WaveTable from an already-in-memory Sample (the Sample→WaveTable conversion). Reads the
+	// Sample's cluster data; takes its cycle size / channels / byte depth from the Sample.
+	Error setupFromSample(Sample& sample);
+	// Build this WaveTable by reading audio data from a file, via the deserializer-backed byte source. The
+	// header fields come from the parser (parseWaveTableHeader).
+	Error setupFromFile(DeserializerByteSource& source, int32_t cycleSize, uint32_t audioDataStartPosBytes,
+	                    uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat);
 	void deleteAllBandsAndData();
 	void bandDataBeingStolen(WaveTableBandData* bandData);
 
@@ -93,6 +97,13 @@ protected:
 	void numReasonsDecreasedToZero(char const* errorCode) override;
 
 private:
+	// Shared implementation behind setupFromSample / setupFromFile. Exactly one of `sample` (in-memory source)
+	// or `byteSource` (file source) is used; the other parameters are ignored in the in-memory case (taken from
+	// the Sample). The two public entry points keep this nullable split off the API.
+	Error setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
+	            uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat,
+	            DeserializerByteSource* byteSource);
+
 	void doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int32_t firstCycleNumber,
 	                     WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
 	                     uint32_t waveIndexScaled, int32_t waveIndexIncrementScaled,

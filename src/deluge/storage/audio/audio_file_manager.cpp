@@ -661,7 +661,7 @@ AudioFile* AudioFileManager::convertSampleToWaveTable(Sample& foundSample, bool 
 	newWaveTable->addReason();          // So it's protected while setting up.
 	foundSample.addReason();
 
-	*error = newWaveTable->setup(&foundSample);
+	*error = newWaveTable->setupFromSample(foundSample);
 	if (*error != Error::NONE) {
 		// Release the source Sample's protect-during-setup reason on this path too. The legacy goto
 		// (waveTableCloneError) jumped straight to destroy + return and skipped this, leaking a reason and

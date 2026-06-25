@@ -37,9 +37,9 @@ Error AudioFile::loadFile(AudioByteSource& source, bool makeWaveTableWorkAtAllCo
 			return header.error();
 		}
 		numChannels = header->numChannels;
-		return static_cast<WaveTable*>(this)->setup(nullptr, header->cycleSize, header->audioDataStartPosBytes,
-		                                            header->audioDataLengthBytes, header->byteDepth,
-		                                            header->rawDataFormat, wtSource);
+		return static_cast<WaveTable*>(this)->setupFromFile(
+		    *wtSource, header->cycleSize, header->audioDataStartPosBytes, header->audioDataLengthBytes,
+		    header->byteDepth, header->rawDataFormat);
 	}
 
 	const std::expected<SampleHeader, Error> header = parseSampleHeader(source);

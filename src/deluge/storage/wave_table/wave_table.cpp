@@ -157,6 +157,17 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 #define WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE 7 // That's in samples - it'll be twice as many bytes.
 #define SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT 0
 
+Error WaveTable::setupFromSample(Sample& sample) {
+	// In-memory conversion: setup() takes cycle size / channels / byte depth / data offset from the Sample,
+	// so the remaining parameters are unused here.
+	return setup(&sample, 0, 0, 0, 0, RawDataFormat::NATIVE, nullptr);
+}
+
+Error WaveTable::setupFromFile(DeserializerByteSource& source, int32_t cycleSize, uint32_t audioDataStartPosBytes,
+                               uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat) {
+	return setup(nullptr, cycleSize, audioDataStartPosBytes, audioDataLengthBytes, byteDepth, rawDataFormat, &source);
+}
+
 Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
                        uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat,
                        DeserializerByteSource* byteSource) {
