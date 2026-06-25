@@ -50,9 +50,11 @@ namespace encoders = deluge::hid::encoders;
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
-	if (showingAuditionPads() && !qwertyAlwaysVisible) {
+	// grey out the mute pads, not the audition pads or main pads
+	if (showingAuditionPads()) {
 		*cols = 0b10;
 	}
+	// grey out everything
 	else {
 		*cols = 0xFFFFFFFF;
 	}
