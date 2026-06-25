@@ -37,6 +37,32 @@
 
 extern int32_t oscSyncRenderingBuffer[];
 
+namespace {
+// RAII cleanup for WaveTable::setup's working allocations. At scope exit it frees whichever of the two temp
+// FFT buffers are still non-null, and — unless the build `succeeded` — calls deleteAllBandsAndData() on the
+// partially-built bands (replacing setup's old gotError/gotError2/gotError4/gotError5 cleanup ladder). On the
+// success path setup frees the temp buffers early (its deliberate internal-RAM release before the band-trim
+// tail), nulls the pointers and sets `succeeded`, so this guard is then a no-op.
+struct SetupAllocGuard {
+	WaveTable& waveTable;
+	int32_t*& currentCycleInt32;
+	ne10_fft_cpx_int32_t*& frequencyDomainData;
+	bool succeeded = false;
+
+	~SetupAllocGuard() {
+		if (frequencyDomainData != nullptr) {
+			delugeDealloc(frequencyDomainData);
+		}
+		if (currentCycleInt32 != nullptr) {
+			delugeDealloc(currentCycleInt32);
+		}
+		if (!succeeded) {
+			waveTable.deleteAllBandsAndData();
+		}
+	}
+};
+} // namespace
+
 WaveTableBand::~WaveTableBand() {
 	if (data) { // It might be NULL if that BandData was just "stolen".
 		data->~WaveTableBandData();
@@ -241,15 +267,17 @@ tryGettingFFTConfig:
 		}
 	}
 	if (error != Error::NONE) {
-gotError:
-		return error;
+		return error; // bands.resize failed: nothing else is allocated yet, so nothing to clean up.
 	}
 
-	if (false) {
-gotError2:
-		deleteAllBandsAndData();
-		goto gotError;
-	}
+	// From here on, working allocations are released by allocGuard on any early return (it replaces the old
+	// gotError2/gotError4/gotError5 ladder). The temp buffers are declared null up front so the guard can free
+	// whichever exist; on success setup frees them early and sets allocGuard.succeeded (see below).
+	// (No __restrict__: the guard binds references to these, and the qualifier is only an optimisation hint on
+	// these one-shot load-time buffers — it never affects the decoded output.)
+	int32_t* currentCycleInt32 = nullptr;
+	ne10_fft_cpx_int32_t* frequencyDomainData = nullptr;
+	SetupAllocGuard allocGuard{*this, currentCycleInt32, frequencyDomainData};
 
 	numCyclesMagnitude = getMagnitude(numCycles);
 
@@ -270,11 +298,10 @@ gotError2:
 		void* bandDataMemory =
 		    deluge::memory::alloc_external(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData), 16);
 		if (!bandDataMemory) {
-			error = Error::INSUFFICIENT_RAM;
 			// All bands from this one onwards still have no data, so get rid of them before anything else
-			// tries to do anything with them.
+			// tries to do anything with them; allocGuard frees the ones already built.
 			bands.erase(bands.begin() + b, bands.end());
-			goto gotError2;
+			return Error::INSUFFICIENT_RAM;
 		}
 
 		WaveTableBand* band = &bands[b];
@@ -304,29 +331,18 @@ gotError2:
 	// not a power-of-two).
 	int32_t currentCycleMemorySize = std::max(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
 	// Internal RAM is good, and it's only temporary
-	int32_t* __restrict__ currentCycleInt32 =
-	    (int32_t*)deluge::memory::alloc_fast(currentCycleMemorySize * sizeof(int32_t));
+	currentCycleInt32 = (int32_t*)deluge::memory::alloc_fast(currentCycleMemorySize * sizeof(int32_t));
 	if (!currentCycleInt32) {
-		error = Error::INSUFFICIENT_RAM;
-		goto gotError2;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	// And temporary FFT output (frequency domain) buffer. The same sizing considerations as above are needed, and we
 	// use that same decision here
 	// - except for frequency-domain complex numbers, we only need to store half of it, plus one.
-	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData = (ne10_fft_cpx_int32_t*)deluge::memory::alloc_fast(
-	    ((currentCycleMemorySize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t));
+	frequencyDomainData = (ne10_fft_cpx_int32_t*)deluge::memory::alloc_fast(((currentCycleMemorySize >> 1) + 1)
+	                                                                        * sizeof(ne10_fft_cpx_int32_t));
 	if (!frequencyDomainData) {
-		error = Error::INSUFFICIENT_RAM;
-gotError4:
-		delugeDealloc(currentCycleInt32);
-		goto gotError2;
-	}
-
-	if (false) {
-gotError5:
-		delugeDealloc(frequencyDomainData);
-		goto gotError4;
+		return Error::INSUFFICIENT_RAM; // allocGuard frees currentCycleInt32 + the bands.
 	}
 
 	AudioEngine::logAction("working memory allocated");
@@ -396,7 +412,7 @@ gotError5:
 					cluster = sample->clusters[clusterIndex].getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY,
 					                                                    0, &error);
 					if (!cluster) {
-						goto gotError5;
+						return error; // allocGuard frees both temp buffers + the bands.
 					}
 
 					clusterIndexCurrentlyLoaded = clusterIndex;
@@ -413,7 +429,7 @@ gotError5:
 				}
 				error = byteSource->advanceClustersIfNecessary();
 				if (error != Error::NONE) {
-					goto gotError5;
+					return error; // allocGuard frees both temp buffers + the bands.
 				}
 			}
 
@@ -751,9 +767,13 @@ transformBandToTimeDomain:
 		waveIndexMultiplier = numCycleTransitions << (31 - numCycleTransitionsNextPowerOf2Magnitude);
 	}
 
-	// Dispose of temp memory
+	// Dispose of temp memory now — release this internal RAM before the band-trimming tail below (deliberate;
+	// see SetupAllocGuard). Null the pointers + mark success so the guard then frees nothing and keeps the bands.
 	delugeDealloc(currentCycleInt32);
+	currentCycleInt32 = nullptr;
 	delugeDealloc(frequencyDomainData);
+	frequencyDomainData = nullptr;
+	allocGuard.succeeded = true;
 
 	// Printout stats
 	D_PRINTLN("initial band size if all populated: %d",
