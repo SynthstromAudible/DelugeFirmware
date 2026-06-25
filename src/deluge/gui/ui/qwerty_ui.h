@@ -62,8 +62,6 @@ protected:
 
 	static int16_t enteredTextEditPos;
 	static int32_t scrollPosHorizontal;
-	static bool favouritesVisible;
-	static bool banksVisible;
 
 private:
 	static uint8_t currentBank;
