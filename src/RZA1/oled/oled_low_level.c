@@ -30,8 +30,6 @@
 #include "deluge/processing/engines/cv_engine_c_interface.h"
 #include "deluge/util/cfunctions.h"
 
-#define OLED_CODE_FOR_CV 1
-
 void setupSPIInterrupts()
 {
     setupAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
@@ -248,18 +246,25 @@ void sendSPITransferFromQueue()
 #endif
 
     // If it's OLED data...
-    if (spiDestinationSendingTo == 0)
+    if (spiDestinationSendingTo == SPI_DESTINATION_OLED)
     {
         oled_sending = true;
         initiateSelectingOled();
     }
 
     // Or if it's CV...
-    else
+    else if (spiDestinationSendingTo == SPI_DESTINATION_CV)
     {
         cv_sending = true;
         sendCVTransfer();
         cvSent();
+    }
+    else
+    {
+#if ALPHA_OR_BETA_VERSION
+        FREEZE_WITH_ERROR("SPI transfer destination is invalid");
+#endif
+        spiTransferQueueCurrentlySending = false;
     }
 }
 
@@ -269,7 +274,8 @@ void oledTransferComplete(uint32_t int_sense)
     // If anything else to send, and it's to the OLED again, then just go ahead - unless a CV word is
     // waiting, in which case we deselect so the CV can slip in ahead of the next frame.
     if (!cvPriorityPending && spiTransferQueueWritePos != spiTransferQueueReadPos
-        && spiTransferQueue[spiTransferQueueReadPos].destinationId == 0 && last_message_sent == OLED_MESSAGE_SELECT)
+        && spiTransferQueue[spiTransferQueueReadPos].destinationId == SPI_DESTINATION_OLED
+        && last_message_sent == OLED_MESSAGE_SELECT)
     {
         oledSelectingComplete();
     }
@@ -302,31 +308,30 @@ void cvSPITransferComplete(uint32_t sense)
         return;
     }
 
-    // If anything else to send, and it's to the CV DAC again, then just go ahead.
+    // If anything else to send, send it according to the actual queued destination.
     if (spiTransferQueueWritePos != spiTransferQueueReadPos
-        && spiTransferQueue[spiTransferQueueReadPos].destinationId == OLED_CODE_FOR_CV)
+        && spiTransferQueue[spiTransferQueueReadPos].destinationId == SPI_DESTINATION_CV)
     {
         sendCVTransfer();
     }
-
-    // Otherwise...
+    else if (spiTransferQueueWritePos != spiTransferQueueReadPos
+             && spiTransferQueue[spiTransferQueueReadPos].destinationId == SPI_DESTINATION_OLED)
+    {
+        spiDestinationSendingTo = SPI_DESTINATION_OLED;
+        oled_sending            = true;
+        cv_sending              = false;
+        initiateSelectingOled();
+    }
     else
     {
-        // And, if there's some OLED data waiting to send, do that.
+#if ALPHA_OR_BETA_VERSION
         if (spiTransferQueueWritePos != spiTransferQueueReadPos)
         {
-            spiDestinationSendingTo = 0;
-            oled_sending            = true;
-            cv_sending              = false;
-            initiateSelectingOled();
+            FREEZE_WITH_ERROR("SPI transfer destination is invalid");
         }
-
-        // Otherwise, we're all done.
-        else
-        {
-            spiTransferQueueCurrentlySending = false;
-            cv_sending                       = false;
-        }
+#endif
+        spiTransferQueueCurrentlySending = false;
+        cv_sending                       = false;
     }
 }
 
