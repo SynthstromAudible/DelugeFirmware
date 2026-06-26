@@ -27,6 +27,7 @@
 class AutoParam;
 class ParamSet;
 class ParamManager;
+enum class Polarity : uint8_t; // opaque-enum decl (fixed underlying type ⇒ usable by value); from patch_cable.h
 
 namespace deluge::project {
 
@@ -89,14 +90,26 @@ void fromDocParamSet(const DocParamSet& doc, AutoParam* params, int32_t numParam
 DocParamSet toDocParamSet(ParamSet& paramSet);
 void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet);
 
-/// Value-typed document form of a `ParamManager`'s parameter-set collections. Each is present only when
-/// the live manager holds it (a sound has patched + unpatched; a global-effectable / audio clip has
-/// only unpatched; expression/MPE is optional). The patch-cable set and MIDI-CC collection are
-/// projected in a later sub-phase, so they are not yet fields here.
+/// Value-typed document form of one patch cable: a mod-matrix connection from a source to a destination
+/// parameter, with an automatable amount. `destination` is the `ParamDescriptor` copied verbatim — it
+/// encodes the target param and (for range cables) the cable-controlling-cable nesting, which the
+/// projection need not interpret. The amount is stored in the patch-cable range [-2^30, 2^30).
+struct DocPatchCable {
+	PatchSource from{};
+	ParamDescriptor destination{};
+	Polarity polarity{};
+	DocAutoParam amount;
+};
+
+/// Value-typed document form of a `ParamManager`'s collections. Each ParamSet is present only when the
+/// live manager holds it (a sound has patched + unpatched + patch cables; a global-effectable / audio
+/// clip has only unpatched; expression/MPE is optional). The MIDI-CC collection is projected in a later
+/// sub-phase, so it is not yet a field here.
 struct DocParamManager {
 	std::optional<DocParamSet> unpatched;
 	std::optional<DocParamSet> patched;
 	std::optional<DocParamSet> expression;
+	std::vector<DocPatchCable> patch_cables;
 };
 
 /// Project to/from a live `ParamManager` (defined in param_automation.cpp). `fromDocParamManager`

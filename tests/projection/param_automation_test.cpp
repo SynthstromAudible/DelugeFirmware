@@ -14,6 +14,8 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable.h"
+#include "modulation/patch/patch_cable_set.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -138,9 +140,19 @@ int main() {
 		setNode(pm.getPatchedParamSet()->params[5], 32, -500, false);
 		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
 
+		// A patch cable (Phase 3b): source -> destination param, with an automatable amount.
+		PatchCableSet* pcs = pm.getPatchCableSet();
+		pcs->numPatchCables = 1;
+		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
+		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
+		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
+		pcs->patchCables[0].param.currentValue = 536870912; // amount, patch-cable range
+		setNode(pcs->patchCables[0].param, 0, -536870912, true);
+
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
 		check(doc.patched.has_value(), "pm patched present");
 		check(doc.unpatched.has_value(), "pm unpatched present");
+		check(doc.patch_cables.size() == 1, "pm patch cable present");
 
 		ParamManagerForTimeline pm2;
 		check(pm2.setupWithPatching() == Error::NONE, "pm2 setupWithPatching");
@@ -148,6 +160,15 @@ int main() {
 		check(pm2.getPatchedParamSet()->params[5].currentValue == 12345, "pm patched currentValue");
 		expectSameNodes(pm2.getPatchedParamSet()->params[5], pm.getPatchedParamSet()->params[5], "pm patched nodes");
 		check(pm2.getUnpatchedParamSet()->params[2].currentValue == 678, "pm unpatched currentValue");
+
+		PatchCableSet* pcs2 = pm2.getPatchCableSet();
+		check(pcs2->numPatchCables == 1, "pm2 patch cable count");
+		check(pcs2->patchCables[0].from == PatchSource::ENVELOPE_0, "pm2 cable source");
+		check(pcs2->patchCables[0].destinationParamDescriptor.data
+		          == pcs->patchCables[0].destinationParamDescriptor.data,
+		      "pm2 cable destination");
+		check(pcs2->patchCables[0].polarity == Polarity::BIPOLAR, "pm2 cable polarity");
+		expectSameNodes(pcs2->patchCables[0].param, pcs->patchCables[0].param, "pm2 cable amount");
 	}
 
 	if (failures == 0) {

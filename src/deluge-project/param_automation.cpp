@@ -20,6 +20,7 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include <algorithm>
 
 namespace deluge::project {
@@ -83,6 +84,22 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 			doc.expression = toDocParamSet(*e);
 		}
 	}
+	// Slot [2]: patch cables. Copy each cable's saved fields verbatim (the ParamDescriptor encodes the
+	// destination + any range-cable nesting); rangeAdjustmentPointer is runtime and rebuilt on projection.
+	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
+	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
+		PatchCableSet* pcs = static_cast<PatchCableSet*>(c);
+		doc.patch_cables.reserve(pcs->numPatchCables);
+		for (int32_t i = 0; i < pcs->numPatchCables; i++) {
+			PatchCable& cable = pcs->patchCables[i];
+			doc.patch_cables.push_back(DocPatchCable{
+			    .from = cable.from,
+			    .destination = cable.destinationParamDescriptor,
+			    .polarity = cable.polarity,
+			    .amount = toDocAutoParam(cable.param),
+			});
+		}
+	}
 	return doc;
 }
 
@@ -101,6 +118,21 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 	if (doc.expression) {
 		if (ExpressionParamSet* e = paramManager.getExpressionParamSet(); e != nullptr) {
 			fromDocParamSet(*doc.expression, *e);
+		}
+	}
+	// Patch cables: refill the cable set faithfully (count + each saved field). setupPatching (the
+	// engine's post-load step) rebuilds the runtime rangeAdjustmentPointers.
+	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
+	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
+		PatchCableSet* pcs = static_cast<PatchCableSet*>(c);
+		int32_t count = std::min(static_cast<int32_t>(doc.patch_cables.size()), int32_t{kMaxNumPatchCables});
+		pcs->numPatchCables = count;
+		for (int32_t i = 0; i < count; i++) {
+			const DocPatchCable& dc = doc.patch_cables[i];
+			pcs->patchCables[i].from = dc.from;
+			pcs->patchCables[i].destinationParamDescriptor = dc.destination;
+			pcs->patchCables[i].polarity = dc.polarity;
+			fromDocAutoParam(dc.amount, pcs->patchCables[i].param);
 		}
 	}
 }
