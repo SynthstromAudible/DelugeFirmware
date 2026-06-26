@@ -1045,12 +1045,12 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeArrayEnding("modeNotes");
 
 	writer.writeOpeningTagBeginning("reverb");
-	// The reverb send parameters (room size, damping, width, hpf, lpf, pan) are now DOM-authoritative:
-	// project.reverb is the source of truth and AudioEngine::reverb is a cache projected from it
-	// (getReverbParamsFromSong). Save reads the document, not the engine. Still engine-authoritative
-	// here (deferred follow-ups): the algorithm (Song::model / AudioEngine::reverb.getModel(), edited
-	// via reverb/model.h, which would create an include cycle through song.h) and the sidechain block.
-	deluge::dsp::Reverb::Model model = AudioEngine::reverb.getModel();
+	// The reverb send parameters (room size, damping, width, hpf, lpf, pan) and the algorithm
+	// (Song::model) are DOM-authoritative: the document is the source of truth and AudioEngine::reverb
+	// is a cache projected from it (getReverbParamsFromSong). Save reads the document, not the engine.
+	// Still engine-authoritative here (deferred): the sidechain/compressor block below — a shared
+	// SideChain subsystem (the same gui/menu_item/sidechain/* menus also drive per-sound sidechains),
+	// so its authority belongs with the sidechain-subsystem work, not the reverb send/algorithm.
 	uint32_t roomSize = project.reverb.room_size * (uint32_t)2147483648u;
 	uint32_t damping = project.reverb.damping * (uint32_t)2147483648u;
 	uint32_t width = project.reverb.width * (uint32_t)2147483648u;
