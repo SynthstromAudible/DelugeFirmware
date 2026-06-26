@@ -20,8 +20,13 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "storage/storage_manager.h"
+#include "util/c_string.h"  // intToHex
+#include "util/functions.h" // sourceToString
 #include <algorithm>
+#include <cstdint>
 
 namespace deluge::project {
 
@@ -135,6 +140,93 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 			fromDocAutoParam(dc.amount, pcs->patchCables[i].param);
 		}
 	}
+}
+
+// --- Generic serialization (Phase 4) ---
+
+void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutomation) {
+	// Mirrors AutoParam::writeToFile (no override): "0x" + currentValue(8 hex) + per-node value(8 hex)
+	// + pos|interpolated<<31 (8 hex).
+	char buffer[9];
+	out.write("0x");
+	intToHex(doc.current_value, buffer);
+	out.write(buffer);
+	if (writeAutomation) {
+		for (const ParamNode& node : doc.nodes) {
+			intToHex(node.value, buffer);
+			out.write(buffer);
+			uint32_t pos = node.pos;
+			if (node.interpolated) {
+				pos |= static_cast<uint32_t>(1) << 31;
+			}
+			intToHex(pos, buffer);
+			out.write(buffer);
+		}
+	}
+}
+
+void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation) {
+	// Byte-for-byte reproduction of PatchCableSet::writePatchCablesToFile. The early-out matches the
+	// engine's `if (!numPatchCables) return;`.
+	if (cables.empty()) {
+		return;
+	}
+	namespace params = deluge::modulation::params;
+	out.writeArrayStart("patchCables");
+	for (const DocPatchCable& cable : cables) {
+		// Depth-controlling (range) cables aren't written at top level; they're nested below the cable
+		// whose depth they control.
+		if (!cable.destination.isJustAParam()) {
+			continue;
+		}
+		out.writeOpeningTagBeginning("patchCable", true);
+		out.writeAttribute("source", sourceToString(cable.from));
+		out.writeAttribute("destination", params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+		                                                           cable.destination.getJustTheParam()));
+		out.writeAttribute("polarity", polarityToString(cable.polarity).data());
+		out.insertCommaIfNeeded();
+		out.write("\n");
+		out.printIndents();
+		out.writeTagNameAndSeperator("amount");
+		out.write("\"");
+		writeDocAutoParam(cable.amount, out, writeAutomation);
+		out.write("\"");
+
+		// Find the cable(s) whose destination is this cable's param-with-this-source — they control its
+		// depth. NB: like the engine, the nested cable writes the OUTER cable's polarity (a quirk
+		// preserved for byte-identity).
+		ParamDescriptor controllerDescriptor = cable.destination;
+		controllerDescriptor.addSource(cable.from);
+		bool anyDepthControllingCablesFound = false;
+		for (const DocPatchCable& d : cables) {
+			if (d.destination == controllerDescriptor) {
+				if (!anyDepthControllingCablesFound) {
+					anyDepthControllingCablesFound = true;
+					out.writeOpeningTagEnd();
+					out.writeArrayStart("depthControlledBy");
+				}
+				out.writeOpeningTagBeginning("patchCable", true);
+				out.writeAttribute("source", sourceToString(d.from));
+				out.writeAttribute("polarity", polarityToString(cable.polarity).data());
+				out.insertCommaIfNeeded();
+				out.write("\n");
+				out.printIndents();
+				out.writeTagNameAndSeperator("amount");
+				out.write("\"");
+				writeDocAutoParam(d.amount, out, writeAutomation);
+				out.write("\"");
+				out.closeTag(true);
+			}
+		}
+		if (anyDepthControllingCablesFound) {
+			out.writeArrayEnding("depthControlledBy");
+			out.writeClosingTag("patchCable", true, true);
+		}
+		else {
+			out.closeTag(true);
+		}
+	}
+	out.writeArrayEnding("patchCables");
 }
 
 } // namespace deluge::project

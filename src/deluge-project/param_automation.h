@@ -27,6 +27,7 @@
 class AutoParam;
 class ParamSet;
 class ParamManager;
+class Serializer;
 enum class Polarity : uint8_t; // opaque-enum decl (fixed underlying type ⇒ usable by value); from patch_cable.h
 
 namespace deluge::project {
@@ -118,5 +119,20 @@ struct DocParamManager {
 /// in); it does not allocate or remove collections.
 DocParamManager toDocParamManager(ParamManager& paramManager);
 void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager);
+
+// --- Generic serialization of the document model (param/automation DOM Phase 4) ---
+// Emits the legacy song file format from the value DOM, replacing the engine's scattered
+// self-serialization. This is the first contained piece (the <patchCables> block); it reproduces
+// PatchCableSet::writePatchCablesToFile byte-for-byte and is verified against it, but is not yet wired
+// into the song save path.
+
+/// Write one AutoParam's value (+ automation when `writeAutomation`) as the legacy `0x…` hex blob — the
+/// document-side equivalent of `AutoParam::writeToFile` (no override value). The caller emits the
+/// surrounding tag/quotes.
+void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutomation);
+
+/// Write the `<patchCables>` block from the document's patch cables, byte-identical to
+/// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
+void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);
 
 } // namespace deluge::project

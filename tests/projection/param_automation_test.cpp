@@ -16,9 +16,11 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "storage/storage_manager.h"
 
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <unistd.h>
 #include <vector>
 
@@ -169,6 +171,49 @@ int main() {
 		      "pm2 cable destination");
 		check(pcs2->patchCables[0].polarity == Polarity::BIPOLAR, "pm2 cable polarity");
 		expectSameNodes(pcs2->patchCables[0].param, pcs->patchCables[0].param, "pm2 cable amount");
+	}
+
+	// Phase 4 brick: the generic patch-cable serializer must be byte-identical to the engine's
+	// PatchCableSet::writePatchCablesToFile, including the range-cable (depthControlledBy) nesting.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "pc-ser setup");
+		PatchCableSet* pcs = pm.getPatchCableSet();
+		pcs->numPatchCables = 3;
+		// flat cable 0: ENVELOPE_0 -> param 7
+		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
+		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
+		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
+		pcs->patchCables[0].param.currentValue = 536870912;
+		setNode(pcs->patchCables[0].param, 0, -536870912, true);
+		// flat cable 1: LFO_LOCAL_1 -> param 3
+		pcs->patchCables[1].from = PatchSource::LFO_LOCAL_1;
+		pcs->patchCables[1].destinationParamDescriptor.setToHaveParamOnly(3);
+		pcs->patchCables[1].polarity = Polarity::UNIPOLAR;
+		pcs->patchCables[1].param.currentValue = -100000;
+		// range cable 2: LFO_LOCAL_2 controls the depth of cable 0 (param 7 + source ENVELOPE_0)
+		pcs->patchCables[2].from = PatchSource::LFO_LOCAL_2;
+		pcs->patchCables[2].destinationParamDescriptor.setToHaveParamAndSource(7, PatchSource::ENVELOPE_0);
+		pcs->patchCables[2].polarity = Polarity::BIPOLAR;
+		pcs->patchCables[2].param.currentValue = 12345;
+
+		static char engineBuf[16384];
+		static char domBuf[16384];
+
+		smSerializer.setMemoryBuffer(engineBuf, sizeof(engineBuf));
+		smSerializer.reset();
+		pcs->writePatchCablesToFile(smSerializer, true);
+		int32_t engineLen = smSerializer.bytesWritten();
+
+		deluge::project::DocParamManager docpm = deluge::project::toDocParamManager(pm);
+		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
+		smSerializer.reset();
+		deluge::project::serializePatchCables(docpm.patch_cables, smSerializer, true);
+		int32_t domLen = smSerializer.bytesWritten();
+
+		check(engineLen == domLen, "patch-cable serialize length matches engine");
+		check(engineLen == domLen && std::memcmp(engineBuf, domBuf, engineLen) == 0,
+		      "patch-cable serialize byte-identical to engine");
 	}
 
 	if (failures == 0) {
