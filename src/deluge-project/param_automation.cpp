@@ -329,6 +329,110 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 	return writtenAnyYet;
 }
 
+namespace {
+// Sound's four <envelope*> nested groups (sound.cpp), each {attack, decay, sustain, release} from the
+// patched collection.
+constexpr DocParamAttr kEnvelope1[] = {
+    {"attack", params::LOCAL_ENV_0_ATTACK},
+    {"decay", params::LOCAL_ENV_0_DECAY},
+    {"sustain", params::LOCAL_ENV_0_SUSTAIN},
+    {"release", params::LOCAL_ENV_0_RELEASE},
+};
+constexpr DocParamAttr kEnvelope2[] = {
+    {"attack", params::LOCAL_ENV_1_ATTACK},
+    {"decay", params::LOCAL_ENV_1_DECAY},
+    {"sustain", params::LOCAL_ENV_1_SUSTAIN},
+    {"release", params::LOCAL_ENV_1_RELEASE},
+};
+constexpr DocParamAttr kEnvelope3[] = {
+    {"attack", params::LOCAL_ENV_2_ATTACK},
+    {"decay", params::LOCAL_ENV_2_DECAY},
+    {"sustain", params::LOCAL_ENV_2_SUSTAIN},
+    {"release", params::LOCAL_ENV_2_RELEASE},
+};
+constexpr DocParamAttr kEnvelope4[] = {
+    {"attack", params::LOCAL_ENV_3_ATTACK},
+    {"decay", params::LOCAL_ENV_3_DECAY},
+    {"sustain", params::LOCAL_ENV_3_SUSTAIN},
+    {"release", params::LOCAL_ENV_3_RELEASE},
+};
+} // namespace
+
+void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
+                          const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation) {
+	// Byte-for-byte reproduction of Sound::writeParamsToFile. Two unpatched flat attrs lead, then the
+	// patched flat attrs; the pitchAdjust family is onlyIfContainsSomething; the shared ModControllableAudio
+	// attrs sit before the community attrs (lpfMorph/hpfMorph/waveFold).
+	writeDocParamAsAttribute(unpatched, "portamento", params::UNPATCHED_PORTAMENTO, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "oscAVolume", params::LOCAL_OSC_A_VOLUME, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscBVolume", params::LOCAL_OSC_B_VOLUME, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "noiseVolume", params::LOCAL_NOISE_VOLUME, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "volume", params::GLOBAL_VOLUME_POST_FX, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "pan", params::LOCAL_PAN, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "lpfFrequency", params::LOCAL_LPF_FREQ, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lpfResonance", params::LOCAL_LPF_RESONANCE, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "hpfFrequency", params::LOCAL_HPF_FREQ, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "hpfResonance", params::LOCAL_HPF_RESONANCE, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "lfo1Rate", params::GLOBAL_LFO_FREQ_1, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ_1, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lfo3Rate", params::GLOBAL_LFO_FREQ_2, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "lfo4Rate", params::LOCAL_LFO_LOCAL_FREQ_2, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "modulator1Amount", params::LOCAL_MODULATOR_0_VOLUME, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "modulator1Feedback", params::LOCAL_MODULATOR_0_FEEDBACK, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "modulator2Amount", params::LOCAL_MODULATOR_1_VOLUME, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "modulator2Feedback", params::LOCAL_MODULATOR_1_FEEDBACK, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "carrier1Feedback", params::LOCAL_CARRIER_0_FEEDBACK, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "carrier2Feedback", params::LOCAL_CARRIER_1_FEEDBACK, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "pitchAdjust", params::LOCAL_PITCH_ADJUST, out, writeAutomation, true);
+	writeDocParamAsAttribute(patched, "oscAPitchAdjust", params::LOCAL_OSC_A_PITCH_ADJUST, out, writeAutomation, true);
+	writeDocParamAsAttribute(patched, "oscBPitchAdjust", params::LOCAL_OSC_B_PITCH_ADJUST, out, writeAutomation, true);
+	writeDocParamAsAttribute(patched, "mod1PitchAdjust", params::LOCAL_MODULATOR_0_PITCH_ADJUST, out, writeAutomation,
+	                         true);
+	writeDocParamAsAttribute(patched, "mod2PitchAdjust", params::LOCAL_MODULATOR_1_PITCH_ADJUST, out, writeAutomation,
+	                         true);
+
+	writeDocParamAsAttribute(patched, "modFXRate", params::GLOBAL_MOD_FX_RATE, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "modFXDepth", params::GLOBAL_MOD_FX_DEPTH, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "delayRate", params::GLOBAL_DELAY_RATE, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "delayFeedback", params::GLOBAL_DELAY_FEEDBACK, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "reverbAmount", params::GLOBAL_REVERB_AMOUNT, out, writeAutomation);
+
+	writeDocParamAsAttribute(patched, "arpeggiatorRate", params::GLOBAL_ARP_RATE, out, writeAutomation);
+
+	serializeModControllableParamAttributes(unpatched, out, writeAutomation);
+
+	// Community Firmware parameters (always written after the official ones, just before the parent closes).
+	writeDocParamAsAttribute(patched, "lpfMorph", params::LOCAL_LPF_MORPH, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "hpfMorph", params::LOCAL_HPF_MORPH, out, writeAutomation);
+	writeDocParamAsAttribute(patched, "waveFold", params::LOCAL_FOLD, out, writeAutomation);
+
+	out.writeOpeningTagEnd();
+
+	writeDocParamGroup(out, "envelope1", kEnvelope1, patched, writeAutomation);
+	writeDocParamGroup(out, "envelope2", kEnvelope2, patched, writeAutomation);
+	writeDocParamGroup(out, "envelope3", kEnvelope3, patched, writeAutomation);
+	writeDocParamGroup(out, "envelope4", kEnvelope4, patched, writeAutomation);
+
+	serializePatchCables(cables, out, writeAutomation);
+
+	serializeModControllableParamTags(unpatched, out, writeAutomation);
+}
+
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation) {
 	// Byte-for-byte reproduction of PatchCableSet::writePatchCablesToFile. The early-out matches the
 	// engine's `if (!numPatchCables) return;`.

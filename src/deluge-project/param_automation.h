@@ -176,6 +176,15 @@ void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer
 bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, bool mustWriteOpeningTagEndFirst,
                                bool writeAutomation);
 
+/// Serialize the Sound param block from a sound's collections, byte-identical to
+/// `Sound::writeParamsToFile`: the flat patched + unpatched attrs (osc / filter / LFO / FM / envelope-less
+/// flat params, the conditional pitchAdjust family) wrapping the shared ModControllableAudio attrs, then —
+/// after the parent's opening tag is closed — the four `<envelope*>` groups, the `<patchCables>` block, and
+/// the shared ModControllableAudio tags. Reads both `patched` and `unpatched` collections plus the patch
+/// cables; emits `writeOpeningTagEnd` between the attrs and the child tags exactly where the engine does.
+void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
+                          const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);
+
 /// Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);

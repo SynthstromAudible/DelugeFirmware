@@ -18,6 +18,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "processing/sound/sound_drum.h"
 #include "storage/storage_manager.h"
 
 namespace params = deluge::modulation::params;
@@ -408,6 +409,49 @@ int main() {
 		int32_t domLen = smSerializer.bytesWritten();
 		check(engWrote == domWrote, "expression written-flag matches");
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "ExpressionParamSet byte-identical");
+	}
+
+	// Phase 4d: the Sound param block serializes byte-identical to the engine's Sound::writeParamsToFile
+	// (patched + unpatched flat attrs, the shared ModControllableAudio attrs, the four <envelope*> groups,
+	// the <patchCables> block, and the shared tags — including the mid-block writeOpeningTagEnd).
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "sound setup");
+		PatchedParamSet* pp = pm.getPatchedParamSet();
+		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
+		pp->params[params::LOCAL_OSC_A_VOLUME].currentValue = 12345;
+		pp->params[params::LOCAL_PITCH_ADJUST].currentValue = 678;      // conditional attr — written
+		setNode(pp->params[params::LOCAL_ENV_0_ATTACK], 0, 4242, true); // envelope group, automated
+		pp->params[params::GLOBAL_REVERB_AMOUNT].currentValue = -999;
+		pp->params[params::LOCAL_LPF_MORPH].currentValue = 111; // community attr
+		up->params[params::UNPATCHED_PORTAMENTO].currentValue = 222;
+		up->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333; // shared block
+
+		// A patch cable so the <patchCables> block is exercised within the Sound layout.
+		PatchCableSet* pcs = pm.getPatchCableSet();
+		pcs->numPatchCables = 1;
+		pcs->patchCables[0].from = PatchSource::LFO_GLOBAL_1;
+		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
+		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
+		pcs->patchCables[0].param.currentValue = 268435456;
+
+		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
+		check(doc.patched.has_value() && doc.unpatched.has_value(), "sound collections present");
+
+		SoundDrum drum;
+
+		static char engBuf[16384];
+		static char domBuf[16384];
+
+		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
+		smSerializer.reset();
+		drum.writeParamsToFile(smSerializer, &pm, true);
+		int32_t engLen = smSerializer.bytesWritten();
+		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
+		smSerializer.reset();
+		deluge::project::serializeSoundParams(*doc.patched, *doc.unpatched, doc.patch_cables, smSerializer, true);
+		int32_t domLen = smSerializer.bytesWritten();
+		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
 
 	if (failures == 0) {
