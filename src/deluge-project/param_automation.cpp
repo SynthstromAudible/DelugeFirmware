@@ -677,4 +677,47 @@ bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet
 	                                 readAutomationUpToPos);
 }
 
+namespace {
+// All GlobalEffectable flat attr names (read lookup — order-independent). The writer emits some of these
+// conditionally (pitchAdjust / sidechainCompressorVolume), but on read every present tag is read.
+constexpr DocParamAttr kGlobalEffectableFlatAttrs[] = {
+    {"reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT},
+    {"volume", params::UNPATCHED_VOLUME},
+    {"pan", params::UNPATCHED_PAN},
+    {"pitchAdjust", params::UNPATCHED_PITCH_ADJUST},
+    {"sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME},
+    {"sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE},
+    {"modFXDepth", params::UNPATCHED_MOD_FX_DEPTH},
+    {"modFXRate", params::UNPATCHED_MOD_FX_RATE},
+    {"lpfMorph", params::UNPATCHED_LPF_MORPH},
+    {"hpfMorph", params::UNPATCHED_HPF_MORPH},
+    {"tempo", params::UNPATCHED_TEMPO},
+    {"arpeggiatorRate", params::UNPATCHED_ARP_RATE},
+};
+// Read-side <lpf>/<hpf> groups: same as the write groups plus the legacy nested `morph` member.
+constexpr DocParamAttr kGlobalLpfReadGroup[] = {
+    {"frequency", params::UNPATCHED_LPF_FREQ},
+    {"resonance", params::UNPATCHED_LPF_RES},
+    {"morph", params::UNPATCHED_LPF_MORPH},
+};
+constexpr DocParamAttr kGlobalHpfReadGroup[] = {
+    {"frequency", params::UNPATCHED_HPF_FREQ},
+    {"resonance", params::UNPATCHED_HPF_RES},
+    {"morph", params::UNPATCHED_HPF_MORPH},
+};
+} // namespace
+
+bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
+                                  ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos) {
+	return readLiveParamGroup(in, tagName, "delay", kGlobalDelayGroup, unpatched, unpatchedSummary,
+	                          readAutomationUpToPos)
+	       || readLiveParamGroup(in, tagName, "lpf", kGlobalLpfReadGroup, unpatched, unpatchedSummary,
+	                             readAutomationUpToPos)
+	       || readLiveParamGroup(in, tagName, "hpf", kGlobalHpfReadGroup, unpatched, unpatchedSummary,
+	                             readAutomationUpToPos)
+	       || readLiveParamFromTable(in, tagName, kGlobalEffectableFlatAttrs, unpatched, unpatchedSummary,
+	                                 readAutomationUpToPos)
+	       || readModControllableParamTag(in, tagName, unpatched, unpatchedSummary, readAutomationUpToPos);
+}
+
 } // namespace deluge::project

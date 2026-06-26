@@ -221,4 +221,10 @@ void deserializePatchCables(std::vector<DocPatchCable>& out, Deserializer& in, i
 bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
                                  ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
 
+/// Read one GlobalEffectable param-block tag: the `<delay>`/`<lpf>`/`<hpf>` groups + the GE flat attrs,
+/// then the shared MCA block. The `<lpf>`/`<hpf>` read groups also accept the legacy nested `morph`
+/// member (which the writer emits as a flat `lpfMorph`/`hpfMorph` attr).
+bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
+                                  ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
+
 } // namespace deluge::project

@@ -433,6 +433,84 @@ int main() {
 		      "GlobalEffectable tags byte-identical");
 	}
 
+	// Phase 5b-2: the GlobalEffectable param block round-trips through the DOM reader (flat attrs +
+	// delay/lpf/hpf groups + shared MCA), and the read path still accepts the legacy nested <lpf morph>.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "ge-rt setup");
+		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
+		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].currentValue = 123;
+		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789;  // conditional attr
+		setNode(unp->params[params::UNPATCHED_LPF_FREQ], 0, -111, true); // <lpf> group, automated
+		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;    // <delay> group
+		unp->params[params::UNPATCHED_HPF_RES].currentValue = -55;       // <hpf> group
+		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;     // flat community attr
+		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333;  // shared MCA attr
+		unp->params[params::UNPATCHED_BASS].currentValue = -333;         // equalizer group
+
+		deluge::project::DocParamSet doc = deluge::project::toDocParamSet(*unp);
+
+		static char rtBuf[16384];
+		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
+		smSerializer.reset();
+		smSerializer.writeOpeningTagBeginning("params");
+		deluge::project::serializeGlobalEffectableParamAttributes(doc, smSerializer, true);
+		smSerializer.writeOpeningTagEnd();
+		deluge::project::serializeGlobalEffectableParamTags(doc, smSerializer, true);
+		smSerializer.writeClosingTag("params");
+		int32_t rtLen = smSerializer.bytesWritten();
+		rtBuf[rtLen] = '\0';
+
+		ParamManagerForTimeline pm2;
+		check(pm2.setupWithPatching() == Error::NONE, "ge-rt setup2");
+		UnpatchedParamSet* unp2 = pm2.getUnpatchedParamSet();
+		ParamCollectionSummary* sum2 = pm2.getUnpatchedParamSetSummary();
+		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
+		reader.openXMLFile(nullptr, "params");
+		const char* tag;
+		while (*(tag = reader.readNextTagOrAttributeName())) {
+			if (!deluge::project::readGlobalEffectableParamTag(reader, tag, *unp2, *sum2, 2147483647)) {
+				reader.exitTag();
+			}
+		}
+
+		const int32_t ids[] = {
+		    params::UNPATCHED_REVERB_SEND_AMOUNT, params::UNPATCHED_PITCH_ADJUST, params::UNPATCHED_LPF_FREQ,
+		    params::UNPATCHED_DELAY_RATE,         params::UNPATCHED_HPF_RES,      params::UNPATCHED_LPF_MORPH,
+		    params::UNPATCHED_STUTTER_RATE,       params::UNPATCHED_BASS};
+		for (int32_t id : ids) {
+			expectSameNodes(unp2->params[id], unp->params[id], "ge-rt param");
+		}
+
+		// Legacy back-compat: a hand-crafted <lpf morph="..."> (the writer emits flat lpfMorph, but old
+		// files nested it) must still load into UNPATCHED_LPF_MORPH.
+		deluge::project::DocParamSet morphDoc = deluge::project::toDocParamSet(*unp);
+		morphDoc.params[params::UNPATCHED_LPF_MORPH].current_value = 0x5A5A;
+		static char legacyBuf[4096];
+		smSerializer.setMemoryBuffer(legacyBuf, sizeof(legacyBuf));
+		smSerializer.reset();
+		smSerializer.writeOpeningTagBeginning("params");
+		smSerializer.writeOpeningTagEnd();
+		const deluge::project::DocParamAttr lpfMorphMember[] = {{"morph", params::UNPATCHED_LPF_MORPH}};
+		deluge::project::writeDocParamGroup(smSerializer, "lpf", lpfMorphMember, morphDoc, true);
+		smSerializer.writeClosingTag("params");
+		int32_t legacyLen = smSerializer.bytesWritten();
+		legacyBuf[legacyLen] = '\0';
+
+		ParamManagerForTimeline pm3;
+		check(pm3.setupWithPatching() == Error::NONE, "ge-rt setup3");
+		UnpatchedParamSet* unp3 = pm3.getUnpatchedParamSet();
+		ParamCollectionSummary* sum3 = pm3.getUnpatchedParamSetSummary();
+		XMLDeserializer legacyReader(reinterpret_cast<uint8_t*>(legacyBuf), legacyLen);
+		legacyReader.openXMLFile(nullptr, "params");
+		while (*(tag = legacyReader.readNextTagOrAttributeName())) {
+			if (!deluge::project::readGlobalEffectableParamTag(legacyReader, tag, *unp3, *sum3, 2147483647)) {
+				legacyReader.exitTag();
+			}
+		}
+		check(unp3->params[params::UNPATCHED_LPF_MORPH].currentValue == 0x5A5A, "ge-rt legacy <lpf morph> loads");
+	}
+
 	// Phase 4c: the ExpressionParamSet (MPE) block serializes byte-identical to the engine's
 	// ExpressionParamSet::writeToFile (the <expressionData> group with pitchBend/yExpression/pressure).
 	{
