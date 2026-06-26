@@ -65,14 +65,20 @@ polymorphic types (below).
    polymorphic hierarchies `Clip → {InstrumentClip, AudioClip}` and
    `Output → {AudioOutput, Instrument → {Kit, MIDIInstrument, CVInstrument, SoundInstrument}}`.
    `SessionMacro` was 4 fields; an `InstrumentClip` document node is dozens (notes, automation,
-   params). This is the dominant cost — but **`spark-project`/`deluge-xml` already define this exact
-   schema in Rust serde**, so it is a port/reference, not a blank page.
+   params). This is the dominant cost. **The Deluge DOM is its own native C++ design** — shaped for
+   the firmware's constraints (real-time projection to the existing engine, SDRAM, the C-ABI/serde
+   boundary), NOT a port of `spark-project` (which is `no_std`+alloc, repr-Rust not `repr(C)`,
+   clean-slate for a different engine). `spark-project`/`deluge-xml` are **differential oracles**
+   only: cross-checks for round-trip fidelity and a reference for *what data exists* in the format —
+   they do not author our schema. The data content is well-known (the existing self-serializing
+   classes), so the cost is bounded native design, not a blank page.
 
 3. **Sync model (the strategic fork).**
    - *Load-time DTO* — build the document only at save, parse it at load; runtime stays
-     authoritative in between. Cheapest; gets serde/Rust serialization with **no engine change**;
-     this is essentially `deluge-xml`. Does **not** decouple the engine from project state at
-     runtime.
+     authoritative in between. Cheapest; gets serde/Rust serialization with **no engine change**.
+     (`deluge-xml` is the Rust analogue of this role — a format DTO — but ours is its own native
+     design, with `deluge-xml` only as a round-trip oracle.) Does **not** decouple the engine from
+     project state at runtime.
    - *Authoritative DOM* — the document is the source of truth; the runtime is a projected cache;
      edits flow through the document. This is what actually decouples engine from state and unlocks
      restart/fault-isolation — and it is the large, engine-touching program.
@@ -86,13 +92,15 @@ produce a go/no-go signal:
 - **Phase A — serialization seam (Phase 5 of the extraction).** Pull save/load out of the model
   classes into a narrow interface. This is the prerequisite for *any* document model and is useful
   on its own. Gate: golden round-trip still byte-identical.
-- **Phase B — the read-seam (WS5 `ProjectReader`).** Route the engine's *reads* of project state
-  through an interface. This is the surface a projected model would later sit behind. Gate: behavior
-  preserved.
+- **Phase B — the read-seam (WS5).** Route the engine's *reads* of project state through an
+  interface — our own native seam (the read-seam is a general pattern; spark's `ProjectReader`
+  validates it but is not the shape to copy). This is the surface a projected model would later sit
+  behind. Gate: behavior preserved.
 - **Phase C — stable identity probe #2.** Add an embedded stable id to `Clip`/`Output` (problem 1b)
   and measure the churn + any hot-path cost. Gate: no render regression; golden green.
-- **Phase D — heavy-type schema probe.** Port *one* polymorphic doc node (`AudioClip`, the simpler
-  Clip variant) from the `deluge-xml` schema and round-trip it through projection. This measures
+- **Phase D — heavy-type schema probe.** Design *one* polymorphic doc node natively (`AudioClip`,
+  the simpler Clip variant) from the live class's serialized fields, and round-trip it through
+  projection (cross-checking shape against `deluge-xml` as an oracle, not copying it). This measures
   problem (2) — the real cost driver — against a real type. Gate: round-trip fidelity vs the live
   object.
 
