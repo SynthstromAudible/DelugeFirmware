@@ -28,6 +28,7 @@ class AutoParam;
 class ParamSet;
 class ParamManager;
 class Serializer;
+class Deserializer;
 enum class Polarity : uint8_t; // opaque-enum decl (fixed underlying type ⇒ usable by value); from patch_cable.h
 
 namespace deluge::project {
@@ -134,5 +135,16 @@ void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutom
 /// Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);
+
+/// Read one AutoParam from the legacy hex blob into the document form — the read counterpart of
+/// `writeDocAutoParam`. Reuses the engine's `AutoParam::readFromFile` (so the leaf hex parsing and its
+/// back-compat are not reimplemented), then projects the result.
+DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos);
+
+/// Read a `<patchCables>` block (current format) into the document's patch cables — the inverse of
+/// `serializePatchCables`. Parses the structure directly (resolving range/depth-controlling cables back
+/// to flat cables) and reads amounts via `readDocAutoParam`. Pre-V3.2 patch-cable quirks
+/// (`rangeAdjustable` / placeholder-range resolution) are intentionally not carried over.
+void deserializePatchCables(std::vector<DocPatchCable>& out, Deserializer& in, int32_t readAutomationUpToPos);
 
 } // namespace deluge::project

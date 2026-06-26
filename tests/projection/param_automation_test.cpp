@@ -54,6 +54,11 @@ void setNode(AutoParam& ap, int32_t pos, int32_t value, bool interpolated) {
 	}
 }
 
+bool cableMatches(const deluge::project::DocPatchCable& a, const deluge::project::DocPatchCable& b) {
+	return a.from == b.from && a.destination.data == b.destination.data && a.polarity == b.polarity
+	       && a.amount.current_value == b.amount.current_value && a.amount.nodes.size() == b.amount.nodes.size();
+}
+
 void expectSameNodes(const AutoParam& a, const AutoParam& b, const char* name) {
 	check(a.currentValue == b.currentValue, name);
 	check(a.nodes.size() == b.nodes.size(), name);
@@ -214,6 +219,42 @@ int main() {
 		check(engineLen == domLen, "patch-cable serialize length matches engine");
 		check(engineLen == domLen && std::memcmp(engineBuf, domBuf, engineLen) == 0,
 		      "patch-cable serialize byte-identical to engine");
+
+		// And the DOM serialize -> deserialize round-trip recovers the same cables (as a set; the
+		// engine/DOM read orders range cables before the cable they control).
+		const std::vector<deluge::project::DocPatchCable>& original = docpm.patch_cables;
+		static char rtBuf[16384];
+		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
+		smSerializer.reset();
+		smSerializer.writeOpeningTagBeginning("song");
+		smSerializer.writeOpeningTagEnd();
+		deluge::project::serializePatchCables(original, smSerializer, true);
+		smSerializer.writeClosingTag("song");
+		int32_t rtLen = smSerializer.bytesWritten();
+		rtBuf[rtLen] = '\0';
+
+		std::vector<deluge::project::DocPatchCable> recovered;
+		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
+		reader.openXMLFile(nullptr, "song");
+		const char* tag;
+		while (*(tag = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tag, "patchCables")) {
+				deluge::project::deserializePatchCables(recovered, reader, 2147483647);
+			}
+			reader.exitTag();
+		}
+
+		check(recovered.size() == original.size(), "patch-cable round-trip count");
+		for (const auto& oc : original) {
+			bool found = false;
+			for (const auto& rc : recovered) {
+				if (cableMatches(oc, rc)) {
+					found = true;
+					break;
+				}
+			}
+			check(found, "patch-cable round-trip recovers cable");
+		}
 	}
 
 	if (failures == 0) {

@@ -229,4 +229,106 @@ void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& 
 	out.writeArrayEnding("patchCables");
 }
 
+DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos) {
+	// Reuse the engine's leaf parser (hex blob, node reading, back-compat) on a throwaway AutoParam,
+	// then project the result — no reimplementation of the hex format.
+	AutoParam tmp;
+	tmp.readFromFile(in, readAutomationUpToPos);
+	return toDocAutoParam(tmp);
+}
+
+void deserializePatchCables(std::vector<DocPatchCable>& out, Deserializer& in, int32_t readAutomationUpToPos) {
+	// Mirrors the structure of PatchCableSet::readPatchCablesFromFile (current format). The pre-V3.2
+	// quirks (rangeAdjustable / PLACEHOLDER_RANGE, the X→pitch-adjust special case, and the
+	// duplicate-cable dedup) are intentionally dropped.
+	namespace params = deluge::modulation::params;
+	struct RangeCable {
+		PatchSource from;
+		Polarity polarity;
+		DocAutoParam amount;
+	};
+
+	char const* tagName;
+	in.match('[');
+	while (in.match('{') && *(tagName = in.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "patchCable")) {
+			in.match('{');
+			PatchSource source = PatchSource::NONE;
+			ParamDescriptor destination;
+			destination.setToNull();
+			DocAutoParam amount;
+			Polarity polarity = Polarity::BIPOLAR;
+			std::vector<RangeCable> rangeCables;
+
+			while (*(tagName = in.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "source")) {
+					source = stringToSource(in.readTagOrAttributeValue());
+					if (source == PatchSource::AFTERTOUCH) {
+						polarity = Polarity::UNIPOLAR;
+					}
+				}
+				else if (!strcmp(tagName, "destination")) {
+					destination.setToHaveParamOnly(
+					    params::fileStringToParam(params::Kind::UNPATCHED_SOUND, in.readTagOrAttributeValue(), true));
+				}
+				else if (!strcmp(tagName, "amount")) {
+					amount = readDocAutoParam(in, readAutomationUpToPos);
+				}
+				else if (!strcmp(tagName, "polarity")) {
+					polarity = stringToPolarity(in.readTagOrAttributeValue());
+				}
+				else if (!strcmp(tagName, "depthControlledBy")) {
+					in.match('[');
+					while (in.match('{') && *(tagName = in.readNextTagOrAttributeName())) {
+						if (!strcmp(tagName, "patchCable")) {
+							in.match('{');
+							PatchSource rangeSource = PatchSource::NONE;
+							Polarity rangePolarity = Polarity::BIPOLAR;
+							DocAutoParam rangeAmount;
+							while (*(tagName = in.readNextTagOrAttributeName())) {
+								if (!strcmp(tagName, "source")) {
+									rangeSource = stringToSource(in.readTagOrAttributeValue());
+								}
+								else if (!strcmp(tagName, "amount")) {
+									rangeAmount = readDocAutoParam(in, readAutomationUpToPos);
+								}
+								else if (!strcmp(tagName, "polarity")) {
+									rangePolarity = stringToPolarity(in.readTagOrAttributeValue());
+								}
+								in.exitTag();
+							}
+							in.match('}');
+							in.match('}');
+							if (rangeSource != PatchSource::NONE) {
+								rangeCables.push_back({rangeSource, rangePolarity, rangeAmount});
+							}
+						}
+						in.exitTag();
+					}
+				}
+				in.match(']'); // closes a depthControlledBy array; a no-op for the simple attributes
+				in.exitTag();
+			}
+
+			if (source != PatchSource::NONE && !destination.isNull()) {
+				// Range cables first (their destination is this cable's param + this source), then the
+				// controlled cable — matching the engine's append order.
+				for (const RangeCable& rc : rangeCables) {
+					ParamDescriptor rangeDestination = destination;
+					rangeDestination.addSource(source);
+					out.push_back(DocPatchCable{.from = rc.from,
+					                            .destination = rangeDestination,
+					                            .polarity = rc.polarity,
+					                            .amount = rc.amount});
+				}
+				out.push_back(
+				    DocPatchCable{.from = source, .destination = destination, .polarity = polarity, .amount = amount});
+			}
+		}
+		in.exitTag(nullptr, true);
+		in.match('}');
+	}
+	in.match(']');
+}
+
 } // namespace deluge::project
