@@ -27,7 +27,7 @@
 class FavouritesManager {
 public:
 	struct Favorite {
-		int position;
+		int position = 0;
 		std::optional<uint8_t> colour;
 		std::string filename;
 	};
@@ -48,10 +48,11 @@ public:
 	const std::string& getFavoriteFilename(uint8_t position);
 	static constexpr uint8_t favouriteDefaultColor = 4;
 
-	uint8_t currentBankNumber;
+	uint8_t currentBankNumber = 0;
 	std::optional<uint8_t> currentFavouriteNumber;
 
 private:
+	void resetFavourites();
 	void loadFavouritesBank();
 	void saveFavouriteBank() const;
 
