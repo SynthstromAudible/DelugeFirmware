@@ -23,20 +23,20 @@
 namespace deluge::project {
 
 /// A song's reverb send settings (the reverb algorithm/`model` enum stays on the controller for
-/// now). A component of deluge::project::Song. Field names keep their `reverb*` prefix during the
-/// boundary-first migration; they lose it in the later idiomatic-refinement pass.
+/// now). A component of deluge::project::Song. The redundant `reverb` prefix is dropped now that the
+/// fields live inside the reverb component (access reads `project.reverb.room_size`).
 struct ReverbSettings {
-	float reverbRoomSize{0};
-	float reverbHPF{0};
-	float reverbLPF{0};
-	float reverbDamp{0};
-	float reverbWidth{0};
-	int32_t reverbPan{0};
-	int32_t reverbSidechainVolume{0};
-	int32_t reverbSidechainShape{0};
-	int32_t reverbSidechainAttack{0};
-	int32_t reverbSidechainRelease{0};
-	SyncLevel reverbSidechainSync{};
+	float room_size{0};
+	float hpf{0};
+	float lpf{0};
+	float damping{0};
+	float width{0};
+	int32_t pan{0};
+	int32_t sidechain_volume{0};
+	int32_t sidechain_shape{0};
+	int32_t sidechain_attack{0};
+	int32_t sidechain_release{0};
+	SyncLevel sidechain_sync{};
 };
 
 } // namespace deluge::project
