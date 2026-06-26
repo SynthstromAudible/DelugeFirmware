@@ -389,7 +389,7 @@ void OLED::sendMainImage() {
 	uartPrint("oled render time: ");
 	uartPrintNumber((uint16_t)(renderStopTime - renderStartTime));
 #endif
-	enqueueSPITransfer(oledCurrentImage[0]);
+	enqueueOLEDFrame(oledCurrentImage[0]);
 	HIDSysex::sendDisplayIfChanged();
 	needsSending = false;
 }
@@ -1246,7 +1246,7 @@ void OLED::freezeWithError(char const* text) {
 		}
 		oledWaitingForMessage = 256;
 	}
-	spiTransferQueueCurrentlySending = false;
+	spiBusCurrentlySending = false;
 
 	// Select OLED
 	PIC::selectOLED();
@@ -1274,7 +1274,7 @@ void OLED::freezeWithError(char const* text) {
 	DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
 	uint32_t dataAddress = (uint32_t)(&OLED::main.hackGetImageStore()[0][0]);
 	DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
-	// spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	// oledFrameQueueReadPos = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
 	// todo - should only need a flush
 	invalidate_range_all_caches(dataAddress, dataAddress + transferSize);
 	DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
@@ -1294,7 +1294,7 @@ void OLED::freezeWithError(char const* text) {
 		}
 	}
 	oledWaitingForMessage = 256;
-	spiTransferQueueCurrentlySending = false;
+	spiBusCurrentlySending = false;
 
 	clearMainImage();
 	OLED::popupText("Operation resumed. Save to new file then reboot.", false, PopupType::GENERAL);

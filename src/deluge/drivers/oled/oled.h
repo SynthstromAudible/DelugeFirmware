@@ -19,18 +19,18 @@
 #include "stdbool.h"
 #include "stdint.h"
 
-#define SPI_TRANSFER_QUEUE_SIZE 32
+#define OLED_FRAME_QUEUE_SIZE 32
 
 // The SPI transfer queue now only ever carries OLED frames: each slot is a pointer to the frame
 // image to DMA out, or NULL for a consumed/empty slot. (CV words bypass this queue entirely via the
 // priority slot in oled_low_level.c.)
 void oledMainInit();
 void oledDMAInit();
-void enqueueSPITransfer(const uint8_t* image);
+void enqueueOLEDFrame(const uint8_t* image);
 void oledTransferComplete(uint32_t int_sense);
 
-extern volatile bool spiTransferQueueCurrentlySending;
-extern volatile uint8_t spiTransferQueueReadPos;
-extern uint8_t spiTransferQueueWritePos;
+extern volatile bool spiBusCurrentlySending;
+extern volatile uint8_t oledFrameQueueReadPos;
+extern uint8_t oledFrameQueueWritePos;
 
-extern const uint8_t* spiTransferQueue[SPI_TRANSFER_QUEUE_SIZE];
+extern const uint8_t* oledFrameQueue[OLED_FRAME_QUEUE_SIZE];
