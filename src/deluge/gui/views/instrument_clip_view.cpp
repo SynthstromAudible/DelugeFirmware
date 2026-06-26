@@ -3561,10 +3561,10 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 }
 
 // before scrolling, we need to reset the note selection
-// if we're in a submenu, we'll need to go up a level
+// if we're in a submenu or horizontal menu, we'll need to go up a level
 void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
 	exitNoteEditor();
-	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu || runtimeFeatureSettings.isOn(HorizontalMenus)) {
+	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu) {
 		soundEditor.goUpOneLevel();
 	}
 }
