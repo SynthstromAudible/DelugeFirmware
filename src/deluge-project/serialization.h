@@ -28,6 +28,7 @@ namespace deluge::project {
 struct Groove;
 struct Arrangement;
 struct Transport;
+struct ScaleSettings;
 
 /// The single boundary through which a whole song is (de)serialized — the seam the project-model
 /// document model (DOM) is being built behind (docs/dev/project_model_level3.md). Today it delegates
@@ -66,5 +67,12 @@ bool deserializeMacros(Arrangement& arrangement, Deserializer& in, ::Song& song,
 /// directly. `inputTickMagnitude` is the derived `getInputTickMagnitude()` (two transport fields).
 void serialize(const Transport& transport, Serializer& out);
 bool deserialize(Transport& transport, Deserializer& in, uint64_t& timePerTimerTick, char const* tagName);
+
+/// Scale/key. Like Arrangement it spans the attribute phase (`rootNote`) and the element phase (the
+/// `<modeNotes>` array + the `<scales>` block holding `userScale`/`disabledPresetScales`), so it has a
+/// write helper per phase; the read side dispatches all three tags.
+void serializeScaleKey(const ScaleSettings& scale, Serializer& out);   ///< rootNote (attribute phase)
+void serializeScaleNotes(const ScaleSettings& scale, Serializer& out); ///< modeNotes + scales (element phase)
+bool deserializeScale(ScaleSettings& scale, Deserializer& in, char const* tagName);
 
 } // namespace deluge::project

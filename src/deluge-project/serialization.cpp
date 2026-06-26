@@ -18,6 +18,7 @@
 #include "deluge-project/serialization.h"
 #include "deluge-project/arrangement.h"
 #include "deluge-project/groove.h"
+#include "deluge-project/scale_settings.h"
 #include "deluge-project/transport.h"
 #include "io/midi/midi_device.h"         // MIDICable::writeReferenceToFile
 #include "io/midi/midi_device_manager.h" // MIDIDeviceManager::readDeviceReferenceFromFile
@@ -307,6 +308,64 @@ bool deserialize(Transport& transport, Deserializer& in, uint64_t& timePerTimerT
 	if (!strcmp(tagName, "inputTickMagnitude")) {
 		transport.inside_world_tick_magnitude = in.readTagOrAttributeValueInt();
 		in.exitTag("inputTickMagnitude");
+		return true;
+	}
+	return false;
+}
+
+// --- Scale / key ---
+
+void serializeScaleKey(const ScaleSettings& scale, Serializer& out) {
+	out.writeAttribute("rootNote", scale.key.rootNote);
+}
+
+void serializeScaleNotes(const ScaleSettings& scale, Serializer& out) {
+	out.writeArrayStart("modeNotes");
+	for (int32_t i = 0; i < scale.key.modeNotes.count(); i++) {
+		out.writeTag("modeNote", scale.key.modeNotes[i], true);
+	}
+	out.writeArrayEnding("modeNotes");
+
+	out.writeOpeningTag("scales");
+	out.writeTag("userScale", scale.user_scale_notes.toBits());
+	out.writeTag("disabledPresetScales", scale.disabled_preset_scales.to_ulong());
+	out.writeClosingTag("scales");
+}
+
+bool deserializeScale(ScaleSettings& scale, Deserializer& in, char const* tagName) {
+	if (!strcmp(tagName, "rootNote")) {
+		scale.key.rootNote = in.readTagOrAttributeValueInt();
+		in.exitTag("rootNote");
+		return true;
+	}
+	if (!strcmp(tagName, "modeNotes")) {
+		scale.key.modeNotes.clear();
+		in.match('[');
+		while (in.match('{') && *(tagName = in.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "modeNote")) {
+				scale.key.modeNotes.addUntrusted(in.readTagOrAttributeValueInt());
+				in.exitTag("modeNote", true);
+			}
+			else {
+				in.exitTag(tagName);
+			}
+		}
+		in.exitTag("modeNotes");
+		in.match(']');
+		return true;
+	}
+	if (!strcmp(tagName, "scales")) {
+		in.match('{');
+		while (*(tagName = in.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "userScale")) {
+				scale.user_scale_notes = NoteSet(in.readTagOrAttributeValueInt());
+			}
+			else if (!strcmp(tagName, "disabledPresetScales")) {
+				scale.disabled_preset_scales = std::bitset<NUM_PRESET_SCALES>(in.readTagOrAttributeValueInt());
+			}
+			in.exitTag(tagName);
+		}
+		in.exitTag("scales", true);
 		return true;
 	}
 	return false;

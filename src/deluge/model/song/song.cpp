@@ -1008,7 +1008,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("xScrollArrangementView", persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("xZoomArrangementView", persistentView.xZoom[NAVIGATION_ARRANGEMENT]);
 	deluge::project::serialize(project.transport, writer);
-	writer.writeAttribute("rootNote", project.scale.key.rootNote);
+	deluge::project::serializeScaleKey(project.scale, writer);
 	deluge::project::serialize(project.groove, writer, this);
 
 	if (persistentView.tripletsOn) {
@@ -1036,11 +1036,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeOpeningTagEnd();
 	// Attributes end
 
-	writer.writeArrayStart("modeNotes");
-	for (int32_t i = 0; i < project.scale.key.modeNotes.count(); i++) {
-		writer.writeTag("modeNote", project.scale.key.modeNotes[i], true);
-	}
-	writer.writeArrayEnding("modeNotes");
+	deluge::project::serializeScaleNotes(project.scale, writer);
 
 	writer.writeOpeningTagBeginning("reverb");
 	// The whole reverb block is DOM-authoritative: project.reverb (and the algorithm Song::model) is
@@ -1146,12 +1142,6 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	deluge::project::serializeMacros(project.arrangement, writer);
-
-	// Scale stuff
-	writer.writeOpeningTag("scales");
-	writer.writeTag("userScale", project.scale.user_scale_notes.toBits());
-	writer.writeTag("disabledPresetScales", project.scale.disabled_preset_scales.to_ulong());
-	writer.writeClosingTag("scales");
 
 	writer.writeClosingTag("song", true, true);
 }
@@ -1408,10 +1398,7 @@ unknownTag:
 
 			else if (deluge::project::deserialize(project.transport, reader, newTimePerTimerTick, tagName)) {}
 
-			else if (!strcmp(tagName, "rootNote")) {
-				project.scale.key.rootNote = reader.readTagOrAttributeValueInt();
-				reader.exitTag("rootNote");
-			}
+			else if (deluge::project::deserializeScale(project.scale, reader, tagName)) {}
 
 			else if (deluge::project::deserialize(project.groove, reader, tagName)) {}
 
@@ -1493,23 +1480,6 @@ unknownTag:
 				reader.exitTag("songCompressor");
 			}
 
-			else if (!strcmp(tagName, "modeNotes")) {
-				project.scale.key.modeNotes.clear();
-				reader.match('[');
-				// Read in all the modeNotes
-				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "modeNote")) {
-						project.scale.key.modeNotes.addUntrusted(reader.readTagOrAttributeValueInt());
-						reader.exitTag("modeNote", true);
-					}
-					else {
-						reader.exitTag(tagName);
-					}
-				}
-				reader.exitTag("modeNotes");
-				reader.match(']');
-			}
-
 			else if (!strcmp(tagName, "chordMem")) {
 				reader.match('[');
 				int slot_index = 0;
@@ -1556,21 +1526,6 @@ unknownTag:
 			}
 
 			else if (deluge::project::deserializeMacros(project.arrangement, reader, *this, tagName)) {}
-
-			else if (!strcmp(tagName, "scales")) {
-				reader.match('{');
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "userScale")) {
-						project.scale.user_scale_notes = NoteSet(reader.readTagOrAttributeValueInt());
-					}
-					else if (!strcmp(tagName, "disabledPresetScales")) {
-						project.scale.disabled_preset_scales =
-						    std::bitset<NUM_PRESET_SCALES>(reader.readTagOrAttributeValueInt());
-					}
-					reader.exitTag(tagName);
-				}
-				reader.exitTag("scales", true);
-			}
 
 			else if (deluge::project::deserializeSections(project.arrangement, reader, tagName)) {}
 
