@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/param_automation.h"
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "modulation/params/param.h"
 #include <array>
@@ -31,6 +32,12 @@ struct GlobalEffects {
 	/// Snapshot of the global unpatched param values, captured while a param is held in automation
 	/// mode so the live (overridden) value can be restored afterwards.
 	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> unautomated_param_values{};
+
+	/// The authoritative document store of the song-global params/automation (param/automation DOM
+	/// Phase 5c). Populated by capturing the live ParamManager after load; the destination for the
+	/// authoritative flip (live ParamManager projected from this). Currently captured-only — the edit
+	/// rerouting + save-reads-DOM that consume it land in later 5c sub-phases.
+	DocParamManager params;
 };
 
 } // namespace deluge::project

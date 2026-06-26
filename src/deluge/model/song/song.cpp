@@ -1889,6 +1889,11 @@ skipInstance:
 	// after load gets a fresh, non-colliding id.
 	syncSerialIdCountersFromLoaded();
 
+	// Capture the song-global params into the authoritative document store (param/automation DOM Phase
+	// 5c). Currently captured-only — the edit rerouting + save-reads-DOM that make it authoritative land
+	// in later 5c sub-phases; this establishes the owned store + its load-time population.
+	project.global_fx.params = deluge::project::toDocParamManager(paramManager);
+
 	return Error::NONE;
 }
 
