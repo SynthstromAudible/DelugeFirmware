@@ -332,7 +332,27 @@ doEndMidiLearnPressSession:
 	else if (b == SYNC_SCALING) {
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-			currentSong->changeFillMode(on);
+			// If currently in the sound editor note editor / note row editor, keep this button as the global
+			// fill mode toggle rather than changing note fill values.
+			if (getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())) {
+				currentSong->changeFillMode(on);
+				return ActionResult::DEALT_WITH;
+			}
+
+			// If note(s) pressed, adjust note fill
+			if (on && (currentUIMode == UI_MODE_NOTES_PRESSED || instrumentClipView.numEditPadPresses > 0)) {
+				instrumentClipView.adjustNoteFillWithOffset(1);
+				return ActionResult::DEALT_WITH;
+			}
+			// If audition pad pressed, adjust note row fill
+			else if (on && (currentUIMode == UI_MODE_AUDITIONING)) {
+				instrumentClipView.setNoteRowFillWithOffset(1);
+				return ActionResult::DEALT_WITH;
+			}
+			// Otherwise toggle fill mode
+			else {
+				currentSong->changeFillMode(on);
+			}
 		}
 		else if (on && currentUIMode == UI_MODE_NONE) {
 

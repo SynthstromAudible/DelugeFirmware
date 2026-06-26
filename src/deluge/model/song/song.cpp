@@ -914,8 +914,13 @@ bool allowResyncingDuringClipLengthChange = true;
 
 void Song::changeFillMode(bool on) {
 	fillModeActive = on;
-	// we peek fill notes when fill is held so need to re render rows
-	uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+
+	UI* root_ui = getRootUI();
+	if (root_ui == &instrumentClipView) {
+		// we peek fill notes when fill is held so need to re render rows
+		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+	}
+
 	if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 	     == RuntimeFeatureStateSyncScalingAction::Fill)) {
 		indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
