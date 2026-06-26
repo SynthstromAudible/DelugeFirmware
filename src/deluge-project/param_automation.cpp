@@ -191,13 +191,19 @@ namespace {
 // The ModControllableAudio shared param block (mod_controllable_audio.cpp): the flat attribute
 // sequence + the <equalizer> group, in file order. All written unconditionally (onlyIfContainsSomething
 // is false in the engine for every one).
-constexpr DocParamAttr kModControllableAttrs[] = {
+// The first six ModControllableAudio attrs honour the value-override array; the engine passes
+// valuesForOverride only to these (mod_controllable_audio.cpp).
+constexpr DocParamAttr kModControllableOverrideAttrs[] = {
     {"stutterRate", params::UNPATCHED_STUTTER_RATE},
     {"sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION},
     {"bitCrush", params::UNPATCHED_BITCRUSHING},
     {"modFXOffset", params::UNPATCHED_MOD_FX_OFFSET},
     {"modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK},
     {"compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD},
+};
+// The remaining ModControllableAudio attrs (arp / probability / spread) are written without override —
+// the engine omits valuesForOverride for these.
+constexpr DocParamAttr kModControllableArpAttrs[] = {
     {"arpeggiatorGate", params::UNPATCHED_ARP_GATE},
     {"noteProbability", params::UNPATCHED_NOTE_PROBABILITY},
     {"bassProbability", params::UNPATCHED_ARP_BASS_PROBABILITY},
@@ -233,8 +239,12 @@ void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const 
 
 void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
                                              const int32_t* valuesForOverride) {
-	for (const DocParamAttr& a : kModControllableAttrs) {
+	for (const DocParamAttr& a : kModControllableOverrideAttrs) {
 		writeDocParamAsAttribute(unpatched, a.name, a.param_id, out, writeAutomation, false, valuesForOverride);
+	}
+	// The arp/probability/spread attrs are always written without the override (engine parity).
+	for (const DocParamAttr& a : kModControllableArpAttrs) {
+		writeDocParamAsAttribute(unpatched, a.name, a.param_id, out, writeAutomation);
 	}
 }
 

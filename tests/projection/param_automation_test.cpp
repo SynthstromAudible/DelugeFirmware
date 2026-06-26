@@ -464,6 +464,10 @@ int main() {
 		setNode(up->params[params::UNPATCHED_VOLUME], 0, 4242, true); // automated ⇒ override applies
 		up->params[params::UNPATCHED_PAN].currentValue = 555;         // not automated ⇒ override ignored
 		setNode(up->params[params::UNPATCHED_BASS], 0, 7, false);     // automated, equalizer group
+		// An automated ModControllableAudio arp attr: the engine writes it WITHOUT the override (only the
+		// first six MCA attrs honour valuesForOverride), so the override value must be ignored here.
+		setNode(up->params[params::UNPATCHED_ARP_GATE], 0, 13, true);
+		setNode(up->params[params::UNPATCHED_STUTTER_RATE], 0, 21, true); // override-eligible MCA attr
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
 		check(doc.unpatched.has_value(), "override unpatched present");
@@ -472,6 +476,8 @@ int main() {
 		ovr[params::UNPATCHED_VOLUME] = -123456; // distinct from currentValue (0) so the path is observable
 		ovr[params::UNPATCHED_PAN] = 999;        // would differ, but PAN isn't automated ⇒ must be ignored
 		ovr[params::UNPATCHED_BASS] = -77;
+		ovr[params::UNPATCHED_ARP_GATE] = -555;     // must be ignored (arp attr, no override)
+		ovr[params::UNPATCHED_STUTTER_RATE] = -999; // must apply (override-eligible MCA attr)
 
 		static char engBuf[16384];
 		static char domBuf[16384];
