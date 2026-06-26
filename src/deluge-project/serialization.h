@@ -25,6 +25,8 @@ class Deserializer;
 
 namespace deluge::project {
 
+struct Groove;
+
 /// The single boundary through which a whole song is (de)serialized — the seam the project-model
 /// document model (DOM) is being built behind (docs/dev/project_model_level3.md). Today it delegates
 /// to the legacy per-class self-serialization (`Song::writeToFile`/`readFromFile`); it is the
@@ -35,5 +37,12 @@ namespace deluge::project {
 /// no serialization globals.
 void saveSong(::Song& song, Serializer& out);   ///< writes the <song>…</song> body via `out`
 Error loadSong(::Song& song, Deserializer& in); ///< reads the song body from `in`
+
+/// Per-component DOM (de)serialization, being migrated out of Song::writeToFile/readFromFile one
+/// component at a time. `serialize` writes the component's tags (in their existing file order, called
+/// from the point in the song body where they belong); `deserialize` consumes one of the component's
+/// tags from the read dispatch, returning true if it handled `tagName`.
+void serialize(const Groove& groove, Serializer& out, ::Song* song);
+bool deserialize(Groove& groove, Deserializer& in, char const* tagName);
 
 } // namespace deluge::project

@@ -1011,8 +1011,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("timerTickFraction", (uint32_t)project.transport.samples_per_timer_tick_big);
 	writer.writeAttribute("rootNote", project.scale.key.rootNote);
 	writer.writeAttribute("inputTickMagnitude", getInputTickMagnitude());
-	writer.writeAttribute("swingAmount", project.groove.swing_amount);
-	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)project.groove.swing_interval, true);
+	deluge::project::serialize(project.groove, writer, this);
 
 	if (persistentView.tripletsOn) {
 		writer.writeAttribute("tripletsLevel", persistentView.tripletsLevel);
@@ -1499,23 +1498,7 @@ unknownTag:
 				reader.exitTag("rootNote");
 			}
 
-			else if (!strcmp(tagName, "swingAmount")) {
-				project.groove.swing_amount = reader.readTagOrAttributeValueInt();
-				project.groove.swing_amount = std::min(project.groove.swing_amount, (int8_t)49);
-				project.groove.swing_amount = std::max(project.groove.swing_amount, (int8_t)-49);
-				reader.exitTag("swingAmount");
-			}
-
-			else if (!strcmp(tagName, "swingInterval")) {
-				// swingInterval, unlike other "sync" type params, we're going to read as just its plain old int32_t
-				// value, and only shift it by insideWorldTickMagnitude after reading the whole song. This is
-				// because these two attributes could easily be stored in either order in the file, so we won't know
-				// both until the end. Also, in firmware pre V3.1.0-alpha, all "sync" values were stored as plain
-				// old ints, to be read irrespective of insideWorldTickMagnitude
-				project.groove.swing_interval = reader.readTagOrAttributeValueInt();
-				project.groove.swing_interval = std::min(project.groove.swing_interval, (uint8_t)9);
-				reader.exitTag("swingInterval");
-			}
+			else if (deluge::project::deserialize(project.groove, reader, tagName)) {}
 
 			else if (!strcmp(tagName, "tripletsLevel")) {
 				persistentView.tripletsLevel = reader.readTagOrAttributeValueInt();
