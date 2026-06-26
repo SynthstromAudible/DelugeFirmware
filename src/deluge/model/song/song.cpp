@@ -144,8 +144,8 @@ Song::Song() {
 	project.transport.inside_world_tick_magnitude_offset_from_bpm = 0;
 	project.transport.sync_scaling_clip = nullptr;
 	runtimeView.currentClip = nullptr;
-	project.metadata.slot = 32767;
-	project.metadata.subSlot = -1;
+	project.metadata.slot = deluge::project::kNoSlot;
+	project.metadata.sub_slot = -1;
 
 	persistentView.xScroll[NAVIGATION_CLIP] = 0;
 	persistentView.xScroll[NAVIGATION_ARRANGEMENT] = 0;
@@ -210,7 +210,7 @@ Song::Song() {
 
 	masterTransposeInterval = 0;
 
-	project.metadata.dirPath = "SONGS";
+	project.metadata.dir_path = "SONGS";
 
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
@@ -5396,7 +5396,7 @@ int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue
 
 std::string Song::getSongFullPath() {
 	std::string fullPath;
-	fullPath.append(project.metadata.dirPath);
+	fullPath.append(project.metadata.dir_path);
 	fullPath.append("/");
 	fullPath.append(project.metadata.name);
 	fullPath.append(".XML");
@@ -5413,7 +5413,7 @@ void Song::setSongFullPath(const char* fullPath) {
 		memset(dir, 0, sizeof(char) * fullPathLength + 1);
 		strncpy(dir, fullPath, fullPathLength - strlen(filename));
 
-		project.metadata.dirPath = dir;
+		project.metadata.dir_path = dir;
 		project.metadata.name = ++filename;
 	}
 	else {

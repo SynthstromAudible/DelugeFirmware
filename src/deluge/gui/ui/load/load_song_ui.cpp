@@ -74,7 +74,7 @@ bool LoadSongUI::opened() {
 	favouritesManager.setCategory("SONG");
 	favouritesChanged();
 	outputTypeToLoad = OutputType::NONE;
-	currentDir = currentSong->project.metadata.dirPath;
+	currentDir = currentSong->project.metadata.dir_path;
 
 	Error error = beginSlotSession(false, true);
 	if (error != Error::NONE) {
@@ -271,7 +271,7 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 // This method actually executes the loading of next song (by offset)
 void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	outputTypeToLoad = OutputType::NONE;
-	currentDir = currentSong->project.metadata.dirPath;
+	currentDir = currentSong->project.metadata.dir_path;
 
 	int32_t currentFileIndexSelected = fileIndexSelected;
 
@@ -417,7 +417,7 @@ fail:
 			goto fail;
 		}
 
-		preLoadedSong->project.metadata.dirPath = currentDir;
+		preLoadedSong->project.metadata.dir_path = currentDir;
 
 		std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
 
@@ -476,7 +476,7 @@ gotErrorAfterCreatingSong:
 		goto fail;
 	}
 
-	preLoadedSong->project.metadata.dirPath = currentDir;
+	preLoadedSong->project.metadata.dir_path = currentDir;
 
 	std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
 

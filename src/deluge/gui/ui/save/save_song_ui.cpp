@@ -87,7 +87,7 @@ gotError:
 	}
 	currentFolderIsEmpty = false;
 
-	currentDir = currentSong->project.metadata.dirPath;
+	currentDir = currentSong->project.metadata.dir_path;
 
 	error = arrivedInNewFolder(0, searchFilename.c_str(), "SONGS");
 	if (error != Error::NONE) {
@@ -210,7 +210,7 @@ gotError:
 				// If saving as *same* song name/slot, collecting samples, and it already came from alt location, no
 				// need to do it again
 				if (collectingSamples && !audioFile->loadedFromAlternatePath.empty()) {
-					if (deluge::string::caselessEquals(currentDir, currentSong->project.metadata.dirPath)) {
+					if (deluge::string::caselessEquals(currentDir, currentSong->project.metadata.dir_path)) {
 						if (deluge::string::caselessEquals(enteredText, currentSong->project.metadata.name)) {
 							return true;
 						}
@@ -495,7 +495,7 @@ cardError:
 	                          : (deluge::l10n::get(deluge::l10n::String::STRING_FOR_SONG_SAVED));
 	// Update all of these
 	currentSong->project.metadata.name = enteredText;
-	currentSong->project.metadata.dirPath = currentDir;
+	currentSong->project.metadata.dir_path = currentDir;
 
 	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
 		runtimeFeatureSettings.writeSettingsToFile();
