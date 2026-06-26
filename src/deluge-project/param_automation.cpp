@@ -166,6 +166,14 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 	}
 }
 
+int32_t commitUnpatchedValueThroughDom(DocParamManager* doc, int32_t p, int32_t value) {
+	if (doc != nullptr && doc->unpatched && p >= 0 && static_cast<size_t>(p) < doc->unpatched->params.size()) {
+		doc->unpatched->params[p].current_value = value;
+		return doc->unpatched->params[p].current_value;
+	}
+	return value;
+}
+
 // --- Generic serialization (Phase 4) ---
 
 void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutomation,

@@ -17,6 +17,7 @@
 
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -33,7 +34,9 @@
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
+#include "modulation/params/param_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -295,6 +298,16 @@ skipThat: {}
 	}
 
 getOut:
+	// Phase 5c (authoritative flip): for a non-automated value set on the unpatched collection of a manager
+	// with an authoritative param DOM attached, commit the value THROUGH the DOM (write doc, read back) so
+	// the live value is DOM-derived. Every other case keeps the legacy direct set; behaviour is identical
+	// (the DOM returns the same value), the DOM is just updated as a side effect.
+	if (nodes.empty() && modelStack->paramManager != nullptr
+	    && modelStack->paramManager->authoritativeParams() != nullptr
+	    && modelStack->paramCollection == modelStack->paramManager->getUnpatchedParamSet()) {
+		value = deluge::project::commitUnpatchedValueThroughDom(modelStack->paramManager->authoritativeParams(),
+		                                                        modelStack->paramId, value);
+	}
 	currentValue = value;
 	bool automatedNow = isAutomated();
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,

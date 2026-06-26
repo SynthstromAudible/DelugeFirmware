@@ -217,6 +217,21 @@ int main() {
 		check(dst.getUnpatchedParamSet()->params[3].currentValue == 4242, "5c1 unpatched restored");
 	}
 
+	// Phase 5c-2: committing a non-automated unpatched value through the DOM updates the doc and returns
+	// the value to project into live (the authoritative value path used by AutoParam's edit commit).
+	{
+		deluge::project::DocParamManager doc;
+		doc.unpatched.emplace();
+		doc.unpatched->params.resize(8);
+		check(deluge::project::commitUnpatchedValueThroughDom(&doc, 3, 12345) == 12345, "5c2 commit returns value");
+		check(doc.unpatched->params[3].current_value == 12345, "5c2 commit wrote DOM");
+		// passthrough cases: null doc / no unpatched set / out-of-range param
+		check(deluge::project::commitUnpatchedValueThroughDom(nullptr, 0, 7) == 7, "5c2 null passthrough");
+		deluge::project::DocParamManager noUnpatched;
+		check(deluge::project::commitUnpatchedValueThroughDom(&noUnpatched, 0, 9) == 9, "5c2 no-unpatched passthrough");
+		check(deluge::project::commitUnpatchedValueThroughDom(&doc, 999, 5) == 5, "5c2 oob passthrough");
+	}
+
 	// Phase 4 brick: the generic patch-cable serializer must be byte-identical to the engine's
 	// PatchCableSet::writePatchCablesToFile, including the range-cable (depthControlledBy) nesting.
 	{

@@ -1893,6 +1893,9 @@ skipInstance:
 	// 5c). Currently captured-only — the edit rerouting + save-reads-DOM that make it authoritative land
 	// in later 5c sub-phases; this establishes the owned store + its load-time population.
 	project.global_fx.params = deluge::project::toDocParamManager(paramManager);
+	// Attach the document store as authoritative: convertible (non-automated, unpatched) song-global param
+	// edits now commit their value through the DOM (Phase 5c-2). Save still reads live until 5c-3.
+	paramManager.setAuthoritativeParams(&project.global_fx.params);
 
 	return Error::NONE;
 }

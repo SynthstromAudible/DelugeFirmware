@@ -123,6 +123,12 @@ struct DocParamManager {
 DocParamManager toDocParamManager(ParamManager& paramManager);
 void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager);
 
+/// Commit a non-automated unpatched param value through the document store (authoritative flip, Phase 5c):
+/// record `value` into the DOM and return the value to project into the live AutoParam (so the live value
+/// is DOM-derived, not set directly). Returns `value` unchanged if `doc` has no unpatched set or `p` is out
+/// of range (legacy passthrough).
+int32_t commitUnpatchedValueThroughDom(DocParamManager* doc, int32_t p, int32_t value);
+
 // --- Generic serialization of the document model (param/automation DOM Phase 4) ---
 // Emits the legacy song file format from the value DOM, replacing the engine's scattered
 // self-serialization. This is the first contained piece (the <patchCables> block); it reproduces
