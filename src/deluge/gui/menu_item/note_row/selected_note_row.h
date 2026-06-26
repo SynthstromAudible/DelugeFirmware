@@ -40,9 +40,7 @@ public:
 	}
 
 	// only allow select encoder action if you've selected a note row to edit
-	bool selectEncoderActionIsPermitted() override {
-		return shouldEnterSubmenu();
-	}
+	bool selectEncoderActionIsPermitted() override { return shouldEnterSubmenu(); }
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
