@@ -24,6 +24,8 @@
 #include <string>
 #include <vector>
 
+#include <etl/vector.h>
+
 constexpr size_t kNumFavourites = 16;
 
 class FavouritesManager {
@@ -62,7 +64,7 @@ private:
 	mutable bool unsavedChanges = false;
 
 	std::string currentCategory;
-	std::vector<Favourite> favourites;
+	etl::vector<Favourite, kNumFavourites> favourites;
 };
 
 extern FavouritesManager favouritesManager;
