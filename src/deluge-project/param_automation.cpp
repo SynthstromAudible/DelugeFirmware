@@ -17,6 +17,8 @@
 
 #include "deluge-project/param_automation.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_collection.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include <algorithm>
 
@@ -53,6 +55,54 @@ DocParamSet toDocParamSet(ParamSet& paramSet) {
 
 void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet) {
 	fromDocParamSet(doc, paramSet.params, paramSet.getNumParams());
+}
+
+namespace {
+using deluge::modulation::params::Kind;
+// Slot 0 holds either the unpatched ParamSet or a MIDI-CC collection (the latter deferred to a later
+// sub-phase). The unpatched set's own `kind` is often still NONE here (the owner sets UNPATCHED_SOUND/
+// GLOBAL later), so identify it positionally: present and not the MIDI collection.
+bool isUnpatchedSetSlot(ParamCollection* c) {
+	return c != nullptr && c->getParamKind() != Kind::MIDI;
+}
+} // namespace
+
+DocParamManager toDocParamManager(ParamManager& paramManager) {
+	DocParamManager doc;
+	// Fixed slot layout: [0] unpatched (or MIDI, deferred), [1] patched, [2] patch cables (deferred),
+	// expression at expressionParamSetOffset.
+	if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
+		doc.unpatched = toDocParamSet(*static_cast<ParamSet*>(c));
+	}
+	if (ParamCollection* c = paramManager.summaries[1].paramCollection;
+	    c != nullptr && c->getParamKind() == Kind::PATCHED) {
+		doc.patched = toDocParamSet(*static_cast<ParamSet*>(c));
+	}
+	if (paramManager.getExpressionParamSetOffset() != 0) {
+		if (ExpressionParamSet* e = paramManager.getExpressionParamSet(); e != nullptr) {
+			doc.expression = toDocParamSet(*e);
+		}
+	}
+	return doc;
+}
+
+void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager) {
+	if (doc.unpatched) {
+		if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
+			fromDocParamSet(*doc.unpatched, *static_cast<ParamSet*>(c));
+		}
+	}
+	if (doc.patched) {
+		if (ParamCollection* c = paramManager.summaries[1].paramCollection;
+		    c != nullptr && c->getParamKind() == Kind::PATCHED) {
+			fromDocParamSet(*doc.patched, *static_cast<ParamSet*>(c));
+		}
+	}
+	if (doc.expression) {
+		if (ExpressionParamSet* e = paramManager.getExpressionParamSet(); e != nullptr) {
+			fromDocParamSet(*doc.expression, *e);
+		}
+	}
 }
 
 } // namespace deluge::project

@@ -21,10 +21,12 @@
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_node_vector.h"
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 class AutoParam;
 class ParamSet;
+class ParamManager;
 
 namespace deluge::project {
 
@@ -86,5 +88,22 @@ DocParamSet toDocParamSet(deluge::modulation::params::Kind kind, const AutoParam
 void fromDocParamSet(const DocParamSet& doc, AutoParam* params, int32_t numParams);
 DocParamSet toDocParamSet(ParamSet& paramSet);
 void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet);
+
+/// Value-typed document form of a `ParamManager`'s parameter-set collections. Each is present only when
+/// the live manager holds it (a sound has patched + unpatched; a global-effectable / audio clip has
+/// only unpatched; expression/MPE is optional). The patch-cable set and MIDI-CC collection are
+/// projected in a later sub-phase, so they are not yet fields here.
+struct DocParamManager {
+	std::optional<DocParamSet> unpatched;
+	std::optional<DocParamSet> patched;
+	std::optional<DocParamSet> expression;
+};
+
+/// Project to/from a live `ParamManager` (defined in param_automation.cpp). `fromDocParamManager`
+/// projects into an already-set-up manager — it fills the collections that exist in both the document
+/// and the target (the engine builds the collection structure on load before the values are projected
+/// in); it does not allocate or remove collections.
+DocParamManager toDocParamManager(ParamManager& paramManager);
+void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager);
 
 } // namespace deluge::project

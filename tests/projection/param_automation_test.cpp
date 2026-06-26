@@ -8,9 +8,12 @@
 //
 // Exit: 0 = all round-trips faithful, 1 = a mismatch.
 
+#include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
+#include "modulation/params/param_set.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -123,6 +126,28 @@ int main() {
 		for (int p = 0; p < kNumParams; p++) {
 			expectSameNodes(out[p], set[p], "set param");
 		}
+	}
+
+	// Phase 3: a live ParamManager round-trips its present collections (patched + unpatched) through
+	// DocParamManager and projects faithfully into another already-set-up manager.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "pm setupWithPatching");
+		pm.getPatchedParamSet()->params[5].currentValue = 12345;
+		setNode(pm.getPatchedParamSet()->params[5], 0, 100, true);
+		setNode(pm.getPatchedParamSet()->params[5], 32, -500, false);
+		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
+
+		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
+		check(doc.patched.has_value(), "pm patched present");
+		check(doc.unpatched.has_value(), "pm unpatched present");
+
+		ParamManagerForTimeline pm2;
+		check(pm2.setupWithPatching() == Error::NONE, "pm2 setupWithPatching");
+		deluge::project::fromDocParamManager(doc, pm2);
+		check(pm2.getPatchedParamSet()->params[5].currentValue == 12345, "pm patched currentValue");
+		expectSameNodes(pm2.getPatchedParamSet()->params[5], pm.getPatchedParamSet()->params[5], "pm patched nodes");
+		check(pm2.getUnpatchedParamSet()->params[2].currentValue == 678, "pm unpatched currentValue");
 	}
 
 	if (failures == 0) {
