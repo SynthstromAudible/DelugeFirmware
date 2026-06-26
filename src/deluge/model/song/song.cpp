@@ -165,9 +165,9 @@ Song::Song() {
 	project.scale.key.modeNotes = presetScaleNotes[MAJOR_SCALE];
 	project.scale.disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
 
-	project.groove.swingAmount = 0;
+	project.groove.swing_amount = 0;
 
-	project.groove.swingInterval = FlashStorage::defaultSwingInterval;
+	project.groove.swing_interval = FlashStorage::defaultSwingInterval;
 
 	persistentView.songViewYScroll = 1 - kDisplayHeight;
 	persistentView.arrangementYScroll = -kDisplayHeight;
@@ -265,7 +265,7 @@ void Song::setupDefault() {
 	seedRandom();
 
 	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
-	project.groove.swingAmount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
+	project.groove.swing_amount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
 	project.scale.key.rootNote = defaultKeyMenu.getRandomValueInRange();
 
 	// Do scale
@@ -1010,8 +1010,8 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("timerTickFraction", (uint32_t)project.transport.timePerTimerTickBig);
 	writer.writeAttribute("rootNote", project.scale.key.rootNote);
 	writer.writeAttribute("inputTickMagnitude", getInputTickMagnitude());
-	writer.writeAttribute("swingAmount", project.groove.swingAmount);
-	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)project.groove.swingInterval, true);
+	writer.writeAttribute("swingAmount", project.groove.swing_amount);
+	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)project.groove.swing_interval, true);
 
 	if (persistentView.tripletsOn) {
 		writer.writeAttribute("tripletsLevel", persistentView.tripletsLevel);
@@ -1499,9 +1499,9 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "swingAmount")) {
-				project.groove.swingAmount = reader.readTagOrAttributeValueInt();
-				project.groove.swingAmount = std::min(project.groove.swingAmount, (int8_t)49);
-				project.groove.swingAmount = std::max(project.groove.swingAmount, (int8_t)-49);
+				project.groove.swing_amount = reader.readTagOrAttributeValueInt();
+				project.groove.swing_amount = std::min(project.groove.swing_amount, (int8_t)49);
+				project.groove.swing_amount = std::max(project.groove.swing_amount, (int8_t)-49);
 				reader.exitTag("swingAmount");
 			}
 
@@ -1511,8 +1511,8 @@ unknownTag:
 				// because these two attributes could easily be stored in either order in the file, so we won't know
 				// both until the end. Also, in firmware pre V3.1.0-alpha, all "sync" values were stored as plain
 				// old ints, to be read irrespective of insideWorldTickMagnitude
-				project.groove.swingInterval = reader.readTagOrAttributeValueInt();
-				project.groove.swingInterval = std::min(project.groove.swingInterval, (uint8_t)9);
+				project.groove.swing_interval = reader.readTagOrAttributeValueInt();
+				project.groove.swing_interval = std::min(project.groove.swing_interval, (uint8_t)9);
 				reader.exitTag("swingInterval");
 			}
 
@@ -1926,9 +1926,9 @@ loadOutput:
 		// Basically, like all other "sync" type parameters, the file value and internal value are different for
 		// swingInterval. But unlike other ones, which get converted as we go, we do this one at the end once we
 		// know we have enough info to do the conversion
-		project.groove.swingInterval = convertSyncLevelFromFileValueToInternalValue(project.groove.swingInterval);
+		project.groove.swing_interval = convertSyncLevelFromFileValueToInternalValue(project.groove.swing_interval);
 	}
-	project.groove.swingInterval = std::min(project.groove.swingInterval, (uint8_t)9);
+	project.groove.swing_interval = std::min(project.groove.swing_interval, (uint8_t)9);
 
 	setTimePerTimerTick(newTimePerTimerTick);
 
@@ -2420,7 +2420,7 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 }
 
 bool Song::hasAnySwing() {
-	return (project.groove.swingAmount != 0);
+	return project.groove.hasSwing();
 }
 
 void Song::resyncLFOs() {
@@ -5238,11 +5238,11 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 
 void Song::changeSwingInterval(int32_t newValue) {
 
-	project.groove.swingInterval = newValue;
+	project.groove.swing_interval = newValue;
 
 	if (playbackHandler.isInternalClockActive()) {
 
-		int32_t leftShift = 10 - project.groove.swingInterval;
+		int32_t leftShift = 10 - project.groove.swing_interval;
 		leftShift = std::max(leftShift, 0_i32);
 		uint32_t doubleSwingInterval = 3 << (leftShift);
 

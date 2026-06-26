@@ -24,8 +24,11 @@ namespace deluge::project {
 /// Groove / swing settings of a song. A component of deluge::project::Song.
 /// (Grouped struct for now; methods/value-semantics polish comes later, inside the library.)
 struct Groove {
-	int8_t swingAmount{0};    ///< -49..49; 0 = no swing
-	uint8_t swingInterval{0}; ///< sync level the swing is applied at (set from defaults by the controller)
+	int8_t swing_amount{0};    ///< -49..49; 0 = no swing
+	uint8_t swing_interval{0}; ///< sync level the swing is applied at (set from defaults by the controller)
+
+	/// Whether any swing is applied.
+	[[nodiscard]] bool hasSwing() const { return swing_amount != 0; }
 };
 
 } // namespace deluge::project
