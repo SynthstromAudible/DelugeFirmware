@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param_set.h"
+#include "deluge-project/param_automation.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -634,29 +635,11 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 
 bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTagEndFirst) {
-
-	bool writtenAnyYet = false;
-
-	for (int32_t p = 0; p < kNumExpressionDimensions; p++) {
-		if (params[p].containsSomething()) {
-			if (!writtenAnyYet) {
-				writtenAnyYet = true;
-				if (mustWriteOpeningTagEndFirst) {
-					writer.writeOpeningTagEnd();
-				}
-
-				writer.writeOpeningTagBeginning("expressionData");
-			}
-
-			writeParamAsAttribute(writer, expressionParamNames[p], p, true);
-		}
-	}
-
-	if (writtenAnyYet) {
-		writer.closeTag();
-	}
-
-	return writtenAnyYet;
+	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
+	// (verified in param_projection_test).
+	deluge::project::DocParamSet doc = deluge::project::toDocParamSet(*this);
+	return deluge::project::serializeExpressionParams(doc, writer, mustWriteOpeningTagEndFirst,
+	                                                  /*writeAutomation=*/true);
 }
 
 void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSummary* summary,
