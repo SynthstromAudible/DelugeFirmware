@@ -1593,20 +1593,20 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 			if (favouritesManager.isEmpty(x)) {
 				if (!getCurrentFileItem()->isFolder) {
-					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
+					favouritesManager.setFavourite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
 					favouritesChanged();
 				}
 			}
 			else {
-				favouritesManager.unsetFavorite(x);
+				favouritesManager.unsetFavourite(x);
 				favouritesChanged();
 			}
 		}
 		else {
-			const std::string favoritePath = favouritesManager.getFavoriteFilename(x);
+			const std::string favouritePath = favouritesManager.getFavouriteFilename(x);
 			favouritesChanged();
-			if (!favoritePath.empty()) {
-				setFileByFullPath(outputTypeToLoad, favoritePath.c_str());
+			if (!favouritePath.empty()) {
+				setFileByFullPath(outputTypeToLoad, favouritePath.c_str());
 			}
 			else {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_FAVOURITES_EMPTY));
@@ -1912,5 +1912,5 @@ bool Browser::isFavouritesVisible() {
 bool Browser::isBanksVisible() {
 	return (getCurrentUI()->canDisplayFavourites() && qwertyVisible
 	        && FlashStorage::defaultFavouritesLayout
-	               == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks);
+	               == FavouritesDefaultLayout::FavouritesDefaultLayoutFavouritesAndBanks);
 }

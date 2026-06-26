@@ -44,9 +44,9 @@ int32_t QwertyUI::scrollPosHorizontal;
 uint8_t QwertyUI::currentBank = 0;
 std::optional<uint8_t> QwertyUI::currentFavourite = std::nullopt;
 uint8_t QwertyUI::favouriteRow = 6;
-FavouritesDefaultLayout QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayout::FavouritesDefaultLayoutFavorites;
+FavouritesDefaultLayout QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayout::FavouritesDefaultLayoutFavourites;
 
-static constexpr float colourStep = 192 / 16;
+static constexpr float colourStep = 192 / kNumFavourites;
 
 bool QwertyUI::opened() {
 
@@ -54,13 +54,13 @@ bool QwertyUI::opened() {
 	enteredTextEditPos = 0;
 	enteredText.clear();
 	switch (FlashStorage::defaultFavouritesLayout) {
-	case FavouritesDefaultLayoutFavorites: {
-		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutFavorites;
+	case FavouritesDefaultLayoutFavourites: {
+		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutFavourites;
 		QwertyUI::favouriteRow = 7;
 		break;
 	}
-	case FavouritesDefaultLayoutFavoritesAndBanks: {
-		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutFavoritesAndBanks;
+	case FavouritesDefaultLayoutFavouritesAndBanks: {
+		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutFavouritesAndBanks;
 		QwertyUI::favouriteRow = 6;
 		break;
 	}
@@ -423,7 +423,7 @@ void QwertyUI::renderFavourites() {
 	if (!getCurrentUI()->isFavouritesVisible()) {
 		return;
 	}
-	std::array<std::optional<uint8_t>, 16> colours = favouritesManager.getFavouriteColours();
+	std::array<std::optional<uint8_t>, kNumFavourites> colours = favouritesManager.getFavouriteColours();
 	currentBank = favouritesManager.currentBankNumber;
 	currentFavourite = favouritesManager.currentFavouriteNumber;
 
@@ -432,9 +432,9 @@ void QwertyUI::renderFavourites() {
 		return;
 	}
 
-	for (uint8_t i = 0; i < 16; i++) {
+	for (uint8_t i = 0; i < kNumFavourites; i++) {
 		// Render Banks
-		if (favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks) {
+		if (favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavouritesAndBanks) {
 			PadLEDs::image[favouriteBankRow][i] = RGB::fromHue(static_cast<int16_t>(i * colourStep));
 		}
 		// Render Favourites
@@ -506,7 +506,7 @@ ActionResult QwertyUI::timerCallback() {
 			PadLEDs::flashMainPad(QwertyUI::currentFavourite.value(), favouriteRow);
 		}
 
-		if (QwertyUI::favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks) {
+		if (QwertyUI::favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavouritesAndBanks) {
 			PadLEDs::flashMainPad(QwertyUI::currentBank, favouriteBankRow);
 		}
 

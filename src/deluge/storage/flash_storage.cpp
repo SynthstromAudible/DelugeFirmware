@@ -328,7 +328,7 @@ void resetSettings() {
 	defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 
-	defaultFavouritesLayout = FavouritesDefaultLayoutFavorites;
+	defaultFavouritesLayout = FavouritesDefaultLayoutFavourites;
 
 	gridEmptyPadsUnarm = false;
 	gridEmptyPadsCreateRec = false;
@@ -747,7 +747,7 @@ void readSettings() {
 	}
 
 	if (buffer[185] >= util::to_underlying(FavouritesDefaultLayoutMaxElement)) {
-		defaultFavouritesLayout = FavouritesDefaultLayout::FavouritesDefaultLayoutFavorites;
+		defaultFavouritesLayout = FavouritesDefaultLayout::FavouritesDefaultLayoutFavourites;
 	}
 	else {
 		defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(buffer[185]);
