@@ -207,9 +207,10 @@ renderEnvelope:
 	                                     ? std::span{reinterpret_cast<StereoSample*>(bufferToTransferTo), render.size()}
 	                                     : render;
 
-	// add in the monitored audio if in sampler or looper mode
-	if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
-	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
+	// add in the monitored audio if in sampler or looper mode. Suppress until the codec ADC has settled after
+	// power-on (issue #4517) - otherwise its power-on transient gets passed straight through to the output.
+	if (AudioEngine::inputMonitoringWarmedUp && modeAllowsMonitoring()
+	    && modelStack->song->isOutputActiveInArrangement(this) && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
 		int32_t const* __restrict__ input_ptr = (int32_t const*)AudioEngine::i2sRXBufferPos;
 

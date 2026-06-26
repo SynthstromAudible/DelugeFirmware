@@ -168,6 +168,9 @@ bool renderInStereo = true;
 bool bypassCulling = false;
 bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
+bool inputMonitoringWarmedUp = false;
+// ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp).
+constexpr uint32_t kInputMonitoringWarmupSamples = kSampleRate / 2;
 uint32_t i2sTXBufferPos;
 uint32_t i2sRXBufferPos;
 volatile int voices_started_this_render = 0;
@@ -599,6 +602,11 @@ bool calledFromScheduler = false;
 
 	sideChainHitPending = 0;
 	audioSampleTimer += numSamples;
+
+	// Once the codec has had time to settle after power-on, allow input monitoring. Latches true and stays true.
+	if (!inputMonitoringWarmedUp && audioSampleTimer >= kInputMonitoringWarmupSamples) {
+		inputMonitoringWarmedUp = true;
+	}
 
 	bypassCulling = false;
 }
