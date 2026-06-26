@@ -465,12 +465,12 @@ int32_t StemExport::disarmAllClipsForStemExport() {
 
 	// when we trigger stem export, we don't know how many clips there are yet
 	// so get the number and store it so we only need to ping getNumElements once
-	int32_t totalNumClips = std::ssize(currentSong->project.clips.sessionClips);
+	int32_t totalNumClips = std::ssize(currentSong->project.clips.session_clips);
 
 	if (totalNumClips != 0) {
 		// iterate through all clips to disable all the recording relevant flags
 		for (int32_t idxClip = 0; idxClip < totalNumClips; ++idxClip) {
-			Clip* clip = currentSong->project.clips.sessionClips[idxClip];
+			Clip* clip = currentSong->project.clips.session_clips[idxClip];
 			if (clip != nullptr) {
 				/* export clip stem if all these conditions are met:
 				    1) the clip is not empty (it has notes in it)
@@ -500,7 +500,7 @@ void StemExport::restoreAllClipMutes(int32_t totalNumClips) {
 	if (totalNumClips != 0) {
 		// iterate through all clips to restore previous mute states
 		for (int32_t idxClip = 0; idxClip < totalNumClips; ++idxClip) {
-			Clip* clip = currentSong->project.clips.sessionClips[idxClip];
+			Clip* clip = currentSong->project.clips.session_clips[idxClip];
 			if (clip != nullptr) {
 				clip->activeIfNoSolo = clip->activeIfNoSoloBeforeStemExport;
 			}
@@ -554,7 +554,7 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 	if (totalNumClips != 0 && totalNumStemsToExport != 0) {
 		// now we're going to iterate through all clips to find the ones that should be exported
 		for (int32_t idxClip = totalNumClips - 1; idxClip >= 0; --idxClip) {
-			Clip* clip = currentSong->project.clips.sessionClips[idxClip];
+			Clip* clip = currentSong->project.clips.session_clips[idxClip];
 			if (clip != nullptr) {
 				getLoopLengthOfLongestNotEmptyNoteRow(clip);
 				getLoopEndPointInSamplesForAudioFile(clip->loopLength);

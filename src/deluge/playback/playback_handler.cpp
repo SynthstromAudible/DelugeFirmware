@@ -2647,8 +2647,8 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-		Clip* clip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		if (clip->getCurrentlyRecordingLinearly()) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -2947,8 +2947,8 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 	}
 
 	// Go through all Clips in session only
-	for (int32_t c = std::ssize(currentSong->project.clips.sessionClips) - 1; c >= 0; c--) {
-		Clip* clip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
+		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		// Mute action on Clip?
 		if (clip->muteMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
@@ -3293,8 +3293,8 @@ probablyExitRecordMode:
 		anyGotArmedToStop = false;
 
 		// For each Clip in session
-		for (int32_t c = std::ssize(currentSong->project.clips.sessionClips) - 1; c >= 0; c--) {
-			Clip* clip = currentSong->project.clips.sessionClips[c];
+		for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
+			Clip* clip = currentSong->project.clips.session_clips[c];
 			if (clip->armState == ArmState::OFF && clip->getCurrentlyRecordingLinearly()) {
 				anyGotArmedToStop = true;
 				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
@@ -3321,7 +3321,7 @@ doCreateNextOverdub:
 			else if (getCurrentClip() && !getCurrentClip()->isArrangementOnlyClip()) {
 				clipToCreateOverdubFrom = getCurrentClip();
 				clipIndexToCreateOverdubFrom =
-				    currentSong->project.clips.sessionClips.getIndexForClip(clipToCreateOverdubFrom);
+				    currentSong->project.clips.session_clips.getIndexForClip(clipToCreateOverdubFrom);
 			}
 
 			// If we've decided which Clip to create overdub from...

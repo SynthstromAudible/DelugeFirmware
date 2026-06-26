@@ -218,21 +218,21 @@ Song::Song() {
 Song::~Song() {
 
 	// Delete existing Clips, if any
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
 		if (!(c & 31)) { // Rohan: Exact number here not fine-tuned
 			AudioEngine::routineWithClusterLoading();
 		}
 
-		Clip* clip = project.clips.sessionClips[c];
+		Clip* clip = project.clips.session_clips[c];
 		deleteClipObject(clip, true, InstrumentRemoval::NONE);
 	}
 
-	for (int32_t c = 0; c < std::ssize(project.clips.arrangementOnlyClips); c++) {
+	for (int32_t c = 0; c < std::ssize(project.clips.arrangement_only_clips); c++) {
 		if (!(c & 31)) { // Rohan: Exact number here not fine-tuned
 			AudioEngine::routineWithClusterLoading();
 		}
 
-		Clip* clip = project.clips.arrangementOnlyClips[c];
+		Clip* clip = project.clips.arrangement_only_clips[c];
 		deleteClipObject(clip, true, InstrumentRemoval::NONE);
 	}
 
@@ -338,15 +338,15 @@ bool Song::mayDoubleTempo() {
 // Returns true if a Clip created
 bool Song::ensureAtLeastOneSessionClip() {
 	// If no Clips added, make just one blank one - we can't have none!
-	if (!project.clips.sessionClips.empty()) {
+	if (!project.clips.session_clips.empty()) {
 		return false;
 	}
 
 	void* memory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
-	(void)project.clips.sessionClips.insertClipAt(firstClip,
-	                                              0); // OOM impossible-in-practice this early; ignored as before
+	(void)project.clips.session_clips.insertClipAt(firstClip,
+	                                               0); // OOM impossible-in-practice this early; ignored as before
 
 	firstClip->loopLength = kDefaultClipLength << project.transport.inside_world_tick_magnitude;
 
@@ -451,10 +451,10 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 		MusicalKey newKey = project.scale.key;
 		newKey.rootNote += semitones;
 
-		ClipArray* clipArray = &project.clips.sessionClips;
+		ClipArray* clipArray = &project.clips.session_clips;
 		for (uint8_t iClipTypes = 0; iClipTypes < 2; iClipTypes++) {
 			if (iClipTypes == 1) {
-				clipArray = &project.clips.arrangementOnlyClips;
+				clipArray = &project.clips.arrangement_only_clips;
 			}
 			for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
 				Clip* clip = (*clipArray)[c];
@@ -674,8 +674,8 @@ bool Song::areAllClipsInSectionPlaying(int32_t section) {
 		return false;
 	}
 
-	for (int32_t l = 0; l < std::ssize(project.clips.sessionClips); l++) {
-		Clip* clip = project.clips.sessionClips[l];
+	for (int32_t l = 0; l < std::ssize(project.clips.session_clips); l++) {
+		Clip* clip = project.clips.session_clips[l];
 		if (clip->section == section && !isClipActive(clip)) {
 			return false;
 		}
@@ -840,7 +840,7 @@ void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
 Clip* Song::getClipWithOutput(Output* output, bool mustBeActive, Clip* excludeClip) {
 
 	// For each clip in session and arranger for specific Output
-	int32_t numElements = std::ssize(project.clips.sessionClips);
+	int32_t numElements = std::ssize(project.clips.session_clips);
 	bool doingArrangementClips = false;
 	// TODO: This should be rewritten with AllClips as well, but it's less obvious
 	// so leaving or later.
@@ -848,7 +848,7 @@ traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = project.clips.sessionClips[c];
+			clip = project.clips.session_clips[c];
 			if (clip->output != output) {
 				continue;
 			}
@@ -886,8 +886,8 @@ Clip* Song::getSessionClipWithOutput(Output* output, int32_t requireSection, Cli
                                      bool excludePendingOverdubs) {
 
 	// For each clip in session
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 
 		if (clip->output == output) {
 			if (clip == excludeClip) {
@@ -915,7 +915,7 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 	int32_t oldIndex = -1;
 	if (prevClip) {
 		// retrieve clip index
-		oldIndex = project.clips.sessionClips.getIndexForClip(prevClip);
+		oldIndex = project.clips.session_clips.getIndexForClip(prevClip);
 	}
 	// if we didn't retrieve a clip index, this is an arranger-only clip
 	if (oldIndex == -1) {
@@ -923,7 +923,7 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 		if (offset < 0) {
 			// use the highest available index
 			// NOTE: resulting index is one-based
-			oldIndex = std::ssize(project.clips.sessionClips);
+			oldIndex = std::ssize(project.clips.session_clips);
 		}
 	}
 
@@ -932,11 +932,11 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 		// iterate index according to select knob direction
 		newIndex += offset;
 		// index out of bounds on either side returns NULL
-		if (newIndex == -1 || newIndex == std::ssize(project.clips.sessionClips)) {
+		if (newIndex == -1 || newIndex == std::ssize(project.clips.session_clips)) {
 			return nullptr;
 		}
 		// retrieve clip and return
-		Clip* clip = project.clips.sessionClips[newIndex];
+		Clip* clip = project.clips.session_clips[newIndex];
 		if (clip->output == output) {
 			return clip;
 		}
@@ -1123,17 +1123,17 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeArrayEnding("sections");
 
 	writer.writeArrayStart("sessionClips");
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 		clip->writeToFile(writer, this);
 	}
 	writer.writeArrayEnding("sessionClips");
 
-	if (!project.clips.arrangementOnlyClips.empty()) {
+	if (!project.clips.arrangement_only_clips.empty()) {
 
 		writer.writeArrayStart("arrangementOnlyTracks");
-		for (int32_t c = 0; c < std::ssize(project.clips.arrangementOnlyClips); c++) {
-			Clip* clip = project.clips.arrangementOnlyClips[c];
+		for (int32_t c = 0; c < std::ssize(project.clips.arrangement_only_clips); c++) {
+			Clip* clip = project.clips.arrangement_only_clips[c];
 			if (!clip->output->clipHasInstance(clip)) {
 				continue; // Get rid of any redundant Clips. There shouldn't be any, but occasionally they somehow
 				          // get left over.
@@ -1181,7 +1181,7 @@ weAreInArrangementEditorOrInClipInstance:
 			writer.writeOpeningTagBeginning("macro", true);
 			switch (m.kind) {
 			case SessionMacroKind::CLIP_LAUNCH: {
-				int32_t index = project.clips.sessionClips.getIndexForClip(m.clip);
+				int32_t index = project.clips.session_clips.getIndexForClip(m.clip);
 				if (index >= 0) {
 					writer.writeAttribute("kind", "clip_launch");
 					writer.writeAttribute("clip", index);
@@ -1683,8 +1683,8 @@ unknownTag:
 							}
 							else if (!strcmp(tagName, "clip")) {
 								int32_t index = reader.readTagOrAttributeValueInt();
-								if (index >= 0 && index < std::ssize(project.clips.sessionClips)) {
-									m.clip = project.clips.sessionClips[index];
+								if (index >= 0 && index < std::ssize(project.clips.session_clips)) {
+									m.clip = project.clips.session_clips[index];
 								}
 							}
 							else if (!strcmp(tagName, "output")) {
@@ -1886,7 +1886,7 @@ loadOutput:
 			}
 
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
-				Error error = readClipsFromFile(reader, &project.clips.sessionClips);
+				Error error = readClipsFromFile(reader, &project.clips.session_clips);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -1894,7 +1894,7 @@ loadOutput:
 			}
 
 			else if (!strcmp(tagName, "arrangementOnlyTracks") || !strcmp(tagName, "arrangementOnlyClips")) {
-				Error error = readClipsFromFile(reader, &project.clips.arrangementOnlyClips);
+				Error error = readClipsFromFile(reader, &project.clips.arrangement_only_clips);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -1937,8 +1937,8 @@ loadOutput:
 	setBPM(calculateBPM(), false);
 
 	// Ensure all arranger-only Clips have their section as 255
-	for (int32_t t = 0; t < std::ssize(project.clips.arrangementOnlyClips); t++) {
-		Clip* clip = project.clips.arrangementOnlyClips[t];
+	for (int32_t t = 0; t < std::ssize(project.clips.arrangement_only_clips); t++) {
+		Clip* clip = project.clips.arrangement_only_clips[t];
 
 		clip->section = 255;
 		clip->gotInstanceYet = false;
@@ -1952,8 +1952,8 @@ loadOutput:
 	// Match all Clips up with their Output
 	// For each Clip in session and arranger
 	std::array<ClipArray*, 2> const arrays{
-	    &project.clips.sessionClips,
-	    &project.clips.arrangementOnlyClips,
+	    &project.clips.session_clips,
+	    &project.clips.arrangement_only_clips,
 	};
 	for (ClipArray* clipArray : arrays) {
 		for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
@@ -2031,7 +2031,7 @@ loadOutput:
 				bool isArrangementClip = clipCode >> 31;
 
 				ClipArray* clips =
-				    isArrangementClip ? &project.clips.arrangementOnlyClips : &project.clips.sessionClips;
+				    isArrangementClip ? &project.clips.arrangement_only_clips : &project.clips.session_clips;
 
 				if (lookingForIndex >= static_cast<int32_t>(clips->size())) {
 #if ALPHA_OR_BETA_VERSION
@@ -2093,8 +2093,8 @@ skipInstance:
 
 	// Ensure no arrangement-only Clips with no ClipInstance
 	// For each Clip in arrangement
-	for (int32_t c = 0; c < std::ssize(project.clips.arrangementOnlyClips); c++) {
-		Clip* clip = project.clips.arrangementOnlyClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.arrangement_only_clips); c++) {
+		Clip* clip = project.clips.arrangement_only_clips[c];
 
 		if (!clip->gotInstanceYet) {
 #if ALPHA_OR_BETA_VERSION
@@ -2107,7 +2107,7 @@ skipInstance:
 				project.transport.sync_scaling_clip = nullptr;
 			}
 
-			project.clips.arrangementOnlyClips.erase(project.clips.arrangementOnlyClips.begin() + c);
+			project.clips.arrangement_only_clips.erase(project.clips.arrangement_only_clips.begin() + c);
 			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			c--;
 		}
@@ -2441,7 +2441,7 @@ NoteRow* Song::findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtCli
 
 	// For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master
 	// list for arranger Clips
-	ClipArray* clipArray = &project.clips.sessionClips;
+	ClipArray* clipArray = &project.clips.session_clips;
 	bool doingClipsProvidedByOutput = false;
 decideNumElements:
 	int32_t numElements = std::ssize(*clipArray);
@@ -2475,9 +2475,9 @@ traverseClips:
 			return noteRow;
 		}
 	}
-	if (!doingClipsProvidedByOutput && clipArray == &project.clips.sessionClips) {
+	if (!doingClipsProvidedByOutput && clipArray == &project.clips.session_clips) {
 		if (outputClipInstanceListIsCurrentlyInvalid) {
-			clipArray = &project.clips.arrangementOnlyClips;
+			clipArray = &project.clips.arrangement_only_clips;
 			goto decideNumElements;
 		}
 		else {
@@ -2511,7 +2511,7 @@ void Song::setupPatchingForAllParamManagersForDrum(SoundDrum* drum) {
 
 	// For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master
 	// list for arranger Clips
-	ClipArray* clipArray = &project.clips.sessionClips;
+	ClipArray* clipArray = &project.clips.session_clips;
 	bool doingClipsProvidedByOutput = false;
 decideNumElements:
 	int32_t numElements = std::ssize(*clipArray);
@@ -2570,11 +2570,11 @@ traverseClips:
 	}
 
 	// If we just finished iterating the sessionClips, we next want to do the arrangementOnlyClips.
-	if (!doingClipsProvidedByOutput && clipArray == &project.clips.sessionClips) {
+	if (!doingClipsProvidedByOutput && clipArray == &project.clips.session_clips) {
 		// If Instrument is currently being "swapped", or if we still don't actually know the Output, then we have
 		// to do things the slow way and search every arrangementOnlyClip
 		if (outputClipInstanceListIsCurrentlyInvalid || !output) {
-			clipArray = &project.clips.arrangementOnlyClips;
+			clipArray = &project.clips.arrangement_only_clips;
 			goto decideNumElements;
 		}
 
@@ -2599,14 +2599,14 @@ void Song::setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound)
 	                                                ->addModControllableButNoNoteRow(sound);
 
 	// For each Clip in session and arranger for specific Output
-	int32_t numElements = std::ssize(project.clips.sessionClips);
+	int32_t numElements = std::ssize(project.clips.session_clips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = project.clips.sessionClips[c];
+			clip = project.clips.session_clips[c];
 			if (clip->output != sound) {
 				continue;
 			}
@@ -2654,14 +2654,14 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersFo
 	                                                ->addModControllableButNoNoteRow(instrument);
 
 	// For each Clip in session and arranger for specific Output
-	int32_t numElements = std::ssize(project.clips.sessionClips);
+	int32_t numElements = std::ssize(project.clips.session_clips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = project.clips.sessionClips[c];
+			clip = project.clips.session_clips[c];
 			if (clip->output != instrument) {
 				continue;
 			}
@@ -2711,14 +2711,14 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersFo
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	// For each Clip in session and arranger for specific Output
-	int32_t numElements = std::ssize(project.clips.sessionClips);
+	int32_t numElements = std::ssize(project.clips.session_clips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips but less obvious, so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = project.clips.sessionClips[c];
+			clip = project.clips.session_clips[c];
 			if (clip->output != kit) {
 				continue;
 			}
@@ -3037,8 +3037,8 @@ void Song::reassessWhetherAnyClipsSoloing() {
 	anyClipsSoloing = false;
 
 	// For each Clip in session
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 
 		if (clip->soloingInSessionMode) {
 			anyClipsSoloing = true;
@@ -3052,8 +3052,8 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 		if (getRidOfArmingToo) {
 
 			// Just get rid of arming
-			for (int32_t l = 0; l < std::ssize(project.clips.sessionClips); l++) {
-				Clip* loopable = project.clips.sessionClips[l];
+			for (int32_t l = 0; l < std::ssize(project.clips.session_clips); l++) {
+				Clip* loopable = project.clips.session_clips[l];
 				if (loopable->launchStyle == LaunchStyle::DEFAULT
 				    && currentSong->project.arrangement.sections[loopable->section].num_repetitions != -2) {
 					loopable->armState = ArmState::OFF;
@@ -3065,8 +3065,8 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 
 	// Stop all other playing-but-not-soloing Clips, and turn all soloing Clip into playing Clip!
 	// For each Clip in session
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 
 		clip->activeIfNoSolo = clip->soloingInSessionMode;
 		clip->soloingInSessionMode = false;
@@ -3257,14 +3257,14 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 
 	// Tell all the Clips to change their Instrument.
 	// For each Clip in session and arranger for specific Output...
-	int32_t numElements = std::ssize(project.clips.sessionClips);
+	int32_t numElements = std::ssize(project.clips.session_clips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = project.clips.sessionClips[c];
+			clip = project.clips.session_clips[c];
 			if (clip->output != oldOutput) {
 				continue;
 			}
@@ -3677,8 +3677,8 @@ bool Song::doesOutputHaveAnyClips(Output* output) {
 void Song::restoreClipStatesBeforeArrangementPlay() {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 
 		clip->activeIfNoSolo = clip->wasActiveBefore;
 		clip->soloingInSessionMode = false;
@@ -3694,8 +3694,8 @@ int32_t Song::getLowestSectionWithNoSessionClipForOutput(Output* output) {
 	bool* sectionRepresented = (bool*)shortStringBuffer;
 	memset(sectionRepresented, 0, kMaxNumSections);
 
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 		if (clip->output == output && clip->section < kMaxNumSections) {
 			sectionRepresented[clip->section] = true;
 		}
@@ -3720,14 +3720,14 @@ void Song::assertActiveness(ModelStackWithTimelineCounter* modelStack, int32_t e
 
 	// Stop any Clips with same Output
 	// For each Clip in session and arranger for specific Output
-	int32_t numElements = std::ssize(project.clips.sessionClips);
+	int32_t numElements = std::ssize(project.clips.session_clips);
 	bool doingArrangementClips = false;
 	// TODO: Should use AllClips(), but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;
 		if (!doingArrangementClips) {
-			clip = project.clips.sessionClips[c];
+			clip = project.clips.session_clips[c];
 			if (clip->output != output) {
 				continue;
 			}
@@ -3812,8 +3812,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 
 		int32_t count = 0;
 
-		for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-			Clip* clip = project.clips.sessionClips[c];
+		for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+			Clip* clip = project.clips.session_clips[c];
 
 			if (!(count & 3)) {
 				AudioEngine::routineWithClusterLoading();
@@ -3857,8 +3857,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 	int32_t count = 0;
 
 	// And finally, go through session Clips again, giving any more to Instruments that can be given
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 		if (!(count & 7)) {
 			AudioEngine::routineWithClusterLoading();
 			AudioEngine::logAction("aaa5.125");
@@ -4113,8 +4113,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 
 		if (isClipActive(clip)) {
 			int32_t clipInstanceI = std::ssize(clip->output->clipInstances);
@@ -4139,8 +4139,8 @@ Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 void Song::endInstancesOfActiveClips(int32_t pos, bool detachClipsToo) {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 
 		if (isClipActive(clip)) {
 
@@ -4176,8 +4176,8 @@ void Song::resumeClipsClonedForArrangementRecording() {
 	ModelStack* modelStackOriginal = setupModelStackWithSong(modelStackMemoryOriginal, this);
 
 	// For each Clip in session
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* originalClip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* originalClip = project.clips.session_clips[c];
 
 		Clip* clonedClip = originalClip->output->getActiveClip();
 		if (clonedClip && clonedClip->beingRecordedFromClip == originalClip) {
@@ -4243,7 +4243,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 		bool deletionDone = false;
 
 		if (action) {
-			deletionDone = action->recordClipExistenceChange(this, &project.clips.arrangementOnlyClips, clip,
+			deletionDone = action->recordClipExistenceChange(this, &project.clips.arrangement_only_clips, clip,
 			                                                 ExistenceChangeType::DELETE);
 			// That call will call pickAnActiveClipIfPossible() whether we like it or not...
 		}
@@ -4253,10 +4253,10 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 			// Delete the actual Clip.
 			// Will not remove Instrument from Song. Will call audio routine! That's why we deleted the ClipInstance
 			// first
-			int32_t index = project.clips.arrangementOnlyClips.getIndexForClip(clip);
+			int32_t index = project.clips.arrangement_only_clips.getIndexForClip(clip);
 			if (index != -1) {
-				project.clips.arrangementOnlyClips.erase(project.clips.arrangementOnlyClips.begin()
-				                                         + index); // Shouldn't actually ever not be found
+				project.clips.arrangement_only_clips.erase(project.clips.arrangement_only_clips.begin()
+				                                           + index); // Shouldn't actually ever not be found
 			}
 			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			if (shouldPickNewActiveClip) {
@@ -4642,7 +4642,7 @@ gotAnInstrument: {}
 
 void Song::setupClipIndexesForSaving() {
 	// For each Clip in session and arranger
-	ClipArray* clipArray = &project.clips.sessionClips;
+	ClipArray* clipArray = &project.clips.session_clips;
 	int32_t sessionIndex = 0;
 	for (Clip* clip : AllClips::inSession(this)) {
 		clip->indexForSaving = sessionIndex++;
@@ -4952,7 +4952,7 @@ lookAtNextOne:
 
 	int32_t clipYDisplay = clipIndex - persistentView.songViewYScroll;
 	int32_t bottomYDisplay = -persistentView.songViewYScroll;
-	int32_t topYDisplay = bottomYDisplay + std::ssize(project.clips.sessionClips) - 1;
+	int32_t topYDisplay = bottomYDisplay + std::ssize(project.clips.session_clips) - 1;
 	bottomYDisplay = std::max(bottomYDisplay, 0_i32);
 	topYDisplay = std::min(topYDisplay, kDisplayHeight - 1);
 	int32_t amountOfStuffAbove = topYDisplay - clipYDisplay;
@@ -4964,7 +4964,7 @@ lookAtNextOne:
 	// stop it playing!
 	if (foundAtLeastOneInstanceInArranger) {
 
-		(void)project.clips.arrangementOnlyClips.insertClipAt((InstrumentClip*)clip, 0);
+		(void)project.clips.arrangement_only_clips.insertClipAt((InstrumentClip*)clip, 0);
 		clip->section = 255;
 	}
 
@@ -4996,7 +4996,7 @@ void Song::removeSessionClipLowLevel(Clip* clip, int32_t clipIndex) {
 		}
 	}
 
-	project.clips.sessionClips.erase(project.clips.sessionClips.begin() + clipIndex);
+	project.clips.session_clips.erase(project.clips.session_clips.begin() + clipIndex);
 }
 
 // originalClipIndex is optional
@@ -5014,8 +5014,8 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 	bool anyDeleted = false;
 
 	// For each Clip in session
-	for (int32_t c = std::ssize(project.clips.sessionClips) - 1; c >= 0; c--) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = std::ssize(project.clips.session_clips) - 1; c >= 0; c--) {
+		Clip* clip = project.clips.session_clips[c];
 
 		if (clip->isPendingOverdub && (!onlyWithOutput || clip->output == onlyWithOutput)) {
 			removeSessionClip(clip, c, true);
@@ -5038,12 +5038,12 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 
 int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
 	int32_t numToSearch =
-	    std::min<int32_t>(std::ssize(project.clips.sessionClips), persistentView.songViewYScroll + kDisplayHeight);
+	    std::min<int32_t>(std::ssize(project.clips.session_clips), persistentView.songViewYScroll + kDisplayHeight);
 
 	int32_t outputValue = persistentView.songViewYScroll;
 
 	for (int32_t i = 0; i < numToSearch; i++) {
-		Clip* clip = project.clips.sessionClips[i];
+		Clip* clip = project.clips.session_clips[i];
 		if (clip->isPendingOverdub) {
 			outputValue--;
 		}
@@ -5055,8 +5055,8 @@ int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
 Clip* Song::getPendingOverdubWithOutput(Output* output) {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 
 		if (clip->isPendingOverdub && clip->output == output) {
 			return clip;
@@ -5069,8 +5069,8 @@ Clip* Song::getPendingOverdubWithOutput(Output* output) {
 Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 
 		if (clip->output == output && clip->armState != ArmState::OFF && !isClipActive(clip)
 		    && clip->wantsToBeginLinearRecording(this)) {
@@ -5098,7 +5098,7 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 
 		if (newClip && newClip != clip) {
 			newClip->overdubNature = newOverdubNature;
-			(void)project.clips.sessionClips.insertClipAt(newClip, clipIndex);
+			(void)project.clips.session_clips.insertClipAt(newClip, clipIndex);
 			if (clipIndex != persistentView.songViewYScroll) {
 				persistentView.songViewYScroll++;
 			}
@@ -5117,8 +5117,8 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 bool Song::hasAnyPendingNextOverdubs() {
 
 	// For each Clip in session
-	for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-		Clip* clip = project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* clip = project.clips.session_clips[c];
 
 		if (clip->isPendingOverdub) {
 			return true;
@@ -5168,7 +5168,7 @@ void Song::cullAudioClipVoice() {
 }
 
 void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
-	project.clips.sessionClips[clipIndex] = newClip;
+	project.clips.session_clips[clipIndex] = newClip;
 
 	if (oldClip == getSyncScalingClip()) {
 		project.transport.sync_scaling_clip = newClip;
@@ -5211,8 +5211,8 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 	if (defaultAudioClipOverdubOutputCloning == -1) {
 		defaultAudioClipOverdubOutputCloning = 1;
 		// For each Clip in session
-		for (int32_t c = 0; c < std::ssize(project.clips.sessionClips); c++) {
-			Clip* clip = project.clips.sessionClips[c];
+		for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+			Clip* clip = project.clips.session_clips[c];
 
 			if (clip->type == ClipType::AUDIO && clip->armedForRecording) {
 				defaultAudioClipOverdubOutputCloning = ((AudioClip*)clip)->overdubsShouldCloneOutput;

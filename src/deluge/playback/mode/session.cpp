@@ -119,8 +119,8 @@ void Session::armAllClipsToStop(int32_t afterNumRepeats) {
 
 	// If any soloing Clips
 	if (currentSong->getAnyClipsSoloing()) {
-		for (int32_t l = 0; l < std::ssize(currentSong->project.clips.sessionClips); l++) {
-			Clip* clip = currentSong->project.clips.sessionClips[l];
+		for (int32_t l = 0; l < std::ssize(currentSong->project.clips.session_clips); l++) {
+			Clip* clip = currentSong->project.clips.session_clips[l];
 			clip->activeIfNoSolo = false;
 			if (clip->soloingInSessionMode) {
 				clip->armState = ArmState::ON_NORMAL;
@@ -130,8 +130,8 @@ void Session::armAllClipsToStop(int32_t afterNumRepeats) {
 
 	// Or if no soloing Clips
 	else {
-		for (int32_t l = 0; l < std::ssize(currentSong->project.clips.sessionClips); l++) {
-			Clip* clip = currentSong->project.clips.sessionClips[l];
+		for (int32_t l = 0; l < std::ssize(currentSong->project.clips.session_clips); l++) {
+			Clip* clip = currentSong->project.clips.session_clips[l];
 			clip->armState = clip->activeIfNoSolo ? ArmState::ON_NORMAL : ArmState::OFF;
 		}
 	}
@@ -142,13 +142,13 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 		numRepetitions = currentSong->project.arrangement.sections[oldSection].num_repetitions;
 	}
 	if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-		if (currentSong->project.clips.sessionClips[0]->section != oldSection) {
+		if (currentSong->project.clips.session_clips[0]->section != oldSection) {
 
 			int32_t newSection = SECTION_OUT_OF_RANGE;
-			for (int32_t c = 1; c < std::ssize(currentSong->project.clips.sessionClips);
+			for (int32_t c = 1; c < std::ssize(currentSong->project.clips.session_clips);
 			     c++) { // NOTE: starts at 1, not 0
-				Clip* clip = currentSong->project.clips.sessionClips[c];
-				int32_t tempSection = currentSong->project.clips.sessionClips[c - 1]->section;
+				Clip* clip = currentSong->project.clips.session_clips[c];
+				int32_t tempSection = currentSong->project.clips.session_clips[c - 1]->section;
 				if (currentSong->project.arrangement.sections[tempSection].num_repetitions != LAUNCH_EXCLUSIVE) {
 					newSection = tempSection;
 				}
@@ -290,8 +290,8 @@ void Session::doLaunch(bool isFillLaunch) {
 
 	// First do a loop through all Clips seeing which ones are going to launch, so we can then go through again and
 	// deactivate those Outputs' other Clips
-	for (int32_t c = std::ssize(currentSong->project.clips.sessionClips) - 1; c >= 0; c--) {
-		Clip* clip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
+		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		if (isFillLaunch
 		    && (clip->fillEventAtTickCount <= 0
@@ -375,8 +375,8 @@ void Session::doLaunch(bool isFillLaunch) {
 	// Ok, now action all currently playing clips. This includes clips armed to start recording or stop - including ones
 	// which weren't actually armed to stop but need to stop in order to make way for other ones which were armed to
 	// start. But we can't action the starting of any Clips yet, until all stopping is done.
-	for (int32_t c = std::ssize(currentSong->project.clips.sessionClips) - 1; c >= 0; c--) {
-		Clip* clip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
+		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		clip->wasActiveBefore = currentSong->isClipActive(clip);
 
@@ -536,8 +536,8 @@ stopOnlyIfOutputTaken:
 	bool anyLinearRecordingAfter = false;
 
 	// Now action the launching of Clips
-	for (int32_t c = std::ssize(currentSong->project.clips.sessionClips) - 1; c >= 0; c--) {
-		Clip* clip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
+		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		if (isFillLaunch
 		    && (clip->fillEventAtTickCount <= 0
@@ -692,8 +692,9 @@ doNormalLaunch:
 							sectionToArm = currentSong->sectionToReturnToAfterSongEnd;
 						}
 						else {
-							Clip* topClip = currentSong->project.clips
-							                    .sessionClips[std::ssize(currentSong->project.clips.sessionClips) - 1];
+							Clip* topClip =
+							    currentSong->project.clips
+							        .session_clips[std::ssize(currentSong->project.clips.session_clips) - 1];
 							sectionToArm = topClip->section;
 						}
 						armSectionWhenNeitherClockActive(modelStack, sectionToArm, true);
@@ -729,8 +730,8 @@ doNormalLaunch:
 void Session::justAbortedSomeLinearRecording() {
 	if (playbackHandler.isEitherClockActive() && currentPlaybackMode == this) {
 
-		for (int32_t c = std::ssize(currentSong->project.clips.sessionClips) - 1; c >= 0; c--) {
-			Clip* clip = currentSong->project.clips.sessionClips[c];
+		for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
+			Clip* clip = currentSong->project.clips.session_clips[c];
 
 			if (clip->isPendingOverdub || clip->getCurrentlyRecordingLinearly()) {
 				return;
@@ -1018,8 +1019,8 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 		// in the "background" here.
 		if (clip->activeIfNoSolo) {
 			// For each Clip in session
-			for (int32_t c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-				Clip* thisClip = currentSong->project.clips.sessionClips[c];
+			for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+				Clip* thisClip = currentSong->project.clips.session_clips[c];
 
 				if (thisClip != clip && thisClip->output == clip->output) {
 					thisClip->activeIfNoSolo = false;
@@ -1209,8 +1210,8 @@ void Session::armSection(uint8_t section, int32_t buttonPressLatency) {
 	// If every Clip in this section is already playing, and no other Clips are (unless we're a "share" section), then
 	// there's no need to launch the section because it's already playing. So, make sure this isn't the case before we
 	// go and do anything more
-	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-		Clip* clip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		// If a Clip in the section is not playing...
 		if (clip->section == section && !clip->activeIfNoSolo) {
@@ -1263,8 +1264,8 @@ yupThatsFine:
 // Probably have to call armingChanged() after this.
 // Can sorta be applicable either then !playback state, or when tempoless recording.
 void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t section, bool stopAllOtherClips) {
-	for (int32_t c = 0; c < std::ssize(modelStack->song->project.clips.sessionClips); c++) {
-		Clip* clip = modelStack->song->project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(modelStack->song->project.clips.session_clips); c++) {
+		Clip* clip = modelStack->song->project.clips.session_clips[c];
 
 		if (clip->section == section && !clip->activeIfNoSolo) {
 			clip->activeIfNoSolo = true;
@@ -1354,8 +1355,8 @@ void Session::armClipsAlongWithExistingLaunching(ArmState armState, uint8_t sect
 	}
 	else // Or, if a whole section...
 	{
-		for (int l = 0; l < std::ssize(currentSong->project.clips.sessionClips); l++) {
-			Clip* thisClip = currentSong->project.clips.sessionClips[l];
+		for (int l = 0; l < std::ssize(currentSong->project.clips.session_clips); l++) {
+			Clip* thisClip = currentSong->project.clips.session_clips[l];
 			if (thisClip->section == section) {
 				// If we're arming a section, we know there's no soloing or armed Clips, so that's easy.
 				// Only arm if it's not playing
@@ -1379,8 +1380,8 @@ void Session::armClipsWithNothingToSyncTo(uint8_t section, Clip* clip) {
 	}
 	else // Or, if a whole section...
 	{
-		for (int c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-			Clip* thisClip = currentSong->project.clips.sessionClips[c];
+		for (int c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+			Clip* thisClip = currentSong->project.clips.session_clips[c];
 			if (thisClip->section == section) {
 				thisClip->activeIfNoSolo = true;
 				currentSong->assertActiveness(modelStack->addTimelineCounter(thisClip)); // Very inefficient
@@ -1427,8 +1428,8 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 		// until the bugfix above, and I wouldn't want the behaviour changing on any users.
 		waitForClip = currentSong->getLongestClip(false, true);
 		longestStartingClipLength = 0;
-		for (int32_t c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-			Clip* thisClip = currentSong->project.clips.sessionClips[c];
+		for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+			Clip* thisClip = currentSong->project.clips.session_clips[c];
 
 			if (thisClip->section == section && thisClip->loopLength > longestStartingClipLength) {
 				longestStartingClipLength = thisClip->loopLength;
@@ -1642,8 +1643,8 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 
 		// Ok, we're going to do a big complex thing where we traverse just once (or occasionally twice) through all
 		// sessionClips. Reverse order so behaviour of this new code is the same as the old code
-		for (int32_t c = std::ssize(currentSong->project.clips.sessionClips) - 1; c >= 0; c--) {
-			Clip* thisClip = currentSong->project.clips.sessionClips[c];
+		for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
+			Clip* thisClip = currentSong->project.clips.session_clips[c];
 
 			if (thisClip->launchStyle == LaunchStyle::FILL) {
 				continue;
@@ -1669,8 +1670,8 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 
 						// We're gonna make this Clip active, but we may have already tried to make a previous
 						// one on this Output active, so go back through all previous ones and deactivate / disarm them
-						for (int32_t d = std::ssize(currentSong->project.clips.sessionClips) - 1; d > c; d--) {
-							Clip* thatClip = currentSong->project.clips.sessionClips[d];
+						for (int32_t d = std::ssize(currentSong->project.clips.session_clips) - 1; d > c; d--) {
+							Clip* thatClip = currentSong->project.clips.session_clips[d];
 							if (thatClip->output == output) {
 								thatClip->armState = thatClip->activeIfNoSolo ? ArmState::ON_NORMAL : ArmState::OFF;
 							}
@@ -1741,8 +1742,8 @@ weWantThisClipInactive:
 		// we in a position to know which of those other Clips we still will need to stop because of their Output
 		if (!stopAllOtherClips) {
 
-			for (int32_t c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-				Clip* thisClip = currentSong->project.clips.sessionClips[c];
+			for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+				Clip* thisClip = currentSong->project.clips.session_clips[c];
 
 				// Ok, so if it's from another section (only those, because we've already dealt with the ones in our
 				// section)...
@@ -1924,8 +1925,8 @@ void Session::scheduleFillClip(Clip* clip) {
  *
  */
 void Session::scheduleFillClips(uint8_t section) {
-	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-		Clip* thisClip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+		Clip* thisClip = currentSong->project.clips.session_clips[c];
 
 		// If thisClip is in the section we're wanting to arm...
 		if (thisClip->section == section && thisClip->launchStyle == LaunchStyle::FILL) {
@@ -1941,8 +1942,8 @@ void Session::scheduleFillClips(uint8_t section) {
 }
 
 void Session::cancelAllArming() {
-	for (int32_t l = 0; l < std::ssize(currentSong->project.clips.sessionClips); l++) {
-		Clip* clip = currentSong->project.clips.sessionClips[l];
+	for (int32_t l = 0; l < std::ssize(currentSong->project.clips.session_clips); l++) {
+		Clip* clip = currentSong->project.clips.session_clips[l];
 		clip->cancelAnyArming();
 	}
 }
@@ -1954,8 +1955,8 @@ void Session::armClipLowLevel(Clip* clipToArm, ArmState armState, bool mustUnarm
 	// Unarm any armed Clips with same Output, if we're doing that
 	if (mustUnarmOtherClipsWithSameOutput) {
 		// All session Clips
-		for (int32_t c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-			Clip* clip = currentSong->project.clips.sessionClips[c];
+		for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+			Clip* clip = currentSong->project.clips.session_clips[c];
 
 			if (clip != clipToArm && !clip->soloingInSessionMode && !clip->activeIfNoSolo
 			    && clip->armState != ArmState::OFF && clip->output == clipToArm->output) {
@@ -1995,8 +1996,8 @@ int32_t Session::getCurrentSection() {
 	bool anyUnlaunchedLoopablesInSection[kMaxNumSections];
 	memset(anyUnlaunchedLoopablesInSection, 0, sizeof(anyUnlaunchedLoopablesInSection));
 
-	for (int32_t l = 0; l < std::ssize(currentSong->project.clips.sessionClips); l++) {
-		Clip* clip = currentSong->project.clips.sessionClips[l];
+	for (int32_t l = 0; l < std::ssize(currentSong->project.clips.session_clips); l++) {
+		Clip* clip = currentSong->project.clips.session_clips[l];
 
 		// Launch exclusively section
 		if (currentSong->project.arrangement.sections[clip->section].num_repetitions == LAUNCH_EXCLUSIVE) {
@@ -2026,8 +2027,8 @@ int32_t Session::getCurrentSection() {
 }
 
 bool Session::areAnyClipsArmed() {
-	for (int32_t l = 0; l < std::ssize(currentSong->project.clips.sessionClips); l++) {
-		Clip* clip = currentSong->project.clips.sessionClips[l];
+	for (int32_t l = 0; l < std::ssize(currentSong->project.clips.session_clips); l++) {
+		Clip* clip = currentSong->project.clips.session_clips[l];
 
 		if (clip->armState != ArmState::OFF) {
 			return true;
@@ -2072,8 +2073,8 @@ bool Session::endPlayback() {
 
 	bool anyClipsRemoved = currentSong->deletePendingOverdubs();
 
-	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-		Clip* clip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		clip->cancelAnyArming();
 		if (currentSong->isClipActive(clip)) {
@@ -2122,8 +2123,8 @@ bool Session::wantsToDoTempolessRecord(int32_t newPos) {
 
 	bool anyActiveClips = false;
 
-	for (int32_t c = std::ssize(currentSong->project.clips.sessionClips) - 1; c >= 0; c--) {
-		Clip* clip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
+		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		if (currentSong->isClipActive(clip)) {
 			anyActiveClips = true;
@@ -2168,8 +2169,8 @@ void Session::resetPlayPos(int32_t newPos, bool doingComplete, int32_t buttonPre
 
 	int32_t distanceTilLaunchEvent = 0;
 
-	for (int32_t c = std::ssize(currentSong->project.clips.sessionClips) - 1; c >= 0; c--) {
-		Clip* clip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
+		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		// Sometimes, after finishing a tempoless record, a new pending overdub will have been created, and we need to
 		// act on it here
@@ -2243,7 +2244,7 @@ bool Session::considerLaunchEvent(int32_t numTicksBeingIncremented) {
 
 	// For each Clip in session and arranger (we include arrangement-only Clips, which might still be left playing after
 	// switching from arrangement to session)
-	ClipArray* clipArray = &currentSong->project.clips.sessionClips;
+	ClipArray* clipArray = &currentSong->project.clips.session_clips;
 traverseClips:
 	for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
 		Clip* clip = (*clipArray)[c];
@@ -2265,8 +2266,8 @@ traverseClips:
 
 		clip->incrementPos(modelStackWithTimelineCounter, numTicksBeingIncremented);
 	}
-	if (clipArray != &currentSong->project.clips.arrangementOnlyClips) {
-		clipArray = &currentSong->project.clips.arrangementOnlyClips;
+	if (clipArray != &currentSong->project.clips.arrangement_only_clips) {
+		clipArray = &currentSong->project.clips.arrangement_only_clips;
 		goto traverseClips;
 	}
 
@@ -2403,10 +2404,10 @@ void Session::doTickForward(int32_t posIncrement) {
 	for (uint8_t iPass = 0; iPass < 4; iPass++) {
 
 		if (iPass % 2 == 0) {
-			clipArray = &currentSong->project.clips.sessionClips;
+			clipArray = &currentSong->project.clips.session_clips;
 		}
 		else {
-			clipArray = &currentSong->project.clips.arrangementOnlyClips;
+			clipArray = &currentSong->project.clips.arrangement_only_clips;
 		}
 
 		for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
@@ -2486,8 +2487,8 @@ void Session::doTickForward(int32_t posIncrement) {
 
 void Session::resyncToSongTicks(Song* song) {
 
-	for (int32_t c = 0; c < std::ssize(song->project.clips.sessionClips); c++) {
-		Clip* clip = song->project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips); c++) {
+		Clip* clip = song->project.clips.session_clips[c];
 
 		if (song->isClipActive(clip)) {
 			reSyncClipToSongTicks(clip);
@@ -2527,8 +2528,8 @@ void Session::unsoloClip(Clip* clip) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-		for (int32_t c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-			Clip* thisClip = currentSong->project.clips.sessionClips[c];
+		for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+			Clip* thisClip = currentSong->project.clips.session_clips[c];
 
 			if (thisClip != clip && thisClip->activeIfNoSolo) {
 
@@ -2565,8 +2566,8 @@ void Session::soloClipRightNow(ModelStackWithTimelineCounter* modelStack) {
 			// Need to deactivate all other Clips
 			// - *and* also cancel any other arming, unless it's arming to become soloed.
 			// Non-solo-related arming is not allowed when Clips are soloing.
-			for (int32_t c = 0; c < std::ssize(modelStack->song->project.clips.sessionClips); c++) {
-				Clip* thisClip = modelStack->song->project.clips.sessionClips[c];
+			for (int32_t c = 0; c < std::ssize(modelStack->song->project.clips.session_clips); c++) {
+				Clip* thisClip = modelStack->song->project.clips.session_clips[c];
 				if (thisClip != clip) { // Only *other* Clips
 					if (thisClip->activeIfNoSolo) {
 						thisClip->expectNoFurtherTicks(modelStack->song);

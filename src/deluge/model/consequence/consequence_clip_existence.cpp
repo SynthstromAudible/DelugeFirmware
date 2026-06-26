@@ -120,7 +120,7 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 			FREEZE_WITH_ERROR("E244");
 		}
 
-		if (clipArray == &modelStackWithTimelineCounter->song->project.clips.sessionClips) {
+		if (clipArray == &modelStackWithTimelineCounter->song->project.clips.session_clips) {
 
 			// Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip - and
 			// also so overall soloing may be cancelled if no others soloing

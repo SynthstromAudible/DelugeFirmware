@@ -134,7 +134,7 @@ void ArrangerView::moveClipToSession() {
 	else {
 		// Clip already exists in session - just go to it
 		if (!clip->isArrangementOnlyClip()) {
-			int32_t index = currentSong->project.clips.sessionClips.getIndexForClip(clip);
+			int32_t index = currentSong->project.clips.session_clips.getIndexForClip(clip);
 			currentSong->persistentView.songViewYScroll = index - yPressedEffective;
 		}
 
@@ -147,14 +147,14 @@ void ArrangerView::moveClipToSession() {
 				intendedIndex = 0;
 			}
 
-			else if (intendedIndex > std::ssize(currentSong->project.clips.sessionClips)) {
+			else if (intendedIndex > std::ssize(currentSong->project.clips.session_clips)) {
 				currentSong->persistentView.songViewYScroll -=
-				    intendedIndex - std::ssize(currentSong->project.clips.sessionClips);
-				intendedIndex = std::ssize(currentSong->project.clips.sessionClips);
+				    intendedIndex - std::ssize(currentSong->project.clips.session_clips);
+				intendedIndex = std::ssize(currentSong->project.clips.session_clips);
 			}
 
 			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
-			auto inserted = currentSong->project.clips.sessionClips.insertClipAt(clip, intendedIndex);
+			auto inserted = currentSong->project.clips.session_clips.insertClipAt(clip, intendedIndex);
 			Error error = inserted ? Error::NONE : inserted.error();
 			if (error != Error::NONE) {
 				display->displayError(error);
@@ -162,10 +162,10 @@ void ArrangerView::moveClipToSession() {
 			}
 			actionLogger.deleteAllLogs();
 
-			int32_t oldIndex = currentSong->project.clips.arrangementOnlyClips.getIndexForClip(clip);
+			int32_t oldIndex = currentSong->project.clips.arrangement_only_clips.getIndexForClip(clip);
 			if (oldIndex != -1) {
-				currentSong->project.clips.arrangementOnlyClips.erase(
-				    currentSong->project.clips.arrangementOnlyClips.begin() + oldIndex);
+				currentSong->project.clips.arrangement_only_clips.erase(
+				    currentSong->project.clips.arrangement_only_clips.begin() + oldIndex);
 			}
 		}
 
@@ -1655,7 +1655,7 @@ void ArrangerView::deleteClipInstance(Output* output, ClipInstance* clipInstance
 /// called from ArrangerView::editPadAction
 /// creates a new clip when trying to enter a clip instance that does not have a clip assigned to it
 void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* clipInstance) {
-	if (!currentSong->project.clips.arrangementOnlyClips.reserveExtra(1)) {
+	if (!currentSong->project.clips.arrangement_only_clips.reserveExtra(1)) {
 		return exitSubModeWithoutAction();
 	}
 
@@ -1711,11 +1711,11 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 		output->setActiveClip(modelStack);
 	}
 
-	(void)currentSong->project.clips.arrangementOnlyClips.insertClipAt(newClip, 0);
+	(void)currentSong->project.clips.arrangement_only_clips.insertClipAt(newClip, 0);
 
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 	if (action) {
-		action->recordClipExistenceChange(currentSong, &currentSong->project.clips.arrangementOnlyClips, newClip,
+		action->recordClipExistenceChange(currentSong, &currentSong->project.clips.arrangement_only_clips, newClip,
 		                                  ExistenceChangeType::CREATE);
 	}
 
@@ -2676,7 +2676,7 @@ cant:
 
 	// If the old Output had a Clip that we're going to replace too...
 	if (instrumentClip) {
-		int32_t clipIndex = currentSong->project.clips.sessionClips.getIndexForClip(instrumentClip);
+		int32_t clipIndex = currentSong->project.clips.session_clips.getIndexForClip(instrumentClip);
 		if (ALPHA_OR_BETA_VERSION && clipIndex == -1) {
 			FREEZE_WITH_ERROR("E266");
 		}

@@ -24,8 +24,8 @@ namespace deluge::project {
 /// A song's clips: the session grid and the arrangement-only clips. A component of
 /// deluge::project::Song.
 struct Clips {
-	ClipArray sessionClips;
-	ClipArray arrangementOnlyClips;
+	ClipArray session_clips;
+	ClipArray arrangement_only_clips;
 };
 
 } // namespace deluge::project

@@ -53,8 +53,8 @@ void Arrangement::setupPlayback() {
 	// so maybe extra unneeded here - but that's not the only place that calls us, so have left it in for now
 	playbackHandler.swungTicksTilNextEvent = 0;
 
-	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.sessionClips); c++) {
-		Clip* clip = currentSong->project.clips.sessionClips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
+		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		clip->wasActiveBefore = clip->activeIfNoSolo;
 
@@ -66,8 +66,8 @@ void Arrangement::setupPlayback() {
 
 	// Got to deactiveate all arrangement-only Clips too! Especially cos some of them might be muted or something (this
 	// made stuff look very buggy!) For each Clip in arrangement
-	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.arrangementOnlyClips); c++) {
-		Clip* clip = currentSong->project.clips.arrangementOnlyClips[c];
+	for (int32_t c = 0; c < std::ssize(currentSong->project.clips.arrangement_only_clips); c++) {
+		Clip* clip = currentSong->project.clips.arrangement_only_clips[c];
 		clip->activeIfNoSolo = false;
 	}
 }
@@ -511,7 +511,7 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 
 // First, be sure the clipInstance has a Clip
 Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength, bool shouldCloneRepeats) {
-	if (!currentSong->project.clips.arrangementOnlyClips.reserveExtra(1)) {
+	if (!currentSong->project.clips.arrangement_only_clips.reserveExtra(1)) {
 		return Error::INSUFFICIENT_RAM;
 	}
 	Clip* oldClip = clipInstance->clip;
@@ -537,7 +537,7 @@ Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32
 	}
 
 	// Add to Song
-	(void)currentSong->project.clips.arrangementOnlyClips.insertClipAt(newClip, 0);
+	(void)currentSong->project.clips.arrangement_only_clips.insertClipAt(newClip, 0);
 
 	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip,
 	          nullptr);

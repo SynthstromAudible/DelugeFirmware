@@ -2670,12 +2670,12 @@ someError:
 					if (!output) {
 						int32_t clipId = reader.readTagOrAttributeValueInt();
 						clipId = std::max((int32_t)0, clipId);
-						if (clipId >= std::ssize(song->project.clips.sessionClips)) {
+						if (clipId >= std::ssize(song->project.clips.session_clips)) {
 							error = Error::FILE_CORRUPTED;
 							goto someError;
 						}
 						instrumentWasLoadedByReferenceFromClip =
-						    (InstrumentClip*)song->project.clips.sessionClips[clipId];
+						    (InstrumentClip*)song->project.clips.session_clips[clipId];
 						output = instrumentWasLoadedByReferenceFromClip->output;
 						if (!output) {
 							error = Error::FILE_CORRUPTED;
