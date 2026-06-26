@@ -502,7 +502,7 @@ void View::sectionMidiLearnPadPressed(bool on, uint8_t section) {
 	if (on) {
 		endMidiLearnPressSession(MidiLearn::SECTION);
 		deleteMidiCommandOnRelease = true;
-		learnedThing = &currentSong->project.arrangement.sections[section].launchMIDICommand;
+		learnedThing = &currentSong->project.arrangement.sections[section].launch_midi_command;
 	}
 	else if (thingPressedForMidiLearn == MidiLearn::SECTION) {
 		if (deleteMidiCommandOnRelease) {
@@ -2829,7 +2829,7 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 
 	bool armed = view.clipArmFlashOn;
 
-	SessionMacro& m = currentSong->project.arrangement.sessionMacros[y];
+	SessionMacro& m = currentSong->project.arrangement.session_macros[y];
 	switch (m.kind) {
 	case SessionMacroKind::CLIP_LAUNCH:
 		if (m.clip->activeIfNoSolo) {
@@ -2871,7 +2871,7 @@ void View::activateMacro(uint32_t y) {
 		return;
 	}
 
-	SessionMacro& m = currentSong->project.arrangement.sessionMacros[y];
+	SessionMacro& m = currentSong->project.arrangement.session_macros[y];
 	switch (m.kind) {
 	case SessionMacroKind::CLIP_LAUNCH:
 		if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {

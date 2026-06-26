@@ -40,7 +40,7 @@ void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int
 }
 
 bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
-	SessionMacro& m = currentSong->project.arrangement.sessionMacros[pad];
+	SessionMacro& m = currentSong->project.arrangement.session_macros[pad];
 	int kindIndex = std::to_underlying(m.kind) + offset;
 	if (kindIndex >= std::to_underlying(SessionMacroKind::NUM_KINDS)) {
 		kindIndex = 0;

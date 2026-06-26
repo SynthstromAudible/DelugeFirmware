@@ -30,8 +30,8 @@ namespace deluge::project {
 /// A launchable song section: how many times it repeats and an optional MIDI-learned launch command.
 class Section {
 public:
-	LearnedMIDI launchMIDICommand;
-	int16_t numRepetitions{0};
+	LearnedMIDI launch_midi_command;
+	int16_t num_repetitions{0};
 };
 
 /// What one of the assignable session macros does when triggered.
@@ -54,8 +54,8 @@ struct SessionMacro {
 /// Song arrangement structure: the launch sections and the eight assignable session macros.
 /// A component of deluge::project::Song.
 struct Arrangement {
-	Section sections[kMaxNumSections];
-	std::array<SessionMacro, 8> sessionMacros{};
+	std::array<Section, kMaxNumSections> sections{};
+	std::array<SessionMacro, 8> session_macros{};
 };
 
 } // namespace deluge::project

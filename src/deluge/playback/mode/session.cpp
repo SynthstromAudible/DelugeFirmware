@@ -139,7 +139,7 @@ void Session::armAllClipsToStop(int32_t afterNumRepeats) {
 
 void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	if (numRepetitions <= -1) {
-		numRepetitions = currentSong->project.arrangement.sections[oldSection].numRepetitions;
+		numRepetitions = currentSong->project.arrangement.sections[oldSection].num_repetitions;
 	}
 	if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 		if (currentSong->project.clips.sessionClips[0]->section != oldSection) {
@@ -149,7 +149,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 			     c++) { // NOTE: starts at 1, not 0
 				Clip* clip = currentSong->project.clips.sessionClips[c];
 				int32_t tempSection = currentSong->project.clips.sessionClips[c - 1]->section;
-				if (currentSong->project.arrangement.sections[tempSection].numRepetitions != LAUNCH_EXCLUSIVE) {
+				if (currentSong->project.arrangement.sections[tempSection].num_repetitions != LAUNCH_EXCLUSIVE) {
 					newSection = tempSection;
 				}
 				if (clip->section == oldSection && newSection != SECTION_OUT_OF_RANGE) {
@@ -165,7 +165,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 		if (oldSection < kMaxNumSections) {
 			int32_t newSection = SECTION_OUT_OF_RANGE;
 			for (int32_t c = oldSection + 1; c <= kMaxNumSections; ++c) {
-				if (currentSong->project.arrangement.sections[c].numRepetitions != LAUNCH_EXCLUSIVE) {
+				if (currentSong->project.arrangement.sections[c].num_repetitions != LAUNCH_EXCLUSIVE) {
 					newSection = c;
 					break;
 				}
@@ -647,7 +647,7 @@ doNormalLaunch:
 		// If we found a playing Clip outside of the armed section, or vice versa, then we can't say we legitimately
 		// just launched a section
 		if (clip->launchStyle != LaunchStyle::FILL && clipActiveAfter != (clip->section == lastSectionArmed)
-		    && currentSong->project.arrangement.sections[clip->section].numRepetitions != LAUNCH_EXCLUSIVE) {
+		    && currentSong->project.arrangement.sections[clip->section].num_repetitions != LAUNCH_EXCLUSIVE) {
 			sectionWasJustLaunched = false;
 		}
 	}
@@ -656,7 +656,8 @@ doNormalLaunch:
 
 	if (!isFillLaunch) {
 		// If some Clips are playing and they're all in the same section, we want to arm the next section
-		if (sectionWasJustLaunched && currentSong->project.arrangement.sections[lastSectionArmed].numRepetitions >= 1) {
+		if (sectionWasJustLaunched
+		    && currentSong->project.arrangement.sections[lastSectionArmed].num_repetitions >= 1) {
 			armNextSection(lastSectionArmed);
 		}
 
@@ -989,7 +990,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 		return;
 	}
 
-	if (currentSong->project.arrangement.sections[clip->section].numRepetitions != LAUNCH_EXCLUSIVE) {
+	if (currentSong->project.arrangement.sections[clip->section].num_repetitions != LAUNCH_EXCLUSIVE) {
 		lastSectionArmed = REALLY_OUT_OF_RANGE;
 	}
 
@@ -1203,7 +1204,7 @@ renderAndGetOut:
 void Session::armSection(uint8_t section, int32_t buttonPressLatency) {
 
 	// Get rid of soloing. And if we're not a "share" section, get rid of arming too
-	currentSong->turnSoloingIntoJustPlaying(currentSong->project.arrangement.sections[section].numRepetitions >= 0);
+	currentSong->turnSoloingIntoJustPlaying(currentSong->project.arrangement.sections[section].num_repetitions >= 0);
 
 	// If every Clip in this section is already playing, and no other Clips are (unless we're a "share" section), then
 	// there's no need to launch the section because it's already playing. So, make sure this isn't the case before we
@@ -1217,7 +1218,7 @@ void Session::armSection(uint8_t section, int32_t buttonPressLatency) {
 		}
 
 		// If a Clip in another section is playing and we're not a "share" section...
-		if (currentSong->project.arrangement.sections[section].numRepetitions > -1 && clip->section != section
+		if (currentSong->project.arrangement.sections[section].num_repetitions > -1 && clip->section != section
 		    && ((clip->armState != ArmState::OFF) != clip->activeIfNoSolo)) {
 			goto yupThatsFine;
 		}
@@ -1229,7 +1230,7 @@ void Session::armSection(uint8_t section, int32_t buttonPressLatency) {
 	return;
 
 yupThatsFine:
-	bool stopAllOtherClips = (currentSong->project.arrangement.sections[section].numRepetitions >= 0);
+	bool stopAllOtherClips = (currentSong->project.arrangement.sections[section].num_repetitions >= 0);
 
 	// If Deluge not playing
 	if (!playbackHandler.isEitherClockActive()) {
@@ -1251,7 +1252,7 @@ yupThatsFine:
 		    section, nullptr, stopAllOtherClips, false,
 		    false); // Don't allow "late start". It's too fiddly to implement, and rarely even useful for sections
 
-		if (currentSong->project.arrangement.sections[section].numRepetitions != LAUNCH_EXCLUSIVE) {
+		if (currentSong->project.arrangement.sections[section].num_repetitions != LAUNCH_EXCLUSIVE) {
 			lastSectionArmed = section;
 		}
 	}
@@ -1274,7 +1275,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 		}
 
 		if (stopAllOtherClips && clip->section != section && clip->activeIfNoSolo
-		    && currentSong->project.arrangement.sections[clip->section].numRepetitions != LAUNCH_EXCLUSIVE) {
+		    && currentSong->project.arrangement.sections[clip->section].num_repetitions != LAUNCH_EXCLUSIVE) {
 			// thisClip->expectNoFurtherTicks(currentSong); // No, don't need this, cos it's not playing!
 			clip->activeIfNoSolo = false;
 		}
@@ -1708,7 +1709,7 @@ wantActive:
 
 weWantThisClipInactive:
 					// Clip is launched exclusively
-					if (currentSong->project.arrangement.sections[thisClip->section].numRepetitions
+					if (currentSong->project.arrangement.sections[thisClip->section].num_repetitions
 					    == LAUNCH_EXCLUSIVE) {
 						if (thisClip->activeIfNoSolo) {
 							thisClip->armState = ArmState::OFF;
@@ -1969,7 +1970,7 @@ int32_t Session::userWantsToArmNextSection(int32_t numRepetitions) {
 	int32_t currentSection = getCurrentSection();
 	if (currentSection < SECTION_OUT_OF_RANGE) {
 		if (numRepetitions <= -1) {
-			numRepetitions = currentSong->project.arrangement.sections[currentSection].numRepetitions;
+			numRepetitions = currentSong->project.arrangement.sections[currentSection].num_repetitions;
 		}
 
 		if (numRepetitions >= 1) {
@@ -1998,7 +1999,7 @@ int32_t Session::getCurrentSection() {
 		Clip* clip = currentSong->project.clips.sessionClips[l];
 
 		// Launch exclusively section
-		if (currentSong->project.arrangement.sections[clip->section].numRepetitions == LAUNCH_EXCLUSIVE) {
+		if (currentSong->project.arrangement.sections[clip->section].num_repetitions == LAUNCH_EXCLUSIVE) {
 			continue;
 		}
 
