@@ -9,7 +9,7 @@ Developers will want to review these resources:
 - [Developer Tools](/development/deluge/tools)
 - [Deluge UX Principles](/development/deluge/ux_principles)
 - [SYSEX Protocol Notes](/development/deluge/sysexprotocolnotes)
-- [Doxygen Generated Developer Documentation](/doxygen)
+- [Doxygen Generated Developer Documentation](https://delugecommunity.com/doxygen)
 
 There are a lot more resources that help you getting started in the repository [Wiki](https://github.com/SynthstromAudible/DelugeFirmware/wiki) including but not limited to:
 
