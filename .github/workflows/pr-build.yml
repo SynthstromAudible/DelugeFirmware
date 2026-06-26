@@ -6,7 +6,6 @@ on:
       - 'synthstrom-official'
   pull_request:
     branches:
-      - 'community'
       - 'release/**'
       - 'main'
   merge_group:
