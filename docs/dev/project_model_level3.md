@@ -1,8 +1,21 @@
 # Level 3 — splitting a document model from the runtime model
 
-Status: **examination** — 2026-06-25. This is a design exploration + probe findings to decide
-*whether and how* to pursue an authoritative document model, **not** a commitment to build it. It
-extends the later phases of `project_model_extraction.md`.
+Status: **DECIDED — building the authoritative DOM** (2026-06-25). The examination (probes C + D,
+below) is complete and the **authoritative DOM fork is chosen over the load-time DTO**: the document
+becomes the source of truth and the runtime is projected from it, decoupling the engine from project
+state. This doc began as the design exploration / probe findings that informed that decision; it now
+also serves as the build's design reference. Extends the later phases of
+`project_model_extraction.md`.
+
+**Decision rationale (the DTO would have been cheaper but doesn't deliver the goal).** The whole
+point is engine↔state decoupling (and the restart/fault-isolation + Rust-owned-model it unlocks),
+which only the authoritative DOM provides; the DTO only decouples the file format. The examination
+showed the DOM is *feasible* and its costs are *characterized*, not speculative: identity is cheap
+(C), schema duplication is bounded-per-type/large-in-aggregate and dominated by the param/automation
+subtree (D), and the DOM ends up *cleaner* than the serialized format (it drops the leaked
+view/runtime fields, composing with the Phase-1 view-state split). Remaining unknowns are
+construction effort, not feasibility — so Phases A and B below are now the committed build path, not
+"either-fork on-ramps."
 
 ## The goal
 
@@ -110,11 +123,11 @@ polymorphic types (below).
      edits flow through the document. This is what actually decouples engine from state and unlocks
      restart/fault-isolation — and it is the large, engine-touching program.
 
-## Recommended path (incremental, go/no-go gated)
+## Build path (DOM committed)
 
-The probe de-risked problem (1) for the trivial case and confirmed the payoff. Before committing to
-the authoritative DOM, take the cheap on-ramps that are valuable under *either* fork and that each
-produce a go/no-go signal:
+The examination (C + D) is done and the DOM is chosen, so these phases are now the committed build
+sequence (A and B were the "either-fork on-ramps"; they remain the right first steps because the DOM
+needs both). Each is still golden-gated:
 
 - **Phase A — serialization seam (Phase 5 of the extraction).** Pull save/load out of the model
   classes into a narrow interface. This is the prerequisite for *any* document model and is useful
@@ -165,7 +178,7 @@ duplication cost from D), not speculation. Only then commit to the authoritative
 Identity is cheap (C). Schema duplication is bounded per-type but large in aggregate (~44 classes),
 dominated by the param/automation subtree (D) — and the DOM ends up *cleaner* than the serialized
 format (it drops the leaked view/runtime fields). The remaining unknowns are construction effort
-(Phases A/B), not feasibility. The DTO-vs-DOM fork can now be chosen on this evidence.
+(Phases A/B), not feasibility. **Decision: build the authoritative DOM** (see Status above).
 
 ## Decision criteria (when is the authoritative DOM worth it?)
 
