@@ -30,14 +30,14 @@ namespace deluge::project {
 /// A component of deluge::project::Song.
 struct ScaleSettings {
 	MusicalKey key;
-	std::bitset<NUM_PRESET_SCALES> disabledPresetScales;
+	std::bitset<NUM_PRESET_SCALES> disabled_preset_scales;
 	/// The song's user scale (empty when none is defined). Serialized as the "userScale" tag.
-	NoteSet userScaleNotes;
+	NoteSet user_scale_notes;
 	/// Computes per-note remappings when the scale changes; effectively private state of that path.
-	ScaleMapper scaleMapper;
+	ScaleMapper scale_mapper;
 
 	/// Whether a user scale is currently defined.
-	[[nodiscard]] bool hasUserScale() const { return !userScaleNotes.isEmpty(); }
+	[[nodiscard]] bool hasUserScale() const { return !user_scale_notes.isEmpty(); }
 };
 
 } // namespace deluge::project

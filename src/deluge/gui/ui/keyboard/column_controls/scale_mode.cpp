@@ -52,7 +52,7 @@ bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 				continue;
 			}
 		}
-		else if (currentSong->project.scale.disabledPresetScales[newScale]) {
+		else if (currentSong->project.scale.disabled_preset_scales[newScale]) {
 			continue;
 		}
 		bool scaleFoundInPads = false;
