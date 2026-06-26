@@ -16,6 +16,7 @@
  */
 #include "gui/ui/save/save_song_ui.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/serialization.h"
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
@@ -462,7 +463,7 @@ gotError:
 	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be
 	// for either overwriting or not.
 
-	currentSong->writeToFile();
+	deluge::project::saveSong(*currentSong, GetSerializer());
 
 	error = GetSerializer().closeFileAfterWriting(
 	    filePathDuringWrite.c_str(),

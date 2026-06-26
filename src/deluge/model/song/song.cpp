@@ -17,6 +17,7 @@
 
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/serialization.h"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -949,15 +950,14 @@ void Song::writeTemplateSong(const char* templatePath) {
 	if (error != Error::NONE) {
 		return;
 	}
-	writeToFile();
+	deluge::project::saveSong(*this, GetSerializer());
 	GetSerializer().closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
 	                                      "\n</song>\n");
 }
 
-void Song::writeToFile() {
+void Song::writeToFile(Serializer& writer) {
 
 	setupClipIndexesForSaving();
-	Serializer& writer = GetSerializer();
 	writer.reset();
 	if (!writeJsonFlag) {
 		writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");

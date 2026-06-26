@@ -17,6 +17,7 @@
 
 #include "gui/ui/load/load_song_ui.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/serialization.h"
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
@@ -404,7 +405,7 @@ fail:
 		// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but
 		// chances are, after failing on one of those, it'd try to load something else and that would fail.
 
-		error = preLoadedSong->readFromFile(*activeDeserializer);
+		error = deluge::project::loadSong(*preLoadedSong, *activeDeserializer);
 
 		if (error != Error::NONE) {
 			goto gotErrorAfterCreatingSong;
@@ -464,7 +465,7 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = preLoadedSong->readFromFile(*activeDeserializer);
+	error = deluge::project::loadSong(*preLoadedSong, *activeDeserializer);
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}

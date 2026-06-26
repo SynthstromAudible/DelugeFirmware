@@ -18,6 +18,7 @@
 //   - View selection cleared before save (writeToFile serialises UI state).
 // See the design doc for the full list.
 
+#include "deluge-project/serialization.h"
 #include "hid/display/display.h"
 #include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
@@ -49,7 +50,7 @@ static long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap,
 	activeDeserializer = &reader; // gate AudioEngine yields off (callRoutines == false)
 	Error e = reader.openXMLFile(nullptr, "song");
 	if (e == Error::NONE) {
-		e = song->readFromFile(reader);
+		e = deluge::project::loadSong(*song, reader);
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {
@@ -64,7 +65,7 @@ static long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap,
 	song->setCurrentClip(nullptr);
 
 	smSerializer.setMemoryBuffer(out, outCap);
-	song->writeToFile();
+	deluge::project::saveSong(*song, smSerializer);
 	return smSerializer.bytesWritten();
 }
 
