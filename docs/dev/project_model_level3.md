@@ -17,6 +17,26 @@ view/runtime fields, composing with the Phase-1 view-state split). Remaining unk
 construction effort, not feasibility — so Phases A and B below are now the committed build path, not
 "either-fork on-ramps."
 
+## The DOM/runtime boundary (definition)
+
+**The DOM is exactly the state persisted to the song XML(s); runtime is everything transient (not
+saved).** "Engine-read" is *not* the criterion — in the authoritative-DOM model the engine reads the
+DOM (it's the live source of truth) and *separately* holds transient state. Two consequences:
+- It supersedes the earlier "engine-read ⇒ runtime" framing **and** the Phase-D claim that the DOM
+  excludes persisted view fields: if `beingEdited`/`selected`/`isPlaying` are written to the file,
+  they are in the DOM. (Whether the *format* should keep persisting them is a separate, later
+  cleanup.) Consistent with Phase 1: `PersistentViewState` is saved → DOM; `RuntimeViewState` → runtime.
+- **Library mapping:** `deluge::project` = the **DOM** (value-typed saved state); `deluge::model` =
+  the **runtime** (live engine object graph, intrusive lists, caches like `param_backup`, derived
+  values), projected from the DOM. The value-tier components we already built (metadata/groove/
+  transport/scale/reverb/arrangement) are mostly saved state → they *stay* in `deluge::project` and
+  the DOM grows value forms of the saved data currently embedded in live objects.
+- **The split cuts *through* components**, not just between them: saved fields → DOM, derived/cache/
+  pointer fields → runtime (e.g. `transport` keeps saved tempo in the DOM but
+  `samples_per_timer_tick_big` is runtime; `arrangement` macros hold a `Clip*` at runtime but a clip
+  **id** in the DOM). The runtime-tier re-home (`clips`/`media`/`global_fx`/`param_backup` →
+  `deluge::model`) is agreed but **deferred** — cosmetic relocation, not a DOM prerequisite.
+
 ## The goal
 
 Today the Deluge has **one representation that is simultaneously the document (what serializes) and
@@ -129,9 +149,12 @@ The examination (C + D) is done and the DOM is chosen, so these phases are now t
 sequence (A and B were the "either-fork on-ramps"; they remain the right first steps because the DOM
 needs both). Each is still golden-gated:
 
-- **Phase A — serialization seam (Phase 5 of the extraction).** Pull save/load out of the model
-  classes into a narrow interface. This is the prerequisite for *any* document model and is useful
-  on its own. Gate: golden round-trip still byte-identical.
+- **Phase A — serialization seam. ✅ DONE** (`deluge::project::saveSong`/`loadSong`,
+  `src/deluge-project/serialization.{h,cpp}`). Whole-song save/load now funnels through one narrow
+  boundary that delegates to the legacy per-class serialization; `Song::writeToFile` takes an explicit
+  `Serializer&` (no more global grab); all callers (SaveSongUI, `writeTemplateSong`, LoadSongUI, the
+  golden harness) routed through it. Pure relocation — golden byte-identical (OK=15), host +
+  arm-none-eabi green. This is the insertion point where DOM serialization replaces the body next.
 - **Phase B — the read-seam (WS5).** Route the engine's *reads* of project state through an
   interface — our own native seam (the read-seam is a general pattern; spark's `ProjectReader`
   validates it but is not the shape to copy). This is the surface a projected model would later sit
@@ -156,14 +179,11 @@ needs both). Each is still golden-gated:
   - **Per-type breadth is bounded.** Even with the base-Clip fields, a `DocAudioClip` is ~17
     scalar/enum fields + 1 sample ref + 1 output ref + a paramManager. Manageable per type — but
     ×~44 self-serializing classes is the bulk of the program.
-  - **The serialized schema is NOT the document model (key finding).** ~11 fields AudioClip persists
-    today are *view/runtime* state — `isPlaying`/`isSoloing`/`isArmedForRecording`/`beingEdited`/
-    `selected`/`isSyncScaleClip`/`onAutomationInstrumentClipView`/`lastSelectedParam{ID,Kind,
-    ShortcutX,ShortcutY,ArrayPosition}`. A clean DOM **excludes** them, so the DOM is *cleaner* than
-    the file format, and designing each node forces a field-level document-vs-view judgment that
-    composes with the Phase-1 `RuntimeViewState`/`PersistentViewState` split. (Serialization
-    implication: the format keeps these; the DOM↔format mapping routes them to the view layer, not
-    the DOM.)
+  - **The serialized schema IS the document model** — corrected (see "The DOM/runtime boundary"
+    above): the DOM mirrors what's in the file, so the persisted fields (incl. `beingEdited`/
+    `selected`/`isPlaying`/`lastSelectedParam{…}`) **are** in the DOM. The earlier "a clean DOM
+    excludes them" was wrong. They are *arguably* view state that the format shouldn't persist — but
+    that's a separate, optional **format cleanup**, not a DOM-definition concern.
   - **References validated against a real type:** a sample is referenced by **path** (cross-resource),
     an output by **stable serial id** (intra-song) — exactly the Phase-C decision.
   - **The paramManager / automation subtree is the dominant cost** — `ParamSet → AutoParam[]` (each
