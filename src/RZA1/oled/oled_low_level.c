@@ -140,9 +140,9 @@ void oledSelectingComplete()
 {
     oledWaitingForMessage = OLED_MESSAGE_NONE;
 #if ALPHA_OR_BETA_VERSION
-    if (spiTransferQueue[spiTransferQueueReadPos].destinationId != SPI_DESTINATION_OLED)
+    if (spiTransferQueue[spiTransferQueueReadPos] == NULL)
     {
-        FREEZE_WITH_ERROR("SPI transfer destination is not OLED");
+        FREEZE_WITH_ERROR("SPI transfer slot is empty");
     }
 #endif
     RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR       = 0x20u;              // 8-bit
@@ -150,23 +150,20 @@ void oledSelectingComplete()
     RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE = 0b01100000;         // 0b00100000;
     // DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n = 0b00000000001000000000001001101000 | (OLED_SPI_DMA_CHANNEL & 7);
 
-    int transferSize                   = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
-    DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
-    uint32_t dataAddress               = (uint32_t)spiTransferQueue[spiTransferQueueReadPos].imageAddress;
-    DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
-    spiTransferQueue[spiTransferQueueReadPos].destinationId = SPI_DESTINATION_NONE;
-    spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+    int transferSize                          = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
+    DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n        = transferSize; // TODO: only do this once?
+    uint32_t dataAddress                      = (uint32_t)spiTransferQueue[spiTransferQueueReadPos];
+    DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n        = dataAddress;
+    spiTransferQueue[spiTransferQueueReadPos] = NULL;
+    spiTransferQueueReadPos                   = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
     // todo - should only need a flush
     invalidate_range_all_caches(dataAddress, dataAddress + transferSize);
     DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
         DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 }
 
-int spiDestinationSendingTo;
-
 // Physically pushes one CV word onto the shared SPI peripheral: 32-bit mode, select the DAC, enable the
-// RX-complete interrupt, then write the word (which kicks off the transfer). Used by both the queue
-// fallback path and the priority path.
+// RX-complete interrupt, then write the word (which kicks off the transfer). Used by the CV priority path.
 void sendCVWord(uint32_t message)
 {
     setOutputState(6, 1, false); // Select CV DAC
@@ -181,26 +178,9 @@ void sendCVWord(uint32_t message)
     RSPI(SPI_CHANNEL_CV).SPDR.LONG = message;
 }
 
-void sendCVTransfer()
-{
-#if ALPHA_OR_BETA_VERSION
-    if (spiTransferQueue[spiTransferQueueReadPos].destinationId != SPI_DESTINATION_CV)
-    {
-        FREEZE_WITH_ERROR("SPI transfer destination is not CV");
-    }
-#endif
-    uint32_t message                                        = spiTransferQueue[spiTransferQueueReadPos].cvData;
-    spiTransferQueue[spiTransferQueueReadPos].destinationId = SPI_DESTINATION_NONE;
-
-    // Must do this before actually sending SPI, cos the interrupt could come
-    // before we do this otherwise. True story.
-    spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
-    sendCVWord(message);
-}
-
 // Drains the priority CV slot if one is waiting. Must only be called at an inter-transfer boundary
-// (nothing currently on the bus). Returns true if a CV word was sent. Mirrors the sendCVTransfer();
-// cvSent(); pairing so any gate waiting on this CV is released on schedule.
+// (nothing currently on the bus). Returns true if a CV word was sent. Sends the word then calls
+// cvSent() so any gate waiting on this CV is released on schedule.
 bool sendPriorityCVIfPending()
 {
     if (!cvPriorityPending)
@@ -237,44 +217,24 @@ void sendSPITransferFromQueue()
     {
         return;
     }
-    spiDestinationSendingTo = spiTransferQueue[spiTransferQueueReadPos].destinationId;
 #if ALPHA_OR_BETA_VERSION
-    if (spiDestinationSendingTo == SPI_DESTINATION_NONE)
+    if (spiTransferQueue[spiTransferQueueReadPos] == NULL)
     {
-        FREEZE_WITH_ERROR("SPI transfer destination is NONE");
+        FREEZE_WITH_ERROR("SPI transfer slot is empty");
     }
 #endif
 
-    // If it's OLED data...
-    if (spiDestinationSendingTo == SPI_DESTINATION_OLED)
-    {
-        oled_sending = true;
-        initiateSelectingOled();
-    }
-
-    // Or if it's CV...
-    else if (spiDestinationSendingTo == SPI_DESTINATION_CV)
-    {
-        cv_sending = true;
-        sendCVTransfer();
-        cvSent();
-    }
-    else
-    {
-#if ALPHA_OR_BETA_VERSION
-        FREEZE_WITH_ERROR("SPI transfer destination is invalid");
-#endif
-        spiTransferQueueCurrentlySending = false;
-    }
+    // The queue only ever holds OLED frames now.
+    oled_sending = true;
+    initiateSelectingOled();
 }
 
 void oledTransferComplete(uint32_t int_sense)
 {
 
-    // If anything else to send, and it's to the OLED again, then just go ahead - unless a CV word is
-    // waiting, in which case we deselect so the CV can slip in ahead of the next frame.
+    // If there's another frame queued, just go ahead - unless a CV word is waiting, in which case we
+    // deselect so the CV can slip in ahead of the next frame.
     if (!cvPriorityPending && spiTransferQueueWritePos != spiTransferQueueReadPos
-        && spiTransferQueue[spiTransferQueueReadPos].destinationId == SPI_DESTINATION_OLED
         && last_message_sent == OLED_MESSAGE_SELECT)
     {
         oledSelectingComplete();
@@ -294,7 +254,7 @@ void cvSPITransferComplete(uint32_t sense)
 
     setOutputState(6, 1,
         true); // Deselect CV DAC. We do it here, nice and early, since we might be re-selecting it very soon in
-               // sendCVTransfer(),
+               // sendPriorityCVIfPending(),
     // and a real pulse does need to be sent. This should be safe - I even tried only deselecting it in the instruction
     // preceding the re-selection, and it did work.
 
@@ -308,28 +268,15 @@ void cvSPITransferComplete(uint32_t sense)
         return;
     }
 
-    // If anything else to send, send it according to the actual queued destination.
-    if (spiTransferQueueWritePos != spiTransferQueueReadPos
-        && spiTransferQueue[spiTransferQueueReadPos].destinationId == SPI_DESTINATION_CV)
+    // If there's a queued OLED frame, resume sending it; otherwise the bus goes idle.
+    if (spiTransferQueueWritePos != spiTransferQueueReadPos)
     {
-        sendCVTransfer();
-    }
-    else if (spiTransferQueueWritePos != spiTransferQueueReadPos
-             && spiTransferQueue[spiTransferQueueReadPos].destinationId == SPI_DESTINATION_OLED)
-    {
-        spiDestinationSendingTo = SPI_DESTINATION_OLED;
-        oled_sending            = true;
-        cv_sending              = false;
+        oled_sending = true;
+        cv_sending   = false;
         initiateSelectingOled();
     }
     else
     {
-#if ALPHA_OR_BETA_VERSION
-        if (spiTransferQueueWritePos != spiTransferQueueReadPos)
-        {
-            FREEZE_WITH_ERROR("SPI transfer destination is invalid");
-        }
-#endif
         spiTransferQueueCurrentlySending = false;
         cv_sending                       = false;
     }

@@ -389,8 +389,7 @@ void OLED::sendMainImage() {
 	uartPrint("oled render time: ");
 	uartPrintNumber((uint16_t)(renderStopTime - renderStartTime));
 #endif
-	SpiTransferData m = {.imageAddress = oledCurrentImage[0]};
-	enqueueSPITransfer(0, m);
+	enqueueSPITransfer(oledCurrentImage[0]);
 	HIDSysex::sendDisplayIfChanged();
 	needsSending = false;
 }
