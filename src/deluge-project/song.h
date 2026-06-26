@@ -49,7 +49,7 @@ public:
 	Transport transport;
 	ScaleSettings scale;
 	ReverbSettings reverb;
-	GlobalEffects globalFx;
+	GlobalEffects global_fx;
 	Arrangement arrangement;
 	ParamBackup paramBackup;
 };

@@ -110,9 +110,9 @@ private:
 		stutter.pingPong = value == FORWARD_PING_PONG || value == REVERSED_PING_PONG;
 
 		if (stutter.useSongStutter) {
-			stutter.quantized = currentSong->project.globalFx.globalEffectable.stutterConfig.quantized;
-			stutter.reversed = currentSong->project.globalFx.globalEffectable.stutterConfig.reversed;
-			stutter.pingPong = currentSong->project.globalFx.globalEffectable.stutterConfig.pingPong;
+			stutter.quantized = currentSong->project.global_fx.global_effectable.stutterConfig.quantized;
+			stutter.reversed = currentSong->project.global_fx.global_effectable.stutterConfig.reversed;
+			stutter.pingPong = currentSong->project.global_fx.global_effectable.stutterConfig.pingPong;
 		}
 	}
 

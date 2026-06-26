@@ -19,6 +19,7 @@
 
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "modulation/params/param.h"
+#include <array>
 #include <cstdint>
 
 namespace deluge::project {
@@ -26,10 +27,10 @@ namespace deluge::project {
 /// The song-global effect chain (master filters, FX, stutter, compressor) plus the unpatched-param
 /// override store used while editing automation. A component of deluge::project::Song.
 struct GlobalEffects {
-	GlobalEffectableForSong globalEffectable;
+	GlobalEffectableForSong global_effectable;
 	/// Snapshot of the global unpatched param values, captured while a param is held in automation
 	/// mode so the live (overridden) value can be restored afterwards.
-	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams]{};
+	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> unautomated_param_values{};
 };
 
 } // namespace deluge::project

@@ -79,7 +79,7 @@ void Rate::getNotificationValue(etl::istring& valueBuf) {
 
 bool Rate::isStutterQuantized() {
 	if (soundEditor.currentModControllable->stutterConfig.useSongStutter) {
-		return currentSong->project.globalFx.globalEffectable.stutterConfig.quantized;
+		return currentSong->project.global_fx.global_effectable.stutterConfig.quantized;
 	}
 
 	return soundEditor.currentModControllable->stutterConfig.quantized;

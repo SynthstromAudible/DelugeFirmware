@@ -905,15 +905,15 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
 
 	if (currentSong) {
-		currentSong->project.globalFx.globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL,
-		                                                                    &currentSong->paramManager);
-		currentSong->project.globalFx.globalEffectable.processFilters(renderingBuffer);
-		currentSong->project.globalFx.globalEffectable.processSRRAndBitcrushing(
+		currentSong->project.global_fx.global_effectable.setupFilterSetConfig(&masterVolumeAdjustmentL,
+		                                                                      &currentSong->paramManager);
+		currentSong->project.global_fx.global_effectable.processFilters(renderingBuffer);
+		currentSong->project.global_fx.global_effectable.processSRRAndBitcrushing(
 		    renderingBuffer, &masterVolumeAdjustmentL, &currentSong->paramManager);
 
 		masterVolumeAdjustmentR = masterVolumeAdjustmentL; // This might have changed in the above function calls
 
-		currentSong->project.globalFx.globalEffectable.processStutter(renderingBuffer, &currentSong->paramManager);
+		currentSong->project.global_fx.global_effectable.processStutter(renderingBuffer, &currentSong->paramManager);
 
 		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below
 		// anyway
@@ -939,8 +939,8 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 		    >> 1;
 		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
 		// equivalent
-		currentSong->project.globalFx.globalEffectable.compressor.render(renderingBuffer, masterVolumeAdjustmentL >> 1,
-		                                                                 masterVolumeAdjustmentR >> 1, songVolume >> 3);
+		currentSong->project.global_fx.global_effectable.compressor.render(
+		    renderingBuffer, masterVolumeAdjustmentL >> 1, masterVolumeAdjustmentR >> 1, songVolume >> 3);
 		masterVolumeAdjustmentL = ONE_Q31;
 		masterVolumeAdjustmentR = ONE_Q31;
 		logAction("mastercomp end");
