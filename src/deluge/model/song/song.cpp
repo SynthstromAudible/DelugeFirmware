@@ -1045,12 +1045,17 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeArrayEnding("modeNotes");
 
 	writer.writeOpeningTagBeginning("reverb");
+	// The reverb send parameters (room size, damping, width, hpf, lpf, pan) are now DOM-authoritative:
+	// project.reverb is the source of truth and AudioEngine::reverb is a cache projected from it
+	// (getReverbParamsFromSong). Save reads the document, not the engine. Still engine-authoritative
+	// here (deferred follow-ups): the algorithm (Song::model / AudioEngine::reverb.getModel(), edited
+	// via reverb/model.h, which would create an include cycle through song.h) and the sidechain block.
 	deluge::dsp::Reverb::Model model = AudioEngine::reverb.getModel();
-	uint32_t roomSize = AudioEngine::reverb.getRoomSize() * (uint32_t)2147483648u;
-	uint32_t damping = AudioEngine::reverb.getDamping() * (uint32_t)2147483648u;
-	uint32_t width = AudioEngine::reverb.getWidth() * (uint32_t)2147483648u;
-	uint32_t hpf = AudioEngine::reverb.getHPF() * (uint32_t)2147483648u;
-	uint32_t lpf = AudioEngine::reverb.getLPF() * (uint32_t)2147483648u;
+	uint32_t roomSize = project.reverb.room_size * (uint32_t)2147483648u;
+	uint32_t damping = project.reverb.damping * (uint32_t)2147483648u;
+	uint32_t width = project.reverb.width * (uint32_t)2147483648u;
+	uint32_t hpf = project.reverb.hpf * (uint32_t)2147483648u;
+	uint32_t lpf = project.reverb.lpf * (uint32_t)2147483648u;
 
 	roomSize = std::min(roomSize, (uint32_t)2147483647);
 	damping = std::min(damping, (uint32_t)2147483647);
@@ -1063,10 +1068,14 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("width", width);
 	writer.writeAttribute("hpf", hpf);
 	writer.writeAttribute("lpf", lpf);
-	writer.writeAttribute("pan", AudioEngine::reverbPan);
+	writer.writeAttribute("pan", project.reverb.pan);
 	writer.writeAttribute("model", util::to_underlying(model));
 	writer.writeOpeningTagEnd();
 
+	// The reverb sidechain/compressor is still engine-authoritative: it is a shared SideChain
+	// subsystem edited via gui/menu_item/sidechain/* (getSidechain(forReverb) -> reverbSidechain),
+	// so flipping it to the DOM means routing those shared edits into project.reverb and resolving
+	// the syncLevel file<->internal conversion. Deferred to a sidechain-authority follow-up.
 	writer.writeOpeningTagBeginning("compressor");
 	writer.writeAttribute("attack", AudioEngine::reverbSidechain.attack);
 	writer.writeAttribute("release", AudioEngine::reverbSidechain.release);

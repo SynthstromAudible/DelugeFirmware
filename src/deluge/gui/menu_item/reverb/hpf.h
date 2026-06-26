@@ -20,6 +20,7 @@
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/integer.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include <cmath>
 
@@ -27,8 +28,13 @@ namespace deluge::gui::menu_item::reverb {
 class HPF final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getHPF() * kMaxMenuValue)); }
-	void writeCurrentValue() override { AudioEngine::reverb.setHPF((float)this->getValue() / kMaxMenuValue); }
+	// project.reverb is authoritative; AudioEngine::reverb is the projected DSP cache kept in sync.
+	void readCurrentValue() override { this->setValue(std::round(currentSong->project.reverb.hpf * kMaxMenuValue)); }
+	void writeCurrentValue() override {
+		float value = (float)this->getValue() / kMaxMenuValue;
+		currentSong->project.reverb.hpf = value;
+		AudioEngine::reverb.setHPF(value);
+	}
 
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RenderingStyle::HPF; }

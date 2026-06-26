@@ -19,6 +19,7 @@
 #include <cstring>
 
 #include "gui/menu_item/integer.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "util/cfunctions.h"
 
@@ -38,9 +39,14 @@ public:
 		display->setText(buffer, true);
 	}
 
-	void writeCurrentValue() override { AudioEngine::reverbPan = computeFinalValueForPan(this->getValue()); }
+	// project.reverb is authoritative; AudioEngine::reverbPan is the projected DSP cache kept in sync.
+	void writeCurrentValue() override {
+		int32_t value = computeFinalValueForPan(this->getValue());
+		currentSong->project.reverb.pan = value;
+		AudioEngine::reverbPan = value;
+	}
 
-	void readCurrentValue() override { this->setValue(computeCurrentValueForPan(AudioEngine::reverbPan)); }
+	void readCurrentValue() override { this->setValue(computeCurrentValueForPan(currentSong->project.reverb.pan)); }
 
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }

@@ -1939,13 +1939,18 @@ void View::cycleThroughReverbPresets() {
 		newPreset = 0;
 	}
 
-	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
-	AudioEngine::reverb.setDamping((float)presetReverbDamping[newPreset] / 50);
+	// project.reverb is authoritative; AudioEngine::reverb is the projected DSP cache kept in sync.
+	float roomSize = (float)presetReverbRoomSize[newPreset] / 50;
+	float damping = (float)presetReverbDamping[newPreset] / 50;
+	currentSong->project.reverb.room_size = roomSize;
+	currentSong->project.reverb.damping = damping;
+	AudioEngine::reverb.setRoomSize(roomSize);
+	AudioEngine::reverb.setDamping(damping);
 }
 
 int32_t View::getCurrentReverbPreset() {
-	int32_t currentRoomSize = AudioEngine::reverb.getRoomSize() * 50;
-	int32_t currentDamping = AudioEngine::reverb.getDamping() * 50;
+	int32_t currentRoomSize = currentSong->project.reverb.room_size * 50;
+	int32_t currentDamping = currentSong->project.reverb.damping * 50;
 
 	// See which preset we're the closest to currently
 	int32_t lowestDifferentness = 1000;

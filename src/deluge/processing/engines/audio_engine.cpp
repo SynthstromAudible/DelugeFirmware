@@ -1384,6 +1384,7 @@ void stopAnyPreviewing() {
 void getReverbParamsFromSong(Song* song) {
 	reverb.setModel(song->model);
 	reverb.setRoomSize(song->project.reverb.room_size);
+	reverb.setHPF(song->project.reverb.hpf);
 	reverb.setLPF(song->project.reverb.lpf);
 	reverb.setDamping(song->project.reverb.damping);
 	reverb.setWidth(song->project.reverb.width);
