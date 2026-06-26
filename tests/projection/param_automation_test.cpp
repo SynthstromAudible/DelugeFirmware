@@ -540,6 +540,69 @@ int main() {
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "ExpressionParamSet byte-identical");
 	}
 
+	// Phase 5b-4: the ExpressionParamSet (MPE) block round-trips through the DOM reader, and the read path
+	// still accepts the legacy `channelPressure` alias (pressure / dimension 2).
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "expr-rt setup");
+		ExpressionParamSet* e = pm.getOrCreateExpressionParamSet();
+		check(e != nullptr, "expr-rt set created");
+		e->params[0].currentValue = 12345;    // pitchBend
+		setNode(e->params[2], 0, 6789, true); // pressure, automated
+
+		deluge::project::DocParamSet doc = deluge::project::toDocParamSet(*e);
+
+		static char rtBuf[16384];
+		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
+		smSerializer.reset();
+		smSerializer.writeOpeningTagBeginning("song");
+		smSerializer.writeOpeningTagEnd();
+		deluge::project::serializeExpressionParams(doc, smSerializer, false, true);
+		smSerializer.writeClosingTag("song");
+		int32_t rtLen = smSerializer.bytesWritten();
+		rtBuf[rtLen] = '\0';
+
+		ParamManagerForTimeline pm2;
+		check(pm2.setupWithPatching() == Error::NONE, "expr-rt setup2");
+		ExpressionParamSet* e2 = pm2.getOrCreateExpressionParamSet();
+		ParamCollectionSummary* esum2 = pm2.getExpressionParamSetSummary();
+		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
+		reader.openXMLFile(nullptr, "song");
+		const char* tag;
+		while (*(tag = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tag, "expressionData")) {
+				reader.match('{');
+				const char* inner;
+				while (*(inner = reader.readNextTagOrAttributeName())) {
+					if (!deluge::project::readExpressionParamTag(reader, inner, *e2, *esum2, 2147483647)) {
+						reader.exitTag();
+					}
+				}
+				reader.exitTag("expressionData", true);
+			}
+			else {
+				reader.exitTag();
+			}
+		}
+		expectSameNodes(e2->params[0], e->params[0], "expr-rt pitchBend");
+		expectSameNodes(e2->params[2], e->params[2], "expr-rt pressure");
+		check((esum2->whichParamsAreAutomated[2 >> 5] & (1u << (2 & 31))) != 0, "expr-rt pressure automation flag");
+
+		// Legacy back-compat: <channelPressure> loads into dimension 2 via the engine tail in readFromFile.
+		ParamManagerForTimeline pm3;
+		check(pm3.setupWithPatching() == Error::NONE, "expr-rt setup3");
+		ExpressionParamSet* e3 = pm3.getOrCreateExpressionParamSet();
+		ParamCollectionSummary* esum3 = pm3.getExpressionParamSetSummary();
+		static char legacyBuf[2048];
+		const char* legacyXml = "<expressionData\n channelPressure=\"0x00001A2B\" />\n";
+		std::strcpy(legacyBuf, legacyXml);
+		int legacyLen = static_cast<int>(std::strlen(legacyBuf));
+		XMLDeserializer legacyReader(reinterpret_cast<uint8_t*>(legacyBuf), legacyLen);
+		legacyReader.openXMLFile(nullptr, "expressionData");
+		e3->readFromFile(legacyReader, esum3, 2147483647);
+		check(e3->params[2].currentValue == 0x00001A2B, "expr-rt legacy channelPressure loads");
+	}
+
 	// Phase 4d: the Sound param block serializes byte-identical to the engine's Sound::writeParamsToFile
 	// (patched + unpatched flat attrs, the shared ModControllableAudio attrs, the four <envelope*> groups,
 	// the <patchCables> block, and the shared tags — including the mid-block writeOpeningTagEnd).

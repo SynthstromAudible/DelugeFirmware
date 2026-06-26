@@ -234,4 +234,9 @@ bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSe
 bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched, ParamCollectionSummary& patchedSummary,
                        ParamSet& unpatched, ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
 
+/// Read one ExpressionParamSet (MPE) tag (pitchBend / yExpression / pressure) into the live expression
+/// collection. The legacy `channelPressure` alias is NOT handled here — the caller keeps it as a tail.
+bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& expression,
+                            ParamCollectionSummary& summary, int32_t readAutomationUpToPos);
+
 } // namespace deluge::project

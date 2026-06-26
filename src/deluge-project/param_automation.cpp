@@ -779,4 +779,10 @@ bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched,
 	       || readModControllableParamTag(in, tagName, unpatched, unpatchedSummary, readAutomationUpToPos);
 }
 
+bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& expression,
+                            ParamCollectionSummary& summary, int32_t readAutomationUpToPos) {
+	// kExpressionParams maps pitchBend/yExpression/pressure to dimensions 0/1/2 (shared with the writer).
+	return readLiveParamFromTable(in, tagName, kExpressionParams, expression, summary, readAutomationUpToPos);
+}
+
 } // namespace deluge::project

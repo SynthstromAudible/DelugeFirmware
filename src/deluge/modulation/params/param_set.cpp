@@ -648,24 +648,17 @@ void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSumma
 	char const* tagName;
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		int32_t p;
-		for (p = 0; p < kNumExpressionDimensions; p++) {
-			if (!strcmp(tagName, expressionParamNames[p])) {
-doReadParam:
-				readParam(reader, summary, p, readAutomationUpToPos);
-				goto finishedTag;
-			}
+		// Read the current format from the value DOM (deluge::project); keep the legacy `channelPressure`
+		// alias (pressure / dimension 2) as the engine tail.
+		if (deluge::project::readExpressionParamTag(reader, tagName, *this, *summary, readAutomationUpToPos)) {}
+		else if (!strcmp(tagName, "channelPressure")) { // Alpha testers had 2 weeks or so to create files like this -
+			                                            // not sure if anyone even did.
+			readParam(reader, summary, 2, readAutomationUpToPos);
+			reader.exitTag();
 		}
-
-		if (!strcmp(tagName,
-		            "channelPressure")) { // Alpha testers had 2 weeks or so to create files like this - not sure if
-			                              // anyone even did.
-			p = 2;
-			goto doReadParam;
+		else {
+			reader.exitTag();
 		}
-
-finishedTag:
-		reader.exitTag();
 	}
 }
 
