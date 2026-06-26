@@ -53,12 +53,39 @@ polymorphic types (below).
 
 ## The three hard problems Level 3 must solve
 
-1. **Stable identity.** Two options:
+1. **Stable identity.** Two placement options:
    - (a) *External registry* built by walking clips/outputs at each projection boundary (what the
      probe used). No engine change; O(n) map build per projection; ids are positional unless seeded.
    - (b) *Embedded id field* on every `Clip`/`Output`. Touches the engine types, but gives O(1)
-     resolution, stable-across-reorder ids, and no per-projection map. **Likely required** for an
+     resolution, stable-across-reorder ids, and no per-projection map. **Required** for an
      *authoritative* DOM (option a is fine for a load-time DTO).
+
+   **Id type — DECIDED: a 32-bit within-song serial id (a per-song monotonic counter), NOT a UUID.**
+   Rationale (firmware-specific, investigated against the RZ/A1L TRM):
+   - *No hardware entropy.* The Cortex-A9 core has no RNG (RNDR/RNDRRS is ARMv8.5-A AArch64 only),
+     and the RZ/A1L (R7S721031) SoC has **no TRNG / crypto / entropy peripheral** (confirmed: the
+     TRM's only "random" mentions are a CD-ROM decoder's "random logic" and audio/video "random
+     pattern dither mode"). All randomness is a software MWC/LCG PRNG whose *only* seed is one timer
+     read (`seedRandom()` = `jcong = deluge_clock_now()`). So UUIDv4's 122 collision-resistant bits
+     would come from a weakly-seeded deterministic PRNG — fragile, and it is the *shared audio PRNG*,
+     so drawing from it perturbs render determinism and the golden.
+   - *Determinism.* Random UUIDs make serialization non-deterministic and non-reproducible across
+     machines, which fights the golden methodology (`save(load(orig))` must be byte-identical). A
+     serial counter is fully deterministic.
+   - *Format cost.* The file format already references intra-song things by compact index
+     (`output="3"`); a UUID is a 36-char string per reference + per object (~20× bloat, kills
+     readability/debuggability). A 32-bit serial is a short int.
+   - *Scope.* UUID buys *global* uniqueness (cross-document, merge, distributed editing); Deluge
+     intra-song refs need only *within-song* uniqueness, and cross-resource refs (samples/presets)
+     already use **paths**. The global property would go unused.
+   - *Memory is a non-factor* (16 B vs 4 B × hundreds of objects ≈ a few KB in 64 MB SDRAM).
+
+   So: a 32-bit per-song serial id (reorder-stable, deterministic, no entropy needed, compact,
+   collision-free in scope). Reach for UUID only if cross-document/global identity becomes a
+   committed product goal (cloud sync, collab, a shared clip/preset library) — and even then as
+   local serial ids in-document + UUIDs only at the export/library boundary, never as the primary
+   in-document id. ("spark uses UUID" does not transfer — that is the cloud-era successor's
+   requirement set, not the native firmware DOM's; see the independence note above.)
 
 2. **Polymorphic schema duplication.** A document model must mirror the serialized schema as value
    types. The surface: **~44 self-serializing model classes / ~74 serialization methods**, and the
@@ -96,8 +123,9 @@ produce a go/no-go signal:
   interface — our own native seam (the read-seam is a general pattern; spark's `ProjectReader`
   validates it but is not the shape to copy). This is the surface a projected model would later sit
   behind. Gate: behavior preserved.
-- **Phase C — stable identity probe #2.** Add an embedded stable id to `Clip`/`Output` (problem 1b)
-  and measure the churn + any hot-path cost. Gate: no render regression; golden green.
+- **Phase C — stable identity probe #2.** Add an embedded **32-bit per-song serial id** to
+  `Clip`/`Output` (problem 1b; id type decided above — not UUID) and measure the churn + any hot-path
+  cost. Gate: no render regression; golden green.
 - **Phase D — heavy-type schema probe.** Design *one* polymorphic doc node natively (`AudioClip`,
   the simpler Clip variant) from the live class's serialized fields, and round-trip it through
   projection (cross-checking shape against `deluge-xml` as an oracle, not copying it). This measures
