@@ -17,6 +17,7 @@
 
 #include "model/global_effectable/global_effectable.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
 #include "dsp/stereo_sample.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/performance_view.h"
@@ -811,75 +812,17 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 
 void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
                                                   int32_t* valuesForOverride) {
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	unpatchedParams->writeParamAsAttribute(writer, "reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT,
-	                                       writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "volume", params::UNPATCHED_VOLUME, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "pan", params::UNPATCHED_PAN, writeAutomation, false,
-	                                       valuesForOverride);
-
-	if (unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].containsSomething(0)) {
-		unpatchedParams->writeParamAsAttribute(writer, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation,
-		                                       false, valuesForOverride);
-	}
-
-	if (unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].containsSomething(-2147483648)) {
-		unpatchedParams->writeParamAsAttribute(writer, "sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME,
-		                                       writeAutomation, false, valuesForOverride);
-	}
-
-	unpatchedParams->writeParamAsAttribute(writer, "sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
-	                                       writeAutomation, false, valuesForOverride);
-
-	unpatchedParams->writeParamAsAttribute(writer, "modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "modFXRate", params::UNPATCHED_MOD_FX_RATE, writeAutomation, false,
-	                                       valuesForOverride);
-
-	ModControllableAudio::writeParamAttributesToFile(writer, paramManager, writeAutomation, valuesForOverride);
-
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	unpatchedParams->writeParamAsAttribute(writer, "lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "tempo", params::UNPATCHED_TEMPO, writeAutomation, false,
-	                                       valuesForOverride);
-
-	unpatchedParams->writeParamAsAttribute(writer, "arpeggiatorRate", params::UNPATCHED_ARP_RATE, writeAutomation,
-	                                       false, valuesForOverride);
+	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
+	// (verified in param_projection_test). serializeGlobalEffectableParamAttributes emits the global flat
+	// attrs around the shared ModControllableAudio attrs and the community attrs.
+	deluge::project::DocParamSet unpatched = deluge::project::toDocParamSet(*paramManager->getUnpatchedParamSet());
+	deluge::project::serializeGlobalEffectableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
                                             int32_t* valuesForOverride) {
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	writer.writeOpeningTagBeginning("delay");
-	unpatchedParams->writeParamAsAttribute(writer, "rate", params::UNPATCHED_DELAY_RATE, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "feedback", params::UNPATCHED_DELAY_AMOUNT, writeAutomation, false,
-	                                       valuesForOverride);
-	writer.closeTag();
-
-	writer.writeOpeningTagBeginning("lpf");
-	unpatchedParams->writeParamAsAttribute(writer, "frequency", params::UNPATCHED_LPF_FREQ, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
-	                                       valuesForOverride);
-	writer.closeTag();
-
-	writer.writeOpeningTagBeginning("hpf");
-	unpatchedParams->writeParamAsAttribute(writer, "frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
-	                                       valuesForOverride);
-	writer.closeTag();
-
-	ModControllableAudio::writeParamTagsToFile(writer, paramManager, writeAutomation, valuesForOverride);
+	deluge::project::DocParamSet unpatched = deluge::project::toDocParamSet(*paramManager->getUnpatchedParamSet());
+	deluge::project::serializeGlobalEffectableParamTags(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 void GlobalEffectable::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
