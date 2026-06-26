@@ -2058,6 +2058,10 @@ skipInstance:
 
 	AudioEngine::routineWithClusterLoading();
 
+	// Advance the serial-id counters past every id restored from the file, so any object created
+	// after load gets a fresh, non-colliding id.
+	syncSerialIdCountersFromLoaded();
+
 	return Error::NONE;
 }
 
@@ -3436,6 +3440,46 @@ Output* Song::getOutputFromIndex(int32_t index) {
 	}
 
 	return project.media.first_output; // fail
+}
+
+void Song::syncSerialIdCountersFromLoaded() {
+	const auto advancePast = [](uint32_t& counter, std::optional<uint32_t> id) {
+		if (id.has_value() && *id >= counter) {
+			counter = *id + 1;
+		}
+	};
+	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
+		advancePast(outputIdCounter_, output->serialId());
+	}
+	for (Clip* clip : project.clips.session_clips) {
+		advancePast(clipIdCounter_, clip->serialId());
+	}
+	for (Clip* clip : project.clips.arrangement_only_clips) {
+		advancePast(clipIdCounter_, clip->serialId());
+	}
+}
+
+Clip* Song::clipForId(uint32_t id) {
+	for (Clip* clip : project.clips.session_clips) {
+		if (clip->serialId() == id) {
+			return clip;
+		}
+	}
+	for (Clip* clip : project.clips.arrangement_only_clips) {
+		if (clip->serialId() == id) {
+			return clip;
+		}
+	}
+	return nullptr;
+}
+
+Output* Song::outputForId(uint32_t id) {
+	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
+		if (output->serialId() == id) {
+			return output;
+		}
+	}
+	return nullptr;
 }
 
 int32_t Song::getNumOutputs() {

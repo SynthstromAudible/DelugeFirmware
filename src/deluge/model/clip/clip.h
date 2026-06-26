@@ -30,6 +30,7 @@
 #include "modulation/params/param.h"
 #include "util/c_string.h"
 #include <cstdint>
+#include <optional>
 
 class Song;
 class ParamManagerForTimeline;
@@ -194,6 +195,12 @@ public:
 
 	uint32_t indexForSaving{}; // For use only while saving song
 
+	/// Stable, persisted, per-song serial identity (the DOM reference foundation, distinct from the
+	/// transient positional indexForSaving). nullopt until assigned lazily on first save from the
+	/// song's counter (or restored on load); resolve via Song::clipForId.
+	[[nodiscard]] std::optional<uint32_t> serialId() const { return serial_id_; }
+	void setSerialId(uint32_t id) { serial_id_ = id; }
+
 	LaunchStyle launchStyle;
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput{};
@@ -227,4 +234,8 @@ protected:
 	Error solicitParamManager(Song* song, ParamManager* newParamManager = nullptr,
 	                          Clip* favourClipForCloningParamManager = nullptr);
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
+
+private:
+	/// Stable per-song serial identity; see serialId(). nullopt = unassigned.
+	std::optional<uint32_t> serial_id_{};
 };

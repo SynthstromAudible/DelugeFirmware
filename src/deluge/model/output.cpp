@@ -233,6 +233,14 @@ void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		writer.writeFirmwareVersion();
 		writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 	}
+	else {
+		// Stable per-song serial identity, written only when saving as part of the song (an intra-song
+		// reference; meaningless in a standalone preset file). Assigned lazily here on first save.
+		if (!serialId().has_value()) {
+			setSerialId(song->generateNewOutputId());
+		}
+		writer.writeAttribute("id", *serialId());
+	}
 
 	bool endedOpeningTag = writeDataToFile(writer, clipForSavingOutputOnly, song);
 
@@ -333,6 +341,12 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	else if (!strcmp(tagName, "colour")) {
 		colour = reader.readTagOrAttributeValueInt();
+	}
+
+	else if (!strcmp(tagName, "id")) {
+		// Stable per-song serial identity (see Output::serialId). The song advances its id counter
+		// past all loaded ids after the load completes (Song::syncSerialIdCountersFromLoaded).
+		setSerialId(reader.readTagOrAttributeValueInt());
 	}
 
 	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {

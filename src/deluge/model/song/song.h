@@ -251,6 +251,21 @@ public:
 	void reassessWhetherAnyOutputsSoloingInArrangement();
 	bool isOutputActiveInArrangement(Output* output);
 	Output* getOutputFromIndex(int32_t index);
+
+	// --- Stable per-song serial identity for clips/outputs (the DOM reference foundation) ---
+	// Each clip/output carries a persisted serial id (Clip::serialId / Output::serialId), assigned
+	// lazily on first save from these per-song monotonic counters and restored on load. Unlike the
+	// transient positional index, the id survives reorders and reloads, so DOM references (e.g.
+	// session macros) can resolve by id instead of position.
+	uint32_t generateNewClipId() { return clipIdCounter_++; }
+	uint32_t generateNewOutputId() { return outputIdCounter_++; }
+	/// Advance the counters past every id seen in the just-loaded song, so newly created objects can't
+	/// collide with restored ids. Called once after a load completes.
+	void syncSerialIdCountersFromLoaded();
+	/// Resolve a serial id to its live object, or nullptr if no object carries that id.
+	[[nodiscard]] Clip* clipForId(uint32_t id);
+	[[nodiscard]] Output* outputForId(uint32_t id);
+
 	void ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* errorMessageNormal,
 	                                                         char const* errorMessageHibernating);
 	Error placeFirstInstancesOfActiveClips(int32_t pos);
@@ -377,6 +392,11 @@ private:
 	void setBPMInner(float tempoBPM, bool shouldLogAction);
 	void clearTempoAutomation(float tempoBPM);
 	int32_t intBPM{0};
+
+	// Per-song monotonic serial-id counters (see generateNewClipId). First assigned id is 1; the
+	// unassigned state is std::nullopt (Clip/Output::serialId), not a reserved id value.
+	uint32_t clipIdCounter_{1};
+	uint32_t outputIdCounter_{1};
 };
 
 extern Song* currentSong;

@@ -24,6 +24,7 @@
 #include "modulation/params/param.h"
 #include "util/c_string.h"
 #include <cstdint>
+#include <optional>
 
 class InstrumentClip;
 class Song;
@@ -103,6 +104,12 @@ public:
 	int16_t colour{0};
 
 	uint8_t modKnobMode;
+
+	/// Stable, persisted, per-song serial identity (the DOM reference foundation). nullopt until
+	/// assigned lazily on first save from the song's counter (or restored on load); resolve via
+	/// Song::outputForId.
+	[[nodiscard]] std::optional<uint32_t> serialId() const { return serial_id_; }
+	void setSerialId(uint32_t id) { serial_id_ = id; }
 
 	// Temp stuff for doLaunch()
 	bool alreadyGotItsNewClip{};
@@ -232,4 +239,8 @@ protected:
 	virtual void clearRecordingFrom() {}
 	Clip* activeClip{nullptr};
 	SampleRecorder* recorder{nullptr};
+
+private:
+	/// Stable per-song serial identity; see serialId(). nullopt = unassigned.
+	std::optional<uint32_t> serial_id_{};
 };
