@@ -1093,34 +1093,7 @@ weAreInArrangementEditorOrInClipInstance:
 		thisOutput->writeToFile(nullptr, this);
 	}
 	writer.writeArrayEnding("instruments");
-	writer.writeArrayStart("sections");
-	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		if (true || project.arrangement.sections[s].launch_midi_command.containsSomething()
-		    || project.arrangement.sections[s].num_repetitions) {
-			writer.writeOpeningTagBeginning("section", true);
-			writer.writeAttribute("id", s, false);
-			if (true || project.arrangement.sections[s].num_repetitions) {
-				writer.writeAttribute("numRepeats", project.arrangement.sections[s].num_repetitions, false);
-			}
-			if (project.arrangement.sections[s].launch_midi_command.containsSomething()) {
-				// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI
-				// class now uses.
-				writer.writeAttribute("midiCommandChannel",
-				                      project.arrangement.sections[s].launch_midi_command.channelOrZone, false);
-				writer.writeAttribute("midiCommandNote", project.arrangement.sections[s].launch_midi_command.noteOrCC,
-				                      false);
-				if (project.arrangement.sections[s].launch_midi_command.cable) {
-					writer.writeOpeningTagEnd();
-					project.arrangement.sections[s].launch_midi_command.cable->writeReferenceToFile(
-					    writer, "midiCommandDevice");
-					writer.writeClosingTag("section", true, true);
-					continue; // We now don't need to close the tag.
-				}
-			}
-			writer.closeTag(true);
-		}
-	}
-	writer.writeArrayEnding("sections");
+	deluge::project::serializeSections(project.arrangement, writer);
 
 	writer.writeArrayStart("sessionClips");
 	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
@@ -1718,65 +1691,7 @@ unknownTag:
 				reader.exitTag("scales", true);
 			}
 
-			else if (!strcmp(tagName, "sections")) {
-				// Read in all the sections
-				reader.match('[');
-				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "section")) {
-
-						uint8_t id = 255;
-						MIDICable* cable = nullptr;
-						uint8_t channel = 255;
-						uint8_t note = 255;
-						int16_t numRepeats = 0;
-						reader.match('{');
-						while (*(tagName = reader.readNextTagOrAttributeName())) {
-							if (!strcmp(tagName, "id")) {
-								id = reader.readTagOrAttributeValueInt();
-							}
-
-							else if (!strcmp(tagName, "numRepeats")) {
-								numRepeats = reader.readTagOrAttributeValueInt();
-								if (numRepeats < -2 || numRepeats > 9999) {
-									numRepeats = 0;
-								}
-							}
-
-							// Annoyingly, I used one-off tag names here, rather than it conforming to what the
-							// LearnedMIDI class now uses.
-							else if (!strcmp(tagName, "midiCommandDevice")) {
-								cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
-							}
-
-							else if (!strcmp(tagName, "midiCommandChannel")) {
-								channel = reader.readTagOrAttributeValueInt();
-							}
-
-							else if (!strcmp(tagName, "midiCommandNote")) {
-								note = reader.readTagOrAttributeValueInt();
-							}
-
-							reader.exitTag(tagName); // exit undefined tag.
-						}
-
-						if (id < kMaxNumSections) {
-							if (channel < 16 && note < 128) {
-								project.arrangement.sections[id].launch_midi_command.cable = cable;
-								project.arrangement.sections[id].launch_midi_command.channelOrZone = channel;
-								project.arrangement.sections[id].launch_midi_command.noteOrCC = note;
-							}
-							project.arrangement.sections[id].num_repetitions = numRepeats;
-						}
-						reader.match('}');               // leave values object
-						reader.exitTag("section", true); // leave box.
-					}
-					else {
-						reader.exitTag(tagName);
-					}
-				}
-				reader.exitTag("sections");
-				reader.match(']');
-			}
+			else if (deluge::project::deserializeSections(project.arrangement, reader, tagName)) {}
 
 			else if (!strcmp(tagName, "instruments")) {
 				reader.match('[');

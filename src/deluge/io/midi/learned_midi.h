@@ -56,7 +56,7 @@ public:
 		return (newNoteOrCC == noteOrCC && equalsChannelAllowMPEMasterChannels(newCable, newChannel));
 	}
 	MIDIMatchType checkMatch(MIDICable* fromCable, int32_t channel);
-	inline bool containsSomething() { return (channelOrZone != MIDI_CHANNEL_NONE); }
+	[[nodiscard]] inline bool containsSomething() const { return (channelOrZone != MIDI_CHANNEL_NONE); }
 
 	// You must have determined that containsSomething() == true before calling this.
 	inline bool isForMPEZone() { return (channelOrZone >= 16); }

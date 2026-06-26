@@ -26,6 +26,7 @@ class Deserializer;
 namespace deluge::project {
 
 struct Groove;
+struct Arrangement;
 
 /// The single boundary through which a whole song is (de)serialized — the seam the project-model
 /// document model (DOM) is being built behind (docs/dev/project_model_level3.md). Today it delegates
@@ -44,5 +45,10 @@ Error loadSong(::Song& song, Deserializer& in); ///< reads the song body from `i
 /// tags from the read dispatch, returning true if it handled `tagName`.
 void serialize(const Groove& groove, Serializer& out, ::Song* song);
 bool deserialize(Groove& groove, Deserializer& in, char const* tagName);
+
+/// Arrangement is two independent file blocks at separate positions (`<sections>` and
+/// `<sessionMacros>`), so it has a write helper per block; the read side dispatches by tag.
+void serializeSections(const Arrangement& arrangement, Serializer& out);
+bool deserializeSections(Arrangement& arrangement, Deserializer& in, char const* tagName);
 
 } // namespace deluge::project
