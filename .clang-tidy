@@ -40,7 +40,7 @@ Checks: >
 WarningsAsErrors: false # should be true once we get there
 HeaderFileExtensions: ["h", "hh", "hpp", "hxx"]
 ImplementationFileExtensions: ["c", "cc", "cpp", "cxx"]
-HeaderFilterRegex: "^((?!lib|RZA1|NE10|fatfs).)*$" # don't touch external files
+HeaderFilterRegex: "^((?!/(lib|libdeluge|RZA1|NE10|fatfs)/).)*$" # don't touch external trees (path-segment anchored, so e.g. chord_library.h is still linted)
 ExtraArgs: ["-Wno-unknown-argument", "-Wno-unknown-warning-option", "-W"]
 FormatStyle: file
 CheckOptions:
@@ -66,5 +66,11 @@ CheckOptions:
   - { key: readability-identifier-naming.StructCase,          value: CamelCase  }
   - { key: readability-identifier-naming.FunctionCase,        value: camelBack  }
   - { key: readability-identifier-naming.VariableCase,        value: lower_case }
-  - { key: readability-identifier-naming.GlobalConstantCase,  value: camelBack  }
+  # Constants use the kCamelCase convention (e.g. kMaxNumSections), so encode the `k` prefix
+  # rather than flagging every one. Scoped to namespace- and class-scope constants only —
+  # NOT ConstexprVariable, which would also (wrongly) demand `k` on function-local constexpr.
+  - { key: readability-identifier-naming.GlobalConstantCase,    value: CamelCase }
+  - { key: readability-identifier-naming.GlobalConstantPrefix,  value: k         }
+  - { key: readability-identifier-naming.ClassConstantCase,     value: CamelCase }
+  - { key: readability-identifier-naming.ClassConstantPrefix,   value: k         }
   - { key: readability-identifier-naming.MacroDefinitionCase, value: UPPER_CASE }
