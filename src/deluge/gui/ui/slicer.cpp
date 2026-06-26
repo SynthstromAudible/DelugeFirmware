@@ -706,7 +706,7 @@ ramError2:
 			}
 
 			// I moved this here, from being earlier/above. Is this fine?
-			currentSong->project.paramBackup.backUp(newDrum, getCurrentClip(), &paramManager, true);
+			currentSong->project.param_backup.backUp(newDrum, getCurrentClip(), &paramManager, true);
 		}
 
 		// Make NoteRows for all these new Drums

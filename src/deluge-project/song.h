@@ -51,7 +51,7 @@ public:
 	ReverbSettings reverb;
 	GlobalEffects global_fx;
 	Arrangement arrangement;
-	ParamBackup paramBackup;
+	ParamBackup param_backup;
 };
 
 } // namespace deluge::project

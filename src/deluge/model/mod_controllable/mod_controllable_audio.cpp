@@ -1041,7 +1041,7 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 			paramManager = &modelStack->getTimelineCounter()->paramManager;
 		}
 		else {
-			paramManager = modelStack->song->project.paramBackup.getPreferablyWithClip(
+			paramManager = modelStack->song->project.param_backup.getPreferablyWithClip(
 			    this,
 			    nullptr); // Could be NULL if a NonAudioInstrument - those don't back up any paramManagers (when they
 			              // even have them).

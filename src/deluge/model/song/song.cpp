@@ -313,17 +313,17 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 }
 
 void Song::deleteAllBackedUpParamManagers() {
-	while (!project.paramBackup.map.empty()) {
+	while (!project.param_backup.map.empty()) {
 		AudioEngine::routineWithClusterLoading();
-		project.paramBackup.map.erase(project.paramBackup.map.begin());
+		project.param_backup.map.erase(project.param_backup.map.begin());
 	}
 }
 
 void Song::deleteAllBackedUpParamManagersWithClips() {
-	for (auto it = project.paramBackup.map.begin(); it != project.paramBackup.map.end();) {
+	for (auto it = project.param_backup.map.begin(); it != project.param_backup.map.end();) {
 		if (it->first.second != nullptr) {
 			AudioEngine::routineWithClusterLoading();
-			it = project.paramBackup.map.erase(it);
+			it = project.param_backup.map.erase(it);
 		}
 		else {
 			++it;
@@ -2003,7 +2003,7 @@ loadOutput:
 		}
 
 		if (thisOutput->clipInstances.empty()
-		    && project.paramBackup.getPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
+		    && project.param_backup.getPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
 		    && thisOutput->type == OutputType::AUDIO) {
 			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
 			// things will go wrong later.
@@ -2012,8 +2012,8 @@ loadOutput:
 			paramManager.setupUnpatched();
 			GlobalEffectable::initParams(&paramManager);
 
-			this->project.paramBackup.backUp((ModControllableAudio*)thisOutput->toModControllable(), nullptr,
-			                                 &paramManager);
+			this->project.param_backup.backUp((ModControllableAudio*)thisOutput->toModControllable(), nullptr,
+			                                  &paramManager);
 		}
 
 		for (int32_t i = 0; i < std::ssize(thisOutput->clipInstances); i++) {
@@ -3574,7 +3574,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 	AudioEngine::logAction("Song::deleteBackedUpParamManagersForClip");
 
-	for (auto it = project.paramBackup.map.begin(); it != project.paramBackup.map.end();) {
+	for (auto it = project.param_backup.map.begin(); it != project.param_backup.map.end();) {
 		if (it->first.second != clip) {
 			++it;
 			continue;
@@ -3583,21 +3583,21 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		AudioEngine::routineWithClusterLoading();
 		ModControllableAudio* modControllable = it->first.first;
 
-		auto itNull = project.paramBackup.map.find({modControllable, static_cast<Clip*>(nullptr)});
+		auto itNull = project.param_backup.map.find({modControllable, static_cast<Clip*>(nullptr)});
 
 		// If a no-Clip backup already exists for this ModControllable, replace its contents with this one's
-		if (itNull != project.paramBackup.map.end()) {
+		if (itNull != project.param_backup.map.end()) {
 			itNull->second.destructAndForgetParamCollections();
 			itNull->second.stealParamCollectionsFrom(&it->second);
-			it = project.paramBackup.map.erase(it);
+			it = project.param_backup.map.erase(it);
 		}
 
 		// Otherwise, just re-key this entry to the null Clip. extract() re-links the node without moving the
 		// ParamManager, and the re-inserted entry sorts before the current position, so it won't be revisited.
 		else {
-			auto node = project.paramBackup.map.extract(it++);
+			auto node = project.param_backup.map.extract(it++);
 			node.key().second = nullptr;
-			project.paramBackup.map.insert(std::move(node));
+			project.param_backup.map.insert(std::move(node));
 		}
 	}
 }
@@ -3903,8 +3903,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 		// Ok, back to the main task - if there's no activeClip...
 		else {
 			if (output->type == OutputType::SYNTH || output->type == OutputType::KIT) {
-				if (!project.paramBackup.getPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
-				                                               nullptr)) {
+				if (!project.param_backup.getPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
+				                                                nullptr)) {
 #if ALPHA_OR_BETA_VERSION
 					display->displayPopup("E044");
 #endif
@@ -3925,8 +3925,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					if (!project.paramBackup.getPreferablyWithClip(soundDrum,
-					                                               NULL)) { // If no backedUpParamManager...
+					if (!project.param_backup.getPreferablyWithClip(soundDrum,
+					                                                NULL)) { // If no backedUpParamManager...
 						if (!findParamManagerForDrum(kit,
 						                             soundDrum)) { // If no ParamManager with a NoteRow somewhere...
 							FREEZE_WITH_ERROR("E102");
@@ -4080,8 +4080,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		if (getClipWithOutput(thisOutput)) {}
 
 		else {
-			if (!project.paramBackup.getPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
-			                                               nullptr)) {
+			if (!project.param_backup.getPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
+			                                                nullptr)) {
 				FREEZE_WITH_ERROR(errorMessageNormal);
 			}
 		}
@@ -4103,8 +4103,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		}
 
 		else {
-			if (!project.paramBackup.getPreferablyWithClip((ModControllableAudio*)thisInstrument->toModControllable(),
-			                                               nullptr)) {
+			if (!project.param_backup.getPreferablyWithClip((ModControllableAudio*)thisInstrument->toModControllable(),
+			                                                nullptr)) {
 				FREEZE_WITH_ERROR(errorMessageHibernating);
 			}
 		}
@@ -4728,7 +4728,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 
 	GlobalEffectableForClip::initParamsForAudioClip(&newParamManager);
 
-	project.paramBackup.backUp((ModControllableAudio*)newOutput->toModControllable(), nullptr, &newParamManager, true);
+	project.param_backup.backUp((ModControllableAudio*)newOutput->toModControllable(), nullptr, &newParamManager, true);
 
 	if (replaceOutput) {
 		replaceOutputLowLevel(newOutput, replaceOutput);

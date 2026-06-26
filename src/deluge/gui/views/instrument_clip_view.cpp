@@ -5427,7 +5427,7 @@ doDisplayError:
 	SoundDrum* newDrum = new (memory) SoundDrum();
 	newDrum->setupAsSample(&paramManager);
 
-	modelStack->song->project.paramBackup.backUp(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
+	modelStack->song->project.param_backup.backUp(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
 
 	newDrum->drumName = soundName.c_str();
 	newDrum->nameIsDiscardable = true;
@@ -5496,7 +5496,7 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 	}
 
 	// Delete the Drum we came here to delete
-	currentSong->project.paramBackup.deleteForModControllable(drum);
+	currentSong->project.param_backup.deleteForModControllable(drum);
 	void* toDealloc = dynamic_cast<void*>(drum);
 	drum->~SoundDrum();
 	delugeDealloc(toDealloc);

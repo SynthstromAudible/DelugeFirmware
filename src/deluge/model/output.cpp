@@ -215,7 +215,7 @@ ParamManager* Output::getParamManager(Song* song) {
 	}
 	else {
 		ParamManager* paramManager =
-		    song->project.paramBackup.getPreferablyWithClip((ModControllableAudio*)toModControllable(), nullptr);
+		    song->project.param_backup.getPreferablyWithClip((ModControllableAudio*)toModControllable(), nullptr);
 		if (!paramManager) {
 			FREEZE_WITH_ERROR("E170");
 		}

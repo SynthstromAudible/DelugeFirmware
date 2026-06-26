@@ -2514,7 +2514,7 @@ getOut:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					if (!modelStack->song->project.paramBackup.getPreferablyWithClip(
+					if (!modelStack->song->project.param_backup.getPreferablyWithClip(
 					        soundDrum, NULL)) { // If no backedUpParamManager...
 						if (!modelStack->song->findParamManagerForDrum(
 						        kit, soundDrum)) { // If no ParamManager with a NoteRow somewhere...
