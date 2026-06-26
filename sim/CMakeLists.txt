@@ -292,8 +292,28 @@ if(RT_LIB)
     target_link_libraries(song_roundtrip PRIVATE ${RT_LIB})
 endif()
 
+# Param/automation DOM projection round-trip (docs/dev/param_automation_dom.md, Phase 1).
+# Exercises DocAutoParam <-> live AutoParam against the real engine container + host allocator; runs on
+# x86 (build-sim) and ARM (build-sim-arm via qemu) for the dual-arch coverage the design doc calls for.
+add_executable(param_projection_test
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/tests/projection/param_automation_test.cpp
+)
+target_include_directories(param_projection_test PRIVATE ${HOST_INCLUDE_DIRS})
+target_link_libraries(param_projection_test PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(param_projection_test PRIVATE ${RT_LIB})
+endif()
+
 # ---------------------------------------------------------------------------
 enable_testing()
+
+add_test(NAME param_projection_test COMMAND param_projection_test)
 
 # Layout-invariance guard (CTest). Render each fixture at two heap-pad layouts
 # (DELUGE_SIM_HEAP_PAD via scripts/golden_mixdown.sh padsweep) and assert the

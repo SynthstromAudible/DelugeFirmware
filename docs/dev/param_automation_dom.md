@@ -134,8 +134,14 @@ resonance/morph`, `hpf.*`) and has special blocks (patch cables, MPE). So the co
 
 - **Golden song round-trip** (`tests/golden/song_roundtrip` + `songs_run.py`): all fixtures settle;
   any regroup re-baseline must pass the **sorted-diff = pure relocation** check (no value change).
-- **Per-value-type dual-arch CppSpec unit spec** (the dsp-next methodology: `tests/dsp` style, x86
-  SIMDe + ARM/qemu) — mandatory per primitive, lands with each phase.
+- **Per-value-type round-trip test, lands with each phase.** Engine-coupled projections (which touch
+  `AutoParam` / the firmware containers + the SRAM/SDRAM allocator) run as a **sim executable** against
+  the real engine — `tests/projection/`, wired in `sim/CMakeLists.txt` beside `song_roundtrip`, runnable
+  x86 (build-sim) and ARM (build-sim-arm/qemu). The bare CppSpec env cannot host them: `AutoParam` pulls
+  in the whole app and the firmware containers don't build under the spec toolchain. Pure-value helpers
+  with no engine/allocator coupling may still use a CppSpec in `tests/spec`. (The projection itself is
+  integer/POD field copying with no arch-dependent behaviour, so the x86 run is the substantive gate;
+  the ARM run is for parity once build-sim-arm's Rust staticlib is built for ARM.)
 
 ## Risks / open questions (resolve as phases hit them)
 
