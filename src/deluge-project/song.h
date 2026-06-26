@@ -30,27 +30,41 @@
 
 namespace deluge::project {
 
-/// The project model: the persistent musical document — clips, instruments, tempo, scale,
-/// sections, macros — i.e. exactly what is serialized to a song file. This is the boundary for
-/// modern, idiomatic, object-oriented C++23, populated incrementally by the project-model
-/// extraction (docs/dev/project_model_extraction.md).
+/// The project model: the song's persistent musical state, extracted out of the legacy `::Song`
+/// god-object (docs/dev/project_model_extraction.md). `::Song` remains the controller and owns one
+/// of these as `project`; access is `currentSong->project.<component>.<field>`.
 ///
-/// During migration the legacy global `::Song` remains the controller (playback/UI/runtime) and
-/// owns one of these as `::Song::model`; project data moves here group by group, with the song
-/// file format held byte-identical at every step. Starts empty.
+/// REPRESENTATION (important): this is still the *runtime* model, not yet a pure document model. Its
+/// components fall into two tiers, and the boundary between them is the seam a future authoritative
+/// document model ("Level 3", docs/dev/project_model_extraction.md) would split out:
+///
+///   - **Document / value tier** — value-typed, serializable description, no engine dependency.
+///     These are already document-shaped (this is what the idiomatic-refinement pass produced).
+///
+///   - **Runtime-reference tier** — live, polymorphic, pool-allocated engine objects and the
+///     intrusive links the audio thread walks every render block (`media.first_output->next`);
+///     `clips` is an ordered list of non-owning `Clip*`; `global_fx`/`param_backup` hold live DSP
+///     state. None of these is serializable *as data* — they are the running engine.
+///
+/// The split is not perfectly clean: some value-tier data still embeds raw runtime pointers
+/// (`SessionMacro::clip`/`output`), which a document model would replace with stable IDs. That
+/// embedded-pointer case is exactly what the Level-3 projection probe should measure first.
 class Song {
 public:
 	Song();
 
+	// Document / value tier — value-typed, serializable.
 	Metadata metadata;
-	MediaPool media;
-	Clips clips;
 	Groove groove;
 	Transport transport;
 	ScaleSettings scale;
 	ReverbSettings reverb;
-	GlobalEffects global_fx;
 	Arrangement arrangement;
+
+	// Runtime-reference tier — live engine objects, intrusive links, hot-path DSP state.
+	MediaPool media;
+	Clips clips;
+	GlobalEffects global_fx;
 	ParamBackup param_backup;
 };
 

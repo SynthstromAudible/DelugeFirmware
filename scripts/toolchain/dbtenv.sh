@@ -370,7 +370,10 @@ dbtenv_main()
     PATH="$TOOLCHAIN_ARCH_DIR/arm-none-eabi-gcc/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/openocd/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/clang-format:$PATH";
-    PATH="$TOOLCHAIN_ARCH_DIR/cmake/bin:$PATH";
+    # LOCAL WORKAROUND (uncommitted): use system cmake, not the toolchain's 3.27.9, which predates
+    # CXX26 dialect support and fails to (re)configure the C++26 build. Revert once the toolchain
+    # ships a cmake >= 3.28.
+    # PATH="$TOOLCHAIN_ARCH_DIR/cmake/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/ninja-build/bin:$PATH";
     # PATH="$TOOLCHAIN_ARCH_DIR/openssl/bin:$PATH";
     export PATH;
