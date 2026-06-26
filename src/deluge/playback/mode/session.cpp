@@ -365,7 +365,7 @@ void Session::doLaunch(bool isFillLaunch) {
 	// Clip launching. But in the case where soloing is stopping entirely, other Clips are going to be launching, so
 	// we'll need to actually set these on all Outputs.
 	if (!anySoloingAfter && currentSong->anyClipsSoloing) {
-		for (Output* output = currentSong->project.media.firstOutput; output; output = output->next) {
+		for (Output* output = currentSong->project.media.first_output; output; output = output->next) {
 			output->alreadyGotItsNewClip = false;
 			output->isGettingSoloingClip = false;
 		}
@@ -2462,7 +2462,7 @@ void Session::doTickForward(int32_t posIncrement) {
 	}
 
 	// Do arps too (hmmm, could we want to do this in considerLaunchEvent() instead, just like the incrementing?)
-	for (Output* thisOutput = currentSong->project.media.firstOutput; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 
 		int32_t posForArp;
 		if (thisOutput->getActiveClip() && currentSong->isClipActive(thisOutput->getActiveClip())) {

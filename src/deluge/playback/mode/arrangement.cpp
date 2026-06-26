@@ -82,7 +82,7 @@ bool Arrangement::endPlayback() {
 
 	currentSong->paramManager.expectNoFurtherTicks(modelStack);
 
-	for (Output* output = currentSong->project.media.firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->project.media.first_output; output; output = output->next) {
 		if (!currentSong->isOutputActiveInArrangement(output)) {
 			continue;
 		}
@@ -134,7 +134,7 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 
 	for (uint8_t iPass = 0; iPass < 2; iPass++) {
 		// Go through all Outputs
-		for (Output* output = currentSong->project.media.firstOutput; output; output = output->next) {
+		for (Output* output = currentSong->project.media.first_output; output; output = output->next) {
 
 			if (output->needsEarlyPlayback() == (iPass == 1)) {
 				continue; // First time through, skip anything but priority clips, which must take effect first
@@ -366,7 +366,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 		currentSong->paramManager.setPlayPos(newPos, modelStack, false);
 	}
 
-	for (Output* output = currentSong->project.media.firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->project.media.first_output; output; output = output->next) {
 		if (!currentSong->isOutputActiveInArrangement(output)) {
 			continue;
 		}
@@ -456,7 +456,7 @@ void Arrangement::reversionDone() {
 
 	int32_t actualPos = getLivePos();
 
-	for (Output* output = currentSong->project.media.firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->project.media.first_output; output; output = output->next) {
 		if (!currentSong->isOutputActiveInArrangement(output)) {
 			continue;
 		}
@@ -662,7 +662,7 @@ bool Arrangement::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* m
 }
 
 void Arrangement::endAnyLinearRecording() {
-	for (Output* output = currentSong->project.media.firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->project.media.first_output; output; output = output->next) {
 		uint32_t timeRemainder;
 		int32_t actualPos = getLivePos(&timeRemainder);
 		output->endAnyArrangementRecording(currentSong, actualPos, timeRemainder);

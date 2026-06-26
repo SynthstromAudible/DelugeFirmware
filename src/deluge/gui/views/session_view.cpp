@@ -4672,7 +4672,7 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 
 const size_t SessionView::gridTrackCount() const {
 	size_t count = 0;
-	Output* currentTrack = currentSong->project.media.firstOutput;
+	Output* currentTrack = currentSong->project.media.first_output;
 	while (currentTrack != nullptr) {
 		if (currentTrack->getActiveClip() != nullptr) {
 			++count;
@@ -4701,7 +4701,7 @@ uint32_t SessionView::gridTrackIndexFromTrack(Output* track, uint32_t maxTrack) 
 	}
 
 	uint32_t reverseOutputIndex = 0;
-	for (Output* ptrOutput = currentSong->project.media.firstOutput; ptrOutput; ptrOutput = ptrOutput->next) {
+	for (Output* ptrOutput = currentSong->project.media.first_output; ptrOutput; ptrOutput = ptrOutput->next) {
 		if (ptrOutput == track) {
 			return ((maxTrack - 1) - reverseOutputIndex);
 		}
@@ -4714,7 +4714,7 @@ uint32_t SessionView::gridTrackIndexFromTrack(Output* track, uint32_t maxTrack) 
 
 Output* SessionView::gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack) {
 	uint32_t count = 0;
-	Output* currentTrack = currentSong->project.media.firstOutput;
+	Output* currentTrack = currentSong->project.media.first_output;
 	while (currentTrack != nullptr) {
 		if (currentTrack->getActiveClip() != nullptr) {
 			if (((maxTrack - 1) - count) == trackIndex) {

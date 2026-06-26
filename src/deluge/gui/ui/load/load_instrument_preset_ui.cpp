@@ -880,7 +880,7 @@ Error LoadInstrumentPresetUI::performLoad(bool doClone) {
 	if (!doClone && newInstrument) {
 
 		newInstrumentWasHibernating =
-		    isInstrumentInList(newInstrument, currentSong->project.media.firstHibernatingInstrument);
+		    isInstrumentInList(newInstrument, currentSong->project.media.first_hibernating_instrument);
 
 		if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 			if (!newInstrumentWasHibernating) {
@@ -987,8 +987,8 @@ giveUsedError:
 	}
 
 	// Check if old Instrument has been deleted, in which case need to update the appropriate FileItem.
-	if (!isInstrumentInList(instrumentToReplace, currentSong->project.media.firstOutput)
-	    && !isInstrumentInList(instrumentToReplace, currentSong->project.media.firstHibernatingInstrument)) {
+	if (!isInstrumentInList(instrumentToReplace, currentSong->project.media.first_output)
+	    && !isInstrumentInList(instrumentToReplace, currentSong->project.media.first_hibernating_instrument)) {
 		for (int32_t f = static_cast<int32_t>(fileItems.size()) - 1; f >= 0; f--) {
 			FileItem* fileItem = &fileItems[f];
 			if (fileItem->instrument == instrumentToReplace) {

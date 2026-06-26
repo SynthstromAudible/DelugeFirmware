@@ -443,7 +443,7 @@ Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 /// used to forward midi messages to specific tracks
 const size_t MidiFollow::getTrackCount() const {
 	size_t count = 0;
-	Output* currentTrack = currentSong->project.media.firstOutput;
+	Output* currentTrack = currentSong->project.media.first_output;
 	while (currentTrack != nullptr) {
 		if (currentTrack->getActiveClip() != nullptr) {
 			++count;
@@ -457,7 +457,7 @@ const size_t MidiFollow::getTrackCount() const {
 /// used to forward midi messages to specific tracks
 Output* MidiFollow::getTrackFromIndex(uint32_t track_index, uint32_t maxTrack) {
 	uint32_t count = 0;
-	Output* currentTrack = currentSong->project.media.firstOutput;
+	Output* currentTrack = currentSong->project.media.first_output;
 	while (currentTrack != nullptr) {
 		if (currentTrack->getActiveClip() != nullptr) {
 			if (((maxTrack - 1) - count) == track_index) {

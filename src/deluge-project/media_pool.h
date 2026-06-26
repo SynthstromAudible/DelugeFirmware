@@ -28,10 +28,10 @@ namespace deluge::project {
 /// A song's outputs (the head of the intrusive output list) plus the hibernating-instrument pools.
 /// A component of deluge::project::Song.
 struct MediaPool {
-	Output* firstOutput{nullptr};
+	Output* first_output{nullptr};
 	/// All Instruments here have inValidState set to false when added to this list.
-	Instrument* firstHibernatingInstrument{nullptr};
-	MIDIInstrument* hibernatingMIDIInstrument{nullptr};
+	Instrument* first_hibernating_instrument{nullptr};
+	MIDIInstrument* hibernating_midi_instrument{nullptr};
 };
 
 } // namespace deluge::project
