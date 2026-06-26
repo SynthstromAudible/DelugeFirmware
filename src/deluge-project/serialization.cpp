@@ -18,6 +18,7 @@
 #include "deluge-project/serialization.h"
 #include "deluge-project/arrangement.h"
 #include "deluge-project/groove.h"
+#include "deluge-project/transport.h"
 #include "io/midi/midi_device.h"         // MIDICable::writeReferenceToFile
 #include "io/midi/midi_device_manager.h" // MIDIDeviceManager::readDeviceReferenceFromFile
 #include "model/song/song.h"
@@ -275,6 +276,40 @@ bool deserializeMacros(Arrangement& arrangement, Deserializer& reader, ::Song& s
 	reader.match(']'); // end array
 	reader.exitTag("sessionMacros");
 	return true;
+}
+
+// --- Transport ---
+
+void serialize(const Transport& transport, Serializer& out) {
+	out.writeAttribute("timePerTimerTick", transport.samples_per_timer_tick_big >> 32);
+	out.writeAttribute("timerTickFraction", (uint32_t)transport.samples_per_timer_tick_big);
+	// The derived input-tick magnitude (Song::getInputTickMagnitude): the saved magnitude plus the
+	// sync-scaling offset that is kept out of the displayed BPM.
+	out.writeAttribute("inputTickMagnitude",
+	                   transport.inside_world_tick_magnitude + transport.inside_world_tick_magnitude_offset_from_bpm);
+}
+
+bool deserialize(Transport& transport, Deserializer& in, uint64_t& timePerTimerTick, char const* tagName) {
+	// The tempo is two 32-bit halves accumulated into `timePerTimerTick`, applied post-read by the
+	// caller via Song::setTimePerTimerTick (see serialization.h).
+	if (!strcmp(tagName, "timePerTimerTick")) {
+		timePerTimerTick =
+		    (timePerTimerTick & (uint64_t)0xFFFFFFFF) | ((uint64_t)in.readTagOrAttributeValueInt() << 32);
+		in.exitTag("timePerTimerTick");
+		return true;
+	}
+	if (!strcmp(tagName, "timerTickFraction")) {
+		timePerTimerTick =
+		    (timePerTimerTick & ((uint64_t)0xFFFFFFFF << 32)) | (uint64_t)(uint32_t)in.readTagOrAttributeValueInt();
+		in.exitTag("timerTickFraction");
+		return true;
+	}
+	if (!strcmp(tagName, "inputTickMagnitude")) {
+		transport.inside_world_tick_magnitude = in.readTagOrAttributeValueInt();
+		in.exitTag("inputTickMagnitude");
+		return true;
+	}
+	return false;
 }
 
 } // namespace deluge::project

@@ -27,6 +27,7 @@ namespace deluge::project {
 
 struct Groove;
 struct Arrangement;
+struct Transport;
 
 /// The single boundary through which a whole song is (de)serialized — the seam the project-model
 /// document model (DOM) is being built behind (docs/dev/project_model_level3.md). Today it delegates
@@ -57,5 +58,13 @@ bool deserializeSections(Arrangement& arrangement, Deserializer& in, char const*
 /// attributes from pre-id files).
 void serializeMacros(const Arrangement& arrangement, Serializer& out);
 bool deserializeMacros(Arrangement& arrangement, Deserializer& in, ::Song& song, char const* tagName);
+
+/// Transport (tempo + tick magnitude). The tempo is stored across two 32-bit halves (`timePerTimerTick`
+/// high, `timerTickFraction` low) that the legacy read accumulates into a local applied post-read via
+/// `Song::setTimePerTimerTick` (which needs the pre-load value for its tick-timing adjustment), so the
+/// deserialize accumulates into that local by reference rather than writing `samples_per_timer_tick_big`
+/// directly. `inputTickMagnitude` is the derived `getInputTickMagnitude()` (two transport fields).
+void serialize(const Transport& transport, Serializer& out);
+bool deserialize(Transport& transport, Deserializer& in, uint64_t& timePerTimerTick, char const* tagName);
 
 } // namespace deluge::project

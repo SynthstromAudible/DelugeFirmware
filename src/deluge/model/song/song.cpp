@@ -1007,10 +1007,8 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("yScrollArrangementView", persistentView.arrangementYScroll);
 	writer.writeAttribute("xScrollArrangementView", persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("xZoomArrangementView", persistentView.xZoom[NAVIGATION_ARRANGEMENT]);
-	writer.writeAttribute("timePerTimerTick", project.transport.samples_per_timer_tick_big >> 32);
-	writer.writeAttribute("timerTickFraction", (uint32_t)project.transport.samples_per_timer_tick_big);
+	deluge::project::serialize(project.transport, writer);
 	writer.writeAttribute("rootNote", project.scale.key.rootNote);
-	writer.writeAttribute("inputTickMagnitude", getInputTickMagnitude());
 	deluge::project::serialize(project.groove, writer, this);
 
 	if (persistentView.tripletsOn) {
@@ -1408,22 +1406,7 @@ unknownTag:
 				reader.exitTag("arrangementAutoScrollOn");
 			}
 
-			else if (!strcmp(tagName, "timePerTimerTick")) {
-				newTimePerTimerTick = (newTimePerTimerTick & (uint64_t)0xFFFFFFFF)
-				                      | ((uint64_t)reader.readTagOrAttributeValueInt() << 32);
-				reader.exitTag("timePerTimerTick");
-			}
-
-			else if (!strcmp(tagName, "timerTickFraction")) {
-				newTimePerTimerTick = (newTimePerTimerTick & ((uint64_t)0xFFFFFFFF << 32))
-				                      | (uint64_t)(uint32_t)reader.readTagOrAttributeValueInt();
-				reader.exitTag("timerTickFraction");
-			}
-
-			else if (!strcmp(tagName, "inputTickMagnitude")) {
-				project.transport.inside_world_tick_magnitude = reader.readTagOrAttributeValueInt();
-				reader.exitTag("inputTickMagnitude");
-			}
+			else if (deluge::project::deserialize(project.transport, reader, newTimePerTimerTick, tagName)) {}
 
 			else if (!strcmp(tagName, "rootNote")) {
 				project.scale.key.rootNote = reader.readTagOrAttributeValueInt();
