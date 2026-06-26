@@ -28,6 +28,7 @@
 class AutoParam;
 class ParamSet;
 class ParamManager;
+class ParamCollectionSummary;
 class Serializer;
 class Deserializer;
 enum class Polarity : uint8_t; // opaque-enum decl (fixed underlying type ⇒ usable by value); from patch_cable.h
@@ -207,5 +208,17 @@ DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos);
 /// to flat cables) and reads amounts via `readDocAutoParam`. Pre-V3.2 patch-cable quirks
 /// (`rangeAdjustable` / placeholder-range resolution) are intentionally not carried over.
 void deserializePatchCables(std::vector<DocPatchCable>& out, Deserializer& in, int32_t readAutomationUpToPos);
+
+// --- DOM-native read of the owner param blocks (param/automation DOM Phase 5b) ---
+// The read counterpart of the Phase 5a serializers. Each `read*ParamTag` is the table-driven DOM reader
+// for one owner's param block: if `tagName` is a current-format param tag, it reads the leaf via
+// `readDocAutoParam` into the live collection (and marks the summary's automation flag, matching
+// `ParamSet::readParam`) and returns true; otherwise it returns false so the engine's remaining
+// (legacy-only) dispatch can handle it. Reads land directly in the live manager (the authoritative DOM
+// home is Phase 5c). Driven by the same `DocParamAttr` tables the serializers use.
+
+/// Read one ModControllableAudio shared-block tag (the `<equalizer>` group + the flat MCA attrs).
+bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
+                                 ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
 
 } // namespace deluge::project

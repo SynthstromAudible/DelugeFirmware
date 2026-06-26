@@ -618,4 +618,63 @@ void deserializePatchCables(std::vector<DocPatchCable>& out, Deserializer& in, i
 	in.match(']');
 }
 
+// --- DOM-native read of the owner param blocks (Phase 5b) ---
+
+namespace {
+// Read one leaf into a live param + mark its automation flag (matching ParamSet::readParam). The leaf
+// goes through the DOM (readDocAutoParam → fromDocAutoParam) so the file format + back-compat are shared
+// with the write side; the net effect on currentValue + nodes is identical to a direct readParam.
+void readLiveParam(Deserializer& in, ParamSet& set, ParamCollectionSummary& summary, int32_t p,
+                   int32_t readAutomationUpToPos) {
+	DocAutoParam doc = readDocAutoParam(in, readAutomationUpToPos);
+	fromDocAutoParam(doc, set.params[p]);
+	if (set.params[p].isAutomated()) {
+		set.paramHasAutomationNow(&summary, p);
+	}
+}
+
+// If tagName matches a flat attr in the table, read it into the live set and return true.
+bool readLiveParamFromTable(Deserializer& in, char const* tagName, std::span<const DocParamAttr> table, ParamSet& set,
+                            ParamCollectionSummary& summary, int32_t readAutomationUpToPos) {
+	for (const DocParamAttr& a : table) {
+		if (!strcmp(tagName, a.name)) {
+			readLiveParam(in, set, summary, a.param_id, readAutomationUpToPos);
+			in.exitTag(a.name);
+			return true;
+		}
+	}
+	return false;
+}
+
+// If tagName is the nested group tag, read its member attrs (current-format) into the live set and
+// return true. Members the table doesn't know (legacy-only, e.g. morph in <lpf>) are skipped here and
+// must be handled by the caller's legacy tail before calling this — so this is only invoked for groups
+// whose current members are exhaustive, or the caller pre-handles the legacy members.
+bool readLiveParamGroup(Deserializer& in, char const* tagName, const char* groupName,
+                        std::span<const DocParamAttr> members, ParamSet& set, ParamCollectionSummary& summary,
+                        int32_t readAutomationUpToPos) {
+	if (strcmp(tagName, groupName) != 0) {
+		return false;
+	}
+	in.match('{');
+	while (*(tagName = in.readNextTagOrAttributeName())) {
+		if (!readLiveParamFromTable(in, tagName, members, set, summary, readAutomationUpToPos)) {
+			in.exitTag(tagName);
+		}
+	}
+	in.exitTag(groupName, true);
+	return true;
+}
+} // namespace
+
+bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
+                                 ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos) {
+	return readLiveParamGroup(in, tagName, "equalizer", kEqualizerGroup, unpatched, unpatchedSummary,
+	                          readAutomationUpToPos)
+	       || readLiveParamFromTable(in, tagName, kModControllableOverrideAttrs, unpatched, unpatchedSummary,
+	                                 readAutomationUpToPos)
+	       || readLiveParamFromTable(in, tagName, kModControllableArpAttrs, unpatched, unpatchedSummary,
+	                                 readAutomationUpToPos);
+}
+
 } // namespace deluge::project

@@ -337,6 +337,57 @@ int main() {
 		      "ModControllableAudio tags byte-identical");
 	}
 
+	// Phase 5b-1: the ModControllableAudio block round-trips through the DOM reader — serialize via the DOM
+	// into a wrapped <params> element, DOM-read it back into a fresh manager, and confirm values + the
+	// automation summary flag match.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "mca-rt setup");
+		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
+		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 111;
+		unp->params[params::UNPATCHED_BITCRUSHING].currentValue = 222;
+		setNode(unp->params[params::UNPATCHED_ARP_GATE], 0, 50, true); // automated
+		setNode(unp->params[params::UNPATCHED_ARP_GATE], 48, -99, false);
+		unp->params[params::UNPATCHED_BASS].currentValue = -333; // equalizer group
+		unp->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].currentValue = 444;
+
+		deluge::project::DocParamSet doc = deluge::project::toDocParamSet(*unp);
+
+		static char rtBuf[16384];
+		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
+		smSerializer.reset();
+		smSerializer.writeOpeningTagBeginning("params");
+		deluge::project::serializeModControllableParamAttributes(doc, smSerializer, true);
+		smSerializer.writeOpeningTagEnd();
+		deluge::project::serializeModControllableParamTags(doc, smSerializer, true);
+		smSerializer.writeClosingTag("params");
+		int32_t rtLen = smSerializer.bytesWritten();
+		rtBuf[rtLen] = '\0';
+
+		ParamManagerForTimeline pm2;
+		check(pm2.setupWithPatching() == Error::NONE, "mca-rt setup2");
+		UnpatchedParamSet* unp2 = pm2.getUnpatchedParamSet();
+		ParamCollectionSummary* sum2 = pm2.getUnpatchedParamSetSummary();
+		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
+		reader.openXMLFile(nullptr, "params");
+		const char* tag;
+		while (*(tag = reader.readNextTagOrAttributeName())) {
+			if (!deluge::project::readModControllableParamTag(reader, tag, *unp2, *sum2, 2147483647)) {
+				reader.exitTag();
+			}
+		}
+
+		const int32_t ids[] = {params::UNPATCHED_STUTTER_RATE, params::UNPATCHED_BITCRUSHING,
+		                       params::UNPATCHED_ARP_GATE, params::UNPATCHED_BASS, params::UNPATCHED_ARP_SPREAD_OCTAVE};
+		for (int32_t id : ids) {
+			expectSameNodes(unp2->params[id], unp->params[id], "mca-rt param");
+		}
+		check(
+		    (sum2->whichParamsAreAutomated[params::UNPATCHED_ARP_GATE >> 5] & (1u << (params::UNPATCHED_ARP_GATE & 31)))
+		        != 0,
+		    "mca-rt automation flag set");
+	}
+
 	// Phase 4b: the GlobalEffectable param block (global flat attrs wrapping the shared ModControllableAudio
 	// attrs + the <delay>/<lpf>/<hpf> groups) serializes byte-identical to the engine's static
 	// GlobalEffectable::writeParamAttributesToFile / writeParamTagsToFile, including the conditional
