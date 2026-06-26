@@ -1148,56 +1148,7 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeArrayEnding("chordMem");
 	}
 
-	// macros
-	int maxSessionMacroToSave = 0;
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		if (project.arrangement.session_macros[y].kind != SessionMacroKind::NO_MACRO) {
-			maxSessionMacroToSave = y + 1;
-		}
-	}
-	if (maxSessionMacroToSave > 0) {
-		// some macros to save
-		writer.writeArrayStart("sessionMacros");
-		for (int32_t y = 0; y < maxSessionMacroToSave; y++) {
-			auto& m = project.arrangement.session_macros[y];
-			writer.writeOpeningTagBeginning("macro", true);
-			switch (m.kind) {
-			case SessionMacroKind::CLIP_LAUNCH: {
-				int32_t index = project.clips.session_clips.getIndexForClip(m.clip);
-				if (index >= 0) {
-					writer.writeAttribute("kind", "clip_launch");
-					writer.writeAttribute("clip", index);
-				}
-				break;
-			}
-			case SessionMacroKind::OUTPUT_CYCLE: {
-				int32_t i = 0;
-				Output* thisOutput;
-				for (thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
-					if (thisOutput == m.output) {
-						break;
-					}
-					i++;
-				}
-				if (thisOutput != nullptr) {
-					writer.writeAttribute("kind", "output_cycle");
-					writer.writeAttribute("output", i);
-				}
-				break;
-			}
-			case SessionMacroKind::SECTION:
-				writer.writeAttribute("kind", "section");
-				writer.writeAttribute("section", m.section);
-				break;
-			case SessionMacroKind::NO_MACRO:
-				break;
-			// explicit fallthrough cases
-			case SessionMacroKind::NUM_KINDS:;
-			}
-			writer.closeTag(true);
-		}
-		writer.writeArrayEnding("sessionMacros");
-	}
+	deluge::project::serializeMacros(project.arrangement, writer);
 
 	// Scale stuff
 	writer.writeOpeningTag("scales");
@@ -1622,68 +1573,7 @@ unknownTag:
 				reader.exitTag("chordMem");
 			}
 
-			else if (!strcmp(tagName, "sessionMacros")) {
-				int slot_index = 0;
-				reader.match('[');
-				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "macro")) {
-						int y = slot_index++;
-						if (y >= 8) {
-							reader.exitTag("macro", true);
-							continue;
-						}
-						auto& m = project.arrangement.session_macros[y];
-						reader.match('{'); // enter value object
-						while (*(tagName = reader.readNextTagOrAttributeName())) {
-							if (!strcmp(tagName, "kind")) {
-								const char* kind = reader.readTagOrAttributeValue();
-								if (!strcmp(kind, "clip_launch")) {
-									m.kind = SessionMacroKind::CLIP_LAUNCH;
-								}
-								else if (!strcmp(kind, "output_cycle")) {
-									m.kind = SessionMacroKind::OUTPUT_CYCLE;
-								}
-								else if (!strcmp(kind, "section")) {
-									m.kind = SessionMacroKind::SECTION;
-								}
-							}
-							else if (!strcmp(tagName, "clip")) {
-								int32_t index = reader.readTagOrAttributeValueInt();
-								if (index >= 0 && index < std::ssize(project.clips.session_clips)) {
-									m.clip = project.clips.session_clips[index];
-								}
-							}
-							else if (!strcmp(tagName, "output")) {
-								int32_t index = reader.readTagOrAttributeValueInt();
-								Output* thisOutput;
-								for (thisOutput = project.media.first_output; thisOutput;
-								     thisOutput = thisOutput->next) {
-									if (index == 0) {
-										break;
-									}
-									index--;
-								}
-								m.output = thisOutput;
-							}
-							else if (!strcmp(tagName, "section")) {
-								m.section = reader.readTagOrAttributeValueInt();
-							}
-						}
-
-						if ((m.kind == SessionMacroKind::CLIP_LAUNCH && m.clip == nullptr)
-						    || (m.kind == SessionMacroKind::OUTPUT_CYCLE && m.output == nullptr)) {
-							m.kind = SessionMacroKind::NO_MACRO;
-						}
-					}
-					else {
-						reader.exitTag();
-					}
-					reader.match('}'); // end value object
-					reader.match('}'); // end box
-				}
-				reader.match(']'); // end array
-				reader.exitTag("sessionMacros");
-			}
+			else if (deluge::project::deserializeMacros(project.arrangement, reader, *this, tagName)) {}
 
 			else if (!strcmp(tagName, "scales")) {
 				reader.match('{');

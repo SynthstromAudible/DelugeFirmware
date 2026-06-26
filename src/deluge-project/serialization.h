@@ -51,4 +51,11 @@ bool deserialize(Groove& groove, Deserializer& in, char const* tagName);
 void serializeSections(const Arrangement& arrangement, Serializer& out);
 bool deserializeSections(Arrangement& arrangement, Deserializer& in, char const* tagName);
 
+/// Session macros reference a clip/output by its stable serial id (Clip/Output::serialId, resolved via
+/// Song::clipForId/outputForId) rather than by list position, so a macro survives clip/output
+/// reordering. `song` is needed to resolve ids (and to read the legacy positional `clip`/`output`
+/// attributes from pre-id files).
+void serializeMacros(const Arrangement& arrangement, Serializer& out);
+bool deserializeMacros(Arrangement& arrangement, Deserializer& in, ::Song& song, char const* tagName);
+
 } // namespace deluge::project
