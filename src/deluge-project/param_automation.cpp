@@ -298,6 +298,37 @@ void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer
 	serializeModControllableParamTags(unpatched, out, writeAutomation);
 }
 
+namespace {
+// The ExpressionParamSet (MPE) dimensions, by index, matching expressionParamNames[] in param_set.cpp.
+constexpr DocParamAttr kExpressionParams[] = {
+    {"pitchBend", 0},
+    {"yExpression", 1},
+    {"pressure", 2},
+};
+} // namespace
+
+bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, bool mustWriteOpeningTagEndFirst,
+                               bool writeAutomation) {
+	// Byte-for-byte reproduction of ExpressionParamSet::writeToFile.
+	bool writtenAnyYet = false;
+	for (const DocParamAttr& a : kExpressionParams) {
+		if (docContainsSomething(expression.params[a.param_id], 0)) {
+			if (!writtenAnyYet) {
+				writtenAnyYet = true;
+				if (mustWriteOpeningTagEndFirst) {
+					out.writeOpeningTagEnd();
+				}
+				out.writeOpeningTagBeginning("expressionData");
+			}
+			writeDocParamAsAttribute(expression, a.name, a.param_id, out, writeAutomation);
+		}
+	}
+	if (writtenAnyYet) {
+		out.closeTag();
+	}
+	return writtenAnyYet;
+}
+
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation) {
 	// Byte-for-byte reproduction of PatchCableSet::writePatchCablesToFile. The early-out matches the
 	// engine's `if (!numPatchCables) return;`.

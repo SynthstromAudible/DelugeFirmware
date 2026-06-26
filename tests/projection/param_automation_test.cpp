@@ -381,6 +381,35 @@ int main() {
 		      "GlobalEffectable tags byte-identical");
 	}
 
+	// Phase 4c: the ExpressionParamSet (MPE) block serializes byte-identical to the engine's
+	// ExpressionParamSet::writeToFile (the <expressionData> group with pitchBend/yExpression/pressure).
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "expr setup");
+		ExpressionParamSet* e = pm.getOrCreateExpressionParamSet();
+		check(e != nullptr, "expr param set created");
+		e->params[0].currentValue = 12345;    // pitchBend
+		setNode(e->params[2], 0, 6789, true); // pressure, automated
+		// yExpression (index 1) left neutral ⇒ exercises the per-dimension skip.
+
+		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
+		check(doc.expression.has_value(), "expr present in doc");
+
+		static char engBuf[16384];
+		static char domBuf[16384];
+
+		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
+		smSerializer.reset();
+		bool engWrote = e->writeToFile(smSerializer, false);
+		int32_t engLen = smSerializer.bytesWritten();
+		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
+		smSerializer.reset();
+		bool domWrote = deluge::project::serializeExpressionParams(*doc.expression, smSerializer, false, true);
+		int32_t domLen = smSerializer.bytesWritten();
+		check(engWrote == domWrote, "expression written-flag matches");
+		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "ExpressionParamSet byte-identical");
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);

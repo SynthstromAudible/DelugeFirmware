@@ -168,6 +168,14 @@ void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer&
 void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
 void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
 
+/// Serialize the ExpressionParamSet (MPE) block from the expression collection, byte-identical to
+/// `ExpressionParamSet::writeToFile`: the `<expressionData>` group holding pitchBend / yExpression /
+/// pressure, emitted only when at least one dimension contains something (and each dimension only when
+/// it does). `mustWriteOpeningTagEndFirst` mirrors the engine arg — close the parent's opening tag
+/// before the first child. Returns whether anything was written.
+bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, bool mustWriteOpeningTagEndFirst,
+                               bool writeAutomation);
+
 /// Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);
