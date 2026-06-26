@@ -454,6 +454,51 @@ int main() {
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
 
+	// Phase 4e: the Song value-override path. Song serializes its global-effectable block with a
+	// valuesForOverride array (the "params in automation mode" snapshot); for an automated param the
+	// override value is written in place of currentValue. The DOM serializer must match byte-for-byte.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "override setup");
+		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
+		setNode(up->params[params::UNPATCHED_VOLUME], 0, 4242, true); // automated ⇒ override applies
+		up->params[params::UNPATCHED_PAN].currentValue = 555;         // not automated ⇒ override ignored
+		setNode(up->params[params::UNPATCHED_BASS], 0, 7, false);     // automated, equalizer group
+
+		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
+		check(doc.unpatched.has_value(), "override unpatched present");
+
+		std::vector<int32_t> ovr(doc.unpatched->params.size(), 0);
+		ovr[params::UNPATCHED_VOLUME] = -123456; // distinct from currentValue (0) so the path is observable
+		ovr[params::UNPATCHED_PAN] = 999;        // would differ, but PAN isn't automated ⇒ must be ignored
+		ovr[params::UNPATCHED_BASS] = -77;
+
+		static char engBuf[16384];
+		static char domBuf[16384];
+
+		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
+		smSerializer.reset();
+		GlobalEffectable::writeParamAttributesToFile(smSerializer, &pm, true, ovr.data());
+		int32_t engAttrLen = smSerializer.bytesWritten();
+		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
+		smSerializer.reset();
+		deluge::project::serializeGlobalEffectableParamAttributes(*doc.unpatched, smSerializer, true, ovr.data());
+		int32_t domAttrLen = smSerializer.bytesWritten();
+		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
+		      "GlobalEffectable override attributes byte-identical");
+
+		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
+		smSerializer.reset();
+		GlobalEffectable::writeParamTagsToFile(smSerializer, &pm, true, ovr.data());
+		int32_t engTagLen = smSerializer.bytesWritten();
+		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
+		smSerializer.reset();
+		deluge::project::serializeGlobalEffectableParamTags(*doc.unpatched, smSerializer, true, ovr.data());
+		int32_t domTagLen = smSerializer.bytesWritten();
+		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
+		      "GlobalEffectable override tags byte-identical");
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);

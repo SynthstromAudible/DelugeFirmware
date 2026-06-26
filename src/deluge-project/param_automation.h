@@ -129,16 +129,20 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 // into the song save path.
 
 /// Write one AutoParam's value (+ automation when `writeAutomation`) as the legacy `0x…` hex blob — the
-/// document-side equivalent of `AutoParam::writeToFile` (no override value). The caller emits the
-/// surrounding tag/quotes.
-void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutomation);
+/// document-side equivalent of `AutoParam::writeToFile`. The caller emits the surrounding tag/quotes.
+/// `valueForOverride` mirrors the engine arg: when non-null and the param is automated, that value is
+/// written in place of `current_value` (the Song-level "params in automation mode" override); the
+/// automation nodes are always written as-is.
+void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutomation,
+                       const int32_t* valueForOverride = nullptr);
 
 /// Write one of a collection's params as a named attribute (`name="0x…"`), byte-identical to
 /// `ParamSet::writeParamAsAttribute`. This is the building block the owner param blocks
-/// (GlobalEffectable / ModControllableAudio / Sound / clips) are composed of. The value-override path
-/// of the engine version is not yet supported.
+/// (GlobalEffectable / ModControllableAudio / Sound / clips) are composed of. When `valuesForOverride` is
+/// non-null its `[p]` entry is the override value (see `writeDocAutoParam`).
 void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, int32_t p, Serializer& out,
-                              bool writeAutomation, bool onlyIfContainsSomething = false);
+                              bool writeAutomation, bool onlyIfContainsSomething = false,
+                              const int32_t* valuesForOverride = nullptr);
 
 /// One entry of an owner's param block: a file tag/attribute name and the param id it maps to within
 /// the collection. Owner blocks are expressed as compact arrays of these driving the generic helpers.
@@ -150,14 +154,16 @@ struct DocParamAttr {
 /// Write a nested group of params (e.g. `<equalizer>` / `<lpf>`) from a collection — byte-identical to
 /// the engine's inline `writeOpeningTagBeginning(group) + writeParamAsAttribute(tag, id)… + closeTag()`.
 void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const DocParamAttr> params,
-                        const DocParamSet& doc, bool writeAutomation);
+                        const DocParamSet& doc, bool writeAutomation, const int32_t* valuesForOverride = nullptr);
 
 /// Serialize the ModControllableAudio shared param block from the unpatched collection, byte-identical
 /// to `ModControllableAudio::writeParamAttributesToFile` (flat attrs) and `writeParamTagsToFile`
 /// (the `<equalizer>` group). The two halves are emitted at different points in the owner's tag, so they
 /// are separate (the value-override path is not yet supported).
-void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
-void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
+void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                             const int32_t* valuesForOverride = nullptr);
+void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                       const int32_t* valuesForOverride = nullptr);
 
 /// Serialize the GlobalEffectable param block from the unpatched collection, byte-identical to
 /// `GlobalEffectable::writeParamAttributesToFile` (its flat global attrs — reverb/volume/pan, the
@@ -165,8 +171,10 @@ void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer&
 /// attrs, then lpfMorph/hpfMorph/tempo/arpeggiatorRate) and `writeParamTagsToFile` (the `<delay>` /
 /// `<lpf>` / `<hpf>` groups, then the shared ModControllableAudio tags). The value-override path is not
 /// yet supported.
-void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
-void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
+void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                              const int32_t* valuesForOverride = nullptr);
+void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                        const int32_t* valuesForOverride = nullptr);
 
 /// Serialize the ExpressionParamSet (MPE) block from the expression collection, byte-identical to
 /// `ExpressionParamSet::writeToFile`: the `<expressionData>` group holding pitchBend / yExpression /

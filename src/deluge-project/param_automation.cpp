@@ -146,12 +146,14 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 
 // --- Generic serialization (Phase 4) ---
 
-void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutomation) {
-	// Mirrors AutoParam::writeToFile (no override): "0x" + currentValue(8 hex) + per-node value(8 hex)
-	// + pos|interpolated<<31 (8 hex).
+void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutomation,
+                       const int32_t* valueForOverride) {
+	// Mirrors AutoParam::writeToFile: "0x" + value(8 hex) + per-node value(8 hex) + pos|interpolated<<31
+	// (8 hex). When overriding an automated param, the leading value is the override, not current_value.
 	char buffer[9];
 	out.write("0x");
-	intToHex(doc.current_value, buffer);
+	int32_t valueNow = (valueForOverride && !doc.nodes.empty()) ? *valueForOverride : doc.current_value;
+	intToHex(valueNow, buffer);
 	out.write(buffer);
 	if (writeAutomation) {
 		for (const ParamNode& node : doc.nodes) {
@@ -168,19 +170,20 @@ void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutom
 }
 
 void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, int32_t p, Serializer& out,
-                              bool writeAutomation, bool onlyIfContainsSomething) {
-	// Byte-for-byte reproduction of ParamSet::writeParamAsAttribute (without the value-override path).
+                              bool writeAutomation, bool onlyIfContainsSomething, const int32_t* valuesForOverride) {
+	// Byte-for-byte reproduction of ParamSet::writeParamAsAttribute.
 	const DocAutoParam& param = doc.params[p];
 	// containsSomething(neutral=0): automated, or currentValue != 0 (as an unsigned compare).
 	if (onlyIfContainsSomething && param.nodes.empty() && static_cast<uint32_t>(param.current_value) == 0u) {
 		return;
 	}
+	const int32_t* valueForOverride = valuesForOverride ? &valuesForOverride[p] : nullptr;
 	out.insertCommaIfNeeded();
 	out.write("\n");
 	out.printIndents();
 	out.writeTagNameAndSeperator(name);
 	out.write("\"");
-	writeDocAutoParam(param, out, writeAutomation);
+	writeDocAutoParam(param, out, writeAutomation, valueForOverride);
 	out.write("\"");
 }
 
@@ -220,22 +223,24 @@ constexpr DocParamAttr kEqualizerGroup[] = {
 } // namespace
 
 void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const DocParamAttr> params_,
-                        const DocParamSet& doc, bool writeAutomation) {
+                        const DocParamSet& doc, bool writeAutomation, const int32_t* valuesForOverride) {
 	out.writeOpeningTagBeginning(groupName);
 	for (const DocParamAttr& a : params_) {
-		writeDocParamAsAttribute(doc, a.name, a.param_id, out, writeAutomation);
+		writeDocParamAsAttribute(doc, a.name, a.param_id, out, writeAutomation, false, valuesForOverride);
 	}
 	out.closeTag();
 }
 
-void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation) {
+void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                             const int32_t* valuesForOverride) {
 	for (const DocParamAttr& a : kModControllableAttrs) {
-		writeDocParamAsAttribute(unpatched, a.name, a.param_id, out, writeAutomation);
+		writeDocParamAsAttribute(unpatched, a.name, a.param_id, out, writeAutomation, false, valuesForOverride);
 	}
 }
 
-void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation) {
-	writeDocParamGroup(out, "equalizer", kEqualizerGroup, unpatched, writeAutomation);
+void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                       const int32_t* valuesForOverride) {
+	writeDocParamGroup(out, "equalizer", kEqualizerGroup, unpatched, writeAutomation, valuesForOverride);
 }
 
 namespace {
@@ -259,43 +264,48 @@ constexpr DocParamAttr kGlobalHpfGroup[] = {
 };
 } // namespace
 
-void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation) {
+void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                              const int32_t* ovr) {
 	// Byte-for-byte reproduction of GlobalEffectable::writeParamAttributesToFile. The flat global attrs
 	// wrap the shared ModControllableAudio attrs; pitchAdjust and sidechainCompressorVolume are written
 	// only when they contain something (with their own neutral values), the rest unconditionally.
-	writeDocParamAsAttribute(unpatched, "reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT, out, writeAutomation);
-	writeDocParamAsAttribute(unpatched, "volume", params::UNPATCHED_VOLUME, out, writeAutomation);
-	writeDocParamAsAttribute(unpatched, "pan", params::UNPATCHED_PAN, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT, out, writeAutomation,
+	                         false, ovr);
+	writeDocParamAsAttribute(unpatched, "volume", params::UNPATCHED_VOLUME, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "pan", params::UNPATCHED_PAN, out, writeAutomation, false, ovr);
 
 	if (docContainsSomething(unpatched.params[params::UNPATCHED_PITCH_ADJUST], 0)) {
-		writeDocParamAsAttribute(unpatched, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, out, writeAutomation);
+		writeDocParamAsAttribute(unpatched, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, out, writeAutomation, false,
+		                         ovr);
 	}
 	if (docContainsSomething(unpatched.params[params::UNPATCHED_SIDECHAIN_VOLUME], 0x80000000u)) {
 		writeDocParamAsAttribute(unpatched, "sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME, out,
-		                         writeAutomation);
+		                         writeAutomation, false, ovr);
 	}
 
 	writeDocParamAsAttribute(unpatched, "sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, out,
-	                         writeAutomation);
-	writeDocParamAsAttribute(unpatched, "modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, out, writeAutomation);
-	writeDocParamAsAttribute(unpatched, "modFXRate", params::UNPATCHED_MOD_FX_RATE, out, writeAutomation);
+	                         writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "modFXRate", params::UNPATCHED_MOD_FX_RATE, out, writeAutomation, false, ovr);
 
-	serializeModControllableParamAttributes(unpatched, out, writeAutomation);
+	serializeModControllableParamAttributes(unpatched, out, writeAutomation, ovr);
 
 	// Community Firmware parameters (always written after the official ones, just before the parent closes).
-	writeDocParamAsAttribute(unpatched, "lpfMorph", params::UNPATCHED_LPF_MORPH, out, writeAutomation);
-	writeDocParamAsAttribute(unpatched, "hpfMorph", params::UNPATCHED_HPF_MORPH, out, writeAutomation);
-	writeDocParamAsAttribute(unpatched, "tempo", params::UNPATCHED_TEMPO, out, writeAutomation);
-	writeDocParamAsAttribute(unpatched, "arpeggiatorRate", params::UNPATCHED_ARP_RATE, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "lpfMorph", params::UNPATCHED_LPF_MORPH, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "hpfMorph", params::UNPATCHED_HPF_MORPH, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "tempo", params::UNPATCHED_TEMPO, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(unpatched, "arpeggiatorRate", params::UNPATCHED_ARP_RATE, out, writeAutomation, false,
+	                         ovr);
 }
 
-void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation) {
+void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
+                                        const int32_t* ovr) {
 	// Byte-for-byte reproduction of GlobalEffectable::writeParamTagsToFile: the <delay>/<lpf>/<hpf>
 	// groups, then the shared ModControllableAudio tags (<equalizer>).
-	writeDocParamGroup(out, "delay", kGlobalDelayGroup, unpatched, writeAutomation);
-	writeDocParamGroup(out, "lpf", kGlobalLpfGroup, unpatched, writeAutomation);
-	writeDocParamGroup(out, "hpf", kGlobalHpfGroup, unpatched, writeAutomation);
-	serializeModControllableParamTags(unpatched, out, writeAutomation);
+	writeDocParamGroup(out, "delay", kGlobalDelayGroup, unpatched, writeAutomation, ovr);
+	writeDocParamGroup(out, "lpf", kGlobalLpfGroup, unpatched, writeAutomation, ovr);
+	writeDocParamGroup(out, "hpf", kGlobalHpfGroup, unpatched, writeAutomation, ovr);
+	serializeModControllableParamTags(unpatched, out, writeAutomation, ovr);
 }
 
 namespace {
