@@ -227,4 +227,11 @@ bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet
 bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
                                   ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
 
+/// Read one Sound param-block tag: the two unpatched flat attrs (portamento / compressorShape), the
+/// patched flat attrs (osc / filter / LFO / FM / pitchAdjust family / community attrs), the four
+/// `<envelope*>` groups, then the shared MCA block. The `<patchCables>` tag is NOT handled here — the
+/// caller keeps the engine's reader for it (it carries pre-V3.2 cable back-compat the DOM reader drops).
+bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched, ParamCollectionSummary& patchedSummary,
+                       ParamSet& unpatched, ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
+
 } // namespace deluge::project

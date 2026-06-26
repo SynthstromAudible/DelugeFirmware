@@ -583,6 +583,64 @@ int main() {
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
 
+	// Phase 5b-3: the Sound param block round-trips through the DOM reader (patched + unpatched flat attrs,
+	// the <envelope*> groups, the shared MCA block). Patch cables are excluded here — they keep the engine
+	// reader (pre-V3.2 back-compat) — so no cables are set.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "sound-rt setup");
+		PatchedParamSet* pp = pm.getPatchedParamSet();
+		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
+		pp->params[params::LOCAL_OSC_A_VOLUME].currentValue = 12345;
+		setNode(pp->params[params::LOCAL_ENV_0_ATTACK], 0, 4242, true); // envelope group, automated
+		pp->params[params::GLOBAL_REVERB_AMOUNT].currentValue = -999;
+		pp->params[params::LOCAL_LPF_MORPH].currentValue = 111; // community attr
+		pp->params[params::LOCAL_PITCH_ADJUST].currentValue = 678;
+		up->params[params::UNPATCHED_PORTAMENTO].currentValue = 222;
+		up->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333; // shared MCA attr
+
+		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
+
+		static char rtBuf[16384];
+		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
+		smSerializer.reset();
+		smSerializer.writeOpeningTagBeginning("soundParams");
+		deluge::project::serializeSoundParams(*doc.patched, *doc.unpatched, {}, smSerializer, true);
+		smSerializer.writeClosingTag("soundParams", true);
+		int32_t rtLen = smSerializer.bytesWritten();
+		rtBuf[rtLen] = '\0';
+
+		ParamManagerForTimeline pm2;
+		check(pm2.setupWithPatching() == Error::NONE, "sound-rt setup2");
+		PatchedParamSet* pp2 = pm2.getPatchedParamSet();
+		UnpatchedParamSet* up2 = pm2.getUnpatchedParamSet();
+		ParamCollectionSummary* psum2 = pm2.getPatchedParamSetSummary();
+		ParamCollectionSummary* usum2 = pm2.getUnpatchedParamSetSummary();
+		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
+		reader.openXMLFile(nullptr, "soundParams");
+		const char* tag;
+		while (*(tag = reader.readNextTagOrAttributeName())) {
+			if (!deluge::project::readSoundParamTag(reader, tag, *pp2, *psum2, *up2, *usum2, 2147483647)) {
+				reader.exitTag();
+			}
+		}
+
+		const int32_t patchedIds[] = {params::LOCAL_OSC_A_VOLUME, params::LOCAL_ENV_0_ATTACK,
+		                              params::GLOBAL_REVERB_AMOUNT, params::LOCAL_LPF_MORPH,
+		                              params::LOCAL_PITCH_ADJUST};
+		for (int32_t id : patchedIds) {
+			expectSameNodes(pp2->params[id], pp->params[id], "sound-rt patched");
+		}
+		expectSameNodes(up2->params[params::UNPATCHED_PORTAMENTO], up->params[params::UNPATCHED_PORTAMENTO],
+		                "sound-rt portamento");
+		expectSameNodes(up2->params[params::UNPATCHED_STUTTER_RATE], up->params[params::UNPATCHED_STUTTER_RATE],
+		                "sound-rt mca");
+		check((psum2->whichParamsAreAutomated[params::LOCAL_ENV_0_ATTACK >> 5]
+		       & (1u << (params::LOCAL_ENV_0_ATTACK & 31)))
+		          != 0,
+		      "sound-rt envelope automation flag set");
+	}
+
 	// Phase 4e: the Song value-override path. Song serializes its global-effectable block with a
 	// valuesForOverride array (the "params in automation mode" snapshot); for an automated param the
 	// override value is written in place of currentValue. The DOM serializer must match byte-for-byte.

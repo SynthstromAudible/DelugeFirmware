@@ -720,4 +720,63 @@ bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSe
 	       || readModControllableParamTag(in, tagName, unpatched, unpatchedSummary, readAutomationUpToPos);
 }
 
+namespace {
+// Sound's two unpatched flat attrs (read lookup).
+constexpr DocParamAttr kSoundUnpatchedAttrs[] = {
+    {"portamento", params::UNPATCHED_PORTAMENTO},
+    {"compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE},
+};
+// Sound's patched flat attrs (read lookup; order-independent), matching Sound::writeParamsToFile.
+constexpr DocParamAttr kSoundPatchedAttrs[] = {
+    {"oscAVolume", params::LOCAL_OSC_A_VOLUME},
+    {"oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH},
+    {"oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX},
+    {"oscBVolume", params::LOCAL_OSC_B_VOLUME},
+    {"oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH},
+    {"oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX},
+    {"noiseVolume", params::LOCAL_NOISE_VOLUME},
+    {"volume", params::GLOBAL_VOLUME_POST_FX},
+    {"pan", params::LOCAL_PAN},
+    {"lpfFrequency", params::LOCAL_LPF_FREQ},
+    {"lpfResonance", params::LOCAL_LPF_RESONANCE},
+    {"hpfFrequency", params::LOCAL_HPF_FREQ},
+    {"hpfResonance", params::LOCAL_HPF_RESONANCE},
+    {"lfo1Rate", params::GLOBAL_LFO_FREQ_1},
+    {"lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ_1},
+    {"lfo3Rate", params::GLOBAL_LFO_FREQ_2},
+    {"lfo4Rate", params::LOCAL_LFO_LOCAL_FREQ_2},
+    {"modulator1Amount", params::LOCAL_MODULATOR_0_VOLUME},
+    {"modulator1Feedback", params::LOCAL_MODULATOR_0_FEEDBACK},
+    {"modulator2Amount", params::LOCAL_MODULATOR_1_VOLUME},
+    {"modulator2Feedback", params::LOCAL_MODULATOR_1_FEEDBACK},
+    {"carrier1Feedback", params::LOCAL_CARRIER_0_FEEDBACK},
+    {"carrier2Feedback", params::LOCAL_CARRIER_1_FEEDBACK},
+    {"pitchAdjust", params::LOCAL_PITCH_ADJUST},
+    {"oscAPitchAdjust", params::LOCAL_OSC_A_PITCH_ADJUST},
+    {"oscBPitchAdjust", params::LOCAL_OSC_B_PITCH_ADJUST},
+    {"mod1PitchAdjust", params::LOCAL_MODULATOR_0_PITCH_ADJUST},
+    {"mod2PitchAdjust", params::LOCAL_MODULATOR_1_PITCH_ADJUST},
+    {"modFXRate", params::GLOBAL_MOD_FX_RATE},
+    {"modFXDepth", params::GLOBAL_MOD_FX_DEPTH},
+    {"delayRate", params::GLOBAL_DELAY_RATE},
+    {"delayFeedback", params::GLOBAL_DELAY_FEEDBACK},
+    {"reverbAmount", params::GLOBAL_REVERB_AMOUNT},
+    {"arpeggiatorRate", params::GLOBAL_ARP_RATE},
+    {"lpfMorph", params::LOCAL_LPF_MORPH},
+    {"hpfMorph", params::LOCAL_HPF_MORPH},
+    {"waveFold", params::LOCAL_FOLD},
+};
+} // namespace
+
+bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched, ParamCollectionSummary& patchedSummary,
+                       ParamSet& unpatched, ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos) {
+	return readLiveParamFromTable(in, tagName, kSoundUnpatchedAttrs, unpatched, unpatchedSummary, readAutomationUpToPos)
+	       || readLiveParamFromTable(in, tagName, kSoundPatchedAttrs, patched, patchedSummary, readAutomationUpToPos)
+	       || readLiveParamGroup(in, tagName, "envelope1", kEnvelope1, patched, patchedSummary, readAutomationUpToPos)
+	       || readLiveParamGroup(in, tagName, "envelope2", kEnvelope2, patched, patchedSummary, readAutomationUpToPos)
+	       || readLiveParamGroup(in, tagName, "envelope3", kEnvelope3, patched, patchedSummary, readAutomationUpToPos)
+	       || readLiveParamGroup(in, tagName, "envelope4", kEnvelope4, patched, patchedSummary, readAutomationUpToPos)
+	       || readModControllableParamTag(in, tagName, unpatched, unpatchedSummary, readAutomationUpToPos);
+}
+
 } // namespace deluge::project
