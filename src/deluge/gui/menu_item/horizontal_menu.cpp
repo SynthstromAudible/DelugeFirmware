@@ -305,6 +305,12 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 		return;
 	}
 
+	// check if you're permitted to edit this horizontal menu item
+	if (!child->selectEncoderActionIsPermitted()) {
+		// No action if select encoder action is not permitted
+		return;
+	}
+
 	child->selectEncoderAction(offset * calcNextKnobSpeed(offset));
 	focusChild(child);
 	displayNotification(child);
