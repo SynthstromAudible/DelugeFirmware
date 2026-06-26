@@ -63,6 +63,8 @@ void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet) {
 	fromDocParamSet(doc, paramSet.params, paramSet.getNumParams());
 }
 
+namespace params = deluge::modulation::params;
+
 namespace {
 using deluge::modulation::params::Kind;
 // Slot 0 holds either the unpatched ParamSet or a MIDI-CC collection (the latter deferred to a later
@@ -182,13 +184,66 @@ void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, int32_t 
 	out.write("\"");
 }
 
+namespace {
+// The ModControllableAudio shared param block (mod_controllable_audio.cpp): the flat attribute
+// sequence + the <equalizer> group, in file order. All written unconditionally (onlyIfContainsSomething
+// is false in the engine for every one).
+constexpr DocParamAttr kModControllableAttrs[] = {
+    {"stutterRate", params::UNPATCHED_STUTTER_RATE},
+    {"sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION},
+    {"bitCrush", params::UNPATCHED_BITCRUSHING},
+    {"modFXOffset", params::UNPATCHED_MOD_FX_OFFSET},
+    {"modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK},
+    {"compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD},
+    {"arpeggiatorGate", params::UNPATCHED_ARP_GATE},
+    {"noteProbability", params::UNPATCHED_NOTE_PROBABILITY},
+    {"bassProbability", params::UNPATCHED_ARP_BASS_PROBABILITY},
+    {"swapProbability", params::UNPATCHED_ARP_SWAP_PROBABILITY},
+    {"glideProbability", params::UNPATCHED_ARP_GLIDE_PROBABILITY},
+    {"reverseProbability", params::UNPATCHED_REVERSE_PROBABILITY},
+    {"chordProbability", params::UNPATCHED_ARP_CHORD_PROBABILITY},
+    {"ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY},
+    {"ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT},
+    {"sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH},
+    {"chordPolyphony", params::UNPATCHED_ARP_CHORD_POLYPHONY},
+    {"rhythm", params::UNPATCHED_ARP_RHYTHM},
+    {"spreadVelocity", params::UNPATCHED_SPREAD_VELOCITY},
+    {"spreadGate", params::UNPATCHED_ARP_SPREAD_GATE},
+    {"spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE},
+};
+constexpr DocParamAttr kEqualizerGroup[] = {
+    {"bass", params::UNPATCHED_BASS},
+    {"treble", params::UNPATCHED_TREBLE},
+    {"bassFrequency", params::UNPATCHED_BASS_FREQ},
+    {"trebleFrequency", params::UNPATCHED_TREBLE_FREQ},
+};
+} // namespace
+
+void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const DocParamAttr> params_,
+                        const DocParamSet& doc, bool writeAutomation) {
+	out.writeOpeningTagBeginning(groupName);
+	for (const DocParamAttr& a : params_) {
+		writeDocParamAsAttribute(doc, a.name, a.param_id, out, writeAutomation);
+	}
+	out.closeTag();
+}
+
+void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation) {
+	for (const DocParamAttr& a : kModControllableAttrs) {
+		writeDocParamAsAttribute(unpatched, a.name, a.param_id, out, writeAutomation);
+	}
+}
+
+void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation) {
+	writeDocParamGroup(out, "equalizer", kEqualizerGroup, unpatched, writeAutomation);
+}
+
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation) {
 	// Byte-for-byte reproduction of PatchCableSet::writePatchCablesToFile. The early-out matches the
 	// engine's `if (!numPatchCables) return;`.
 	if (cables.empty()) {
 		return;
 	}
-	namespace params = deluge::modulation::params;
 	out.writeArrayStart("patchCables");
 	for (const DocPatchCable& cable : cables) {
 		// Depth-controlling (range) cables aren't written at top level; they're nested below the cable

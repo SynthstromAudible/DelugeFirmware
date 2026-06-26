@@ -10,6 +10,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
@@ -17,6 +18,8 @@
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "storage/storage_manager.h"
+
+namespace params = deluge::modulation::params;
 
 #include <cstdint>
 #include <cstdio>
@@ -293,8 +296,47 @@ int main() {
 		}
 	}
 
+	// Phase 4a: the ModControllableAudio shared param block (flat attrs + <equalizer>) serializes
+	// byte-identical to the engine's static writeParamAttributesToFile / writeParamTagsToFile.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "mca setup");
+		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
+		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 111;
+		unp->params[params::UNPATCHED_BITCRUSHING].currentValue = 222;
+		setNode(unp->params[params::UNPATCHED_ARP_GATE], 0, 50, true);
+		unp->params[params::UNPATCHED_BASS].currentValue = -333; // equalizer group
+
+		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
+
+		static char engBuf[16384];
+		static char domBuf[16384];
+
+		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
+		smSerializer.reset();
+		ModControllableAudio::writeParamAttributesToFile(smSerializer, &pm, true);
+		int32_t engAttrLen = smSerializer.bytesWritten();
+		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
+		smSerializer.reset();
+		deluge::project::serializeModControllableParamAttributes(*doc.unpatched, smSerializer, true);
+		int32_t domAttrLen = smSerializer.bytesWritten();
+		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
+		      "ModControllableAudio attributes byte-identical");
+
+		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
+		smSerializer.reset();
+		ModControllableAudio::writeParamTagsToFile(smSerializer, &pm, true);
+		int32_t engTagLen = smSerializer.bytesWritten();
+		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
+		smSerializer.reset();
+		deluge::project::serializeModControllableParamTags(*doc.unpatched, smSerializer, true);
+		int32_t domTagLen = smSerializer.bytesWritten();
+		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
+		      "ModControllableAudio tags byte-identical");
+	}
+
 	if (failures == 0) {
-		std::printf("param_automation projection: OK\n");
+		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);
 		// _exit (not return) to skip deluge_app's global static destructors, which assume a fully
 		// set-up app (e.g. a non-null display) — the same reason the golden harness uses _exit.

@@ -22,6 +22,7 @@
 #include "modulation/params/param_node_vector.h"
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <vector>
 
 class AutoParam;
@@ -138,6 +139,25 @@ void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutom
 /// of the engine version is not yet supported.
 void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, int32_t p, Serializer& out,
                               bool writeAutomation, bool onlyIfContainsSomething = false);
+
+/// One entry of an owner's param block: a file tag/attribute name and the param id it maps to within
+/// the collection. Owner blocks are expressed as compact arrays of these driving the generic helpers.
+struct DocParamAttr {
+	const char* name;
+	int32_t param_id;
+};
+
+/// Write a nested group of params (e.g. `<equalizer>` / `<lpf>`) from a collection — byte-identical to
+/// the engine's inline `writeOpeningTagBeginning(group) + writeParamAsAttribute(tag, id)… + closeTag()`.
+void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const DocParamAttr> params,
+                        const DocParamSet& doc, bool writeAutomation);
+
+/// Serialize the ModControllableAudio shared param block from the unpatched collection, byte-identical
+/// to `ModControllableAudio::writeParamAttributesToFile` (flat attrs) and `writeParamTagsToFile`
+/// (the `<equalizer>` group). The two halves are emitted at different points in the owner's tag, so they
+/// are separate (the value-override path is not yet supported).
+void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
+void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
 
 /// Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
