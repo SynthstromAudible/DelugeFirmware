@@ -238,6 +238,66 @@ void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer&
 	writeDocParamGroup(out, "equalizer", kEqualizerGroup, unpatched, writeAutomation);
 }
 
+namespace {
+// containsSomething(neutral): automated, or currentValue != neutral (unsigned compare) — the engine's
+// AutoParam::containsSomething. Used for GlobalEffectable's bespoke conditional attrs.
+bool docContainsSomething(const DocAutoParam& param, uint32_t neutral) {
+	return !param.nodes.empty() || static_cast<uint32_t>(param.current_value) != neutral;
+}
+// The GlobalEffectable <delay> / <lpf> / <hpf> nested groups (global_effectable.cpp), in file order.
+constexpr DocParamAttr kGlobalDelayGroup[] = {
+    {"rate", params::UNPATCHED_DELAY_RATE},
+    {"feedback", params::UNPATCHED_DELAY_AMOUNT},
+};
+constexpr DocParamAttr kGlobalLpfGroup[] = {
+    {"frequency", params::UNPATCHED_LPF_FREQ},
+    {"resonance", params::UNPATCHED_LPF_RES},
+};
+constexpr DocParamAttr kGlobalHpfGroup[] = {
+    {"frequency", params::UNPATCHED_HPF_FREQ},
+    {"resonance", params::UNPATCHED_HPF_RES},
+};
+} // namespace
+
+void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation) {
+	// Byte-for-byte reproduction of GlobalEffectable::writeParamAttributesToFile. The flat global attrs
+	// wrap the shared ModControllableAudio attrs; pitchAdjust and sidechainCompressorVolume are written
+	// only when they contain something (with their own neutral values), the rest unconditionally.
+	writeDocParamAsAttribute(unpatched, "reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "volume", params::UNPATCHED_VOLUME, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "pan", params::UNPATCHED_PAN, out, writeAutomation);
+
+	if (docContainsSomething(unpatched.params[params::UNPATCHED_PITCH_ADJUST], 0)) {
+		writeDocParamAsAttribute(unpatched, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, out, writeAutomation);
+	}
+	if (docContainsSomething(unpatched.params[params::UNPATCHED_SIDECHAIN_VOLUME], 0x80000000u)) {
+		writeDocParamAsAttribute(unpatched, "sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME, out,
+		                         writeAutomation);
+	}
+
+	writeDocParamAsAttribute(unpatched, "sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, out,
+	                         writeAutomation);
+	writeDocParamAsAttribute(unpatched, "modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "modFXRate", params::UNPATCHED_MOD_FX_RATE, out, writeAutomation);
+
+	serializeModControllableParamAttributes(unpatched, out, writeAutomation);
+
+	// Community Firmware parameters (always written after the official ones, just before the parent closes).
+	writeDocParamAsAttribute(unpatched, "lpfMorph", params::UNPATCHED_LPF_MORPH, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "hpfMorph", params::UNPATCHED_HPF_MORPH, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "tempo", params::UNPATCHED_TEMPO, out, writeAutomation);
+	writeDocParamAsAttribute(unpatched, "arpeggiatorRate", params::UNPATCHED_ARP_RATE, out, writeAutomation);
+}
+
+void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation) {
+	// Byte-for-byte reproduction of GlobalEffectable::writeParamTagsToFile: the <delay>/<lpf>/<hpf>
+	// groups, then the shared ModControllableAudio tags (<equalizer>).
+	writeDocParamGroup(out, "delay", kGlobalDelayGroup, unpatched, writeAutomation);
+	writeDocParamGroup(out, "lpf", kGlobalLpfGroup, unpatched, writeAutomation);
+	writeDocParamGroup(out, "hpf", kGlobalHpfGroup, unpatched, writeAutomation);
+	serializeModControllableParamTags(unpatched, out, writeAutomation);
+}
+
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation) {
 	// Byte-for-byte reproduction of PatchCableSet::writePatchCablesToFile. The early-out matches the
 	// engine's `if (!numPatchCables) return;`.

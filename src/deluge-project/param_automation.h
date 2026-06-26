@@ -159,6 +159,15 @@ void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const 
 void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
 void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
 
+/// Serialize the GlobalEffectable param block from the unpatched collection, byte-identical to
+/// `GlobalEffectable::writeParamAttributesToFile` (its flat global attrs — reverb/volume/pan, the
+/// conditional pitchAdjust + sidechain volume, modFX… — wrapped around the shared ModControllableAudio
+/// attrs, then lpfMorph/hpfMorph/tempo/arpeggiatorRate) and `writeParamTagsToFile` (the `<delay>` /
+/// `<lpf>` / `<hpf>` groups, then the shared ModControllableAudio tags). The value-override path is not
+/// yet supported.
+void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
+void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation);
+
 /// Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);

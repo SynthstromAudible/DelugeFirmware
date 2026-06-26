@@ -10,6 +10,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "model/global_effectable/global_effectable.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
@@ -333,6 +334,51 @@ int main() {
 		int32_t domTagLen = smSerializer.bytesWritten();
 		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
 		      "ModControllableAudio tags byte-identical");
+	}
+
+	// Phase 4b: the GlobalEffectable param block (global flat attrs wrapping the shared ModControllableAudio
+	// attrs + the <delay>/<lpf>/<hpf> groups) serializes byte-identical to the engine's static
+	// GlobalEffectable::writeParamAttributesToFile / writeParamTagsToFile, including the conditional
+	// pitchAdjust / sidechainCompressorVolume attrs.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "ge setup");
+		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
+		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].currentValue = 123;
+		unp->params[params::UNPATCHED_VOLUME].currentValue = 456;
+		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789;         // exercises the conditional attr
+		setNode(unp->params[params::UNPATCHED_SIDECHAIN_VOLUME], 0, 99, false); // automated ⇒ conditional fires
+		unp->params[params::UNPATCHED_LPF_FREQ].currentValue = -111;            // <lpf> group
+		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;           // <delay> group
+		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333;         // shared block
+		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;            // community attr
+
+		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
+
+		static char engBuf[16384];
+		static char domBuf[16384];
+
+		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
+		smSerializer.reset();
+		GlobalEffectable::writeParamAttributesToFile(smSerializer, &pm, true);
+		int32_t engAttrLen = smSerializer.bytesWritten();
+		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
+		smSerializer.reset();
+		deluge::project::serializeGlobalEffectableParamAttributes(*doc.unpatched, smSerializer, true);
+		int32_t domAttrLen = smSerializer.bytesWritten();
+		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
+		      "GlobalEffectable attributes byte-identical");
+
+		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
+		smSerializer.reset();
+		GlobalEffectable::writeParamTagsToFile(smSerializer, &pm, true);
+		int32_t engTagLen = smSerializer.bytesWritten();
+		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
+		smSerializer.reset();
+		deluge::project::serializeGlobalEffectableParamTags(*doc.unpatched, smSerializer, true);
+		int32_t domTagLen = smSerializer.bytesWritten();
+		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
+		      "GlobalEffectable tags byte-identical");
 	}
 
 	if (failures == 0) {
