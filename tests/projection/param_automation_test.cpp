@@ -38,6 +38,25 @@ void check(bool ok, const char* what) {
 	}
 }
 
+void setNode(AutoParam& ap, int32_t pos, int32_t value, bool interpolated) {
+	int32_t i = ap.nodes.insertSorted(pos, /*isDefinitelyLast=*/true).value_or(-1);
+	if (i >= 0) {
+		ap.nodes[i].pos = pos;
+		ap.nodes[i].value = value;
+		ap.nodes[i].interpolated = interpolated;
+	}
+}
+
+void expectSameNodes(const AutoParam& a, const AutoParam& b, const char* name) {
+	check(a.currentValue == b.currentValue, name);
+	check(a.nodes.size() == b.nodes.size(), name);
+	for (size_t i = 0; i < a.nodes.size() && i < b.nodes.size(); i++) {
+		check(a.nodes[i].pos == b.nodes[i].pos, name);
+		check(a.nodes[i].value == b.nodes[i].value, name);
+		check(a.nodes[i].interpolated == b.nodes[i].interpolated, name);
+	}
+}
+
 // Build a live AutoParam from a value + node list, round-trip it through the document form, and assert
 // the rebuilt AutoParam is identical.
 void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& nodes) {
@@ -81,6 +100,30 @@ int main() {
 	// Extreme current value (full int32 range), no automation.
 	roundTrip("int32 extremes", 2147483647, {});
 	roundTrip("int32 min", -2147483647 - 1, {});
+
+	// Phase 2: a parameter collection (DocParamSet) round-trips its kind + every param (a mix of
+	// unautomated, automated, and patch-cable-range), preserving array order and count.
+	{
+		constexpr int kNumParams = 3;
+		AutoParam set[kNumParams];
+		set[0].currentValue = 111; // unautomated
+		set[1].currentValue = 222; // automated
+		setNode(set[1], 0, 100, false);
+		setNode(set[1], 48, -250000000, true);
+		set[2].currentValue = 333; // patch-cable range
+		setNode(set[2], 0, -1073741824, true);
+
+		using deluge::modulation::params::Kind;
+		deluge::project::DocParamSet doc = deluge::project::toDocParamSet(Kind::PATCHED, set, kNumParams);
+		check(doc.kind == Kind::PATCHED, "set kind");
+		check(static_cast<int>(doc.params.size()) == kNumParams, "set size");
+
+		AutoParam out[kNumParams];
+		deluge::project::fromDocParamSet(doc, out, kNumParams);
+		for (int p = 0; p < kNumParams; p++) {
+			expectSameNodes(out[p], set[p], "set param");
+		}
+	}
 
 	if (failures == 0) {
 		std::printf("param_automation projection: OK\n");
