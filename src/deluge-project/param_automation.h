@@ -132,6 +132,13 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 /// surrounding tag/quotes.
 void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutomation);
 
+/// Write one of a collection's params as a named attribute (`name="0x…"`), byte-identical to
+/// `ParamSet::writeParamAsAttribute`. This is the building block the owner param blocks
+/// (GlobalEffectable / ModControllableAudio / Sound / clips) are composed of. The value-override path
+/// of the engine version is not yet supported.
+void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, int32_t p, Serializer& out,
+                              bool writeAutomation, bool onlyIfContainsSomething = false);
+
 /// Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);

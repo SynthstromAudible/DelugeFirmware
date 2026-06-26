@@ -165,6 +165,23 @@ void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutom
 	}
 }
 
+void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, int32_t p, Serializer& out,
+                              bool writeAutomation, bool onlyIfContainsSomething) {
+	// Byte-for-byte reproduction of ParamSet::writeParamAsAttribute (without the value-override path).
+	const DocAutoParam& param = doc.params[p];
+	// containsSomething(neutral=0): automated, or currentValue != 0 (as an unsigned compare).
+	if (onlyIfContainsSomething && param.nodes.empty() && static_cast<uint32_t>(param.current_value) == 0u) {
+		return;
+	}
+	out.insertCommaIfNeeded();
+	out.write("\n");
+	out.printIndents();
+	out.writeTagNameAndSeperator(name);
+	out.write("\"");
+	writeDocAutoParam(param, out, writeAutomation);
+	out.write("\"");
+}
+
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation) {
 	// Byte-for-byte reproduction of PatchCableSet::writePatchCablesToFile. The early-out matches the
 	// engine's `if (!numPatchCables) return;`.

@@ -257,6 +257,42 @@ int main() {
 		}
 	}
 
+	// Phase 4: writeDocParamAsAttribute (the owner-block building block) is byte-identical to
+	// ParamSet::writeParamAsAttribute — automated param, plain param, and the onlyIfContainsSomething
+	// skip (empty vs non-empty).
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "attr setup");
+		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
+		unp->params[2].currentValue = 424242; // automated
+		setNode(unp->params[2], 0, 10, true);
+		setNode(unp->params[2], 40, -20, false);
+		unp->params[5].currentValue = -7; // plain, non-empty
+		unp->params[8].currentValue = 0;  // empty
+
+		deluge::project::DocParamSet doc = deluge::project::toDocParamSet(*unp);
+
+		struct Case {
+			const char* name;
+			int p;
+			bool onlyIf;
+		};
+		const Case cases[] = {{"alpha", 2, false}, {"beta", 5, false}, {"gamma", 8, true}, {"delta", 5, true}};
+		for (const Case& cs : cases) {
+			static char attrEngine[8192];
+			static char attrDom[8192];
+			smSerializer.setMemoryBuffer(attrEngine, sizeof(attrEngine));
+			smSerializer.reset();
+			unp->writeParamAsAttribute(smSerializer, cs.name, cs.p, true, cs.onlyIf);
+			int32_t el = smSerializer.bytesWritten();
+			smSerializer.setMemoryBuffer(attrDom, sizeof(attrDom));
+			smSerializer.reset();
+			deluge::project::writeDocParamAsAttribute(doc, cs.name, cs.p, smSerializer, true, cs.onlyIf);
+			int32_t dl = smSerializer.bytesWritten();
+			check(el == dl && std::memcmp(attrEngine, attrDom, el) == 0, "writeParamAsAttribute byte-identical");
+		}
+	}
+
 	if (failures == 0) {
 		std::printf("param_automation projection: OK\n");
 		std::fflush(stdout);
