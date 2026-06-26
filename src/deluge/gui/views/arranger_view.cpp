@@ -148,7 +148,8 @@ void ArrangerView::moveClipToSession() {
 			}
 
 			else if (intendedIndex > std::ssize(currentSong->project.clips.sessionClips)) {
-				currentSong->persistentView.songViewYScroll -= intendedIndex - std::ssize(currentSong->project.clips.sessionClips);
+				currentSong->persistentView.songViewYScroll -=
+				    intendedIndex - std::ssize(currentSong->project.clips.sessionClips);
 				intendedIndex = std::ssize(currentSong->project.clips.sessionClips);
 			}
 
@@ -163,7 +164,8 @@ void ArrangerView::moveClipToSession() {
 
 			int32_t oldIndex = currentSong->project.clips.arrangementOnlyClips.getIndexForClip(clip);
 			if (oldIndex != -1) {
-				currentSong->project.clips.arrangementOnlyClips.erase(currentSong->project.clips.arrangementOnlyClips.begin() + oldIndex);
+				currentSong->project.clips.arrangementOnlyClips.erase(
+				    currentSong->project.clips.arrangementOnlyClips.begin() + oldIndex);
 			}
 		}
 
@@ -1475,7 +1477,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 		clipInstance->length = clipInstance->clip->loopLength;
 	}
 	else {
-		clipInstance->length = kDefaultClipLength << currentSong->project.transport.insideWorldTickMagnitude;
+		clipInstance->length = kDefaultClipLength << currentSong->project.transport.inside_world_tick_magnitude;
 	}
 
 	if (clipInstance->length < 1) {
@@ -2273,8 +2275,8 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 
 	if (drawGhostClipInstanceHere) {
 
-		int32_t xMovement =
-		    currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] - pressedClipInstanceXScrollWhenLastInValidPosition;
+		int32_t xMovement = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]
+		                    - pressedClipInstanceXScrollWhenLastInValidPosition;
 		ClipInstance* clipInstance = &pressedClipInstanceOutput->clipInstances[pressedClipInstanceIndex];
 		int32_t newStartPos = clipInstance->pos + xMovement;
 		int32_t newEndPos = newStartPos + clipInstance->length;
@@ -2825,8 +2827,8 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 			ClipInstance* pressed_instance =
 			    (ClipInstance*)&pressedClipInstanceOutput->clipInstances[pressedClipInstanceIndex];
-			int32_t xMovement =
-			    currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] - pressedClipInstanceXScrollWhenLastInValidPosition;
+			int32_t xMovement = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]
+			                    - pressedClipInstanceXScrollWhenLastInValidPosition;
 			int32_t dragged_clip_position = pressed_instance->pos + xMovement;
 			can_drag_clip_instance = (dragged_clip_position > 0);
 		}
@@ -2877,7 +2879,8 @@ void ArrangerView::shiftAutomationHorizontally(int32_t offset, int32_t scroll_am
 // This function will shift clips horizontally at a specific point in time by inserting / deleting time
 void ArrangerView::shiftClipsHorizontally(int32_t offset, int32_t scroll_amount, Action* action) {
 	for (Output* thisOutput = currentSong->project.media.firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		int32_t i = thisOutput->clipInstances.firstAtOrAfter(currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
+		int32_t i =
+		    thisOutput->clipInstances.firstAtOrAfter(currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
 
 		bool movedOneYet = false;
 
@@ -3314,8 +3317,8 @@ uint32_t ArrangerView::getMaxZoom() {
 	uint32_t max_length = getMaxLength();
 
 	if (max_length
-	    < (kDefaultArrangerZoom << currentSong->project.transport.insideWorldTickMagnitude) * kDisplayWidth) {
-		return (kDefaultArrangerZoom << currentSong->project.transport.insideWorldTickMagnitude);
+	    < (kDefaultArrangerZoom << currentSong->project.transport.inside_world_tick_magnitude) * kDisplayWidth) {
+		return (kDefaultArrangerZoom << currentSong->project.transport.inside_world_tick_magnitude);
 	}
 
 	uint32_t this_length = kDisplayWidth * 3;

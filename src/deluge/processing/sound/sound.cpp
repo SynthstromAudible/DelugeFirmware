@@ -4561,8 +4561,9 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 		if (on) {
 			int32_t insideWorldTickMagnitude;
 			if (currentSong) { // Bit of a hack just referring to currentSong in here...
-				insideWorldTickMagnitude = (currentSong->project.transport.insideWorldTickMagnitude
-				                            + currentSong->project.transport.insideWorldTickMagnitudeOffsetFromBPM);
+				insideWorldTickMagnitude =
+				    (currentSong->project.transport.inside_world_tick_magnitude
+				     + currentSong->project.transport.inside_world_tick_magnitude_offset_from_bpm);
 			}
 			else {
 				insideWorldTickMagnitude = FlashStorage::defaultMagnitude;

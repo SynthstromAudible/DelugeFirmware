@@ -506,7 +506,7 @@ Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* model
 bool Clip::deleteSoundsWhichWontSound(Song* song) {
 	return (output->isSkippingRendering() && !song->isClipActive(this)
 	        && this != view.activeModControllableModelStack.getTimelineCounterAllowNull()
-	        && this != song->project.transport.syncScalingClip);
+	        && this != song->project.transport.sync_scaling_clip);
 }
 
 void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
@@ -745,7 +745,7 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 		// This is naughty - inputTickScaleClip shouldn't be accessed directly. But for simplicity, I'm using it to hold
 		// this Clip for now, and then in song.cpp this gets made right in a moment...
 		if (is) {
-			song->project.transport.syncScalingClip = this;
+			song->project.transport.sync_scaling_clip = this;
 		}
 	}
 
@@ -1026,7 +1026,7 @@ Error Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int3
 }
 
 bool Clip::wantsToBeginLinearRecording(Song* song) {
-	return (armedForRecording && song->project.transport.syncScalingClip != this);
+	return (armedForRecording && song->project.transport.sync_scaling_clip != this);
 }
 
 void Clip::setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newMode) {

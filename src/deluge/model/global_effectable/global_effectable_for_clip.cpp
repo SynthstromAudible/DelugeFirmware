@@ -204,8 +204,9 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 			if (whichModEncoder == 1) { // Sidechain
 				int32_t insideWorldTickMagnitude;
 				if (currentSong) { // Bit of a hack just referring to currentSong in here...
-					insideWorldTickMagnitude = (currentSong->project.transport.insideWorldTickMagnitude
-					                            + currentSong->project.transport.insideWorldTickMagnitudeOffsetFromBPM);
+					insideWorldTickMagnitude =
+					    (currentSong->project.transport.inside_world_tick_magnitude
+					     + currentSong->project.transport.inside_world_tick_magnitude_offset_from_bpm);
 				}
 				else {
 					insideWorldTickMagnitude = FlashStorage::defaultMagnitude;

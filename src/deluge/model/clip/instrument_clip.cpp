@@ -4402,8 +4402,8 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 			// If this is larger than 0x7fffffff we have significant problems down the line, so just cast here so we're
 			// honest.
 			auto quantizeInterval = static_cast<int32_t>(
-			    baseThing << (8 + modelStack->song->project.transport.insideWorldTickMagnitude
-			                  + modelStack->song->project.transport.insideWorldTickMagnitudeOffsetFromBPM
+			    baseThing << (8 + modelStack->song->project.transport.inside_world_tick_magnitude
+			                  + modelStack->song->project.transport.inside_world_tick_magnitude_offset_from_bpm
 			                  - FlashStorage::recordQuantizeLevel));
 			auto offset = static_cast<int32_t>(unquantizedPos % quantizeInterval);
 			quantizedPos = static_cast<int32_t>(unquantizedPos - static_cast<uint32_t>(offset));

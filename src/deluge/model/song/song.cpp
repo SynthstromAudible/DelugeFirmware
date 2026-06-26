@@ -140,9 +140,9 @@ using deluge::project::SessionMacroKind;
 
 Song::Song() {
 	outputClipInstanceListIsCurrentlyInvalid = false;
-	project.transport.insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
-	project.transport.insideWorldTickMagnitudeOffsetFromBPM = 0;
-	project.transport.syncScalingClip = nullptr;
+	project.transport.inside_world_tick_magnitude = FlashStorage::defaultMagnitude;
+	project.transport.inside_world_tick_magnitude_offset_from_bpm = 0;
+	project.transport.sync_scaling_clip = nullptr;
 	runtimeView.currentClip = nullptr;
 	project.metadata.slot = 32767;
 	project.metadata.subSlot = -1;
@@ -152,8 +152,9 @@ Song::Song() {
 	persistentView.xScrollForReturnToSongView = 0;
 
 	persistentView.xZoom[NAVIGATION_CLIP] =
-	    increaseMagnitude(kDefaultClipLength, project.transport.insideWorldTickMagnitude - kDisplayWidthMagnitude);
-	persistentView.xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << project.transport.insideWorldTickMagnitude;
+	    increaseMagnitude(kDefaultClipLength, project.transport.inside_world_tick_magnitude - kDisplayWidthMagnitude);
+	persistentView.xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom
+	                                               << project.transport.inside_world_tick_magnitude;
 	persistentView.xZoomForReturnToSongView = persistentView.xZoom[NAVIGATION_CLIP];
 
 	persistentView.tripletsOn = false;
@@ -331,7 +332,7 @@ void Song::deleteAllBackedUpParamManagersWithClips() {
 }
 
 bool Song::mayDoubleTempo() {
-	return ((project.transport.timePerTimerTickBig >> 33) > kMinTimePerTimerTick);
+	return ((project.transport.samples_per_timer_tick_big >> 33) > kMinTimePerTimerTick);
 }
 
 // Returns true if a Clip created
@@ -347,7 +348,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	(void)project.clips.sessionClips.insertClipAt(firstClip,
 	                                              0); // OOM impossible-in-practice this early; ignored as before
 
-	firstClip->loopLength = kDefaultClipLength << project.transport.insideWorldTickMagnitude;
+	firstClip->loopLength = kDefaultClipLength << project.transport.inside_world_tick_magnitude;
 
 	ParamManager newParamManager; // Deliberate don't set up.
 
@@ -684,10 +685,10 @@ bool Song::areAllClipsInSectionPlaying(int32_t section) {
 }
 
 uint32_t Song::getInputTickScale() {
-	if (!project.transport.syncScalingClip) {
+	if (!project.transport.sync_scaling_clip) {
 		return 3;
 	}
-	uint32_t inputTickScale = project.transport.syncScalingClip->loopLength;
+	uint32_t inputTickScale = project.transport.sync_scaling_clip->loopLength;
 	while (!(inputTickScale & 1)) {
 		inputTickScale >>= 1;
 	}
@@ -695,12 +696,12 @@ uint32_t Song::getInputTickScale() {
 }
 
 Clip* Song::getSyncScalingClip() {
-	return project.transport.syncScalingClip;
+	return project.transport.sync_scaling_clip;
 }
 
 void Song::setInputTickScaleClip(Clip* clip) {
 	uint32_t oldScale = getInputTickScale();
-	project.transport.syncScalingClip = clip;
+	project.transport.sync_scaling_clip = clip;
 	inputTickScalePotentiallyJustChanged(oldScale);
 }
 
@@ -712,7 +713,7 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 	if ((float)newScale * 1.41 < oldScale) {
 		do {
 			newScale *= 2;
-			project.transport.insideWorldTickMagnitude++;
+			project.transport.inside_world_tick_magnitude++;
 			// insideWorldTickMagnitudeOffsetFromBPM--;
 		} while ((float)newScale * 1.41 < oldScale);
 	}
@@ -720,7 +721,7 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 	else {
 		while ((float)oldScale * 1.41 < newScale) {
 			oldScale *= 2;
-			project.transport.insideWorldTickMagnitude--;
+			project.transport.inside_world_tick_magnitude--;
 			// insideWorldTickMagnitudeOffsetFromBPM++;
 		}
 	}
@@ -730,13 +731,13 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 
 	oldScale = 3;
 	newScale = getInputTickScale();
-	project.transport.insideWorldTickMagnitudeOffsetFromBPM = 0;
+	project.transport.inside_world_tick_magnitude_offset_from_bpm = 0;
 
 	if ((float)newScale * 1.41 < oldScale) {
 		do {
 			newScale *= 2;
 			// insideWorldTickMagnitude++;
-			project.transport.insideWorldTickMagnitudeOffsetFromBPM--;
+			project.transport.inside_world_tick_magnitude_offset_from_bpm--;
 		} while ((float)newScale * 1.41 < oldScale);
 	}
 
@@ -744,7 +745,7 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 		while ((float)oldScale * 1.41 < newScale) {
 			oldScale *= 2;
 			// insideWorldTickMagnitude--;
-			project.transport.insideWorldTickMagnitudeOffsetFromBPM++;
+			project.transport.inside_world_tick_magnitude_offset_from_bpm++;
 		}
 	}
 }
@@ -772,7 +773,7 @@ void Song::loadNextSong() {
 void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip) {
 	uint32_t oldLength = clip->loopLength;
 
-	if (clip == project.transport.syncScalingClip) {
+	if (clip == project.transport.sync_scaling_clip) {
 		uint32_t oldScale = getInputTickScale();
 		clip->loopLength = newLength;
 		inputTickScalePotentiallyJustChanged(oldScale);
@@ -825,7 +826,7 @@ void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
 	clip->increaseLengthWithRepeats(modelStack, oldLength << 1, IndependentNoteRowLengthIncrease::DOUBLE, false,
 	                                action);
 
-	if (clip == project.transport.syncScalingClip) {
+	if (clip == project.transport.sync_scaling_clip) {
 		inputTickScalePotentiallyJustChanged(oldScale);
 	}
 
@@ -1006,8 +1007,8 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("yScrollArrangementView", persistentView.arrangementYScroll);
 	writer.writeAttribute("xScrollArrangementView", persistentView.xScroll[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("xZoomArrangementView", persistentView.xZoom[NAVIGATION_ARRANGEMENT]);
-	writer.writeAttribute("timePerTimerTick", project.transport.timePerTimerTickBig >> 32);
-	writer.writeAttribute("timerTickFraction", (uint32_t)project.transport.timePerTimerTickBig);
+	writer.writeAttribute("timePerTimerTick", project.transport.samples_per_timer_tick_big >> 32);
+	writer.writeAttribute("timerTickFraction", (uint32_t)project.transport.samples_per_timer_tick_big);
 	writer.writeAttribute("rootNote", project.scale.key.rootNote);
 	writer.writeAttribute("inputTickMagnitude", getInputTickMagnitude());
 	writer.writeAttribute("swingAmount", project.groove.swing_amount);
@@ -1489,7 +1490,7 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "inputTickMagnitude")) {
-				project.transport.insideWorldTickMagnitude = reader.readTagOrAttributeValueInt();
+				project.transport.inside_world_tick_magnitude = reader.readTagOrAttributeValueInt();
 				reader.exitTag("inputTickMagnitude");
 			}
 
@@ -2103,8 +2104,8 @@ skipInstance:
 			if (runtimeView.currentClip == clip) {
 				runtimeView.currentClip = nullptr;
 			}
-			if (project.transport.syncScalingClip == clip) {
-				project.transport.syncScalingClip = nullptr;
+			if (project.transport.sync_scaling_clip == clip) {
+				project.transport.sync_scaling_clip = nullptr;
 			}
 
 			project.clips.arrangementOnlyClips.erase(project.clips.arrangementOnlyClips.begin() + c);
@@ -2120,9 +2121,9 @@ skipInstance:
 		project.globalFx.globalEffectable.compensateVolumeForResonance(&paramManager);
 	}
 
-	if (project.transport.syncScalingClip) {
-		Clip* newInputTickScaleClip = project.transport.syncScalingClip;
-		project.transport.syncScalingClip =
+	if (project.transport.sync_scaling_clip) {
+		Clip* newInputTickScaleClip = project.transport.sync_scaling_clip;
+		project.transport.sync_scaling_clip =
 		    nullptr; // We shouldn't have set this manually earlier, anyway - we just saved hassle
 		setInputTickScaleClip(newInputTickScaleClip);
 	}
@@ -2378,7 +2379,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 
 	if (shouldLogAction) {
-		actionLogger.recordTempoChange(project.transport.timePerTimerTickBig, newTimeBig);
+		actionLogger.recordTempoChange(project.transport.samples_per_timer_tick_big, newTimeBig);
 	}
 
 	// Alter timing of next and last timer ticks
@@ -2388,7 +2389,8 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 
 		// Using intermediary float here is best: newTimeBig might be a huge number, and below about 2bpm (so not
 		// that low), multiplying it by timeSinceLastTimerTick can overflow a uint64_t
-		timeSinceLastTimerTick = (float)timeSinceLastTimerTick * newTimeBig / project.transport.timePerTimerTickBig;
+		timeSinceLastTimerTick =
+		    (float)timeSinceLastTimerTick * newTimeBig / project.transport.samples_per_timer_tick_big;
 
 		playbackHandler.timeLastTimerTickBig =
 		    (uint64_t)(uint32_t)(AudioEngine::audioSampleTimer - timeSinceLastTimerTick) << 32;
@@ -2398,14 +2400,14 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 
 		// Using intermediary float here is best: newTimeBig might be a huge number, and below about 2bpm (so not
 		// that low), multiplying it by timeSinceLastTimerTick can overflow a uint64_t
-		timeTilNextTimerTick = (float)timeTilNextTimerTick * newTimeBig / project.transport.timePerTimerTickBig;
+		timeTilNextTimerTick = (float)timeTilNextTimerTick * newTimeBig / project.transport.samples_per_timer_tick_big;
 
 		playbackHandler.timeNextTimerTickBig = (uint64_t)(AudioEngine::audioSampleTimer + timeTilNextTimerTick) << 32;
 	}
 
-	project.transport.timePerTimerTickBig = newTimeBig;
+	project.transport.samples_per_timer_tick_big = newTimeBig;
 
-	project.transport.divideByTimePerTimerTick = ((uint64_t)1 << 63) / ((newTimeBig * 3) >> 1);
+	project.transport.inverse_samples_per_timer_tick = ((uint64_t)1 << 63) / ((newTimeBig * 3) >> 1);
 
 	// Reschedule upcoming swung, MIDI and trigger clock out ticks
 	if (currentSong == this && playbackHandler.isInternalClockActive()) {
@@ -2940,12 +2942,12 @@ void Song::clearTempoAutomation() {
 }
 
 void Song::setBPMInner(float tempoBPM, bool shouldLogAction) {
-	if (project.transport.insideWorldTickMagnitude > 0) {
-		tempoBPM *= ((uint32_t)1 << (project.transport.insideWorldTickMagnitude));
+	if (project.transport.inside_world_tick_magnitude > 0) {
+		tempoBPM *= ((uint32_t)1 << (project.transport.inside_world_tick_magnitude));
 	}
 	double timePerTimerTick = (double)110250 / tempoBPM;
-	if (project.transport.insideWorldTickMagnitude < 0) {
-		timePerTimerTick *= ((uint32_t)1 << (-project.transport.insideWorldTickMagnitude));
+	if (project.transport.inside_world_tick_magnitude < 0) {
+		timePerTimerTick *= ((uint32_t)1 << (-project.transport.inside_world_tick_magnitude));
 	}
 	setTempoFromNumSamples(timePerTimerTick, shouldLogAction);
 }
@@ -3081,11 +3083,11 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 }
 
 float Song::getTimePerTimerTickFloat() {
-	return (float)project.transport.timePerTimerTickBig / 4294967296;
+	return (float)project.transport.samples_per_timer_tick_big / 4294967296;
 }
 
 uint32_t Song::getTimePerTimerTickRounded() {
-	return (uint64_t)((uint64_t)project.transport.timePerTimerTickBig + (uint64_t)(uint32_t)2147483648uL)
+	return (uint64_t)((uint64_t)project.transport.samples_per_timer_tick_big + (uint64_t)(uint32_t)2147483648uL)
 	       >> 32; // Rounds
 }
 
@@ -5170,7 +5172,7 @@ void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 	project.clips.sessionClips[clipIndex] = newClip;
 
 	if (oldClip == getSyncScalingClip()) {
-		project.transport.syncScalingClip = newClip;
+		project.transport.sync_scaling_clip = newClip;
 	}
 
 	if (oldClip == runtimeView.currentClip) {

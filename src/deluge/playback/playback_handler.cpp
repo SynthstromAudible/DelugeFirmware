@@ -465,13 +465,13 @@ bool PlaybackHandler::currentlySendingMIDIOutputClocks() {
 
 uint32_t PlaybackHandler::timerTicksToOutputTicks(uint32_t timerTicks) {
 	// If inside world spinning faster than outside world
-	if (currentSong->project.transport.insideWorldTickMagnitude > 0) {
-		timerTicks >>= currentSong->project.transport.insideWorldTickMagnitude;
+	if (currentSong->project.transport.inside_world_tick_magnitude > 0) {
+		timerTicks >>= currentSong->project.transport.inside_world_tick_magnitude;
 
 		// If outside world spinning faster than inside world
 	}
-	else if (currentSong->project.transport.insideWorldTickMagnitude < 0) {
-		timerTicks <<= (0 - currentSong->project.transport.insideWorldTickMagnitude);
+	else if (currentSong->project.transport.inside_world_tick_magnitude < 0) {
+		timerTicks <<= (0 - currentSong->project.transport.inside_world_tick_magnitude);
 	}
 
 	return timerTicks;
@@ -636,7 +636,7 @@ void PlaybackHandler::getMIDIClockOutTicksToInternalTicksRatio(uint32_t* interna
 	*internalTicksPer = 1; // 12 rather than 24 so we get twice as many ticks, because only every 2nd one is rising-edge
 	*midiClockOutTicksPer = 1;
 
-	int16_t magnitudeAdjustment = currentSong->project.transport.insideWorldTickMagnitude;
+	int16_t magnitudeAdjustment = currentSong->project.transport.inside_world_tick_magnitude;
 
 	if (magnitudeAdjustment >= 0) {
 		*internalTicksPer <<= magnitudeAdjustment;
@@ -660,7 +660,7 @@ uint64_t PlaybackHandler::getTimePerInternalTickBig() {
 		return (uint64_t)timePerInternalTickMovingAverage << 32;
 	}
 	else {
-		return currentSong->project.transport.timePerTimerTickBig;
+		return currentSong->project.transport.samples_per_timer_tick_big;
 	}
 }
 
@@ -678,7 +678,7 @@ void PlaybackHandler::scheduleNextTimerTick(uint32_t doubleSwingInterval) {
 	nextTimerTickScheduled = lastTimerTickActioned + doubleSwingInterval;
 
 	uint64_t timeTilNextBig =
-	    currentSong->project.transport.timePerTimerTickBig
+	    currentSong->project.transport.samples_per_timer_tick_big
 	    * (uint64_t)doubleSwingInterval; // To improve: this can overflow if tempo down around 0.001 BPM
 	timeNextTimerTickBig = timeLastTimerTickBig + timeTilNextBig;
 }
@@ -814,7 +814,7 @@ void PlaybackHandler::scheduleTriggerClockOutTickParamsKnown(uint32_t analogOutT
 		triggerClockOutTickScheduled = true;
 		timeNextTriggerClockOutTick = (timeLastTimerTickBig
 		                               + ((uint64_t)((fractionNextAnalogOutTick - fractionLastTimerTick)
-		                                             * currentSong->project.transport.timePerTimerTickBig))
+		                                             * currentSong->project.transport.samples_per_timer_tick_big))
 		                                     / analogOutTicksPer)
 		                              >> 32;
 	}
@@ -873,7 +873,7 @@ void PlaybackHandler::scheduleMIDIClockOutTickParamsKnown(uint32_t midiClockOutT
 		midiClockOutTickScheduled = true;
 		timeNextMIDIClockOutTick = (timeLastTimerTickBig
 		                            + ((uint64_t)((fractionNextMIDIClockOutTick - fractionLastTimerTick)
-		                                          * currentSong->project.transport.timePerTimerTickBig))
+		                                          * currentSong->project.transport.samples_per_timer_tick_big))
 		                                  / midiClockOutTicksPer)
 		                           >> 32;
 	}
@@ -1068,7 +1068,7 @@ void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 
 			// Before swing mid-point
 			if (swungTicksIntoTimerBit <= swingInterval) {
-				uint64_t timeInBig = currentSong->project.transport.timePerTimerTickBig * swungTicksIntoTimerBit
+				uint64_t timeInBig = currentSong->project.transport.samples_per_timer_tick_big * swungTicksIntoTimerBit
 				                     * (uint32_t)(50 + currentSong->project.groove.swing_amount) / 50;
 				scheduledSwungTickTime = (uint64_t)(timeLastTimerTickBig + timeInBig) >> 32;
 			}
@@ -1076,14 +1076,15 @@ void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 			// After swing mid-point
 			else {
 				uint32_t swungTicksTilEnd = (swingInterval << 1) - swungTicksIntoTimerBit;
-				uint64_t timeTilEndBig = currentSong->project.transport.timePerTimerTickBig * swungTicksTilEnd
+				uint64_t timeTilEndBig = currentSong->project.transport.samples_per_timer_tick_big * swungTicksTilEnd
 				                         * (uint32_t)(50 - currentSong->project.groove.swing_amount) / 50;
 				scheduledSwungTickTime = (uint64_t)(timeNextTimerTickBig - timeTilEndBig) >> 32;
 			}
 		}
 		else {
 			scheduledSwungTickTime =
-			    (timeLastTimerTickBig + swungTicksIntoTimerBit * currentSong->project.transport.timePerTimerTickBig)
+			    (timeLastTimerTickBig
+			     + swungTicksIntoTimerBit * currentSong->project.transport.samples_per_timer_tick_big)
 			    >> 32;
 		}
 	}
@@ -1376,12 +1377,13 @@ int32_t PlaybackHandler::getInternalTickTime(int64_t internalTickCount) {
 		// what our returned value will be compared to.
 		if (!nextTimerTickScheduled) {
 			return AudioEngine::audioSampleTimer
-			       + (((int64_t)currentSong->project.transport.timePerTimerTickBig * internalTickCount) >> 32);
+			       + (((int64_t)currentSong->project.transport.samples_per_timer_tick_big * internalTickCount) >> 32);
 		}
 
 		int32_t numTicksAfterLastTimerTick = internalTickCount - lastTimerTickActioned; // Could be negative
 		return (int64_t)(timeLastTimerTickBig
-		                 + (int64_t)currentSong->project.transport.timePerTimerTickBig * numTicksAfterLastTimerTick)
+		                 + (int64_t)currentSong->project.transport.samples_per_timer_tick_big
+		                       * numTicksAfterLastTimerTick)
 		       >> 32;
 	}
 
@@ -1417,33 +1419,33 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 				// We want to keep the old song's tempo. We need to account for the fact that the two songs might
 				// have different magnitudes though, before we do anything like copy the timePerTimerTick. So we
 				// apply any difference in magnitude to the timePerTimerTick before we copy / compare it.
-				int32_t magnitudeDifference = preLoadedSong->project.transport.insideWorldTickMagnitude
-				                              - currentSong->project.transport.insideWorldTickMagnitude;
+				int32_t magnitudeDifference = preLoadedSong->project.transport.inside_world_tick_magnitude
+				                              - currentSong->project.transport.inside_world_tick_magnitude;
 
 				if (magnitudeDifference >= 0) {
-					currentSong->project.transport.timePerTimerTickBig >>= magnitudeDifference;
+					currentSong->project.transport.samples_per_timer_tick_big >>= magnitudeDifference;
 				}
 				else {
-					currentSong->project.transport.timePerTimerTickBig <<= (0 - magnitudeDifference);
+					currentSong->project.transport.samples_per_timer_tick_big <<= (0 - magnitudeDifference);
 				}
 
 				// If tempo magnitude matching, we now need to look at how similar the (potentially modified)
 				// timePerTimerTick's are, and shift magnitudes if they're really different
 				if (tempoMagnitudeMatchingEnabled) {
-					while (preLoadedSong->project.transport.timePerTimerTickBig
-					       > currentSong->project.transport.timePerTimerTickBig * 1.414) {
-						currentSong->project.transport.timePerTimerTickBig <<= 1;
-						preLoadedSong->project.transport.insideWorldTickMagnitude--;
+					while (preLoadedSong->project.transport.samples_per_timer_tick_big
+					       > currentSong->project.transport.samples_per_timer_tick_big * 1.414) {
+						currentSong->project.transport.samples_per_timer_tick_big <<= 1;
+						preLoadedSong->project.transport.inside_world_tick_magnitude--;
 					}
-					while (preLoadedSong->project.transport.timePerTimerTickBig
-					       < currentSong->project.transport.timePerTimerTickBig * 0.707) {
-						currentSong->project.transport.timePerTimerTickBig >>= 1;
-						preLoadedSong->project.transport.insideWorldTickMagnitude++;
+					while (preLoadedSong->project.transport.samples_per_timer_tick_big
+					       < currentSong->project.transport.samples_per_timer_tick_big * 0.707) {
+						currentSong->project.transport.samples_per_timer_tick_big >>= 1;
+						preLoadedSong->project.transport.inside_world_tick_magnitude++;
 					}
 				}
 
-				preLoadedSong->project.transport.timePerTimerTickBig =
-				    currentSong->project.transport.timePerTimerTickBig;
+				preLoadedSong->project.transport.samples_per_timer_tick_big =
+				    currentSong->project.transport.samples_per_timer_tick_big;
 			}
 
 			// Any MIDI or gate notes wouldn't be stopped by our killAllVoices() call below
@@ -1563,7 +1565,7 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 	numInputTickTimesCounted = 0;
 
 	stickyCurrentTimePerInternalTickInverse = veryCurrentTimePerInternalTickInverse =
-	    currentSong->project.transport.divideByTimePerTimerTick; // Sets defaults
+	    currentSong->project.transport.inverse_samples_per_timer_tick; // Sets defaults
 	timePerInternalTickMovingAverage = lowpassedTimePerInternalTick = stickyTimePerInternalTick =
 	    currentSong->getTimePerTimerTickRounded();
 
@@ -1601,11 +1603,11 @@ void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
 	D_PRINTLN("position");
 	uint32_t pos = (((uint32_t)data2 << 7) | data1) * 6;
 
-	if (currentSong->project.transport.insideWorldTickMagnitude >= 0) {
-		pos <<= currentSong->project.transport.insideWorldTickMagnitude;
+	if (currentSong->project.transport.inside_world_tick_magnitude >= 0) {
+		pos <<= currentSong->project.transport.inside_world_tick_magnitude;
 	}
 	else {
-		pos >>= (0 - currentSong->project.transport.insideWorldTickMagnitude);
+		pos >>= (0 - currentSong->project.transport.inside_world_tick_magnitude);
 	}
 
 	// If following external clock right now, jump to the position (actually 1 tick before the position, so the next
@@ -1834,14 +1836,14 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			// If input ticks coming in too slow (and not about to overflow any numbers)...
 			while (expectedTimeSinceVeryFirst < 2147483648uL
 			       && timeSinceVeryFirst > expectedTimeSinceVeryFirst * 1.46) {
-				currentSong->project.transport.insideWorldTickMagnitude++;
+				currentSong->project.transport.inside_world_tick_magnitude++;
 				expectedTimeSinceVeryFirst <<= 1;
 				targetedTimePerInputTick <<= 1;
 			}
 
 			// If input ticks coming in too fast (and not about to make any numbers 0)...
 			while (targetedTimePerInputTick > 1 && timeSinceVeryFirst < expectedTimeSinceVeryFirst * 0.68) {
-				currentSong->project.transport.insideWorldTickMagnitude--;
+				currentSong->project.transport.inside_world_tick_magnitude--;
 				expectedTimeSinceVeryFirst >>= 1;
 				targetedTimePerInputTick >>= 1;
 			}
@@ -1850,7 +1852,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			if (lastInputTickReceived >= kNumInputTicksToAllowTempoTargeting) {
 				tempoMagnitudeMatchingActiveNow = false;
 				D_PRINTLN("finished tempo magnitude matching. magnitude =  %d",
-				          currentSong->project.transport.insideWorldTickMagnitude);
+				          currentSong->project.transport.inside_world_tick_magnitude);
 			}
 		}
 	}
@@ -1956,7 +1958,7 @@ uint32_t PlaybackHandler::getTimePerInternalTickInverse(bool getStickyValue) {
 		}
 	}
 	else {
-		return currentSong->project.transport.divideByTimePerTimerTick;
+		return currentSong->project.transport.inverse_samples_per_timer_tick;
 	}
 }
 
@@ -1978,7 +1980,7 @@ void PlaybackHandler::getAnalogOutTicksToInternalTicksRatio(uint32_t* internalTi
 	    12; // 12 rather than 24 so we get twice as many ticks, because only every 2nd one is rising-edge
 	*analogOutTicksPer = analogOutTicksPPQN;
 
-	int16_t magnitudeAdjustment = currentSong->project.transport.insideWorldTickMagnitude;
+	int16_t magnitudeAdjustment = currentSong->project.transport.inside_world_tick_magnitude;
 
 	if (magnitudeAdjustment >= 0) {
 		*internalTicksPer <<= magnitudeAdjustment;
@@ -1993,7 +1995,7 @@ void PlaybackHandler::getInternalTicksToInputTicksRatio(uint32_t* inputTicksPer,
 	int16_t inputTickMagnitude;
 	uint32_t inputTickScale;
 
-	inputTickMagnitude = currentSong->project.transport.insideWorldTickMagnitude;
+	inputTickMagnitude = currentSong->project.transport.inside_world_tick_magnitude;
 	inputTickScale = currentSong->getInputTickScale();
 
 	if (usingAnalogClockInput) {
@@ -2156,7 +2158,7 @@ void PlaybackHandler::commandEditClockOutScale(int8_t offset) {
 			currentSong->setTempoFromParams(magnitude, whichValue, true);
 
 			// We need to speed up (and resync) relative to incoming clocks
-			currentSong->project.transport.insideWorldTickMagnitude += offset;
+			currentSong->project.transport.inside_world_tick_magnitude += offset;
 			resyncInternalTicksToInputTicks(currentSong);
 
 			// We do not need to call resyncAnalogOutTicksToInternalTicks(). Yes the insideWorldTickMagnitude has
@@ -2168,7 +2170,7 @@ void PlaybackHandler::commandEditClockOutScale(int8_t offset) {
 	// Otherwise, change the output-tick scale - if we're actually sending out-ticks
 	else {
 
-		currentSong->project.transport.insideWorldTickMagnitude -= offset;
+		currentSong->project.transport.inside_world_tick_magnitude -= offset;
 
 		if (isInternalClockActive()) {
 
@@ -2370,7 +2372,7 @@ void PlaybackHandler::setMidiInClockEnabled(bool newValue) {
 
 void PlaybackHandler::getCurrentTempoParams(int32_t* magnitude, int8_t* whichValue) {
 	*magnitude = 0;
-	uint64_t timePer = currentSong->project.transport.timePerTimerTickBig;
+	uint64_t timePer = currentSong->project.transport.samples_per_timer_tick_big;
 	while (timePer > ((uint64_t)metronomeValueBoundaries[15] << (1 + 32))) {
 		timePer >>= 1;
 		(*magnitude)++;
@@ -2393,8 +2395,8 @@ void PlaybackHandler::getCurrentTempoParams(int32_t* magnitude, int8_t* whichVal
 
 void PlaybackHandler::displayTempoFromParams(int32_t magnitude, int8_t whichValue) {
 	float tempoBPM = metronomeValuesBPM[whichValue];
-	magnitude += currentSong->project.transport.insideWorldTickMagnitude
-	             + currentSong->project.transport.insideWorldTickMagnitudeOffsetFromBPM;
+	magnitude += currentSong->project.transport.inside_world_tick_magnitude
+	             + currentSong->project.transport.inside_world_tick_magnitude_offset_from_bpm;
 	if (magnitude > 0) {
 		tempoBPM /= ((uint32_t)1 << magnitude);
 	}
@@ -2479,17 +2481,17 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 
 			// Compare to current tempo to see if 100% accurate
 			double roundedSmallerHere = roundedSmallerAgain;
-			if (currentSong->project.transport.insideWorldTickMagnitude > 0) {
-				roundedSmallerHere *= ((uint32_t)1 << (currentSong->project.transport.insideWorldTickMagnitude));
+			if (currentSong->project.transport.inside_world_tick_magnitude > 0) {
+				roundedSmallerHere *= ((uint32_t)1 << (currentSong->project.transport.inside_world_tick_magnitude));
 			}
 			double newTempoSamples = (double)110250 / roundedSmallerHere;
-			if (currentSong->project.transport.insideWorldTickMagnitude < 0) {
-				newTempoSamples *= ((uint32_t)1 << (-currentSong->project.transport.insideWorldTickMagnitude));
+			if (currentSong->project.transport.inside_world_tick_magnitude < 0) {
+				newTempoSamples *= ((uint32_t)1 << (-currentSong->project.transport.inside_world_tick_magnitude));
 			}
 
 			uint64_t newTimePerTimerTickBig = newTempoSamples * 4294967296 + 0.5;
 
-			isPerfect = (currentSong->project.transport.timePerTimerTickBig == newTimePerTimerTickBig);
+			isPerfect = (currentSong->project.transport.samples_per_timer_tick_big == newTimePerTimerTickBig);
 		}
 
 		int32_t roundedTempoBPM = roundedSmallerAgain + 0.5;
@@ -2577,7 +2579,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	double timePerTick = (double)loopLengthSamples / clip->loopLength;
 
-	uint64_t timePerBigBefore = currentSong->project.transport.timePerTimerTickBig;
+	uint64_t timePerBigBefore = currentSong->project.transport.samples_per_timer_tick_big;
 
 	currentSong->setTempoFromNumSamples(timePerTick, false);
 
@@ -2589,7 +2591,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence = new (consMemory)
-			    ConsequenceTempoChange(timePerBigBefore, currentSong->project.transport.timePerTimerTickBig);
+			    ConsequenceTempoChange(timePerBigBefore, currentSong->project.transport.samples_per_timer_tick_big);
 			action->addConsequence(newConsequence);
 		}
 	}
@@ -2612,7 +2614,7 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 		}
 		ticksLong <<= 1;
 	}
-	uint64_t timePerBigBefore = currentSong->project.transport.timePerTimerTickBig;
+	uint64_t timePerBigBefore = currentSong->project.transport.samples_per_timer_tick_big;
 
 	currentSong->setTempoFromNumSamples(timePerTick, false);
 
@@ -2624,7 +2626,7 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence = new (consMemory)
-			    ConsequenceTempoChange(timePerBigBefore, currentSong->project.transport.timePerTimerTickBig);
+			    ConsequenceTempoChange(timePerBigBefore, currentSong->project.transport.samples_per_timer_tick_big);
 			action->addConsequence(newConsequence);
 		}
 	}
@@ -2764,7 +2766,7 @@ void PlaybackHandler::tapTempoButtonPress(bool useNormalTapTempoBehaviour) {
 		                               << 32;
 		uint64_t timePerQuarterNoteBig = totalTimeBetweenBig / tapTempoNumPresses;
 
-		int16_t magnitudeChange = currentSong->project.transport.insideWorldTickMagnitude + 3;
+		int16_t magnitudeChange = currentSong->project.transport.inside_world_tick_magnitude + 3;
 
 		if (magnitudeChange >= 0) {
 			timePerQuarterNoteBig >>= magnitudeChange;

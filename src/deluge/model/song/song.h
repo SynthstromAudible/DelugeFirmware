@@ -147,7 +147,8 @@ public:
 	std::string getSongFullPath();
 	void setSongFullPath(const char* fullPath);
 	int32_t getInputTickMagnitude() const {
-		return project.transport.insideWorldTickMagnitude + project.transport.insideWorldTickMagnitudeOffsetFromBPM;
+		return project.transport.inside_world_tick_magnitude
+		       + project.transport.inside_world_tick_magnitude_offset_from_bpm;
 	}
 
 	// The project model (deluge::project::Song). Project data migrates into this group by group
@@ -348,12 +349,12 @@ public:
 	}
 	float calculateBPM(float timePerTimerTick) {
 
-		if (project.transport.insideWorldTickMagnitude > 0) {
-			timePerTimerTick *= ((uint32_t)1 << (project.transport.insideWorldTickMagnitude));
+		if (project.transport.inside_world_tick_magnitude > 0) {
+			timePerTimerTick *= ((uint32_t)1 << (project.transport.inside_world_tick_magnitude));
 		}
 		float tempoBPM = (float)110250 / timePerTimerTick;
-		if (project.transport.insideWorldTickMagnitude < 0) {
-			tempoBPM *= ((uint32_t)1 << (-project.transport.insideWorldTickMagnitude));
+		if (project.transport.inside_world_tick_magnitude < 0) {
+			tempoBPM *= ((uint32_t)1 << (-project.transport.inside_world_tick_magnitude));
 		}
 		return tempoBPM;
 	}

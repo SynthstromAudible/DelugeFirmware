@@ -26,11 +26,16 @@ namespace deluge::project {
 /// Tempo / internal-vs-external tick timing of a song. A component of deluge::project::Song.
 /// (Grouped struct for now; the controller still drives the clock — see Phase 3.)
 struct Transport {
-	uint64_t timePerTimerTickBig{0};     ///< time per internal timer tick, UQ32.32
-	int32_t divideByTimePerTimerTick{0}; ///< reciprocal of the above (precomputed)
-	int32_t insideWorldTickMagnitude{0}; ///< orders of magnitude the internal clock runs faster than input ticks
-	int32_t insideWorldTickMagnitudeOffsetFromBPM{0}; ///< sync-scaling offset kept out of the BPM display
-	Clip* syncScalingClip{nullptr}; ///< clip whose loop length scales external input ticks (the sync master)
+	/// Audio samples per timer tick, as a UQ32.32 fixed-point value ("big" = the 64-bit fixed form).
+	uint64_t samples_per_timer_tick_big{0};
+	/// Precomputed reciprocal of the above, so the clock path can multiply instead of divide.
+	int32_t inverse_samples_per_timer_tick{0};
+	/// Orders of magnitude (log2) the internal "inside world" clock runs faster than external input ticks.
+	int32_t inside_world_tick_magnitude{0};
+	/// Sync-scaling offset to inside_world_tick_magnitude, kept out of the displayed BPM.
+	int32_t inside_world_tick_magnitude_offset_from_bpm{0};
+	/// Clip whose loop length scales external input ticks (the sync master).
+	Clip* sync_scaling_clip{nullptr};
 };
 
 } // namespace deluge::project
