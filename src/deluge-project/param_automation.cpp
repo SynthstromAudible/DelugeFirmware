@@ -73,6 +73,21 @@ using deluge::modulation::params::Kind;
 bool isUnpatchedSetSlot(ParamCollection* c) {
 	return c != nullptr && c->getParamKind() != Kind::MIDI;
 }
+
+// Recompute a collection summary's automation flags from the live params after projection. The flags are
+// only ever set incrementally during normal reads/edits (there is no post-load rebuild), so a projection
+// that drives the live manager must set them or automation won't play back.
+void refreshAutomationFlags(ParamSet& set, ParamCollectionSummary& summary) {
+	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) {
+		summary.whichParamsAreAutomated[i] = 0;
+	}
+	int32_t numParams = set.getNumParams();
+	for (int32_t p = 0; p < numParams; p++) {
+		if (set.params[p].isAutomated()) {
+			set.paramHasAutomationNow(&summary, p);
+		}
+	}
+}
 } // namespace
 
 DocParamManager toDocParamManager(ParamManager& paramManager) {
@@ -113,18 +128,25 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager) {
 	if (doc.unpatched) {
 		if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
-			fromDocParamSet(*doc.unpatched, *static_cast<ParamSet*>(c));
+			ParamSet& set = *static_cast<ParamSet*>(c);
+			fromDocParamSet(*doc.unpatched, set);
+			refreshAutomationFlags(set, paramManager.summaries[0]);
 		}
 	}
 	if (doc.patched) {
 		if (ParamCollection* c = paramManager.summaries[1].paramCollection;
 		    c != nullptr && c->getParamKind() == Kind::PATCHED) {
-			fromDocParamSet(*doc.patched, *static_cast<ParamSet*>(c));
+			ParamSet& set = *static_cast<ParamSet*>(c);
+			fromDocParamSet(*doc.patched, set);
+			refreshAutomationFlags(set, paramManager.summaries[1]);
 		}
 	}
 	if (doc.expression) {
 		if (ExpressionParamSet* e = paramManager.getExpressionParamSet(); e != nullptr) {
 			fromDocParamSet(*doc.expression, *e);
+			if (ParamCollectionSummary* s = paramManager.getExpressionParamSetSummary(); s != nullptr) {
+				refreshAutomationFlags(*e, *s);
+			}
 		}
 	}
 	// Patch cables: refill the cable set faithfully (count + each saved field). setupPatching (the

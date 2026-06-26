@@ -183,6 +183,40 @@ int main() {
 		expectSameNodes(pcs2->patchCables[0].param, pcs->patchCables[0].param, "pm2 cable amount");
 	}
 
+	// Phase 5c-1: the DOM can *drive* the live manager — projecting a captured DocParamManager into a
+	// manager that holds DIFFERENT/stale state fully restores it, including the summary automation flags
+	// (set for newly-automated params, cleared for params that were automated only in the target).
+	{
+		ParamManagerForTimeline src;
+		check(src.setupWithPatching() == Error::NONE, "5c1 src setup");
+		src.getPatchedParamSet()->params[5].currentValue = 999;
+		setNode(src.getPatchedParamSet()->params[5], 0, 100, true); // automated in src
+		setNode(src.getPatchedParamSet()->params[5], 48, -200, false);
+		src.getUnpatchedParamSet()->params[3].currentValue = 4242; // not automated in src
+
+		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(src);
+
+		// Target starts with conflicting state: param 5 NOT automated, but param 9 IS automated (must clear).
+		ParamManagerForTimeline dst;
+		check(dst.setupWithPatching() == Error::NONE, "5c1 dst setup");
+		setNode(dst.getPatchedParamSet()->params[9], 0, 7, true);
+		dst.getPatchedParamSet()->paramHasAutomationNow(dst.getPatchedParamSetSummary(), 9);
+		dst.getPatchedParamSet()->params[5].currentValue = -1; // stale value
+
+		deluge::project::fromDocParamManager(doc, dst);
+
+		ParamCollectionSummary* psum = dst.getPatchedParamSetSummary();
+		// param 5 restored + its automation flag set
+		expectSameNodes(dst.getPatchedParamSet()->params[5], src.getPatchedParamSet()->params[5],
+		                "5c1 param5 restored");
+		check((psum->whichParamsAreAutomated[5 >> 5] & (1u << (5 & 31))) != 0, "5c1 param5 flag set");
+		// param 9's stale automation cleared (nodes + flag)
+		check(dst.getPatchedParamSet()->params[9].nodes.empty(), "5c1 param9 nodes cleared");
+		check((psum->whichParamsAreAutomated[9 >> 5] & (1u << (9 & 31))) == 0, "5c1 param9 flag cleared");
+		// unpatched value restored
+		check(dst.getUnpatchedParamSet()->params[3].currentValue == 4242, "5c1 unpatched restored");
+	}
+
 	// Phase 4 brick: the generic patch-cable serializer must be byte-identical to the engine's
 	// PatchCableSet::writePatchCablesToFile, including the range-cable (depthControlledBy) nesting.
 	{
