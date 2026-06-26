@@ -32,7 +32,9 @@ public:
 
 	void readCurrentValue() override {
 		const auto sidechain = getSidechain(is_reverb_sidechain_);
-		this->setValue(getLookupIndexFromValue(sidechain->attack >> 2, attackRateTable, 50));
+		// For the reverb sidechain, project.reverb is the document of record (the engine is its cache).
+		int32_t attack = is_reverb_sidechain_ ? currentSong->project.reverb.sidechain_attack : sidechain->attack;
+		this->setValue(getLookupIndexFromValue(attack >> 2, attackRateTable, 50));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -56,6 +58,9 @@ public:
 		else {
 			const auto sidechain = getSidechain(is_reverb_sidechain_);
 			sidechain->attack = current_value;
+			if (is_reverb_sidechain_) {
+				currentSong->project.reverb.sidechain_attack = current_value;
+			}
 		}
 
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;

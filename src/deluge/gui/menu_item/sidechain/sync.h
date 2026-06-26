@@ -33,7 +33,11 @@ public:
 	size_t size() override { return 10; };
 	void readCurrentValue() override {
 		const auto sidechain = getSidechain(is_reverb_sidechain_);
-		this->setValue(syncTypeAndLevelToMenuOption(sidechain->syncType, sidechain->syncLevel));
+		// For the reverb sidechain, project.reverb holds the persisted sync level (the engine is its
+		// cache); the sync type is runtime-only for the reverb instance and not part of the document.
+		// ::SyncLevel (the enum) — qualified to avoid the menu_item::SyncLevel base class of this name.
+		::SyncLevel level = is_reverb_sidechain_ ? currentSong->project.reverb.sidechain_sync : sidechain->syncLevel;
+		this->setValue(syncTypeAndLevelToMenuOption(sidechain->syncType, level));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -59,6 +63,9 @@ public:
 			const auto sidechain = getSidechain(is_reverb_sidechain_);
 			sidechain->syncType = syncValueToSyncType(current_value);
 			sidechain->syncLevel = syncValueToSyncLevel(current_value);
+			if (is_reverb_sidechain_) {
+				currentSong->project.reverb.sidechain_sync = syncValueToSyncLevel(current_value);
+			}
 		}
 
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;

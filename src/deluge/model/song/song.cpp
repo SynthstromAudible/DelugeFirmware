@@ -1045,12 +1045,9 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeArrayEnding("modeNotes");
 
 	writer.writeOpeningTagBeginning("reverb");
-	// The reverb send parameters (room size, damping, width, hpf, lpf, pan) and the algorithm
-	// (Song::model) are DOM-authoritative: the document is the source of truth and AudioEngine::reverb
-	// is a cache projected from it (getReverbParamsFromSong). Save reads the document, not the engine.
-	// Still engine-authoritative here (deferred): the sidechain/compressor block below — a shared
-	// SideChain subsystem (the same gui/menu_item/sidechain/* menus also drive per-sound sidechains),
-	// so its authority belongs with the sidechain-subsystem work, not the reverb send/algorithm.
+	// The whole reverb block is DOM-authoritative: project.reverb (and the algorithm Song::model) is
+	// the source of truth and AudioEngine::reverb / reverbSidechain* is a cache projected from it
+	// (getReverbParamsFromSong). Save reads the document, not the engine.
 	uint32_t roomSize = project.reverb.room_size * (uint32_t)2147483648u;
 	uint32_t damping = project.reverb.damping * (uint32_t)2147483648u;
 	uint32_t width = project.reverb.width * (uint32_t)2147483648u;
@@ -1072,16 +1069,18 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("model", util::to_underlying(model));
 	writer.writeOpeningTagEnd();
 
-	// The reverb sidechain/compressor is still engine-authoritative: it is a shared SideChain
-	// subsystem edited via gui/menu_item/sidechain/* (getSidechain(forReverb) -> reverbSidechain),
-	// so flipping it to the DOM means routing those shared edits into project.reverb and resolving
-	// the syncLevel file<->internal conversion. Deferred to a sidechain-authority follow-up.
+	// The reverb sidechain/compressor reads from the DOM too. AudioEngine::reverbSidechain is a shared
+	// SideChain object (the same gui/menu_item/sidechain/* menus also drive per-sound sidechains); for
+	// the reverb instance those menus mirror edits into project.reverb.sidechain_*. syncLevel is stored
+	// as the file value (convertSyncLevelFromInternalValueToFileValue), mirroring the load conversion —
+	// the legacy save wrote the raw internal value, which only round-tripped at tick magnitude 1.
 	writer.writeOpeningTagBeginning("compressor");
-	writer.writeAttribute("attack", AudioEngine::reverbSidechain.attack);
-	writer.writeAttribute("release", AudioEngine::reverbSidechain.release);
-	writer.writeAttribute("volume", AudioEngine::reverbSidechainVolume);
-	writer.writeAttribute("shape", AudioEngine::reverbSidechainShape);
-	writer.writeAttribute("syncLevel", AudioEngine::reverbSidechain.syncLevel);
+	writer.writeAttribute("attack", project.reverb.sidechain_attack);
+	writer.writeAttribute("release", project.reverb.sidechain_release);
+	writer.writeAttribute("volume", project.reverb.sidechain_volume);
+	writer.writeAttribute("shape", project.reverb.sidechain_shape);
+	writer.writeAttribute("syncLevel",
+	                      convertSyncLevelFromInternalValueToFileValue((int32_t)project.reverb.sidechain_sync));
 	writer.closeTag();
 
 	writer.writeClosingTag("reverb");
