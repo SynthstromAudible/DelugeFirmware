@@ -17,6 +17,7 @@
 
 #include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
 #include "dsp/dx/engine.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
@@ -3990,111 +3991,12 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 }
 
 void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
-
-	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	unpatchedParams->writeParamAsAttribute(writer, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
-	                                       writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX,
-	                                     writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "oscBVolume", params::LOCAL_OSC_B_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX,
-	                                     writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "noiseVolume", params::LOCAL_NOISE_VOLUME, writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "volume", params::GLOBAL_VOLUME_POST_FX, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "pan", params::LOCAL_PAN, writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "lpfFrequency", params::LOCAL_LPF_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "lpfResonance", params::LOCAL_LPF_RESONANCE, writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "hpfFrequency", params::LOCAL_HPF_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "hpfResonance", params::LOCAL_HPF_RESONANCE, writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "lfo1Rate", params::GLOBAL_LFO_FREQ_1, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ_1, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "lfo3Rate", params::GLOBAL_LFO_FREQ_2, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "lfo4Rate", params::LOCAL_LFO_LOCAL_FREQ_2, writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "modulator1Amount", params::LOCAL_MODULATOR_0_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "modulator1Feedback", params::LOCAL_MODULATOR_0_FEEDBACK,
-	                                     writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "modulator2Amount", params::LOCAL_MODULATOR_1_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "modulator2Feedback", params::LOCAL_MODULATOR_1_FEEDBACK,
-	                                     writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "carrier1Feedback", params::LOCAL_CARRIER_0_FEEDBACK, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "carrier2Feedback", params::LOCAL_CARRIER_1_FEEDBACK, writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "pitchAdjust", params::LOCAL_PITCH_ADJUST, writeAutomation, true);
-	patchedParams->writeParamAsAttribute(writer, "oscAPitchAdjust", params::LOCAL_OSC_A_PITCH_ADJUST, writeAutomation,
-	                                     true);
-	patchedParams->writeParamAsAttribute(writer, "oscBPitchAdjust", params::LOCAL_OSC_B_PITCH_ADJUST, writeAutomation,
-	                                     true);
-	patchedParams->writeParamAsAttribute(writer, "mod1PitchAdjust", params::LOCAL_MODULATOR_0_PITCH_ADJUST,
-	                                     writeAutomation, true);
-	patchedParams->writeParamAsAttribute(writer, "mod2PitchAdjust", params::LOCAL_MODULATOR_1_PITCH_ADJUST,
-	                                     writeAutomation, true);
-
-	patchedParams->writeParamAsAttribute(writer, "modFXRate", params::GLOBAL_MOD_FX_RATE, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "modFXDepth", params::GLOBAL_MOD_FX_DEPTH, writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "delayRate", params::GLOBAL_DELAY_RATE, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "delayFeedback", params::GLOBAL_DELAY_FEEDBACK, writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "reverbAmount", params::GLOBAL_REVERB_AMOUNT, writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "arpeggiatorRate", params::GLOBAL_ARP_RATE, writeAutomation);
-
-	ModControllableAudio::writeParamAttributesToFile(writer, paramManager, writeAutomation);
-
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-
-	patchedParams->writeParamAsAttribute(writer, "lpfMorph", params::LOCAL_LPF_MORPH, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
-
-	patchedParams->writeParamAsAttribute(writer, "waveFold", params::LOCAL_FOLD, writeAutomation);
-
-	writer.writeOpeningTagEnd();
-
-	// Envelopes
-	writer.writeOpeningTagBeginning("envelope1");
-	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_0_ATTACK, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_0_DECAY, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_0_SUSTAIN, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_0_RELEASE, writeAutomation);
-	writer.closeTag();
-
-	writer.writeOpeningTagBeginning("envelope2");
-	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_1_ATTACK, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_1_DECAY, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_1_SUSTAIN, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_1_RELEASE, writeAutomation);
-	writer.closeTag();
-
-	writer.writeOpeningTagBeginning("envelope3");
-	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_2_ATTACK, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_2_DECAY, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_2_SUSTAIN, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_2_RELEASE, writeAutomation);
-	writer.closeTag();
-
-	writer.writeOpeningTagBeginning("envelope4");
-	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_3_ATTACK, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_3_DECAY, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_3_SUSTAIN, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_3_RELEASE, writeAutomation);
-	writer.closeTag();
-
-	paramManager->getPatchCableSet()->writePatchCablesToFile(writer, writeAutomation);
-
-	ModControllableAudio::writeParamTagsToFile(writer, paramManager, writeAutomation);
+	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
+	// (verified in param_projection_test). serializeSoundParams emits the patched + unpatched flat attrs,
+	// the shared ModControllableAudio block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
+	// <patchCables> block and the shared tags.
+	deluge::project::DocParamManager doc = deluge::project::toDocParamManager(*paramManager);
+	deluge::project::serializeSoundParams(*doc.patched, *doc.unpatched, doc.patch_cables, writer, writeAutomation);
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,
