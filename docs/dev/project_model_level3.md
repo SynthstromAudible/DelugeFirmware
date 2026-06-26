@@ -134,14 +134,38 @@ produce a go/no-go signal:
   clean, golden green (OK=15). Conclusion: embedded identity is **cheap and non-invasive**. Caveat
   (scoped out): these ids are session-unique but **not save-stable** — clips/outputs are reconstructed
   on load, so persistence (serialize + restore the id) is the next layer, overlapping Phases A/D.
-- **Phase D — heavy-type schema probe.** Design *one* polymorphic doc node natively (`AudioClip`,
-  the simpler Clip variant) from the live class's serialized fields, and round-trip it through
-  projection (cross-checking shape against `deluge-xml` as an oracle, not copying it). This measures
-  problem (2) — the real cost driver — against a real type. Gate: round-trip fidelity vs the live
-  object.
+- **Phase D — heavy-type schema probe. ✅ RUN (findings below).** Design *one* polymorphic doc node
+  natively (`AudioClip`, the simpler Clip variant) from the live class's serialized fields, and
+  round-trip it through projection. This measures problem (2) — the real cost driver — against a real
+  type.
+
+  *Findings (modelled from `audio_clip.cpp::writeDataToFile` + `Clip::writeDataToFile`, probe runs):*
+  - **Per-type breadth is bounded.** Even with the base-Clip fields, a `DocAudioClip` is ~17
+    scalar/enum fields + 1 sample ref + 1 output ref + a paramManager. Manageable per type — but
+    ×~44 self-serializing classes is the bulk of the program.
+  - **The serialized schema is NOT the document model (key finding).** ~11 fields AudioClip persists
+    today are *view/runtime* state — `isPlaying`/`isSoloing`/`isArmedForRecording`/`beingEdited`/
+    `selected`/`isSyncScaleClip`/`onAutomationInstrumentClipView`/`lastSelectedParam{ID,Kind,
+    ShortcutX,ShortcutY,ArrayPosition}`. A clean DOM **excludes** them, so the DOM is *cleaner* than
+    the file format, and designing each node forces a field-level document-vs-view judgment that
+    composes with the Phase-1 `RuntimeViewState`/`PersistentViewState` split. (Serialization
+    implication: the format keeps these; the DOM↔format mapping routes them to the view layer, not
+    the DOM.)
+  - **References validated against a real type:** a sample is referenced by **path** (cross-resource),
+    an output by **stable serial id** (intra-song) — exactly the Phase-C decision.
+  - **The paramManager / automation subtree is the dominant cost** — `ParamSet → AutoParam[]` (each
+    with automation nodes) + patch cables + MIDI params, deep and **shared** across AudioClip,
+    InstrumentClip, Sound, Kit. The per-clip scalar schema is small by comparison; this subtree is
+    where the duplication work — and the payoff (it is the musical automation data) — concentrates.
 
 After A–D the authoritative-vs-DTO decision is made on **evidence** (identity churn from C,
 duplication cost from D), not speculation. Only then commit to the authoritative-DOM program.
+
+**Examination bottom line (C + D run):** the DOM is feasible and its costs are now characterized.
+Identity is cheap (C). Schema duplication is bounded per-type but large in aggregate (~44 classes),
+dominated by the param/automation subtree (D) — and the DOM ends up *cleaner* than the serialized
+format (it drops the leaked view/runtime fields). The remaining unknowns are construction effort
+(Phases A/B), not feasibility. The DTO-vs-DOM fork can now be chosen on this evidence.
 
 ## Decision criteria (when is the authoritative DOM worth it?)
 
