@@ -18,6 +18,7 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "ModFXProcessor.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
 #include "deluge/dsp/granular/GranularProcessor.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/stereo_sample.h"
@@ -492,65 +493,16 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 
 void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,
                                                       bool writeAutomation, int32_t* valuesForOverride) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	unpatchedParams->writeParamAsAttribute(writer, "stutterRate", params::UNPATCHED_STUTTER_RATE, writeAutomation,
-	                                       false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION,
-	                                       writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "bitCrush", params::UNPATCHED_BITCRUSHING, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation,
-	                                       false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation,
-	                                       false, valuesForOverride);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	unpatchedParams->writeParamAsAttribute(writer, "compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
-	                                       writeAutomation, false, valuesForOverride);
-
-	unpatchedParams->writeParamAsAttribute(writer, "arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "noteProbability", params::UNPATCHED_NOTE_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "bassProbability", params::UNPATCHED_ARP_BASS_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "swapProbability", params::UNPATCHED_ARP_SWAP_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "glideProbability", params::UNPATCHED_ARP_GLIDE_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "reverseProbability", params::UNPATCHED_REVERSE_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "chordProbability", params::UNPATCHED_ARP_CHORD_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "chordPolyphony", params::UNPATCHED_ARP_CHORD_POLYPHONY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadVelocity", params::UNPATCHED_SPREAD_VELOCITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadGate", params::UNPATCHED_ARP_SPREAD_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE,
-	                                       writeAutomation);
+	// Serialize from the value DOM (deluge::project). Byte-identical to the former hand-written sequence
+	// (param_automation.cpp, verified in param_projection_test), the first production use of the param DOM.
+	deluge::project::DocParamSet unpatched = deluge::project::toDocParamSet(*paramManager->getUnpatchedParamSet());
+	deluge::project::serializeModControllableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
                                                 int32_t* valuesForOverride) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	writer.writeOpeningTagBeginning("equalizer");
-	unpatchedParams->writeParamAsAttribute(writer, "bass", params::UNPATCHED_BASS, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "treble", params::UNPATCHED_TREBLE, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "bassFrequency", params::UNPATCHED_BASS_FREQ, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation,
-	                                       false, valuesForOverride);
-	writer.closeTag();
+	deluge::project::DocParamSet unpatched = deluge::project::toDocParamSet(*paramManager->getUnpatchedParamSet());
+	deluge::project::serializeModControllableParamTags(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const* tagName,
