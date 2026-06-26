@@ -123,9 +123,17 @@ produce a go/no-go signal:
   interface — our own native seam (the read-seam is a general pattern; spark's `ProjectReader`
   validates it but is not the shape to copy). This is the surface a projected model would later sit
   behind. Gate: behavior preserved.
-- **Phase C — stable identity probe #2.** Add an embedded **32-bit per-song serial id** to
-  `Clip`/`Output` (problem 1b; id type decided above — not UUID) and measure the churn + any hot-path
-  cost. Gate: no render regression; golden green.
+- **Phase C — stable identity probe #2. ✅ RUN (findings below).** Add an embedded **32-bit per-song
+  serial id** to `Clip`/`Output` (problem 1b; id type decided above — not UUID) and measure the churn
+  + any hot-path cost. Gate: no render regression; golden green.
+
+  *Findings:* a minimal probe (id field + accessor on the two base classes, assigned in the base
+  ctor from a monotonic counter) cost **4 files, +26/−2 lines, and zero call-site churn** — the whole
+  polymorphic hierarchy inherits identity via the base ctor. `id()` is read **nowhere on the render
+  path** (the audio loop walks `output->next` → `renderOutput`); +4 bytes/object is noise. Host build
+  clean, golden green (OK=15). Conclusion: embedded identity is **cheap and non-invasive**. Caveat
+  (scoped out): these ids are session-unique but **not save-stable** — clips/outputs are reconstructed
+  on load, so persistence (serialize + restore the id) is the next layer, overlapping Phases A/D.
 - **Phase D — heavy-type schema probe.** Design *one* polymorphic doc node natively (`AudioClip`,
   the simpler Clip variant) from the live class's serialized fields, and round-trip it through
   projection (cross-checking shape against `deluge-xml` as an oracle, not copying it). This measures
