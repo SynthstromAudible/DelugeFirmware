@@ -120,6 +120,29 @@ int main() {
 		check(ap.nodes().size() == 0, "R1 redirect: revert to embedded storage");
 	}
 
+	// Phase 5c R2: the pilot-flip pattern — move a param's loaded nodes into an owner-held store, redirect
+	// the param to view it, and confirm automation edits + serialization then operate on the store.
+	{
+		ParamNodeVector store; // stand-in for GlobalEffects::param_node_store[p] (outlives the manager)
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "R2 setup");
+		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
+		setNode(up->params[params::UNPATCHED_VOLUME], 0, 111, true); // loaded automation in embedded storage
+		setNode(up->params[params::UNPATCHED_VOLUME], 48, -222, false);
+
+		store = std::move(up->params[params::UNPATCHED_VOLUME].nodes()); // move embedded → store
+		up->params[params::UNPATCHED_VOLUME].redirectNodeStorage(&store);
+		check(store.size() == 2, "R2 nodes moved into store");
+		check(up->params[params::UNPATCHED_VOLUME].nodes().size() == 2, "R2 param views the store");
+
+		setNode(up->params[params::UNPATCHED_VOLUME], 24, 50, true); // a further automation edit
+		check(store.size() == 3, "R2 edit lands in the store");
+
+		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
+		check(doc.unpatched && doc.unpatched->params[params::UNPATCHED_VOLUME].nodes.size() == 3,
+		      "R2 serialization reads the store");
+	}
+
 	// Unautomated: current value only, no nodes.
 	roundTrip("unautomated", 123456, {});
 

@@ -1892,6 +1892,19 @@ skipInstance:
 	// Capture the song-global params into the authoritative document store (param/automation DOM Phase
 	// 5c). Currently captured-only — the edit rerouting + save-reads-DOM that make it authoritative land
 	// in later 5c sub-phases; this establishes the owned store + its load-time population.
+	// Phase 5c R2: relocate the song-global unpatched param node storage into the owner-held store and make
+	// the live AutoParams views over it (DOM owns node storage). The store is fixed-size (stable addresses);
+	// each param's loaded nodes are moved in, then it is redirected. Automation editing now operates directly
+	// on the owner-held store. Pilot owner only — clips/notes/kits keep their embedded storage (R3).
+	if (UnpatchedParamSet* unpatchedSet = paramManager.getUnpatchedParamSet(); unpatchedSet != nullptr) {
+		int32_t numParams = unpatchedSet->getNumParams();
+		for (int32_t p = 0; p < numParams; p++) {
+			ParamNodeVector& store = project.global_fx.param_node_store[p];
+			store = std::move(unpatchedSet->params[p].nodes()); // move loaded nodes (embedded) into the store
+			unpatchedSet->params[p].redirectNodeStorage(&store);
+		}
+	}
+
 	project.global_fx.params = deluge::project::toDocParamManager(paramManager);
 	// Attach the document store as authoritative: convertible (non-automated, unpatched) song-global param
 	// edits now commit their value through the DOM (Phase 5c-2). Save still reads live until 5c-3.
