@@ -668,6 +668,10 @@ uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
 		}
 		stealable->steal("E446");
 		stealable->~Stealable();
+		// The stolen object has been destroyed; poison its body so a dangling reference to the stolen Stealable is
+		// caught. The memory is unpoisoned again when it's legitimately handed back out (alloc's return / the carve
+		// unpoison), so this only flags use of the stolen object before that point.
+		DELUGE_HEAP_POISON((void*)spaceHereAddress, emptySpaceHereSizeWithoutHeaders);
 	}
 
 	else if (spaceType == SPACE_HEADER_EMPTY) {
@@ -716,6 +720,8 @@ NeighbouringMemoryGrabAttemptResult MemoryRegion::attemptToGrabNeighbouringMemor
 		if (actuallyGrabbing && originalSpaceNeedsStealing) {
 			((Stealable*)originalSpaceAddress)->steal("E417"); // Jensg still getting.
 			((Stealable*)originalSpaceAddress)->~Stealable();
+			// Stolen object destroyed - poison until the grabbed region is handed back out (see note at the E446 site).
+			DELUGE_HEAP_POISON(originalSpaceAddress, originalSpaceSize);
 		}
 
 		uint32_t amountOfExtraSpaceFoundSoFar = 0;
@@ -807,6 +813,8 @@ tryNotStealingFirst:
 
 							stealable->steal("E418"); // Jensg still getting.
 							stealable->~Stealable();
+							// Stolen object destroyed - poison until handed back out (see note at the E446 site).
+							DELUGE_HEAP_POISON((void*)spaceHereAddress, emptySpaceHereSizeWithoutHeaders);
 						}
 
 						// Can only change these after potentially putting those temp headers in, above
