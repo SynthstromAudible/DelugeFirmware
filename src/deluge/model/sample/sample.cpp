@@ -1528,8 +1528,8 @@ doneReading:
 	int32_t minIndexForThreshold = (float)kPitchDetectWindowSize / minPeriodForThreshold; // Rounds down
 
 	uint64_t sum = 0;
-	int32_t lastValue1;
-	int32_t lastValue2;
+	int32_t lastValue1 = 0;
+	int32_t lastValue2 = 0;
 	int32_t threshold = biggestValue >> 10;
 
 	// Go through again doing the running sum, interpolating exact peak frequencies, and deleting everything that's not

@@ -123,7 +123,7 @@ void HorizontalMenu::renderOLED() {
 }
 
 void HorizontalMenu::renderTitle(const Paging& paging) const {
-	std::string_view title = getTitle();
+	std::string title{getTitle()};
 
 	// Check if we need to shorten the title
 	if (paging.totalPages > 1) {

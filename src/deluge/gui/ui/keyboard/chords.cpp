@@ -64,7 +64,6 @@ Voicing ChordList::getChordVoicing(int8_t chordNo) {
 	chordNo = validateChordNo(chordNo);
 
 	int8_t voicingNo = voicingOffset[chordNo];
-	bool valid;
 	if (voicingNo <= 0) {
 		return chords[chordNo].voicings[0];
 	}
@@ -72,6 +71,11 @@ Voicing ChordList::getChordVoicing(int8_t chordNo) {
 	// voicings after the first should default to 0
 	// So if the voicing is all 0, we should return the voicing before it
 	else if (voicingNo > 0) {
+		// voicingOffset can be set out of bounds (the UI lets it run past the end), so clamp to the last real voicing
+		// before indexing - voicings[] only has kUniqueVoicings entries and reading past them is a buffer overflow.
+		if (voicingNo >= kUniqueVoicings) {
+			voicingNo = kUniqueVoicings - 1;
+		}
 		for (int voicingN = voicingNo; voicingN >= 0; voicingN--) {
 			Voicing voicing = chords[chordNo].voicings[voicingN];
 
@@ -85,10 +89,8 @@ Voicing ChordList::getChordVoicing(int8_t chordNo) {
 				return voicing;
 			}
 		}
-		if (!valid) {
-			D_PRINTLN("Voicing is invalid, returning default voicing");
-			return chords[0].voicings[0];
-		}
+		D_PRINTLN("Voicing is invalid, returning default voicing");
+		return chords[0].voicings[0];
 	}
 	return chords[chordNo].voicings[0];
 }

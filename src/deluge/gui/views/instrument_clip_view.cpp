@@ -2334,6 +2334,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 				int32_t oldLength;
 				int32_t noteStartPos;
+				bool haveNote = false;
 
 				// If multiple notes, pick the last one
 				if (editPadPresses[i].isBlurredSquare) {
@@ -2342,68 +2343,73 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					if (note) {
 						oldLength = note->getLength();
 						noteStartPos = note->pos;
+						haveNote = true;
 					}
 				}
 
 				else {
 					oldLength = editPadPresses[i].intendedLength;
 					noteStartPos = editPadPresses[i].intendedPos;
+					haveNote = true;
 				}
 
-				// First, figure out the lengh to take the note up to the start of the pressed square. Put it in
-				// newLength
-				int32_t newLength = squareStart - noteStartPos;
-				if (newLength < 0) {
-					newLength += effectiveLength; // Wrapped note
+				if (haveNote) {
+
+					// First, figure out the lengh to take the note up to the start of the pressed square. Put it in
+					// newLength
+					int32_t newLength = squareStart - noteStartPos;
+					if (newLength < 0) {
+						newLength += effectiveLength; // Wrapped note
+					}
+
+					// If current square wasn't occupied at all to begin with, fill it up
+					if (oldLength <= newLength) {
+						newLength += squareWidth;
+					}
+
+					if (newLength == 0) {
+						newLength = squareWidth; // Protection - otherwise we could end up with a 0-length note!
+					}
+
+					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+
+					int32_t areaStart, areaWidth;
+					bool actuallyExtendNoteAtStartOfArea = (newLength > oldLength);
+
+					if (actuallyExtendNoteAtStartOfArea) { // Increasing length
+
+						// Make sure it doesn't eat into the next note
+						int32_t maxLength = noteRow->getDistanceToNextNote(noteStartPos, modelStackWithNoteRow);
+						newLength = std::min(newLength, maxLength);
+
+						areaStart = noteStartPos;
+						areaWidth = newLength;
+					}
+
+					else { // Decreasing length
+						areaStart = noteStartPos + newLength;
+						areaWidth = oldLength - newLength;
+					}
+
+					noteRow->clearArea(areaStart, areaWidth, modelStackWithNoteRow, action, clip->getWrapEditLevel(),
+					                   actuallyExtendNoteAtStartOfArea);
+
+					if (!editPadPresses[i].isBlurredSquare) {
+						editPadPresses[i].intendedLength = newLength;
+					}
+					editPadPresses[i].deleteOnDepress = false;
+					if (rootUI == this) {
+						uiNeedsRendering(this, 1 << yDisplay, 0);
+					}
+
+					if (instrument->type == OutputType::KIT) {
+						setSelectedDrum(noteRow->drum);
+					}
+
+					noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
+					lastSelectedNoteXDisplay = xDisplay;
+					lastSelectedNoteYDisplay = yDisplay;
 				}
-
-				// If current square wasn't occupied at all to begin with, fill it up
-				if (oldLength <= newLength) {
-					newLength += squareWidth;
-				}
-
-				if (newLength == 0) {
-					newLength = squareWidth; // Protection - otherwise we could end up with a 0-length note!
-				}
-
-				Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-
-				int32_t areaStart, areaWidth;
-				bool actuallyExtendNoteAtStartOfArea = (newLength > oldLength);
-
-				if (actuallyExtendNoteAtStartOfArea) { // Increasing length
-
-					// Make sure it doesn't eat into the next note
-					int32_t maxLength = noteRow->getDistanceToNextNote(noteStartPos, modelStackWithNoteRow);
-					newLength = std::min(newLength, maxLength);
-
-					areaStart = noteStartPos;
-					areaWidth = newLength;
-				}
-
-				else { // Decreasing length
-					areaStart = noteStartPos + newLength;
-					areaWidth = oldLength - newLength;
-				}
-
-				noteRow->clearArea(areaStart, areaWidth, modelStackWithNoteRow, action, clip->getWrapEditLevel(),
-				                   actuallyExtendNoteAtStartOfArea);
-
-				if (!editPadPresses[i].isBlurredSquare) {
-					editPadPresses[i].intendedLength = newLength;
-				}
-				editPadPresses[i].deleteOnDepress = false;
-				if (rootUI == this) {
-					uiNeedsRendering(this, 1 << yDisplay, 0);
-				}
-
-				if (instrument->type == OutputType::KIT) {
-					setSelectedDrum(noteRow->drum);
-				}
-
-				noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
-				lastSelectedNoteXDisplay = xDisplay;
-				lastSelectedNoteYDisplay = yDisplay;
 			}
 		}
 
@@ -2981,7 +2987,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 					goto multiplePresses;
 				}
 
-				int32_t originalParameter;
+				int32_t originalParameter = 0;
 				bool parameterHasBeenEdited = false;
 
 				if (withOffset != 0) {
@@ -3206,7 +3212,7 @@ multiplePresses:
 			}
 		}
 
-		int32_t originalParameter;
+		int32_t originalParameter = 0;
 		bool parameterHasBeenEdited = false;
 
 		// decide the parameter value, based on the existing parameter value of the leftmost note
