@@ -363,7 +363,13 @@ void setUIForLoadedSong(Song* song) {
 }
 
 void setupBlankSong() {
-	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song)); // TODO: error checking
+	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+	if (songMemory == nullptr) {
+		// No RAM for even a blank Song. This is the last-resort fallback (we get here when we have no song at all), so
+		// there's nothing left to do but fail loudly with a code rather than placement-new a Song into a null pointer.
+		FREEZE_WITH_ERROR("E454");
+		return;
+	}
 	preLoadedSong = new (songMemory) Song();
 
 	preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
