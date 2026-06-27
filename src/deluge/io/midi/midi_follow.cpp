@@ -1532,7 +1532,7 @@ void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
 			if (globalParamId != PARAM_ID_NONE) {
 				paramNameGlobal = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
 				                                           params::UNPATCHED_START + globalParamId, true);
-				writeTag = strcmp(paramNameGlobal, paramNameSound) != 0;
+				writeTag = true;
 			}
 			if (writeTag) {
 				char buffer[10];

@@ -64,7 +64,6 @@ Voicing ChordList::getChordVoicing(int8_t chordNo) {
 	chordNo = validateChordNo(chordNo);
 
 	int8_t voicingNo = voicingOffset[chordNo];
-	bool valid;
 	if (voicingNo <= 0) {
 		return chords[chordNo].voicings[0];
 	}
@@ -85,10 +84,8 @@ Voicing ChordList::getChordVoicing(int8_t chordNo) {
 				return voicing;
 			}
 		}
-		if (!valid) {
-			D_PRINTLN("Voicing is invalid, returning default voicing");
-			return chords[0].voicings[0];
-		}
+		D_PRINTLN("Voicing is invalid, returning default voicing");
+		return chords[0].voicings[0];
 	}
 	return chords[chordNo].voicings[0];
 }

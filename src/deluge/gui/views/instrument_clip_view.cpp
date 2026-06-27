@@ -2334,6 +2334,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 				int32_t oldLength;
 				int32_t noteStartPos;
+				bool haveNote = false;
 
 				// If multiple notes, pick the last one
 				if (editPadPresses[i].isBlurredSquare) {
@@ -2342,12 +2343,18 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					if (note) {
 						oldLength = note->getLength();
 						noteStartPos = note->pos;
+						haveNote = true;
 					}
 				}
 
 				else {
 					oldLength = editPadPresses[i].intendedLength;
 					noteStartPos = editPadPresses[i].intendedPos;
+					haveNote = true;
+				}
+
+				if (!haveNote) {
+					goto doneNoteEditing;
 				}
 
 				// First, figure out the lengh to take the note up to the start of the pressed square. Put it in
@@ -2404,6 +2411,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
 				lastSelectedNoteXDisplay = xDisplay;
 				lastSelectedNoteYDisplay = yDisplay;
+doneNoteEditing:;
 			}
 		}
 
@@ -2981,7 +2989,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 					goto multiplePresses;
 				}
 
-				int32_t originalParameter;
+				int32_t originalParameter = 0;
 				bool parameterHasBeenEdited = false;
 
 				if (withOffset != 0) {
@@ -3206,7 +3214,7 @@ multiplePresses:
 			}
 		}
 
-		int32_t originalParameter;
+		int32_t originalParameter = 0;
 		bool parameterHasBeenEdited = false;
 
 		// decide the parameter value, based on the existing parameter value of the leftmost note
