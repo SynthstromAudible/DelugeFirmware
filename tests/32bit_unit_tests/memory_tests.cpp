@@ -98,6 +98,14 @@ TEST_GROUP(MemoryAllocation) {
 		memset(emptySpacesMemory, 0, empty_spaze_size);
 		memreg.setup(emptySpacesMemory, empty_spaze_size, (uint32_t)raw_mem, (uint32_t)raw_mem + mem_size, newCM);
 	}
+	// The fixture is reconstructed for every test and mallocs raw_mem each time, but nothing ever returns it - the
+	// MemoryRegion only sub-allocates within it. Free it here so LeakSanitizer is quiet and the MEM_SIZE-per-test
+	// footprint doesn't accumulate. emptySpacesMemory is deliberately NOT freed here: the MemoryRegion's internal
+	// ResizeableArray already owns and frees that buffer (either when it grows off it, or in its destructor), so
+	// freeing it here too would be a double free.
+	void teardown() {
+		free(raw_mem);
+	}
 };
 
 TEST(MemoryAllocation, alloc1kb) {

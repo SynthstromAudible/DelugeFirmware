@@ -114,6 +114,18 @@ public:
 };
 
 extern "C" {
-void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam = true);
 void delugeDealloc(void* address);
+// Tell the compiler / static analyzers that this is an allocation function whose result is freed by delugeDealloc (the
+// pointer is argument 1 of delugeDealloc). `malloc` also asserts the returned pointer doesn't alias live memory. This
+// is what lets GCC's -fanalyzer (DELUGE_ANALYZER) follow ownership through the custom allocator and flag leaks,
+// use-after-free and mismatched frees on the C-style alloc path, the same way it does for libc malloc/free.
+//
+// The malloc(deallocator, ptr-index) signature is GCC-only; Clang accepts plain [[gnu::malloc]] but warns on the
+// associated-deallocator form, so it is gated to GCC to keep Clang/clangd builds clean.
+#if defined(__GNUC__) && !defined(__clang__)
+[[gnu::malloc, gnu::malloc(delugeDealloc, 1)]]
+#else
+[[gnu::malloc]]
+#endif
+void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam = true);
 }

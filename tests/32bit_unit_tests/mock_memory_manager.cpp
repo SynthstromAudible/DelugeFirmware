@@ -3,6 +3,7 @@
 // This isn't in the mocks/ directory so it doesn't get picked up by the glob that feeds the memory manager tests --
 // this file implements a stub for the actual memory manager instead.
 
+#include "mock_memory_manager.h"
 #include "CppUTest/TestHarness.h"
 #include "memory/general_memory_allocator.h"
 #include <cstdlib>
@@ -10,17 +11,50 @@
 // Fake allocator object
 GeneralMemoryAllocator allocator;
 
+// Net live allocations handed out by this mock (alloc/allocExternal increment, dealloc/deallocExternal decrement). The
+// host build is -m32, where LeakSanitizer does nothing, so this counter is how round-trip tests assert "everything I
+// allocated got freed". See mockAllocatorLiveAllocations() / mockAllocatorResetCounter() in the header.
+static long g_mockLiveAllocations = 0;
+
+long mockAllocatorLiveAllocations() {
+	return g_mockLiveAllocations;
+}
+
+void mockAllocatorResetCounter() {
+	g_mockLiveAllocations = 0;
+}
+
 class MockMemoryAllocator {
 public:
 	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom) {
-		return malloc(requiredSize);
+		void* address = malloc(requiredSize);
+		if (address != nullptr) {
+			g_mockLiveAllocations++;
+		}
+		return address;
 	}
 
-	void dealloc(void* address) { free(address); }
+	void dealloc(void* address) {
+		if (address != nullptr) {
+			g_mockLiveAllocations--;
+		}
+		free(address);
+	}
 
-	void* allocExternal(uint32_t requiredSize) { return malloc(requiredSize); }
+	void* allocExternal(uint32_t requiredSize) {
+		void* address = malloc(requiredSize);
+		if (address != nullptr) {
+			g_mockLiveAllocations++;
+		}
+		return address;
+	}
 
-	void deallocExternal(void* address) { free(address); }
+	void deallocExternal(void* address) {
+		if (address != nullptr) {
+			g_mockLiveAllocations--;
+		}
+		free(address);
+	}
 
 	uint32_t shortenRight(void* address, uint32_t newSize) {
 		/* noop on mock allocator */

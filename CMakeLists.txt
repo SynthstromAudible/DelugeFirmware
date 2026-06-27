@@ -258,6 +258,27 @@ if(DELUGE_UBSAN)
     endforeach()
 endif()
 
+# GCC static analyzer (-fanalyzer). Off by default; enable with -DDELUGE_ANALYZER=ON. This is a compile-time (not
+# runtime) pass: it walks each function's paths looking for leaks, use-after-free, double-free, mismatched alloc/dealloc
+# and similar. Thanks to the [[gnu::malloc(delugeDealloc, 1)]] annotation on delugeAlloc it follows ownership through the
+# Deluge allocator, not just libc malloc/free. It does NOT change codegen, so the resulting binary is unaffected.
+#
+# -fanalyzer is slow and, on C++, prone to false positives, so it is scoped to a configurable set of subdirs (same idea
+# as DELUGE_UBSAN) and is NOT wired into -Werror. Read its warnings as leads to investigate, not hard failures. Point
+# DELUGE_ANALYZER_SOURCE_DIRS at whichever modules you are auditing.
+option(DELUGE_ANALYZER "Run GCC's -fanalyzer over selected source dirs" OFF)
+set(DELUGE_ANALYZER_SOURCE_DIRS "memory;util/container"
+    CACHE STRING "Semicolon-separated subdirs under src/deluge to analyze when DELUGE_ANALYZER is ON")
+if(DELUGE_ANALYZER)
+    foreach(_an_dir ${DELUGE_ANALYZER_SOURCE_DIRS})
+        file(GLOB_RECURSE _an_srcs CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/deluge/${_an_dir}/*.cpp)
+        if(_an_srcs)
+            set_source_files_properties(${_an_srcs} TARGET_DIRECTORY deluge
+                PROPERTIES COMPILE_OPTIONS "-fanalyzer")
+        endif()
+    endforeach()
+endif()
+
 set_target_properties(deluge
     PROPERTIES
         C_STANDARD ${DELUGE_C_STANDARD}

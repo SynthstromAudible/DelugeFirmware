@@ -75,6 +75,8 @@ target_compile_options(MemoryManagerTests PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
 )
 
+deluge_apply_test_sanitizers(MemoryManagerTests)
+
 #
 # Build tests for all the code that assumes 32-bit pointers.
 #
@@ -90,6 +92,7 @@ target_sources(SmallPointerTests PRIVATE
         ./mock_memory_manager.cpp)
 target_include_directories(SmallPointerTests PRIVATE
         # include the non test project source
+        .
         mocks
         ../../src/deluge
         ../../src/NE10/inc
@@ -113,3 +116,5 @@ target_link_libraries(SmallPointerTests CppUTest CppUTestExt etl::etl)
 target_compile_options(SmallPointerTests PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
 )
+
+deluge_apply_test_sanitizers(SmallPointerTests)

@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "memory/memory_region.h"
+#include "mock_memory_manager.h"
 #include <cstdlib>
 #include <cstring>
 
@@ -54,4 +55,27 @@ TEST(OpenHashTableTest, test16bit) {
 TEST(OpenHashTableTest, test32bit) {
 	OpenAddressingHashTableWith32bitKey table;
 	runTest(table);
+}
+
+// Round-trip leak guard. -m32 host builds get no LeakSanitizer, so we lean on the mock allocator's live-allocation
+// counter instead: prove the table really borrows memory, then prove destruction returns all of it.
+TEST(OpenHashTableTest, allocatorCounterTracksLifecycle) {
+	mockAllocatorResetCounter();
+	{
+		OpenAddressingHashTableWith32bitKey table;
+		CHECK(table.insert(42));
+		// If this fails, the table isn't routing through the mock allocator and the leak check below would be vacuous.
+		CHECK(mockAllocatorLiveAllocations() > 0);
+	} // destructor runs here
+	CHECK_EQUAL(0, mockAllocatorLiveAllocations());
+}
+
+// A full insert/remove/destroy cycle must leave nothing outstanding.
+TEST(OpenHashTableTest, noLeakAcrossInsertRemoveCycle) {
+	mockAllocatorResetCounter();
+	{
+		OpenAddressingHashTableWith32bitKey table;
+		runTest(table);
+	}
+	CHECK_EQUAL(0, mockAllocatorLiveAllocations());
 }

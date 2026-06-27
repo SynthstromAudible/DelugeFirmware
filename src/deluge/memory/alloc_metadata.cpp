@@ -24,7 +24,7 @@
 namespace mem_guard {
 namespace {
 
-// Power-of-two open-addressing table. 32768 slots * 12 bytes = 384 KiB, parked in SDRAM (well clear of the allocator's
+// Power-of-two open-addressing table. 32768 slots * 16 bytes = 512 KiB, parked in SDRAM (well clear of the allocator's
 // own regions). Sized to comfortably hold the Deluge's live small-object population at a <0.75 load factor. Zero-
 // initialised by the SDRAM clear at startup, so every bucket starts empty without a constructor.
 constexpr uint32_t kCapacity = 1u << 15;
@@ -36,10 +36,12 @@ struct Slot {
 	uint32_t address;
 	uint32_t callsite;
 	uint32_t requestedSize;
+	uint32_t epoch; // monotonic allocation sequence number; lets a snapshot tell "allocated before" from "after"
 };
 
 PLACE_SDRAM_BSS Slot slots[kCapacity];
 uint32_t liveCount = 0;
+uint32_t allocEpoch = 0; // bumped on every genuinely-new allocation; never wraps in practice (1 per alloc)
 bool warnedFull = false;
 
 inline uint32_t hashAddress(uint32_t address) {
@@ -48,10 +50,9 @@ inline uint32_t hashAddress(uint32_t address) {
 	return (h >> 13) & kMask;
 }
 
-} // namespace
-
-void recordAlloc(void* address, uint32_t requestedSize, void* callsite) {
-	uint32_t key = (uint32_t)address;
+// Shared insert/overwrite core. `epoch` is supplied by the caller so a genuine allocation gets a fresh epoch while an
+// in-place re-key (updateAllocKey) can carry the original epoch forward - a resized block is not a new allocation.
+void recordAllocWithEpoch(uint32_t key, uint32_t requestedSize, uint32_t callsite, uint32_t epoch) {
 	if (key == kEmpty || key == kTombstone) {
 		return;
 	}
@@ -60,15 +61,17 @@ void recordAlloc(void* address, uint32_t requestedSize, void* callsite) {
 	for (uint32_t probes = 0; probes < kCapacity; probes++) {
 		uint32_t slotAddr = slots[b].address;
 		if (slotAddr == key) { // already present - overwrite (e.g. memory reused at the same address)
-			slots[b].callsite = (uint32_t)callsite;
+			slots[b].callsite = callsite;
 			slots[b].requestedSize = requestedSize;
+			slots[b].epoch = epoch;
 			return;
 		}
 		if (slotAddr == kEmpty) {
 			uint32_t dest = (firstTomb >= 0) ? (uint32_t)firstTomb : b;
 			slots[dest].address = key;
-			slots[dest].callsite = (uint32_t)callsite;
+			slots[dest].callsite = callsite;
 			slots[dest].requestedSize = requestedSize;
+			slots[dest].epoch = epoch;
 			liveCount++;
 			return;
 		}
@@ -81,8 +84,9 @@ void recordAlloc(void* address, uint32_t requestedSize, void* callsite) {
 	// genuinely full: degrade gracefully (this allocation just won't be attributed) rather than freezing.
 	if (firstTomb >= 0) {
 		slots[firstTomb].address = key;
-		slots[firstTomb].callsite = (uint32_t)callsite;
+		slots[firstTomb].callsite = callsite;
 		slots[firstTomb].requestedSize = requestedSize;
+		slots[firstTomb].epoch = epoch;
 		liveCount++;
 		return;
 	}
@@ -90,6 +94,31 @@ void recordAlloc(void* address, uint32_t requestedSize, void* callsite) {
 		warnedFull = true;
 		D_PRINTLN("MEM_GUARD alloc metadata table full (%d live) - attribution degraded", liveCount);
 	}
+}
+
+// Return the live slot for `key`, or nullptr if not tracked.
+Slot* findSlot(uint32_t key) {
+	if (key == kEmpty || key == kTombstone) {
+		return nullptr;
+	}
+	uint32_t b = hashAddress(key);
+	for (uint32_t probes = 0; probes < kCapacity; probes++) {
+		uint32_t slotAddr = slots[b].address;
+		if (slotAddr == kEmpty) {
+			return nullptr;
+		}
+		if (slotAddr == key) {
+			return &slots[b];
+		}
+		b = (b + 1) & kMask;
+	}
+	return nullptr;
+}
+
+} // namespace
+
+void recordAlloc(void* address, uint32_t requestedSize, void* callsite) {
+	recordAllocWithEpoch((uint32_t)address, requestedSize, (uint32_t)callsite, ++allocEpoch);
 }
 
 bool lookupAlloc(void* address, AllocInfo* out) {
@@ -137,14 +166,107 @@ bool removeAlloc(void* address) {
 }
 
 void updateAllocKey(void* oldAddress, void* newAddress, uint32_t newRequestedSize) {
-	AllocInfo info{};
-	if (!lookupAlloc(oldAddress, &info)) {
+	Slot* old = findSlot((uint32_t)oldAddress);
+	if (old == nullptr) {
 		return; // not a tracked allocation - leave it alone
 	}
+	// A resize/move is the SAME allocation: carry its call-site and epoch across so a snapshot diff doesn't mistake a
+	// grown-after-snapshot block for a fresh leak.
+	uint32_t callsite = old->callsite;
+	uint32_t epoch = old->epoch;
 	if (oldAddress != newAddress) {
 		removeAlloc(oldAddress);
 	}
-	recordAlloc(newAddress, newRequestedSize, (void*)info.callsite);
+	recordAllocWithEpoch((uint32_t)newAddress, newRequestedSize, callsite, epoch);
+}
+
+Snapshot snapshot() {
+	return allocEpoch;
+}
+
+uint32_t liveAllocations() {
+	return liveCount;
+}
+
+void reportOutstanding(Snapshot since) {
+	// Aggregate leaked blocks by call-site into a fixed, statically-reserved bucket table (no allocation - we may be
+	// called from inside the allocator's world). Distinct call-sites in a leak set are few; if we somehow overflow, we
+	// fold the rest into a catch-all rather than miss them.
+	constexpr uint32_t kMaxBuckets = 256;
+	struct Bucket {
+		uint32_t callsite;
+		uint32_t count;
+		uint32_t bytes;
+	};
+	PLACE_SDRAM_BSS static Bucket buckets[kMaxBuckets];
+	uint32_t numBuckets = 0;
+	uint32_t overflowCount = 0;
+	uint32_t overflowBytes = 0;
+	uint32_t totalCount = 0;
+	uint32_t totalBytes = 0;
+
+	for (uint32_t i = 0; i < kCapacity; i++) {
+		uint32_t addr = slots[i].address;
+		if (addr == kEmpty || addr == kTombstone) {
+			continue;
+		}
+		if (slots[i].epoch <= since) {
+			continue; // allocated at or before the snapshot - not part of this diff
+		}
+		uint32_t cs = slots[i].callsite;
+		uint32_t sz = slots[i].requestedSize;
+		totalCount++;
+		totalBytes += sz;
+
+		uint32_t j = 0;
+		for (; j < numBuckets; j++) {
+			if (buckets[j].callsite == cs) {
+				buckets[j].count++;
+				buckets[j].bytes += sz;
+				break;
+			}
+		}
+		if (j == numBuckets) {
+			if (numBuckets < kMaxBuckets) {
+				buckets[numBuckets].callsite = cs;
+				buckets[numBuckets].count = 1;
+				buckets[numBuckets].bytes = sz;
+				numBuckets++;
+			}
+			else {
+				overflowCount++;
+				overflowBytes += sz;
+			}
+		}
+	}
+
+	if (totalCount == 0) {
+		D_PRINTLN("MEM_GUARD leak report: nothing outstanding since snapshot %d", since);
+		return;
+	}
+
+	D_PRINTLN("MEM_GUARD leak report: %d blocks, %d bytes outstanding since snapshot %d (by call-site, resolve with "
+	          "addr2line):",
+	          totalCount, totalBytes, since);
+
+	// Selection-sort the buckets by bytes descending so the worst offenders print first. numBuckets is small.
+	for (uint32_t a = 0; a < numBuckets; a++) {
+		uint32_t best = a;
+		for (uint32_t b = a + 1; b < numBuckets; b++) {
+			if (buckets[b].bytes > buckets[best].bytes) {
+				best = b;
+			}
+		}
+		if (best != a) {
+			Bucket tmp = buckets[a];
+			buckets[a] = buckets[best];
+			buckets[best] = tmp;
+		}
+		D_PRINTLN("  callsite %x : %d blocks, %d bytes", buckets[a].callsite, buckets[a].count, buckets[a].bytes);
+	}
+	if (overflowCount) {
+		D_PRINTLN("  (+%d more blocks, %d bytes across additional call-sites)", overflowCount, overflowBytes);
+	}
 }
 
 } // namespace mem_guard
