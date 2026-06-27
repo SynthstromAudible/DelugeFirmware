@@ -960,12 +960,14 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 	uint32_t newSize = oldAllocatedSize + grabResult.amountsExtended[0] + grabResult.amountsExtended[1];
 	uint32_t newHeaderData = newSize | oldHeader;
 
-	// Write header
+	// Write header and footer. The grown block's boundary tags can land inside the freed neighbour space we just
+	// grabbed, which stays poisoned until GeneralMemoryAllocator::extend() unpoisons the extension afterwards - so make
+	// the tag words addressable first (mirrors markSpaceAsEmpty). Compiles to nothing on the device / without ASan.
 	uint32_t* __restrict__ newHeader = (uint32_t*)(grabResult.address - 4);
-	*newHeader = newHeaderData;
-
-	// Write footer
 	uint32_t* __restrict__ footer = (uint32_t*)(grabResult.address + newSize);
+	DELUGE_HEAP_UNPOISON(newHeader, 4);
+	DELUGE_HEAP_UNPOISON(footer, 4);
+	*newHeader = newHeaderData;
 	*footer = newHeaderData;
 }
 
