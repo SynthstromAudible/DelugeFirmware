@@ -25,6 +25,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "libdeluge/block_device.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/reason_check.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_reader.h"
@@ -1393,6 +1394,10 @@ performActionsAndGetOut:
 
 void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong) {
 	cluster.numReasonsToBeLoaded--;
+
+#if REASON_CHECK
+	reason_check::onRemove(&cluster);
+#endif
 
 	if (&cluster == clusterBeingLoaded && cluster.numReasonsToBeLoaded < minNumReasonsForClusterBeingLoaded) {
 		FREEZE_WITH_ERROR("E041"); // Sven got this!

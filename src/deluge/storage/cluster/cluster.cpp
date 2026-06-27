@@ -17,6 +17,7 @@
 
 #include "storage/cluster/cluster.h"
 #include "definitions_cxx.hpp"
+#include "memory/reason_check.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "processing/engines/audio_engine.h"
@@ -56,6 +57,10 @@ Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontSt
 }
 
 void Cluster::destroy() {
+#if REASON_CHECK
+	// Drop any reason tracking before the address can be recycled by a new Cluster.
+	reason_check::forget(this);
+#endif
 	this->~Cluster(); // Removes reasons, and / or from stealable list
 	delugeDealloc(this);
 }
@@ -189,6 +194,12 @@ StealableQueue Cluster::getAppropriateQueue() {
 
 void Cluster::steal(char const* errorCode) {
 
+#if REASON_CHECK
+	// A Cluster must never be stolen while a reason is held (mayBeStolen() enforces this). If it is, the reason-holder's
+	// pointer now aliases someone else's data - catch it here, attributed to the call-site that took the reason.
+	reason_check::onSteal(this, numReasonsToBeLoaded);
+#endif
+
 	// Ok, we're now gonna decide what to do according to the actual "type" field for this Cluster.
 	switch (type) {
 
@@ -260,4 +271,8 @@ void Cluster::addReason() {
 	}
 
 	this->numReasonsToBeLoaded++;
+
+#if REASON_CHECK
+	reason_check::onAdd(this, __builtin_return_address(0));
+#endif
 }

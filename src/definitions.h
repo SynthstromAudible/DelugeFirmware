@@ -23,6 +23,12 @@
 #define MEM_GUARD ALPHA_OR_BETA_VERSION
 #endif
 
+// Reference-graph sanity for the Cluster "reasons" system (see memory/reason_check.h): asserts a Stealable Cluster is
+// never stolen while still referenced, and can report Clusters that stay pinned (reason leaks). Pure bookkeeping - it
+// never touches freed memory - so unlike MEM_GUARD it stays enabled under a sanitizer and complements the host-sim ASan
+// build.
+#define REASON_CHECK ALPHA_OR_BETA_VERSION
+
 // Fills the whole body of a block when it is freed. A use-after-free *write* breaks this pattern; reads of freed memory
 // show a recognizable value. Never-allocated memory is left as the startup-cleared zero, so an EMPTY block is always
 // uniformly poison (if it has ever been freed) or zero (if it never has) - both of which the detector treats as clean.

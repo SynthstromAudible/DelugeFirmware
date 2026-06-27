@@ -2,6 +2,7 @@
 #include "CppUTestExt/MockSupport.h"
 #include "definitions_cxx.hpp"
 #include "memory/memory_region.h"
+#include "memory/reason_check.h"
 #include "model/sample/sample.h"
 #include "storage/cluster/cluster.h"
 #include "storage/wave_table/wave_table.h"
@@ -345,4 +346,54 @@ TEST(MemoryAllocation, stealableAllocations) {
 	CHECK(efficiency > 0.994);
 	mock().checkExpectations();
 };
+
+#if REASON_CHECK
+// reason_check tracks outstanding Cluster "reasons" (the reference-graph check behind use-after-steal / reason-leak
+// detection). Exercise its bookkeeping directly with synthetic cluster addresses. Checks are delta-based against
+// liveClusters() so they're independent of any tracking other tests leave behind, and each test cleans up after itself.
+TEST_GROUP(ReasonCheck){};
+
+TEST(ReasonCheck, tracksOutstandingReasonsPerCluster) {
+	void* c1 = (void*)0x100000;
+	void* c2 = (void*)0x200000;
+
+	uint32_t before = reason_check::liveClusters();
+	reason_check::Snapshot snap = reason_check::snapshot();
+
+	reason_check::onAdd(c1, (void*)0xA11);
+	reason_check::onAdd(c1, (void*)0xB22); // a second reason on the same cluster: still just one live cluster
+	reason_check::onAdd(c2, (void*)0xC33);
+	CHECK_EQUAL(before + 2, reason_check::liveClusters());
+
+	// Anything still outstanding since the snapshot is a candidate leak - this logs c1 and c2.
+	reason_check::reportOutstanding(snap);
+
+	reason_check::onRemove(c1); // c1 down to one reason - still live
+	CHECK_EQUAL(before + 2, reason_check::liveClusters());
+
+	reason_check::onRemove(c1); // c1 fully released
+	reason_check::onRemove(c2);
+	CHECK_EQUAL(before, reason_check::liveClusters());
+}
+
+TEST(ReasonCheck, forgetClearsACluster) {
+	void* c = (void*)0x300000;
+	uint32_t before = reason_check::liveClusters();
+	reason_check::onAdd(c, (void*)0xD44);
+	CHECK_EQUAL(before + 1, reason_check::liveClusters());
+	reason_check::forget(c); // e.g. the cluster's address gets recycled
+	CHECK_EQUAL(before, reason_check::liveClusters());
+}
+
+// onSteal with no outstanding reasons is benign (it just forgets the cluster); the numReasons != 0 path freezes, which
+// is the use-after-steal assertion and can't be exercised without halting.
+TEST(ReasonCheck, stealWithoutReasonsIsBenign) {
+	void* c = (void*)0x400000;
+	uint32_t before = reason_check::liveClusters();
+	reason_check::onAdd(c, (void*)0xE55);
+	reason_check::onRemove(c); // back to zero reasons - now stealable
+	reason_check::onSteal(c, 0);
+	CHECK_EQUAL(before, reason_check::liveClusters());
+}
+#endif
 } // namespace
