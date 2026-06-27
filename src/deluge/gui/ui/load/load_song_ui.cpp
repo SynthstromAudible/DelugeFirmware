@@ -378,7 +378,13 @@ fail:
 			preLoadedSong->~Song(); // Will also delete paramManager
 			delugeDealloc(toDealloc);
 			preLoadedSong = nullptr;
-			goto someError;
+			// We just freed songMemory. This is already the last-ditch blank-song fallback, so don't loop back to
+			// someError -> fail and reconstruct a Song into the freed songMemory (use-after-free, and an infinite retry
+			// loop while RAM stays exhausted). setupBlankSong() above (or the pre-existing currentSong) leaves us
+			// usable.
+			display->displayError(error);
+			performingLoad = false;
+			return;
 		}
 
 		GlobalEffectable::initParams(&preLoadedSong->paramManager);
