@@ -44,6 +44,7 @@ extern "C" {
 #include "fatfs/ff.h"
 }
 #if defined(__SANITIZE_ADDRESS__)
+#include <sanitizer/asan_interface.h>
 #include <sanitizer/lsan_interface.h>
 #endif
 
@@ -151,6 +152,12 @@ void collectXmlPaths(const char* dir, int depth) {
 }
 
 void loadOneSong(const char* fullPath) {
+#if defined(__SANITIZE_ADDRESS__)
+	if (currentSong && __asan_address_is_poisoned((void*)currentSong)) {
+		printf("[song-load] BEFORE load: currentSong %p is POISONED (dangling freed Song)\n", (void*)currentSong);
+		std::fflush(stdout);
+	}
+#endif
 	// Drive the same path the boot loader / enter-key uses: make loadSongUI the active UI (so the session view doesn't
 	// try to render - and dereference the transiently-null currentSong - during performLoad's yields), point the
 	// browser at this song, then perform the full load (read -> swap in -> delete the old song).
