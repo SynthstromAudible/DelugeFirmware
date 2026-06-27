@@ -491,7 +491,16 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 	}
 
 	const char* fileName = getFileNameFromEndOfPath(fullPath);
-	currentDir.set(getPathFromFullPath(fullPath));
+	// Copy the directory portion (everything before the final '/') straight into currentDir. String::set copies, so we
+	// bound it by length rather than building a temporary - the old getPathFromFullPath() returned a pointer into a
+	// std::string temporary that was already destroyed by the time we read it.
+	char const* slashPos = strrchr(fullPath, '/');
+	if (slashPos) {
+		currentDir.set(fullPath, (int32_t)(slashPos - fullPath));
+	}
+	else {
+		currentDir.clear();
+	}
 
 	// Change to the File Folder
 	Error error = arrivedInNewFolder(0, fileName);

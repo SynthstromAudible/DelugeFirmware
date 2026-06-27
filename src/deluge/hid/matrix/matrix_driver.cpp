@@ -88,5 +88,10 @@ ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
 }
 
 bool MatrixDriver::isPadPressed(int32_t x, int32_t y) {
+	// Callers pass derived/sentinel coordinates (e.g. gridFirstPressedX == -1 when no pad is held), so an out-of-range
+	// pad is simply "not pressed" rather than an out-of-bounds read.
+	if (x < 0 || x >= kDisplayWidth + kSideBarWidth || y < 0 || y >= kDisplayHeight) {
+		return false;
+	}
 	return padStates[x][y];
 }
