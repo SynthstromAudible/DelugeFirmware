@@ -31,11 +31,11 @@
 namespace deluge::project {
 
 DocAutoParam toDocAutoParam(const AutoParam& param) {
-	return toDocAutoParam(param.currentValue, param.nodes);
+	return toDocAutoParam(param.currentValue, param.nodes());
 }
 
 void fromDocAutoParam(const DocAutoParam& doc, AutoParam& param) {
-	fromDocAutoParam(doc, param.currentValue, param.nodes);
+	fromDocAutoParam(doc, param.currentValue, param.nodes());
 }
 
 DocParamSet toDocParamSet(deluge::modulation::params::Kind kind, const AutoParam* params, int32_t numParams) {

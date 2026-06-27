@@ -955,21 +955,21 @@ int32_t AutomationEditorLayoutModControllable::getAutomationParameterKnobPos(Mod
 bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack,
                                                                            int32_t pos, bool reversed) {
 
-	if (modelStack->autoParam->nodes.empty()) {
+	if (modelStack->autoParam->nodes().empty()) {
 		return false;
 	}
 
-	int32_t rightI = modelStack->autoParam->nodes.firstAtOrAfter(pos + (int32_t)!reversed);
-	if (rightI >= std::ssize(modelStack->autoParam->nodes)) {
+	int32_t rightI = modelStack->autoParam->nodes().firstAtOrAfter(pos + (int32_t)!reversed);
+	if (rightI >= std::ssize(modelStack->autoParam->nodes())) {
 		rightI = 0;
 	}
-	ParamNode* rightNode = &modelStack->autoParam->nodes[rightI];
+	ParamNode* rightNode = &modelStack->autoParam->nodes()[rightI];
 
 	int32_t leftI = rightI - 1;
 	if (leftI < 0) {
-		leftI += std::ssize(modelStack->autoParam->nodes);
+		leftI += std::ssize(modelStack->autoParam->nodes());
 	}
-	ParamNode* leftNode = &modelStack->autoParam->nodes[leftI];
+	ParamNode* leftNode = &modelStack->autoParam->nodes()[leftI];
 
 	if (reversed) {
 		return leftNode->interpolated;

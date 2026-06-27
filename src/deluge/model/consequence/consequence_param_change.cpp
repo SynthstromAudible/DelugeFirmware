@@ -31,12 +31,12 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 
 	// Either steal the data...
 	if (stealData) {
-		state.nodes.swap(modelStack->autoParam->nodes);
+		state.nodes.swap(modelStack->autoParam->nodes());
 	}
 
 	// Or clone it...
 	else {
-		state.nodes.cloneFrom(&modelStack->autoParam->nodes);
+		state.nodes.cloneFrom(&modelStack->autoParam->nodes());
 	}
 }
 

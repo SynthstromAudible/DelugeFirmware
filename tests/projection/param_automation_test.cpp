@@ -51,11 +51,11 @@ void check(bool ok, const char* what) {
 }
 
 void setNode(AutoParam& ap, int32_t pos, int32_t value, bool interpolated) {
-	int32_t i = ap.nodes.insertSorted(pos, /*isDefinitelyLast=*/true).value_or(-1);
+	int32_t i = ap.nodes().insertSorted(pos, /*isDefinitelyLast=*/true).value_or(-1);
 	if (i >= 0) {
-		ap.nodes[i].pos = pos;
-		ap.nodes[i].value = value;
-		ap.nodes[i].interpolated = interpolated;
+		ap.nodes()[i].pos = pos;
+		ap.nodes()[i].value = value;
+		ap.nodes()[i].interpolated = interpolated;
 	}
 }
 
@@ -66,11 +66,11 @@ bool cableMatches(const deluge::project::DocPatchCable& a, const deluge::project
 
 void expectSameNodes(const AutoParam& a, const AutoParam& b, const char* name) {
 	check(a.currentValue == b.currentValue, name);
-	check(a.nodes.size() == b.nodes.size(), name);
-	for (size_t i = 0; i < a.nodes.size() && i < b.nodes.size(); i++) {
-		check(a.nodes[i].pos == b.nodes[i].pos, name);
-		check(a.nodes[i].value == b.nodes[i].value, name);
-		check(a.nodes[i].interpolated == b.nodes[i].interpolated, name);
+	check(a.nodes().size() == b.nodes().size(), name);
+	for (size_t i = 0; i < a.nodes().size() && i < b.nodes().size(); i++) {
+		check(a.nodes()[i].pos == b.nodes()[i].pos, name);
+		check(a.nodes()[i].value == b.nodes()[i].value, name);
+		check(a.nodes()[i].interpolated == b.nodes()[i].interpolated, name);
 	}
 }
 
@@ -80,11 +80,11 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 	AutoParam ap;
 	ap.currentValue = currentValue;
 	for (const Node& n : nodes) {
-		int32_t i = ap.nodes.insertSorted(n.pos, /*isDefinitelyLast=*/true).value_or(-1);
+		int32_t i = ap.nodes().insertSorted(n.pos, /*isDefinitelyLast=*/true).value_or(-1);
 		check(i >= 0, "insertSorted (test setup)");
-		ap.nodes[i].pos = n.pos;
-		ap.nodes[i].value = n.value;
-		ap.nodes[i].interpolated = n.interpolated;
+		ap.nodes()[i].pos = n.pos;
+		ap.nodes()[i].value = n.value;
+		ap.nodes()[i].interpolated = n.interpolated;
 	}
 
 	DocAutoParam doc = toDocAutoParam(ap);
@@ -94,17 +94,32 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 	AutoParam rebuilt;
 	fromDocAutoParam(doc, rebuilt);
 	check(rebuilt.currentValue == currentValue, name);
-	check(rebuilt.nodes.size() == nodes.size(), name);
-	for (size_t i = 0; i < nodes.size() && i < rebuilt.nodes.size(); i++) {
-		check(rebuilt.nodes[i].pos == nodes[i].pos, name);
-		check(rebuilt.nodes[i].value == nodes[i].value, name);
-		check(rebuilt.nodes[i].interpolated == nodes[i].interpolated, name);
+	check(rebuilt.nodes().size() == nodes.size(), name);
+	for (size_t i = 0; i < nodes.size() && i < rebuilt.nodes().size(); i++) {
+		check(rebuilt.nodes()[i].pos == nodes[i].pos, name);
+		check(rebuilt.nodes()[i].value == nodes[i].value, name);
+		check(rebuilt.nodes()[i].interpolated == nodes[i].interpolated, name);
 	}
 }
 
 } // namespace
 
 int main() {
+	// Phase 5c R1: redirectNodeStorage makes an AutoParam a view over external (owner-held) node storage —
+	// node ops land in the external store, and reverting (nullptr) restores the embedded storage.
+	{
+		AutoParam ap;
+		ParamNodeVector external;
+		ap.redirectNodeStorage(&external);
+		setNode(ap, 0, 100, true);
+		setNode(ap, 48, -200, false);
+		check(external.size() == 2, "R1 redirect: ops land in external store");
+		check(ap.nodes().size() == 2, "R1 redirect: view sees external");
+		check(external[0].value == 100 && external[1].value == -200, "R1 redirect: external content");
+		ap.redirectNodeStorage(nullptr);
+		check(ap.nodes().size() == 0, "R1 redirect: revert to embedded storage");
+	}
+
 	// Unautomated: current value only, no nodes.
 	roundTrip("unautomated", 123456, {});
 
@@ -211,7 +226,7 @@ int main() {
 		                "5c1 param5 restored");
 		check((psum->whichParamsAreAutomated[5 >> 5] & (1u << (5 & 31))) != 0, "5c1 param5 flag set");
 		// param 9's stale automation cleared (nodes + flag)
-		check(dst.getPatchedParamSet()->params[9].nodes.empty(), "5c1 param9 nodes cleared");
+		check(dst.getPatchedParamSet()->params[9].nodes().empty(), "5c1 param9 nodes cleared");
 		check((psum->whichParamsAreAutomated[9 >> 5] & (1u << (9 & 31))) == 0, "5c1 param9 flag cleared");
 		// unpatched value restored
 		check(dst.getUnpatchedParamSet()->params[3].currentValue == 4242, "5c1 unpatched restored");

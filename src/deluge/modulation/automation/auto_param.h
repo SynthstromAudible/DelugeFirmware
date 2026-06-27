@@ -118,14 +118,21 @@ public:
 
 	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
 
-	inline bool isAutomated() { return (std::ssize(nodes)); }
+	inline bool isAutomated() { return (std::ssize(nodes())); }
 
 	inline void cancelOverriding() { // Will also cancel "latching".
 		renewedOverridingAtTime = 0;
 	}
 
-	/// The nodes that make up this parameter. If empty, \ref currentValue should be used.
-	ParamNodeVector nodes{};
+	/// The nodes that make up this parameter (if empty, \ref currentValue applies). Accessed through a
+	/// redirectable backing (param/automation DOM Phase 5c): by default the param's own embedded storage,
+	/// but `redirectNodeStorage` can point it at an owner-held authoritative store so the live AutoParam
+	/// becomes a view over DOM-owned nodes. Behaviour is identical until redirected.
+	ParamNodeVector& nodes() { return redirectedNodes_ != nullptr ? *redirectedNodes_ : ownNodes_; }
+	const ParamNodeVector& nodes() const { return redirectedNodes_ != nullptr ? *redirectedNodes_ : ownNodes_; }
+	/// Point this param's node storage at an external (owner-held) store, or pass nullptr to revert to the
+	/// embedded storage. The external store must outlive this AutoParam and never reallocate.
+	void redirectNodeStorage(ParamNodeVector* storage) { redirectedNodes_ = storage; }
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
@@ -136,6 +143,11 @@ public:
 	// it only works in empty stretches of time.
 
 private:
+	/// Embedded node storage (the default backing of nodes()). Authoritative unless redirectedNodes_ is set.
+	ParamNodeVector ownNodes_{};
+	/// When non-null, the external owner-held authoritative node store this param is a view over (Phase 5c).
+	ParamNodeVector* redirectedNodes_{nullptr};
+
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ParamNode* nextNode, int32_t effectiveLength, int32_t currentPos, bool reversed);
