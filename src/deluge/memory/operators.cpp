@@ -11,4 +11,12 @@ void* operator new(std::size_t n) noexcept(false) {
 void operator delete(void* p) {
 	delugeDealloc(p);
 }
+
+// C++14 sized deallocation. libstdc++ containers (std::string, std::vector, ...) call the sized form directly. On the
+// device the default sized delete defers to the unsized one above, but a sanitizer substitutes its own sized-delete
+// that does NOT defer - so without this override, std::string's buffer (allocated via our operator new) is freed
+// through the sanitizer and reported as a bad free. Route it to the custom allocator like the unsized form.
+void operator delete(void* p, std::size_t) noexcept {
+	delugeDealloc(p);
+}
 #endif
