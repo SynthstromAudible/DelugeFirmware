@@ -1,11 +1,20 @@
 #include "memory/general_memory_allocator.h"
+#include "util/exceptions.h"
 #include <new>
 
 // todo - make this work in unit tests, need to remove hard coded addresses in GMA
 #if !IN_UNIT_TESTS
 void* operator new(std::size_t n) noexcept(false) {
 	// allocate on external RAM
-	return GeneralMemoryAllocator::get().allocExternal(n);
+	void* addr = GeneralMemoryAllocator::get().allocExternal(n);
+	if (addr == nullptr) [[unlikely]] {
+		// The throwing operator new must never return null: std::string / std::vector and friends assume a non-null
+		// buffer, so returning null silently corrupts them. Throw the same lightweight exception the custom STL
+		// allocators (sdram_allocator / external_allocator) do, so existing `catch (deluge::exception)` out-of-memory
+		// handlers can deal with it. Code that wants graceful failure uses the GeneralMemoryAllocator directly.
+		throw deluge::exception::BAD_ALLOC;
+	}
+	return addr;
 }
 
 void operator delete(void* p) {
