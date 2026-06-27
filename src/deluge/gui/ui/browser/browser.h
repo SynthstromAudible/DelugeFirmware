@@ -96,8 +96,12 @@ public:
 	static CStringArray fileItems;
 	static int32_t numFileItemsDeletedAtStart;
 	static int32_t numFileItemsDeletedAtEnd;
-	static char const* firstFileItemRemaining;
-	static char const* lastFileItemRemaining;
+	// These hold the displayName of the boundary FileItem kept when we cull items off either end of the list to stay
+	// under the memory cap. They must own a *copy* of the name (not borrow the FileItem's buffer): the FileItem they
+	// came from can be destructed - freeing its filename buffer - before these get used as search keys in a later
+	// sortFileItems(). (See the kit-copy use-after-free fix.)
+	static String firstFileItemRemaining;
+	static String lastFileItemRemaining;
 
 	static OutputType outputTypeToLoad;
 	static char const* filenameToStartSearchAt;
