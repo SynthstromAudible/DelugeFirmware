@@ -369,8 +369,8 @@ fail:
 		// The original code reconstructed a Song into `songMemory` here and loaded it (without ever swapping it in),
 		// which is broken under memory pressure: songMemory is null if its initial allocation failed, or already freed
 		// if we arrived via block B's error cleanup (gotErrorAfterCreatingSong) - and setupBlankSong() below can
-		// reallocate that very freed block as the new currentSong, so reconstructing into (and later freeing) songMemory
-		// left currentSong dangling, crashing the next load.
+		// reallocate that very freed block as the new currentSong, so reconstructing into (and later freeing)
+		// songMemory left currentSong dangling, crashing the next load.
 		if (preLoadedSong && preLoadedSong != currentSong) {
 			// A half-loaded song may still occupy songMemory (e.g. we arrived from a closeWriter failure) - free it.
 			void* toDealloc = dynamic_cast<void*>(preLoadedSong);
