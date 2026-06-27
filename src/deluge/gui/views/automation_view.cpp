@@ -97,10 +97,6 @@
 #include <new>
 #include <string.h>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 namespace params = deluge::modulation::params;
 using deluge::modulation::params::kNoParamID;
 using deluge::modulation::params::ParamType;
@@ -1668,7 +1664,7 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 // handles shortcut pad action for automation (e.g. when you press shift + pad on the grid)
 // everything else is pretty much the same as instrument clip view
 ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
@@ -2088,7 +2084,7 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 // not used with Audio Clip Automation View or Arranger Automation View
 ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* output, OutputType outputType,
                                                int32_t yDisplay, int32_t velocity, bool shiftButtonDown) {
-	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
+	if (isSDRoutineActive() && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allowable sometimes if in card routine.
 	}
 
@@ -2212,7 +2208,7 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 // shift automations left / right
 // adjust velocity in note editor
 ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
 
@@ -2413,7 +2409,7 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 
 				int32_t yScrollAdjustment = noteRowIndex - lastAuditionedYDisplayScrolled;
 
-				instrumentClipView.scrollVertical(yScrollAdjustment, sdRoutineLock, false, modelStack);
+				instrumentClipView.scrollVertical(yScrollAdjustment, isSDRoutineActive(), false, modelStack);
 			}
 		}
 	}

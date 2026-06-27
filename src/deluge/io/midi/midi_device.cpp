@@ -26,10 +26,6 @@
 #include "storage/storage_manager.h"
 #include <string.h>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 MIDICable::MIDICable() {
 	connectionFlags = 0;
 	sendClock = true;

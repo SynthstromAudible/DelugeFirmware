@@ -95,8 +95,6 @@ public:
 	void sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter);
 	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
-	void setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum);
-	void flushUSBMIDIOutput();
 
 	// If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
 	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands];
@@ -154,14 +152,10 @@ private:
 uint32_t setupUSBMessage(MIDIMessage message);
 
 extern MidiEngine midiEngine;
-extern bool anythingInUSBOutputBuffer;
 
 extern "C" {
 #endif
 extern uint16_t g_usb_usbmode;
-
-void usbSendCompleteAsHost(int32_t ip);       // used when deluge is in host mode
-void usbSendCompleteAsPeripheral(int32_t ip); // used in peripheral mode
 #ifdef __cplusplus
 }
 #endif

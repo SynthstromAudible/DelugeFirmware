@@ -27,6 +27,7 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "libdeluge/control_surface.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -46,14 +47,7 @@
 
 AudioRecorder audioRecorder{};
 
-extern "C" void routineForSD(void);
-
-extern "C" {
-
-#include "RZA1/spibsc/r_spibsc_flash_api.h"
-
-void oledRoutine();
-}
+#include "libdeluge/display.h"
 
 AudioRecorder::AudioRecorder() {
 	recordingSource = AudioInputChannel::NONE;
@@ -194,9 +188,9 @@ void AudioRecorder::process() {
 		uiTimerManager.routine();
 
 		if (display->haveOLED()) {
-			oledRoutine();
+			deluge_display_service();
 		}
-		PIC::flush();
+		deluge_control_flush();
 
 		readButtonsAndPads();
 

@@ -23,6 +23,7 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
+#include "libdeluge/block_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
@@ -53,8 +54,32 @@ LBA_t clst2sect(           /* !=0:Sector number, 0:Failed (invalid cluster#) */
 );
 
 DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, DWORD sector, UINT count);
+DRESULT disk_write_without_streaming_first(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count);
 
 extern uint8_t currentlyAccessingCard;
+extern int32_t pendingGlobalMIDICommandNumClustersWritten;
+extern int currentlySearchingForCluster;
+
+// FatFs porting symbols. Service the audio cluster-streaming queue before every FatFs
+// sector access (an app priority concern), then do the plain sector I/O. Inverts what
+// used to be a HAL->app upcall (diskio.c calling loadAnyEnqueuedClustersRoutine): the
+// streaming policy now lives in the app and calls *down* into the block device.
+DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count) {
+	audioFileManager.loadAnyEnqueuedClusters(); // always ensure SD streaming is fulfilled first
+
+	DRESULT result = disk_read_without_streaming_first(pdrv, buff, sector, count);
+
+	if (currentlySearchingForCluster) {
+		pendingGlobalMIDICommandNumClustersWritten++;
+	}
+
+	return result;
+}
+
+DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count) {
+	audioFileManager.loadAnyEnqueuedClusters(); // always ensure SD streaming is fulfilled first
+	return disk_write_without_streaming_first(pdrv, buff, sector, count);
+}
 }
 
 AudioFileManager audioFileManager{};
@@ -991,8 +1016,9 @@ getOutEarly:
 	}
 #endif
 
-	DRESULT result = disk_read_without_streaming_first(
-	    SD_PORT, (BYTE*)cluster.data, sample->clusters.getElement(cluster.clusterIndex)->sdAddress, numSectors);
+	DRESULT result =
+	    disk_read_without_streaming_first(deluge_block_sd_unit(), (BYTE*)cluster.data,
+	                                      sample->clusters.getElement(cluster.clusterIndex)->sdAddress, numSectors);
 
 #if REPORT_LOAD_TIME
 	uint16_t endTime = MTU2.TCNT_0;
@@ -1231,8 +1257,15 @@ copy7ToMe:
 // Call this repeatedly so SD card is re-initialized on re-insert before we actually urgently need audio from it
 void AudioFileManager::slowRoutine() {
 
+	// Drain card-detect events from the BSP (pull-based; the card-detect ISR
+	// records them, we poll here). An ejection marks the card unusable until it
+	// is re-initialised by the re-insert path below.
+	if (deluge_block_poll_card_event(deluge_block_sd_unit()) == DELUGE_CARD_EVENT_EJECTED) {
+		setCardEjected();
+	}
+
 	// If we know the card's been ejected...
-	if (cardEjected && !sdRoutineLock) {
+	if (cardEjected && !isSDRoutineActive()) {
 		Error error = StorageManager::initSD();
 		if (error == Error::NONE) {
 			cardEjected = false;

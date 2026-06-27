@@ -41,9 +41,7 @@
 #include <cstring>
 #include <limits>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
+#include "libdeluge/control_surface.h"
 
 using namespace deluge;
 
@@ -145,14 +143,14 @@ void clearTickSquares(bool shouldSend) {
 		if (colsToSend) {
 			for (int32_t x = 0; x < 8; x++) {
 				if (colsToSend & (1 << x)) {
-					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
+					if (deluge_control_pad_output_space() <= kNumBytesInColUpdateMessage) {
 						break;
 					}
 
 					sortLedsForCol(x << 1);
 				}
 			}
-			PIC::flush();
+			deluge_control_flush();
 		}
 	}
 }
@@ -213,13 +211,13 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 		if (colsToSend) {
 			for (int32_t x = 0; x < 8; x++) {
 				if (colsToSend & (1 << x)) {
-					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
+					if (deluge_control_pad_output_space() <= kNumBytesInColUpdateMessage) {
 						break;
 					}
 					sortLedsForCol(x << 1);
 				}
 			}
-			PIC::flush();
+			deluge_control_flush();
 		}
 	}
 }
@@ -265,7 +263,8 @@ void sortLedsForCol(int32_t x) {
 	for (size_t y = 0; y < kDisplayHeight; y++) {
 		doubleColumn[total++] = prepareColour(x + 1, y, image[y][x + 1]);
 	}
-	PIC::setColourForTwoColumns((x >> 1), doubleColumn);
+	deluge_control_set_pad_columns((x >> 1), reinterpret_cast<const DelugeColour*>(doubleColumn.data()),
+	                               doubleColumn.size());
 }
 
 const RGB flashColours[3] = {
@@ -703,7 +702,7 @@ void setBrightnessLevel(uint8_t offset) {
 }
 
 void setRefreshTime(int32_t newTime) {
-	PIC::setRefreshTime(newTime);
+	deluge_control_set_refresh_time(newTime);
 	refreshTime = newTime;
 }
 
@@ -752,12 +751,12 @@ void setDimmerInterval(int32_t newInterval) {
 	// Uart::println(newInterval);
 
 	setRefreshTime(newRefreshTime);
-	PIC::setDimmerInterval(newInterval);
+	deluge_control_set_dimmer_interval(newInterval);
 }
 
 void timerRoutine() {
 	// If output buffer is too full, come back in a little while instead
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) {
+	if (deluge_control_pad_output_space() <= kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) {
 		setTimerForSoon();
 		return;
 	}
@@ -928,7 +927,7 @@ stopFade:
 
 void sendOutMainPadColours() {
 	AudioEngine::logAction("sendOutMainPadColours 1");
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInMainPadRedraw) {
+	if (deluge_control_pad_output_space() <= kNumBytesInMainPadRedraw) {
 		sendOutMainPadColoursSoon();
 		return;
 	}
@@ -939,7 +938,7 @@ void sendOutMainPadColours() {
 		}
 	}
 
-	PIC::flush();
+	deluge_control_flush();
 
 	needToSendOutMainPadColours = false;
 
@@ -953,14 +952,14 @@ void sendOutMainPadColoursSoon() {
 
 void sendOutSidebarColours() {
 
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInSidebarRedraw) {
+	if (deluge_control_pad_output_space() <= kNumBytesInSidebarRedraw) {
 		sendOutSidebarColoursSoon();
 		return;
 	}
 
 	sortLedsForCol(kDisplayWidth);
 
-	PIC::flush();
+	deluge_control_flush();
 
 	needToSendOutSidebarColours = false;
 }
@@ -1303,12 +1302,13 @@ void horizontal::renderScroll() {
 				}
 			}
 
-			PIC::sendScrollRow(row, prepareColour(endSquare, row, image[row][endSquare]));
+			RGB rowColour = prepareColour(endSquare, row, image[row][endSquare]);
+			deluge_control_scroll_row(row, {rowColour.r, rowColour.g, rowColour.b});
 		}
 	}
 
-	PIC::doneSendingRows();
-	PIC::flush();
+	deluge_control_scroll_done();
+	deluge_control_flush();
 
 	if (squaresScrolled >= areaToScroll) {
 		getCurrentUI()->scrollFinished();
@@ -1332,7 +1332,7 @@ void horizontal::setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScrol
 	if (thisAreaToScroll == kDisplayWidth + kSideBarWidth) {
 		flags |= 2;
 	}
-	PIC::setupHorizontalScroll(flags);
+	deluge_control_scroll_horizontal(flags);
 	renderScroll();
 }
 
@@ -1360,8 +1360,9 @@ void vertical::renderScroll() {
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		colours[x] = prepareColour(x, endSquare, image[endSquare][x]);
 	}
-	PIC::doVerticalScroll(scrollDirection > 0, colours);
-	PIC::flush();
+	deluge_control_scroll_vertical(scrollDirection > 0, reinterpret_cast<const DelugeColour*>(colours.data()),
+	                               colours.size());
+	deluge_control_flush();
 }
 
 void vertical::setupScroll(int8_t thisScrollDirection, bool scrollIntoNothing) {

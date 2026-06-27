@@ -1,0 +1,72 @@
+/*
+ * Copyright © 2014-2023 Mark Adams
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "timers_interrupts.h"
+
+#include "RZA1/system/r_typedefs.h"
+#include "bsp/rza1/drivers/mtu/mtu.h"
+#include "definitions.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// ENTER_CRITICAL_SECTION / EXIT_CRITICAL_SECTION relocated to the BSP
+// (src/bsp/rza1/system.c, declared in <libdeluge/system.h>) — they are a CPU
+// primitive the BSP owns, not task scheduling.
+
+void clearIRQInterrupt(int irqNumber) {
+	uint16_t flagRead = INTC.IRQRR.WORD;
+	if (flagRead & (1 << irqNumber)) {
+		INTC.IRQRR.WORD = flagRead & ~(1 << irqNumber);
+	}
+}
+
+void setIRQInterruptBothEdges(int irqNumber) {
+	// ICR1 holds two mode bits per IRQn channel (00=low level, 01=falling,
+	// 10=rising, 11=both-edge).
+	uint16_t shift = (uint16_t)(irqNumber * 2);
+	uint16_t mask = (uint16_t)(0x3u << shift);
+	uint16_t val = INTC.ICR1;
+	val = (uint16_t)((val & ~mask) | (0x3u << shift));
+	INTC.ICR1 = val;
+}
+
+void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint32_t intSense), uint8_t priority) {
+	disableTimer(timerNo);
+	*TCNT[timerNo] = 0u;
+	timerClearCompareMatchTGRA(timerNo);
+	timerEnableInterruptsTGRA(timerNo);
+	timerControlSetup(timerNo, 1, scale);
+
+	/* The setup process the interrupt IntTgfa function.*/
+	R_INTC_RegistIntFunc(INTC_ID_TGIA[timerNo], handler);
+	R_INTC_SetPriority(INTC_ID_TGIA[timerNo], priority);
+}
+void setupRunningClock(int timer, int preScale) {
+	disableTimer(timer);
+	timerControlSetup(timer, 0, preScale);
+	enableTimer(timer);
+}
+void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, uint8_t priority) {
+	R_INTC_Disable(interruptID);
+	R_INTC_RegistIntFunc(interruptID, handler);
+	R_INTC_SetPriority(interruptID, priority);
+	R_INTC_Enable(interruptID);
+}
+#ifdef __cplusplus
+}
+#endif

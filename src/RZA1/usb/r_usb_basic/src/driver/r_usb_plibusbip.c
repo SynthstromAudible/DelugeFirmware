@@ -28,6 +28,7 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
+#include "RZA1/cpu_specific.h"
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
@@ -35,9 +36,8 @@
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 
 // Added by Rohan
-#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
-#include "deluge/io/midi/midi_device_manager.h"
-#include "deluge/io/midi/midi_engine.h"
+#include "RZA1/usb/usb_midi_completion.h" // record pipe completions for the BSP to drain
+#include "bsp/rza1/drivers/usb/userdef/r_usb_pmidi_config.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
@@ -870,8 +870,6 @@ void usb_pstd_data_end(uint16_t pipe, uint16_t status)
     }
 } /* End of function usb_pstd_data_end() */
 
-void usbReceiveComplete(int ip, int deviceNum, int tranlen);
-
 void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
 {
 
@@ -939,16 +937,9 @@ void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
                                 //((usb_cb_t)g_p_usb_pstd_pipe[pipe]->complete)(g_p_usb_pstd_pipe[pipe], USB_NULL,
                                 // USB_NULL); usbReceiveComplete(0, 0, g_usb_pstd_data_cnt[pipe]);
                                 g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL; // Is this necessary? Doesn't look like it
-                                // Only sets received bytes for first device
-                                // I've just pasted the relevant contents of usbReceiveComplete() in here
-                                connectedUSBMIDIDevices[0][0].numBytesReceived =
-                                    64 - g_usb_data_cnt[pipe]; // Seems wack, but yet, tranlen is now how many bytes
-                                                               // didn't get received out of the original transfer size
-                                // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not sure why
-                                // - but we need to cope with that case.
-
-                                connectedUSBMIDIDevices[0][0].currentlyWaitingToReceive =
-                                    0; // Take note that we need to set up another receive
+                                // Only the first device receives in peripheral mode. Record the bulk-IN completion;
+                                // the BSP drains it and owns the buffers.
+                                usb_midi_completion_record(USB_MIDI_COMPLETION_RECEIVE, 0, 64 - g_usb_data_cnt[pipe]);
                             }
                         }
                     }
@@ -1217,7 +1208,7 @@ void usb_pstd_bemp_pipe_process_rohan_midi(uint16_t bitsts)
                         // connectedUSBMIDIDevices[0][0].numBytesSendingNow = 0; // Even easier!
                         // anyUSBSendingStillHappening[0]                   = 0;
 
-                        usbSendCompleteAsPeripheral(0); // NOT SO EASY
+                        usb_midi_completion_record(USB_MIDI_COMPLETION_SEND_PERIPHERAL, 0, 0); // NOT SO EASY
                     }
                 }
             }

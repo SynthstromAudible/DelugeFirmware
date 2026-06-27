@@ -18,10 +18,16 @@
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/sysex.h"
+#include "libdeluge/system.h" // deluge_log (debug-channel sink)
 
-extern "C" {
-#include "deluge/drivers/uart/uart.h"
+namespace {
+// Route a finished debug line to the board's debug channel, preserving the
+// CRLF the legacy UART path emitted.
+void logLine(char const* s) {
+	deluge_log(s);
+	deluge_log("\r\n");
 }
+} // namespace
 
 namespace Debug {
 
@@ -39,7 +45,11 @@ bool lastWasNewline = false;
 	//  - bit 1 [1] Event counter reset
 	//  - bit 0 [1] Enable all counters.
 	uint32_t const pmcr = 0b10111;
+#if defined(__arm__)
 	asm volatile("MCR p15, 0, %0, c9, c12, 0\n" : : "r"(pmcr));
+#else
+	(void)pmcr; // no PMU off-target
+#endif
 }
 
 // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
@@ -86,6 +96,7 @@ void init() {
 	uint32_t const pmcr = 0;
 	uint32_t const pmcntenset = 0b10000000000000000000000000000000u;
 
+#if defined(__arm__)
 	asm volatile("MRC p15, 0, %0, c9, c12, 0\n"
 	             // Set bit 0, the "E" flag
 	             "orr %0, #1\n"
@@ -93,6 +104,10 @@ void init() {
 	             "MCR p15, 0, %1, c9, c12, 1\n"
 	             :
 	             : "r"(pmcr), "r"(pmcntenset));
+#else
+	(void)pmcr; // no PMU off-target
+	(void)pmcntenset;
+#endif
 
 	initFlag = true;
 }
@@ -114,7 +129,7 @@ void prependTimeStamp(bool isNewLine) {
 			sysexDebugPrint(midiDebugDevice, buffer, false);
 		}
 		else {
-			uartPrint(buffer);
+			deluge_log(buffer);
 		}
 	}
 	lastWasNewline = isNewLine;
@@ -128,7 +143,7 @@ void println(char const* output) {
 		sysexDebugPrint(*midiDebugCable, output, true);
 	}
 	else {
-		uartPrintln(output);
+		logLine(output);
 	}
 #endif
 }
@@ -148,7 +163,7 @@ void print(char const* output) {
 		sysexDebugPrint(*midiDebugCable, output, false);
 	}
 	else {
-		uartPrint(output);
+		deluge_log(output);
 	}
 #endif
 }
@@ -212,7 +227,7 @@ void RTimer::stop() {
 		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
-		uartPrintln(buffer);
+		logLine(buffer);
 	}
 
 #endif
@@ -237,7 +252,7 @@ void RTimer::stop(const char* stopLabel) {
 		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
-		uartPrintln(buffer);
+		logLine(buffer);
 	}
 	startTime = endTime;
 #endif
@@ -264,7 +279,7 @@ void RTimer::stop(int number) {
 		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
-		uartPrintln(buffer);
+		logLine(buffer);
 	}
 	startTime = endTime;
 #endif

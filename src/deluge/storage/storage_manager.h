@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "fatfs/fatfs.hpp"
+#include "libdeluge/scheduler.h" // isSDRoutineActive()
 #include "model/sync.h"
 #include "util/firmware_version.h"
 
@@ -419,5 +420,5 @@ extern FatFS::Directory staticDIR;
 extern const bool writeJsonFlag;
 
 inline bool isCardReady() {
-	return !sdRoutineLock && Error::NONE == StorageManager::initSD();
+	return !isSDRoutineActive() && Error::NONE == StorageManager::initSD();
 }

@@ -16,6 +16,7 @@
  */
 
 #include "memory/general_memory_allocator.h"
+#include "libdeluge/memory.h"
 
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
@@ -41,7 +42,7 @@ extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
 // NOLINTEND
 GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
-	uint32_t external_small_end = EXTERNAL_MEMORY_END;
+	uint32_t external_small_end = deluge_memory_external_end();
 	uint32_t external_small_start = external_small_end - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
 	uint32_t external_end = external_small_start;
 	uint32_t external_start = external_small_start - RESERVED_EXTERNAL_ALLOCATOR;

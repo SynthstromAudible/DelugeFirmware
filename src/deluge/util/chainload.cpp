@@ -18,9 +18,8 @@
  */
 
 #include "chainload.h"
-#include "RZA1/mtu/mtu.h"
 #include "definitions.h"
-#include "timers_interrupts/timers_interrupts.h"
+#include "libdeluge/system.h"
 
 extern uint32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
@@ -39,10 +38,7 @@ void chainload_from_buf(uint8_t* buffer, int buf_size) {
 	ENTER_CRITICAL_SECTION();
 #endif
 	// Disable timers
-	disableTimer(TIMER_MIDI_GATE_OUTPUT);
-	disableTimer(TIMER_SYSTEM_SLOW);
-	disableTimer(TIMER_SYSTEM_FAST);
-	disableTimer(TIMER_SYSTEM_SUPERFAST);
+	deluge_system_quiesce();
 	uint8_t* funcbuf = reinterpret_cast<uint8_t*>(spareRenderingBuffer);
 
 #if defined(__arm__)

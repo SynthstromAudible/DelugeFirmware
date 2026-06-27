@@ -17,26 +17,25 @@
 
 #include "io/midi/midi_device_manager.h"
 #include "definitions_cxx.hpp"
+#include "deluge/deluge.h" // setTimeUSBInitializationEnds (app-owned popup-suppression window)
+#include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "io/debug/log.h"
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "libdeluge/midi_io.h" // deluge_midi_init/_usb_port/_write/_write_space, deluge_midi_poll_usb_host_event
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
 #include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
 
-extern "C" {
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
-#include "drivers/uart/uart.h"
-
-extern uint8_t anyUSBSendingStillHappening[];
-}
 #pragma GCC diagnostic push
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
@@ -44,7 +43,7 @@ extern uint8_t anyUSBSendingStillHappening[];
 #define SETTINGS_FOLDER "SETTINGS"
 #define MIDI_DEVICES_XML "SETTINGS/MIDIDevices.XML"
 
-PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
+PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[DELUGE_USB_NUM_CONTROLLERS][MAX_NUM_USB_MIDI_DEVICES];
 
 namespace MIDIDeviceManager {
 
@@ -57,7 +56,7 @@ struct USBDev {
 	uint16_t vendorId;
 	uint16_t productId;
 };
-std::array<USBDev, USB_NUM_USBIP> usbDeviceCurrentlyBeingSetUp{};
+std::array<USBDev, DELUGE_USB_NUM_CONTROLLERS> usbDeviceCurrentlyBeingSetUp{};
 
 // This class represents a thing you can send midi too,
 // the virtual cable is an implementation detail
@@ -71,8 +70,47 @@ uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
 
 bool anyChangesToSave = false;
 
+void init() {
+	// Assign each device slot its boundary MIDI port, then initialise the MIDI
+	// transport. Runs before the USB stack is opened, so the ports are valid
+	// before any send/receive can use them.
+	for (int32_t ip = 0; ip < DELUGE_USB_NUM_CONTROLLERS; ip++) {
+		for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
+			connectedUSBMIDIDevices[ip][d].port = deluge_midi_usb_port(ip, d);
+		}
+	}
+	deluge_midi_init();
+}
+
 // Gets called within UITimerManager, which may get called during SD card routine.
 void slowRoutine() {
+	// Drain USB host enumeration events from the BSP (pull-based: the USB host
+	// stack records them, we poll here) and surface them as console popups. The
+	// app owns the display + localization and the post-hub-attach popup-
+	// suppression window — the USB stack no longer does any UI itself.
+	for (DelugeUsbHostEvent usbEvent = deluge_midi_poll_usb_host_event(); usbEvent != DELUGE_USB_HOST_NONE;
+	     usbEvent = deluge_midi_poll_usb_host_event()) {
+		switch (usbEvent) {
+		case DELUGE_USB_HOST_HUB_ATTACHED:
+			consoleTextIfAllBootedUp(deluge::l10n::get(deluge::l10n::String::STRING_FOR_USB_HUB_ATTACHED));
+			// A hub enumerates many devices at once; suppress the per-device
+			// popups for ~2s (was setTimeUSBInitializationEnds(44100 << 1)).
+			setTimeUSBInitializationEnds(kSampleRate * 2);
+			break;
+		case DELUGE_USB_HOST_DEVICE_DETACHED:
+			consoleTextIfAllBootedUp(deluge::l10n::get(deluge::l10n::String::STRING_FOR_USB_DEVICE_DETACHED));
+			break;
+		case DELUGE_USB_HOST_DEVICE_NOT_RECOGNIZED:
+			consoleTextIfAllBootedUp(deluge::l10n::get(deluge::l10n::String::STRING_FOR_USB_DEVICE_NOT_RECOGNIZED));
+			break;
+		case DELUGE_USB_HOST_DEVICES_MAX:
+			consoleTextIfAllBootedUp(deluge::l10n::get(deluge::l10n::String::STRING_FOR_USB_DEVICES_MAX));
+			break;
+		case DELUGE_USB_HOST_NONE:
+			break;
+		}
+	}
+
 	upstreamUSBMIDICable1.sendMCMsNowIfNeeded();
 	upstreamUSBMIDICable2.sendMCMsNowIfNeeded();
 	// port3 is not used for channel data
@@ -95,12 +133,7 @@ extern "C" void giveDetailsOfDeviceBeingSetUp(int32_t ip, char const* name, uint
 	usbDeviceCurrentlyBeingSetUp[ip].vendorId = vendorId;
 	usbDeviceCurrentlyBeingSetUp[ip].productId = productId;
 
-	uartPrint("name: ");
-	uartPrintln(name);
-	uartPrint("vendor: ");
-	uartPrintNumber(vendorId);
-	uartPrint("product: ");
-	uartPrintNumber(productId);
+	D_PRINTLN("name: %s  vendor: %d  product: %d", name, vendorId, productId);
 }
 
 // name can be NULL, or an empty String
@@ -244,7 +277,9 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 		connectedDevice->cable[i] = device;
 	}
 
-	connectedDevice->sq = 0;
+	// App policy, from the device's name. (The transport's own per-slot state —
+	// sequence bit, counters, connected flag — is reset below the boundary, from
+	// the HAL enumeration path.)
 	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
 	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
 
@@ -274,8 +309,7 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 	}
 #endif
 
-	uartPrint("detached MIDI device: ");
-	uartPrintNumber(midiDeviceNum);
+	D_PRINTLN("detached MIDI device: %d", midiDeviceNum);
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
 	int32_t ports = connectedDevice->maxPortConnected;
 	for (int32_t i = 0; i <= ports; i++) {
@@ -301,8 +335,6 @@ extern "C" void configuredAsPeripheral(int32_t ip) {
 	connectedDevice->maxPortConnected = 2;
 	connectedDevice->canHaveMIDISent = 1;
 
-	anyUSBSendingStillHappening[ip] = 0; // Initialize this. There's obviously nothing sending yet right now.
-
 	upstreamUSBMIDICable1.connectedNow(0);
 	upstreamUSBMIDICable2.connectedNow(0);
 	upstreamUSBMIDICable3.connectedNow(0);
@@ -318,8 +350,6 @@ extern "C" void detachedAsPeripheral(int32_t ip) {
 	upstreamUSBMIDICable1.connectionFlags = 0;
 	upstreamUSBMIDICable2.connectionFlags = 0;
 	upstreamUSBMIDICable3.connectionFlags = 0;
-	anyUSBSendingStillHappening[ip] = 0; // Reset this again. Been meaning to do this, and can no longer quite remember
-	                                     // reason or whether technically essential, but adds to safety at least.
 
 	recountSmallestMPEZones();
 }
@@ -636,89 +666,36 @@ checkDevice:
 
 } // namespace MIDIDeviceManager
 
+// USB-MIDI I/O goes through the <libdeluge/midi_io.h> byte-stream boundary: one
+// 4-byte event packet per message, on this device slot's port.
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
-	if (queued > 16) {
-		if (!anyUSBSendingStillHappening[0]) {
-			midiEngine.flushUSBMIDIOutput();
-		}
-		queued = ringBufWriteIdx - ringBufReadIdx;
-	}
-	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
-		// TODO: show some error message
-		return;
-	}
-
-	sendDataRingBuf[ringBufWriteIdx & MIDI_SEND_RING_MASK] = fullMessage;
-	ringBufWriteIdx++;
-
-	anythingInUSBOutputBuffer = true;
-}
-
-bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
-	// must be the same unsigned type as ringBufWriteIdx/ringBufReadIdx
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
-	return queued > 0;
+	// The packet's bytes in little-endian word order — the same layout the
+	// deluge_midi protocol library's UsbEventPacket::word() produces.
+	uint8_t bytes[4] = {
+	    (uint8_t)fullMessage,
+	    (uint8_t)(fullMessage >> 8),
+	    (uint8_t)(fullMessage >> 16),
+	    (uint8_t)(fullMessage >> 24),
+	};
+	deluge_midi_write(port, bytes, sizeof(bytes));
 }
 
 int ConnectedUSBMIDIDevice::sendBufferSpace() {
-	// must be the same unsigned type as ringBufWriteIdx/ringBufReadIdx
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
-	// each 4-byte MIDI-USB message contains 3 bytes of serial MIDI data
-	return (MIDI_SEND_BUFFER_LEN_RING - queued) * 3;
-}
-
-// This tries to read data from the ring buffer, and
-// moves data into the smaller "dataSendingNow" buffer where
-// it is ready to be used by the hardware driver.
-bool ConnectedUSBMIDIDevice::consumeSendData() {
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
-	if (queued == 0) {
-		return false;
-	}
-
-	int32_t i = 0;
-	uint32_t max_size = MIDI_SEND_BUFFER_LEN_INNER;
-	if (g_usb_usbmode == USB_HOST) {
-		// many devices do not accept more than 64 bytes of data at a time
-		// likely this can be inferred from the device metadata somehow?
-
-		// some seem to take even less, especially with hubs involved. The hydrasynth seems to only respond to a max of
-		// 2 messages per transfer, the third gets blocked. For MPE this leads to ignoring note ons as the x and y
-		// resets are sent before the note on
-		max_size = MIDI_SEND_BUFFER_LEN_INNER_HOST;
-	}
-
-	int32_t to_send = std::min(queued, max_size);
-	for (i = 0; i < to_send; i++) {
-		memcpy(dataSendingNow + (i * 4), &sendDataRingBuf[ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
-		ringBufReadIdx++;
-	}
-
-	numBytesSendingNow = to_send * 4;
-	return true;
+	// The boundary reports transport bytes (4 per event packet); callers reason
+	// in bytes of serial MIDI (3 per packet).
+	return (int)(deluge_midi_write_space(port) / 4 * 3);
 }
 
 void ConnectedUSBMIDIDevice::setup() {
-	numBytesSendingNow = 0;
-	currentlyWaitingToReceive = false;
-	numBytesReceived = 0;
-
-	// default to only a single port
+	// The transport state (counters, sequence bit) is reset below the boundary,
+	// from the HAL enumeration path. Default to only a single port.
 	maxPortConnected = 0;
 }
 ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
-	currentlyWaitingToReceive = 0;
-	sq = 0;
 	canHaveMIDISent = 0;
-	numBytesReceived = 0;
-	memset(receiveData, 0, 64);
-	memset(dataSendingNow, 0, MIDI_SEND_BUFFER_LEN_INNER * 4);
-	numBytesSendingNow = 0;
-	memset(sendDataRingBuf, 0, MIDI_SEND_BUFFER_LEN_RING);
-	ringBufWriteIdx = 0;
-	ringBufReadIdx = 0;
-
+	// The real port is assigned by MIDIDeviceManager::init() before the USB stack
+	// can deliver anything.
+	port = 0;
 	maxPortConnected = 0;
 }
 

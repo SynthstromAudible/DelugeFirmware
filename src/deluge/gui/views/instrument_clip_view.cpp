@@ -1841,7 +1841,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer) == RuntimeFeatureStateToggle::On
 	    && getCurrentOutputType() == OutputType::KIT && Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
 
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
@@ -1853,7 +1853,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 
 	// Edit pad action...
 	if (x < kDisplayWidth) {
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
@@ -1941,7 +1941,7 @@ possiblyAuditionPad:
 
 			// Changing the scale:
 			else if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) [[unlikely]] {
-				if (sdRoutineLock) {
+				if (isSDRoutineActive()) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
@@ -2083,7 +2083,10 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 	if (path == &nothing) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
-	char* slashAddress = strrchr(path, '/');
+	// Deliberately mutated below (temporarily truncated at the slash, then restored) — the backing
+	// String buffer is mutable. const_cast is needed because glibc's strrchr is const-correct (returns
+	// const char* for a const char* arg) whereas newlib's returns char*.
+	char* slashAddress = const_cast<char*>(strrchr(path, '/'));
 	if (slashAddress == nullptr) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
@@ -2156,7 +2159,7 @@ ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32
 }
 
 ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
@@ -2176,7 +2179,7 @@ ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity
 
 ActionResult InstrumentClipView::commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType,
                                                          int32_t y, int32_t velocity) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
@@ -2216,7 +2219,7 @@ ActionResult InstrumentClipView::commandSaveKitRow(InstrumentClip* clip, Output*
 }
 
 ActionResult InstrumentClipView::commandActivateSongMacro(int32_t y, int32_t velocity) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	// render that you're holding the macro
@@ -3826,7 +3829,7 @@ ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int3
 		return ActionResult::DEALT_WITH;
 	}
 
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
 
@@ -5018,7 +5021,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 
 ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
 	exitUIMode(UI_MODE_DRAGGING_KIT_NOTEROW);
-	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
+	if (isSDRoutineActive() && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allowable sometimes if in card routine.
 	}
 
@@ -6389,7 +6392,7 @@ shiftAllColour:
 static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
 ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
 

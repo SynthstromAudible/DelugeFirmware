@@ -42,6 +42,8 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "io/midi/midi_transpose.h"
+#include "libdeluge/audio_io.h"
+#include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -72,16 +74,12 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "timers_interrupts/timers_interrupts.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
 #include <math.h>
 #include <new>
 
-extern "C" {
-#include "RZA1/gpio/gpio.h"
-#include "RZA1/uart/sio_char.h"
-}
+#include "libdeluge/signals.h"
 
 PlaybackHandler playbackHandler{};
 
@@ -949,7 +947,7 @@ void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
 void PlaybackHandler::doMIDIClockOutTick() {
 	CriticalSectionGuard guard;
 	// if there's a scheduled output already then don't mess with it. Will catch at next output
-	if (isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
+	if (deluge_midi_gate_timer_pending()) {
 		return;
 	}
 	// otherwise if there's midi in here already then get it dumped
@@ -1837,10 +1835,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	// The 40 here is a fine-tuned amount to stop everything wrapping wrong when CPU load heavy. 28 to 98 seemed to
 	// work correctly
 	if (time) {
-		timeTilInputTick =
-		    (((uint32_t)(time - (uint32_t)AudioEngine::i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-		     + 40)
-		    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+		timeTilInputTick = (deluge_audio_stamp_to_render_offset(time) + 40) & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 	}
 	else {
 		timeTilInputTick = 0;
@@ -2548,7 +2543,7 @@ void PlaybackHandler::setLedStates() {
 	}
 
 	bool syncedLEDOn = isExternalClockActive();
-	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, syncedLEDOn);
+	deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, syncedLEDOn);
 
 	indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, metronomeOn);
 }

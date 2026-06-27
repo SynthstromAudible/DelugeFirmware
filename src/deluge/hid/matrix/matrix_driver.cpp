@@ -43,10 +43,6 @@
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 MatrixDriver matrixDriver{};
 
 MatrixDriver::MatrixDriver() {

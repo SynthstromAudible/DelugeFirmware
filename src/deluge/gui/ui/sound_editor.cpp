@@ -685,7 +685,7 @@ ActionResult SoundEditor::exitCompletely() {
 
 	if (inSettingsMenu()) {
 		// First, save settings
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		else {
@@ -1115,7 +1115,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 	if (on && isUIModeWithinRange(shortcutPadUIModes)) {
 
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
@@ -1243,7 +1243,7 @@ getOut:
 							if (getRootUI() == &automationView) {
 								// if automation view is open in the background
 								// potentially refresh grid if opening a new patch cable menu
-								getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
+								getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, isSDRoutineActive());
 							}
 						}
 
@@ -1377,7 +1377,7 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 		if (getRootUI() == &automationView) {
 			// if automation view is open in the background
 			// potentially refresh grid if opening a new parameter menu
-			getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
+			getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, isSDRoutineActive());
 		}
 	}
 }
@@ -1385,7 +1385,7 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 extern uint16_t batteryMV;
 
 ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 

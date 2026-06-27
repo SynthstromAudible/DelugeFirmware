@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "libdeluge/midi_io.h" // DelugeMidiPort
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "io/midi/cable_types/din.h"
@@ -30,75 +31,49 @@ class Deserializer;
 struct MIDICableUSB;
 #endif
 
-// size in 32-bit messages
-// NOTE: increasing this even more doesn't work.
-// Looks like a hardware limitation (maybe we more in FS mode)?
-#define MIDI_SEND_BUFFER_LEN_INNER 32
-// Seems to be the max for a hydrasynth on a usb hub? We should figure out how to find this from the device config but I
-// haven't seen anything below this yet. Widi bud's can do 3, both do fine at 16 without a hub involved
-#define MIDI_SEND_BUFFER_LEN_INNER_HOST 2
-
-// MUST be an exact power of two
-#define MIDI_SEND_BUFFER_LEN_RING 1024
-#define MIDI_SEND_RING_MASK (MIDI_SEND_BUFFER_LEN_RING - 1)
-
 #ifdef __cplusplus
-/*A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
- * When a ConnectedUSBMIDIDevice has a numMessagesQueued>=MIDI_SEND_BUFFER_LEN and tries to add another,
- * all outputs are sent. The send routine calls the USB output function, points the
- * USB pipes FIFO buffer directly at the dataSendingNow array, and then sends.
- * Sends can also be triggered by the midiAndGateOutput interrupt
- *
- * Reads are more complicated.
- * Actual reads are done by usb_cstd_usb_task, which has a commented out interrupt associated
- * The function is instead called in the midiengine::checkincomingUSBmidi function, which is called
- * in the audio engine loop
- *
- * The USB read function is configured by setupUSBHostReceiveTransfer, which is called to
- * setup the next device after each successful read. Data is written directly into the receiveData
- * array from the USB device, it's set as the USB pipe address during midi engine setup
+/* A ConnectedUSBMIDIDevice is the app-side, purely logical record of one USB-MIDI
+ * device slot: which cables hang off it, whether we may send to it, and the
+ * <libdeluge/midi_io.h> port that carries its byte stream. The USB transport
+ * itself (buffers, transfer descriptors, send/receive state machine, connection
+ * tracking) lives below the boundary in the BSP; reads/writes here move whole
+ * 4-byte USB-MIDI event packets through deluge_midi_read_timed()/_write() on the
+ * device's port, packed/decoded with the deluge_midi protocol library.
  */
 class ConnectedUSBMIDIDevice {
 public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
+	// Queue a pre-packed USB-MIDI event word for this device (one 4-byte event
+	// packet written to its boundary port).
 	void bufferMessage(uint32_t fullMessage);
 	void setup();
 
-	// move data from ring buffer to dataSendingNow, assuming it is free
-	bool consumeSendData();
-	bool hasBufferedSendData();
+	// Free space in the device's send buffer, in bytes of serial MIDI.
 	int sendBufferSpace();
 #else
 // warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
 	struct MIDICableUSB* device[4];
 #endif
-	uint8_t currentlyWaitingToReceive;
-	uint8_t sq; // Only for connections as HOST
-	uint8_t canHaveMIDISent;
-	uint16_t numBytesReceived;
-	__attribute__((aligned(8))) uint8_t receiveData[64];
-
-	// This buffer is passed directly to the USB driver, and is limited to what the hardware allows
-	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN_INNER * 4];
-	// This will show a value after the general flush function is called, throughout other Devices being sent to before
-	// this one, and until we've completed our send
-	uint8_t numBytesSendingNow;
-
-	// This is a ring buffer for data waiting to be sent which doesn't fit the smaller buffer above.
-	// Any code which wants to send midi data would use the writing side and append more messages.
-	// When we are ready to send data on this device, we consume data on the reading side and move it into the
-	// smaller dataSendingNow buffer above.
-	uint32_t sendDataRingBuf[MIDI_SEND_BUFFER_LEN_RING];
-	uint32_t ringBufWriteIdx;
-	uint32_t ringBufReadIdx;
-
 	uint8_t maxPortConnected;
+
+	// App policy: whether we send MIDI to this device at all (cleared for devices
+	// that must not receive any, e.g. LUMI Keys). Set on (re)connection from the
+	// device's name; read by the send paths.
+	uint8_t canHaveMIDISent;
+
+	// The <libdeluge/midi_io.h> port carrying this device slot's USB-MIDI byte
+	// stream. Assigned once by MIDIDeviceManager::init().
+	DelugeMidiPort port;
 };
 
 #ifdef __cplusplus
 namespace MIDIDeviceManager {
+
+/// Assign each ConnectedUSBMIDIDevice its boundary MIDI port and initialise the
+/// MIDI transport. Must run once at startup before the USB stack is opened.
+void init();
 
 void slowRoutine();
 MIDICable* readDeviceReferenceFromFile(Deserializer& reader);

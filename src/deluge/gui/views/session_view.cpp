@@ -85,10 +85,6 @@
 #include <cstdint>
 #include <new>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 using namespace deluge;
 using namespace gui;
 
@@ -743,7 +739,7 @@ holdingRecord:
 							return ActionResult::DEALT_WITH;
 						}
 
-						if (sdRoutineLock) {
+						if (isSDRoutineActive()) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
 
@@ -799,7 +795,7 @@ holdingRecord:
 					// If it's a pending overdub, delete it
 					else if (clip->isPendingOverdub) {
 removePendingOverdub:
-						if (sdRoutineLock) {
+						if (isSDRoutineActive()) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Possibly not quite necessary...
 						}
 
@@ -832,7 +828,7 @@ startHoldingDown:
 					if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 						return ActionResult::DEALT_WITH;
 					}
-					if (sdRoutineLock) {
+					if (isSDRoutineActive()) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
@@ -890,7 +886,7 @@ startHoldingDown:
 						return ActionResult::DEALT_WITH;
 					}
 
-					if (sdRoutineLock) {
+					if (isSDRoutineActive()) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
@@ -905,7 +901,7 @@ startHoldingDown:
 
 					// AudioClip
 					if (clip->type == ClipType::AUDIO) {
-						if (sdRoutineLock) {
+						if (isSDRoutineActive()) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
 						if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
@@ -920,7 +916,7 @@ startHoldingDown:
 					else {
 midiLearnMelodicInstrumentAction:
 
-						if (sdRoutineLock) {
+						if (isSDRoutineActive()) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
 						view.instrumentMidiLearnPadPressed(on, (Instrument*)clip->output);
@@ -950,7 +946,7 @@ midiLearnMelodicInstrumentAction:
 						goto justEndClipPress;
 					}
 
-					if (sdRoutineLock) {
+					if (isSDRoutineActive()) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
@@ -964,7 +960,7 @@ midiLearnMelodicInstrumentAction:
 				else {
 					if (yDisplay == selectedClipPressYDisplay && xDisplay == selectedClipPressXDisplay) {
 justEndClipPress:
-						if (sdRoutineLock) {
+						if (isSDRoutineActive()) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // If in card routine, might mean
 							                                                     // it's still loading an Instrument
 							                                                     // they selected,
@@ -1000,7 +996,7 @@ justEndClipPress:
 			// releasing their press, so we definitely want to be reminded of this later after the above has
 			// happened.
 			else {
-				if (sdRoutineLock) {
+				if (isSDRoutineActive()) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 			}
@@ -1012,7 +1008,7 @@ justEndClipPress:
 
 		if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 			if (currentUIMode == UI_MODE_NONE) {
-				if (sdRoutineLock) {
+				if (isSDRoutineActive()) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 				playbackHandler.switchToSession();
@@ -1051,7 +1047,7 @@ justEndClipPress:
 
 					switch (currentUIMode) {
 					case UI_MODE_MIDI_LEARN:
-						if (sdRoutineLock) {
+						if (isSDRoutineActive()) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
 						view.sectionMidiLearnPadPressed(on, clip->section);
@@ -1441,7 +1437,7 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 			// For safety, is used in verticalScrollOneSquare on clip copy
-			if (sdRoutineLock) {
+			if (isSDRoutineActive()) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
@@ -1491,7 +1487,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 			}
 		}
 
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
@@ -3277,7 +3273,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 		auto trackIndex = gridTrackIndexFromTrack(clip->output, trackCount);
 		if (trackIndex < 0) {
-			uartPrintln("Global output list mismatch");
+			D_PRINTLN("Global output list mismatch");
 			continue; // Should never happen but theoretically global output list can diverge from clip pointers
 		}
 
@@ -3838,7 +3834,7 @@ void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
 ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably
 	// be refactored
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 

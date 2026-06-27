@@ -32,10 +32,6 @@
 #include <cstring>
 #include <new>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 #if SAMPLE_DO_LOCKS
 #define LOCK_ENTRY                                                                                                     \
 	if (lock) {                                                                                                        \
@@ -1673,8 +1669,7 @@ doneReading:
 	delugeDealloc(fftInput);
 
 	float freq = freqBeforeAdjustment / (1 << lengthDoublings);
-	D_PRINT("freq: ");
-	uartPrintlnFloat(freq);
+	D_PRINTLN("freq: %.2f", freq);
 
 	return freq;
 }

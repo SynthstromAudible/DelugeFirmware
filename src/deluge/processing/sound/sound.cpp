@@ -69,10 +69,6 @@
 
 namespace params = deluge::modulation::params;
 
-extern "C" {
-#include "RZA1/mtu/mtu.h"
-}
-
 constexpr Patcher::Config kPatcherConfigForSound = {
     .firstParam = params::FIRST_GLOBAL,
     .firstNonVolumeParam = params::FIRST_GLOBAL_NON_VOLUME,

@@ -17,6 +17,7 @@
 
 #include "util/container/array/resizeable_array.h"
 #include "definitions_cxx.hpp"
+#include "libdeluge/memory.h"
 #include "processing/engines/audio_engine.h"
 // #include <algorithm>
 #include "hid/display/display.h"
@@ -210,7 +211,7 @@ void ResizeableArray::attemptMemoryShorten() {
 	if (staticMemoryAllocationSize) {
 		return;
 	}
-	if ((uint32_t)memoryAllocationStart >= (uint32_t)INTERNAL_MEMORY_BEGIN) {
+	if ((uint32_t)memoryAllocationStart >= (uint32_t)deluge_memory_internal_begin()) {
 		return;
 	}
 

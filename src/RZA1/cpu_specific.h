@@ -18,16 +18,23 @@
 #ifndef SYSTEM_CPU_SPECIFIC_H_
 #define SYSTEM_CPU_SPECIFIC_H_
 
-// RZ/A1
+// RZ/A1L hardware-implementation constants: register values, DMA channels, bus
+// and port indices, buffer sizes and the memory map. These are HAL/BSP-internal
+// and must NOT be referenced by the portable application — code that includes
+// this header is, by that fact, hardware-coupled.
+//
+// Board *capabilities* (counts, dimensions, model) live in the HAL-free
+// board_config.h, included here so anything using the HAL still sees the full
+// set it always did.
+#include "board_config.h"
 
-#define DELUGE_MODEL_40_PAD  0
-#define DELUGE_MODEL_144_PAD 1
+// --- MTU hardware-timer channel indices -------------------------------------
+#define TIMER_MIDI_GATE_OUTPUT 2 // MIDI/gate clock
+#define TIMER_SYSTEM_FAST      0 // "fast" events, 528 ticks/ms (528 kHz)
+#define TIMER_SYSTEM_SLOW      4 // "slow" events, 32 ticks/ms (32 kHz)
+#define TIMER_SYSTEM_SUPERFAST 1 // "superfast" events, 33.792 ticks/us (33.792 MHz)
 
-#define DELUGE_MODEL DELUGE_MODEL_144_PAD // Change this as needed
-
-#define NUM_PHYSICAL_CV_CHANNELS 2
-#define NUM_GATE_CHANNELS        4
-
+// --- DMA request / level register values ------------------------------------
 #define DMA_LVL_FOR_SSI   (1 << 6)
 #define DMARS_FOR_SSI0_TX 0x00E1
 #define DMARS_FOR_SSI0_RX 0x00E2
@@ -38,13 +45,12 @@
 
 #define DMARS_FOR_RSPI_TX 0b100100001
 
-// UART ----------------------------------------------------
+// --- UART transport items ---------------------------------------------------
 enum UartItemType {
     UART_ITEM_PIC,
     UART_ITEM_MIDI,
     NUM_UART_ITEMS,
 };
-
 // Aliases, cos multiple things on same PIC for this device
 #define UART_ITEM_PIC_PADS       UART_ITEM_PIC
 #define UART_ITEM_PIC_INDICATORS UART_ITEM_PIC
@@ -58,55 +64,37 @@ enum UartItemType {
 #define TIMING_CAPTURE_ITEM_MIDI 0
 #define NUM_TIMING_CAPTURE_ITEMS 1
 
-#define NUM_BUTTON_ROWS                4
-#define NUM_BUTTON_COLS                9
-#define NUM_LED_COLS                   9
+// --- Bus / port channels ----------------------------------------------------
 #define SPI_CHANNEL_CV                 0
 #define SPI_CHANNEL_OLED_MAIN          0
 #define UART_CHANNEL_MIDI              0
 #define UART_CHANNEL_PIC               1
 #define UART_INITIAL_SPEED_PIC_PADS_HZ 31250
-#define UI_MS_PER_REFRESH              50
-#define UI_MS_PER_REFRESH_SCROLLING                                                                                    \
-    7 // Any faster than this is faster than the UART bus can do, so there's a lag, and if we're sending out multiple
-      // scrolls fast, the buffer can build up quite a lag
 
-#define NUM_LED_ROWS 4
+#define SPIBSC_CH   0
+#define SSI_CHANNEL 0
+#define SD_PORT     1
 
-// SPI-BSC ---------------------------------------------------------------------
-#define SPIBSC_CH 0
-
-// SSI -------------------------------------------------------------------------
-#define SSI_CHANNEL                        0
-#define NUM_STEREO_INPUT_CHANNELS          1
-#define NUM_STEREO_OUTPUT_CHANNELS         1
-#define NUM_MONO_INPUT_CHANNELS_MAGNITUDE  1
-#define NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE 1
-
-// SDHI
-#define SD_PORT 1
-
-// DMA --------------------------------------------------------------------------
+// --- DMA channel assignments ------------------------------------------------
 /*
 DMA channels:
 0:
 1:
 2: SD host - defined in sd_cfg.h
 3:
-4: OLED and CV SPI (if OLED supported) - defined below
+4: OLED and CV SPI (if OLED supported)
 5:
-6: audio TX - defined below
-7: audio RX - defined below
+6: audio TX
+7: audio RX
 8: SD SPI TX for 40-pad Deluge - defined in mmc.c
 9: SD SPI RX for 40-pad Deluge
-10: PIC UART TX - defined below
-11: MIDI UART TX - defined below
-12: PIC UART RX - defined below
-13: MIDI UART RX - defined below
-14: MIDI UART RX timing - defined below
+10: PIC UART TX
+11: MIDI UART TX
+12: PIC UART RX
+13: MIDI UART RX
+14: MIDI UART RX timing
 15:
 */
-
 #define OLED_SPI_DMA_CHANNEL 4
 
 #define SSI_TX_DMA_CHANNEL 6
@@ -119,6 +107,7 @@ DMA channels:
 #define MIDI_RX_DMA_CHANNEL        13
 #define MIDI_RX_TIMING_DMA_CHANNEL 14
 
+// --- Memory map -------------------------------------------------------------
 #define EXTERNAL_MEMORY_BEGIN       0x0C000000
 #define EXTERNAL_MEMORY_END         0x10000000
 #define UNUSED_MEMORY_SPACE_ADDRESS 0x08000000
@@ -127,25 +116,8 @@ DMA channels:
 
 #define UNCACHED_MIRROR_OFFSET 0x40000000
 
-#define NUM_LEVEL_INDICATORS 2
-
 #ifndef HAVE_RTT
 #define HAVE_RTT 0
 #endif
-
-// OLED
-#define OLED_MAIN_WIDTH_PIXELS 128
-
-// --- 64 pixels high
-// #define OLED_MAIN_HEIGHT_PIXELS 64
-// #define OLED_MAIN_TOPMOST_PIXEL 2
-// #define OLED_HEIGHT_CHARS 6
-
-// --- 48 pixels high
-#define OLED_MAIN_HEIGHT_PIXELS 48
-#define OLED_MAIN_TOPMOST_PIXEL 5
-#define OLED_HEIGHT_CHARS       4
-
-#define OLED_MAIN_VISIBLE_HEIGHT (OLED_MAIN_HEIGHT_PIXELS - OLED_MAIN_TOPMOST_PIXEL)
 
 #endif /* SYSTEM_CPU_SPECIFIC_H_ */

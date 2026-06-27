@@ -37,7 +37,6 @@
 ******************************************************************************/
 #include "../../../inc/sdif.h"
 #include "../inc/access/sd.h"
-#include "deluge/deluge.h"
 
 #ifdef __CC_ARM
 #pragma arm section code = "CODE_SDHI"
@@ -1675,7 +1674,6 @@ int _sd_wait_rbusy(SDHNDL *hndl,int time)
 			break;
 		}
 
-		logAudioAction("0h");
 		sddev_int_wait(hndl->sd_port, 1);
 	}
 

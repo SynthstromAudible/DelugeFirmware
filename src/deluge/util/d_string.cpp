@@ -17,6 +17,7 @@
 
 #include "util/d_string.h"
 #include "definitions_cxx.hpp"
+#include "libdeluge/memory.h"
 #include "memory/general_memory_allocator.h"
 #include "util/cfunctions.h"
 #include <bit>
@@ -140,7 +141,8 @@ void String::set(String const* otherString) {
 #if ALPHA_OR_BETA_VERSION
 	// if the other string has memory and it's not in the non audio region
 	if (sm != nullptr) {
-		if (!(EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR < (uint32_t)sm && (uint32_t)sm < EXTERNAL_MEMORY_END)) {
+		if (!(deluge_memory_external_end() - RESERVED_EXTERNAL_ALLOCATOR < (uint32_t)sm
+		      && (uint32_t)sm < deluge_memory_external_end())) {
 			FREEZE_WITH_ERROR("S001");
 			return;
 		}

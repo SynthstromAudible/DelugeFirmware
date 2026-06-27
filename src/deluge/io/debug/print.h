@@ -26,14 +26,22 @@ const uint32_t sec = 400000000;
 const uint32_t mS = 400000;
 const uint32_t uS = 400;
 
+// The cycle counter is the ARM PMU (CP15 c9, c13) — debug timing instrumentation only. Off-target there is
+// no such register, so return 0 (timing prints are inert on host).
 [[gnu::always_inline]] inline uint32_t readCycleCounter() {
 	uint32_t cycles = 0;
+#if defined(__arm__)
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(cycles) :);
+#endif
 	return cycles;
 }
 
 [[gnu::always_inline]] inline void readCycleCounter(uint32_t& time) {
+#if defined(__arm__)
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(time) :);
+#else
+	time = 0;
+#endif
 }
 
 void init();

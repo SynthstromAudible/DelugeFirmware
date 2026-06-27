@@ -1,0 +1,14 @@
+# Platform-boundary allowlist (libdeluge separation).
+#
+# Files under src/deluge/ that still include a HAL header (RZA1/...) or a
+# BSP-internal header (drivers/..., bsp/...) directly, bypassing the
+# <libdeluge/...> boundary. This list may only SHRINK. Adding a new entry
+# should be rejected in review; removing one is the unit of progress.
+#
+# See docs/dev/libdeluge_separation_plan.md and
+#     scripts/check_platform_boundary.py
+# Regenerate the *current* offender set (for comparison) with:
+#   scripts/check_platform_boundary.py --list
+#
+# The list is EMPTY: src/deluge includes only <libdeluge/...> — the application
+# compiles against any BSP.

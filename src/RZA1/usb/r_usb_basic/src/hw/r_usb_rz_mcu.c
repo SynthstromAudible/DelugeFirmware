@@ -29,6 +29,7 @@
 /***********************************************************************************************************************
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
+#include "RZA1/cpu_specific.h"
 #include "RZA1/intc/devdrv_intc.h" /* INTC Driver Header   */
 #include "RZA1/system/iodefine.h"
 #include "RZA1/system/iodefines/mtu2_iodefine.h"
@@ -36,12 +37,12 @@
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
-#include "deluge/deluge.h"
-#include "deluge/util/cfunctions.h"
+#include "foundation/timer_count.h"
+#include "libdeluge/storage_wait.h"
 #include <stdbool.h>
 
 // Additions by Rohan
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
+#include "RZA1/intc/register_interrupt.h"
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"
 
@@ -184,7 +185,7 @@ void usb_cpu_usbint_init(uint8_t ip_type)
 {
     if (USB_IP0 == ip_type)
     {
-        setupAndEnableInterrupt(usb_cpu_usb_int_hand, INTC_ID_USBI0, 9);
+        registerAndEnableInterrupt(usb_cpu_usb_int_hand, INTC_ID_USBI0, 9);
     }
 
 #if USB_NUM_USBIP == 2
@@ -287,18 +288,35 @@ TIMER function
 
 #define MTU_TIMER_CNT 33
 
+#include "bsp/rza1/drivers/mtu/mtu.h"
 #include "definitions.h"
-#include "deluge/drivers/mtu/mtu.h"
+
+// Captureless RunCondition state for the delay loops below: the timer deadline a
+// yield should wait out. Single-core cooperative — a delay completes before the next.
+static uint16_t s_usb_delay_stop_fast;
+static uint16_t s_usb_delay_stop_slow;
+
+static bool usb_delay_fast_elapsed(void)
+{
+    return (int16_t)(*TCNT[TIMER_SYSTEM_FAST] - s_usb_delay_stop_fast) >= 0;
+}
+static bool usb_delay_slow_elapsed(void)
+{
+    return (int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - s_usb_delay_stop_slow) >= 0;
+}
 
 void usb_cpu_delay_1us(uint16_t time) // Modified by Rohan
 {
-    uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
-    uint16_t stopTime  = startTime + usToFastTimerCount(time);
+    uint16_t startTime    = *TCNT[TIMER_SYSTEM_FAST];
+    s_usb_delay_stop_fast = startTime + usToFastTimerCount(time);
     do
     {
+        // Yield to the scheduler (= Embassy Timer::after) while waiting out the delay. The
+        // yield no-ops inside an ISR / under the SD reentrancy lock, so the timer do/while
+        // still spins out the full delay there, exactly as the old routineForSD() pump did.
         if (time >= 40)
-            routineForSD();
-    } while ((int16_t)(*TCNT[TIMER_SYSTEM_FAST] - stopTime) < 0);
+            yieldingRoutineForSD(usb_delay_fast_elapsed);
+    } while (!usb_delay_fast_elapsed());
 } /* End of function usb_cpu_delay_1us() */
 
 /***********************************************************************************************************************
@@ -310,12 +328,12 @@ void usb_cpu_delay_1us(uint16_t time) // Modified by Rohan
  ***********************************************************************************************************************/
 void usb_cpu_delay_xms(uint16_t time) // Modified by Rohan
 {
-    uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
-    uint16_t stopTime  = startTime + msToSlowTimerCount(time);
+    uint16_t startTime    = *TCNT[TIMER_SYSTEM_SLOW];
+    s_usb_delay_stop_slow = startTime + msToSlowTimerCount(time);
     do
     {
-        routineForSD();
-    } while ((int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - stopTime) < 0);
+        yieldingRoutineForSD(usb_delay_slow_elapsed);
+    } while (!usb_delay_slow_elapsed());
 } /* End of function usb_cpu_delay_xms() */
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)

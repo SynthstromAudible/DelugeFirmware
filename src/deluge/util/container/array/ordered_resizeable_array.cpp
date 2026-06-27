@@ -16,11 +16,10 @@
  */
 
 #include "util/container/array/ordered_resizeable_array.h"
-#include "RZA1/uart/sio_char.h"
 #include "definitions_cxx.hpp"
-#include "drivers/mtu/mtu.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
+#include "libdeluge/clock.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
 
@@ -300,9 +299,9 @@ void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 			resultingIndexes[t] = searchPos[t];
 		}
 
-		uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
+		uint16_t startTime = deluge_clock_now();
 		searchMultiple(resultingIndexes, TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS);
-		uint16_t endTime = *TCNT[TIMER_SYSTEM_FAST];
+		uint16_t endTime = deluge_clock_now();
 
 		uint16_t timeTaken = endTime - startTime;
 

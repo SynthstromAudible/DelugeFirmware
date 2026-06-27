@@ -25,6 +25,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
+#include "libdeluge/clock.h"
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
@@ -33,11 +34,6 @@
 #include <cmath>
 #include <cstdint>
 #include <string.h>
-
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-#include "drivers/mtu/mtu.h"
-}
 
 namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
@@ -1966,7 +1962,7 @@ void concatenateLines(const char* lines[], size_t numLines, char* resultString) 
 }
 
 void seedRandom() {
-	jcong = *TCNT[TIMER_SYSTEM_FAST];
+	jcong = deluge_clock_now();
 }
 
 #define UnsignedToFloat(u) (((double)((long)(u - 2147483647L - 1))) + 2147483648.0)

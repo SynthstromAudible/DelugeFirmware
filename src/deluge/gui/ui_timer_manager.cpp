@@ -37,9 +37,8 @@
 
 #include <algorithm>
 
-extern "C" {
-#include "RZA1/oled/oled_low_level.h"
-}
+#include "libdeluge/control_surface.h"
+#include "libdeluge/display.h"
 
 UITimerManager uiTimerManager{};
 extern void inputRoutine();
@@ -215,7 +214,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::GRAPHICS_ROUTINE:
-					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > kNumBytesInColUpdateMessage) {
+					if (deluge_control_pad_output_space() > kNumBytesInColUpdateMessage) {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TimerName::GRAPHICS_ROUTINE, 15);
@@ -223,7 +222,7 @@ void UITimerManager::routine() {
 
 				case TimerName::OLED_LOW_LEVEL:
 					if (deluge::hid::display::have_oled_screen) {
-						oledLowLevelTimerCallback();
+						deluge_display_timer_event();
 					}
 					break;
 

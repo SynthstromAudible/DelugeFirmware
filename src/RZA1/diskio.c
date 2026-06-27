@@ -28,18 +28,21 @@
 /
 /-------------------------------------------------------------------------*/
 
+#include "RZA1/cpu_specific.h"
 #include "RZA1/system/iodefine.h"
 #include "RZA1/system/r_typedefs.h"
 #include "definitions.h"
 
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/rspi/rspi.h"
+#include "RZA1/sd_card_detect.h"
 #include "RZA1/sdhi/inc/sdif.h"
 #include "RZA1/system/rza_io_regrw.h"
-#include "deluge/deluge.h"
-#include "deluge/drivers/uart/uart.h"
+#include "bsp/rza1/drivers/uart/uart.h"
 #include "diskio.h"
 #include "ff.h"
+#include "libdeluge/block_device.h"
+#include "libdeluge/system.h"
 
 uint8_t currentlyAccessingCard = 0;
 
@@ -65,28 +68,10 @@ uint16_t ioRegGet2(volatile uint16_t* reg, uint8_t p, uint8_t q)
     return RZA_IO_RegRead_16((volatile uint16_t*)((uint32_t)reg + (p - 1) * 4), q, (uint16_t)1 << q);
 }
 
-DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count);
-
-extern int pendingGlobalMIDICommandNumClustersWritten;
-extern int currentlySearchingForCluster;
-
-DRESULT disk_read(BYTE pdrv, /* Physical drive nmuber (0) */
-    BYTE* buff,              /* Pointer to the data buffer to store read data */
-    LBA_t sector,            /* Start sector number (LBA) */
-    UINT count               /* Sector count (1..128) */
-)
-{
-    logAudioAction("disk_read");
-
-    loadAnyEnqueuedClustersRoutine(); // Always ensure SD streaming is fulfilled before anything else
-
-    DRESULT result = disk_read_without_streaming_first(pdrv, buff, sector, count);
-
-    if (currentlySearchingForCluster)
-        pendingGlobalMIDICommandNumClustersWritten++;
-
-    return result;
-}
+// disk_read / disk_write (the FatFs porting symbols) live in the application
+// (audio_file_manager.cpp): they service the audio cluster-streaming queue before
+// each FatFs sector access, which is an app concern. They call *down* into the plain
+// sector I/O below, so the HAL no longer calls up into the app for streaming.
 
 BYTE diskStatus = STA_NOINIT;
 
@@ -100,6 +85,10 @@ DSTATUS disk_status(BYTE pdrv /* Physical drive nmuber to identify the drive */
     return diskStatus;
 }
 
+// Card-detect event latch: written here in the CD interrupt, read+cleared by
+// sdTakeCardDetectEvent(). Pull-based — nothing is pushed up into the app.
+static volatile int pendingCardDetectEvent = SD_CD_NONE;
+
 int sdIntCallback(int sd_port, int cd)
 {
     if (sd_port == SD_PORT)
@@ -108,17 +97,30 @@ int sdIntCallback(int sd_port, int cd)
         {
             uartPrintln("SD Card insert!\n");
             diskStatus &= ~STA_NODISK;
-            sdCardInserted();
+            pendingCardDetectEvent = SD_CD_INSERTED;
         }
         else
         {
             uartPrintln("SD Card extract!\n");
-            diskStatus = STA_NOINIT | STA_NODISK;
-            sdCardEjected();
+            diskStatus             = STA_NOINIT | STA_NODISK;
+            pendingCardDetectEvent = SD_CD_EJECTED;
         }
     }
 
     return 0;
+}
+
+int sdTakeCardDetectEvent(int sd_port)
+{
+    if (sd_port != SD_PORT)
+    {
+        return SD_CD_NONE;
+    }
+    ENTER_CRITICAL_SECTION();
+    int event              = pendingCardDetectEvent;
+    pendingCardDetectEvent = SD_CD_NONE;
+    EXIT_CRITICAL_SECTION();
+    return event;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -189,8 +191,6 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
 )
 {
 
-    logAudioAction("disk_read_without_streaming_first");
-
     BYTE err;
 
     if (currentlyAccessingCard)
@@ -232,14 +232,12 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
 /* Write Sector(s)                                                       */
 /*-----------------------------------------------------------------------*/
 
-DRESULT disk_write(BYTE pdrv, /* Physical drive nmuber to identify the drive */
-    const BYTE* buff,         /* Data to be written */
-    LBA_t sector,             /* Sector address in LBA */
-    UINT count                /* Number of sectors to write */
+DRESULT disk_write_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to identify the drive */
+    const BYTE* buff,                                 /* Data to be written */
+    LBA_t sector,                                     /* Sector address in LBA */
+    UINT count                                        /* Number of sectors to write */
 )
 {
-
-    loadAnyEnqueuedClustersRoutine(); // Always ensure SD streaming is fulfilled before anything else
 
     BYTE err;
 

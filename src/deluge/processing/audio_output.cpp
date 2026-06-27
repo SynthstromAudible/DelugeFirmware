@@ -36,10 +36,6 @@
 #include <new>
 #include <ranges>
 
-extern "C" {
-#include "drivers/ssi/ssi.h"
-}
-
 namespace params = deluge::modulation::params;
 EnumStringMap<AudioOutputMode, kNumAudioOutputModes> aoModeStringMap({{
     {AudioOutputMode::player, "Player"},
@@ -211,7 +207,7 @@ renderEnvelope:
 	if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
-		int32_t const* __restrict__ input_ptr = (int32_t const*)AudioEngine::i2sRXBufferPos;
+		int32_t const* __restrict__ input_ptr = (int32_t const*)AudioEngine::inputRingPos;
 
 		AudioInputChannel input_channel = this->inputChannel;
 		if (input_channel == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
@@ -255,7 +251,7 @@ renderEnvelope:
 			}
 
 			input_ptr += NUM_MONO_INPUT_CHANNELS;
-			if (input_ptr >= getRxBufferEnd()) {
+			if (input_ptr >= AudioEngine::inputRingEnd()) {
 				input_ptr -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		}

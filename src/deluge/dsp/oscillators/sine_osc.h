@@ -55,6 +55,9 @@ private:
 		Argon<uint32_t> indices = phase >> (32 - kSineTableSizeMagnitude);
 
 		//  load our two relevent table components
+		// Argon's gather ties the offset-vector lane *width* to the result's (uint16),
+		// but the gather is per-lane scalar loads — only the lane count matters. The
+		// table index fits in 16 bits (kSineTableSizeMagnitude=8), so narrow to suit.
 		auto [sine, diff] =
 		    ArgonHalf<int16_t>::LoadGatherOffsetIndexInterleaved<2>(sineWaveDiff.data(), indices.Narrow());
 

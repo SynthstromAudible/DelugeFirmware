@@ -16,10 +16,7 @@
  */
 
 #include "deluge.h"
-
-#include "RZA1/sdhi/inc/sdif.h"
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -50,6 +47,10 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
+#include "libdeluge/board.h"
+#include "libdeluge/control_surface.h"
+#include "libdeluge/display.h"
+#include "libdeluge/signals.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -70,18 +71,8 @@
 #include "util/pack.h"
 #include <stdlib.h>
 
-#include "RZA1/cache/cache.h"
-
 extern "C" {
-#include "RZA1/gpio/gpio.h"
-#include "RZA1/oled/oled_low_level.h"
-#include "drivers/oled/oled.h"
-#include "drivers/ssi/ssi.h"
-#include "drivers/uart/uart.h"
 #include "fatfs/ff.h"
-
-#include "RZA1/rspi/rspi.h"
-#include "RZA1/spibsc/spibsc_Deluge_setup.h"
 }
 
 namespace encoders = deluge::hid::encoders;
@@ -92,8 +83,6 @@ extern "C" void disk_timerproc(UINT msPassed);
 
 Song* currentSong = nullptr;
 Song* preLoadedSong = nullptr;
-
-bool sdRoutineLock = false;
 
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
@@ -110,7 +99,7 @@ uint16_t batteryMV;
 bool batteryLEDState = false;
 
 void batteryLEDBlink() {
-	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
+	deluge_signal_write(DELUGE_SIGNAL_BATTERY_LED, batteryLEDState);
 	int32_t blinkPeriod = ((int32_t)batteryMV - 2630) * 3;
 	blinkPeriod = std::min(blinkPeriod, 500_i32);
 	blinkPeriod = std::max(blinkPeriod, 60_i32);
@@ -122,16 +111,17 @@ void inputRoutine() {
 	disk_timerproc(UI_MS_PER_REFRESH);
 
 	// Check if mono output cable plugged in
-	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin) != 0u;
-	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin) != 0u;
+	bool outputPluggedInL = deluge_signal_read(DELUGE_SIGNAL_LINE_OUT_DETECT_L);
+	bool outputPluggedInR = deluge_signal_read(DELUGE_SIGNAL_LINE_OUT_DETECT_R);
 
-	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin) != 0u;
+	bool headphoneNow = deluge_signal_read(DELUGE_SIGNAL_HEADPHONE_DETECT);
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
 		D_PRINT("headphone %d", headphoneNow);
 		AudioEngine::headphonesPluggedIn = headphoneNow;
 	}
 
-	bool micNow = readInput(MIC_DETECT.port, MIC_DETECT.pin) == 0u;
+	// Mic detect is active-low on this board.
+	bool micNow = !deluge_signal_read(DELUGE_SIGNAL_MIC_DETECT);
 	if (micNow != AudioEngine::micPluggedIn) {
 		D_PRINT("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
@@ -139,12 +129,12 @@ void inputRoutine() {
 	}
 
 	bool speakerOn = (!AudioEngine::headphonesPluggedIn && !outputPluggedInR && !outputPluggedInL);
-	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, speakerOn);
+	deluge_signal_write(DELUGE_SIGNAL_SPEAKER_ENABLE, speakerOn);
 
 	AudioEngine::renderInStereo =
 	    (AudioEngine::headphonesPluggedIn || outputPluggedInR || AudioEngine::isAnyInternalRecordingHappening());
 
-	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin) != 0u;
+	bool lineInNow = deluge_signal_read(DELUGE_SIGNAL_LINE_IN_DETECT);
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
 		D_PRINTLN("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
@@ -154,8 +144,9 @@ void inputRoutine() {
 	// Battery voltage
 	// If analog read is ready...
 
-	if (ADC.ADCSR & (1 << 15)) {
-		int32_t numericReading = ADC.ADDRF;
+	uint16_t batteryADCReading;
+	if (deluge_battery_read_raw(&batteryADCReading)) {
+		int32_t numericReading = batteryADCReading;
 		// Apply LPF
 		int32_t voltageReading = numericReading * 3300;
 		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
@@ -173,7 +164,7 @@ void inputRoutine() {
 			if (batteryMV > 2950) {
 makeBattLEDSolid:
 				batteryCurrentRegion = 1;
-				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
+				deluge_signal_write(DELUGE_SIGNAL_BATTERY_LED, true); // solid on
 				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 		}
@@ -185,7 +176,7 @@ makeBattLEDSolid:
 
 			else if (batteryMV > 3300) {
 				batteryCurrentRegion = 2;
-				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
+				deluge_signal_write(DELUGE_SIGNAL_BATTERY_LED, false); // off (charged)
 				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 		}
@@ -197,16 +188,20 @@ makeBattLEDSolid:
 	}
 
 	// Set up for next analog read
-	ADC.ADCSR = (1 << 13) | (0b011 << 6) | SYS_VOLT_SENSE_PIN;
+	deluge_battery_start_conversion();
 
 	MIDIDeviceManager::slowRoutine();
 
 	uiTimerManager.setTimer(TimerName::READ_INPUTS, 100);
 }
 
-int32_t nextPadPressIsOn = USE_DEFAULT_VELOCITY; // Not actually used for 40-pad
 bool alreadyDoneScroll = false;
 bool waitingForSDRoutineToEnd = false;
+
+// An input event whose action returned REMIND_ME_OUTSIDE_CARD_ROUTINE: held here
+// and re-dispatched once the SD routine ends (the pull-model replacement for the
+// old uartPutCharBack back-pressure).
+static DelugeInputEvent heldInputEvent;
 
 extern uint8_t anythingInitiallyAttachedAsUSBHost;
 
@@ -235,6 +230,46 @@ bool isShortPress(uint32_t pressTime) {
 	return ((int32_t)(AudioEngine::audioSampleTimer - pressTime) < FlashStorage::holdTime);
 }
 
+// Dispatch one decoded input event. Returns false if it must be retried once the
+// SD routine ends (the event is stashed in heldInputEvent and
+// waitingForSDRoutineToEnd is set); true once handled.
+static bool dispatchInputEvent(const DelugeInputEvent& ev) {
+	switch (ev.kind) {
+	case DELUGE_EVENT_PAD: {
+		// value is the velocity; 255 means "use the instrument default", 0 a release.
+		ActionResult result = matrixDriver.padAction(ev.x, ev.y, ev.value);
+		if (ev.value) {
+			Buttons::ignoreCurrentShiftForSticky();
+		}
+		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+			heldInputEvent = ev;
+			waitingForSDRoutineToEnd = true;
+			return false;
+		}
+		break;
+	}
+	case DELUGE_EVENT_BUTTON: {
+		auto b = deluge::hid::button::fromXY(ev.x, ev.y);
+		ActionResult result = Buttons::buttonAction(b, ev.value, isSDRoutineActive());
+		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+			heldInputEvent = ev;
+			waitingForSDRoutineToEnd = true;
+			return false;
+		}
+		break;
+	}
+	case DELUGE_EVENT_NO_PRESSES:
+		if (!isSDRoutineActive()) {
+			matrixDriver.noPressesHappening(isSDRoutineActive());
+			Buttons::noPressesHappening(isSDRoutineActive());
+		}
+		break;
+	default:
+		break; // ENCODER events do not arrive on this channel
+	}
+	return true;
+}
+
 bool readButtonsAndPads() {
 
 	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
@@ -250,63 +285,32 @@ bool readButtonsAndPads() {
 	*/
 
 	if (waitingForSDRoutineToEnd) {
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return false;
 		}
 		D_PRINTLN("got to end of sd routine");
 		waitingForSDRoutineToEnd = false;
+		// Re-dispatch the event we deferred; it may defer again.
+		if (!dispatchInputEvent(heldInputEvent)) {
+			return false;
+		}
 	}
 
-	PIC::Response value{0};
-	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
+	DelugeInputEvent ev;
+	bool anything = deluge_control_poll_event(&ev);
 	if (anything) {
-
-		if (value < PIC::kPadAndButtonMessagesEnd) {
-
-			int32_t thisPadPressIsOn = nextPadPressIsOn;
-			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
-
-			ActionResult result;
-			if (Pad::isPad(util::to_underlying(value))) {
-				auto p = Pad(util::to_underlying(value));
-				/* while this function takes an int32_t for velocity, 255 indicates to the downstream audition pad
-				 * function that it should use the default velocity for the instrument
-				 */
-				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
-				if (thisPadPressIsOn) {
-					Buttons::ignoreCurrentShiftForSticky();
-				}
-			}
-			else {
-				auto b = deluge::hid::Button(value);
-				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
-			}
-
-			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-				nextPadPressIsOn = thisPadPressIsOn;
-				D_PRINTLN("putCharBack ---------");
-				uartPutCharBack(UART_ITEM_PIC);
-				waitingForSDRoutineToEnd = true;
-				return false;
-			}
-		}
-		else if (value == PIC::Response::NEXT_PAD_OFF) {
-			nextPadPressIsOn = false;
-		}
-
-		// "No presses happening" message
-		else if (value == PIC::Response::NO_PRESSES_HAPPENING) {
-			if (!sdRoutineLock) {
-				matrixDriver.noPressesHappening(sdRoutineLock);
-				Buttons::noPressesHappening(sdRoutineLock);
-			}
-		}
-		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
-			uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
+		if (!dispatchInputEvent(ev)) {
+			return false;
 		}
 	}
 
-	if (!sdRoutineLock && Buttons::shiftHasChanged()
+	// OLED transfer-ack: the input decode consumed the PIC ack, so pump the next
+	// low-level OLED transfer here rather than off a raw byte.
+	if (deluge_display_consume_transfer_ack() && deluge::hid::display::have_oled_screen) {
+		uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
+	}
+
+	if (!isSDRoutineActive() && Buttons::shiftHasChanged()
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
 		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
 	}
@@ -472,29 +476,6 @@ void setupStartupSong() {
 	}
 }
 
-void setupOLED() {
-	// delayMS(10);
-
-	// Set up 8-bit
-	RSPI0.SPDCR = 0x20u;               // 8-bit
-	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI0.SPBFCR.BYTE = 0b01100000;    // 0b00100000;
-
-	PIC::setDCLow();
-	PIC::enableOLED();
-	PIC::selectOLED();
-	PIC::flush();
-
-	delayMS(5);
-
-	oledMainInit();
-
-	// delayMS(5);
-
-	PIC::deselectOLED();
-	PIC::flush();
-}
-
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);
 
@@ -561,9 +542,9 @@ void registerTasks() {
 	                 RESOURCE_SD);
 	// 31-39: Idle priority (40 for dyn tasks)
 	p = 31;
-	addRepeatingTask(&(PIC::flush), p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
+	addRepeatingTask(&deluge_control_flush, p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
 	if (hid::display::have_oled_screen) {
-		addRepeatingTask(&(oledRoutine), p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
+		addRepeatingTask(&deluge_display_service, p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
 	}
 	// needs to be called very frequently,
 	// handles animations and checks on the timers for any infrequent actions
@@ -580,9 +561,9 @@ void mainLoop() {
 
 		// Flush stuff - we just have to do this, regularly
 		if (hid::display::have_oled_screen) {
-			oledRoutine();
+			deluge_display_service();
 		}
-		PIC::flush();
+		deluge_control_flush();
 
 		AudioEngine::routineWithClusterLoading(true);
 
@@ -612,84 +593,39 @@ void mainLoop() {
 	}
 }
 extern "C" int32_t deluge_main(void) {
-	// Piggyback off of bootloader DMA setup.
-	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
-	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
+	bool have_oled = deluge_board_probe_oled();
 
-	// Give the PIC some startup instructions
+	// Give the control surface its startup configuration.
 	if (have_oled) {
-		PIC::enableOLED();
+		deluge_control_enable_oled();
 	}
 
-	PIC::setDebounce(20); // Set debounce time (mS) to...
+	deluge_control_init();
 
 	PadLEDs::setRefreshTime(23);
-	PIC::setMinInterruptInterval(8);
-	PIC::setFlashLength(6);
 
-	PIC::setUARTSpeed();
-	PIC::flush();
+	deluge_control_flush();
 
 	functionsInit();
 
 	currentPlaybackMode = &session;
 
-	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
-	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
-
-	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0); // Switch it off
-	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);    // Synced LED
-
-	// Codec control
-	setPinAsOutput(CODEC.port, CODEC.pin);
-	setOutputState(CODEC.port, CODEC.pin, 0); // Switch it off
-
-	// Speaker / amp control
-	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
-	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 0); // Switch it off
-
-	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
-	setPinAsInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);     // Line in detect
-	setPinAsInput(MIC_DETECT.port, MIC_DETECT.pin);             // Mic detect
-
-	setPinMux(VOLT_SENSE.port, VOLT_SENSE.pin, 1); // Analog input for voltage sense
-
-	// Trigger clock input
-	setPinMux(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin, 2);
-
-	// Line out detect pins
-	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
-	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
-
-	// SPI for CV
-	R_RSPI_Create(SPI_CHANNEL_CV,
-	              have_oled ? 10000000 // Higher than this would probably work... but let's stick to the OLED
-	                                   // datasheet's spec of 100ns (10MHz).
-	                        : 30000000,
-	              0, 32);
-	R_RSPI_Start(SPI_CHANNEL_CV);
-	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);   // CLK
-	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
+	// One-time board bring-up: GPIO directions + initial state, the CV DAC SPI,
+	// and (when an OLED is fitted) its shared-SPI plumbing.
+	deluge_board_init_early(have_oled);
 
 	if (have_oled) {
-		// If OLED sharing SPI channel, have to manually control SSL pin.
-		setOutputState(SPI_SSL.port, SPI_SSL.pin, true);
-		setPinAsOutput(SPI_SSL.port, SPI_SSL.pin);
-
-		setupSPIInterrupts();
-		oledDMAInit();
-		setupOLED(); // Set up OLED now
+		deluge_display_init(); // Set up OLED now
 		display = new deluge::hid::display::OLED;
 	}
 	else {
-		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
 		display = new deluge::hid::display::SevenSegment;
 	}
 	// remember the physical display type
 	deluge::hid::display::have_oled_screen = have_oled;
 
 	// Setup audio output on SSI0
-	ssiInit(0, 1);
+	deluge_board_init_audio();
 
 #if RECORD_TEST_MODE == 1
 	makeTestRecording();
@@ -708,73 +644,34 @@ extern "C" int32_t deluge_main(void) {
 
 	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't
 	// that.) Otherwise didn't seem necessary.
-	PIC::waitForFlush();
+	deluge_control_wait_for_flush();
 
-	PIC::setupForPads();
-	setOutputState(CODEC.port, CODEC.pin, 1); // Enable codec
+	deluge_control_setup_for_pads();
+	deluge_signal_write(DELUGE_SIGNAL_CODEC_ENABLE, true); // Enable codec
 
 	AudioEngine::init();
 
 	audioFileManager.init();
 
-	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics
-	// and audio routines into the SPIBSC wait routines, so that has to be running
-	setPinMux(4, 2, 2);
-	setPinMux(4, 3, 2);
-	setPinMux(4, 4, 2);
-	setPinMux(4, 5, 2);
-	setPinMux(4, 6, 2);
-	setPinMux(4, 7, 2);
-	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
+	// Storage-phase board bring-up (SPIBSC). Must run only now that everything
+	// else is up, because the graphics and audio routines are injected into the
+	// SPIBSC wait routines, so those have to be running.
+	deluge_board_init_storage();
 
-	PIC::requestFirmwareVersion(); // Request PIC firmware version
-	PIC::resendButtonStates();     // Tell PIC to re-send button states
-	PIC::flush();
+	// Read the PIC firmware version + OLED-present bit, and check whether the user
+	// is holding the select knob for a factory reset. The BSP drains the boot
+	// response burst; the app reacts.
+	DelugeBootInfo bootInfo;
+	deluge_control_read_boot_info(&bootInfo);
+	picFirmwareVersion = bootInfo.pic_firmware_version;
+	picSaysOLEDPresent = bootInfo.oled_present;
+	D_PRINTLN("PIC firmware version reported: %d", picFirmwareVersion);
 
-	// Check if the user is holding down the select knob to do a factory reset
-	bool readingFirmwareVersion = false;
-	bool otherButtonsOrEvents = false;
-
-	PIC::read(0x8000, [&readingFirmwareVersion, &otherButtonsOrEvents](auto response) {
-		if (readingFirmwareVersion) {
-			readingFirmwareVersion = false;
-			uint8_t value = util::to_underlying(response);
-			picFirmwareVersion = value & 127;
-			picSaysOLEDPresent = value & 128;
-			D_PRINTLN("PIC firmware version reported: %s", value);
-			return 0;
-		}
-
-		using enum PIC::Response;
-		switch (response) {
-		case FIRMWARE_VERSION_NEXT:
-			readingFirmwareVersion = true;
-			return 0;
-
-		case RESET_SETTINGS:
-			if (!otherButtonsOrEvents) {
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
-				FlashStorage::resetSettings();
-				FlashStorage::writeSettings();
-			}
-			return 0;
-
-		case UNKNOWN_BREAK:
-			return 1;
-
-		case UNKNOWN_BOOT_RESPONSE: // value 129. Happens every boot. If you know what this is, please rename!
-			return 0;
-
-		default:
-			if (response >= UNKNOWN_OLED_RELATED_COMMAND && response <= SET_DC_HIGH) {
-				// OLED D/C low ack
-				return 0;
-			}
-			// If any hint of another button being held, don't do anything.
-			otherButtonsOrEvents = true;
-			return 0;
-		}
-	});
+	if (bootInfo.factory_reset_requested) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+		FlashStorage::resetSettings();
+		FlashStorage::writeSettings();
+	}
 
 	FlashStorage::readSettings();
 
@@ -784,6 +681,10 @@ extern "C" int32_t deluge_main(void) {
 	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
 		deluge::hid::display::swapDisplayType();
 	}
+
+	// Assign each ConnectedUSBMIDIDevice its boundary MIDI port and initialise the
+	// MIDI transport before the USB stack can drive any MIDI transfers.
+	MIDIDeviceManager::init();
 
 	usbLock = 1;
 	openUSBHost();
@@ -875,8 +776,8 @@ extern "C" int32_t deluge_main(void) {
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
 	D_PRINTLN("going into main loop");
-	L2CacheUnlockData();
-	sdRoutineLock = false; // Allow SD routine to start happening
+	deluge_board_unlock_data_cache();
+	// (The SD-routine reentrancy flag is scheduler-owned and starts clear; no reset needed here.)
 
 #ifdef USE_TASK_MANAGER
 	registerTasks();
@@ -887,99 +788,15 @@ extern "C" int32_t deluge_main(void) {
 	return 0;
 }
 
-extern "C" void logAudioAction(char const* string) {
-	AudioEngine::logAction(string);
-}
+// The storage-wait hooks (yieldingRoutineForSD / yieldingRoutineWithTimeoutForSD) and the
+// old conditionless routineForSD() pump have all moved down into the scheduler foundation
+// (OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp) or been retired: they are pure
+// concurrency logic and named no app code beyond the manual audio/UI pump, which the task
+// manager makes redundant (audio/UI run as registered tasks). The HAL now yields *down* to
+// the scheduler during storage busy-waits rather than calling *up* into the application.
 
-extern "C" bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) {
-	if (intc_func_active != 0) {
-		return false;
-	}
-	auto timeNow = getSystemTime();
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
-	// USB -> routineForSD()
-	if (sdRoutineLock) {
-		// busy wait - matches running sdroutine in a loop while checking for condition
-		while (!until()) {
-			if (getSystemTime() > timeNow + timeoutSeconds) {
-				return false;
-			}
-		}
-		return true;
-	}
-	sdRoutineLock = true;
-	bool ret = yieldWithTimeout(until, timeoutSeconds);
-	sdRoutineLock = false;
-	return ret;
-}
-
-extern "C" void yieldingRoutineForSD(RunCondition until) {
-	if (intc_func_active != 0) {
-		return;
-	}
-
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
-	// USB -> routineForSD()
-	if (sdRoutineLock) {
-		// busy wait - matches running sdroutine in a loop while checking for condition
-		while (!until()) {
-			asm volatile("nop");
-		}
-		return;
-	}
-	sdRoutineLock = true;
-	yield(until);
-	sdRoutineLock = false;
-}
-enum class UIStage { oled, readEnc, readButtons };
-
-/// this function is used as a busy wait loop for long SD reads, and while swapping songs
-extern "C" void routineForSD(void) {
-
-	if (intc_func_active != 0) {
-		return;
-	}
-
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine()
-	// -> USB -> routineForSD()
-	if (sdRoutineLock) {
-		return;
-	}
-
-	sdRoutineLock = true;
-	static UIStage step = UIStage::oled;
-	AudioEngine::logAction("from routineForSD()");
-	AudioEngine::runRoutine();
-	switch (step) {
-	case UIStage::oled:
-		if (display->haveOLED()) {
-			oledRoutine();
-		}
-		PIC::flush();
-		step = UIStage::readEnc;
-		break;
-	case UIStage::readEnc:
-		encoders::interpretEncoders(true);
-		step = UIStage::readButtons;
-		break;
-	case UIStage::readButtons:
-		readButtonsAndPads();
-		step = UIStage::oled;
-		break;
-	}
-	sdRoutineLock = false;
-}
-
-extern "C" void sdCardInserted(void) {
-}
-
-extern "C" void sdCardEjected(void) {
-	audioFileManager.setCardEjected();
-}
-
-extern "C" void loadAnyEnqueuedClustersRoutine() {
-	audioFileManager.loadAnyEnqueuedClusters();
-}
+// Card-detect is now pull-based: AudioFileManager::slowRoutine() polls
+// deluge_block_poll_card_event() instead of the BSP calling up into the app.
 
 extern "C" void setNumeric(char* text) {
 	display->setText(text);

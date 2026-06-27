@@ -2717,7 +2717,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 
 	switch (currentUIMode) {
 	case UI_MODE_MIDI_LEARN:
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		view.clipStatusMidiLearnPadPressed(on, clip);

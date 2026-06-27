@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "RZA1/cpu_specific.h"
 #include "definitions.h"
 #include "deluge/util/d_string.h"
 #include <cstring>

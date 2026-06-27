@@ -18,16 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.h"
+#include "gui/colour/colour.h"
+#include "libdeluge/control_surface.h"
 #include <cstdint>
 
 #define FLASH_CURSOR_FAST 0
 #define FLASH_CURSOR_OFF 1
 #define FLASH_CURSOR_SLOW 2
-
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
 
 class UI;
 class AudioClip;
@@ -120,10 +117,10 @@ void setGreyoutAmount(float newAmount);
 static inline void flashMainPad(int32_t x, int32_t y, int32_t colour = 0) {
 	auto idx = y + (x * kDisplayHeight);
 	if (colour > 0) {
-		PIC::flashMainPadWithColourIdx(idx, colour);
+		deluge_control_flash_pad_colour(idx, colour);
 		return;
 	}
-	PIC::flashMainPad(idx);
+	deluge_control_flash_pad(idx);
 }
 
 void setTimerForSoon();

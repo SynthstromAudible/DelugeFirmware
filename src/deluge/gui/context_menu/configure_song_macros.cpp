@@ -80,7 +80,7 @@ ActionResult ConfigureSongMacros::buttonAction(deluge::hid::Button b, bool on, b
 }
 
 ActionResult ConfigureSongMacros::padAction(int32_t x, int32_t y, int32_t on) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	// don't allow user to switch modes
@@ -109,7 +109,7 @@ void ConfigureSongMacros::renderOLED(deluge::hid::display::oled_canvas::Canvas& 
 }
 
 ActionResult ConfigureSongMacros::horizontalEncoderAction(int32_t offset) {
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	return sessionView.gridHandleScroll(offset, 0);

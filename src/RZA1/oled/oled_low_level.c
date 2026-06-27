@@ -16,23 +16,35 @@
  */
 
 #include "RZA1/oled/oled_low_level.h"
+#include "RZA1/cpu_specific.h"
+#include "bsp/rza1/drivers/oled/oled.h"
 #include "definitions.h"
-#include "deluge/drivers/oled/oled.h"
 
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/cache/cache.h"
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
+#include "RZA1/intc/register_interrupt.h"
 #include "RZA1/mtu/mtu.h"
 #include "RZA1/uart/sio_char.h"
-#include "deluge/drivers/dmac/dmac.h"
-#include "deluge/drivers/rspi/rspi.h"
-#include "deluge/processing/engines/cv_engine_c_interface.h"
-#include "deluge/util/cfunctions.h"
+#include "bsp/rza1/drivers/dmac/dmac.h"
+#include "bsp/rza1/drivers/rspi/rspi.h"
+#include "foundation/timer_count.h"
+#include "libdeluge/system.h"
+
+// Count of CV transfers actually dispatched to the DAC. On units where the OLED
+// shares the CV SPI bus, a CV write is queued behind display transfers; higher
+// layers poll this (via the BSP / libdeluge cv_gate boundary) to tell when a
+// queued CV write has gone out. Pull-based — replaces the old cvSent() upcall.
+volatile uint32_t cvTransfersSent = 0;
+
+uint32_t getCVTransfersSent(void)
+{
+    return cvTransfersSent;
+}
 
 void setupSPIInterrupts()
 {
-    setupAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
+    registerAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
 }
 
 // Priority CV channel: CV words bypass the OLED frame queue so gate timing isn't held
@@ -199,8 +211,8 @@ void sendCVTransfer()
 }
 
 // Drains the priority CV slot if one is waiting. Must only be called at an inter-transfer boundary
-// (nothing currently on the bus). Returns true if a CV word was sent. Mirrors the sendCVTransfer();
-// cvSent(); pairing so any gate waiting on this CV is released on schedule.
+// (nothing currently on the bus). Returns true if a CV word was sent. Bumps cvTransfersSent (the
+// pull-based replacement for the old cvSent() upcall) so any gate waiting on this CV is released on schedule.
 bool sendPriorityCVIfPending()
 {
     if (!cvPriorityPending)
@@ -210,7 +222,7 @@ bool sendPriorityCVIfPending()
     cvPriorityPending = false;
     cv_sending        = true;
     sendCVWord(cvPriorityData);
-    cvSent();
+    cvTransfersSent++;
     return true;
 }
 
@@ -257,7 +269,7 @@ void sendSPITransferFromQueue()
     {
         cv_sending = true;
         sendCVTransfer();
-        cvSent();
+        cvTransfersSent++; // the app polls this (it used to be the cvSent() upcall)
     }
     else
     {

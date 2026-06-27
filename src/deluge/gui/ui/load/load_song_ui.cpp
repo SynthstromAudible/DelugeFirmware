@@ -52,9 +52,6 @@ LoadSongUI loadSongUI{};
 
 extern void songLoaded(Song* song);
 extern void setUIForLoadedSong(Song* song);
-extern "C" {
-void routineForSD(void);
-}
 extern void setupBlankSong();
 
 using namespace deluge::gui;
@@ -497,15 +494,7 @@ gotErrorAfterCreatingSong:
 	}
 
 	// Ensure all AudioFile Clusters needed for new song are loaded
-#ifdef USE_TASK_MANAGER
 	yieldWithTimeout([]() { return !(audioFileManager.loadingQueueHasAnyLowestPriorityElements()); }, 5);
-#else
-	while (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 1024) {
-		audioFileManager.loadAnyEnqueuedClusters();
-		routineForSD();
-		count++;
-	}
-#endif
 
 	preLoadedSong->name.set(&enteredText);
 
@@ -550,19 +539,11 @@ gotErrorAfterCreatingSong:
 		AudioEngine::logAction("asking for samples");
 		preLoadedSong->loadAllSamples(true);
 		AudioEngine::logAction("waiting for samples");
-#ifdef USE_TASK_MANAGER
 		// make sure we don't get stuck
 		yield([]() {
 			return currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
 			       && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
 		});
-#else
-		// If any more waiting required before the song swap actually happens, do that
-		while (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
-			audioFileManager.loadAnyEnqueuedClusters();
-			routineForSD();
-		}
-#endif
 	}
 
 	else {
@@ -967,7 +948,7 @@ ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 	// If QWERTY not visible yet, make it visible now
 	if (!qwertyVisible) {
 		if (on && !currentUIMode) {
-			if (sdRoutineLock) {
+			if (isSDRoutineActive()) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			qwertyVisible = true;

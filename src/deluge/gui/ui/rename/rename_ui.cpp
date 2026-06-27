@@ -135,7 +135,7 @@ ActionResult RenameUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Otherwise, exit
 	if (on && !currentUIMode) {
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		exitUI();

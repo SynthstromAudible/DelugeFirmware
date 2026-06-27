@@ -16,7 +16,6 @@
  */
 
 #include "GranularProcessor.h"
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -25,6 +24,7 @@
 #include "modulation/lfo.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "util/fixedpoint.h" // q31_mult
 
 void GranularProcessor::setWrapsToShutdown() {
 

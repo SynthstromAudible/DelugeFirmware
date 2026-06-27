@@ -129,12 +129,12 @@ bool horizontalEncoderActionLock = false;
 
 ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
 	// These next two, I had here before adding the actual SD lock check / remind-later above. Maybe they're not still
-	// necessary? If either was true, wouldn't sdRoutineLock be true also for us to have gotten here?
+	// necessary? If either was true, wouldn't isSDRoutineActive() be true also for us to have gotten here?
 	if (pendingUIRenderingLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to
 		                                                     // still come back later and do it, but oh well

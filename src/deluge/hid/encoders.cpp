@@ -16,13 +16,9 @@
  */
 
 #include "hid/encoders.h"
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
+#include "OSLikeStuff/scheduler_api.h"
+#include "libdeluge/encoder_io.h"
 #include <algorithm>
-
-extern "C" {
-#include "RZA1/gpio/gpio.h"
-#include "RZA1/intc/devdrv_intc.h"
-}
 
 namespace deluge::hid::encoders {
 
@@ -100,106 +96,12 @@ ContinuousEncoder& modEncoderAt(size_t i) {
 	return *table[i];
 }
 
-// ── IRQ infrastructure ────────────────────────────────────────────────────
-
-namespace {
-
-struct EncoderIrqEntry {
-	/// @brief  A-side pin that's routed via PFC alt-2 to RZ/A1L IRQn.
-	uint8_t irqPin;
-
-	/// @brief Companion (B-side) pin, read as plain GPIO inside the ISR.
-	uint8_t compPin;
-	uint8_t irqNum;
-
-	/// @brief Flip the direction sense when the A/B wiring is swapped.
-	bool invert;
-};
-
-constexpr size_t kNumEncoders = 6;
-constexpr EncoderIrqEntry kEncoderIrqMap[kNumEncoders] = {
-    /* scrollY */ {.irqPin = 8, .compPin = 10, .irqNum = 0, .invert = false},
-    /* scrollX */ {.irqPin = 11, .compPin = 12, .irqNum = 3, .invert = false},
-    /* tempo   */ {.irqPin = 6, .compPin = 7, .irqNum = 2, .invert = true},
-    /* select  */ {.irqPin = 3, .compPin = 2, .irqNum = 7, .invert = true},
-    /* mod1    */ {.irqPin = 5, .compPin = 4, .irqNum = 1, .invert = false},
-    /* mod0    */ {.irqPin = 0, .compPin = 15, .irqNum = 4, .invert = false},
-};
-
-template <size_t IDX>
-void encoderIrqHandler(uint32_t /*sense*/) {
-	constexpr EncoderIrqEntry m = kEncoderIrqMap[IDX];
-	bool a = readInput(1, m.irqPin) != 0;
-	bool b = readInput(1, m.compPin) != 0;
-	bool cw = m.invert ? (a != b) : (a == b);
-	int8_t inc = cw ? +1 : -1;
-
-	if constexpr (IDX == 0) {
-		scrollY.applyEdges(inc);
-	}
-	else if constexpr (IDX == 1) {
-		scrollX.applyEdges(inc);
-	}
-	else if constexpr (IDX == 2) {
-		tempo.applyEdges(inc);
-	}
-	else if constexpr (IDX == 3) {
-		select.applyEdges(inc);
-	}
-	else if constexpr (IDX == 4) {
-		mod1.applyEdges(inc);
-	}
-	else if constexpr (IDX == 5) {
-		mod0.applyEdges(inc);
-	}
-
-	// Wake the (otherwise self-blocked) encoder task so it actions this movement.
-	unblockTask(EncoderTaskID);
-
-	clearIRQInterrupt(m.irqNum);
-}
-
-using IrqHandler = void (*)(uint32_t);
-constexpr IrqHandler kEncoderIrqHandlers[kNumEncoders] = {
-    &encoderIrqHandler<0>, &encoderIrqHandler<1>, &encoderIrqHandler<2>,
-    &encoderIrqHandler<3>, &encoderIrqHandler<4>, &encoderIrqHandler<5>,
-};
-
-constexpr uint8_t kEncoderIrqPriority = 14;
-
-void encoderSetPins(uint8_t port, uint8_t pinA, uint8_t pinB) {
-	setPinAsInput(port, pinA);
-	setPinAsInput(port, pinB);
-}
-
-void initInterrupts() {
-	for (size_t i = 0; i < kNumEncoders; i++) {
-		const auto& m = kEncoderIrqMap[i];
-
-		// Route the A-side pin to its IRQn input via PFC alt-function 2.
-		setPinMux(1, m.irqPin, 2);
-		enableInputBuffer(1, m.irqPin);
-
-		setPinAsInput(1, m.compPin);
-
-		setIRQInterruptBothEdges(m.irqNum);
-
-		clearIRQInterrupt(m.irqNum);
-		setupAndEnableInterrupt(kEncoderIrqHandlers[i], INTC_ID_IRQ0 + m.irqNum, kEncoderIrqPriority);
-	}
-}
-
-} // namespace
-
 void init() {
-	encoderSetPins(1, 11, 12); // scrollX
-	encoderSetPins(1, 7, 6);   // tempo
-	encoderSetPins(1, 0, 15);  // mod0
-	encoderSetPins(1, 5, 4);   // mod1
-	encoderSetPins(1, 8, 10);  // scrollY
-	encoderSetPins(1, 2, 3);   // select
-
-	initInterrupts();
+	// The board owns the encoder GPIO and the per-encoder quadrature-edge interrupts: its ISR
+	// accumulates signed A-pin edges and wakes EncoderTaskID on movement (see the BSP's encoder_io).
+	// We drain those edge counts in interpretEncoders() (task context) and apply the detent /
+	// gold-knob policy there. No encoder pin number or IRQ id crosses the libdeluge boundary.
+	deluge_encoder_io_init(EncoderTaskID);
 }
 
 } // namespace deluge::hid::encoders

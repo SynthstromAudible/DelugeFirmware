@@ -17,12 +17,13 @@
 
 #include "storage/storage_manager.h"
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.h"
 #include "fatfs/fatfs.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
+#include "libdeluge/block_device.h"
+#include "libdeluge/control_surface.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
@@ -46,8 +47,9 @@
 #include "version.h"
 #include <string.h>
 
+#include "libdeluge/display.h"
+
 extern "C" {
-#include "RZA1/oled/oled_low_level.h"
 #include "fatfs/diskio.h"
 #include "fatfs/ff.h"
 #include <scheduler_api.h>
@@ -55,8 +57,6 @@ extern "C" {
 FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory object */
                                   FILINFO* fno, /* Pointer to file information to return */
                                   FilePointer* filePointer);
-
-void routineForSD(void);
 }
 
 FirmwareVersion song_firmware_version = FirmwareVersion::current();
@@ -246,7 +246,7 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 Error StorageManager::initSD() {
 
 	// If we know the SD card is still initialised, no need to actually initialise
-	DSTATUS status = disk_status(SD_PORT);
+	DSTATUS status = disk_status(deluge_block_sd_unit());
 	if ((status & STA_NOINIT) == 0) {
 		auto _ = fileSystem.mount(0); // check that it's mounted but don't block if not
 		return Error::NONE;
@@ -269,13 +269,13 @@ Error StorageManager::initSD() {
 }
 
 bool StorageManager::checkSDPresent() {
-	DSTATUS status = disk_status(SD_PORT);
+	DSTATUS status = disk_status(deluge_block_sd_unit());
 	bool present = !(status & STA_NODISK);
 	return present;
 }
 
 bool StorageManager::checkSDInitialized() {
-	DSTATUS status = disk_status(SD_PORT);
+	DSTATUS status = disk_status(deluge_block_sd_unit());
 	return !(status & STA_NOINIT);
 }
 
@@ -917,9 +917,9 @@ void FileReader::readDone() {
 		uiTimerManager.routine();
 
 		if (display->haveOLED()) {
-			oledRoutine();
+			deluge_display_service();
 		}
-		PIC::flush();
+		deluge_control_flush();
 	}
 }
 
@@ -973,8 +973,6 @@ void FileWriter::writeBlock(uint8_t* block, uint32_t size) {
 	}
 }
 
-extern "C" void routineForSD(void);
-
 void FileWriter::writeByte(int8_t b) {
 
 	if (fileWriteBufferCurrentPos == bufferSize) {
@@ -995,9 +993,11 @@ void FileWriter::writeByte(int8_t b) {
 	writeClusterBuffer[fileWriteBufferCurrentPos] = b;
 	fileWriteBufferCurrentPos++;
 
-	// Ensure we do some of the audio routine once in a while
+	// Ensure we do some of the audio routine once in a while: let the scheduler run a
+	// slice of registered audio/UI work while we fill the write buffer (pure-CPU work
+	// with no SD wait to yield at otherwise).
 	if (callRoutines && !(fileWriteBufferCurrentPos & 0b11111111)) {
-		routineForSD();
+		yieldToIdle([]() { return true; });
 	}
 }
 void FileWriter::writeChars(char const* output) {

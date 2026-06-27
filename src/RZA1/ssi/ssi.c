@@ -45,9 +45,9 @@
 #include "RZA1/system/iobitmasks/dmac_iobitmask.h"
 #include "RZA1/system/iodefines/cpg_iodefine.h"
 #include "RZA1/system/iodefines/ssif_iodefine.h"
+#include "bsp/rza1/drivers/dmac/dmac.h"
+#include "bsp/rza1/drivers/ssi/ssi.h"
 #include "definitions.h"
-#include "deluge/drivers/dmac/dmac.h"
-#include "deluge/drivers/ssi/ssi.h"
 
 #define DMA_FIX_PRIO_MODE (0u)
 #define SSI_CHANNEL_MAX   (6u)

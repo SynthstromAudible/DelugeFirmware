@@ -62,9 +62,6 @@ private:
 	Time lastPrintedStats{0};
 
 	volatile TaskID currentID{0};
-	// for time tracking with rollover
-	Time lastTime{0};
-	Time runningTime{0};
 	void resetStats();
 	// needs to be volatile, GCC misses that the handle call can call ignoreForStats and optimizes the check away
 	volatile bool countThisTask{true};

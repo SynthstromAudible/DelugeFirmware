@@ -25,6 +25,7 @@
 #include "hid/encoders.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "libdeluge/encoder_io.h"
 #include "model/action/action_logger.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -49,12 +50,22 @@ void interpretEncodersTask() {
 }
 
 bool interpretEncoders(bool skipActioning) {
+	// The board's ISR has accumulated signed quadrature edges since we last ran; fold them into each
+	// encoder's position here in task context (detent reduction and the non-detent gold-knob handling
+	// live in applyEdges). Ordinals match the board's encoder pin map (see the BSP's encoder_io).
+	scrollY.applyEdges(deluge_encoder_take_edges(0));
+	scrollX.applyEdges(deluge_encoder_take_edges(1));
+	tempo.applyEdges(deluge_encoder_take_edges(2));
+	select.applyEdges(deluge_encoder_take_edges(3));
+	mod1.applyEdges(deluge_encoder_take_edges(4));
+	mod0.applyEdges(deluge_encoder_take_edges(5));
+
 	// do not interpret encoders when stem export is underway
 	if (stemExport.processStarted) {
 		return false;
 	}
 
-	skipActioning |= sdRoutineLock; // if the "sd routine" is yielding then always defer actioning encoders
+	skipActioning |= isSDRoutineActive(); // if the "sd routine" is yielding then always defer actioning encoders
 	bool anything = false;
 
 	if (!skipActioning) {

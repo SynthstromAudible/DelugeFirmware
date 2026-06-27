@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/midi/message.h"
+#include "midi/message.h"
 #include "model/model_stack.h"
 #include "util/d_string.h"
 #include <array>

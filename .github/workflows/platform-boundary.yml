@@ -1,0 +1,30 @@
+name: Platform Boundary
+
+# Phase 0 guardrail for the libdeluge separation: the portable application
+# (src/deluge) must include only <libdeluge/...>, never a HAL header directly.
+# See docs/dev/libdeluge_separation_plan.md and scripts/check_platform_boundary.py.
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+  merge_group:
+  workflow_dispatch:
+
+jobs:
+  boundary-check:
+    name: libdeluge boundary check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check application does not bypass the libdeluge boundary
+        run: python3 scripts/check_platform_boundary.py

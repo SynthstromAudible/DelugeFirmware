@@ -19,7 +19,6 @@
 #pragma once
 
 #include <cstdint>
-extern bool sdRoutineLock;
 extern int16_t zeroMPEValues[];
 extern bool allowSomeUserActionsEvenWhenInCardRoutine;
 extern bool readButtonsAndPads();

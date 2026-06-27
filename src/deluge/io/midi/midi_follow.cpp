@@ -44,10 +44,6 @@
 #include "util/d_string.h"
 #include <cstdlib>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 using namespace deluge;
 using namespace gui;
 

@@ -35,10 +35,6 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 
-extern "C" {
-#include "drivers/ssi/ssi.h"
-}
-
 namespace params = deluge::modulation::params;
 
 GlobalEffectableForClip::GlobalEffectableForClip() {

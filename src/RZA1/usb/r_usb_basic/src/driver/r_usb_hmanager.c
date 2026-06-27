@@ -35,7 +35,7 @@
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 #include "definitions.h"
 
-#include "deluge/deluge.h"
+#include "RZA1/usb/usb_host_event.h"
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
@@ -284,7 +284,7 @@ static uint16_t usb_hstd_enumeration(usb_utr_t* ptr)
                             {
                                 // By Rohan. Means couldn't find an available "driver" for this device. It could be a
                                 // 2nd hub.
-                                consoleTextIfAllBootedUp(l10n_get(l10n_STRING_FOR_USB_DEVICE_NOT_RECOGNIZED));
+                                usbHostEventRecord(USB_HOST_EVENT_DEVICE_NOT_RECOGNIZED);
                                 ctrl.address = g_usb_hstd_device_addr[ptr->ip]; /* USB Device address */
                                 ctrl.module  = ptr->ip;                         /* Module number setting */
                                 usb_set_event(USB_STS_NOT_SUPPORT, &ctrl);      /* Set Event()  */

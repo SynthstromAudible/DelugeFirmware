@@ -11,59 +11,70 @@ file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
 )
 
-add_dependencies(deluge deluge_strings deluge_version)
-
 # Filter out DSP sources as those are built as part of the deluge_dsp library
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
 
-# Ensure the menu sources are built prior to building the main target
-add_dependencies(deluge deluge_menus)
-
-target_sources(deluge PUBLIC
+# ---------------------------------------------------------------------------
+# deluge_app: the PORTABLE application as a static library. It links only the
+# portable libraries and the <libdeluge/...> boundary headers — NO HAL (RZA1)
+# and NO BSP. The boundary's deluge_* functions are undefined symbols here,
+# resolved when a platform executable links its BSP (bsp_rza1 for the firmware,
+# the host BSP for the sim, an Embassy shim later). That deluge_app compiles
+# with no RZA1/ on its include path is the build-enforced proof that the app has
+# no transitive HAL dependency. See sim/CMakeLists.txt for the host consumer.
+# ---------------------------------------------------------------------------
+# An OBJECT library (not STATIC): its object files embed directly into whichever
+# executable links it — exactly as the pre-refactor target_sources(deluge ...) did.
+# That keeps the app objects always-present, so the mutual references between the
+# app, deluge_dsp (wavetables / allocator) and bsp_rza1 (the boundary) resolve
+# without static-archive scan-order games.
+add_library(deluge_app OBJECT
   ${deluge_SOURCES}
-  # Add strings-sources explicitly: since they're build artefacts clean nukes them,
-  # and if they're not there in the first place then the source glob won't find them,
-  # and they only get generated not built.
+  # Strings-sources are generated build artefacts, so list them explicitly: a
+  # clean nukes them and the source glob would not find them.
   ${deluge_strings_SOURCES}
 )
+add_dependencies(deluge_app deluge_strings deluge_version deluge_menus)
 
-target_include_directories(deluge PUBLIC
+target_include_directories(deluge_app PUBLIC
     ${deluge_version_INCLUDES}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_LIST_DIR}
     ${SHARED_INCLUDE}
+    ${CMAKE_SOURCE_DIR}/include # <libdeluge/...> boundary headers
 )
 
-target_link_libraries(deluge PUBLIC
+target_link_libraries(deluge_app PUBLIC
     fatfs
     NE10
-    RZA1
     eyalroz_printf
     deluge_dsp
+    deluge_scheduler # the cooperative task scheduler (provides scheduler_api.h on its path)
+    argon
+    etl::etl
+    deluge_foundation
+    deluge_midi
 )
 
-target_compile_definitions(deluge PUBLIC
+target_compile_definitions(deluge_app PUBLIC
     $<$<CONFIG:DEBUG,RELWITHDEBINFO>:IN_HARDWARE_DEBUG=1>
     $<$<CONFIG:DEBUG,RELWITHDEBINFO>:ENABLE_TEXT_OUTPUT=1>
 )
 
-if(ENABLE_RTT)
-    message(STATUS "RTT enabled for deluge")
-    target_compile_definitions(deluge PUBLIC
-        $<$<CONFIG:DEBUG,RELWITHDEBINFO>:HAVE_RTT=1>
-    )
-    target_link_libraries(deluge PUBLIC
-        $<$<CONFIG:DEBUG,RELWITHDEBINFO>:RTT>
-    )
-endif(ENABLE_RTT)
+target_compile_options(deluge_app PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})
 
 if(ENABLE_SYSEX_LOAD)
-    message(STATUS "Sysex firmware loading enabled for deluge")
-    target_compile_definitions(deluge PUBLIC ENABLE_SYSEX_LOAD=1)
+    message(STATUS "Sysex firmware loading enabled")
+    target_compile_definitions(deluge_app PUBLIC ENABLE_SYSEX_LOAD=1)
 endif(ENABLE_SYSEX_LOAD)
 
 if(ENABLE_MATRIX_DEBUG)
-    message(STATUS "Extra pad matrix debug enabled for deluge")
-    target_compile_definitions(deluge PUBLIC ENABLE_MATRIX_DEBUG=1)
+    message(STATUS "Extra pad matrix debug enabled")
+    target_compile_definitions(deluge_app PUBLIC ENABLE_MATRIX_DEBUG=1)
 endif(ENABLE_MATRIX_DEBUG)
+
+# NB: deluge_app deliberately does NOT reference the firmware `deluge` executable
+# — it is a self-contained, platform-agnostic app library that both the firmware
+# (src/CMakeLists.txt) and the host-sim (sim/CMakeLists.txt) assemble against
+# their own BSP + entry point.
 

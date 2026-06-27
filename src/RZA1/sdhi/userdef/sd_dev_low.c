@@ -50,10 +50,9 @@ Includes   <System Includes> , "Project Includes"
 #include "RZA1/sdhi/userdef/sd_dev_dmacdrv.h"
 #include "RZA1/sdhi/inc/sdif.h"
 #include "RZA1/system/iobitmasks/gpio_iobitmask.h"
-#include "deluge/drivers/uart/uart.h"
-#include "deluge/deluge.h"
-#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
-#include "OSLikeStuff/scheduler_api.h"
+#include "bsp/rza1/drivers/uart/uart.h"
+#include "libdeluge/storage_wait.h"
+#include "RZA1/intc/register_interrupt.h"
 
 /******************************************************************************
 Typedef definitions
@@ -178,9 +177,9 @@ static int sddev_init_0(void)
 
 #ifdef    SDCFG_HWINT
 
-    setupAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_0, INT_LEVEL_SDHI);
-    setupAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_3, INT_LEVEL_SDHI);
-    setupAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_1, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_0, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_3, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_1, INT_LEVEL_SDHI);
 
 #endif
 
@@ -221,9 +220,9 @@ static int sddev_init_1(void)
 
 #ifdef    SDCFG_HWINT
 
-    setupAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_0, INT_LEVEL_SDHI);
-    setupAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_3, INT_LEVEL_SDHI);
-    setupAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_1, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_0, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_3, INT_LEVEL_SDHI);
+    registerAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_1, INT_LEVEL_SDHI);
 #endif
 
 #ifdef    SDCFG_CD_INT
@@ -1105,52 +1104,18 @@ return sd_DMAC_Get_Endflag(SD1_DMA_CHANNEL) == 1;
 static int sddev_wait_dma_end_1(long cnt)
 {
 #ifdef    SDCFG_TRNS_DMA
-    int loop = 0;
     int time;
 
     time = cnt >> 9;
     time = ((time * 1000) >> 10);
 
     if (time < 2000) time = 2000; // I've seen block write operations sometimes just randomly take as long as 1250ms, despite it normally being 2ms
-#ifdef USE_TASK_MANAGER
     if (yieldingRoutineWithTimeoutForSD(sd_DMAC_Get_Endflag1, time/1000.)) {
         return SD_OK;
       }
     else {
         return SD_ERR;
     }
-#else
-    if (time > 1024) {
-        loop = (time >> 10);
-        time = time & 1023;
-    }
-
-    do {
-        sddev_start_timer(loop ? 1024 : time);
-
-        while (1)
-        {
-
-            /* get end flag? */
-            if ( sd_DMAC_Get_Endflag(SD1_DMA_CHANNEL) == 1 )
-            {
-                sddev_end_timer();
-                return SD_OK;
-            }
-            /* detect timeout? */
-            if (sddev_check_timer() == SD_ERR)
-            {
-                break;
-            }
-
-            routineForSD(); // By Rohan. // called during reads
-        }
-    } while (loop--);
-
-    sddev_end_timer();
-
-    return SD_ERR;
-#endif
 #else
     return SD_OK;
 

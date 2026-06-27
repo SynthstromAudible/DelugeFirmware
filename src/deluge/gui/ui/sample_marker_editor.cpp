@@ -31,6 +31,7 @@
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "libdeluge/control_surface.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/instrument/instrument.h"
@@ -344,7 +345,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 
 ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
@@ -740,7 +741,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 	}
 
 	// We're quite likely going to need to read the SD card to do either scrolling or zooming
-	if (sdRoutineLock) {
+	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
@@ -873,7 +874,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 		__builtin_unreachable();
 	}
 
-	PIC::flush();
+	deluge_control_flush();
 
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 

@@ -44,6 +44,7 @@ target_compile_options(deluge_dsp PRIVATE
     "-fno-lto"
     # we're not using lto so go ahead and inline
     "-finline-functions"
-    # Build dsp code with arm mode
-    "-marm"
+    # Build dsp code in ARM (not Thumb) mode — RZ/A1L only; meaningless off-target,
+    # where the host build (DELUGE_HOST) compiles this same DSP via SIMDe.
+    "$<$<NOT:$<BOOL:${DELUGE_HOST}>>:-marm>"
 )

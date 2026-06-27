@@ -46,7 +46,7 @@ Includes   <System Includes> , "Project Includes"
 #include <math.h>
 #include <stdlib.h>
 
-#include "deluge/drivers/uart/uart.h"
+#include "bsp/rza1/drivers/uart/uart.h"
 
 uint8_t picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 char midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));

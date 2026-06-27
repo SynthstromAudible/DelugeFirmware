@@ -96,7 +96,7 @@ void KeyboardScreen::killColumnSwitchKey(int32_t column) {
 	}
 }
 ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
-	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
+	if (isSDRoutineActive() && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
 	}
 
@@ -166,7 +166,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// Handle setting root note
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-		if (sdRoutineLock) {
+		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 

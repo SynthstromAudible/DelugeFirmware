@@ -37,7 +37,6 @@
 *******************************************************************************/
 #include "../../../inc/sdif.h"
 #include "../inc/access/sd.h"
-#include "deluge/deluge.h"
 
 
 #ifdef __CC_ARM
@@ -179,7 +178,6 @@ int _sd_send_cmd(SDHNDL *hndl,unsigned short cmd)
 	sd_outp(hndl,SD_CMD,cmd);
 	
 	/* ---- wait resp end ---- */
-	logAudioAction("0d");
 	if(sddev_int_wait(hndl->sd_port, time) != SD_OK){
 		_sd_set_err(hndl,SD_ERR_HOST_TOE);
 		_sd_clear_int_mask(hndl,SD_INFO1_MASK_RESP,SD_INFO2_MASK_ILA);
@@ -226,7 +224,6 @@ int _sd_send_acmd(SDHNDL *hndl,unsigned short cmd,unsigned short h_arg,
 {
 	/* ---- issue CMD 55 ---- */
 	_sd_set_arg(hndl,hndl->rca[0],0);
-	logAudioAction("1a");
 	if(_sd_send_cmd(hndl, CMD55) != SD_OK){
 		return SD_ERR;
 	}
@@ -237,7 +234,6 @@ int _sd_send_acmd(SDHNDL *hndl,unsigned short cmd,unsigned short h_arg,
 	
 	/* ---- issue ACMD ---- */
 	_sd_set_arg(hndl,h_arg,l_arg);
-	logAudioAction("1b");
 	if(_sd_send_cmd(hndl, cmd) != SD_OK){
 		return SD_ERR;
 	}
@@ -283,7 +279,6 @@ int _sd_send_mcmd(SDHNDL *hndl,unsigned short cmd, unsigned long startaddr)
 	sd_outp(hndl,SD_CMD,cmd);
 
 	/* ---- wait resp end ---- */
-	logAudioAction("0e");
 	if(sddev_int_wait(hndl->sd_port, SD_TIMEOUT_CMD) != SD_OK){
 		_sd_set_err(hndl,SD_ERR_HOST_TOE);
 		return hndl->error;
@@ -351,7 +346,6 @@ int _sd_send_iocmd(SDHNDL *hndl,unsigned short cmd,unsigned long arg)
 	sd_outp(hndl,SD_CMD,cmd);
 
 	/* ---- wait resp end ---- */
-	logAudioAction("0f");
 	if(sddev_int_wait(hndl->sd_port, SD_TIMEOUT_CMD) != SD_OK){
 		_sd_set_err(hndl,SD_ERR_HOST_TOE);
 		return hndl->error;
@@ -405,7 +399,6 @@ int _sd_card_send_cmd_arg(SDHNDL *hndl,unsigned short cmd, int resp,
 	_sd_set_arg(hndl,h_arg,l_arg);
 	
 	/* ---- issue command ---- */
-	logAudioAction("1c");
 	if((ret =_sd_send_cmd(hndl,cmd)) == SD_OK){
 		ret = _sd_get_resp(hndl,resp);	/* get and check response */
 	}
@@ -462,7 +455,6 @@ int _sd_card_send_ocr(SDHNDL *hndl,int type)
 		case SD_MEDIA_UNKNOWN:	/* unknown media (read OCR) */
 			/* ---- issue CMD5 ---- */
 			_sd_set_arg(hndl,0,0);
-			logAudioAction("1d");
 			ret = _sd_send_cmd(hndl,CMD5);
 			if(ret == SD_OK){
 				return _sd_get_resp(hndl,SD_RESP_R4);	/* check R4 resp */
@@ -476,7 +468,6 @@ int _sd_card_send_ocr(SDHNDL *hndl,int type)
 			/* ---- issue CMD5 ---- */
 			_sd_set_arg(hndl,(unsigned short)(hndl->voltage>>16),
 				(unsigned short)hndl->voltage);
-			logAudioAction("1e");
 			ret = _sd_send_cmd(hndl,CMD5);
 			break;
 		
@@ -499,7 +490,6 @@ int _sd_card_send_ocr(SDHNDL *hndl,int type)
 			/* ---- issue CMD1 ---- */
 			_sd_set_arg(hndl,(unsigned short)(hndl->voltage>>16),
 				(unsigned short)hndl->voltage);
-			logAudioAction("1f");
 			ret = _sd_send_cmd(hndl,CMD1);
 			break;
 

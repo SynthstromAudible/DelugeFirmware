@@ -241,7 +241,7 @@ Song::~Song() {
 
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
-#include "timers_interrupts/timers_interrupts.h"
+#include "libdeluge/system.h"
 extern gui::menu_item::IntegerRange defaultTempoMenu;
 extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;

@@ -16,7 +16,6 @@
  */
 
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.h"
 #include "fatfs/fatfs.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -44,7 +43,6 @@
 #include <string.h>
 
 extern "C" {
-#include "RZA1/oled/oled_low_level.h"
 #include "fatfs/diskio.h"
 #include "fatfs/ff.h"
 }

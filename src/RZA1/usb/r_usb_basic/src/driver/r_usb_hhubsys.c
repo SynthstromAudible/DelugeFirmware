@@ -33,10 +33,10 @@
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
+#include "bsp/rza1/drivers/uart/uart.h"
 #include "definitions.h"
-#include "deluge/drivers/uart/uart.h"
 
-#include "deluge/deluge.h"
+#include "RZA1/usb/usb_host_event.h"
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
@@ -936,9 +936,8 @@ static void usb_hhub_init_down_port(usb_utr_t* ptr, uint16_t hubaddr, usb_clsinf
                 USB_PRINTF0("HHHHHHHHHHHHHHHHHHHHHHHHH\n\n");
                 g_usb_shhub_init_seq[ptr->ip]  = USB_SEQ_1; /* Next Sequence */
                 g_usb_shhub_init_port[ptr->ip] = USB_HUB_P1;
-                usb_hhub_specified_path(mess);                                        /* Next Process Selector */
-                consoleTextIfAllBootedUp(l10n_get(l10n_STRING_FOR_USB_HUB_ATTACHED)); // By Rohan
-                setTimeUSBInitializationEnds(44100 << 1);                             // No more popups for 2 seconds
+                usb_hhub_specified_path(mess);                   /* Next Process Selector */
+                usbHostEventRecord(USB_HOST_EVENT_HUB_ATTACHED); // app shows popup + owns the suppression window
 
                 break;
 
@@ -1486,7 +1485,7 @@ noPortConnection:
                             {
                                 usb_hhub_port_detach(ptr, hubaddr, g_usb_shhub_event_port[ptr->ip]);
                                 USB_PRINTF1(" Hubport disconnect address%d\n", devaddr);
-                                consoleTextIfAllBootedUp(l10n_get(l10n_STRING_FOR_USB_DEVICE_DETACHED)); // By Rohan
+                                usbHostEventRecord(USB_HOST_EVENT_DEVICE_DETACHED);
                                 g_usb_shhub_info_data[ptr->ip][devaddr].up_addr     = 0; /* Up-address clear */
                                 g_usb_shhub_info_data[ptr->ip][devaddr].up_port_num = 0; /* Up-port num clear */
                                 g_usb_shhub_info_data[ptr->ip][devaddr].port_num    = 0; /* Port number clear */
@@ -2838,7 +2837,7 @@ static void usb_hhub_new_connect(usb_utr_t* ptr, uint16_t hubaddr, uint16_t port
     else
     {
         USB_PRINTF0("### device count over !\n");
-        consoleTextIfAllBootedUp(l10n_get(l10n_STRING_FOR_USB_DEVICES_MAX));
+        usbHostEventRecord(USB_HOST_EVENT_DEVICES_MAX);
     }
 } /* End of function usb_hhub_new_connect() */
 
