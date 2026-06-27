@@ -23,6 +23,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/alloc_metadata.h"
+#include "memory/reason_check.h"
 #include "util/chainload.h"
 
 #include "util/pack.h"
@@ -32,6 +33,13 @@
 // can snapshot, drive the suspect operation, then ask for everything that leaked since.
 namespace {
 mem_guard::Snapshot g_leakSnapshot = 0;
+}
+#endif
+
+#if REASON_CHECK
+// Baseline for the reason-leak snapshot/diff workflow (Debug sysex subcommand 4).
+namespace {
+reason_check::Snapshot g_reasonSnapshot = 0;
 }
 #endif
 
@@ -79,6 +87,29 @@ void Debug::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 			break;
 		case 2:
 			mem_guard::reportOutstanding(0);
+			break;
+		default:
+			break;
+		}
+#endif
+		break;
+
+	case 4:
+		// Reason-leak hunting (REASON_CHECK builds; stays available under a sanitizer). data[2]: 0 = take snapshot
+		// baseline, 1 = report Clusters pinned since the snapshot, 2 = report ALL pinned Clusters. Same debug-log
+		// output channel. The round-trip workflow: snapshot at idle, do the suspect op, return to idle, then report.
+#if REASON_CHECK
+		switch (data[2]) {
+		case 0:
+			g_reasonSnapshot = reason_check::snapshot();
+			D_PRINTLN("REASON_CHECK snapshot taken at epoch %d (%d clusters pinned)", g_reasonSnapshot,
+			          reason_check::liveClusters());
+			break;
+		case 1:
+			reason_check::reportOutstanding(g_reasonSnapshot);
+			break;
+		case 2:
+			reason_check::reportOutstanding(0);
 			break;
 		default:
 			break;

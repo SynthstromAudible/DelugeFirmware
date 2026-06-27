@@ -15,9 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// reason_check.h — reference-graph sanity for the Cluster "reasons" system.
+// reason_check.h — reference-graph sanity for the stealable "reasons" system (audio Clusters and AudioFiles).
 //
-// Stealable audio Clusters are reference-counted by numReasonsToBeLoaded: while it is > 0 the Cluster is pinned
+// Stealable Clusters and AudioFiles (Sample/WaveTable) are reference-counted by numReasonsToBeLoaded: while it is > 0
+// the object is pinned
 // (mayBeStolen() returns false). Two failure modes are invisible to the heap sanitizers because the memory itself stays
 // valid:
 //   * a Cluster is stolen while it still has a reason - the reason-holder's pointer now aliases someone else's data

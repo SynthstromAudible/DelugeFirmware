@@ -192,8 +192,11 @@ add_executable(deluge_host
     ${REPO_ROOT}/src/bsp/host/host_platform.c
     ${REPO_ROOT}/src/bsp/host/host_audio.c
     ${REPO_ROOT}/src/bsp/host/host_main.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
 )
-target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS})
+# host_debug.cpp reaches into the app's reason_check (memory/reason_check.h) for the host-sim leak triggers - allowed
+# (the boundary check only forbids the app depending on the BSP, not the reverse), so put src/deluge on the path.
+target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
 target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler)
 if(RT_LIB)
     target_link_libraries(deluge_host PRIVATE ${RT_LIB})

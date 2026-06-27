@@ -185,14 +185,15 @@ void reportOutstanding(Snapshot since) {
 		}
 		clusters++;
 		reasons += slots[i].reasons;
-		D_PRINTLN("  cluster %x : %d reason(s) outstanding, first taken at call-site %x (resolve with addr2line)", addr,
+		D_PRINTLN("  stealable %x : %d reason(s) outstanding, first taken at call-site %x (resolve with addr2line)", addr,
 		          slots[i].reasons, slots[i].callsite);
 	}
 	if (clusters == 0) {
 		D_PRINTLN("REASON_CHECK: no reasons outstanding since snapshot %d", since);
 	}
 	else {
-		D_PRINTLN("REASON_CHECK: %d cluster(s) holding %d reason(s) outstanding since snapshot %d (likely pinned/leaked)",
+		D_PRINTLN("REASON_CHECK: %d stealable(s) (Clusters/AudioFiles) holding %d reason(s) outstanding since snapshot "
+		          "%d (likely pinned/leaked)",
 		          clusters, reasons, since);
 	}
 }

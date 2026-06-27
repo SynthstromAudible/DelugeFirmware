@@ -20,6 +20,7 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/reason_check.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/audio_file_reader.h"
@@ -481,6 +482,13 @@ finishedWhileLoop:
 	return Error::NONE;
 }
 
+AudioFile::~AudioFile() {
+#if REASON_CHECK
+	// Drop any reason tracking before this AudioFile's address can be recycled.
+	reason_check::forget(this);
+#endif
+}
+
 void AudioFile::addReason() {
 	// If it was zero before, it's no longer unused
 	if (!numReasonsToBeLoaded) {
@@ -489,11 +497,19 @@ void AudioFile::addReason() {
 	}
 
 	numReasonsToBeLoaded++;
+
+#if REASON_CHECK
+	reason_check::onAdd(this, __builtin_return_address(0));
+#endif
 }
 
 void AudioFile::removeReason(char const* errorCode) {
 
 	numReasonsToBeLoaded--;
+
+#if REASON_CHECK
+	reason_check::onRemove(this);
+#endif
 
 	// If it's now zero, it's become unused
 	if (numReasonsToBeLoaded == 0) {
@@ -524,6 +540,11 @@ bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
 
 void AudioFile::steal(char const* errorCode) {
 	// The destructor is about to be called too, so we don't have to do too much.
+
+#if REASON_CHECK
+	// An AudioFile must never be stolen while a reason is held (mayBeStolen() enforces this) - catch it if it is.
+	reason_check::onSteal(this, numReasonsToBeLoaded);
+#endif
 
 	int32_t i = audioFileManager.audioFiles.searchForExactObject(this);
 	if (i < 0) {
