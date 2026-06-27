@@ -21,6 +21,7 @@
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/alloc_metadata.h"
+#include "memory/heap_poison.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
 
@@ -331,6 +332,13 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,
 	                                   getAmountExtendedRight, thingNotToStealFrom);
 	lock = false;
+	// The grabbed neighbour(s) were free (or stolen) and therefore poisoned; they're now part of this live block, so
+	// unpoison the whole extended block. Without this a ResizeableArray growing into freed space reads its own valid
+	// memory as a (false) use-after-poison.
+	if (*getAmountExtendedLeft || *getAmountExtendedRight) {
+		void* newAddress = (void*)((uint32_t)address - *getAmountExtendedLeft);
+		DELUGE_HEAP_UNPOISON(newAddress, getAllocatedSize(newAddress));
+	}
 #if MEM_GUARD
 	// extend can grow the block leftwards, moving the user-address down by the amount extended left. Re-key to follow.
 	if (*getAmountExtendedLeft) {
@@ -341,7 +349,10 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 }
 
 uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address) {
-	return regions[getRegion(address)].extendRightAsMuchAsEasilyPossible(address);
+	uint32_t newSize = regions[getRegion(address)].extendRightAsMuchAsEasilyPossible(address);
+	// The grabbed space to the right was free/poisoned and is now part of this block - unpoison the whole block.
+	DELUGE_HEAP_UNPOISON(address, newSize);
+	return newSize;
 }
 
 void GeneralMemoryAllocator::dealloc(void* address) {
