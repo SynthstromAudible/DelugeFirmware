@@ -520,6 +520,13 @@ noEmptySpace:
 
 		// D_PRINTLN("Reclaimed");
 
+		// Unpoison the whole reclaimed block before carving it (mirrors the empty-space path above). ReclaimMemory can
+		// merge stolen stealables with an adjacent free block - which may be a just-freed, still-poisoned allocation -
+		// so the returned user block can straddle poisoned memory. The final unpoison below only covers the (possibly
+		// shrunk) user size, leaving a poisoned hole; unpoison the full extent here. Any left-over splinter stays
+		// accessible until something allocated in it is later freed.
+		DELUGE_HEAP_UNPOISON((void*)allocatedAddress, allocatedSize);
+
 		// See if there was some extra space left over
 		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
 		if (requiredSize && extraSpaceSizeWithoutItsHeaders > minAlign_) {
