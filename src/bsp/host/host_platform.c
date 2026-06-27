@@ -28,52 +28,14 @@
 #include <stdio.h>
 
 // ===========================================================================
-// FatFS disk backend (RZA1/diskio.c on target). The host has no SD card, so the
-// media layer reports "no disk" and all access is not-ready. The app already
-// handles a missing card gracefully.
+// FatFS disk backend: the media layer (disk_initialize/status/ioctl/read/write)
+// now lives in host_block.c, the file-backed SD card image. This file keeps the
+// app-wide bits that aren't the block device itself.
 // ===========================================================================
 
 // Set while the SD routine is mid-access on target; nothing toggles it on host,
 // but it is read app-wide (playback, scheduler ResourceChecker, save UI, ...).
 uint8_t currentlyAccessingCard = 0;
-
-DSTATUS disk_initialize(BYTE pdrv) {
-	(void)pdrv;
-	return STA_NODISK | STA_NOINIT;
-}
-
-DSTATUS disk_status(BYTE pdrv) {
-	(void)pdrv;
-	return STA_NODISK | STA_NOINIT;
-}
-
-DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void* buff) {
-	(void)pdrv;
-	(void)cmd;
-	(void)buff;
-	return RES_NOTRDY;
-}
-
-void disk_timerproc(UINT msPassed) {
-	(void)msPassed;
-}
-
-// App-side cluster-streaming wrappers (declared in audio_file_manager.cpp).
-DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, DWORD sector, UINT count) {
-	(void)pdrv;
-	(void)buff;
-	(void)sector;
-	(void)count;
-	return RES_NOTRDY;
-}
-
-DRESULT disk_write_without_streaming_first(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count) {
-	(void)pdrv;
-	(void)buff;
-	(void)sector;
-	(void)count;
-	return RES_NOTRDY;
-}
 
 // Fixed timestamp (2024-01-01 00:00:00) in FatFS packed form. No RTC on host.
 DWORD get_fattime(void) {

@@ -274,50 +274,10 @@ void deluge_board_unlock_data_cache(void) {
 // audio_io.h is implemented in host_audio.c (the render-driver + WAV capture).
 
 // ===========================================================================
-// block_device.h  [stub — a file-backed card image goes here]
+// block_device.h is implemented in host_block.c (the file-backed card image,
+// configured via DELUGE_HOST_CARD_IMAGE). With no image set it reports no card,
+// matching the old always-empty behaviour.
 // ===========================================================================
-
-uint8_t deluge_block_sd_unit(void) {
-	return 0;
-}
-DelugeStatus deluge_block_init(uint8_t unit) {
-	(void)unit;
-	return DELUGE_ERR_NODEV;
-}
-bool deluge_block_ready(uint8_t unit) {
-	(void)unit;
-	return false;
-}
-DelugeStatus deluge_block_read(uint8_t unit, uint8_t* dst, uint32_t sector, uint32_t count) {
-	(void)unit;
-	(void)dst;
-	(void)sector;
-	(void)count;
-	return DELUGE_ERR_NODEV;
-}
-DelugeStatus deluge_block_write(uint8_t unit, const uint8_t* src, uint32_t sector, uint32_t count) {
-	(void)unit;
-	(void)src;
-	(void)sector;
-	(void)count;
-	return DELUGE_ERR_NODEV;
-}
-uint32_t deluge_block_sector_count(uint8_t unit) {
-	(void)unit;
-	return 0;
-}
-uint32_t deluge_block_sector_size(uint8_t unit) {
-	(void)unit;
-	return 512;
-}
-DelugeStatus deluge_block_sync(uint8_t unit) {
-	(void)unit;
-	return DELUGE_OK;
-}
-DelugeCardEvent deluge_block_poll_card_event(uint8_t unit) {
-	(void)unit;
-	return DELUGE_CARD_EVENT_NONE;
-}
 
 // ===========================================================================
 // display.h  [stub — headless / framebuffer dump goes here]

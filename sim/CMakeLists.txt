@@ -118,6 +118,12 @@ add_compile_definitions(_GLIBCXX_USE_TBB_PAR_BACKEND=0)
 # and doesn't pump the scheduler (so MIDI/playback/UI tasks never run). Matching the firmware
 # execution model is both more faithful and what makes input (e.g. MIDI) reach the engine.
 add_compile_definitions(USE_TASK_MANAGER)
+
+# Enable D_PRINTLN (gated on ENABLE_TEXT_OUTPUT; the firmware turns it on for debug builds). The host routes it to
+# stderr (deluge_log), so the app's debug log — storage activity, "FULL internal" memory pressure, MEM_GUARD /
+# reason_check reports — is visible when reproducing issues on the sim.
+add_compile_definitions(ENABLE_TEXT_OUTPUT=1)
+
 if(DELUGE_SIM_ARM)
     # Real NEON: the cross toolchain provides <arm_neon.h>; argon's <arm/neon.h> is unused.
     include_directories(BEFORE ${REPO_ROOT}/include)
@@ -189,6 +195,7 @@ add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # d
 # loop (deluge_app_init/render/tick) as the app is brought up.
 add_executable(deluge_host
     ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_block.c
     ${REPO_ROOT}/src/bsp/host/host_platform.c
     ${REPO_ROOT}/src/bsp/host/host_audio.c
     ${REPO_ROOT}/src/bsp/host/host_main.c
