@@ -16,8 +16,11 @@
  */
 #include <chrono>
 #include <time.h>
+
+#include "OSLikeStuff/task_scheduler/clock_type.h" // DELUGE_CLOCKS_PER (clock_type.h moved here in the libdeluge split)
+#include "libdeluge/clock.h"                       // deluge_clock_monotonic — the scheduler's time source
+
 extern "C" {
-#include "OSLikeStuff/timers_interrupts/clock_type.h"
 #include "RZA1/ostm/ostm.h"
 /* clock_t, clock, CLOCKS_PER_SEC */
 #define clockConversion DELUGE_CLOCKS_PER / CLOCKS_PER_SEC;
@@ -64,5 +67,22 @@ uint32_t getTimerValue(int timerNo) {
 		return mockTimers[timerNo];
 	}
 	return DELUGE_CLOCKS_PER * ((std::chrono::duration<double>(now - timers[0]).count()));
+}
+
+// The merged scheduler reads all of its time through deluge_clock_monotonic(). Back it with the mock
+// tick counter via getTimerValue, whose tiny auto-advance lets the scheduler's idle polling make
+// progress to the next task slot (without it the scheduler deadlocks waiting for time it never reaches).
+// Ticks are at DELUGE_CLOCKS_PER, matching Time.
+uint64_t deluge_clock_monotonic(void) {
+	return getTimerValue(0);
+}
+
+uint64_t deluge_clock_monotonic_hz(void) {
+	return DELUGE_CLOCKS_PER;
+}
+
+// Host tests never run inside an interrupt; the scheduler uses this to gate ISR-only paths.
+bool deluge_in_interrupt(void) {
+	return false;
 }
 }

@@ -1,6 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "CppUTestExt/MockSupport.h"
-#include "OSLikeStuff/timers_interrupts/clock_type.h"
+#include "OSLikeStuff/task_scheduler/clock_type.h"
 #include "cstdint"
 #include "mocks/timer_mocks.h"
 #include <iostream>
