@@ -20,6 +20,7 @@
 #include "io/debug/log.h"
 #include "memory/alloc_metadata.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heap_poison.h"
 #include "memory/stealable.h"
 #include "util/fixedpoint.h"
 #include <cstring>
@@ -95,6 +96,11 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 	firstRecord->length = memorySizeWithoutHeaders;
 	firstRecord->address = regionBegin + 8;
 	cache_manager_ = cacheManager;
+
+	// The whole region starts out as one free block; poison its body so accesses to not-yet-allocated space are caught
+	// too (alloc() unpoisons each block as it's carved out).
+	DELUGE_HEAP_POISON((void*)(regionBegin + 8), memorySizeWithoutHeaders);
+
 	D_PRINTLN("%x to %x: Memory region %s", start, end, name);
 }
 
@@ -400,6 +406,13 @@ gotEmptySpace:
 
 		allocatedSize = emptySpaceRecord->length;
 		allocatedAddress = emptySpaceRecord->address;
+
+		// Unpoison the whole free block before carving it: the split logic below writes splinter boundary tags inside
+		// this body, and the returned user block is part of it. Any left-over splinter stays accessible (it's free
+		// space, re-poisoned only when a user block sitting in it is later freed) - a small gap, but it keeps the
+		// allocator's own interior tag writes from tripping the sanitizer.
+		DELUGE_HEAP_UNPOISON((void*)allocatedAddress, allocatedSize);
+
 		if (allocatedAddress < start || allocatedAddress > end) {
 			// trying to allocate outside our region
 			D_PRINTLN("Memory region out of bounds at %x, start is %x and end is %x", allocatedAddress, start, end);
@@ -543,6 +556,8 @@ noEmptySpace:
 		}
 	}
 #endif
+	// Hand a clean (accessible) block to the caller; it was poisoned while it sat free (see dealloc / setup).
+	DELUGE_HEAP_UNPOISON((void*)allocatedAddress, allocatedSize);
 	return (void*)allocatedAddress;
 }
 
@@ -970,6 +985,11 @@ void MemoryRegion::dealloc(void* address) {
 #endif
 
 	markSpaceAsEmpty((uint32_t)address, spaceSize);
+
+	// The block is now free. Poison its body so any later read/write of the freed object is caught. markSpaceAsEmpty
+	// only touches block headers/footers and the external empty-space records, never the body (the MEM_GUARD body fill
+	// is compiled out under a sanitizer), so nothing in the allocator trips on this.
+	DELUGE_HEAP_POISON(address, spaceSize);
 
 	/*
 	uint16_t endTime = *TCNT[TIMER_SYSTEM_FAST];

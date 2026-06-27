@@ -75,6 +75,21 @@ add_compile_options(-g)
 add_compile_options(-ffunction-sections -fdata-sections)
 add_link_options(LINKER:--gc-sections)
 
+# Opt-in AddressSanitizer + UndefinedBehaviorSanitizer for the host-sim. Enable with -DDELUGE_SIM_SANITIZE=ON.
+# -fsanitize=address defines __SANITIZE_ADDRESS__, which (a) activates the heap_poison.h hooks in the custom
+# allocator so use-after-free / use-after-steal within a region is caught, and (b) disables MEM_GUARD (which would
+# otherwise fight ASan over the freed-block shadow — see definitions.h). LeakSanitizer rides along with ASan and
+# reports leaks at exit. -fno-omit-frame-pointer keeps the reports readable.
+option(DELUGE_SIM_SANITIZE "Build the host-sim with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
+if(DELUGE_SIM_SANITIZE)
+    # vptr: the real firmware builds -fno-rtti, so the vptr check isn't representative of shipping behaviour (and the
+    # app's view hierarchy leans on static downcasts). alignment: the custom allocator does intentional unaligned
+    # boundary-tag reads. Both mirror the firmware's own DELUGE_UBSAN exclusions.
+    add_compile_options(-fsanitize=address,undefined -fno-sanitize=vptr,alignment
+        -fno-omit-frame-pointer -fno-sanitize-recover=all)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 # SIMDe (x86 host only): argon's non-ARM backend does `#include <arm/neon.h>`, which must
 # resolve to <simde/arm/neon.h>. The arm-linux reference has real NEON and a real <arm_neon.h>,
 # so it skips all of this.

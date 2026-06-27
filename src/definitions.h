@@ -12,7 +12,16 @@
 // ALPHA_OR_BETA_VERSION so it can be toggled (or compiled out entirely) independently of other beta checks. When 0, all
 // of the guard machinery (boundary-tag validation, free poisoning, the allocation side table, redzones, and the
 // periodic heap walk) compiles away to nothing.
+//
+// Disabled automatically under a sanitizer (host-sim AddressSanitizer, or DELUGE_VALGRIND): MEM_GUARD writes and reads
+// the freed block body (its poison fill + verify-on-realloc), which would itself trip the sanitizer. When a sanitizer is
+// active the heap_poison.h hooks own corruption detection instead - they give strictly stronger, hardware-accurate
+// coverage and must be the sole writer of freed-block shadow state.
+#if defined(__SANITIZE_ADDRESS__) || defined(DELUGE_VALGRIND)
+#define MEM_GUARD 0
+#else
 #define MEM_GUARD ALPHA_OR_BETA_VERSION
+#endif
 
 // Fills the whole body of a block when it is freed. A use-after-free *write* breaks this pattern; reads of freed memory
 // show a recognizable value. Never-allocated memory is left as the startup-cleared zero, so an EMPTY block is always
