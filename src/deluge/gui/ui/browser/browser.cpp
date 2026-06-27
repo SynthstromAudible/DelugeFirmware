@@ -52,8 +52,8 @@ int32_t Browser::numCharsInPrefix;
 bool Browser::arrivedAtFileByTyping;
 int32_t Browser::numFileItemsDeletedAtStart;
 int32_t Browser::numFileItemsDeletedAtEnd;
-char const* Browser::firstFileItemRemaining;
-char const* Browser::lastFileItemRemaining;
+String Browser::firstFileItemRemaining{};
+String Browser::lastFileItemRemaining{};
 OutputType Browser::outputTypeToLoad;
 char const** Browser::allowedFileExtensions;
 bool Browser::allowFoldersSharingNameWithFile;
@@ -208,14 +208,14 @@ deleteFromLeftSide:
 		numFileItemsDeletedAtStart += numFileItemsDeletingNow;
 		startAt = 0;
 		stopAt = numFileItemsDeletingNow;
-		firstFileItemRemaining = ((FileItem*)fileItems.getElementAddress(numFileItemsDeletingNow))->displayName;
+		firstFileItemRemaining.set(((FileItem*)fileItems.getElementAddress(numFileItemsDeletingNow))->displayName);
 	}
 	else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
 deleteFromRightSide:
 		numFileItemsDeletedAtEnd += numFileItemsDeletingNow;
 		stopAt = fileItems.getNumElements();
 		startAt = stopAt - numFileItemsDeletingNow;
-		lastFileItemRemaining = ((FileItem*)fileItems.getElementAddress(startAt - 1))->displayName;
+		lastFileItemRemaining.set(((FileItem*)fileItems.getElementAddress(startAt - 1))->displayName);
 	}
 
 	// Or if we've been using a search term *and* searching both directions, try to tend towards keeping equal amounts
@@ -276,8 +276,8 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	numFileItemsDeletedAtStart = 0;
 	numFileItemsDeletedAtEnd = 0;
-	firstFileItemRemaining = nullptr;
-	lastFileItemRemaining = nullptr;
+	firstFileItemRemaining.clear();
+	lastFileItemRemaining.clear();
 	catalogSearchDirection = newCatalogSearchDirection;
 	maxNumFileItemsNow = newMaxNumFileItems;
 	filenameToStartSearchAt = filenameToStartAt;
@@ -475,10 +475,10 @@ deleteThisItem:
 
 	// Our system of keeping FileItems from getting too full by deleting elements from its ends as we go could have
 	// caused bad results at the edges of the above, so delete a further one element at each end as needed.
-	if (firstFileItemRemaining) {
+	if (!firstFileItemRemaining.isEmpty()) {
 		fileItems.deleteAtIndex(0);
 	}
-	if (lastFileItemRemaining) {
+	if (!lastFileItemRemaining.isEmpty()) {
 		fileItems.deleteAtIndex(fileItems.getNumElements() - 1);
 	}
 }
@@ -1882,8 +1882,8 @@ void Browser::sortFileItems() {
 
 	// If we'd previously deleted items from either end of the list (apart from due to search direction as above),
 	// we need to now delete any items which would have fallen in that region.
-	if (lastFileItemRemaining) {
-		int32_t searchIndex = fileItems.search(lastFileItemRemaining);
+	if (!lastFileItemRemaining.isEmpty()) {
+		int32_t searchIndex = fileItems.search(lastFileItemRemaining.get());
 		int32_t itemsToDeleteAtEnd = fileItems.getNumElements() - searchIndex - 1;
 		if (itemsToDeleteAtEnd > 0) {
 			deleteSomeFileItems(searchIndex + 1, fileItems.getNumElements());
@@ -1891,8 +1891,8 @@ void Browser::sortFileItems() {
 		}
 	}
 
-	if (firstFileItemRemaining) {
-		int32_t itemsToDeleteAtStart = fileItems.search(firstFileItemRemaining);
+	if (!firstFileItemRemaining.isEmpty()) {
+		int32_t itemsToDeleteAtStart = fileItems.search(firstFileItemRemaining.get());
 		if (itemsToDeleteAtStart) {
 			deleteSomeFileItems(0, itemsToDeleteAtStart);
 			numFileItemsDeletedAtStart += itemsToDeleteAtStart;
