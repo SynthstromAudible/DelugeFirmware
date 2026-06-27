@@ -74,7 +74,9 @@ Clip::Clip(ClipType newType) : type(newType) {
 }
 
 Clip::~Clip() {
-	if (getCurrentClip() == this) {
+	// currentSong is null while the old song is being torn down in deleteOldSongBeforeLoadingNew() (it's nulled before
+	// the delete), so guard against it - getCurrentClip() dereferences currentSong.
+	if (currentSong && getCurrentClip() == this) {
 		currentSong->setCurrentClip(nullptr);
 	}
 }
