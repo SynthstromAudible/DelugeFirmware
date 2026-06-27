@@ -21,7 +21,7 @@ There are `nightly` releases covering all changes of the day as well as stable `
 
 `community` (stable) releases:
 * Community releases will be done in a three months cycle at the end of January, April, July and October
-* Before every release a special release candidate branch is created from the community branch at that time. This branch only merges bugfixes and no new features from the community branch.
+* Before every release a special release candidate branch is created from the main branch at that time. This branch only merges bugfixes and no new features from the main branch.
 * Until release, users and developers can test the release candidate and make sure it is of high quality for the final release on GitHub Releases tagged as `community`.
 
 ## What to expect and when to expect it

@@ -18,7 +18,7 @@ Everybody is invited to contribute to this repository as further outlined below:
 
 ## Requirements
 
-The following requirements must be fulfilled for a Pull request to be mergable to the `community` branch:
+The following requirements must be fulfilled for a Pull request to be mergable to the `main` branch:
 
 <details><summary>General</summary>
 
