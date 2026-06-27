@@ -358,6 +358,13 @@ goingToReplaceOldRecord:
 	uint32_t* __restrict__ header = (uint32_t*)(address - 4);
 	uint32_t* __restrict__ footer = (uint32_t*)(address + spaceSize);
 
+	// The 4-byte boundary tags are allocator-owned metadata that we read/write constantly to navigate the heap, so they
+	// must always be addressable. When this block was formed by merging a freed neighbour, a tag can sit inside that
+	// neighbour's poisoned body - unpoison the tag words before writing them (the body itself is (re)poisoned by the
+	// caller after this returns). Compiles to nothing on the device / without a sanitizer.
+	DELUGE_HEAP_UNPOISON(header, 4);
+	DELUGE_HEAP_UNPOISON(footer, 4);
+
 	uint32_t headerData = SPACE_HEADER_EMPTY | spaceSize;
 	*header = headerData;
 	*footer = headerData;
