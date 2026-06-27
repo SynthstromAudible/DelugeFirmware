@@ -182,15 +182,25 @@ void runSongLoadHarnessIfDue() {
 	printf("[song-load] found %d .XML files under %s; loading each x%d\n", g_numSongPaths, dir, g_songLoadReps);
 	std::fflush(stdout);
 
+	// Optional cap on total loads, so we can stop short of memory exhaustion and get a clean LeakSanitizer report.
+	const char* maxEnv = std::getenv("DELUGE_HOST_SONG_LOAD_MAX");
+	int maxLoads = maxEnv ? std::atoi(maxEnv) : 0;
+	int totalLoads = 0;
+
 	reason_check::Snapshot snap = reason_check::snapshot();
 	for (int rep = 0; rep < g_songLoadReps; rep++) {
 		for (int i = 0; i < g_numSongPaths; i++) {
+			if (maxLoads > 0 && totalLoads >= maxLoads) {
+				goto doneLoading;
+			}
 			loadOneSong(g_songPaths[i]);
+			totalLoads++;
 			printf("[song-load] rep %d song %d/%d: %s | pinned stealables now %u\n", rep, i + 1, g_numSongPaths,
 			       g_songPaths[i], (unsigned)reason_check::liveClusters());
 			std::fflush(stdout);
 		}
 	}
+doneLoading:;
 
 	printf("[song-load] done - reasons still outstanding across the run (leaks):\n");
 	std::fflush(stdout);

@@ -22,6 +22,10 @@
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 
+#if defined(__SANITIZE_ADDRESS__)
+#include <dlfcn.h> // host-sim: turn a PIE-relative return address into a file offset addr2line can resolve
+#endif
+
 namespace reason_check {
 namespace {
 
@@ -185,8 +189,17 @@ void reportOutstanding(Snapshot since) {
 		}
 		clusters++;
 		reasons += slots[i].reasons;
+		uint32_t callsite = slots[i].callsite;
+#if defined(__SANITIZE_ADDRESS__)
+		// The host-sim is a PIE, so the stored return address has a random load base. Rebase it to a file offset that
+		// `addr2line -e deluge_host <offset>` resolves directly.
+		Dl_info info;
+		if (dladdr((void*)callsite, &info) && info.dli_fbase) {
+			callsite -= (uint32_t)(uintptr_t)info.dli_fbase;
+		}
+#endif
 		D_PRINTLN("  stealable %x : %d reason(s) outstanding, first taken at call-site %x (resolve with addr2line)", addr,
-		          slots[i].reasons, slots[i].callsite);
+		          slots[i].reasons, callsite);
 	}
 	if (clusters == 0) {
 		D_PRINTLN("REASON_CHECK: no reasons outstanding since snapshot %d", since);
