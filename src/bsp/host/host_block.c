@@ -32,12 +32,17 @@
 /// load a real preset from SYNTHS/ through the full deserialization path — the
 /// substrate for the golden-master audio harness (tests/golden/).
 
+// Large-file support: the host-sim is built -m32, where the default stdio offset type is 32-bit and fopen() of a card
+// image larger than 2 GiB fails outright. Make off_t / fopen / fseeko 64-bit so a full-size SD image works.
+#define _FILE_OFFSET_BITS 64
+
 #include "fatfs/diskio.h" // FatFS DSTATUS/DRESULT/STA_*/RES_*
 #include "libdeluge/block_device.h"
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #define HOST_CARD_SECTOR_SIZE 512u
 
@@ -62,12 +67,12 @@ static void card_open_if_configured(void) {
 		fprintf(stderr, "[host-block] could not open card image %s\n", path);
 		return;
 	}
-	if (fseek(card_file, 0, SEEK_END) != 0) {
+	if (fseeko(card_file, 0, SEEK_END) != 0) {
 		fclose(card_file);
 		card_file = NULL;
 		return;
 	}
-	long bytes = ftell(card_file);
+	off_t bytes = ftello(card_file);
 	if (bytes <= 0) {
 		fprintf(stderr, "[host-block] card image %s is empty\n", path);
 		fclose(card_file);
@@ -90,7 +95,7 @@ static DelugeStatus card_io(uint8_t* dst, const uint8_t* src, uint32_t sector, u
 	if (sector + count > card_sector_count) {
 		return DELUGE_ERR_IO;
 	}
-	if (fseek(card_file, (long)sector * HOST_CARD_SECTOR_SIZE, SEEK_SET) != 0) {
+	if (fseeko(card_file, (off_t)sector * HOST_CARD_SECTOR_SIZE, SEEK_SET) != 0) {
 		return DELUGE_ERR_IO;
 	}
 	size_t bytes = (size_t)count * HOST_CARD_SECTOR_SIZE;

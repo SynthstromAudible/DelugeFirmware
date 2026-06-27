@@ -84,8 +84,11 @@ option(DELUGE_SIM_SANITIZE "Build the host-sim with AddressSanitizer + Undefined
 if(DELUGE_SIM_SANITIZE)
     # vptr: the real firmware builds -fno-rtti, so the vptr check isn't representative of shipping behaviour (and the
     # app's view hierarchy leans on static downcasts). alignment: the custom allocator does intentional unaligned
-    # boundary-tag reads. Both mirror the firmware's own DELUGE_UBSAN exclusions.
-    add_compile_options(-fsanitize=address,undefined -fno-sanitize=vptr,alignment
+    # boundary-tag reads. shift: simde's portable NEON emulation (and DSP code) relies on implementation-defined signed
+    # shift behaviour that mirrors the ARM saturating instructions; this path only exists in the sim (the device uses
+    # real NEON), so it isn't shipping behaviour. GCC has no per-file ignorelist, so these are excluded globally - they
+    # mirror the firmware's own DELUGE_UBSAN exclusions.
+    add_compile_options(-fsanitize=address,undefined -fno-sanitize=vptr,alignment,shift
         -fno-omit-frame-pointer -fno-sanitize-recover=all)
     add_link_options(-fsanitize=address,undefined)
 endif()
