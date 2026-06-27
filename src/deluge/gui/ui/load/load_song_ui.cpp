@@ -361,82 +361,29 @@ someError:
 		display->displayError(error);
 		activeDeserializer->closeWriter();
 fail:
-		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
-		if (!currentSong) {
-			// If we're here, it's most likely because of a file error. On paper, a RAM error could be possible too.
-			setupBlankSong();
-			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
-		}
-
-		// Otherwise, stay here in this UI
-
-		preLoadedSong = new (songMemory) Song();
-		error = preLoadedSong->paramManager.setupUnpatched();
-		if (error != Error::NONE) {
-
+		// We couldn't load the requested song. Recover to a usable state and stop.
+		//
+		// The original code reconstructed a Song into `songMemory` here and loaded it (without ever swapping it in),
+		// which is broken under memory pressure: songMemory is null if its initial allocation failed, or already freed
+		// if we arrived via block B's error cleanup (gotErrorAfterCreatingSong) - and setupBlankSong() below can
+		// reallocate that very freed block as the new currentSong, so reconstructing into (and later freeing) songMemory
+		// left currentSong dangling, crashing the next load.
+		if (preLoadedSong && preLoadedSong != currentSong) {
+			// A half-loaded song may still occupy songMemory (e.g. we arrived from a closeWriter failure) - free it.
 			void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 			preLoadedSong->~Song(); // Will also delete paramManager
 			delugeDealloc(toDealloc);
 			preLoadedSong = nullptr;
-			// We just freed songMemory. This is already the last-ditch blank-song fallback, so don't loop back to
-			// someError -> fail and reconstruct a Song into the freed songMemory (use-after-free, and an infinite retry
-			// loop while RAM stays exhausted). setupBlankSong() above (or the pre-existing currentSong) leaves us
-			// usable.
-			display->displayError(error);
-			performingLoad = false;
-			return;
 		}
 
-		GlobalEffectable::initParams(&preLoadedSong->paramManager);
-
-		AudioEngine::logAction("c");
-
-		// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but
-		// chances are, after failing on one of those, it'd try to load something else and that would fail.
-
-		error = preLoadedSong->readFromFile(*activeDeserializer);
-
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
-		AudioEngine::logAction("d");
-
-		FRESULT success = activeDeserializer->closeWriter();
-		if (success != FR_OK) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
-			goto fail;
+		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
+		if (!currentSong) {
+			setupBlankSong();
+			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 		}
 
-		preLoadedSong->dirPath.set(&currentDir);
-
-		String currentFilenameWithoutExtension;
-		error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
-
-		error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
-		                                                    currentDir.get(), currentFilenameWithoutExtension.get());
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
-		audioFileManager.thingBeginningLoading(ThingType::SONG);
-
-		// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
-		// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that
-		// we might actually want
-		preLoadedSong->loadAllSamples(false);
-
-		// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
-		if (playbackHandler.isEitherClockActive()) {
-			preLoadedSong->loadCrucialSamplesOnly();
-		}
-
-		else {
-			displayText(false);
-		}
-		currentUIMode = UI_MODE_NONE;
 		display->removeWorkingAnimation();
+		currentUIMode = UI_MODE_NONE;
 		performingLoad = false;
 		return;
 	}
