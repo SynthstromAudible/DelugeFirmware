@@ -317,14 +317,14 @@ void SoundEditor::setLedStates() {
 	}
 }
 
-void SoundEditor::enterSubmenu(MenuItem* newItem) {
+void SoundEditor::enterSubmenu(MenuItem* newItem, MenuItem* navigatedBackwardFrom) {
 	// end current menu item session before beginning new menu item session
 	endScreen();
 
 	navigationDepth++;
 	menuItemNavigationRecord[navigationDepth] = newItem;
 	display->setNextTransitionDirection(1);
-	beginScreen();
+	beginScreen(navigatedBackwardFrom);
 }
 
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -355,6 +355,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				if (newItem) {
 					if (newItem != NO_NAVIGATION) {
 						if (newItem->shouldEnterSubmenu()) {
+							MenuItem* navigatedBackwardFrom = nullptr;
 							MenuPermission result = newItem->checkPermissionToBeginSession(
 							    currentModControllable, currentSourceIndex, &currentMultiRange);
 
@@ -364,8 +365,15 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 									menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
 									newItem = &menu_item::multiRangeMenu;
 								}
+								else {
+									HorizontalMenu* parent = maybeGetParentMenu(newItem);
+									if (parent != nullptr && parent->focusChild(newItem)) {
+										navigatedBackwardFrom = newItem;
+										newItem = parent;
+									}
+								}
 
-								enterSubmenu(newItem);
+								enterSubmenu(newItem, navigatedBackwardFrom);
 							}
 						}
 						else {
@@ -1762,12 +1770,8 @@ doMIDIOrCV:
 	// And we also have to set currentModControllable before focusing on the child item in a horizontal menu
 	currentModControllable = newModControllable;
 
-	// If we're on OLED, a parent menu & horizontal menus are in play,
-	// then we swap the parent in place of the child.
-	HorizontalMenu* parent = maybeGetParentMenu(newItem);
-	if (parent != nullptr && parent->focusChild(newItem)) {
-		newItem = parent;
-	}
+	MenuItem* horizontal_menu_child = newItem;
+	HorizontalMenu* parent = maybeGetParentMenu(horizontal_menu_child);
 
 	::MultiRange* newRange = currentMultiRange;
 
@@ -1775,7 +1779,8 @@ doMIDIOrCV:
 		newRange = nullptr;
 	}
 
-	MenuPermission result = newItem->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
+	MenuPermission result =
+	    horizontal_menu_child->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
 
 	if (result == MenuPermission::NO) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
@@ -1786,8 +1791,11 @@ doMIDIOrCV:
 		D_PRINTLN("must select range");
 
 		newRange = nullptr;
-		multiRangeMenu.menuItemHeadingTo = newItem;
+		multiRangeMenu.menuItemHeadingTo = horizontal_menu_child;
 		newItem = &multiRangeMenu;
+	}
+	else if (parent != nullptr && parent->focusChild(horizontal_menu_child)) {
+		newItem = parent;
 	}
 
 	if (display->haveOLED()) {
