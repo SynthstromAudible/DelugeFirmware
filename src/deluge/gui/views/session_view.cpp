@@ -1622,7 +1622,12 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 	if (copyDrumsFromClip) {
 		error = clip->setAudioInstrument(newInstrument, currentSong, true, nullptr); // Does a setupPatching()
 		if (error != Error::NONE) {
-			// TODO: needs more thought - we'd want to deallocate the Instrument...
+			// setAudioInstrument failed (most likely INSUFFICIENT_RAM while loading the kit's samples). Release the
+			// Instrument we just brought in so it doesn't leak - delete it, or return it to the hibernation list if
+			// it's been edited. One that was already an active Output in the song is left untouched.
+			if (!*instrumentAlreadyInSong) {
+				currentSong->deleteOrAddToHibernationListOutput(newInstrument);
+			}
 			return error;
 		}
 

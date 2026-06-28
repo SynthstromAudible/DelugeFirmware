@@ -505,7 +505,7 @@ void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 
 	int32_t inverseScale = ((uint64_t)widthBigWhenExploded << 16) / widthBigNow;
 
-	int32_t xSourceRightEdge;
+	int32_t xSourceRightEdge = 0;
 
 	for (int32_t xDestSquareRightEdge = 0; xDestSquareRightEdge <= kDisplayWidth; xDestSquareRightEdge++) {
 

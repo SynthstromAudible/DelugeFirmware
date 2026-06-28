@@ -16,7 +16,17 @@
  */
 
 #include "storage/wave_table/wave_table_holder.h"
+#include "storage/audio/audio_file.h"
 
 WaveTableHolder::WaveTableHolder() {
 	audioFileType = AudioFileType::WAVETABLE;
+}
+
+WaveTableHolder::~WaveTableHolder() {
+	// The base AudioFileHolder destructor is empty, so (unlike SampleHolder) nothing was releasing the reason that
+	// setAudioFile() took on our WaveTable. That leaked an AudioFile reason on every wavetable load, pinning the
+	// underlying Cluster so it could never be stolen - exhausting RAM after loading enough wavetable-using songs.
+	if (audioFile) {
+		audioFile->removeReason("E396");
+	}
 }

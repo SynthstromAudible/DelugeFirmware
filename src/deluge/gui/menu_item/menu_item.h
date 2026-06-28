@@ -321,6 +321,8 @@ public:
 
 	deluge::gui::menu_item::HorizontalMenu* parent{nullptr};
 
+	virtual bool selectEncoderActionIsPermitted() { return true; }
+
 	/// @}
 };
 
