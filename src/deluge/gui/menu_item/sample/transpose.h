@@ -43,9 +43,12 @@ public:
 
 		if (source.ranges.getNumElements() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && source.oscType == OscType::SAMPLE) {
-			const auto* multiRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-			transpose = multiRange->sampleHolder.transpose;
-			cents = multiRange->sampleHolder.cents;
+			const auto* multi_sample_range =
+			    soundEditor.currentSourceIndex == source_id_ && soundEditor.currentMultiRange != nullptr
+			        ? static_cast<MultisampleRange*>(soundEditor.currentMultiRange)
+			        : static_cast<MultisampleRange*>(source.ranges.getElement(0));
+			transpose = multi_sample_range->sampleHolder.transpose;
+			cents = multi_sample_range->sampleHolder.cents;
 		}
 		else {
 			transpose = source.transpose;
@@ -72,9 +75,9 @@ public:
 
 					if (source.ranges.getNumElements() && soundDrum->getSynthMode() != SynthMode::FM
 					    && source.oscType == OscType::SAMPLE) {
-						auto* multisampleRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-						multisampleRange->sampleHolder.transpose = transpose;
-						multisampleRange->sampleHolder.setCents(cents);
+						auto* multi_sample_range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
+						multi_sample_range->sampleHolder.transpose = transpose;
+						multi_sample_range->sampleHolder.setCents(cents);
 					}
 					else {
 						source.transpose = transpose;
@@ -95,9 +98,12 @@ public:
 
 			if (source.ranges.getNumElements() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 			    && source.oscType == OscType::SAMPLE) {
-				auto* multisampleRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-				multisampleRange->sampleHolder.transpose = transpose;
-				multisampleRange->sampleHolder.setCents(cents);
+				auto* multi_sample_range =
+				    soundEditor.currentSourceIndex == source_id_ && soundEditor.currentMultiRange != nullptr
+				        ? static_cast<MultisampleRange*>(soundEditor.currentMultiRange)
+				        : static_cast<MultisampleRange*>(source.ranges.getElement(0));
+				multi_sample_range->sampleHolder.transpose = transpose;
+				multi_sample_range->sampleHolder.setCents(cents);
 			}
 			else {
 				source.transpose = transpose;
