@@ -222,9 +222,16 @@ file(GLOB_RECURSE SIM_RUST_SOURCES
     ${SIM_RUST_WS}/deluge_alloc/src/*.rs
     ${SIM_RUST_WS}/deluge_resource/src/*.rs
     ${SIM_RUST_WS}/deluge_rust/src/*.rs)
+# Under the ASan sim build, turn on the allocator's poison hooks so use-after-free
+# within a heap is caught (the __asan_*_memory_region calls resolve from libasan at
+# the final C++ link). The feature is a no-op in the crate otherwise.
+set(SIM_RUST_FEATURES "")
+if(DELUGE_SIM_SANITIZE)
+    set(SIM_RUST_FEATURES --features deluge_rust/asan)
+endif()
 add_custom_command(
     OUTPUT ${SIM_RUST_LIB}
-    COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET}
+    COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET} ${SIM_RUST_FEATURES}
     WORKING_DIRECTORY ${SIM_RUST_WS}
     DEPENDS ${SIM_RUST_SOURCES}
         ${SIM_RUST_WS}/Cargo.toml ${SIM_RUST_WS}/deluge_alloc/Cargo.toml
