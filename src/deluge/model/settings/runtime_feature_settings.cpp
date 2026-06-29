@@ -171,6 +171,10 @@ void RuntimeFeatureSettings::init() {
 	                  STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD, "displayChordKeyboard",
 	                  RuntimeFeatureStateToggle::Off);
 
+	// ChordBrush
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ChordBrush], STRING_FOR_COMMUNITY_FEATURE_CHORD_BRUSH,
+	                  "chordBrush", RuntimeFeatureStateToggle::On);
+
 	// AlternativePlaybackStartBehaviour
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour],
 	                  STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,

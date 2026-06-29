@@ -43,6 +43,7 @@
 #include "processing/sound/sound_instrument.h"
 #include <cstring>
 
+#include "gui/ui/keyboard/chord_service.h"
 #include "gui/ui/keyboard/layout.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/chord_library.h"
@@ -558,6 +559,27 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		cycleThroughScales();
 		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
+	}
+
+	// Any chord-producing keyboard mode: press the select encoder while holding notes to capture
+	// them as a Pending Chord, then tap a step in the piano roll to place it. Layout-agnostic: it
+	// reads the currently-sounding notes (currentNotesState), so it works in Chord Library, Chord,
+	// or even a hand-played chord on any layout, with no library required.
+	else if (b == SELECT_ENC && on && currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count > 0
+	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::ChordBrush) == RuntimeFeatureStateToggle::On) {
+		PendingChord pending;
+		for (uint8_t i = 0; i < currentNotesState.count && pending.count < kMaxPendingChordNotes; i++) {
+			pending.notes[pending.count] = currentNotesState.notes[i].note;
+			pending.count++;
+		}
+		pending.velocity = currentNotesState.notes[0].velocity;
+		ChordService::capturePending(pending);
+	}
+
+	// Click the select encoder while a chord is armed (but not holding new notes) to clear the
+	// harmonic brush.
+	else if (b == SELECT_ENC && on && ChordService::hasPending()) {
+		ChordService::clearPending();
 	}
 
 	// store if the user is holding the x encoder
