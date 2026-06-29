@@ -59,6 +59,11 @@ void* deluge_realloc(DelugeHeap* heap, void* ptr, size_t new_size, size_t align)
 /// Bytes guaranteed usable at `ptr` (the block's payload size, >= the request).
 size_t deluge_usable_size(DelugeHeap* heap, void* ptr);
 
+/// Read-only heap-integrity walk for the MEM_GUARD periodic check. Returns true if
+/// the physical block chain's boundary tags are intact. Never allocates; reads only
+/// block headers. A NULL heap is vacuously ok.
+bool deluge_heap_check(DelugeHeap* heap);
+
 // ---------------------------------------------------------------------------
 // Slab cache pool — the "stealables" pager, layered on a heap (M2).
 //

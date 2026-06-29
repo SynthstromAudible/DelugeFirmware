@@ -83,11 +83,9 @@ public:
 		return generalMemoryAllocator;
 	}
 
-	// MEM_GUARD periodic heap-integrity walk (called from AudioEngine::routine()). On the legacy C++
-	// MemoryRegion allocator this walked every block's boundary tags; the allocator is now the Rust
-	// deluge_alloc TLSF core, whose internals aren't reachable from here. Until the sanitizer port wires
-	// a deluge_heap_check() across the libdeluge/alloc.h boundary this is a no-op — the heap_poison.h /
-	// ASan path (host-sim) and reason_check carry corruption detection in the meantime.
+	// MEM_GUARD periodic heap-integrity walk (called from AudioEngine::routine()). Validates every heap's
+	// physical block chain via deluge_heap_check() across the libdeluge/alloc.h boundary (the Rust
+	// deluge_alloc replacement for the legacy MemoryRegion boundary-tag walk); freezes on corruption.
 	void checkEverythingOk(char const* errorString);
 
 private:

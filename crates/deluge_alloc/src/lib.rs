@@ -155,6 +155,17 @@ pub unsafe extern "C" fn deluge_usable_size(h: *mut DelugeHeap, p: *mut u8) -> u
     heap(h).usable_size(p)
 }
 
+/// Read-only heap-integrity walk for the MEM_GUARD periodic check. Returns true if
+/// the physical block chain's boundary tags are intact. Never allocates; reads only
+/// block headers (ASan-safe). A null handle is vacuously ok.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_heap_check(h: *mut DelugeHeap) -> bool {
+    if h.is_null() {
+        return true;
+    }
+    heap(h).check()
+}
+
 /// A `core::alloc::GlobalAlloc` backed by a single `DelugeHeap`, so the *same*
 /// heap can serve the C++ firmware (via the C ABI) and Rust `alloc` collections /
 /// embassy's `#[global_allocator]` — the unified-heap synergy goal of the
@@ -252,6 +263,32 @@ mod tests {
             unsafe { deluge_free(h, p) };
         }
         let _ = &buf;
+    }
+
+    #[test]
+    fn heap_check_walks_clean_and_catches_corruption() {
+        unsafe {
+            let (buf, h) = aligned_arena(1 << 20);
+            assert!(deluge_heap_check(h), "fresh heap should be intact");
+            let a = deluge_alloc(h, 100, 16);
+            let b = deluge_alloc(h, 4000, 16);
+            let c = deluge_alloc(h, 64, 16);
+            assert!(deluge_heap_check(h), "intact after allocs");
+            deluge_free(h, b); // a free block now sits between a and c
+            assert!(deluge_heap_check(h), "intact after a free");
+
+            // Smash block `a`'s size_and_flags word (a 16-byte header sits right before
+            // the payload; prev_phys is its first pointer, size_and_flags the next word).
+            // Setting the top bit makes the block claim it runs past the pool end.
+            let ptr_sz = core::mem::size_of::<usize>();
+            let saf = (a as *mut u8).sub(16 - ptr_sz) as *mut usize;
+            let orig = saf.read();
+            saf.write(orig | (1usize << (usize::BITS - 1)));
+            assert!(!deluge_heap_check(h), "corruption must be detected");
+            saf.write(orig); // restore so teardown is sane
+            assert!(deluge_heap_check(h), "restored heap is intact again");
+            let _ = (c, &buf);
+        }
     }
 
     #[test]

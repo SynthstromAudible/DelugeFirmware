@@ -223,6 +223,11 @@ pub struct Tlsf {
     reclaim_cb: Option<ReclaimFn>,
     reclaim_ctx: *mut c_void,
     reclaiming: bool,
+    // The single managed pool's first physical block and one-past-the-end byte,
+    // recorded by add_pool for the read-only integrity walk (check()). Null/0 until
+    // a pool is added. (Each Deluge heap has exactly one pool — deluge_heap_create.)
+    pool_first: *mut BlockHeader,
+    pool_end: usize,
 }
 
 impl Tlsf {
@@ -400,9 +405,69 @@ impl Tlsf {
         (*sentinel).set_used();
         (*sentinel).set_prev_free();
         self.insert_free_block(block);
+        // Record the pool span for the integrity walk (single pool per heap).
+        self.pool_first = block;
+        self.pool_end = mem as usize + size;
         // Whole pool starts free: poison its body so accesses to not-yet-carved
         // space trap too (malloc unpoisons each block as it hands it out).
         poison_free_body(block);
+    }
+
+    /// Read-only integrity walk of the managed pool: validates each physical
+    /// block's boundary tags (payload alignment, size granularity), the
+    /// prev-free flag / `prev_phys` back-link coherence, the no-two-adjacent-free
+    /// invariant, and that the chain terminates at the zero-size used sentinel
+    /// within the pool. Returns true if intact. Never allocates and bounds every
+    /// step by `pool_end`, so a corrupted size can't walk out of the arena. Reads
+    /// only headers (never a poisoned free-block body), so it is ASan-safe.
+    pub unsafe fn check(&self) -> bool {
+        if self.pool_first.is_null() {
+            return true; // no pool registered: vacuously intact
+        }
+        let lo = self.pool_first as usize;
+        let mut block = self.pool_first;
+        let mut prev: *mut BlockHeader = ptr::null_mut();
+        let mut prev_free = false;
+        loop {
+            let baddr = block as usize;
+            // The header itself must sit within the pool.
+            if baddr < lo || baddr + HEADER_SIZE > self.pool_end {
+                return false;
+            }
+            // Payloads are 16-aligned by construction.
+            if !(payload_of(block) as usize).is_multiple_of(ALIGN) {
+                return false;
+            }
+            // The PREV_FREE flag must agree with the real predecessor, and when set
+            // the back-link must point at it.
+            if (*block).is_prev_free() != prev_free {
+                return false;
+            }
+            if prev_free && (*block).prev_phys != prev {
+                return false;
+            }
+            let size = (*block).size();
+            if size == 0 {
+                // Zero-size used sentinel terminates the pool.
+                return !(*block).is_free();
+            }
+            // A real block: aligned size, and its end (== next_phys) must leave room
+            // for at least the successor header within the pool.
+            if !size.is_multiple_of(ALIGN) {
+                return false;
+            }
+            let end = payload_of(block) as usize + size;
+            if end <= baddr || end + HEADER_SIZE > self.pool_end {
+                return false;
+            }
+            // TLSF never leaves two free blocks physically adjacent.
+            if prev_free && (*block).is_free() {
+                return false;
+            }
+            prev_free = (*block).is_free();
+            prev = block;
+            block = next_phys(block);
+        }
     }
 
     /// Round a request up to the granularity and the free-block minimum.
