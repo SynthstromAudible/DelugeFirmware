@@ -1510,7 +1510,7 @@ void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
 		uint8_t globalParamId = ccToGlobalParam[ccNumber];
 
 		bool writeTag = false;
-		char const* paramNameSound;
+		char const* paramNameSound = nullptr;
 		char const* paramNameGlobal;
 		if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
 			paramNameSound = params::paramNameForFile(params::Kind::PATCHED, soundParamId, true);
@@ -1529,7 +1529,10 @@ void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
 			if (globalParamId != PARAM_ID_NONE) {
 				paramNameGlobal = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
 				                                           params::UNPATCHED_START + globalParamId, true);
-				writeTag = strcmp(paramNameGlobal, paramNameSound) != 0;
+				// Reaching here means no sound param claimed this CC (paramNameSound is still null), so the global
+				// mapping should be written. Only compare names when a sound name actually exists, to avoid passing a
+				// null pointer to strcmp.
+				writeTag = (paramNameSound == nullptr) || strcmp(paramNameGlobal, paramNameSound) != 0;
 			}
 			if (writeTag) {
 				char buffer[10];

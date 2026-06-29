@@ -1618,7 +1618,12 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 	if (copyDrumsFromClip) {
 		error = clip->setAudioInstrument(newInstrument, currentSong, true, nullptr); // Does a setupPatching()
 		if (error != Error::NONE) {
-			// TODO: needs more thought - we'd want to deallocate the Instrument...
+			// setAudioInstrument failed (most likely INSUFFICIENT_RAM while loading the kit's samples). Release the
+			// Instrument we just brought in so it doesn't leak - delete it, or return it to the hibernation list if
+			// it's been edited. One that was already an active Output in the song is left untouched.
+			if (!*instrumentAlreadyInSong) {
+				currentSong->deleteOrAddToHibernationListOutput(newInstrument);
+			}
 			return error;
 		}
 
@@ -4179,7 +4184,36 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 
 		if (on) {
 			// Immediate launch if shift pressed
-			gridStartSection(section, Buttons::isShiftButtonPressed());
+			if (Buttons::isShiftButtonPressed()) {
+				gridStartSection(section, true);
+			}
+			// With green selection enabled, holding the section pad allows changing repeats (like blue mode),
+			// while a short press still arms the section on release
+			else if (FlashStorage::gridAllowGreenSelection) {
+				enterUIMode(UI_MODE_HOLDING_SECTION_PAD);
+				performActionOnSectionPadRelease = true;
+				sectionPressed = section;
+				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 300);
+			}
+			else {
+				gridStartSection(section, false);
+			}
+		}
+		else {
+			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
+				// A short press (timer not yet fired) arms the section; a hold just edits repeats
+				if (performActionOnSectionPadRelease) {
+					session.armSection(sectionPressed, kInternalButtonPressLatency);
+				}
+				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
+				if (display->haveOLED()) {
+					deluge::hid::display::OLED::removePopup();
+				}
+				else {
+					redrawNumericDisplay();
+				}
+				uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+			}
 		}
 
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;

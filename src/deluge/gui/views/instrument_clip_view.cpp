@@ -1036,7 +1036,7 @@ void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 
 	// If they want to copy or paste automation...
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (on && getCurrentOutputType() != OutputType::CV) {
+		if (on) {
 			if (Buttons::isShiftButtonPressed()) {
 				pasteAutomation(whichModEncoder);
 			}
@@ -2221,8 +2221,12 @@ ActionResult InstrumentClipView::commandActivateSongMacro(int32_t y, int32_t vel
 	if (isSDRoutineActive()) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	if (!velocity) {
-		// TODO: long press..
+	// render that you're holding the macro
+	if (velocity) {
+		uiNeedsRendering(this, 0, 0xFFFFFFFF);
+	}
+	// activate macro on release
+	else {
 		view.activateMacro(y);
 	}
 	return ActionResult::DEALT_WITH;
@@ -2332,6 +2336,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 				int32_t oldLength;
 				int32_t noteStartPos;
+				bool haveNote = false;
 
 				// If multiple notes, pick the last one
 				if (editPadPresses[i].isBlurredSquare) {
@@ -2340,68 +2345,73 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					if (note) {
 						oldLength = note->getLength();
 						noteStartPos = note->pos;
+						haveNote = true;
 					}
 				}
 
 				else {
 					oldLength = editPadPresses[i].intendedLength;
 					noteStartPos = editPadPresses[i].intendedPos;
+					haveNote = true;
 				}
 
-				// First, figure out the lengh to take the note up to the start of the pressed square. Put it in
-				// newLength
-				int32_t newLength = squareStart - noteStartPos;
-				if (newLength < 0) {
-					newLength += effectiveLength; // Wrapped note
+				if (haveNote) {
+
+					// First, figure out the lengh to take the note up to the start of the pressed square. Put it in
+					// newLength
+					int32_t newLength = squareStart - noteStartPos;
+					if (newLength < 0) {
+						newLength += effectiveLength; // Wrapped note
+					}
+
+					// If current square wasn't occupied at all to begin with, fill it up
+					if (oldLength <= newLength) {
+						newLength += squareWidth;
+					}
+
+					if (newLength == 0) {
+						newLength = squareWidth; // Protection - otherwise we could end up with a 0-length note!
+					}
+
+					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+
+					int32_t areaStart, areaWidth;
+					bool actuallyExtendNoteAtStartOfArea = (newLength > oldLength);
+
+					if (actuallyExtendNoteAtStartOfArea) { // Increasing length
+
+						// Make sure it doesn't eat into the next note
+						int32_t maxLength = noteRow->getDistanceToNextNote(noteStartPos, modelStackWithNoteRow);
+						newLength = std::min(newLength, maxLength);
+
+						areaStart = noteStartPos;
+						areaWidth = newLength;
+					}
+
+					else { // Decreasing length
+						areaStart = noteStartPos + newLength;
+						areaWidth = oldLength - newLength;
+					}
+
+					noteRow->clearArea(areaStart, areaWidth, modelStackWithNoteRow, action, clip->getWrapEditLevel(),
+					                   actuallyExtendNoteAtStartOfArea);
+
+					if (!editPadPresses[i].isBlurredSquare) {
+						editPadPresses[i].intendedLength = newLength;
+					}
+					editPadPresses[i].deleteOnDepress = false;
+					if (rootUI == this) {
+						uiNeedsRendering(this, 1 << yDisplay, 0);
+					}
+
+					if (instrument->type == OutputType::KIT) {
+						setSelectedDrum(noteRow->drum);
+					}
+
+					noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
+					lastSelectedNoteXDisplay = xDisplay;
+					lastSelectedNoteYDisplay = yDisplay;
 				}
-
-				// If current square wasn't occupied at all to begin with, fill it up
-				if (oldLength <= newLength) {
-					newLength += squareWidth;
-				}
-
-				if (newLength == 0) {
-					newLength = squareWidth; // Protection - otherwise we could end up with a 0-length note!
-				}
-
-				Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-
-				int32_t areaStart, areaWidth;
-				bool actuallyExtendNoteAtStartOfArea = (newLength > oldLength);
-
-				if (actuallyExtendNoteAtStartOfArea) { // Increasing length
-
-					// Make sure it doesn't eat into the next note
-					int32_t maxLength = noteRow->getDistanceToNextNote(noteStartPos, modelStackWithNoteRow);
-					newLength = std::min(newLength, maxLength);
-
-					areaStart = noteStartPos;
-					areaWidth = newLength;
-				}
-
-				else { // Decreasing length
-					areaStart = noteStartPos + newLength;
-					areaWidth = oldLength - newLength;
-				}
-
-				noteRow->clearArea(areaStart, areaWidth, modelStackWithNoteRow, action, clip->getWrapEditLevel(),
-				                   actuallyExtendNoteAtStartOfArea);
-
-				if (!editPadPresses[i].isBlurredSquare) {
-					editPadPresses[i].intendedLength = newLength;
-				}
-				editPadPresses[i].deleteOnDepress = false;
-				if (rootUI == this) {
-					uiNeedsRendering(this, 1 << yDisplay, 0);
-				}
-
-				if (instrument->type == OutputType::KIT) {
-					setSelectedDrum(noteRow->drum);
-				}
-
-				noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
-				lastSelectedNoteXDisplay = xDisplay;
-				lastSelectedNoteYDisplay = yDisplay;
 			}
 		}
 
@@ -2965,7 +2975,8 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 
 	bool inNoteEditor = getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
 
-	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE)
+	                || display->hasPopupOfType(PopupType::FILL);
 
 	// If just one press...
 	if (numEditPadPresses == 1) {
@@ -2978,7 +2989,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 					goto multiplePresses;
 				}
 
-				int32_t originalParameter;
+				int32_t originalParameter = 0;
 				bool parameterHasBeenEdited = false;
 
 				if (withOffset != 0) {
@@ -3057,6 +3068,12 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 									parameterValue++;
 									parameterHasBeenEdited = true;
 								}
+							}
+							// Wrap around for FILL when at max value
+							else if (parameterValue == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL
+							         && !inNoteEditor) {
+								parameterValue = parameterMinValue;
+								parameterHasBeenEdited = true;
 							}
 						}
 						// Decrementing
@@ -3197,7 +3214,7 @@ multiplePresses:
 			}
 		}
 
-		int32_t originalParameter;
+		int32_t originalParameter = 0;
 		bool parameterHasBeenEdited = false;
 
 		// decide the parameter value, based on the existing parameter value of the leftmost note
@@ -3261,6 +3278,12 @@ multiplePresses:
 								prevBase = false;
 							}
 						}
+					}
+					// Wrap around for FILL when at max value
+					else if (parameterValue == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL
+					         && !inNoteEditor) {
+						parameterValue = parameterMinValue;
+						parameterHasBeenEdited = true;
 					}
 				}
 				// Decrementing
@@ -3382,6 +3405,9 @@ multiplePresses:
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 			displayIterance(Iterance::fromInt(parameterValue));
 		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			displayFill(parameterValue);
+		}
 	}
 }
 
@@ -3439,6 +3465,19 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 	}
 	else {
 		display->displayPopup(buffer, 0, true, 255, 1, PopupType::ITERANCE);
+	}
+}
+
+void InstrumentClipView::displayFill(uint8_t mode) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+
+	strcpy(buffer, getFillString(mode));
+
+	if (display->haveOLED()) {
+		display->popupText(buffer, PopupType::FILL);
+	}
+	else {
+		display->displayPopup(buffer, 0, true, 255, 1, PopupType::FILL);
 	}
 }
 
@@ -3559,10 +3598,10 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 }
 
 // before scrolling, we need to reset the note selection
-// if we're in a submenu, we'll need to go up a level
+// if we're in a submenu or horizontal menu, we'll need to go up a level
 void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
 	exitNoteEditor();
-	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu || runtimeFeatureSettings.isOn(HorizontalMenus)) {
+	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu) {
 		soundEditor.goUpOneLevel();
 	}
 }
@@ -3897,7 +3936,8 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		return -1; // Get out if NoteRow doesn't exist and can't be created
 	}
 
-	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE)
+	                || display->hasPopupOfType(PopupType::FILL);
 
 	uint16_t original_parameter{0};
 	bool parameter_has_been_edited = false;
@@ -3964,6 +4004,12 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 						parameter_value++;
 						parameter_has_been_edited = true;
 					}
+				}
+				// Wrap around for FILL when at max value
+				else if (parameter_value == parameterMaxValue && changeType == CORRESPONDING_NOTES_SET_FILL
+				         && !inNoteRowEditor) {
+					parameter_value = parameterMinValue;
+					parameter_has_been_edited = true;
 				}
 			}
 			// Decrementing
@@ -4041,6 +4087,9 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 			displayIterance(Iterance::fromInt(parameter_value));
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			displayFill(parameter_value);
 		}
 	}
 
@@ -4916,10 +4965,12 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 	}
 
 	if (shouldRedrawStuff) {
-		// make sure we're dealing with the same clip that this kit is a part of
+		// make sure the clip we're displaying actually belongs to this kit
 		// if you selected a clip and then sent a midi note to a kit that is part of a different clip, well
-		// we don't need to do anything here because we're in a different clip
-		if (clip == kit->getActiveClip()) {
+		// we don't need to do anything here because we're in a different clip.
+		// Note: don't gate on the kit's *active* clip - when editing a clip that isn't the one currently
+		// playing, the displayed clip still needs its sidebar redrawn so stale audition squares clear (#2897).
+		if (clip->output == kit) {
 			// let's make sure that that the output type for that clip is a kit
 			//(if for some strange reason you changed the drum selection for a hibernated instrument...)
 			if (clip->output->type == OutputType::KIT) {

@@ -55,7 +55,7 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 	for (MIDIParam& midiParam : params) {
 		AutoParam* param = &midiParam.param;
 
-		if (param->valueIncrementPerHalfTick != 0) {
+		if (param->hasInterpolationIncrement()) {
 			int32_t oldValue = param->getCurrentValue();
 			bool shouldNotify = param->tickTicks(numTicks);
 			if (shouldNotify) { // Should always actually be true...
@@ -148,7 +148,7 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 			int32_t ticksTilNextEventThisParam = param->processCurrentPos(modelStackWithAutoParam, reversed,
 			                                                              didPingpong, false, true); // No interpolating
 			ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisParam);
-			if (param->valueIncrementPerHalfTick) {
+			if (param->hasInterpolationIncrement()) {
 				interpolating = true;
 			}
 		}

@@ -123,7 +123,7 @@ void HorizontalMenu::renderOLED() {
 }
 
 void HorizontalMenu::renderTitle(const Paging& paging) const {
-	std::string_view title = getTitle();
+	std::string title{getTitle()};
 
 	// Check if we need to shorten the title
 	if (paging.totalPages > 1) {
@@ -302,6 +302,12 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 	MenuItem* child = *current_item_;
 	if (child->isSubmenu()) {
 		// No action for a submenu
+		return;
+	}
+
+	// check if you're permitted to edit this horizontal menu item
+	if (!child->selectEncoderActionIsPermitted()) {
+		// No action if select encoder action is not permitted
 		return;
 	}
 

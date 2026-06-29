@@ -34,7 +34,7 @@ const config = defineConfig({
       },
       editLink: {
         baseUrl:
-          "https://github.dev/SynthstromAudible/DelugeFirmware/blob/community/website",
+          "https://github.dev/SynthstromAudible/DelugeFirmware/blob/main/website",
       },
       pagefind: {
         // See: https://pagefind.app/docs/ranking/

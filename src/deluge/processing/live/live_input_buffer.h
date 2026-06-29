@@ -35,6 +35,8 @@ public:
 	int32_t lastAngle{};
 	int32_t angleLPFMem[kDifferenceLPFPoles]{};
 
+	// Zero-initialised: the hop-cut decision reads percBuffer positions ahead of what giveInput has written during
+	// warm-up, so an unwritten slot must be a defined 0 rather than recycled allocator content.
 	uint8_t percBuffer[kInputPercBufferSize]{};
 
 	// Must be last!!! Cos we're gonna allocate and access it double-length for stereo

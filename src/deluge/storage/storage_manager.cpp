@@ -704,7 +704,7 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 		return nullptr;
 	}
 
-	Drum* newDrum;
+	Drum* newDrum = nullptr;
 	if (drumType == DrumType::SOUND)
 		newDrum = new (drumMemory) SoundDrum();
 	else if (drumType == DrumType::MIDI)

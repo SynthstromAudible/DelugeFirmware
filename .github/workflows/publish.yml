@@ -36,7 +36,7 @@ jobs:
     steps:
       - name: Checkout branch #required to put the tag on the correct branch
         if: inputs.branch != null
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch }}
       - name: Download Build Artifact
@@ -68,7 +68,7 @@ jobs:
           additional safety.
 
           More information is also available on the project's website:
-          https://synthstromaudible.github.io/DelugeFirmware/
+          https://delugecommunity.com/
 
           If you have done firmware updates on your Deluge before, but need a
           quick refresher on how to do it:

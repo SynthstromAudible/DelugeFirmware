@@ -1337,12 +1337,18 @@ cantBeDoingOscSyncForFirstOsc:
 
 					OscType oscType = sound.sources[s].oscType;
 
+					// Non-wavetable sources have no audioFileHolder; renderOsc only reads the
+					// WaveTable for OscType::WAVETABLE, but the unconditional dereference here
+					// was a null-pointer read (benign on target where address 0 is mapped).
+					WaveTable* waveTable = (oscType == OscType::WAVETABLE)
+					                           ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile)
+					                           : nullptr;
+
 					dsp::Oscillator::renderOsc(
 					    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples, numSamples,
 					    phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
 					    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
-					    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s],
-					    static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile));
+					    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s], waveTable);
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
 					// we need to compensate

@@ -463,11 +463,13 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 					Iterance iterance = noteRow->getDefaultIterance();
 					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action);
-					// Always suppress re-trigger from the live MIDI stream: we just inserted this note at position 0
-					// via earlyNotes, so any note-on arriving before tick 1 (including clip-length-doubling replays)
-					// would produce a ghost note with zero/corrupted velocity. This applies whether or not the note
-					// is still physically held — note-offs and presses at tick >= 1 are unaffected.
-					noteRow->ignoreNoteOnsBefore_ = 1;
+					if (!thisDrum->earlyNoteStillActive) {
+						D_PRINTLN("skipping next note");
+
+						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
+						// note-ons until at least tick 1 to avoid double-playing that note
+						noteRow->ignoreNoteOnsBefore_ = 1;
+					}
 				}
 			}
 		}
@@ -491,10 +493,11 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 					Iterance iterance = noteRow->getDefaultIterance();
 					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action);
-					// Always suppress re-trigger: note at position 0 came from earlyNotes; any live note-on arriving
-					// before tick 1 (including those caused by clip-length-doubling) would ghost-duplicate it.
-					// Note-offs and note-ons at tick >= 1 are not suppressed.
-					noteRow->ignoreNoteOnsBefore_ = 1;
+					if (!still_active) {
+						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
+						// note-ons until at least tick 1 to avoid double-playing that note
+						noteRow->ignoreNoteOnsBefore_ = 1;
+					}
 				}
 			}
 
@@ -2307,7 +2310,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	if (onAutomationClipView) {
 		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
-	if (lastSelectedParamID != kNoSelection) {
+	if (lastSelectedParamID != params::kNoParamID) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
@@ -4611,7 +4614,7 @@ doHomogenize:
 		// These manual sets are in case we quantized forwards and the region we just created actually begins after
 		// "now"-time.
 		param->currentValue = value;
-		param->valueIncrementPerHalfTick = 0;
+		param->resetInterpolationIncrement();
 		// TODO: and to make it perfect, we'd also want to ignore any further nodes between now and the start of the
 		// region. Or, could probably get away with just deleting them.
 	}

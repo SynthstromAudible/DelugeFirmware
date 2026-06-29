@@ -37,5 +37,8 @@ public:
 		display->displayPopup("Select Note");
 		return false;
 	}
+
+	// only allow select encoder action if you've selected a note to edit
+	bool selectEncoderActionIsPermitted() override { return shouldEnterSubmenu(); }
 };
 } // namespace deluge::gui::menu_item::note

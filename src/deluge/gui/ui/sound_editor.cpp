@@ -574,6 +574,14 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		return instrumentClipView.handleNoteRowEditorButtonAction(b, on, inCardRoutine);
 	}
 
+	// allow toggling fill mode while in the sound editor menu
+	else if (b == deluge::hid::button::SYNC_SCALING
+	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+	                == RuntimeFeatureStateSyncScalingAction::Fill) {
+		currentSong->changeFillMode(on);
+		return ActionResult::DEALT_WITH;
+	}
+
 	else {
 		MenuItem* currentMenuItem = getCurrentMenuItem();
 		HorizontalMenu* asHorizontal = nullptr;
@@ -1487,14 +1495,14 @@ bool SoundEditor::isEditingAutomationViewParam() {
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 
 	// get the param kind and index for that menu item (if there is one)
-	// returns Kind::NONE / paramID = kNoSelection if we're not in a param menu
+	// returns Kind::NONE / paramID = kNoParamID if we're not in a param menu
 	deluge::modulation::params::Kind kind = currentMenuItem->getParamKind();
 	int32_t paramID = currentMenuItem->getParamIndex();
 
 	bool editingParamInAutomationArrangerView = false;
 	bool editingParamInAutomationClipView = false;
 
-	if (kind != deluge::modulation::params::Kind::NONE && paramID != kNoSelection) {
+	if (kind != deluge::modulation::params::Kind::NONE && paramID != deluge::modulation::params::kNoParamID) {
 		// are in automation arranger view and editing the same param open in the menu?
 		editingParamInAutomationArrangerView = automationView.onArrangerView
 		                                       && (kind == currentSong->lastSelectedParamKind)

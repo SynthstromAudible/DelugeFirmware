@@ -371,6 +371,7 @@ private:
 	void nudgeNotes(int32_t offset);
 	void displayProbability(uint8_t probability, bool prevBase);
 	void displayIterance(Iterance iterance);
+	void displayFill(uint8_t mode);
 
 	// note row functions
 	void copyNotes(Serializer* writer, bool selectedDrumOnly = false);

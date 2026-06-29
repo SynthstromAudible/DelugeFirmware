@@ -31,11 +31,11 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 
 struct PadPress {
-	bool isActive;
-	int32_t xDisplay;
-	int32_t yDisplay;
-	deluge::modulation::params::Kind paramKind;
-	int32_t paramID;
+	bool isActive = false;
+	int32_t xDisplay = kNoSelection;
+	int32_t yDisplay = kNoSelection;
+	deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE;
+	int32_t paramID = deluge::modulation::params::kNoParamID;
 };
 
 struct FXColumnPress {
@@ -48,7 +48,7 @@ struct FXColumnPress {
 
 struct ParamsForPerformance {
 	deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE;
-	deluge::modulation::params::ParamType paramID;
+	int32_t paramID = deluge::modulation::params::kNoParamID;
 	int32_t xDisplay = kNoSelection;
 	int32_t yDisplay = kNoSelection;
 	RGB rowColour = deluge::gui::colours::black;

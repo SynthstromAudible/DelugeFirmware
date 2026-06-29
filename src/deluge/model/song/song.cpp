@@ -198,7 +198,7 @@ Song::Song() {
 	globalEffectable.compressor.setBaseGain(0.85);
 
 	// initialize automation arranger view variables
-	lastSelectedParamID = kNoSelection;
+	lastSelectedParamID = params::kNoParamID;
 	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
@@ -862,8 +862,13 @@ bool allowResyncingDuringClipLengthChange = true;
 
 void Song::changeFillMode(bool on) {
 	fillModeActive = on;
-	// we peek fill notes when fill is held so need to re render rows
-	uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+
+	UI* root_ui = getRootUI();
+	if (root_ui == &instrumentClipView) {
+		// we peek fill notes when fill is held so need to re render rows
+		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+	}
+
 	if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 	     == RuntimeFeatureStateSyncScalingAction::Fill)) {
 		indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
@@ -1127,7 +1132,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("affectEntire", affectEntire);
 	writer.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
-	if (lastSelectedParamID != kNoSelection) {
+	if (lastSelectedParamID != params::kNoParamID) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);

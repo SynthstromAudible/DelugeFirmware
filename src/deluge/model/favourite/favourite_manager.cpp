@@ -67,21 +67,33 @@ void FavouritesManager::loadFavouritesBank() {
 Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 	reader.match('{');
 	char const* tagName;
-	uint8_t i = 0;
 	std::string fileName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "favourite")) {
+			// Bound the index read from the file: favourites is sized to 16, so a corrupt/out-of-range
+			// position must not index past the end (was an unchecked favourites[i] OOB write).
+			int32_t position = -1;
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "position")) {
-					i = reader.readTagOrAttributeValueInt();
-					favourites[i].position = i;
+					position = reader.readTagOrAttributeValueInt();
+					if (position >= 0 && position < (int32_t)favourites.size()) {
+						favourites[position].position = position;
+					}
+					else {
+						position = -1;
+					}
 				}
 				else if (!strcmp(tagName, "colour")) {
-					favourites[i].colour = reader.readTagOrAttributeValueInt();
+					int32_t colour = reader.readTagOrAttributeValueInt();
+					if (position >= 0) {
+						favourites[position].colour = static_cast<uint8_t>(colour);
+					}
 				}
 				else if (!strcmp(tagName, "instrumentPresetFolder")) {
 					reader.readTagOrAttributeValueString(fileName);
-					favourites[i].filename = fileName.c_str();
+					if (position >= 0) {
+						favourites[position].filename = fileName.c_str();
+					}
 				}
 			}
 		}

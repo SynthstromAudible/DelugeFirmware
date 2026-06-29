@@ -224,7 +224,7 @@ void PerformanceView::initPadPress(PadPress& padPress) {
 	padPress.xDisplay = kNoSelection;
 	padPress.yDisplay = kNoSelection;
 	padPress.paramKind = params::Kind::NONE;
-	padPress.paramID = kNoSelection;
+	padPress.paramID = kNoParamID;
 }
 
 void PerformanceView::initFXPress(FXColumnPress& columnPress) {
@@ -237,7 +237,7 @@ void PerformanceView::initFXPress(FXColumnPress& columnPress) {
 
 void PerformanceView::initLayout(ParamsForPerformance& layout) {
 	layout.paramKind = params::Kind::NONE;
-	layout.paramID = kNoSelection;
+	layout.paramID = kNoParamID;
 	layout.xDisplay = kNoSelection;
 	layout.yDisplay = kNoSelection;
 	layout.rowColour[0] = 0;
@@ -378,7 +378,7 @@ void PerformanceView::renderRow(RGB* image, int32_t yDisplay) {
 		RGB& pixel = image[xDisplay];
 
 		// if an FX column has not been assigned a param, erase pad
-		if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
+		if (layoutForPerformance[xDisplay].paramID == kNoParamID) {
 			pixel = colours::black;
 		}
 		else {
@@ -1010,7 +1010,7 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 			if (!editingParam) {
 				bool ignorePadAction =
 				    defaultEditingMode && lastPadPress.isActive && (lastPadPress.xDisplay != xDisplay);
-				if (ignorePadAction || (layoutForPerformance[xDisplay].paramID == kNoSelection)) {
+				if (ignorePadAction || (layoutForPerformance[xDisplay].paramID == kNoParamID)) {
 					return ActionResult::DEALT_WITH;
 				}
 				normalPadAction(modelStack, xDisplay, yDisplay, on);
@@ -1344,7 +1344,7 @@ void PerformanceView::resetPerformanceView(ModelStackWithThreeMainThings* modelS
 			params::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; // kind;
 			int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
 
-			if (lastSelectedParamID != kNoSelection) {
+			if (lastSelectedParamID != kNoParamID) {
 				padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, false);
 			}
 		}
@@ -1362,7 +1362,7 @@ void PerformanceView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, i
 		params::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; // kind;
 		int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
 
-		if (lastSelectedParamID != kNoSelection) {
+		if (lastSelectedParamID != kNoParamID) {
 			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, false);
 		}
 	}
@@ -2066,7 +2066,7 @@ void PerformanceView::initializeHeldFX(int32_t xDisplay) {
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 			if ((layoutForPerformance[xDisplay].paramKind != params::Kind::NONE)
-			    && (layoutForPerformance[xDisplay].paramID != kNoSelection)) {
+			    && (layoutForPerformance[xDisplay].paramID != kNoParamID)) {
 				setParameterValue(modelStack, layoutForPerformance[xDisplay].paramKind,
 				                  layoutForPerformance[xDisplay].paramID, xDisplay,
 				                  defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay], false);

@@ -353,7 +353,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Cl
 		}
 		else if (getLastPadSelectedKnobPos() != kNoSelection) {
 			params::Kind lastSelectedParamKind = params::Kind::NONE;
-			int32_t lastSelectedParamID = kNoSelection;
+			int32_t lastSelectedParamID = params::kNoParamID;
 			if (getOnArrangerView()) {
 				lastSelectedParamKind = currentSong->lastSelectedParamKind;
 				lastSelectedParamID = currentSong->lastSelectedParamID;
@@ -405,7 +405,7 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
                                                                        etl::istring& parameterName) {
 	if (getOnArrangerView() || outputType != OutputType::MIDI_OUT) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
-		int32_t lastSelectedParamID = kNoSelection;
+		int32_t lastSelectedParamID = params::kNoParamID;
 		PatchSource lastSelectedPatchSource = PatchSource::NONE;
 		if (getOnArrangerView()) {
 			lastSelectedParamKind = currentSong->lastSelectedParamKind;

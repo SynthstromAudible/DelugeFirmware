@@ -574,7 +574,12 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 			if (isSDRoutineActive()) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			if (!on) {
+			// render that you're holding the macro
+			if (on) {
+				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			}
+			// activate macro on release
+			else {
 				view.activateMacro(y);
 			}
 			return ActionResult::DEALT_WITH;
