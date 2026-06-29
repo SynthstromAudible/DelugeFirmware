@@ -70,6 +70,13 @@ bool oledDmaWatchdogArmed = false;
 // these get optimized out, set em to volatile if you need to keep them for debugging
 bool oled_sending = false;
 bool cv_sending   = false;
+
+static void armOledDmaWatchdog()
+{
+    oledDmaWatchdogArmed = true;
+    oledDmaWatchdogTime  = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
+}
+
 // Call this before you routinely call uartFlushIfNotSending().
 void oledRoutine()
 {
@@ -111,8 +118,7 @@ sendMessageToPIC:
     {
         if (!oledDmaWatchdogArmed)
         {
-            oledDmaWatchdogArmed = true;
-            oledDmaWatchdogTime  = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
+            armOledDmaWatchdog();
         }
         else if ((int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - oledDmaWatchdogTime) >= 0)
         {
@@ -158,6 +164,7 @@ void oledSelectingComplete()
     oledFrameQueueReadPos                 = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
     // todo - should only need a flush
     invalidate_range_all_caches(dataAddress, dataAddress + transferSize);
+    armOledDmaWatchdog();
     DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
         DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 }
@@ -231,6 +238,7 @@ void sendSPITransferFromQueue()
 
 void oledTransferComplete(uint32_t int_sense)
 {
+    oledDmaWatchdogArmed = false;
 
     // If there's another frame queued, just go ahead - unless a CV word is waiting, in which case we
     // deselect so the CV can slip in ahead of the next frame.
