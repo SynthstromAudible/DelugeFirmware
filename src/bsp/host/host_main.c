@@ -35,9 +35,11 @@
 // than via deluge.h (a C++ header). On hardware src/main.c calls this after the
 // arm timer/interrupt bring-up; here deluge_platform_init() is the host analogue.
 extern int deluge_main(void);
+extern void deluge_host_debug_install(void); // reason-leak signal triggers (host_debug.cpp)
 
 int main(void) {
 	deluge_platform_init();
+	deluge_host_debug_install();
 
 	const DelugeBoard* board = deluge_board();
 	printf("libdeluge host-sim — board: %s (%ux%u pads, %u encoders, %u Hz)\n", board->name, board->pad_grid_width,

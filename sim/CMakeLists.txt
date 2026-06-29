@@ -75,6 +75,24 @@ add_compile_options(-g)
 add_compile_options(-ffunction-sections -fdata-sections)
 add_link_options(LINKER:--gc-sections)
 
+# Opt-in AddressSanitizer + UndefinedBehaviorSanitizer for the host-sim. Enable with -DDELUGE_SIM_SANITIZE=ON.
+# -fsanitize=address defines __SANITIZE_ADDRESS__, which (a) activates the heap_poison.h hooks in the custom
+# allocator so use-after-free / use-after-steal within a region is caught, and (b) disables MEM_GUARD (which would
+# otherwise fight ASan over the freed-block shadow — see definitions.h). LeakSanitizer rides along with ASan and
+# reports leaks at exit. -fno-omit-frame-pointer keeps the reports readable.
+option(DELUGE_SIM_SANITIZE "Build the host-sim with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
+if(DELUGE_SIM_SANITIZE)
+    # vptr: the real firmware builds -fno-rtti, so the vptr check isn't representative of shipping behaviour (and the
+    # app's view hierarchy leans on static downcasts). alignment: the custom allocator does intentional unaligned
+    # boundary-tag reads. shift: simde's portable NEON emulation (and DSP code) relies on implementation-defined signed
+    # shift behaviour that mirrors the ARM saturating instructions; this path only exists in the sim (the device uses
+    # real NEON), so it isn't shipping behaviour. GCC has no per-file ignorelist, so these are excluded globally - they
+    # mirror the firmware's own DELUGE_UBSAN exclusions.
+    add_compile_options(-fsanitize=address,undefined -fno-sanitize=vptr,alignment,shift
+        -fno-omit-frame-pointer -fno-sanitize-recover=all)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 # SIMDe (x86 host only): argon's non-ARM backend does `#include <arm/neon.h>`, which must
 # resolve to <simde/arm/neon.h>. The arm-linux reference has real NEON and a real <arm_neon.h>,
 # so it skips all of this.
@@ -116,6 +134,11 @@ add_compile_definitions(DELUGE_DETERMINISTIC_ALLOC)
 # build-system only). Used e.g. to drop the FATFS sector-buffer cache-line over-alignment,
 # which has no meaning without DMA and which the host allocator (8-byte aligned) can't honour.
 add_compile_definitions(DELUGE_HOST)
+
+# Enable D_PRINTLN (gated on ENABLE_TEXT_OUTPUT; the firmware turns it on for debug builds). The host routes it to
+# stderr (deluge_log), so the app's debug log — storage activity, "FULL internal" memory pressure, MEM_GUARD /
+# reason_check reports — is visible when reproducing issues on the sim.
+add_compile_definitions(ENABLE_TEXT_OUTPUT=1)
 
 if(DELUGE_SIM_ARM)
     # Real NEON: the cross toolchain provides <arm_neon.h>; argon's <arm/neon.h> is unused.
@@ -228,8 +251,11 @@ add_executable(deluge_host
     ${REPO_ROOT}/src/bsp/host/host_pcm.c
     ${REPO_ROOT}/src/bsp/host/host_midi.c
     ${REPO_ROOT}/src/bsp/host/host_main.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
 )
-target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS})
+# host_debug.cpp reaches into the app's reason_check (memory/reason_check.h) for the host-sim leak triggers - allowed
+# (the boundary check only forbids the app depending on the BSP, not the reverse), so put src/deluge on the path.
+target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
 target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_host PRIVATE ${RT_LIB})
@@ -248,8 +274,11 @@ add_executable(deluge_render
     ${REPO_ROOT}/src/bsp/host/host_pcm.c
     ${REPO_ROOT}/src/bsp/host/host_midi.c
     ${REPO_ROOT}/src/bsp/host/host_render_main.cpp
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
 )
-target_include_directories(deluge_render PRIVATE ${HOST_INCLUDE_DIRS})
+# host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) + reaches the app's reason_check;
+# src/deluge on the path for memory/reason_check.h (the boundary check only forbids app→BSP, not BSP→app).
+target_include_directories(deluge_render PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
 target_link_libraries(deluge_render PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_render PRIVATE ${RT_LIB})
@@ -267,8 +296,11 @@ add_executable(deluge_loadcheck
     ${REPO_ROOT}/src/bsp/host/host_pcm.c
     ${REPO_ROOT}/src/bsp/host/host_midi.c
     ${REPO_ROOT}/src/bsp/host/host_loadcheck_main.cpp
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
 )
-target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS})
+# host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) + reaches the app's reason_check;
+# src/deluge on the path for memory/reason_check.h (the boundary check only forbids app→BSP, not BSP→app).
+target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
 target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})

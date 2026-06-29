@@ -193,3 +193,10 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 	}
 	deluge::memory::dealloc(address);
 }
+
+void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
+	// No-op: the legacy boundary-tag walk lived in the retired MemoryRegion allocator. The replacement
+	// (a deluge_heap_check() across the Rust deluge_alloc boundary) is part of the sanitizer port; see
+	// the declaration in general_memory_allocator.h.
+	(void)errorString;
+}

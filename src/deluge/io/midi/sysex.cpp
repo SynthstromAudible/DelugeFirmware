@@ -18,12 +18,30 @@
  */
 
 #include "io/midi/sysex.h"
+#include "io/debug/log.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "memory/alloc_metadata.h"
+#include "memory/reason_check.h"
 #include "util/chainload.h"
 
 #include "util/pack.h"
+
+#if MEM_GUARD
+// Baseline for the leak snapshot/diff workflow (Debug sysex subcommand 3). Persists between sysex calls so a developer
+// can snapshot, drive the suspect operation, then ask for everything that leaked since.
+namespace {
+mem_guard::Snapshot g_leakSnapshot = 0;
+}
+#endif
+
+#if REASON_CHECK
+// Baseline for the reason-leak snapshot/diff workflow (Debug sysex subcommand 4).
+namespace {
+reason_check::Snapshot g_reasonSnapshot = 0;
+}
+#endif
 
 void Debug::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	if (len < 3) {
@@ -50,6 +68,52 @@ void Debug::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	case 2:
 #ifdef ENABLE_SYSEX_LOAD
 		loadCheckAndRun(data, len);
+#endif
+		break;
+
+	case 3:
+		// Leak hunting (MEM_GUARD builds only). data[2]: 0 = take snapshot baseline, 1 = report what leaked since the
+		// last snapshot, 2 = report ALL live allocations. Output goes to the debug log (D_PRINTLN), same channel as the
+		// rest of MEM_GUARD's reporting.
+#if MEM_GUARD
+		switch (data[2]) {
+		case 0:
+			g_leakSnapshot = mem_guard::snapshot();
+			D_PRINTLN("MEM_GUARD leak snapshot taken at epoch %d (%d live)", g_leakSnapshot,
+			          mem_guard::liveAllocations());
+			break;
+		case 1:
+			mem_guard::reportOutstanding(g_leakSnapshot);
+			break;
+		case 2:
+			mem_guard::reportOutstanding(0);
+			break;
+		default:
+			break;
+		}
+#endif
+		break;
+
+	case 4:
+		// Reason-leak hunting (REASON_CHECK builds; stays available under a sanitizer). data[2]: 0 = take snapshot
+		// baseline, 1 = report Clusters pinned since the snapshot, 2 = report ALL pinned Clusters. Same debug-log
+		// output channel. The round-trip workflow: snapshot at idle, do the suspect op, return to idle, then report.
+#if REASON_CHECK
+		switch (data[2]) {
+		case 0:
+			g_reasonSnapshot = reason_check::snapshot();
+			D_PRINTLN("REASON_CHECK snapshot taken at epoch %d (%d clusters pinned)", g_reasonSnapshot,
+			          reason_check::liveClusters());
+			break;
+		case 1:
+			reason_check::reportOutstanding(g_reasonSnapshot);
+			break;
+		case 2:
+			reason_check::reportOutstanding(0);
+			break;
+		default:
+			break;
+		}
 #endif
 		break;
 

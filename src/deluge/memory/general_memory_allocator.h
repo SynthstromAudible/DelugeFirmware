@@ -83,8 +83,14 @@ public:
 		return generalMemoryAllocator;
 	}
 
-private:
+	// MEM_GUARD periodic heap-integrity walk (called from AudioEngine::routine()). On the legacy C++
+	// MemoryRegion allocator this walked every block's boundary tags; the allocator is now the Rust
+	// deluge_alloc TLSF core, whose internals aren't reachable from here. Until the sanitizer port wires
+	// a deluge_heap_check() across the libdeluge/alloc.h boundary this is a no-op — the heap_poison.h /
+	// ASan path (host-sim) and reason_check carry corruption detection in the meantime.
 	void checkEverythingOk(char const* errorString);
+
+private:
 	// Lazily stand up the cluster slab + resource manager (idempotent). Both share the
 	// uniform Cluster slot size, finalized to the session maximum by boot. Returns true
 	// if the slab exists afterwards.

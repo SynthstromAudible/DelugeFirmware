@@ -129,6 +129,13 @@ public:
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
+	// Host-sim reproduction harness entry (src/bsp/host/host_debug.cpp). Runs the full "create a new instrument clip
+	// with a new track" gesture (loads the next unlaunched preset, copying drums, and inserts the clip into the song)
+	// without going through pad input — used to reproduce the kit-copy memory pressure / leak off-target.
+	Clip* reproCreateNewInstrumentClip(OutputType type, int32_t yDisplay) {
+		return createNewInstrumentClip(type, yDisplay);
+	}
+
 	// ui
 	UIType getUIType() override { return UIType::SESSION; }
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
