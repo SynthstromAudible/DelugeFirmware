@@ -117,7 +117,6 @@ bool Browser::checkFP() {
 void Browser::close() {
 	emptyFileItems();
 	favouritesManager.close();
-	favouritesVisible = false;
 	QwertyUI::close();
 }
 
@@ -1535,7 +1534,7 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 
 ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 
-	if (favouritesVisible && y == favouriteRow && on) {
+	if (isFavouritesVisible() && y == favouriteRow && on) {
 		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1564,7 +1563,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 		return ActionResult::DEALT_WITH;
 	}
-	else if (favouritesVisible && banksVisible && y == favouriteBankRow && on) {
+	else if (isBanksVisible() && y == favouriteBankRow && on) {
 		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1583,7 +1582,7 @@ void Browser::favouritesChanged() {
 }
 
 ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (favouritesVisible) {
+	if (isFavouritesVisible()) {
 		if (Buttons::isShiftButtonPressed()) {
 			if (favouritesManager.currentFavouriteNumber.has_value()) {
 				favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
@@ -1776,4 +1775,15 @@ int32_t Browser::searchFileItems(char const* searchString, bool* foundExact) {
 		*foundExact = (it != fileItems.end() && strcmpspecial(it->displayName, searchString) == 0);
 	}
 	return static_cast<int32_t>(it - fileItems.begin());
+}
+
+bool Browser::isFavouritesVisible() {
+	return (getCurrentUI()->canDisplayFavourites() && qwertyVisible
+	        && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayout::FavouritesDefaultLayoutOff);
+}
+
+bool Browser::isBanksVisible() {
+	return (getCurrentUI()->canDisplayFavourites() && qwertyVisible
+	        && FlashStorage::defaultFavouritesLayout
+	               == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks);
 }

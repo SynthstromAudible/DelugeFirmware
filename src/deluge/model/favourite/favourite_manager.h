@@ -18,7 +18,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/favourite/favourite_manager.h"
 #include "storage/storage_manager.h"
 #include <cstdint>
 #include <functional>
@@ -53,6 +52,7 @@ public:
 	std::optional<uint8_t> currentFavouriteNumber{};
 
 private:
+	void resetFavourites();
 	void loadFavouritesBank();
 	void saveFavouriteBank() const;
 
