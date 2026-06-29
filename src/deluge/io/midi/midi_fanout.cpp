@@ -17,6 +17,8 @@
 
 #include "io/midi/midi_fanout.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_follow.h"
 #include "model/clip/clip.h"
@@ -45,6 +47,13 @@ void markDirty() {
 }
 
 static void sendToDests(FanOutGroup& group, int32_t value) {
+	// Don't drive dests while a song is loading. On boot a controller's power-on CC burst (e.g. the
+	// MIDI Fighter Twister resending its knob positions) can arrive mid-load of the startup song,
+	// when the active clip/song isn't in a stable state yet - touching it then crashes. Also covers
+	// loading a different song at runtime.
+	if (getCurrentUI() == &loadSongUI) {
+		return;
+	}
 	Clip* clip = midiFollow.getSelectedOrActiveClip();
 	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
 		return;
