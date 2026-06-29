@@ -45,12 +45,17 @@ void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboard
 			Voicing voicing = state.chordList.getChordVoicing(chordNo);
 			drawChordName(noteFromCoords(pressed.x), state.chordList.chords[chordNo].name, voicing.supplementalName);
 
-			for (int i = 0; i < kMaxChordKeyboardSize; i++) {
-				int32_t offset = voicing.offsets[i];
-				if (offset == NONE) {
-					continue;
-				}
-				enableNote(noteFromCoords(pressed.x) + offset, velocity);
+			// resolveChordNotes() turns the selected chord+voicing into sounding notes. Capture for
+			// placement is handled generically in KeyboardScreen from currentNotesState, so it works
+			// here and in any other chord-producing mode.
+			ChordSelection selection{.rootNote = noteFromCoords(pressed.x),
+			                         .voicing = voicing,
+			                         .chordNo = static_cast<int8_t>(chordNo),
+			                         .velocity = static_cast<uint8_t>(velocity)};
+			int16_t notes[kMaxChordKeyboardSize];
+			uint8_t noteCount = resolveChordNotes(selection, notes, kMaxChordKeyboardSize);
+			for (uint8_t i = 0; i < noteCount; i++) {
+				enableNote(notes[i], velocity);
 			}
 		}
 	}
