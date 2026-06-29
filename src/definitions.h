@@ -23,11 +23,9 @@
 #define MEM_GUARD ALPHA_OR_BETA_VERSION
 #endif
 
-// Reference-graph sanity for the Cluster "reasons" system (see memory/reason_check.h): asserts a Stealable Cluster is
-// never stolen while still referenced, and can report Clusters that stay pinned (reason leaks). Pure bookkeeping - it
-// never touches freed memory - so unlike MEM_GUARD it stays enabled under a sanitizer and complements the host-sim ASan
-// build.
-#define REASON_CHECK ALPHA_OR_BETA_VERSION
+// (REASON_CHECK retired: the legacy Cluster "reasons" side-table is obsolete under the Rust resource manager's lease
+// model — a chunk under lease is never evicted, so use-after-steal is structurally prevented, and lease-leak reporting
+// is the manager's own job. General-allocation leak hunting now lives in MEM_GUARD / mem_guard (alloc_metadata.h).)
 
 // Fills the whole body of a block when it is freed. A use-after-free *write* breaks this pattern; reads of freed memory
 // show a recognizable value. Never-allocated memory is left as the startup-cleared zero, so an EMPTY block is always

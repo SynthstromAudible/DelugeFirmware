@@ -15,23 +15,28 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// host_debug.cpp — host-sim developer triggers for the reason-leak tooling.
+// host_debug.cpp — host-sim developer triggers for the allocation-leak tooling.
 //
-// The reason-leak workflow is a round-trip diff: snapshot at idle, drive the suspect operation, return to idle, report
-// what's still pinned. On the device that's a sysex command (Debug subcommand 4); on the host-sim it's two signals:
+// The leak workflow is a round-trip diff: snapshot at idle, drive the suspect operation, return to idle, report what's
+// still live. On the device that's a sysex command (Debug subcommand 3); on the host-sim it's two signals:
 //
-//     kill -USR1 <pid>     # snapshot the current reason state
+//     kill -USR1 <pid>     # snapshot the current allocation state
 //     ...drive the suspect operation, then return to idle...
-//     kill -USR2 <pid>     # report Clusters pinned since the snapshot (with the addReason call-site)
+//     kill -USR2 <pid>     # report allocations still live since the snapshot (with the allocating call-site)
 //
 // The signal handlers only set a flag (async-signal-safe); the actual table walk runs from deluge_host_debug_poll(),
 // which the host audio backend calls once per rendered block on the app thread, so it always sees a consistent table.
+//
+// Reporting is backed by mem_guard (memory/alloc_metadata.h). Under a sanitizer mem_guard is compiled out
+// (MEM_GUARD==0 there); that build relies on LeakSanitizer instead, which the reproduction harnesses below invoke
+// directly. The reproduction *drivers* (kit-copy, song-load) are env-gated and always compiled, so they're useful with
+// either detector.
 
 #include "definitions_cxx.hpp"        // OutputType
 #include "gui/ui/load/load_song_ui.h" // loadSongUI
 #include "gui/ui/ui.h"                // openUI
-#include "gui/views/session_view.h"   // sessionView, gridCreateInstrumentClipWithNewTrack
-#include "memory/reason_check.h"
+#include "gui/views/session_view.h"   // sessionView, reproCreateNewInstrumentClip
+#include "memory/alloc_metadata.h"    // mem_guard (self-guards on MEM_GUARD)
 
 #include <csignal>
 #include <cstdio>
@@ -47,11 +52,35 @@ extern "C" {
 #include <sanitizer/lsan_interface.h>
 #endif
 
-#if REASON_CHECK
-
 namespace {
+
+// Leak-tracking shims over mem_guard. mem_guard is compiled out under a sanitizer (MEM_GUARD==0), where LeakSanitizer
+// does the real leak detection instead, so these no-op cleanly there.
+inline uint32_t leakSnapshot() {
+#if MEM_GUARD
+	return mem_guard::snapshot();
+#else
+	return 0;
+#endif
+}
+inline uint32_t leakLiveCount() {
+#if MEM_GUARD
+	return mem_guard::liveAllocations();
+#else
+	return 0;
+#endif
+}
+inline void leakReport(uint32_t since) {
+#if MEM_GUARD
+	mem_guard::reportOutstanding(since);
+#else
+	(void)since;
+	printf("  (mem_guard off in this build; rely on the LeakSanitizer report above)\n");
+#endif
+}
+
 volatile std::sig_atomic_t g_request = 0; // 0 = nothing, 1 = snapshot, 2 = report
-reason_check::Snapshot g_baseline = 0;
+uint32_t g_baseline = 0;
 
 void onSignal(int sig) {
 	g_request = (sig == SIGUSR1) ? 1 : 2;
@@ -60,8 +89,8 @@ void onSignal(int sig) {
 // Kit-copy reproduction harness. With DELUGE_HOST_KIT_COPY_REPS=N, once the app has booted, create N new KIT tracks -
 // each calls the path from the bug report (createNewTrackForInstrumentClip -> setPresetOrNextUnlaunchedOne, which loads
 // the *next* unlaunched kit preset from KITS/ plus all its samples). The first loads 000 TR-808, then 001, 002 SDS-5,
-// ... exactly as the device log showed. We snapshot reason_check around it; the FULL-internal pressure shows in the
-// D_PRINTLN log, and any kit leaked on the INSUFFICIENT_RAM error path shows in the closing reportOutstanding().
+// ... exactly as the device log showed. We snapshot the allocation table around it; the FULL-internal pressure shows in
+// the D_PRINTLN log, and anything leaked on the INSUFFICIENT_RAM error path shows in the closing leakReport().
 int g_kitCopyReps = -1; // -1 = not yet read, 0 = disabled
 uint32_t g_pollCount = 0;
 bool g_kitCopyDone = false;
@@ -82,12 +111,11 @@ void runKitCopyHarnessIfDue() {
 
 	printf("[kit-copy] creating %d new KIT tracks (each loads the next kit preset + its samples)\n", g_kitCopyReps);
 	std::fflush(stdout);
-	reason_check::Snapshot snap = reason_check::snapshot();
+	uint32_t snap = leakSnapshot();
 
 	for (int i = 0; i < g_kitCopyReps; i++) {
 		Clip* clip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 0);
-		printf("[kit-copy] rep %d: clip=%p, pinned stealables now %u\n", i, (void*)clip,
-		       (unsigned)reason_check::liveClusters());
+		printf("[kit-copy] rep %d: clip=%p, live allocations now %u\n", i, (void*)clip, (unsigned)leakLiveCount());
 		std::fflush(stdout);
 		if (clip == nullptr) {
 			printf("[kit-copy] rep %d returned null (INSUFFICIENT_RAM) - the leak-on-error path\n", i);
@@ -95,13 +123,13 @@ void runKitCopyHarnessIfDue() {
 		}
 	}
 
-	printf("[kit-copy] done - reasons still outstanding across the run (leaks):\n");
+	printf("[kit-copy] done - allocations still outstanding across the run (leaks):\n");
 	std::fflush(stdout);
-	reason_check::reportOutstanding(snap);
+	leakReport(snap);
 
 #if defined(__SANITIZE_ADDRESS__)
-	// The real leak is the raw Instrument structure leaked on the INSUFFICIENT_RAM error path (not a reason leak), so
-	// ask LeakSanitizer to report unreachable allocations now (the host quick_exit()s, bypassing the at-exit check).
+	// The real leak is the raw Instrument structure leaked on the INSUFFICIENT_RAM error path, so ask LeakSanitizer to
+	// report unreachable allocations now (the host quick_exit()s, bypassing the at-exit check).
 	printf("[kit-copy] LeakSanitizer check:\n");
 	std::fflush(stdout);
 	__lsan_do_recoverable_leak_check();
@@ -111,9 +139,9 @@ void runKitCopyHarnessIfDue() {
 // ---- Song-load leak harness -------------------------------------------------
 // With DELUGE_HOST_SONG_LOAD_DIR=<dir on card> (e.g. SONGS/problem_songs) and DELUGE_HOST_SONG_LOAD_REPS=N, once the
 // app has booted, recursively find every .XML under that dir and load each one (full performLoad: read song -> swap in
-// -> delete the old song), looping over the whole set N times. reason_check is snapshotted around the run and
+// -> delete the old song), looping over the whole set N times. The allocation table is snapshotted around the run and
 // LeakSanitizer is asked to report at the end; any per-load leak (something not freed when a song is replaced) shows up
-// as growth in the pinned-cluster count and as LSan findings. This is the "loading lots of projects" leak repro.
+// as growth in the live-allocation count and as LSan findings. This is the "loading lots of projects" leak repro.
 constexpr int kMaxSongPaths = 512;
 char g_songPaths[kMaxSongPaths][256];
 int g_numSongPaths = 0;
@@ -193,7 +221,7 @@ void runSongLoadHarnessIfDue() {
 	int maxLoads = maxEnv ? std::atoi(maxEnv) : 0;
 	int totalLoads = 0;
 
-	reason_check::Snapshot snap = reason_check::snapshot();
+	uint32_t snap = leakSnapshot();
 	for (int rep = 0; rep < g_songLoadReps; rep++) {
 		for (int i = 0; i < g_numSongPaths; i++) {
 			if (maxLoads > 0 && totalLoads >= maxLoads) {
@@ -201,16 +229,16 @@ void runSongLoadHarnessIfDue() {
 			}
 			loadOneSong(g_songPaths[i]);
 			totalLoads++;
-			printf("[song-load] rep %d song %d/%d: %s | pinned stealables now %u\n", rep, i + 1, g_numSongPaths,
-			       g_songPaths[i], (unsigned)reason_check::liveClusters());
+			printf("[song-load] rep %d song %d/%d: %s | live allocations now %u\n", rep, i + 1, g_numSongPaths,
+			       g_songPaths[i], (unsigned)leakLiveCount());
 			std::fflush(stdout);
 		}
 	}
 doneLoading:;
 
-	printf("[song-load] done - reasons still outstanding across the run (leaks):\n");
+	printf("[song-load] done - allocations still outstanding across the run (leaks):\n");
 	std::fflush(stdout);
-	reason_check::reportOutstanding(snap);
+	leakReport(snap);
 
 #if defined(__SANITIZE_ADDRESS__)
 	printf("[song-load] LeakSanitizer check:\n");
@@ -229,8 +257,7 @@ doneLoading:;
 extern "C" void deluge_host_debug_install(void) {
 	std::signal(SIGUSR1, onSignal);
 	std::signal(SIGUSR2, onSignal);
-	printf("[reason-leak] pid %ld: kill -USR1 to snapshot, kill -USR2 to report pinned clusters since\n",
-	       (long)getpid());
+	printf("[leak] pid %ld: kill -USR1 to snapshot, kill -USR2 to report allocations live since\n", (long)getpid());
 	std::fflush(stdout);
 }
 
@@ -245,23 +272,13 @@ extern "C" void deluge_host_debug_poll(void) {
 	g_request = 0;
 
 	if (req == 1) {
-		g_baseline = reason_check::snapshot();
-		printf("[reason-leak] snapshot at epoch %u (%u clusters pinned)\n", (unsigned)g_baseline,
-		       (unsigned)reason_check::liveClusters());
+		g_baseline = leakSnapshot();
+		printf("[leak] snapshot at epoch %u (%u allocations live)\n", (unsigned)g_baseline, (unsigned)leakLiveCount());
 		std::fflush(stdout);
 	}
 	else {
-		printf("[reason-leak] pinned since snapshot %u:\n", (unsigned)g_baseline);
+		printf("[leak] live since snapshot %u:\n", (unsigned)g_baseline);
 		std::fflush(stdout);
-		reason_check::reportOutstanding(g_baseline);
+		leakReport(g_baseline);
 	}
 }
-
-#else // no reason tracking in this build
-
-extern "C" void deluge_host_debug_install(void) {
-}
-extern "C" void deluge_host_debug_poll(void) {
-}
-
-#endif
