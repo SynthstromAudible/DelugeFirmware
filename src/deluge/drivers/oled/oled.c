@@ -95,86 +95,42 @@ void oledMainInit() {
 #endif
 }
 
-struct SpiTransferQueueItem spiTransferQueue[SPI_TRANSFER_QUEUE_SIZE];
-volatile bool spiTransferQueueCurrentlySending = false;
-volatile uint8_t spiTransferQueueReadPos = 0;
-uint8_t spiTransferQueueWritePos = 0;
+const uint8_t* oledFrameQueue[OLED_FRAME_QUEUE_SIZE];
+volatile bool spiBusCurrentlySending = false;
+volatile uint8_t oledFrameQueueReadPos = 0;
+uint8_t oledFrameQueueWritePos = 0;
 
-inline bool equals(int32_t destination_id, union SpiTransferData a, struct SpiTransferQueueItem item) {
-	if (destination_id != item.destinationId) {
-		return false;
-	}
-	switch (destination_id) {
-	case SPI_DESTINATION_CV:
-		return a.cvData == item.cvData;
-	case SPI_DESTINATION_OLED:
-		return a.imageAddress == item.imageAddress;
-	}
-	return false;
-}
-
-/// this is super not safe to call in an interrupt so please don't. also image is actually 2 16 bit ints if the
-/// destination is the CV DAC. It should really be a union but I guess it's fine hopefuly maybe
-void enqueueSPITransfer(int32_t destinationId, union SpiTransferData image) {
-	// arguably should always be on but there's a chance it works out if it overwrites something to the same destination
-	if (((spiTransferQueueWritePos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1)) == spiTransferQueueReadPos) {
+/// Enqueue an OLED frame for DMA out. Not safe to call from an interrupt. Identical frames already
+/// in flight or queued are deduplicated to avoid redundant full-frame transfers.
+void enqueueOLEDFrame(const uint8_t* image) {
+	// arguably should always be on but there's a chance it works out if a duplicate frame is already queued
+	if (((oledFrameQueueWritePos + 1) & (OLED_FRAME_QUEUE_SIZE - 1)) == oledFrameQueueReadPos) {
 #if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("FULL");
 #endif
 		return;
 	}
 
-	// if it's not one of these then just return, it's a bug but shouldn't crash in release builds
-	if (destinationId != SPI_DESTINATION_CV && destinationId != SPI_DESTINATION_OLED) {
-#if ALPHA_OR_BETA_VERSION
-		FREEZE_WITH_ERROR("BAD DESTINATION");
-#endif
-		return;
-	}
-
 	ENTER_CRITICAL_SECTION();
-	// First check there isn't already an identical transfer enqueued.
-	auto current_item = spiTransferQueue[spiTransferQueueReadPos];
-	if (equals(destinationId, image, current_item)) {
-		// If so, then we don't need to enqueue anything.
+	// Skip if this exact frame is already in flight or already queued.
+	if (oledFrameQueue[oledFrameQueueReadPos] == image) {
 		goto exit;
 	}
-	// then look for another enqueued message we can just steal
-	int32_t readPosNow = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
-
-	if (destinationId == SPI_DESTINATION_CV) {
-		// For CV: find any unsent CV message and overwrite it
-		while (readPosNow != spiTransferQueueWritePos) {
-			if (spiTransferQueue[readPosNow].destinationId == SPI_DESTINATION_CV) {
-				spiTransferQueue[readPosNow].cvData = image.cvData;
-				goto exit;
-			}
-			readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	int32_t readPosNow = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
+	while (readPosNow != oledFrameQueueWritePos) {
+		if (oledFrameQueue[readPosNow] == image) {
+			goto exit;
 		}
+		readPosNow = (readPosNow + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
 	}
-	else {
-		// For OLED: use equals() to check for identical transfers
-		while (readPosNow != spiTransferQueueWritePos) {
-			if (equals(destinationId, image, spiTransferQueue[readPosNow])) {
-				goto exit;
-			}
-			readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
-		}
-	}
-	// if none of that worked then add a new message
 
-	if (destinationId == SPI_DESTINATION_OLED) {
-		spiTransferQueue[spiTransferQueueWritePos].imageAddress = image.imageAddress;
-	}
-	else {
-		spiTransferQueue[spiTransferQueueWritePos].cvData = image.cvData;
-	}
-	spiTransferQueue[spiTransferQueueWritePos].destinationId = destinationId;
-	spiTransferQueueWritePos = (spiTransferQueueWritePos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	// Otherwise add it as a new entry.
+	oledFrameQueue[oledFrameQueueWritePos] = image;
+	oledFrameQueueWritePos = (oledFrameQueueWritePos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
 
 	// If DMA not currently sending, and our new entry is still in the queue (it didn't get sent inside an interrupt
 	// just now), then send it now.
-	if (!spiTransferQueueCurrentlySending && spiTransferQueueWritePos != spiTransferQueueReadPos) {
+	if (!spiBusCurrentlySending && oledFrameQueueWritePos != oledFrameQueueReadPos) {
 		sendSPITransferFromQueue();
 	}
 exit:
