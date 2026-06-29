@@ -21,7 +21,6 @@
 #include "RZA1/system/r_typedefs.h"
 
 void oledSelectingComplete();
-void sendOledDMA();
 void oledTransferComplete(uint32_t int_sense);
 void oledDeselectionComplete();
 void enqueueCVMessage(int channel, uint32_t message);
@@ -35,12 +34,6 @@ enum OLED_MESSAGE {
     OLED_MESSAGE_NONE     = 256,
     OLED_MESSAGE_SELECT   = 248,
     OLED_MESSAGE_DESELECT = 249,
-};
-
-enum SPI_DESTINATION {
-    SPI_DESTINATION_OLED = 0,
-    SPI_DESTINATION_CV   = 1,
-    SPI_DESTINATION_NONE = 255,
 };
 
 extern int oledWaitingForMessage;

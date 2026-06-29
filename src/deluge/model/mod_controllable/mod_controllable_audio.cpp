@@ -1755,5 +1755,9 @@ bool ModControllableAudio::enableGrain() {
 	return false;
 }
 void ModControllableAudio::disableGrain() {
-	grainFX->startSkippingRendering();
+	// grainFX is lazily allocated (null until GRAIN mod-FX is first used), but this is called whenever
+	// mod-FX is *not* grain — so null is the common case. Guard it like every other grainFX access.
+	if (grainFX) {
+		grainFX->startSkippingRendering();
+	}
 }

@@ -160,7 +160,7 @@ void Cluster::convertDataIfNecessary() {
 }
 
 StealableQueue Cluster::getAppropriateQueue() {
-	StealableQueue q;
+	StealableQueue q = StealableQueue::NO_SONG_SAMPLE_DATA;
 
 	// If it's a perc cache...
 	if (type == Type::PERC_CACHE_FORWARDS || type == Type::PERC_CACHE_REVERSED) {

@@ -18,17 +18,20 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/favourite/favourite_manager.h"
 #include "storage/storage_manager.h"
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
 
+#include <etl/vector.h>
+
+constexpr size_t kNumFavourites = 16;
+
 class FavouritesManager {
 public:
-	struct Favorite {
-		int position;
+	struct Favourite {
+		int position = 0;
 		std::optional<uint8_t> colour;
 		std::string filename;
 	};
@@ -39,20 +42,21 @@ public:
 
 	void setCategory(const std::string& category);
 	void selectFavouritesBank(uint8_t bankNumber);
-	void setFavorite(uint8_t position, uint8_t colour, const std::string& filename);
-	void unsetFavorite(uint8_t position);
+	void setFavourite(uint8_t position, uint8_t colour, const std::string& filename);
+	void unsetFavourite(uint8_t position);
 	bool isEmpty(uint8_t position) const;
 	Error loadFavouritesFromFile(Deserializer& reader);
 	void close();
-	std::array<std::optional<uint8_t>, 16> getFavouriteColours() const;
+	std::array<std::optional<uint8_t>, kNumFavourites> getFavouriteColours() const;
 	void changeColour(uint8_t position, int32_t offset);
-	const std::string& getFavoriteFilename(uint8_t position);
+	const std::string& getFavouriteFilename(uint8_t position);
 	static constexpr uint8_t favouriteDefaultColor = 4;
 
-	uint8_t currentBankNumber;
+	uint8_t currentBankNumber = 0;
 	std::optional<uint8_t> currentFavouriteNumber;
 
 private:
+	void resetFavourites();
 	void loadFavouritesBank();
 	void saveFavouriteBank() const;
 
@@ -60,7 +64,7 @@ private:
 	mutable bool unsavedChanges = false;
 
 	std::string currentCategory;
-	std::vector<Favorite> favourites;
+	etl::vector<Favourite, kNumFavourites> favourites;
 };
 
 extern FavouritesManager favouritesManager;

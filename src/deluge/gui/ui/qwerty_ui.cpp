@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour/colour.h"
+#include "gui/ui/browser/browser.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -42,12 +43,10 @@ int32_t QwertyUI::scrollPosHorizontal;
 
 uint8_t QwertyUI::currentBank = 0;
 std::optional<uint8_t> QwertyUI::currentFavourite = std::nullopt;
-bool QwertyUI::favouritesVisible = false;
 uint8_t QwertyUI::favouriteRow = 6;
-bool QwertyUI::banksVisible = false;
-FavouritesDefaultLayout QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayout::FavouritesDefaultLayoutFavorites;
+FavouritesDefaultLayout QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayout::FavouritesDefaultLayoutFavourites;
 
-static constexpr float colourStep = 192 / 16;
+static constexpr float colourStep = 192 / kNumFavourites;
 
 bool QwertyUI::opened() {
 
@@ -55,16 +54,14 @@ bool QwertyUI::opened() {
 	enteredTextEditPos = 0;
 	enteredText.clear();
 	switch (FlashStorage::defaultFavouritesLayout) {
-	case FavouritesDefaultLayoutFavorites: {
-		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutFavorites;
+	case FavouritesDefaultLayoutFavourites: {
+		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutFavourites;
 		QwertyUI::favouriteRow = 7;
-		QwertyUI::banksVisible = false;
 		break;
 	}
-	case FavouritesDefaultLayoutFavoritesAndBanks: {
-		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutFavoritesAndBanks;
+	case FavouritesDefaultLayoutFavouritesAndBanks: {
+		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutFavouritesAndBanks;
 		QwertyUI::favouriteRow = 6;
-		QwertyUI::banksVisible = true;
 		break;
 	}
 	default: {
@@ -121,7 +118,7 @@ void QwertyUI::drawKeys() {
 		PadLEDs::image[kQwertyHomeRow - 1][13 + x] = colours::blue;
 	}
 
-	if (favouritesVisible) {
+	if (getCurrentUI()->isFavouritesVisible()) {
 		renderFavourites();
 	}
 	PadLEDs::sendOutMainPadColours();
@@ -423,10 +420,10 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 void QwertyUI::renderFavourites() {
 
-	if (!favouritesVisible) {
+	if (!getCurrentUI()->isFavouritesVisible()) {
 		return;
 	}
-	std::array<std::optional<uint8_t>, 16> colours = favouritesManager.getFavouriteColours();
+	std::array<std::optional<uint8_t>, kNumFavourites> colours = favouritesManager.getFavouriteColours();
 	currentBank = favouritesManager.currentBankNumber;
 	currentFavourite = favouritesManager.currentFavouriteNumber;
 
@@ -435,9 +432,9 @@ void QwertyUI::renderFavourites() {
 		return;
 	}
 
-	for (uint8_t i = 0; i < 16; i++) {
+	for (uint8_t i = 0; i < kNumFavourites; i++) {
 		// Render Banks
-		if (favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks) {
+		if (favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavouritesAndBanks) {
 			PadLEDs::image[favouriteBankRow][i] = RGB::fromHue(static_cast<int16_t>(i * colourStep));
 		}
 		// Render Favourites
@@ -503,13 +500,13 @@ ActionResult QwertyUI::timerCallback() {
 	}
 
 	// Flash selected Bank & Favourite Pads
-	if (favouritesVisible) {
+	if (getCurrentUI()->isFavouritesVisible()) {
 
 		if (QwertyUI::currentFavourite.has_value()) {
 			PadLEDs::flashMainPad(QwertyUI::currentFavourite.value(), favouriteRow);
 		}
 
-		if (QwertyUI::favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks) {
+		if (QwertyUI::favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavouritesAndBanks) {
 			PadLEDs::flashMainPad(QwertyUI::currentBank, favouriteBankRow);
 		}
 

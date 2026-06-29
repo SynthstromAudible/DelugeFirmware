@@ -50,9 +50,11 @@ namespace encoders = deluge::hid::encoders;
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
-	if (showingAuditionPads() && !qwertyAlwaysVisible) {
+	// grey out the mute pads, not the audition pads or main pads
+	if (showingAuditionPads()) {
 		*cols = 0b10;
 	}
+	// grey out everything
 	else {
 		*cols = 0xFFFFFFFF;
 	}
@@ -797,7 +799,7 @@ nonNumeric:
 		char const* underscoreAddress = strrchr(oldNameChars, ' ');
 		if (underscoreAddress) {
 lookAtSuffixNumber:
-			int32_t underscorePos = (uint32_t)underscoreAddress - (uint32_t)oldNameChars;
+			int32_t underscorePos = (uintptr_t)underscoreAddress - (uintptr_t)oldNameChars;
 			numberStartPos = underscorePos + 1;
 			int32_t oldNumberLength = oldNameLength - numberStartPos;
 			if (oldNumberLength > 0) {

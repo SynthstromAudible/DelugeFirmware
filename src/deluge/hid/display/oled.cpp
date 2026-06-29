@@ -31,6 +31,7 @@
 #include "storage/flash_storage.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"
+#include <algorithm>
 #include <string.h>
 #include <string_view>
 
@@ -83,6 +84,14 @@ void OLED::clearMainImage() {
 }
 
 void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int32_t delta, ImageStore image) {
+	minX = std::clamp<int32_t>(minX, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	maxX = std::clamp<int32_t>(maxX, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	minY = std::clamp<int32_t>(minY, 0, OLED_MAIN_HEIGHT_PIXELS - 1);
+	maxY = std::clamp<int32_t>(maxY, 0, OLED_MAIN_HEIGHT_PIXELS - 1);
+
+	if (maxX < minX || maxY < minY || delta <= 0) {
+		return;
+	}
 
 	int32_t firstRow = minY >> 3;
 	int32_t lastRow = maxY >> 3;
@@ -102,7 +111,7 @@ void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int
 	// Move final sub-row amount
 	if (delta) {
 		for (int32_t x = minX; x <= maxX; x++) {
-			uint8_t carry;
+			uint8_t carry = 0;
 
 			for (int32_t row = lastRow; row >= firstRow; row--) {
 				uint8_t prevBitsHere = image[row][x];
@@ -124,15 +133,20 @@ int32_t popupMaxY;
 
 void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::optional<int32_t> startX,
                       std::optional<int32_t> startY) {
-	height = std::clamp<int32_t>(height, 0, OLED_MAIN_HEIGHT_PIXELS);
-	oledPopupWidth = width;
-	popupHeight = height;
 	popupType = type;
 
+	width = std::clamp<int32_t>(width, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	height = std::clamp<int32_t>(height, 0, OLED_MAIN_HEIGHT_PIXELS - 1);
+
 	popupMinX = startX.has_value() ? startX.value() : (OLED_MAIN_WIDTH_PIXELS - width) / 2;
-	popupMaxX = popupMinX + width;
+	popupMinX = std::clamp<int32_t>(popupMinX, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	popupMaxX = std::clamp<int32_t>(popupMinX + width, popupMinX, OLED_MAIN_WIDTH_PIXELS - 1);
 	popupMinY = startY.has_value() ? startY.value() : (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
-	popupMaxY = popupMinY + height;
+	popupMinY = std::clamp<int32_t>(popupMinY, 0, OLED_MAIN_HEIGHT_PIXELS - 1);
+	popupMaxY = std::clamp<int32_t>(popupMinY + height, popupMinY, OLED_MAIN_HEIGHT_PIXELS - 1);
+
+	oledPopupWidth = popupMaxX - popupMinX + 1;
+	popupHeight = popupMaxY - popupMinY + 1;
 
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 
@@ -156,6 +170,15 @@ struct ConsoleItem {
 ConsoleItem consoleItemStoreDontAccessDirectly[MAX_NUM_CONSOLE_ITEMS] = {0};
 int32_t numConsoleItems = 0;
 
+void normalizeConsoleItemCount() {
+	numConsoleItems = std::clamp<int32_t>(numConsoleItems, 0, MAX_NUM_CONSOLE_ITEMS);
+}
+
+bool hasConsoleItems() {
+	normalizeConsoleItemCount();
+	return numConsoleItems > 0;
+}
+
 // There is suspicion that we're under or overflowing the memory for the consoleItems
 // array: so we've renamed it to consoleItemStoreDontAccessDirectly, and have this class
 // act as a guard to catch out of bounds accesses.
@@ -176,7 +199,7 @@ public:
 ConsoleItemAccessor consoleItems;
 
 void OLED::drawConsoleTopLine() {
-	if (numConsoleItems <= 0) {
+	if (!hasConsoleItems()) {
 		return;
 	}
 	console.drawHorizontalLine(consoleItems[numConsoleItems - 1].minY - 1, consoleMinX + 1, consoleMaxX - 1);
@@ -184,6 +207,9 @@ void OLED::drawConsoleTopLine() {
 
 // Returns y position (minY)
 int32_t OLED::setupConsole(int32_t height) {
+	normalizeConsoleItemCount();
+	height = std::clamp<int32_t>(height, 1, kConsoleImageHeight - 2);
+
 	consoleMinX = 4;
 	consoleMaxX = OLED_MAIN_WIDTH_PIXELS - consoleMinX;
 
@@ -193,8 +219,8 @@ int32_t OLED::setupConsole(int32_t height) {
 	if (numConsoleItems) {
 
 		// If hit max num console items...
-		if (numConsoleItems == MAX_NUM_CONSOLE_ITEMS) {
-			numConsoleItems--;
+		if (numConsoleItems >= MAX_NUM_CONSOLE_ITEMS) {
+			numConsoleItems = MAX_NUM_CONSOLE_ITEMS - 1;
 			shouldRedrawTopLine = true;
 		}
 
@@ -212,12 +238,13 @@ int32_t OLED::setupConsole(int32_t height) {
 		if (howMuchTooLow > 0) {
 
 			// Move their min and max values up
+			int32_t topSurvivingItem = numConsoleItems;
 			for (int32_t i = numConsoleItems; i >= 0; i--) {
 				// numConsoleItems hasn't been updated yet - there's actually one more
 				consoleItems[i].minY -= howMuchTooLow;
 				// If at all offscreen, scrap that one
 				if (consoleItems[i].minY < 1) {
-					numConsoleItems = i - 1; // It's still going to get 1 added to it, below
+					topSurvivingItem = i - 1; // It's still going to get 1 added to it, below
 					shouldRedrawTopLine = true;
 				}
 
@@ -226,8 +253,10 @@ int32_t OLED::setupConsole(int32_t height) {
 
 			// Do the actual copying
 			// numConsoleItems hasn't been updated yet - there's actually one more
-			moveAreaUpCrude(consoleMinX, consoleItems[numConsoleItems].minY - 1, consoleMaxX,
-			                consoleItems[1].maxY + howMuchTooLow, howMuchTooLow, console.hackGetImageStore());
+			numConsoleItems = std::max<int32_t>(topSurvivingItem, 0);
+			int32_t moveMinY = consoleItems[numConsoleItems].minY - 1;
+			int32_t moveMaxY = consoleItems[1].maxY + howMuchTooLow;
+			moveAreaUpCrude(consoleMinX, moveMinY, consoleMaxX, moveMaxY, howMuchTooLow, console.hackGetImageStore());
 		}
 	}
 
@@ -293,12 +322,12 @@ void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], i
 
 void copyBackgroundAroundForeground(ImageStore backgroundImage, ImageStore foregroundImage, int32_t minX, int32_t minY,
                                     int32_t maxX, int32_t maxY) {
-	if (maxX < 0 || minX < 0 || maxX < minX || minX > OLED_MAIN_WIDTH_PIXELS || maxX > OLED_MAIN_WIDTH_PIXELS)
+	if (maxX < 0 || minX < 0 || maxX < minX || minX >= OLED_MAIN_WIDTH_PIXELS || maxX >= OLED_MAIN_WIDTH_PIXELS)
 	    [[unlikely]] {
 		// D for Display
 		FREEZE_WITH_ERROR("D001");
 	}
-	if (maxY < 0 || minY < 0 || maxY < minY || minY > OLED_MAIN_HEIGHT_PIXELS || maxY > OLED_MAIN_HEIGHT_PIXELS)
+	if (maxY < 0 || minY < 0 || maxY < minY || minY >= OLED_MAIN_HEIGHT_PIXELS || maxY >= OLED_MAIN_HEIGHT_PIXELS)
 	    [[unlikely]] {
 		FREEZE_WITH_ERROR("D002");
 	}
@@ -343,7 +372,7 @@ void OLED::sendMainImage() {
 
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
-	if (numConsoleItems) {
+	if (hasConsoleItems()) {
 		copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
 		                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
 		                               OLED_MAIN_HEIGHT_PIXELS - 1);
@@ -360,8 +389,7 @@ void OLED::sendMainImage() {
 	uartPrint("oled render time: ");
 	uartPrintNumber((uint16_t)(renderStopTime - renderStartTime));
 #endif
-	SpiTransferData m = {.imageAddress = oledCurrentImage[0]};
-	enqueueSPITransfer(0, m);
+	enqueueOLEDFrame(oledCurrentImage[0]);
 	HIDSysex::sendDisplayIfChanged();
 	needsSending = false;
 }
@@ -522,6 +550,21 @@ findNextStringSplitPoint:
 	}
 	// line width exceeds maximum
 	else {
+		if (lineLengthBeforeThisWord <= 0) {
+			int32_t splitLength = std::max<int32_t>(lineLength - 1, 1);
+			int32_t splitWidth = std::min<int32_t>(lineWidth, textLineBreakdown->maxWidthPerLine);
+			addLine(textLineBreakdown, lineStart, splitWidth, splitLength);
+			if (textLineBreakdown->numLines == TEXT_MAX_NUM_LINES) {
+				return;
+			}
+			lineStart += splitLength;
+			wordStart = lineStart;
+			lineWidth = 0;
+			lineLength = 0;
+			charSpacing = 0;
+			goto findNextStringSplitPoint;
+		}
+
 		// if we reached line break or end of string, we don't need extra spacing after it
 		lineWidthBeforeThisWord -= charSpacing;
 		addLine(textLineBreakdown, lineStart, lineWidthBeforeThisWord, lineLengthBeforeThisWord);
@@ -562,10 +605,10 @@ void OLED::drawPermanentPopupLookingText(char const* text) {
 	int32_t textHeight = textLineBreakdown.numLines * kTextSpacingY;
 
 	int32_t minX = (OLED_MAIN_WIDTH_PIXELS - textWidth - doubleMargin) >> 1;
-	int32_t maxX = OLED_MAIN_WIDTH_PIXELS - minX;
+	int32_t maxX = OLED_MAIN_WIDTH_PIXELS - minX - 1;
 
 	int32_t minY = (OLED_MAIN_HEIGHT_PIXELS - textHeight - doubleMargin) >> 1;
-	int32_t maxY = OLED_MAIN_HEIGHT_PIXELS - minY;
+	int32_t maxY = OLED_MAIN_HEIGHT_PIXELS - minY - 1;
 
 	main.drawRectangle(minX, minY, maxX, maxY);
 
@@ -828,9 +871,10 @@ void OLED::consoleText(char const* text) {
 
 	breakStringIntoLines(text, &textLineBreakdown, charHeight);
 
-	int32_t textPixelY = setupConsole(textLineBreakdown.numLines * charHeight + 1) + 1;
+	int32_t numLines = std::min<int32_t>(textLineBreakdown.numLines, (kConsoleImageHeight - 3) / charHeight);
+	int32_t textPixelY = setupConsole(numLines * charHeight + 1) + 1;
 
-	for (int32_t l = 0; l < textLineBreakdown.numLines; l++) {
+	for (int32_t l = 0; l < numLines; l++) {
 		console.drawString(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]}, textPixelX,
 		                   textPixelY, charWidth, charHeight);
 		textPixelY += charHeight;
@@ -1048,7 +1092,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 
 void OLED::consoleTimerEvent() {
 	// If console active
-	if (!numConsoleItems) {
+	if (!hasConsoleItems()) {
 		return;
 	}
 
@@ -1078,7 +1122,7 @@ void OLED::consoleTimerEvent() {
 		int32_t lastRow = consoleItems[0].maxY >> 3;
 
 		for (int32_t x = consoleMinX; x <= consoleMaxX; x++) {
-			uint8_t carry;
+			uint8_t carry = 0;
 
 			for (int32_t row = lastRow; row >= firstRow; row--) {
 				uint8_t prevBitsHere = console.hackGetImageStore()[row][x];
@@ -1202,7 +1246,7 @@ void OLED::freezeWithError(char const* text) {
 		}
 		oledWaitingForMessage = 256;
 	}
-	spiTransferQueueCurrentlySending = false;
+	spiBusCurrentlySending = false;
 
 	// Select OLED
 	PIC::selectOLED();
@@ -1230,7 +1274,7 @@ void OLED::freezeWithError(char const* text) {
 	DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
 	uint32_t dataAddress = (uint32_t)(&OLED::main.hackGetImageStore()[0][0]);
 	DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
-	// spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	// oledFrameQueueReadPos = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
 	// todo - should only need a flush
 	invalidate_range_all_caches(dataAddress, dataAddress + transferSize);
 	DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
@@ -1250,7 +1294,7 @@ void OLED::freezeWithError(char const* text) {
 		}
 	}
 	oledWaitingForMessage = 256;
-	spiTransferQueueCurrentlySending = false;
+	spiBusCurrentlySending = false;
 
 	clearMainImage();
 	OLED::popupText("Operation resumed. Save to new file then reboot.", false, PopupType::GENERAL);

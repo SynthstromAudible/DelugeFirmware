@@ -267,7 +267,7 @@ gotError:
 					    || !memcasecmp(normalFilePath, "SAMPLES/RESAMPLE/REC", 20)
 					    || !memcasecmp(normalFilePath, "SAMPLES/CLIPS/REC", 17)) {
 						char const* slashAddr = strrchr(normalFilePath, '/');
-						int32_t slashPos = (uint32_t)slashAddr - (uint32_t)normalFilePath;
+						int32_t slashPos = (uintptr_t)slashAddr - (uintptr_t)normalFilePath;
 
 						int32_t fileNamePos = slashPos + 1;
 

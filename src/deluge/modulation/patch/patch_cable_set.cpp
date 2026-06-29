@@ -482,6 +482,16 @@ bool PatchCableSet::patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings 
 		return false; // When would this ever be the case?
 	}
 
+	// An unresolved range placeholder: readPatchCablesFromFile() rewrites these into
+	// (param, source) form when it can identify the range-adjusted cable; a leftover
+	// bare PLACEHOLDER_RANGE (e.g. from old-firmware files whose "range" cables can't
+	// be resolved) must never reach the patcher — PLACEHOLDER_RANGE (89) classifies as
+	// a "global param" and the patcher would index paramFinalValues[89 - FIRST_GLOBAL],
+	// 34 entries out of bounds (a silent memory-corrupting write on hardware).
+	if (ourDescriptor->isSetToParamWithNoSource(params::PLACEHOLDER_RANGE)) {
+		return false;
+	}
+
 	int32_t p = ourDescriptor->getJustTheParam();
 
 	// If a range-adjusting cable, we'll go by whether the cable that it adjusts is allowed. This is nearly perfect and

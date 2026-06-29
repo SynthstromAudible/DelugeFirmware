@@ -52,8 +52,8 @@ int32_t Browser::numCharsInPrefix;
 bool Browser::arrivedAtFileByTyping;
 int32_t Browser::numFileItemsDeletedAtStart;
 int32_t Browser::numFileItemsDeletedAtEnd;
-char const* Browser::firstFileItemRemaining;
-char const* Browser::lastFileItemRemaining;
+String Browser::firstFileItemRemaining{};
+String Browser::lastFileItemRemaining{};
 OutputType Browser::outputTypeToLoad;
 char const** Browser::allowedFileExtensions;
 bool Browser::allowFoldersSharingNameWithFile;
@@ -120,7 +120,6 @@ bool Browser::checkFP() {
 void Browser::close() {
 	emptyFileItems();
 	favouritesManager.close();
-	favouritesVisible = false;
 	QwertyUI::close();
 }
 
@@ -208,14 +207,14 @@ deleteFromLeftSide:
 		numFileItemsDeletedAtStart += numFileItemsDeletingNow;
 		startAt = 0;
 		stopAt = numFileItemsDeletingNow;
-		firstFileItemRemaining = ((FileItem*)fileItems.getElementAddress(numFileItemsDeletingNow))->displayName;
+		firstFileItemRemaining.set(((FileItem*)fileItems.getElementAddress(numFileItemsDeletingNow))->displayName);
 	}
 	else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
 deleteFromRightSide:
 		numFileItemsDeletedAtEnd += numFileItemsDeletingNow;
 		stopAt = fileItems.getNumElements();
 		startAt = stopAt - numFileItemsDeletingNow;
-		lastFileItemRemaining = ((FileItem*)fileItems.getElementAddress(startAt - 1))->displayName;
+		lastFileItemRemaining.set(((FileItem*)fileItems.getElementAddress(startAt - 1))->displayName);
 	}
 
 	// Or if we've been using a search term *and* searching both directions, try to tend towards keeping equal amounts
@@ -276,8 +275,8 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	numFileItemsDeletedAtStart = 0;
 	numFileItemsDeletedAtEnd = 0;
-	firstFileItemRemaining = nullptr;
-	lastFileItemRemaining = nullptr;
+	firstFileItemRemaining.clear();
+	lastFileItemRemaining.clear();
 	catalogSearchDirection = newCatalogSearchDirection;
 	maxNumFileItemsNow = newMaxNumFileItems;
 	filenameToStartSearchAt = filenameToStartAt;
@@ -352,7 +351,7 @@ extensionNotSupported:
 					goto nonNumericFile; // Shouldn't happen?
 				}
 
-				int32_t dotPos = (uint32_t)dotAddress - (uint32_t)storedFilenameChars;
+				int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)storedFilenameChars;
 				if (dotPos < filePrefixLength + 3) {
 					goto nonNumericFile;
 				}
@@ -475,10 +474,10 @@ deleteThisItem:
 
 	// Our system of keeping FileItems from getting too full by deleting elements from its ends as we go could have
 	// caused bad results at the edges of the above, so delete a further one element at each end as needed.
-	if (firstFileItemRemaining) {
+	if (!firstFileItemRemaining.isEmpty()) {
 		fileItems.deleteAtIndex(0);
 	}
-	if (lastFileItemRemaining) {
+	if (!lastFileItemRemaining.isEmpty()) {
 		fileItems.deleteAtIndex(fileItems.getNumElements() - 1);
 	}
 }
@@ -492,7 +491,16 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 	}
 
 	const char* fileName = getFileNameFromEndOfPath(fullPath);
-	currentDir.set(getPathFromFullPath(fullPath));
+	// Copy the directory portion (everything before the final '/') straight into currentDir. String::set copies, so we
+	// bound it by length rather than building a temporary - the old getPathFromFullPath() returned a pointer into a
+	// std::string temporary that was already destroyed by the time we read it.
+	char const* slashPos = strrchr(fullPath, '/');
+	if (slashPos) {
+		currentDir.set(fullPath, (int32_t)(slashPos - fullPath));
+	}
+	else {
+		currentDir.clear();
+	}
 
 	// Change to the File Folder
 	Error error = arrivedInNewFolder(0, fileName);
@@ -1278,6 +1286,11 @@ notFound:
 
 	// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
 	if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos)) {
+		// If the search landed on the first cached item, the folder cache may be missing earlier entries.
+		if (i == 0 && !doneNewRead) {
+			goto doNewRead;
+		}
+
 		// this code is original but I don't know what it does. Slot browser maybe?
 		// Just updated to append to the string instead of replacing the tilde
 		if (numExtraZeroesAdded < 4) {
@@ -1398,7 +1411,7 @@ searchForChar:
 				goto searchForChar;
 			}
 
-			int32_t displayStringLength = (uint32_t)finalCharAddress - (uint32_t)displayName;
+			int32_t displayStringLength = (uintptr_t)finalCharAddress - (uintptr_t)displayName;
 
 			if (isSelectedIndex) {
 				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars, canvas);
@@ -1577,7 +1590,7 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 
 ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 
-	if (favouritesVisible && y == favouriteRow && on) {
+	if (isFavouritesVisible() && y == favouriteRow && on) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1589,20 +1602,20 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 			if (favouritesManager.isEmpty(x)) {
 				if (!getCurrentFileItem()->isFolder) {
-					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
+					favouritesManager.setFavourite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
 					favouritesChanged();
 				}
 			}
 			else {
-				favouritesManager.unsetFavorite(x);
+				favouritesManager.unsetFavourite(x);
 				favouritesChanged();
 			}
 		}
 		else {
-			const std::string favoritePath = favouritesManager.getFavoriteFilename(x);
+			const std::string favouritePath = favouritesManager.getFavouriteFilename(x);
 			favouritesChanged();
-			if (!favoritePath.empty()) {
-				setFileByFullPath(outputTypeToLoad, favoritePath.c_str());
+			if (!favouritePath.empty()) {
+				setFileByFullPath(outputTypeToLoad, favouritePath.c_str());
 			}
 			else {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_FAVOURITES_EMPTY));
@@ -1610,7 +1623,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 		return ActionResult::DEALT_WITH;
 	}
-	else if (favouritesVisible && banksVisible && y == favouriteBankRow && on) {
+	else if (isBanksVisible() && y == favouriteBankRow && on) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1629,7 +1642,7 @@ void Browser::favouritesChanged() {
 }
 
 ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (favouritesVisible) {
+	if (isFavouritesVisible()) {
 		if (Buttons::isShiftButtonPressed()) {
 			if (favouritesManager.currentFavouriteNumber.has_value()) {
 				favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
@@ -1709,7 +1722,7 @@ Error Browser::setEnteredTextFromCurrentFilename() {
 		char const* enteredTextChars = enteredText.get();
 		char const* dotAddress = strrchr(enteredTextChars, '.');
 		if (dotAddress) {
-			int32_t dotPos = (uint32_t)dotAddress - (uint32_t)enteredTextChars;
+			int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)enteredTextChars;
 			error = enteredText.shorten(dotPos);
 			if (error != Error::NONE) {
 				return error;
@@ -1757,7 +1770,7 @@ Error Browser::goUpOneDirectoryLevel() {
 		return Error::NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP;
 	}
 
-	int32_t slashPos = (uint32_t)slashAddress - (uint32_t)currentDirChars;
+	int32_t slashPos = (uintptr_t)slashAddress - (uintptr_t)currentDirChars;
 	Error error = enteredText.set(slashAddress + 1);
 	if (error != Error::NONE) {
 		return error;
@@ -1882,8 +1895,8 @@ void Browser::sortFileItems() {
 
 	// If we'd previously deleted items from either end of the list (apart from due to search direction as above),
 	// we need to now delete any items which would have fallen in that region.
-	if (lastFileItemRemaining) {
-		int32_t searchIndex = fileItems.search(lastFileItemRemaining);
+	if (!lastFileItemRemaining.isEmpty()) {
+		int32_t searchIndex = fileItems.search(lastFileItemRemaining.get());
 		int32_t itemsToDeleteAtEnd = fileItems.getNumElements() - searchIndex - 1;
 		if (itemsToDeleteAtEnd > 0) {
 			deleteSomeFileItems(searchIndex + 1, fileItems.getNumElements());
@@ -1891,11 +1904,22 @@ void Browser::sortFileItems() {
 		}
 	}
 
-	if (firstFileItemRemaining) {
-		int32_t itemsToDeleteAtStart = fileItems.search(firstFileItemRemaining);
+	if (!firstFileItemRemaining.isEmpty()) {
+		int32_t itemsToDeleteAtStart = fileItems.search(firstFileItemRemaining.get());
 		if (itemsToDeleteAtStart) {
 			deleteSomeFileItems(0, itemsToDeleteAtStart);
 			numFileItemsDeletedAtStart += itemsToDeleteAtStart;
 		}
 	}
+}
+
+bool Browser::isFavouritesVisible() {
+	return (getCurrentUI()->canDisplayFavourites() && qwertyVisible
+	        && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayout::FavouritesDefaultLayoutOff);
+}
+
+bool Browser::isBanksVisible() {
+	return (getCurrentUI()->canDisplayFavourites() && qwertyVisible
+	        && FlashStorage::defaultFavouritesLayout
+	               == FavouritesDefaultLayout::FavouritesDefaultLayoutFavouritesAndBanks);
 }

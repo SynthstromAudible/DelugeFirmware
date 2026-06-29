@@ -156,7 +156,7 @@ sdError:
 			currentDir.clear();
 		}
 		else {
-			int32_t slashPos = (uint32_t)slashAddress - (uint32_t)currentPathChars;
+			int32_t slashPos = (uintptr_t)slashAddress - (uintptr_t)currentPathChars;
 			searchFilename = &currentPathChars[slashPos + 1];
 
 			currentDir.set(currentPathChars);
@@ -242,7 +242,6 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 	// Can start scrolling right now, while next preview loads
 	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible) && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
-		favouritesVisible = false;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
@@ -490,7 +489,6 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
 		qwertyVisible = qwertyAlwaysVisible;
 		if (qwertyVisible) {
-			favouritesVisible = true;
 			qwertyCurrentlyDrawnOnscreen = true;
 			drawKeys();
 		}
@@ -714,7 +712,6 @@ possiblyExit:
 				}
 
 				qwertyVisible = true;
-				favouritesVisible = true;
 
 				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 				PadLEDs::reassessGreyout(true);
@@ -2003,7 +2000,7 @@ getOut:
 				char const* newNameChars = newName.get();
 				char const* dotAddress = strrchr(newNameChars, '.');
 				if (dotAddress) {
-					int32_t dotPos = (uint32_t)dotAddress - (uint32_t)newNameChars;
+					int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)newNameChars;
 					newName.shorten(dotPos);
 				}
 
@@ -2080,7 +2077,6 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	}
 	else {
 		qwertyVisible = true;
-		favouritesVisible = true;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		PadLEDs::reassessGreyout(true);

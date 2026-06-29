@@ -1061,8 +1061,8 @@ enum SessionLayoutType : uint8_t {
 };
 
 enum FavouritesDefaultLayout : uint8_t {
-	FavouritesDefaultLayoutFavorites,
-	FavouritesDefaultLayoutFavoritesAndBanks,
+	FavouritesDefaultLayoutFavourites,
+	FavouritesDefaultLayoutFavouritesAndBanks,
 	FavouritesDefaultLayoutOff,
 	FavouritesDefaultLayoutMaxElement // Keep as boundary
 };
