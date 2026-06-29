@@ -116,8 +116,24 @@ void writeToFile() {
 	writer.writeOpeningTagEnd();
 
 	for (FanOutGroup& group : groups) {
+		// Does this group have any children to write? (A learned source or at least one configured dest.)
+		bool hasChildren = group.source.containsSomething();
+		for (int32_t i = 0; i < kNumDestSlots && !hasChildren; i++) {
+			hasChildren = group.dests[i].cc != kDestCCNone;
+		}
+
 		writer.writeOpeningTagBeginning(MIDI_FANOUT_GROUP_TAG);
-		writer.writeAttribute("on", group.enabled ? 1 : 0, false);
+		writer.writeAttribute("enabled", group.enabled ? 1 : 0, false);
+
+		// Self-close empty groups (<group enabled="0"/>). The XML reader mis-parses an empty but
+		// explicitly-closed element that carries an attribute (<group enabled="0"></group>), which
+		// desyncs the rest of the file; a self-closing tag avoids that. Groups must stay positional
+		// (slot 0..3 = group index), so we always write all of them rather than skipping empties.
+		if (!hasChildren) {
+			writer.closeTag();
+			continue;
+		}
+
 		writer.writeOpeningTagEnd();
 
 		group.source.writeCCToFile(writer, MIDI_FANOUT_SOURCE_TAG);
@@ -131,7 +147,7 @@ void writeToFile() {
 				writer.writeAttribute("cc", dest.cc, false);
 				writer.writeAttribute("from", dest.from, false);
 				writer.writeAttribute("to", dest.to, false);
-				writer.writeAttribute("on", dest.enabled ? 1 : 0, false);
+				writer.writeAttribute("send", dest.enabled ? 1 : 0, false);
 				writer.closeTag();
 			}
 		}
@@ -144,7 +160,7 @@ void writeToFile() {
 	dirty = false;
 }
 
-// Reads a dest's cc/from/to/on attributes (e.g. <dest1 cc="42" from="0" to="100" on="1" />).
+// Reads a dest's cc/from/to/send attributes (e.g. <dest1 cc="42" from="0" to="100" send="1" />).
 static void readDestFromFile(Deserializer& reader, FanOutDestSlot& dest) {
 	int32_t cc = kDestCCNone;
 	int32_t from = kDefaultFrom;
@@ -161,7 +177,7 @@ static void readDestFromFile(Deserializer& reader, FanOutDestSlot& dest) {
 		else if (!strcmp(attrName, "to")) {
 			to = reader.readTagOrAttributeValueInt();
 		}
-		else if (!strcmp(attrName, "on")) {
+		else if (!strcmp(attrName, "send")) {
 			enabled = reader.readTagOrAttributeValueInt() != 0;
 		}
 		reader.exitTag();
@@ -175,7 +191,7 @@ static void readDestFromFile(Deserializer& reader, FanOutDestSlot& dest) {
 static void readGroupFromFile(Deserializer& reader, FanOutGroup& group) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "on")) {
+		if (!strcmp(tagName, "enabled")) {
 			group.enabled = reader.readTagOrAttributeValueInt() != 0;
 		}
 		else if (!strcmp(tagName, MIDI_FANOUT_SOURCE_TAG)) {
