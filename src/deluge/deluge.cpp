@@ -48,6 +48,7 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_fanout.h"
 #include "io/midi/midi_follow.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "memory/general_memory_allocator.h"
@@ -810,6 +811,7 @@ extern "C" int32_t deluge_main(void) {
 	runtimeFeatureSettings.readSettingsFromFile();
 	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
+	MIDIFanOut::readFromFile();
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
 	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song", RESOURCE_SD | RESOURCE_SD_ROUTINE);

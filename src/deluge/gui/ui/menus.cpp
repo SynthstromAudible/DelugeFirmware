@@ -100,6 +100,7 @@
 #include "gui/menu_item/midi/device_receive_clock.h"
 #include "gui/menu_item/midi/device_send_clock.h"
 #include "gui/menu_item/midi/devices.h"
+#include "gui/menu_item/midi/fanout_dest.h"
 #include "gui/menu_item/midi/follow/follow_channel.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
 #include "gui/menu_item/midi/follow/follow_feedback_channel_type.h"
@@ -1121,6 +1122,58 @@ Submenu midiCommandsMenu{
      &nextSongMidiCommand, &shiftMidiCommand},
 };
 
+// MIDI fan-out submenu - 4 groups, each a learnable source CC fanning out to 8 destinations.
+// Each destination is a horizontal menu page of three columns (CC | Base | Depth); the 8 pages
+// are bundled into a HorizontalMenuGroup so you flip between destinations 1-8 from one page.
+
+// Declares the CC/Base/Depth/On column items plus the horizontal page for group g's slot s.
+#define FANOUT_DEST(g, s)                                                                                              \
+	midi::FanOutDest fanOutG##g##D##s##CC{STRING_FOR_FAN_OUT_DEST_CC, (g) - 1, (s) - 1};                               \
+	midi::FanOutDestRange fanOutG##g##D##s##From{STRING_FOR_FAN_OUT_FROM, (g) - 1, (s) - 1,                            \
+	                                             midi::FanOutDestRange::FROM};                                         \
+	midi::FanOutDestRange fanOutG##g##D##s##To{STRING_FOR_FAN_OUT_TO, (g) - 1, (s) - 1, midi::FanOutDestRange::TO};    \
+	midi::FanOutDestSend fanOutG##g##D##s##Send{STRING_FOR_FAN_OUT_SEND, (g) - 1, (s) - 1};                            \
+	HorizontalMenu fanOutG##g##Dest##s {                                                                               \
+		STRING_FOR_FAN_OUT_DEST_##s, {                                                                                 \
+			&fanOutG##g##D##s##CC, &fanOutG##g##D##s##From, &fanOutG##g##D##s##To, &fanOutG##g##D##s##Send             \
+		}                                                                                                              \
+	}
+
+// Declares group g's master enable, learnable source, 8 destination pages and the group submenu.
+#define FANOUT_GROUP(g)                                                                                                \
+	midi::FanOutGroupOn fanOutG##g##Enabled{STRING_FOR_FAN_OUT_ENABLED, (g) - 1};                                      \
+	midi::FanOutSource fanOutG##g##Source{STRING_FOR_FAN_OUT_SOURCE, (g) - 1};                                         \
+	FANOUT_DEST(g, 1);                                                                                                 \
+	FANOUT_DEST(g, 2);                                                                                                 \
+	FANOUT_DEST(g, 3);                                                                                                 \
+	FANOUT_DEST(g, 4);                                                                                                 \
+	FANOUT_DEST(g, 5);                                                                                                 \
+	FANOUT_DEST(g, 6);                                                                                                 \
+	FANOUT_DEST(g, 7);                                                                                                 \
+	FANOUT_DEST(g, 8);                                                                                                 \
+	HorizontalMenuGroup fanOutG##g##Dests{STRING_FOR_FAN_OUT_DESTINATIONS,                                             \
+	                                      {&fanOutG##g##Dest1, &fanOutG##g##Dest2, &fanOutG##g##Dest3,                 \
+	                                       &fanOutG##g##Dest4, &fanOutG##g##Dest5, &fanOutG##g##Dest6,                 \
+	                                       &fanOutG##g##Dest7, &fanOutG##g##Dest8}};                                   \
+	Submenu midiFanOutGroup##g##Menu {                                                                                 \
+		STRING_FOR_FAN_OUT_GROUP_##g, {                                                                                \
+			&fanOutG##g##Enabled, &fanOutG##g##Source, &fanOutG##g##Dests                                              \
+		}                                                                                                              \
+	}
+
+FANOUT_GROUP(1);
+FANOUT_GROUP(2);
+FANOUT_GROUP(3);
+FANOUT_GROUP(4);
+#undef FANOUT_GROUP
+#undef FANOUT_DEST
+
+Submenu midiFanOutMenu{
+    STRING_FOR_FAN_OUT,
+    STRING_FOR_MIDI_FAN_OUT,
+    {&midiFanOutGroup1Menu, &midiFanOutGroup2Menu, &midiFanOutGroup3Menu, &midiFanOutGroup4Menu},
+};
+
 // MIDI device submenu - for after we've selected which device we want it for
 
 midi::DefaultVelocityToLevel defaultVelocityToLevelMenu{STRING_FOR_VELOCITY};
@@ -1172,6 +1225,7 @@ Submenu midiMenu{
         &midiTransposeMenu,
         &midiTakeoverMenu,
         &midiCommandsMenu,
+        &midiFanOutMenu,
         &midiInputDifferentiationMenu,
         &midi::devicesMenu,
     },

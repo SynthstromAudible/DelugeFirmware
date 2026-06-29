@@ -21,10 +21,11 @@
 #include "gui/menu_item/menu_item.h"
 
 class MIDICable;
+class LearnedMIDI;
 
 namespace deluge::gui::menu_item::midi {
 
-class Command final : public MenuItem {
+class Command : public MenuItem {
 public:
 	Command(l10n::String newName, GlobalMIDICommand newCommandNumber = GlobalMIDICommand::PLAYBACK_RESTART)
 	    : MenuItem(newName), commandNumber(newCommandNumber) {}
@@ -39,6 +40,9 @@ public:
 	void learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value) override;
 
 	void drawPixelsForOled() override;
+
+	// The LearnedMIDI this menu item learns into; defaults to the global MIDI command's
+	[[nodiscard]] virtual LearnedMIDI& learned() const;
 
 	GlobalMIDICommand commandNumber;
 };
