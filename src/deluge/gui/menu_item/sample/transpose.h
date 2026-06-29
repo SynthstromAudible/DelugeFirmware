@@ -45,7 +45,7 @@ public:
 		    && source.oscType == OscType::SAMPLE) {
 			const auto* multiRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
 			transpose = multiRange->sampleHolder.transpose;
-			cents = multiRange->sampleHolder.cents;
+			cents = multiRange->sampleHolder.getCents();
 		}
 		else {
 			transpose = source.transpose;

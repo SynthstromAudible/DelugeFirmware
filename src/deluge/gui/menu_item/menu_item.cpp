@@ -45,8 +45,8 @@ void MenuItem::drawName() {
 }
 
 // A couple of our child classes call this - that's all
-void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32_t selectedOption,
-                                const int32_t offset) {
+void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32_t selectedOption, const int32_t offset,
+                                const int32_t startX) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
@@ -56,11 +56,11 @@ void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32
 	for (int32_t o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
 		int32_t yPixel = o * kTextSpacingY + baseY;
 
-		image.drawString(options[o + offset], kTextSpacingX, yPixel, kTextSpacingX, kTextSpacingY);
+		image.drawString(options[o + offset], startX, yPixel, kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
 			image.invertLeftEdgeForMenuHighlighting(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
-			deluge::hid::display::OLED::setupSideScroller(0, options[o + offset], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS,
+			deluge::hid::display::OLED::setupSideScroller(0, options[o + offset], startX, OLED_MAIN_WIDTH_PIXELS,
 			                                              yPixel, yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}
 	}
