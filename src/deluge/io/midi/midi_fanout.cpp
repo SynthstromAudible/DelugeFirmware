@@ -26,6 +26,7 @@
 #include "model/model_stack.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
 #include "storage/storage_manager.h"
 #include <algorithm>
 #include <string.h>
@@ -39,6 +40,8 @@
 namespace MIDIFanOut {
 
 FanOutGroup groups[kNumGroups]{};
+
+int32_t templateGroupIndex = 0;
 
 static bool dirty = false;
 
@@ -109,6 +112,48 @@ static int32_t destSlotFromTagName(char const* tagName) {
 	return -1;
 }
 
+// Writes one <group> element (self-closing if empty), as it appears in both the main file and a
+// single-group template file.
+static void writeGroupToFile(Serializer& writer, FanOutGroup& group) {
+	// Does this group have any children to write? (A learned source or at least one configured dest.)
+	bool hasChildren = group.source.containsSomething();
+	for (int32_t i = 0; i < kNumDestSlots && !hasChildren; i++) {
+		hasChildren = group.dests[i].cc != kDestCCNone;
+	}
+
+	writer.writeOpeningTagBeginning(MIDI_FANOUT_GROUP_TAG);
+	writer.writeAttribute("enabled", group.enabled ? 1 : 0, false);
+
+	// Self-close empty groups (<group enabled="0"/>). The XML reader mis-parses an empty but
+	// explicitly-closed element that carries an attribute (<group enabled="0"></group>), which
+	// desyncs the rest of the file; a self-closing tag avoids that. Groups must stay positional
+	// (slot 0..3 = group index), so we always write all of them rather than skipping empties.
+	if (!hasChildren) {
+		writer.closeTag();
+		return;
+	}
+
+	writer.writeOpeningTagEnd();
+
+	group.source.writeCCToFile(writer, MIDI_FANOUT_SOURCE_TAG);
+
+	for (int32_t i = 0; i < kNumDestSlots; i++) {
+		FanOutDestSlot& dest = group.dests[i];
+		if (dest.cc != kDestCCNone) {
+			char tagName[6] = "dest1";
+			tagName[4] = '1' + i;
+			writer.writeOpeningTagBeginning(tagName);
+			writer.writeAttribute("cc", dest.cc, false);
+			writer.writeAttribute("from", dest.from, false);
+			writer.writeAttribute("to", dest.to, false);
+			writer.writeAttribute("send", dest.enabled ? 1 : 0, false);
+			writer.closeTag();
+		}
+	}
+
+	writer.writeClosingTag(MIDI_FANOUT_GROUP_TAG);
+}
+
 void writeToFile() {
 	if (!dirty) {
 		return;
@@ -125,43 +170,7 @@ void writeToFile() {
 	writer.writeOpeningTagEnd();
 
 	for (FanOutGroup& group : groups) {
-		// Does this group have any children to write? (A learned source or at least one configured dest.)
-		bool hasChildren = group.source.containsSomething();
-		for (int32_t i = 0; i < kNumDestSlots && !hasChildren; i++) {
-			hasChildren = group.dests[i].cc != kDestCCNone;
-		}
-
-		writer.writeOpeningTagBeginning(MIDI_FANOUT_GROUP_TAG);
-		writer.writeAttribute("enabled", group.enabled ? 1 : 0, false);
-
-		// Self-close empty groups (<group enabled="0"/>). The XML reader mis-parses an empty but
-		// explicitly-closed element that carries an attribute (<group enabled="0"></group>), which
-		// desyncs the rest of the file; a self-closing tag avoids that. Groups must stay positional
-		// (slot 0..3 = group index), so we always write all of them rather than skipping empties.
-		if (!hasChildren) {
-			writer.closeTag();
-			continue;
-		}
-
-		writer.writeOpeningTagEnd();
-
-		group.source.writeCCToFile(writer, MIDI_FANOUT_SOURCE_TAG);
-
-		for (int32_t i = 0; i < kNumDestSlots; i++) {
-			FanOutDestSlot& dest = group.dests[i];
-			if (dest.cc != kDestCCNone) {
-				char tagName[6] = "dest1";
-				tagName[4] = '1' + i;
-				writer.writeOpeningTagBeginning(tagName);
-				writer.writeAttribute("cc", dest.cc, false);
-				writer.writeAttribute("from", dest.from, false);
-				writer.writeAttribute("to", dest.to, false);
-				writer.writeAttribute("send", dest.enabled ? 1 : 0, false);
-				writer.closeTag();
-			}
-		}
-
-		writer.writeClosingTag(MIDI_FANOUT_GROUP_TAG);
+		writeGroupToFile(writer, group);
 	}
 
 	writer.writeClosingTag(MIDI_FANOUT_TAG);
@@ -237,6 +246,80 @@ void readFromFile() {
 		reader.exitTag();
 	}
 	activeDeserializer->closeWriter();
+}
+
+// Writes a one-group template: the same <midiFanOut> wrapper as the main file, holding a single
+// <group>. The caller (the save browser) owns createXMLFile()/closeFileAfterWriting().
+void writeGroupTemplate(Serializer& writer, int32_t groupIndex) {
+	writer.writeOpeningTagBeginning(MIDI_FANOUT_TAG);
+	writer.writeOpeningTagEnd();
+	writeGroupToFile(writer, groups[groupIndex]);
+	writer.writeClosingTag(MIDI_FANOUT_TAG);
+}
+
+// Loads the first <group> from a template file into groups[groupIndex], replacing it wholesale.
+Error loadGroupTemplate(FilePointer* fp, int32_t groupIndex) {
+	Error error = StorageManager::openXMLFile(fp, smDeserializer, MIDI_FANOUT_TAG);
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	// Reset the target group first so anything not present in the template (e.g. dest slots the
+	// template leaves unconfigured) is cleared rather than left over from the previous contents.
+	groups[groupIndex] = FanOutGroup{};
+
+	Deserializer& reader = *activeDeserializer;
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, MIDI_FANOUT_GROUP_TAG)) {
+			readGroupFromFile(reader, groups[groupIndex]);
+		}
+		reader.exitTag();
+	}
+	activeDeserializer->closeWriter();
+
+	// Persist the loaded state into the main MIDIFanOut.XML too.
+	markDirty();
+	return Error::NONE;
+}
+
+void captureSnapshot(int32_t groupIndex, bool toMax) {
+	// Same guards/setup as sendToDests(): need a stable active MIDI clip.
+	if (getCurrentUI() == &loadSongUI) {
+		return;
+	}
+	Clip* clip = midiFollow.getSelectedOrActiveClip();
+	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
+		return;
+	}
+	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
+	bool changed = false;
+	for (FanOutDestSlot& dest : groups[groupIndex].dests) {
+		if (dest.cc == kDestCCNone) {
+			continue;
+		}
+		// Read this CC's current live value - the inverse of the write in sendToDests().
+		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+		    modelStackWithTimelineCounter->addNoteRow(0, nullptr)
+		        ->addOtherTwoThings(instrument->toModControllable(), instrument->getParamManager(currentSong));
+		ModelStackWithAutoParam* modelStackWithParam =
+		    instrument->getParamToControlFromInputMIDIChannel(dest.cc, modelStackWithThreeMainThings);
+		if (!modelStackWithParam->autoParam) {
+			continue;
+		}
+		int32_t paramValue = modelStackWithParam->autoParam->getCurrentValue();
+		int32_t value = std::clamp<int32_t>(((paramValue + (1 << 24)) >> 25) + 64, 0, kMaxValue);
+		(toMax ? dest.to : dest.from) = value;
+		changed = true;
+	}
+	if (changed) {
+		markDirty();
+	}
 }
 
 } // namespace MIDIFanOut

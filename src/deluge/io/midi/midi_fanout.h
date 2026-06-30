@@ -55,6 +55,13 @@ struct FanOutGroup {
 
 extern FanOutGroup groups[kNumGroups];
 
+// Folder for per-group snapshot files, a sibling of MIDIFanOut.XML under SETTINGS.
+constexpr char const* kSnapshotsFolder = "SETTINGS/SNAPSHOTS";
+
+// Which group a template browser (load/save) is acting on. Set by the menu item before opening the
+// browser UI, read by the UI's performLoad()/performSave().
+extern int32_t templateGroupIndex;
+
 // If the incoming CC matches any group's learned source, writes its value to that group's
 // destination CCs on the active MIDI clip. Returns whether it matched (and so consumed the message).
 bool tryFanOut(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t value);
@@ -64,4 +71,16 @@ void markDirty();
 
 void writeToFile();
 void readFromFile();
+
+// Save/load a single group as its own template file, reusing the main file's <midiFanOut><group/>
+// structure. writeGroupTemplate() writes the body between the browser's createXMLFile() and
+// closeFileAfterWriting(); loadGroupTemplate() opens, reads one group into groups[groupIndex], and
+// marks the main config dirty so the loaded state also persists to MIDIFanOut.XML.
+void writeGroupTemplate(Serializer& writer, int32_t groupIndex);
+Error loadGroupTemplate(FilePointer* fp, int32_t groupIndex);
+
+// Captures the current live value of each configured destination CC on the active MIDI clip into
+// that dest's from (toMax=false, the "min" snapshot) or to (toMax=true, the "max" snapshot). The
+// source CC then morphs between the two via the existing sendToDests() interpolation.
+void captureSnapshot(int32_t groupIndex, bool toMax);
 }; // namespace MIDIFanOut
