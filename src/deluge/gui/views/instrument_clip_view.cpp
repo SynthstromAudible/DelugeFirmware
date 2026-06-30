@@ -5323,23 +5323,27 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 		}
 	}
 
-	// If won't be actually sounding Instrument...
-	if (shiftButtonDown || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+	// if we aren't auditioning silently due to sequenced notes, check if we should be auditioning silently
+	// because of shortcut presses (shift or euclidean)
+	if (!doSilentAudition) {
+		// If won't be actually sounding Instrument...
+		if (shiftButtonDown || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+			fileBrowserShouldNotPreview = true;
 
-		fileBrowserShouldNotPreview = true;
+			doSilentAudition = true;
+		}
+		else {
+			if (!auditioningSilently) {
+				fileBrowserShouldNotPreview = false;
 
-		doSilentAudition = true;
-	}
-	else {
-		if (!auditioningSilently) {
-			fileBrowserShouldNotPreview = false;
+				sendAuditionNote(true, yDisplay, velocityToSound, 0);
 
-			sendAuditionNote(true, yDisplay, velocityToSound, 0);
-
-			lastAuditionedVelocityOnScreen[yDisplay] = velocityToSound;
+				lastAuditionedVelocityOnScreen[yDisplay] = velocityToSound;
+			}
 		}
 	}
 
+	// if we are auditioning silently
 	if (doSilentAudition) {
 		auditioningSilently = true;
 		reassessAllAuditionStatus();
@@ -5404,13 +5408,16 @@ void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack,
                                               NoteRow* noteRowOnActiveClip) {
 	if (auditionPadIsPressed[yDisplay]) {
+		bool auditionNoteWasSounding = lastAuditionedVelocityOnScreen[yDisplay] != 255;
 		auditionPadIsPressed[yDisplay] = 0;
 		lastAuditionedVelocityOnScreen[yDisplay] = 255;
 
-		// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
+		// Stop the note sounding - but only if we previously auditioned the note
+		// and only if a sequenced note isn't in fact being played here.
 		// Or if it's drone note, end auditioning to transfer the note's sustain to the sequencer
-		if (!noteRowOnActiveClip || !noteRowOnActiveClip->sequenced
-		    || noteRowOnActiveClip->isDroning(modelStack->getLoopLength())) {
+		if (auditionNoteWasSounding
+		    && (!noteRowOnActiveClip || !noteRowOnActiveClip->sequenced
+		        || noteRowOnActiveClip->isDroning(modelStack->getLoopLength()))) {
 			sendAuditionNote(false, yDisplay, 64, 0);
 		}
 	}
