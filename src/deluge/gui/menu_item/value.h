@@ -55,7 +55,7 @@ protected:
 	virtual void drawValue() = 0;
 
 private:
-	T value_;
+	T value_{};
 };
 
 template <typename T>
