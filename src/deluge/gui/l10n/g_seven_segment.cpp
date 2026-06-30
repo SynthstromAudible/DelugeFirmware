@@ -566,6 +566,10 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_FAN_OUT_TO, "TO"},
         {STRING_FOR_FAN_OUT_SEND, "SEND"},
         {STRING_FOR_FAN_OUT_ENABLED, "ENBL"},
+        {STRING_FOR_FAN_OUT_LOAD, "LOAD"},
+        {STRING_FOR_FAN_OUT_SAVE, "SAVE"},
+        {STRING_FOR_FAN_OUT_MIN_SET, "MIN"},
+        {STRING_FOR_FAN_OUT_MAX_SET, "MAX"},
     },
     &built_in::english,
 };

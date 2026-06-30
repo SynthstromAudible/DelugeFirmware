@@ -1006,6 +1006,12 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FAN_OUT_TO, "To"},
         {STRING_FOR_FAN_OUT_SEND, "Send"},
         {STRING_FOR_FAN_OUT_ENABLED, "Enabled"},
+        {STRING_FOR_FAN_OUT_LOAD, "Load"},
+        {STRING_FOR_FAN_OUT_SAVE, "Save"},
+        {STRING_FOR_FAN_OUT_TEMPLATE_LOADED, "Snapshot loaded"},
+        {STRING_FOR_FAN_OUT_TEMPLATE_SAVED, "Snapshot saved"},
+        {STRING_FOR_FAN_OUT_MIN_SET, "Min set"},
+        {STRING_FOR_FAN_OUT_MAX_SET, "Max set"},
     },
 };
 } // namespace deluge::l10n::built_in

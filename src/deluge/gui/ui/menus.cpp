@@ -101,6 +101,7 @@
 #include "gui/menu_item/midi/device_send_clock.h"
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/midi/fanout_dest.h"
+#include "gui/menu_item/midi/fanout_template.h"
 #include "gui/menu_item/midi/follow/follow_channel.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
 #include "gui/menu_item/midi/follow/follow_feedback_channel_type.h"
@@ -1157,9 +1158,11 @@ Submenu midiCommandsMenu{
 	                                      {&fanOutG##g##Dest1, &fanOutG##g##Dest2, &fanOutG##g##Dest3,                 \
 	                                       &fanOutG##g##Dest4, &fanOutG##g##Dest5, &fanOutG##g##Dest6,                 \
 	                                       &fanOutG##g##Dest7, &fanOutG##g##Dest8}};                                   \
+	midi::FanOutTemplate fanOutG##g##Load{STRING_FOR_FAN_OUT_LOAD, (g) - 1, false};                                    \
+	midi::FanOutTemplate fanOutG##g##Save{STRING_FOR_FAN_OUT_SAVE, (g) - 1, true};                                     \
 	Submenu midiFanOutGroup##g##Menu {                                                                                 \
 		STRING_FOR_FAN_OUT_GROUP_##g, {                                                                                \
-			&fanOutG##g##Enabled, &fanOutG##g##Source, &fanOutG##g##Dests                                              \
+			&fanOutG##g##Enabled, &fanOutG##g##Source, &fanOutG##g##Dests, &fanOutG##g##Load, &fanOutG##g##Save        \
 		}                                                                                                              \
 	}
 
