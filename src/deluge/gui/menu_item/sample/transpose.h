@@ -153,7 +153,7 @@ public:
 		const int32_t numRanges = source.ranges.getNumElements();
 
 		if (soundEditor.currentSourceIndex != source_id_ || soundEditor.currentMultiRange == nullptr || numRanges <= 1
-			|| rangeIndex < 0 || rangeIndex >= numRanges || source.oscType != OscType::SAMPLE) {
+		    || rangeIndex < 0 || rangeIndex >= numRanges || source.oscType != OscType::SAMPLE) {
 			return;
 		}
 
