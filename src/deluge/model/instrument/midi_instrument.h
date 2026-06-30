@@ -63,6 +63,8 @@ public:
 	/// definition file
 	String deviceDefinitionFileName;
 	bool loadDeviceDefinitionFile = false;
+	/// when true, scrolling through MIDI CCs skips CCs that have no defined (named) label
+	bool only_show_defined_ccs = false;
 
 	void sendMIDIPGM() override;
 

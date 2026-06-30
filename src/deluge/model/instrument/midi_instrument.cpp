@@ -348,6 +348,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 
 void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFileNameToPresetOrSong) {
 	writer.writeOpeningTagBeginning("midiDevice");
+	writer.writeAttribute("onlyShowDefinedCCs", (int32_t)only_show_defined_ccs);
 	writer.writeOpeningTagEnd();
 
 	if (writeFileNameToPresetOrSong) {
@@ -490,7 +491,10 @@ Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader, bool readFr
 
 	// step into any subtags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "definitionFile")) {
+		if (!strcmp(tagName, "onlyShowDefinedCCs")) {
+			only_show_defined_ccs = (bool)reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "definitionFile")) {
 			readDeviceDefinitionFileNameFromPresetOrSong(reader);
 			// only flag definition file for loading if we aren't reading from preset or song
 			// and definition file name isn't blank
