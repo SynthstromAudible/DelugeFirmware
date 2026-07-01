@@ -266,26 +266,6 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
                                        WaveformRenderData* data, SampleRecorder* recorder, int32_t xStart,
                                        int32_t xEnd) {
 
-	if (xZoomSamples != data->xZoom) {
-		// Zoom changed: every column now covers a different span of samples, so nothing is reusable.
-		std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
-	}
-	else if (xScrollSamples != data->xScroll) {
-		// Scroll changed but zoom didn't. If we moved by a whole number of columns, the overlapping
-		// columns' peaks are still valid - slide them across so only the newly-exposed columns get
-		// re-investigated (fix A, issue #4460). Otherwise fall back to a full invalidate.
-		int64_t deltaSamples = xScrollSamples - data->xScroll;
-		if (deltaSamples % static_cast<int64_t>(xZoomSamples) == 0) {
-			shiftRenderCache(*data, static_cast<int32_t>(deltaSamples / static_cast<int64_t>(xZoomSamples)));
-		}
-		else {
-			std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
-		}
-	}
-
-	data->xScroll = xScrollSamples;
-	data->xZoom = xZoomSamples;
-
 	uint64_t numValidSamples;
 	int32_t endClusters;
 	if (recorder) {
@@ -298,6 +278,31 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 	}
 
 	uint64_t numValidBytes = numValidSamples * sample->byteDepth * sample->numChannels;
+
+	if (xZoomSamples != data->xZoom || static_cast<int64_t>(numValidSamples) != data->validLengthSamples) {
+		// Zoom changed, or the waveform length changed (e.g. sample replaced/shrunk): nothing is reusable.
+		std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
+	}
+	else if (xScrollSamples != data->xScroll) {
+		// Scroll changed but zoom and length didn't. If we moved by a whole number of columns that fits the
+		// display width, the overlapping columns' peaks are still valid - slide them across so only the
+		// newly-exposed columns get re-investigated (fix A, issue #4460). Otherwise fall back to a full
+		// invalidate (this also covers a scroll delta so large the column count wouldn't fit in int32).
+		int64_t deltaSamples = xScrollSamples - data->xScroll;
+		int64_t shiftCols = (deltaSamples % static_cast<int64_t>(xZoomSamples) == 0)
+		                        ? deltaSamples / static_cast<int64_t>(xZoomSamples)
+		                        : 0;
+		if (shiftCols != 0 && shiftCols >= -kDisplayWidth && shiftCols <= kDisplayWidth) {
+			shiftRenderCache(*data, static_cast<int32_t>(shiftCols));
+		}
+		else {
+			std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
+		}
+	}
+
+	data->xScroll = xScrollSamples;
+	data->xZoom = xZoomSamples;
+	data->validLengthSamples = static_cast<int64_t>(numValidSamples);
 
 	bool hadAnyTroubleLoading = false;
 
