@@ -22,13 +22,35 @@
 #include "storage/flash_storage.h"
 #include "util/etl_string.h"
 
+#include <algorithm>
 #include <hid/display/oled.h>
 #include <math.h>
 #include <vector>
 
 using deluge::hid::display::oled_canvas::Canvas;
 
+namespace {
+constexpr int32_t kMaxX = OLED_MAIN_WIDTH_PIXELS - 1;
+constexpr int32_t kMaxY = OLED_MAIN_HEIGHT_PIXELS - 1;
+
+bool clipRect(int32_t& minX, int32_t& minY, int32_t& maxX, int32_t& maxY) {
+	if (maxX < minX || maxY < minY || maxX < 0 || minX > kMaxX || maxY < 0 || minY > kMaxY) {
+		return false;
+	}
+
+	minX = std::clamp<int32_t>(minX, 0, kMaxX);
+	maxX = std::clamp<int32_t>(maxX, 0, kMaxX);
+	minY = std::clamp<int32_t>(minY, 0, kMaxY);
+	maxY = std::clamp<int32_t>(maxY, 0, kMaxY);
+	return true;
+}
+} // namespace
+
 void Canvas::clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
+	if (!clipRect(minX, minY, maxX, maxY)) {
+		return;
+	}
+
 	int32_t firstRow = minY >> 3;
 	int32_t lastRow = maxY >> 3;
 
@@ -70,21 +92,43 @@ void Canvas::clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t ma
 }
 
 void Canvas::drawPixel(int32_t x, int32_t y) {
+	if (x < 0 || x > kMaxX || y < 0 || y > kMaxY) {
+		return;
+	}
+
 	int32_t yRow = y >> 3;
 	image_[yRow][x] |= 1 << (y & 0x7);
 }
 
 void Canvas::clearPixel(int32_t x, int32_t y) {
+	if (x < 0 || x > kMaxX || y < 0 || y > kMaxY) {
+		return;
+	}
+
 	int32_t yRow = y >> 3;
 	image_[yRow][x] &= ~(1 << (y & 0x7));
 }
 
 void Canvas::invertPixel(int32_t x, int32_t y) {
+	if (x < 0 || x > kMaxX || y < 0 || y > kMaxY) {
+		return;
+	}
+
 	int32_t yRow = y >> 3;
 	image_[yRow][x] ^= 1 << (y & 0x7);
 }
 
 void Canvas::drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX) {
+	if (pixelY < 0 || pixelY > kMaxY || endX < startX || endX < 0 || startX > kMaxX) {
+		return;
+	}
+
+	startX = std::clamp<int32_t>(startX, 0, kMaxX);
+	endX = std::clamp<int32_t>(endX, 0, kMaxX);
+	if (endX < startX) {
+		return;
+	}
+
 	uint8_t mask = 1 << (pixelY & 7);
 
 	uint8_t* __restrict__ currentPos = &image_[pixelY >> 3][startX];
@@ -96,6 +140,16 @@ void Canvas::drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX) {
 }
 
 void Canvas::drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY) {
+	if (pixelX < 0 || pixelX > kMaxX || endY < startY || endY < 0 || startY > kMaxY) {
+		return;
+	}
+
+	startY = std::clamp<int32_t>(startY, 0, kMaxY);
+	endY = std::clamp<int32_t>(endY, 0, kMaxY);
+	if (endY < startY) {
+		return;
+	}
+
 	int32_t firstRowY = startY >> 3;
 	int32_t lastRowY = endY >> 3;
 
@@ -673,6 +727,12 @@ void Canvas::drawScreenTitle(std::string_view title, bool drawSeparator) {
 }
 
 void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
+	int32_t xMax = xMin + width - 1;
+	if (!clipRect(xMin, startY, xMax, endY)) {
+		return;
+	}
+	width = xMax - xMin + 1;
+
 	int32_t firstRowY = startY >> 3;
 	int32_t lastRowY = endY >> 3;
 

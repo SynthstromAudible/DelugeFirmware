@@ -168,6 +168,10 @@ public:
 	/// \brief What mod controllable context is this UI using? E.g. Automation View can use the Song
 	///		   ModControllable when in Arranger but the Clip ModControllable when in a Clip.
 	virtual UIModControllableContext getUIModControllableContext() { return UIModControllableContext::NONE; }
+	virtual bool canDisplayFavourites() { return false; }
+	virtual bool isFavouritesVisible() { return false; }
+	virtual bool isBanksVisible() { return false; }
+
 #if ENABLE_MATRIX_DEBUG
 	const char* getUIName();
 #endif

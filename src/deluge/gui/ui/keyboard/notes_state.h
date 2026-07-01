@@ -70,6 +70,11 @@ struct NotesState {
 
 	NoteArray::size_type enableNote(uint8_t note, uint8_t velocity, bool generatedNote = false,
 	                                int16_t* mpeValues = nullptr) {
+		// Out-of-range notes (e.g. from chord voicings transposed past the top of the keyboard) must be
+		// ignored: `states` is a fixed-size bitset and indexing it out of bounds corrupts memory.
+		if (note >= kHighestKeyboardNote) {
+			return count;
+		}
 		if (noteEnabled(note)) {
 			for (auto i = 0; i < notes.size(); ++i) {
 				auto& noteState = notes[i];
@@ -97,7 +102,7 @@ struct NotesState {
 		return idx;
 	}
 
-	[[nodiscard]] constexpr bool noteEnabled(uint8_t note) const { return states[note]; }
+	[[nodiscard]] constexpr bool noteEnabled(uint8_t note) const { return note < kHighestKeyboardNote && states[note]; }
 };
 
 }; // namespace deluge::gui::ui::keyboard

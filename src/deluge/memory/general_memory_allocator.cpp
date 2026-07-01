@@ -193,3 +193,15 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 	}
 	deluge::memory::dealloc(address);
 }
+
+void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
+	// Walk each heap's physical block chain (deluge_heap_check is read-only and never allocates), the
+	// new-allocator replacement for the legacy MemoryRegion boundary-tag walk. A null heap (e.g. no frunk
+	// on a given BSP) is vacuously ok. Any corruption freezes with the caller's context string, exactly
+	// as the old walk did.
+	bool ok = deluge_heap_check(deluge::memory::sram_heap()) && deluge_heap_check(deluge::memory::sdram_heap())
+	          && deluge_heap_check(deluge::memory::frunk_heap());
+	if (!ok) [[unlikely]] {
+		FREEZE_WITH_ERROR(errorString);
+	}
+}

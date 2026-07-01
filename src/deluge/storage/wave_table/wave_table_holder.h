@@ -24,6 +24,10 @@ class WaveTable;
 class WaveTableHolder final : public AudioFileHolder {
 public:
 	WaveTableHolder();
+	// Move transfers the audioFile pointer (the base move nulls the source via std::exchange), so the
+	// moved-from holder's destructor releases no reason; the destructor releases ours — fixing the leak
+	// where the empty base destructor left setAudioFile()'s reason dangling on every wavetable load.
 	WaveTableHolder(WaveTableHolder&&) noexcept = default;
 	WaveTableHolder& operator=(WaveTableHolder&&) noexcept = default;
+	~WaveTableHolder() override;
 };

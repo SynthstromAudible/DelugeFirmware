@@ -40,6 +40,7 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::LOAD_SONG; }
+	bool canDisplayFavourites() override { return true; }
 
 protected:
 	void displayText(bool blinkImmediately = false) override;

@@ -20,3 +20,8 @@ crate-type = ["staticlib", "rlib"]
 [dependencies]
 deluge_alloc = { path = "../deluge_alloc" }
 deluge_resource = { path = "../deluge_resource" }
+
+[features]
+# Forward the allocator's AddressSanitizer poisoning (host-sim ASan build only).
+# The sim enables this with `--features deluge_rust/asan` under DELUGE_SIM_SANITIZE.
+asan = ["deluge_alloc/asan"]

@@ -18,12 +18,15 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/favourite/favourite_manager.h"
 #include "storage/storage_manager.h"
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
+
+// Number of favourite slots per bank (one pad row). NB: this is *not* the colour-palette size or the
+// bank count, which are independently 16 - don't reuse kNumFavourites for those.
+constexpr size_t kNumFavourites = 16;
 
 class FavouritesManager {
 public:
@@ -44,7 +47,7 @@ public:
 	bool isEmpty(uint8_t position) const;
 	Error loadFavouritesFromFile(Deserializer& reader);
 	void close();
-	std::array<std::optional<uint8_t>, 16> getFavouriteColours() const;
+	std::array<std::optional<uint8_t>, kNumFavourites> getFavouriteColours() const;
 	void changeColour(uint8_t position, int32_t offset);
 	const std::string& getFavoriteFilename(uint8_t position);
 	static constexpr uint8_t favouriteDefaultColor = 4;
@@ -53,6 +56,7 @@ public:
 	std::optional<uint8_t> currentFavouriteNumber{};
 
 private:
+	void resetFavourites();
 	void loadFavouritesBank();
 	void saveFavouriteBank() const;
 

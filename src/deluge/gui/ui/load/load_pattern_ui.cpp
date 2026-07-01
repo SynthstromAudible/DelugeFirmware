@@ -39,7 +39,14 @@ static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC"
 LoadPatternUI loadPatternUI{};
 
 bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
-	*cols = 0xFFFFFFFF;
+	// greyout the sidebar, not the main pads
+	if (qwertyVisible) {
+		*cols = 0x03;
+	}
+	// greyout everything
+	else {
+		*cols = 0xFFFFFFFF;
+	}
 	return true;
 }
 

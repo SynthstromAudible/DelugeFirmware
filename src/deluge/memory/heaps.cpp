@@ -18,6 +18,7 @@
 #include "memory/heaps.h"
 #include "libdeluge/alloc.h"
 #include "libdeluge/memory.h"
+#include "memory/alloc_metadata.h" // mem_guard leak/corruption side-table (self-guards on MEM_GUARD)
 #include <cstdint>
 #include <cstdlib> // DELUGE_SIM_SDRAM_MB (sim/golden eviction testing)
 #include <cstring>
@@ -151,6 +152,21 @@ namespace {
 #endif
 	return p;
 }
+
+// MEM_GUARD leak/corruption side-table hook. Recording happens here, at the single allocation surface every C++ path
+// funnels through (operator new, the std allocators, delugeAlloc/GMA::alloc all reach alloc_*), so dealloc() below is the
+// matching single removal point — the table stays symmetric by construction. `callsite` is captured in the alloc_*
+// frame (the caller of the primitive), so it identifies the allocating call site. Compiles away when MEM_GUARD is off
+// (firmware release / sanitizer builds). recordAlloc uses its own static storage, so it never re-enters the allocator.
+[[gnu::always_inline]] inline void* track_alloc([[maybe_unused]] void* p, [[maybe_unused]] std::size_t size,
+                                                [[maybe_unused]] void* callsite) {
+#if MEM_GUARD
+	if (p != nullptr) {
+		mem_guard::recordAlloc(p, static_cast<uint32_t>(size), callsite);
+	}
+#endif
+	return p;
+}
 } // namespace
 
 void* alloc_fast(std::size_t size, std::size_t align) {
@@ -165,17 +181,21 @@ void* alloc_fast(std::size_t size, std::size_t align) {
 	if (p == nullptr) {
 		p = deluge_alloc(g_sdram, size, align); // fall back to SDRAM (== allocMaxSpeed)
 	}
-	return finalize(p, size);
+	return track_alloc(finalize(p, size), size, __builtin_return_address(0));
 }
 void* alloc_sdram(std::size_t size, std::size_t align) {
 	init_heaps();
-	return finalize(deluge_alloc(g_sdram, size, align), size);
+	return track_alloc(finalize(deluge_alloc(g_sdram, size, align), size), size, __builtin_return_address(0));
 }
 void* alloc_external(std::size_t size, std::size_t align) {
 	init_heaps();
-	return finalize(deluge_alloc(g_sdram, size, align), size); // external collapsed into the one SDRAM heap
+	// external collapsed into the one SDRAM heap
+	return track_alloc(finalize(deluge_alloc(g_sdram, size, align), size), size, __builtin_return_address(0));
 }
 void dealloc(void* ptr) {
+#if MEM_GUARD
+	mem_guard::removeAlloc(ptr); // tolerant: a no-op for an untracked ptr (e.g. a slab slot)
+#endif
 	deluge_free(owning_heap(ptr), ptr); // deluge_free tolerates a null heap (no-op)
 }
 std::size_t usable_size(void* ptr) {
@@ -184,6 +204,9 @@ std::size_t usable_size(void* ptr) {
 std::size_t shrink(void* ptr, std::size_t new_size) {
 	DelugeHeap* h = owning_heap(ptr);
 	deluge_realloc(h, ptr, new_size, 16); // in-place shrink, pointer stable
+#if MEM_GUARD
+	mem_guard::updateAllocKey(ptr, ptr, static_cast<uint32_t>(new_size)); // same address, new size; carries epoch
+#endif
 	return deluge_usable_size(h, ptr);
 }
 std::size_t shrink_left(void* /*ptr*/, std::size_t /*amount_to_shorten*/, std::size_t /*num_bytes_to_move_right*/) {

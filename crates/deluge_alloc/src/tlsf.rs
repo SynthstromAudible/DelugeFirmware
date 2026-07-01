@@ -133,6 +133,61 @@ unsafe fn set_link_prev(block: *mut BlockHeader, v: *mut BlockHeader) {
     (payload_of(block) as *mut *mut BlockHeader).add(1).write(v);
 }
 
+// ---------------------------------------------------------------------------
+// AddressSanitizer poisoning (host-sim use-after-free / use-after-steal).
+//
+// With the `asan` feature on, a free (or never-yet-carved) block's payload is
+// poisoned so any access traps — EXCEPT its first `LINK_BYTES` (the two free-list
+// links the allocator parks there) and its 16-byte header, which the allocator
+// must keep touching. malloc unpoisons the whole carved block before returning it.
+// Off, every hook compiles to nothing, so the device codegen is unchanged.
+//
+// The __asan_* runtime symbols resolve from libasan at the final C++ link (the sim
+// links -fsanitize=address); this staticlib leaves them undefined, which is fine.
+// ---------------------------------------------------------------------------
+
+/// Bytes at a free block's payload start reserved for its two free-list links.
+const LINK_BYTES: usize = 2 * core::mem::size_of::<*mut BlockHeader>();
+
+#[cfg(feature = "asan")]
+extern "C" {
+    fn __asan_poison_memory_region(addr: *const c_void, size: usize);
+    fn __asan_unpoison_memory_region(addr: *const c_void, size: usize);
+}
+
+#[inline(always)]
+unsafe fn asan_poison(_addr: *mut u8, _size: usize) {
+    #[cfg(feature = "asan")]
+    if _size != 0 {
+        __asan_poison_memory_region(_addr as *const c_void, _size);
+    }
+}
+
+#[inline(always)]
+unsafe fn asan_unpoison(_addr: *mut u8, _size: usize) {
+    #[cfg(feature = "asan")]
+    if _size != 0 {
+        __asan_unpoison_memory_region(_addr as *const c_void, _size);
+    }
+}
+
+/// Poison the body of a now-free `block`, leaving its two free-list links (the
+/// only bytes the allocator reads/writes while it sits free) accessible.
+#[inline(always)]
+unsafe fn poison_free_body(block: *mut BlockHeader) {
+    let size = (*block).size();
+    if size > LINK_BYTES {
+        asan_poison(payload_of(block).add(LINK_BYTES), size - LINK_BYTES);
+    }
+}
+
+/// Unpoison the full payload of `block` (its final, post-split size) — called
+/// just before handing the block to the caller.
+#[inline(always)]
+unsafe fn unpoison_block(block: *mut BlockHeader) {
+    asan_unpoison(payload_of(block), (*block).size());
+}
+
 /// (first-level, second-level) index for a block of `size`, rounded *down*
 /// (used when inserting a free block).
 #[inline]
@@ -168,6 +223,11 @@ pub struct Tlsf {
     reclaim_cb: Option<ReclaimFn>,
     reclaim_ctx: *mut c_void,
     reclaiming: bool,
+    // The single managed pool's first physical block and one-past-the-end byte,
+    // recorded by add_pool for the read-only integrity walk (check()). Null/0 until
+    // a pool is added. (Each Deluge heap has exactly one pool — deluge_heap_create.)
+    pool_first: *mut BlockHeader,
+    pool_end: usize,
 }
 
 impl Tlsf {
@@ -261,6 +321,9 @@ impl Tlsf {
     /// remainder beyond `size` as a new free block.
     unsafe fn use_block(&mut self, block: *mut BlockHeader, size: usize) {
         self.remove_free_block(block);
+        // Unpoison the whole block first: split() writes the remainder's header into
+        // what was this block's poisoned body. split() then re-poisons the remainder.
+        unpoison_block(block);
         self.split(block, size);
         (*block).set_used();
         // tell the (used) physical successor its prev is no longer free
@@ -285,6 +348,7 @@ impl Tlsf {
             (*after).prev_phys = remainder;
             (*after).set_prev_free();
             self.insert_free_block(remainder);
+            poison_free_body(remainder); // remainder is now free
         }
     }
 
@@ -312,6 +376,10 @@ impl Tlsf {
         (*after).prev_phys = block;
         (*after).set_prev_free();
         self.insert_free_block(block);
+        // Poison the whole merged body (the freed user bytes plus any absorbed
+        // neighbours' former headers/links — all interior now). The link area
+        // insert_free_block just wrote stays accessible.
+        poison_free_body(block);
     }
 
     /// Add a usable memory region to the pool. The control block (`Tlsf`) must
@@ -337,6 +405,69 @@ impl Tlsf {
         (*sentinel).set_used();
         (*sentinel).set_prev_free();
         self.insert_free_block(block);
+        // Record the pool span for the integrity walk (single pool per heap).
+        self.pool_first = block;
+        self.pool_end = mem as usize + size;
+        // Whole pool starts free: poison its body so accesses to not-yet-carved
+        // space trap too (malloc unpoisons each block as it hands it out).
+        poison_free_body(block);
+    }
+
+    /// Read-only integrity walk of the managed pool: validates each physical
+    /// block's boundary tags (payload alignment, size granularity), the
+    /// prev-free flag / `prev_phys` back-link coherence, the no-two-adjacent-free
+    /// invariant, and that the chain terminates at the zero-size used sentinel
+    /// within the pool. Returns true if intact. Never allocates and bounds every
+    /// step by `pool_end`, so a corrupted size can't walk out of the arena. Reads
+    /// only headers (never a poisoned free-block body), so it is ASan-safe.
+    pub unsafe fn check(&self) -> bool {
+        if self.pool_first.is_null() {
+            return true; // no pool registered: vacuously intact
+        }
+        let lo = self.pool_first as usize;
+        let mut block = self.pool_first;
+        let mut prev: *mut BlockHeader = ptr::null_mut();
+        let mut prev_free = false;
+        loop {
+            let baddr = block as usize;
+            // The header itself must sit within the pool.
+            if baddr < lo || baddr + HEADER_SIZE > self.pool_end {
+                return false;
+            }
+            // Payloads are 16-aligned by construction.
+            if !(payload_of(block) as usize).is_multiple_of(ALIGN) {
+                return false;
+            }
+            // The PREV_FREE flag must agree with the real predecessor, and when set
+            // the back-link must point at it.
+            if (*block).is_prev_free() != prev_free {
+                return false;
+            }
+            if prev_free && (*block).prev_phys != prev {
+                return false;
+            }
+            let size = (*block).size();
+            if size == 0 {
+                // Zero-size used sentinel terminates the pool.
+                return !(*block).is_free();
+            }
+            // A real block: aligned size, and its end (== next_phys) must leave room
+            // for at least the successor header within the pool.
+            if !size.is_multiple_of(ALIGN) {
+                return false;
+            }
+            let end = payload_of(block) as usize + size;
+            if end <= baddr || end + HEADER_SIZE > self.pool_end {
+                return false;
+            }
+            // TLSF never leaves two free blocks physically adjacent.
+            if prev_free && (*block).is_free() {
+                return false;
+            }
+            prev_free = (*block).is_free();
+            prev = block;
+            block = next_phys(block);
+        }
     }
 
     /// Round a request up to the granularity and the free-block minimum.
@@ -363,7 +494,7 @@ impl Tlsf {
             if block.is_null() {
                 return ptr::null_mut();
             }
-            self.use_block(block, adjust);
+            self.use_block(block, adjust); // unpoisons the carved block for the caller
             return payload_of(block);
         }
 
@@ -380,6 +511,10 @@ impl Tlsf {
             return ptr::null_mut();
         }
         self.remove_free_block(block);
+        // The manual carve below writes headers/links across this block's body, so
+        // unpoison it first; the leading remnant (if any) and the split tail are
+        // re-poisoned as they become free.
+        unpoison_block(block);
 
         let payload = payload_of(block) as usize;
         let mut aligned = (payload + align - 1) & !(align - 1);
@@ -403,6 +538,7 @@ impl Tlsf {
             (*aligned_block).set_prev_free(); // its prev (leading) is free
             (*block).set_free();
             self.insert_free_block(block);
+            poison_free_body(block); // leading remnant is now free
             block = aligned_block;
         }
 

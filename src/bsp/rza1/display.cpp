@@ -60,8 +60,7 @@ DelugeStatus deluge_display_blit_oled(const uint8_t* pixels, uint16_t width, uin
 	// informational. Queue the framebuffer for transfer over the shared SPI bus.
 	(void)width;
 	(void)height;
-	SpiTransferData m = {.imageAddress = pixels};
-	enqueueSPITransfer(0, m);
+	enqueueOLEDFrame(pixels);
 	return DELUGE_OK;
 }
 

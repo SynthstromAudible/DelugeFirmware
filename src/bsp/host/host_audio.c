@@ -219,7 +219,12 @@ static uint32_t host_audio_drive_live(void) {
 // Offline render driver. Renders one block per call and appends it to the WAV;
 // finalises + exits once the target duration is captured. Returns the number of
 // render passes (1 while capturing, 0 once done) per the audio_io.h contract.
+extern void deluge_host_debug_poll(void); // reason-leak signal triggers (host_debug.cpp)
+
 uint32_t deluge_audio_drive(void) {
+	// Service any pending reason-leak signal (SIGUSR1/2) here, on the app thread, between renders.
+	deluge_host_debug_poll();
+
 	if (host_link_active()) {
 		return host_audio_drive_live();
 	}

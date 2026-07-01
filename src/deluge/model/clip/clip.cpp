@@ -61,7 +61,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 
 	// initialize automation clip view variables
 	onAutomationClipView = false;
-	lastSelectedParamID = kNoSelection;
+	lastSelectedParamID = params::kNoParamID;
 	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
@@ -74,7 +74,9 @@ Clip::Clip(ClipType newType) : type(newType) {
 }
 
 Clip::~Clip() {
-	if (getCurrentClip() == this) {
+	// currentSong is null while the old song is being torn down in deleteOldSongBeforeLoadingNew() (it's nulled before
+	// the delete), so guard against it - getCurrentClip() dereferences currentSong.
+	if (currentSong && getCurrentClip() == this) {
 		currentSong->setCurrentClip(nullptr);
 	}
 }

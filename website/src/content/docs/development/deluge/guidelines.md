@@ -12,13 +12,13 @@ Everybody is invited to contribute to this repository as further outlined below:
   maintainability/ease modification/improve structure), feature improvements, new features, easier accessibility,
   toolchain improvements, unit tests and many, many more.
 - For information on the decision making process for accepting Pull requests please see below and also see
-  the [Governance](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/GOVERNANCE.md) documentation.
+  the [Governance](https://github.com/SynthstromAudible/DelugeFirmware/blob/main/docs/GOVERNANCE.md) documentation.
 - To keep the list manageable all Pull requests without author activity for longer than two weeks will be labelled "
   stale" and will be closed after another week. The author is welcome to submit a new PR for the same work at any time.
 
 ## Requirements
 
-The following requirements must be fulfilled for a Pull request to be mergable to the `community` branch:
+The following requirements must be fulfilled for a Pull request to be mergable to the `main` branch:
 
 <details><summary>General</summary>
 
@@ -41,7 +41,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 <details><summary>Code specific</summary>
 
 - All project files, especially source files need to have a compatible license with the project.
-  See [LICENSE](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/LICENSE).
+  See [LICENSE](https://github.com/SynthstromAudible/DelugeFirmware/blob/main/LICENSE).
 - There is no written standard on code guidelines yet but please make your code match the existing style as much as possible.
 - Exception: the old code uses GOTOs and single returns heavily - new C++ code should favour other flow control methods
   and early returns instead, the old code is a result of the project's roots in C.
@@ -103,9 +103,9 @@ transparent as possible:
 4. Once the Pull request is ready, fulfills all requirements outlined above, and is up to date with the `develop`
    branch, it can be converted from Draft and marked as ready for review.
 5. Having multiple reviews for every Pull request would be nice. Reviews from community members not mentioned in
-   the [CODEOWNERS](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/CODEOWNERS) file should be taken seriously and used as an important source of feedback, but have
+   the [CODEOWNERS](https://github.com/SynthstromAudible/DelugeFirmware/blob/main/CODEOWNERS) file should be taken seriously and used as an important source of feedback, but have
    no decisional power on what gets merged into the `develop` branch.
-6. At least one member of the [CODEOWNERS](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/CODEOWNERS) file needs to review every pull request while also considering
+6. At least one member of the [CODEOWNERS](https://github.com/SynthstromAudible/DelugeFirmware/blob/main/CODEOWNERS) file needs to review every pull request while also considering
    community reviews in their decision.
    - CODEOWNERS can decline merging a Pull request if it does not fulfill the requirements outlined above. They need to
      give clear feedback on which requirements have not been met and also provide an opportunity to improve the Pull
@@ -114,7 +114,7 @@ transparent as possible:
    - If one or more CODEOWNERS are sure the requirements have been met, they will merge the change into the `develop`
      branch.
    - For more information about governance and handling of decisional matters please take a look at
-     the [Governance](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/GOVERNANCE.md) document.
+     the [Governance](https://github.com/SynthstromAudible/DelugeFirmware/blob/main/docs/GOVERNANCE.md) document.
 
 In addition to this workflow it is not a requirement but would be nice if developers could help the maintenance of the
 project by:

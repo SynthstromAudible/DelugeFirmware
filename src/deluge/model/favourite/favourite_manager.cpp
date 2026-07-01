@@ -22,27 +22,42 @@
 FavouritesManager favouritesManager{};
 
 FavouritesManager::FavouritesManager() {
-	favourites.resize(16);
+	resetFavourites();
 }
 
 FavouritesManager::~FavouritesManager() {
-	saveFavouriteBank();
+	if (!currentCategory.empty()) {
+		saveFavouriteBank();
+	}
 }
 void FavouritesManager::close() {
 	if (unsavedChanges) {
 		saveFavouriteBank();
 	}
+	resetFavourites();
+	currentCategory.clear();
+	currentFavouriteNumber = std::nullopt;
+}
+
+// Reset all favourite slots to their default (no colour/filename), with position = slot index.
+void FavouritesManager::resetFavourites() {
 	favourites.clear();
-	// Dealoccating all memory
-	std::vector<Favorite>().swap(favourites);
-	return;
+	favourites.resize(kNumFavourites);
+	for (uint8_t i = 0; i < kNumFavourites; i++) {
+		favourites[i].position = i;
+	}
 }
 
 void FavouritesManager::setCategory(const std::string& category) {
+	// Save the current category's bank before switching - must happen before currentCategory changes, or it'd be
+	// saved under the new category's filename.
+	if (unsavedChanges && !currentCategory.empty()) {
+		saveFavouriteBank();
+	}
 	currentCategory = category;
-	favourites.clear();
-	favourites.resize(16);
-	selectFavouritesBank(0);
+	currentBankNumber = 0;
+	currentFavouriteNumber = std::nullopt;
+	loadFavouritesBank();
 }
 
 std::string FavouritesManager::getFilenameForSave() const {
@@ -50,38 +65,53 @@ std::string FavouritesManager::getFilenameForSave() const {
 }
 
 void FavouritesManager::loadFavouritesBank() {
-	favourites.clear();
-	favourites.resize(16);
+	resetFavourites();
 	std::string filePath = getFilenameForSave();
-	FilePointer fileToLoad;
+	FilePointer fileToLoad{};
 	bool fileExists = StorageManager::fileExists(filePath.c_str(), &fileToLoad);
 	if (!fileExists) {
-		// create emtpy File
+		// Create an empty bank file and keep the in-memory defaults.
 		saveFavouriteBank();
+		return;
 	}
 	std::string path;
 	path = filePath.c_str();
 	Error error = StorageManager::loadFavouriteFile(&fileToLoad, &path);
+	if (error != Error::NONE) {
+		resetFavourites();
+	}
 }
 
 Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 	reader.match('{');
 	char const* tagName;
-	uint8_t i = 0;
 	std::string fileName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "favourite")) {
+			// Bound the index read from the file: favourites is sized to 16, so a corrupt/out-of-range
+			// position must not index past the end (was an unchecked favourites[i] OOB write).
+			int32_t position = -1;
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "position")) {
-					i = reader.readTagOrAttributeValueInt();
-					favourites[i].position = i;
+					position = reader.readTagOrAttributeValueInt();
+					if (position >= 0 && position < (int32_t)favourites.size()) {
+						favourites[position].position = position;
+					}
+					else {
+						position = -1;
+					}
 				}
 				else if (!strcmp(tagName, "colour")) {
-					favourites[i].colour = reader.readTagOrAttributeValueInt();
+					int32_t colour = reader.readTagOrAttributeValueInt();
+					if (position >= 0) {
+						favourites[position].colour = static_cast<uint8_t>(colour);
+					}
 				}
 				else if (!strcmp(tagName, "instrumentPresetFolder")) {
 					reader.readTagOrAttributeValueString(fileName);
-					favourites[i].filename = fileName.c_str();
+					if (position >= 0) {
+						favourites[position].filename = fileName.c_str();
+					}
 				}
 			}
 		}
@@ -90,6 +120,9 @@ Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 }
 
 void FavouritesManager::saveFavouriteBank() const {
+	if (currentCategory.empty()) {
+		return;
+	}
 
 	std::string filePath = getFilenameForSave();
 	Error error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, true, true);
@@ -132,10 +165,10 @@ void FavouritesManager::selectFavouritesBank(uint8_t bankNumber) {
 }
 
 void FavouritesManager::setFavorite(uint8_t position, uint8_t colour, const std::string& filename) {
-	if (position >= 16)
+	if (position >= kNumFavourites)
 		return;
 	if (favourites.size() <= position) {
-		favourites.resize(16);
+		favourites.resize(kNumFavourites);
 	}
 	currentFavouriteNumber = position;
 	favourites[position] = Favorite(position, static_cast<uint8_t>(colour), filename);
@@ -143,7 +176,7 @@ void FavouritesManager::setFavorite(uint8_t position, uint8_t colour, const std:
 }
 
 void FavouritesManager::unsetFavorite(uint8_t position) {
-	if (position >= 16)
+	if (position >= kNumFavourites)
 		return;
 	currentFavouriteNumber = position;
 	favourites[position] = Favorite(position, std::nullopt, "");
@@ -151,21 +184,22 @@ void FavouritesManager::unsetFavorite(uint8_t position) {
 }
 
 bool FavouritesManager::isEmpty(uint8_t position) const {
-	if (position >= 16)
+	if (position >= kNumFavourites || favourites.size() <= position)
 		return true;
 	return !favourites[position].colour.has_value();
 }
 
-std::array<std::optional<uint8_t>, 16> FavouritesManager::getFavouriteColours() const {
-	std::array<std::optional<uint8_t>, 16> colours;
-	for (uint8_t i = 0; i < 16; i++) {
+std::array<std::optional<uint8_t>, kNumFavourites> FavouritesManager::getFavouriteColours() const {
+	std::array<std::optional<uint8_t>, kNumFavourites> colours{};
+	for (uint8_t i = 0; i < kNumFavourites && i < favourites.size(); i++) {
 		colours[i] = favourites[i].colour;
 	}
 	return colours; // Copy elision makes this efficient
 }
 
 void FavouritesManager::changeColour(uint8_t position, int32_t offset) {
-	if (position < 16 && favourites[position].colour.has_value()) {
+	if (position < kNumFavourites && favourites.size() > position && favourites[position].colour.has_value()) {
+		// NB: 16 here is the colour-palette size (wrapping the colour value 0-15), not kNumFavourites.
 		favourites[position].colour = ((favourites[position].colour.value() + offset) % 16 + 16) % 16;
 		unsavedChanges = true;
 		return;
@@ -176,7 +210,7 @@ void FavouritesManager::changeColour(uint8_t position, int32_t offset) {
 const std::string& FavouritesManager::getFavoriteFilename(uint8_t position) {
 	static const std::string emptyString = ""; // Safe default value
 	currentFavouriteNumber = position;
-	if (position < 0 || position >= 16 || favourites.size() != 16 || !favourites[position].colour.has_value()) {
+	if (position >= kNumFavourites || favourites.size() <= position || !favourites[position].colour.has_value()) {
 		return emptyString; // Return a reference to an empty string instead of nullptr
 	}
 	return favourites[position].filename;

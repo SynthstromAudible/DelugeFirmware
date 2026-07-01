@@ -38,7 +38,7 @@ extern "C" {
 #include "RZA1/rspi/rspi.h"           // RSPI()
 #include "RZA1/uart/sio_char.h"       // uartGetChar, uartFlushIfNotSending
 #include "drivers/dmac/dmac.h"        // DMACn, DMAC0_CHSTAT_n_TC, DMAC_CHCTRL_0S_*
-#include "drivers/oled/oled.h"        // spiTransferQueueCurrentlySending
+#include "drivers/oled/oled.h"        // spiBusCurrentlySending
 }
 
 // ms * 33 == counts of TIMER_SYSTEM_SLOW per millisecond (was cfunctions::msToSlowTimerCount).
@@ -62,7 +62,7 @@ void deluge_display_freeze(const uint8_t* pixels) {
 		}
 		oledWaitingForMessage = 256;
 	}
-	spiTransferQueueCurrentlySending = false;
+	spiBusCurrentlySending = false;
 
 	// Select OLED
 	PIC::selectOLED();
@@ -108,5 +108,5 @@ void deluge_display_freeze(const uint8_t* pixels) {
 		}
 	}
 	oledWaitingForMessage = 256;
-	spiTransferQueueCurrentlySending = false;
+	spiBusCurrentlySending = false;
 }

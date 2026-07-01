@@ -117,7 +117,6 @@ bool Browser::checkFP() {
 void Browser::close() {
 	emptyFileItems();
 	favouritesManager.close();
-	favouritesVisible = false;
 	QwertyUI::close();
 }
 
@@ -465,7 +464,16 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 	}
 
 	const char* fileName = getFileNameFromEndOfPath(fullPath);
-	currentDir = getPathFromFullPath(fullPath);
+	// Copy the directory portion (everything before the final '/') straight into currentDir. Don't go via
+	// getPathFromFullPath() here: it returns .c_str() of a std::string temporary that's already destroyed by the
+	// time we read it (dangling). Build the substring directly into currentDir instead.
+	const char* slashPos = strrchr(fullPath, '/');
+	if (slashPos != nullptr) {
+		currentDir.assign(fullPath, slashPos - fullPath);
+	}
+	else {
+		currentDir.clear();
+	}
 
 	// Change to the File Folder
 	Error error = arrivedInNewFolder(0, fileName);
@@ -1223,6 +1231,12 @@ notFound:
 
 	// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
 	if (memcasecmp(fileItem->displayName, enteredText.c_str(), enteredTextEditPos)) {
+		// If the search landed on the first cached item, the folder cache may be missing earlier entries (files
+		// alphabetically before the current one). Re-read the folder so we can find them too (#4584).
+		if (i == 0 && !doneNewRead) {
+			goto doNewRead;
+		}
+
 		// this code is original but I don't know what it does. Slot browser maybe?
 		// Just updated to append to the string instead of replacing the tilde
 		if (numExtraZeroesAdded < 4) {
@@ -1520,7 +1534,7 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 
 ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 
-	if (favouritesVisible && y == favouriteRow && on) {
+	if (isFavouritesVisible() && y == favouriteRow && on) {
 		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1549,7 +1563,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 		return ActionResult::DEALT_WITH;
 	}
-	else if (favouritesVisible && banksVisible && y == favouriteBankRow && on) {
+	else if (isBanksVisible() && y == favouriteBankRow && on) {
 		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1568,7 +1582,7 @@ void Browser::favouritesChanged() {
 }
 
 ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (favouritesVisible) {
+	if (isFavouritesVisible()) {
 		if (Buttons::isShiftButtonPressed()) {
 			if (favouritesManager.currentFavouriteNumber.has_value()) {
 				favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
@@ -1761,4 +1775,15 @@ int32_t Browser::searchFileItems(char const* searchString, bool* foundExact) {
 		*foundExact = (it != fileItems.end() && strcmpspecial(it->displayName, searchString) == 0);
 	}
 	return static_cast<int32_t>(it - fileItems.begin());
+}
+
+bool Browser::isFavouritesVisible() {
+	return (getCurrentUI()->canDisplayFavourites() && qwertyVisible
+	        && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayout::FavouritesDefaultLayoutOff);
+}
+
+bool Browser::isBanksVisible() {
+	return (getCurrentUI()->canDisplayFavourites() && qwertyVisible
+	        && FlashStorage::defaultFavouritesLayout
+	               == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks);
 }

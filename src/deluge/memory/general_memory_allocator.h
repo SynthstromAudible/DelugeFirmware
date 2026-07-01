@@ -83,8 +83,12 @@ public:
 		return generalMemoryAllocator;
 	}
 
-private:
+	// MEM_GUARD periodic heap-integrity walk (called from AudioEngine::routine()). Validates every heap's
+	// physical block chain via deluge_heap_check() across the libdeluge/alloc.h boundary (the Rust
+	// deluge_alloc replacement for the legacy MemoryRegion boundary-tag walk); freezes on corruption.
 	void checkEverythingOk(char const* errorString);
+
+private:
 	// Lazily stand up the cluster slab + resource manager (idempotent). Both share the
 	// uniform Cluster slot size, finalized to the session maximum by boot. Returns true
 	// if the slab exists afterwards.

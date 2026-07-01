@@ -53,3 +53,4 @@ endfunction()
 
 create_specs_driver(all_specs ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(all_specs PUBLIC deluge_spec deluge_midi)
+deluge_apply_test_sanitizers(all_specs)

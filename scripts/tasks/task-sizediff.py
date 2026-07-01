@@ -10,7 +10,7 @@ import os
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sizediff",
-        description="Get a size difference from the current HEAD and where the branch forked from community",
+        description="Get a size difference from the current HEAD and where the branch forked from main",
     )
     parser.group = "Development"
     return parser
@@ -22,8 +22,8 @@ def main() -> int:
     os.chdir(util.get_git_root())
     os.makedirs(".cache/sizediff", exist_ok=True)
 
-    # Get the commit hash of the community branch
-    old_hash = util.run_get_output(["git", "merge-base", "--fork-point", "community"])
+    # Get the commit hash of the main branch
+    old_hash = util.run_get_output(["git", "merge-base", "--fork-point", "main"])
 
     # get the current commit hash
     new_hash = util.run_get_output(["git", "rev-parse", "HEAD"])

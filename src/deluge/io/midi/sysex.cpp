@@ -18,12 +18,22 @@
  */
 
 #include "io/midi/sysex.h"
+#include "io/debug/log.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "memory/alloc_metadata.h"
 #include "util/chainload.h"
 
 #include "util/pack.h"
+
+#if MEM_GUARD
+// Baseline for the leak snapshot/diff workflow (Debug sysex subcommand 3). Persists between sysex calls so a developer
+// can snapshot, drive the suspect operation, then ask for everything that leaked since.
+namespace {
+mem_guard::Snapshot g_leakSnapshot = 0;
+}
+#endif
 
 void Debug::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	if (len < 3) {
@@ -50,6 +60,29 @@ void Debug::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	case 2:
 #ifdef ENABLE_SYSEX_LOAD
 		loadCheckAndRun(data, len);
+#endif
+		break;
+
+	case 3:
+		// Leak hunting (MEM_GUARD builds only). data[2]: 0 = take snapshot baseline, 1 = report what leaked since the
+		// last snapshot, 2 = report ALL live allocations. Output goes to the debug log (D_PRINTLN), same channel as the
+		// rest of MEM_GUARD's reporting.
+#if MEM_GUARD
+		switch (data[2]) {
+		case 0:
+			g_leakSnapshot = mem_guard::snapshot();
+			D_PRINTLN("MEM_GUARD leak snapshot taken at epoch %d (%d live)", g_leakSnapshot,
+			          mem_guard::liveAllocations());
+			break;
+		case 1:
+			mem_guard::reportOutstanding(g_leakSnapshot);
+			break;
+		case 2:
+			mem_guard::reportOutstanding(0);
+			break;
+		default:
+			break;
+		}
 #endif
 		break;
 

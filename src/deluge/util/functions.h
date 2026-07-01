@@ -203,7 +203,6 @@ bool isAudioFilename(char const* filename);
 bool isAiffFilename(char const* filename);
 
 char const* getFileNameFromEndOfPath(char const* filePathChars);
-char const* getPathFromFullPath(char const* filePathChars);
 
 int32_t lookupReleaseRate(int32_t input);
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue);

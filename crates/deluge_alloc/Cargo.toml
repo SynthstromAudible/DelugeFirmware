@@ -17,6 +17,12 @@ publish = false
 # Exposes the host-only `testing` invariant harness to external consumers (the
 # fuzz crate). Unit tests get it via cfg(test) without this feature.
 fuzzing = []
+# Emit AddressSanitizer poison/unpoison around the allocator's carve/free/coalesce
+# so use-after-free / use-after-steal within a heap is caught on the host-sim ASan
+# build. The __asan_*_memory_region symbols resolve from libasan at the final C++
+# link (the sim links -fsanitize=address); off, the hooks compile away. See
+# tlsf.rs. Enabled by the sim's DELUGE_SIM_SANITIZE build (sim/CMakeLists.txt).
+asan = []
 
 [lib]
 name = "deluge_alloc"

@@ -48,6 +48,7 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::LOAD_PATTERN; }
+	bool canDisplayFavourites() override { return true; }
 
 protected:
 	void folderContentsReady(int32_t entryDirection) override;

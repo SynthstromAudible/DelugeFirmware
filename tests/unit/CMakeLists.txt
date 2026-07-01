@@ -103,3 +103,5 @@ target_link_libraries(UnitTests CppUTestExt etl::etl)
 target_compile_options(UnitTests PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
 )
+
+deluge_apply_test_sanitizers(UnitTests)

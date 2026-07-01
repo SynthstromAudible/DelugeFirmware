@@ -29,8 +29,7 @@
 #include "bsp/rza1/drivers/dmac/dmac.h"
 #include "bsp/rza1/drivers/rspi/rspi.h"
 #include "foundation/timer_count.h"
-
-#define OLED_CODE_FOR_CV 1
+#include "libdeluge/system.h" // ENTER/EXIT_CRITICAL_SECTION (BSP-owned CPU primitive)
 
 // Count of CV transfers actually dispatched to the DAC. On units where the OLED
 // shares the CV SPI bus, a CV write is queued behind display transfers; higher
@@ -48,21 +47,48 @@ void setupSPIInterrupts()
     registerAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
 }
 
+// Priority CV channel: CV words bypass the OLED frame queue so gate timing isn't held
+// hostage by OLED refreshes on the shared SPI bus. A single latest-wins slot matches the queue's
+// previous coalescing of unsent CV words.
+volatile bool cvPriorityPending  = false;
+volatile uint32_t cvPriorityData = 0;
+
+void sendCVWord(uint32_t message);
+bool sendPriorityCVIfPending();
+
 void enqueueCVMessage(int channel, uint32_t message)
 {
-    union SpiTransferData m = {
-        .cvData = message,
-    };
-    enqueueSPITransfer(OLED_CODE_FOR_CV, m);
+    ENTER_CRITICAL_SECTION();
+    // Latest value wins (matches the queue's old coalescing of unsent CV words).
+    cvPriorityData    = message;
+    cvPriorityPending = true;
+    // If the bus is idle, kick it off now; otherwise it gets drained at the next inter-transfer
+    // boundary, ahead of any queued OLED frames.
+    if (!spiBusCurrentlySending)
+    {
+        spiBusCurrentlySending = true;
+        sendPriorityCVIfPending();
+    }
+    EXIT_CRITICAL_SECTION();
 }
 
 int oledWaitingForMessage    = OLED_MESSAGE_NONE; // 256 means none.
 int oledPendingMessageToSend = 0; // 0 means none. The purpose of this variable is to ensure thread safety.
 int last_message_sent        = 0;
 uint16_t oledMessageTimeoutTime;
+// Watchdog for a lost OLED DMA transfer-complete interrupt (see oledRoutine).
+uint16_t oledDmaWatchdogTime;
+bool oledDmaWatchdogArmed = false;
 // these get optimized out, set em to volatile if you need to keep them for debugging
 bool oled_sending = false;
 bool cv_sending   = false;
+
+static void armOledDmaWatchdog()
+{
+    oledDmaWatchdogArmed = true;
+    oledDmaWatchdogTime  = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
+}
+
 // Call this before you routinely call uartFlushIfNotSending().
 void oledRoutine()
 {
@@ -88,15 +114,53 @@ sendMessageToPIC:
             bufferPICUart(oledWaitingForMessage);
         }
     }
+
+    // The retries above only re-send the PIC UART SELECT/DESELECT handshake. Nothing re-drives a
+    // lost OLED DMA transfer-complete interrupt (oledTransferComplete, a priority-13 DMA IRQ).
+    // Under heavy CV-DAC interrupt traffic (priority 5) on the shared SPI bus that completion can
+    // be missed, leaving spiBusCurrentlySending stuck true forever: enqueueOLEDFrame
+    // then dedups every identical frame and the physical OLED freezes while rendering/sysex keep
+    // running (issue #3670).
+    //
+    // oled_sending with waiting==NONE && pending==0 means an OLED DMA was kicked but hasn't
+    // completed (cv_sending is excluded so we never disturb an in-flight CV word). If that state
+    // persists far longer than any real transfer (sub-millisecond), treat the completion interrupt
+    // as lost and re-drive it.
+    else if (oled_sending && spiBusCurrentlySending && oledPendingMessageToSend == 0)
+    {
+        if (!oledDmaWatchdogArmed)
+        {
+            armOledDmaWatchdog();
+        }
+        else if ((int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - oledDmaWatchdogTime) >= 0)
+        {
+            oledDmaWatchdogArmed = false;
+            ENTER_CRITICAL_SECTION();
+            // Re-check under lock - the real interrupt may have landed in the meantime.
+            if (oled_sending && spiBusCurrentlySending && oledWaitingForMessage == OLED_MESSAGE_NONE
+                && oledPendingMessageToSend == 0)
+            {
+                // Clear the transfer-complete flag so a late/duplicate IRQ can't double-advance, then
+                // run the completion path the lost interrupt should have run.
+                DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |= DMAC_CHCTRL_0S_CLRTC;
+                oledTransferComplete(0);
+            }
+            EXIT_CRITICAL_SECTION();
+        }
+    }
+    else
+    {
+        oledDmaWatchdogArmed = false;
+    }
 }
 
 void oledSelectingComplete()
 {
     oledWaitingForMessage = OLED_MESSAGE_NONE;
 #if ALPHA_OR_BETA_VERSION
-    if (spiTransferQueue[spiTransferQueueReadPos].destinationId != SPI_DESTINATION_OLED)
+    if (oledFrameQueue[oledFrameQueueReadPos] == NULL)
     {
-        FREEZE_WITH_ERROR("SPI transfer destination is not OLED");
+        FREEZE_WITH_ERROR("OLED frame queue slot is empty");
     }
 #endif
     RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR       = 0x20u;              // 8-bit
@@ -104,28 +168,23 @@ void oledSelectingComplete()
     RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE = 0b01100000;         // 0b00100000;
     // DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n = 0b00000000001000000000001001101000 | (OLED_SPI_DMA_CHANNEL & 7);
 
-    int transferSize                   = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
-    DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
-    uint32_t dataAddress               = (uint32_t)spiTransferQueue[spiTransferQueueReadPos].imageAddress;
-    DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
-    spiTransferQueue[spiTransferQueueReadPos].destinationId = SPI_DESTINATION_NONE;
-    spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+    int transferSize                      = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
+    DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n    = transferSize; // TODO: only do this once?
+    uint32_t dataAddress                  = (uint32_t)oledFrameQueue[oledFrameQueueReadPos];
+    DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n    = dataAddress;
+    oledFrameQueue[oledFrameQueueReadPos] = NULL;
+    oledFrameQueueReadPos                 = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
     // todo - should only need a flush
     invalidate_range_all_caches(dataAddress, dataAddress + transferSize);
+    armOledDmaWatchdog();
     DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
         DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 }
 
-int spiDestinationSendingTo;
-
-void sendCVTransfer()
+// Physically pushes one CV word onto the shared SPI peripheral: 32-bit mode, select the DAC, enable the
+// RX-complete interrupt, then write the word (which kicks off the transfer). Used by the CV priority path.
+void sendCVWord(uint32_t message)
 {
-#if ALPHA_OR_BETA_VERSION
-    if (spiTransferQueue[spiTransferQueueReadPos].destinationId != SPI_DESTINATION_CV)
-    {
-        FREEZE_WITH_ERROR("SPI transfer destination is not CV");
-    }
-#endif
     setOutputState(6, 1, false); // Select CV DAC
 
     RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR  = 0x60u;              // 32-bit
@@ -135,14 +194,23 @@ void sendCVTransfer()
 
     RSPI(SPI_CHANNEL_OLED_MAIN).SPCR |= 1 << 7; // Receive interrupt enable
 
-    uint32_t message                                        = spiTransferQueue[spiTransferQueueReadPos].cvData;
-    spiTransferQueue[spiTransferQueueReadPos].destinationId = SPI_DESTINATION_NONE;
-
-    spiTransferQueueReadPos =
-        (spiTransferQueueReadPos + 1)
-        & (SPI_TRANSFER_QUEUE_SIZE - 1); // Must do this before actually sending SPI, cos the interrupt could come
-                                         // before we do this otherwise. True story.
     RSPI(SPI_CHANNEL_CV).SPDR.LONG = message;
+}
+
+// Drains the priority CV slot if one is waiting. Must only be called at an inter-transfer boundary
+// (nothing currently on the bus). Returns true if a CV word was sent. Sends the word then calls
+// cvSent() so any gate waiting on this CV is released on schedule.
+bool sendPriorityCVIfPending()
+{
+    if (!cvPriorityPending)
+    {
+        return false;
+    }
+    cvPriorityPending = false;
+    cv_sending        = true;
+    sendCVWord(cvPriorityData);
+    cvTransfersSent++; // pull-based; the app polls getCVTransfersSent() (was the cvSent() upcall)
+    return true;
 }
 
 void initiateSelectingOled()
@@ -161,37 +229,33 @@ void initiateSelectingOled()
 
 void sendSPITransferFromQueue()
 {
-#if ALPHA_OR_BETA_VERSION
-    spiDestinationSendingTo = spiTransferQueue[spiTransferQueueReadPos].destinationId;
-    if (spiDestinationSendingTo == SPI_DESTINATION_NONE)
+    spiBusCurrentlySending = true;
+
+    // A waiting CV word jumps ahead of any queued OLED frames.
+    if (sendPriorityCVIfPending())
     {
-        FREEZE_WITH_ERROR("SPI transfer destination is NONE");
+        return;
+    }
+#if ALPHA_OR_BETA_VERSION
+    if (oledFrameQueue[oledFrameQueueReadPos] == NULL)
+    {
+        FREEZE_WITH_ERROR("OLED frame queue slot is empty");
     }
 #endif
-    spiTransferQueueCurrentlySending = true;
 
-    // If it's OLED data...
-    if (spiDestinationSendingTo == 0)
-    {
-        oled_sending = true;
-        initiateSelectingOled();
-    }
-
-    // Or if it's CV...
-    else
-    {
-        cv_sending = true;
-        sendCVTransfer();
-        cvTransfersSent++; // the app polls this (it used to be the cvSent() upcall)
-    }
+    // The queue only ever holds OLED frames now.
+    oled_sending = true;
+    initiateSelectingOled();
 }
 
 void oledTransferComplete(uint32_t int_sense)
 {
+    oledDmaWatchdogArmed = false;
 
-    // If anything else to send, and it's to the OLED again, then just go ahead.
-    if (spiTransferQueueWritePos != spiTransferQueueReadPos
-        && spiTransferQueue[spiTransferQueueReadPos].destinationId == 0 && last_message_sent == OLED_MESSAGE_SELECT)
+    // If there's another frame queued, just go ahead - unless a CV word is waiting, in which case we
+    // deselect so the CV can slip in ahead of the next frame.
+    if (!cvPriorityPending && oledFrameQueueWritePos != oledFrameQueueReadPos
+        && last_message_sent == OLED_MESSAGE_SELECT)
     {
         oledSelectingComplete();
     }
@@ -210,48 +274,48 @@ void cvSPITransferComplete(uint32_t sense)
 
     setOutputState(6, 1,
         true); // Deselect CV DAC. We do it here, nice and early, since we might be re-selecting it very soon in
-               // sendCVTransfer(),
+               // sendPriorityCVIfPending(),
     // and a real pulse does need to be sent. This should be safe - I even tried only deselecting it in the instruction
     // preceding the re-selection, and it did work.
 
     RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE |=
         1 << 6; // Reset RX buffer. Slightly weird that we have to do it here, after the transfer? Or not weird?
 
-    // If anything else to send, and it's to the CV DAC again, then just go ahead.
-    if (spiTransferQueueWritePos != spiTransferQueueReadPos
-        && spiTransferQueue[spiTransferQueueReadPos].destinationId == OLED_CODE_FOR_CV)
+    // Another CV word turned up while this one was sending? Send it before returning to OLED frames
+    //.
+    if (sendPriorityCVIfPending())
     {
-        sendCVTransfer();
+        return;
     }
 
-    // Otherwise...
+    // If there's a queued OLED frame, resume sending it; otherwise the bus goes idle.
+    if (oledFrameQueueWritePos != oledFrameQueueReadPos)
+    {
+        oled_sending = true;
+        cv_sending   = false;
+        initiateSelectingOled();
+    }
     else
     {
-        // And, if there's some OLED data waiting to send, do that.
-        if (spiTransferQueueWritePos != spiTransferQueueReadPos)
-        {
-            spiDestinationSendingTo = 0;
-            oled_sending            = true;
-            cv_sending              = false;
-            initiateSelectingOled();
-        }
-
-        // Otherwise, we're all done.
-        else
-        {
-            spiTransferQueueCurrentlySending = false;
-            cv_sending                       = false;
-        }
+        spiBusCurrentlySending = false;
+        cv_sending             = false;
     }
 }
 
 void oledDeselectionComplete()
 {
-    oledWaitingForMessage            = OLED_MESSAGE_NONE;
-    spiTransferQueueCurrentlySending = false;
-    oled_sending                     = false;
+    oledWaitingForMessage  = OLED_MESSAGE_NONE;
+    spiBusCurrentlySending = false;
+    oled_sending           = false;
+    // A waiting CV word goes out before any more OLED frames.
+    if (cvPriorityPending)
+    {
+        spiBusCurrentlySending = true;
+        sendPriorityCVIfPending();
+        return;
+    }
     // There might be something more to send now...
-    if (spiTransferQueueWritePos != spiTransferQueueReadPos)
+    if (oledFrameQueueWritePos != oledFrameQueueReadPos)
     {
         sendSPITransferFromQueue();
     }
