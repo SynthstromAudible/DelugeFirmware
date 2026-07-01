@@ -94,6 +94,7 @@
 #include "storage/storage_manager.h"
 #include "util/cfunctions.h"
 #include "util/comparison.h"
+#include "util/d_stringbuf.h"
 #include "util/functions.h"
 #include <new>
 #include <string.h>
@@ -110,6 +111,52 @@ using deluge::modulation::params::unpatchedGlobalParamShortcuts;
 using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 
 using namespace deluge::gui;
+
+// If a MIDI Macro lane is the selected automation param on this clip, return its instrument and (via
+// macroIndex) which macro; else nullptr. Callers gate on being in the clip automation editor.
+static MIDIInstrument* macroLaneInstrument(Clip* clip, int32_t* macroIndex) {
+	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT
+	    || !MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+		return nullptr;
+	}
+	if (macroIndex != nullptr) {
+		*macroIndex = MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID);
+	}
+	return (MIDIInstrument*)clip->output;
+}
+
+// Appends a follower's destination label: the MIDI device's CC name (from a loaded definition file),
+// else "CC<n>", else "F<n>" when the slot is OFF.
+static void appendFollowerName(StringBuf& buf, MIDIInstrument* instrument, int32_t macroIndex, int32_t follower) {
+	MIDIMacro::MacroFollowerSlot& f = instrument->macros[macroIndex].followers[follower];
+	if (f.cc == MIDIMacro::kFollowerCCNone) {
+		buf.append('F');
+		buf.appendInt(follower + 1);
+		return;
+	}
+	std::string_view name = instrument->getNameFromCC(f.cc);
+	if (!name.empty()) {
+		buf.append(name);
+	}
+	else {
+		buf.append("CC");
+		buf.appendInt(f.cc);
+	}
+}
+
+// Full follower readout after pressing the button or changing its CC, e.g. "LFO1 Freq From 0 To 127".
+static void showFollowerFull(MIDIInstrument* instrument, int32_t macroIndex, int32_t follower) {
+	MIDIMacro::MacroFollowerSlot& f = instrument->macros[macroIndex].followers[follower];
+	DEF_STACK_STRING_BUF(popup, 48);
+	appendFollowerName(popup, instrument, macroIndex, follower);
+	if (f.cc != MIDIMacro::kFollowerCCNone) {
+		popup.append(" From ");
+		popup.appendInt(f.from);
+		popup.append(" To ");
+		popup.appendInt(f.to);
+	}
+	display->displayPopup(popup.c_str());
+}
 
 const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
                                              UI_MODE_AUDITIONING,
@@ -471,6 +518,7 @@ void AutomationView::initializeView() {
 
 // Initializes some stuff to begin a new editing session
 void AutomationView::focusRegained() {
+	heldFollower = -1; // clear any stale follower quick-edit hold
 	if (onArrangerView) {
 		indicator_leds::setLedState(IndicatorLED::BACK, false);
 		indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
@@ -1588,8 +1636,14 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
+			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
 			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+
+			// clearing a macro lane clears its follower CC lanes too, in the same undo step
+			if (!onArrangerView && clip->output && clip->output->type == OutputType::MIDI_OUT
+			    && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+				MIDIMacro::reFanMacro(MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), action);
+			}
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
@@ -2440,6 +2494,25 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 
 // used to change the value of a step when you press and hold a pad on the timeline
 // used to record live automations in
+// While a MIDI Macro lane is selected, holding a param-select button momentarily quick-edits that
+// follower (select=CC, gold knobs=From/To). Otherwise the buttons behave normally.
+void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
+	int32_t macroIndex = 0;
+	MIDIInstrument* instrument =
+	    (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(getCurrentClip(), &macroIndex) : nullptr;
+	if (instrument != nullptr && whichButton < MIDIMacro::kNumFollowerSlots) {
+		if (on) {
+			heldFollower = whichButton;
+			showFollowerFull(instrument, macroIndex, whichButton);
+		}
+		else {
+			heldFollower = -1;
+		}
+		return;
+	}
+	ClipView::modButtonAction(whichButton, on);
+}
+
 void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	// if we're in automation overview or note editor
@@ -2447,6 +2520,24 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (!inAutomationEditor()) {
 		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 		return;
+	}
+
+	// While holding a param button on a macro lane, the gold knobs edit the follower's From/To.
+	if (heldFollower >= 0) {
+		int32_t macroIndex = 0;
+		MIDIInstrument* instrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
+		if (instrument != nullptr) {
+			MIDIMacro::MacroFollowerSlot& f = instrument->macros[macroIndex].followers[heldFollower];
+			uint8_t& endpoint = (whichModEncoder == 1) ? f.to : f.from; // knob 1 = From, knob 2 = To
+			int32_t v = std::clamp<int32_t>((int32_t)endpoint + offset, 0, MIDIMacro::kMaxValue);
+			if (v != endpoint) {
+				endpoint = (uint8_t)v;
+				instrument->editedByUser = true;
+				MIDIMacro::reFanMacro(macroIndex, nullptr);
+			}
+			showFollowerFull(instrument, macroIndex, heldFollower); // always show the full "From X To Y"
+			return;
+		}
 	}
 
 	// ok we're on the automation editor, so both mod encoders will edit the currently selected parameter
@@ -2572,8 +2663,14 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 	// if they want to delete automation
 	else if (is_delete_action) {
-		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
+		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
 		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+
+		// clearing a macro lane clears its follower CC lanes too, in the same undo step
+		if (!onArrangerView && clip->output && clip->output->type == OutputType::MIDI_OUT
+		    && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+			MIDIMacro::reFanMacro(MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), action);
+		}
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
@@ -2599,6 +2696,35 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	Clip* clip = getCurrentClip();
 	Output* output = clip->output;
 	OutputType outputType = output->type;
+
+	// While holding a param button on a macro lane, the select encoder edits the follower's CC
+	// (rather than switching automation lanes).
+	if (heldFollower >= 0 && inAutomationEditor()) {
+		int32_t macroIndex = 0;
+		MIDIInstrument* instrument = macroLaneInstrument(clip, &macroIndex);
+		if (instrument != nullptr) {
+			MIDIMacro::Macro* macros = instrument->macros;
+			MIDIMacro::MacroFollowerSlot& f = macros[macroIndex].followers[heldFollower];
+			int32_t cur = (f.cc == MIDIMacro::kFollowerCCNone) ? -1 : f.cc; // -1 = OFF, then 0..127
+			int32_t next = std::clamp<int32_t>(cur + offset, -1, MIDIMacro::kMaxFollowerCC);
+			uint8_t newCC = (next < 0) ? MIDIMacro::kFollowerCCNone : (uint8_t)next;
+			if (newCC != f.cc) {
+				f.cc = newCC;
+				instrument->editedByUser = true;
+				MIDIMacro::reFanMacro(macroIndex, nullptr);
+			}
+			int32_t owner = (newCC == MIDIMacro::kFollowerCCNone)
+			                    ? -1
+			                    : MIDIMacro::findFollowerCCOwner(macros, newCC, macroIndex, heldFollower);
+			if (owner >= 0) {
+				MIDIMacro::showCCConflictPopup(newCC, owner);
+			}
+			else {
+				showFollowerFull(instrument, macroIndex, heldFollower);
+			}
+			return;
+		}
+	}
 
 	// if you've selected a mod encoder (e.g. by pressing modEncoderButton) and you're in Automation
 	// Overview the currentUIMode will change to Selecting Midi CC. In this case, turning select encoder
@@ -2889,23 +3015,45 @@ bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int
 }
 
 // used with SelectEncoderAction to get the next midi CC
+// The MIDI automation param order is a single ordered space: macro lanes 128-131 sit BEFORE CC 0, then
+// CC 0..119, then the specials (pitch bend/aftertouch/Y). We map to a contiguous "position" where macros
+// are negative (-kNumMacroParams..-1) and CCs/specials are 0..CC_NUMBER_Y_AXIS so scrolling is simple.
+static int32_t midiCCToOrderedPos(int32_t id) {
+	if (MIDIMacro::isMacroParamID(id)) {
+		return MIDIMacro::macroIndexFromParamID(id) - MIDIMacro::kNumMacroParams;
+	}
+	return id;
+}
+static int32_t midiOrderedPosToCC(int32_t pos) {
+	if (pos < 0) {
+		return MIDIMacro::paramIDForMacro(pos + MIDIMacro::kNumMacroParams);
+	}
+	return pos;
+}
+
 void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
+	const bool macros = MIDIMacro::isEnabled();
+	const int32_t firstPos = macros ? -MIDIMacro::kNumMacroParams : 0; // macro 1, or CC 0
+	const int32_t lastPos = CC_NUMBER_Y_AXIS;                          // 122
+
+	int32_t pos;
 	if (onAutomationOverview()) {
-		clip->lastSelectedParamID = CC_NUMBER_NONE;
+		pos = (offset >= 0) ? firstPos : lastPos; // first scroll lands on the first (or last) lane
 	}
-	auto newCC = clip->lastSelectedParamID;
-	newCC += offset;
-	if (newCC < 0) {
-		newCC = CC_NUMBER_Y_AXIS;
+	else {
+		pos = midiCCToOrderedPos(clip->lastSelectedParamID) + offset;
+		if (pos < firstPos) {
+			pos = lastPos;
+		}
+		else if (pos > lastPos) {
+			pos = firstPos;
+		}
+		// CC 1 (external mod wheel) is internally CC_NUMBER_Y_AXIS, so skip it in the scroll direction
+		if (pos == CC_EXTERNAL_MOD_WHEEL) {
+			pos += (offset >= 0) ? 1 : -1;
+		}
 	}
-	else if (newCC >= kNumCCExpression) {
-		newCC = 0;
-	}
-	if (newCC == CC_EXTERNAL_MOD_WHEEL) {
-		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
-		newCC += offset;
-	}
-	clip->lastSelectedParamID = newCC;
+	clip->lastSelectedParamID = midiOrderedPosToCC(pos);
 	automationParamType = AutomationParamType::PER_SOUND;
 }
 

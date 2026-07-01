@@ -114,7 +114,12 @@ public:
 	// mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
+	void modButtonAction(uint8_t whichButton, bool on) override;
 	CopiedParamAutomation copiedParamAutomation;
+
+	// While a MIDI Macro lane is selected, holding a param-select button (0..7) quick-edits that
+	// follower: select encoder = CC, gold knob 0 = From, gold knob 1 = To. -1 = no button held.
+	int8_t heldFollower = -1;
 
 	// Select encoder action
 	void selectEncoderAction(int8_t offset) override;

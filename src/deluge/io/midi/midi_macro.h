@@ -21,6 +21,10 @@
 #include <cstdint>
 
 class MIDICable;
+class Action;
+class Clip;
+class MIDIInstrument;
+class ModelStackWithTimelineCounter;
 
 // A macro: one learned incoming leader CC broadcast to up to kNumFollowerSlots follower CCs on the
 // active MIDI clip. Follower values are written into the clip's own CC params, so they reach the
@@ -37,6 +41,21 @@ constexpr uint8_t kMaxFollowerCC = 127;
 constexpr uint8_t kMaxValue = 127;  // from/to and CC output range
 constexpr uint8_t kDefaultFrom = 0; // output at leader = 0
 constexpr uint8_t kDefaultTo = 127; // output at leader = 127 (defaults give pass-through)
+
+// Each macro also appears as an automatable "lane" in MIDI automation view, stored as a pseudo-CC
+// MIDIParam at these IDs. They sit above the 0..127 CC byte range so no real follower CC (max 127)
+// can collide, and they never emit MIDI (suppressed in MIDIParamCollection::sendMIDI).
+constexpr int32_t kMacroParamIDBase = 128;
+constexpr int32_t kNumMacroParams = kNumMacros;
+inline bool isMacroParamID(int32_t id) {
+	return id >= kMacroParamIDBase && id < kMacroParamIDBase + kNumMacroParams;
+}
+inline int32_t macroIndexFromParamID(int32_t id) {
+	return id - kMacroParamIDBase;
+}
+inline int32_t paramIDForMacro(int32_t idx) {
+	return kMacroParamIDBase + idx;
+}
 
 // One follower CC slot: the leader value 0..127 is scaled linearly onto [from, to]:
 //   out = clamp(from + (to - from) * input / 127, 0, 127)
@@ -97,6 +116,12 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 // knob as its leader, accumulate its live position by offset and drive its followers. Returns whether
 // it matched (so the caller suppresses the knob's normal action - a knob leader is dedicated).
 bool tryKnobMacro(int32_t whichKnob, int32_t offset);
+
+// Bakes macro macroIndex's automation-lane curve (pseudo-CC paramIDForMacro(idx)) into its follower CC
+// automation lanes on the active MIDI clip, scaled per follower. Call after a user edits/clears the
+// macro lane or changes a follower's config. If action != null, follower clears are snapshotted into it
+// so one BACK restores the macro lane and its followers together.
+void reFanMacro(int32_t macroIndex, Action* action);
 
 // Serializes/deserializes an instrument's macros (and its enable gate) as a <midiMacros> block within
 // the instrument's own XML. Reused for both the song file and standalone instrument presets.
