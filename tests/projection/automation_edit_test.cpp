@@ -168,8 +168,40 @@ int main() {
 		check(identical, "differential: view produces node-identical results to embedded storage");
 	}
 
+	// (7) Clone-safety (5c R3 foundation) — the clone/backup/steal frontier. Every ParamManager
+	// clone/backup/steal funnels through cloneParamCollectionsFrom → memcpy → AutoParam::beenCloned. When the
+	// source param is a VIEW over an owner store, the memcpy carries the redirect pointer; beenCloned must sever
+	// it so the clone owns INDEPENDENT embedded storage. Otherwise clip-duplicate / undo-backup / note-steal
+	// would alias (and corrupt) the owner's nodes. This is what makes relocating cloned owners' storage safe.
+	{
+		ParamNodeVector ownerStore; // stand-in for a future per-owner store; outlives both managers
+		ParamManagerForTimeline srcPm;
+		check(srcPm.setupWithPatching() == Error::NONE, "R3 clone: src setup");
+		AutoParam& srcParam = srcPm.getUnpatchedParamSet()->params[params::UNPATCHED_VOLUME];
+		srcParam.redirectNodeStorage(&ownerStore); // make the source a view over the owner store
+		srcParam.setNodeAtPos(0, 111, true);
+		srcParam.setNodeAtPos(48, -222, false);
+		check(ownerStore.size() == 2, "R3 clone: source draws into the owner store");
+
+		ParamManagerForTimeline clonePm;
+		check(clonePm.cloneParamCollectionsFrom(&srcPm, /*copyAutomation=*/true) == Error::NONE,
+		      "R3 clone: cloneParamCollectionsFrom succeeds");
+		AutoParam& cloneParam = clonePm.getUnpatchedParamSet()->params[params::UNPATCHED_VOLUME];
+
+		check(cloneParam.nodes().size() == 2, "R3 clone: clone copied the automation");
+		check(&cloneParam.nodes() != &ownerStore, "R3 clone: clone owns its storage, not a view over the source store");
+		// Mutating the clone must not touch the owner store...
+		cloneParam.setNodeAtPos(24, 99, true);
+		check(cloneParam.nodes().size() == 3 && ownerStore.size() == 2,
+		      "R3 clone: clone edit leaves the owner store intact");
+		// ...and mutating the owner store (via the source view) must not touch the clone.
+		srcParam.setNodeAtPos(96, 7, false);
+		check(ownerStore.size() == 3 && cloneParam.nodes().size() == 3,
+		      "R3 clone: source-store edit leaves the clone intact");
+	}
+
 	if (failures == 0) {
-		std::fprintf(stdout, "automation edit (5c R2): OK\n");
+		std::fprintf(stdout, "automation edit (5c R2+R3): OK\n");
 		std::fflush(stdout);
 		// _exit (not return) to skip deluge_app's global static destructors, which assume a fully set-up app
 		// (non-null display etc.) — same reason the golden + projection harnesses use _exit.

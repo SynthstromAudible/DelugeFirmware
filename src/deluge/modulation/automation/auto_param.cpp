@@ -1563,6 +1563,18 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 
 Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 
+	// This AutoParam is a raw byte-copy of the source (the memcpy in ParamManager::cloneParamCollectionsFrom).
+	// If the source was a VIEW over an owner-held store (Phase 5c redirectNodeStorage), redirectedNodes_ now
+	// aliases the SOURCE's store and ownNodes_ is a byte-copy of the source's unused embedded buffer. A clone
+	// must own its nodes and never alias the source, so re-seat ownNodes_ as a byte-copy alias of the source's
+	// REAL nodes (the store) and drop the redirect. The detach-and-own logic below then runs identically to the
+	// embedded case, leaving the clone with its own embedded storage. (No leak: a redirected source's ownNodes_
+	// was moved-from when its nodes were relocated into the store, so the pre-copy ownNodes_ owns nothing.)
+	if (redirectedNodes_ != nullptr) {
+		memcpy(&ownNodes_, redirectedNodes_, sizeof(ParamNodeVector));
+		redirectedNodes_ = nullptr;
+	}
+
 	Error error = Error::NONE;
 
 	if (copyAutomation) {
