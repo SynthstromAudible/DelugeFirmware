@@ -336,12 +336,14 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			continue;
 		}
 
-		int32_t colStartByte =
-		    colStartSample * sample->numChannels * sample->byteDepth + sample->audioDataStartPosBytes;
-		int32_t colEndByte = colEndSample * sample->numChannels * sample->byteDepth + sample->audioDataStartPosBytes;
+		// 64-bit so samples past 2 GB (colStartSample * frameSize) don't overflow (#4460).
+		int64_t colStartByte = static_cast<int64_t>(colStartSample) * sample->numChannels * sample->byteDepth
+		                       + sample->audioDataStartPosBytes;
+		int64_t colEndByte = static_cast<int64_t>(colEndSample) * sample->numChannels * sample->byteDepth
+		                     + sample->audioDataStartPosBytes;
 
-		int32_t colStartCluster = colStartByte >> Cluster::size_magnitude;
-		int32_t colEndCluster = colEndByte >> Cluster::size_magnitude;
+		int32_t colStartCluster = static_cast<int32_t>(colStartByte >> Cluster::size_magnitude);
+		int32_t colEndCluster = static_cast<int32_t>(colEndByte >> Cluster::size_magnitude);
 
 		int32_t clusterIndexToDo;
 		int32_t startByteWithinCluster;
@@ -354,14 +356,14 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		// If both same cluster...
 		if (numClustersSpan == 0) {
 			clusterIndexToDo = colStartCluster;
-			startByteWithinCluster = colStartByte & (Cluster::size - 1);
-			endByteWithinCluster = colEndByte & (Cluster::size - 1);
+			startByteWithinCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
+			endByteWithinCluster = static_cast<int32_t>(colEndByte & (Cluster::size - 1));
 		}
 
 		// Special case to make sure we get initial transient (we know there's more than 1 cluster)
 		else if (colStartSample == 0 && colStartByte < (Cluster::size >> 1)) {
 			clusterIndexToDo = colStartCluster;
-			startByteWithinCluster = colStartByte & (Cluster::size - 1);
+			startByteWithinCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
 			endByteWithinCluster = Cluster::size;
 			investigatingAWholeCluster = true;
 		}
@@ -370,7 +372,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		else if (numClustersSpan >= 2) {
 			clusterIndexToDo = colStartCluster + 1;
 
-			int32_t startByteWithinFirstCluster = colStartByte & (Cluster::size - 1);
+			int32_t startByteWithinFirstCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
 
 			int32_t unusedBytesAtEndOfPrevCluster =
 			    (Cluster::size - startByteWithinFirstCluster) % (sample->numChannels * sample->byteDepth);
@@ -388,10 +390,10 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		// If 2 cluster..
 		else if (numClustersSpan == 1) {
 
-			int32_t startByteWithinFirstCluster = colStartByte & (Cluster::size - 1);
+			int32_t startByteWithinFirstCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
 			int32_t bytesInFirstCluster = Cluster::size - startByteWithinFirstCluster;
 
-			int32_t bytesInSecondCluster = colEndByte & (Cluster::size - 1);
+			int32_t bytesInSecondCluster = static_cast<int32_t>(colEndByte & (Cluster::size - 1));
 
 			// If more in first cluster...
 			if (bytesInFirstCluster >= bytesInSecondCluster) {
