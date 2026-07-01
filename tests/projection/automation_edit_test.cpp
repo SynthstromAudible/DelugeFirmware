@@ -19,7 +19,9 @@
 #include "hid/display/display.h"
 #include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/audio_clip.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -198,6 +200,71 @@ int main() {
 		srcParam.setNodeAtPos(96, 7, false);
 		check(ownerStore.size() == 3 && cloneParam.nodes().size() == 3,
 		      "R3 clone: source-store edit leaves the clone intact");
+	}
+
+	// (8) Re-redirect a cloned owner to its OWN store (5c R3b — keeping clones DOM-owned). After a clone (which
+	// de-flips to embedded per R3a), the new owner can be redirected to a fresh per-owner store — moving its
+	// nodes in — so it becomes a DOM-view again, fully independent of the source. This is the mechanism a cloned
+	// owner (e.g. AudioClip::clone relocating into its own per-clip store) uses to keep its params DOM-owned.
+	{
+		ParamNodeVector storeA; // owner A's store
+		ParamManagerForTimeline pmA;
+		check(pmA.setupWithPatching() == Error::NONE, "R3b re-redirect: A setup");
+		AutoParam& aParam = pmA.getUnpatchedParamSet()->params[params::UNPATCHED_VOLUME];
+		aParam.redirectNodeStorage(&storeA);
+		aParam.setNodeAtPos(0, 10, true);
+		aParam.setNodeAtPos(48, 20, false);
+
+		ParamManagerForTimeline pmB;
+		check(pmB.cloneParamCollectionsFrom(&pmA, /*copyAutomation=*/true) == Error::NONE,
+		      "R3b re-redirect: clone A→B");
+		AutoParam& bParam = pmB.getUnpatchedParamSet()->params[params::UNPATCHED_VOLUME];
+		check(&bParam.nodes() != &storeA, "R3b re-redirect: clone starts embedded (R3a de-flip)");
+
+		// Relocate B into its own store (move the cloned nodes in, then redirect) — the clone re-flip pattern.
+		ParamNodeVector storeB; // owner B's store
+		storeB = std::move(bParam.nodes());
+		bParam.redirectNodeStorage(&storeB);
+		check(&bParam.nodes() == &storeB, "R3b re-redirect: B is now a view over its OWN store");
+		check(storeB.size() == 2 && storeA.size() == 2, "R3b re-redirect: B's nodes moved into B's store, A untouched");
+
+		// Full independence: edits on either store never touch the other.
+		bParam.setNodeAtPos(24, 30, true);
+		check(storeB.size() == 3 && storeA.size() == 2, "R3b re-redirect: B edit isolated from A's store");
+		aParam.setNodeAtPos(96, 40, false);
+		check(storeA.size() == 3 && storeB.size() == 3, "R3b re-redirect: A edit isolated from B's store");
+	}
+
+	// (9) The real AudioClip pilot (5c R3b) — exercise the actual per-clip store + redirectParamsToOwnStore on
+	// the real type, through the exact operations AudioClip::clone performs, and assert clones stay independent.
+	{
+		AudioClip clipA;
+		clipA.paramManager.setupUnpatched();
+		GlobalEffectableForClip::initParams(&clipA.paramManager);
+		clipA.redirectParamsToOwnStore(); // load-redirect: params become views over clipA's own store
+		AutoParam& aVol = clipA.paramManager.getUnpatchedParamSet()->params[params::UNPATCHED_VOLUME];
+		check(&aVol.nodes() == &clipA.paramNodeStoreEntryForTest(params::UNPATCHED_VOLUME),
+		      "R3b AudioClip: param is a view over the clip's OWN store (load-redirect)");
+		aVol.setNodeAtPos(0, 100, true);
+		aVol.setNodeAtPos(48, -50, false);
+		check(aVol.nodes().size() == 2, "R3b AudioClip: draw lands (via the clip store)");
+
+		// Reproduce AudioClip::clone's param steps: clone the collections (R3a de-flips to embedded), then
+		// redirect the clone into its OWN clip store.
+		AudioClip clipB;
+		check(clipB.paramManager.cloneParamCollectionsFrom(&clipA.paramManager, /*copyAutomation=*/true) == Error::NONE,
+		      "R3b AudioClip: clone collections");
+		clipB.redirectParamsToOwnStore();
+		AutoParam& bVol = clipB.paramManager.getUnpatchedParamSet()->params[params::UNPATCHED_VOLUME];
+		check(&bVol.nodes() == &clipB.paramNodeStoreEntryForTest(params::UNPATCHED_VOLUME),
+		      "R3b AudioClip: clone param is a view over the CLONE's own store");
+		check(bVol.nodes().size() == 2, "R3b AudioClip: clone carried the automation");
+
+		// Independence between the two clips' stores (the whole point of R3b on a cloned owner).
+		bVol.setNodeAtPos(24, 7, true);
+		check(bVol.nodes().size() == 3 && aVol.nodes().size() == 2, "R3b AudioClip: clone edit isolated from source");
+		aVol.setNodeAtPos(96, 9, false);
+		check(aVol.nodes().size() == 3 && bVol.nodes().size() == 3, "R3b AudioClip: source edit isolated from clone");
 	}
 
 	if (failures == 0) {

@@ -75,6 +75,20 @@ AudioClip::~AudioClip() {
 }
 
 // Will replace the Clip in the modelStack, if success.
+void AudioClip::redirectParamsToOwnStore() {
+	UnpatchedParamSet* unpatchedSet = paramManager.getUnpatchedParamSet();
+	if (unpatchedSet == nullptr) {
+		return; // paramManager not set up (e.g. a fresh clip before its <params> tag) — stays embedded (safe)
+	}
+	int32_t numParams = unpatchedSet->getNumParams();
+	for (int32_t p = 0; p < numParams; p++) {
+		ParamNodeVector& store = paramNodeStore_[p];
+		store =
+		    std::move(unpatchedSet->params[p].nodes()); // move current nodes (embedded / just-cloned) into the store
+		unpatchedSet->params[p].redirectNodeStorage(&store);
+	}
+}
+
 Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
 	void* clipMemory = deluge::memory::alloc_fast(sizeof(AudioClip));
@@ -104,6 +118,11 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	newClip->voicePriority = voicePriority;
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.isCurrentlyReversed());
+
+	// Phase 5c R3: cloneParamCollectionsFrom byte-copied then (via beenCloned) de-flipped the clone's params to
+	// embedded storage; relocate them into the NEW clip's own store so the clone stays DOM-owned and fully
+	// independent of this (source) clip's store.
+	newClip->redirectParamsToOwnStore();
 
 	return Error::NONE;
 }
@@ -1205,6 +1224,11 @@ someError:
 
 		reader.exitTag();
 	}
+
+	// Phase 5c R3: relocate the loaded unpatched param nodes into this clip's own store and make the live
+	// AutoParams views over it, so automation editing operates directly on DOM-owned storage (mirrors the
+	// song-global pilot at the tail of Song::readFromFile). No-op if <params> was absent (stays embedded).
+	redirectParamsToOwnStore();
 
 	return Error::NONE;
 }
