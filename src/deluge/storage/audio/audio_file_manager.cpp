@@ -897,6 +897,8 @@ audioFileError:
 
 	audioFile->finalizeAfterLoad(effectiveFilePointer.objsize);
 
+	overviewScanAllDone = false; // A newly loaded audio file may need pre-scanning (#4460)
+
 	audioFile->removeReason("E399");
 
 	return audioFile;
@@ -1256,6 +1258,12 @@ void AudioFileManager::slowRoutine() {
 // the way of playback streaming.
 void AudioFileManager::backgroundWaveformOverviewScan() {
 
+	// Everything already pre-scanned: stay idle until a load/reset re-arms us, instead of re-walking all
+	// files every tick (#4460).
+	if (overviewScanAllDone) {
+		return;
+	}
+
 	// Don't compete with the card or the audio routine.
 	if (cardEjected || cardDisabled || currentlyAccessingCard || (clusterBeingLoaded != nullptr)
 	    || AudioEngine::audioRoutineLocked) {
@@ -1268,6 +1276,7 @@ void AudioFileManager::backgroundWaveformOverviewScan() {
 	}
 
 	// One sample's worth of work per call, round-robined so no single sample starves the others.
+	bool anyWorkRemaining = false;
 	for (int32_t tried = 0; tried < numFiles; tried++) {
 		if (overviewScanFileIndex >= numFiles) {
 			overviewScanFileIndex = 0;
@@ -1282,8 +1291,14 @@ void AudioFileManager::backgroundWaveformOverviewScan() {
 		// Advance this sample by a small budget. If there was real work to do, stop here for this call.
 		Sample* sample = (Sample*)audioFile;
 		if (waveformRenderer.advanceOverviewScan(sample, kOverviewScanClustersPerCall)) {
+			anyWorkRemaining = true;
 			return;
 		}
+	}
+
+	// A full pass found nothing left to scan: go idle until something re-arms us.
+	if (!anyWorkRemaining) {
+		overviewScanAllDone = true;
 	}
 }
 

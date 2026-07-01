@@ -72,8 +72,6 @@ Sample::Sample()
 	minValueFound = 2147483647;
 	maxValueFound = -2147483648;
 
-	overviewScanNextCluster = 0;
-
 	percCacheMemory[0] = nullptr;
 	percCacheMemory[1] = nullptr;
 
@@ -183,6 +181,7 @@ void Sample::resetOverviewScan() {
 		sampleCluster->maxValue = -128;
 	}
 	overviewScanNextCluster = getFirstClusterIndexWithAudioData();
+	audioFileManager.overviewScanAllDone = false; // This sample now has work to pre-scan again (#4460)
 }
 
 SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio,

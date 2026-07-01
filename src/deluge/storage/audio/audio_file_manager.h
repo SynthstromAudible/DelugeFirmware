@@ -103,6 +103,8 @@ public:
 	// to avoid chaining reads against playback streaming (#4460).
 	static constexpr int32_t kOverviewScanClustersPerCall = 1;
 	int32_t overviewScanFileIndex = 0; // Round-robin cursor over audioFiles for the overview pre-scan
+	bool overviewScanAllDone =
+	    false; // Set once every loaded sample is fully pre-scanned; re-armed on load/reset (#4460)
 
 	Error setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath);
 	Error setupAlternateAudioFileDir(String& newPath, char const* rootDir, const char* songFilenameWithoutExtension);

@@ -673,6 +673,10 @@ bool WaveformRenderer::advanceOverviewScan(Sample* sample, int32_t maxClusters) 
 
 	const int32_t endClusters = sample->getFirstClusterIndexWithNoAudioData();
 
+	// Never scan header-only clusters: start at the first cluster that actually holds audio.
+	sample->overviewScanNextCluster =
+	    std::max(sample->overviewScanNextCluster, sample->getFirstClusterIndexWithAudioData());
+
 	// If the valid range shrank (e.g. after invalidation), clamp the cursor back into range.
 	sample->overviewScanNextCluster = std::min(sample->overviewScanNextCluster, endClusters);
 

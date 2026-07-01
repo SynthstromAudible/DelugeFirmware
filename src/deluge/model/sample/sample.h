@@ -145,7 +145,8 @@ public:
 
 	// Background "waveform overview" pre-scan cursor (issue #4460). The next cluster index that the idle
 	// pre-scan should investigate-whole-length, so that zoomed-out single-row rendering finds per-cluster
-	// min/max already cached and never has to load clusters synchronously mid-scroll.
+	// min/max already cached and never has to load clusters synchronously mid-scroll. Seeded to the first
+	// audio cluster by advanceOverviewScan / resetOverviewScan (clusters aren't known at construction).
 	int32_t overviewScanNextCluster{0};
 
 	OrderedResizeableArrayWithMultiWordKey caches;
