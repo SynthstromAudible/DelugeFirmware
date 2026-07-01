@@ -72,6 +72,8 @@ Sample::Sample()
 	minValueFound = 2147483647;
 	maxValueFound = -2147483648;
 
+	overviewScanNextCluster = 0;
+
 	percCacheMemory[0] = nullptr;
 	percCacheMemory[1] = nullptr;
 
@@ -160,6 +162,9 @@ void Sample::workOutBitMask() {
 void Sample::markAsUnloadable() {
 	unloadable = true;
 
+	// The on-disk audio may have changed, so the cached waveform overview can no longer be trusted.
+	resetOverviewScan();
+
 	// If any Clusters in the load-queue, remove them from there
 	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
 		Cluster* cluster = clusters.getElement(c)->cluster;
@@ -168,6 +173,16 @@ void Sample::markAsUnloadable() {
 			audioFileManager.loadingQueue.erase(cluster);
 		}
 	}
+}
+
+void Sample::resetOverviewScan() {
+	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
+		SampleCluster* sampleCluster = clusters.getElement(c);
+		sampleCluster->investigatedWholeLength = false;
+		sampleCluster->minValue = 127;
+		sampleCluster->maxValue = -128;
+	}
+	overviewScanNextCluster = getFirstClusterIndexWithAudioData();
 }
 
 SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio,

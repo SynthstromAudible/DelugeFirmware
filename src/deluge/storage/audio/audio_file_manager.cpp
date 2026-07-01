@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
@@ -1245,6 +1246,45 @@ void AudioFileManager::slowRoutine() {
 	// see
 	// https://github.com/SynthstromAudible/DelugeFirmware/blob/866a71d0394e259a5b3db9d4fde605511bd1c67d/src/deluge/storage/audio/audio_file_manager.cpp#L1238
 	// for a copy if ever needed
+
+	backgroundWaveformOverviewScan();
+}
+
+// Background "waveform overview" pre-scan (issue #4460). Walks loaded Samples a little at a time, off the
+// render path, caching each cluster's min/max so zoomed-out single-row rendering (song row view) never has
+// to load clusters synchronously while the user scrolls. Heavily throttled and round-robined to stay out of
+// the way of playback streaming.
+void AudioFileManager::backgroundWaveformOverviewScan() {
+
+	// Don't compete with the card or the audio routine.
+	if (cardEjected || cardDisabled || currentlyAccessingCard || (clusterBeingLoaded != nullptr)
+	    || AudioEngine::audioRoutineLocked) {
+		return;
+	}
+
+	int32_t numFiles = audioFiles.getNumElements();
+	if (numFiles == 0) {
+		return;
+	}
+
+	// One sample's worth of work per call, round-robined so no single sample starves the others.
+	for (int32_t tried = 0; tried < numFiles; tried++) {
+		if (overviewScanFileIndex >= numFiles) {
+			overviewScanFileIndex = 0;
+		}
+		AudioFile* audioFile = (AudioFile*)audioFiles.getElement(overviewScanFileIndex);
+		overviewScanFileIndex++;
+
+		if (!AudioFile::isSample(audioFile)) {
+			continue;
+		}
+
+		// Advance this sample by a small budget. If there was real work to do, stop here for this call.
+		Sample* sample = (Sample*)audioFile;
+		if (waveformRenderer.advanceOverviewScan(sample, kOverviewScanClustersPerCall)) {
+			return;
+		}
+	}
 }
 
 #define REPORT_AWAY_TIME 0

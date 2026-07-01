@@ -96,6 +96,12 @@ public:
 
 	void slowRoutine();
 
+	// Background "waveform overview" pre-scan (issue #4460): see implementation for details.
+	void backgroundWaveformOverviewScan();
+	// How many clusters to investigate per slowRoutine call. Kept small to avoid card/audio contention.
+	static constexpr int32_t kOverviewScanClustersPerCall = 4;
+	int32_t overviewScanFileIndex = 0; // Round-robin cursor over audioFiles for the overview pre-scan
+
 	Error setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath);
 	Error setupAlternateAudioFileDir(String& newPath, char const* rootDir, const char* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();

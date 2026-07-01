@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 
+#define COL_STATUS_NOT_INVESTIGATED 0
 #define COL_STATUS_INVESTIGATED 1
 #define COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM 2
 

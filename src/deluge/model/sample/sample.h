@@ -75,6 +75,10 @@ public:
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
 	int32_t getValueSpan();
+
+	// Discards the cached per-cluster waveform overview (issue #4460) and rewinds the background pre-scan,
+	// so it gets rebuilt from scratch. Call when the underlying audio data may have changed on disk.
+	void resetOverviewScan();
 	void finalizeAfterLoad(uint32_t fileSize) override;
 
 	// Floating point
@@ -138,6 +142,11 @@ public:
 	// int32_t valueSpan; // -2147483648 means both these are uninitialized
 	int32_t minValueFound;
 	int32_t maxValueFound;
+
+	// Background "waveform overview" pre-scan cursor (issue #4460). The next cluster index that the idle
+	// pre-scan should investigate-whole-length, so that zoomed-out single-row rendering finds per-cluster
+	// min/max already cached and never has to load clusters synchronously mid-scroll.
+	int32_t overviewScanNextCluster{0};
 
 	OrderedResizeableArrayWithMultiWordKey caches;
 
