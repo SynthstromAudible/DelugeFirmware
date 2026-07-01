@@ -32,50 +32,78 @@
 #include <algorithm>
 #include <string.h>
 
-#define SETTINGS_FOLDER "SETTINGS"
-#define MIDI_MACRO_XML "SETTINGS/MIDIMacro.XML"
-#define MIDI_MACRO_FILE_TAG "midiMacro" // root element
-#define MIDI_MACRO_ELEMENT_TAG "macro"  // one macro (leader + followers)
-#define MIDI_MACRO_LEADER_TAG "leader"  // the learned leader CC
+#define MIDI_MACROS_TAG "midiMacros"      // per-instrument block, embedded in the instrument's XML
+#define MIDI_MACRO_PRESET_TAG "midiMacro" // preset file root (followers only)
+#define MIDI_MACRO_ELEMENT_TAG "macro"    // one macro (leader + followers)
+#define MIDI_MACRO_LEADER_TAG "leader"    // the learned leader CC
 #define MIDI_MACRO_FOLLOWER_PREFIX "follower"
 
 namespace MIDIMacro {
 
-Macro macros[kNumMacros]{};
-
 int32_t presetMacroIndex = 0;
-
-static bool dirty = false;
-
-void markDirty() {
-	dirty = true;
-}
 
 bool isEnabled() {
 	return runtimeFeatureSettings.get(RuntimeFeatureSettingType::MidiMacro) == RuntimeFeatureStateToggle::On;
 }
 
-static void sendToFollowers(Macro& macro, int32_t value) {
-	// Don't drive followers while a song is loading. On boot a controller's power-on CC burst (e.g. the
-	// MIDI Fighter Twister resending its knob positions) can arrive mid-load of the startup song,
-	// when the active clip/song isn't in a stable state yet - touching it then crashes. Also covers
-	// loading a different song at runtime.
-	if (getCurrentUI() == &loadSongUI) {
-		return;
+bool isFollowerCCUsed(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot) {
+	if (cc == kFollowerCCNone) {
+		return false;
 	}
-	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
-		return;
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		for (int32_t f = 0; f < kNumFollowerSlots; f++) {
+			if (m == exceptMacro && f == exceptSlot) {
+				continue;
+			}
+			if (macros[m].followers[f].cc == cc) {
+				return true;
+			}
+		}
 	}
-	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
+	return false;
+}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+int32_t findActiveConflict(const Macro* macros, int32_t macroIndex, uint8_t* conflictCC) {
+	for (const MacroFollowerSlot& follower : macros[macroIndex].followers) {
+		if (follower.cc == kFollowerCCNone) {
+			continue;
+		}
+		for (int32_t m = 0; m < kNumMacros; m++) {
+			if (m == macroIndex || !macros[m].active) {
+				continue;
+			}
+			for (const MacroFollowerSlot& other : macros[m].followers) {
+				if (other.cc == follower.cc) {
+					if (conflictCC != nullptr) {
+						*conflictCC = follower.cc;
+					}
+					return m;
+				}
+			}
+		}
+	}
+	return -1;
+}
 
+bool anyMacroConfigured(Macro* macros) {
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		if (macros[m].active || macros[m].leader.containsSomething()) {
+			return true;
+		}
+		for (const MacroFollowerSlot& follower : macros[m].followers) {
+			if (follower.cc != kFollowerCCNone) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+static void sendToFollowers(MIDIInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
+                            Macro& macro, int32_t value) {
 	RootUI* rootUI = getRootUI();
 	for (MacroFollowerSlot& follower : macro.followers) {
-		if (follower.cc == kFollowerCCNone || !follower.enabled) {
+		if (follower.cc == kFollowerCCNone || !follower.send) {
 			continue;
 		}
 		// scale the incoming 0..127 value linearly onto [from, to] (from>to inverts), rounding to nearest
@@ -85,7 +113,7 @@ static void sendToFollowers(Macro& macro, int32_t value) {
 		int32_t valueBig = (out - 64) << 25;
 		// writes the value into the clip's own CC param, so it reaches the output and gets
 		// recorded into that CC's automation lane like a manual change to it would
-		instrument->processParamFromInputMIDIChannel(follower.cc, valueBig, modelStackWithTimelineCounter);
+		instrument->processParamFromInputMIDIChannel(follower.cc, valueBig, modelStack);
 		// the param write doesn't notify the UI, so refresh the automation editor grid ourselves
 		// if it's showing this CC. Can't use possiblyRefreshAutomationEditorGrid() here: for MIDI
 		// clips, automation view tracks the selected lane by CC number alone and leaves
@@ -100,13 +128,33 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 	if (!isEnabled()) {
 		return false;
 	}
+	// Don't drive followers while a song is loading. On boot a controller's power-on CC burst (e.g. the
+	// MIDI Fighter Twister resending its knob positions) can arrive mid-load of the startup song, when
+	// the active clip/song isn't in a stable state yet - touching it then crashes. Also covers loading a
+	// different song at runtime.
+	if (getCurrentUI() == &loadSongUI) {
+		return false;
+	}
+	Clip* clip = midiFollow.getSelectedOrActiveClip();
+	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
+		return false;
+	}
+	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
+	if (!instrument->macrosEnabled) {
+		return false;
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
 	bool matched = false;
-	for (Macro& macro : macros) {
-		if (!macro.enabled) {
+	for (Macro& macro : instrument->macros) {
+		if (!macro.active) {
 			continue;
 		}
 		if (macro.leader.equalsNoteOrCC(&cable, channelOrZone + IS_A_CC, ccNumber)) {
-			sendToFollowers(macro, value);
+			sendToFollowers(instrument, clip, modelStackWithTimelineCounter, macro, value);
 			matched = true;
 		}
 	}
@@ -123,8 +171,24 @@ static int32_t followerSlotFromTagName(char const* tagName) {
 	return -1;
 }
 
-// Writes one <macro> element (self-closing if empty), as it appears in both the main file and a
-// single-macro preset file.
+// Writes the configured <follower1..8/> elements of a macro. Used by both the instrument block and presets.
+static void writeFollowersToFile(Serializer& writer, Macro& macro) {
+	for (int32_t i = 0; i < kNumFollowerSlots; i++) {
+		MacroFollowerSlot& follower = macro.followers[i];
+		if (follower.cc != kFollowerCCNone) {
+			char tagName[10] = MIDI_MACRO_FOLLOWER_PREFIX "1"; // "follower1"
+			tagName[8] = '1' + i;
+			writer.writeOpeningTagBeginning(tagName);
+			writer.writeAttribute("cc", follower.cc, false);
+			writer.writeAttribute("from", follower.from, false);
+			writer.writeAttribute("to", follower.to, false);
+			writer.writeAttribute("send", follower.send ? 1 : 0, false);
+			writer.closeTag();
+		}
+	}
+}
+
+// Writes one <macro> element (self-closing if empty), as it appears in the instrument block.
 static void writeMacroToFile(Serializer& writer, Macro& macro) {
 	// Does this macro have any children to write? (A learned leader or at least one configured follower.)
 	bool hasChildren = macro.leader.containsSomething();
@@ -133,10 +197,10 @@ static void writeMacroToFile(Serializer& writer, Macro& macro) {
 	}
 
 	writer.writeOpeningTagBeginning(MIDI_MACRO_ELEMENT_TAG);
-	writer.writeAttribute("enabled", macro.enabled ? 1 : 0, false);
+	writer.writeAttribute("active", macro.active ? 1 : 0, false);
 
-	// Self-close empty macros (<macro enabled="0"/>). The XML reader mis-parses an empty but
-	// explicitly-closed element that carries an attribute (<macro enabled="0"></macro>), which
+	// Self-close empty macros (<macro active="0"/>). The XML reader mis-parses an empty but
+	// explicitly-closed element that carries an attribute (<macro active="0"></macro>), which
 	// desyncs the rest of the file; a self-closing tag avoids that. Macros must stay positional
 	// (slot 0..3 = macro index), so we always write all of them rather than skipping empties.
 	if (!hasChildren) {
@@ -148,45 +212,23 @@ static void writeMacroToFile(Serializer& writer, Macro& macro) {
 
 	macro.leader.writeCCToFile(writer, MIDI_MACRO_LEADER_TAG);
 
-	for (int32_t i = 0; i < kNumFollowerSlots; i++) {
-		MacroFollowerSlot& follower = macro.followers[i];
-		if (follower.cc != kFollowerCCNone) {
-			char tagName[10] = MIDI_MACRO_FOLLOWER_PREFIX "1"; // "follower1"
-			tagName[8] = '1' + i;
-			writer.writeOpeningTagBeginning(tagName);
-			writer.writeAttribute("cc", follower.cc, false);
-			writer.writeAttribute("from", follower.from, false);
-			writer.writeAttribute("to", follower.to, false);
-			writer.writeAttribute("send", follower.enabled ? 1 : 0, false);
-			writer.closeTag();
-		}
-	}
+	writeFollowersToFile(writer, macro);
 
 	writer.writeClosingTag(MIDI_MACRO_ELEMENT_TAG);
 }
 
-void writeToFile() {
-	if (!dirty) {
-		return;
-	}
-
-	f_mkdir(SETTINGS_FOLDER);
-	Error error = StorageManager::createXMLFile(MIDI_MACRO_XML, smSerializer, true);
-	if (error != Error::NONE) {
-		return;
-	}
-	Serializer& writer = GetSerializer();
-
-	writer.writeOpeningTagBeginning(MIDI_MACRO_FILE_TAG);
+// Writes the <midiMacros enabled=".."> block holding all four macros. Called from
+// MIDIInstrument::writeDataToFile with the instrument's own macros/enable state.
+void writeMacrosToFile(Serializer& writer, Macro* macros, bool enabled) {
+	writer.writeOpeningTagBeginning(MIDI_MACROS_TAG);
+	writer.writeAttribute("enabled", enabled ? 1 : 0, false); // per-instrument enable gate
 	writer.writeOpeningTagEnd();
 
-	for (Macro& macro : macros) {
-		writeMacroToFile(writer, macro);
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		writeMacroToFile(writer, macros[m]);
 	}
 
-	writer.writeClosingTag(MIDI_MACRO_FILE_TAG);
-	writer.closeFileAfterWriting();
-	dirty = false;
+	writer.writeClosingTag(MIDI_MACROS_TAG);
 }
 
 // Reads a follower's cc/from/to/send attributes (e.g. <follower1 cc="42" from="0" to="100" send="1" />).
@@ -194,7 +236,7 @@ static void readFollowerFromFile(Deserializer& reader, MacroFollowerSlot& follow
 	int32_t cc = kFollowerCCNone;
 	int32_t from = kDefaultFrom;
 	int32_t to = kDefaultTo;
-	bool enabled = true;
+	bool send = true;
 	char const* attrName;
 	while (*(attrName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(attrName, "cc")) {
@@ -207,21 +249,22 @@ static void readFollowerFromFile(Deserializer& reader, MacroFollowerSlot& follow
 			to = reader.readTagOrAttributeValueInt();
 		}
 		else if (!strcmp(attrName, "send")) {
-			enabled = reader.readTagOrAttributeValueInt() != 0;
+			send = reader.readTagOrAttributeValueInt() != 0;
 		}
 		reader.exitTag();
 	}
 	follower.cc = (cc >= 0 && cc <= kMaxFollowerCC) ? cc : kFollowerCCNone;
 	follower.from = std::clamp<int32_t>(from, 0, kMaxValue);
 	follower.to = std::clamp<int32_t>(to, 0, kMaxValue);
-	follower.enabled = enabled;
+	follower.send = send;
 }
 
 static void readMacroFromFile(Deserializer& reader, Macro& macro) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "enabled")) {
-			macro.enabled = reader.readTagOrAttributeValueInt() != 0;
+		// accept legacy "enabled" as well as "active"
+		if (!strcmp(tagName, "active") || !strcmp(tagName, "enabled")) {
+			macro.active = reader.readTagOrAttributeValueInt() != 0;
 		}
 		else if (!strcmp(tagName, MIDI_MACRO_LEADER_TAG)) {
 			macro.leader.readCCFromFile(reader);
@@ -236,66 +279,66 @@ static void readMacroFromFile(Deserializer& reader, Macro& macro) {
 	}
 }
 
-void readFromFile() {
-	FilePointer fp;
-	if (!StorageManager::fileExists(MIDI_MACRO_XML, &fp)) {
-		return;
-	}
-
-	Error error = StorageManager::openXMLFile(&fp, smDeserializer, MIDI_MACRO_FILE_TAG);
-	if (error != Error::NONE) {
-		return;
-	}
-
-	Deserializer& reader = *activeDeserializer;
+// Reads the children of a <midiMacros> block: the per-instrument enable attribute and the four
+// positional <macro> elements. The caller (MIDIInstrument::readTagFromFile) exits the outer tag.
+void readMacrosFromFile(Deserializer& reader, Macro* macros, bool& enabled) {
 	char const* tagName;
 	int32_t macroIndex = 0;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, MIDI_MACRO_ELEMENT_TAG) && macroIndex < kNumMacros) {
+		if (!strcmp(tagName, "enabled")) {
+			enabled = reader.readTagOrAttributeValueInt() != 0;
+		}
+		else if (!strcmp(tagName, MIDI_MACRO_ELEMENT_TAG) && macroIndex < kNumMacros) {
 			readMacroFromFile(reader, macros[macroIndex++]);
 		}
 		reader.exitTag();
 	}
-	activeDeserializer->closeWriter();
 }
 
-// Writes a one-macro preset: the same <midiMacro> wrapper as the main file, holding a single
-// <macro>. The caller (the save browser) owns createXMLFile()/closeFileAfterWriting().
-void writeMacroPreset(Serializer& writer, int32_t macroIndex) {
-	writer.writeOpeningTagBeginning(MIDI_MACRO_FILE_TAG);
+// Writes a preset: followers only (<midiMacro><follower1..8/></midiMacro>). A preset is a portable
+// follower configuration - it deliberately omits the leader and the macro's active state so it can
+// be applied to any macro. The caller (save browser) owns createXMLFile()/closeFileAfterWriting().
+void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex) {
+	writer.writeOpeningTagBeginning(MIDI_MACRO_PRESET_TAG);
 	writer.writeOpeningTagEnd();
-	writeMacroToFile(writer, macros[macroIndex]);
-	writer.writeClosingTag(MIDI_MACRO_FILE_TAG);
+	writeFollowersToFile(writer, macros[macroIndex]);
+	writer.writeClosingTag(MIDI_MACRO_PRESET_TAG);
 }
 
-// Loads the first <macro> from a preset file into macros[macroIndex], replacing it wholesale.
-Error loadMacroPreset(FilePointer* fp, int32_t macroIndex) {
-	Error error = StorageManager::openXMLFile(fp, smDeserializer, MIDI_MACRO_FILE_TAG);
+// Loads a preset's followers into macros[macroIndex], replacing that macro's followers only and
+// leaving its leader and active state untouched. If the loaded followers conflict with an active
+// macro, the loaded macro is deactivated (its CCs are kept), since destination CCs must be unique.
+Error loadMacroPreset(FilePointer* fp, Macro* macros, int32_t macroIndex) {
+	Error error = StorageManager::openXMLFile(fp, smDeserializer, MIDI_MACRO_PRESET_TAG);
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	// Reset the target macro first so anything not present in the preset (e.g. follower slots the
-	// preset leaves unconfigured) is cleared rather than left over from the previous contents.
-	macros[macroIndex] = Macro{};
+	// Reset only the followers so slots the preset doesn't configure are cleared, not left over.
+	for (MacroFollowerSlot& follower : macros[macroIndex].followers) {
+		follower = MacroFollowerSlot{};
+	}
 
 	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, MIDI_MACRO_ELEMENT_TAG)) {
-			readMacroFromFile(reader, macros[macroIndex]);
+		int32_t slot = followerSlotFromTagName(tagName);
+		if (slot >= 0) {
+			readFollowerFromFile(reader, macros[macroIndex].followers[slot]);
 		}
 		reader.exitTag();
 	}
 	activeDeserializer->closeWriter();
 
-	// Persist the loaded state into the main MIDIMacro.XML too.
-	markDirty();
+	if (macros[macroIndex].active && macroHasActiveConflict(macros, macroIndex)) {
+		macros[macroIndex].active = false;
+	}
+
 	return Error::NONE;
 }
 
 void capture(int32_t macroIndex, bool toMax) {
-	// Same guards/setup as sendToFollowers(): need a stable active MIDI clip.
+	// Same guards/setup as tryMacro(): need a stable active MIDI clip.
 	if (getCurrentUI() == &loadSongUI) {
 		return;
 	}
@@ -310,7 +353,7 @@ void capture(int32_t macroIndex, bool toMax) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 	bool changed = false;
-	for (MacroFollowerSlot& follower : macros[macroIndex].followers) {
+	for (MacroFollowerSlot& follower : instrument->macros[macroIndex].followers) {
 		if (follower.cc == kFollowerCCNone) {
 			continue;
 		}
@@ -329,7 +372,7 @@ void capture(int32_t macroIndex, bool toMax) {
 		changed = true;
 	}
 	if (changed) {
-		markDirty();
+		instrument->editedByUser = true;
 	}
 }
 

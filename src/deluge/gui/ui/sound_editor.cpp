@@ -707,7 +707,6 @@ ActionResult SoundEditor::exitCompletely() {
 
 		FlashStorage::writeSettings();
 		MIDIDeviceManager::writeDevicesToFile();
-		MIDIMacro::writeToFile();
 		runtimeFeatureSettings.writeSettingsToFile();
 		midiFollow.writeDefaultsToFile();
 		display->removeWorkingAnimation();
