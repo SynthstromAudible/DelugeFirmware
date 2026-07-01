@@ -23,6 +23,9 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_macro.h"
+#include "model/instrument/midi_instrument.h"
+#include "model/output.h"
+#include "model/song/song.h"
 #include "storage/storage_manager.h"
 #include <string.h>
 
@@ -105,7 +108,11 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
-	MIDIMacro::writeMacroPreset(GetSerializer(), MIDIMacro::presetMacroIndex);
+	// Presets save the current MIDI clip's instrument macros (per-track).
+	if (Output* output = getCurrentOutput(); output && output->type == OutputType::MIDI_OUT) {
+		MIDIMacro::writeMacroPreset(GetSerializer(), static_cast<MIDIInstrument*>(output)->macros,
+		                            MIDIMacro::presetMacroIndex);
+	}
 
 	GetSerializer().closeFileAfterWriting();
 

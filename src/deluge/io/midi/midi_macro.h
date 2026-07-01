@@ -26,7 +26,8 @@ class MIDICable;
 // active MIDI clip. Follower values are written into the clip's own CC params, so they reach the
 // clip's output and record into each CC's automation lane. The leader CC is consumed; to
 // forward/record it too, include it as one of its macro's followers.
-// Configured via SETTINGS > MIDI > MACRO and persisted in SETTINGS/MIDIMacro.XML on the SD card.
+// Config is per-track: the four macros and the per-instrument enable gate live on each MIDIInstrument
+// and serialize with it (song + preset). Configured in the MIDI clip's menu.
 namespace MIDIMacro {
 
 constexpr int32_t kNumMacros = 4;
@@ -44,44 +45,60 @@ struct MacroFollowerSlot {
 	uint8_t cc = kFollowerCCNone; // kFollowerCCNone = OFF, else 0..kMaxFollowerCC
 	uint8_t from = kDefaultFrom;  // 0..kMaxValue, output when leader is at 0 (capture A)
 	uint8_t to = kDefaultTo;      // 0..kMaxValue, output when leader is at 127 (capture B; from>to inverts)
-	bool enabled = true;          // muted when false, but keeps cc/from/to
+	bool send = true;             // the "Send" toggle: muted when false, but keeps cc/from/to
 };
 
 struct Macro {
 	LearnedMIDI leader;
-	bool enabled = false; // master enable, off by default; turn a macro on manually to use it
+	bool active = false; // off by default; the macro fires only when active (and the feature is enabled)
 	MacroFollowerSlot followers[kNumFollowerSlots];
 };
 
-extern Macro macros[kNumMacros];
-
-// Whether the MIDI macro feature is turned on in Community Features. Gates CC broadcast and the
-// clip-view capture gestures.
+// Whether the MIDI macro feature is turned on in Community Features. Gates menu visibility and, with
+// each instrument's per-track enable, whether macros fire. This is the global off-switch.
 bool isEnabled();
 
-// Folder for per-macro preset files, a sibling of MIDIMacro.XML under SETTINGS.
+// True if any follower other than macros[exceptMacro].followers[exceptSlot] already targets this CC
+// within this instrument's macros. Used by the follower CC editor to skip CCs already taken.
+bool isFollowerCCUsed(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot);
+
+// Returns the index of an *active* macro (other than macroIndex) in this instrument's macros that owns
+// one of macroIndex's follower CCs, or -1 if none; if non-null, *conflictCC receives the shared CC. A
+// macro may not be made active while such a conflict exists (two active macros would fight over the
+// shared CC); duplicate CCs are otherwise allowed to sit dormant.
+int32_t findActiveConflict(const Macro* macros, int32_t macroIndex, uint8_t* conflictCC = nullptr);
+inline bool macroHasActiveConflict(const Macro* macros, int32_t macroIndex) {
+	return findActiveConflict(macros, macroIndex) >= 0;
+}
+
+// True if any of the four macros is configured (a learned leader, a follower CC set, or active).
+// Gates serialization so an all-default instrument writes nothing.
+bool anyMacroConfigured(Macro* macros);
+
+// Folder for per-macro preset files under SETTINGS. Presets are portable follower configs, shared.
 constexpr char const* kPresetsFolder = "SETTINGS/MIDI_MACRO_PRESETS";
 
 // Which macro a preset browser (load/save) is acting on. Set by the menu item before opening the
 // browser UI, read by the UI's performLoad()/performSave().
 extern int32_t presetMacroIndex;
 
-// If the incoming CC matches any macro's learned leader, writes its value to that macro's follower
-// CCs on the active MIDI clip. Returns whether it matched (and so consumed the message).
+// If the incoming CC matches any active macro's learned leader on the active MIDI clip's instrument
+// (and that instrument has macros enabled), writes its value to that macro's follower CCs. Returns
+// whether it matched (and so consumed the message).
 bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t value);
 
-// Flags the config as needing a save; writeToFile() is a no-op while unchanged.
-void markDirty();
+// Serializes/deserializes an instrument's macros (and its enable gate) as a <midiMacros> block within
+// the instrument's own XML. Reused for both the song file and standalone instrument presets.
+void writeMacrosToFile(Serializer& writer, Macro* macros, bool enabled);
+void readMacrosFromFile(Deserializer& reader, Macro* macros, bool& enabled);
 
-void writeToFile();
-void readFromFile();
-
-// Save/load a single macro as its own preset file, reusing the main file's <midiMacro><macro/>
-// structure. writeMacroPreset() writes the body between the browser's createXMLFile() and
-// closeFileAfterWriting(); loadMacroPreset() opens, reads one macro into macros[macroIndex], and
-// marks the main config dirty so the loaded state also persists to MIDIMacro.XML.
-void writeMacroPreset(Serializer& writer, int32_t macroIndex);
-Error loadMacroPreset(FilePointer* fp, int32_t macroIndex);
+// Save/load a preset: a macro's followers only (not its leader or active state), so a preset is a
+// portable follower configuration applicable to any macro. writeMacroPreset() writes the body between
+// the browser's createXMLFile() and closeFileAfterWriting(); loadMacroPreset() replaces
+// macros[macroIndex]'s followers (keeping its leader). If the loaded followers conflict with an active
+// macro, the loaded macro is deactivated rather than losing CCs.
+void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex);
+Error loadMacroPreset(FilePointer* fp, Macro* macros, int32_t macroIndex);
 
 // Captures the current live value of each configured follower CC on the active MIDI clip into that
 // follower's from (toMax=false, capture A) or to (toMax=true, capture B). The leader CC then morphs

@@ -1144,7 +1144,7 @@ Submenu midiCommandsMenu{
 
 // Declares macro m's master enable, learnable leader, 8 follower pages and the macro submenu.
 #define DEFINE_MACRO(m)                                                                                                \
-	midi::MacroEnable macro##m##Enabled{STRING_FOR_MACRO_ENABLED, (m) - 1};                                            \
+	midi::MacroActive macro##m##Active{STRING_FOR_MACRO_ACTIVE, (m) - 1};                                              \
 	midi::MacroLeader macro##m##Leader{STRING_FOR_MACRO_LEADER, (m) - 1};                                              \
 	MACRO_FOLLOWER(m, 1);                                                                                              \
 	MACRO_FOLLOWER(m, 2);                                                                                              \
@@ -1162,7 +1162,7 @@ Submenu midiCommandsMenu{
 	midi::MacroPreset macro##m##Save{STRING_FOR_MACRO_SAVE, (m) - 1, true};                                            \
 	Submenu midiMacro##m##Menu {                                                                                       \
 		STRING_FOR_MACRO_##m, {                                                                                        \
-			&macro##m##Enabled, &macro##m##Leader, &macro##m##Followers, &macro##m##Load, &macro##m##Save              \
+			&macro##m##Active, &macro##m##Leader, &macro##m##Followers, &macro##m##Load, &macro##m##Save               \
 		}                                                                                                              \
 	}
 
@@ -1173,11 +1173,11 @@ DEFINE_MACRO(4);
 #undef DEFINE_MACRO
 #undef MACRO_FOLLOWER
 
-midi::MacroEnableAll macroEnableAll{STRING_FOR_MACRO_ENABLE_ALL};
+midi::MacroEnable macroEnable{STRING_FOR_MACRO_ENABLE_MACROS};
 midi::MacroMenu midiMacroMenu{
     STRING_FOR_MACRO,
     STRING_FOR_MIDI_MACRO,
-    {&macroEnableAll, &midiMacro1Menu, &midiMacro2Menu, &midiMacro3Menu, &midiMacro4Menu},
+    {&macroEnable, &midiMacro1Menu, &midiMacro2Menu, &midiMacro3Menu, &midiMacro4Menu},
 };
 
 // MIDI device submenu - for after we've selected which device we want it for
@@ -1231,7 +1231,6 @@ Submenu midiMenu{
         &midiTransposeMenu,
         &midiTakeoverMenu,
         &midiCommandsMenu,
-        &midiMacroMenu,
         &midiInputDifferentiationMenu,
         &midi::devicesMenu,
     },
@@ -1627,6 +1626,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     {
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
+        &midiMacroMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
         &bendMenu,

@@ -811,7 +811,6 @@ extern "C" int32_t deluge_main(void) {
 	runtimeFeatureSettings.readSettingsFromFile();
 	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
-	MIDIMacro::readFromFile();
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
 	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song", RESOURCE_SD | RESOURCE_SD_ROUTINE);
