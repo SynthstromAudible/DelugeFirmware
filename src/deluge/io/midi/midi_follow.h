@@ -81,7 +81,7 @@ public:
 	void handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber,
 	                      int32_t ccValue);
 
-	// public so the MIDI fan-out can target the active clip's output
+	// public so the MIDI macro can target the active clip's output
 	Clip* getSelectedOrActiveClip();
 
 private:

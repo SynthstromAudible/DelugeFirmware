@@ -51,6 +51,7 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_macro.h"
 #include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -1815,14 +1816,30 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
 
 			if (!inNoteEditor()) {
+				// With the MIDI macro feature on, a MIDI clip's automation editor repurposes (0,7)/(1,7)
+				// to capture A/B for Macro 1, and moves the pad-selection toggle to (15,3) since (0,7) is
+				// now the capture-A shortcut.
+				bool macroLayout = MIDIMacro::isEnabled() && outputType == OutputType::MIDI_OUT && inAutomationEditor();
+				if (macroLayout && x == 0 && y == 7) {
+					MIDIMacro::capture(0, /*toMax=*/false);
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_A));
+					return true;
+				}
+				if (macroLayout && x == 1 && y == 7) {
+					MIDIMacro::capture(0, /*toMax=*/true);
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_B));
+					return true;
+				}
 				// toggle interpolation on / off
 				// not relevant for note editor because interpolation doesn't apply to note params
 				if ((x == kInterpolationShortcutX && y == kInterpolationShortcutY)) {
 					return automationEditorLayoutModControllable.toggleAutomationInterpolation();
 				}
-				// toggle pad selection on / off
+				// toggle pad selection on / off (moved to (15,3) under the macro layout)
 				// not relevant for note editor because pad selection mode was deemed unnecessary
-				else if (inAutomationEditor() && (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY)) {
+				int32_t padSelectionX = macroLayout ? 15 : kPadSelectionShortcutX;
+				int32_t padSelectionY = macroLayout ? 3 : kPadSelectionShortcutY;
+				if (inAutomationEditor() && (x == padSelectionX && y == padSelectionY)) {
 					return automationEditorLayoutModControllable.toggleAutomationPadSelectionMode(
 					    modelStackWithParam, effectiveLength, xScroll, xZoom);
 				}
@@ -3328,7 +3345,16 @@ void AutomationView::resetPadSelectionShortcutBlinking() {
 }
 
 void AutomationView::blinkPadSelectionShortcut() {
-	PadLEDs::flashMainPad(kPadSelectionShortcutX, kPadSelectionShortcutY);
+	// Blink the pad the toggle actually lives on: (15,3) under the macro layout (MIDI clip + feature
+	// on), otherwise the default (0,7). Keep this in sync with shortcutPadAction().
+	bool macroLayout =
+	    MIDIMacro::isEnabled() && inAutomationEditor() && getCurrentClip()->output->type == OutputType::MIDI_OUT;
+	if (macroLayout) {
+		PadLEDs::flashMainPad(15, 3);
+	}
+	else {
+		PadLEDs::flashMainPad(kPadSelectionShortcutX, kPadSelectionShortcutY);
+	}
 	uiTimerManager.setTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK, 3000);
 	padSelectionShortcutBlinking = true;
 }

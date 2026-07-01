@@ -18,11 +18,11 @@
 #pragma once
 #include "gui/ui/save/save_ui.h"
 
-// Browses SETTINGS/FANOUT_TEMPLATES and saves the fan-out group named by
-// MIDIFanOut::templateGroupIndex (set by the menu item that opened this UI) as its own template file.
-class SaveFanOutTemplateUI final : public SaveUI {
+// Browses SETTINGS/MIDI_MACRO_PRESETS and saves the macro named by MIDIMacro::presetMacroIndex (set by the
+// menu item that opened this UI) as its own preset file.
+class SaveMacroPresetUI final : public SaveUI {
 public:
-	SaveFanOutTemplateUI();
+	SaveMacroPresetUI();
 
 	bool opened() override;
 
@@ -37,7 +37,7 @@ public:
 	}
 
 	// ui
-	UIType getUIType() override { return UIType::SAVE_FANOUT_TEMPLATE; }
+	UIType getUIType() override { return UIType::SAVE_MACRO_PRESET; }
 };
 
-extern SaveFanOutTemplateUI saveFanOutTemplateUI;
+extern SaveMacroPresetUI saveMacroPresetUI;

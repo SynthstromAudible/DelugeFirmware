@@ -14,34 +14,25 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "gui/menu_item/midi/fanout_template.h"
-#include "gui/ui/load/load_fanout_template_ui.h"
-#include "gui/ui/save/save_fanout_template_ui.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/ui/ui.h"
-#include "io/midi/midi_fanout.h"
+#pragma once
+#include "gui/menu_item/menu_item.h"
 
 namespace deluge::gui::menu_item::midi {
 
-void FanOutTemplate::openBrowser() {
-	MIDIFanOut::templateGroupIndex = group;
-	if (isSave) {
-		openUI(&saveFanOutTemplateUI);
-	}
-	else {
-		openUI(&loadFanOutTemplateUI);
-	}
-}
+// A Load or Save action for one macro's presets. Selecting it records which macro the browser
+// should act on (MIDIMacro::presetMacroIndex) and opens the load/save browser UI.
+class MacroPreset final : public MenuItem {
+public:
+	MacroPreset(l10n::String newName, int32_t newMacro, bool newIsSave)
+	    : MenuItem(newName), macro(newMacro), isSave(newIsSave) {}
+	// Open the browser as soon as the item is entered (beginSession), and arrange to pop back up to
+	// the parent macro menu when the browser closes - so there's no empty intermediate page.
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	MenuItem* selectButtonPress() override;
 
-void FanOutTemplate::beginSession(MenuItem* navigatedBackwardFrom) {
-	// Pop back up to the parent group menu (not this item) once the browser closes.
-	soundEditor.shouldGoUpOneLevelOnBegin = true;
-	openBrowser();
-}
-
-MenuItem* FanOutTemplate::selectButtonPress() {
-	openBrowser();
-	return NO_NAVIGATION;
-}
-
+private:
+	void openBrowser();
+	int32_t macro;
+	bool isSave;
+};
 } // namespace deluge::gui::menu_item::midi

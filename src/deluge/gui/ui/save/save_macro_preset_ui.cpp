@@ -15,27 +15,27 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/ui/save/save_fanout_template_ui.h"
+#include "gui/ui/save/save_macro_preset_ui.h"
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/l10n/l10n.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "io/midi/midi_fanout.h"
+#include "io/midi/midi_macro.h"
 #include "storage/storage_manager.h"
 #include <string.h>
 
 using namespace deluge;
 
-SaveFanOutTemplateUI saveFanOutTemplateUI{};
+SaveMacroPresetUI saveMacroPresetUI{};
 
-SaveFanOutTemplateUI::SaveFanOutTemplateUI() {
-	filePrefix = "FANOUT";
+SaveMacroPresetUI::SaveMacroPresetUI() {
+	filePrefix = "MACRO";
 }
 
-bool SaveFanOutTemplateUI::opened() {
-	Error error = createFoldersRecursiveIfNotExists(MIDIFanOut::kSnapshotsFolder);
+bool SaveMacroPresetUI::opened() {
+	Error error = createFoldersRecursiveIfNotExists(MIDIMacro::kPresetsFolder);
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
@@ -51,13 +51,13 @@ bool SaveFanOutTemplateUI::opened() {
 	enteredTextEditPos = 0;
 	currentFolderIsEmpty = false;
 
-	currentDir.set(MIDIFanOut::kSnapshotsFolder);
+	currentDir.set(MIDIMacro::kPresetsFolder);
 
 	if (display->haveOLED()) {
-		title = "Save snapshot";
+		title = "Save preset";
 	}
 
-	error = arrivedInNewFolder(0, enteredText.get(), MIDIFanOut::kSnapshotsFolder);
+	error = arrivedInNewFolder(0, enteredText.get(), MIDIMacro::kPresetsFolder);
 	if (error != Error::NONE) {
 		display->displayError(error);
 		renderingNeededRegardlessOfUI();
@@ -69,7 +69,7 @@ bool SaveFanOutTemplateUI::opened() {
 	return true;
 }
 
-bool SaveFanOutTemplateUI::performSave(bool mayOverwrite) {
+bool SaveMacroPresetUI::performSave(bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
@@ -105,18 +105,18 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
-	MIDIFanOut::writeGroupTemplate(GetSerializer(), MIDIFanOut::templateGroupIndex);
+	MIDIMacro::writeMacroPreset(GetSerializer(), MIDIMacro::presetMacroIndex);
 
 	GetSerializer().closeFileAfterWriting();
 
 	display->removeWorkingAnimation();
 
-	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAN_OUT_TEMPLATE_SAVED));
+	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_PRESET_SAVED));
 	close();
 	return true;
 }
 
-ActionResult SaveFanOutTemplateUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SaveMacroPresetUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Load button
@@ -126,7 +126,7 @@ ActionResult SaveFanOutTemplateUI::buttonAction(deluge::hid::Button b, bool on, 
 
 	if (on && b == BACK) {
 		// don't allow navigation backwards if we're in the default folder
-		if (!strcmp(currentDir.get(), MIDIFanOut::kSnapshotsFolder)) {
+		if (!strcmp(currentDir.get(), MIDIMacro::kPresetsFolder)) {
 			close();
 			return ActionResult::DEALT_WITH;
 		}
