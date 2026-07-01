@@ -61,6 +61,8 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/gui/ui/keyboard/chords.cpp
         # For clock output scheduler tests
         ../../src/deluge/playback/clock_output_scheduler.cpp
+        # For waveform peak math tests
+        ../../src/deluge/gui/waveform/waveform_peak_math.cpp
 )
 
 add_executable(UnitTests
@@ -75,6 +77,7 @@ add_executable(UnitTests
         chord_tests.cpp
         time_tests.cpp
         clock_output_scheduler_tests.cpp
+        waveform_peak_math_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)
