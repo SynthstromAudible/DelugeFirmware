@@ -78,6 +78,8 @@ public:
 	// BUTTON ACTION button press / release handling
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	// Used to reveal Session macros only after the Session button has passed the long-press threshold.
+	ActionResult timerCallback() override;
 	ActionResult handleScaleButtonAction(bool on, bool inCardRoutine);
 	bool handleInstrumentChange(OutputType outputType);
 
@@ -362,6 +364,9 @@ private:
 
 	int32_t quantizeAmount{};
 	uint32_t timeSongButtonPressed{};
+	// Session button state is split so short presses can transition without briefly drawing macro sidebar pads.
+	bool sessionButtonPressPending{};
+	bool sessionMacroSidebarActive{};
 
 	std::array<RGB, kDisplayHeight> rowColour;
 	std::array<RGB, kDisplayHeight> rowTailColour;

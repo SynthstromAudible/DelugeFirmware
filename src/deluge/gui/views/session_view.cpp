@@ -94,6 +94,19 @@ using namespace gui;
 
 PLACE_SDRAM_BSS SessionView sessionView{};
 
+namespace {
+// Transition stores render clip / automation views one row lower than keyboard view. Keep the
+// sidebar occupancy aligned with whichever store row the caller rendered into.
+void markRenderedSidebarStorePadsOccupied(int32_t firstStoreRow = 1) {
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		int32_t storeRow = firstStoreRow + y;
+		for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; x++) {
+			PadLEDs::occupancyMaskStore[storeRow][x] = (PadLEDs::imageStore[storeRow][x] == colours::black) ? 0 : 64;
+		}
+	}
+}
+} // namespace
+
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 	createClip = false;
@@ -2758,8 +2771,14 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 	if (clip->onAutomationClipView && !onKeyboardScreen) {
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
-		automationView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
-		clip->renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+		// Store rows 1..kDisplayHeight hold the visible clip rows; rows 0 and kDisplayHeight + 1 are reserved for
+		// offscreen rows so sidebar pads can animate the full height.
+		automationView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+		clip->renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+		markRenderedSidebarStorePadsOccupied();
+		if (clip->type == ClipType::INSTRUMENT) {
+			instrumentClipView.fillOffScreenImageStores();
+		}
 
 		PadLEDs::numAnimatedRows = kDisplayHeight + 2;
 		for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
@@ -2769,6 +2788,8 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		PadLEDs::setupInstrumentClipCollapseAnimation(true);
 
+		// Automation transitions prepare their stores before rendering, so restart progress after setup.
+		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 		PadLEDs::renderClipExpandOrCollapse();
 
 		if (clip->type == ClipType::INSTRUMENT) {
@@ -2784,8 +2805,11 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		if (onKeyboardScreen) {
 
+			instrumentClipView.recalculateColours();
+			// Keyboard view uses only its visible rows for this animation, so it starts at store row 0.
 			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 			keyboardScreen.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+			markRenderedSidebarStorePadsOccupied(0);
 
 			PadLEDs::numAnimatedRows = kDisplayHeight;
 			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
@@ -2799,8 +2823,12 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			// Won't have happened automatically because we haven't begun the "session"
 			instrumentClipView.recalculateColours();
 
-			instrumentClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
-			instrumentClipView.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+			// Non-keyboard clip views include one offscreen row above and below the visible rows.
+			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
+			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+
+			markRenderedSidebarStorePadsOccupied();
 
 			// Important that this is done after currentSong->xScroll is changed, above
 			instrumentClipView.fillOffScreenImageStores();
@@ -2872,9 +2900,15 @@ void SessionView::transitionToSessionView() {
 	}
 	else {
 		int32_t transitioningToRow = getClipPlaceOnScreen(getCurrentClip());
+		bool transitioningFromKeyboardScreen = false;
 		if (getCurrentUI() == &automationView) {
-			automationView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
-			getCurrentClip()->renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+			// Automation collapse follows the same store layout as instrument clip view: offscreen row, visible rows,
+			// offscreen row.
+			automationView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+			getCurrentClip()->renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			if (getCurrentClip()->type == ClipType::INSTRUMENT) {
+				instrumentClipView.fillOffScreenImageStores();
+			}
 
 			// I didn't see a difference but the + 2 seems intentional
 			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
@@ -2886,8 +2920,12 @@ void SessionView::transitionToSessionView() {
 		else {
 			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
 			if (instrumentClip->onKeyboardScreen) {
-				keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
-				keyboardScreen.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+				transitioningFromKeyboardScreen = true;
+				// Start keyboard collapse from the exact frame currently on the LEDs. Re-rendering here can change
+				// transient sidebar colours before the first animation frame and reads as a blink.
+				memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
+				memcpy(PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, sizeof(PadLEDs::occupancyMask));
+				markRenderedSidebarStorePadsOccupied(0);
 
 				PadLEDs::numAnimatedRows = kDisplayHeight;
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -2896,8 +2934,10 @@ void SessionView::transitionToSessionView() {
 				}
 			}
 			else {
-				instrumentClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
-				instrumentClipView.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+				// Instrument clip collapse renders visible rows into the middle of the transition store.
+				instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+				                                  false);
+				instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 				// I didn't see a difference but the + 2 seems intentional
 				PadLEDs::numAnimatedRows = kDisplayHeight + 2;
@@ -2912,12 +2952,16 @@ void SessionView::transitionToSessionView() {
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_COLLAPSING;
 
 		// Set occupancy masks to full for the sidebar squares in the Store
-		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			PadLEDs::occupancyMaskStore[y + 1][kDisplayWidth] = 64;
-			PadLEDs::occupancyMaskStore[y + 1][kDisplayWidth + 1] = 64;
+		if (!transitioningFromKeyboardScreen) {
+			// Clip / automation sidebars can animate from offscreen rows, so force their two sidebar columns to
+			// contribute even when the source row is empty.
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				PadLEDs::occupancyMaskStore[y + 1][kDisplayWidth] = 64;
+				PadLEDs::occupancyMaskStore[y + 1][kDisplayWidth + 1] = 64;
+			}
 		}
 
-		PadLEDs::setupInstrumentClipCollapseAnimation(true);
+		PadLEDs::setupInstrumentClipCollapseAnimation(true, transitioningFromKeyboardScreen);
 
 		if (getCurrentUI() == &instrumentClipView) {
 			instrumentClipView.fillOffScreenImageStores();
@@ -4487,7 +4531,9 @@ void SessionView::gridTransitionToSessionView() {
 
 	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
-	if (getCurrentUI() == &instrumentClipView) {
+	// Grid collapse uses the same offscreen instrument rows whether the current editor is notes or automation.
+	if (getCurrentClip()->type == ClipType::INSTRUMENT
+	    && (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView)) {
 		instrumentClipView.fillOffScreenImageStores();
 	}
 
@@ -4538,6 +4584,8 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 
 		if (clip->type == ClipType::INSTRUMENT) {
 			instrumentClipView.recalculateColours();
+			// Automation grid explode still needs the instrument rows above and below the visible display.
+			instrumentClipView.fillOffScreenImageStores();
 		}
 
 		automationView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);

@@ -112,7 +112,8 @@ void renderFade(int32_t progress);
 void recordTransitionBegin(uint32_t newTransitionLength);
 int32_t getTransitionProgress();
 void renderAudioClipExpandOrCollapse();
-void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder);
+// The keyboard-screen flag enables the two-column sidebar colour morph used when collapsing back to Session.
+void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder, bool collapsingKeyboardScreen = false);
 void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
 void setGreyoutAmount(float newAmount);
