@@ -1015,7 +1015,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MACRO_CAPTURE_A, "Capture A"},
         {STRING_FOR_MACRO_CAPTURE_B, "Capture B"},
         {STRING_FOR_MACRO_CC_IN_USE, "CC in use"},
-        {STRING_FOR_MACRO_USED_BY_MACRO, "used by Macro"},
+        {STRING_FOR_MACRO_USED_BY, "used by"},
     },
 };
 } // namespace deluge::l10n::built_in

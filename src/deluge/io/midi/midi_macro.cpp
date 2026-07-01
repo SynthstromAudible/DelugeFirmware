@@ -30,8 +30,10 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_node.h"
 #include "storage/storage_manager.h"
 #include "util/d_stringbuf.h"
+#include "util/misc.h"
 #include <algorithm>
 #include <string.h>
 
@@ -72,9 +74,12 @@ void showCCConflictPopup(uint8_t cc, int32_t ownerMacro) {
 	popup.append(' ');
 	popup.appendInt(cc);
 	popup.append(' ');
-	popup.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_USED_BY_MACRO)); // "used by Macro"
-	popup.append(' ');
-	popup.appendInt(ownerMacro + 1);
+	popup.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_USED_BY)); // "used by"
+	// On OLED break the line so it reads "CC 16 used by" / "Macro 1"; 7SEG scrolls one line.
+	popup.append(display->haveOLED() ? '\n' : ' ');
+	auto macroName =
+	    static_cast<deluge::l10n::String>(util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + ownerMacro);
+	popup.append(deluge::l10n::get(macroName)); // "Macro N"
 	display->displayPopup(popup.c_str());
 }
 
@@ -114,6 +119,13 @@ bool anyMacroConfigured(Macro* macros) {
 	return false;
 }
 
+// Scale a leader value 0..127 linearly onto follower [from, to] (from>to inverts), rounding to nearest.
+static inline int32_t scaleFollower(const MacroFollowerSlot& follower, int32_t value) {
+	int32_t span = (int32_t)follower.to - (int32_t)follower.from;
+	int32_t out = follower.from + (span * value + (span >= 0 ? 63 : -63)) / 127;
+	return std::clamp<int32_t>(out, 0, kMaxValue);
+}
+
 static void sendToFollowers(MIDIInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
                             Macro& macro, int32_t value) {
 	RootUI* rootUI = getRootUI();
@@ -121,11 +133,7 @@ static void sendToFollowers(MIDIInstrument* instrument, Clip* clip, ModelStackWi
 		if (follower.cc == kFollowerCCNone || !follower.send) {
 			continue;
 		}
-		// scale the incoming 0..127 value linearly onto [from, to] (from>to inverts), rounding to nearest
-		int32_t span = (int32_t)follower.to - (int32_t)follower.from;
-		int32_t out = follower.from + (span * value + (span >= 0 ? 63 : -63)) / 127;
-		out = std::clamp<int32_t>(out, 0, kMaxValue);
-		int32_t valueBig = (out - 64) << 25;
+		int32_t valueBig = (scaleFollower(follower, value) - 64) << 25;
 		// writes the value into the clip's own CC param, so it reaches the output and gets
 		// recorded into that CC's automation lane like a manual change to it would
 		instrument->processParamFromInputMIDIChannel(follower.cc, valueBig, modelStack);
@@ -396,6 +404,8 @@ Error loadMacroPreset(FilePointer* fp, Macro* macros, int32_t macroIndex) {
 		macros[macroIndex].active = false;
 	}
 
+	reFanMacro(macroIndex, nullptr); // new follower set -> re-bake the macro lane into it
+
 	return Error::NONE;
 }
 
@@ -436,6 +446,75 @@ void capture(int32_t macroIndex, bool toMax) {
 	if (changed) {
 		instrument->editedByUser = true;
 	}
+}
+
+// Mirror macroIndex's leader-lane automation (pseudo-CC paramIDForMacro) into each follower CC's
+// automation, scaled. Overwrites the follower lanes; snapshots them into `action` (if given) first.
+static void fanOutMacroLane(MIDIInstrument* instrument, Clip* clip, int32_t macroIndex,
+                            ModelStackWithTimelineCounter* modelStack, Action* action) {
+	ModelStackWithThreeMainThings* leaderThree =
+	    modelStack->addNoteRow(0, nullptr)
+	        ->addOtherTwoThings(instrument->toModControllable(), instrument->getParamManager(currentSong));
+	ModelStackWithAutoParam* leaderMS =
+	    instrument->getParamToControlFromInputMIDIChannel(paramIDForMacro(macroIndex), leaderThree);
+	AutoParam* leader = leaderMS ? leaderMS->autoParam : nullptr;
+	if (!leader) {
+		return;
+	}
+
+	RootUI* rootUI = getRootUI();
+	for (MacroFollowerSlot& follower : instrument->macros[macroIndex].followers) {
+		if (follower.cc == kFollowerCCNone) {
+			continue;
+		}
+		// A fresh three-things stack per follower (addOtherTwoThings mutates the stack).
+		ModelStackWithThreeMainThings* three =
+		    modelStack->addNoteRow(0, nullptr)
+		        ->addOtherTwoThings(instrument->toModControllable(), instrument->getParamManager(currentSong));
+		ModelStackWithAutoParam* followerMS = instrument->getParamToControlFromInputMIDIChannel(follower.cc, three);
+		if (!followerMS || !followerMS->autoParam) {
+			continue;
+		}
+		AutoParam* fp = followerMS->autoParam;
+
+		// Overwrite: clear the follower first (deleteAutomation snapshots into `action` for undo when given).
+		fp->deleteAutomation(action, followerMS, false);
+
+		if (follower.send) {
+			// Mirror each leader node, scaled into [from, to].
+			for (int32_t n = 0; n < leader->nodes.getNumElements(); n++) {
+				ParamNode* node = leader->nodes.getElement(n);
+				int32_t leaderCC = std::clamp<int32_t>(((node->value + (1 << 24)) >> 25) + 64, 0, kMaxValue);
+				fp->setNodeAtPos(node->pos, (scaleFollower(follower, leaderCC) - 64) << 25, node->interpolated);
+			}
+			// Base value for regions before the first node / when the leader has no nodes.
+			int32_t leaderBase =
+			    std::clamp<int32_t>(((leader->getCurrentValue() + (1 << 24)) >> 25) + 64, 0, kMaxValue);
+			fp->setCurrentValueBasicForSetup((scaleFollower(follower, leaderBase) - 64) << 25);
+		}
+
+		// Refresh the automation grid if this follower CC is the one on screen (idiom from sendToFollowers).
+		if (rootUI == &automationView && !automationView.onArrangerView && clip->lastSelectedParamID == follower.cc) {
+			uiNeedsRendering(&automationView);
+		}
+	}
+	instrument->editedByUser = true;
+}
+
+void reFanMacro(int32_t macroIndex, Action* action) {
+	if (getCurrentUI() == &loadSongUI) {
+		return;
+	}
+	Clip* clip = midiFollow.getSelectedOrActiveClip();
+	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
+		return;
+	}
+	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+	fanOutMacroLane(instrument, clip, macroIndex, modelStackWithTimelineCounter, action);
 }
 
 } // namespace MIDIMacro

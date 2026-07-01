@@ -183,6 +183,7 @@ public:
 		if (cc != m[macro].followers[slot].cc) {
 			m[macro].followers[slot].cc = cc;
 			markMacroInstrumentEdited();
+			MIDIMacro::reFanMacro(macro, nullptr); // re-bake the macro lane into the new follower set
 		}
 	}
 	// A destination CC may be duplicated across macros (at most one active macro may own it), so allow
@@ -220,6 +221,7 @@ public:
 		if (this->getValue() != get()) {
 			get() = this->getValue();
 			markMacroInstrumentEdited();
+			MIDIMacro::reFanMacro(macro, nullptr); // from/to changed -> re-scale the follower lanes
 		}
 	}
 	// While this From/To dial is focused, twisting this follower's own CC knob sets the endpoint live so
@@ -235,7 +237,8 @@ public:
 		if (endpoint != value) {
 			endpoint = value;
 			instrument->editedByUser = true;
-			readValueAgain(); // re-read from the model and redraw the dial
+			MIDIMacro::reFanMacro(macro, nullptr); // live from/to change -> re-scale the follower lanes
+			readValueAgain();                      // re-read from the model and redraw the dial
 		}
 		return false; // don't consume: let the CC continue out to the param/output
 	}
@@ -275,6 +278,7 @@ public:
 		if (this->getValue() != m[macro].followers[slot].send) {
 			m[macro].followers[slot].send = this->getValue();
 			markMacroInstrumentEdited();
+			MIDIMacro::reFanMacro(macro, nullptr); // send toggled -> re-bake (muted follower gets cleared)
 		}
 	}
 
