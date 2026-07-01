@@ -323,9 +323,13 @@ add_executable(song_roundtrip
     ${REPO_ROOT}/src/bsp/host/host_link.c
     ${REPO_ROOT}/src/bsp/host/host_pcm.c
     ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/tests/golden/song_roundtrip.cpp
 )
-target_include_directories(song_roundtrip PRIVATE ${HOST_INCLUDE_DIRS})
+# host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) — the linked deluge_app references
+# deluge_audio_drive, so the symbol must be defined. src/deluge on the path for memory/reason_check.h (the
+# boundary check only forbids app→BSP, not BSP→app).
+target_include_directories(song_roundtrip PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
 target_link_libraries(song_roundtrip PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(song_roundtrip PRIVATE ${RT_LIB})
@@ -341,18 +345,46 @@ add_executable(param_projection_test
     ${REPO_ROOT}/src/bsp/host/host_link.c
     ${REPO_ROOT}/src/bsp/host/host_pcm.c
     ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/tests/projection/param_automation_test.cpp
 )
-target_include_directories(param_projection_test PRIVATE ${HOST_INCLUDE_DIRS})
+# host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) — the linked deluge_app references
+# deluge_audio_drive, so the symbol must be defined. src/deluge on the path for memory/reason_check.h (the
+# boundary check only forbids app→BSP, not BSP→app).
+target_include_directories(param_projection_test PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
 target_link_libraries(param_projection_test PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(param_projection_test PRIVATE ${RT_LIB})
+endif()
+
+# Automation-edit harness (param/automation DOM Phase 5c R2). Drives the device-UI edit path — draw
+# automation, play it back, undo/redo, project for save — against the relocated (owner-held) node storage,
+# headless. The deterministic, CI-repeatable substitute for R2's on-device test (the golden only load/saves,
+# never edits). See tests/projection/automation_edit_test.cpp.
+add_executable(automation_edit_test
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/tests/projection/automation_edit_test.cpp
+)
+# host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) — the edit path here reaches the
+# app's AudioEngine (which references deluge_audio_drive), unlike the pure load/save harnesses. src/deluge on the
+# path for memory/reason_check.h (the boundary check only forbids app→BSP, not BSP→app).
+target_include_directories(automation_edit_test PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(automation_edit_test PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(automation_edit_test PRIVATE ${RT_LIB})
 endif()
 
 # ---------------------------------------------------------------------------
 enable_testing()
 
 add_test(NAME param_projection_test COMMAND param_projection_test)
+add_test(NAME automation_edit_test COMMAND automation_edit_test)
 
 # Layout-invariance guard (CTest). Render each fixture at two heap-pad layouts
 # (DELUGE_SIM_HEAP_PAD via scripts/golden_mixdown.sh padsweep) and assert the

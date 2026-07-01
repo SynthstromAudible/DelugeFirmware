@@ -1,0 +1,181 @@
+// Automation-edit harness — param/automation DOM Phase 5c R2, the "hardware test" run in the sim.
+//
+// R2 relocated the song-global unpatched param node storage out of AutoParam into an owner-held store
+// (GlobalEffects::param_node_store) and made the live AutoParams *views* over it (AutoParam::redirectNodeStorage).
+// The golden round-trip can't see this: it only load/saves, never edits. This harness drives the exact
+// device-UI edit path headless — draw automation, play it back (interpolate), undo/redo, and project for save —
+// against the relocated storage, and asserts every operation lands in and reads from the owner store. It is the
+// deterministic, CI-repeatable substitute for the on-device test R2's plan demanded, and a stronger one: it also
+// runs a differential proving an AutoParam-as-view behaves identically to one with embedded storage.
+//
+// The engine here is the real one (real AutoParam, ParamManager, Song-as-TimelineCounter, actionLogger, host
+// allocator) — the same headless engine the golden harness stands up. Only audio/display/USB/SD are gated.
+//
+// Exit: 0 = all checks pass, 1 = a failure.
+
+#include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
+#include "deluge-project/serialization.h"
+#include "hid/display/display.h"
+#include "hid/display/seven_segment.h"
+#include "memory/general_memory_allocator.h"
+#include "model/global_effectable/global_effectable.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_node_vector.h"
+#include "modulation/params/param_set.h"
+#include "storage/storage_manager.h"
+
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <unistd.h>
+#include <utility>
+
+namespace params = deluge::modulation::params;
+
+namespace {
+
+int failures = 0;
+
+void check(bool ok, const char* what) {
+	if (!ok) {
+		std::fprintf(stderr, "FAIL: %s\n", what);
+		failures++;
+	}
+}
+
+// Build a headless Song and apply the exact Phase 5c R2 redirect from Song::readFromFile: move each
+// song-global unpatched AutoParam's nodes into the owner-held store and redirect the live param to view it.
+Song* makeRedirectedSong() {
+	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
+	Song* song = new (mem) Song();
+	song->paramManager.setupUnpatched();
+	GlobalEffectable::initParams(&song->paramManager);
+
+	// --- mirror of the readFromFile tail (song.cpp ~1905) ---
+	if (UnpatchedParamSet* unpatchedSet = song->paramManager.getUnpatchedParamSet(); unpatchedSet != nullptr) {
+		int32_t numParams = unpatchedSet->getNumParams();
+		for (int32_t p = 0; p < numParams; p++) {
+			ParamNodeVector& store = song->project.global_fx.param_node_store[p];
+			store = std::move(unpatchedSet->params[p].nodes()); // move loaded nodes (embedded) into the store
+			unpatchedSet->params[p].redirectNodeStorage(&store);
+		}
+	}
+	song->project.global_fx.params = deluge::project::toDocParamManager(song->paramManager);
+	song->paramManager.setAuthoritativeParams(&song->project.global_fx.params);
+	// --------------------------------------------------------
+
+	currentSong = song; // setupModelStackWithSongAsTimelineCounter + several deep write paths consult the global
+	return song;
+}
+
+} // namespace
+
+int main() {
+	// Defensive display->popup targets so headless edit paths (e.g. automation-cleared popups) don't deref null.
+	display = new deluge::hid::display::SevenSegment;
+
+	Song* song = makeRedirectedSong();
+
+	// The device drives a song-global unpatched param exactly like Song::setBPM does: song-as-timeline-counter
+	// three-main-things stack, then resolve the unpatched AutoParam by id.
+	constexpr int32_t kParam = params::UNPATCHED_VOLUME;
+	char msMem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* three = song->setupModelStackWithSongAsTimelineCounter(msMem);
+	ModelStackWithAutoParam* msap = song->getModelStackWithParam(three, kParam);
+	check(msap != nullptr && msap->autoParam != nullptr, "model stack resolves the song-global param");
+	if (msap == nullptr || msap->autoParam == nullptr) {
+		std::fprintf(stderr, "automation edit: cannot resolve param — aborting\n");
+		_exit(1);
+	}
+	AutoParam* ap = msap->autoParam;
+	ParamNodeVector& store = song->project.global_fx.param_node_store[kParam];
+
+	// (1) Redirect is live: the live param's nodes ARE the owner-held store, not embedded storage.
+	check(&ap->nodes() == &store, "redirect live: the live param views the owner store");
+
+	// (2) Draw automation — the automation-draw primitive (setNodeAtPos) lands in the owner store.
+	ap->setNodeAtPos(0, 100, /*interpolate=*/true);
+	ap->setNodeAtPos(48, -200, /*interpolate=*/true);
+	ap->setNodeAtPos(96, 300, /*interpolate=*/false);
+	check(store.size() == 3, "draw: 3 nodes landed in the owner store");
+	check(ap->nodes().size() == 3, "draw: the view sees all 3 nodes");
+	check(store.size() == ap->nodes().size() && &ap->nodes()[0] == &store[0],
+	      "draw: view and store are the same physical storage");
+	check(ap->isAutomated(), "draw: param now reports automated");
+
+	// (3) Playback — interpolation reads through the redirected store.
+	check(ap->getValueAtPos(0, msap) == 100, "playback: exact value at node 0");
+	check(ap->getValueAtPos(48, msap) == -200, "playback: exact value at node 48");
+	int32_t mid = ap->getValueAtPos(24, msap); // between node@0 (100, interp) and node@48 (-200)
+	check(mid < 100 && mid > -200, "playback: interpolates between nodes read from the store");
+	check(ap->getValueAtPos(72, msap) == -200, "playback: holds non-interpolated node@96's left value");
+
+	// (4) Undo / redo — swapState (what the undo Action ultimately calls) operates on the redirected store.
+	AutoParamState snap;
+	ap->swapState(&snap, msap); // undo: store nodes -> snapshot, store cleared
+	check(store.empty(), "undo: the owner store itself is emptied");
+	check(ap->nodes().empty(), "undo: the view reflects the emptied store");
+	check(snap.nodes.size() == 3, "undo: automation captured into the snapshot");
+	check(!ap->isAutomated(), "undo: param no longer automated");
+	ap->swapState(&snap, msap); // redo: snapshot -> store
+	check(store.size() == 3, "redo: automation restored into the owner store");
+	check(&ap->nodes()[0] == &store[0], "redo: view still backed by the owner store");
+
+	// (5) Save path — the projection that save reads (toDocParamManager over the live manager, whose unpatched
+	// params view the store) reflects the store-resident automation.
+	deluge::project::DocParamManager doc = deluge::project::toDocParamManager(song->paramManager);
+	check(doc.unpatched.has_value() && doc.unpatched->params[kParam].nodes.size() == 3,
+	      "save: projection reads the drawn automation out of the store");
+
+	// ...and a full serialize doesn't crash and emits the song (the store feeds the real save path).
+	static char outBuf[1u << 20];
+	smSerializer.setMemoryBuffer(outBuf, sizeof(outBuf));
+	song->setCurrentClip(nullptr); // drop transient view selection (as the golden harness does before save)
+	deluge::project::saveSong(*song, smSerializer);
+	check(smSerializer.bytesWritten() > 0, "save: serialize produced output");
+
+	// (6) Differential — an AutoParam that is a *view* over external storage behaves identically to one with
+	// embedded storage for an identical op sequence. Proves the storage indirection is behaviourally transparent.
+	{
+		AutoParam embedded; // own storage
+		AutoParam viewed;   // redirected to an external store
+		ParamNodeVector ext;
+		viewed.redirectNodeStorage(&ext);
+		struct Op {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		const Op ops[] = {{0, 100, true}, {48, -200, false}, {24, 50, true}, {96, 300, true}, {48, -201, false}};
+		for (const Op& o : ops) {
+			embedded.setNodeAtPos(o.pos, o.value, o.interpolated);
+			viewed.setNodeAtPos(o.pos, o.value, o.interpolated);
+		}
+		check(embedded.nodes().size() == viewed.nodes().size(), "differential: identical node count");
+		check(viewed.nodes().size() == ext.size() && &viewed.nodes()[0] == &ext[0],
+		      "differential: the view's ops all landed in the external store");
+		bool identical = embedded.nodes().size() == viewed.nodes().size();
+		for (size_t i = 0; i < embedded.nodes().size() && i < viewed.nodes().size(); i++) {
+			identical &= embedded.nodes()[i].pos == viewed.nodes()[i].pos;
+			identical &= embedded.nodes()[i].value == viewed.nodes()[i].value;
+			identical &= embedded.nodes()[i].interpolated == viewed.nodes()[i].interpolated;
+		}
+		check(identical, "differential: view produces node-identical results to embedded storage");
+	}
+
+	if (failures == 0) {
+		std::fprintf(stdout, "automation edit (5c R2): OK\n");
+		std::fflush(stdout);
+		// _exit (not return) to skip deluge_app's global static destructors, which assume a fully set-up app
+		// (non-null display etc.) — same reason the golden + projection harnesses use _exit.
+		_exit(0);
+	}
+	std::fprintf(stderr, "automation edit (5c R2): %d failure(s)\n", failures);
+	std::fflush(stderr);
+	_exit(1);
+}
