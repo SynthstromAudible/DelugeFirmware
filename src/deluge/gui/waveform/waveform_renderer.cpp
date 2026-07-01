@@ -510,6 +510,19 @@ cantReadData:
 
 			numBytesToRead = endByteWithinCluster - startByteWithinCluster;
 
+			// If, after all boundary handling, there are still no whole frames to read (e.g. audio ends very
+			// early in the final cluster, so the next-cluster fallback above doesn't apply), this column has no
+			// valid data. Mark it as having nothing to draw rather than scanning an empty window and caching an
+			// inverted sentinel (min > max), which would render as a spurious bright column (#4460).
+			if (endByteWithinCluster <= startByteWithinCluster) {
+				data->colStatus[col] = COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM;
+				audioFileManager.removeReasonFromCluster(*cluster, "4460");
+				if (nextCluster != nullptr) {
+					audioFileManager.removeReasonFromCluster(*nextCluster, "4460");
+				}
+				continue;
+			}
+
 			// NOTE: from here on, we read *both* channels (if there are two), counting each one as a "sample"
 			WaveformPeak peak = scanClusterPeak(cluster->data, startByteWithinCluster, endByteWithinCluster,
 			                                    sample->byteDepth, sample->numChannels);
