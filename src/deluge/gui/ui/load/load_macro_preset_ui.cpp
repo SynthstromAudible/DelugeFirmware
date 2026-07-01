@@ -115,7 +115,27 @@ void LoadMacroPresetUI::enterKeyPress() {
 			display->displayError(error);
 			return;
 		}
-		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_PRESET_LOADED));
+		// The loaded follower CCs are kept even if a CC is already used by another macro; flag the first
+		// such collision instead of the plain "Preset loaded".
+		Output* output = getCurrentOutput();
+		int32_t owner = -1;
+		uint8_t conflictCC = 0;
+		if (output && output->type == OutputType::MIDI_OUT) {
+			MIDIMacro::Macro* macros = static_cast<MIDIInstrument*>(output)->macros;
+			for (int32_t f = 0; f < MIDIMacro::kNumFollowerSlots && owner < 0; f++) {
+				uint8_t cc = macros[MIDIMacro::presetMacroIndex].followers[f].cc;
+				owner = MIDIMacro::findFollowerCCOwner(macros, cc, MIDIMacro::presetMacroIndex, f);
+				if (owner >= 0) {
+					conflictCC = cc;
+				}
+			}
+		}
+		if (owner >= 0) {
+			MIDIMacro::showCCConflictPopup(conflictCC, owner);
+		}
+		else {
+			display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_PRESET_LOADED));
+		}
 		close();
 	}
 }
