@@ -18,6 +18,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
+#include "gui/waveform/waveform_peak_math.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "io/debug/log.h"
 #include "model/sample/sample.h"
@@ -42,8 +43,6 @@ WaveformRenderer waveformRenderer{};
 
 WaveformRenderer::WaveformRenderer() {
 }
-
-#define SAMPLES_TO_READ_PER_COL_MAGNITUDE 9
 
 namespace {
 
@@ -425,7 +424,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 		else if (clusterIndexToDo == endClusters - 1) {
 
-			int32_t limit = (numValidBytes + sample->audioDataStartPosBytes) & (Cluster::size - 1);
+			int32_t limit = lastAudioClusterEndByte(numValidBytes, sample->audioDataStartPosBytes, Cluster::size);
 
 			if (endByteWithinCluster > limit) {
 				endByteWithinCluster = limit;
@@ -505,48 +504,10 @@ cantReadData:
 			numBytesToRead = endByteWithinCluster - startByteWithinCluster;
 
 			// NOTE: from here on, we read *both* channels (if there are two), counting each one as a "sample"
-
-			int32_t numSamplesToRead = numBytesToRead / sample->byteDepth;
-			int32_t byteIncrement = sample->byteDepth;
-
-			// We don't want to read endless samples. If we were gonna read lost, skip some.
-			int32_t timesTooManySamples = ((numSamplesToRead - 1) >> SAMPLES_TO_READ_PER_COL_MAGNITUDE) + 1;
-			if (timesTooManySamples > 1) {
-
-				// If stereo sample, force an odd number here so we alternate between reading both channels
-				if (sample->numChannels == 2) {
-					if (!(timesTooManySamples & 1)) {
-						timesTooManySamples++;
-					}
-				}
-
-				byteIncrement *= timesTooManySamples;
-			}
-
-			// Misalign, to align with non-32-bit data
-			startByteWithinCluster += sample->byteDepth - 4;
-			endByteWithinCluster += sample->byteDepth - 4;
-
-			int32_t bytePos = startByteWithinCluster;
-
-			int32_t minThisCol = 2147483647;
-			int32_t maxThisCol = -2147483648;
-
-			// Go through the actual waveform of this cluster
-			while (bytePos < endByteWithinCluster) {
-
-				int32_t individualSampleValue =
-				    *(int32_t*)&cluster->data[bytePos]; // & sample->bitMask; // bitMask hardly matters here
-
-				if (individualSampleValue > maxThisCol) {
-					maxThisCol = individualSampleValue;
-				}
-				if (individualSampleValue < minThisCol) {
-					minThisCol = individualSampleValue;
-				}
-
-				bytePos += byteIncrement;
-			}
+			WaveformPeak peak = scanClusterPeak(cluster->data, startByteWithinCluster, endByteWithinCluster,
+			                                    sample->byteDepth, sample->numChannels);
+			int32_t minThisCol = peak.min;
+			int32_t maxThisCol = peak.max;
 
 			// If we just looked at the length of one entire cluster...
 			if (investigatingAWholeCluster) {
@@ -563,18 +524,9 @@ cantReadData:
 					maxThisCol = prevMax;
 				}
 
-				// And mark the SampleCluster as fully investigated
-				sampleCluster->minValue = minThisCol >> 24;
-				sampleCluster->maxValue = maxThisCol >> 24;
-
-				// Make rounding be towards 0
-				if (sampleCluster->minValue < 0) {
-					sampleCluster->minValue++;
-				}
-				if (sampleCluster->maxValue < 0) {
-					sampleCluster->maxValue++;
-				}
-
+				// And mark the SampleCluster as fully investigated (rounding toward 0)
+				sampleCluster->minValue = toCoarsePeak(minThisCol);
+				sampleCluster->maxValue = toCoarsePeak(maxThisCol);
 				sampleCluster->investigatedWholeLength = true;
 			}
 
@@ -582,16 +534,8 @@ cantReadData:
 			else {
 
 				// Then just contribute to the running record of max and min found
-				int8_t smallMin = minThisCol >> 24;
-				int8_t smallMax = maxThisCol >> 24;
-
-				// Make rounding be towards 0
-				if (smallMin < 0) {
-					smallMin++;
-				}
-				if (smallMax < 0) {
-					smallMax++;
-				}
+				int8_t smallMin = toCoarsePeak(minThisCol);
+				int8_t smallMax = toCoarsePeak(maxThisCol);
 
 				if (smallMin < sampleCluster->minValue) {
 					sampleCluster->minValue = smallMin;
@@ -642,7 +586,7 @@ struct ClusterPeak {
 };
 
 // Scans the audio in [startByte, endByte) of an already-loaded cluster, frame-aligned, sub-sampling to at
-// most ~2^SAMPLES_TO_READ_PER_COL_MAGNITUDE reads, and returns the peak (min/max) values found. Mirrors
+// most ~2^kSamplesToReadPerColMagnitude reads, and returns the peak (min/max) values found. Mirrors
 // findPeaksPerCol's historical read loop, including the deliberate `byteDepth - 4` misalignment that reads
 // each sample's top bytes (the bytes before `data` are valid padding - see Cluster).
 ClusterPeak scanClusterPeak(const Cluster& cluster, int32_t startByte, int32_t endByte, int32_t byteDepth,
@@ -651,7 +595,7 @@ ClusterPeak scanClusterPeak(const Cluster& cluster, int32_t startByte, int32_t e
 	int32_t byteIncrement = byteDepth;
 
 	// We don't want to read endless samples. If we were gonna read lots, skip some.
-	int32_t timesTooManySamples = ((numSamplesToRead - 1) >> SAMPLES_TO_READ_PER_COL_MAGNITUDE) + 1;
+	int32_t timesTooManySamples = ((numSamplesToRead - 1) >> kSamplesToReadPerColMagnitude) + 1;
 	if (timesTooManySamples > 1) {
 		// If stereo, force an odd stride so we alternate between reading both channels.
 		if (numChannels == 2 && (timesTooManySamples & 1) == 0) {
