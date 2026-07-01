@@ -684,6 +684,14 @@ bool WaveformRenderer::advanceOverviewScan(Sample* sample, int32_t maxClusters) 
 			continue;
 		}
 
+		// Bail if the card or audio routine became busy since entry, rather than issuing another
+		// synchronous load this tick (#4460). `currentlyAccessingCard` is the file-scope extern declared at
+		// the top of this file; `clusterBeingLoaded` is a public AudioFileManager member.
+		if (currentlyAccessingCard || (audioFileManager.clusterBeingLoaded != nullptr)
+		    || AudioEngine::audioRoutineLocked) {
+			return true;
+		}
+
 		if (!investigateWholeCluster(sample, clusterIndex)) {
 			return true; // Card busy or still recording - retry this cluster next time without advancing
 		}
