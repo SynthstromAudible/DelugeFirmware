@@ -40,8 +40,8 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "io/midi/midi_fanout.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_macro.h"
 #include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -3184,10 +3184,10 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 			// we don't want this learn to immediately trigger the thing it was learnt to so just return
 			return;
 		}
-		// if learned as a MIDI fan-out source, write its value to the configured destination CCs and
+		// if learned as a MIDI macro source, write its value to the configured destination CCs and
 		// consume the message. To also forward/record the source CC itself, include it as one of its
 		// group's dests - the outgoing CCs never re-enter this handler, so that can't loop
-		else if (MIDIFanOut::tryFanOut(cable, channelOrZone, ccNumber, value)) {
+		else if (MIDIMacro::tryMacro(cable, channelOrZone, ccNumber, value)) {
 			return;
 		}
 		// check if it was learned to on/off commands (loop, drums, section launch etc.)

@@ -21,11 +21,11 @@
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 
-// Browses SETTINGS/FANOUT_TEMPLATES and loads the chosen template into the fan-out group named by
-// MIDIFanOut::templateGroupIndex (set by the menu item that opened this UI).
-class LoadFanOutTemplateUI final : public LoadUI {
+// Browses SETTINGS/MIDI_MACRO_PRESETS and loads the chosen preset into the macro named by
+// MIDIMacro::presetMacroIndex (set by the menu item that opened this UI).
+class LoadMacroPresetUI final : public LoadUI {
 public:
-	LoadFanOutTemplateUI() = default;
+	LoadMacroPresetUI() = default;
 
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool opened() override;
@@ -46,14 +46,14 @@ public:
 	Error performLoad();
 
 	// ui
-	UIType getUIType() override { return UIType::LOAD_FANOUT_TEMPLATE; }
+	UIType getUIType() override { return UIType::LOAD_MACRO_PRESET; }
 
 protected:
 	void folderContentsReady(int32_t entryDirection) override;
 	void enterKeyPress() override;
 
 private:
-	Error setupForLoadingTemplate();
+	Error setupForLoadingPreset();
 };
 
-extern LoadFanOutTemplateUI loadFanOutTemplateUI;
+extern LoadMacroPresetUI loadMacroPresetUI;

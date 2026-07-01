@@ -33,8 +33,8 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "io/midi/midi_fanout.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_macro.h"
 #include "memory/general_memory_allocator.h"
 #include "menus.h"
 #include "model/action/action_logger.h"
@@ -707,7 +707,7 @@ ActionResult SoundEditor::exitCompletely() {
 
 		FlashStorage::writeSettings();
 		MIDIDeviceManager::writeDevicesToFile();
-		MIDIFanOut::writeToFile();
+		MIDIMacro::writeToFile();
 		runtimeFeatureSettings.writeSettingsToFile();
 		midiFollow.writeDefaultsToFile();
 		display->removeWorkingAnimation();
@@ -1561,6 +1561,11 @@ bool SoundEditor::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNu
 
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
 		getCurrentMenuItem()->learnCC(cable, channel, ccNumber, value);
+		return true;
+	}
+
+	// Let the focused menu item follow this CC live (e.g. macro From/To dials track the dest knob).
+	if (getCurrentMenuItem()->liveEditFromMidiCC(ccNumber, value)) {
 		return true;
 	}
 

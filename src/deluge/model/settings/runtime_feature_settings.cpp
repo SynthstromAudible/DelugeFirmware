@@ -200,6 +200,9 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+	// MIDI Macro
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MidiMacro], STRING_FOR_COMMUNITY_FEATURE_MIDI_MACRO,
+	                  "midiMacro", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

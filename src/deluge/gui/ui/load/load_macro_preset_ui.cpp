@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/ui/load/load_fanout_template_ui.h"
+#include "gui/ui/load/load_macro_preset_ui.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
-#include "io/midi/midi_fanout.h"
+#include "io/midi/midi_macro.h"
 #include "model/action/action_logger.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
@@ -28,15 +28,15 @@
 
 using namespace deluge;
 
-LoadFanOutTemplateUI loadFanOutTemplateUI{};
+LoadMacroPresetUI loadMacroPresetUI{};
 
-bool LoadFanOutTemplateUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+bool LoadMacroPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
 	return true;
 }
 
-bool LoadFanOutTemplateUI::opened() {
-	Error error = createFoldersRecursiveIfNotExists(MIDIFanOut::kSnapshotsFolder);
+bool LoadMacroPresetUI::opened() {
+	Error error = createFoldersRecursiveIfNotExists(MIDIMacro::kPresetsFolder);
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
@@ -50,7 +50,7 @@ bool LoadFanOutTemplateUI::opened() {
 
 	actionLogger.deleteAllLogs();
 
-	error = setupForLoadingTemplate(); // Sets currentDir and draws the QWERTY interface.
+	error = setupForLoadingPreset(); // Sets currentDir and draws the QWERTY interface.
 	if (error != Error::NONE) {
 		renderingNeededRegardlessOfUI();
 		display->displayError(error);
@@ -62,19 +62,19 @@ bool LoadFanOutTemplateUI::opened() {
 	return true;
 }
 
-Error LoadFanOutTemplateUI::setupForLoadingTemplate() {
+Error LoadMacroPresetUI::setupForLoadingPreset() {
 	if (display->haveOLED()) {
-		title = "Load snapshot";
+		title = "Load preset";
 	}
 
 	enteredText.clear();
 
-	Error error = currentDir.set(MIDIFanOut::kSnapshotsFolder);
+	Error error = currentDir.set(MIDIMacro::kPresetsFolder);
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	error = arrivedInNewFolder(0, nullptr, MIDIFanOut::kSnapshotsFolder);
+	error = arrivedInNewFolder(0, nullptr, MIDIMacro::kPresetsFolder);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -88,10 +88,10 @@ Error LoadFanOutTemplateUI::setupForLoadingTemplate() {
 	return Error::NONE;
 }
 
-void LoadFanOutTemplateUI::folderContentsReady(int32_t entryDirection) {
+void LoadMacroPresetUI::folderContentsReady(int32_t entryDirection) {
 }
 
-void LoadFanOutTemplateUI::enterKeyPress() {
+void LoadMacroPresetUI::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (!currentFileItem) {
 		return;
@@ -112,12 +112,12 @@ void LoadFanOutTemplateUI::enterKeyPress() {
 			display->displayError(error);
 			return;
 		}
-		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAN_OUT_TEMPLATE_LOADED));
+		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_PRESET_LOADED));
 		close();
 	}
 }
 
-ActionResult LoadFanOutTemplateUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadMacroPresetUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Load button
@@ -127,7 +127,7 @@ ActionResult LoadFanOutTemplateUI::buttonAction(deluge::hid::Button b, bool on, 
 
 	if (on && b == BACK) {
 		// don't allow navigation backwards if we're in the default folder
-		if (!strcmp(currentDir.get(), MIDIFanOut::kSnapshotsFolder)) {
+		if (!strcmp(currentDir.get(), MIDIMacro::kPresetsFolder)) {
 			close();
 			return ActionResult::DEALT_WITH;
 		}
@@ -136,7 +136,7 @@ ActionResult LoadFanOutTemplateUI::buttonAction(deluge::hid::Button b, bool on, 
 	return LoadUI::buttonAction(b, on, inCardRoutine);
 }
 
-ActionResult LoadFanOutTemplateUI::padAction(int32_t x, int32_t y, int32_t on) {
+ActionResult LoadMacroPresetUI::padAction(int32_t x, int32_t y, int32_t on) {
 	if (x < kDisplayWidth) {
 		return LoadUI::padAction(x, y, on);
 	}
@@ -144,7 +144,7 @@ ActionResult LoadFanOutTemplateUI::padAction(int32_t x, int32_t y, int32_t on) {
 	return ActionResult::DEALT_WITH;
 }
 
-Error LoadFanOutTemplateUI::performLoad() {
+Error LoadMacroPresetUI::performLoad() {
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem == nullptr) {
 		return display->haveOLED() ? Error::FILE_NOT_FOUND : Error::NO_FURTHER_FILES_THIS_DIRECTION;
@@ -154,5 +154,5 @@ Error LoadFanOutTemplateUI::performLoad() {
 		return Error::NONE;
 	}
 
-	return MIDIFanOut::loadGroupTemplate(&currentFileItem->filePointer, MIDIFanOut::templateGroupIndex);
+	return MIDIMacro::loadMacroPreset(&currentFileItem->filePointer, MIDIMacro::presetMacroIndex);
 }
