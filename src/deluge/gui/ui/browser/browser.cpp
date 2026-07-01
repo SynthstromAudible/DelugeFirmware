@@ -1138,7 +1138,8 @@ searchFromOneEnd:
 		}
 	}
 
-	else if (newFileIndex >= fileItems.getNumElements()) {
+	// we try to have 1 beyond the current index
+	else if ((newFileIndex + 1) >= fileItems.getNumElements()) {
 		D_PRINTLN("out of file items");
 		if (numFileItemsDeletedAtEnd) {
 			scrollPosVertical = 0;
@@ -1152,12 +1153,11 @@ searchFromOneEnd:
 		else {
 			scrollPosVertical = 9999;
 
-			if (numFileItemsDeletedAtStart) {
+			bool reachedEnd = newFileIndex >= fileItems.getNumElements();
+
+			if (numFileItemsDeletedAtStart && reachedEnd) {
 				newCatalogSearchDirection = CATALOG_SEARCH_RIGHT;
 				goto searchFromOneEnd;
-			}
-			else {
-				newFileIndex = 0;
 			}
 		}
 	}
@@ -1168,11 +1168,16 @@ searchFromOneEnd:
 
 	fileIndexSelected = newFileIndex;
 
-	if (scrollPosVertical > fileIndexSelected) {
-		scrollPosVertical = fileIndexSelected;
+	if (display->haveOLED()) {
+		scrollPosVertical = std::clamp<int>(newFileIndex - 1, 0, maxNumFileItemsNow - kOLEDMenuNumOptionsVisible);
 	}
-	else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
-		scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
+	else {
+		if (scrollPosVertical > fileIndexSelected) {
+			scrollPosVertical = fileIndexSelected;
+		}
+		else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
+			scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
+		}
 	}
 
 	enteredTextEditPos = 0;
