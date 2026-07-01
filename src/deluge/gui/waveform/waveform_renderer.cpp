@@ -578,47 +578,6 @@ cantReadData:
 	return !hadAnyTroubleLoading;
 }
 
-namespace {
-
-struct ClusterPeak {
-	int32_t min = std::numeric_limits<int32_t>::max();
-	int32_t max = std::numeric_limits<int32_t>::min();
-};
-
-// Scans the audio in [startByte, endByte) of an already-loaded cluster, frame-aligned, sub-sampling to at
-// most ~2^kSamplesToReadPerColMagnitude reads, and returns the peak (min/max) values found. Mirrors
-// findPeaksPerCol's historical read loop, including the deliberate `byteDepth - 4` misalignment that reads
-// each sample's top bytes (the bytes before `data` are valid padding - see Cluster).
-ClusterPeak scanClusterPeak(const Cluster& cluster, int32_t startByte, int32_t endByte, int32_t byteDepth,
-                            int32_t numChannels) {
-	int32_t numSamplesToRead = (endByte - startByte) / byteDepth;
-	int32_t byteIncrement = byteDepth;
-
-	// We don't want to read endless samples. If we were gonna read lots, skip some.
-	int32_t timesTooManySamples = ((numSamplesToRead - 1) >> kSamplesToReadPerColMagnitude) + 1;
-	if (timesTooManySamples > 1) {
-		// If stereo, force an odd stride so we alternate between reading both channels.
-		if (numChannels == 2 && (timesTooManySamples & 1) == 0) {
-			timesTooManySamples++;
-		}
-		byteIncrement *= timesTooManySamples;
-	}
-
-	// Misalign, to align with non-32-bit data.
-	int32_t bytePos = startByte + byteDepth - 4;
-	int32_t endPos = endByte + byteDepth - 4;
-
-	ClusterPeak peak;
-	for (; bytePos < endPos; bytePos += byteIncrement) {
-		int32_t value = *reinterpret_cast<const int32_t*>(&cluster.data[bytePos]);
-		peak.min = std::min(peak.min, value);
-		peak.max = std::max(peak.max, value);
-	}
-	return peak;
-}
-
-} // namespace
-
 // Background "waveform overview" pre-scan (issue #4460). Investigates one whole cluster the same way
 // findPeaksPerCol's whole-cluster branch does, but self-contained so it can run off the render path.
 // Caches the result in the SampleCluster (int8 min/max + investigatedWholeLength) so later zoomed-out
@@ -644,29 +603,32 @@ bool WaveformRenderer::investigateWholeCluster(Sample* sample, int32_t clusterIn
 	const int32_t frameSize = sample->numChannels * sample->byteDepth;
 	const uint64_t numValidBytes = sample->lengthInSamples * sample->byteDepth * sample->numChannels;
 
-	// Work out the first frame-aligned byte of audio data within this cluster.
-	const int32_t clusterStartByteAbs = clusterIndex << Cluster::size_magnitude;
+	// Work out the first frame-aligned byte of audio data within this cluster. 64-bit so multi-GB samples
+	// (cluster index << size_magnitude) don't overflow (#4460).
+	const int64_t clusterStartByteAbs = clusterStartByte(clusterIndex, Cluster::size_magnitude);
 	int32_t startByteWithinCluster;
-	if (clusterStartByteAbs <= static_cast<int32_t>(sample->audioDataStartPosBytes)) {
+	if (clusterStartByteAbs <= static_cast<int64_t>(sample->audioDataStartPosBytes)) {
 		// This cluster still contains the file header; audio data begins at audioDataStartPosBytes.
-		startByteWithinCluster = static_cast<int32_t>(sample->audioDataStartPosBytes) - clusterStartByteAbs;
+		startByteWithinCluster = static_cast<int32_t>(sample->audioDataStartPosBytes - clusterStartByteAbs);
 	}
 	else {
-		const int32_t rem = (clusterStartByteAbs - static_cast<int32_t>(sample->audioDataStartPosBytes)) % frameSize;
+		const int32_t rem = static_cast<int32_t>((clusterStartByteAbs - sample->audioDataStartPosBytes) % frameSize);
 		startByteWithinCluster = (rem == 0) ? 0 : (frameSize - rem);
 	}
 
 	int32_t endByteWithinCluster = Cluster::size;
 	if (clusterIndex == endClusters - 1) {
-		const int32_t limit = (numValidBytes + sample->audioDataStartPosBytes) & (Cluster::size - 1);
-		endByteWithinCluster = std::min(endByteWithinCluster, limit);
+		endByteWithinCluster =
+		    std::min(endByteWithinCluster,
+		             lastAudioClusterEndByte(numValidBytes, sample->audioDataStartPosBytes, Cluster::size));
 	}
 
 	// Trim the end back to a whole frame so we never read past the cluster boundary.
 	endByteWithinCluster -= (endByteWithinCluster - startByteWithinCluster) % frameSize;
 
 	if (endByteWithinCluster <= startByteWithinCluster) {
-		sampleCluster->investigatedWholeLength = true; // No whole frames here; don't keep retrying
+		// No whole frames to scan here (e.g. a sub-frame tail). Leave it un-investigated rather than
+		// stamping an inverted sentinel; advanceOverviewScan advances the cursor past it regardless.
 		return true;
 	}
 
@@ -675,16 +637,16 @@ bool WaveformRenderer::investigateWholeCluster(Sample* sample, int32_t clusterIn
 		return false; // Card busy / couldn't read - caller will retry later
 	}
 
-	ClusterPeak peak =
-	    scanClusterPeak(*cluster, startByteWithinCluster, endByteWithinCluster, sample->byteDepth, sample->numChannels);
+	WaveformPeak peak = scanClusterPeak(cluster->data, startByteWithinCluster, endByteWithinCluster, sample->byteDepth,
+	                                    sample->numChannels);
 
 	// Fold in anything previously captured for this cluster (same as findPeaksPerCol's whole-cluster path).
 	peak.min = std::min(peak.min, static_cast<int32_t>(sampleCluster->minValue) << 24);
 	peak.max = std::max(peak.max, static_cast<int32_t>(sampleCluster->maxValue) << 24);
 
 	// Store the coarse (int8) overview, rounding towards 0.
-	sampleCluster->minValue = (peak.min >> 24) + (peak.min < 0 ? 1 : 0);
-	sampleCluster->maxValue = (peak.max >> 24) + (peak.max < 0 ? 1 : 0);
+	sampleCluster->minValue = toCoarsePeak(peak.min);
+	sampleCluster->maxValue = toCoarsePeak(peak.max);
 	sampleCluster->investigatedWholeLength = true;
 
 	// Keep the sample's running peak up to date too, so brightness normalisation is pre-warmed.
