@@ -49,8 +49,10 @@ struct MacroFollowerSlot {
 };
 
 struct Macro {
-	LearnedMIDI leader;
-	bool active = false; // off by default; the macro fires only when active (and the feature is enabled)
+	LearnedMIDI leader;     // external-CC leader (when leaderKnob < 0)
+	int8_t leaderKnob = -1; // instead of a CC, one of the 2 physical gold knobs (0 or 1) can be the leader; -1 = none
+	uint8_t leaderKnobPos = 0; // live 0..kMaxValue position a gold-knob leader accumulates into (not serialized)
+	bool active = false;       // off by default; the macro fires only when active (and the feature is enabled)
 	MacroFollowerSlot followers[kNumFollowerSlots];
 };
 
@@ -58,9 +60,13 @@ struct Macro {
 // each instrument's per-track enable, whether macros fire. This is the global off-switch.
 bool isEnabled();
 
-// True if any follower other than macros[exceptMacro].followers[exceptSlot] already targets this CC
-// within this instrument's macros. Used by the follower CC editor to skip CCs already taken.
-bool isFollowerCCUsed(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot);
+// Returns the index of a macro (other than macros[exceptMacro], and other than the given slot) whose
+// follower already targets this CC, or -1 if none. Duplicate destination CCs are allowed but flagged.
+int32_t findFollowerCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot);
+
+// Flashes a "CC <cc> used by Macro <ownerMacro+1>" popup - shared by the follower editor, preset load
+// and the Active toggle so the wording is identical everywhere.
+void showCCConflictPopup(uint8_t cc, int32_t ownerMacro);
 
 // Returns the index of an *active* macro (other than macroIndex) in this instrument's macros that owns
 // one of macroIndex's follower CCs, or -1 if none; if non-null, *conflictCC receives the shared CC. A
@@ -86,6 +92,11 @@ extern int32_t presetMacroIndex;
 // (and that instrument has macros enabled), writes its value to that macro's follower CCs. Returns
 // whether it matched (and so consumed the message).
 bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t value);
+
+// Turning physical gold knob whichKnob (0 or 1): if any active macro on the active MIDI clip has that
+// knob as its leader, accumulate its live position by offset and drive its followers. Returns whether
+// it matched (so the caller suppresses the knob's normal action - a knob leader is dedicated).
+bool tryKnobMacro(int32_t whichKnob, int32_t offset);
 
 // Serializes/deserializes an instrument's macros (and its enable gate) as a <midiMacros> block within
 // the instrument's own XML. Reused for both the song file and standalone instrument presets.

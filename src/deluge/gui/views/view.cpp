@@ -53,6 +53,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_macro.h"
 #include "lib/printf.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -819,6 +820,13 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	//  if (Buttons::isShiftButtonPressed()) {
 	//  	return;
 	//  }
+
+	// A gold knob learned as a MIDI-macro leader is dedicated: it drives that macro's followers and its
+	// normal param action is suppressed. tryKnobMacro returns false for every non-leader knob.
+	if (getCurrentOutputType() == OutputType::MIDI_OUT && MIDIMacro::isEnabled()
+	    && MIDIMacro::tryKnobMacro(whichModEncoder, offset)) {
+		return;
+	}
 
 	if (activeModControllableModelStack.modControllable) {
 

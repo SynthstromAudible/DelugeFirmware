@@ -21,6 +21,8 @@
 #include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/toggle.h"
+#include "gui/ui/ui.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_macro.h"
@@ -52,7 +54,9 @@ inline void markMacroInstrumentEdited() {
 	}
 }
 
-// The learnable leader CC of one MIDI macro.
+// The leader of one MIDI macro: either a learned external CC (Command/LearnedMIDI) or one of the two
+// physical gold knobs. LEARN + turn a gold knob learns it; SHIFT+LEARN + turn unlearns; learning an
+// external CC unmaps the knob and vice-versa - the leader is exactly one thing at a time.
 class MacroLeader final : public Command {
 public:
 	MacroLeader(l10n::String newName, int32_t newMacro) : Command(newName), macro(newMacro) {}
@@ -63,19 +67,82 @@ public:
 	}
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) override {
 		bool learnt = Command::learnNoteOn(cable, channel, noteCode);
+		clearLeaderKnob(); // an external-CC leader replaces any gold-knob leader
 		markMacroInstrumentEdited();
 		return learnt;
 	}
+	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) override {
+		if (cable != nullptr) {
+			return; // only gold knobs (cable == nullptr) can be a macro leader
+		}
+		MIDIMacro::Macro* m = currentMacros();
+		if (!m) {
+			return;
+		}
+		if (Buttons::isShiftButtonPressed()) {
+			// SHIFT+LEARN + turn: unlearn to a fully uninitialized leader.
+			m[macro].leaderKnob = -1;
+			learned().clear();
+			markMacroInstrumentEdited();
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNLEARNED));
+			return;
+		}
+		if (whichKnob >= 0 && whichKnob < kNumPhysicalModKnobs) {
+			m[macro].leaderKnob = (int8_t)whichKnob;
+			learned().clear(); // a gold-knob leader replaces any external-CC leader
+			markMacroInstrumentEdited();
+			if (soundEditor.getCurrentMenuItem() == this && display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else if (soundEditor.getCurrentMenuItem() == this) {
+				drawValue();
+			}
+			else {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_LEARNED));
+			}
+		}
+	}
 	void unlearnAction() override {
 		Command::unlearnAction();
+		clearLeaderKnob();
 		markMacroInstrumentEdited();
 	}
 	void selectEncoderAction(int32_t offset) override {
-		Command::selectEncoderAction(offset);
+		Command::selectEncoderAction(offset); // clears the learned CC (sets leader to none)
+		clearLeaderKnob();
 		markMacroInstrumentEdited();
+	}
+	void drawPixelsForOled() override {
+		int8_t knob = leaderKnob();
+		if (knob >= 0) {
+			DEF_STACK_STRING_BUF(text, 20);
+			text.append("Gold Knob ");
+			text.appendInt(knob + 1);
+			deluge::hid::display::OLED::main.drawString(text.c_str(), 0, 20, kTextSpacingX, kTextSizeYUpdated);
+			return;
+		}
+		Command::drawPixelsForOled();
+	}
+	void drawValue() const override {
+		int8_t knob = leaderKnob();
+		if (knob >= 0) {
+			char buffer[5] = {'G', 'K', (char)('1' + knob), 0, 0};
+			display->setText(buffer);
+			return;
+		}
+		Command::drawValue();
 	}
 
 private:
+	int8_t leaderKnob() const {
+		MIDIMacro::Macro* m = currentMacros();
+		return m ? m[macro].leaderKnob : -1;
+	}
+	void clearLeaderKnob() {
+		if (MIDIMacro::Macro* m = currentMacros()) {
+			m[macro].leaderKnob = -1;
+		}
+	}
 	int32_t macro;
 };
 
@@ -91,6 +158,15 @@ public:
 		const std::string str = (this->getValue() == 0) ? "OFF" : std::to_string(getDisplayValue());
 		image.drawStringCentered(str.data(), pos.start_x, pos.start_y + kHorizontalMenuSlotYOffset, kTextTitleSpacingX,
 		                         kTextTitleSizeY, pos.width);
+	}
+	// The turn popup: show "OFF" or the CC number, not the raw menu value (0 = OFF, 1 = CC 0, ...).
+	void getNotificationValue(StringBuf& value) override {
+		if (this->getValue() == 0) {
+			value.append("OFF");
+		}
+		else {
+			value.appendInt(getDisplayValue());
+		}
 	}
 	void readCurrentValue() override {
 		MIDIMacro::Macro* m = currentMacros();
@@ -109,38 +185,22 @@ public:
 			markMacroInstrumentEdited();
 		}
 	}
-	// A destination CC must be unique across this instrument's macros, so skip over CCs already used by
-	// another follower while scrolling. If there's no free CC in that direction, restore the previous CC
-	// and warn - two followers on one CC would just fight over it.
+	// A destination CC may be duplicated across macros (at most one active macro may own it), so allow
+	// selecting any CC but warn "CC N used by Macro M" when another follower already targets it.
 	void selectEncoderAction(int32_t offset) override {
+		IntegerWithOff::selectEncoderAction(offset); // move + clamp + write + value popup
 		MIDIMacro::Macro* m = currentMacros();
-		uint8_t previousCC = m ? m[macro].followers[slot].cc : MIDIMacro::kFollowerCCNone;
-		IntegerWithOff::selectEncoderAction(offset); // move + clamp + write + redraw
-		if (offset == 0) {
-			return;
-		}
-		int32_t dir = (offset > 0) ? 1 : -1;
-		while (currentValueIsUsedCC()) {
-			int32_t before = this->getValue();
-			IntegerWithOff::selectEncoderAction(dir);
-			if (this->getValue() == before) { // hit a bound with no free CC - restore + warn
-				this->setValue((previousCC == MIDIMacro::kFollowerCCNone) ? 0 : previousCC + 1);
-				writeCurrentValue();
-				readValueAgain();
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_CC_IN_USE));
-				return;
+		int32_t v = this->getValue();
+		if (m && v != 0) {
+			int32_t owner = MIDIMacro::findFollowerCCOwner(m, (uint8_t)(v - 1), macro, slot);
+			if (owner >= 0) {
+				MIDIMacro::showCCConflictPopup((uint8_t)(v - 1), owner);
 			}
 		}
 	}
 
 protected:
 	int32_t getDisplayValue() override { return this->getValue() - 1; }
-
-	bool currentValueIsUsedCC() {
-		MIDIMacro::Macro* m = currentMacros();
-		int32_t v = this->getValue();
-		return m && v != 0 && MIDIMacro::isFollowerCCUsed(m, (uint8_t)(v - 1), macro, slot);
-	}
 
 private:
 	int32_t macro;
@@ -258,15 +318,7 @@ public:
 		MenuItem* result = Toggle::selectButtonPress(); // toggles (writeCurrentValue may block)
 		if (conflict >= 0 && m && !m[macro].active) {
 			// tried to turn on but a CC conflict blocked it, e.g. "CC 16 used by Macro 1"
-			DEF_STACK_STRING_BUF(popup, 48);
-			popup.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_FOLLOWER_CC)); // "CC"
-			popup.append(' ');
-			popup.appendInt(conflictCC);
-			popup.append(' ');
-			popup.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_USED_BY_MACRO)); // "used by Macro"
-			popup.append(' ');
-			popup.appendInt(conflict + 1);
-			display->displayPopup(popup.c_str());
+			MIDIMacro::showCCConflictPopup(conflictCC, conflict);
 		}
 		return result;
 	}

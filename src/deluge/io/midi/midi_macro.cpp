@@ -17,9 +17,11 @@
 
 #include "io/midi/midi_macro.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
+#include "hid/display/display.h"
 #include "io/midi/midi_follow.h"
 #include "model/clip/clip.h"
 #include "model/instrument/midi_instrument.h"
@@ -29,6 +31,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "storage/storage_manager.h"
+#include "util/d_stringbuf.h"
 #include <algorithm>
 #include <string.h>
 
@@ -46,9 +49,9 @@ bool isEnabled() {
 	return runtimeFeatureSettings.get(RuntimeFeatureSettingType::MidiMacro) == RuntimeFeatureStateToggle::On;
 }
 
-bool isFollowerCCUsed(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot) {
+int32_t findFollowerCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot) {
 	if (cc == kFollowerCCNone) {
-		return false;
+		return -1;
 	}
 	for (int32_t m = 0; m < kNumMacros; m++) {
 		for (int32_t f = 0; f < kNumFollowerSlots; f++) {
@@ -56,11 +59,23 @@ bool isFollowerCCUsed(const Macro* macros, uint8_t cc, int32_t exceptMacro, int3
 				continue;
 			}
 			if (macros[m].followers[f].cc == cc) {
-				return true;
+				return m;
 			}
 		}
 	}
-	return false;
+	return -1;
+}
+
+void showCCConflictPopup(uint8_t cc, int32_t ownerMacro) {
+	DEF_STACK_STRING_BUF(popup, 48);
+	popup.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_FOLLOWER_CC)); // "CC"
+	popup.append(' ');
+	popup.appendInt(cc);
+	popup.append(' ');
+	popup.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_USED_BY_MACRO)); // "used by Macro"
+	popup.append(' ');
+	popup.appendInt(ownerMacro + 1);
+	display->displayPopup(popup.c_str());
 }
 
 int32_t findActiveConflict(const Macro* macros, int32_t macroIndex, uint8_t* conflictCC) {
@@ -87,7 +102,7 @@ int32_t findActiveConflict(const Macro* macros, int32_t macroIndex, uint8_t* con
 
 bool anyMacroConfigured(Macro* macros) {
 	for (int32_t m = 0; m < kNumMacros; m++) {
-		if (macros[m].active || macros[m].leader.containsSomething()) {
+		if (macros[m].active || macros[m].leader.containsSomething() || macros[m].leaderKnob >= 0) {
 			return true;
 		}
 		for (const MacroFollowerSlot& follower : macros[m].followers) {
@@ -161,6 +176,46 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 	return matched;
 }
 
+bool tryKnobMacro(int32_t whichKnob, int32_t offset) {
+	if (!isEnabled() || getCurrentUI() == &loadSongUI) {
+		return false;
+	}
+	Clip* clip = midiFollow.getSelectedOrActiveClip();
+	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
+		return false;
+	}
+	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
+	if (!instrument->macrosEnabled) {
+		return false;
+	}
+	// Cheap pre-check so a normal (non-leader) knob turn bails before building a modelStack.
+	bool anyMatch = false;
+	for (Macro& macro : instrument->macros) {
+		if (macro.active && macro.leaderKnob == whichKnob) {
+			anyMatch = true;
+			break;
+		}
+	}
+	if (!anyMatch) {
+		return false;
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
+	for (Macro& macro : instrument->macros) {
+		if (!macro.active || macro.leaderKnob != whichKnob) {
+			continue;
+		}
+		// A gold-knob leader is a relative encoder: accumulate its position, then drive the followers.
+		int32_t pos = std::clamp<int32_t>((int32_t)macro.leaderKnobPos + offset, 0, kMaxValue);
+		macro.leaderKnobPos = pos;
+		sendToFollowers(instrument, clip, modelStackWithTimelineCounter, macro, pos);
+	}
+	return true;
+}
+
 // follower slot tag names are "follower1" .. "follower8"; returns the slot index, or -1 if not one.
 static int32_t followerSlotFromTagName(char const* tagName) {
 	constexpr int32_t prefixLen = 8; // strlen("follower")
@@ -198,6 +253,9 @@ static void writeMacroToFile(Serializer& writer, Macro& macro) {
 
 	writer.writeOpeningTagBeginning(MIDI_MACRO_ELEMENT_TAG);
 	writer.writeAttribute("active", macro.active ? 1 : 0, false);
+	if (macro.leaderKnob >= 0) {
+		writer.writeAttribute("leaderKnob", macro.leaderKnob, false); // gold-knob leader rides on the tag
+	}
 
 	// Self-close empty macros (<macro active="0"/>). The XML reader mis-parses an empty but
 	// explicitly-closed element that carries an attribute (<macro active="0"></macro>), which
@@ -265,6 +323,10 @@ static void readMacroFromFile(Deserializer& reader, Macro& macro) {
 		// accept legacy "enabled" as well as "active"
 		if (!strcmp(tagName, "active") || !strcmp(tagName, "enabled")) {
 			macro.active = reader.readTagOrAttributeValueInt() != 0;
+		}
+		else if (!strcmp(tagName, "leaderKnob")) {
+			int32_t k = reader.readTagOrAttributeValueInt();
+			macro.leaderKnob = (k >= 0 && k < kNumPhysicalModKnobs) ? (int8_t)k : -1;
 		}
 		else if (!strcmp(tagName, MIDI_MACRO_LEADER_TAG)) {
 			macro.leader.readCCFromFile(reader);
