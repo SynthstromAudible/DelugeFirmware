@@ -13,7 +13,7 @@
 - The new `waveform_peak_math` unit MUST have **no** dependencies on `Cluster`, `Sample`, `AudioEngine`, `audioFileManager`, or any hardware/display type — only `<cstdint>` and standard headers — so it compiles cleanly into the `-m32` unit-test target.
 - Peak read behavior (sub-sampling stride, stereo odd-stride, `byteDepth − 4` misalignment) MUST remain **bit-identical** to the current `findPeaksPerCol` read loop for normal-sized files. Only the exact-cluster-boundary and >2 GB edge cases change.
 - Coarse int8 peaks round **toward zero** (`x >> 24`, then `+1` if negative), matching current behavior.
-- Unit tests: configure with `cmake -B build -S tests -G Ninja`, build with `cmake --build build`, run the group with `./build/unit/UnitTests -g WaveformPeakMath` and the full suite with `ctest --test-dir build --output-on-failure`.
+- Unit tests: configure with `cmake -B build-tests -S tests -G Ninja`, build with `cmake --build build-tests`, run the group with `./build-tests/unit/UnitTests -g WaveformPeakMath` and the full suite with `ctest --test-dir build-tests --output-on-failure`.
 - Firmware build for integration verification: `./dbt build` (use the project's standard OLED release target).
 
 ---
@@ -177,7 +177,7 @@ And add the test file to the `add_executable(UnitTests ...)` list (after `clock_
 
 Run:
 ```bash
-cmake -B build -S tests -G Ninja && cmake --build build
+cmake -B build-tests -S tests -G Ninja && cmake --build build-tests
 ```
 Expected: build FAILS to link `UnitTests` with undefined references to `scanClusterPeak`, `toCoarsePeak`, `lastAudioClusterEndByte`, `clusterStartByte` (the `.cpp` is empty/absent).
 
@@ -241,7 +241,7 @@ int64_t clusterStartByte(int32_t clusterIndex, int32_t sizeMagnitude) {
 
 Run:
 ```bash
-cmake --build build && ./build/unit/UnitTests -g WaveformPeakMath
+cmake --build build-tests && ./build-tests/unit/UnitTests -g WaveformPeakMath
 ```
 Expected: all `WaveformPeakMath` tests PASS; "OK (... tests, ... ran ...)".
 
@@ -407,7 +407,7 @@ Expected: no output. If any remain, replace with `kSamplesToReadPerColMagnitude`
 
 Run:
 ```bash
-cmake --build build && ./build/unit/UnitTests && ./dbt build
+cmake --build build-tests && ./build-tests/unit/UnitTests && ./dbt build
 ```
 Expected: unit tests PASS; firmware build succeeds. (Render output for normal files is unchanged — the read loop and rounding are the same helpers, verified by Task 1.)
 
@@ -510,7 +510,7 @@ Expected: no output.
 
 Run:
 ```bash
-cmake --build build && ./build/unit/UnitTests && ./dbt build
+cmake --build build-tests && ./build-tests/unit/UnitTests && ./dbt build
 ```
 Expected: unit tests PASS; firmware builds.
 
@@ -572,7 +572,7 @@ Apply the same `static_cast<int32_t>(...)` wrap at lines 365 (`colStartByte & (C
 
 Run:
 ```bash
-cmake --build build && ./build/unit/UnitTests && ./dbt build
+cmake --build build-tests && ./build-tests/unit/UnitTests && ./dbt build
 ```
 Expected: unit tests PASS (including `WaveformPeakMath, ClusterStartByteNoOverflow`); firmware builds; no narrowing warnings.
 
@@ -655,7 +655,7 @@ Then delete the now-duplicated original computation of `numValidSamples`/`endClu
 
 Run:
 ```bash
-cmake --build build && ./build/unit/UnitTests && ./dbt build
+cmake --build build-tests && ./build-tests/unit/UnitTests && ./dbt build
 ```
 Expected: unit tests PASS; firmware builds.
 
@@ -725,7 +725,7 @@ with:
 
 Run:
 ```bash
-cmake --build build && ./build/unit/UnitTests && ./dbt build
+cmake --build build-tests && ./build-tests/unit/UnitTests && ./dbt build
 ```
 Expected: unit tests PASS; firmware builds. (`currentlyAccessingCard` is the file-scope `extern uint8_t` already declared at `waveform_renderer.cpp:38`; `clusterBeingLoaded` is a public `AudioFileManager` member — both accessible from `advanceOverviewScan`.)
 
@@ -852,7 +852,7 @@ And in `Sample::resetOverviewScan()` (sample.cpp), re-arm the manager via the ex
 
 Run:
 ```bash
-cmake --build build && ./build/unit/UnitTests && ./dbt build
+cmake --build build-tests && ./build-tests/unit/UnitTests && ./dbt build
 ```
 Expected: unit tests PASS; firmware builds.
 
@@ -872,7 +872,7 @@ git commit -m "fix(waveform): stop idle re-scan once complete; seed scan cursor 
 
 ## Final verification
 
-- [ ] Run the full unit suite: `ctest --test-dir build --output-on-failure` — expected all PASS.
+- [ ] Run the full unit suite: `ctest --test-dir build-tests --output-on-failure` — expected all PASS.
 - [ ] Firmware build: `./dbt build` — expected success.
 - [ ] Manual repro (issue #4460 long-song project): smooth scrolling under playback; correct final-cluster rendering; no runaway idle card I/O.
 - [ ] Review the full diff against the spec's finding list (#1–#7 + the two lower-severity items) and confirm each is addressed.
