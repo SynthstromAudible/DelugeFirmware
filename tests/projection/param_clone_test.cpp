@@ -115,6 +115,24 @@ int main() {
 		      "pm clone: patch-cable node independent");
 	}
 
+	// (b2) ParamCollection::clone() direct (A3): base impl now, overridden per-subclass later; the harness
+	//      re-verifies deep independence through each override.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "clone(): pm setup");
+		setNode(pm.getUnpatchedParamSet()->params[2], 16, 321, false);
+
+		ParamCollection* cloned = nullptr;
+		Error e = pm.getUnpatchedParamSet()->clone(cloned, /*copyAutomation=*/true);
+		check(e == Error::NONE && cloned != nullptr, "clone(): unpatched clone ok");
+		if (cloned != nullptr) {
+			ParamSet* clonedSet = static_cast<ParamSet*>(cloned);
+			check(clonedSet->params[2].nodes().size() == 1, "clone(): unpatched node copied");
+			pm.getUnpatchedParamSet()->params[2].nodes()[0].value = 999;
+			check(clonedSet->params[2].nodes()[0].value == 321, "clone(): unpatched node independent");
+		}
+	}
+
 	// (c) Undo swap round-trip (the undo path uses swap, not the byte-copy idiom — regression guard).
 	{
 		AutoParam a, b;

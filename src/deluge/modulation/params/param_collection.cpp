@@ -34,6 +34,20 @@ ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* 
 ParamCollection::~ParamCollection() {
 }
 
+Error ParamCollection::clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength) const {
+	// Legacy byte-copy path (subclasses override with real copy construction): allocate raw storage,
+	// bit-copy the polymorphic object (vtable + members, node buffers still aliasing ours), then
+	// beenCloned() detaches and deep-copies those buffers.
+	void* mem = deluge::memory::alloc_fast(objectSize);
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	memcpy(mem, this, objectSize);
+	result = static_cast<ParamCollection*>(mem);
+	result->beenCloned(copyAutomation, reverseDirectionWithLength);
+	return Error::NONE;
+}
+
 void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                                    bool automationChanged, bool automatedBefore, bool automatedNow) {
 

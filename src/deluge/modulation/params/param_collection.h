@@ -43,6 +43,11 @@ public:
 
 	virtual void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0) = 0;
 
+	/// Deep-clone this collection into freshly-allocated memory (fallible; sets `result` on success).
+	/// The base implementation reproduces the legacy byte-copy path (alloc + memcpy + beenCloned);
+	/// subclasses override it with real copy construction as the byte-copy clone idiom is retired.
+	virtual Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const;
+
 	/// tick interpolation by a number of ticks
 	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;
 
