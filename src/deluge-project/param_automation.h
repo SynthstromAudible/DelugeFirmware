@@ -42,7 +42,7 @@ namespace deluge::project {
 /// stored representation faithfully (no reinterpretation).
 struct DocAutoParam {
 	int32_t current_value{0};
-	std::vector<ParamNode> nodes;
+	ParamNodeVector nodes; // OrderedPosVector<ParamNode>: the single runtime store the engine borrows (Phase B)
 };
 
 /// The projection core operates on the raw pieces (an AutoParam's `currentValue` + its node vector) so
@@ -51,9 +51,14 @@ struct DocAutoParam {
 inline DocAutoParam toDocAutoParam(int32_t current_value, const ParamNodeVector& nodes) {
 	DocAutoParam doc;
 	doc.current_value = current_value;
-	doc.nodes.reserve(nodes.size());
+	(void)doc.nodes.reserveExtra(static_cast<int32_t>(nodes.size()));
 	for (const ParamNode& node : nodes) {
-		doc.nodes.push_back(node);
+		// nodes are ascending by pos (copied from an ordered source), so each is the new last node.
+		int32_t i = doc.nodes.insertSorted(node.pos, /*isDefinitelyLast=*/true).value_or(-1);
+		if (i < 0) {
+			break; // allocation failed — leave what we have.
+		}
+		doc.nodes[i] = node;
 	}
 	return doc;
 }

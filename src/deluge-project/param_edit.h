@@ -19,7 +19,7 @@
 
 // DOM edit operations on automation node data (param/automation DOM Phase 1 of the DOM-live-authoritative
 // split — docs/superpowers/specs/2026-07-02-dom-live-authoritative-automation-design.md). These operate on the
-// DOM's DocAutoParam directly (std::vector<ParamNode>), take timeline context as parameters (never engine
+// DOM's DocAutoParam directly (OrderedPosVector<ParamNode>), take timeline context as parameters (never engine
 // globals), and are faithful ports of the corresponding engine AutoParam ops, so they can be unit-tested in
 // isolation and become the single authority for automation editing.
 

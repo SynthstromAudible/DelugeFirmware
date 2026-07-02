@@ -27,11 +27,11 @@ int32_t setNodeAtPos(DocAutoParam& p, int32_t pos, int32_t value, bool interpola
 	    std::lower_bound(nodes.begin(), nodes.end(), pos, [](const ParamNode& n, int32_t key) { return n.pos < key; });
 	auto i = static_cast<int32_t>(it - nodes.begin());
 	if (it == nodes.end() || it->pos != pos) {
-		it = nodes.insert(it, ParamNode{}); // no node exactly at pos — create one at its sorted position
+		(void)nodes.insertAt(i); // no node exactly at pos — create one at its sorted position
 	}
-	it->pos = pos;
-	it->value = value;
-	it->interpolated = interpolate;
+	nodes[i].pos = pos;
+	nodes[i].value = value;
+	nodes[i].interpolated = interpolate;
 	return i;
 }
 
@@ -179,20 +179,20 @@ int32_t addSaturating(int32_t value, int32_t offset) {
 	return static_cast<int32_t>(newValue);
 }
 
-int32_t firstAtOrAfter(const std::vector<ParamNode>& nodes, int32_t key) {
+int32_t firstAtOrAfter(const ParamNodeVector& nodes, int32_t key) {
 	auto it =
 	    std::lower_bound(nodes.begin(), nodes.end(), key, [](const ParamNode& n, int32_t k) { return n.pos < k; });
 	return static_cast<int32_t>(it - nodes.begin());
 }
 
 // Port of AutoParam::deleteNodesBeyondPos: drop every node at or after `pos`.
-void deleteNodesBeyond(std::vector<ParamNode>& nodes, int32_t pos) {
+void deleteNodesBeyond(ParamNodeVector& nodes, int32_t pos) {
 	nodes.erase(nodes.begin() + firstAtOrAfter(nodes, pos), nodes.end());
 }
 
 // Non-pingpong tiling — port of OrderedPosVector::generateRepeats. Tiles the contents (all before wrapPoint)
 // out to endPos.
-void tileRepeats(std::vector<ParamNode>& nodes, int32_t wrapPoint, int32_t endPos) {
+void tileRepeats(ParamNodeVector& nodes, int32_t wrapPoint, int32_t endPos) {
 	if (nodes.empty()) {
 		return;
 	}
@@ -262,7 +262,7 @@ void generateRepeats(DocAutoParam& p, uint32_t oldLength, uint32_t newLength, bo
 			valueAtZero = nodeBeforeWrap.value;
 		}
 
-		nodes.insert(nodes.begin(), ParamNode{}); // invalidates the references above (no longer used)
+		(void)nodes.insertAt(0); // invalidates the references above (no longer used)
 		ParamNode& zeroNode = nodes[0];
 		zeroNode.pos = 0;
 		zeroNode.value = valueAtZero;
@@ -278,7 +278,7 @@ void generateRepeats(DocAutoParam& p, uint32_t oldLength, uint32_t newLength, bo
 
 	int32_t numToInsert = (numRepeats - 1) * numNodesBefore;
 	if (numToInsert) {
-		nodes.insert(nodes.begin() + numNodesBefore, numToInsert, ParamNode{});
+		(void)nodes.insertAt(numNodesBefore, numToInsert);
 	}
 
 	int32_t highestNodeIndex = numNodesBefore - 1;
@@ -450,7 +450,7 @@ int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int3
 		}
 		// Otherwise, insert one.
 		else {
-			nodes.insert(nodes.begin() + edgeIndexes[kRight], ParamNode{});
+			(void)nodes.insertAt(edgeIndexes[kRight]);
 			edgeIndexes[kLeft] += static_cast<int32_t>(anyWrap);
 		}
 		nodes[edgeIndexes[kRight]].pos = edgePositions[kRight];
@@ -466,7 +466,7 @@ int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int3
 		}
 		// Otherwise, insert one.
 		else {
-			nodes.insert(nodes.begin() + edgeIndexes[kLeft], ParamNode{});
+			(void)nodes.insertAt(edgeIndexes[kLeft]);
 			edgeIndexes[kRight] += static_cast<int32_t>(!anyWrap);
 		}
 		nodes[edgeIndexes[kLeft]].pos = edgePositions[kLeft];
@@ -525,7 +525,7 @@ void deleteTime(DocAutoParam& p, int32_t startPos, int32_t lengthToDelete, int32
 		nodes.erase(nodes.begin() + start, nodes.begin() + start + numToDelete);
 
 		if (shouldAddNodeAtPos0) {
-			nodes.insert(nodes.begin(), ParamNode{});
+			(void)nodes.insertAt(0);
 			nodes[0].value = oldValue;
 			nodes[0].pos = 0;
 			nodes[0].interpolated = false;
@@ -584,7 +584,7 @@ void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_
 				if (nodes[indexBeforeWrap].pos >= lengthBeforeLoop - 1) {
 					ParamNode tempNode = nodes[indexBeforeWrap];
 					nodes.erase(nodes.begin() + indexBeforeWrap);
-					nodes.insert(nodes.begin(), ParamNode{});
+					(void)nodes.insertAt(0);
 					nodes[0] = tempNode;
 					nodes[0].pos = -1; // it'll get incremented below
 					resultingIndexes[0]++;
@@ -606,7 +606,7 @@ void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_
 					ParamNode tempNode = nodes[0];
 					int32_t rightMostIndex = static_cast<int32_t>(nodes.size()) - 1;
 					nodes.erase(nodes.begin());
-					nodes.insert(nodes.begin() + rightMostIndex, ParamNode{});
+					(void)nodes.insertAt(rightMostIndex);
 					nodes[rightMostIndex] = tempNode;
 					nodes[rightMostIndex].pos = lengthBeforeLoop; // it'll get decremented below
 					resultingIndexes[0]--;
@@ -675,7 +675,7 @@ void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_
 						else {
 							ParamNode tempNode = nodes[resultingIndexes[0]];
 							nodes.erase(nodes.begin());
-							nodes.insert(nodes.begin() + lastNodeIndex, ParamNode{});
+							(void)nodes.insertAt(lastNodeIndex);
 							nodes[lastNodeIndex] = tempNode;
 						}
 						nodes[lastNodeIndex].pos = lengthBeforeLoop - 1;

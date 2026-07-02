@@ -85,6 +85,9 @@ public:
 		return {};
 	}
 
+	/// Raw resize — caller maintains the sort invariant, like insertAt.
+	void resize(size_t newSize) { elements_.resize(newSize); }
+
 	/// Inserts a default-constructed element with the given key at its sorted position; returns its index.
 	std::expected<int32_t, Error> insertSorted(int32_t key, bool isDefinitelyLast = false) {
 		int32_t i = isDefinitelyLast ? static_cast<int32_t>(elements_.size()) : firstAtOrAfter(key);
