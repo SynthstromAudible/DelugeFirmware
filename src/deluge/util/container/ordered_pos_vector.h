@@ -33,8 +33,8 @@ namespace deluge {
 ///
 /// Beyond the standard surface, it offers: key-based lookups (lower_bound/find_key/firstAtOrAfter/tryGet),
 /// fallible std::expected mutations (insertAt/insertSorted/reserveExtra), the sequencer batch algorithms
-/// (searchMultiple/searchDual/shiftHorizontal/generateRepeats), and the legacy byte-copy clone idiom
-/// (init/cloneFrom/beenCloned) which survives until real fallible clone factories replace it.
+/// (searchMultiple/searchDual/shiftHorizontal/generateRepeats), and deep-copy helpers (copy ctor/assign +
+/// cloneFrom) used by the real clone factories.
 template <typename T, auto keyMember = &T::pos>
 requires std::is_member_object_pointer_v<decltype(keyMember)>
 class OrderedPosVector {
@@ -45,8 +45,7 @@ public:
 	OrderedPosVector& operator=(OrderedPosVector&&) noexcept = default;
 	// Deep copy (element-wise, via the backing vector). May throw deluge::exception on OOM, like the
 	// container's other allocating ops; the fallible clone factories that call it catch and convert to
-	// std::expected. This replaces the legacy byte-copy clone idiom (init/cloneFrom/beenCloned), which is
-	// removed once every caller is converted.
+	// std::expected.
 	OrderedPosVector(OrderedPosVector const& other) : elements_(other.elements_) {}
 	OrderedPosVector& operator=(OrderedPosVector const& other) {
 		elements_ = other.elements_;
@@ -193,30 +192,6 @@ public:
 		} catch (deluge::exception&) {
 			return false;
 		}
-	}
-
-	/// Call after this object was byte-copied from another instance (the legacy cloning idiom): gives this copy
-	/// its own buffer, holding *byte-copies* of the elements. For trivially-copyable element types that is a
-	/// complete deep copy; for element types that themselves own memory, it reproduces the legacy semantics
-	/// where each element still aliases the original's allocations until its own beenCloned()-style fix-up runs.
-	/// Until this is called, the byte-copy aliases the original's buffer, which the original still owns; on
-	/// failure this copy is detached and left empty.
-	Error beenCloned() {
-		int32_t num = static_cast<int32_t>(elements_.size());
-		T const* sourceData = elements_.data(); // Reading through the aliased buffer is safe
-		fast_vector<T> fresh;
-		try {
-			fresh.reserve(num);
-		} catch (deluge::exception&) {
-			new (&elements_) fast_vector<T>();
-			return Error::INSUFFICIENT_RAM;
-		}
-		for (int32_t i = 0; i < num; i++) {
-			fresh.emplace_back();
-			std::memcpy(static_cast<void*>(&fresh.back()), static_cast<void const*>(&sourceData[i]), sizeof(T));
-		}
-		new (&elements_) fast_vector<T>(std::move(fresh)); // Overwrite the alias without destructing it
-		return Error::NONE;
 	}
 
 	/// Rotates all keys forward by `amount` (which may be negative) within a span of `effectiveLength`,

@@ -100,15 +100,6 @@ Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
 	return Error::NONE;
 }
 
-void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	params.beenCloned(); // Copies memory for all of params
-
-	// And now, copy the memory for the automation data that each member of params references
-	for (MIDIParam& midiParam : params) {
-		midiParam.param.beenCloned(copyAutomation, reverseDirectionWithLength);
-	}
-}
-
 void MIDIParamCollection::stripAutomation() {
 	for (MIDIParam& midiParam : params) {
 		midiParam.param.nodes().clear();

@@ -46,13 +46,6 @@ ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
 }
 
-void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	int32_t numParams = getNumParams();
-	for (int32_t p = 0; p < numParams; p++) {
-		params[p].beenCloned(copyAutomation, reverseDirectionWithLength);
-	}
-}
-
 void ParamSet::stripAutomation() {
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
@@ -510,14 +503,6 @@ Error ExpressionParamSet::clone(ParamCollection*& result, bool copyAutomation,
 	return Error::NONE;
 }
 
-void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	params = params_.data();
-	numParams_ = static_cast<int32_t>(params_.size());
-	topUintToRepParams = (numParams_ - 1) >> 5;
-
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
-}
-
 bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) {
 	// Global
 	if (modelStack->paramCollection->getParamKind() == deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
@@ -589,14 +574,6 @@ PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(siz
 	params = params_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
-}
-
-void PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	params = params_.data();
-	numParams_ = static_cast<int32_t>(params_.size());
-	topUintToRepParams = (numParams_ - 1) >> 5;
-
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
@@ -704,14 +681,6 @@ ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool for
 
 	bendRanges[BEND_RANGE_FINGER_LEVEL] =
 	    forDrum ? bendRanges[BEND_RANGE_MAIN] : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
-}
-
-void ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	params = params_.data();
-	numParams_ = static_cast<int32_t>(params_.size());
-	topUintToRepParams = (numParams_ - 1) >> 5;
-
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,

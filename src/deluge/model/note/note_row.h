@@ -242,7 +242,6 @@ public:
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
 	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
 	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
-	Error beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
 	/// Flatten a reversed sequence after a plain clone: reverse this row's notes and automation in place.
 	/// Call only when the row's effective direction is REVERSE and flattening was requested.
 	Error flattenReverse(ModelStackWithNoteRow* modelStack);

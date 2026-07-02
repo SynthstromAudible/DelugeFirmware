@@ -243,10 +243,6 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 }
 
 // This is only called once - for NoteRows after cloning an InstrumentClip.
-Error ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
-	return cloneParamCollectionsFrom(this, true, true, reverseDirectionWithLength); // *Does* clone expression params
-}
-
 void ParamManager::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	for (ParamCollectionSummary* summary = summaries; summary->paramCollection; summary++) {
 		summary->paramCollection->flattenReverseAutomation(reverseDirectionWithLength);

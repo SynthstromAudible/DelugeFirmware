@@ -41,12 +41,11 @@ public:
 	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
 	virtual ~ParamCollection();
 
-	virtual void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0) = 0;
-
-	/// Deep-clone this collection into freshly-allocated memory (fallible; sets `result` on success).
-	/// The base implementation reproduces the legacy byte-copy path (alloc + memcpy + beenCloned);
-	/// subclasses override it with real copy construction as the byte-copy clone idiom is retired.
-	virtual Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const;
+	/// Deep-clone this collection into freshly-allocated memory (fallible; sets `result` on success). Each
+	/// concrete collection real-copy-constructs itself; copyAutomation=false drops automation (stripAutomation)
+	/// and reverseDirectionWithLength!=0 flatten-reverses it (flattenReverseAutomation).
+	virtual Error clone(ParamCollection*& result, bool copyAutomation,
+	                    int32_t reverseDirectionWithLength = 0) const = 0;
 
 	/// Empty every owned automation node vector (for a "copy structure, drop automation" clone). Default: no-op.
 	virtual void stripAutomation() {}

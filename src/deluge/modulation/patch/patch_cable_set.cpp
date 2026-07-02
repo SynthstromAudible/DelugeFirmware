@@ -830,66 +830,6 @@ void PatchCableSet::flattenReverseAutomation(int32_t reverseDirectionWithLength)
 	}
 }
 
-void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-	int32_t c;
-	for (c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c].param.beenCloned(copyAutomation, reverseDirectionWithLength);
-	}
-
-	// This initialization avoids a rare crash! (Ok that comment was from ages ago; not sure about now.)
-	for (; c < kMaxNumPatchCables; c++) {
-		patchCables[c].param.init();
-	}
-
-	// These pointers to allocated memory need that memory cloned.
-	// If we knew we'd be calling setupPatching() again for this new clone, we wouldn't need to do this - we could just
-	// set these pointers to NULL. But this doesn't always happen.
-
-	Destination* newDestinations[2];
-	newDestinations[GLOBALITY_LOCAL] = nullptr;
-	newDestinations[GLOBALITY_GLOBAL] = nullptr;
-
-	// Allocate new memory - max size we might need
-	for (int32_t g = 0; g < 2; g++) {
-		if (!destinations[g]) {
-			continue;
-		}
-
-		// TODO: this is more than we'll soon realise we need - we should really shorten it again afterwards.
-		newDestinations[g] = (Destination*)deluge::memory::alloc_fast(sizeof(Destination) * (kMaxNumPatchCables + 1));
-
-		// If couldn't...
-		if (!newDestinations[g]) {
-
-			// If we'd got the first one successfully, deallocate it again
-			if (g == 1) {
-				delugeDealloc(newDestinations[0]);
-				newDestinations[0] = nullptr;
-			}
-
-			// And get out
-			goto done;
-		}
-
-		// Copy the memory
-		Destination* from = destinations[g];
-		Destination* to = newDestinations[g];
-		while (true) {
-			*to = *from;
-			if (!from->sources) {
-				break; // Stop *after* copying the terminating "0".
-			}
-
-			from++;
-			to++;
-		}
-	}
-
-done:
-	destinations[GLOBALITY_LOCAL] = newDestinations[GLOBALITY_LOCAL];
-	destinations[GLOBALITY_GLOBAL] = newDestinations[GLOBALITY_GLOBAL];
-}
-
 void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
 	numPatchCables = 0;
 

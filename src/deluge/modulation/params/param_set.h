@@ -59,7 +59,6 @@ public:
 	void appendParamCollection(ModelStackWithParamCollection* modelStack,
 	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
 	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) final;
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	void stripAutomation() override;
 	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
@@ -103,7 +102,6 @@ public:
 	// Deep copy: copy-constructs the inline params_ array (real AutoParam copies) and re-points params.
 	UnpatchedParamSet(UnpatchedParamSet const& other);
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	bool shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) override;
@@ -123,7 +121,6 @@ public:
 	PatchedParamSet(ParamCollectionSummary* summary);
 	PatchedParamSet(PatchedParamSet const& other);
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
@@ -140,7 +137,6 @@ public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
 	ExpressionParamSet(ExpressionParamSet const& other);
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
 	bool mayParamInterpolate(int32_t paramId) override { return false; }

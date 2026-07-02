@@ -26,8 +26,7 @@ public:
 	NoteRow* insertNoteRowAtY(int32_t y, int32_t* getIndex = nullptr);
 	void deleteNoteRowAtIndex(int32_t index, int32_t numToDelete = 1);
 
-	/// Legacy clone idiom (shadows the base implementation): fills this vector with *byte-copies* of the other
-	/// vector's rows. The copies alias the source rows' notes/automation until NoteRow::beenCloned() is called
-	/// on each one, which the caller must do.
+	/// Deep-copy this vector's contents from another (real copy-construction of each NoteRow — param manager
+	/// and notes deep-copied). Returns false on OOM (this vector is left empty).
 	bool cloneFrom(NoteRowVector const* other);
 };

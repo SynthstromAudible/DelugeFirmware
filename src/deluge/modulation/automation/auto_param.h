@@ -72,7 +72,6 @@ public:
 	bool grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack);
 	void generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
 	void cloneFrom(AutoParam* otherParam, bool copyAutomation);
-	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	/// Reverse this param's automation in place (used when flattening a reversed clip on clone). Operates on
 	/// already-owned nodes — moves them out, rebuilds reversed. reverseDirectionWithLength is the loop length.
 	/// Throws deluge::exception::BAD_ALLOC if it can't re-grow the node buffer.
