@@ -18,6 +18,7 @@
 #include "settings.h"
 #include "devSysexSetting.h"
 #include "emulated_display.h"
+#include "hid/display/display.h"
 #include "setting.h"
 #include "shift_is_sticky.h"
 #include <array>
@@ -25,6 +26,14 @@
 extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
 
 namespace deluge::gui::menu_item::runtime_feature {
+
+// A SettingToggle that is only relevant (and thus only shown) when an OLED display is
+// active. Used for features that have no effect on the 7-segment display.
+class OledOnlySettingToggle final : public SettingToggle {
+public:
+	using SettingToggle::SettingToggle;
+	bool isRelevant(ModControllableAudio*, int32_t) override { return display->haveOLED(); }
+};
 
 // Generic menu item instances
 SettingToggle menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
@@ -47,9 +56,10 @@ SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyb
 SettingToggle menuAlternativePlaybackStartBehaviour(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour);
 SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridViewLoopPads);
 SettingToggle menuAlternativeTapTempoBehaviour(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour);
-SettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
+OledOnlySettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
+OledOnlySettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -73,6 +83,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuEnableGridViewLoopPads,
     &menuAlternativeTapTempoBehaviour,
     &menuHorizontalMenus,
+    &menuRoundedCorners,
     &menuTrimFromStartOfAudioClip,
     &menuShowBatteryLevel};
 
