@@ -3152,6 +3152,11 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
 					                                     changeType, parameterValue);
+
+					// if we're in the note editor, refresh grid to show edited note
+					if (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+						uiNeedsRendering(this, 1 << editPadPresses[i].yDisplay, 0);
+					}
 				}
 				else {
 					// In the case the operation didn't change anything, we need to transform Iterance back from preset
@@ -3513,6 +3518,8 @@ bool InstrumentClipView::enterNoteEditor() {
 			}
 			openUI(&soundEditor);
 			blinkSelectedNote();
+			// refresh grid to potentially highlight already edited notes
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			return true;
 		}
 	}
@@ -3532,6 +3539,8 @@ void InstrumentClipView::exitNoteEditor() {
 		lastSelectedNoteYDisplay = kNoSelection;
 	}
 	resetSelectedNoteBlinking();
+	// refresh grid to potentially unhighlight edited notes
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
 void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
