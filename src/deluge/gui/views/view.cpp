@@ -1663,9 +1663,23 @@ void View::setModLedStates() {
 		if (itsTheSong && on && modKnobMode == 0 && view.displayVUMeter) {
 			indicator_leds::blinkLed(indicator_leds::modLed[i]);
 		}
-		// if you're in the Automation View Automation Editor, turn off Mod LED's
+		// if you're in the Automation View Automation Editor, turn off Mod LED's - except on a MIDI
+		// macro lane, where the 8 buttons are the follower quick-editors: light the assigned ones so
+		// the LEDs show which followers of THIS macro have a destination CC
 		else if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
-			indicator_leds::setLedState(indicator_leds::modLed[i], false);
+			bool followerAssigned = false;
+			if (!automationView.onArrangerView) {
+				Clip* clip = getCurrentClip();
+				if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT
+				    && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+					MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
+					int32_t macroIndex = MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID);
+					// lit = has a destination AND actually drives it (a shadowed duplicate stays dark)
+					followerAssigned = midiInstrument->macros[macroIndex].followers[i].cc != MIDIMacro::kFollowerCCNone
+					                   && !MIDIMacro::isFollowerShadowed(midiInstrument->macros, macroIndex, i);
+				}
+			}
+			indicator_leds::setLedState(indicator_leds::modLed[i], followerAssigned);
 		}
 		// otherwise update mod led's to reflect current mod led selection
 		else {

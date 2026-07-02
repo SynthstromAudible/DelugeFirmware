@@ -21,8 +21,10 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_follow.h"
+#include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
@@ -30,6 +32,10 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/midi/midi_param.h"
+#include "modulation/midi/midi_param_collection.h"
+#include "modulation/midi/midi_param_vector.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "storage/storage_manager.h"
 #include "util/d_stringbuf.h"
@@ -51,7 +57,8 @@ bool isEnabled() {
 	return runtimeFeatureSettings.get(RuntimeFeatureSettingType::MidiMacro) == RuntimeFeatureStateToggle::On;
 }
 
-int32_t findFollowerCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot) {
+int32_t findFollowerCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot,
+                            int32_t* slotOut) {
 	if (cc == kFollowerCCNone) {
 		return -1;
 	}
@@ -61,6 +68,9 @@ int32_t findFollowerCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro
 				continue;
 			}
 			if (macros[m].followers[f].cc == cc) {
+				if (slotOut != nullptr) {
+					*slotOut = f;
+				}
 				return m;
 			}
 		}
@@ -68,19 +78,84 @@ int32_t findFollowerCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro
 	return -1;
 }
 
-void showCCConflictPopup(uint8_t cc, int32_t ownerMacro) {
-	DEF_STACK_STRING_BUF(popup, 48);
-	popup.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_FOLLOWER_CC)); // "CC"
-	popup.append(' ');
-	popup.appendInt(cc);
-	popup.append(' ');
-	popup.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_USED_BY)); // "used by"
-	// On OLED break the line so it reads "CC 16 used by" / "Macro 1"; 7SEG scrolls one line.
-	popup.append(display->haveOLED() ? '\n' : ' ');
+int32_t findShadowingOwner(const Macro* macros, uint8_t cc, int32_t macroIndex, int32_t slot) {
+	if (cc == kFollowerCCNone) {
+		return -1;
+	}
+	// Scan in ownership order (macros, then slots); anything at or after our own position can't shadow us.
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		for (int32_t f = 0; f < kNumFollowerSlots; f++) {
+			if (m == macroIndex && f == slot) {
+				return -1;
+			}
+			if (macros[m].followers[f].cc == cc) {
+				return m;
+			}
+		}
+	}
+	return -1;
+}
+
+// Appends a destination CC's label: the active MIDI instrument's device name if loaded, else "CC <n>".
+static void appendDestName(StringBuf& buf, uint8_t cc) {
+	Clip* clip = midiFollow.getSelectedOrActiveClip();
+	std::string_view name{};
+	if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT) {
+		name = ((MIDIInstrument*)clip->output)->getNameFromCC(cc);
+	}
+	if (!name.empty()) {
+		buf.append(name);
+	}
+	else {
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_FOLLOWER_CC)); // "CC"
+		buf.append(' ');
+		buf.appendInt(cc);
+	}
+}
+
+// Appends "<dest> used by\nMacro N" (OLED) / "<dest> used by Macro N" (7SEG).
+static void appendCCUsedBy(StringBuf& buf, uint8_t cc, int32_t ownerMacro) {
+	appendDestName(buf, cc);
+	buf.append(' ');
+	buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_USED_BY)); // "used by"
+	buf.append(display->haveOLED() ? '\n' : ' ');
 	auto macroName =
 	    static_cast<deluge::l10n::String>(util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + ownerMacro);
-	popup.append(deluge::l10n::get(macroName)); // "Macro N"
+	buf.append(deluge::l10n::get(macroName)); // "Macro N"
+}
+
+void showCCConflictPopup(uint8_t cc, int32_t ownerMacro, bool persistent) {
+	DEF_STACK_STRING_BUF(popup, 48);
+	appendCCUsedBy(popup, cc, ownerMacro); // e.g. "LFO Freq used by" / "Macro 1"
+	if (persistent) {
+		display->popupText(popup.c_str());
+	}
+	else {
+		display->displayPopup(popup.c_str());
+	}
+}
+
+bool showMacroInactivePopup(int32_t macroIndex) {
+	Clip* clip = midiFollow.getSelectedOrActiveClip();
+	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
+		return false;
+	}
+	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
+	if (instrument->macros[macroIndex].active) {
+		return false; // active -> nothing to explain
+	}
+	uint8_t conflictCC = 0;
+	int32_t owner = findActiveConflict(instrument->macros, macroIndex, &conflictCC);
+	if (owner < 0) {
+		return false; // inactive but activatable -> no conflict to report
+	}
+	// "Inactive" / "<dest> used by" / "Macro N"
+	DEF_STACK_STRING_BUF(popup, 56);
+	popup.append("Inactive");
+	popup.append(display->haveOLED() ? '\n' : ' ');
+	appendCCUsedBy(popup, conflictCC, owner);
 	display->displayPopup(popup.c_str());
+	return true;
 }
 
 int32_t findActiveConflict(const Macro* macros, int32_t macroIndex, uint8_t* conflictCC) {
@@ -126,11 +201,36 @@ static inline int32_t scaleFollower(const MacroFollowerSlot& follower, int32_t v
 	return std::clamp<int32_t>(out, 0, kMaxValue);
 }
 
+// Saturating conversion from a big param value to a 0..127 CC value. Reuses the collection's guarded
+// rounding: a maxed automation node holds INT32_MAX (knobPosToParamValue special case), which the
+// naive (v + (1<<24)) >> 25 would wrap negative and decode as 0 instead of 127.
+static inline int32_t bigValueToCC(int32_t value) {
+	return std::clamp<int32_t>(MIDIParamCollection::autoparamValueToCC(value) + 64, 0, (int32_t)kMaxValue);
+}
+
+// Validates the clip is a MIDI clip and returns its instrument, else null.
+static MIDIInstrument* midiClipInstrument(Clip* clip) {
+	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
+		return nullptr;
+	}
+	return (MIDIInstrument*)clip->output;
+}
+
+// Defined with the fan-out machinery below.
+static MIDIParamCollection* getMIDIParams(Clip* clip, ParamCollectionSummary** summaryOut);
+static void refreshAutomationGridIfShowingCC(Clip* clip, uint8_t cc);
+
 static void sendToFollowers(MIDIInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
                             Macro& macro, int32_t value) {
 	RootUI* rootUI = getRootUI();
-	for (MacroFollowerSlot& follower : macro.followers) {
+	int32_t macroIndex = (int32_t)(&macro - instrument->macros);
+	for (int32_t slot = 0; slot < kNumFollowerSlots; slot++) {
+		MacroFollowerSlot& follower = macro.followers[slot];
 		if (follower.cc == kFollowerCCNone || !follower.send) {
+			continue;
+		}
+		// A shadowed follower (its CC is owned by an earlier follower) is inert - only the owner drives.
+		if (isFollowerShadowed(instrument->macros, macroIndex, slot)) {
 			continue;
 		}
 		int32_t valueBig = (scaleFollower(follower, value) - 64) << 25;
@@ -378,10 +478,17 @@ void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex) {
 // Loads a preset's followers into macros[macroIndex], replacing that macro's followers only and
 // leaving its leader and active state untouched. If the loaded followers conflict with an active
 // macro, the loaded macro is deactivated (its CCs are kept), since destination CCs must be unique.
-Error loadMacroPreset(FilePointer* fp, Macro* macros, int32_t macroIndex) {
+Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroIndex) {
 	Error error = StorageManager::openXMLFile(fp, smDeserializer, MIDI_MACRO_PRESET_TAG);
 	if (error != Error::NONE) {
 		return error;
+	}
+
+	// Remember which CCs the old follower set targeted, so their baked lanes can be cleared if the
+	// preset no longer uses them (otherwise they'd keep playing as ghost lanes).
+	uint8_t oldCCs[kNumFollowerSlots];
+	for (int32_t f = 0; f < kNumFollowerSlots; f++) {
+		oldCCs[f] = macros[macroIndex].followers[f].cc;
 	}
 
 	// Reset only the followers so slots the preset doesn't configure are cleared, not left over.
@@ -404,7 +511,33 @@ Error loadMacroPreset(FilePointer* fp, Macro* macros, int32_t macroIndex) {
 		macros[macroIndex].active = false;
 	}
 
-	reFanMacro(macroIndex, nullptr); // new follower set -> re-bake the macro lane into it
+	// Clear baked lanes on CCs the preset dropped, then re-bake the macro lane into the new set.
+	ParamCollectionSummary* summary;
+	MIDIParamCollection* coll = (clip != nullptr) ? getMIDIParams(clip, &summary) : nullptr;
+	if (coll && coll->params.getParamFromCC(paramIDForMacro(macroIndex)) && midiClipInstrument(clip)) {
+		MIDIInstrument* instrument = midiClipInstrument(clip);
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+		ModelStackWithThreeMainThings* three =
+		    modelStack->addTimelineCounter(clip)
+		        ->addNoteRow(0, nullptr)
+		        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
+		for (int32_t f = 0; f < kNumFollowerSlots; f++) {
+			uint8_t oldCC = oldCCs[f];
+			if (oldCC == kFollowerCCNone || findFollowerCCOwner(macros, oldCC, -1, -1) >= 0) {
+				continue; // dropped CC still targeted by some follower - its bake stays
+			}
+			MIDIParam* oldParam = coll->params.getParamFromCC(oldCC);
+			if (oldParam) {
+				ModelStackWithAutoParam* modelStackWithParam =
+				    three->addParamCollectionAndId(coll, summary, oldCC)->addAutoParam(&oldParam->param);
+				oldParam->param.deleteAutomation(nullptr, modelStackWithParam, false);
+				refreshAutomationGridIfShowingCC(clip, oldCC);
+			}
+		}
+	}
+	reFanMacro(clip, macroIndex, nullptr); // new follower set -> re-bake the macro lane into it
+	view.setModLedStates();                // refresh the follower-assignment LEDs
 
 	return Error::NONE;
 }
@@ -438,8 +571,7 @@ void capture(int32_t macroIndex, bool toMax) {
 		if (!modelStackWithParam->autoParam) {
 			continue;
 		}
-		int32_t paramValue = modelStackWithParam->autoParam->getCurrentValue();
-		int32_t value = std::clamp<int32_t>(((paramValue + (1 << 24)) >> 25) + 64, 0, kMaxValue);
+		int32_t value = bigValueToCC(modelStackWithParam->autoParam->getCurrentValue());
 		(toMax ? follower.to : follower.from) = value;
 		changed = true;
 	}
@@ -448,73 +580,214 @@ void capture(int32_t macroIndex, bool toMax) {
 	}
 }
 
+// The clip's own MIDI param collection - where both real-CC and macro-lane params live. Baking always
+// targets the edited clip's params, NOT instrument->getParamManager() (that's the ACTIVE clip's, which
+// can be a different clip on the same track).
+static MIDIParamCollection* getMIDIParams(Clip* clip, ParamCollectionSummary** summaryOut) {
+	ParamCollectionSummary* summary = clip->paramManager.getMIDIParamCollectionSummary();
+	if (!summary || !summary->paramCollection) {
+		return nullptr;
+	}
+	*summaryOut = summary;
+	return (MIDIParamCollection*)summary->paramCollection;
+}
+
+// Clears one follower's lane and, when sending, mirrors the leader lane into it scaled by [from, to].
+// The caller must not create any params between resolving `leader` and this call: an insert moves the
+// vector's storage and would dangle the pointer.
+static void bakeFollower(MIDIParamCollection* coll, ParamCollectionSummary* summary,
+                         ModelStackWithThreeMainThings* three, const MacroFollowerSlot& follower, AutoParam* leader,
+                         Action* action) {
+	MIDIParam* followerParam = coll->params.getParamFromCC(follower.cc);
+	if (!followerParam) {
+		return; // never existed: nothing to clear, and nothing will be written (send off)
+	}
+	ModelStackWithAutoParam* modelStackWithParam =
+	    three->addParamCollectionAndId(coll, summary, follower.cc)->addAutoParam(&followerParam->param);
+
+	// Overwrite: clear first (deleteAutomation snapshots into `action` for undo when given).
+	followerParam->param.deleteAutomation(action, modelStackWithParam, false);
+
+	if (follower.send) {
+		for (int32_t n = 0; n < leader->nodes.getNumElements(); n++) {
+			ParamNode* node = leader->nodes.getElement(n);
+			int32_t out = scaleFollower(follower, bigValueToCC(node->value));
+			followerParam->param.setNodeAtPos(node->pos, (out - 64) << 25, node->interpolated);
+		}
+		// Base value for regions before the first node / when the leader has no nodes.
+		int32_t base = scaleFollower(follower, bigValueToCC(leader->getCurrentValue()));
+		followerParam->param.setCurrentValueBasicForSetup((base - 64) << 25);
+	}
+}
+
+static void refreshAutomationGridIfShowingCC(Clip* clip, uint8_t cc) {
+	if (getRootUI() == &automationView && !automationView.onArrangerView && clip->lastSelectedParamID == cc) {
+		uiNeedsRendering(&automationView);
+	}
+}
+
 // Mirror macroIndex's leader-lane automation (pseudo-CC paramIDForMacro) into each follower CC's
-// automation, scaled. Overwrites the follower lanes; snapshots them into `action` (if given) first.
+// automation on `clip`, scaled. Overwrites the follower lanes; snapshots them into `action` first.
 static void fanOutMacroLane(MIDIInstrument* instrument, Clip* clip, int32_t macroIndex,
                             ModelStackWithTimelineCounter* modelStack, Action* action) {
-	ModelStackWithThreeMainThings* leaderThree =
-	    modelStack->addNoteRow(0, nullptr)
-	        ->addOtherTwoThings(instrument->toModControllable(), instrument->getParamManager(currentSong));
-	ModelStackWithAutoParam* leaderMS =
-	    instrument->getParamToControlFromInputMIDIChannel(paramIDForMacro(macroIndex), leaderThree);
-	AutoParam* leader = leaderMS ? leaderMS->autoParam : nullptr;
-	if (!leader) {
+	ParamCollectionSummary* summary;
+	MIDIParamCollection* coll = getMIDIParams(clip, &summary);
+	if (!coll) {
+		return;
+	}
+	// If the macro lane's param was never created on this clip, nothing was ever baked - leave the
+	// followers (possibly live-recorded) alone.
+	if (!coll->params.getParamFromCC(paramIDForMacro(macroIndex))) {
 		return;
 	}
 
-	RootUI* rootUI = getRootUI();
-	for (MacroFollowerSlot& follower : instrument->macros[macroIndex].followers) {
+	// Create any follower params we'll write BEFORE taking pointers into the vector: an insert
+	// memmoves/reallocs the element storage, which would dangle the leader pointer taken below.
+	for (int32_t slot = 0; slot < kNumFollowerSlots; slot++) {
+		MacroFollowerSlot& follower = instrument->macros[macroIndex].followers[slot];
+		if (follower.cc != kFollowerCCNone && follower.send
+		    && !isFollowerShadowed(instrument->macros, macroIndex, slot)) {
+			coll->params.getOrCreateParamFromCC(follower.cc, 0);
+		}
+	}
+	MIDIParam* leaderParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
+	if (!leaderParam) {
+		return;
+	}
+	AutoParam* leader = &leaderParam->param;
+
+	ModelStackWithThreeMainThings* three =
+	    modelStack->addNoteRow(0, nullptr)->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
+
+	for (int32_t slot = 0; slot < kNumFollowerSlots; slot++) {
+		MacroFollowerSlot& follower = instrument->macros[macroIndex].followers[slot];
 		if (follower.cc == kFollowerCCNone) {
 			continue;
 		}
-		// A fresh three-things stack per follower (addOtherTwoThings mutates the stack).
-		ModelStackWithThreeMainThings* three =
-		    modelStack->addNoteRow(0, nullptr)
-		        ->addOtherTwoThings(instrument->toModControllable(), instrument->getParamManager(currentSong));
-		ModelStackWithAutoParam* followerMS = instrument->getParamToControlFromInputMIDIChannel(follower.cc, three);
-		if (!followerMS || !followerMS->autoParam) {
+		// A shadowed follower's CC lane belongs to its owner - don't clear or bake it.
+		if (isFollowerShadowed(instrument->macros, macroIndex, slot)) {
 			continue;
 		}
-		AutoParam* fp = followerMS->autoParam;
-
-		// Overwrite: clear the follower first (deleteAutomation snapshots into `action` for undo when given).
-		fp->deleteAutomation(action, followerMS, false);
-
-		if (follower.send) {
-			// Mirror each leader node, scaled into [from, to].
-			for (int32_t n = 0; n < leader->nodes.getNumElements(); n++) {
-				ParamNode* node = leader->nodes.getElement(n);
-				int32_t leaderCC = std::clamp<int32_t>(((node->value + (1 << 24)) >> 25) + 64, 0, kMaxValue);
-				fp->setNodeAtPos(node->pos, (scaleFollower(follower, leaderCC) - 64) << 25, node->interpolated);
-			}
-			// Base value for regions before the first node / when the leader has no nodes.
-			int32_t leaderBase =
-			    std::clamp<int32_t>(((leader->getCurrentValue() + (1 << 24)) >> 25) + 64, 0, kMaxValue);
-			fp->setCurrentValueBasicForSetup((scaleFollower(follower, leaderBase) - 64) << 25);
-		}
-
-		// Refresh the automation grid if this follower CC is the one on screen (idiom from sendToFollowers).
-		if (rootUI == &automationView && !automationView.onArrangerView && clip->lastSelectedParamID == follower.cc) {
-			uiNeedsRendering(&automationView);
-		}
+		bakeFollower(coll, summary, three, follower, leader, action);
+		refreshAutomationGridIfShowingCC(clip, follower.cc);
 	}
 	instrument->editedByUser = true;
 }
 
-void reFanMacro(int32_t macroIndex, Action* action) {
+void reFanMacro(Clip* clip, int32_t macroIndex, Action* action) {
 	if (getCurrentUI() == &loadSongUI) {
 		return;
 	}
-	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
+	MIDIInstrument* instrument = midiClipInstrument(clip);
+	if (!instrument) {
 		return;
 	}
-	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
-
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 	fanOutMacroLane(instrument, clip, macroIndex, modelStackWithTimelineCounter, action);
+}
+
+void reFanFollower(Clip* clip, int32_t macroIndex, int32_t slot, Action* action) {
+	if (getCurrentUI() == &loadSongUI) {
+		return;
+	}
+	MIDIInstrument* instrument = midiClipInstrument(clip);
+	if (!instrument) {
+		return;
+	}
+	MacroFollowerSlot& follower = instrument->macros[macroIndex].followers[slot];
+	if (follower.cc == kFollowerCCNone) {
+		return;
+	}
+	// A shadowed follower's CC lane belongs to its owner - don't clear or bake it.
+	if (isFollowerShadowed(instrument->macros, macroIndex, slot)) {
+		return;
+	}
+	ParamCollectionSummary* summary;
+	MIDIParamCollection* coll = getMIDIParams(clip, &summary);
+	if (!coll || !coll->params.getParamFromCC(paramIDForMacro(macroIndex))) {
+		return; // macro lane never touched on this clip - nothing baked, nothing to redo
+	}
+	if (follower.send) {
+		coll->params.getOrCreateParamFromCC(follower.cc, 0); // create before taking the leader pointer
+	}
+	MIDIParam* leaderParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
+	if (!leaderParam) {
+		return;
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithThreeMainThings* three =
+	    modelStack->addTimelineCounter(clip)
+	        ->addNoteRow(0, nullptr)
+	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
+	bakeFollower(coll, summary, three, follower, &leaderParam->param, action);
+	refreshAutomationGridIfShowingCC(clip, follower.cc);
+	instrument->editedByUser = true;
+}
+
+void changeFollowerCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC) {
+	MIDIInstrument* instrument = midiClipInstrument(clip);
+	if (!instrument) {
+		return;
+	}
+	MacroFollowerSlot& follower = instrument->macros[macroIndex].followers[slot];
+	uint8_t oldCC = follower.cc;
+	if (newCC == oldCC) {
+		return;
+	}
+	follower.cc = newCC;
+	instrument->editedByUser = true;
+
+	ParamCollectionSummary* summary;
+	MIDIParamCollection* coll = getMIDIParams(clip, &summary);
+	if (!coll || !coll->params.getParamFromCC(paramIDForMacro(macroIndex))) {
+		return; // no bake ever happened on this clip: pure config change
+	}
+
+	// One undoable action for the pair of lane writes; consecutive detents of a scroll gesture join it.
+	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithThreeMainThings* three =
+	    modelStack->addTimelineCounter(clip)
+	        ->addNoteRow(0, nullptr)
+	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
+
+	// Deal with the CC we left: if another follower still targets it, hand ownership over (it may have
+	// been shadowed by us - re-bake it); otherwise clear our bake so it doesn't play as a ghost lane.
+	if (oldCC != kFollowerCCNone) {
+		int32_t ownerSlot = 0;
+		int32_t ownerMacro = findFollowerCCOwner(instrument->macros, oldCC, macroIndex, slot, &ownerSlot);
+		MIDIParam* oldParam = coll->params.getParamFromCC(oldCC);
+		if (oldParam) {
+			ModelStackWithAutoParam* modelStackWithParam =
+			    three->addParamCollectionAndId(coll, summary, oldCC)->addAutoParam(&oldParam->param);
+			oldParam->param.deleteAutomation(action, modelStackWithParam, false);
+			refreshAutomationGridIfShowingCC(clip, oldCC);
+		}
+		if (ownerMacro >= 0) {
+			reFanFollower(clip, ownerMacro, ownerSlot, action); // promote the new owner's bake
+		}
+	}
+
+	// Bake the macro curve into the new CC - unless an earlier follower owns it (we're shadowed: keep
+	// the config but leave the owner's lane alone; the UI shows the conflict and keeps our LED off).
+	if (newCC != kFollowerCCNone && findShadowingOwner(instrument->macros, newCC, macroIndex, slot) < 0) {
+		if (follower.send) {
+			coll->params.getOrCreateParamFromCC(newCC, 0); // create before taking the leader pointer
+		}
+		MIDIParam* leaderParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
+		if (leaderParam) {
+			bakeFollower(coll, summary, three, follower, &leaderParam->param, action);
+			refreshAutomationGridIfShowingCC(clip, newCC);
+		}
+	}
+
+	view.setModLedStates(); // the mod-button LEDs show follower assignment while a macro lane is shown
 }
 
 } // namespace MIDIMacro
