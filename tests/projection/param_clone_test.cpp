@@ -13,6 +13,7 @@
 // Exit: 0 = all clones deep-independent, 1 = a failure.
 
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -172,6 +173,44 @@ int main() {
 			check(pm.getUnpatchedParamSet()->params[2].nodes()[0].pos == 0
 			          && pm.getUnpatchedParamSet()->params[2].nodes()[1].pos == 48,
 			      "clone(reverse): source unchanged");
+		}
+	}
+
+	// (b5) PatchCableSet::clone() deep-copies the destinations[] pointer arrays (distinct heap, equal contents).
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "pcs clone: pm setup");
+		PatchCableSet* pcs = pm.getPatchCableSet();
+		pcs->numPatchCables = 1;
+		pcs->numUsablePatchCables = 1;
+		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
+		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
+
+		// Build a sentinel-terminated (sources==0) Destination array on the allocator so the dtor can free it.
+		auto* dests = static_cast<Destination*>(deluge::memory::alloc_fast(sizeof(Destination) * 2));
+		check(dests != nullptr, "pcs clone: dests alloc");
+		if (dests != nullptr) {
+			dests[0].sources = 0b101;
+			dests[0].firstCable = 0;
+			dests[0].endCable = 1;
+			dests[1].sources = 0; // terminator
+			pcs->destinations[0 /*GLOBALITY_LOCAL*/] = dests;
+
+			ParamCollection* cloned = nullptr;
+			Error e = pcs->clone(cloned, /*copyAutomation=*/true);
+			check(e == Error::NONE && cloned != nullptr, "pcs clone: clone ok");
+			if (cloned != nullptr) {
+				PatchCableSet* clonedPcs = static_cast<PatchCableSet*>(cloned);
+				check(clonedPcs->destinations[0 /*GLOBALITY_LOCAL*/] != nullptr, "pcs clone: dests present");
+				check(clonedPcs->destinations[0 /*GLOBALITY_LOCAL*/] != pcs->destinations[0 /*GLOBALITY_LOCAL*/],
+				      "pcs clone: dests distinct pointer");
+				check(clonedPcs->destinations[0 /*GLOBALITY_LOCAL*/][0].sources == 0b101,
+				      "pcs clone: dests contents copied");
+				// Mutate source; clone must not move.
+				pcs->destinations[0 /*GLOBALITY_LOCAL*/][0].sources = 0b111;
+				check(clonedPcs->destinations[0 /*GLOBALITY_LOCAL*/][0].sources == 0b101,
+				      "pcs clone: dests independent");
+			}
 		}
 	}
 

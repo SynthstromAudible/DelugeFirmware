@@ -41,6 +41,8 @@ struct Destination {
 class PatchCableSet final : public ParamCollection {
 public:
 	PatchCableSet(ParamCollectionSummary* summary);
+	// Deep copy: real-copies each usable cable's automation and the destination arrays (see clone()).
+	PatchCableSet(PatchCableSet const& other);
 	~PatchCableSet() override;
 
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
@@ -72,6 +74,9 @@ public:
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) override;
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
+	void stripAutomation() override;
+	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
 	ParamManagerForTimeline* getParamManager();
 
 	void writePatchCablesToFile(Serializer& writer, bool writeAutomation);
@@ -120,4 +125,7 @@ public:
 private:
 	void swapCables(int32_t c1, int32_t c2);
 	void freeDestinationMemory(bool destructing);
+	/// Deep-copy a sentinel-terminated Destination array (terminated by an entry with sources == 0). Returns
+	/// nullptr if src is nullptr. Throws deluge::exception::BAD_ALLOC on OOM.
+	static Destination* cloneDestinations(Destination const* src);
 };

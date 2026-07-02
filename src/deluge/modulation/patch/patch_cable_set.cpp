@@ -29,7 +29,9 @@
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/algorithm/quick_sorter.h"
+#include "util/exceptions.h"
 #include "util/misc.h"
+#include <new>
 #include <string.h>
 
 namespace params = deluge::modulation::params;
@@ -738,6 +740,93 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 			flagCable(modelStack->summary->whichParamsAreInterpolating, c);
 		}
 		FOR_EACH_PARAM_END
+	}
+}
+
+Destination* PatchCableSet::cloneDestinations(Destination const* src) {
+	if (src == nullptr) {
+		return nullptr;
+	}
+	auto* dst = static_cast<Destination*>(deluge::memory::alloc_fast(sizeof(Destination) * (kMaxNumPatchCables + 1)));
+	if (dst == nullptr) {
+		throw deluge::exception::BAD_ALLOC;
+	}
+	Destination* to = dst;
+	Destination const* from = src;
+	while (true) {
+		*to = *from; // Destination is trivially copyable.
+		if (!from->sources) {
+			break; // copied the terminating "0" entry
+		}
+		from++;
+		to++;
+	}
+	return dst;
+}
+
+PatchCableSet::PatchCableSet(PatchCableSet const& other)
+    : ParamCollection(other), numUsablePatchCables(other.numUsablePatchCables), numPatchCables(other.numPatchCables) {
+	sourcesPatchedToAnything[GLOBALITY_LOCAL] = other.sourcesPatchedToAnything[GLOBALITY_LOCAL];
+	sourcesPatchedToAnything[GLOBALITY_GLOBAL] = other.sourcesPatchedToAnything[GLOBALITY_GLOBAL];
+
+	// Real-copy the live cables (deep-copies each cable's AutoParam nodes — may throw); init the rest,
+	// matching beenCloned()'s "avoid a rare crash" initialization of the unused tail.
+	for (int32_t c = 0; c < numUsablePatchCables; c++) {
+		patchCables[c] = other.patchCables[c];
+	}
+	for (int32_t c = numUsablePatchCables; c < kMaxNumPatchCables; c++) {
+		patchCables[c].param.init();
+	}
+
+	// Deep-copy the destination arrays last, so a throw above leaves no raw allocation to clean up.
+	destinations[GLOBALITY_LOCAL] = cloneDestinations(other.destinations[GLOBALITY_LOCAL]);
+	try {
+		destinations[GLOBALITY_GLOBAL] = cloneDestinations(other.destinations[GLOBALITY_GLOBAL]);
+	} catch (deluge::exception&) {
+		if (destinations[GLOBALITY_LOCAL]) {
+			delugeDealloc(destinations[GLOBALITY_LOCAL]);
+		}
+		throw;
+	}
+}
+
+Error PatchCableSet::clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength) const {
+	void* mem = deluge::memory::alloc_fast(sizeof(PatchCableSet));
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	PatchCableSet* clone;
+	try {
+		clone = new (mem) PatchCableSet(*this);
+	} catch (deluge::exception&) {
+		delugeDealloc(mem);
+		return Error::INSUFFICIENT_RAM;
+	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~PatchCableSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
+	return Error::NONE;
+}
+
+void PatchCableSet::stripAutomation() {
+	for (int32_t c = 0; c < numUsablePatchCables; c++) {
+		patchCables[c].param.nodes().clear();
+	}
+}
+
+void PatchCableSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	for (int32_t c = 0; c < numUsablePatchCables; c++) {
+		patchCables[c].param.flattenReverse(reverseDirectionWithLength);
 	}
 }
 
