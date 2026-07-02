@@ -115,11 +115,17 @@ public:
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	void modButtonAction(uint8_t whichButton, bool on) override;
+	void commitHeldFollowerCC();
 	CopiedParamAutomation copiedParamAutomation;
 
 	// While a MIDI Macro lane is selected, holding a param-select button (0..7) quick-edits that
 	// follower: select encoder = CC, gold knob 0 = From, gold knob 1 = To. -1 = no button held.
 	int8_t heldFollower = -1;
+	// The macro the hold started on, so a lane switch mid-hold can't commit to the wrong macro.
+	int8_t heldFollowerMacro = -1;
+	// CC value being dialed during the hold (-1 = OFF, 0..127 = CC); committed only on button
+	// release, so scrolling never touches the automation of the CCs passed through.
+	int16_t heldFollowerPendingCC = -1;
 
 	// Select encoder action
 	void selectEncoderAction(int8_t offset) override;

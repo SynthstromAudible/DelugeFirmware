@@ -899,6 +899,9 @@ void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoPa
 		modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
 		                                      getCopiedParamAutomation(), isPatchCable);
 
+		// pasting into a macro lane must fan the new curve out to the follower CC lanes
+		reFanIfMacroLane();
+
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
 
 		if (playbackHandler.isEitherClockActive()) {
@@ -993,11 +996,16 @@ bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(Model
 // If the edited automation lane is a MIDI Macro lane, bake its curve into the follower CC lanes,
 // joining the user's current NOTE_EDIT action so one BACK undoes the lane edit and the followers.
 static void reFanIfMacroLane() {
+	// In arranger automation the edited lane is a song param; the current clip's stale macro
+	// lastSelectedParamID must not trigger a re-fan of an unrelated MIDI clip.
+	if (automationView.onArrangerView) {
+		return;
+	}
 	Clip* clip = getCurrentClip();
 	if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT
 	    && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-		MIDIMacro::reFanMacro(MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), action);
+		MIDIMacro::reFanMacro(clip, MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), action);
 	}
 }
 

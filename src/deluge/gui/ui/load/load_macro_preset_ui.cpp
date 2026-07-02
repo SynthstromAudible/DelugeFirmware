@@ -178,13 +178,14 @@ Error LoadMacroPresetUI::performLoad() {
 	}
 
 	// Presets load into the current MIDI clip's instrument macros (per-track).
+	Clip* clip = getCurrentClip();
 	Output* output = getCurrentOutput();
 	if (!output || output->type != OutputType::MIDI_OUT) {
 		return Error::NONE;
 	}
 	auto* instrument = static_cast<MIDIInstrument*>(output);
-	Error error =
-	    MIDIMacro::loadMacroPreset(&currentFileItem->filePointer, instrument->macros, MIDIMacro::presetMacroIndex);
+	Error error = MIDIMacro::loadMacroPreset(&currentFileItem->filePointer, clip, instrument->macros,
+	                                         MIDIMacro::presetMacroIndex);
 	if (error == Error::NONE) {
 		instrument->editedByUser = true;
 	}
