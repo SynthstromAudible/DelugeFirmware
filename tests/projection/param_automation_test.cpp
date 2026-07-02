@@ -10,6 +10,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/automation/auto_param.h"
@@ -105,6 +106,21 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 } // namespace
 
 int main() {
+	// Phase 1 (DOM-live split): setNodeAtPos operates directly on DocAutoParam (pure data, no engine).
+	{
+		using deluge::project::DocAutoParam;
+		DocAutoParam p{}; // current_value 0, empty nodes
+		int32_t i0 = deluge::project::setNodeAtPos(p, 48, 100, true);
+		check(p.nodes.size() == 1 && i0 == 0, "setNodeAtPos: first insert");
+		check(p.nodes[0].pos == 48 && p.nodes[0].value == 100 && p.nodes[0].interpolated, "setNodeAtPos: fields");
+		int32_t i1 = deluge::project::setNodeAtPos(p, 0, -50, false); // inserts BEFORE (sorted)
+		check(p.nodes.size() == 2 && i1 == 0 && p.nodes[0].pos == 0, "setNodeAtPos: sorted insert at front");
+		int32_t i2 = deluge::project::setNodeAtPos(p, 48, 7, false); // modifies existing node at 48
+		check(p.nodes.size() == 2 && i2 == 1 && p.nodes[1].pos == 48 && p.nodes[1].value == 7
+		          && !p.nodes[1].interpolated,
+		      "setNodeAtPos: modify existing");
+	}
+
 	// Unautomated: current value only, no nodes.
 	roundTrip("unautomated", 123456, {});
 
