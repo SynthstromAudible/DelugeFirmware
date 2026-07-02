@@ -25,6 +25,6 @@ public:
 	NoteRow* insertNoteRowAtIndex(int32_t index);
 	NoteRow* insertNoteRowAtY(int32_t y, int32_t* getIndex = nullptr);
 	void deleteNoteRowAtIndex(int32_t index, int32_t numToDelete = 1);
-	// cloneFrom() is inherited from OrderedPosVector: a fallible deep copy (element-wise NoteRow copy, i.e. each
-	// row's param manager + notes deep-copied). It works because NoteRow is fully copyable.
+	// Deep copies go through copy-assignment (`dst = src`), inherited from OrderedPosVector — each NoteRow is
+	// copy-constructed (its param manager + notes deep-copied). Throws deluge::exception on OOM.
 };

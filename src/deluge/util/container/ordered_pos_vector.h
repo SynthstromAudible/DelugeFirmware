@@ -33,8 +33,8 @@ namespace deluge {
 ///
 /// Beyond the standard surface, it offers: key-based lookups (lower_bound/find_key/firstAtOrAfter/tryGet),
 /// fallible std::expected mutations (insertAt/insertSorted/reserveExtra), the sequencer batch algorithms
-/// (searchMultiple/searchDual/shiftHorizontal/generateRepeats), and deep-copy helpers (copy ctor/assign +
-/// cloneFrom) used by the real clone factories.
+/// (searchMultiple/searchDual/shiftHorizontal/generateRepeats), and value semantics (copy/move ctor+assign) —
+/// deep copies go through copy construction/assignment, which throw deluge::exception on OOM.
 template <typename T, auto keyMember = &T::pos>
 requires std::is_member_object_pointer_v<decltype(keyMember)>
 class OrderedPosVector {
@@ -184,15 +184,6 @@ public:
 	T& front() { return elements_.front(); }
 	T& back() { return elements_.back(); }
 	T* data() { return elements_.data(); }
-
-	bool cloneFrom(OrderedPosVector const* other) {
-		try {
-			elements_ = other->elements_;
-			return true;
-		} catch (deluge::exception&) {
-			return false;
-		}
-	}
 
 	/// Rotates all keys forward by `amount` (which may be negative) within a span of `effectiveLength`,
 	/// keeping the array sorted by rotating the elements correspondingly.

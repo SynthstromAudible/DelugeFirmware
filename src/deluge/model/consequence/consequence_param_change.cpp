@@ -20,6 +20,7 @@
 #include "model/consequence/consequence.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node_vector.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include <new>
 
@@ -34,9 +35,13 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 		state.nodes.swap(modelStack->autoParam->nodes());
 	}
 
-	// Or clone it...
+	// Or copy it...
 	else {
-		state.nodes.cloneFrom(&modelStack->autoParam->nodes());
+		try {
+			state.nodes = modelStack->autoParam->nodes();
+		} catch (deluge::exception&) {
+			// OOM while recording undo: leave the snapshot's nodes empty (best-effort undo, no crash).
+		}
 	}
 }
 

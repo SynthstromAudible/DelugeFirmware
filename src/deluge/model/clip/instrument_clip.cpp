@@ -51,6 +51,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/string.h"
 #include "util/try.h"
@@ -179,14 +180,16 @@ deleteClipAndGetOut:
 	newClip->soloingInSessionMode = false;
 	newClip->output = output;
 
-	if (!newClip->noteRows.cloneFrom(&noteRows)) {
+	try {
+		newClip->noteRows = noteRows; // deep copy-assign (each NoteRow's param manager + notes copied)
+	} catch (deluge::exception&) {
 		error = Error::INSUFFICIENT_RAM;
 		goto deleteClipAndGetOut;
 	}
 
 	modelStack->setTimelineCounter(newClip);
 
-	// noteRows.cloneFrom() deep-copied each row (param manager + notes). Only flatten-reversing needs a
+	// The copy-assign above deep-copied each row (param manager + notes). Only flatten-reversing needs a
 	// per-row pass — flattenReverse() reverses notes/automation for effectively-reversed rows and collapses
 	// every row's direction mode (matching the old beenCloned() tail).
 	if (shouldFlattenReversing) {
