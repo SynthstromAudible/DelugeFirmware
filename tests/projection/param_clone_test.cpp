@@ -14,6 +14,8 @@
 
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
+#include "model/note/note.h"
+#include "model/note/note_row.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -212,6 +214,35 @@ int main() {
 				      "pcs clone: dests independent");
 			}
 		}
+	}
+
+	// (d) NoteRow deep-copy ctor: notes + param manager deep-copied and independent; drum pointer shared;
+	//     the owned drum-name list is NOT shared (reset to empty). This guards the highest-risk conversion.
+	{
+		NoteRow src(5);
+		check(src.paramManager.setupWithPatching() == Error::NONE, "noterow copy: pm setup");
+		setNode(src.paramManager.getUnpatchedParamSet()->params[2], 16, 321, false);
+
+		(void)src.notes.insertAt(0);
+		src.notes[0].pos = 10;
+
+		Drum* fakeDrum = reinterpret_cast<Drum*>(0xDEAD0000); // pointer is only copied, never dereferenced
+		src.drum = fakeDrum;
+
+		NoteRow dst(src); // copy ctor
+		check(dst.y == 5, "noterow copy: y copied");
+		check(dst.drum == fakeDrum, "noterow copy: drum pointer shared");
+		check(static_cast<DrumName*>(dst.firstOldDrumName) == nullptr, "noterow copy: drum-name list reset");
+		check(dst.notes.size() == 1 && dst.notes[0].pos == 10, "noterow copy: notes copied");
+		check(dst.paramManager.getUnpatchedParamSet()->params[2].nodes().size() == 1,
+		      "noterow copy: param automation copied");
+
+		// Mutate the source; the copy must not move.
+		src.notes[0].pos = 20;
+		src.paramManager.getUnpatchedParamSet()->params[2].nodes()[0].value = 999;
+		check(dst.notes[0].pos == 10, "noterow copy: notes independent");
+		check(dst.paramManager.getUnpatchedParamSet()->params[2].nodes()[0].value == 321,
+		      "noterow copy: param automation independent");
 	}
 
 	// (c) Undo swap round-trip (the undo path uses swap, not the byte-copy idiom — regression guard).

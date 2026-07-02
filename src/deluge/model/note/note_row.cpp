@@ -40,6 +40,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include <new>
@@ -59,6 +60,37 @@ NoteRow::NoteRow(int16_t newY) {
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 	exportStem = false;
+}
+
+// Deep-copy ctor. Every data member of NoteRow is handled here — audit against note_row.h when adding members:
+//  - value/POD members: copied directly
+//  - paramManager: default-constructed then deep-cloned through the clone()-dispatched path (fallible → throw)
+//  - notes: NoteVector deep copy (may throw)
+//  - drum: pointer shared by design (the clone points at the same Drum)
+//  - firstOldDrumName: NOT copied — a clone starts with no owned drum-name list
+//  - ignoreNoteOnsBefore_ / ignoreUntil / ignoredTicks: transient playback state, reset
+NoteRow::NoteRow(NoteRow const& other)
+    : y(other.y), muted(other.muted), mutedBeforeStemExport(other.mutedBeforeStemExport), exportStem(other.exportStem),
+      loopLengthIfIndependent(other.loopLengthIfIndependent),
+      lastProcessedPosIfIndependent(other.lastProcessedPosIfIndependent),
+      repeatCountIfIndependent(other.repeatCountIfIndependent),
+      currentlyPlayingReversedIfIndependent(other.currentlyPlayingReversedIfIndependent),
+      sequenceDirectionMode(other.sequenceDirectionMode), drum(other.drum), notes(other.notes),
+      probabilityValue(other.probabilityValue), iteranceValue(other.iteranceValue), fillValue(other.fillValue),
+      muteMIDICommand(other.muteMIDICommand), midiInput(other.midiInput), colourOffset(other.colourOffset),
+      sequenced(other.sequenced), ignoreNoteOnsBefore_(0) {
+	// firstOldDrumName defaults to nullptr (OldDrumNameHead default ctor) — clones own no drum-name list.
+	// Deep-clone the automation/param collections through the clone()-dispatched path.
+	Error error = paramManager.cloneParamCollectionsFrom(&other.paramManager, true, true);
+	if (error != Error::NONE) {
+		throw deluge::exception::BAD_ALLOC;
+	}
+}
+
+NoteRow& NoteRow::operator=(NoteRow const& other) {
+	NoteRow tmp(other);     // deep copy (may throw)
+	*this = std::move(tmp); // defaulted move-assign frees this row's old resources
+	return *this;
 }
 
 NoteRow::~NoteRow() {
@@ -193,6 +225,113 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 	}
 
 	if (shouldFlattenReversing && sequenceDirectionMode != SequenceDirection::PINGPONG) {
+		sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
+	}
+	// Pingponging won't have been flattened by a single clone. And we may be about to flatten it with a
+	// generateRepeats(), so need to keep this designation for now.
+
+	return error;
+}
+
+// Post-clone flatten of a reversed sequence. The row was already deep-copied (copy ctor) reverse-agnostically;
+// here we reverse the notes + automation in place (only if this row effectively plays reversed) and collapse
+// the direction mode to OBEY_PARENT (matching the old beenCloned() tail). Owned-move semantics: the notes are
+// moved out and rebuilt reversed (no aliasing).
+Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
+	int32_t effectiveLength = modelStack->getLoopLength();
+	int32_t numNotes = std::ssize(notes);
+	bool flatteningReversingNow = (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::REVERSE);
+
+	Error error = Error::NONE;
+
+	if (flatteningReversingNow) {
+		// Reverse the automation (nodes were copied reverse-agnostically by the copy ctor).
+		try {
+			paramManager.flattenReverseAutomation(effectiveLength);
+		} catch (deluge::exception&) {
+			return Error::INSUFFICIENT_RAM;
+		}
+
+		if (numNotes) {
+			// Move the owned notes out, then rebuild them reversed into a fresh buffer.
+			NoteVector oldNotes = std::move(notes);
+			notes.clear();
+			error = notes.insertAt(0, numNotes).error_or(Error::NONE);
+			if (error == Error::NONE) {
+
+				InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+				// If yes note tails...
+				if (clip->allowNoteTails(modelStack)) {
+					int32_t numNotesBesidesWrapping = numNotes;
+
+					// Look at the final note, to see if it's wrapping and deal with that.
+					{
+						Note* oldNote = &oldNotes[numNotes - 1];
+						int32_t finalNoteOvershoot = oldNote->pos + oldNote->length - effectiveLength;
+						if (finalNoteOvershoot > 0) {
+							numNotesBesidesWrapping--;
+							Note* newNote = &notes[numNotesBesidesWrapping];
+							newNote->pos = effectiveLength - finalNoteOvershoot;
+							newNote->setLength(oldNote->getLength());
+							newNote->setProbability(oldNote->getProbability());
+							newNote->setVelocity(oldNote->getVelocity());
+							newNote->setLift(oldNote->getLift());
+							newNote->setIterance(oldNote->getIterance());
+							newNote->setFill(oldNote->getFill());
+						}
+					}
+
+					for (int32_t iOld = 0; iOld < numNotesBesidesWrapping; iOld++) {
+						int32_t iNew = numNotesBesidesWrapping - 1 - iOld;
+
+						Note* oldNote = &oldNotes[iOld];
+						Note* newNote = &notes[iNew];
+
+						int32_t newPos = effectiveLength - oldNote->pos - oldNote->length;
+						newNote->pos = newPos;
+						newNote->setLength(oldNote->getLength());
+						newNote->setProbability(oldNote->getProbability());
+						newNote->setVelocity(oldNote->getVelocity());
+						newNote->setLift(oldNote->getLift());
+						newNote->setIterance(oldNote->getIterance());
+						newNote->setFill(oldNote->getFill());
+					}
+				}
+
+				// No-tails (e.g. one-shot samples):
+				else {
+
+					Note* firstNote = &oldNotes[0];
+					bool anythingAtZero = (firstNote->pos == 0);
+
+					for (int32_t iOld = 0; iOld < numNotes; iOld++) {
+						int32_t iNew = -iOld - !anythingAtZero;
+						if (iNew < 0) {
+							iNew += numNotes;
+						}
+						Note* oldNote = &oldNotes[iOld];
+						Note* newNote = &notes[iNew];
+
+						int32_t newPos = -oldNote->pos;
+						if (newPos < 0) {
+							newPos += effectiveLength;
+						}
+						newNote->pos = newPos;
+						newNote->setLength(1);
+						newNote->setProbability(oldNote->getProbability());
+						newNote->setVelocity(oldNote->getVelocity());
+						newNote->setLift(oldNote->getLift());
+						newNote->setIterance(oldNote->getIterance());
+						newNote->setFill(oldNote->getFill());
+					}
+				}
+			}
+			// oldNotes owns a real deep copy now and frees it on destruction.
+		}
+	}
+
+	if (sequenceDirectionMode != SequenceDirection::PINGPONG) {
 		sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 	}
 	// Pingponging won't have been flattened by a single clone. And we may be about to flatten it with a

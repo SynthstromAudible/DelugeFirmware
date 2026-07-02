@@ -126,12 +126,17 @@ public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
 
-	// Movable (so NoteRowVector can shuffle rows) but not copyable - cloning goes through the explicit
-	// byte-copy + beenCloned() idiom. The destructor frees the old-drum-name list, so moves null it out.
+	// Movable (so NoteRowVector can shuffle rows) and copyable via an explicit deep-copy ctor: the param
+	// manager and notes are deep-copied, the old-drum-name list is NOT shared (reset to empty on the copy),
+	// and transient playback state is reset. firstOldDrumName being move-only forces the ctor to be explicit
+	// (no defaulted copy). Copy-assignment stays deleted — clones construct fresh rows.
 	NoteRow(NoteRow&& other) noexcept = default;
 	NoteRow& operator=(NoteRow&& other) noexcept = default;
-	NoteRow(NoteRow const&) = delete;
-	NoteRow& operator=(NoteRow const&) = delete;
+	NoteRow(NoteRow const& other);
+	// Copy-and-move assignment (copy-construct a temporary, then move it in): reuses the audited copy ctor and
+	// the defaulted move-assign, which correctly frees the old param manager / notes / drum-name list. Needed
+	// because OrderedPosVector::insertAt inserts via vector::insert(pos, n, value), requiring CopyAssignable.
+	NoteRow& operator=(NoteRow const& other);
 	void renderRow(TimelineView* editorScreen, RGB, RGB, RGB, RGB* image, uint8_t[], bool, uint32_t,
 	               bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
 	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
@@ -238,6 +243,9 @@ public:
 	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
 	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
 	Error beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
+	/// Flatten a reversed sequence after a plain clone: reverse this row's notes and automation in place.
+	/// Call only when the row's effective direction is REVERSE and flattening was requested.
+	Error flattenReverse(ModelStackWithNoteRow* modelStack);
 	void resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
 	                                        ModelStackWithNoteRow* modelStackClone);
 	void silentlyResumePlayback(ModelStackWithNoteRow* modelStack);

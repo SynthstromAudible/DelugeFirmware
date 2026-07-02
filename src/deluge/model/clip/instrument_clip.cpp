@@ -186,14 +186,17 @@ deleteClipAndGetOut:
 
 	modelStack->setTimelineCounter(newClip);
 
-	for (int32_t i = 0; i < std::ssize(newClip->noteRows); i++) {
-		NoteRow* noteRow = &newClip->noteRows[i];
-		int32_t noteRowId = newClip->getNoteRowId(noteRow, i);
-		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-		Error error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
-
-		// If that fails, we have to keep going, cos otherwise some NoteRows' NoteVector will be left pointing to stuff
-		// it shouldn't be
+	// noteRows.cloneFrom() deep-copied each row (param manager + notes). Only flatten-reversing needs a
+	// per-row pass — flattenReverse() reverses notes/automation for effectively-reversed rows and collapses
+	// every row's direction mode (matching the old beenCloned() tail).
+	if (shouldFlattenReversing) {
+		for (int32_t i = 0; i < std::ssize(newClip->noteRows); i++) {
+			NoteRow* noteRow = &newClip->noteRows[i];
+			int32_t noteRowId = newClip->getNoteRowId(noteRow, i);
+			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+			noteRow->flattenReverse(modelStackWithNoteRow);
+			// On failure we keep going, matching the old tolerance (a row's notes must not be left half-done).
+		}
 	}
 
 	if (shouldFlattenReversing && newClip->sequenceDirectionMode == SequenceDirection::REVERSE) {
