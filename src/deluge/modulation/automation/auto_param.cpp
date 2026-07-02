@@ -1031,12 +1031,16 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 		}
 
 		if (wrapping) {
-			if (resultingIndexes[0]) {
-				nodes().erase(nodes().begin() + 0, nodes().begin() + 0 + resultingIndexes[0]);
-			}
+			// Erase the before-wrap tail [resultingIndexes[1], end) FIRST. Erasing the after-wrap front shifts
+			// every later element left, which would invalidate resultingIndexes[1] (previously this left
+			// before-wrap nodes undeleted whenever there were also after-wrap nodes). The two ranges are
+			// disjoint, so tail-first keeps both valid.
 			int32_t numAtEnd = std::ssize(nodes()) - resultingIndexes[1];
 			if (numAtEnd) {
 				nodes().erase(nodes().begin() + resultingIndexes[1], nodes().begin() + resultingIndexes[1] + numAtEnd);
+			}
+			if (resultingIndexes[0]) {
+				nodes().erase(nodes().begin() + 0, nodes().begin() + 0 + resultingIndexes[0]);
 			}
 		}
 
