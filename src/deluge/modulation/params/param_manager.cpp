@@ -187,15 +187,16 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		otherStopAt++;
 	}
 
+	// Clone each collection into freshly-allocated memory via its virtual clone() (real copy construction
+	// where the subclass overrides it; the base clone() still byte-copies for any not yet converted). On
+	// failure, destruct + free the collections already cloned this pass.
 	while (otherSummary != otherStopAt) {
-		// To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
-		newSummary->paramCollection =
-		    (ParamCollection*)deluge::memory::alloc_fast(otherSummary->paramCollection->objectSize);
-
-		// If that failed, deallocate all the previous memories
-		if (!newSummary->paramCollection) {
+		Error error = otherSummary->paramCollection->clone(newSummary->paramCollection, copyAutomation,
+		                                                   reverseDirectionWithLength);
+		if (error != Error::NONE) {
 			while (newSummary != newSummaries) {
 				newSummary--;
+				newSummary->paramCollection->~ParamCollection();
 				delugeDealloc(newSummary->paramCollection);
 			}
 
@@ -204,20 +205,6 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 			summaries[1] = {0};
 			return Error::INSUFFICIENT_RAM;
 		}
-
-		newSummary++;
-		otherSummary++;
-	}
-
-	// Now the memories have been allocated, go through and do the cloning
-	newSummary = newSummaries;
-	otherSummary = other->summaries;
-	while (otherSummary != otherStopAt) {
-
-		memcpy(newSummary->paramCollection, otherSummary->paramCollection, otherSummary->paramCollection->objectSize);
-
-		newSummary->paramCollection->beenCloned(
-		    copyAutomation, reverseDirectionWithLength); // Ignore error - just means automation doesn't get cloned.
 
 		newSummary->cloneFlagsFrom(otherSummary);
 
