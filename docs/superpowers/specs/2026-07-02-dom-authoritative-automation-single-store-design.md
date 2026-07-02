@@ -1,7 +1,12 @@
 # DOM-authoritative automation via a single shared node store — Design Spec
 
 **Date:** 2026-07-02
-**Status:** Approved (brainstorm), pending implementation plan
+**Status:** Approved (brainstorm) — **DEFERRED.** A prerequisite standalone effort,
+`2026-07-02-sequencer-clone-idiom-retirement-design.md` (retiring the byte-copy clone idiom from the
+sequencer, keeping `OrderedPosVector<ParamNode>` as the store), is done **first**. This spec's Phase A
+was folded into that effort; the DOM store work here (single-copy unification, DOM ownership, engine
+borrow pointers — Phases B+) resumes after it lands. Note also §7 of the clone-idiom spec: §4.2 below
+needs a correction (growth *moves*, not memcpy) when Phase B is planned.
 **Supersedes the storage strategy of:** `2026-07-02-dom-live-authoritative-automation-design.md`
 (that spec chose *projection* — two copies kept in sync; this spec replaces it with a *single
 shared store* owned by the DOM at a stable address, with the engine holding a raw borrow-pointer).
