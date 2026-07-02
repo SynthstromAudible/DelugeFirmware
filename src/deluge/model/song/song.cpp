@@ -1621,7 +1621,29 @@ loadOutput:
 
 			else if (!strcmp(tagName, "songParams")) {
 				reader.match('{');
-				GlobalEffectableForClip::readParamsFromFile(reader, &paramManager, 2147483647);
+				// Phase 2 (Option B): read the song-global params INTO the DOM store, then project the store to
+				// the engine paramManager (fromDocParamManager). The store is the authority; the engine unpatched
+				// set is its projection. (Clips still read straight into the engine — a later phase.)
+				if (!paramManager.containsAnyMainParamCollections()) {
+					Error error = paramManager.setupUnpatched();
+					if (error != Error::NONE) {
+						return error;
+					}
+					GlobalEffectable::initParams(&paramManager);
+				}
+				// Seed the store from the freshly-initialised engine set so params the file OMITS (they were at
+				// default) keep their init values; the reader then overwrites only the params actually present.
+				project.global_fx.params.unpatched =
+				    deluge::project::toDocParamSet(*paramManager.getUnpatchedParamSet());
+				char const* paramTag;
+				while (*(paramTag = reader.readNextTagOrAttributeName())) {
+					if (deluge::project::readGlobalEffectableParamTagToDoc(
+					        reader, paramTag, *project.global_fx.params.unpatched, 2147483647)) {}
+					else {
+						reader.exitTag(paramTag);
+					}
+				}
+				deluge::project::fromDocParamManager(project.global_fx.params, paramManager);
 				reader.exitTag("songParams", true);
 			}
 
@@ -1639,37 +1661,6 @@ loadOutput:
 					return error;
 				}
 				reader.exitTag();
-			}
-
-			else if (!strcmp(tagName, "defaultParams")) {
-				// Phase 2 (Option B): the song-global params are read INTO the DOM store, then the engine
-				// paramManager is projected FROM it (fromDocParamManager). The DOM store is the authority;
-				// the engine unpatched set is its projection. (Clips still read straight into the engine —
-				// that's a later phase.)
-				if (!paramManager.containsAnyMainParamCollections()) {
-					Error error = paramManager.setupUnpatched();
-					if (error != Error::NONE) {
-						return error;
-					}
-					GlobalEffectable::initParams(&paramManager);
-				}
-				// Seed the store (size + kind) from the freshly-initialised engine set, then clear each lane;
-				// the reader fills whatever param tags the file actually contains.
-				project.global_fx.params.unpatched =
-				    deluge::project::toDocParamSet(*paramManager.getUnpatchedParamSet());
-				for (auto& node : project.global_fx.params.unpatched->params) {
-					node = deluge::project::DocAutoParam{};
-				}
-				char const* paramTag;
-				while (*(paramTag = reader.readNextTagOrAttributeName())) {
-					if (deluge::project::readGlobalEffectableParamTagToDoc(
-					        reader, paramTag, *project.global_fx.params.unpatched, 2147483647)) {}
-					else {
-						reader.exitTag(paramTag);
-					}
-				}
-				deluge::project::fromDocParamManager(project.global_fx.params, paramManager);
-				reader.exitTag("defaultParams");
 			}
 
 			else {

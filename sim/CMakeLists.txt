@@ -335,6 +335,24 @@ if(RT_LIB)
     target_link_libraries(song_roundtrip PRIVATE ${RT_LIB})
 endif()
 
+# Edit-aware round-trip: load -> DOM-first edit a song-global param -> save -> reload -> assert persisted.
+# Exercises the Phase 2 DOM-authoritative edit loop that the load->save golden harness can't see.
+add_executable(song_edit_roundtrip
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/tests/golden/song_edit_roundtrip.cpp
+)
+target_include_directories(song_edit_roundtrip PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(song_edit_roundtrip PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(song_edit_roundtrip PRIVATE ${RT_LIB})
+endif()
+
 # Param/automation DOM projection round-trip (docs/dev/param_automation_dom.md, Phase 1).
 # Exercises DocAutoParam <-> live AutoParam against the real engine container + host allocator; runs on
 # x86 (build-sim) and ARM (build-sim-arm via qemu) for the dual-arch coverage the design doc calls for.
