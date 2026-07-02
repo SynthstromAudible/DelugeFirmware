@@ -43,10 +43,15 @@ public:
 	~OrderedPosVector() = default;
 	OrderedPosVector(OrderedPosVector&&) noexcept = default;
 	OrderedPosVector& operator=(OrderedPosVector&&) noexcept = default;
-	// No implicit copying: the legacy byte-copy cloning idiom and C++ copies must not be mixed up.
-	// Use cloneFrom() for an explicit, fallible deep copy.
-	OrderedPosVector(OrderedPosVector const&) = delete;
-	OrderedPosVector& operator=(OrderedPosVector const&) = delete;
+	// Deep copy (element-wise, via the backing vector). May throw deluge::exception on OOM, like the
+	// container's other allocating ops; the fallible clone factories that call it catch and convert to
+	// std::expected. This replaces the legacy byte-copy clone idiom (init/cloneFrom/beenCloned), which is
+	// removed once every caller is converted.
+	OrderedPosVector(OrderedPosVector const& other) : elements_(other.elements_) {}
+	OrderedPosVector& operator=(OrderedPosVector const& other) {
+		elements_ = other.elements_;
+		return *this;
+	}
 
 	/// Forget the current contents *without* freeing them. Only for use when this object is a byte-copy of
 	/// another instance and so doesn't own what it points at (the legacy cloning idiom).
