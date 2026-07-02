@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge/util/d_string.h"
 #include "gui/fonts/fonts.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "storage/flash_storage.h"
 
 #include <algorithm>
@@ -234,6 +235,11 @@ void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t max
 }
 
 void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius) {
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners)) {
+		drawRectangle(minX, minY, maxX, maxY);
+		return;
+	}
+
 	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
 
 	drawVerticalLine(minX, minY + radiusPixels, maxY - radiusPixels);
@@ -758,6 +764,11 @@ void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t end
 }
 
 void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius) {
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners)) {
+		invertArea(xMin, width, startY, endY);
+		return;
+	}
+
 	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
 
 	invertArea(xMin, width, startY, endY);
