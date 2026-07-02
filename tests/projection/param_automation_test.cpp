@@ -1414,6 +1414,24 @@ int main() {
 		}
 	}
 
+	// Phase 2 (2b): the DOM-first value edit primitive writes the store lane (authoritative) and reprojects it
+	// into the engine runtime param, so both hold the new value; out-of-range is a safe no-op.
+	{
+		deluge::project::DocParamManager store;
+		store.unpatched.emplace();
+		store.unpatched->params.resize(10);
+		AutoParam eng;
+		bool ok = deluge::project::setUnpatchedValueDomFirst(store, 3, 42424, eng);
+		check(ok, "setUnpatchedValueDomFirst: applied");
+		check(store.unpatched->params[3].current_value == 42424, "setUnpatchedValueDomFirst: store lane written");
+		check(eng.getCurrentValue() == 42424, "setUnpatchedValueDomFirst: engine reprojected from store");
+		check(!deluge::project::setUnpatchedValueDomFirst(store, 99, 1, eng),
+		      "setUnpatchedValueDomFirst: out-of-range is a no-op");
+		deluge::project::DocParamManager empty;
+		check(!deluge::project::setUnpatchedValueDomFirst(empty, 0, 1, eng),
+		      "setUnpatchedValueDomFirst: unpopulated store is a no-op");
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);

@@ -258,4 +258,15 @@ bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, Doc
 bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
                                        int32_t readAutomationUpToPos);
 
+// --- DOM-first editing (Phase 2 / 2b) ---
+// The DOM store is the authoritative record; the engine param is the runtime it drives. A DOM-first edit
+// mutates the store lane, then reprojects it into the engine so playback hears it (until the future
+// graph-builder/executor split lets the runtime read the DOM directly, this reprojection is the seam).
+
+/// DOM-first non-automated value edit: write `value` into the store's unpatched lane `p` (the authoritative
+/// record), then reproject that lane into the engine `engineParam` (the runtime). Returns false (no-op) if the
+/// store's unpatched set isn't populated or `p` is out of range. The caller performs the runtime notify/undo
+/// (those are engine concerns, and this layer must not depend on the UI/action globals).
+bool setUnpatchedValueDomFirst(DocParamManager& store, int32_t p, int32_t value, AutoParam& engineParam);
+
 } // namespace deluge::project

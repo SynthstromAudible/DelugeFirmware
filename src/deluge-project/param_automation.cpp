@@ -793,6 +793,15 @@ bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, Do
 	       || readModControllableParamTagToDoc(in, tagName, doc, readAutomationUpToPos);
 }
 
+bool setUnpatchedValueDomFirst(DocParamManager& store, int32_t p, int32_t value, AutoParam& engineParam) {
+	if (!store.unpatched || p < 0 || p >= static_cast<int32_t>(store.unpatched->params.size())) {
+		return false;
+	}
+	store.unpatched->params[p].current_value = value;          // authoritative write
+	fromDocAutoParam(store.unpatched->params[p], engineParam); // reproject into the engine runtime
+	return true;
+}
+
 namespace {
 // Sound's two unpatched flat attrs (read lookup).
 constexpr DocParamAttr kSoundUnpatchedAttrs[] = {

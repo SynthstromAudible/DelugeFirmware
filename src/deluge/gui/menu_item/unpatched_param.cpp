@@ -16,6 +16,7 @@
  */
 
 #include "unpatched_param.h"
+#include "deluge-project/param_automation.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
@@ -28,6 +29,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 
@@ -67,6 +69,17 @@ void UnpatchedParam::writeCurrentValue() {
 	}
 	// Or, the normal case of just one sound
 	else {
+		// Phase 2 (2b) pilot: song-global unpatched params are DOM-live-authoritative. When editing one while
+		// stopped and unautomated (the plain gold-knob case), write the DOM store FIRST and reproject it into
+		// the engine, keeping the store current; then run the engine method for the runtime tail (undo + notify;
+		// it re-sets the same value, harmless). The recording/automated cases still go straight to the engine
+		// (they create nodes in the runtime — the deferred executor split is what will let those be DOM-first).
+		bool isSongGlobal = (modelStackWithParam->paramManager == &currentSong->paramManager);
+		if (isSongGlobal && !modelStackWithParam->autoParam->isAutomated() && !playbackHandler.isEitherClockActive()) {
+			deluge::project::setUnpatchedValueDomFirst(currentSong->project.global_fx.params,
+			                                           modelStackWithParam->paramId, value,
+			                                           *modelStackWithParam->autoParam);
+		}
 		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
 	}
 
