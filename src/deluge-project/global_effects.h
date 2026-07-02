@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/param_automation.h"
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "modulation/params/param.h"
 #include <array>
@@ -28,6 +29,10 @@ namespace deluge::project {
 /// override snapshot used while editing automation. A component of deluge::project::Song.
 struct GlobalEffects {
 	GlobalEffectableForSong global_effectable;
+	/// The DOM-live authority for the song-global automation params (Phase 2). Populated from file on load
+	/// (read INTO the DOM, then projected to the engine); the engine `paramManager` unpatched set is a
+	/// projection of this. Only `.unpatched` is used (song-global params are unpatched-only).
+	DocParamManager params;
 	/// Snapshot of the global unpatched param values, captured while a param is held in automation
 	/// mode so the live (overridden) value can be restored afterwards.
 	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> unautomated_param_values{};
