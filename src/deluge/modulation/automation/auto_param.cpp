@@ -297,16 +297,6 @@ skipThat: {}
 	}
 
 getOut:
-	// Phase 5c (authoritative flip): for a non-automated value set on the unpatched collection of a manager
-	// with an authoritative param DOM attached, commit the value THROUGH the DOM (write doc, read back) so
-	// the live value is DOM-derived. Every other case keeps the legacy direct set; behaviour is identical
-	// (the DOM returns the same value), the DOM is just updated as a side effect.
-	if (nodes().empty() && modelStack->paramManager != nullptr
-	    && modelStack->paramManager->authoritativeParams() != nullptr
-	    && modelStack->paramCollection == modelStack->paramManager->getUnpatchedParamSet()) {
-		value = deluge::project::commitUnpatchedValueThroughDom(modelStack->paramManager->authoritativeParams(),
-		                                                        modelStack->paramId, value);
-	}
 	currentValue = value;
 	bool automatedNow = isAutomated();
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
@@ -1561,32 +1551,7 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	}
 }
 
-void AutoParam::severNodeStorageRedirect() {
-	if (redirectedNodes_ == nullptr) {
-		return;
-	}
-	// Deep-copy the owner-store nodes into our own embedded storage, then drop the redirect. ownNodes_ is empty
-	// (it was moved out when this param was redirected), so the swap takes ownership without leaking. On OOM the
-	// automation is dropped (embedded-empty) rather than left dangling against a store this param is leaving.
-	ParamNodeVector owned;
-	owned.cloneFrom(redirectedNodes_);
-	redirectedNodes_ = nullptr;
-	ownNodes_.swap(owned);
-}
-
 Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
-
-	// This AutoParam is a raw byte-copy of the source (the memcpy in ParamManager::cloneParamCollectionsFrom).
-	// If the source was a VIEW over an owner-held store (Phase 5c redirectNodeStorage), redirectedNodes_ now
-	// aliases the SOURCE's store and ownNodes_ is a byte-copy of the source's unused embedded buffer. A clone
-	// must own its nodes and never alias the source, so re-seat ownNodes_ as a byte-copy alias of the source's
-	// REAL nodes (the store) and drop the redirect. The detach-and-own logic below then runs identically to the
-	// embedded case, leaving the clone with its own embedded storage. (No leak: a redirected source's ownNodes_
-	// was moved-from when its nodes were relocated into the store, so the pre-copy ownNodes_ owns nothing.)
-	if (redirectedNodes_ != nullptr) {
-		memcpy(&ownNodes_, redirectedNodes_, sizeof(ParamNodeVector));
-		redirectedNodes_ = nullptr;
-	}
 
 	Error error = Error::NONE;
 

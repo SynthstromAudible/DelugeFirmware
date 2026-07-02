@@ -59,7 +59,6 @@ public:
 
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
-	void severNodeStorageRedirects() override; // Phase 5c R3 steal-safety (each MIDI param)
 	void sendMIDI(MIDISource source, int32_t channel, int32_t cc, int32_t newValue, int32_t midiOutputFilter);
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;

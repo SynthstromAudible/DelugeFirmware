@@ -749,11 +749,6 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 
 	// This initialization avoids a rare crash! (Ok that comment was from ages ago; not sure about now.)
 	for (; c < kMaxNumPatchCables; c++) {
-		// If this (byte-copied) cable was a redirected view (param/automation DOM Phase 5c R3), detach it first:
-		// init() goes through nodes(), which for a redirect would clear the SOURCE store (and leave the clone
-		// dangling). severNodeStorageRedirect drops the redirect to embedded; init then clears the clone's own
-		// storage. No-op for non-redirected cables.
-		patchCables[c].param.severNodeStorageRedirect();
 		patchCables[c].param.init();
 	}
 
@@ -804,12 +799,6 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 done:
 	destinations[GLOBALITY_LOCAL] = newDestinations[GLOBALITY_LOCAL];
 	destinations[GLOBALITY_GLOBAL] = newDestinations[GLOBALITY_GLOBAL];
-}
-
-void PatchCableSet::severNodeStorageRedirects() {
-	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c].param.severNodeStorageRedirect();
-	}
 }
 
 void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {

@@ -105,44 +105,6 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 } // namespace
 
 int main() {
-	// Phase 5c R1: redirectNodeStorage makes an AutoParam a view over external (owner-held) node storage —
-	// node ops land in the external store, and reverting (nullptr) restores the embedded storage.
-	{
-		AutoParam ap;
-		ParamNodeVector external;
-		ap.redirectNodeStorage(&external);
-		setNode(ap, 0, 100, true);
-		setNode(ap, 48, -200, false);
-		check(external.size() == 2, "R1 redirect: ops land in external store");
-		check(ap.nodes().size() == 2, "R1 redirect: view sees external");
-		check(external[0].value == 100 && external[1].value == -200, "R1 redirect: external content");
-		ap.redirectNodeStorage(nullptr);
-		check(ap.nodes().size() == 0, "R1 redirect: revert to embedded storage");
-	}
-
-	// Phase 5c R2: the pilot-flip pattern — move a param's loaded nodes into an owner-held store, redirect
-	// the param to view it, and confirm automation edits + serialization then operate on the store.
-	{
-		ParamNodeVector store; // stand-in for GlobalEffects::param_node_store[p] (outlives the manager)
-		ParamManagerForTimeline pm;
-		check(pm.setupWithPatching() == Error::NONE, "R2 setup");
-		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
-		setNode(up->params[params::UNPATCHED_VOLUME], 0, 111, true); // loaded automation in embedded storage
-		setNode(up->params[params::UNPATCHED_VOLUME], 48, -222, false);
-
-		store = std::move(up->params[params::UNPATCHED_VOLUME].nodes()); // move embedded → store
-		up->params[params::UNPATCHED_VOLUME].redirectNodeStorage(&store);
-		check(store.size() == 2, "R2 nodes moved into store");
-		check(up->params[params::UNPATCHED_VOLUME].nodes().size() == 2, "R2 param views the store");
-
-		setNode(up->params[params::UNPATCHED_VOLUME], 24, 50, true); // a further automation edit
-		check(store.size() == 3, "R2 edit lands in the store");
-
-		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
-		check(doc.unpatched && doc.unpatched->params[params::UNPATCHED_VOLUME].nodes.size() == 3,
-		      "R2 serialization reads the store");
-	}
-
 	// Unautomated: current value only, no nodes.
 	roundTrip("unautomated", 123456, {});
 
@@ -253,21 +215,6 @@ int main() {
 		check((psum->whichParamsAreAutomated[9 >> 5] & (1u << (9 & 31))) == 0, "5c1 param9 flag cleared");
 		// unpatched value restored
 		check(dst.getUnpatchedParamSet()->params[3].currentValue == 4242, "5c1 unpatched restored");
-	}
-
-	// Phase 5c-2: committing a non-automated unpatched value through the DOM updates the doc and returns
-	// the value to project into live (the authoritative value path used by AutoParam's edit commit).
-	{
-		deluge::project::DocParamManager doc;
-		doc.unpatched.emplace();
-		doc.unpatched->params.resize(8);
-		check(deluge::project::commitUnpatchedValueThroughDom(&doc, 3, 12345) == 12345, "5c2 commit returns value");
-		check(doc.unpatched->params[3].current_value == 12345, "5c2 commit wrote DOM");
-		// passthrough cases: null doc / no unpatched set / out-of-range param
-		check(deluge::project::commitUnpatchedValueThroughDom(nullptr, 0, 7) == 7, "5c2 null passthrough");
-		deluge::project::DocParamManager noUnpatched;
-		check(deluge::project::commitUnpatchedValueThroughDom(&noUnpatched, 0, 9) == 9, "5c2 no-unpatched passthrough");
-		check(deluge::project::commitUnpatchedValueThroughDom(&doc, 999, 5) == 5, "5c2 oob passthrough");
 	}
 
 	// Phase 4 brick: the generic patch-cable serializer must be byte-identical to the engine's

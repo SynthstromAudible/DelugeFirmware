@@ -159,16 +159,6 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	other->summaries[4] = {0};
 #endif
 	other->expressionParamSetOffset = 0;
-
-	// Steal is a pointer-move of whole ParamCollections — a redirected AutoParam (param/automation DOM Phase 5c)
-	// keeps its redirect, which would dangle if this manager is moving to a different owner (or a backup) than the
-	// one whose store it views. De-flip any owner-store redirect on the moved-in collections back to embedded
-	// storage so the moved params are self-owning. No-op unless something was redirected (behaviour-preserving).
-	for (int32_t j = 0; j < stopAtOther; j++) {
-		if (summaries[j].paramCollection != nullptr) {
-			summaries[j].paramCollection->severNodeStorageRedirects();
-		}
-	}
 }
 
 Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation,

@@ -40,10 +40,6 @@ class UnpatchedParamSet;
 class ParamManagerForTimeline;
 class ParamCollectionSummary;
 
-namespace deluge::project {
-struct DocParamManager;
-}
-
 #define PARAM_COLLECTIONS_STORAGE_NUM 5
 
 class ParamManager {
@@ -187,13 +183,6 @@ public:
 	// we know this, we can check for stuff faster.
 	ParamCollectionSummary summaries[PARAM_COLLECTIONS_STORAGE_NUM]{};
 
-	// Phase 5c (authoritative flip): when non-null, the authoritative document store this manager is
-	// projected from — convertible edits commit their value through it, so the live manager becomes a
-	// projection. Set per owner during the flip; null managers use the legacy in-place edit path.
-	deluge::project::DocParamManager* authoritativeParams_{nullptr};
-	inline deluge::project::DocParamManager* authoritativeParams() { return authoritativeParams_; }
-	inline void setAuthoritativeParams(deluge::project::DocParamManager* doc) { authoritativeParams_ = doc; }
-
 private:
 	void moveFrom(ParamManager& other) noexcept {
 		resonanceBackwardsCompatibilityProcessed = other.resonanceBackwardsCompatibilityProcessed;
@@ -202,8 +191,6 @@ private:
 			summaries[i] = other.summaries[i];
 			other.summaries[i] = {nullptr};
 		}
-		authoritativeParams_ = other.authoritativeParams_;
-		other.authoritativeParams_ = nullptr;
 		other.expressionParamSetOffset = 0;
 	}
 };

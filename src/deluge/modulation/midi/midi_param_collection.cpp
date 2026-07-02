@@ -75,12 +75,6 @@ void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirecti
 	}
 }
 
-void MIDIParamCollection::severNodeStorageRedirects() {
-	for (MIDIParam& midiParam : params) {
-		midiParam.param.severNodeStorageRedirect();
-	}
-}
-
 void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) {
 
 	// Bend param is the only one which is actually gonna maybe want to set up some interpolation -

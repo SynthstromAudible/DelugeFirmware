@@ -43,13 +43,6 @@ public:
 
 	virtual void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0) = 0;
 
-	/// De-flip every AutoParam in this collection from any owner-held node store back to embedded storage
-	/// (param/automation DOM Phase 5c R3 — steal-safety). Called when a ParamManager's collections are MOVED
-	/// between owners (ParamManager::stealParamCollectionsFrom, a pointer-move that bypasses beenCloned) so the
-	/// moved params never keep a dangling view into an owner store they are leaving. Default no-op; collections
-	/// that hold AutoParams override it.
-	virtual void severNodeStorageRedirects() {}
-
 	/// tick interpolation by a number of ticks
 	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;
 
