@@ -67,15 +67,35 @@ Follows the `ShowBatteryLevel` toggle end to end.
      RuntimeFeatureStateToggle::On);`
 
 3. `src/deluge/gui/menu_item/runtime_feature/settings.cpp`
-   - Declare `SettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);`
+   - Define a reusable `SettingToggle` subclass that hides the item on 7SEG (for
+     OLED-only features — the 7-segment display has no rounded-corner or horizontal-menu
+     rendering, so the toggle is meaningless there):
+     ```cpp
+     class OledOnlySettingToggle final : public SettingToggle {
+     public:
+         using SettingToggle::SettingToggle;
+         bool isRelevant(ModControllableAudio*, int32_t) override { return display->haveOLED(); }
+     };
+     OledOnlySettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);
+     ```
+     Add `#include "hid/display/display.h"` if not already available for `display->haveOLED()`.
    - Insert `&menuRoundedCorners` into the `subMenuEntries` array immediately after
      `&menuHorizontalMenus` (this array controls the menu display order, so the toggle
      appears directly below "Horizontal Menus" in the Community Features menu).
+   - Also change the existing `menuHorizontalMenus` from `SettingToggle` to
+     `OledOnlySettingToggle` — the horizontal-menus feature is likewise OLED-only (gated
+     by `display->haveOLED()` at its render site, `horizontal_menu.cpp:597`), so its menu
+     item should not appear on 7SEG either. Its enum, l10n, and default are unchanged;
+     only the menu-item class changes.
+   - `Submenu` already filters entries by `isRelevant()`, so returning `false` hides the
+     item in 7SEG mode. `display->haveOLED()` is true for emulated OLED, so these items
+     stay visible there and only hide in genuine 7-segment mode.
 
 4. l10n strings (mirror `STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL`):
    - `src/deluge/gui/l10n/strings.h` — add `STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS`.
    - `src/deluge/gui/l10n/g_english.cpp` + `english.json` — "Rounded Corners".
-   - `src/deluge/gui/l10n/g_seven_segment.cpp` + `seven_segment.json` — 4-char abbreviation "CORN".
+   - No 7-segment abbreviation needed: the item is hidden on 7SEG, so no
+     `g_seven_segment.cpp` / `seven_segment.json` entry is required.
 
 5. `src/deluge/hid/display/oled_canvas/canvas.cpp`
    - Include `model/settings/runtime_feature_settings.h`.
@@ -96,6 +116,9 @@ There is no unit-test harness for canvas rendering; verification is visual.
   confirm menu selection highlights, filter container, and patch-cable strength are square.
 - Toggle **On** (default): confirm rendering is unchanged from current firmware.
 - Confirm the setting survives a power cycle (written to CommunityFeatures.XML).
+- In 7-segment mode (or emulated 7SEG), confirm the "Rounded Corners" **and**
+  "Horizontal Menus" items do **not** appear in the Community Features menu; in OLED mode
+  (real or emulated) confirm both do.
 
 ## Open questions / assumptions
 
@@ -105,7 +128,6 @@ existing opt-in style.
 1. **Framing.** Menu item named **"Rounded Corners", default On** — turning it Off
    squares the UI. Alternative considered: "Square Corners", default Off. Chosen the
    former for clearest semantics (the label names what it controls, default = today).
-2. **7-segment abbreviation.** "CORN" (4 chars). Alternative: "ROUN".
 
 ## Out of scope
 
@@ -113,3 +135,5 @@ existing opt-in style.
   rendering").
 - No new border-radius options or circle/other-shape changes.
 - No changes to the 7-segment display (it has no rounded-corner rendering).
+- Beyond gating the existing "Horizontal Menus" menu item off 7SEG (via the shared
+  `OledOnlySettingToggle`), no other change to the horizontal-menus feature.
