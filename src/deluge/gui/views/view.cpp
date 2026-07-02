@@ -823,9 +823,16 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	// A gold knob learned as a MIDI-macro leader is dedicated: it drives that macro's followers and its
 	// normal param action is suppressed. tryKnobMacro returns false for every non-leader knob.
-	if (getCurrentOutputType() == OutputType::MIDI_OUT && MIDIMacro::isEnabled()
-	    && MIDIMacro::tryKnobMacro(whichModEncoder, offset)) {
-		return;
+	if (getCurrentOutputType() == OutputType::MIDI_OUT && MIDIMacro::isEnabled()) {
+		if (MIDIMacro::tryKnobMacro(whichModEncoder, offset)) {
+			return;
+		}
+		// In the regular MIDI clip view (not automation view), the LAST param-select row is the
+		// dedicated macro row: gold knob 1 drives Macro 1 and gold knob 2 drives Macro 2.
+		if (getRootUI() == &instrumentClipView && getModKnobMode() == kNumModButtons - 1
+		    && MIDIMacro::tryModeKnobMacro(whichModEncoder, offset)) {
+			return;
+		}
 	}
 
 	if (activeModControllableModelStack.modControllable) {

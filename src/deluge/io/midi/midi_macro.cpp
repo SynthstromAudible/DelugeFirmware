@@ -324,6 +324,33 @@ bool tryKnobMacro(int32_t whichKnob, int32_t offset) {
 	return true;
 }
 
+bool tryModeKnobMacro(int32_t whichKnob, int32_t offset) {
+	if (whichKnob < 0 || whichKnob >= kNumMacros) {
+		return false;
+	}
+	if (!isEnabled() || getCurrentUI() == &loadSongUI) {
+		return false;
+	}
+	Clip* clip = midiFollow.getSelectedOrActiveClip();
+	MIDIInstrument* instrument = midiClipInstrument(clip);
+	if (!instrument || !instrument->macrosEnabled) {
+		return false;
+	}
+	Macro& macro = instrument->macros[whichKnob]; // knob 1 -> Macro 1, knob 2 -> Macro 2
+	if (!macro.active) {
+		return false; // inactive macro: let the knob keep its normal behavior
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
+	int32_t pos = std::clamp<int32_t>((int32_t)macro.leaderKnobPos + offset, 0, kMaxValue);
+	macro.leaderKnobPos = pos;
+	sendToFollowers(instrument, clip, modelStackWithTimelineCounter, macro, pos);
+	return true;
+}
+
 // follower slot tag names are "follower1" .. "follower8"; returns the slot index, or -1 if not one.
 static int32_t followerSlotFromTagName(char const* tagName) {
 	constexpr int32_t prefixLen = 8; // strlen("follower")

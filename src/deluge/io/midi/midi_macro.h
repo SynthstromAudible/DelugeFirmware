@@ -136,6 +136,12 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 // it matched (so the caller suppresses the knob's normal action - a knob leader is dedicated).
 bool tryKnobMacro(int32_t whichKnob, int32_t offset);
 
+// The dedicated macro row: in the regular MIDI clip view with the LAST param-select button active,
+// gold knob 1 drives Macro 1 and gold knob 2 drives Macro 2 directly (no learning needed). Only fires
+// for an Active macro, so the row keeps its normal knob behavior when macros aren't in use. Returns
+// whether it drove the macro (the caller then suppresses the knob's normal action).
+bool tryModeKnobMacro(int32_t whichKnob, int32_t offset);
+
 // Bakes macro macroIndex's automation-lane curve (pseudo-CC paramIDForMacro(idx)) into its follower CC
 // automation lanes on the given clip, scaled per follower. Call after a user edits/clears the macro
 // lane or changes a follower's config. No-op if the macro lane's param was never created on this clip

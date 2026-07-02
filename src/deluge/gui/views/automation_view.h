@@ -126,6 +126,13 @@ public:
 	// CC value being dialed during the hold (-1 = OFF, 0..127 = CC); committed only on button
 	// release, so scrolling never touches the automation of the CCs passed through.
 	int16_t heldFollowerPendingCC = -1;
+	// Follower awaiting the clear-confirmation context menu (SHIFT+SAVE while holding its button).
+	int8_t pendingClearMacro = -1;
+	int8_t pendingClearFollower = -1;
+	// Clears the pending follower's assignment (called by the confirmation menu). Returns success.
+	bool acceptPendingFollowerClear();
+	// SHIFT + horizontal encoder press on a macro lane: toggle that macro Active/Inactive.
+	bool toggleMacroLaneActive();
 
 	// Select encoder action
 	void selectEncoderAction(int8_t offset) override;

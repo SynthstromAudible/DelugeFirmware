@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
+#include "gui/context_menu/clear_macro_follower.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/multi_range.h"
@@ -1266,8 +1267,27 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// Horizontal encoder button
 	// Not relevant for arranger view
 	else if (b == X_ENC) {
+		// SHIFT + horizontal encoder press on a macro lane toggles that macro Active/Inactive
+		if (on && Buttons::isShiftButtonPressed() && inAutomationEditor() && !onArrangerView
+		    && toggleMacroLaneActive()) {
+			return ActionResult::DEALT_WITH;
+		}
 		if (handleHorizontalEncoderButtonAction(on, isAudioClip)) {
 			goto passToOthers;
+		}
+	}
+
+	// SHIFT + SAVE/DELETE while holding a follower's param button: clear that follower's assignment
+	// (after confirmation). The baked follower lanes are left untouched.
+	else if (b == SAVE && on && Buttons::isShiftButtonPressed() && heldFollower >= 0 && inAutomationEditor()
+	         && !onArrangerView) {
+		int32_t macroIndex = 0;
+		if (macroLaneInstrument(clip, &macroIndex) != nullptr && macroIndex == heldFollowerMacro) {
+			pendingClearMacro = macroIndex;
+			pendingClearFollower = heldFollower;
+			display->cancelPopup(); // drop the persistent hold readout before the confirmation menu
+			openUI(&context_menu::clearMacroFollower);
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
@@ -2561,6 +2581,57 @@ void AutomationView::commitHeldFollowerCC() {
 	}
 }
 
+// Clears the follower assignment picked before the confirmation menu opened. Only the config is
+// reset (CC/from/to/send back to defaults) - the baked automation in the follower lanes stays.
+bool AutomationView::acceptPendingFollowerClear() {
+	int32_t macroIndex = 0;
+	MIDIInstrument* instrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
+	bool ok =
+	    instrument != nullptr && pendingClearMacro >= 0 && pendingClearFollower >= 0 && macroIndex == pendingClearMacro;
+	if (ok) {
+		instrument->macros[pendingClearMacro].followers[pendingClearFollower] = MIDIMacro::MacroFollowerSlot{};
+		instrument->editedByUser = true;
+		view.setModLedStates(); // that follower's assignment LED goes dark
+		display->displayPopup("Follower cleared");
+	}
+	pendingClearMacro = -1;
+	pendingClearFollower = -1;
+	return ok;
+}
+
+bool AutomationView::toggleMacroLaneActive() {
+	int32_t macroIndex = 0;
+	MIDIInstrument* instrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
+	if (instrument == nullptr) {
+		return false; // not a macro lane - let the encoder press do its normal job
+	}
+	MIDIMacro::Macro* macros = instrument->macros;
+	if (!macros[macroIndex].active) {
+		// activation is blocked while a follower CC is owned by another active macro
+		uint8_t conflictCC = 0;
+		int32_t owner = MIDIMacro::findActiveConflict(macros, macroIndex, &conflictCC);
+		if (owner >= 0) {
+			MIDIMacro::showCCConflictPopup(conflictCC, owner);
+			return true;
+		}
+		macros[macroIndex].active = true;
+		// brief confirmation, e.g. "Macro 1" / "Active"
+		DEF_STACK_STRING_BUF(popup, 24);
+		popup.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
+		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
+		popup.append(display->haveOLED() ? '\n' : ' ');
+		popup.append("Active");
+		display->displayPopup(popup.c_str());
+	}
+	else {
+		macros[macroIndex].active = false;
+		// no popup needed: the lane display now shows "(Inactive)" persistently
+	}
+	instrument->editedByUser = true;
+	renderDisplay(); // refresh the lane name so the (Inactive) suffix appears/disappears
+	return true;
+}
+
 void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	// if we're in automation overview or note editor
@@ -2576,6 +2647,9 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		int32_t macroIndex = 0;
 		MIDIInstrument* instrument = macroLaneInstrument(heldClip, &macroIndex);
 		if (instrument != nullptr && macroIndex == heldFollowerMacro) {
+			// Shaping the range implicitly confirms a destination still pending from the select
+			// encoder - commit it now so From/To edit (and read out) the just-dialed CC.
+			commitHeldFollowerCC();
 			MIDIMacro::MacroFollowerSlot& f = instrument->macros[macroIndex].followers[heldFollower];
 			uint8_t& endpoint = (whichModEncoder == 1) ? f.to : f.from; // knob 1 = From, knob 2 = To
 			int32_t v = std::clamp<int32_t>((int32_t)endpoint + offset, 0, MIDIMacro::kMaxValue);

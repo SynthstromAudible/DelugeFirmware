@@ -462,9 +462,15 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		}
 		else if (MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
 			// "Macro N" - reuse the contiguous STRING_FOR_MACRO_1..4
-			parameterName.append(deluge::l10n::get(
-			    static_cast<deluge::l10n::String>(util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1)
-			                                      + MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID))));
+			int32_t macroIndex = MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID);
+			parameterName.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
+			    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
+			// Persistent reminder on the lane display: this macro won't fire live until activated
+			// (SHIFT + horizontal encoder press toggles it).
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
+			if (!midiInstrument->macrosEnabled || !midiInstrument->macros[macroIndex].active) {
+				parameterName.append(" (Inactive)");
+			}
 		}
 		else {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
