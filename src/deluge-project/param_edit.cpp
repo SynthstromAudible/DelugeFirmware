@@ -345,4 +345,149 @@ void generateRepeats(DocAutoParam& p, uint32_t oldLength, uint32_t newLength, bo
 	}
 }
 
+int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int32_t startValue,
+                         bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength, bool reversed,
+                         bool recordingLinearly, int32_t posAtWhichClipWillCut) {
+	auto& nodes = p.nodes;
+
+	constexpr int kLeft = 0;  // REGION_EDGE_LEFT
+	constexpr int kRight = 1; // REGION_EDGE_RIGHT
+
+	int32_t edgePositions[2];
+	bool anyWrap;
+
+	if (!reversed) { // Playing forwards
+		edgePositions[kLeft] = startPos;
+
+		// First, limit the length if we're coming up to a cut-point.
+		int32_t maxLength = posAtWhichClipWillCut - edgePositions[kLeft];
+		if (length >= maxLength) {
+			length = maxLength;
+			interpolateRightNode = false;
+			edgePositions[kRight] = posAtWhichClipWillCut;
+			anyWrap = (edgePositions[kRight] >= effectiveLength);
+			if (anyWrap) {
+				edgePositions[kRight] = 0; // no node allowed right at the loop length point
+			}
+		}
+		// Otherwise there could be a loop-point: wrap the region end around (don't limit length).
+		else {
+			edgePositions[kRight] = edgePositions[kLeft] + length;
+			anyWrap = (edgePositions[kRight] >= effectiveLength);
+			if (anyWrap) {
+				// If linearly recording it's not really a loop (the Clip extends) — don't wrap past loopLength.
+				if (recordingLinearly) {
+					length = effectiveLength - edgePositions[kLeft];
+					edgePositions[kRight] = 0;
+				}
+				else {
+					edgePositions[kRight] -= effectiveLength;
+				}
+			}
+		}
+	}
+	else { // Playing reversed
+		edgePositions[kRight] = startPos;
+		edgePositions[kLeft] = edgePositions[kRight] - length;
+
+		// First, limit the length if we're coming up to a cut-point.
+		if (edgePositions[kLeft] < posAtWhichClipWillCut) {
+			edgePositions[kLeft] = posAtWhichClipWillCut;
+			length = edgePositions[kRight] - edgePositions[kLeft];
+			interpolateLeftNode = false;
+			anyWrap = false;
+		}
+		// Otherwise there could be a loop-point: wrap the region end around.
+		else {
+			anyWrap = (edgePositions[kLeft] < 0);
+			if (anyWrap) {
+				edgePositions[kLeft] += effectiveLength;
+			}
+		}
+	}
+
+	if (anyWrap) { // temporarily order the edges ascending for the dual search
+		std::swap(edgePositions[0], edgePositions[1]);
+	}
+
+	int32_t edgeIndexes[2];
+	edgeIndexes[0] = firstAtOrAfter(nodes, edgePositions[0]);
+	edgeIndexes[1] = firstAtOrAfter(nodes, edgePositions[1]); // == searchDual's second search from index[0]
+
+	if (anyWrap) { // swap edge positions and indexes back into LEFT/RIGHT order
+		std::swap(edgeIndexes[0], edgeIndexes[1]);
+		std::swap(edgePositions[0], edgePositions[1]);
+	}
+
+	// Which edges already have a node exactly at their position (the engine's edgeNodes[] non-null test,
+	// captured up-front). We keep indices rather than the engine's raw pointers: inserts below can reallocate
+	// std::vector, so a pointer form would dangle — the engine only gets away with pointers because its
+	// container rarely reallocates. Indices (which the engine already maintains for its re-fetches) are the
+	// equivalent robust translation.
+	bool hasEdge[2] = {false, false};
+	for (int i = 0; i < 2; i++) {
+		if (edgeIndexes[i] < static_cast<int32_t>(nodes.size()) && nodes[edgeIndexes[i]].pos == edgePositions[i]) {
+			hasEdge[i] = true;
+		}
+	}
+
+	const int lateEdge = static_cast<int>(!reversed); // the region edge reached last in playback order
+	int32_t valueAtLateEdge;
+	// If reversed and the late-edge node isn't interpolated we'd need the further-left node's value, so fall
+	// through to the normal lookup.
+	if (hasEdge[lateEdge] && !(reversed && !nodes[edgeIndexes[lateEdge]].interpolated)) {
+		valueAtLateEdge = nodes[edgeIndexes[lateEdge]].value;
+	}
+	else {
+		valueAtLateEdge = getValueAtPos(p, static_cast<uint32_t>(edgePositions[lateEdge]), effectiveLength, reversed);
+	}
+
+	// Sort out the rightmost (region-end) node.
+	if (!hasEdge[kRight]) {
+		// If there's a redundant further-left node we can grab and repurpose...
+		if (edgeIndexes[kRight] && (anyWrap || edgeIndexes[kRight] > edgeIndexes[kLeft] + 1)) {
+			edgeIndexes[kRight]--;
+		}
+		// Otherwise, insert one.
+		else {
+			nodes.insert(nodes.begin() + edgeIndexes[kRight], ParamNode{});
+			edgeIndexes[kLeft] += static_cast<int32_t>(anyWrap);
+		}
+		nodes[edgeIndexes[kRight]].pos = edgePositions[kRight];
+	}
+	nodes[edgeIndexes[kRight]].value = reversed ? startValue : valueAtLateEdge;
+	nodes[edgeIndexes[kRight]].interpolated = interpolateRightNode;
+
+	// And sort out the leftmost (region-start) node.
+	if (!hasEdge[kLeft]) {
+		// If there's a further-right node we can just update its pos (nothing to insert)...
+		if (edgeIndexes[kRight] != edgeIndexes[kLeft] && edgeIndexes[kLeft] < static_cast<int32_t>(nodes.size())) {
+			// Cool, we can just update the "pos" of that node (done below).
+		}
+		// Otherwise, insert one.
+		else {
+			nodes.insert(nodes.begin() + edgeIndexes[kLeft], ParamNode{});
+			edgeIndexes[kRight] += static_cast<int32_t>(!anyWrap);
+		}
+		nodes[edgeIndexes[kLeft]].pos = edgePositions[kLeft];
+	}
+	nodes[edgeIndexes[kLeft]].value = reversed ? valueAtLateEdge : startValue;
+	nodes[edgeIndexes[kLeft]].interpolated = interpolateLeftNode;
+
+	// Delete the redundant nodes strictly inside the region (all of them if no wrap; the before-wrap bit if wrap).
+	int32_t indexToDeleteFrom = edgeIndexes[kLeft] + 1;
+	int32_t indexToDeleteTo = anyWrap ? static_cast<int32_t>(nodes.size()) : edgeIndexes[kRight];
+	if (indexToDeleteTo > indexToDeleteFrom) {
+		nodes.erase(nodes.begin() + indexToDeleteFrom, nodes.begin() + indexToDeleteTo);
+	}
+
+	// And the nodes after the wrap point, if the region wrapped.
+	if (anyWrap && edgeIndexes[kRight]) {
+		nodes.erase(nodes.begin(), nodes.begin() + edgeIndexes[kRight]);
+		edgeIndexes[kLeft] -= edgeIndexes[kRight];
+	}
+
+	return edgeIndexes[kLeft];
+}
+
 } // namespace deluge::project

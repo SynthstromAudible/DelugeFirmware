@@ -64,4 +64,17 @@ void shiftValues(DocAutoParam& p, int32_t offset);
 /// AutoParam::generateRepeats (→ OrderedPosVector::generateRepeats for the non-pingpong path).
 void generateRepeats(DocAutoParam& p, uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
 
+/// Collapse the automation inside the region [startPos, startPos+length) to a single flat/ramped segment,
+/// while leaving automation outside the region unchanged: places/repurposes an edge node at each end (the
+/// far edge carries the value the automation had just past the region, so downstream playback is preserved)
+/// and deletes the nodes between them. Handles loop wrap, reversed playback, and clip-cut limiting. Returns
+/// the index of the region's leftmost node (or -1 on failure). Faithful port of AutoParam::homogenizeRegion.
+///
+/// Timeline context is passed explicitly (the engine reads it from the ModelStack): `effectiveLength` is the
+/// loop length, `recordingLinearly` is the clip's getCurrentlyRecordingLinearly() (only consulted on a
+/// forward wrap with no cut), and `posAtWhichClipWillCut` bounds the region (2147483647 = no cut).
+int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int32_t startValue,
+                         bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength, bool reversed,
+                         bool recordingLinearly, int32_t posAtWhichClipWillCut = 2147483647);
+
 } // namespace deluge::project

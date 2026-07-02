@@ -387,6 +387,123 @@ int main() {
 		}
 	}
 
+	// Phase 1: homogenizeRegion (region collapse) — engine-oracle diff over forward non-wrap, forward clip-cut,
+	// and reversed (incl. wrap) via the NoteRow model-stack harness. The forward-wrap-no-cut sub-branch consults
+	// Clip::getCurrentlyRecordingLinearly (needs a Clip timeline-counter), so it's covered by DOM-only invariant
+	// checks below rather than the engine oracle.
+	{
+		using deluge::project::DocAutoParam;
+
+		auto engineHomogenize = [](AutoParam& ap, int32_t startPos, int32_t length, int32_t startValue, bool interpL,
+		                           bool interpR, int32_t effLen, bool reversed, int32_t cut) -> int32_t {
+			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
+			ms->song = nullptr;
+			ms->setTimelineCounter(nullptr);
+			NoteRow nr;
+			nr.loopLengthIfIndependent = effLen;
+			ms->setNoteRow(&nr);
+			return ap.homogenizeRegion(ms, startPos, length, startValue, interpL, interpR, effLen, reversed, cut);
+		};
+
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		const std::vector<std::vector<N>> configs = {
+		    {},
+		    {{48, 7, false}},
+		    {{0, 100, true}, {32, -50, true}, {64, 200, false}, {96, -200, true}},
+		};
+		struct Case {
+			int32_t startPos, length, startValue;
+			bool interpL, interpR, reversed;
+			int32_t cut;
+		};
+		constexpr int32_t MAXCUT = 2147483647;
+		const Case cases[] = {
+		    {16, 32, 500, true, true, false, MAXCUT},    // forward non-wrap
+		    {0, 64, -300, false, true, false, MAXCUT},   // forward non-wrap, from 0
+		    {32, 16, 111, true, false, false, MAXCUT},   // forward non-wrap, stepped right
+		    {60, 40, -7, false, false, false, MAXCUT},   // forward non-wrap
+		    {16, 200, 999, true, true, false, 100},      // forward clip-cut
+		    {0, 300, -1, false, true, false, 64},        // forward clip-cut
+		    {96, 32, 42, true, true, true, 0},           // reversed non-wrap
+		    {100, 50, -5, false, true, true, 0},         // reversed non-wrap
+		    {16, 48, 77, true, true, true, -1000000000}, // reversed wrap
+		    {96, 48, 33, true, true, true, 64},          // reversed clip-cut
+		};
+		const int32_t effLen = 128;
+		for (const auto& cfg : configs) {
+			for (const auto& c : cases) {
+				AutoParam ap;
+				DocAutoParam doc{};
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				// Reserve headroom so the engine's internal insertAt can't reallocate the node buffer mid-op.
+				// Without this the engine can hit a latent dangling-pointer bug (it captures a raw pointer to a
+				// pre-existing left-edge node, then a right-edge insert reallocates, so the left node's updated
+				// value is written to freed memory and the edit is silently lost) — which would make it a
+				// non-deterministic oracle. The DOM port is index-based and immune, so it is the correct result.
+				(void)ap.nodes().reserveExtra(4);
+				int32_t engRet = engineHomogenize(ap, c.startPos, c.length, c.startValue, c.interpL, c.interpR, effLen,
+				                                  c.reversed, c.cut);
+				int32_t domRet = deluge::project::homogenizeRegion(doc, c.startPos, c.length, c.startValue, c.interpL,
+				                                                   c.interpR, effLen, c.reversed,
+				                                                   /*recordingLinearly=*/false, c.cut);
+				check(engRet == domRet, "homogenizeRegion: return index matches engine oracle");
+				expectDocMatchesEngine(ap, doc, "homogenizeRegion: nodes match engine oracle");
+			}
+		}
+
+		// forward-wrap-no-cut branch (not engine-oracle'd — needs a Clip). Region [112,144) in a 128 loop wraps
+		// to end at 16; with recordingLinearly the clip extends instead (length clamps to 16, end node at 0).
+		// Assert invariants that follow directly from the code (edgePositions[kLeft]=startPos gets startValue).
+		auto isSortedInLoop = [](const DocAutoParam& d, int32_t loopLen) -> bool {
+			for (size_t i = 0; i < d.nodes.size(); i++) {
+				if (d.nodes[i].pos < 0 || d.nodes[i].pos >= loopLen) {
+					return false;
+				}
+				if (i > 0 && d.nodes[i].pos <= d.nodes[i - 1].pos) {
+					return false;
+				}
+			}
+			return true;
+		};
+		auto hasNodeAt = [](const DocAutoParam& d, int32_t pos) -> bool {
+			for (const auto& n : d.nodes) {
+				if (n.pos == pos) {
+					return true;
+				}
+			}
+			return false;
+		};
+		{
+			DocAutoParam doc{};
+			deluge::project::setNodeAtPos(doc, 0, 10, true);
+			deluge::project::setNodeAtPos(doc, 64, 20, true);
+			int32_t left = deluge::project::homogenizeRegion(doc, 112, 32, 555, true, true, 128, false,
+			                                                 /*recordingLinearly=*/false, 2147483647);
+			check(doc.nodes[left].pos == 112 && doc.nodes[left].value == 555, "homogenizeRegion: fwd-wrap start node");
+			check(hasNodeAt(doc, 16), "homogenizeRegion: fwd-wrap end node at 16");
+			check(isSortedInLoop(doc, 128), "homogenizeRegion: fwd-wrap stays sorted/in-loop");
+		}
+		{
+			DocAutoParam doc{};
+			deluge::project::setNodeAtPos(doc, 0, 10, true);
+			deluge::project::setNodeAtPos(doc, 64, 20, true);
+			int32_t left = deluge::project::homogenizeRegion(doc, 112, 32, 555, true, true, 128, false,
+			                                                 /*recordingLinearly=*/true, 2147483647);
+			check(doc.nodes[left].pos == 112 && doc.nodes[left].value == 555,
+			      "homogenizeRegion: fwd-linrec start node");
+			check(hasNodeAt(doc, 0), "homogenizeRegion: fwd-linrec end node at 0");
+			check(isSortedInLoop(doc, 128), "homogenizeRegion: fwd-linrec stays sorted/in-loop");
+		}
+	}
+
 	// Unautomated: current value only, no nodes.
 	roundTrip("unautomated", 123456, {});
 
