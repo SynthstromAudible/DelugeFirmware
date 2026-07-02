@@ -267,6 +267,31 @@ int main() {
 		check(aVol.nodes().size() == 3 && bVol.nodes().size() == 3, "R3b AudioClip: source edit isolated from clone");
 	}
 
+	// (10) Steal-safety (5c R3) — stealParamCollectionsFrom is a pointer-move that bypasses beenCloned. A
+	// redirected param moved to another manager (e.g. into a Song param backup when a clip detaches) must
+	// de-flip to embedded so it doesn't dangle against the store of the owner it's leaving.
+	{
+		ParamNodeVector store;
+		ParamManagerForTimeline srcPm;
+		check(srcPm.setupWithPatching() == Error::NONE, "R3 steal: src setup");
+		AutoParam& sParam = srcPm.getUnpatchedParamSet()->params[params::UNPATCHED_VOLUME];
+		sParam.redirectNodeStorage(&store);
+		sParam.setNodeAtPos(0, 5, true);
+		sParam.setNodeAtPos(48, 6, false);
+		check(store.size() == 2, "R3 steal: source draws into the store");
+
+		ParamManagerForTimeline destPm; // fresh, no store of its own — like a Song param-backup entry
+		destPm.stealParamCollectionsFrom(&srcPm);
+		AutoParam& dParam = destPm.getUnpatchedParamSet()->params[params::UNPATCHED_VOLUME];
+		check(dParam.nodes().size() == 2, "R3 steal: stolen param kept its automation");
+		check(&dParam.nodes() != &store,
+		      "R3 steal: stolen param de-flipped to embedded (no longer a dangling view of the old store)");
+		// Edits on the moved param, and the old store, are now fully independent.
+		dParam.setNodeAtPos(24, 7, true);
+		check(dParam.nodes().size() == 3 && store.size() == 2,
+		      "R3 steal: moved-param edit isolated from the old store");
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "automation edit (5c R2+R3): OK\n");
 		std::fflush(stdout);

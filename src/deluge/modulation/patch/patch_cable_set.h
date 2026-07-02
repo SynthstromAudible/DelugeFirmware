@@ -72,6 +72,7 @@ public:
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) override;
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	void severNodeStorageRedirects() override; // Phase 5c R3 steal-safety (each cable's amount param)
 	ParamManagerForTimeline* getParamManager();
 
 	void writePatchCablesToFile(Serializer& writer, bool writeAutomation);

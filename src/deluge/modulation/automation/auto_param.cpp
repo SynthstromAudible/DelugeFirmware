@@ -1561,6 +1561,19 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	}
 }
 
+void AutoParam::severNodeStorageRedirect() {
+	if (redirectedNodes_ == nullptr) {
+		return;
+	}
+	// Deep-copy the owner-store nodes into our own embedded storage, then drop the redirect. ownNodes_ is empty
+	// (it was moved out when this param was redirected), so the swap takes ownership without leaking. On OOM the
+	// automation is dropped (embedded-empty) rather than left dangling against a store this param is leaving.
+	ParamNodeVector owned;
+	owned.cloneFrom(redirectedNodes_);
+	redirectedNodes_ = nullptr;
+	ownNodes_.swap(owned);
+}
+
 Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 
 	// This AutoParam is a raw byte-copy of the source (the memcpy in ParamManager::cloneParamCollectionsFrom).

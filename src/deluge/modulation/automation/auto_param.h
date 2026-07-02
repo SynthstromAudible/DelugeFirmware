@@ -133,6 +133,11 @@ public:
 	/// Point this param's node storage at an external (owner-held) store, or pass nullptr to revert to the
 	/// embedded storage. The external store must outlive this AutoParam and never reallocate.
 	void redirectNodeStorage(ParamNodeVector* storage) { redirectedNodes_ = storage; }
+	/// De-flip from a redirected (owner-held) store back to embedded storage: deep-copy the store's current
+	/// nodes into ownNodes_ and drop the redirect. Used when a ParamManager is MOVED between owners
+	/// (ParamManager::stealParamCollectionsFrom — a pointer-move that bypasses beenCloned), so a moved param
+	/// never keeps a dangling view into an owner store it is leaving. No-op if not redirected. See auto_param.cpp.
+	void severNodeStorageRedirect();
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;

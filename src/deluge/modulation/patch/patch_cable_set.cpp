@@ -801,6 +801,12 @@ done:
 	destinations[GLOBALITY_GLOBAL] = newDestinations[GLOBALITY_GLOBAL];
 }
 
+void PatchCableSet::severNodeStorageRedirects() {
+	for (int32_t c = 0; c < numUsablePatchCables; c++) {
+		patchCables[c].param.severNodeStorageRedirect();
+	}
+}
+
 void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
 	numPatchCables = 0;
 

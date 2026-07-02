@@ -50,6 +50,13 @@ void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLengt
 	}
 }
 
+void ParamSet::severNodeStorageRedirects() {
+	int32_t numParams = getNumParams();
+	for (int32_t p = 0; p < numParams; p++) {
+		params[p].severNodeStorageRedirect();
+	}
+}
+
 void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
 
 	int32_t numParams = getNumParams();
