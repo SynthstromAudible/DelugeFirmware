@@ -87,4 +87,35 @@ int32_t getValueAtPos(const DocAutoParam& p, uint32_t pos, int32_t loopLength, b
 	return static_cast<int32_t>(leftNode.value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes));
 }
 
+int32_t getDistanceToNextNode(const DocAutoParam& p, int32_t pos, int32_t loopLength, bool reversed) {
+	const auto& nodes = p.nodes;
+	if (nodes.empty()) {
+		return loopLength;
+	}
+
+	const auto size = static_cast<int32_t>(nodes.size());
+
+	// firstAtOrAfter(pos + !reversed) - reversed: the node bounding `pos` in the playback direction.
+	const int32_t searchKey = pos + static_cast<int32_t>(!reversed);
+	auto it = std::lower_bound(nodes.begin(), nodes.end(), searchKey,
+	                           [](const ParamNode& n, int32_t key) { return n.pos < key; });
+	int32_t i = static_cast<int32_t>(it - nodes.begin()) - static_cast<int32_t>(reversed);
+	if (i == -1) {
+		i = size - 1; // wrap: before the first node, the previous node is the last (loop point)
+	}
+	else if (i == size) {
+		i = 0; // wrap: past the last node, the next node is the first (loop point)
+	}
+
+	const ParamNode& node = nodes[i];
+	int32_t distance = node.pos - pos;
+	if (reversed) {
+		distance = -distance;
+	}
+	if (distance <= 0) {
+		distance += loopLength; // node is at/behind pos in our direction — the next hit is a loop away
+	}
+	return distance;
+}
+
 } // namespace deluge::project

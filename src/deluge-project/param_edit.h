@@ -40,4 +40,10 @@ int32_t setNodeAtPos(DocAutoParam& p, int32_t pos, int32_t value, bool interpola
 /// Faithful port of AutoParam::getValueAtPos.
 int32_t getValueAtPos(const DocAutoParam& p, uint32_t pos, int32_t loopLength, bool reversed = false);
 
+/// Number of ticks from `pos` to the next node in the playback direction, wrapping across the loop point.
+/// `loopLength` is the timeline loop length (the engine reads it from the ModelStack as `effectiveLength`);
+/// with no nodes the whole loop is the distance. `reversed` selects the playback direction. Faithful port of
+/// AutoParam::getDistanceToNextNode.
+int32_t getDistanceToNextNode(const DocAutoParam& p, int32_t pos, int32_t loopLength, bool reversed);
+
 } // namespace deluge::project

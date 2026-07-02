@@ -199,6 +199,62 @@ int main() {
 		}
 	}
 
+	// Phase 1: getDistanceToNextNode (pure query) — functional + engine-oracle diff over the full position
+	// range and both directions (the engine reads the loop length from the ModelStack as effectiveLength).
+	{
+		using deluge::project::DocAutoParam;
+		DocAutoParam p{};
+		deluge::project::setNodeAtPos(p, 10, 0, true);
+		deluge::project::setNodeAtPos(p, 80, 0, true);
+		check(deluge::project::getDistanceToNextNode(p, 0, 96, false) == 10, "getDistanceToNextNode: fwd to first");
+		check(deluge::project::getDistanceToNextNode(p, 10, 96, false) == 70, "getDistanceToNextNode: fwd from a node");
+		check(deluge::project::getDistanceToNextNode(p, 80, 96, false) == 26,
+		      "getDistanceToNextNode: fwd wraps to first");
+		check(deluge::project::getDistanceToNextNode(p, 0, 96, true) == 16, "getDistanceToNextNode: rev wraps to last");
+		DocAutoParam none{};
+		check(deluge::project::getDistanceToNextNode(none, 5, 96, false) == 96, "getDistanceToNextNode: empty -> loop");
+
+		auto engineDistance = [](AutoParam& ap, int32_t pos, int32_t loopLength, bool reversed) -> int32_t {
+			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
+			ms->song = nullptr;
+			ms->setTimelineCounter(nullptr);
+			NoteRow nr;
+			nr.loopLengthIfIndependent = loopLength;
+			ms->setNoteRow(&nr);
+			return ap.getDistanceToNextNode(ms, pos, reversed);
+		};
+
+		struct N {
+			int32_t pos;
+			bool interpolated;
+		};
+		const std::vector<std::vector<N>> configs = {
+		    {{0, true}, {48, true}, {96, false}},
+		    {{10, true}, {80, true}},
+		    {{50, true}},
+		};
+		const int32_t loopLengths[] = {128, 2147483647};
+		const int32_t positions[] = {0, 1, 5, 10, 24, 47, 48, 49, 50, 63, 64, 80, 95, 96, 120, 127};
+		for (const auto& cfg : configs) {
+			AutoParam ap;
+			DocAutoParam doc{};
+			for (const N& n : cfg) {
+				setNode(ap, n.pos, 0, n.interpolated);
+				deluge::project::setNodeAtPos(doc, n.pos, 0, n.interpolated);
+			}
+			for (int32_t loopLength : loopLengths) {
+				for (int32_t pos : positions) {
+					for (bool reversed : {false, true}) {
+						int32_t want = engineDistance(ap, pos, loopLength, reversed);
+						int32_t got = deluge::project::getDistanceToNextNode(doc, pos, loopLength, reversed);
+						check(want == got, "getDistanceToNextNode: matches engine oracle");
+					}
+				}
+			}
+		}
+	}
+
 	// Unautomated: current value only, no nodes.
 	roundTrip("unautomated", 123456, {});
 
