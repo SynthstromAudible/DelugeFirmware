@@ -28,7 +28,9 @@
 #include "model/sample/sample_playback_guide.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_node_vector.h"
 #include "util/c_string.h"
+#include <array>
 #include <cstdint>
 #include <optional>
 
@@ -201,6 +203,18 @@ public:
 	[[nodiscard]] std::optional<uint32_t> serialId() const { return serial_id_; }
 	void setSerialId(uint32_t id) { serial_id_ = id; }
 
+	/// Relocate this clip's unpatched param node storage into its own owner-held store and make the live
+	/// AutoParams views over it (param/automation DOM Phase 5c R3). Call after the paramManager is set up
+	/// (load / clone) so automation editing operates directly on DOM-owned storage. No-op if the clip has no
+	/// unpatched param set (e.g. MIDI/CV clips) — those params simply stay embedded (safe). Cloned/stolen
+	/// managers de-flip to embedded (beenCloned / stealParamCollectionsFrom), so this re-establishes the view
+	/// on the NEW owner.
+	void redirectParamsToOwnStore();
+
+	/// Test-only accessor for the owner-held store, so the automation-edit harness can assert a param is a view
+	/// over this clip's storage (param/automation DOM Phase 5c R3).
+	[[nodiscard]] const ParamNodeVector& paramNodeStoreEntryForTest(int32_t p) const { return paramNodeStore_[p]; }
+
 	LaunchStyle launchStyle;
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput{};
@@ -238,4 +252,11 @@ protected:
 private:
 	/// Stable per-song serial identity; see serialId(). nullopt = unassigned.
 	std::optional<uint32_t> serial_id_{};
+
+	/// Owner-held authoritative node storage for this clip's unpatched params (param/automation DOM Phase 5c R3).
+	/// Fixed-size so it never reallocates — the live unpatched AutoParams are redirected to view these entries
+	/// (AutoParam::redirectNodeStorage). Destroyed with the clip; the redirect is inert during teardown (the
+	/// AutoParam/ParamSet dtors never dereference nodes()), so the base TimelineCounter::paramManager tearing down
+	/// after this member is safe — same guarantee as the song-global store.
+	std::array<ParamNodeVector, deluge::modulation::params::kMaxNumUnpatchedParams> paramNodeStore_;
 };

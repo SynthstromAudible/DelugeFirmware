@@ -75,20 +75,6 @@ AudioClip::~AudioClip() {
 }
 
 // Will replace the Clip in the modelStack, if success.
-void AudioClip::redirectParamsToOwnStore() {
-	UnpatchedParamSet* unpatchedSet = paramManager.getUnpatchedParamSet();
-	if (unpatchedSet == nullptr) {
-		return; // paramManager not set up (e.g. a fresh clip before its <params> tag) — stays embedded (safe)
-	}
-	int32_t numParams = unpatchedSet->getNumParams();
-	for (int32_t p = 0; p < numParams; p++) {
-		ParamNodeVector& store = paramNodeStore_[p];
-		store =
-		    std::move(unpatchedSet->params[p].nodes()); // move current nodes (embedded / just-cloned) into the store
-		unpatchedSet->params[p].redirectNodeStorage(&store);
-	}
-}
-
 Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
 	void* clipMemory = deluge::memory::alloc_fast(sizeof(AudioClip));

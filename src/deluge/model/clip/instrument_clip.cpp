@@ -202,6 +202,11 @@ deleteClipAndGetOut:
 	// happened. And we may be about to flatten it with a increaseLengthWithRepeats(), so need to keep this designation
 	// for now.
 
+	// Phase 5c R3: cloneParamCollectionsFrom de-flipped the clone's params to embedded (beenCloned sever);
+	// relocate this clip's unpatched params into the NEW clip's own store so the clone stays DOM-owned and
+	// independent of the source. (Per-NoteRow drum paramManagers keep embedded storage — a later R3 step.)
+	newClip->redirectParamsToOwnStore();
+
 	return Error::NONE;
 }
 
@@ -2991,6 +2996,11 @@ doReadBendRange:
 	default:
 		__builtin_unreachable();
 	}
+
+	// Phase 5c R3: relocate the loaded unpatched param nodes into this clip's own store and make the live
+	// AutoParams views over it, so automation editing operates directly on DOM-owned storage (mirrors AudioClip
+	// and the song-global pilot). No-op for clips with no unpatched set (MIDI/CV) — those stay embedded.
+	redirectParamsToOwnStore();
 
 	return Error::NONE;
 }

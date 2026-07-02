@@ -25,12 +25,8 @@
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
 #include "model/song/song.h"
-#include "modulation/params/param.h"
-#include "modulation/params/param_node_vector.h"
 #include "processing/audio_output.h"
 #include "util/c_string.h"
-
-#include <array>
 
 class VoiceSample;
 class SampleRecorder;
@@ -125,30 +121,12 @@ public:
 
 	ParamManagerForTimeline* getCurrentParamManager() override;
 
-	/// Relocate this clip's unpatched param node storage into its own owner-held store and make the live
-	/// AutoParams views over it (param/automation DOM Phase 5c R3). Call after the paramManager is set up
-	/// (load / clone) so automation editing operates directly on DOM-owned storage. Idempotent-ish: moves the
-	/// current nodes (embedded or already-in-store via nodes()) into paramNodeStore_ and redirects.
-	void redirectParamsToOwnStore();
-
-	/// Test-only accessor for the owner-held store, so the automation-edit harness can assert a param is a view
-	/// over this clip's storage (param/automation DOM Phase 5c R3).
-	[[nodiscard]] const ParamNodeVector& paramNodeStoreEntryForTest(int32_t p) const { return paramNodeStore_[p]; }
-
 	bool isEmpty(bool displayPopup = true) override;
 
 protected:
 	bool cloneOutput(ModelStackWithTimelineCounter* modelStack) override;
 
 private:
-	/// Owner-held authoritative node storage for this clip's unpatched params (param/automation DOM Phase 5c R3).
-	/// Fixed-size so it never reallocates — the live unpatched AutoParams are redirected to view these entries
-	/// (AutoParam::redirectNodeStorage), so automation editing operates directly on DOM-owned storage. Indexed by
-	/// unpatched param id. Destroyed with the clip; the redirect is inert during teardown (the AutoParam/ParamSet
-	/// dtors never dereference nodes()), so the base TimelineCounter::paramManager tearing down after this member
-	/// is safe — same guarantee as the song-global store (deluge::project::GlobalEffects::param_node_store).
-	std::array<ParamNodeVector, deluge::modulation::params::kMaxNumUnpatchedParams> paramNodeStore_;
-
 	AudioClip* nextClipInSection{};
 	void removeClipFromSection(AudioClip* clip);
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);

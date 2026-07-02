@@ -20,6 +20,7 @@
 #include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/instrument_clip.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/model_stack.h"
@@ -290,6 +291,38 @@ int main() {
 		dParam.setNodeAtPos(24, 7, true);
 		check(dParam.nodes().size() == 3 && store.size() == 2,
 		      "R3 steal: moved-param edit isolated from the old store");
+	}
+
+	// (11) The InstrumentClip pilot (5c R3b) — a synth clip (patched+unpatched+cables paramManager, backed
+	// up/stolen on instrument change) flips its UNPATCHED params to its own per-clip store, safely, through the
+	// same clone path. Patched params + patch cables stay embedded for now (a later R3 step); they're safe on
+	// the R3a/steal-safety floor.
+	{
+		InstrumentClip iclipA;
+		check(iclipA.paramManager.setupWithPatching() == Error::NONE, "R3b InstrumentClip: A setup");
+		iclipA.redirectParamsToOwnStore();
+		AutoParam& aPorta = iclipA.paramManager.getUnpatchedParamSet()->params[params::UNPATCHED_PORTAMENTO];
+		check(&aPorta.nodes() == &iclipA.paramNodeStoreEntryForTest(params::UNPATCHED_PORTAMENTO),
+		      "R3b InstrumentClip: unpatched param is a view over the clip's own store");
+		aPorta.setNodeAtPos(0, 42, true);
+		aPorta.setNodeAtPos(48, -7, false);
+		check(aPorta.nodes().size() == 2, "R3b InstrumentClip: draw lands via the clip store");
+
+		InstrumentClip iclipB;
+		check(iclipB.paramManager.cloneParamCollectionsFrom(&iclipA.paramManager, /*copyAutomation=*/true)
+		          == Error::NONE,
+		      "R3b InstrumentClip: clone collections");
+		iclipB.redirectParamsToOwnStore();
+		AutoParam& bPorta = iclipB.paramManager.getUnpatchedParamSet()->params[params::UNPATCHED_PORTAMENTO];
+		check(&bPorta.nodes() == &iclipB.paramNodeStoreEntryForTest(params::UNPATCHED_PORTAMENTO),
+		      "R3b InstrumentClip: clone param is a view over the CLONE's own store");
+		check(bPorta.nodes().size() == 2, "R3b InstrumentClip: clone carried the automation");
+		bPorta.setNodeAtPos(24, 1, true);
+		check(bPorta.nodes().size() == 3 && aPorta.nodes().size() == 2,
+		      "R3b InstrumentClip: clone edit isolated from source");
+		aPorta.setNodeAtPos(96, 2, false);
+		check(aPorta.nodes().size() == 3 && bPorta.nodes().size() == 3,
+		      "R3b InstrumentClip: source edit isolated from clone");
 	}
 
 	if (failures == 0) {
