@@ -692,4 +692,42 @@ void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_
 	}
 }
 
+void deleteNodesWithinRegion(DocAutoParam& p, int32_t pos, int32_t length, int32_t effectiveLength) {
+	auto& nodes = p.nodes;
+	if (nodes.empty()) {
+		return;
+	}
+
+	if (length >= effectiveLength) { // whole loop — clear all automation
+		nodes.clear();
+		p.current_value = 0;
+		return;
+	}
+
+	int32_t t0 = pos;
+	int32_t t1 = pos + length;
+	bool wrapping = (t1 >= effectiveLength);
+	if (wrapping) {
+		t0 = t1 - effectiveLength;
+		t1 = pos;
+	}
+
+	int32_t i0 = firstAtOrAfter(nodes, t0);
+	int32_t i1 = firstAtOrAfter(nodes, t1);
+
+	if (wrapping) {
+		// Tail (before-wrap) first, then front (after-wrap): erasing the front shifts later indices, so a
+		// front-first order would invalidate i1 (the engine's original bug). The ranges are disjoint.
+		nodes.erase(nodes.begin() + i1, nodes.end());
+		nodes.erase(nodes.begin(), nodes.begin() + i0);
+	}
+	else {
+		nodes.erase(nodes.begin() + i0, nodes.begin() + i1);
+	}
+
+	if (nodes.empty()) {
+		p.current_value = 0; // MPE safety — the engine zeroes currentValue when no automation remains
+	}
+}
+
 } // namespace deluge::project

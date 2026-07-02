@@ -574,6 +574,82 @@ int main() {
 		}
 	}
 
+	// Phase 1: deleteNodesWithinRegion (pure kernel) — diffed against the (now-fixed) engine node-erase logic,
+	// replicated here because the full engine method ends in notifyParamModifiedInSomeWay (UI/song globals) and
+	// isn't callable with the light harness. Includes the wrap case that exposed engine bug #3.
+	{
+		using deluge::project::DocAutoParam;
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		// Replica of the engine's (fixed) node-erase logic — tail-before-front in the wrap branch.
+		auto engineErase = [](AutoParam& ap, int32_t pos, int32_t length, int32_t effLen) {
+			if (!ap.isAutomated()) {
+				return;
+			}
+			if (length >= effLen) {
+				ap.nodes().erase(ap.nodes().begin(), ap.nodes().end());
+				return;
+			}
+			int32_t st0 = pos, st1 = pos + length;
+			bool wrapping = (st1 >= effLen);
+			if (wrapping) {
+				st0 = st1 - effLen;
+				st1 = pos;
+			}
+			int32_t ri0 = ap.nodes().firstAtOrAfter(st0);
+			int32_t ri1 = ap.nodes().firstAtOrAfter(st1);
+			if (wrapping) {
+				int32_t numAtEnd = static_cast<int32_t>(ap.nodes().size()) - ri1;
+				if (numAtEnd) {
+					ap.nodes().erase(ap.nodes().begin() + ri1, ap.nodes().begin() + ri1 + numAtEnd);
+				}
+				if (ri0) {
+					ap.nodes().erase(ap.nodes().begin(), ap.nodes().begin() + ri0);
+				}
+			}
+			else {
+				ap.nodes().erase(ap.nodes().begin() + ri0, ap.nodes().begin() + ri1);
+			}
+		};
+
+		const std::vector<std::vector<N>> configs = {
+		    {{5, 1, false}, {40, 2, false}, {90, 3, false}, {110, 4, false}}, // bug #3 repro (after+before wrap)
+		    {{0, 10, true}, {32, 20, true}, {64, 30, false}, {96, -40, true}},
+		    {{48, 7, false}},
+		    {},
+		};
+		const struct {
+			int32_t pos, length;
+		} cases[] = {{100, 40}, {32, 16}, {0, 64}, {60, 40}, {90, 50}, {0, 128}, {110, 30}};
+		const int32_t effLen = 128;
+		for (const auto& cfg : configs) {
+			for (const auto& c : cases) {
+				AutoParam ap;
+				DocAutoParam doc{};
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				engineErase(ap, c.pos, c.length, effLen);
+				deluge::project::deleteNodesWithinRegion(doc, c.pos, c.length, effLen);
+				expectDocMatchesEngine(ap, doc, "deleteNodesWithinRegion: matches fixed engine node logic");
+			}
+		}
+
+		// Explicit bug #3 assertion: the after+before-wrap region deletes BOTH edge groups.
+		DocAutoParam doc{};
+		deluge::project::setNodeAtPos(doc, 5, 1, false);
+		deluge::project::setNodeAtPos(doc, 40, 2, false);
+		deluge::project::setNodeAtPos(doc, 90, 3, false);
+		deluge::project::setNodeAtPos(doc, 110, 4, false);
+		deluge::project::deleteNodesWithinRegion(doc, 100, 40, 128);
+		check(doc.nodes.size() == 2 && doc.nodes[0].pos == 40 && doc.nodes[1].pos == 90,
+		      "deleteNodesWithinRegion: wrap deletes both after- and before-wrap nodes (bug #3 fixed)");
+	}
+
 	// Unautomated: current value only, no nodes.
 	roundTrip("unautomated", 123456, {});
 

@@ -89,4 +89,11 @@ void deleteTime(DocAutoParam& p, int32_t startPos, int32_t lengthToDelete, int32
 /// concern handled at the wiring seam).
 void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_t offset, int32_t lengthBeforeLoop);
 
+/// Delete all nodes within the region [pos, pos+length) of a loop of `effectiveLength`, wrapping at the loop
+/// point; if the region covers the whole loop, clears all automation. `current_value` is zeroed if no nodes
+/// remain (matching the engine's MPE-safety reset). Port of AutoParam::deleteNodesWithinRegion's node kernel
+/// (the engine's action/notify are handled at the wiring seam). NB: erases the before-wrap tail before the
+/// after-wrap front — the engine did the reverse, a bug that left before-wrap nodes undeleted (now fixed).
+void deleteNodesWithinRegion(DocAutoParam& p, int32_t pos, int32_t length, int32_t effectiveLength);
+
 } // namespace deluge::project
