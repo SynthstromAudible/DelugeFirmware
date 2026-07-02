@@ -150,6 +150,25 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 }
 
 // Will replace the Clip in the modelStack, if success.
+void InstrumentClip::redirectParamsToOwnStore() {
+	Clip::redirectParamsToOwnStore(); // base: the unpatched set (slot 0)
+
+	// Also flip the (synth) patched set (slot 1). It is a genuine PatchedParamSet only for synth clips — guard
+	// the same way as the base (getPatchedParamSet() would FREEZE on a kit/MIDI/CV manager). Patch cables
+	// (slot 2) stay embedded: setupPatching rebuilds them, which would silently undo a redirect.
+	ParamCollection* collection = paramManager.summaries[1].paramCollection;
+	if (collection == nullptr || collection->getParamKind() != deluge::modulation::params::Kind::PATCHED) {
+		return;
+	}
+	auto* patchedSet = static_cast<PatchedParamSet*>(collection);
+	int32_t numParams = patchedSet->getNumParams();
+	for (int32_t p = 0; p < numParams; p++) {
+		ParamNodeVector& store = patchedNodeStore_[p];
+		store = std::move(patchedSet->params[p].nodes()); // move current nodes (embedded / just-cloned) into store
+		patchedSet->params[p].redirectNodeStorage(&store);
+	}
+}
+
 Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
 	void* clipMemory = deluge::memory::alloc_fast(sizeof(InstrumentClip));

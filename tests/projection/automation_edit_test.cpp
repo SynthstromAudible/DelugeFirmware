@@ -294,9 +294,9 @@ int main() {
 	}
 
 	// (11) The InstrumentClip pilot (5c R3b) — a synth clip (patched+unpatched+cables paramManager, backed
-	// up/stolen on instrument change) flips its UNPATCHED params to its own per-clip store, safely, through the
-	// same clone path. Patched params + patch cables stay embedded for now (a later R3 step); they're safe on
-	// the R3a/steal-safety floor.
+	// up/stolen on instrument change) flips BOTH its unpatched AND patched param sets to per-clip stores, safely,
+	// through the same clone path. Patch cables stay embedded (setupPatching rebuilds them); safe on the
+	// R3a/steal-safety floor.
 	{
 		InstrumentClip iclipA;
 		check(iclipA.paramManager.setupWithPatching() == Error::NONE, "R3b InstrumentClip: A setup");
@@ -306,7 +306,15 @@ int main() {
 		      "R3b InstrumentClip: unpatched param is a view over the clip's own store");
 		aPorta.setNodeAtPos(0, 42, true);
 		aPorta.setNodeAtPos(48, -7, false);
-		check(aPorta.nodes().size() == 2, "R3b InstrumentClip: draw lands via the clip store");
+		check(aPorta.nodes().size() == 2, "R3b InstrumentClip: unpatched draw lands via the clip store");
+
+		// The PATCHED set flips too (the real synth automation — filter cutoff etc.).
+		AutoParam& aCut = iclipA.paramManager.getPatchedParamSet()->params[params::LOCAL_LPF_FREQ];
+		check(&aCut.nodes() == &iclipA.patchedNodeStoreEntryForTest(params::LOCAL_LPF_FREQ),
+		      "R3b InstrumentClip: patched param is a view over the clip's own patched store");
+		aCut.setNodeAtPos(0, 1000, true);
+		aCut.setNodeAtPos(64, -1000, false);
+		check(aCut.nodes().size() == 2, "R3b InstrumentClip: patched draw lands via the clip patched store");
 
 		InstrumentClip iclipB;
 		check(iclipB.paramManager.cloneParamCollectionsFrom(&iclipA.paramManager, /*copyAutomation=*/true)
@@ -319,10 +327,19 @@ int main() {
 		check(bPorta.nodes().size() == 2, "R3b InstrumentClip: clone carried the automation");
 		bPorta.setNodeAtPos(24, 1, true);
 		check(bPorta.nodes().size() == 3 && aPorta.nodes().size() == 2,
-		      "R3b InstrumentClip: clone edit isolated from source");
+		      "R3b InstrumentClip: clone unpatched edit isolated from source");
 		aPorta.setNodeAtPos(96, 2, false);
 		check(aPorta.nodes().size() == 3 && bPorta.nodes().size() == 3,
-		      "R3b InstrumentClip: source edit isolated from clone");
+		      "R3b InstrumentClip: source unpatched edit isolated from clone");
+
+		// Patched set: clone is a view over the CLONE's own patched store, carried the automation, independent.
+		AutoParam& bCut = iclipB.paramManager.getPatchedParamSet()->params[params::LOCAL_LPF_FREQ];
+		check(&bCut.nodes() == &iclipB.patchedNodeStoreEntryForTest(params::LOCAL_LPF_FREQ),
+		      "R3b InstrumentClip: clone patched param is a view over the CLONE's own patched store");
+		check(bCut.nodes().size() == 2, "R3b InstrumentClip: clone carried the patched automation");
+		bCut.setNodeAtPos(32, 5, true);
+		check(bCut.nodes().size() == 3 && aCut.nodes().size() == 2,
+		      "R3b InstrumentClip: clone patched edit isolated from source");
 	}
 
 	if (failures == 0) {

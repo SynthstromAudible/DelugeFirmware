@@ -208,8 +208,8 @@ public:
 	/// (load / clone) so automation editing operates directly on DOM-owned storage. No-op if the clip has no
 	/// unpatched param set (e.g. MIDI/CV clips) — those params simply stay embedded (safe). Cloned/stolen
 	/// managers de-flip to embedded (beenCloned / stealParamCollectionsFrom), so this re-establishes the view
-	/// on the NEW owner.
-	void redirectParamsToOwnStore();
+	/// on the NEW owner. Virtual: InstrumentClip extends it to also flip its (synth) patched param set.
+	virtual void redirectParamsToOwnStore();
 
 	/// Test-only accessor for the owner-held store, so the automation-edit harness can assert a param is a view
 	/// over this clip's storage (param/automation DOM Phase 5c R3).

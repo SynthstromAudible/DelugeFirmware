@@ -206,6 +206,15 @@ public:
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager,
 	                              Sound* sound) override;
 	ParamManagerForTimeline* getCurrentParamManager() override;
+
+	/// Extends Clip::redirectParamsToOwnStore to also flip this clip's (synth) PATCHED param set into a
+	/// per-clip store (param/automation DOM Phase 5c R3), on top of the base unpatched flip. No-op for
+	/// non-synth managers (kit/MIDI/CV — no patched set). Patch cables stay embedded (rebuilt by setupPatching).
+	void redirectParamsToOwnStore() override;
+
+	/// Test-only accessor for the patched store (harness assertion of the view). See Clip::paramNodeStoreEntryForTest.
+	[[nodiscard]] const ParamNodeVector& patchedNodeStoreEntryForTest(int32_t p) const { return patchedNodeStore_[p]; }
+
 	Error claimOutput(ModelStackWithTimelineCounter* modelStack) override;
 	char const* getXMLTag() override { return "instrumentClip"; }
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
@@ -259,4 +268,10 @@ private:
 	bool lastProbabilities[kNumProbabilityValues]{};
 	int32_t lastProbabiltyPos[kNumProbabilityValues]{};
 	bool currentlyRecordingLinearly;
+
+	/// Owner-held authoritative node storage for this (synth) clip's PATCHED params (param/automation DOM
+	/// Phase 5c R3). Fixed-size (stable address), indexed by patched param id; the live patched AutoParams are
+	/// redirected to view these entries. Only on InstrumentClip (audio/MIDI clips have no patched set). Same
+	/// teardown safety as the base unpatched store.
+	std::array<ParamNodeVector, deluge::modulation::params::kNumParams> patchedNodeStore_;
 };
