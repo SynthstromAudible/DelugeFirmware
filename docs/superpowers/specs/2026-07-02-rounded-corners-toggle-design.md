@@ -68,7 +68,9 @@ Follows the `ShowBatteryLevel` toggle end to end.
 
 3. `src/deluge/gui/menu_item/runtime_feature/settings.cpp`
    - Declare `SettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);`
-   - Add `&menuRoundedCorners` to the `subMenuEntries` array.
+   - Insert `&menuRoundedCorners` into the `subMenuEntries` array immediately after
+     `&menuHorizontalMenus` (this array controls the menu display order, so the toggle
+     appears directly below "Horizontal Menus" in the Community Features menu).
 
 4. l10n strings (mirror `STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL`):
    - `src/deluge/gui/l10n/strings.h` — add `STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS`.
