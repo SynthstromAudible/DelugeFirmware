@@ -61,13 +61,14 @@ representation and lifecycle wiring are the most work, **not** because they woul
 
 ## 3. Storage decision (locked)
 
-**A sorted, contiguous `fast_vector<ParamNode>` is the storage. Its type is not changing — only where
-it lives: it moves from the engine `AutoParam` into a DOM-owned store.**
+**The storage stays `deluge::OrderedPosVector<ParamNode>` — the existing sorted, contiguous
+`fast_vector<ParamNode>` container. No new type, no facade, no alias.** What changes is *where it
+lives* (it moves into the DOM; the engine borrows a pointer — §4.2) and *how idiomatic it is* (Phase A
+polishes the container itself — a shared win for all five users).
 
-`ParamNodeVector` today is `deluge::OrderedPosVector<ParamNode>`, which is *already*
-`std::vector<ParamNode, memory::fast_allocator<ParamNode>>` (i.e. `fast_vector<ParamNode>`) kept
-sorted by `pos`, plus a thin ordered-helper skin. The container choice was already made and is
-optimal for the workload:
+`OrderedPosVector<ParamNode>` is `std::vector<ParamNode, memory::fast_allocator<ParamNode>>`
+(`fast_vector<ParamNode>`) kept sorted by `pos`, plus a thin ordered-op skin. That container choice is
+optimal and is not changing. Why a sorted contiguous vector is right:
 
 - **Access pattern:** small N (a handful to dozens of breakpoints); sorted by `pos`; the hot path is a
   binary search for the playback cursor (`firstAtOrAfter`) plus a contiguous interpolation walk; undo
@@ -78,33 +79,55 @@ optimal for the workload:
 - **Why not SoA** (parallel `pos[]`/`value[]`): marginal denser binary search, pointless at 8-byte
   `ParamNode` (a cache line already holds 8), and it complicates edits + serialization.
 - **Why not inline/small-buffer** (`etl::vector`, `SmallVector<ParamNode,K>`): `etl::vector` is
-  fixed-capacity → hard node cap → risks truncating drawn automation (a behaviour change); a spilling
-  small-vector is a bespoke container (the opposite of retiring the wrapper). The `fast_allocator`
-  already pools these allocations, capturing most of the RT benefit without a cap or a new type.
+  fixed-capacity → hard node cap → risks truncating drawn automation (a behaviour change); such a
+  container is also not trivially copyable in a way that would let it live inside a byte-relocated
+  owner. The `fast_allocator` already pools these allocations, capturing most of the RT benefit
+  without a cap.
 
-**Keep the `fast_allocator` (use `fast_vector<ParamNode>`, not plain `std::vector<ParamNode>`).**
-Two payoffs: (1) zero RT-allocation regression — live automation drawing keeps allocating from the
-fast pool exactly as today, because the element storage type is unchanged; (2) Phase A becomes almost
-purely mechanical — the backing storage does not change, only the call-site spelling.
+**Keep the `fast_allocator` (`fast_vector<ParamNode>`, not plain `std::vector<ParamNode>`).** Zero
+RT-allocation regression — live automation drawing keeps allocating from the fast pool exactly as
+today. `OrderedPosVector` adds no data members beyond the one vector, so it is layout-trivial and
+serializes element-wise exactly as a bare vector would.
 
-`DocAutoParam::nodes` (currently plain `std::vector<ParamNode>`) becomes `fast_vector<ParamNode>` so
-the DOM and engine share the identical type. Serialization is element-wise, so the allocator is
-invisible across the save / serde / C-ABI boundary; portability is unaffected (a Rust port owns its
-own allocation regardless).
+**Why not a bare vector + free functions, and why not a purpose-built facade.** Two options were
+considered and rejected. A *bare `std::vector` + free functions* would be motivated only by the
+C-ABI/Rust-POD boundary — explicitly out of scope here — and it leaves the sorted-`pos` invariant
+exposed. A *purpose-built `AutomationNodes` facade* is not justified either: enumerating the automation
+operations shows the generic ordered ops (`firstAtOrAfter`, `insertSorted`, binary search, erase) are
+**not** automation-specific — notes/MIDI/clips use the identical `OrderedPosVector` logic — so a facade
+would either duplicate them or thinly forward to them; and the genuinely automation-specific ops
+(`getValueAtPos`, `homogenizeRegion`, `deleteTime`, …) almost all take **timeline context**
+(`loopLength`, `effectiveLength`, `reversed`, cut position), so they belong as free functions taking
+`(nodes, context)` — which is exactly what `param_edit.*` already is — not as methods that would drag
+playback concerns into a storage type. So: keep `OrderedPosVector<ParamNode>` as the store, keep
+`param_edit` as free functions, and make the container itself idiomatic.
 
 ## 4. Architecture
 
-### 4.1 Ordered helpers as free functions (retire the wrapper for ParamNode only)
+### 4.1 The node container stays `OrderedPosVector<ParamNode>`, polished to idiomatic C++23
 
-`OrderedPosVector` backs **five** types (`NoteVector`, `NoteRowVector`, `ClipInstanceVector`,
-`MIDIParamVector`, `ParamNodeVector`). The template is **not** deleted. Only ParamNode's *use* of it
-is retired: its ~12 non-native operations (`firstAtOrAfter`, `insertSorted`, `searchDual`,
-`shiftHorizontal`, `generateRepeats`, `tryGet`, `tryGetLast`, `find`, `testSequentiality`, and the
-`init`/`cloneFrom`/`beenCloned` byte-copy idiom) become free functions over `fast_vector<ParamNode>`,
-living in the DOM layer (`src/deluge-project/param_node_ops.{h,cpp}`), consolidated with the existing
-`param_edit` kernels. Native operations (`begin`/`end`/`erase`/`insert`/`empty`/`clear`/`swap`/`[]`)
-use the `fast_vector` surface directly. This is the architecturally correct line: the portable DOM
-owns its node algorithms over a plain vector rather than depending on a firmware container class.
+The automation node store remains `deluge::OrderedPosVector<ParamNode>` — the shared sequencer
+container (also backing `NoteVector`, `NoteRowVector`, `ClipInstanceVector`, `MIDIParamVector`). It is
+already substantially idiomatic (`std::ranges`, `std::expected`, `[[nodiscard]]`, `if constexpr`; no
+C-casts). Phase A improves the container in place — a **shared win** for all five users — in two parts:
+
+1. **Light idiomatic pass** (additive, low-risk): a `requires`-constraint on the `keyMember` template
+   parameter, `std::span`/range accessors, `[[gnu::restrict]]` in place of `__restrict__`, and
+   `[[nodiscard]]`/doc completeness.
+2. **Retire the byte-copy clone idiom** (`init`/`cloneFrom`/`beenCloned`) into proper C++ copy/clone
+   semantics. This is the one genuinely non-idiomatic wart (a placement-new-over-aliased-buffer +
+   per-element `memcpy` dance that exists because containing objects are `memcpy`'d during clone/undo).
+   Retiring it means enabling a real copy constructor on `OrderedPosVector` and converting **every**
+   byte-copy caller across all users — `note_row`, `midi_param_collection`, `auto_param`,
+   `patch_cable_set`, and the two undo consequences (`consequence_param_change`,
+   `consequence_note_array_change`), plus the `ParamManager` backup/undo path. This overlaps the
+   sequencer-relocation modernization once noted as future work (§9); it is pulled into Phase A by
+   decision. It touches the **undo critical path** and is **hardware-gated**.
+
+`DocAutoParam::nodes` (currently plain `std::vector<ParamNode>`) is unified onto the same
+`OrderedPosVector<ParamNode>` store in Phase B, when the DOM owns the single copy; the `param_edit`
+kernels are adapted to it then (gaining `insertSorted`/`firstAtOrAfter` instead of hand-rolling on a
+bare vector). Serialization stays element-wise and unaffected.
 
 ### 4.2 Single copy: the DOM owns the store, the engine borrows a raw pointer
 
@@ -121,11 +144,11 @@ owner at all — it lives in the DOM, and the owner carries only a raw *borrow*-
 
 ```cpp
 private:
-  fast_vector<ParamNode> ownNodes_{};             // fallback backing (un-flipped params)
-  fast_vector<ParamNode>* nodes_ = &ownNodes_;    // borrow-pointer into the DOM store when flipped
+  OrderedPosVector<ParamNode> ownNodes_{};             // fallback backing (un-flipped params)
+  OrderedPosVector<ParamNode>* nodes_ = &ownNodes_;    // borrow-pointer into the DOM store when flipped
 public:
-  fast_vector<ParamNode>& nodes() { return *nodes_; }
-  void borrowNodeStorage(fast_vector<ParamNode>* domStore);  // point at the DOM store; move current nodes in
+  OrderedPosVector<ParamNode>& nodes() { return *nodes_; }
+  void borrowNodeStorage(OrderedPosVector<ParamNode>* domStore); // point at the DOM store; move current nodes in
 ```
 
 Un-flipped params keep `nodes_ == &ownNodes_` → behaviour identical. Flipped params get `nodes_`
