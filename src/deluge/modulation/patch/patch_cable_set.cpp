@@ -904,7 +904,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 
 								// And write this range-adjusting cable's details
 								patchCables[numPatchCables].from = rangeSource;
-								patchCables[numPatchCables].param.cloneFrom(&tempRangeParam, true);
+								patchCables[numPatchCables].param = tempRangeParam;
 								patchCables[numPatchCables].polarity = rangePolarity;
 								numPatchCables++;
 							}
@@ -953,7 +953,7 @@ doneWithThisRangeCable:
 				// And write this cable's details
 				patchCables[numPatchCables].from = source;
 				patchCables[numPatchCables].destinationParamDescriptor = destinationParamDescriptor;
-				patchCables[numPatchCables].param.cloneFrom(&tempParam, true);
+				patchCables[numPatchCables].param = tempParam;
 				patchCables[numPatchCables].polarity = polarity;
 				numPatchCables++;
 			}

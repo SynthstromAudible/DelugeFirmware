@@ -44,10 +44,10 @@ struct StolenParamNodes;
 class AutoParam {
 public:
 	AutoParam();
-	// Deep copy with clone semantics (matches cloneFrom(other, copyAutomation=true)): deep-copies the
-	// nodes and resets the transient interpolation/override state. Explicit so it doesn't silently carry
-	// that transient state (which memberwise copy would). Moves stay defaulted (rule of 5) so MIDIParam /
-	// MIDIParamVector growth still move-constructs the embedded AutoParam.
+	// Deep copy with clone semantics: deep-copies the nodes and resets the transient interpolation/override
+	// state. Explicit so it doesn't silently carry that transient state (which memberwise copy would). Moves
+	// stay defaulted (rule of 5) so MIDIParam / MIDIParamVector growth still move-constructs the embedded
+	// AutoParam. (When DOM node-storage redirection lands, read/write through nodes(), not ownNodes_.)
 	AutoParam(AutoParam const& other);
 	AutoParam& operator=(AutoParam const& other);
 	AutoParam(AutoParam&&) noexcept = default;
@@ -71,7 +71,6 @@ public:
 	void setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed);
 	bool grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack);
 	void generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
-	void cloneFrom(AutoParam* otherParam, bool copyAutomation);
 	/// Reverse this param's automation in place (used when flattening a reversed clip on clone). Operates on
 	/// already-owned nodes — moves them out, rebuilds reversed. reverseDirectionWithLength is the loop length.
 	/// Throws deluge::exception::BAD_ALLOC if it can't re-grow the node buffer.

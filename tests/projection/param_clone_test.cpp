@@ -46,14 +46,14 @@ void setNode(AutoParam& ap, int32_t pos, int32_t value, bool interpolated) {
 }
 
 int main() {
-	// (a) AutoParam clone: nodes are deep-copied and independent of the source.
+	// (a) AutoParam copy assignment: nodes are deep-copied and independent of the source.
 	{
 		AutoParam src;
 		setNode(src, 0, 111, false);
 		setNode(src, 48, -222, true);
 
 		AutoParam dst;
-		dst.cloneFrom(&src, /*copyAutomation=*/true);
+		dst = src; // copy assign (replaces the retired cloneFrom(&src, true))
 		check(dst.nodes().size() == 2, "autoparam clone: node count copied");
 		check(dst.nodes()[0].value == 111 && dst.nodes()[1].value == -222, "autoparam clone: node values copied");
 
@@ -63,7 +63,7 @@ int main() {
 		      "autoparam clone: dst independent of src mutation");
 	}
 
-	// (a2) AutoParam copy constructor (A2 real-copy replacement for cloneFrom): deep-copies nodes + value.
+	// (a2) AutoParam copy constructor: deep-copies nodes + value.
 	{
 		AutoParam src;
 		setNode(src, 0, 111, false);

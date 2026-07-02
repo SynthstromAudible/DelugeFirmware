@@ -57,7 +57,6 @@ public:
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) override;
 	static int32_t autoparamValueToCC(int32_t newValue);
 
-	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	void stripAutomation() override;
 	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;

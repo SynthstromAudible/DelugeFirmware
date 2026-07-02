@@ -82,18 +82,6 @@ void AutoParam::init() {
 	nodes().init();
 }
 
-void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
-	if (copyAutomation) {
-		nodes().cloneFrom(&otherParam->nodes());
-	}
-	else {
-		nodes().init();
-	}
-	currentValue = otherParam->currentValue;
-	resetInterpolationIncrement();
-	renewedOverridingAtTime = 0;
-}
-
 void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 	if (otherParam->renewedOverridingAtTime) {
 		renewedOverridingAtTime = otherParam->renewedOverridingAtTime;

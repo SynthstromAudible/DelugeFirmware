@@ -61,7 +61,6 @@ public:
 	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) final;
 	void stripAutomation() override;
 	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
-	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void copyOverridingFrom(ParamSet* otherParamSet);
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
 	                  bool maySetupPatching) final;
