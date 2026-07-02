@@ -33,4 +33,11 @@ namespace deluge::project {
 /// Returns the index of the touched node. Faithful port of AutoParam::setNodeAtPos.
 int32_t setNodeAtPos(DocAutoParam& p, int32_t pos, int32_t value, bool interpolate);
 
+/// Value of the parameter at timeline position `pos`, interpolating between nodes exactly as
+/// AutoParam::getValueAtPos does. `loopLength` is the timeline loop length (the engine reads it from the
+/// ModelStack; here it is an explicit parameter) — pass 2147483647 (INT32_MAX) for an infinite/non-looping
+/// timeline. `reversed` selects the playback direction. Returns `current_value` when there are no nodes.
+/// Faithful port of AutoParam::getValueAtPos.
+int32_t getValueAtPos(const DocAutoParam& p, uint32_t pos, int32_t loopLength, bool reversed = false);
+
 } // namespace deluge::project

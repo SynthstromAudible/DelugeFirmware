@@ -13,6 +13,8 @@
 #include "deluge-project/param_edit.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
@@ -119,6 +121,82 @@ int main() {
 		check(p.nodes.size() == 2 && i2 == 1 && p.nodes[1].pos == 48 && p.nodes[1].value == 7
 		          && !p.nodes[1].interpolated,
 		      "setNodeAtPos: modify existing");
+	}
+
+	// Phase 1 (DOM-live split): getValueAtPos interpolates through DocAutoParam nodes (pure data, no engine).
+	{
+		using deluge::project::DocAutoParam;
+		DocAutoParam p{};
+		deluge::project::setNodeAtPos(p, 0, 100, true);
+		deluge::project::setNodeAtPos(p, 48, -200, false); // stepped node
+		check(deluge::project::getValueAtPos(p, 0, 96) == 100, "getValueAtPos: at node 0");
+		check(deluge::project::getValueAtPos(p, 48, 96) == -200, "getValueAtPos: at node 48");
+		// Node at 48 is non-interpolated ⇒ the span [0,48) holds the left value (100), no ramp.
+		check(deluge::project::getValueAtPos(p, 24, 96) == 100, "getValueAtPos: stepped span holds left value");
+		DocAutoParam empty{};
+		empty.current_value = 777;
+		check(deluge::project::getValueAtPos(empty, 10, 96) == 777, "getValueAtPos: empty -> current_value");
+
+		// Interpolated right node ⇒ linear ramp between the two nodes.
+		DocAutoParam ramp{};
+		deluge::project::setNodeAtPos(ramp, 0, 0, true);
+		deluge::project::setNodeAtPos(ramp, 48, 4800, true);
+		check(deluge::project::getValueAtPos(ramp, 24, 96) == 2400, "getValueAtPos: linear ramp midpoint");
+	}
+
+	// Phase 1 fidelity guard: the DOM getValueAtPos must be bit-identical to the engine AutoParam::getValueAtPos
+	// across the full position range and both directions, including the loop-wrap branches (which the engine
+	// reaches via ModelStack::getLoopLength). We build a live AutoParam with the same nodes and diff every
+	// position; getLoopLength is satisfied by a NoteRow with an independent loop length (no Song needed).
+	{
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		auto engineValueAt = [](AutoParam& ap, uint32_t pos, int32_t loopLength, bool reversed) -> int32_t {
+			// Only AutoParam::getValueAtPos's getLoopLength() call touches the ModelStack; a NoteRow with a
+			// non-zero loopLengthIfIndependent short-circuits it, so no Song/TimelineCounter is required.
+			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
+			ms->song = nullptr;
+			ms->setTimelineCounter(nullptr);
+			NoteRow nr;
+			nr.loopLengthIfIndependent = loopLength;
+			ms->setNoteRow(&nr);
+			return ap.getValueAtPos(pos, ms, reversed);
+		};
+
+		const std::vector<std::vector<N>> configs = {
+		    {{0, 100, true}, {48, -200, true}, {96, 300, false}}, // interpolated spans + a stepped node
+		    {{10, -1000, true}, {80, 1000, true}},                // wrap before first / after last
+		    {{50, 777, true}},                                    // single node
+		    {{0, -1073741824, true}, {64, 1073741823, false}},    // patch-cable value range
+		};
+		// Realistic timeline inputs only: every node pos and every query pos is strictly within the loop
+		// ([0, loopLength)). Feeding a node at pos == loopLength makes the wrap span collapse to zero ticks,
+		// which divides by zero in BOTH the engine and this port (identically) — an out-of-range input the
+		// engine never sees at runtime, so probing it would test nothing about the port's fidelity.
+		const int32_t loopLengths[] = {128, 2147483647}; // finite (> every node pos) + infinite
+		const uint32_t positions[] = {0, 1, 5, 10, 24, 47, 48, 49, 50, 63, 64, 80, 95, 96, 120, 127};
+
+		for (const auto& cfg : configs) {
+			AutoParam ap;
+			DocAutoParam doc{};
+			for (const N& n : cfg) {
+				setNode(ap, n.pos, n.value, n.interpolated);
+				deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+			}
+			for (int32_t loopLength : loopLengths) {
+				for (uint32_t pos : positions) {
+					for (bool reversed : {false, true}) {
+						int32_t want = engineValueAt(ap, pos, loopLength, reversed);
+						int32_t got = deluge::project::getValueAtPos(doc, pos, loopLength, reversed);
+						check(want == got, "getValueAtPos: matches engine oracle");
+					}
+				}
+			}
+		}
 	}
 
 	// Unautomated: current value only, no nodes.

@@ -35,4 +35,56 @@ int32_t setNodeAtPos(DocAutoParam& p, int32_t pos, int32_t value, bool interpola
 	return i;
 }
 
+int32_t getValueAtPos(const DocAutoParam& p, uint32_t pos, int32_t loopLength, bool reversed) {
+	const auto& nodes = p.nodes;
+	if (nodes.empty()) {
+		return p.current_value;
+	}
+
+	const auto size = static_cast<int32_t>(nodes.size());
+
+	// firstAtOrAfter(pos + !reversed): index of the first node at or after the search key.
+	const int32_t searchKey = static_cast<int32_t>(pos + static_cast<uint32_t>(!reversed));
+	auto rightIt = std::lower_bound(nodes.begin(), nodes.end(), searchKey,
+	                                [](const ParamNode& n, int32_t key) { return n.pos < key; });
+	int32_t rightI = static_cast<int32_t>(rightIt - nodes.begin());
+	if (rightI >= size) {
+		rightI = 0; // wrap: past the last node, the "right" neighbour is the first (loop point)
+	}
+	const ParamNode& rightNode = nodes[rightI];
+
+	int32_t leftI = rightI - 1;
+	if (leftI < 0) {
+		leftI += size; // wrap: before the first node, the "left" neighbour is the last (loop point)
+	}
+	const ParamNode& leftNode = nodes[leftI];
+	if (!rightNode.interpolated) {
+		return leftNode.value; // stepped node: hold the left value
+	}
+
+	int32_t ticksSinceLeftNode = static_cast<int32_t>(pos - static_cast<uint32_t>(leftNode.pos));
+	if (ticksSinceLeftNode == 0) {
+		return leftNode.value;
+	}
+
+	if (ticksSinceLeftNode < 0) { // pos is left of the leftmost node — wrap across the loop point
+		if (loopLength == 2147483647) {
+			// Infinite length, and we know we're interpolating: we'd have arrived at the next node's value.
+			return rightNode.value;
+		}
+		ticksSinceLeftNode += loopLength;
+	}
+
+	int32_t ticksBetweenNodes = rightNode.pos - leftNode.pos;
+	if (ticksBetweenNodes <= 0) { // right node wrapped to before the left node — span crosses the loop point
+		if (loopLength == 2147483647) {
+			return leftNode.value; // infinite length: still on the previous node's value
+		}
+		ticksBetweenNodes += loopLength;
+	}
+
+	const int64_t valueDistance = static_cast<int64_t>(rightNode.value) - static_cast<int64_t>(leftNode.value);
+	return static_cast<int32_t>(leftNode.value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes));
+}
+
 } // namespace deluge::project
