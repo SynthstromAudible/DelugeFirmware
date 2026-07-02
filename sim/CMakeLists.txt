@@ -375,10 +375,28 @@ if(RT_LIB)
     target_link_libraries(param_projection_test PRIVATE ${RT_LIB})
 endif()
 
+# Clone/undo deep-independence harness (the golden-blind safety net for the clone-idiom retirement).
+add_executable(param_clone_test
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/tests/projection/param_clone_test.cpp
+)
+target_include_directories(param_clone_test PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(param_clone_test PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(param_clone_test PRIVATE ${RT_LIB})
+endif()
+
 # ---------------------------------------------------------------------------
 enable_testing()
 
 add_test(NAME param_projection_test COMMAND param_projection_test)
+add_test(NAME param_clone_test COMMAND param_clone_test)
 
 # Layout-invariance guard (CTest). Render each fixture at two heap-pad layouts
 # (DELUGE_SIM_HEAP_PAD via scripts/golden_mixdown.sh padsweep) and assert the
