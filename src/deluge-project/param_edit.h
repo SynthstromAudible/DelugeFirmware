@@ -77,4 +77,16 @@ int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int3
                          bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength, bool reversed,
                          bool recordingLinearly, int32_t posAtWhichClipWillCut = 2147483647);
 
+/// Remove the time span [startPos, startPos+lengthToDelete) from the timeline: nodes inside it are deleted and
+/// everything after shifts left by that much, capping the cut point with a node so the pre-cut value is
+/// preserved. `loopLength` is the timeline loop length (the engine reads it from the ModelStack via
+/// getValueAtPos). Faithful port of AutoParam::deleteTime.
+void deleteTime(DocAutoParam& p, int32_t startPos, int32_t lengthToDelete, int32_t loopLength);
+
+/// Nudge the automation nodes in a region horizontally by `offset` (must be +1 or -1) within a loop of
+/// `lengthBeforeLoop`, wrapping/colliding at the region and loop edges. Faithful port of
+/// AutoParam::moveRegionHorizontally (the pure node-mutation kernel; the engine's undo snapshot is a separate
+/// concern handled at the wiring seam).
+void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_t offset, int32_t lengthBeforeLoop);
+
 } // namespace deluge::project

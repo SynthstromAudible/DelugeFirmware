@@ -490,4 +490,206 @@ int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int3
 	return edgeIndexes[kLeft];
 }
 
+void deleteTime(DocAutoParam& p, int32_t startPos, int32_t lengthToDelete, int32_t loopLength) {
+	auto& nodes = p.nodes;
+
+	int32_t endPos = startPos + lengthToDelete;
+	int32_t start = firstAtOrAfter(nodes, startPos);
+	int32_t end = firstAtOrAfter(nodes, endPos);
+
+	int32_t numToDelete = end - start;
+	if (numToDelete > 0) {
+		bool shouldAddNodeAtPos0 = false;
+		int32_t oldValue = 0;
+
+		// If we're chopping off the final node, we'll want a node at pos 0 (if none there) to hold its value.
+		if (end >= static_cast<int32_t>(nodes.size())) {
+			shouldAddNodeAtPos0 = nodes[0].pos != 0;
+			if (shouldAddNodeAtPos0) {
+				oldValue = getValueAtPos(p, 0, loopLength);
+			}
+		}
+		// Otherwise, put a node at the cut-point (which becomes startPos) if the next node isn't already there —
+		// repurpose the first node we were going to delete.
+		else if (nodes[end].pos > endPos) {
+			ParamNode& cutNode = nodes[start];
+			cutNode.value = getValueAtPos(p, static_cast<uint32_t>(endPos), loopLength);
+			cutNode.pos = startPos;
+			cutNode.interpolated = false;
+			numToDelete--; // that's one node we're keeping after all
+			start++;
+			// If numToDelete is now 0 the erase below is a no-op and shouldAddNodeAtPos0 is false, so falling
+			// through is equivalent to the engine's `goto allDeleted`.
+		}
+
+		nodes.erase(nodes.begin() + start, nodes.begin() + start + numToDelete);
+
+		if (shouldAddNodeAtPos0) {
+			nodes.insert(nodes.begin(), ParamNode{});
+			nodes[0].value = oldValue;
+			nodes[0].pos = 0;
+			nodes[0].interpolated = false;
+			start++; // we shifted everything along by inserting at index 0
+		}
+	}
+
+	for (int32_t i = start; i < static_cast<int32_t>(nodes.size()); i++) {
+		nodes[i].pos -= lengthToDelete;
+	}
+
+	// A lone remaining node isn't meaningful automation — drop it (kept from the engine "safe" behaviour).
+	if (nodes.size() == 1) {
+		nodes.erase(nodes.begin());
+	}
+}
+
+void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_t offset, int32_t lengthBeforeLoop) {
+	auto& nodes = p.nodes;
+
+	if (nodes.empty()) {
+		return;
+	}
+
+	if (length == lengthBeforeLoop) {
+		shiftHorizontally(p, offset, lengthBeforeLoop);
+		return;
+	}
+
+	int32_t endPos = pos + length;
+	if (endPos > lengthBeforeLoop) { // Wrap
+		endPos -= lengthBeforeLoop;
+		int32_t resultingIndexes[2];
+		resultingIndexes[0] = firstAtOrAfter(nodes, endPos);
+		resultingIndexes[1] = firstAtOrAfter(nodes, pos);
+
+		if (resultingIndexes[0] == resultingIndexes[1]) {
+			shiftHorizontally(p, offset, lengthBeforeLoop);
+			return;
+		}
+
+		if (offset == 1) { // Moving right
+			// If anything after wrap, and the rightmost such node collides with endPos, delete it.
+			if (resultingIndexes[0]) {
+				int32_t rightMostIndex = resultingIndexes[0] - 1;
+				if (nodes[rightMostIndex].pos >= endPos - 1) {
+					nodes.erase(nodes.begin() + rightMostIndex);
+					resultingIndexes[0]--;
+					resultingIndexes[1]--;
+				}
+			}
+
+			// And if the last before-wrap node needs to move right and wrap around...
+			if (resultingIndexes[1] < static_cast<int32_t>(nodes.size())) {
+				int32_t indexBeforeWrap = static_cast<int32_t>(nodes.size()) - 1;
+				if (nodes[indexBeforeWrap].pos >= lengthBeforeLoop - 1) {
+					ParamNode tempNode = nodes[indexBeforeWrap];
+					nodes.erase(nodes.begin() + indexBeforeWrap);
+					nodes.insert(nodes.begin(), ParamNode{});
+					nodes[0] = tempNode;
+					nodes[0].pos = -1; // it'll get incremented below
+					resultingIndexes[0]++;
+					resultingIndexes[1]++;
+				}
+			}
+
+			for (int32_t i = 0; i < resultingIndexes[0]; i++) { // after wrap
+				nodes[i].pos++;
+			}
+			for (int32_t i = resultingIndexes[1]; i < static_cast<int32_t>(nodes.size()); i++) { // before wrap
+				nodes[i].pos++;
+			}
+		}
+		else { // Moving left
+			// If anything after the wrap sits at pos 0, wrap it around to the end.
+			if (resultingIndexes[0]) {
+				if (nodes[0].pos == 0) {
+					ParamNode tempNode = nodes[0];
+					int32_t rightMostIndex = static_cast<int32_t>(nodes.size()) - 1;
+					nodes.erase(nodes.begin());
+					nodes.insert(nodes.begin() + rightMostIndex, ParamNode{});
+					nodes[rightMostIndex] = tempNode;
+					nodes[rightMostIndex].pos = lengthBeforeLoop; // it'll get decremented below
+					resultingIndexes[0]--;
+					resultingIndexes[1]--;
+				}
+			}
+
+			// And if our left edge is going to eat into the node just before it, delete that node.
+			if (resultingIndexes[1] && resultingIndexes[1] < static_cast<int32_t>(nodes.size())) {
+				int32_t prevNodeIndex = resultingIndexes[1] - 1;
+				if (nodes[prevNodeIndex].pos >= pos - 1) {
+					nodes.erase(nodes.begin() + prevNodeIndex);
+					resultingIndexes[1]--;
+				}
+			}
+
+			// The decrement loops live INSIDE the move-left branch (unlike the pre-fix engine, which left them
+			// outside the offset if/else so they also cancelled the move-right increments — see the
+			// moveRegionHorizontally bug fix). Move-right increments above; move-left decrements here.
+			for (int32_t i = 0; i < resultingIndexes[0]; i++) { // after wrap
+				nodes[i].pos--;
+			}
+			for (int32_t i = resultingIndexes[1]; i < static_cast<int32_t>(nodes.size()); i++) { // before wrap
+				nodes[i].pos--;
+			}
+		}
+	}
+	else { // No wrap
+		int32_t resultingIndexes[2];
+		resultingIndexes[0] = firstAtOrAfter(nodes, pos);
+		resultingIndexes[1] = firstAtOrAfter(nodes, endPos);
+
+		if (!resultingIndexes[0] && resultingIndexes[1] == static_cast<int32_t>(nodes.size())) {
+			shiftHorizontally(p, offset, lengthBeforeLoop);
+			return;
+		}
+
+		if (resultingIndexes[1] != resultingIndexes[0]) {
+			if (offset == 1) { // Moving right — nothing can wrap (it slams into the region's right wall)
+				int32_t rightMostIndex = resultingIndexes[1] - 1;
+				if (nodes[rightMostIndex].pos >= endPos - 1) {
+					nodes.erase(nodes.begin() + rightMostIndex);
+					resultingIndexes[1]--;
+				}
+				for (int32_t i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
+					nodes[i].pos++;
+				}
+			}
+			else { // Moving left
+				// If there's a node just to the left we'll eat into, delete it.
+				if (resultingIndexes[0] > 0) {
+					int32_t prevNodeIndex = resultingIndexes[0] - 1;
+					if (nodes[prevNodeIndex].pos >= pos - 1) {
+						nodes.erase(nodes.begin() + prevNodeIndex);
+						resultingIndexes[0]--;
+						resultingIndexes[1]--;
+					}
+				}
+				// Or if there's no space to the left, wrap the leftmost node around to the end.
+				else {
+					if (nodes[resultingIndexes[0]].pos == 0) {
+						int32_t lastNodeIndex = static_cast<int32_t>(nodes.size()) - 1;
+						if (nodes[lastNodeIndex].pos == lengthBeforeLoop - 1) {
+							nodes[lastNodeIndex] = nodes[resultingIndexes[0]]; // reuse the node already there
+						}
+						else {
+							ParamNode tempNode = nodes[resultingIndexes[0]];
+							nodes.erase(nodes.begin());
+							nodes.insert(nodes.begin() + lastNodeIndex, ParamNode{});
+							nodes[lastNodeIndex] = tempNode;
+						}
+						nodes[lastNodeIndex].pos = lengthBeforeLoop - 1;
+						resultingIndexes[1]--; // one less node to move below
+					}
+					// (else: leftmost node has room to go left — nothing to do)
+				}
+
+				for (int32_t i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
+					nodes[i].pos--;
+				}
+			}
+		}
+	}
+}
+
 } // namespace deluge::project

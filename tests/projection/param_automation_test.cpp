@@ -504,6 +504,76 @@ int main() {
 		}
 	}
 
+	// Phase 1: deleteTime + moveRegionHorizontally (pure region kernels) — engine-oracle diff. Both are callable
+	// with the light NoteRow harness: deleteTime uses the model-stack only via getValueAtPos (→getLoopLength);
+	// moveRegionHorizontally touches it only through the guarded action snapshot, so action=nullptr keeps it away.
+	{
+		using deluge::project::DocAutoParam;
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		const std::vector<std::vector<N>> configs = {
+		    {},
+		    {{48, 7, false}},
+		    {{0, 10, true}, {32, 20, true}, {64, 30, false}, {96, -40, true}},
+		};
+		const int32_t loopLen = 128;
+
+		auto buildStack = [](char* buf, int32_t effLen, NoteRow& nr) -> ModelStackWithAutoParam* {
+			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
+			ms->song = nullptr;
+			ms->setTimelineCounter(nullptr);
+			nr.loopLengthIfIndependent = effLen;
+			ms->setNoteRow(&nr);
+			return ms;
+		};
+
+		// deleteTime oracle diff.
+		const struct {
+			int32_t startPos, len;
+		} deleteCases[] = {{32, 16}, {0, 64}, {60, 40}, {90, 40}, {16, 8}, {0, 128}};
+		for (const auto& cfg : configs) {
+			for (const auto& dc : deleteCases) {
+				AutoParam ap;
+				DocAutoParam doc{};
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				(void)ap.nodes().reserveExtra(4);
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+				NoteRow nr;
+				ap.deleteTime(dc.startPos, dc.len, buildStack(buf, loopLen, nr));
+				deluge::project::deleteTime(doc, dc.startPos, dc.len, loopLen);
+				expectDocMatchesEngine(ap, doc, "deleteTime: matches engine oracle");
+			}
+		}
+
+		// moveRegionHorizontally oracle diff.
+		const struct {
+			int32_t pos, length, offset;
+		} moveCases[] = {{32, 16, 1},   {32, 16, -1}, {0, 32, 1},  {0, 32, -1}, {100, 40, 1},
+		                 {100, 40, -1}, {60, 40, -1}, {60, 40, 1}, {0, 128, 1}, {96, 40, 1}};
+		for (const auto& cfg : configs) {
+			for (const auto& mc : moveCases) {
+				AutoParam ap;
+				DocAutoParam doc{};
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				(void)ap.nodes().reserveExtra(4);
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+				NoteRow nr;
+				ap.moveRegionHorizontally(buildStack(buf, loopLen, nr), mc.pos, mc.length, mc.offset, loopLen, nullptr);
+				deluge::project::moveRegionHorizontally(doc, mc.pos, mc.length, mc.offset, loopLen);
+				expectDocMatchesEngine(ap, doc, "moveRegionHorizontally: matches engine oracle");
+			}
+		}
+	}
+
 	// Unautomated: current value only, no nodes.
 	roundTrip("unautomated", 123456, {});
 
