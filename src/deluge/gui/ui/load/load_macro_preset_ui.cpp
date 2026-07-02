@@ -115,16 +115,16 @@ void LoadMacroPresetUI::enterKeyPress() {
 			display->displayError(error);
 			return;
 		}
-		// The loaded follower CCs are kept even if a CC is already used by another macro; flag the first
+		// The loaded target CCs are kept even if a CC is already used by another macro; flag the first
 		// such collision instead of the plain "Preset loaded".
 		Output* output = getCurrentOutput();
 		int32_t owner = -1;
 		uint8_t conflictCC = 0;
 		if (output && output->type == OutputType::MIDI_OUT) {
 			MIDIMacro::Macro* macros = static_cast<MIDIInstrument*>(output)->macros;
-			for (int32_t f = 0; f < MIDIMacro::kNumFollowerSlots && owner < 0; f++) {
-				uint8_t cc = macros[MIDIMacro::presetMacroIndex].followers[f].cc;
-				owner = MIDIMacro::findFollowerCCOwner(macros, cc, MIDIMacro::presetMacroIndex, f);
+			for (int32_t f = 0; f < MIDIMacro::kNumTargetSlots && owner < 0; f++) {
+				uint8_t cc = macros[MIDIMacro::presetMacroIndex].targets[f].cc;
+				owner = MIDIMacro::findTargetCCOwner(macros, cc, MIDIMacro::presetMacroIndex, f);
 				if (owner >= 0) {
 					conflictCC = cc;
 				}

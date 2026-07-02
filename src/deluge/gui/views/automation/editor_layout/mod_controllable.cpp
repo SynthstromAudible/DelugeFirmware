@@ -38,7 +38,7 @@ using namespace deluge::gui;
 
 constexpr int32_t kParamNodeWidth = 3;
 
-// If the edited automation lane is a MIDI Macro lane, bake its curve into the follower CC lanes.
+// If the edited automation lane is a MIDI Macro lane, bake its curve into the target CC lanes.
 static void reFanIfMacroLane();
 
 // VU meter style colours for the automation editor
@@ -905,7 +905,7 @@ void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoPa
 		modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
 		                                      getCopiedParamAutomation(), isPatchCable);
 
-		// pasting into a macro lane must fan the new curve out to the follower CC lanes
+		// pasting into a macro lane must fan the new curve out to the target CC lanes
 		reFanIfMacroLane();
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
@@ -999,8 +999,8 @@ bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(Model
 	}
 }
 
-// If the edited automation lane is a MIDI Macro lane, bake its curve into the follower CC lanes,
-// joining the user's current NOTE_EDIT action so one BACK undoes the lane edit and the followers.
+// If the edited automation lane is a MIDI Macro lane, bake its curve into the target CC lanes,
+// joining the user's current NOTE_EDIT action so one BACK undoes the lane edit and the targets.
 static void reFanIfMacroLane() {
 	// In arranger automation the edited lane is a song param; the current clip's stale macro
 	// lastSelectedParamID must not trigger a re-fan of an unrelated MIDI clip.

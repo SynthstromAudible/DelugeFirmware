@@ -821,8 +821,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	//  	return;
 	//  }
 
-	// A gold knob learned as a MIDI-macro leader is dedicated: it drives that macro's followers and its
-	// normal param action is suppressed. tryKnobMacro returns false for every non-leader knob.
+	// A gold knob learned as a MIDI-macro source is dedicated: it drives that macro's targets and its
+	// normal param action is suppressed. tryKnobMacro returns false for every non-source knob.
 	if (getCurrentOutputType() == OutputType::MIDI_OUT && MIDIMacro::isEnabled()) {
 		if (MIDIMacro::tryKnobMacro(whichModEncoder, offset)) {
 			return;
@@ -1671,10 +1671,10 @@ void View::setModLedStates() {
 			indicator_leds::blinkLed(indicator_leds::modLed[i]);
 		}
 		// if you're in the Automation View Automation Editor, turn off Mod LED's - except on a MIDI
-		// macro lane, where the 8 buttons are the follower quick-editors: light the assigned ones so
-		// the LEDs show which followers of THIS macro have a destination CC
+		// macro lane, where the 8 buttons are the target quick-editors: light the assigned ones so
+		// the LEDs show which targets of THIS macro have a destination CC
 		else if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
-			bool followerAssigned = false;
+			bool targetAssigned = false;
 			if (!automationView.onArrangerView) {
 				Clip* clip = getCurrentClip();
 				if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT
@@ -1682,11 +1682,11 @@ void View::setModLedStates() {
 					MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 					int32_t macroIndex = MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID);
 					// lit = has a destination AND actually drives it (a shadowed duplicate stays dark)
-					followerAssigned = midiInstrument->macros[macroIndex].followers[i].cc != MIDIMacro::kFollowerCCNone
-					                   && !MIDIMacro::isFollowerShadowed(midiInstrument->macros, macroIndex, i);
+					targetAssigned = midiInstrument->macros[macroIndex].targets[i].cc != MIDIMacro::kTargetCCNone
+					                 && !MIDIMacro::isTargetShadowed(midiInstrument->macros, macroIndex, i);
 				}
 			}
-			indicator_leds::setLedState(indicator_leds::modLed[i], followerAssigned);
+			indicator_leds::setLedState(indicator_leds::modLed[i], targetAssigned);
 		}
 		// otherwise update mod led's to reflect current mod led selection
 		else {

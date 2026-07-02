@@ -15,32 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/context_menu/clear_macro_follower.h"
-#include "gui/l10n/l10n.h"
-#include "gui/views/automation_view.h"
-#include "hid/display/display.h"
+#pragma once
+
+#include "gui/context_menu/context_menu.h"
 
 namespace deluge::gui::context_menu {
 
-ClearMacroFollower clearMacroFollower{};
+// Confirmation for clearing a MIDI macro target's assignment (SHIFT+SAVE while holding its param
+// button in automation view). Accepting resets the target's config; the baked lanes are untouched.
+class ClearMacroTarget final : public ContextMenu {
+public:
+	ClearMacroTarget() = default;
 
-char const* ClearMacroFollower::getTitle() {
-	return l10n::get(l10n::String::STRING_FOR_DELETE_QMARK);
-}
+	std::span<char const*> getOptions() override;
+	bool acceptCurrentOption() override;
 
-std::span<char const*> ClearMacroFollower::getOptions() {
-	using enum l10n::String;
-	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
-		return {options, 1};
-	}
-	static char const* options[] = {l10n::get(STRING_FOR_SURE)};
-	return {options, 1};
-}
+	char const* getTitle() override;
+};
 
-bool ClearMacroFollower::acceptCurrentOption() {
-	automationView.acceptPendingFollowerClear();
-	return false; // exit the menu either way
-}
-
+extern ClearMacroTarget clearMacroTarget;
 } // namespace deluge::gui::context_menu

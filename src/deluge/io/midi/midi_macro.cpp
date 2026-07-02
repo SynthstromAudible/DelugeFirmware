@@ -44,10 +44,10 @@
 #include <string.h>
 
 #define MIDI_MACROS_TAG "midiMacros"      // per-instrument block, embedded in the instrument's XML
-#define MIDI_MACRO_PRESET_TAG "midiMacro" // preset file root (followers only)
-#define MIDI_MACRO_ELEMENT_TAG "macro"    // one macro (leader + followers)
-#define MIDI_MACRO_LEADER_TAG "leader"    // the learned leader CC
-#define MIDI_MACRO_FOLLOWER_PREFIX "follower"
+#define MIDI_MACRO_PRESET_TAG "midiMacro" // preset file root (targets only)
+#define MIDI_MACRO_ELEMENT_TAG "macro"    // one macro (source + targets)
+#define MIDI_MACRO_SOURCE_TAG "source"    // the learned source CC
+#define MIDI_MACRO_TARGET_PREFIX "target"
 
 namespace MIDIMacro {
 
@@ -57,17 +57,16 @@ bool isEnabled() {
 	return runtimeFeatureSettings.get(RuntimeFeatureSettingType::MidiMacro) == RuntimeFeatureStateToggle::On;
 }
 
-int32_t findFollowerCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot,
-                            int32_t* slotOut) {
-	if (cc == kFollowerCCNone) {
+int32_t findTargetCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot, int32_t* slotOut) {
+	if (cc == kTargetCCNone) {
 		return -1;
 	}
 	for (int32_t m = 0; m < kNumMacros; m++) {
-		for (int32_t f = 0; f < kNumFollowerSlots; f++) {
+		for (int32_t f = 0; f < kNumTargetSlots; f++) {
 			if (m == exceptMacro && f == exceptSlot) {
 				continue;
 			}
-			if (macros[m].followers[f].cc == cc) {
+			if (macros[m].targets[f].cc == cc) {
 				if (slotOut != nullptr) {
 					*slotOut = f;
 				}
@@ -79,16 +78,16 @@ int32_t findFollowerCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro
 }
 
 int32_t findShadowingOwner(const Macro* macros, uint8_t cc, int32_t macroIndex, int32_t slot) {
-	if (cc == kFollowerCCNone) {
+	if (cc == kTargetCCNone) {
 		return -1;
 	}
 	// Scan in ownership order (macros, then slots); anything at or after our own position can't shadow us.
 	for (int32_t m = 0; m < kNumMacros; m++) {
-		for (int32_t f = 0; f < kNumFollowerSlots; f++) {
+		for (int32_t f = 0; f < kNumTargetSlots; f++) {
 			if (m == macroIndex && f == slot) {
 				return -1;
 			}
-			if (macros[m].followers[f].cc == cc) {
+			if (macros[m].targets[f].cc == cc) {
 				return m;
 			}
 		}
@@ -107,7 +106,7 @@ static void appendDestName(StringBuf& buf, uint8_t cc) {
 		buf.append(name);
 	}
 	else {
-		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_FOLLOWER_CC)); // "CC"
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_TARGET_CC)); // "CC"
 		buf.append(' ');
 		buf.appendInt(cc);
 	}
@@ -159,18 +158,18 @@ bool showMacroInactivePopup(int32_t macroIndex) {
 }
 
 int32_t findActiveConflict(const Macro* macros, int32_t macroIndex, uint8_t* conflictCC) {
-	for (const MacroFollowerSlot& follower : macros[macroIndex].followers) {
-		if (follower.cc == kFollowerCCNone) {
+	for (const MacroTargetSlot& target : macros[macroIndex].targets) {
+		if (target.cc == kTargetCCNone) {
 			continue;
 		}
 		for (int32_t m = 0; m < kNumMacros; m++) {
 			if (m == macroIndex || !macros[m].active) {
 				continue;
 			}
-			for (const MacroFollowerSlot& other : macros[m].followers) {
-				if (other.cc == follower.cc) {
+			for (const MacroTargetSlot& other : macros[m].targets) {
+				if (other.cc == target.cc) {
 					if (conflictCC != nullptr) {
-						*conflictCC = follower.cc;
+						*conflictCC = target.cc;
 					}
 					return m;
 				}
@@ -182,11 +181,11 @@ int32_t findActiveConflict(const Macro* macros, int32_t macroIndex, uint8_t* con
 
 bool anyMacroConfigured(Macro* macros) {
 	for (int32_t m = 0; m < kNumMacros; m++) {
-		if (macros[m].active || macros[m].leader.containsSomething() || macros[m].leaderKnob >= 0) {
+		if (macros[m].active || macros[m].source.containsSomething() || macros[m].sourceKnob >= 0) {
 			return true;
 		}
-		for (const MacroFollowerSlot& follower : macros[m].followers) {
-			if (follower.cc != kFollowerCCNone) {
+		for (const MacroTargetSlot& target : macros[m].targets) {
+			if (target.cc != kTargetCCNone) {
 				return true;
 			}
 		}
@@ -194,10 +193,10 @@ bool anyMacroConfigured(Macro* macros) {
 	return false;
 }
 
-// Scale a leader value 0..127 linearly onto follower [from, to] (from>to inverts), rounding to nearest.
-static inline int32_t scaleFollower(const MacroFollowerSlot& follower, int32_t value) {
-	int32_t span = (int32_t)follower.to - (int32_t)follower.from;
-	int32_t out = follower.from + (span * value + (span >= 0 ? 63 : -63)) / 127;
+// Scale a source value 0..127 linearly onto target [from, to] (from>to inverts), rounding to nearest.
+static inline int32_t scaleTarget(const MacroTargetSlot& target, int32_t value) {
+	int32_t span = (int32_t)target.to - (int32_t)target.from;
+	int32_t out = target.from + (span * value + (span >= 0 ? 63 : -63)) / 127;
 	return std::clamp<int32_t>(out, 0, kMaxValue);
 }
 
@@ -220,28 +219,28 @@ static MIDIInstrument* midiClipInstrument(Clip* clip) {
 static MIDIParamCollection* getMIDIParams(Clip* clip, ParamCollectionSummary** summaryOut);
 static void refreshAutomationGridIfShowingCC(Clip* clip, uint8_t cc);
 
-static void sendToFollowers(MIDIInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
-                            Macro& macro, int32_t value) {
+static void sendToTargets(MIDIInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
+                          Macro& macro, int32_t value) {
 	RootUI* rootUI = getRootUI();
 	int32_t macroIndex = (int32_t)(&macro - instrument->macros);
-	for (int32_t slot = 0; slot < kNumFollowerSlots; slot++) {
-		MacroFollowerSlot& follower = macro.followers[slot];
-		if (follower.cc == kFollowerCCNone || !follower.send) {
+	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
+		MacroTargetSlot& target = macro.targets[slot];
+		if (target.cc == kTargetCCNone || !target.send) {
 			continue;
 		}
-		// A shadowed follower (its CC is owned by an earlier follower) is inert - only the owner drives.
-		if (isFollowerShadowed(instrument->macros, macroIndex, slot)) {
+		// A shadowed target (its CC is owned by an earlier target) is inert - only the owner drives.
+		if (isTargetShadowed(instrument->macros, macroIndex, slot)) {
 			continue;
 		}
-		int32_t valueBig = (scaleFollower(follower, value) - 64) << 25;
+		int32_t valueBig = (scaleTarget(target, value) - 64) << 25;
 		// writes the value into the clip's own CC param, so it reaches the output and gets
 		// recorded into that CC's automation lane like a manual change to it would
-		instrument->processParamFromInputMIDIChannel(follower.cc, valueBig, modelStack);
+		instrument->processParamFromInputMIDIChannel(target.cc, valueBig, modelStack);
 		// the param write doesn't notify the UI, so refresh the automation editor grid ourselves
 		// if it's showing this CC. Can't use possiblyRefreshAutomationEditorGrid() here: for MIDI
 		// clips, automation view tracks the selected lane by CC number alone and leaves
 		// lastSelectedParamKind unset, so its param-kind comparison never matches
-		if (rootUI == &automationView && !automationView.onArrangerView && clip->lastSelectedParamID == follower.cc) {
+		if (rootUI == &automationView && !automationView.onArrangerView && clip->lastSelectedParamID == target.cc) {
 			uiNeedsRendering(&automationView);
 		}
 	}
@@ -251,7 +250,7 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 	if (!isEnabled()) {
 		return false;
 	}
-	// Don't drive followers while a song is loading. On boot a controller's power-on CC burst (e.g. the
+	// Don't drive targets while a song is loading. On boot a controller's power-on CC burst (e.g. the
 	// MIDI Fighter Twister resending its knob positions) can arrive mid-load of the startup song, when
 	// the active clip/song isn't in a stable state yet - touching it then crashes. Also covers loading a
 	// different song at runtime.
@@ -276,8 +275,8 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 		if (!macro.active) {
 			continue;
 		}
-		if (macro.leader.equalsNoteOrCC(&cable, channelOrZone + IS_A_CC, ccNumber)) {
-			sendToFollowers(instrument, clip, modelStackWithTimelineCounter, macro, value);
+		if (macro.source.equalsNoteOrCC(&cable, channelOrZone + IS_A_CC, ccNumber)) {
+			sendToTargets(instrument, clip, modelStackWithTimelineCounter, macro, value);
 			matched = true;
 		}
 	}
@@ -296,10 +295,10 @@ bool tryKnobMacro(int32_t whichKnob, int32_t offset) {
 	if (!instrument->macrosEnabled) {
 		return false;
 	}
-	// Cheap pre-check so a normal (non-leader) knob turn bails before building a modelStack.
+	// Cheap pre-check so a normal (non-source) knob turn bails before building a modelStack.
 	bool anyMatch = false;
 	for (Macro& macro : instrument->macros) {
-		if (macro.active && macro.leaderKnob == whichKnob) {
+		if (macro.active && macro.sourceKnob == whichKnob) {
 			anyMatch = true;
 			break;
 		}
@@ -313,13 +312,13 @@ bool tryKnobMacro(int32_t whichKnob, int32_t offset) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 	for (Macro& macro : instrument->macros) {
-		if (!macro.active || macro.leaderKnob != whichKnob) {
+		if (!macro.active || macro.sourceKnob != whichKnob) {
 			continue;
 		}
-		// A gold-knob leader is a relative encoder: accumulate its position, then drive the followers.
-		int32_t pos = std::clamp<int32_t>((int32_t)macro.leaderKnobPos + offset, 0, kMaxValue);
-		macro.leaderKnobPos = pos;
-		sendToFollowers(instrument, clip, modelStackWithTimelineCounter, macro, pos);
+		// A gold-knob source is a relative encoder: accumulate its position, then drive the targets.
+		int32_t pos = std::clamp<int32_t>((int32_t)macro.sourceKnobPos + offset, 0, kMaxValue);
+		macro.sourceKnobPos = pos;
+		sendToTargets(instrument, clip, modelStackWithTimelineCounter, macro, pos);
 	}
 	return true;
 }
@@ -345,34 +344,34 @@ bool tryModeKnobMacro(int32_t whichKnob, int32_t offset) {
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-	int32_t pos = std::clamp<int32_t>((int32_t)macro.leaderKnobPos + offset, 0, kMaxValue);
-	macro.leaderKnobPos = pos;
-	sendToFollowers(instrument, clip, modelStackWithTimelineCounter, macro, pos);
+	int32_t pos = std::clamp<int32_t>((int32_t)macro.sourceKnobPos + offset, 0, kMaxValue);
+	macro.sourceKnobPos = pos;
+	sendToTargets(instrument, clip, modelStackWithTimelineCounter, macro, pos);
 	return true;
 }
 
-// follower slot tag names are "follower1" .. "follower8"; returns the slot index, or -1 if not one.
-static int32_t followerSlotFromTagName(char const* tagName) {
-	constexpr int32_t prefixLen = 8; // strlen("follower")
-	if (!memcmp(tagName, MIDI_MACRO_FOLLOWER_PREFIX, prefixLen) && tagName[prefixLen] >= '1'
-	    && tagName[prefixLen] < '1' + kNumFollowerSlots && !tagName[prefixLen + 1]) {
+// target slot tag names are "target1" .. "target8"; returns the slot index, or -1 if not one.
+static int32_t targetSlotFromTagName(char const* tagName) {
+	constexpr int32_t prefixLen = 6; // strlen("target")
+	if (!memcmp(tagName, MIDI_MACRO_TARGET_PREFIX, prefixLen) && tagName[prefixLen] >= '1'
+	    && tagName[prefixLen] < '1' + kNumTargetSlots && !tagName[prefixLen + 1]) {
 		return tagName[prefixLen] - '1';
 	}
 	return -1;
 }
 
-// Writes the configured <follower1..8/> elements of a macro. Used by both the instrument block and presets.
-static void writeFollowersToFile(Serializer& writer, Macro& macro) {
-	for (int32_t i = 0; i < kNumFollowerSlots; i++) {
-		MacroFollowerSlot& follower = macro.followers[i];
-		if (follower.cc != kFollowerCCNone) {
-			char tagName[10] = MIDI_MACRO_FOLLOWER_PREFIX "1"; // "follower1"
-			tagName[8] = '1' + i;
+// Writes the configured <target1..8/> elements of a macro. Used by both the instrument block and presets.
+static void writeTargetsToFile(Serializer& writer, Macro& macro) {
+	for (int32_t i = 0; i < kNumTargetSlots; i++) {
+		MacroTargetSlot& target = macro.targets[i];
+		if (target.cc != kTargetCCNone) {
+			char tagName[10] = MIDI_MACRO_TARGET_PREFIX "1"; // "target1"
+			tagName[6] = '1' + i;
 			writer.writeOpeningTagBeginning(tagName);
-			writer.writeAttribute("cc", follower.cc, false);
-			writer.writeAttribute("from", follower.from, false);
-			writer.writeAttribute("to", follower.to, false);
-			writer.writeAttribute("send", follower.send ? 1 : 0, false);
+			writer.writeAttribute("cc", target.cc, false);
+			writer.writeAttribute("from", target.from, false);
+			writer.writeAttribute("to", target.to, false);
+			writer.writeAttribute("send", target.send ? 1 : 0, false);
 			writer.closeTag();
 		}
 	}
@@ -380,16 +379,16 @@ static void writeFollowersToFile(Serializer& writer, Macro& macro) {
 
 // Writes one <macro> element (self-closing if empty), as it appears in the instrument block.
 static void writeMacroToFile(Serializer& writer, Macro& macro) {
-	// Does this macro have any children to write? (A learned leader or at least one configured follower.)
-	bool hasChildren = macro.leader.containsSomething();
-	for (int32_t i = 0; i < kNumFollowerSlots && !hasChildren; i++) {
-		hasChildren = macro.followers[i].cc != kFollowerCCNone;
+	// Does this macro have any children to write? (A learned source or at least one configured target.)
+	bool hasChildren = macro.source.containsSomething();
+	for (int32_t i = 0; i < kNumTargetSlots && !hasChildren; i++) {
+		hasChildren = macro.targets[i].cc != kTargetCCNone;
 	}
 
 	writer.writeOpeningTagBeginning(MIDI_MACRO_ELEMENT_TAG);
 	writer.writeAttribute("active", macro.active ? 1 : 0, false);
-	if (macro.leaderKnob >= 0) {
-		writer.writeAttribute("leaderKnob", macro.leaderKnob, false); // gold-knob leader rides on the tag
+	if (macro.sourceKnob >= 0) {
+		writer.writeAttribute("sourceKnob", macro.sourceKnob, false); // gold-knob source rides on the tag
 	}
 
 	// Self-close empty macros (<macro active="0"/>). The XML reader mis-parses an empty but
@@ -403,9 +402,9 @@ static void writeMacroToFile(Serializer& writer, Macro& macro) {
 
 	writer.writeOpeningTagEnd();
 
-	macro.leader.writeCCToFile(writer, MIDI_MACRO_LEADER_TAG);
+	macro.source.writeCCToFile(writer, MIDI_MACRO_SOURCE_TAG);
 
-	writeFollowersToFile(writer, macro);
+	writeTargetsToFile(writer, macro);
 
 	writer.writeClosingTag(MIDI_MACRO_ELEMENT_TAG);
 }
@@ -424,9 +423,9 @@ void writeMacrosToFile(Serializer& writer, Macro* macros, bool enabled) {
 	writer.writeClosingTag(MIDI_MACROS_TAG);
 }
 
-// Reads a follower's cc/from/to/send attributes (e.g. <follower1 cc="42" from="0" to="100" send="1" />).
-static void readFollowerFromFile(Deserializer& reader, MacroFollowerSlot& follower) {
-	int32_t cc = kFollowerCCNone;
+// Reads a target's cc/from/to/send attributes (e.g. <target1 cc="42" from="0" to="100" send="1" />).
+static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target) {
+	int32_t cc = kTargetCCNone;
 	int32_t from = kDefaultFrom;
 	int32_t to = kDefaultTo;
 	bool send = true;
@@ -446,10 +445,10 @@ static void readFollowerFromFile(Deserializer& reader, MacroFollowerSlot& follow
 		}
 		reader.exitTag();
 	}
-	follower.cc = (cc >= 0 && cc <= kMaxFollowerCC) ? cc : kFollowerCCNone;
-	follower.from = std::clamp<int32_t>(from, 0, kMaxValue);
-	follower.to = std::clamp<int32_t>(to, 0, kMaxValue);
-	follower.send = send;
+	target.cc = (cc >= 0 && cc <= kMaxTargetCC) ? cc : kTargetCCNone;
+	target.from = std::clamp<int32_t>(from, 0, kMaxValue);
+	target.to = std::clamp<int32_t>(to, 0, kMaxValue);
+	target.send = send;
 }
 
 static void readMacroFromFile(Deserializer& reader, Macro& macro) {
@@ -459,17 +458,17 @@ static void readMacroFromFile(Deserializer& reader, Macro& macro) {
 		if (!strcmp(tagName, "active") || !strcmp(tagName, "enabled")) {
 			macro.active = reader.readTagOrAttributeValueInt() != 0;
 		}
-		else if (!strcmp(tagName, "leaderKnob")) {
+		else if (!strcmp(tagName, "sourceKnob")) {
 			int32_t k = reader.readTagOrAttributeValueInt();
-			macro.leaderKnob = (k >= 0 && k < kNumPhysicalModKnobs) ? (int8_t)k : -1;
+			macro.sourceKnob = (k >= 0 && k < kNumPhysicalModKnobs) ? (int8_t)k : -1;
 		}
-		else if (!strcmp(tagName, MIDI_MACRO_LEADER_TAG)) {
-			macro.leader.readCCFromFile(reader);
+		else if (!strcmp(tagName, MIDI_MACRO_SOURCE_TAG)) {
+			macro.source.readCCFromFile(reader);
 		}
 		else {
-			int32_t slot = followerSlotFromTagName(tagName);
+			int32_t slot = targetSlotFromTagName(tagName);
 			if (slot >= 0) {
-				readFollowerFromFile(reader, macro.followers[slot]);
+				readTargetFromFile(reader, macro.targets[slot]);
 			}
 		}
 		reader.exitTag();
@@ -492,18 +491,18 @@ void readMacrosFromFile(Deserializer& reader, Macro* macros, bool& enabled) {
 	}
 }
 
-// Writes a preset: followers only (<midiMacro><follower1..8/></midiMacro>). A preset is a portable
-// follower configuration - it deliberately omits the leader and the macro's active state so it can
+// Writes a preset: targets only (<midiMacro><target1..8/></midiMacro>). A preset is a portable
+// target configuration - it deliberately omits the source and the macro's active state so it can
 // be applied to any macro. The caller (save browser) owns createXMLFile()/closeFileAfterWriting().
 void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex) {
 	writer.writeOpeningTagBeginning(MIDI_MACRO_PRESET_TAG);
 	writer.writeOpeningTagEnd();
-	writeFollowersToFile(writer, macros[macroIndex]);
+	writeTargetsToFile(writer, macros[macroIndex]);
 	writer.writeClosingTag(MIDI_MACRO_PRESET_TAG);
 }
 
-// Loads a preset's followers into macros[macroIndex], replacing that macro's followers only and
-// leaving its leader and active state untouched. If the loaded followers conflict with an active
+// Loads a preset's targets into macros[macroIndex], replacing that macro's targets only and
+// leaving its source and active state untouched. If the loaded targets conflict with an active
 // macro, the loaded macro is deactivated (its CCs are kept), since destination CCs must be unique.
 Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroIndex) {
 	Error error = StorageManager::openXMLFile(fp, smDeserializer, MIDI_MACRO_PRESET_TAG);
@@ -511,24 +510,24 @@ Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroI
 		return error;
 	}
 
-	// Remember which CCs the old follower set targeted, so their baked lanes can be cleared if the
+	// Remember which CCs the old target set targeted, so their baked lanes can be cleared if the
 	// preset no longer uses them (otherwise they'd keep playing as ghost lanes).
-	uint8_t oldCCs[kNumFollowerSlots];
-	for (int32_t f = 0; f < kNumFollowerSlots; f++) {
-		oldCCs[f] = macros[macroIndex].followers[f].cc;
+	uint8_t oldCCs[kNumTargetSlots];
+	for (int32_t f = 0; f < kNumTargetSlots; f++) {
+		oldCCs[f] = macros[macroIndex].targets[f].cc;
 	}
 
-	// Reset only the followers so slots the preset doesn't configure are cleared, not left over.
-	for (MacroFollowerSlot& follower : macros[macroIndex].followers) {
-		follower = MacroFollowerSlot{};
+	// Reset only the targets so slots the preset doesn't configure are cleared, not left over.
+	for (MacroTargetSlot& target : macros[macroIndex].targets) {
+		target = MacroTargetSlot{};
 	}
 
 	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		int32_t slot = followerSlotFromTagName(tagName);
+		int32_t slot = targetSlotFromTagName(tagName);
 		if (slot >= 0) {
-			readFollowerFromFile(reader, macros[macroIndex].followers[slot]);
+			readTargetFromFile(reader, macros[macroIndex].targets[slot]);
 		}
 		reader.exitTag();
 	}
@@ -549,10 +548,10 @@ Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroI
 		    modelStack->addTimelineCounter(clip)
 		        ->addNoteRow(0, nullptr)
 		        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
-		for (int32_t f = 0; f < kNumFollowerSlots; f++) {
+		for (int32_t f = 0; f < kNumTargetSlots; f++) {
 			uint8_t oldCC = oldCCs[f];
-			if (oldCC == kFollowerCCNone || findFollowerCCOwner(macros, oldCC, -1, -1) >= 0) {
-				continue; // dropped CC still targeted by some follower - its bake stays
+			if (oldCC == kTargetCCNone || findTargetCCOwner(macros, oldCC, -1, -1) >= 0) {
+				continue; // dropped CC still targeted by some target - its bake stays
 			}
 			MIDIParam* oldParam = coll->params.getParamFromCC(oldCC);
 			if (oldParam) {
@@ -563,8 +562,8 @@ Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroI
 			}
 		}
 	}
-	reFanMacro(clip, macroIndex, nullptr); // new follower set -> re-bake the macro lane into it
-	view.setModLedStates();                // refresh the follower-assignment LEDs
+	reFanMacro(clip, macroIndex, nullptr); // new target set -> re-bake the macro lane into it
+	view.setModLedStates();                // refresh the target-assignment LEDs
 
 	return Error::NONE;
 }
@@ -585,21 +584,21 @@ void capture(int32_t macroIndex, bool toMax) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 	bool changed = false;
-	for (MacroFollowerSlot& follower : instrument->macros[macroIndex].followers) {
-		if (follower.cc == kFollowerCCNone) {
+	for (MacroTargetSlot& target : instrument->macros[macroIndex].targets) {
+		if (target.cc == kTargetCCNone) {
 			continue;
 		}
-		// Read this CC's current live value - the inverse of the write in sendToFollowers().
+		// Read this CC's current live value - the inverse of the write in sendToTargets().
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStackWithTimelineCounter->addNoteRow(0, nullptr)
 		        ->addOtherTwoThings(instrument->toModControllable(), instrument->getParamManager(currentSong));
 		ModelStackWithAutoParam* modelStackWithParam =
-		    instrument->getParamToControlFromInputMIDIChannel(follower.cc, modelStackWithThreeMainThings);
+		    instrument->getParamToControlFromInputMIDIChannel(target.cc, modelStackWithThreeMainThings);
 		if (!modelStackWithParam->autoParam) {
 			continue;
 		}
 		int32_t value = bigValueToCC(modelStackWithParam->autoParam->getCurrentValue());
-		(toMax ? follower.to : follower.from) = value;
+		(toMax ? target.to : target.from) = value;
 		changed = true;
 	}
 	if (changed) {
@@ -619,31 +618,30 @@ static MIDIParamCollection* getMIDIParams(Clip* clip, ParamCollectionSummary** s
 	return (MIDIParamCollection*)summary->paramCollection;
 }
 
-// Clears one follower's lane and, when sending, mirrors the leader lane into it scaled by [from, to].
-// The caller must not create any params between resolving `leader` and this call: an insert moves the
+// Clears one target's lane and, when sending, mirrors the source lane into it scaled by [from, to].
+// The caller must not create any params between resolving `source` and this call: an insert moves the
 // vector's storage and would dangle the pointer.
-static void bakeFollower(MIDIParamCollection* coll, ParamCollectionSummary* summary,
-                         ModelStackWithThreeMainThings* three, const MacroFollowerSlot& follower, AutoParam* leader,
-                         Action* action) {
-	MIDIParam* followerParam = coll->params.getParamFromCC(follower.cc);
-	if (!followerParam) {
+static void bakeTarget(MIDIParamCollection* coll, ParamCollectionSummary* summary, ModelStackWithThreeMainThings* three,
+                       const MacroTargetSlot& target, AutoParam* source, Action* action) {
+	MIDIParam* targetParam = coll->params.getParamFromCC(target.cc);
+	if (!targetParam) {
 		return; // never existed: nothing to clear, and nothing will be written (send off)
 	}
 	ModelStackWithAutoParam* modelStackWithParam =
-	    three->addParamCollectionAndId(coll, summary, follower.cc)->addAutoParam(&followerParam->param);
+	    three->addParamCollectionAndId(coll, summary, target.cc)->addAutoParam(&targetParam->param);
 
 	// Overwrite: clear first (deleteAutomation snapshots into `action` for undo when given).
-	followerParam->param.deleteAutomation(action, modelStackWithParam, false);
+	targetParam->param.deleteAutomation(action, modelStackWithParam, false);
 
-	if (follower.send) {
-		for (int32_t n = 0; n < leader->nodes.getNumElements(); n++) {
-			ParamNode* node = leader->nodes.getElement(n);
-			int32_t out = scaleFollower(follower, bigValueToCC(node->value));
-			followerParam->param.setNodeAtPos(node->pos, (out - 64) << 25, node->interpolated);
+	if (target.send) {
+		for (int32_t n = 0; n < source->nodes.getNumElements(); n++) {
+			ParamNode* node = source->nodes.getElement(n);
+			int32_t out = scaleTarget(target, bigValueToCC(node->value));
+			targetParam->param.setNodeAtPos(node->pos, (out - 64) << 25, node->interpolated);
 		}
-		// Base value for regions before the first node / when the leader has no nodes.
-		int32_t base = scaleFollower(follower, bigValueToCC(leader->getCurrentValue()));
-		followerParam->param.setCurrentValueBasicForSetup((base - 64) << 25);
+		// Base value for regions before the first node / when the source has no nodes.
+		int32_t base = scaleTarget(target, bigValueToCC(source->getCurrentValue()));
+		targetParam->param.setCurrentValueBasicForSetup((base - 64) << 25);
 	}
 }
 
@@ -653,8 +651,8 @@ static void refreshAutomationGridIfShowingCC(Clip* clip, uint8_t cc) {
 	}
 }
 
-// Mirror macroIndex's leader-lane automation (pseudo-CC paramIDForMacro) into each follower CC's
-// automation on `clip`, scaled. Overwrites the follower lanes; snapshots them into `action` first.
+// Mirror macroIndex's source-lane automation (pseudo-CC paramIDForMacro) into each target CC's
+// automation on `clip`, scaled. Overwrites the target lanes; snapshots them into `action` first.
 static void fanOutMacroLane(MIDIInstrument* instrument, Clip* clip, int32_t macroIndex,
                             ModelStackWithTimelineCounter* modelStack, Action* action) {
 	ParamCollectionSummary* summary;
@@ -663,40 +661,39 @@ static void fanOutMacroLane(MIDIInstrument* instrument, Clip* clip, int32_t macr
 		return;
 	}
 	// If the macro lane's param was never created on this clip, nothing was ever baked - leave the
-	// followers (possibly live-recorded) alone.
+	// targets (possibly live-recorded) alone.
 	if (!coll->params.getParamFromCC(paramIDForMacro(macroIndex))) {
 		return;
 	}
 
-	// Create any follower params we'll write BEFORE taking pointers into the vector: an insert
-	// memmoves/reallocs the element storage, which would dangle the leader pointer taken below.
-	for (int32_t slot = 0; slot < kNumFollowerSlots; slot++) {
-		MacroFollowerSlot& follower = instrument->macros[macroIndex].followers[slot];
-		if (follower.cc != kFollowerCCNone && follower.send
-		    && !isFollowerShadowed(instrument->macros, macroIndex, slot)) {
-			coll->params.getOrCreateParamFromCC(follower.cc, 0);
+	// Create any target params we'll write BEFORE taking pointers into the vector: an insert
+	// memmoves/reallocs the element storage, which would dangle the source pointer taken below.
+	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
+		MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
+		if (target.cc != kTargetCCNone && target.send && !isTargetShadowed(instrument->macros, macroIndex, slot)) {
+			coll->params.getOrCreateParamFromCC(target.cc, 0);
 		}
 	}
-	MIDIParam* leaderParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
-	if (!leaderParam) {
+	MIDIParam* sourceParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
+	if (!sourceParam) {
 		return;
 	}
-	AutoParam* leader = &leaderParam->param;
+	AutoParam* source = &sourceParam->param;
 
 	ModelStackWithThreeMainThings* three =
 	    modelStack->addNoteRow(0, nullptr)->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
 
-	for (int32_t slot = 0; slot < kNumFollowerSlots; slot++) {
-		MacroFollowerSlot& follower = instrument->macros[macroIndex].followers[slot];
-		if (follower.cc == kFollowerCCNone) {
+	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
+		MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
+		if (target.cc == kTargetCCNone) {
 			continue;
 		}
-		// A shadowed follower's CC lane belongs to its owner - don't clear or bake it.
-		if (isFollowerShadowed(instrument->macros, macroIndex, slot)) {
+		// A shadowed target's CC lane belongs to its owner - don't clear or bake it.
+		if (isTargetShadowed(instrument->macros, macroIndex, slot)) {
 			continue;
 		}
-		bakeFollower(coll, summary, three, follower, leader, action);
-		refreshAutomationGridIfShowingCC(clip, follower.cc);
+		bakeTarget(coll, summary, three, target, source, action);
+		refreshAutomationGridIfShowingCC(clip, target.cc);
 	}
 	instrument->editedByUser = true;
 }
@@ -715,7 +712,7 @@ void reFanMacro(Clip* clip, int32_t macroIndex, Action* action) {
 	fanOutMacroLane(instrument, clip, macroIndex, modelStackWithTimelineCounter, action);
 }
 
-void reFanFollower(Clip* clip, int32_t macroIndex, int32_t slot, Action* action) {
+void reFanTarget(Clip* clip, int32_t macroIndex, int32_t slot, Action* action) {
 	if (getCurrentUI() == &loadSongUI) {
 		return;
 	}
@@ -723,12 +720,12 @@ void reFanFollower(Clip* clip, int32_t macroIndex, int32_t slot, Action* action)
 	if (!instrument) {
 		return;
 	}
-	MacroFollowerSlot& follower = instrument->macros[macroIndex].followers[slot];
-	if (follower.cc == kFollowerCCNone) {
+	MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
+	if (target.cc == kTargetCCNone) {
 		return;
 	}
-	// A shadowed follower's CC lane belongs to its owner - don't clear or bake it.
-	if (isFollowerShadowed(instrument->macros, macroIndex, slot)) {
+	// A shadowed target's CC lane belongs to its owner - don't clear or bake it.
+	if (isTargetShadowed(instrument->macros, macroIndex, slot)) {
 		return;
 	}
 	ParamCollectionSummary* summary;
@@ -736,11 +733,11 @@ void reFanFollower(Clip* clip, int32_t macroIndex, int32_t slot, Action* action)
 	if (!coll || !coll->params.getParamFromCC(paramIDForMacro(macroIndex))) {
 		return; // macro lane never touched on this clip - nothing baked, nothing to redo
 	}
-	if (follower.send) {
-		coll->params.getOrCreateParamFromCC(follower.cc, 0); // create before taking the leader pointer
+	if (target.send) {
+		coll->params.getOrCreateParamFromCC(target.cc, 0); // create before taking the source pointer
 	}
-	MIDIParam* leaderParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
-	if (!leaderParam) {
+	MIDIParam* sourceParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
+	if (!sourceParam) {
 		return;
 	}
 
@@ -750,22 +747,22 @@ void reFanFollower(Clip* clip, int32_t macroIndex, int32_t slot, Action* action)
 	    modelStack->addTimelineCounter(clip)
 	        ->addNoteRow(0, nullptr)
 	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
-	bakeFollower(coll, summary, three, follower, &leaderParam->param, action);
-	refreshAutomationGridIfShowingCC(clip, follower.cc);
+	bakeTarget(coll, summary, three, target, &sourceParam->param, action);
+	refreshAutomationGridIfShowingCC(clip, target.cc);
 	instrument->editedByUser = true;
 }
 
-void changeFollowerCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC) {
+void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC) {
 	MIDIInstrument* instrument = midiClipInstrument(clip);
 	if (!instrument) {
 		return;
 	}
-	MacroFollowerSlot& follower = instrument->macros[macroIndex].followers[slot];
-	uint8_t oldCC = follower.cc;
+	MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
+	uint8_t oldCC = target.cc;
 	if (newCC == oldCC) {
 		return;
 	}
-	follower.cc = newCC;
+	target.cc = newCC;
 	instrument->editedByUser = true;
 
 	ParamCollectionSummary* summary;
@@ -784,11 +781,11 @@ void changeFollowerCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newC
 	        ->addNoteRow(0, nullptr)
 	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
 
-	// Deal with the CC we left: if another follower still targets it, hand ownership over (it may have
+	// Deal with the CC we left: if another target still targets it, hand ownership over (it may have
 	// been shadowed by us - re-bake it); otherwise clear our bake so it doesn't play as a ghost lane.
-	if (oldCC != kFollowerCCNone) {
+	if (oldCC != kTargetCCNone) {
 		int32_t ownerSlot = 0;
-		int32_t ownerMacro = findFollowerCCOwner(instrument->macros, oldCC, macroIndex, slot, &ownerSlot);
+		int32_t ownerMacro = findTargetCCOwner(instrument->macros, oldCC, macroIndex, slot, &ownerSlot);
 		MIDIParam* oldParam = coll->params.getParamFromCC(oldCC);
 		if (oldParam) {
 			ModelStackWithAutoParam* modelStackWithParam =
@@ -797,24 +794,24 @@ void changeFollowerCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newC
 			refreshAutomationGridIfShowingCC(clip, oldCC);
 		}
 		if (ownerMacro >= 0) {
-			reFanFollower(clip, ownerMacro, ownerSlot, action); // promote the new owner's bake
+			reFanTarget(clip, ownerMacro, ownerSlot, action); // promote the new owner's bake
 		}
 	}
 
-	// Bake the macro curve into the new CC - unless an earlier follower owns it (we're shadowed: keep
+	// Bake the macro curve into the new CC - unless an earlier target owns it (we're shadowed: keep
 	// the config but leave the owner's lane alone; the UI shows the conflict and keeps our LED off).
-	if (newCC != kFollowerCCNone && findShadowingOwner(instrument->macros, newCC, macroIndex, slot) < 0) {
-		if (follower.send) {
-			coll->params.getOrCreateParamFromCC(newCC, 0); // create before taking the leader pointer
+	if (newCC != kTargetCCNone && findShadowingOwner(instrument->macros, newCC, macroIndex, slot) < 0) {
+		if (target.send) {
+			coll->params.getOrCreateParamFromCC(newCC, 0); // create before taking the source pointer
 		}
-		MIDIParam* leaderParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
-		if (leaderParam) {
-			bakeFollower(coll, summary, three, follower, &leaderParam->param, action);
+		MIDIParam* sourceParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
+		if (sourceParam) {
+			bakeTarget(coll, summary, three, target, &sourceParam->param, action);
 			refreshAutomationGridIfShowingCC(clip, newCC);
 		}
 	}
 
-	view.setModLedStates(); // the mod-button LEDs show follower assignment while a macro lane is shown
+	view.setModLedStates(); // the mod-button LEDs show target assignment while a macro lane is shown
 }
 
 } // namespace MIDIMacro

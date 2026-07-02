@@ -223,7 +223,7 @@ int32_t MIDIParamCollection::autoparamValueToCC(int32_t newValue) {
 void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
                                    int32_t midiOutputFilter) {
 	// Macro automation lanes (paramID 128-131) are stored like CC params but must never emit MIDI - they
-	// fan out into their follower CC lanes instead. cc 128+ is not a valid 7-bit CC anyway.
+	// fan out into their target CC lanes instead. cc 128+ is not a valid 7-bit CC anyway.
 	if (cc >= MIDIMacro::kMacroParamIDBase) {
 		return;
 	}

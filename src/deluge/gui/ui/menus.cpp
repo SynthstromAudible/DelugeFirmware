@@ -104,8 +104,8 @@
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
 #include "gui/menu_item/midi/follow/follow_feedback_channel_type.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
-#include "gui/menu_item/midi/macro_follower.h"
 #include "gui/menu_item/midi/macro_preset.h"
+#include "gui/menu_item/midi/macro_target.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/program.h"
@@ -1129,42 +1129,40 @@ Submenu midiCommandsMenu{
 // Each destination is a horizontal menu page of three columns (CC | Base | Depth); the 8 pages
 // are bundled into a HorizontalMenuGroup so you flip between destinations 1-8 from one page.
 
-// Declares the CC/From/To/Send column items plus the horizontal page for macro m's follower f.
-#define MACRO_FOLLOWER(m, f)                                                                                           \
-	midi::MacroFollower macro##m##Follower##f##CC{STRING_FOR_MACRO_FOLLOWER_CC, (m) - 1, (f) - 1};                     \
-	midi::MacroFollowerRange macro##m##Follower##f##From{STRING_FOR_MACRO_FROM, (m) - 1, (f) - 1,                      \
-	                                                     midi::MacroFollowerRange::FROM};                              \
-	midi::MacroFollowerRange macro##m##Follower##f##To{STRING_FOR_MACRO_TO, (m) - 1, (f) - 1,                          \
-	                                                   midi::MacroFollowerRange::TO};                                  \
-	midi::MacroFollowerSend macro##m##Follower##f##Send{STRING_FOR_MACRO_SEND, (m) - 1, (f) - 1};                      \
-	HorizontalMenu macro##m##FollowerPage##f {                                                                         \
-		STRING_FOR_MACRO_FOLLOWER_##f, {                                                                               \
-			&macro##m##Follower##f##CC, &macro##m##Follower##f##From, &macro##m##Follower##f##To,                      \
-			    &macro##m##Follower##f##Send                                                                           \
+// Declares the CC/From/To/Send column items plus the horizontal page for macro m's target f.
+#define MACRO_TARGET(m, f)                                                                                             \
+	midi::MacroTarget macro##m##Target##f##CC{STRING_FOR_MACRO_TARGET_CC, (m) - 1, (f) - 1};                           \
+	midi::MacroTargetRange macro##m##Target##f##From{STRING_FOR_MACRO_FROM, (m) - 1, (f) - 1,                          \
+	                                                 midi::MacroTargetRange::FROM};                                    \
+	midi::MacroTargetRange macro##m##Target##f##To{STRING_FOR_MACRO_TO, (m) - 1, (f) - 1, midi::MacroTargetRange::TO}; \
+	midi::MacroTargetSend macro##m##Target##f##Send{STRING_FOR_MACRO_SEND, (m) - 1, (f) - 1};                          \
+	HorizontalMenu macro##m##TargetPage##f {                                                                           \
+		STRING_FOR_MACRO_TARGET_##f, {                                                                                 \
+			&macro##m##Target##f##CC, &macro##m##Target##f##From, &macro##m##Target##f##To, &macro##m##Target##f##Send \
 		}                                                                                                              \
 	}
 
-// Declares macro m's master enable, learnable leader, 8 follower pages and the macro submenu.
+// Declares macro m's master enable, learnable source, 8 target pages and the macro submenu.
 #define DEFINE_MACRO(m)                                                                                                \
 	midi::MacroActive macro##m##Active{STRING_FOR_MACRO_ACTIVE, (m) - 1};                                              \
-	midi::MacroLeader macro##m##Leader{STRING_FOR_MACRO_LEADER, (m) - 1};                                              \
-	MACRO_FOLLOWER(m, 1);                                                                                              \
-	MACRO_FOLLOWER(m, 2);                                                                                              \
-	MACRO_FOLLOWER(m, 3);                                                                                              \
-	MACRO_FOLLOWER(m, 4);                                                                                              \
-	MACRO_FOLLOWER(m, 5);                                                                                              \
-	MACRO_FOLLOWER(m, 6);                                                                                              \
-	MACRO_FOLLOWER(m, 7);                                                                                              \
-	MACRO_FOLLOWER(m, 8);                                                                                              \
-	HorizontalMenuGroup macro##m##Followers{                                                                           \
-	    STRING_FOR_MACRO_FOLLOWERS,                                                                                    \
-	    {&macro##m##FollowerPage1, &macro##m##FollowerPage2, &macro##m##FollowerPage3, &macro##m##FollowerPage4,       \
-	     &macro##m##FollowerPage5, &macro##m##FollowerPage6, &macro##m##FollowerPage7, &macro##m##FollowerPage8}};     \
+	midi::MacroSource macro##m##Source{STRING_FOR_MACRO_SOURCE, (m) - 1};                                              \
+	MACRO_TARGET(m, 1);                                                                                                \
+	MACRO_TARGET(m, 2);                                                                                                \
+	MACRO_TARGET(m, 3);                                                                                                \
+	MACRO_TARGET(m, 4);                                                                                                \
+	MACRO_TARGET(m, 5);                                                                                                \
+	MACRO_TARGET(m, 6);                                                                                                \
+	MACRO_TARGET(m, 7);                                                                                                \
+	MACRO_TARGET(m, 8);                                                                                                \
+	HorizontalMenuGroup macro##m##Targets{STRING_FOR_MACRO_TARGETS,                                                    \
+	                                      {&macro##m##TargetPage1, &macro##m##TargetPage2, &macro##m##TargetPage3,     \
+	                                       &macro##m##TargetPage4, &macro##m##TargetPage5, &macro##m##TargetPage6,     \
+	                                       &macro##m##TargetPage7, &macro##m##TargetPage8}};                           \
 	midi::MacroPreset macro##m##Load{STRING_FOR_MACRO_LOAD, (m) - 1, false};                                           \
 	midi::MacroPreset macro##m##Save{STRING_FOR_MACRO_SAVE, (m) - 1, true};                                            \
 	Submenu midiMacro##m##Menu {                                                                                       \
 		STRING_FOR_MACRO_##m, {                                                                                        \
-			&macro##m##Active, &macro##m##Leader, &macro##m##Followers, &macro##m##Load, &macro##m##Save               \
+			&macro##m##Active, &macro##m##Source, &macro##m##Targets, &macro##m##Load, &macro##m##Save                 \
 		}                                                                                                              \
 	}
 
@@ -1173,7 +1171,7 @@ DEFINE_MACRO(2);
 DEFINE_MACRO(3);
 DEFINE_MACRO(4);
 #undef DEFINE_MACRO
-#undef MACRO_FOLLOWER
+#undef MACRO_TARGET
 
 midi::MacroEnable macroEnable{STRING_FOR_MACRO_ENABLE_MACROS};
 midi::MacroMenu midiMacroMenu{

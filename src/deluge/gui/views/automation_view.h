@@ -115,22 +115,22 @@ public:
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	void modButtonAction(uint8_t whichButton, bool on) override;
-	void commitHeldFollowerCC();
+	void commitHeldTargetCC();
 	CopiedParamAutomation copiedParamAutomation;
 
 	// While a MIDI Macro lane is selected, holding a param-select button (0..7) quick-edits that
-	// follower: select encoder = CC, gold knob 0 = From, gold knob 1 = To. -1 = no button held.
-	int8_t heldFollower = -1;
+	// target: select encoder = CC, gold knob 0 = From, gold knob 1 = To. -1 = no button held.
+	int8_t heldTarget = -1;
 	// The macro the hold started on, so a lane switch mid-hold can't commit to the wrong macro.
-	int8_t heldFollowerMacro = -1;
+	int8_t heldTargetMacro = -1;
 	// CC value being dialed during the hold (-1 = OFF, 0..127 = CC); committed only on button
 	// release, so scrolling never touches the automation of the CCs passed through.
-	int16_t heldFollowerPendingCC = -1;
-	// Follower awaiting the clear-confirmation context menu (SHIFT+SAVE while holding its button).
+	int16_t heldTargetPendingCC = -1;
+	// Target awaiting the clear-confirmation context menu (SHIFT+SAVE while holding its button).
 	int8_t pendingClearMacro = -1;
-	int8_t pendingClearFollower = -1;
-	// Clears the pending follower's assignment (called by the confirmation menu). Returns success.
-	bool acceptPendingFollowerClear();
+	int8_t pendingClearTarget = -1;
+	// Clears the pending target's assignment (called by the confirmation menu). Returns success.
+	bool acceptPendingTargetClear();
 	// SHIFT + horizontal encoder press on a macro lane: toggle that macro Active/Inactive.
 	bool toggleMacroLaneActive();
 

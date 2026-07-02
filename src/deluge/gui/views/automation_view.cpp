@@ -20,7 +20,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
-#include "gui/context_menu/clear_macro_follower.h"
+#include "gui/context_menu/clear_macro_target.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/multi_range.h"
@@ -126,12 +126,12 @@ static MIDIInstrument* macroLaneInstrument(Clip* clip, int32_t* macroIndex) {
 	return (MIDIInstrument*)clip->output;
 }
 
-// Appends a destination label for a follower: the MIDI device's CC name (from a loaded definition
-// file), else "CC<n>", else "F<n>" when cc is OFF (kFollowerCCNone).
-static void appendFollowerName(StringBuf& buf, MIDIInstrument* instrument, int32_t follower, uint8_t cc) {
-	if (cc == MIDIMacro::kFollowerCCNone) {
-		buf.append('F');
-		buf.appendInt(follower + 1);
+// Appends a destination label for a target: the MIDI device's CC name (from a loaded definition
+// file), else "CC<n>", else "F<n>" when cc is OFF (kTargetCCNone).
+static void appendTargetName(StringBuf& buf, MIDIInstrument* instrument, int32_t target, uint8_t cc) {
+	if (cc == MIDIMacro::kTargetCCNone) {
+		buf.append('T');
+		buf.appendInt(target + 1);
 		return;
 	}
 	std::string_view name = instrument->getNameFromCC(cc);
@@ -144,26 +144,26 @@ static void appendFollowerName(StringBuf& buf, MIDIInstrument* instrument, int32
 	}
 }
 
-// Full follower readout while the param button is held: the destination name on the first line and
+// Full target readout while the param button is held: the destination name on the first line and
 // the range on the second, e.g. "LFO1 Freq" / "0 - 127", or "Not assigned" when the slot is OFF (the
 // held button itself identifies the slot). Persistent - stays up until the button is released
 // (cancelPopup in modButtonAction). `cc` may be a pending (not yet committed) value.
-static void showFollowerFull(MIDIInstrument* instrument, int32_t macroIndex, int32_t follower, uint8_t cc) {
-	// A shadowed follower doesn't drive anything - show WHO owns the destination, not a range.
-	if (cc != MIDIMacro::kFollowerCCNone) {
-		int32_t owner = MIDIMacro::findShadowingOwner(instrument->macros, cc, macroIndex, follower);
+static void showTargetFull(MIDIInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t cc) {
+	// A shadowed target doesn't drive anything - show WHO owns the destination, not a range.
+	if (cc != MIDIMacro::kTargetCCNone) {
+		int32_t owner = MIDIMacro::findShadowingOwner(instrument->macros, cc, macroIndex, target);
 		if (owner >= 0) {
 			MIDIMacro::showCCConflictPopup(cc, owner, true); // persistent while held
 			return;
 		}
 	}
-	MIDIMacro::MacroFollowerSlot& f = instrument->macros[macroIndex].followers[follower];
+	MIDIMacro::MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
 	DEF_STACK_STRING_BUF(popup, 48);
-	if (cc == MIDIMacro::kFollowerCCNone) {
+	if (cc == MIDIMacro::kTargetCCNone) {
 		popup.append("Not assigned");
 	}
 	else {
-		appendFollowerName(popup, instrument, follower, cc);
+		appendTargetName(popup, instrument, target, cc);
 		popup.append(display->haveOLED() ? '\n' : ' ');
 		popup.appendInt(f.from);
 		popup.append(" - ");
@@ -532,10 +532,10 @@ void AutomationView::initializeView() {
 
 // Initializes some stuff to begin a new editing session
 void AutomationView::focusRegained() {
-	// clear any stale follower quick-edit hold (and its persistent readout popup)
-	if (heldFollower >= 0) {
-		heldFollower = -1;
-		heldFollowerMacro = -1;
+	// clear any stale target quick-edit hold (and its persistent readout popup)
+	if (heldTarget >= 0) {
+		heldTarget = -1;
+		heldTargetMacro = -1;
 		display->cancelPopup();
 	}
 	if (onArrangerView) {
@@ -1277,16 +1277,16 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 		}
 	}
 
-	// SHIFT + SAVE/DELETE while holding a follower's param button: clear that follower's assignment
-	// (after confirmation). The baked follower lanes are left untouched.
-	else if (b == SAVE && on && Buttons::isShiftButtonPressed() && heldFollower >= 0 && inAutomationEditor()
+	// SHIFT + SAVE/DELETE while holding a target's param button: clear that target's assignment
+	// (after confirmation). The baked target lanes are left untouched.
+	else if (b == SAVE && on && Buttons::isShiftButtonPressed() && heldTarget >= 0 && inAutomationEditor()
 	         && !onArrangerView) {
 		int32_t macroIndex = 0;
-		if (macroLaneInstrument(clip, &macroIndex) != nullptr && macroIndex == heldFollowerMacro) {
+		if (macroLaneInstrument(clip, &macroIndex) != nullptr && macroIndex == heldTargetMacro) {
 			pendingClearMacro = macroIndex;
-			pendingClearFollower = heldFollower;
+			pendingClearTarget = heldTarget;
 			display->cancelPopup(); // drop the persistent hold readout before the confirmation menu
-			openUI(&context_menu::clearMacroFollower);
+			openUI(&context_menu::clearMacroTarget);
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1665,11 +1665,11 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			// each delete is its own undo step; the follower cascade below joins it via the action pointer
+			// each delete is its own undo step; the target cascade below joins it via the action pointer
 			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
 			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
-			// clearing a macro lane clears its follower CC lanes too, in the same undo step
+			// clearing a macro lane clears its target CC lanes too, in the same undo step
 			if (!onArrangerView && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
 				MIDIMacro::reFanMacro(clip, MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), action);
 			}
@@ -2423,7 +2423,7 @@ void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelS
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
 
-		// shifting a macro lane must fan the moved curve out to the follower CC lanes
+		// shifting a macro lane must fan the moved curve out to the target CC lanes
 		Clip* clip = getCurrentClip();
 		if (!onArrangerView && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
 			MIDIMacro::reFanMacro(clip, MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), nullptr);
@@ -2534,15 +2534,15 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 // used to change the value of a step when you press and hold a pad on the timeline
 // used to record live automations in
 // While a MIDI Macro lane is selected, holding a param-select button momentarily quick-edits that
-// follower (select=CC, gold knobs=From/To). Otherwise the buttons behave normally.
+// target (select=CC, gold knobs=From/To). Otherwise the buttons behave normally.
 void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 	// Handle release FIRST and unconditionally: the lane/editor state may have changed mid-hold, and
-	// leaving heldFollower set would silently re-route the encoders next time a macro lane is shown.
+	// leaving heldTarget set would silently re-route the encoders next time a macro lane is shown.
 	if (!on) {
-		if (heldFollower >= 0) {
-			commitHeldFollowerCC();
-			heldFollower = -1;
-			heldFollowerMacro = -1;
+		if (heldTarget >= 0) {
+			commitHeldTargetCC();
+			heldTarget = -1;
+			heldTargetMacro = -1;
 			display->cancelPopup(); // the readout is persistent for the duration of the hold
 			view.setModLedStates(); // re-sync the assignment LEDs (pending value may have been dropped)
 			return;                 // we consumed the press, so consume the matching release
@@ -2554,12 +2554,12 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 	int32_t macroIndex = 0;
 	MIDIInstrument* instrument =
 	    (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(getCurrentClip(), &macroIndex) : nullptr;
-	if (instrument != nullptr && whichButton < MIDIMacro::kNumFollowerSlots) {
-		heldFollower = whichButton;
-		heldFollowerMacro = macroIndex;
-		uint8_t cc = instrument->macros[macroIndex].followers[whichButton].cc;
-		heldFollowerPendingCC = (cc == MIDIMacro::kFollowerCCNone) ? -1 : cc;
-		showFollowerFull(instrument, macroIndex, whichButton, cc);
+	if (instrument != nullptr && whichButton < MIDIMacro::kNumTargetSlots) {
+		heldTarget = whichButton;
+		heldTargetMacro = macroIndex;
+		uint8_t cc = instrument->macros[macroIndex].targets[whichButton].cc;
+		heldTargetPendingCC = (cc == MIDIMacro::kTargetCCNone) ? -1 : cc;
+		showTargetFull(instrument, macroIndex, whichButton, cc);
 		return;
 	}
 	ClipView::modButtonAction(whichButton, on);
@@ -2567,35 +2567,35 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 
 // Commits a CC dialed during the hold: one undoable step that clears the old CC's bake and bakes the
 // new one. Deferred to release so scrolling never wipes the CCs passed through.
-void AutomationView::commitHeldFollowerCC() {
+void AutomationView::commitHeldTargetCC() {
 	Clip* clip = getCurrentClip();
 	int32_t macroIndex = 0;
 	MIDIInstrument* instrument =
 	    (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(clip, &macroIndex) : nullptr;
-	if (instrument == nullptr || macroIndex != heldFollowerMacro) {
+	if (instrument == nullptr || macroIndex != heldTargetMacro) {
 		return; // lane changed mid-hold: drop the pending value rather than commit to the wrong macro
 	}
-	uint8_t newCC = (heldFollowerPendingCC < 0) ? MIDIMacro::kFollowerCCNone : (uint8_t)heldFollowerPendingCC;
-	if (newCC != instrument->macros[macroIndex].followers[heldFollower].cc) {
-		MIDIMacro::changeFollowerCC(clip, macroIndex, heldFollower, newCC);
+	uint8_t newCC = (heldTargetPendingCC < 0) ? MIDIMacro::kTargetCCNone : (uint8_t)heldTargetPendingCC;
+	if (newCC != instrument->macros[macroIndex].targets[heldTarget].cc) {
+		MIDIMacro::changeTargetCC(clip, macroIndex, heldTarget, newCC);
 	}
 }
 
-// Clears the follower assignment picked before the confirmation menu opened. Only the config is
-// reset (CC/from/to/send back to defaults) - the baked automation in the follower lanes stays.
-bool AutomationView::acceptPendingFollowerClear() {
+// Clears the target assignment picked before the confirmation menu opened. Only the config is
+// reset (CC/from/to/send back to defaults) - the baked automation in the target lanes stays.
+bool AutomationView::acceptPendingTargetClear() {
 	int32_t macroIndex = 0;
 	MIDIInstrument* instrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
 	bool ok =
-	    instrument != nullptr && pendingClearMacro >= 0 && pendingClearFollower >= 0 && macroIndex == pendingClearMacro;
+	    instrument != nullptr && pendingClearMacro >= 0 && pendingClearTarget >= 0 && macroIndex == pendingClearMacro;
 	if (ok) {
-		instrument->macros[pendingClearMacro].followers[pendingClearFollower] = MIDIMacro::MacroFollowerSlot{};
+		instrument->macros[pendingClearMacro].targets[pendingClearTarget] = MIDIMacro::MacroTargetSlot{};
 		instrument->editedByUser = true;
-		view.setModLedStates(); // that follower's assignment LED goes dark
-		display->displayPopup("Follower cleared");
+		view.setModLedStates(); // that target's assignment LED goes dark
+		display->displayPopup("Target cleared");
 	}
 	pendingClearMacro = -1;
-	pendingClearFollower = -1;
+	pendingClearTarget = -1;
 	return ok;
 }
 
@@ -2607,7 +2607,7 @@ bool AutomationView::toggleMacroLaneActive() {
 	}
 	MIDIMacro::Macro* macros = instrument->macros;
 	if (!macros[macroIndex].active) {
-		// activation is blocked while a follower CC is owned by another active macro
+		// activation is blocked while a target CC is owned by another active macro
 		uint8_t conflictCC = 0;
 		int32_t owner = MIDIMacro::findActiveConflict(macros, macroIndex, &conflictCC);
 		if (owner >= 0) {
@@ -2641,26 +2641,26 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		return;
 	}
 
-	// While holding a param button on a macro lane, the gold knobs edit the follower's From/To.
-	if (heldFollower >= 0) {
+	// While holding a param button on a macro lane, the gold knobs edit the target's From/To.
+	if (heldTarget >= 0) {
 		Clip* heldClip = getCurrentClip();
 		int32_t macroIndex = 0;
 		MIDIInstrument* instrument = macroLaneInstrument(heldClip, &macroIndex);
-		if (instrument != nullptr && macroIndex == heldFollowerMacro) {
+		if (instrument != nullptr && macroIndex == heldTargetMacro) {
 			// Shaping the range implicitly confirms a destination still pending from the select
 			// encoder - commit it now so From/To edit (and read out) the just-dialed CC.
-			commitHeldFollowerCC();
-			MIDIMacro::MacroFollowerSlot& f = instrument->macros[macroIndex].followers[heldFollower];
+			commitHeldTargetCC();
+			MIDIMacro::MacroTargetSlot& f = instrument->macros[macroIndex].targets[heldTarget];
 			uint8_t& endpoint = (whichModEncoder == 1) ? f.to : f.from; // knob 1 = From, knob 2 = To
 			int32_t v = std::clamp<int32_t>((int32_t)endpoint + offset, 0, MIDIMacro::kMaxValue);
 			if (v != endpoint) {
 				endpoint = (uint8_t)v;
 				instrument->editedByUser = true;
-				// only this follower's scaling changed - re-bake just its lane
-				MIDIMacro::reFanFollower(heldClip, macroIndex, heldFollower, nullptr);
+				// only this target's scaling changed - re-bake just its lane
+				MIDIMacro::reFanTarget(heldClip, macroIndex, heldTarget, nullptr);
 			}
 			// always show the full "From X To Y" readout
-			showFollowerFull(instrument, macroIndex, heldFollower, f.cc);
+			showTargetFull(instrument, macroIndex, heldTarget, f.cc);
 			return;
 		}
 	}
@@ -2788,11 +2788,11 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 	// if they want to delete automation
 	else if (is_delete_action) {
-		// each delete is its own undo step; the follower cascade below joins it via the action pointer
+		// each delete is its own undo step; the target cascade below joins it via the action pointer
 		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
 		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
-		// clearing a macro lane clears its follower CC lanes too, in the same undo step
+		// clearing a macro lane clears its target CC lanes too, in the same undo step
 		if (!onArrangerView && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
 			MIDIMacro::reFanMacro(clip, MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), action);
 		}
@@ -2822,25 +2822,24 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	Output* output = clip->output;
 	OutputType outputType = output->type;
 
-	// While holding a param button on a macro lane, the select encoder dials the follower's destination
+	// While holding a param button on a macro lane, the select encoder dials the target's destination
 	// CC (rather than switching lanes). The value is only COMMITTED on button release (see
-	// commitHeldFollowerCC), so scrolling never touches the automation of the CCs passed through.
-	if (heldFollower >= 0 && inAutomationEditor()) {
+	// commitHeldTargetCC), so scrolling never touches the automation of the CCs passed through.
+	if (heldTarget >= 0 && inAutomationEditor()) {
 		int32_t macroIndex = 0;
 		MIDIInstrument* instrument = macroLaneInstrument(clip, &macroIndex);
-		if (instrument != nullptr && macroIndex == heldFollowerMacro) {
-			heldFollowerPendingCC =
-			    std::clamp<int32_t>((int32_t)heldFollowerPendingCC + offset, -1, MIDIMacro::kMaxFollowerCC);
-			uint8_t pendingCC =
-			    (heldFollowerPendingCC < 0) ? MIDIMacro::kFollowerCCNone : (uint8_t)heldFollowerPendingCC;
-			// If an earlier follower owns this CC, this one would be shadowed (inert): show who owns it
-			// and keep the LED dark. showFollowerFull handles the shadowed readout itself.
-			showFollowerFull(instrument, macroIndex, heldFollower, pendingCC);
+		if (instrument != nullptr && macroIndex == heldTargetMacro) {
+			heldTargetPendingCC =
+			    std::clamp<int32_t>((int32_t)heldTargetPendingCC + offset, -1, MIDIMacro::kMaxTargetCC);
+			uint8_t pendingCC = (heldTargetPendingCC < 0) ? MIDIMacro::kTargetCCNone : (uint8_t)heldTargetPendingCC;
+			// If an earlier target owns this CC, this one would be shadowed (inert): show who owns it
+			// and keep the LED dark. showTargetFull handles the shadowed readout itself.
+			showTargetFull(instrument, macroIndex, heldTarget, pendingCC);
 			bool wouldDrive =
-			    pendingCC != MIDIMacro::kFollowerCCNone
-			    && MIDIMacro::findShadowingOwner(instrument->macros, pendingCC, macroIndex, heldFollower) < 0;
+			    pendingCC != MIDIMacro::kTargetCCNone
+			    && MIDIMacro::findShadowingOwner(instrument->macros, pendingCC, macroIndex, heldTarget) < 0;
 			// the held button's LED tracks the pending assignment live
-			indicator_leds::setLedState(indicator_leds::modLed[heldFollower], wouldDrive);
+			indicator_leds::setLedState(indicator_leds::modLed[heldTarget], wouldDrive);
 			return;
 		}
 	}
@@ -2882,7 +2881,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		if (MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
 			MIDIMacro::showMacroInactivePopup(MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID));
 		}
-		// on a macro lane the mod-button LEDs show which followers are assigned - refresh per lane
+		// on a macro lane the mod-button LEDs show which targets are assigned - refresh per lane
 		view.setModLedStates();
 	}
 	// if you're in arranger view or in a non-midi, non-cv clip (e.g. audio, synth, kit)

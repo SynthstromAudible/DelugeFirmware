@@ -1859,7 +1859,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 
 		// MIDI macro capture shortcuts (MIDI clips only), acting on Macro 1. These four pads are
 		// inert osc/sample shortcuts on a MIDI clip, so we repurpose SHIFT + them:
-		//   (0,7)/(1,7) capture the current follower CC values as capture A/B (from/to);
+		//   (0,7)/(1,7) capture the current target CC values as capture A/B (from/to);
 		//   (0,5)/(1,5) load/save the macro as a preset file.
 		if (velocity && Buttons::isShiftButtonPressed() && getCurrentOutputType() == OutputType::MIDI_OUT
 		    && MIDIMacro::isEnabled()) {
