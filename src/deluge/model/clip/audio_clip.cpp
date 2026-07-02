@@ -105,11 +105,6 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.isCurrentlyReversed());
 
-	// Phase 5c R3: cloneParamCollectionsFrom byte-copied then (via beenCloned) de-flipped the clone's params to
-	// embedded storage; relocate them into the NEW clip's own store so the clone stays DOM-owned and fully
-	// independent of this (source) clip's store.
-	newClip->redirectParamsToOwnStore();
-
 	return Error::NONE;
 }
 
@@ -1210,11 +1205,6 @@ someError:
 
 		reader.exitTag();
 	}
-
-	// Phase 5c R3: relocate the loaded unpatched param nodes into this clip's own store and make the live
-	// AutoParams views over it, so automation editing operates directly on DOM-owned storage (mirrors the
-	// song-global pilot at the tail of Song::readFromFile). No-op if <params> was absent (stays embedded).
-	redirectParamsToOwnStore();
 
 	return Error::NONE;
 }

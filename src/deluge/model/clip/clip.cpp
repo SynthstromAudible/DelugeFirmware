@@ -922,23 +922,6 @@ yesMakeItActive:
 	}
 }
 
-void Clip::redirectParamsToOwnStore() {
-	// Slot 0 holds a genuine unpatched ParamSet, a MIDI-CC collection, or nothing (MIDI/CV clips, or a manager
-	// not yet set up). Only flip a real unpatched set — getUnpatchedParamSet() FREEZES (E410) on an empty
-	// manager and would mis-cast a MIDI collection. Same slot-0 discrimination as deluge::project's projection.
-	ParamCollection* collection = paramManager.summaries[0].paramCollection;
-	if (collection == nullptr || collection->getParamKind() == deluge::modulation::params::Kind::MIDI) {
-		return; // no unpatched params — those params (if any) stay embedded (safe)
-	}
-	auto* unpatchedSet = static_cast<UnpatchedParamSet*>(collection);
-	int32_t numParams = unpatchedSet->getNumParams();
-	for (int32_t p = 0; p < numParams; p++) {
-		ParamNodeVector& store = paramNodeStore_[p];
-		store = std::move(unpatchedSet->params[p].nodes()); // move current nodes (embedded / just-cloned) into store
-		unpatchedSet->params[p].redirectNodeStorage(&store);
-	}
-}
-
 // Obviously don't call this for MIDI clips!
 Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip* favourClipForCloningParamManager) {
 
