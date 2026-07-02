@@ -23,6 +23,7 @@
 #include <cstring>
 #include <expected>
 #include <new>
+#include <span>
 #include <type_traits>
 
 namespace deluge {
@@ -35,6 +36,7 @@ namespace deluge {
 /// (searchMultiple/searchDual/shiftHorizontal/generateRepeats), and the legacy byte-copy clone idiom
 /// (init/cloneFrom/beenCloned) which survives until real fallible clone factories replace it.
 template <typename T, auto keyMember = &T::pos>
+requires std::is_member_object_pointer_v<decltype(keyMember)>
 class OrderedPosVector {
 public:
 	OrderedPosVector() = default;
