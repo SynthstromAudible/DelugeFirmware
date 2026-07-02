@@ -1,12 +1,17 @@
 # DOM-authoritative automation via a single shared node store — Design Spec
 
 **Date:** 2026-07-02
-**Status:** Approved (brainstorm) — **DEFERRED.** A prerequisite standalone effort,
+**Status:** Approved — **RESUMING at Phase B.** The prerequisite standalone effort,
 `2026-07-02-sequencer-clone-idiom-retirement-design.md` (retiring the byte-copy clone idiom from the
-sequencer, keeping `OrderedPosVector<ParamNode>` as the store), is done **first**. This spec's Phase A
-was folded into that effort; the DOM store work here (single-copy unification, DOM ownership, engine
-borrow pointers — Phases B+) resumes after it lands. Note also §7 of the clone-idiom spec: §4.2 below
-needs a correction (growth *moves*, not memcpy) when Phase B is planned.
+sequencer, keeping `OrderedPosVector<ParamNode>` as the store), is **done** (branch
+`deluge-project-param`: full value semantics, `NoteRow` copyable, `cloneFrom` eliminated, clone path
+sim-covered end-to-end via `clip_clone_roundtrip`). That effort **was Phase A** as locked in §3/§4.1 —
+so Phase A is complete. **§5 and §6-Phase A below are superseded** by how it actually landed: no
+`param_node_ops` free functions and no `fast_vector<ParamNode>` retirement — `OrderedPosVector<ParamNode>`
+was kept (per §3/§4.1), so read those two sections as historical. §4.2 has been corrected for the
+post-clone reality (owners now relocate by **move**, not `memcpy` — the conclusion is unchanged and in
+fact strengthened). The DOM store work (single-copy unification, DOM ownership, engine borrow pointers —
+Phases B+) resumes now.
 **Supersedes the storage strategy of:** `2026-07-02-dom-live-authoritative-automation-design.md`
 (that spec chose *projection* — two copies kept in sync; this spec replaces it with a *single
 shared store* owned by the DOM at a stable address, with the engine holding a raw borrow-pointer).
@@ -136,14 +141,18 @@ bare vector). Serialization stays element-wise and unaffected.
 
 ### 4.2 Single copy: the DOM owns the store, the engine borrows a raw pointer
 
-**Why the store must live in the DOM (byte-relocation, precisely).** A `fast_vector`-backed owner
-container (e.g. `NoteRowVector = fast_vector<NoteRow>`) relocates its elements by `memcpy`, not
-move-construction. So the *only* members an owner can safely carry across relocation are
-trivially-copyable ones — raw pointers, ints, PODs. Any owning storage embedded in the owner (an
-inline `fast_vector<ParamNode>`, a `unique_ptr`, anything with a destructor or a non-trivial move) is
-unsafe: the control block is bit-copied and its identity/ownership breaks (a `unique_ptr` would
-double-free; an inline node vector is what dangled in R3). Therefore the node store cannot live in the
-owner at all — it lives in the DOM, and the owner carries only a raw *borrow*-pointer.
+**Why the store must live in the DOM (relocation, precisely).** When a `fast_vector`-backed owner
+container (e.g. `NoteRowVector`) grows, it relocates its elements to a new address — by
+**move-construction** now that `NoteRow` is movable (post-clone-work), or by `memcpy` for
+trivially-copyable owners. Either way, the *address* of anything embedded in the owner changes, so a raw
+borrow-pointer into an owner-embedded store dangles: move-construction transfers the store's heap buffer
+but the store *object's* address (the `fast_vector` control block the pointer targets) still moves, and
+the moved-from original is destroyed when the old vector storage is freed. This is exactly what dangled
+in R3. (The correction over the pre-clone draft: relocation is a *move*, not a `memcpy` — but the
+conclusion is unchanged and in fact strengthened, since it now holds for both relocation modes.)
+Therefore the node store cannot live in the owner at all — it lives in the DOM, and the owner (via the
+engine `AutoParam`) carries only a raw *borrow*-pointer, which is trivially relocatable and survives
+untouched.
 
 **The engine indirection** (the `nodes()` accessor already exists as residue):
 
@@ -188,20 +197,17 @@ These were artifacts of the two-copy projection model and simply do not arise wi
 
 ## 5. File structure
 
-**Create:**
-- `src/deluge-project/param_node_ops.{h,cpp}` — free-function ordered helpers over
-  `fast_vector<ParamNode>` (consolidated with / adjacent to `param_edit.*`).
+**Create:** *(none — superseded.)* The earlier draft created `param_node_ops.{h,cpp}` (free-function
+ordered helpers over a bare `fast_vector<ParamNode>`); §3/§4.1 rejected that in favour of keeping
+`OrderedPosVector<ParamNode>` with its ordered-op methods, so no such file is created.
 
-**Modify (Phase A — the bulk, ~160 call-sites across 8 files):**
-- `src/deluge/modulation/automation/auto_param.{h,cpp}` — `ownNodes_`/`nodes()` become
-  `fast_vector<ParamNode>`; all `nodes().foo()` → `foo(nodes())`; `AutoParamState::nodes` retyped.
-- `src/deluge/modulation/params/param_node_vector.h` — the `ParamNodeVector` alias is retired from the
-  automation path (kept only if any non-automation user remains; expected: none).
-- `src/deluge/model/consequence/consequence_param_change.cpp`
-- `src/deluge/model/action/action.cpp`
-- `src/deluge/model/clip/instrument_clip.cpp`
-- `src/deluge/modulation/patch/patch_cable.cpp`
-- `src/deluge/gui/views/automation/editor_layout/mod_controllable.cpp`
+**Modify (Phase A) — DONE** via the clone-idiom retirement (see that effort's memory/commits). The draft
+below is historical; as built, `OrderedPosVector<ParamNode>` was kept (not retired to `fast_vector` +
+free helpers), so `nodes().foo()` call sites were **not** rewritten to `foo(nodes())`, and
+`AutoParamState::nodes` stays `ParamNodeVector` (an `OrderedPosVector<ParamNode>` alias). The value
+semantics Phase B relies on (real copy/move, no byte-copy idiom) are in place. *(Original list, historical:
+`auto_param.{h,cpp}`, `param_node_vector.h`, `consequence_param_change.cpp`, `action.cpp`,
+`instrument_clip.cpp`, `patch_cable.cpp`, `mod_controllable.cpp`.)*
 
 **Modify (Phases B–D):**
 - `src/deluge-project/param_automation.h` — `DocAutoParam::nodes` → `fast_vector<ParamNode>`.
@@ -217,11 +223,13 @@ These were artifacts of the two-copy projection model and simply do not arise wi
 
 ## 6. Phasing (each builds; flip stages are hardware-gated)
 
-- **Phase A — retire `ParamNodeVector` → `fast_vector<ParamNode>` + free ordered helpers
-  (behaviour-preserving, golden-safe).** The bulk, but mechanical: backing storage type is unchanged
-  (still `fast_vector<ParamNode>`), only the wrapper class and call-site spelling change. Many small
-  bisectable commits (per-method or per-file), golden `OK=15` at each — the shape of the completed
-  std-container migration. No redirection yet; every param uses `ownNodes_`.
+- **Phase A — idiomatic node container + real value semantics. DONE** (as the clone-idiom retirement,
+  not as the drafted `fast_vector` + free-helpers rewrite). `OrderedPosVector<ParamNode>` was kept and
+  made idiomatic; the byte-copy clone idiom (`init`/`cloneFrom`/`beenCloned`) is fully retired into
+  copy/move construction + assignment across all five users and the undo consequences; golden `OK=15`
+  throughout and the clip-clone path is sim-covered (`clip_clone_roundtrip`, 38-song sweep). `AutoParam`
+  still holds its store as an inline `ParamNodeVector ownNodes_` accessed via `nodes()` — there is **no**
+  `nodes_` borrow-pointer yet (that is the first step of Phase B).
 - **Phase B — DOM owns the store, engine borrows (song-global).** Add `nodes_` +
   `borrowNodeStorage`; `DocAutoParam::nodes` → `fast_vector<ParamNode>`; establish the DOM's
   stable-address holding of the song-global store (Song is a singleton → already stable). After
