@@ -30,11 +30,14 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node_vector.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "storage/storage_manager.h"
 
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 #include <utility>
 
@@ -294,12 +297,22 @@ int main() {
 	}
 
 	// (11) The InstrumentClip pilot (5c R3b) — a synth clip (patched+unpatched+cables paramManager, backed
-	// up/stolen on instrument change) flips BOTH its unpatched AND patched param sets to per-clip stores, safely,
-	// through the same clone path. Patch cables stay embedded (setupPatching rebuilds them); safe on the
-	// R3a/steal-safety floor.
+	// up/stolen on instrument change) flips its unpatched, patched AND patch-cable params to per-clip stores,
+	// safely, through the same clone path.
 	{
 		InstrumentClip iclipA;
 		check(iclipA.paramManager.setupWithPatching() == Error::NONE, "R3b InstrumentClip: A setup");
+
+		// Two patch cables, set up BEFORE the redirect so their amount params get flipped too. numUsablePatchCables
+		// mirrors the post-setupPatching state (beenCloned only deep-clones the usable ones).
+		PatchCableSet* pcsA = iclipA.paramManager.getPatchCableSet();
+		pcsA->numPatchCables = 2;
+		pcsA->numUsablePatchCables = 2;
+		pcsA->patchCables[0].from = PatchSource::ENVELOPE_0;
+		pcsA->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
+		pcsA->patchCables[1].from = PatchSource::LFO_GLOBAL_1;
+		pcsA->patchCables[1].destinationParamDescriptor.setToHaveParamOnly(params::LOCAL_OSC_A_VOLUME);
+
 		iclipA.redirectParamsToOwnStore();
 		AutoParam& aPorta = iclipA.paramManager.getUnpatchedParamSet()->params[params::UNPATCHED_PORTAMENTO];
 		check(&aPorta.nodes() == &iclipA.paramNodeStoreEntryForTest(params::UNPATCHED_PORTAMENTO),
@@ -315,6 +328,39 @@ int main() {
 		aCut.setNodeAtPos(0, 1000, true);
 		aCut.setNodeAtPos(64, -1000, false);
 		check(aCut.nodes().size() == 2, "R3b InstrumentClip: patched draw lands via the clip patched store");
+
+		// And the patch-cable amount params flip to the cable store.
+		AutoParam& aCable0 = pcsA->patchCables[0].param;
+		AutoParam& aCable1 = pcsA->patchCables[1].param;
+		check(&aCable0.nodes() == &iclipA.cableNodeStoreEntryForTest(0)
+		          && &aCable1.nodes() == &iclipA.cableNodeStoreEntryForTest(1),
+		      "R3b InstrumentClip: cable amount params view the clip's own cable store");
+		aCable0.setNodeAtPos(0, 111, true); // distinct data per cable
+		aCable1.setNodeAtPos(0, 222, true);
+		aCable1.setNodeAtPos(48, 333, false);
+		check(aCable0.nodes().size() == 1 && aCable1.nodes().size() == 2, "R3b InstrumentClip: cable draws land");
+
+		// setupPatching reorders cables via a whole-struct memcpy (swapCables). Replicate that swap and confirm
+		// each cable's amount param still correctly views its OWN store slot (the redirect moved with the struct).
+		{
+			char temp[sizeof(PatchCable)];
+			std::memcpy(&temp, &pcsA->patchCables[0], sizeof(PatchCable));
+			std::memcpy(&pcsA->patchCables[0], &pcsA->patchCables[1], sizeof(PatchCable));
+			std::memcpy(&pcsA->patchCables[1], &temp, sizeof(PatchCable));
+		}
+		// Index 0 now holds what was cable 1 (2 nodes, viewing cable-store slot 1); index 1 holds old cable 0.
+		check(pcsA->patchCables[0].param.nodes().size() == 2 && pcsA->patchCables[1].param.nodes().size() == 1,
+		      "R3b InstrumentClip: cable data survives a swapCables-style memcpy reorder");
+		check(&pcsA->patchCables[0].param.nodes() == &iclipA.cableNodeStoreEntryForTest(1)
+		          && &pcsA->patchCables[1].param.nodes() == &iclipA.cableNodeStoreEntryForTest(0),
+		      "R3b InstrumentClip: each swapped cable param still views its own store slot");
+		// swap back so the clone below sees the original layout
+		{
+			char temp[sizeof(PatchCable)];
+			std::memcpy(&temp, &pcsA->patchCables[0], sizeof(PatchCable));
+			std::memcpy(&pcsA->patchCables[0], &pcsA->patchCables[1], sizeof(PatchCable));
+			std::memcpy(&pcsA->patchCables[1], &temp, sizeof(PatchCable));
+		}
 
 		InstrumentClip iclipB;
 		check(iclipB.paramManager.cloneParamCollectionsFrom(&iclipA.paramManager, /*copyAutomation=*/true)
@@ -340,6 +386,17 @@ int main() {
 		bCut.setNodeAtPos(32, 5, true);
 		check(bCut.nodes().size() == 3 && aCut.nodes().size() == 2,
 		      "R3b InstrumentClip: clone patched edit isolated from source");
+
+		// Patch cables: the clone's cable amount params view the CLONE's own cable store, independent of source.
+		PatchCableSet* pcsB = iclipB.paramManager.getPatchCableSet();
+		check(pcsB->numPatchCables == 2, "R3b InstrumentClip: clone carried the cables");
+		AutoParam& bCable1 = pcsB->patchCables[1].param;
+		check(&bCable1.nodes() == &iclipB.cableNodeStoreEntryForTest(1),
+		      "R3b InstrumentClip: clone cable param views the CLONE's own cable store");
+		check(bCable1.nodes().size() == 2, "R3b InstrumentClip: clone carried the cable automation");
+		bCable1.setNodeAtPos(24, 9, true);
+		check(bCable1.nodes().size() == 3 && aCable1.nodes().size() == 2,
+		      "R3b InstrumentClip: clone cable edit isolated from source");
 	}
 
 	if (failures == 0) {

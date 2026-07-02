@@ -167,6 +167,20 @@ void InstrumentClip::redirectParamsToOwnStore() {
 		store = std::move(patchedSet->params[p].nodes()); // move current nodes (embedded / just-cloned) into store
 		patchedSet->params[p].redirectNodeStorage(&store);
 	}
+
+	// And the patch-cable amount params (slot 2). Indexed by cable slot; setupPatching's swapCables carries the
+	// redirect with the whole-struct memcpy, so each cable's amount param keeps viewing its slot after reordering.
+	ParamCollection* cableCollection = paramManager.summaries[2].paramCollection;
+	if (cableCollection == nullptr
+	    || cableCollection->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE) {
+		return;
+	}
+	auto* cableSet = static_cast<PatchCableSet*>(cableCollection);
+	for (int32_t c = 0; c < cableSet->numPatchCables; c++) {
+		ParamNodeVector& store = cableNodeStore_[c];
+		store = std::move(cableSet->patchCables[c].param.nodes());
+		cableSet->patchCables[c].param.redirectNodeStorage(&store);
+	}
 }
 
 Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
