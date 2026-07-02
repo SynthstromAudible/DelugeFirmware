@@ -17,12 +17,14 @@
 // Exit: 0 = edit persisted; 1 = load error; 2 = usage/IO; 3 = edit not applied / not persisted.
 
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "deluge-project/serialization.h"
 #include "hid/display/display.h"
 #include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 
@@ -64,10 +66,11 @@ int main(int argc, char** argv) {
 	}
 	const char* songPath = argv[1];
 
-	// A song-global unpatched param and a distinctive, non-zero value (so it's always serialized) that differs
-	// from any plausible stored value and survives the hex round-trip verbatim.
-	const int32_t p = params::UNPATCHED_REVERB_SEND_AMOUNT;
+	// Two song-global unpatched params: one gets a distinctive scalar value, the other gets automation nodes.
+	// Distinctive non-zero values so they're always serialized and survive the hex round-trip verbatim.
+	const int32_t pVal = params::UNPATCHED_REVERB_SEND_AMOUNT;
 	const int32_t kSentinel = 0x12345678;
+	const int32_t pAuto = params::UNPATCHED_VOLUME;
 
 	FILE* f = std::fopen(songPath, "rb");
 	if (!f) {
@@ -95,22 +98,29 @@ int main(int argc, char** argv) {
 		std::fprintf(stderr, "LOADFAIL original -> Error %d\n", (int)e1);
 		_exit(1);
 	}
-	// The store is populated by the <defaultParams> read; seed it from the engine if the song had none.
+	// The store is populated by the <songParams> read; seed it from the engine if the song had none.
 	if (!song->project.global_fx.params.unpatched) {
 		song->project.global_fx.params.unpatched =
 		    deluge::project::toDocParamSet(*song->paramManager.getUnpatchedParamSet());
 	}
-	bool applied = deluge::project::setUnpatchedValueDomFirst(song->project.global_fx.params, p, kSentinel,
-	                                                          song->paramManager.getUnpatchedParamSet()->params[p]);
-	if (!applied) {
-		std::fprintf(stderr, "EDIT NOT APPLIED (store unpopulated / p out of range)\n");
+	deluge::project::DocParamSet& store = *song->project.global_fx.params.unpatched;
+	if (pVal >= (int32_t)store.params.size() || pAuto >= (int32_t)store.params.size()) {
+		std::fprintf(stderr, "STORE TOO SMALL (%zu params)\n", store.params.size());
 		_exit(3);
 	}
-	// The edit must be visible in BOTH the store lane and the reprojected engine param immediately.
-	int32_t storeNow = song->project.global_fx.params.unpatched->params[p].current_value;
-	int32_t engineNow = song->paramManager.getUnpatchedParamSet()->params[p].currentValue;
-	if (storeNow != kSentinel || engineNow != kSentinel) {
-		std::fprintf(stderr, "EDIT DID NOT LAND store=%d engine=%d\n", storeNow, engineNow);
+	// DOM-first edits on the store: a scalar value + an automation lane (two nodes).
+	store.params[pVal].current_value = kSentinel;
+	deluge::project::setNodeAtPos(store.params[pAuto], 0, 111, true);
+	deluge::project::setNodeAtPos(store.params[pAuto], 48, -222, false);
+	// Reproject the store into the engine (+ refresh automation summary flags) so save serializes the edits.
+	deluge::project::fromDocParamManager(song->project.global_fx.params, song->paramManager);
+
+	// The edits must be visible in the engine immediately.
+	AutoParam& engVal = song->paramManager.getUnpatchedParamSet()->params[pVal];
+	AutoParam& engAuto = song->paramManager.getUnpatchedParamSet()->params[pAuto];
+	if (engVal.currentValue != kSentinel || engAuto.nodes().size() != 2) {
+		std::fprintf(stderr, "EDIT DID NOT LAND engVal=%d autoNodes=%zu\n", engVal.currentValue,
+		             engAuto.nodes().size());
 		_exit(3);
 	}
 
@@ -128,14 +138,29 @@ int main(int argc, char** argv) {
 		_exit(1);
 	}
 
-	// 5. The edit must have persisted into both the reloaded DOM store and the reloaded engine.
-	int32_t storeVal = reloaded->project.global_fx.params.unpatched
-	                       ? reloaded->project.global_fx.params.unpatched->params[p].current_value
-	                       : INT32_MIN;
-	int32_t engineVal = reloaded->paramManager.getUnpatchedParamSet()->params[p].currentValue;
+	// 5. Both edits must have persisted into the reloaded DOM store (the authority) and the reloaded engine.
+	if (!reloaded->project.global_fx.params.unpatched) {
+		std::fprintf(stderr, "reloaded store EMPTY\n");
+		_exit(3);
+	}
+	deluge::project::DocParamSet& rstore = *reloaded->project.global_fx.params.unpatched;
+	int32_t storeVal = rstore.params[pVal].current_value;
+	int32_t engineVal = reloaded->paramManager.getUnpatchedParamSet()->params[pVal].currentValue;
 
-	bool persisted = (storeVal == kSentinel) && (engineVal == kSentinel);
-	std::fprintf(stderr, "edited p=%d sentinel=0x%08X reloaded store=0x%08X engine=0x%08X %s\n", p, kSentinel, storeVal,
-	             engineVal, persisted ? "PERSISTED" : "LOST");
+	const auto& storeNodes = rstore.params[pAuto].nodes;
+	const auto& engNodes = reloaded->paramManager.getUnpatchedParamSet()->params[pAuto].nodes();
+
+	bool valOk = (storeVal == kSentinel) && (engineVal == kSentinel);
+	bool autoStoreOk = storeNodes.size() == 2 && storeNodes[0].pos == 0 && storeNodes[0].value == 111
+	                   && storeNodes[0].interpolated && storeNodes[1].pos == 48 && storeNodes[1].value == -222
+	                   && !storeNodes[1].interpolated;
+	bool autoEngOk = engNodes.size() == 2 && engNodes[0].value == 111 && engNodes[1].value == -222;
+
+	bool persisted = valOk && autoStoreOk && autoEngOk;
+	std::fprintf(stderr,
+	             "value p=%d sentinel=0x%08X reloaded store=0x%08X engine=0x%08X | automation p=%d storeNodes=%zu "
+	             "engNodes=%zu | %s\n",
+	             pVal, kSentinel, storeVal, engineVal, pAuto, storeNodes.size(), engNodes.size(),
+	             persisted ? "PERSISTED" : "LOST");
 	_exit(persisted ? 0 : 3);
 }
