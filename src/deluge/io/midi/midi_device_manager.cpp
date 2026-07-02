@@ -712,7 +712,7 @@ ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
 	sq = 0;
 	canHaveMIDISent = 0;
 	numBytesReceived = 0;
-	memset(receiveData, 0, 64);
+	memset(receiveData, 0, sizeof(receiveData));
 	memset(dataSendingNow, 0, MIDI_SEND_BUFFER_LEN_INNER * 4);
 	numBytesSendingNow = 0;
 	memset(sendDataRingBuf, 0, MIDI_SEND_BUFFER_LEN_RING);
