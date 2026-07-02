@@ -44,6 +44,14 @@ struct StolenParamNodes;
 class AutoParam {
 public:
 	AutoParam();
+	// Deep copy with clone semantics (matches cloneFrom(other, copyAutomation=true)): deep-copies the
+	// nodes and resets the transient interpolation/override state. Explicit so it doesn't silently carry
+	// that transient state (which memberwise copy would). Moves stay defaulted (rule of 5) so MIDIParam /
+	// MIDIParamVector growth still move-constructs the embedded AutoParam.
+	AutoParam(AutoParam const& other);
+	AutoParam& operator=(AutoParam const& other);
+	AutoParam(AutoParam&&) noexcept = default;
+	AutoParam& operator=(AutoParam&&) noexcept = default;
 	void init();
 
 	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,

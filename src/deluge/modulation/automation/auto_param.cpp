@@ -60,6 +60,22 @@ AutoParam::AutoParam() {
 	renewedOverridingAtTime = 0;
 }
 
+AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue), ownNodes_(other.ownNodes_) {
+	resetInterpolationIncrement();
+	renewedOverridingAtTime = 0;
+}
+
+AutoParam& AutoParam::operator=(AutoParam const& other) {
+	if (this == &other) {
+		return *this;
+	}
+	currentValue = other.currentValue;
+	ownNodes_ = other.ownNodes_;
+	resetInterpolationIncrement();
+	renewedOverridingAtTime = 0;
+	return *this;
+}
+
 void AutoParam::init() {
 	nodes().init();
 }

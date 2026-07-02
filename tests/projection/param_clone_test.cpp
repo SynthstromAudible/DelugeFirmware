@@ -60,6 +60,25 @@ int main() {
 		      "autoparam clone: dst independent of src mutation");
 	}
 
+	// (a2) AutoParam copy constructor (A2 real-copy replacement for cloneFrom): deep-copies nodes + value.
+	{
+		AutoParam src;
+		setNode(src, 0, 111, false);
+		setNode(src, 48, -222, true);
+		src.currentValue = 55;
+
+		AutoParam dst(src); // copy ctor
+		check(dst.nodes().size() == 2 && dst.currentValue == 55, "autoparam copy ctor: nodes + value copied");
+		src.nodes()[0].value = 999;
+		check(dst.nodes()[0].value == 111, "autoparam copy ctor: dst independent");
+
+		AutoParam asn;
+		asn = src; // copy assign
+		check(asn.nodes().size() == 2 && asn.currentValue == 55, "autoparam copy assign: nodes + value copied");
+		src.nodes()[1].value = 888;
+		check(asn.nodes()[1].value == -222, "autoparam copy assign: dst independent");
+	}
+
 	// (b) ParamManager clone: exercises the polymorphic per-collection clone chain
 	//     (ParamManager::cloneParamCollectionsFrom -> the memcpy@217 -> each collection's beenCloned).
 	{
