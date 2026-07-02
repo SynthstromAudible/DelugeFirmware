@@ -118,4 +118,52 @@ int32_t getDistanceToNextNode(const DocAutoParam& p, int32_t pos, int32_t loopLe
 	return distance;
 }
 
+void insertTime(DocAutoParam& p, int32_t pos, int32_t lengthToInsert) {
+	auto& nodes = p.nodes;
+	auto it =
+	    std::lower_bound(nodes.begin(), nodes.end(), pos, [](const ParamNode& n, int32_t key) { return n.pos < key; });
+	for (; it != nodes.end(); ++it) {
+		it->pos += lengthToInsert;
+	}
+}
+
+void shiftHorizontally(DocAutoParam& p, int32_t amount, int32_t effectiveLength) {
+	auto& nodes = p.nodes;
+	if (nodes.empty()) {
+		return;
+	}
+
+	// Wrap the amount to the length.
+	if (amount >= effectiveLength) {
+		amount = static_cast<int32_t>(static_cast<uint32_t>(amount) % static_cast<uint32_t>(effectiveLength));
+	}
+	else if (amount <= -effectiveLength) {
+		amount = -static_cast<int32_t>(static_cast<uint32_t>(-amount) % static_cast<uint32_t>(effectiveLength));
+	}
+	if (amount == 0) {
+		return;
+	}
+
+	int32_t cutoffPos = -amount;
+	if (cutoffPos < 0) {
+		cutoffPos += effectiveLength;
+	}
+	if (amount < 0) {
+		amount += effectiveLength;
+	}
+
+	auto cutoffIt = std::lower_bound(nodes.begin(), nodes.end(), cutoffPos,
+	                                 [](const ParamNode& n, int32_t key) { return n.pos < key; });
+	const auto cutoffIndex = static_cast<int32_t>(cutoffIt - nodes.begin());
+
+	for (int32_t i = 0; i < cutoffIndex; i++) {
+		nodes[i].pos += amount;
+	}
+	for (int32_t i = cutoffIndex; i < static_cast<int32_t>(nodes.size()); i++) {
+		nodes[i].pos += amount - effectiveLength;
+	}
+
+	std::rotate(nodes.begin(), nodes.begin() + cutoffIndex, nodes.end());
+}
+
 } // namespace deluge::project

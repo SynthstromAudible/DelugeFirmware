@@ -46,4 +46,13 @@ int32_t getValueAtPos(const DocAutoParam& p, uint32_t pos, int32_t loopLength, b
 /// AutoParam::getDistanceToNextNode.
 int32_t getDistanceToNextNode(const DocAutoParam& p, int32_t pos, int32_t loopLength, bool reversed);
 
+/// Open a gap of `lengthToInsert` ticks at `pos`: every node at or after `pos` moves right by that much
+/// (nodes before `pos` are untouched). Faithful port of AutoParam::insertTime.
+void insertTime(DocAutoParam& p, int32_t pos, int32_t lengthToInsert);
+
+/// Rotate all node positions by `amount` ticks within a loop of `effectiveLength`, wrapping around the loop
+/// point and keeping `nodes` sorted. `amount` may be positive or negative and is reduced modulo the length.
+/// Faithful port of AutoParam::shiftHorizontally (→ OrderedPosVector::shiftHorizontal).
+void shiftHorizontally(DocAutoParam& p, int32_t amount, int32_t effectiveLength);
+
 } // namespace deluge::project

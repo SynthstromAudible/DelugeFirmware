@@ -67,6 +67,17 @@ bool cableMatches(const deluge::project::DocPatchCable& a, const deluge::project
 	       && a.amount.current_value == b.amount.current_value && a.amount.nodes.size() == b.amount.nodes.size();
 }
 
+// Compare a live AutoParam's node array against a DocAutoParam's, element-wise (used to oracle-diff a DOM
+// edit op against the engine op after applying the same mutation to each).
+void expectDocMatchesEngine(const AutoParam& eng, const deluge::project::DocAutoParam& doc, const char* name) {
+	check(eng.nodes().size() == doc.nodes.size(), name);
+	for (size_t i = 0; i < eng.nodes().size() && i < doc.nodes.size(); i++) {
+		check(eng.nodes()[i].pos == doc.nodes[i].pos, name);
+		check(eng.nodes()[i].value == doc.nodes[i].value, name);
+		check(eng.nodes()[i].interpolated == doc.nodes[i].interpolated, name);
+	}
+}
+
 void expectSameNodes(const AutoParam& a, const AutoParam& b, const char* name) {
 	check(a.currentValue == b.currentValue, name);
 	check(a.nodes().size() == b.nodes().size(), name);
@@ -251,6 +262,72 @@ int main() {
 						check(want == got, "getDistanceToNextNode: matches engine oracle");
 					}
 				}
+			}
+		}
+	}
+
+	// Phase 1: insertTime + shiftHorizontally (pure structural ops) — functional + engine-oracle diff.
+	// Apply the same op to a live AutoParam and a DocAutoParam, then compare the resulting node arrays.
+	{
+		using deluge::project::DocAutoParam;
+
+		// insertTime: open a gap; nodes at/after pos move right.
+		{
+			DocAutoParam p{};
+			deluge::project::setNodeAtPos(p, 0, 10, true);
+			deluge::project::setNodeAtPos(p, 48, 20, true);
+			deluge::project::setNodeAtPos(p, 96, 30, false);
+			deluge::project::insertTime(p, 48, 16);
+			check(p.nodes.size() == 3 && p.nodes[0].pos == 0 && p.nodes[1].pos == 64 && p.nodes[2].pos == 112,
+			      "insertTime: shifts nodes at/after pos");
+		}
+
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		const std::vector<std::vector<N>> configs = {
+		    {{0, 10, true}, {48, -20, true}, {96, 30, false}},
+		    {{10, 1, true}, {80, 2, true}},
+		    {{50, 7, true}},
+		};
+
+		// insertTime oracle diff.
+		const struct {
+			int32_t pos;
+			int32_t len;
+		} insertCases[] = {{0, 16}, {48, 32}, {50, 1}, {96, 8}, {200, 4}};
+		for (const auto& cfg : configs) {
+			for (const auto& ic : insertCases) {
+				AutoParam ap;
+				DocAutoParam doc{};
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				ap.insertTime(ic.pos, ic.len);
+				deluge::project::insertTime(doc, ic.pos, ic.len);
+				expectDocMatchesEngine(ap, doc, "insertTime: matches engine oracle");
+			}
+		}
+
+		// shiftHorizontally oracle diff (positive, negative, and > length amounts).
+		const struct {
+			int32_t amount;
+			int32_t effectiveLength;
+		} shiftCases[] = {{1, 128}, {-1, 128}, {16, 128}, {-16, 128}, {64, 128}, {130, 128}, {-130, 128}, {0, 128}};
+		for (const auto& cfg : configs) {
+			for (const auto& sc : shiftCases) {
+				AutoParam ap;
+				DocAutoParam doc{};
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				ap.shiftHorizontally(sc.amount, sc.effectiveLength);
+				deluge::project::shiftHorizontally(doc, sc.amount, sc.effectiveLength);
+				expectDocMatchesEngine(ap, doc, "shiftHorizontally: matches engine oracle");
 			}
 		}
 	}
