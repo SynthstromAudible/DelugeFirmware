@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
@@ -28,6 +29,8 @@
 #include "modulation/midi/midi_param.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/exceptions.h"
+#include <new>
 
 MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
     : ParamCollection(sizeof(MIDIParamCollection), summary) {
@@ -64,6 +67,26 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 			}
 		}
 	}
+}
+
+Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
+                                 int32_t reverseDirectionWithLength) const {
+	// params is a value member (MIDIParamVector), so the implicit copy ctor deep-copies it (and each
+	// embedded AutoParam) — no pointer re-pointing needed. Edge cases keep the legacy base path for now.
+	if (!copyAutomation || reverseDirectionWithLength != 0) {
+		return ParamCollection::clone(result, copyAutomation, reverseDirectionWithLength);
+	}
+	void* mem = deluge::memory::alloc_fast(sizeof(MIDIParamCollection));
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	try {
+		result = new (mem) MIDIParamCollection(*this);
+	} catch (deluge::exception&) {
+		delugeDealloc(mem);
+		return Error::INSUFFICIENT_RAM;
+	}
+	return Error::NONE;
 }
 
 void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
