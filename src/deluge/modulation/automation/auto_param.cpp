@@ -1336,8 +1336,8 @@ getValueNormalWay:
 				return -1;
 			}
 			edgeIndexes[REGION_EDGE_LEFT] += (int32_t)anyWrap;
-			// Theoretically we'd re-get the other edgeNode here - but in fact, if it already existed, we won't access
-			// it again anyway.
+			// Note: a pre-existing left edgeNode pointer captured above may now dangle if this insert relocated the
+			// backing store. We re-fetch it unconditionally before writing it, below.
 		}
 
 		edgeNodes[REGION_EDGE_RIGHT] = nodes.getElement(edgeIndexes[REGION_EDGE_RIGHT]);
@@ -1369,6 +1369,10 @@ getValueNormalWay:
 		edgeNodes[REGION_EDGE_LEFT] = nodes.getElement(edgeIndexes[REGION_EDGE_LEFT]);
 		edgeNodes[REGION_EDGE_LEFT]->pos = edgePositions[REGION_EDGE_LEFT];
 	}
+	// Re-fetch unconditionally: if the left node pre-existed, the above block was skipped, but the right-edge
+	// insertAtIndex may have relocated the backing store - which would dangle the pointer captured earlier.
+	// edgeIndexes[REGION_EDGE_LEFT] is kept correct through both blocks, so it's safe to re-derive from it.
+	edgeNodes[REGION_EDGE_LEFT] = nodes.getElement(edgeIndexes[REGION_EDGE_LEFT]);
 	edgeNodes[REGION_EDGE_LEFT]->value = reversed ? valueAtLateEdge : startValue;
 	edgeNodes[REGION_EDGE_LEFT]->interpolated = interpolateLeftNode;
 
