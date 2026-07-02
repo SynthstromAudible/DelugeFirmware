@@ -1432,6 +1432,42 @@ int main() {
 		      "setUnpatchedValueDomFirst: unpopulated store is a no-op");
 	}
 
+	// Borrow-pointer (Phase B): borrowNodeStorage points the param at an external (DOM-owned) store; node
+	// access, edits, and the undo swap then operate on that store, while the param's own storage is emptied.
+	{
+		AutoParam p;
+		setNode(p, 0, 111, false);
+		setNode(p, 48, -222, true);
+
+		ParamNodeVector ext; // stands in for the DOM-owned store
+		p.borrowNodeStorage(&ext);
+		check(&p.nodes() == &ext, "borrow: nodes() aliases the external store");
+		check(ext.size() == 2 && ext[0].value == 111 && ext[1].value == -222,
+		      "borrow: current nodes moved into the store");
+
+		// A subsequent edit through the param lands in the external store.
+		setNode(p, 24, 999, false);
+		check(ext.size() == 3, "borrow: edit lands in the external store");
+
+		// The undo swap (nodes().swap, as swapState does) operates on the external store.
+		AutoParamState snap;
+		int32_t si = snap.nodes.insertSorted(12, /*isDefinitelyLast=*/true).value_or(-1);
+		if (si >= 0) {
+			snap.nodes[si].pos = 12;
+			snap.nodes[si].value = 7;
+			snap.nodes[si].interpolated = false;
+		}
+		p.nodes().swap(snap.nodes);
+		check(ext.size() == 1 && ext[0].value == 7, "borrow: swap operated on the external store");
+		check(snap.nodes.size() == 3, "borrow: swap moved the store contents into the snapshot");
+
+		// A copy of a borrowed param owns INDEPENDENT storage (must not alias ext) — else clones would share
+		// the original's DOM store. (This is the invariant param_clone_test also guards.)
+		AutoParam copy(p);
+		check(&copy.nodes() != &ext, "borrow: a copy owns its own storage");
+		check(copy.nodes().size() == p.nodes().size(), "borrow: copy has the same node count");
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);

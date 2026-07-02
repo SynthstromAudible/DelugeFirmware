@@ -44,14 +44,16 @@ struct StolenParamNodes;
 class AutoParam {
 public:
 	AutoParam();
-	// Deep copy with clone semantics: deep-copies the nodes and resets the transient interpolation/override
-	// state. Explicit so it doesn't silently carry that transient state (which memberwise copy would). Moves
-	// stay defaulted (rule of 5) so MIDIParam / MIDIParamVector growth still move-constructs the embedded
-	// AutoParam. (When DOM node-storage redirection lands, read/write through nodes(), not ownNodes_.)
+	// Deep copy with clone semantics: deep-copies the (borrow-aware) nodes and resets the transient
+	// interpolation/override state. The store is reached via a redirectable `nodes_` pointer (default
+	// `&ownNodes_`, or a DOM-owned store when borrowed). Because `nodes_` is a SELF-pointer, all of copy/move
+	// must re-point it — a defaulted move would leave a moved-into param's `nodes_` pointing at the *source's*
+	// `ownNodes_` (a dangling read; MIDIParamVector growth move-constructs these). Copies own their storage
+	// (`nodes_ = &ownNodes_`); moves inherit an external borrow but re-anchor a self-borrow.
 	AutoParam(AutoParam const& other);
 	AutoParam& operator=(AutoParam const& other);
-	AutoParam(AutoParam&&) noexcept = default;
-	AutoParam& operator=(AutoParam&&) noexcept = default;
+	AutoParam(AutoParam&& other) noexcept;
+	AutoParam& operator=(AutoParam&& other) noexcept;
 	void init();
 
 	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
@@ -136,8 +138,13 @@ public:
 
 	/// The nodes that make up this parameter (if empty, \ref currentValue applies). The accessor is a clean seam
 	/// (the projection layer + the ~130 op call sites go through it); the AutoParam owns its nodes by value.
-	ParamNodeVector& nodes() { return ownNodes_; }
-	const ParamNodeVector& nodes() const { return ownNodes_; }
+	ParamNodeVector& nodes() { return *nodes_; }
+	const ParamNodeVector& nodes() const { return *nodes_; }
+
+	/// Point this param at a DOM-owned node store and move its current nodes into it. The store must outlive
+	/// this param and never relocate (the DOM holds it at a stable address). Afterwards, nodes() is the DOM
+	/// store and all engine edits/undo operate on it directly.
+	void borrowNodeStorage(ParamNodeVector* domStore);
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
@@ -155,8 +162,12 @@ public:
 	// it only works in empty stretches of time.
 
 private:
-	/// This param's node storage (the backing of nodes()). Owned by value.
+	/// This param's default node storage (used when `nodes_` points here, i.e. un-borrowed). Owned by value.
 	ParamNodeVector ownNodes_{};
+	/// Redirectable borrow-pointer to the active store: `&ownNodes_` normally, or a DOM-owned store after
+	/// borrowNodeStorage(). Trivially relocatable, but a self-pointer — copy/move re-point it (see the
+	/// special members). All node access goes through nodes().
+	ParamNodeVector* nodes_ = &ownNodes_;
 
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);

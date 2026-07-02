@@ -62,7 +62,9 @@ AutoParam::AutoParam() {
 	renewedOverridingAtTime = 0;
 }
 
-AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue), ownNodes_(other.ownNodes_) {
+// Copy: read the source's active store (borrow-aware) into our own; a copy always owns its storage
+// (nodes_ stays &ownNodes_ via the member initializer).
+AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue), ownNodes_(other.nodes()) {
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
@@ -72,10 +74,41 @@ AutoParam& AutoParam::operator=(AutoParam const& other) {
 		return *this;
 	}
 	currentValue = other.currentValue;
-	ownNodes_ = other.ownNodes_;
+	ownNodes_ = other.nodes(); // copy the source's active store into our own storage
+	nodes_ = &ownNodes_;       // a copy owns its storage — detach any prior borrow
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 	return *this;
+}
+
+// Move: copy the transient fields (matching the previously-defaulted move), move ownNodes_, and re-point
+// nodes_ — inherit an external DOM borrow (that store didn't move), but re-anchor a self-borrow to *our*
+// ownNodes_ (a defaulted move would leave nodes_ dangling at the source's ownNodes_).
+AutoParam::AutoParam(AutoParam&& other) noexcept
+    : currentValue(other.currentValue), valueIncrementPerHalfTick(other.valueIncrementPerHalfTick),
+      value_increment_per_half_tick_float(other.value_increment_per_half_tick_float),
+      interpolation_increment_remainder_float(other.interpolation_increment_remainder_float),
+      renewedOverridingAtTime(other.renewedOverridingAtTime), ownNodes_(std::move(other.ownNodes_)) {
+	nodes_ = (other.nodes_ == &other.ownNodes_) ? &ownNodes_ : other.nodes_;
+}
+
+AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
+	if (this == &other) {
+		return *this;
+	}
+	currentValue = other.currentValue;
+	valueIncrementPerHalfTick = other.valueIncrementPerHalfTick;
+	value_increment_per_half_tick_float = other.value_increment_per_half_tick_float;
+	interpolation_increment_remainder_float = other.interpolation_increment_remainder_float;
+	renewedOverridingAtTime = other.renewedOverridingAtTime;
+	ownNodes_ = std::move(other.ownNodes_);
+	nodes_ = (other.nodes_ == &other.ownNodes_) ? &ownNodes_ : other.nodes_;
+	return *this;
+}
+
+void AutoParam::borrowNodeStorage(ParamNodeVector* domStore) {
+	*domStore = std::move(ownNodes_); // move current nodes into the DOM store (ownNodes_ left empty)
+	nodes_ = domStore;                // subsequent nodes() see the DOM store
 }
 
 void AutoParam::init() {
