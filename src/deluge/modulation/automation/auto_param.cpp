@@ -2686,13 +2686,16 @@ justShiftEverything:
 					resultingIndexes[1]--;
 				}
 			}
-		}
 
-		for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
-			nodes.getElement(i)->pos--;
-		}
-		for (int32_t i = resultingIndexes[1]; i < nodes.getNumElements(); i++) { // Before wrap
-			nodes.getElement(i)->pos--;
+			// These decrement loops belong INSIDE the move-left branch. Previously they sat after the offset
+			// if/else, so they also ran after the move-right branch and cancelled its increments above — making
+			// a loop-wrapping move-right a silent no-op.
+			for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
+				nodes.getElement(i)->pos--;
+			}
+			for (int32_t i = resultingIndexes[1]; i < nodes.getNumElements(); i++) { // Before wrap
+				nodes.getElement(i)->pos--;
+			}
 		}
 	}
 
