@@ -392,6 +392,25 @@ if(RT_LIB)
     target_link_libraries(param_clone_test PRIVATE ${RT_LIB})
 endif()
 
+# Clip-clone INTEGRATION test: duplicates a real InstrumentClip via InstrumentClip::clone() on a loaded Song —
+# the golden-blind edit path the unit harness can't reach (clone() needs a live Song + ModelStack). Takes a
+# song XML path (like song_edit_roundtrip); driven over the corpus by clip_clone_run.py.
+add_executable(clip_clone_roundtrip
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/tests/golden/clip_clone_roundtrip.cpp
+)
+target_include_directories(clip_clone_roundtrip PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(clip_clone_roundtrip PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(clip_clone_roundtrip PRIVATE ${RT_LIB})
+endif()
+
 # ---------------------------------------------------------------------------
 enable_testing()
 
