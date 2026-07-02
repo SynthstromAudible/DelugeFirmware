@@ -1334,6 +1334,86 @@ int main() {
 		      "GlobalEffectable override tags byte-identical");
 	}
 
+	// Phase 5c (Option B): the DOM-target reader lands the GlobalEffectable block in a DocParamSet (the
+	// persistent DOM store); projecting that store into an engine must be identical to reading the same XML
+	// straight into the engine (the 5b path). This proves the read-into-DOM → reproject-DOM→engine loop.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "5cB setup");
+		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
+		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].currentValue = 123;
+		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789;
+		setNode(unp->params[params::UNPATCHED_LPF_FREQ], 0, -111, true); // <lpf> group, automated
+		setNode(unp->params[params::UNPATCHED_LPF_FREQ], 48, 222, false);
+		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;   // <delay> group
+		unp->params[params::UNPATCHED_HPF_RES].currentValue = -55;      // <hpf> group
+		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;    // flat community attr
+		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333; // shared MCA attr
+		unp->params[params::UNPATCHED_BASS].currentValue = -333;        // equalizer group
+
+		deluge::project::DocParamSet src = deluge::project::toDocParamSet(*unp);
+		static char rtBuf[16384];
+		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
+		smSerializer.reset();
+		smSerializer.writeOpeningTagBeginning("params");
+		deluge::project::serializeGlobalEffectableParamAttributes(src, smSerializer, true);
+		smSerializer.writeOpeningTagEnd();
+		deluge::project::serializeGlobalEffectableParamTags(src, smSerializer, true);
+		smSerializer.writeClosingTag("params");
+		int32_t rtLen = smSerializer.bytesWritten();
+		rtBuf[rtLen] = '\0';
+
+		// XMLDeserializer tokenizes its buffer in place, so each read path gets its own copy of the bytes.
+		static char bufA[16384];
+		static char bufB[16384];
+		std::memcpy(bufA, rtBuf, rtLen + 1);
+		std::memcpy(bufB, rtBuf, rtLen + 1);
+
+		// Path A — engine reader (5b): XML -> engine.
+		ParamManagerForTimeline pmEng;
+		check(pmEng.setupWithPatching() == Error::NONE, "5cB engine setup");
+		UnpatchedParamSet* unpEng = pmEng.getUnpatchedParamSet();
+		ParamCollectionSummary* sumEng = pmEng.getUnpatchedParamSetSummary();
+		{
+			XMLDeserializer reader(reinterpret_cast<uint8_t*>(bufA), rtLen);
+			reader.openXMLFile(nullptr, "params");
+			const char* tag;
+			while (*(tag = reader.readNextTagOrAttributeName())) {
+				if (!deluge::project::readGlobalEffectableParamTag(reader, tag, *unpEng, *sumEng, 2147483647)) {
+					reader.exitTag();
+				}
+			}
+		}
+
+		// Path B — DOM reader (Option B): XML -> DocParamSet store, then project store -> engine.
+		deluge::project::DocParamSet store = deluge::project::toDocParamSet(*pm.getUnpatchedParamSet());
+		for (auto& n : store.params) {
+			n = deluge::project::DocAutoParam{}; // start empty; the reader fills present tags
+		}
+		{
+			XMLDeserializer reader(reinterpret_cast<uint8_t*>(bufB), rtLen);
+			reader.openXMLFile(nullptr, "params");
+			const char* tag;
+			while (*(tag = reader.readNextTagOrAttributeName())) {
+				if (!deluge::project::readGlobalEffectableParamTagToDoc(reader, tag, store, 2147483647)) {
+					reader.exitTag();
+				}
+			}
+		}
+		ParamManagerForTimeline pmDom;
+		check(pmDom.setupWithPatching() == Error::NONE, "5cB dom setup");
+		deluge::project::fromDocParamSet(store, *pmDom.getUnpatchedParamSet());
+
+		const int32_t ids[] = {
+		    params::UNPATCHED_REVERB_SEND_AMOUNT, params::UNPATCHED_PITCH_ADJUST, params::UNPATCHED_LPF_FREQ,
+		    params::UNPATCHED_DELAY_RATE,         params::UNPATCHED_HPF_RES,      params::UNPATCHED_LPF_MORPH,
+		    params::UNPATCHED_STUTTER_RATE,       params::UNPATCHED_BASS};
+		for (int32_t id : ids) {
+			expectSameNodes(pmDom.getUnpatchedParamSet()->params[id], pmEng.getUnpatchedParamSet()->params[id],
+			                "5cB dom-read == engine-read");
+		}
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);

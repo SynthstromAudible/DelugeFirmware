@@ -244,4 +244,18 @@ bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched,
 bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& expression,
                             ParamCollectionSummary& summary, int32_t readAutomationUpToPos);
 
+// DOM-target variants (Phase 5c / DOM-live-authoritative): identical dispatch, but each leaf lands in a
+// `DocParamSet` (the persistent DOM store) instead of a live engine `ParamSet`. `doc.params` must be
+// pre-sized to the collection's param count; the engine is then reprojected from the store via
+// `fromDocParamSet`. These share the same `DocParamAttr` tables as the engine-target readers above.
+
+/// Read one ModControllableAudio shared-block tag into `doc` (the `<equalizer>` group + the flat MCA attrs).
+bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
+                                      int32_t readAutomationUpToPos);
+
+/// Read one GlobalEffectable param-block tag into `doc`: the `<delay>`/`<lpf>`/`<hpf>` groups + GE flat
+/// attrs (incl. the legacy nested `morph` members) + the shared MCA block.
+bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
+                                       int32_t readAutomationUpToPos);
+
 } // namespace deluge::project

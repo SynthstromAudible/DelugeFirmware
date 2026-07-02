@@ -743,6 +743,57 @@ bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSe
 }
 
 namespace {
+// DOM-target leaf/table/group helpers — mirror readLiveParam* but land the DocAutoParam in `doc.params[p]`
+// (the persistent DOM store) instead of a live engine param. `doc.params` must be pre-sized.
+void readDocParamLeaf(Deserializer& in, DocParamSet& doc, int32_t p, int32_t readAutomationUpToPos) {
+	doc.params[p] = readDocAutoParam(in, readAutomationUpToPos);
+}
+
+bool readDocParamFromTable(Deserializer& in, char const* tagName, std::span<const DocParamAttr> table, DocParamSet& doc,
+                           int32_t readAutomationUpToPos) {
+	for (const DocParamAttr& a : table) {
+		if (!strcmp(tagName, a.name)) {
+			readDocParamLeaf(in, doc, a.param_id, readAutomationUpToPos);
+			in.exitTag(a.name);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool readDocParamGroup(Deserializer& in, char const* tagName, const char* groupName,
+                       std::span<const DocParamAttr> members, DocParamSet& doc, int32_t readAutomationUpToPos) {
+	if (strcmp(tagName, groupName) != 0) {
+		return false;
+	}
+	in.match('{');
+	while (*(tagName = in.readNextTagOrAttributeName())) {
+		if (!readDocParamFromTable(in, tagName, members, doc, readAutomationUpToPos)) {
+			in.exitTag(tagName);
+		}
+	}
+	in.exitTag(groupName, true);
+	return true;
+}
+} // namespace
+
+bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
+                                      int32_t readAutomationUpToPos) {
+	return readDocParamGroup(in, tagName, "equalizer", kEqualizerGroup, doc, readAutomationUpToPos)
+	       || readDocParamFromTable(in, tagName, kModControllableOverrideAttrs, doc, readAutomationUpToPos)
+	       || readDocParamFromTable(in, tagName, kModControllableArpAttrs, doc, readAutomationUpToPos);
+}
+
+bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
+                                       int32_t readAutomationUpToPos) {
+	return readDocParamGroup(in, tagName, "delay", kGlobalDelayGroup, doc, readAutomationUpToPos)
+	       || readDocParamGroup(in, tagName, "lpf", kGlobalLpfReadGroup, doc, readAutomationUpToPos)
+	       || readDocParamGroup(in, tagName, "hpf", kGlobalHpfReadGroup, doc, readAutomationUpToPos)
+	       || readDocParamFromTable(in, tagName, kGlobalEffectableFlatAttrs, doc, readAutomationUpToPos)
+	       || readModControllableParamTagToDoc(in, tagName, doc, readAutomationUpToPos);
+}
+
+namespace {
 // Sound's two unpatched flat attrs (read lookup).
 constexpr DocParamAttr kSoundUnpatchedAttrs[] = {
     {"portamento", params::UNPATCHED_PORTAMENTO},
