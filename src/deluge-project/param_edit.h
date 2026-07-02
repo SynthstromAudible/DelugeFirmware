@@ -59,4 +59,9 @@ void shiftHorizontally(DocAutoParam& p, int32_t amount, int32_t effectiveLength)
 /// AutoParam::shiftValues.
 void shiftValues(DocAutoParam& p, int32_t offset);
 
+/// Tile the first repeat's automation (nodes in [0, oldLength)) out to `newLength`. When `shouldPingpong`,
+/// odd repeats are mirrored (a synthesised node at pos 0 keeps the seam continuous). Faithful port of
+/// AutoParam::generateRepeats (→ OrderedPosVector::generateRepeats for the non-pingpong path).
+void generateRepeats(DocAutoParam& p, uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
+
 } // namespace deluge::project

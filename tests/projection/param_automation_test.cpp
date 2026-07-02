@@ -357,6 +357,34 @@ int main() {
 				expectDocMatchesEngine(ap, doc, "shiftValues: nodes match engine oracle");
 			}
 		}
+
+		// generateRepeats oracle diff — tile out to newLength, both straight and pingponged, over node
+		// configs that live within the first repeat [0, oldLength).
+		const std::vector<std::vector<N>> repeatConfigs = {
+		    {{0, 100, true}, {24, -50, true}, {40, 200, false}}, // node at 0 + interior + stepped
+		    {{8, 10, true}, {32, -10, true}},                    // nothing at 0 (exercises the pingpong seam node)
+		    {{0, 7, false}},                                     // single stepped node at 0
+		    {{16, 5, true}},                                     // single node, nothing at 0
+		};
+		const struct {
+			uint32_t oldLength;
+			uint32_t newLength;
+		} repeatCases[] = {{48, 96}, {48, 128}, {48, 144}, {48, 100}, {48, 48}};
+		for (const auto& cfg : repeatConfigs) {
+			for (const auto& rc : repeatCases) {
+				for (bool pingpong : {false, true}) {
+					AutoParam ap;
+					DocAutoParam doc{};
+					for (const N& n : cfg) {
+						setNode(ap, n.pos, n.value, n.interpolated);
+						deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+					}
+					ap.generateRepeats(rc.oldLength, rc.newLength, pingpong);
+					deluge::project::generateRepeats(doc, rc.oldLength, rc.newLength, pingpong);
+					expectDocMatchesEngine(ap, doc, "generateRepeats: matches engine oracle");
+				}
+			}
+		}
 	}
 
 	// Unautomated: current value only, no nodes.

@@ -178,12 +178,170 @@ int32_t addSaturating(int32_t value, int32_t offset) {
 	}
 	return static_cast<int32_t>(newValue);
 }
+
+int32_t firstAtOrAfter(const std::vector<ParamNode>& nodes, int32_t key) {
+	auto it =
+	    std::lower_bound(nodes.begin(), nodes.end(), key, [](const ParamNode& n, int32_t k) { return n.pos < k; });
+	return static_cast<int32_t>(it - nodes.begin());
+}
+
+// Port of AutoParam::deleteNodesBeyondPos: drop every node at or after `pos`.
+void deleteNodesBeyond(std::vector<ParamNode>& nodes, int32_t pos) {
+	nodes.erase(nodes.begin() + firstAtOrAfter(nodes, pos), nodes.end());
+}
+
+// Non-pingpong tiling — port of OrderedPosVector::generateRepeats. Tiles the contents (all before wrapPoint)
+// out to endPos.
+void tileRepeats(std::vector<ParamNode>& nodes, int32_t wrapPoint, int32_t endPos) {
+	if (nodes.empty()) {
+		return;
+	}
+	int32_t numCompleteRepeats = static_cast<int32_t>(static_cast<uint32_t>(endPos) / static_cast<uint32_t>(wrapPoint));
+	int32_t endPosWithinFirstRepeat = endPos - numCompleteRepeats * wrapPoint;
+	int32_t iEndPosWithinFirstRepeat = firstAtOrAfter(nodes, endPosWithinFirstRepeat);
+
+	// Take firstAtOrAfter(wrapPoint) rather than size() so any nodes >= wrapPoint are ignored/chopped.
+	int32_t oldNum = firstAtOrAfter(nodes, wrapPoint);
+	int32_t newNum = oldNum * numCompleteRepeats + iEndPosWithinFirstRepeat;
+
+	nodes.resize(newNum);
+
+	for (int32_t r = 1; r <= numCompleteRepeats; r++) {
+		for (int32_t i = 0; i < oldNum; i++) {
+			if (r == numCompleteRepeats && i >= iEndPosWithinFirstRepeat) {
+				break;
+			}
+			nodes[i + oldNum * r] = nodes[i];
+			nodes[i + oldNum * r].pos = nodes[i].pos + wrapPoint * r;
+		}
+	}
+}
 } // namespace
 
 void shiftValues(DocAutoParam& p, int32_t offset) {
 	p.current_value = addSaturating(p.current_value, offset);
 	for (ParamNode& node : p.nodes) {
 		node.value = addSaturating(node.value, offset);
+	}
+}
+
+void generateRepeats(DocAutoParam& p, uint32_t oldLength, uint32_t newLength, bool shouldPingpong) {
+	auto& nodes = p.nodes;
+	if (nodes.empty()) {
+		return;
+	}
+
+	// When recording session to arranger you can end up with nodes beyond the Clip's length; remove them now.
+	deleteNodesBeyond(nodes, static_cast<int32_t>(oldLength) + nodes[0].pos);
+
+	if (!shouldPingpong) {
+		tileRepeats(nodes, static_cast<int32_t>(oldLength), static_cast<int32_t>(newLength));
+		return;
+	}
+
+	// Pingponging: each odd repeat is mirrored, so we tile by hand.
+	bool nothingAtZero = nodes[0].pos != 0;
+
+	// A pingpong reverses direction at pos 0; if there's no node there, synthesise one carrying the value at 0
+	// so the seam sounds continuous (always place it, matching the engine).
+	if (nothingAtZero) {
+		const ParamNode& nodeBeforeWrap = nodes[nodes.size() - 1];
+		const ParamNode& nodeAfterWrap = nodes[0];
+		bool nodeAfterWrapIsInterpolated = nodeAfterWrap.interpolated;
+
+		int32_t valueAtZero;
+		if (nodeAfterWrapIsInterpolated) {
+			int64_t valueDistance =
+			    static_cast<int64_t>(nodeAfterWrap.value) - static_cast<int64_t>(nodeBeforeWrap.value);
+			int32_t ticksSinceLeftNode = static_cast<int32_t>(oldLength) - nodeBeforeWrap.pos;
+			int32_t ticksBetweenNodes = ticksSinceLeftNode + nodeAfterWrap.pos;
+			valueAtZero =
+			    static_cast<int32_t>(nodeBeforeWrap.value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes));
+		}
+		else {
+			valueAtZero = nodeBeforeWrap.value;
+		}
+
+		nodes.insert(nodes.begin(), ParamNode{}); // invalidates the references above (no longer used)
+		ParamNode& zeroNode = nodes[0];
+		zeroNode.pos = 0;
+		zeroNode.value = valueAtZero;
+		zeroNode.interpolated = nodeAfterWrapIsInterpolated;
+
+		nothingAtZero = false;
+	}
+
+	int32_t numRepeats =
+	    static_cast<int32_t>((newLength - 1) / oldLength) + 1; // rounded up, incl. the existing first repeat
+
+	int32_t numNodesBefore = static_cast<int32_t>(nodes.size());
+
+	int32_t numToInsert = (numRepeats - 1) * numNodesBefore;
+	if (numToInsert) {
+		nodes.insert(nodes.begin() + numNodesBefore, numToInsert, ParamNode{});
+	}
+
+	int32_t highestNodeIndex = numNodesBefore - 1;
+
+	for (int32_t r = 1; r < numRepeats; r++) {
+		for (int32_t iNewWithinRepeat = 0; iNewWithinRepeat < numNodesBefore; iNewWithinRepeat++) {
+			int32_t iOld = iNewWithinRepeat;
+
+			if (r & 1) {
+				iOld = -iOld - static_cast<int32_t>(nothingAtZero);
+				if (iOld < 0) {
+					iOld += numNodesBefore;
+				}
+			}
+
+			const ParamNode& oldNode = nodes[iOld];
+			int32_t newPos = oldNode.pos;
+
+			if (r & 1) {
+				newPos = -newPos;
+				if (newPos < 0) {
+					newPos += static_cast<int32_t>(oldLength);
+				}
+			}
+
+			newPos += static_cast<int32_t>(oldLength) * r;
+			if (newPos >= static_cast<int32_t>(newLength)) {
+				break; // stop part-way through the final (partial) repeat
+			}
+
+			int32_t newValue = oldNode.value;
+			bool newInterpolated = oldNode.interpolated;
+
+			// If reversing, the node's characteristics change (value from its left neighbour, interp from its right).
+			if (r & 1) {
+				if (!oldNode.interpolated) {
+					int32_t iOldToLeft = iOld - 1;
+					if (iOldToLeft < 0) {
+						iOldToLeft += numNodesBefore;
+					}
+					newValue = nodes[iOldToLeft].value;
+				}
+
+				int32_t iOldToRight = iOld + 1;
+				if (iOldToRight >= numNodesBefore) {
+					iOldToRight = 0;
+				}
+				newInterpolated = nodes[iOldToRight].interpolated;
+			}
+
+			int32_t iNew = iNewWithinRepeat + numNodesBefore * r;
+			ParamNode& newNode = nodes[iNew];
+			newNode.pos = newPos;
+			newNode.value = newValue;
+			newNode.interpolated = newInterpolated;
+
+			highestNodeIndex = iNew;
+		}
+	}
+
+	int32_t newNumNodes = highestNodeIndex + 1;
+	if (static_cast<int32_t>(nodes.size()) > newNumNodes) {
+		nodes.erase(nodes.begin() + newNumNodes, nodes.end());
 	}
 }
 
