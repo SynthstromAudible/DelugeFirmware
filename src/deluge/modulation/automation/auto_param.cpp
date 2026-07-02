@@ -41,8 +41,10 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include <math.h>
+#include <utility>
 
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
 #define SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE 9200 // 200ms + a bit
@@ -1569,6 +1571,51 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 
 		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, true, true);
 	}
+}
+
+void AutoParam::flattenReverse(int32_t reverseDirectionWithLength) {
+	int32_t numNodes = std::ssize(nodes());
+	if (!reverseDirectionWithLength || !numNodes) {
+		return;
+	}
+
+	// Move the owned nodes out, then rebuild them reversed into a fresh buffer.
+	ParamNodeVector oldNodes = std::move(nodes());
+	nodes().clear();
+	if (nodes().insertAt(0, numNodes).error_or(Error::NONE) != Error::NONE) {
+		throw deluge::exception::BAD_ALLOC;
+	}
+
+	ParamNode* rightmostNode = &oldNodes[numNodes - 1];
+	int32_t oldNodeToLeftValue = rightmostNode->value;
+
+	ParamNode* leftmostNode = &oldNodes[0];
+	bool anythingAtZero = !leftmostNode->pos;
+
+	for (int32_t iOld = 0; iOld < numNodes; iOld++) {
+		int32_t iNew = -iOld - !anythingAtZero;
+		if (iNew < 0) {
+			iNew += numNodes;
+		}
+
+		ParamNode* oldNode = &oldNodes[iOld];
+		ParamNode* newNode = &nodes()[iNew];
+
+		int32_t iOldToRight = (iOld + 1 == numNodes) ? 0 : iOld + 1;
+		ParamNode* oldNodeToRight = &oldNodes[iOldToRight];
+
+		int32_t newPos = -oldNode->pos;
+		if (newPos < 0) {
+			newPos += reverseDirectionWithLength;
+		}
+
+		newNode->pos = newPos;
+		newNode->value = oldNode->interpolated ? oldNode->value : oldNodeToLeftValue;
+		newNode->interpolated = oldNodeToRight->interpolated;
+
+		oldNodeToLeftValue = oldNode->value;
+	}
+	// oldNodes frees its deep copy on destruction.
 }
 
 Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {

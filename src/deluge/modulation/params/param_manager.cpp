@@ -247,6 +247,12 @@ Error ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
 	return cloneParamCollectionsFrom(this, true, true, reverseDirectionWithLength); // *Does* clone expression params
 }
 
+void ParamManager::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	for (ParamCollectionSummary* summary = summaries; summary->paramCollection; summary++) {
+		summary->paramCollection->flattenReverseAutomation(reverseDirectionWithLength);
+	}
+}
+
 // Does *not* forget MPE params
 void ParamManager::forgetParamCollections() {
 	summaries[0].paramCollection = getExpressionParamSet();

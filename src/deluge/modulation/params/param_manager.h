@@ -73,6 +73,9 @@ public:
 	Error cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation, bool cloneExpressionParams = false,
 	                                int32_t reverseDirectionWithLength = 0);
 	Error beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
+	/// Reverse all collections' automation in place (used when a cloned NoteRow must flatten a reversed
+	/// sequence — the collections were copied reverse-agnostically). reverseDirectionWithLength is the loop length.
+	void flattenReverseAutomation(int32_t reverseDirectionWithLength);
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
 	bool ensureExpressionParamSetExists(bool forDrum = false);

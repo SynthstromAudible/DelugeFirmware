@@ -48,6 +48,11 @@ public:
 	/// subclasses override it with real copy construction as the byte-copy clone idiom is retired.
 	virtual Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const;
 
+	/// Empty every owned automation node vector (for a "copy structure, drop automation" clone). Default: no-op.
+	virtual void stripAutomation() {}
+	/// Reverse every owned param's automation in place (flatten-reversing on clone). Default: no-op.
+	virtual void flattenReverseAutomation(int32_t reverseDirectionWithLength) {}
+
 	/// tick interpolation by a number of ticks
 	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;
 

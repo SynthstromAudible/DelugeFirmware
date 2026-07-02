@@ -72,20 +72,31 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
                                  int32_t reverseDirectionWithLength) const {
 	// params is a value member (MIDIParamVector), so the implicit copy ctor deep-copies it (and each
-	// embedded AutoParam) — no pointer re-pointing needed. Edge cases keep the legacy base path for now.
-	if (!copyAutomation || reverseDirectionWithLength != 0) {
-		return ParamCollection::clone(result, copyAutomation, reverseDirectionWithLength);
-	}
+	// embedded AutoParam) — no pointer re-pointing needed.
 	void* mem = deluge::memory::alloc_fast(sizeof(MIDIParamCollection));
 	if (mem == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
+	MIDIParamCollection* clone;
 	try {
-		result = new (mem) MIDIParamCollection(*this);
+		clone = new (mem) MIDIParamCollection(*this);
 	} catch (deluge::exception&) {
 		delugeDealloc(mem);
 		return Error::INSUFFICIENT_RAM;
 	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~MIDIParamCollection();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
 	return Error::NONE;
 }
 
@@ -95,6 +106,18 @@ void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirecti
 	// And now, copy the memory for the automation data that each member of params references
 	for (MIDIParam& midiParam : params) {
 		midiParam.param.beenCloned(copyAutomation, reverseDirectionWithLength);
+	}
+}
+
+void MIDIParamCollection::stripAutomation() {
+	for (MIDIParam& midiParam : params) {
+		midiParam.param.nodes().clear();
+	}
+}
+
+void MIDIParamCollection::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	for (MIDIParam& midiParam : params) {
+		midiParam.param.flattenReverse(reverseDirectionWithLength);
 	}
 }
 

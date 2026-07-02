@@ -133,6 +133,48 @@ int main() {
 		}
 	}
 
+	// (b3) clone(copyAutomation=false): the clone copies structure/values but drops automation (stripAutomation).
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "clone(strip): pm setup");
+		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
+		setNode(pm.getUnpatchedParamSet()->params[2], 16, 321, false);
+
+		ParamCollection* cloned = nullptr;
+		Error e = pm.getUnpatchedParamSet()->clone(cloned, /*copyAutomation=*/false);
+		check(e == Error::NONE && cloned != nullptr, "clone(strip): clone ok");
+		if (cloned != nullptr) {
+			ParamSet* clonedSet = static_cast<ParamSet*>(cloned);
+			check(clonedSet->params[2].nodes().size() == 0, "clone(strip): automation dropped");
+			check(pm.getUnpatchedParamSet()->params[2].nodes().size() == 1, "clone(strip): source automation intact");
+		}
+	}
+
+	// (b4) clone(reverse): the clone's nodes are the reversed image of the source; source unchanged.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "clone(reverse): pm setup");
+		// Two nodes: pos 0 and pos 48 in a length-96 loop.
+		setNode(pm.getUnpatchedParamSet()->params[2], 0, 111, false);
+		setNode(pm.getUnpatchedParamSet()->params[2], 48, 222, true);
+
+		ParamCollection* cloned = nullptr;
+		Error e = pm.getUnpatchedParamSet()->clone(cloned, /*copyAutomation=*/true, /*reverseWithLength=*/96);
+		check(e == Error::NONE && cloned != nullptr, "clone(reverse): clone ok");
+		if (cloned != nullptr) {
+			ParamSet* clonedSet = static_cast<ParamSet*>(cloned);
+			// Reversed: newPos = -oldPos (+96 if <0). Node at 0 stays 0; node at 48 -> 48.
+			check(clonedSet->params[2].nodes().size() == 2, "clone(reverse): node count preserved");
+			int32_t p0 = clonedSet->params[2].nodes()[0].pos;
+			int32_t p1 = clonedSet->params[2].nodes()[1].pos;
+			check(p0 == 0 && p1 == 48, "clone(reverse): node positions reflected");
+			// Source untouched by the clone's reverse.
+			check(pm.getUnpatchedParamSet()->params[2].nodes()[0].pos == 0
+			          && pm.getUnpatchedParamSet()->params[2].nodes()[1].pos == 48,
+			      "clone(reverse): source unchanged");
+		}
+	}
+
 	// (c) Undo swap round-trip (the undo path uses swap, not the byte-copy idiom — regression guard).
 	{
 		AutoParam a, b;

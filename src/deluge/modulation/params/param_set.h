@@ -60,6 +60,8 @@ public:
 	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
 	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) final;
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	void stripAutomation() override;
+	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void copyOverridingFrom(ParamSet* otherParamSet);
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,

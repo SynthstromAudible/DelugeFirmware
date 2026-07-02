@@ -53,6 +53,20 @@ void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLengt
 	}
 }
 
+void ParamSet::stripAutomation() {
+	int32_t numParams = getNumParams();
+	for (int32_t p = 0; p < numParams; p++) {
+		params[p].nodes().clear();
+	}
+}
+
+void ParamSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	int32_t numParams = getNumParams();
+	for (int32_t p = 0; p < numParams; p++) {
+		params[p].flattenReverse(reverseDirectionWithLength);
+	}
+}
+
 void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
 
 	int32_t numParams = getNumParams();
@@ -403,19 +417,30 @@ UnpatchedParamSet::UnpatchedParamSet(UnpatchedParamSet const& other)
 
 Error UnpatchedParamSet::clone(ParamCollection*& result, bool copyAutomation,
                                int32_t reverseDirectionWithLength) const {
-	if (!copyAutomation || reverseDirectionWithLength != 0) {
-		return ParamCollection::clone(result, copyAutomation, reverseDirectionWithLength);
-	}
 	void* mem = deluge::memory::alloc_fast(sizeof(UnpatchedParamSet));
 	if (mem == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
+	UnpatchedParamSet* clone;
 	try {
-		result = new (mem) UnpatchedParamSet(*this);
+		clone = new (mem) UnpatchedParamSet(*this);
 	} catch (deluge::exception&) {
 		delugeDealloc(mem);
 		return Error::INSUFFICIENT_RAM;
 	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~UnpatchedParamSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
 	return Error::NONE;
 }
 
@@ -424,19 +449,30 @@ PatchedParamSet::PatchedParamSet(PatchedParamSet const& other) : ParamSet(other)
 }
 
 Error PatchedParamSet::clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength) const {
-	if (!copyAutomation || reverseDirectionWithLength != 0) {
-		return ParamCollection::clone(result, copyAutomation, reverseDirectionWithLength);
-	}
 	void* mem = deluge::memory::alloc_fast(sizeof(PatchedParamSet));
 	if (mem == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
+	PatchedParamSet* clone;
 	try {
-		result = new (mem) PatchedParamSet(*this);
+		clone = new (mem) PatchedParamSet(*this);
 	} catch (deluge::exception&) {
 		delugeDealloc(mem);
 		return Error::INSUFFICIENT_RAM;
 	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~PatchedParamSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
 	return Error::NONE;
 }
 
@@ -447,19 +483,30 @@ ExpressionParamSet::ExpressionParamSet(ExpressionParamSet const& other)
 
 Error ExpressionParamSet::clone(ParamCollection*& result, bool copyAutomation,
                                 int32_t reverseDirectionWithLength) const {
-	if (!copyAutomation || reverseDirectionWithLength != 0) {
-		return ParamCollection::clone(result, copyAutomation, reverseDirectionWithLength);
-	}
 	void* mem = deluge::memory::alloc_fast(sizeof(ExpressionParamSet));
 	if (mem == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
+	ExpressionParamSet* clone;
 	try {
-		result = new (mem) ExpressionParamSet(*this);
+		clone = new (mem) ExpressionParamSet(*this);
 	} catch (deluge::exception&) {
 		delugeDealloc(mem);
 		return Error::INSUFFICIENT_RAM;
 	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~ExpressionParamSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
 	return Error::NONE;
 }
 

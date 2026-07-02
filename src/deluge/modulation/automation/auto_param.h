@@ -73,6 +73,10 @@ public:
 	void generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
 	void cloneFrom(AutoParam* otherParam, bool copyAutomation);
 	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
+	/// Reverse this param's automation in place (used when flattening a reversed clip on clone). Operates on
+	/// already-owned nodes — moves them out, rebuilds reversed. reverseDirectionWithLength is the loop length.
+	/// Throws deluge::exception::BAD_ALLOC if it can't re-grow the node buffer.
+	void flattenReverse(int32_t reverseDirectionWithLength);
 	void copyOverridingFrom(AutoParam* otherParam);
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
