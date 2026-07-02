@@ -166,4 +166,25 @@ void shiftHorizontally(DocAutoParam& p, int32_t amount, int32_t effectiveLength)
 	std::rotate(nodes.begin(), nodes.begin() + cutoffIndex, nodes.end());
 }
 
+namespace {
+// Saturating add matching AutoParam::shiftValues: clamp to the signed 32-bit range.
+int32_t addSaturating(int32_t value, int32_t offset) {
+	int64_t newValue = static_cast<int64_t>(value) + offset;
+	if (newValue >= static_cast<int64_t>(2147483648u)) {
+		return 2147483647;
+	}
+	if (newValue < static_cast<int64_t>(2147483648u) * -1) {
+		return -2147483647 - 1;
+	}
+	return static_cast<int32_t>(newValue);
+}
+} // namespace
+
+void shiftValues(DocAutoParam& p, int32_t offset) {
+	p.current_value = addSaturating(p.current_value, offset);
+	for (ParamNode& node : p.nodes) {
+		node.value = addSaturating(node.value, offset);
+	}
+}
+
 } // namespace deluge::project

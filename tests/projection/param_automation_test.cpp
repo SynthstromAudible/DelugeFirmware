@@ -330,6 +330,33 @@ int main() {
 				expectDocMatchesEngine(ap, doc, "shiftHorizontally: matches engine oracle");
 			}
 		}
+
+		// shiftValues oracle diff — current_value + node values, saturating at the int32 extremes.
+		const int32_t shiftValueOffsets[] = {0, 100, -100, 2000000000, -2000000000, 2147483647, -2147483647};
+		const struct {
+			int32_t currentValue;
+			std::vector<N> cfg;
+		} valueCases[] = {
+		    {123, {{0, 10, true}, {48, -20, true}}},
+		    {2000000000, {{0, 2000000000, true}, {48, -2000000000, false}}}, // near the rails
+		    {-2147483647 - 1, {{0, 2147483647, true}}},                      // at the rails
+		};
+		for (const auto& vc : valueCases) {
+			for (int32_t offset : shiftValueOffsets) {
+				AutoParam ap;
+				ap.currentValue = vc.currentValue;
+				DocAutoParam doc{};
+				doc.current_value = vc.currentValue;
+				for (const N& n : vc.cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				ap.shiftValues(offset);
+				deluge::project::shiftValues(doc, offset);
+				check(ap.currentValue == doc.current_value, "shiftValues: current_value matches engine oracle");
+				expectDocMatchesEngine(ap, doc, "shiftValues: nodes match engine oracle");
+			}
+		}
 	}
 
 	// Unautomated: current value only, no nodes.

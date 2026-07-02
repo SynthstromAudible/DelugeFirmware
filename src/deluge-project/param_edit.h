@@ -55,4 +55,8 @@ void insertTime(DocAutoParam& p, int32_t pos, int32_t lengthToInsert);
 /// Faithful port of AutoParam::shiftHorizontally (→ OrderedPosVector::shiftHorizontal).
 void shiftHorizontally(DocAutoParam& p, int32_t amount, int32_t effectiveLength);
 
+/// Add `offset` to `current_value` and to every node value, saturating at the int32 range. Faithful port of
+/// AutoParam::shiftValues.
+void shiftValues(DocAutoParam& p, int32_t offset);
+
 } // namespace deluge::project
