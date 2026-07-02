@@ -1098,6 +1098,11 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 		kitToLoadFor->selectedDrum = soundDrumToReplace;
 		kitToLoadFor->beenEdited();
+
+		// The old SoundDrum was just destructed inside loadSynthToDrum. view.activeModControllableModelStack
+		// may have cached its Sound/ParamManager from a prior sound-editor session — refresh against the new
+		// drum so subsequent gold-encoder turns and menu opens don't dereference freed memory.
+		view.setActiveModControllableTimelineCounter(instrumentClipToLoadFor);
 	}
 	else {
 		error = Error::FILE_CORRUPTED;

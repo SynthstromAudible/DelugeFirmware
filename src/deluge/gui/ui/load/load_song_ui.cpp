@@ -812,6 +812,13 @@ void LoadSongUI::exitAction() {
 		return;
 	}
 
+	// Idempotency guard: a second exitAction during the scroll-out animation (e.g. fast double-BACK)
+	// would re-render the root UI and call exitThisUI() prematurely while the first scroll tick is
+	// still in flight, racing with the FileItems cleanup that happens at close().
+	if (currentUIMode == UI_MODE_VERTICAL_SCROLL) {
+		return;
+	}
+
 	currentUIMode = UI_MODE_VERTICAL_SCROLL;
 	PadLEDs::vertical::setupScroll(-1, false);
 	getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);

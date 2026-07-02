@@ -1683,6 +1683,12 @@ ActionResult Browser::mainButtonAction(bool on) {
 // Virtual function - may be overridden, by child classes that need to do more stuff, e.g. SampleBrowser needs to mute
 // any previewing Sample.
 ActionResult Browser::backButtonAction() {
+	// The BACK press itself drives the exit; cancel the long-press BACK_MENU_EXIT timer so it
+	// doesn't fire a second exitAction() via Browser::exitUI() while the first is still in flight
+	// (animated exits like LoadSongUI's scroll-out, or one-shot side effects like
+	// SampleBrowser::exitAction deleting an unassigned drum).
+	uiTimerManager.unsetTimer(TimerName::BACK_MENU_EXIT);
+
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
