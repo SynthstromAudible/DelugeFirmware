@@ -20,6 +20,7 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
+#include "io/midi/midi_macro.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/instrument/midi_instrument.h"
@@ -27,6 +28,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
+#include "util/misc.h"
 
 // namespace deluge::gui::views::automation::editor_layout {
 
@@ -35,6 +37,9 @@ namespace params = deluge::modulation::params;
 using namespace deluge::gui;
 
 constexpr int32_t kParamNodeWidth = 3;
+
+// If the edited automation lane is a MIDI Macro lane, bake its curve into the follower CC lanes.
+static void reFanIfMacroLane();
 
 // VU meter style colours for the automation editor
 
@@ -455,6 +460,12 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		else if (clip->lastSelectedParamID == CC_EXTERNAL_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
+		else if (MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+			// "Macro N" - reuse the contiguous STRING_FOR_MACRO_1..4
+			parameterName.append(deluge::l10n::get(
+			    static_cast<deluge::l10n::String>(util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1)
+			                                      + MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID))));
+		}
 		else {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 			bool appendedName = false;
@@ -804,6 +815,8 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
 			}
 
+			reFanIfMacroLane();
+
 			if (!playbackHandler.isEitherClockActive() || !modelStackWithParam->autoParam->isAutomated()) {
 				int32_t knobPos = newKnobPos + kKnobPosOffset;
 				renderDisplay(knobPos, kNoSelection, true);
@@ -885,6 +898,9 @@ void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoPa
 
 		modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
 		                                      getCopiedParamAutomation(), isPatchCable);
+
+		// pasting into a macro lane must fan the new curve out to the follower CC lanes
+		reFanIfMacroLane();
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
 
@@ -977,6 +993,22 @@ bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(Model
 	}
 }
 
+// If the edited automation lane is a MIDI Macro lane, bake its curve into the follower CC lanes,
+// joining the user's current NOTE_EDIT action so one BACK undoes the lane edit and the followers.
+static void reFanIfMacroLane() {
+	// In arranger automation the edited lane is a song param; the current clip's stale macro
+	// lastSelectedParamID must not trigger a re-fan of an unrelated MIDI clip.
+	if (automationView.onArrangerView) {
+		return;
+	}
+	Clip* clip = getCurrentClip();
+	if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT
+	    && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+		MIDIMacro::reFanMacro(clip, MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), action);
+	}
+}
+
 // this function writes the new values calculated by the handleAutomationSinglePadPress and
 // handleAutomationMultiPadPress functions
 void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelStackWithAutoParam* modelStack,
@@ -1046,6 +1078,11 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	// midi follow and midi feedback enabled
 	// re-send midi cc because learned parameter value has changed
 	view.sendMidiFollowFeedback(modelStack, knobPos);
+
+	// single-pad macro-lane edit -> fan out (a multi-pad ramp re-fans once from handleAutomationMultiPadPress)
+	if (!getMultiPadPressSelected()) {
+		reFanIfMacroLane();
+	}
 }
 
 // sets both knob indicators to the same value when pressing single pad,
@@ -1353,6 +1390,9 @@ void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
 		// render the multi pad press
 		uiNeedsRendering(getAutomationView());
 	}
+
+	// macro-lane ramp committed -> fan out once
+	reFanIfMacroLane();
 }
 
 // new function to render display when a long press is active

@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_macro.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
@@ -221,6 +222,11 @@ int32_t MIDIParamCollection::autoparamValueToCC(int32_t newValue) {
 }
 void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
                                    int32_t midiOutputFilter) {
+	// Macro automation lanes (paramID 128-131) are stored like CC params but must never emit MIDI - they
+	// fan out into their follower CC lanes instead. cc 128+ is not a valid 7-bit CC anyway.
+	if (cc >= MIDIMacro::kMacroParamIDBase) {
+		return;
+	}
 	int32_t newValueSmall = autoparamValueToCC(newValue);
 
 	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64,

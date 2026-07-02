@@ -81,6 +81,9 @@ public:
 	void handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber,
 	                      int32_t ccValue);
 
+	// public so the MIDI macro can target the active clip's output
+	Clip* getSelectedOrActiveClip();
+
 private:
 	// initialize
 	void init();
@@ -116,7 +119,6 @@ private:
 	                                        bool* doingMidiThru, ModelStack* modelStack, Output* specific_track,
 	                                        int32_t specific_track_index);
 
-	Clip* getSelectedOrActiveClip();
 	Clip* getSelectedClip();
 	Clip* getActiveClip(ModelStack* modelStack);
 	[[nodiscard]] const size_t getTrackCount() const;

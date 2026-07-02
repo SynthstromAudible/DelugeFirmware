@@ -27,6 +27,10 @@
 
 namespace deluge::gui::menu_item::midi {
 
+LearnedMIDI& Command::learned() const {
+	return midiEngine.globalMIDICommands[util::to_underlying(commandNumber)];
+}
+
 void Command::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (display->have7SEG()) {
 		drawValue();
@@ -35,7 +39,7 @@ void Command::beginSession(MenuItem* navigatedBackwardFrom) {
 
 void Command::drawPixelsForOled() {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-	LearnedMIDI* command = &midiEngine.globalMIDICommands[util::to_underlying(commandNumber)];
+	LearnedMIDI* command = &learned();
 	int32_t yPixel = 20;
 	if (!command->containsSomething()) {
 		image.drawString(l10n::get(l10n::String::STRING_FOR_COMMAND_UNASSIGNED), 0, yPixel, kTextSpacingX,
@@ -93,7 +97,7 @@ void Command::drawPixelsForOled() {
 
 void Command::drawValue() const {
 	char const* output = nullptr;
-	if (!midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].containsSomething()) {
+	if (!learned().containsSomething()) {
 		output = l10n::get(l10n::String::STRING_FOR_NONE);
 	}
 	else {
@@ -103,7 +107,7 @@ void Command::drawValue() const {
 }
 
 void Command::selectEncoderAction(int32_t offset) {
-	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
+	learned().clear();
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
@@ -113,7 +117,7 @@ void Command::selectEncoderAction(int32_t offset) {
 }
 
 void Command::unlearnAction() {
-	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
+	learned().clear();
 	if (soundEditor.getCurrentMenuItem() == this) {
 		if (display->haveOLED()) {
 			renderUIsForOled();
@@ -137,9 +141,9 @@ void Command::learnProgramChange(MIDICable& cable, int32_t channel, int32_t prog
 }
 
 bool Command::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
-	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].cable = &cable;
-	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].channelOrZone = channel;
-	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].noteOrCC = noteCode;
+	learned().cable = &cable;
+	learned().channelOrZone = channel;
+	learned().noteOrCC = noteCode;
 	if (soundEditor.getCurrentMenuItem() == this) {
 		if (display->haveOLED()) {
 			renderUIsForOled();

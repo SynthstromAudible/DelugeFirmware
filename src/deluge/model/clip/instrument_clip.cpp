@@ -27,6 +27,7 @@
 #include "hid/buttons.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_macro.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
@@ -3041,7 +3042,9 @@ expressionParam:
 					}
 					else {
 						paramId = stringToInt(contents);
-						if (paramId < kNumRealCCNumbers) {
+						// real CCs, plus the MIDI macro automation lanes (pseudo-CCs 128-131) which are
+						// stored in the same collection - without this they'd be dropped on load
+						if (paramId < kNumRealCCNumbers || MIDIMacro::isMacroParamID(paramId)) {
 							if (paramId == CC_EXTERNAL_MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
