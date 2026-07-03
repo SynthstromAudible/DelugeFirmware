@@ -1901,6 +1901,27 @@ skipInstance:
 	setupPatchingForAllParamManagers();
 	AudioEngine::logAction("aaa4.3");
 
+	// Phase B (DOM single-store): make the DOM the sole owner of the song-global unpatched automation node
+	// storage — each engine unpatched AutoParam borrows its nodes from project.global_fx.params.unpatched, so
+	// every edit + undo operates on DOM-owned data and save can read it directly. The store address is stable
+	// (Song is a heap singleton; the store's params vector is sized once here and never resized after), which
+	// the borrow-pointer requires. Seed the store first if the file had no <songParams> tag.
+	{
+		if (!project.global_fx.params.unpatched) {
+			project.global_fx.params.unpatched = deluge::project::toDocParamSet(*paramManager.getUnpatchedParamSet());
+		}
+		deluge::project::DocParamSet& store = *project.global_fx.params.unpatched;
+		UnpatchedParamSet* unpatchedEngine = paramManager.getUnpatchedParamSet();
+#if ALPHA_OR_BETA_VERSION
+		if (static_cast<int32_t>(store.params.size()) != unpatchedEngine->getNumParams()) {
+			FREEZE_WITH_ERROR("E4B0"); // DOM/engine song-global param-count mismatch — borrow would be unsafe
+		}
+#endif
+		for (int32_t p = 0; p < unpatchedEngine->getNumParams(); p++) {
+			unpatchedEngine->params[p].borrowNodeStorage(&store.params[p].nodes);
+		}
+	}
+
 	AudioEngine::routineWithClusterLoading();
 
 	int32_t playbackWillStartInArrangerAtPos =

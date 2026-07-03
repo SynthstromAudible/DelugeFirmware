@@ -65,6 +65,11 @@ inline DocAutoParam toDocAutoParam(int32_t current_value, const ParamNodeVector&
 
 inline void fromDocAutoParam(const DocAutoParam& doc, int32_t& current_value, ParamNodeVector& nodes) {
 	current_value = doc.current_value;
+	if (&nodes == &doc.nodes) {
+		// Borrowed (Phase B): the engine's node store IS doc.nodes, so a copy would clear-then-read the same
+		// vector. The value is set above; the nodes are already current by construction — nothing to copy.
+		return;
+	}
 	nodes.clear();
 	(void)nodes.reserveExtra(static_cast<int32_t>(doc.nodes.size()));
 	for (const ParamNode& node : doc.nodes) {
