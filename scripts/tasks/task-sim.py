@@ -113,7 +113,11 @@ def build_host(no_build):
 def build_sim(sim_crate, triple, release, no_build):
     if no_build:
         return 0
-    cmd = ["cargo", "build", "--target", triple]
+    # Drop the GUI's default `rack` feature: the top-panel strip (CV/gate meters
+    # + audio oscilloscopes) is compiled out for the emulator. The protocol link
+    # carries no audio, so the output scopes would be dead — a faceplate-only
+    # window is cleaner. (The in-process `cargo deluge sim` path keeps the rack.)
+    cmd = ["cargo", "build", "--target", triple, "--no-default-features"]
     if release:
         cmd += ["--release"]
     return subprocess.run(cmd, cwd=sim_crate, env=os.environ).returncode

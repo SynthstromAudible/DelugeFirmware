@@ -1373,7 +1373,7 @@ getValueNormalWay:
 	// Re-fetch unconditionally: if the left node pre-existed, the above block was skipped, but the right-edge
 	// insertAtIndex may have relocated the backing store - which would dangle the pointer captured earlier.
 	// edgeIndexes[REGION_EDGE_LEFT] is kept correct through both blocks, so it's safe to re-derive from it.
-	edgeNodes[REGION_EDGE_LEFT] = nodes.getElement(edgeIndexes[REGION_EDGE_LEFT]);
+	edgeNodes[REGION_EDGE_LEFT] = &nodes[edgeIndexes[REGION_EDGE_LEFT]];
 	edgeNodes[REGION_EDGE_LEFT]->value = reversed ? valueAtLateEdge : startValue;
 	edgeNodes[REGION_EDGE_LEFT]->interpolated = interpolateLeftNode;
 

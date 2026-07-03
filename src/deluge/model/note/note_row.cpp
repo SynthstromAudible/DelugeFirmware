@@ -254,8 +254,8 @@ void NoteRow::getRowSquareInfo(int32_t effectiveLength, SquareInfo rowSquareInfo
 		// Start by finding the last note to begin *before the right-edge* of the note row displayed
 		int32_t i = notes.firstAtOrAfter(lastNoteSquareEndPos) - 1;
 
-		// Get that last note
-		Note* note = &notes[i];
+		// Get that last note (nullptr if i == -1, i.e. all notes lie at/after the right edge)
+		Note* note = notes.tryGet(i);
 
 		// now we're going to iterate backwards from right edge
 		// in order to update all squares in the note row with the note info
@@ -286,8 +286,8 @@ void NoteRow::getSquareInfo(int32_t x, int32_t effectiveLength, SquareInfo& squa
 			// Start by finding the last note to begin *before the right-edge* of the square
 			int32_t i = notes.firstAtOrAfter(squareInfo.squareEndPos) - 1;
 
-			// Get that last note
-			Note* note = &notes[i];
+			// Get that last note (nullptr if i == -1, i.e. all notes lie at/after the square's right edge)
+			Note* note = notes.tryGet(i);
 
 			// Update square info with note info found
 			addNotesToSquareInfo(effectiveLength, squareInfo, i, &note);
@@ -336,9 +336,10 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 				gotFirstNoteParams = true;
 			}
 
-			// ok we've used this note, so let's move to next one
+			// ok we've used this note, so let's move to next one (nullptr once we pass the first note,
+			// noteIndex == -1, which drops us out of the loop and into the wrap-around branch below)
 			noteIndex--;
-			*note = &notes[noteIndex];
+			*note = notes.tryGet(noteIndex);
 		}
 	}
 	// Or if the note starts left of this square, or there's no note there which means we'll look at the final

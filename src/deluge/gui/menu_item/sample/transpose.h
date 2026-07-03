@@ -145,12 +145,12 @@ public:
 		return true;
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
+	void getNotificationValue(etl::istring& valueBuf) override {
 		Decimal::getNotificationValue(valueBuf);
 
 		Source& source = soundEditor.currentSound->sources[source_id_];
 		const int32_t rangeIndex = soundEditor.currentMultiRangeIndex;
-		const int32_t numRanges = source.ranges.getNumElements();
+		const int32_t numRanges = source.ranges.size();
 
 		if (soundEditor.currentSourceIndex != source_id_ || soundEditor.currentMultiRange == nullptr || numRanges <= 1
 		    || rangeIndex < 0 || rangeIndex >= numRanges || source.oscType != OscType::SAMPLE) {
