@@ -118,19 +118,19 @@ void LoadMacroPresetUI::enterKeyPress() {
 		// The loaded target destinations are kept even if one is already used by another macro; flag
 		// the first such collision instead of the plain "Preset loaded".
 		int32_t owner = -1;
-		uint8_t conflictCC = 0;
+		uint8_t conflictDestination = 0;
 		if (MelodicInstrument* instrument = Macros::macroClipInstrument(getCurrentClip())) {
 			Macros::Macro* macros = instrument->macros;
 			for (int32_t f = 0; f < Macros::kNumTargetSlots && owner < 0; f++) {
-				uint8_t cc = macros[Macros::presetMacroIndex].targets[f].cc;
-				owner = Macros::findTargetCCOwner(macros, cc, Macros::presetMacroIndex, f);
+				uint8_t destination = macros[Macros::presetMacroIndex].targets[f].destination;
+				owner = Macros::findTargetDestinationOwner(macros, destination, Macros::presetMacroIndex, f);
 				if (owner >= 0) {
-					conflictCC = cc;
+					conflictDestination = destination;
 				}
 			}
 		}
 		if (owner >= 0) {
-			Macros::showCCConflictPopup(conflictCC, owner);
+			Macros::showDestinationConflictPopup(conflictDestination, owner);
 		}
 		else {
 			display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_PRESET_LOADED));

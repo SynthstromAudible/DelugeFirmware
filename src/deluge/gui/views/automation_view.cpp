@@ -140,14 +140,14 @@ static MelodicInstrument* macroLaneInstrument(Clip* clip, int32_t* macroIndex) {
 
 // Appends a destination label for a target: "Macro N" for a cascade destination (always the plain
 // macro number, never its user name), the param name on a synth track, else the MIDI device's CC
-// name (from a loaded definition file), else "CC <n>", else "T<n>" when cc is OFF (kTargetCCNone).
-static void appendTargetName(StringBuf& buf, MelodicInstrument* instrument, int32_t target, uint8_t cc) {
-	if (cc == Macros::kTargetCCNone) {
+// name (from a loaded definition file), else "CC <n>", else "T<n>" when destination is OFF (kNoDestination).
+static void appendTargetName(StringBuf& buf, MelodicInstrument* instrument, int32_t target, uint8_t destination) {
+	if (destination == Macros::kNoDestination) {
 		buf.append('T');
 		buf.appendInt(target + 1);
 		return;
 	}
-	Macros::appendDestName(buf, instrument, cc);
+	Macros::appendDestinationName(buf, instrument, destination);
 }
 
 // While a target quick-edit button is held, the gold-knob LED bars show the target's range live:
@@ -162,27 +162,27 @@ static void showHeldTargetKnobIndicators(MelodicInstrument* instrument, int32_t 
 // Full target readout while the param button is held: the destination name on the first line and
 // the range on the second, e.g. "LFO1 Freq" / "0 - 127", or "Not assigned" when the slot is OFF (the
 // held button itself identifies the slot). Persistent - stays up until the button is released
-// (cancelPopup in modButtonAction). `cc` may be a pending (not yet committed) value.
+// (cancelPopup in modButtonAction). `destination` may be a pending (not yet committed) value.
 // `showConflict`: on the initial press of an already-committed in-use target, show WHO owns the
 // destination instead of a range; while dialing a CC or shaping From/To, the readout stays normal
 // so the slot is fully editable (the conflict shows as the button's blinking LED after release).
-static void showTargetFull(MelodicInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t cc,
+static void showTargetFull(MelodicInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t destination,
                            bool showConflict) {
 	// A shadowed target doesn't drive anything - show WHO owns the destination, not a range.
-	if (showConflict && cc != Macros::kTargetCCNone) {
-		int32_t owner = Macros::findShadowingOwner(instrument->macros, cc, macroIndex, target);
+	if (showConflict && destination != Macros::kNoDestination) {
+		int32_t owner = Macros::findShadowingOwner(instrument->macros, destination, macroIndex, target);
 		if (owner >= 0) {
-			Macros::showCCConflictPopup(cc, owner, true); // persistent while held
+			Macros::showDestinationConflictPopup(destination, owner, true); // persistent while held
 			return;
 		}
 	}
 	Macros::MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
 	DEF_STACK_STRING_BUF(popup, 48);
-	if (cc == Macros::kTargetCCNone) {
+	if (destination == Macros::kNoDestination) {
 		popup.append("Not assigned");
 	}
 	else {
-		appendTargetName(popup, instrument, target, cc);
+		appendTargetName(popup, instrument, target, destination);
 		popup.append(display->haveOLED() ? '\n' : ' ');
 		popup.appendInt(f.from);
 		popup.append(" - ");
@@ -891,12 +891,12 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 		// grey, the pending pick lights full white; pads that can't be a destination (patch
 		// cables, expression, velocity - not encodable as a destination byte) go dark.
 		if (macroPicker) {
-			int32_t dest = macroDestinationForPad(pickerDomain, xDisplay, yDisplay);
-			if (dest < 0) {
+			int32_t destination = macroDestinationForPad(pickerDomain, xDisplay, yDisplay);
+			if (destination < 0) {
 				pixel = colours::black;
 			}
 			else {
-				pixel = (heldTargetPendingCC == dest) ? colours::white_full : colours::grey;
+				pixel = (heldTargetPendingDestination == destination) ? colours::white_full : colours::grey;
 				occupancyMask[yDisplay][xDisplay] = 64;
 			}
 			continue;
@@ -1847,7 +1847,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	Output* output = clip->output;
 	OutputType outputType = output->type;
 
-	// if we're in a midi clip with a midi cc selected - or on a macro lane on either clip type -
+	// if we're in a midi clip with a midi destination selected - or on a macro lane on either clip type -
 	// and we press the name shortcut while holding shift, then enter the rename UI
 	if (outputType == OutputType::MIDI_OUT || (!onArrangerView && macroLaneInstrument(clip, nullptr) != nullptr)) {
 		if (Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
@@ -2650,7 +2650,7 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 	// leaving heldTarget set would silently re-route the encoders next time a macro lane is shown.
 	if (!on) {
 		if (heldTarget >= 0) {
-			commitHeldTargetCC();
+			commitHeldTargetDestination();
 			heldTarget = -1;
 			heldTargetMacro = -1;
 			display->cancelPopup();        // the readout is persistent for the duration of the hold
@@ -2673,10 +2673,10 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 	if (instrument != nullptr && whichButton < Macros::kNumTargetSlots) {
 		heldTarget = whichButton;
 		heldTargetMacro = macroIndex;
-		uint8_t cc = instrument->macros[macroIndex].targets[whichButton].cc;
-		heldTargetPendingCC = (cc == Macros::kTargetCCNone) ? -1 : cc;
+		uint8_t destination = instrument->macros[macroIndex].targets[whichButton].destination;
+		heldTargetPendingDestination = (destination == Macros::kNoDestination) ? -1 : destination;
 		// initial press: an in-use target reads out who owns its destination
-		showTargetFull(instrument, macroIndex, whichButton, cc, true);
+		showTargetFull(instrument, macroIndex, whichButton, destination, true);
 		showHeldTargetKnobIndicators(instrument, macroIndex, whichButton);
 		// the main grid flips to the destination-picker overlay for the duration of the hold; its
 		// pads mean params now, so stop the shortcut blinking (re-armed on release)
@@ -2689,7 +2689,7 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 
 // Commits a CC dialed during the hold: one undoable step that clears the old CC's bake and bakes the
 // new one. Deferred to release so scrolling never wipes the CCs passed through.
-void AutomationView::commitHeldTargetCC() {
+void AutomationView::commitHeldTargetDestination() {
 	Clip* clip = getCurrentClip();
 	int32_t macroIndex = 0;
 	MelodicInstrument* instrument =
@@ -2697,9 +2697,10 @@ void AutomationView::commitHeldTargetCC() {
 	if (instrument == nullptr || macroIndex != heldTargetMacro) {
 		return; // lane changed mid-hold: drop the pending value rather than commit to the wrong macro
 	}
-	uint8_t newCC = (heldTargetPendingCC < 0) ? Macros::kTargetCCNone : (uint8_t)heldTargetPendingCC;
-	if (newCC != instrument->macros[macroIndex].targets[heldTarget].cc) {
-		Macros::changeTargetCC(clip, macroIndex, heldTarget, newCC);
+	uint8_t newDestination =
+	    (heldTargetPendingDestination < 0) ? Macros::kNoDestination : (uint8_t)heldTargetPendingDestination;
+	if (newDestination != instrument->macros[macroIndex].targets[heldTarget].destination) {
+		Macros::changeTargetDestination(clip, macroIndex, heldTarget, newDestination);
 	}
 }
 
@@ -2728,8 +2729,8 @@ int32_t AutomationView::macroDestinationForPad(Macros::Domain domain, int32_t x,
 		}
 		return -1;
 	}
-	uint32_t cc = midiCCShortcutsForAutomation[x][y];
-	return (cc != kNoParamID && cc <= Macros::kMaxTargetCC) ? (int32_t)cc : -1;
+	uint32_t destination = midiCCShortcutsForAutomation[x][y];
+	return (destination != kNoParamID && destination <= Macros::kMaxMidiDestination) ? (int32_t)destination : -1;
 }
 
 // A press on the picker overlay: picks that pad's param as the held target's pending destination,
@@ -2741,19 +2742,19 @@ void AutomationView::handleMacroPickerPad(Clip* clip, int32_t x, int32_t y) {
 	if (instrument == nullptr || macroIndex != heldTargetMacro) {
 		return;
 	}
-	int32_t dest = macroDestinationForPad(Macros::domainForOutput(clip->output), x, y);
-	if (dest < 0) {
+	int32_t destination = macroDestinationForPad(Macros::domainForOutput(clip->output), x, y);
+	if (destination < 0) {
 		return; // a dark pad - not a pickable destination
 	}
-	heldTargetPendingCC = (int16_t)dest;
-	showTargetFull(instrument, macroIndex, heldTarget, (uint8_t)dest, false);
-	bool wouldDrive = Macros::findShadowingOwner(instrument->macros, (uint8_t)dest, macroIndex, heldTarget) < 0;
+	heldTargetPendingDestination = (int16_t)destination;
+	showTargetFull(instrument, macroIndex, heldTarget, (uint8_t)destination, false);
+	bool wouldDrive = Macros::findShadowingOwner(instrument->macros, (uint8_t)destination, macroIndex, heldTarget) < 0;
 	indicator_leds::setLedState(indicator_leds::modLed[heldTarget], wouldDrive);
 	uiNeedsRendering(&automationView, 0xFFFFFFFF, 0); // move the white pick highlight
 }
 
 // Clears the target assignment picked before the confirmation menu opened. Routes the CC removal
-// through changeTargetCC (same as dialing the target to OFF) so the baked automation on the target
+// through changeTargetDestination (same as dialing the target to OFF) so the baked automation on the target
 // param is deleted (lane back to its unautomated default) and, if another target was shadowed on
 // that same destination, ownership hands over and that target's macro curve is baked in instead.
 // Then resets the slot's remaining config (from/to/send) to defaults.
@@ -2764,8 +2765,8 @@ bool AutomationView::acceptPendingTargetClear() {
 	bool ok =
 	    instrument != nullptr && pendingClearMacro >= 0 && pendingClearTarget >= 0 && macroIndex == pendingClearMacro;
 	if (ok) {
-		// must run while the slot still holds its CC (changeTargetCC reads it as the old destination)
-		Macros::changeTargetCC(clip, pendingClearMacro, pendingClearTarget, Macros::kTargetCCNone);
+		// must run while the slot still holds its CC (changeTargetDestination reads it as the old destination)
+		Macros::changeTargetDestination(clip, pendingClearMacro, pendingClearTarget, Macros::kNoDestination);
 		instrument->macros[pendingClearMacro].targets[pendingClearTarget] = Macros::MacroTargetSlot{};
 		instrument->editedByUser = true;
 		view.setModLedStates(); // that target's assignment LED goes dark
@@ -2830,7 +2831,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		if (instrument != nullptr && macroIndex == heldTargetMacro) {
 			// Shaping the range implicitly confirms a destination still pending from the select
 			// encoder - commit it now so From/To edit (and read out) the just-dialed CC.
-			commitHeldTargetCC();
+			commitHeldTargetDestination();
 			Macros::MacroTargetSlot& f = instrument->macros[macroIndex].targets[heldTarget];
 			uint8_t& endpoint = (whichModEncoder == 1) ? f.to : f.from; // knob 1 = From, knob 2 = To
 			int32_t v = std::clamp<int32_t>((int32_t)endpoint + offset, 0,
@@ -2843,7 +2844,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			}
 			// always show the full "From X To Y" readout - even for an in-use target, so its range
 			// stays editable like any other; the conflict shows as the blinking LED after release
-			showTargetFull(instrument, macroIndex, heldTarget, f.cc, false);
+			showTargetFull(instrument, macroIndex, heldTarget, f.destination, false);
 			showHeldTargetKnobIndicators(instrument, macroIndex, heldTarget);
 			return;
 		}
@@ -3009,7 +3010,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 
 	// While holding a param button on a macro lane, the select encoder dials the target's destination
 	// CC (rather than switching lanes). The value is only COMMITTED on button release (see
-	// commitHeldTargetCC), so scrolling never touches the automation of the CCs passed through.
+	// commitHeldTargetDestination), so scrolling never touches the automation of the CCs passed through.
 	if (heldTarget >= 0 && inAutomationEditor()) {
 		int32_t macroIndex = 0;
 		MelodicInstrument* instrument = macroLaneInstrument(clip, &macroIndex);
@@ -3020,17 +3021,21 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			// contiguous per-macro, so step in "dial position" space.
 			Macros::Domain domain = Macros::domainForOutput(output);
 			int32_t maxPosition = Macros::numDestinations(domain, macroIndex) - 1;
-			int32_t position = (heldTargetPendingCC < 0)
-			                       ? -1
-			                       : Macros::positionForDestination(domain, macroIndex, (uint8_t)heldTargetPendingCC);
+			int32_t position =
+			    (heldTargetPendingDestination < 0)
+			        ? -1
+			        : Macros::positionForDestination(domain, macroIndex, (uint8_t)heldTargetPendingDestination);
 			position = std::clamp<int32_t>(position + offset, -1, maxPosition);
-			heldTargetPendingCC = (position < 0) ? -1 : Macros::destinationForPosition(domain, macroIndex, position);
-			uint8_t pendingCC = (heldTargetPendingCC < 0) ? Macros::kTargetCCNone : (uint8_t)heldTargetPendingCC;
+			heldTargetPendingDestination =
+			    (position < 0) ? -1 : Macros::destinationForPosition(domain, macroIndex, position);
+			uint8_t pendingDestination =
+			    (heldTargetPendingDestination < 0) ? Macros::kNoDestination : (uint8_t)heldTargetPendingDestination;
 			// Dialing stays normal even onto an in-use destination (pick it, then shape From/To with
 			// the gold knobs); only the LED hints it won't drive, and it blinks after release.
-			showTargetFull(instrument, macroIndex, heldTarget, pendingCC, false);
-			bool wouldDrive = pendingCC != Macros::kTargetCCNone
-			                  && Macros::findShadowingOwner(instrument->macros, pendingCC, macroIndex, heldTarget) < 0;
+			showTargetFull(instrument, macroIndex, heldTarget, pendingDestination, false);
+			bool wouldDrive =
+			    pendingDestination != Macros::kNoDestination
+			    && Macros::findShadowingOwner(instrument->macros, pendingDestination, macroIndex, heldTarget) < 0;
 			// the held button's LED tracks the pending assignment live
 			indicator_leds::setLedState(indicator_leds::modLed[heldTarget], wouldDrive);
 			uiNeedsRendering(&automationView, 0xFFFFFFFF, 0); // the picker overlay's white highlight follows

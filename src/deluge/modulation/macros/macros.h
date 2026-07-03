@@ -41,8 +41,8 @@ namespace Macros {
 
 constexpr int32_t kNumMacros = 4;
 constexpr int32_t kNumTargetSlots = 8;
-constexpr uint8_t kTargetCCNone = 255;
-constexpr uint8_t kMaxTargetCC = 127;
+constexpr uint8_t kNoDestination = 255;
+constexpr uint8_t kMaxMidiDestination = 127;
 constexpr uint8_t kMaxValue = 127;  // from/to and CC output range, and the source value range
 constexpr uint8_t kDefaultFrom = 0; // output at source = 0
 constexpr uint8_t kDefaultTo = 127; // output at source = 127 (defaults give pass-through)
@@ -92,14 +92,14 @@ inline int32_t paramIDForMacro(int32_t idx) {
 inline int32_t numCascadeDestinations(int32_t macroIndex) {
 	return kNumMacros - 1 - macroIndex;
 }
-inline bool isCascadeDestination(int32_t cc, int32_t macroIndex) {
-	return isMacroParamID(cc) && macroIndexFromParamID(cc) > macroIndex;
+inline bool isCascadeDestination(int32_t destination, int32_t macroIndex) {
+	return isMacroParamID(destination) && macroIndexFromParamID(destination) > macroIndex;
 }
 
 // ── Destination byte space ──
 // SYNTH destination byte <-> (Kind, paramID). Cascade ids (128-131) decode to the downstream
 // macro's own lane param, which is where a cascade bake writes.
-void decodeSynthDestination(uint8_t dest, deluge::modulation::params::Kind* kindOut, int32_t* idOut);
+void decodeSynthDestination(uint8_t destination, deluge::modulation::params::Kind* kindOut, int32_t* idOut);
 // The byte for a (kind, param) pair, or -1 if the pair isn't a valid macro destination (only
 // PATCHED and UNPATCHED_SOUND params are, and never the macro lane params themselves).
 int32_t synthDestinationForParam(deluge::modulation::params::Kind kind, int32_t paramID);
@@ -112,20 +112,20 @@ uint8_t laneDestination(Domain domain, int32_t macroIndex);
 // this macro's cascade ids; SYNTH = the targetable param list (automation-view order) then the
 // cascade ids. Used by the quick-edit dial and the menu picker.
 int32_t numDestinations(Domain domain, int32_t macroIndex);
-int32_t destinationForPosition(Domain domain, int32_t macroIndex, int32_t position); // -1 if out of range
-int32_t positionForDestination(Domain domain, int32_t macroIndex, uint8_t dest);     // -1 if not in the space
+int32_t destinationForPosition(Domain domain, int32_t macroIndex, int32_t position);    // -1 if out of range
+int32_t positionForDestination(Domain domain, int32_t macroIndex, uint8_t destination); // -1 if not in the space
 
-// Whether `cc` may be assigned as a target of macros[macroIndex] in this domain: a real CC (MIDI),
+// Whether `destination` may be assigned as a target of macros[macroIndex] in this domain: a real CC (MIDI),
 // a targetable param byte (SYNTH - never the lane bytes 117-120), or a higher-indexed cascade id.
-bool isValidTargetDestination(Domain domain, int32_t cc, int32_t macroIndex);
+bool isValidTargetDestination(Domain domain, int32_t destination, int32_t macroIndex);
 // MIDI-domain shorthand, kept for the pure-MIDI call sites.
-inline bool isValidTargetDestination(int32_t cc, int32_t macroIndex) {
-	return isValidTargetDestination(Domain::MIDI, cc, macroIndex);
+inline bool isValidTargetDestination(int32_t destination, int32_t macroIndex) {
+	return isValidTargetDestination(Domain::MIDI, destination, macroIndex);
 }
 
 // Appends a destination's display label: "Macro N" for a cascade id, the param name on a synth
 // track, else the MIDI device's CC name if loaded, else "CC <n>".
-void appendDestName(StringBuf& buf, MelodicInstrument* instrument, uint8_t cc);
+void appendDestinationName(StringBuf& buf, MelodicInstrument* instrument, uint8_t destination);
 
 // If an automation-lane selection (kind, paramID) on this output is a macro lane, returns the
 // macro index, else -1. MIDI lanes are the pseudo-CC ids 128-131 (their clips track lanes by id
@@ -136,10 +136,10 @@ int32_t macroIndexForLaneSelection(Output* output, deluge::modulation::params::K
 //   out = clamp(from + (to - from) * input / 127, 0, 127)
 // Set from > to to invert the response; from == to sends a constant. from/to are the A/B captures.
 struct MacroTargetSlot {
-	uint8_t cc = kTargetCCNone;  // kTargetCCNone = OFF, else 0..kMaxTargetCC
-	uint8_t from = kDefaultFrom; // 0..kMaxValue, output when source is at 0 (capture A)
-	uint8_t to = kDefaultTo;     // 0..kMaxValue, output when source is at 127 (capture B; from>to inverts)
-	bool send = true;            // the "Send" toggle: muted when false, but keeps cc/from/to
+	uint8_t destination = kNoDestination; // kNoDestination = OFF, else 0..kMaxMidiDestination
+	uint8_t from = kDefaultFrom;          // 0..kMaxValue, output when source is at 0 (capture A)
+	uint8_t to = kDefaultTo;              // 0..kMaxValue, output when source is at 127 (capture B; from>to inverts)
+	bool send = true;                     // the "Send" toggle: muted when false, but keeps destination/from/to
 };
 
 struct Macro {
@@ -158,8 +158,8 @@ bool isEnabled();
 // Returns the index of a macro (other than macros[exceptMacro], and other than the given slot) whose
 // target already targets this CC, or -1 if none; if non-null, *slotOut receives that target's
 // slot. Duplicate destination CCs are allowed but flagged.
-int32_t findTargetCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot,
-                          int32_t* slotOut = nullptr);
+int32_t findTargetDestinationOwner(const Macro* macros, uint8_t destination, int32_t exceptMacro, int32_t exceptSlot,
+                                   int32_t* slotOut = nullptr);
 
 // The OWNER of a destination CC is the target that drives it - it alone bakes automation and sends
 // live, so exactly one target ever drives a CC. Ownership ranks targets of ACTIVE macros above
@@ -167,23 +167,23 @@ int32_t findTargetCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, 
 // (macros, then slots) breaks ties. Every other target on the same CC is SHADOWED: it keeps the CC
 // in its config (and the UI warns), but it is inert. Because rank depends on `active`, flipping a
 // macro's active flag can hand a contested CC between macros - use setMacroActive() for that, which
-// re-bakes accordingly. Returns the macro owning `cc` if macros[macroIndex].targets[slot] holding
-// it would be shadowed, or -1 if that position would be the owner (cc may be a pending value the
+// re-bakes accordingly. Returns the macro owning `destination` if macros[macroIndex].targets[slot] holding
+// it would be shadowed, or -1 if that position would be the owner (destination may be a pending value the
 // slot doesn't hold yet).
-int32_t findShadowingOwner(const Macro* macros, uint8_t cc, int32_t macroIndex, int32_t slot);
+int32_t findShadowingOwner(const Macro* macros, uint8_t destination, int32_t macroIndex, int32_t slot);
 inline bool isTargetShadowed(const Macro* macros, int32_t macroIndex, int32_t slot) {
-	uint8_t cc = macros[macroIndex].targets[slot].cc;
-	return cc != kTargetCCNone && findShadowingOwner(macros, cc, macroIndex, slot) >= 0;
+	uint8_t destination = macros[macroIndex].targets[slot].destination;
+	return destination != kNoDestination && findShadowingOwner(macros, destination, macroIndex, slot) >= 0;
 }
 
 // True when an assigned target won't drive its CC (it isn't the CC's owner). These are the targets
 // the UI flags with a blinking target-button LED.
 bool targetHasConflict(const Macro* macros, int32_t macroIndex, int32_t slot);
 
-// Shows a "<dest> used by Macro <ownerMacro+1>" popup (dest = device CC name or "CC n"), used by the
+// Shows a "<destination> used by Macro <ownerMacro+1>" popup (destination = device CC name or "CC n"), used by the
 // quick-edit target readout when the held slot is shadowed. `persistent` keeps it up until
 // cancelPopup() (used while a quick-edit button is held).
-void showCCConflictPopup(uint8_t cc, int32_t ownerMacro, bool persistent = false);
+void showDestinationConflictPopup(uint8_t destination, int32_t ownerMacro, bool persistent = false);
 
 // True if any of the four macros deviates from its defaults (a learned source, a target CC set,
 // or deactivated). Gates serialization so an all-default instrument writes nothing.
@@ -225,11 +225,11 @@ void reFanTarget(Clip* clip, int32_t macroIndex, int32_t slot, Action* action);
 // Repoints a target at a new destination CC: clears the bake left on the old CC (so no ghost lane
 // keeps playing) unless another target still targets it, then bakes the macro curve into the new CC.
 // Both writes are snapshotted into one undo action, so BACK restores any automation this replaced.
-void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC);
+void changeTargetDestination(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newDestination);
 
 // Flips macros[macroIndex].active. Ownership of a duplicated CC ranks active macros first, so a
 // flip can hand a contested CC between macros: the old owner's bake is cleared and the new owner's
-// re-baked (one undoable action), mirroring changeTargetCC()'s handoff when a target leaves a CC.
+// re-baked (one undoable action), mirroring changeTargetDestination()'s handoff when a target leaves a CC.
 // Always flip `active` through this rather than writing the field.
 void setMacroActive(Clip* clip, int32_t macroIndex, bool active);
 

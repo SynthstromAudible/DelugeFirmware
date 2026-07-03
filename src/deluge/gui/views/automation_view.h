@@ -132,7 +132,7 @@ public:
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	void modButtonAction(uint8_t whichButton, bool on) override;
-	void commitHeldTargetCC();
+	void commitHeldTargetDestination();
 	CopiedParamAutomation copiedParamAutomation;
 
 	// While a macro lane is selected, holding a param-select button (0..7) quick-edits that
@@ -142,7 +142,7 @@ public:
 	int8_t heldTargetMacro = -1;
 	// CC value being dialed during the hold (-1 = OFF, 0..127 = CC); committed only on button
 	// release, so scrolling never touches the automation of the CCs passed through.
-	int16_t heldTargetPendingCC = -1;
+	int16_t heldTargetPendingDestination = -1;
 	// Target awaiting the clear-confirmation context menu (SHIFT+SAVE while holding its button).
 	int8_t pendingClearMacro = -1;
 	int8_t pendingClearTarget = -1;
@@ -297,7 +297,7 @@ private:
 
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 
-	// grid sized array to assign midi cc values to each pad on the grid
+	// grid sized array to assign midi destination values to each pad on the grid
 	void initMIDICCShortcutsForAutomation();
 	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
 	bool midiCCShortcutsLoaded;

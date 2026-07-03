@@ -1688,7 +1688,7 @@ void View::setModLedStates() {
 				                                                              clip->lastSelectedParamID)
 				                         : -1;
 				if (macroIndex >= 0) {
-					if (instrument->macros[macroIndex].targets[i].cc != Macros::kTargetCCNone) {
+					if (instrument->macros[macroIndex].targets[i].destination != Macros::kNoDestination) {
 						targetConflicted = Macros::targetHasConflict(instrument->macros, macroIndex, i);
 						targetAssigned = !targetConflicted;
 					}

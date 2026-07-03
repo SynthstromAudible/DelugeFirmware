@@ -147,8 +147,8 @@ private:
 	int32_t macro;
 };
 
-// The destination of one macro target slot. Menu value 0 = OFF, 1..kMaxTargetCC+1 = CC
-// 0..kMaxTargetCC, then the cascade destinations (the higher-indexed macros this macro may target,
+// The destination of one macro target slot. Menu value 0 = OFF, 1..kMaxMidiDestination+1 = CC
+// 0..kMaxMidiDestination, then the cascade destinations (the higher-indexed macros this macro may target,
 // shown as plain "Macro N" regardless of any user-given macro name).
 class MacroTarget final : public IntegerWithOff {
 public:
@@ -165,17 +165,17 @@ public:
 			str.append("OFF");
 		}
 		else {
-			int32_t dest = valueToDestination(v);
-			if (Macros::isMacroParamID(dest)) {
+			int32_t destination = valueToDestination(v);
+			if (Macros::isMacroParamID(destination)) {
 				str.append('M');
-				str.appendInt(Macros::macroIndexFromParamID(dest) + 1);
+				str.appendInt(Macros::macroIndexFromParamID(destination) + 1);
 			}
 			else if (currentMacroDomain() == Macros::Domain::SYNTH) {
 				// the param's display name - the canvas clips what doesn't fit the slot
-				Macros::appendDestName(str, currentMacroInstrument(), (uint8_t)dest);
+				Macros::appendDestinationName(str, currentMacroInstrument(), (uint8_t)destination);
 			}
 			else {
-				str.appendInt(dest); // the CC number
+				str.appendInt(destination); // the CC number
 			}
 		}
 		image.drawStringCentered(str.c_str(), pos.start_x, pos.start_y + kHorizontalMenuSlotYOffset, kTextTitleSpacingX,
@@ -191,7 +191,7 @@ public:
 			appendCascadeName(value, v);
 		}
 		else if (currentMacroDomain() == Macros::Domain::SYNTH) {
-			Macros::appendDestName(value, currentMacroInstrument(), (uint8_t)valueToDestination(v));
+			Macros::appendDestinationName(value, currentMacroInstrument(), (uint8_t)valueToDestination(v));
 		}
 		else {
 			value.appendInt(valueToDestination(v));
@@ -209,9 +209,10 @@ public:
 	}
 	void readCurrentValue() override {
 		Macros::Macro* m = currentMacros();
-		uint8_t cc = m ? m[macro].targets[slot].cc : Macros::kTargetCCNone;
+		uint8_t destination = m ? m[macro].targets[slot].destination : Macros::kNoDestination;
 		// a destination that isn't in this domain's space (position -1) reads as OFF
-		this->setValue((cc == Macros::kTargetCCNone) ? 0 : std::max<int32_t>(0, destinationToValue(cc)));
+		this->setValue((destination == Macros::kNoDestination) ? 0
+		                                                       : std::max<int32_t>(0, destinationToValue(destination)));
 	}
 	void writeCurrentValue() override {
 		Macros::Macro* m = currentMacros();
@@ -219,25 +220,25 @@ public:
 			return;
 		}
 		int32_t value = this->getValue();
-		int32_t dest = (value == 0) ? -1 : valueToDestination(value);
-		uint8_t cc = (dest < 0) ? Macros::kTargetCCNone : (uint8_t)dest;
-		if (cc != m[macro].targets[slot].cc) {
+		int32_t resolved = (value == 0) ? -1 : valueToDestination(value);
+		uint8_t destination = (resolved < 0) ? Macros::kNoDestination : (uint8_t)resolved;
+		if (destination != m[macro].targets[slot].destination) {
 			// clears the old destination's baked lane (no ghost) and bakes the new one, undoably
-			Macros::changeTargetCC(getCurrentClip(), macro, slot, cc);
+			Macros::changeTargetDestination(getCurrentClip(), macro, slot, destination);
 			markMacroInstrumentEdited();
 		}
 	}
 	// A destination may be duplicated across macros (at most one active macro may own it), so allow
-	// selecting any but warn "<dest> used by Macro M" when another target already targets it.
+	// selecting any but warn "<destination> used by Macro M" when another target already targets it.
 	void selectEncoderAction(int32_t offset) override {
 		IntegerWithOff::selectEncoderAction(offset); // move + clamp + write + value popup
 		Macros::Macro* m = currentMacros();
 		int32_t v = this->getValue();
 		if (m && v != 0) {
-			uint8_t dest = (uint8_t)valueToDestination(v);
-			int32_t owner = Macros::findTargetCCOwner(m, dest, macro, slot);
+			uint8_t destination = (uint8_t)valueToDestination(v);
+			int32_t owner = Macros::findTargetDestinationOwner(m, destination, macro, slot);
 			if (owner >= 0) {
-				Macros::showCCConflictPopup(dest, owner);
+				Macros::showDestinationConflictPopup(destination, owner);
 			}
 		}
 	}
@@ -252,8 +253,8 @@ private:
 	int32_t valueToDestination(int32_t value) const {
 		return Macros::destinationForPosition(currentMacroDomain(), macro, value - 1);
 	}
-	int32_t destinationToValue(int32_t cc) const {
-		return Macros::positionForDestination(currentMacroDomain(), macro, cc) + 1;
+	int32_t destinationToValue(int32_t destination) const {
+		return Macros::positionForDestination(currentMacroDomain(), macro, destination) + 1;
 	}
 	void appendCascadeName(StringBuf& buf, int32_t value) const {
 		buf.append(deluge::l10n::get(
@@ -287,7 +288,7 @@ public:
 	bool liveEditFromMidiCC(int32_t ccNumber, int32_t value) override {
 		MelodicInstrument* instrument = currentMacroInstrument();
 		if (!instrument || instrument->type != OutputType::MIDI_OUT
-		    || ccNumber != instrument->macros[macro].targets[slot].cc) {
+		    || ccNumber != instrument->macros[macro].targets[slot].destination) {
 			return false;
 		}
 		uint8_t& endpoint = get();
@@ -315,7 +316,7 @@ private:
 	Field field;
 };
 
-// Send toggle for one macro target slot; keeps the slot's cc/from/to while off.
+// Send toggle for one macro target slot; keeps the slot's destination/from/to while off.
 class MacroTargetSend final : public Toggle {
 public:
 	MacroTargetSend(l10n::String newName, int32_t newMacro, int32_t newSlot)
