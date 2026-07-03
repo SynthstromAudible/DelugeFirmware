@@ -164,6 +164,9 @@ public:
 	void blinkInterpolationShortcut();
 	void blinkPadSelectionShortcut();
 	void blinkMacroCaptureShortcuts();
+	// persistent "Macro N / Inactive" status while an inactive macro lane is in view; safe to call
+	// anytime - shows, re-shows or clears based on current state
+	void refreshMacroInactivePopup();
 
 	// public so menu and editor layouts can access it
 	bool onMenuView;

@@ -99,9 +99,17 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
     ModelStackWithAutoParam* modelStackWithParam, Clip* clip, RGB image[][kDisplayWidth + kSideBarWidth],
     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
     int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
+	// an INACTIVE macro's lane renders dimmed, so the state is visible in the lane itself;
+	// activating restores full brightness
+	bool dimmed = false;
+	if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT
+	    && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+		MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
+		dimmed = !midiInstrument->macros[MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID)].active;
+	}
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
-		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
+		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar, dimmed);
 	}
 	if (drawUndefinedArea) {
 		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth,
@@ -113,7 +121,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
 void AutomationEditorLayoutModControllable::renderAutomationColumn(
     ModelStackWithAutoParam* modelStackWithParam, RGB image[][kDisplayWidth + kSideBarWidth],
     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t lengthToDisplay, int32_t xDisplay, bool isAutomated,
-    int32_t xScroll, int32_t xZoom, params::Kind kind, bool isBipolar) {
+    int32_t xScroll, int32_t xZoom, params::Kind kind, bool isBipolar, bool dimmed) {
 
 	uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
 	int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
@@ -121,10 +129,10 @@ void AutomationEditorLayoutModControllable::renderAutomationColumn(
 	// iterate through each square
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (isBipolar) {
-			renderAutomationBipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, kind, knobPos);
+			renderAutomationBipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, kind, knobPos, dimmed);
 		}
 		else {
-			renderAutomationUnipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, knobPos);
+			renderAutomationUnipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, knobPos, dimmed);
 		}
 	}
 }
@@ -132,7 +140,7 @@ void AutomationEditorLayoutModControllable::renderAutomationColumn(
 /// render column for bipolar params - e.g. pan, pitch, patch cable
 void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
     RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-    int32_t xDisplay, int32_t yDisplay, bool isAutomated, params::Kind kind, int32_t knobPos) {
+    int32_t xDisplay, int32_t yDisplay, bool isAutomated, params::Kind kind, int32_t knobPos, bool dimmed) {
 	RGB& pixel = image[yDisplay][xDisplay];
 
 	int32_t middleKnobPos;
@@ -192,6 +200,9 @@ void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
 				pixel = rowBipolarDownTailColour[yDisplay];
 			}
 		}
+		if (dimmed) {
+			pixel = pixel.dim(2); // perceptual half-brightness (a linear 1/2 barely reads on LEDs)
+		}
 		occupancyMask[yDisplay][xDisplay] = 64;
 	}
 	else {
@@ -218,7 +229,7 @@ void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
 /// render column for unipolar params (e.g. not pan, pitch, or patch cables)
 void AutomationEditorLayoutModControllable::renderAutomationUnipolarSquare(
     RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-    int32_t xDisplay, int32_t yDisplay, bool isAutomated, int32_t knobPos) {
+    int32_t xDisplay, int32_t yDisplay, bool isAutomated, int32_t knobPos, bool dimmed) {
 	RGB& pixel = image[yDisplay][xDisplay];
 
 	// determine whether or not you should render a row based on current value
@@ -234,6 +245,9 @@ void AutomationEditorLayoutModControllable::renderAutomationUnipolarSquare(
 		}
 		else { // not automated, render less bright tail colour
 			pixel = rowTailColour[yDisplay];
+		}
+		if (dimmed) {
+			pixel = pixel.dim(2); // perceptual half-brightness (a linear 1/2 barely reads on LEDs)
 		}
 		occupancyMask[yDisplay][xDisplay] = 64;
 	}
@@ -465,11 +479,12 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			int32_t macroIndex = MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID);
 			parameterName.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
 			    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
-			// Persistent reminder on the lane display: this macro won't fire live until activated
-			// (SHIFT + vertical encoder press toggles it).
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-			if (!midiInstrument->macrosEnabled || !midiInstrument->macros[macroIndex].active) {
-				parameterName.append(" (Inactive)");
+			// user-given label (SHIFT + name pad to edit): "Macro 1: Agitation". An inactive macro
+			// is flagged by a persistent status popup instead, keeping the name intact here.
+			if (!midiInstrument->macros[macroIndex].name.isEmpty()) {
+				parameterName.append(": ");
+				parameterName.append(midiInstrument->macros[macroIndex].name.get());
 			}
 		}
 		else {

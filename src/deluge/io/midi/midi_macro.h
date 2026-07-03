@@ -18,6 +18,7 @@
 #pragma once
 
 #include "io/midi/learned_midi.h"
+#include "util/d_string.h"
 #include <cstdint>
 
 class MIDICable;
@@ -30,8 +31,8 @@ class ModelStackWithTimelineCounter;
 // active MIDI clip. Target values are written into the clip's own CC params, so they reach the
 // clip's output and record into each CC's automation lane. The source CC is consumed; to
 // forward/record it too, include it as one of its macro's targets.
-// Config is per-track: the four macros and the per-instrument enable gate live on each MIDIInstrument
-// and serialize with it (song + preset). Configured in the MIDI clip's menu.
+// Config is per-track: the four macros live on each MIDIInstrument and serialize with it
+// (song + preset). Configured in the MIDI clip's menu.
 namespace MIDIMacro {
 
 constexpr int32_t kNumMacros = 4;
@@ -72,11 +73,12 @@ struct Macro {
 	int8_t sourceKnob = -1; // instead of a CC, one of the 2 physical gold knobs (0 or 1) can be the source; -1 = none
 	uint8_t sourceKnobPos = 0; // live 0..kMaxValue position a gold-knob source accumulates into (not serialized)
 	bool active = true;        // on by default; the macro fires only when active (and the feature is enabled)
+	String name;               // optional user label; the lane shows "Macro N: <name>", or plain "Macro N" if empty
 	MacroTargetSlot targets[kNumTargetSlots];
 };
 
-// Whether the MIDI macro feature is turned on in Community Features. Gates menu visibility and, with
-// each instrument's per-track enable, whether macros fire. This is the global off-switch.
+// Whether the MIDI macro feature is turned on in Community Features. Gates menu visibility and,
+// with each macro's Active flag, whether macros fire. This is the global off-switch.
 bool isEnabled();
 
 // Returns the index of a macro (other than macros[exceptMacro], and other than the given slot) whose
@@ -157,10 +159,10 @@ void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC)
 // Always flip `active` through this rather than writing the field.
 void setMacroActive(Clip* clip, int32_t macroIndex, bool active);
 
-// Serializes/deserializes an instrument's macros (and its enable gate) as a <midiMacros> block within
-// the instrument's own XML. Reused for both the song file and standalone instrument presets.
-void writeMacrosToFile(Serializer& writer, Macro* macros, bool enabled);
-void readMacrosFromFile(Deserializer& reader, Macro* macros, bool& enabled);
+// Serializes/deserializes an instrument's macros as a <midiMacros> block within the instrument's
+// own XML. Reused for both the song file and standalone instrument presets.
+void writeMacrosToFile(Serializer& writer, Macro* macros);
+void readMacrosFromFile(Deserializer& reader, Macro* macros);
 
 // Save/load a preset: a macro's targets only (not its source or active state), so a preset is a
 // portable target configuration applicable to any macro. writeMacroPreset() writes the body between

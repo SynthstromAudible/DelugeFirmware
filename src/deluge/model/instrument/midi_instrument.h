@@ -39,10 +39,9 @@ class MIDIInstrument final : public NonAudioInstrument {
 public:
 	MIDIInstrument();
 
-	// Per-track MIDI macros: four source->target CC mappings plus a per-instrument enable gate,
-	// serialized with this instrument (song + preset). See io/midi/midi_macro.h.
+	// Per-track MIDI macros: four source->target CC mappings, serialized with this instrument
+	// (song + preset). See io/midi/midi_macro.h.
 	MIDIMacro::Macro macros[MIDIMacro::kNumMacros];
-	bool macrosEnabled = true;
 
 	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) override;
 

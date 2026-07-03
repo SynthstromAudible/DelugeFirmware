@@ -96,6 +96,11 @@ void UITimerManager::routine() {
 					else {
 						display->timerRoutine();
 					}
+					// an expiring transient popup displaces the persistent macro-inactive status -
+					// re-show it once the popup layer is empty, if an inactive macro lane is in view
+					if (!display->hasPopup()) {
+						automationView.refreshMacroInactivePopup();
+					}
 
 					break;
 
@@ -131,7 +136,7 @@ void UITimerManager::routine() {
 					automationView.blinkPadSelectionShortcut();
 					break;
 
-				case TimerName::MACRO_CAPTURE_SHORTCUT_BLINK:
+				case TimerName::MACRO_SHORTCUT_BLINK:
 					automationView.blinkMacroCaptureShortcuts();
 					break;
 

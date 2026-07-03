@@ -308,24 +308,6 @@ private:
 	int32_t macro;
 };
 
-// Per-instrument enable gate ("Enable Macros"): when off, none of this track's macros fire even if
-// individually Active. Does not change any macro's Active state - just pauses/resumes them at once.
-class MacroEnable final : public Toggle {
-public:
-	using Toggle::Toggle;
-	void readCurrentValue() override {
-		MIDIInstrument* instrument = currentMacroInstrument();
-		this->setValue(instrument ? instrument->macrosEnabled : false);
-	}
-	void writeCurrentValue() override {
-		MIDIInstrument* instrument = currentMacroInstrument();
-		if (instrument && this->getValue() != instrument->macrosEnabled) {
-			instrument->macrosEnabled = this->getValue();
-			instrument->editedByUser = true;
-		}
-	}
-};
-
 // The MIDI Macros submenu, shown in the MIDI clip's menu only while the feature is enabled in
 // Community Features and the current output is a MIDI track.
 class MacroMenu final : public Submenu {

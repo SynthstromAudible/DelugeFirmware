@@ -186,7 +186,8 @@ bool targetHasConflict(const Macro* macros, int32_t macroIndex, int32_t slot) {
 
 bool anyMacroConfigured(Macro* macros) {
 	for (int32_t m = 0; m < kNumMacros; m++) {
-		if (!macros[m].active || macros[m].source.containsSomething() || macros[m].sourceKnob >= 0) {
+		if (!macros[m].active || macros[m].source.containsSomething() || macros[m].sourceKnob >= 0
+		    || !macros[m].name.isEmpty()) {
 			return true;
 		}
 		for (const MacroTargetSlot& target : macros[m].targets) {
@@ -267,9 +268,6 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 		return false;
 	}
 	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
-	if (!instrument->macrosEnabled) {
-		return false;
-	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -297,9 +295,6 @@ bool tryKnobMacro(int32_t whichKnob, int32_t offset) {
 		return false;
 	}
 	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
-	if (!instrument->macrosEnabled) {
-		return false;
-	}
 	// Cheap pre-check so a normal (non-source) knob turn bails before building a modelStack.
 	bool anyMatch = false;
 	for (Macro& macro : instrument->macros) {
@@ -337,7 +332,7 @@ bool tryModeKnobMacro(int32_t whichKnob, int32_t offset) {
 	}
 	Clip* clip = midiFollow.getSelectedOrActiveClip();
 	MIDIInstrument* instrument = midiClipInstrument(clip);
-	if (!instrument || !instrument->macrosEnabled) {
+	if (!instrument) {
 		return false;
 	}
 	Macro& macro = instrument->macros[whichKnob]; // knob 1 -> Macro 1, knob 2 -> Macro 2
@@ -404,6 +399,9 @@ static void writeMacroToFile(Serializer& writer, Macro& macro) {
 
 	writer.writeOpeningTagBeginning(MIDI_MACRO_ELEMENT_TAG);
 	writer.writeAttribute("active", macro.active ? 1 : 0, false);
+	if (!macro.name.isEmpty()) {
+		writer.writeAttribute("name", macro.name.get(), false); // optional user label
+	}
 	if (macro.sourceKnob >= 0) {
 		writer.writeAttribute("sourceKnob", macro.sourceKnob, false); // gold-knob source rides on the tag
 	}
@@ -428,9 +426,8 @@ static void writeMacroToFile(Serializer& writer, Macro& macro) {
 
 // Writes the <midiMacros enabled=".."> block holding all four macros. Called from
 // MIDIInstrument::writeDataToFile with the instrument's own macros/enable state.
-void writeMacrosToFile(Serializer& writer, Macro* macros, bool enabled) {
+void writeMacrosToFile(Serializer& writer, Macro* macros) {
 	writer.writeOpeningTagBeginning(MIDI_MACROS_TAG);
-	writer.writeAttribute("enabled", enabled ? 1 : 0, false); // per-instrument enable gate
 	writer.writeOpeningTagEnd();
 
 	for (int32_t m = 0; m < kNumMacros; m++) {
@@ -471,9 +468,11 @@ static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target) {
 static void readMacroFromFile(Deserializer& reader, Macro& macro) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		// accept legacy "enabled" as well as "active"
-		if (!strcmp(tagName, "active") || !strcmp(tagName, "enabled")) {
+		if (!strcmp(tagName, "active")) {
 			macro.active = reader.readTagOrAttributeValueInt() != 0;
+		}
+		else if (!strcmp(tagName, "name")) {
+			reader.readTagOrAttributeValueString(&macro.name);
 		}
 		else if (!strcmp(tagName, "sourceKnob")) {
 			int32_t k = reader.readTagOrAttributeValueInt();
@@ -494,14 +493,11 @@ static void readMacroFromFile(Deserializer& reader, Macro& macro) {
 
 // Reads the children of a <midiMacros> block: the per-instrument enable attribute and the four
 // positional <macro> elements. The caller (MIDIInstrument::readTagFromFile) exits the outer tag.
-void readMacrosFromFile(Deserializer& reader, Macro* macros, bool& enabled) {
+void readMacrosFromFile(Deserializer& reader, Macro* macros) {
 	char const* tagName;
 	int32_t macroIndex = 0;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "enabled")) {
-			enabled = reader.readTagOrAttributeValueInt() != 0;
-		}
-		else if (!strcmp(tagName, MIDI_MACRO_ELEMENT_TAG) && macroIndex < kNumMacros) {
+		if (!strcmp(tagName, MIDI_MACRO_ELEMENT_TAG) && macroIndex < kNumMacros) {
 			readMacroFromFile(reader, macros[macroIndex++]);
 		}
 		reader.exitTag();

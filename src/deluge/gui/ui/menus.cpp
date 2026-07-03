@@ -1173,11 +1173,10 @@ DEFINE_MACRO(4);
 #undef DEFINE_MACRO
 #undef MACRO_TARGET
 
-midi::MacroEnable macroEnable{STRING_FOR_MACRO_ENABLE_MACROS};
 midi::MacroMenu midiMacroMenu{
     STRING_FOR_MACRO,
     STRING_FOR_MIDI_MACRO,
-    {&macroEnable, &midiMacro1Menu, &midiMacro2Menu, &midiMacro3Menu, &midiMacro4Menu},
+    {&midiMacro1Menu, &midiMacro2Menu, &midiMacro3Menu, &midiMacro4Menu},
 };
 
 // MIDI device submenu - for after we've selected which device we want it for

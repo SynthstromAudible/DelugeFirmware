@@ -376,15 +376,15 @@ constexpr uint8_t kPadSelectionShortcutY = 7;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
 
-// shortcuts available while a macro lane is in view: capture the targets' live CC values into
-// From/To (blinking while the macro is active), and load/save that macro's preset
+// shortcuts available while a macro lane is in view (all four blink as one group while the macro is
+// active): capture the targets' current CC values into From/To on the RECORD row, and load/save that
+// macro's preset on the BROWSE row
 constexpr uint8_t kMacroCaptureFromShortcutX = 0;
 constexpr uint8_t kMacroCaptureToShortcutX = 1;
-constexpr uint8_t kMacroCaptureShortcutY = 7;
-constexpr uint8_t kMacroPresetLoadShortcutX = 0; // the BROWSE pad
-constexpr uint8_t kMacroPresetLoadShortcutY = 5;
-constexpr uint8_t kMacroPresetSaveShortcutX = 0; // the RECORD pad
-constexpr uint8_t kMacroPresetSaveShortcutY = 4;
+constexpr uint8_t kMacroCaptureShortcutY = 4; // the RECORD row
+constexpr uint8_t kMacroPresetLoadShortcutX = 0;
+constexpr uint8_t kMacroPresetSaveShortcutX = 1;
+constexpr uint8_t kMacroPresetShortcutY = 5; // the BROWSE row
 
 PLACE_SDRAM_BSS AutomationView automationView{};
 
@@ -612,6 +612,9 @@ void AutomationView::focusRegained() {
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
 		blinkShortcuts();
 	}
+	// re-show (or clear) the persistent Inactive status for the lane in view - UI transitions
+	// cancel it, so returning here must restore it
+	refreshMacroInactivePopup();
 }
 
 void AutomationView::openedInBackground() {
@@ -1948,17 +1951,13 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 				MIDIInstrument* macroInstrument =
 				    (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(clip, &macroIndex) : nullptr;
 				if (macroInstrument != nullptr) {
-					// While an ACTIVE macro lane is in view, the two blinking top-row pads snapshot the
-					// targets' current CC values into THIS macro's ranges: (0,7) = Capture From,
-					// (1,7) = Capture To. Tweak the destination params, capture From, tweak again,
+					// While an ACTIVE macro lane is in view, the two blinking RECORD-row pads snapshot
+					// the targets' current CC values into THIS macro's ranges: (0,4) = Capture From,
+					// (1,4) = Capture To. Tweak the destination params, capture From, tweak again,
 					// capture To, then the macro lane morphs between the two.
 					if (y == kMacroCaptureShortcutY
 					    && (x == kMacroCaptureFromShortcutX || x == kMacroCaptureToShortcutX)) {
-						if (!macroInstrument->macrosEnabled) {
-							// the macro's own active flag is irrelevant while the per-instrument gate is off
-							display->displayPopup(display->haveOLED() ? "Macros disabled" : "OFF");
-						}
-						else if (macroInstrument->macros[macroIndex].active) {
+						if (macroInstrument->macros[macroIndex].active) {
 							bool toMax = (x == kMacroCaptureToShortcutX);
 							// no popup on a no-op: every configured target CC was untouched on this clip,
 							// so confirming a "capture" would claim a snapshot that never happened
@@ -1969,22 +1968,17 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 							}
 						}
 						else {
-							// inactive macros are user-off only: just say so
-							DEF_STACK_STRING_BUF(popup, 24);
-							popup.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
-							    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
-							popup.append(display->haveOLED() ? '\n' : ' ');
-							popup.append("Inactive");
-							display->displayPopup(popup.c_str());
+							// nothing captured: the persistent Inactive status explains why
+							refreshMacroInactivePopup();
 						}
 						return true;
 					}
-					// The BROWSE pad (0,5) opens the load-preset browser and the RECORD pad (0,4) the
+					// On the BROWSE row, (0,5) opens the load-preset browser and (1,5) the
 					// save-preset browser for this macro.
-					if ((x == kMacroPresetLoadShortcutX && y == kMacroPresetLoadShortcutY)
-					    || (x == kMacroPresetSaveShortcutX && y == kMacroPresetSaveShortcutY)) {
+					if (y == kMacroPresetShortcutY
+					    && (x == kMacroPresetLoadShortcutX || x == kMacroPresetSaveShortcutX)) {
 						MIDIMacro::presetMacroIndex = macroIndex;
-						if (y == kMacroPresetSaveShortcutY) {
+						if (x == kMacroPresetSaveShortcutX) {
 							openUI(&saveMacroPresetUI);
 						}
 						else {
@@ -2593,9 +2587,10 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 			commitHeldTargetCC();
 			heldTarget = -1;
 			heldTargetMacro = -1;
-			display->cancelPopup(); // the readout is persistent for the duration of the hold
-			view.setModLedStates(); // re-sync the assignment LEDs (pending value may have been dropped)
-			return;                 // we consumed the press, so consume the matching release
+			display->cancelPopup();      // the readout is persistent for the duration of the hold
+			refreshMacroInactivePopup(); // the hold readout displaced the Inactive status - restore it
+			view.setModLedStates();      // re-sync the assignment LEDs (pending value may have been dropped)
+			return;                      // we consumed the press, so consume the matching release
 		}
 		ClipView::modButtonAction(whichButton, on);
 		return;
@@ -2658,17 +2653,36 @@ bool AutomationView::toggleMacroLaneActive() {
 	MIDIMacro::Macro* macros = instrument->macros;
 	// flips the flag and re-bakes any contested CC lane whose ownership moves with it
 	MIDIMacro::setMacroActive(getCurrentClip(), macroIndex, !macros[macroIndex].active);
-	// brief confirmation, e.g. "Macro 1" / "Active"
-	DEF_STACK_STRING_BUF(popup, 24);
-	popup.append(deluge::l10n::get(
-	    static_cast<deluge::l10n::String>(util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
-	popup.append(display->haveOLED() ? '\n' : ' ');
-	popup.append(macros[macroIndex].active ? "Active" : "Inactive");
-	display->displayPopup(popup.c_str());
-	renderDisplay();        // refresh the lane name so the (Inactive) suffix appears/disappears
-	blinkShortcuts();       // start/stop the capture-pad blinking to match the new active state
+	// the persistent Inactive status popup IS the state display: shown on deactivate, cleared on
+	// activate (its absence implies active - no confirmation popup needed)
+	refreshMacroInactivePopup();
+	renderDisplay();
+	uiNeedsRendering(this); // the lane renders dimmed while inactive - update the grid brightness
+	blinkShortcuts();       // start/stop the macro-pad blinking to match the new active state
 	view.setModLedStates(); // conflicted targets' LEDs start/stop blinking with the active state
 	return true;
+}
+
+// Keeps a persistent "Macro N / Inactive" status popup up while an inactive macro lane is in view
+// (the lane name itself stays clean), and clears it otherwise. openUI()/changeRootUI() clear it on
+// any UI transition; focusRegained() re-shows it on return when still applicable.
+void AutomationView::refreshMacroInactivePopup() {
+	int32_t macroIndex = 0;
+	MIDIInstrument* instrument = (getCurrentUI() == &automationView && inAutomationEditor() && !onArrangerView)
+	                                 ? macroLaneInstrument(getCurrentClip(), &macroIndex)
+	                                 : nullptr;
+	// while a quick-edit button is held, its readout owns the popup
+	if (instrument != nullptr && !instrument->macros[macroIndex].active && heldTarget < 0) {
+		DEF_STACK_STRING_BUF(popup, 24);
+		popup.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
+		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
+		popup.append(display->haveOLED() ? '\n' : ' ');
+		popup.append("Inactive");
+		display->popupText(popup.c_str(), PopupType::MACRO_INACTIVE);
+	}
+	else if (display->hasPopupOfType(PopupType::MACRO_INACTIVE)) {
+		display->cancelPopup();
+	}
 }
 
 void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
@@ -2916,8 +2930,9 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		selectMIDICC(offset, clip);
 		getLastSelectedParamShortcut(clip);
 		// on a macro lane the mod-button LEDs show which targets are assigned - refresh per lane
-		// (an inactive lane already says "(Inactive)" in its name, and shadowed targets blink)
 		view.setModLedStates();
+		// landing on (or leaving) an inactive macro lane shows/clears its persistent status popup
+		refreshMacroInactivePopup();
 	}
 	// if you're in arranger view or in a non-midi, non-cv clip (e.g. audio, synth, kit)
 	else if (onArrangerView || outputType != OutputType::CV) {
@@ -3605,14 +3620,13 @@ void AutomationView::blinkShortcuts() {
 	else {
 		resetPadSelectionShortcutBlinking();
 	}
-	// blink the two capture pads while an active macro lane is in view, to advertise that
-	// Capture From/To are available there
+	// blink the macro pad group while an active macro lane is in view, to advertise that Capture
+	// From/To and preset Load/Save are available there
 	bool macroLaneActive = false;
 	if (getCurrentUI() == &automationView && inAutomationEditor() && !onArrangerView) {
 		int32_t macroIndex = 0;
 		MIDIInstrument* macroInstrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
-		macroLaneActive =
-		    macroInstrument != nullptr && macroInstrument->macrosEnabled && macroInstrument->macros[macroIndex].active;
+		macroLaneActive = macroInstrument != nullptr && macroInstrument->macros[macroIndex].active;
 	}
 	if (macroLaneActive) {
 		if (!macroCaptureShortcutBlinking) {
@@ -3675,9 +3689,11 @@ void AutomationView::blinkPadSelectionShortcut() {
 	padSelectionShortcutBlinking = true;
 }
 
-// used to blink the Capture From/To pads while an active macro lane is in view
+// used to blink the macro pad group (Capture From/To + preset Load/Save) while an active macro lane
+// is in view. The four pads share one timer so they blink together, deliberately offset from the
+// interpolation/pad-selection blinks (which run on their own timers).
 void AutomationView::resetMacroCaptureShortcutBlinking() {
-	uiTimerManager.unsetTimer(TimerName::MACRO_CAPTURE_SHORTCUT_BLINK);
+	uiTimerManager.unsetTimer(TimerName::MACRO_SHORTCUT_BLINK);
 	macroCaptureShortcutBlinking = false;
 }
 
@@ -3690,6 +3706,8 @@ void AutomationView::blinkMacroCaptureShortcuts() {
 	}
 	PadLEDs::flashMainPad(kMacroCaptureFromShortcutX, kMacroCaptureShortcutY);
 	PadLEDs::flashMainPad(kMacroCaptureToShortcutX, kMacroCaptureShortcutY);
-	uiTimerManager.setTimer(TimerName::MACRO_CAPTURE_SHORTCUT_BLINK, 3000);
+	PadLEDs::flashMainPad(kMacroPresetLoadShortcutX, kMacroPresetShortcutY);
+	PadLEDs::flashMainPad(kMacroPresetSaveShortcutX, kMacroPresetShortcutY);
+	uiTimerManager.setTimer(TimerName::MACRO_SHORTCUT_BLINK, 3000);
 	macroCaptureShortcutBlinking = true;
 }
