@@ -67,6 +67,13 @@ void MelodicInstrument::writeMelodicInstrumentTagsToFile(Serializer& writer, Cli
 			}
 		}
 	}
+
+	// The macros block, shared by MIDI and synth instruments (song + preset). Only written when a
+	// macro deviates from its defaults; every macro edit sets editedByUser, so this can't be skipped
+	// by MIDIInstrument's !editedByUser early-out.
+	if (Macros::anyMacroConfigured(macros)) {
+		Macros::writeMacrosToFile(writer, macros);
+	}
 }
 
 bool MelodicInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
@@ -82,6 +89,11 @@ bool MelodicInstrument::readTagFromFile(Deserializer& reader, char const* tagNam
 	}
 	else if (!strcmp(tagName, "inputMidiDevice")) {
 		midiInput.cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+		reader.exitTag();
+	}
+	else if (!strcmp(tagName, "macros")) {
+		Macros::readMacrosFromFile(reader, macros);
+		editedByUser = true;
 		reader.exitTag();
 	}
 	else if (Instrument::readTagFromFile(reader, tagName)) {}

@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
-#include "modulation/macros/macros.h"
 #include "util/containers.h"
 #include <array>
 #include <string_view>
@@ -38,10 +37,6 @@ struct MPEOutputMemberChannel {
 class MIDIInstrument final : public NonAudioInstrument {
 public:
 	MIDIInstrument();
-
-	// Per-track macros: four source->target CC mappings, serialized with this instrument
-	// (song + preset). See modulation/macros/macros.h.
-	Macros::Macro macros[Macros::kNumMacros];
 
 	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) override;
 

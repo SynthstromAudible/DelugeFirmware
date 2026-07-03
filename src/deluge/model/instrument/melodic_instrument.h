@@ -20,6 +20,7 @@
 #include "io/midi/learned_midi.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/macros/macros.h"
 #include "util/containers.h"
 
 class PostArpTriggerable;
@@ -86,6 +87,10 @@ public:
 	                          int32_t bendSemitones) override;
 
 	Arpeggiator arpeggiator;
+
+	// Per-track macros: four source->target mappings, serialized with this instrument (song +
+	// preset). Shared by MIDI and synth tracks. See modulation/macros/macros.h.
+	Macros::Macro macros[Macros::kNumMacros];
 
 	struct EarlyNoteInfo {
 		uint8_t velocity;
