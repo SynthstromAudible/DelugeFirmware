@@ -367,7 +367,6 @@ enum class Animation {
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another
 // Clip resize
 void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time) {
-
 	currentSong->deletePendingOverdubs();
 
 	Animation whichAnimation = Animation::NONE;

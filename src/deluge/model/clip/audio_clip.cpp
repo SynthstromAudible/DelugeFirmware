@@ -1220,6 +1220,7 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
 	Error error = sampleHolder.loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFile);
+
 	name.set(sampleHolder.filePath.get());
 	if (error != Error::NONE) {
 		display->displayError(error);
