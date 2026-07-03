@@ -24,6 +24,16 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
+#include "modulation/params/param.h"
+#include <array>
+#include <utility>
+
+// Synth and kit-row params in the order automation view scrolls through them. Also the canonical
+// destination order for the macro system's synth-target pickers (modulation/macros).
+constexpr int32_t kNumNonGlobalParamsForAutomation = 83;
+extern const std::array<std::pair<deluge::modulation::params::Kind, deluge::modulation::params::ParamType>,
+                        kNumNonGlobalParamsForAutomation>
+    nonGlobalParamsForAutomation;
 
 class Action;
 class CopiedNoteRow;

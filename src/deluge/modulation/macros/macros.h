@@ -18,30 +18,55 @@
 #pragma once
 
 #include "io/midi/learned_midi.h"
+#include "modulation/params/param.h"
 #include "util/d_string.h"
 #include <cstdint>
 
 class MIDICable;
 class Action;
 class Clip;
-class MIDIInstrument;
+class Output;
+class MelodicInstrument;
 class ModelStackWithTimelineCounter;
 
-// A macro: one learned incoming source CC broadcast to up to kNumTargetSlots target CCs on the
-// active MIDI clip. Target values are written into the clip's own CC params, so they reach the
-// clip's output and record into each CC's automation lane. The source CC is consumed; to
-// forward/record it too, include it as one of its macro's targets.
-// Config is per-track: the four macros live on each MIDIInstrument and serialize with it
-// (song + preset). Configured in the MIDI clip's menu.
+// A macro: one source (learned CC, gold knob, or automation lane) broadcast to up to
+// kNumTargetSlots target destinations on the active clip. On a MIDI clip a destination is an
+// output CC; on a synth clip it is an internal sound parameter (the automation-view set). Target
+// values are written into the clip's own params, so they reach the output/sound and record into
+// each destination's automation lane. A source CC is consumed; to forward/record it too, include
+// it as one of its macro's targets.
+// Config is per-track: the four macros live on each MelodicInstrument and serialize with it
+// (song + preset). Configured in the clip's menu.
 namespace Macros {
 
 constexpr int32_t kNumMacros = 4;
 constexpr int32_t kNumTargetSlots = 8;
 constexpr uint8_t kTargetCCNone = 255;
 constexpr uint8_t kMaxTargetCC = 127;
-constexpr uint8_t kMaxValue = 127;  // from/to and CC output range
+constexpr uint8_t kMaxValue = 127;  // from/to and CC output range, and the source value range
 constexpr uint8_t kDefaultFrom = 0; // output at source = 0
 constexpr uint8_t kDefaultTo = 127; // output at source = 127 (defaults give pass-through)
+
+// Which flavor of destinations a clip's macros drive. MIDI clips target output CCs (raw 0..127
+// byte). Synth clips target internal params, encoded as midi-follow's single-byte soundParamId:
+// bytes below params::UNPATCHED_START (90) are Kind::PATCHED paramIDs, bytes from 90 up are
+// Kind::UNPATCHED_SOUND paramIDs + 90. Everything keyed on the raw byte (ownership, shadowing,
+// cascades) works identically in both domains.
+enum class Domain : uint8_t { MIDI, SYNTH };
+
+// Synth targets are knob positions 0..128 (center 64), so bipolar params (pan) get a true center
+// and the +64 extreme is reachable; MIDI targets are CC values 0..127.
+constexpr uint8_t kMaxValueSynth = 128;
+inline uint8_t maxTargetValue(Domain domain) {
+	return (domain == Domain::SYNTH) ? kMaxValueSynth : kMaxValue;
+}
+
+// The domain of a macro-capable output. Only call for outputs macroClipInstrument() accepts.
+Domain domainForOutput(Output* output);
+
+// Validates the clip belongs to a macro-capable track (MIDI or synth) and returns its instrument,
+// else null. Kits, audio and CV tracks have no macros.
+MelodicInstrument* macroClipInstrument(Clip* clip);
 
 // Each macro also appears as an automatable "lane" in MIDI automation view, stored as a pseudo-CC
 // MIDIParam at these IDs. They sit above the 0..127 CC byte range so no real target CC (max 127)
@@ -67,9 +92,40 @@ inline int32_t paramIDForMacro(int32_t idx) {
 inline int32_t numCascadeDestinations(int32_t macroIndex) {
 	return kNumMacros - 1 - macroIndex;
 }
-inline bool isValidTargetDestination(int32_t cc, int32_t macroIndex) {
-	return (cc >= 0 && cc <= kMaxTargetCC) || (isMacroParamID(cc) && macroIndexFromParamID(cc) > macroIndex);
+inline bool isCascadeDestination(int32_t cc, int32_t macroIndex) {
+	return isMacroParamID(cc) && macroIndexFromParamID(cc) > macroIndex;
 }
+
+// ── Destination byte space ──
+// SYNTH destination byte <-> (Kind, paramID). Cascade ids (128-131) decode to the downstream
+// macro's own lane param, which is where a cascade bake writes.
+void decodeSynthDestination(uint8_t dest, deluge::modulation::params::Kind* kindOut, int32_t* idOut);
+// The byte for a (kind, param) pair, or -1 if the pair isn't a valid macro destination (only
+// PATCHED and UNPATCHED_SOUND params are, and never the macro lane params themselves).
+int32_t synthDestinationForParam(deluge::modulation::params::Kind kind, int32_t paramID);
+
+// The destination byte of macro macroIndex's own automation lane: the pseudo-CC id (128+idx) on
+// MIDI clips, the UNPATCHED_MACRO_n soundParamId byte (117+idx) on synth clips.
+uint8_t laneDestination(Domain domain, int32_t macroIndex);
+
+// A macro's destinations form one contiguous dial/position space per domain: MIDI = CC 0..127 then
+// this macro's cascade ids; SYNTH = the targetable param list (automation-view order) then the
+// cascade ids. Used by the quick-edit dial and the menu picker.
+int32_t numDestinations(Domain domain, int32_t macroIndex);
+int32_t destinationForPosition(Domain domain, int32_t macroIndex, int32_t position); // -1 if out of range
+int32_t positionForDestination(Domain domain, int32_t macroIndex, uint8_t dest);     // -1 if not in the space
+
+// Whether `cc` may be assigned as a target of macros[macroIndex] in this domain: a real CC (MIDI),
+// a targetable param byte (SYNTH - never the lane bytes 117-120), or a higher-indexed cascade id.
+bool isValidTargetDestination(Domain domain, int32_t cc, int32_t macroIndex);
+// MIDI-domain shorthand, kept for the pure-MIDI call sites.
+inline bool isValidTargetDestination(int32_t cc, int32_t macroIndex) {
+	return isValidTargetDestination(Domain::MIDI, cc, macroIndex);
+}
+
+// Appends a destination's display label: "Macro N" for a cascade id, the param name on a synth
+// track, else the MIDI device's CC name if loaded, else "CC <n>".
+void appendDestName(StringBuf& buf, MelodicInstrument* instrument, uint8_t cc);
 
 // One target CC slot: the source value 0..127 is scaled linearly onto [from, to]:
 //   out = clamp(from + (to - from) * input / 127, 0, 127)

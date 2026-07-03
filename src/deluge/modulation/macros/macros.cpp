@@ -26,6 +26,7 @@
 #include "io/midi/midi_follow.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/instrument/melodic_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/output.h"
@@ -43,6 +44,8 @@
 #include "util/misc.h"
 #include <algorithm>
 #include <string.h>
+
+namespace params = deluge::modulation::params;
 
 #define MACROS_TAG "macros"            // per-instrument block, embedded in the instrument's XML
 #define MACRO_PRESET_TAG "macroPreset" // preset file root (targets only)
@@ -140,17 +143,24 @@ int32_t findShadowingOwner(const Macro* macros, uint8_t cc, int32_t macroIndex, 
 }
 
 // Appends a destination's label: "Macro N" for a cascade destination (always the plain macro
-// number, never its user name), else the MIDI device's CC name if loaded, else "CC <n>".
-static void appendDestName(StringBuf& buf, uint8_t cc) {
+// number, never its user name), the param's display name on a synth track, else the MIDI device's
+// CC name if loaded, else "CC <n>".
+void appendDestName(StringBuf& buf, MelodicInstrument* instrument, uint8_t cc) {
 	if (isMacroParamID(cc)) {
 		buf.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
 		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndexFromParamID(cc))));
 		return;
 	}
-	Clip* clip = midiFollow.getSelectedOrActiveClip();
+	if (instrument && instrument->type == OutputType::SYNTH) {
+		params::Kind kind;
+		int32_t id;
+		decodeSynthDestination(cc, &kind, &id);
+		buf.append(params::getParamDisplayName(kind, id));
+		return;
+	}
 	std::string_view name{};
-	if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT) {
-		name = ((MIDIInstrument*)clip->output)->getNameFromCC(cc);
+	if (instrument && instrument->type == OutputType::MIDI_OUT) {
+		name = ((MIDIInstrument*)instrument)->getNameFromCC(cc);
 	}
 	if (!name.empty()) {
 		buf.append(name);
@@ -162,9 +172,10 @@ static void appendDestName(StringBuf& buf, uint8_t cc) {
 	}
 }
 
-// Appends "<dest>\nused by\nMacro N" (OLED) / "<dest> used by Macro N" (7SEG).
+// Appends "<dest>\nused by\nMacro N" (OLED) / "<dest> used by Macro N" (7SEG). The destination is
+// resolved against the selected/active clip's instrument, same as the conflict machinery.
 static void appendCCUsedBy(StringBuf& buf, uint8_t cc, int32_t ownerMacro) {
-	appendDestName(buf, cc);
+	appendDestName(buf, macroClipInstrument(midiFollow.getSelectedOrActiveClip()), cc);
 	buf.append(display->haveOLED() ? '\n' : ' ');
 	buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_USED_BY)); // "used by"
 	buf.append(display->haveOLED() ? '\n' : ' ');
@@ -205,11 +216,12 @@ bool anyMacroConfigured(Macro* macros) {
 	return false;
 }
 
-// Scale a source value 0..127 linearly onto target [from, to] (from>to inverts), rounding to nearest.
-static inline int32_t scaleTarget(const MacroTargetSlot& target, int32_t value) {
+// Scale a source value 0..127 linearly onto target [from, to] (from>to inverts), rounding to
+// nearest. outMax is the domain's target ceiling (127 CC / 128 knobPos).
+static inline int32_t scaleTarget(const MacroTargetSlot& target, int32_t value, int32_t outMax) {
 	int32_t span = (int32_t)target.to - (int32_t)target.from;
 	int32_t out = target.from + (span * value + (span >= 0 ? 63 : -63)) / 127;
-	return std::clamp<int32_t>(out, 0, kMaxValue);
+	return std::clamp<int32_t>(out, 0, outMax);
 }
 
 // Saturating conversion from a big param value to a 0..127 CC value. Reuses the collection's guarded
@@ -219,30 +231,323 @@ static inline int32_t bigValueToCC(int32_t value) {
 	return std::clamp<int32_t>(MIDIParamCollection::autoparamValueToCC(value) + 64, 0, (int32_t)kMaxValue);
 }
 
-// Validates the clip is a MIDI clip and returns its instrument, else null.
-static MIDIInstrument* midiClipInstrument(Clip* clip) {
-	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
-		return nullptr;
-	}
-	return (MIDIInstrument*)clip->output;
+Domain domainForOutput(Output* output) {
+	return (output->type == OutputType::SYNTH) ? Domain::SYNTH : Domain::MIDI;
 }
 
-// Defined with the fan-out machinery below.
-static MIDIParamCollection* getMIDIParams(Clip* clip, ParamCollectionSummary** summaryOut);
-static void refreshAutomationGridIfShowingCC(Clip* clip, uint8_t cc);
+MelodicInstrument* macroClipInstrument(Clip* clip) {
+	if (!clip || !clip->output
+	    || (clip->output->type != OutputType::MIDI_OUT && clip->output->type != OutputType::SYNTH)) {
+		return nullptr;
+	}
+	return (MelodicInstrument*)clip->output;
+}
 
-static void sendToTargets(MIDIInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
-                          Macro& macro, int32_t value) {
-	RootUI* rootUI = getRootUI();
-	int32_t macroIndex = (int32_t)(&macro - instrument->macros);
-	// Mirror the raw source value into the macro's own automation lane (pseudo-CC param) so the
-	// lane tracks the source live - and records its moves like any param. It never emits MIDI
-	// (sendMIDI suppresses paramIDs >= kMacroParamIDBase); the targets get the scaled values below.
-	instrument->processParamFromInputMIDIChannel(paramIDForMacro(macroIndex), (value - 64) << 25, modelStack);
-	if (rootUI == &automationView && !automationView.onArrangerView
-	    && clip->lastSelectedParamID == paramIDForMacro(macroIndex)) {
+void decodeSynthDestination(uint8_t dest, params::Kind* kindOut, int32_t* idOut) {
+	// A cascade id addresses the downstream macro's own lane param on this domain.
+	if (isMacroParamID(dest)) {
+		*kindOut = params::Kind::UNPATCHED_SOUND;
+		*idOut = params::UNPATCHED_MACRO_1 + macroIndexFromParamID(dest);
+		return;
+	}
+	if (dest >= params::UNPATCHED_START) {
+		*kindOut = params::Kind::UNPATCHED_SOUND;
+		*idOut = dest - params::UNPATCHED_START;
+		return;
+	}
+	*kindOut = params::Kind::PATCHED;
+	*idOut = dest;
+}
+
+int32_t synthDestinationForParam(params::Kind kind, int32_t paramID) {
+	if (kind == params::Kind::PATCHED && paramID >= 0 && paramID < params::UNPATCHED_START) {
+		return paramID;
+	}
+	if (kind == params::Kind::UNPATCHED_SOUND && paramID >= 0
+	    && paramID < params::UNPATCHED_SOUND_MAX_NUM
+	    // the lane params are only addressable as cascade ids, never as ordinary destinations
+	    && (paramID < params::UNPATCHED_MACRO_1 || paramID > params::UNPATCHED_MACRO_4)) {
+		return params::UNPATCHED_START + paramID;
+	}
+	return -1;
+}
+
+uint8_t laneDestination(Domain domain, int32_t macroIndex) {
+	if (domain == Domain::SYNTH) {
+		return params::UNPATCHED_START + params::UNPATCHED_MACRO_1 + macroIndex;
+	}
+	return paramIDForMacro(macroIndex);
+}
+
+// The ordered SYNTH destination list: every targetable byte, in automation-view scroll order (the
+// single source of param ordering). Built once, lazily, into a fixed buffer (no heap); excludes
+// EXPRESSION entries, patch cables (not encodable as a byte) and the macro lane params
+// (cascade-only).
+static const uint8_t* synthDestinationList(int32_t* countOut) {
+	static uint8_t list[kNumNonGlobalParamsForAutomation];
+	static int32_t count = -1;
+	if (count < 0) {
+		count = 0;
+		for (const auto& [kind, id] : nonGlobalParamsForAutomation) {
+			int32_t dest = synthDestinationForParam(kind, id);
+			if (dest >= 0) {
+				list[count++] = (uint8_t)dest;
+			}
+		}
+	}
+	*countOut = count;
+	return list;
+}
+
+// The number of non-cascade destinations in a domain's dial space.
+static int32_t numBaseDestinations(Domain domain) {
+	if (domain == Domain::SYNTH) {
+		int32_t count = 0;
+		synthDestinationList(&count);
+		return count;
+	}
+	return kMaxTargetCC + 1;
+}
+
+int32_t numDestinations(Domain domain, int32_t macroIndex) {
+	return numBaseDestinations(domain) + numCascadeDestinations(macroIndex);
+}
+
+int32_t destinationForPosition(Domain domain, int32_t macroIndex, int32_t position) {
+	if (position < 0 || position >= numDestinations(domain, macroIndex)) {
+		return -1;
+	}
+	int32_t numBase = numBaseDestinations(domain);
+	if (position >= numBase) {
+		return paramIDForMacro(macroIndex) + 1 + (position - numBase);
+	}
+	if (domain == Domain::SYNTH) {
+		int32_t count = 0;
+		return synthDestinationList(&count)[position];
+	}
+	return position;
+}
+
+int32_t positionForDestination(Domain domain, int32_t macroIndex, uint8_t dest) {
+	int32_t numBase = numBaseDestinations(domain);
+	if (isMacroParamID(dest)) {
+		int32_t offset = macroIndexFromParamID(dest) - macroIndex - 1;
+		return (offset >= 0) ? numBase + offset : -1;
+	}
+	if (domain == Domain::SYNTH) {
+		int32_t count = 0;
+		const uint8_t* list = synthDestinationList(&count);
+		for (int32_t i = 0; i < count; i++) {
+			if (list[i] == dest) {
+				return i;
+			}
+		}
+		return -1;
+	}
+	return (dest <= kMaxTargetCC) ? dest : -1;
+}
+
+bool isValidTargetDestination(Domain domain, int32_t cc, int32_t macroIndex) {
+	if (isCascadeDestination(cc, macroIndex)) {
+		return true;
+	}
+	if (domain == Domain::SYNTH) {
+		return cc >= 0 && cc <= UINT8_MAX && positionForDestination(domain, macroIndex, (uint8_t)cc) >= 0;
+	}
+	return cc >= 0 && cc <= kMaxTargetCC;
+}
+
+// ── Per-domain value conversion ──
+// Macro endpoints and outputs live in "units": CC values 0..127 on MIDI, knob positions 0..128 on
+// synths. MIDI converts with the fixed (v-64)<<25 mapping; synths route through the destination
+// collection's own conversions so bipolar params (pan) and per-param overrides scale correctly.
+static inline int32_t unitsToParamValue(ModelStackWithAutoParam* msp, Domain domain, int32_t units) {
+	if (domain == Domain::SYNTH) {
+		return msp->paramCollection->knobPosToParamValue(units - 64, msp);
+	}
+	return (units - 64) << 25;
+}
+static inline int32_t paramValueToUnits(ModelStackWithAutoParam* msp, Domain domain, int32_t value) {
+	if (domain == Domain::SYNTH) {
+		return std::clamp<int32_t>(msp->paramCollection->paramValueToKnobPos(value, msp) + 64, 0,
+		                           (int32_t)kMaxValueSynth);
+	}
+	return bigValueToCC(value);
+}
+
+// Writes one destination live on the clip: MIDI routes through processParamFromInputMIDIChannel
+// (reaches the output and records like a manual CC change); SYNTH resolves the param and writes it
+// with the same region/cloning logic, via setValuePossiblyForRegion (which notifies the Sound).
+static void writeDestLive(MelodicInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
+                          Domain domain, uint8_t dest, int32_t units) {
+	if (domain == Domain::MIDI) {
+		instrument->processParamFromInputMIDIChannel(dest, (units - 64) << 25, modelStack);
+		return;
+	}
+	int32_t modPos = 0;
+	int32_t modLength = 0;
+	if (modelStack->timelineCounterIsSet()) {
+		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+		clip = (Clip*)modelStack->getTimelineCounter(); // may have been cloned for arrangement recording
+		// Only if this exact TimelineCounter is having automation step-edited can we set the value
+		// for just a region - same rule as processParamFromInputMIDIChannel.
+		if (view.modLength
+		    && modelStack->getTimelineCounter() == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			modPos = view.modPos;
+			modLength = view.modLength;
+		}
+	}
+	params::Kind kind;
+	int32_t id;
+	decodeSynthDestination(dest, &kind, &id);
+	ModelStackWithAutoParam* msp = instrument->getModelStackWithParam(modelStack, clip, id, kind, true, false);
+	if (msp && msp->autoParam) {
+		msp->autoParam->setValuePossiblyForRegion(unitsToParamValue(msp, domain, units), msp, modPos, modLength);
+	}
+}
+
+// The clip's own MIDI param collection - where both real-CC and macro-lane params live. Baking always
+// targets the edited clip's params, NOT instrument->getParamManager() (that's the ACTIVE clip's, which
+// can be a different clip on the same track).
+static MIDIParamCollection* getMIDIParams(Clip* clip, ParamCollectionSummary** summaryOut) {
+	ParamCollectionSummary* summary = clip->paramManager.getMIDIParamCollectionSummary();
+	if (!summary || !summary->paramCollection) {
+		return nullptr;
+	}
+	*summaryOut = summary;
+	return (MIDIParamCollection*)summary->paramCollection;
+}
+
+// Everything the bake machinery needs to resolve destinations on one clip, in either domain. On
+// MIDI clips coll/summary point at the clip's MIDIParamCollection; on synths destinations live in
+// the clip's fixed patched/unpatched param sets instead (always present, never reallocated).
+struct FanContext {
+	MelodicInstrument* instrument = nullptr;
+	Clip* clip = nullptr;
+	Domain domain = Domain::MIDI;
+	MIDIParamCollection* coll = nullptr;       // MIDI only
+	ParamCollectionSummary* summary = nullptr; // MIDI only
+};
+
+// Fills the context; false if the clip isn't macro-capable (or a MIDI clip's params are missing).
+static bool getFanContext(Clip* clip, FanContext* ctx) {
+	ctx->instrument = macroClipInstrument(clip);
+	if (!ctx->instrument) {
+		return false;
+	}
+	ctx->clip = clip;
+	ctx->domain = domainForOutput(clip->output);
+	if (ctx->domain == Domain::MIDI) {
+		ctx->coll = getMIDIParams(clip, &ctx->summary);
+		if (!ctx->coll) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Resolves destination `dest`'s AutoParam on the context's clip into a full model stack, or null
+// if it doesn't exist (MIDI CC params are created on demand; synth params always exist). A cascade
+// id resolves to the downstream macro's lane param in either domain.
+static ModelStackWithAutoParam* destParamStack(const FanContext& ctx, ModelStackWithThreeMainThings* three,
+                                               uint8_t dest) {
+	if (ctx.domain == Domain::MIDI) {
+		MIDIParam* param = ctx.coll->params.getParamFromCC(dest);
+		if (!param) {
+			return nullptr;
+		}
+		return three->addParamCollectionAndId(ctx.coll, ctx.summary, dest)->addAutoParam(&param->param);
+	}
+	params::Kind kind;
+	int32_t id;
+	decodeSynthDestination(dest, &kind, &id);
+	ModelStackWithAutoParam* msp =
+	    (kind == params::Kind::PATCHED) ? three->getPatchedAutoParamFromId(id) : three->getUnpatchedAutoParamFromId(id);
+	return (msp != nullptr && msp->autoParam != nullptr) ? msp : nullptr;
+}
+
+// Macro macroIndex's own lane AutoParam on this clip, or null if it was never created (MIDI only -
+// synth lanes are fixed array slots that always exist).
+static AutoParam* laneParam(const FanContext& ctx, int32_t macroIndex) {
+	if (ctx.domain == Domain::MIDI) {
+		MIDIParam* param = ctx.coll->params.getParamFromCC(paramIDForMacro(macroIndex));
+		return param ? &param->param : nullptr;
+	}
+	UnpatchedParamSet* unpatched = ctx.clip->paramManager.getUnpatchedParamSet();
+	return unpatched ? &unpatched->params[params::UNPATCHED_MACRO_1 + macroIndex] : nullptr;
+}
+
+// Whether the macro's lane was ever touched on this clip - the gate for every re-fan: an untouched
+// lane never baked anything, so config changes must leave the (possibly live-recorded) targets
+// alone. MIDI: the pseudo-CC param exists. Synth: the always-present lane param is automated or
+// off its setup default (knobPos 0).
+static bool laneEverTouched(const FanContext& ctx, int32_t macroIndex) {
+	if (ctx.domain == Domain::MIDI) {
+		return ctx.coll->params.getParamFromCC(paramIDForMacro(macroIndex)) != nullptr;
+	}
+	AutoParam* lane = laneParam(ctx, macroIndex);
+	return lane != nullptr && lane->containsSomething(0x80000000u);
+}
+
+// Clears one target's lane and, when sending, mirrors the source lane into it scaled by [from, to].
+// On MIDI clips the caller must not create any params between resolving `source` and this call: an
+// insert moves the vector's storage and would dangle the pointer.
+static void bakeTarget(const FanContext& ctx, ModelStackWithThreeMainThings* three, const MacroTargetSlot& target,
+                       AutoParam* source, Action* action) {
+	ModelStackWithAutoParam* modelStackWithParam = destParamStack(ctx, three, target.cc);
+	if (!modelStackWithParam) {
+		return; // never existed (MIDI): nothing to clear, and nothing will be written (send off)
+	}
+
+	// Overwrite: clear first (deleteAutomation snapshots into `action` for undo when given).
+	modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam, false);
+
+	if (target.send) {
+		int32_t outMax = maxTargetValue(ctx.domain);
+		for (int32_t n = 0; n < source->nodes.getNumElements(); n++) {
+			ParamNode* node = source->nodes.getElement(n);
+			int32_t out = scaleTarget(target, bigValueToCC(node->value), outMax);
+			modelStackWithParam->autoParam->setNodeAtPos(
+			    node->pos, unitsToParamValue(modelStackWithParam, ctx.domain, out), node->interpolated);
+		}
+		// Base value for regions before the first node / when the source has no nodes.
+		int32_t base = scaleTarget(target, bigValueToCC(source->getCurrentValue()), outMax);
+		modelStackWithParam->autoParam->setCurrentValueBasicForSetup(
+		    unitsToParamValue(modelStackWithParam, ctx.domain, base));
+	}
+}
+
+static void refreshAutomationGridIfShowingDest(Clip* clip, Domain domain, uint8_t dest) {
+	if (getRootUI() != &automationView || automationView.onArrangerView) {
+		return;
+	}
+	if (domain == Domain::SYNTH) {
+		// synth lanes are tracked by (kind, id); a cascade id maps to the downstream lane param
+		params::Kind kind;
+		int32_t id;
+		decodeSynthDestination(dest, &kind, &id);
+		if (clip->lastSelectedParamKind == kind && clip->lastSelectedParamID == id) {
+			uiNeedsRendering(&automationView);
+		}
+		return;
+	}
+	// MIDI clips track the selected lane by CC number alone (lastSelectedParamKind stays unset)
+	if (clip->lastSelectedParamID == dest) {
 		uiNeedsRendering(&automationView);
 	}
+}
+
+static void sendToTargets(MelodicInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
+                          Macro& macro, int32_t value) {
+	Domain domain = domainForOutput(clip->output);
+	int32_t macroIndex = (int32_t)(&macro - instrument->macros);
+	// Mirror the raw source value into the macro's own automation lane so the lane tracks the
+	// source live - and records its moves like any param. On MIDI clips the lane is a pseudo-CC
+	// param that never emits MIDI (sendMIDI suppresses paramIDs >= kMacroParamIDBase); on synths
+	// it is the UNPATCHED_MACRO_n param, which nothing in the render code reads. The targets get
+	// the scaled values below.
+	writeDestLive(instrument, clip, modelStack, domain, laneDestination(domain, macroIndex), value);
+	refreshAutomationGridIfShowingDest(clip, domain, laneDestination(domain, macroIndex));
 	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
 		MacroTargetSlot& target = macro.targets[slot];
 		if (target.cc == kTargetCCNone || !target.send) {
@@ -252,28 +557,22 @@ static void sendToTargets(MIDIInstrument* instrument, Clip* clip, ModelStackWith
 		if (isTargetShadowed(instrument->macros, macroIndex, slot)) {
 			continue;
 		}
-		int32_t out = scaleTarget(target, value);
 		// A cascade target drives the downstream macro itself: the scaled value becomes its input
 		// and fans out again through its own targets. Recursion is bounded (higher indices only);
-		// an inactive downstream macro mutes its whole branch, same as a source-driven macro.
+		// an inactive downstream macro mutes its whole branch live, same as a source-driven macro.
+		// The cascade input is always source units 0..127 regardless of domain.
 		if (isMacroParamID(target.cc)) {
 			Macro& downstream = instrument->macros[macroIndexFromParamID(target.cc)];
 			if (downstream.active) {
-				sendToTargets(instrument, clip, modelStack, downstream, out);
+				sendToTargets(instrument, clip, modelStack, downstream, scaleTarget(target, value, kMaxValue));
 			}
 			continue;
 		}
-		int32_t valueBig = (out - 64) << 25;
-		// writes the value into the clip's own CC param, so it reaches the output and gets
-		// recorded into that CC's automation lane like a manual change to it would
-		instrument->processParamFromInputMIDIChannel(target.cc, valueBig, modelStack);
-		// the param write doesn't notify the UI, so refresh the automation editor grid ourselves
-		// if it's showing this CC. Can't use possiblyRefreshAutomationEditorGrid() here: for MIDI
-		// clips, automation view tracks the selected lane by CC number alone and leaves
-		// lastSelectedParamKind unset, so its param-kind comparison never matches
-		if (rootUI == &automationView && !automationView.onArrangerView && clip->lastSelectedParamID == target.cc) {
-			uiNeedsRendering(&automationView);
-		}
+		int32_t out = scaleTarget(target, value, maxTargetValue(domain));
+		// writes the value into the clip's own destination param, so it reaches the output/sound
+		// and gets recorded into that destination's automation lane like a manual change would
+		writeDestLive(instrument, clip, modelStack, domain, target.cc, out);
+		refreshAutomationGridIfShowingDest(clip, domain, target.cc);
 	}
 }
 
@@ -297,10 +596,10 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 		return false;
 	}
 	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
+	MelodicInstrument* instrument = macroClipInstrument(clip);
+	if (!instrument) {
 		return false;
 	}
-	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -326,10 +625,10 @@ bool tryKnobMacro(int32_t whichKnob, int32_t offset) {
 		return false;
 	}
 	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
+	MelodicInstrument* instrument = macroClipInstrument(clip);
+	if (!instrument) {
 		return false;
 	}
-	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
 	// Cheap pre-check so a normal (non-source) knob turn bails before building a modelStack. A
 	// macro fed by an upstream cascade target ignores its own source (one feed per macro).
 	bool anyMatch = false;
@@ -369,7 +668,10 @@ bool tryModeKnobMacro(int32_t whichKnob, int32_t offset) {
 		return false;
 	}
 	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	MIDIInstrument* instrument = midiClipInstrument(clip);
+	// The dedicated macro row is a MIDI-clip-only feature: on synth clips every mod-knob row
+	// already has a real function, so none is repurposed for macros.
+	Clip* midiClip = (clip && clip->output && clip->output->type == OutputType::MIDI_OUT) ? clip : nullptr;
+	MelodicInstrument* instrument = macroClipInstrument(midiClip);
 	if (!instrument) {
 		return false;
 	}
@@ -589,28 +891,25 @@ Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroI
 	}
 	activeDeserializer->closeWriter();
 
-	// Clear baked lanes on CCs the preset dropped, then re-bake the macro lane into the new set.
-	ParamCollectionSummary* summary;
-	MIDIParamCollection* coll = (clip != nullptr) ? getMIDIParams(clip, &summary) : nullptr;
-	if (coll && coll->params.getParamFromCC(paramIDForMacro(macroIndex)) && midiClipInstrument(clip)) {
-		MIDIInstrument* instrument = midiClipInstrument(clip);
+	// Clear baked lanes on destinations the preset dropped, then re-bake the macro lane into the
+	// new set.
+	FanContext ctx;
+	if (getFanContext(clip, &ctx) && laneEverTouched(ctx, macroIndex)) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 		ModelStackWithThreeMainThings* three =
 		    modelStack->addTimelineCounter(clip)
 		        ->addNoteRow(0, nullptr)
-		        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
+		        ->addOtherTwoThings(ctx.instrument->toModControllable(), &clip->paramManager);
 		for (int32_t f = 0; f < kNumTargetSlots; f++) {
 			uint8_t oldCC = oldCCs[f];
 			if (oldCC == kTargetCCNone || findTargetCCOwner(macros, oldCC, -1, -1) >= 0) {
-				continue; // dropped CC still targeted by some target - its bake stays
+				continue; // dropped destination still targeted by some target - its bake stays
 			}
-			MIDIParam* oldParam = coll->params.getParamFromCC(oldCC);
-			if (oldParam) {
-				ModelStackWithAutoParam* modelStackWithParam =
-				    three->addParamCollectionAndId(coll, summary, oldCC)->addAutoParam(&oldParam->param);
-				oldParam->param.deleteAutomation(nullptr, modelStackWithParam, false);
-				refreshAutomationGridIfShowingCC(clip, oldCC);
+			ModelStackWithAutoParam* oldParamStack = destParamStack(ctx, three, oldCC);
+			if (oldParamStack) {
+				oldParamStack->autoParam->deleteAutomation(nullptr, oldParamStack, false);
+				refreshAutomationGridIfShowingDest(clip, ctx.domain, oldCC);
 			}
 		}
 	}
@@ -640,199 +939,163 @@ bool capture(Clip* clip, int32_t macroIndex, bool toMax) {
 	if (getCurrentUI() == &loadSongUI) {
 		return false;
 	}
-	MIDIInstrument* instrument = midiClipInstrument(clip);
-	if (!instrument) {
-		return false;
-	}
-	ParamCollectionSummary* summary;
-	MIDIParamCollection* coll = getMIDIParams(clip, &summary);
-	if (!coll) {
+	FanContext ctx;
+	if (!getFanContext(clip, &ctx)) {
 		return false;
 	}
 
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithThreeMainThings* three =
+	    modelStack->addTimelineCounter(clip)
+	        ->addNoteRow(0, nullptr)
+	        ->addOtherTwoThings(ctx.instrument->toModControllable(), &clip->paramManager);
+
 	bool changed = false;
-	for (MacroTargetSlot& target : instrument->macros[macroIndex].targets) {
+	for (MacroTargetSlot& target : ctx.instrument->macros[macroIndex].targets) {
 		if (target.cc == kTargetCCNone) {
 			continue;
 		}
-		// Read this CC's current value on THIS clip - the inverse of the write in sendToTargets(). A
-		// CC that's never been moved/recorded here has no param (and no known value): leave its
-		// endpoint alone rather than capturing a made-up default.
-		AutoParam* param = nullptr;
-		MIDIParam* midiParam = coll->params.getParamFromCC(target.cc);
-		if (midiParam) {
-			param = &midiParam->param;
+		// Read this destination's current value on THIS clip - the inverse of the write in
+		// sendToTargets(). On MIDI, a CC that's never been moved/recorded here has no param (and no
+		// known value): leave its endpoint alone rather than capturing a made-up default. Synth
+		// params always exist, so every configured target captures.
+		if (ctx.domain == Domain::MIDI) {
+			AutoParam* param = nullptr;
+			MIDIParam* midiParam = ctx.coll->params.getParamFromCC(target.cc);
+			if (midiParam) {
+				param = &midiParam->param;
+			}
+			else {
+				int32_t dimension = expressionDimensionFromCC(target.cc);
+				ExpressionParamSet* expression =
+				    (dimension >= 0) ? clip->paramManager.getExpressionParamSet() : nullptr;
+				if (expression) {
+					param = &expression->params[dimension];
+				}
+			}
+			if (!param) {
+				continue;
+			}
+			(toMax ? target.to : target.from) = (uint8_t)bigValueToCC(param->getCurrentValue());
 		}
 		else {
-			int32_t dimension = expressionDimensionFromCC(target.cc);
-			ExpressionParamSet* expression = (dimension >= 0) ? clip->paramManager.getExpressionParamSet() : nullptr;
-			if (expression) {
-				param = &expression->params[dimension];
+			ModelStackWithAutoParam* msp = destParamStack(ctx, three, target.cc);
+			if (!msp) {
+				continue;
 			}
+			(toMax ? target.to : target.from) =
+			    (uint8_t)paramValueToUnits(msp, ctx.domain, msp->autoParam->getCurrentValue());
 		}
-		if (!param) {
-			continue;
-		}
-		(toMax ? target.to : target.from) = (uint8_t)bigValueToCC(param->getCurrentValue());
 		changed = true;
 	}
 	if (changed) {
-		instrument->editedByUser = true;
+		ctx.instrument->editedByUser = true;
 	}
 	return changed;
 }
 
-// The clip's own MIDI param collection - where both real-CC and macro-lane params live. Baking always
-// targets the edited clip's params, NOT instrument->getParamManager() (that's the ACTIVE clip's, which
-// can be a different clip on the same track).
-static MIDIParamCollection* getMIDIParams(Clip* clip, ParamCollectionSummary** summaryOut) {
-	ParamCollectionSummary* summary = clip->paramManager.getMIDIParamCollectionSummary();
-	if (!summary || !summary->paramCollection) {
-		return nullptr;
+// Creates every MIDI param a fan-out of macroIndex will write - including the lanes and targets of
+// any cascaded downstream macros - BEFORE any AutoParam pointers are taken: an insert
+// memmoves/reallocs the vector's element storage, which would dangle them. MIDI-domain only: synth
+// param sets are fixed arrays that never reallocate, so there is nothing to pre-create. Recursion
+// is bounded: cascade targets only point at higher-indexed macros.
+static void preCreateFanOutParams(const FanContext& ctx, int32_t macroIndex) {
+	if (ctx.domain != Domain::MIDI) {
+		return;
 	}
-	*summaryOut = summary;
-	return (MIDIParamCollection*)summary->paramCollection;
-}
-
-// Clears one target's lane and, when sending, mirrors the source lane into it scaled by [from, to].
-// The caller must not create any params between resolving `source` and this call: an insert moves the
-// vector's storage and would dangle the pointer.
-static void bakeTarget(MIDIParamCollection* coll, ParamCollectionSummary* summary, ModelStackWithThreeMainThings* three,
-                       const MacroTargetSlot& target, AutoParam* source, Action* action) {
-	MIDIParam* targetParam = coll->params.getParamFromCC(target.cc);
-	if (!targetParam) {
-		return; // never existed: nothing to clear, and nothing will be written (send off)
-	}
-	ModelStackWithAutoParam* modelStackWithParam =
-	    three->addParamCollectionAndId(coll, summary, target.cc)->addAutoParam(&targetParam->param);
-
-	// Overwrite: clear first (deleteAutomation snapshots into `action` for undo when given).
-	targetParam->param.deleteAutomation(action, modelStackWithParam, false);
-
-	if (target.send) {
-		for (int32_t n = 0; n < source->nodes.getNumElements(); n++) {
-			ParamNode* node = source->nodes.getElement(n);
-			int32_t out = scaleTarget(target, bigValueToCC(node->value));
-			targetParam->param.setNodeAtPos(node->pos, (out - 64) << 25, node->interpolated);
-		}
-		// Base value for regions before the first node / when the source has no nodes.
-		int32_t base = scaleTarget(target, bigValueToCC(source->getCurrentValue()));
-		targetParam->param.setCurrentValueBasicForSetup((base - 64) << 25);
-	}
-}
-
-static void refreshAutomationGridIfShowingCC(Clip* clip, uint8_t cc) {
-	if (getRootUI() == &automationView && !automationView.onArrangerView && clip->lastSelectedParamID == cc) {
-		uiNeedsRendering(&automationView);
-	}
-}
-
-// Mirror macroIndex's source-lane automation (pseudo-CC paramIDForMacro) into each target CC's
-// automation on `clip`, scaled. Overwrites the target lanes; snapshots them into `action` first.
-// Creates every param a fan-out of macroIndex will write - including the lanes and targets of any
-// cascaded downstream macros - BEFORE any AutoParam pointers are taken: an insert memmoves/reallocs
-// the vector's element storage, which would dangle them. Recursion is bounded: cascade targets only
-// point at higher-indexed macros.
-static void preCreateFanOutParams(MIDIInstrument* instrument, MIDIParamCollection* coll, int32_t macroIndex) {
 	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
-		MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
-		if (target.cc == kTargetCCNone || !target.send || isTargetShadowed(instrument->macros, macroIndex, slot)) {
+		MacroTargetSlot& target = ctx.instrument->macros[macroIndex].targets[slot];
+		if (target.cc == kTargetCCNone || !target.send || isTargetShadowed(ctx.instrument->macros, macroIndex, slot)) {
 			continue;
 		}
-		coll->params.getOrCreateParamFromCC(target.cc, 0);
+		ctx.coll->params.getOrCreateParamFromCC(target.cc, 0);
 		if (isMacroParamID(target.cc)) {
-			preCreateFanOutParams(instrument, coll, macroIndexFromParamID(target.cc));
+			preCreateFanOutParams(ctx, macroIndexFromParamID(target.cc));
 		}
 	}
 }
 
-static void fanOutMacroLane(MIDIInstrument* instrument, Clip* clip, int32_t macroIndex,
-                            ModelStackWithTimelineCounter* modelStack, Action* action) {
-	ParamCollectionSummary* summary;
-	MIDIParamCollection* coll = getMIDIParams(clip, &summary);
-	if (!coll) {
-		return;
-	}
-	// If the macro lane's param was never created on this clip, nothing was ever baked - leave the
+static void fanOutMacroLane(const FanContext& ctx, int32_t macroIndex, ModelStackWithTimelineCounter* modelStack,
+                            Action* action) {
+	// If the macro lane was never touched on this clip, nothing was ever baked - leave the
 	// targets (possibly live-recorded) alone.
-	if (!coll->params.getParamFromCC(paramIDForMacro(macroIndex))) {
+	if (!laneEverTouched(ctx, macroIndex)) {
 		return;
 	}
 
-	preCreateFanOutParams(instrument, coll, macroIndex);
-	MIDIParam* sourceParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
-	if (!sourceParam) {
+	preCreateFanOutParams(ctx, macroIndex);
+	AutoParam* source = laneParam(ctx, macroIndex);
+	if (!source) {
 		return;
 	}
-	AutoParam* source = &sourceParam->param;
 
 	ModelStackWithThreeMainThings* three =
-	    modelStack->addNoteRow(0, nullptr)->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
+	    modelStack->addNoteRow(0, nullptr)
+	        ->addOtherTwoThings(ctx.instrument->toModControllable(), &ctx.clip->paramManager);
 
 	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
-		MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
+		MacroTargetSlot& target = ctx.instrument->macros[macroIndex].targets[slot];
 		if (target.cc == kTargetCCNone) {
 			continue;
 		}
-		// A shadowed target's CC lane belongs to its owner - don't clear or bake it.
-		if (isTargetShadowed(instrument->macros, macroIndex, slot)) {
+		// A shadowed target's lane belongs to its owner - don't clear or bake it.
+		if (isTargetShadowed(ctx.instrument->macros, macroIndex, slot)) {
 			continue;
 		}
-		bakeTarget(coll, summary, three, target, source, action);
-		refreshAutomationGridIfShowingCC(clip, target.cc);
+		bakeTarget(ctx, three, target, source, action);
+		refreshAutomationGridIfShowingDest(ctx.clip, ctx.domain, target.cc);
 		// A cascade target's lane just changed: re-derive the downstream macro's own fan-out from
 		// it. Everything the recursion writes was pre-created above, so `source` stays valid.
-		if (isMacroParamID(target.cc) && coll->params.getParamFromCC(target.cc)) {
-			fanOutMacroLane(instrument, clip, macroIndexFromParamID(target.cc), modelStack, action);
+		if (isMacroParamID(target.cc) && (target.send || laneEverTouched(ctx, macroIndexFromParamID(target.cc)))) {
+			fanOutMacroLane(ctx, macroIndexFromParamID(target.cc), modelStack, action);
 		}
 	}
-	instrument->editedByUser = true;
+	ctx.instrument->editedByUser = true;
 }
 
 void reFanMacro(Clip* clip, int32_t macroIndex, Action* action) {
 	if (getCurrentUI() == &loadSongUI) {
 		return;
 	}
-	MIDIInstrument* instrument = midiClipInstrument(clip);
-	if (!instrument) {
+	FanContext ctx;
+	if (!getFanContext(clip, &ctx)) {
 		return;
 	}
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-	fanOutMacroLane(instrument, clip, macroIndex, modelStackWithTimelineCounter, action);
+	fanOutMacroLane(ctx, macroIndex, modelStackWithTimelineCounter, action);
 }
 
 void reFanTarget(Clip* clip, int32_t macroIndex, int32_t slot, Action* action) {
 	if (getCurrentUI() == &loadSongUI) {
 		return;
 	}
-	MIDIInstrument* instrument = midiClipInstrument(clip);
-	if (!instrument) {
+	FanContext ctx;
+	if (!getFanContext(clip, &ctx)) {
 		return;
 	}
-	MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
+	MacroTargetSlot& target = ctx.instrument->macros[macroIndex].targets[slot];
 	if (target.cc == kTargetCCNone) {
 		return;
 	}
-	// A shadowed target's CC lane belongs to its owner - don't clear or bake it.
-	if (isTargetShadowed(instrument->macros, macroIndex, slot)) {
+	// A shadowed target's lane belongs to its owner - don't clear or bake it.
+	if (isTargetShadowed(ctx.instrument->macros, macroIndex, slot)) {
 		return;
 	}
-	ParamCollectionSummary* summary;
-	MIDIParamCollection* coll = getMIDIParams(clip, &summary);
-	if (!coll || !coll->params.getParamFromCC(paramIDForMacro(macroIndex))) {
+	if (!laneEverTouched(ctx, macroIndex)) {
 		return; // macro lane never touched on this clip - nothing baked, nothing to redo
 	}
-	if (target.send) {
-		coll->params.getOrCreateParamFromCC(target.cc, 0); // create before taking the source pointer
+	if (target.send && ctx.domain == Domain::MIDI) {
+		ctx.coll->params.getOrCreateParamFromCC(target.cc, 0); // create before taking the source pointer
 		if (isMacroParamID(target.cc)) {
 			// the cascade below this target must also be pre-created before pointers are taken
-			preCreateFanOutParams(instrument, coll, macroIndexFromParamID(target.cc));
+			preCreateFanOutParams(ctx, macroIndexFromParamID(target.cc));
 		}
 	}
-	MIDIParam* sourceParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
-	if (!sourceParam) {
+	AutoParam* source = laneParam(ctx, macroIndex);
+	if (!source) {
 		return;
 	}
 
@@ -841,37 +1104,36 @@ void reFanTarget(Clip* clip, int32_t macroIndex, int32_t slot, Action* action) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 	ModelStackWithThreeMainThings* three =
 	    modelStackWithTimelineCounter->addNoteRow(0, nullptr)
-	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
-	bakeTarget(coll, summary, three, target, &sourceParam->param, action);
-	refreshAutomationGridIfShowingCC(clip, target.cc);
+	        ->addOtherTwoThings(ctx.instrument->toModControllable(), &clip->paramManager);
+	bakeTarget(ctx, three, target, source, action);
+	refreshAutomationGridIfShowingDest(clip, ctx.domain, target.cc);
 	// A cascade target's lane just changed: re-derive the downstream macro's fan-out from it.
-	if (isMacroParamID(target.cc) && coll->params.getParamFromCC(target.cc)) {
-		fanOutMacroLane(instrument, clip, macroIndexFromParamID(target.cc), modelStackWithTimelineCounter, action);
+	if (isMacroParamID(target.cc) && (target.send || laneEverTouched(ctx, macroIndexFromParamID(target.cc)))) {
+		fanOutMacroLane(ctx, macroIndexFromParamID(target.cc), modelStackWithTimelineCounter, action);
 	}
-	instrument->editedByUser = true;
+	ctx.instrument->editedByUser = true;
 }
 
 void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC) {
-	MIDIInstrument* instrument = midiClipInstrument(clip);
-	if (!instrument) {
+	FanContext ctx;
+	if (!getFanContext(clip, &ctx)) {
 		return;
 	}
-	// Cascade rule: a macro may only target HIGHER-indexed macros (keeps the graph acyclic). The
-	// pickers never offer lower ids, but this is the single reassignment primitive - guard it.
-	if (newCC != kTargetCCNone && !isValidTargetDestination(newCC, macroIndex)) {
+	// Cascade rule: a macro may only target HIGHER-indexed macros (keeps the graph acyclic), and a
+	// synth destination byte must be a real targetable param (never a lane byte). The pickers never
+	// offer invalid ids, but this is the single reassignment primitive - guard it.
+	if (newCC != kTargetCCNone && !isValidTargetDestination(ctx.domain, newCC, macroIndex)) {
 		return;
 	}
-	MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
+	MacroTargetSlot& target = ctx.instrument->macros[macroIndex].targets[slot];
 	uint8_t oldCC = target.cc;
 	if (newCC == oldCC) {
 		return;
 	}
 	target.cc = newCC;
-	instrument->editedByUser = true;
+	ctx.instrument->editedByUser = true;
 
-	ParamCollectionSummary* summary;
-	MIDIParamCollection* coll = getMIDIParams(clip, &summary);
-	if (!coll || !coll->params.getParamFromCC(paramIDForMacro(macroIndex))) {
+	if (!laneEverTouched(ctx, macroIndex)) {
 		return; // no bake ever happened on this clip: pure config change
 	}
 
@@ -883,48 +1145,48 @@ void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC)
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 	ModelStackWithThreeMainThings* three =
 	    modelStackWithTimelineCounter->addNoteRow(0, nullptr)
-	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
+	        ->addOtherTwoThings(ctx.instrument->toModControllable(), &clip->paramManager);
 
-	// Deal with the CC we left: if another target still targets it, hand ownership to whichever one
-	// now ranks first (it may have been shadowed by us - re-bake it); otherwise clear our bake so it
-	// doesn't play as a ghost lane. target.cc is already reassigned, so findCCOwner excludes us.
+	// Deal with the destination we left: if another target still targets it, hand ownership to
+	// whichever one now ranks first (it may have been shadowed by us - re-bake it); otherwise clear
+	// our bake so it doesn't play as a ghost lane. target.cc is already reassigned, so findCCOwner
+	// excludes us.
 	if (oldCC != kTargetCCNone) {
 		int32_t ownerSlot = 0;
-		int32_t ownerMacro = findCCOwner(instrument->macros, oldCC, &ownerSlot);
-		MIDIParam* oldParam = coll->params.getParamFromCC(oldCC);
-		if (oldParam) {
-			ModelStackWithAutoParam* modelStackWithParam =
-			    three->addParamCollectionAndId(coll, summary, oldCC)->addAutoParam(&oldParam->param);
-			oldParam->param.deleteAutomation(action, modelStackWithParam, false);
-			refreshAutomationGridIfShowingCC(clip, oldCC);
+		int32_t ownerMacro = findCCOwner(ctx.instrument->macros, oldCC, &ownerSlot);
+		ModelStackWithAutoParam* oldParamStack = destParamStack(ctx, three, oldCC);
+		if (oldParamStack) {
+			oldParamStack->autoParam->deleteAutomation(action, oldParamStack, false);
+			refreshAutomationGridIfShowingDest(clip, ctx.domain, oldCC);
 		}
 		if (ownerMacro >= 0) {
 			reFanTarget(clip, ownerMacro, ownerSlot, action); // promote the new owner's bake
 		}
 		// Departing a cascade destination with no owner left: its lane was just cleared, so
 		// re-derive the downstream macro's fan-out from the now-empty lane (clears its branch).
-		else if (isMacroParamID(oldCC) && oldParam) {
-			fanOutMacroLane(instrument, clip, macroIndexFromParamID(oldCC), modelStackWithTimelineCounter, action);
+		else if (isMacroParamID(oldCC) && oldParamStack) {
+			fanOutMacroLane(ctx, macroIndexFromParamID(oldCC), modelStackWithTimelineCounter, action);
 		}
 	}
 
-	// Bake the macro curve into the new CC - unless another target outranks us there (we're shadowed:
-	// keep the config but leave the owner's lane alone; the UI shows the conflict and keeps our LED off).
-	if (newCC != kTargetCCNone && findShadowingOwner(instrument->macros, newCC, macroIndex, slot) < 0) {
-		if (target.send) {
-			coll->params.getOrCreateParamFromCC(newCC, 0); // create before taking the source pointer
+	// Bake the macro curve into the new destination - unless another target outranks us there
+	// (we're shadowed: keep the config but leave the owner's lane alone; the UI shows the conflict
+	// and keeps our LED off).
+	if (newCC != kTargetCCNone && findShadowingOwner(ctx.instrument->macros, newCC, macroIndex, slot) < 0) {
+		if (target.send && ctx.domain == Domain::MIDI) {
+			ctx.coll->params.getOrCreateParamFromCC(newCC, 0); // create before taking the source pointer
 			if (isMacroParamID(newCC)) {
 				// the cascade below the new destination must be pre-created before pointers are taken
-				preCreateFanOutParams(instrument, coll, macroIndexFromParamID(newCC));
+				preCreateFanOutParams(ctx, macroIndexFromParamID(newCC));
 			}
 		}
-		MIDIParam* sourceParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
-		if (sourceParam) {
-			bakeTarget(coll, summary, three, target, &sourceParam->param, action);
-			refreshAutomationGridIfShowingCC(clip, newCC);
+		AutoParam* source = laneParam(ctx, macroIndex);
+		if (source) {
+			bakeTarget(ctx, three, target, source, action);
+			refreshAutomationGridIfShowingDest(clip, ctx.domain, newCC);
 			// A cascade destination's lane just changed: re-derive its macro's fan-out from it.
-			if (isMacroParamID(newCC) && coll->params.getParamFromCC(newCC)) {
-				fanOutMacroLane(instrument, clip, macroIndexFromParamID(newCC), modelStackWithTimelineCounter, action);
+			if (isMacroParamID(newCC) && (target.send || laneEverTouched(ctx, macroIndexFromParamID(newCC)))) {
+				fanOutMacroLane(ctx, macroIndexFromParamID(newCC), modelStackWithTimelineCounter, action);
 			}
 		}
 	}
@@ -933,17 +1195,18 @@ void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC)
 }
 
 void setMacroActive(Clip* clip, int32_t macroIndex, bool active) {
-	MIDIInstrument* instrument = midiClipInstrument(clip);
-	if (!instrument) {
+	FanContext ctx;
+	if (!getFanContext(clip, &ctx)) {
 		return;
 	}
-	Macro* macros = instrument->macros;
+	Macro* macros = ctx.instrument->macros;
 	if (macros[macroIndex].active == active) {
 		return;
 	}
 
 	// Ownership ranks active macros above inactive ones, so flipping `active` can hand this macro's
-	// duplicated CCs to/from another targeter. Record the pre-flip owners to detect the transfers.
+	// duplicated destinations to/from another targeter. Record the pre-flip owners to detect the
+	// transfers.
 	int32_t oldOwnerMacros[kNumTargetSlots];
 	int32_t oldOwnerSlots[kNumTargetSlots];
 	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
@@ -952,13 +1215,7 @@ void setMacroActive(Clip* clip, int32_t macroIndex, bool active) {
 	}
 
 	macros[macroIndex].active = active;
-	instrument->editedByUser = true;
-
-	ParamCollectionSummary* summary;
-	MIDIParamCollection* coll = getMIDIParams(clip, &summary);
-	if (!coll) {
-		return;
-	}
+	ctx.instrument->editedByUser = true;
 
 	Action* action = nullptr;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -966,14 +1223,14 @@ void setMacroActive(Clip* clip, int32_t macroIndex, bool active) {
 	ModelStackWithThreeMainThings* three =
 	    modelStack->addTimelineCounter(clip)
 	        ->addNoteRow(0, nullptr)
-	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
+	        ->addOtherTwoThings(ctx.instrument->toModControllable(), &clip->paramManager);
 
 	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
 		uint8_t cc = macros[macroIndex].targets[slot].cc;
 		if (cc == kTargetCCNone) {
 			continue;
 		}
-		// duplicates of the CC within this macro share one lane - handle each CC once
+		// duplicates of the destination within this macro share one lane - handle each once
 		bool alreadyHandled = false;
 		for (int32_t prev = 0; prev < slot; prev++) {
 			if (macros[macroIndex].targets[prev].cc == cc) {
@@ -989,19 +1246,17 @@ void setMacroActive(Clip* clip, int32_t macroIndex, bool active) {
 		if (newOwnerMacro == oldOwnerMacros[slot] && newOwnerSlot == oldOwnerSlots[slot]) {
 			continue; // same owner as before the flip - its bake already stands
 		}
-		// The CC changed hands. Clear the old owner's bake first (only if that macro ever baked -
-		// same ghost-lane rule as changeTargetCC), then promote the new owner's; if the new owner's
-		// lane was never automated, the CC simply stays clear.
-		if (oldOwnerMacros[slot] >= 0 && coll->params.getParamFromCC(paramIDForMacro(oldOwnerMacros[slot]))) {
-			MIDIParam* param = coll->params.getParamFromCC(cc);
-			if (param) {
+		// The destination changed hands. Clear the old owner's bake first (only if that macro ever
+		// baked - same ghost-lane rule as changeTargetCC), then promote the new owner's; if the new
+		// owner's lane was never automated, the destination simply stays clear.
+		if (oldOwnerMacros[slot] >= 0 && laneEverTouched(ctx, oldOwnerMacros[slot])) {
+			ModelStackWithAutoParam* modelStackWithParam = destParamStack(ctx, three, cc);
+			if (modelStackWithParam) {
 				if (!action) {
 					action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 				}
-				ModelStackWithAutoParam* modelStackWithParam =
-				    three->addParamCollectionAndId(coll, summary, cc)->addAutoParam(&param->param);
-				param->param.deleteAutomation(action, modelStackWithParam, false);
-				refreshAutomationGridIfShowingCC(clip, cc);
+				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam, false);
+				refreshAutomationGridIfShowingDest(clip, ctx.domain, cc);
 			}
 		}
 		if (!action) {
