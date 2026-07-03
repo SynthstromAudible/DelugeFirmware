@@ -1089,6 +1089,9 @@ weAreInArrangementEditorOrInClipInstance:
 	int32_t* valuesForOverride =
 	    runtimeView.paramsInAutomationMode ? project.global_fx.unautomated_param_values.data() : nullptr;
 
+	// Note (Phase B / 5c-3): these read the engine unpatched params, whose automation nodes are BORROWED from
+	// project.global_fx.params.unpatched (the DOM store) — so save already serialises the DOM-owned node data.
+	// A future Phase D step can read the DocParamSet explicitly to fully decouple save from the engine.
 	writer.writeOpeningTagBeginning("songParams");
 	GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, valuesForOverride);
 	writer.writeOpeningTagEnd();
