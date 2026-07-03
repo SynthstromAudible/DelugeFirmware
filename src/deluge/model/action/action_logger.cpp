@@ -367,7 +367,7 @@ enum class Animation {
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another
 // Clip resize
 void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time) {
-
+	D_PRINTLN("ActionLogger::revertAction %s", actionTypeMap(action->type));
 	currentSong->deletePendingOverdubs();
 
 	Animation whichAnimation = Animation::NONE;
@@ -753,7 +753,12 @@ currentClipSwitchedOver:
 
 void ActionLogger::closeAction(ActionType actionType) {
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType) {
+		D_PRINTLN("closing action %s", actionTypeMap(actionType));
 		firstAction[BEFORE]->openForAdditions = false;
+	}
+	else {
+		D_PRINTLN("not closing - have %s, want %s", actionTypeMap(firstAction[BEFORE]->type),
+		          actionTypeMap(actionType));
 	}
 }
 
