@@ -30,7 +30,6 @@ ConsequenceClipBeginLinearRecord::ConsequenceClipBeginLinearRecord(Clip* newClip
 }
 
 Error ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelStack) {
-	D_PRINTLN("ConsequenceClipBeginLinearRecord - reverting for clip %s", clip->name.get());
 	// Going backwards...
 	if (time == BEFORE) {
 		clip->abortRecording();
@@ -61,7 +60,6 @@ Error ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelS
 			if (modelStack->song->getCurrentClip() == clip && getCurrentUI()->toClipMinder()) {
 				return Error::NONE;
 			}
-			D_PRINTLN("ConsequenceClipBeginLinearRecord - deactivating clip %s", clip->name.get());
 doToggle:
 			int32_t clipIndex = modelStack->song->sessionClips.getIndexForClip(clip);
 			session.toggleClipStatus(clip, &clipIndex, true, 0);

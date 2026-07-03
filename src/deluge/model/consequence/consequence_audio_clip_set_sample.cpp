@@ -26,16 +26,12 @@
 ConsequenceAudioClipSetSample::ConsequenceAudioClipSetSample(AudioClip* newClip) {
 
 	clip = newClip;
-	D_PRINTLN("ConsequenceAudioClipSetSample - saving file %s for clip %s", newClip->sampleHolder.filePath.get(),
-	          newClip->name.get());
 	filePathToRevertTo.set(&newClip->sampleHolder.filePath);
 	endPosToRevertTo = newClip->sampleHolder.endPos;
 }
 
 Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStack) {
 
-	D_PRINTLN("ConsequenceAudioClipSetSample - reverting from %s for clip %s", clip->sampleHolder.filePath.get(),
-	          clip->name.get());
 	String filePathBeforeRevert;
 	filePathBeforeRevert.set(&clip->sampleHolder.filePath);
 	uint64_t endPosBeforeRevert = clip->sampleHolder.endPos;
@@ -45,7 +41,6 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 	clip->sampleHolder.setAudioFile(nullptr);
 	clip->sampleHolder.filePath.set(&filePathToRevertTo);
 	clip->sampleHolder.endPos = endPosToRevertTo;
-	D_PRINTLN("ConsequenceAudioClipSetSample - reverted to %s", clip->sampleHolder.filePath.get());
 
 	if (filePathToRevertTo.isEmpty()) {
 

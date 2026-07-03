@@ -116,7 +116,6 @@ void Action::addConsequence(Consequence* consequence) {
 
 // Returns error code
 Error Action::revert(TimeType time, ModelStack* modelStack) {
-	D_PRINTLN("reverting action %s", actionTypeMap(type));
 	Consequence* thisConsequence = firstConsequence;
 
 	// If we're a record-arrangement-from-session Action, there's a trick - we know that whether we're being undone or
@@ -334,7 +333,6 @@ bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* c
 
 // Call this *before* you change the Sample or its filePath
 void Action::recordAudioClipSampleChange(AudioClip* clip) {
-	D_PRINTLN("Action::recordAudioClipSampleChange - saving file for clip %s", clip->name.get());
 	// for some unknown reason this doesn't work on live looping?
 	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceAudioClipSetSample));
 	if (consMemory) {
