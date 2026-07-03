@@ -148,6 +148,15 @@ static void appendTargetName(StringBuf& buf, MIDIInstrument* instrument, int32_t
 	}
 }
 
+// While a target quick-edit button is held, the gold-knob LED bars show the target's range live:
+// left bar = From, right bar = To (matching which knob edits which endpoint). Default 0-127 reads
+// as From empty, To full. view.setKnobIndicatorLevels() restores them on release.
+static void showHeldTargetKnobIndicators(MIDIInstrument* instrument, int32_t macroIndex, int32_t target) {
+	MIDIMacro::MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
+	indicator_leds::setKnobIndicatorLevel(0, f.from, false);
+	indicator_leds::setKnobIndicatorLevel(1, f.to, false);
+}
+
 // Full target readout while the param button is held: the destination name on the first line and
 // the range on the second, e.g. "LFO1 Freq" / "0 - 127", or "Not assigned" when the slot is OFF (the
 // held button itself identifies the slot). Persistent - stays up until the button is released
@@ -2591,10 +2600,11 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 			commitHeldTargetCC();
 			heldTarget = -1;
 			heldTargetMacro = -1;
-			display->cancelPopup();      // the readout is persistent for the duration of the hold
-			refreshMacroInactivePopup(); // the hold readout displaced the Inactive status - restore it
-			view.setModLedStates();      // re-sync the assignment LEDs (pending value may have been dropped)
-			return;                      // we consumed the press, so consume the matching release
+			display->cancelPopup();        // the readout is persistent for the duration of the hold
+			refreshMacroInactivePopup();   // the hold readout displaced the Inactive status - restore it
+			view.setModLedStates();        // re-sync the assignment LEDs (pending value may have been dropped)
+			view.setKnobIndicatorLevels(); // the bars showed From/To during the hold - restore them
+			return;                        // we consumed the press, so consume the matching release
 		}
 		ClipView::modButtonAction(whichButton, on);
 		return;
@@ -2610,6 +2620,7 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 		heldTargetPendingCC = (cc == MIDIMacro::kTargetCCNone) ? -1 : cc;
 		// initial press: an in-use target reads out who owns its destination
 		showTargetFull(instrument, macroIndex, whichButton, cc, true);
+		showHeldTargetKnobIndicators(instrument, macroIndex, whichButton);
 		return;
 	}
 	ClipView::modButtonAction(whichButton, on);
@@ -2716,6 +2727,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			// always show the full "From X To Y" readout - even for an in-use target, so its range
 			// stays editable like any other; the conflict shows as the blinking LED after release
 			showTargetFull(instrument, macroIndex, heldTarget, f.cc, false);
+			showHeldTargetKnobIndicators(instrument, macroIndex, heldTarget);
 			return;
 		}
 	}
