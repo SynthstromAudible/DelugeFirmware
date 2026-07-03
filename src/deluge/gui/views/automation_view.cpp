@@ -152,9 +152,13 @@ static void appendTargetName(StringBuf& buf, MIDIInstrument* instrument, int32_t
 // the range on the second, e.g. "LFO1 Freq" / "0 - 127", or "Not assigned" when the slot is OFF (the
 // held button itself identifies the slot). Persistent - stays up until the button is released
 // (cancelPopup in modButtonAction). `cc` may be a pending (not yet committed) value.
-static void showTargetFull(MIDIInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t cc) {
+// `showConflict`: on the initial press of an already-committed in-use target, show WHO owns the
+// destination instead of a range; while dialing a CC or shaping From/To, the readout stays normal
+// so the slot is fully editable (the conflict shows as the button's blinking LED after release).
+static void showTargetFull(MIDIInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t cc,
+                           bool showConflict) {
 	// A shadowed target doesn't drive anything - show WHO owns the destination, not a range.
-	if (cc != MIDIMacro::kTargetCCNone) {
+	if (showConflict && cc != MIDIMacro::kTargetCCNone) {
 		int32_t owner = MIDIMacro::findShadowingOwner(instrument->macros, cc, macroIndex, target);
 		if (owner >= 0) {
 			MIDIMacro::showCCConflictPopup(cc, owner, true); // persistent while held
@@ -2604,7 +2608,8 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 		heldTargetMacro = macroIndex;
 		uint8_t cc = instrument->macros[macroIndex].targets[whichButton].cc;
 		heldTargetPendingCC = (cc == MIDIMacro::kTargetCCNone) ? -1 : cc;
-		showTargetFull(instrument, macroIndex, whichButton, cc);
+		// initial press: an in-use target reads out who owns its destination
+		showTargetFull(instrument, macroIndex, whichButton, cc, true);
 		return;
 	}
 	ClipView::modButtonAction(whichButton, on);
@@ -2663,9 +2668,10 @@ bool AutomationView::toggleMacroLaneActive() {
 	return true;
 }
 
-// Keeps a persistent "Macro N / Inactive" status popup up while an inactive macro lane is in view
-// (the lane name itself stays clean), and clears it otherwise. openUI()/changeRootUI() clear it on
-// any UI transition; focusRegained() re-shows it on return when still applicable.
+// Keeps a persistent "Inactive" status popup up while an inactive macro lane is in view (the lane
+// name behind it already says which macro, so the popup doesn't repeat it), and clears it
+// otherwise. openUI()/changeRootUI() clear it on any UI transition; focusRegained() re-shows it on
+// return when still applicable.
 void AutomationView::refreshMacroInactivePopup() {
 	int32_t macroIndex = 0;
 	MIDIInstrument* instrument = (getCurrentUI() == &automationView && inAutomationEditor() && !onArrangerView)
@@ -2673,12 +2679,7 @@ void AutomationView::refreshMacroInactivePopup() {
 	                                 : nullptr;
 	// while a quick-edit button is held, its readout owns the popup
 	if (instrument != nullptr && !instrument->macros[macroIndex].active && heldTarget < 0) {
-		DEF_STACK_STRING_BUF(popup, 24);
-		popup.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
-		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
-		popup.append(display->haveOLED() ? '\n' : ' ');
-		popup.append("Inactive");
-		display->popupText(popup.c_str(), PopupType::MACRO_INACTIVE);
+		display->popupText("Inactive", PopupType::MACRO_INACTIVE);
 	}
 	else if (display->hasPopupOfType(PopupType::MACRO_INACTIVE)) {
 		display->cancelPopup();
@@ -2712,8 +2713,9 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				// only this target's scaling changed - re-bake just its lane
 				MIDIMacro::reFanTarget(heldClip, macroIndex, heldTarget, nullptr);
 			}
-			// always show the full "From X To Y" readout
-			showTargetFull(instrument, macroIndex, heldTarget, f.cc);
+			// always show the full "From X To Y" readout - even for an in-use target, so its range
+			// stays editable like any other; the conflict shows as the blinking LED after release
+			showTargetFull(instrument, macroIndex, heldTarget, f.cc, false);
 			return;
 		}
 	}
@@ -2885,9 +2887,9 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			heldTargetPendingCC =
 			    std::clamp<int32_t>((int32_t)heldTargetPendingCC + offset, -1, MIDIMacro::kMaxTargetCC);
 			uint8_t pendingCC = (heldTargetPendingCC < 0) ? MIDIMacro::kTargetCCNone : (uint8_t)heldTargetPendingCC;
-			// If another target owns this CC, this one would be shadowed (inert): show who owns it
-			// and keep the LED dark. showTargetFull handles the shadowed readout itself.
-			showTargetFull(instrument, macroIndex, heldTarget, pendingCC);
+			// Dialing stays normal even onto an in-use CC (pick it, then shape From/To with the gold
+			// knobs); only the LED hints it won't drive, and it blinks after release.
+			showTargetFull(instrument, macroIndex, heldTarget, pendingCC, false);
 			bool wouldDrive =
 			    pendingCC != MIDIMacro::kTargetCCNone
 			    && MIDIMacro::findShadowingOwner(instrument->macros, pendingCC, macroIndex, heldTarget) < 0;

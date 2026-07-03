@@ -183,8 +183,10 @@ void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
 	}
 
 	// render automation lane
+	// `dimmed` (inactive macro) reuses the unautomated tail brightness: a lane only lights fully
+	// when there's automation AND the macro is active
 	if (doRender) {
-		if (isAutomated) { // automated, render bright colour
+		if (isAutomated && !dimmed) { // automated, render bright colour
 			if (knobPos > middleKnobPos) {
 				pixel = rowBipolarDownColour[-yDisplay + 7];
 			}
@@ -192,16 +194,13 @@ void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
 				pixel = rowBipolarDownColour[yDisplay];
 			}
 		}
-		else { // not automated, render less bright tail colour
+		else { // not automated (or inactive macro), render less bright tail colour
 			if (knobPos > middleKnobPos) {
 				pixel = rowBipolarDownTailColour[-yDisplay + 7];
 			}
 			else {
 				pixel = rowBipolarDownTailColour[yDisplay];
 			}
-		}
-		if (dimmed) {
-			pixel = pixel.dim(2); // perceptual half-brightness (a linear 1/2 barely reads on LEDs)
 		}
 		occupancyMask[yDisplay][xDisplay] = 64;
 	}
@@ -238,16 +237,14 @@ void AutomationEditorLayoutModControllable::renderAutomationUnipolarSquare(
 		doRender = (knobPos >= nonPatchCableMinPadDisplayValues[yDisplay]);
 	}
 
-	// render square
+	// render square. `dimmed` (inactive macro) reuses the unautomated tail brightness: a lane only
+	// lights fully when there's automation AND the macro is active
 	if (doRender) {
-		if (isAutomated) { // automated, render bright colour
+		if (isAutomated && !dimmed) { // automated, render bright colour
 			pixel = rowColour[yDisplay];
 		}
-		else { // not automated, render less bright tail colour
+		else { // not automated (or inactive macro), render less bright tail colour
 			pixel = rowTailColour[yDisplay];
-		}
-		if (dimmed) {
-			pixel = pixel.dim(2); // perceptual half-brightness (a linear 1/2 barely reads on LEDs)
 		}
 		occupancyMask[yDisplay][xDisplay] = 64;
 	}

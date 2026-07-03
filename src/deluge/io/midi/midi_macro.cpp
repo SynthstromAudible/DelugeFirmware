@@ -156,10 +156,10 @@ static void appendDestName(StringBuf& buf, uint8_t cc) {
 	}
 }
 
-// Appends "<dest> used by\nMacro N" (OLED) / "<dest> used by Macro N" (7SEG).
+// Appends "<dest>\nused by\nMacro N" (OLED) / "<dest> used by Macro N" (7SEG).
 static void appendCCUsedBy(StringBuf& buf, uint8_t cc, int32_t ownerMacro) {
 	appendDestName(buf, cc);
-	buf.append(' ');
+	buf.append(display->haveOLED() ? '\n' : ' ');
 	buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_USED_BY)); // "used by"
 	buf.append(display->haveOLED() ? '\n' : ' ');
 	auto macroName =
