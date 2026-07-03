@@ -570,9 +570,8 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_MACRO_ENABLE_MACROS, "ENAB"},
         {STRING_FOR_MACRO_LOAD, "LOAD"},
         {STRING_FOR_MACRO_SAVE, "SAVE"},
-        {STRING_FOR_MACRO_CAPTURE_A, "CAPA"},
-        {STRING_FOR_MACRO_CAPTURE_B, "CAPB"},
-        {STRING_FOR_MACRO_CC_IN_USE, "USED"},
+        {STRING_FOR_MACRO_CAPTURE_FROM, "FROM"},
+        {STRING_FOR_MACRO_CAPTURE_TO, "TO"},
     },
     &built_in::english,
 };

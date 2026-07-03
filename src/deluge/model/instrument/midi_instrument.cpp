@@ -333,7 +333,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 
 		writeDeviceDefinitionFile(writer, true);
 
-		if (macrosEnabled || MIDIMacro::anyMacroConfigured(macros)) {
+		if (!macrosEnabled || MIDIMacro::anyMacroConfigured(macros)) {
 			MIDIMacro::writeMacrosToFile(writer, macros, macrosEnabled);
 		}
 	}

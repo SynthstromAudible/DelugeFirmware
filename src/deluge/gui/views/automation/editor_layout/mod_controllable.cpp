@@ -466,7 +466,7 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			parameterName.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
 			    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
 			// Persistent reminder on the lane display: this macro won't fire live until activated
-			// (SHIFT + horizontal encoder press toggles it).
+			// (SHIFT + vertical encoder press toggles it).
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 			if (!midiInstrument->macrosEnabled || !midiInstrument->macros[macroIndex].active) {
 				parameterName.append(" (Inactive)");

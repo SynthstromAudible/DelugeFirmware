@@ -28,10 +28,12 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_macro_preset_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/rename/rename_midi_cc_ui.h"
 #include "gui/ui/sample_marker_editor.h"
+#include "gui/ui/save/save_macro_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -114,9 +116,11 @@ using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 using namespace deluge::gui;
 
 // If a MIDI Macro lane is the selected automation param on this clip, return its instrument and (via
-// macroIndex) which macro; else nullptr. Callers gate on being in the clip automation editor.
+// macroIndex) which macro; else nullptr. Callers gate on being in the clip automation editor. Also
+// null with the community feature off: a lane selection can outlive the feature toggle (it's
+// deserialized with the clip), and none of the macro UI may act then.
 static MIDIInstrument* macroLaneInstrument(Clip* clip, int32_t* macroIndex) {
-	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT
+	if (!MIDIMacro::isEnabled() || !clip || !clip->output || clip->output->type != OutputType::MIDI_OUT
 	    || !MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
 		return nullptr;
 	}
@@ -372,6 +376,16 @@ constexpr uint8_t kPadSelectionShortcutY = 7;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
 
+// shortcuts available while a macro lane is in view: capture the targets' live CC values into
+// From/To (blinking while the macro is active), and load/save that macro's preset
+constexpr uint8_t kMacroCaptureFromShortcutX = 0;
+constexpr uint8_t kMacroCaptureToShortcutX = 1;
+constexpr uint8_t kMacroCaptureShortcutY = 7;
+constexpr uint8_t kMacroPresetLoadShortcutX = 0; // the BROWSE pad
+constexpr uint8_t kMacroPresetLoadShortcutY = 5;
+constexpr uint8_t kMacroPresetSaveShortcutX = 0; // the RECORD pad
+constexpr uint8_t kMacroPresetSaveShortcutY = 4;
+
 PLACE_SDRAM_BSS AutomationView automationView{};
 
 AutomationView::AutomationView() {
@@ -401,6 +415,8 @@ AutomationView::AutomationView() {
 	interpolationShortcutBlinking = false;
 	// used to set pad selection shortcut blinking
 	padSelectionShortcutBlinking = false;
+	// used to set macro capture shortcut blinking
+	macroCaptureShortcutBlinking = false;
 	// used to enter pad selection mode
 	padSelectionOn = false;
 	multiPadPressSelected = false;
@@ -589,6 +605,7 @@ void AutomationView::focusRegained() {
 		parameterShortcutBlinking = false;
 		interpolationShortcutBlinking = false;
 		padSelectionShortcutBlinking = false;
+		macroCaptureShortcutBlinking = false;
 		instrumentClipView.noteRowBlinking = false;
 		// remove patch cable blink frequencies
 		soundEditor.resetSourceBlinks();
@@ -1267,11 +1284,6 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// Horizontal encoder button
 	// Not relevant for arranger view
 	else if (b == X_ENC) {
-		// SHIFT + horizontal encoder press on a macro lane toggles that macro Active/Inactive
-		if (on && Buttons::isShiftButtonPressed() && inAutomationEditor() && !onArrangerView
-		    && toggleMacroLaneActive()) {
-			return ActionResult::DEALT_WITH;
-		}
 		if (handleHorizontalEncoderButtonAction(on, isAudioClip)) {
 			goto passToOthers;
 		}
@@ -1303,6 +1315,11 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// Vertical encoder button
 	// Not relevant for audio clip
 	else if (b == Y_ENC && !isAudioClip) {
+		// SHIFT + vertical encoder press on a macro lane toggles that macro Active/Inactive
+		if (on && Buttons::isShiftButtonPressed() && inAutomationEditor() && !onArrangerView
+		    && toggleMacroLaneActive()) {
+			return ActionResult::DEALT_WITH;
+		}
 		handleVerticalEncoderButtonAction(on);
 	}
 
@@ -1927,30 +1944,63 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
 
 			if (!inNoteEditor()) {
-				// With the MIDI macro feature on, a MIDI clip's automation editor repurposes (0,7)/(1,7)
-				// to capture A/B for Macro 1, and moves the pad-selection toggle to (15,3) since (0,7) is
-				// now the capture-A shortcut.
-				bool macroLayout = MIDIMacro::isEnabled() && outputType == OutputType::MIDI_OUT && inAutomationEditor();
-				if (macroLayout && x == 0 && y == 7) {
-					MIDIMacro::capture(0, /*toMax=*/false);
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_A));
-					return true;
-				}
-				if (macroLayout && x == 1 && y == 7) {
-					MIDIMacro::capture(0, /*toMax=*/true);
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_B));
-					return true;
+				int32_t macroIndex = 0;
+				MIDIInstrument* macroInstrument =
+				    (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(clip, &macroIndex) : nullptr;
+				if (macroInstrument != nullptr) {
+					// While an ACTIVE macro lane is in view, the two blinking top-row pads snapshot the
+					// targets' current CC values into THIS macro's ranges: (0,7) = Capture From,
+					// (1,7) = Capture To. Tweak the destination params, capture From, tweak again,
+					// capture To, then the macro lane morphs between the two.
+					if (y == kMacroCaptureShortcutY
+					    && (x == kMacroCaptureFromShortcutX || x == kMacroCaptureToShortcutX)) {
+						if (!macroInstrument->macrosEnabled) {
+							// the macro's own active flag is irrelevant while the per-instrument gate is off
+							display->displayPopup(display->haveOLED() ? "Macros disabled" : "OFF");
+						}
+						else if (macroInstrument->macros[macroIndex].active) {
+							bool toMax = (x == kMacroCaptureToShortcutX);
+							// no popup on a no-op: every configured target CC was untouched on this clip,
+							// so confirming a "capture" would claim a snapshot that never happened
+							if (MIDIMacro::capture(clip, macroIndex, toMax)) {
+								display->displayPopup(
+								    deluge::l10n::get(toMax ? deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_TO
+								                            : deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_FROM));
+							}
+						}
+						else {
+							// inactive macros are user-off only: just say so
+							DEF_STACK_STRING_BUF(popup, 24);
+							popup.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
+							    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
+							popup.append(display->haveOLED() ? '\n' : ' ');
+							popup.append("Inactive");
+							display->displayPopup(popup.c_str());
+						}
+						return true;
+					}
+					// The BROWSE pad (0,5) opens the load-preset browser and the RECORD pad (0,4) the
+					// save-preset browser for this macro.
+					if ((x == kMacroPresetLoadShortcutX && y == kMacroPresetLoadShortcutY)
+					    || (x == kMacroPresetSaveShortcutX && y == kMacroPresetSaveShortcutY)) {
+						MIDIMacro::presetMacroIndex = macroIndex;
+						if (y == kMacroPresetSaveShortcutY) {
+							openUI(&saveMacroPresetUI);
+						}
+						else {
+							openUI(&loadMacroPresetUI);
+						}
+						return true;
+					}
 				}
 				// toggle interpolation on / off
 				// not relevant for note editor because interpolation doesn't apply to note params
 				if ((x == kInterpolationShortcutX && y == kInterpolationShortcutY)) {
 					return automationEditorLayoutModControllable.toggleAutomationInterpolation();
 				}
-				// toggle pad selection on / off (moved to (15,3) under the macro layout)
+				// toggle pad selection on / off
 				// not relevant for note editor because pad selection mode was deemed unnecessary
-				int32_t padSelectionX = macroLayout ? 15 : kPadSelectionShortcutX;
-				int32_t padSelectionY = macroLayout ? 3 : kPadSelectionShortcutY;
-				if (inAutomationEditor() && (x == padSelectionX && y == padSelectionY)) {
+				if (inAutomationEditor() && (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY)) {
 					return automationEditorLayoutModControllable.toggleAutomationPadSelectionMode(
 					    modelStackWithParam, effectiveLength, xScroll, xZoom);
 				}
@@ -2606,29 +2656,18 @@ bool AutomationView::toggleMacroLaneActive() {
 		return false; // not a macro lane - let the encoder press do its normal job
 	}
 	MIDIMacro::Macro* macros = instrument->macros;
-	if (!macros[macroIndex].active) {
-		// activation is blocked while a target CC is owned by another active macro
-		uint8_t conflictCC = 0;
-		int32_t owner = MIDIMacro::findActiveConflict(macros, macroIndex, &conflictCC);
-		if (owner >= 0) {
-			MIDIMacro::showCCConflictPopup(conflictCC, owner);
-			return true;
-		}
-		macros[macroIndex].active = true;
-		// brief confirmation, e.g. "Macro 1" / "Active"
-		DEF_STACK_STRING_BUF(popup, 24);
-		popup.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
-		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
-		popup.append(display->haveOLED() ? '\n' : ' ');
-		popup.append("Active");
-		display->displayPopup(popup.c_str());
-	}
-	else {
-		macros[macroIndex].active = false;
-		// no popup needed: the lane display now shows "(Inactive)" persistently
-	}
-	instrument->editedByUser = true;
-	renderDisplay(); // refresh the lane name so the (Inactive) suffix appears/disappears
+	// flips the flag and re-bakes any contested CC lane whose ownership moves with it
+	MIDIMacro::setMacroActive(getCurrentClip(), macroIndex, !macros[macroIndex].active);
+	// brief confirmation, e.g. "Macro 1" / "Active"
+	DEF_STACK_STRING_BUF(popup, 24);
+	popup.append(deluge::l10n::get(
+	    static_cast<deluge::l10n::String>(util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
+	popup.append(display->haveOLED() ? '\n' : ' ');
+	popup.append(macros[macroIndex].active ? "Active" : "Inactive");
+	display->displayPopup(popup.c_str());
+	renderDisplay();        // refresh the lane name so the (Inactive) suffix appears/disappears
+	blinkShortcuts();       // start/stop the capture-pad blinking to match the new active state
+	view.setModLedStates(); // conflicted targets' LEDs start/stop blinking with the active state
 	return true;
 }
 
@@ -2832,7 +2871,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			heldTargetPendingCC =
 			    std::clamp<int32_t>((int32_t)heldTargetPendingCC + offset, -1, MIDIMacro::kMaxTargetCC);
 			uint8_t pendingCC = (heldTargetPendingCC < 0) ? MIDIMacro::kTargetCCNone : (uint8_t)heldTargetPendingCC;
-			// If an earlier target owns this CC, this one would be shadowed (inert): show who owns it
+			// If another target owns this CC, this one would be shadowed (inert): show who owns it
 			// and keep the LED dark. showTargetFull handles the shadowed readout itself.
 			showTargetFull(instrument, macroIndex, heldTarget, pendingCC);
 			bool wouldDrive =
@@ -2876,12 +2915,8 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	else if (outputType == OutputType::MIDI_OUT) {
 		selectMIDICC(offset, clip);
 		getLastSelectedParamShortcut(clip);
-		// landing on a macro lane that can't be activated (its CC is owned by another active macro):
-		// say why, so it's clear the macro won't fire live even though its lane is editable
-		if (MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
-			MIDIMacro::showMacroInactivePopup(MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID));
-		}
 		// on a macro lane the mod-button LEDs show which targets are assigned - refresh per lane
+		// (an inactive lane already says "(Inactive)" in its name, and shadowed targets blink)
 		view.setModLedStates();
 	}
 	// if you're in arranger view or in a non-midi, non-cv clip (e.g. audio, synth, kit)
@@ -3570,6 +3605,23 @@ void AutomationView::blinkShortcuts() {
 	else {
 		resetPadSelectionShortcutBlinking();
 	}
+	// blink the two capture pads while an active macro lane is in view, to advertise that
+	// Capture From/To are available there
+	bool macroLaneActive = false;
+	if (getCurrentUI() == &automationView && inAutomationEditor() && !onArrangerView) {
+		int32_t macroIndex = 0;
+		MIDIInstrument* macroInstrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
+		macroLaneActive =
+		    macroInstrument != nullptr && macroInstrument->macrosEnabled && macroInstrument->macros[macroIndex].active;
+	}
+	if (macroLaneActive) {
+		if (!macroCaptureShortcutBlinking) {
+			blinkMacroCaptureShortcuts();
+		}
+	}
+	else {
+		resetMacroCaptureShortcutBlinking();
+	}
 	if (inNoteEditor()) {
 		if (!instrumentClipView.noteRowBlinking) {
 			instrumentClipView.blinkSelectedNoteRow();
@@ -3585,6 +3637,7 @@ void AutomationView::resetShortcutBlinking() {
 	resetParameterShortcutBlinking();
 	resetInterpolationShortcutBlinking();
 	resetPadSelectionShortcutBlinking();
+	resetMacroCaptureShortcutBlinking();
 	instrumentClipView.resetSelectedNoteRowBlinking();
 }
 
@@ -3617,16 +3670,26 @@ void AutomationView::resetPadSelectionShortcutBlinking() {
 }
 
 void AutomationView::blinkPadSelectionShortcut() {
-	// Blink the pad the toggle actually lives on: (15,3) under the macro layout (MIDI clip + feature
-	// on), otherwise the default (0,7). Keep this in sync with shortcutPadAction().
-	bool macroLayout =
-	    MIDIMacro::isEnabled() && inAutomationEditor() && getCurrentClip()->output->type == OutputType::MIDI_OUT;
-	if (macroLayout) {
-		PadLEDs::flashMainPad(15, 3);
-	}
-	else {
-		PadLEDs::flashMainPad(kPadSelectionShortcutX, kPadSelectionShortcutY);
-	}
+	PadLEDs::flashMainPad(kPadSelectionShortcutX, kPadSelectionShortcutY);
 	uiTimerManager.setTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK, 3000);
 	padSelectionShortcutBlinking = true;
+}
+
+// used to blink the Capture From/To pads while an active macro lane is in view
+void AutomationView::resetMacroCaptureShortcutBlinking() {
+	uiTimerManager.unsetTimer(TimerName::MACRO_CAPTURE_SHORTCUT_BLINK);
+	macroCaptureShortcutBlinking = false;
+}
+
+void AutomationView::blinkMacroCaptureShortcuts() {
+	// A UI opened on top (the preset browsers open right from these pads) owns the pad grid: stop
+	// instead of flashing over it. blinkShortcuts() re-arms the blink when focus returns here.
+	if (getCurrentUI() != &automationView) {
+		resetMacroCaptureShortcutBlinking();
+		return;
+	}
+	PadLEDs::flashMainPad(kMacroCaptureFromShortcutX, kMacroCaptureShortcutY);
+	PadLEDs::flashMainPad(kMacroCaptureToShortcutX, kMacroCaptureShortcutY);
+	uiTimerManager.setTimer(TimerName::MACRO_CAPTURE_SHORTCUT_BLINK, 3000);
+	macroCaptureShortcutBlinking = true;
 }

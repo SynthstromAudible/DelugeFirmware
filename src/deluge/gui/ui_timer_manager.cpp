@@ -131,6 +131,10 @@ void UITimerManager::routine() {
 					automationView.blinkPadSelectionShortcut();
 					break;
 
+				case TimerName::MACRO_CAPTURE_SHORTCUT_BLINK:
+					automationView.blinkMacroCaptureShortcuts();
+					break;
+
 				case TimerName::NOTE_ROW_BLINK:
 					instrumentClipView.blinkSelectedNoteRow();
 					break;

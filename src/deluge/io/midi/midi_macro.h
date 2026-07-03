@@ -71,7 +71,7 @@ struct Macro {
 	LearnedMIDI source;     // external-CC source (when sourceKnob < 0)
 	int8_t sourceKnob = -1; // instead of a CC, one of the 2 physical gold knobs (0 or 1) can be the source; -1 = none
 	uint8_t sourceKnobPos = 0; // live 0..kMaxValue position a gold-knob source accumulates into (not serialized)
-	bool active = false;       // off by default; the macro fires only when active (and the feature is enabled)
+	bool active = true;        // on by default; the macro fires only when active (and the feature is enabled)
 	MacroTargetSlot targets[kNumTargetSlots];
 };
 
@@ -85,38 +85,32 @@ bool isEnabled();
 int32_t findTargetCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot,
                           int32_t* slotOut = nullptr);
 
-// The OWNER of a destination CC is the first target (scanning macros, then slots) that targets it.
-// A later target on the same CC is SHADOWED: it keeps the CC in its config (and the UI warns), but
-// it is inert - it neither bakes automation nor sends live - so exactly one target ever drives a CC.
-// Returns the macro of the earlier-scan target that would shadow macros[macroIndex].targets[slot]
-// if it targeted `cc`, or -1 if that position would be the owner.
+// The OWNER of a destination CC is the target that drives it - it alone bakes automation and sends
+// live, so exactly one target ever drives a CC. Ownership ranks targets of ACTIVE macros above
+// inactive ones (an inactive macro must never block an active one from driving), then scan order
+// (macros, then slots) breaks ties. Every other target on the same CC is SHADOWED: it keeps the CC
+// in its config (and the UI warns), but it is inert. Because rank depends on `active`, flipping a
+// macro's active flag can hand a contested CC between macros - use setMacroActive() for that, which
+// re-bakes accordingly. Returns the macro owning `cc` if macros[macroIndex].targets[slot] holding
+// it would be shadowed, or -1 if that position would be the owner (cc may be a pending value the
+// slot doesn't hold yet).
 int32_t findShadowingOwner(const Macro* macros, uint8_t cc, int32_t macroIndex, int32_t slot);
 inline bool isTargetShadowed(const Macro* macros, int32_t macroIndex, int32_t slot) {
 	uint8_t cc = macros[macroIndex].targets[slot].cc;
 	return cc != kTargetCCNone && findShadowingOwner(macros, cc, macroIndex, slot) >= 0;
 }
 
-// Shows a "<dest> used by Macro <ownerMacro+1>" popup (dest = device CC name or "CC n") - shared by
-// the target editor, preset load and the Active toggle so the wording is identical everywhere.
-// `persistent` keeps it up until cancelPopup() (used while a quick-edit button is held).
+// True when an assigned target won't drive its CC (it isn't the CC's owner). These are the targets
+// the UI flags with a blinking target-button LED.
+bool targetHasConflict(const Macro* macros, int32_t macroIndex, int32_t slot);
+
+// Shows a "<dest> used by Macro <ownerMacro+1>" popup (dest = device CC name or "CC n"), used by the
+// quick-edit target readout when the held slot is shadowed. `persistent` keeps it up until
+// cancelPopup() (used while a quick-edit button is held).
 void showCCConflictPopup(uint8_t cc, int32_t ownerMacro, bool persistent = false);
 
-// If macroIndex is inactive because a target CC is owned by another active macro, flashes an
-// "Inactive / <dest> used by / Macro N" status and returns true; otherwise returns false. Shown when a
-// macro lane is selected in automation view so you can see why it won't fire live.
-bool showMacroInactivePopup(int32_t macroIndex);
-
-// Returns the index of an *active* macro (other than macroIndex) in this instrument's macros that owns
-// one of macroIndex's target CCs, or -1 if none; if non-null, *conflictCC receives the shared CC. A
-// macro may not be made active while such a conflict exists (two active macros would fight over the
-// shared CC); duplicate CCs are otherwise allowed to sit dormant.
-int32_t findActiveConflict(const Macro* macros, int32_t macroIndex, uint8_t* conflictCC = nullptr);
-inline bool macroHasActiveConflict(const Macro* macros, int32_t macroIndex) {
-	return findActiveConflict(macros, macroIndex) >= 0;
-}
-
-// True if any of the four macros is configured (a learned source, a target CC set, or active).
-// Gates serialization so an all-default instrument writes nothing.
+// True if any of the four macros deviates from its defaults (a learned source, a target CC set,
+// or deactivated). Gates serialization so an all-default instrument writes nothing.
 bool anyMacroConfigured(Macro* macros);
 
 // Folder for per-macro preset files under SETTINGS. Presets are portable target configs, shared.
@@ -157,6 +151,12 @@ void reFanTarget(Clip* clip, int32_t macroIndex, int32_t slot, Action* action);
 // Both writes are snapshotted into one undo action, so BACK restores any automation this replaced.
 void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC);
 
+// Flips macros[macroIndex].active. Ownership of a duplicated CC ranks active macros first, so a
+// flip can hand a contested CC between macros: the old owner's bake is cleared and the new owner's
+// re-baked (one undoable action), mirroring changeTargetCC()'s handoff when a target leaves a CC.
+// Always flip `active` through this rather than writing the field.
+void setMacroActive(Clip* clip, int32_t macroIndex, bool active);
+
 // Serializes/deserializes an instrument's macros (and its enable gate) as a <midiMacros> block within
 // the instrument's own XML. Reused for both the song file and standalone instrument presets.
 void writeMacrosToFile(Serializer& writer, Macro* macros, bool enabled);
@@ -165,14 +165,15 @@ void readMacrosFromFile(Deserializer& reader, Macro* macros, bool& enabled);
 // Save/load a preset: a macro's targets only (not its source or active state), so a preset is a
 // portable target configuration applicable to any macro. writeMacroPreset() writes the body between
 // the browser's createXMLFile() and closeFileAfterWriting(); loadMacroPreset() replaces
-// macros[macroIndex]'s targets (keeping its source), clears baked lanes left on replaced CCs and
-// re-bakes the macro lane into the new set on `clip`. If the loaded targets conflict with an active
-// macro, the loaded macro is deactivated rather than losing CCs.
+// macros[macroIndex]'s targets (keeping its source and active state), clears baked lanes left on
+// replaced CCs and re-bakes the macro lane into the new set on `clip`. Loaded CCs another macro
+// also targets resolve by the usual ownership rank (shadowed slots warn via the target LEDs).
 void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex);
 Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroIndex);
 
-// Captures the current live value of each configured target CC on the active MIDI clip into that
-// target's from (toMax=false, capture A) or to (toMax=true, capture B). The source CC then morphs
-// the targets between the two via the sendToTargets() interpolation.
-void capture(int32_t macroIndex, bool toMax);
+// Snapshots the current value of each configured target CC on `clip` into that target's from
+// (toMax=false, "Capture From") or to (toMax=true, "Capture To"). The source then morphs the targets
+// between the two captured states. Targets whose CC has never been touched on this clip (no param
+// exists, so no known value) keep their existing from/to. Returns whether anything was captured.
+bool capture(Clip* clip, int32_t macroIndex, bool toMax);
 }; // namespace MIDIMacro

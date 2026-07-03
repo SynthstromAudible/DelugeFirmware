@@ -30,12 +30,10 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
-#include "gui/ui/load/load_macro_preset_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_kit_row_ui.h"
-#include "gui/ui/save/save_macro_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -51,7 +49,6 @@
 #include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "io/midi/midi_macro.h"
 #include "io/midi/midi_transpose.h"
 #include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
@@ -1855,25 +1852,6 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 	if (x < kDisplayWidth) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
-		// MIDI macro capture shortcuts (MIDI clips only), acting on Macro 1. These four pads are
-		// inert osc/sample shortcuts on a MIDI clip, so we repurpose SHIFT + them:
-		//   (0,7)/(1,7) capture the current target CC values as capture A/B (from/to);
-		//   (0,5)/(1,5) load/save the macro as a preset file.
-		if (velocity && Buttons::isShiftButtonPressed() && getCurrentOutputType() == OutputType::MIDI_OUT
-		    && MIDIMacro::isEnabled()) {
-			if (y == 7 && (x == 0 || x == 1)) {
-				MIDIMacro::capture(0, /*toMax=*/x == 1);
-				display->displayPopup(deluge::l10n::get(x == 1 ? deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_B
-				                                               : deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_A));
-				return ActionResult::DEALT_WITH;
-			}
-			if (y == 5 && (x == 0 || x == 1)) {
-				MIDIMacro::presetMacroIndex = 0;
-				openUI(x == 0 ? static_cast<UI*>(&loadMacroPresetUI) : static_cast<UI*>(&saveMacroPresetUI));
-				return ActionResult::DEALT_WITH;
-			}
 		}
 
 		// Perhaps the user wants to enter the SoundEditor via a shortcut. They can do this by holding an audition pad

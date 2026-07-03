@@ -37,6 +37,7 @@
 #include "modulation/midi/midi_param_vector.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
+#include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 #include "util/d_stringbuf.h"
 #include "util/misc.h"
@@ -77,22 +78,65 @@ int32_t findTargetCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, 
 	return -1;
 }
 
+// Ownership rank of a target position: targets of ACTIVE macros outrank inactive ones (an inactive
+// macro must never block an active one from driving a CC), then scan order (macro, then slot)
+// breaks ties. Lower rank wins. Packed so the active bit dominates: macro fits in 2 bits (4
+// macros), slot in 3 (8 slots).
+static inline int32_t targetRank(const Macro* macros, int32_t m, int32_t f) {
+	return ((macros[m].active ? 0 : 1) << 8) | (m << 3) | f;
+}
+
+// The target that owns (drives) `cc` under the rank order above, or -1 if nothing targets it; if
+// non-null, *slotOut receives the owning slot.
+static int32_t findCCOwner(const Macro* macros, uint8_t cc, int32_t* slotOut) {
+	if (cc == kTargetCCNone) {
+		return -1;
+	}
+	int32_t owner = -1;
+	int32_t bestRank = 0;
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		for (int32_t f = 0; f < kNumTargetSlots; f++) {
+			if (macros[m].targets[f].cc != cc) {
+				continue;
+			}
+			int32_t rank = targetRank(macros, m, f);
+			if (owner < 0 || rank < bestRank) {
+				owner = m;
+				bestRank = rank;
+				if (slotOut != nullptr) {
+					*slotOut = f;
+				}
+			}
+		}
+	}
+	return owner;
+}
+
 int32_t findShadowingOwner(const Macro* macros, uint8_t cc, int32_t macroIndex, int32_t slot) {
 	if (cc == kTargetCCNone) {
 		return -1;
 	}
-	// Scan in ownership order (macros, then slots); anything at or after our own position can't shadow us.
+	// (macroIndex, slot) itself is skipped rather than matched: `cc` may be a pending value the
+	// slot doesn't hold yet, and this answers "would this position holding cc be the owner?".
+	int32_t ourRank = targetRank(macros, macroIndex, slot);
+	int32_t owner = -1;
+	int32_t bestRank = ourRank;
 	for (int32_t m = 0; m < kNumMacros; m++) {
 		for (int32_t f = 0; f < kNumTargetSlots; f++) {
 			if (m == macroIndex && f == slot) {
-				return -1;
+				continue;
 			}
-			if (macros[m].targets[f].cc == cc) {
-				return m;
+			if (macros[m].targets[f].cc != cc) {
+				continue;
+			}
+			int32_t rank = targetRank(macros, m, f);
+			if (rank < bestRank) {
+				owner = m;
+				bestRank = rank;
 			}
 		}
 	}
-	return -1;
+	return owner;
 }
 
 // Appends a destination CC's label: the active MIDI instrument's device name if loaded, else "CC <n>".
@@ -134,54 +178,15 @@ void showCCConflictPopup(uint8_t cc, int32_t ownerMacro, bool persistent) {
 	}
 }
 
-bool showMacroInactivePopup(int32_t macroIndex) {
-	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
-		return false;
-	}
-	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
-	if (instrument->macros[macroIndex].active) {
-		return false; // active -> nothing to explain
-	}
-	uint8_t conflictCC = 0;
-	int32_t owner = findActiveConflict(instrument->macros, macroIndex, &conflictCC);
-	if (owner < 0) {
-		return false; // inactive but activatable -> no conflict to report
-	}
-	// "Inactive" / "<dest> used by" / "Macro N"
-	DEF_STACK_STRING_BUF(popup, 56);
-	popup.append("Inactive");
-	popup.append(display->haveOLED() ? '\n' : ' ');
-	appendCCUsedBy(popup, conflictCC, owner);
-	display->displayPopup(popup.c_str());
-	return true;
-}
-
-int32_t findActiveConflict(const Macro* macros, int32_t macroIndex, uint8_t* conflictCC) {
-	for (const MacroTargetSlot& target : macros[macroIndex].targets) {
-		if (target.cc == kTargetCCNone) {
-			continue;
-		}
-		for (int32_t m = 0; m < kNumMacros; m++) {
-			if (m == macroIndex || !macros[m].active) {
-				continue;
-			}
-			for (const MacroTargetSlot& other : macros[m].targets) {
-				if (other.cc == target.cc) {
-					if (conflictCC != nullptr) {
-						*conflictCC = target.cc;
-					}
-					return m;
-				}
-			}
-		}
-	}
-	return -1;
+bool targetHasConflict(const Macro* macros, int32_t macroIndex, int32_t slot) {
+	// Active-aware ranking makes shadowing cover both conflict flavors: a duplicate outranked among
+	// active macros, and - for an inactive macro - any active macro holding the CC.
+	return isTargetShadowed(macros, macroIndex, slot);
 }
 
 bool anyMacroConfigured(Macro* macros) {
 	for (int32_t m = 0; m < kNumMacros; m++) {
-		if (macros[m].active || macros[m].source.containsSomething() || macros[m].sourceKnob >= 0) {
+		if (!macros[m].active || macros[m].source.containsSomething() || macros[m].sourceKnob >= 0) {
 			return true;
 		}
 		for (const MacroTargetSlot& target : macros[m].targets) {
@@ -228,7 +233,7 @@ static void sendToTargets(MIDIInstrument* instrument, Clip* clip, ModelStackWith
 		if (target.cc == kTargetCCNone || !target.send) {
 			continue;
 		}
-		// A shadowed target (its CC is owned by an earlier target) is inert - only the owner drives.
+		// A shadowed target (another target owns its CC) is inert - only the owner drives.
 		if (isTargetShadowed(instrument->macros, macroIndex, slot)) {
 			continue;
 		}
@@ -339,6 +344,18 @@ bool tryModeKnobMacro(int32_t whichKnob, int32_t offset) {
 	if (!macro.active) {
 		return false; // inactive macro: let the knob keep its normal behavior
 	}
+	// An active macro with no targets must not consume the knob either: macros are active by
+	// default, so without this a track that never opted in would lose both gold knobs on this row.
+	bool anyTarget = false;
+	for (const MacroTargetSlot& target : macro.targets) {
+		if (target.cc != kTargetCCNone) {
+			anyTarget = true;
+			break;
+		}
+	}
+	if (!anyTarget) {
+		return false;
+	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -391,8 +408,8 @@ static void writeMacroToFile(Serializer& writer, Macro& macro) {
 		writer.writeAttribute("sourceKnob", macro.sourceKnob, false); // gold-knob source rides on the tag
 	}
 
-	// Self-close empty macros (<macro active="0"/>). The XML reader mis-parses an empty but
-	// explicitly-closed element that carries an attribute (<macro active="0"></macro>), which
+	// Self-close empty macros (<macro active="1"/>). The XML reader mis-parses an empty but
+	// explicitly-closed element that carries an attribute (<macro active="1"></macro>), which
 	// desyncs the rest of the file; a self-closing tag avoids that. Macros must stay positional
 	// (slot 0..3 = macro index), so we always write all of them rather than skipping empties.
 	if (!hasChildren) {
@@ -502,8 +519,8 @@ void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex) {
 }
 
 // Loads a preset's targets into macros[macroIndex], replacing that macro's targets only and
-// leaving its source and active state untouched. If the loaded targets conflict with an active
-// macro, the loaded macro is deactivated (its CCs are kept), since destination CCs must be unique.
+// leaving its source and active state untouched. Loaded CCs that another macro also targets
+// resolve by ownership rank; the fan-out below only bakes the slots this macro owns.
 Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroIndex) {
 	Error error = StorageManager::openXMLFile(fp, smDeserializer, MIDI_MACRO_PRESET_TAG);
 	if (error != Error::NONE) {
@@ -532,10 +549,6 @@ Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroI
 		reader.exitTag();
 	}
 	activeDeserializer->closeWriter();
-
-	if (macros[macroIndex].active && macroHasActiveConflict(macros, macroIndex)) {
-		macros[macroIndex].active = false;
-	}
 
 	// Clear baked lanes on CCs the preset dropped, then re-bake the macro lane into the new set.
 	ParamCollectionSummary* summary;
@@ -568,42 +581,66 @@ Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroI
 	return Error::NONE;
 }
 
-void capture(int32_t macroIndex, bool toMax) {
-	// Same guards/setup as tryMacro(): need a stable active MIDI clip.
-	if (getCurrentUI() == &loadSongUI) {
-		return;
+// The expression pseudo-CCs (bend/aftertouch/Y) live in the clip's ExpressionParamSet, not its MIDI
+// param collection; returns the dimension index, or -1 for a real CC. Same mapping as
+// MIDIInstrument::getParamToControlFromInputMIDIChannel - the path sendToTargets() writes through.
+static int32_t expressionDimensionFromCC(uint8_t cc) {
+	switch (cc) {
+	case CC_NUMBER_PITCH_BEND:
+		return 0;
+	case CC_NUMBER_Y_AXIS:
+		return 1;
+	case CC_NUMBER_AFTERTOUCH:
+		return 2;
+	default:
+		return -1;
 	}
-	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	if (!clip || !clip->output || clip->output->type != OutputType::MIDI_OUT) {
-		return;
-	}
-	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
+}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+bool capture(Clip* clip, int32_t macroIndex, bool toMax) {
+	if (getCurrentUI() == &loadSongUI) {
+		return false;
+	}
+	MIDIInstrument* instrument = midiClipInstrument(clip);
+	if (!instrument) {
+		return false;
+	}
+	ParamCollectionSummary* summary;
+	MIDIParamCollection* coll = getMIDIParams(clip, &summary);
+	if (!coll) {
+		return false;
+	}
 
 	bool changed = false;
 	for (MacroTargetSlot& target : instrument->macros[macroIndex].targets) {
 		if (target.cc == kTargetCCNone) {
 			continue;
 		}
-		// Read this CC's current live value - the inverse of the write in sendToTargets().
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStackWithTimelineCounter->addNoteRow(0, nullptr)
-		        ->addOtherTwoThings(instrument->toModControllable(), instrument->getParamManager(currentSong));
-		ModelStackWithAutoParam* modelStackWithParam =
-		    instrument->getParamToControlFromInputMIDIChannel(target.cc, modelStackWithThreeMainThings);
-		if (!modelStackWithParam->autoParam) {
+		// Read this CC's current value on THIS clip - the inverse of the write in sendToTargets(). A
+		// CC that's never been moved/recorded here has no param (and no known value): leave its
+		// endpoint alone rather than capturing a made-up default.
+		AutoParam* param = nullptr;
+		MIDIParam* midiParam = coll->params.getParamFromCC(target.cc);
+		if (midiParam) {
+			param = &midiParam->param;
+		}
+		else {
+			int32_t dimension = expressionDimensionFromCC(target.cc);
+			ExpressionParamSet* expression = (dimension >= 0) ? clip->paramManager.getExpressionParamSet() : nullptr;
+			if (expression) {
+				param = &expression->params[dimension];
+			}
+		}
+		if (!param) {
 			continue;
 		}
-		int32_t value = bigValueToCC(modelStackWithParam->autoParam->getCurrentValue());
-		(toMax ? target.to : target.from) = value;
+		(toMax ? target.to : target.from) = (uint8_t)bigValueToCC(param->getCurrentValue());
 		changed = true;
 	}
 	if (changed) {
 		instrument->editedByUser = true;
 	}
+	return changed;
 }
 
 // The clip's own MIDI param collection - where both real-CC and macro-lane params live. Baking always
@@ -781,11 +818,12 @@ void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC)
 	        ->addNoteRow(0, nullptr)
 	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
 
-	// Deal with the CC we left: if another target still targets it, hand ownership over (it may have
-	// been shadowed by us - re-bake it); otherwise clear our bake so it doesn't play as a ghost lane.
+	// Deal with the CC we left: if another target still targets it, hand ownership to whichever one
+	// now ranks first (it may have been shadowed by us - re-bake it); otherwise clear our bake so it
+	// doesn't play as a ghost lane. target.cc is already reassigned, so findCCOwner excludes us.
 	if (oldCC != kTargetCCNone) {
 		int32_t ownerSlot = 0;
-		int32_t ownerMacro = findTargetCCOwner(instrument->macros, oldCC, macroIndex, slot, &ownerSlot);
+		int32_t ownerMacro = findCCOwner(instrument->macros, oldCC, &ownerSlot);
 		MIDIParam* oldParam = coll->params.getParamFromCC(oldCC);
 		if (oldParam) {
 			ModelStackWithAutoParam* modelStackWithParam =
@@ -798,8 +836,8 @@ void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC)
 		}
 	}
 
-	// Bake the macro curve into the new CC - unless an earlier target owns it (we're shadowed: keep
-	// the config but leave the owner's lane alone; the UI shows the conflict and keeps our LED off).
+	// Bake the macro curve into the new CC - unless another target outranks us there (we're shadowed:
+	// keep the config but leave the owner's lane alone; the UI shows the conflict and keeps our LED off).
 	if (newCC != kTargetCCNone && findShadowingOwner(instrument->macros, newCC, macroIndex, slot) < 0) {
 		if (target.send) {
 			coll->params.getOrCreateParamFromCC(newCC, 0); // create before taking the source pointer
@@ -812,6 +850,85 @@ void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC)
 	}
 
 	view.setModLedStates(); // the mod-button LEDs show target assignment while a macro lane is shown
+}
+
+void setMacroActive(Clip* clip, int32_t macroIndex, bool active) {
+	MIDIInstrument* instrument = midiClipInstrument(clip);
+	if (!instrument) {
+		return;
+	}
+	Macro* macros = instrument->macros;
+	if (macros[macroIndex].active == active) {
+		return;
+	}
+
+	// Ownership ranks active macros above inactive ones, so flipping `active` can hand this macro's
+	// duplicated CCs to/from another targeter. Record the pre-flip owners to detect the transfers.
+	int32_t oldOwnerMacros[kNumTargetSlots];
+	int32_t oldOwnerSlots[kNumTargetSlots];
+	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
+		oldOwnerSlots[slot] = 0;
+		oldOwnerMacros[slot] = findCCOwner(macros, macros[macroIndex].targets[slot].cc, &oldOwnerSlots[slot]);
+	}
+
+	macros[macroIndex].active = active;
+	instrument->editedByUser = true;
+
+	ParamCollectionSummary* summary;
+	MIDIParamCollection* coll = getMIDIParams(clip, &summary);
+	if (!coll) {
+		return;
+	}
+
+	Action* action = nullptr;
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithThreeMainThings* three =
+	    modelStack->addTimelineCounter(clip)
+	        ->addNoteRow(0, nullptr)
+	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
+
+	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
+		uint8_t cc = macros[macroIndex].targets[slot].cc;
+		if (cc == kTargetCCNone) {
+			continue;
+		}
+		// duplicates of the CC within this macro share one lane - handle each CC once
+		bool alreadyHandled = false;
+		for (int32_t prev = 0; prev < slot; prev++) {
+			if (macros[macroIndex].targets[prev].cc == cc) {
+				alreadyHandled = true;
+				break;
+			}
+		}
+		if (alreadyHandled) {
+			continue;
+		}
+		int32_t newOwnerSlot = 0;
+		int32_t newOwnerMacro = findCCOwner(macros, cc, &newOwnerSlot);
+		if (newOwnerMacro == oldOwnerMacros[slot] && newOwnerSlot == oldOwnerSlots[slot]) {
+			continue; // same owner as before the flip - its bake already stands
+		}
+		// The CC changed hands. Clear the old owner's bake first (only if that macro ever baked -
+		// same ghost-lane rule as changeTargetCC), then promote the new owner's; if the new owner's
+		// lane was never automated, the CC simply stays clear.
+		if (oldOwnerMacros[slot] >= 0 && coll->params.getParamFromCC(paramIDForMacro(oldOwnerMacros[slot]))) {
+			MIDIParam* param = coll->params.getParamFromCC(cc);
+			if (param) {
+				if (!action) {
+					action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
+				}
+				ModelStackWithAutoParam* modelStackWithParam =
+				    three->addParamCollectionAndId(coll, summary, cc)->addAutoParam(&param->param);
+				param->param.deleteAutomation(action, modelStackWithParam, false);
+				refreshAutomationGridIfShowingCC(clip, cc);
+			}
+		}
+		if (!action) {
+			action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
+		}
+		reFanTarget(clip, newOwnerMacro, newOwnerSlot, action);
+	}
 }
 
 } // namespace MIDIMacro

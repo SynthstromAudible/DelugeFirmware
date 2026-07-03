@@ -163,6 +163,7 @@ public:
 	// public so uiTimerManager and editor layouts can access it
 	void blinkInterpolationShortcut();
 	void blinkPadSelectionShortcut();
+	void blinkMacroCaptureShortcuts();
 
 	// public so menu and editor layouts can access it
 	bool onMenuView;
@@ -174,6 +175,7 @@ public:
 	void resetInterpolationShortcutBlinking();
 	void initPadSelection();
 	void resetPadSelectionShortcutBlinking();
+	void resetMacroCaptureShortcutBlinking();
 
 	AutomationParamType automationParamType;
 	bool getAffectEntire() override;
@@ -264,6 +266,7 @@ private:
 	bool parameterShortcutBlinking;
 	bool interpolationShortcutBlinking;
 	bool padSelectionShortcutBlinking;
+	bool macroCaptureShortcutBlinking;
 
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 

@@ -1671,22 +1671,35 @@ void View::setModLedStates() {
 			indicator_leds::blinkLed(indicator_leds::modLed[i]);
 		}
 		// if you're in the Automation View Automation Editor, turn off Mod LED's - except on a MIDI
-		// macro lane, where the 8 buttons are the target quick-editors: light the assigned ones so
-		// the LEDs show which targets of THIS macro have a destination CC
+		// macro lane, where the 8 buttons are the target quick-editors. Tri-state: dark = no
+		// destination CC, solid = assigned and actually driving it, blinking = assigned but
+		// conflicted (shadowed, or its CC held by another active macro) - the ones needing attention
 		else if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
 			bool targetAssigned = false;
+			bool targetConflicted = false;
 			if (!automationView.onArrangerView) {
 				Clip* clip = getCurrentClip();
-				if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT
+				if (MIDIMacro::isEnabled() && clip && clip->output && clip->output->type == OutputType::MIDI_OUT
 				    && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
 					MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 					int32_t macroIndex = MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID);
-					// lit = has a destination AND actually drives it (a shadowed duplicate stays dark)
-					targetAssigned = midiInstrument->macros[macroIndex].targets[i].cc != MIDIMacro::kTargetCCNone
-					                 && !MIDIMacro::isTargetShadowed(midiInstrument->macros, macroIndex, i);
+					if (midiInstrument->macros[macroIndex].targets[i].cc != MIDIMacro::kTargetCCNone) {
+						targetConflicted = MIDIMacro::targetHasConflict(midiInstrument->macros, macroIndex, i);
+						targetAssigned = !targetConflicted;
+					}
 				}
 			}
-			indicator_leds::setLedState(indicator_leds::modLed[i], targetAssigned);
+			if (targetConflicted) {
+				// only start a blink if one isn't already running: each blinkLed() call resets the
+				// SHARED type-0 blink phase to ON, so re-blinking up to 8 LEDs on every update here
+				// would pin every type-0 blinking LED (session/clip-view etc.) visibly solid
+				if (indicator_leds::getLedBlinkerIndex(indicator_leds::modLed[i]) == 255) {
+					indicator_leds::blinkLed(indicator_leds::modLed[i]);
+				}
+			}
+			else {
+				indicator_leds::setLedState(indicator_leds::modLed[i], targetAssigned);
+			}
 		}
 		// otherwise update mod led's to reflect current mod led selection
 		else {

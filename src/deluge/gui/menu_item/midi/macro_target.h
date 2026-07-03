@@ -287,8 +287,9 @@ private:
 	int32_t slot;
 };
 
-// Per-macro Active toggle - whether this macro participates while the instrument's macros are enabled.
-// A macro can't be activated while one of its target CCs is owned by another active macro.
+// Per-macro Active toggle - whether this macro participates while the instrument's macros are
+// enabled. Duplicate target CCs never block the toggle: ownership (active macros first, then scan
+// order) decides who drives a shared CC, and setMacroActive() re-bakes contested lanes on each flip.
 class MacroActive final : public Toggle {
 public:
 	MacroActive(l10n::String newName, int32_t newMacro) : Toggle(newName), macro(newMacro) {}
@@ -298,33 +299,9 @@ public:
 	}
 	void writeCurrentValue() override {
 		MIDIMacro::Macro* m = currentMacros();
-		if (!m) {
-			return;
+		if (m && this->getValue() != m[macro].active) {
+			MIDIMacro::setMacroActive(getCurrentClip(), macro, this->getValue());
 		}
-		bool want = this->getValue();
-		if (want && MIDIMacro::macroHasActiveConflict(m, macro)) {
-			want = false; // refuse activation - a target CC is owned by another active macro
-			this->setValue(false);
-		}
-		if (want != m[macro].active) {
-			m[macro].active = want;
-			markMacroInstrumentEdited();
-		}
-	}
-	MenuItem* selectButtonPress() override {
-		if (soundEditor.getCurrentMenuItem() == this) {
-			return Toggle::selectButtonPress();
-		}
-		// Which active macro (and CC) would block turning this one on - captured before the toggle.
-		MIDIMacro::Macro* m = currentMacros();
-		uint8_t conflictCC = 0;
-		int32_t conflict = (m && !m[macro].active) ? MIDIMacro::findActiveConflict(m, macro, &conflictCC) : -1;
-		MenuItem* result = Toggle::selectButtonPress(); // toggles (writeCurrentValue may block)
-		if (conflict >= 0 && m && !m[macro].active) {
-			// tried to turn on but a CC conflict blocked it, e.g. "CC 16 used by Macro 1"
-			MIDIMacro::showCCConflictPopup(conflictCC, conflict);
-		}
-		return result;
 	}
 
 private:
