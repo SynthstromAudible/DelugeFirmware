@@ -30,6 +30,7 @@
 #include "model/output.h"
 #include "model/song/song.h"
 #include "util/d_stringbuf.h"
+#include "util/misc.h"
 #include <string>
 
 namespace deluge::gui::menu_item::midi {
@@ -146,32 +147,54 @@ private:
 	int32_t macro;
 };
 
-// The CC number of one macro target slot. Menu value 0 = OFF, 1..kMaxTargetCC+1 = CC 0..kMaxTargetCC.
+// The destination of one macro target slot. Menu value 0 = OFF, 1..kMaxTargetCC+1 = CC
+// 0..kMaxTargetCC, then the cascade destinations (the higher-indexed macros this macro may target,
+// shown as plain "Macro N" regardless of any user-given macro name).
 class MacroTarget final : public IntegerWithOff {
 public:
 	MacroTarget(l10n::String newName, int32_t newMacro, int32_t newSlot)
 	    : IntegerWithOff(newName), macro(newMacro), slot(newSlot) {}
-	[[nodiscard]] int32_t getMaxValue() const override { return MIDIMacro::kMaxTargetCC + 1; }
-	// Show the CC number (or OFF) as text instead of a dial, unlike Base/Depth.
+	[[nodiscard]] int32_t getMaxValue() const override {
+		return MIDIMacro::kMaxTargetCC + 1 + MIDIMacro::numCascadeDestinations(macro);
+	}
+	// Show the destination (OFF / CC number / macro) as text instead of a dial, unlike Base/Depth.
 	void renderInHorizontalMenu(const SlotPosition& pos) override {
 		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-		const std::string str = (this->getValue() == 0) ? "OFF" : std::to_string(getDisplayValue());
+		int32_t v = this->getValue();
+		const std::string str = (v == 0) ? "OFF"
+		                        : isCascadeValue(v)
+		                            ? "M" + std::to_string(MIDIMacro::macroIndexFromParamID(valueToDestination(v)) + 1)
+		                            : std::to_string(v - 1);
 		image.drawStringCentered(str.data(), pos.start_x, pos.start_y + kHorizontalMenuSlotYOffset, kTextTitleSpacingX,
 		                         kTextTitleSizeY, pos.width);
 	}
-	// The turn popup: show "OFF" or the CC number, not the raw menu value (0 = OFF, 1 = CC 0, ...).
+	// The turn popup: show "OFF", the CC number or the macro name, not the raw menu value.
 	void getNotificationValue(StringBuf& value) override {
-		if (this->getValue() == 0) {
+		int32_t v = this->getValue();
+		if (v == 0) {
 			value.append("OFF");
 		}
-		else {
-			value.appendInt(getDisplayValue());
+		else if (isCascadeValue(v)) {
+			appendCascadeName(value, v);
 		}
+		else {
+			value.appendInt(v - 1);
+		}
+	}
+	void drawValue() override {
+		int32_t v = this->getValue();
+		if (isCascadeValue(v)) {
+			DEF_STACK_STRING_BUF(text, 12);
+			appendCascadeName(text, v);
+			display->setScrollingText(text.c_str());
+			return;
+		}
+		IntegerWithOff::drawValue();
 	}
 	void readCurrentValue() override {
 		MIDIMacro::Macro* m = currentMacros();
 		uint8_t cc = m ? m[macro].targets[slot].cc : MIDIMacro::kTargetCCNone;
-		this->setValue((cc == MIDIMacro::kTargetCCNone) ? 0 : cc + 1);
+		this->setValue((cc == MIDIMacro::kTargetCCNone) ? 0 : destinationToValue(cc));
 	}
 	void writeCurrentValue() override {
 		MIDIMacro::Macro* m = currentMacros();
@@ -179,23 +202,24 @@ public:
 			return;
 		}
 		int32_t value = this->getValue();
-		uint8_t cc = (value == 0) ? MIDIMacro::kTargetCCNone : value - 1;
+		uint8_t cc = (value == 0) ? MIDIMacro::kTargetCCNone : (uint8_t)valueToDestination(value);
 		if (cc != m[macro].targets[slot].cc) {
-			// clears the old CC's baked lane (no ghost) and bakes the new one, undoably
+			// clears the old destination's baked lane (no ghost) and bakes the new one, undoably
 			MIDIMacro::changeTargetCC(getCurrentClip(), macro, slot, cc);
 			markMacroInstrumentEdited();
 		}
 	}
-	// A destination CC may be duplicated across macros (at most one active macro may own it), so allow
-	// selecting any CC but warn "CC N used by Macro M" when another target already targets it.
+	// A destination may be duplicated across macros (at most one active macro may own it), so allow
+	// selecting any but warn "<dest> used by Macro M" when another target already targets it.
 	void selectEncoderAction(int32_t offset) override {
 		IntegerWithOff::selectEncoderAction(offset); // move + clamp + write + value popup
 		MIDIMacro::Macro* m = currentMacros();
 		int32_t v = this->getValue();
 		if (m && v != 0) {
-			int32_t owner = MIDIMacro::findTargetCCOwner(m, (uint8_t)(v - 1), macro, slot);
+			uint8_t dest = (uint8_t)valueToDestination(v);
+			int32_t owner = MIDIMacro::findTargetCCOwner(m, dest, macro, slot);
 			if (owner >= 0) {
-				MIDIMacro::showCCConflictPopup((uint8_t)(v - 1), owner);
+				MIDIMacro::showCCConflictPopup(dest, owner);
 			}
 		}
 	}
@@ -204,6 +228,22 @@ protected:
 	int32_t getDisplayValue() override { return this->getValue() - 1; }
 
 private:
+	bool isCascadeValue(int32_t value) const { return value > MIDIMacro::kMaxTargetCC + 1; }
+	// menu values past the CC range map onto this macro's allowed cascade destinations
+	int32_t valueToDestination(int32_t value) const {
+		return isCascadeValue(value) ? MIDIMacro::paramIDForMacro(macro) + (value - MIDIMacro::kMaxTargetCC - 1)
+		                             : value - 1;
+	}
+	int32_t destinationToValue(int32_t cc) const {
+		return MIDIMacro::isMacroParamID(cc)
+		           ? MIDIMacro::kMaxTargetCC + 1 + (MIDIMacro::macroIndexFromParamID(cc) - macro)
+		           : cc + 1;
+	}
+	void appendCascadeName(StringBuf& buf, int32_t value) const {
+		buf.append(deluge::l10n::get(
+		    static_cast<deluge::l10n::String>(util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1)
+		                                      + MIDIMacro::macroIndexFromParamID(valueToDestination(value)))));
+	}
 	int32_t macro;
 	int32_t slot;
 };

@@ -58,6 +58,19 @@ inline int32_t paramIDForMacro(int32_t idx) {
 	return kMacroParamIDBase + idx;
 }
 
+// ── Macro Cascade ──
+// A target may point at a HIGHER-indexed macro (via its pseudo-CC lane id) instead of a real CC:
+// the slot scales the source into that macro's input, which then fans out again through its own
+// targets. Strictly one-way (macro N may only target N+1..), so the graph is acyclic and fan-out
+// recursion is bounded. A macro driven this way has its own source shadowed (one feed per macro),
+// and its Active flag mutes its whole downstream branch live (baking follows the lane as usual).
+inline int32_t numCascadeDestinations(int32_t macroIndex) {
+	return kNumMacros - 1 - macroIndex;
+}
+inline bool isValidTargetDestination(int32_t cc, int32_t macroIndex) {
+	return (cc >= 0 && cc <= kMaxTargetCC) || (isMacroParamID(cc) && macroIndexFromParamID(cc) > macroIndex);
+}
+
 // One target CC slot: the source value 0..127 is scaled linearly onto [from, to]:
 //   out = clamp(from + (to - from) * input / 127, 0, 127)
 // Set from > to to invert the response; from == to sends a constant. from/to are the A/B captures.

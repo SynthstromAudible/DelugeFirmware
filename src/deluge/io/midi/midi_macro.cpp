@@ -139,8 +139,14 @@ int32_t findShadowingOwner(const Macro* macros, uint8_t cc, int32_t macroIndex, 
 	return owner;
 }
 
-// Appends a destination CC's label: the active MIDI instrument's device name if loaded, else "CC <n>".
+// Appends a destination's label: "Macro N" for a cascade destination (always the plain macro
+// number, never its user name), else the MIDI device's CC name if loaded, else "CC <n>".
 static void appendDestName(StringBuf& buf, uint8_t cc) {
+	if (isMacroParamID(cc)) {
+		buf.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
+		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndexFromParamID(cc))));
+		return;
+	}
 	Clip* clip = midiFollow.getSelectedOrActiveClip();
 	std::string_view name{};
 	if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT) {
@@ -246,7 +252,18 @@ static void sendToTargets(MIDIInstrument* instrument, Clip* clip, ModelStackWith
 		if (isTargetShadowed(instrument->macros, macroIndex, slot)) {
 			continue;
 		}
-		int32_t valueBig = (scaleTarget(target, value) - 64) << 25;
+		int32_t out = scaleTarget(target, value);
+		// A cascade target drives the downstream macro itself: the scaled value becomes its input
+		// and fans out again through its own targets. Recursion is bounded (higher indices only);
+		// an inactive downstream macro mutes its whole branch, same as a source-driven macro.
+		if (isMacroParamID(target.cc)) {
+			Macro& downstream = instrument->macros[macroIndexFromParamID(target.cc)];
+			if (downstream.active) {
+				sendToTargets(instrument, clip, modelStack, downstream, out);
+			}
+			continue;
+		}
+		int32_t valueBig = (out - 64) << 25;
 		// writes the value into the clip's own CC param, so it reaches the output and gets
 		// recorded into that CC's automation lane like a manual change to it would
 		instrument->processParamFromInputMIDIChannel(target.cc, valueBig, modelStack);
@@ -258,6 +275,14 @@ static void sendToTargets(MIDIInstrument* instrument, Clip* clip, ModelStackWith
 			uiNeedsRendering(&automationView);
 		}
 	}
+}
+
+// True when an ACTIVE macro's owned cascade target feeds macros[m]'s input. The driven macro's own
+// source is shadowed then - exactly one thing feeds each macro, like one driver per CC.
+static bool macroInputDriven(const Macro* macros, int32_t m) {
+	int32_t ownerSlot = 0;
+	int32_t owner = findCCOwner(macros, (uint8_t)paramIDForMacro(m), &ownerSlot);
+	return owner >= 0 && macros[owner].active;
 }
 
 bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t value) {
@@ -282,8 +307,10 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 	bool matched = false;
-	for (Macro& macro : instrument->macros) {
-		if (!macro.active) {
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		Macro& macro = instrument->macros[m];
+		// a macro fed by an upstream cascade target ignores its own source (one feed per macro)
+		if (!macro.active || macroInputDriven(instrument->macros, m)) {
 			continue;
 		}
 		if (macro.source.equalsNoteOrCC(&cable, channelOrZone + IS_A_CC, ccNumber)) {
@@ -303,10 +330,12 @@ bool tryKnobMacro(int32_t whichKnob, int32_t offset) {
 		return false;
 	}
 	MIDIInstrument* instrument = (MIDIInstrument*)clip->output;
-	// Cheap pre-check so a normal (non-source) knob turn bails before building a modelStack.
+	// Cheap pre-check so a normal (non-source) knob turn bails before building a modelStack. A
+	// macro fed by an upstream cascade target ignores its own source (one feed per macro).
 	bool anyMatch = false;
-	for (Macro& macro : instrument->macros) {
-		if (macro.active && macro.sourceKnob == whichKnob) {
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		Macro& macro = instrument->macros[m];
+		if (macro.active && macro.sourceKnob == whichKnob && !macroInputDriven(instrument->macros, m)) {
 			anyMatch = true;
 			break;
 		}
@@ -319,8 +348,9 @@ bool tryKnobMacro(int32_t whichKnob, int32_t offset) {
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-	for (Macro& macro : instrument->macros) {
-		if (!macro.active || macro.sourceKnob != whichKnob) {
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		Macro& macro = instrument->macros[m];
+		if (!macro.active || macro.sourceKnob != whichKnob || macroInputDriven(instrument->macros, m)) {
 			continue;
 		}
 		// A gold-knob source is a relative encoder: accumulate its position, then drive the targets.
@@ -346,6 +376,9 @@ bool tryModeKnobMacro(int32_t whichKnob, int32_t offset) {
 	Macro& macro = instrument->macros[whichKnob]; // knob 1 -> Macro 1, knob 2 -> Macro 2
 	if (!macro.active) {
 		return false; // inactive macro: let the knob keep its normal behavior
+	}
+	if (macroInputDriven(instrument->macros, whichKnob)) {
+		return false; // fed by an upstream cascade target: its own source is shadowed
 	}
 	// An active macro with no targets must not consume the knob either: macros are active by
 	// default, so without this a track that never opted in would lose both gold knobs on this row.
@@ -446,7 +479,7 @@ void writeMacrosToFile(Serializer& writer, Macro* macros) {
 }
 
 // Reads a target's cc/from/to/send attributes (e.g. <target1 cc="42" from="0" to="100" send="1" />).
-static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target) {
+static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target, int32_t macroIndex) {
 	int32_t cc = kTargetCCNone;
 	int32_t from = kDefaultFrom;
 	int32_t to = kDefaultTo;
@@ -467,13 +500,14 @@ static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target) {
 		}
 		reader.exitTag();
 	}
-	target.cc = (cc >= 0 && cc <= kMaxTargetCC) ? cc : kTargetCCNone;
+	// a real CC, or a cascade destination (higher-indexed macro only - keeps the graph acyclic)
+	target.cc = isValidTargetDestination(cc, macroIndex) ? cc : kTargetCCNone;
 	target.from = std::clamp<int32_t>(from, 0, kMaxValue);
 	target.to = std::clamp<int32_t>(to, 0, kMaxValue);
 	target.send = send;
 }
 
-static void readMacroFromFile(Deserializer& reader, Macro& macro) {
+static void readMacroFromFile(Deserializer& reader, Macro& macro, int32_t macroIndex) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "active")) {
@@ -492,7 +526,7 @@ static void readMacroFromFile(Deserializer& reader, Macro& macro) {
 		else {
 			int32_t slot = targetSlotFromTagName(tagName);
 			if (slot >= 0) {
-				readTargetFromFile(reader, macro.targets[slot]);
+				readTargetFromFile(reader, macro.targets[slot], macroIndex);
 			}
 		}
 		reader.exitTag();
@@ -506,7 +540,8 @@ void readMacrosFromFile(Deserializer& reader, Macro* macros) {
 	int32_t macroIndex = 0;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, MIDI_MACRO_ELEMENT_TAG) && macroIndex < kNumMacros) {
-			readMacroFromFile(reader, macros[macroIndex++]);
+			readMacroFromFile(reader, macros[macroIndex], macroIndex);
+			macroIndex++;
 		}
 		reader.exitTag();
 	}
@@ -548,7 +583,7 @@ Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroI
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		int32_t slot = targetSlotFromTagName(tagName);
 		if (slot >= 0) {
-			readTargetFromFile(reader, macros[macroIndex].targets[slot]);
+			readTargetFromFile(reader, macros[macroIndex].targets[slot], macroIndex);
 		}
 		reader.exitTag();
 	}
@@ -694,6 +729,23 @@ static void refreshAutomationGridIfShowingCC(Clip* clip, uint8_t cc) {
 
 // Mirror macroIndex's source-lane automation (pseudo-CC paramIDForMacro) into each target CC's
 // automation on `clip`, scaled. Overwrites the target lanes; snapshots them into `action` first.
+// Creates every param a fan-out of macroIndex will write - including the lanes and targets of any
+// cascaded downstream macros - BEFORE any AutoParam pointers are taken: an insert memmoves/reallocs
+// the vector's element storage, which would dangle them. Recursion is bounded: cascade targets only
+// point at higher-indexed macros.
+static void preCreateFanOutParams(MIDIInstrument* instrument, MIDIParamCollection* coll, int32_t macroIndex) {
+	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
+		MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
+		if (target.cc == kTargetCCNone || !target.send || isTargetShadowed(instrument->macros, macroIndex, slot)) {
+			continue;
+		}
+		coll->params.getOrCreateParamFromCC(target.cc, 0);
+		if (isMacroParamID(target.cc)) {
+			preCreateFanOutParams(instrument, coll, macroIndexFromParamID(target.cc));
+		}
+	}
+}
+
 static void fanOutMacroLane(MIDIInstrument* instrument, Clip* clip, int32_t macroIndex,
                             ModelStackWithTimelineCounter* modelStack, Action* action) {
 	ParamCollectionSummary* summary;
@@ -707,14 +759,7 @@ static void fanOutMacroLane(MIDIInstrument* instrument, Clip* clip, int32_t macr
 		return;
 	}
 
-	// Create any target params we'll write BEFORE taking pointers into the vector: an insert
-	// memmoves/reallocs the element storage, which would dangle the source pointer taken below.
-	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
-		MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
-		if (target.cc != kTargetCCNone && target.send && !isTargetShadowed(instrument->macros, macroIndex, slot)) {
-			coll->params.getOrCreateParamFromCC(target.cc, 0);
-		}
-	}
+	preCreateFanOutParams(instrument, coll, macroIndex);
 	MIDIParam* sourceParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
 	if (!sourceParam) {
 		return;
@@ -735,6 +780,11 @@ static void fanOutMacroLane(MIDIInstrument* instrument, Clip* clip, int32_t macr
 		}
 		bakeTarget(coll, summary, three, target, source, action);
 		refreshAutomationGridIfShowingCC(clip, target.cc);
+		// A cascade target's lane just changed: re-derive the downstream macro's own fan-out from
+		// it. Everything the recursion writes was pre-created above, so `source` stays valid.
+		if (isMacroParamID(target.cc) && coll->params.getParamFromCC(target.cc)) {
+			fanOutMacroLane(instrument, clip, macroIndexFromParamID(target.cc), modelStack, action);
+		}
 	}
 	instrument->editedByUser = true;
 }
@@ -776,6 +826,10 @@ void reFanTarget(Clip* clip, int32_t macroIndex, int32_t slot, Action* action) {
 	}
 	if (target.send) {
 		coll->params.getOrCreateParamFromCC(target.cc, 0); // create before taking the source pointer
+		if (isMacroParamID(target.cc)) {
+			// the cascade below this target must also be pre-created before pointers are taken
+			preCreateFanOutParams(instrument, coll, macroIndexFromParamID(target.cc));
+		}
 	}
 	MIDIParam* sourceParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
 	if (!sourceParam) {
@@ -784,18 +838,27 @@ void reFanTarget(Clip* clip, int32_t macroIndex, int32_t slot, Action* action) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 	ModelStackWithThreeMainThings* three =
-	    modelStack->addTimelineCounter(clip)
-	        ->addNoteRow(0, nullptr)
+	    modelStackWithTimelineCounter->addNoteRow(0, nullptr)
 	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
 	bakeTarget(coll, summary, three, target, &sourceParam->param, action);
 	refreshAutomationGridIfShowingCC(clip, target.cc);
+	// A cascade target's lane just changed: re-derive the downstream macro's fan-out from it.
+	if (isMacroParamID(target.cc) && coll->params.getParamFromCC(target.cc)) {
+		fanOutMacroLane(instrument, clip, macroIndexFromParamID(target.cc), modelStackWithTimelineCounter, action);
+	}
 	instrument->editedByUser = true;
 }
 
 void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC) {
 	MIDIInstrument* instrument = midiClipInstrument(clip);
 	if (!instrument) {
+		return;
+	}
+	// Cascade rule: a macro may only target HIGHER-indexed macros (keeps the graph acyclic). The
+	// pickers never offer lower ids, but this is the single reassignment primitive - guard it.
+	if (newCC != kTargetCCNone && !isValidTargetDestination(newCC, macroIndex)) {
 		return;
 	}
 	MacroTargetSlot& target = instrument->macros[macroIndex].targets[slot];
@@ -817,9 +880,9 @@ void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC)
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 	ModelStackWithThreeMainThings* three =
-	    modelStack->addTimelineCounter(clip)
-	        ->addNoteRow(0, nullptr)
+	    modelStackWithTimelineCounter->addNoteRow(0, nullptr)
 	        ->addOtherTwoThings(instrument->toModControllable(), &clip->paramManager);
 
 	// Deal with the CC we left: if another target still targets it, hand ownership to whichever one
@@ -838,6 +901,11 @@ void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC)
 		if (ownerMacro >= 0) {
 			reFanTarget(clip, ownerMacro, ownerSlot, action); // promote the new owner's bake
 		}
+		// Departing a cascade destination with no owner left: its lane was just cleared, so
+		// re-derive the downstream macro's fan-out from the now-empty lane (clears its branch).
+		else if (isMacroParamID(oldCC) && oldParam) {
+			fanOutMacroLane(instrument, clip, macroIndexFromParamID(oldCC), modelStackWithTimelineCounter, action);
+		}
 	}
 
 	// Bake the macro curve into the new CC - unless another target outranks us there (we're shadowed:
@@ -845,11 +913,19 @@ void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC)
 	if (newCC != kTargetCCNone && findShadowingOwner(instrument->macros, newCC, macroIndex, slot) < 0) {
 		if (target.send) {
 			coll->params.getOrCreateParamFromCC(newCC, 0); // create before taking the source pointer
+			if (isMacroParamID(newCC)) {
+				// the cascade below the new destination must be pre-created before pointers are taken
+				preCreateFanOutParams(instrument, coll, macroIndexFromParamID(newCC));
+			}
 		}
 		MIDIParam* sourceParam = coll->params.getParamFromCC(paramIDForMacro(macroIndex));
 		if (sourceParam) {
 			bakeTarget(coll, summary, three, target, &sourceParam->param, action);
 			refreshAutomationGridIfShowingCC(clip, newCC);
+			// A cascade destination's lane just changed: re-derive its macro's fan-out from it.
+			if (isMacroParamID(newCC) && coll->params.getParamFromCC(newCC)) {
+				fanOutMacroLane(instrument, clip, macroIndexFromParamID(newCC), modelStackWithTimelineCounter, action);
+			}
 		}
 	}
 

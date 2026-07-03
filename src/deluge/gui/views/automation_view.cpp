@@ -130,12 +130,18 @@ static MIDIInstrument* macroLaneInstrument(Clip* clip, int32_t* macroIndex) {
 	return (MIDIInstrument*)clip->output;
 }
 
-// Appends a destination label for a target: the MIDI device's CC name (from a loaded definition
-// file), else "CC<n>", else "F<n>" when cc is OFF (kTargetCCNone).
+// Appends a destination label for a target: "Macro N" for a cascade destination (always the plain
+// macro number, never its user name), else the MIDI device's CC name (from a loaded definition
+// file), else "CC<n>", else "T<n>" when cc is OFF (kTargetCCNone).
 static void appendTargetName(StringBuf& buf, MIDIInstrument* instrument, int32_t target, uint8_t cc) {
 	if (cc == MIDIMacro::kTargetCCNone) {
 		buf.append('T');
 		buf.appendInt(target + 1);
+		return;
+	}
+	if (MIDIMacro::isMacroParamID(cc)) {
+		buf.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
+		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + MIDIMacro::macroIndexFromParamID(cc))));
 		return;
 	}
 	std::string_view name = instrument->getNameFromCC(cc);
@@ -2909,8 +2915,18 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		int32_t macroIndex = 0;
 		MIDIInstrument* instrument = macroLaneInstrument(clip, &macroIndex);
 		if (instrument != nullptr && macroIndex == heldTargetMacro) {
-			heldTargetPendingCC =
-			    std::clamp<int32_t>((int32_t)heldTargetPendingCC + offset, -1, MIDIMacro::kMaxTargetCC);
+			// One continuous dial: OFF, CC 0-127, then this macro's cascade destinations (the
+			// higher-indexed macros it may target, shown as "Macro N"). Destination ids past 127
+			// aren't contiguous with the CCs per-macro, so step in "dial position" space.
+			int32_t maxPosition = MIDIMacro::kMaxTargetCC + MIDIMacro::numCascadeDestinations(macroIndex);
+			int32_t position = heldTargetPendingCC;
+			if (position > MIDIMacro::kMaxTargetCC) {
+				position = MIDIMacro::kMaxTargetCC + (position - MIDIMacro::paramIDForMacro(macroIndex));
+			}
+			position = std::clamp<int32_t>(position + offset, -1, maxPosition);
+			heldTargetPendingCC = (position <= MIDIMacro::kMaxTargetCC)
+			                          ? position
+			                          : MIDIMacro::paramIDForMacro(macroIndex) + (position - MIDIMacro::kMaxTargetCC);
 			uint8_t pendingCC = (heldTargetPendingCC < 0) ? MIDIMacro::kTargetCCNone : (uint8_t)heldTargetPendingCC;
 			// Dialing stays normal even onto an in-use CC (pick it, then shape From/To with the gold
 			// knobs); only the LED hints it won't drive, and it blinks after release.
