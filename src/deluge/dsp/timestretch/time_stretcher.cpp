@@ -940,7 +940,14 @@ optForDirectReading:
 
 			D_PRINTLN("setupNewPlayHead failed. Sticking with old");
 
-			*voiceSample = SampleLowLevelReader(olderPartReader, true); // Steals all reasons back
+			// Restore ONLY the SampleLowLevelReader base state from olderPartReader (stealing its cluster reasons
+			// back). Assigning to the whole VoiceSample - `*voiceSample = SampleLowLevelReader(...)` - does NOT bind
+			// the base operator=: VoiceSample declares its own operator= (hiding the base one), so this routes through
+			// the implicit VoiceSample(SampleLowLevelReader&&) conversion plus the defaulted VoiceSample move-assign,
+			// which overwrites timeStretcher/cache with their default nulls. That both nulls voiceSample->timeStretcher
+			// mid-render (null deref) and orphans this live TimeStretcher so endTimeStretching() never runs for it,
+			// leaking its perc-lookahead cluster reasons -> Sample::numReasonsDecreasedToZero E078 (issue #4515).
+			static_cast<SampleLowLevelReader&>(*voiceSample) = SampleLowLevelReader(olderPartReader, true);
 			playHeadStillActive[PLAY_HEAD_NEWER] = playHeadStillActive[PLAY_HEAD_OLDER];
 			playHeadStillActive[PLAY_HEAD_OLDER] = false;
 
