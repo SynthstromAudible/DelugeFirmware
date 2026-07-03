@@ -138,6 +138,12 @@ DocAutoParam* doc_;                              // handle to DOM-owned curve (t
 `ParamManager` binds to a `DocParamManager`. This is the "DOM owns all param state, engine is a projection"
 endgame of the authority program.
 
+**This universal binding is committed scope, not an aspiration.** The destination is *every* param owner —
+song-global, AudioClip, InstrumentClip, kits/drums, patch cables, MIDI CC, expression — bound to the DOM, with
+no `AutoParam` owning node storage anywhere. There is no "leave the rest borrowed" terminal state; borrowing is a
+scaffold that must be fully removed. The work is large, so it is *sequenced* owner-by-owner (§5), but the scope is
+total: the effort is not "done" until `ownNodes_` no longer exists and the engine holds only cursors + handles.
+
 ---
 
 ## 5. Migration: borrowing is the bridge; convert op-by-op
@@ -192,9 +198,10 @@ audio-thread edit interleaving is the part the load/save golden cannot see.
   writes with `processCurrentPos`'s `recordOverNodeJustReached` latch (auto_param.cpp:529-539). Its port must keep
   the latch/override state (engine cursor) coherent with DOM node writes across a tick. This is the single op that
   most couples read and write and earns the most design/test care.
-- **Universal binding.** The end state binds *every* `AutoParam` to a `DocAutoParam` and every `ParamManager` to a
-  `DocParamManager`. That is a large surface (fixed param arrays; patch cables; MIDI CC; expression). Empty curves
-  are cheap, but the binding wiring at construction/clone/steal is real work — sequenced owner-by-owner.
+- **Universal binding surface (committed; sequenced, not optional — §4.2).** Binding *every* `AutoParam` to a
+  `DocAutoParam` and every `ParamManager` to a `DocParamManager` is a large surface (fixed param arrays; patch
+  cables; MIDI CC; expression). Empty curves are cheap, but the binding wiring at construction/clone/steal is real
+  work. The risk is *effort/sequencing*, not *whether* — it is done owner-by-owner until `ownNodes_` is gone.
 - **Store lifetime during transition.** While both borrowed and un-borrowed params coexist, the DOM store must
   still outlive borrowers (the existing invariant) until an owner is fully converted to handles.
 - **MPE / `shiftParamVolumeByDB` / `transposeCC…`** are lower-traffic ops; port last, but they still read `nodes()`
