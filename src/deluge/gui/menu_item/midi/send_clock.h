@@ -16,18 +16,14 @@
  */
 #pragma once
 #include "gui/menu_item/toggle.h"
-#include "gui/ui/sound_editor.h"
-#include "io/midi/midi_device.h"
-#include "io/midi/midi_device_manager.h"
+#include "playback/playback_handler.h"
 
 namespace deluge::gui::menu_item::midi {
-class DeviceReceiveClock final : public Toggle {
+class SendClock final : public ToggleBool {
 public:
-	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->receiveClock); }
+	using ToggleBool::ToggleBool;
 	void writeCurrentValue() override {
-		soundEditor.currentMIDICable->receiveClock = this->getValue();
-		MIDIDeviceManager::anyChangesToSave = true;
+		playbackHandler.setMidiOutClockMode(getValue());
 	}
 };
 } // namespace deluge::gui::menu_item::midi
