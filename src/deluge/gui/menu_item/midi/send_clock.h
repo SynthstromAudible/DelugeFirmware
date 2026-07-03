@@ -22,8 +22,6 @@ namespace deluge::gui::menu_item::midi {
 class SendClock final : public ToggleBool {
 public:
 	using ToggleBool::ToggleBool;
-	void writeCurrentValue() override {
-		playbackHandler.setMidiOutClockMode(getValue());
-	}
+	void writeCurrentValue() override { playbackHandler.setMidiOutClockMode(getValue()); }
 };
 } // namespace deluge::gui::menu_item::midi
