@@ -1986,12 +1986,24 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					}
 				}
 			}
-			if (drewNote && currentSong->isFillModeActive()) {
-				if (note->fill == FillMode::FILL) {
-					pixel = deluge::gui::colours::blue;
+			// if we're not dealing with a blurred note or a note tail
+			if (pixel != rowBlurColour && pixel != rowTailColour) {
+				// if fill mode is active, identify the notes that are fill or not-fill
+				if (drewNote && currentSong->isFillModeActive()) {
+					if (note->fill == FillMode::FILL) {
+						pixel = deluge::gui::colours::blue;
+					}
+					else if (note->fill == FillMode::NOT_FILL) {
+						pixel = deluge::gui::colours::red;
+					}
 				}
-				else if (note->fill == FillMode::NOT_FILL) {
-					pixel = deluge::gui::colours::red;
+				// if you're in the note editor, identify the notes that have non-default parameters
+				else if (drewNote && getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+					// if note has non-default settings for probability, iterance or fill
+					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
+					    || note->getFill() != FillMode::OFF) {
+						pixel = deluge::gui::colours::yellow;
+					}
 				}
 			}
 		}

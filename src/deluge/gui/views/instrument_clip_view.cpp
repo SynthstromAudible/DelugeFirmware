@@ -1036,7 +1036,7 @@ void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 
 	// If they want to copy or paste automation...
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (on && getCurrentOutputType() != OutputType::CV) {
+		if (on) {
 			if (Buttons::isShiftButtonPressed()) {
 				pasteAutomation(whichModEncoder);
 			}
@@ -3155,6 +3155,11 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
 					                                     changeType, parameterValue);
+
+					// if we're in the note editor, refresh grid to show edited note
+					if (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+						uiNeedsRendering(this, 1 << editPadPresses[i].yDisplay, 0);
+					}
 				}
 				else {
 					// In the case the operation didn't change anything, we need to transform Iterance back from preset
@@ -3516,6 +3521,8 @@ bool InstrumentClipView::enterNoteEditor() {
 			}
 			openUI(&soundEditor);
 			blinkSelectedNote();
+			// refresh grid to potentially highlight already edited notes
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			return true;
 		}
 	}
@@ -3535,6 +3542,8 @@ void InstrumentClipView::exitNoteEditor() {
 		lastSelectedNoteYDisplay = kNoSelection;
 	}
 	resetSelectedNoteBlinking();
+	// refresh grid to potentially unhighlight edited notes
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
 void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
@@ -5326,23 +5335,27 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 		}
 	}
 
-	// If won't be actually sounding Instrument...
-	if (shiftButtonDown || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+	// if we aren't auditioning silently due to sequenced notes, check if we should be auditioning silently
+	// because of shortcut presses (shift or euclidean)
+	if (!doSilentAudition) {
+		// If won't be actually sounding Instrument...
+		if (shiftButtonDown || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+			fileBrowserShouldNotPreview = true;
 
-		fileBrowserShouldNotPreview = true;
+			doSilentAudition = true;
+		}
+		else {
+			if (!auditioningSilently) {
+				fileBrowserShouldNotPreview = false;
 
-		doSilentAudition = true;
-	}
-	else {
-		if (!auditioningSilently) {
-			fileBrowserShouldNotPreview = false;
+				sendAuditionNote(true, yDisplay, velocityToSound, 0);
 
-			sendAuditionNote(true, yDisplay, velocityToSound, 0);
-
-			lastAuditionedVelocityOnScreen[yDisplay] = velocityToSound;
+				lastAuditionedVelocityOnScreen[yDisplay] = velocityToSound;
+			}
 		}
 	}
 
+	// if we are auditioning silently
 	if (doSilentAudition) {
 		auditioningSilently = true;
 		reassessAllAuditionStatus();
@@ -5407,13 +5420,16 @@ void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack,
                                               NoteRow* noteRowOnActiveClip) {
 	if (auditionPadIsPressed[yDisplay]) {
+		bool auditionNoteWasSounding = lastAuditionedVelocityOnScreen[yDisplay] != 255;
 		auditionPadIsPressed[yDisplay] = 0;
 		lastAuditionedVelocityOnScreen[yDisplay] = 255;
 
-		// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
+		// Stop the note sounding - but only if we previously auditioned the note
+		// and only if a sequenced note isn't in fact being played here.
 		// Or if it's drone note, end auditioning to transfer the note's sustain to the sequencer
-		if (!noteRowOnActiveClip || !noteRowOnActiveClip->sequenced
-		    || noteRowOnActiveClip->isDroning(modelStack->getLoopLength())) {
+		if (auditionNoteWasSounding
+		    && (!noteRowOnActiveClip || !noteRowOnActiveClip->sequenced
+		        || noteRowOnActiveClip->isDroning(modelStack->getLoopLength()))) {
 			sendAuditionNote(false, yDisplay, 64, 0);
 		}
 	}

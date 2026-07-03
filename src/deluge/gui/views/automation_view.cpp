@@ -2421,6 +2421,18 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 // used to record live automations in
 void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
+	// if we're in automation overview or note editor
+	// then we want to change the value of the parameter assigned to the mod encoder
+	if (!inAutomationEditor()) {
+		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+		return;
+	}
+
+	// ok we're on the automation editor, so both mod encoders will edit the currently selected parameter
+	// we have two possible actions: step editing or editing current value
+
+	// now we need to setup the model stack with param for the selected parameter in the selected context
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
@@ -2436,46 +2448,69 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		Clip* clip = getCurrentClip();
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
+
+	// if we don't have a model stack or auto param, then no parameter to edit, so return early
+	if (!modelStackWithParam || !modelStackWithParam->autoParam) {
+		return;
+	}
+
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
-	// if user holding a node down, we'll adjust the value of the selected parameter being automated
-	if (isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) {
-		if (inAutomationEditor()
-		    && ((instrumentClipView.numEditPadPresses > 0
-		         && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0))
-		        || padSelectionOn)) {
+	// if user holding a node down, or we're in pad selection mode
+	// we'll adjust the value of the selected parameter being automated at the step selected
+	bool is_step_editing = isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn;
+
+	if (is_step_editing) {
+		if ((instrumentClipView.numEditPadPresses > 0
+		     && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0))
+		    || padSelectionOn) {
 
 			if (automationEditorLayoutModControllable.automationModEncoderActionForSelectedPad(
 			        modelStackWithParam, whichModEncoder, offset, effectiveLength)) {
 				return;
 			}
 		}
-		else if (inNoteEditor()) {
-			goto followOnAction;
-		}
 	}
 	// if playback is enabled and you are recording, you will be able to record in live automations for
 	// the selected parameter this code is also executed if you're just changing the current value of
 	// the parameter at the current mod position
 	else {
-		if (inAutomationEditor()) {
-			automationEditorLayoutModControllable.automationModEncoderActionForUnselectedPad(
-			    modelStackWithParam, whichModEncoder, offset, effectiveLength);
-		}
-		else {
-			goto followOnAction;
-		}
+		automationEditorLayoutModControllable.automationModEncoderActionForUnselectedPad(
+		    modelStackWithParam, whichModEncoder, offset, effectiveLength);
 	}
 
 	uiNeedsRendering(&automationView);
-	return;
-
-followOnAction:
-	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
-// used to copy paste automation or to delete automation of the current selected parameter
+// used to change gold knob parameter, copy paste automation or to delete automation of the current selected parameter
 void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+
+	// if we're in automation overview or note editor
+	// then we want to allow toggling with mod encoder buttons to change
+	// mod encoder selections or copy / paste
+	if (!inAutomationEditor()) {
+		instrumentClipView.modEncoderButtonAction(whichModEncoder, on);
+		// if we're on automation overview, re-render because we want to show automated params
+		if (onAutomationOverview()) {
+			uiNeedsRendering(&automationView);
+		}
+		return;
+	}
+
+	// if we're not trying to copy / paste (holding learn) and not trying to delete (holding shift), return
+	// if we're releasing mod encoder button action, return (we don't do anything on release)
+	bool is_learn_pressed = Buttons::isButtonPressed(hid::button::LEARN);
+	bool is_shift_pressed = Buttons::isShiftButtonPressed();
+	bool is_copy_action = is_learn_pressed && !is_shift_pressed;
+	bool is_paste_action = is_learn_pressed && is_shift_pressed;
+	bool is_delete_action = !is_learn_pressed & is_shift_pressed;
+	if (!on || (!is_copy_action && !is_paste_action && !is_delete_action)) {
+		return;
+	}
+
+	// if we got here then we're in automation editor and we want to copy / paste or delete automation
+
+	// now we need to setup the model stack with param for the selected parameter in the selected context
 
 	Clip* clip = getCurrentClip();
 	OutputType outputType = clip->output->type;
@@ -2494,63 +2529,37 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
+
+	// if we don't have a model stack with param or auto param, then no automation to copy / paste or delete, so return
+	if (!modelStackWithParam || !modelStackWithParam->autoParam) {
+		return;
+	}
+
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
 	int32_t xScroll = currentSong->xScroll[navSysId];
 	int32_t xZoom = currentSong->xZoom[navSysId];
 
-	// If they want to copy or paste automation...
-	if (Buttons::isButtonPressed(hid::button::LEARN)) {
-		if (on) {
-			if (Buttons::isShiftButtonPressed()) {
-				// paste within Automation Editor
-				if (inAutomationEditor()) {
-					automationEditorLayoutModControllable.pasteAutomation(modelStackWithParam, clip, effectiveLength,
-					                                                      xScroll, xZoom);
-				}
-				// paste on Automation Overview / Note Editor
-				else {
-					instrumentClipView.pasteAutomation(whichModEncoder, navSysId);
-				}
-			}
-			else {
-				// copy within Automation Editor
-				if (inAutomationEditor()) {
-					automationEditorLayoutModControllable.copyAutomation(modelStackWithParam, clip, xScroll, xZoom);
-				}
-				// copy on Automation Overview / Note Editor
-				else {
-					instrumentClipView.copyAutomation(whichModEncoder, navSysId);
-				}
-			}
-		}
+	// if they want to copy automation...
+	if (is_copy_action) {
+		automationEditorLayoutModControllable.copyAutomation(modelStackWithParam, clip, xScroll, xZoom);
+	}
+	// if they want to paste automation
+	else if (is_paste_action) {
+		automationEditorLayoutModControllable.pasteAutomation(modelStackWithParam, clip, effectiveLength, xScroll,
+		                                                      xZoom);
+	}
+	// if they want to delete automation
+	else if (is_delete_action) {
+		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
+		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
+
+		displayAutomation(padSelectionOn, !display->have7SEG());
 	}
 
-	// delete automation of current parameter selected
-	else if (Buttons::isShiftButtonPressed() && inAutomationEditor()) {
-		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
-
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
-
-			displayAutomation(padSelectionOn, !display->have7SEG());
-		}
-	}
-
-	// if we're in automation overview or note editor
-	// then we want to allow toggling with mod encoder buttons to change
-	// mod encoder selections
-	else if (!inAutomationEditor()) {
-		goto followOnAction;
-	}
-
-	uiNeedsRendering(&automationView);
-	return;
-
-followOnAction: // it will come here when you are on the automation overview / in note editor iscreen
-
-	view.modEncoderButtonAction(whichModEncoder, on);
+	// refresh automation editor grid to show copy / pasted automation or deleted automation
 	uiNeedsRendering(&automationView);
 }
 

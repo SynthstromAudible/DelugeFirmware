@@ -82,17 +82,26 @@ int32_t Devices::computeScrollForSelected(int32_t selected) {
 void Devices::selectEncoderAction(int32_t offset) {
 	offset = std::clamp<int32_t>(offset, -1, 1);
 
+	// Remember where we started. This is always a connected device (beginSession and every completed
+	// selectEncoderAction leave the selection on one), so if we run off the end while skipping disconnected
+	// devices we can restore it rather than leaving the selection stranded on a disconnected/cached device.
+	int32_t startValue = this->getValue();
+
 	do {
 		int32_t newValue = this->getValue() + offset;
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 			if (display->haveOLED()) {
+				this->setValue(startValue);
+				soundEditor.currentMIDICable = getCable(startValue);
 				return;
 			}
 			newValue = lowestDeviceNum;
 		}
 		else if (newValue < lowestDeviceNum) {
 			if (display->haveOLED()) {
+				this->setValue(startValue);
+				soundEditor.currentMIDICable = getCable(startValue);
 				return;
 			}
 			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;

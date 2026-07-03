@@ -113,7 +113,6 @@ public:
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	bool defaultEditingMode;
 	bool editingParam; // if you're not editing a param, you're editing a value
-	bool justExitedSoundEditor;
 
 	// public so Action Logger can access it
 	FXColumnPress fxPress[kDisplayWidth];

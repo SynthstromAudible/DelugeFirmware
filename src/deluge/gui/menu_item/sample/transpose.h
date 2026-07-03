@@ -43,9 +43,12 @@ public:
 
 		if (source.ranges.getNumElements() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && source.oscType == OscType::SAMPLE) {
-			const auto* multiRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-			transpose = multiRange->sampleHolder.transpose;
-			cents = multiRange->sampleHolder.cents;
+			const auto* multi_sample_range =
+			    soundEditor.currentSourceIndex == source_id_ && soundEditor.currentMultiRange != nullptr
+			        ? static_cast<MultisampleRange*>(soundEditor.currentMultiRange)
+			        : static_cast<MultisampleRange*>(source.ranges.getElement(0));
+			transpose = multi_sample_range->sampleHolder.transpose;
+			cents = multi_sample_range->sampleHolder.cents;
 		}
 		else {
 			transpose = source.transpose;
@@ -72,9 +75,9 @@ public:
 
 					if (source.ranges.getNumElements() && soundDrum->getSynthMode() != SynthMode::FM
 					    && source.oscType == OscType::SAMPLE) {
-						auto* multisampleRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-						multisampleRange->sampleHolder.transpose = transpose;
-						multisampleRange->sampleHolder.setCents(cents);
+						auto* multi_sample_range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
+						multi_sample_range->sampleHolder.transpose = transpose;
+						multi_sample_range->sampleHolder.setCents(cents);
 					}
 					else {
 						source.transpose = transpose;
@@ -95,9 +98,12 @@ public:
 
 			if (source.ranges.getNumElements() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 			    && source.oscType == OscType::SAMPLE) {
-				auto* multisampleRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-				multisampleRange->sampleHolder.transpose = transpose;
-				multisampleRange->sampleHolder.setCents(cents);
+				auto* multi_sample_range =
+				    soundEditor.currentSourceIndex == source_id_ && soundEditor.currentMultiRange != nullptr
+				        ? static_cast<MultisampleRange*>(soundEditor.currentMultiRange)
+				        : static_cast<MultisampleRange*>(source.ranges.getElement(0));
+				multi_sample_range->sampleHolder.transpose = transpose;
+				multi_sample_range->sampleHolder.setCents(cents);
 			}
 			else {
 				source.transpose = transpose;
@@ -137,6 +143,43 @@ public:
 			return source.hasAtLeastOneAudioFileLoaded();
 		}
 		return true;
+	}
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		Decimal::getNotificationValue(valueBuf);
+
+		Source& source = soundEditor.currentSound->sources[source_id_];
+		const int32_t rangeIndex = soundEditor.currentMultiRangeIndex;
+		const int32_t numRanges = source.ranges.getNumElements();
+
+		if (soundEditor.currentSourceIndex != source_id_ || soundEditor.currentMultiRange == nullptr || numRanges <= 1
+		    || rangeIndex < 0 || rangeIndex >= numRanges || source.oscType != OscType::SAMPLE) {
+			return;
+		}
+
+		valueBuf.append(" (");
+
+		if (rangeIndex == 0) {
+			valueBuf.append(l10n::get(l10n::String::STRING_FOR_BOTTOM));
+		}
+		else {
+			char noteName[8];
+			noteCodeToString(source.ranges.getElement(rangeIndex - 1)->topNote + 1, noteName);
+			valueBuf.append(noteName);
+		}
+
+		valueBuf.append("-");
+
+		if (rangeIndex == numRanges - 1) {
+			valueBuf.append("top");
+		}
+		else {
+			char noteName[8];
+			noteCodeToString(source.ranges.getElement(rangeIndex)->topNote, noteName);
+			valueBuf.append(noteName);
+		}
+
+		valueBuf.append(")");
 	}
 };
 } // namespace deluge::gui::menu_item::sample
