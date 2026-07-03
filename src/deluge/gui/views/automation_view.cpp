@@ -827,6 +827,10 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
 	}
 
+	// While a macro target quick-edit button is held, the main grid becomes the destination
+	// picker: the parameter overview renders in place of the editor, with pickable pads lit.
+	bool macroPicker = macroPickerActive(clip);
+
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		// only render if:
 		// you're on arranger view
@@ -842,8 +846,9 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 				                    || (((Kit*)output)->selectedDrum->type == DrumType::GATE)));
 			}
 
-			// if parameter has been selected, show Automation Editor
-			if (inAutomationEditor() && !isMIDICVDrum) {
+			// if parameter has been selected, show Automation Editor (unless a held quick-edit
+			// button has flipped the grid into the macro destination picker)
+			if (inAutomationEditor() && !isMIDICVDrum && !macroPicker) {
 				automationEditorLayoutModControllable.renderAutomationEditor(
 				    modelStackWithParam, clip, image, occupancyMask, renderWidth, xScroll, xZoom, effectiveLength,
 				    xDisplay, drawUndefinedArea, kind, isBipolar);
@@ -859,7 +864,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 			// if not editing a parameter, show Automation Overview
 			else {
 				renderAutomationOverview(modelStackWithTimelineCounter, modelStackWithThreeMainThings, clip, outputType,
-				                         image, occupancyMask, xDisplay, isMIDICVDrum);
+				                         image, occupancyMask, xDisplay, isMIDICVDrum, macroPicker);
 			}
 		}
 		else {
@@ -873,12 +878,29 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
                                               ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
                                               OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
                                               uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
-                                              bool isMIDICVDrum) {
+                                              bool isMIDICVDrum, bool macroPicker) {
 	bool singleSoundDrum = (outputType == OutputType::KIT && !getAffectEntire()) && !isMIDICVDrum;
 	bool affectEntireKit = (outputType == OutputType::KIT && getAffectEntire());
+	// only ever true on a synth or MIDI clip, never a kit/arranger context
+	Macros::Domain pickerDomain = macroPicker ? Macros::domainForOutput(clip->output) : Macros::Domain::MIDI;
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		RGB& pixel = image[yDisplay][xDisplay];
+
+		// The destination-picker overlay: pads pickable as the held target's destination light
+		// grey, the pending pick lights full white; pads that can't be a destination (patch
+		// cables, expression, velocity - not encodable as a destination byte) go dark.
+		if (macroPicker) {
+			int32_t dest = macroDestinationForPad(pickerDomain, xDisplay, yDisplay);
+			if (dest < 0) {
+				pixel = colours::black;
+			}
+			else {
+				pixel = (heldTargetPendingCC == dest) ? colours::white_full : colours::grey;
+				occupancyMask[yDisplay][xDisplay] = 64;
+			}
+			continue;
+		}
 
 		if (!isMIDICVDrum) {
 			ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -1910,6 +1932,16 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 		return ActionResult::DEALT_WITH;
 	}
 
+	// While the destination picker owns the grid, a press on a lit pad picks that param as the
+	// held target's pending destination; every press is consumed so nothing edits the macro
+	// lane's automation hidden under the overlay.
+	if (macroPickerActive(clip)) {
+		if (velocity) {
+			handleMacroPickerPad(clip, x, y);
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
 	// potentially enter or refresh note velocity editor if you're in an instrument clip, holding audition pad and
 	// pressing PatchSource::Velocity shortcut
 	if (!onArrangerView && clip->type == ClipType::INSTRUMENT && isUIModeActive(UI_MODE_AUDITIONING)
@@ -2625,7 +2657,11 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 			refreshMacroInactivePopup();   // the hold readout displaced the Inactive status - restore it
 			view.setModLedStates();        // re-sync the assignment LEDs (pending value may have been dropped)
 			view.setKnobIndicatorLevels(); // the bars showed From/To during the hold - restore them
-			return;                        // we consumed the press, so consume the matching release
+			if (getCurrentUI() == &automationView) {
+				blinkShortcuts(); // re-arm the macro-pad blinking the picker overlay stopped
+			}
+			uiNeedsRendering(&automationView, 0xFFFFFFFF, 0); // drop the picker overlay, back to the editor
+			return;                                           // we consumed the press, so consume the matching release
 		}
 		ClipView::modButtonAction(whichButton, on);
 		return;
@@ -2642,6 +2678,10 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 		// initial press: an in-use target reads out who owns its destination
 		showTargetFull(instrument, macroIndex, whichButton, cc, true);
 		showHeldTargetKnobIndicators(instrument, macroIndex, whichButton);
+		// the main grid flips to the destination-picker overlay for the duration of the hold; its
+		// pads mean params now, so stop the shortcut blinking (re-armed on release)
+		resetShortcutBlinking();
+		uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
 		return;
 	}
 	ClipView::modButtonAction(whichButton, on);
@@ -2663,14 +2703,69 @@ void AutomationView::commitHeldTargetCC() {
 	}
 }
 
-// Clears the target assignment picked before the confirmation menu opened. Only the config is
-// reset (CC/from/to/send back to defaults) - the baked automation in the target lanes stays.
+// True while the destination-picker overlay owns the main grid: a target quick-edit button is
+// held on the macro lane currently in view.
+bool AutomationView::macroPickerActive(Clip* clip) {
+	if (heldTarget < 0 || onArrangerView || !inAutomationEditor()) {
+		return false;
+	}
+	int32_t macroIndex = 0;
+	return macroLaneInstrument(clip, &macroIndex) != nullptr && macroIndex == heldTargetMacro;
+}
+
+// Resolves a main-grid pad to the destination byte it would pick in this domain, or -1 for a pad
+// that can't be a macro target (patch cables, expression and velocity aren't encodable as a
+// destination byte; the macro lane params are cascade-only, reachable by dial/menu). This is the
+// validity filter the picker overlay renders.
+int32_t AutomationView::macroDestinationForPad(Macros::Domain domain, int32_t x, int32_t y) {
+	if (domain == Macros::Domain::SYNTH) {
+		if (patchedParamShortcuts[x][y] != kNoParamID) {
+			return Macros::synthDestinationForParam(params::Kind::PATCHED, patchedParamShortcuts[x][y]);
+		}
+		if (unpatchedNonGlobalParamShortcuts[x][y] != kNoParamID) {
+			return Macros::synthDestinationForParam(params::Kind::UNPATCHED_SOUND,
+			                                        unpatchedNonGlobalParamShortcuts[x][y]);
+		}
+		return -1;
+	}
+	uint32_t cc = midiCCShortcutsForAutomation[x][y];
+	return (cc != kNoParamID && cc <= Macros::kMaxTargetCC) ? (int32_t)cc : -1;
+}
+
+// A press on the picker overlay: picks that pad's param as the held target's pending destination,
+// with the same live feedback as dialing the select encoder onto it (readout, would-drive LED,
+// moved white highlight). The pick is still only committed on button release.
+void AutomationView::handleMacroPickerPad(Clip* clip, int32_t x, int32_t y) {
+	int32_t macroIndex = 0;
+	MelodicInstrument* instrument = macroLaneInstrument(clip, &macroIndex);
+	if (instrument == nullptr || macroIndex != heldTargetMacro) {
+		return;
+	}
+	int32_t dest = macroDestinationForPad(Macros::domainForOutput(clip->output), x, y);
+	if (dest < 0) {
+		return; // a dark pad - not a pickable destination
+	}
+	heldTargetPendingCC = (int16_t)dest;
+	showTargetFull(instrument, macroIndex, heldTarget, (uint8_t)dest, false);
+	bool wouldDrive = Macros::findShadowingOwner(instrument->macros, (uint8_t)dest, macroIndex, heldTarget) < 0;
+	indicator_leds::setLedState(indicator_leds::modLed[heldTarget], wouldDrive);
+	uiNeedsRendering(&automationView, 0xFFFFFFFF, 0); // move the white pick highlight
+}
+
+// Clears the target assignment picked before the confirmation menu opened. Routes the CC removal
+// through changeTargetCC (same as dialing the target to OFF) so the baked automation on the target
+// param is deleted (lane back to its unautomated default) and, if another target was shadowed on
+// that same destination, ownership hands over and that target's macro curve is baked in instead.
+// Then resets the slot's remaining config (from/to/send) to defaults.
 bool AutomationView::acceptPendingTargetClear() {
 	int32_t macroIndex = 0;
-	MelodicInstrument* instrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
+	Clip* clip = getCurrentClip();
+	MelodicInstrument* instrument = macroLaneInstrument(clip, &macroIndex);
 	bool ok =
 	    instrument != nullptr && pendingClearMacro >= 0 && pendingClearTarget >= 0 && macroIndex == pendingClearMacro;
 	if (ok) {
+		// must run while the slot still holds its CC (changeTargetCC reads it as the old destination)
+		Macros::changeTargetCC(clip, pendingClearMacro, pendingClearTarget, Macros::kTargetCCNone);
 		instrument->macros[pendingClearMacro].targets[pendingClearTarget] = Macros::MacroTargetSlot{};
 		instrument->editedByUser = true;
 		view.setModLedStates(); // that target's assignment LED goes dark
@@ -2938,6 +3033,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			                  && Macros::findShadowingOwner(instrument->macros, pendingCC, macroIndex, heldTarget) < 0;
 			// the held button's LED tracks the pending assignment live
 			indicator_leds::setLedState(indicator_leds::modLed[heldTarget], wouldDrive);
+			uiNeedsRendering(&automationView, 0xFFFFFFFF, 0); // the picker overlay's white highlight follows
 			return;
 		}
 	}

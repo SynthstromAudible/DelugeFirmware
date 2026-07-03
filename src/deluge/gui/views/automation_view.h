@@ -38,6 +38,10 @@ extern const std::array<std::pair<deluge::modulation::params::Kind, deluge::modu
                         kNumNonGlobalParamsForAutomation>
     nonGlobalParamsForAutomation;
 
+namespace Macros {
+enum class Domain : uint8_t;
+}
+
 class Action;
 class CopiedNoteRow;
 class Drum;
@@ -142,7 +146,8 @@ public:
 	// Target awaiting the clear-confirmation context menu (SHIFT+SAVE while holding its button).
 	int8_t pendingClearMacro = -1;
 	int8_t pendingClearTarget = -1;
-	// Clears the pending target's assignment (called by the confirmation menu). Returns success.
+	// Clears the pending target's assignment (called by the confirmation menu): deletes the baked
+	// automation on that param and hands ownership to any shadowed co-target. Returns success.
 	bool acceptPendingTargetClear();
 	// SHIFT + horizontal encoder press on a macro lane: toggle that macro Active/Inactive.
 	bool toggleMacroLaneActive();
@@ -236,6 +241,12 @@ private:
 	                       int32_t xScroll, int32_t xZoom, SquareInfo& squareInfo);
 	void handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
 	                              int32_t yDisplay);
+	// macro destination picker: while a target quick-edit button is held on a macro lane, the main
+	// grid shows the parameter overview and a pad press picks that param as the target's pending
+	// destination (committed on button release, like the select-encoder dial)
+	bool macroPickerActive(Clip* clip);
+	int32_t macroDestinationForPad(Macros::Domain domain, int32_t x, int32_t y);
+	void handleMacroPickerPad(Clip* clip, int32_t x, int32_t y);
 	// mute pad action
 	ActionResult handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType, int32_t y,
@@ -253,7 +264,7 @@ private:
 	                              ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
 	                              OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
 	                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
-	                              bool isMIDICVDrum);
+	                              bool isMIDICVDrum, bool macroPicker);
 	void renderDisplayOLED(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
 	void renderAutomationOverviewDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, Output* output,
