@@ -30,7 +30,7 @@ ConsequenceClipBeginLinearRecord::ConsequenceClipBeginLinearRecord(Clip* newClip
 }
 
 Error ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelStack) {
-
+	D_PRINTLN("ConsequenceClipBeginLinearRecord - reverting for clip %s", clip->name.get());
 	// Going backwards...
 	if (time == BEFORE) {
 		clip->abortRecording();
@@ -50,13 +50,18 @@ Error ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelS
 			if (clip->soloingInSessionMode) {
 				return Error::NONE;
 			}
+			// if overdubs are being done in place, then we're aborting a recording on top of something existing and so
+			// it should keep playing
+			if (!clip->shouldCloneForOverdubs()) {
+				return Error::NONE;
+			}
 
 			// Or if we're viewing the Clip, don't deactivate it, cos it's a massive hassle, and confusing, for user to
 			// go out and reactivate it
 			if (modelStack->song->getCurrentClip() == clip && getCurrentUI()->toClipMinder()) {
 				return Error::NONE;
 			}
-
+			D_PRINTLN("ConsequenceClipBeginLinearRecord - deactivating clip %s", clip->name.get());
 doToggle:
 			int32_t clipIndex = modelStack->song->sessionClips.getIndexForClip(clip);
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
