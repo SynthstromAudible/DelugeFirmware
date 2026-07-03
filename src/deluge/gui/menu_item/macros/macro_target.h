@@ -25,17 +25,17 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "io/midi/midi_macro.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/macros/macros.h"
 #include "util/d_stringbuf.h"
 #include "util/misc.h"
 #include <string>
 
-namespace deluge::gui::menu_item::midi {
+namespace deluge::gui::menu_item::macros {
 
-// MIDI macros are stored per-track on the current MIDI clip's instrument. These helpers resolve it;
+// macros are stored per-track on the current MIDI clip's instrument. These helpers resolve it;
 // they return null when the active output isn't a MIDI track (the menu is hidden then, but read/write
 // can still be reached defensively).
 inline MIDIInstrument* currentMacroInstrument() {
@@ -45,7 +45,7 @@ inline MIDIInstrument* currentMacroInstrument() {
 	}
 	return static_cast<MIDIInstrument*>(output);
 }
-inline MIDIMacro::Macro* currentMacros() {
+inline Macros::Macro* currentMacros() {
 	MIDIInstrument* instrument = currentMacroInstrument();
 	return instrument ? instrument->macros : nullptr;
 }
@@ -55,12 +55,12 @@ inline void markMacroInstrumentEdited() {
 	}
 }
 
-// The source of one MIDI macro: either a learned external CC (Command/LearnedMIDI) or one of the two
+// The source of one macro: either a learned external CC (Command/LearnedMIDI) or one of the two
 // physical gold knobs. LEARN + turn a gold knob learns it; SHIFT+LEARN + turn unlearns; learning an
 // external CC unmaps the knob and vice-versa - the source is exactly one thing at a time.
-class MacroSource final : public Command {
+class MacroSource final : public midi::Command {
 public:
-	MacroSource(l10n::String newName, int32_t newMacro) : Command(newName), macro(newMacro) {}
+	MacroSource(l10n::String newName, int32_t newMacro) : midi::Command(newName), macro(newMacro) {}
 	[[nodiscard]] LearnedMIDI& learned() const override {
 		static LearnedMIDI dummy;
 		MIDIInstrument* instrument = currentMacroInstrument();
@@ -76,7 +76,7 @@ public:
 		if (cable != nullptr) {
 			return; // only gold knobs (cable == nullptr) can be a macro source
 		}
-		MIDIMacro::Macro* m = currentMacros();
+		Macros::Macro* m = currentMacros();
 		if (!m) {
 			return;
 		}
@@ -136,11 +136,11 @@ public:
 
 private:
 	int8_t sourceKnob() const {
-		MIDIMacro::Macro* m = currentMacros();
+		Macros::Macro* m = currentMacros();
 		return m ? m[macro].sourceKnob : -1;
 	}
 	void clearSourceKnob() {
-		if (MIDIMacro::Macro* m = currentMacros()) {
+		if (Macros::Macro* m = currentMacros()) {
 			m[macro].sourceKnob = -1;
 		}
 	}
@@ -155,7 +155,7 @@ public:
 	MacroTarget(l10n::String newName, int32_t newMacro, int32_t newSlot)
 	    : IntegerWithOff(newName), macro(newMacro), slot(newSlot) {}
 	[[nodiscard]] int32_t getMaxValue() const override {
-		return MIDIMacro::kMaxTargetCC + 1 + MIDIMacro::numCascadeDestinations(macro);
+		return Macros::kMaxTargetCC + 1 + Macros::numCascadeDestinations(macro);
 	}
 	// Show the destination (OFF / CC number / macro) as text instead of a dial, unlike Base/Depth.
 	void renderInHorizontalMenu(const SlotPosition& pos) override {
@@ -163,7 +163,7 @@ public:
 		int32_t v = this->getValue();
 		const std::string str = (v == 0) ? "OFF"
 		                        : isCascadeValue(v)
-		                            ? "M" + std::to_string(MIDIMacro::macroIndexFromParamID(valueToDestination(v)) + 1)
+		                            ? "M" + std::to_string(Macros::macroIndexFromParamID(valueToDestination(v)) + 1)
 		                            : std::to_string(v - 1);
 		image.drawStringCentered(str.data(), pos.start_x, pos.start_y + kHorizontalMenuSlotYOffset, kTextTitleSpacingX,
 		                         kTextTitleSizeY, pos.width);
@@ -192,20 +192,20 @@ public:
 		IntegerWithOff::drawValue();
 	}
 	void readCurrentValue() override {
-		MIDIMacro::Macro* m = currentMacros();
-		uint8_t cc = m ? m[macro].targets[slot].cc : MIDIMacro::kTargetCCNone;
-		this->setValue((cc == MIDIMacro::kTargetCCNone) ? 0 : destinationToValue(cc));
+		Macros::Macro* m = currentMacros();
+		uint8_t cc = m ? m[macro].targets[slot].cc : Macros::kTargetCCNone;
+		this->setValue((cc == Macros::kTargetCCNone) ? 0 : destinationToValue(cc));
 	}
 	void writeCurrentValue() override {
-		MIDIMacro::Macro* m = currentMacros();
+		Macros::Macro* m = currentMacros();
 		if (!m) {
 			return;
 		}
 		int32_t value = this->getValue();
-		uint8_t cc = (value == 0) ? MIDIMacro::kTargetCCNone : (uint8_t)valueToDestination(value);
+		uint8_t cc = (value == 0) ? Macros::kTargetCCNone : (uint8_t)valueToDestination(value);
 		if (cc != m[macro].targets[slot].cc) {
 			// clears the old destination's baked lane (no ghost) and bakes the new one, undoably
-			MIDIMacro::changeTargetCC(getCurrentClip(), macro, slot, cc);
+			Macros::changeTargetCC(getCurrentClip(), macro, slot, cc);
 			markMacroInstrumentEdited();
 		}
 	}
@@ -213,13 +213,13 @@ public:
 	// selecting any but warn "<dest> used by Macro M" when another target already targets it.
 	void selectEncoderAction(int32_t offset) override {
 		IntegerWithOff::selectEncoderAction(offset); // move + clamp + write + value popup
-		MIDIMacro::Macro* m = currentMacros();
+		Macros::Macro* m = currentMacros();
 		int32_t v = this->getValue();
 		if (m && v != 0) {
 			uint8_t dest = (uint8_t)valueToDestination(v);
-			int32_t owner = MIDIMacro::findTargetCCOwner(m, dest, macro, slot);
+			int32_t owner = Macros::findTargetCCOwner(m, dest, macro, slot);
 			if (owner >= 0) {
-				MIDIMacro::showCCConflictPopup(dest, owner);
+				Macros::showCCConflictPopup(dest, owner);
 			}
 		}
 	}
@@ -228,21 +228,19 @@ protected:
 	int32_t getDisplayValue() override { return this->getValue() - 1; }
 
 private:
-	bool isCascadeValue(int32_t value) const { return value > MIDIMacro::kMaxTargetCC + 1; }
+	bool isCascadeValue(int32_t value) const { return value > Macros::kMaxTargetCC + 1; }
 	// menu values past the CC range map onto this macro's allowed cascade destinations
 	int32_t valueToDestination(int32_t value) const {
-		return isCascadeValue(value) ? MIDIMacro::paramIDForMacro(macro) + (value - MIDIMacro::kMaxTargetCC - 1)
-		                             : value - 1;
+		return isCascadeValue(value) ? Macros::paramIDForMacro(macro) + (value - Macros::kMaxTargetCC - 1) : value - 1;
 	}
 	int32_t destinationToValue(int32_t cc) const {
-		return MIDIMacro::isMacroParamID(cc)
-		           ? MIDIMacro::kMaxTargetCC + 1 + (MIDIMacro::macroIndexFromParamID(cc) - macro)
-		           : cc + 1;
+		return Macros::isMacroParamID(cc) ? Macros::kMaxTargetCC + 1 + (Macros::macroIndexFromParamID(cc) - macro)
+		                                  : cc + 1;
 	}
 	void appendCascadeName(StringBuf& buf, int32_t value) const {
 		buf.append(deluge::l10n::get(
 		    static_cast<deluge::l10n::String>(util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1)
-		                                      + MIDIMacro::macroIndexFromParamID(valueToDestination(value)))));
+		                                      + Macros::macroIndexFromParamID(valueToDestination(value)))));
 	}
 	int32_t macro;
 	int32_t slot;
@@ -255,13 +253,13 @@ public:
 	enum Field { FROM, TO };
 	MacroTargetRange(l10n::String newName, int32_t newMacro, int32_t newSlot, Field newField)
 	    : Integer(newName), macro(newMacro), slot(newSlot), field(newField) {}
-	[[nodiscard]] int32_t getMaxValue() const override { return MIDIMacro::kMaxValue; }
+	[[nodiscard]] int32_t getMaxValue() const override { return Macros::kMaxValue; }
 	void readCurrentValue() override { this->setValue(get()); }
 	void writeCurrentValue() override {
 		if (this->getValue() != get()) {
 			get() = this->getValue();
 			markMacroInstrumentEdited();
-			MIDIMacro::reFanTarget(getCurrentClip(), macro, slot, nullptr); // from/to changed -> re-scale this lane
+			Macros::reFanTarget(getCurrentClip(), macro, slot, nullptr); // from/to changed -> re-scale this lane
 		}
 	}
 	// While this From/To dial is focused, twisting this target's own CC knob sets the endpoint live so
@@ -277,8 +275,8 @@ public:
 		if (endpoint != value) {
 			endpoint = value;
 			instrument->editedByUser = true;
-			MIDIMacro::reFanTarget(getCurrentClip(), macro, slot, nullptr); // live from/to -> re-scale this lane
-			readValueAgain(); // re-read from the model and redraw the dial
+			Macros::reFanTarget(getCurrentClip(), macro, slot, nullptr); // live from/to -> re-scale this lane
+			readValueAgain();                                            // re-read from the model and redraw the dial
 		}
 		return false; // don't consume: let the CC continue out to the param/output
 	}
@@ -290,7 +288,7 @@ private:
 		if (!instrument) {
 			return dummy;
 		}
-		MIDIMacro::MacroTargetSlot& target = instrument->macros[macro].targets[slot];
+		Macros::MacroTargetSlot& target = instrument->macros[macro].targets[slot];
 		return (field == FROM) ? target.from : target.to;
 	}
 	int32_t macro;
@@ -307,18 +305,18 @@ public:
 	// text ("Send: On"/"Send: Off") so it's clear what changed (the base Toggle popup has no value).
 	void getNotificationValue(StringBuf& value) override { value.append(this->getValue() ? "On" : "Off"); }
 	void readCurrentValue() override {
-		MIDIMacro::Macro* m = currentMacros();
+		Macros::Macro* m = currentMacros();
 		this->setValue(m ? m[macro].targets[slot].send : true);
 	}
 	void writeCurrentValue() override {
-		MIDIMacro::Macro* m = currentMacros();
+		Macros::Macro* m = currentMacros();
 		if (!m) {
 			return;
 		}
 		if (this->getValue() != m[macro].targets[slot].send) {
 			m[macro].targets[slot].send = this->getValue();
 			markMacroInstrumentEdited();
-			MIDIMacro::reFanTarget(getCurrentClip(), macro, slot, nullptr); // re-bake (muted target gets cleared)
+			Macros::reFanTarget(getCurrentClip(), macro, slot, nullptr); // re-bake (muted target gets cleared)
 		}
 	}
 
@@ -334,13 +332,13 @@ class MacroActive final : public Toggle {
 public:
 	MacroActive(l10n::String newName, int32_t newMacro) : Toggle(newName), macro(newMacro) {}
 	void readCurrentValue() override {
-		MIDIMacro::Macro* m = currentMacros();
+		Macros::Macro* m = currentMacros();
 		this->setValue(m ? m[macro].active : false);
 	}
 	void writeCurrentValue() override {
-		MIDIMacro::Macro* m = currentMacros();
+		Macros::Macro* m = currentMacros();
 		if (m && this->getValue() != m[macro].active) {
-			MIDIMacro::setMacroActive(getCurrentClip(), macro, this->getValue());
+			Macros::setMacroActive(getCurrentClip(), macro, this->getValue());
 		}
 	}
 
@@ -348,13 +346,13 @@ private:
 	int32_t macro;
 };
 
-// The MIDI Macros submenu, shown in the MIDI clip's menu only while the feature is enabled in
+// The macros submenu, shown in the MIDI clip's menu only while the feature is enabled in
 // Community Features and the current output is a MIDI track.
 class MacroMenu final : public Submenu {
 public:
 	using Submenu::Submenu;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return MIDIMacro::isEnabled() && currentMacroInstrument() != nullptr;
+		return Macros::isEnabled() && currentMacroInstrument() != nullptr;
 	}
 };
-} // namespace deluge::gui::menu_item::midi
+} // namespace deluge::gui::menu_item::macros

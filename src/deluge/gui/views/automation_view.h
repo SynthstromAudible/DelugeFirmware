@@ -118,7 +118,7 @@ public:
 	void commitHeldTargetCC();
 	CopiedParamAutomation copiedParamAutomation;
 
-	// While a MIDI Macro lane is selected, holding a param-select button (0..7) quick-edits that
+	// While a macro lane is selected, holding a param-select button (0..7) quick-edits that
 	// target: select encoder = CC, gold knob 0 = From, gold knob 1 = To. -1 = no button held.
 	int8_t heldTarget = -1;
 	// The macro the hold started on, so a lane switch mid-hold can't commit to the wrong macro.

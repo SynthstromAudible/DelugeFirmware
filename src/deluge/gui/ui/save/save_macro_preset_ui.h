@@ -18,7 +18,7 @@
 #pragma once
 #include "gui/ui/save/save_ui.h"
 
-// Browses SETTINGS/MIDI_MACRO_PRESETS and saves the macro named by MIDIMacro::presetMacroIndex (set by the
+// Browses SETTINGS/MACRO_PRESETS and saves the macro named by Macros::presetMacroIndex (set by the
 // menu item that opened this UI) as its own preset file.
 class SaveMacroPresetUI final : public SaveUI {
 public:

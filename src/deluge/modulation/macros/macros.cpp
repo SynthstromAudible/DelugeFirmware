@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "io/midi/midi_macro.h"
+#include "modulation/macros/macros.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -44,18 +44,18 @@
 #include <algorithm>
 #include <string.h>
 
-#define MIDI_MACROS_TAG "midiMacros"      // per-instrument block, embedded in the instrument's XML
-#define MIDI_MACRO_PRESET_TAG "midiMacro" // preset file root (targets only)
-#define MIDI_MACRO_ELEMENT_TAG "macro"    // one macro (source + targets)
-#define MIDI_MACRO_SOURCE_TAG "source"    // the learned source CC
-#define MIDI_MACRO_TARGET_PREFIX "target"
+#define MACROS_TAG "macros"            // per-instrument block, embedded in the instrument's XML
+#define MACRO_PRESET_TAG "macroPreset" // preset file root (targets only)
+#define MACRO_ELEMENT_TAG "macro"      // one macro (source + targets)
+#define MACRO_SOURCE_TAG "source"      // the learned source CC
+#define MACRO_TARGET_PREFIX "target"
 
-namespace MIDIMacro {
+namespace Macros {
 
 int32_t presetMacroIndex = 0;
 
 bool isEnabled() {
-	return runtimeFeatureSettings.get(RuntimeFeatureSettingType::MidiMacro) == RuntimeFeatureStateToggle::On;
+	return runtimeFeatureSettings.get(RuntimeFeatureSettingType::MacroSystem) == RuntimeFeatureStateToggle::On;
 }
 
 int32_t findTargetCCOwner(const Macro* macros, uint8_t cc, int32_t exceptMacro, int32_t exceptSlot, int32_t* slotOut) {
@@ -406,7 +406,7 @@ bool tryModeKnobMacro(int32_t whichKnob, int32_t offset) {
 // target slot tag names are "target1" .. "target8"; returns the slot index, or -1 if not one.
 static int32_t targetSlotFromTagName(char const* tagName) {
 	constexpr int32_t prefixLen = 6; // strlen("target")
-	if (!memcmp(tagName, MIDI_MACRO_TARGET_PREFIX, prefixLen) && tagName[prefixLen] >= '1'
+	if (!memcmp(tagName, MACRO_TARGET_PREFIX, prefixLen) && tagName[prefixLen] >= '1'
 	    && tagName[prefixLen] < '1' + kNumTargetSlots && !tagName[prefixLen + 1]) {
 		return tagName[prefixLen] - '1';
 	}
@@ -418,7 +418,7 @@ static void writeTargetsToFile(Serializer& writer, Macro& macro) {
 	for (int32_t i = 0; i < kNumTargetSlots; i++) {
 		MacroTargetSlot& target = macro.targets[i];
 		if (target.cc != kTargetCCNone) {
-			char tagName[10] = MIDI_MACRO_TARGET_PREFIX "1"; // "target1"
+			char tagName[10] = MACRO_TARGET_PREFIX "1"; // "target1"
 			tagName[6] = '1' + i;
 			writer.writeOpeningTagBeginning(tagName);
 			writer.writeAttribute("cc", target.cc, false);
@@ -438,7 +438,7 @@ static void writeMacroToFile(Serializer& writer, Macro& macro) {
 		hasChildren = macro.targets[i].cc != kTargetCCNone;
 	}
 
-	writer.writeOpeningTagBeginning(MIDI_MACRO_ELEMENT_TAG);
+	writer.writeOpeningTagBeginning(MACRO_ELEMENT_TAG);
 	writer.writeAttribute("active", macro.active ? 1 : 0, false);
 	if (!macro.name.isEmpty()) {
 		writer.writeAttribute("name", macro.name.get(), false); // optional user label
@@ -458,24 +458,24 @@ static void writeMacroToFile(Serializer& writer, Macro& macro) {
 
 	writer.writeOpeningTagEnd();
 
-	macro.source.writeCCToFile(writer, MIDI_MACRO_SOURCE_TAG);
+	macro.source.writeCCToFile(writer, MACRO_SOURCE_TAG);
 
 	writeTargetsToFile(writer, macro);
 
-	writer.writeClosingTag(MIDI_MACRO_ELEMENT_TAG);
+	writer.writeClosingTag(MACRO_ELEMENT_TAG);
 }
 
-// Writes the <midiMacros enabled=".."> block holding all four macros. Called from
+// Writes the <macros> block holding all four macros. Called from
 // MIDIInstrument::writeDataToFile with the instrument's own macros/enable state.
 void writeMacrosToFile(Serializer& writer, Macro* macros) {
-	writer.writeOpeningTagBeginning(MIDI_MACROS_TAG);
+	writer.writeOpeningTagBeginning(MACROS_TAG);
 	writer.writeOpeningTagEnd();
 
 	for (int32_t m = 0; m < kNumMacros; m++) {
 		writeMacroToFile(writer, macros[m]);
 	}
 
-	writer.writeClosingTag(MIDI_MACROS_TAG);
+	writer.writeClosingTag(MACROS_TAG);
 }
 
 // Reads a target's cc/from/to/send attributes (e.g. <target1 cc="42" from="0" to="100" send="1" />).
@@ -520,7 +520,7 @@ static void readMacroFromFile(Deserializer& reader, Macro& macro, int32_t macroI
 			int32_t k = reader.readTagOrAttributeValueInt();
 			macro.sourceKnob = (k >= 0 && k < kNumPhysicalModKnobs) ? (int8_t)k : -1;
 		}
-		else if (!strcmp(tagName, MIDI_MACRO_SOURCE_TAG)) {
+		else if (!strcmp(tagName, MACRO_SOURCE_TAG)) {
 			macro.source.readCCFromFile(reader);
 		}
 		else {
@@ -533,13 +533,13 @@ static void readMacroFromFile(Deserializer& reader, Macro& macro, int32_t macroI
 	}
 }
 
-// Reads the children of a <midiMacros> block: the per-instrument enable attribute and the four
+// Reads the children of a <macros> block: the per-instrument enable attribute and the four
 // positional <macro> elements. The caller (MIDIInstrument::readTagFromFile) exits the outer tag.
 void readMacrosFromFile(Deserializer& reader, Macro* macros) {
 	char const* tagName;
 	int32_t macroIndex = 0;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, MIDI_MACRO_ELEMENT_TAG) && macroIndex < kNumMacros) {
+		if (!strcmp(tagName, MACRO_ELEMENT_TAG) && macroIndex < kNumMacros) {
 			readMacroFromFile(reader, macros[macroIndex], macroIndex);
 			macroIndex++;
 		}
@@ -547,21 +547,21 @@ void readMacrosFromFile(Deserializer& reader, Macro* macros) {
 	}
 }
 
-// Writes a preset: targets only (<midiMacro><target1..8/></midiMacro>). A preset is a portable
+// Writes a preset: targets only (<macroPreset><target1..8/></macroPreset>). A preset is a portable
 // target configuration - it deliberately omits the source and the macro's active state so it can
 // be applied to any macro. The caller (save browser) owns createXMLFile()/closeFileAfterWriting().
 void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex) {
-	writer.writeOpeningTagBeginning(MIDI_MACRO_PRESET_TAG);
+	writer.writeOpeningTagBeginning(MACRO_PRESET_TAG);
 	writer.writeOpeningTagEnd();
 	writeTargetsToFile(writer, macros[macroIndex]);
-	writer.writeClosingTag(MIDI_MACRO_PRESET_TAG);
+	writer.writeClosingTag(MACRO_PRESET_TAG);
 }
 
 // Loads a preset's targets into macros[macroIndex], replacing that macro's targets only and
 // leaving its source and active state untouched. Loaded CCs that another macro also targets
 // resolve by ownership rank; the fan-out below only bakes the slots this macro owns.
 Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroIndex) {
-	Error error = StorageManager::openXMLFile(fp, smDeserializer, MIDI_MACRO_PRESET_TAG);
+	Error error = StorageManager::openXMLFile(fp, smDeserializer, MACRO_PRESET_TAG);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -1011,4 +1011,4 @@ void setMacroActive(Clip* clip, int32_t macroIndex, bool active) {
 	}
 }
 
-} // namespace MIDIMacro
+} // namespace Macros

@@ -87,6 +87,8 @@
 #include "gui/menu_item/keyboard/layout.h"
 #include "gui/menu_item/lfo/sync.h"
 #include "gui/menu_item/lfo/type.h"
+#include "gui/menu_item/macros/macro_preset.h"
+#include "gui/menu_item/macros/macro_target.h"
 #include "gui/menu_item/master_transpose.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/midi/after_touch_to_mono.h"
@@ -104,8 +106,6 @@
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
 #include "gui/menu_item/midi/follow/follow_feedback_channel_type.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
-#include "gui/menu_item/midi/macro_preset.h"
-#include "gui/menu_item/midi/macro_target.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/program.h"
@@ -1125,17 +1125,18 @@ Submenu midiCommandsMenu{
      &nextSongMidiCommand, &shiftMidiCommand},
 };
 
-// MIDI macro submenu - 4 groups, each a learnable source CC fanning out to 8 destinations.
+// macro submenu - 4 groups, each a learnable source CC fanning out to 8 destinations.
 // Each destination is a horizontal menu page of three columns (CC | Base | Depth); the 8 pages
 // are bundled into a HorizontalMenuGroup so you flip between destinations 1-8 from one page.
 
 // Declares the CC/From/To/Send column items plus the horizontal page for macro m's target f.
 #define MACRO_TARGET(m, f)                                                                                             \
-	midi::MacroTarget macro##m##Target##f##CC{STRING_FOR_MACRO_TARGET_CC, (m) - 1, (f) - 1};                           \
-	midi::MacroTargetRange macro##m##Target##f##From{STRING_FOR_MACRO_FROM, (m) - 1, (f) - 1,                          \
-	                                                 midi::MacroTargetRange::FROM};                                    \
-	midi::MacroTargetRange macro##m##Target##f##To{STRING_FOR_MACRO_TO, (m) - 1, (f) - 1, midi::MacroTargetRange::TO}; \
-	midi::MacroTargetSend macro##m##Target##f##Send{STRING_FOR_MACRO_SEND, (m) - 1, (f) - 1};                          \
+	macros::MacroTarget macro##m##Target##f##CC{STRING_FOR_MACRO_TARGET_CC, (m) - 1, (f) - 1};                         \
+	macros::MacroTargetRange macro##m##Target##f##From{STRING_FOR_MACRO_FROM, (m) - 1, (f) - 1,                        \
+	                                                   macros::MacroTargetRange::FROM};                                \
+	macros::MacroTargetRange macro##m##Target##f##To{STRING_FOR_MACRO_TO, (m) - 1, (f) - 1,                            \
+	                                                 macros::MacroTargetRange::TO};                                    \
+	macros::MacroTargetSend macro##m##Target##f##Send{STRING_FOR_MACRO_SEND, (m) - 1, (f) - 1};                        \
 	HorizontalMenu macro##m##TargetPage##f {                                                                           \
 		STRING_FOR_MACRO_TARGET_##f, {                                                                                 \
 			&macro##m##Target##f##CC, &macro##m##Target##f##From, &macro##m##Target##f##To, &macro##m##Target##f##Send \
@@ -1144,8 +1145,8 @@ Submenu midiCommandsMenu{
 
 // Declares macro m's master enable, learnable source, 8 target pages and the macro submenu.
 #define DEFINE_MACRO(m)                                                                                                \
-	midi::MacroActive macro##m##Active{STRING_FOR_MACRO_ACTIVE, (m) - 1};                                              \
-	midi::MacroSource macro##m##Source{STRING_FOR_MACRO_SOURCE, (m) - 1};                                              \
+	macros::MacroActive macro##m##Active{STRING_FOR_MACRO_ACTIVE, (m) - 1};                                            \
+	macros::MacroSource macro##m##Source{STRING_FOR_MACRO_SOURCE, (m) - 1};                                            \
 	MACRO_TARGET(m, 1);                                                                                                \
 	MACRO_TARGET(m, 2);                                                                                                \
 	MACRO_TARGET(m, 3);                                                                                                \
@@ -1158,9 +1159,9 @@ Submenu midiCommandsMenu{
 	                                      {&macro##m##TargetPage1, &macro##m##TargetPage2, &macro##m##TargetPage3,     \
 	                                       &macro##m##TargetPage4, &macro##m##TargetPage5, &macro##m##TargetPage6,     \
 	                                       &macro##m##TargetPage7, &macro##m##TargetPage8}};                           \
-	midi::MacroPreset macro##m##Load{STRING_FOR_MACRO_LOAD, (m) - 1, false};                                           \
-	midi::MacroPreset macro##m##Save{STRING_FOR_MACRO_SAVE, (m) - 1, true};                                            \
-	Submenu midiMacro##m##Menu {                                                                                       \
+	macros::MacroPreset macro##m##Load{STRING_FOR_MACRO_LOAD, (m) - 1, false};                                         \
+	macros::MacroPreset macro##m##Save{STRING_FOR_MACRO_SAVE, (m) - 1, true};                                          \
+	Submenu macro##m##Menu {                                                                                           \
 		STRING_FOR_MACRO_##m, {                                                                                        \
 			&macro##m##Active, &macro##m##Source, &macro##m##Targets, &macro##m##Load, &macro##m##Save                 \
 		}                                                                                                              \
@@ -1173,10 +1174,10 @@ DEFINE_MACRO(4);
 #undef DEFINE_MACRO
 #undef MACRO_TARGET
 
-midi::MacroMenu midiMacroMenu{
+macros::MacroMenu macrosMenu{
     STRING_FOR_MACRO,
-    STRING_FOR_MIDI_MACRO,
-    {&midiMacro1Menu, &midiMacro2Menu, &midiMacro3Menu, &midiMacro4Menu},
+    STRING_FOR_MACROS,
+    {&macro1Menu, &macro2Menu, &macro3Menu, &macro4Menu},
 };
 // indexed by macro, for jumping straight to a macro's learn page from its automation lane
 MenuItem* macroSourceMenuItems[4] = {&macro1Source, &macro2Source, &macro3Source, &macro4Source};
@@ -1627,7 +1628,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     {
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
-        &midiMacroMenu,
+        &macrosMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
         &bendMenu,

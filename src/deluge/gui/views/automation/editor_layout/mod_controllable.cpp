@@ -20,11 +20,11 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "io/midi/midi_macro.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
+#include "modulation/macros/macros.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
@@ -38,7 +38,7 @@ using namespace deluge::gui;
 
 constexpr int32_t kParamNodeWidth = 3;
 
-// If the edited automation lane is a MIDI Macro lane, bake its curve into the target CC lanes.
+// If the edited automation lane is a macro lane, bake its curve into the target CC lanes.
 static void reFanIfMacroLane();
 
 // VU meter style colours for the automation editor
@@ -103,9 +103,9 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
 	// activating restores full brightness
 	bool dimmed = false;
 	if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT
-	    && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+	    && Macros::isMacroParamID(clip->lastSelectedParamID)) {
 		MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-		dimmed = !midiInstrument->macros[MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID)].active;
+		dimmed = !midiInstrument->macros[Macros::macroIndexFromParamID(clip->lastSelectedParamID)].active;
 	}
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
@@ -471,9 +471,9 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		else if (clip->lastSelectedParamID == CC_EXTERNAL_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
-		else if (MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+		else if (Macros::isMacroParamID(clip->lastSelectedParamID)) {
 			// "Macro N" - reuse the contiguous STRING_FOR_MACRO_1..4
-			int32_t macroIndex = MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID);
+			int32_t macroIndex = Macros::macroIndexFromParamID(clip->lastSelectedParamID);
 			parameterName.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
 			    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
@@ -1011,7 +1011,7 @@ bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(Model
 	}
 }
 
-// If the edited automation lane is a MIDI Macro lane, bake its curve into the target CC lanes,
+// If the edited automation lane is a macro lane, bake its curve into the target CC lanes,
 // joining the user's current NOTE_EDIT action so one BACK undoes the lane edit and the targets.
 static void reFanIfMacroLane() {
 	// In arranger automation the edited lane is a song param; the current clip's stale macro
@@ -1021,9 +1021,9 @@ static void reFanIfMacroLane() {
 	}
 	Clip* clip = getCurrentClip();
 	if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT
-	    && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+	    && Macros::isMacroParamID(clip->lastSelectedParamID)) {
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-		MIDIMacro::reFanMacro(clip, MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), action);
+		Macros::reFanMacro(clip, Macros::macroIndexFromParamID(clip->lastSelectedParamID), action);
 	}
 }
 

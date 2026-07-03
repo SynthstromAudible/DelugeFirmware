@@ -22,10 +22,10 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "io/midi/midi_macro.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/macros/macros.h"
 #include "storage/storage_manager.h"
 #include <string.h>
 
@@ -38,7 +38,7 @@ SaveMacroPresetUI::SaveMacroPresetUI() {
 }
 
 bool SaveMacroPresetUI::opened() {
-	Error error = createFoldersRecursiveIfNotExists(MIDIMacro::kPresetsFolder);
+	Error error = createFoldersRecursiveIfNotExists(Macros::kPresetsFolder);
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
@@ -54,13 +54,13 @@ bool SaveMacroPresetUI::opened() {
 	enteredTextEditPos = 0;
 	currentFolderIsEmpty = false;
 
-	currentDir.set(MIDIMacro::kPresetsFolder);
+	currentDir.set(Macros::kPresetsFolder);
 
 	if (display->haveOLED()) {
 		title = "Save preset";
 	}
 
-	error = arrivedInNewFolder(0, enteredText.get(), MIDIMacro::kPresetsFolder);
+	error = arrivedInNewFolder(0, enteredText.get(), Macros::kPresetsFolder);
 	if (error != Error::NONE) {
 		display->displayError(error);
 		renderingNeededRegardlessOfUI();
@@ -110,8 +110,8 @@ fail:
 
 	// Presets save the current MIDI clip's instrument macros (per-track).
 	if (Output* output = getCurrentOutput(); output && output->type == OutputType::MIDI_OUT) {
-		MIDIMacro::writeMacroPreset(GetSerializer(), static_cast<MIDIInstrument*>(output)->macros,
-		                            MIDIMacro::presetMacroIndex);
+		Macros::writeMacroPreset(GetSerializer(), static_cast<MIDIInstrument*>(output)->macros,
+		                         Macros::presetMacroIndex);
 	}
 
 	GetSerializer().closeFileAfterWriting();
@@ -133,7 +133,7 @@ ActionResult SaveMacroPresetUI::buttonAction(deluge::hid::Button b, bool on, boo
 
 	if (on && b == BACK) {
 		// don't allow navigation backwards if we're in the default folder
-		if (!strcmp(currentDir.get(), MIDIMacro::kPresetsFolder)) {
+		if (!strcmp(currentDir.get(), Macros::kPresetsFolder)) {
 			close();
 			return ActionResult::DEALT_WITH;
 		}

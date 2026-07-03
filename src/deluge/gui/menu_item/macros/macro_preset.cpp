@@ -14,17 +14,17 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "gui/menu_item/midi/macro_preset.h"
+#include "gui/menu_item/macros/macro_preset.h"
 #include "gui/ui/load/load_macro_preset_ui.h"
 #include "gui/ui/save/save_macro_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
-#include "io/midi/midi_macro.h"
+#include "modulation/macros/macros.h"
 
-namespace deluge::gui::menu_item::midi {
+namespace deluge::gui::menu_item::macros {
 
 void MacroPreset::openBrowser() {
-	MIDIMacro::presetMacroIndex = macro;
+	Macros::presetMacroIndex = macro;
 	if (isSave) {
 		openUI(&saveMacroPresetUI);
 	}
@@ -44,4 +44,4 @@ MenuItem* MacroPreset::selectButtonPress() {
 	return NO_NAVIGATION;
 }
 
-} // namespace deluge::gui::menu_item::midi
+} // namespace deluge::gui::menu_item::macros

@@ -20,11 +20,11 @@
 #include "gui/l10n/l10n.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
-#include "io/midi/midi_macro.h"
 #include "model/action/action_logger.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/macros/macros.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include <string.h>
@@ -39,7 +39,7 @@ bool LoadMacroPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool LoadMacroPresetUI::opened() {
-	Error error = createFoldersRecursiveIfNotExists(MIDIMacro::kPresetsFolder);
+	Error error = createFoldersRecursiveIfNotExists(Macros::kPresetsFolder);
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
@@ -72,12 +72,12 @@ Error LoadMacroPresetUI::setupForLoadingPreset() {
 
 	enteredText.clear();
 
-	Error error = currentDir.set(MIDIMacro::kPresetsFolder);
+	Error error = currentDir.set(Macros::kPresetsFolder);
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	error = arrivedInNewFolder(0, nullptr, MIDIMacro::kPresetsFolder);
+	error = arrivedInNewFolder(0, nullptr, Macros::kPresetsFolder);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -121,17 +121,17 @@ void LoadMacroPresetUI::enterKeyPress() {
 		int32_t owner = -1;
 		uint8_t conflictCC = 0;
 		if (output && output->type == OutputType::MIDI_OUT) {
-			MIDIMacro::Macro* macros = static_cast<MIDIInstrument*>(output)->macros;
-			for (int32_t f = 0; f < MIDIMacro::kNumTargetSlots && owner < 0; f++) {
-				uint8_t cc = macros[MIDIMacro::presetMacroIndex].targets[f].cc;
-				owner = MIDIMacro::findTargetCCOwner(macros, cc, MIDIMacro::presetMacroIndex, f);
+			Macros::Macro* macros = static_cast<MIDIInstrument*>(output)->macros;
+			for (int32_t f = 0; f < Macros::kNumTargetSlots && owner < 0; f++) {
+				uint8_t cc = macros[Macros::presetMacroIndex].targets[f].cc;
+				owner = Macros::findTargetCCOwner(macros, cc, Macros::presetMacroIndex, f);
 				if (owner >= 0) {
 					conflictCC = cc;
 				}
 			}
 		}
 		if (owner >= 0) {
-			MIDIMacro::showCCConflictPopup(conflictCC, owner);
+			Macros::showCCConflictPopup(conflictCC, owner);
 		}
 		else {
 			display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_PRESET_LOADED));
@@ -150,7 +150,7 @@ ActionResult LoadMacroPresetUI::buttonAction(deluge::hid::Button b, bool on, boo
 
 	if (on && b == BACK) {
 		// don't allow navigation backwards if we're in the default folder
-		if (!strcmp(currentDir.get(), MIDIMacro::kPresetsFolder)) {
+		if (!strcmp(currentDir.get(), Macros::kPresetsFolder)) {
 			close();
 			return ActionResult::DEALT_WITH;
 		}
@@ -184,8 +184,8 @@ Error LoadMacroPresetUI::performLoad() {
 		return Error::NONE;
 	}
 	auto* instrument = static_cast<MIDIInstrument*>(output);
-	Error error = MIDIMacro::loadMacroPreset(&currentFileItem->filePointer, clip, instrument->macros,
-	                                         MIDIMacro::presetMacroIndex);
+	Error error =
+	    Macros::loadMacroPreset(&currentFileItem->filePointer, clip, instrument->macros, Macros::presetMacroIndex);
 	if (error == Error::NONE) {
 		instrument->editedByUser = true;
 	}

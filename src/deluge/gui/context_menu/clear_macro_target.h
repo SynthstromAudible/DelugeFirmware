@@ -21,7 +21,7 @@
 
 namespace deluge::gui::context_menu {
 
-// Confirmation for clearing a MIDI macro target's assignment (SHIFT+SAVE while holding its param
+// Confirmation for clearing a macro target's assignment (SHIFT+SAVE while holding its param
 // button in automation view). Accepting resets the target's config; the baked lanes are untouched.
 class ClearMacroTarget final : public ContextMenu {
 public:

@@ -33,7 +33,7 @@ class ModelStackWithTimelineCounter;
 // forward/record it too, include it as one of its macro's targets.
 // Config is per-track: the four macros live on each MIDIInstrument and serialize with it
 // (song + preset). Configured in the MIDI clip's menu.
-namespace MIDIMacro {
+namespace Macros {
 
 constexpr int32_t kNumMacros = 4;
 constexpr int32_t kNumTargetSlots = 8;
@@ -90,7 +90,7 @@ struct Macro {
 	MacroTargetSlot targets[kNumTargetSlots];
 };
 
-// Whether the MIDI macro feature is turned on in Community Features. Gates menu visibility and,
+// Whether the macro feature is turned on in Community Features. Gates menu visibility and,
 // with each macro's Active flag, whether macros fire. This is the global off-switch.
 bool isEnabled();
 
@@ -129,7 +129,7 @@ void showCCConflictPopup(uint8_t cc, int32_t ownerMacro, bool persistent = false
 bool anyMacroConfigured(Macro* macros);
 
 // Folder for per-macro preset files under SETTINGS. Presets are portable target configs, shared.
-constexpr char const* kPresetsFolder = "SETTINGS/MIDI_MACRO_PRESETS";
+constexpr char const* kPresetsFolder = "SETTINGS/MACRO_PRESETS";
 
 // Which macro a preset browser (load/save) is acting on. Set by the menu item before opening the
 // browser UI, read by the UI's performLoad()/performSave().
@@ -172,7 +172,7 @@ void changeTargetCC(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newCC)
 // Always flip `active` through this rather than writing the field.
 void setMacroActive(Clip* clip, int32_t macroIndex, bool active);
 
-// Serializes/deserializes an instrument's macros as a <midiMacros> block within the instrument's
+// Serializes/deserializes an instrument's macros as a <macros> block within the instrument's
 // own XML. Reused for both the song file and standalone instrument presets.
 void writeMacrosToFile(Serializer& writer, Macro* macros);
 void readMacrosFromFile(Deserializer& reader, Macro* macros);
@@ -191,4 +191,4 @@ Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroI
 // between the two captured states. Targets whose CC has never been touched on this clip (no param
 // exists, so no known value) keep their existing from/to. Returns whether anything was captured.
 bool capture(Clip* clip, int32_t macroIndex, bool toMax);
-}; // namespace MIDIMacro
+}; // namespace Macros

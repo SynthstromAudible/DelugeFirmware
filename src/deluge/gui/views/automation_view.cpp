@@ -54,7 +54,6 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
-#include "io/midi/midi_macro.h"
 #include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -79,6 +78,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/macros/macros.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
@@ -115,17 +115,17 @@ using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 
 using namespace deluge::gui;
 
-// If a MIDI Macro lane is the selected automation param on this clip, return its instrument and (via
+// If a macro lane is the selected automation param on this clip, return its instrument and (via
 // macroIndex) which macro; else nullptr. Callers gate on being in the clip automation editor. Also
 // null with the community feature off: a lane selection can outlive the feature toggle (it's
 // deserialized with the clip), and none of the macro UI may act then.
 static MIDIInstrument* macroLaneInstrument(Clip* clip, int32_t* macroIndex) {
-	if (!MIDIMacro::isEnabled() || !clip || !clip->output || clip->output->type != OutputType::MIDI_OUT
-	    || !MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+	if (!Macros::isEnabled() || !clip || !clip->output || clip->output->type != OutputType::MIDI_OUT
+	    || !Macros::isMacroParamID(clip->lastSelectedParamID)) {
 		return nullptr;
 	}
 	if (macroIndex != nullptr) {
-		*macroIndex = MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID);
+		*macroIndex = Macros::macroIndexFromParamID(clip->lastSelectedParamID);
 	}
 	return (MIDIInstrument*)clip->output;
 }
@@ -134,14 +134,14 @@ static MIDIInstrument* macroLaneInstrument(Clip* clip, int32_t* macroIndex) {
 // macro number, never its user name), else the MIDI device's CC name (from a loaded definition
 // file), else "CC<n>", else "T<n>" when cc is OFF (kTargetCCNone).
 static void appendTargetName(StringBuf& buf, MIDIInstrument* instrument, int32_t target, uint8_t cc) {
-	if (cc == MIDIMacro::kTargetCCNone) {
+	if (cc == Macros::kTargetCCNone) {
 		buf.append('T');
 		buf.appendInt(target + 1);
 		return;
 	}
-	if (MIDIMacro::isMacroParamID(cc)) {
+	if (Macros::isMacroParamID(cc)) {
 		buf.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
-		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + MIDIMacro::macroIndexFromParamID(cc))));
+		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + Macros::macroIndexFromParamID(cc))));
 		return;
 	}
 	std::string_view name = instrument->getNameFromCC(cc);
@@ -158,7 +158,7 @@ static void appendTargetName(StringBuf& buf, MIDIInstrument* instrument, int32_t
 // left bar = From, right bar = To (matching which knob edits which endpoint). Default 0-127 reads
 // as From empty, To full. view.setKnobIndicatorLevels() restores them on release.
 static void showHeldTargetKnobIndicators(MIDIInstrument* instrument, int32_t macroIndex, int32_t target) {
-	MIDIMacro::MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
+	Macros::MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
 	indicator_leds::setKnobIndicatorLevel(0, f.from, false);
 	indicator_leds::setKnobIndicatorLevel(1, f.to, false);
 }
@@ -173,16 +173,16 @@ static void showHeldTargetKnobIndicators(MIDIInstrument* instrument, int32_t mac
 static void showTargetFull(MIDIInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t cc,
                            bool showConflict) {
 	// A shadowed target doesn't drive anything - show WHO owns the destination, not a range.
-	if (showConflict && cc != MIDIMacro::kTargetCCNone) {
-		int32_t owner = MIDIMacro::findShadowingOwner(instrument->macros, cc, macroIndex, target);
+	if (showConflict && cc != Macros::kTargetCCNone) {
+		int32_t owner = Macros::findShadowingOwner(instrument->macros, cc, macroIndex, target);
 		if (owner >= 0) {
-			MIDIMacro::showCCConflictPopup(cc, owner, true); // persistent while held
+			Macros::showCCConflictPopup(cc, owner, true); // persistent while held
 			return;
 		}
 	}
-	MIDIMacro::MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
+	Macros::MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
 	DEF_STACK_STRING_BUF(popup, 48);
-	if (cc == MIDIMacro::kTargetCCNone) {
+	if (cc == Macros::kTargetCCNone) {
 		popup.append("Not assigned");
 	}
 	else {
@@ -1722,8 +1722,8 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
 			// clearing a macro lane clears its target CC lanes too, in the same undo step
-			if (!onArrangerView && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
-				MIDIMacro::reFanMacro(clip, MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), action);
+			if (!onArrangerView && Macros::isMacroParamID(clip->lastSelectedParamID)) {
+				Macros::reFanMacro(clip, Macros::macroIndexFromParamID(clip->lastSelectedParamID), action);
 			}
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
@@ -1993,7 +1993,7 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 							bool toMax = (x == kMacroCaptureToShortcutX);
 							// no popup on a no-op: every configured target CC was untouched on this clip,
 							// so confirming a "capture" would claim a snapshot that never happened
-							if (MIDIMacro::capture(clip, macroIndex, toMax)) {
+							if (Macros::capture(clip, macroIndex, toMax)) {
 								display->displayPopup(
 								    deluge::l10n::get(toMax ? deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_TO
 								                            : deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_FROM));
@@ -2009,7 +2009,7 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 					// save-preset browser for this macro.
 					if (y == kMacroPresetShortcutY
 					    && (x == kMacroPresetLoadShortcutX || x == kMacroPresetSaveShortcutX)) {
-						MIDIMacro::presetMacroIndex = macroIndex;
+						Macros::presetMacroIndex = macroIndex;
 						if (x == kMacroPresetSaveShortcutX) {
 							openUI(&saveMacroPresetUI);
 						}
@@ -2501,8 +2501,8 @@ void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelS
 
 		// shifting a macro lane must fan the moved curve out to the target CC lanes
 		Clip* clip = getCurrentClip();
-		if (!onArrangerView && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
-			MIDIMacro::reFanMacro(clip, MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), nullptr);
+		if (!onArrangerView && Macros::isMacroParamID(clip->lastSelectedParamID)) {
+			Macros::reFanMacro(clip, Macros::macroIndexFromParamID(clip->lastSelectedParamID), nullptr);
 		}
 	}
 
@@ -2609,7 +2609,7 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 
 // used to change the value of a step when you press and hold a pad on the timeline
 // used to record live automations in
-// While a MIDI Macro lane is selected, holding a param-select button momentarily quick-edits that
+// While a macro lane is selected, holding a param-select button momentarily quick-edits that
 // target (select=CC, gold knobs=From/To). Otherwise the buttons behave normally.
 void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 	// Handle release FIRST and unconditionally: the lane/editor state may have changed mid-hold, and
@@ -2632,11 +2632,11 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 	int32_t macroIndex = 0;
 	MIDIInstrument* instrument =
 	    (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(getCurrentClip(), &macroIndex) : nullptr;
-	if (instrument != nullptr && whichButton < MIDIMacro::kNumTargetSlots) {
+	if (instrument != nullptr && whichButton < Macros::kNumTargetSlots) {
 		heldTarget = whichButton;
 		heldTargetMacro = macroIndex;
 		uint8_t cc = instrument->macros[macroIndex].targets[whichButton].cc;
-		heldTargetPendingCC = (cc == MIDIMacro::kTargetCCNone) ? -1 : cc;
+		heldTargetPendingCC = (cc == Macros::kTargetCCNone) ? -1 : cc;
 		// initial press: an in-use target reads out who owns its destination
 		showTargetFull(instrument, macroIndex, whichButton, cc, true);
 		showHeldTargetKnobIndicators(instrument, macroIndex, whichButton);
@@ -2655,9 +2655,9 @@ void AutomationView::commitHeldTargetCC() {
 	if (instrument == nullptr || macroIndex != heldTargetMacro) {
 		return; // lane changed mid-hold: drop the pending value rather than commit to the wrong macro
 	}
-	uint8_t newCC = (heldTargetPendingCC < 0) ? MIDIMacro::kTargetCCNone : (uint8_t)heldTargetPendingCC;
+	uint8_t newCC = (heldTargetPendingCC < 0) ? Macros::kTargetCCNone : (uint8_t)heldTargetPendingCC;
 	if (newCC != instrument->macros[macroIndex].targets[heldTarget].cc) {
-		MIDIMacro::changeTargetCC(clip, macroIndex, heldTarget, newCC);
+		Macros::changeTargetCC(clip, macroIndex, heldTarget, newCC);
 	}
 }
 
@@ -2669,7 +2669,7 @@ bool AutomationView::acceptPendingTargetClear() {
 	bool ok =
 	    instrument != nullptr && pendingClearMacro >= 0 && pendingClearTarget >= 0 && macroIndex == pendingClearMacro;
 	if (ok) {
-		instrument->macros[pendingClearMacro].targets[pendingClearTarget] = MIDIMacro::MacroTargetSlot{};
+		instrument->macros[pendingClearMacro].targets[pendingClearTarget] = Macros::MacroTargetSlot{};
 		instrument->editedByUser = true;
 		view.setModLedStates(); // that target's assignment LED goes dark
 		display->displayPopup("Target cleared");
@@ -2685,9 +2685,9 @@ bool AutomationView::toggleMacroLaneActive() {
 	if (instrument == nullptr) {
 		return false; // not a macro lane - let the encoder press do its normal job
 	}
-	MIDIMacro::Macro* macros = instrument->macros;
+	Macros::Macro* macros = instrument->macros;
 	// flips the flag and re-bakes any contested CC lane whose ownership moves with it
-	MIDIMacro::setMacroActive(getCurrentClip(), macroIndex, !macros[macroIndex].active);
+	Macros::setMacroActive(getCurrentClip(), macroIndex, !macros[macroIndex].active);
 	// the persistent Inactive status popup IS the state display: shown on deactivate, cleared on
 	// activate (its absence implies active - no confirmation popup needed)
 	refreshMacroInactivePopup();
@@ -2734,14 +2734,14 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			// Shaping the range implicitly confirms a destination still pending from the select
 			// encoder - commit it now so From/To edit (and read out) the just-dialed CC.
 			commitHeldTargetCC();
-			MIDIMacro::MacroTargetSlot& f = instrument->macros[macroIndex].targets[heldTarget];
+			Macros::MacroTargetSlot& f = instrument->macros[macroIndex].targets[heldTarget];
 			uint8_t& endpoint = (whichModEncoder == 1) ? f.to : f.from; // knob 1 = From, knob 2 = To
-			int32_t v = std::clamp<int32_t>((int32_t)endpoint + offset, 0, MIDIMacro::kMaxValue);
+			int32_t v = std::clamp<int32_t>((int32_t)endpoint + offset, 0, Macros::kMaxValue);
 			if (v != endpoint) {
 				endpoint = (uint8_t)v;
 				instrument->editedByUser = true;
 				// only this target's scaling changed - re-bake just its lane
-				MIDIMacro::reFanTarget(heldClip, macroIndex, heldTarget, nullptr);
+				Macros::reFanTarget(heldClip, macroIndex, heldTarget, nullptr);
 			}
 			// always show the full "From X To Y" readout - even for an in-use target, so its range
 			// stays editable like any other; the conflict shows as the blinking LED after release
@@ -2879,8 +2879,8 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
 		// clearing a macro lane clears its target CC lanes too, in the same undo step
-		if (!onArrangerView && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
-			MIDIMacro::reFanMacro(clip, MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID), action);
+		if (!onArrangerView && Macros::isMacroParamID(clip->lastSelectedParamID)) {
+			Macros::reFanMacro(clip, Macros::macroIndexFromParamID(clip->lastSelectedParamID), action);
 		}
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
@@ -2918,22 +2918,21 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			// One continuous dial: OFF, CC 0-127, then this macro's cascade destinations (the
 			// higher-indexed macros it may target, shown as "Macro N"). Destination ids past 127
 			// aren't contiguous with the CCs per-macro, so step in "dial position" space.
-			int32_t maxPosition = MIDIMacro::kMaxTargetCC + MIDIMacro::numCascadeDestinations(macroIndex);
+			int32_t maxPosition = Macros::kMaxTargetCC + Macros::numCascadeDestinations(macroIndex);
 			int32_t position = heldTargetPendingCC;
-			if (position > MIDIMacro::kMaxTargetCC) {
-				position = MIDIMacro::kMaxTargetCC + (position - MIDIMacro::paramIDForMacro(macroIndex));
+			if (position > Macros::kMaxTargetCC) {
+				position = Macros::kMaxTargetCC + (position - Macros::paramIDForMacro(macroIndex));
 			}
 			position = std::clamp<int32_t>(position + offset, -1, maxPosition);
-			heldTargetPendingCC = (position <= MIDIMacro::kMaxTargetCC)
+			heldTargetPendingCC = (position <= Macros::kMaxTargetCC)
 			                          ? position
-			                          : MIDIMacro::paramIDForMacro(macroIndex) + (position - MIDIMacro::kMaxTargetCC);
-			uint8_t pendingCC = (heldTargetPendingCC < 0) ? MIDIMacro::kTargetCCNone : (uint8_t)heldTargetPendingCC;
+			                          : Macros::paramIDForMacro(macroIndex) + (position - Macros::kMaxTargetCC);
+			uint8_t pendingCC = (heldTargetPendingCC < 0) ? Macros::kTargetCCNone : (uint8_t)heldTargetPendingCC;
 			// Dialing stays normal even onto an in-use CC (pick it, then shape From/To with the gold
 			// knobs); only the LED hints it won't drive, and it blinks after release.
 			showTargetFull(instrument, macroIndex, heldTarget, pendingCC, false);
-			bool wouldDrive =
-			    pendingCC != MIDIMacro::kTargetCCNone
-			    && MIDIMacro::findShadowingOwner(instrument->macros, pendingCC, macroIndex, heldTarget) < 0;
+			bool wouldDrive = pendingCC != Macros::kTargetCCNone
+			                  && Macros::findShadowingOwner(instrument->macros, pendingCC, macroIndex, heldTarget) < 0;
 			// the held button's LED tracks the pending assignment live
 			indicator_leds::setLedState(indicator_leds::modLed[heldTarget], wouldDrive);
 			return;
@@ -3237,22 +3236,22 @@ bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int
 // CC 0..119, then the specials (pitch bend/aftertouch/Y). We map to a contiguous "position" where macros
 // are negative (-kNumMacroParams..-1) and CCs/specials are 0..CC_NUMBER_Y_AXIS so scrolling is simple.
 static int32_t midiCCToOrderedPos(int32_t id) {
-	if (MIDIMacro::isMacroParamID(id)) {
-		return MIDIMacro::macroIndexFromParamID(id) - MIDIMacro::kNumMacroParams;
+	if (Macros::isMacroParamID(id)) {
+		return Macros::macroIndexFromParamID(id) - Macros::kNumMacroParams;
 	}
 	return id;
 }
 static int32_t midiOrderedPosToCC(int32_t pos) {
 	if (pos < 0) {
-		return MIDIMacro::paramIDForMacro(pos + MIDIMacro::kNumMacroParams);
+		return Macros::paramIDForMacro(pos + Macros::kNumMacroParams);
 	}
 	return pos;
 }
 
 void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
-	const bool macros = MIDIMacro::isEnabled();
-	const int32_t firstPos = macros ? -MIDIMacro::kNumMacroParams : 0; // macro 1, or CC 0
-	const int32_t lastPos = CC_NUMBER_Y_AXIS;                          // 122
+	const bool macros = Macros::isEnabled();
+	const int32_t firstPos = macros ? -Macros::kNumMacroParams : 0; // macro 1, or CC 0
+	const int32_t lastPos = CC_NUMBER_Y_AXIS;                       // 122
 
 	int32_t pos;
 	if (onAutomationOverview()) {

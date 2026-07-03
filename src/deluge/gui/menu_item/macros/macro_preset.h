@@ -17,10 +17,10 @@
 #pragma once
 #include "gui/menu_item/menu_item.h"
 
-namespace deluge::gui::menu_item::midi {
+namespace deluge::gui::menu_item::macros {
 
 // A Load or Save action for one macro's presets. Selecting it records which macro the browser
-// should act on (MIDIMacro::presetMacroIndex) and opens the load/save browser UI.
+// should act on (Macros::presetMacroIndex) and opens the load/save browser UI.
 class MacroPreset final : public MenuItem {
 public:
 	MacroPreset(l10n::String newName, int32_t newMacro, bool newIsSave)
@@ -35,4 +35,4 @@ private:
 	int32_t macro;
 	bool isSave;
 };
-} // namespace deluge::gui::menu_item::midi
+} // namespace deluge::gui::menu_item::macros

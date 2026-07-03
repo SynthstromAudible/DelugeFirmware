@@ -21,8 +21,8 @@
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 
-// Browses SETTINGS/MIDI_MACRO_PRESETS and loads the chosen preset into the macro named by
-// MIDIMacro::presetMacroIndex (set by the menu item that opened this UI).
+// Browses SETTINGS/MACRO_PRESETS and loads the chosen preset into the macro named by
+// Macros::presetMacroIndex (set by the menu item that opened this UI).
 class LoadMacroPresetUI final : public LoadUI {
 public:
 	LoadMacroPresetUI() = default;

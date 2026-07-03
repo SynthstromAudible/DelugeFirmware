@@ -22,17 +22,17 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
-#include "io/midi/midi_macro.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/macros/macros.h"
 #include <string_view>
 
 RenameMidiCCUI renameMidiCCUI{"CC Name"};
 
 bool RenameMidiCCUI::opened() {
 	// the same UI names both real CCs and macro lanes - retitle to match what's selected
-	title = MIDIMacro::isMacroParamID(getCurrentClip()->lastSelectedParamID) ? "Macro Name" : "CC Name";
+	title = Macros::isMacroParamID(getCurrentClip()->lastSelectedParamID) ? "Macro Name" : "CC Name";
 	return RenameUI::opened();
 }
 
@@ -40,15 +40,15 @@ bool RenameMidiCCUI::canRename() const {
 	Clip* clip = getCurrentClip();
 	int32_t cc = clip->lastSelectedParamID;
 	// real CCs and macro lanes can be named; the expression pseudo-CCs can't
-	return (cc >= 0 && cc != CC_EXTERNAL_MOD_WHEEL && cc < kNumRealCCNumbers) || MIDIMacro::isMacroParamID(cc);
+	return (cc >= 0 && cc != CC_EXTERNAL_MOD_WHEEL && cc < kNumRealCCNumbers) || Macros::isMacroParamID(cc);
 }
 
 std::string_view RenameMidiCCUI::getCurrentName() const {
 	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 	int32_t cc = clip->lastSelectedParamID;
-	if (MIDIMacro::isMacroParamID(cc)) {
-		return midiInstrument->macros[MIDIMacro::macroIndexFromParamID(cc)].name.get();
+	if (Macros::isMacroParamID(cc)) {
+		return midiInstrument->macros[Macros::macroIndexFromParamID(cc)].name.get();
 	}
 	return midiInstrument->getNameFromCC(cc);
 }
@@ -59,8 +59,8 @@ bool RenameMidiCCUI::trySetName(std::string_view name) {
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 	int32_t cc = clip->lastSelectedParamID;
 
-	if (MIDIMacro::isMacroParamID(cc)) {
-		midiInstrument->macros[MIDIMacro::macroIndexFromParamID(cc)].name.set(name);
+	if (Macros::isMacroParamID(cc)) {
+		midiInstrument->macros[Macros::macroIndexFromParamID(cc)].name.set(name);
 	}
 	else {
 		midiInstrument->setNameForCC(cc, name);

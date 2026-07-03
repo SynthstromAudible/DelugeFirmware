@@ -53,7 +53,6 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
-#include "io/midi/midi_macro.h"
 #include "lib/printf.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -74,6 +73,7 @@
 #include "model/timeline_counter.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/macros/macros.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
@@ -823,14 +823,14 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	// A gold knob learned as a MIDI-macro source is dedicated: it drives that macro's targets and its
 	// normal param action is suppressed. tryKnobMacro returns false for every non-source knob.
-	if (getCurrentOutputType() == OutputType::MIDI_OUT && MIDIMacro::isEnabled()) {
-		if (MIDIMacro::tryKnobMacro(whichModEncoder, offset)) {
+	if (getCurrentOutputType() == OutputType::MIDI_OUT && Macros::isEnabled()) {
+		if (Macros::tryKnobMacro(whichModEncoder, offset)) {
 			return;
 		}
 		// In the regular MIDI clip view (not automation view), the LAST param-select row is the
 		// dedicated macro row: gold knob 1 drives Macro 1 and gold knob 2 drives Macro 2.
 		if (getRootUI() == &instrumentClipView && getModKnobMode() == kNumModButtons - 1
-		    && MIDIMacro::tryModeKnobMacro(whichModEncoder, offset)) {
+		    && Macros::tryModeKnobMacro(whichModEncoder, offset)) {
 			return;
 		}
 	}
@@ -1679,12 +1679,12 @@ void View::setModLedStates() {
 			bool targetConflicted = false;
 			if (!automationView.onArrangerView) {
 				Clip* clip = getCurrentClip();
-				if (MIDIMacro::isEnabled() && clip && clip->output && clip->output->type == OutputType::MIDI_OUT
-				    && MIDIMacro::isMacroParamID(clip->lastSelectedParamID)) {
+				if (Macros::isEnabled() && clip && clip->output && clip->output->type == OutputType::MIDI_OUT
+				    && Macros::isMacroParamID(clip->lastSelectedParamID)) {
 					MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-					int32_t macroIndex = MIDIMacro::macroIndexFromParamID(clip->lastSelectedParamID);
-					if (midiInstrument->macros[macroIndex].targets[i].cc != MIDIMacro::kTargetCCNone) {
-						targetConflicted = MIDIMacro::targetHasConflict(midiInstrument->macros, macroIndex, i);
+					int32_t macroIndex = Macros::macroIndexFromParamID(clip->lastSelectedParamID);
+					if (midiInstrument->macros[macroIndex].targets[i].cc != Macros::kTargetCCNone) {
+						targetConflicted = Macros::targetHasConflict(midiInstrument->macros, macroIndex, i);
 						targetAssigned = !targetConflicted;
 					}
 				}
