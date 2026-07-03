@@ -52,6 +52,9 @@ extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEdito
 extern gui::menu_item::EditName nameEditMenu;
 extern gui::menu_item::Submenu dxMenu;
 extern gui::menu_item::Submenu stemExportMenu;
+// the four MIDI-macro Source (learn) menu items, indexed by macro - for jumping straight to the
+// learn page from a macro automation lane (LEARN + vertical encoder press)
+extern MenuItem* macroSourceMenuItems[4];
 extern gui::menu_item::stem_export::Start startStemExportMenu;
 
 extern gui::menu_item::firmware::Version firmwareVersionMenu;

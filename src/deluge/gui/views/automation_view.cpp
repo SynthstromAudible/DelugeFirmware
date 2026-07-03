@@ -1331,6 +1331,19 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// Vertical encoder button
 	// Not relevant for audio clip
 	else if (b == Y_ENC && !isAudioClip) {
+		// LEARN + vertical encoder press on a macro lane opens that macro's Source learn page (same
+		// as Macros -> Macro N -> Source), keeping LEARN + audition pad as the clip-input learn. A
+		// source learned there is consumed by the macro - it never reaches its own CC's lane.
+		if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN) && inAutomationEditor() && !onArrangerView) {
+			int32_t macroIndex = 0;
+			if (macroLaneInstrument(clip, &macroIndex) != nullptr) {
+				view.endMIDILearn(); // holding LEARN entered midi-learn mode - leave it before the menu
+				if (soundEditor.setup(clip, macroSourceMenuItems[macroIndex])) {
+					openUI(&soundEditor);
+				}
+				return ActionResult::DEALT_WITH;
+			}
+		}
 		// SHIFT + vertical encoder press on a macro lane toggles that macro Active/Inactive
 		if (on && Buttons::isShiftButtonPressed() && inAutomationEditor() && !onArrangerView
 		    && toggleMacroLaneActive()) {

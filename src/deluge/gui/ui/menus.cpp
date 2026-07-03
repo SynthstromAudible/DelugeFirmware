@@ -1178,6 +1178,8 @@ midi::MacroMenu midiMacroMenu{
     STRING_FOR_MIDI_MACRO,
     {&midiMacro1Menu, &midiMacro2Menu, &midiMacro3Menu, &midiMacro4Menu},
 };
+// indexed by macro, for jumping straight to a macro's learn page from its automation lane
+MenuItem* macroSourceMenuItems[4] = {&macro1Source, &macro2Source, &macro3Source, &macro4Source};
 
 // MIDI device submenu - for after we've selected which device we want it for
 
