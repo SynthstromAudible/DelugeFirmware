@@ -153,28 +153,40 @@ Borrowing's contributions divide cleanly:
   store" fact, and the `DocAutoParam` / `param_edit` data+op form.
 - **Throwaway (unwind):** the raw pointer, the shared concrete container, the direct RT mutation of DOM memory.
 
-The conversion is **per operation**, and each step is independently golden-/`param_projection_test`-verifiable
-(a forwarded op must match the engine op — exactly what the projection test already asserts for ported kernels):
+The migration is **two distinct movements**, in order. The reason they cannot be fused: the node operations are
+shared `AutoParam` methods, so an op body can only be replaced by a DOM forward once **every** param it runs for
+already has a `DocAutoParam` to forward to. So all binding precedes any op-flip. (The alternative — a per-op
+`if (bound) forward; else legacy` fork across ~30 ops — is rejected as transitional cruft; the projection test
+already proves the kernels, so the flip needs no production fork to de-risk.)
 
-1. **Read path:** replace `processCurrentPos` / `setupInterpolation` / `setPlayPos` / `grabValueFromPos` node
-   reads (`nodes().firstAtOrAfter(...)`, etc.) with DOM read-API calls. `currentValue`/increment stay engine-side.
+**Movement 1 — Universal binding (owner-by-owner, borrow-as-mechanism).** Give every `AutoParam` a bound
+`DocAutoParam`, owner by owner (the store-lifetime frontier): song-global (**done**, Phase B) → AudioClip →
+InstrumentClip → kits/drums + `ParamBackup` → patch cables / MIDI CC / expression. This *is* a borrow rollout, and
+that is fine — borrow here is transitional binding, removed wholesale in Movement 2, not a terminal state. To
+avoid later churn, the borrow handle is shaped as the destination from the start: `nodes_` points at the bound
+`DocAutoParam` (via its `nodes`), so Movement 2 changes op *bodies*, not the binding. Behind this the concrete
+store location is a DOM-side detail, so the earlier "map vs inline store" question dissolves. **Movement 1 ends
+when 100% of params are bound and `ownNodes_` is used only as the unbound fallback.**
+
+**Movement 2 — Accessor flip (global, op-by-op; only after Movement 1 completes).** Now that all params are bound:
+1. **Read path:** replace `processCurrentPos` / `setupInterpolation` / `setPlayPos` / `grabValueFromPos` node reads
+   (`nodes().firstAtOrAfter(...)`) with DOM read-API calls. `currentValue`/increment stay engine-side.
 2. **Edit path:** replace each engine edit op body with a forward to its `param_edit` kernel (port the remaining
    ones first). `setValueForRegion` / the recording latch path is the most delicate (§7).
-3. **Drop node storage:** once all reads/edits forward, remove `ownNodes_`/`nodes_`; `AutoParam` holds `doc_`.
+3. **Drop node storage:** with all reads/edits forwarding, remove `ownNodes_`/`nodes_`; `AutoParam` holds only its
+   cursor + `doc_` handle (§4.2).
 
-This proceeds **owner-by-owner** (the store-lifetime frontier), reusing the phasing already established:
-song-global (done as borrow) → AudioClip → InstrumentClip → kits/drums + `ParamBackup`. Behind the DOM API the
-concrete store location is a DOM-side implementation detail, so the earlier "map vs inline store" question
-dissolves — it is no longer an architectural fork.
+Each op flip is independently golden-/`param_projection_test`-verifiable (a forwarded op must match the engine op
+— exactly what the projection test already asserts for ported kernels).
 
-### 5.1 Phase C, reframed
+### 5.1 Phase C, honestly scoped
 
-Phase C ("clips") becomes **the first borrow→accessor conversion**, at the AudioClip owner: bind the clip's
-`AutoParam`s to per-clip `DocAutoParam`s, route their reads/edits through the DOM API, and shrink them toward
-cursor-only — rather than replicating *raw borrow* across kits/drums/backup as a terminal state we would later
-unwind. It also carries the golden-blind coverage the borrow model never had: a harness test that drives the
-**steal/backup/restore** path (`ParamBackup::backUp → getForExactClip(stealInto) → restore`) in sim, since the
-audio-thread edit interleaving is the part the load/save golden cannot see.
+Phase C is the **first Movement-1 binding step**, at the AudioClip owner — *not* a full accessor conversion (that
+is Movement 2, gated on universal binding). It binds the clip's `AutoParam`s to per-clip `DocAutoParam`s via the
+destination-shaped borrow handle. It also carries the golden-blind coverage the borrow model never had: a harness
+test that drives the **steal/backup/restore** path (`ParamBackup::backUp → getForExactClip(stealInto) → restore`)
+in sim, since the audio-thread edit interleaving is the part the load/save golden cannot see. Reaching
+cursor-only for AudioClip is a Movement-2 outcome, not a Phase-C deliverable.
 
 ---
 
