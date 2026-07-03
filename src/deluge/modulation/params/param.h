@@ -211,6 +211,15 @@ enum UnpatchedShared : ParamType {
 /// Unpatched params which are only used for Sounds
 enum UnpatchedSound : ParamType {
 	UNPATCHED_PORTAMENTO = UNPATCHED_NUM_SHARED,
+	// The four macro automation lanes on synth tracks (the synth analog of the pseudo-CC macro
+	// lane params 128-131 on MIDI clips). Nothing in the render code reads them, so they are inert
+	// as sound params; the macro system mirrors its source into them and fans their automation out
+	// to the macro's target params. Their combined ids (UNPATCHED_START + index = 117-120) must not
+	// be offered as macro target destinations - targets reach a macro lane only via the cascade ids.
+	UNPATCHED_MACRO_1,
+	UNPATCHED_MACRO_2,
+	UNPATCHED_MACRO_3,
+	UNPATCHED_MACRO_4,
 	UNPATCHED_SOUND_MAX_NUM,
 };
 
