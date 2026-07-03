@@ -27,12 +27,25 @@
 // The signal handlers only set a flag (async-signal-safe); the actual table walk runs from deluge_host_debug_poll(),
 // which the host audio backend calls once per rendered block on the app thread, so it always sees a consistent table.
 
-#include "definitions_cxx.hpp"        // OutputType
-#include "gui/ui/load/load_song_ui.h" // loadSongUI
-#include "gui/ui/ui.h"                // openUI
-#include "gui/views/session_view.h"   // sessionView, gridCreateInstrumentClipWithNewTrack
+#include "definitions_cxx.hpp"                     // OutputType, MIDI_CHANNEL_NONE, kDefaultLiftValue
+#include "gui/ui/load/load_instrument_preset_ui.h" // loadInstrumentPresetUI
+#include "gui/ui/load/load_song_ui.h"              // loadSongUI
+#include "gui/ui/ui.h"                             // openUI
+#include "gui/views/session_view.h"                // sessionView, gridCreateInstrumentClipWithNewTrack
 #include "memory/reason_check.h"
+#include "model/clip/instrument_clip.h"            // InstrumentClip
+#include "model/instrument/melodic_instrument.h"   // MelodicInstrument
+#include "model/model_stack.h"                     // MODEL_STACK_MAX_SIZE, setupModelStackWithSong
+#include "model/song/song.h"                       // currentSong, getCurrentInstrumentClip/Instrument
+#include "processing/engines/audio_engine.h"       // AudioEngine::getNumVoices
+#include "processing/sound/sound_instrument.h"     // SoundInstrument
+#include "processing/source.h"                     // Source, oscType, ranges
+#include "storage/audio/audio_file_holder.h"       // AudioFileHolder
+#include "storage/multi_range/multi_range.h"       // MultiRange
+#include "storage/multi_range/multi_range_array.h" // MultiRangeArray
 #include "util/d_string.h"
+
+extern int16_t zeroMPEValues[]; // audio_engine.cpp — all-zero MPE vector for programmatic note-on
 
 #include <csignal>
 #include <cstdio>
@@ -225,6 +238,261 @@ doneLoading:;
 	std::fflush(stdout);
 	std::quick_exit(0);
 }
+// ---- Preset-switch leak harness (issue #4515) ------------------------------
+// Reproduces the E078 crash from #4515: load a SYNTH preset whose oscillator is a time-stretched, looping sample
+// (e.g. "Busted Mf"/"Kirk" from the 1.2 community B-Sides), play a note so voices spin up the sample/time-stretcher
+// (which take Cluster reasons), then switch to another preset. Switching away deletes/hibernates the old sound, which
+// removes the Sample's holder reason; if any voice-held Cluster reason leaked, Sample::numReasonsDecreasedToZero()
+// FREEZE_WITH_ERROR("E078"). reason_check is snapshotted around the run so reportOutstanding() names the leaking
+// addReason call-site.
+//
+//   DELUGE_HOST_PRESET_SWITCH=1                       enable
+//   DELUGE_HOST_PRESET_A="SYNTHS/Busted Mf.XML"       preset to load + play (the suspect)
+//   DELUGE_HOST_PRESET_B="SYNTHS/000 Rich Saw Bass.XML" preset to switch to (the trigger)
+//   DELUGE_HOST_PRESET_NOTE=60                        MIDI note to audition
+//   DELUGE_HOST_PRESET_RENDER=400                     audio blocks (poll ticks) to hold the note before switching
+int g_psEnabled = -1; // -1 = not read, 0 = disabled
+uint32_t g_psPoll = 0;
+const char* g_psA = nullptr;
+const char* g_psB = nullptr;
+int g_psNote = 60;
+int g_psRender = 400;
+reason_check::Snapshot g_psSnap = 0;
+
+MelodicInstrument* currentSynth() {
+	Instrument* inst = getCurrentInstrument();
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!inst || !clip || inst->type != OutputType::SYNTH) {
+		return nullptr;
+	}
+	return static_cast<MelodicInstrument*>(inst);
+}
+
+Error loadPreset(const char* fullPath) {
+	Instrument* inst = getCurrentInstrument();
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!inst || !clip) {
+		printf("[preset] no current instrument/clip to load onto\n");
+		return Error::UNSPECIFIED;
+	}
+	loadInstrumentPresetUI.setupLoadInstrument(OutputType::SYNTH, inst, clip);
+	// Open the browser UI only once - the real select-encoder scroll stays inside the open browser and re-loads via
+	// currentFileChanged. Re-opening every step would push onto the bounded UI stack until it overflows.
+	if (getCurrentUI() != &loadInstrumentPresetUI) {
+		openUI(&loadInstrumentPresetUI);
+	}
+	Error e = loadInstrumentPresetUI.setFileByFullPath(OutputType::SYNTH, fullPath);
+	if (e != Error::NONE) {
+		printf("[preset] setFileByFullPath(%s) failed (%d)\n", fullPath, (int)e);
+		return e;
+	}
+	e = loadInstrumentPresetUI.performLoad();
+	// performLoad alone leaves the oscillator sample detached in this host path (on-device it streams in via the audio
+	// engine's cluster loading). Force the actual attach so the auditioned voice really reads the sample and pins
+	// Cluster reasons - i.e. so we exercise the sample teardown the bug is about.
+	Instrument* nowInst = getCurrentInstrument();
+	if (nowInst && nowInst->type == OutputType::SYNTH) {
+		static_cast<SoundInstrument*>(nowInst)->loadAllAudioFiles(true);
+	}
+	printf("[preset] performLoad(%s) -> %d, pinned clusters now %u\n", fullPath, (int)e,
+	       (unsigned)reason_check::liveClusters());
+	return e;
+}
+
+void probeSources() {
+	Instrument* inst = getCurrentInstrument();
+	if (!inst || inst->type != OutputType::SYNTH) {
+		printf("[preset]   probe: current instrument is not a SYNTH\n");
+		return;
+	}
+	Sound* sound = static_cast<SoundInstrument*>(inst);
+	Error le = sound->loadAllAudioFiles(true);
+	printf("[preset]   probe: loadAllAudioFiles(true) -> Error %d\n", (int)le);
+	for (int32_t s = 0; s < kNumSources; s++) {
+		Source& src = sound->sources[s];
+		int32_t nRanges = src.ranges.getNumElements();
+		AudioFile* af = nullptr;
+		if (nRanges > 0) {
+			MultiRange* r = src.ranges.getElement(0);
+			if (r && r->getAudioFileHolder()) {
+				af = r->getAudioFileHolder()->audioFile;
+			}
+		}
+		printf("[preset]   probe src%d: oscType=%d ranges=%d sampleAttached=%s\n", s, (int)src.oscType, nRanges,
+		       af ? "YES" : "no");
+	}
+}
+
+void auditionNote(bool on) {
+	MelodicInstrument* synth = currentSynth();
+	if (!synth) {
+		printf("[preset] auditionNote: current instrument is not a SYNTH\n");
+		return;
+	}
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	if (on) {
+		synth->beginAuditioningForNote(modelStack, g_psNote, 127, zeroMPEValues, MIDI_CHANNEL_NONE, 0);
+	}
+	else {
+		synth->endAuditioningForNote(modelStack, g_psNote);
+	}
+}
+
+void runPresetSwitchHarnessIfDue() {
+	if (g_psEnabled < 0) {
+		g_psEnabled = std::getenv("DELUGE_HOST_PRESET_SWITCH") ? 1 : 0;
+		const char* a = std::getenv("DELUGE_HOST_PRESET_A");
+		const char* b = std::getenv("DELUGE_HOST_PRESET_B");
+		const char* n = std::getenv("DELUGE_HOST_PRESET_NOTE");
+		const char* r = std::getenv("DELUGE_HOST_PRESET_RENDER");
+		g_psA = a ? a : "SYNTHS/Busted Mf.XML";
+		g_psB = b ? b : "SYNTHS/000 Rich Saw Bass.XML";
+		g_psNote = n ? std::atoi(n) : 60;
+		g_psRender = r ? std::atoi(r) : 400;
+	}
+	if (g_psEnabled <= 0) {
+		return;
+	}
+	uint32_t t = g_psPoll++;
+	const uint32_t kBoot = 200;
+	const uint32_t kLoadA = kBoot + 5;
+	const uint32_t kNoteOn = kLoadA + 5;
+	const uint32_t kSwitch = kNoteOn + (uint32_t)g_psRender;
+	// Optionally note-off `release` blocks before the switch, so the switch lands mid-release (Busted Mf has a
+	// near-maximum env1 release — the "rings out for ~10s" from the report).
+	static int g_psRelease = -2;
+	if (g_psRelease == -2) {
+		const char* rr = std::getenv("DELUGE_HOST_PRESET_RELEASE");
+		g_psRelease = rr ? std::atoi(rr) : 0;
+	}
+	const uint32_t kNoteOff = (g_psRelease > 0 && (uint32_t)g_psRelease < g_psRender) ? (kSwitch - g_psRelease) : 0;
+	const uint32_t kReport = kSwitch + 20;
+
+	// The offline host render measures "DSP direness" from wall-clock task time, which is inflated in non-realtime
+	// rendering, so the engine spuriously force-culls every voice the instant it starts (audio_engine.cpp setDireness
+	// -> cullVoices). Suppress that for the whole harness window so the auditioned voice actually sustains and reads
+	// the sample. bypassCulling self-resets each render (audio_engine.cpp:625), so re-assert it every poll.
+	if (t >= kBoot && t <= kReport) {
+		AudioEngine::bypassCulling = true;
+	}
+
+	if (t == kBoot) {
+		printf("[preset] === #4515 preset-switch harness ===\n");
+		printf("[preset] A=%s  B=%s  note=%d  render=%d blocks\n", g_psA, g_psB, g_psNote, g_psRender);
+		g_psSnap = reason_check::snapshot();
+	}
+	else if (t == kLoadA) {
+		printf("[preset] loading suspect preset A\n");
+		loadPreset(g_psA);
+		probeSources();
+	}
+	else if (t == kNoteOn) {
+		printf("[preset] note-on %d (hold through switch)\n", g_psNote);
+		auditionNote(true);
+	}
+	else if (kNoteOff != 0 && t == kNoteOff) {
+		printf("[preset] note-off %d (%d blocks before switch -> switch lands mid-release)\n", g_psNote, g_psRelease);
+		auditionNote(false);
+	}
+	else if (t > kNoteOn && t < kSwitch) {
+		// Track the pinned-cluster trajectory finely and print only on CHANGE, so a brief loop-crossfade spike (the
+		// time-stretcher spawning olderPartReader) is visible instead of averaged away by coarse sampling.
+		static unsigned lastPinned = 0;
+		unsigned p = (unsigned)reason_check::liveClusters();
+		if (p != lastPinned) {
+			printf("[preset]   +%u blocks: voices=%d, pinned clusters=%u\n", (unsigned)(t - kNoteOn),
+			       AudioEngine::getNumVoices(), p);
+			lastPinned = p;
+		}
+	}
+	else if (t == kSwitch) {
+		printf("[preset] switching to B (trigger) while note still held...\n");
+		std::fflush(stdout);
+		loadPreset(g_psB); // <-- deletes/hibernates A; removeReason on A's Sample -> E078 if a cluster reason leaked
+		printf("[preset] switch survived (no E078 freeze)\n");
+	}
+	else if (t == kReport) {
+		printf("[preset] reasons still outstanding since snapshot (leaks):\n");
+		std::fflush(stdout);
+		reason_check::reportOutstanding(g_psSnap);
+#if defined(__SANITIZE_ADDRESS__)
+		printf("[preset] LeakSanitizer check:\n");
+		std::fflush(stdout);
+		__lsan_do_recoverable_leak_check();
+#endif
+		printf("[preset] complete, exiting\n");
+		std::fflush(stdout);
+		std::quick_exit(0);
+	}
+	std::fflush(stdout);
+}
+// ---- Preset-scroll leak harness (issue #4515, browser-scroll mimic) --------
+// The report's gesture is scrolling the select encoder through the 1.2 B-Side presets while notes are ringing. Each
+// scroll loads the next preset (tearing down the previous, sample and all) with voices still active. This harness
+// cycles through a preset list many times, auditioning a (varying) note on each and rendering a short window before
+// scrolling on - reproducing the repeated load+play+teardown churn without pad input.
+//   DELUGE_HOST_PRESET_SCROLL=N     enable, do N scroll steps
+//   DELUGE_HOST_PRESET_STEP=120     audio blocks per preset before scrolling on
+int g_scEnabled = -1;
+uint32_t g_scPoll = 0;
+int g_scSteps = 0;
+int g_scStep = 120;
+int g_scDone = 0;
+reason_check::Snapshot g_scSnap = 0;
+
+void runScrollHarnessIfDue() {
+	if (g_scEnabled < 0) {
+		const char* n = std::getenv("DELUGE_HOST_PRESET_SCROLL");
+		g_scEnabled = n ? 1 : 0;
+		g_scSteps = n ? std::atoi(n) : 0;
+		const char* st = std::getenv("DELUGE_HOST_PRESET_STEP");
+		g_scStep = st ? std::atoi(st) : 120;
+	}
+	if (g_scEnabled <= 0 || g_scDone) {
+		return;
+	}
+	uint32_t t = g_scPoll++;
+	const uint32_t kBoot = 200;
+	if (t < kBoot) {
+		return;
+	}
+	AudioEngine::bypassCulling = true; // keep offline voices alive (see preset-switch harness note)
+
+	// Preset rotation and note pattern - both sample-osc B-side presets, plus notes that keep the voice sustaining.
+	static const char* kPresets[] = {"SYNTHS/Busted Mf.XML", "SYNTHS/Kirk.XML"};
+	static const int kNotes[] = {60, 55, 62, 58, 64};
+
+	uint32_t rel = t - kBoot;
+	if (rel == 0) {
+		printf("[scroll] === #4515 browser-scroll harness: %d steps, %d blocks each ===\n", g_scSteps, g_scStep);
+		g_scSnap = reason_check::snapshot();
+	}
+	if (rel % (uint32_t)g_scStep == 0) {
+		int step = (int)(rel / (uint32_t)g_scStep);
+		if (step >= g_scSteps) {
+			printf("[scroll] done %d steps. reasons outstanding since snapshot (leaks):\n", g_scSteps);
+			std::fflush(stdout);
+			reason_check::reportOutstanding(g_scSnap);
+#if defined(__SANITIZE_ADDRESS__)
+			__lsan_do_recoverable_leak_check();
+#endif
+			g_scDone = 1;
+			printf("[scroll] complete, exiting\n");
+			std::fflush(stdout);
+			std::quick_exit(0);
+		}
+		// Note-off the previous audition, scroll to the next preset, and audition a new note - all while the previous
+		// preset's voice may still be ringing (the teardown-with-active-voice condition the bug needs).
+		const char* preset = kPresets[step % 2];
+		int note = kNotes[step % 5];
+		printf("[scroll] step %d: load %s, note %d (pinned before=%u, voices=%d)\n", step, preset, note,
+		       (unsigned)reason_check::liveClusters(), AudioEngine::getNumVoices());
+		std::fflush(stdout);
+		loadPreset(preset);
+		auditionNote(true);
+	}
+}
 } // namespace
 
 extern "C" void deluge_host_debug_install(void) {
@@ -238,6 +506,8 @@ extern "C" void deluge_host_debug_install(void) {
 extern "C" void deluge_host_debug_poll(void) {
 	runKitCopyHarnessIfDue();
 	runSongLoadHarnessIfDue();
+	runPresetSwitchHarnessIfDue();
+	runScrollHarnessIfDue();
 
 	int req = g_request;
 	if (req == 0) {

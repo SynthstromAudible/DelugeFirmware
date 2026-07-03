@@ -172,7 +172,9 @@ void deluge_clock_delay_ms(uint32_t ms) {
 #define STR_(x) #x
 #define STR(x) STR_(x)
 
-#define HOST_SDRAM_BYTES 67108864   // 64 MiB — holds stealable + external + external_small
+#ifndef HOST_SDRAM_BYTES
+#define HOST_SDRAM_BYTES 67108864 // 64 MiB — holds stealable + external + external_small
+#endif
 #define HOST_INTERNAL_BYTES 2097152 // 2 MiB on-chip-SRAM-equivalent (internal heap region)
 #define HOST_FRUNK_BYTES 262144     // 256 KiB small-internal ("frunk") region
 #define HOST_SCRATCH_BYTES (32u * 1024u)
