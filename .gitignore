@@ -36,3 +36,4 @@ __pycache__
 
 .deluge_hex_key
 **/target/
+/deluge_host_out.wav
