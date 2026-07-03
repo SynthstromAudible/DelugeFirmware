@@ -86,6 +86,14 @@ int32_t closestDistance = 2147483647;
 void GeneralMemoryAllocator::checkStack(char const* caller) {
 #if ALPHA_OR_BETA_VERSION
 
+	// The host-sim runs on the real C stack, not the firmware's linker-defined stack region, and its BSP sets
+	// program_stack_start == program_stack_end (a degenerate/absent guard region). The distance computation below is
+	// only meaningful against a real descending stack region, so skip the check when the region is degenerate -
+	// otherwise it compares an actual host-stack address against an unrelated buffer address and spuriously freezes.
+	if (&program_stack_end <= &program_stack_start) {
+		return;
+	}
+
 	char a;
 
 	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
