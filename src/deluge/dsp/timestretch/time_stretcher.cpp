@@ -349,6 +349,15 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 		int32_t position = speedLog - (768 << 20);
 
+		// interpolateTableSigned reads table[whichValue] AND table[whichValue + 1], with whichValue = position >> 25.
+		// The coarse tables have 5 entries (indices 0..4), so position must stay strictly below 2^27 or whichValue
+		// reaches 4 and the +1 read runs one past the end. The speedLog clamp above is inclusive (speedLog == 896<<20
+		// gives position == 2^27), so pin position to the top of the valid 27-bit range - the interpolation there still
+		// resolves to the last table entry, matching the intended ceiling.
+		if (position >= (128 << 20)) {
+			position = (128 << 20) - 1;
+		}
+
 		minBeamWidth = interpolateTableSigned(position, 27, minHopSizeCoarse, 2) >> 16;
 		maxBeamWidth = interpolateTableSigned(position, 27, maxHopSizeCoarse, 2) >> 16;
 		crossfadeProportional = interpolateTableSigned(position, 27, crossfadeProportionalCoarse, 2) << 8;
