@@ -3132,8 +3132,11 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 							VoiceSample& newVoiceSample = *newPart->voiceSample;
 							VoiceSample& oldVoiceSample = *oldPart->voiceSample;
 
-							// Just clones the SampleLowLevelReader stuff
-							newVoiceSample = SampleLowLevelReader(oldVoiceSample);
+							// Just clones the SampleLowLevelReader stuff - assign through the base subobject so this
+							// can't slice via the implicit VoiceSample(SampleLowLevelReader&&) conversion and clobber
+							// the derived members (timeStretcher/cache). See the matching guard in
+							// TimeStretcher::hopEnd.
+							static_cast<SampleLowLevelReader&>(newVoiceSample) = SampleLowLevelReader(oldVoiceSample);
 							newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
 							newVoiceSample.doneFirstRenderYet = true;
 
