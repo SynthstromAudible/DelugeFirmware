@@ -235,8 +235,8 @@ void setMacroActive(Clip* clip, int32_t macroIndex, bool active);
 
 // Serializes/deserializes an instrument's macros as a <macros> block within the instrument's
 // own XML. Reused for both the song file and standalone instrument presets.
-void writeMacrosToFile(Serializer& writer, Macro* macros);
-void readMacrosFromFile(Deserializer& reader, Macro* macros);
+void writeMacrosToFile(Serializer& writer, Macro* macros, Domain domain);
+void readMacrosFromFile(Deserializer& reader, Macro* macros, Domain domain);
 
 // Save/load a preset: a macro's targets only (not its source or active state), so a preset is a
 // portable target configuration applicable to any macro. writeMacroPreset() writes the body between
@@ -244,7 +244,7 @@ void readMacrosFromFile(Deserializer& reader, Macro* macros);
 // macros[macroIndex]'s targets (keeping its source and active state), clears baked lanes left on
 // replaced CCs and re-bakes the macro lane into the new set on `clip`. Loaded CCs another macro
 // also targets resolve by the usual ownership rank (shadowed slots warn via the target LEDs).
-void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex);
+void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex, Domain domain);
 Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroIndex);
 
 // Snapshots the current value of each configured target CC on `clip` into that target's from

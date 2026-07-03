@@ -115,13 +115,12 @@ void LoadMacroPresetUI::enterKeyPress() {
 			display->displayError(error);
 			return;
 		}
-		// The loaded target CCs are kept even if a CC is already used by another macro; flag the first
-		// such collision instead of the plain "Preset loaded".
-		Output* output = getCurrentOutput();
+		// The loaded target destinations are kept even if one is already used by another macro; flag
+		// the first such collision instead of the plain "Preset loaded".
 		int32_t owner = -1;
 		uint8_t conflictCC = 0;
-		if (output && output->type == OutputType::MIDI_OUT) {
-			Macros::Macro* macros = static_cast<MIDIInstrument*>(output)->macros;
+		if (MelodicInstrument* instrument = Macros::macroClipInstrument(getCurrentClip())) {
+			Macros::Macro* macros = instrument->macros;
 			for (int32_t f = 0; f < Macros::kNumTargetSlots && owner < 0; f++) {
 				uint8_t cc = macros[Macros::presetMacroIndex].targets[f].cc;
 				owner = Macros::findTargetCCOwner(macros, cc, Macros::presetMacroIndex, f);
@@ -177,13 +176,12 @@ Error LoadMacroPresetUI::performLoad() {
 		return Error::NONE;
 	}
 
-	// Presets load into the current MIDI clip's instrument macros (per-track).
+	// Presets load into the current clip's instrument macros (per-track, MIDI or synth).
 	Clip* clip = getCurrentClip();
-	Output* output = getCurrentOutput();
-	if (!output || output->type != OutputType::MIDI_OUT) {
+	MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+	if (!instrument) {
 		return Error::NONE;
 	}
-	auto* instrument = static_cast<MIDIInstrument*>(output);
 	Error error =
 	    Macros::loadMacroPreset(&currentFileItem->filePointer, clip, instrument->macros, Macros::presetMacroIndex);
 	if (error == Error::NONE) {

@@ -72,7 +72,7 @@ void MelodicInstrument::writeMelodicInstrumentTagsToFile(Serializer& writer, Cli
 	// macro deviates from its defaults; every macro edit sets editedByUser, so this can't be skipped
 	// by MIDIInstrument's !editedByUser early-out.
 	if (Macros::anyMacroConfigured(macros)) {
-		Macros::writeMacrosToFile(writer, macros);
+		Macros::writeMacrosToFile(writer, macros, Macros::domainForOutput(this));
 	}
 }
 
@@ -92,7 +92,7 @@ bool MelodicInstrument::readTagFromFile(Deserializer& reader, char const* tagNam
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "macros")) {
-		Macros::readMacrosFromFile(reader, macros);
+		Macros::readMacrosFromFile(reader, macros, Macros::domainForOutput(this));
 		editedByUser = true;
 		reader.exitTag();
 	}

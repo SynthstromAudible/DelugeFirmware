@@ -1513,6 +1513,7 @@ Submenu soundEditorRootMenu{
         &bendMenu,
         &drumBendRangeMenu,
         &patchCablesMenu,
+        &macrosMenu,
         &sequenceDirectionMenu,
         &outputMidiSubmenu,
     },

@@ -108,10 +108,10 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
-	// Presets save the current MIDI clip's instrument macros (per-track).
-	if (Output* output = getCurrentOutput(); output && output->type == OutputType::MIDI_OUT) {
-		Macros::writeMacroPreset(GetSerializer(), static_cast<MIDIInstrument*>(output)->macros,
-		                         Macros::presetMacroIndex);
+	// Presets save the current clip's instrument macros (per-track, MIDI or synth).
+	if (MelodicInstrument* instrument = Macros::macroClipInstrument(getCurrentClip())) {
+		Macros::writeMacroPreset(GetSerializer(), instrument->macros, Macros::presetMacroIndex,
+		                         Macros::domainForOutput(instrument));
 	}
 
 	GetSerializer().closeFileAfterWriting();

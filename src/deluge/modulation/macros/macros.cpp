@@ -729,15 +729,27 @@ static int32_t targetSlotFromTagName(char const* tagName) {
 	return -1;
 }
 
-// Writes the configured <target1..8/> elements of a macro. Used by both the instrument block and presets.
-static void writeTargetsToFile(Serializer& writer, Macro& macro) {
+// Writes the configured <target1..8/> elements of a macro. Used by both the instrument block and
+// presets. MIDI targets write the raw byte (cc="74"; cascade ids included - CC numbers are
+// externally stable). Synth targets write the param NAME (param="lpfFrequency"; a cascade writes
+// the downstream lane's name, "macro2") because param enum values aren't stable across firmware
+// versions; the byte is reconstructed via fileStringToParam on read.
+static void writeTargetsToFile(Serializer& writer, Macro& macro, Domain domain) {
 	for (int32_t i = 0; i < kNumTargetSlots; i++) {
 		MacroTargetSlot& target = macro.targets[i];
 		if (target.cc != kTargetCCNone) {
 			char tagName[10] = MACRO_TARGET_PREFIX "1"; // "target1"
 			tagName[6] = '1' + i;
 			writer.writeOpeningTagBeginning(tagName);
-			writer.writeAttribute("cc", target.cc, false);
+			if (domain == Domain::SYNTH) {
+				uint8_t byte = isMacroParamID(target.cc)
+				                   ? laneDestination(Domain::SYNTH, macroIndexFromParamID(target.cc))
+				                   : target.cc;
+				writer.writeAttribute("param", params::paramNameForFile(params::Kind::UNPATCHED_SOUND, byte), false);
+			}
+			else {
+				writer.writeAttribute("cc", target.cc, false);
+			}
 			writer.writeAttribute("from", target.from, false);
 			writer.writeAttribute("to", target.to, false);
 			writer.writeAttribute("send", target.send ? 1 : 0, false);
@@ -747,7 +759,7 @@ static void writeTargetsToFile(Serializer& writer, Macro& macro) {
 }
 
 // Writes one <macro> element (self-closing if empty), as it appears in the instrument block.
-static void writeMacroToFile(Serializer& writer, Macro& macro) {
+static void writeMacroToFile(Serializer& writer, Macro& macro, Domain domain) {
 	// Does this macro have any children to write? (A learned source or at least one configured target.)
 	bool hasChildren = macro.source.containsSomething();
 	for (int32_t i = 0; i < kNumTargetSlots && !hasChildren; i++) {
@@ -776,34 +788,45 @@ static void writeMacroToFile(Serializer& writer, Macro& macro) {
 
 	macro.source.writeCCToFile(writer, MACRO_SOURCE_TAG);
 
-	writeTargetsToFile(writer, macro);
+	writeTargetsToFile(writer, macro, domain);
 
 	writer.writeClosingTag(MACRO_ELEMENT_TAG);
 }
 
 // Writes the <macros> block holding all four macros. Called from
-// MIDIInstrument::writeDataToFile with the instrument's own macros/enable state.
-void writeMacrosToFile(Serializer& writer, Macro* macros) {
+// MelodicInstrument::writeMelodicInstrumentTagsToFile with the instrument's own macros.
+void writeMacrosToFile(Serializer& writer, Macro* macros, Domain domain) {
 	writer.writeOpeningTagBeginning(MACROS_TAG);
 	writer.writeOpeningTagEnd();
 
 	for (int32_t m = 0; m < kNumMacros; m++) {
-		writeMacroToFile(writer, macros[m]);
+		writeMacroToFile(writer, macros[m], domain);
 	}
 
 	writer.writeClosingTag(MACROS_TAG);
 }
 
-// Reads a target's cc/from/to/send attributes (e.g. <target1 cc="42" from="0" to="100" send="1" />).
-static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target, int32_t macroIndex) {
+// Reads a target's cc/param/from/to/send attributes (e.g. <target1 cc="42" from="0" to="100"
+// send="1" /> on MIDI, <target1 param="lpfFrequency" .../> on synths).
+static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target, int32_t macroIndex, Domain domain) {
 	int32_t cc = kTargetCCNone;
 	int32_t from = kDefaultFrom;
 	int32_t to = kDefaultTo;
 	bool send = true;
 	char const* attrName;
 	while (*(attrName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(attrName, "cc")) {
+		if (!strcmp(attrName, "cc") && domain == Domain::MIDI) {
 			cc = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(attrName, "param") && domain == Domain::SYNTH) {
+			// name -> absolute byte; failures return GLOBAL_NONE, which the validity check below
+			// rejects (it isn't a targetable param). A lane name maps back to its cascade id.
+			cc = params::fileStringToParam(params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue(),
+			                               /*allowPatched=*/true);
+			if (cc >= params::UNPATCHED_START + params::UNPATCHED_MACRO_1
+			    && cc <= params::UNPATCHED_START + params::UNPATCHED_MACRO_4) {
+				cc = paramIDForMacro(cc - (params::UNPATCHED_START + params::UNPATCHED_MACRO_1));
+			}
 		}
 		else if (!strcmp(attrName, "from")) {
 			from = reader.readTagOrAttributeValueInt();
@@ -816,14 +839,14 @@ static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target, in
 		}
 		reader.exitTag();
 	}
-	// a real CC, or a cascade destination (higher-indexed macro only - keeps the graph acyclic)
-	target.cc = isValidTargetDestination(cc, macroIndex) ? cc : kTargetCCNone;
-	target.from = std::clamp<int32_t>(from, 0, kMaxValue);
-	target.to = std::clamp<int32_t>(to, 0, kMaxValue);
+	// a real destination, or a cascade (higher-indexed macro only - keeps the graph acyclic)
+	target.cc = isValidTargetDestination(domain, cc, macroIndex) ? cc : kTargetCCNone;
+	target.from = std::clamp<int32_t>(from, 0, maxTargetValue(domain));
+	target.to = std::clamp<int32_t>(to, 0, maxTargetValue(domain));
 	target.send = send;
 }
 
-static void readMacroFromFile(Deserializer& reader, Macro& macro, int32_t macroIndex) {
+static void readMacroFromFile(Deserializer& reader, Macro& macro, int32_t macroIndex, Domain domain) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "active")) {
@@ -842,68 +865,95 @@ static void readMacroFromFile(Deserializer& reader, Macro& macro, int32_t macroI
 		else {
 			int32_t slot = targetSlotFromTagName(tagName);
 			if (slot >= 0) {
-				readTargetFromFile(reader, macro.targets[slot], macroIndex);
+				readTargetFromFile(reader, macro.targets[slot], macroIndex, domain);
 			}
 		}
 		reader.exitTag();
 	}
 }
 
-// Reads the children of a <macros> block: the per-instrument enable attribute and the four
-// positional <macro> elements. The caller (MIDIInstrument::readTagFromFile) exits the outer tag.
-void readMacrosFromFile(Deserializer& reader, Macro* macros) {
+// Reads the children of a <macros> block: the four positional <macro> elements. The caller
+// (MelodicInstrument::readTagFromFile) exits the outer tag.
+void readMacrosFromFile(Deserializer& reader, Macro* macros, Domain domain) {
 	char const* tagName;
 	int32_t macroIndex = 0;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, MACRO_ELEMENT_TAG) && macroIndex < kNumMacros) {
-			readMacroFromFile(reader, macros[macroIndex], macroIndex);
+			readMacroFromFile(reader, macros[macroIndex], macroIndex, domain);
 			macroIndex++;
 		}
 		reader.exitTag();
 	}
 }
 
-// Writes a preset: targets only (<macroPreset><target1..8/></macroPreset>). A preset is a portable
-// target configuration - it deliberately omits the source and the macro's active state so it can
-// be applied to any macro. The caller (save browser) owns createXMLFile()/closeFileAfterWriting().
-void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex) {
+// Writes a preset: targets only (<macroPreset type="midi|synth"><target1..8/></macroPreset>). A
+// preset is a portable target configuration - it deliberately omits the source and the macro's
+// active state so it can be applied to any macro OF THE SAME DOMAIN (a CC list means nothing on a
+// synth and vice versa - the type attribute guards the mismatch on load). The caller (save
+// browser) owns createXMLFile()/closeFileAfterWriting().
+void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex, Domain domain) {
 	writer.writeOpeningTagBeginning(MACRO_PRESET_TAG);
+	writer.writeAttribute("type", domain == Domain::SYNTH ? "synth" : "midi", false);
 	writer.writeOpeningTagEnd();
-	writeTargetsToFile(writer, macros[macroIndex]);
+	writeTargetsToFile(writer, macros[macroIndex], domain);
 	writer.writeClosingTag(MACRO_PRESET_TAG);
 }
 
 // Loads a preset's targets into macros[macroIndex], replacing that macro's targets only and
-// leaving its source and active state untouched. Loaded CCs that another macro also targets
-// resolve by ownership rank; the fan-out below only bakes the slots this macro owns.
+// leaving its source and active state untouched. Loaded destinations that another macro also
+// targets resolve by ownership rank; the fan-out below only bakes the slots this macro owns.
 Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroIndex) {
+	MelodicInstrument* instrument = macroClipInstrument(clip);
+	if (!instrument) {
+		return Error::FILE_CORRUPTED; // no macro-capable clip context to load into
+	}
+	Domain domain = domainForOutput(clip->output);
+
 	Error error = StorageManager::openXMLFile(fp, smDeserializer, MACRO_PRESET_TAG);
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	// Remember which CCs the old target set targeted, so their baked lanes can be cleared if the
-	// preset no longer uses them (otherwise they'd keep playing as ghost lanes).
+	// Remember which destinations the old target set targeted, so their baked lanes can be cleared
+	// if the preset no longer uses them (otherwise they'd keep playing as ghost lanes).
 	uint8_t oldCCs[kNumTargetSlots];
 	for (int32_t f = 0; f < kNumTargetSlots; f++) {
 		oldCCs[f] = macros[macroIndex].targets[f].cc;
 	}
 
-	// Reset only the targets so slots the preset doesn't configure are cleared, not left over.
-	for (MacroTargetSlot& target : macros[macroIndex].targets) {
-		target = MacroTargetSlot{};
+	// Read the whole preset into a scratch target set first: if its type doesn't match this clip's
+	// domain, the macro must be left untouched.
+	MacroTargetSlot loaded[kNumTargetSlots];
+	bool domainMatches = true; // presets from before the type attribute are MIDI ones
+	if (domain == Domain::SYNTH) {
+		domainMatches = false;
 	}
 
 	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "type")) {
+			domainMatches = !strcmp(reader.readTagOrAttributeValue(), domain == Domain::SYNTH ? "synth" : "midi");
+			reader.exitTag();
+			continue;
+		}
 		int32_t slot = targetSlotFromTagName(tagName);
 		if (slot >= 0) {
-			readTargetFromFile(reader, macros[macroIndex].targets[slot], macroIndex);
+			readTargetFromFile(reader, loaded[slot], macroIndex, domain);
 		}
 		reader.exitTag();
 	}
 	activeDeserializer->closeWriter();
+
+	if (!domainMatches) {
+		display->displayPopup(domain == Domain::SYNTH ? "MIDI preset" : "Synth preset"); // wrong domain
+		return Error::FILE_CORRUPTED;
+	}
+
+	// Commit: replace only the targets (slots the preset doesn't configure reset to OFF).
+	for (int32_t f = 0; f < kNumTargetSlots; f++) {
+		macros[macroIndex].targets[f] = loaded[f];
+	}
 
 	// Clear baked lanes on destinations the preset dropped, then re-bake the macro lane into the
 	// new set.

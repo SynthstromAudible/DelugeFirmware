@@ -35,22 +35,22 @@
 
 namespace deluge::gui::menu_item::macros {
 
-// macros are stored per-track on the current MIDI clip's instrument. These helpers resolve it;
-// they return null when the active output isn't a MIDI track (the menu is hidden then, but read/write
-// can still be reached defensively).
-inline MIDIInstrument* currentMacroInstrument() {
-	Output* output = getCurrentOutput();
-	if (!output || output->type != OutputType::MIDI_OUT) {
-		return nullptr;
-	}
-	return static_cast<MIDIInstrument*>(output);
+// macros are stored per-track on the current clip's instrument. These helpers resolve it; they
+// return null when the active output isn't a MIDI or synth track (the menu is hidden then, but
+// read/write can still be reached defensively).
+inline MelodicInstrument* currentMacroInstrument() {
+	return Macros::macroClipInstrument(getCurrentClip());
 }
 inline Macros::Macro* currentMacros() {
-	MIDIInstrument* instrument = currentMacroInstrument();
+	MelodicInstrument* instrument = currentMacroInstrument();
 	return instrument ? instrument->macros : nullptr;
 }
+inline Macros::Domain currentMacroDomain() {
+	MelodicInstrument* instrument = currentMacroInstrument();
+	return instrument ? Macros::domainForOutput(instrument) : Macros::Domain::MIDI;
+}
 inline void markMacroInstrumentEdited() {
-	if (MIDIInstrument* instrument = currentMacroInstrument()) {
+	if (MelodicInstrument* instrument = currentMacroInstrument()) {
 		instrument->editedByUser = true;
 	}
 }
@@ -63,7 +63,7 @@ public:
 	MacroSource(l10n::String newName, int32_t newMacro) : midi::Command(newName), macro(newMacro) {}
 	[[nodiscard]] LearnedMIDI& learned() const override {
 		static LearnedMIDI dummy;
-		MIDIInstrument* instrument = currentMacroInstrument();
+		MelodicInstrument* instrument = currentMacroInstrument();
 		return instrument ? instrument->macros[macro].source : dummy;
 	}
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) override {
@@ -154,21 +154,34 @@ class MacroTarget final : public IntegerWithOff {
 public:
 	MacroTarget(l10n::String newName, int32_t newMacro, int32_t newSlot)
 	    : IntegerWithOff(newName), macro(newMacro), slot(newSlot) {}
-	[[nodiscard]] int32_t getMaxValue() const override {
-		return Macros::kMaxTargetCC + 1 + Macros::numCascadeDestinations(macro);
-	}
-	// Show the destination (OFF / CC number / macro) as text instead of a dial, unlike Base/Depth.
+	[[nodiscard]] int32_t getMaxValue() const override { return Macros::numDestinations(currentMacroDomain(), macro); }
+	// Show the destination (OFF / CC number / param or macro name) as text instead of a dial,
+	// unlike Base/Depth.
 	void renderInHorizontalMenu(const SlotPosition& pos) override {
 		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 		int32_t v = this->getValue();
-		const std::string str = (v == 0) ? "OFF"
-		                        : isCascadeValue(v)
-		                            ? "M" + std::to_string(Macros::macroIndexFromParamID(valueToDestination(v)) + 1)
-		                            : std::to_string(v - 1);
-		image.drawStringCentered(str.data(), pos.start_x, pos.start_y + kHorizontalMenuSlotYOffset, kTextTitleSpacingX,
+		DEF_STACK_STRING_BUF(str, 32);
+		if (v == 0) {
+			str.append("OFF");
+		}
+		else {
+			int32_t dest = valueToDestination(v);
+			if (Macros::isMacroParamID(dest)) {
+				str.append('M');
+				str.appendInt(Macros::macroIndexFromParamID(dest) + 1);
+			}
+			else if (currentMacroDomain() == Macros::Domain::SYNTH) {
+				// the param's display name - the canvas clips what doesn't fit the slot
+				Macros::appendDestName(str, currentMacroInstrument(), (uint8_t)dest);
+			}
+			else {
+				str.appendInt(dest); // the CC number
+			}
+		}
+		image.drawStringCentered(str.c_str(), pos.start_x, pos.start_y + kHorizontalMenuSlotYOffset, kTextTitleSpacingX,
 		                         kTextTitleSizeY, pos.width);
 	}
-	// The turn popup: show "OFF", the CC number or the macro name, not the raw menu value.
+	// The turn popup: show "OFF", the destination's name/number, not the raw menu value.
 	void getNotificationValue(StringBuf& value) override {
 		int32_t v = this->getValue();
 		if (v == 0) {
@@ -177,15 +190,18 @@ public:
 		else if (isCascadeValue(v)) {
 			appendCascadeName(value, v);
 		}
+		else if (currentMacroDomain() == Macros::Domain::SYNTH) {
+			Macros::appendDestName(value, currentMacroInstrument(), (uint8_t)valueToDestination(v));
+		}
 		else {
-			value.appendInt(v - 1);
+			value.appendInt(valueToDestination(v));
 		}
 	}
 	void drawValue() override {
 		int32_t v = this->getValue();
-		if (isCascadeValue(v)) {
-			DEF_STACK_STRING_BUF(text, 12);
-			appendCascadeName(text, v);
+		if (v != 0 && (isCascadeValue(v) || currentMacroDomain() == Macros::Domain::SYNTH)) {
+			DEF_STACK_STRING_BUF(text, 32);
+			getNotificationValue(text);
 			display->setScrollingText(text.c_str());
 			return;
 		}
@@ -194,7 +210,8 @@ public:
 	void readCurrentValue() override {
 		Macros::Macro* m = currentMacros();
 		uint8_t cc = m ? m[macro].targets[slot].cc : Macros::kTargetCCNone;
-		this->setValue((cc == Macros::kTargetCCNone) ? 0 : destinationToValue(cc));
+		// a destination that isn't in this domain's space (position -1) reads as OFF
+		this->setValue((cc == Macros::kTargetCCNone) ? 0 : std::max<int32_t>(0, destinationToValue(cc)));
 	}
 	void writeCurrentValue() override {
 		Macros::Macro* m = currentMacros();
@@ -202,7 +219,8 @@ public:
 			return;
 		}
 		int32_t value = this->getValue();
-		uint8_t cc = (value == 0) ? Macros::kTargetCCNone : (uint8_t)valueToDestination(value);
+		int32_t dest = (value == 0) ? -1 : valueToDestination(value);
+		uint8_t cc = (dest < 0) ? Macros::kTargetCCNone : (uint8_t)dest;
 		if (cc != m[macro].targets[slot].cc) {
 			// clears the old destination's baked lane (no ghost) and bakes the new one, undoably
 			Macros::changeTargetCC(getCurrentClip(), macro, slot, cc);
@@ -228,14 +246,14 @@ protected:
 	int32_t getDisplayValue() override { return this->getValue() - 1; }
 
 private:
-	bool isCascadeValue(int32_t value) const { return value > Macros::kMaxTargetCC + 1; }
-	// menu values past the CC range map onto this macro's allowed cascade destinations
+	// Menu value = dial position + 1 (0 is OFF); the seam's per-domain position space covers CC
+	// numbers / the targetable param list, then this macro's allowed cascade destinations.
+	bool isCascadeValue(int32_t value) const { return value != 0 && Macros::isMacroParamID(valueToDestination(value)); }
 	int32_t valueToDestination(int32_t value) const {
-		return isCascadeValue(value) ? Macros::paramIDForMacro(macro) + (value - Macros::kMaxTargetCC - 1) : value - 1;
+		return Macros::destinationForPosition(currentMacroDomain(), macro, value - 1);
 	}
 	int32_t destinationToValue(int32_t cc) const {
-		return Macros::isMacroParamID(cc) ? Macros::kMaxTargetCC + 1 + (Macros::macroIndexFromParamID(cc) - macro)
-		                                  : cc + 1;
+		return Macros::positionForDestination(currentMacroDomain(), macro, cc) + 1;
 	}
 	void appendCascadeName(StringBuf& buf, int32_t value) const {
 		buf.append(deluge::l10n::get(
@@ -253,7 +271,7 @@ public:
 	enum Field { FROM, TO };
 	MacroTargetRange(l10n::String newName, int32_t newMacro, int32_t newSlot, Field newField)
 	    : Integer(newName), macro(newMacro), slot(newSlot), field(newField) {}
-	[[nodiscard]] int32_t getMaxValue() const override { return Macros::kMaxValue; }
+	[[nodiscard]] int32_t getMaxValue() const override { return Macros::maxTargetValue(currentMacroDomain()); }
 	void readCurrentValue() override { this->setValue(get()); }
 	void writeCurrentValue() override {
 		if (this->getValue() != get()) {
@@ -265,10 +283,11 @@ public:
 	// While this From/To dial is focused, twisting this target's own CC knob sets the endpoint live so
 	// the dial tracks the knob. We update the endpoint but return false (don't consume), so the CC still
 	// flows on to drive/record the param and reach the output. Only the focused From/To item responds,
-	// and only for its own CC.
+	// and only for its own CC - so MIDI clips only (a synth destination byte is not a CC number).
 	bool liveEditFromMidiCC(int32_t ccNumber, int32_t value) override {
-		MIDIInstrument* instrument = currentMacroInstrument();
-		if (!instrument || ccNumber != instrument->macros[macro].targets[slot].cc) {
+		MelodicInstrument* instrument = currentMacroInstrument();
+		if (!instrument || instrument->type != OutputType::MIDI_OUT
+		    || ccNumber != instrument->macros[macro].targets[slot].cc) {
 			return false;
 		}
 		uint8_t& endpoint = get();
@@ -284,7 +303,7 @@ public:
 private:
 	uint8_t& get() {
 		static uint8_t dummy = 0;
-		MIDIInstrument* instrument = currentMacroInstrument();
+		MelodicInstrument* instrument = currentMacroInstrument();
 		if (!instrument) {
 			return dummy;
 		}
