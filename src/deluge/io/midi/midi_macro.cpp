@@ -229,6 +229,14 @@ static void sendToTargets(MIDIInstrument* instrument, Clip* clip, ModelStackWith
                           Macro& macro, int32_t value) {
 	RootUI* rootUI = getRootUI();
 	int32_t macroIndex = (int32_t)(&macro - instrument->macros);
+	// Mirror the raw source value into the macro's own automation lane (pseudo-CC param) so the
+	// lane tracks the source live - and records its moves like any param. It never emits MIDI
+	// (sendMIDI suppresses paramIDs >= kMacroParamIDBase); the targets get the scaled values below.
+	instrument->processParamFromInputMIDIChannel(paramIDForMacro(macroIndex), (value - 64) << 25, modelStack);
+	if (rootUI == &automationView && !automationView.onArrangerView
+	    && clip->lastSelectedParamID == paramIDForMacro(macroIndex)) {
+		uiNeedsRendering(&automationView);
+	}
 	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
 		MacroTargetSlot& target = macro.targets[slot];
 		if (target.cc == kTargetCCNone || !target.send) {
