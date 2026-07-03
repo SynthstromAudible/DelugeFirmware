@@ -30,42 +30,53 @@
 
 RenameMidiCCUI renameMidiCCUI{"CC Name"};
 
+// The macro lane the current selection points at (works on MIDI and synth clips), or -1.
+static int32_t selectedMacroLane() {
+	Clip* clip = getCurrentClip();
+	return Macros::macroIndexForLaneSelection(clip->output, clip->lastSelectedParamKind, clip->lastSelectedParamID);
+}
+
 bool RenameMidiCCUI::opened() {
 	// the same UI names both real CCs and macro lanes - retitle to match what's selected
-	title = Macros::isMacroParamID(getCurrentClip()->lastSelectedParamID) ? "Macro Name" : "CC Name";
+	title = (selectedMacroLane() >= 0) ? "Macro Name" : "CC Name";
 	return RenameUI::opened();
 }
 
 bool RenameMidiCCUI::canRename() const {
 	Clip* clip = getCurrentClip();
+	if (selectedMacroLane() >= 0) {
+		return true; // macro lanes can be named on both MIDI and synth clips
+	}
+	if (clip->output->type != OutputType::MIDI_OUT) {
+		return false; // synth params other than macro lanes have fixed names
+	}
 	int32_t cc = clip->lastSelectedParamID;
-	// real CCs and macro lanes can be named; the expression pseudo-CCs can't
-	return (cc >= 0 && cc != CC_EXTERNAL_MOD_WHEEL && cc < kNumRealCCNumbers) || Macros::isMacroParamID(cc);
+	// real CCs can be named; the expression pseudo-CCs can't
+	return cc >= 0 && cc != CC_EXTERNAL_MOD_WHEEL && cc < kNumRealCCNumbers;
 }
 
 std::string_view RenameMidiCCUI::getCurrentName() const {
 	Clip* clip = getCurrentClip();
-	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-	int32_t cc = clip->lastSelectedParamID;
-	if (Macros::isMacroParamID(cc)) {
-		return midiInstrument->macros[Macros::macroIndexFromParamID(cc)].name.get();
+	int32_t macroIndex = selectedMacroLane();
+	if (macroIndex >= 0) {
+		return ((MelodicInstrument*)clip->output)->macros[macroIndex].name.get();
 	}
-	return midiInstrument->getNameFromCC(cc);
+	return ((MIDIInstrument*)clip->output)->getNameFromCC(clip->lastSelectedParamID);
 }
 
 bool RenameMidiCCUI::trySetName(std::string_view name) {
-
 	Clip* clip = getCurrentClip();
-	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-	int32_t cc = clip->lastSelectedParamID;
-
-	if (Macros::isMacroParamID(cc)) {
-		midiInstrument->macros[Macros::macroIndexFromParamID(cc)].name.set(name);
+	int32_t macroIndex = selectedMacroLane();
+	if (macroIndex >= 0) {
+		MelodicInstrument* instrument = (MelodicInstrument*)clip->output;
+		instrument->macros[macroIndex].name.set(name);
+		instrument->editedByUser = true;
 	}
 	else {
-		midiInstrument->setNameForCC(cc, name);
+		MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
+		midiInstrument->setNameForCC(clip->lastSelectedParamID, name);
+		// need to set this to true so that the name gets saved with the song / preset
+		midiInstrument->editedByUser = true;
 	}
-	midiInstrument->editedByUser = true; // need to set this to true so that the name gets saved with the song / preset
-
 	return true;
 }

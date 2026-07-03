@@ -1671,21 +1671,25 @@ void View::setModLedStates() {
 		if (itsTheSong && on && modKnobMode == 0 && view.displayVUMeter) {
 			indicator_leds::blinkLed(indicator_leds::modLed[i]);
 		}
-		// if you're in the Automation View Automation Editor, turn off Mod LED's - except on a MIDI
+		// if you're in the Automation View Automation Editor, turn off Mod LED's - except on a
 		// macro lane, where the 8 buttons are the target quick-editors. Tri-state: dark = no
-		// destination CC, solid = assigned and actually driving it, blinking = assigned but
-		// conflicted (shadowed, or its CC held by another active macro) - the ones needing attention
+		// destination, solid = assigned and actually driving it, blinking = assigned but
+		// conflicted (shadowed, or its destination held by another active macro) - the ones
+		// needing attention
 		else if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
 			bool targetAssigned = false;
 			bool targetConflicted = false;
 			if (!automationView.onArrangerView) {
 				Clip* clip = getCurrentClip();
-				if (Macros::isEnabled() && clip && clip->output && clip->output->type == OutputType::MIDI_OUT
-				    && Macros::isMacroParamID(clip->lastSelectedParamID)) {
-					MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-					int32_t macroIndex = Macros::macroIndexFromParamID(clip->lastSelectedParamID);
-					if (midiInstrument->macros[macroIndex].targets[i].cc != Macros::kTargetCCNone) {
-						targetConflicted = Macros::targetHasConflict(midiInstrument->macros, macroIndex, i);
+				MelodicInstrument* instrument =
+				    (Macros::isEnabled() && clip) ? Macros::macroClipInstrument(clip) : nullptr;
+				int32_t macroIndex = (instrument != nullptr)
+				                         ? Macros::macroIndexForLaneSelection(clip->output, clip->lastSelectedParamKind,
+				                                                              clip->lastSelectedParamID)
+				                         : -1;
+				if (macroIndex >= 0) {
+					if (instrument->macros[macroIndex].targets[i].cc != Macros::kTargetCCNone) {
+						targetConflicted = Macros::targetHasConflict(instrument->macros, macroIndex, i);
 						targetAssigned = !targetConflicted;
 					}
 				}

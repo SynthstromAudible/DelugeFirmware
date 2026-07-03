@@ -102,10 +102,15 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
 	// an INACTIVE macro's lane renders dimmed, so the state is visible in the lane itself;
 	// activating restores full brightness
 	bool dimmed = false;
-	if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT
-	    && Macros::isMacroParamID(clip->lastSelectedParamID)) {
-		MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-		dimmed = !midiInstrument->macros[Macros::macroIndexFromParamID(clip->lastSelectedParamID)].active;
+	if (clip) {
+		MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+		int32_t macroIndex = (instrument != nullptr)
+		                         ? Macros::macroIndexForLaneSelection(clip->output, clip->lastSelectedParamKind,
+		                                                              clip->lastSelectedParamID)
+		                         : -1;
+		if (macroIndex >= 0) {
+			dimmed = !instrument->macros[macroIndex].active;
+		}
 	}
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
@@ -456,6 +461,19 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		}
 		else {
 			parameterName.append(getParamDisplayName(lastSelectedParamKind, lastSelectedParamID));
+			// a synth macro lane can carry a user-given label: "Macro 1: Agitation" (an inactive
+			// macro is flagged by a persistent status popup instead, keeping the name intact here)
+			if (!getOnArrangerView() && clip != nullptr) {
+				MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+				int32_t macroIndex =
+				    (instrument != nullptr)
+				        ? Macros::macroIndexForLaneSelection(clip->output, lastSelectedParamKind, lastSelectedParamID)
+				        : -1;
+				if (macroIndex >= 0 && !instrument->macros[macroIndex].name.isEmpty()) {
+					parameterName.append(": ");
+					parameterName.append(instrument->macros[macroIndex].name.get());
+				}
+			}
 		}
 	}
 	else {
@@ -1011,19 +1029,23 @@ bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(Model
 	}
 }
 
-// If the edited automation lane is a macro lane, bake its curve into the target CC lanes,
+// If the edited automation lane is a macro lane, bake its curve into the target lanes,
 // joining the user's current NOTE_EDIT action so one BACK undoes the lane edit and the targets.
 static void reFanIfMacroLane() {
 	// In arranger automation the edited lane is a song param; the current clip's stale macro
-	// lastSelectedParamID must not trigger a re-fan of an unrelated MIDI clip.
+	// lastSelectedParamID must not trigger a re-fan of an unrelated clip.
 	if (automationView.onArrangerView) {
 		return;
 	}
 	Clip* clip = getCurrentClip();
-	if (clip && clip->output && clip->output->type == OutputType::MIDI_OUT
-	    && Macros::isMacroParamID(clip->lastSelectedParamID)) {
+	if (!clip || Macros::macroClipInstrument(clip) == nullptr) {
+		return;
+	}
+	int32_t macroIndex =
+	    Macros::macroIndexForLaneSelection(clip->output, clip->lastSelectedParamKind, clip->lastSelectedParamID);
+	if (macroIndex >= 0) {
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-		Macros::reFanMacro(clip, Macros::macroIndexFromParamID(clip->lastSelectedParamID), action);
+		Macros::reFanMacro(clip, macroIndex, action);
 	}
 }
 

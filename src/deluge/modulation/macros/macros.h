@@ -127,6 +127,11 @@ inline bool isValidTargetDestination(int32_t cc, int32_t macroIndex) {
 // track, else the MIDI device's CC name if loaded, else "CC <n>".
 void appendDestName(StringBuf& buf, MelodicInstrument* instrument, uint8_t cc);
 
+// If an automation-lane selection (kind, paramID) on this output is a macro lane, returns the
+// macro index, else -1. MIDI lanes are the pseudo-CC ids 128-131 (their clips track lanes by id
+// alone, kind is ignored); synth lanes are the UNPATCHED_SOUND macro params.
+int32_t macroIndexForLaneSelection(Output* output, deluge::modulation::params::Kind kind, int32_t paramID);
+
 // One target CC slot: the source value 0..127 is scaled linearly onto [from, to]:
 //   out = clamp(from + (to - from) * input / 127, 0, 127)
 // Set from > to to invert the response; from == to sends a constant. from/to are the A/B captures.

@@ -279,6 +279,20 @@ uint8_t laneDestination(Domain domain, int32_t macroIndex) {
 	return paramIDForMacro(macroIndex);
 }
 
+int32_t macroIndexForLaneSelection(Output* output, params::Kind kind, int32_t paramID) {
+	if (!output) {
+		return -1;
+	}
+	if (output->type == OutputType::MIDI_OUT) {
+		return isMacroParamID(paramID) ? macroIndexFromParamID(paramID) : -1;
+	}
+	if (output->type == OutputType::SYNTH && kind == params::Kind::UNPATCHED_SOUND
+	    && paramID >= params::UNPATCHED_MACRO_1 && paramID <= params::UNPATCHED_MACRO_4) {
+		return paramID - params::UNPATCHED_MACRO_1;
+	}
+	return -1;
+}
+
 // The ordered SYNTH destination list: every targetable byte, in automation-view scroll order (the
 // single source of param ordering). Built once, lazily, into a fixed buffer (no heap); excludes
 // EXPRESSION entries, patch cables (not encodable as a byte) and the macro lane params
