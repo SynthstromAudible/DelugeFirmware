@@ -85,6 +85,41 @@ only worth doing once the 64-bit core is sound:
   ops used.
 - Mach-O specifics as they surface (section attributes, `--gc-sections` equivalents).
 
+## Phase 1 result (2026-07-04)
+
+**Build.** `DELUGE_SIM_X64=ON` now compiles clean under **both clang and gcc**, links, and
+runs as an x86-64 binary. All ~80 pointer truncations were fixed by expressing intent
+directly (pointer subtraction for byte offsets, `char*` arithmetic for byte-offset-into-buffer,
+`uintptr_t` only for genuine address inspection / tagged-pointer reads), not by mechanical
+casts. The default `-m32` sim, the ARM firmware, and the qemu specs are all still green. The
+edits are **behaviour-neutral on 32-bit**: the highsiderr render from the 32-bit build with the
+changes is byte-identical to pre-change `next`.
+
+**Golden comparison (x86-64 render vs the stored 32-bit golden, + 64-bit layout-invariance):**
+
+| Fixture | Uses cache | padsweep (64-bit layout-invariant) | 64-bit vs 32-bit render |
+|---|---|---|---|
+| cordae | no (raw clusters) | PASS | **bit-identical** |
+| highsiderr | yes (repitch SampleCache) | PASS | differs (~384 B shorter + content from ~10.3 s) |
+| icoustic | yes (time-stretch perc cache) | PASS (1-pad) | (cache-heavy; expected like highsiderr) |
+
+Every fixture is **layout-invariant under 64-bit** (padsweep passes — the port introduced no
+address/allocation dependence). The **cache-free** render (cordae) is **byte-for-byte identical**
+to 32-bit. The **cache-dependent** renders differ, and the difference is **inherent to 64-bit
+pointer width, not a code bug**: pointer-bearing cache-metadata structs are larger on a 64-bit
+host, so the fixed cache region holds fewer clusters, which shifts eviction/reload timing and
+perturbs the repitch/time-stretch output slightly. (The highsiderr/icoustic goldens are also
+stale — pre-change `next` already diverges from them — so "vs golden" is not the clean signal;
+"64-bit vs 32-bit-current" is, and that is what the table reports.)
+
+**Verdict.** 64-bit is a bit-identical drop-in for the render core, but not for cache-heavy
+songs, where it diverges from 32-bit by design (struct sizes). This is the "consistent-but-
+shifted" outcome. Recommendation: **coexist** — keep `-m32` as the CI/golden reference (it stays
+bit-exact to the 32-bit firmware, which is the whole point of the goldens) and add the 64-bit
+build for native macOS/arm64, validated on its own terms (layout-invariance + a 64-bit baseline).
+Replacing `-m32` would force re-baselining goldens to a pointer width the *device* does not use,
+giving up firmware-fidelity — not worth it.
+
 ## Out of scope
 
 - Changing any firmware behaviour or shared data layout.
