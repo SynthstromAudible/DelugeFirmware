@@ -36,19 +36,33 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 cmake_path(SET SHARED_INCLUDE ${REPO_ROOT}/src)
 
-# The app is written for a 32-bit target (it stores pointers in uint32_t etc.), so
-# build the host as 32-bit — matching the existing tests (tests/32bit_unit_tests
-# use -m32) and the firmware's memory model. (Requires a multilib toolchain.)
-# The arm-linux reference toolchain is already 32-bit, so -m32 only applies to x86.
-# Three host configurations:
-#   default            x86-32 — matches the firmware's 32-bit pointer model (the app
-#                      stores pointers in uint32_t fields). SIMDe runs its portable-C
-#                      fallbacks (the native -m32 path won't parse <immintrin.h>).
-#   DELUGE_SIM_X64=ON  x86-64 — lets SIMDe use real SSE/AVX (faster, and sidesteps the
-#                      vector_size(8)->MMX-register ABI hazard entirely). EXPERIMENTAL:
-#                      requires the app to be 64-bit-pointer-clean.
-#   DELUGE_SIM_ARM=ON  arm-linux/NEON cross (the native-SIMD reference oracle).
-if(NOT DELUGE_SIM_ARM AND NOT DELUGE_SIM_X64)
+# ---------------------------------------------------------------------------
+# Target matrix. Rather than enumerate modes, derive two orthogonal facts:
+#   DELUGE_SIM_M32          build 32-bit x86 — the firmware's pointer model, and the golden
+#                           reference. Only the plain Linux-x86 host; never on macOS (no 32-bit
+#                           runtime), an arm64 host, or the explicit 64-bit modes.
+#   DELUGE_SIM_NEON_NATIVE  the SIMD backend is real NEON (<arm_neon.h> exists) rather than
+#                           SIMDe's x86 emulation — true on the arm-linux cross and on any
+#                           arm64/aarch64 host (e.g. Apple Silicon).
+# Host configurations:
+#   default (Linux x86)     -m32, SIMDe portable-C fallbacks. Bit-matches the firmware.
+#   DELUGE_SIM_X64=ON       x86-64 Linux, SIMDe on real SSE/AVX. 64-bit-pointer-clean.
+#   DELUGE_SIM_ARM=ON       arm-linux/NEON cross (32-bit armv7), run under qemu.
+#   macOS (auto)            native 64-bit; Apple Silicon uses native NEON, Intel Macs use SIMDe.
+# ---------------------------------------------------------------------------
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
+    set(DELUGE_SIM_ARM64_HOST ON) # native 64-bit ARM host (Apple Silicon, arm64 Linux)
+endif()
+
+if(NOT DELUGE_SIM_ARM AND NOT DELUGE_SIM_X64 AND NOT APPLE AND NOT DELUGE_SIM_ARM64_HOST)
+    set(DELUGE_SIM_M32 ON)
+endif()
+
+if(DELUGE_SIM_ARM OR DELUGE_SIM_ARM64_HOST)
+    set(DELUGE_SIM_NEON_NATIVE ON) # real <arm_neon.h>, no SIMDe
+endif()
+
+if(DELUGE_SIM_M32)
     add_compile_options(-m32)
     add_link_options(-m32)
 
@@ -57,7 +71,7 @@ if(NOT DELUGE_SIM_ARM AND NOT DELUGE_SIM_X64)
     # firmware's strict IEEE-754 single-precision VFP — enough to perturb marginally
     # stable float feedback loops (e.g. the Mutable reverb) away from the device's
     # behaviour. -mfpmath=sse keeps host float arithmetic bit-comparable to the target.
-    # (64-bit already defaults to SSE, so this only applies to the -m32 build.)
+    # (64-bit hosts already default to SSE / use NEON, so this only applies to the -m32 build.)
     add_compile_options(-msse2 -mfpmath=sse)
 endif()
 
@@ -69,15 +83,17 @@ add_compile_options(-fsigned-char)
 # triage (gdb backtraces, member inspection) tractable.
 add_compile_options(-g)
 
-# Clang-specific host-sim adjustments (the default host toolchain is GCC; Clang is a
-# supported alternative for its diagnostics/sanitizers).
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    # The default -m32 sim links against GCC's runtime, but a multilib system may ship no
-    # 32-bit libgcc_s.so link stub (only libgcc_s.so.1). GCC resolves -lgcc_s via collect2;
-    # Clang does not, and the link fails with "cannot find -lgcc_s". Link libgcc statically
-    # to drop the shared -lgcc_s dependency at link time (the .so.1 is still pulled in at
-    # runtime via libstdc++, which is fine).
-    add_link_options(-static-libgcc)
+# Clang-specific host-sim adjustments (default host toolchain is GCC; Clang/AppleClang are
+# supported alternatives — note macOS reports "AppleClang", hence MATCHES not STREQUAL).
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if(DELUGE_SIM_M32)
+        # The -m32 sim links against GCC's runtime, but a multilib system may ship no 32-bit
+        # libgcc_s.so link stub (only libgcc_s.so.1). GCC resolves -lgcc_s via collect2; Clang
+        # does not, and the link fails with "cannot find -lgcc_s". Link libgcc statically to drop
+        # the shared -lgcc_s dependency at link time (only meaningful on the 32-bit x86 path; macOS
+        # clang has no libgcc at all).
+        add_link_options(-static-libgcc)
+    endif()
 
     # validateParams() (modulation/params/param.cpp) does O(N^2) constexpr string matching in
     # a static_assert. That exceeds Clang's default -fconstexpr-steps budget; GCC's equivalent
@@ -89,7 +105,11 @@ endif()
 # whose refs would otherwise fail to resolve — e.g. the NE10 float32 FFT path (Deluge
 # only uses the int32 FFT), which references ne10_fft_alloc_c2c_float32_c (never compiled).
 add_compile_options(-ffunction-sections -fdata-sections)
-add_link_options(LINKER:--gc-sections)
+if(APPLE)
+    add_link_options(LINKER:-dead_strip) # ld64 equivalent of --gc-sections
+else()
+    add_link_options(LINKER:--gc-sections)
+endif()
 
 # Opt-in AddressSanitizer + UndefinedBehaviorSanitizer for the host-sim. Enable with -DDELUGE_SIM_SANITIZE=ON.
 # -fsanitize=address defines __SANITIZE_ADDRESS__, which (a) activates the heap_poison.h hooks in the custom
@@ -109,10 +129,10 @@ if(DELUGE_SIM_SANITIZE)
     add_link_options(-fsanitize=address,undefined)
 endif()
 
-# SIMDe (x86 host only): argon's non-ARM backend does `#include <arm/neon.h>`, which must
-# resolve to <simde/arm/neon.h>. The arm-linux reference has real NEON and a real <arm_neon.h>,
-# so it skips all of this.
-if(NOT DELUGE_SIM_ARM)
+# SIMDe (x86 hosts only): argon's non-native backend does `#include <arm/neon.h>`, which must
+# resolve to <simde/arm/neon.h>. Native-NEON hosts (the arm-linux cross, Apple Silicon, arm64
+# Linux) have a real <arm_neon.h> and skip all of this.
+if(NOT DELUGE_SIM_NEON_NATIVE)
     # SIMDe provides the NEON intrinsics on non-ARM hosts — argon's <arm/neon.h> and the compat
     # <arm_neon.h> shim resolve into it. Fetch it (pinned) rather than depending on a system package,
     # so the host-sim builds anywhere without a distro simde install. v0.8.2 matches the version this
@@ -128,7 +148,7 @@ if(NOT DELUGE_SIM_ARM)
     # (the compat shim), the simde/ subdir resolves argon's bare <arm/neon.h>. Both are added below.
     set(SIMDE_INCLUDE_DIR ${simde_SOURCE_DIR})
 
-    if(NOT DELUGE_SIM_X64)
+    if(DELUGE_SIM_M32)
         # Force SIMDe to its portable-C fallbacks instead of native x86 intrinsics. Under -m32 SIMDe's
         # native path drags in GCC's AVX512/FMA <immintrin.h> sub-headers, which don't parse in 32-bit
         # mode. The portable path is bit-accurate to NEON (the whole point of SIMDe) and deterministic —
@@ -169,8 +189,9 @@ add_compile_definitions(DELUGE_HOST)
 # reason_check reports — is visible when reproducing issues on the sim.
 add_compile_definitions(ENABLE_TEXT_OUTPUT=1)
 
-if(DELUGE_SIM_ARM)
-    # Real NEON: the cross toolchain provides <arm_neon.h>; argon's <arm/neon.h> is unused.
+if(DELUGE_SIM_NEON_NATIVE)
+    # Real NEON (arm-linux cross or an arm64 host): the toolchain provides <arm_neon.h>; argon's
+    # <arm/neon.h> and the SIMDe compat shim are unused.
     include_directories(BEFORE ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include)
     set(HOST_INCLUDE_DIRS ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include ${REPO_ROOT}/src)
 else()
@@ -221,7 +242,7 @@ add_library(NE10 STATIC
     ${REPO_ROOT}/src/NE10/modules/dsp/NE10_init_dsp.c
 )
 target_include_directories(NE10 PUBLIC
-    $<$<NOT:$<BOOL:${DELUGE_SIM_ARM}>>:${CMAKE_CURRENT_LIST_DIR}/compat> # SIMDe shim (x86 only)
+    $<$<NOT:$<BOOL:${DELUGE_SIM_NEON_NATIVE}>>:${CMAKE_CURRENT_LIST_DIR}/compat> # SIMDe shim (x86 only)
     ${REPO_ROOT}/src/NE10/inc ${REPO_ROOT}/src/NE10/common ${REPO_ROOT}/src/NE10
 )
 target_include_directories(NE10 PRIVATE ${REPO_ROOT}/src ${REPO_ROOT}/include)
@@ -241,10 +262,17 @@ add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # d
 # Build the umbrella as a host staticlib matching the sim's word size and link it
 # into the sim executables. The deluge_app allocator (heaps + the GMA coordinator)
 # is unconditionally backed by it; the legacy C++ MemoryRegion path has been retired.
-if(DELUGE_SIM_X64)
+# Pick the Rust std target triple to match the C++ host ABI (word size + platform).
+if(APPLE AND DELUGE_SIM_ARM64_HOST)
+    set(SIM_RUST_TARGET aarch64-apple-darwin) # Apple Silicon
+elseif(APPLE)
+    set(SIM_RUST_TARGET x86_64-apple-darwin) # Intel Mac
+elseif(DELUGE_SIM_ARM64_HOST)
+    set(SIM_RUST_TARGET aarch64-unknown-linux-gnu) # arm64 Linux
+elseif(DELUGE_SIM_X64)
     set(SIM_RUST_TARGET x86_64-unknown-linux-gnu)
 else()
-    set(SIM_RUST_TARGET i686-unknown-linux-gnu) # matches the default -m32 sim
+    set(SIM_RUST_TARGET i686-unknown-linux-gnu) # the default -m32 sim (and the arm-linux cross)
 endif()
 set(SIM_RUST_WS ${REPO_ROOT}/crates)
 set(SIM_RUST_LIB ${SIM_RUST_WS}/target/${SIM_RUST_TARGET}/release/libdeluge_rust.a)
