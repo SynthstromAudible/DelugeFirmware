@@ -25,7 +25,7 @@ that the portable app's C++26 does not compile. `brew install llvm` supplies a c
 the sim CMake **auto-selects it** on macOS (via `brew --prefix llvm`, falling back to the
 well-known Homebrew/MacPorts paths) before `project()`. You do **not** need to set `CC`/`CXX` —
 but if you do, or pass `-DCMAKE_CXX_COMPILER=…`, that choice is respected. If no mainline clang
-is found, configure prints a warning telling you to `brew install llvm`.
+is found, configure **fails** with a message telling you to `brew install llvm`.
 
 argon, etl, SIMDe (Intel only), CppSpec and the Rust crates are fetched automatically
 (FetchContent / cargo).

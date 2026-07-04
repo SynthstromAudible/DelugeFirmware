@@ -46,10 +46,10 @@ if(APPLE AND NOT CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX})
         set(CMAKE_CXX_COMPILER "${SIM_NATIVE_CLANGXX}" CACHE FILEPATH "mainline clang++ for C++26")
         message(STATUS "Host-sim: mainline LLVM clang for C++26 → ${SIM_NATIVE_CLANGXX}")
     else()
-        message(WARNING
+        message(FATAL_ERROR
             "Host-sim on macOS needs a mainline LLVM clang for C++26 — AppleClang lacks it.\n"
             "  Install it:  brew install llvm\n"
-            "Falling back to the default compiler; the C++26 build will very likely fail.")
+            "Or point the build at your own with -DCMAKE_CXX_COMPILER=… (and -DCMAKE_C_COMPILER=…).")
     endif()
 endif()
 
