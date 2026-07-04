@@ -113,7 +113,20 @@ endif()
 # resolve to <simde/arm/neon.h>. The arm-linux reference has real NEON and a real <arm_neon.h>,
 # so it skips all of this.
 if(NOT DELUGE_SIM_ARM)
-    find_path(SIMDE_INCLUDE_DIR simde/arm/neon.h PATHS /usr/include /usr/local/include REQUIRED)
+    # SIMDe provides the NEON intrinsics on non-ARM hosts — argon's <arm/neon.h> and the compat
+    # <arm_neon.h> shim resolve into it. Fetch it (pinned) rather than depending on a system package,
+    # so the host-sim builds anywhere without a distro simde install. v0.8.2 matches the version this
+    # was developed against, so the portable-NEON emulation (and thus the golden captures) is unchanged.
+    include(FetchContent)
+    FetchContent_Declare(simde
+        GIT_REPOSITORY https://github.com/simd-everywhere/simde
+        GIT_TAG v0.8.2
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(simde)
+    # Repo layout is ${simde_SOURCE_DIR}/simde/{arm,x86,...}: the root resolves <simde/arm/neon.h>
+    # (the compat shim), the simde/ subdir resolves argon's bare <arm/neon.h>. Both are added below.
+    set(SIMDE_INCLUDE_DIR ${simde_SOURCE_DIR})
 
     if(NOT DELUGE_SIM_X64)
         # Force SIMDe to its portable-C fallbacks instead of native x86 intrinsics. Under -m32 SIMDe's
@@ -165,7 +178,8 @@ else()
         ${CMAKE_CURRENT_LIST_DIR}/compat # <arm_neon.h> -> SIMDe shim
         ${REPO_ROOT}/include             # <libdeluge/...> boundary
         ${REPO_ROOT}/crates/deluge_resource/include # deluge_resource.h
-        ${SIMDE_INCLUDE_DIR}/simde        # argon's <arm/neon.h> -> SIMDe
+        ${SIMDE_INCLUDE_DIR}               # compat shim's <simde/arm/neon.h> -> SIMDe
+        ${SIMDE_INCLUDE_DIR}/simde         # argon's bare <arm/neon.h> -> SIMDe
     )
     set(HOST_INCLUDE_DIRS
         ${CMAKE_CURRENT_LIST_DIR}/compat # arm_neon.h -> SIMDe shim
