@@ -11,6 +11,48 @@
 #   ./build-sim/deluge_host             # the full application (in progress)
 
 cmake_minimum_required(VERSION 3.24)
+
+# ---------------------------------------------------------------------------
+# Compiler selection — MUST precede project(), which is where CMake probes and
+# locks in the toolchain.
+#
+# The sim builds at C++26 (CMAKE_CXX_STANDARD 26, below). Apple's bundled
+# "AppleClang" tracks the Xcode release, not the mainline LLVM train, and lags
+# it by enough that the portable app's C++26 does not compile there. So on
+# macOS, unless the user has explicitly chosen a compiler (-DCMAKE_CXX_COMPILER
+# or CC/CXX in the environment), prefer a mainline LLVM clang from Homebrew or
+# MacPorts over /usr/bin/c++. Elsewhere (Linux) the default GCC is fine.
+# ---------------------------------------------------------------------------
+if(APPLE AND NOT CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX})
+    # `brew --prefix llvm` resolves the keg on both Apple Silicon (/opt/homebrew)
+    # and Intel (/usr/local); the literal HINTS cover a brew-less PATH and MacPorts.
+    execute_process(
+        COMMAND brew --prefix llvm
+        OUTPUT_VARIABLE SIM_BREW_LLVM_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    set(_sim_clang_hints
+        "${SIM_BREW_LLVM_PREFIX}/bin"
+        /opt/homebrew/opt/llvm/bin   # Apple Silicon Homebrew
+        /usr/local/opt/llvm/bin      # Intel Homebrew
+        /opt/local/bin               # MacPorts (clang-mp-*, symlinked clang)
+    )
+    # NO_DEFAULT_PATH so we never fall back to /usr/bin's AppleClang here.
+    find_program(SIM_NATIVE_CLANGXX NAMES clang++ HINTS ${_sim_clang_hints} NO_DEFAULT_PATH)
+    find_program(SIM_NATIVE_CLANG   NAMES clang   HINTS ${_sim_clang_hints} NO_DEFAULT_PATH)
+    if(SIM_NATIVE_CLANGXX AND SIM_NATIVE_CLANG)
+        set(CMAKE_C_COMPILER   "${SIM_NATIVE_CLANG}"   CACHE FILEPATH "mainline clang for C++26")
+        set(CMAKE_CXX_COMPILER "${SIM_NATIVE_CLANGXX}" CACHE FILEPATH "mainline clang++ for C++26")
+        message(STATUS "Host-sim: mainline LLVM clang for C++26 → ${SIM_NATIVE_CLANGXX}")
+    else()
+        message(WARNING
+            "Host-sim on macOS needs a mainline LLVM clang for C++26 — AppleClang lacks it.\n"
+            "  Install it:  brew install llvm\n"
+            "Falling back to the default compiler; the C++26 build will very likely fail.")
+    endif()
+endif()
+
 # VERSION mirrors the firmware top-level (project(Deluge VERSION ...)) so the
 # generated util/firmware_version.h gets non-empty PROJECT_VERSION_* components.
 project(DelugeHostSim VERSION 1.3.0 LANGUAGES C CXX)
@@ -99,6 +141,18 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # a static_assert. That exceeds Clang's default -fconstexpr-steps budget; GCC's equivalent
     # -fconstexpr-ops-limit default is far higher, so it compiles there. Raise the ceiling.
     add_compile_options(-fconstexpr-steps=100000000)
+
+    # A mainline clang on macOS (COMPILER_ID "Clang", i.e. NOT AppleClang) compiles against its
+    # own newer libc++ headers but would otherwise link/run against the older libc++ in the macOS
+    # SDK — a header/runtime mismatch for the C++26 library bits. Point the linker + rpath at the
+    # keg's libc++ (<llvm>/bin/clang++ → <llvm>/lib/c++). Harmless if the dir is absent.
+    if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH _sim_llvm_bin)
+        cmake_path(GET _sim_llvm_bin PARENT_PATH _sim_llvm_prefix)
+        if(EXISTS "${_sim_llvm_prefix}/lib/c++")
+            add_link_options("-L${_sim_llvm_prefix}/lib/c++" "LINKER:-rpath,${_sim_llvm_prefix}/lib/c++")
+        endif()
+    endif()
 endif()
 
 # Section GC, mirroring the firmware link. Beyond size, it strips genuinely-dead code

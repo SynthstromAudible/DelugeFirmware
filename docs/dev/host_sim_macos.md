@@ -13,11 +13,19 @@ flags or toolchain file needed. This is the Phase 2 target of the host-sim 64-bi
 ## Prerequisites
 
 ```sh
-xcode-select --install                      # Apple clang, ld64, headers
-brew install cmake ninja                     # build tools
+xcode-select --install                      # ld64, SDK headers (NOT the compiler — see below)
+brew install cmake ninja llvm                # build tools + mainline LLVM clang
 rustup target add aarch64-apple-darwin       # Rust staticlib target (Apple Silicon)
 # Intel Mac instead: rustup target add x86_64-apple-darwin
 ```
+
+**Compiler: mainline LLVM clang, not AppleClang.** The sim builds at C++26, and Apple's
+bundled `AppleClang` tracks Xcode rather than the mainline LLVM release — it lags far enough
+that the portable app's C++26 does not compile. `brew install llvm` supplies a current clang;
+the sim CMake **auto-selects it** on macOS (via `brew --prefix llvm`, falling back to the
+well-known Homebrew/MacPorts paths) before `project()`. You do **not** need to set `CC`/`CXX` —
+but if you do, or pass `-DCMAKE_CXX_COMPILER=…`, that choice is respected. If no mainline clang
+is found, configure prints a warning telling you to `brew install llvm`.
 
 argon, etl, SIMDe (Intel only), CppSpec and the Rust crates are fetched automatically
 (FetchContent / cargo).
@@ -34,8 +42,8 @@ The auto-detection selects, on Apple Silicon:
 - native 64-bit (no `-m32`, no `-static-libgcc`),
 - **native aarch64 NEON via argon** — no SIMDe (`DELUGE_SIM_NEON_NATIVE`),
 - `-dead_strip` instead of `--gc-sections`,
-- AppleClang recognised (so `-fconstexpr-steps` still applies — the `validateParams()`
-  `static_assert` needs it),
+- mainline LLVM clang auto-selected for C++26 (with `-fconstexpr-steps` for the
+  `validateParams()` `static_assert`, and its libc++ on the link rpath),
 - Rust target `aarch64-apple-darwin`.
 
 Do **not** build the `deluge_host_boundary` target — it is a stale Stage-1 smoke target that
@@ -46,7 +54,10 @@ real targets named above.
 
 - **Mach-O section attributes** — `PLACE_SDRAM_*` used ELF-style `.sdram_bss` names that
   Mach-O rejects; they are no-ops on `__APPLE__` now (`src/board_config.h`).
-- **`AppleClang` vs `Clang`** — the clang-only CMake block matches both.
+- **`AppleClang` vs `Clang`** — the clang-only CMake block (`-fansi-escape-codes`,
+  `-fconstexpr-steps`, static-libgcc) matches both via `MATCHES "Clang"`. The libc++
+  link/rpath is gated to `STREQUAL "Clang"` so it only applies to the mainline clang, never
+  AppleClang.
 - **librt** — `find_library(rt)` returns NOTFOUND on macOS (librt is in libSystem) and the
   `if(RT_LIB)` guards already skip linking it.
 
