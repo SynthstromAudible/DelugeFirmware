@@ -29,7 +29,7 @@
 namespace mem_guard {
 
 struct AllocInfo {
-	uint32_t callsite;      // __builtin_return_address of the allocating caller (resolve offline with addr2line)
+	uintptr_t callsite;     // __builtin_return_address of the allocating caller (resolve offline with addr2line)
 	uint32_t requestedSize; // original, un-padded size passed to alloc
 };
 
