@@ -218,7 +218,7 @@ else()
 endif()
 set(SIM_RUST_WS ${REPO_ROOT}/crates)
 set(SIM_RUST_LIB ${SIM_RUST_WS}/target/${SIM_RUST_TARGET}/release/libdeluge_rust.a)
-file(GLOB_RECURSE SIM_RUST_SOURCES
+file(GLOB_RECURSE SIM_RUST_SOURCES CONFIGURE_DEPENDS
     ${SIM_RUST_WS}/deluge_alloc/src/*.rs
     ${SIM_RUST_WS}/deluge_resource/src/*.rs
     ${SIM_RUST_WS}/deluge_rust/src/*.rs)
@@ -234,6 +234,7 @@ add_custom_command(
     COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET} ${SIM_RUST_FEATURES}
     WORKING_DIRECTORY ${SIM_RUST_WS}
     DEPENDS ${SIM_RUST_SOURCES}
+        ${SIM_RUST_WS}/Cargo.lock
         ${SIM_RUST_WS}/Cargo.toml ${SIM_RUST_WS}/deluge_alloc/Cargo.toml
         ${SIM_RUST_WS}/deluge_resource/Cargo.toml ${SIM_RUST_WS}/deluge_rust/Cargo.toml
     COMMENT "Building Rust deluge_rust staticlib (${SIM_RUST_TARGET})"

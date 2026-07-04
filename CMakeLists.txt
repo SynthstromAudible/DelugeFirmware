@@ -219,7 +219,7 @@ if (CMAKE_CROSSCOMPILING)
     # colliding rules for one shared output. The release build is config-independent;
     # cargo no-ops after the first config.
     set(DELUGE_RUST_STAGED ${CMAKE_BINARY_DIR}/$<CONFIG>/libdeluge_rust.a)
-    file(GLOB_RECURSE DELUGE_RUST_SOURCES
+    file(GLOB_RECURSE DELUGE_RUST_SOURCES CONFIGURE_DEPENDS
         ${DELUGE_RUST_WS}/deluge_alloc/src/*.rs
         ${DELUGE_RUST_WS}/deluge_resource/src/*.rs
         ${DELUGE_RUST_WS}/deluge_rust/src/*.rs)
@@ -231,6 +231,7 @@ if (CMAKE_CROSSCOMPILING)
         WORKING_DIRECTORY ${DELUGE_RUST_WS}
         DEPENDS
             ${DELUGE_RUST_SOURCES}
+            ${DELUGE_RUST_WS}/Cargo.lock
             ${DELUGE_RUST_WS}/Cargo.toml
             ${DELUGE_RUST_WS}/deluge_alloc/Cargo.toml
             ${DELUGE_RUST_WS}/deluge_resource/Cargo.toml
