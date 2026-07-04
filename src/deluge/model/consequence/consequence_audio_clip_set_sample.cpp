@@ -37,6 +37,7 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 	// don't keep cached since we undid the set
 	clip->unassignVoiceSample(true);
 
+	clip->sampleHolder.setAudioFile(nullptr);
 	clip->sampleHolder.filePath = filePathToRevertTo;
 	clip->sampleHolder.endPos = endPosToRevertTo;
 

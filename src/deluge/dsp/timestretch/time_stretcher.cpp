@@ -349,6 +349,15 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 		int32_t position = speedLog - (768 << 20);
 
+		// interpolateTableSigned reads table[whichValue] AND table[whichValue + 1], with whichValue = position >> 25.
+		// The coarse tables have 5 entries (indices 0..4), so position must stay strictly below 2^27 or whichValue
+		// reaches 4 and the +1 read runs one past the end. The speedLog clamp above is inclusive (speedLog == 896<<20
+		// gives position == 2^27), so pin position to the top of the valid 27-bit range - the interpolation there still
+		// resolves to the last table entry, matching the intended ceiling.
+		if (position >= (128 << 20)) {
+			position = (128 << 20) - 1;
+		}
+
 		minBeamWidth = interpolateTableSigned(position, 27, minHopSizeCoarse, 2) >> 16;
 		maxBeamWidth = interpolateTableSigned(position, 27, maxHopSizeCoarse, 2) >> 16;
 		crossfadeProportional = interpolateTableSigned(position, 27, crossfadeProportionalCoarse, 2) << 8;
@@ -931,7 +940,14 @@ optForDirectReading:
 
 			D_PRINTLN("setupNewPlayHead failed. Sticking with old");
 
-			*voiceSample = SampleLowLevelReader(olderPartReader, true); // Steals all reasons back
+			// Restore ONLY the SampleLowLevelReader base state from olderPartReader (stealing its cluster reasons
+			// back). Assigning to the whole VoiceSample - `*voiceSample = SampleLowLevelReader(...)` - does NOT bind
+			// the base operator=: VoiceSample declares its own operator= (hiding the base one), so this routes through
+			// the implicit VoiceSample(SampleLowLevelReader&&) conversion plus the defaulted VoiceSample move-assign,
+			// which overwrites timeStretcher/cache with their default nulls. That both nulls voiceSample->timeStretcher
+			// mid-render (null deref) and orphans this live TimeStretcher so endTimeStretching() never runs for it,
+			// leaking its perc-lookahead cluster reasons -> Sample::numReasonsDecreasedToZero E078 (issue #4515).
+			static_cast<SampleLowLevelReader&>(*voiceSample) = SampleLowLevelReader(olderPartReader, true);
 			playHeadStillActive[PLAY_HEAD_NEWER] = playHeadStillActive[PLAY_HEAD_OLDER];
 			playHeadStillActive[PLAY_HEAD_OLDER] = false;
 

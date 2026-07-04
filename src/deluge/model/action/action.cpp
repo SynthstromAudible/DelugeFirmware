@@ -21,6 +21,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_clip_state.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence.h"
 #include "model/consequence/consequence_audio_clip_set_sample.h"
@@ -54,6 +55,36 @@ Action::Action(ActionType newActionType) {
 	offset = 0;
 }
 
+EnumStringMap<ActionType, 28> actionTypeMap{
+    {{{ActionType::MISC, "misc"},
+      {ActionType::NOTE_EDIT, "note_edit"},
+      {ActionType::NOTE_TAIL_EXTEND, "note_tail_extend"},
+      {ActionType::CLIP_LENGTH_INCREASE, "clip_length_increase"},
+      {ActionType::CLIP_LENGTH_DECREASE, "clip_length_decrease"},
+      {ActionType::RECORD, "record"},
+      {ActionType::AUTOMATION_DELETE, "automation_delete"},
+      {ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE, "param_unautomated_value_change"},
+      {ActionType::SWING_CHANGE, "swing_change"},
+      {ActionType::TEMPO_CHANGE, "tempo_change"},
+      {ActionType::CLIP_MULTIPLY, "clip_multiply"},
+      {ActionType::CLIP_CLEAR, "clip_clear"},
+      {ActionType::CLIP_DELETE, "clip_delete"},
+      {ActionType::NOTES_PASTE, "notes_paste"},
+      {ActionType::PATTERN_PASTE, "pattern_paste"},
+      {ActionType::AUTOMATION_PASTE, "automation_paste"},
+      {ActionType::CLIP_INSTANCE_EDIT, "clip_instance_edit"},
+      {ActionType::ARRANGEMENT_TIME_EXPAND, "arrangement_time_expand"},
+      {ActionType::ARRANGEMENT_TIME_CONTRACT, "arrangement_time_contract"},
+      {ActionType::ARRANGEMENT_CLEAR, "arrangement_clear"},
+      {ActionType::ARRANGEMENT_RECORD, "arrangement_record"},
+      {ActionType::CLIP_HORIZONTAL_SHIFT, "clip_horizontal_shift"},
+      {ActionType::NOTE_NUDGE, "note_nudge"},
+      {ActionType::NOTE_REPEAT_EDIT, "note_repeat_edit"},
+      {ActionType::EUCLIDEAN_NUM_EVENTS_EDIT, "euclidean_num_events_edit"},
+      {ActionType::NOTEROW_ROTATE, "noterow_rotate"},
+      {ActionType::NOTEROW_LENGTH_EDIT, "noterow_length_edit"},
+      {ActionType::NOTEROW_HORIZONTAL_SHIFT, "noterow_horizontal_shift"}}}};
+
 // Call this before the destructor!
 void Action::prepareForDestruction(int32_t whichQueueActionIn, Song* song) {
 
@@ -86,7 +117,6 @@ void Action::addConsequence(Consequence* consequence) {
 
 // Returns error code
 Error Action::revert(TimeType time, ModelStack* modelStack) {
-
 	Consequence* thisConsequence = firstConsequence;
 
 	// If we're a record-arrangement-from-session Action, there's a trick - we know that whether we're being undone or
@@ -304,6 +334,7 @@ bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* c
 
 // Call this *before* you change the Sample or its filePath
 void Action::recordAudioClipSampleChange(AudioClip* clip) {
+	// for some unknown reason this doesn't work on live looping?
 	void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceAudioClipSetSample));
 	if (consMemory) {
 		ConsequenceAudioClipSetSample* cons = new (consMemory) ConsequenceAudioClipSetSample(clip);
