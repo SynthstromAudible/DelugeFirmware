@@ -158,7 +158,7 @@ uint32_t audioSampleTimer = 0;
 // See audio_engine.h: the app-owned mirror of the received input, and the read
 // cursor into it. CPU-only memory (no DMA), so it may live in cached SDRAM.
 PLACE_SDRAM_BSS int32_t inputRing[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS];
-uint32_t inputRingPos;
+uintptr_t inputRingPos;
 
 int32_t* inputRingStart() {
 	return inputRing;
@@ -173,7 +173,7 @@ int32_t* inputRingEnd() {
 // each input sample stays paired with its output sample.
 static void fillInputRing(const DelugeStereoSample* in, size_t numSamples) {
 	uint32_t ringBytes = SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
-	uint32_t offsetBytes = inputRingPos - (uint32_t)inputRing;
+	uint32_t offsetBytes = inputRingPos - (uintptr_t)inputRing;
 	uint32_t copyBytes = numSamples << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
 	uint32_t firstChunkBytes = std::min(copyBytes, ringBytes - offsetBytes);
 	memcpy((uint8_t*)inputRing + offsetBytes, in, firstChunkBytes);
@@ -186,7 +186,7 @@ static void fillInputRing(const DelugeStereoSample* in, size_t numSamples) {
 // produced, keeping in/out sample pairing exact.
 static void advanceInputRingPos(size_t numSamples) {
 	inputRingPos += (numSamples << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
-	if (inputRingPos >= (uint32_t)inputRingEnd()) {
+	if (inputRingPos >= (uintptr_t)inputRingEnd()) {
 		inputRingPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
 	}
 }
@@ -239,7 +239,7 @@ void init() {
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
 	deluge_audio_start();
-	inputRingPos = (uint32_t)inputRing;
+	inputRingPos = (uintptr_t)inputRing;
 
 	VoicePool::get().repopulate();
 	VoiceSamplePool::get().repopulate();
@@ -1107,7 +1107,7 @@ void routine() {
 }
 
 int32_t getNumSamplesLeftToOutputFromPreviousRender() {
-	return ((uint32_t)renderingBufferOutputEnd - (uint32_t)renderingBufferOutputPos) >> 3;
+	return renderingBufferOutputEnd - renderingBufferOutputPos;
 }
 
 // Independent white-noise PRNG for the master output dither — deliberately separate from the synth-wide
@@ -1221,15 +1221,15 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 				// We'll feed a bunch of samples to the SampleRecorder - normally all of what we just advanced, but
 				// if the buffer wrapped around, we'll just go to the end of the buffer, and not worry about the
 				// extra bit at the start - that'll get done next time.
-				uint32_t stopPos =
-				    (inputRingPos < (uint32_t)recorder->sourcePos) ? (uint32_t)inputRingEnd() : inputRingPos;
+				uintptr_t stopPos =
+				    (inputRingPos < (uintptr_t)recorder->sourcePos) ? (uintptr_t)inputRingEnd() : inputRingPos;
 
 				size_t numSamplesFeedingNow =
-				    (stopPos - (uint32_t)recorder->sourcePos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
+				    (stopPos - (uintptr_t)recorder->sourcePos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
 
 				// We also enforce a firm limit on how much to feed, to keep things sane. Any remaining will get
 				// done next time.
-				numSamplesFeedingNow = std::min(numSamplesFeedingNow, 256u);
+				numSamplesFeedingNow = std::min(numSamplesFeedingNow, size_t{256});
 
 				// this is extremely janky, but essentially because feedAudio only works on an interleaved stream of
 				// stereo samples, we can offset it one sample to get it to operate on the right channel

@@ -2119,7 +2119,7 @@ loadOutput:
 			ClipInstance* thisInstance = &thisOutput->clipInstances[i];
 
 			// Grab out the encoded Clip reference and turn it into an actual Clip*
-			uint32_t clipCode = (uint32_t)thisInstance->clip;
+			uint32_t clipCode = (uint32_t)(uintptr_t)thisInstance->clip;
 
 			// Special case for NULL Clip
 			if (clipCode == 0xFFFFFFFF) {

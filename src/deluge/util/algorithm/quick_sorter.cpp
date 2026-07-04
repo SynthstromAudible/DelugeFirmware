@@ -28,7 +28,7 @@ QuickSorter::QuickSorter(int32_t newElementSize, int32_t keyNumBits, void* newMe
 }
 
 void* QuickSorter::getElementAddress(int32_t i) {
-	return (void*)((uint32_t)memory + i * elementSize);
+	return (void*)((char*)memory + i * elementSize);
 }
 
 // GCC doesn't like that workingMemory would be unbounded if elementSize is unbounded

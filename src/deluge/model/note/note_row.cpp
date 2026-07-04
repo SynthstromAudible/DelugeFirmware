@@ -3244,7 +3244,8 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 			// already had some loading done by the Drum
 			if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
 
-				SoundDrum* actualDrum = (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)drum);
+				SoundDrum* actualDrum =
+				    (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)(uintptr_t)drum);
 
 				if (actualDrum) {
 					ParamManager* existingParamManager =

@@ -142,7 +142,7 @@ void Cluster::convertDataIfNecessary() {
 
 			for (; pos < endPos; pos++) {
 
-				if (!((uint32_t)pos & 0b1111111100)) {
+				if (!((uintptr_t)pos & 0b1111111100)) {
 					AudioEngine::runRoutine();
 				}
 

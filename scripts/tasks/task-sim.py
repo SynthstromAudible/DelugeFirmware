@@ -70,6 +70,13 @@ def argparser():
         "--no-midi", action="store_true", help="Disable the serial MIDI bridge."
     )
     parser.add_argument(
+        "--64bit",
+        "--x64",
+        dest="x64",
+        action="store_true",
+        help="Build/run the 64-bit host (DELUGE_SIM_X64) in build-sim-x64 instead of the 32-bit default.",
+    )
+    parser.add_argument(
         "--socket",
         default=SOCKET_DEFAULT,
         help=f"host_link Unix socket path (default: {SOCKET_DEFAULT}).",
@@ -92,18 +99,19 @@ def sim_install_root():
     return Path(SIM_BUILD_DIR) / "sim-tools"
 
 
-def build_host(no_build):
-    """Configure (if needed) and build deluge_host."""
+def build_host(no_build, build_dir, cmake_defs=()):
+    """Configure (if needed) and build deluge_host in build_dir with the given -D defines."""
     if no_build:
         return 0
-    if not Path(SIM_BUILD_DIR, "build.ninja").is_file():
+    if not Path(build_dir, "build.ninja").is_file():
         rc = subprocess.run(
-            ["cmake", "-B", SIM_BUILD_DIR, "-S", "sim", "-G", "Ninja"], env=os.environ
+            ["cmake", "-B", build_dir, "-S", "sim", "-G", "Ninja", *cmake_defs],
+            env=os.environ,
         ).returncode
         if rc != 0:
             return rc
     return subprocess.run(
-        ["cmake", "--build", SIM_BUILD_DIR, "--target", "deluge_host"], env=os.environ
+        ["cmake", "--build", build_dir, "--target", "deluge_host"], env=os.environ
     ).returncode
 
 
@@ -151,15 +159,20 @@ def main():
         )
         return 1
 
-    # Build both halves.
-    rc = build_host(args.no_build)
+    # The 64-bit host lives in its own build dir so it never clashes with the 32-bit default.
+    host_build_dir = "build-sim-x64" if args.x64 else SIM_BUILD_DIR
+    cmake_defs = ["-DDELUGE_SIM_X64=ON"] if args.x64 else []
+
+    # Build both halves. (The GUI panel is a native host binary — same regardless of the
+    # firmware's 32/64-bit word size — so it always installs under the default build-sim.)
+    rc = build_host(args.no_build, host_build_dir, cmake_defs)
     if rc != 0:
         return rc
     rc = build_sim(triple, args.release, args.no_build)
     if rc != 0:
         return rc
 
-    host_bin = Path(SIM_BUILD_DIR) / "deluge_host"
+    host_bin = Path(host_build_dir) / "deluge_host"
     sim_bin = sim_binary()
     for label, path in (("deluge_host", host_bin), ("deluge-simulator", sim_bin)):
         if not path.is_file():

@@ -503,7 +503,7 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 		if (!slashAddress) {
 			break;
 		}
-		int32_t slashPos = (uint32_t)slashAddress - (uint32_t)newPathChars;
+		int32_t slashPos = slashAddress - newPathChars;
 		newPath[slashPos] = '_';
 		pos = slashPos + 1;
 	}
@@ -949,8 +949,8 @@ getOutEarly:
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	if ((uint32_t)cluster.data & 0b11) {
-		D_PRINTLN("SD read address misaligned by  %d", (int32_t)((uint32_t)cluster.data & 0b11));
+	if ((uintptr_t)cluster.data & 0b11) {
+		D_PRINTLN("SD read address misaligned by  %d", (int32_t)((uintptr_t)cluster.data & 0b11));
 	}
 #endif
 
