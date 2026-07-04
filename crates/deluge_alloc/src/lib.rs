@@ -1,5 +1,5 @@
 //! deluge_alloc — TLSF + slab allocator core for the Deluge, behind a stable C
-//! ABI (libdeluge/alloc.h). Phase 3 of docs/dev/allocator_implementation_plan.md.
+//! ABI (libdeluge/alloc.h).
 //!
 //! - TLSF backbone (`tlsf`): O(1) general allocator, 16-byte-aligned by
 //!   construction, validated by the C++ conformance suite (tests/spec_alloc, the

@@ -253,6 +253,6 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
     // `stamp` is a board capture tick → frame offset on the render timeline.
-    // M5 (MIDI/gate) refines this; the masked delta is the M3 placeholder.
+    // MIDI/gate timing will refine this; the masked delta is a placeholder.
     unsafe { ((stamp as usize).wrapping_sub(TX_WRITE) & TX_MASK) as u32 }
 }

@@ -7,7 +7,7 @@
 //! (notifying the owner — the analogue of `Stealable::steal()`), returns that
 //! block to the heap, and the allocation retries. Uniform slots make eviction
 //! O(1)-ish (a bounded scan) and unfragmentable — the redesign's
-//! slab-backed-by-TLSF synthesis (docs/dev/allocator_redesign.md), M2.
+//! slab-backed-by-TLSF synthesis (docs/dev/allocator_redesign.md).
 //!
 //! Pinning (`numReasonsToBeLoaded` in C++) protects a slot a voice is mid-read of.
 

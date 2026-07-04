@@ -916,7 +916,7 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 	return ok;
 }
 
-// The cluster data reader extracted from loadCluster (Step 1 of the resource-manager
+// The cluster data reader extracted from loadCluster (for the resource-manager
 // integration): the pure data work — sector count, read from the card, conversion, and the
 // inter-cluster boundary fixups. No orchestration (the card-state guards, clusterBeingLoaded,
 // the loading "reason", and the loadingQueue stay in loadCluster). This is the seam the resource

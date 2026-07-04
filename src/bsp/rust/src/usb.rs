@@ -1,8 +1,8 @@
 //! USB device (peripheral) bring-up: a USB-MIDI 1.0 device (Deluge → computer).
 //!
-//! M5 peripheral-first: the Deluge enumerates as a class-compliant USB-MIDI
+//! Peripheral-first: the Deluge enumerates as a class-compliant USB-MIDI
 //! device so a computer can send/receive MIDI. USB **host** mode (MIDI devices
-//! plugged into the Deluge) is a later phase; here the libdeluge USB role is
+//! plugged into the Deluge) comes later; here the libdeluge USB role is
 //! fixed to peripheral (`deluge_midi_usb_is_host()` → false).
 //!
 //! The embassy-usb device + the deluge-bsp MIDI class run as background tasks
@@ -51,7 +51,7 @@ pub struct UsbMidi {
 /// during single-threaded startup.
 pub unsafe fn build() -> UsbMidi {
     // Route USB0 → the device-mode interrupt handler (no host dispatch — host
-    // mode is a later phase).
+    // mode comes later).
     unsafe { rza1l_hal::gic::register(usb::USB0_IRQ, || dcd_int_handler(0)) };
 
     // init_device_mode ungates the USB module clock and yields the driver.

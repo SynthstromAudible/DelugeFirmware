@@ -103,7 +103,7 @@ pub extern "C" fn deluge_board_init_audio() {
     unsafe { deluge_bsp::audio::init() };
 }
 
-/// Storage-phase bring-up (SPIBSC serial flash). M4 TODO.
+/// Storage bring-up (SPIBSC serial flash). TODO.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_storage() {}
 

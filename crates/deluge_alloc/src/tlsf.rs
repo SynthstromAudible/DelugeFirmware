@@ -16,7 +16,7 @@ use core::ptr;
 /// Reclaim hook: invoked when the heap is out of space, to ask a resource layer
 /// (the slab cache pool) to free `bytes_needed` worth of reclaimable memory.
 /// Returns true if it freed something (the alloc is then retried). Mirrors the
-/// C++ `Reclaimer` seam (Phase 1) on the Rust side.
+/// C++ `Reclaimer` seam on the Rust side.
 pub type ReclaimFn = unsafe extern "C" fn(ctx: *mut c_void, bytes_needed: usize) -> bool;
 
 const ALIGN_LOG2: usize = 4;

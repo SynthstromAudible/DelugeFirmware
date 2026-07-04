@@ -1,6 +1,6 @@
 //! midi_io.h — MIDI I/O. DIN serial over deluge_bsp::uart (SCIF0, brought up in
 //! main). USB-MIDI is a **peripheral** (Deluge → computer) over the deluge-bsp
-//! MIDI 1.0 class on port 1; USB **host** (devices → Deluge) is a later phase,
+//! MIDI 1.0 class on port 1; USB **host** (devices → Deluge) comes later,
 //! so `usb_is_host()` is false and host-enumeration events report NONE. Port 0 =
 //! DIN; port 1 = the USB peripheral connection; ports 2..=MAX (future USB-host
 //! device slots) report disconnected.
@@ -27,7 +27,7 @@ const PORT_COUNT: u8 = USB_PORT_BASE + MAX_USB_MIDI_DEVICES;
 /// SCIF TX FIFO depth (bytes) — back-pressure for DIN writes.
 const DIN_TX_FIFO: u32 = 16;
 /// USB-MIDI peripheral port: the single to-computer connection while in
-/// peripheral mode (host-mode device slots 2..=MAX are a later phase).
+/// peripheral mode (host-mode device slots 2..=MAX come later).
 const USB_PERIPHERAL_PORT: u8 = USB_PORT_BASE;
 
 /// Number of raw bytes in a complete MIDI 1.0 message, from its status byte.
@@ -189,7 +189,7 @@ pub extern "C" fn deluge_midi_port_connected(port: DelugeMidiPort) -> bool {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_usb_is_host() -> bool {
-    // Peripheral-first: the Deluge is a USB-MIDI device. Host mode is a later phase.
+    // Peripheral-first: the Deluge is a USB-MIDI device. Host mode comes later.
     false
 }
 

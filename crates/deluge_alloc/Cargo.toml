@@ -1,6 +1,5 @@
 # deluge_alloc — the from-scratch TLSF + slab allocator core for the Deluge,
-# behind a stable C ABI (libdeluge/alloc.h). Phase 3 of
-# docs/dev/allocator_implementation_plan.md. Replaces the C++ MemoryRegion/GMA
+# behind a stable C ABI (libdeluge/alloc.h). Replaces the C++ MemoryRegion/GMA
 # internals; validated bit-for-bit by the conformance suite in tests/spec_alloc
 # (which is the same AllocatorUnderTest suite the C++ MemoryRegion passes).
 #

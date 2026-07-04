@@ -10,7 +10,7 @@
 //! `embassy_time` timer, runs the (synchronous, run-to-completion) C++ handle, and
 //! loops. The Embassy executor *is* the scheduler loop; there is no `TaskManager`
 //! on this BSP (its translation units drop out of the static-archive link because
-//! the C ABI symbols below satisfy every reference — see build.rs / Phase 0).
+//! the C ABI symbols below satisfy every reference — see build.rs).
 //!
 //! The deadline-aware priority heuristic (`chooseBestTask`) is intentionally not
 //! reproduced: Embassy round-robins ready tasks, audio is lifted onto an
@@ -107,7 +107,7 @@ struct TaskSlot {
     period_us: AtomicU64,
     /// Minimum time from completion to the next call, microseconds.
     backoff_us: AtomicU64,
-    /// Resource bitmask gating the run (Phase 5 maps these onto embassy-sync
+    /// Resource bitmask gating the run (these will map onto embassy-sync
     /// mutexes; today the gate is a no-op).
     resource: AtomicU64,
     /// Run once then free (once / conditional tasks).
@@ -216,8 +216,8 @@ static CURRENT: AtomicI8 = AtomicI8::new(-1);
 /// Resource gates (RESOURCE_SD / RESOURCE_USB). A task holding one of these in its
 /// schedule acquires the corresponding gate for the duration of its (synchronous)
 /// handle, so two same-resource tasks can't run concurrently. Inert in the current
-/// run-to-completion model (handles never overlap) but correct once Phase 6 makes
-/// storage waits truly async. Audio (RESOURCE_NONE) never touches these, so the
+/// run-to-completion model (handles never overlap) but correct once storage
+/// waits become truly async. Audio (RESOURCE_NONE) never touches these, so the
 /// audio interrupt-executor never blocks on them.
 static SD_GATE: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 static USB_GATE: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
@@ -444,7 +444,7 @@ fn us_to_secs(us: u64) -> f64 {
 
 // ===========================================================================
 // scheduler_api.h C ABI. These are the symbols that satisfy the C++ app's
-// references (and thereby keep the C++ TaskManager out of the link, Phase 0).
+// references (and thereby keep the C++ TaskManager out of the link).
 // ===========================================================================
 
 #[unsafe(no_mangle)]

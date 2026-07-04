@@ -5,7 +5,7 @@
 //! song-load-while-playing). A fiber suspends the *whole* call stack at `yield()` —
 //! regardless of depth or return values — so the C++ stays unchanged; the embassy
 //! worker (app_task) resumes it when its predicate holds, running every other task
-//! and I/O in between. This is the Loom/goroutine pattern (see Phase 6 in the plan).
+//! and I/O in between. This is the Loom/goroutine pattern.
 //!
 //! This module is the load-bearing primitive: the Cortex-A9 (AArch32) cooperative
 //! context switch plus a `selftest`. The full worker (op queue, predicate wait, the

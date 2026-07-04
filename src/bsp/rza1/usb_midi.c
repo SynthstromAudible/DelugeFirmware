@@ -69,7 +69,7 @@ usb_utr_t g_usb_midi_send_utr[USB_NUM_USBIP];
 usb_utr_t g_usb_midi_recv_utr[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 
 // Send-path bookkeeping (moved from midi_engine.cpp). The first three are also
-// read by the app's receive path until it moves down in phase 5, so they keep
+// read by the app's receive path until it moves down, so they keep
 // external linkage; the rest are BSP-internal.
 uint8_t stopSendingAfterDeviceNum[USB_NUM_USBIP];
 uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];

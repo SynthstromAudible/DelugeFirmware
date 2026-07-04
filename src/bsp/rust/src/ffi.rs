@@ -1,6 +1,6 @@
-//! M2 link-plumbing stubs for the still-unimplemented libdeluge services.
+//! Link-plumbing stubs for the still-unimplemented libdeluge services.
 //! Each logs its FIRST call (stub_log!) so we can see which boundary call the
-//! C++ boot wedges on. Replaced with real impls per milestone.
+//! C++ boot wedges on. Replaced with real impls as they land.
 #![allow(unused_variables, non_snake_case)]
 use crate::sys::*;
 use core::sync::atomic::{AtomicBool, Ordering};
