@@ -3,9 +3,9 @@
 deluge-simulator front-panel GUI, wired over the host_link Unix socket.
 
 deluge_host is the *brain* (real firmware compiled native via the host BSP); the simulator
-(from the deluge-sdk repo) is the panel (OLED, pads, encoders, buttons). Audio comes out of
-deluge_host directly (a forked pw-cat by default); serial MIDI auto-bridges to any
-snd-virmidi device. See docs/dev/host_emulator.md.
+(a Rust crate in the deluge-sdk repo, fetched straight from git) is the panel (OLED,
+pads, encoders, buttons). Audio comes out of deluge_host directly (a forked pw-cat by
+default); serial MIDI auto-bridges to any snd-virmidi device. See docs/dev/host_emulator.md.
 """
 
 import argparse
@@ -20,7 +20,15 @@ import util
 
 SIM_BUILD_DIR = "build-sim"
 SOCKET_DEFAULT = "/tmp/deluge_emu.sock"
-SIM_CRATE_SUBPATH = Path("tools/deluge-simulator")
+
+# The simulator GUI is a Rust crate in the deluge-sdk repo. We build+install it directly
+# from git — no local checkout required. It is built with `--no-default-features` so the
+# top-panel "rack" strip (CV/gate meters + audio scopes) is compiled out: over the host_link
+# protocol the panel carries no audio, so that strip would be dead. The result is the
+# faceplate-only ("no-panel") simulator.
+SIM_GIT_URL = "https://github.com/FirestormAudio/deluge-sdk.git"
+SIM_GIT_BRANCH = "main"
+SIM_PACKAGE = "deluge-simulator"
 
 
 def argparser():
@@ -66,11 +74,6 @@ def argparser():
         default=SOCKET_DEFAULT,
         help=f"host_link Unix socket path (default: {SOCKET_DEFAULT}).",
     )
-    parser.add_argument(
-        "--sdk-dir",
-        help="Path to the deluge-sdk repo (holds the simulator GUI). "
-        "Default: $DELUGE_SDK_DIR, then a sibling ../deluge-sdk.",
-    )
     return parser
 
 
@@ -84,15 +87,9 @@ def host_triple():
     return "x86_64-unknown-linux-gnu"
 
 
-def find_sdk_dir(arg, root):
-    for cand in (
-        arg,
-        os.environ.get("DELUGE_SDK_DIR"),
-        str(Path(root).parent / "deluge-sdk"),
-    ):
-        if cand and (Path(cand) / SIM_CRATE_SUBPATH / "Cargo.toml").is_file():
-            return Path(cand).resolve()
-    return None
+def sim_install_root():
+    """Where `cargo install` drops the simulator (binary lands in <root>/bin)."""
+    return Path(SIM_BUILD_DIR) / "sim-tools"
 
 
 def build_host(no_build):
@@ -110,38 +107,42 @@ def build_host(no_build):
     ).returncode
 
 
-def build_sim(sim_crate, triple, release, no_build):
+def build_sim(triple, release, no_build):
+    """Build+install the faceplate-only simulator GUI straight from git.
+
+    `cargo install` no-ops fast when the pinned branch hasn't moved, so this is cheap on
+    repeat runs; it rebuilds automatically when upstream advances.
+    """
     if no_build:
         return 0
-    # Drop the GUI's default `rack` feature: the top-panel strip (CV/gate meters
-    # + audio oscilloscopes) is compiled out for the emulator. The protocol link
-    # carries no audio, so the output scopes would be dead — a faceplate-only
-    # window is cleaner. (The in-process `cargo deluge sim` path keeps the rack.)
-    cmd = ["cargo", "build", "--target", triple, "--no-default-features"]
-    if release:
-        cmd += ["--release"]
-    return subprocess.run(cmd, cwd=sim_crate, env=os.environ).returncode
+    cmd = [
+        "cargo",
+        "install",
+        "--git",
+        SIM_GIT_URL,
+        "--branch",
+        SIM_GIT_BRANCH,
+        SIM_PACKAGE,
+        "--no-default-features",
+        "--locked",
+        "--target",
+        triple,
+        "--root",
+        str(sim_install_root()),
+    ]
+    if not release:
+        cmd += ["--debug"]
+    return subprocess.run(cmd, env=os.environ).returncode
 
 
-def sim_binary(sim_crate, triple, release):
-    profile = "release" if release else "debug"
-    return sim_crate / "target" / triple / profile / "deluge-simulator"
+def sim_binary():
+    return sim_install_root() / "bin" / "deluge-simulator"
 
 
 def main():
     args = argparser().parse_args()
     os.chdir(util.get_git_root())
-    root = os.getcwd()
 
-    # Locate the simulator GUI (lives in the deluge-sdk repo).
-    sdk = find_sdk_dir(args.sdk_dir, root)
-    if sdk is None:
-        util.note(
-            "ERROR: could not find the deluge-sdk repo (it holds the simulator GUI under "
-            "tools/deluge-simulator). Pass --sdk-dir <path> or set DELUGE_SDK_DIR."
-        )
-        return 1
-    sim_crate = sdk / SIM_CRATE_SUBPATH
     triple = host_triple()
 
     if not shutil.which("cargo"):
@@ -154,12 +155,12 @@ def main():
     rc = build_host(args.no_build)
     if rc != 0:
         return rc
-    rc = build_sim(sim_crate, triple, args.release, args.no_build)
+    rc = build_sim(triple, args.release, args.no_build)
     if rc != 0:
         return rc
 
     host_bin = Path(SIM_BUILD_DIR) / "deluge_host"
-    sim_bin = sim_binary(sim_crate, triple, args.release)
+    sim_bin = sim_binary()
     for label, path in (("deluge_host", host_bin), ("deluge-simulator", sim_bin)):
         if not path.is_file():
             util.note(
