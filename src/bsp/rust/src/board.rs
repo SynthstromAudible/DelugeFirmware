@@ -31,10 +31,10 @@ static DELUGE_BOARD: BoardDescriptor = BoardDescriptor(DelugeBoard {
     name: BOARD_NAME.as_ptr() as *const core::ffi::c_char,
     pad_grid_width: 16,
     pad_grid_height: 8,
-    button_rows: 4,  // NUM_BUTTON_ROWS
-    button_cols: 9,  // NUM_BUTTON_COLS
+    button_rows: 4, // NUM_BUTTON_ROWS
+    button_cols: 9, // NUM_BUTTON_COLS
     encoder_count: 6,
-    cv_channels: 2,  // NUM_PHYSICAL_CV_CHANNELS
+    cv_channels: 2,   // NUM_PHYSICAL_CV_CHANNELS
     gate_channels: 4, // NUM_GATE_CHANNELS
     display_kind: DelugeDisplayKind_DELUGE_DISPLAY_OLED,
     display_width: 128, // OLED_MAIN_WIDTH_PIXELS

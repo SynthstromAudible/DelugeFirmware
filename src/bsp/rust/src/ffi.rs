@@ -8,7 +8,9 @@ use core::sync::atomic::{AtomicBool, Ordering};
 macro_rules! stub_log {
     ($n:literal) => {{
         static L: AtomicBool = AtomicBool::new(false);
-        if !L.swap(true, Ordering::Relaxed) { log::info!(concat!("stub: ", $n)); }
+        if !L.swap(true, Ordering::Relaxed) {
+            log::info!(concat!("stub: ", $n));
+        }
     }};
 }
 
@@ -30,46 +32,75 @@ macro_rules! stub_log {
 // deluge_control_set_indicator is implemented in `control` (PIC output queue).
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_init() { stub_log!("deluge_control_init"); }
+pub extern "C" fn deluge_control_init() {
+    stub_log!("deluge_control_init");
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_wait_for_flush() { stub_log!("deluge_control_wait_for_flush"); }
+pub extern "C" fn deluge_control_wait_for_flush() {
+    stub_log!("deluge_control_wait_for_flush");
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_setup_for_pads() { stub_log!("deluge_control_setup_for_pads"); }
+pub extern "C" fn deluge_control_setup_for_pads() {
+    stub_log!("deluge_control_setup_for_pads");
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_enable_oled() { stub_log!("deluge_control_enable_oled"); }
+pub extern "C" fn deluge_control_enable_oled() {
+    stub_log!("deluge_control_enable_oled");
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_poll_resume() -> bool { stub_log!("deluge_control_poll_resume"); false }
+pub extern "C" fn deluge_control_poll_resume() -> bool {
+    stub_log!("deluge_control_poll_resume");
+    false
+}
 
 // deluge_control_pad_output_space is implemented in `control` (queue capacity).
 
 // deluge_control_set_pad_columns is implemented in `control` (PIC output queue).
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_flash_pad(idx: u8) { stub_log!("deluge_control_flash_pad"); }
+pub extern "C" fn deluge_control_flash_pad(idx: u8) {
+    stub_log!("deluge_control_flash_pad");
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_flash_pad_colour(idx: u8, colour_idx: i32) { stub_log!("deluge_control_flash_pad_colour"); }
+pub extern "C" fn deluge_control_flash_pad_colour(idx: u8, colour_idx: i32) {
+    stub_log!("deluge_control_flash_pad_colour");
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_scroll_horizontal(flags: u8) { stub_log!("deluge_control_scroll_horizontal"); }
+pub extern "C" fn deluge_control_scroll_horizontal(flags: u8) {
+    stub_log!("deluge_control_scroll_horizontal");
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_scroll_vertical(up: bool, colours: *const DelugeColour, count: u8) { stub_log!("deluge_control_scroll_vertical"); }
+pub extern "C" fn deluge_control_scroll_vertical(
+    up: bool,
+    colours: *const DelugeColour,
+    count: u8,
+) {
+    stub_log!("deluge_control_scroll_vertical");
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_scroll_row(row: u8, colour: DelugeColour) { stub_log!("deluge_control_scroll_row"); }
+pub extern "C" fn deluge_control_scroll_row(row: u8, colour: DelugeColour) {
+    stub_log!("deluge_control_scroll_row");
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_scroll_done() { stub_log!("deluge_control_scroll_done"); }
+pub extern "C" fn deluge_control_scroll_done() {
+    stub_log!("deluge_control_scroll_done");
+}
 
 // deluge_control_set_refresh_time is implemented in `control` (PIC output queue).
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_set_dimmer_interval(interval: u8) { stub_log!("deluge_control_set_dimmer_interval"); }
+pub extern "C" fn deluge_control_set_dimmer_interval(interval: u8) {
+    stub_log!("deluge_control_set_dimmer_interval");
+}
 
 // cv_gate.h (deluge_cv_init/set/sent_count, deluge_gate_init/set,
 // deluge_trigger_clock_set_handler) is implemented in `cv_gate`.
@@ -78,10 +109,16 @@ pub extern "C" fn deluge_control_set_dimmer_interval(interval: u8) { stub_log!("
 // are implemented in `display` (OLED render task over deluge_bsp::oled).
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_write_seven_segment(digits: *const u8, count: u8) -> DelugeStatus { stub_log!("deluge_display_write_seven_segment"); 0 }
+pub extern "C" fn deluge_display_write_seven_segment(digits: *const u8, count: u8) -> DelugeStatus {
+    stub_log!("deluge_display_write_seven_segment");
+    0
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_consume_transfer_ack() -> bool { stub_log!("deluge_display_consume_transfer_ack"); false }
+pub extern "C" fn deluge_display_consume_transfer_ack() -> bool {
+    stub_log!("deluge_display_consume_transfer_ack");
+    false
+}
 
 // midi_io.h (deluge_midi_init/port_count/port_kind/usb_port/read[_timed]/write/
 // write_space/write_pending/din_read_timed/flush/service/port_connected/
@@ -89,7 +126,9 @@ pub extern "C" fn deluge_display_consume_transfer_ack() -> bool { stub_log!("del
 // `midi` (DIN over deluge_bsp::uart; USB-MIDI deferred/disconnected).
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_system_quiesce() { stub_log!("deluge_system_quiesce"); }
+pub extern "C" fn deluge_system_quiesce() {
+    stub_log!("deluge_system_quiesce");
+}
 
 // deluge_encoder_take_edges is implemented in `control` (ISR edge counters).
 

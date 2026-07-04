@@ -165,13 +165,13 @@ pub const COST_BUCKETS: usize = 8;
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Stats {
-    pub acquires: u64,      // acquire() calls
-    pub acquire_hits: u64,  // ... that hit a resident chunk (no alloc/materialize)
-    pub requests: u64,      // request() (prefetch-construct) calls
-    pub materializes: u64,  // asset materialize() invocations (sync storage reloads)
-    pub evictions: u64,     // chunks evicted under pressure / to free a slot
+    pub acquires: u64,                          // acquire() calls
+    pub acquire_hits: u64, // ... that hit a resident chunk (no alloc/materialize)
+    pub requests: u64,     // request() (prefetch-construct) calls
+    pub materializes: u64, // asset materialize() invocations (sync storage reloads)
+    pub evictions: u64,    // chunks evicted under pressure / to free a slot
     pub alloc_failures: u64, // alloc_backing returned null (pool exhausted after reclaim)
-    pub adopts: u64,        // objects adopted
+    pub adopts: u64,       // objects adopted
     pub evictions_by_cost: [u64; COST_BUCKETS], // evicted-chunk breakdown by cost class
 }
 
@@ -313,7 +313,9 @@ impl Manager {
                 best_pri = s.queue_priority;
             }
         }
-        let Some(i) = best else { return ptr::null_mut() };
+        let Some(i) = best else {
+            return ptr::null_mut();
+        };
         let mut s = self.chunks[i].get();
         s.queued = false;
         self.chunks[i].set(s);
@@ -1122,7 +1124,10 @@ pub unsafe extern "C" fn deluge_resource_slot_of(handle: *mut DelugeResource, pt
 /// O(1) hard-lease count of the chunk at `slot` — 0 if `slot` is `NO_SLOT` / out of range / free. The
 /// single source of truth for "how many reasons does this cluster have", read via the C++ slot handle.
 #[no_mangle]
-pub unsafe extern "C" fn deluge_resource_lease_count_by_slot(handle: *mut DelugeResource, slot: u32) -> u32 {
+pub unsafe extern "C" fn deluge_resource_lease_count_by_slot(
+    handle: *mut DelugeResource,
+    slot: u32,
+) -> u32 {
     if handle.is_null() {
         return 0;
     }
@@ -1133,7 +1138,11 @@ pub unsafe extern "C" fn deluge_resource_lease_count_by_slot(handle: *mut Deluge
 
 /// Enqueue the chunk at `slot` for loading at `priority` (lower = more urgent; re-enqueue updates it).
 #[no_mangle]
-pub unsafe extern "C" fn deluge_resource_loader_enqueue(handle: *mut DelugeResource, slot: u32, priority: u32) {
+pub unsafe extern "C" fn deluge_resource_loader_enqueue(
+    handle: *mut DelugeResource,
+    slot: u32,
+    priority: u32,
+) {
     if !handle.is_null() {
         mgr(handle).loader_enqueue(slot, priority);
     }

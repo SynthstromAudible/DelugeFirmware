@@ -27,7 +27,7 @@
 use core::sync::atomic::{AtomicBool, AtomicI8, AtomicU64, AtomicUsize, Ordering};
 
 use embassy_executor::{SendSpawner, Spawner};
-use embassy_futures::select::{select, Either};
+use embassy_futures::select::{Either, select};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
@@ -64,7 +64,10 @@ const RESOURCE_SD_ROUTINE: ResourceID = 4;
 // side reads/writes ids and resources at the wrong width across the boundary.
 const _: () = {
     assert!(core::mem::size_of::<TaskID>() == 1, "TaskID must be int8_t");
-    assert!(core::mem::size_of::<ResourceID>() == 4, "ResourceID must be uint32_t");
+    assert!(
+        core::mem::size_of::<ResourceID>() == 4,
+        "ResourceID must be uint32_t"
+    );
     assert!(
         core::mem::size_of::<TaskHandle>() == core::mem::size_of::<usize>(),
         "TaskHandle must be pointer-sized"
@@ -76,7 +79,10 @@ const _: () = {
 /// NOTE: kept in lock-step with the `task_runner` `pool_size` literal (the task
 /// macro wants a literal); the const-assert below guards against drift.
 const MAX_TASKS: usize = 25;
-const _: () = assert!(MAX_TASKS == 25, "task_runner pool_size literal must equal MAX_TASKS");
+const _: () = assert!(
+    MAX_TASKS == 25,
+    "task_runner pool_size literal must equal MAX_TASKS"
+);
 
 /// How often a conditional task re-evaluates its `RunCondition` while waiting. The
 /// C++ scheduler checks conditionals on every idle pass; a few-ms poll is plenty
@@ -153,13 +159,19 @@ impl TaskSlot {
     /// itself `Option<fn>`, so a 0 (unset) word transmutes straight to `None`.
     fn condition_fn(&self) -> RunCondition {
         // SAFETY: written only by `claim` from a real `RunCondition` (or 0 = None).
-        unsafe { core::mem::transmute::<usize, RunCondition>(self.condition.load(Ordering::Relaxed)) }
+        unsafe {
+            core::mem::transmute::<usize, RunCondition>(self.condition.load(Ordering::Relaxed))
+        }
     }
 
     /// Microseconds to wait before the next run, consuming one-shot overrides.
     fn next_wait_us(&self) -> u64 {
         let override_us = self.next_override_us.swap(0, Ordering::Relaxed);
-        let base = if override_us != 0 { override_us } else { self.period_us.load(Ordering::Relaxed) };
+        let base = if override_us != 0 {
+            override_us
+        } else {
+            self.period_us.load(Ordering::Relaxed)
+        };
         if self.boosted.swap(false, Ordering::Relaxed) {
             base / 10
         } else {
@@ -469,7 +481,16 @@ pub extern "C" fn addOnceTask(
     _name: *const core::ffi::c_char,
     resource: ResourceID,
 ) -> TaskID {
-    claim(task, None, secs_to_us(timeToWait), 0, resource, true, true, false)
+    claim(
+        task,
+        None,
+        secs_to_us(timeToWait),
+        0,
+        resource,
+        true,
+        true,
+        false,
+    )
 }
 
 #[unsafe(no_mangle)]
@@ -526,7 +547,8 @@ pub extern "C" fn runTask(id: TaskID) {
 #[unsafe(no_mangle)]
 pub extern "C" fn setNextRunTimeforCurrentTask(seconds: f64) {
     if let Some(slot) = current_slot() {
-        slot.next_override_us.store(secs_to_us(seconds), Ordering::Relaxed);
+        slot.next_override_us
+            .store(secs_to_us(seconds), Ordering::Relaxed);
     }
 }
 

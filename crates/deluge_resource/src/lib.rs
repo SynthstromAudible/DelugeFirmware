@@ -508,7 +508,10 @@ mod tests {
                 unsafe { deluge_resource_release(mgr, r) };
             }
         }
-        assert!(evicts() >= 1, "released chunk is evictable after try_acquire leases drop");
+        assert!(
+            evicts() >= 1,
+            "released chunk is evictable after try_acquire leases drop"
+        );
     }
 
     #[test]
@@ -556,7 +559,11 @@ mod tests {
         assert_eq!(unsafe { deluge_resource_lease_count_by_slot(mgr, slot) }, 1);
 
         unsafe { deluge_resource_add_lease(mgr, p) };
-        assert_eq!(unsafe { deluge_resource_lease_count_by_slot(mgr, slot) }, 2, "by-slot tracks add_lease");
+        assert_eq!(
+            unsafe { deluge_resource_lease_count_by_slot(mgr, slot) },
+            2,
+            "by-slot tracks add_lease"
+        );
         unsafe { deluge_resource_release(mgr, p) };
         unsafe { deluge_resource_release(mgr, p) };
         assert_eq!(
@@ -566,9 +573,15 @@ mod tests {
         );
 
         // Edge cases: bogus ptr → NO_SLOT; out-of-range / NO_SLOT slot → 0 leases.
-        assert_eq!(unsafe { deluge_resource_slot_of(mgr, 0xdead_beef as *mut u8) }, u32::MAX);
+        assert_eq!(
+            unsafe { deluge_resource_slot_of(mgr, 0xdead_beef as *mut u8) },
+            u32::MAX
+        );
         assert_eq!(unsafe { deluge_resource_lease_count_by_slot(mgr, 9999) }, 0);
-        assert_eq!(unsafe { deluge_resource_lease_count_by_slot(mgr, u32::MAX) }, 0);
+        assert_eq!(
+            unsafe { deluge_resource_lease_count_by_slot(mgr, u32::MAX) },
+            0
+        );
     }
 
     #[test]
@@ -598,18 +611,27 @@ mod tests {
         assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p1);
         assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p2);
         assert_eq!(unsafe { deluge_resource_loader_next(mgr) }, p0);
-        assert!(unsafe { deluge_resource_loader_next(mgr) }.is_null(), "queue drained");
+        assert!(
+            unsafe { deluge_resource_loader_next(mgr) }.is_null(),
+            "queue drained"
+        );
 
         // remove de-queues.
         unsafe { deluge_resource_loader_enqueue(mgr, s0, 5) };
         unsafe { deluge_resource_loader_remove(mgr, s0) };
-        assert!(unsafe { deluge_resource_loader_next(mgr) }.is_null(), "removed entry not returned");
+        assert!(
+            unsafe { deluge_resource_loader_next(mgr) }.is_null(),
+            "removed entry not returned"
+        );
 
         // An unleased queued chunk is skipped (left queued + resident for normal value-based eviction;
         // loader_next never evicts).
         unsafe { deluge_resource_release(mgr, p1) }; // s1 now unleased (was leased once by acq)
         unsafe { deluge_resource_loader_enqueue(mgr, s1, 1) };
-        assert!(unsafe { deluge_resource_loader_next(mgr) }.is_null(), "unleased queued chunk skipped");
+        assert!(
+            unsafe { deluge_resource_loader_next(mgr) }.is_null(),
+            "unleased queued chunk skipped"
+        );
 
         // has_lowest: only true for a queued+leased chunk at u32::MAX.
         unsafe { deluge_resource_loader_enqueue(mgr, s2, u32::MAX) };
@@ -663,7 +685,10 @@ mod tests {
             s.evictions_by_cost.iter().sum::<u64>(),
             "by-cost buckets sum to the total"
         );
-        assert!(s.evictions_by_cost[COST_IO as usize] >= 1, "IO-cost chunks were evicted");
+        assert!(
+            s.evictions_by_cost[COST_IO as usize] >= 1,
+            "IO-cost chunks were evicted"
+        );
 
         // reset zeroes everything.
         unsafe { deluge_resource_stats_reset(mgr) };
@@ -687,16 +712,47 @@ mod tests {
         let mgr = unsafe { deluge_resource_create(h, 16, 64) };
         // A Source asset to coexist with the adopted blocks.
         let a = unsafe {
-            deluge_resource_define_asset(mgr, owner(1), Some(mock_materialize), Some(mock_on_evict),
-                core::ptr::null_mut(), COST_IO, BACKING_HEAP)
+            deluge_resource_define_asset(
+                mgr,
+                owner(1),
+                Some(mock_materialize),
+                Some(mock_on_evict),
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
         };
         // Adopt a pinned (leased) block + an unpinned one (both heap blocks we "own").
         let pinned = unsafe { deluge_alloc::deluge_alloc(h, 32 * 1024, 16) };
         let cold = unsafe { deluge_alloc::deluge_alloc(h, 32 * 1024, 16) };
         assert!(!pinned.is_null() && !cold.is_null());
-        assert_eq!(unsafe { deluge_resource_adopt(mgr, pinned, 32 * 1024, COST_CPU, core::ptr::null_mut(), Some(mock_adopt_evict)) }, pinned);
+        assert_eq!(
+            unsafe {
+                deluge_resource_adopt(
+                    mgr,
+                    pinned,
+                    32 * 1024,
+                    COST_CPU,
+                    core::ptr::null_mut(),
+                    Some(mock_adopt_evict),
+                )
+            },
+            pinned
+        );
         unsafe { deluge_resource_add_lease(mgr, pinned) }; // pin it
-        assert_eq!(unsafe { deluge_resource_adopt(mgr, cold, 32 * 1024, COST_FREE, core::ptr::null_mut(), Some(mock_adopt_evict)) }, cold);
+        assert_eq!(
+            unsafe {
+                deluge_resource_adopt(
+                    mgr,
+                    cold,
+                    32 * 1024,
+                    COST_FREE,
+                    core::ptr::null_mut(),
+                    Some(mock_adopt_evict),
+                )
+            },
+            cold
+        );
         // Pressure: acquire+release Source chunks until eviction fires. The cold adopted block
         // (COST_FREE = cheapest to lose) should be the victim; the leased one must survive.
         ADOPT_EVICTED.with(|c| c.set(core::ptr::null_mut()));
@@ -706,7 +762,11 @@ mod tests {
                 unsafe { deluge_resource_release(mgr, p) };
             }
         }
-        assert_eq!(ADOPT_EVICTED.with(|c| c.get()), cold, "the cold adopted block must be the evicted one");
+        assert_eq!(
+            ADOPT_EVICTED.with(|c| c.get()),
+            cold,
+            "the cold adopted block must be the evicted one"
+        );
         // The pinned adopted block was never evicted; release it so the heap block can be reclaimed
         // (the manager freed `cold`; we still own `pinned`'s lifetime here).
         unsafe { deluge_resource_release(mgr, pinned) };

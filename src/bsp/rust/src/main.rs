@@ -30,40 +30,40 @@ mod sys {
     include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
 }
 
+/// audio_io.h — duplex block audio over the SSI0 DMA rings.
+mod audio;
+/// board.h — capability descriptor + GPIO/audio/CV bring-up.
+mod board;
+/// C++ memory-model bring-up (SDRAM bss/data, global ctors).
+mod boot_mem;
+/// control_surface.h — pads/buttons/encoders + LEDs (M2b WIP).
+mod control;
+/// cv_gate.h — CV/gate outputs + external trigger clock.
+mod cv_gate;
+/// display.h — main OLED output over deluge_bsp::oled.
+mod display;
 /// The libdeluge C-ABI service implementations the C++ app calls (M0: stubs).
 mod ffi;
 /// Non-header app/BSP symbols (USB-host globals, FatFS glue, NE10, runtime shims).
 mod ffi_extra;
-/// Real impls of the simplest services (system.h, clock.h, memory.h).
-mod services;
-/// board.h — capability descriptor + GPIO/audio/CV bring-up.
-mod board;
-/// control_surface.h — pads/buttons/encoders + LEDs (M2b WIP).
-mod control;
-/// display.h — main OLED output over deluge_bsp::oled.
-mod display;
-/// audio_io.h — duplex block audio over the SSI0 DMA rings.
-mod audio;
-/// block_device.h + FatFS diskio — SD card over deluge_bsp::sd.
-mod sd;
-/// flash.h — persistent settings flash over deluge_bsp::flash / spibsc.
-mod flash;
-/// cv_gate.h — CV/gate outputs + external trigger clock.
-mod cv_gate;
-/// midi_io.h — DIN MIDI over deluge_bsp::uart (+ USB-MIDI peripheral, see usb).
-mod midi;
-/// USB device bring-up — USB-MIDI 1.0 peripheral (Deluge → computer).
-mod usb;
-/// signals.h — board GPIO signals, battery, MIDI/gate timer.
-mod signals;
-/// C++ memory-model bring-up (SDRAM bss/data, global ctors).
-mod boot_mem;
-/// scheduler.h / OSLikeStuff scheduler_api.h — the cooperative task scheduler,
-/// implemented on the Embassy executor (one task per registered Deluge task).
-mod scheduler;
 /// The worker fiber: a stackful coroutine for the long synchronous C++ operations
 /// that pause via `yield()` (Phase 6). This module is the context-switch primitive.
 mod fiber;
+/// flash.h — persistent settings flash over deluge_bsp::flash / spibsc.
+mod flash;
+/// midi_io.h — DIN MIDI over deluge_bsp::uart (+ USB-MIDI peripheral, see usb).
+mod midi;
+/// scheduler.h / OSLikeStuff scheduler_api.h — the cooperative task scheduler,
+/// implemented on the Embassy executor (one task per registered Deluge task).
+mod scheduler;
+/// block_device.h + FatFS diskio — SD card over deluge_bsp::sd.
+mod sd;
+/// Real impls of the simplest services (system.h, clock.h, memory.h).
+mod services;
+/// signals.h — board GPIO signals, battery, MIDI/gate timer.
+mod signals;
+/// USB device bring-up — USB-MIDI 1.0 peripheral (Deluge → computer).
+mod usb;
 
 unsafe extern "C" {
     /// One-time C++ application bring-up (deluge.cpp / app.h). On this BSP it also
@@ -149,7 +149,10 @@ pub extern "C" fn main() -> ! {
     // Rust SDRAM allocator gets the reserved top slice; the app owns the rest
     // (its heap runs __heap_start .. deluge_memory_external_end()).
     unsafe {
-        allocator::SDRAM.init(boot_mem::RUST_SDRAM_BASE as *mut u8, boot_mem::RUST_SDRAM_RESERVE)
+        allocator::SDRAM.init(
+            boot_mem::RUST_SDRAM_BASE as *mut u8,
+            boot_mem::RUST_SDRAM_RESERVE,
+        )
     };
     log::info!("deluge-rust: SDRAM memory image ready");
 
@@ -304,9 +307,12 @@ async fn app_task() {
     loop {
         let busy = fiber::worker_poll();
         if busy {
-            let _ = select(fiber::WORKER_WAKE.wait(), embassy_time::Timer::after_millis(8)).await;
-        }
-        else {
+            let _ = select(
+                fiber::WORKER_WAKE.wait(),
+                embassy_time::Timer::after_millis(8),
+            )
+            .await;
+        } else {
             fiber::WORKER_WAKE.wait().await;
         }
     }

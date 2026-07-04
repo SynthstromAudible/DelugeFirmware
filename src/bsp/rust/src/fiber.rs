@@ -43,7 +43,13 @@ struct Ctx {
 
 impl Ctx {
     const fn zeroed() -> Self {
-        Ctx { core: [0; 8], sp: 0, lr: 0, vfp: [0; 16], fpscr: 0 }
+        Ctx {
+            core: [0; 8],
+            sp: 0,
+            lr: 0,
+            vfp: [0; 16],
+            fpscr: 0,
+        }
     }
 }
 
@@ -133,7 +139,12 @@ extern "C" fn trampoline() -> ! {
 /// Switch from the fiber back to main (called on the fiber — `yield`/completion).
 fn switch_to_main() {
     // SAFETY: only called while executing on the fiber; both contexts are valid.
-    unsafe { fiber_switch(core::ptr::addr_of_mut!(FIBER_CTX), core::ptr::addr_of!(MAIN_CTX)) };
+    unsafe {
+        fiber_switch(
+            core::ptr::addr_of_mut!(FIBER_CTX),
+            core::ptr::addr_of!(MAIN_CTX),
+        )
+    };
 }
 
 /// Start `f(ctx)` on the fiber (must be idle). Runs it until it yields or
@@ -159,7 +170,12 @@ pub fn start(f: extern "C" fn(*mut c_void), ctx: *mut c_void) -> bool {
 pub fn resume() -> bool {
     ON_FIBER.store(true, Ordering::Relaxed);
     // SAFETY: switches into the fiber; returns here when it yields/completes.
-    unsafe { fiber_switch(core::ptr::addr_of_mut!(MAIN_CTX), core::ptr::addr_of!(FIBER_CTX)) };
+    unsafe {
+        fiber_switch(
+            core::ptr::addr_of_mut!(MAIN_CTX),
+            core::ptr::addr_of!(FIBER_CTX),
+        )
+    };
     ON_FIBER.store(false, Ordering::Relaxed);
     unsafe { core::ptr::addr_of!(FIBER_DONE).read() }
 }
@@ -229,7 +245,10 @@ pub extern "C" fn deluge_worker_run(f: extern "C" fn(*mut c_void), ctx: *mut c_v
     unsafe {
         if Q_COUNT < QUEUE_CAP {
             let tail = (Q_HEAD + Q_COUNT) % QUEUE_CAP;
-            core::ptr::addr_of_mut!(QUEUE).cast::<Option<Job>>().add(tail).write(Some((f, ctx)));
+            core::ptr::addr_of_mut!(QUEUE)
+                .cast::<Option<Job>>()
+                .add(tail)
+                .write(Some((f, ctx)));
             Q_COUNT += 1;
         }
         // else: queue full (should not happen for user actions) — drop.
@@ -245,7 +264,10 @@ fn dequeue() -> Option<Job> {
             return None;
         }
         let head = Q_HEAD;
-        let job = core::ptr::addr_of_mut!(QUEUE).cast::<Option<Job>>().add(head).replace(None);
+        let job = core::ptr::addr_of_mut!(QUEUE)
+            .cast::<Option<Job>>()
+            .add(head)
+            .replace(None);
         Q_HEAD = (Q_HEAD + 1) % QUEUE_CAP;
         Q_COUNT -= 1;
         job
@@ -376,13 +398,21 @@ pub fn selftest() -> bool {
     let stage_after_start = unsafe { core::ptr::addr_of!(SELFTEST_STAGE).read() };
     // Expect: ran to the yield (stage 1), not yet done.
     if done_first || stage_after_start != 1 {
-        log::error!("fiber selftest: FAILED at start (done={}, stage={})", done_first, stage_after_start);
+        log::error!(
+            "fiber selftest: FAILED at start (done={}, stage={})",
+            done_first,
+            stage_after_start
+        );
         return false;
     }
     let done_second = resume();
     let stage_final = unsafe { core::ptr::addr_of!(SELFTEST_STAGE).read() };
     if !done_second || stage_final != 2 {
-        log::error!("fiber selftest: FAILED at resume (done={}, stage={})", done_second, stage_final);
+        log::error!(
+            "fiber selftest: FAILED at resume (done={}, stage={})",
+            done_second,
+            stage_final
+        );
         return false;
     }
     log::info!("fiber selftest: PASSED (round trip + yield/resume OK)");

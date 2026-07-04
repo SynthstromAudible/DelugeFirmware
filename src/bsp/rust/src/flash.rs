@@ -67,7 +67,8 @@ pub extern "C" fn deluge_flash_program(offset: u32, src: *const c_void, len: u32
     // Read-back verification through both windows to pin down the "overwrite".
     let cached = spibsc::SPI_FLASH_BASE + flash::DELUGE_SETTINGS_OFFSET + offset;
     let uncached = cached + UNCACHED_FLASH_MIRROR;
-    let rb_cached = unsafe { core::slice::from_raw_parts(cached as *const u8, len.min(8) as usize) };
+    let rb_cached =
+        unsafe { core::slice::from_raw_parts(cached as *const u8, len.min(8) as usize) };
     let rb_uncached =
         unsafe { core::slice::from_raw_parts(uncached as *const u8, len.min(8) as usize) };
     log::info!("flash: readback cached={rb_cached:02x?} uncached={rb_uncached:02x?}");

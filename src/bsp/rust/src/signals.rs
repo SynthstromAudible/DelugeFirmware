@@ -124,7 +124,14 @@ fn gate_timer_isr() {
 /// # Safety
 /// Writes MTU2 + GIC registers; call once during single-threaded startup.
 pub(crate) unsafe fn gate_timer_setup() {
-    unsafe { mtu2::setup_one_shot(GATE_TIMER_CH, GATE_TIMER_PRESCALER, gate_timer_isr, GATE_TIMER_PRIORITY) };
+    unsafe {
+        mtu2::setup_one_shot(
+            GATE_TIMER_CH,
+            GATE_TIMER_PRESCALER,
+            gate_timer_isr,
+            GATE_TIMER_PRIORITY,
+        )
+    };
 }
 
 #[unsafe(no_mangle)]
