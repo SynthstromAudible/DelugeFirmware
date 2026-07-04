@@ -69,6 +69,22 @@ add_compile_options(-fsigned-char)
 # triage (gdb backtraces, member inspection) tractable.
 add_compile_options(-g)
 
+# Clang-specific host-sim adjustments (the default host toolchain is GCC; Clang is a
+# supported alternative for its diagnostics/sanitizers).
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # The default -m32 sim links against GCC's runtime, but a multilib system may ship no
+    # 32-bit libgcc_s.so link stub (only libgcc_s.so.1). GCC resolves -lgcc_s via collect2;
+    # Clang does not, and the link fails with "cannot find -lgcc_s". Link libgcc statically
+    # to drop the shared -lgcc_s dependency at link time (the .so.1 is still pulled in at
+    # runtime via libstdc++, which is fine).
+    add_link_options(-static-libgcc)
+
+    # validateParams() (modulation/params/param.cpp) does O(N^2) constexpr string matching in
+    # a static_assert. That exceeds Clang's default -fconstexpr-steps budget; GCC's equivalent
+    # -fconstexpr-ops-limit default is far higher, so it compiles there. Raise the ceiling.
+    add_compile_options(-fconstexpr-steps=100000000)
+endif()
+
 # Section GC, mirroring the firmware link. Beyond size, it strips genuinely-dead code
 # whose refs would otherwise fail to resolve — e.g. the NE10 float32 FFT path (Deluge
 # only uses the int32 FFT), which references ne10_fft_alloc_c2c_float32_c (never compiled).
