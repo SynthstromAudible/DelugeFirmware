@@ -304,6 +304,10 @@ set_target_properties(deluge_rust_sim PROPERTIES IMPORTED_LOCATION ${SIM_RUST_LI
 add_dependencies(deluge_rust_sim sim_deluge_rust_build)
 # Libs the host Rust std staticlib references; linked into the sim executables below.
 set(SIM_ALLOC_LINK deluge_rust_sim pthread dl m)
+if(APPLE)
+    # host_pcm.c's native CoreAudio (AudioQueue) audio backend.
+    list(APPEND SIM_ALLOC_LINK "-framework AudioToolbox")
+endif()
 
 # The host executable: the portable app + the host BSP + the scheduler. deluge_app
 # is an OBJECT lib (its objects embed here); deluge_scheduler is STATIC (resolves
