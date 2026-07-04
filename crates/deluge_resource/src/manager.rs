@@ -1203,7 +1203,7 @@ pub unsafe extern "C" fn deluge_resource_evict_chunk(handle: *mut DelugeResource
 
 /// Adopt an externally-allocated heap block as a manager-evictable (object-lifecycle) chunk:
 /// the owner allocated + built it; the manager owns only its eviction (value-scored by cost-per-byte
-/// + recency — so pass the block's `size` in bytes). On eviction it calls `on_evict(ctx, ptr)` then
+/// and recency — so pass the block's `size` in bytes). On eviction it calls `on_evict(ctx, ptr)` then
 /// frees `ptr`. Registered unleased (pin via `deluge_resource_add_lease`). Returns `ptr`, or null if
 /// the chunk table is full and nothing is evictable. The adopt counterpart to define_asset+acquire.
 #[no_mangle]

@@ -281,7 +281,7 @@ mod tests {
             // the payload; prev_phys is its first pointer, size_and_flags the next word).
             // Setting the top bit makes the block claim it runs past the pool end.
             let ptr_sz = core::mem::size_of::<usize>();
-            let saf = (a as *mut u8).sub(16 - ptr_sz) as *mut usize;
+            let saf = a.sub(16 - ptr_sz) as *mut usize;
             let orig = saf.read();
             saf.write(orig | (1usize << (usize::BITS - 1)));
             assert!(!deluge_heap_check(h), "corruption must be detected");
