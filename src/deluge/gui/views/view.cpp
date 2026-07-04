@@ -2778,7 +2778,8 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 
 	// No break
 	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
-	[[fallthrough]] // fall through into UI_MODE_STUTTERING so you can toggle clip status while holding a clip
+		// fall through into UI_MODE_STUTTERING so you can toggle clip status while holding a clip
+		[[fallthrough]];
 	case UI_MODE_STUTTERING:
 		// this code is needed to allow users to launch clips while stuttering
 		// without it the deluge becomes unresponsive if you try to launch a clip while stuttering

@@ -18,7 +18,13 @@ FetchContent_Declare(argon
         # i386 MMX register and get corrupted — that mangled `ArgonHalf<float> = 16.0f` to
         # [NaN, 16], which NaN'd the Mutable reverb's cosine LFO and railed the host-sim
         # output. Host-sim only (native NEON was always fine). Covered by lane_spec.cpp.
-        GIT_TAG cae5738c8e4119448ea80df691c297c4c8bc2d5e
+        # 0a2399f (merges cd6b9c3 "Fix each_lane/each_lane_with_index for Clang"): each_lane
+        # bound a non-const reference directly to a vector subscript (out[i]), a GCC extension
+        # Clang rejects. Now round-trips each lane through a scalar — behaviour-identical and
+        # perf-neutral/better on ARM-NEON and SIMDe alike (a vector lane isn't addressable
+        # in-register, so the extract/insert was always there). Required for the Clang host-sim.
+        # The intervening a322da4/5781330/d5cddc6 are MSVC/CI-only, no DSP behaviour change.
+        GIT_TAG 0a2399fc24b61ecf41d9204838ce0948faac136b
 )
 FetchContent_MakeAvailable(argon)
 

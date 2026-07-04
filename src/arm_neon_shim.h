@@ -24,7 +24,12 @@
 #define ARM_NEON_SHIM_H
 // this exists to make clang happy because it doesn't use the same types as gcc neon.
 // clangd defins __GNUC__ for us so can't check on that
-#ifndef __clang__
+//
+// The host-sim build (DELUGE_HOST) gets its NEON types from SIMDe via the compat
+// <arm_neon.h> shim — including SIMDe *and* the hand-rolled typedefs below would be a
+// redefinition clash under clang — so route the host build through "arm_neon.h" too.
+// Only a bare-metal clang firmware build (no SIMDe) falls through to the manual typedefs.
+#if !defined(__clang__) || defined(DELUGE_HOST)
 #include "arm_neon.h" // IWYU pragma: export
 #else
 

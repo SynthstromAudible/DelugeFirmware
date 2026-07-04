@@ -263,7 +263,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			// Remember unknown settings for writing them back
 			if (!found) {
 				try {
-					unknownSettings.push_back(UnknownSetting{currentName, currentValue});
+					unknownSettings.push_back(UnknownSetting{currentName, static_cast<uint32_t>(currentValue)});
 				} catch (deluge::exception&) {
 					return;
 				}
