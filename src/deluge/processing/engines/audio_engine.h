@@ -198,7 +198,7 @@ extern bool bypassCulling;
 // sample recorders) reads this, never the hardware DMA ring. Same geometry as
 // the board's RX ring: SSI_RX_BUFFER_NUM_SAMPLES frames of
 // NUM_MONO_INPUT_CHANNELS interleaved q31 samples.
-extern uint32_t inputRingPos; // read cursor: input aligned with the next output sample
+extern uintptr_t inputRingPos; // read cursor (an address): input aligned with the next output sample
 int32_t* inputRingStart();
 int32_t* inputRingEnd();
 extern int32_t cpuDireness;
