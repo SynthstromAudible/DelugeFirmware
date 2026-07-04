@@ -16,6 +16,23 @@ repos:
         types_or: [c, c++]
   - repo: local
     hooks:
+      # Rust has two separate workspaces (crates/ and src/bsp/rust/); cargo fmt
+      # is per-manifest, so each needs its own hook. --check only (no rewrite) to
+      # match the other formatters' fail-and-report behaviour in this file.
+      - id: cargo-fmt-crates
+        name: rustfmt (crates)
+        entry: cargo fmt --manifest-path crates/Cargo.toml --all --check --
+        language: system
+        types: [rust]
+        files: ^crates/.*\.rs$
+        pass_filenames: false
+      - id: cargo-fmt-bsp
+        name: rustfmt (bsp)
+        entry: cargo fmt --manifest-path src/bsp/rust/Cargo.toml --check --
+        language: system
+        types: [rust]
+        files: ^src/bsp/rust/.*\.rs$
+        pass_filenames: false
       - id: libdeluge-boundary
         name: libdeluge platform boundary
         description: src/deluge must include <libdeluge/...>, not HAL headers directly

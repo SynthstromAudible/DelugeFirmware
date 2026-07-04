@@ -1,0 +1,68 @@
+name: Rust
+
+# Stub CI for the Deluge Rust core (crates/) and the Rust BSP (src/bsp/rust/).
+# Starting point — fmt + clippy + host tests on the `crates/` workspace, which
+# builds on stable host targets (i686/x86_64) without -Z build-std. The bare-metal
+# BSP clippy/build (armv7a-none-eabihf, needs build-std + the deluge-sdk setup) is
+# left as a TODO below; wire it in once the device build is reproducible in CI.
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+  merge_group:
+  workflow_dispatch:
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Toolchain (nightly + components) is pinned by each rust-toolchain.toml;
+      # rustup installs it on first cargo invocation. Ensure rustfmt is present.
+      - name: Install rustfmt
+        run: rustup component add rustfmt
+
+      - name: rustfmt (crates)
+        run: cargo fmt --manifest-path crates/Cargo.toml --all --check
+
+      - name: rustfmt (bsp)
+        run: cargo fmt --manifest-path src/bsp/rust/Cargo.toml --check
+
+  clippy:
+    name: clippy + tests (crates)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install clippy
+        run: rustup component add clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "crates"
+
+      - name: clippy (crates)
+        run: cargo clippy --manifest-path crates/Cargo.toml --all-targets -- -D warnings
+
+      - name: test (crates)
+        run: cargo test --manifest-path crates/Cargo.toml
+
+  # TODO: BSP clippy/build for armv7a-none-eabihf. Needs nightly -Z build-std
+  # (rust-src is already pinned in src/bsp/rust/rust-toolchain.toml) and the
+  # deluge-sdk toolchain setup. Add once the device build runs cleanly in CI:
+  #
+  # bsp:
+  #   name: clippy (bsp)
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - run: rustup component add clippy rust-src
+  #     - run: cargo clippy --manifest-path src/bsp/rust/Cargo.toml
+  #             --target armv7a-none-eabihf -Z build-std=core,alloc -- -D warnings
