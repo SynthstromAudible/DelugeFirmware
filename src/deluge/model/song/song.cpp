@@ -1751,6 +1751,20 @@ loadOutput:
 		}
 	}
 
+	// Phase C (DOM single-store): borrow-point each AudioClip's unpatched automation node storage at a
+	// DOM-owned DocParamSet anchored on the ParamSet (Model A), mirroring the song-global borrow below. Every
+	// edit + undo then operates on DOM-owned data and save reads it directly. The store lives on the heap-stable,
+	// never-relocating ParamSet, so it survives the clip through ParamBackup steal/restore. AudioClips carry a
+	// single unpatched set (GlobalEffectableForClip); InstrumentClips/kits are later Movement-1 steps.
+	for (ClipArray* clipArray : arrays) {
+		for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
+			Clip* thisClip = (*clipArray)[c];
+			if (thisClip->type == ClipType::AUDIO && thisClip->paramManager.containsAnyMainParamCollections()) {
+				thisClip->paramManager.getUnpatchedParamSet()->bindDomStore();
+			}
+		}
+	}
+
 	AudioEngine::logAction("matched up");
 
 	AudioEngine::routineWithClusterLoading();

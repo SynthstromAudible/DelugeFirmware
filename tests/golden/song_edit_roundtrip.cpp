@@ -22,12 +22,15 @@
 #include "hid/display/display.h"
 #include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/clip.h"
+#include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -98,6 +101,34 @@ int main(int argc, char** argv) {
 		std::fprintf(stderr, "LOADFAIL original -> Error %d\n", (int)e1);
 		_exit(1);
 	}
+
+	// Phase C gate: every loaded AudioClip's unpatched set must be BOUND to a DOM store (bindDomStore ran in
+	// the post-load loop), and the borrow must be live — engine nodes() aliases the store lane. Run against a
+	// song with audio clips (Sampling.XML) to exercise this; songs without audio clips just report seen=0.
+	{
+		int32_t audioClipsSeen = 0, audioClipsBound = 0;
+		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
+		                                     &song->project.clips.arrangement_only_clips};
+		for (ClipArray* arr : clipArrays) {
+			for (int32_t c = 0; c < std::ssize(*arr); c++) {
+				Clip* clip = (*arr)[c];
+				if (clip->type != ClipType::AUDIO || !clip->paramManager.containsAnyMainParamCollections()) {
+					continue;
+				}
+				audioClipsSeen++;
+				UnpatchedParamSet* unp = clip->paramManager.getUnpatchedParamSet();
+				if (unp->domStore() != nullptr && &unp->params[0].nodes() == &unp->domStore()->params[0].nodes) {
+					audioClipsBound++;
+				}
+			}
+		}
+		std::fprintf(stderr, "audio clips: seen=%d bound=%d\n", audioClipsSeen, audioClipsBound);
+		if (audioClipsSeen != audioClipsBound) {
+			std::fprintf(stderr, "PHASE C: an AudioClip loaded UNBOUND (borrow not live)\n");
+			_exit(3);
+		}
+	}
+
 	// The store is populated by the <songParams> read; seed it from the engine if the song had none.
 	if (!song->project.global_fx.params.unpatched) {
 		song->project.global_fx.params.unpatched =
