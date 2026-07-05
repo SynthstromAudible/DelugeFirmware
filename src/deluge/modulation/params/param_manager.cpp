@@ -172,6 +172,10 @@ void ParamManager::bindMainParamSetDomStores() {
 	if (summaries[1].paramCollection != nullptr) {
 		static_cast<ParamSet*>(summaries[1].paramCollection)->bindDomStore();
 	}
+	// Expression (MPE) set, if present — also a ParamSet (at expressionParamSetOffset, not a fixed slot).
+	if (ExpressionParamSet* expression = getExpressionParamSet()) {
+		expression->bindDomStore();
+	}
 }
 
 Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation,

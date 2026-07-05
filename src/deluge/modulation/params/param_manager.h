@@ -63,9 +63,9 @@ public:
 	// Not including MPE params
 	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
 
-	/// Phase C (DOM single-store, Model A): borrow-point this manager's main ParamSets — unpatched always, and
-	/// patched if present — at DOM-owned DocParamSets anchored on the sets. Idempotent. Audio/kit clip-level
-	/// managers bind their unpatched set only; synth/drum managers add the patched set.
+	/// Phase C (DOM single-store, Model A): borrow-point this manager's ParamSets — unpatched always, patched
+	/// if present, and expression (MPE) if present — at DOM-owned DocParamSets anchored on the sets. Idempotent.
+	/// Audio/kit clip-level managers bind their unpatched set only; synth/drum managers add patched (+ expression).
 	/// PRECONDITION: only call on a Sound / GlobalEffectable manager (summaries[0] is an UnpatchedParamSet).
 	/// A MIDI manager ALSO reports containsAnyMainParamCollections()==true but holds a MIDIParamCollection at
 	/// summaries[0] (not a ParamSet) — binding it would corrupt it. Callers gate on SYNTH/KIT clips + SoundDrum.

@@ -1523,6 +1523,23 @@ int main() {
 		check(copy.params[2].nodes().size() == unp->params[2].nodes().size(), "bindDomStore: copy has same node count");
 	}
 
+	// Phase C (kit/expression): ParamManager::bindMainParamSetDomStores binds unpatched + patched + expression
+	// (when present) in one call — the common Model A binding used by the synth/kit/drum owners. The corpus has
+	// no MPE data, so this is where the expression-set binding is exercised.
+	{
+		auto liveBound = [](ParamSet* s) {
+			return s->domStore() != nullptr && &s->params[0].nodes() == &s->domStore()->params[0].nodes;
+		};
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "helper: setup");
+		ExpressionParamSet* expr = pm.getOrCreateExpressionParamSet();
+		check(expr != nullptr, "helper: expression set created");
+		pm.bindMainParamSetDomStores();
+		check(liveBound(pm.getUnpatchedParamSet()), "helper: unpatched bound");
+		check(liveBound(pm.getPatchedParamSet()), "helper: patched bound");
+		check(liveBound(pm.getExpressionParamSet()), "helper: expression bound");
+	}
+
 	// Phase C (Model A / C4): the DOM store survives a ParamBackup steal -> restore. The store is anchored to
 	// the ParamSet, and stealParamCollectionsFrom moves only the summary POINTER (the ParamSet object never
 	// relocates), so every borrowing AutoParam keeps its address and its borrow stays valid while parked and
