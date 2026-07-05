@@ -10,6 +10,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_backup.h"
 #include "deluge-project/param_edit.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/mod_controllable/filters/filter_config.h"
@@ -1520,6 +1521,51 @@ int main() {
 		check(copy.domStore() == nullptr, "bindDomStore: a copy starts unbound");
 		check(&copy.params[2].nodes() != &store->params[2].nodes, "bindDomStore: a copy owns independent storage");
 		check(copy.params[2].nodes().size() == unp->params[2].nodes().size(), "bindDomStore: copy has same node count");
+	}
+
+	// Phase C (Model A / C4): the DOM store survives a ParamBackup steal -> restore. The store is anchored to
+	// the ParamSet, and stealParamCollectionsFrom moves only the summary POINTER (the ParamSet object never
+	// relocates), so every borrowing AutoParam keeps its address and its borrow stays valid while parked and
+	// after restore. This is the golden-blind lifetime the load/save harness cannot see.
+	{
+		ParamManagerForTimeline live;
+		check(live.setupWithPatching() == Error::NONE, "steal: live setup");
+		live.getUnpatchedParamSet()->bindDomStore();
+		UnpatchedParamSet* liveUnp = live.getUnpatchedParamSet();
+		deluge::project::DocParamSet* storeAddr = liveUnp->domStore();
+		check(storeAddr != nullptr, "steal: live set is bound");
+		setNode(liveUnp->params[3], 0, 555, true);
+		setNode(liveUnp->params[3], 48, -666, false);
+		void* setAddrBefore = liveUnp; // the ParamSet object's address — must not change across steal
+
+		deluge::project::ParamBackup backup;
+		auto* mc = reinterpret_cast<ModControllableAudio*>(0x1000); // pure map keys; never dereferenced
+		auto* clipKey = reinterpret_cast<Clip*>(0x2000);
+
+		// Steal the live manager's collections into the backup ("park" it, as clip teardown does).
+		backup.backUp(mc, clipKey, &live);
+		ParamManager* parked = backup.getForExactClip(mc, clipKey); // peek, no stealInto
+		check(parked != nullptr, "steal: parked entry present");
+		UnpatchedParamSet* parkedUnp = parked->getUnpatchedParamSet();
+		check(static_cast<void*>(parkedUnp) == setAddrBefore, "steal: ParamSet object did not relocate");
+		check(parkedUnp->domStore() == storeAddr, "steal: DOM store address unchanged while parked");
+		check(&parkedUnp->params[3].nodes() == &storeAddr->params[3].nodes, "steal: borrow still live while parked");
+		check(parkedUnp->params[3].nodes().size() == 2, "steal: automation intact while parked");
+		// An edit while parked lands in the same DOM store.
+		setNode(parkedUnp->params[3], 24, 999, false);
+		check(storeAddr->params[3].nodes.size() == 3, "steal: edit while parked lands in the DOM store");
+
+		// Restore back into the (now-emptied) live manager, as solicitParamManager does on re-add.
+		ParamManager* restored = backup.getForExactClip(mc, clipKey, &live); // steals collections back, erases entry
+		check(restored == &live, "steal: restored into the live manager");
+		UnpatchedParamSet* restUnp = live.getUnpatchedParamSet();
+		check(static_cast<void*>(restUnp) == setAddrBefore, "steal: restored the same ParamSet object");
+		check(restUnp->domStore() == storeAddr, "steal: same DOM store after restore");
+		check(restUnp->params[3].nodes().size() == 3 && restUnp->params[3].nodes()[0].value == 555,
+		      "steal: automation survived the round trip");
+		check(backup.getForExactClip(mc, clipKey) == nullptr, "steal: backup entry consumed by restore");
+		// `live` (holding the ParamSet + its RAII DOM store) is destructed at scope exit: params_ die before
+		// domStore_, so no borrower outlives the store — a clean teardown (no dangle / double free).
 	}
 
 	if (failures == 0) {
