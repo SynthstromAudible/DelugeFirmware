@@ -180,6 +180,13 @@ deleteClipAndGetOut:
 	newClip->soloingInSessionMode = false;
 	newClip->output = output;
 
+	// Phase C (InstrumentClip, synth): bind the freshly-cloned (unbound) unpatched + patched sets to fresh DOM
+	// stores (Model A), like AudioClip::clone. Synth only; kit/drum params + patch cables are later steps.
+	if (output->type == OutputType::SYNTH && newClip->paramManager.containsAnyMainParamCollections()) {
+		newClip->paramManager.getUnpatchedParamSet()->bindDomStore();
+		newClip->paramManager.getPatchedParamSet()->bindDomStore();
+	}
+
 	try {
 		newClip->noteRows = noteRows; // deep copy-assign (each NoteRow's param manager + notes copied)
 	} catch (deluge::exception&) {
@@ -2301,6 +2308,14 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, song, this);
 		((Instrument*)output)->setupPatching(modelStack);
+	}
+
+	// Phase C (InstrumentClip, synth): bind the (freshly set up / cloned-from-favour) unpatched + patched sets
+	// to DOM stores. bindDomStore is idempotent, so a ParamBackup-restored manager (whose store travelled with
+	// the ParamSet) is left untouched. Synth only; patch cables + kit drums are later steps.
+	if (newInstrument->type == OutputType::SYNTH && paramManager.containsAnyMainParamCollections()) {
+		paramManager.getUnpatchedParamSet()->bindDomStore();
+		paramManager.getPatchedParamSet()->bindDomStore();
 	}
 
 	return Error::NONE;

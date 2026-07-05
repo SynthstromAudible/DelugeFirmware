@@ -193,6 +193,16 @@ int main(int argc, char** argv) {
 		if (hasMainParams) {
 			check(clone->paramManager.getUnpatchedParamSet() != srcUnpatched,
 			      "plain clone: unpatched param set is a distinct object");
+			// Phase C (InstrumentClip, synth): a cloned synth clip's unpatched + patched sets are DOM-bound
+			// (InstrumentClip::clone runs bindDomStore) with a live borrow.
+			if (src->output != nullptr && src->output->type == OutputType::SYNTH) {
+				UnpatchedParamSet* cu = clone->paramManager.getUnpatchedParamSet();
+				PatchedParamSet* cp = clone->paramManager.getPatchedParamSet();
+				check(cu->domStore() != nullptr && &cu->params[0].nodes() == &cu->domStore()->params[0].nodes,
+				      "plain clone (synth): unpatched set DOM-bound with live borrow");
+				check(cp->domStore() != nullptr && &cp->params[0].nodes() == &cp->domStore()->params[0].nodes,
+				      "plain clone (synth): patched set DOM-bound with live borrow");
+			}
 		}
 
 		// Deep independence: mutate the source's note, the clone must not move.
