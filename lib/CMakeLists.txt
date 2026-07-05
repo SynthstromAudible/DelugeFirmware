@@ -24,7 +24,10 @@ FetchContent_Declare(argon
         # perf-neutral/better on ARM-NEON and SIMDe alike (a vector lane isn't addressable
         # in-register, so the extract/insert was always there). Required for the Clang host-sim.
         # The intervening a322da4/5781330/d5cddc6 are MSVC/CI-only, no DSP behaviour change.
-        GIT_TAG 0a2399fc24b61ecf41d9204838ce0948faac136b
+        # 3fd79c9 "store: fall back to index-based chunking": store() used std::views::chunk,
+        # unimplemented in libc++ (through LLVM 22), so it failed to compile on the macOS host-sim.
+        # Now guarded on __cpp_lib_ranges_chunk with a behaviour-identical index-based fallback.
+        GIT_TAG 3fd79c975ab04815f894dde9e19a5ba93bda0432
 )
 FetchContent_MakeAvailable(argon)
 
