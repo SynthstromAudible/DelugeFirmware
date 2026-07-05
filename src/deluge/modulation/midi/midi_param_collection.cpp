@@ -17,6 +17,7 @@
 
 #include "modulation/midi/midi_param_collection.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -41,8 +42,31 @@ MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
 	summary->whichParamsAreInterpolating[0] = 0;
 }
 
+// domStore_ intentionally left null: a cloned collection starts UNBOUND (owns its nodes) until separately bound.
+MIDIParamCollection::MIDIParamCollection(MIDIParamCollection const& other)
+    : ParamCollection(other), params(other.params) {
+}
+
 MIDIParamCollection::~MIDIParamCollection() {
 	deleteAllParams(NULL, false);
+}
+
+void MIDIParamCollection::bindDomStore() {
+	if (domStore_) {
+		return; // already bound
+	}
+	// Size the store to the CC count present now; each CC's AutoParam borrows its slot. CCs learned later stay
+	// unbound (their AutoParams self-own) — the store is never grown, so these borrow pointers never dangle even
+	// as the MIDIParamVector relocates on a subsequent insert (the borrow travels with the AutoParam's move).
+	domStore_ = std::make_unique<deluge::project::DocParamSet>();
+	domStore_->params.resize(params.size());
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		params[i].param.borrowNodeStorage(&domStore_->params[i].nodes);
+	}
+}
+
+deluge::project::DocParamSet* MIDIParamCollection::domStore() {
+	return domStore_.get();
 }
 
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {

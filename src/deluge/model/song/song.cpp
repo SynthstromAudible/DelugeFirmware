@@ -51,6 +51,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
 #include "model/voice/voice_sample.h"
+#include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -1968,6 +1969,13 @@ skipInstance:
 						if (noteRow.drum != nullptr && noteRow.drum->type == DrumType::SOUND) {
 							noteRow.paramManager.bindMainParamSetDomStores(); // per-SoundDrum: unpatched + patched
 						}
+					}
+				}
+				else if (ot == OutputType::MIDI_OUT || ot == OutputType::CV) {
+					// MIDI/CV clip managers hold a MIDIParamCollection (variable per-CC AutoParams), NOT a
+					// ParamSet — bind via its own store anchored on the heap-stable collection.
+					if (thisClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+						thisClip->paramManager.getMIDIParamCollection()->bindDomStore();
 					}
 				}
 			}

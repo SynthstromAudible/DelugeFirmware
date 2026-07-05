@@ -21,15 +21,23 @@
 #include "io/midi/midi_engine.h"
 #include "modulation/midi/midi_param_vector.h"
 #include "modulation/params/param_collection.h"
+#include <memory>
 
 class Clip;
 class ModelStackWithParamCollection;
 class Serializer;
 class Deserializer;
 
+namespace deluge::project {
+struct DocParamSet;
+}
+
 class MIDIParamCollection final : public ParamCollection {
 public:
 	MIDIParamCollection(ParamCollectionSummary* summary);
+	/// Copy (used by clone()) deep-copies `params` (and each embedded AutoParam, which becomes self-owning) and
+	/// leaves the clone UNBOUND (domStore_ null) — a cloned collection owns its nodes until separately bound.
+	MIDIParamCollection(MIDIParamCollection const& other);
 	~MIDIParamCollection() override;
 	/// to avoid spamming midi we interpolate in ticks instead of in samples like internal synths. This is mostly
 	/// unnoticeable but limits the amount of data sent
@@ -74,6 +82,18 @@ public:
 
 	MIDIParamVector params;
 
+	/// Phase C (DOM single-store, Model A): borrow-point each present CC param's automation nodes at a DOM store
+	/// anchored on this (heap-stable) collection. Sized once to the current CC count; CCs learned LATER stay
+	/// unbound (self-owned) — the AutoParam's borrow travels through the MIDIParamVector's grow/relocation
+	/// (implicit move), so existing bindings stay valid. Idempotent.
+	void bindDomStore();
+	/// The bound DOM store, or nullptr if unbound. (Test / inspection accessor.)
+	deluge::project::DocParamSet* domStore();
+
 private:
+	/// DOM-owned node store this collection's CC AutoParams borrow (nullptr = unbound). RAII-freed with the
+	/// collection (which is heap-allocated at a stable address, so the store address never moves).
+	std::unique_ptr<deluge::project::DocParamSet> domStore_;
+
 	void deleteAllParams(Action* action = NULL, bool deleteStorageToo = true);
 };

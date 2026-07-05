@@ -18,6 +18,8 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/midi/midi_param.h"
+#include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -1538,6 +1540,41 @@ int main() {
 		check(liveBound(pm.getUnpatchedParamSet()), "helper: unpatched bound");
 		check(liveBound(pm.getPatchedParamSet()), "helper: patched bound");
 		check(liveBound(pm.getExpressionParamSet()), "helper: expression bound");
+	}
+
+	// Phase C (MIDI-CC): a MIDIParamCollection's per-CC AutoParams bind to a store anchored on the (heap-stable)
+	// collection, and — the make-or-break — those borrows SURVIVE the MIDIParamVector growing when a new CC is
+	// learned (the vector relocates its MIDIParams; the borrow travels with each AutoParam's move). The corpus
+	// has no MIDI-CC automation, so this is the only coverage.
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupMIDI() == Error::NONE, "midi: setup");
+		MIDIParamCollection* mpc = pm.getMIDIParamCollection();
+		setNode(mpc->params.getOrCreateParamFromCC(10, 0)->param, 0, 111, true);
+		setNode(mpc->params.getOrCreateParamFromCC(20, 0)->param, 0, 222, false);
+		check(mpc->params.size() == 2, "midi: two CCs authored");
+
+		mpc->bindDomStore();
+		deluge::project::DocParamSet* store = mpc->domStore();
+		check(store != nullptr && store->params.size() == 2, "midi: store sized to CC count");
+		for (int32_t i = 0; i < std::ssize(mpc->params); i++) {
+			check(&mpc->params[i].param.nodes() == &store->params[i].nodes, "midi: CC borrows its store lane");
+		}
+		// Capture cc10's borrowed store-lane before growing (the store lane address is stable; the MIDIParam is not).
+		ParamNodeVector* cc10Lane = &mpc->params.getOrCreateParamFromCC(10, 0, false)->param.nodes();
+
+		// Learn a third CC (15) — the MIDIParamVector grows/relocates its elements.
+		mpc->params.getOrCreateParamFromCC(15, 0);
+		check(mpc->params.size() == 3, "midi: third CC learned (vector grew)");
+		// Re-find cc10 (relocated) — its borrow must still point at the SAME store lane, automation intact.
+		MIDIParam* p10 = mpc->params.getOrCreateParamFromCC(10, 0, false);
+		check(p10 != nullptr && &p10->param.nodes() == cc10Lane, "midi: borrow survived vector relocation");
+		check(p10->param.nodes().size() == 1 && p10->param.nodes()[0].value == 111,
+		      "midi: automation intact after grow");
+		// The newly-learned CC15 is UNBOUND (self-owned) — the store was never grown. That is fine.
+		MIDIParam* p15 = mpc->params.getOrCreateParamFromCC(15, 0, false);
+		check(&p15->param.nodes() != &store->params[0].nodes && &p15->param.nodes() != &store->params[1].nodes,
+		      "midi: newly-learned CC stays unbound");
 	}
 
 	// Phase C (Model A / C4): the DOM store survives a ParamBackup steal -> restore. The store is anchored to
