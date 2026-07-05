@@ -92,6 +92,12 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 		return error;
 	}
 
+	// Phase C: the cloned params own their storage (unbound, per the ParamSet copy-ctor); bind them to a fresh
+	// DOM store so the clone's automation is DOM-backed like a loaded clip (Model A).
+	if (newClip->paramManager.containsAnyMainParamCollections()) {
+		newClip->paramManager.getUnpatchedParamSet()->bindDomStore();
+	}
+
 	modelStack->setTimelineCounter(newClip);
 
 	newClip->activeIfNoSolo = false;
@@ -1241,6 +1247,13 @@ Error AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* ne
 	Error error = solicitParamManager(modelStack->song, nullptr, favourClipForCloningParamManager);
 	if (error != Error::NONE) {
 		return error;
+	}
+
+	// Phase C: bind the (freshly set up / cloned-from-favour) unpatched params to a DOM store. bindDomStore is
+	// idempotent, so a manager restored from ParamBackup (already bound, its store travelled with the ParamSet)
+	// is left untouched.
+	if (paramManager.containsAnyMainParamCollections()) {
+		paramManager.getUnpatchedParamSet()->bindDomStore();
 	}
 
 	outputChanged(modelStack, newOutput);

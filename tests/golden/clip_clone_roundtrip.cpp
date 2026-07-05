@@ -19,11 +19,13 @@
 #include "hid/display/display.h"
 #include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/params/param_set.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -110,6 +112,49 @@ int main(int argc, char** argv) {
 	// the runner uses this to attribute crashes correctly.
 	std::fprintf(stdout, "LOADED\n");
 	std::fflush(stdout);
+
+	// Phase C: if the song has an AudioClip, clone it and assert the clone's unpatched params are DOM-bound
+	// (AudioClip::clone runs bindDomStore) with a live borrow — the golden-blind audio-clip clone path. Run
+	// before the InstrumentClip section so songs with audio clips but no note-clips still exercise it; exit
+	// non-zero immediately on failure so the later SKIP can't mask it.
+	{
+		AudioClip* srcAudio = nullptr;
+		int32_t audioClipsSeen = 0;
+		for (ClipArray* arr : {&song->project.clips.session_clips, &song->project.clips.arrangement_only_clips}) {
+			for (int32_t i = 0; i < std::ssize(*arr); i++) {
+				Clip* c = (*arr)[i];
+				if (c->type == ClipType::AUDIO && c->paramManager.containsAnyMainParamCollections()) {
+					audioClipsSeen++;
+					if (srcAudio == nullptr) {
+						srcAudio = static_cast<AudioClip*>(c);
+					}
+				}
+			}
+		}
+		if (srcAudio != nullptr) {
+			std::fprintf(stderr, "audio clips: seen=%d, cloning one\n", audioClipsSeen);
+			char acMem[256];
+			ModelStackWithTimelineCounter* acStack = setupModelStackWithTimelineCounter(acMem, song, srcAudio);
+			Error ace = srcAudio->clone(acStack, /*shouldFlattenReversing=*/false);
+			check(ace == Error::NONE, "audio clone: returned NONE");
+			auto* acClone = static_cast<AudioClip*>(acStack->getTimelineCounter());
+			check(acClone != nullptr && acClone != srcAudio, "audio clone: distinct clip object");
+			if (acClone != nullptr && acClone != srcAudio) {
+				UnpatchedParamSet* cloneUnp = acClone->paramManager.getUnpatchedParamSet();
+				check(cloneUnp != srcAudio->paramManager.getUnpatchedParamSet(),
+				      "audio clone: unpatched set is a distinct object");
+				check(cloneUnp->domStore() != nullptr, "audio clone: unpatched params DOM-bound");
+				check(cloneUnp->domStore() != nullptr
+				          && &cloneUnp->params[0].nodes() == &cloneUnp->domStore()->params[0].nodes,
+				      "audio clone: borrow is live (nodes alias the store lane)");
+			}
+			if (failures != 0) {
+				std::fprintf(stderr, "clip_clone (audio): %d failure(s)\n", failures);
+				std::fflush(stderr);
+				_exit(4);
+			}
+		}
+	}
 
 	int32_t row = 0;
 	InstrumentClip* src = findClipWithNotes(song, &row);
